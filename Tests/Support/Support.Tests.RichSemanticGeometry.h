@@ -264,6 +264,17 @@ inline void MathWidthReflowAndTargetReplacement()
     Complete(geometry);
     Check(DxUi::RichText::Detail::testRichMathPreparations == preparations + 6u && DxUi::RichText::Detail::testRichMathConstantReads == reads + 3u,
           "font change rebuilds math rather than reusing stale geometry");
+    options.mathFontFamily = L"Segoe UI";
+    options.locale         = L"fr-FR";
+    geometry.Begin(factory.get(), document, options, drawing.get(), {}, {}, replacement.get());
+    Complete(geometry);
+    Check(DxUi::RichText::Detail::testRichMathPreparations == preparations + 8u && DxUi::RichText::Detail::testRichMathConstantReads == reads + 4u,
+          "mathematical family and locale changes retire the native math generation");
+    options.widthDip += 10.f;
+    geometry.Begin(factory.get(), document, options, drawing.get(), {}, {}, replacement.get());
+    Complete(geometry);
+    Check(DxUi::RichText::Detail::testRichMathPreparations == preparations + 8u && DxUi::RichText::Detail::testRichMathConstantReads == reads + 4u,
+          "the configured mathematical family still reuses finalized geometry across width-only reflow");
     const auto diagram = RichSemanticDocumentTests::Build(L"```mermaid\nflowchart LR\nA[Start] --> B[Finish]\n```\n", MarkdownProfile::RichMarkdown);
     geometry.Clear();
     geometry.Begin(factory.get(), diagram, options, nullptr, {}, {}, target.get());

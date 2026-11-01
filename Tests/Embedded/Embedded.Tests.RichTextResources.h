@@ -2516,7 +2516,8 @@ static void TestRichTextCooperativeSchedulingAndTextInput(GraphicsFixture& gpu)
           "one bounded embedded turn queues one continuation while pixels remain dirty");
     Check(requests.reentrantResult == E_UNEXPECTED, "a continuation callback cannot recursively drain preparation");
     const auto pending = editor->DebugGetState();
-    Check(pending.preparationPending && pending.lastAdvanceLayouts <= 4u && pending.lastAdvanceBlockSteps <= 4096u,
+    Check(pending.preparationPending && pending.lastAdvanceLayouts <= 4u && pending.lastAdvanceBlockSteps <= 4096u &&
+              pending.activeStage == DxUi::RichTextPreparationStage::Geometry && pending.lastAdvanceUploadBytes == 0u,
           "embedded preparation obeys layout and source-block budgets");
     gpu.Bind();
     Check(view.Composite(gpu.context.get(), gpu.Viewport()) == S_FALSE && ! editor->TryGetTextInputCaretRect(view.Controls(), 0u) &&

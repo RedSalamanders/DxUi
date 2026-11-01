@@ -50,6 +50,10 @@ public:
     {
         return ! next_ && revision_ == revision && generation_ == generation && numbersEnabled_ == numbers && marksEnabled_ == marks;
     }
+    bool Pending() const noexcept
+    {
+        return static_cast<bool>(next_);
+    }
     void Begin(const SourceSnapshot& source,
                std::uint64_t revision,
                std::uint64_t generation,

@@ -3130,6 +3130,7 @@ struct RichTextEditorAppearance
     bool operator==(const RichTextEditorAppearance&) const noexcept = default;
     std::optional<RichText::SemanticSpacing> semanticSpacing;
     RichText::MarkdownPresentationStyle markdownPresentation = RichText::MarkdownPresentationStyle::Default;
+    std::wstring mathFontFamily; // Empty keeps Cambria Math; independent of body/code fonts.
 };
 struct RichTextSourceHighlight
 {
@@ -3194,6 +3195,18 @@ enum class RichTextContextMenuCommand : int
     Bold,
     Italic
 };
+enum class RichTextPreparationStage
+{
+    Idle,
+    Markdown,
+    Semantic,
+    Images,
+    Geometry,
+    CodeInk,
+    SourceInk,
+    SourceGuides,
+    Ready
+};
 struct RichTextEditorDebugState
 {
     bool layoutReady                   = false;
@@ -3225,6 +3238,9 @@ struct RichTextEditorDebugState
     size_t preparedSelectionRectangles = 0, preparedHighlightRectangles = 0;
     size_t preparedDecorationRectangles = 0;
     bool overlayGeometryPending         = false;
+    bool codeInkPreparationPending = false, sourceGuidesPreparationPending = false;
+    RichTextPreparationStage activeStage = RichTextPreparationStage::Idle;
+    size_t lastAdvanceUploadBytes        = 0u;
 };
 
 // Existing identity/RAII/reference traits intentionally delete these implicit operations.

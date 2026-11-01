@@ -1004,7 +1004,7 @@ void TestRichTextEditorNativeCooperativePreparation()
     Require(window.Host().RenderInitialFrameForShow(), "one native owner preparation turn");
     const auto pending = editor->DebugGetState();
     Require(pending.preparationPending && ! pending.layoutReady && window.Host().HasPendingContentPreparation() && pending.lastAdvanceLayouts <= 4u &&
-                pending.lastAdvanceBlockSteps <= 4096u,
+                pending.lastAdvanceBlockSteps <= 4096u && pending.activeStage == RichTextPreparationStage::Geometry && pending.lastAdvanceUploadBytes == 0u,
             "large native source yields after one bounded owner advance");
     Require(! editor->TryGetTextInputCaretRect(window.Host(), 0u) && ! editor->TryGetTextInputRangeRects(window.Host(), 0u, 4u) &&
                 ! editor->GetVisibleSourceRange(window.Host()) && ! editor->GetSourceVisualLineRanges(window.Host()),

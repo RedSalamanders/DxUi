@@ -152,21 +152,43 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
 {
     MathFontTableTests::Run(check);
 #if DXUI_ENABLE_DIAGNOSTICS
-    const auto readsBefore = Detail::testRichMathConstantReads;
-    auto cachedExpression  = std::make_shared<const MathExpression>(ParseMath(L"\\left(\\frac{x_i}{y^2}\\right)"));
-    Detail::PreparedMath anchor(factory, cachedExpression, 24.f);
+    const auto readsBefore   = Detail::testRichMathConstantReads;
+    const auto formatsBefore = Detail::testRichMathTextFormats;
+    const auto formats       = std::make_shared<Detail::MathTextFormats>(factory);
+    auto cachedExpression    = std::make_shared<const MathExpression>(ParseMath(L"\\left(\\frac{x_i}{y^2}\\right)"));
+    Detail::PreparedMath anchor(factory, cachedExpression, 24.f, false, nullptr, 96.f, formats);
     while (! anchor.Advance())
     {
     }
+    const auto anchorFormats = Detail::testRichMathTextFormats - formatsBefore;
+    check(anchorFormats > 0u && anchorFormats < 16u && formats->Size() == anchorFormats,
+          "the independent expression exercises a bounded set of mathematical text styles");
     for (std::size_t i = 1u; i < 128u; ++i)
     {
-        Detail::PreparedMath item(factory, cachedExpression, 24.f, false, &anchor);
+        Detail::PreparedMath item(factory, cachedExpression, 24.f, false, &anchor, 96.f, formats);
         while (! item.Advance())
         {
         }
         check(item.Size().width > 0.f && item.Size().height > 0.f, "cached font data prepares every admitted object");
     }
     check(Detail::testRichMathConstantReads == readsBefore + 1u, "128 formulas share one generation-scoped font table snapshot");
+    check(Detail::testRichMathTextFormats == formatsBefore + anchorFormats,
+          "128 formulas reuse one text format per size and style instead of one format per leaf");
+    const auto configured = std::make_shared<Detail::MathTextFormats>(factory, L"Segoe UI", L"fr-FR");
+    auto* custom          = configured->Get(22.f, true, true);
+    std::wstring family(custom->GetFontFamilyNameLength() + 1u, L'\0'), locale(custom->GetLocaleNameLength() + 1u, L'\0');
+    THROW_IF_FAILED(custom->GetFontFamilyName(family.data(), static_cast<UINT32>(family.size())));
+    THROW_IF_FAILED(custom->GetLocaleName(locale.data(), static_cast<UINT32>(locale.size())));
+    family.pop_back();
+    locale.pop_back();
+    check(family == L"Segoe UI" && locale == L"fr-FR" && custom->GetFontWeight() == DWRITE_FONT_WEIGHT_BOLD &&
+              custom->GetFontStyle() == DWRITE_FONT_STYLE_ITALIC && custom->GetFontSize() == 22.f && configured->Get(22.f, true, true) == custom,
+          "native formats retain explicit mathematical family, locale, size and style with stable reuse");
+    Detail::PreparedMath differentFamily(factory, cachedExpression, 24.f, false, &anchor, 96.f, configured);
+    while (! differentFamily.Advance())
+    {
+    }
+    check(Detail::testRichMathConstantReads == readsBefore + 2u, "font constants are never borrowed from another mathematical family");
 #endif
     std::size_t scenarioIndex{};
     for (const auto& scenario : prepared)

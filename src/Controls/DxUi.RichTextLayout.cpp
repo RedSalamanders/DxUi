@@ -194,7 +194,8 @@ void Detail::PreparedLayoutAccess::Prepare(PreparedLayout& owner,
         options.tabStopDip > 4096.0f || (options.tabStopDip > 0.0f && options.tabStopDip < 1.0f) ||
         (options.lineHeightMultiplier != 0.0f && (options.lineHeightMultiplier < 1.0f || options.lineHeightMultiplier > 4.0f)) ||
         ! std::isfinite(options.headingScaleStep) || options.headingScaleStep < 0.0f || options.headingScaleStep > 1.0f || ! validName(options.fontFamily) ||
-        ! validName(options.codeFontFamily) || options.locale.size() > 255 || ! IsValidUtf16(options.locale) ||
+        ! validName(options.codeFontFamily) || (semanticDisplay && ! validName(options.mathFontFamily)) || options.locale.size() > 255 ||
+        ! IsValidUtf16(options.locale) ||
         (options.readingDirection != DWRITE_READING_DIRECTION_LEFT_TO_RIGHT && options.readingDirection != DWRITE_READING_DIRECTION_RIGHT_TO_LEFT) ||
         (options.textAlignment != DWRITE_TEXT_ALIGNMENT_LEADING && options.textAlignment != DWRITE_TEXT_ALIGNMENT_TRAILING &&
          options.textAlignment != DWRITE_TEXT_ALIGNMENT_CENTER) ||

@@ -24,6 +24,7 @@ struct RichImageResourceSet;
 struct RichImageRasterCalls
 {
     HRESULT (*createBitmap)(ID2D1RenderTarget*, D2D1_SIZE_U, const void*, UINT32, const D2D1_BITMAP_PROPERTIES&, ID2D1Bitmap**) noexcept {};
+    HRESULT (*copyBitmap)(ID2D1Bitmap*, const D2D1_RECT_U&, const void*, UINT32) noexcept {};
 };
 #if DXUI_ENABLE_DIAGNOSTICS
 extern thread_local const RichImageRasterCalls* testRichImageRasterCalls;

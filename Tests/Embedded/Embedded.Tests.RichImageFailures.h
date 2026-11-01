@@ -286,6 +286,7 @@ public:
     RasterCalls() noexcept : previous_(DxUi::RichText::Detail::testRichImageRasterCalls), previousFixture_(active_)
     {
         calls_.createBitmap                              = &Create;
+        calls_.copyBitmap                                = &Copy;
         active_                                          = this;
         DxUi::RichText::Detail::testRichImageRasterCalls = &calls_;
     }
@@ -298,6 +299,7 @@ public:
     RasterCalls& operator=(const RasterCalls&) = delete;
     std::size_t uploads{}, failAt = std::numeric_limits<std::size_t>::max();
     HRESULT failure = E_OUTOFMEMORY;
+    std::size_t copies{}, copiedBytes{}, widestTile{}, tallestTile{}, failCopyAt = std::numeric_limits<std::size_t>::max();
 
 private:
     static HRESULT Create(
@@ -307,6 +309,17 @@ private:
         if (index == active_->failAt)
             return active_->failure;
         return target->CreateBitmap(size, pixels, stride, properties, output);
+    }
+    static HRESULT Copy(ID2D1Bitmap* bitmap, const D2D1_RECT_U& rect, const void* pixels, UINT32 stride) noexcept
+    {
+        const auto index = active_->copies++;
+        const auto width = rect.right - rect.left, height = rect.bottom - rect.top;
+        active_->copiedBytes += static_cast<size_t>(width) * height * 4u;
+        active_->widestTile  = std::max(active_->widestTile, static_cast<size_t>(width));
+        active_->tallestTile = std::max(active_->tallestTile, static_cast<size_t>(height));
+        if (index == active_->failCopyAt)
+            return active_->failure;
+        return bitmap->CopyFromMemory(&rect, pixels, stride);
     }
     DxUi::RichText::Detail::RichImageRasterCalls calls_;
     const DxUi::RichText::Detail::RichImageRasterCalls* previous_;
@@ -369,8 +382,36 @@ static void TestRichImageRasterFailureAndBudgets()
         }
         Check(geometry.Ready(), "native raster publishes complete geometry");
     };
+    {
+        // Math family is irrelevant to the v0 public text path but remains
+        // admitted by the semantic path before its layout can publish.
+        LayoutOptions invalidMath = options;
+        invalidMath.mathFontFamily.clear();
+        Document plainDocument(L"ordinary text");
+        PreparedLayout plain;
+        plain.Prepare(write.get(), Project(plainDocument.Snapshot(), plainDocument.Revision(), ViewMode::Source), invalidMath);
+        Check(plain.Ready(), "v0 text layout ignores the semantic-only math family");
+        PreparedSemanticGeometry semantic;
+        semantic.Begin(write.get(), RichImageResourceTests::Semantic(L"ordinary text"), invalidMath);
+        bool rejected = false;
+        try
+        {
+            while (semantic.Pending())
+                semantic.Advance({1u, 32u});
+        }
+        catch (const std::invalid_argument&)
+        {
+            rejected = true;
+        }
+        Check(rejected && ! semantic.Ready() && ! semantic.Pending(), "semantic layout rejects an invalid math family without publication");
+    }
     begin(1u);
-    for (const auto invalidBudget : {LayoutWorkBudget{0u, 3u}, LayoutWorkBudget{1u, 0u}})
+    for (const auto invalidBudget : {LayoutWorkBudget{0u, 3u},
+                                     LayoutWorkBudget{1u, 0u},
+                                     LayoutWorkBudget{1u, 3u, 0u},
+                                     LayoutWorkBudget{1u, 3u, 1u},
+                                     LayoutWorkBudget{1u, 3u, 2u},
+                                     LayoutWorkBudget{1u, 3u, 3u}})
     {
         bool rejected{};
         try
@@ -413,6 +454,94 @@ static void TestRichImageRasterFailureAndBudgets()
             Check(calls.uploads - before == 2u && geometry.Generation() == generation + 1u,
                   "explicit raster retry recreates current bitmaps after each driver failure");
         }
+    // A patterned source shared by two placements tests tile boundaries and
+    // pixel parity independently of image admission and URI de-duplication.
+    const auto tiledDocument = RichImageResourceTests::Semantic(L"![first](pattern.png) ![again](pattern.png)\n");
+    resources.Begin(tiledDocument, L"C:\\docs\\note.md", 1u, 1u);
+    while (! resources.Advance())
+    {
+    }
+    resources.Take(jobs);
+    Check(jobs.size() == 1u && resources.Complete(jobs[0], RichImageResourceTests::Pattern()), "tiled upload uses one shared patterned image");
+    resources.Publish();
+    const auto tiledImages = resources.Snapshot();
+    wil::com_ptr<ID2D1SolidColorBrush> brush;
+    THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black), brush.put()));
+    const auto render = [&](const PreparedSemanticGeometry& value)
+    {
+        target->BeginDraw();
+        target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+        value.Draw(target.get(), brush.get(), brush.get(), D2D1::Point2F(), 0.f, 240.f);
+        THROW_IF_FAILED(target->EndDraw());
+        std::vector<BYTE> pixels(480u * 240u * 4u);
+        THROW_IF_FAILED(bitmap->CopyPixels(nullptr, 480u * 4u, static_cast<UINT>(pixels.size()), pixels.data()));
+        return pixels;
+    };
+    const auto runTiled = [&](PreparedSemanticGeometry& value, size_t byteBudget)
+    {
+        unsigned turns{};
+        while (value.Pending())
+        {
+            const auto beforeCopies = calls.copies;
+            const auto beforeBytes  = calls.copiedBytes;
+            const auto result       = value.Advance({1u, 32u, byteBudget});
+            Check(result.uploadedBytes <= byteBudget && calls.copies - beforeCopies <= 1u && calls.copiedBytes - beforeBytes <= byteBudget &&
+                      result.layoutsPrepared <= 1u && result.blockSteps <= 32u,
+                  "each tiled image turn respects byte, copy, layout and event budgets");
+            Check(++turns < 30000u, "tiled image preparation makes finite progress");
+        }
+    };
+    PreparedSemanticGeometry whole, tiled;
+    whole.Begin(write.get(), tiledDocument, options, drawing.get(), {++epoch, epoch}, tiledImages, target.get());
+    runTiled(whole, 4u * 1024u * 1024u);
+    const auto expectedPixels = render(whole);
+    const auto initialUploads = calls.uploads;
+    const auto initialCopies  = calls.copies;
+    calls.widestTile = calls.tallestTile = 0u;
+    tiled.Begin(write.get(), tiledDocument, options, drawing.get(), {++epoch, epoch}, tiledImages, target.get());
+    runTiled(tiled, 28u);
+    Check(calls.uploads - initialUploads == 1u && calls.copies - initialCopies > 64u && calls.widestTile == 7u && calls.tallestTile == 1u,
+          "sub-row byte budget creates one bitmap and horizontally tiled copies shared by duplicate placements");
+    Check(render(tiled) == expectedPixels, "horizontal tiled uploads retain every patterned pixel");
+    const auto rowUploads = calls.uploads;
+    calls.widestTile = calls.tallestTile = 0u;
+    tiled.Begin(write.get(), tiledDocument, options, drawing.get(), {++epoch, epoch}, tiledImages, target.get());
+    runTiled(tiled, 96u * 4u * 3u);
+    Check(calls.uploads - rowUploads == 1u && calls.widestTile == 96u && calls.tallestTile == 3u && render(tiled) == expectedPixels,
+          "whole-width row tiles share one bitmap and preserve the pattern");
+    for (const auto failure : {E_OUTOFMEMORY, DXGI_ERROR_DEVICE_REMOVED, D2DERR_RECREATE_TARGET, E_FAIL})
+    {
+        const auto generation = tiled.Generation();
+        calls.failure         = failure;
+        calls.failCopyAt      = calls.copies + 2u;
+        bool rejected{};
+        try
+        {
+            tiled.Begin(write.get(), tiledDocument, options, drawing.get(), {++epoch, epoch}, tiledImages, target.get());
+            runTiled(tiled, 96u * 4u * 3u);
+        }
+        catch (const wil::ResultException& error)
+        {
+            rejected = error.GetErrorCode() == failure;
+        }
+        calls.failCopyAt = std::numeric_limits<size_t>::max();
+        Check(rejected && tiled.Ready() && ! tiled.Pending() && tiled.Generation() == generation && render(tiled) == expectedPixels,
+              "failed later image tile retires staging and retains the previous complete pixels");
+        tiled.Begin(write.get(), tiledDocument, options, drawing.get(), {epoch, epoch}, tiledImages, target.get());
+        runTiled(tiled, 96u * 4u * 3u);
+        Check(tiled.Generation() == generation + 1u && render(tiled) == expectedPixels, "failed tile retries to complete pixel parity");
+    }
+    calls.failure                      = D2DERR_UNSUPPORTED_OPERATION;
+    calls.failCopyAt                   = calls.copies + 1u;
+    const auto copiesBeforeUnsupported = calls.copies;
+    tiled.Begin(write.get(), tiledDocument, options, drawing.get(), {++epoch, epoch}, tiledImages, target.get());
+    runTiled(tiled, 96u * 4u * 3u);
+    calls.failCopyAt = std::numeric_limits<size_t>::max();
+    Check(tiled.Ready() && calls.copies == copiesBeforeUnsupported + 2u,
+          "unsupported tile retires its partial bitmap and both duplicate placements use alternatives");
+    tiled.Begin(write.get(), tiledDocument, options, drawing.get(), {++epoch, epoch}, tiledImages, target.get());
+    runTiled(tiled, 96u * 4u * 3u);
+    Check(tiled.HasNativeObjects() && render(tiled) == expectedPixels, "new generation retries an unsupported tiled image");
     std::wstring source(0u, L' ');
     for (unsigned index = 0u; index < 129u; ++index)
         source.append(L"![small](same.png)\n\n");

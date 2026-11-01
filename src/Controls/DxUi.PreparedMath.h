@@ -11,6 +11,8 @@
 #include <limits>
 #include <numeric>
 #include <stdexcept>
+#include <string>
+#include <string_view>
 #include <wil/com.h>
 #include <wil/resource.h>
 #include <wil/result.h>
@@ -24,8 +26,82 @@ extern thread_local HRESULT testRichMathGlyphMetricsFailure;
 extern thread_local HRESULT testRichMathGlyphIndexFailure;
 extern thread_local std::size_t testRichMathConstantReads;
 extern thread_local std::size_t testRichMathPreparations;
+extern thread_local std::size_t testRichMathTextFormats;
 extern thread_local std::span<const std::uint8_t> testRichMathTableOverride;
 #endif
+// Shared only by one owner-thread staging generation. Published formula glyphs
+// do not query or mutate this cache during paint. Fonts/formats survive through
+// the formula's lifetime; no process-global cache or factory identity is used.
+class MathTextFormats final
+{
+public:
+    explicit MathTextFormats(IDWriteFactory* factory, std::wstring_view family = L"Cambria Math", std::wstring_view locale = L"en-us")
+        : factory_(factory),
+          family_(ValidateName(family, false)),
+          locale_(ValidateName(locale, true)),
+          formats_(0u)
+    {
+        if (! factory)
+            throw std::invalid_argument("Mathematical text formats need a factory");
+    }
+    IDWriteFactory* Factory() const noexcept
+    {
+        return factory_.get();
+    }
+    const std::wstring& Family() const noexcept
+    {
+        return family_;
+    }
+    const std::wstring& Locale() const noexcept
+    {
+        return locale_;
+    }
+    std::size_t Size() const noexcept
+    {
+        return formats_.size();
+    }
+    IDWriteTextFormat* Get(float size, bool bold, bool italic)
+    {
+        if (! std::isfinite(size) || size <= 0.f || size > 4096.f)
+            throw std::invalid_argument("Invalid mathematical format size");
+        for (const auto& entry : formats_)
+            if (entry.size == size && entry.bold == bold && entry.italic == italic)
+                return entry.format.get();
+        if (formats_.size() == 4096u)
+            throw std::length_error("Mathematical text format capacity exceeded");
+        wil::com_ptr<IDWriteTextFormat> format;
+        THROW_IF_FAILED(factory_->CreateTextFormat(family_.c_str(),
+                                                   nullptr,
+                                                   bold ? DWRITE_FONT_WEIGHT_BOLD : DWRITE_FONT_WEIGHT_NORMAL,
+                                                   italic ? DWRITE_FONT_STYLE_ITALIC : DWRITE_FONT_STYLE_NORMAL,
+                                                   DWRITE_FONT_STRETCH_NORMAL,
+                                                   size,
+                                                   locale_.c_str(),
+                                                   format.put()));
+#if DXUI_ENABLE_DIAGNOSTICS
+        ++testRichMathTextFormats;
+#endif
+        formats_.push_back({size, bold, italic, std::move(format)});
+        return formats_.back().format.get();
+    }
+
+private:
+    static std::wstring_view ValidateName(std::wstring_view value, bool emptyAllowed)
+    {
+        if ((! emptyAllowed && value.empty()) || value.size() > 255u || ! IsValidUtf16(value))
+            throw std::invalid_argument("Invalid mathematical family or locale");
+        return value;
+    }
+    struct Entry
+    {
+        float size;
+        bool bold, italic;
+        wil::com_ptr<IDWriteTextFormat> format;
+    };
+    wil::com_ptr<IDWriteFactory> factory_;
+    std::wstring family_, locale_;
+    std::vector<Entry> formats_;
+};
 // PreparedMath owns all shaping and geometry. The syntax tree is admitted and
 // indexed once; Advance shapes one text leaf per call and finalizes from cached
 // child boxes. Draw is read-only and performs no layout or allocation.
@@ -120,6 +196,7 @@ class PreparedMath final
     };
     std::shared_ptr<const MathExpression> expression;
     wil::com_ptr<IDWriteFactory> factory;
+    std::shared_ptr<MathTextFormats> textFormats;
     std::shared_ptr<const MathFontData> mathData;
     std::vector<Glyph> glyphs;
     std::vector<Box> boxes;
@@ -200,7 +277,7 @@ class PreparedMath final
             return;
         UINT32 familyIndex{};
         BOOL exists{};
-        if (! OptionalFontOperation(collection->FindFamilyName(L"Cambria Math", &familyIndex, &exists)) || ! exists)
+        if (! OptionalFontOperation(collection->FindFamilyName(textFormats->Family().c_str(), &familyIndex, &exists)) || ! exists)
             return;
         wil::com_ptr<IDWriteFontFamily> family;
         if (! OptionalFontOperation(collection->GetFontFamily(familyIndex, family.put())))
@@ -1423,11 +1500,13 @@ public:
     PreparedMath(IDWriteFactory* write,
                  std::shared_ptr<const MathExpression> value,
                  float size,
-                 bool display                  = false,
-                 const PreparedMath* constants = nullptr,
-                 float deviceDpi               = 96.f)
+                 bool display                             = false,
+                 const PreparedMath* constants            = nullptr,
+                 float deviceDpi                          = 96.f,
+                 std::shared_ptr<MathTextFormats> formats = {})
         : expression(std::move(value)),
           factory(write),
+          textFormats(std::move(formats)),
           glyphs(0u),
           boxes(0u),
           lines(0u),
@@ -1443,11 +1522,15 @@ public:
         ++testRichMathPreparations;
 #endif
         const auto count = CountAndValidate(expression->root);
+        if (! textFormats)
+            textFormats = std::make_shared<MathTextFormats>(write);
+        if (textFormats->Factory() != write)
+            throw std::invalid_argument("Mathematical formats belong to another factory");
         boxes.reserve(count);
         glyphs.reserve(count);
         axis = font * .25f;
         InitializeFallbackConstants();
-        if (constants && constants->factory.get() == write)
+        if (constants && constants->factory.get() == write && constants->textFormats->Family() == textFormats->Family())
             CopyMathConstants(*constants);
         else
             ReadMathConstants(write);
@@ -1459,19 +1542,11 @@ public:
             return true;
         if (cursor < glyphs.size())
         {
-            auto& leaf = glyphs[cursor];
-            wil::com_ptr<IDWriteTextFormat> format;
-            THROW_IF_FAILED(factory->CreateTextFormat(L"Cambria Math",
-                                                      nullptr,
-                                                      leaf.bold ? DWRITE_FONT_WEIGHT_BOLD : DWRITE_FONT_WEIGHT_NORMAL,
-                                                      leaf.italic ? DWRITE_FONT_STYLE_ITALIC : DWRITE_FONT_STYLE_NORMAL,
-                                                      DWRITE_FONT_STRETCH_NORMAL,
-                                                      leaf.font,
-                                                      L"en-US",
-                                                      format.put()));
+            auto& leaf   = glyphs[cursor];
+            auto* format = textFormats->Get(leaf.font, leaf.bold, leaf.italic);
             wil::com_ptr<IDWriteTextLayout> layout;
             THROW_IF_FAILED(
-                factory->CreateTextLayout(leaf.node->text.data(), static_cast<UINT32>(leaf.node->text.size()), format.get(), 65536.f, 65536.f, layout.put()));
+                factory->CreateTextLayout(leaf.node->text.data(), static_cast<UINT32>(leaf.node->text.size()), format, 65536.f, 65536.f, layout.put()));
             DWRITE_TEXT_METRICS metrics{};
             THROW_IF_FAILED(layout->GetMetrics(&metrics));
             DWRITE_LINE_METRICS line{};

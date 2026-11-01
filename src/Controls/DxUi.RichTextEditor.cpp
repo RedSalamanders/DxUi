@@ -579,6 +579,7 @@ struct RichTextEditor::State
     LayoutKey requestKey;
     bool requestActive         = false;
     size_t preparationAdvances = 0, cancelledPreparations = 0, lastAdvanceLayouts = 0, lastAdvanceBlockSteps = 0;
+    size_t lastAdvanceUploadBytes{};
     float layoutWidth      = 0;
     float scrollDip        = 0;
     bool revealCaret       = true;
@@ -1238,9 +1239,10 @@ void RichTextEditor::SetAppearance(const RichTextEditorAppearance& appearance)
         ! validSize(appearance.codeFontSizeDip) || ! std::isfinite(appearance.lineHeightMultiplier) ||
         (appearance.lineHeightMultiplier != 0.0f && (appearance.lineHeightMultiplier < 1.0f || appearance.lineHeightMultiplier > 4.0f)) ||
         ! std::isfinite(appearance.headingScaleStep) || appearance.headingScaleStep < 0.0f || appearance.headingScaleStep > 1.0f ||
-        ! validFont(appearance.bodyFontFamily) || ! validFont(appearance.codeFontFamily) || ! std::ranges::all_of(appearance.headingFontSizeDip, validSize) ||
-        ! std::ranges::all_of(appearance.headingLineHeightMultiplier, validHeight) || ! validSpacing(appearance.paragraphSpacingAfterLines, 4.0f) ||
-        ! validSpacing(appearance.listItemSpacingDip, 256.0f) || (appearance.semanticSpacing && ! appearance.semanticSpacing->IsValid()) ||
+        ! validFont(appearance.bodyFontFamily) || ! validFont(appearance.codeFontFamily) || ! validFont(appearance.mathFontFamily) ||
+        ! std::ranges::all_of(appearance.headingFontSizeDip, validSize) || ! std::ranges::all_of(appearance.headingLineHeightMultiplier, validHeight) ||
+        ! validSpacing(appearance.paragraphSpacingAfterLines, 4.0f) || ! validSpacing(appearance.listItemSpacingDip, 256.0f) ||
+        (appearance.semanticSpacing && ! appearance.semanticSpacing->IsValid()) ||
         (appearance.markdownPresentation != RichText::MarkdownPresentationStyle::Default &&
          appearance.markdownPresentation != RichText::MarkdownPresentationStyle::Subtle))
         throw std::invalid_argument("Invalid rich editor appearance");
@@ -1256,7 +1258,7 @@ void RichTextEditor::SetAppearance(const RichTextEditorAppearance& appearance)
         previous.bodyFontSizeDip != next.bodyFontSizeDip || previous.codeFontSizeDip != next.codeFontSizeDip ||
 
         previous.lineHeightMultiplier != next.lineHeightMultiplier || previous.headingScaleStep != next.headingScaleStep ||
-        previous.bodyFontFamily != next.bodyFontFamily || previous.codeFontFamily != next.codeFontFamily ||
+        previous.bodyFontFamily != next.bodyFontFamily || previous.codeFontFamily != next.codeFontFamily || previous.mathFontFamily != next.mathFontFamily ||
         previous.headingFontSizeDip != next.headingFontSizeDip || previous.headingLineHeightMultiplier != next.headingLineHeightMultiplier ||
         previous.paragraphSpacingAfterLines != next.paragraphSpacingAfterLines || previous.listItemSpacingDip != next.listItemSpacingDip ||
         previous.semanticSpacing != next.semanticSpacing || previous.markdownPresentation != next.markdownPresentation;
@@ -1296,6 +1298,7 @@ void RichTextEditor::SetAppearance(const RichTextEditorAppearance& appearance)
     value.semanticSpacing             = next.semanticSpacing;
     value.bodyFontFamily.swap(next.bodyFontFamily);
     value.codeFontFamily.swap(next.codeFontFamily);
+    value.mathFontFamily.swap(next.mathFontFamily);
     const auto lifetime = GetLifetimeToken();
     if (geometryChanged)
     {
@@ -2971,6 +2974,7 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
     if (state.codeCallbackActive)
         return S_FALSE;
     state.lastAdvanceLayouts = state.lastAdvanceBlockSteps = 0u;
+    state.lastAdvanceUploadBytes                           = 0u;
     state.lastAdvanceMarkdownWork                          = 0u;
     state.lastAdvanceSemanticWork                          = 0u;
     const auto rejectNativeObjects                         = [&](std::span<const std::size_t> elements) -> HRESULT
@@ -3367,6 +3371,8 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
                 options.fontFamily = appearance.bodyFontFamily;
             if (! appearance.codeFontFamily.empty())
                 options.codeFontFamily = appearance.codeFontFamily;
+            if (! appearance.mathFontFamily.empty())
+                options.mathFontFamily = appearance.mathFontFamily;
             if (effectiveMode == RichText::ViewMode::Source && appearance.sourceMonospace)
             {
                 options.fontFamily = options.codeFontFamily;
@@ -3410,10 +3416,11 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
                 throw std::logic_error("injected deterministic native geometry failure");
             }
 #endif
-            const auto advance          = state.layout.AdvancePreparation();
-            richPreparationActive       = false;
-            state.lastAdvanceLayouts    = advance.layoutsPrepared;
-            state.lastAdvanceBlockSteps = advance.blockSteps;
+            const auto advance           = state.layout.AdvancePreparation();
+            richPreparationActive        = false;
+            state.lastAdvanceLayouts     = advance.layoutsPrepared;
+            state.lastAdvanceBlockSteps  = advance.blockSteps;
+            state.lastAdvanceUploadBytes = advance.uploadedBytes;
             if (advance.status == RichText::LayoutPreparationStatus::Pending)
                 return S_FALSE;
         }
@@ -3584,37 +3591,52 @@ void RichTextEditor::UpdateCaretScroll() const
 RichTextEditorDebugState RichTextEditor::DebugGetState() const noexcept
 {
     const auto preparation = _state->layout.LastPreparation();
-    return {_state->layout.Ready(),
-            _state->layout.Generation(),
-            _state->layout.Height(),
-            _state->scrollDip,
-            _state->dragging,
-            _state->layout.ChunkCount(),
-            preparation.preparedChunks,
-            preparation.reusedChunks,
-            preparation.preparedSourceUnits,
-            _state->layout.UsesWholeGeometry(),
-            _state->layout.UsesWholeRaster(),
-            preparation.wholeLayoutsPrepared,
-            preparation.wholeLayoutSourceUnits,
-            _state->layout.HasPendingPreparation() || _state->markdown.HasPendingPreparation() || _state->semantic.HasPendingPreparation() ||
-                _state->images.Pending(),
-            _state->preparationAdvances,
-            _state->cancelledPreparations,
-            _state->lastAdvanceLayouts,
-            _state->lastAdvanceBlockSteps,
-            _state->markdown.HasPendingPreparation(),
-            _state->markdownAdvances,
-            _state->lastAdvanceMarkdownWork,
-            _state->semantic.HasPendingPreparation(),
-            _state->semanticAdvances,
-            _state->lastAdvanceSemanticWork,
-            _state->sourceInk.Pending(),
-            _state->sourceInk.Ranges().size(),
-            _state->selectionRectangles.size(),
-            _state->highlightRectangles.size(),
-            _state->decorationRectangles.size(),
-            _state->overlaySelectionDirty || _state->overlayHighlightsDirty};
+    RichTextEditorDebugState value{_state->layout.Ready(),
+                                   _state->layout.Generation(),
+                                   _state->layout.Height(),
+                                   _state->scrollDip,
+                                   _state->dragging,
+                                   _state->layout.ChunkCount(),
+                                   preparation.preparedChunks,
+                                   preparation.reusedChunks,
+                                   preparation.preparedSourceUnits,
+                                   _state->layout.UsesWholeGeometry(),
+                                   _state->layout.UsesWholeRaster(),
+                                   preparation.wholeLayoutsPrepared,
+                                   preparation.wholeLayoutSourceUnits,
+                                   _state->layout.HasPendingPreparation() || _state->markdown.HasPendingPreparation() ||
+                                       _state->semantic.HasPendingPreparation() || _state->images.Pending(),
+                                   _state->preparationAdvances,
+                                   _state->cancelledPreparations,
+                                   _state->lastAdvanceLayouts,
+                                   _state->lastAdvanceBlockSteps,
+                                   _state->markdown.HasPendingPreparation(),
+                                   _state->markdownAdvances,
+                                   _state->lastAdvanceMarkdownWork,
+                                   _state->semantic.HasPendingPreparation(),
+                                   _state->semanticAdvances,
+                                   _state->lastAdvanceSemanticWork,
+                                   _state->sourceInk.Pending(),
+                                   _state->sourceInk.Ranges().size(),
+                                   _state->selectionRectangles.size(),
+                                   _state->highlightRectangles.size(),
+                                   _state->decorationRectangles.size(),
+                                   _state->overlaySelectionDirty || _state->overlayHighlightsDirty};
+    value.codeInkPreparationPending      = _state->codeInkDocument && ! _state->codeInkComplete;
+    value.sourceGuidesPreparationPending = _state->sourceGuides.Pending();
+    value.preparationPending =
+        value.preparationPending || value.sourceInkPreparationPending || value.codeInkPreparationPending || value.sourceGuidesPreparationPending;
+    value.activeStage            = value.markdownPreparationPending         ? RichTextPreparationStage::Markdown
+                                   : value.semanticPreparationPending       ? RichTextPreparationStage::Semantic
+                                   : _state->images.Pending()               ? RichTextPreparationStage::Images
+                                   : _state->layout.HasPendingPreparation() ? RichTextPreparationStage::Geometry
+                                   : value.codeInkPreparationPending        ? RichTextPreparationStage::CodeInk
+                                   : value.sourceInkPreparationPending      ? RichTextPreparationStage::SourceInk
+                                   : value.sourceGuidesPreparationPending   ? RichTextPreparationStage::SourceGuides
+                                   : value.layoutReady                      ? RichTextPreparationStage::Ready
+                                                                            : RichTextPreparationStage::Idle;
+    value.lastAdvanceUploadBytes = _state->lastAdvanceUploadBytes;
+    return value;
 }
 size_t RichTextEditor::DebugGetListStateAncestorSteps() const noexcept
 {

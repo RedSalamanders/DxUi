@@ -1385,7 +1385,7 @@ operator scripts; a trailing row separator is accepted.
 `\not` admits ungrouped single relation glyphs `= < > ≤ ≥ ∈ ∋ ⊂ ⊃ ⊆ ⊇ ∼ ≡ ≈ ∣ ∥`
 and substitutes their Unicode negations; other operands retain exact source.
 Unsupported commands remain local exact source. This is a named native profile,
-not a claim of all KaTeX functions or identical TeX font metrics. Prepared math reads bounded OpenType MATH italic corrections, selects adequate precomposed vertical delimiter variants, and assembles up to 32 distinct part records and 64 total compatible vertical glyph parts per delimiter, with 512 per formula when the active Cambria Math face supplies them. Assembly connector overlap follows the [OpenType MATH format](https://learn.microsoft.com/en-us/typography/opentype/spec/math); part origins whose ink metrics do not match their advance within two design units use vector fallback. Missing, truncated, oversized or unavailable font data also uses vector fallback. For `\widehat`, `\widetilde` and `\vec`, bounded horizontal variants or assemblies are used when their metrics fit the reserved accent envelope; missing, malformed or incompatible data retains vector fallback. Validated OpenType Device-table deltas for the supported math constants and italic corrections are applied at the formula ppem and converted from pixels to DIP using the effective DPI. Missing or malformed records fall back to the unadjusted design value; variable-font VariationIndex corrections remain unsupported. The at-most-4-MiB MATH snapshot and glyph-indexed lookup data are shared within one geometry generation; painting performs no font-table reads.
+not a claim of all KaTeX functions or identical TeX font metrics. Prepared math reads bounded OpenType MATH italic corrections, selects adequate precomposed vertical delimiter variants, and assembles up to 32 distinct part records and 64 total compatible vertical glyph parts per delimiter, with 512 per formula when the selected mathematical face supplies them. Assembly connector overlap follows the [OpenType MATH format](https://learn.microsoft.com/en-us/typography/opentype/spec/math); part origins whose ink metrics do not match their advance within two design units use vector fallback. Missing, truncated, oversized or unavailable font data also uses vector fallback. For `\widehat`, `\widetilde` and `\vec`, bounded horizontal variants or assemblies are used when their metrics fit the reserved accent envelope; missing, malformed or incompatible data retains vector fallback. Validated OpenType Device-table deltas for the supported math constants and italic corrections are applied at the formula ppem and converted from pixels to DIP using the effective DPI. Missing or malformed records fall back to the unadjusted design value; variable-font VariationIndex corrections remain unsupported. The at-most-4-MiB MATH snapshot and glyph-indexed lookup data are shared within one geometry generation; painting performs no font-table reads.
 Font lookup and glyph-query HRESULT failures remain retryable; only a known
 unsupported font operation or absent/invalid font data uses the vector fallback.
 ASCII minus and asterisk use mathematical operator glyphs, tilde supplies spacing,
@@ -1393,6 +1393,25 @@ and successive primes are raised as one superscript. A second explicit superscri
 on the same atom remains source with a diagnostic. Formula preparation uses the enclosing run's effective body, code or
 heading font size with the shared 1.15 math scale; the caret at a formula edge
 follows its text line.
+
+`LayoutOptions::mathFontFamily` selects the mathematical family independently of
+body and code text; it defaults to Cambria Math. The retained appearance's
+`mathFontFamily` override is empty by default and preserves that choice. Math
+shaping uses the layout/host locale, shares text formats by exact size and style
+within one preparation generation, and retains em/stroke fallback for missing
+MATH data. Changing family or locale rebuilds mathematical geometry; width-only
+reflow can reuse it. Font names follow the other families' 255-unit UTF-16 limit.
+
+Image-capable semantic advances also honor
+`LayoutWorkBudget::maximumUploadBytes` (4 MiB by default, minimum four bytes).
+Larger images copy pixel tiles over several turns and publish only when complete.
+Duplicate placements share the completed bitmap. `LayoutAdvance::uploadedBytes`
+and the editor's `lastAdvanceUploadBytes` report transferred pixel bytes. Bitmap
+allocation remains indivisible and bounded by image capacity; no elapsed-time
+guarantee is implied. Text-only/v0 preparation ignores this image budget.
+`DebugGetState().activeStage` identifies pending Markdown, semantic, image,
+geometry, code-ink, source-ink or source-guide work. Optional overlay fallback
+dirtiness is reported separately from a ready content frame.
 
 Limits are 4,096 source units, 512 syntax nodes, nesting 24, 16 rows/columns and 128
 cells per formula, 4,096 total mathematical records and 128 combined native objects.

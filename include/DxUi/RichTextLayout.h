@@ -43,6 +43,8 @@ struct LayoutOptions
     // Effective device DPI for ppem-dependent native math font corrections.
     // Standalone layout callers without a device use the 96-DPI default.
     float dpi = 96.0f;
+    // Independent mathematical family; a font without MATH uses em/stroke fallbacks.
+    std::wstring mathFontFamily = L"Cambria Math";
 };
 struct CaretGeometry
 {
@@ -168,11 +170,15 @@ struct LayoutWorkBudget
 {
     std::size_t maximumLayouts    = 4u;
     std::size_t maximumBlockSteps = 4096u;
+    // Image-capable semantic geometry requires at least one BGRA pixel and
+    // stages large uploads in bounded tiles. Text-only/v0 services ignore this.
+    std::size_t maximumUploadBytes = 4u * 1024u * 1024u;
 };
 struct LayoutAdvance
 {
     LayoutPreparationStatus status = LayoutPreparationStatus::Idle;
     std::size_t layoutsPrepared{}, blockSteps{};
+    std::size_t uploadedBytes{};
 };
 // Owner-thread, bounded v0 document geometry. Chunks end at physical source
 // lines and target 1 Ki source units; 127 chunks plus one optional whole layout

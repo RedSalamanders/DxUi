@@ -3,6 +3,7 @@
 #include "DxUi.PaintIndex.h"
 #include "DxUi.PreparedMath.h"
 #include "DxUi.RichImageResources.h"
+#include "DxUi.RichLayoutOptions.h"
 #include "DxUi.SemanticExtensions.h"
 #include "Support/Diagnostics.h"
 #include <array>
@@ -32,6 +33,7 @@ thread_local HRESULT testRichMathGlyphMetricsFailure{S_OK};
 thread_local HRESULT testRichMathGlyphIndexFailure{S_OK};
 thread_local std::size_t testRichMathConstantReads{};
 thread_local std::size_t testRichMathPreparations{};
+thread_local std::size_t testRichMathTextFormats{};
 thread_local std::span<const std::uint8_t> testRichMathTableOverride{};
 #endif
 namespace
@@ -44,6 +46,14 @@ HRESULT UploadImageBitmap(
         return testRichImageRasterCalls->createBitmap(target, size, pixels, stride, properties, bitmap);
 #endif
     return target->CreateBitmap(size, pixels, stride, properties, bitmap);
+}
+HRESULT CopyImageBitmap(ID2D1Bitmap* bitmap, const D2D1_RECT_U& rectangle, const void* pixels, UINT32 stride) noexcept
+{
+#if DXUI_ENABLE_DIAGNOSTICS
+    if (testRichImageRasterCalls && testRichImageRasterCalls->copyBitmap)
+        return testRichImageRasterCalls->copyBitmap(bitmap, rectangle, pixels, stride);
+#endif
+    return bitmap->CopyFromMemory(&rectangle, pixels, stride);
 }
 // DirectWrite reserves and hit-tests one atomic graphic. Graphics are painted
 // later on the known owner target; the opaque drawingContext is never cast.
@@ -141,6 +151,7 @@ struct NativeImagePlacement
     const SemanticBox* owner{};
     float caretHeight{}, mathCaretTop{};
     bool hasMathCaret{};
+    UINT32 uploadedX{}, uploadedY{}; // Staging only; never published partially.
 };
 #pragma warning(pop)
 struct NativeImageGeometry
@@ -182,6 +193,7 @@ struct NativeImageGeometry
         }
         const auto maths              = SemanticExtensionAccess::Maths(document);
         const PreparedMath* constants = nullptr;
+        std::shared_ptr<MathTextFormats> textFormats;
         for (std::size_t index = 0; index < maths.size(); ++index)
         {
             auto& placement   = placements[resources.placements.size() + index];
@@ -222,7 +234,12 @@ struct NativeImageGeometry
                         placement.math = prior->math;
                 }
                 if (! placement.math)
-                    placement.math = std::make_shared<PreparedMath>(write, maths[index].expression, font * 1.15f, maths[index].display, constants, options.dpi);
+                {
+                    if (! textFormats)
+                        textFormats = std::make_shared<MathTextFormats>(write, options.mathFontFamily, options.locale);
+                    placement.math =
+                        std::make_shared<PreparedMath>(write, maths[index].expression, font * 1.15f, maths[index].display, constants, options.dpi, textFormats);
+                }
                 if (! constants)
                     constants = placement.math.get();
             }
@@ -237,37 +254,67 @@ struct NativeImageGeometry
     std::vector<NativeImagePlacement> placements;
     std::vector<const RichImage*> unsupportedPixels;
     ID2D1RenderTarget* targetIdentity; // Identity only after staging; never dereferenced here.
-    bool PrepareOne(std::size_t index, ID2D1RenderTarget* target, bool& unsupported)
+    struct UploadProgress
+    {
+        bool complete{}, attempted{}, unsupported{};
+        std::size_t bytes{};
+    };
+    UploadProgress PrepareOne(std::size_t index, ID2D1RenderTarget* target, std::size_t maximumBytes)
     {
         auto& placement = placements[index];
         if (std::ranges::find(unsupportedPixels, placement.pixels.get()) != unsupportedPixels.end())
-        {
-            unsupported = true;
-            return false;
-        }
-        const auto found = std::find_if(
-            placements.begin(), placements.begin() + static_cast<std::ptrdiff_t>(index), [&](const auto& prior) { return prior.pixels == placement.pixels; });
-        if (found != placements.begin() + static_cast<std::ptrdiff_t>(index))
-        {
-            placement.bitmap = found->bitmap;
-            return false;
-        }
-        const auto properties = D2D1::BitmapProperties(D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED), 96.0f, 96.0f);
-        const auto result     = UploadImageBitmap(target,
-                                                  D2D1::SizeU(placement.pixels->Width(), placement.pixels->Height()),
-                                                  placement.pixels->Pixels().data(),
-                                                  placement.pixels->Stride(),
-                                                  properties,
-                                                  placement.bitmap.put());
-        if (result == D2DERR_UNSUPPORTED_OPERATION)
+            return {true, false, true, 0u};
+        const auto reject = [&]
         {
             unsupportedPixels.push_back(placement.pixels.get());
-            unsupported = true;
             Debug::Warning(L"DxUi: image upload is unsupported by this target; the image alternative is retained.");
-            return true;
+            return UploadProgress{true, true, true, 0u};
+        };
+        const auto width = placement.pixels->Width(), height = placement.pixels->Height();
+        if (! placement.bitmap)
+        {
+            const auto found = std::find_if(placements.begin(), placements.begin() + static_cast<std::ptrdiff_t>(index), [&](const auto& prior) {
+                return prior.pixels == placement.pixels;
+            });
+            if (found != placements.begin() + static_cast<std::ptrdiff_t>(index))
+            {
+                placement.bitmap = found->bitmap;
+                return {true, false, false, 0u};
+            }
+            const auto bytes      = static_cast<std::size_t>(width) * height * 4u;
+            const bool whole      = bytes <= maximumBytes;
+            const auto properties = D2D1::BitmapProperties(D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED), 96.0f, 96.0f);
+            const auto result     = UploadImageBitmap(target,
+                                                      D2D1::SizeU(width, height),
+                                                      whole ? placement.pixels->Pixels().data() : nullptr,
+                                                      whole ? placement.pixels->Stride() : 0u,
+                                                      properties,
+                                                      placement.bitmap.put());
+            if (result == D2DERR_UNSUPPORTED_OPERATION)
+                return reject();
+            THROW_IF_FAILED(result);
+            if (whole)
+                return {true, true, false, bytes};
         }
+        const auto columns = static_cast<UINT32>(std::min(static_cast<std::size_t>(width - placement.uploadedX), maximumBytes / 4u));
+        const auto rows =
+            placement.uploadedX == 0u && columns == width
+                ? static_cast<UINT32>(std::min(static_cast<std::size_t>(height - placement.uploadedY), maximumBytes / (static_cast<std::size_t>(width) * 4u)))
+                : 1u;
+        const D2D1_RECT_U rectangle{placement.uploadedX, placement.uploadedY, placement.uploadedX + columns, placement.uploadedY + rows};
+        const auto* pixels =
+            placement.pixels->Pixels().data() + static_cast<std::size_t>(placement.uploadedY) * placement.pixels->Stride() + placement.uploadedX * 4u;
+        const auto result = CopyImageBitmap(placement.bitmap.get(), rectangle, pixels, placement.pixels->Stride());
+        if (result == D2DERR_UNSUPPORTED_OPERATION)
+            return reject();
         THROW_IF_FAILED(result);
-        return true;
+        placement.uploadedX += columns;
+        if (placement.uploadedX == width)
+        {
+            placement.uploadedX = 0u;
+            placement.uploadedY += rows;
+        }
+        return {placement.uploadedY == height, true, false, static_cast<std::size_t>(columns) * rows * 4u};
     }
     bool PrepareMath(std::size_t index)
     {
@@ -359,13 +406,7 @@ struct MarkdownDecorations
 };
 bool SameOptions(const LayoutOptions& a, const LayoutOptions& b) noexcept
 {
-    return a.tableOverflow == b.tableOverflow && a.tabStopDip == b.tabStopDip && a.widthDip == b.widthDip && a.fontSizeDip == b.fontSizeDip && a.dpi == b.dpi &&
-           a.codeFontSizeDip == b.codeFontSizeDip && a.lineHeightMultiplier == b.lineHeightMultiplier && a.headingScaleStep == b.headingScaleStep &&
-           a.fontFamily == b.fontFamily && a.codeFontFamily == b.codeFontFamily && a.headingFontSizeDip == b.headingFontSizeDip &&
-           a.headingLineHeightMultiplier == b.headingLineHeightMultiplier && a.paragraphSpacingAfterLines == b.paragraphSpacingAfterLines &&
-           a.listItemSpacingDip == b.listItemSpacingDip && a.semanticSpacing == b.semanticSpacing && a.locale == b.locale &&
-           a.readingDirection == b.readingDirection && a.textAlignment == b.textAlignment && a.markdownPresentation == b.markdownPresentation &&
-           a.codeCopyAction == b.codeCopyAction && a.wrap == b.wrap;
+    return SameLayoutOptions(a, b, LayoutOptionsUse::Semantic);
 }
 void Union(std::optional<D2D1_RECT_F>& bounds, const D2D1_RECT_F& rectangle) noexcept
 {
@@ -1786,8 +1827,8 @@ LayoutPreparationStatus PreparedSemanticGeometry::Begin(IDWriteFactory* factory,
 }
 LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
 {
-    if (! budget.maximumLayouts || ! budget.maximumBlockSteps)
-        throw std::invalid_argument("Semantic layout budgets must be positive");
+    if (! budget.maximumLayouts || ! budget.maximumBlockSteps || budget.maximumUploadBytes < 4u)
+        throw std::invalid_argument("Semantic layout budgets must be positive and admit one BGRA pixel");
     if (! next_)
         return {};
     LayoutAdvance result{LayoutPreparationStatus::Pending};
@@ -2036,16 +2077,18 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                     ++result.blockSteps;
                     continue;
                 }
-                bool unsupported{};
-                const bool uploaded = work.state->images->PrepareOne(work.imageIndex, work.raster.get(), unsupported);
-                if (unsupported)
+                if (budget.maximumUploadBytes - result.uploadedBytes < 4u)
+                    break;
+                const auto upload = work.state->images->PrepareOne(work.imageIndex, work.raster.get(), budget.maximumUploadBytes - result.uploadedBytes);
+                if (upload.unsupported)
                     work.state->images->placements.erase(work.state->images->placements.begin() + static_cast<std::ptrdiff_t>(work.imageIndex));
-                else
+                else if (upload.complete)
                     ++work.imageIndex;
+                result.uploadedBytes += upload.bytes;
                 ++result.blockSteps;
-                // One indivisible bounded upload per owner turn. Repeated
-                // placements share a bitmap; no decode/I/O happens here.
-                if (uploaded)
+                // One bounded data upload per turn. Large bitmaps remain
+                // private until every tile is ready; duplicates share pixels.
+                if (upload.attempted)
                     break;
                 // A reused placement already consumed its one event above.
                 // Do not count it again in the common phase-step tail.

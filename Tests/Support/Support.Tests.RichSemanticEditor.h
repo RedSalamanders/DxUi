@@ -2588,6 +2588,10 @@ template <typename Prepare> void SourceHorizontalAndGuides(ControlHost& host, Pr
     host.SetRoot(std::move(root));
     prepare();
     const auto initial = editor->GetHorizontalScrollInfo();
+    const auto settled = editor->DebugGetState();
+    Check(settled.activeStage == RichTextPreparationStage::Ready && ! settled.preparationPending && ! settled.sourceGuidesPreparationPending &&
+              ! settled.sourceInkPreparationPending && settled.lastAdvanceUploadBytes == 0u,
+          "prepared source guides report a settled text stage without image-upload work");
     Check(initial && initial->contentWidthDip > initial->viewportWidthDip + 100.0f, "unwrapped source exposes horizontal overflow");
     const auto before = editor->TryGetTextInputCaretRect(host, 30u);
     Check(before.has_value(), "source guide fixture has a prepared caret");

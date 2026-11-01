@@ -1,3 +1,4 @@
+#include "DxUi.RichLayoutOptions.h"
 #include <DxUi/RichTextLayout.h>
 #include <algorithm>
 #include <cmath>
@@ -62,13 +63,7 @@ bool SameStyles(const std::vector<ProjectionBlock>& blocks, const Projection& ri
 }
 bool SameOptions(const LayoutOptions& left, const LayoutOptions& right) noexcept
 {
-    return left.tableOverflow == right.tableOverflow && left.tabStopDip == right.tabStopDip && left.widthDip == right.widthDip &&
-           left.fontSizeDip == right.fontSizeDip && left.dpi == right.dpi && left.codeFontSizeDip == right.codeFontSizeDip &&
-           left.lineHeightMultiplier == right.lineHeightMultiplier && left.headingScaleStep == right.headingScaleStep && left.fontFamily == right.fontFamily &&
-           left.headingFontSizeDip == right.headingFontSizeDip && left.headingLineHeightMultiplier == right.headingLineHeightMultiplier &&
-           left.paragraphSpacingAfterLines == right.paragraphSpacingAfterLines && left.listItemSpacingDip == right.listItemSpacingDip &&
-           left.semanticSpacing == right.semanticSpacing && left.codeFontFamily == right.codeFontFamily && left.locale == right.locale &&
-           left.readingDirection == right.readingDirection && left.textAlignment == right.textAlignment && left.wrap == right.wrap;
+    return Detail::SameLayoutOptions(left, right, Detail::LayoutOptionsUse::Text);
 }
 void JoinBlocks(Projection& result, const std::vector<ProjectionBlock>& blocks, std::size_t first, std::size_t end, ViewMode mode)
 {

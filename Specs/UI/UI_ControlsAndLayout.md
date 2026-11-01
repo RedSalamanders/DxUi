@@ -1101,7 +1101,16 @@ Request preparation processes at most four image candidates per owner turn;
 caller adapters MUST wake valid queued work when draining or cancel-pruning
 results frees a completion reservation; closure MUST serialize posting with
 owner retirement without joining a codec/filesystem call.
-GPU preparation uploads at most one bounded bitmap per turn. Native image
+GPU preparation performs at most one data upload per turn and never exceeds
+`LayoutWorkBudget::maximumUploadBytes` (4 MiB by default, minimum 4 bytes for
+image-capable semantic geometry; text-only/v0 services ignore this budget).
+An image fitting the budget uses one bitmap creation/upload. Larger images
+allocate private bounded bitmap storage, then copy complete pixel tiles across
+turns; even a budget smaller than one source row makes progress. Bitmap allocation
+itself is indivisible and remains subject to image dimension/decoded-byte bounds.
+Only complete bitmaps can enter a published geometry; duplicate placements share
+the completed bitmap. `LayoutAdvance::uploadedBytes` reports transferred BGRA
+pixel bytes, excluding unused source-row padding. Native image
 geometry MUST use actual inline baseline/aspect rather than the larger SDK line
 selection cell. Text ACPs, UIA alternatives and structural atomicity remain intact.
 Only the private SDK layout buffer MAY neutralize image-alternative code units
@@ -1109,7 +1118,8 @@ to equal-length object placeholders; authoritative source/display strings,
 alternative names and maps MUST remain unchanged. This prevents script/emoji
 analysis from splitting one atomic image into multiple native rectangles.
 Reused placements MUST consume exactly one preparation event, without an extra
-common phase-tail count. Invalid zero semantic budgets MUST preserve staging
+common phase-tail count. Invalid zero layout/event budgets or semantic upload
+budgets below four bytes MUST preserve staging
 and create no bitmap. Bitmap memory/device HRESULT failures MUST retire staging,
 preserve the prior complete geometry and permit an explicit current retry.
 `D2DERR_UNSUPPORTED_OPERATION` for an image upload is target-local: preparation
@@ -1855,7 +1865,32 @@ resource, device-loss and host object qualification remain separate requirements
 
 The bounded math parser exposes a stable typed issue for the named malformed and unsupported target examples while retaining its source-preserving human-readable fallback. Its target corpus checks the complete ordered AST for M01–M20, including matrix dimensions and explicit style/command payloads; equivalent adjacent ordinary glyphs may be stored as one text node.
 
-Native math preparation reads Cambria Math constants once per semantic geometry generation and shares the resulting em-relative values across formulas. A width-only reflow may reuse finalized DirectWrite math layouts while rebuilding placement geometry, provided the semantic document, factory, render target, resource epochs, image bindings and all other layout options match. Changed font, factory, target, epoch or document retires the incompatible resources; clearing the owner releases them. No global factory or font cache extends their lifetime.
+Native math preparation uses `LayoutOptions::mathFontFamily` (Cambria Math by
+default) and the layout's locale. A retained editor's empty
+`RichTextEditorAppearance::mathFontFamily` retains that default; a nonempty value
+selects the mathematical family independently of body/code fonts. Names use the
+same valid-UTF-16, no-NUL, 255-unit admission as other font families. Fonts without
+usable MATH data retain deterministic em/stroke fallbacks. The selected family's
+MATH constants are read once per semantic geometry generation and shared across
+formulas. Text formats are cached within that owner-thread staging generation by
+exact size, weight and italic style, at most 4,096 entries; no format is recreated
+for another leaf with that key. Paint never queries or mutates the cache.
+A width-only reflow may reuse finalized DirectWrite math layouts while rebuilding
+placement geometry, provided the semantic document, factory, render target,
+resource epochs, image bindings and all other layout options match. Changed
+mathematical family or locale also retires incompatible math. Clearing the owner
+releases its resources; no global factory/font cache extends their lifetime.
+
+The shared private layout-options comparison retains v0's intentional omission
+of math family, semantic presentation and code-copy affordance. Semantic compatibility
+includes every option. Math leaves and diagram labels consume both their existing
+layout budget and a block step; bitmap tiles consume a block step and their pixel
+byte budget. These counts bound work units, not elapsed time. `DebugGetState`
+reports the next pending stage across Markdown, semantics, image resources,
+geometry, code ink, source ink and source guides. `preparationPending` includes
+all these cooperative stages; cancellation retires them. Overlay fallback dirtiness
+remains separately reported and does not withhold an otherwise ready frame.
+`lastAdvanceUploadBytes` reports the last geometry advance's upload work.
 
 The pinned Mermaid 11.4.1 inventory and all 105 original flowchart examples MUST
 remain accounted for. Independent subset expectations distinguish 32 admitted
@@ -2213,7 +2248,7 @@ operator scripts; a trailing row separator is accepted.
 `\not` admits ungrouped single relation glyphs `= < > ≤ ≥ ∈ ∋ ⊂ ⊃ ⊆ ⊇ ∼ ≡ ≈ ∣ ∥`
 and substitutes their Unicode negations; other operands retain exact source.
 Unsupported commands remain local exact source. This is a named native profile,
-not a claim of all KaTeX functions or identical TeX font metrics. The Cambria Math face supplies bounded OpenType MATH italic corrections and precomposed vertical delimiter variants when available; larger delimiters use up to 32 distinct part records and 64 total compatible vertical glyph parts per delimiter, with 512 per formula. Connector overlap follows the [OpenType MATH format](https://learn.microsoft.com/en-us/typography/opentype/spec/math); part origins whose ink metrics do not match their advance within two design units use vector fallback. Missing, malformed or oversized font data also falls back. For `\widehat`, `\widetilde` and `\vec`, bounded horizontal variants or assemblies are used when their metrics fit the reserved accent envelope; missing, malformed or incompatible data retains vector fallback. Validated OpenType Device-table deltas for the supported math constants and italic corrections are applied at the formula ppem and converted from pixels to DIP using the effective DPI. Missing or malformed records fall back to the unadjusted design value; variable-font VariationIndex corrections remain unsupported. The at-most-4-MiB font snapshot and bounded glyph-indexed tables are shared per geometry generation.
+not a claim of all KaTeX functions or identical TeX font metrics. The selected mathematical face supplies bounded OpenType MATH italic corrections and precomposed vertical delimiter variants when available; larger delimiters use up to 32 distinct part records and 64 total compatible vertical glyph parts per delimiter, with 512 per formula. Connector overlap follows the [OpenType MATH format](https://learn.microsoft.com/en-us/typography/opentype/spec/math); part origins whose ink metrics do not match their advance within two design units use vector fallback. Missing, malformed or oversized font data also falls back. For `\widehat`, `\widetilde` and `\vec`, bounded horizontal variants or assemblies are used when their metrics fit the reserved accent envelope; missing, malformed or incompatible data retains vector fallback. Validated OpenType Device-table deltas for the supported math constants and italic corrections are applied at the formula ppem and converted from pixels to DIP using the effective DPI. Missing or malformed records fall back to the unadjusted design value; variable-font VariationIndex corrections remain unsupported. The at-most-4-MiB font snapshot and bounded glyph-indexed tables are shared per geometry generation.
 Font lookup and glyph-query HRESULT failures remain retryable; only a known
 unsupported font operation or absent/invalid font data uses the vector fallback.
 Native `binom`, `dbinom` and `tbinom` form a two-row parenthesized matrix with
