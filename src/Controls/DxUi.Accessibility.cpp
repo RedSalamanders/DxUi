@@ -4165,7 +4165,7 @@ std::optional<AccessibilityNavigationTarget> ResolveSnapshotNavigationTarget(con
         if (std::optional<std::vector<D2D1_RECT_F>> rects = control.TryGetTextInputRangeRects(host, range.start, range.end);
             rects.has_value() && ! rects->empty())
         {
-            return rects;
+            return std::optional<std::vector<D2D1_RECT_F>>(std::in_place, rects.value());
         }
         return std::nullopt;
     }
@@ -4174,18 +4174,18 @@ std::optional<AccessibilityNavigationTarget> ResolveSnapshotNavigationTarget(con
     {
         if (std::optional<D2D1_RECT_F> rect = TryResolveSimpleTextRangeCaretRect(host, control, text, range); rect.has_value())
         {
-            return std::vector<D2D1_RECT_F>{rect.value()};
+            return std::optional<std::vector<D2D1_RECT_F>>(std::in_place, 1u, rect.value());
         }
         if (std::optional<std::vector<D2D1_RECT_F>> rects = control.TryGetTextInputRangeRects(host, range.start, range.end);
             rects.has_value() && ! rects->empty())
         {
-            return rects;
+            return std::optional<std::vector<D2D1_RECT_F>>(std::in_place, rects.value());
         }
         return std::nullopt;
     }
 
     const D2D1_RECT_F viewport = ResolveTextPatternViewportRect(&control);
-    std::vector<D2D1_RECT_F> rects;
+    std::vector<D2D1_RECT_F> rects(0u);
     size_t segmentStart   = (std::min)(range.start, text.size());
     const size_t rangeEnd = (std::min)(range.end, text.size());
     while (segmentStart < rangeEnd)
@@ -4230,7 +4230,7 @@ std::optional<AccessibilityNavigationTarget> ResolveSnapshotNavigationTarget(con
     {
         return std::nullopt;
     }
-    return rects;
+    return std::optional<std::vector<D2D1_RECT_F>>(std::in_place, rects);
 }
 
 [[nodiscard]] size_t GetTextRangeEndpointPosition(const TextRangeSpan& range, TextPatternRangeEndpoint endpoint) noexcept
