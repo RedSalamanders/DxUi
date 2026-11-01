@@ -2039,6 +2039,12 @@ bool ControlHost::HandleNativeTextInputImeMessage(UINT msg, WPARAM wp, LPARAM lp
     return true;
 }
 
+std::optional<bool> ControlHost::GetNativeTextCompositionActive(const Control* control) const noexcept
+{
+    if (! control || control != _nativeTextInputControl || ! _nativeTextInputStateCacheValid)
+        return std::nullopt;
+    return _nativeTextInputStateCache.compositionStartIndex.has_value() || _nativeTextInputStateCache.compositionEndIndex.has_value();
+}
 bool ControlHost::TryReadNativeTextInputState(const Control* control, NativeTextInputState& outState) const noexcept
 {
     if (! control || control != _nativeTextInputControl || ! _nativeTextInputStateCacheValid)

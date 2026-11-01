@@ -5946,6 +5946,8 @@ public:
     [[nodiscard]] TextInputBackend GetTextInputBackend() const noexcept;
     [[nodiscard]] bool HasActiveNativeTextInputSession() const noexcept;
     [[nodiscard]] bool TryReadNativeTextInputState(const Control* control, NativeTextInputState& outState) const noexcept;
+    // Read only the cached composition marker without copying native text.
+    [[nodiscard]] std::optional<bool> GetNativeTextCompositionActive(const Control* control) const noexcept;
     void CommitFocusedTextInput() noexcept;
     [[nodiscard]] bool TryReadTextInputState(const Control* control, TextInputState& outState) const noexcept;
     void SyncTextInput(Control* control) noexcept;

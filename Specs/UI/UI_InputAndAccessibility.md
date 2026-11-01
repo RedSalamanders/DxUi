@@ -1248,7 +1248,8 @@ presentation without constructing an edit; unavailable editor states report
 `available = false`. Applicability remains unknown for an enabled rich editor
 until its structural planner predicates are available without edit construction.
 Code-exit applicability shares its nonallocating source admission predicate
-with the planner when no active native input session needs composition checking.
+with the planner and reads the cached native composition marker without copying
+its text; an active session with no valid cache remains unavailable.
 InsertThematicBreak inserts a separated rule at a top-level caret, retaining
 the existing text and line-ending convention; unsupported container positions
 decline rather than rewriting a prefix.

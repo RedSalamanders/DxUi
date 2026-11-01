@@ -264,6 +264,14 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     editor->SetSelection({2u, 14u});
     const auto mixedState = editor->QueryMarkdownCommandState(stateRequest);
     Check(mixedState && mixedState->mixed && ! mixedState->active, "command-state query reports mixed formatting");
+    editor->SetText(L"~~~\nx\n~~~\n");
+    prepare();
+    editor->SetSelection({4u, 4u});
+    stateRequest.command = MarkdownCommand::ExitCodeBlock;
+    const auto exitState = editor->QueryMarkdownCommandState(stateRequest);
+    Check(exitState && exitState->available == std::optional<bool>{true} && editor->ExecuteMarkdownCommand(stateRequest) == MarkdownCommandStatus::Changed &&
+              editor->Undo(),
+          "code-exit state uses the same admission as execution without copying the native text cache");
     editor->SetText(L"word");
     prepare();
     std::size_t notifications = 0u;

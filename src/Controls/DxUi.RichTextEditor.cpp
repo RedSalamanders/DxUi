@@ -1532,9 +1532,8 @@ RichText::MarkdownCommandStatus RichTextEditor::ApplyMarkdownCommand(const RichT
         throw std::invalid_argument("Stale Markdown command syntax publication");
     if (auto* host = GetHost(); host && host->GetFocusControl() == this)
     {
-        NativeTextInputState input{.text = std::wstring(0u, L' '), .compositionClauseBoundaries = std::vector<size_t>(0u)};
-        const bool available = host->TryReadNativeTextInputState(this, input);
-        if ((host->HasActiveNativeTextInputSession() && ! available) || (available && (input.compositionStartIndex || input.compositionEndIndex)))
+        const auto composition = host->GetNativeTextCompositionActive(this);
+        if ((host->HasActiveNativeTextInputSession() && ! composition) || composition.value_or(false))
             return MarkdownCommandStatus::Unavailable;
     }
     auto site = MarkdownNoNode;
@@ -1602,9 +1601,10 @@ std::optional<RichText::MarkdownCommandState> RichTextEditor::QueryMarkdownComma
     const auto selection = GetSelection();
     if (request.command == MarkdownCommand::ExitCodeBlock)
     {
-        auto* host = GetHost();
-        if (! host || host->GetFocusControl() != this || ! host->HasActiveNativeTextInputSession())
-            result.available = FindExitCodeBlock(*document->Syntax(), selection).has_value();
+        auto* host             = GetHost();
+        const auto composition = host && host->GetFocusControl() == this ? host->GetNativeTextCompositionActive(this) : std::optional<bool>{false};
+        result.available       = (! host || host->GetFocusControl() != this || ! host->HasActiveNativeTextInputSession() || composition.has_value()) &&
+                                 ! composition.value_or(false) && FindExitCodeBlock(*document->Syntax(), selection).has_value();
     }
     auto first = selection.Start(), last = selection.End();
     if (first == last && first != 0u)
