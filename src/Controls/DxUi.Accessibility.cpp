@@ -13538,6 +13538,17 @@ void QueueEmbeddedPropertyChange(WindowHostAccessibilityTarget& target,
         bool overflow{};
         {
             const std::scoped_lock lock(target.structureNotificationMutex);
+            // Registration can reenter the owner. Recheck the key after it returns so a newer publication cannot
+            // leave duplicate pending entries. The discarded COM registration is released after the lock.
+            for (auto& pending : target.pendingProperties)
+                if (pending.controlIdentity == property.controlIdentity && pending.treeItemId == property.treeItemId && pending.propertyId == id &&
+                    AreControlPathsEqual(pending.path, property.path))
+                {
+                    // The reentrant entry is newer and owns the latest value; retain this publication's older baseline.
+                    std::swap(pending.previous, property.previous);
+                    pending.previousInterface.swap(property.previousInterface);
+                    return;
+                }
             if (treeItemId)
             {
                 size_t queued{};
