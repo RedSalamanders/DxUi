@@ -182,7 +182,7 @@ std::wstring CodeCopyText(const RichText::SemanticDocument& document, const Rich
         return std::wstring(0u, L' ');
     RichText::Detail::SemanticValue value;
     RichText::Detail::NormalizeSemanticLeaf(syntax, element.syntaxNode, value, true);
-    return std::move(value.text);
+    return std::wstring(value.text);
 }
 D2D1_COLOR_F ResolveMarkdownQuoteFill(const ThemePalette& theme, const TextFieldVisualStyle& style) noexcept
 {
@@ -5825,8 +5825,7 @@ bool RichTextEditor::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool righ
             }
             catch (const std::bad_alloc&)
             {
-                // This native input boundary cannot propagate allocation failure.
-                std::terminate();
+                // The released copy gesture is consumed without changing source or history.
             }
             catch (const std::exception&)
             {
