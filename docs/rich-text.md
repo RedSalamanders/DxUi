@@ -1586,7 +1586,9 @@ are padded with empty cells to the widest row, within the total-cell limit. User
 compatibility are unsupported. Rejection retains the complete literal equation with
 a source-ranged diagnostic, rather than drawing a misleading partial expression.
 Alphabet mapping covers ASCII letters; blackboard, sans-serif and monospace also
-map ASCII digits, while other characters are preserved.
+map ASCII digits, while other characters are preserved. A prepared text leaf may
+hold up to twice the authored source-unit limit to allow surrogate-pair alphabet
+expansion; the authored source limit itself is unchanged.
 
 The bounded native profile records atom classes, font styles, script style and
 operator limit policy in its typed model. Variables are italic by default; numbers,

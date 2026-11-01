@@ -717,7 +717,7 @@ class PreparedMath final
             const auto current = pending[--top];
             const auto& node   = *current.node;
             if (++count > MathMaximumNodes || current.depth > MathMaximumNodeDepth || node.children.size() > MathMaximumNodes - top ||
-                node.text.size() > MathMaximumSourceUnits || ! IsValidUtf16(node.text))
+                node.text.size() > (node.kind == MathKind::Text ? 2u * MathMaximumSourceUnits : MathMaximumSourceUnits) || ! IsValidUtf16(node.text))
                 throw std::length_error("Mathematical syntax capacity exceeded");
             switch (node.kind)
             {

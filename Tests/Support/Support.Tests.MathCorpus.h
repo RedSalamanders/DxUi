@@ -193,6 +193,28 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
     PinnedSupportRows(factory, check);
     MathFontTableTests::Run(check);
     {
+        const auto source = L"\\mathbb{\\text{" + std::wstring(8200u, L'A') + L"}}";
+        const auto expression = std::make_shared<const MathExpression>(ParseMath(source));
+        check(static_cast<bool>(*expression), "authored blackboard source below the source cap parses before expansion");
+        Detail::PreparedMath expanded(factory, expression, 1.f);
+        while (! expanded.Advance())
+        {
+        }
+        check(expanded.Size().width > 0.f, "bounded surrogate expansion does not reject a valid authored source");
+        auto oversized = ParseMath(L"\\text{a}");
+        oversized.root.children[0u].text.assign(2u * MathMaximumSourceUnits + 1u, L'a');
+        bool refused = false;
+        try
+        {
+            Detail::PreparedMath invalid(factory, std::make_shared<const MathExpression>(std::move(oversized)), 1.f);
+        }
+        catch (const std::length_error&)
+        {
+            refused = true;
+        }
+        check(refused, "direct mathematical text payloads remain bounded after allowing alphabet expansion");
+    }
+    {
         const auto dots = std::make_shared<const MathExpression>(ParseMath(L"a\\ldots b"));
         const auto literal = std::make_shared<const MathExpression>(ParseMath(L"a…b"));
         check(*dots && dots->root.children.size() == 3u && dots->root.children[1u].atomClass == MathAtomClass::Inner && *literal &&
