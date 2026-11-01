@@ -3,6 +3,7 @@
 #include <crtdbg.h>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <cwchar>
 #include <windows.h>
 
@@ -12,6 +13,20 @@
 // ends the process with exit code 3 (the dialog's Abort), with no Windows Error Reporting dialog either.
 namespace DxUiTestFailureReports
 {
+inline void WriteFailure(const char* message) noexcept
+{
+    // A previous injected iostream allocation failure can leave cerr failed.
+    // Write to the borrowed standard handle without allocating or depending on
+    // its C/C++ text orientation; the runner still owns the actual log pipe.
+    const auto output = GetStdHandle(STD_ERROR_HANDLE);
+    if (output == nullptr || output == INVALID_HANDLE_VALUE)
+        return;
+    DWORD written{};
+    static_cast<void>(WriteFile(output, "FAIL: ", 6u, &written, nullptr));
+    if (message)
+        static_cast<void>(WriteFile(output, message, static_cast<DWORD>(std::strlen(message)), &written, nullptr));
+    static_cast<void>(WriteFile(output, "\n", 1u, &written, nullptr));
+}
 #if defined(_DEBUG)
 inline int __cdecl ReportAndEnd(int reportType, wchar_t* message, int* returnValue) noexcept
 {
