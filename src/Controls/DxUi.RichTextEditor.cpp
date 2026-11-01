@@ -796,6 +796,7 @@ void RichTextEditor::SetAppearance(const RichTextEditorAppearance& appearance)
     auto next            = appearance; // Stage all owned strings before publishing any option.
     const auto& previous = _state->appearance;
     const bool geometryChanged =
+        previous.showVerticalScrollbar != next.showVerticalScrollbar ||
         previous.maximumTextWidthDip != next.maximumTextWidthDip || previous.paddingDip != next.paddingDip ||
         previous.bodyFontSizeDip != next.bodyFontSizeDip || previous.codeFontSizeDip != next.codeFontSizeDip ||
         previous.lineHeightMultiplier != next.lineHeightMultiplier || previous.headingScaleStep != next.headingScaleStep ||
@@ -814,6 +815,7 @@ void RichTextEditor::SetAppearance(const RichTextEditorAppearance& appearance)
     value.useAccentLinkColor          = next.useAccentLinkColor;
     value.colorizeMarkdownSource      = next.colorizeMarkdownSource;
     value.directSourceInkPreview      = next.directSourceInkPreview;
+    value.showVerticalScrollbar       = next.showVerticalScrollbar;
     value.sourceTabSpaces             = next.sourceTabSpaces;
     value.sourceTabUsesTabs           = next.sourceTabUsesTabs;
     value.maximumTextWidthDip         = next.maximumTextWidthDip;
