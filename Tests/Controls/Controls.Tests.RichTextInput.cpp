@@ -821,6 +821,69 @@ void TestRichTextApplicationImageClipboard()
                 "stale clipboard read cannot add a transaction");
     }
     clipboard.afterRead = {};
+    // Exercise the application adapter with HTML enabled independently of files.
+    class HtmlOnlyClient final : public TextInputClient, public TextClipboardPasteTransform, public TextClipboardHtmlPaste
+    {
+    public:
+        explicit HtmlOnlyClient(std::shared_ptr<EmbeddedTextClient> value) : delegate(std::move(value)) {}
+        HRESULT Read(EmbeddedTextInputSnapshot& value) noexcept override { return delegate->Read(value); }
+        HRESULT Apply(uint64_t revision, const NativeTextInputState& value, EmbeddedTextInputAction action) noexcept override
+        { return delegate->Apply(revision, value, action); }
+        void Cancel() noexcept override { delegate->Cancel(); }
+        HRESULT HitTest(POINT point, size_t& index) noexcept override { return delegate->HitTest(point, index); }
+        HRESULT RangeBounds(size_t first, size_t last, RECT& bounds, bool& clipped) noexcept override
+        { return delegate->RangeBounds(first, last, bounds, clipped); }
+        HRESULT ViewportBounds(RECT& bounds) noexcept override { return delegate->ViewportBounds(bounds); }
+        bool AcceptsFilePaths(const EmbeddedTextInputSnapshot&) const noexcept override { return false; }
+        bool AcceptsHtml(const EmbeddedTextInputSnapshot&) const noexcept override { return true; }
+        HRESULT TransformPaste(const EmbeddedTextInputSnapshot& value, const TextClipboardContent& content, std::wstring& replacement) noexcept override
+        { return delegate->TransformPaste(value, content, replacement); }
+        std::shared_ptr<EmbeddedTextClient> delegate;
+    };
+    class HtmlOnlyClipboard final : public TextClipboard, public SelectiveStructuredTextClipboard
+    {
+    public:
+        size_t reads{};
+        HRESULT Read(HWND, std::wstring&) noexcept override { return E_UNEXPECTED; }
+        HRESULT Write(HWND, std::wstring_view) noexcept override { return E_NOTIMPL; }
+        HRESULT ReadSelectedContent(HWND, TextClipboardContent& output, bool files, bool html) noexcept override
+        try
+        {
+            if (files || ! html) return E_INVALIDARG;
+            TextClipboardContent staged;
+            staged.hasHtmlFragment = true;
+            staged.htmlFragment = L"<b>bold</b>";
+            output.Swap(staged);
+            ++reads;
+            return S_OK;
+        }
+        catch (const std::bad_alloc&) { return E_OUTOFMEMORY; }
+    } htmlClipboard;
+    services.ClearClient();
+    auto htmlClient = std::make_shared<HtmlOnlyClient>(client);
+    RequireSucceeded(services.SetClient(htmlClient), "attach HTML-only embedded text client");
+    editor->SetText(L"replace");
+    editor->SetHtmlPasteConverter([](std::wstring_view value) -> std::optional<std::wstring> {
+        return value == L"<b>bold</b>" ? std::optional<std::wstring>{L"**bold**"} : std::nullopt;
+    });
+    prepare();
+    editor->SetSelection({7u, 0u});
+    Require(services.Clipboard(TextClipboardCommand::Paste, &htmlClipboard) == S_OK && editor->GetText() == L"**bold**" && htmlClipboard.reads == 1u &&
+                editor->Undo() && editor->GetText() == L"replace", "HTML-only embedded paste converts in one undoable transaction without file opt-in");
+    prepare();
+    editor->SetSelection({7u, 0u});
+    editor->SetHtmlPasteConverter([](std::wstring_view) -> std::optional<std::wstring> { return std::nullopt; });
+    const auto declinedRevision = editor->Revision();
+    Require(services.Clipboard(TextClipboardCommand::Paste, &htmlClipboard) == S_FALSE && editor->GetText() == L"replace" &&
+                editor->Revision() == declinedRevision && editor->GetSelection() == Selection{7u, 0u},
+            "declining HTML without Unicode text leaves selected source untouched");
+    editor->SetHtmlPasteConverter([](std::wstring_view) -> std::optional<std::wstring> { return std::wstring{}; });
+    Require(services.Clipboard(TextClipboardCommand::Paste, &htmlClipboard) == S_OK && editor->GetText().empty() && editor->Undo() && editor->GetText() == L"replace",
+            "explicit empty conversion remains a deliberate undoable deletion");
+    editor->SetHtmlPasteConverter({});
+    services.ClearClient();
+    RequireSucceeded(services.SetClient(client), "restore ordinary embedded text client");
+    prepare();
     editor->SetReadOnly(true);
     const auto reads = clipboard.reads;
     Require(services.Clipboard(TextClipboardCommand::Paste, &clipboard) == E_ACCESSDENIED && clipboard.reads == reads,
