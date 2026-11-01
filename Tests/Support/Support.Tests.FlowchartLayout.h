@@ -311,7 +311,7 @@ template <typename Check> inline void Corpus(Check&& check)
             continue;
         const auto graph = Graph(example.source);
         const auto first = Place(graph, check, 1u), batched = Place(graph, check, 113u);
-        if (example.number == 90u || example.number == 91u)
+        if (example.number == 91u)
         {
             check(first->issue == FlowchartLayoutIssue::DiagramExtent && batched->issue == FlowchartLayoutIssue::DiagramExtent &&
                       first->nodes.empty() && first->edges.empty() && first->groups.empty() &&
