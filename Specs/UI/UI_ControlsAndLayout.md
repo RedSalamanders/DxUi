@@ -1706,7 +1706,7 @@ spelling, order, BOM and original EOLs MUST survive every untouched source range
 Before validated metadata presentation is available, semantic rendering MUST
 display the entire literal envelope, including fences, without entity/Markdown
 decoding. Source ACPs/history remain authoritative. Markdown structural style,
-heading and table commands MUST reject metadata targets atomically; ordinary
+heading, list, quote and table commands MUST reject metadata targets atomically; ordinary
 source replacement/undo/redo and source-view selection remain available.
 Envelope recognition alone MUST NOT be presented as YAML/TOML validity or full
 extension conformance. Closed TOML content is checked against TOML 1.0.0 without changing source; invalid content and nesting beyond 128 values or dotted-key segments, or more than 1,024 total key segments, have distinct source-owned diagnostics. Missing fences take precedence. Closed YAML content is checked using the YAML 1.2.2 core schema; syntax, duplicate mapping keys, unresolved aliases and resource-capacity refusals are distinct diagnostics. Complete corpus and native qualification remain pending.

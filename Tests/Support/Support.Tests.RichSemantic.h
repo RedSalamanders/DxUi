@@ -326,7 +326,27 @@ inline void ListsAndHeadings()
         Exact(L"~~~\nx\n~~~\n", {4u, 4u}, request, L"> ~~~\n> x\n> ~~~\n", std::nullopt, profile);
         Exact(L"> ~~~\n> x\n> ~~~\n", {8u, 8u}, request, L"~~~\nx\n~~~\n", std::nullopt, profile);
         Exact(L"<div>\nx\n</div>\n", {5u, 5u}, request, L"> <div>\n> x\n> </div>\n", std::nullopt, profile);
-        Exact(L"---\n", {1u, 1u}, request, L"> ---\n", std::nullopt, profile);
+        Exact(L"***\n", {1u, 1u}, request, L"> ***\n", std::nullopt, profile);
+        Exact(L"text\n\n---\n", {7u, 7u}, request, L"text\n\n> ---\n", std::nullopt, profile);
+        Exact(L"    code\n", {5u, 5u}, request, L">     code\n", std::nullopt, profile);
+        Exact(L"- ~~~\n  x\n  ~~~\n", {8u, 8u}, request, L"- > ~~~\n  > x\n  > ~~~\n", std::nullopt, profile);
+        Exact(L"- ---\n", {4u, 4u}, request, L"- > ---\n", std::nullopt, profile);
+        if (profile == MarkdownProfile::RichMarkdown)
+        {
+            Unavailable(L"---\n", {1u, 1u}, request, profile);
+            Unavailable(L"---\na: b\n---\n", {5u, 5u}, request, profile);
+            Unavailable(L"\ufeff---\na: b\n", {6u, 6u}, request, profile);
+            request.command = MarkdownCommand::SetList;
+            Unavailable(L"---\na: b\n---\n", {5u, 5u}, request, profile);
+            request.command = MarkdownCommand::SetQuote;
+            Document metadata(L"---\na: b\n---\n");
+            metadata.SetSelection({5u, 5u});
+            Check(metadata.ReplaceSelection(L"x") && metadata.Text() == L"---\nax: b\n---\n" && metadata.Undo() &&
+                      metadata.Text() == L"---\na: b\n---\n" && metadata.Redo() && metadata.Text() == L"---\nax: b\n---\n",
+                  "metadata remains available to exact source editing and undo/redo");
+        }
+        else
+            Exact(L"---\n", {1u, 1u}, request, L"> ---\n", std::nullopt, profile);
         if (profile != MarkdownProfile::CommonMark0312)
             Exact(L"a | b\n- | -\nx | y\n", {2u, 2u}, request, L"> a | b\n> - | -\n> x | y\n", std::nullopt, profile);
         request.command = MarkdownCommand::SetCodeBlock;

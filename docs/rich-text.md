@@ -1280,7 +1280,7 @@ their identity. Foreign UIA reads do not dereference the control to check it.
 
 Semantic presentation currently keeps this source fully visible as a literal
 fallback, including fences. Ordinary source edits/undo/redo remain available;
-Markdown style/heading/table commands reject metadata targets. Closed TOML
+Markdown style, heading, list, quote and table commands reject metadata targets. Closed TOML
 content is checked against TOML 1.0.0 and reports invalid input or a nesting-
 capacity refusal while preserving the entire source. YAML 1.2.2 core-schema validation
 distinguishes invalid syntax, duplicate mapping
