@@ -151,6 +151,18 @@ inline std::wstring Matrix(unsigned rows, unsigned columns)
 template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
 {
     MathFontTableTests::Run(check);
+    check(Detail::OptionalMathFontOperation(S_OK) && ! Detail::OptionalMathFontOperation(DWRITE_E_UNSUPPORTEDOPERATION),
+          "optional math font operation falls back only for unsupported operations");
+    bool outOfMemoryPropagated = false;
+    try
+    {
+        static_cast<void>(Detail::OptionalMathFontOperation(E_OUTOFMEMORY));
+    }
+    catch (const wil::ResultException& error)
+    {
+        outOfMemoryPropagated = error.GetErrorCode() == E_OUTOFMEMORY;
+    }
+    check(outOfMemoryPropagated, "optional math font operation propagates allocation failure");
 #if DXUI_ENABLE_DIAGNOSTICS
     {
         wil::com_ptr<IDWriteFontCollection> collection;

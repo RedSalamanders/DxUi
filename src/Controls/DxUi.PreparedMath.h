@@ -164,27 +164,42 @@ public:
     unsigned runs{};
 };
 #pragma warning(pop)
+inline bool OptionalMathFontOperation(HRESULT result)
+{
+    if (result == DWRITE_E_UNSUPPORTEDOPERATION)
+        return false;
+    THROW_IF_FAILED(result);
+    return true;
+}
 inline bool SameMathFontFile(IDWriteFontFace* left, IDWriteFontFace* right)
 {
     if (! left || ! right || left->GetType() != right->GetType() || left->GetIndex() != right->GetIndex())
         return false;
     UINT32 leftCount{}, rightCount{};
-    THROW_IF_FAILED(left->GetFiles(&leftCount, nullptr));
-    THROW_IF_FAILED(right->GetFiles(&rightCount, nullptr));
+    if (! OptionalMathFontOperation(left->GetFiles(&leftCount, nullptr)))
+        return false;
+    if (! OptionalMathFontOperation(right->GetFiles(&rightCount, nullptr)))
+        return false;
     if (leftCount != 1u || rightCount != 1u)
         return false;
     wil::com_ptr<IDWriteFontFile> a, b;
-    THROW_IF_FAILED(left->GetFiles(&leftCount, a.put()));
-    THROW_IF_FAILED(right->GetFiles(&rightCount, b.put()));
+    if (! OptionalMathFontOperation(left->GetFiles(&leftCount, a.put())))
+        return false;
+    if (! OptionalMathFontOperation(right->GetFiles(&rightCount, b.put())))
+        return false;
     wil::com_ptr<IDWriteFontFileLoader> aLoader, bLoader;
-    THROW_IF_FAILED(a->GetLoader(aLoader.put()));
-    THROW_IF_FAILED(b->GetLoader(bLoader.put()));
+    if (! OptionalMathFontOperation(a->GetLoader(aLoader.put())))
+        return false;
+    if (! OptionalMathFontOperation(b->GetLoader(bLoader.put())))
+        return false;
     if (aLoader.get() != bLoader.get())
         return false;
     const void *aKey{}, *bKey{};
     UINT32 aSize{}, bSize{};
-    THROW_IF_FAILED(a->GetReferenceKey(&aKey, &aSize));
-    THROW_IF_FAILED(b->GetReferenceKey(&bKey, &bSize));
+    if (! OptionalMathFontOperation(a->GetReferenceKey(&aKey, &aSize)))
+        return false;
+    if (! OptionalMathFontOperation(b->GetReferenceKey(&bKey, &bSize)))
+        return false;
     return aSize == bSize && (! aSize || (aKey && bKey && std::memcmp(aKey, bKey, aSize) == 0));
 }
 // PreparedMath owns all shaping and geometry. The syntax tree is admitted and
@@ -308,10 +323,7 @@ class PreparedMath final
     }
     static bool OptionalFontOperation(HRESULT result)
     {
-        if (result == DWRITE_E_UNSUPPORTEDOPERATION)
-            return false;
-        THROW_IF_FAILED(result);
-        return true;
+        return OptionalMathFontOperation(result);
     }
     HRESULT GlyphMetrics(UINT16 glyph, DWRITE_GLYPH_METRICS& metrics) const noexcept
     {
