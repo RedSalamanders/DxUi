@@ -361,6 +361,15 @@ class PreparedMath final
                name == L"underleftarrow" || name == L"underrightarrow" || name == L"underleftrightarrow" || name == L"overleftharpoon" ||
                name == L"overrightharpoon" || name == L"overlinesegment" || name == L"underlinesegment";
     }
+    static bool RowTagLabel(const MathNode& label) noexcept
+    {
+        if (label.kind == MathKind::Text)
+            return label.children.empty();
+        return label.kind == MathKind::Row && label.children.size() == 3u &&
+               label.children[0u].kind == MathKind::Text && label.children[0u].text == L"(" && label.children[0u].children.empty() &&
+               label.children[1u].kind == MathKind::Text && label.children[1u].children.empty() &&
+               label.children[2u].kind == MathKind::Text && label.children[2u].text == L")" && label.children[2u].children.empty();
+    }
     static std::optional<std::uint32_t> ColorArgument(std::wstring_view text, std::wstring_view prefix) noexcept
     {
         if (! text.starts_with(prefix) || text.size() != prefix.size() + 6u)
@@ -472,6 +481,12 @@ class PreparedMath final
         bool display{};
         float subKern{}, superKern{}, scriptLeftPad{};
         std::uint32_t color{NoColor};
+        std::size_t rowTag{std::numeric_limits<std::size_t>::max()};
+    };
+    struct RowTagPlacement
+    {
+        const MathNode* label{};
+        float baseline{};
     };
     enum class PaintKind
     {
@@ -495,6 +510,7 @@ class PreparedMath final
     std::shared_ptr<const MathFontData> mathData;
     std::vector<Glyph> glyphs;
     std::vector<Box> boxes;
+    std::optional<std::vector<RowTagPlacement>> rowTags;
     std::vector<Line> lines;
     std::vector<VariantGlyph> variants;
     std::vector<PaintOperation> paintOperations;
@@ -686,16 +702,17 @@ class PreparedMath final
         const auto adjusted = MathFontTable(mathData->table).AdjustedValue(mathData->constants[index], size, dpi, mathData->designUnits);
         return adjusted && adjusted.value() >= 0.f && adjusted.value() <= size * 2.f ? adjusted.value() : fallback;
     }
-    static std::size_t CountAndValidate(const MathNode& root)
+    static std::size_t CountAndValidate(const MathNode& root, bool display)
     {
         struct Pending
         {
             const MathNode* node;
             unsigned depth;
+            bool rowCell;
         };
         std::array<Pending, MathMaximumNodes> pending{};
         std::size_t top{}, count{};
-        pending[top++] = {&root, 0u};
+        pending[top++] = {&root, 0u, false};
         while (top != 0u)
         {
             const auto current = pending[--top];
@@ -753,6 +770,12 @@ class PreparedMath final
                         throw std::length_error("Invalid mathematical accent arguments");
                     break;
                 case MathKind::Style:
+                    if (node.text == L"rowtag")
+                    {
+                        if (! display || ! current.rowCell || node.children.size() != 2u || ! RowTagLabel(node.children[1u]))
+                            throw std::length_error("Row tags require a display matrix row");
+                        break;
+                    }
                     if (node.text != L"mathrm" && node.text != L"mathbf" && node.text != L"mathit" && node.text != L"mathnormal" &&
                         node.text != L"boldsymbol" && node.text != L"bm" && node.text != L"mathbb" && node.text != L"mathcal" && node.text != L"mathscr" &&
                         node.text != L"mathfrak" && node.text != L"mathsf" && node.text != L"mathtt" && node.text != L"mathord" && node.text != L"mathop" &&
@@ -797,8 +820,13 @@ class PreparedMath final
             }
             if (node.limits != MathLimits::Automatic && node.limits != MathLimits::AboveBelow && node.limits != MathLimits::Side)
                 throw std::length_error("Unknown mathematical limits mode");
-            for (const auto& child : node.children)
-                pending[top++] = {&child, current.depth + 1u};
+            for (std::size_t i = 0u; i < node.children.size(); ++i)
+            {
+                const auto matrixName = MatrixBase(node.text);
+                const bool rowCell = node.kind == MathKind::Matrix && node.columns && i % node.columns == 0u &&
+                                     (matrixName == L"aligned" || matrixName == L"alignat" || matrixName == L"gathered");
+                pending[top++] = {&node.children[i], current.depth + 1u, rowCell};
+            }
         }
         return count;
     }
@@ -827,6 +855,15 @@ class PreparedMath final
         const auto index = boxes.size();
         boxes.push_back({&node, 0u, 0u, std::numeric_limits<std::size_t>::max(), {}, 0.f, node.atomClass, size, scriptLevel, display});
         boxes[index].color = foreground;
+        if (node.kind == MathKind::Style && node.text == L"rowtag")
+        {
+            if (! rowTags)
+                rowTags.emplace(0u);
+            if (rowTags->size() == MathMaximumNodes)
+                throw std::length_error("Too many mathematical row tags");
+            boxes[index].rowTag = rowTags->size();
+            rowTags->push_back({&node.children[1u], 0.f});
+        }
         if (const auto color = node.kind == MathKind::Style ? ColorArgument(node.text, L"textcolor:") : std::nullopt)
         {
             colored    = true;
@@ -864,7 +901,8 @@ class PreparedMath final
         boxes[index].firstChild = boxes.size();
         const auto firstChild   = boxes[index].firstChild;
         const auto nextLevel    = scriptLevel < 2u ? scriptLevel + 1u : 2u;
-        for (std::size_t childIndex = 0; childIndex < node.children.size(); ++childIndex)
+        const auto childCount = node.kind == MathKind::Style && node.text == L"rowtag" ? 1u : node.children.size();
+        for (std::size_t childIndex = 0; childIndex < childCount; ++childIndex)
         {
             const auto& child = node.children[childIndex];
             float childSize   = size;
@@ -1407,7 +1445,7 @@ class PreparedMath final
                 box.extent.above = std::max(box.extent.above, childExtent.above);
                 box.extent.below = std::max(box.extent.below, childExtent.below);
             }
-            if (node.kind == Style && node.children.size() == 1u)
+            if (node.kind == Style && (node.children.size() == 1u || node.text == L"rowtag"))
                 box.extent = child(0u);
         }
     }
@@ -2307,6 +2345,12 @@ class PreparedMath final
         }
         if (node.kind == Space)
             return;
+        if (node.kind == Style && node.text == L"rowtag")
+        {
+            rowTags.value()[box.rowTag].baseline = baseline;
+            Place(ChildAt(index, 0u), x, baseline);
+            return;
+        }
         if (node.kind == Fraction && node.children.size() == 2u)
         {
             PlaceFraction(index, x, baseline);
@@ -2444,6 +2488,9 @@ class PreparedMath final
             glyph.origin.x += shiftX;
             glyph.origin.y += shiftY;
         }
+        if (rowTags)
+            for (auto& tag : rowTags.value())
+                tag.baseline += shiftY;
         for (auto& variant : variants)
         {
             variant.x += shiftX;
@@ -2500,7 +2547,7 @@ public:
 #if DXUI_ENABLE_DIAGNOSTICS
         ++testRichMathPreparations;
 #endif
-        const auto count = CountAndValidate(expression->root);
+        const auto count = CountAndValidate(expression->root, displayStyle);
         if (! textFormats)
             textFormats = std::make_shared<MathTextFormats>(write);
         if (textFormats->Factory() != write)
@@ -2615,6 +2662,18 @@ public:
     float Baseline() const noexcept
     {
         return extent.above;
+    }
+    std::span<const RowTagPlacement> RowTags() const noexcept
+    {
+        return rowTags ? std::span<const RowTagPlacement>(rowTags.value()) : std::span<const RowTagPlacement>{};
+    }
+    std::shared_ptr<PreparedMath> PrepareRowTag(std::size_t index) const
+    {
+        if (! rowTags || index >= rowTags->size())
+            throw std::out_of_range("Mathematical row tag index");
+        const std::wstring empty(0u, L' ');
+        const auto label = std::make_shared<const MathExpression>(*rowTags.value()[index].label, empty);
+        return std::make_shared<PreparedMath>(factory.get(), label, font, false, this, dpi, textFormats, absoluteUnitScale);
     }
     const auto& GlyphLayouts() const noexcept
     {

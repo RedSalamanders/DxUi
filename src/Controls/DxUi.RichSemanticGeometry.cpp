@@ -152,12 +152,18 @@ struct SemanticBox;
 #pragma warning(disable : 4625 4626)
 struct NativeImagePlacement
 {
+    struct RowTag
+    {
+        std::shared_ptr<PreparedMath> label;
+        bool ready{};
+    };
     std::size_t element{};
     MarkdownRange display;
     std::shared_ptr<const RichImage> pixels;
     wil::com_ptr<ID2D1Bitmap> bitmap;
     std::shared_ptr<PreparedMath> math;
     std::shared_ptr<PreparedMath> tag;
+    std::shared_ptr<std::vector<RowTag>> rowTags;
     std::shared_ptr<NativeColorPalette> mathPalette;
     bool bodyReady{}, tagReady{};
     float tagScale{1.f};
@@ -165,15 +171,46 @@ struct NativeImagePlacement
     {
         if (! math)
             return D2D1::SizeF(static_cast<float>(pixels->Width()), static_cast<float>(pixels->Height()));
-        if (! tag)
+        if (! tag && ! rowTags)
             return math->Size();
+        if (rowTags)
+        {
+            const auto body = math->Size();
+            float maxWidth{}, top{}, bottom = body.height;
+            const auto& anchors = math->RowTags();
+            for (std::size_t i = 0u; i < rowTags->size(); ++i)
+            {
+                if (! (*rowTags)[i].label || ! (*rowTags)[i].ready)
+                    continue;
+                const auto label = (*rowTags)[i].label->Size();
+                maxWidth = std::max(maxWidth, label.width);
+                top = std::min(top, anchors[i].baseline - (*rowTags)[i].label->Baseline());
+                bottom = std::max(bottom, anchors[i].baseline + label.height - (*rowTags)[i].label->Baseline());
+            }
+            return D2D1::SizeF(body.width + 2.f * (maxWidth + 8.f), bottom - top);
+        }
         const auto body = math->Size(), label = tag->Size();
         const float baseline = std::max(math->Baseline(), tag->Baseline());
         return D2D1::SizeF(body.width + 2.f * (label.width + 8.f), baseline + std::max(body.height - math->Baseline(), label.height - tag->Baseline()));
     }
     float Baseline() const noexcept
     {
-        return math ? (tag ? std::max(math->Baseline(), tag->Baseline()) : math->Baseline()) : Size().height;
+        if (! math)
+            return Size().height;
+        if (tag)
+            return std::max(math->Baseline(), tag->Baseline());
+        float top{};
+        const auto& anchors = math->RowTags();
+        if (rowTags)
+            for (std::size_t i = 0u; i < rowTags->size(); ++i)
+                if ((*rowTags)[i].label && (*rowTags)[i].ready)
+                    top = std::min(top, anchors[i].baseline - (*rowTags)[i].label->Baseline());
+        return math->Baseline() - top;
+    }
+    bool HasTags() const noexcept { return tag || static_cast<bool>(rowTags); }
+    bool TagsReady() const noexcept
+    {
+        return (! tag || tagReady) && (! rowTags || std::ranges::all_of(*rowTags, [](const RowTag& row) { return row.ready; }));
     }
     D2D1_RECT_F bounds{};
     const SemanticBox* owner{};
@@ -260,8 +297,9 @@ struct NativeImageGeometry
                     });
                     if (prior != previous->placements.end() && prior->element == placement.element)
                     {
-                        placement.math        = prior->math;
-                        placement.tag         = prior->tag;
+                        placement.math = prior->math;
+                        placement.tag = prior->tag;
+                        placement.rowTags = prior->rowTags;
                         placement.mathPalette = prior->mathPalette;
                         placement.bodyReady   = prior->bodyReady;
                         placement.tagReady    = prior->tagReady;
@@ -286,8 +324,9 @@ struct NativeImageGeometry
                             write, label, font * 1.15f, false, placement.math.get(), options.dpi, textFormats, options.mathAbsoluteUnitScale);
                     }
                     else
-                        placement.math = std::make_shared<PreparedMath>(
-                            write, expression, font * 1.15f, maths[index].display, constants, options.dpi, textFormats, options.mathAbsoluteUnitScale);
+                        placement.math = std::make_shared<PreparedMath>(write, expression, font * 1.15f, maths[index].display, constants, options.dpi, textFormats, options.mathAbsoluteUnitScale);
+                    if (! placement.math->RowTags().empty())
+                        placement.rowTags = std::make_shared<std::vector<NativeImagePlacement::RowTag>>(placement.math->RowTags().size());
                 }
                 if (! constants)
                     constants = placement.math.get();
@@ -381,7 +420,7 @@ struct NativeImageGeometry
                 placement.bodyReady = placement.math->Advance();
                 if (! placement.bodyReady)
                     return MathProgress::Layout;
-                if (placement.tag || ! placement.math->Colors().empty())
+                if (placement.HasTags() || ! placement.math->Colors().empty())
                     return MathProgress::Resource;
                 return MathProgress::Complete;
             }
@@ -390,9 +429,24 @@ struct NativeImageGeometry
                 placement.tagReady = placement.tag->Advance();
                 if (! placement.tagReady)
                     return MathProgress::Layout;
-                if (! placement.math->Colors().empty())
+                if (placement.rowTags || ! placement.math->Colors().empty())
                     return MathProgress::Resource;
                 return MathProgress::Complete;
+            }
+            for (std::size_t rowIndex = 0u; placement.rowTags && rowIndex < placement.rowTags->size(); ++rowIndex)
+            {
+                auto& row = (*placement.rowTags)[rowIndex];
+                if (row.ready)
+                    continue;
+                if (! row.label)
+                {
+                    row.label = placement.math->PrepareRowTag(rowIndex);
+                    return MathProgress::Resource;
+                }
+                row.ready = row.label->Advance();
+                if (! row.ready)
+                    return MathProgress::Layout;
+                return MathProgress::Resource;
             }
             const auto colors = placement.math->Colors();
             if (! colors.empty())
@@ -1716,7 +1770,13 @@ struct PreparedSemanticGeometry::Preparation
                                 const auto scale    = std::min(1.0f, options.widthDip / size.width);
                                 image.bounds.top    = lineTop + line.baseline - image.Baseline() * scale;
                                 image.bounds.bottom = image.bounds.top + size.height * scale;
-                                image.bounds.right  = image.bounds.left + (image.tag ? options.widthDip : size.width * scale);
+                                if (image.HasTags())
+                                {
+                                    image.bounds.left = 0.f;
+                                    image.bounds.right = options.widthDip;
+                                }
+                                else
+                                    image.bounds.right = image.bounds.left + size.width * scale;
                                 image.tagScale      = scale;
                                 located             = true;
                                 break;
@@ -2235,7 +2295,7 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                 if (work.state->images->placements[work.imageIndex].math)
                 {
                     const auto& placement = work.state->images->placements[work.imageIndex];
-                    if ((! placement.bodyReady || (placement.tag && ! placement.tagReady)) && result.layoutsPrepared == budget.maximumLayouts)
+                    if ((! placement.bodyReady || ! placement.TagsReady()) && result.layoutsPrepared == budget.maximumLayouts)
                         break;
                     try
                     {
@@ -3194,21 +3254,29 @@ void PreparedSemanticGeometry::Draw(ID2D1RenderTarget* target,
                         {
                             const MathColorContext mathColors{boxColors ? boxColors->text : D2D1_COLOR_F{}, boxColors ? boxColors->fill : D2D1_COLOR_F{}};
                             const auto* colorContext = boxColors ? &mathColors : nullptr;
-                            if (image.tag)
+                            if (image.HasTags())
                             {
                                 const float scale    = image.tagScale;
                                 const float baseline = origin.y + box->y + image.bounds.top + image.Baseline() * scale;
-                                const float left     = origin.x + box->x + image.bounds.left;
-                                const float width    = image.bounds.right - image.bounds.left;
-                                const float bodyX    = left + (width - image.math->Size().width * scale) * .5f;
-                                const float tagX     = left + width - image.tag->Size().width * scale;
-                                image.math->Draw(target,
-                                                 boxText,
-                                                 D2D1::Point2F(bodyX, baseline - image.math->Baseline() * scale),
-                                                 scale,
-                                                 image.mathPalette.get(),
-                                                 colorContext);
-                                image.tag->Draw(target, boxText, D2D1::Point2F(tagX, baseline - image.tag->Baseline() * scale), scale);
+                                const float left = origin.x + box->x + image.bounds.left;
+                                const float width = image.bounds.right - image.bounds.left;
+                                const float bodyX = left + (width - image.math->Size().width * scale) * .5f;
+                                const float bodyY = baseline - image.math->Baseline() * scale;
+                                image.math->Draw(target, boxText, D2D1::Point2F(bodyX, bodyY), scale,
+                                                 image.mathPalette.get(), colorContext);
+                                if (image.tag)
+                                {
+                                    const float tagX = left + width - image.tag->Size().width * scale;
+                                    image.tag->Draw(target, boxText, D2D1::Point2F(tagX, baseline - image.tag->Baseline() * scale), scale);
+                                }
+                                const auto& anchors = image.math->RowTags();
+                                for (std::size_t tagIndex = 0u; image.rowTags && tagIndex < image.rowTags->size(); ++tagIndex)
+                                {
+                                    const auto& row = (*image.rowTags)[tagIndex];
+                                    const float tagX = left + width - row.label->Size().width * scale;
+                                    const float tagY = bodyY + (anchors[tagIndex].baseline - row.label->Baseline()) * scale;
+                                    row.label->Draw(target, boxText, D2D1::Point2F(tagX, tagY), scale);
+                                }
                                 continue;
                             }
                             image.math->Draw(target,

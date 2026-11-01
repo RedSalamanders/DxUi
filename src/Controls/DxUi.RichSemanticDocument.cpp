@@ -1074,8 +1074,10 @@ struct SemanticBuilder::Preparation
             const bool sourceFallback = NativeSourceFallback(node.source);
             auto expression           = sourceFallback ? std::shared_ptr<MathExpression>{} : std::make_shared<MathExpression>(ParseMath(node.value));
             auto& extensions          = Extensions();
-            const auto count          = [](auto&& self, const MathNode& value) -> std::size_t
+            bool rowTags{};
+            const auto count          = [&](auto&& self, const MathNode& value) -> std::size_t
             {
+                rowTags = rowTags || (value.kind == MathKind::Style && value.text == L"rowtag");
                 std::size_t result = 1;
                 for (const auto& child : value.children)
                     result += self(self, child);
@@ -1084,7 +1086,7 @@ struct SemanticBuilder::Preparation
             const auto records = expression ? count(count, expression->root) : 0u;
             const auto raw     = document->syntax_->Slice(node.source);
             const bool display = raw.starts_with(L"$$") || raw.starts_with(L"\\[");
-            if (expression && *expression && (display || expression->root.text != L"tag") && extensions.CanAdmitRecords(records) && extensions.CanAdmitObject())
+            if (expression && *expression && (display || (expression->root.text != L"tag" && ! rowTags)) && extensions.CanAdmitRecords(records) && extensions.CanAdmitObject())
             {
                 output.Emit(L"\ufffc", node.source, DisplaySpanKind::Object, flags, visit.heading);
                 auto& formula        = document->elements_[element];

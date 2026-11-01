@@ -37,6 +37,30 @@ class Parser
     std::optional<std::vector<RowGap>> matrixRowGaps;
     std::optional<MathNode> equationTag;
     bool starredTag{};
+    bool hasRowTags{};
+    struct RowTagEntry
+    {
+        unsigned row{};
+        MathNode label;
+    };
+    struct RowTagContext
+    {
+        unsigned depth{}, row{};
+        std::optional<std::vector<RowTagEntry>> tags;
+    };
+    std::optional<RowTagContext> rootRowTags;
+    RowTagContext* activeRowTags{};
+    struct RowTagScope
+    {
+        Parser& parser;
+        RowTagContext* previous;
+        RowTagScope(Parser& owner, RowTagContext* current) noexcept : parser(owner), previous(owner.activeRowTags) { owner.activeRowTags = current; }
+        RowTagScope(const RowTagScope&) = delete;
+        RowTagScope& operator=(const RowTagScope&) = delete;
+        RowTagScope(RowTagScope&&) = delete;
+        RowTagScope& operator=(RowTagScope&&) = delete;
+        ~RowTagScope() noexcept { parser.activeRowTags = previous; }
+    };
     static void ObserveStack() noexcept
     {
 #if DXUI_ENABLE_DIAGNOSTICS
@@ -392,6 +416,11 @@ class Parser
     {
         return name == L"alignat" || name == L"alignat*" || name == L"alignedat";
     }
+    static bool AllowsRowTags(std::wstring_view name) noexcept
+    {
+        static constexpr std::wstring_view names[]{L"align", L"align*", L"alignat", L"alignat*", L"gather", L"gather*", L"equation", L"equation*"};
+        return std::ranges::find(names, name) != std::end(names);
+    }
     struct MatrixHeader
     {
         std::wstring columnSpec = std::wstring(0u, L' ');
@@ -449,11 +478,31 @@ class Parser
             Reject(MathIssue::MismatchedEnvironment);
         return true;
     }
+    void WrapRowTags(std::vector<MathNode>& cells, unsigned columns, RowTagContext& rowTags)
+    {
+        if (! rowTags.tags)
+            return;
+        for (auto& entry : rowTags.tags.value())
+        {
+            const auto index = static_cast<std::size_t>(entry.row) * columns;
+            if (index >= cells.size())
+                Reject(MathIssue::Capacity);
+            cells[index] = Make(MathKind::Style, L"rowtag", {std::move(cells[index]), std::move(entry.label)});
+        }
+    }
     MathNode Matrix(std::wstring environment, unsigned depth)
     {
 #if DXUI_ENABLE_DIAGNOSTICS
         ObserveStack();
 #endif
+        RowTagContext* rowTags{};
+        if (depth == 0u && AllowsRowTags(environment))
+        {
+            rootRowTags.emplace();
+            rootRowTags->depth = depth;
+            rowTags = &rootRowTags.value();
+        }
+        RowTagScope tagScope(*this, rowTags);
         MatrixHeader header;
         InitializeMatrix(environment, header);
         const auto matrixAlignment = header.matrixAlignment;
@@ -520,7 +569,11 @@ class Parser
                 environment = L"gathered";
             AppendRowSpacings(environment, depth, rows);
             if (cells.size() == static_cast<std::size_t>(rows) * columns)
+            {
+                if (rowTags)
+                    WrapRowTags(cells, columns, *rowTags);
                 return Make(MathKind::Matrix, std::move(environment), std::move(cells), columns);
+            }
             std::vector<MathNode> rectangular(0u);
             rectangular.reserve(static_cast<std::size_t>(rows) * columns);
             std::size_t index{};
@@ -531,6 +584,8 @@ class Parser
                 for (unsigned column = rowWidths[row] & 0xffu; column < columns; ++column)
                     rectangular.push_back(Make(MathKind::Row));
             }
+            if (rowTags)
+                WrapRowTags(rectangular, columns, *rowTags);
             return Make(MathKind::Matrix, std::move(environment), std::move(rectangular), columns);
         };
         while (at < source.size())
@@ -544,6 +599,8 @@ class Parser
                 Reject(MathIssue::Capacity);
             if (rowColumns == MathMaximumColumns || cells.size() == MathMaximumMatrixCells)
                 Reject(MathIssue::Capacity);
+            if (rowTags)
+                rowTags->row = rows - 1u;
             cells.push_back(Row(depth + 1, false, true));
             ++rowColumns;
             if (ConsumeEnvironmentEnd(environment))
@@ -1612,30 +1669,60 @@ class Parser
         auto denominator     = Row(depth, grouped, cell, right, indexClose, stopBrace, false);
         return FinishInfix(declaration, dimension, std::move(numerator), std::move(denominator));
     }
-    void ParseTag(unsigned depth)
+    MathNode DecorateTag(MathNode&& value, bool starred)
+    {
+        if (starred)
+            return std::move(value);
+        std::vector<MathNode> children(0u);
+        auto left = Make(MathKind::Text, L"(");
+        left.italic = false;
+        children.push_back(std::move(left));
+        children.push_back(std::move(value));
+        auto right = Make(MathKind::Text, L")");
+        right.italic = false;
+        children.push_back(std::move(right));
+        return Make(MathKind::Row, L"", std::move(children));
+    }
+    void ParseTag(unsigned depth, bool cell)
     {
 #if DXUI_ENABLE_DIAGNOSTICS
         ObserveStack();
 #endif
-        if (depth != 0u || equationTag)
+        const bool row = activeRowTags && cell && depth > activeRowTags->depth;
+        if ((! row && (depth != 0u || equationTag)) ||
+            (row && activeRowTags->tags &&
+             std::ranges::any_of(activeRowTags->tags.value(), [&](const RowTagEntry& entry) { return entry.row == activeRowTags->row; })))
             Reject();
-        starredTag = at < source.size() && source[at] == L'*';
-        if (starredTag)
+        const bool starred = at < source.size() && source[at] == L'*';
+        if (starred)
             ++at;
         Space();
         if (at == source.size())
             Reject(MathIssue::MissingRequiredArgument);
+        MathNode label;
         if (source[at] == L'{')
         {
-            auto text    = GroupText(true, true);
-            auto label   = Make(MathKind::Text, std::move(text));
+            auto text = GroupText(true, true);
+            label = Make(MathKind::Text, std::move(text));
             label.italic = false;
-            equationTag.emplace(std::move(label));
         }
         else
         {
-            auto label   = Atom(depth + 1u);
+            label = Atom(depth + 1u);
             label.italic = false;
+        }
+        if (row && label.kind != MathKind::Text)
+            Reject(MathIssue::UnsupportedCommand);
+        if (row)
+        {
+            if (! activeRowTags->tags)
+                activeRowTags->tags.emplace(0u);
+            activeRowTags->tags.value().push_back({activeRowTags->row, DecorateTag(std::move(label), starred)});
+            hasRowTags = true;
+        }
+        else
+        {
+            starredTag = starred;
             equationTag.emplace(std::move(label));
         }
     }
@@ -1825,7 +1912,7 @@ class Parser
                 if (declaration == L"tag")
                 {
                     at = end;
-                    ParseTag(depth);
+                    ParseTag(depth, cell);
                     continue;
                 }
                 if (declaration == L"color" || IsFontDeclaration(declaration) || IsSizeDeclaration(declaration))
@@ -1850,19 +1937,9 @@ public:
         auto body = Row(0, false, false);
         if (! equationTag)
             return body;
-        auto tag = std::move(equationTag.value());
-        if (! starredTag)
-        {
-            std::vector<MathNode> children(0u);
-            auto left   = Make(MathKind::Text, L"(");
-            left.italic = false;
-            children.push_back(std::move(left));
-            children.push_back(std::move(tag));
-            auto right   = Make(MathKind::Text, L")");
-            right.italic = false;
-            children.push_back(std::move(right));
-            tag = Make(MathKind::Row, L"", std::move(children));
-        }
+        if (hasRowTags)
+            Reject(MathIssue::UnsupportedCommand);
+        auto tag = DecorateTag(std::move(equationTag.value()), starredTag);
         return Make(MathKind::Style, L"tag", {std::move(body), std::move(tag)});
     }
 };

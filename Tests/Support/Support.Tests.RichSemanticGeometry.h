@@ -1027,6 +1027,41 @@ inline void MathWidthReflowAndTargetReplacement()
     const auto taggedBounds = geometry.ElementBounds(static_cast<std::size_t>(taggedElement - nestedTag->Elements().begin()));
     Check(taggedBounds && taggedBounds->left > 0.f && taggedBounds->right <= options.widthDip && taggedBounds->right > taggedBounds->left,
           "tagged placeholder occupies the containing quote width after its indentation");
+    const auto rowTagged = RichSemanticDocumentTests::Build(
+        L"> $$\n> \\begin{align}a&=b\\tag{ONE}\\\\c&=d\\tag*{TWO}\\end{align}\n> $$\n", MarkdownProfile::RichMarkdown);
+    geometry.Clear();
+    const auto beforeRowTags = DxUi::RichText::Detail::testRichMathPreparations;
+    for (const float rowWidth : {240.f, 360.f})
+    {
+        options.widthDip = rowWidth;
+        geometry.Begin(factory.get(), rowTagged, options, drawing.get(), {}, {}, target.get());
+        Complete(geometry);
+        target->BeginDraw();
+        target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+        geometry.Draw(target.get(), ink.get(), ink.get(), D2D1::Point2F(0.f, 0.f), 0.f, 512.f);
+        THROW_IF_FAILED(target->EndDraw());
+        constexpr UINT rowStride = 512u * 4u;
+        std::vector<BYTE> rowPixels(rowStride * 512u);
+        THROW_IF_FAILED(bitmap->CopyPixels(nullptr, rowStride, static_cast<UINT>(rowPixels.size()), rowPixels.data()));
+        unsigned bands{};
+        bool previousInk{};
+        for (UINT y = 0u; y < 160u; ++y)
+        {
+            bool inkOnRow{};
+            for (UINT x = static_cast<UINT>(rowWidth - 65.f); x < static_cast<UINT>(rowWidth); ++x)
+                inkOnRow = inkOnRow || rowPixels[y * rowStride + x * 4u] < 240u;
+            if (inkOnRow && ! previousInk)
+                ++bands;
+            previousInk = inkOnRow;
+        }
+        Check(bands >= 2u, "independent row tags paint in distinct trailing bands within the containing quote");
+    }
+    Check(DxUi::RichText::Detail::testRichMathPreparations == beforeRowTags + 3u,
+          "row body and both labels retain prepared shapes across width-only reflow");
+    const auto inlineRowTag = RichSemanticDocumentTests::Build(L"Before $\\begin{align}a\\tag{1}\\end{align}$ after", MarkdownProfile::RichMarkdown);
+    Check(inlineRowTag->Map().Display().find(L"$\\begin{align}a\\tag{1}\\end{align}$") != std::wstring_view::npos &&
+              std::ranges::any_of(inlineRowTag->Diagnostics(), [](const auto& item) { return item.kind == SemanticDiagnosticKind::UnsupportedMath; }),
+          "inline row-tagged equations retain complete source with an unsupported diagnostic");
     const auto coloredDocument = RichSemanticDocumentTests::Build(L"$a\\textcolor{blue}{+}b+\\fcolorbox{blue}{white}{hi}$\n", MarkdownProfile::RichMarkdown);
     geometry.Clear();
     geometry.Begin(factory.get(), coloredDocument, options, drawing.get(), {}, {}, target.get());
