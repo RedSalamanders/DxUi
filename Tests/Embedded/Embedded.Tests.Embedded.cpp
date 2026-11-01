@@ -1682,6 +1682,7 @@ __declspec(noinline) static int RunFunctionalTests()
     RichSemanticTests::Run([&] { TestRichSemanticAccessibilityFailureAtomicity(gpu); });
     RichSemanticTests::Run(TestRichSemanticFailureAndStorageBudgets);
     RichSemanticTests::Run(RichSemanticDocumentTests::DirectedValues);
+    RichSemanticTests::Run(RichSemanticDocumentTests::LocalizedAccessibilityLabels);
     RichSemanticTests::Run(RichSemanticDocumentTests::StructuralStyleValues);
     RichSemanticTests::Run(RichSemanticDocumentTests::SourceFormatOwnership);
     RichSemanticTests::Run(RichSemanticDocumentTests::NativeHtmlAndLinkPresentation);

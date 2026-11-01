@@ -1,4 +1,5 @@
 #pragma once
+#include <DxUi/RichAccessibilityText.h>
 #include <DxUi/RichMarkdown.h>
 #include <DxUi/RichSemantic.h>
 #include <optional>
@@ -104,6 +105,10 @@ public:
     {
         return syntax_;
     }
+    const std::shared_ptr<const AccessibilityLabels>& AccessibilityLabelSet() const noexcept
+    {
+        return labels_;
+    }
     // Process-local publication identity, distinct even when the same syntax
     // is rendered again after disabling/re-enabling semantic presentation.
     std::uint64_t Identity() const noexcept
@@ -157,6 +162,7 @@ public:
 private:
     explicit SemanticDocument(std::shared_ptr<const MarkdownSyntax> syntax);
     std::shared_ptr<const MarkdownSyntax> syntax_;
+    std::shared_ptr<const AccessibilityLabels> labels_;
     std::uint64_t identity_{};
     std::shared_ptr<const SourceDisplayMap> map_;
     std::vector<SemanticElement> elements_;
@@ -181,6 +187,13 @@ public:
     ~SemanticBuilder() noexcept;
     SemanticBuilder(const SemanticBuilder&)            = delete;
     SemanticBuilder& operator=(const SemanticBuilder&) = delete;
+    // Changed immutable labels retire pending/published semantics. Held documents
+    // remain immutable; source and the next Begin request are otherwise unchanged.
+    void SetAccessibilityLabels(std::shared_ptr<const AccessibilityLabels> labels) noexcept;
+    const std::shared_ptr<const AccessibilityLabels>& AccessibilityLabelSet() const noexcept
+    {
+        return labels_;
+    }
     void Begin(std::shared_ptr<const MarkdownSyntax> syntax);
     // One current source-bearing block; this does not alter syntax or source.
     // Invalid/non-leaf and hidden literal-declaration descendants are rejected
@@ -199,6 +212,7 @@ private:
     struct Preparation;
     std::unique_ptr<Preparation> next_;
     std::shared_ptr<const SemanticDocument> published_;
+    std::shared_ptr<const AccessibilityLabels> labels_;
     friend struct Detail::SemanticExtensionAccess;
 };
 } // namespace DxUi::RichText

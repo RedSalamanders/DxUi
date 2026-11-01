@@ -3335,6 +3335,10 @@ public:
     // disables analysis; changing profile preserves source, history and selection.
     void SetMarkdownAnalysisProfile(std::optional<RichText::MarkdownProfile> profile);
     [[nodiscard]] std::optional<RichText::MarkdownProfile> GetMarkdownAnalysisProfile() const noexcept;
+    // Callback-free immutable localization of library-generated semantic/UIA text.
+    // Null restores English; source, selection and undo history are preserved.
+    void SetAccessibilityLabels(std::shared_ptr<const RichText::AccessibilityLabels> labels) noexcept;
+    [[nodiscard]] std::shared_ptr<const RichText::AccessibilityLabels> GetAccessibilityLabels() const noexcept;
     // Returns only a completed analysis of current source/profile, never drains
     // pending work. Held results remain immutable after editing or detachment.
     [[nodiscard]] std::shared_ptr<const RichText::MarkdownSyntax> GetMarkdownSyntax() const noexcept;

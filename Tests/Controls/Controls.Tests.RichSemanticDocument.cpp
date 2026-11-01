@@ -975,8 +975,13 @@ void TestRichSemanticOpaqueSourceRegionGrammarAndCaret()
 {
     SemanticSourceBlockTests::SourceRegions(Require);
 }
+void TestRichSemanticLocalizedAccessibilityLabels()
+{
+    RichSemanticTests::Run(RichSemanticDocumentTests::LocalizedAccessibilityLabels);
+}
 void RunRichSemanticDocumentTests()
 {
+    DXUI_RUN_TEST(TestRichSemanticLocalizedAccessibilityLabels);
     DXUI_RUN_TEST(TestRichMathTextWhitespaceAndPreparation);
     DXUI_RUN_TEST(TestRichMathRejectedObjectOwnsItsDiagnostic);
     DXUI_RUN_TEST(TestRichMathLimitModifiersAndSymbolIdentity);

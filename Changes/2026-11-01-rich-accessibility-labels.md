@@ -1,0 +1,1 @@
+- Add immutable consumer overrides for generated RichText accessibility text with unchanged English defaults, owned bounded strings and reorderable footnote templates; source, authored metadata and undo history are preserved. Native and embedded lifecycle qualification is pending.

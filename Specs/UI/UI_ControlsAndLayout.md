@@ -1388,6 +1388,27 @@ structural commands are specified in M4e below. The semantic UIA contract is in
 is [functionally qualified](../../Measurements/RichText/README.md);
 physical IME/AT, native ARM64 runtime and D4c performance acceptance remain open.
 
+`AccessibilityLabels` is immutable, callback-free configuration for library-generated
+semantic names/help: footnotes, equations, diagram vocabulary/fallbacks, metadata
+diagnostics and source-entry/exit hints. `SemanticBuilder::SetAccessibilityLabels`
+and `RichTextEditor::SetAccessibilityLabels` accept a shared const dictionary;
+null uses byte-identical English defaults. Entries copy their construction-time
+views and require a unique known `AccessibilityTextId`, nonempty valid UTF-16 with
+no NUL and at most 1,024 units per entry. Missing entries use their English default.
+Footnote name/help templates contain `{0}` exactly once. Return-reference
+name/help templates contain `{0}` (reference ordinal) and `{1}` (footnote ordinal)
+exactly once each, in any order; no other braces or format directives are accepted
+in numbered templates. Other entries are literal text. Invalid configuration
+throws before it can be installed; construction and preparation remain fallible.
+
+Changing dictionary identity retires pending/published semantics and stale UIA
+children before rebuilding. Held documents retain their own immutable dictionary.
+The same dictionary is a no-op. A retained editor preserves exact source, selection,
+history, source-editing region and focus, and emits no text-change callback.
+Authored names, labels, destinations, titles and descriptions remain authored
+text; localization changes no visible projection or source/display ownership.
+UIA reads use only immutable document data and invoke no application localizer.
+
 These pure primitives remain independent of graphics. The explicit retained
 rendering preview below consumes them. M4e adds source-exact structural editing;
 semantic UIA uses the acknowledged document and prepared source-format runs.

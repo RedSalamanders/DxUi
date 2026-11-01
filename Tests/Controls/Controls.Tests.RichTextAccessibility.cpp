@@ -2066,6 +2066,75 @@ void SemanticMathLiteralFallback(bool embedded)
     fixture.editor->SetAppearance(appearance);
     verify(capacitySource, capacityExpression, L"Equation cannot be prepared natively for this view. Exact source is preserved.", L"capacity title", false);
 }
+void SemanticAccessibilityLabels(bool embedded)
+{
+    using namespace RichText;
+    RichAccessibilityFixture fixture(embedded, true, true);
+    fixture.editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    const std::wstring source = L"before $\\unknown{x}$ and [link](https://example.test \"Authored title\") after\r\n";
+    fixture.editor->SetText(source);
+    Require(fixture.editor->ReplaceSelection(L"x") && fixture.editor->Undo(), "localized UIA fixture retains redo history");
+    fixture.editor->SetSelection({5u, 2u});
+    fixture.Publish();
+    auto simple   = fixture.Simple();
+    auto original = FindSemanticPart(*simple.get(), UIA_ImageControlTypeId);
+    Require(original != nullptr, "localized UIA fixture has a source-bearing math child");
+    const auto held      = fixture.editor->GetSemanticDocument();
+    const auto revision  = fixture.editor->Revision();
+    const auto selection = fixture.editor->GetSelection();
+    const auto focus     = fixture.controls->GetFocusControl();
+    unsigned changes{};
+    fixture.editor->SetOnTextChanged([&] { ++changes; });
+    const std::array entries{AccessibilityTextOverride{AccessibilityTextId::UnsupportedEquation, L"Équation non prise en charge; source conservée."},
+                             AccessibilityTextOverride{AccessibilityTextId::ExitSource, L"Quitter la source exacte avec Échap."}};
+    const auto labels = std::make_shared<const AccessibilityLabels>(entries);
+    fixture.editor->SetAccessibilityLabels(labels);
+    wil::unique_variant retired;
+    Require(original->GetPropertyValue(UIA_NamePropertyId, &retired) == UIA_E_ELEMENTNOTAVAILABLE,
+            "changing labels immediately withdraws an older semantic provider");
+    Require(fixture.editor->GetAccessibilityLabels() == labels && fixture.editor->GetText() == source && fixture.editor->Revision() == revision &&
+                fixture.editor->GetSelection() == selection && fixture.editor->CanRedo() && ! fixture.editor->CanUndo() && changes == 0u &&
+                fixture.controls->GetFocusControl() == focus,
+            "localization preserves exact source, directional selection, redo, notifications and focus");
+    fixture.Publish();
+    auto math = FindSemanticPart(*simple.get(), UIA_ImageControlTypeId);
+    Require(math && ReadProviderStringProperty(*math.get(), UIA_NamePropertyId, "localized math name") == L"\\unknown{x}" &&
+                ReadProviderStringProperty(*math.get(), UIA_HelpTextPropertyId, "localized math help") == entries[0u].text,
+            "UIA uses localized library help while the authored equation name remains exact");
+    auto link = FindSemanticPart(*simple.get(), UIA_HyperlinkControlTypeId);
+    Require(link && ReadProviderStringProperty(*link.get(), UIA_HelpTextPropertyId, "authored link help") == L"Authored title",
+            "localization cannot replace an authored link title");
+    const auto localized = fixture.editor->GetSemanticDocument();
+    fixture.editor->SetAccessibilityLabels(labels);
+    Require(fixture.editor->GetSemanticDocument() == localized &&
+                ReadProviderStringProperty(*math.get(), UIA_HelpTextPropertyId, "unchanged dictionary help") == entries[0u].text,
+            "setting the same immutable dictionary keeps the current semantic identity");
+    wil::com_ptr_nothrow<IUnknown> pattern;
+    RequireSucceeded(math->GetPatternProvider(UIA_InvokePatternId, pattern.put()), "localized source-entry pattern");
+    wil::com_ptr_nothrow<IInvokeProvider> invoke;
+    Require(pattern && SUCCEEDED(pattern.query_to(invoke.put())), "localized math offers source entry");
+    RequireSucceeded(invoke->Invoke(), "enter localized equation source");
+    fixture.Publish();
+    auto raw = FindNamedSemanticPart(*simple.get(), L"$\\unknown{x}$");
+    Require(raw && ReadProviderStringProperty(*raw.get(), UIA_HelpTextPropertyId, "localized source-exit help") == entries[1u].text,
+            "the source-exit hint uses the immutable document dictionary");
+    const auto region = fixture.editor->GetSemanticSourceRegion();
+    fixture.editor->SetAccessibilityLabels(nullptr);
+    Require(raw->GetPropertyValue(UIA_NamePropertyId, &retired) == UIA_E_ELEMENTNOTAVAILABLE && fixture.editor->GetSemanticSourceRegion() == region &&
+                fixture.editor->GetText() == source && fixture.editor->Revision() == revision && fixture.editor->CanRedo() && changes == 0u,
+            "restoring default labels retires old UIA while preserving source editing and history");
+    fixture.Publish();
+    raw = FindNamedSemanticPart(*simple.get(), L"$\\unknown{x}$");
+    Require(raw &&
+                ReadProviderStringProperty(*raw.get(), UIA_HelpTextPropertyId, "default source-exit help") ==
+                    AccessibilityLabels::Default(AccessibilityTextId::ExitSource) &&
+                held && ! held->AccessibilityLabelSet() && localized->AccessibilityLabelSet() == labels,
+            "default hints are restored and held publications retain their own label lifetime");
+    auto text = TextProvider(fixture);
+    wil::com_ptr_nothrow<ITextRangeProvider> whole;
+    RequireSucceeded(text->get_DocumentRange(whole.put()), "localized full source range");
+    Require(ReadTextRangeText(*whole.get(), -1, "localized document text") == source, "UIA text retains exact source independently of help localization");
+}
 void SemanticDecodedImages(bool embedded)
 {
     using namespace RichText;
@@ -2972,6 +3041,14 @@ void TestRichTextAccessibilityEmbeddedMathLiteralFallback()
 {
     EmbeddedCase(SemanticMathLiteralFallback);
 }
+void TestRichTextAccessibilityWindowLocalizedLabels()
+{
+    SemanticAccessibilityLabels(false);
+}
+void TestRichTextAccessibilityEmbeddedLocalizedLabels()
+{
+    EmbeddedCase(SemanticAccessibilityLabels);
+}
 void TestRichTextAccessibilityWindowDecodedImages()
 {
     SemanticDecodedImages(false);
@@ -3046,6 +3123,8 @@ void RunRichTextAccessibilityTests()
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowDiagramAlternatives);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowMathLiteralFallback);
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedMathLiteralFallback);
+    DXUI_RUN_TEST(TestRichTextAccessibilityWindowLocalizedLabels);
+    DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedLocalizedLabels);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowDecodedImages);
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedDecodedImages);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowObjectSourceEditing);

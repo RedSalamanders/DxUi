@@ -435,6 +435,83 @@ inline void SchedulingAndAdmission()
     RichSemanticTests::Reject<std::length_error>([&] { Parse(table); }, "sparse table amplification is rejected before allocating an excessive parser graph");
     Check(builder.Published()->Syntax() == oldSyntax && ! builder.HasPendingPreparation(), "failed semantic admission preserves its previous request state");
 }
+inline void LocalizedAccessibilityLabels()
+{
+    using LabelId             = AccessibilityTextId;
+    const std::wstring source = L"Text[^n] $x$.\n\n[^n]: body\n\n```mermaid\nflowchart LR\nA[User Nodes: literal]-->B[Finish]\n```\n";
+    const auto original       = Build(source, MarkdownProfile::RichMarkdown);
+    std::wstring borrowed(L"Note {0}");
+    const std::array entries{AccessibilityTextOverride{LabelId::FootnoteName, borrowed},
+                             AccessibilityTextOverride{LabelId::GoToFootnote, L"Aller à la note {0}."},
+                             AccessibilityTextOverride{LabelId::ReturnToReference, L"Note {1}, référence {0}"},
+                             AccessibilityTextOverride{LabelId::ReturnToReferenceHelp, L"Retour {0}, note {1}."},
+                             AccessibilityTextOverride{LabelId::Equation, L"Expression mathématique; source exacte disponible."},
+                             AccessibilityTextOverride{LabelId::FlowchartHeader, L"Diagramme, "},
+                             AccessibilityTextOverride{LabelId::DirectionLeftRight, L"vers la droite"},
+                             AccessibilityTextOverride{LabelId::DiagramNodes, L". Sommets: "},
+                             AccessibilityTextOverride{LabelId::DiagramConnections, L" Liens: "}};
+    const auto labels = std::make_shared<const AccessibilityLabels>(entries);
+    borrowed.assign(L"caller storage changed");
+    SemanticBuilder builder;
+    builder.Begin(original->Syntax());
+    const auto previous = Complete(builder, *original->Syntax());
+    builder.SetAccessibilityLabels(labels);
+    Check(! builder.Published() && ! builder.HasPendingPreparation(), "changed labels withdraw builder staging and publication");
+    builder.Begin(original->Syntax());
+    const auto localized = Complete(builder, *original->Syntax());
+    Check(localized->AccessibilityLabelSet() == labels && localized->Map().Source() == original->Map().Source() &&
+              localized->Map().Display() == original->Map().Display() && localized->Elements().size() == original->Elements().size(),
+          "localized semantic metadata preserves source, visible text and element structure");
+    for (std::size_t index = 0u; index < localized->Elements().size(); ++index)
+    {
+        const auto& element = localized->Elements()[index];
+        Check(element.source == original->Elements()[index].source && element.display == original->Elements()[index].display,
+              "localized names never change source or display ownership");
+        if (element.role == SemanticRole::FootnoteReference || element.role == SemanticRole::Footnote)
+            Check(element.name == L"Note 1", "numbered footnote name uses owned localized configuration");
+        if (element.role == SemanticRole::FootnoteBacklink)
+            Check(element.name == L"Note 1, référence 1" && element.title == L"Retour 1, note 1.", "two numbered label arguments may reorder");
+        if (element.role == SemanticRole::Math)
+            Check(element.title == L"Expression mathématique; source exacte disponible.", "math help is localized independently of its exact source name");
+        if (element.role == SemanticRole::Diagram)
+            Check(element.name.starts_with(L"Diagramme, vers la droite. Sommets: ") && element.name.find(L"User Nodes: literal") != element.name.npos &&
+                      element.name.find(L" Liens: ") != element.name.npos,
+                  "diagram vocabulary is localized while authored labels remain exact");
+    }
+    Check(std::ranges::any_of(previous->Elements(), [](const auto& element) { return element.name == L"Footnote 1"; }),
+          "a held earlier document retains its original English labels");
+    for (const auto pattern : {L"missing", L"{0}{0}", L"{1}", L"{0:02}", L"}{0}"})
+    {
+        const std::array invalid{AccessibilityTextOverride{LabelId::FootnoteName, pattern}};
+        RichSemanticTests::Reject<std::invalid_argument>([&] { AccessibilityLabels value(invalid); }, "invalid numbered label is rejected before ownership");
+    }
+    const std::array duplicate{AccessibilityTextOverride{LabelId::Equation, L"first"}, AccessibilityTextOverride{LabelId::Equation, L"second"}};
+    RichSemanticTests::Reject<std::invalid_argument>([&] { AccessibilityLabels value(duplicate); }, "duplicate label identity is rejected");
+    const std::wstring nul(L"a\0b", 3u);
+    const std::array invalidUnicode{AccessibilityTextOverride{LabelId::Equation, nul}};
+    RichSemanticTests::Reject<std::invalid_argument>([&] { AccessibilityLabels value(invalidUnicode); }, "label transport rejects embedded NUL");
+    const std::wstring surrogate(1u, static_cast<wchar_t>(0xd800u));
+    const std::array invalidSurrogate{AccessibilityTextOverride{LabelId::Equation, surrogate}};
+    RichSemanticTests::Reject<std::invalid_argument>([&] { AccessibilityLabels value(invalidSurrogate); }, "label transport rejects malformed UTF-16");
+    const std::array invalidId{AccessibilityTextOverride{LabelId::Count, L"invalid"}};
+    RichSemanticTests::Reject<std::invalid_argument>([&] { AccessibilityLabels value(invalidId); }, "label transport rejects unknown identities");
+    const std::array empty{AccessibilityTextOverride{LabelId::Equation, L""}};
+    RichSemanticTests::Reject<std::invalid_argument>([&] { AccessibilityLabels value(empty); }, "empty override cannot erase required accessibility help");
+    const std::wstring maximum(AccessibilityLabels::MaximumTextUnits, L'a');
+    const std::array atLimit{AccessibilityTextOverride{LabelId::Equation, maximum}};
+    const AccessibilityLabels maximumLabels(atLimit);
+    Check(maximumLabels.Get(LabelId::Equation) == maximum, "label admission accepts its exact per-entry bound");
+    const std::wstring tooLong(AccessibilityLabels::MaximumTextUnits + 1u, L'a');
+    const std::array overLimit{AccessibilityTextOverride{LabelId::Equation, tooLong}};
+    RichSemanticTests::Reject<std::invalid_argument>([&] { AccessibilityLabels value(overLimit); }, "label transport rejects its first excess code unit");
+    Check(AccessibilityLabels::Text(nullptr, LabelId::Equation) == L"Mathematical expression. Exact TeX source is available as document text.",
+          "default label lookup remains byte-identical without allocating a dictionary");
+    builder.SetAccessibilityLabels(nullptr);
+    builder.Begin(original->Syntax());
+    const auto restored = Complete(builder, *original->Syntax());
+    Check(! restored->AccessibilityLabelSet() && std::ranges::any_of(restored->Elements(), [](const auto& element) { return element.name == L"Footnote 1"; }),
+          "null label configuration restores English on the same immutable syntax");
+}
 } // namespace RichSemanticDocumentTests
 
 namespace RichSemanticDocumentTests

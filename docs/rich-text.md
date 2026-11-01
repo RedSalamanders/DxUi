@@ -1226,6 +1226,24 @@ publication identity and the owner binding epoch, so old children cannot act on
 an edited, replaced or rebound successor. Reacquire children after a semantic
 structure invalidation. Pure CPU semantics may survive geometry-only changes.
 
+Applications can localize library-generated accessibility names and help with
+`RichTextEditor::SetAccessibilityLabels` (or the same setter on a standalone
+`SemanticBuilder`). Construct a shared immutable `RichText::AccessibilityLabels`
+from `AccessibilityTextOverride` entries keyed by `AccessibilityTextId`.
+The dictionary copies the supplied text, so caller buffers can then be released.
+Missing entries and a null dictionary retain the original English text.
+
+For example, override `FootnoteName` with `L"Note {0}"`, `GoToFootnote` with
+`L"Aller à la note {0}."`, or `ReturnToReference` with
+`L"Note {1}, référence {0}"`. Numbered templates require each specified token once
+and allow reordering. Entries must be nonempty valid UTF-16 without NUL, at most
+1,024 units; invalid identities, duplicates or templates throw at construction.
+Static help entries use literal text. Authored diagram labels, TeX source, link
+titles and image alternatives remain unchanged. Changing labels retires stale UIA
+children and rebuilds semantic metadata while preserving source, selection and
+undo/redo. Held semantic documents keep their earlier labels. Foreign UIA reads
+consult immutable data without calling application code.
+
 The bounded M4f implementation and M4 component closeout are
 [functionally qualified](../Measurements/RichText/README.md):
 all 57 ordinary x64 scope/profile runs, three ARM64 builds, failure/resource

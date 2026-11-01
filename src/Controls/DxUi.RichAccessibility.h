@@ -275,9 +275,11 @@ public:
                 if (const auto source = document.SourceEditingRange(element_))
                 {
                     if (document.IsSourceEditingElement(element_))
-                        return SetVariantFromString(result, L"Invoke or press Esc to leave exact source editing. Edits remain undoable.");
+                        return SetVariantFromString(
+                            result, RichText::AccessibilityLabels::Text(document.AccessibilityLabelSet().get(), RichText::AccessibilityTextId::ExitSource));
                     if (element.title.empty())
-                        return SetVariantFromString(result, L"Invoke or press F2 to edit exact source.");
+                        return SetVariantFromString(
+                            result, RichText::AccessibilityLabels::Text(document.AccessibilityLabelSet().get(), RichText::AccessibilityTextId::EnterSource));
                 }
                 return SetVariantFromString(result, element.title.empty() ? element.destination : element.title);
             case UIA_IsControlElementPropertyId:

@@ -181,6 +181,14 @@ struct SemanticBuilder::Preparation
         } while (number);
         return std::wstring(cursor, digits.data() + digits.size());
     }
+    std::wstring_view Label(AccessibilityTextId id) const noexcept
+    {
+        return AccessibilityLabels::Text(document->labels_.get(), id);
+    }
+    std::wstring NamedNumber(AccessibilityTextId id, std::size_t number, std::size_t second = 0u) const
+    {
+        return AccessibilityLabels::Number(document->labels_.get(), id, number, second);
+    }
     static std::wstring NumberLabel(std::wstring_view prefix, std::size_t number, std::wstring_view suffix = {})
     {
         std::wstring text(prefix);
@@ -437,7 +445,7 @@ struct SemanticBuilder::Preparation
             auto& formula        = document->elements_[element];
             formula.display.last = output.text.size();
             formula.name         = node.value;
-            formula.title        = L"Editing exact equation source.";
+            formula.title        = Label(AccessibilityTextId::EditingEquation);
             return;
         }
         if (node.kind == MarkdownInlineKind::Math)
@@ -460,7 +468,7 @@ struct SemanticBuilder::Preparation
                 auto& formula        = document->elements_[element];
                 formula.display.last = output.text.size();
                 formula.name         = node.value;
-                formula.title        = L"Mathematical expression. Exact TeX source is available as document text.";
+                formula.title        = Label(AccessibilityTextId::Equation);
                 const auto raw       = document->syntax_->Slice(node.source);
                 extensions.maths.push_back({element, std::move(expression), raw.starts_with(L"$$") || raw.starts_with(L"\\[")});
                 extensions.mathRecords += records;
@@ -473,9 +481,9 @@ struct SemanticBuilder::Preparation
                     {capacity ? SemanticDiagnosticKind::MathCapacity : SemanticDiagnosticKind::UnsupportedMath, node.source, element});
                 auto& formula = document->elements_[element];
                 formula.name  = node.value;
-                formula.title = sourceFallback ? L"Equation cannot be prepared natively for this view. Exact source is preserved."
-                                : capacity     ? L"Equation exceeds native object capacity. Exact source is preserved."
-                                               : L"Unsupported native equation. Exact source is preserved.";
+                formula.title = sourceFallback ? Label(AccessibilityTextId::EquationViewFallback)
+                                : capacity     ? Label(AccessibilityTextId::EquationCapacity)
+                                               : Label(AccessibilityTextId::UnsupportedEquation);
                 output.Emit(document->syntax_->Slice(node.source), node.source, DisplaySpanKind::Source, flags | Code, visit.heading);
                 formula.display.last = output.text.size();
             }
@@ -527,8 +535,8 @@ struct SemanticBuilder::Preparation
                 output.Emit(Number(note.ordinal, true), node.source, DisplaySpanKind::Transformed, flags | Link, visit.heading);
                 auto& target        = document->elements_[element];
                 target.display.last = output.text.size();
-                target.name.assign(NumberLabel(L"Footnote ", note.ordinal));
-                target.title.assign(NumberLabel(L"Go to footnote ", note.ordinal, L"."));
+                target.name.assign(NamedNumber(AccessibilityTextId::FootnoteName, note.ordinal));
+                target.title.assign(NamedNumber(AccessibilityTextId::GoToFootnote, note.ordinal));
             }
             else
                 output.Emit(node.value, node.source, DisplaySpanKind::Source, flags, visit.heading);
@@ -673,14 +681,13 @@ struct SemanticBuilder::Preparation
             return false;
         auto& extensions = Extensions();
         if (++extensions.candidates > Detail::SemanticExtensions::MaximumObjects)
-            DiagramDiagnostic(visit, SemanticDiagnosticKind::DiagramCapacity, node.block.source, L"Too many diagrams. Source is preserved.");
+            DiagramDiagnostic(visit, SemanticDiagnosticKind::DiagramCapacity, node.block.source, Label(AccessibilityTextId::TooManyDiagrams));
         else if (info.size() != 7u)
-            DiagramDiagnostic(
-                visit, SemanticDiagnosticKind::UnsupportedDiagram, node.block.info, L"Diagram fence options are unsupported. Source is preserved.");
+            DiagramDiagnostic(visit, SemanticDiagnosticKind::UnsupportedDiagram, node.block.info, Label(AccessibilityTextId::DiagramOptions));
         else if (! node.block.closed)
-            DiagramDiagnostic(visit, SemanticDiagnosticKind::UnclosedDiagram, node.block.source, L"Missing closing diagram fence. Source is preserved.");
+            DiagramDiagnostic(visit, SemanticDiagnosticKind::UnclosedDiagram, node.block.source, Label(AccessibilityTextId::UnclosedDiagram));
         else if (normalized.text.size() > Detail::NativeFlowchartParser::MaximumSourceUnits)
-            DiagramDiagnostic(visit, SemanticDiagnosticKind::DiagramCapacity, node.block.content, L"Diagram source is too large. Source is preserved.");
+            DiagramDiagnostic(visit, SemanticDiagnosticKind::DiagramCapacity, node.block.content, Label(AccessibilityTextId::DiagramSourceCapacity));
         else
         {
             diagram = std::make_unique<DiagramWork>(visit, normalized.text, syntax.Revision());
@@ -718,7 +725,7 @@ struct SemanticBuilder::Preparation
             {
                 RejectDiagram(SemanticDiagnosticKind::DiagramCapacity,
                               document->elements_[diagram->visit.element].source,
-                              L"Diagram alternative is too large. Source is preserved.");
+                              Label(AccessibilityTextId::DiagramAlternativeCapacity));
                 return false;
             }
             available -= piece.size();
@@ -746,33 +753,33 @@ struct SemanticBuilder::Preparation
                                                                                              : SemanticDiagnosticKind::MalformedDiagram;
                 RejectDiagram(kind,
                               source,
-                              graph.outcome == Detail::FlowchartOutcome::Unsupported ? L"Unsupported diagram syntax. Source is preserved."
-                              : graph.outcome == Detail::FlowchartOutcome::Capacity  ? L"Diagram exceeds its capacity. Source is preserved."
-                                                                                     : L"Malformed diagram. Source is preserved.");
+                              graph.outcome == Detail::FlowchartOutcome::Unsupported ? Label(AccessibilityTextId::UnsupportedDiagram)
+                              : graph.outcome == Detail::FlowchartOutcome::Capacity  ? Label(AccessibilityTextId::DiagramCapacity)
+                                                                                     : Label(AccessibilityTextId::MalformedDiagram));
                 return;
             }
             if (graph.nodes.empty())
             {
-                RejectDiagram(SemanticDiagnosticKind::EmptyDiagram, node.block.content, L"Empty flowchart. Source is preserved.");
+                RejectDiagram(SemanticDiagnosticKind::EmptyDiagram, node.block.content, Label(AccessibilityTextId::EmptyDiagram));
                 return;
             }
             if (graph.nodes.size() + graph.edges.size() + graph.groups.size() > Detail::SemanticExtensions::MaximumRecords - Extensions().records)
             {
-                RejectDiagram(SemanticDiagnosticKind::DiagramCapacity, node.block.source, L"Native object capacity exceeded. Source is preserved.");
+                RejectDiagram(SemanticDiagnosticKind::DiagramCapacity, node.block.source, Label(AccessibilityTextId::NativeObjectCapacity));
                 return;
             }
-            std::wstring_view direction = L"top to bottom";
+            std::wstring_view direction = Label(AccessibilityTextId::DirectionTopBottom);
             if (graph.direction == Detail::FlowchartDirection::BottomTop)
-                direction = L"bottom to top";
+                direction = Label(AccessibilityTextId::DirectionBottomTop);
             else if (graph.direction == Detail::FlowchartDirection::LeftRight)
-                direction = L"left to right";
+                direction = Label(AccessibilityTextId::DirectionLeftRight);
             else if (graph.direction == Detail::FlowchartDirection::RightLeft)
-                direction = L"right to left";
-            const auto family = graph.family == Detail::NativeDiagramFamily::State   ? L"State diagram, "
-                                : graph.family == Detail::NativeDiagramFamily::Class ? L"Class diagram, "
-                                : graph.family == Detail::NativeDiagramFamily::Sequence ? L"Sequence diagram, "
-                                                                                     : L"Flowchart, ";
-            if (! DiagramAlternative({family, direction, L". Nodes: "}))
+                direction = Label(AccessibilityTextId::DirectionRightLeft);
+            const auto family = graph.family == Detail::NativeDiagramFamily::State   ? Label(AccessibilityTextId::StateDiagramHeader)
+                                : graph.family == Detail::NativeDiagramFamily::Class ? Label(AccessibilityTextId::ClassDiagramHeader)
+                                : graph.family == Detail::NativeDiagramFamily::Sequence ? Label(AccessibilityTextId::SequenceDiagramHeader)
+                                                                                     : Label(AccessibilityTextId::FlowchartHeader);
+            if (! DiagramAlternative({family, direction, Label(AccessibilityTextId::DiagramNodes)}))
                 return;
             work.phase = Phase::Nodes;
             return;
@@ -787,7 +794,7 @@ struct SemanticBuilder::Preparation
         {
             if (work.cursor == graph.nodes.size())
             {
-                if (! DiagramAlternative({graph.groups.empty() ? L" Connections: " : L" Groups: "}))
+                if (! DiagramAlternative({graph.groups.empty() ? Label(AccessibilityTextId::DiagramConnections) : Label(AccessibilityTextId::DiagramGroups)}))
                     return;
                 work.cursor = 0u;
                 work.phase  = graph.groups.empty() ? Phase::Edges : Phase::Groups;
@@ -797,7 +804,7 @@ struct SemanticBuilder::Preparation
             if (graph.nodes[index].shape == Detail::FlowchartShape::Note)
             {
                 if (graph.nodes[index].noteTarget == MarkdownNoNode)
-                    DiagramAlternative({L"Note: ", graph.nodes[index].label, L"; "});
+                    DiagramAlternative({Label(AccessibilityTextId::StandaloneDiagramNote), graph.nodes[index].label, L"; "});
                 return;
             }
             DiagramAlternative({id(index), L" = ", graph.nodes[index].label, L"; "});
@@ -807,7 +814,7 @@ struct SemanticBuilder::Preparation
         {
             if (work.cursor == graph.groups.size())
             {
-                if (! DiagramAlternative({L" Connections: "}))
+                if (! DiagramAlternative({Label(AccessibilityTextId::DiagramConnections)}))
                     return;
                 work.cursor = 0u;
                 work.phase  = Phase::Edges;
@@ -836,21 +843,22 @@ struct SemanticBuilder::Preparation
             const auto& edge = graph.edges[work.cursor++];
             if (graph.family == Detail::NativeDiagramFamily::Sequence)
             {
-                DiagramAlternative({id(edge.from), edge.openArrow ? L" asynchronously sends " : L" sends ", edge.label, L" to ", id(edge.to),
-                                    edge.style == Detail::FlowchartLineStyle::Dotted ? L" (dotted); " : L"; "});
+                DiagramAlternative({id(edge.from), edge.openArrow ? Label(AccessibilityTextId::SequenceAsyncSends) : Label(AccessibilityTextId::SequenceSends),
+                                    edge.label, Label(AccessibilityTextId::SequenceTo), id(edge.to),
+                                    edge.style == Detail::FlowchartLineStyle::Dotted ? Label(AccessibilityTextId::SequenceDottedEnd) : L"; "});
                 return;
             }
             if (edge.relation == Detail::FlowchartRelation::Note)
             {
-                DiagramAlternative({id(edge.from), L" note: ", graph.nodes[edge.to].label, L"; "});
+                DiagramAlternative({id(edge.from), Label(AccessibilityTextId::DiagramNote), graph.nodes[edge.to].label, L"; "});
                 return;
             }
             if (! edge.fromCardinality.empty() || ! edge.toCardinality.empty())
             {
-                const auto action = edge.relation == Detail::FlowchartRelation::Realization   ? L" implements "
-                                    : edge.relation == Detail::FlowchartRelation::Inheritance ? L" inherits "
-                                    : edge.relation == Detail::FlowchartRelation::Composition ? L" is part of "
-                                    : edge.relation == Detail::FlowchartRelation::Aggregation ? L" is aggregated by "
+                const auto action = edge.relation == Detail::FlowchartRelation::Realization   ? Label(AccessibilityTextId::DiagramImplements)
+                                    : edge.relation == Detail::FlowchartRelation::Inheritance ? Label(AccessibilityTextId::DiagramInherits)
+                                    : edge.relation == Detail::FlowchartRelation::Composition ? Label(AccessibilityTextId::DiagramPartOf)
+                                    : edge.relation == Detail::FlowchartRelation::Aggregation ? Label(AccessibilityTextId::DiagramAggregatedBy)
                                     : edge.arrow                                              ? L" \u2192 "
                                                                                               : L" \u2014 ";
                 DiagramAlternative(
@@ -860,9 +868,10 @@ struct SemanticBuilder::Preparation
             if (edge.relation == Detail::FlowchartRelation::Inheritance || edge.relation == Detail::FlowchartRelation::Realization ||
                 edge.relation == Detail::FlowchartRelation::Composition || edge.relation == Detail::FlowchartRelation::Aggregation)
             {
-                const auto action      = edge.relation == Detail::FlowchartRelation::Realization ? L" implements " : L" inherits ";
-                const auto description = edge.relation == Detail::FlowchartRelation::Composition   ? L" is part of "
-                                         : edge.relation == Detail::FlowchartRelation::Aggregation ? L" is aggregated by "
+                const auto action      = edge.relation == Detail::FlowchartRelation::Realization ? Label(AccessibilityTextId::DiagramImplements)
+                                                                                                 : Label(AccessibilityTextId::DiagramInherits);
+                const auto description = edge.relation == Detail::FlowchartRelation::Composition   ? Label(AccessibilityTextId::DiagramPartOf)
+                                         : edge.relation == Detail::FlowchartRelation::Aggregation ? Label(AccessibilityTextId::DiagramAggregatedBy)
                                                                                                    : action;
                 if (edge.label.empty())
                     DiagramAlternative({id(edge.from), description, id(edge.to), L"; "});
@@ -878,7 +887,7 @@ struct SemanticBuilder::Preparation
         auto& extensions = Extensions();
         if (! extensions.CanAdmitObject())
         {
-            RejectDiagram(SemanticDiagnosticKind::DiagramCapacity, node.block.source, L"Native object capacity exceeded. Source is preserved.");
+            RejectDiagram(SemanticDiagnosticKind::DiagramCapacity, node.block.source, Label(AccessibilityTextId::NativeObjectCapacity));
             return;
         }
         auto& result   = extensions.diagrams.emplace_back();
@@ -887,12 +896,12 @@ struct SemanticBuilder::Preparation
         result.bodyUnits.assign(normalized.units.begin(), normalized.units.end());
         result.sourceEnd = node.block.content.last;
         extensions.records += graph.nodes.size() + graph.edges.size() + graph.groups.size();
-        auto& element  = document->elements_[work.visit.element];
-        element.role   = SemanticRole::Diagram;
-        element.title  = graph.family == Detail::NativeDiagramFamily::State   ? L"State diagram. Source is available as document text."
-                         : graph.family == Detail::NativeDiagramFamily::Class ? L"Class diagram. Source is available as document text."
-                         : graph.family == Detail::NativeDiagramFamily::Sequence ? L"Sequence diagram. Source is available as document text."
-                                                                              : L"Flowchart. Source is available as document text.";
+        auto& element = document->elements_[work.visit.element];
+        element.role  = SemanticRole::Diagram;
+        element.title = graph.family == Detail::NativeDiagramFamily::State   ? Label(AccessibilityTextId::StateDiagramHelp)
+                        : graph.family == Detail::NativeDiagramFamily::Class ? Label(AccessibilityTextId::ClassDiagramHelp)
+                        : graph.family == Detail::NativeDiagramFamily::Sequence ? Label(AccessibilityTextId::SequenceDiagramHelp)
+                                                                             : Label(AccessibilityTextId::FlowchartHelp);
         if (! graph.accessibleTitle.empty())
         {
             if (graph.accessibleDescription.empty())
@@ -950,7 +959,7 @@ struct SemanticBuilder::Preparation
             auto& element   = document->elements_[visit.element];
             element.role    = SemanticRole::Code;
             element.heading = 0u;
-            element.title   = L"Editing exact block source.";
+            element.title   = Label(AccessibilityTextId::EditingBlock);
             html.Reset();
             close = BeginLeafParagraph(visit, true);
             output.Emit(syntax.Slice(node.block.source), node.block.source, DisplaySpanKind::Source, Code, 0u);
@@ -959,10 +968,7 @@ struct SemanticBuilder::Preparation
         }
         if (NativeSourceFallback(node.block.source))
         {
-            DiagramDiagnostic(visit,
-                              SemanticDiagnosticKind::DiagramCapacity,
-                              node.block.source,
-                              L"Diagram exceeds native geometry capacity for this view. Exact source is preserved.");
+            DiagramDiagnostic(visit, SemanticDiagnosticKind::DiagramCapacity, node.block.source, Label(AccessibilityTextId::DiagramGeometryCapacity));
             visit.flags   = Code;
             visit.heading = 0u;
             close         = BeginLeafParagraph(visit, true);
@@ -1090,7 +1096,7 @@ struct SemanticBuilder::Preparation
         document->elements_[visit.element].task        = node.task;
         if (visit.footerRoot)
         {
-            document->elements_[visit.element].name.assign(NumberLabel(L"Footnote ", syntax.Footnotes()[Footer(visit.node)].ordinal));
+            document->elements_[visit.element].name.assign(NamedNumber(AccessibilityTextId::FootnoteName, syntax.Footnotes()[Footer(visit.node)].ordinal));
             ++visit.indent;
         }
         if (node.block.kind == MarkdownBlockKind::ListItem || node.block.kind == MarkdownBlockKind::BlockQuote)
@@ -1100,8 +1106,8 @@ struct SemanticBuilder::Preparation
             node.block.kind == MarkdownBlockKind::FrontMatter || (node.block.kind == MarkdownBlockKind::FootnoteDefinition && ! visit.footerRoot))
             visit.flags |= Code;
         if (node.block.kind == MarkdownBlockKind::FrontMatter && ! node.block.closed)
-            document->elements_[visit.element].title = node.frontMatterKind == MarkdownFrontMatterKind::Yaml ? L"Missing closing YAML front matter fence."
-                                                                                                             : L"Missing closing TOML front matter fence.";
+            document->elements_[visit.element].title =
+                node.frontMatterKind == MarkdownFrontMatterKind::Yaml ? Label(AccessibilityTextId::UnclosedYaml) : Label(AccessibilityTextId::UnclosedToml);
         if (node.block.kind == MarkdownBlockKind::FrontMatter && node.block.closed && node.frontMatterKind == MarkdownFrontMatterKind::Toml)
         {
             for (const auto& issue : syntax.Diagnostics())
@@ -1109,9 +1115,9 @@ struct SemanticBuilder::Preparation
                 if (issue.node != visit.node)
                     continue;
                 if (issue.code == MarkdownDiagnosticCode::InvalidTomlFrontMatter)
-                    document->elements_[visit.element].title = L"Invalid TOML front matter.";
+                    document->elements_[visit.element].title = Label(AccessibilityTextId::InvalidToml);
                 else if (issue.code == MarkdownDiagnosticCode::TomlFrontMatterCapacity)
-                    document->elements_[visit.element].title = L"TOML front matter exceeds the supported validation capacity.";
+                    document->elements_[visit.element].title = Label(AccessibilityTextId::TomlCapacity);
             }
         }
         if (node.block.kind == MarkdownBlockKind::FrontMatter && node.block.closed && node.frontMatterKind == MarkdownFrontMatterKind::Yaml)
@@ -1122,15 +1128,17 @@ struct SemanticBuilder::Preparation
                     continue;
                 switch (issue.code)
                 {
-                    case MarkdownDiagnosticCode::InvalidYamlFrontMatter: document->elements_[visit.element].title = L"Invalid YAML front matter."; break;
+                    case MarkdownDiagnosticCode::InvalidYamlFrontMatter:
+                        document->elements_[visit.element].title = Label(AccessibilityTextId::InvalidYaml);
+                        break;
                     case MarkdownDiagnosticCode::DuplicateYamlKey:
-                        document->elements_[visit.element].title = L"YAML front matter has a duplicate mapping key.";
+                        document->elements_[visit.element].title = Label(AccessibilityTextId::YamlDuplicateKey);
                         break;
                     case MarkdownDiagnosticCode::UnresolvedYamlAlias:
-                        document->elements_[visit.element].title = L"YAML front matter contains an unresolved alias.";
+                        document->elements_[visit.element].title = Label(AccessibilityTextId::YamlUnresolvedAlias);
                         break;
                     case MarkdownDiagnosticCode::YamlFrontMatterCapacity:
-                        document->elements_[visit.element].title = L"YAML front matter exceeds the supported validation capacity.";
+                        document->elements_[visit.element].title = Label(AccessibilityTextId::YamlCapacity);
                         break;
                     case MarkdownDiagnosticCode::UnclosedFrontMatter:
                     case MarkdownDiagnosticCode::DuplicateFootnoteDefinition:
@@ -1216,8 +1224,8 @@ struct SemanticBuilder::Preparation
             output.Generated(NumberLabel(L"\u21a9", visit.column + 1u), anchor, Link);
             auto& target        = document->elements_[element];
             target.display.last = output.text.size();
-            target.name.assign(NumberLabel(L"Return to reference ", visit.column + 1u)).append(NumberLabel(L" for footnote ", note.ordinal));
-            target.title = target.name;
+            target.name.assign(NamedNumber(AccessibilityTextId::ReturnToReference, visit.column + 1u, note.ordinal));
+            target.title.assign(NamedNumber(AccessibilityTextId::ReturnToReferenceHelp, visit.column + 1u, note.ordinal));
             ++visit.column;
             visits.push_back(visit);
             return;
@@ -1316,6 +1324,15 @@ struct SemanticBuilder::Preparation
 
 SemanticBuilder::SemanticBuilder() noexcept  = default;
 SemanticBuilder::~SemanticBuilder() noexcept = default;
+void SemanticBuilder::SetAccessibilityLabels(std::shared_ptr<const AccessibilityLabels> labels) noexcept
+{
+    if (labels_ == labels)
+        return;
+    // Keep a caller-owned custom deleter alive until all member work is complete.
+    [[maybe_unused]] auto previous = std::move(labels_);
+    Clear();
+    labels_ = std::move(labels);
+}
 void SemanticBuilder::Begin(std::shared_ptr<const MarkdownSyntax> syntax)
 {
     const auto sourceBlock = syntax ? syntax->SourceRegionNode() : MarkdownNoNode;
@@ -1388,7 +1405,8 @@ void SemanticBuilder::BeginWithNativeFallbacks(std::shared_ptr<const MarkdownSyn
         next_.reset();
         return;
     }
-    auto next = std::make_unique<Preparation>(std::move(syntax), sourceBlock, sourceObjects);
+    auto next               = std::make_unique<Preparation>(std::move(syntax), sourceBlock, sourceObjects);
+    next->document->labels_ = labels_;
     next_.swap(next);
 }
 MarkdownAdvance SemanticBuilder::Advance(std::size_t maximumEvents)

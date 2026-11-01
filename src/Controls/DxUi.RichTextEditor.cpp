@@ -1585,6 +1585,22 @@ std::optional<RichText::MarkdownProfile> RichTextEditor::GetMarkdownAnalysisProf
 {
     return _state->markdownProfile;
 }
+void RichTextEditor::SetAccessibilityLabels(std::shared_ptr<const RichText::AccessibilityLabels> labels) noexcept
+{
+    auto previous = _state->semantic.AccessibilityLabelSet();
+    if (previous == labels)
+        return;
+    RetireSemanticAccessibility();
+    ++_state->appearanceRevision;
+    _state->semantic.SetAccessibilityLabels(std::move(labels));
+    _state->semanticRejected.reset();
+    _state->nativeGeometryRejected.reset();
+    RetireLayout(); // Last owner access: an application scheduling callback can retire this control.
+}
+std::shared_ptr<const RichText::AccessibilityLabels> RichTextEditor::GetAccessibilityLabels() const noexcept
+{
+    return _state->semantic.AccessibilityLabelSet();
+}
 std::shared_ptr<const RichText::MarkdownSyntax> RichTextEditor::GetMarkdownSyntax() const noexcept
 {
     const auto syntax       = _state->markdown.Published();
