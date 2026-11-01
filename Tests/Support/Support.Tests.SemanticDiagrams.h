@@ -97,14 +97,14 @@ template <typename Check> inline void Core(Check&& check)
                       "invalid non-ASCII identifier selects the complete supplementary scalar");
         }
     }
-    for (const auto& [metadata, expectedName, expectedHelp] : {
-             std::tuple{L"accTitle: System map\naccDescr: Describes the system\n", L"System map", L"Describes the system"},
-             std::tuple{L"accTitle: System map\n", L"System map", L""},
-             std::tuple{L"accDescr: Describes the system\n", L"", L"Describes the system"}})
+    for (const auto& [metadata, expectedName, expectedHelp] :
+         {std::tuple{L"accTitle: System map\naccDescr: Describes the system\n", L"System map", L"Describes the system"},
+          std::tuple{L"accTitle: System map\n", L"System map", L""},
+          std::tuple{L"accDescr: Describes the system\n", L"", L"Describes the system"}})
     {
         const std::wstring source = std::wstring(L"```mermaid\ngraph TD\n") + metadata + L"A-->B\n```";
-        const auto doc = Build(source, check);
-        const auto diagrams = SemanticExtensionAccess::Diagrams(*doc);
+        const auto doc            = Build(source, check);
+        const auto diagrams       = SemanticExtensionAccess::Diagrams(*doc);
         check(diagrams.size() == 1u && doc->Map().Source() == source, "accessible metadata retains the original source");
         if (diagrams.size() != 1u)
             continue;

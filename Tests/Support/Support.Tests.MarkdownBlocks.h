@@ -551,20 +551,19 @@ inline constexpr FamilyGrammarExpectation familyGrammarExpectations[] = {
 template <typename Check> inline void CheckFamilyGrammar(Check&& check)
 {
     NativeFlowchartParser parser;
-    for (const auto& [source, from, to] : {std::tuple{L"classDiagram\nInterface <|.. Implementation\n", 1u, 0u},
-                                           std::tuple{L"classDiagram\nImplementation ..|> Interface\n", 0u, 1u}})
+    for (const auto& [source, from, to] :
+         {std::tuple{L"classDiagram\nInterface <|.. Implementation\n", 1u, 0u}, std::tuple{L"classDiagram\nImplementation ..|> Interface\n", 0u, 1u}})
     {
         parser.Begin(source, 1u);
         const auto model = Complete(parser);
-        check(model->outcome == FlowchartOutcome::Prepared && model->edges.size() == 1u && model->edges[0].from == from &&
-                  model->edges[0].to == to && model->edges[0].relation == FlowchartRelation::Inheritance &&
-                  model->edges[0].style == FlowchartLineStyle::Dotted,
+        check(model->outcome == FlowchartOutcome::Prepared && model->edges.size() == 1u && model->edges[0].from == from && model->edges[0].to == to &&
+                  model->edges[0].relation == FlowchartRelation::Inheritance && model->edges[0].style == FlowchartLineStyle::Dotted,
               "class realization uses a dotted line and hollow inheritance endpoint in either spelling");
     }
     parser.Begin(L"classDiagram\nClient .. Service\n", 1u);
     const auto association = Complete(parser);
-    check(association->outcome == FlowchartOutcome::Prepared && association->edges.size() == 1u &&
-              association->edges[0].relation == FlowchartRelation::Line && association->edges[0].style == FlowchartLineStyle::Dotted,
+    check(association->outcome == FlowchartOutcome::Prepared && association->edges.size() == 1u && association->edges[0].relation == FlowchartRelation::Line &&
+              association->edges[0].style == FlowchartLineStyle::Dotted,
           "class dotted association retains its line type and no arrowhead");
     for (const auto& expected : familyGrammarExpectations)
     {
@@ -776,8 +775,8 @@ template <typename Check> inline void CheckFamilyGrammar(Check&& check)
                   result->accessibleDescription == L"First line; 100%\n\nSecond line" && result->nodes.size() == 2u,
               "bounded accessibility title and multiline description apply to every native diagram family");
     }
-    for (const auto source : {L"flowchart TD\naccTitle: one\naccTitle: two\nA\n", L"flowchart TD\naccDescr {\nmissing close\n",
-                              L"flowchart TD\naccDescr: one\naccDescr: two\nA\n"})
+    for (const auto source :
+         {L"flowchart TD\naccTitle: one\naccTitle: two\nA\n", L"flowchart TD\naccDescr {\nmissing close\n", L"flowchart TD\naccDescr: one\naccDescr: two\nA\n"})
     {
         parser.Begin(source, 42u);
         const auto result = Complete(parser);

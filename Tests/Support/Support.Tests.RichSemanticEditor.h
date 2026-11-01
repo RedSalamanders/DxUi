@@ -1875,13 +1875,13 @@ template <typename Prepare> void SourceHorizontalAndGuides(ControlHost& host, Pr
 {
     std::wstring source(180u, L'x');
     source += L" space\tend\r\nsecond line\n";
-    auto root = std::make_unique<RichTextEditor>(source);
+    auto root    = std::make_unique<RichTextEditor>(source);
     auto* editor = root.get();
     editor->SetViewMode(ViewMode::Source);
-    auto appearance = editor->GetAppearance();
-    appearance.sourceMonospace = true;
-    appearance.sourceWrap = false;
-    appearance.sourceLineNumbers = true;
+    auto appearance                  = editor->GetAppearance();
+    appearance.sourceMonospace       = true;
+    appearance.sourceWrap            = false;
+    appearance.sourceLineNumbers     = true;
     appearance.sourceWhitespaceMarks = true;
     editor->SetAppearance(appearance);
     host.SetRoot(std::move(root));
@@ -1891,7 +1891,7 @@ template <typename Prepare> void SourceHorizontalAndGuides(ControlHost& host, Pr
     const auto before = editor->TryGetTextInputCaretRect(host, 30u);
     Check(before.has_value(), "source guide fixture has a prepared caret");
     const auto sourceRevision = editor->Revision();
-    const auto selection = editor->GetSelection();
+    const auto selection      = editor->GetSelection();
     unsigned events{};
     editor->SetOnHorizontalScrollChanged([&](float) { ++events; });
     Check(editor->SetHorizontalScrollOffsetDip(80.0f), "source horizontal scrolling accepts a bounded offset");
@@ -1915,18 +1915,16 @@ template <typename Prepare> void SourceHorizontalAndGuides(ControlHost& host, Pr
     const auto rtlBefore = editor->TryGetTextInputCaretRect(host, 30u);
     Check(rtlBefore && editor->SetHorizontalScrollOffsetDip(80.0f), "RTL source admits horizontal scrolling");
     const auto rtlAfter = editor->TryGetTextInputCaretRect(host, 30u);
-    Check(rtlAfter && std::abs((rtlAfter->left - rtlBefore->left) - 80.0f) < 0.1f,
-          "RTL source moves caret geometry toward the opposite overflow edge");
+    Check(rtlAfter && std::abs((rtlAfter->left - rtlBefore->left) - 80.0f) < 0.1f, "RTL source moves caret geometry toward the opposite overflow edge");
     const auto viewport = editor->TryGetTextInputViewportRect();
     Check(viewport.has_value(), "RTL source has a viewport");
     bool resolved = false;
     for (std::size_t at = 0u; at < 180u && ! resolved; ++at)
-        if (const auto caret = editor->TryGetTextInputCaretRect(host, at);
-            caret && caret->left >= viewport->left && caret->left + 1.0f < viewport->right)
+        if (const auto caret = editor->TryGetTextInputCaretRect(host, at); caret && caret->left >= viewport->left && caret->left + 1.0f < viewport->right)
         {
-            const auto point = D2D1::Point2F(caret->left + 0.1f, (caret->top + caret->bottom) * 0.5f);
+            const auto point  = D2D1::Point2F(caret->left + 0.1f, (caret->top + caret->bottom) * 0.5f);
             const auto rtlHit = editor->TryHitTestTextInputPoint(host, point);
-            resolved = rtlHit && *rtlHit == at;
+            resolved          = rtlHit && *rtlHit == at;
         }
     Check(resolved, "a visible RTL caret and hit test resolve the same source ACP after horizontal scrolling");
 }
@@ -1935,13 +1933,13 @@ template <typename Prepare> void RichTableHorizontalOverflow(ControlHost& host, 
     std::wstring source = L"| first | second |\n| --- | --- |\n| ";
     source += std::wstring(120u, L'w');
     source += L" | end |\n";
-    auto root = std::make_unique<RichTextEditor>(source);
+    auto root    = std::make_unique<RichTextEditor>(source);
     auto* editor = root.get();
     editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
     editor->SetMarkdownRenderingEnabled(true);
-    auto appearance = editor->GetAppearance();
+    auto appearance                 = editor->GetAppearance();
     appearance.markdownPresentation = MarkdownPresentationStyle::Subtle;
-    appearance.tableOverflow = true;
+    appearance.tableOverflow        = true;
     editor->SetAppearance(appearance);
     host.SetRoot(std::move(root));
     prepare();

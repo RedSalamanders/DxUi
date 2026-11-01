@@ -595,9 +595,9 @@ struct AccessibilityRichTextSnapshot
     std::vector<RichText::MarkdownRange> underlinedLinks;
     std::wstring bodyFont, codeFont, copyName;
     bool externalLinkActivationEnabled = false;
-    double fontSizePoints     = 0.0;
-    double codeFontSizePoints = 0.0;
-    double headingScaleStep   = 0.15;
+    double fontSizePoints              = 0.0;
+    double codeFontSizePoints          = 0.0;
+    double headingScaleStep            = 0.15;
     std::array<float, 6> headingFontSizeDip{};
     uint64_t semanticRevision;
     [[nodiscard]] bool IsCurrent() const noexcept
@@ -2289,9 +2289,9 @@ bool AppendAccessibilitySnapshotNavigation(ControlHost& host,
                     auto* body = host.GetTextFormat(FontRole::Body);
                     readFamily(body, rich->bodyFont);
                     readFamily(host.GetTextFormat(FontRole::Monospace), rich->codeFont);
-                    rich->fontSizePoints   = static_cast<double>(body->GetFontSize()) * 72.0 / 96.0;
+                    rich->fontSizePoints                = static_cast<double>(body->GetFontSize()) * 72.0 / 96.0;
                     rich->externalLinkActivationEnabled = editor->HasLinkActivationHandler();
-                    const auto& appearance = editor->GetAppearance();
+                    const auto& appearance              = editor->GetAppearance();
                     if (! appearance.bodyFontFamily.empty())
                         rich->bodyFont = appearance.bodyFontFamily;
                     if (! appearance.codeFontFamily.empty())
@@ -2306,7 +2306,7 @@ bool AppendAccessibilitySnapshotNavigation(ControlHost& host,
                         if ((run.flags & RichText::Link) && editor->IsLinkUnderlineVisible(run.start))
                             rich->underlinedLinks.push_back({run.start, run.start + run.length});
                     rich->bounds.reserve(document->Elements().size());
-                    const auto copyName = editor->GetCodeCopyAccessibleName();
+                    const auto copyName    = editor->GetCodeCopyAccessibleName();
                     const bool copyEnabled = ! copyName.empty() && appearance.markdownPresentation == RichText::MarkdownPresentationStyle::Subtle &&
                                              ! document->Syntax()->SourceRegion();
                     if (copyEnabled)
@@ -6780,8 +6780,8 @@ try
         boundsDip.swap(resolved.value());
     else
         boundsDip.push_back(ResolveTextPatternViewportRect(control));
-    const float dipToPixelScale        = static_cast<float>(host->GetDpi()) / static_cast<float>(USER_DEFAULT_SCREEN_DPI);
-    const HRESULT hr                   = SetScreenRectDoubleArray(outRectangles, _target, _hwnd, boundsDip, dipToPixelScale);
+    const float dipToPixelScale = static_cast<float>(host->GetDpi()) / static_cast<float>(USER_DEFAULT_SCREEN_DPI);
+    const HRESULT hr            = SetScreenRectDoubleArray(outRectangles, _target, _hwnd, boundsDip, dipToPixelScale);
     Debug::Perf::Emit(L"dxui.uia.text_range_us", L"bounding-rectangles", Debug::Perf::ElapsedUs(startedAt), boundsDip.size(), range.end - range.start, hr);
     return hr;
 }
@@ -9234,9 +9234,9 @@ HRESULT AccessibilityProvider::ElementProviderFromPoint(double x, double y, IRaw
             if (const auto& bounds = hitRecord->controlRichText->bounds[index - 1u]; bounds && PointInRect(*bounds, pointDip))
             {
                 const auto element = index - 1u;
-                const bool copy = element < hitRecord->controlRichText->copyBounds.size() && hitRecord->controlRichText->copyBounds[element] &&
-                                  PointInRect(*hitRecord->controlRichText->copyBounds[element], pointDip);
-                auto peer = RichSemanticElementProvider::Create(_target, _hwnd, *hitRecord, element, copy);
+                const bool copy    = element < hitRecord->controlRichText->copyBounds.size() && hitRecord->controlRichText->copyBounds[element] &&
+                                     PointInRect(*hitRecord->controlRichText->copyBounds[element], pointDip);
+                auto peer          = RichSemanticElementProvider::Create(_target, _hwnd, *hitRecord, element, copy);
                 return peer ? peer.query_to(outProvider) : S_OK;
             }
 

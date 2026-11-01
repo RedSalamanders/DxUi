@@ -161,7 +161,7 @@ struct PreparedDocumentLayout::Preparation
         const auto& blocks = next->projection.Blocks();
         const auto& block  = blocks[begin];
         const auto bottom  = limit == blocks.size() ? geometry->layout.Height() : geometry->continuationBottom;
-        next->width = std::max(next->width, geometry->layout.HorizontalTextBounds().second);
+        next->width        = std::max(next->width, geometry->layout.HorizontalTextBounds().second);
         next->chunks.push_back({block.sourceStart, block.displayStart, begin, limit - begin, next->height, bottom - next->height, std::move(geometry)});
         next->height = bottom;
         if (! std::isfinite(bottom))
