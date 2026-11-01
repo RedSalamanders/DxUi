@@ -41,6 +41,15 @@ template <typename Check> void Run(Check&& check)
         for (std::size_t length = 0u; length < 76u; ++length)
             check(! Table(std::span(kernBytes.data(), length)).MathKern(5u, Corner::TopRight, 0.f, 10.f, 96.f, 1000u),
                   "truncated MATH kern tables are rejected without out-of-range reads");
+        write(70u, 30u); // middle kern's device offset is relative to the MathKern table
+        write(84u, 15u);
+        write(86u, 15u);
+        write(88u, 1u);
+        write(90u, 0x4000u); // +1 pixel at 15 ppem
+        const auto scaled = font.MathKern(5u, Corner::TopRight, 0.f, 10.f, 144.f, 1000u);
+        check(scaled && std::abs(scaled.value() - (0.5f + 96.f / 144.f)) < .001f,
+              "MATH kern device correction scales from physical pixels to DIP at the requested DPI");
+        write(70u, 0u);
         write(60u, 0xff38u); // descending correction heights
         check(! kern(0.f), "unsorted MATH kern heights decline safely");
         write(60u, 200u);
