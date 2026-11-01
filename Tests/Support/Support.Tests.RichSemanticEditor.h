@@ -1527,7 +1527,11 @@ template <typename Prepare> void NativeObjectSourceContract(ControlHost& host, P
         Check(object != semantic->Elements().end(), "prepared object exists");
         const auto index  = static_cast<std::size_t>(object - semantic->Elements().begin());
         const auto bounds = editor->GetSemanticElementBounds(host, index);
-        Check(bounds && bounds->right > bounds->left && bounds->bottom - bounds->top > 20, "prepared native object reserves actual in-document geometry");
+        // A single-line display equation with a tag legitimately occupies one
+        // body text line; the taller formulas, diagrams and image remain >20 DIP.
+        const float minimumHeight = source.find(L"\\tag") != std::wstring::npos ? 10.f : 20.f;
+        Check(bounds && bounds->right > bounds->left && bounds->bottom - bounds->top > minimumHeight,
+              "prepared native object reserves actual in-document geometry");
         editor->SetSelection({object->source.first, object->source.last});
         const auto selection = editor->GetSelection();
         editor->SetViewMode(ViewMode::Source);
