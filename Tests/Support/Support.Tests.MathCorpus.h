@@ -1121,12 +1121,12 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
         check(static_cast<bool>(ParseMath(source)), "pinned KaTeX general-fraction delimiter and grouped-dimension forms parse completely");
 #if DXUI_ENABLE_DIAGNOSTICS
     {
-        auto formats = std::make_shared<Detail::MathTextFormats>(factory, L"Cambria Math", L"en-us", L"Arial", L"Consolas");
+        auto familyFormats = std::make_shared<Detail::MathTextFormats>(factory, L"Cambria Math", L"en-us", L"Arial", L"Consolas");
         for (const auto& [command, familyName] : {std::pair{L"textsf", L"Arial"}, std::pair{L"texttt", L"Consolas"}, std::pair{L"textrm", L"Cambria Math"}})
         {
             const auto expression = std::make_shared<const MathExpression>(ParseMath(L"\\" + std::wstring(command) + L"{Ab0}"));
             check(static_cast<bool>(*expression), "bounded text-family command parses");
-            Detail::PreparedMath layout(factory, expression, 24.f, false, nullptr, 96.f, formats);
+            Detail::PreparedMath layout(factory, expression, 24.f, false, nullptr, 96.f, familyFormats);
             while (! layout.Advance())
             {
             }
@@ -1138,7 +1138,7 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
             actual.resize(length);
             check(actual == familyName, "DirectWrite layout receives the explicitly configured text family");
         }
-        check(formats->Size() >= 3u, "distinct text families do not alias the same cached format");
+        check(familyFormats->Size() >= 3u, "distinct text families do not alias the same cached format");
         check(static_cast<bool>(ParseMath(L"\\colorbox{red}{\\textsf{Ab}}")) && static_cast<bool>(ParseMath(L"\\texttt{caf\\'e}")),
               "colored text and decoded accents preserve explicit family roles");
     }
