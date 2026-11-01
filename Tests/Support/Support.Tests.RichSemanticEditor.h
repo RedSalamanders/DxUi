@@ -1229,6 +1229,7 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
 template <typename Prepare> void NativeObjectSourceContract(ControlHost& host, Prepare&& prepare)
 {
     for (const std::wstring source : {L"Before $x_i^2+\\frac{1}{2}$ after.\r\n\r\n$$\r\n\\begin{bmatrix}a&b\\\\c&d\\end{bmatrix}\r\n$$\r\n",
+                                      L"Before $\\boxed{\\xcancel{x}}+\\cancel{y}+\\bcancel{z}$ after.\r\n",
                                       L"```mermaid\nstateDiagram-v2\n[*] --> Ready\nReady --> Active : Begin\n```\n",
                                       L"```mermaid\nclassDiagram\nAnimal <|-- Bird\nBird : +fly()\n```\n",
                                       L"before ![fixture](image.png) after\n"})

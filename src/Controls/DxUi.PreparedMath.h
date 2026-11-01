@@ -541,7 +541,8 @@ class PreparedMath final
                     break;
                 case MathKind::Accent:
                     if (node.text != L"overline" && node.text != L"underline" && node.text != L"bar" && node.text != L"hat" && node.text != L"widehat" &&
-                        node.text != L"tilde" && node.text != L"widetilde" && node.text != L"vec" && node.text != L"dot" && node.text != L"ddot")
+                        node.text != L"tilde" && node.text != L"widetilde" && node.text != L"vec" && node.text != L"dot" && node.text != L"ddot" &&
+                        node.text != L"boxed" && node.text != L"cancel" && node.text != L"bcancel" && node.text != L"xcancel")
                         throw std::length_error("Invalid mathematical accent");
                     if (node.children.size() != 1u)
                         throw std::length_error("Invalid mathematical unary node");
@@ -1015,6 +1016,14 @@ class PreparedMath final
             if (node.kind == Accent && node.children.size() == 1u)
             {
                 box.extent = child(0u);
+                if (node.text == L"boxed" || node.text == L"cancel" || node.text == L"bcancel" || node.text == L"xcancel")
+                {
+                    const float pad = std::max(1.f, box.size * .12f);
+                    box.extent.width += 2.f * pad;
+                    box.extent.above += pad;
+                    box.extent.below += pad;
+                    continue;
+                }
                 if (node.text == L"underline")
                     box.extent.below += box.size * .2f;
                 else
@@ -1445,6 +1454,28 @@ class PreparedMath final
         }
         if (node.kind == Accent && node.children.size() == 1u)
         {
+            if (node.text == L"boxed" || node.text == L"cancel" || node.text == L"bcancel" || node.text == L"xcancel")
+            {
+                const float pad = std::max(1.f, box.size * .12f);
+                const float left = x + stroke * .5f, right = x + box.extent.width - stroke * .5f;
+                const float top = baseline - box.extent.above + stroke * .5f, bottom = baseline + box.extent.below - stroke * .5f;
+                Place(ChildAt(index, 0u), x + pad, baseline);
+                if (node.text == L"boxed")
+                {
+                    Stroke(left, top, right, top, stroke);
+                    Stroke(right, top, right, bottom, stroke);
+                    Stroke(right, bottom, left, bottom, stroke);
+                    Stroke(left, bottom, left, top, stroke);
+                }
+                else
+                {
+                    if (node.text != L"bcancel")
+                        Stroke(left, bottom, right, top, stroke);
+                    if (node.text != L"cancel")
+                        Stroke(left, top, right, bottom, stroke);
+                }
+                return;
+            }
             Place(ChildAt(index, 0u), x, baseline);
             const float y    = node.text == L"underline" ? baseline + box.extent.below - 2.f : baseline - box.extent.above + box.size * .1f;
             const auto shape = node.text == L"widehat" ? L'\u0302' : node.text == L"widetilde" ? L'\u0303' : node.text == L"vec" ? L'\u20d7' : L'\0';
