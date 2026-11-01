@@ -9,6 +9,33 @@
 
 namespace DxUi::RichText
 {
+std::optional<std::size_t> FindCodeLanguageTarget(const MarkdownSyntax& syntax, Selection selection, std::wstring_view language) noexcept
+{
+    if (language.size() > 255u || ! IsValidUtf16(language) || language.find_first_of(L"\r\n") != language.npos)
+        return std::nullopt;
+    const auto text   = syntax.Source();
+    const auto& nodes = syntax.Nodes();
+    for (std::size_t i = 1u; i < nodes.size(); ++i)
+    {
+        const auto& node = nodes[i];
+        const auto range = node.block.source;
+        if (node.block.kind != MarkdownBlockKind::FencedCode || node.parent == MarkdownNoNode || nodes[node.parent].block.kind != MarkdownBlockKind::Document ||
+            selection.Start() < range.first || selection.End() > range.last ||
+            ! (selection.Start() < range.last || (selection.Start() == range.last && range.last == text.size() && ! node.block.closed)))
+            continue;
+        if (node.block.fenceMarker == L'`' && language.find(L'`') != language.npos)
+            return std::nullopt;
+        const auto info = node.block.info;
+        auto lineEnd    = text.find_first_of(L"\r\n", range.first);
+        if (lineEnd == text.npos)
+            lineEnd = text.size();
+        if (info.first < range.first || info.first > info.last || info.last > lineEnd ||
+            language.size() > Document::MaximumUnits - (text.size() - (info.last - info.first)))
+            return std::nullopt;
+        return i;
+    }
+    return std::nullopt;
+}
 std::optional<std::size_t> FindExitCodeBlock(const MarkdownSyntax& syntax, Selection selection) noexcept
 {
     if (selection.Start() != selection.End())
@@ -1238,6 +1265,16 @@ void MarkdownCommandPlanner::CodeBlock(const MarkdownCommandRequest& request)
 {
     if (request.text.size() > 255u || ! IsValidUtf16(request.text) || request.text.find_first_of(L"\r\n") != request.text.npos)
         throw std::invalid_argument("Invalid code language");
+    if (request.command == MarkdownCommand::SetCodeLanguage)
+    {
+        const auto target = FindCodeLanguageTarget(*plan.syntax_, plan.before_, request.text);
+        if (! target)
+            return;
+        const auto info = nodes[target.value()].block.info;
+        Add(info.first, info.last, request.text);
+        plan.applicable_ = true;
+        return;
+    }
     const auto first = plan.before_.Start(), last = plan.before_.End();
     const auto fenced = NodeAt(Kind::FencedCode, first);
     if (fenced != MarkdownNoNode)
@@ -1246,17 +1283,6 @@ void MarkdownCommandPlanner::CodeBlock(const MarkdownCommandRequest& request)
         if (node.parent == MarkdownNoNode || nodes[node.parent].block.kind != Kind::Document || last > node.block.source.last)
             return;
         const auto& opening = Line(node.block.source.first);
-        if (request.command == MarkdownCommand::SetCodeLanguage)
-        {
-            if (node.block.fenceMarker == L'`' && request.text.find(L'`') != request.text.npos)
-                return;
-            auto info = node.block.info;
-            if (info.first < opening.first || info.first > info.last || info.last > opening.bodyEnd)
-                return;
-            Add(info.first, info.last, request.text);
-            plan.applicable_ = true;
-            return;
-        }
         if (! node.block.closed || node.block.source.last <= opening.end)
             return;
         const auto& closing = Line(node.block.source.last - 1u);
@@ -1267,8 +1293,6 @@ void MarkdownCommandPlanner::CodeBlock(const MarkdownCommandRequest& request)
         plan.applicable_ = true;
         return;
     }
-    if (request.command == MarkdownCommand::SetCodeLanguage)
-        return;
     auto end = last;
     if (end > first && Line(end).first == end)
         --end;

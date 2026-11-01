@@ -1,0 +1,1 @@
+- Share nonallocating code-language admission between the command planner and state query; remaining command applicability and native qualification are pending.
