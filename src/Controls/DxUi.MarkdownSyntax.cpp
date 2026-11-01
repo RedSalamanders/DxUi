@@ -950,6 +950,11 @@ void MarkdownParser::BeginSourceRegion(
 {
     if (! region.session)
         throw std::invalid_argument("Source editing requires a nonzero session");
+    if ((region.kind != MarkdownSourceRegionKind::Block && region.kind != MarkdownSourceRegionKind::Inline) ||
+        (region.inlineKind != MarkdownInlineSourceKind::Math && region.inlineKind != MarkdownInlineSourceKind::Link &&
+         region.inlineKind != MarkdownInlineSourceKind::Image) ||
+        (region.kind == MarkdownSourceRegionKind::Block && region.inlineKind != MarkdownInlineSourceKind::Math))
+        throw std::invalid_argument("Invalid source editing kind");
     if (region.source.first > region.source.last || ! source.IsBoundary(region.source.first) || ! source.IsBoundary(region.source.last))
         throw std::out_of_range("Invalid source editing envelope");
     const auto enabled = ValidateExtensions(profile, extensions);

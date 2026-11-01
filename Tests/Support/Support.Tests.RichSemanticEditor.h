@@ -1491,6 +1491,65 @@ template <typename Prepare> void InlineMathSourceEditing(ControlHost& host, Prep
     Check(editor->Undo(), "undo restores a deleted formula during its source session");
     prepare();
     Check(editor->GetText() == L"$x$" && editor->OnKeyDown(host, VK_F2, 0u), "restored formula leaves its session normally");
+    for (const auto& example : {std::pair{std::wstring_view(L"[label](https://example.invalid)"), MarkdownInlineSourceKind::Link},
+                                std::pair{std::wstring_view(L"![alt](picture.png)"), MarkdownInlineSourceKind::Image}})
+    {
+        std::wstring source(L"Before **left ");
+        const auto start = source.size();
+        source.append(example.first);
+        source += L" right** after";
+        editor->SetText(source);
+        prepare();
+        editor->SetSelection({start + 2u, start + 2u});
+        Check(editor->OnKeyDown(host, VK_F2, 0u), "F2 enters inline link or image source");
+        prepare();
+        auto active    = editor->GetSemanticSourceRegion();
+        auto projected = editor->GetAcknowledgedSemanticDocument(host);
+        Check(active && active->kind == MarkdownSourceRegionKind::Inline && active->inlineKind == example.second &&
+                  active->source == MarkdownRange{start, start + example.first.size()} && projected &&
+                  projected->Map().Display().find(example.first) != std::wstring_view::npos &&
+                  std::ranges::any_of(projected->Runs(), [](const auto& run) { return (run.flags & Bold) != 0u; }),
+              "inline object source keeps its exact envelope and formatted neighbors");
+        editor->SetSelection({active->source.first, active->source.last});
+        Check(editor->ReplaceSelection(L"[malformed\n\nsource"), "inline object accepts malformed multiline source");
+        prepare();
+        projected = editor->GetAcknowledgedSemanticDocument(host);
+        Check(editor->GetSemanticSourceRegion() && projected && projected->Map().Display().find(L"left [malformed\n\nsource right") != std::wstring_view::npos,
+              "malformed inline object source stays in the original paragraph context");
+        Check(editor->Undo() && editor->GetText() == source, "inline object source edit restores exact spelling with one undo");
+        prepare();
+        active = editor->GetSemanticSourceRegion();
+        Check(active.has_value(), "undo retains the inline object session");
+        editor->SetSelection({active->source.first, active->source.last});
+        Check(editor->ReplaceSelection(L""), "inline object source may be deleted completely");
+        prepare();
+        active          = editor->GetSemanticSourceRegion();
+        projected       = editor->GetAcknowledgedSemanticDocument(host);
+        const auto role = example.second == MarkdownInlineSourceKind::Link ? SemanticRole::Link : SemanticRole::Image;
+        Check(active && active->source == MarkdownRange{start, start} && projected &&
+                  std::ranges::any_of(projected->Elements(), [&](const auto& item) { return item.role == role && item.source == active->source; }),
+              "empty inline object remains an editable owner");
+        Check(editor->Undo(), "undo restores a deleted inline object");
+        prepare();
+        Check(editor->OnKeyDown(host, VK_ESCAPE, 0u), "Escape exits inline object source");
+        prepare();
+        editor->SetReadOnly(true);
+        editor->SetSelection({start + 2u, start + 2u});
+        Check(editor->OnKeyDown(host, VK_F2, 0u), "read-only inline object permits source inspection");
+        prepare();
+        Check(! editor->ReplaceSelection(L"x") && editor->OnKeyDown(host, VK_F2, 0u), "read-only inline object cannot mutate and can exit");
+        editor->SetReadOnly(false);
+        prepare();
+    }
+    const std::wstring nested(L"[before $x$ after](https://example.invalid)");
+    editor->SetText(nested);
+    prepare();
+    const auto nestedMath = nested.find(L"$x$");
+    editor->SetSelection({nestedMath + 3u, nestedMath + 3u});
+    Check(editor->OnKeyDown(host, VK_F2, 0u) && editor->GetSemanticSourceRegion() &&
+              editor->GetSemanticSourceRegion()->inlineKind == MarkdownInlineSourceKind::Math,
+          "a nested math trailing edge opens the more specific source owner");
+    Check(editor->OnKeyDown(host, VK_ESCAPE, 0u), "nested math source session exits");
 }
 template <typename Prepare> void ScrollbarAndNotifications(ControlHost& host, Prepare&& prepare)
 {

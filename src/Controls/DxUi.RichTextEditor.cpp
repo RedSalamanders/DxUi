@@ -1985,14 +1985,18 @@ bool RichTextEditor::BeginSemanticSourceEdit(ControlHost& host, const std::share
     const auto source = expected->SourceEditingRange(element);
     if (! source || _state->sourceEditing)
         return false;
-    const auto node       = expected->SourceEditingNode(element);
-    const bool inlineMath = expected->Elements()[element].role == RichText::SemanticRole::Math && ! node;
-    const auto caret      = inlineMath ? source->first : expected->Syntax()->Nodes()[*node].block.content.first;
-    auto session          = _state->nextSourceEditingSession++;
+    const auto node         = expected->SourceEditingNode(element);
+    const bool inlineSource = ! node;
+    const auto role         = expected->Elements()[element].role;
+    const auto inlineKind   = role == RichText::SemanticRole::Link    ? RichText::MarkdownInlineSourceKind::Link
+                              : role == RichText::SemanticRole::Image ? RichText::MarkdownInlineSourceKind::Image
+                                                                      : RichText::MarkdownInlineSourceKind::Math;
+    const auto caret        = inlineSource ? source->first : expected->Syntax()->Nodes()[*node].block.content.first;
+    auto session            = _state->nextSourceEditingSession++;
     if (! session)
         session = _state->nextSourceEditingSession++;
     _state->sourceEditing.emplace(State::SourceEditingSession{
-        {*source, session, inlineMath ? RichText::MarkdownSourceRegionKind::Inline : RichText::MarkdownSourceRegionKind::Block}, Snapshot()});
+        {*source, session, inlineSource ? RichText::MarkdownSourceRegionKind::Inline : RichText::MarkdownSourceRegionKind::Block, inlineKind}, Snapshot()});
     _state->document.SetSelection({caret, caret});
     SourcePresentationChanged(host);
     return true;
@@ -5259,16 +5263,28 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
             if (const auto document = GetAcknowledgedSemanticDocument(host))
             {
                 const auto caret = GetSelection().caret;
-                auto trailing    = RichText::MarkdownNoNode;
+                auto containing = RichText::MarkdownNoNode, trailing = RichText::MarkdownNoNode;
+                std::size_t containingLength = std::numeric_limits<std::size_t>::max(), trailingLength = containingLength;
                 for (std::size_t element = 0u; element < document->Elements().size(); ++element)
                     if (const auto range = document->SourceEditingRange(element))
                     {
                         const auto source = *range;
-                        if (caret >= source.first && caret < source.last)
-                            return BeginSemanticSourceEdit(host, document, element);
-                        if (caret == source.last)
-                            trailing = element;
+                        const auto length = source.last - source.first;
+                        if (caret >= source.first && caret < source.last && length < containingLength)
+                        {
+                            containing       = element;
+                            containingLength = length;
+                        }
+                        else if (caret == source.last && length < trailingLength)
+                        {
+                            trailing       = element;
+                            trailingLength = length;
+                        }
                     }
+                if (trailing != RichText::MarkdownNoNode && trailingLength < containingLength)
+                    return BeginSemanticSourceEdit(host, document, trailing);
+                if (containing != RichText::MarkdownNoNode)
+                    return BeginSemanticSourceEdit(host, document, containing);
                 // A graphic exposes leading/trailing source carets. Its end
                 // remains an entry site before following ordinary text. Prefer
                 // a new object's leading site when two envelopes touch.

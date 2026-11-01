@@ -13517,6 +13517,8 @@ bool TryHandleWindowHostAccessibilityMessage(HWND hwnd, UINT msg, WPARAM wp, LPA
     {
         request.result = request.kind == AccessibilityUiActionKind::Toggle   ? request.semanticProvider->Toggle()
                          : request.kind == AccessibilityUiActionKind::Invoke ? request.semanticProvider->Invoke()
+                         : request.kind == AccessibilityUiActionKind::Expand ? request.semanticProvider->Expand()
+                         : request.kind == AccessibilityUiActionKind::Collapse ? request.semanticProvider->Collapse()
                                                                              : static_cast<HRESULT>(UIA_E_NOTSUPPORTED);
         return true;
     }

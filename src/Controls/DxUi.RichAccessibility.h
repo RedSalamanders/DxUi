@@ -93,6 +93,7 @@ HRESULT DispatchAccessibilityUiActionToWindowThread(HWND, AccessibilityUiActionR
 class RichSemanticElementProvider final : public IRawElementProviderSimple,
                                           public IRawElementProviderFragment,
                                           public IInvokeProvider,
+                                          public IExpandCollapseProvider,
                                           public IToggleProvider,
                                           public IGridProvider,
                                           public ITableProvider,
@@ -142,6 +143,8 @@ public:
             *result = static_cast<IRawElementProviderFragment*>(this);
         else if (id == __uuidof(IInvokeProvider))
             *result = static_cast<IInvokeProvider*>(this);
+        else if (id == __uuidof(IExpandCollapseProvider))
+            *result = static_cast<IExpandCollapseProvider*>(this);
         else if (id == __uuidof(IToggleProvider))
             *result = static_cast<IToggleProvider*>(this);
         else if (id == __uuidof(IGridProvider))
@@ -197,13 +200,17 @@ public:
         const auto* record  = Record(snapshot);
         if (! record)
             return UIA_E_ELEMENTNOTAVAILABLE;
-        const auto& semantic = record->RichSemantic()->Elements()[element_];
-        const auto role      = semantic.role;
-        const bool linkAction =
-            role == RichText::SemanticRole::Link && (semantic.destination.starts_with(L'#') || record->controlRichText->externalLinkActivationEnabled);
-        if (id == UIA_InvokePatternId &&
-            (codeCopy_ || linkAction || record->RichSemantic()->NavigationTarget(element_) || record->RichSemantic()->SourceEditingRange(element_)))
+        const auto& semantic  = record->RichSemantic()->Elements()[element_];
+        const auto role       = semantic.role;
+        const bool linkAction = role == RichText::SemanticRole::Link && ! record->RichSemantic()->IsSourceEditingElement(element_) &&
+                                (semantic.destination.starts_with(L'#') || record->controlRichText->externalLinkActivationEnabled);
+        const bool inlineSource =
+            (role == RichText::SemanticRole::Link || role == RichText::SemanticRole::Image) && record->RichSemantic()->SourceEditingRange(element_).has_value();
+        if (id == UIA_InvokePatternId && (codeCopy_ || linkAction || record->RichSemantic()->NavigationTarget(element_) ||
+                                          (! inlineSource && record->RichSemantic()->SourceEditingRange(element_))))
             *result = static_cast<IInvokeProvider*>(this);
+        else if (! codeCopy_ && id == UIA_ExpandCollapsePatternId && inlineSource)
+            *result = static_cast<IExpandCollapseProvider*>(this);
         else if (! codeCopy_ && id == UIA_TogglePatternId && role == RichText::SemanticRole::Task)
             *result = static_cast<IToggleProvider*>(this);
         else if (! codeCopy_ && id == UIA_GridPatternId && role == RichText::SemanticRole::Table)
@@ -272,7 +279,8 @@ public:
                 return SetVariantFromString(result, name);
             }
             case UIA_HelpTextPropertyId:
-                if (const auto source = document.SourceEditingRange(element_))
+                if (const auto source = document.SourceEditingRange(element_);
+                    source && (document.IsSourceEditingElement(element_) || (element.role != Link && element.role != Image)))
                 {
                     if (document.IsSourceEditingElement(element_))
                         return SetVariantFromString(
@@ -284,6 +292,10 @@ public:
                 return SetVariantFromString(result, element.title.empty() ? element.destination : element.title);
             case UIA_IsControlElementPropertyId:
             case UIA_IsContentElementPropertyId: *result = VariantFromBool(true); return S_OK;
+            case UIA_ExpandCollapseExpandCollapseStatePropertyId:
+                if ((element.role == Link || element.role == Image) && document.SourceEditingRange(element_))
+                    *result = VariantFromInt(document.IsSourceEditingElement(element_) ? ExpandCollapseState_Expanded : ExpandCollapseState_Collapsed);
+                return S_OK;
             case UIA_IsKeyboardFocusablePropertyId:
             case UIA_HasKeyboardFocusPropertyId: *result = VariantFromBool(false); return S_OK;
             case UIA_IsEnabledPropertyId: *result = VariantFromBool(record->controlEnabled); return S_OK;
@@ -511,10 +523,13 @@ public:
         const auto* record = Record(snapshot);
         if (! record)
             return UIA_E_ELEMENTNOTAVAILABLE;
-        const auto& semantic = record->RichSemantic()->Elements()[element_];
-        const bool linkAction =
-            semantic.role == RichText::SemanticRole::Link && (semantic.destination.starts_with(L'#') || record->controlRichText->externalLinkActivationEnabled);
-        if (! codeCopy_ && ! linkAction && ! record->RichSemantic()->NavigationTarget(element_) && ! record->RichSemantic()->SourceEditingRange(element_))
+        const auto& semantic    = record->RichSemantic()->Elements()[element_];
+        const bool linkAction   = semantic.role == RichText::SemanticRole::Link && ! record->RichSemantic()->IsSourceEditingElement(element_) &&
+                                  (semantic.destination.starts_with(L'#') || record->controlRichText->externalLinkActivationEnabled);
+        const bool inlineSource = (semantic.role == RichText::SemanticRole::Link || semantic.role == RichText::SemanticRole::Image) &&
+                                  record->RichSemantic()->SourceEditingRange(element_).has_value();
+        if (! codeCopy_ && ! linkAction && ! record->RichSemantic()->NavigationTarget(element_) &&
+            (inlineSource || ! record->RichSemantic()->SourceEditingRange(element_)))
             return UIA_E_NOTSUPPORTED;
         if (! record->controlEnabled)
             return UIA_E_ELEMENTNOTENABLED;
@@ -527,6 +542,8 @@ public:
         const auto& document = record->RichSemantic();
         if (codeCopy_)
             return editor->InvokeSemanticCodeCopy(*host, document, element_);
+        if (linkAction)
+            return editor->NavigateSemanticElement(*host, document, element_) ? S_OK : static_cast<HRESULT>(UIA_E_INVALIDOPERATION);
         if (const auto source = document->SourceEditingRange(element_))
         {
             // Publication/binding/epoch guards precede every owner mutation.
@@ -547,6 +564,29 @@ public:
     catch (const std::exception&)
     {
         return E_INVALIDARG;
+    }
+    HRESULT STDMETHODCALLTYPE Expand() noexcept override
+    {
+        return ChangeInlineSource(true);
+    }
+    HRESULT STDMETHODCALLTYPE Collapse() noexcept override
+    {
+        return ChangeInlineSource(false);
+    }
+    HRESULT STDMETHODCALLTYPE get_ExpandCollapseState(ExpandCollapseState* result) noexcept override
+    {
+        if (! result)
+            return E_POINTER;
+        const auto snapshot = CaptureSnapshot();
+        const auto* record = Record(snapshot);
+        if (! record)
+            return UIA_E_ELEMENTNOTAVAILABLE;
+        const auto& document = *record->RichSemantic();
+        const auto role = document.Elements()[element_].role;
+        if (codeCopy_ || (role != RichText::SemanticRole::Link && role != RichText::SemanticRole::Image) || ! document.SourceEditingRange(element_))
+            return UIA_E_NOTSUPPORTED;
+        *result = document.IsSourceEditingElement(element_) ? ExpandCollapseState_Expanded : ExpandCollapseState_Collapsed;
+        return S_OK;
     }
     HRESULT STDMETHODCALLTYPE get_ToggleState(ToggleState* result) noexcept override
     {
@@ -692,6 +732,52 @@ public:
     }
 
 private:
+    HRESULT ChangeInlineSource(bool expand) noexcept
+    try
+    {
+        const auto snapshot = CaptureSnapshot();
+        if (! snapshot)
+            return UIA_E_ELEMENTNOTAVAILABLE;
+        if (GetCurrentThreadId() != (target_->embedded ? target_->threadId : snapshot->windowThreadId))
+        {
+            if (target_->embedded)
+                return RPC_E_WRONG_THREAD;
+            AccessibilityUiActionRequest request{.stringValue = std::wstring(0u, L' '), .textRangeBoundsDip = std::vector<D2D1_RECT_F>(0u)};
+            request.semanticProvider = this;
+            request.kind             = expand ? AccessibilityUiActionKind::Expand : AccessibilityUiActionKind::Collapse;
+            return DispatchAccessibilityUiActionToWindowThread(hwnd_, request);
+        }
+        const auto* record = Record(snapshot);
+        if (! record)
+            return UIA_E_ELEMENTNOTAVAILABLE;
+        const auto& document = record->RichSemantic();
+        const auto role      = document->Elements()[element_].role;
+        if (codeCopy_ || (role != RichText::SemanticRole::Link && role != RichText::SemanticRole::Image) || ! document->SourceEditingRange(element_))
+            return UIA_E_NOTSUPPORTED;
+        if (! record->controlEnabled)
+            return UIA_E_ELEMENTNOTENABLED;
+        auto* host   = target_->ResolveHost();
+        auto* editor = host ? Detail::RichEditorAccessibilityAccess::As(ResolveIdentifiedControlAtPath(host->GetRoot(), path_, identity_)) : nullptr;
+        if (! editor || ! IsControlPathVisible(host->GetRoot(), path_))
+            return UIA_E_ELEMENTNOTAVAILABLE;
+        if (! IsControlEffectivelyInteractive(host->GetRoot(), editor))
+            return UIA_E_ELEMENTNOTENABLED;
+        if (editor->GetAcknowledgedSemanticDocument(*host) != document)
+            return UIA_E_ELEMENTNOTAVAILABLE;
+        if (document->IsSourceEditingElement(element_) == expand)
+            return S_OK;
+        return (expand ? editor->BeginSemanticSourceEdit(*host, document, element_) : editor->EndSemanticSourceEdit(*host))
+                   ? S_OK
+                   : static_cast<HRESULT>(UIA_E_INVALIDOPERATION);
+    }
+    catch (const std::bad_alloc&)
+    {
+        return E_OUTOFMEMORY;
+    }
+    catch (const std::exception&)
+    {
+        return E_INVALIDARG;
+    }
     [[nodiscard]] std::optional<D2D1_RECT_F> CopyBounds(const AccessibilitySnapshot& snapshot,
                                                         const AccessibilityControlNavigationSnapshot& record) const noexcept
     {

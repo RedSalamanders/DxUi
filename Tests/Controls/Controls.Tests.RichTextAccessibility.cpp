@@ -2423,6 +2423,87 @@ void SemanticInlineMathSourceEditing(bool embedded)
     Require(raw->GetPropertyValue(UIA_NamePropertyId, &retired) == UIA_E_ELEMENTNOTAVAILABLE, "detaching retires the active inline source provider");
     adapter->RebindForTest(fixture.controls);
 }
+void SemanticInlineLinkImageSourceEditing(bool embedded)
+{
+    using namespace RichText;
+    RichAccessibilityFixture fixture(embedded, true, true);
+    fixture.editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    unsigned activations = 0u;
+    fixture.editor->SetOnLinkActivated([&](const RichTextLinkActivation&) { ++activations; });
+    for (const auto& example : {std::pair{std::wstring_view(L"[label](https://example.invalid)"), MarkdownInlineSourceKind::Link},
+                                std::pair{std::wstring_view(L"![alt](picture.png)"), MarkdownInlineSourceKind::Image}})
+    {
+        std::wstring source(L"before **left ");
+        source.append(example.first);
+        source += L" right** after";
+        fixture.editor->SetText(source);
+        fixture.Publish();
+        auto simple = fixture.Simple();
+        auto part   = FindNamedSemanticPart(*simple.get(), example.second == MarkdownInlineSourceKind::Link ? L"label" : L"alt");
+        Require(part != nullptr, "inline link or image has a semantic provider");
+        wil::com_ptr_nothrow<IUnknown> pattern;
+        if (example.second == MarkdownInlineSourceKind::Link)
+        {
+            RequireSucceeded(part->GetPatternProvider(UIA_InvokePatternId, pattern.put()), "link activation Invoke pattern");
+            wil::com_ptr_nothrow<IInvokeProvider> invoke;
+            Require(pattern && SUCCEEDED(pattern.query_to(invoke.put())), "registered link retains Invoke");
+            RequireSucceeded(invoke->Invoke(), "Invoke activates the link");
+            Require(activations == 1u && ! fixture.editor->GetSemanticSourceRegion(), "link Invoke never changes into source editing");
+        }
+        else
+        {
+            RequireSucceeded(part->GetPatternProvider(UIA_InvokePatternId, pattern.put()), "image Invoke query");
+            Require(! pattern, "image source editing does not manufacture an Invoke action");
+        }
+        pattern.reset();
+        RequireSucceeded(part->GetPatternProvider(UIA_ExpandCollapsePatternId, pattern.put()), "inline source expansion pattern");
+        wil::com_ptr_nothrow<IExpandCollapseProvider> expansion;
+        Require(pattern && SUCCEEDED(pattern.query_to(expansion.put())), "inline object offers source expansion");
+        ExpandCollapseState state{};
+        RequireSucceeded(expansion->get_ExpandCollapseState(&state), "read collapsed inline source state");
+        Require(state == ExpandCollapseState_Collapsed, "ordinary inline object starts collapsed");
+        const auto revision    = fixture.editor->Revision();
+        std::atomic<bool> done = false;
+        HRESULT dispatched     = E_FAIL;
+        std::jthread worker([&]
+        {
+            dispatched = expansion->Expand();
+            done.store(true, std::memory_order_release);
+        });
+        const auto deadline = GetTickCount64() + 12000u;
+        while (! done.load(std::memory_order_acquire) && GetTickCount64() < deadline)
+        {
+            fixture.Pump();
+            Sleep(1u);
+        }
+        Require(done.load(std::memory_order_acquire), "inline source expansion owner dispatch completes");
+        worker.join();
+        Require(dispatched == (embedded ? RPC_E_WRONG_THREAD : S_OK), "native expansion dispatches and embedded expansion rejects a foreign thread");
+        if (embedded)
+            RequireSucceeded(expansion->Expand(), "owner-thread embedded inline source expansion");
+        wil::unique_variant retired;
+        Require(part->GetPropertyValue(UIA_NamePropertyId, &retired) == UIA_E_ELEMENTNOTAVAILABLE,
+                "inline source expansion retires the previous semantic provider");
+        fixture.Publish();
+        auto raw          = FindNamedSemanticPart(*simple.get(), example.first);
+        const auto region = fixture.editor->GetSemanticSourceRegion();
+        Require(raw && region && region->kind == MarkdownSourceRegionKind::Inline && region->inlineKind == example.second,
+                "UIA source expansion exposes the exact inline owner");
+        pattern.reset();
+        RequireSucceeded(raw->GetPatternProvider(UIA_ExpandCollapsePatternId, pattern.put()), "inline source collapse pattern");
+        expansion.reset();
+        Require(pattern && SUCCEEDED(pattern.query_to(expansion.put())), "inline source offers a separate collapse action");
+        RequireSucceeded(expansion->get_ExpandCollapseState(&state), "read expanded inline source state");
+        Require(state == ExpandCollapseState_Expanded, "inline source reports expanded state");
+        fixture.editor->SetReadOnly(true);
+        fixture.Publish();
+        Require(! fixture.editor->ReplaceSelection(L"x"), "read-only object source cannot mutate");
+        RequireSucceeded(expansion->Collapse(), "read-only object source can collapse");
+        Require(! fixture.editor->GetSemanticSourceRegion() && fixture.editor->Revision() == revision && ! fixture.editor->CanUndo(),
+                "UIA inline source inspection preserves source and history");
+        fixture.editor->SetReadOnly(false);
+    }
+}
 void SemanticDiagnosticSelection(bool embedded)
 {
     using namespace RichText;
@@ -3175,11 +3256,13 @@ void TestRichTextAccessibilityWindowObjectSourceEditing()
 {
     SemanticObjectSourceEditing(false);
     SemanticInlineMathSourceEditing(false);
+    SemanticInlineLinkImageSourceEditing(false);
 }
 void TestRichTextAccessibilityEmbeddedObjectSourceEditing()
 {
     EmbeddedCase(SemanticObjectSourceEditing);
     EmbeddedCase(SemanticInlineMathSourceEditing);
+    EmbeddedCase(SemanticInlineLinkImageSourceEditing);
 }
 void TestRichTextAccessibilityWindowSourceEditingComposition()
 {

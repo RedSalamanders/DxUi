@@ -61,7 +61,8 @@ std::optional<MarkdownRange> SemanticDocument::SourceEditingRange(std::size_t el
 {
     if (element >= elements_.size())
         return std::nullopt;
-    if (elements_[element].role == SemanticRole::Math)
+    if (elements_[element].role == SemanticRole::Math ||
+        (! elements_[element].nativeHtml && (elements_[element].role == SemanticRole::Link || elements_[element].role == SemanticRole::Image)))
         return elements_[element].source;
     const auto node = SourceEditingNode(element);
     return node ? std::optional(syntax_->Nodes()[*node].block.source) : std::nullopt;
@@ -73,7 +74,10 @@ bool SemanticDocument::IsSourceEditingElement(std::size_t element) const noexcep
     if (! range || ! region)
         return false;
     if (region->kind == MarkdownSourceRegionKind::Inline)
-        return elements_[element].role == SemanticRole::Math && *range == region->source;
+        return *range == region->source &&
+               ((region->inlineKind == MarkdownInlineSourceKind::Math && elements_[element].role == SemanticRole::Math) ||
+                (region->inlineKind == MarkdownInlineSourceKind::Link && elements_[element].role == SemanticRole::Link) ||
+                (region->inlineKind == MarkdownInlineSourceKind::Image && elements_[element].role == SemanticRole::Image));
     const auto node = SourceEditingNode(element);
     return node && *node == SourceBlock();
 }
@@ -448,12 +452,16 @@ struct SemanticBuilder::Preparation
         auto parent      = visit.parent;
         if (node.kind == MarkdownInlineKind::SourceEditor)
         {
-            const auto element = Element(SemanticRole::Math, node.source, parent);
+            const auto region = document->syntax_->SourceRegion();
+            const auto role = region && region->inlineKind == MarkdownInlineSourceKind::Link    ? SemanticRole::Link
+                              : region && region->inlineKind == MarkdownInlineSourceKind::Image ? SemanticRole::Image
+                                                                                                 : SemanticRole::Math;
+            const auto element = Element(role, node.source, parent);
             output.Emit(document->syntax_->Slice(node.source), node.source, DisplaySpanKind::Source, flags | Code, visit.heading);
             auto& formula        = document->elements_[element];
             formula.display.last = output.text.size();
             formula.name         = node.value;
-            formula.title        = Label(AccessibilityTextId::EditingEquation);
+            formula.title        = Label(role == SemanticRole::Math ? AccessibilityTextId::EditingEquation : AccessibilityTextId::ExitSource);
             return;
         }
         if (node.kind == MarkdownInlineKind::Math)

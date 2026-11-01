@@ -2002,6 +2002,9 @@ raw fence range. Source changes and presentation withdrawal retire old children.
 F2 and guarded UIA Invoke enter an acknowledged code/HTML/metadata or math object's
 exact source in place. Esc, F2 or Ctrl+Enter leaves that presentation. Enabled
 read-only owners permit source inspection; edits still require an editable owner.
+F2 also opens a Markdown link or image's exact inline envelope. Its UIA
+ExpandCollapse action enters and exits that presentation; a link's Invoke retains
+its navigation action. Native HTML links and images do not use this inline action.
 Neither presentation transition edits source/history or acquires OS focus.
 Transitions MUST cancel the editor's old pointer gesture and release its capture
 before publishing the new presentation, with lifetime/binding guards after
@@ -2051,7 +2054,7 @@ SetText and explicit mode/profile/rendering replacement retire the local scope.
 Raw source input MUST bypass rich list/table/atomic-object deletion commands;
 ordinary source grapheme/range deletion and literal CRLF insertion apply.
 Leaving presentation MUST preserve committed edits and redo; Esc is not a
-second unrecorded rollback. Other paragraphs retain semantic rendering. An inline math scope owns its exact raw interval within the existing paragraph. The inline region preserves neighboring Markdown formatting while its text is invalid or contains physical newlines; it does not widen to a physical paragraph.
+second unrecorded rollback. Other paragraphs retain semantic rendering. An inline math, Markdown link or Markdown image scope owns its exact raw interval within the existing paragraph. The inline region preserves neighboring Markdown formatting while its text is invalid or contains physical newlines; it does not widen to a physical paragraph.
 Selected native objects MUST retain the resolved selection text/surface pair,
 including high contrast. Their opaque node and edge-label backing uses the
 selection surface composited over the ordinary opaque object surface; it MUST
