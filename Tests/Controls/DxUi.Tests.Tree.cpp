@@ -1993,6 +1993,12 @@ void TestTreeSingleClickInvokeIsOptInAndLeavesExpanderAndEnterSemanticsIntact()
     Require(fixture.delegate.invokedCount == 3u && fixture.delegate.lastInvokedItemId == 20u, "a leaf row invokes on its completed single click");
     Require(fixture.tree->OnMouseDoubleClick(fixture.host, filePoint, false, 0u), "a leaf double-click remains handled");
     Require(fixture.delegate.invokedCount == 3u, "the double-click message does not invoke a leaf a second time");
+    for (const UINT modifier : {static_cast<UINT>(MK_CONTROL), static_cast<UINT>(MK_SHIFT)})
+    {
+        Require(fixture.tree->OnMouseDown(fixture.host, filePoint, false, modifier), "modified row press is handled");
+        static_cast<void>(fixture.tree->OnMouseUp(fixture.host, filePoint, false, modifier));
+    }
+    Require(fixture.delegate.invokedCount == 3u, "Ctrl and Shift selection gestures do not invoke");
 }
 
 void TestTreeMultiSelectIsOptInAndSingleSelectIsUnchanged()
@@ -3596,12 +3602,57 @@ void TestTreeLargeExpansionSkipsAnimation()
     Require(tree->DebugGetExpansionCaptureCount() == captures && ! tree->DebugGetExpansionAnimationItemId(), "neither operation captures animation rows");
     Require(! tree->Tick(host, 1000u), "large expansion and collapse do not leave an animation tick loop");
 }
+void TestTreeRefreshTypeaheadAndWheelBoundaries()
+{
+    using namespace DxUi;
+    WindowHost host;
+    auto root  = std::make_unique<Panel>();
+    Tree* tree = root->AddChild<Tree>();
+    tree->SetBounds(D2D1::RectF(0.0f, 0.0f, 220.0f, 100.0f));
+    MutableTreeModel model;
+    auto items    = FlatTreeItems(30u);
+    items[0].text = L"Alpha";
+    items[1].text = L"Alpine";
+    items[2].text = L"Beta";
+    model.SetVisibleItems(std::move(items));
+    RecordingTreeDelegate delegate;
+    tree->SetModel(&model);
+    tree->SetDelegate(&delegate);
+    host.SetRoot(std::move(root));
+    tree->SetSelectedItemId(1u);
+    Require(tree->OnChar(host, L'a', 0u) && tree->GetSelectedItemId() == 2u, "first character cycles to the next matching item");
+    Require(tree->OnChar(host, L'l', 0u) && tree->GetSelectedItemId() == 2u, "longer prefix keeps the current matching item");
+    Require(tree->OnChar(host, L'p', 0u) && tree->GetSelectedItemId() == 2u && delegate.selectionChangedCount == 1u,
+            "prefix extension does not oscillate or notify a second selection");
+    const auto point = D2D1::Point2F(100.0f, 50.0f);
+    Require(tree->OnMouseWheel(host, point, -120.0f, 0u), "wheel moves the tree away from its selection");
+    const float scroll = tree->DebugGetVerticalScrollDip();
+    Require(scroll > 0.0f, "tree is scrolled away from the focused row");
+    tree->NotifyDataChanged();
+    Require(tree->DebugGetVerticalScrollDip() == scroll, "model refresh clamps without revealing an old selection");
+    while (tree->OnMouseWheel(host, point, -120.0f, 0u))
+    {
+    }
+    Require(! tree->OnMouseWheel(host, point, -60.0f, 0u), "wheel bubbles at the lower extent even for a partial detent");
+}
+
+void TestTreeInitialActionReportsSelection()
+{
+    using namespace DxUi;
+    TreeSelectionFixture fixture(FlatTreeItems(3u), std::nullopt);
+    Require(fixture.Key(VK_RETURN), "first Return is handled");
+    RequireTreeIds(fixture.Selected(), {1u}, "first action selects the first row");
+    Require(fixture.delegate.selectionChangedCount == 1u && fixture.delegate.lastSelectedItemId == 1u,
+            "the initial selection is reported once before invocation");
+}
 } // namespace
 
 void RunTreeTests()
 {
     DXUI_RUN_TEST(TestTreeGesturesContinueWhenACallbackChangesAnotherControl);
     DXUI_RUN_TEST(TestTreeClickSurvivesAFocusHandlerThatChangesAnotherControl);
+    DXUI_RUN_TEST(TestTreeRefreshTypeaheadAndWheelBoundaries);
+    DXUI_RUN_TEST(TestTreeInitialActionReportsSelection);
     DXUI_RUN_TEST(TestTreeExpansionAnimatesWhenTheDelegatePublishes);
     DXUI_RUN_TEST(TestTreeLargeExpansionSkipsAnimation);
     DXUI_RUN_TEST(TestTreeFocusRequestContainsAThrowingDelegate);

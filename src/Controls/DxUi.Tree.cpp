@@ -708,12 +708,6 @@ void Tree::NotifyDataChanged()
         _dragVerticalThumb        = false;
         _dragThumbOffsetDip       = 0.0f;
     }
-    if (const std::optional<size_t> selectedIndex = FindFocusedVisibleIndex())
-    {
-        if (! modelGuard.IsCurrent())
-            return;
-        EnsureVisibleIndex(selectedIndex.value());
-    }
 
     if (! modelGuard.IsCurrent())
         return;
@@ -1857,7 +1851,8 @@ bool Tree::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
             ClearReorderDrag();
         }
     }
-    if (_invokeOnSingleClick && hit.zone == HitZone::Item && guard.IsCurrent())
+    if (_invokeOnSingleClick && hit.zone == HitZone::Item && ! selectionGesture && ! ModifiersContainCtrl(modifiers) && ! ModifiersContainShift(modifiers) &&
+        guard.IsCurrent())
     {
         _singleClickInvokeItemId = hitItem.id;
         _singleClickCaptureArmed = true;
@@ -1997,7 +1992,7 @@ bool Tree::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, U
         {
             _delegate->OnTreeReorder(drop);
         }
-        if (invokeId.has_value() && ! guard.IsCurrent())
+        if (invokeId.has_value() && ! guard.ResumeAfterCallback())
             return dragged;
         if (invokeId.has_value() && _delegate)
         {
@@ -2084,6 +2079,11 @@ bool Tree::OnMouseWheel(ControlHost& host, D2D1_POINT_2F point, float wheelDelta
     if (! guard.IsCurrent() || extent <= 0.0f)
         return false;
 
+    if ((wheelDelta > 0.0f && _verticalScrollDip <= 0.0f) || (wheelDelta < 0.0f && _verticalScrollDip >= extent))
+    {
+        _wheelDeltaRemainder = 0.0f;
+        return false;
+    }
     _wheelDeltaRemainder += wheelDelta;
     const int wheelStepCount = static_cast<int>(_wheelDeltaRemainder / static_cast<float>(WHEEL_DELTA));
     if (wheelStepCount == 0)
@@ -2195,8 +2195,10 @@ bool Tree::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
     {
         // The first key starts from the first row. With multi-select it only takes the focus there, so that the key's
         // own gesture (Ctrl+Space, Shift+Down) decides what is selected.
-        currentIndex = 0u;
-        if (! SelectVisibleIndex(currentIndex.value(), _multiSelect ? SelectMode::FocusOnly : SelectMode::Replace, false))
+        currentIndex        = 0u;
+        const bool willMove = virtualKey == VK_DOWN || virtualKey == VK_HOME || virtualKey == VK_END || virtualKey == VK_PRIOR || virtualKey == VK_NEXT;
+        const SelectMode initialMode = _multiSelect || willMove ? SelectMode::FocusOnly : SelectMode::Replace;
+        if (! SelectVisibleIndex(currentIndex.value(), initialMode, initialMode == SelectMode::Replace))
         {
             return true;
         }
@@ -3599,7 +3601,7 @@ std::optional<size_t> Tree::FindNextTypeaheadMatch(std::wstring_view prefix) con
     const std::optional<size_t> currentIndex = FindFocusedVisibleIndex();
     if (! guard.IsCurrent())
         return std::nullopt;
-    const size_t startIndex = currentIndex ? ((currentIndex.value() + 1u) % itemCount) : 0u;
+    const size_t startIndex = currentIndex ? ((currentIndex.value() + (prefix.size() == 1u ? 1u : 0u)) % itemCount) : 0u;
     TreeItemData item;
     for (size_t offset = 0u; offset < itemCount; ++offset)
     {
