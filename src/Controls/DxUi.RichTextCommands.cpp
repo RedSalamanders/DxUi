@@ -1615,8 +1615,11 @@ void MarkdownCommandPlanner::ClearFormatting()
     {
         if (node.source.first >= last || node.source.last <= first || node.kind == MarkdownInlineKind::Text)
             continue;
-        if (node.kind != MarkdownInlineKind::Strong && node.kind != MarkdownInlineKind::Emphasis && node.kind != MarkdownInlineKind::Strikethrough)
+        if (node.kind != MarkdownInlineKind::Strong && node.kind != MarkdownInlineKind::Emphasis && node.kind != MarkdownInlineKind::Strikethrough &&
+            node.kind != MarkdownInlineKind::Link)
             return;
+        if (node.kind == MarkdownInlineKind::Link && text[node.source.first] != L'[')
+            return; // Bare/autolinks would become links again without escaping.
         const auto body = InlineBody(node);
         if (! body || first > body->first || last < body->last)
             return;
