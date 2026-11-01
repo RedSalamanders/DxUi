@@ -1741,6 +1741,11 @@ corridors remain outside full rank rows, including for skipped-rank edges,
 cycles, self-loops and parallel edges. Crossings are permitted; optimal routing
 and upstream Mermaid coordinate compatibility are not claimed.
 
+Native node and edge labels wrap with DirectWrite at 12.5 times the selected font
+size (225 DIP at 18 DIP), preserving explicit line breaks and complete Unicode
+text. Ink and multiline height participate in geometry and capacity checks. This
+is a fixed native typography policy, not a public per-diagram width setting.
+
 All shapes, labels, routes and arrowheads MUST fit the complete diagram bounds,
 with a 65,536-DIP extent limit per axis. Node/aggregate extent rejection publishes
 an explicit capacity issue with no partial geometry. Invalid/nonfinite/negative

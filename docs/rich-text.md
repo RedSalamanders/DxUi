@@ -167,7 +167,9 @@ x64 Debug checks, with stable ranks, four orientations, direct unambiguous adjac
 edges and exterior lanes for other forward/back/self/parallel edges. Unlabeled
 nonoverlapping rank intervals can share a lane; labeled lanes remain exclusive. It accepts measured label sizes and creates
 no SDK resources; complete extents are capped at 65,536 DIP per axis. DWrite
-shaping and reusable native paint resources pass focused Debug checks, with intercepted
+node and edge labels wrap at 12.5 times the selected font size; explicit line
+breaks and complete label text remain visible within the resulting geometry.
+Shaping and reusable native paint resources pass focused Debug checks, with intercepted
 SDK-call budgets, independent Unicode/bidi/multiline raster checks, separate
 typography/resource invalidation and compatible borrowed-target drawing. Edge
 labels paint last over padded opaque backgrounds so routes cannot obscure them.
