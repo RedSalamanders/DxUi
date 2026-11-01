@@ -1,0 +1,1 @@
+- Admit counted RichText UIA search in Source, v0 and semantic views using the retained source capability rather than optional semantic geometry; cover embedded NUL needles, reverse and case-insensitive search while retaining ordinary-control Unicode validation.

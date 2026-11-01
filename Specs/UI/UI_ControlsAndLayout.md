@@ -1920,7 +1920,8 @@ flow/typography or resource preparation MUST NOT repeatedly parse that same requ
 Edits/reset/undo/redo/profile changes re-evaluate their own request. Transient
 `bad_alloc` remains retryable `E_OUTOFMEMORY` and MUST NOT latch capacity fallback.
 These limits do not establish larger-document or worst-case latency qualification;
-raw NUL admission and final capacity/performance profiles remain separate M6 work.
+final capacity/performance profiles remain separate M6 work; counted raw NUL
+admission follows the exact source contract above.
 
 ### RichMarkdown footnote definition grammar
 

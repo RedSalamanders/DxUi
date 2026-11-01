@@ -6596,7 +6596,9 @@ HRESULT AccessibilityTextRangeProvider::FindText(BSTR text, BOOL backward, BOOL 
     const auto* record = FindControlNavigationRecord(*snapshot, _path);
     if (! record)
         return UIA_E_ELEMENTNOTAVAILABLE;
-    if (! record->controlRichText && ! RichText::IsValidUtf16(needle))
+    // Text2 identifies the retained RichText source contract in every view.
+    // A semantic snapshot is optional (Source/v0/pending views have none).
+    if (! record->controlSupportsText2 && ! RichText::IsValidUtf16(needle))
         return E_INVALIDARG;
     const std::wstring_view source = _textOverride && ! record->controlSupportsText2 ? *_textOverride : record->controlAccessibleText;
     const auto range               = ClampCurrentRange(source.size());

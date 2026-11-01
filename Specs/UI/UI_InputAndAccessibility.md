@@ -19,12 +19,14 @@ queries and UIA/TSF geometry queries never advance parsing. While source analysi
 or geometry is pending, current glyph bounds remain unavailable; a previous
 acknowledged embedded text snapshot must never acquire unrelated current glyph
 bounds. The opt-in semantic accessibility contract below adds source-backed
-structure/style after coherent preparation. The raw parser accepting NUL does not change
-the editor/text-store admission contract.
+structure/style after coherent preparation. RichText source and its counted
+text-service/UIA transport preserve U+0000; unpaired surrogates remain invalid.
+This does not change other controls or null-terminated clipboard formats.
 Opt-in native HTML and hanging marker presentation preserve that same source
-contract. Markdown/HTML links retain inert destination/title metadata;
+contract. Markdown/HTML links retain source-backed destination/title metadata;
 clicking places a caret and double-clicking selects source text. Neither action
-navigates or creates a text/history transaction. Validated tag/attribute ranges
+navigates or creates a text/history transaction. Explicit link activation follows
+the caller-owned callback/local-fragment policy above. Validated tag/attribute ranges
 have no source glyph rectangles but remain searchable/selectable raw TextPattern
 text. HTML references and br tags are atomic visual source tokens; TSF imports
 still use exact raw ACPs. An empty balanced HTML leaf has a real insertion between
@@ -160,7 +162,9 @@ These operations publish TextSelectionChanged, never source/history changes.
 
 FindText searches bounded exact source, including hidden syntax, with ordinal
 Unicode comparison and forward/backward/case options. Matches respect scalar/CRLF
-boundaries. Empty/malformed needles and invalid unit/endpoint/length arguments
+boundaries. RichText needles retain counted U+0000 in Source, v0 and semantic
+views, independently of whether semantic geometry is available. Empty/malformed
+needles and invalid unit/endpoint/length arguments
 return E_INVALIDARG. Outside acknowledged semantic rendering, FindAttribute supports the uniform IsReadOnly VT_BOOL value;
 unknown attributes return UIA_E_NOTSUPPORTED. No match returns S_OK with null.
 Line commands use prepared wrapped source ranges rather than logical-line guesses.
