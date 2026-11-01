@@ -122,7 +122,8 @@ enum class MarkdownInlineKind
     Image,
     Html,
     FootnoteReference,
-    Math
+    Math,
+    SourceEditor
 };
 // Resolved inline values, with original spelling retained in Source(). Indices
 // are revision-local. source encloses delimiters and any stripped line prefixes;
@@ -205,10 +206,16 @@ struct MarkdownBlockStatistics
     // deterministic diagnostic counters, not elapsed-time or total CPU bounds.
     std::size_t prefixInspectionUnits{}, containerFinalizations{};
 };
+enum class MarkdownSourceRegionKind
+{
+    Block,
+    Inline
+};
 struct MarkdownSourceRegion
 {
     MarkdownRange source;
     std::uint64_t session{};
+    MarkdownSourceRegionKind kind                      = MarkdownSourceRegionKind::Block;
     bool operator==(const MarkdownSourceRegion&) const = default;
 };
 // Context-free lexical candidates. Inline precedence (code, HTML, links,

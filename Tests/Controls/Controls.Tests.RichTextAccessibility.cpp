@@ -2090,6 +2090,53 @@ void SemanticObjectSourceEditing(bool embedded)
     fixture.Publish();
     Require(raw->GetPropertyValue(UIA_NamePropertyId, &retired) == UIA_E_ELEMENTNOTAVAILABLE, "rebinding cannot resurrect old source presentation providers");
 }
+void SemanticInlineMathSourceEditing(bool embedded)
+{
+    using namespace RichText;
+    RichAccessibilityFixture fixture(embedded, true, true);
+    fixture.editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    fixture.editor->SetText(L"before **bold $x$ after** end");
+    fixture.Publish();
+    auto simple = fixture.Simple();
+    auto math   = FindNamedSemanticPart(*simple.get(), L"x");
+    Require(math != nullptr, "inline math exposes a semantic provider");
+    wil::com_ptr_nothrow<IUnknown> pattern;
+    RequireSucceeded(math->GetPatternProvider(UIA_InvokePatternId, pattern.put()), "inline math source Invoke pattern");
+    wil::com_ptr_nothrow<IInvokeProvider> invoke;
+    Require(pattern && SUCCEEDED(pattern.query_to(invoke.put())), "inline math has an invoke action");
+    const auto revision = fixture.editor->Revision();
+    RequireSucceeded(invoke->Invoke(), "UIA enters inline math source");
+    wil::unique_variant retired;
+    Require(math->GetPropertyValue(UIA_NamePropertyId, &retired) == UIA_E_ELEMENTNOTAVAILABLE, "inline source entry retires the original provider");
+    fixture.Publish();
+    auto raw = FindNamedSemanticPart(*simple.get(), L"$x$");
+    Require(raw != nullptr && fixture.editor->GetSemanticSourceRegion()->kind == MarkdownSourceRegionKind::Inline,
+            "UIA source editor exposes the exact inline envelope");
+    pattern.reset();
+    RequireSucceeded(raw->GetPatternProvider(UIA_InvokePatternId, pattern.put()), "inline source exit pattern");
+    invoke.reset();
+    Require(pattern && SUCCEEDED(pattern.query_to(invoke.put())), "inline source offers a reverse action");
+    fixture.editor->SetReadOnly(true);
+    fixture.Publish();
+    Require(! fixture.editor->ReplaceSelection(L"x"), "read-only inline inspection cannot edit source");
+    RequireSucceeded(invoke->Invoke(), "read-only inline source inspection can exit");
+    Require(! fixture.editor->GetSemanticSourceRegion() && fixture.editor->Revision() == revision && ! fixture.editor->CanUndo(),
+            "UIA entry and exit do not edit source or history");
+    fixture.Publish();
+    math = FindNamedSemanticPart(*simple.get(), L"x");
+    pattern.reset();
+    RequireSucceeded(math->GetPatternProvider(UIA_InvokePatternId, pattern.put()), "read-only math source pattern");
+    invoke.reset();
+    Require(pattern && SUCCEEDED(pattern.query_to(invoke.put())), "read-only math source action");
+    RequireSucceeded(invoke->Invoke(), "read-only math permits source inspection");
+    fixture.Publish();
+    raw = FindNamedSemanticPart(*simple.get(), L"$x$");
+    Require(raw != nullptr, "read-only inline source is published");
+    auto* adapter = static_cast<RichAccessibilityEditor*>(fixture.editor);
+    adapter->RebindForTest(nullptr);
+    Require(raw->GetPropertyValue(UIA_NamePropertyId, &retired) == UIA_E_ELEMENTNOTAVAILABLE, "detaching retires the active inline source provider");
+    adapter->RebindForTest(fixture.controls);
+}
 void SemanticFootnoteNavigation(bool embedded)
 {
     using namespace RichText;
@@ -2438,7 +2485,7 @@ void SemanticActionComposition(bool nativeAdapter, bool footnote = false)
     fixture.Publish();
     Require(fixture.editor->GetText() == source && ! fixture.editor->CanUndo(), "composition cancellation restores exact CRLF task source");
 }
-void SemanticSourceActionComposition(bool nativeAdapter)
+void SemanticSourceActionComposition(bool nativeAdapter, bool inlineMath = false)
 {
     using namespace RichText;
     for (const bool alreadyEditing : {false, true})
@@ -2452,7 +2499,7 @@ void SemanticSourceActionComposition(bool nativeAdapter)
             fixture.controls->SetFocusControl(fixture.editor, false);
         }
         fixture.editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
-        const std::wstring source = L"```mermaid\r\ngraph TD;A-->B\r\n```\r\n";
+        const std::wstring source = inlineMath ? L"before $A$ after" : L"```mermaid\r\ngraph TD;A-->B\r\n```\r\n";
         const auto insertion      = source.find(L'A');
         fixture.editor->SetText(source);
         fixture.editor->SetSelection({insertion, insertion});
@@ -2493,7 +2540,7 @@ void SemanticSourceActionComposition(bool nativeAdapter)
         auto simple = fixture.Simple();
         wil::com_ptr_nothrow<IRawElementProviderSimple> object;
         for (std::size_t i = 0u; i < semantic->Elements().size(); ++i)
-            if (semantic->SourceEditingNode(i))
+            if (semantic->SourceEditingRange(i))
             {
                 object = FindNamedSemanticPart(*simple.get(), semantic->Elements()[i].name);
                 break;
@@ -2626,18 +2673,28 @@ void TestRichTextAccessibilityEmbeddedDiagramAlternatives()
 void TestRichTextAccessibilityWindowObjectSourceEditing()
 {
     SemanticObjectSourceEditing(false);
+    SemanticInlineMathSourceEditing(false);
 }
 void TestRichTextAccessibilityEmbeddedObjectSourceEditing()
 {
     EmbeddedCase(SemanticObjectSourceEditing);
+    EmbeddedCase(SemanticInlineMathSourceEditing);
 }
 void TestRichTextAccessibilityWindowSourceEditingComposition()
 {
-    EmbeddedCase([](bool) { SemanticSourceActionComposition(true); });
+    EmbeddedCase([](bool)
+    {
+        SemanticSourceActionComposition(true);
+        SemanticSourceActionComposition(true, true);
+    });
 }
 void TestRichTextAccessibilityEmbeddedSourceEditingComposition()
 {
-    EmbeddedCase([](bool) { SemanticSourceActionComposition(false); });
+    EmbeddedCase([](bool)
+    {
+        SemanticSourceActionComposition(false);
+        SemanticSourceActionComposition(false, true);
+    });
 }
 void TestRichTextAccessibilityWindowFootnoteNavigation()
 {

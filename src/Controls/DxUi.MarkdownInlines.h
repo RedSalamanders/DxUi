@@ -22,6 +22,9 @@ class MarkdownInlines
     using Kind             = MarkdownInlineKind;
     using ReferenceDecoder = bool (*)(std::wstring_view, std::size_t, MarkdownLexeme&) noexcept;
     std::wstring_view source_;
+    std::wstring_view rawSource_;
+    std::optional<MarkdownSourceRegion> sourceRegion_;
+    bool sourceRegionEmitted_{};
     MarkdownProfile profile_;
     MarkdownExtensions extensions_;
     std::vector<MarkdownNode>& blocks_;
@@ -582,6 +585,17 @@ class MarkdownInlines
         {
             text_.pop_back();
             offsets_.pop_back();
+        }
+        // A zero-length active interval still needs a token boundary: without
+        // one, a delimiter run on either side could consume the insertion site.
+        if (! sourceRegionEmitted_ && sourceRegion_ && sourceRegion_->kind == MarkdownSourceRegionKind::Inline &&
+            sourceRegion_->source.first == sourceRegion_->source.last && sourceRegion_->source.first >= block.block.content.first &&
+            sourceRegion_->source.first <= block.block.content.last)
+        {
+            const auto found = std::lower_bound(offsets_.begin(), offsets_.end(), sourceRegion_->source.first);
+            const auto index = static_cast<std::size_t>(found - offsets_.begin());
+            offsets_.insert(found, sourceRegion_->source.first);
+            text_.insert(text_.begin() + static_cast<std::ptrdiff_t>(index), L'\ufffc');
         }
         offsets_.push_back(block.block.content.last);
         // Index equal-length backtick runs once, so unmatched runs cannot cause
@@ -1453,6 +1467,8 @@ class MarkdownInlines
 
 public:
     MarkdownInlines(std::wstring_view source,
+                    std::wstring_view rawSource,
+                    std::optional<MarkdownSourceRegion> sourceRegion,
                     MarkdownProfile profile,
                     MarkdownExtensions extensions,
                     std::vector<MarkdownNode>& blocks,
@@ -1462,6 +1478,8 @@ public:
                     std::vector<MarkdownDiagnostic>& diagnostics,
                     ReferenceDecoder decoder)
         : source_(source),
+          rawSource_(rawSource),
+          sourceRegion_(sourceRegion),
           profile_(profile),
           extensions_(extensions),
           blocks_(blocks),
@@ -1554,6 +1572,19 @@ public:
                     ++blockCursor_;
                     leafActive_ = autolinksActive_ = false;
                 }
+            }
+            else if (! sourceRegionEmitted_ && sourceRegion_ && sourceRegion_->kind == MarkdownSourceRegionKind::Inline &&
+                     offsets_[cursor_] == sourceRegion_->source.first && sourceRegion_->source.last <= offsets_.back())
+            {
+                const auto first = cursor_;
+                cursor_          = static_cast<std::size_t>(
+                    std::lower_bound(offsets_.begin() + static_cast<std::ptrdiff_t>(cursor_), offsets_.end(), sourceRegion_->source.last) - offsets_.begin());
+                const auto index     = Append(Kind::SourceEditor,
+                                              first,
+                                              cursor_,
+                                              rawSource_.substr(sourceRegion_->source.first, sourceRegion_->source.last - sourceRegion_->source.first));
+                nodes_[index].source = sourceRegion_->source;
+                sourceRegionEmitted_ = true;
             }
             else if (cursor_ < text_.size())
                 Scan();

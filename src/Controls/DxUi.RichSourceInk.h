@@ -243,6 +243,7 @@ private:
             case MarkdownInlineKind::Emphasis:
             case MarkdownInlineKind::Strong:
             case MarkdownInlineKind::Strikethrough:
+            case MarkdownInlineKind::SourceEditor:
             case MarkdownInlineKind::Math:
                 marker_       = source[range.first];
                 markerCount_  = 0u;

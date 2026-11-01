@@ -1612,6 +1612,8 @@ __declspec(noinline) static int RunFunctionalTests()
             RichSemanticEditorTests::MathAndBroaderDiagrams(transactionView.Controls(), [&] {
                 Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded in-document math and broader diagrams");
             });
+            RichSemanticEditorTests::InlineMathSourceEditing(
+                transactionView.Controls(), [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded inline math source session"); });
             RichSemanticEditorTests::NativeObjectFailureContainment(
                 transactionView.Controls(), [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded local native object fallback"); });
             RichSemanticEditorTests::Rendering(transactionView.Controls(),

@@ -1769,7 +1769,7 @@ target. Carets around a graphic remain text-sized. Prepared geometry and UIA
 publication must match the same source, binding, typography and resource request.
 The diagram child exposes Image semantics, a meaningful alternative and an exact
 raw fence range. Source changes and presentation withdrawal retire old children.
-F2 and guarded UIA Invoke enter an acknowledged code/HTML/metadata object's
+F2 and guarded UIA Invoke enter an acknowledged code/HTML/metadata or math object's
 exact source in place. Esc, F2 or Ctrl+Enter leaves that presentation. Enabled
 read-only owners permit source inspection; edits still require an editable owner.
 Neither presentation transition edits source/history or acquires OS focus.
@@ -1815,14 +1815,13 @@ identity; ordinary interior edits preserve that node within its session.
 
 All source edits, Unicode character input, previews, cancellation, undo and redo
 continue through the one authoritative Document and full source text store.
-Tracked interior changes rebase the editing envelope before callbacks. EOL joins
+Tracked interior changes rebase the editing envelope before callbacks. For block scopes, EOL joins
 expand to complete physical lines on preparation. Outside changes or selection,
 SetText and explicit mode/profile/rendering replacement retire the local scope.
 Raw source input MUST bypass rich list/table/atomic-object deletion commands;
 ordinary source grapheme/range deletion and literal CRLF insertion apply.
 Leaving presentation MUST preserve committed edits and redo; Esc is not a
-second unrecorded rollback. Other paragraphs retain semantic rendering. Math
-and inline-object source entry follow their accepted M5 object implementations.
+second unrecorded rollback. Other paragraphs retain semantic rendering. An inline math scope owns its exact raw interval within the existing paragraph. The inline region preserves neighboring Markdown formatting while its text is invalid or contains physical newlines; it does not widen to a physical paragraph.
 Selected native objects MUST retain the resolved selection text/surface pair,
 including high contrast. Their opaque node and edge-label backing uses the
 selection surface composited over the ordinary opaque object surface; it MUST

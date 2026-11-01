@@ -158,7 +158,7 @@ ordinary parsing removes the hint. `GetSemanticSourceRegion()` reports the activ
 envelope/session. Moving selection outside the envelope finishes its presentation.
 Read-only inspection is allowed; active native/embedded composition blocks entry
 and exit. UIA source actions preserve dispatch, lifetime and stale-provider guards
-and do not acquire OS focus. Math/inline object entry follows those M5 objects.
+and do not acquire OS focus. Inline math F2/Invoke uses an exact raw interval within its existing paragraph, preserving neighboring formatting while source is incomplete or spans lines.
 See the [focused source-editing evidence and actual application captures](../Measurements/RichText/README.md).
 
 RichMarkdown footnote definition containers, Unicode label binding, diagnostics

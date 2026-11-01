@@ -48,6 +48,8 @@ void TestRichSemanticNativeMathAndBroaderDiagrams()
     {
         RichSemanticEditorTests::MathAndBroaderDiagrams(
             window.Host(), [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare in-document native math and diagrams"); });
+        RichSemanticEditorTests::InlineMathSourceEditing(window.Host(),
+                                                         [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare inline math source session"); });
     });
 }
 void TestRichSemanticGeometryParagraphsTablesAndSourceRanges()

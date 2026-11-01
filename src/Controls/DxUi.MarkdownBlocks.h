@@ -41,6 +41,7 @@ class MarkdownBlocks
     std::optional<TableRowPreparation> tableRow_;
     std::optional<MarkdownSourceRegion> sourceRegion_;
     bool sourceRegionStarted_{};
+    bool emptyInlineRegion_{};
 
     void StartSourceRegion(std::size_t bodyEnd)
     {
@@ -909,7 +910,8 @@ public:
                    std::vector<MarkdownNode>& nodes,
                    std::vector<MarkdownEmptyLine>& emptyLines,
                    MarkdownExtensions extensions,
-                   std::optional<MarkdownSourceRegion> sourceRegion = std::nullopt)
+                   std::optional<MarkdownSourceRegion> sourceRegion = std::nullopt,
+                   bool emptyInlineRegion                           = false)
         : source_(source),
           nodes_(nodes),
           emptyLines_(emptyLines),
@@ -918,6 +920,7 @@ public:
           previousSibling_(0u),
           blank_(0u),
           sourceRegion_(sourceRegion),
+          emptyInlineRegion_(emptyInlineRegion),
           sourceProfile_(profile),
           extensions_(extensions)
     {
@@ -1300,6 +1303,13 @@ public:
     }
     void Finish()
     {
+        if (emptyInlineRegion_ && source_.empty())
+        {
+            lineFirst_ = lineEnd_ = 0u;
+            leaf_                 = Add(Kind::Paragraph, open_.back());
+            Content(leaf_, Cursor{source_, 0u, 0u}, 0u);
+            Extend();
+        }
         if (sourceRegion_ && ! sourceRegionStarted_)
         {
             // Empty documents and the insertion line after a final EOL have

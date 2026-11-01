@@ -975,15 +975,18 @@ bool RichTextEditor::BeginSemanticSourceEdit(ControlHost& host, const std::share
 {
     if (! expected || GetAcknowledgedSemanticDocument(host) != expected || ! CanChangeSemanticSourcePresentation(host))
         return false;
-    const auto node = expected->SourceEditingNode(element);
-    if (! node || _state->sourceEditing)
+    const auto source = expected->SourceEditingRange(element);
+    if (! source || _state->sourceEditing)
         return false;
-    const auto& block = expected->Syntax()->Nodes()[*node].block;
-    auto session      = _state->nextSourceEditingSession++;
+    const bool inlineMath = expected->Elements()[element].role == RichText::SemanticRole::Math;
+    const auto node       = expected->SourceEditingNode(element);
+    const auto caret      = inlineMath ? source->first : expected->Syntax()->Nodes()[*node].block.content.first;
+    auto session          = _state->nextSourceEditingSession++;
     if (! session)
         session = _state->nextSourceEditingSession++;
-    _state->sourceEditing.emplace(State::SourceEditingSession{{block.source, session}, Snapshot()});
-    _state->document.SetSelection({block.content.first, block.content.first});
+    _state->sourceEditing.emplace(State::SourceEditingSession{
+        {*source, session, inlineMath ? RichText::MarkdownSourceRegionKind::Inline : RichText::MarkdownSourceRegionKind::Block}, Snapshot()});
+    _state->document.SetSelection({caret, caret});
     SourcePresentationChanged(host);
     return true;
 }
@@ -2551,9 +2554,9 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
                 const auto caret = GetSelection().caret;
                 auto trailing    = RichText::MarkdownNoNode;
                 for (std::size_t element = 0u; element < document->Elements().size(); ++element)
-                    if (const auto node = document->SourceEditingNode(element))
+                    if (const auto range = document->SourceEditingRange(element))
                     {
-                        const auto source = document->Syntax()->Nodes()[*node].block.source;
+                        const auto source = *range;
                         if (caret >= source.first && caret < source.last)
                             return BeginSemanticSourceEdit(host, document, element);
                         if (caret == source.last)

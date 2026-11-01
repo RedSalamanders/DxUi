@@ -128,6 +128,8 @@ public:
     // Visible source-bearing code/HTML/metadata leaf, or the active opaque
     // editor. Revision-local eligibility only; the retained owner guards actions.
     std::optional<std::size_t> SourceEditingNode(std::size_t element) const noexcept;
+    std::optional<MarkdownRange> SourceEditingRange(std::size_t element) const noexcept;
+    bool IsSourceEditingElement(std::size_t element) const noexcept;
     // Native extension diagnostics own exact raw source ranges. Human-readable
     // explanations live in the named element's title; Syntax() remains immutable.
     std::span<const SemanticDiagnostic> Diagnostics() const noexcept;

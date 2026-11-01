@@ -451,6 +451,73 @@ template <typename Prepare> void MathAndBroaderDiagrams(ControlHost& host, Prepa
               "the caret beside a tall equation stays aligned to its text line");
     }
 }
+template <typename Prepare> void InlineMathSourceEditing(ControlHost& host, Prepare&& prepare)
+{
+    const std::wstring original = L"Before **bold $x$ end** after";
+    auto root                   = std::make_unique<RichTextEditor>(original);
+    auto* editor                = root.get();
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    editor->SetMarkdownRenderingEnabled(true);
+    host.SetRoot(std::move(root));
+    prepare();
+    const auto first = original.find(L"$x$");
+    editor->SetSelection({first + 3u, first + 3u});
+    Check(editor->OnKeyDown(host, VK_F2, 0u), "F2 enters inline math from its trailing source edge");
+    Check(editor->OnKeyDown(host, VK_F2, 0u), "F2 exits before a preparation turn");
+    prepare();
+    editor->SetSelection({first, first});
+    Check(editor->OnKeyDown(host, VK_F2, 0u), "F2 enters exact inline math source");
+    prepare();
+    auto region = editor->GetSemanticSourceRegion();
+    Check(region && region->kind == MarkdownSourceRegionKind::Inline && region->source == MarkdownRange{first, first + 3u},
+          "the session owns the inline formula only");
+    auto semantic = editor->GetAcknowledgedSemanticDocument(host);
+    Check(semantic && semantic->Map().Display().find(L"bold $x$ end") != std::wstring_view::npos,
+          "source presentation preserves neighboring formatted paragraph content");
+    Check(std::ranges::any_of(semantic->Runs(), [](const auto& run) { return (run.flags & Bold) != 0u; }), "the surrounding emphasis remains a formatted run");
+    editor->SetSelection({region->source.first, region->source.last});
+    Check(editor->ReplaceSelection(L"$\\bad\n\nunfinished"), "inline source accepts malformed multiline text");
+    prepare();
+    region   = editor->GetSemanticSourceRegion();
+    semantic = editor->GetAcknowledgedSemanticDocument(host);
+    Check(region && semantic && semantic->Map().Display().find(L"bold $\\bad\n\nunfinished end") != std::wstring_view::npos,
+          "invalid multiline source stays inline with both neighbors");
+    Check(editor->Undo() && editor->GetText() == original, "inline edit remains one reversible source change");
+    prepare();
+    Check(editor->GetSemanticSourceRegion() && editor->OnKeyDown(host, VK_ESCAPE, 0u), "Escape leaves the inline source session");
+    prepare();
+    Check(! editor->GetSemanticSourceRegion() && editor->GetText() == original, "leaving restores math without changing source");
+    editor->SetText(L"**$x$**");
+    prepare();
+    editor->SetSelection({2u, 2u});
+    Check(editor->OnKeyDown(host, VK_F2, 0u), "math within emphasis enters exact source editing");
+    prepare();
+    editor->SetSelection({2u, 5u});
+    Check(editor->ReplaceSelection(L""), "inline math may be deleted between emphasis delimiters");
+    prepare();
+    semantic = editor->GetAcknowledgedSemanticDocument(host);
+    Check(semantic && std::ranges::any_of(semantic->Elements(),
+                                          [&](const auto& item) { return item.role == SemanticRole::Math && item.source == MarkdownRange{2u, 2u}; }),
+          "empty math insertion remains an inline owner between paired delimiters");
+    Check(editor->Undo(), "undo restores math between delimiters");
+    prepare();
+    Check(editor->OnKeyDown(host, VK_ESCAPE, 0u), "leave restored inline session");
+    prepare();
+    editor->SetText(L"$x$");
+    prepare();
+    editor->SetSelection({0u, 0u});
+    Check(editor->OnKeyDown(host, VK_F2, 0u), "standalone inline math enters source editing");
+    prepare();
+    editor->SetSelection({0u, 3u});
+    Check(editor->ReplaceSelection(L""), "the entire inline source may be deleted");
+    prepare();
+    Check(editor->GetSemanticSourceRegion() && editor->GetSemanticSourceRegion()->source == MarkdownRange{0u, 0u} &&
+              editor->GetAcknowledgedSemanticDocument(host),
+          "empty source retains the session and prepared caret owner");
+    Check(editor->Undo(), "undo restores a deleted formula during its source session");
+    prepare();
+    Check(editor->GetText() == L"$x$" && editor->OnKeyDown(host, VK_F2, 0u), "restored formula leaves its session normally");
+}
 template <typename Prepare> void Rendering(ControlHost& host, Prepare&& prepare)
 {
     const std::wstring original = L"# **Heading**\r\n\r\n| left | right |\n| :--- | ---: |\n| a | b |\n\n> quoted &amp; **bold**\n\n![alt](local)\n";

@@ -57,6 +57,26 @@ std::optional<std::size_t> SemanticDocument::SourceEditingNode(std::size_t eleme
     }
 }
 
+std::optional<MarkdownRange> SemanticDocument::SourceEditingRange(std::size_t element) const noexcept
+{
+    if (element >= elements_.size())
+        return std::nullopt;
+    if (elements_[element].role == SemanticRole::Math)
+        return elements_[element].source;
+    const auto node = SourceEditingNode(element);
+    return node ? std::optional(syntax_->Nodes()[*node].block.source) : std::nullopt;
+}
+bool SemanticDocument::IsSourceEditingElement(std::size_t element) const noexcept
+{
+    const auto range  = SourceEditingRange(element);
+    const auto region = syntax_->SourceRegion();
+    if (! range || ! region)
+        return false;
+    if (region->kind == MarkdownSourceRegionKind::Inline)
+        return elements_[element].role == SemanticRole::Math && *range == region->source;
+    const auto node = SourceEditingNode(element);
+    return node && *node == SourceBlock();
+}
 std::span<const SemanticDiagnostic> SemanticDocument::Diagnostics() const noexcept
 {
     return extensions_ ? std::span<const SemanticDiagnostic>(extensions_->diagnostics) : std::span<const SemanticDiagnostic>{};
@@ -365,6 +385,7 @@ struct SemanticBuilder::Preparation
             case ::DxUi::RichText::MarkdownInlineKind::HardBreak:
             case ::DxUi::RichText::MarkdownInlineKind::Html:
             case ::DxUi::RichText::MarkdownInlineKind::Image:
+            case ::DxUi::RichText::MarkdownInlineKind::SourceEditor:
             case ::DxUi::RichText::MarkdownInlineKind::Math:
             case ::DxUi::RichText::MarkdownInlineKind::SoftBreak:
             case ::DxUi::RichText::MarkdownInlineKind::Text:
@@ -377,6 +398,16 @@ struct SemanticBuilder::Preparation
         }
         const auto flags = markdownFlags | html.flags;
         auto parent      = visit.parent;
+        if (node.kind == MarkdownInlineKind::SourceEditor)
+        {
+            const auto element = Element(SemanticRole::Math, node.source, parent);
+            output.Emit(document->syntax_->Slice(node.source), node.source, DisplaySpanKind::Source, flags | Code, visit.heading);
+            auto& formula        = document->elements_[element];
+            formula.display.last = output.text.size();
+            formula.name         = node.value;
+            formula.title        = L"Editing exact equation source.";
+            return;
+        }
         if (node.kind == MarkdownInlineKind::Math)
         {
             const auto element        = Element(SemanticRole::Math, node.source, parent);

@@ -1,0 +1,1 @@
+- Add exact inline math source editing through F2 and UI Automation while preserving surrounding Markdown formatting and normal source history; native qualification remains pending.

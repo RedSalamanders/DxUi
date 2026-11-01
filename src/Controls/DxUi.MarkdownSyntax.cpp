@@ -193,7 +193,11 @@ std::wstring_view MarkdownSyntax::Source() const noexcept
 }
 std::optional<MarkdownSourceRegion> MarkdownSyntax::SourceRegion() const noexcept
 {
-    if (! sourceRegionRequest_ || sourceRegionNode_ == MarkdownNoNode)
+    if (! sourceRegionRequest_)
+        return std::nullopt;
+    if (sourceRegionRequest_->kind == MarkdownSourceRegionKind::Inline)
+        return sourceRegionRequest_;
+    if (sourceRegionNode_ == MarkdownNoNode)
         return std::nullopt;
     return MarkdownSourceRegion{nodes_[sourceRegionNode_].block.source, sourceRegionRequest_->session};
 }
@@ -305,7 +309,32 @@ struct MarkdownParser::Preparation
         : syntax(std::shared_ptr<MarkdownSyntax>(new MarkdownSyntax(source, revision, profile, extensions, sourceRegion)))
     {
     }
+    static std::optional<std::wstring> BlockSource(const MarkdownSyntax& syntax)
+    {
+        if (! syntax.sourceRegionRequest_ || syntax.sourceRegionRequest_->kind != MarkdownSourceRegionKind::Inline)
+            return std::nullopt;
+        std::wstring source(syntax.source_);
+        std::fill(source.begin() + static_cast<std::ptrdiff_t>(syntax.sourceRegionRequest_->source.first),
+                  source.begin() + static_cast<std::ptrdiff_t>(syntax.sourceRegionRequest_->source.last),
+                  L'x');
+        // A deleted object between delimiter runs must not turn its containing
+        // paragraph into a thematic break before inline parsing.
+        const auto range = syntax.sourceRegionRequest_->source;
+        if (range.first == range.last && ! source.empty())
+        {
+            const auto before = range.first ? source.find_last_of(L"\r\n", range.first - 1u) : std::wstring::npos;
+            const auto first  = before == std::wstring::npos ? 0u : before + 1u;
+            const auto after  = source.find_first_of(L"\r\n", range.first);
+            const auto last   = after == std::wstring::npos ? source.size() : after;
+            const auto line   = std::wstring_view(source).substr(first, last - first);
+            if (line.size() >= 3u && line.find_first_not_of(L"*_ -\t") == std::wstring_view::npos && range.first < last)
+                source[range.first] = L'x';
+        }
+        return source;
+    }
     std::shared_ptr<MarkdownSyntax> syntax;
+    std::optional<std::wstring> blockSourceStorage = BlockSource(*syntax);
+    std::wstring_view blockSource                  = blockSourceStorage ? std::wstring_view(*blockSourceStorage) : std::wstring_view(syntax->source_);
     std::shared_ptr<const MarkdownSyntax> previous;
     std::optional<SourceSnapshot> snapshot;
     std::optional<SourceChangeRange> change;
@@ -414,8 +443,20 @@ struct MarkdownParser::Preparation
         if (! node.identity)
             node.identity = nextIdentity++;
     }
-    Detail::MarkdownBlocks blocks{syntax->source_, syntax->profile_, syntax->nodes_, syntax->emptyLines_, syntax->extensions_, syntax->sourceRegionRequest_};
-    Detail::MarkdownInlines inlines{syntax->source_,
+    Detail::MarkdownBlocks blocks{
+        blockSource,
+        syntax->profile_,
+        syntax->nodes_,
+        syntax->emptyLines_,
+        syntax->extensions_,
+        syntax->sourceRegionRequest_ && syntax->sourceRegionRequest_->kind == MarkdownSourceRegionKind::Block ? syntax->sourceRegionRequest_ : std::nullopt,
+        syntax->sourceRegionRequest_ && syntax->sourceRegionRequest_->kind == MarkdownSourceRegionKind::Inline && syntax->source_.empty()};
+    Detail::MarkdownInlines inlines{syntax->sourceRegionRequest_ && syntax->sourceRegionRequest_->kind == MarkdownSourceRegionKind::Inline &&
+                                            syntax->sourceRegionRequest_->source.first == syntax->sourceRegionRequest_->source.last
+                                        ? std::wstring_view(syntax->source_)
+                                        : blockSource,
+                                    syntax->source_,
+                                    syntax->sourceRegionRequest_,
                                     syntax->profile_,
                                     syntax->extensions_,
                                     syntax->nodes_,
@@ -430,7 +471,7 @@ struct MarkdownParser::Preparation
     {
         if (blocks.AdvanceTableCell())
             return;
-        const auto& source = syntax->source_;
+        const auto& source = blockSource;
         if (cursor == source.size())
         {
             if (lineFirst < cursor)
