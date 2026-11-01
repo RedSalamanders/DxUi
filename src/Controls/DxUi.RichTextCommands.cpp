@@ -151,8 +151,10 @@ static MarkdownRange JoinVisibleBody(const MarkdownSyntax& syntax, std::size_t l
     }
     return first <= last ? MarkdownRange{first, last} : block;
 }
-std::optional<std::size_t> FindJoinLeaf(const MarkdownSyntax& syntax, Selection selection, bool backwards) noexcept
+std::optional<std::size_t> FindJoinLeaf(const MarkdownSyntax& syntax, Selection selection, bool backwards, bool* simpleApplicable) noexcept
 {
+    if (simpleApplicable)
+        *simpleApplicable = false;
     if (! CanJoinSelection(selection))
         return std::nullopt;
     const auto& nodes = syntax.Nodes();
@@ -197,6 +199,10 @@ std::optional<std::size_t> FindJoinLeaf(const MarkdownSyntax& syntax, Selection 
             if (left == MarkdownNoNode || right == MarkdownNoNode || nodes[left].block.kind != MarkdownBlockKind::Paragraph ||
                 nodes[right].block.kind != MarkdownBlockKind::Paragraph || nodes[left].block.content.last > nodes[right].block.content.first)
                 return std::nullopt;
+            const auto removed = nodes[right].block.content.first - nodes[left].block.content.last;
+            if (simpleApplicable && parent != MarkdownNoNode && nodes[parent].block.kind == MarkdownBlockKind::Document &&
+                syntax.Source().size() - removed < Document::MaximumUnits)
+                *simpleApplicable = true;
         }
     }
     return best;

@@ -2082,9 +2082,20 @@ std::optional<RichText::MarkdownCommandState> RichTextEditor::QueryMarkdownComma
     if (! document)
         return std::nullopt;
     const auto selection = GetSelection();
-    if ((request.command == MarkdownCommand::JoinBackward || request.command == MarkdownCommand::JoinForward) &&
-        ! FindJoinLeaf(*document->Syntax(), selection, request.command == MarkdownCommand::JoinBackward))
-        result.available = false;
+    if (request.command == MarkdownCommand::JoinBackward || request.command == MarkdownCommand::JoinForward)
+    {
+        bool simpleApplicable = false;
+        const auto leaf = FindJoinLeaf(*document->Syntax(), selection, request.command == MarkdownCommand::JoinBackward, &simpleApplicable);
+        if (! leaf)
+            result.available = false;
+        else if (simpleApplicable)
+        {
+            auto* host = GetHost();
+            const auto composition = host && host->GetFocusControl() == this ? host->GetNativeTextCompositionActive(this) : std::optional<bool>{false};
+            result.available = (! host || host->GetFocusControl() != this || ! host->HasActiveNativeTextInputSession() || composition.has_value()) &&
+                               ! composition.value_or(false);
+        }
+    }
     if (request.command == MarkdownCommand::ExitCodeBlock || request.command == MarkdownCommand::SetCodeLanguage ||
         request.command == MarkdownCommand::InsertMath || request.command == MarkdownCommand::InsertThematicBreak ||
         request.command == MarkdownCommand::InsertEscapedText)

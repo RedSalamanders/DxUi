@@ -498,6 +498,14 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     Check(isolatedJoin && isolatedJoin->available == std::optional<bool>{false} &&
               editor->ExecuteMarkdownCommand(stateRequest) == MarkdownCommandStatus::Unavailable,
           "join state and execution reject a first paragraph without a predecessor");
+    editor->SetText(L"a\n\nb");
+    prepare();
+    editor->SetSelection({3u, 3u});
+    const auto plainJoin = editor->QueryMarkdownCommandState(stateRequest);
+    Check(plainJoin && plainJoin->available == std::optional<bool>{true} &&
+              editor->ExecuteMarkdownCommand(stateRequest) == MarkdownCommandStatus::Changed && editor->GetText() == L"a b" && editor->Undo() &&
+              editor->GetText() == L"a\n\nb",
+          "join state and execution admit a plain paragraph boundary and undo it atomically");
     editor->SetText(L"~~~\nx\n~~~\n");
     prepare();
     editor->SetSelection({4u, 4u});
