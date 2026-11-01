@@ -380,14 +380,17 @@ template <typename Check> inline void CheckOriginalCorpus(Check&& check)
     {
         parser.Begin(example.source, example.number);
         const auto result = Complete(parser, 1u);
-        if (result->outcome != example.outcome || result->nodes.size() != example.nodes || result->edges.size() != example.edges ||
+        if (result->outcome != example.outcome || result->diagnostic.issue != example.issue || result->diagnostic.source.first != example.diagnosticFirst ||
+            result->diagnostic.source.last != example.diagnosticLast || result->nodes.size() != example.nodes || result->edges.size() != example.edges ||
             (example.outcome == FlowchartOutcome::Prepared && result->direction != example.direction))
             std::wcerr << L"Mermaid original example " << example.number << L" mismatch: outcome=" << static_cast<unsigned>(result->outcome) << L" issue="
                        << static_cast<unsigned>(result->diagnostic.issue) << L" nodes=" << result->nodes.size() << L" edges=" << result->edges.size()
                        << L" direction=" << static_cast<unsigned>(result->direction) << L'\n';
         check(result->source == example.source && result->outcome == example.outcome && result->nodes.size() == example.nodes &&
-                  result->edges.size() == example.edges,
-              "all original Mermaid flowchart examples match independent subset status and graph counts");
+                  result->edges.size() == example.edges && result->diagnostic.issue == example.issue &&
+                  result->diagnostic.source.first == example.diagnosticFirst && result->diagnostic.source.last == example.diagnosticLast &&
+                  ! example.reason.empty(),
+              "all original Mermaid flowchart examples match independent status, graph counts, reason, issue and exact diagnostic range");
         if (example.outcome == FlowchartOutcome::Prepared)
         {
             check(result->direction == example.direction && result->diagnostic.issue == FlowchartIssue::None,

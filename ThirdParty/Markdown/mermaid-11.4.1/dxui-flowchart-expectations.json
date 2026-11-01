@@ -5,7 +5,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "diagram-local-metadata"
+    "reason": "diagram-local-metadata",
+    "issue": "UnsupportedFamily",
+    "diagnosticFirst": 0,
+    "diagnosticLast": 0
   },
   {
     "id": 2,
@@ -13,7 +16,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "diagram-local-metadata"
+    "reason": "diagram-local-metadata",
+    "issue": "UnsupportedFamily",
+    "diagnosticFirst": 0,
+    "diagnosticLast": 0
   },
   {
     "id": 3,
@@ -21,7 +27,10 @@
     "nodes": 1,
     "edges": 0,
     "direction": "LeftRight",
-    "reason": "admitted-grammar"
+    "reason": "admitted-grammar",
+    "issue": "None",
+    "diagnosticFirst": 0,
+    "diagnosticLast": 0
   },
   {
     "id": 4,
@@ -29,7 +38,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "configuration-and-markdown-labels"
+    "reason": "configuration-and-markdown-labels",
+    "issue": "UnsupportedConfiguration",
+    "diagnosticFirst": 0,
+    "diagnosticLast": 3
   },
   {
     "id": 5,
@@ -37,7 +49,10 @@
     "nodes": 2,
     "edges": 1,
     "direction": "TopBottom",
-    "reason": "admitted-grammar"
+    "reason": "admitted-grammar",
+    "issue": "None",
+    "diagnosticFirst": 0,
+    "diagnosticLast": 0
   },
   {
     "id": 6,
@@ -45,7 +60,10 @@
     "nodes": 2,
     "edges": 1,
     "direction": "LeftRight",
-    "reason": "admitted-grammar"
+    "reason": "admitted-grammar",
+    "issue": "None",
+    "diagnosticFirst": 0,
+    "diagnosticLast": 0
   },
   {
     "id": 7,
@@ -53,7 +71,10 @@
     "nodes": 1,
     "edges": 0,
     "direction": "LeftRight",
-    "reason": "admitted-grammar"
+    "reason": "admitted-grammar",
+    "issue": "None",
+    "diagnosticFirst": 0,
+    "diagnosticLast": 0
   },
   {
     "id": 8,
@@ -61,7 +82,10 @@
     "nodes": 1,
     "edges": 0,
     "direction": "LeftRight",
-    "reason": "admitted-stadium-shape"
+    "reason": "admitted-stadium-shape",
+    "issue": "None",
+    "diagnosticFirst": 0,
+    "diagnosticLast": 0
   },
   {
     "id": 9,
@@ -69,7 +93,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-shape-syntax"
+    "reason": "expanded-shape-syntax",
+    "issue": "UnsupportedShape",
+    "diagnosticFirst": 20,
+    "diagnosticLast": 22
   },
   {
     "id": 10,
@@ -77,7 +104,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-shape-syntax"
+    "reason": "expanded-shape-syntax",
+    "issue": "UnsupportedShape",
+    "diagnosticFirst": 20,
+    "diagnosticLast": 22
   },
   {
     "id": 11,
@@ -85,7 +115,10 @@
     "nodes": 1,
     "edges": 0,
     "direction": "LeftRight",
-    "reason": "admitted-grammar"
+    "reason": "admitted-grammar",
+    "issue": "None",
+    "diagnosticFirst": 0,
+    "diagnosticLast": 0
   },
   {
     "id": 12,
@@ -93,7 +126,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-shape-syntax"
+    "reason": "expanded-shape-syntax",
+    "issue": "UnsupportedEdge",
+    "diagnosticFirst": 20,
+    "diagnosticLast": 49
   },
   {
     "id": 13,
@@ -101,7 +137,10 @@
     "nodes": 1,
     "edges": 0,
     "direction": "LeftRight",
-    "reason": "admitted-grammar"
+    "reason": "admitted-grammar",
+    "issue": "None",
+    "diagnosticFirst": 0,
+    "diagnosticLast": 0
   },
   {
     "id": 14,
@@ -109,7 +148,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-shape-syntax"
+    "reason": "expanded-shape-syntax",
+    "issue": "UnsupportedShape",
+    "diagnosticFirst": 20,
+    "diagnosticLast": 22
   },
   {
     "id": 15,
@@ -117,7 +159,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-shape-syntax"
+    "reason": "expanded-shape-syntax",
+    "issue": "UnsupportedShape",
+    "diagnosticFirst": 20,
+    "diagnosticLast": 22
   },
   {
     "id": 16,
@@ -125,7 +170,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-shape-syntax"
+    "reason": "expanded-shape-syntax",
+    "issue": "UnsupportedShape",
+    "diagnosticFirst": 20,
+    "diagnosticLast": 22
   },
   {
     "id": 17,
@@ -133,7 +181,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-shape-syntax"
+    "reason": "expanded-shape-syntax",
+    "issue": "UnsupportedShape",
+    "diagnosticFirst": 18,
+    "diagnosticLast": 20
   },
   {
     "id": 18,
@@ -141,7 +192,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-shape-syntax"
+    "reason": "expanded-shape-syntax",
+    "issue": "UnsupportedShape",
+    "diagnosticFirst": 18,
+    "diagnosticLast": 20
   },
   {
     "id": 19,
@@ -149,7 +203,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-shape-syntax"
+    "reason": "expanded-shape-syntax",
+    "issue": "UnsupportedShape",
+    "diagnosticFirst": 21,
+    "diagnosticLast": 23
   },
   {
     "id": 20,
@@ -157,7 +214,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-shape-syntax"
+    "reason": "expanded-shape-syntax",
+    "issue": "UnsupportedShape",
+    "diagnosticFirst": 18,
+    "diagnosticLast": 19
   },
   {
     "id": 21,
@@ -165,7 +225,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-shape-syntax"
+    "reason": "expanded-shape-syntax",
+    "issue": "UnsupportedShape",
+    "diagnosticFirst": 18,
+    "diagnosticLast": 19
   },
   {
     "id": 22,
@@ -173,7 +236,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-shape-syntax"
+    "reason": "expanded-shape-syntax",
+    "issue": "UnsupportedShape",
+    "diagnosticFirst": 18,
+    "diagnosticLast": 19
   },
   {
     "id": 23,
@@ -181,7 +247,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-shape-syntax"
+    "reason": "expanded-shape-syntax",
+    "issue": "UnsupportedShape",
+    "diagnosticFirst": 18,
+    "diagnosticLast": 19
   },
   {
     "id": 24,
@@ -189,7 +258,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-shape-syntax"
+    "reason": "expanded-shape-syntax",
+    "issue": "UnsupportedShape",
+    "diagnosticFirst": 18,
+    "diagnosticLast": 19
   },
   {
     "id": 25,
@@ -197,7 +269,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-shape-syntax"
+    "reason": "expanded-shape-syntax",
+    "issue": "UnsupportedShape",
+    "diagnosticFirst": 18,
+    "diagnosticLast": 19
   },
   {
     "id": 26,
@@ -205,7 +280,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-shape-syntax"
+    "reason": "expanded-shape-syntax",
+    "issue": "UnsupportedShape",
+    "diagnosticFirst": 18,
+    "diagnosticLast": 19
   },
   {
     "id": 27,
@@ -213,7 +291,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-shape-syntax"
+    "reason": "expanded-shape-syntax",
+    "issue": "UnsupportedShape",
+    "diagnosticFirst": 18,
+    "diagnosticLast": 19
   },
   {
     "id": 28,
@@ -221,7 +302,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-shape-syntax"
+    "reason": "expanded-shape-syntax",
+    "issue": "UnsupportedShape",
+    "diagnosticFirst": 18,
+    "diagnosticLast": 19
   },
   {
     "id": 29,
@@ -229,7 +313,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-shape-syntax"
+    "reason": "expanded-shape-syntax",
+    "issue": "UnsupportedShape",
+    "diagnosticFirst": 18,
+    "diagnosticLast": 19
   },
   {
     "id": 30,
@@ -237,7 +324,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-shape-syntax"
+    "reason": "expanded-shape-syntax",
+    "issue": "UnsupportedShape",
+    "diagnosticFirst": 18,
+    "diagnosticLast": 19
   },
   {
     "id": 31,
@@ -245,7 +335,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-shape-syntax"
+    "reason": "expanded-shape-syntax",
+    "issue": "UnsupportedShape",
+    "diagnosticFirst": 18,
+    "diagnosticLast": 19
   },
   {
     "id": 32,
@@ -253,7 +346,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-shape-syntax"
+    "reason": "expanded-shape-syntax",
+    "issue": "UnsupportedShape",
+    "diagnosticFirst": 18,
+    "diagnosticLast": 19
   },
   {
     "id": 33,
@@ -261,7 +357,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-shape-syntax"
+    "reason": "expanded-shape-syntax",
+    "issue": "UnsupportedShape",
+    "diagnosticFirst": 18,
+    "diagnosticLast": 19
   },
   {
     "id": 34,
@@ -269,7 +368,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-shape-syntax"
+    "reason": "expanded-shape-syntax",
+    "issue": "UnsupportedShape",
+    "diagnosticFirst": 18,
+    "diagnosticLast": 19
   },
   {
     "id": 35,
@@ -277,7 +379,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-shape-syntax"
+    "reason": "expanded-shape-syntax",
+    "issue": "UnsupportedShape",
+    "diagnosticFirst": 18,
+    "diagnosticLast": 19
   },
   {
     "id": 36,
@@ -285,7 +390,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-shape-syntax"
+    "reason": "expanded-shape-syntax",
+    "issue": "UnsupportedShape",
+    "diagnosticFirst": 18,
+    "diagnosticLast": 19
   },
   {
     "id": 37,
@@ -293,7 +401,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-shape-syntax"
+    "reason": "expanded-shape-syntax",
+    "issue": "UnsupportedShape",
+    "diagnosticFirst": 18,
+    "diagnosticLast": 19
   },
   {
     "id": 38,
@@ -301,7 +412,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-shape-syntax"
+    "reason": "expanded-shape-syntax",
+    "issue": "UnsupportedShape",
+    "diagnosticFirst": 18,
+    "diagnosticLast": 19
   },
   {
     "id": 39,
@@ -309,7 +423,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-shape-syntax"
+    "reason": "expanded-shape-syntax",
+    "issue": "UnsupportedShape",
+    "diagnosticFirst": 18,
+    "diagnosticLast": 19
   },
   {
     "id": 40,
@@ -317,7 +434,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-shape-syntax"
+    "reason": "expanded-shape-syntax",
+    "issue": "UnsupportedShape",
+    "diagnosticFirst": 18,
+    "diagnosticLast": 19
   },
   {
     "id": 41,
@@ -325,7 +445,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-shape-syntax"
+    "reason": "expanded-shape-syntax",
+    "issue": "UnsupportedShape",
+    "diagnosticFirst": 18,
+    "diagnosticLast": 19
   },
   {
     "id": 42,
@@ -333,7 +456,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-shape-syntax"
+    "reason": "expanded-shape-syntax",
+    "issue": "UnsupportedShape",
+    "diagnosticFirst": 18,
+    "diagnosticLast": 19
   },
   {
     "id": 43,
@@ -341,7 +467,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-shape-syntax"
+    "reason": "expanded-shape-syntax",
+    "issue": "UnsupportedShape",
+    "diagnosticFirst": 18,
+    "diagnosticLast": 19
   },
   {
     "id": 44,
@@ -349,7 +478,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-shape-syntax"
+    "reason": "expanded-shape-syntax",
+    "issue": "UnsupportedShape",
+    "diagnosticFirst": 18,
+    "diagnosticLast": 19
   },
   {
     "id": 45,
@@ -357,7 +489,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-shape-syntax"
+    "reason": "expanded-shape-syntax",
+    "issue": "UnsupportedShape",
+    "diagnosticFirst": 18,
+    "diagnosticLast": 19
   },
   {
     "id": 46,
@@ -365,7 +500,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-shape-syntax"
+    "reason": "expanded-shape-syntax",
+    "issue": "UnsupportedShape",
+    "diagnosticFirst": 18,
+    "diagnosticLast": 19
   },
   {
     "id": 47,
@@ -373,7 +511,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-shape-syntax"
+    "reason": "expanded-shape-syntax",
+    "issue": "UnsupportedShape",
+    "diagnosticFirst": 18,
+    "diagnosticLast": 19
   },
   {
     "id": 48,
@@ -381,7 +522,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-shape-syntax"
+    "reason": "expanded-shape-syntax",
+    "issue": "UnsupportedShape",
+    "diagnosticFirst": 18,
+    "diagnosticLast": 19
   },
   {
     "id": 49,
@@ -389,7 +533,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-shape-syntax"
+    "reason": "expanded-shape-syntax",
+    "issue": "UnsupportedShape",
+    "diagnosticFirst": 18,
+    "diagnosticLast": 19
   },
   {
     "id": 50,
@@ -397,7 +544,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-shape-syntax"
+    "reason": "expanded-shape-syntax",
+    "issue": "UnsupportedShape",
+    "diagnosticFirst": 18,
+    "diagnosticLast": 19
   },
   {
     "id": 51,
@@ -405,7 +555,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-shape-syntax"
+    "reason": "expanded-shape-syntax",
+    "issue": "UnsupportedShape",
+    "diagnosticFirst": 18,
+    "diagnosticLast": 19
   },
   {
     "id": 52,
@@ -413,7 +566,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-shape-syntax"
+    "reason": "expanded-shape-syntax",
+    "issue": "UnsupportedShape",
+    "diagnosticFirst": 18,
+    "diagnosticLast": 19
   },
   {
     "id": 53,
@@ -421,7 +577,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-shape-syntax"
+    "reason": "expanded-shape-syntax",
+    "issue": "UnsupportedShape",
+    "diagnosticFirst": 18,
+    "diagnosticLast": 19
   },
   {
     "id": 54,
@@ -429,7 +588,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-shape-syntax"
+    "reason": "expanded-shape-syntax",
+    "issue": "UnsupportedShape",
+    "diagnosticFirst": 18,
+    "diagnosticLast": 19
   },
   {
     "id": 55,
@@ -437,7 +599,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-shape-syntax"
+    "reason": "expanded-shape-syntax",
+    "issue": "UnsupportedShape",
+    "diagnosticFirst": 18,
+    "diagnosticLast": 19
   },
   {
     "id": 56,
@@ -445,7 +610,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-shape-syntax"
+    "reason": "expanded-shape-syntax",
+    "issue": "UnsupportedShape",
+    "diagnosticFirst": 18,
+    "diagnosticLast": 19
   },
   {
     "id": 57,
@@ -453,7 +621,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-shape-syntax"
+    "reason": "expanded-shape-syntax",
+    "issue": "UnsupportedShape",
+    "diagnosticFirst": 18,
+    "diagnosticLast": 19
   },
   {
     "id": 58,
@@ -461,7 +632,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-shape-syntax"
+    "reason": "expanded-shape-syntax",
+    "issue": "UnsupportedShape",
+    "diagnosticFirst": 18,
+    "diagnosticLast": 19
   },
   {
     "id": 59,
@@ -469,7 +643,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-shape-syntax"
+    "reason": "expanded-shape-syntax",
+    "issue": "UnsupportedShape",
+    "diagnosticFirst": 18,
+    "diagnosticLast": 19
   },
   {
     "id": 60,
@@ -477,7 +654,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-shape-syntax"
+    "reason": "expanded-shape-syntax",
+    "issue": "UnsupportedShape",
+    "diagnosticFirst": 18,
+    "diagnosticLast": 19
   },
   {
     "id": 61,
@@ -485,7 +665,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-shape-syntax"
+    "reason": "expanded-shape-syntax",
+    "issue": "UnsupportedShape",
+    "diagnosticFirst": 18,
+    "diagnosticLast": 19
   },
   {
     "id": 62,
@@ -493,7 +676,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-shape-syntax"
+    "reason": "expanded-shape-syntax",
+    "issue": "UnsupportedShape",
+    "diagnosticFirst": 18,
+    "diagnosticLast": 19
   },
   {
     "id": 63,
@@ -501,7 +687,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-shape-syntax"
+    "reason": "expanded-shape-syntax",
+    "issue": "UnsupportedShape",
+    "diagnosticFirst": 18,
+    "diagnosticLast": 19
   },
   {
     "id": 64,
@@ -509,7 +698,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-shape-syntax"
+    "reason": "expanded-shape-syntax",
+    "issue": "UnsupportedShape",
+    "diagnosticFirst": 18,
+    "diagnosticLast": 19
   },
   {
     "id": 65,
@@ -517,7 +709,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-shape-syntax"
+    "reason": "expanded-shape-syntax",
+    "issue": "UnsupportedShape",
+    "diagnosticFirst": 18,
+    "diagnosticLast": 19
   },
   {
     "id": 66,
@@ -525,7 +720,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-shape-syntax"
+    "reason": "expanded-shape-syntax",
+    "issue": "UnsupportedShape",
+    "diagnosticFirst": 18,
+    "diagnosticLast": 19
   },
   {
     "id": 67,
@@ -533,7 +731,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-shape-syntax"
+    "reason": "expanded-shape-syntax",
+    "issue": "UnsupportedShape",
+    "diagnosticFirst": 18,
+    "diagnosticLast": 19
   },
   {
     "id": 68,
@@ -541,7 +742,10 @@
     "nodes": 2,
     "edges": 1,
     "direction": "LeftRight",
-    "reason": "admitted-grammar"
+    "reason": "admitted-grammar",
+    "issue": "None",
+    "diagnosticFirst": 0,
+    "diagnosticLast": 0
   },
   {
     "id": 69,
@@ -549,7 +753,10 @@
     "nodes": 2,
     "edges": 1,
     "direction": "LeftRight",
-    "reason": "admitted-grammar"
+    "reason": "admitted-grammar",
+    "issue": "None",
+    "diagnosticFirst": 0,
+    "diagnosticLast": 0
   },
   {
     "id": 70,
@@ -557,7 +764,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-edge-syntax"
+    "reason": "expanded-edge-syntax",
+    "issue": "UnsupportedEdge",
+    "diagnosticFirst": 18,
+    "diagnosticLast": 43
   },
   {
     "id": 71,
@@ -565,7 +775,10 @@
     "nodes": 2,
     "edges": 1,
     "direction": "LeftRight",
-    "reason": "admitted-grammar"
+    "reason": "admitted-grammar",
+    "issue": "None",
+    "diagnosticFirst": 0,
+    "diagnosticLast": 0
   },
   {
     "id": 72,
@@ -573,7 +786,10 @@
     "nodes": 2,
     "edges": 1,
     "direction": "LeftRight",
-    "reason": "admitted-grammar"
+    "reason": "admitted-grammar",
+    "issue": "None",
+    "diagnosticFirst": 0,
+    "diagnosticLast": 0
   },
   {
     "id": 73,
@@ -581,7 +797,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-edge-syntax"
+    "reason": "expanded-edge-syntax",
+    "issue": "UnsupportedEdge",
+    "diagnosticFirst": 18,
+    "diagnosticLast": 30
   },
   {
     "id": 74,
@@ -589,7 +808,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-edge-syntax"
+    "reason": "expanded-edge-syntax",
+    "issue": "UnsupportedEdge",
+    "diagnosticFirst": 17,
+    "diagnosticLast": 22
   },
   {
     "id": 75,
@@ -597,7 +819,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-edge-syntax"
+    "reason": "expanded-edge-syntax",
+    "issue": "UnsupportedEdge",
+    "diagnosticFirst": 17,
+    "diagnosticLast": 30
   },
   {
     "id": 76,
@@ -605,7 +830,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-edge-syntax"
+    "reason": "expanded-edge-syntax",
+    "issue": "UnsupportedEdge",
+    "diagnosticFirst": 18,
+    "diagnosticLast": 23
   },
   {
     "id": 77,
@@ -613,7 +841,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-edge-syntax"
+    "reason": "expanded-edge-syntax",
+    "issue": "UnsupportedEdge",
+    "diagnosticFirst": 18,
+    "diagnosticLast": 31
   },
   {
     "id": 78,
@@ -621,7 +852,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-edge-syntax"
+    "reason": "expanded-edge-syntax",
+    "issue": "UnsupportedEdge",
+    "diagnosticFirst": 19,
+    "diagnosticLast": 24
   },
   {
     "id": 79,
@@ -629,7 +863,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-edge-syntax"
+    "reason": "expanded-edge-syntax",
+    "issue": "UnsupportedEdge",
+    "diagnosticFirst": 18,
+    "diagnosticLast": 46
   },
   {
     "id": 80,
@@ -637,7 +874,10 @@
     "nodes": 4,
     "edges": 4,
     "direction": "LeftRight",
-    "reason": "admitted-endpoint-fanout"
+    "reason": "admitted-endpoint-fanout",
+    "issue": "None",
+    "diagnosticFirst": 0,
+    "diagnosticLast": 0
   },
   {
     "id": 81,
@@ -645,7 +885,10 @@
     "nodes": 4,
     "edges": 4,
     "direction": "TopBottom",
-    "reason": "admitted-endpoint-fanout"
+    "reason": "admitted-endpoint-fanout",
+    "issue": "None",
+    "diagnosticFirst": 0,
+    "diagnosticLast": 0
   },
   {
     "id": 82,
@@ -653,7 +896,10 @@
     "nodes": 4,
     "edges": 4,
     "direction": "TopBottom",
-    "reason": "admitted-grammar"
+    "reason": "admitted-grammar",
+    "issue": "None",
+    "diagnosticFirst": 0,
+    "diagnosticLast": 0
   },
   {
     "id": 83,
@@ -661,7 +907,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-edge-syntax"
+    "reason": "expanded-edge-syntax",
+    "issue": "UnsupportedEdge",
+    "diagnosticFirst": 19,
+    "diagnosticLast": 24
   },
   {
     "id": 84,
@@ -669,7 +918,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-edge-syntax"
+    "reason": "expanded-edge-syntax",
+    "issue": "UnsupportedEdge",
+    "diagnosticFirst": 19,
+    "diagnosticLast": 24
   },
   {
     "id": 85,
@@ -677,7 +929,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-edge-syntax"
+    "reason": "expanded-edge-syntax",
+    "issue": "UnsupportedEdge",
+    "diagnosticFirst": 19,
+    "diagnosticLast": 25
   },
   {
     "id": 86,
@@ -685,7 +940,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-edge-syntax"
+    "reason": "expanded-edge-syntax",
+    "issue": "UnsupportedEdge",
+    "diagnosticFirst": 100,
+    "diagnosticLast": 104
   },
   {
     "id": 87,
@@ -693,7 +951,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-edge-syntax"
+    "reason": "expanded-edge-syntax",
+    "issue": "UnsupportedEdge",
+    "diagnosticFirst": 46,
+    "diagnosticLast": 62
   },
   {
     "id": 88,
@@ -701,7 +962,10 @@
     "nodes": 1,
     "edges": 0,
     "direction": "LeftRight",
-    "reason": "admitted-grammar"
+    "reason": "admitted-grammar",
+    "issue": "None",
+    "diagnosticFirst": 0,
+    "diagnosticLast": 0
   },
   {
     "id": 89,
@@ -709,7 +973,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "entities-html-or-icons"
+    "reason": "entities-html-or-icons",
+    "issue": "UnsupportedLabelMarkup",
+    "diagnosticFirst": 43,
+    "diagnosticLast": 44
   },
   {
     "id": 90,
@@ -717,7 +984,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "subgraphs"
+    "reason": "subgraphs",
+    "issue": "UnsupportedStatement",
+    "diagnosticFirst": 29,
+    "diagnosticLast": 37
   },
   {
     "id": 91,
@@ -725,7 +995,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "subgraphs"
+    "reason": "subgraphs",
+    "issue": "UnsupportedStatement",
+    "diagnosticFirst": 29,
+    "diagnosticLast": 37
   },
   {
     "id": 92,
@@ -733,7 +1006,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "subgraphs"
+    "reason": "subgraphs",
+    "issue": "UnsupportedStatement",
+    "diagnosticFirst": 29,
+    "diagnosticLast": 37
   },
   {
     "id": 93,
@@ -741,7 +1017,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "subgraphs"
+    "reason": "subgraphs",
+    "issue": "UnsupportedStatement",
+    "diagnosticFirst": 15,
+    "diagnosticLast": 23
   },
   {
     "id": 94,
@@ -749,7 +1028,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "subgraphs"
+    "reason": "subgraphs",
+    "issue": "UnsupportedStatement",
+    "diagnosticFirst": 17,
+    "diagnosticLast": 25
   },
   {
     "id": 95,
@@ -757,7 +1039,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "configuration-and-markdown-labels"
+    "reason": "configuration-and-markdown-labels",
+    "issue": "UnsupportedConfiguration",
+    "diagnosticFirst": 0,
+    "diagnosticLast": 3
   },
   {
     "id": 96,
@@ -765,7 +1050,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "click-style-class-or-expanded-edge"
+    "reason": "click-style-class-or-expanded-edge",
+    "issue": "UnsupportedStatement",
+    "diagnosticFirst": 47,
+    "diagnosticLast": 52
   },
   {
     "id": 97,
@@ -773,7 +1061,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "click-style-class-or-expanded-edge"
+    "reason": "click-style-class-or-expanded-edge",
+    "issue": "UnsupportedStatement",
+    "diagnosticFirst": 57,
+    "diagnosticLast": 62
   },
   {
     "id": 98,
@@ -781,7 +1072,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "click-style-class-or-expanded-edge"
+    "reason": "click-style-class-or-expanded-edge",
+    "issue": "UnsupportedEdge",
+    "diagnosticFirst": 61,
+    "diagnosticLast": 89
   },
   {
     "id": 99,
@@ -789,7 +1083,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "click-style-class-or-expanded-edge"
+    "reason": "click-style-class-or-expanded-edge",
+    "issue": "UnsupportedStatement",
+    "diagnosticFirst": 44,
+    "diagnosticLast": 49
   },
   {
     "id": 100,
@@ -797,7 +1094,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "click-style-class-or-expanded-edge"
+    "reason": "click-style-class-or-expanded-edge",
+    "issue": "UnsupportedStatement",
+    "diagnosticFirst": 18,
+    "diagnosticLast": 36
   },
   {
     "id": 101,
@@ -805,7 +1105,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "click-style-class-or-expanded-edge"
+    "reason": "click-style-class-or-expanded-edge",
+    "issue": "UnsupportedStatement",
+    "diagnosticFirst": 18,
+    "diagnosticLast": 49
   },
   {
     "id": 102,
@@ -813,7 +1116,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "entities-html-or-icons"
+    "reason": "entities-html-or-icons",
+    "issue": "UnsupportedLabelMarkup",
+    "diagnosticFirst": 26,
+    "diagnosticLast": 27
   },
   {
     "id": 103,
@@ -821,7 +1127,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "entities-html-or-icons"
+    "reason": "entities-html-or-icons",
+    "issue": "UnsupportedLabelMarkup",
+    "diagnosticFirst": 20,
+    "diagnosticLast": 21
   },
   {
     "id": 104,
@@ -829,7 +1138,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "entities-html-or-icons"
+    "reason": "entities-html-or-icons",
+    "issue": "UnsupportedLabelMarkup",
+    "diagnosticFirst": 20,
+    "diagnosticLast": 21
   },
   {
     "id": 105,
@@ -837,6 +1149,9 @@
     "nodes": 5,
     "edges": 4,
     "direction": "LeftRight",
-    "reason": "admitted-grammar"
+    "reason": "admitted-grammar",
+    "issue": "None",
+    "diagnosticFirst": 0,
+    "diagnosticLast": 0
   }
 ]

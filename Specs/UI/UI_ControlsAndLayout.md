@@ -1729,7 +1729,7 @@ Native math preparation reads Cambria Math constants once per semantic geometry 
 
 The pinned Mermaid 11.4.1 inventory and all 105 original flowchart examples MUST
 remain accounted for. Independent subset expectations distinguish 16 admitted
-graphs from 89 unsupported definitions, including the documented stadium and
+graphs from 89 unsupported definitions and records each issue and exact UTF-16 diagnostic range, including the documented stadium and
 the original endpoint-group fan-out examples.
 The family matrix separately identifies the limited flowchart, state and class
 profiles, the example collection, and 18 unsupported diagram families. Generated

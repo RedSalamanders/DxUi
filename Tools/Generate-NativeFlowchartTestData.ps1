@@ -10,7 +10,7 @@ $ErrorActionPreference='Stop'
 $pins=@{
     'collection.json'='157DEAF02EC36597EB5012AF8CE1EDF3CA710281CFC6E3E65493BD74A540799A'
     'syntax-inventory.json'='5CBAD5692330F513128C4D6CAF59A6ACE18A530073DEC9098208FC559FE48231'
-    'dxui-flowchart-expectations.json'='2BB253E39A1F4EE201A04D95BB02971A1D3DD4226AEFB076ACB522AA651FFE85'
+    'dxui-flowchart-expectations.json'='B6061347E8CA5ED4AF88BD2A37DCC6B1EC8A438C53F3AA73C1F46505E7378368'
     'dxui-family-matrix.json'='5A49B46D69193C2D0D911DEC1A0BC79210164F4F75C175E9F89589823475C3B5'
 }
 foreach($name in $pins.Keys){
@@ -61,14 +61,18 @@ namespace NativeFlowchartCorpus
 {
 // clang-format off
 using namespace DxUi::RichText::Detail;
-struct Example { std::size_t number; std::wstring_view source; FlowchartOutcome outcome; std::size_t nodes, edges; FlowchartDirection direction; };
+struct Example { std::size_t number; std::wstring_view source; FlowchartOutcome outcome; FlowchartIssue issue; std::size_t nodes, edges; FlowchartDirection direction; std::wstring_view reason; std::size_t diagnosticFirst, diagnosticLast; };
 inline constexpr Example flowcharts[] = {
 '@)
 for($i=0;$i -lt $examples.Count;$i++){
     $expected=$expectations[$i]
     if($expected.id -ne ($i+1) -or $expected.outcome -notin @('Prepared','Unsupported')){throw 'Invalid independent flowchart expectation'}
     $source=$examples[$i].Groups[1].Value.Replace("`r`n","`n")
-    [void]$output.AppendLine(('    {{{0}u, {1}, FlowchartOutcome::{2}, {3}u, {4}u, FlowchartDirection::{5}}},' -f $expected.id,(Literal $source),$expected.outcome,$expected.nodes,$expected.edges,$expected.direction))
+    if($expected.issue -notin @('None','UnsupportedFamily','UnsupportedConfiguration','UnsupportedStatement','UnsupportedShape','UnsupportedEdge','UnsupportedLabelMarkup') -or
+       !$expected.reason -or $expected.diagnosticFirst -lt 0 -or $expected.diagnosticLast -lt $expected.diagnosticFirst -or
+       $expected.diagnosticLast -gt $source.Length -or ($expected.outcome -eq 'Prepared' -and ($expected.issue -ne 'None' -or $expected.diagnosticFirst -ne 0 -or $expected.diagnosticLast -ne 0)) -or
+       ($expected.outcome -eq 'Unsupported' -and $expected.issue -eq 'None')){throw "Invalid diagnostic expectation: $($expected.id)"}
+    [void]$output.AppendLine(('    {{{0}u, {1}, FlowchartOutcome::{2}, FlowchartIssue::{3}, {4}u, {5}u, FlowchartDirection::{6}, {7}, {8}u, {9}u}},' -f $expected.id,(Literal $source),$expected.outcome,$expected.issue,$expected.nodes,$expected.edges,$expected.direction,(Literal $expected.reason),$expected.diagnosticFirst,$expected.diagnosticLast))
 }
 [void]$output.AppendLine('};')
 [void]$output.AppendLine('struct Family { std::wstring_view document, source; FlowchartOutcome outcome; FlowchartIssue issue; std::size_t nodes, edges; FlowchartDirection direction; std::wstring_view reason; };')
