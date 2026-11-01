@@ -473,6 +473,14 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     editor->SetSelection({2u, 14u});
     const auto mixedState = editor->QueryMarkdownCommandState(stateRequest);
     Check(mixedState && mixedState->mixed && ! mixedState->active, "command-state query reports mixed formatting");
+    for (const auto command : {MarkdownCommand::JoinBackward, MarkdownCommand::JoinForward})
+    {
+        stateRequest.command = command;
+        const auto joinState = editor->QueryMarkdownCommandState(stateRequest);
+        Check(joinState && joinState->available == std::optional<bool>{false} &&
+                  editor->ExecuteMarkdownCommand(stateRequest) == MarkdownCommandStatus::Unavailable,
+              "join state and execution both reject a noncollapsed selection");
+    }
     editor->SetText(L"~~~\nx\n~~~\n");
     prepare();
     editor->SetSelection({4u, 4u});

@@ -2120,7 +2120,7 @@ void MarkdownCommandPlanner::Task()
 }
 void MarkdownCommandPlanner::Join(bool backwards)
 {
-    if (plan.before_.anchor != plan.before_.caret)
+    if (! CanJoinSelection(plan.before_))
         return;
     const auto current = LeafAt(plan.before_.caret);
     if (current == MarkdownNoNode || nodes[current].lines.empty())

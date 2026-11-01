@@ -2082,6 +2082,8 @@ std::optional<RichText::MarkdownCommandState> RichTextEditor::QueryMarkdownComma
     if (! document)
         return std::nullopt;
     const auto selection = GetSelection();
+    if ((request.command == MarkdownCommand::JoinBackward || request.command == MarkdownCommand::JoinForward) && ! CanJoinSelection(selection))
+        result.available = false;
     if (request.command == MarkdownCommand::ExitCodeBlock || request.command == MarkdownCommand::SetCodeLanguage ||
         request.command == MarkdownCommand::InsertMath || request.command == MarkdownCommand::InsertThematicBreak ||
         request.command == MarkdownCommand::InsertEscapedText)

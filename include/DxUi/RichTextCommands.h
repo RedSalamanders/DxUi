@@ -75,6 +75,11 @@ std::optional<std::size_t> FindCodeLanguageTarget(const MarkdownSyntax& syntax, 
 bool CanInsertMath(const MarkdownSyntax& syntax, Selection selection, std::wstring_view text, bool display) noexcept;
 bool CanInsertEscapedText(const MarkdownSyntax& syntax, Selection selection, std::wstring_view text) noexcept;
 bool CanInsertThematicBreak(const MarkdownSyntax& syntax, Selection selection) noexcept;
+// Joining is defined only at a single caret; richer site admission is separate.
+constexpr bool CanJoinSelection(Selection selection) noexcept
+{
+    return selection.anchor == selection.caret;
+}
 struct MarkdownCommandRequest
 {
     MarkdownCommand command{};
