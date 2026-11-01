@@ -1412,7 +1412,7 @@ void TestTreeSelectedRowUsesRainbowOnlyInRainbowMode()
             "tree high-contrast selected row falls back to the shared selection fill");
 }
 
-void TestTreeInactiveSelectionPrefersSelectionTextWhenReadable()
+void TestTreeInactiveSelectionUsesNormalTextAndLegibleChrome()
 {
     using namespace DxUi;
     Tree tree;
@@ -1424,21 +1424,21 @@ void TestTreeInactiveSelectionPrefersSelectionTextWhenReadable()
     theme.rainbowMode           = false;
     theme.surfaceBackground     = D2D1::ColorF(1, 1, 1, 1);
     theme.selectionInactiveFill = D2D1::ColorF(.98f, .92f, .92f, 1);
-    theme.selectionText         = D2D1::ColorF(.63f, .16f, .20f, 1);
+    theme.text                  = D2D1::ColorF(0, 0, 0, 1);
+    theme.selectionText         = D2D1::ColorF(0, 0, .6f, 1);
     TreeDebugRowVisualState row;
     Require(! tree.HasFocus() && tree.DebugGetRowVisualState(theme, 0u, false, row) && row.selected,
             "inactive selected Tree row resolves through its native paint resolver");
-    Require(row.textArgb == PackColorForTest(theme.selectionText) && row.iconArgb == row.textArgb && row.expanderArgb == row.textArgb,
-            "readable selection text token controls inactive current-row label and icon chrome");
-    theme.selectionText = D2D1::ColorF(1, 1, 1, 1);
-    Require(tree.DebugGetRowVisualState(theme, 0u, false, row) &&
-                row.textArgb ==
-                    PackColorForTest(ChooseContrastingTextColorForTest(CompositeOverBackground(theme.selectionInactiveFill, theme.surfaceBackground))),
-            "unreadable inactive selection text still receives the shared contrast fallback");
+    Require(row.textArgb == 0xff000000u && row.iconArgb == 0xff000000u && row.expanderArgb == 0xff000000u,
+            "inactive selected label, icon and expander use normal black ink when both black and selection blue are readable");
+    theme.text = D2D1::ColorF(1, 1, 1, 1);
+    Require(tree.DebugGetRowVisualState(theme, 0u, false, row) && row.textArgb == 0xff000000u && row.iconArgb == 0xff000000u && row.expanderArgb == 0xff000000u,
+            "unreadable normal white ink falls back to black consistently across selected label and chrome");
     theme.highContrast          = true;
     theme.selectionInactiveFill = D2D1::ColorF(0, 0, .5f, 1);
-    Require(tree.DebugGetRowVisualState(theme, 0u, false, row) && row.textArgb == PackColorForTest(theme.selectionText),
-            "high contrast keeps the explicit HighlightText and Highlight pair");
+    theme.selectionText         = D2D1::ColorF(1, 1, 1, 1);
+    Require(tree.DebugGetRowVisualState(theme, 0u, false, row) && row.textArgb == 0xffffffffu && row.iconArgb == 0xffffffffu && row.expanderArgb == 0xffffffffu,
+            "high contrast retains white HighlightText for the label, icon and expander");
 }
 
 void TestTreeNotifyDataChangedClearsMissingSelection()
@@ -3725,5 +3725,5 @@ void RunTreeTests()
     DXUI_RUN_TEST(TestTreeSelectionSettersAndModeSwitchKeepTheSelectionCoherent);
     DXUI_RUN_TEST(TestTreeTypographyOverrideValidatesAtomically);
     DXUI_RUN_TEST(TestTreeFramelessOutlinePreservesModelAndKeyboardExpansion);
-    DXUI_RUN_TEST(TestTreeInactiveSelectionPrefersSelectionTextWhenReadable);
+    DXUI_RUN_TEST(TestTreeInactiveSelectionUsesNormalTextAndLegibleChrome);
 }
