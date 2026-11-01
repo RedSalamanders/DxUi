@@ -1622,7 +1622,7 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
     const auto lowestObservedStack         = Detail::testRichMathLowestStackAddress;
     Detail::testRichMathLowestStackAddress = 0u;
     check(lowestObservedStack > stackLow && lowestObservedStack < stackHigh && lowestObservedStack - stackLow >= 128u * 1024u,
-          "64-level parser cases retain at least 128 KiB of observed thread-stack headroom");
+          "64-level parser and placement cases retain at least 128 KiB of observed thread-stack headroom");
 #endif
 #if DXUI_ENABLE_DIAGNOSTICS
     {

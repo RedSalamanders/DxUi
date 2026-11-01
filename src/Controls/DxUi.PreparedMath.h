@@ -33,6 +33,7 @@ struct MathColorContext
     D2D1_COLOR_F text{}, fill{};
 };
 #if DXUI_ENABLE_DIAGNOSTICS
+extern thread_local std::uintptr_t testRichMathLowestStackAddress;
 // Private test seam for preserving HRESULT classification from GetLineMetrics.
 extern thread_local HRESULT testRichMathLineMetricsFailure;
 extern thread_local HRESULT testRichMathGlyphMetricsFailure;
@@ -844,200 +845,260 @@ class PreparedMath final
     {
         return shape != L'.';
     }
-    std::size_t Flatten(const MathNode& node,
-                        float size,
-                        bool bold,
-                        bool italic,
-                        bool forceItalic,
-                        bool display,
-                        unsigned scriptLevel,
-                        int namedSizeIndex        = -1,
-                        std::uint32_t foreground  = NoColor,
-                        MathTextFamily textFamily = MathTextFamily::Math,
-                        bool pseudoBold           = false)
+    std::size_t Flatten(const MathNode& rootNode,
+                        float rootSize,
+                        bool rootBold,
+                        bool rootItalic,
+                        bool rootForceItalic,
+                        bool rootDisplay,
+                        unsigned rootScriptLevel,
+                        int rootNamedSize            = -1,
+                        std::uint32_t rootForeground = NoColor,
+                        MathTextFamily rootFamily    = MathTextFamily::Math,
+                        bool rootPseudoBold          = false)
     {
-        const auto index = boxes.size();
-        boxes.push_back({&node, 0u, 0u, std::numeric_limits<std::size_t>::max(), {}, {}, 0.f, node.atomClass, size, scriptLevel, display});
-        boxes[index].color = foreground;
-        if (node.kind == MathKind::Style && node.text == L"rowtag")
+        struct Frame
         {
-            if (! rowTags)
-                rowTags.emplace(0u);
-            if (rowTags->size() == MathMaximumNodes)
-                throw std::length_error("Too many mathematical row tags");
-            boxes[index].rowTag = rowTags->size();
-            rowTags->push_back({&node.children[1u], 0.f});
-        }
-        if (const auto color = node.kind == MathKind::Style ? ColorArgument(node.text, L"textcolor:") : std::nullopt)
+            const MathNode* node;
+            float size;
+            bool bold, italic, forceItalic, display;
+            unsigned scriptLevel;
+            int namedSizeIndex;
+            std::uint32_t foreground;
+            MathTextFamily textFamily;
+            bool pseudoBold;
+            std::size_t index{}, nextChild{};
+            bool opened{};
+        };
+        std::vector<Frame> stack(0u);
+        stack.reserve(MathMaximumNodeDepth + 1u);
+        stack.push_back({&rootNode,
+                         rootSize,
+                         rootBold,
+                         rootItalic,
+                         rootForceItalic,
+                         rootDisplay,
+                         rootScriptLevel,
+                         rootNamedSize,
+                         rootForeground,
+                         rootFamily,
+                         rootPseudoBold});
+        const auto rootIndex = boxes.size();
+        while (! stack.empty())
         {
-            colored    = true;
-            foreground = color.value();
-            colors.push_back(foreground);
-        }
-        if (node.kind == MathKind::Accent && ColorBox(node.text))
-        {
-            colored = true;
-            if (node.text.starts_with(L"colorbox:"))
-                colors.push_back(ParseNativeColor(std::wstring_view(node.text).substr(9u)).value());
-            else
+            auto& frame      = stack.back();
+            const auto& node = *frame.node;
+            auto size        = frame.size;
+            const bool bold = frame.bold, italic = frame.italic, forceItalic = frame.forceItalic, display = frame.display;
+            const auto scriptLevel    = frame.scriptLevel;
+            const auto namedSizeIndex = frame.namedSizeIndex;
+            auto foreground           = frame.foreground;
+            const auto textFamily     = frame.textFamily;
+            const bool pseudoBold     = frame.pseudoBold;
+            if (! frame.opened)
             {
-                colors.push_back(ParseNativeColor(std::wstring_view(node.text).substr(10u, 6u)).value());
-                colors.push_back(ParseNativeColor(std::wstring_view(node.text).substr(17u, 6u)).value());
+                frame.index      = boxes.size();
+                const auto index = frame.index;
+                boxes.push_back({&node, 0u, 0u, std::numeric_limits<std::size_t>::max(), {}, {}, 0.f, node.atomClass, size, scriptLevel, display});
+                boxes[index].color = foreground;
+                if (node.kind == MathKind::Style && node.text == L"rowtag")
+                {
+                    if (! rowTags)
+                        rowTags.emplace(0u);
+                    if (rowTags->size() == MathMaximumNodes)
+                        throw std::length_error("Too many mathematical row tags");
+                    boxes[index].rowTag = rowTags->size();
+                    rowTags->push_back({&node.children[1u], 0.f});
+                }
+                if (const auto color = node.kind == MathKind::Style ? ColorArgument(node.text, L"textcolor:") : std::nullopt)
+                {
+                    colored    = true;
+                    foreground = color.value();
+                    colors.push_back(foreground);
+                }
+                if (node.kind == MathKind::Accent && ColorBox(node.text))
+                {
+                    colored = true;
+                    if (node.text.starts_with(L"colorbox:"))
+                        colors.push_back(ParseNativeColor(std::wstring_view(node.text).substr(9u)).value());
+                    else
+                    {
+                        colors.push_back(ParseNativeColor(std::wstring_view(node.text).substr(10u, 6u)).value());
+                        colors.push_back(ParseNativeColor(std::wstring_view(node.text).substr(17u, 6u)).value());
+                    }
+                }
+                if (node.kind == MathKind::Text)
+                {
+                    if (textFamily == MathTextFamily::Script && ! std::ranges::all_of(node.text, [](wchar_t ch) { return ch >= L'A' && ch <= L'Z'; }))
+                        throw std::length_error("Unsupported mathematical script alphabet");
+                    if (node.text.empty())
+                    {
+                        boxes[index].endChild = boxes.size();
+                        stack.pop_back();
+                        continue;
+                    }
+                    if (node.largeOperator && display)
+                        size = std::max(size, font * displayOperatorMinimum);
+                    const auto glyphIndex = glyphs.size();
+                    glyphs.push_back({&node, index, size, bold, forceItalic ? italic : italic || node.italic, textFamily, pseudoBold, {}, {}, {}});
+                    boxes[index].glyph    = glyphIndex;
+                    boxes[index].endChild = boxes.size();
+                    stack.pop_back();
+                    continue;
+                }
+                boxes[index].firstChild = boxes.size();
+                frame.foreground        = foreground;
+                frame.opened            = true;
             }
-        }
-        if (node.kind == MathKind::Text)
-        {
-            if (textFamily == MathTextFamily::Script && ! std::ranges::all_of(node.text, [](wchar_t ch) { return ch >= L'A' && ch <= L'Z'; }))
-                throw std::length_error("Unsupported mathematical script alphabet");
-            if (node.text.empty())
+            const auto index      = frame.index;
+            const auto nextLevel  = scriptLevel < 2u ? scriptLevel + 1u : 2u;
+            const auto childCount = node.kind == MathKind::Style && node.text == L"rowtag" ? 1u : node.children.size();
+            if (frame.nextChild == childCount)
             {
                 boxes[index].endChild = boxes.size();
-                return index;
+                stack.pop_back();
+                continue;
             }
-            if (node.largeOperator && display)
-                size = std::max(size, font * displayOperatorMinimum);
-            const auto glyphIndex = glyphs.size();
-            glyphs.push_back({&node, index, size, bold, forceItalic ? italic : italic || node.italic, textFamily, pseudoBold, {}, {}, {}});
-            boxes[index].glyph    = glyphIndex;
-            boxes[index].endChild = boxes.size();
-            return index;
+            const auto childIndex = frame.nextChild++;
+            {
+                const auto& child = node.children[childIndex];
+                float childSize   = size;
+                bool childBold = bold, childItalic = italic, childDisplay = display;
+                bool childForceItalic = forceItalic;
+                auto childLevel       = scriptLevel;
+                auto childNamedSize   = namedSizeIndex;
+                auto childFamily      = textFamily;
+                bool childPseudoBold  = pseudoBold;
+                constexpr std::array<float, 11u> namedScales{.5f, .6f, .7f, .8f, .9f, 1.f, 1.2f, 1.44f, 1.728f, 2.074f, 2.488f};
+                constexpr std::array<std::array<unsigned, 3u>, 11u> sizeStyle{
+                    {{0, 0, 0}, {1, 0, 0}, {2, 0, 0}, {3, 1, 0}, {4, 1, 0}, {5, 2, 0}, {6, 3, 1}, {7, 5, 2}, {8, 6, 5}, {9, 7, 6}, {10, 9, 8}}};
+                const auto scaledSize = [&](unsigned level)
+                {
+                    return childNamedSize < 0 ? font * StyleScale(level)
+                                              : font * namedScales[sizeStyle[static_cast<std::size_t>(childNamedSize)][std::min(level, 2u)]];
+                };
+                if (node.kind == MathKind::Style)
+                {
+                    if (node.text == L"pmb")
+                        childPseudoBold = true;
+                    if (node.text == L"textsf")
+                        childFamily = MathTextFamily::Sans;
+                    else if (node.text == L"texttt")
+                        childFamily = MathTextFamily::Monospace;
+                    else if (node.text == L"mathscr")
+                        childFamily = MathTextFamily::Script;
+                    else if (node.text == L"textrm" || node.text == L"textnormal")
+                        childFamily = MathTextFamily::Math;
+                    if (node.text == L"mathbf")
+                    {
+                        childBold        = true;
+                        childItalic      = false;
+                        childForceItalic = true;
+                    }
+                    else if (node.text == L"boldsymbol" || node.text == L"bm")
+                        childBold = true;
+                    else if (node.text == L"textmd")
+                        childBold = false;
+                    else if (node.text == L"mathnormal" || node.text == L"textnormal")
+                    {
+                        childBold        = false;
+                        childItalic      = false;
+                        childForceItalic = false;
+                    }
+                    if (node.text == L"mathrm" || node.text == L"mathbb" || node.text == L"mathcal" || node.text == L"mathscr" || node.text == L"mathfrak" ||
+                        node.text == L"mathsf" || node.text == L"mathtt")
+                    {
+                        childItalic      = false;
+                        childForceItalic = true;
+                    }
+                    else if (node.text == L"emph")
+                    {
+                        childItalic      = ! italic;
+                        childForceItalic = true;
+                    }
+                    else if (node.text == L"mathit")
+                    {
+                        childItalic      = true;
+                        childForceItalic = true;
+                    }
+                    constexpr std::array<std::wstring_view, 11u> sizes{
+                        L"tiny", L"sixptsize", L"scriptsize", L"footnotesize", L"small", L"normalsize", L"large", L"Large", L"LARGE", L"huge", L"Huge"};
+                    const auto namedSize = std::ranges::find(sizes, node.text);
+                    if (namedSize != sizes.end())
+                    {
+                        childNamedSize = static_cast<int>(namedSize - sizes.begin());
+                        childSize      = scaledSize(0u);
+                        childLevel     = 0u;
+                    }
+                    if (node.text == L"displaystyle" || node.text == L"textstyle" || node.text == L"scriptstyle" || node.text == L"scriptscriptstyle")
+                    {
+                        const unsigned level = node.text == L"displaystyle" || node.text == L"textstyle" ? 0u : node.text == L"scriptstyle" ? 1u : 2u;
+                        childSize            = scaledSize(level);
+                        childLevel           = level;
+                        childDisplay         = node.text == L"displaystyle";
+                    }
+                }
+                else if (node.kind == MathKind::Fraction)
+                {
+                    auto fractionDisplay = display;
+                    if (node.text == L"dfrac" || node.text == L"cfrac")
+                        fractionDisplay = true;
+                    else if (node.text == L"tfrac")
+                        fractionDisplay = false;
+                    boxes[index].display = fractionDisplay;
+                    childDisplay         = false; // Fraction contents use text or script style, not display style.
+                    childLevel           = fractionDisplay ? 0u : nextLevel;
+                    childSize            = scaledSize(childLevel);
+                }
+                else if (node.kind == MathKind::Scripts && childIndex != 0u)
+                {
+                    childLevel   = nextLevel;
+                    childSize    = scaledSize(childLevel);
+                    childDisplay = false;
+                }
+                else if (node.kind == MathKind::Root)
+                {
+                    if (childIndex == 1u)
+                    {
+                        childLevel = 2u;
+                        childSize  = scaledSize(childLevel);
+                    }
+                }
+                else if (node.kind == MathKind::Accent && ExtensibleArrow(node.text))
+                {
+                    childLevel   = nextLevel;
+                    childSize    = scaledSize(childLevel);
+                    childDisplay = false;
+                }
+                else if (node.kind == MathKind::Matrix)
+                {
+                    childDisplay = MatrixCore(node.text) == L"dcases" || MatrixCore(node.text) == L"drcases" || MatrixCore(node.text).starts_with(L"darray:");
+                    boxes[index].display = childDisplay;
+                    if (MatrixCore(node.text) == L"smallmatrix" || MatrixBase(node.text) == L"subarray")
+                    {
+                        childLevel               = std::max(1u, scriptLevel);
+                        childSize                = scaledSize(childLevel);
+                        boxes[index].size        = childSize;
+                        boxes[index].scriptLevel = childLevel;
+                        boxes[index].display     = false;
+                    }
+                }
+                else if (node.kind == MathKind::Delimiter)
+                    childSize = size;
+                stack.push_back({&child,
+                                 childSize,
+                                 childBold,
+                                 childItalic,
+                                 childForceItalic,
+                                 childDisplay,
+                                 childLevel,
+                                 childNamedSize,
+                                 foreground,
+                                 childFamily,
+                                 childPseudoBold});
+            }
         }
-        boxes[index].firstChild = boxes.size();
-        const auto firstChild   = boxes[index].firstChild;
-        const auto nextLevel    = scriptLevel < 2u ? scriptLevel + 1u : 2u;
-        const auto childCount   = node.kind == MathKind::Style && node.text == L"rowtag" ? 1u : node.children.size();
-        for (std::size_t childIndex = 0; childIndex < childCount; ++childIndex)
-        {
-            const auto& child = node.children[childIndex];
-            float childSize   = size;
-            bool childBold = bold, childItalic = italic, childDisplay = display;
-            bool childForceItalic = forceItalic;
-            auto childLevel       = scriptLevel;
-            auto childNamedSize   = namedSizeIndex;
-            auto childFamily      = textFamily;
-            bool childPseudoBold  = pseudoBold;
-            constexpr std::array<float, 11u> namedScales{.5f, .6f, .7f, .8f, .9f, 1.f, 1.2f, 1.44f, 1.728f, 2.074f, 2.488f};
-            constexpr std::array<std::array<unsigned, 3u>, 11u> sizeStyle{
-                {{0, 0, 0}, {1, 0, 0}, {2, 0, 0}, {3, 1, 0}, {4, 1, 0}, {5, 2, 0}, {6, 3, 1}, {7, 5, 2}, {8, 6, 5}, {9, 7, 6}, {10, 9, 8}}};
-            const auto scaledSize = [&](unsigned level)
-            {
-                return childNamedSize < 0 ? font * StyleScale(level)
-                                          : font * namedScales[sizeStyle[static_cast<std::size_t>(childNamedSize)][std::min(level, 2u)]];
-            };
-            if (node.kind == MathKind::Style)
-            {
-                if (node.text == L"pmb")
-                    childPseudoBold = true;
-                if (node.text == L"textsf")
-                    childFamily = MathTextFamily::Sans;
-                else if (node.text == L"texttt")
-                    childFamily = MathTextFamily::Monospace;
-                else if (node.text == L"mathscr")
-                    childFamily = MathTextFamily::Script;
-                else if (node.text == L"textrm" || node.text == L"textnormal")
-                    childFamily = MathTextFamily::Math;
-                if (node.text == L"mathbf")
-                {
-                    childBold        = true;
-                    childItalic      = false;
-                    childForceItalic = true;
-                }
-                else if (node.text == L"boldsymbol" || node.text == L"bm")
-                    childBold = true;
-                else if (node.text == L"textmd")
-                    childBold = false;
-                else if (node.text == L"mathnormal" || node.text == L"textnormal")
-                {
-                    childBold        = false;
-                    childItalic      = false;
-                    childForceItalic = false;
-                }
-                if (node.text == L"mathrm" || node.text == L"mathbb" || node.text == L"mathcal" || node.text == L"mathscr" || node.text == L"mathfrak" ||
-                    node.text == L"mathsf" || node.text == L"mathtt")
-                {
-                    childItalic      = false;
-                    childForceItalic = true;
-                }
-                else if (node.text == L"emph")
-                {
-                    childItalic      = ! italic;
-                    childForceItalic = true;
-                }
-                else if (node.text == L"mathit")
-                {
-                    childItalic      = true;
-                    childForceItalic = true;
-                }
-                constexpr std::array<std::wstring_view, 11u> sizes{
-                    L"tiny", L"sixptsize", L"scriptsize", L"footnotesize", L"small", L"normalsize", L"large", L"Large", L"LARGE", L"huge", L"Huge"};
-                const auto namedSize = std::ranges::find(sizes, node.text);
-                if (namedSize != sizes.end())
-                {
-                    childNamedSize = static_cast<int>(namedSize - sizes.begin());
-                    childSize      = scaledSize(0u);
-                    childLevel     = 0u;
-                }
-                if (node.text == L"displaystyle" || node.text == L"textstyle" || node.text == L"scriptstyle" || node.text == L"scriptscriptstyle")
-                {
-                    const unsigned level = node.text == L"displaystyle" || node.text == L"textstyle" ? 0u : node.text == L"scriptstyle" ? 1u : 2u;
-                    childSize            = scaledSize(level);
-                    childLevel           = level;
-                    childDisplay         = node.text == L"displaystyle";
-                }
-            }
-            else if (node.kind == MathKind::Fraction)
-            {
-                auto fractionDisplay = display;
-                if (node.text == L"dfrac" || node.text == L"cfrac")
-                    fractionDisplay = true;
-                else if (node.text == L"tfrac")
-                    fractionDisplay = false;
-                boxes[index].display = fractionDisplay;
-                childDisplay         = false; // Fraction contents use text or script style, not display style.
-                childLevel           = fractionDisplay ? 0u : nextLevel;
-                childSize            = scaledSize(childLevel);
-            }
-            else if (node.kind == MathKind::Scripts && childIndex != 0u)
-            {
-                childLevel   = nextLevel;
-                childSize    = scaledSize(childLevel);
-                childDisplay = false;
-            }
-            else if (node.kind == MathKind::Root)
-            {
-                if (childIndex == 1u)
-                {
-                    childLevel = 2u;
-                    childSize  = scaledSize(childLevel);
-                }
-            }
-            else if (node.kind == MathKind::Accent && ExtensibleArrow(node.text))
-            {
-                childLevel   = nextLevel;
-                childSize    = scaledSize(childLevel);
-                childDisplay = false;
-            }
-            else if (node.kind == MathKind::Matrix)
-            {
-                childDisplay = MatrixCore(node.text) == L"dcases" || MatrixCore(node.text) == L"drcases" || MatrixCore(node.text).starts_with(L"darray:");
-                boxes[index].display = childDisplay;
-                if (MatrixCore(node.text) == L"smallmatrix" || MatrixBase(node.text) == L"subarray")
-                {
-                    childLevel               = std::max(1u, scriptLevel);
-                    childSize                = scaledSize(childLevel);
-                    boxes[index].size        = childSize;
-                    boxes[index].scriptLevel = childLevel;
-                    boxes[index].display     = false;
-                }
-            }
-            else if (node.kind == MathKind::Delimiter)
-                childSize = size;
-            Flatten(
-                child, childSize, childBold, childItalic, childForceItalic, childDisplay, childLevel, childNamedSize, foreground, childFamily, childPseudoBold);
-        }
-        boxes[index].firstChild = firstChild;
-        boxes[index].endChild   = boxes.size();
-        return index;
+        return rootIndex;
     }
     std::size_t NextSibling(std::size_t index) const noexcept
     {
@@ -1151,9 +1212,9 @@ class PreparedMath final
     }
     void StageInk(std::size_t index) noexcept
     {
-        auto& box = boxes[index];
+        auto& box        = boxes[index];
         const auto& node = *box.node;
-        box.ink = box.extent;
+        box.ink          = box.extent;
         if (node.kind == MathKind::Space)
         {
             box.ink.above = box.ink.below = 0.f;
@@ -1172,11 +1233,10 @@ class PreparedMath final
         const auto include = [&](std::size_t child, float offset) noexcept
         {
             const auto ink = boxes[child].ink;
-            box.ink.above = std::max(box.ink.above, ink.above - offset);
-            box.ink.below = std::max(box.ink.below, ink.below + offset);
+            box.ink.above  = std::max(box.ink.above, ink.above - offset);
+            box.ink.below  = std::max(box.ink.below, ink.below + offset);
         };
-        if (node.kind == MathKind::Row ||
-            (node.kind == MathKind::Style && node.children.size() == 1u && ! ColorBox(node.text)))
+        if (node.kind == MathKind::Row || (node.kind == MathKind::Style && node.children.size() == 1u && ! ColorBox(node.text)))
         {
             box.ink.above = box.ink.below = 0.f;
             for (auto child = box.firstChild; child < box.endChild; child = NextSibling(child))
@@ -1185,9 +1245,9 @@ class PreparedMath final
         else if (node.kind == MathKind::Fraction && node.children.size() == 2u)
         {
             const float axisAtSize = MathConstantAt(12u, box.size, axis);
-            const float thickness = FractionRule(node.text, box.size);
-            box.ink.above = thickness > 0.f ? std::max(0.f, axisAtSize + thickness * .5f) : 0.f;
-            box.ink.below = thickness > 0.f ? std::max(0.f, thickness * .5f - axisAtSize) : 0.f;
+            const float thickness  = FractionRule(node.text, box.size);
+            box.ink.above          = thickness > 0.f ? std::max(0.f, axisAtSize + thickness * .5f) : 0.f;
+            box.ink.below          = thickness > 0.f ? std::max(0.f, thickness * .5f - axisAtSize) : 0.f;
             include(ChildAt(index, 0u), -box.upperShift);
             include(ChildAt(index, 1u), box.lowerShift);
         }
@@ -1291,10 +1351,10 @@ class PreparedMath final
         NormalizeRows();
         for (std::size_t reverse = boxes.size(); reverse-- > 0u;)
         {
-            auto& box        = boxes[reverse];
-            box.extent       = {};
+            auto& box           = boxes[reverse];
+            box.extent          = {};
             const auto stageInk = wil::scope_exit([&]() noexcept { StageInk(reverse); });
-            const auto& node = *box.node;
+            const auto& node    = *box.node;
             using enum MathKind;
             if (node.kind == Text)
             {
@@ -1338,7 +1398,7 @@ class PreparedMath final
                              InkExtent(ChildAt(reverse, 1u)).above + bottomGap + rule * .5f - axisAtSize);
                 box.upperShift = topShift;
                 box.lowerShift = bottomShift;
-                box.extent = {std::max(top.width, bottom.width) + box.size * .4f, topShift + top.above, bottomShift + bottom.below};
+                box.extent     = {std::max(top.width, bottom.width) + box.size * .4f, topShift + top.above, bottomShift + bottom.below};
                 continue;
             }
             if (node.kind == Root && node.children.size() == 2u)
@@ -1362,25 +1422,25 @@ class PreparedMath final
                                   base.below + (sub.width > 0.f ? sub.above + sub.below + MathConstantAt(72u, box.size, lowerLimitGap) : 0.f)};
                     continue;
                 }
-                const float scriptGap    = MathConstantAt(52u, box.size, scriptGapMinimum);
-                const auto baseIndex     = ChildAt(reverse, 0u);
+                const float scriptGap = MathConstantAt(52u, box.size, scriptGapMinimum);
+                const auto baseIndex  = ChildAt(reverse, 0u);
                 const auto subIndex = ChildAt(reverse, 1u), superIndex = ChildAt(reverse, 2u);
                 const auto baseInk       = InkExtent(baseIndex);
                 const float subShift     = std::max(MathConstantAt(24u, box.size, subscriptShift), baseInk.below + box.size * .12f);
                 const float superShift   = std::max(MathConstantAt(36u, box.size, superscriptShift), baseInk.above - box.size * .08f);
                 const float availableGap = superShift + subShift - InkExtent(superIndex).below - InkExtent(subIndex).above;
-                const float extra = sub.width > 0.f && super.width > 0.f ? std::max(0.f, (scriptGap - availableGap) / 2.f) : 0.f;
+                const float extra        = sub.width > 0.f && super.width > 0.f ? std::max(0.f, (scriptGap - availableGap) / 2.f) : 0.f;
                 box.lowerShift           = subShift + extra;
                 box.upperShift           = superShift + extra;
-                box.subKern        = sub.width > 0.f ? ScriptKern(baseIndex, subIndex, subShift + extra, false) : 0.f;
-                box.superKern      = super.width > 0.f ? ScriptKern(baseIndex, superIndex, superShift + extra, true) : 0.f;
-                const float subX   = ScriptBaseAdvance(baseIndex) + box.subKern;
-                const float superX = ScriptAnchor(baseIndex) + box.superKern;
-                const float left   = std::min({0.f, sub.width > 0.f ? subX : 0.f, super.width > 0.f ? superX : 0.f});
-                box.scriptLeftPad  = -left;
-                box.extent         = {std::max({base.width, sub.width > 0.f ? subX + sub.width : 0.f, super.width > 0.f ? superX + super.width : 0.f}) - left,
-                                      std::max(base.above, super.above + superShift + extra),
-                                      std::max(base.below, sub.below + subShift + extra)};
+                box.subKern              = sub.width > 0.f ? ScriptKern(baseIndex, subIndex, subShift + extra, false) : 0.f;
+                box.superKern            = super.width > 0.f ? ScriptKern(baseIndex, superIndex, superShift + extra, true) : 0.f;
+                const float subX         = ScriptBaseAdvance(baseIndex) + box.subKern;
+                const float superX       = ScriptAnchor(baseIndex) + box.superKern;
+                const float left         = std::min({0.f, sub.width > 0.f ? subX : 0.f, super.width > 0.f ? superX : 0.f});
+                box.scriptLeftPad        = -left;
+                box.extent = {std::max({base.width, sub.width > 0.f ? subX + sub.width : 0.f, super.width > 0.f ? superX + super.width : 0.f}) - left,
+                              std::max(base.above, super.above + superShift + extra),
+                              std::max(base.below, sub.below + subShift + extra)};
                 continue;
             }
             if (node.kind == Matrix && node.columns > 0u)
@@ -2227,7 +2287,7 @@ class PreparedMath final
         }
         const float axisAtSize = MathConstantAt(12u, box.size, axis);
         const float scaledRule = FractionRule(node.text, box.size);
-        const float ruleY = baseline - axisAtSize;
+        const float ruleY      = baseline - axisAtSize;
         Place(ChildAt(index, 0u), x + (box.extent.width - top.width) / 2.f, baseline - box.upperShift);
         Place(ChildAt(index, 1u), x + (box.extent.width - bottom.width) / 2.f, baseline + box.lowerShift);
         if (scaledRule > 0.f)
@@ -2274,7 +2334,7 @@ class PreparedMath final
                 Place(sub, center - boxes[sub].extent.width / 2.f - italicCorrection / 2.f, baseline + baseBelowShift + boxes[sub].extent.above);
             return;
         }
-        const auto baseX       = x + box.scriptLeftPad;
+        const auto baseX = x + box.scriptLeftPad;
         Place(baseIndex, baseX, baseline);
         Place(sub, baseX + ScriptBaseAdvance(baseIndex) + box.subKern, baseline + box.lowerShift);
         Place(super, baseX + ScriptAnchor(baseIndex) + box.superKern, baseline - box.upperShift);
@@ -2384,6 +2444,13 @@ class PreparedMath final
     }
     void Place(std::size_t index, float x, float baseline)
     {
+#if DXUI_ENABLE_DIAGNOSTICS
+        if (testRichMathLowestStackAddress)
+        {
+            const char marker{};
+            testRichMathLowestStackAddress = std::min(testRichMathLowestStackAddress, reinterpret_cast<std::uintptr_t>(&marker));
+        }
+#endif
         const auto& box          = boxes[index];
         const auto& node         = *box.node;
         const auto previousColor = activeColor;
@@ -2674,8 +2741,8 @@ public:
             THROW_IF_FAILED(layout->GetOverhangMetrics(&overhang));
             if (std::isfinite(overhang.top) && std::isfinite(overhang.bottom))
             {
-                leaf.visualAbove = std::max(0.f, line.baseline + overhang.top);
-                leaf.visualBelow = std::max(0.f, layoutHeight + overhang.bottom - line.baseline);
+                leaf.visualAbove  = std::max(0.f, line.baseline + overhang.top);
+                leaf.visualBelow  = std::max(0.f, layoutHeight + overhang.bottom - line.baseline);
                 leaf.hasVisualInk = std::isfinite(leaf.visualAbove + leaf.visualBelow) && leaf.visualAbove + leaf.visualBelow > 0.f;
             }
             const float leftInk = std::isfinite(overhang.left) ? std::max(0.f, overhang.left) : 0.f;

@@ -1626,6 +1626,8 @@ same-baseline rows and transparent styles, with positioned ink unions for nested
 fractions and ordinary scripts. Decorated constructions and limits retain
 conservative box bounds. Measurement and placement share the same staged shifts;
 paint performs no font queries.
+Flattening the bounded syntax uses an explicit preparation stack, preserving
+the same source-order boxes and inherited style without recursive native frames.
 
 `LayoutOptions::mathFontFamily` selects the mathematical family independently of
 body and code text; it defaults to Cambria Math. The retained appearance's
