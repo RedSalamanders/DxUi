@@ -100,14 +100,14 @@
   },
   {
     "id": 10,
-    "outcome": "Unsupported",
-    "nodes": 0,
+    "outcome": "Prepared",
+    "nodes": 1,
     "edges": 0,
-    "direction": "TopBottom",
-    "reason": "expanded-shape-syntax",
-    "issue": "UnsupportedShape",
-    "diagnosticFirst": 20,
-    "diagnosticLast": 22
+    "direction": "LeftRight",
+    "reason": "native-legacy-shape",
+    "issue": "None",
+    "diagnosticFirst": 0,
+    "diagnosticLast": 0
   },
   {
     "id": 11,
@@ -199,14 +199,14 @@
   },
   {
     "id": 19,
-    "outcome": "Unsupported",
-    "nodes": 0,
+    "outcome": "Prepared",
+    "nodes": 1,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "expanded-shape-syntax",
-    "issue": "UnsupportedShape",
-    "diagnosticFirst": 21,
-    "diagnosticLast": 23
+    "reason": "native-legacy-shape",
+    "issue": "None",
+    "diagnosticFirst": 0,
+    "diagnosticLast": 0
   },
   {
     "id": 20,

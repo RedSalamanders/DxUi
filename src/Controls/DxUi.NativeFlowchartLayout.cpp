@@ -260,8 +260,8 @@ struct NativeFlowchartLayout::Preparation
             plan->nodes.push_back({shape, 0u, {0.0, 0.0, 64.0, 8.0}, {}});
             return;
         }
-        if (shape == FlowchartShape::Circle)
-            width = height = std::hypot(width, height);
+        if (shape == FlowchartShape::Circle || shape == FlowchartShape::DoubleCircle)
+            width = height = std::hypot(width, height) + (shape == FlowchartShape::DoubleCircle ? 8.0 : 0.0);
         else if (shape == FlowchartShape::Diamond)
         {
             width *= 2.0;
@@ -271,6 +271,8 @@ struct NativeFlowchartLayout::Preparation
             width *= 2.0; // The centered label fits inside the straight middle half.
         else if (shape == FlowchartShape::Subroutine)
             width = std::max(width, nodeLabels[index].width + 40.0);
+        else if (shape == FlowchartShape::Cylinder)
+            height += 16.0;
         else if (shape == FlowchartShape::Stadium)
             // Keep the entire centered label rectangle inside the capsule's
             // straight middle band, independent of its measured text height.
@@ -1128,6 +1130,7 @@ void NativeFlowchartLayout::Begin(std::shared_ptr<const FlowchartModel> graph,
             throw std::invalid_argument("Invalid native node stroke width");
     for (const auto& node : graph->nodes)
         if (node.shape < FlowchartShape::Rectangle || node.shape > FlowchartShape::Note ||
+            ((node.shape == FlowchartShape::DoubleCircle || node.shape == FlowchartShape::Cylinder) && graph->family != NativeDiagramFamily::Flowchart) ||
             (node.shape == FlowchartShape::Note &&
              ((graph->family != NativeDiagramFamily::State && graph->family != NativeDiagramFamily::Class) ||
               (node.noteTarget == MarkdownNoNode ? graph->family != NativeDiagramFamily::Class

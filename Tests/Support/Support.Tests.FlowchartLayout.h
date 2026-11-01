@@ -375,6 +375,11 @@ template <typename Check> inline void Invariants(const FlowchartLayoutPlan& plan
         const auto relativeX = label.width / bounds.width, relativeY = label.height / bounds.height;
         if (plan.nodes[index].shape == FlowchartShape::Circle)
             check(relativeX * relativeX + relativeY * relativeY <= 1.0, "all label corners lie inside the circle");
+        if (plan.nodes[index].shape == FlowchartShape::DoubleCircle)
+        {
+            const auto innerX = label.width / (bounds.width - 8.0), innerY = label.height / (bounds.height - 8.0);
+            check(innerX * innerX + innerY * innerY <= 1.0, "all label corners lie inside the double circle's inner outline");
+        }
         if (plan.nodes[index].shape == FlowchartShape::Diamond)
             check(relativeX + relativeY <= 1.0, "all label corners lie inside the diamond");
         for (std::size_t other = 0u; other < index; ++other)
@@ -450,7 +455,7 @@ template <typename Check> inline void Corpus(Check&& check)
                       "budget choice cannot change edge routing");
         ++admitted;
     }
-    check(admitted == 32u, "geometry covers every admitted original reference graph");
+    check(admitted == 34u, "geometry covers every admitted original reference graph");
     for (const auto direction : {L"TB", L"BT", L"LR", L"RL"})
     {
         const auto source = std::wstring(L"flowchart ") + direction + L"\nc1-->a2\nsubgraph ide1 [one]\na1-->a2\nend\n";

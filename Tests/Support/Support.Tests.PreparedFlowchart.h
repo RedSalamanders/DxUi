@@ -728,6 +728,65 @@ template <typename Check> inline void GroupRaster(Check&& check)
     check(! rejected.Ready() && rejected.Geometry() && rejected.Geometry()->issue == FlowchartLayoutIssue::DiagramExtent && rejected.Geometry()->groups.empty(),
           "overlapping unrelated groups fail without publishing partial geometry");
 }
+template <typename Check> inline void ExpandedShapeRaster(Check&& check)
+{
+    const auto initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+    if (FAILED(initialized) && initialized != RPC_E_CHANGED_MODE) THROW_IF_FAILED(initialized);
+    const auto apartment = wil::scope_exit([&]() noexcept { if (SUCCEEDED(initialized)) CoUninitialize(); });
+    const auto graph = FlowchartLayoutTests::Graph(L"flowchart LR\nA(((Double)))\nB[(Database)]\nA --> B\n");
+    check(graph->outcome == FlowchartOutcome::Prepared && graph->nodes.size() == 2u && graph->nodes[0u].shape == FlowchartShape::DoubleCircle &&
+              graph->nodes[1u].shape == FlowchartShape::Cylinder && graph->nodes[0u].label == L"Double" && graph->nodes[1u].label == L"Database",
+          "double circle and cylinder preserve independent authored shapes and labels");
+    if (graph->outcome != FlowchartOutcome::Prepared || graph->nodes.size() != 2u) return;
+    const auto write = WriteFactory();
+    const auto drawing = DrawingFactory();
+    PreparedFlowchart prepared;
+    prepared.Begin(write.get(), drawing.get(), graph, {}, {1u, 1u});
+    Complete(prepared, check);
+    wil::com_ptr<IWICImagingFactory> imaging;
+    THROW_IF_FAILED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(imaging.put())));
+    constexpr UINT width = 600u, height = 300u, stride = width * 4u;
+    wil::com_ptr<IWICBitmap> bitmap;
+    THROW_IF_FAILED(imaging->CreateBitmap(width, height, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnLoad, bitmap.put()));
+    wil::com_ptr<ID2D1RenderTarget> target;
+    const auto properties = D2D1::RenderTargetProperties(D2D1_RENDER_TARGET_TYPE_SOFTWARE,
+                                                           D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
+    THROW_IF_FAILED(drawing->CreateWicBitmapRenderTarget(bitmap.get(), properties, target.put()));
+    wil::com_ptr<ID2D1SolidColorBrush> text, stroke, fill;
+    THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black), text.put()));
+    THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Blue), stroke.put()));
+    THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White), fill.put()));
+    target->BeginDraw(); target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+    check(prepared.Draw(target.get(), text.get(), stroke.get(), fill.get(), {}), "expanded shapes paint using the owner target");
+    THROW_IF_FAILED(target->EndDraw());
+    std::vector<BYTE> pixels(stride * height);
+    THROW_IF_FAILED(bitmap->CopyPixels(nullptr, stride, static_cast<UINT>(pixels.size()), pixels.data()));
+    const auto blueNear = [&](double px, double py)
+    {
+        const auto x = static_cast<int>(px), y = static_cast<int>(py);
+        for (int dy = -1; dy <= 1; ++dy)
+            for (int dx = -1; dx <= 1; ++dx)
+                if (x + dx >= 0 && y + dy >= 0 && x + dx < static_cast<int>(width) && y + dy < static_cast<int>(height))
+                {
+                    const auto offset = static_cast<std::size_t>(y + dy) * stride + static_cast<std::size_t>(x + dx) * 4u;
+                    if (pixels[offset] > 150u && pixels[offset + 1u] < 220u && pixels[offset + 2u] < 220u) return true;
+                }
+        return false;
+    };
+    const auto circle = prepared.Geometry()->nodes[0u].bounds;
+    const auto cylinder = prepared.Geometry()->nodes[1u].bounds;
+    check(blueNear(circle.x + circle.width / 2.0, circle.y) && blueNear(circle.x + circle.width / 2.0, circle.y + 4.0),
+          "double circle paints both independently separated outlines");
+    check(blueNear(cylinder.x + cylinder.width / 2.0, cylinder.y) && blueNear(cylinder.x + cylinder.width / 2.0, cylinder.y + 16.0) &&
+              blueNear(cylinder.x + cylinder.width / 2.0, cylinder.y + cylinder.height),
+          "cylinder paints its top rim and curved bottom");
+    for (const auto source : {L"flowchart TD\nA(((broken))\n", L"flowchart TD\nB[(broken)\n"})
+    {
+        const auto malformed = FlowchartLayoutTests::Graph(source);
+        check(malformed->outcome != FlowchartOutcome::Prepared && malformed->source == source && malformed->nodes.empty(),
+              "incomplete expanded shapes retain exact source without partial publication");
+    }
+}
 template <typename Check> inline void NodeStrokeRaster(Check&& check)
 {
     const auto initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);

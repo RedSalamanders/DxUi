@@ -46,6 +46,8 @@ enum class FlowchartShape
     Bar,
     Hexagon,
     Subroutine,
+    DoubleCircle,
+    Cylinder,
     Note
 };
 enum class FlowchartRelation

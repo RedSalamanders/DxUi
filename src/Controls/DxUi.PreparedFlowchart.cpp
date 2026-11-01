@@ -42,6 +42,24 @@ wil::com_ptr<ID2D1PathGeometry> Path(ID2D1Factory* factory, std::span<const Flow
     THROW_IF_FAILED(sink->Close());
     return path;
 }
+wil::com_ptr<ID2D1PathGeometry> CylinderPath(ID2D1Factory* factory, FlowchartRect rect)
+{
+    wil::com_ptr<ID2D1PathGeometry> path;
+    THROW_IF_FAILED(factory->CreatePathGeometry(path.put()));
+    wil::com_ptr<ID2D1GeometrySink> sink;
+    THROW_IF_FAILED(path->Open(sink.put()));
+    const auto left = static_cast<float>(rect.x), right = static_cast<float>(rect.x + rect.width);
+    const auto top = static_cast<float>(rect.y), bottom = static_cast<float>(rect.y + rect.height);
+    const auto radius = 8.f;
+    const auto arcSize = D2D1::SizeF((right - left) / 2.f, radius);
+    sink->BeginFigure(D2D1::Point2F(left, top + radius), D2D1_FIGURE_BEGIN_FILLED);
+    sink->AddArc({D2D1::Point2F(right, top + radius), arcSize, 0.f, D2D1_SWEEP_DIRECTION_CLOCKWISE, D2D1_ARC_SIZE_SMALL});
+    sink->AddLine(D2D1::Point2F(right, bottom - radius));
+    sink->AddArc({D2D1::Point2F(left, bottom - radius), arcSize, 0.f, D2D1_SWEEP_DIRECTION_CLOCKWISE, D2D1_ARC_SIZE_SMALL});
+    sink->EndFigure(D2D1_FIGURE_END_CLOSED);
+    THROW_IF_FAILED(sink->Close());
+    return path;
+}
 wil::com_ptr<ID2D1PathGeometry> PiePath(ID2D1Factory* factory, FlowchartRect circle, double start, double end)
 {
     wil::com_ptr<ID2D1PathGeometry> path;
@@ -252,6 +270,7 @@ LayoutPreparationStatus PreparedFlowchart::Begin(IDWriteFactory* write,
     for (const auto& node : graph->nodes)
     {
         if (node.label.size() > NativeFlowchartParser::MaximumLabelUnits || node.shape < FlowchartShape::Rectangle || node.shape > FlowchartShape::Note ||
+            ((node.shape == FlowchartShape::DoubleCircle || node.shape == FlowchartShape::Cylinder) && graph->family != NativeDiagramFamily::Flowchart) ||
             node.groupMask >= (1u << graph->groups.size()) ||
             (node.shape == FlowchartShape::Note &&
              ((graph->family != NativeDiagramFamily::State && graph->family != NativeDiagramFamily::Class) ||
@@ -430,6 +449,8 @@ LayoutAdvance PreparedFlowchart::Advance(LayoutWorkBudget budget)
                         if (slice.pieEnd > slice.pieStart)
                             state.nodePaths[work.cursor] = PiePath(state.drawing.get(), state.geometry->pieCircle, slice.pieStart, slice.pieEnd);
                     }
+                    else if (state.geometry->nodes[work.cursor].shape == FlowchartShape::Cylinder)
+                        state.nodePaths[work.cursor] = CylinderPath(state.drawing.get(), state.geometry->nodes[work.cursor].bounds);
                     else if (state.geometry->nodes[work.cursor].shape == FlowchartShape::Diamond)
                     {
                         const auto rect                             = state.geometry->nodes[work.cursor].bounds;
@@ -674,13 +695,22 @@ bool PreparedFlowchart::Draw(ID2D1RenderTarget* target, ID2D1Brush* text, ID2D1B
             target->FillGeometry(state.nodePaths[index].get(), fill);
             target->DrawGeometry(state.nodePaths[index].get(), stroke, nodeStrokeWidth);
         }
-        else if (node.shape == FlowchartShape::Circle)
+        else if (node.shape == FlowchartShape::Circle || node.shape == FlowchartShape::DoubleCircle)
         {
             const auto ellipse = D2D1::Ellipse(D2D1::Point2F((bounds.left + bounds.right) / 2.0f, (bounds.top + bounds.bottom) / 2.0f),
                                                (bounds.right - bounds.left) / 2.0f,
                                                (bounds.bottom - bounds.top) / 2.0f);
             target->FillEllipse(ellipse, fill);
             target->DrawEllipse(ellipse, stroke, nodeStrokeWidth);
+            if (node.shape == FlowchartShape::DoubleCircle)
+                target->DrawEllipse(D2D1::Ellipse(ellipse.point, ellipse.radiusX - 4.f, ellipse.radiusY - 4.f), stroke, nodeStrokeWidth);
+        }
+        else if (node.shape == FlowchartShape::Cylinder)
+        {
+            target->FillGeometry(state.nodePaths[index].get(), fill);
+            target->DrawGeometry(state.nodePaths[index].get(), stroke, nodeStrokeWidth);
+            target->DrawEllipse(D2D1::Ellipse(D2D1::Point2F((bounds.left + bounds.right) / 2.f, bounds.top + 8.f),
+                                               (bounds.right - bounds.left) / 2.f, 8.f), stroke, nodeStrokeWidth);
         }
         else if (node.shape == FlowchartShape::Rounded)
         {

@@ -436,7 +436,7 @@ template <typename Check> inline void CheckOriginalCorpus(Check&& check)
                       result->diagnostic.source.first < result->diagnostic.source.last && result->diagnostic.source.last <= result->source.size(),
                   "unsupported original family examples retain their independently classified diagnostic and exact source fallback");
     }
-    check(prepared == 32u && unsupported == 73u && std::size(NativeFlowchartCorpus::familyExamples) == 20u,
+    check(prepared == 34u && unsupported == 71u && std::size(NativeFlowchartCorpus::familyExamples) == 20u,
           "Mermaid corpus has no omitted examples/families and separates graph preparation from rejection");
     CheckFamilyGrammar(check);
     CheckFanout(check);
@@ -480,6 +480,8 @@ inline wchar_t ShapeCode(FlowchartShape shape) noexcept
         case FlowchartShape::Bar: return L'B';
         case FlowchartShape::Hexagon: return L'H';
         case FlowchartShape::Subroutine: return L'U';
+        case FlowchartShape::DoubleCircle: return L'2';
+        case FlowchartShape::Cylinder: return L'Y';
         case FlowchartShape::Note: return L'N';
     }
     return L'?';

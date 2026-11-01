@@ -456,10 +456,11 @@ struct NativeFlowchartParser::Preparation
         {
             const auto open    = Text()[at++];
             const bool stadium = model->family == NativeDiagramFamily::Flowchart && open == L'(' && at < end && Text()[at] == L'[';
-            const auto close   = stadium ? L']' : (open == L'[' ? L']' : (open == L'(' ? L')' : L'}'));
+            const bool cylinder = model->family == NativeDiagramFamily::Flowchart && open == L'[' && at < end && Text()[at] == L'(';
+            const auto close   = stadium ? L']' : cylinder ? L')' : (open == L'[' ? L']' : (open == L'(' ? L')' : L'}'));
             candidate.shape    = stadium ? FlowchartShape::Stadium
                                          : (open == L'[' ? FlowchartShape::Rectangle : (open == L'(' ? FlowchartShape::Rounded : FlowchartShape::Diamond));
-            if (stadium)
+            if (stadium || cylinder)
                 ++at;
             const bool circle     = ! stadium && open == L'(' && at < end && Text()[at] == L'(';
             const bool hexagon    = open == L'{' && at < end && Text()[at] == L'{';
@@ -468,7 +469,13 @@ struct NativeFlowchartParser::Preparation
             {
                 ++at;
                 candidate.shape = FlowchartShape::Circle;
+                if (at < end && Text()[at] == L'(')
+                {
+                    ++at;
+                    candidate.shape = FlowchartShape::DoubleCircle;
+                }
             }
+            if (cylinder) candidate.shape = FlowchartShape::Cylinder;
             if (hexagon)
             {
                 ++at;
@@ -487,6 +494,10 @@ struct NativeFlowchartParser::Preparation
             if (! Label(at, end, close, candidate.label))
                 return false;
             if (circle && (at == end || Text()[at++] != L')'))
+                return Error(FlowchartIssue::MissingLabelClose, start, at);
+            if (candidate.shape == FlowchartShape::DoubleCircle && (at == end || Text()[at++] != L')'))
+                return Error(FlowchartIssue::MissingLabelClose, start, at);
+            if (cylinder && (at == end || Text()[at++] != L']'))
                 return Error(FlowchartIssue::MissingLabelClose, start, at);
             if (stadium && (at == end || Text()[at++] != L')'))
                 return Error(FlowchartIssue::MissingLabelClose, start, at);
