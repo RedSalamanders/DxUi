@@ -545,6 +545,9 @@ void DrawCenteredText(ControlHost& host,
                       bool wrap                                     = false,
                       FlowDirection flowDirection                   = FlowDirection::LeftToRight,
                       IDWriteTextFormat* configuredFormat           = nullptr);
+#if DXUI_ENABLE_DIAGNOSTICS
+extern thread_local uint64_t testMnemonicLayoutCreations;
+#endif
 void DrawTextWithMnemonic(ControlHost& host,
                           std::wstring_view text,
                           const D2D1_RECT_F& rect,

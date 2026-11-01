@@ -370,6 +370,59 @@ void TestLabelZeroSpacingOverrideMatchesDefaultLayout()
             static_cast<void>(requireDefaultParity(L"Default caption 123", false, FlowDirection::LeftToRight, L'\0'));
             static_cast<void>(requireDefaultParity(L"RTL wrapped caption with synthetic text שלום", true, FlowDirection::RightToLeft, L'\0'));
             const auto zeroMnemonic = requireDefaultParity(L"Save &As", false, FlowDirection::LeftToRight, L'A');
+            label->SetText(L"Alpha Beta");
+            Require(label->SetTypographyOverride(exactDefault) == S_OK, "enable one unchanged typography override for mnemonic transitions");
+            label->SetMnemonic(L'A');
+            const auto mnemonicA = capture();
+            const auto preparedLayoutCount = testMnemonicLayoutCreations;
+            static_cast<void>(capture());
+            Require(testMnemonicLayoutCreations == preparedLayoutCount, "warm override label paint creates no mnemonic layout");
+            label->SetMnemonic(L'B');
+            const auto mnemonicB = capture();
+            const auto invalidations = host.DebugGetInvalidateCount();
+            label->SetMnemonic(L'b');
+            Require(host.DebugGetInvalidateCount() == invalidations, "an equivalent normalized mnemonic is a no-op");
+            label->SetMnemonic(L'\0');
+            const auto mnemonicNone = capture();
+            Require(mnemonicA.bgraPixels != mnemonicB.bgraPixels && mnemonicA.bgraPixels != mnemonicNone.bgraPixels &&
+                        mnemonicB.bgraPixels != mnemonicNone.bgraPixels,
+                    "one typography override refreshes the actual underline for A, B and no mnemonic");
+            auto* referenceFormat = host.GetTextFormat(FontRole::Body, DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, false,
+                                                       DWRITE_READING_DIRECTION_LEFT_TO_RIGHT);
+            wil::com_ptr<IDWriteTextLayout> reference;
+            Require(referenceFormat && host.GetWriteFactory(), "mnemonic pixel oracle has a DirectWrite format and factory");
+            RequireSucceeded(host.GetWriteFactory()->CreateTextLayout(L"Alpha Beta", 10u, referenceFormat, 260.f, 112.f, reference.put()),
+                             "create independent mnemonic hit-test geometry");
+            const auto changedAtGlyph = [&](const WindowHostBitmapCapture& underlined, UINT32 index)
+            {
+                FLOAT localX{}, localY{};
+                DWRITE_HIT_TEST_METRICS hit{};
+                RequireSucceeded(reference->HitTestTextPosition(index, FALSE, &localX, &localY, &hit), "resolve independent mnemonic glyph bounds");
+                const auto left = static_cast<UINT>(std::max(0.f, host.DipsToPixels(24.f + hit.left - 2.f)));
+                const auto right = std::min(underlined.widthPx, static_cast<UINT>(host.DipsToPixels(24.f + hit.left + hit.width + 2.f)));
+                for (UINT y = 0u; y < underlined.heightPx; ++y)
+                    for (UINT x = left; x < right; ++x)
+                    {
+                        const auto offset = (static_cast<size_t>(y) * underlined.widthPx + x) * 4u;
+                        if (! std::equal(underlined.bgraPixels.data() + offset, underlined.bgraPixels.data() + offset + 4u,
+                                         mnemonicNone.bgraPixels.data() + offset))
+                            return true;
+                    }
+                return false;
+            };
+            Require(changedAtGlyph(mnemonicA, 0u) && changedAtGlyph(mnemonicB, 6u),
+                    "A and B underlines change pixels in their independently hit-tested glyph columns");
+            Require(label->SetTypographyOverride(std::nullopt) == S_OK, "compare mnemonic transitions with the role-default oracle");
+            label->SetMnemonic(L'A');
+            requireSamePixels(mnemonicA, capture(), "prepared override A matches role-default text rendering");
+            const auto defaultLayoutCount = testMnemonicLayoutCreations;
+            static_cast<void>(capture());
+            Require(testMnemonicLayoutCreations == defaultLayoutCount, "warm default label mnemonic paint creates no layout");
+            label->SetMnemonic(L'B');
+            requireSamePixels(mnemonicB, capture(), "prepared override B matches role-default text rendering");
+            label->SetMnemonic(L'\0');
+            requireSamePixels(mnemonicNone, capture(), "prepared override with no mnemonic matches the default renderer");
+            label->SetText(L"Save &As");
             label->SetMnemonic(L'\0');
             Require(label->SetTypographyOverride(exactDefault) == S_OK, "zero-spacing baseline is restored");
             const auto zeroSpacing      = capture();
@@ -1222,6 +1275,9 @@ void TestLabelAndSeparatorTypographySurviveEmbeddedMeasureAndRetirementCallbacks
     });
     runRetiringSetter("Label multiline", [](FlexPanel& root) -> Control* { return root.AddChild<Label>(L"Section heading"); }, [](Control* control) {
         static_cast<Label*>(control)->SetMultiline(true);
+    });
+    runRetiringSetter("Label mnemonic", [](FlexPanel& root) -> Control* { return root.AddChild<Label>(L"Section heading"); }, [](Control* control) {
+        control->SetMnemonic(L'S');
     });
     runRetiringSetter("Label typography override",
                       [](FlexPanel& root) -> Control* { return root.AddChild<Label>(L"Section heading"); },

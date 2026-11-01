@@ -2064,8 +2064,15 @@ public:
 
 protected:
     [[nodiscard]] HRESULT MeasureOverride(const MeasureContext& context, const LayoutConstraints& constraints, DesiredSize& result) const override;
+    void PrepareVisualContent(ControlHost& host) noexcept override;
+    void CancelVisualContentPreparation() noexcept override;
+    void OnBoundsChanged() noexcept override;
+    void OnFlowDirectionChanged() noexcept override;
+    void OnDensityChanged() noexcept override;
+    void OnHostDpiChanged(ControlHost& host) noexcept override;
 
 private:
+    void InvalidateTypographyPreparation() noexcept;
     std::wstring _text;
     FontRole _fontRole               = FontRole::Body;
     DWRITE_TEXT_ALIGNMENT _alignment = DWRITE_TEXT_ALIGNMENT_LEADING;
@@ -2073,11 +2080,12 @@ private:
     std::optional<D2D1_COLOR_F> _textColor;
     std::optional<LabelTypography> _typographyOverride;
     mutable wil::com_ptr<IDWriteTextLayout> _typographyLayout;
-    mutable std::wstring _typographyLayoutText;
-    mutable IDWriteTextFormat* _typographyLayoutFormat = nullptr;
     mutable D2D1_SIZE_F _typographyLayoutSize{};
     mutable uint64_t _typographyLayoutGeneration = 0u;
     mutable uint64_t _typographyLayoutRevision   = 0u;
+    const ControlHost* _typographyLayoutHost = nullptr;
+    uint64_t _typographyInputRevision{}, _typographyPreparedInputRevision{};
+    wchar_t _typographyLayoutMnemonic{};
     Control* _mnemonicTarget                     = nullptr;
 };
 #pragma warning(pop)

@@ -15,6 +15,9 @@
 
 namespace DxUi
 {
+#if DXUI_ENABLE_DIAGNOSTICS
+thread_local uint64_t testMnemonicLayoutCreations{};
+#endif
 std::weak_ptr<int> GetControlLifetimeToken(const Control& control) noexcept
 {
     return control.GetLifetimeToken();
@@ -1182,6 +1185,9 @@ void DrawTextWithMnemonic(ControlHost& host,
     const float width  = (std::max)(1.0f, rect.right - rect.left);
     const float height = (std::max)(1.0f, rect.bottom - rect.top);
     wil::com_ptr<IDWriteTextLayout> layout;
+#if DXUI_ENABLE_DIAGNOSTICS
+    ++testMnemonicLayoutCreations;
+#endif
     if (FAILED(factory->CreateTextLayout(text.data(), static_cast<UINT32>(text.size()), format, width, height, layout.addressof())) || ! layout)
     {
         DrawCenteredText(host, text, rect, fontRole, color, alignment, paragraphAlignment, wrap, flowDirection);
@@ -2729,6 +2735,37 @@ const Control* Separator::HitTest(D2D1_POINT_2F /*point*/) const
 
 Label::Label(std::wstring text) : _text(std::move(text))
 {
+    EnableVisualContentPreparation();
+}
+void Label::InvalidateTypographyPreparation() noexcept
+{
+    ++_typographyInputRevision;
+    RequestVisualContentPreparation(false);
+}
+void Label::CancelVisualContentPreparation() noexcept
+{
+    _typographyLayoutHost = nullptr;
+    _typographyLayout.reset();
+}
+void Label::OnBoundsChanged() noexcept
+{
+    InvalidateTypographyPreparation();
+    Control::OnBoundsChanged();
+}
+void Label::OnFlowDirectionChanged() noexcept
+{
+    InvalidateTypographyPreparation();
+    Control::OnFlowDirectionChanged();
+}
+void Label::OnDensityChanged() noexcept
+{
+    InvalidateTypographyPreparation();
+    Control::OnDensityChanged();
+}
+void Label::OnHostDpiChanged(ControlHost& host) noexcept
+{
+    InvalidateTypographyPreparation();
+    Control::OnHostDpiChanged(host);
 }
 
 void Label::SetText(std::wstring text)
@@ -2737,6 +2774,7 @@ void Label::SetText(std::wstring text)
     {
         const std::weak_ptr<int> lifetime = GetLifetimeToken();
         _text                             = std::move(text);
+        InvalidateTypographyPreparation();
         InvalidateMeasure();
         // Embedded preparation can synchronously retire the owning root.
         if (lifetime.expired())
@@ -2766,6 +2804,7 @@ void Label::SetFontRole(FontRole fontRole) noexcept
     if (_fontRole == fontRole)
         return;
     _fontRole           = fontRole;
+    InvalidateTypographyPreparation();
     const auto lifetime = GetLifetimeToken();
     InvalidateMeasure();
     // Embedded layout scheduling can synchronously retire the control's root.
@@ -2776,7 +2815,10 @@ void Label::SetFontRole(FontRole fontRole) noexcept
 
 void Label::SetAlignment(DWRITE_TEXT_ALIGNMENT alignment) noexcept
 {
+    if (_alignment == alignment)
+        return;
     _alignment = alignment;
+    InvalidateTypographyPreparation();
     RequestInvalidate();
 }
 
@@ -2786,6 +2828,7 @@ void Label::SetMultiline(bool multiline) noexcept
         return;
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     _multiline                        = multiline;
+    InvalidateTypographyPreparation();
     InvalidateMeasure();
     // Embedded preparation can synchronously retire the owning root.
     if (lifetime.expired())
@@ -2813,8 +2856,9 @@ HRESULT Label::SetTypographyOverride(std::optional<LabelTypography> typography) 
     if (_typographyOverride == typography)
         return S_FALSE;
     _typographyOverride = typography;
-    _typographyLayout.reset();
-    _typographyLayoutText.clear();
+    InvalidateTypographyPreparation();
+    if (typography)
+        EnableVisualContentPreparation();
     const auto lifetime = GetLifetimeToken();
     InvalidateMeasure();
     // Embedded layout scheduling can synchronously retire the control's root.
@@ -2841,70 +2885,103 @@ void Label::SetMnemonicTarget(Control* target) noexcept
     }
 }
 
+void Label::PrepareVisualContent(ControlHost& host) noexcept
+{
+    const auto lifetime = GetLifetimeToken();
+    Control* const root = host.GetRoot();
+    const auto rootLifetime = root ? GetControlLifetimeToken(*root) : std::weak_ptr<int>{};
+    const auto interaction = host.GetInteractionRevision();
+    const auto current = [&]() noexcept {
+        return ! lifetime.expired() && ! rootLifetime.expired() && GetHost() == &host && host.GetRoot() == root &&
+               host.GetInteractionRevision() == interaction;
+    };
+    if (! root || ! current() || ! IsControlInTree(root, this) || ! current())
+        return;
+    if (! _typographyOverride && ! GetMnemonic())
+    {
+        CancelVisualContentPreparation();
+        return;
+    }
+    try
+    {
+        const auto bounds = GetBounds();
+        const float width = (std::max)(1.0f, bounds.right - bounds.left), height = (std::max)(1.0f, bounds.bottom - bounds.top);
+        const auto revision = _typographyInputRevision;
+        const auto resources = host.GetResourceGeneration(), typographyRevision = host.GetTypographyRevision();
+        const auto mnemonic = GetMnemonic();
+        if (_typographyLayout && _typographyLayoutHost == &host && _typographyPreparedInputRevision == revision &&
+            _typographyLayoutGeneration == resources && _typographyLayoutRevision == typographyRevision && _typographyLayoutMnemonic == mnemonic &&
+            _typographyLayoutSize.width == width && _typographyLayoutSize.height == height)
+            return;
+        std::wstring text(_text);
+        const auto typography = _typographyOverride;
+        auto* format = typography
+            ? host.GetTextFormat(_fontRole, typography->fontSizeDip, typography->fontWeight, _alignment, DWRITE_PARAGRAPH_ALIGNMENT_CENTER,
+                                 _multiline, ResolveReadingDirection(GetFlowDirection()))
+            : host.GetTextFormat(_fontRole, _alignment, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, _multiline, ResolveReadingDirection(GetFlowDirection()));
+        if (! current() || ! format || host.GetResourceGeneration() != resources || host.GetTypographyRevision() != typographyRevision ||
+            ! host.GetWriteFactory())
+            return;
+        wil::com_ptr<IDWriteTextLayout> layout;
+#if DXUI_ENABLE_DIAGNOSTICS
+        ++testMnemonicLayoutCreations;
+#endif
+        if (FAILED(host.GetWriteFactory()->CreateTextLayout(text.data(), static_cast<UINT32>(text.size()), format, width, height, layout.put())) || ! layout)
+            return;
+        const DWRITE_TEXT_RANGE range{0u, static_cast<UINT32>(text.size())};
+        const float spacing = typography ? typography->characterSpacingDip * .5f : 0.f;
+        if (spacing != 0.f)
+        {
+            wil::com_ptr<IDWriteTextLayout1> layout1;
+            if (FAILED(layout->QueryInterface(IID_PPV_ARGS(layout1.put()))) || FAILED(layout1->SetCharacterSpacing(spacing, spacing, 0.f, range)))
+                return;
+        }
+        if (const auto index = FindMnemonicTextIndex(text, mnemonic); index)
+            static_cast<void>(layout->SetUnderline(TRUE, DWRITE_TEXT_RANGE{static_cast<UINT32>(*index), 1u}));
+        if (! current() || _typographyInputRevision != revision || GetMnemonic() != mnemonic || _text != text ||
+            host.GetResourceGeneration() != resources || host.GetTypographyRevision() != typographyRevision)
+            return;
+        const auto now = GetBounds();
+        if ((std::max)(1.0f, now.right - now.left) != width || (std::max)(1.0f, now.bottom - now.top) != height)
+            return;
+        auto retired = std::move(_typographyLayout);
+        _typographyLayout = std::move(layout);
+        _typographyLayoutSize = D2D1::SizeF(width, height);
+        _typographyLayoutGeneration = resources;
+        _typographyLayoutRevision = typographyRevision;
+        _typographyLayoutHost = &host;
+        _typographyPreparedInputRevision = revision;
+        _typographyLayoutMnemonic = mnemonic;
+    }
+    catch (const std::bad_alloc&)
+    {
+        // Optional visual preparation retains the normal text fallback.
+    }
+}
+
 void Label::Paint(ControlHost& host) const
 {
     const LabelVisualStyle style = ResolveLabelVisualStyle(host.GetTheme(), _textColor);
-    if (_typographyOverride)
+    if (_typographyOverride || GetMnemonic())
     {
-        auto* dc           = host.GetDeviceContext();
-        const auto bounds  = GetBounds();
-        const float width  = (std::max)(1.0f, bounds.right - bounds.left);
-        const float height = (std::max)(1.0f, bounds.bottom - bounds.top);
-        auto* format       = host.GetTextFormat(_fontRole,
-                                                _typographyOverride->fontSizeDip,
-                                                _typographyOverride->fontWeight,
-                                                _alignment,
-                                                DWRITE_PARAGRAPH_ALIGNMENT_CENTER,
-                                                _multiline,
-                                                ResolveReadingDirection(GetFlowDirection()));
-        if (dc && format && host.GetWriteFactory())
+        const auto bounds = GetBounds();
+        const float width = (std::max)(1.0f, bounds.right - bounds.left), height = (std::max)(1.0f, bounds.bottom - bounds.top);
+        if (_typographyLayout && _typographyLayoutHost == &host && _typographyPreparedInputRevision == _typographyInputRevision &&
+            _typographyLayoutGeneration == host.GetResourceGeneration() && _typographyLayoutRevision == host.GetTypographyRevision() &&
+            _typographyLayoutMnemonic == GetMnemonic() && _typographyLayoutSize.width == width && _typographyLayoutSize.height == height)
         {
-            const bool stale = ! _typographyLayout || _typographyLayoutText != _text || _typographyLayoutFormat != format ||
-                               _typographyLayoutSize.width != width || _typographyLayoutSize.height != height ||
-                               _typographyLayoutGeneration != host.GetResourceGeneration() || _typographyLayoutRevision != host.GetTypographyRevision();
-            if (stale)
-            {
-                _typographyLayout.reset();
-                _typographyLayoutFormat = nullptr;
-                wil::com_ptr<IDWriteTextLayout> layout;
-                if (SUCCEEDED(
-                        host.GetWriteFactory()->CreateTextLayout(_text.data(), static_cast<UINT32>(_text.size()), format, width, height, layout.addressof())) &&
-                    layout)
-                {
-                    const DWRITE_TEXT_RANGE range{0u, static_cast<UINT32>(_text.size())};
-                    const float spacing = _typographyOverride->characterSpacingDip * 0.5f;
-                    bool spacingApplied = spacing == 0.0f;
-                    if (! spacingApplied)
-                    {
-                        wil::com_ptr<IDWriteTextLayout1> layout1;
-                        spacingApplied = SUCCEEDED(layout->QueryInterface(IID_PPV_ARGS(layout1.put()))) &&
-                                         SUCCEEDED(layout1->SetCharacterSpacing(spacing, spacing, 0.0f, range));
-                    }
-                    if (spacingApplied)
-                    {
-                        if (const auto mnemonicIndex = FindMnemonicTextIndex(_text, GetMnemonic()); mnemonicIndex)
-                            static_cast<void>(layout->SetUnderline(TRUE, DWRITE_TEXT_RANGE{static_cast<UINT32>(*mnemonicIndex), 1u}));
-                        _typographyLayout           = std::move(layout);
-                        _typographyLayoutText       = _text;
-                        _typographyLayoutFormat     = format;
-                        _typographyLayoutSize       = D2D1::SizeF(width, height);
-                        _typographyLayoutGeneration = host.GetResourceGeneration();
-                        _typographyLayoutRevision   = host.GetTypographyRevision();
-                    }
-                }
-            }
-            if (_typographyLayout)
-            {
+            if (auto* dc = host.GetDeviceContext())
                 if (auto* brush = host.GetSolidBrush(style.text))
                     dc->DrawTextLayout(D2D1::Point2F(bounds.left, bounds.top), _typographyLayout.get(), brush, kTextDrawOptions);
-                return;
-            }
+            return;
         }
+        // An unavailable optional prepared layout uses ordinary text without
+        // creating a replacement layout in the paint path.
+        DrawCenteredText(host, _text, bounds, _fontRole, style.text, _alignment, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, _multiline, GetFlowDirection());
+        return;
     }
-    DrawTextWithMnemonic(
-        host, _text, GetBounds(), _fontRole, style.text, GetMnemonic(), _alignment, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, _multiline, GetFlowDirection());
+    DrawCenteredText(host, _text, GetBounds(), _fontRole, style.text, _alignment, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, _multiline, GetFlowDirection());
 }
-
 Control* Label::HitTest(D2D1_POINT_2F /*point*/)
 {
     // Labels are text/mnemonic surfaces; pointer-interactive label-like UI should use a button/link control.

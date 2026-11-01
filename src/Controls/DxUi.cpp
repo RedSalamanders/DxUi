@@ -688,7 +688,12 @@ ControlHost* Control::GetHost() const noexcept
 
 void Control::SetMnemonic(wchar_t mnemonic) noexcept
 {
-    _mnemonic = NormalizeMnemonicChar(mnemonic);
+    const auto normalized = NormalizeMnemonicChar(mnemonic);
+    if (_mnemonic == normalized)
+        return;
+    _mnemonic = normalized;
+    RequestVisualContentPreparation(false);
+    RequestInvalidate(); // Scheduling may synchronously retire this control.
 }
 
 wchar_t Control::GetMnemonic() const noexcept

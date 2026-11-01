@@ -50,6 +50,12 @@ host typography, flow and bounds before painting. Hover painting uses only the
 prepared width and creates no DirectWrite measuring layout. Text, font, bounds,
 flow and host typography/resource changes retire the measurement.
 
+Label mnemonic changes invalidate the owner only when the normalized mnemonic
+changes. Labels with a mnemonic or typography override prepare their DirectWrite
+layout before paint, keyed by text, mnemonic, typography, flow, bounds and host
+resource/typography identity. Repeated paints reuse that layout; labels with no
+mnemonic and no typography override retain their ordinary text draw path.
+
 `TreeAppearance` may suppress background/border or decorative expanders and may reserve the expander lane on
 leaf rows. Hit testing follows the visible lane; keyboard expansion, hierarchy, selection and UI Automation retain
 the same borrowed model. High contrast forces the system surface and border. `RichTextEditorAppearance::drawFocusIndicator`
