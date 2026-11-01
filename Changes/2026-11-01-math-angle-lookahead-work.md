@@ -1,0 +1,1 @@
+- Bound repeated math opaque-token lookahead by reusing angle and HTML terminator searches.

@@ -1286,6 +1286,9 @@ blank-line and nested multiline admission remains unavailable.
 An unmatched math opener cannot claim a closing delimiter inside a subsequent
 recognized inline code span, HTML token or angle autolink; those tokens retain their Markdown
 ownership and the unmatched opener remains literal.
+Math ownership lookahead reuses terminator positions and bounds scheme
+inspection, so repeated invalid angle prefixes do not repeatedly scan the
+remaining leaf for the same terminator.
 InsertHardBreak preserves representable quote and nested-list prefixes, replacing
 each list marker on the split line with equal-width continuation indentation.
 Unrepresentable lazy prefixes remain unavailable.

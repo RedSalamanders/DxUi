@@ -11,6 +11,9 @@
 
 namespace DxUi::RichText::Detail
 {
+#if DXUI_ENABLE_DIAGNOSTICS
+inline thread_local std::size_t testMathOwnershipProbeWork{};
+#endif
 // Owned Unicode inline recognizer. The block pass must finish before global
 // references are collected. No decoding is applied inside code or raw HTML.
 // Existing identity/RAII/reference traits intentionally delete these implicit operations.
@@ -835,11 +838,13 @@ class MarkdownInlines
         cursor_ = end;
         return true;
     }
-    static bool Email(std::wstring_view text, bool extended) noexcept
+    static bool Email(std::wstring_view text, bool extended, std::size_t* work = nullptr) noexcept
     {
         std::size_t at = 0u;
         while (at < text.size() && text[at] != L'@')
         {
+            if (work)
+                ++*work;
             if (! AsciiLetter(text[at]) && ! Digit(text[at]) &&
                 std::wstring_view(extended ? L".-_+" : L".!#$%&'*+-/=?^_`{|}~").find(text[at]) == std::wstring_view::npos)
                 return false;
@@ -850,6 +855,8 @@ class MarkdownInlines
         std::size_t label = 0u, dots = 0u;
         for (auto i = at + 1u; i <= text.size(); ++i)
         {
+            if (work)
+                ++*work;
             if (i == text.size() || text[i] == L'.')
             {
                 if (! label || label > 63u || text[i - 1u] == L'-')
@@ -867,24 +874,42 @@ class MarkdownInlines
         }
         return ! extended || (dots && (AsciiLetter(text.back()) || Digit(text.back())));
     }
-    std::optional<std::size_t> AngleAutolinkEnd(std::size_t start) const noexcept
+    std::optional<std::size_t> AngleAutolinkEnd(std::size_t start,
+                                                std::optional<std::size_t> knownEnd = std::nullopt,
+                                                std::size_t* work                   = nullptr) const noexcept
     {
-        const auto end = text_.find(L'>', start + 1u);
+        const auto end = knownEnd ? knownEnd.value() : text_.find(L'>', start + 1u);
         if (end == std::wstring::npos)
             return std::nullopt;
         const auto content = std::wstring_view(text_).substr(start + 1u, end - start - 1u);
-        const auto colon   = content.find(L':');
-        bool uri           = colon >= 2u && colon <= 32u && colon != std::wstring_view::npos && AsciiLetter(content.front());
+        if (work)
+            *work += std::min(content.size(), size_t{33u});
+        const auto colon = content.substr(0u, 33u).find(L':');
+        bool uri         = colon >= 2u && colon <= 32u && colon != std::wstring_view::npos && AsciiLetter(content.front());
         if (uri)
         {
             for (std::size_t i = 1u; i < colon; ++i)
+            {
+                if (work)
+                    ++*work;
                 if (! AsciiLetter(content[i]) && ! Digit(content[i]) && content[i] != L'+' && content[i] != L'.' && content[i] != L'-')
+                {
                     uri = false;
+                    break;
+                }
+            }
             for (const auto c : content)
+            {
+                if (work)
+                    ++*work;
                 if (c <= L' ' || c == L'<' || c == 127)
+                {
                     uri = false;
+                    break;
+                }
+            }
         }
-        const bool email = ! uri && Email(content, false);
+        const bool email = ! uri && Email(content, false, work);
         if (! uri && ! email)
             return std::nullopt;
         return end;
@@ -914,14 +939,39 @@ class MarkdownInlines
         cursor_ = end + 1u;
         return true;
     }
-    std::size_t HtmlEnd(std::size_t start) const noexcept
+    struct HtmlLookahead
+    {
+        std::size_t angle{}, comment{}, processing{}, cdata{};
+    };
+    std::size_t HtmlEnd(std::size_t start, const HtmlLookahead* lookahead = nullptr, std::size_t* work = nullptr) const noexcept
     {
         const auto input = std::wstring_view(text_).substr(start);
-        auto terminated  = [&](std::wstring_view prefix, std::wstring_view suffix)
+        const auto tick  = [&]() noexcept
+        {
+            if (work)
+                ++*work;
+        };
+        const auto skipSpace = [&](std::size_t& at) noexcept
+        {
+            while (at < input.size() && GrammarSpace(input[at]))
+            {
+                tick();
+                ++at;
+            }
+        };
+        auto terminated = [&](std::wstring_view prefix, std::wstring_view suffix)
         {
             if (! input.starts_with(prefix))
                 return std::size_t{};
-            const auto end = input.find(suffix, prefix.size());
+            auto end = std::wstring_view::npos;
+            if (lookahead)
+            {
+                const auto absolute = suffix == L"-->" ? lookahead->comment : suffix == L"?>" ? lookahead->processing : lookahead->cdata;
+                if (absolute != std::wstring::npos && absolute >= start + prefix.size())
+                    end = absolute - start;
+            }
+            else
+                end = input.find(suffix, prefix.size());
             return end == std::wstring_view::npos ? 0u : end + suffix.size();
         };
         if (input.starts_with(L"<!--"))
@@ -939,17 +989,20 @@ class MarkdownInlines
             return terminated(L"<![CDATA[", L"]]>");
         if (profile_ != MarkdownProfile::Gfm029 && input.size() > 2u && input[1] == L'!' && AsciiLetter(input[2]))
         {
-            const auto end = input.find(L'>', 3u);
+            const auto end = lookahead ? (lookahead->angle == std::wstring::npos ? std::wstring_view::npos : lookahead->angle - start) : input.find(L'>', 3u);
             return end == std::wstring_view::npos ? 0u : end + 1u;
         }
         if (input.size() > 2u && input[1] == L'!' && input[2] >= L'A' && input[2] <= L'Z')
         {
             auto i = 3u;
             while (i < input.size() && input[i] >= L'A' && input[i] <= L'Z')
+            {
+                tick();
                 ++i;
+            }
             if (i == input.size() || ! GrammarSpace(input[i]))
                 return 0u;
-            const auto end = input.find(L'>', i);
+            const auto end = lookahead ? (lookahead->angle == std::wstring::npos ? std::wstring_view::npos : lookahead->angle - start) : input.find(L'>', i);
             return end == std::wstring_view::npos ? 0u : end + 1u;
         }
         std::size_t i      = 1u;
@@ -960,11 +1013,15 @@ class MarkdownInlines
             return 0u;
         ++i;
         while (i < input.size() && (AsciiLetter(input[i]) || Digit(input[i]) || input[i] == L'-'))
+        {
+            tick();
             ++i;
+        }
         while (i < input.size())
         {
+            tick();
             const auto first = i;
-            SkipSpace(input, i);
+            skipSpace(i);
             if (i == input.size())
                 return 0u;
             if (input[i] == L'>')
@@ -975,23 +1032,29 @@ class MarkdownInlines
                 return 0u;
             ++i;
             while (i < input.size() && (AsciiLetter(input[i]) || Digit(input[i]) || std::wstring_view(L"_.:-").find(input[i]) != std::wstring_view::npos))
+            {
+                tick();
                 ++i;
+            }
             const auto afterName = i;
-            SkipSpace(input, i);
+            skipSpace(i);
             if (i == input.size() || input[i] != L'=')
             {
                 i = afterName;
                 continue;
             }
             ++i;
-            SkipSpace(input, i);
+            skipSpace(i);
             if (i == input.size())
                 return 0u;
             if (input[i] == L'\'' || input[i] == L'"')
             {
                 const auto quote = input[i++];
                 while (i < input.size() && input[i] != quote)
+                {
+                    tick();
                     ++i;
+                }
                 if (i == input.size())
                     return 0u;
                 ++i;
@@ -1001,6 +1064,7 @@ class MarkdownInlines
                 const auto start = i;
                 while (i < input.size() && ! GrammarSpace(input[i]) && input[i] != L'>')
                 {
+                    tick();
                     if (std::wstring_view(L"\"'=<>`").find(input[i]) != std::wstring_view::npos)
                         return 0u;
                     ++i;
@@ -1336,6 +1400,12 @@ class MarkdownInlines
                 bool endedLine     = false;
                 auto nextAngleEnd  = std::wstring::npos;
                 bool angleEndKnown = false;
+                HtmlLookahead htmlLookahead{std::wstring::npos, std::wstring::npos, std::wstring::npos, std::wstring::npos};
+                bool htmlLookaheadKnown = false;
+                std::size_t* probeWork  = nullptr;
+#if DXUI_ENABLE_DIAGNOSTICS
+                probeWork = &testMathOwnershipProbeWork;
+#endif
                 for (auto end = content; end < std::min(text_.size(), content + MathMaximumSourceUnits + 1u); ++end)
                 {
                     if (! display && text_[end] == L'\n')
@@ -1347,14 +1417,34 @@ class MarkdownInlines
                     {
                         if (text_[end] == L'<' && (! angleEndKnown || (nextAngleEnd != std::wstring::npos && end > nextAngleEnd)))
                         {
-                            nextAngleEnd  = text_.find(L'>', end);
+                            nextAngleEnd = text_.find(L'>', end);
+                            if (probeWork)
+                                *probeWork += (nextAngleEnd == std::wstring::npos ? text_.size() : nextAngleEnd + 1u) - end;
                             angleEndKnown = true;
+                        }
+                        if (text_[end] == L'<')
+                        {
+                            const auto advance = [&](std::size_t& position, std::wstring_view suffix)
+                            {
+                                if (! htmlLookaheadKnown || (position != std::wstring::npos && position < end))
+                                {
+                                    position = text_.find(suffix, end);
+                                    if (probeWork)
+                                        *probeWork += (position == std::wstring::npos ? text_.size() : position + suffix.size()) - end;
+                                }
+                            };
+                            htmlLookahead.angle = nextAngleEnd;
+                            advance(htmlLookahead.comment, L"-->");
+                            advance(htmlLookahead.processing, L"?>");
+                            advance(htmlLookahead.cdata, L"]]>");
+                            htmlLookaheadKnown = true;
                         }
                         std::size_t slashes{};
                         for (auto index = end; index > content && text_[index - 1u] == L'\\'; --index)
                             ++slashes;
                         if (slashes % 2u == 0u && ((text_[end] == L'`' && backtickNext_[end] != MarkdownNoNode) ||
-                                                   (text_[end] == L'<' && nextAngleEnd != std::wstring::npos && (HtmlEnd(end) || AngleAutolinkEnd(end)))))
+                                                   (text_[end] == L'<' && nextAngleEnd != std::wstring::npos &&
+                                                    (HtmlEnd(end, &htmlLookahead, probeWork) || AngleAutolinkEnd(end, nextAngleEnd, probeWork)))))
                         {
                             endedLine = true; // Let the regular inline scanner own this opaque token.
                             break;

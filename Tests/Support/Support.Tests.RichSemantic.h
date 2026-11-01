@@ -1,4 +1,5 @@
 #pragma once
+#include "Controls/DxUi.MarkdownInlines.h"
 #include <DxUi/RichSemantic.h>
 #include <DxUi/RichTextCommands.h>
 #include <array>
@@ -382,6 +383,26 @@ inline void ListsAndHeadings()
             const auto comparisonSyntax = Parse(mathComparison, profile);
             Check(std::ranges::any_of(comparisonSyntax->Inlines(), [](const auto& node) { return node.kind == MarkdownInlineKind::Math; }),
                   "a literal comparison operator does not masquerade as an HTML ownership boundary");
+#if DXUI_ENABLE_DIAGNOSTICS
+            for (const auto pattern : {std::wstring_view(L"<aa:a"), std::wstring_view(L"<!--")})
+            {
+                std::size_t previousWork{};
+                for (const size_t count : {size_t{400u}, size_t{800u}})
+                {
+                    std::wstring adversarial(L"$");
+                    for (size_t i = 0u; i < count; ++i)
+                        adversarial += pattern;
+                    adversarial += L'>';
+                    Document candidate(adversarial);
+                    DxUi::RichText::Detail::testMathOwnershipProbeWork = 0u;
+                    static_cast<void>(Parse(candidate, profile));
+                    const auto work = DxUi::RichText::Detail::testMathOwnershipProbeWork;
+                    Check(work > 0u && work <= adversarial.size() * 64u && (! previousWork || work <= previousWork * 3u),
+                          "math opaque-ownership lookahead scales linearly on repeated invalid angle prefixes");
+                    previousWork = work;
+                }
+            }
+#endif
             request.mathDisplay = false;
         }
         else
