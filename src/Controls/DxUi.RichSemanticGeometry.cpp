@@ -105,6 +105,7 @@ struct NativeDiagramPlacement
 {
     std::size_t element{}, display{};
     std::shared_ptr<PreparedFlowchart> paint;
+    std::shared_ptr<DiagramPalette> palette;
     D2D1_RECT_F bounds{}; // Relative to the containing DirectWrite paragraph.
     float caretHeight{};
     bool rtl{};
@@ -112,15 +113,17 @@ struct NativeDiagramPlacement
 #pragma warning(pop)
 struct NativeDiagramGeometry
 {
-    NativeDiagramGeometry(std::size_t count, ID2D1Factory* factory, FlowchartResourceEpoch inputEpochs)
+    NativeDiagramGeometry(std::size_t count, ID2D1Factory* factory, FlowchartResourceEpoch inputEpochs, ID2D1RenderTarget* raster, bool needsPalette)
         : drawing(factory),
           epochs(inputEpochs),
-          placements(count)
+          placements(count), targetIdentity(raster), targetBound(needsPalette)
     {
     }
     wil::com_ptr<ID2D1Factory> drawing;
     FlowchartResourceEpoch epochs;
     std::vector<NativeDiagramPlacement> placements;
+    ID2D1RenderTarget* targetIdentity{}; // Identity only; each staged palette retains its target.
+    bool targetBound{};
     NativeDiagramPlacement* Find(std::size_t element) noexcept
     {
         const auto found = std::lower_bound(placements.begin(), placements.end(), element, [](const auto& value, auto index) { return value.element < index; });
@@ -522,7 +525,8 @@ struct PreparedSemanticGeometry::State
         const auto diagrams = SemanticExtensionAccess::Diagrams(*document);
         if (! diagrams.empty())
         {
-            native = std::make_unique<NativeDiagramGeometry>(diagrams.size(), drawing, epochs);
+            const bool needsPalette = std::ranges::any_of(diagrams, [](const auto& diagram) { return DiagramPalette::Needed(*diagram.graph); });
+            native = std::make_unique<NativeDiagramGeometry>(diagrams.size(), drawing, epochs, raster, needsPalette);
             for (std::size_t index = 0u; index < diagrams.size(); ++index)
             {
                 native->placements[index].element = diagrams[index].element;
@@ -685,7 +689,7 @@ struct PreparedSemanticGeometry::Preparation
                          const State* previous,
                          const State* previousNative)
         : state(std::make_unique<State>(std::move(document), factory, options, drawing, epochs, std::move(images), target, previousImages)),
-          raster(state->images ? target : nullptr),
+          raster(state->images || (state->native && state->native->targetBound) ? target : nullptr),
           previousState(previous),
           previousNativeState(previousNative),
           reusable(std::less<std::uint64_t>{}),
@@ -1826,7 +1830,8 @@ LayoutPreparationStatus PreparedSemanticGeometry::Begin(IDWriteFactory* factory,
     {
         return state.factory.get() == factory && state.document == document && SameOptions(state.options, options) && state.imageResources == images &&
                (! state.images || (state.images->targetIdentity == raster && state.imageEpochs == epochs)) &&
-               (! state.native || (state.native->drawing.get() == drawing && state.native->epochs == epochs));
+               (! state.native || (state.native->drawing.get() == drawing && state.native->epochs == epochs &&
+                                   (! state.native->targetBound || state.native->targetIdentity == raster)));
     };
     if (next_ && same(*next_->state))
         return LayoutPreparationStatus::Pending;
@@ -2031,9 +2036,9 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                     work.phase = Preparation::Phase::NativeImages;
                     continue;
                 }
-                if (result.layoutsPrepared == budget.maximumLayouts)
-                    break;
                 auto& placement = state.native->placements[work.nativeIndex];
+                if ((! placement.paint || placement.paint->Pending()) && result.layoutsPrepared == budget.maximumLayouts)
+                    break;
                 if (state.options.fontSizeDip > 512.0f)
                 {
                     state.Reject(placement.element);
@@ -2047,7 +2052,6 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                     if (retained && retained->paint && retained->paint->Ready())
                     {
                         placement.paint = retained->paint;
-                        ++work.nativeIndex;
                         ++result.blockSteps;
                         continue;
                     }
@@ -2060,20 +2064,52 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                     ++result.blockSteps;
                     continue;
                 }
-                const auto advance = placement.paint->Advance({budget.maximumLayouts - result.layoutsPrepared, budget.maximumBlockSteps - result.blockSteps});
-                result.layoutsPrepared += advance.layoutsPrepared;
-                result.blockSteps += advance.blockSteps;
-                if (advance.status == LayoutPreparationStatus::Complete)
+                if (placement.paint->Pending())
                 {
-                    if (! placement.paint->Ready())
+                    const auto advance = placement.paint->Advance({budget.maximumLayouts - result.layoutsPrepared, budget.maximumBlockSteps - result.blockSteps});
+                    result.layoutsPrepared += advance.layoutsPrepared;
+                    result.blockSteps += advance.blockSteps;
+                    if (advance.status == LayoutPreparationStatus::Complete && ! placement.paint->Ready())
                     {
                         state.Reject(placement.element);
                         placement.paint.reset();
+                        ++work.nativeIndex;
                     }
-                    ++work.nativeIndex;
+                    if (! advance.blockSteps && ! advance.layoutsPrepared) break;
+                    continue;
                 }
-                if (! advance.blockSteps && ! advance.layoutsPrepared)
-                    break;
+                const auto& graph = diagrams[work.nativeIndex].graph;
+                if (DiagramPalette::Needed(*graph))
+                {
+                    if (! work.raster)
+                    {
+                        state.Reject(placement.element);
+                        placement.paint.reset();
+                        ++work.nativeIndex;
+                        ++result.blockSteps;
+                        continue;
+                    }
+                    if (! placement.palette && work.previousNativeState && work.previousNativeState->native)
+                    {
+                        const auto* retained = work.previousNativeState->native->Find(placement.element);
+                        if (retained && retained->palette && retained->palette->Ready() && retained->palette->Matches(graph.get(), work.raster.get()))
+                            placement.palette = retained->palette;
+                    }
+                    if (! placement.palette)
+                    {
+                        placement.palette = std::make_shared<DiagramPalette>(graph, work.raster.get());
+                        ++result.blockSteps;
+                        continue;
+                    }
+                    if (! placement.palette->Ready())
+                    {
+                        placement.palette->Advance();
+                        ++result.blockSteps;
+                        continue;
+                    }
+                }
+                ++work.nativeIndex;
+                ++result.blockSteps;
                 continue;
             }
             else if (work.phase == Preparation::Phase::NativeImages)
@@ -2877,7 +2913,8 @@ void PreparedSemanticGeometry::Draw(ID2D1RenderTarget* target,
                                     ID2D1Brush* fill,
                                     float imageOpacity,
                                     const LinkDrawing* links,
-                                    ID2D1Brush* quoteFill) const
+                                    ID2D1Brush* quoteFill,
+                                    const DiagramColorContext* diagramColors) const
 {
     const auto& state = Current();
     if (! target || ! text || ! decoration || ! std::isfinite(top) || ! std::isfinite(bottom) || top > bottom || ! std::isfinite(imageOpacity) ||
@@ -3021,7 +3058,8 @@ void PreparedSemanticGeometry::Draw(ID2D1RenderTarget* target,
                                            boxText,
                                            decoration,
                                            fill,
-                                           D2D1::Point2F(origin.x + box->x + box->native->bounds.left, origin.y + box->y + box->native->bounds.top)))
+                                           D2D1::Point2F(origin.x + box->x + box->native->bounds.left, origin.y + box->y + box->native->bounds.top),
+                                           box->native->palette.get(), diagramColors))
                 throw std::logic_error("Native diagram target/resources are incompatible");
             if (box->images)
                 for (const auto& image : box->images->placements)

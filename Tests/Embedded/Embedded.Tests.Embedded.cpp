@@ -1711,6 +1711,7 @@ __declspec(noinline) static int RunFunctionalTests()
     RichSemanticTests::Run(RichSemanticGeometryTests::SourceCaretSites);
     RichSemanticTests::Run(RichSemanticGeometryTests::HangingMarkersLinksAndHtml);
     RichSemanticTests::Run(RichSemanticGeometryTests::LinkRasterOracle);
+    RichSemanticTests::Run(RichSemanticGeometryTests::DiagramPaletteTargetReplacement);
 #if DXUI_ENABLE_DIAGNOSTICS
     RichSemanticTests::Run(RichSemanticGeometryTests::MathWidthReflowAndTargetReplacement);
 #endif
@@ -1809,6 +1810,7 @@ __declspec(noinline) static int RunFunctionalTests()
     PreparedFlowchartTests::LegacyPolygonRaster(Check);
     PreparedFlowchartTests::StyledLabelRaster(Check);
     PreparedFlowchartTests::ThemeStyleRaster(Check);
+    PreparedFlowchartTests::PaletteRaster(Check);
     PreparedFlowchartTests::StateNoteRaster(Check);
     TestRichTextCooperativeFailureDoesNotRetryAutomatically(gpu);
     TestRetainedRichTextSharedViewsAndResources(gpu);

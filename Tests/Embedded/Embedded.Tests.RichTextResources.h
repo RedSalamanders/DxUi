@@ -1639,6 +1639,38 @@ static void TestPreparedFlowchartAllocationFailures(bool trace = false)
         }
         total += requests;
     }
+    {
+        const auto graph = FlowchartLayoutTests::Graph(L"flowchart TD\nA-->B\nstyle A fill:#000,stroke:#ff0,color:#fff\nlinkStyle 0 stroke:#f00\n");
+        wil::com_ptr<IWICImagingFactory> imaging;
+        THROW_IF_FAILED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(imaging.put())));
+        wil::com_ptr<IWICBitmap> bitmap;
+        THROW_IF_FAILED(imaging->CreateBitmap(200u, 200u, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnLoad, bitmap.put()));
+        wil::com_ptr<ID2D1RenderTarget> target;
+        THROW_IF_FAILED(drawing->CreateWicBitmapRenderTarget(bitmap.get(), D2D1::RenderTargetProperties(), target.put()));
+        std::size_t requests{};
+        {
+            const auto oldCounting = countAllocations;
+            const auto oldCalls = allocations, oldBytes = allocationBytes;
+            const auto restore = wil::scope_exit([=] noexcept { countAllocations = oldCounting; allocations = oldCalls; allocationBytes = oldBytes; });
+            allocations = allocationBytes = 0u; countAllocations = true;
+            DiagramPalette palette(graph, target.get());
+            while (! palette.Advance()) {}
+            countAllocations = false; requests = allocations;
+        }
+        for (std::size_t failure = 0u; failure < requests; ++failure)
+        {
+            bool rejected{};
+            failAllocationAfter = failure;
+            try { DiagramPalette palette(graph, target.get()); while (! palette.Advance()) {} }
+            catch (const std::bad_alloc&) { rejected = true; }
+            failAllocationAfter = std::numeric_limits<size_t>::max();
+            Check(rejected, "each palette allocation failure propagates without fatal termination");
+            DiagramPalette retry(graph, target.get());
+            while (! retry.Advance()) {}
+            Check(retry.Ready(), "palette staging succeeds on explicit retry");
+        }
+        total += requests;
+    }
     static thread_local bool drawOldCounting{}, drawAllocated{};
     static thread_local std::size_t drawOldCalls{};
     drawAllocated = false;
@@ -1659,6 +1691,22 @@ static void TestPreparedFlowchartAllocationFailures(bool trace = false)
         }
     });
     Check(! drawAllocated, "actual borrowed-target native drawing creates zero tracked C++ allocations");
+    PaletteRaster(Check, [](bool before) noexcept
+    {
+        if (before)
+        {
+            drawOldCounting = countAllocations;
+            drawOldCalls = allocations;
+            countAllocations = true;
+        }
+        else
+        {
+            drawAllocated = drawAllocated || allocations != drawOldCalls;
+            countAllocations = drawOldCounting;
+            allocations = drawOldCalls;
+        }
+    });
+    Check(! drawAllocated, "palette drawing creates zero tracked C++ allocations");
     std::cout << "native paint C++ failure scenarios=10 sweptRequests=" << total << " retirementAllocations=0 drawAllocations=0\n";
 }
 static void TestNativeFlowchartLayoutAllocationFailureAtomicity(bool trace = false)

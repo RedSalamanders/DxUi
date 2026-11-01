@@ -1556,12 +1556,14 @@ circular labels are supported. Branches alternate around the root; unsupported
 icons, shapes or indentation preserve the complete source with a diagnostic.
 
 Flowchart node styles support `stroke-width:1px` through `3px`,
-`stroke-dasharray:5 5`, `font-weight:bold` and `font-style:italic`, individually
-or comma-separated. Use `style ID`, a named `classDef` with `class ID name` or
-`ID:::name`, or `classDef default`; definitions may follow their use. `linkStyle N`
-supports width and dash properties for a zero-based existing edge. Outlines use
-the current theme stroke; unsupported properties and conflicting assignments
-preserve source with a diagnostic.
+`stroke-dasharray:5 5` or `0`, bold/normal weight, italic/normal style, and
+`fill`, `stroke`, or `color` using opaque `#RGB` or `#RRGGBB` colors. Use
+`style ID`, a named `classDef` with `class ID name` or `ID:::name`, or
+`classDef default`; definitions may follow their use. Lists of identifiers and
+classes are supported. `linkStyle N` or `linkStyle default` applies width, dash
+and stroke to existing edges. Author colors are used only when their text and
+outline contrast is sufficient; high contrast and selection use theme colors.
+Unsupported properties and colors preserve source with a diagnostic.
 
 Flowchart, state, class, sequence, pie, ER, Gantt and mind map diagrams accept one `accTitle: text` and one
 `accDescr: text` or multiline `accDescr {` / `accDescr{` block closed by a

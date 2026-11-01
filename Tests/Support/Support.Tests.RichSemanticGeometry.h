@@ -213,6 +213,58 @@ inline void LiteralFootnoteBlockCaretSites()
     Check(geometry.Ready() && geometry.BoxCount() == 1u && geometry.SourceLines().size() == 1026u,
           "many literal note blank lines remain real source lines without creating duplicate layout boxes");
 }
+inline void DiagramPaletteTargetReplacement()
+{
+    const auto initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+    if (FAILED(initialized) && initialized != RPC_E_CHANGED_MODE) THROW_IF_FAILED(initialized);
+    const auto apartment = wil::scope_exit([&]() noexcept { if (SUCCEEDED(initialized)) CoUninitialize(); });
+    wil::com_ptr<IWICImagingFactory> imaging;
+    THROW_IF_FAILED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(imaging.put())));
+    wil::com_ptr<IWICBitmap> bitmap, otherBitmap;
+    THROW_IF_FAILED(imaging->CreateBitmap(600u, 400u, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnLoad, bitmap.put()));
+    THROW_IF_FAILED(imaging->CreateBitmap(600u, 400u, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnLoad, otherBitmap.put()));
+    wil::com_ptr<ID2D1Factory> drawing;
+    THROW_IF_FAILED(D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, drawing.put()));
+    wil::com_ptr<ID2D1RenderTarget> target, replacement;
+    THROW_IF_FAILED(drawing->CreateWicBitmapRenderTarget(bitmap.get(), D2D1::RenderTargetProperties(), target.put()));
+    THROW_IF_FAILED(drawing->CreateWicBitmapRenderTarget(otherBitmap.get(), D2D1::RenderTargetProperties(), replacement.put()));
+    auto factory = Factory();
+    const auto document = RichSemanticDocumentTests::Build(
+        L"```mermaid\nflowchart TD\nA[Alpha]-->B[Beta]\nstyle A fill:#000,color:#fff\n```\n", MarkdownProfile::RichMarkdown);
+    LayoutOptions options; options.widthDip = 500.f;
+    PreparedSemanticGeometry geometry;
+    geometry.Begin(factory.get(), document, options, drawing.get(), {1u, 1u}, {}, target.get());
+    Complete(geometry);
+    const auto generation = geometry.Generation();
+    PreparedSemanticGeometry withoutTarget;
+    withoutTarget.Begin(factory.get(), document, options, drawing.get(), {1u, 1u});
+    bool rejected{};
+    try
+    {
+        while (withoutTarget.Pending()) withoutTarget.Advance({1u, 3u});
+    }
+    catch (const DxUi::RichText::Detail::NativeObjectsRejected& failure)
+    {
+        rejected = failure.Elements().size() == 1u && document->Elements()[failure.Elements()[0u]].role == SemanticRole::Diagram;
+    }
+    Check(rejected && geometry.Ready() && geometry.Generation() == generation,
+          "a missing palette target rejects only its owning object without replacing prior geometry");
+    Check(geometry.Begin(factory.get(), document, options, drawing.get(), {1u, 1u}, {}, replacement.get()) == LayoutPreparationStatus::Pending,
+          "replacing a raster target retires target-bound diagram brushes");
+    Complete(geometry);
+    Check(geometry.Generation() > generation, "replacement target publishes new palette resources");
+    wil::com_ptr<ID2D1SolidColorBrush> text, stroke, fill;
+    THROW_IF_FAILED(replacement->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black), text.put()));
+    THROW_IF_FAILED(replacement->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Blue), stroke.put()));
+    THROW_IF_FAILED(replacement->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White), fill.put()));
+    const DxUi::RichText::Detail::DiagramColorContext colors{D2D1::ColorF(D2D1::ColorF::Black), D2D1::ColorF(D2D1::ColorF::Blue),
+                                                             D2D1::ColorF(D2D1::ColorF::White)};
+    replacement->BeginDraw();
+    geometry.Draw(replacement.get(), text.get(), stroke.get(), {}, 0.f, 400.f, fill.get(), 1.f, nullptr, nullptr, &colors);
+    THROW_IF_FAILED(replacement->EndDraw());
+    RichSemanticTests::Reject<std::logic_error>([&] { geometry.Draw(target.get(), text.get(), stroke.get(), {}, 0.f, 400.f, fill.get(), 1.f, nullptr, nullptr, &colors); },
+                                               "old target cannot borrow a palette prepared on its replacement");
+}
 #if DXUI_ENABLE_DIAGNOSTICS
 inline void MathWidthReflowAndTargetReplacement()
 {

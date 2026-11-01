@@ -202,13 +202,14 @@ public:
               ID2D1Brush* fill         = nullptr,
               float imageOpacity       = 1.0f,
               const LinkDrawing* links = nullptr,
-              ID2D1Brush* quoteFill    = nullptr) const
+              ID2D1Brush* quoteFill    = nullptr,
+              const DiagramColorContext* diagramColors = nullptr) const
     {
 #if DXUI_ENABLE_DIAGNOSTICS
         ++testRichLayoutDrawCalls;
 #endif
         if (activeSemantic_)
-            semantic_.Draw(target, brush, decoration, origin, top, bottom, fill, imageOpacity, links, quoteFill);
+            semantic_.Draw(target, brush, decoration, origin, top, bottom, fill, imageOpacity, links, quoteFill, diagramColors);
         else
             v0_.Draw(target, brush, origin, top, bottom, links);
     }

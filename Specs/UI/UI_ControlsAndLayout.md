@@ -1926,8 +1926,8 @@ remains separately reported and does not withhold an otherwise ready frame.
 `lastAdvanceUploadBytes` reports the last geometry advance's upload work.
 
 The pinned Mermaid 11.4.1 inventory and all 105 original flowchart examples MUST
-remain accounted for. Independent subset expectations distinguish 39 admitted
-graphs from 66 unsupported definitions and record each issue and exact UTF-16 diagnostic range, including the documented stadium and
+remain accounted for. Independent subset expectations distinguish 41 admitted
+graphs from 64 unsupported definitions and record each issue and exact UTF-16 diagnostic range, including the documented stadium and
 the original endpoint-group fan-out examples.
 The family matrix separately identifies the limited flowchart, state, class and
 sequence, pie, ER, Gantt and mind map profiles, the example collection, and 13 unsupported diagram families. Generated
@@ -2421,16 +2421,24 @@ accessible alternative. Icons, unsupported shapes, tabs and malformed indentatio
 retain the complete fence with a diagnostic.
 
 Flowchart node styles accept comma-separated `stroke-width:Npx` (1–3),
-`stroke-dasharray:5 5`, `font-weight:bold` and `font-style:italic`. They may be
-applied by `style ID`, one named `classDef` through `class ID name` or
-`ID:::name`, or a `classDef default`; definitions may follow their use and
-explicit properties override the default. Up to 64 named definitions are
-retained. `linkStyle N` accepts the width and dash properties for an existing
-zero-based edge. The outlines use the caller-supplied theme stroke, including
-in high contrast; native dash resources and font metrics are prepared before
-drawing and borrowed brush state is preserved. Multiple explicit assignments
-to one node, other properties, unknown targets/classes and unsupported widths
-retain the complete source with a diagnostic.
+`stroke-dasharray:5 5` or `0`, `font-weight:bold` or `normal`,
+`font-style:italic` or `normal`, and opaque `fill`, `stroke` and `color` values
+in `#RGB` or `#RRGGBB` form. `style ID`, named `classDef` and `class ID name`
+or `ID:::name` accept bounded comma-separated identifier/class lists; definitions
+may follow their use, and direct style overrides classes, which override
+`classDef default`. Up to 64 named definitions and 512 assignments are retained.
+`linkStyle N` or `linkStyle default` accepts width, dash and stroke for existing
+zero-based edges, with explicit edge properties overriding defaults. Unsupported
+properties, colors, unknown targets/classes and widths retain exact source with
+a diagnostic.
+
+Author colors use target-bound solid brushes prepared incrementally before
+publication and recreated for a replacement render target. The chosen text and
+outline must contrast against the chosen fill by at least 4.5:1 and 3:1;
+edge strokes must contrast against the theme background by 3:1. Otherwise the
+corresponding theme colors are used. High contrast and selected/overlay text
+use the caller's theme brushes. Painting creates no palette resources and does
+not change borrowed brush attributes.
 
 Flowchart, state, class, sequence, pie, ER, Gantt and mind map diagrams accept one `accTitle: text` and one
 `accDescr: text` or multiline `accDescr {` / `accDescr{` block closed by a

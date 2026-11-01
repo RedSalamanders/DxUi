@@ -444,7 +444,7 @@ template <typename Check> inline void CheckOriginalCorpus(Check&& check)
                       result->diagnostic.source.first < result->diagnostic.source.last && result->diagnostic.source.last <= result->source.size(),
                   "unsupported original family examples retain their independently classified diagnostic and exact source fallback");
     }
-    check(prepared == 39u && unsupported == 66u && std::size(NativeFlowchartCorpus::familyExamples) == 20u,
+    check(prepared == 41u && unsupported == 64u && std::size(NativeFlowchartCorpus::familyExamples) == 20u,
           "Mermaid corpus has no omitted examples/families and separates graph preparation from rejection");
     CheckFamilyGrammar(check);
     CheckFanout(check);

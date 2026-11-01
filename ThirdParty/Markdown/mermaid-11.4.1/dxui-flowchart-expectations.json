@@ -1090,25 +1090,25 @@
   },
   {
     "id": 100,
-    "outcome": "Unsupported",
-    "nodes": 0,
-    "edges": 0,
-    "direction": "TopBottom",
-    "reason": "click-style-class-or-expanded-edge",
-    "issue": "UnsupportedStatement",
-    "diagnosticFirst": 41,
-    "diagnosticLast": 69
+    "outcome": "Prepared",
+    "nodes": 2,
+    "edges": 1,
+    "direction": "LeftRight",
+    "reason": "named-class-fill",
+    "issue": "None",
+    "diagnosticFirst": 0,
+    "diagnosticLast": 0
   },
   {
     "id": 101,
-    "outcome": "Unsupported",
-    "nodes": 0,
-    "edges": 0,
-    "direction": "TopBottom",
-    "reason": "click-style-class-or-expanded-edge",
-    "issue": "UnsupportedEdge",
-    "diagnosticFirst": 25,
-    "diagnosticLast": 49
+    "outcome": "Prepared",
+    "nodes": 3,
+    "edges": 2,
+    "direction": "LeftRight",
+    "reason": "fanout-named-class-strokes",
+    "issue": "None",
+    "diagnosticFirst": 0,
+    "diagnosticLast": 0
   },
   {
     "id": 102,

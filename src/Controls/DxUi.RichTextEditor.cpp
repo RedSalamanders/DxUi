@@ -4198,6 +4198,10 @@ void RichTextEditor::Paint(ControlHost& host) const
         }
         const bool decorated =
             links.markedTextFill || ! links.inkRanges.empty() || dimmed || (state.mode == RichText::ViewMode::Rich && (links.brush || ! links.underline));
+        auto diagramBackground = style.fill;
+        diagramBackground.a = 1.f;
+        const RichText::Detail::DiagramColorContext diagramColors{
+            style.text, subtleMarkdown ? host.GetTheme().borderDefault : style.caret, diagramBackground};
         state.layout.Draw(context,
                           subdued,
                           dimmed ? subdued : semanticDecoration,
@@ -4207,7 +4211,8 @@ void RichTextEditor::Paint(ControlHost& host) const
                           diagramFill,
                           1.0f,
                           decorated ? &links : nullptr,
-                          quoteFill);
+                          quoteFill,
+                          ! host.GetTheme().highContrast && ! dimmed ? &diagramColors : nullptr);
         if (! state.overlayHighlightsDirty)
             state.decorationPaintIndex.ForEach(state.scrollDip,
                                                visibleBottom,

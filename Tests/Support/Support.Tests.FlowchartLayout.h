@@ -490,7 +490,7 @@ template <typename Check> inline void Corpus(Check&& check)
                       "budget choice cannot change edge routing");
         ++admitted;
     }
-    check(admitted == 39u, "geometry covers every admitted original reference graph");
+    check(admitted == 41u, "geometry covers every admitted original reference graph");
     for (const auto direction : {L"TB", L"BT", L"LR", L"RL"})
     {
         const auto source =

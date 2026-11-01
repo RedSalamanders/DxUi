@@ -728,6 +728,122 @@ template <typename Check> inline void GroupRaster(Check&& check)
     check(! rejected.Ready() && rejected.Geometry() && rejected.Geometry()->issue == FlowchartLayoutIssue::DiagramExtent && rejected.Geometry()->groups.empty(),
           "overlapping unrelated groups fail without publishing partial geometry");
 }
+template <typename Check, typename Observe = std::nullptr_t> inline void PaletteRaster(Check&& check, Observe observe = nullptr)
+{
+    const auto initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+    if (FAILED(initialized) && initialized != RPC_E_CHANGED_MODE) THROW_IF_FAILED(initialized);
+    const auto apartment = wil::scope_exit([&]() noexcept { if (SUCCEEDED(initialized)) CoUninitialize(); });
+    const auto graph = FlowchartLayoutTests::Graph(
+        L"flowchart TD\nA[Alpha]-->B[Beta]\nstyle A fill:#000,stroke:#ff0,color:#fff\nstyle B fill:#fff,color:#fff\nlinkStyle 0 stroke:#f00\n");
+    check(graph->outcome == FlowchartOutcome::Prepared && graph->nodes.size() == 2u && graph->edges.size() == 1u &&
+              graph->nodes[0u].fillColor == 0u && graph->nodes[0u].strokeColor == 0xffff00u && graph->nodes[0u].textColor == 0xffffffu &&
+              graph->edges[0u].strokeColor == 0xff0000u, "authored RGB colors have independently expected values");
+    if (graph->outcome != FlowchartOutcome::Prepared || graph->nodes.size() != 2u || graph->edges.size() != 1u) return;
+    const auto write = WriteFactory(); const auto drawing = DrawingFactory();
+    PreparedFlowchart prepared;
+    prepared.Begin(write.get(), drawing.get(), graph, {}, {1u, 1u}); Complete(prepared, check);
+    wil::com_ptr<IWICImagingFactory> imaging;
+    THROW_IF_FAILED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(imaging.put())));
+    constexpr UINT width = 400u, height = 300u, stride = width * 4u;
+    wil::com_ptr<IWICBitmap> bitmap, otherBitmap;
+    THROW_IF_FAILED(imaging->CreateBitmap(width, height, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnLoad, bitmap.put()));
+    THROW_IF_FAILED(imaging->CreateBitmap(width, height, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnLoad, otherBitmap.put()));
+    wil::com_ptr<ID2D1RenderTarget> target, other;
+    THROW_IF_FAILED(drawing->CreateWicBitmapRenderTarget(bitmap.get(), D2D1::RenderTargetProperties(), target.put()));
+    THROW_IF_FAILED(drawing->CreateWicBitmapRenderTarget(otherBitmap.get(), D2D1::RenderTargetProperties(), other.put()));
+    wil::com_ptr<ID2D1SolidColorBrush> text, stroke, fill;
+    THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black), text.put()));
+    THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Blue), stroke.put()));
+    THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White), fill.put()));
+    DiagramPalette palette(graph, target.get());
+    std::size_t steps{};
+    while (! palette.Advance()) check(++steps < 16u, "palette stages at most one target brush per bounded step");
+    check(palette.Ready() && palette.Matches(graph.get(), target.get()) && ! palette.Matches(graph.get(), other.get()),
+          "palette is bound to the exact graph and raster target");
+    const DiagramColorContext context{D2D1::ColorF(D2D1::ColorF::Black), D2D1::ColorF(D2D1::ColorF::Blue), D2D1::ColorF(D2D1::ColorF::White)};
+    const auto raster = [&](const DiagramColorContext* colors, bool firstBlack, bool darkTheme)
+    {
+        if (darkTheme)
+        {
+            text->SetColor(D2D1::ColorF(D2D1::ColorF::White));
+            fill->SetColor(D2D1::ColorF(D2D1::ColorF::Black));
+        }
+        target->BeginDraw(); target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+        if constexpr (! std::is_same_v<Observe, std::nullptr_t>) observe(true);
+        const auto drawn = prepared.Draw(target.get(), text.get(), stroke.get(), fill.get(), {}, &palette, colors);
+        if constexpr (! std::is_same_v<Observe, std::nullptr_t>) observe(false);
+        check(drawn, "palette draws on its owning target");
+        THROW_IF_FAILED(target->EndDraw());
+        std::vector<BYTE> pixels(stride * height);
+        THROW_IF_FAILED(bitmap->CopyPixels(nullptr, stride, static_cast<UINT>(pixels.size()), pixels.data()));
+        const auto pixel = [&](std::size_t index)
+        {
+            const auto bounds = prepared.Geometry()->nodes[index].bounds;
+            const auto x = static_cast<std::size_t>(bounds.x + 5.0), y = static_cast<std::size_t>(bounds.y + bounds.height / 2.0);
+            const auto offset = y * stride + x * 4u;
+            return std::array<BYTE, 3u>{pixels[offset], pixels[offset + 1u], pixels[offset + 2u]};
+        };
+        const auto first = pixel(0u), second = pixel(1u);
+        check((firstBlack ? first[0u] < 40u && first[1u] < 40u && first[2u] < 40u : first[0u] > 220u && first[1u] > 220u && first[2u] > 220u) &&
+                  (darkTheme ? second[0u] < 40u && second[1u] < 40u && second[2u] < 40u
+                             : second[0u] > 220u && second[1u] > 220u && second[2u] > 220u),
+              "safe authored fill paints; low-contrast pair and forced theme fall back to the borrowed surface");
+        if (colors && ! darkTheme)
+        {
+            const auto bounds = prepared.Geometry()->nodes[0u].bounds;
+            const auto x = static_cast<std::size_t>(bounds.x + bounds.width / 2.0), y = static_cast<std::size_t>(bounds.y);
+            const auto border = y * stride + x * 4u;
+            check(pixels[border] < 180u && pixels[border + 1u] > 80u && pixels[border + 2u] > 80u,
+                  "contrast-safe authored yellow outline reaches actual pixels");
+            const auto& edge = prepared.Geometry()->edges[0u].path;
+            std::size_t redInk{};
+            for (std::size_t part = 1u; part < edge.size(); ++part)
+                if (FlowchartLayoutTests::Near(edge[part - 1u].x, edge[part].x))
+                {
+                    const auto edgeX = static_cast<std::size_t>(edge[part].x);
+                    const auto firstY = static_cast<std::size_t>(std::ceil(std::min(edge[part - 1u].y, edge[part].y) + 2.0));
+                    const auto lastY = static_cast<std::size_t>(std::floor(std::max(edge[part - 1u].y, edge[part].y) - 2.0));
+                    for (auto edgeY = firstY; edgeY < lastY && edgeY < height && edgeX < width; ++edgeY)
+                    {
+                        const auto route = edgeY * stride + edgeX * 4u;
+                        redInk += pixels[route] < 180u && pixels[route + 1u] < 180u && pixels[route + 2u] > 200u;
+                    }
+                }
+            check(redInk > 0u,
+                  "contrast-safe authored red link reaches actual pixels");
+        }
+        if (darkTheme)
+        {
+            text->SetColor(D2D1::ColorF(D2D1::ColorF::Black));
+            fill->SetColor(D2D1::ColorF(D2D1::ColorF::White));
+        }
+    };
+    raster(&context, true, false);
+    raster(nullptr, false, false);
+    const DiagramColorContext dark{D2D1::ColorF(D2D1::ColorF::White), D2D1::ColorF(D2D1::ColorF::White), D2D1::ColorF(D2D1::ColorF::Black)};
+    raster(&dark, true, true);
+    const auto badOutline = FlowchartLayoutTests::Graph(L"flowchart TD\nA[Alpha]\nstyle A fill:#000,color:#fff\n");
+    PreparedFlowchart unsafePrepared;
+    unsafePrepared.Begin(write.get(), drawing.get(), badOutline, {}, {1u, 1u});
+    Complete(unsafePrepared, check);
+    DiagramPalette unsafePalette(badOutline, target.get());
+    while (! unsafePalette.Advance()) {}
+    target->BeginDraw();
+    target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+    check(unsafePrepared.Draw(target.get(), text.get(), stroke.get(), fill.get(), {}, &unsafePalette, &context),
+          "the unsafe themed outline case paints with fallback");
+    THROW_IF_FAILED(target->EndDraw());
+    std::vector<BYTE> unsafePixels(stride * height);
+    THROW_IF_FAILED(bitmap->CopyPixels(nullptr, stride, static_cast<UINT>(unsafePixels.size()), unsafePixels.data()));
+    const auto unsafeBounds = unsafePrepared.Geometry()->nodes[0u].bounds;
+    const auto unsafeOffset = static_cast<std::size_t>(unsafeBounds.y + unsafeBounds.height / 2.0) * stride +
+                              static_cast<std::size_t>(unsafeBounds.x + 5.0) * 4u;
+    check(unsafePixels[unsafeOffset] > 220u && unsafePixels[unsafeOffset + 1u] > 220u && unsafePixels[unsafeOffset + 2u] > 220u,
+          "a dark authored fill falls back when the unchanged blue theme outline would be illegible");
+    check(! prepared.Draw(other.get(), text.get(), stroke.get(), fill.get(), {}, &palette, &context), "a palette cannot paint onto a different target");
+    check(text->GetOpacity() == 1.f && stroke->GetOpacity() == 1.f && fill->GetOpacity() == 1.f && stroke->GetColor().b == 1.f,
+          "authored colors leave borrowed brush attributes unchanged");
+}
 template <typename Check> inline void ThemeStyleRaster(Check&& check)
 {
     const auto initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
@@ -815,6 +931,14 @@ template <typename Check> inline void ThemeStyleRaster(Check&& check)
     check(edgeInk > 0u && edgeGaps > 0u, "link style visibly alternates dash and gap along its routed edge");
     const auto invalid = FlowchartLayoutTests::Graph(L"flowchart TD\nA-->B\nlinkStyle 1 stroke-width:2px\n");
     check(invalid->outcome == FlowchartOutcome::Unsupported && invalid->nodes.empty(), "out-of-range link styling retains source");
+    const auto classes = FlowchartLayoutTests::Graph(
+        L"flowchart TD\nclassDef one,two stroke-width:3px\nclassDef normal font-weight:normal\n"
+        L"A:::one,two --> B\nclass A,B normal\nstyle A stroke-width:2px\nlinkStyle default stroke:#000,stroke-dasharray:5 5\n"
+        L"linkStyle 0 stroke-dasharray:0\n");
+    check(classes->outcome == FlowchartOutcome::Prepared && classes->nodes.size() == 2u && classes->edges.size() == 1u &&
+              classes->nodes[0u].strokeWidth == 2u && classes->nodes[1u].strokeWidth == 1u && classes->edges[0u].strokeColor == 0u &&
+              classes->edges[0u].dashSpecified && ! classes->edges[0u].dashed,
+          "multiple named classes, node lists, explicit overrides and default link properties compose in source order");
 }
 template <typename Check> inline void StyledLabelRaster(Check&& check)
 {
@@ -1157,7 +1281,7 @@ template <typename Check> inline void NodeStrokeRaster(Check&& check)
                               L"flowchart TD\nA\nstyle A stroke-width:4px\n",
                               L"flowchart TD\nstyle missing stroke-width:2px\n",
                               L"flowchart TD\nA:::missing\n",
-                              L"flowchart TD\nA:::strong\nstyle A stroke-width:2px\nclassDef strong stroke-width:3px\n"})
+                              L"flowchart TD\nA\nstyle A fill:rgba(0,0,0,0)\n"})
     {
         const auto unsupported = FlowchartLayoutTests::Graph(source);
         check(unsupported->outcome == FlowchartOutcome::Unsupported && unsupported->source == source && unsupported->nodes.empty(),
@@ -1169,6 +1293,9 @@ template <typename Check> inline void NodeStrokeRaster(Check&& check)
     const auto direct = FlowchartLayoutTests::Graph(L"flowchart TD\nA\nstyle A stroke-width:2px\n");
     check(direct->outcome == FlowchartOutcome::Prepared && direct->nodes.size() == 1u && direct->nodes[0u].strokeWidth == 2u,
           "direct style applies the same bounded width");
+    const auto overrideStyle = FlowchartLayoutTests::Graph(L"flowchart TD\nA:::strong\nstyle A stroke-width:2px\nclassDef strong stroke-width:3px\n");
+    check(overrideStyle->outcome == FlowchartOutcome::Prepared && overrideStyle->nodes[0u].strokeWidth == 2u,
+          "explicit node style overrides the named class regardless of definition order");
 }
 template <typename Check> inline void MindmapRaster(Check&& check)
 {
