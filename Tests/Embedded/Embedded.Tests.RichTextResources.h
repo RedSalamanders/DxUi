@@ -166,6 +166,38 @@ static void TestRichTooltipReentrantTransitions(GraphicsFixture& gpu)
     Check(view.Controls().DebugGetPendingTooltipText() == L"Current title", "subsequent hover resolves the current document's authored title");
 }
 
+static void TestRichSourceDragGesture(GraphicsFixture& gpu)
+{
+    using namespace DxUi;
+    std::shared_ptr<GraphicsDevice> graphics;
+    Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "create source-drag graphics");
+    EmbeddedHost view;
+    Hr(view.Attach(graphics), "attach source-drag host");
+    auto root = std::make_unique<RichTextEditor>(L"one two three");
+    auto* editor = root.get();
+    view.Controls().SetRoot(std::move(root));
+    view.Controls().SetFocusControl(editor);
+    editor->SetSelection({4u, 7u});
+    Hr(PrepareRichEmbeddedContent(view, 320u, 120u), "prepare source-drag text");
+    EmbeddedTextInputSnapshot snapshot;
+    Check(view.ReadTextInput(snapshot) == S_OK, "read source-drag text state");
+    D2D1_RECT_F bounds{};
+    bool clipped = true;
+    Check(view.GetTextInputRangeBounds(snapshot.revision, 4u, 7u, bounds, clipped) == S_OK && ! clipped,
+          "selected source has visible geometry");
+    bool invoked = false;
+    editor->SetOnSourceDragRequested([&](const RichTextSourceMove& move, std::wstring_view text)
+    {
+        invoked = text == L"two" && editor->MoveSelectedSource(move, 13u);
+    });
+    const float x = (bounds.left + bounds.right) * 0.5f, y = (bounds.top + bounds.bottom) * 0.5f;
+    Check(view.DispatchPointer({PointerAction::Down, x, y}), "press inside selection begins a possible source drag");
+    Check(editor->GetSelection() == RichText::Selection{4u, 7u}, "press preserves selection until drag threshold or release");
+    Check(view.DispatchPointer({PointerAction::Move, x + 40.0f, y}), "crossing threshold invokes source-drag transport");
+    Check(invoked && editor->GetText() == L"one  threetwo" && editor->Undo() && editor->GetText() == L"one two three",
+          "transport performs one exact undoable move");
+}
+
 static void TestRichMiddleAutoScroll(GraphicsFixture& gpu)
 {
     using namespace DxUi;

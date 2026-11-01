@@ -1,0 +1,1 @@
+- Add an opt-in selected-source drag gesture with system thresholds and a guarded callback for application transport. Full OLE routing and runtime qualification remain pending.

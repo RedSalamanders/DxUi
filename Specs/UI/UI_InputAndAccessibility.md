@@ -291,6 +291,12 @@ including selection changes later restored, and active composition refuse the
 move. Starting another gesture, explicit cancellation, focus/capture loss and a
 read-only policy change retire the token. This primitive alone does not initiate
 or route an OLE drag gesture.
+With `SetOnSourceDragRequested` registered, a primary press strictly inside an
+editable source selection preserves it until the pointer crosses the system
+drag threshold. At that point capture is released and the application receives
+a live move token plus borrowed exact source text. A release before the
+threshold collapses the selection normally. The application owns transport,
+drop effect and cancellation, and must cancel the token if no move commits.
 
 Bulk Character movement snaps once using the existing nearest/forward-tie
 policy, then walks established boundaries. Negative movement counts the bounded

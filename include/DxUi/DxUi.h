@@ -3462,6 +3462,9 @@ public:
     [[nodiscard]] std::optional<RichTextSourceMove> BeginSourceMove() noexcept;
     void CancelSourceMove() noexcept;
     bool MoveSelectedSource(const RichTextSourceMove& move, size_t destination);
+    // Called synchronously after a selected-text pointer drag crosses the drag
+    // threshold and capture is released. Text is borrowed for that call.
+    void SetOnSourceDragRequested(std::function<void(const RichTextSourceMove&, std::wstring_view)> callback);
     // Replace every non-overlapping source match in one undo transaction.
     // Returns the match count when text changed, otherwise zero.
     size_t ReplaceAllSourceMatches(std::wstring_view query, std::wstring_view replacement, RichText::SourceSearchOptions options = {});

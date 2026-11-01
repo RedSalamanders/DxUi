@@ -499,6 +499,7 @@ struct RichTextEditor::State
     RichText::LayoutOptions sourceGuideOptions;
     std::shared_ptr<const RichText::CodeTokenizer> codeTokenizer;
     std::shared_ptr<const std::function<void(std::wstring_view)>> onCodeCopyRequested;
+    std::shared_ptr<const std::function<void(const RichTextSourceMove&, std::wstring_view)>> onSourceDragRequested;
     std::shared_ptr<const std::function<std::optional<std::wstring>(std::wstring_view)>> htmlPasteConverter;
     std::shared_ptr<const std::function<std::optional<std::wstring>(std::span<const std::byte>, bool)>> bitmapPasteHandler;
     std::wstring codeCopyAccessibleName;
@@ -633,6 +634,8 @@ struct RichTextEditor::State
     RichTextTaskTogglePolicy taskTogglePolicy = RichTextTaskTogglePolicy::EditableOnly;
     bool suppressTaskSpace = false;
     bool dragging          = false;
+    bool sourceMovePress   = false;
+    D2D1_POINT_2F sourceMoveOrigin{};
     bool middleAutoScroll  = false;
     D2D1_POINT_2F middleAutoScrollOrigin{}, middleAutoScrollPoint{};
     std::optional<uint64_t> middleAutoScrollTick;
@@ -2243,6 +2246,12 @@ std::optional<RichTextSourceMove> RichTextEditor::BeginSourceMove() noexcept
 void RichTextEditor::CancelSourceMove() noexcept
 {
     ++_state->sourceMoveEpoch;
+}
+void RichTextEditor::SetOnSourceDragRequested(std::function<void(const RichTextSourceMove&, std::wstring_view)> callback)
+{
+    auto next = callback ? std::make_shared<const std::function<void(const RichTextSourceMove&, std::wstring_view)>>(std::move(callback)) : nullptr;
+    _state->onSourceDragRequested.swap(next);
+    CancelSourceMove();
 }
 bool RichTextEditor::MoveSelectedSource(const RichTextSourceMove& move, size_t destination)
 {
@@ -5518,6 +5527,7 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
             const auto release        = ReleaseUnchangedCaptureOnExit(host, *this);
             _state->scrollbarDragging = false;
             _state->dragging          = false;
+            _state->sourceMovePress   = false;
             _state->middleAutoScroll  = false;
             _state->middleAutoScrollTick.reset();
             _state->codePressGesture  = false;
@@ -6270,6 +6280,16 @@ bool RichTextEditor::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool ri
                     break;
                 }
             }
+        const auto selection = GetSelection();
+        if (_state->onSourceDragRequested && Editable() && ! taskPlan && ! ModifiersContainShift(modifiers) && ! ModifiersContainCtrl(modifiers) &&
+            ! ModifiersContainAlt(modifiers) && selection.Start() < source && source < selection.End())
+        {
+            _state->sourceMovePress = true;
+            _state->sourceMoveOrigin = point;
+            _state->dragging = true;
+            host.CaptureMouse(this);
+            return true;
+        }
         _state->dragging = true;
         _state->document.SetSelection({ModifiersContainShift(modifiers) ? GetSelection().anchor : source, source});
         _state->taskPressPlan = std::move(taskPlan);
@@ -6633,6 +6653,50 @@ bool RichTextEditor::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT) n
             host.RequestAnimation();
             return true;
         }
+        if (_state->sourceMovePress)
+        {
+            const auto origin = _state->sourceMoveOrigin;
+            const float thresholdX = std::max(1.0f, host.PixelsToDip(static_cast<float>(GetSystemMetrics(SM_CXDRAG))));
+            const float thresholdY = std::max(1.0f, host.PixelsToDip(static_cast<float>(GetSystemMetrics(SM_CYDRAG))));
+            if (std::abs(point.x - origin.x) < thresholdX && std::abs(point.y - origin.y) < thresholdY)
+                return true;
+            const auto lifetime = GetLifetimeToken();
+            const auto callback = _state->onSourceDragRequested;
+            _state->sourceMovePress = _state->dragging = false;
+            host.ReleaseMouseCapture();
+            if (lifetime.expired() || GetHost() != &host || ! callback || _state->onSourceDragRequested != callback)
+                return true;
+            const auto move = BeginSourceMove();
+            if (! move)
+                return true;
+            try
+            {
+                const auto selection = GetSelection();
+                const auto text = Snapshot().Slice(selection.Start(), selection.End());
+                try
+                {
+                    (*callback)(*move, text);
+                }
+                catch (const std::bad_alloc&)
+                {
+                    // Consumer callbacks are observer boundaries; allocation failure is fatal.
+                    std::terminate();
+                }
+                catch (const std::exception&)
+                {
+                    // The application declined the released gesture.
+                }
+            }
+            catch (const std::bad_alloc&)
+            {
+                // Source staging declined after the capture was released.
+            }
+            catch (const std::exception&)
+            {
+                // Invalidated source staging leaves the released gesture consumed.
+            }
+            return true;
+        }
         if (_state->scrollbarDragging)
         {
             const auto info = GetScrollInfo();
@@ -6714,6 +6778,22 @@ bool RichTextEditor::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool righ
     }
     if (rightButton || ! _state->dragging)
         return false;
+    if (_state->sourceMovePress)
+    {
+        const auto lifetime = GetLifetimeToken();
+        _state->sourceMovePress = _state->dragging = false;
+        if (! LayoutIsCurrent(host))
+        {
+            host.ReleaseMouseCapture();
+            return true;
+        }
+        const auto source = HitSource(host, point);
+        _state->document.SetSelection({source, source});
+        host.ReleaseMouseCapture();
+        if (! lifetime.expired() && GetHost() == &host)
+            SelectionChanged();
+        return true;
+    }
     if (_state->codePressGesture)
     {
         _state->dragging = _state->codePressGesture = false;
@@ -6817,6 +6897,7 @@ void RichTextEditor::PropagateHost(ControlHost* host) noexcept
         RetireLayout();
         _state->pendingLeadSurrogate = 0;
         _state->dragging             = false;
+        _state->sourceMovePress      = false;
         _state->middleAutoScroll     = false;
         _state->middleAutoScrollTick.reset();
         _state->scrollbarDragging    = false;
@@ -6866,6 +6947,7 @@ void RichTextEditor::OnEnabledChanged(bool) noexcept
     _state->preparedCommand.reset();
     _state->pendingLeadSurrogate = 0;
     _state->dragging             = false;
+    _state->sourceMovePress      = false;
     _state->middleAutoScroll     = false;
     _state->middleAutoScrollTick.reset();
     _state->scrollbarDragging    = false;
@@ -6886,6 +6968,7 @@ void RichTextEditor::OnHidden() noexcept
     RetireLayout();
     _state->pendingLeadSurrogate = 0;
     _state->dragging             = false;
+    _state->sourceMovePress      = false;
     _state->middleAutoScroll     = false;
     _state->middleAutoScrollTick.reset();
     _state->scrollbarDragging    = false;
@@ -6910,6 +6993,7 @@ void RichTextEditor::OnFocusChanged(ControlHost& host, bool focused)
     _state->middleAutoScroll = false;
     _state->middleAutoScrollTick.reset();
     _state->dragging          = false;
+    _state->sourceMovePress   = false;
     _state->scrollbarDragging = false;
     _state->taskPressPlan.reset();
     _state->codePressDocument.reset();
@@ -6919,6 +7003,7 @@ void RichTextEditor::OnFocusChanged(ControlHost& host, bool focused)
 void RichTextEditor::OnCaptureLost(ControlHost&)
 {
     ++_state->sourceMoveEpoch;
+    _state->sourceMovePress = false;
     _state->middleAutoScroll = false;
     _state->middleAutoScrollTick.reset();
     _state->dragging          = false;
