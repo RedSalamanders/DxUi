@@ -644,10 +644,6 @@ static void TestEmbeddedCodeLineNumberPixels(GraphicsFixture& gpu)
     Hr(staleCopy->Invoke(), "offscreen copy remains invokable");
     editor->SetOnCodeCopyRequested({});
     Check(staleCopy->Invoke() == UIA_E_ELEMENTNOTAVAILABLE, "retired copy peer cannot invoke after callback removal");
-    std::wstring counted = L"```\na";
-    counted.push_back(L'\0');
-    counted += L"b\n```\n";
-    editor->SetText(counted);
     editor->SetOnCodeCopyRequested(
         [&](std::wstring_view text)
     {
@@ -655,10 +651,23 @@ static void TestEmbeddedCodeLineNumberPixels(GraphicsFixture& gpu)
         ++copyCalls;
     },
         L"Kopieren");
-    Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "counted code copy preparation");
-    editor->SetSelection({4u, 4u});
-    Check(editor->OnKeyDown(view.Controls(), 'C', MK_CONTROL | MK_SHIFT) && copied.find(L'\0') != copied.npos && copied.find(L'b') != copied.npos,
-          "copy intent retains counted NUL and following code units for the caller");
+    for (const auto& [prefix, suffix] : {
+             std::pair<std::wstring_view, std::wstring_view>{L"```\r\na", L"b\r\n```\r\n"},
+             {L"> ```\r\n> a", L"b\r\n> ```\r\n"},
+             {L"- item\r\n\r\n  ```\r\n  a", L"b\r\n  ```\r\n"},
+             {L"    a", L"b\r\n"},
+         })
+    {
+        std::wstring counted(prefix);
+        const auto caret = counted.size();
+        counted.push_back(L'\0');
+        counted.append(suffix);
+        editor->SetText(counted);
+        Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "counted code copy preparation");
+        editor->SetSelection({caret, caret});
+        Check(editor->OnKeyDown(view.Controls(), 'C', MK_CONTROL | MK_SHIFT) && copied == std::wstring_view(L"a\0b\n", 4u),
+              "code copy preserves counted NUL and normalizes CRLF inside fenced, quoted, list and indented blocks");
+    }
     editor->SetText(L"```\n```\n");
     Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "empty code copy preparation");
     editor->SetSelection({1u, 1u});

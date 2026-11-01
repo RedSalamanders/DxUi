@@ -7,6 +7,7 @@
 #include "DxUi.RichImagePaths.h"
 #include "DxUi.RichImageResources.h"
 #include "DxUi.RichSemanticGeometry.h"
+#include "DxUi.RichSemanticValues.h"
 #include "DxUi.RichSourceGuides.h"
 #include "DxUi.RichSourceInk.h"
 #include "DxUi.RichSourceWindow.h"
@@ -174,12 +175,14 @@ bool IsHistoryWordElement(std::wstring_view text) noexcept
     }
     return true;
 }
-std::wstring_view CodeCopyText(const RichText::SemanticDocument& document, const RichText::SemanticElement& element) noexcept
+std::wstring CodeCopyText(const RichText::SemanticDocument& document, const RichText::SemanticElement& element)
 {
-    const auto& nodes = document.Syntax()->Nodes();
-    if (element.syntaxNode < nodes.size() && nodes[element.syntaxNode].lines.empty())
-        return {}; // The geometry's synthetic empty caret is not copied code.
-    return element.name;
+    const auto& syntax = *document.Syntax();
+    if (element.syntaxNode >= syntax.Nodes().size())
+        return std::wstring(0u, L' ');
+    RichText::Detail::SemanticValue value;
+    RichText::Detail::NormalizeSemanticLeaf(syntax, element.syntaxNode, value, true);
+    return std::move(value.text);
 }
 D2D1_COLOR_F ResolveMarkdownQuoteFill(const ThemePalette& theme, const TextFieldVisualStyle& style) noexcept
 {

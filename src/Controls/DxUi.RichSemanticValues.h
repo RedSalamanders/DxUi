@@ -25,7 +25,7 @@ struct SemanticValue
         units.push_back({source, generated, transformed});
     }
 };
-inline void NormalizeSemanticLeaf(const MarkdownSyntax& syntax, std::size_t nodeIndex, SemanticValue& result)
+inline void NormalizeSemanticLeaf(const MarkdownSyntax& syntax, std::size_t nodeIndex, SemanticValue& result, bool preserveCountedNul = false)
 {
     result.text.clear();
     result.units.clear();
@@ -60,7 +60,7 @@ inline void NormalizeSemanticLeaf(const MarkdownSyntax& syntax, std::size_t node
             else if (source[offset] == L'\0')
             {
                 ++offset;
-                result.Append(L'\ufffd', {first, offset}, false, true);
+                result.Append(preserveCountedNul ? L'\0' : L'\ufffd', {first, offset}, false, ! preserveCountedNul);
             }
             else
             {

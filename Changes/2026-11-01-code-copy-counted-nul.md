@@ -1,0 +1,1 @@
+- Preserve counted NUL and normalized line endings in code-copy callbacks while continuing to render NUL as a replacement character.
