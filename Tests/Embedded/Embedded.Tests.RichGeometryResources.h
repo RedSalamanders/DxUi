@@ -332,6 +332,65 @@ static void TestEmbeddedSemanticReusePixels(GraphicsFixture& gpu)
     Check(reusedPixels == freshPixels, "reused semantic layouts match a fresh WARP render byte for byte");
 }
 
+static void TestEmbeddedCodeLineNumberPixels(GraphicsFixture& gpu)
+{
+    using namespace DxUi;
+    const std::wstring source = L"```cpp\nfirst line with many words to force wrapping in the available code width across visual lines\nsecond line\n```\n";
+    std::shared_ptr<GraphicsDevice> graphics;
+    Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "code gutter graphics");
+    EmbeddedHost view;
+    Hr(view.Attach(graphics), "code gutter view");
+    auto owned = std::make_unique<RichTextEditor>(source);
+    auto* editor = owned.get();
+    editor->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::RichMarkdown);
+    editor->SetMarkdownRenderingEnabled(true);
+    auto appearance = editor->GetAppearance();
+    appearance.markdownPresentation = RichText::MarkdownPresentationStyle::Subtle;
+    editor->SetAppearance(appearance);
+    view.Controls().SetRoot(std::move(owned));
+    Hr(gpu.Resize(480u, 240u), "code gutter raster size");
+    for (const auto direction : {FlowDirection::LeftToRight, FlowDirection::RightToLeft})
+    {
+        editor->SetFlowDirection(direction);
+        Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "prepare code gutter");
+        const auto document = editor->GetAcknowledgedSemanticDocument(view.Controls());
+        Check(static_cast<bool>(document), "code gutter has current semantics");
+        const auto element = std::ranges::find(document->Elements(), RichText::SemanticRole::Code, &RichText::SemanticElement::role);
+        Check(element != document->Elements().end(), "code gutter owns a code block");
+        const auto frame = editor->GetSemanticElementBounds(view.Controls(), static_cast<std::size_t>(element - document->Elements().begin()));
+        const auto caret = editor->TryGetTextInputCaretRect(view.Controls(), source.find(L"first line"));
+        const auto secondCaret = editor->TryGetTextInputCaretRect(view.Controls(), source.find(L"second line"));
+        Check(frame && caret && secondCaret && secondCaret->top > caret->bottom + 1.0f,
+              "wrapped first physical line and second source line have distinct positions");
+        gpu.Bind();
+        Hr(view.Composite(gpu.context.get(), gpu.Viewport()), "code gutter composite");
+        std::vector<std::uint8_t> pixels(0u);
+        Hr(gpu.Read(pixels), "code gutter pixels");
+        const auto sample = [&](unsigned x, unsigned y) {
+            const auto at = (static_cast<std::size_t>(y) * gpu.width + x) * 4u;
+            return std::array{pixels[at], pixels[at + 1u], pixels[at + 2u]};
+        };
+        const auto left = direction == FlowDirection::LeftToRight ? frame->left + 6.0f : frame->right - 46.0f;
+        const auto top = static_cast<unsigned>(std::max(0.0f, caret->top));
+        const auto bottom = static_cast<unsigned>(std::min(static_cast<float>(gpu.height), caret->bottom));
+        const auto firstX = static_cast<unsigned>(std::max(0.0f, left + 2.0f));
+        const auto lastX = static_cast<unsigned>(std::min(static_cast<float>(gpu.width), left + 36.0f));
+        const auto background = sample(firstX, top + 1u);
+        unsigned differing{};
+        for (auto y = top; y < bottom; ++y)
+            for (auto x = firstX; x < lastX; ++x)
+                differing += sample(x, y) != background ? 1u : 0u;
+        Check(differing > 4u, "prepared physical line number paints in the correct directional gutter");
+        const auto secondTop = static_cast<unsigned>(std::max(0.0f, secondCaret->top));
+        const auto secondBottom = static_cast<unsigned>(std::min(static_cast<float>(gpu.height), secondCaret->bottom));
+        const auto secondBackground = sample(firstX, secondTop + 1u);
+        unsigned secondDiffering{};
+        for (auto y = secondTop; y < secondBottom; ++y)
+            for (auto x = firstX; x < lastX; ++x)
+                secondDiffering += sample(x, y) != secondBackground ? 1u : 0u;
+        Check(secondDiffering > 4u, "second physical line number aligns after wrapped visual lines");
+    }
+}
 static void TestEmbeddedRichGeometryReuseAndRetirement(GraphicsFixture& gpu)
 {
     using namespace DxUi;

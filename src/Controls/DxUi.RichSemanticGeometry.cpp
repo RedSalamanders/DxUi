@@ -274,7 +274,7 @@ struct SemanticBox
 {
     PreparedLayout layout;
     SemanticParagraph paragraph;
-    float x{}, y{}, width{}, height{};
+    float x{}, y{}, width{}, height{}, codeGutter{};
     D2D1_RECT_F frame{};
     std::optional<MarkdownEmptyLine> sourceCaret;
     bool caretOnly{}, markerOnly{}, markerLayout{};
@@ -400,6 +400,7 @@ struct PreparedSemanticGeometry::State
           imageEpochs(epochs),
           rejected(0u),
           boxes(0u),
+          codeNumbers(0u),
           glyphBoxes(0u),
           nodeElements(document->Syntax()->Nodes().size(), MarkdownNoNode),
           bounds(document->Elements().size()),
@@ -448,6 +449,13 @@ struct PreparedSemanticGeometry::State
     std::vector<std::unique_ptr<SemanticBox>> boxes;
     std::unique_ptr<MarkdownDecorations> decorations;
     std::unique_ptr<std::vector<std::unique_ptr<PreparedLayout>>> codeLabels;
+    struct CodeNumber
+    {
+        std::unique_ptr<PreparedLayout> layout;
+        D2D1_POINT_2F origin{};
+        D2D1_RECT_F clip{};
+    };
+    std::vector<CodeNumber> codeNumbers;
     // Source caret boxes are in physical source order, while their zero-width
     // display anchors may coincide with or follow generated marker text. Keep
     // the glyph search index in display order instead of assuming both orders
@@ -552,6 +560,7 @@ struct PreparedSemanticGeometry::Preparation
         MarkerLayouts,
         TableAllocate,
         Layouts,
+        CodeNumbers,
         RowPlacement,
         IndexSourceBoxes,
         SourceLines,
@@ -604,7 +613,9 @@ struct PreparedSemanticGeometry::Preparation
         PreparedLayout layout;
     };
     std::vector<std::unique_ptr<EmptyLayout>> emptyLayouts;
-    std::size_t nativeIndex{}, codeLabelIndex{};
+    std::size_t nativeIndex{}, codeLabelIndex{}, codeNumberBox{}, codeNumberLine{}, codeNumberOffset{}, codeNumberValue = 1u;
+    float codeNumberY{};
+    bool codeNumberNeeded = true;
     std::size_t imageIndex{};
     std::vector<std::unique_ptr<SemanticBox>> markers;
     std::vector<float> gutters;
@@ -1022,7 +1033,7 @@ struct PreparedSemanticGeometry::Preparation
             if (! next.boxes.empty())
             {
                 next.height = std::max(next.options.fontSizeDip, y);
-                phase       = footerRanges.empty() ? Phase::SourceLines : Phase::IndexSourceBoxes;
+                phase       = Phase::CodeNumbers;
                 return;
             }
         }
@@ -1178,9 +1189,10 @@ struct PreparedSemanticGeometry::Preparation
         const float codeInset = paddedCode ? std::min(6.0f, std::max(0.0f, (box->width - 1.0f) * 0.5f)) : 0.0f;
         if (paddedCode)
         {
-            box->x += codeInset;
+            box->codeGutter = box->width >= 96.0f ? 40.0f : 0.0f;
+            box->x += codeInset + (rtl ? 0.0f : box->codeGutter);
             box->y += 6.0f + codeHeader;
-            box->width -= 2.0f * codeInset;
+            box->width -= 2.0f * codeInset + box->codeGutter;
         }
         options.widthDip = std::max(1.0f, box->width);
         auto* native     = next.native ? next.native->Find(content.element) : nullptr;
@@ -1418,7 +1430,8 @@ struct PreparedSemanticGeometry::Preparation
         box->height = box->layout.Height();
         box->frame  = D2D1::RectF(box->x, box->y, box->x + box->width, box->y + box->height);
         if (paddedCode)
-            box->frame = D2D1::RectF(box->x - codeInset, box->y - 6.0f - codeHeader, box->x + box->width + codeInset, box->y + box->height + 6.0f);
+            box->frame = D2D1::RectF(box->x - codeInset - (rtl ? 0.0f : box->codeGutter), box->y - 6.0f - codeHeader,
+                                     box->x + box->width + codeInset + (rtl ? box->codeGutter : 0.0f), box->y + box->height + 6.0f);
         if (native)
             box->frame = D2D1::RectF(box->x + native->bounds.left, box->y + native->bounds.top, box->x + native->bounds.right, box->y + native->bounds.bottom);
         float bottom = box->frame.bottom;
@@ -1910,7 +1923,54 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                 work.LayoutOne();
                 result.layoutsPrepared += work.lastLayoutCalls;
             }
-            else if (work.phase == Preparation::Phase::RowPlacement)
+            else if (work.phase == Preparation::Phase::CodeNumbers)
+            {
+                const auto& boxes = work.state->boxes;
+                if (work.codeNumberBox == boxes.size())
+                {
+                    work.phase = work.footerRanges.empty() ? Preparation::Phase::SourceLines : Preparation::Phase::IndexSourceBoxes;
+                    continue;
+                }
+                const auto& box = *boxes[work.codeNumberBox];
+                const auto lines = box.layout.LineMetrics();
+                if (box.codeGutter == 0.0f || lines.size() > 4096u || work.codeNumberLine == lines.size() ||
+                    work.state->codeNumbers.size() == 4096u)
+                {
+                    ++work.codeNumberBox;
+                    work.codeNumberLine = work.codeNumberOffset = 0u;
+                    work.codeNumberValue = 1u;
+                    work.codeNumberY = 0.0f;
+                    work.codeNumberNeeded = true;
+                    continue;
+                }
+                const auto line = lines[work.codeNumberLine];
+                const auto& text = box.layout.Content().text;
+                if (work.codeNumberNeeded && line.length > 0u)
+                {
+                    if (result.layoutsPrepared == budget.maximumLayouts)
+                        break;
+                    ::DxUi::RichText::Document labelSource{std::to_wstring(work.codeNumberValue)};
+                    auto projection = Project(labelSource.Snapshot(), labelSource.Revision(), ViewMode::Source);
+                    auto options = work.state->options;
+                    options.widthDip = box.codeGutter - 8.0f;
+                    options.fontFamily = options.codeFontFamily;
+                    options.fontSizeDip = options.codeFontSizeDip > 0.0f ? options.codeFontSizeDip : options.fontSizeDip;
+                    options.textAlignment = DWRITE_TEXT_ALIGNMENT_TRAILING;
+                    auto layout = std::make_unique<PreparedLayout>();
+                    layout->Prepare(work.state->factory.get(), std::move(projection), options);
+                    const bool rtl = options.readingDirection == DWRITE_READING_DIRECTION_RIGHT_TO_LEFT;
+                    const float x = rtl ? box.x + box.width + 4.0f : box.x - box.codeGutter + 4.0f;
+                    work.state->codeNumbers.push_back({std::move(layout), D2D1::Point2F(x, box.y + work.codeNumberY), box.frame});
+                    ++result.layoutsPrepared;
+                }
+                const auto end = std::min(text.size(), work.codeNumberOffset + static_cast<std::size_t>(line.length));
+                work.codeNumberNeeded = end > work.codeNumberOffset && (text[end - 1u] == L'\r' || text[end - 1u] == L'\n');
+                if (work.codeNumberNeeded)
+                    ++work.codeNumberValue;
+                work.codeNumberOffset = end;
+                work.codeNumberY += line.height;
+                ++work.codeNumberLine;
+            }            else if (work.phase == Preparation::Phase::RowPlacement)
                 work.PlaceRowOne();
             else if (work.phase == Preparation::Phase::IndexSourceBoxes)
             {
@@ -2501,7 +2561,15 @@ void PreparedSemanticGeometry::Draw(ID2D1RenderTarget* target,
             target->DrawLine(D2D1::Point2F(x, rectangle.top), D2D1::Point2F(x, rectangle.bottom), decoration, 2.0f);
         }
     }
-    if (const auto* decorations = state.decorations.get())
+    for (const auto& number : state.codeNumbers)
+        if (number.clip.bottom > top && number.clip.top < bottom)
+        {
+            const auto clip = D2D1::RectF(number.clip.left + origin.x, number.clip.top + origin.y,
+                                          number.clip.right + origin.x, number.clip.bottom + origin.y);
+            target->PushAxisAlignedClip(clip, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
+            const auto restore = wil::scope_exit([&]() noexcept { target->PopAxisAlignedClip(); });
+            number.layout->Draw(target, decoration, D2D1::Point2F(number.origin.x + origin.x, number.origin.y + origin.y));
+        }    if (const auto* decorations = state.decorations.get())
     {
         for (const auto& rule : decorations->headingRules)
             if (rule.bottom > top && rule.top < bottom)

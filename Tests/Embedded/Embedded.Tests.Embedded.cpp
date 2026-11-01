@@ -1472,6 +1472,7 @@ __declspec(noinline) static int RunFunctionalTests()
         MarkdownSourceCorrelationTests::LexicalEdits(Check);
         RichSemanticTests::Run(RichSemanticGeometryTests::PaddedCodePresentation);
         TestEmbeddedSemanticReusePixels(gpu);
+        TestEmbeddedCodeLineNumberPixels(gpu);
         TestEmbeddedImageResources(gpu);
         DxUi::EmbeddedHost view;
         std::shared_ptr<DxUi::GraphicsDevice> graphics;
@@ -1735,6 +1736,7 @@ __declspec(noinline) static int RunFunctionalTests()
     TestRichDocumentGeometryMaximumStorageBudget();
     TestRichDocumentGeometryReplacementPeakBudget();
     TestEmbeddedSemanticReusePixels(gpu);
+    TestEmbeddedCodeLineNumberPixels(gpu);
     TestEmbeddedRichGeometryReuseAndRetirement(gpu);
     TestRetainedRichTextSchedulingCanRetireOwner(gpu);
     TestRetainedRichTextFailedPreparation(gpu);
