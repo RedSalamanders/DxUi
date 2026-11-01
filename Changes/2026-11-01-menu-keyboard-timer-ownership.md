@@ -1,0 +1,1 @@
+- Preserve keyboard and accessibility menu focus against stale pointer cascade timers while retaining unmatched character and AltGr input.

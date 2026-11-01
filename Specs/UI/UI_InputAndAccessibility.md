@@ -106,6 +106,10 @@ actions carry popup-instance identity so HWND reuse cannot dispatch an old actio
 retained providers disconnect on teardown. Implementation and validation are tracked in the
 [menu description plan](../Plans/WIP/MenuDescriptions_2026-09-21.md).
 
+When a keyboard action or UIA focus selects a menu row, the complete popup cascade relinquishes pending pointer-open and
+pointer-close timers; a previously queued timer cannot undo that selection. Unmatched characters and AltGr input retain
+pointer ownership and its pending timer. Right Alt with Control is text input, not an Alt dismissal.
+
 Context-menu mnemonics consume the Unicode character produced by the active keyboard layout
 (`WM_CHAR`/`WM_SYSCHAR`), rather than deriving a letter from a virtual key. An explicit ampersand
 mnemonic wins over an inferred label mnemonic; when multiple enabled rows match, successive
