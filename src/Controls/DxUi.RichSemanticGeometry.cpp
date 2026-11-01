@@ -3350,7 +3350,10 @@ void PreparedSemanticGeometry::Draw(ID2D1RenderTarget* target,
                             target->PushLayer(D2D1::LayerParameters(D2D1::RectF(svgLeft, svgTop, svgRight, svgBottom), nullptr,
                                                                    D2D1_ANTIALIAS_MODE_PER_PRIMITIVE, D2D1::Matrix3x2F::Identity(), imageOpacity),
                                               image.svgLayer.get());
-                            target->SetTransform(D2D1::Matrix3x2F::Scale((svgRight - svgLeft) / image.Size().width, (svgBottom - svgTop) / image.Size().height) *
+                            // The SVG document retains its nominal viewport; authored image size
+                            // changes the destination rectangle, not that viewport.
+                            target->SetTransform(D2D1::Matrix3x2F::Scale((svgRight - svgLeft) / static_cast<float>(image.pixels->Width()),
+                                                                      (svgBottom - svgTop) / static_cast<float>(image.pixels->Height())) *
                                                  D2D1::Matrix3x2F::Translation(svgLeft, svgTop) * previous);
                             image.svgContext->DrawSvgDocument(image.svgDocument.get());
                             target->SetTransform(previous);
