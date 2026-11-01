@@ -3612,9 +3612,11 @@ void TestMenuKeyboardInputCancelsPendingSubmenuHoverTimers()
 
         // B2 is a leaf so moving from the open B11 child to B2 arms the close timer.
         const std::vector<MenuFlyoutItem> items = {
-            {.text      = L"B1",
-             .commandId = 37101,
-             .children  = {MenuFlyoutItem{.text = L"B11", .commandId = 37111}, MenuFlyoutItem{.text = L"B12", .commandId = 37112}}},
+            {.text          = L"B1",
+             .commandId     = 37101,
+             .children      = {MenuFlyoutItem{.text = L"B11", .commandId = 37111, .secondaryText = L"Child description"},
+                               MenuFlyoutItem{.text = L"B12", .commandId = 37112}},
+             .secondaryText = L"Parent description"},
             {.text = L"B2", .commandId = 37102},
         };
 
