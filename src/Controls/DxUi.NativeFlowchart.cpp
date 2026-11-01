@@ -188,7 +188,26 @@ struct NativeFlowchartParser::Preparation
         if (boundary)
             node.compartmentStarts[node.compartmentCount++] = node.label.size();
         node.lastCompartmentMethod = method;
-        return PlainText(at, end, node.label, true);
+        bool generic{};
+        std::size_t genericStart{};
+        while (at < end)
+        {
+            if (Text()[at] == L'~')
+            {
+                if (generic && at == genericStart)
+                    return Error(FlowchartIssue::UnsupportedLabelMarkup, at, at + 1u, FlowchartOutcome::Unsupported);
+                if (node.label.size() == MaximumLabelUnits)
+                    return Error(FlowchartIssue::LabelCapacity, at, at + 1u, FlowchartOutcome::Capacity);
+                node.label.push_back(generic ? L'>' : L'<');
+                generic = ! generic;
+                genericStart = ++at;
+            }
+            else if (! PlainTextUnit(at, end, node.label, true))
+                return false;
+        }
+        if (generic)
+            return Error(FlowchartIssue::UnsupportedLabelMarkup, genericStart - 1u, end, FlowchartOutcome::Unsupported);
+        return true;
     }
     bool Cardinality(std::size_t& at, std::size_t end, std::wstring& value)
     {

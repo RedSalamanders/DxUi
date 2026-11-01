@@ -118,6 +118,17 @@ template <typename Check> inline void Geometry(Check&& check)
               relations->edges[1u].relation == FlowchartRelation::Arrow && relations->edges[1u].hasArrow &&
               relations->edges[2u].relation == FlowchartRelation::Line && ! relations->edges[2u].hasArrow,
           "class inheritance, directed association and plain association retain distinct edge kinds through layout");
+    const auto genericClass = Graph(L"classDiagram\nclass A {\n+List~int~ values\n+find(Key~T~ key) Result~T~\n}\n");
+    check(genericClass->outcome == FlowchartOutcome::Prepared && genericClass->nodes.size() == 1u &&
+              genericClass->nodes[0u].label == L"A\n+List<int> values\n+find(Key<T> key) Result<T>" &&
+              genericClass->nodes[0u].compartmentCount == 2u,
+          "bounded class generic notation becomes readable angle brackets in its original member compartments");
+    for (const auto source : {L"classDiagram\nA : List~int\n", L"classDiagram\nA : List~~\n"})
+    {
+        const auto rejected = Graph(source);
+        check(rejected->outcome == FlowchartOutcome::Unsupported && rejected->source == source && rejected->nodes.empty(),
+              "unclosed or empty class generic notation retains exact source without partial models");
+    }
     const auto standaloneNote = Graph(L"classDiagram\nnote \"A standalone note\"\n");
     const auto standalonePlan = Place(standaloneNote, check);
     check(standaloneNote->nodes.size() == 1u && standaloneNote->nodes[0].shape == FlowchartShape::Note &&

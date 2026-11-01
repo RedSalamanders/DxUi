@@ -821,6 +821,12 @@ void TestRichSemanticNativeMathematicsAndBroaderMermaid()
                 namespaceDiagram->name.find(L"Domain") != std::wstring::npos && namespaceDiagram->name.find(L"A") != std::wstring::npos &&
                 namespaceDiagram->name.find(L"B") != std::wstring::npos,
             "class namespace semantic alternative exposes the namespace and members while retaining exact source");
+    const std::wstring genericSource = L"```mermaid\nclassDiagram\nclass Box {\n+List~int~ values\n}\n```\n";
+    const auto genericDocument = RichSemanticDocumentTests::Build(genericSource, MarkdownProfile::RichMarkdown);
+    const auto genericDiagram = std::ranges::find(genericDocument->Elements(), SemanticRole::Diagram, &SemanticElement::role);
+    Require(genericDocument->Map().Source() == genericSource && genericDiagram != genericDocument->Elements().end() &&
+                genericDiagram->name.find(L"List<int>") != std::wstring::npos,
+            "class generic semantic alternative exposes the displayed type and preserves exact source");
 }
 void TestRichSemanticDocumentStructuralStyleValues()
 {

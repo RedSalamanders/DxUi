@@ -1377,7 +1377,7 @@ The native Mermaid engine additionally accepts a bounded `stateDiagram` /
 The first nonempty state description replaces the implicit ID label. Later quoted
 or colon descriptions append in source order; empty descriptions keep the current label.
 The bounded `classDiagram` profile accepts direction, simple class declarations,
-colon members and bounded multiline `class Name { ... }` member blocks, directed/undirected associations and inheritance (`<|--`, `--|>`). Blocks require a standalone closing brace; nested blocks, generics and markup retain exact source with a diagnostic.
+colon members and bounded multiline `class Name { ... }` member blocks, directed/undirected associations and inheritance (`<|--`, `--|>`). Blocks require a standalone closing brace; nested blocks and markup retain exact source with a diagnostic. Nonempty, non-nested generic arguments such as `List~int~` display as `List<int>`; malformed and nested forms retain source.
 One alphabetic `<<annotation>>` per existing class is accepted on a separate line
 or inside its block and displayed as `«annotation»` above the class name; repeated,
 nonalphabetic or undefined-class annotations retain source.
@@ -1400,7 +1400,7 @@ and `<br />` line breaks. Other HTML and unsupported references retain source.
 Plain hashes, comparison characters and ordinary `fa:` substrings remain text;
 actual Font Awesome icon markers still retain the original diagram as source.
 This is not
-Mermaid coordinate compatibility. Advanced composite-state syntax, class generics,
+Mermaid coordinate compatibility. Advanced composite-state syntax, nested class generics,
 other stereotypes, styling,
 interaction directives and other diagram families remain exact fenced source.
 Unsupported shape productions retain the complete fence instead of becoming plain

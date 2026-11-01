@@ -250,7 +250,7 @@ template <typename Check> inline void RasterOracle(Check&& check)
                               L"graph TD;A[\"first\\nsecond\"]",
                               L"graph TD;A[one<br>two #9829;]",
                               L"classDiagram\nclass Shape\n<<interface>> Shape\n",
-                              L"classDiagram\nclass Shape {\n+size: int\n+draw()\n}\n",
+                              L"classDiagram\nclass Shape {\n+size: List~int~\n+draw() Result~T~\n}\n",
                               L"graph TD;A[\"ordinary Unicode words wrap over several lines without truncation\"]"})
         for (const auto direction : {DWRITE_READING_DIRECTION_LEFT_TO_RIGHT, DWRITE_READING_DIRECTION_RIGHT_TO_LEFT})
         {
@@ -319,7 +319,7 @@ template <typename Check> inline void RasterOracle(Check&& check)
                         if (std::wstring_view(source).starts_with(L"classDiagram\nclass Shape {"))
                         {
                             // Independent literal source positions and public SDK hit testing.
-                            for (const UINT32 position : {6u, 17u})
+                            for (const UINT32 position : {6u, 23u})
                             {
                                 FLOAT x{}, y{};
                                 DWRITE_HIT_TEST_METRICS hit{};
