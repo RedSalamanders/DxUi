@@ -64,6 +64,7 @@ struct SemanticElement
     MarkdownAlignment alignment{};
     bool tableHeader{}, nativeHtml{}, wiki{}, disclosureExpanded{};
     std::size_t rows{}, columns{};
+    unsigned imageWidth{}, imageHeight{}; // Authored DIP size; zero means intrinsic.
     std::wstring name, destination, title;
 };
 struct SemanticParagraph

@@ -1923,3 +1923,18 @@ own asynchronous lookup/ownership state. A changed or invalid context is
 left untouched. The resulting source contains the chosen Unicode text, and the
 existing edit transaction owns undo; no parser-level shortcode table or display
 transformation is implied.
+
+### Authored image presentation
+
+Standalone RichMarkdown images may use an immediately adjacent bounded suffix,
+for example `![map](map.png){width=48 height=40 align=center caption="Map overview"}`.
+Dimensions are optional integer DIPs (1–4096), alignment is left/center/right,
+and an optional plain caption is explicit. One dimension preserves intrinsic
+aspect ratio. Unsupported or malformed suffixes stay literal, and CommonMark and
+GFM keep this spelling literal. The image and suffix form one atomic source owner;
+the caption is generated display text anchored to its authored source and F2
+edits the full image syntax. It is not an authored title or separate source edit.
+Native HTML `img` supports quoted `width` and `height`; standalone images also
+admit `align` and `data-caption` under the same bounds. Unsupported HTML leaves
+remain literal. Image preparation and caption shaping use existing owner budgets;
+this does not fetch, decode, or draw resources outside the established pipeline.

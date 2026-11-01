@@ -127,7 +127,7 @@ inline bool NativeHtmlDestination(std::wstring_view value, bool image = false) n
 }
 struct NativeHtmlTag
 {
-    NativeHtmlTag() : destination(0u, L' '), title(0u, L' '), alternative(0u, L' ')
+    NativeHtmlTag() : destination(0u, L' '), title(0u, L' '), alternative(0u, L' '), caption(0u, L' ')
     {
     }
     NativeHtmlTag(const NativeHtmlTag&)            = default;
@@ -139,7 +139,8 @@ struct NativeHtmlTag
     bool closing{}, open{};
     MarkdownAlignment alignment{};
     unsigned flagsAfter{}, headingAfter{};
-    std::wstring destination, title, alternative;
+    unsigned imageWidth{}, imageHeight{};
+    std::wstring destination, title, alternative, caption;
 };
 inline bool ParseNativeHtmlTag(std::wstring_view value, NativeHtmlTag& tag)
 {
@@ -166,7 +167,7 @@ inline bool ParseNativeHtmlTag(std::wstring_view value, NativeHtmlTag& tag)
     if (found == std::end(names))
         return false;
     tag.kind  = static_cast<NativeHtmlKind>(found - std::begin(names));
-    bool href = false, title = false, alternative = false, alignment = false;
+    bool href = false, title = false, alternative = false, alignment = false, width = false, height = false, caption = false;
     const auto complete = [&]() noexcept { return tag.closing || (tag.kind != NativeHtmlKind::A && tag.kind != NativeHtmlKind::Img) || href; };
     for (;;)
     {
@@ -183,7 +184,7 @@ inline bool ParseNativeHtmlTag(std::wstring_view value, NativeHtmlTag& tag)
              tag.kind != NativeHtmlKind::Details))
             return false;
         const auto nameFirst = at;
-        while (at < value.size() && HtmlLower(value[at]) >= L'a' && HtmlLower(value[at]) <= L'z')
+        while (at < value.size() && ((HtmlLower(value[at]) >= L'a' && HtmlLower(value[at]) <= L'z') || value[at] == L'-'))
             ++at;
         const auto name = value.substr(nameFirst, at - nameFirst);
         if (tag.kind == NativeHtmlKind::Details && HtmlName(name, L"open"))
@@ -197,8 +198,11 @@ inline bool ParseNativeHtmlTag(std::wstring_view value, NativeHtmlTag& tag)
         const bool isAnchor = tag.kind == NativeHtmlKind::A;
         const bool isHref   = (isImage || isAnchor) && HtmlName(name, isImage ? L"src" : L"href");
         const bool isTitle = (isImage || isAnchor) && HtmlName(name, L"title"), isAlternative = isImage && HtmlName(name, L"alt");
-        const bool isAlignment = (tag.kind == NativeHtmlKind::P || tag.kind == NativeHtmlKind::Div) && HtmlName(name, L"align");
-        if ((! isHref && ! isTitle && ! isAlternative && ! isAlignment) || (isHref ? href : isTitle ? title : isAlternative ? alternative : alignment))
+        const bool isAlignment = (isImage || tag.kind == NativeHtmlKind::P || tag.kind == NativeHtmlKind::Div) && HtmlName(name, L"align");
+        const bool isWidth = isImage && HtmlName(name, L"width"), isHeight = isImage && HtmlName(name, L"height");
+        const bool isCaption = isImage && HtmlName(name, L"data-caption");
+        if ((! isHref && ! isTitle && ! isAlternative && ! isAlignment && ! isWidth && ! isHeight && ! isCaption) ||
+            (isHref ? href : isTitle ? title : isAlternative ? alternative : isAlignment ? alignment : isWidth ? width : isHeight ? height : caption))
             return false;
         while (at < value.size() && HtmlSpace(value[at]))
             ++at;
@@ -232,6 +236,31 @@ inline bool ParseNativeHtmlTag(std::wstring_view value, NativeHtmlTag& tag)
         {
             tag.alternative = decoded;
             alternative     = true;
+        }
+        else if (isCaption)
+        {
+            if (decoded.empty() || decoded.size() > 256u || std::ranges::any_of(decoded, [](wchar_t unit) { return unit < L' ' || unit == 0x7fu; }))
+                return false;
+            tag.caption = decoded;
+            caption = true;
+        }
+        else if (isWidth || isHeight)
+        {
+            unsigned size{};
+            if (decoded.empty() || decoded.size() > 4u)
+                return false;
+            for (const auto character : decoded)
+            {
+                if (character < L'0' || character > L'9')
+                    return false;
+                size = size * 10u + static_cast<unsigned>(character - L'0');
+            }
+            if (! size || size > 4096u)
+                return false;
+            if (isWidth)
+                tag.imageWidth = size, width = true;
+            else
+                tag.imageHeight = size, height = true;
         }
         else
         {
@@ -379,6 +408,17 @@ struct NativeHtmlPlan
             return ! HtmlSpace(value);
         });
     }
+    bool StandaloneImagePresentation(std::wstring_view text) const
+    {
+        if (std::ranges::none_of(tags, [](const auto& tag)
+            { return tag.kind == NativeHtmlKind::Img && (tag.alignment != MarkdownAlignment::None || ! tag.caption.empty()); }))
+            return true;
+        if (tags.size() != 1u || tags.front().kind != NativeHtmlKind::Img) return false;
+        while (! text.empty() && HtmlSpace(text.front())) text.remove_prefix(1u);
+        while (! text.empty() && HtmlSpace(text.back())) text.remove_suffix(1u);
+        NativeHtmlTag standalone;
+        return ParseNativeHtmlTag(text, standalone) && standalone.kind == NativeHtmlKind::Img;
+    }
     void Inline(const MarkdownSyntax& syntax, const MarkdownNode& leaf, const SemanticValue& normalized)
     {
         Reset();
@@ -412,7 +452,7 @@ struct NativeHtmlPlan
                 return;
             tags.push_back(tag);
         }
-        if (! present || ! Validate(false, {}))
+        if (! present || ! Validate(false, {}) || ! StandaloneImagePresentation(normalized.text))
             return;
         std::sort(inlineObjects.begin(), inlineObjects.end(), [](auto a, auto b) { return a.first < b.first; });
         for (const auto& tag : tags)
@@ -487,7 +527,7 @@ struct NativeHtmlPlan
                 return;
             tags.push_back(tag);
         }
-        valid = ! tags.empty() && Validate(true, input.text);
+        valid = ! tags.empty() && Validate(true, input.text) && StandaloneImagePresentation(input.text);
     }
     const NativeHtmlTag& At(MarkdownRange source) const
     {

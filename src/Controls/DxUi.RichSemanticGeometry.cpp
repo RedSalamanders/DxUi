@@ -167,10 +167,20 @@ struct NativeImagePlacement
     std::shared_ptr<NativeColorPalette> mathPalette;
     bool bodyReady{}, tagReady{};
     float tagScale{1.f};
+    unsigned imageWidth{}, imageHeight{};
     D2D1_SIZE_F Size() const noexcept
     {
         if (! math)
-            return D2D1::SizeF(static_cast<float>(pixels->Width()), static_cast<float>(pixels->Height()));
+        {
+            const float width = static_cast<float>(pixels->Width()), height = static_cast<float>(pixels->Height());
+            if (imageWidth && imageHeight)
+                return D2D1::SizeF(static_cast<float>(imageWidth), static_cast<float>(imageHeight));
+            if (imageWidth)
+                return D2D1::SizeF(static_cast<float>(imageWidth), height * static_cast<float>(imageWidth) / width);
+            if (imageHeight)
+                return D2D1::SizeF(width * static_cast<float>(imageHeight) / height, static_cast<float>(imageHeight));
+            return D2D1::SizeF(width, height);
+        }
         if (! tag && ! rowTags)
             return math->Size();
         if (rowTags)
@@ -246,6 +256,8 @@ struct NativeImageGeometry
             placement.element = resource.element;
             placement.display = document.Elements()[resource.element].display;
             placement.pixels  = resource.image;
+            placement.imageWidth = document.Elements()[resource.element].imageWidth;
+            placement.imageHeight = document.Elements()[resource.element].imageHeight;
             const auto prior  = std::find_if(resources.placements.begin(),
                                              resources.placements.begin() + static_cast<std::ptrdiff_t>(index),
                                              [&](const auto& value) { return value.image == resource.image; });

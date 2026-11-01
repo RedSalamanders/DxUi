@@ -1,0 +1,1 @@
+- Add bounded authored image sizing, standalone alignment and explicit captions while retaining source ownership and staged image geometry.

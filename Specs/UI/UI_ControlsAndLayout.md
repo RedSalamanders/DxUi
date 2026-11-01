@@ -2760,3 +2760,24 @@ collision-resolved fragment slug and exact source/navigation ranges. Fragment re
 uses the same index as editor navigation. BuildHeadingTableOfContents generates bounded
 Markdown links with escaped labels and percent-encoded UTF-8 fragments without editing
 the document; a result exceeding the display-unit limit throws length_error.
+
+RichMarkdown admits a bounded presentation suffix immediately after a standalone
+image: `{width=48 height=40 align=center caption="Map overview"}`. Fields are
+optional, unique and space-separated; dimensions are integer DIPs from 1 through
+4096, alignment is left, center or right, and the explicit plain caption is
+1–256 UTF-16 units without control characters, quotes or backslashes. A single
+dimension preserves intrinsic aspect ratio; two set the authored size before
+normal viewport-fit admission. Unknown, duplicate, malformed or non-standalone
+suffixes remain ordinary literal source. CommonMark and GFM do not consume the
+suffix. The image including its suffix remains one atomic source owner; caption
+presentation is generated at its authored source anchor, and F2 edits the whole
+owner. Caption display is available to text/UIA and rendered export but is not
+independently source-editable. Caption is never inferred from a title.
+
+Native HTML images accept bounded quoted integer `width`/`height` and, on a
+standalone image leaf, `align` and explicit `data-caption`. The whole supported
+leaf validates before projection; unsupported or non-standalone alignment or
+caption stays literal. Caption display is generated at the tag's ending source
+anchor. Width/height preserve ratio when only one is authored. Geometry and
+caption text are prepared with the existing layout and resource budgets; Draw
+performs no new shaping or resource allocation.

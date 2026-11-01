@@ -10,6 +10,76 @@
 
 namespace DxUi::RichText
 {
+namespace
+{
+struct ImagePresentation
+{
+    unsigned width{}, height{};
+    MarkdownAlignment alignment{};
+    MarkdownRange caption{};
+};
+std::optional<ImagePresentation> ParseImagePresentation(std::wstring_view source, std::size_t first, std::size_t last)
+{
+    if (first >= last || last > source.size() || last - first > 512u || source[first] != L'{' || source[last - 1u] != L'}')
+        return std::nullopt;
+    ImagePresentation result;
+    bool width = false, height = false, align = false, caption = false;
+    auto at = first + 1u;
+    while (at < last - 1u)
+    {
+        while (at < last - 1u && source[at] == L' ') ++at;
+        if (at == last - 1u) break;
+        const auto nameFirst = at;
+        while (at < last - 1u && source[at] >= L'a' && source[at] <= L'z') ++at;
+        const auto name = source.substr(nameFirst, at - nameFirst);
+        if (at == last - 1u || source[at++] != L'=') return std::nullopt;
+        if (name == L"caption")
+        {
+            if (caption || at >= last - 1u || source[at++] != L'"') return std::nullopt;
+            const auto start = at;
+            while (at < last - 1u && source[at] != L'"')
+            {
+                if (source[at] < L' ' || source[at] == L'\\') return std::nullopt;
+                ++at;
+            }
+            if (at == start || at - start > 256u || at >= last - 1u) return std::nullopt;
+            result.caption = {start, at++};
+            caption = true;
+        }
+        else
+        {
+            const auto start = at;
+            while (at < last - 1u && source[at] != L' ') ++at;
+            const auto value = source.substr(start, at - start);
+            if (name == L"align")
+            {
+                if (align) return std::nullopt;
+                if (value == L"left") result.alignment = MarkdownAlignment::Left;
+                else if (value == L"center") result.alignment = MarkdownAlignment::Center;
+                else if (value == L"right") result.alignment = MarkdownAlignment::Right;
+                else return std::nullopt;
+                align = true;
+            }
+            else if (name == L"width" || name == L"height")
+            {
+                if (value.empty() || value.size() > 4u || (name == L"width" ? width : height)) return std::nullopt;
+                unsigned size = 0u;
+                for (const auto unit : value)
+                {
+                    if (unit < L'0' || unit > L'9') return std::nullopt;
+                    size = size * 10u + static_cast<unsigned>(unit - L'0');
+                }
+                if (! size || size > 4096u) return std::nullopt;
+                if (name == L"width") result.width = size, width = true;
+                else result.height = size, height = true;
+            }
+            else return std::nullopt;
+        }
+        if (at < last - 1u && source[at] != L' ') return std::nullopt;
+    }
+    return width || height || align || caption ? std::optional(result) : std::nullopt;
+}
+}
 std::size_t VisitSemanticWords(const SemanticDocument& document, MarkdownRange display, SemanticWordVisitor visitor, void* context)
 {
     const auto text = document.Map().Display();
@@ -876,7 +946,16 @@ struct SemanticBuilder::Preparation
             document->elements_[element].destination = tag.destination;
             document->elements_[element].title       = tag.title;
             document->elements_[element].nativeHtml  = true;
+            document->elements_[element].imageWidth = tag.imageWidth;
+            document->elements_[element].imageHeight = tag.imageHeight;
+            if (tag.alignment != MarkdownAlignment::None && ! document->paragraphs_.empty())
+                document->paragraphs_.back().alignment = tag.alignment;
             CompleteImage(element, tag.source, tag.alternative, flags | html.flags, html.heading ? html.heading : heading);
+            if (! tag.caption.empty())
+            {
+                output.Generated(L"\n", tag.source.last, flags | html.flags, html.heading ? html.heading : heading);
+                output.Generated(tag.caption, tag.source.last, flags | html.flags, html.heading ? html.heading : heading);
+            }
         }
         if (tag.kind == Detail::NativeHtmlKind::A)
         {
@@ -977,10 +1056,42 @@ struct SemanticBuilder::Preparation
             CloseElement(visit.element);
             return;
         }
+        std::optional<ImagePresentation> presentation;
+        std::size_t presentationEnd = node.source.last;
+        bool literalPresentation = false;
+        if (node.kind == MarkdownInlineKind::Image && document->syntax_->Profile() == MarkdownProfile::RichMarkdown &&
+            node.nextSibling != MarkdownNoNode)
+        {
+            const auto& suffix = document->syntax_->Inlines()[node.nextSibling];
+            const auto source = document->syntax_->Source();
+            if (suffix.source.first == node.source.last && suffix.source.first < source.size() && source[suffix.source.first] == L'{')
+            {
+                const auto available = std::min<std::size_t>(512u, source.size() - suffix.source.first);
+                const auto closing = source.substr(suffix.source.first, available).find(L'}');
+                presentationEnd = closing == std::wstring_view::npos ? suffix.source.last : suffix.source.first + closing + 1u;
+                // Never split a non-text inline owner crossing the candidate end.
+                if (suffix.kind != MarkdownInlineKind::Text && suffix.source.last > presentationEnd)
+                    presentationEnd = suffix.source.last;
+                const auto parsed = ParseImagePresentation(source, node.source.last, presentationEnd);
+                const bool standalone = ! document->paragraphs_.empty() && document->paragraphs_.back().element == visit.parent &&
+                    document->paragraphs_.back().syntaxNode < document->syntax_->Nodes().size() &&
+                    document->syntax_->Nodes()[document->paragraphs_.back().syntaxNode].block.kind == MarkdownBlockKind::Paragraph &&
+                    document->syntax_->Nodes()[document->paragraphs_.back().syntaxNode].firstInline == visit.node &&
+                    suffix.kind == MarkdownInlineKind::Text && suffix.nextSibling == MarkdownNoNode && suffix.source.last == presentationEnd;
+                if (standalone && parsed) presentation = parsed;
+                else literalPresentation = true;
+            }
+        }
         if (node.nextSibling != MarkdownNoNode)
         {
             auto sibling = visit;
             sibling.node = node.nextSibling;
+            if (presentation || literalPresentation)
+            {
+                sibling.skipUntil = presentationEnd;
+                sibling.clipFirst = std::max(sibling.clipFirst, presentationEnd);
+                if (sibling.clipLast == MarkdownNoNode) sibling.clipLast = document->syntax_->Source().size();
+            }
             visits.push_back(sibling);
         }
         if (node.source.last <= visit.skipUntil || (visit.clipLast != MarkdownNoNode && node.source.last <= visit.clipFirst))
@@ -1074,20 +1185,39 @@ struct SemanticBuilder::Preparation
             }
             return;
         }
+        if (literalPresentation)
+        {
+            const MarkdownRange raw{node.source.first, presentationEnd};
+            output.Emit(document->syntax_->Slice(raw), raw, DisplaySpanKind::Source, flags | Code, visit.heading);
+            return;
+        }
         if (node.kind == MarkdownInlineKind::Link || node.kind == MarkdownInlineKind::Image)
         {
             // A Markdown style container can cross an HTML anchor boundary.
             // Resolve its current native owner only when creating an element;
             // never capture a temporary HTML anchor in the style visit stack.
             const auto owner   = html.linkElement == MarkdownNoNode ? parent : html.linkElement;
-            const auto element = Element(node.kind == MarkdownInlineKind::Link ? SemanticRole::Link : SemanticRole::Image, node.source, owner);
+            const auto ownedSource = presentation ? MarkdownRange{node.source.first, presentationEnd} : node.source;
+            const auto element = Element(node.kind == MarkdownInlineKind::Link ? SemanticRole::Link : SemanticRole::Image, ownedSource, owner);
             document->elements_[element].destination = node.destination;
             document->elements_[element].title       = node.title;
             document->elements_[element].wiki        = node.wiki;
             if (node.kind == MarkdownInlineKind::Image)
             {
                 const auto alternative = ImageAlternative(node);
-                CompleteImage(element, node.source, alternative, flags, visit.heading);
+                if (presentation)
+                {
+                    document->elements_[element].imageWidth = presentation->width;
+                    document->elements_[element].imageHeight = presentation->height;
+                    if (presentation->alignment != MarkdownAlignment::None)
+                        document->paragraphs_.back().alignment = presentation->alignment;
+                }
+                CompleteImage(element, ownedSource, alternative, flags, visit.heading);
+                if (presentation && presentation->caption.first != presentation->caption.last)
+                {
+                    output.Generated(L"\n", presentation->caption.first, flags, visit.heading);
+                    output.Generated(document->syntax_->Slice(presentation->caption), presentation->caption.first, flags, visit.heading);
+                }
                 return;
             }
             auto close    = visit;

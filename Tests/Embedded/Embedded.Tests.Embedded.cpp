@@ -1725,6 +1725,7 @@ __declspec(noinline) static int RunFunctionalTests()
     RichSemanticTests::Run(RichSemanticDocumentTests::LocalizedAccessibilityLabels);
     RichSemanticTests::Run(RichSemanticDocumentTests::StructuralStyleValues);
     RichSemanticTests::Run(RichSemanticDocumentTests::SourceFormatOwnership);
+    RichSemanticTests::Run(RichSemanticDocumentTests::AuthoredImagePresentation);
     RichSemanticTests::Run(RichSemanticDocumentTests::NativeHtmlAndLinkPresentation);
     RichSemanticTests::Run(RichSemanticDocumentTests::HeadingOutlineAndFragments);
     RichSemanticTests::Run(RichSemanticDocumentTests::OptionalDefinitionsAndAbbreviations);

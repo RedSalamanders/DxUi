@@ -1564,8 +1564,33 @@ template <typename Prepare> void MathRunFontSize(ControlHost& host, Prepare&& pr
               "caret beside a tall formula follows its text line at the current DPI");
     }
 }
+template <typename Prepare> void ImagePresentationSourceEditing(ControlHost& host, Prepare&& prepare)
+{
+    const std::wstring original = L"![map](map.png){width=48 caption=\"Overview\"}\n";
+    auto root = std::make_unique<RichTextEditor>(original);
+    auto* editor = root.get();
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    editor->SetMarkdownRenderingEnabled(true);
+    host.SetRoot(std::move(root));
+    prepare();
+    const auto semantic = editor->GetAcknowledgedSemanticDocument(host);
+    Check(semantic != nullptr, "authored image has an acknowledged semantic document");
+    const auto image = std::ranges::find(semantic->Elements(), SemanticRole::Image, &SemanticElement::role);
+    Check(image != semantic->Elements().end() && image->source.last == original.size() - 1u,
+          "authored image owner includes the presentation suffix");
+    const auto index = static_cast<std::size_t>(image - semantic->Elements().begin());
+    Check(editor->BeginSemanticSourceEdit(host, semantic, index), "image presentation enters source editing");
+    prepare();
+    const auto region = editor->GetSemanticSourceRegion();
+    Check(region && region->source == image->source && editor->GetText() == original && ! editor->CanUndo(),
+          "source editing retains the complete image and attributes without history changes");
+    Check(editor->EndSemanticSourceEdit(host), "image presentation exits source editing");
+    prepare();
+    Check(editor->GetText() == original && ! editor->CanUndo(), "source editing round-trip preserves exact authored image");
+}
 template <typename Prepare> void InlineMathSourceEditing(ControlHost& host, Prepare&& prepare)
 {
+    ImagePresentationSourceEditing(host, prepare);
     const std::wstring original = L"Before **bold $x$ end** after";
     auto root                   = std::make_unique<RichTextEditor>(original);
     auto* editor                = root.get();
