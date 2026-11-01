@@ -206,6 +206,24 @@ static void TestRichDocumentAllocationFailureAtomicity()
             countAllocations = false;
             requests         = allocations;
         }
+        if (operation == 3u || operation == 4u)
+        {
+            Check(requests == 0u, "undo and redo with prepared history rings allocate no C++ storage");
+            Document candidate = baseline;
+            Document reference = baseline;
+            apply(reference, operation, L"");
+            {
+                const auto previous = failAllocationAfter;
+                const auto restore  = wil::scope_exit([=] noexcept { failAllocationAfter = previous; });
+                failAllocationAfter = 0u;
+                apply(candidate, operation, L"");
+            }
+            Check(candidate.Snapshot().IsSameRevision(reference.Snapshot()) && candidate.GetSelection() == reference.GetSelection() &&
+                      candidate.Revision() == reference.Revision() && historiesMatch(candidate, reference),
+                  "prepared undo or redo succeeds under immediate allocation failure with exact state and history");
+            std::cout << "rich source allocation-failure operation=" << operation << " sweptRequests=0 (prepared ring)\n";
+            continue;
+        }
         Check(requests > 0u && requests < 64u, "allocation-failure sweep has a finite observed operation count");
         for (size_t failure = 0u; failure < requests; ++failure)
         {
@@ -237,6 +255,51 @@ static void TestRichDocumentAllocationFailureAtomicity()
         }
         std::cout << "rich source allocation-failure operation=" << operation << " sweptRequests=" << requests << '\n';
     }
+    Document firstUndoBase(L"base");
+    firstUndoBase.Replace(4u, 4u, L"!", {5u, 5u});
+    const auto firstUndoSource = firstUndoBase.Snapshot();
+    const auto firstUndoSelection = firstUndoBase.GetSelection();
+    const auto firstUndoRevision = firstUndoBase.Revision();
+    size_t firstUndoRequests{};
+    {
+        Document candidate = firstUndoBase;
+        const auto oldCount = countAllocations;
+        const auto oldCalls = allocations, oldBytes = allocationBytes;
+        const auto restore = wil::scope_exit([=] noexcept
+        {
+            countAllocations = oldCount;
+            allocations = oldCalls;
+            allocationBytes = oldBytes;
+        });
+        allocations = allocationBytes = 0u;
+        countAllocations = true;
+        Check(candidate.Undo(), "first undo prepares the redo ring");
+        countAllocations = false;
+        firstUndoRequests = allocations;
+    }
+    Check(firstUndoRequests > 0u && firstUndoRequests < 64u, "first undo has a bounded fallible redo-ring preparation");
+    for (size_t failure = 0u; failure < firstUndoRequests; ++failure)
+    {
+        Document candidate = firstUndoBase;
+        bool rejected = false;
+        {
+            const auto previous = failAllocationAfter;
+            const auto restore = wil::scope_exit([=] noexcept { failAllocationAfter = previous; });
+            failAllocationAfter = failure;
+            try
+            {
+                static_cast<void>(candidate.Undo());
+            }
+            catch (const std::bad_alloc&)
+            {
+                rejected = true;
+            }
+        }
+        Check(rejected && candidate.Snapshot().IsSameRevision(firstUndoSource) && candidate.GetSelection() == firstUndoSelection &&
+                  candidate.Revision() == firstUndoRevision && candidate.CanUndo() && ! candidate.CanRedo() && historiesMatch(candidate, firstUndoBase),
+              "failed first undo preserves source, selection, revision and complete history");
+    }
+    std::cout << "rich source first-undo preparation sweptRequests=" << firstUndoRequests << '\n';
 }
 
 static void TestRichSourceChangeAllocationBudget()

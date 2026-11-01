@@ -1,0 +1,1 @@
+- Verify prepared undo/redo rings run without allocations while first-use redo-ring allocation failures preserve the complete source and history; native qualification remains pending.
