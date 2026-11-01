@@ -309,7 +309,10 @@ inline void OptionalDefinitionsAndAbbreviations()
 inline void AuthoredImagePresentation()
 {
     const std::wstring source = L"![map](map.png){width=48 height=40 align=center caption=\"Map overview\"}\n";
-    const auto document       = Build(source, MarkdownProfile::RichMarkdown);
+    const auto syntax         = Parse(source, MarkdownProfile::RichMarkdown);
+    Check(std::ranges::count_if(syntax->Inlines(), [](const auto& node) { return node.kind == MarkdownInlineKind::Text && node.source.first >= 15u; }) > 1,
+          "valid image attributes exercise multiple contiguous inline text siblings");
+    const auto document = Build(source, MarkdownProfile::RichMarkdown);
     CheckGraph(*document);
     const auto image = std::ranges::find(document->Elements(), SemanticRole::Image, &SemanticElement::role);
     Check(image != document->Elements().end() && image->imageWidth == 48u && image->imageHeight == 40u && image->name == L"map" && image->source.first == 0u &&
@@ -333,13 +336,24 @@ inline void AuthoredImagePresentation()
     for (const auto invalid : {L"![map](map.png){width=0}\n",
                                L"![map](map.png){width=12 width=24}\n",
                                L"prefix ![map](map.png){align=center}\n",
-                               L"![map](map.png){caption=\"A *styled* text\"}\n",
+                               L"![map](map.png){caption=\"A *cross} brace*\"}\n",
                                L"![map](map.png){caption=\"A\x7f B\"}\n"})
     {
         const auto rejected = Build(invalid, MarkdownProfile::RichMarkdown);
         Check(rejected->Map().Display().find(L"![map](map.png){") != std::wstring::npos && rejected->Map().Source() == invalid &&
                   std::ranges::none_of(rejected->Elements(), [](const auto& item) { return item.role == SemanticRole::Image; }),
               "invalid and non-standalone Markdown presentation attributes remain literal");
+    }
+    for (const auto caption : {L"A *styled* text", L"[see](url)"})
+    {
+        const std::wstring input  = L"![map](map.png){caption=\"" + std::wstring(caption) + L"\"}\n";
+        const auto literalCaption = Build(input, MarkdownProfile::RichMarkdown);
+        const auto captionAt      = literalCaption->Map().Display().find(caption);
+        CheckGraph(*literalCaption);
+        Check(captionAt != std::wstring_view::npos && literalCaption->Map().ToSource(captionAt) == input.find(caption) &&
+                  std::ranges::count(literalCaption->Elements(), SemanticRole::Image, &SemanticElement::role) == 1u &&
+                  std::ranges::none_of(literalCaption->Elements(), [](const auto& item) { return item.role == SemanticRole::Link; }),
+              "quoted caption punctuation remains literal and maps to its original source");
     }
     for (const auto input :
          {L"![map](map.png){width=2\n\nordinary } text\n", L"![map](map.png){width=2\nordinary } text\n", L"![map](map.png){width=2 *bad*}\n\nnext } text\n"})

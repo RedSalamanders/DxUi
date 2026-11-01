@@ -44,7 +44,7 @@ std::optional<ImagePresentation> ParseImagePresentation(std::wstring_view source
             const auto start = at;
             while (at < last - 1u && source[at] != L'"')
             {
-                if (source[at] < L' ' || source[at] == 0x7fu || source[at] == L'\\')
+                if (source[at] < L' ' || source[at] == 0x7fu || source[at] == L'\\' || source[at] == L'}')
                     return std::nullopt;
                 ++at;
             }
@@ -1111,13 +1111,31 @@ struct SemanticBuilder::Preparation
                     if (item.kind != MarkdownInlineKind::Text && item.source.last > presentationEnd)
                         presentationEnd = std::min(item.source.last, leafEnd);
                 }
-                const auto parsed     = ParseImagePresentation(source, node.source.last, presentationEnd);
+                const auto parsed = ParseImagePresentation(source, node.source.last, presentationEnd);
+                // Inline parsing may split the suffix into several nodes, and
+                // Markdown punctuation in a quoted plain caption may form
+                // inline nodes. They are opaque only when wholly contained by
+                // the independently validated caption range.
+                auto suffixNode = node.nextSibling;
+                auto suffixEnd  = node.source.last;
+                std::size_t suffixNodes{};
+                while (suffixNode != MarkdownNoNode && suffixEnd < presentationEnd && suffixNodes++ < 512u)
+                {
+                    const auto& item       = document->syntax_->Inlines()[suffixNode];
+                    const bool captionNode = parsed && parsed->caption.first < parsed->caption.last && item.source.first >= parsed->caption.first &&
+                                             item.source.last <= parsed->caption.last && item.kind != MarkdownInlineKind::SourceEditor &&
+                                             item.kind != MarkdownInlineKind::HardBreak && item.kind != MarkdownInlineKind::SoftBreak;
+                    if ((item.kind != MarkdownInlineKind::Text && ! captionNode) || item.source.first != suffixEnd || item.source.last <= suffixEnd ||
+                        item.source.last > presentationEnd)
+                        break;
+                    suffixEnd  = item.source.last;
+                    suffixNode = item.nextSibling;
+                }
                 const bool standalone = ! document->paragraphs_.empty() && document->paragraphs_.back().element == visit.parent &&
                                         document->paragraphs_.back().syntaxNode < document->syntax_->Nodes().size() &&
                                         document->syntax_->Nodes()[document->paragraphs_.back().syntaxNode].block.kind == MarkdownBlockKind::Paragraph &&
                                         document->syntax_->Nodes()[document->paragraphs_.back().syntaxNode].firstInline == visit.node &&
-                                        suffix.kind == MarkdownInlineKind::Text && suffix.nextSibling == MarkdownNoNode &&
-                                        suffix.source.last == presentationEnd;
+                                        suffixEnd == presentationEnd && suffixNode == MarkdownNoNode;
                 if (standalone && parsed)
                     presentation = parsed;
                 else
