@@ -22,7 +22,7 @@ receivers and the library must likewise be rebuilt from the same exact pin.
 | Markdown analysis | Limited | Pinned CommonMark/GFM profiles and bounded RichMarkdown extensions | [Details](#owned-lossless-markdown-preparation) |
 | Semantic rendering | Limited | Explicit opt-in; unsupported leaves preserve literal source | [Details](#semantic-rendering-preview-m4d) |
 | Native HTML | Limited | Validated native subset; whole-leaf fallback; no browser or executable HTML | [Details](#semantic-rendering-preview-m4d) |
-| Images | Limited | Caller-owned decoding and bounded raster publication; remote requests default off | [Details](#retained-editor-preview-d2c) |
+| Images | Limited | Caller-owned raster/SVG resources; bounded sizing/captions/frames; HTTP/data/SVG opt-ins default off | [Details](#retained-editor-preview-d2c) |
 | File-reference paste | Supported | Ordered references; document-relative destinations; one undo transaction | [Details](#retained-editor-preview-d2c) |
 | File-reference drop | Limited | App-owned STA adapter; 16 files; 256 KiB medium; guarded prepared caret | [Details](#retained-editor-preview-d2c) |
 | Rendered export | Limited | Inert bounded semantic HTML and text; explicit clipboard; prepared page slices | [Details](#rendered-export-and-printing) |
