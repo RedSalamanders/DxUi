@@ -156,7 +156,8 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
               ! Detail::ParseNativeColor(L"#12345678"),
           "native color admission handles named colors, case, short hex and rejects unsupported alpha or malformed input");
     for (const auto source : {L"a\\textcolor{blue}{+}b", L"\\color{blue}{2+}3", L"\\colorbox{black}{plain text}",
-                              L"\\fcolorbox{white}{black}{plain text}", L"\\textcolor{red}{x_1}"})
+                              L"\\fcolorbox{white}{black}{plain text}", L"\\textcolor{red}{x_1}",
+                              L"\\colorbox{black}{\\textcolor{white}{hello world}}", L"\\colorbox{blue}{cost \\$5}"})
         check(static_cast<bool>(ParseMath(source)), "bounded author-color syntax parses");
     for (const auto source : {L"\\color{unknownname}x", L"\\textcolor{#12345678}{x}", L"\\colorbox{blue}", L"\\fcolorbox{red}{blue}"})
         check(! ParseMath(source), "malformed or unsupported author colors reject to source");

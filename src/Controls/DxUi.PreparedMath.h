@@ -353,6 +353,7 @@ class PreparedMath final
         std::uint32_t color{NoColor};
         D2D1_RECT_F rectangle{};
         std::uint32_t foreground{NoColor};
+        std::size_t nextInBackground{std::numeric_limits<std::size_t>::max()};
     };
     std::shared_ptr<const MathExpression> expression;
     wil::com_ptr<IDWriteFactory> factory;
@@ -364,6 +365,7 @@ class PreparedMath final
     std::vector<VariantGlyph> variants;
     std::vector<PaintOperation> paintOperations;
     std::vector<std::uint32_t> colors;
+    std::vector<std::size_t> backgroundHeads;
     std::uint32_t activeColor{NoColor};
     std::size_t activeBackground{std::numeric_limits<std::size_t>::max()};
     std::size_t backgroundCount{};
@@ -1796,6 +1798,16 @@ class PreparedMath final
         Place(0u, 0.f, extent.above);
         if (paintOperations.size() > 32768u)
             throw std::length_error("Mathematical paint capacity exceeded");
+        backgroundHeads.assign(backgroundCount, std::numeric_limits<std::size_t>::max());
+        for (std::size_t index = paintOperations.size(); index-- > 0u;)
+        {
+            auto& operation = paintOperations[index];
+            if (operation.background < backgroundHeads.size())
+            {
+                operation.nextInBackground = backgroundHeads[operation.background];
+                backgroundHeads[operation.background] = index;
+            }
+        }
         float left{}, right = extent.width, top{}, bottom = extent.above + extent.below;
         for (const auto& glyph : glyphs)
         {
@@ -1871,6 +1883,7 @@ public:
           variants(0u),
           paintOperations(0u),
           colors(0u),
+          backgroundHeads(0u),
           font(size),
           dpi(deviceDpi),
           displayStyle(display)
@@ -2010,6 +2023,109 @@ public:
         return lines;
     }
     std::span<const std::uint32_t> Colors() const noexcept { return colors; }
+    __declspec(noinline) void DrawColored(ID2D1RenderTarget* target, ID2D1Brush* brush, const NativeColorPalette* palette,
+                                           const MathColorContext* context) const noexcept
+    {
+        const auto drawVariant = [&](const VariantGlyph& variant, ID2D1Brush* selected)
+        {
+            D2D1_MATRIX_3X2_F current;
+            target->GetTransform(&current);
+            target->SetTransform(D2D1::Matrix3x2F::Scale(variant.scaleX, 1.f, D2D1::Point2F(variant.x, variant.baseline)) * current);
+            const DWRITE_GLYPH_RUN run{mathData->face.get(), variant.fontSize, 1u, &variant.glyph, nullptr, nullptr, FALSE, 0u};
+            target->DrawGlyphRun(D2D1::Point2F(variant.x, variant.baseline), &run, selected, DWRITE_MEASURING_MODE_NATURAL);
+            target->SetTransform(current);
+        };
+        struct Resolved { std::uint32_t background{NoColor}, foreground{NoColor}; };
+        std::array<Resolved, MathMaximumNodes> backgrounds{};
+        const bool enabled = context && context->fill.a >= 1.f && palette && palette->Ready() && palette->Matches(target);
+        const auto rgb = [](std::uint32_t value) noexcept
+        {
+            return D2D1::ColorF(static_cast<float>((value >> 16u) & 255u) / 255.f, static_cast<float>((value >> 8u) & 255u) / 255.f,
+                                static_cast<float>(value & 255u) / 255.f);
+        };
+        const auto contrast = [](D2D1_COLOR_F a, D2D1_COLOR_F b) noexcept
+        {
+            const auto luminosity = [](D2D1_COLOR_F value)
+            {
+                const auto channel = [](double unit) { return unit <= .04045 ? unit / 12.92 : std::pow((unit + .055) / 1.055, 2.4); };
+                return .2126 * channel(value.r) + .7152 * channel(value.g) + .0722 * channel(value.b);
+            };
+            const auto left = luminosity(a), right = luminosity(b);
+            return (std::max(left, right) + .05) / (std::min(left, right) + .05);
+        };
+        const auto backgroundColor = [&](const Resolved& value) { return value.background == NoColor ? context->fill : rgb(value.background); };
+        const auto foregroundColor = [&](const Resolved& value, D2D1_COLOR_F background)
+        {
+            auto text = value.foreground == NoColor ? context->text : rgb(value.foreground);
+            const auto alpha = std::clamp(text.a, 0.f, 1.f);
+            return D2D1::ColorF(text.r * alpha + background.r * (1.f - alpha), text.g * alpha + background.g * (1.f - alpha),
+                                text.b * alpha + background.b * (1.f - alpha));
+        };
+        for (const auto& operation : paintOperations)
+        {
+            Resolved state{};
+            if (enabled && operation.background < backgroundCount)
+                state = backgrounds[operation.background];
+            auto* selected = brush;
+            if (enabled)
+            {
+                const auto background = backgroundColor(state);
+                auto foreground = state.foreground;
+                if (operation.kind == PaintKind::Background)
+                {
+                    Resolved candidateState = state;
+                    if (operation.foreground != NoColor)
+                        candidateState.foreground = operation.foreground;
+                    const auto candidate = rgb(operation.color);
+                    auto safeForeground = [&](std::uint32_t foreground)
+                    {
+                        const Resolved value{operation.color, foreground};
+                        return contrast(foregroundColor(value, candidate), candidate) >= 4.5;
+                    };
+                    bool safe = safeForeground(candidateState.foreground);
+                    if (! safe && safeForeground(NoColor))
+                    {
+                        candidateState.foreground = NoColor;
+                        safe = true;
+                    }
+                    if (! safe)
+                        for (auto child = backgroundHeads[operation.index]; child < paintOperations.size(); child = paintOperations[child].nextInBackground)
+                        {
+                            const auto& item = paintOperations[child];
+                            if (item.kind != PaintKind::Background && item.color != NoColor && safeForeground(item.color))
+                            {
+                                candidateState.foreground = item.color;
+                                safe = true;
+                                break;
+                            }
+                        }
+                    if (safe)
+                    {
+                        state.foreground = candidateState.foreground;
+                        state.background = operation.color;
+                        if (auto* authored = palette->Brush(operation.color))
+                            target->FillRectangle(operation.rectangle, authored);
+                    }
+                    backgrounds[operation.index] = state;
+                    continue;
+                }
+                if (operation.color != NoColor && contrast(rgb(operation.color), background) >= 4.5)
+                    foreground = operation.color;
+                if (foreground != NoColor)
+                    if (auto* authored = palette->Brush(foreground))
+                        selected = authored;
+            }
+            switch (operation.kind)
+            {
+                case PaintKind::Glyph: target->DrawTextLayout(glyphs[operation.index].origin, glyphs[operation.index].layout.get(), selected); break;
+                case PaintKind::Line:
+                    target->DrawLine(lines[operation.index].first, lines[operation.index].last, selected, lines[operation.index].thickness);
+                    break;
+                case PaintKind::Variant: drawVariant(variants[operation.index], selected); break;
+                case PaintKind::Background: break;
+            }
+        }
+    }
     void Draw(ID2D1RenderTarget* target, ID2D1Brush* brush, D2D1_POINT_2F origin, float scale,
               const NativeColorPalette* palette = nullptr, const MathColorContext* context = nullptr) const noexcept
     {
@@ -2035,76 +2151,7 @@ public:
                 drawVariant(variant, brush);
         }
         else
-        {
-            struct Resolved { std::uint32_t background{NoColor}, foreground{NoColor}; };
-            std::array<Resolved, MathMaximumNodes> backgrounds{};
-            const bool enabled = context && context->fill.a >= 1.f && palette && palette->Ready() && palette->Matches(target);
-            const auto rgb = [](std::uint32_t value) noexcept
-            {
-                return D2D1::ColorF(static_cast<float>((value >> 16u) & 255u) / 255.f, static_cast<float>((value >> 8u) & 255u) / 255.f,
-                                    static_cast<float>(value & 255u) / 255.f);
-            };
-            const auto contrast = [](D2D1_COLOR_F a, D2D1_COLOR_F b) noexcept
-            {
-                const auto luminosity = [](D2D1_COLOR_F value)
-                {
-                    const auto channel = [](double unit) { return unit <= .04045 ? unit / 12.92 : std::pow((unit + .055) / 1.055, 2.4); };
-                    return .2126 * channel(value.r) + .7152 * channel(value.g) + .0722 * channel(value.b);
-                };
-                const auto left = luminosity(a), right = luminosity(b);
-                return (std::max(left, right) + .05) / (std::min(left, right) + .05);
-            };
-            const auto backgroundColor = [&](const Resolved& value) { return value.background == NoColor ? context->fill : rgb(value.background); };
-            const auto foregroundColor = [&](const Resolved& value, D2D1_COLOR_F background)
-            {
-                auto text = value.foreground == NoColor ? context->text : rgb(value.foreground);
-                const auto alpha = std::clamp(text.a, 0.f, 1.f);
-                return D2D1::ColorF(text.r * alpha + background.r * (1.f - alpha), text.g * alpha + background.g * (1.f - alpha),
-                                    text.b * alpha + background.b * (1.f - alpha));
-            };
-            for (const auto& operation : paintOperations)
-            {
-                Resolved state{};
-                if (enabled && operation.background < backgroundCount)
-                    state = backgrounds[operation.background];
-                auto* selected = brush;
-                if (enabled)
-                {
-                    const auto background = backgroundColor(state);
-                    auto foreground = state.foreground;
-                    if (operation.kind == PaintKind::Background)
-                    {
-                        Resolved candidateState = state;
-                        if (operation.foreground != NoColor)
-                            candidateState.foreground = operation.foreground;
-                        const auto candidate = rgb(operation.color);
-                        if (contrast(foregroundColor(candidateState, candidate), candidate) >= 4.5)
-                        {
-                            state.foreground = candidateState.foreground;
-                            state.background = operation.color;
-                            if (auto* authored = palette->Brush(operation.color))
-                                target->FillRectangle(operation.rectangle, authored);
-                        }
-                        backgrounds[operation.index] = state;
-                        continue;
-                    }
-                    if (operation.color != NoColor && contrast(rgb(operation.color), background) >= 4.5)
-                        foreground = operation.color;
-                    if (foreground != NoColor)
-                        if (auto* authored = palette->Brush(foreground))
-                            selected = authored;
-                }
-                switch (operation.kind)
-                {
-                    case PaintKind::Glyph: target->DrawTextLayout(glyphs[operation.index].origin, glyphs[operation.index].layout.get(), selected); break;
-                    case PaintKind::Line:
-                        target->DrawLine(lines[operation.index].first, lines[operation.index].last, selected, lines[operation.index].thickness);
-                        break;
-                    case PaintKind::Variant: drawVariant(variants[operation.index], selected); break;
-                    case PaintKind::Background: break;
-                }
-            }
-        }
+            DrawColored(target, brush, palette, context);
         target->SetTransform(previous);
     }
 };

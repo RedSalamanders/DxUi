@@ -3123,9 +3123,9 @@ void PreparedSemanticGeometry::Draw(ID2D1RenderTarget* target,
                     {
                         if (image.math)
                         {
-                            const MathColorContext mathColors{diagramColors ? diagramColors->text : D2D1_COLOR_F{},
-                                                              diagramColors ? diagramColors->fill : D2D1_COLOR_F{}};
-                            const auto* colorContext = diagramColors ? &mathColors : nullptr;
+                            const MathColorContext mathColors{boxColors ? boxColors->text : D2D1_COLOR_F{},
+                                                              boxColors ? boxColors->fill : D2D1_COLOR_F{}};
+                            const auto* colorContext = boxColors ? &mathColors : nullptr;
                             if (image.tag)
                             {
                                 const float scale = image.tagScale;

@@ -695,7 +695,99 @@ class Parser
         }
         Reject(MathIssue::UnsupportedCommand);
     }
-    MathNode ColorCommand(std::wstring_view name, unsigned depth)
+    MathNode TextColorBody(unsigned depth)
+    {
+        if (depth > MathMaximumGroupDepth)
+            Reject(MathIssue::Capacity);
+        Space();
+        if (at == source.size() || source[at++] != L'{')
+            Reject(MathIssue::MissingRequiredArgument);
+        std::vector<MathNode> children(0u);
+        std::wstring text(0u, L' ');
+        std::wstring activeColor(0u, L' ');
+        const auto append = [&](MathNode&& node)
+        {
+            if (! activeColor.empty())
+                node = Make(MathKind::Style, std::wstring(activeColor), {std::move(node)});
+            children.push_back(std::move(node));
+        };
+        const auto flush = [&]
+        {
+            if (text.empty())
+                return;
+            auto leaf = Make(MathKind::Text, std::move(text));
+            leaf.italic = false;
+            leaf.atomClass = MathAtomClass::Ordinary;
+            append(std::move(leaf));
+            text.clear();
+        };
+        while (at < source.size())
+        {
+            const auto unit = source[at++];
+            if (unit == L'}')
+            {
+                flush();
+                return Make(MathKind::Row, L"", std::move(children));
+            }
+            if (unit == L'$')
+                Reject(MathIssue::UnsupportedCommand);
+            if (unit == L'{')
+            {
+                --at;
+                flush();
+                append(TextColorBody(depth + 1u));
+                continue;
+            }
+            if (unit == L'%')
+            {
+                while (at < source.size() && source[at] != L'\r' && source[at] != L'\n')
+                    ++at;
+                continue;
+            }
+            if (unit == L'\\')
+            {
+                if (at == source.size())
+                    Reject(MathIssue::MissingRequiredArgument);
+                if (! Letter(source[at]))
+                {
+                    if (std::wstring_view(L"{}%_$&#\\ ").find(source[at]) == std::wstring_view::npos)
+                        Reject(MathIssue::UnsupportedCommand);
+                    text.push_back(source[at++]);
+                    continue;
+                }
+                const auto start = at;
+                while (at < source.size() && Letter(source[at]))
+                    ++at;
+                const auto name = source.substr(start, at - start);
+                flush();
+                if (name == L"color")
+                {
+                    const auto color = Detail::ParseNativeColor(GroupText());
+                    if (! color)
+                        Reject(MathIssue::UnsupportedCommand);
+                    activeColor.assign(L"textcolor:");
+                    activeColor.append(Detail::EncodeNativeColor(color.value()));
+                }
+                else if (name == L"textcolor" || name == L"colorbox" || name == L"fcolorbox")
+                    append(ColorCommand(name, depth + 1u, true));
+                else if (name == L"textbf" || name == L"textit" || name == L"textrm")
+                    append(Make(MathKind::Style, name == L"textbf" ? L"mathbf" : name == L"textit" ? L"mathit" : L"mathrm",
+                                {TextColorBody(depth + 1u)}));
+                else
+                    Reject(MathIssue::UnsupportedCommand);
+                continue;
+            }
+            if (iswspace(unit))
+            {
+                if (text.empty() || text.back() != L' ')
+                    text.push_back(L' ');
+            }
+            else
+                text.push_back(unit);
+        }
+        Reject(MathIssue::MissingGroupClose);
+    }
+    MathNode ColorCommand(std::wstring_view name, unsigned depth, bool textMode = false)
     {
         const auto color = Detail::ParseNativeColor(GroupText());
         if (! color)
@@ -712,13 +804,8 @@ class Parser
             label += Detail::EncodeNativeColor(background.value());
         }
         if (name == L"textcolor")
-            return Make(MathKind::Style, std::move(label), {Atom(depth + 1u)});
-        auto text = GroupText(true);
-        if (text.find(L'$') != std::wstring::npos)
-            Reject(MathIssue::UnsupportedCommand);
-        auto body = Make(MathKind::Text, std::move(text));
-        body.italic = false;
-        return Make(MathKind::Accent, std::move(label), {std::move(body)});
+            return Make(MathKind::Style, std::move(label), {textMode ? TextColorBody(depth + 1u) : Atom(depth + 1u)});
+        return Make(MathKind::Accent, std::move(label), {TextColorBody(depth + 1u)});
     }
     void AppendColored(std::vector<MathNode>& output, std::wstring_view label, MathNode&& body)
     {

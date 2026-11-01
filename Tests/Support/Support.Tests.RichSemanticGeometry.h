@@ -537,6 +537,32 @@ inline void MathWidthReflowAndTargetReplacement()
     auto unknownBackdrop = authorContext;
     unknownBackdrop.fill.a = .5f;
     Check(countBlue(&unknownBackdrop) == 0u, "math author color falls back when backdrop opacity is unknown");
+    const auto quotedColor = RichSemanticDocumentTests::Build(L"> $a\\textcolor{blue}{+}b$\n", MarkdownProfile::RichMarkdown);
+    geometry.Clear();
+    geometry.Begin(factory.get(), quotedColor, options, drawing.get(), {}, {}, target.get());
+    Complete(geometry);
+    Check(countBlue(&authorContext) == 0u, "math author color yields to the theme on an unknown quote backdrop");
+    const auto nestedColor = RichSemanticDocumentTests::Build(L"$\\colorbox{black}{\\textcolor{white}{hello}}$\n", MarkdownProfile::RichMarkdown);
+    geometry.Clear();
+    geometry.Begin(factory.get(), nestedColor, options, drawing.get(), {}, {}, target.get());
+    Complete(geometry);
+    const auto darkPixels = [&](const Detail::DiagramColorContext* context)
+    {
+        target->BeginDraw();
+        target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+        geometry.Draw(target.get(), ink.get(), ink.get(), D2D1::Point2F(0.f, 0.f), 0.f, 512.f, nullptr, 1.f, nullptr, nullptr, context);
+        THROW_IF_FAILED(target->EndDraw());
+        constexpr UINT stride = 512u * 4u;
+        std::vector<BYTE> pixels(stride * 512u);
+        THROW_IF_FAILED(bitmap->CopyPixels(nullptr, stride, static_cast<UINT>(pixels.size()), pixels.data()));
+        std::size_t dark{};
+        for (std::size_t offset = 0u; offset < pixels.size(); offset += 4u)
+            if (pixels[offset] < 40u && pixels[offset + 1u] < 40u && pixels[offset + 2u] < 40u)
+                ++dark;
+        return dark;
+    };
+    Check(darkPixels(&authorContext) > darkPixels(nullptr) * 2u,
+          "nested white text retains a readable dark colorbox and selection suppresses its authored background");
     const auto diagram = RichSemanticDocumentTests::Build(L"```mermaid\nflowchart LR\nA[Start] --> B[Finish]\n```\n", MarkdownProfile::RichMarkdown);
     geometry.Clear();
     geometry.Begin(factory.get(), diagram, options, nullptr, {}, {}, target.get());

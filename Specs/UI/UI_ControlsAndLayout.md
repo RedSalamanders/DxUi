@@ -2349,6 +2349,7 @@ Math uses the enclosing run's effective body, code or heading size before the
 shared 1.15 native-math scale; explicit heading size overrides take precedence.
 A caret beside a formula uses the surrounding text line's DirectWrite geometry.
 Native `overset`, `underset` and `stackrel` center bounded annotations above or below their base while retaining its atom class; `stackrel` is relational.
+Native `\color` and `\textcolor` preserve math atom spacing while applying scoped author ink. `\colorbox` and `\fcolorbox` admit bounded text-mode contents, including nested color and supported text-style commands. Colors are opaque named CSS colors or three- and six-digit hexadecimal values; unsupported colors, alpha forms and embedded math in text-mode boxes remain exact source with a diagnostic. Colored glyphs, rules, variants, borders and backgrounds are staged in authored order. Their deduplicated brushes belong to the exact raster target and are prepared incrementally; paint does not allocate or create resources. Author colors yield to theme ink for selection, high contrast, translucent or unknown backdrops, and fail contrast checks conservatively. Width-only reflow retains completed mathematical shaping and same-target palettes.
 
 Limits are 16,384 source units, 4,096 staging/syntax nodes, 64 parsed nesting
 levels, 64 rows/columns and 1,024 cells per formula including generated padding.
