@@ -723,7 +723,7 @@ Invoke-FixtureCase 'an older tree imports the staged build console and retains i
     Set-FixtureFile $target 'src/Library.cpp' 'original library source'
     Set-FixtureFile $target 'DxUi.vcxproj' 'original library project'
     Set-FixtureFile $target 'build.ps1' 'original build driver'
-    Set-FixtureFile $target 'clean.log' 'Build succeeded. 0 Warning(s) 0 Error(s)'
+    Set-FixtureFile $target 'clean.log' "Build succeeded.`n`n    0 Warning(s)`n    0 Error(s)`n`nTime Elapsed 00:00:01.00`n"
     Set-FixtureFile $target 'warning.log' 'probe.cpp(1): warning C4100: fixture warning'
     $tokens=$null;$parseErrors=$null
     $ast=[Management.Automation.Language.Parser]::ParseFile((Join-Path $repository 'build.ps1'),[ref]$tokens,[ref]$parseErrors)
