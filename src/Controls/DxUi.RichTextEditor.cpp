@@ -3660,9 +3660,9 @@ bool RichTextEditor::Erase(ControlHost& host, bool backwards, bool byWord, bool 
             // that also remove markup or combine disjoint spans stay atomic.
             if (! byWord && plan.IsApplicable() && plan.Edits().size() == 1u && plan.Edits()[0].replacement.empty())
             {
-                const auto& edit  = plan.Edits()[0];
-                const auto erased = plan.ExpectedSource().Slice(edit.source.first, edit.source.last);
-                if (erased.size() <= 64u && IsHistoryWordElement(erased))
+                const auto& edit = plan.Edits()[0];
+                const auto units = edit.source.last - edit.source.first;
+                if (units <= 64u && IsHistoryWordElement(plan.ExpectedSource().Slice(edit.source.first, edit.source.last)))
                 {
                     const auto composition = host.GetFocusControl() == this ? host.GetNativeTextCompositionActive(this) : std::optional<bool>{false};
                     if ((host.GetFocusControl() == this && host.HasActiveNativeTextInputSession() && ! composition) || composition.value_or(false))
@@ -3675,16 +3675,12 @@ bool RichTextEditor::Erase(ControlHost& host, bool backwards, bool byWord, bool 
                     const auto kind     = backwards ? State::TypingRun::Kind::Backspace : State::TypingRun::Kind::Delete;
                     const bool merge    = previous && previous->kind == kind && previous->revision == Revision() &&
                                           previous->selectionEpoch == _state->document.selectionEpoch_ && previous->caret == selection.caret &&
-                                          now >= previous->lastTick && now - previous->lastTick <= 1000u && previous->units + erased.size() <= 64u &&
+                                          now >= previous->lastTick && now - previous->lastTick <= 1000u && previous->units + units <= 64u &&
                                           _state->document.CanUndo();
                     const bool changed  = _state->document.ReplaceImpl(edit.source.first, edit.source.last, {}, plan.After(), true, merge);
                     if (changed)
-                        _state->typingRun = State::TypingRun{kind,
-                                                             Revision(),
-                                                             _state->document.selectionEpoch_,
-                                                             now,
-                                                             plan.After().caret,
-                                                             merge ? previous->units + erased.size() : erased.size()};
+                        _state->typingRun = State::TypingRun{
+                            kind, Revision(), _state->document.selectionEpoch_, now, plan.After().caret, merge ? previous->units + units : units};
                     else
                         _state->typingRun.reset();
                     _state->sourceCaretSite = RichText::MarkdownNoNode;
@@ -4262,23 +4258,18 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
                     }
                     else
                         range = GetTextElementDeletionRange(source.Text(), selection.caret, backwards);
-                    const auto character = source.Slice(range.first, range.last);
-                    const bool word      = IsHistoryWordElement(character) && character.size() <= 64u;
+                    const auto units = range.last - range.first;
+                    const bool word  = units <= 64u && IsHistoryWordElement(source.Slice(range.first, range.last));
                     if (word)
                     {
                         const auto now      = GetTickCount64();
                         const auto previous = _state->typingRun;
                         const auto kind     = backwards ? State::TypingRun::Kind::Backspace : State::TypingRun::Kind::Delete;
-                        merge               = previous && previous->kind == kind && previous->revision == Revision() &&
-                                              previous->selectionEpoch == _state->document.selectionEpoch_ && previous->caret == selection.caret &&
-                                              now >= previous->lastTick && now - previous->lastTick <= 1000u && previous->units + character.size() <= 64u &&
-                                              _state->document.CanUndo();
-                        _state->typingRun   = State::TypingRun{kind,
-                                                               Revision() + 1u,
-                                                               _state->document.selectionEpoch_,
-                                                               now,
-                                                               range.first,
-                                                               merge ? previous->units + character.size() : character.size()};
+                        merge = previous && previous->kind == kind && previous->revision == Revision() &&
+                                previous->selectionEpoch == _state->document.selectionEpoch_ && previous->caret == selection.caret &&
+                                now >= previous->lastTick && now - previous->lastTick <= 1000u && previous->units + units <= 64u && _state->document.CanUndo();
+                        _state->typingRun = State::TypingRun{
+                            kind, Revision() + 1u, _state->document.selectionEpoch_, now, range.first, merge ? previous->units + units : units};
                     }
                     else
                         _state->typingRun.reset();
