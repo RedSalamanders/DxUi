@@ -96,6 +96,28 @@ void TestRichSemanticNativeMathCaretMetrics()
             "an isolated formula without a neighboring text glyph retains usable caret geometry");
     std::cout << "isolated math caret start=" << isolatedStart->top << "," << isolatedStart->bottom << " end=" << isolatedEnd->top << "," << isolatedEnd->bottom
               << '\n';
+    auto styled                   = editor->GetAppearance();
+    styled.codeFontSizeDip        = 32.f;
+    styled.headingFontSizeDip[0u] = 48.f;
+    editor->SetAppearance(styled);
+    for (const bool code : {false, true})
+    {
+        const std::wstring value = code ? L"<code>$x$</code>" : L"# $x$";
+        editor->SetText(value);
+        Require(PrepareNativeContentForTests(window.Host()), "prepare isolated styled equation caret");
+        auto* textFormat = window.Host().GetTextFormat(code ? FontRole::Monospace : FontRole::Body);
+        wil::com_ptr<IDWriteTextLayout> styledOracle;
+        THROW_IF_FAILED(factory->CreateTextLayout(L"x", 1u, textFormat, 400.f, 400.f, styledOracle.put()));
+        THROW_IF_FAILED(styledOracle->SetFontSize(code ? 32.f : 48.f, {0u, 1u}));
+        if (! code)
+            THROW_IF_FAILED(styledOracle->SetFontWeight(DWRITE_FONT_WEIGHT_SEMI_BOLD, {0u, 1u}));
+        DWRITE_HIT_TEST_METRICS hit{};
+        THROW_IF_FAILED(styledOracle->HitTestTextPosition(0u, FALSE, &x, &y, &hit));
+        const auto sourceCaret = editor->TryGetTextInputCaretRect(window.Host(), value.find(L'$'));
+        Require(sourceCaret && std::abs((sourceCaret->bottom - sourceCaret->top) - hit.height) < .1f,
+                "isolated formula caret uses the enclosing code or heading font metrics");
+    }
+    editor->SetAppearance(RichTextEditorAppearance{});
     auto appearance                = editor->GetAppearance();
     appearance.maximumTextWidthDip = 80.f;
     editor->SetAppearance(appearance);
