@@ -721,8 +721,13 @@ inline void InlineTasksLinks()
     request.command = MarkdownCommand::InsertParagraph;
     Exact(L"> 9) [x] alpha\r\n", {14u, 14u}, request, L"> 9) [x] alpha\r\n> 10) [ ] \r\n");
     Exact(L"> ***", {5u, 5u}, request, L"> ***\r\n", Selection{7u, 7u});
-    request.command  = MarkdownCommand::SetList;
-    request.listKind = MarkdownListKind::Unordered;
+    request.enterPolicy = MarkdownEnterPolicy::NewParagraph;
+    Exact(L"hello", {2u, 2u}, request, L"he\r\n\r\nllo", Selection{6u, 6u});
+    Exact(L"> hello", {5u, 5u}, request, L"> hel\r\n> \r\n> lo", Selection{13u, 13u});
+    Exact(L"- item", {3u, 3u}, request, L"- i\r\n- tem", Selection{7u, 7u});
+    request.enterPolicy = MarkdownEnterPolicy::RawNewline;
+    request.command     = MarkdownCommand::SetList;
+    request.listKind    = MarkdownListKind::Unordered;
     Exact(L"- [x] **word**\n", {8u, 8u}, request, L"- **word**\n");
 
     request         = {};

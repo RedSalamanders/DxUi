@@ -1161,11 +1161,20 @@ The retained API requires explicit semantic rendering in Rich view, an editable
 control and current published analysis. `ApplyMarkdownCommand(plan)` also checks
 the current syntax owner; it does not revive a plan from a replaced publication.
 Composition blocks structural commands. Pending analysis never triggers an inline
-parse: explicit commands report Unavailable; hardware Enter can still insert a
+parse: explicit commands report Unavailable; hardware Enter can still insert
 the document's first EOL spelling, or CRLF when none exists. Source-view Enter
 and Shift+Enter use the same policy. TSF imports and programmatic replacements retain exact raw
 replacement semantics. Pure plans have no host binding and are also usable with
 `BuildMarkdownCommand` / `ApplyMarkdownCommand(Document&, plan)`.
+
+`RichTextEditorAppearance::softBreakPolicy` defaults to `Space`; `LineBreak`
+renders soft breaks as line breaks without changing source. `enterPolicy`
+defaults to `RawNewline`; `NewParagraph` inserts a blank source line with proven
+container prefixes in ordinary Rich paragraphs. Lists and code keep their
+continuation behavior. Shift+Enter still inserts a hard break, and Source view
+and pending-analysis fallback retain raw insertion. The same Enter policy is
+available on an explicit `MarkdownCommandRequest` and is part of prepared
+command-state identity.
 
 | Command family | Source behavior |
 | --- | --- |

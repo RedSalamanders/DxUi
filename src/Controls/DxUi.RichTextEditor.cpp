@@ -396,7 +396,7 @@ struct RichTextEditor::State
             return request.command == value.command && request.listKind == value.listKind && request.style == value.style &&
                    request.quoteAction == value.quoteAction && request.mathDisplay == value.mathDisplay && request.headingLevel == value.headingLevel &&
                    request.listStart == value.listStart && request.targetCell == value.targetCell && request.tableColumns == value.tableColumns &&
-                   request.tableBodyRows == value.tableBodyRows && request.tableAlignment == value.tableAlignment &&
+                   request.tableBodyRows == value.tableBodyRows && request.tableAlignment == value.tableAlignment && request.enterPolicy == value.enterPolicy &&
                    request.tableCellCaretOffset == value.tableCellCaretOffset && text == value.text &&
                    destination == value.destination && title == value.title;
         }
@@ -1282,6 +1282,8 @@ void RichTextEditor::SetAppearance(const RichTextEditorAppearance& appearance)
         ! std::ranges::all_of(appearance.headingFontSizeDip, validSize) || ! std::ranges::all_of(appearance.headingLineHeightMultiplier, validHeight) ||
         ! validSpacing(appearance.paragraphSpacingAfterLines, 4.0f) || ! validSpacing(appearance.listItemSpacingDip, 256.0f) ||
         (appearance.semanticSpacing && ! appearance.semanticSpacing->IsValid()) ||
+        (appearance.softBreakPolicy != RichText::SoftBreakPolicy::Space && appearance.softBreakPolicy != RichText::SoftBreakPolicy::LineBreak) ||
+        (appearance.enterPolicy != RichText::MarkdownEnterPolicy::RawNewline && appearance.enterPolicy != RichText::MarkdownEnterPolicy::NewParagraph) ||
         (appearance.markdownPresentation != RichText::MarkdownPresentationStyle::Default &&
          appearance.markdownPresentation != RichText::MarkdownPresentationStyle::Subtle))
         throw std::invalid_argument("Invalid rich editor appearance");
@@ -1302,7 +1304,9 @@ void RichTextEditor::SetAppearance(const RichTextEditorAppearance& appearance)
         previous.headingFontSizeDip != next.headingFontSizeDip || previous.headingLineHeightMultiplier != next.headingLineHeightMultiplier ||
         previous.paragraphSpacingAfterLines != next.paragraphSpacingAfterLines || previous.listItemSpacingDip != next.listItemSpacingDip ||
         previous.semanticSpacing != next.semanticSpacing || previous.markdownPresentation != next.markdownPresentation;
-    const bool sourceInkChanged = previous.colorizeMarkdownSource != next.colorizeMarkdownSource;
+    const bool sourceInkChanged      = previous.colorizeMarkdownSource != next.colorizeMarkdownSource;
+    const bool semanticPolicyChanged = previous.softBreakPolicy != next.softBreakPolicy;
+    const bool enterPolicyChanged    = previous.enterPolicy != next.enterPolicy;
     // Staged strings publish without allocator-backed aggregate moves; Debug
     // STL proxies can allocate during those moves.
     auto& value                     = _state->appearance;
@@ -1320,6 +1324,8 @@ void RichTextEditor::SetAppearance(const RichTextEditorAppearance& appearance)
     value.sourceLineNumbers         = next.sourceLineNumbers;
     value.sourceWhitespaceMarks     = next.sourceWhitespaceMarks;
     value.pasteUrlOnSelection       = next.pasteUrlOnSelection;
+    value.softBreakPolicy           = next.softBreakPolicy;
+    value.enterPolicy               = next.enterPolicy;
 
     value.zoom                        = next.zoom;
     value.tabStopDip                  = next.tabStopDip;
@@ -1341,7 +1347,15 @@ void RichTextEditor::SetAppearance(const RichTextEditorAppearance& appearance)
     value.codeFontFamily.swap(next.codeFontFamily);
     value.mathFontFamily.swap(next.mathFontFamily);
     const auto lifetime = GetLifetimeToken();
-    if (geometryChanged)
+    if (enterPolicyChanged)
+        _state->preparedCommand.reset();
+    if (semanticPolicyChanged)
+    {
+        _state->semantic.SetSoftBreakPolicy(value.softBreakPolicy);
+        _state->semanticRejected.reset();
+        RetireSemanticAccessibility();
+    }
+    if (geometryChanged || semanticPolicyChanged)
     {
         ++_state->appearanceRevision;
         _state->nativeGeometryRejected.reset();
@@ -4760,6 +4774,7 @@ bool RichTextEditor::OnChar(ControlHost& host, wchar_t character, UINT modifiers
                     RichText::MarkdownCommandRequest request;
                     request.command =
                         ModifiersContainShift(modifiers) ? RichText::MarkdownCommand::InsertHardBreak : RichText::MarkdownCommand::InsertParagraph;
+                    request.enterPolicy = _state->appearance.enterPolicy;
                     if (! ModifiersContainShift(modifiers) && LayoutIsCurrent(host))
                         if (const auto* geometry = _state->layout.SemanticGeometry())
                         {

@@ -1415,7 +1415,10 @@ entity/escape spelling; ordinary Text decodes lexical references/escapes. Code
 retains opaque spelling, normalizes line endings to spaces and hides its fences
 and standard trimmed spaces. Removed container prefixes stay outside glyph spans.
 Virtual tab columns are generated, not duplicated source ownership. Soft breaks
-become flow spaces and hard breaks become line breaks. Generic source fragments
+default to flow spaces; opt-in `SoftBreakPolicy::LineBreak` displays them as
+line breaks while retaining the exact source range. Hard breaks remain line
+breaks. Changing this policy retires the semantic publication without changing
+source or history. Generic source fragments
 do not by themselves implement grammar-aware line joining or empty-format cleanup.
 
 The role graph retains headings, quotes, lists/items, code, tables/rows/cells,
@@ -1710,6 +1713,13 @@ URI policy. Task commands edit only state units for existing tasks, invert each
 selected task, or insert task markers where permitted by the explicit dialect.
 Removing task syntax MUST reject a literal label that would be reinterpreted as
 another block marker; it must not silently reformat that label.
+
+Rich Markdown Enter defaults to the existing raw-newline continuation policy.
+Opt-in `MarkdownEnterPolicy::NewParagraph` inserts an EOL, the proven container
+prefix, a second EOL and the prefix again in an ordinary paragraph. List and
+opaque-code continuation retain their existing policies; Shift+Enter remains a
+hard break. The request's Enter policy is part of prepared command-state identity.
+Source view and pending-analysis fallback retain their existing raw insertion.
 
 GFM table commands create/remove tables, insert/delete rows/columns and edit or
 navigate cells. Unaffected cell/escape/alignment/pipe/EOL spelling MUST survive.

@@ -118,14 +118,18 @@ struct SemanticBuilder::Preparation
         } phase{};
     };
 #pragma warning(pop)
-    explicit Preparation(std::shared_ptr<const MarkdownSyntax> syntax, std::size_t sourceBlock, std::span<const MarkdownRange> sourceObjects)
+    explicit Preparation(std::shared_ptr<const MarkdownSyntax> syntax,
+                         std::size_t sourceBlock,
+                         std::span<const MarkdownRange> sourceObjects,
+                         SoftBreakPolicy softBreakPolicyValue)
         : document(new SemanticDocument(std::move(syntax))),
           output(document->runs_),
           visits(0u),
           tails(0u),
           ordinals(document->syntax_->Nodes().size(), 0u),
           footerByNode(0u),
-          footerOrder(0u)
+          footerOrder(0u),
+          softBreakPolicy(softBreakPolicyValue)
     {
         document->sourceBlock_ = sourceBlock;
         if (! sourceObjects.empty())
@@ -162,6 +166,7 @@ struct SemanticBuilder::Preparation
     std::vector<std::size_t> tails;
     std::vector<unsigned> ordinals;
     std::vector<std::size_t> footerByNode, footerOrder;
+    SoftBreakPolicy softBreakPolicy;
     std::size_t nextFooter{};
 
     std::size_t Footer(std::size_t node) const noexcept
@@ -526,7 +531,11 @@ struct SemanticBuilder::Preparation
             return;
         }
         if (node.kind == MarkdownInlineKind::SoftBreak || node.kind == MarkdownInlineKind::HardBreak)
-            output.Emit(node.kind == MarkdownInlineKind::SoftBreak ? L" " : L"\n", node.source, DisplaySpanKind::Transformed, flags, visit.heading);
+            output.Emit(node.kind == MarkdownInlineKind::SoftBreak && softBreakPolicy == SoftBreakPolicy::Space ? L" " : L"\n",
+                        node.source,
+                        DisplaySpanKind::Transformed,
+                        flags,
+                        visit.heading);
         else if (node.kind == MarkdownInlineKind::FootnoteReference)
         {
             const auto* binding = document->syntax_->FootnoteReferenceFor(visit.node);
@@ -1451,6 +1460,15 @@ struct SemanticBuilder::Preparation
 
 SemanticBuilder::SemanticBuilder() noexcept  = default;
 SemanticBuilder::~SemanticBuilder() noexcept = default;
+void SemanticBuilder::SetSoftBreakPolicy(SoftBreakPolicy policy)
+{
+    if (policy != SoftBreakPolicy::Space && policy != SoftBreakPolicy::LineBreak)
+        throw std::invalid_argument("Invalid soft-break policy");
+    if (softBreakPolicy_ == policy)
+        return;
+    Clear();
+    softBreakPolicy_ = policy;
+}
 void SemanticBuilder::SetAccessibilityLabels(std::shared_ptr<const AccessibilityLabels> labels) noexcept
 {
     if (labels_ == labels)
@@ -1535,7 +1553,7 @@ void SemanticBuilder::BeginWithNativeFallbacks(std::shared_ptr<const MarkdownSyn
         next_.reset();
         return;
     }
-    auto next               = std::make_unique<Preparation>(std::move(syntax), sourceBlock, sourceObjects);
+    auto next               = std::make_unique<Preparation>(std::move(syntax), sourceBlock, sourceObjects, softBreakPolicy_);
     next->document->labels_ = labels_;
     next_.swap(next);
 }

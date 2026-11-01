@@ -180,6 +180,11 @@ private:
 // one bounded leaf normalization/value tokenization, image alternative or final
 // map/index build is indivisible. Budgets count events, not wall-clock deadlines.
 // Begin/Advance failures retain the previous publication; explicit retry is legal.
+enum class SoftBreakPolicy
+{
+    Space,
+    LineBreak
+};
 class SemanticBuilder
 {
 public:
@@ -190,6 +195,7 @@ public:
     // Changed immutable labels retire pending/published semantics. Held documents
     // remain immutable; source and the next Begin request are otherwise unchanged.
     void SetAccessibilityLabels(std::shared_ptr<const AccessibilityLabels> labels) noexcept;
+    void SetSoftBreakPolicy(SoftBreakPolicy policy);
     const std::shared_ptr<const AccessibilityLabels>& AccessibilityLabelSet() const noexcept
     {
         return labels_;
@@ -213,6 +219,7 @@ private:
     std::unique_ptr<Preparation> next_;
     std::shared_ptr<const SemanticDocument> published_;
     std::shared_ptr<const AccessibilityLabels> labels_;
+    SoftBreakPolicy softBreakPolicy_ = SoftBreakPolicy::Space;
     friend struct Detail::SemanticExtensionAccess;
 };
 } // namespace DxUi::RichText

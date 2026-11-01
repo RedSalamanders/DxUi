@@ -158,6 +158,21 @@ inline void DirectedValues()
         std::find_if(links->Elements().begin(), links->Elements().end(), [](const auto& element) { return element.role == SemanticRole::Image; });
     Check(image != links->Elements().end() && image->name == L"a b" && image->destination == L"local" && image->title == L"pic",
           "atomic image alternative retains editable source, accessible name and inert destination/title");
+    const auto breakSyntax = Parse(L"one\r\ntwo\n");
+    SemanticBuilder breakBuilder;
+    breakBuilder.Begin(breakSyntax);
+    const auto ordinaryBreak = Complete(breakBuilder, *breakSyntax);
+    Check(ordinaryBreak->Map().Display() == L"one two\n", "default soft break remains a space");
+    breakBuilder.SetSoftBreakPolicy(SoftBreakPolicy::LineBreak);
+    Check(! breakBuilder.Published(), "changing soft-break policy retires the builder publication");
+    breakBuilder.Begin(breakSyntax);
+    const auto visibleBreak = Complete(breakBuilder, *breakSyntax);
+    Check(visibleBreak->Map().Source() == L"one\r\ntwo\n" && visibleBreak->Map().Display() == L"one\ntwo\n" && ordinaryBreak->Map().Display() == L"one two\n",
+          "line-break policy changes only presentation and retains the previous immutable document");
+    RichSemanticTests::CheckRanges(visibleBreak->Map().SourceRanges({3u, 4u}), {{3u, 5u}}, "displayed soft break maps to its full source CRLF");
+    RichSemanticTests::Reject<std::invalid_argument>([&] { breakBuilder.SetSoftBreakPolicy(static_cast<SoftBreakPolicy>(99)); },
+                                                     "invalid soft-break policy is rejected");
+    Check(breakBuilder.Published() == visibleBreak, "invalid soft-break policy leaves the current publication intact");
 }
 inline void NativeHtmlAndLinkPresentation()
 {

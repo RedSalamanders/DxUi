@@ -61,6 +61,11 @@ enum class MarkdownTextStyle
     Strikethrough,
     Code
 };
+enum class MarkdownEnterPolicy
+{
+    RawNewline,
+    NewParagraph
+};
 // Shared extension admission only; source and payload checks remain separate.
 bool IsCommandFeatureEnabled(const MarkdownSyntax& syntax, MarkdownCommand command, MarkdownTextStyle style, MarkdownListKind listKind) noexcept;
 // Resolved footnotes permit edits only inside their owned content.
@@ -116,6 +121,7 @@ struct MarkdownCommandRequest
     // destination/title are semantic Unicode values serialized by the planner.
     std::wstring_view text, destination, title;
     MarkdownAlignment tableAlignment = MarkdownAlignment::None;
+    MarkdownEnterPolicy enterPolicy = MarkdownEnterPolicy::RawNewline;
 };
 struct MarkdownCommandEdit
 {

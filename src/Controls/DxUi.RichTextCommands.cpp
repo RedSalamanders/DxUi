@@ -1308,8 +1308,10 @@ struct MarkdownCommandPlanner
         prefix.replace(outer - line.first, nodes[note].block.content.first - outer, nodes[note].contentIndent, L' ');
         return true;
     }
-    void Continue()
+    void Continue(MarkdownEnterPolicy policy)
     {
+        if (policy != MarkdownEnterPolicy::RawNewline && policy != MarkdownEnterPolicy::NewParagraph)
+            throw std::invalid_argument("Invalid Markdown Enter policy");
         const auto first = plan.before_.Start(), last = plan.before_.End();
         const auto& line = Line(first);
         if (! IsSingleLineCommandSelection(*plan.syntax_, plan.before_))
@@ -1440,6 +1442,13 @@ struct MarkdownCommandPlanner
             return;
         std::wstring inserted(Eol(line));
         inserted += prefix;
+        const auto leaf = LeafAt(first);
+        if (policy == MarkdownEnterPolicy::NewParagraph && item == MarkdownNoNode && leaf != MarkdownNoNode &&
+            nodes[leaf].block.kind == Kind::Paragraph)
+        {
+            inserted += Eol(line);
+            inserted += prefix;
+        }
         Add(first, last, inserted);
         plan.after_       = {first + inserted.size(), first + inserted.size()};
         explicitSelection = true;
@@ -3973,7 +3982,7 @@ MarkdownCommandPlan BuildMarkdownCommand(const SourceSnapshot& source,
         return builder.Finish();
     switch (request.command)
     {
-        case MarkdownCommand::InsertParagraph: builder.Continue(); break;
+        case MarkdownCommand::InsertParagraph: builder.Continue(request.enterPolicy); break;
         case MarkdownCommand::SetList: builder.SetList(request); break;
         case MarkdownCommand::IndentList: builder.Indent(false); break;
         case MarkdownCommand::OutdentList: builder.Indent(true); break;

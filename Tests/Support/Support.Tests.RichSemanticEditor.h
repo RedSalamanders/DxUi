@@ -918,6 +918,40 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
               editor->Undo() && editor->GetText() == L"alpha",
           "prepared footnote insertion commits an exact reference and definition in one undo");
     editor->SetMarkdownAnalysisProfile(MarkdownProfile::Gfm029);
+    editor->SetText(L"one\r\ntwo\n");
+    prepare();
+    const auto breakSource          = editor->Snapshot();
+    const auto breakRevision        = editor->Revision();
+    auto breakAppearance            = editor->GetAppearance();
+    breakAppearance.softBreakPolicy = SoftBreakPolicy::LineBreak;
+    breakAppearance.enterPolicy     = MarkdownEnterPolicy::NewParagraph;
+    editor->SetAppearance(breakAppearance);
+    Check(! editor->GetSemanticDocument(), "soft-break policy change retires stale semantic publication");
+    prepare();
+    const auto lineBreakDocument = editor->GetSemanticDocument();
+    Check(lineBreakDocument && lineBreakDocument->Map().Display() == L"one\ntwo\n" && editor->Snapshot().IsSameRevision(breakSource) &&
+              editor->Revision() == breakRevision,
+          "soft-break presentation changes without editing source or history");
+    auto invalidBreak            = breakAppearance;
+    invalidBreak.softBreakPolicy = static_cast<SoftBreakPolicy>(99);
+    RichSemanticTests::Reject<std::invalid_argument>([&] { editor->SetAppearance(invalidBreak); }, "invalid break policy is rejected");
+    Check(editor->GetSemanticDocument() == lineBreakDocument && editor->Snapshot().IsSameRevision(breakSource),
+          "invalid break policy leaves semantic publication and source unchanged");
+    editor->SetText(L"hello");
+    prepare();
+    editor->SetSelection({2u, 2u});
+    MarkdownCommandRequest rawEnter;
+    rawEnter.command = MarkdownCommand::InsertParagraph;
+    Check(editor->PrepareMarkdownCommandState(rawEnter), "prepare raw Enter command state");
+    auto paragraphEnter        = rawEnter;
+    paragraphEnter.enterPolicy = MarkdownEnterPolicy::NewParagraph;
+    const auto differentEnter  = editor->QueryMarkdownCommandState(paragraphEnter);
+    Check(differentEnter && ! differentEnter->available, "prepared state keys the Enter policy");
+    Check(editor->OnChar(host, L'\r', 0u) && editor->GetText() == L"he\r\n\r\nllo" && editor->Undo() && editor->GetText() == L"hello",
+          "opt-in Enter creates a paragraph in one source transaction");
+    breakAppearance.softBreakPolicy = SoftBreakPolicy::Space;
+    breakAppearance.enterPolicy     = MarkdownEnterPolicy::RawNewline;
+    editor->SetAppearance(breakAppearance);
     editor->SetText(L"[link](https://example.invalid)");
     prepare();
     editor->SetSelection({2u, 2u});
