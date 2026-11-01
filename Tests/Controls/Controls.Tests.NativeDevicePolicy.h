@@ -90,9 +90,10 @@ inline void TestWindowHostExplicitWarpPolicyRejectsConflictsAndSurvivesDeviceLos
                     "ResizeBuffers device removal retires the device and rejects the failed frame");
             const auto resizeFailureGeneration = peer.Host().GetResourceGeneration();
             const auto rendersBeforeRecovery   = peer.Host().DebugGetRenderCount();
-            Require(isSoftware(peer.Host()) && peer.Host().GetResourceGeneration() != resizeFailureGeneration &&
-                        peer.Host().DebugGetRenderCount() > rendersBeforeRecovery,
-                    "the next frame recreates the device and renders after ResizeBuffers device removal");
+            Require(isSoftware(peer.Host()) && peer.Host().GetResourceGeneration() != resizeFailureGeneration,
+                    "the next owner turn recreates the WARP device after ResizeBuffers device removal");
+            Require(PrepareNativeContentForTests(peer.Host()) && peer.Host().DebugGetRenderCount() > rendersBeforeRecovery,
+                    "bounded cooperative content preparation renders a frame on the recreated device");
             DxUi::WindowHostBitmapCapture resizedFrame;
             Require(peer.Host().DebugCaptureBitmap(resizedFrame, true) && resizedFrame.widthPx > static_cast<UINT>(initialClient.right - initialClient.left) &&
                         resizedFrame.heightPx > static_cast<UINT>(initialClient.bottom - initialClient.top) && ! resizedFrame.bgraPixels.empty(),

@@ -1,0 +1,1 @@
+- Wait for bounded native content preparation before checking the recovered WARP frame after device loss.
