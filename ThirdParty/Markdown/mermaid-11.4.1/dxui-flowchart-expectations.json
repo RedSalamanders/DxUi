@@ -1086,7 +1086,7 @@
     "reason": "click-style-class-or-expanded-edge",
     "issue": "UnsupportedStatement",
     "diagnosticFirst": 44,
-    "diagnosticLast": 49
+    "diagnosticLast": 92
   },
   {
     "id": 100,
@@ -1096,8 +1096,8 @@
     "direction": "TopBottom",
     "reason": "click-style-class-or-expanded-edge",
     "issue": "UnsupportedStatement",
-    "diagnosticFirst": 18,
-    "diagnosticLast": 36
+    "diagnosticFirst": 41,
+    "diagnosticLast": 69
   },
   {
     "id": 101,
@@ -1106,8 +1106,8 @@
     "edges": 0,
     "direction": "TopBottom",
     "reason": "click-style-class-or-expanded-edge",
-    "issue": "UnsupportedStatement",
-    "diagnosticFirst": 18,
+    "issue": "UnsupportedEdge",
+    "diagnosticFirst": 25,
     "diagnosticLast": 49
   },
   {
