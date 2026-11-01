@@ -1482,10 +1482,9 @@ __declspec(noinline) static int RunFunctionalTests()
         std::shared_ptr<DxUi::GraphicsDevice> graphics;
         Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), graphics), "incremental borrowed graphics");
         Hr(view.Attach(graphics), "incremental embedded view");
-        RichSemanticTests::Run([&]
-        {
-            RichSemanticEditorTests::SemanticGeometryReuse(view.Controls(),
-                                                           [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "incremental preparation"); });
+        RichSemanticTests::Run([&] {
+            RichSemanticEditorTests::SemanticGeometryReuse(view.Controls(), [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "incremental preparation"); });
+            RichSemanticEditorTests::UrlOnSelectionPaste(view.Controls(), [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "URL paste"); });
             RichSemanticEditorTests::SourceHorizontalAndGuides(view.Controls(), [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "source guides"); });
             RichSemanticEditorTests::RichTableHorizontalOverflow(view.Controls(), [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "table overflow"); });
         });
@@ -1697,12 +1696,10 @@ __declspec(noinline) static int RunFunctionalTests()
         Hr(transactionView.Attach(transactionGraphics), "transaction embedded view");
         RichSemanticTests::Run([&]
         {
-            RichSemanticEditorTests::SemanticGeometryReuse(transactionView.Controls(),
-                                                           [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded semantic reuse"); });
-            RichSemanticEditorTests::SourceHorizontalAndGuides(transactionView.Controls(),
-                                                               [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "source guides"); });
-            RichSemanticEditorTests::RichTableHorizontalOverflow(transactionView.Controls(),
-                                                                 [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "table overflow"); });
+            RichSemanticEditorTests::SemanticGeometryReuse(transactionView.Controls(), [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded semantic reuse"); });
+            RichSemanticEditorTests::UrlOnSelectionPaste(transactionView.Controls(), [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "URL paste"); });
+            RichSemanticEditorTests::SourceHorizontalAndGuides(transactionView.Controls(), [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "source guides"); });
+            RichSemanticEditorTests::RichTableHorizontalOverflow(transactionView.Controls(), [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "table overflow"); });
             RichSemanticEditorTests::Transactions(transactionView.Controls(),
                                                   [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded transaction preparation"); });
             RichSemanticEditorTests::StructuralCommands(transactionView.Controls(),

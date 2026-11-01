@@ -2271,3 +2271,5 @@ at most 4096. Native and embedded editor hosts supply their current host DPI;
 DPI changes invalidate reusable math geometry. Shared immutable MATH bytes
 remain reusable, but device adjustments are evaluated again for each math style's
 font size and DPI.
+
+Opt-in Rich editor URL paste can turn a selected source label into a link using the current Markdown command planner. It requires a current analysis and an eligible http, https, or mailto destination; unsupported selections and invalid destinations keep ordinary paste. The replacement is one undoable source transaction, and Source mode keeps literal paste.

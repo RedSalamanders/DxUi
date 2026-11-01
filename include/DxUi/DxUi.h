@@ -3106,6 +3106,7 @@ struct RichTextEditorAppearance
     bool sourceWrap            = true;
     bool sourceLineNumbers     = false;
     bool sourceWhitespaceMarks = false;
+    bool pasteUrlOnSelection   = false; // Opt in to a single source-preserving link command.
     float zoom                 = 1.0f; // Font scale, .25..4; source/history are unchanged.
     float tabStopDip           = 0.0f; // Zero keeps DirectWrite's default; otherwise 1..4096 DIP.
     // Zero preserves host Tab traversal; 1..16 inserts that many spaces in source/code.

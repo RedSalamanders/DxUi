@@ -712,7 +712,38 @@ bool RichTextEditor::CanPasteMarkdownFileReferences(RichText::Selection selectio
 }
 bool RichTextEditor::TryPrepareClipboardPaste(const TextClipboardContent& content, std::wstring& replacement) const
 {
-    return TryPrepareFileReferencesAt(content, GetSelection(), replacement);
+    if (! content.filePaths.empty())
+        return TryPrepareFileReferencesAt(content, GetSelection(), replacement);
+    const auto selection = GetSelection();
+    if (! Editable() || ! _state->appearance.pasteUrlOnSelection || ! _state->markdownRendering ||
+        _state->mode != RichText::ViewMode::Rich || selection.Start() == selection.End())
+        return false;
+    const std::wstring_view url(content.text);
+    if (! (url.starts_with(L"https://") || url.starts_with(L"http://") || url.starts_with(L"mailto:")))
+        return false;
+    const auto syntax = GetMarkdownSyntax();
+    if (! syntax)
+        return false;
+    RichText::MarkdownCommandRequest request;
+    request.command = RichText::MarkdownCommand::SetLink;
+    request.destination = url;
+    try
+    {
+        const auto plan = RichText::BuildMarkdownCommand(Snapshot(), Revision(), syntax, selection, request);
+        const auto edits = plan.Edits();
+        if (! plan.IsApplicable() || edits.size() != 1u || edits[0].source.first != selection.Start() || edits[0].source.last != selection.End())
+            return false;
+        replacement = edits[0].replacement;
+        return true;
+    }
+    catch (const std::invalid_argument&)
+    {
+        return false; // Ineligible destination retains ordinary paste.
+    }
+    catch (const std::length_error&)
+    {
+        return false;
+    }
 }
 bool RichTextEditor::TryPrepareFileReferencesAt(const TextClipboardContent& content,
                                                 RichText::Selection selection,
@@ -1008,20 +1039,21 @@ void RichTextEditor::SetAppearance(const RichTextEditorAppearance& appearance)
     const bool sourceInkChanged = previous.colorizeMarkdownSource != next.colorizeMarkdownSource;
     // Staged strings publish without allocator-backed aggregate moves; Debug
     // STL proxies can allocate during those moves.
-    auto& value                     = _state->appearance;
-    value.markdownPresentation      = next.markdownPresentation;
-    value.drawBorder                = next.drawBorder;
-    value.drawFocusIndicator        = next.drawFocusIndicator;
-    value.blendWithWindowBackground = next.blendWithWindowBackground;
-    value.useAccentLinkColor        = next.useAccentLinkColor;
-    value.colorizeMarkdownSource    = next.colorizeMarkdownSource;
-    value.directSourceInkPreview    = next.directSourceInkPreview;
-    value.showVerticalScrollbar     = next.showVerticalScrollbar;
-    value.sourceMonospace           = next.sourceMonospace;
-    value.tableOverflow             = next.tableOverflow;
-    value.sourceWrap                = next.sourceWrap;
-    value.sourceLineNumbers         = next.sourceLineNumbers;
-    value.sourceWhitespaceMarks     = next.sourceWhitespaceMarks;
+    auto& value                       = _state->appearance;
+    value.markdownPresentation        = next.markdownPresentation;
+    value.drawBorder                  = next.drawBorder;
+    value.drawFocusIndicator          = next.drawFocusIndicator;
+    value.blendWithWindowBackground   = next.blendWithWindowBackground;
+    value.useAccentLinkColor          = next.useAccentLinkColor;
+    value.colorizeMarkdownSource      = next.colorizeMarkdownSource;
+    value.directSourceInkPreview      = next.directSourceInkPreview;
+    value.showVerticalScrollbar       = next.showVerticalScrollbar;
+    value.sourceMonospace             = next.sourceMonospace;
+    value.tableOverflow               = next.tableOverflow;
+    value.sourceWrap                  = next.sourceWrap;
+    value.sourceLineNumbers           = next.sourceLineNumbers;
+    value.sourceWhitespaceMarks       = next.sourceWhitespaceMarks;
+    value.pasteUrlOnSelection         = next.pasteUrlOnSelection;
 
     value.zoom                        = next.zoom;
     value.tabStopDip                  = next.tabStopDip;

@@ -1979,6 +1979,37 @@ inline void NativeMathHRESULTFailureContainment(ControlHost& host)
 #endif
 }
 
+template <typename Prepare> void UrlOnSelectionPaste(ControlHost& host, Prepare&& prepare)
+{
+    auto owned = std::make_unique<RichTextEditor>(L"hello **world**");
+    auto* editor = owned.get();
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    editor->SetMarkdownRenderingEnabled(true);
+    auto appearance = editor->GetAppearance();
+    appearance.pasteUrlOnSelection = true;
+    editor->SetAppearance(appearance);
+    host.SetRoot(std::move(owned));
+    host.SetFocusControl(editor);
+    prepare();
+    editor->SetSelection({0u, 5u});
+    TextClipboardContent content;
+    content.text = L"https://example.invalid/a";
+    std::wstring replacement;
+    const bool transformedUrl = editor->TryPrepareClipboardPaste(content, replacement);
+    Check(transformedUrl && replacement == L"[hello](<https://example.invalid/a>)",
+          "URL paste prepares a source-aware selected link");
+    Check(editor->ReplaceSelection(replacement) && editor->GetText() == L"[hello](<https://example.invalid/a>) **world**" && editor->Undo() &&
+              editor->GetText() == L"hello **world**", "URL paste is one undo transaction");
+    prepare();
+    editor->SetSelection({0u, 5u});
+    content.text = L"https://bad url";
+    replacement = L"sentinel";
+    Check(! editor->TryPrepareClipboardPaste(content, replacement) && replacement == L"sentinel", "invalid URL retains ordinary paste");
+    content.text = L"https://example.invalid/a";
+    appearance.pasteUrlOnSelection = false;
+    editor->SetAppearance(appearance);
+    Check(! editor->TryPrepareClipboardPaste(content, replacement), "URL paste is opt in");
+}
 template <typename Prepare> void SourceHorizontalAndGuides(ControlHost& host, Prepare&& prepare)
 {
     std::wstring source(180u, L'x');

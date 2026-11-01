@@ -1,0 +1,1 @@
+- Added opt-in source-aware URL-on-selection paste for rich text editors.
