@@ -2,6 +2,7 @@
 #include "DxUi.MarkdownLabels.h"
 #include "DxUi.MarkdownUnicodeData.h"
 #include "DxUi.TextElements.h"
+#include <DxUi/Configuration.h>
 #include <DxUi/MarkdownSyntax.h>
 #include <DxUi/RichMath.h>
 #include <algorithm>
@@ -625,7 +626,7 @@ class MarkdownInlines
         // unmatched openers must never each search the remaining leaf anew.
         htmlNext_.clear();
         constexpr auto none = std::numeric_limits<std::uint32_t>::max();
-        std::array<std::uint32_t, 9u> next{none, none, none, none, none, none, none, none, none};
+        std::array<std::uint32_t, 9u> next{{none, none, none, none, none, none, none, none, none}};
         if (profile_ == MarkdownProfile::RichMarkdown && text_.find_first_of(L"$\\") != std::wstring::npos)
         {
             if (text_.size() >= none)
@@ -1127,7 +1128,7 @@ class MarkdownInlines
             }
             else
             {
-                const auto start = i;
+                const auto attributeStart = i;
                 while (i < input.size() && ! GrammarSpace(input[i]) && input[i] != L'>')
                 {
                     tick();
@@ -1135,7 +1136,7 @@ class MarkdownInlines
                         return 0u;
                     ++i;
                 }
-                if (i == start)
+                if (i == attributeStart)
                     return 0u;
             }
         }

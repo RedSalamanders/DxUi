@@ -4134,6 +4134,7 @@ bool RichTextEditor::OnChar(ControlHost& host, wchar_t character, UINT modifiers
                 request.command    = RichText::MarkdownCommand::SetTableCell;
                 request.targetCell = geometry->SourceSyntaxNode(GetSelection().caret, _state->sourceCaretSite);
                 request.text       = text;
+                std::optional<std::wstring> pairedText;
                 if (text == L"|")
                     request.text = L"\\|";
                 else if (text == L"\\")
@@ -4145,7 +4146,9 @@ bool RichTextEditor::OnChar(ControlHost& host, wchar_t character, UINT modifiers
                     const auto composition = focused ? host.GetNativeTextCompositionActive(this) : std::optional<bool>{false};
                     if (closing && (! focused || ! host.HasActiveNativeTextInputSession() || composition.has_value()) && ! composition.value_or(false))
                     {
-                        request.text += closing;
+                        pairedText.emplace(text);
+                        pairedText.value().push_back(closing);
+                        request.text                 = pairedText.value();
                         request.tableCellCaretOffset = 1u;
                     }
                 }
