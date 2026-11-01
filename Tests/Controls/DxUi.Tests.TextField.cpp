@@ -2313,6 +2313,29 @@ void TestTextFieldBlurSnapshotCleanupRetiresRootBeforeInvalidate()
     Require(cleanupRan && host.GetRoot() == nullptr, "releasing the blur callback snapshot retires the root before focus-loss cleanup");
 }
 
+void TestTextFieldBuffersSurrogatesBeforePublishing()
+{
+    using namespace DxUi;
+    WindowHost host;
+    TextField field(L"A");
+    std::vector<std::wstring> notifications;
+    field.SetOnTextChanged([&](std::wstring_view text) { notifications.emplace_back(text); });
+    const wchar_t lead = static_cast<wchar_t>(0xd83d), trail = static_cast<wchar_t>(0xde00);
+    Require(field.OnChar(host, lead, 0u), "lead surrogate is consumed");
+    Require(field.GetText() == L"A" && notifications.empty(), "a lone lead is never published");
+    Require(field.OnChar(host, trail, 0u), "matching trail commits the pair");
+    Require(field.GetText() == std::wstring{L'A', lead, trail} && notifications.size() == 1u && notifications.back() == field.GetText(),
+            "the complete pair is published once");
+    Require(field.OnKeyDown(host, 'Z', MK_CONTROL) && field.GetText() == L"A", "one undo removes the complete pair");
+    notifications.clear();
+    Require(field.OnChar(host, lead, 0u), "new pending lead is consumed");
+    Require(field.OnKeyDown(host, VK_HOME, 0u), "caret movement cancels pending lead");
+    Require(field.OnChar(host, trail, 0u) && field.GetText() == L"A" && notifications.empty(), "orphan trail is consumed without mutation");
+    Require(field.OnChar(host, lead, 0u), "lead is buffered again");
+    field.SetReadOnly(true);
+    field.SetReadOnly(false);
+    Require(field.OnChar(host, trail, 0u) && field.GetText() == L"A", "read-only transition cancels pending input");
+}
 } // namespace
 
 void RunTextFieldTests()
@@ -2367,6 +2390,7 @@ void RunTextFieldTests()
     DXUI_RUN_TEST(TestTextFieldSurrogatePairBackspaceDeletesWholeCodePoint);
     DXUI_RUN_TEST(TestTextFieldSurrogatePairDeleteDeletesWholeCodePoint);
     DXUI_RUN_TEST(TestTextFieldUndoAfterSurrogatePairInsertionRemovesWholeCodePoint);
+    DXUI_RUN_TEST(TestTextFieldBuffersSurrogatesBeforePublishing);
     DXUI_RUN_TEST(TestTextFieldUndoCoalescesTypingRun);
     DXUI_RUN_TEST(TestTextFieldUndoSplitsTypingRunsAfterCaretMove);
     DXUI_RUN_TEST(TestTextFieldUndoCoalescesBackspaceRun);

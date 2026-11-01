@@ -1,0 +1,1 @@
+- Buffer TextField UTF-16 surrogate pairs until complete and cancel pending input on context changes, so callbacks and accessibility never observe a half character. Native qualification remains pending.

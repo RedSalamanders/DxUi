@@ -624,6 +624,9 @@ the inset, so an insertion line on the edge keeps its full 2 DIP.
 
 Tree expansion and collapse retain their model, selection, focus, delegate and accessibility semantics at any model size. Row and chevron transitions are optional: if either visible-row snapshot would exceed 4096 rows, or animation preparation cannot allocate, the accepted change appears immediately. Admitted transitions prepare stable-ID indexes once and reuse them during painting. Reduced-motion settings also apply the change immediately.
 
+### TextField supplementary character input
+
+Character input buffers a UTF-16 lead surrogate privately until its matching trail arrives, then inserts and publishes the complete pair as one edit. An orphan trail is consumed without changing text. Caret or selection commands, pointer input, focus changes, text replacement, text-store imports and read-only transitions cancel a pending lead; no change callback or accessibility publication exposes it alone.
 ### Tree refresh and input routing
 
 A model refresh reconciles identities and clamps the scroll offset without moving the viewport to an unchanged focus. Typeahead cycles after the current row on a fresh one-character search and retains the current match as the prefix grows. A first keyboard action that selects the first row reports that selection; movement reports its final landing once. Ctrl and Shift row-selection gestures do not trigger single-click invocation. A wheel event directed outward at a scroll extent bubbles to an enclosing scroller, including partial detents.

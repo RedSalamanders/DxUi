@@ -962,7 +962,8 @@ void TextField::RefreshAccessibilitySnapshot() const noexcept
 
 void TextField::SetText(std::wstring text)
 {
-    _text = std::move(text);
+    _pendingLeadSurrogate = 0;
+    _text                 = std::move(text);
     if (_multiline)
         InvalidateMeasure();
     _caretIndex = std::min(_caretIndex, _text.size());
@@ -1037,6 +1038,7 @@ size_t TextField::GetCaretIndex() const noexcept
 
 void TextField::SetSelectionRange(const size_t selectionStart, const size_t selectionEnd) noexcept
 {
+    _pendingLeadSurrogate = 0;
     BreakDirectEditMerge();
     const size_t clampedStart = std::min(selectionStart, _text.size());
     const size_t clampedEnd   = std::min(selectionEnd, _text.size());
@@ -1377,6 +1379,7 @@ void TextField::SetVerticalTextPadding(float topDip, float bottomDip) noexcept
 
 void TextField::SetReadOnly(bool readOnly) noexcept
 {
+    _pendingLeadSurrogate = 0;
     if (_readOnly == readOnly)
     {
         return;
@@ -1729,6 +1732,7 @@ bool TextField::Tick(ControlHost& host, uint64_t nowTickMs)
 
 void TextField::OnFocusChanged(ControlHost& host, bool focused)
 {
+    _pendingLeadSurrogate = 0;
     Control::OnFocusChanged(host, focused);
     if (focused)
     {
@@ -1783,6 +1787,7 @@ void TextField::OnEnabledChanged(bool enabled) noexcept
 
 bool TextField::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)
 {
+    _pendingLeadSurrogate = 0;
     if (rightButton)
     {
         ResetSingleLineSelectionClickSequence(_selectionClickSequence);
@@ -1906,6 +1911,7 @@ bool TextField::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightBu
 
 bool TextField::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)
 {
+    _pendingLeadSurrogate = 0;
     if (rightButton)
     {
         return OnMouseDown(host, point, rightButton, modifiers);
@@ -2126,6 +2132,7 @@ bool TextField::OnMouseWheel(ControlHost& host, D2D1_POINT_2F /*point*/, float w
 
 bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
 {
+    _pendingLeadSurrogate = 0;
     ResetSingleLineSelectionClickSequence(_selectionClickSequence);
     const size_t caretBeforeKey                          = _caretIndex;
     const std::optional<size_t> selectionAnchorBeforeKey = _selectionAnchorIndex;
@@ -2633,20 +2640,32 @@ bool TextField::OnKeyUp(ControlHost& host, UINT virtualKey, UINT modifiers)
 
 bool TextField::OnChar(ControlHost& host, wchar_t ch, UINT modifiers)
 {
+    // A pair remains private until both UTF-16 units are available.
     // Alt alone makes the system's characters (menu access keys, Alt+Space); AltGr arrives as Ctrl+Alt and types.
     if (ModifiersContainAlt(modifiers) && ! ModifiersContainCtrl(modifiers))
     {
+        _pendingLeadSurrogate = 0;
         return false;
     }
     ResetSingleLineSelectionClickSequence(_selectionClickSequence);
     if (_passwordRevealKeyboardFocused && (ch == L' ' || ch == L'\r'))
     {
+        _pendingLeadSurrogate = 0;
         return true;
     }
     if (_readOnly)
     {
+        _pendingLeadSurrogate = 0;
         return false;
     }
+    if (IsUtf16LeadSurrogate(ch))
+    {
+        _pendingLeadSurrogate = ch;
+        return true;
+    }
+    const wchar_t lead = std::exchange(_pendingLeadSurrogate, wchar_t{});
+    if (IsUtf16TrailSurrogate(ch) && ! lead)
+        return true;
 
     if (ch == L'\r')
     {
@@ -2663,16 +2682,20 @@ bool TextField::OnChar(ControlHost& host, wchar_t ch, UINT modifiers)
     }
     else if (std::iswcntrl(static_cast<wint_t>(ch)) == 0 && (_multiline || ch != L'\t'))
     {
-        const bool completesPendingSurrogatePair =
-            IsUtf16TrailSurrogate(ch) && ! GetSelectionRange().has_value() && _caretIndex > 0u && IsUtf16LeadSurrogate(_text[_caretIndex - 1u]);
-        if (! completesPendingSurrogatePair)
-        {
-            RecordUndoStateForDirectEdit(DirectEditMergeKind::InsertRun);
-        }
+        RecordUndoStateForDirectEdit(DirectEditMergeKind::InsertRun);
         _preferredMultilineXOffsetDip.reset();
         static_cast<void>(DeleteSelection());
-        _text.insert(_caretIndex, 1u, ch);
-        _caretIndex += 1u;
+        if (IsUtf16TrailSurrogate(ch))
+        {
+            const wchar_t pair[] = {lead, ch};
+            _text.insert(_caretIndex, pair, 2u);
+            _caretIndex += 2u;
+        }
+        else
+        {
+            _text.insert(_caretIndex, 1u, ch);
+            ++_caretIndex;
+        }
         _selectionAnchorIndex.reset();
     }
     else
@@ -2981,6 +3004,7 @@ bool TextField::ExportTextInputState(TextInputState& outState) const
 
 bool TextField::ImportTextInputState(ControlHost& host, const TextInputState& state, bool notifyChange)
 {
+    _pendingLeadSurrogate                 = 0;
     const std::wstring previousText       = _text;
     const size_t previousFirstVisibleLine = _multilineFirstVisibleLine;
     // Imported previews, cancellation and selection changes preserve existing history on every host.

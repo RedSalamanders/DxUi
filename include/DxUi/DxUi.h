@@ -3534,6 +3534,7 @@ private:
     void SelectWordAt(size_t hitIndex) noexcept;
     [[nodiscard]] bool NotifyChanged();
 
+    wchar_t _pendingLeadSurrogate = 0;
     std::wstring _text;
     std::wstring _placeholder;
     FontRole _fontRole = FontRole::Body;
