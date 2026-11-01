@@ -429,6 +429,7 @@ class PreparedMath final
     {
         D2D1_POINT_2F first, last;
         float thickness{};
+        bool dot{};
     };
     struct Box
     {
@@ -1401,6 +1402,12 @@ class PreparedMath final
         if (colored)
             paintOperations.push_back({PaintKind::Line, lines.size() - 1u, activeBackground, activeColor, {}});
     }
+    void Dot(float x, float y, float radius)
+    {
+        lines.push_back({{x, y}, {x, y}, radius * 2.f, true});
+        if (colored)
+            paintOperations.push_back({PaintKind::Line, lines.size() - 1u, activeBackground, activeColor, {}});
+    }
     void DashedLine(float x1, float y1, float x2, float y2, float thickness)
     {
         const float length = std::hypot(x2 - x1, y2 - y1);
@@ -1856,11 +1863,11 @@ class PreparedMath final
                 const float center = x + box.extent.width / 2.f;
                 if (node.text == L"ddot")
                 {
-                    Stroke(center - box.size * .14f - radius, y, center - box.size * .14f + radius, y, stroke);
-                    Stroke(center + box.size * .14f - radius, y, center + box.size * .14f + radius, y, stroke);
+                    Dot(center - box.size * .14f, y, radius);
+                    Dot(center + box.size * .14f, y, radius);
                 }
                 else
-                    Stroke(center - radius, y, center + radius, y, stroke);
+                    Dot(center, y, radius);
             }
             else
             {
@@ -2528,8 +2535,14 @@ public:
             {
                 case PaintKind::Glyph: DrawGlyph(target, glyphs[operation.index], selected); break;
                 case PaintKind::Line:
-                    target->DrawLine(lines[operation.index].first, lines[operation.index].last, selected, lines[operation.index].thickness);
+                {
+                    const auto& line = lines[operation.index];
+                    if (line.dot)
+                        target->FillEllipse(D2D1::Ellipse(line.first, line.thickness * .5f, line.thickness * .5f), selected);
+                    else
+                        target->DrawLine(line.first, line.last, selected, line.thickness);
                     break;
+                }
                 case PaintKind::Variant: drawVariant(variants[operation.index], selected); break;
                 case PaintKind::Background: break;
             }
@@ -2561,7 +2574,10 @@ public:
             for (const auto& glyph : glyphs)
                 DrawGlyph(target, glyph, brush);
             for (const auto& line : lines)
-                target->DrawLine(line.first, line.last, brush, line.thickness);
+                if (line.dot)
+                    target->FillEllipse(D2D1::Ellipse(line.first, line.thickness * .5f, line.thickness * .5f), brush);
+                else
+                    target->DrawLine(line.first, line.last, brush, line.thickness);
             for (const auto& variant : variants)
                 drawVariant(variant, brush);
         }

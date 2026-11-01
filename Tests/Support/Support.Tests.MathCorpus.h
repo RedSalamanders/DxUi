@@ -938,6 +938,21 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
               "line-segment accents stage a horizontal shaft with distinct bounded end bars");
     }
 #endif
+#if DXUI_ENABLE_DIAGNOSTICS
+    for (const auto& [name, count] : {std::pair{L"dot", 1u}, std::pair{L"ddot", 2u}})
+    {
+        const auto expression = std::make_shared<const MathExpression>(ParseMath(L"\\" + std::wstring(name) + L"{x}"));
+        Detail::PreparedMath accent(factory, expression, 24.f);
+        while (! accent.Advance()) {}
+        const auto& marks = accent.StrokeLayouts();
+        check(marks.size() == count && std::ranges::all_of(marks, [](const auto& mark) {
+                  return mark.dot && mark.thickness > 0.f && mark.first.x == mark.last.x && mark.first.y == mark.last.y;
+              }), "dot accents stage filled circular marks instead of flat line strokes");
+        if (marks.size() == 2u)
+            check(marks[0u].first.x < marks[1u].first.x && marks[0u].first.y == marks[1u].first.y,
+                  "double dots stage two horizontally ordered circles");
+    }
+#endif
     for (const auto source : {L"\\genfrac{(}{)}{-2pt}{0}{a}{b}", L"\\genfrac{(}{)}{}{4}{a}{b}", L"\\genfrac{?}{}{}{}{a}{b}",
                               L"\\genfrac{}{}{}{}{a}"})
         check(! ParseMath(source), "unsupported general fraction dimensions, style and delimiters reject the whole source");
