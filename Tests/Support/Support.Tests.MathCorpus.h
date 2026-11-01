@@ -171,6 +171,17 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
         UINT16 glyph{};
         THROW_IF_FAILED(face->GetGlyphIndices(&scalar, 1u, &glyph));
         check(glyph != 0u && fontMetrics.designUnitsPerEm != 0u, "SDK reports the actual math glyph and design scale");
+        check(Detail::SameMathFontFile(face.get(), face.get()), "same real SDK font identity accepts its own MATH table");
+        wil::com_ptr<IDWriteTextFormat> fallbackFormat;
+        THROW_IF_FAILED(factory->CreateTextFormat(
+            L"Segoe UI", nullptr, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, 24.f, L"en-us", fallbackFormat.put()));
+        wil::com_ptr<IDWriteTextLayout> fallbackLayout;
+        THROW_IF_FAILED(factory->CreateTextLayout(L"x", 1u, fallbackFormat.get(), 100.f, 100.f, fallbackLayout.put()));
+        const auto fallbackProbe = Microsoft::WRL::Make<Detail::MathGlyphProbe>();
+        check(static_cast<bool>(fallbackProbe), "SDK fallback font probe allocates");
+        THROW_IF_FAILED(fallbackLayout->Draw(nullptr, fallbackProbe.Get(), 0.f, 0.f));
+        check(fallbackProbe->runs == 1u && fallbackProbe->face && ! Detail::SameMathFontFile(face.get(), fallbackProbe->face.get()),
+              "a differently resolved SDK font face cannot borrow math kern data from Cambria Math");
         std::array<std::uint8_t, 256u> data{};
         const auto write = [&](std::size_t at, std::uint16_t value)
         {
@@ -211,6 +222,22 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
         const auto expected = -100.f * (b[0].font + b[1].font) / fontMetrics.designUnitsPerEm;
         check(std::abs((b[1].origin.x - a[1].origin.x) - expected) < .05f && std::abs((b[2].origin.x - a[2].origin.x) - expected) < .05f,
               "real SDK-shaped glyphs apply the synthetic OpenType correction to both script positions");
+        const auto compoundExpression = std::make_shared<const MathExpression>(ParseMath(L"{xx}_x"));
+        const auto prepareCompound    = [&]
+        {
+            auto result = std::make_unique<Detail::PreparedMath>(factory, compoundExpression, 24.f);
+            while (! result->Advance())
+            {
+            }
+            return result;
+        };
+        const auto compoundKerned = prepareCompound();
+        write(62u, 0u);
+        const auto compoundPlain = prepareCompound();
+        check(compoundKerned->GlyphLayouts().size() == compoundPlain->GlyphLayouts().size() &&
+                  std::abs(compoundKerned->GlyphLayouts().back().origin.x - compoundPlain->GlyphLayouts().back().origin.x) < .01f,
+              "compound script bases retain the specified zero-kern box fallback");
+        write(62u, static_cast<std::uint16_t>(-100));
         write(16u, 0u);
         const auto missing = prepare();
         check(std::abs(missing->GlyphLayouts()[1].origin.x - a[1].origin.x) < .01f && std::abs(missing->GlyphLayouts()[2].origin.x - a[2].origin.x) < .01f,
