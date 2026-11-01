@@ -363,10 +363,10 @@ static void TestReadOnlyParsedSnapshotAllocationFailures()
                         editor->SetViewMode(ViewMode::Source);
                         editor->SetReadOnly(true);
                         Parser parser;
-                        const auto source = editor->Snapshot();
-                        parser.Begin(source, editor->Revision(), MarkdownProfile::RichMarkdown);
+                        const auto policySource = editor->Snapshot();
+                        parser.Begin(policySource, editor->Revision(), MarkdownProfile::RichMarkdown);
                         finish(parser);
-                        Check(editor->TryAdoptReadOnlyMarkdownSyntax(source, parser.Published()) == S_OK, "prepare autoformat syntax without a window");
+                        Check(editor->TryAdoptReadOnlyMarkdownSyntax(policySource, parser.Published()) == S_OK, "prepare autoformat syntax without a window");
                         editor->SetReadOnly(false);
                         editor->SetViewMode(ViewMode::Rich);
                         editor->SetMarkdownRenderingEnabled(true);
@@ -376,9 +376,9 @@ static void TestReadOnlyParsedSnapshotAllocationFailures()
                     host.SetRoot(std::move(root));
                     if (policy == TypingPolicy::Fence)
                         Check(editor->OnChar(host, L'`', 0u) && editor->OnChar(host, L'`', 0u), "seed a pending fenced-code trigger");
-                    const auto before          = editor->Snapshot();
-                    const auto beforeSelection = editor->GetSelection();
-                    const auto beforeRevision  = editor->Revision();
+                    const auto policyBefore          = editor->Snapshot();
+                    const auto policyBeforeSelection = editor->GetSelection();
+                    const auto policyBeforeRevision  = editor->Revision();
                     const bool beforeUndo = editor->CanUndo(), beforeRedo = editor->CanRedo();
                     bool handled{};
                     {
@@ -387,10 +387,10 @@ static void TestReadOnlyParsedSnapshotAllocationFailures()
                         failAllocationAfter = point;
                         handled             = editor->OnChar(host, policy == TypingPolicy::Pair ? L'(' : policy == TypingPolicy::Typography ? L'.' : L'`', 0u);
                     }
-                    if (editor->Snapshot().IsSameRevision(before))
+                    if (editor->Snapshot().IsSameRevision(policyBefore))
                     {
                         sawFailure = true;
-                        Check(! handled && editor->Revision() == beforeRevision && editor->GetSelection() == beforeSelection &&
+                        Check(! handled && editor->Revision() == policyBeforeRevision && editor->GetSelection() == policyBeforeSelection &&
                                   editor->CanUndo() == beforeUndo && editor->CanRedo() == beforeRedo,
                               "failed typing-policy allocation preserves source, selection and history before publication");
                     }
