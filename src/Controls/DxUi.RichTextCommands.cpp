@@ -267,13 +267,53 @@ static std::optional<std::wstring_view> CodeExitPrefix(const MarkdownSyntax& syn
 {
     const auto& nodes = syntax.Nodes();
     const auto& node  = nodes[index];
+    bool inList       = false;
     for (auto parent = node.parent; parent != MarkdownNoNode; parent = nodes[parent].parent)
-        if (nodes[parent].block.kind != MarkdownBlockKind::Document && nodes[parent].block.kind != MarkdownBlockKind::BlockQuote)
+    {
+        const auto kind = nodes[parent].block.kind;
+        if (kind == MarkdownBlockKind::ListItem)
+            inList = true;
+        if (kind != MarkdownBlockKind::Document && kind != MarkdownBlockKind::BlockQuote && kind != MarkdownBlockKind::List &&
+            kind != MarkdownBlockKind::ListItem)
             return std::nullopt;
+    }
     if (nodes[node.parent].block.kind == MarkdownBlockKind::Document)
         return std::wstring_view{};
     const auto text = syntax.Source();
-    auto marker     = node.block.info.first;
+    if (inList)
+    {
+        std::size_t content{};
+        if (node.block.closed)
+        {
+            content = node.block.source.last;
+            if (content && text[content - 1u] == L'\n')
+                --content;
+            if (content && text[content - 1u] == L'\r')
+                --content;
+            while (content > node.block.source.first && (text[content - 1u] == L' ' || text[content - 1u] == L'\t'))
+                --content;
+            const auto fenceEnd = content;
+            while (content > node.block.source.first && text[content - 1u] == node.block.fenceMarker)
+                --content;
+            if (fenceEnd - content < node.block.fenceLength)
+                return std::nullopt;
+        }
+        else
+        {
+            if (node.lines.empty() || node.lines.back().leadingSpaces != 0u)
+                return std::nullopt;
+            content = node.lines.back().source.first;
+            if (content >= text.size() || text[content] == L'\r' || text[content] == L'\n')
+                return std::nullopt; // A blank line alone does not prove list indentation.
+        }
+        auto line = content;
+        while (line && text[line - 1u] != L'\r' && text[line - 1u] != L'\n')
+            --line;
+        if (line == content)
+            return std::nullopt;
+        return text.substr(line, content - line);
+    }
+    auto marker = node.block.info.first;
     while (marker > node.block.source.first && (text[marker - 1u] == L' ' || text[marker - 1u] == L'\t'))
         --marker;
     const auto fenceEnd = marker;

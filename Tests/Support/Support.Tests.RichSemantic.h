@@ -330,6 +330,8 @@ inline void ListsAndHeadings()
         Exact(L"~~~\nx", {4u, 4u}, request, L"~~~\nx\n~~~\n\n", Selection{10u, 10u}, profile);
         Exact(L"> ~~~\n> x\n> ~~~\n", {8u, 8u}, request, L"> ~~~\n> x\n> ~~~\n> \n", std::nullopt, profile);
         Exact(L"> ~~~\n> x", {8u, 8u}, request, L"> ~~~\n> x\n> ~~~\n> \n", std::nullopt, profile);
+        Exact(L"- ~~~\n  x\n  ~~~\n", {9u, 9u}, request, L"- ~~~\n  x\n  ~~~\n  \n", std::nullopt, profile);
+        Exact(L"- ~~~\n  x", {9u, 9u}, request, L"- ~~~\n  x\n  ~~~\n  \n", std::nullopt, profile);
         request.command = MarkdownCommand::InsertHardBreak;
         Exact(L"hello\n", {2u, 2u}, request, L"he  \nllo\n", Selection{5u, 5u}, profile);
         Exact(L"hello\n", {1u, 4u}, request, L"h  \no\n", Selection{4u, 4u}, profile);
