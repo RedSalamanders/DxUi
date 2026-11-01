@@ -114,25 +114,25 @@ private:
 class MathGlyphProbe final : public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>, IDWriteTextRenderer>
 {
 public:
-    HRESULT STDMETHODCALLTYPE IsPixelSnappingDisabled(void*, BOOL* value) noexcept override
+    HRESULT STDMETHODCALLTYPE IsPixelSnappingDisabled(void*, BOOL* result) noexcept override
     {
-        if (! value)
+        if (! result)
             return E_POINTER;
-        *value = TRUE;
+        *result = TRUE;
         return S_OK;
     }
-    HRESULT STDMETHODCALLTYPE GetCurrentTransform(void*, DWRITE_MATRIX* value) noexcept override
+    HRESULT STDMETHODCALLTYPE GetCurrentTransform(void*, DWRITE_MATRIX* result) noexcept override
     {
-        if (! value)
+        if (! result)
             return E_POINTER;
-        *value = {1, 0, 0, 1, 0, 0};
+        *result = {1, 0, 0, 1, 0, 0};
         return S_OK;
     }
-    HRESULT STDMETHODCALLTYPE GetPixelsPerDip(void*, FLOAT* value) noexcept override
+    HRESULT STDMETHODCALLTYPE GetPixelsPerDip(void*, FLOAT* result) noexcept override
     {
-        if (! value)
+        if (! result)
             return E_POINTER;
-        *value = 1.f;
+        *result = 1.f;
         return S_OK;
     }
     HRESULT STDMETHODCALLTYPE
@@ -271,11 +271,11 @@ class PreparedMath final
         std::size_t firstChild{}, endChild{}, glyph{};
         Extent extent;
         float leftOffset{};
-        float subKern{}, superKern{}, scriptLeftPad{};
         MathAtomClass atomClass{MathAtomClass::Ordinary};
         float size{};
         unsigned scriptLevel{};
         bool display{};
+        float subKern{}, superKern{}, scriptLeftPad{};
     };
     std::shared_ptr<const MathExpression> expression;
     wil::com_ptr<IDWriteFactory> factory;
