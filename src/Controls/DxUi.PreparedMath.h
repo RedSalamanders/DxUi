@@ -475,6 +475,7 @@ class PreparedMath final
         const MathNode* node{};
         std::size_t firstChild{}, endChild{}, glyph{};
         Extent extent;
+        Extent ink;
         float leftOffset{};
         MathAtomClass atomClass{MathAtomClass::Ordinary};
         float size{};
@@ -856,7 +857,7 @@ class PreparedMath final
                         bool pseudoBold           = false)
     {
         const auto index = boxes.size();
-        boxes.push_back({&node, 0u, 0u, std::numeric_limits<std::size_t>::max(), {}, 0.f, node.atomClass, size, scriptLevel, display});
+        boxes.push_back({&node, 0u, 0u, std::numeric_limits<std::size_t>::max(), {}, {}, 0.f, node.atomClass, size, scriptLevel, display});
         boxes[index].color = foreground;
         if (node.kind == MathKind::Style && node.text == L"rowtag")
         {
@@ -1142,26 +1143,66 @@ class PreparedMath final
     {
         return ScriptBaseAdvance(index) + ItalicCorrection(index);
     }
-    // A single shaped leaf and transparent one-child wrappers share a baseline.
-    // For other constructions the retained layout box is the conservative bound.
+    // Ink is calculated once per box in bottom-up order during preparation.
+    // Decorated constructions use their conservative retained box.
     Extent InkExtent(std::size_t index) const noexcept
     {
-        const auto original = boxes[index].extent;
-        while ((boxes[index].node->kind == MathKind::Row ||
-                (boxes[index].node->kind == MathKind::Style && ! ColorBox(boxes[index].node->text))) &&
-               boxes[index].firstChild < boxes[index].endChild)
+        return boxes[index].ink;
+    }
+    void StageInk(std::size_t index) noexcept
+    {
+        auto& box = boxes[index];
+        const auto& node = *box.node;
+        box.ink = box.extent;
+        if (node.kind == MathKind::Space)
         {
-            const auto first = boxes[index].firstChild;
-            if (NextSibling(first) != boxes[index].endChild)
-                return original;
-            index = first;
+            box.ink.above = box.ink.below = 0.f;
+            return;
         }
-        if (boxes[index].node->kind != MathKind::Text || boxes[index].node->text.empty())
-            return original;
-        const auto& glyph = glyphs[boxes[index].glyph];
-        if (! glyph.hasVisualInk)
-            return original;
-        return {original.width, glyph.visualAbove, glyph.visualBelow};
+        if (node.kind == MathKind::Text && ! node.text.empty())
+        {
+            const auto& glyph = glyphs[box.glyph];
+            if (glyph.hasVisualInk)
+            {
+                box.ink.above = glyph.visualAbove;
+                box.ink.below = glyph.visualBelow + (glyph.pseudoBold ? glyph.font * .01f : 0.f);
+            }
+            return;
+        }
+        const auto include = [&](std::size_t child, float offset) noexcept
+        {
+            const auto ink = boxes[child].ink;
+            box.ink.above = std::max(box.ink.above, ink.above - offset);
+            box.ink.below = std::max(box.ink.below, ink.below + offset);
+        };
+        if (node.kind == MathKind::Row ||
+            (node.kind == MathKind::Style && node.children.size() == 1u && ! ColorBox(node.text)))
+        {
+            box.ink.above = box.ink.below = 0.f;
+            for (auto child = box.firstChild; child < box.endChild; child = NextSibling(child))
+                include(child, 0.f);
+        }
+        else if (node.kind == MathKind::Fraction && node.children.size() == 2u)
+        {
+            const float axisAtSize = MathConstantAt(12u, box.size, axis);
+            const float thickness = FractionRule(node.text, box.size);
+            box.ink.above = thickness > 0.f ? std::max(0.f, axisAtSize + thickness * .5f) : 0.f;
+            box.ink.below = thickness > 0.f ? std::max(0.f, thickness * .5f - axisAtSize) : 0.f;
+            include(ChildAt(index, 0u), -box.upperShift);
+            include(ChildAt(index, 1u), box.lowerShift);
+        }
+        else if (node.kind == MathKind::Scripts && node.children.size() == 3u)
+        {
+            const auto& base = node.children[0u];
+            if (base.limits == MathLimits::AboveBelow || (base.limits == MathLimits::Automatic && base.displayLimits && box.display))
+                return;
+            box.ink.above = box.ink.below = 0.f;
+            include(ChildAt(index, 0u), 0.f);
+            if (boxes[ChildAt(index, 1u)].extent.width > 0.f)
+                include(ChildAt(index, 1u), box.lowerShift);
+            if (boxes[ChildAt(index, 2u)].extent.width > 0.f)
+                include(ChildAt(index, 2u), -box.upperShift);
+        }
     }
     float AtomSpace(MathAtomClass left, MathAtomClass right, float size, unsigned styleLevel) const noexcept
     {
@@ -1252,6 +1293,7 @@ class PreparedMath final
         {
             auto& box        = boxes[reverse];
             box.extent       = {};
+            const auto stageInk = wil::scope_exit([&]() noexcept { StageInk(reverse); });
             const auto& node = *box.node;
             using enum MathKind;
             if (node.kind == Text)

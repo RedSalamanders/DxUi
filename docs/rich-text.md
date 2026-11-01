@@ -1621,8 +1621,9 @@ on the same atom remains source with a diagnostic. Formula preparation uses the 
 heading font size with the shared 1.15 math scale; the caret at a formula edge
 follows its text line.
 
-Script and fraction gap constraints use staged DirectWrite ink bounds for a
-single shaped leaf through transparent wrappers. Other compound operands retain
+Script and fraction gap constraints use staged DirectWrite ink bounds for text,
+same-baseline rows and transparent styles, with positioned ink unions for nested
+fractions and ordinary scripts. Decorated constructions and limits retain
 conservative box bounds. Measurement and placement share the same staged shifts;
 paint performs no font queries.
 

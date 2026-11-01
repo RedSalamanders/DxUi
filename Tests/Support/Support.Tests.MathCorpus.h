@@ -335,6 +335,31 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
                     const float actual = glyphs[0u].origin.y + glyphs[0u].extent.above - glyphs[1u].origin.y - glyphs[1u].extent.above;
                     check(std::abs(actual - expected) < .05f, "superscript baseline uses actual glyph ink and SDK MATH minimum");
                 }
+                for (const auto source : {L"{.+.}^x", L"{H_i}^x", L"{\\frac{.}{.}}^x"})
+                {
+                    auto compositeExpression = std::make_shared<const MathExpression>(ParseMath(source));
+                    Detail::PreparedMath composite(factory, compositeExpression, 24.f);
+                    while (! composite.Advance())
+                    {
+                    }
+                    const auto& glyphs = composite.GlyphLayouts();
+                    check(glyphs.size() >= 3u && minShift, "compound shift oracle has a shaped base and superscript");
+                    if (glyphs.size() < 3u || ! minShift)
+                        continue;
+                    float top = composite.Baseline();
+                    for (std::size_t index = 0u; index + 1u < glyphs.size(); ++index)
+                    {
+                        DWRITE_OVERHANG_METRICS ink{};
+                        THROW_IF_FAILED(glyphs[index].layout->GetOverhangMetrics(&ink));
+                        top = std::min(top, glyphs[index].origin.y - ink.top);
+                    }
+                    for (const auto& stroke : composite.StrokeLayouts())
+                        top = std::min(top, std::min(stroke.first.y, stroke.last.y) - stroke.thickness * .5f);
+                    const float expected = std::max(minShift.value(), composite.Baseline() - top - 24.f * .08f);
+                    const auto& upper = glyphs.back();
+                    const float actual = composite.Baseline() - upper.origin.y - upper.extent.above;
+                    check(std::abs(actual - expected) < .05f, "row, nested script and fraction bases use their actual staged ink union");
+                }
                 const auto constant = [&](std::size_t offset) -> std::optional<float>
                 {
                     const auto entry = table.MathConstant(offset);
@@ -360,6 +385,29 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
                                                                             std::max(1.f, rule.value()) * .5f - axis.value());
                     const float actual = fractionGlyphs[1u].origin.y + fractionGlyphs[1u].extent.above - fraction.Baseline();
                     check(std::abs(actual - expected) < .05f, "fraction denominator uses actual glyph ink and SDK MATH gaps");
+                }
+                auto rowFractionExpression = std::make_shared<const MathExpression>(ParseMath(L"\\frac{H}{.+.}"));
+                Detail::PreparedMath rowFraction(factory, rowFractionExpression, 24.f);
+                while (! rowFraction.Advance())
+                {
+                }
+                const auto& rowGlyphs = rowFraction.GlyphLayouts();
+                check(rowGlyphs.size() == 4u, "row denominator shapes three independent atoms");
+                if (rowGlyphs.size() == 4u && axis && denominator && gap && rule)
+                {
+                    float inkAbove{};
+                    for (std::size_t index = 1u; index < rowGlyphs.size(); ++index)
+                    {
+                        DWRITE_LINE_METRICS line{};
+                        DWRITE_OVERHANG_METRICS ink{};
+                        UINT32 count{};
+                        THROW_IF_FAILED(rowGlyphs[index].layout->GetLineMetrics(&line, 1u, &count));
+                        THROW_IF_FAILED(rowGlyphs[index].layout->GetOverhangMetrics(&ink));
+                        inkAbove = std::max(inkAbove, line.baseline + ink.top);
+                    }
+                    const float expected = std::max(denominator.value(), inkAbove + gap.value() + std::max(1.f, rule.value()) * .5f - axis.value());
+                    const float actual = rowGlyphs[1u].origin.y + rowGlyphs[1u].extent.above - rowFraction.Baseline();
+                    check(std::abs(actual - expected) < .05f, "multi-atom denominator uses the union of actual SDK ink");
                 }
                 auto pairedExpression = std::make_shared<const MathExpression>(ParseMath(L"H_i^x"));
                 Detail::PreparedMath paired(factory, pairedExpression, 24.f);
