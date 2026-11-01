@@ -67,55 +67,31 @@ bool SafeLink(std::wstring_view value) noexcept
     return ! value.empty() && std::ranges::none_of(value, [](wchar_t unit) { return unit <= L' ' || unit == 0x7fu; }) &&
            (value.front() == L'#' || Prefix(value, L"https://") || Prefix(value, L"http://") || Prefix(value, L"mailto:"));
 }
-template <typename Element> bool IsUnresolvedWiki(const Element& element) noexcept
+bool IsUnresolvedWiki(const SemanticElement& element) noexcept
 {
-    if constexpr (requires { element.wiki; })
-        return element.wiki;
-    else
-        return false;
+    return element.wiki;
 }
-template <typename Role> bool IsAbbreviation(Role role) noexcept
+bool IsAbbreviation(SemanticRole role) noexcept
 {
-    if constexpr (requires { Role::Abbreviation; })
-        return role == Role::Abbreviation;
-    else
-        return false;
+    return role == SemanticRole::Abbreviation;
 }
-template <typename Role> std::wstring_view ExtensionTag(Role role) noexcept
+std::wstring_view ExtensionTag(SemanticRole role) noexcept
 {
-    if constexpr (requires { Role::Disclosure; })
-        if (role == Role::Disclosure)
-            return L"p";
-    if constexpr (requires { Role::Callout; })
-        if (role == Role::Callout)
-            return L"aside";
-    if constexpr (requires {
-                      Role::DefinitionList;
-                      Role::DefinitionTerm;
-                      Role::DefinitionDescription;
-                  })
-    {
-        if (role == Role::DefinitionList)
-            return L"dl";
-        if (role == Role::DefinitionTerm)
-            return L"dt";
-        if (role == Role::DefinitionDescription)
-            return L"dd";
-    }
+    if (role == SemanticRole::Disclosure)
+        return L"p";
+    if (role == SemanticRole::Callout)
+        return L"aside";
+    if (role == SemanticRole::DefinitionList)
+        return L"dl";
+    if (role == SemanticRole::DefinitionTerm)
+        return L"dt";
+    if (role == SemanticRole::DefinitionDescription)
+        return L"dd";
     return {};
 }
-template <typename Role> bool ExtensionLeaf(Role role) noexcept
+bool ExtensionLeaf(SemanticRole role) noexcept
 {
-    if constexpr (requires { Role::Disclosure; })
-        if (role == Role::Disclosure)
-            return true;
-    if constexpr (requires {
-                      Role::DefinitionTerm;
-                      Role::DefinitionDescription;
-                  })
-        if (role == Role::DefinitionTerm || role == Role::DefinitionDescription)
-            return true;
-    return false;
+    return role == SemanticRole::Disclosure || role == SemanticRole::DefinitionTerm || role == SemanticRole::DefinitionDescription;
 }
 class Serializer
 {

@@ -41,6 +41,8 @@ private:
 ExportContent ExportSemanticDocument(const SemanticDocument& document);
 // Export a half-open display range from the same immutable publication. Bounds
 // must preserve UTF-16 scalars and CRLF; surrounding structure is retained.
+// A range cutting through a generated list prefix uses escaped preformatted
+// selected text, preserving the partial prefix exactly once.
 ExportContent ExportSemanticDocument(const SemanticDocument& document, MarkdownRange displayRange);
 // Builds a semantic projection with default presentation from one immutable
 // syntax publication and exports it. This is synchronous; run outside Paint.
