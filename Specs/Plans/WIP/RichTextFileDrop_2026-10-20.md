@@ -1,6 +1,7 @@
 # RichTextEditor file drag-and-drop
 
-Status: IMPLEMENTATION IN PROGRESS; native builds, runtime tests, captures and performance qualification remain pending.
+Status: ACTIVE; implementation and focused tests exist; final-source builds, runtime tests, captures and performance qualification remain pending.
+Owner decision (2026-11-01): implement the remaining feature in the isolated delivery worktree; the historical PR-only restriction below does not apply to this effort.
 Owner decision (2026-10-20): prepare this spec and test plan; submit the existing
 RichTextEditor work as a PR. Do not implement drag-and-drop in that PR.
 

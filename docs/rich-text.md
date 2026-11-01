@@ -25,14 +25,14 @@ or contradictory row. API revision remains 4; pair headers with the exact librar
 | Metadata validation | Limited | Single document; YAML 1.2.2 core schema and TOML 1.0.0; bounded capacity | [Details](#leading-metadata-envelopes) |
 | Footnotes | Limited | RichMarkdown references, reordered bodies and source-exact backlinks | [Details](#footnote-rendering-and-navigation-m5b-preview) |
 | In-place source editing | Supported | Scoped leaf or inline math; unchanged source ACPs and document history | [Details](#retained-editor-preview-d2c) |
-| Decorations and search | Limited | 256 decorations; 4,096 mapped rectangles; source-revision retirement | [Details](#editor-presentation) |
+| Decorations and search | Limited | 256 decorations; 4,096 mapped rectangles; source-revision retirement; opt-in source-backed UIA annotations in semantic presentation | [Details](#editor-presentation) |
 | Link activation | Supported | Caller callback intent; no browser launch; local fragments use source navigation | [Details](#editor-presentation) |
 | Source presentation | Limited | Optional wrapping, prepared line numbers and whitespace; bounded zoom | [Details](#editor-presentation) |
 | Code presentation | Limited | Prepared token spans; Subtle frame and line labels; caller-owned copy transport | [Details](#editor-presentation) |
 | Semantic accessibility | Limited | Source ranges, typed structure and actions; physical AT qualification separate | [Details](#semantic-accessibility-m4f) |
 | Text services | Limited | Native and embedded TSF/IME and UIA adapters; physical IME qualification separate | [Details](#source-text-services-and-accessibility-d2d) |
 | Native mathematics | Limited | Named DxUiMath1 subset; source-preserving per-object fallback | [Details](#native-in-document-mathematics-and-broader-diagrams) |
-| Native Mermaid | Limited | Bounded flowchart, state and class profiles; unsupported syntax remains source | [Details](#native-in-document-mathematics-and-broader-diagrams) |
+| Native Mermaid | Limited | Bounded flowchart, state, class, sequence, pie, ER, Gantt and mind map profiles; unsupported syntax remains source | [Details](#native-in-document-mathematics-and-broader-diagrams) |
 | Complete extension conformance | Not supported | Full-language parity is not established by bounded feature or corpus results | [Details](#current-capabilities) |
 <!-- rich-text-capabilities:end -->
 
@@ -1161,10 +1161,12 @@ literal code ink. No valid prefix is partly hidden. This local policy can still
 report Semantic; whole-document capacity failures report SourceFallback.
 HTML href values allow http/https/mailto and relative/fragment/empty values after
 reference decoding, with ASCII spaces/C0/C1 controls, quotes/angle brackets,
-backslashes and other schemes rejected. Destinations stay inert: clicks place a
-caret, double-clicks select source text, and the control opens no URL/resource.
-HTML lists/tables/images and DOM/CSS recovery/layout remain outside this subset.
-Their supported Markdown counterparts retain native rendering.
+backslashes and other schemes rejected. Accepted anchors use the same explicit
+link-activation intent as Markdown links: editable activation requires Ctrl,
+and the application owns external navigation. The control opens no URL/resource.
+Validated HTML `img` uses the same bounded caller-serviced image lifecycle as
+Markdown images. HTML lists/tables and DOM/CSS recovery/layout remain outside
+this subset; their Markdown counterparts retain native rendering.
 
 The [native presentation qualification packet](../Measurements/RichText/README.md)
 records the M4d.3 native/embedded tests, profile and resource checks, actual sample,
@@ -1580,8 +1582,9 @@ Plain hashes, comparison characters and ordinary `fa:` substrings remain text;
 actual Font Awesome icon markers still retain the original diagram as source.
 This is not
 Mermaid coordinate compatibility. Advanced composite-state syntax, nested class generics,
-other stereotypes, styling,
-interaction directives and other diagram families remain exact fenced source.
+other stereotypes, unsupported styling and interaction directives remain exact
+fenced source. Families outside the documented bounded flowchart, state, class,
+sequence, pie, ER, Gantt and mind map profiles remain exact source as well.
 Unsupported shape productions retain the complete fence instead of becoming plain
 rectangle or rounded labels. Source-provenance rules remain unchanged.
 

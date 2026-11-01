@@ -32,8 +32,12 @@ are explicitly deferred until a later native host; cross-builds remain required.
 The four local foreground suites have explicit approval for the restoring lease's
 automatic-start countdown. This is authorization, not a test result.
 
-The first core patch builds in x64 Debug with zero warnings/errors. Its ordinary
-suites are running; no runtime, performance or delivery qualification is claimed yet.
+The delivery worktree now includes the core repairs and further accepted feature
+implementation. The earlier `aa2ff53f` Debug run passed 16 of 19 ordinary suites;
+the three fixture failures have directed repairs but need final-source execution.
+The fresh `f137615d` integration build exposed a missing math diagnostics include
+and fixture shadow warnings. The repaired `4caa1638` Debug build is pending.
+No final-source runtime, performance or delivery qualification is claimed here.
 The retained original and rejected reuse attempts remain separate from the fresh
 baseline Release build and measurements. Parallel feature branches are unqualified
 until reviewed, integrated and tested together. The complete checklist below stays open.

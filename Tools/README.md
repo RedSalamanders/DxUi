@@ -113,13 +113,15 @@ revision or a named tree) serially with one copied harness, which includes the c
 the PowerShell tools is measured the same way. The overlay verifies destination bytes after copying, before build
 reuse and around each measurement, including legacy include aliases. It verifies original backup hashes during
 rollback and attempts all restorations; copy corruption or failed restoration cannot supply a successful study.
-CI runs it on a hosted runner: for every pull request to `main` that
-changes something the benchmark measures (the job's first step decides, and its summary names the files), and on a
-manual dispatch with `benchmark_baseline`. The manual `benchmark_calibration_aa` boolean is a separate diagnostic option:
+The explicit manual benchmark workflow runs it on a hosted runner with
+`benchmark_baseline`. Ordinary PR checks remain compiler-free under the unified CI
+contract and supply no native performance acceptance. The manual
+`benchmark_calibration_aa` boolean is a separate diagnostic option:
 it requires identical explicit baseline and candidate revisions, builds that revision once, and measures the same binary
 under both labels. It never qualifies a pull request; its receipts and summary are still uploaded when the policy is
-unqualified. Both modes publish the verdict in the job summary and upload `paired-benchmark-x64-Release`; only a pull
-request is gated, failing on a confirmed degradation or an inconclusive run
+unqualified. Both modes publish the verdict in the job summary and upload
+`paired-benchmark-x64-Release`; a normal manual acceptance study requires a passing
+verdict, failing on a confirmed degradation or an inconclusive run
 (see the gate's row above and the [contract](../Specs/Core/Core_PerformanceAndResources.md#hosted-paired-gate)).
 
 `test.ps1 -Interactive` runs the control suites that need the person's real foreground, keyboard focus and pointer (`Menu`,

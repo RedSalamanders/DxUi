@@ -21,7 +21,7 @@ Status labels and current plan status lines follow [the specification authority]
 
 - **ACTIVE**: [Read-only Source snapshot synchronization](ReadOnlySourceSnapshot_2026-10-26.md). API revision 4 is merged as `3bcf7ed9` with tree `18be6688`; the plan records exact-source local builds/Full suites and authorized foreground results, and the public CI packet records six hosted native profiles. Paired performance remains inconclusive because the base policy is unqualified and 62/72 controls are unstable. PR #108 Menu and lease-restoration failures remain separate; consumer performance, platform and physical-input gates stay open. No performance gain is claimed.
 
-- **SPEC READY**: [RichTextEditor file drag-and-drop](RichTextFileDrop_2026-10-20.md).
+- **ACTIVE**: [RichTextEditor file drag-and-drop](RichTextFileDrop_2026-10-20.md).
 Displayed image references and relative links for other files reuse the paste
 policy. Unicode OLE ownership, guarded caret insertion and native/embedded tests
 are specified; implementation and runtime qualification have not started.
@@ -38,7 +38,7 @@ Debug B2-hover failure; its original artifacts are retained.
 Leading YAML/TOML source envelopes and source-current UIA diagnostics now pass
 focused Debug checks; metadata validity and remaining extensions are in progress.
 
-- **SPEC READY**: [RichText audit remediation and completion](RichTextAudit_2026-10-21.md). A verified audit of
+- **ACTIVE**: [RichText audit remediation and completion](RichTextAudit_2026-10-21.md). A verified audit of
 the rich-text engine records one memory-safety defect, contract violations in failure containment, admission,
 math ownership, input and host paste, stale capability status, a non-incremental semantic pipeline, and the
 Markdown, math and Mermaid completeness gaps. Waves 0 to 5, a test track and owner-scoped completion tracks
