@@ -802,10 +802,34 @@ template <typename Prepare> void ViewPreferences(ControlHost& host, Prepare&& pr
     Check(editor->GetZoom() > 1.0f && editor->Snapshot().IsSameRevision(source), "rejected zoom preserves prior presentation and source");
     prepare();
 }
+template <typename Prepare> void HighlightCoverage(ControlHost& host, Prepare&& prepare)
+{
+    std::wstring source(0u, L' ');
+    for (unsigned line = 0u; line < 40u; ++line)
+        source += L"Highlight fixture line.\n";
+    auto root    = std::make_unique<RichTextEditor>(source);
+    auto* editor = root.get();
+    editor->SetViewMode(ViewMode::Source);
+    host.SetRoot(std::move(root));
+    prepare();
+    std::vector<RichTextSourceHighlight> ranges(4096u, RichTextSourceHighlight{0u, source.size(), false});
+    ranges.back() = {30u, 3u, true};
+    editor->SetSourceHighlights(ranges);
+    prepare();
+    const auto count = editor->DebugGetState().preparedHighlightRectangles;
+    Check(editor->GetSourceHighlights().size() == ranges.size() && count >= 40u && count <= 128u,
+          "overlapping highlight requests map normalized source coverage rather than multiplying whole-document geometry");
+    const auto revision = editor->Revision();
+    Check(editor->OnMouseWheel(host, {}, -WHEEL_DELTA, 0u), "normalized highlight viewport scrolls");
+    prepare();
+    Check(editor->DebugGetState().preparedHighlightRectangles == count && editor->GetText() == source && editor->Revision() == revision && ! editor->CanUndo(),
+          "highlight viewport indexing reuses prepared coverage without source/history changes");
+}
 template <typename Prepare> void Rendering(ControlHost& host, Prepare&& prepare)
 {
     ScrollbarAndNotifications(host, prepare);
     ViewPreferences(host, prepare);
+    HighlightCoverage(host, prepare);
     const std::wstring original = L"# **Heading**\r\n\r\n| left | right |\n| :--- | ---: |\n| a | b |\n\n> quoted &amp; **bold**\n\n![alt](local)\n";
     auto root                   = std::make_unique<RichTextEditor>(original);
     auto* editor                = root.get();

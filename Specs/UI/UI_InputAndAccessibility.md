@@ -1326,6 +1326,12 @@ Grid SelectionItem AddToSelection and RemoveFromSelection report successful acce
 
 Native text-store layout notifications include focused text-control bounds and typography changes, window moves, DPI changes, and publication of changed prepared content. Locked TSF notifications use the existing coalesced deferred path; callbacks are lifetime and session guarded.
 
+Source highlight input remains available exactly as submitted. Preparation unions
+overlapping coverage, with `current` taking priority, before querying geometry;
+duplicated full-document intervals must not multiply retained rectangles. The
+prepared top-order/prefix-bottom index selects visible highlights without mapping
+source or allocating during painting. Source changes retire highlights as before.
+
 RichTextEditor native input boundaries decline precommit allocation failure
 without changing document source, revision, selection or undo history. A failed
 trail-surrogate insertion retains the pending lead for a retry. Once source or

@@ -116,6 +116,46 @@ D2D1_COLOR_F DecorationColor(const ThemePalette& theme, RichTextDecorationRole r
     }
     return theme.text;
 }
+// Preparation-only source coverage: unlike raw coordinate-range merging this
+// preserves the active-highlight role, which takes priority over ordinary ink.
+void UnionHighlights(std::span<const RichTextSourceHighlight> input, std::vector<RichTextSourceHighlight>& output)
+{
+    struct Edge
+    {
+        size_t at{};
+        int normal{}, current{};
+    };
+    std::vector<Edge> edges(0u);
+    edges.reserve(input.size() * 2u);
+    for (const auto& range : input)
+        if (range.length)
+        {
+            edges.push_back({range.start, range.current ? 0 : 1, range.current ? 1 : 0});
+            edges.push_back({range.start + range.length, range.current ? 0 : -1, range.current ? -1 : 0});
+        }
+    std::ranges::sort(edges, {}, &Edge::at);
+    size_t previous = 0u, at = 0u;
+    int normal = 0, current = 0;
+    while (at < edges.size())
+    {
+        const auto position = edges[at].at;
+        if (position > previous && (normal > 0 || current > 0))
+        {
+            const bool active = current > 0;
+            if (! output.empty() && output.back().current == active && output.back().start + output.back().length == previous)
+                output.back().length += position - previous;
+            else
+                output.push_back({previous, position - previous, active});
+        }
+        do
+        {
+            normal += edges[at].normal;
+            current += edges[at].current;
+            ++at;
+        } while (at < edges.size() && edges[at].at == position);
+        previous = position;
+    }
+}
 } // namespace
 // Existing identity/RAII/reference traits intentionally delete these implicit operations.
 // Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
@@ -166,6 +206,7 @@ struct RichTextEditor::State
     };
     std::vector<D2D1_RECT_F> selectionRectangles{0u};
     std::vector<HighlightRectangle> highlightRectangles{0u};
+    std::vector<float> highlightBottoms{0u};
     std::vector<DecorationRectangle> decorationRectangles{0u};
     std::vector<D2D1_RECT_F> compositionRectangles{0u}, conversionRectangles{0u};
     wil::com_ptr<ID2D1PathGeometry> selectionMask;
@@ -2126,9 +2167,22 @@ void RichTextEditor::PrepareOverlayGeometry(ControlHost& host)
     {
         std::vector<State::HighlightRectangle> rectangles(0u);
         std::vector<State::DecorationRectangle> decorations(0u);
-        for (const auto& highlight : state.highlights)
+        std::vector<RichTextSourceHighlight> normalized(0u);
+        UnionHighlights(state.highlights, normalized);
+        for (const auto& highlight : normalized)
             for (const auto& rectangle : layout.SourceRange(highlight.start, highlight.start + highlight.length))
                 rectangles.push_back({rectangle, highlight.current});
+        std::ranges::sort(rectangles, [](const auto& a, const auto& b) {
+            return a.rectangle.top < b.rectangle.top || (a.rectangle.top == b.rectangle.top && a.current < b.current);
+        });
+        std::vector<float> bottoms(0u);
+        bottoms.reserve(rectangles.size());
+        float bottom = 0.0f;
+        for (const auto& rectangle : rectangles)
+        {
+            bottom = std::max(bottom, rectangle.rectangle.bottom);
+            bottoms.push_back(bottom);
+        }
         for (const auto& decoration : state.decorations)
             for (const auto& rectangle : layout.SourceRange(decoration.start, decoration.start + decoration.length))
             {
@@ -2154,6 +2208,7 @@ void RichTextEditor::PrepareOverlayGeometry(ControlHost& host)
             static_cast<void>(host.GetSolidBrush(color));
         }
         state.highlightRectangles.swap(rectangles);
+        state.highlightBottoms.swap(bottoms);
         state.decorationRectangles.swap(decorations);
         state.overlayHighlightsDirty = false;
     }
@@ -3045,8 +3100,15 @@ void RichTextEditor::Paint(ControlHost& host) const
         }
         const std::span<const State::HighlightRectangle> highlights =
             state.overlayHighlightsDirty ? std::span<const State::HighlightRectangle>{} : std::span<const State::HighlightRectangle>(state.highlightRectangles);
-        for (const auto& highlight : highlights)
+        const auto firstHighlight = state.overlayHighlightsDirty
+                                        ? 0u
+                                        : static_cast<size_t>(std::upper_bound(state.highlightBottoms.begin(), state.highlightBottoms.end(), state.scrollDip) -
+                                                              state.highlightBottoms.begin());
+        for (size_t highlightIndex = firstHighlight; highlightIndex < highlights.size(); ++highlightIndex)
         {
+            const auto& highlight = highlights[highlightIndex];
+            if (highlight.rectangle.top >= state.scrollDip + viewport.bottom - viewport.top)
+                break;
             auto color = host.GetTheme().selectionFill;
             color.a *= host.GetTheme().highContrast ? 1.0f : highlight.current ? 0.38f : 0.18f;
             auto* brush           = host.GetSolidBrush(color);
