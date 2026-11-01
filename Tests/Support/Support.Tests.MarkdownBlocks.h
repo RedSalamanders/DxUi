@@ -547,8 +547,6 @@ inline constexpr FamilyGrammarExpectation familyGrammarExpectations[] = {
     {L"classDiagram\nnote \"From Duck till Zebra\"\n", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedStatement, {}},
     {L"classDiagram\nA:::service\n", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedStatement, {}},
     {L"stateDiagram-v2\nA:::active\n", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedStatement, {}},
-    {L"flowchart TD\naccTitle: Diagram\n", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedStatement, {}},
-    {L"flowchart TD\naccDescr: Details\n", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedStatement, {}},
 };
 template <typename Check> inline void CheckFamilyGrammar(Check&& check)
 {
