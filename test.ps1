@@ -129,6 +129,7 @@ if ($verifiedHostedRunner -and @($Suites | Where-Object { Test-DxUiInteractiveSu
 Import-Module (Join-Path $PSScriptRoot 'Tools/TestRunEvidence.psm1') -Force
 $evidence = Start-TestRunEvidence -Repository $PSScriptRoot -CaptureNativeArtifacts -Context @{ project='DxUi'; platform=$Platform; configuration=$Configuration; suites=$Suites; tests=$Tests }
 $runPassed = $false
+$primaryFailure = $null
 try {
 # The runner's --test contract (single tests, unknown names) and its watchdog (a hung test ends the run, named) are checked
 # against the executable this run is about to use; an interactive run needs the second most, since the watchdog is what bounds a
@@ -334,7 +335,12 @@ Publish-TestRunEvidenceReceipt -Run $evidence -Name 'normal-suites.json' -Receip
     countUnit='suite'; discovered=@($Suites); executed=@($Suites); filtered=($Tests.Count -ne 0)
 })
 $runPassed = $true
-} finally { Complete-TestRunEvidence -Run $evidence -Passed $runPassed }
+} catch {
+    $primaryFailure = $_
+    throw
+} finally {
+    Complete-TestRunEvidenceAfterFailure -Run $evidence -Passed $runPassed -PrimaryFailure $primaryFailure
+}
 # Nested native probes can leave a failing child exit code even when every requested suite passed.
 # Reset only after successful evidence finalization so callers observe the runner's final result.
 $global:LASTEXITCODE = 0

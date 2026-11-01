@@ -250,7 +250,7 @@ architecture, configuration, time and executable path under `.build/reports`. Fa
 Callers MUST judge a PowerShell runner through a fresh process's exit code or invocation success (`$?`)
 captured immediately after the script call. Ambient `$LASTEXITCODE` is not a general script-completion status.
 `test.ps1` additionally clears it to zero only after all requested suites pass and successful evidence finalization
-returns. Suite failures and evidence-finalization exceptions never reach that reset. Historical in-process calls
+returns. Suite failures and evidence-finalization exceptions never reach that reset. If evidence finalization also fails while a suite or runner exception is already propagating, the runner reports the finalization error and preserves the original exception; a finalization-only failure remains fatal. Historical in-process calls
 can retain the intentional native ASan probe's nonzero result despite successful sealed suite/lease outcomes.
 Preserve wrapper failures separately from sealed native outcomes. A reporting-error disposition requires
 independent source/invocation proof and exact owner, source, artifact and sealed-payload binding; it MUST
