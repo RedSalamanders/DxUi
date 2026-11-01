@@ -1178,10 +1178,14 @@ __declspec(noinline) static void TestTreeReorderWakeRetiresOwner(GraphicsFixture
     } model;
     struct Delegate final : ITreeDelegate
     {
-        unsigned reorders{};
+        unsigned reorders{}, menus{};
         void OnTreeReorder(const TreeDrop&) override
         {
             ++reorders;
+        }
+        void OnTreeContextMenu(uint64_t, POINT) override
+        {
+            ++menus;
         }
     } delegate;
     struct Wake
@@ -1225,6 +1229,33 @@ __declspec(noinline) static void TestTreeReorderWakeRetiresOwner(GraphicsFixture
     static_cast<void>(tree->OnMouseUp(view.Controls(), target, false, 0u));
     Check(wake.retirements == 1u && ! view.Controls().GetRoot() && delegate.reorders == 0u,
           "release scheduling can retire the Tree before reorder dispatch without invoking its stale delegate");
+    for (const bool rightClick : {true, false})
+    {
+        EmbeddedHost nextView;
+        Wake nextWake{.view = &nextView};
+        callbacks.context = &nextWake;
+        Hr(nextView.Attach(graphics, callbacks), "attach Tree cancellation retirement host");
+        auto nextRoot = std::make_unique<Panel>();
+        auto* nextTree = nextRoot->AddChild<Tree>();
+        nextTree->SetBounds(D2D1::RectF(0, 0, 220, 160));
+        nextTree->SetReorderEnabled(true);
+        nextTree->SetModel(&model);
+        nextTree->SetDelegate(&delegate);
+        nextView.Controls().SetRoot(std::move(nextRoot));
+        Hr(PrepareRichEmbeddedContent(nextView, 320, 160), "prepare Tree cancellation retirement fixture");
+        const auto nextFirst = nextTree->GetVisibleItemHitRect(0u);
+        Check(nextFirst.has_value(), "Tree cancellation retirement row is hittable");
+        const auto press = D2D1::Point2F((nextFirst->left + nextFirst->right) * .5f, (nextFirst->top + nextFirst->bottom) * .5f);
+        Check(nextTree->OnMouseDown(nextView.Controls(), press, false, 0u), "arm Tree reorder before cancellation");
+        Hr(PrepareRichEmbeddedContent(nextView, 320, 160), "consume the initial Tree press wake");
+        nextWake.armed = true;
+        if (rightClick)
+            static_cast<void>(nextTree->OnMouseDown(nextView.Controls(), press, true, 0u));
+        else
+            nextTree->OnCaptureLost(nextView.Controls());
+        Check(nextWake.retirements == 1u && ! nextView.Controls().GetRoot() && delegate.menus == 0u && delegate.reorders == 0u,
+              "cancelling Tree reorder stops after a synchronous wake retires its owner");
+    }
 }
 
 __declspec(noinline) static void TestTreeDelegateMutationDuringItemPaintAbortsPreparation(GraphicsFixture& gpu)

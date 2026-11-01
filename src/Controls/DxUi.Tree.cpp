@@ -1592,6 +1592,8 @@ bool Tree::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modifiers*
         }
         UpdateScrollbarHotState(HitInfo{.zone = HitZone::VerticalScrollbar, .onScrollbarThumb = true});
         host.ClearTooltip();
+        if (! guard.IsCurrent())
+            return true;
         Invalidate(host);
         return true;
     }
@@ -1604,6 +1606,8 @@ bool Tree::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modifiers*
         {
             _reorderDragging = true;
             host.ClearTooltip();
+            if (! guard.IsCurrent())
+                return true;
         }
         if (_reorderDragging)
         {
@@ -1620,6 +1624,8 @@ bool Tree::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modifiers*
     const ScrollbarHotPart previousHotPart           = _verticalScrollbarHotPart;
     UpdateScrollbarHotState(hit);
     SyncScrollbarAnimation(host);
+    if (! guard.IsCurrent())
+        return true;
     const std::optional<size_t> hoveredIndex =
         (hit.zone == HitZone::Item || hit.zone == HitZone::Expander) ? std::optional<size_t>(hit.visibleIndex) : std::optional<size_t>();
     _hoveredVisibleIndex = hoveredIndex;
@@ -1658,6 +1664,8 @@ bool Tree::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modifiers*
     {
         tooltipChanged = host.BeginTooltipHideDelay();
     }
+    if (! guard.IsCurrent())
+        return true;
 
     if (previousHoveredIndex != _hoveredVisibleIndex || previousHotPart != _verticalScrollbarHotPart || tooltipChanged)
     {
@@ -1668,6 +1676,8 @@ bool Tree::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modifiers*
 
 bool Tree::OnMouseLeave(ControlHost& host)
 {
+    const auto lifetime = GetLifetimeToken();
+    const auto* originalHost = GetHost();
     const bool hadHover        = _hoveredVisibleIndex.has_value();
     const bool hadHotScrollbar = _verticalScrollbarHotPart != ScrollbarHotPart::None;
     const bool hadTooltip      = host.HasTooltip();
@@ -1679,7 +1689,11 @@ bool Tree::OnMouseLeave(ControlHost& host)
     _hoveredVisibleIndex.reset();
     UpdateScrollbarHotState(HitInfo{});
     SyncScrollbarAnimation(host);
+    if (lifetime.expired() || GetHost() != originalHost)
+        return true;
     const bool tooltipChanged = host.BeginTooltipHideDelay();
+    if (lifetime.expired() || GetHost() != originalHost)
+        return true;
     if (hadHover || hadHotScrollbar || _dragVerticalThumb || tooltipChanged)
     {
         Invalidate(host);
@@ -1721,6 +1735,8 @@ bool Tree::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
         return true;
     UpdateScrollbarHotState(hit);
     SyncScrollbarAnimation(host);
+    if (! guard.IsCurrent())
+        return true;
     if (rightButton)
     {
         if (_singleClickCaptureArmed)
@@ -1739,7 +1755,11 @@ bool Tree::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
             // A second button cancels the row drag: its release would otherwise drop the capture without a cancel.
             ClearReorderDrag();
             host.ReleaseMouseCapture();
+            if (! guard.IsCurrent())
+                return true;
             Invalidate(host);
+            if (! guard.IsCurrent())
+                return true;
         }
         return OnContextMenu(host, false, point);
     }
@@ -1772,6 +1792,8 @@ bool Tree::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
             ClampScrollOffset();
             SyncScrollbarAnimation(host);
         }
+        if (! guard.IsCurrent())
+            return true;
         Invalidate(host);
         return true;
     }
@@ -1825,9 +1847,13 @@ bool Tree::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
         {
             return true;
         }
+        if (! guard.ResumeAfterCallback())
+            return true;
         if (! host.GetTheme().reducedMotion)
         {
             host.RequestAnimation();
+            if (! guard.IsCurrent())
+                return true;
         }
     }
     else if (_reorderEnabled && hit.zone == HitZone::Item && ! selectionGesture)
@@ -1928,9 +1954,13 @@ bool Tree::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool right
         {
             return true;
         }
+        if (! guard.ResumeAfterCallback())
+            return true;
         if (! host.GetTheme().reducedMotion)
         {
             host.RequestAnimation();
+            if (! guard.IsCurrent())
+                return true;
         }
     }
     else if (_delegate && ! _invokeOnSingleClick)
@@ -2023,9 +2053,13 @@ bool Tree::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, U
     if (! guard.IsCurrent())
         return wasDragging;
     SyncScrollbarAnimation(host);
+    if (! guard.IsCurrent())
+        return wasDragging;
     if (wasDragging)
     {
         Invalidate(host);
+        if (! guard.IsCurrent())
+            return true;
     }
     const std::optional<uint64_t> invokeId = std::exchange(_singleClickInvokeItemId, std::nullopt);
     const bool releaseSingleClickCapture   = std::exchange(_singleClickCaptureArmed, false);
@@ -2055,10 +2089,14 @@ bool Tree::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, U
 
 void Tree::OnCaptureLost(ControlHost& host)
 {
+    const auto lifetime = GetLifetimeToken();
+    const auto* originalHost = GetHost();
     if (_reorderArmed)
     {
         ClearReorderDrag();
         Invalidate(host);
+        if (lifetime.expired() || GetHost() != originalHost)
+            return;
     }
     _singleClickInvokeItemId.reset();
     _singleClickCaptureArmed = false;
@@ -2068,6 +2106,8 @@ void Tree::OnCaptureLost(ControlHost& host)
         _dragThumbOffsetDip = 0.0f;
         UpdateScrollbarHotState(HitInfo{});
         SyncScrollbarAnimation(host);
+        if (lifetime.expired() || GetHost() != originalHost)
+            return;
         Invalidate(host);
     }
 }
@@ -2104,6 +2144,8 @@ bool Tree::OnMouseWheel(ControlHost& host, D2D1_POINT_2F point, float wheelDelta
     {
         // Scrolling moves rows under a still pointer: the drop follows the row now beneath it.
         UpdateReorderDrop(host, point);
+        if (! guard.IsCurrent())
+            return true;
     }
     Invalidate(host);
     return true;
@@ -2113,10 +2155,14 @@ bool Tree::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
 {
     if (_reorderArmed && virtualKey == VK_ESCAPE)
     {
+        const auto lifetime = GetLifetimeToken();
+        const auto* originalHost = GetHost();
         _singleClickInvokeItemId.reset();
         _singleClickCaptureArmed = false;
         ClearReorderDrag();
         host.ReleaseMouseCapture();
+        if (lifetime.expired() || GetHost() != originalHost)
+            return true;
         Invalidate(host);
         return true;
     }
@@ -2239,9 +2285,13 @@ bool Tree::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
                 {
                     return true;
                 }
+                if (! guard.ResumeAfterCallback())
+                    return true;
                 if (! host.GetTheme().reducedMotion)
                 {
                     host.RequestAnimation();
+                    if (! guard.IsCurrent())
+                        return true;
                 }
                 Invalidate(host);
                 return true;
@@ -2265,9 +2315,13 @@ bool Tree::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
                 {
                     return true;
                 }
+                if (! guard.ResumeAfterCallback())
+                    return true;
                 if (! host.GetTheme().reducedMotion)
                 {
                     host.RequestAnimation();
+                    if (! guard.IsCurrent())
+                        return true;
                 }
                 Invalidate(host);
                 return true;
@@ -2377,6 +2431,8 @@ bool Tree::OnContextMenu(ControlHost& host, bool keyboardInvocation, D2D1_POINT_
         if (_verticalScrollDip != previousScrollDip)
         {
             Invalidate(host);
+            if (! guard.IsCurrent())
+                return true;
         }
 
         const D2D1_RECT_F contentRect = GetContentRect();
