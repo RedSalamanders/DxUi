@@ -57,6 +57,11 @@ inline void NormalizeSemanticLeaf(const MarkdownSyntax& syntax, std::size_t node
                     ++offset;
                 result.Append(L'\n', {first, offset}, false, true);
             }
+            else if (source[offset] == L'\0')
+            {
+                ++offset;
+                result.Append(L'\ufffd', {first, offset}, false, true);
+            }
             else
             {
                 result.Append(source[offset], {first, offset + 1u});

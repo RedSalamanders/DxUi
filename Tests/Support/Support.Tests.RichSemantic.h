@@ -142,7 +142,18 @@ inline void UnicodeAndAdmission()
                                   "overlapping primary ownership rejected");
     Reject<std::invalid_argument>([&] { SourceDisplayMap::Build(L"", L"x", std::array{DisplaySpan{{0u, 0u}, {0u, 1u}, DisplaySpanKind::Generated}}); },
                                   "generated text cannot claim primary source");
-    Reject<std::invalid_argument>([&] { SourceDisplayMap::Build(L"", std::wstring_view(L"\0", 1u), {}); }, "NUL admission remains unchanged");
+    Reject<std::invalid_argument>([&] { SourceDisplayMap::Build(L"", std::wstring_view(L"\0", 1u), {}); },
+                                  "counted display still requires a covering partition");
+    const auto countedNul = std::wstring_view(L"\0", 1u);
+    const auto rawNul = SourceDisplayMap::Build(countedNul, countedNul, std::array{DisplaySpan{{0u, 1u}, {0u, 1u}, DisplaySpanKind::Source}});
+    Check(rawNul->Source() == countedNul && rawNul->Display() == countedNul && rawNul->ToDisplay(1u) == 1u && rawNul->ToSource(1u) == 1u,
+          "a covering identity span retains counted NUL in both coordinate domains");
+    const auto visibleNul = SourceDisplayMap::Build(countedNul, L"\ufffd", std::array{DisplaySpan{{0u, 1u}, {0u, 1u}, DisplaySpanKind::Transformed}});
+    Check(visibleNul->Source() == countedNul && visibleNul->Display() == L"\ufffd" && visibleNul->ToDisplay(1u) == 1u && visibleNul->ToSource(1u) == 1u,
+          "a transformed span preserves counted source NUL while displaying the replacement character");
+    const wchar_t unpaired = static_cast<wchar_t>(0xd800u);
+    Reject<std::invalid_argument>([&] { SourceDisplayMap::Build(std::wstring_view(&unpaired, 1u), L"", {}); },
+                                  "source maps reject unpaired UTF-16 surrogates");
     Reject<std::length_error>([&] { SourceDisplayMap::Build(std::wstring(Document::MaximumUnits + 1u, L'x'), L"", {}); }, "source capacity bound");
     Reject<std::length_error>([&] { SourceDisplayMap::Build(L"", std::wstring(SourceDisplayMap::MaximumDisplayUnits + 1u, L'x'), {}); },
                               "display amplification bound");

@@ -792,19 +792,21 @@ void TestRichSemanticDocumentPinnedSourceCases()
                                                                       : std::span<const std::wstring_view>(MarkdownCorpus::kGfm);
         for (std::size_t index = 0u; index < cases.size(); ++index)
         {
-            const auto syntax = RichSemanticDocumentTests::Parse(cases[index], profile);
-            SemanticBuilder builder;
-            if (! IsValidUtf16(cases[index]))
+            if (! IsValidSourceUtf16(cases[index]))
             {
-                RichSemanticTests::Reject<std::invalid_argument>([&] { builder.Begin(syntax); }, "raw parser NUL remains outside Document admission");
+                RichSemanticTests::Reject<std::invalid_argument>([&] { RichSemanticDocumentTests::Parse(cases[index], profile); },
+                                                                  "unpaired source UTF-16 remains outside parser admission");
                 ++rejectedSource;
                 continue;
             }
+            const auto syntax = RichSemanticDocumentTests::Parse(cases[index], profile);
+            SemanticBuilder builder;
             try
             {
                 builder.Begin(syntax);
                 const auto document = RichSemanticDocumentTests::Complete(builder, *syntax);
                 RichSemanticDocumentTests::CheckGraph(*document);
+                Require(document->Map().Source() == cases[index], "pinned semantic source preserves every counted code unit including NUL");
                 ++admitted;
             }
             catch (const std::exception& error)

@@ -1,0 +1,1 @@
+- Render counted NUL as the replacement character while preserving exact RichText source and undoable edits.

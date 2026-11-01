@@ -394,7 +394,24 @@ inline void SchedulingAndAdmission()
     Check(! builder.Published() && ! builder.HasPendingPreparation() && current->Map().Source() == newSyntax->Source(),
           "semantic retirement releases ownership without invalidating held documents");
     const auto nul = Parse(std::wstring_view(L"a\0b", 3u));
-    RichSemanticTests::Reject<std::invalid_argument>([&] { builder.Begin(nul); }, "semantic builder preserves Document NUL admission");
+    builder.Begin(nul);
+    const auto countedNul = Complete(builder, *nul);
+    Check(countedNul->Map().Source() == std::wstring_view(L"a\0b", 3u) && countedNul->Map().Display() == L"a\ufffdb\n" &&
+              countedNul->Map().ToDisplay(1u) == 1u && countedNul->Map().ToSource(1u) == 1u,
+          "semantic publication retains source NUL and presents its replacement character at the same coordinate");
+    for (const auto& source : {std::wstring(L"`a\0b`", 5u), std::wstring(L"```\na\0b\n```\n", 12u),
+                               std::wstring(L"<span>a\0b</span>", 16u), std::wstring(L"[a\0b](https://example.test)", 27u)})
+    {
+        const auto result = Build(source);
+        const auto sourceNul = source.find(L'\0');
+        const auto displayNul = result->Map().ToDisplay(sourceNul);
+        Check(result->Map().Source() == source && displayNul < result->Map().Display().size() && result->Map().Display()[displayNul] == L'\ufffd' &&
+                  result->Map().Display().find(L'\0') == std::wstring_view::npos && result->Map().ToSource(displayNul) == sourceNul,
+              "inline code, fenced code, HTML and link text normalize NUL while retaining its exact source mapping");
+    }
+    const wchar_t unpaired = static_cast<wchar_t>(0xd800u);
+    RichSemanticTests::Reject<std::invalid_argument>([&] { Parse(std::wstring_view(&unpaired, 1u)); },
+                                                    "raw Markdown parser rejects an unpaired source surrogate");
     std::wstring many;
     for (std::size_t i = 0u; i <= SemanticDocument::MaximumParagraphs; ++i)
         many.append(L"a\n\n");
