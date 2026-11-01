@@ -19,8 +19,51 @@
 static void TestRichExportAllocationFailures()
 {
     using namespace DxUi::RichText;
+    for (unsigned operation = 0u; operation < 4u; ++operation)
+    {
+        const auto convert = [operation]
+        {
+            if (operation == 0u)
+                static_cast<void>(EncodeUtf8(L"heading"));
+            else if (operation == 1u)
+                static_cast<void>(DecodeUtf8("heading"));
+            else if (operation == 2u)
+                static_cast<void>(EncodeUtf8(L""));
+            else
+                static_cast<void>(DecodeUtf8(""));
+        };
+        size_t observed{};
+        {
+            const auto oldCounting = countAllocations;
+            const auto oldCalls = allocations, oldBytes = allocationBytes;
+            const auto restore = wil::scope_exit([=] noexcept
+            {
+                countAllocations = oldCounting;
+                allocations = oldCalls;
+                allocationBytes = oldBytes;
+            });
+            allocations = allocationBytes = 0u;
+            countAllocations = true;
+            convert();
+            observed = allocations;
+        }
+        Check(observed < 64u, "UTF-8 conversion allocation schedule is bounded");
+        for (size_t point = 0u; point < observed; ++point)
+        {
+            bool refused = false;
+            {
+                const auto oldFailure = failAllocationAfter;
+                const auto restore = wil::scope_exit([=] noexcept { failAllocationAfter = oldFailure; });
+                failAllocationAfter = point;
+                try { convert(); }
+                catch (const std::bad_alloc&) { refused = true; }
+            }
+            Check(refused, "each UTF-8 codec allocation failure propagates without termination");
+            convert();
+        }
+    }
     const auto document =
-        RichSemanticDocumentTests::Build(L"# Title\n\n1. **one**\n2. [two](https://example.test) [go](#title)\n", MarkdownProfile::RichMarkdown);
+        RichSemanticDocumentTests::Build(L"# Caf\u00e9\n\n1. **one**\n2. [two](https://example.test) [go](#caf%C3%A9)\n", MarkdownProfile::RichMarkdown);
     const std::wstring source(document->Syntax()->Source());
     const std::wstring display(document->Map().Display());
     size_t requests{};

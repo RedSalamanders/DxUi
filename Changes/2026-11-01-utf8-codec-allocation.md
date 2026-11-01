@@ -1,0 +1,1 @@
+- Propagate UTF-8 codec allocation failures, including empty results and heading-fragment decoding, without Debug STL move termination; focused Debug fault probes passed and the shared host sweep awaits integrated qualification.

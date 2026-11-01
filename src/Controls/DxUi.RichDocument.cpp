@@ -56,7 +56,7 @@ bool IsEditBoundary(std::wstring_view text, std::size_t offset) noexcept
 std::wstring DecodeUtf8(std::string_view bytes)
 {
     if (bytes.empty())
-        return {};
+        return std::wstring(0u, L'\0');
     if (bytes.size() > Document::MaximumUnits * 3u || bytes.size() > static_cast<std::size_t>(std::numeric_limits<int>::max()))
         throw std::length_error("UTF-8 input too large");
     const int length = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, bytes.data(), static_cast<int>(bytes.size()), nullptr, 0);
@@ -70,20 +70,22 @@ std::wstring DecodeUtf8(std::string_view bytes)
     if (MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, bytes.data(), static_cast<int>(bytes.size()), text.data(), length) != length)
         throw std::runtime_error("UTF-8 conversion failed");
     Validate(text);
-    return text;
+    // A Debug STL move may allocate its iterator proxy inside a noexcept move.
+    // Construct the returned value through the fallible copy constructor.
+    return std::wstring(text);
 }
 std::string EncodeUtf8(std::wstring_view text)
 {
     Validate(text);
     if (text.empty())
-        return {};
+        return std::string(0u, '\0');
     const auto length = WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, text.data(), static_cast<int>(text.size()), nullptr, 0, nullptr, nullptr);
     if (! length)
         throw std::invalid_argument("Invalid UTF-16 input");
     std::string bytes(static_cast<std::size_t>(length), '\0');
     if (WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, text.data(), static_cast<int>(text.size()), bytes.data(), length, nullptr, nullptr) != length)
         throw std::runtime_error("UTF-16 conversion failed");
-    return bytes;
+    return std::string(bytes);
 }
 struct SourceSnapshot::PieceTreeNode
 {
