@@ -84,6 +84,33 @@ template <typename Check> inline void Admission(Check&& check)
           "an image burst stages all completions without replacing the immutable publication");
     resources.Publish();
     check(! resources.HasUnpublished() && resources.Snapshot()->placements.size() == 2u, "one owner publication exposes both completed sources");
+    check(requests[0].Cancelled() && ! resources.ReplaceFrame(requests[0], nullptr),
+          "completed tokens remain valid frame identities while null frames are refused");
+    auto frame = Picture(2u, 2u);
+    check(resources.ReplaceFrame(requests[0], frame) && resources.HasUnpublished() &&
+              resources.Statistics().decodedBytes == picture->Pixels().size() + frame->Pixels().size(),
+          "a replacement counts distinct pixel storage once while the other source retains its shared image");
+    resources.Publish();
+    std::weak_ptr<const RichImage> retiredFrame = frame;
+    frame.reset();
+    for (unsigned step = 0u; step < 16u; ++step)
+    {
+        auto previousFrame = resources.Snapshot();
+        auto nextFrame = Picture(2u, 2u);
+        check(resources.ReplaceFrame(requests[0], nextFrame) && resources.Snapshot() == previousFrame && resources.HasUnpublished(),
+              "accepted frames stage without mutating the previous immutable publication");
+        resources.Publish();
+        check(resources.Snapshot() != previousFrame && ! retiredFrame.expired() &&
+                  resources.Statistics().decodedBytes == picture->Pixels().size() + nextFrame->Pixels().size(),
+              "one new frame publishes while a caller-held old snapshot keeps its pixels alive");
+        previousFrame.reset();
+        check(retiredFrame.expired(), "retired frame pixels are released after the last previous snapshot is dropped");
+        retiredFrame = nextFrame;
+    }
+    check(resources.ReplaceFrame(requests[0], picture) && resources.Statistics().decodedBytes == picture->Pixels().size(),
+          "replacement with another source's pixels collapses accounting to one shared allocation");
+    resources.Publish();
+    check(retiredFrame.expired(), "the last animated frame retires once replaced by shared pixels");
     source.clear();
     for (unsigned i = 0u; i < 33u; ++i)
         source.append(L"![image](source").append(std::to_wstring(i)).append(L".png) ");

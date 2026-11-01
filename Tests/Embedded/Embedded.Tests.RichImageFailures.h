@@ -108,6 +108,36 @@ static void TestRichImageResourceAllocationFailures()
         state->Publish();
         Check(! state->HasUnpublished() && state->Snapshot()->placements.size() == 2u, "publication retry exposes both duplicate placements exactly once");
     }
+    const auto replacement = RichImageResourceTests::Picture(2u, 2u);
+    const auto stageFrame = [&](RichImageResources& state, RichImageRequest& request)
+    {
+        state.Begin(previous, L"C:\\docs\\note.md", 1u, 1u);
+        finish(state);
+        std::vector<RichImageRequest> jobs(0u);
+        state.Take(jobs);
+        Check(jobs.size() == 1u && state.Complete(jobs[0], picture), "frame failure fixture completes its source");
+        state.Publish();
+        request = jobs[0];
+        Check(request.Cancelled() && state.ReplaceFrame(request, replacement), "completed request stages an immutable replacement frame");
+    };
+    RichImageResources measuredFrame;
+    RichImageRequest measuredFrameRequest;
+    stageFrame(measuredFrame, measuredFrameRequest);
+    const auto framePublications = observe([&] { measuredFrame.Publish(); });
+    for (std::size_t point = 0u; point < framePublications; ++point)
+    {
+        RichImageResources state;
+        RichImageRequest request;
+        stageFrame(state, request);
+        const auto held = state.Snapshot();
+        const bool failed = inject(point, [&] { state.Publish(); });
+        Check(failed && state.Snapshot() == held && state.HasUnpublished() &&
+                  state.Statistics().decodedBytes == replacement->Pixels().size(),
+              "failed frame publication retains the prior snapshot and accepted replacement for retry");
+        state.Publish();
+        Check(! state.HasUnpublished() && state.Snapshot() != held && state.Snapshot()->placements[0u].image == replacement,
+              "frame publication retry exposes the accepted replacement exactly once");
+    }
     const auto before      = allocations;
     const auto oldCounting = countAllocations;
     countAllocations       = true;
@@ -327,6 +357,65 @@ private:
     inline static thread_local RasterCalls* active_{};
 };
 } // namespace RichImageFailureTests
+static void TestRichImageFrameHostFailure()
+{
+    using namespace DxUi;
+    using namespace DxUi::RichText;
+    GraphicsFixture gpu;
+    gpu.width = 480u;
+    gpu.height = 240u;
+    Hr(gpu.Create(), "create frame replacement WARP device");
+    std::shared_ptr<GraphicsDevice> graphics;
+    Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "create frame replacement graphics");
+    EmbeddedHost view;
+    Hr(view.Attach(graphics), "attach frame replacement host");
+    auto owned = std::make_unique<RichTextEditor>();
+    auto* editor = owned.get();
+    view.Controls().SetRoot(std::move(owned));
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    editor->SetMarkdownRenderingEnabled(true);
+    editor->SetDocumentFilePath(L"C:\\docs\\note.md");
+    editor->SetText(L"![frame](image.png)");
+    Hr(PrepareRichEmbeddedContent(view, gpu.width, gpu.height), "prepare frame source");
+    std::vector<RichImageRequest> requests(0u);
+    editor->TakePendingImageRequests(requests);
+    Check(requests.size() == 1u && editor->CompleteImageRequest(requests[0], RichImageResourceTests::Pattern()), "complete initial frame");
+    Hr(PrepareRichEmbeddedContent(view, gpu.width, gpu.height), "prepare initial frame");
+    const auto document = editor->GetAcknowledgedSemanticDocument(view.Controls());
+    Check(static_cast<bool>(document), "initial frame has an acknowledged document");
+    gpu.Bind();
+    Hr(view.Composite(gpu.context.get(), gpu.Viewport()), "compose initial frame");
+    std::vector<uint8_t> initial(0u);
+    Hr(gpu.Read(initial), "read initial frame pixels");
+    const auto source = editor->GetText();
+    const auto revision = editor->Revision();
+    const auto selection = editor->GetSelection();
+    Check(editor->ReplaceImageFrame(view.Controls(), document, requests[0], RichImageResourceTests::Picture()),
+          "host accepts a current completed-request frame");
+    Check(! editor->GetAcknowledgedSemanticDocument(view.Controls()) && editor->GetText() == source && editor->Revision() == revision &&
+              editor->GetSelection() == selection,
+          "pending frame revokes geometry actions without editing source or selection");
+    RichImageFailureTests::RasterCalls calls;
+    calls.failAt = 0u;
+    HRESULT result = S_OK;
+    for (unsigned turn = 0u; turn < 1024u && ! calls.uploads && SUCCEEDED(result); ++turn)
+        result = view.Prepare(gpu.width, gpu.height);
+    Check(calls.uploads && FAILED(result) && ! editor->GetAcknowledgedSemanticDocument(view.Controls()),
+          "failed frame upload leaves current semantic actions unavailable");
+    gpu.Bind();
+    Check(view.Composite(gpu.context.get(), gpu.Viewport()) == S_FALSE,
+          "failed host preparation refuses to present an incoherent surface");
+    calls.failAt = std::numeric_limits<size_t>::max();
+    Hr(PrepareRichEmbeddedContent(view, gpu.width, gpu.height), "retry replacement frame after upload failure");
+    Check(editor->GetAcknowledgedSemanticDocument(view.Controls()) == document && editor->GetText() == source && editor->Revision() == revision &&
+              editor->GetSelection() == selection,
+          "successful frame retry restores acknowledged geometry without a source transaction");
+    gpu.Bind();
+    Hr(view.Composite(gpu.context.get(), gpu.Viewport()), "compose retried replacement frame");
+    std::vector<uint8_t> updated(0u);
+    Hr(gpu.Read(updated), "read replacement frame pixels");
+    Check(updated != initial, "retried frame changes the actual embedded host surface");
+}
 static void TestRichImageRasterFailureAndBudgets()
 {
     using namespace DxUi::RichText;
@@ -531,6 +620,36 @@ static void TestRichImageRasterFailureAndBudgets()
         runTiled(tiled, 96u * 4u * 3u);
         Check(tiled.Generation() == generation + 1u && render(tiled) == expectedPixels, "failed tile retries to complete pixel parity");
     }
+    const auto nextFrame = RichImageResourceTests::Picture();
+    Check(jobs[0].Cancelled() && resources.ReplaceFrame(jobs[0], nextFrame), "completed image request accepts the next animation frame");
+    resources.Publish();
+    const auto nextFrameImages = resources.Snapshot();
+    Check(nextFrameImages != tiledImages && nextFrameImages->placements.size() == 2u &&
+              nextFrameImages->placements[0u].image == nextFrame && nextFrameImages->placements[1u].image == nextFrame,
+          "new immutable image snapshot shares the next frame across both placements");
+    const auto oldGeneration = tiled.Generation();
+    calls.failure = E_OUTOFMEMORY;
+    calls.failCopyAt = calls.copies + 1u;
+    bool frameRejected{};
+    try
+    {
+        tiled.Begin(write.get(), tiledDocument, options, drawing.get(), {++epoch, epoch}, nextFrameImages, target.get());
+        runTiled(tiled, 96u * 4u * 3u);
+    }
+    catch (const wil::ResultException& error)
+    {
+        frameRejected = error.GetErrorCode() == E_OUTOFMEMORY;
+    }
+    calls.failCopyAt = std::numeric_limits<size_t>::max();
+    Check(frameRejected && tiled.Ready() && ! tiled.Pending() && tiled.Generation() == oldGeneration && render(tiled) == expectedPixels,
+          "failed next-frame upload retains the previous prepared geometry and exact pixels");
+    tiled.Begin(write.get(), tiledDocument, options, drawing.get(), {epoch, epoch}, nextFrameImages, target.get());
+    runTiled(tiled, 96u * 4u * 3u);
+    Check(tiled.Generation() == oldGeneration + 1u && render(tiled) != expectedPixels,
+          "retry publishes the accepted replacement frame after target recovery");
+    tiled.Begin(write.get(), tiledDocument, options, drawing.get(), {++epoch, epoch}, tiledImages, target.get());
+    runTiled(tiled, 96u * 4u * 3u);
+    Check(render(tiled) == expectedPixels, "original immutable frame remains independently reusable");
     calls.failure                      = D2DERR_UNSUPPORTED_OPERATION;
     calls.failCopyAt                   = calls.copies + 1u;
     const auto copiesBeforeUnsupported = calls.copies;

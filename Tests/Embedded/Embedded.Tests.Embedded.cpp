@@ -1298,6 +1298,7 @@ __declspec(noinline) static int RunFunctionalTests()
             TestRichImageResourceAllocationFailures();
             TestRichImageGeometryAllocationFailures();
             TestRichImageRasterFailureAndBudgets();
+            TestRichImageFrameHostFailure();
         }
         else if (std::wstring_view(__wargv[1]) == L"--test-rich-flowchart-failures")
         {
@@ -1659,6 +1660,7 @@ __declspec(noinline) static int RunFunctionalTests()
     TestRichImageResourceAllocationFailures();
     TestRichImageGeometryAllocationFailures();
     TestRichImageRasterFailureAndBudgets();
+    TestRichImageFrameHostFailure();
     TestRichDocumentSameContentAllocationBudget();
     TestRichDocumentAllocationFailureAtomicity();
     TestRichLabelWakeupAndRetirement(gpu);
