@@ -2351,14 +2351,16 @@ void TestWindowHostThrowingMouseLeaveStillClearsTooltip()
     using namespace DxUi;
     struct ThrowingHover final : Control
     {
-        ThrowingHover() = default;
-        ThrowingHover(const ThrowingHover&) = delete;
+        ThrowingHover()                                = default;
+        ThrowingHover(const ThrowingHover&)            = delete;
         ThrowingHover& operator=(const ThrowingHover&) = delete;
-        ThrowingHover(ThrowingHover&&) = delete;
-        ThrowingHover& operator=(ThrowingHover&&) = delete;
+        ThrowingHover(ThrowingHover&&)                 = delete;
+        ThrowingHover& operator=(ThrowingHover&&)      = delete;
         bool throwHover{}, throwLeave{}, replaceRoot{};
         unsigned leaveCalls{};
-        void Paint(ControlHost&) const override {}
+        void Paint(ControlHost&) const override
+        {
+        }
         void OnHoverChanged(ControlHost& host, bool hovered) override
         {
             Control::OnHoverChanged(host, hovered);
@@ -2387,8 +2389,8 @@ void TestWindowHostThrowingMouseLeaveStillClearsTooltip()
         root->SetBounds(D2D1::RectF(0, 0, 320, 200));
         auto* item = root->AddChild<ThrowingHover>();
         item->SetBounds(D2D1::RectF(0, 0, 160, 80));
-        item->throwHover = scenario == 0u;
-        item->throwLeave = scenario == 1u;
+        item->throwHover  = scenario == 0u;
+        item->throwLeave  = scenario == 1u;
         item->replaceRoot = scenario == 2u;
         window.Host().SetRoot(std::move(root));
         static_cast<void>(SendMessageW(window.Hwnd(), WM_MOUSEMOVE, 0, MAKELPARAM(32, 32)));

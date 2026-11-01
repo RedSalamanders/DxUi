@@ -2371,7 +2371,7 @@ bool ControlHost::PreparePendingPageLayout() noexcept
                 if (hr == E_OUTOFMEMORY && ! control._intrinsicLayoutPending && ! control._intrinsicAllocationRetryUsed)
                 {
                     control._intrinsicAllocationRetryUsed = true;
-                    control._intrinsicLayoutPending = true;
+                    control._intrinsicLayoutPending       = true;
                 }
                 ++_intrinsicLayoutFailureCount;
                 if (_reportedLayoutFailureControl != &control || _reportedLayoutFailure != hr)
@@ -2810,7 +2810,7 @@ void Label::SetFontRole(FontRole fontRole) noexcept
 {
     if (_fontRole == fontRole)
         return;
-    _fontRole           = fontRole;
+    _fontRole = fontRole;
     InvalidateTypographyPreparation();
     const auto lifetime = GetLifetimeToken();
     InvalidateMeasure();
@@ -2894,13 +2894,13 @@ void Label::SetMnemonicTarget(Control* target) noexcept
 
 void Label::PrepareVisualContent(ControlHost& host) noexcept
 {
-    const auto lifetime = GetLifetimeToken();
-    Control* const root = host.GetRoot();
+    const auto lifetime     = GetLifetimeToken();
+    Control* const root     = host.GetRoot();
     const auto rootLifetime = root ? GetControlLifetimeToken(*root) : std::weak_ptr<int>{};
-    const auto interaction = host.GetInteractionRevision();
-    const auto current = [&]() noexcept {
-        return ! lifetime.expired() && ! rootLifetime.expired() && GetHost() == &host && host.GetRoot() == root &&
-               host.GetInteractionRevision() == interaction;
+    const auto interaction  = host.GetInteractionRevision();
+    const auto current      = [&]() noexcept
+    {
+        return ! lifetime.expired() && ! rootLifetime.expired() && GetHost() == &host && host.GetRoot() == root && host.GetInteractionRevision() == interaction;
     };
     if (! root || ! current() || ! IsControlInTree(root, this) || ! current())
         return;
@@ -2913,19 +2913,24 @@ void Label::PrepareVisualContent(ControlHost& host) noexcept
     {
         const auto bounds = GetBounds();
         const float width = (std::max)(1.0f, bounds.right - bounds.left), height = (std::max)(1.0f, bounds.bottom - bounds.top);
-        const auto revision = _typographyInputRevision;
+        const auto revision  = _typographyInputRevision;
         const auto resources = host.GetResourceGeneration(), typographyRevision = host.GetTypographyRevision();
         const auto mnemonic = GetMnemonic();
-        if (_typographyLayout && _typographyLayoutHost == &host && _typographyPreparedInputRevision == revision &&
-            _typographyLayoutGeneration == resources && _typographyLayoutRevision == typographyRevision && _typographyLayoutMnemonic == mnemonic &&
-            _typographyLayoutSize.width == width && _typographyLayoutSize.height == height)
+        if (_typographyLayout && _typographyLayoutHost == &host && _typographyPreparedInputRevision == revision && _typographyLayoutGeneration == resources &&
+            _typographyLayoutRevision == typographyRevision && _typographyLayoutMnemonic == mnemonic && _typographyLayoutSize.width == width &&
+            _typographyLayoutSize.height == height)
             return;
         std::wstring text(_text);
         const auto typography = _typographyOverride;
-        auto* format = typography
-            ? host.GetTextFormat(_fontRole, typography->fontSizeDip, typography->fontWeight, _alignment, DWRITE_PARAGRAPH_ALIGNMENT_CENTER,
-                                 _multiline, ResolveReadingDirection(GetFlowDirection()))
-            : host.GetTextFormat(_fontRole, _alignment, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, _multiline, ResolveReadingDirection(GetFlowDirection()));
+        auto* format =
+            typography ? host.GetTextFormat(_fontRole,
+                                            typography->fontSizeDip,
+                                            typography->fontWeight,
+                                            _alignment,
+                                            DWRITE_PARAGRAPH_ALIGNMENT_CENTER,
+                                            _multiline,
+                                            ResolveReadingDirection(GetFlowDirection()))
+                       : host.GetTextFormat(_fontRole, _alignment, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, _multiline, ResolveReadingDirection(GetFlowDirection()));
         if (! current() || ! format || host.GetResourceGeneration() != resources || host.GetTypographyRevision() != typographyRevision ||
             ! host.GetWriteFactory())
             return;
@@ -2945,20 +2950,20 @@ void Label::PrepareVisualContent(ControlHost& host) noexcept
         }
         if (const auto index = FindMnemonicTextIndex(text, mnemonic); index)
             static_cast<void>(layout->SetUnderline(TRUE, DWRITE_TEXT_RANGE{static_cast<UINT32>(*index), 1u}));
-        if (! current() || _typographyInputRevision != revision || GetMnemonic() != mnemonic || _text != text ||
-            host.GetResourceGeneration() != resources || host.GetTypographyRevision() != typographyRevision)
+        if (! current() || _typographyInputRevision != revision || GetMnemonic() != mnemonic || _text != text || host.GetResourceGeneration() != resources ||
+            host.GetTypographyRevision() != typographyRevision)
             return;
         const auto now = GetBounds();
         if ((std::max)(1.0f, now.right - now.left) != width || (std::max)(1.0f, now.bottom - now.top) != height)
             return;
-        auto retired = std::move(_typographyLayout);
-        _typographyLayout = std::move(layout);
-        _typographyLayoutSize = D2D1::SizeF(width, height);
-        _typographyLayoutGeneration = resources;
-        _typographyLayoutRevision = typographyRevision;
-        _typographyLayoutHost = &host;
+        auto retired                     = std::move(_typographyLayout);
+        _typographyLayout                = std::move(layout);
+        _typographyLayoutSize            = D2D1::SizeF(width, height);
+        _typographyLayoutGeneration      = resources;
+        _typographyLayoutRevision        = typographyRevision;
+        _typographyLayoutHost            = &host;
         _typographyPreparedInputRevision = revision;
-        _typographyLayoutMnemonic = mnemonic;
+        _typographyLayoutMnemonic        = mnemonic;
     }
     catch (const std::bad_alloc&)
     {
@@ -3123,12 +3128,12 @@ void Button::PrepareVisualContent(ControlHost& host) noexcept
     {
         try
         {
-            const auto bounds = GetBounds();
-            const float width = (std::max)(0.0f, bounds.right - bounds.left);
-            const float height = (std::max)(1.0f, bounds.bottom - bounds.top);
-            const auto flow = GetFlowDirection();
-            const auto revision = _iconTextInputRevision;
-            const auto resources = host.GetResourceGeneration();
+            const auto bounds     = GetBounds();
+            const float width     = (std::max)(0.0f, bounds.right - bounds.left);
+            const float height    = (std::max)(1.0f, bounds.bottom - bounds.top);
+            const auto flow       = GetFlowDirection();
+            const auto revision   = _iconTextInputRevision;
+            const auto resources  = host.GetResourceGeneration();
             const auto typography = host.GetTypographyRevision();
             if (! _preparedHyperlinkValid || _preparedHyperlinkHost != &host || _preparedHyperlinkRevision != revision ||
                 _preparedHyperlinkResources != resources || _preparedHyperlinkTypography != typography || _preparedHyperlinkFlow != flow ||
@@ -3138,23 +3143,23 @@ void Button::PrepareVisualContent(ControlHost& host) noexcept
 #if DXUI_ENABLE_DIAGNOSTICS
                 ++_debugHyperlinkMeasureCount;
 #endif
-                const float measured = MeasureSingleLineTextWidthDip(&host, text, FontRole::Body, height, ResolveReadingDirection(flow),
-                                                                     ResolveContentTextFormat(host, FontRole::Body));
+                const float measured = MeasureSingleLineTextWidthDip(
+                    &host, text, FontRole::Body, height, ResolveReadingDirection(flow), ResolveContentTextFormat(host, FontRole::Body));
                 if (! hostStillCurrent() || _iconTextInputRevision != revision || _text != text || GetFlowDirection() != flow ||
                     host.GetResourceGeneration() != resources || host.GetTypographyRevision() != typography)
                     return;
                 const auto current = GetBounds();
                 if ((std::max)(0.0f, current.right - current.left) != width || (std::max)(1.0f, current.bottom - current.top) != height)
                     return;
-                _preparedHyperlinkWidthDip = measured;
-                _preparedHyperlinkBoundsWidth = width;
+                _preparedHyperlinkWidthDip     = measured;
+                _preparedHyperlinkBoundsWidth  = width;
                 _preparedHyperlinkBoundsHeight = height;
-                _preparedHyperlinkHost = &host;
-                _preparedHyperlinkRevision = revision;
-                _preparedHyperlinkResources = resources;
-                _preparedHyperlinkTypography = typography;
-                _preparedHyperlinkFlow = flow;
-                _preparedHyperlinkValid = true;
+                _preparedHyperlinkHost         = &host;
+                _preparedHyperlinkRevision     = revision;
+                _preparedHyperlinkResources    = resources;
+                _preparedHyperlinkTypography   = typography;
+                _preparedHyperlinkFlow         = flow;
+                _preparedHyperlinkValid        = true;
             }
         }
         catch (const std::bad_alloc&)

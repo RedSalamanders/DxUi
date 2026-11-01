@@ -3477,9 +3477,9 @@ try
             handled = msg == WM_MOUSELEAVE;
             if (HandleTooltipInspectionPointer(msg, D2D1::Point2F()))
                 return 0;
-            Control* const originalRoot = _root.get();
+            Control* const originalRoot     = _root.get();
             const auto originalRootLifetime = originalRoot ? GetControlLifetimeToken(*originalRoot) : std::weak_ptr<int>{};
-            const auto originalInteraction = GetInteractionRevision();
+            const auto originalInteraction  = GetInteractionRevision();
             if (_hoveredControl)
             {
                 Control* const oldHover                   = _hoveredControl;

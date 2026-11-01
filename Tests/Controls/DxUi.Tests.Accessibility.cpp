@@ -4330,7 +4330,8 @@ void TestAccessibilityTextEventsUseIndexedOwnerValidation()
     DebugSetAccessibilityResolutionCountingForTest(true);
     const auto stopCounting = wil::scope_exit([]() noexcept { DebugSetAccessibilityResolutionCountingForTest(false); });
     DebugResetAccessibilityResolutionVisitCountForTest();
-    for (const auto kind : {TextInputAutomationEventKind::TextChanged, TextInputAutomationEventKind::TextSelectionChanged,
+    for (const auto kind : {TextInputAutomationEventKind::TextChanged,
+                            TextInputAutomationEventKind::TextSelectionChanged,
                             TextInputAutomationEventKind::TextEditCompositionChanged})
         Require(RaiseWindowHostTextInputAutomationEvent(window.Hwnd(), field, kind), "ordinary text event accepts the indexed live owner");
     Require(DebugGetAccessibilityResolutionVisitCountForTest() < 128u, "ordinary text events do not scan unrelated siblings");
@@ -10057,17 +10058,22 @@ void TestTreeBadgeStatusUpdatesReachSubscribedClientWithoutStructureChange()
     update(L"", false, std::wstring_view(L""), "removing a badge raises an empty ItemStatus on the original TreeItem");
     static_cast<void>(walk.client.WaitOutTheStream());
     const auto renameMark = walk.client.Mark();
-    auto renamed = rows(L"", false);
-    renamed[0u].text = L"Renamed General";
+    auto renamed          = rows(L"", false);
+    renamed[0u].text      = L"Renamed General";
     test.model.SetVisibleItems(std::move(renamed));
     Require(test.tree->NotifyItemPresentationChanged(1u), "the existing visible TreeItem accepts its renamed presentation");
-    walk.Expect(walk.client.WaitUntil(UiaTest::Client::kNotificationDeadlineMs, [&]
+    walk.Expect(walk.client.WaitUntil(UiaTest::Client::kNotificationDeadlineMs,
+                                      [&]
     {
         const auto events = walk.client.DistinctSince(renameMark);
-        return std::ranges::any_of(events, [](const UiaTest::HeardEvent& event)
-        { return event.kind == UiaTest::EventKind::Property && event.id == UIA_NamePropertyId &&
-                 event.controlType == UIA_TreeItemControlTypeId && event.value == L"Renamed General"; });
-    }), "native client hears the existing TreeItem's changed Name");
+        return std::ranges::any_of(events,
+                                   [](const UiaTest::HeardEvent& event)
+        {
+            return event.kind == UiaTest::EventKind::Property && event.id == UIA_NamePropertyId && event.controlType == UIA_TreeItemControlTypeId &&
+                   event.value == L"Renamed General";
+        });
+    }),
+                "native client hears the existing TreeItem's changed Name");
     walk.Expect(walk.Name(editedItem) == L"Renamed General", "native TreeItem identity remains stable across rename");
     const uint64_t invalidationsBeforeMissing = test.window.Host().DebugGetInvalidateCount();
     Require(! test.tree->NotifyItemPresentationChanged(9999u), "a missing Tree row rejects the presentation notification");

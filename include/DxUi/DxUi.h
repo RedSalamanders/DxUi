@@ -1825,7 +1825,7 @@ private:
     uint64_t _measureRevision               = 0u;
     bool _intrinsicLayoutEnabled            = false;
     bool _intrinsicLayoutPending            = false;
-    bool _intrinsicAllocationRetryUsed       = false;
+    bool _intrinsicAllocationRetryUsed      = false;
     bool _contentPreparationEnabled         = false;
     mutable bool _contentPreparationPending = false;
     bool _visualPreparationEnabled          = false;
@@ -2084,10 +2084,10 @@ private:
     mutable D2D1_SIZE_F _typographyLayoutSize{};
     mutable uint64_t _typographyLayoutGeneration = 0u;
     mutable uint64_t _typographyLayoutRevision   = 0u;
-    const ControlHost* _typographyLayoutHost = nullptr;
+    const ControlHost* _typographyLayoutHost     = nullptr;
     uint64_t _typographyInputRevision{}, _typographyPreparedInputRevision{};
     wchar_t _typographyLayoutMnemonic{};
-    Control* _mnemonicTarget                     = nullptr;
+    Control* _mnemonicTarget = nullptr;
 };
 #pragma warning(pop)
 

@@ -1,8 +1,8 @@
 #include "Controls.Tests.IntrinsicLayout.h"
 
 #include "Controls.Tests.DxUiTestHelpers.h"
-#include "GraphicsFixture.h"
 #include "Controls/DxUi.Internal.h"
+#include "GraphicsFixture.h"
 
 #include <DxUi/Typography.h>
 #include <dwrite_1.h>
@@ -373,12 +373,12 @@ void TestLabelZeroSpacingOverrideMatchesDefaultLayout()
             label->SetText(L"Alpha Beta");
             Require(label->SetTypographyOverride(exactDefault) == S_OK, "enable one unchanged typography override for mnemonic transitions");
             label->SetMnemonic(L'A');
-            const auto mnemonicA = capture();
+            const auto mnemonicA           = capture();
             const auto preparedLayoutCount = testMnemonicLayoutCreations;
             static_cast<void>(capture());
             Require(testMnemonicLayoutCreations == preparedLayoutCount, "warm override label paint creates no mnemonic layout");
             label->SetMnemonic(L'B');
-            const auto mnemonicB = capture();
+            const auto mnemonicB     = capture();
             const auto invalidations = host.DebugGetInvalidateCount();
             label->SetMnemonic(L'b');
             Require(host.DebugGetInvalidateCount() == invalidations, "an equivalent normalized mnemonic is a no-op");
@@ -387,8 +387,8 @@ void TestLabelZeroSpacingOverrideMatchesDefaultLayout()
             Require(mnemonicA.bgraPixels != mnemonicB.bgraPixels && mnemonicA.bgraPixels != mnemonicNone.bgraPixels &&
                         mnemonicB.bgraPixels != mnemonicNone.bgraPixels,
                     "one typography override refreshes the actual underline for A, B and no mnemonic");
-            auto* referenceFormat = host.GetTextFormat(FontRole::Body, DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, false,
-                                                       DWRITE_READING_DIRECTION_LEFT_TO_RIGHT);
+            auto* referenceFormat = host.GetTextFormat(
+                FontRole::Body, DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, false, DWRITE_READING_DIRECTION_LEFT_TO_RIGHT);
             wil::com_ptr<IDWriteTextLayout> reference;
             Require(referenceFormat && host.GetWriteFactory(), "mnemonic pixel oracle has a DirectWrite format and factory");
             RequireSucceeded(host.GetWriteFactory()->CreateTextLayout(L"Alpha Beta", 10u, referenceFormat, 260.f, 112.f, reference.put()),
@@ -398,14 +398,14 @@ void TestLabelZeroSpacingOverrideMatchesDefaultLayout()
                 FLOAT localX{}, localY{};
                 DWRITE_HIT_TEST_METRICS hit{};
                 RequireSucceeded(reference->HitTestTextPosition(index, FALSE, &localX, &localY, &hit), "resolve independent mnemonic glyph bounds");
-                const auto left = static_cast<UINT>(std::max(0.f, host.DipsToPixels(24.f + hit.left - 2.f)));
+                const auto left  = static_cast<UINT>(std::max(0.f, host.DipsToPixels(24.f + hit.left - 2.f)));
                 const auto right = std::min(underlined.widthPx, static_cast<UINT>(host.DipsToPixels(24.f + hit.left + hit.width + 2.f)));
                 for (UINT y = 0u; y < underlined.heightPx; ++y)
                     for (UINT x = left; x < right; ++x)
                     {
                         const auto offset = (static_cast<size_t>(y) * underlined.widthPx + x) * 4u;
-                        if (! std::equal(underlined.bgraPixels.data() + offset, underlined.bgraPixels.data() + offset + 4u,
-                                         mnemonicNone.bgraPixels.data() + offset))
+                        if (! std::equal(
+                                underlined.bgraPixels.data() + offset, underlined.bgraPixels.data() + offset + 4u, mnemonicNone.bgraPixels.data() + offset))
                             return true;
                     }
                 return false;
@@ -906,27 +906,27 @@ void TestButtonPreparedIconTextLayoutMatchesDrawTextW()
         button->SetText(L"Prepared hyperlink");
         button->SetBounds(D2D1::RectF(12.f, 12.f, 112.f, 40.f));
         const auto bounds = button->GetBounds();
-        const auto x = static_cast<SHORT>(host.DipsToPixels((bounds.left + bounds.right) * .5f));
-        const auto y = static_cast<SHORT>(host.DipsToPixels((bounds.top + bounds.bottom) * .5f));
-        bool handled = false;
+        const auto x      = static_cast<SHORT>(host.DipsToPixels((bounds.left + bounds.right) * .5f));
+        const auto y      = static_cast<SHORT>(host.DipsToPixels((bounds.top + bounds.bottom) * .5f));
+        bool handled      = false;
         static_cast<void>(host.HandleMessage(window.Hwnd(), WM_MOUSEMOVE, 0u, MAKELPARAM(0, 0), handled));
         const auto idleHyperlink = capture();
         static_cast<void>(host.HandleMessage(window.Hwnd(), WM_MOUSEMOVE, 0u, MAKELPARAM(x, y), handled));
         const auto hoveredHyperlink = capture();
         Require(handled && button->IsHovered() && button->DebugGetPreparedHyperlinkWidthDip() > 0.f && button->DebugGetHyperlinkMeasureCount() > 0u,
                 "first hovered hyperlink frame uses a prepared nonempty underline");
-        const auto lineY = static_cast<UINT>(host.DipsToPixels(bounds.bottom - 3.f));
+        const auto lineY           = static_cast<UINT>(host.DipsToPixels(bounds.bottom - 3.f));
         bool underlinePixelChanged = false;
         for (UINT row = lineY > 1u ? lineY - 1u : 0u; row <= lineY + 1u && row < hoveredHyperlink.heightPx; ++row)
             for (UINT column = static_cast<UINT>(x) - 1u; column <= static_cast<UINT>(x) + 1u && column < hoveredHyperlink.widthPx; ++column)
             {
-                const auto offset = (static_cast<size_t>(row) * hoveredHyperlink.widthPx + column) * 4u;
+                const auto offset     = (static_cast<size_t>(row) * hoveredHyperlink.widthPx + column) * 4u;
                 underlinePixelChanged = underlinePixelChanged || ! std::equal(hoveredHyperlink.bgraPixels.data() + offset,
-                                                                               hoveredHyperlink.bgraPixels.data() + offset + 4u,
-                                                                               idleHyperlink.bgraPixels.data() + offset);
+                                                                              hoveredHyperlink.bgraPixels.data() + offset + 4u,
+                                                                              idleHyperlink.bgraPixels.data() + offset);
             }
         Require(underlinePixelChanged, "the first hovered capture contains the underline pixels");
-        const auto layouts = testSingleLineMeasureLayoutCreations;
+        const auto layouts  = testSingleLineMeasureLayoutCreations;
         const auto measures = button->DebugGetHyperlinkMeasureCount();
         for (unsigned repeat = 0u; repeat < 8u; ++repeat)
             static_cast<void>(capture());
@@ -2039,11 +2039,20 @@ void TestRadioButtonMeasuresTheChromeItPaints()
 class AllocationRetryLayout final : public Control
 {
 public:
-    AllocationRetryLayout() { EnableIntrinsicLayout(); }
+    AllocationRetryLayout()
+    {
+        EnableIntrinsicLayout();
+    }
     unsigned failures = 0u;
     unsigned attempts = 0u;
-    void RetryNewRequest() { RequestIntrinsicLayout(); }
-    void Paint(ControlHost&) const override {}
+    void RetryNewRequest()
+    {
+        RequestIntrinsicLayout();
+    }
+    void Paint(ControlHost&) const override
+    {
+    }
+
 protected:
     HRESULT PrepareIntrinsicLayout(const MeasureContext&) noexcept override
     {
@@ -2066,19 +2075,20 @@ void TestIntrinsicLayoutAllocationRetryIsBounded()
     RequireSucceeded(GraphicsDevice::Create(graphics.device.get(), device), "allocation retry graphics");
     EmbeddedHost view;
     RequireSucceeded(view.Attach(device), "allocation retry attach");
-    auto owned = std::make_unique<AllocationRetryLayout>();
-    auto* layout = owned.get();
+    auto owned       = std::make_unique<AllocationRetryLayout>();
+    auto* layout     = owned.get();
     layout->failures = 1u;
     view.Controls().SetRoot(std::move(owned));
     Require(view.Prepare(240u, 200u, 96.0f) == S_FALSE && layout->attempts == 1u, "first allocation failure requests one cooperative retry");
     RequireSucceeded(view.Prepare(240u, 200u, 96.0f), "transient allocation retry succeeds");
     Require(layout->attempts == 2u && ! view.NeedsPreparation(), "successful retry settles without an idle loop");
     const auto previousBounds = layout->GetBounds();
-    layout->failures = 4u;
+    layout->failures          = 4u;
     layout->RetryNewRequest();
     Require(view.Prepare(240u, 200u, 96.0f) == S_FALSE, "new request gets a fresh retry allowance");
     RequireSucceeded(view.Prepare(240u, 200u, 96.0f), "persistent failure retains previous geometry and paints");
-    Require(layout->attempts == 4u && ! view.NeedsPreparation() && SameBounds(layout->GetBounds(), previousBounds), "persistent allocation failure stops after two attempts and keeps geometry");
+    Require(layout->attempts == 4u && ! view.NeedsPreparation() && SameBounds(layout->GetBounds(), previousBounds),
+            "persistent allocation failure stops after two attempts and keeps geometry");
     RequireSucceeded(view.Prepare(240u, 200u, 96.0f), "idle preparation remains safe");
     Require(layout->attempts == 4u, "idle frames do not retry persistent allocation failure");
     layout->failures = 0u;

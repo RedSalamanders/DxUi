@@ -1,8 +1,8 @@
 // Compile the public accessibility header first: consumers must not supply its COM prerequisites.
 #include <DxUi/EmbeddedAccessibility.h>
 
-#include "Controls/DxUi.TextElements.h"
 #include "Controls/DxUi.Internal.h"
+#include "Controls/DxUi.TextElements.h"
 #include "EmbeddedScene.h"
 #include "GraphicsFixture.h"
 #include "Support.Tests.FailureReports.h"
@@ -648,11 +648,11 @@ __declspec(noinline) static void TestEmbeddedIconLayoutRebuildsAfterFormatCacheE
     static_cast<void>(capture());
     Check(button->IsHovered() && button->DebugGetPreparedHyperlinkWidthDip() > 0.f && button->DebugGetHyperlinkMeasureCount() > 0u,
           "first embedded hovered hyperlink frame has prepared underline geometry");
-    const auto measureLayouts = DxUi::testSingleLineMeasureLayoutCreations;
+    const auto measureLayouts    = DxUi::testSingleLineMeasureLayoutCreations;
     const auto hyperlinkMeasures = button->DebugGetHyperlinkMeasureCount();
     gpu.Bind();
     const auto beforeHoverPaints = allocations;
-    countAllocations = true;
+    countAllocations             = true;
     for (unsigned frame = 0u; frame < 8u; ++frame)
     {
         view.MarkDirty();
@@ -837,27 +837,26 @@ static void TestSeparatorCatalogAllocationFailures()
 {
     static_assert(! std::is_nothrow_default_constructible_v<DxUi::Separator>);
     std::unique_ptr<DxUi::Control> output;
-    const auto oldCount = allocations;
+    const auto oldCount    = allocations;
     const auto oldCounting = countAllocations;
-    allocations = 0u;
-    countAllocations = true;
-    const HRESULT success = DxUi::CreateControl(DxUi::ControlKind::Separator, output);
-    countAllocations = oldCounting;
-    const size_t observed = allocations;
-    allocations = oldCount;
+    allocations            = 0u;
+    countAllocations       = true;
+    const HRESULT success  = DxUi::CreateControl(DxUi::ControlKind::Separator, output);
+    countAllocations       = oldCounting;
+    const size_t observed  = allocations;
+    allocations            = oldCount;
     Check(success == S_OK && dynamic_cast<DxUi::Separator*>(output.get()) && observed >= 2u,
           "catalog success observes both object and lifetime-token allocation");
     for (size_t point = 0u; point < observed; ++point)
     {
-        auto sentinel = std::make_unique<DxUi::Label>(L"sentinel");
-        DxUi::Control* const original = sentinel.get();
+        auto sentinel                           = std::make_unique<DxUi::Label>(L"sentinel");
+        DxUi::Control* const original           = sentinel.get();
         std::unique_ptr<DxUi::Control> retained = std::move(sentinel);
-        const auto previous = failAllocationAfter;
-        failAllocationAfter = point;
-        const HRESULT result = DxUi::CreateControl(DxUi::ControlKind::Separator, retained);
-        failAllocationAfter = previous;
-        Check(result == E_OUTOFMEMORY && retained.get() == original,
-              "every observed Separator factory allocation failure preserves the caller result");
+        const auto previous                     = failAllocationAfter;
+        failAllocationAfter                     = point;
+        const HRESULT result                    = DxUi::CreateControl(DxUi::ControlKind::Separator, retained);
+        failAllocationAfter                     = previous;
+        Check(result == E_OUTOFMEMORY && retained.get() == original, "every observed Separator factory allocation failure preserves the caller result");
     }
 }
 // Keep unrelated functional-test locals out of the benchmark entry stack, even under LTCG.
@@ -1164,16 +1163,26 @@ __declspec(noinline) static void TestTreeReorderWakeRetiresOwner(GraphicsFixture
     using namespace DxUi;
     struct Model final : ITreeModel
     {
-        size_t GetVisibleItemCount() const noexcept override { return 3u; }
+        size_t GetVisibleItemCount() const noexcept override
+        {
+            return 3u;
+        }
         void GetVisibleItem(size_t index, TreeItemData& item) const override
-        { item = {.id = index + 1u, .text = L"Row " + std::to_wstring(index + 1u)}; }
+        {
+            item = {.id = index + 1u, .text = L"Row " + std::to_wstring(index + 1u)};
+        }
         std::optional<size_t> FindVisibleItemById(uint64_t id) const noexcept override
-        { return id >= 1u && id <= 3u ? std::optional<size_t>(static_cast<size_t>(id - 1u)) : std::nullopt; }
+        {
+            return id >= 1u && id <= 3u ? std::optional<size_t>(static_cast<size_t>(id - 1u)) : std::nullopt;
+        }
     } model;
     struct Delegate final : ITreeDelegate
     {
         unsigned reorders{};
-        void OnTreeReorder(const TreeDrop&) override { ++reorders; }
+        void OnTreeReorder(const TreeDrop&) override
+        {
+            ++reorders;
+        }
     } delegate;
     struct Wake
     {
@@ -1186,7 +1195,7 @@ __declspec(noinline) static void TestTreeReorderWakeRetiresOwner(GraphicsFixture
     EmbeddedHost view;
     wake.view = &view;
     EmbeddedCallbacks callbacks{};
-    callbacks.context = &wake;
+    callbacks.context            = &wake;
     callbacks.requestPreparation = [](void* context) noexcept
     {
         auto& state = *static_cast<Wake*>(context);
@@ -1197,7 +1206,7 @@ __declspec(noinline) static void TestTreeReorderWakeRetiresOwner(GraphicsFixture
         }
     };
     Hr(view.Attach(graphics, callbacks), "attach Tree reorder retirement host");
-    auto root = std::make_unique<Panel>();
+    auto root  = std::make_unique<Panel>();
     auto* tree = root->AddChild<Tree>();
     tree->SetBounds(D2D1::RectF(0, 0, 220, 160));
     tree->SetReorderEnabled(true);
@@ -1207,7 +1216,7 @@ __declspec(noinline) static void TestTreeReorderWakeRetiresOwner(GraphicsFixture
     Hr(PrepareRichEmbeddedContent(view, 320, 160), "prepare Tree reorder retirement fixture");
     const auto first = tree->GetVisibleItemHitRect(0u), third = tree->GetVisibleItemHitRect(2u);
     Check(first && third, "Tree reorder retirement rows have actual hit rectangles");
-    const auto from = D2D1::Point2F((first->left + first->right) * .5f, (first->top + first->bottom) * .5f);
+    const auto from   = D2D1::Point2F((first->left + first->right) * .5f, (first->top + first->bottom) * .5f);
     const auto target = D2D1::Point2F((third->left + third->right) * .5f, third->top + 2.f);
     Check(tree->OnMouseDown(view.Controls(), from, false, 0u) && tree->OnMouseMove(view.Controls(), target, 0u),
           "Tree reorder retirement fixture arms a real drop");
@@ -1620,7 +1629,8 @@ __declspec(noinline) static int RunFunctionalTests()
         RichSemanticTests::Run([&]
         {
 #if DXUI_ENABLE_DIAGNOSTICS
-            RichSemanticEditorTests::SelectionCancellationPublication(view.Controls(), [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "embedded selection cancellation"); });
+            RichSemanticEditorTests::SelectionCancellationPublication(
+                view.Controls(), [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "embedded selection cancellation"); });
             RichSemanticEditorTests::TitleTooltipContract(view.Controls(),
                                                           [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "embedded title tooltip preparation"); },
                                                           [&](D2D1_POINT_2F point, UINT modifiers)

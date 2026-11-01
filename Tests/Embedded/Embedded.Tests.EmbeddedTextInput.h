@@ -99,11 +99,13 @@ static void TestEmbeddedInputCallbackAllocationBoundary(GraphicsFixture& gpu)
     using namespace DxUi;
     struct ThrowingField final : TextField
     {
-        ThrowingField() : TextField(L"initial") {}
-        ThrowingField(const ThrowingField&) = delete;
+        ThrowingField() : TextField(L"initial")
+        {
+        }
+        ThrowingField(const ThrowingField&)            = delete;
         ThrowingField& operator=(const ThrowingField&) = delete;
-        ThrowingField(ThrowingField&&) = delete;
-        ThrowingField& operator=(ThrowingField&&) = delete;
+        ThrowingField(ThrowingField&&)                 = delete;
+        ThrowingField& operator=(ThrowingField&&)      = delete;
         bool failKey{}, failCharacter{}, commitFirst{};
         bool OnKeyDown(ControlHost& host, UINT key, UINT modifiers) override
         {
@@ -126,7 +128,7 @@ static void TestEmbeddedInputCallbackAllocationBoundary(GraphicsFixture& gpu)
     Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "create embedded input failure graphics");
     EmbeddedHost view;
     Hr(view.Attach(graphics), "attach embedded input failure host");
-    auto root = std::make_unique<Panel>();
+    auto root   = std::make_unique<Panel>();
     auto* field = root->AddChild<ThrowingField>();
     field->SetBounds(D2D1::RectF(0, 0, 240, 40));
     view.Controls().SetRoot(std::move(root));
@@ -136,7 +138,7 @@ static void TestEmbeddedInputCallbackAllocationBoundary(GraphicsFixture& gpu)
     {
         field->SetText(L"initial");
         field->commitFirst = committed;
-        field->failKey = true;
+        field->failKey     = true;
         Hr(PrepareRichEmbeddedContent(view, 320, 160), "prepare key failure fixture");
         EmbeddedKeyDispatchReceipt receipt;
         Check(view.DispatchKey(VK_SPACE, true, 0u, receipt), "an unknown key callback allocation failure consumes the key");
@@ -158,8 +160,7 @@ static void TestEmbeddedInputCallbackAllocationBoundary(GraphicsFixture& gpu)
               "unhandled Space issues a matching text receipt");
         field->failCharacter = true;
         Check(view.DispatchCharacter(L' ', 0u, characterReceipt), "a throwing correlated character remains consumed");
-        Check(field->GetText() == (committed ? L"committed character" : L"initial") &&
-                  ! view.DispatchCharacter(L' ', 0u, characterReceipt),
+        Check(field->GetText() == (committed ? L"committed character" : L"initial") && ! view.DispatchCharacter(L' ', 0u, characterReceipt),
               "character callback's actual state remains intact and its receipt cannot be replayed");
         field->failCharacter = false;
     }

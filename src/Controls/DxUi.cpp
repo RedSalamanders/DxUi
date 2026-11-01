@@ -1122,8 +1122,8 @@ void Control::InvalidateMeasure() noexcept
         if (control->_intrinsicLayoutEnabled)
         {
             control->_intrinsicAllocationRetryUsed = false;
-            control->_intrinsicLayoutPending = true;
-            hasLayoutOwner                   = true;
+            control->_intrinsicLayoutPending       = true;
+            hasLayoutOwner                         = true;
         }
     }
     // Geometry moves only when the next preparation arranges it, and SetBounds then advances the interaction revision.
@@ -1147,7 +1147,7 @@ void Control::RequestIntrinsicLayout() noexcept
     if (_intrinsicLayoutEnabled)
     {
         _intrinsicAllocationRetryUsed = false;
-        _intrinsicLayoutPending = true;
+        _intrinsicLayoutPending       = true;
         if (_host)
         {
             _host->_pendingIntrinsicLayout = true;

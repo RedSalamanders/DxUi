@@ -33,12 +33,11 @@ public:
     }
 };
 #pragma warning(pop)
-template<typename Prepare>
-void SelectionCancellationPublication(ControlHost& host, Prepare prepare)
+template <typename Prepare> void SelectionCancellationPublication(ControlHost& host, Prepare prepare)
 {
     for (const bool hide : {false, true})
     {
-        auto owned = std::make_unique<RichTextEditor>(L"alpha beta");
+        auto owned   = std::make_unique<RichTextEditor>(L"alpha beta");
         auto* editor = owned.get();
         editor->SetBounds(D2D1::RectF(0.f, 0.f, 400.f, 100.f));
         host.SetRoot(std::move(owned));
@@ -61,7 +60,7 @@ void SelectionCancellationPublication(ControlHost& host, Prepare prepare)
         host.ReleaseMouseCapture();
         Check(inactive == 1u, "later capture cleanup does not duplicate selection completion");
     }
-    auto owned = std::make_unique<RichTextEditor>(L"alpha");
+    auto owned   = std::make_unique<RichTextEditor>(L"alpha");
     auto* editor = owned.get();
     editor->SetBounds(D2D1::RectF(0.f, 0.f, 400.f, 100.f));
     host.SetRoot(std::move(owned));

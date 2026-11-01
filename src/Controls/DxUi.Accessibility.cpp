@@ -13058,8 +13058,8 @@ template <typename Connected>
                 return;
             VARIANT oldValue{}, newValue{};
             oldValue.vt = newValue.vt = VT_BSTR;
-            oldValue.bstrVal = previousText.get();
-            newValue.bstrVal = currentText.get();
+            oldValue.bstrVal          = previousText.get();
+            newValue.bstrVal          = currentText.get();
             if (connected() && ! record.controlLifetime.expired())
             {
                 if (target.embedded)
@@ -13156,8 +13156,8 @@ bool RaiseWindowHostTextInputAutomationEvent(HWND hwnd, const Control* control, 
     if (! host)
         return false;
     ControlPath path{};
-    const bool queued = kind == TextInputAutomationEventKind::ActiveTextPositionChanged ||
-                        kind == TextInputAutomationEventKind::TextEditConversionTargetChanged;
+    const bool queued =
+        kind == TextInputAutomationEventKind::ActiveTextPositionChanged || kind == TextInputAutomationEventKind::TextEditConversionTargetChanged;
     const auto snapshot = queued ? std::shared_ptr<const AccessibilitySnapshot>{} : target->snapshot.load(std::memory_order_acquire);
     // Ordinary notifications only need to validate the current control. Use
     // the published address index and validate its path; a stale/missing record

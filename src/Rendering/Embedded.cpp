@@ -1020,7 +1020,7 @@ bool EmbeddedHost::DispatchKeyImpl(UINT key, bool down, UINT modifiers, Embedded
             return false;
 
         enteredControlCallback = true;
-        const bool handled = down ? target->OnKeyDown(_host, key, modifiers) : target->OnKeyUp(_host, key, modifiers);
+        const bool handled     = down ? target->OnKeyDown(_host, key, modifiers) : target->OnKeyUp(_host, key, modifiers);
         if (receipt && issuedReceiptSequence != 0u && receipt->_valid && receipt->_embeddedHost == this && receipt->_controlHost == &_host &&
             receipt->_sequence == issuedReceiptSequence)
         {

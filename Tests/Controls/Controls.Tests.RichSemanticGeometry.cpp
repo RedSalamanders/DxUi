@@ -104,7 +104,8 @@ void TestRichSemanticNativeTitleTooltips()
     ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
     RichSemanticTests::Run([&]
     {
-        RichSemanticEditorTests::SelectionCancellationPublication(window.Host(), [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare native selection cancellation"); });
+        RichSemanticEditorTests::SelectionCancellationPublication(
+            window.Host(), [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare native selection cancellation"); });
         RichSemanticEditorTests::TitleTooltipContract(window.Host(),
                                                       [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare native title tooltip"); },
                                                       [&](D2D1_POINT_2F point, UINT modifiers)
