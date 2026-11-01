@@ -2186,6 +2186,15 @@ void SemanticFootnoteNavigation(bool embedded)
     const auto focus    = fixture.controls->GetFocusControl();
     const auto body     = source.find(L"**body**");
     const auto first = source.find(L"[^n]", source.find(L"main")), second = source.find(L"[^n]", first + 1u);
+    const auto beforeKeyboard = fixture.editor->GetSelection();
+    Require(fixture.editor->OnKeyDown(*fixture.controls, VK_TAB, MK_CONTROL) && fixture.editor->OnKeyDown(*fixture.controls, VK_TAB, MK_CONTROL) &&
+                fixture.editor->GetSelection() == beforeKeyboard,
+            "Ctrl+Tab traverses distinct generated backlinks without editing or inventing a source selection");
+    Require(fixture.editor->OnKeyDown(*fixture.controls, VK_RETURN, MK_CONTROL) && fixture.editor->GetSelection() == Selection{second, second + 4u},
+            "Ctrl+Enter activates the focused second generated backlink");
+    Require(fixture.editor->OnKeyDown(*fixture.controls, VK_TAB, MK_CONTROL | MK_SHIFT) &&
+                fixture.editor->OnKeyDown(*fixture.controls, VK_RETURN, MK_CONTROL) && fixture.editor->GetSelection() == Selection{second, second + 4u},
+            "reverse traversal wraps to the last generated backlink after navigation");
     RequireSucceeded(forward->Invoke(), "forward internal navigation");
     Require(fixture.editor->GetSelection() == Selection{body, body}, "forward navigation enters the exact definition content source");
     RequireSucceeded(back1->Invoke(), "first repeated backlink");

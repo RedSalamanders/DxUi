@@ -168,8 +168,9 @@ bodies and distinct generated backlinks preserve exact source ACPs. Unused and
 duplicate definitions retain literal fallback; structural commands over those
 envelopes remain guarded. Internal navigation selects and scrolls without editing
 history; read-only navigation is allowed. Ctrl+click, Ctrl+Enter at references
-and UIA Invoke share publication guards. Generated backlink keyboard traversal,
-note-aware structural commands and final extension qualification remain open.
+and UIA Invoke share publication guards. Ctrl+Tab and Ctrl+Shift+Tab cycle outlined
+generated backlinks, and Ctrl+Enter activates the selected backlink. Note-aware
+structural commands and final extension qualification remain open.
 Selection across reordered content still selects one raw source interval, which
 can highlight several visual fragments; source copy/deletion follows that interval.
 

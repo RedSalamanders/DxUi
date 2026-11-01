@@ -1972,7 +1972,7 @@ native mutations to the owner and rejecting embedded foreign-thread mutation.
 External destinations remain inert. Source/presentation/binding retirement MUST
 make held navigation providers unavailable before a replacement publication.
 Ctrl+click activates internal links; Ctrl+Enter at a source-bearing reference
-activates its definition. Generated backlink keyboard traversal remains M5e.
+activates its definition. Ctrl+Tab and Ctrl+Shift+Tab cycle generated backlinks in display order without changing the raw selection; the focused backlink has a visible outline and Ctrl+Enter activates it. Navigation is refused during composition and never transfers keyboard focus.
 Resolved footnote references are link actions for native HTML admission. They
 MUST NOT overlap a native `<a>` envelope: preserve the entire conflicting leaf
 literally, as with nested Markdown/native anchors. The footer's independent

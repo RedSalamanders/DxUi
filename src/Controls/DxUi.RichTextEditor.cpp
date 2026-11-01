@@ -44,6 +44,8 @@ struct RichTextEditor::State
     RichTextLinkUnderlinePolicy linkUnderlinePolicy = RichTextLinkUnderlinePolicy::Always;
     std::optional<RichText::MarkdownRange> hoveredLink;
     std::optional<RichText::MarkdownRange> caretLink;
+    std::weak_ptr<const RichText::SemanticDocument> keyboardNavigationDocument;
+    size_t keyboardNavigationElement = RichText::MarkdownNoNode;
     std::vector<RichTextSourceHighlight> highlights;
     bool focusMode = false;
     std::wstring documentFilePath;
@@ -1291,6 +1293,8 @@ void RichTextEditor::Changed(bool sourceChanged, bool synchronizeTextInput)
 }
 void RichTextEditor::SelectionChanged(bool synchronizeTextInput, bool preservePreferredCaretX, bool publishSelection, bool revealCaret)
 {
+    _state->keyboardNavigationDocument.reset();
+    _state->keyboardNavigationElement = RichText::MarkdownNoNode;
     ++_state->fileDropEpoch;
     if (_state->sourceEditing)
     {
@@ -1346,6 +1350,8 @@ void RichTextEditor::RetireLayout() const noexcept
     _state->sourceInk.Clear();
     _state->hoveredLink.reset();
     _state->caretLink.reset();
+    _state->keyboardNavigationDocument.reset();
+    _state->keyboardNavigationElement = RichText::MarkdownNoNode;
     _state->taskPressPlan.reset();
     if (_state->layout.HasPendingPreparation())
         ++_state->cancelledPreparations;
@@ -2267,7 +2273,11 @@ void RichTextEditor::Paint(ControlHost& host) const
         if (input.conversionTargetStartIndex && input.conversionTargetEndIndex)
             underline(*input.conversionTargetStartIndex, *input.conversionTargetEndIndex, 2.0f);
     }
-    if (HasFocus() && IsEnabled() && state.caretVisible)
+    if (HasFocus() && IsEnabled() && state.keyboardNavigationElement != RichText::MarkdownNoNode &&
+        state.keyboardNavigationDocument.lock() == GetAcknowledgedSemanticDocument(host))
+        if (const auto bounds = GetSemanticElementBounds(host, state.keyboardNavigationElement))
+            context->DrawRectangle(*bounds, host.GetSolidBrush(host.GetTheme().focusStroke), 1.0f);
+    if (HasFocus() && IsEnabled() && state.caretVisible && state.keyboardNavigationElement == RichText::MarkdownNoNode)
     {
         const auto caret = state.layout.SourceCaret(selection.caret, state.sourceCaretSite);
         const float x    = std::clamp(origin.x + caret.x, viewport.left, std::max(viewport.left, viewport.right - 1.0f));
@@ -2663,6 +2673,56 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
         }
         if (control)
         {
+            if (key == VK_TAB && ! _state->sourceEditing && CanChangeSemanticSourcePresentation(host))
+            {
+                const auto document = GetAcknowledgedSemanticDocument(host);
+                if (document)
+                {
+                    std::size_t first = RichText::MarkdownNoNode, last = RichText::MarkdownNoNode;
+                    std::size_t next = RichText::MarkdownNoNode, previous = RichText::MarkdownNoNode;
+                    const auto current = _state->keyboardNavigationDocument.lock() == document ? _state->keyboardNavigationElement : RichText::MarkdownNoNode;
+                    bool pastCurrent   = false;
+                    for (const auto& navigation : document->Navigation())
+                    {
+                        if (document->Elements()[navigation.element].role != RichText::SemanticRole::FootnoteBacklink)
+                            continue;
+                        if (first == RichText::MarkdownNoNode)
+                            first = navigation.element;
+                        if (pastCurrent && next == RichText::MarkdownNoNode)
+                            next = navigation.element;
+                        if (navigation.element == current)
+                        {
+                            previous    = last;
+                            pastCurrent = true;
+                        }
+                        last = navigation.element;
+                    }
+                    const auto target = shift ? (previous != RichText::MarkdownNoNode ? previous : last) : (next != RichText::MarkdownNoNode ? next : first);
+                    if (target != RichText::MarkdownNoNode)
+                    {
+                        const auto* geometry = _state->layout.SemanticGeometry();
+                        const auto bounds    = geometry ? geometry->ElementBounds(target) : std::nullopt;
+                        if (! bounds)
+                            return false;
+                        const auto viewport                = TextViewport();
+                        const auto height                  = viewport.bottom - viewport.top;
+                        _state->scrollDip                  = std::clamp(bounds->top, 0.0f, std::max(0.0f, _state->layout.Height() - height));
+                        _state->revealCaret                = false;
+                        _state->keyboardNavigationDocument = document;
+                        _state->keyboardNavigationElement  = target;
+                        _state->caretLink                  = document->Elements()[target].display;
+                        RequestInvalidate();
+                        return true; // Invalidation may retire this control.
+                    }
+                }
+            }
+            if (key == VK_RETURN && ! shift && _state->keyboardNavigationElement != RichText::MarkdownNoNode)
+            {
+                const auto document = _state->keyboardNavigationDocument.lock();
+                const auto element  = _state->keyboardNavigationElement;
+                if (document && GetAcknowledgedSemanticDocument(host) == document)
+                    return NavigateSemanticElement(host, document, element);
+            }
             if (key == VK_RETURN && ! shift)
                 if (const auto document = GetAcknowledgedSemanticDocument(host))
                     for (const auto& navigation : document->Navigation())
