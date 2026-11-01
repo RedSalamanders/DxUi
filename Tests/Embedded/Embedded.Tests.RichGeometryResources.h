@@ -2,6 +2,7 @@
 #include "Support.Tests.ClipboardFixture.h"
 #pragma once
 #include "Controls/DxUi.PaintIndex.h"
+#include "Controls/DxUi.PreparedMath.h"
 #include "Controls/DxUi.RichSourceGuides.h"
 #include <DxUi/RichTextLayout.h>
 static void TestPaintIndexTransactionalBuild()
@@ -43,6 +44,61 @@ static wil::com_ptr<IDWriteFactory> RichGeometryFactory()
     wil::com_ptr<IDWriteFactory> factory;
     Hr(DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), reinterpret_cast<IUnknown**>(factory.put())), "rich resource DWrite factory");
     return factory;
+}
+static void TestMathKernPreparationAllocationFailures()
+{
+    using namespace DxUi::RichText;
+    const auto factory    = RichGeometryFactory();
+    const auto expression = std::make_shared<const MathExpression>(ParseMath(L"x_x^x"));
+    Check(static_cast<bool>(*expression), "math kern allocation fixture has an admitted formula");
+    const auto prepare = [&]
+    {
+        auto result = std::make_unique<Detail::PreparedMath>(factory.get(), expression, 24.f);
+        while (! result->Advance())
+        {
+        }
+        return result;
+    };
+    const auto retained = prepare();
+    const auto original = retained->Size();
+    std::size_t points{};
+    {
+        const auto oldCounting = countAllocations;
+        const auto oldCalls = allocations, oldBytes = allocationBytes;
+        const auto restore = wil::scope_exit([=]() noexcept
+        {
+            countAllocations = oldCounting;
+            allocations      = oldCalls;
+            allocationBytes  = oldBytes;
+        });
+        allocations = allocationBytes = 0u;
+        countAllocations              = true;
+        const auto measured           = prepare();
+        points                        = allocations;
+    }
+    Check(points > 0u && points < 4096u, "math kern preparation has a bounded observed allocation schedule");
+    for (size_t point = 0u; point < points; ++point)
+    {
+        bool failed{};
+        {
+            const auto previous = failAllocationAfter;
+            const auto restore  = wil::scope_exit([=]() noexcept { failAllocationAfter = previous; });
+            failAllocationAfter = point;
+            try
+            {
+                static_cast<void>(prepare());
+            }
+            catch (const std::bad_alloc&)
+            {
+                failed = true;
+            }
+        }
+        Check(failed && retained->Size().width == original.width && retained->Size().height == original.height,
+              "math kern preparation allocation failure preserves the prior complete formula");
+        const auto retried = prepare();
+        Check(retried->Size().width == original.width && retried->Size().height == original.height,
+              "math kern preparation retries after each allocation failure");
+    }
 }
 static void TestRichPreparedLayoutClearAllocationBudget(bool trace = false)
 {
