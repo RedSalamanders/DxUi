@@ -1619,6 +1619,42 @@ static void TestRichImageDecoderAllocationFailures()
     };
     sweep([&] { return RichImage::Decode(factory.get(), std::as_bytes(std::span(encoded)), image); });
     sweep([&] { return RichImage::CreatePbgra(2u, 3u, std::as_bytes(std::span(source)), image); });
+    constexpr unsigned extent = 512u;
+    constexpr size_t pixelBytes = static_cast<size_t>(extent) * extent * 4u;
+    std::vector<BYTE> opaque(pixelBytes, 0u);
+    for (size_t i = 0u; i < pixelBytes; i += 4u)
+    {
+        opaque[i] = 37u;
+        opaque[i + 1u] = 83u;
+        opaque[i + 2u] = 149u;
+        opaque[i + 3u] = 255u;
+    }
+    const auto largePng = RichImageTests::Encode(factory.get(), GUID_ContainerFormatPng, opaque, extent, extent);
+    std::shared_ptr<const RichImage> warm;
+    Hr(RichImage::Decode(factory.get(), std::as_bytes(std::span(largePng)), warm), "warm identity PNG decoder");
+    size_t bytes{};
+    HRESULT decode{};
+    {
+        const auto oldCalls = allocations, oldBytes = allocationBytes;
+        const bool oldCounting = countAllocations;
+        const auto restore = wil::scope_exit([=] noexcept
+        {
+            countAllocations = oldCounting;
+            allocations = oldCalls;
+            allocationBytes = oldBytes;
+        });
+        allocations = allocationBytes = 0u;
+        countAllocations = true;
+        decode = RichImage::Decode(factory.get(), std::as_bytes(std::span(largePng)), image);
+        countAllocations = false;
+        bytes = allocationBytes;
+    }
+    Hr(decode, "decode identity PNG under allocation counter");
+    Check(bytes >= pixelBytes && bytes < pixelBytes + pixelBytes / 2u,
+          "identity PNG decoding allocates one full owned C++ pixel buffer, not a second copy");
+    Check(image && image->Width() == extent && image->Height() == extent && image->Pixels().size() == opaque.size() &&
+              std::memcmp(image->Pixels().data(), opaque.data(), opaque.size()) == 0,
+          "identity PNG preserves every opaque source pixel");
 }
 static void TestRichImagePathAllocationFailures()
 {

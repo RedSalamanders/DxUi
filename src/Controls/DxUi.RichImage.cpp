@@ -286,13 +286,20 @@ public:
         wil::com_ptr_nothrow<IWICFormatConverter> converter;
         RETURN_IF_FAILED(factory->CreateFormatConverter(converter.put()));
         RETURN_IF_FAILED(converter->Initialize(frame.get(), GUID_WICPixelFormat32bppPBGRA, WICBitmapDitherTypeNone, nullptr, 0.0, WICBitmapPaletteTypeCustom));
-        std::vector<std::byte> pixels(static_cast<std::size_t>(width) * height * 4u);
-        RETURN_IF_FAILED(converter->CopyPixels(nullptr, width * 4u, static_cast<UINT>(pixels.size()), reinterpret_cast<BYTE*>(pixels.data())));
+        auto staged = std::shared_ptr<RichImage>(new RichImage(width, height));
+        RETURN_IF_FAILED(converter->CopyPixels(nullptr, width * 4u, static_cast<UINT>(staged->pixels_.size()), reinterpret_cast<BYTE*>(staged->pixels_.data())));
         if (Cancelled(cancellation))
             return HRESULT_FROM_WIN32(ERROR_CANCELLED);
         if (*clsid == CLSID_WICGifDecoder)
-            RETURN_IF_FAILED(ComposeGifCanvas(factory, decoder.get(), frame.get(), pixels, width, height, cancellation));
-        return Orient(pixels, width, height, orientation, output, cancellation);
+            RETURN_IF_FAILED(ComposeGifCanvas(factory, decoder.get(), frame.get(), staged->pixels_, width, height, cancellation));
+        if (orientation != 1u)
+            return Orient(staged->pixels_, width, height, orientation, output, cancellation);
+        if (Cancelled(cancellation))
+            return HRESULT_FROM_WIN32(ERROR_CANCELLED);
+        staged->width_  = width;
+        staged->height_ = height;
+        output          = std::move(staged);
+        return S_OK;
     }
 };
 } // namespace Detail

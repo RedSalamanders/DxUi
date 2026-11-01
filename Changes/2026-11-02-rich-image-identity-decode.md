@@ -1,0 +1,1 @@
+- Avoid a second full decoded pixel copy for identity-oriented rich text images while preserving atomic publication and cancellation.

@@ -1190,6 +1190,10 @@ Request preparation processes at most four image candidates per owner turn;
 caller adapters MUST wake valid queued work when draining or cancel-pruning
 results frees a completion reservation; closure MUST serialize posting with
 owner retirement without joining a codec/filesystem call.
+Identity-orientation raster decoding writes into the unpublished owned pixel
+buffer and publishes that buffer only after successful decode and cancellation
+checks; it does not allocate a second full decoded image merely to copy pixels.
+Non-identity orientation and GIF canvas composition retain their bounded staging.
 GPU preparation performs at most one data upload per turn and never exceeds
 `LayoutWorkBudget::maximumUploadBytes` (4 MiB by default, minimum 4 bytes for
 image-capable semantic geometry; text-only/v0 services ignore this budget).
