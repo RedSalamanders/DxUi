@@ -147,6 +147,13 @@ template <typename Prepare, typename Key, typename Character> void StructuralHos
           "actual host Ctrl+B route applies one directional source style command");
     editor->SetText(L"word");
     prepare();
+    unsigned menus = 0u;
+    editor->SetOnContextMenu([&](POINT, bool) { ++menus; });
+    editor->SetSelection({0u, 2u});
+    Check(editor->OnContextMenu(host, true, D2D1::Point2F(8.0f, 8.0f)) && menus == 1u && editor->GetSelection() == Selection{0u, 2u},
+          "keyboard context menu preserves selection and reaches the consumer callback");
+    Check(editor->OnContextMenu(host, false, D2D1::Point2F(450.0f, 15.0f)) && menus == 2u && editor->GetSelection() == Selection{4u, 4u},
+          "pointer context menu outside the selection moves the caret before invoking its callback");
     Check(key(VK_TAB, 0u) && host.GetFocusControl() == next && editor->GetText() == L"word", "ordinary paragraph Tab reaches the next host control");
     Button* successor = nullptr;
     auto retiring     = std::make_unique<RetiringTabEditor>(successor);

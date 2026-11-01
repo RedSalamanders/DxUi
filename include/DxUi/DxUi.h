@@ -3332,6 +3332,7 @@ public:
     bool OnMouseLeave(ControlHost& host) noexcept override;
     bool OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers) noexcept override;
     bool OnMouseWheel(ControlHost& host, D2D1_POINT_2F point, float delta, UINT modifiers) noexcept override;
+    bool OnContextMenu(ControlHost& host, bool keyboardInvocation, D2D1_POINT_2F point) noexcept override;
     bool OnCopy(ControlHost& host) noexcept override;
     bool OnSelectAll(ControlHost& host) noexcept override;
 

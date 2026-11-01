@@ -3180,6 +3180,46 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
         return false;
     }
 }
+bool RichTextEditor::OnContextMenu(ControlHost& host, bool keyboardInvocation, D2D1_POINT_2F point) noexcept
+{
+    try
+    {
+        if (! IsEnabled() || ! IsVisible())
+            return false;
+        const auto lifetime = GetLifetimeToken();
+        const auto geometry = host.GetInteractionRevision();
+        host.SetFocusControl(this);
+        if (lifetime.expired() || GetHost() != &host || host.GetInteractionRevision() != geometry || host.GetFocusControl() != this)
+            return true;
+        if (! keyboardInvocation && LayoutIsCurrent(host))
+        {
+            const auto previousSite = _state->sourceCaretSite;
+            const auto source       = HitSource(host, point);
+            const auto selection    = GetSelection();
+            if (source < selection.Start() || source >= selection.End())
+            {
+                _state->document.SetSelection({source, source});
+                const auto revision = Revision();
+                SelectionChanged();
+                if (lifetime.expired() || GetHost() != &host || host.GetInteractionRevision() != geometry || host.GetFocusControl() != this ||
+                    Revision() != revision || GetSelection() != RichText::Selection{source, source})
+                    return true;
+            }
+            else
+                _state->sourceCaretSite = previousSite;
+        }
+        return Control::OnContextMenu(host, keyboardInvocation, point);
+    }
+    catch (const std::bad_alloc&)
+    {
+        // The native input boundary cannot propagate allocation failure.
+        std::terminate();
+    }
+    catch (const std::exception&)
+    {
+        return false;
+    }
+}
 bool RichTextEditor::OnCopy(ControlHost& host) noexcept
 {
     try
