@@ -3,6 +3,7 @@
 #include <DxUi/RichMath.h>
 #include <array>
 #include <cmath>
+#include <iostream>
 
 // Owned independent fixtures for the bounded native profile. The M01..M20
 // inputs also appear in the reviewed KaTeX-0.16.11 target inventory; upstream
@@ -79,6 +80,50 @@ inline constexpr Symbol symbols[] = {
     {L"lvert", L"|"},    {L"rvert", L"|"},  {L"lVert", L"‖"},  {L"rVert", L"‖"},   {L"lfloor", L"⌊"},  {L"rfloor", L"⌋"},     {L"lceil", L"⌈"},
     {L"rceil", L"⌉"},    {L"coprod", L"∐"}, {L"bigcup", L"⋃"}, {L"bigcap", L"⋂"},  {L"sec", L"sec"},   {L"csc", L"csc"},
 };
+// Canonical structural oracle: retain every node, ordered child, payload and matrix width.
+inline std::wstring Shape(const MathNode& node)
+{
+    constexpr wchar_t kinds[] = {L'R', L'T', L'F', L'Q', L'S', L'M', L'A', L'Y', L'P', L'D', L'L'};
+    std::wstring result(1u, kinds[static_cast<std::size_t>(node.kind)]);
+    if (! node.text.empty())
+        result += L"[" + node.text + L"]";
+    if (node.kind == MathKind::Matrix)
+        result += L"#" + std::to_wstring(node.columns);
+    if (! node.children.empty())
+    {
+        result += L'(';
+        for (std::size_t index = 0u; index < node.children.size(); ++index)
+        {
+            if (index)
+                result += L',';
+            result += Shape(node.children[index]);
+        }
+        result += L')';
+    }
+    return result;
+}
+inline constexpr std::wstring_view targetShapes[] = {
+    L"R(T[a],T[+],T[12.5],T[=],T[b])",
+    L"R(R(T[a],T[+],R(T[b],T[−],T[c])))",
+    L"R(F[frac](R(T[a],T[+],T[b]),R(T[c])))",
+    L"R(F[dfrac](R(T[1]),R(F[tfrac](R(T[x]),R(T[2])))))",
+    L"R(Q(R(T[x]),R))",
+    L"R(Q(R(T[x],T[+],T[1]),R(T[3])))",
+    L"R(S(T[x],T[i],R(T[n],T[+],T[1])))",
+    L"R(S(T[x],T[i],T[2]))",
+    L"R(D[(]](R(F[frac](R(T[a]),R(T[b])))))",
+    L"R(S(D[.|](R(T[x])),T[0],T[1]))",
+    L"R(A[hat](R(T[x])),T[+],A[overline](R(T[a],T[+],T[b])),T[+],A[vec](R(T[v])))",
+    L"R(S(T[∑],R(T[i],T[=],T[1]),R(T[n])),S(T[i],R,T[2]))",
+    L"R(S(T[∫],T[0],T[1]),T[x],P[,],T[dx])",
+    L"R(M[pmatrix]#2(R(T[a]),R(T[b]),R(T[c]),R(T[d])))",
+    L"R(M[bmatrix]#2(R(T[a]),R(T[b]),R(T[c]),R))",
+    L"R(M[cases]#2(R(S(T[x],R,T[2])),R(T[x],T[>],T[0]),R(T[0]),R(T[otherwise])))",
+    L"R(M[aligned]#2(R(T[a]),R(T[=],T[b],T[+],T[c]),R(T[d]),R(T[=],T[e])))",
+    L"R(T[Unicode β 😀],T[+],Y[mathrm](R(T[speed])))",
+    L"R(T[α],T[≤],T[∞])",
+    L"R(A[widehat](R(T[ABC])),T[+],A[ddot](R(T[x])),T[+],A[underline](R(T[y])))",
+};
 inline std::wstring Matrix(unsigned rows, unsigned columns)
 {
     std::wstring source = L"\\begin{matrix}";
@@ -97,10 +142,19 @@ inline std::wstring Matrix(unsigned rows, unsigned columns)
 }
 template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
 {
+    std::size_t scenarioIndex{};
     for (const auto& scenario : prepared)
     {
         const auto expression = std::make_shared<const MathExpression>(ParseMath(scenario.source));
         check(static_cast<bool>(*expression), "every admitted independent native math fixture parses completely");
+        if (scenarioIndex < std::size(targetShapes))
+        {
+            const auto actual = Shape(expression->root);
+            if (actual != targetShapes[scenarioIndex])
+                std::wcerr << scenario.id << L" expected " << targetShapes[scenarioIndex] << L" actual " << actual << L'\n';
+            check(actual == targetShapes[scenarioIndex], "named target expression retains its exact ordered AST");
+        }
+        ++scenarioIndex;
         for (const bool display : {false, true})
         {
             Detail::PreparedMath layout(factory, expression, 24.f, display);
@@ -115,6 +169,28 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
     }
     for (const auto& scenario : rejected)
         check(! ParseMath(scenario.source), "malformed or excluded native math never publishes a partial expression");
+    // Named target diagnostics are independent of the user-facing fallback text.
+    const std::pair<std::wstring_view, MathIssue> issues[] = {
+        {L"\\frac{a}", MathIssue::MissingRequiredArgument},
+        {L"\\sqrt[3{x}", MathIssue::MissingRootIndexClose},
+        {L"x_", MathIssue::MissingScriptArgument},
+        {L"x_1_2", MathIssue::DuplicateSubscript},
+        {L"{x", MathIssue::MissingGroupClose},
+        {L"\\left(x", MathIssue::MissingRightDelimiter},
+        {L"\\begin{matrix}a\\end{cases}", MathIssue::MismatchedEnvironment},
+        {L"a&b", MathIssue::CellSeparatorOutsideEnvironment},
+        {L"\\newcommand{\\foo}{x}", MathIssue::UnsupportedCommand},
+        {L"\\input{local}", MathIssue::UnsupportedCommand},
+        {L"\\unknown{x}", MathIssue::UnsupportedCommand},
+        {L"\\begin{array}{lr}a&b\\end{array}", MathIssue::UnsupportedEnvironment},
+    };
+    for (const auto& [source, issue] : issues)
+    {
+        auto result = ParseMath(source);
+        check(! result && result.issue == issue, "named target failure has its exact typed diagnostic");
+        auto moved = std::move(result);
+        check(moved.issue == issue && ! moved.diagnostic.empty(), "math diagnostic survives moving its result");
+    }
     for (const auto& symbol : symbols)
     {
         const auto expression = ParseMath(L"\\" + std::wstring(symbol.command));

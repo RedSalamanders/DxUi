@@ -1725,6 +1725,8 @@ remains source-independent; labels and device-independent factory paths may
 survive replacement borrowed devices with the same factory. Final process/GPU
 resource, device-loss and host object qualification remain separate requirements.
 
+The bounded math parser exposes a stable typed issue for the named malformed and unsupported target examples while retaining its source-preserving human-readable fallback. Its target corpus checks the complete ordered AST for M01–M20, including matrix dimensions and explicit style/command payloads; equivalent adjacent ordinary glyphs may be stored as one text node.
+
 Native math preparation reads Cambria Math constants once per semantic geometry generation and shares the resulting em-relative values across formulas. A width-only reflow may reuse finalized DirectWrite math layouts while rebuilding placement geometry, provided the semantic document, factory, render target, resource epochs, image bindings and all other layout options match. Changed font, factory, target, epoch or document retires the incompatible resources; clearing the owner releases them. No global factory or font cache extends their lifetime.
 
 The pinned Mermaid 11.4.1 inventory and all 105 original flowchart examples MUST

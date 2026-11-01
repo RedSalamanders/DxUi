@@ -89,21 +89,40 @@ private:
         swap(largeOperator, other.largeOperator);
     }
 };
+// Stable local classification; the human-readable diagnostic remains source-preserving.
+enum class MathIssue
+{
+    None,
+    InvalidSource,
+    Capacity,
+    UnsupportedOrMalformed,
+    UnsupportedCommand,
+    UnsupportedEnvironment,
+    MissingRequiredArgument,
+    MissingRootIndexClose,
+    MissingScriptArgument,
+    DuplicateSubscript,
+    DuplicateSuperscript,
+    MissingGroupClose,
+    MissingRightDelimiter,
+    MismatchedEnvironment,
+    CellSeparatorOutsideEnvironment
+};
 struct MathExpression
 {
     MathExpression() : diagnostic(0u, L' ')
     {
     }
-    MathExpression(const MathNode& value, const std::wstring& issue) : root(value), diagnostic(issue)
+    MathExpression(const MathNode& value, const std::wstring& message, MathIssue kind = MathIssue::None) : root(value), diagnostic(message), issue(kind)
     {
     }
-    MathExpression(MathNode&& value, std::wstring&& issue) : root(std::move(value)), diagnostic(0u, L' ')
+    MathExpression(MathNode&& value, std::wstring&& message, MathIssue kind = MathIssue::None) : root(std::move(value)), diagnostic(0u, L' '), issue(kind)
     {
-        diagnostic.swap(issue);
+        diagnostic.swap(message);
     }
     MathExpression(const MathExpression&)            = default;
     MathExpression& operator=(const MathExpression&) = default;
-    MathExpression(MathExpression&& other) : root(std::move(other.root)), diagnostic(0u, L' ')
+    MathExpression(MathExpression&& other) : root(std::move(other.root)), diagnostic(0u, L' '), issue(other.issue)
     {
         diagnostic.swap(other.diagnostic);
     }
@@ -111,10 +130,12 @@ struct MathExpression
     {
         root = std::move(other.root);
         diagnostic.swap(other.diagnostic);
+        issue = other.issue;
         return *this;
     }
     MathNode root;
     std::wstring diagnostic;
+    MathIssue issue = MathIssue::None;
     explicit operator bool() const noexcept
     {
         return diagnostic.empty();

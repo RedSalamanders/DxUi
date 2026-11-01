@@ -1,0 +1,1 @@
+- Give named native math failures typed diagnostics and add ordered AST expectations for the 20 pinned target formulas; source-preserving fallback text is unchanged. Native qualification remains pending.

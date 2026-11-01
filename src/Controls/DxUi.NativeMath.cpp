@@ -9,6 +9,10 @@ namespace DxUi::RichText
 {
 namespace
 {
+struct MathParseFailure
+{
+    MathIssue issue;
+};
 class Parser
 {
     std::wstring_view source;
@@ -32,9 +36,9 @@ class Parser
                 break;
         }
     }
-    [[noreturn]] static void Reject()
+    [[noreturn]] static void Reject(MathIssue issue = MathIssue::UnsupportedOrMalformed)
     {
-        throw std::invalid_argument("Unsupported or malformed native equation");
+        throw MathParseFailure{issue};
     }
     static MathAtomClass Classify(std::wstring_view value) noexcept
     {
@@ -58,7 +62,7 @@ class Parser
                   unsigned columns                 = 0)
     {
         if (++nodes > 512)
-            Reject();
+            Reject(MathIssue::Capacity);
         MathNode result{kind, std::move(text), std::move(children), columns};
         if (kind == MathKind::Text)
         {
@@ -153,7 +157,7 @@ class Parser
     {
         constexpr std::array names{L"matrix", L"pmatrix", L"bmatrix", L"Bmatrix", L"vmatrix", L"Vmatrix", L"smallmatrix", L"cases", L"aligned", L"gathered"};
         if (std::ranges::find(names, environment) == names.end())
-            Reject();
+            Reject(MathIssue::UnsupportedEnvironment);
         std::vector<MathNode> cells(0u);
         unsigned columns{}, rowColumns{}, rows{};
         while (at < source.size())
@@ -165,7 +169,7 @@ class Parser
                     Reject();
                 at += 4;
                 if (GroupText() != environment)
-                    Reject();
+                    Reject(MathIssue::MismatchedEnvironment);
                 return Make(MathKind::Matrix, std::move(environment), std::move(cells), columns);
             }
             if (! rowColumns && ++rows > 16u)
@@ -178,7 +182,7 @@ class Parser
             {
                 at += 4;
                 if (GroupText() != environment)
-                    Reject();
+                    Reject(MathIssue::MismatchedEnvironment);
                 if (! columns)
                     columns = rowColumns;
                 if (columns != rowColumns || (environment == L"gathered" && columns != 1u) || (environment == L"cases" && columns > 2u))
@@ -256,10 +260,10 @@ class Parser
     MathNode Atom(unsigned depth)
     {
         if (depth > 24)
-            Reject();
+            Reject(MathIssue::Capacity);
         Space();
         if (at == source.size())
-            Reject();
+            Reject(MathIssue::MissingRequiredArgument);
         const auto c = source[at++];
         if (c == L'{')
             return Row(depth + 1, true, false);
@@ -332,7 +336,7 @@ class Parser
                 const auto left = Delimiter();
                 auto body       = Row(depth + 1, false, false, true);
                 if (source.substr(at, 6) != L"\\right")
-                    Reject();
+                    Reject(MathIssue::MissingRightDelimiter);
                 at += 6;
                 const auto right = Delimiter();
                 return Make(MathKind::Delimited, std::wstring{left, right}, {std::move(body)});
@@ -497,9 +501,11 @@ class Parser
                 if (std::wstring_view(L"{}%_$&#").find(escaped) != source.npos)
                     return Make(MathKind::Text, std::wstring(1, escaped));
             }
-            Reject();
+            Reject(MathIssue::UnsupportedCommand);
         }
-        if (std::wstring_view(L"}^_&#$").find(c) != source.npos)
+        if (c == L'&')
+            Reject(MathIssue::CellSeparatorOutsideEnvironment);
+        if (std::wstring_view(L"}^_#$").find(c) != source.npos)
             Reject();
         if (c == L'~')
             return Make(MathKind::Space, L" ");
@@ -593,7 +599,10 @@ class Parser
                     break;
                 const bool upper = source[at++] == L'^';
                 if ((upper && hasSuper) || (! upper && hasSub))
-                    Reject();
+                    Reject(upper ? MathIssue::DuplicateSuperscript : MathIssue::DuplicateSubscript);
+                Space();
+                if (at == source.size())
+                    Reject(MathIssue::MissingScriptArgument);
                 auto argument = Atom(depth + 1);
                 if (upper)
                 {
@@ -616,7 +625,7 @@ class Parser
                 children.push_back(std::move(atom));
         }
         if (grouped || indexClose)
-            Reject();
+            Reject(indexClose ? MathIssue::MissingRootIndexClose : MathIssue::MissingGroupClose);
         return Make(MathKind::Row, L"", std::move(children));
     }
 
@@ -634,7 +643,7 @@ MathExpression ParseMath(std::wstring_view source)
 {
     if (source.empty() || source.size() > MathMaximumSourceUnits || ! IsValidUtf16(source) ||
         std::ranges::any_of(source, [](wchar_t c) { return (c < L' ' && ! iswspace(c)) || (c >= 0x7f && c <= 0x9f); }))
-        return {{}, L"Equation source is empty, invalid or exceeds 4,096 UTF-16 units. Source is preserved."};
+        return {{}, L"Equation source is empty, invalid or exceeds 4,096 UTF-16 units. Source is preserved.", MathIssue::InvalidSource};
     try
     {
         auto root        = Parser(source).Parse();
@@ -651,9 +660,13 @@ MathExpression ParseMath(std::wstring_view source)
             throw std::invalid_argument("Equation node capacity");
         return {std::move(root), L""};
     }
+    catch (const MathParseFailure& failure)
+    {
+        return {{}, L"Unsupported or malformed native equation. Source is preserved.", failure.issue};
+    }
     catch (const std::invalid_argument&)
     {
-        return {{}, L"Unsupported or malformed native equation. Source is preserved."};
+        return {{}, L"Unsupported or malformed native equation. Source is preserved.", MathIssue::Capacity};
     }
 }
 } // namespace DxUi::RichText
