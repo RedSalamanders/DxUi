@@ -73,6 +73,20 @@ enum class FlowchartLineStyle
     Thick,
     Invisible
 };
+enum FlowchartLabelStyleFlags : unsigned { LabelBold = 1u, LabelItalic = 2u, LabelUnderline = 4u, LabelStrike = 8u };
+struct FlowchartLabelStyle { std::size_t first{}, last{}; unsigned flags{}; };
+struct FlowchartLabelStyles { std::array<FlowchartLabelStyle, 32u> spans{}; std::size_t count{}; };
+inline bool ValidLabelStyles(const FlowchartLabelStyles& styles, std::size_t length, bool admitted) noexcept
+{
+    if (styles.count > styles.spans.size() || (! admitted && styles.count)) return false;
+    for (std::size_t index = 0u; index < styles.count; ++index)
+    {
+        const auto& span = styles.spans[index];
+        if (span.first >= span.last || span.last > length || ! span.flags || (span.flags & ~(LabelBold | LabelItalic | LabelUnderline | LabelStrike)))
+            return false;
+    }
+    return true;
+}
 enum class FlowchartIssue
 {
     None,
@@ -119,6 +133,7 @@ struct FlowchartNode
     std::wstring label;
     std::wstring key;
     std::wstring ganttSection;
+    FlowchartLabelStyles styles;
     // Text offsets at which class member compartments begin. Alternating
     // attribute/method groups retain source order and have bounded separators.
     std::array<std::size_t, 16u> compartmentStarts{};
@@ -150,6 +165,7 @@ struct FlowchartEdge
     MarkdownRange source;
     std::wstring label;
     std::wstring fromCardinality, toCardinality;
+    FlowchartLabelStyles styles;
     FlowchartRelation relation{};
     FlowchartLineStyle style{};
     std::size_t minimumRanks{1u};

@@ -1117,9 +1117,9 @@
     "edges": 0,
     "direction": "TopBottom",
     "reason": "entities-html-or-icons",
-    "issue": "UnsupportedLabelMarkup",
-    "diagnosticFirst": 26,
-    "diagnosticLast": 27
+    "issue": "UnsupportedStatement",
+    "diagnosticFirst": 58,
+    "diagnosticLast": 74
   },
   {
     "id": 103,

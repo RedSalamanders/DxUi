@@ -811,7 +811,7 @@ template <typename Check> inline void CheckFamilyGrammar(Check&& check)
     const auto entityEdge = Complete(parser);
     check(entityEdge->outcome == FlowchartOutcome::Prepared && entityEdge->edges.size() == 1u && entityEdge->edges[0u].label == L"\"\n♥",
           "pipe edge labels decode semicolon-terminated entities without splitting the statement");
-    for (const auto source : {L"flowchart LR\nA[#bogus;]\n", L"flowchart LR\nA[#1;]\n", L"flowchart LR\nA[#128;]\n", L"flowchart LR\nA[<b>text</b>]\n"})
+    for (const auto source : {L"flowchart LR\nA[#bogus;]\n", L"flowchart LR\nA[#1;]\n", L"flowchart LR\nA[#128;]\n", L"flowchart LR\nA[<script>text</script>]\n"})
     {
         parser.Begin(source, 31u);
         const auto result = Complete(parser);
@@ -839,7 +839,7 @@ template <typename Check> inline void CheckFamilyGrammar(Check&& check)
         check(result->outcome == FlowchartOutcome::Prepared && result->source == source && result->nodes.size() == 1u && result->nodes[0u].label == label,
               "ordinary hash, comparison and icon-like substrings remain plain text");
     }
-    for (const auto source : {L"flowchart LR\nA[fa:fa-home]\n", L"flowchart LR\nA[\"<b>bold</b>\"]\n", L"flowchart LR\nA[#bogus;]\n"})
+    for (const auto source : {L"flowchart LR\nA[fa:fa-home]\n", L"flowchart LR\nA[\"<script>bad</script>\"]\n", L"flowchart LR\nA[#bogus;]\n"})
     {
         parser.Begin(source, 40u);
         const auto result = Complete(parser);

@@ -1381,7 +1381,8 @@ static void TestPreparedFlowchartAllocationFailures(bool trace = false)
                               L"erDiagram\nCUSTOMER ||--o{ ORDER : places\nORDER ||--|{ ITEM : contains\n",
                               L"gantt\ntitle Release\nCompile : 2024-02-27, 3d\nTest : 2024-03-01, 2d\n",
                               L"mindmap\n root\n  First\n   Leaf\n  Second\n",
-                              L"flowchart LR\nA[/input/] --> B[(store)] --> C(((finish)))\n"})
+                              L"flowchart LR\nA[/input/] --> B[(store)] --> C(((finish)))\n",
+                              L"flowchart TD\nA[\"<b>Bold</b> <i>It</i>\"]-->|<u>go</u>|B\n"})
     {
         const auto graph = FlowchartLayoutTests::Graph(source);
         LayoutOptions options;
@@ -1437,7 +1438,7 @@ static void TestPreparedFlowchartAllocationFailures(bool trace = false)
         }
     });
     Check(! drawAllocated, "actual borrowed-target native drawing creates zero tracked C++ allocations");
-    std::cout << "native paint C++ failure scenarios=8 sweptRequests=" << total << " retirementAllocations=0 drawAllocations=0\n";
+    std::cout << "native paint C++ failure scenarios=9 sweptRequests=" << total << " retirementAllocations=0 drawAllocations=0\n";
 }
 static void TestNativeFlowchartLayoutAllocationFailureAtomicity(bool trace = false)
 {
@@ -1574,6 +1575,7 @@ static void TestNativeFlowchartAllocationFailureAtomicity(bool trace = false)
                                     L"gantt\ntitle Release\nsection Build\nCompile : 2024-02-27, 3d\nTest : 2024-03-01, 2d\n",
                                     L"mindmap\n  root((Central))\n    First\n      Leaf\n    Second\n",
                                     L"flowchart TD\nA:::heavy --> B\nclassDef heavy stroke-width:3px\n",
+                                    L"flowchart TD\nA[\"<b>Bold</b> <i>It</i>\"]-->|<u>go</u>|B\n",
                                     L"classDiagram\nnote \"a long standalone note\"\nclass A {\n+first: int\n+second: string\n}\n",
                                     L"mindmap\n root\n  child\n ::icon(bad)\n", L"pie\n\"one\": 1\n\"one\": 2\n",
                                     L"sequenceDiagram\nAlice->>Bob: hello\nAlice->>Missing: bad\n"};

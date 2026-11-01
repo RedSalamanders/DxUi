@@ -348,8 +348,11 @@ struct NativeFlowchartParser::Preparation
         descriptionHasLine = true;
         return true;
     }
-    bool Label(std::size_t& at, std::size_t end, wchar_t close, std::wstring& value)
+    bool Label(std::size_t& at, std::size_t end, wchar_t close, std::wstring& value, FlowchartLabelStyles* styles = nullptr, bool implicitClose = false)
     {
+        struct OpenStyle { std::wstring_view name; std::size_t first{}; unsigned flags{}; };
+        std::array<OpenStyle, 8u> open{};
+        std::size_t openCount{};
         Skip(at, end);
         const auto start  = at;
         const bool quoted = at < end && Text()[at] == L'"';
@@ -360,6 +363,7 @@ struct NativeFlowchartParser::Preparation
             auto c = Text()[at];
             if ((quoted && c == L'"') || (! quoted && c == close))
             {
+                if (openCount) return Error(FlowchartIssue::UnsupportedLabelMarkup, start, at, FlowchartOutcome::Unsupported);
                 if (quoted)
                 {
                     ++at;
@@ -384,6 +388,41 @@ struct NativeFlowchartParser::Preparation
                     value.push_back(L'\n');
                     at += length;
                     continue;
+                }
+                if (styles)
+                {
+                    const auto finish = rest.find(L'>');
+                    if (finish != std::wstring_view::npos)
+                    {
+                        auto tag = rest.substr(1u, finish - 1u);
+                        const bool closing = ! tag.empty() && tag.front() == L'/';
+                        if (closing) tag.remove_prefix(1u);
+                        const unsigned flags = tag == L"b" || tag == L"strong" ? LabelBold : tag == L"i" || tag == L"em" ? LabelItalic
+                                             : tag == L"u" ? LabelUnderline : tag == L"s" ? LabelStrike : 0u;
+                        if (flags || tag == L"span")
+                        {
+                            if (closing)
+                            {
+                                if (! openCount || open[openCount - 1u].name != tag)
+                                    return Error(FlowchartIssue::UnsupportedLabelMarkup, at, at + finish + 1u, FlowchartOutcome::Unsupported);
+                                const auto style = open[--openCount];
+                                if (style.flags && style.first < value.size())
+                                {
+                                    if (styles->count == styles->spans.size())
+                                        return Error(FlowchartIssue::LabelCapacity, at, at + finish + 1u, FlowchartOutcome::Capacity);
+                                    styles->spans[styles->count++] = {style.first, value.size(), style.flags};
+                                }
+                            }
+                            else
+                            {
+                                if (openCount == open.size())
+                                    return Error(FlowchartIssue::LabelCapacity, at, at + finish + 1u, FlowchartOutcome::Capacity);
+                                open[openCount++] = {tag, value.size(), flags};
+                            }
+                            at += finish + 1u;
+                            continue;
+                        }
+                    }
                 }
             }
             if (model->family == NativeDiagramFamily::Flowchart && c == L'#')
@@ -424,7 +463,13 @@ struct NativeFlowchartParser::Preparation
             if (! PlainTextUnit(at, end, value, false, quoted))
                 return false;
         }
-        return Error(FlowchartIssue::MissingLabelClose, start, end);
+        if (implicitClose && ! quoted && ! openCount)
+        {
+            while (! value.empty() && Space(value.back())) value.pop_back();
+            return true;
+        }
+        return Error(openCount ? FlowchartIssue::UnsupportedLabelMarkup : FlowchartIssue::MissingLabelClose, start, end,
+                     openCount ? FlowchartOutcome::Unsupported : FlowchartOutcome::Malformed);
     }
     bool Node(std::size_t& at, std::size_t end, std::size_t& index, bool target = false)
     {
@@ -479,7 +524,7 @@ struct NativeFlowchartParser::Preparation
         {
             ++at;
             candidate.shape = FlowchartShape::Asymmetric;
-            if (! Label(at, end, L']', candidate.label)) return false;
+            if (! Label(at, end, L']', candidate.label, &candidate.styles)) return false;
             explicitLabel = true;
         }
         else if (at < end && (Text()[at] == L'[' || Text()[at] == L'(' || Text()[at] == L'{'))
@@ -535,7 +580,7 @@ struct NativeFlowchartParser::Preparation
                 return Error(FlowchartIssue::UnsupportedShape, at - 1u, at + 1u, FlowchartOutcome::Unsupported);
             if (! circle && ! stadium && at < end && ((open == L'(' && Text()[at] == L'-') || (open == L'[' && Text()[at] == L'|')))
                 return Error(FlowchartIssue::UnsupportedShape, at - 1u, at + 1u, FlowchartOutcome::Unsupported);
-            if (! Label(at, end, close, candidate.label))
+            if (! Label(at, end, close, candidate.label, &candidate.styles))
                 return false;
             if (circle && (at == end || Text()[at++] != L')'))
                 return Error(FlowchartIssue::MissingLabelClose, start, at);
@@ -578,6 +623,7 @@ struct NativeFlowchartParser::Preparation
             // A bare edge endpoint never resets a prior declaration's label.
             auto& node       = model->nodes[index];
             node.label       = candidate.label;
+            node.styles      = candidate.styles;
             node.shape       = candidate.shape;
             node.declaration = candidate.declaration;
         }
@@ -1536,7 +1582,7 @@ struct NativeFlowchartParser::Preparation
                     if (markup != std::wstring_view::npos)
                         return Error(FlowchartIssue::UnsupportedLabelMarkup, begin + markup, begin + markup + 1u, FlowchartOutcome::Unsupported);
                     auto labelAt = begin;
-                    if (! PlainText(labelAt, labelEnd, edge.label))
+                    if (! Label(labelAt, labelEnd, L'\0', edge.label, &edge.styles, true))
                         return false;
                     edge.arrow        = arrow;
                     edge.relation     = edge.arrow ? FlowchartRelation::Arrow : FlowchartRelation::Line;
@@ -1634,7 +1680,7 @@ struct NativeFlowchartParser::Preparation
                 if (inlineLabel || edge.style == FlowchartLineStyle::Invisible)
                     return Error(FlowchartIssue::UnsupportedEdge, edgeStart, at + 1u, FlowchartOutcome::Unsupported);
                 ++at;
-                if (! Label(at, end, L'|', edge.label))
+                if (! Label(at, end, L'|', edge.label, &edge.styles))
                     return false;
                 Skip(at, end);
             }

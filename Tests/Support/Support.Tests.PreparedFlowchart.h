@@ -728,6 +728,103 @@ template <typename Check> inline void GroupRaster(Check&& check)
     check(! rejected.Ready() && rejected.Geometry() && rejected.Geometry()->issue == FlowchartLayoutIssue::DiagramExtent && rejected.Geometry()->groups.empty(),
           "overlapping unrelated groups fail without publishing partial geometry");
 }
+template <typename Check> inline void StyledLabelRaster(Check&& check)
+{
+    const auto initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+    if (FAILED(initialized) && initialized != RPC_E_CHANGED_MODE) THROW_IF_FAILED(initialized);
+    const auto apartment = wil::scope_exit([&]() noexcept { if (SUCCEEDED(initialized)) CoUninitialize(); });
+    const auto graph = FlowchartLayoutTests::Graph(L"flowchart TD\nA[\"<b>Bold</b> <i>It</i> <u>U</u> <s>S</s>\"]-->|<b>go</b>|B\n");
+    check(graph->outcome == FlowchartOutcome::Prepared && graph->nodes.size() == 2u && graph->edges.size() == 1u &&
+              graph->nodes[0u].label == L"Bold It U S" && graph->nodes[0u].styles.count == 4u && graph->edges[0u].label == L"go" &&
+              graph->edges[0u].styles.count == 1u, "styled node and edge labels expose their independent text and style ranges");
+    if (graph->outcome != FlowchartOutcome::Prepared || graph->nodes.size() != 2u || graph->edges.size() != 1u) return;
+    const auto write = WriteFactory();
+    const auto drawing = DrawingFactory();
+    PreparedFlowchart prepared;
+    prepared.Begin(write.get(), drawing.get(), graph, {}, {1u, 1u});
+    Complete(prepared, check);
+    const auto geometry = prepared.Geometry();
+    const auto width = static_cast<UINT>(std::ceil(geometry->extent.width)), height = static_cast<UINT>(std::ceil(geometry->extent.height)), stride = width * 4u;
+    wil::com_ptr<IWICImagingFactory> imaging;
+    THROW_IF_FAILED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(imaging.put())));
+    const auto pixels = [&](bool reference)
+    {
+        wil::com_ptr<IWICBitmap> bitmap;
+        THROW_IF_FAILED(imaging->CreateBitmap(width, height, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnLoad, bitmap.put()));
+        wil::com_ptr<ID2D1RenderTarget> target;
+        THROW_IF_FAILED(drawing->CreateWicBitmapRenderTarget(bitmap.get(), D2D1::RenderTargetProperties(), target.put()));
+        target->SetTextAntialiasMode(D2D1_TEXT_ANTIALIAS_MODE_GRAYSCALE);
+        wil::com_ptr<ID2D1SolidColorBrush> text, stroke, fill;
+        THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black), text.put()));
+        THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Blue), stroke.put()));
+        THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White), fill.put()));
+        target->BeginDraw(); target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+        check(prepared.Draw(target.get(), text.get(), stroke.get(), fill.get(), {}), "styled labels paint on the owner target");
+        if (reference)
+        {
+            LayoutOptions options;
+            wil::com_ptr<IDWriteTextFormat> format;
+            THROW_IF_FAILED(write->CreateTextFormat(options.fontFamily.c_str(), nullptr, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STYLE_NORMAL,
+                                                     DWRITE_FONT_STRETCH_NORMAL, options.fontSizeDip, options.locale.c_str(), format.put()));
+            const auto draw = [&](std::wstring_view value, FlowchartRect box, bool node)
+            {
+                wil::com_ptr<IDWriteTextLayout> layout;
+                THROW_IF_FAILED(write->CreateTextLayout(value.data(), static_cast<UINT32>(value.size()), format.get(), 225.f, 65536.f, layout.put()));
+                THROW_IF_FAILED(layout->SetFontWeight(DWRITE_FONT_WEIGHT_BOLD, {0u, node ? 4u : 2u}));
+                if (node)
+                {
+                    THROW_IF_FAILED(layout->SetFontStyle(DWRITE_FONT_STYLE_ITALIC, {5u, 2u}));
+                    THROW_IF_FAILED(layout->SetUnderline(TRUE, {8u, 1u}));
+                    THROW_IF_FAILED(layout->SetStrikethrough(TRUE, {10u, 1u}));
+                }
+                DWRITE_TEXT_METRICS metrics{}; DWRITE_OVERHANG_METRICS ink{};
+                THROW_IF_FAILED(layout->GetMetrics(&metrics)); THROW_IF_FAILED(layout->GetOverhangMetrics(&ink));
+                const auto left = std::min(metrics.left, -ink.left), top = std::min(metrics.top, -ink.top);
+                target->FillRectangle(D2D1::RectF(static_cast<float>(box.x) - 2.f, static_cast<float>(box.y) - 2.f,
+                                                  static_cast<float>(box.x + box.width) + 2.f, static_cast<float>(box.y + box.height) + 2.f), fill.get());
+                target->DrawTextLayout(D2D1::Point2F(static_cast<float>(box.x) - left, static_cast<float>(box.y) - top), layout.get(), text.get(),
+                                       D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
+            };
+            draw(L"Bold It U S", geometry->nodes[0u].label, true);
+            draw(L"go", geometry->edges[0u].label, false);
+        }
+        THROW_IF_FAILED(target->EndDraw());
+        std::vector<BYTE> result(static_cast<std::size_t>(stride) * height);
+        THROW_IF_FAILED(bitmap->CopyPixels(nullptr, stride, static_cast<UINT>(result.size()), result.data()));
+        return result;
+    };
+    const auto actual = pixels(false), reference = pixels(true);
+    std::size_t compared{}, different{};
+    for (const auto box : {geometry->nodes[0u].label, geometry->edges[0u].label})
+        for (auto y = static_cast<UINT>(std::ceil(box.y)); y < static_cast<UINT>(std::floor(box.y + box.height)); ++y)
+            for (auto x = static_cast<UINT>(std::ceil(box.x)); x < static_cast<UINT>(std::floor(box.x + box.width)); ++x)
+            {
+                const auto offset = (static_cast<std::size_t>(y) * width + x) * 4u;
+                ++compared;
+                if (! std::equal(actual.data() + offset, actual.data() + offset + 4u, reference.data() + offset)) ++different;
+            }
+    check(compared > 0u && different == 0u, "styled node and edge pixels match independently styled DirectWrite layouts");
+    auto invalid = std::make_shared<FlowchartModel>(*graph);
+    invalid->nodes[0u].styles.spans[0u].last = invalid->nodes[0u].label.size() + 1u;
+    const std::vector<FlowchartSize> nodes(invalid->nodes.size(), {16.0, 12.0}), edges(invalid->edges.size(), {16.0, 12.0});
+    bool layoutRejected{}, paintRejected{};
+    try { NativeFlowchartLayout layout; layout.Begin(invalid, nodes, edges); }
+    catch (const std::invalid_argument&) { layoutRejected = true; }
+    try { prepared.Begin(write.get(), drawing.get(), invalid, {}, {1u, 1u}); }
+    catch (const std::invalid_argument&) { paintRejected = true; }
+    check(layoutRejected && paintRejected && prepared.Ready(), "forged out-of-range label styles fail before replacing publication");
+    const auto inlineEdge = FlowchartLayoutTests::Graph(L"flowchart TD\nA -- <b>go</b> --> B\n");
+    check(inlineEdge->outcome == FlowchartOutcome::Prepared && inlineEdge->edges.size() == 1u && inlineEdge->edges[0u].label == L"go" &&
+              inlineEdge->edges[0u].styles.count == 1u && inlineEdge->edges[0u].styles.spans[0u].flags == LabelBold,
+          "inline edge text retains the same bounded markup as pipe labels");
+    for (const auto source : {L"flowchart TD\nA[\"<b>unclosed\"]\n", L"flowchart TD\nA[\"<span class=x>bad</span>\"]\n",
+                              L"flowchart TD\nA[\"<b><i>bad</b></i>\"]\n"})
+    {
+        const auto rejected = FlowchartLayoutTests::Graph(source);
+        check(rejected->outcome == FlowchartOutcome::Unsupported && rejected->source == source && rejected->nodes.empty(),
+              "unsupported or unbalanced label markup preserves exact source");
+    }
+}
 template <typename Check> inline void LegacyPolygonRaster(Check&& check)
 {
     const auto initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);

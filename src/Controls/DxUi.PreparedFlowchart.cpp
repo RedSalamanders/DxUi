@@ -164,12 +164,22 @@ struct PreparedFlowchart::State
             THROW_IF_FAILED(drawing->CreateStrokeStyle(properties, dashes.data(), static_cast<UINT32>(dashes.size()), dottedStyle.put()));
         }
     }
-    void Label(std::wstring_view text, FlowchartLabel& output, FlowchartSize& size)
+    void Label(std::wstring_view text, FlowchartLabel& output, FlowchartSize& size, const FlowchartLabelStyles* styles = nullptr)
     {
         wil::com_ptr<IDWriteTextLayout> layout;
         constexpr auto maximum = static_cast<float>(NativeFlowchartLayout::MaximumExtent);
         const auto labelWidth  = std::min(maximum, std::max(1.f, options.fontSizeDip * 12.5f));
         THROW_IF_FAILED(write->CreateTextLayout(text.data(), static_cast<UINT32>(text.size()), format.get(), labelWidth, maximum, layout.put()));
+        if (styles)
+            for (std::size_t index = 0u; index < styles->count; ++index)
+            {
+                const auto& style = styles->spans[index];
+                const DWRITE_TEXT_RANGE range{static_cast<UINT32>(style.first), static_cast<UINT32>(style.last - style.first)};
+                if (style.flags & LabelBold) THROW_IF_FAILED(layout->SetFontWeight(DWRITE_FONT_WEIGHT_BOLD, range));
+                if (style.flags & LabelItalic) THROW_IF_FAILED(layout->SetFontStyle(DWRITE_FONT_STYLE_ITALIC, range));
+                if (style.flags & LabelUnderline) THROW_IF_FAILED(layout->SetUnderline(TRUE, range));
+                if (style.flags & LabelStrike) THROW_IF_FAILED(layout->SetStrikethrough(TRUE, range));
+            }
         DWRITE_TEXT_METRICS metrics{};
         DWRITE_OVERHANG_METRICS ink{};
         THROW_IF_FAILED(layout->GetMetrics(&metrics));
@@ -258,8 +268,12 @@ LayoutPreparationStatus PreparedFlowchart::Begin(IDWriteFactory* write,
     if (! ValidMindmapModel(*graph))
         throw std::invalid_argument("Invalid native mindmap hierarchy model");
     for (const auto& node : graph->nodes)
-        if (node.strokeWidth < 1u || node.strokeWidth > 3u || (graph->family != NativeDiagramFamily::Flowchart && node.strokeWidth != 1u))
+        if (node.strokeWidth < 1u || node.strokeWidth > 3u || (graph->family != NativeDiagramFamily::Flowchart && node.strokeWidth != 1u) ||
+            ! ValidLabelStyles(node.styles, node.label.size(), graph->family == NativeDiagramFamily::Flowchart))
             throw std::invalid_argument("Invalid native node stroke width");
+    for (const auto& edge : graph->edges)
+        if (! ValidLabelStyles(edge.styles, edge.label.size(), graph->family == NativeDiagramFamily::Flowchart))
+            throw std::invalid_argument("Invalid native edge label styles");
     if (! graph->groups.empty() && graph->family != NativeDiagramFamily::Flowchart && graph->family != NativeDiagramFamily::State &&
         graph->family != NativeDiagramFamily::Class)
         throw std::invalid_argument("Groups require a supported diagram profile");
@@ -374,7 +388,8 @@ LayoutAdvance PreparedFlowchart::Advance(LayoutWorkBudget budget)
                             state.Label(legend, preparedLabel, measuredSize);
                         }
                         else
-                            state.Label(label, preparedLabel, measuredSize);
+                            state.Label(label, preparedLabel, measuredSize,
+                                        node ? &state.graph->nodes[index].styles : group == 0u ? &state.graph->edges[index].styles : nullptr);
                         if (node)
                         {
                             auto& prepared    = state.nodeLabels[index];

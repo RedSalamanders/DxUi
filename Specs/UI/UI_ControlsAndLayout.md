@@ -1774,8 +1774,12 @@ Quoted labels allow Unicode scalar text and `\"`, `\\`, `\n` escapes. Unquoted
 labels keep backslashes literally, trim surrounding horizontal whitespace and must quote delimiter/semicolon
 text. In flowchart node and pipe-edge labels, Mermaid `#name;` and decimal
 `#number;` references use the pinned Markdown character-reference decoder;
-`<br>`, `<br/>` and `<br />` insert line breaks. Unsupported references, decoded
-controls other than tab/newline, and arbitrary HTML retain exact source. Literal
+`<br>`, `<br/>` and `<br />` insert line breaks. Node, pipe-edge and inline-edge
+labels also accept properly nested, attribute-free `<b>`, `<strong>`, `<i>`,
+`<em>`, `<u>`, `<s>` and `<span>` pairs, with at most eight nested tags and 32
+styled ranges; DirectWrite applies styles before measurement. Unsupported tags,
+attributes, unbalanced markup, references and decoded controls other than
+tab/newline retain exact source. Literal
 ampersands are label text; Markdown labels, icon syntax and inline math labels
 remain unsupported; they MUST NOT silently acquire a different label meaning.
 Hash characters without a well-formed `#name;`/`#number;` reference, plain

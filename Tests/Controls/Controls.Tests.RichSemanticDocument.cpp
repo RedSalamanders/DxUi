@@ -920,6 +920,13 @@ void TestRichSemanticNativeMathematicsAndBroaderMermaid()
                 std::ranges::any_of(listDocument->Elements(), [](const auto& element)
                 { return element.role == SemanticRole::Paragraph && element.source == MarkdownRange{10u, 16u}; }),
             "unclosed nested display stops at its list boundary and leaves the following paragraph independent");
+    const std::wstring styledSource = L"```mermaid\nflowchart TD\nA[\"<b>Bold</b> <i>It</i>\"]-->|<u>go</u>|B\n```\n";
+    const auto styledDocument = RichSemanticDocumentTests::Build(styledSource, MarkdownProfile::RichMarkdown);
+    const auto styledDiagram = std::ranges::find(styledDocument->Elements(), SemanticRole::Diagram, &SemanticElement::role);
+    Require(styledDocument->Map().Source() == styledSource && styledDiagram != styledDocument->Elements().end() &&
+                styledDiagram->name.find(L"Bold It") != std::wstring::npos && styledDiagram->name.find(L"go") != std::wstring::npos &&
+                styledDiagram->name.find(L"<b>") == std::wstring::npos,
+            "styled diagram accessibility exposes label text and retains exact marked-up source");
 }
 void TestRichSemanticDocumentStructuralStyleValues()
 {

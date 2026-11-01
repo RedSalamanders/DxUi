@@ -1456,9 +1456,11 @@ Visible links can request up to 16 minimum ranks by adding dashes, dots or equal
 signs, including after inline edge text. Forward links constrain the DAG ranking;
 back edges and self-loops do not. Requests outside the link or 256-rank bounds
 retain source with a capacity diagnostic.
-Flowchart node and pipe-edge labels decode Mermaid decimal and named `#...;`
+Flowchart node and edge labels decode Mermaid decimal and named `#...;`
 references through the pinned Markdown reference table and accept `<br>`, `<br/>`
-and `<br />` line breaks. Other HTML and unsupported references retain source.
+and `<br />` line breaks. Attribute-free, properly nested `<b>`, `<strong>`,
+`<i>`, `<em>`, `<u>`, `<s>` and `<span>` pairs provide bounded native text
+styling. Other HTML, attributes and unsupported references retain source.
 Plain hashes, comparison characters and ordinary `fa:` substrings remain text;
 actual Font Awesome icon markers still retain the original diagram as source.
 This is not
