@@ -860,6 +860,75 @@ void TestLosslessMarkdownFrontMatterFencesAndProfileIsolation()
     parser.Begin(L"+++\nkey = 'new'\n+++\n", 3u, MarkdownProfile::RichMarkdown);
     Require(CompleteMarkdown(parser)->Nodes()[1u].frontMatterKind == MarkdownFrontMatterKind::Toml, "a later TOML request cannot inherit YAML envelope state");
 }
+void TestTomlFrontMatterValidationAndSourcePreservation()
+{
+    struct Case
+    {
+        std::wstring_view source;
+        bool valid;
+    };
+    // Independent examples from https://toml.io/en/v1.0.0: nested tables, heterogeneous
+    // arrays, Unicode, dates and invalid duplicate/table/value spellings.
+    constexpr Case cases[] = {
+        {L"+++\nname = \"caf\u00e9 \U0001f600\"\nvalues = [1, \"two\", true]\n[db]\nport = 8000\n+++\ntext\n", true},
+        {L"+++\r\nwhen = 1979-05-27T07:32:00Z\r\nquoted.\"a.b\" = 'v'\r\n+++\r\n", true},
+        {L"+++\nkey = 1\nkey = 2\n+++\n", false},
+        {L"+++\n[a]\nx = 1\n[a]\ny = 2\n+++\n", false},
+        {L"+++\nx = 01\n+++\n", false},
+        {L"+++\nx = \"unterminated\n+++\n", false},
+        {L"+++\nx = { a = 1, a = 2 }\n+++\n", false},
+        {L"+++\nx = 2024-02-30\n+++\n", false},
+    };
+    for (const auto& item : cases)
+    {
+        MarkdownParser parser;
+        parser.Begin(item.source, 1u, MarkdownProfile::RichMarkdown);
+        const auto syntax = CompleteMarkdown(parser, 1u);
+        Require(syntax->Source() == item.source, "TOML validation preserves raw source and line endings");
+        const auto diagnostics = syntax->Diagnostics();
+        Require(item.valid ? diagnostics.empty() : diagnostics.size() == 1u && diagnostics[0].code == MarkdownDiagnosticCode::InvalidTomlFrontMatter,
+                "TOML 1.0 validity and duplicate definitions must be reported");
+        if (! item.valid)
+        {
+            const auto& diagnostic = diagnostics[0];
+            const auto& node       = syntax->Nodes()[diagnostic.node];
+            Require(node.block.kind == MarkdownBlockKind::FrontMatter && diagnostic.source.first == node.block.content.first &&
+                        diagnostic.source.last == node.block.content.last,
+                    "TOML diagnostic identifies its exact source content and owner");
+        }
+    }
+    std::wstring deep = L"+++\nx = ";
+    deep.append(129u, L'[');
+    deep += L"0";
+    deep.append(129u, L']');
+    deep += L"\n+++\n";
+    MarkdownParser parser;
+    parser.Begin(deep, 2u, MarkdownProfile::RichMarkdown);
+    const auto capacity = CompleteMarkdown(parser, 1u);
+    Require(capacity->Diagnostics().size() == 1u && capacity->Diagnostics()[0].code == MarkdownDiagnosticCode::TomlFrontMatterCapacity,
+            "excess nesting is a capacity diagnostic, not invalid TOML");
+    std::wstring deepKey = L"+++\n";
+    for (std::size_t i = 0; i < 129u; ++i)
+        deepKey += i ? L".a" : L"a";
+    deepKey += L" = 1\n+++\n";
+    parser.Begin(deepKey, 3u, MarkdownProfile::RichMarkdown);
+    const auto keyCapacity = CompleteMarkdown(parser, 1u);
+    Require(keyCapacity->Diagnostics().size() == 1u && keyCapacity->Diagnostics()[0].code == MarkdownDiagnosticCode::TomlFrontMatterCapacity,
+            "excess dotted-key nesting is reported as capacity before materializing an unbounded graph");
+    std::wstring manyKeys = L"+++\n";
+    for (std::size_t i = 0; i < 1025u; ++i)
+        manyKeys += L"key" + std::to_wstring(i) + L" = 1\n";
+    manyKeys += L"+++\n";
+    parser.Begin(manyKeys, 4u, MarkdownProfile::RichMarkdown);
+    const auto totalCapacity = CompleteMarkdown(parser, 1u);
+    Require(totalCapacity->Diagnostics().size() == 1u && totalCapacity->Diagnostics()[0].code == MarkdownDiagnosticCode::TomlFrontMatterCapacity,
+            "excess total key segments report capacity independently of duplicate validation");
+    const auto held = totalCapacity;
+    parser.Begin(L"+++\nx = 1\n+++\n", 5u, MarkdownProfile::RichMarkdown);
+    parser.Advance(1u);
+    parser.Cancel();
+    Require(parser.Published() == held, "cancelled validation preserves the previous complete publication");
+}
 void TestLosslessMarkdownFootnoteBlockGrammarAndProfileIsolation()
 {
     for (const auto profile : {MarkdownProfile::CommonMark0312, MarkdownProfile::Gfm029, MarkdownProfile::RichMarkdown})
@@ -1244,6 +1313,7 @@ void RunRichMarkdownTests()
     DXUI_RUN_TEST(TestLosslessMarkdownSchedulingCancellationAndIdentity);
     DXUI_RUN_TEST(TestMarkdownParserAdoptsExactParsedSnapshot);
     DXUI_RUN_TEST(TestLosslessMarkdownFrontMatterFencesAndProfileIsolation);
+    DXUI_RUN_TEST(TestTomlFrontMatterValidationAndSourcePreservation);
     DXUI_RUN_TEST(TestNativeFlowchartGrammarAndGraphValues);
     DXUI_RUN_TEST(TestNativeFlowchartDeterministicGeometry);
     DXUI_RUN_TEST(TestNativeFlowchartLayoutIndependentCorpusAndRouting);

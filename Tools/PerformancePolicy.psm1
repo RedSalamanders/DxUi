@@ -538,7 +538,7 @@ function Get-PerformanceNativeInputClosure {
     $libraries = @($libraries | ForEach-Object { [IO.Path]::GetFullPath($_).TrimEnd('\','/') } | Sort-Object -Unique)
     $triplet = if ($Platform -eq 'ARM64') { 'arm64-windows' } else { 'x64-windows' }
     $dependencyRoot = Join-Path $rootPath ".build/vcpkg_installed/$Platform/$triplet"
-    $nativeDirectories = @('src','include','Tests/Embedded','Tests/Support','Samples/EmbeddedControls','Samples/ComplexUi')
+    $nativeDirectories = @('src','include','Tests/Embedded','Tests/Support','Samples/EmbeddedControls','Samples/ComplexUi','ThirdParty/tomlplusplus/3.4.0')
     # Reuse scoped Git discovery, but retain every byte in the supported native input trees, including extensionless files
     # and prose that could be included explicitly. Ignored inputs and reparse points cannot become invisible dependencies.
     $tracked = & (Get-Module ScopedTesting) { param($Root) Get-ScopedTrackedPaths $Root } $rootPath

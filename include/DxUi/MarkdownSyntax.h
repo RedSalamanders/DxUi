@@ -99,10 +99,14 @@ enum class MarkdownDiagnosticCode
 {
     UnclosedFrontMatter,
     DuplicateFootnoteDefinition,
-    UndefinedFootnote
+    UndefinedFootnote,
+    InvalidTomlFrontMatter,
+    TomlFrontMatterCapacity
 };
 // Diagnostics name exact raw source ranges in this immutable publication.
-// They do not change source, imply metadata validity, or carry SDK/UI objects.
+// They do not change source or carry SDK/UI objects. A closed TOML envelope
+// without a TOML diagnostic passed its bounded syntax validation; YAML payload
+// validity is not yet assessed.
 struct MarkdownDiagnostic
 {
     MarkdownDiagnosticCode code{};

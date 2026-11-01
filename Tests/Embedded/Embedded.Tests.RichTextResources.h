@@ -1203,8 +1203,11 @@ static void TestRichFrontMatterAllocationFailureAtomicity(bool trace = false)
         editor.SetMarkdownRenderingEnabled(true);
         Check(editor.IsMarkdownRenderingEnabled() && editor.GetText() == L"previous", "semantic activation retries after each observed allocation failure");
     }
-    for (const std::wstring_view source :
-         {L"---\r\n# comment\r\nname: '\U0001f600'\r\n---\r\n# after\r\n", L"+++\n# comment\nname = '\u03b2'\n+++\n", L"---\nkey: [\n", L"+++\nkey = [\n"})
+    for (const std::wstring_view source : {L"---\r\n# comment\r\nname: '\U0001f600'\r\n---\r\n# after\r\n",
+                                           L"+++\n# comment\nname = '\u03b2'\n+++\n",
+                                           L"---\nkey: [\n",
+                                           L"+++\nkey = [\n",
+                                           L"+++\nx = 1\nx = 2\n+++\n"})
     {
         std::size_t requests{};
         {
@@ -1315,8 +1318,8 @@ static void TestRichFrontMatterAllocationFailureAtomicity(bool trace = false)
         }
         semanticTotal += semanticRequests;
     }
-    std::cout << "front matter allocation scenarios=4 sweptRequests=" << total << " sourcePreserved=1 retry=1\n";
-    std::cout << "front matter semantic allocation scenarios=4 sweptRequests=" << semanticTotal << " sourcePreserved=1 retry=1\n";
+    std::cout << "front matter allocation scenarios=5 sweptRequests=" << total << " sourcePreserved=1 retry=1\n";
+    std::cout << "front matter semantic allocation scenarios=5 sweptRequests=" << semanticTotal << " sourcePreserved=1 retry=1\n";
     std::cout << "semantic accessibility activation sweptRequests=" << activationRequests << " sourcePreserved=1 retry=1\n";
 }
 

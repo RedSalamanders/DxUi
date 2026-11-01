@@ -1292,9 +1292,12 @@ their identity. Foreign UIA reads do not dereference the control to check it.
 
 Semantic presentation currently keeps this source fully visible as a literal
 fallback, including fences. Ordinary source edits/undo/redo remain available;
-Markdown style/heading/table commands reject metadata targets. Metadata
-content-validity diagnostics and the dedicated object source editor remain later
-M5 work. Envelope and diagnostic transport tests pass in focused Debug/native/
+Markdown style/heading/table commands reject metadata targets. Closed TOML
+content is checked against TOML 1.0.0 and reports invalid input or a nesting-
+capacity refusal while preserving the entire source. TOML validation is in
+development and requires profile qualification; YAML payload validity remains
+unimplemented. The remaining metadata content-validation work stays in M5.
+Earlier envelope and diagnostic transport tests passed in focused Debug/native/
 embedded checks, including actual clients and allocation failures. Final qualification
 pending; this does not establish YAML/TOML conformance or complete M5 support.
 

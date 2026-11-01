@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "policyId": "dxui-complex-ui-paired-v2",
   "judgeVersion": "dxui-paired-block-sign-flip-holm-v2",
-  "approvedJudgeSha256": "12C7EA7AB2101855191B21713710633EE86AAEB635C387E59AEF71EC6AFBE97D",
+  "approvedJudgeSha256": "AD8B54F68D44C3C10440FB3D97193AD1713AF4E5A6AF80564DF8E4BDFFCB553B",
   "approvedAssignmentSha256": "4B6AD6769A74BE3CF76C46937FD8EE4F8E193E0E4E5405459C6F147F9A92AA78",
   "qualificationStatus": "policy-review-required",
   "minimumIndependentBlocks": 12,
@@ -18,5 +18,5 @@
   "exactBudgetRule": "A regression is any candidate run median above the baseline run-median median or any raw candidate-round maximum above the retained baseline raw-round maximum; report both findings separately",
   "requiresFullIdentity": ["sourceCommit", "sourceFingerprint", "executableSha256", "benchmarkSha256", "harnessIdentity", "toolchainIdentity", "dependencyIdentity", "environmentIdentity", "identityStatus", "fixture", "renderer", "width", "height", "dpi", "controls", "modelRows", "framesPerRound", "roundCount", "platform", "configuration", "nativeArchitecture", "machine", "cpu", "os", "compiler", "powerPolicy", "warpVersion", "warpSha256"],
   "qualified": false,
-  "qualificationNote": "This policy is a proposed migration contract. approvedJudgeSha256 is a review target, not an approval. A trusted versioned base policy and independent policy review/qualification are required before a candidate may pass the migrated gate."
+  "qualificationNote": "This policy is a proposed migration contract. approvedJudgeSha256 is a review target, not an approval. The 2026-11-01 review target adds the private TOML header to source identity only; no scoring policy or qualification changes. A trusted versioned base policy and independent policy review/qualification are required before a candidate may pass the migrated gate."
 }

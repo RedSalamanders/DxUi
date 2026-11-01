@@ -769,6 +769,28 @@ Invoke-FixtureCase 'native and incremental root junctions cannot redirect attest
     Get-FixtureNativeClosure $fixture | Out-Null
 }
 
+Invoke-FixtureCase 'vendored parser input is owned and participates in native closure' {
+    param($root)
+    Invoke-FixtureGit $root @('init','-q','-b','main')
+    Set-FixtureFile $root '.gitignore' ".build/`n"
+    $fixture = New-PerformanceProjectFixture $root
+    foreach ($path in @('src/Controls/One.cpp','src/Controls/Two.cpp','src/Rendering/CompositeVS.hlsl','src/Rendering/CompositePS.hlsl','include/owned.h')) { Set-FixtureFile $root $path '// owned native bytes' }
+    $vendor = 'ThirdParty/tomlplusplus/3.4.0/toml.hpp'
+    $realHeader = [IO.File]::ReadAllText((Join-Path $PSScriptRoot '../../ThirdParty/tomlplusplus/3.4.0/toml.hpp'))
+    Set-FixtureFile $root $vendor $realHeader
+    Set-FixtureFile $root 'src/Controls/One.cpp' '#include "../../ThirdParty/tomlplusplus/3.4.0/toml.hpp"'
+    $first = Get-FixtureNativeClosure $fixture
+    Set-FixtureFile $root $vendor ($realHeader + "`n// changed")
+    $second = Get-FixtureNativeClosure $fixture
+    Assert-True ((ConvertTo-Json $first -Depth 20 -Compress) -cne (ConvertTo-Json $second -Depth 20 -Compress)) 'vendored header edits change native input closure'
+    Set-FixtureFile $root $vendor '#include UNKNOWN_HEADER'
+    Assert-Throws { Get-FixtureNativeClosure $fixture } 'vendored macro-selected external includes must be rejected'
+    Set-FixtureFile $root $vendor '#include <vector>'
+    Set-FixtureFile $root 'ThirdParty/tomlplusplus/3.4.0/ignored.txt' 'shadow input'
+    Add-Content -LiteralPath (Join-Path $root '.gitignore') -Value 'ThirdParty/tomlplusplus/3.4.0/ignored.txt'
+    Assert-Throws { Get-FixtureNativeClosure $fixture } 'ignored files under the vendored search root must be rejected'
+}
+
 Invoke-FixtureCase 'resolved native inputs require owned bytes and reject ignored external forced response and cache-shadow inputs' {
     param($root)
     Invoke-FixtureGit $root @('init','-q','-b','main')

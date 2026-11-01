@@ -31,6 +31,8 @@ the existing source hit/caret mapping, preserving preferred x and site affinity
 across large gaps without allocation or layout. Ordinary wrapped movement and
 the default fixed-spacing fallback remain unchanged.
 
+TOML front matter validation stages bounded UTF-8 converted from the admitted UTF-16 source and parses it without reserialization. Its 128-level value and dotted-key nesting ceilings and 1,024 total key-segment ceiling are reported as capacity, not invalid TOML. Parsing one bounded content envelope is indivisible and allocation failures preserve the prior publication; input queries, composition painting and idle frames do not parse. The native resource and timing gates still require measured qualification.
+
 The lossless Markdown analysis preview retains bounded source (65,536 UTF-16
 units), one staged result and one published result per parser. Advance has an
 operation budget; source validation/copy/comparison and allocator work are not

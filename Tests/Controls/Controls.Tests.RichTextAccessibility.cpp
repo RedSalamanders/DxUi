@@ -2653,6 +2653,28 @@ void TestRichTextAccessibilityEmbeddedSemanticStructureAndTasks()
 {
     EmbeddedCase(SemanticStructureAndTasks);
 }
+void SemanticTomlValidationDiagnostic(bool embedded)
+{
+    RichAccessibilityFixture fixture(embedded, true, true);
+    fixture.editor->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::RichMarkdown);
+    fixture.editor->SetText(L"+++\nkey = 1\nkey = 2\n+++\n");
+    fixture.Publish();
+    auto simple   = fixture.Simple();
+    auto metadata = FindSemanticPart(*simple.get(), UIA_GroupControlTypeId);
+    Require(metadata && ReadProviderStringProperty(*metadata.get(), UIA_HelpTextPropertyId, "invalid TOML help") == L"Invalid TOML front matter.",
+            "window and embedded metadata expose the validation diagnostic");
+    fixture.editor->SetText(L"+++\nkey = 1\n+++\n");
+    fixture.Publish();
+    metadata = FindSemanticPart(*simple.get(), UIA_GroupControlTypeId);
+    Require(metadata &&
+                ReadProviderStringProperty(*metadata.get(), UIA_HelpTextPropertyId, "repaired TOML help") == L"Invoke or press F2 to edit exact source.",
+            "a valid replacement retires the invalid-content explanation");
+}
+void TestRichTextAccessibilityTomlValidationDiagnostic()
+{
+    SemanticTomlValidationDiagnostic(false);
+    EmbeddedCase(SemanticTomlValidationDiagnostic);
+}
 void TestRichTextAccessibilityWindowSemanticFrontMatterDiagnostics()
 {
     SemanticFrontMatterDiagnostics(false);
@@ -2736,6 +2758,7 @@ void RunRichTextAccessibilityTests()
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedSemanticAttributesAndFormats);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowSemanticStructureAndTasks);
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedSemanticStructureAndTasks);
+    DXUI_RUN_TEST(TestRichTextAccessibilityTomlValidationDiagnostic);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowSemanticFrontMatterDiagnostics);
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedSemanticFrontMatterDiagnostics);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowFootnoteNavigation);

@@ -1623,7 +1623,7 @@ decoding. Source ACPs/history remain authoritative. Markdown structural style,
 heading and table commands MUST reject metadata targets atomically; ordinary
 source replacement/undo/redo and source-view selection remain available.
 Envelope recognition alone MUST NOT be presented as YAML/TOML validity or full
-extension conformance. Later M5 work owns metadata content-validity diagnostics and source editors.
+extension conformance. Closed TOML content is checked against TOML 1.0.0 without changing source; invalid content and nesting beyond 128 values or dotted-key segments, or more than 1,024 total key segments, have distinct source-owned diagnostics. Missing fences take precedence. YAML payload validation and final metadata qualification remain pending.
 An unclosed envelope MUST publish an `UnclosedFrontMatter` diagnostic with the
 exact opening marker range and revision-local owner node. Semantic UIA HelpText
 MUST explain the missing closing fence. Source edits retire that provider; a

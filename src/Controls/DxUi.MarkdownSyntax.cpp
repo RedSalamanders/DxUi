@@ -2,6 +2,7 @@
 #include "DxUi.MarkdownCharacterReference.h"
 #include "DxUi.MarkdownEntityData.h"
 #include "DxUi.MarkdownInlines.h"
+#include "DxUi.MarkdownMetadata.h"
 #include "DxUi.MarkdownSourceCorrelation.h"
 #include "DxUi.TextElements.h"
 #include <DxUi/MarkdownSyntax.h>
@@ -394,6 +395,16 @@ struct MarkdownParser::Preparation
         // on a host input/read path just to discover incomplete envelopes.
         if (node.block.kind == MarkdownBlockKind::FrontMatter && ! node.block.closed)
             syntax->diagnostics_.push_back({MarkdownDiagnosticCode::UnclosedFrontMatter, node.block.info, nodeIndex});
+        else if (node.block.kind == MarkdownBlockKind::FrontMatter && node.frontMatterKind == MarkdownFrontMatterKind::Toml)
+        {
+            const auto issue =
+                Detail::ValidateTomlMetadata(syntax->Source().substr(node.block.content.first, node.block.content.last - node.block.content.first));
+            if (issue != Detail::MetadataIssue::None)
+                syntax->diagnostics_.push_back({issue == Detail::MetadataIssue::Capacity ? MarkdownDiagnosticCode::TomlFrontMatterCapacity
+                                                                                         : MarkdownDiagnosticCode::InvalidTomlFrontMatter,
+                                                node.block.content,
+                                                nodeIndex});
+        }
         if (identityCursor == 1u && previous)
         {
             node.identity = previous->Nodes()[0].identity;

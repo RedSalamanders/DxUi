@@ -171,13 +171,17 @@ template <typename Check> inline void CheckSyntax(const MarkdownSyntax& syntax, 
     const bool expected = syntax.Profile() == MarkdownProfile::RichMarkdown && scenario.kind != MarkdownFrontMatterKind::None;
     check(count == (expected ? 1u : 0u), "base profiles and non-leading or inexact fences cannot acquire metadata semantics");
     const auto diagnostics = syntax.Diagnostics();
-    check(diagnostics.size() == (expected && ! scenario.closed ? 1u : 0u), "only incomplete metadata envelopes publish the missing-close diagnostic");
+    const bool badToml     = expected && scenario.closed && scenario.kind == MarkdownFrontMatterKind::Toml &&
+                             (scenario.name == L"TOML BOM and CR lines" || scenario.name == L"TOML does not close at YAML fences");
+    check(diagnostics.size() == (expected && (! scenario.closed || badToml) ? 1u : 0u), "metadata reports an incomplete fence or invalid TOML");
     if (! diagnostics.empty())
     {
         const auto& issue = diagnostics[0u];
-        check(issue.code == MarkdownDiagnosticCode::UnclosedFrontMatter && issue.node < syntax.Nodes().size() &&
-                  issue.source == syntax.Nodes()[issue.node].block.info,
-              "metadata diagnostic names the exact opener and final revision-local source owner");
+        check(issue.node < syntax.Nodes().size(), "metadata diagnostic names the revision-local source owner");
+        const auto& block = syntax.Nodes()[issue.node].block;
+        check(badToml ? issue.code == MarkdownDiagnosticCode::InvalidTomlFrontMatter && issue.source == block.content
+                      : issue.code == MarkdownDiagnosticCode::UnclosedFrontMatter && issue.source == block.info,
+              "metadata diagnostic names the affected exact source range");
     }
 }
 } // namespace FrontMatterTests

@@ -1015,6 +1015,18 @@ struct SemanticBuilder::Preparation
         if (node.block.kind == MarkdownBlockKind::FrontMatter && ! node.block.closed)
             document->elements_[visit.element].title = node.frontMatterKind == MarkdownFrontMatterKind::Yaml ? L"Missing closing YAML front matter fence."
                                                                                                              : L"Missing closing TOML front matter fence.";
+        if (node.block.kind == MarkdownBlockKind::FrontMatter && node.block.closed && node.frontMatterKind == MarkdownFrontMatterKind::Toml)
+        {
+            for (const auto& issue : syntax.Diagnostics())
+            {
+                if (issue.node != visit.node)
+                    continue;
+                if (issue.code == MarkdownDiagnosticCode::InvalidTomlFrontMatter)
+                    document->elements_[visit.element].title = L"Invalid TOML front matter.";
+                else if (issue.code == MarkdownDiagnosticCode::TomlFrontMatterCapacity)
+                    document->elements_[visit.element].title = L"TOML front matter exceeds the supported validation capacity.";
+            }
+        }
         if (node.tableHeader)
             visit.flags |= Bold;
         if (node.block.kind == MarkdownBlockKind::Table)
