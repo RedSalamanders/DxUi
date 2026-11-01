@@ -304,7 +304,7 @@ template <typename Check> inline void SourceRegions(Check&& check)
         while (geometry.Pending())
             static_cast<void>(geometry.Advance());
         for (const auto& line : lines)
-            check(geometry.IsEmptySourceSite(line.insertion), "each trimmed code blank line has current native source caret geometry");
+            check(geometry.IsEmptySourceSite(line.insertion, MarkdownNoNode), "each trimmed code blank line has current native source caret geometry");
     }
     Document unicode{L"\U0001f600\r\nbody\n"};
     MarkdownParser parser;

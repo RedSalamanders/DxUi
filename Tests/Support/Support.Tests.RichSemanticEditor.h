@@ -659,7 +659,7 @@ template <typename Prepare> void ScrollbarAndNotifications(ControlHost& host, Pr
               ! editor->OnMouseWheel(host, {}, -WHEEL_DELTA, 0u),
           "scroll clamps to the real extent and wheel input bubbles at the bottom edge");
     Check(editor->SetScrollOffsetDip(0.0f), "scroll fixture returns to the beginning");
-    const auto viewport = editor->GetTextInputViewportRect();
+    const auto viewport = editor->TryGetTextInputViewportRect();
     Check(viewport.has_value(), "scroll fixture has a text viewport");
     const auto bounds = editor->GetBounds();
     auto point        = D2D1::Point2F(bounds.right - 14.0f, viewport->top + 2.0f);
@@ -679,7 +679,7 @@ template <typename Prepare> void ScrollbarAndNotifications(ControlHost& host, Pr
     editor->SetFlowDirection(FlowDirection::RightToLeft);
     prepare();
     Check(editor->SetScrollOffsetDip(0.0f), "RTL fixture begins at the top");
-    const auto rtlViewport = editor->GetTextInputViewportRect();
+    const auto rtlViewport = editor->TryGetTextInputViewportRect();
     point                  = D2D1::Point2F(editor->GetBounds().left + 14.0f, rtlViewport->top + 2.0f);
     Check(editor->OnMouseDown(host, point, false, 0u) && host.GetCapturedControl() == editor && editor->OnKeyDown(host, VK_ESCAPE, 0u) &&
               host.GetCapturedControl() == nullptr,

@@ -147,8 +147,8 @@ struct RichAccessibilityFixture
     EmbeddedHost view;
     std::unique_ptr<AttachedHostWindow> window;
     std::unique_ptr<EmbeddedUiaTest::Bridge> bridge;
-    ControlHost* controls  = nullptr;
-    RichTextEditor* editor = nullptr;
+    ControlHost* controls           = nullptr;
+    RichAccessibilityEditor* editor = nullptr;
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> provider;
 };
 #pragma warning(pop)
