@@ -1655,7 +1655,7 @@ the preceding right-hand group. Expanded, dotted, thick, reversed and named
 edge syntax is unsupported. In particular `A---oB`/`A---xB` MUST NOT be silently
 treated as edges to IDs `oB`/`xB`; use whitespace before such IDs for a plain line.
 Quoted labels allow Unicode scalar text and `\"`, `\\`, `\n` escapes. Unquoted
-labels trim surrounding horizontal whitespace and must quote delimiter/semicolon
+labels keep backslashes literally, trim surrounding horizontal whitespace and must quote delimiter/semicolon
 text. Literal ampersands are label text; HTML, Markdown labels, entity escapes, icon syntax and inline math labels
 are unsupported; they MUST NOT silently acquire a different label meaning.
 
@@ -2040,6 +2040,11 @@ remove grouping braces while retaining escaped literal braces. Matrix rows may
 have a trailing separator; gathered rows have one column and cases at most two.
 Unsupported commands remain local exact source. This is a named native profile,
 not a claim of all KaTeX functions or identical TeX font metrics and glyph assemblies.
+In math mode ASCII minus and asterisk shape as U+2212 and U+2217; tilde supplies
+spacing, and a run of primes becomes a superscript of the preceding atom. A
+second explicit superscript on that atom is rejected with the original source.
+Math in a heading uses that run's heading size, and a caret beside a formula
+uses the surrounding text line's DirectWrite caret geometry.
 
 Limits are 4,096 source units, 512 syntax nodes, nesting 24, 16 rows/columns and 128
 cells per formula, 4,096 total mathematical records and 128 combined native objects.

@@ -1372,6 +1372,10 @@ remove grouping braces while retaining escaped literal braces. Matrix rows may
 have a trailing separator; gathered rows have one column and cases at most two.
 Unsupported commands remain local exact source. This is a named native profile,
 not a claim of all KaTeX functions or identical TeX font metrics and glyph assemblies.
+ASCII minus and asterisk use mathematical operator glyphs, tilde supplies spacing,
+and successive primes are raised as one superscript. A second explicit superscript
+on the same atom remains source with a diagnostic. Heading formulas follow the
+heading font size; the caret at a formula edge follows its text line.
 
 Limits are 4,096 source units, 512 syntax nodes, nesting 24, 16 rows/columns and 128
 cells per formula, 4,096 total mathematical records and 128 combined native objects.

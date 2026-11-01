@@ -133,7 +133,8 @@ struct NativeImagePlacement
 #pragma warning(pop)
 struct NativeImageGeometry
 {
-    NativeImageGeometry(const RichImageResourceSet& resources, const SemanticDocument& document, ID2D1RenderTarget* target, IDWriteFactory* write, float font)
+    NativeImageGeometry(
+        const RichImageResourceSet& resources, const SemanticDocument& document, ID2D1RenderTarget* target, IDWriteFactory* write, const LayoutOptions& options)
         : placements(resources.placements.size() + SemanticExtensionAccess::Maths(document).size()),
           targetIdentity(target)
     {
@@ -167,6 +168,18 @@ struct NativeImageGeometry
             auto& placement   = placements[resources.placements.size() + index];
             placement.element = maths[index].element;
             placement.display = document.Elements()[placement.element].display;
+            float font        = options.fontSizeDip;
+            for (const auto& run : document.Runs())
+            {
+                if (placement.display.first < run.start || placement.display.first - run.start >= run.length)
+                    continue;
+                if (run.heading > 0u && run.heading <= options.headingFontSizeDip.size())
+                {
+                    const float overrideSize = options.headingFontSizeDip[run.heading - 1u];
+                    font = overrideSize > 0.0f ? overrideSize : font * (1.0f + options.headingScaleStep * static_cast<float>(7u - run.heading));
+                }
+                break;
+            }
             // PreparedMath construction validates bounded AST storage and reads
             // optional MATH constants without HRESULT propagation. Font-local
             // SDK operations occur only in PrepareMath below, where the exact
@@ -253,8 +266,13 @@ struct SemanticBox
                     if (image.owner == this &&
                         (paragraph.display.first + local == image.display.first || paragraph.display.first + local == image.display.last))
                     {
-                        caret.height = std::min(image.caretHeight, image.bounds.bottom - image.bounds.top);
-                        caret.y      = image.bounds.bottom - caret.height;
+                        // DirectWrite's line caret is baseline-aligned with adjacent text.  Preserve it for math,
+                        // whose descent can extend below the text baseline; bitmap images keep their existing rule.
+                        if (! image.math)
+                        {
+                            caret.height = std::min(image.caretHeight, image.bounds.bottom - image.bounds.top);
+                            caret.y      = image.bounds.bottom - caret.height;
+                        }
                         break;
                     }
             return caret;
@@ -366,7 +384,7 @@ struct PreparedSemanticGeometry::State
         if ((imageResources && ! imageResources->placements.empty()) || ! SemanticExtensionAccess::Maths(*document).empty())
         {
             const RichImageResourceSet empty;
-            images = std::make_unique<NativeImageGeometry>(imageResources ? *imageResources : empty, *document, raster, factory.get(), options.fontSizeDip);
+            images = std::make_unique<NativeImageGeometry>(imageResources ? *imageResources : empty, *document, raster, factory.get(), options);
         }
         const auto diagrams = SemanticExtensionAccess::Diagrams(*document);
         if (! diagrams.empty())

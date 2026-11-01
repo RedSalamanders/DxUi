@@ -425,6 +425,31 @@ template <typename Prepare> void MathAndBroaderDiagrams(ControlHost& host, Prepa
               "atomic source object replacement and undo preserve exact source");
         prepare();
     }
+    {
+        const std::wstring source = L"Before $\\frac{1}{2}$ after\n\n# Heading $\\frac{1}{2}$ end";
+        auto root                 = std::make_unique<RichTextEditor>(source);
+        auto* editor              = root.get();
+        editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+        editor->SetMarkdownRenderingEnabled(true);
+        host.SetRoot(std::move(root));
+        prepare();
+        const auto semantic = editor->GetAcknowledgedSemanticDocument(host);
+        Check(semantic != nullptr, "math geometry is acknowledged");
+        std::array<std::size_t, 2u> maths{};
+        std::size_t count{};
+        for (std::size_t i = 0; i < semantic->Elements().size(); ++i)
+            if (semantic->Elements()[i].role == SemanticRole::Math && count < maths.size())
+                maths[count++] = i;
+        Check(count == maths.size(), "body and heading each retain a native equation");
+        const auto body    = editor->GetSemanticElementBounds(host, maths[0]);
+        const auto heading = editor->GetSemanticElementBounds(host, maths[1]);
+        Check(body && heading && heading->bottom - heading->top > (body->bottom - body->top) * 1.4f,
+              "a heading equation follows the surrounding heading font size");
+        const auto adjacent = editor->TryGetTextInputCaretRect(host, 3u);
+        const auto edge     = editor->TryGetTextInputCaretRect(host, semantic->Elements()[maths[0]].source.first);
+        Check(adjacent && edge && std::abs(adjacent->top - edge->top) < 0.1f && std::abs(adjacent->bottom - edge->bottom) < 0.1f,
+              "the caret beside a tall equation stays aligned to its text line");
+    }
 }
 template <typename Prepare> void Rendering(ControlHost& host, Prepare&& prepare)
 {

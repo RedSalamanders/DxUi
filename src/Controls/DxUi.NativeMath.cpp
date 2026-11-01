@@ -42,7 +42,7 @@ class Parser
         if (value.size() != 1u)
             return Ordinary;
         const auto c = value[0];
-        if (std::wstring_view(L"+-−*×÷⋅±∓∪∩∧∨").find(c) != value.npos)
+        if (std::wstring_view(L"+-−*∗×÷⋅±∓∪∩∧∨").find(c) != value.npos)
             return Binary;
         if (std::wstring_view(L"=<>:≤≥≠≈≡∼∝→←↔⇒⇐⇔↦∈∉⊂⊆⊃⊇").find(c) != value.npos)
             return Relation;
@@ -501,6 +501,10 @@ class Parser
         }
         if (std::wstring_view(L"}^_&#$").find(c) != source.npos)
             Reject();
+        if (c == L'~')
+            return Make(MathKind::Space, L" ");
+        if (c == L'-' || c == L'*')
+            return Make(MathKind::Text, std::wstring(1u, c == L'-' ? L'−' : L'∗'));
         std::wstring value(1, c);
         if (c >= 0xD800 && c <= 0xDBFF && at < source.size())
             value += source[at++];
@@ -552,6 +556,21 @@ class Parser
             bool hasSub{}, hasSuper{}, hasModifier{};
             while (at < source.size())
             {
+                if (source[at] == L'\'')
+                {
+                    if (hasSuper)
+                        Reject();
+                    std::wstring primes(0u, L' ');
+                    while (at < source.size() && source[at] == L'\'')
+                    {
+                        primes.push_back(L'′');
+                        ++at;
+                    }
+                    super    = Make(MathKind::Text, std::move(primes));
+                    hasSuper = true;
+                    Space();
+                    continue;
+                }
                 if (source[at] == L'\\')
                 {
                     const auto first = at + 1;

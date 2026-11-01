@@ -122,6 +122,16 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
                   expression.root.children[0u].text == symbol.value,
               "named mathematical symbols retain independently specified Unicode identity");
     }
+    const auto operators = ParseMath(L"a-b*c~d");
+    check(operators && operators.root.children.size() == 7u && operators.root.children[1u].text == L"−" &&
+              operators.root.children[1u].atomClass == MathAtomClass::Binary && operators.root.children[3u].text == L"∗" &&
+              operators.root.children[3u].atomClass == MathAtomClass::Binary && operators.root.children[5u].kind == MathKind::Space,
+          "math-mode ASCII operators use their mathematical glyphs and tilde is spacing");
+    const auto prime = ParseMath(L"f''_i");
+    check(prime && prime.root.children.size() == 1u && prime.root.children[0u].kind == MathKind::Scripts && prime.root.children[0u].children[1u].text == L"i" &&
+              prime.root.children[0u].children[2u].text == L"′′",
+          "prime runs are superscripts on the preceding atom and coexist with subscripts");
+    check(! ParseMath(L"f'^2"), "a prime followed by a second superscript is rejected rather than misrendered");
     for (const auto [rows, columns] : {std::pair{16u, 8u}, std::pair{8u, 16u}})
         check(static_cast<bool>(ParseMath(Matrix(rows, columns))), "matrix admits exactly 128 cells within row and column bounds");
     for (const auto [rows, columns] : {std::pair{17u, 1u}, std::pair{1u, 17u}, std::pair{16u, 9u}})

@@ -68,7 +68,7 @@ struct NativeFlowchartParser::Preparation
         while (at < end && Space(Text()[at]))
             ++at;
     }
-    bool PlainTextUnit(std::size_t& at, std::size_t end, std::wstring& value, bool classMember = false)
+    bool PlainTextUnit(std::size_t& at, std::size_t end, std::wstring& value, bool classMember = false, bool quoted = false)
     {
         const auto start         = at;
         auto c                   = Text()[at];
@@ -81,7 +81,7 @@ struct NativeFlowchartParser::Preparation
             remaining.starts_with(L"far:") || remaining.starts_with(L"fal:") || remaining.starts_with(L"fad:") || remaining.starts_with(L"fat:") ||
             remaining.starts_with(L"fass:") || encodedEntity)
             return Error(FlowchartIssue::UnsupportedLabelMarkup, at, at + 1u, FlowchartOutcome::Unsupported);
-        if (c == L'\\')
+        if (quoted && c == L'\\')
         {
             const auto escape = at++;
             if (at == end)
@@ -100,10 +100,10 @@ struct NativeFlowchartParser::Preparation
         ++at;
         return true;
     }
-    bool PlainText(std::size_t& at, std::size_t end, std::wstring& value, bool classMember = false)
+    bool PlainText(std::size_t& at, std::size_t end, std::wstring& value, bool classMember = false, bool quoted = false)
     {
         while (at < end)
-            if (! PlainTextUnit(at, end, value, classMember))
+            if (! PlainTextUnit(at, end, value, classMember, quoted))
                 return false;
         return true;
     }
@@ -155,7 +155,7 @@ struct NativeFlowchartParser::Preparation
             }
             if (! quoted && (c == L'[' || c == L']' || c == L'(' || c == L')' || c == L'{' || c == L'}' || c == L';' || c == L'"'))
                 return Error(FlowchartIssue::UnsupportedLabelMarkup, at, at + 1u, FlowchartOutcome::Unsupported);
-            if (! PlainTextUnit(at, end, value))
+            if (! PlainTextUnit(at, end, value, false, quoted))
                 return false;
         }
         return Error(FlowchartIssue::MissingLabelClose, start, end);
@@ -366,7 +366,7 @@ struct NativeFlowchartParser::Preparation
                     return Error(FlowchartIssue::LabelCapacity, firstLabel, at, FlowchartOutcome::Capacity);
                 std::wstring label(0u, L' ');
                 auto labelAt = firstLabel;
-                if (! PlainText(labelAt, at, label))
+                if (! PlainText(labelAt, at, label, false, true))
                     return false;
                 ++at;
                 Skip(at, end);
@@ -573,10 +573,6 @@ struct NativeFlowchartParser::Preparation
                 else if (c == L'"')
                     quote = false;
             }
-            else if (escaped)
-                escaped = false;
-            else if (c == L'\\' && (depth || pipe))
-                escaped = true;
             else if (c == L'|')
                 pipe = ! pipe;
             else if (c == L'"')
