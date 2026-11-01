@@ -500,6 +500,21 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     const auto deepState = editor->QueryMarkdownCommandState(stateRequest);
     Check(deepState && deepState->mixed && ! deepState->listKind,
           "deep nested list state restores ancestors beyond the fixed stack and detects the unlisted tail");
+    editor->SetText(L"intro\n\n- item\n\nending");
+    prepare();
+    editor->SetSelection({0u, editor->Snapshot().Length()});
+    const auto gapState = editor->QueryMarkdownCommandState(stateRequest);
+    Check(gapState && gapState->mixed && ! gapState->listKind, "list state includes ordinary source before and after a list");
+    editor->SetText(L"- item");
+    prepare();
+    editor->SetSelection({0u, 2u});
+    const auto prefixState = editor->QueryMarkdownCommandState(stateRequest);
+    Check(prefixState && ! prefixState->mixed && prefixState->listKind == MarkdownListKind::Unordered,
+          "list state includes the raw item prefix");
+    editor->SetSelection({6u, 6u});
+    const auto eofState = editor->QueryMarkdownCommandState(stateRequest);
+    Check(eofState && ! eofState->mixed && eofState->listKind == MarkdownListKind::Unordered,
+          "caret at source EOF retains the final list item's state");
     editor->SetText(L"**word** plain");
     prepare();
     editor->SetSelection({2u, 14u});
