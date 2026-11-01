@@ -165,6 +165,7 @@ struct FlowchartNode
     std::size_t noteTarget{};
     bool noteLeft{};
     unsigned strokeWidth{1u};
+    bool borderDashed{};
     FlowchartShape shape{};
 };
 struct FlowchartGroup
@@ -193,6 +194,8 @@ struct FlowchartEdge
     std::size_t minimumRanks{1u};
     bool arrow{};
     bool openArrow{}; // Sequence asynchronous messages use an open arrowhead.
+    unsigned strokeWidth{}; // Zero preserves the edge syntax's normal/thick width.
+    bool dashed{};
     ErMultiplicity erFrom{}, erTo{};
 };
 struct FlowchartModel

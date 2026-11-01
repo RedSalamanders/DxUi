@@ -1190,11 +1190,12 @@ void NativeFlowchartLayout::Begin(std::shared_ptr<const FlowchartModel> graph,
     if (! ValidMindmapModel(*graph))
         throw std::invalid_argument("Invalid mindmap hierarchy model");
     for (const auto& node : graph->nodes)
-        if (node.strokeWidth < 1u || node.strokeWidth > 3u || (graph->family != NativeDiagramFamily::Flowchart && node.strokeWidth != 1u) ||
+        if (node.strokeWidth < 1u || node.strokeWidth > 3u || (graph->family != NativeDiagramFamily::Flowchart && (node.strokeWidth != 1u || node.borderDashed)) ||
             ! ValidLabelStyles(node.styles, node.label.size(), graph->family == NativeDiagramFamily::Flowchart))
             throw std::invalid_argument("Invalid native node stroke width");
     for (const auto& edge : graph->edges)
-        if (! ValidLabelStyles(edge.styles, edge.label.size(), graph->family == NativeDiagramFamily::Flowchart))
+        if (! ValidLabelStyles(edge.styles, edge.label.size(), graph->family == NativeDiagramFamily::Flowchart) || edge.strokeWidth > 3u ||
+            (graph->family != NativeDiagramFamily::Flowchart && (edge.strokeWidth || edge.dashed)) || (edge.dashed && edge.style == FlowchartLineStyle::Dotted))
             throw std::invalid_argument("Invalid native edge label styles");
     for (const auto& node : graph->nodes)
         if (node.shape < FlowchartShape::Rectangle || node.shape > FlowchartShape::Note ||

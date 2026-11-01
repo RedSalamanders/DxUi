@@ -2420,14 +2420,17 @@ node, connects descendants to their parents, and preserves source order in the
 accessible alternative. Icons, unsupported shapes, tabs and malformed indentation
 retain the complete fence with a diagnostic.
 
-Flowcharts also accept `style ID stroke-width:Npx` after the named node has
-been declared, for integer widths 1, 2 or 3. The native outline uses the
-caller-supplied theme stroke and leaves its brush state intact, including in
-high contrast. The same property is accepted in up to 64 named `classDef`
-definitions and applied to one existing node by `class ID name` or `ID:::name`;
-definitions may follow their use. Multiple assignments to one node, default
-classes, other properties, unknown targets/classes and unsupported widths retain
-the complete source with a diagnostic.
+Flowchart node styles accept comma-separated `stroke-width:Npx` (1–3),
+`stroke-dasharray:5 5`, `font-weight:bold` and `font-style:italic`. They may be
+applied by `style ID`, one named `classDef` through `class ID name` or
+`ID:::name`, or a `classDef default`; definitions may follow their use and
+explicit properties override the default. Up to 64 named definitions are
+retained. `linkStyle N` accepts the width and dash properties for an existing
+zero-based edge. The outlines use the caller-supplied theme stroke, including
+in high contrast; native dash resources and font metrics are prepared before
+drawing and borrowed brush state is preserved. Multiple explicit assignments
+to one node, other properties, unknown targets/classes and unsupported widths
+retain the complete source with a diagnostic.
 
 Flowchart, state, class, sequence, pie, ER, Gantt and mind map diagrams accept one `accTitle: text` and one
 `accDescr: text` or multiline `accDescr {` / `accDescr{` block closed by a

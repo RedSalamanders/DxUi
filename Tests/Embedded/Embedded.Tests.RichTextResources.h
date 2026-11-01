@@ -1588,7 +1588,8 @@ static void TestPreparedFlowchartAllocationFailures(bool trace = false)
                               L"gantt\ntitle Release\nCompile : 2024-02-27, 3d\nTest : 2024-03-01, 2d\n",
                               L"mindmap\n root\n  First\n   Leaf\n  Second\n",
                               L"flowchart LR\nA[/input/] --> B[(store)] --> C(((finish)))\n",
-                              L"flowchart TD\nA[\"<b>Bold</b> <i>It</i>\"]-->|<u>go</u>|B\n"})
+                              L"flowchart TD\nA[\"<b>Bold</b> <i>It</i>\"]-->|<u>go</u>|B\n",
+                              L"flowchart TD\nclassDef default font-weight:bold\nA-->B\nlinkStyle 0 stroke-width:2px,stroke-dasharray:5 5\n"})
     {
         const auto graph = FlowchartLayoutTests::Graph(source);
         LayoutOptions options;
@@ -1658,7 +1659,7 @@ static void TestPreparedFlowchartAllocationFailures(bool trace = false)
         }
     });
     Check(! drawAllocated, "actual borrowed-target native drawing creates zero tracked C++ allocations");
-    std::cout << "native paint C++ failure scenarios=9 sweptRequests=" << total << " retirementAllocations=0 drawAllocations=0\n";
+    std::cout << "native paint C++ failure scenarios=10 sweptRequests=" << total << " retirementAllocations=0 drawAllocations=0\n";
 }
 static void TestNativeFlowchartLayoutAllocationFailureAtomicity(bool trace = false)
 {
@@ -1789,29 +1790,28 @@ static void TestNativeFlowchartLayoutAllocationFailureAtomicity(bool trace = fal
 static void TestNativeFlowchartAllocationFailureAtomicity(bool trace = false)
 {
     using namespace NativeFlowchartTests;
-    const std::wstring sources[] = {
-        L"graph LR;A[\"Unicode \u03b2 \U0001f600\"]-->|yes|B((Second));B-->A;A-->A",
-        L"graph TD;A[staged];B[another];A-->B;style A fill:red",
-        L"graph TD;A[staged];B[another];A-->|\"incomplete label",
-        L"graph TD;A[\"" + std::wstring(NativeFlowchartParser::MaximumLabelUnits + 1u, L'x') + L"\"]",
-        L"flowchart LR;A & B-->|group|C & D-->E",
-        L"flowchart LR;A-.->B;B==>C;C~~~D",
-        L"stateDiagram-v2;state \"Ready\" as S;S : Running;S-->T : go",
-        L"stateDiagram-v2;state C <<choice>>;A-->C;C-->B : yes",
-        L"stateDiagram-v2;state F <<fork>>;state J <<join>>;A-->F;F-->J;J-->B",
-        L"classDiagram;Base <|-- Derived;Derived : member",
-        L"classDiagram\nclass Animal {\n+name: String\n+run()\n}\nAnimal -- Pond\n",
-        L"sequenceDiagram\nparticipant Alice as Client\nparticipant Bob\nBob->>Alice: request\nAlice-->>Bob: response\nAlice-)Alice: retry\n",
-        L"pie showData\ntitle Pets\n\"Dogs\": 3\n\"Cats\": 2\n\"Birds\": 1\n",
-        L"erDiagram\nCUSTOMER ||--o{ ORDER : places\nCUSTOMER {\n string name\n int age\n}\nORDER ||--|{ ITEM : contains\n",
-        L"gantt\ntitle Release\nsection Build\nCompile : 2024-02-27, 3d\nTest : 2024-03-01, 2d\n",
-        L"mindmap\n  root((Central))\n    First\n      Leaf\n    Second\n",
-        L"flowchart TD\nA:::heavy --> B\nclassDef heavy stroke-width:3px\n",
-        L"flowchart TD\nA[\"<b>Bold</b> <i>It</i>\"]-->|<u>go</u>|B\n",
-        L"classDiagram\nnote \"a long standalone note\"\nclass A {\n+first: int\n+second: string\n}\n",
-        L"mindmap\n root\n  child\n ::icon(bad)\n",
-        L"pie\n\"one\": 1\n\"one\": 2\n",
-        L"sequenceDiagram\nAlice->>Bob: hello\nAlice->>Missing: bad\n"};
+    const std::wstring sources[] = {L"graph LR;A[\"Unicode \u03b2 \U0001f600\"]-->|yes|B((Second));B-->A;A-->A",
+                                    L"graph TD;A[staged];B[another];A-->B;style A fill:red",
+                                    L"graph TD;A[staged];B[another];A-->|\"incomplete label",
+                                    L"graph TD;A[\"" + std::wstring(NativeFlowchartParser::MaximumLabelUnits + 1u, L'x') + L"\"]",
+                                    L"flowchart LR;A & B-->|group|C & D-->E",
+                                    L"flowchart LR;A-.->B;B==>C;C~~~D",
+                                    L"stateDiagram-v2;state \"Ready\" as S;S : Running;S-->T : go",
+                                    L"stateDiagram-v2;state C <<choice>>;A-->C;C-->B : yes",
+                                    L"stateDiagram-v2;state F <<fork>>;state J <<join>>;A-->F;F-->J;J-->B",
+                                    L"classDiagram;Base <|-- Derived;Derived : member",
+                                    L"classDiagram\nclass Animal {\n+name: String\n+run()\n}\nAnimal -- Pond\n",
+                                    L"sequenceDiagram\nparticipant Alice as Client\nparticipant Bob\nBob->>Alice: request\nAlice-->>Bob: response\nAlice-)Alice: retry\n",
+                                    L"pie showData\ntitle Pets\n\"Dogs\": 3\n\"Cats\": 2\n\"Birds\": 1\n",
+                                    L"erDiagram\nCUSTOMER ||--o{ ORDER : places\nCUSTOMER {\n string name\n int age\n}\nORDER ||--|{ ITEM : contains\n",
+                                    L"gantt\ntitle Release\nsection Build\nCompile : 2024-02-27, 3d\nTest : 2024-03-01, 2d\n",
+                                    L"mindmap\n  root((Central))\n    First\n      Leaf\n    Second\n",
+                                    L"flowchart TD\nA:::heavy --> B\nclassDef heavy stroke-width:3px\n",
+                                    L"flowchart TD\nA[\"<b>Bold</b> <i>It</i>\"]-->|<u>go</u>|B\n",
+                                    L"flowchart TD\nclassDef default font-weight:bold\nA-->B\nlinkStyle 0 stroke-width:2px,stroke-dasharray:5 5\n",
+                                    L"classDiagram\nnote \"a long standalone note\"\nclass A {\n+first: int\n+second: string\n}\n",
+                                    L"mindmap\n root\n  child\n ::icon(bad)\n", L"pie\n\"one\": 1\n\"one\": 2\n",
+                                    L"sequenceDiagram\nAlice->>Bob: hello\nAlice->>Missing: bad\n"};
     std::size_t total{};
     for (const auto& source : sources)
     {

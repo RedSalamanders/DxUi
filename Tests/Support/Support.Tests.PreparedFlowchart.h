@@ -728,6 +728,94 @@ template <typename Check> inline void GroupRaster(Check&& check)
     check(! rejected.Ready() && rejected.Geometry() && rejected.Geometry()->issue == FlowchartLayoutIssue::DiagramExtent && rejected.Geometry()->groups.empty(),
           "overlapping unrelated groups fail without publishing partial geometry");
 }
+template <typename Check> inline void ThemeStyleRaster(Check&& check)
+{
+    const auto initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+    if (FAILED(initialized) && initialized != RPC_E_CHANGED_MODE) THROW_IF_FAILED(initialized);
+    const auto apartment = wil::scope_exit([&]() noexcept { if (SUCCEEDED(initialized)) CoUninitialize(); });
+    const auto graph = FlowchartLayoutTests::Graph(
+        L"flowchart TD\nclassDef default font-weight:bold,font-style:italic\nclassDef heavy stroke-width:2px,stroke-dasharray:5 5\n"
+        L"A[Alpha]:::heavy --> B[Beta]\nlinkStyle 0 stroke-width:2px,stroke-dasharray:5 5\n");
+    check(graph->outcome == FlowchartOutcome::Prepared && graph->nodes.size() == 2u && graph->edges.size() == 1u &&
+              graph->nodes[0u].strokeWidth == 2u && graph->nodes[0u].borderDashed && graph->nodes[1u].strokeWidth == 1u &&
+              graph->nodes[0u].styles.count == 1u && graph->nodes[0u].styles.spans[0u].flags == (LabelBold | LabelItalic) &&
+              graph->nodes[1u].styles.count == 1u && graph->edges[0u].strokeWidth == 2u && graph->edges[0u].dashed,
+          "default and named classes merge bounded font and outline properties; link style targets one edge");
+    if (graph->outcome != FlowchartOutcome::Prepared || graph->nodes.size() != 2u || graph->edges.size() != 1u) return;
+    const auto write = WriteFactory();
+    const auto drawing = DrawingFactory();
+    PreparedFlowchart prepared;
+    prepared.Begin(write.get(), drawing.get(), graph, {}, {1u, 1u});
+    Complete(prepared, check);
+    wil::com_ptr<IDWriteTextFormat> expectedFormat;
+    THROW_IF_FAILED(write->CreateTextFormat(L"Segoe UI", nullptr, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STYLE_NORMAL,
+                                           DWRITE_FONT_STRETCH_NORMAL, 18.f, L"en-us", expectedFormat.put()));
+    wil::com_ptr<IDWriteTextLayout> expectedLabel;
+    THROW_IF_FAILED(write->CreateTextLayout(L"Alpha", 5u, expectedFormat.get(), 225.f, 65536.f, expectedLabel.put()));
+    THROW_IF_FAILED(expectedLabel->SetFontWeight(DWRITE_FONT_WEIGHT_BOLD, {0u, 5u}));
+    THROW_IF_FAILED(expectedLabel->SetFontStyle(DWRITE_FONT_STYLE_ITALIC, {0u, 5u}));
+    DWRITE_TEXT_METRICS metrics{}; DWRITE_OVERHANG_METRICS overhang{};
+    THROW_IF_FAILED(expectedLabel->GetMetrics(&metrics)); THROW_IF_FAILED(expectedLabel->GetOverhangMetrics(&overhang));
+    const auto expectedWidth = std::max(metrics.left + metrics.widthIncludingTrailingWhitespace, metrics.layoutWidth + overhang.right) -
+                               std::min(metrics.left, -overhang.left);
+    check(FlowchartLayoutTests::Near(prepared.Geometry()->nodes[0u].label.width, expectedWidth),
+          "default bold italic class uses independently measured DirectWrite metrics");
+    wil::com_ptr<IWICImagingFactory> imaging;
+    THROW_IF_FAILED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(imaging.put())));
+    constexpr UINT width = 600u, height = 400u, stride = width * 4u;
+    wil::com_ptr<IWICBitmap> bitmap;
+    THROW_IF_FAILED(imaging->CreateBitmap(width, height, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnLoad, bitmap.put()));
+    wil::com_ptr<ID2D1RenderTarget> target;
+    THROW_IF_FAILED(drawing->CreateWicBitmapRenderTarget(bitmap.get(), D2D1::RenderTargetProperties(), target.put()));
+    wil::com_ptr<ID2D1SolidColorBrush> text, stroke, fill;
+    THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black), text.put()));
+    THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Blue), stroke.put()));
+    THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White), fill.put()));
+    target->BeginDraw(); target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+    check(prepared.Draw(target.get(), text.get(), stroke.get(), fill.get(), {}), "theme styles paint using the caller's brushes");
+    THROW_IF_FAILED(target->EndDraw());
+    std::vector<BYTE> pixels(stride * height);
+    THROW_IF_FAILED(bitmap->CopyPixels(nullptr, stride, static_cast<UINT>(pixels.size()), pixels.data()));
+    const auto bounds = prepared.Geometry()->nodes[0u].bounds;
+    std::size_t ink{}, gaps{};
+    const auto y = static_cast<UINT>(bounds.y);
+    for (UINT x = static_cast<UINT>(std::ceil(bounds.x + 4.0)); x < static_cast<UINT>(std::floor(bounds.x + bounds.width - 4.0)); ++x)
+    {
+        const auto offset = static_cast<std::size_t>(y) * stride + static_cast<std::size_t>(x) * 4u;
+        if (pixels[offset] > 150u && pixels[offset + 1u] < 180u && pixels[offset + 2u] < 180u) ++ink;
+        else ++gaps;
+    }
+    const auto strokeColor = stroke->GetColor(), textColor = text->GetColor(), fillColor = fill->GetColor();
+    check(ink > 0u && gaps > 0u && stroke->GetOpacity() == 1.f && text->GetOpacity() == 1.f && fill->GetOpacity() == 1.f &&
+              strokeColor.b == 1.f && strokeColor.r == 0.f && strokeColor.g == 0.f && textColor.r == 0.f && textColor.g == 0.f && textColor.b == 0.f &&
+              fillColor.r == 1.f && fillColor.g == 1.f && fillColor.b == 1.f,
+          "node outline alternates dash and gap while preserving borrowed colors and opacity");
+    const auto& path = prepared.Geometry()->edges[0u].path;
+    std::size_t segment{};
+    double longest{};
+    for (std::size_t i = 1u; i < path.size(); ++i)
+        if (FlowchartLayoutTests::Near(path[i - 1u].x, path[i].x) && std::abs(path[i].y - path[i - 1u].y) > longest)
+        {
+            segment = i;
+            longest = std::abs(path[i].y - path[i - 1u].y);
+        }
+    std::size_t edgeInk{}, edgeGaps{};
+    if (segment && longest > 12.0)
+    {
+        const auto x = static_cast<UINT>(path[segment].x);
+        const auto first = static_cast<UINT>(std::ceil(std::min(path[segment - 1u].y, path[segment].y) + 3.0));
+        const auto last = static_cast<UINT>(std::floor(std::max(path[segment - 1u].y, path[segment].y) - 3.0));
+        for (auto row = first; row < last && row < height && x < width; ++row)
+        {
+            const auto offset = static_cast<std::size_t>(row) * stride + static_cast<std::size_t>(x) * 4u;
+            if (pixels[offset] > 150u && pixels[offset + 1u] < 180u && pixels[offset + 2u] < 180u) ++edgeInk;
+            else ++edgeGaps;
+        }
+    }
+    check(edgeInk > 0u && edgeGaps > 0u, "link style visibly alternates dash and gap along its routed edge");
+    const auto invalid = FlowchartLayoutTests::Graph(L"flowchart TD\nA-->B\nlinkStyle 1 stroke-width:2px\n");
+    check(invalid->outcome == FlowchartOutcome::Unsupported && invalid->nodes.empty(), "out-of-range link styling retains source");
+}
 template <typename Check> inline void StyledLabelRaster(Check&& check)
 {
     const auto initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
