@@ -45,6 +45,7 @@ struct FlowchartPlacedEdge
     std::array<FlowchartPoint, 6u> path{};
     std::array<FlowchartPoint, 3u> arrow{};
     FlowchartRect label;
+    FlowchartRect fromCardinality, toCardinality;
     bool hasArrow{}, hasLabel{};
 };
 struct FlowchartLayoutPlan
@@ -73,7 +74,11 @@ public:
     // creates no SDK layouts and cannot hide label shaping inside one work unit.
     // Invalid graph/metric input or failed admission preserves pending work.
     // Successful Begin replaces pending work; the old publication stays valid.
-    void Begin(std::shared_ptr<const FlowchartModel> graph, std::span<const FlowchartSize> nodeLabels, std::span<const FlowchartSize> edgeLabels);
+    void Begin(std::shared_ptr<const FlowchartModel> graph,
+               std::span<const FlowchartSize> nodeLabels,
+               std::span<const FlowchartSize> edgeLabels,
+               std::span<const FlowchartSize> fromCardinalities = {},
+               std::span<const FlowchartSize> toCardinalities = {});
     // An event handles one node, edge, DFS transition or rank. A stable Kahn
     // choice scans at most 256 nodes. Units are not elapsed-time guarantees.
     // Begin copies at most 768 measurements into fixed bounded staging arrays.

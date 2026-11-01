@@ -184,6 +184,27 @@ struct NativeFlowchartParser::Preparation
         node.lastCompartmentMethod = method;
         return PlainText(at, end, node.label, true);
     }
+    bool Cardinality(std::size_t& at, std::size_t end, std::wstring& value)
+    {
+        if (at == end || Text()[at] != L'"')
+            return true;
+        const auto start = at++;
+        while (at < end && Text()[at] != L'"')
+        {
+            const auto c = Text()[at];
+            if (! (c >= L'0' && c <= L'9') && c != L'*' && c != L'.' && c != L'+' && c != L'-' && c != L'?' && c != L' ')
+                return Error(FlowchartIssue::UnsupportedLabelMarkup, at, at + 1u, FlowchartOutcome::Unsupported);
+            if (value.size() == 32u)
+                return Error(FlowchartIssue::LabelCapacity, start, at + 1u, FlowchartOutcome::Capacity);
+            value.push_back(c);
+            ++at;
+        }
+        if (at == end || value.empty())
+            return Error(FlowchartIssue::MissingLabelClose, start, at);
+        ++at;
+        Skip(at, end);
+        return true;
+    }
     bool DescriptionLine(std::size_t start, std::size_t end)
     {
         auto& value       = model->accessibleDescription;
@@ -679,6 +700,8 @@ struct NativeFlowchartParser::Preparation
             }
             FlowchartEdge edge;
             const auto edgeStart = at;
+            if (model->family == NativeDiagramFamily::Class && ! Cardinality(at, end, edge.fromCardinality))
+                return false;
             bool reverse{};
             const auto relationText = Text().substr(at, end - at);
             if (model->family == NativeDiagramFamily::Class && (relationText.starts_with(L"--*") || relationText.starts_with(L"--o")))
@@ -835,6 +858,8 @@ struct NativeFlowchartParser::Preparation
                 return Error(FlowchartIssue::UnsupportedEdge, edgeStart, at + 1u, FlowchartOutcome::Unsupported);
             }
             Skip(at, end);
+            if (model->family == NativeDiagramFamily::Class && ! Cardinality(at, end, edge.toCardinality))
+                return false;
             if (at < end && Text()[at] == L'|')
             {
                 if (model->family != NativeDiagramFamily::Flowchart)
@@ -880,7 +905,10 @@ struct NativeFlowchartParser::Preparation
                     expanded.from = from;
                     expanded.to   = to;
                     if (reverse)
+                    {
                         std::swap(expanded.from, expanded.to);
+                        expanded.fromCardinality.swap(expanded.toCardinality);
+                    }
                     model->edges.push_back(std::move(expanded));
                 }
             previousGroup = std::move(nextGroup);

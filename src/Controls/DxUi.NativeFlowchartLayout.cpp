@@ -44,6 +44,7 @@ struct NativeFlowchartLayout::Preparation
         Routes,
         TransformNodes,
         TransformEdges,
+        CardinalityCheck,
         NormalizeNodes,
         NormalizeEdges,
         Finish
@@ -56,6 +57,7 @@ struct NativeFlowchartLayout::Preparation
     std::shared_ptr<FlowchartLayoutPlan> plan;
     std::array<FlowchartSize, Nodes> nodeLabels{};
     std::array<FlowchartSize, Edges> edgeLabels{};
+    std::array<FlowchartSize, Edges> fromCardinalities{}, toCardinalities{};
     std::array<std::size_t, Nodes> head{}, tail{}, rank{}, indegree{}, before{}, after{}, color{}, incoming{}, outgoing{}, rowCount{};
     std::array<bool, Nodes> ranked{};
     std::array<std::size_t, Edges> next{}, startPort{}, endPort{};
@@ -71,19 +73,24 @@ struct NativeFlowchartLayout::Preparation
     double minX{}, minY{}, maxX{}, maxY{};
     FlowchartPoint shift;
     Stage stage{};
-    bool horizontal{}, bounded{}, done{};
+    bool horizontal{}, bounded{}, done{}, hasCardinality{};
 
-    Preparation(std::shared_ptr<const FlowchartModel> value, std::span<const FlowchartSize> nodes, std::span<const FlowchartSize> edges)
+    Preparation(std::shared_ptr<const FlowchartModel> value, std::span<const FlowchartSize> nodes, std::span<const FlowchartSize> edges,
+                std::span<const FlowchartSize> from, std::span<const FlowchartSize> to)
         : graph(std::move(value)),
           plan(std::make_shared<FlowchartLayoutPlan>())
     {
         std::copy(nodes.begin(), nodes.end(), nodeLabels.begin());
         std::copy(edges.begin(), edges.end(), edgeLabels.begin());
+        std::copy(from.begin(), from.end(), fromCardinalities.begin());
+        std::copy(to.begin(), to.end(), toCardinalities.begin());
         head.fill(NoIndex);
         tail.fill(NoIndex);
         next.fill(NoIndex);
         plan->nodes.reserve(nodes.size());
         plan->edges.reserve(edges.size());
+        for (const auto& edge : graph->edges)
+            hasCardinality = hasCardinality || ! edge.fromCardinality.empty() || ! edge.toCardinality.empty();
         horizontal = graph->direction == FlowchartDirection::LeftRight || graph->direction == FlowchartDirection::RightLeft;
     }
     void Fail(FlowchartLayoutIssue issue) noexcept
@@ -427,6 +434,9 @@ struct NativeFlowchartLayout::Preparation
         placed.arrow     = {{{toX, end}, {toX - 4.0, base}, {toX + 4.0, base}}};
         placed.hasLabel  = ! edge.label.empty();
         placed.label     = {cross + 4.0, (first + last - Major(edgeLabels[index])) / 2.0, Cross(edgeLabels[index]), Major(edgeLabels[index])};
+        const auto fromSize = fromCardinalities[index], toSize = toCardinalities[index];
+        placed.fromCardinality = {fromX + 4.0, start + (back ? -Major(fromSize) - 2.0 : 2.0), Cross(fromSize), Major(fromSize)};
+        placed.toCardinality = {toX + 4.0, end + (back ? 2.0 : -Major(toSize) - 2.0), Cross(toSize), Major(toSize)};
     }
     void TransformNodes()
     {
@@ -445,14 +455,9 @@ struct NativeFlowchartLayout::Preparation
     {
         if (cursor == plan->edges.size())
         {
-            plan->extent = {bounded ? maxX - minX + 2.0 * Margin : 2.0 * Margin, bounded ? maxY - minY + 2.0 * Margin : 2.0 * Margin};
-            if (! Valid(plan->extent))
-            {
-                Fail(FlowchartLayoutIssue::DiagramExtent);
-                return;
-            }
-            shift = {Margin - minX, Margin - minY};
-            Then(Stage::NormalizeNodes);
+            Then(Stage::CardinalityCheck);
+            if (! hasCardinality)
+                cursor = plan->edges.size();
             return;
         }
         auto& edge = plan->edges[cursor++];
@@ -470,6 +475,57 @@ struct NativeFlowchartLayout::Preparation
         edge.label = Transform(edge.label);
         if (edge.hasLabel)
             Include(edge.label);
+        edge.fromCardinality = Transform(edge.fromCardinality);
+        edge.toCardinality = Transform(edge.toCardinality);
+        if (! graph->edges[cursor - 1u].fromCardinality.empty())
+            Include(edge.fromCardinality);
+        if (! graph->edges[cursor - 1u].toCardinality.empty())
+            Include(edge.toCardinality);
+    }
+    void CardinalityCheck()
+    {
+        if (cursor == plan->edges.size())
+        {
+            plan->extent = {bounded ? maxX - minX + 2.0 * Margin : 2.0 * Margin, bounded ? maxY - minY + 2.0 * Margin : 2.0 * Margin};
+            if (! Valid(plan->extent))
+            {
+                Fail(FlowchartLayoutIssue::DiagramExtent);
+                return;
+            }
+            shift = {Margin - minX, Margin - minY};
+            Then(Stage::NormalizeNodes);
+            return;
+        }
+        const auto current = cursor++;
+        const auto overlaps = [](const FlowchartRect& a, const FlowchartRect& b) noexcept
+        {
+            return a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+        };
+        for (const bool from : {true, false})
+        {
+            const auto& cardinality = from ? graph->edges[current].fromCardinality : graph->edges[current].toCardinality;
+            if (cardinality.empty())
+                continue;
+            const auto& bounds = from ? plan->edges[current].fromCardinality : plan->edges[current].toCardinality;
+            for (const auto& node : plan->nodes)
+                if (overlaps(bounds, node.bounds))
+                {
+                    Fail(FlowchartLayoutIssue::DiagramExtent);
+                    return;
+                }
+            for (std::size_t other = 0u; other < plan->edges.size(); ++other)
+            {
+                const auto& candidate = plan->edges[other];
+                const auto& source = graph->edges[other];
+                if ((candidate.hasLabel && overlaps(bounds, candidate.label)) ||
+                    (!(other == current && from) && ! source.fromCardinality.empty() && overlaps(bounds, candidate.fromCardinality)) ||
+                    (!(other == current && ! from) && ! source.toCardinality.empty() && overlaps(bounds, candidate.toCardinality)))
+                {
+                    Fail(FlowchartLayoutIssue::DiagramExtent);
+                    return;
+                }
+            }
+        }
     }
     void Step()
     {
@@ -488,6 +544,7 @@ struct NativeFlowchartLayout::Preparation
             case Stage::Routes: Routes(); break;
             case Stage::TransformNodes: TransformNodes(); break;
             case Stage::TransformEdges: TransformEdges(); break;
+            case Stage::CardinalityCheck: CardinalityCheck(); break;
             case Stage::NormalizeNodes:
                 if (cursor == plan->nodes.size())
                 {
@@ -509,6 +566,8 @@ struct NativeFlowchartLayout::Preparation
                 for (auto& point : plan->edges[cursor].arrow)
                     Shift(point, shift);
                 Shift(plan->edges[cursor].label, shift);
+                Shift(plan->edges[cursor].fromCardinality, shift);
+                Shift(plan->edges[cursor].toCardinality, shift);
                 ++cursor;
                 break;
             case Stage::Finish: done = true; break;
@@ -519,7 +578,9 @@ NativeFlowchartLayout::NativeFlowchartLayout() noexcept  = default;
 NativeFlowchartLayout::~NativeFlowchartLayout() noexcept = default;
 void NativeFlowchartLayout::Begin(std::shared_ptr<const FlowchartModel> graph,
                                   std::span<const FlowchartSize> nodeLabels,
-                                  std::span<const FlowchartSize> edgeLabels)
+                                  std::span<const FlowchartSize> edgeLabels,
+                                  std::span<const FlowchartSize> fromCardinalities,
+                                  std::span<const FlowchartSize> toCardinalities)
 {
     if (! graph || graph->outcome != FlowchartOutcome::Prepared || graph->nodes.size() > NativeFlowchartParser::MaximumNodes ||
         graph->edges.size() > NativeFlowchartParser::MaximumEdges || nodeLabels.size() != graph->nodes.size() || edgeLabels.size() != graph->edges.size())
@@ -541,7 +602,19 @@ void NativeFlowchartLayout::Begin(std::shared_ptr<const FlowchartModel> graph,
     for (const auto value : edgeLabels)
         if (! Valid(value))
             throw std::invalid_argument("Invalid flowchart edge measurements");
-    auto next    = std::make_unique<Preparation>(std::move(graph), nodeLabels, edgeLabels);
+    if ((! fromCardinalities.empty() && fromCardinalities.size() != graph->edges.size()) ||
+        (! toCardinalities.empty() && toCardinalities.size() != graph->edges.size()))
+        throw std::invalid_argument("Invalid class cardinality measurements");
+    for (const auto& edge : graph->edges)
+        if ((! edge.fromCardinality.empty() && fromCardinalities.empty()) || (! edge.toCardinality.empty() && toCardinalities.empty()))
+            throw std::invalid_argument("Missing class cardinality measurements");
+    for (const auto& value : fromCardinalities)
+        if (! Valid(value))
+            throw std::invalid_argument("Invalid source cardinality measurement");
+    for (const auto& value : toCardinalities)
+        if (! Valid(value))
+            throw std::invalid_argument("Invalid target cardinality measurement");
+    auto next    = std::make_unique<Preparation>(std::move(graph), nodeLabels, edgeLabels, fromCardinalities, toCardinalities);
     preparation_ = std::move(next);
 }
 MarkdownAdvance NativeFlowchartLayout::Advance(std::size_t maximumWorkUnits)

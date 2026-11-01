@@ -595,6 +595,17 @@ template <typename Check> inline void CheckFamilyGrammar(Check&& check)
     const auto limitedCompartments = Complete(parser);
     check(limitedCompartments->outcome == FlowchartOutcome::Capacity && limitedCompartments->source == tooMany && limitedCompartments->nodes.empty(),
           "excess class compartments preserve source and discard staged graph");
+    parser.Begin(L"classDiagram\nInterface \"1\" <|.. \"0..*\" Implementation : uses\n", 1u);
+    const auto multiplicities = Complete(parser);
+    check(multiplicities->outcome == FlowchartOutcome::Prepared && multiplicities->edges.size() == 1u &&
+              multiplicities->edges[0].from == 1u && multiplicities->edges[0].to == 0u &&
+              multiplicities->edges[0].fromCardinality == L"0..*" && multiplicities->edges[0].toCardinality == L"1" &&
+              multiplicities->edges[0].label == L"uses",
+          "class cardinalities follow their original endpoints when relations reverse");
+    parser.Begin(L"classDiagram\nA \"invalid!\" --> B\n", 1u);
+    const auto invalidMultiplicity = Complete(parser);
+    check(invalidMultiplicity->outcome == FlowchartOutcome::Unsupported && invalidMultiplicity->nodes.empty(),
+          "unsupported cardinality preserves source without a partial graph");
     for (const auto& expected : familyGrammarExpectations)
     {
         parser.Begin(expected.source, 1u);

@@ -548,6 +548,72 @@ template <typename Check> inline void EdgeLabelRasterOracle(Check&& check)
     check(capsuleRaster, "stadium raster has rounded capsule corners, a curved top boundary, and filled center rather than rectangular corners");
 }
 
+template <typename Check> inline void CardinalityRaster(Check&& check)
+{
+    const auto initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+    if (FAILED(initialized) && initialized != RPC_E_CHANGED_MODE)
+        THROW_IF_FAILED(initialized);
+    const auto apartment = wil::scope_exit([&]() noexcept
+    {
+        if (SUCCEEDED(initialized))
+            CoUninitialize();
+    });
+    const auto drawing = DrawingFactory();
+    const auto write = WriteFactory();
+    wil::com_ptr<IWICImagingFactory> imaging;
+    THROW_IF_FAILED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(imaging.put())));
+    for (const auto direction : {L"TD", L"BT", L"LR", L"RL"})
+    {
+        const auto source = std::wstring(L"classDiagram\ndirection ") + direction + L"\nA \"1\" --> \"0..*\" B\n";
+        const auto graph = FlowchartLayoutTests::Graph(source);
+        LayoutOptions options;
+        PreparedFlowchart prepared;
+        prepared.Begin(write.get(), drawing.get(), graph, options, {1u, 1u});
+        Complete(prepared, check);
+        const auto geometry = prepared.Geometry();
+        check(prepared.Ready() && geometry && geometry->issue == FlowchartLayoutIssue::None && geometry->edges.size() == 1u,
+              "endpoint cardinalities prepare in each graph orientation");
+        if (! geometry || geometry->issue != FlowchartLayoutIssue::None || geometry->edges.size() != 1u)
+            continue;
+        constexpr UINT width = 600u, height = 300u, stride = width * 4u;
+        wil::com_ptr<IWICBitmap> bitmap;
+        THROW_IF_FAILED(imaging->CreateBitmap(width, height, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnLoad, bitmap.put()));
+        wil::com_ptr<ID2D1RenderTarget> target;
+        const auto properties = D2D1::RenderTargetProperties(D2D1_RENDER_TARGET_TYPE_SOFTWARE,
+                                                               D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
+        THROW_IF_FAILED(drawing->CreateWicBitmapRenderTarget(bitmap.get(), properties, target.put()));
+        target->SetTextAntialiasMode(D2D1_TEXT_ANTIALIAS_MODE_GRAYSCALE);
+        wil::com_ptr<ID2D1SolidColorBrush> text, stroke, fill;
+        THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black), text.put()));
+        THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Blue), stroke.put()));
+        THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White), fill.put()));
+        target->BeginDraw();
+        target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+        check(prepared.Draw(target.get(), text.get(), stroke.get(), fill.get(), {}), "cardinality fixture paints");
+        THROW_IF_FAILED(target->EndDraw());
+        std::vector<BYTE> pixels(stride * height);
+        THROW_IF_FAILED(bitmap->CopyPixels(nullptr, stride, static_cast<UINT>(pixels.size()), pixels.data()));
+        for (const auto rect : {geometry->edges[0].fromCardinality, geometry->edges[0].toCardinality})
+        {
+            std::size_t ink{};
+            for (UINT y = static_cast<UINT>(rect.y); y < std::min(height, static_cast<UINT>(std::ceil(rect.y + rect.height))); ++y)
+                for (UINT x = static_cast<UINT>(rect.x); x < std::min(width, static_cast<UINT>(std::ceil(rect.x + rect.width))); ++x)
+                {
+                    const auto at = static_cast<std::size_t>(y) * stride + x * 4u;
+                    ink += pixels[at] < 80u && pixels[at + 1u] < 80u && pixels[at + 2u] < 80u;
+                }
+            check(ink != 0u, "each independent cardinality region contains actual text ink");
+        }
+    }
+    const auto crowded = FlowchartLayoutTests::Graph(L"classDiagram\nA \"1\" --> B\n");
+    NativeFlowchartLayout layout;
+    const std::array<FlowchartSize, 2u> nodes{{{20.0, 20.0}, {20.0, 20.0}}};
+    const std::array<FlowchartSize, 1u> edges{{{0.0, 0.0}}}, from{{{100.0, 1000.0}}}, to{{{0.0, 0.0}}};
+    layout.Begin(crowded, nodes, edges, from, to);
+    const auto rejected = FlowchartLayoutTests::Complete(layout, check);
+    check(rejected->issue == FlowchartLayoutIssue::DiagramExtent && rejected->nodes.empty() && rejected->edges.empty(),
+          "colliding endpoint labels fail without publishing partial geometry");
+}
 template <typename Check> inline void LineStyleRasterOracle(Check&& check)
 {
     wil::com_ptr<IWICImagingFactory> imaging;

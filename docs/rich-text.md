@@ -1456,3 +1456,11 @@ A member containing `(` starts a method group; other members are attributes.
 At most 16 groups per class are admitted. Additional groups preserve the exact
 source with a capacity diagnostic. Separators use measured text line positions,
 including wrapped labels and bidi layout, and remain within the class box.
+
+Class relationship endpoints may carry quoted cardinalities of at most 32 ASCII
+units drawn from digits, space, `*`, `.`, `+`, `-` and `?`, for example
+`A "1" --> "0..*" B`. The labels follow their original endpoints when a
+relation reverses, are independently measured, painted beside those endpoints
+and included in the accessible graph alternative. If a cardinality label would
+overlap a node or another label, native geometry fails closed and the editor
+retains the original source with its geometry diagnostic.

@@ -45,6 +45,13 @@ wil::com_ptr<ID2D1PathGeometry> Path(ID2D1Factory* factory, std::span<const Flow
 } // namespace
 struct PreparedFlowchart::State
 {
+    static bool HasCardinality(const FlowchartModel& value) noexcept
+    {
+        for (const auto& edge : value.edges)
+            if (! edge.fromCardinality.empty() || ! edge.toCardinality.empty())
+                return true;
+        return false;
+    }
     State(IDWriteFactory* inputWrite,
           ID2D1Factory* inputDrawing,
           std::shared_ptr<const FlowchartModel> inputGraph,
@@ -55,10 +62,15 @@ struct PreparedFlowchart::State
           drawing(inputDrawing),
           options(inputOptions),
           epoch(inputEpoch),
+          hasCardinality(HasCardinality(*graph)),
           nodeLabels(graph->nodes.size()),
           edgeLabels(graph->edges.size()),
+          fromCardinalities(hasCardinality ? graph->edges.size() : 0u),
+          toCardinalities(hasCardinality ? graph->edges.size() : 0u),
           nodeSizes(graph->nodes.size()),
           edgeSizes(graph->edges.size()),
+          fromCardinalitySizes(hasCardinality ? graph->edges.size() : 0u),
+          toCardinalitySizes(hasCardinality ? graph->edges.size() : 0u),
           nodePaths(graph->nodes.size()),
           arrowPaths(graph->edges.size())
     {
@@ -68,10 +80,11 @@ struct PreparedFlowchart::State
     wil::com_ptr<ID2D1Factory> drawing;
     LayoutOptions options;
     FlowchartResourceEpoch epoch{};
+    bool hasCardinality{};
     wil::com_ptr<IDWriteTextFormat> format;
     wil::com_ptr<ID2D1StrokeStyle> dottedStyle;
-    std::vector<FlowchartLabel> nodeLabels, edgeLabels;
-    std::vector<FlowchartSize> nodeSizes, edgeSizes;
+    std::vector<FlowchartLabel> nodeLabels, edgeLabels, fromCardinalities, toCardinalities;
+    std::vector<FlowchartSize> nodeSizes, edgeSizes, fromCardinalitySizes, toCardinalitySizes;
     std::vector<wil::com_ptr<ID2D1PathGeometry>> nodePaths, arrowPaths;
     std::shared_ptr<const FlowchartLayoutPlan> geometry;
     bool labelCapacity{};
@@ -201,7 +214,9 @@ LayoutPreparationStatus PreparedFlowchart::Begin(IDWriteFactory* write,
                 throw std::invalid_argument("Invalid class compartment offset");
     }
     for (const auto& edge : graph->edges)
-        if (edge.label.size() > NativeFlowchartParser::MaximumLabelUnits || edge.from >= graph->nodes.size() || edge.to >= graph->nodes.size() ||
+        if (edge.label.size() > NativeFlowchartParser::MaximumLabelUnits || edge.fromCardinality.size() > 32u || edge.toCardinality.size() > 32u ||
+            ((! edge.fromCardinality.empty() || ! edge.toCardinality.empty()) && graph->family != NativeDiagramFamily::Class) ||
+            edge.from >= graph->nodes.size() || edge.to >= graph->nodes.size() ||
             edge.minimumRanks == 0u || edge.minimumRanks > NativeFlowchartParser::MaximumLinkRanks || edge.relation < FlowchartRelation::Line ||
             edge.relation > FlowchartRelation::Realization || edge.arrow != (edge.relation != FlowchartRelation::Line))
             throw std::invalid_argument("Invalid native flowchart edge");
@@ -236,20 +251,31 @@ LayoutAdvance PreparedFlowchart::Advance(LayoutWorkBudget budget)
                 case Preparation::Stage::Labels:
                 {
                     const auto nodes = state.graph->nodes.size();
-                    if (work.cursor == nodes + state.graph->edges.size())
+                    const auto edges = state.graph->edges.size();
+                    if (work.cursor == nodes + (state.hasCardinality ? 3u : 1u) * edges)
                     {
                         work.stage = Preparation::Stage::BeginGeometry;
                         break;
                     }
-                    const auto node   = work.cursor < nodes;
-                    const auto index  = node ? work.cursor : work.cursor - nodes;
-                    const auto& label = node ? state.graph->nodes[index].label : state.graph->edges[index].label;
+                    const auto node = work.cursor < nodes;
+                    const auto group = node ? 0u : (work.cursor - nodes) / edges;
+                    const auto index = node ? work.cursor : (work.cursor - nodes) % edges;
+                    const auto* edge = node ? nullptr : &state.graph->edges[index];
+                    const auto& label = node ? state.graph->nodes[index].label
+                                        : group == 0u ? edge->label
+                                        : group == 1u ? edge->fromCardinality : edge->toCardinality;
                     if (node || ! label.empty())
                     {
                         if (result.layoutsPrepared == budget.maximumLayouts)
                             return result;
                         ++result.layoutsPrepared;
-                        state.Label(label, node ? state.nodeLabels[index] : state.edgeLabels[index], node ? state.nodeSizes[index] : state.edgeSizes[index]);
+                        auto& preparedLabel = node ? state.nodeLabels[index]
+                                              : group == 0u ? state.edgeLabels[index]
+                                              : group == 1u ? state.fromCardinalities[index] : state.toCardinalities[index];
+                        auto& measuredSize = node ? state.nodeSizes[index]
+                                             : group == 0u ? state.edgeSizes[index]
+                                             : group == 1u ? state.fromCardinalitySizes[index] : state.toCardinalitySizes[index];
+                        state.Label(label, preparedLabel, measuredSize);
                         if (node)
                         {
                             auto& prepared = state.nodeLabels[index];
@@ -278,7 +304,7 @@ LayoutAdvance PreparedFlowchart::Advance(LayoutWorkBudget budget)
                         work.stage      = Preparation::Stage::Publish;
                         break;
                     }
-                    work.layout.Begin(state.graph, state.nodeSizes, state.edgeSizes);
+                    work.layout.Begin(state.graph, state.nodeSizes, state.edgeSizes, state.fromCardinalitySizes, state.toCardinalitySizes);
                     work.stage = Preparation::Stage::Geometry;
                     break;
                 case Preparation::Stage::Geometry:
@@ -483,6 +509,19 @@ bool PreparedFlowchart::Draw(ID2D1RenderTarget* target, ID2D1Brush* text, ID2D1B
     // Exterior corridors can cross other edges' label rectangles. Paint every
     // label last over its opaque backing, so no later route can obscure ink.
     for (std::size_t index = 0u; index < plan.edges.size(); ++index)
+    {
+        const auto drawCardinality = [&](const FlowchartLabel& prepared, FlowchartRect bounds) noexcept
+        {
+            if (! prepared.layout)
+                return;
+            target->FillRectangle(Rect(bounds), fill);
+            label(prepared, bounds);
+        };
+        if (state.hasCardinality)
+        {
+            drawCardinality(state.fromCardinalities[index], plan.edges[index].fromCardinality);
+            drawCardinality(state.toCardinalities[index], plan.edges[index].toCardinality);
+        }
         if (plan.edges[index].hasLabel)
         {
             auto background = Rect(plan.edges[index].label);
@@ -493,6 +532,7 @@ bool PreparedFlowchart::Draw(ID2D1RenderTarget* target, ID2D1Brush* text, ID2D1B
             target->FillRectangle(background, fill);
             label(state.edgeLabels[index], plan.edges[index].label);
         }
+    }
     return true;
 }
 } // namespace DxUi::RichText::Detail

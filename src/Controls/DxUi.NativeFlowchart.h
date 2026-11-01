@@ -99,7 +99,7 @@ struct FlowchartNode
 };
 struct FlowchartEdge
 {
-    FlowchartEdge() : label(0u, L' ')
+    FlowchartEdge() : label(0u, L' '), fromCardinality(0u, L' '), toCardinality(0u, L' ')
     {
     }
     FlowchartEdge(const FlowchartEdge&)            = default;
@@ -107,6 +107,7 @@ struct FlowchartEdge
     std::size_t from{}, to{};
     MarkdownRange source;
     std::wstring label;
+    std::wstring fromCardinality, toCardinality;
     FlowchartRelation relation{};
     FlowchartLineStyle style{};
     std::size_t minimumRanks{1u};

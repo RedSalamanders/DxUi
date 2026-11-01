@@ -804,6 +804,15 @@ struct SemanticBuilder::Preparation
                 return;
             }
             const auto& edge = graph.edges[work.cursor++];
+            if (! edge.fromCardinality.empty() || ! edge.toCardinality.empty())
+            {
+                const auto action = edge.relation == Detail::FlowchartRelation::Realization ? L" implements "
+                                    : edge.relation == Detail::FlowchartRelation::Inheritance ? L" inherits "
+                                    : edge.arrow ? L" \u2192 " : L" \u2014 ";
+                DiagramAlternative({id(edge.from), L" [", edge.fromCardinality, L"]", action, id(edge.to), L" [", edge.toCardinality,
+                                    L"] ", edge.label, L"; "});
+                return;
+            }
             if (edge.relation == Detail::FlowchartRelation::Inheritance || edge.relation == Detail::FlowchartRelation::Realization)
             {
                 const auto action = edge.relation == Detail::FlowchartRelation::Realization ? L" implements " : L" inherits ";
