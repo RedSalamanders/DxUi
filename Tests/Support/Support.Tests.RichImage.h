@@ -283,6 +283,38 @@ template <typename Check> inline void Core(Check&& check)
                   "TIFF EXIF metadata matches independent orientation pixels");
     }
     {
+        auto jpeg = Encode(factory.get(), GUID_ContainerFormatJpeg, source, 2u, 3u);
+        check(jpeg.size() > 2u && jpeg[0u] == 0xffu && jpeg[1u] == 0xd8u, "WIC encodes a real JPEG fixture");
+        std::shared_ptr<const RichImage> unrotated;
+        THROW_IF_FAILED(Decode(factory.get(), jpeg, unrotated));
+        constexpr std::array<BYTE, 36u> exif{0xffu, 0xe1u, 0u,    0x22u, 'E', 'x', 'i', 'f', 0u, 0u, 'I', 'I', 0x2au, 0u, 8u, 0u, 0u, 0u,
+                                             1u,    0u,    0x12u, 1u,    3u,  0u,  1u,  0u,  0u, 0u, 6u,  0u,  0u,    0u, 0u, 0u, 0u, 0u};
+        jpeg.insert(jpeg.begin() + 2, exif.begin(), exif.end());
+        wil::com_ptr<IWICStream> stream;
+        THROW_IF_FAILED(factory->CreateStream(stream.put()));
+        THROW_IF_FAILED(stream->InitializeFromMemory(jpeg.data(), static_cast<DWORD>(jpeg.size())));
+        wil::com_ptr<IWICBitmapDecoder> decoder;
+        THROW_IF_FAILED(factory->CreateDecoderFromStream(stream.get(), nullptr, WICDecodeMetadataCacheOnLoad, decoder.put()));
+        wil::com_ptr<IWICBitmapFrameDecode> frame;
+        THROW_IF_FAILED(decoder->GetFrame(0u, frame.put()));
+        wil::com_ptr<IWICMetadataQueryReader> metadata;
+        THROW_IF_FAILED(frame->GetMetadataQueryReader(metadata.put()));
+        wil::unique_prop_variant value;
+        THROW_IF_FAILED(metadata->GetMetadataByName(L"/app1/ifd/{ushort=274}", &value));
+        check(value.vt == VT_UI2 && value.uiVal == 6u, "WIC reads the actual JPEG APP1 orientation tag");
+        THROW_IF_FAILED(Decode(factory.get(), jpeg, output));
+        check(unrotated->Width() == 2u && unrotated->Height() == 3u && output->Width() == 3u && output->Height() == 2u,
+              "JPEG orientation six rotates the decoded dimensions");
+        for (unsigned y = 0u; y < 2u; ++y)
+            for (unsigned x = 0u; x < 3u; ++x)
+                for (unsigned channel = 0u; channel < 4u; ++channel)
+                {
+                    const auto actual          = std::to_integer<int>(output->Pixels()[(y * 3u + x) * 4u + channel]);
+                    const auto baselineChannel = std::to_integer<int>(unrotated->Pixels()[((2u - x) * 2u + y) * 4u + channel]);
+                    check(std::abs(actual - baselineChannel) <= 2, "rotated JPEG pixels match the independently decoded unoriented baseline");
+                }
+    }
+    {
         auto encoded = Encode(factory.get(), GUID_ContainerFormatTiff, source, 2u, 3u, 6u);
         check(encoded.size() >= 8u && encoded[0] == 'I' && encoded[1] == 'I', "metadata fixture uses little-endian TIFF");
         const auto read16 = [&](std::size_t at) { return unsigned(encoded[at]) | (unsigned(encoded[at + 1u]) << 8u); };
