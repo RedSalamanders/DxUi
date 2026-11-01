@@ -509,6 +509,34 @@ inline void MathWidthReflowAndTargetReplacement()
     const auto taggedBounds = geometry.ElementBounds(static_cast<std::size_t>(taggedElement - nestedTag->Elements().begin()));
     Check(taggedBounds && taggedBounds->left > 0.f && taggedBounds->right <= options.widthDip && taggedBounds->right > taggedBounds->left,
           "tagged placeholder occupies the containing quote width after its indentation");
+    const auto coloredDocument = RichSemanticDocumentTests::Build(L"$a\\textcolor{blue}{+}b+\\fcolorbox{blue}{white}{hi}$\n", MarkdownProfile::RichMarkdown);
+    geometry.Clear();
+    geometry.Begin(factory.get(), coloredDocument, options, drawing.get(), {}, {}, target.get());
+    Complete(geometry);
+    Check(geometry.HasNativeObjects() && coloredDocument->Map().Display().find(L'\ufffc') != std::wstring_view::npos,
+          "authored-color equation publishes a native source-owned object");
+    const Detail::DiagramColorContext authorContext{D2D1::ColorF(D2D1::ColorF::Black), D2D1::ColorF(D2D1::ColorF::Black),
+                                                     D2D1::ColorF(D2D1::ColorF::White)};
+    const auto countBlue = [&](const Detail::DiagramColorContext* context)
+    {
+        target->BeginDraw();
+        target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+        geometry.Draw(target.get(), ink.get(), ink.get(), D2D1::Point2F(0.f, 0.f), 0.f, 512.f, nullptr, 1.f, nullptr, nullptr, context);
+        THROW_IF_FAILED(target->EndDraw());
+        constexpr UINT stride = 512u * 4u;
+        std::vector<BYTE> pixels(stride * 512u);
+        THROW_IF_FAILED(bitmap->CopyPixels(nullptr, stride, static_cast<UINT>(pixels.size()), pixels.data()));
+        std::size_t blue{};
+        for (std::size_t offset = 0u; offset < pixels.size(); offset += 4u)
+            if (pixels[offset] > 100u && pixels[offset + 2u] < 100u)
+                ++blue;
+        return blue;
+    };
+    const auto authoredBlue = countBlue(&authorContext);
+    Check(authoredBlue > 0u && countBlue(nullptr) == 0u, "math authored color paints in ordinary mode and yields to selection/high-contrast ink");
+    auto unknownBackdrop = authorContext;
+    unknownBackdrop.fill.a = .5f;
+    Check(countBlue(&unknownBackdrop) == 0u, "math author color falls back when backdrop opacity is unknown");
     const auto diagram = RichSemanticDocumentTests::Build(L"```mermaid\nflowchart LR\nA[Start] --> B[Finish]\n```\n", MarkdownProfile::RichMarkdown);
     geometry.Clear();
     geometry.Begin(factory.get(), diagram, options, nullptr, {}, {}, target.get());

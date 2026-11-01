@@ -45,12 +45,12 @@ static wil::com_ptr<IDWriteFactory> RichGeometryFactory()
     Hr(DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), reinterpret_cast<IUnknown**>(factory.put())), "rich resource DWrite factory");
     return factory;
 }
-static void TestMathKernPreparationAllocationFailures()
+static void TestMathPreparationAllocationFailures(const wchar_t* source)
 {
     using namespace DxUi::RichText;
     const auto factory    = RichGeometryFactory();
-    const auto expression = std::make_shared<const MathExpression>(ParseMath(L"1_1^1"));
-    Check(static_cast<bool>(*expression), "math kern allocation fixture has an admitted formula");
+    const auto expression = std::make_shared<const MathExpression>(ParseMath(source));
+    Check(static_cast<bool>(*expression), "math allocation fixture has an admitted formula");
     const auto prepare = [&]
     {
         auto result = std::make_unique<Detail::PreparedMath>(factory.get(), expression, 24.f);
@@ -76,7 +76,7 @@ static void TestMathKernPreparationAllocationFailures()
         const auto measured           = prepare();
         points                        = allocations;
     }
-    Check(points > 0u && points < 4096u, "math kern preparation has a bounded observed allocation schedule");
+    Check(points > 0u && points < 4096u, "math preparation has a bounded observed allocation schedule");
     for (size_t point = 0u; point < points; ++point)
     {
         bool failed{};
@@ -94,11 +94,16 @@ static void TestMathKernPreparationAllocationFailures()
             }
         }
         Check(failed && retained->Size().width == original.width && retained->Size().height == original.height,
-              "math kern preparation allocation failure preserves the prior complete formula");
+              "math preparation allocation failure preserves the prior complete formula");
         const auto retried = prepare();
         Check(retried->Size().width == original.width && retried->Size().height == original.height,
-              "math kern preparation retries after each allocation failure");
+              "math preparation retries after each allocation failure");
     }
+}
+static void TestMathKernPreparationAllocationFailures()
+{
+    TestMathPreparationAllocationFailures(L"1_1^1");
+    TestMathPreparationAllocationFailures(L"\\textcolor{white}{\\fcolorbox{blue}{black}{hello}}+\\color{blue}x^2");
 }
 static void TestRichPreparedLayoutClearAllocationBudget(bool trace = false)
 {

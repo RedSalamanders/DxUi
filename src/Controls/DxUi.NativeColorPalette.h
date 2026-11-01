@@ -31,7 +31,7 @@ class NativeColorPalette final
 public:
     NativeColorPalette(ID2D1RenderTarget* target, std::span<const std::uint32_t> colors) : target_(target), entries_(0u)
     {
-        if (! target || colors.size() > 4096u)
+        if (! target || colors.size() > 8192u)
             throw std::invalid_argument("Invalid native color palette");
         entries_.reserve(colors.size());
         for (const auto color : colors)

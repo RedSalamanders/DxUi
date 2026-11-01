@@ -1,4 +1,5 @@
 #include "DxUi.NativeMathSymbols.h"
+#include "DxUi.NativeColor.h"
 #include <DxUi/RichDocument.h>
 #include <DxUi/RichMath.h>
 #include <algorithm>
@@ -694,12 +695,56 @@ class Parser
         }
         Reject(MathIssue::UnsupportedCommand);
     }
+    MathNode ColorCommand(std::wstring_view name, unsigned depth)
+    {
+        const auto color = Detail::ParseNativeColor(GroupText());
+        if (! color)
+            Reject(MathIssue::UnsupportedCommand);
+        auto label = std::wstring(name);
+        label += L':';
+        label += Detail::EncodeNativeColor(color.value());
+        if (name == L"fcolorbox")
+        {
+            const auto background = Detail::ParseNativeColor(GroupText());
+            if (! background)
+                Reject(MathIssue::UnsupportedCommand);
+            label += L':';
+            label += Detail::EncodeNativeColor(background.value());
+        }
+        if (name == L"textcolor")
+            return Make(MathKind::Style, std::move(label), {Atom(depth + 1u)});
+        auto text = GroupText(true);
+        if (text.find(L'$') != std::wstring::npos)
+            Reject(MathIssue::UnsupportedCommand);
+        auto body = Make(MathKind::Text, std::move(text));
+        body.italic = false;
+        return Make(MathKind::Accent, std::move(label), {std::move(body)});
+    }
+    void AppendColored(std::vector<MathNode>& output, std::wstring_view label, MathNode&& body)
+    {
+        if (body.kind != MathKind::Row)
+        {
+            output.push_back(Make(MathKind::Style, std::wstring(label), {std::move(body)}));
+            return;
+        }
+        for (auto& child : body.children)
+        {
+            if (child.kind == MathKind::Space)
+                output.push_back(std::move(child));
+            else if (child.kind == MathKind::Row)
+                AppendColored(output, label, std::move(child));
+            else
+                output.push_back(Make(MathKind::Style, std::wstring(label), {std::move(child)}));
+        }
+    }
     MathNode Command(unsigned depth)
     {
         const auto first = at;
         while (at < source.size() && Letter(source[at]))
             ++at;
         const auto name                                 = source.substr(first, at - first);
+        if (name == L"textcolor" || name == L"colorbox" || name == L"fcolorbox")
+            return ColorCommand(name, depth);
         static constexpr std::wstring_view structured[] = {
             L"not", L"frac", L"dfrac", L"tfrac", L"binom", L"dbinom", L"tbinom", L"overset", L"underset", L"stackrel", L"sqrt", L"substack", L"begin"};
         if (std::ranges::find(structured, name) != std::end(structured))
@@ -799,6 +844,19 @@ class Parser
                     }
                     continue;
                 }
+                if (declaration == L"color")
+                {
+                    if (depth >= MathMaximumGroupDepth)
+                        Reject(MathIssue::Capacity);
+                    at = end;
+                    const auto color = Detail::ParseNativeColor(GroupText());
+                    if (! color)
+                        Reject(MathIssue::UnsupportedCommand);
+                    auto label = std::wstring(L"textcolor:");
+                    label += Detail::EncodeNativeColor(color.value());
+                    AppendColored(children, label, Row(depth + 1u, grouped, cell, right, indexClose, stopBrace));
+                    return Make(MathKind::Row, L"", std::move(children));
+                }
                 if (declaration == L"displaystyle" || declaration == L"textstyle" || declaration == L"scriptstyle" || declaration == L"scriptscriptstyle" ||
                     declaration == L"tiny" || declaration == L"sixptsize" || declaration == L"scriptsize" || declaration == L"footnotesize" ||
                     declaration == L"small" || declaration == L"normalsize" || declaration == L"large" || declaration == L"Large" ||
@@ -873,6 +931,13 @@ class Parser
             }
             if (hasSub || hasSuper)
                 atom = Make(MathKind::Scripts, L"", {std::move(atom), std::move(sub), std::move(super)});
+            if (! hasSub && ! hasSuper && atom.kind == MathKind::Style && atom.text.starts_with(L"textcolor:") && atom.children.size() == 1u &&
+                atom.children[0].kind == MathKind::Row)
+            {
+                const auto label = std::wstring(atom.text);
+                AppendColored(children, label, std::move(atom.children[0]));
+                continue;
+            }
             if (atom.kind == MathKind::Text && atom.atomClass == MathAtomClass::Ordinary && ! children.empty() && children.back().kind == MathKind::Text &&
                 children.back().atomClass == MathAtomClass::Ordinary && children.back().italic == atom.italic)
                 children.back().text.append(atom.text);

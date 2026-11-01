@@ -151,6 +151,32 @@ inline std::wstring Matrix(unsigned rows, unsigned columns)
 template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
 {
     MathFontTableTests::Run(check);
+    check(Detail::ParseNativeColor(L"#AbC") == 0xaabbccu && Detail::ParseNativeColor(L"rebeccaPurple") == 0x663399u &&
+              Detail::ParseNativeColor(L"DarkGrey") == 0xa9a9a9u && ! Detail::ParseNativeColor(L"#xyz") &&
+              ! Detail::ParseNativeColor(L"#12345678"),
+          "native color admission handles named colors, case, short hex and rejects unsupported alpha or malformed input");
+    for (const auto source : {L"a\\textcolor{blue}{+}b", L"\\color{blue}{2+}3", L"\\colorbox{black}{plain text}",
+                              L"\\fcolorbox{white}{black}{plain text}", L"\\textcolor{red}{x_1}"})
+        check(static_cast<bool>(ParseMath(source)), "bounded author-color syntax parses");
+    for (const auto source : {L"\\color{unknownname}x", L"\\textcolor{#12345678}{x}", L"\\colorbox{blue}", L"\\fcolorbox{red}{blue}"})
+        check(! ParseMath(source), "malformed or unsupported author colors reject to source");
+    const auto compareColoredSpacing = [&](std::wstring_view source, std::wstring_view expected)
+    {
+        const auto left = std::make_shared<const MathExpression>(ParseMath(source));
+        const auto right = std::make_shared<const MathExpression>(ParseMath(expected));
+        check(static_cast<bool>(*left) && static_cast<bool>(*right), "colored spacing fixtures parse");
+        Detail::PreparedMath colored(factory, left, 24.f), plain(factory, right, 24.f);
+        while (! colored.Advance()) {}
+        while (! plain.Advance()) {}
+        check(std::abs(colored.Size().width - plain.Size().width) < .01f && colored.GlyphLayouts().size() == plain.GlyphLayouts().size(),
+              "color wrappers retain uncolored TeX atom spacing");
+        if (colored.GlyphLayouts().size() == plain.GlyphLayouts().size())
+            for (std::size_t i = 0u; i < colored.GlyphLayouts().size(); ++i)
+                check(std::abs(colored.GlyphLayouts()[i].origin.x - plain.GlyphLayouts()[i].origin.x) < .01f,
+                      "colored atoms retain their uncolored SDK origin");
+    };
+    compareColoredSpacing(L"a\\textcolor{blue}{+}b", L"a+b");
+    compareColoredSpacing(L"\\color{blue}{2+}3", L"2+3");
     check(Detail::OptionalMathFontOperation(S_OK) && ! Detail::OptionalMathFontOperation(DWRITE_E_UNSUPPORTEDOPERATION),
           "optional math font operation falls back only for unsupported operations");
     bool outOfMemoryPropagated = false;

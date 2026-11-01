@@ -1,5 +1,7 @@
 #pragma once
 #include "DxUi.MathFontTable.h"
+#include "DxUi.NativeColor.h"
+#include "DxUi.NativeColorPalette.h"
 #include <DxUi/Configuration.h>
 #include <DxUi/RichDocument.h>
 #include <DxUi/RichMath.h>
@@ -25,6 +27,10 @@
 
 namespace DxUi::RichText::Detail
 {
+struct MathColorContext
+{
+    D2D1_COLOR_F text{}, fill{};
+};
 #if DXUI_ENABLE_DIAGNOSTICS
 // Private test seam for preserving HRESULT classification from GetLineMetrics.
 extern thread_local HRESULT testRichMathLineMetricsFailure;
@@ -229,6 +235,19 @@ inline bool SameMathFontFile(IDWriteFontFace* left, IDWriteFontFace* right)
 // child boxes. Draw is read-only and performs no layout or allocation.
 class PreparedMath final
 {
+    static constexpr std::uint32_t NoColor = 0xffffffffu;
+    static std::optional<std::uint32_t> ColorArgument(std::wstring_view text, std::wstring_view prefix) noexcept
+    {
+        if (! text.starts_with(prefix) || text.size() != prefix.size() + 6u)
+            return std::nullopt;
+        return ParseNativeColor(text.substr(prefix.size()));
+    }
+    static bool ColorBox(std::wstring_view text) noexcept
+    {
+        return ColorArgument(text, L"colorbox:").has_value() ||
+               (text.starts_with(L"fcolorbox:") && text.size() == 23u && text[16u] == L':' &&
+                ParseNativeColor(text.substr(10u, 6u)).has_value() && ParseNativeColor(text.substr(17u, 6u)).has_value());
+    }
     struct Extent
     {
         float width{}, above{}, below{};
@@ -324,6 +343,16 @@ class PreparedMath final
         unsigned scriptLevel{};
         bool display{};
         float subKern{}, superKern{}, scriptLeftPad{};
+        std::uint32_t color{NoColor};
+    };
+    enum class PaintKind { Glyph, Line, Variant, Background };
+    struct PaintOperation
+    {
+        PaintKind kind{};
+        std::size_t index{}, background{std::numeric_limits<std::size_t>::max()};
+        std::uint32_t color{NoColor};
+        D2D1_RECT_F rectangle{};
+        std::uint32_t foreground{NoColor};
     };
     std::shared_ptr<const MathExpression> expression;
     wil::com_ptr<IDWriteFactory> factory;
@@ -333,6 +362,12 @@ class PreparedMath final
     std::vector<Box> boxes;
     std::vector<Line> lines;
     std::vector<VariantGlyph> variants;
+    std::vector<PaintOperation> paintOperations;
+    std::vector<std::uint32_t> colors;
+    std::uint32_t activeColor{NoColor};
+    std::size_t activeBackground{std::numeric_limits<std::size_t>::max()};
+    std::size_t backgroundCount{};
+    bool colored{};
     std::size_t cursor{};
     float font{}, axis{}, dpi{96.f};
     float scriptScale{.7f}, scriptScriptScale{.5f};
@@ -569,7 +604,8 @@ class PreparedMath final
                 case MathKind::Accent:
                     if (node.text != L"overline" && node.text != L"underline" && node.text != L"bar" && node.text != L"hat" && node.text != L"widehat" &&
                         node.text != L"tilde" && node.text != L"widetilde" && node.text != L"vec" && node.text != L"dot" && node.text != L"ddot" &&
-                        node.text != L"boxed" && node.text != L"cancel" && node.text != L"bcancel" && node.text != L"xcancel" && node.text != L"sout" && node.text != L"phase" && node.text != L"angl")
+                        node.text != L"boxed" && node.text != L"cancel" && node.text != L"bcancel" && node.text != L"xcancel" && node.text != L"sout" && node.text != L"phase" && node.text != L"angl" &&
+                        ! ColorBox(node.text))
                         throw std::length_error("Invalid mathematical accent");
                     if (node.children.size() != 1u)
                         throw std::length_error("Invalid mathematical unary node");
@@ -582,7 +618,8 @@ class PreparedMath final
                         node.text != L"mathinner" && node.text != L"displaystyle" && node.text != L"textstyle" && node.text != L"scriptstyle" &&
                         node.text != L"scriptscriptstyle" && node.text != L"tiny" && node.text != L"sixptsize" && node.text != L"scriptsize" &&
                         node.text != L"footnotesize" && node.text != L"small" && node.text != L"normalsize" && node.text != L"large" &&
-                        node.text != L"Large" && node.text != L"LARGE" && node.text != L"huge" && node.text != L"Huge")
+                        node.text != L"Large" && node.text != L"LARGE" && node.text != L"huge" && node.text != L"Huge" &&
+                        ! ColorArgument(node.text, L"textcolor:"))
                         throw std::length_error("Invalid mathematical style");
                     if (node.children.size() != 1u)
                         throw std::length_error("Invalid mathematical unary node");
@@ -632,10 +669,29 @@ class PreparedMath final
     {
         return shape != L'.';
     }
-    std::size_t Flatten(const MathNode& node, float size, bool bold, bool italic, bool forceItalic, bool display, unsigned scriptLevel, int namedSizeIndex = -1)
+    std::size_t Flatten(const MathNode& node, float size, bool bold, bool italic, bool forceItalic, bool display, unsigned scriptLevel,
+                        int namedSizeIndex = -1, std::uint32_t foreground = NoColor)
     {
         const auto index = boxes.size();
         boxes.push_back({&node, 0u, 0u, std::numeric_limits<std::size_t>::max(), {}, 0.f, node.atomClass, size, scriptLevel, display});
+        boxes[index].color = foreground;
+        if (const auto color = node.kind == MathKind::Style ? ColorArgument(node.text, L"textcolor:") : std::nullopt)
+        {
+            colored = true;
+            foreground = color.value();
+            colors.push_back(foreground);
+        }
+        if (node.kind == MathKind::Accent && ColorBox(node.text))
+        {
+            colored = true;
+            if (node.text.starts_with(L"colorbox:"))
+                colors.push_back(ParseNativeColor(std::wstring_view(node.text).substr(9u)).value());
+            else
+            {
+                colors.push_back(ParseNativeColor(std::wstring_view(node.text).substr(10u, 6u)).value());
+                colors.push_back(ParseNativeColor(std::wstring_view(node.text).substr(17u, 6u)).value());
+            }
+        }
         if (node.kind == MathKind::Text)
         {
             if (node.text.empty())
@@ -755,7 +811,7 @@ class PreparedMath final
             }
             else if (node.kind == MathKind::Delimiter)
                 childSize = size;
-            Flatten(child, childSize, childBold, childItalic, childForceItalic, childDisplay, childLevel, childNamedSize);
+            Flatten(child, childSize, childBold, childItalic, childForceItalic, childDisplay, childLevel, childNamedSize, foreground);
         }
         boxes[index].firstChild = firstChild;
         boxes[index].endChild   = boxes.size();
@@ -1071,7 +1127,8 @@ class PreparedMath final
                     box.extent.width += node.text == L"phase" ? (box.extent.above + box.extent.below) * .5f + pad : pad;
                     continue;
                 }
-                if (node.text == L"boxed" || node.text == L"cancel" || node.text == L"bcancel" || node.text == L"xcancel" || node.text == L"sout")
+                if (node.text == L"boxed" || node.text == L"cancel" || node.text == L"bcancel" || node.text == L"xcancel" || node.text == L"sout" ||
+                    ColorBox(node.text))
                 {
                     const float pad = std::max(1.f, box.size * .12f);
                     box.extent.width += 2.f * pad;
@@ -1152,6 +1209,8 @@ class PreparedMath final
     void Stroke(float x1, float y1, float x2, float y2, float thickness)
     {
         lines.push_back({{x1, y1}, {x2, y2}, thickness});
+        if (colored)
+            paintOperations.push_back({PaintKind::Line, lines.size() - 1u, activeBackground, activeColor, {}});
     }
     bool AddVerticalAssembly(
         const MathFontTable& table, std::size_t construction, std::uint32_t minimum, float x, float top, float bottom, float width, float size)
@@ -1208,7 +1267,11 @@ class PreparedMath final
                 return false;
             staged[index] = {part.part.glyph, originX, baseline, size, scaleX, inkLeft, inkTop, partWidth, inkHeight};
         }
+        const auto first = variants.size();
         variants.insert(variants.end(), staged.begin(), staged.begin() + static_cast<std::ptrdiff_t>(plan->count));
+        if (colored)
+            for (auto index = first; index < variants.size(); ++index)
+                paintOperations.push_back({PaintKind::Variant, index, activeBackground, activeColor, {}});
         return true;
     }
     bool AddVerticalVariant(wchar_t shape, float x, float top, float bottom, float width, float size)
@@ -1249,6 +1312,8 @@ class PreparedMath final
         const float baseline = (top + bottom - height) / 2.f + inkAbove;
         const float originX  = left - static_cast<float>(metrics.leftSideBearing) * units * scaleX;
         variants.push_back({glyph, originX, baseline, size, scaleX, left, baseline - inkAbove, inkWidth * scaleX, height});
+        if (colored)
+            paintOperations.push_back({PaintKind::Variant, variants.size() - 1u, activeBackground, activeColor, {}});
         return true;
     }
     bool AddHorizontalAccent(wchar_t shape, float x, float top, float bottom, float width, float size)
@@ -1326,7 +1391,11 @@ class PreparedMath final
                 return false;
             staged[index] = {glyph, origin, baseline, size, scaleX, left, partTop, partWidth, partHeight};
         }
+        const auto first = variants.size();
         variants.insert(variants.end(), staged.begin(), staged.begin() + static_cast<std::ptrdiff_t>(count));
+        if (colored)
+            for (auto index = first; index < variants.size(); ++index)
+                paintOperations.push_back({PaintKind::Variant, index, activeBackground, activeColor, {}});
         return true;
     }
     void Fence(wchar_t shape, float x, float top, float bottom, float width, float thickness, float size)
@@ -1410,6 +1479,9 @@ class PreparedMath final
     {
         const auto& box  = boxes[index];
         const auto& node = *box.node;
+        const auto previousColor = activeColor;
+        activeColor = box.color;
+        const auto restoreColor = wil::scope_exit([&]() noexcept { activeColor = previousColor; });
         x += box.leftOffset;
         const float stroke = std::max(.5f, box.size / 20.f);
         using enum MathKind;
@@ -1419,6 +1491,8 @@ class PreparedMath final
                 return;
             auto& glyph  = glyphs[box.glyph];
             glyph.origin = {x, baseline - glyph.extent.above};
+            if (colored)
+                paintOperations.push_back({PaintKind::Glyph, box.glyph, activeBackground, activeColor, {}});
             return;
         }
         if (node.kind == Space)
@@ -1509,6 +1583,30 @@ class PreparedMath final
         }
         if (node.kind == Accent && node.children.size() == 1u)
         {
+            if (ColorBox(node.text))
+            {
+                const float pad = std::max(1.f, box.size * .12f);
+                const bool framed = node.text.starts_with(L"fcolorbox:");
+                const auto background = ParseNativeColor(std::wstring_view(node.text).substr(framed ? 17u : 9u, 6u)).value();
+                const auto fillIndex = backgroundCount++;
+                paintOperations.push_back({PaintKind::Background, fillIndex, activeBackground, background,
+                                           D2D1::RectF(x, baseline - box.extent.above, x + box.extent.width, baseline + box.extent.below), activeColor});
+                const auto previousBackground = activeBackground;
+                activeBackground = fillIndex;
+                Place(ChildAt(index, 0u), x + pad, baseline);
+                if (framed)
+                {
+                    activeColor = ParseNativeColor(std::wstring_view(node.text).substr(10u, 6u)).value();
+                    const float left = x + stroke * .5f, right = x + box.extent.width - stroke * .5f;
+                    const float top = baseline - box.extent.above + stroke * .5f, bottom = baseline + box.extent.below - stroke * .5f;
+                    Stroke(left, top, right, top, stroke);
+                    Stroke(right, top, right, bottom, stroke);
+                    Stroke(right, bottom, left, bottom, stroke);
+                    Stroke(left, bottom, left, top, stroke);
+                }
+                activeBackground = previousBackground;
+                return;
+            }
             if (node.text == L"phase" || node.text == L"angl")
             {
                 const float pad = std::max(1.f, box.size * .12f);
@@ -1685,6 +1783,10 @@ class PreparedMath final
     void Finalize()
     {
         lines.clear();
+        paintOperations.clear();
+        activeColor = NoColor;
+        activeBackground = std::numeric_limits<std::size_t>::max();
+        backgroundCount = 0u;
         MeasureBoxes();
         extent = boxes.empty() ? Extent{} : boxes[0u].extent;
         if (extent.width > 65536.f || extent.above + extent.below > 65536.f || ! std::isfinite(extent.width + extent.above + extent.below))
@@ -1692,6 +1794,8 @@ class PreparedMath final
         lines.reserve(boxes.size() * 6u);
         variants.reserve(boxes.size() * 2u);
         Place(0u, 0.f, extent.above);
+        if (paintOperations.size() > 32768u)
+            throw std::length_error("Mathematical paint capacity exceeded");
         float left{}, right = extent.width, top{}, bottom = extent.above + extent.below;
         for (const auto& glyph : glyphs)
         {
@@ -1738,6 +1842,14 @@ class PreparedMath final
             line.last.x += shiftX;
             line.last.y += shiftY;
         }
+        for (auto& operation : paintOperations)
+            if (operation.kind == PaintKind::Background)
+            {
+                operation.rectangle.left += shiftX;
+                operation.rectangle.right += shiftX;
+                operation.rectangle.top += shiftY;
+                operation.rectangle.bottom += shiftY;
+            }
         extent    = {width, above, below};
         finalized = true;
     }
@@ -1757,6 +1869,8 @@ public:
           boxes(0u),
           lines(0u),
           variants(0u),
+          paintOperations(0u),
+          colors(0u),
           font(size),
           dpi(deviceDpi),
           displayStyle(display)
@@ -1895,23 +2009,101 @@ public:
     {
         return lines;
     }
-    void Draw(ID2D1RenderTarget* target, ID2D1Brush* brush, D2D1_POINT_2F origin, float scale) const noexcept
+    std::span<const std::uint32_t> Colors() const noexcept { return colors; }
+    void Draw(ID2D1RenderTarget* target, ID2D1Brush* brush, D2D1_POINT_2F origin, float scale,
+              const NativeColorPalette* palette = nullptr, const MathColorContext* context = nullptr) const noexcept
     {
         D2D1_MATRIX_3X2_F previous;
         target->GetTransform(&previous);
         target->SetTransform(D2D1::Matrix3x2F::Scale(scale, scale) * D2D1::Matrix3x2F::Translation(origin.x, origin.y) * previous);
-        for (const auto& glyph : glyphs)
-            target->DrawTextLayout(glyph.origin, glyph.layout.get(), brush);
-        for (const auto& line : lines)
-            target->DrawLine(line.first, line.last, brush, line.thickness);
-        for (const auto& variant : variants)
+        const auto drawVariant = [&](const VariantGlyph& variant, ID2D1Brush* selected)
         {
             D2D1_MATRIX_3X2_F current;
             target->GetTransform(&current);
             target->SetTransform(D2D1::Matrix3x2F::Scale(variant.scaleX, 1.f, D2D1::Point2F(variant.x, variant.baseline)) * current);
             const DWRITE_GLYPH_RUN run{mathData->face.get(), variant.fontSize, 1u, &variant.glyph, nullptr, nullptr, FALSE, 0u};
-            target->DrawGlyphRun(D2D1::Point2F(variant.x, variant.baseline), &run, brush, DWRITE_MEASURING_MODE_NATURAL);
+            target->DrawGlyphRun(D2D1::Point2F(variant.x, variant.baseline), &run, selected, DWRITE_MEASURING_MODE_NATURAL);
             target->SetTransform(current);
+        };
+        if (! colored)
+        {
+            for (const auto& glyph : glyphs)
+                target->DrawTextLayout(glyph.origin, glyph.layout.get(), brush);
+            for (const auto& line : lines)
+                target->DrawLine(line.first, line.last, brush, line.thickness);
+            for (const auto& variant : variants)
+                drawVariant(variant, brush);
+        }
+        else
+        {
+            struct Resolved { std::uint32_t background{NoColor}, foreground{NoColor}; };
+            std::array<Resolved, MathMaximumNodes> backgrounds{};
+            const bool enabled = context && context->fill.a >= 1.f && palette && palette->Ready() && palette->Matches(target);
+            const auto rgb = [](std::uint32_t value) noexcept
+            {
+                return D2D1::ColorF(static_cast<float>((value >> 16u) & 255u) / 255.f, static_cast<float>((value >> 8u) & 255u) / 255.f,
+                                    static_cast<float>(value & 255u) / 255.f);
+            };
+            const auto contrast = [](D2D1_COLOR_F a, D2D1_COLOR_F b) noexcept
+            {
+                const auto luminosity = [](D2D1_COLOR_F value)
+                {
+                    const auto channel = [](double unit) { return unit <= .04045 ? unit / 12.92 : std::pow((unit + .055) / 1.055, 2.4); };
+                    return .2126 * channel(value.r) + .7152 * channel(value.g) + .0722 * channel(value.b);
+                };
+                const auto left = luminosity(a), right = luminosity(b);
+                return (std::max(left, right) + .05) / (std::min(left, right) + .05);
+            };
+            const auto backgroundColor = [&](const Resolved& value) { return value.background == NoColor ? context->fill : rgb(value.background); };
+            const auto foregroundColor = [&](const Resolved& value, D2D1_COLOR_F background)
+            {
+                auto text = value.foreground == NoColor ? context->text : rgb(value.foreground);
+                const auto alpha = std::clamp(text.a, 0.f, 1.f);
+                return D2D1::ColorF(text.r * alpha + background.r * (1.f - alpha), text.g * alpha + background.g * (1.f - alpha),
+                                    text.b * alpha + background.b * (1.f - alpha));
+            };
+            for (const auto& operation : paintOperations)
+            {
+                Resolved state{};
+                if (enabled && operation.background < backgroundCount)
+                    state = backgrounds[operation.background];
+                auto* selected = brush;
+                if (enabled)
+                {
+                    const auto background = backgroundColor(state);
+                    auto foreground = state.foreground;
+                    if (operation.kind == PaintKind::Background)
+                    {
+                        Resolved candidateState = state;
+                        if (operation.foreground != NoColor)
+                            candidateState.foreground = operation.foreground;
+                        const auto candidate = rgb(operation.color);
+                        if (contrast(foregroundColor(candidateState, candidate), candidate) >= 4.5)
+                        {
+                            state.foreground = candidateState.foreground;
+                            state.background = operation.color;
+                            if (auto* authored = palette->Brush(operation.color))
+                                target->FillRectangle(operation.rectangle, authored);
+                        }
+                        backgrounds[operation.index] = state;
+                        continue;
+                    }
+                    if (operation.color != NoColor && contrast(rgb(operation.color), background) >= 4.5)
+                        foreground = operation.color;
+                    if (foreground != NoColor)
+                        if (auto* authored = palette->Brush(foreground))
+                            selected = authored;
+                }
+                switch (operation.kind)
+                {
+                    case PaintKind::Glyph: target->DrawTextLayout(glyphs[operation.index].origin, glyphs[operation.index].layout.get(), selected); break;
+                    case PaintKind::Line:
+                        target->DrawLine(lines[operation.index].first, lines[operation.index].last, selected, lines[operation.index].thickness);
+                        break;
+                    case PaintKind::Variant: drawVariant(variants[operation.index], selected); break;
+                    case PaintKind::Background: break;
+                }
+            }
         }
         target->SetTransform(previous);
     }

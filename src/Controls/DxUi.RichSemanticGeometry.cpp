@@ -143,7 +143,8 @@ struct NativeImagePlacement
     wil::com_ptr<ID2D1Bitmap> bitmap;
     std::shared_ptr<PreparedMath> math;
     std::shared_ptr<PreparedMath> tag;
-    bool bodyReady{};
+    std::shared_ptr<NativeColorPalette> mathPalette;
+    bool bodyReady{}, tagReady{};
     float tagScale{1.f};
     D2D1_SIZE_F Size() const noexcept
     {
@@ -247,7 +248,9 @@ struct NativeImageGeometry
                     {
                         placement.math = prior->math;
                         placement.tag = prior->tag;
+                        placement.mathPalette = prior->mathPalette;
                         placement.bodyReady = prior->bodyReady;
+                        placement.tagReady = prior->tagReady;
                     }
                 }
                 if (! placement.math)
@@ -344,19 +347,45 @@ struct NativeImageGeometry
         }
         return {placement.uploadedY == height, true, false, static_cast<std::size_t>(columns) * rows * 4u};
     }
-    bool PrepareMath(std::size_t index)
+    enum class MathProgress { Complete, Layout, Resource };
+    MathProgress PrepareMath(std::size_t index, ID2D1RenderTarget* target)
     {
         try
         {
             auto& placement = placements[index];
-            if (! placement.tag)
-                return placement.math->Advance();
             if (! placement.bodyReady)
             {
                 placement.bodyReady = placement.math->Advance();
-                return false;
+                if (! placement.bodyReady)
+                    return MathProgress::Layout;
+                if (placement.tag || ! placement.math->Colors().empty())
+                    return MathProgress::Resource;
+                return MathProgress::Complete;
             }
-            return placement.tag->Advance();
+            if (placement.tag && ! placement.tagReady)
+            {
+                placement.tagReady = placement.tag->Advance();
+                if (! placement.tagReady)
+                    return MathProgress::Layout;
+                if (! placement.math->Colors().empty())
+                    return MathProgress::Resource;
+                return MathProgress::Complete;
+            }
+            const auto colors = placement.math->Colors();
+            if (! colors.empty())
+            {
+                if (! placement.mathPalette)
+                {
+                    placement.mathPalette = std::make_shared<NativeColorPalette>(target, colors);
+                    return MathProgress::Resource;
+                }
+                if (! placement.mathPalette->Ready())
+                {
+                    placement.mathPalette->Advance();
+                    return MathProgress::Resource;
+                }
+            }
+            return MathProgress::Complete;
         }
         catch (const wil::ResultException& failure)
         {
@@ -2146,13 +2175,15 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                 }
                 if (work.state->images->placements[work.imageIndex].math)
                 {
-                    if (result.layoutsPrepared == budget.maximumLayouts)
+                    const auto& placement = work.state->images->placements[work.imageIndex];
+                    if ((! placement.bodyReady || (placement.tag && ! placement.tagReady)) && result.layoutsPrepared == budget.maximumLayouts)
                         break;
                     try
                     {
-                        if (work.state->images->PrepareMath(work.imageIndex))
+                        const auto progress = work.state->images->PrepareMath(work.imageIndex, work.raster.get());
+                        if (progress == NativeImageGeometry::MathProgress::Complete)
                             ++work.imageIndex;
-                        else
+                        else if (progress == NativeImageGeometry::MathProgress::Layout)
                             ++result.layoutsPrepared;
                     }
                     catch (const NativeObjectUnsupported& failure)
@@ -3092,6 +3123,9 @@ void PreparedSemanticGeometry::Draw(ID2D1RenderTarget* target,
                     {
                         if (image.math)
                         {
+                            const MathColorContext mathColors{diagramColors ? diagramColors->text : D2D1_COLOR_F{},
+                                                              diagramColors ? diagramColors->fill : D2D1_COLOR_F{}};
+                            const auto* colorContext = diagramColors ? &mathColors : nullptr;
                             if (image.tag)
                             {
                                 const float scale = image.tagScale;
@@ -3100,14 +3134,15 @@ void PreparedSemanticGeometry::Draw(ID2D1RenderTarget* target,
                                 const float width = image.bounds.right - image.bounds.left;
                                 const float bodyX = left + (width - image.math->Size().width * scale) * .5f;
                                 const float tagX = left + width - image.tag->Size().width * scale;
-                                image.math->Draw(target, boxText, D2D1::Point2F(bodyX, baseline - image.math->Baseline() * scale), scale);
+                                image.math->Draw(target, boxText, D2D1::Point2F(bodyX, baseline - image.math->Baseline() * scale), scale,
+                                                 image.mathPalette.get(), colorContext);
                                 image.tag->Draw(target, boxText, D2D1::Point2F(tagX, baseline - image.tag->Baseline() * scale), scale);
                                 continue;
                             }
                             image.math->Draw(target,
                                              boxText,
                                              D2D1::Point2F(origin.x + box->x + image.bounds.left, origin.y + box->y + image.bounds.top),
-                                             (image.bounds.right - image.bounds.left) / image.Size().width);
+                                             (image.bounds.right - image.bounds.left) / image.Size().width, image.mathPalette.get(), colorContext);
                             continue;
                         }
                         target->DrawBitmap(image.bitmap.get(),
