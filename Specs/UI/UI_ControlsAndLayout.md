@@ -2145,7 +2145,7 @@ source alignment markers or column definitions.
 RTL placement and explicit cell alignment remain supported. Standalone diagrams
 and display-only mathematical paragraphs center through prepared DWrite geometry,
 so source hit testing and caret placement agree with drawing. Inline math retains
-the surrounding paragraph's alignment. Quotes accept a shaded background.
+the surrounding paragraph's alignment. Math edge carets use the neighboring text's height and baseline on the same visual line while preserving the exact object-edge x and wrapped-line affinity. When no ordinary glyph shares that line, preparation caches the enclosing body/code/heading font metrics and aligns the caret to the line baseline; caret queries do no new font work. Quotes accept a shaded background.
 
 The editor resolves neutral decoration from `borderDefault` and shades quotes with
 an eight-percent blend of ordinary text ink over the document fill during preparation.
