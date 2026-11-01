@@ -904,9 +904,9 @@ class MarkdownInlines
         cursor_ = end + 1u;
         return true;
     }
-    std::size_t HtmlEnd() const noexcept
+    std::size_t HtmlEnd(std::size_t start) const noexcept
     {
-        const auto input = std::wstring_view(text_).substr(cursor_);
+        const auto input = std::wstring_view(text_).substr(start);
         auto terminated  = [&](std::wstring_view prefix, std::wstring_view suffix)
         {
             if (! input.starts_with(prefix))
@@ -1331,6 +1331,17 @@ class MarkdownInlines
                         endedLine = true;
                         break;
                     }
+                    if (text_[end] == L'`' || text_[end] == L'<')
+                    {
+                        std::size_t slashes{};
+                        for (auto index = end; index > content && text_[index - 1u] == L'\\'; --index)
+                            ++slashes;
+                        if (slashes % 2u == 0u && ((text_[end] == L'`' && backtickNext_[end] != MarkdownNoNode) || (text_[end] == L'<' && HtmlEnd(end))))
+                        {
+                            endedLine = true; // Let the regular inline scanner own this opaque token.
+                            break;
+                        }
+                    }
                     if (std::wstring_view(text_).substr(end, width) != closer)
                         continue;
                     std::size_t slashes{};
@@ -1378,7 +1389,7 @@ class MarkdownInlines
         if (c == L'<' && AngleAutolink())
             return;
         if (c == L'<')
-            if (const auto length = HtmlEnd())
+            if (const auto length = HtmlEnd(cursor_))
             {
                 cursor_ += length;
                 const auto node = Append(Kind::Html, first, cursor_, std::wstring_view(text_).substr(first, length));

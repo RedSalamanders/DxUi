@@ -358,6 +358,15 @@ inline void ListsAndHeadings()
             const auto displaySyntax = Parse(displayMath, profile);
             Check(std::ranges::any_of(displaySyntax->Inlines(), [](const auto& node) { return node.kind == MarkdownInlineKind::Math; }),
                   "multiline display insertion remains one math source envelope");
+            for (const auto& sample : {std::pair{std::wstring_view(L"$a `$x` tail"), MarkdownInlineKind::Code},
+                                       std::pair{std::wstring_view(L"$a <span title=\"$x\">tail"), MarkdownInlineKind::Html}})
+            {
+                Document protectedSource{std::wstring(sample.first)};
+                const auto protectedSyntax = Parse(protectedSource, profile);
+                Check(std::ranges::any_of(protectedSyntax->Inlines(), [&](const auto& node) { return node.kind == sample.second; }) &&
+                          std::ranges::none_of(protectedSyntax->Inlines(), [](const auto& node) { return node.kind == MarkdownInlineKind::Math; }),
+                      "unmatched math opener cannot consume a closer owned by a later code or HTML token");
+            }
             request.mathDisplay = false;
         }
         else
