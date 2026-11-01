@@ -788,6 +788,38 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
     }
 #endif
     check(! ParseMath(L"\\cfrac[l]{x}{y}"), "unimplemented continued-fraction alignment retains exact source");
+    for (const auto name : {L"matrix", L"pmatrix", L"bmatrix", L"Bmatrix", L"vmatrix", L"Vmatrix"})
+    {
+        const auto source = L"\\begin{" + std::wstring(name) + L"*}[r]a\\\\aa\\end{" + std::wstring(name) + L"*}";
+        const auto expression = ParseMath(source);
+        check(expression && expression.root.children[0u].text == std::wstring(name) + L":r", "starred matrix retains its alignment and fence family");
+#if DXUI_ENABLE_DIAGNOSTICS
+        Detail::PreparedMath layout(factory, std::make_shared<const MathExpression>(expression), 24.f);
+        while (! layout.Advance()) {}
+        const auto glyphs = layout.GlyphLayouts();
+        check(glyphs.size() == 2u && std::abs(glyphs[0u].origin.x + glyphs[0u].extent.width - glyphs[1u].origin.x - glyphs[1u].extent.width) < .01f,
+              "starred matrix right-aligns independently shaped cells");
+#endif
+    }
+    check(! ParseMath(L"\\begin{matrix*}[z]a\\end{matrix*}"), "unsupported starred matrix alignment rejects to source");
+    std::wstring nestedArrows(0u, L' '), nestedGeneral(0u, L' ');
+    for (unsigned i = 0u; i < MathMaximumGroupDepth; ++i)
+    {
+        nestedArrows += L"\\xrightarrow";
+        nestedGeneral += L"\\genfrac{}{}{}{}";
+    }
+    nestedArrows += L" x";
+    nestedGeneral += L'x';
+    nestedGeneral.append(MathMaximumGroupDepth, L'y');
+    check(static_cast<bool>(ParseMath(nestedArrows)), "64 nested extensible arrows fit the ordinary thread stack");
+    check(static_cast<bool>(ParseMath(nestedGeneral)), "64 nested general fractions fit the ordinary thread stack");
+    std::wstring nestedArrays(0u, L' ');
+    for (unsigned i = 0u; i < MathMaximumGroupDepth; ++i)
+        nestedArrays += L"\\begin{array}{c}";
+    nestedArrays += L'x';
+    for (unsigned i = 0u; i < MathMaximumGroupDepth; ++i)
+        nestedArrays += L"\\end{array}";
+    check(static_cast<bool>(ParseMath(nestedArrays)), "64 nested arrays fit the ordinary thread stack");
     const auto binomial = ParseMath(L"\\binom{n}{k}");
     check(binomial && binomial.root.children.size() == 1u && binomial.root.children[0u].kind == MathKind::Matrix &&
               binomial.root.children[0u].text == L"pmatrix" && binomial.root.children[0u].columns == 1u && binomial.root.children[0u].children.size() == 2u,

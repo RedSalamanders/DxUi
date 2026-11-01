@@ -20,6 +20,7 @@ class Parser
 {
     std::wstring_view source;
     std::size_t at{}, nodes{};
+    std::vector<unsigned> matrixRowWidths;
     std::optional<MathNode> equationTag;
     bool starredTag{};
     static bool Letter(wchar_t c) noexcept
@@ -180,6 +181,28 @@ class Parser
         }
         Reject();
     }
+    static bool StarredMatrix(std::wstring_view environment) noexcept
+    {
+        return environment == L"matrix*" || environment == L"pmatrix*" || environment == L"bmatrix*" || environment == L"Bmatrix*" ||
+               environment == L"vmatrix*" || environment == L"Vmatrix*";
+    }
+    wchar_t MatrixAlignment(std::wstring_view environment)
+    {
+        if (! StarredMatrix(environment))
+            return L'c';
+        Space();
+        if (at == source.size() || source[at] != L'[')
+            return L'c';
+        ++at;
+        Space();
+        if (at == source.size() || (source[at] != L'l' && source[at] != L'c' && source[at] != L'r'))
+            Reject(MathIssue::UnsupportedCommand);
+        const auto alignment = source[at++];
+        Space();
+        if (at == source.size() || source[at++] != L']')
+            Reject(MathIssue::UnsupportedCommand);
+        return alignment;
+    }
     MathNode Matrix(std::wstring environment, unsigned depth)
     {
         constexpr std::array names{L"matrix",
@@ -199,9 +222,10 @@ class Parser
                                    L"gather*",
                                    L"equation",
                                    L"equation*",
-                                   L"array", L"alignat", L"alignat*"};
+                                   L"array", L"alignat", L"alignat*", L"matrix*", L"pmatrix*", L"bmatrix*", L"Bmatrix*", L"vmatrix*", L"Vmatrix*"};
         if (std::ranges::find(names, environment) == names.end())
             Reject(MathIssue::UnsupportedEnvironment);
+        const wchar_t matrixAlignment = MatrixAlignment(environment);
         std::wstring columnSpec(0u, L' ');
         unsigned declaredColumns{};
         if (environment == L"array")
@@ -237,7 +261,9 @@ class Parser
             declaredColumns = 2u * pairs;
         }
         std::vector<MathNode> cells(0u);
-        std::array<unsigned, MathMaximumRows> rowWidths{};
+        if (matrixRowWidths.empty())
+            matrixRowWidths.resize((MathMaximumGroupDepth + 1u) * MathMaximumRows);
+        auto* const rowWidths = matrixRowWidths.data() + static_cast<std::size_t>(depth) * MathMaximumRows;
         unsigned columns{}, rowColumns{}, rows{};
         const auto finish = [&]() -> MathNode
         {
@@ -257,7 +283,13 @@ class Parser
                 Reject();
             if (static_cast<std::size_t>(rows) * columns > MathMaximumMatrixCells)
                 Reject(MathIssue::Capacity);
-            if (environment == L"align" || environment == L"align*" || environment == L"split")
+            if (StarredMatrix(environment))
+            {
+                environment.pop_back();
+                environment.push_back(L':');
+                environment.push_back(matrixAlignment);
+            }
+            else if (environment == L"align" || environment == L"align*" || environment == L"split")
                 environment = L"aligned";
             else if (environment == L"alignat*")
                 environment = L"alignat";
@@ -1161,7 +1193,7 @@ class Parser
     }
 
 public:
-    explicit Parser(std::wstring_view value) : source(value)
+    explicit Parser(std::wstring_view value) : source(value), matrixRowWidths(0u)
     {
     }
     MathNode Parse()
