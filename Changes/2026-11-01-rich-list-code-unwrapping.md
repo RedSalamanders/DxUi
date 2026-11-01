@@ -1,0 +1,1 @@
+- Preserve list markers when unwrapping nonempty fenced Markdown code blocks inside list containers.

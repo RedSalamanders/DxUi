@@ -1524,16 +1524,33 @@ void MarkdownCommandPlanner::CodeBlock(const MarkdownCommandRequest& request)
         const auto& node = nodes[fenced];
         if (node.parent == MarkdownNoNode || last > node.block.source.last)
             return;
-        for (auto parent = node.parent; parent != MarkdownNoNode; parent = nodes[parent].parent)
-            if (nodes[parent].block.kind != Kind::Document && nodes[parent].block.kind != Kind::BlockQuote)
-                return; // A list marker may be owned by the opening physical line.
         const auto& opening = Line(node.block.source.first);
         if (! node.block.closed || node.block.source.last <= opening.end)
             return;
         const auto& closing = Line(node.block.source.last - 1u);
         if (closing.first < opening.end)
             return;
-        Add(opening.first, opening.end, L"");
+        bool openingOwnsListMarker = false;
+        for (auto parent = node.parent; parent != MarkdownNoNode; parent = nodes[parent].parent)
+        {
+            const auto kind = nodes[parent].block.kind;
+            if (kind != Kind::Document && kind != Kind::BlockQuote && kind != Kind::List && kind != Kind::ListItem)
+                return;
+            if (kind == Kind::ListItem && Line(nodes[parent].block.source.first).first == opening.first)
+                openingOwnsListMarker = true;
+        }
+        if (openingOwnsListMarker)
+        {
+            if (opening.end >= closing.first)
+                return; // An empty item needs an explicit list-empty policy.
+            std::size_t markerEnd{}, bodyStart{};
+            const auto& firstBody = Line(opening.end);
+            if (! OuterOffset(fenced, opening, markerEnd) || ! OuterOffset(fenced, firstBody, bodyStart) || bodyStart > firstBody.bodyEnd)
+                return;
+            Add(opening.first, bodyStart, Slice(opening.first, markerEnd));
+        }
+        else
+            Add(opening.first, opening.end, L"");
         Add(closing.first, closing.end, L"");
         plan.applicable_ = true;
         return;
