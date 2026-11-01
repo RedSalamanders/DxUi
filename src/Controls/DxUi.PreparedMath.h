@@ -246,7 +246,15 @@ class PreparedMath final
     static bool MatrixName(std::wstring_view name, unsigned columns) noexcept
     {
         if (name.starts_with(L"array:"))
-            return name.size() == 6u + columns && std::ranges::all_of(name.substr(6u), [](wchar_t c) { return c == L'l' || c == L'c' || c == L'r'; });
+        {
+            const auto plainSize = 6u + columns;
+            if (name.size() != plainSize && name.size() != plainSize + columns + 2u)
+                return false;
+            if (! std::ranges::all_of(name.substr(6u, columns), [](wchar_t c) { return c == L'l' || c == L'c' || c == L'r'; }))
+                return false;
+            return name.size() == plainSize || (name[plainSize] == L':' &&
+                   std::ranges::all_of(name.substr(plainSize + 1u), [](wchar_t c) { return c == L'.' || c == L'|'; }));
+        }
         const auto base = MatrixBase(name);
         const bool suffix = base.size() != name.size();
         if (suffix && base != L"matrix" && base != L"pmatrix" && base != L"bmatrix" && base != L"Bmatrix" && base != L"vmatrix" && base != L"Vmatrix")
@@ -1892,6 +1900,22 @@ class PreparedMath final
                 }
                 y += std::max(box.size, above + below) + box.size * .3f;
                 rowFirst = cell;
+            }
+            if (node.text.starts_with(L"array:") && node.text.size() > 6u + node.columns)
+            {
+                const auto rules = std::wstring_view(node.text).substr(7u + node.columns);
+                float boundary = x;
+                for (unsigned col = 0u; col <= node.columns; ++col)
+                {
+                    if (rules[col] == L'|')
+                    {
+                        const float ruleX = std::clamp(boundary - (col > 0u && col < node.columns ? box.size * .325f : 0.f),
+                                                       x, x + box.extent.width);
+                        Stroke(ruleX, top, ruleX, bottom, stroke);
+                    }
+                    if (col < node.columns)
+                        boundary += widths[col] + (col + 1u < node.columns ? box.size * .65f : 0.f);
+                }
             }
             const auto matrixName = MatrixBase(node.text);
             if (matrixName != L"matrix" && matrixName != L"smallmatrix" && matrixName != L"aligned" && matrixName != L"gathered" && matrixName != L"alignat" && ! matrixName.starts_with(L"array:"))

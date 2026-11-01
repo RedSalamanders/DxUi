@@ -203,6 +203,36 @@ class Parser
             Reject(MathIssue::UnsupportedCommand);
         return alignment;
     }
+    std::wstring ArraySpecification()
+    {
+        std::wstring columns(0u, L' '), rules(1u, L'.');
+        for (const auto ch : GroupText())
+        {
+            if (iswspace(ch))
+                continue;
+            if (ch == L'|')
+            {
+                if (rules.back() != L'.')
+                    Reject(MathIssue::UnsupportedCommand);
+                rules.back() = L'|';
+                continue;
+            }
+            if (ch != L'l' && ch != L'c' && ch != L'r')
+                Reject(MathIssue::UnsupportedCommand);
+            if (columns.size() == MathMaximumColumns)
+                Reject(MathIssue::Capacity);
+            columns.push_back(ch);
+            rules.push_back(L'.');
+        }
+        if (columns.empty())
+            Reject(MathIssue::MissingRequiredArgument);
+        if (rules.find(L'|') != std::wstring::npos)
+        {
+            columns.push_back(L':');
+            columns.append(rules);
+        }
+        return std::wstring(columns);
+    }
     MathNode Matrix(std::wstring environment, unsigned depth)
     {
         constexpr std::array names{L"matrix",
@@ -230,21 +260,10 @@ class Parser
         unsigned declaredColumns{};
         if (environment == L"array")
         {
-            for (const auto ch : GroupText())
-            {
-                if (iswspace(ch))
-                    continue;
-                if (ch != L'l' && ch != L'c' && ch != L'r')
-                    Reject(MathIssue::UnsupportedCommand);
-                if (columnSpec.size() == MathMaximumColumns)
-                    Reject(MathIssue::Capacity);
-                columnSpec.push_back(ch);
-            }
-            if (columnSpec.empty())
-                Reject(MathIssue::MissingRequiredArgument);
-            declaredColumns = static_cast<unsigned>(columnSpec.size());
-        }
-        else if (environment == L"alignat" || environment == L"alignat*")
+            columnSpec.assign(ArraySpecification());
+            const auto separator = columnSpec.find(L':');
+            declaredColumns = static_cast<unsigned>(separator == std::wstring::npos ? columnSpec.size() : separator);
+        }        else if (environment == L"alignat" || environment == L"alignat*")
         {
             const auto argument = GroupText();
             unsigned pairs{};

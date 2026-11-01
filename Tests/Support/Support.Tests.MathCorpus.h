@@ -720,7 +720,7 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
               "SDK-shaped cells share their independently specified left, center and right anchors");
 #endif
     }
-    for (const auto source : {L"\\begin{array}{}a\\end{array}", L"\\begin{array}{l|r}a&b\\end{array}",
+    for (const auto source : {L"\\begin{array}{}a\\end{array}", L"\\begin{array}{l:r}a&b\\end{array}",
                               L"\\begin{array}{l}a&b\\end{array}", L"\\begin{array}{z}a\\end{array}"})
         check(! ParseMath(source), "unsupported or overwide array specifications retain source instead of partial rendering");
     {
@@ -820,6 +820,26 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
     for (unsigned i = 0u; i < MathMaximumGroupDepth; ++i)
         nestedArrays += L"\\end{array}";
     check(static_cast<bool>(ParseMath(nestedArrays)), "64 nested arrays fit the ordinary thread stack");
+#if DXUI_ENABLE_DIAGNOSTICS
+    {
+        const auto expression = ParseMath(L"\\begin{array}{|l|r|}a&bb\\end{array}");
+        check(expression && expression.root.children[0u].text == L"array:lr:|||", "array retains all three declared vertical boundaries");
+        Detail::PreparedMath layout(factory, std::make_shared<const MathExpression>(expression), 24.f);
+        while (! layout.Advance()) {}
+        const auto lines = layout.StrokeLayouts();
+        check(lines.size() == 3u && lines[0u].first.x < lines[1u].first.x && lines[1u].first.x < lines[2u].first.x &&
+                  lines[0u].first.x == lines[0u].last.x && lines[1u].first.x == lines[1u].last.x && lines[2u].first.x == lines[2u].last.x,
+              "array prepares ordered vertical column rules without folding them into cell text");
+    }
+#endif
+    check(! ParseMath(L"\\begin{array}{l||r}a&b\\end{array}"), "unimplemented repeated column rules preserve source");
+#if DXUI_ENABLE_DIAGNOSTICS
+    {
+        Detail::PreparedMath empty(factory, std::make_shared<const MathExpression>(ParseMath(L"\\begin{array}{|c|}\\end{array}")), 24.f);
+        while (! empty.Advance()) {}
+        check(empty.StrokeLayouts().size() == 2u, "empty array column safely retains both declared rules");
+    }
+#endif
     const auto binomial = ParseMath(L"\\binom{n}{k}");
     check(binomial && binomial.root.children.size() == 1u && binomial.root.children[0u].kind == MathKind::Matrix &&
               binomial.root.children[0u].text == L"pmatrix" && binomial.root.children[0u].columns == 1u && binomial.root.children[0u].children.size() == 2u,
