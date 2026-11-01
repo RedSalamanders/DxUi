@@ -824,6 +824,16 @@ template <typename Prepare> void HighlightCoverage(ControlHost& host, Prepare&& 
     prepare();
     Check(editor->DebugGetState().preparedHighlightRectangles == count && editor->GetText() == source && editor->Revision() == revision && ! editor->CanUndo(),
           "highlight viewport indexing reuses prepared coverage without source/history changes");
+    editor->SetText(L"&fjlig;\n");
+    editor->SetViewMode(ViewMode::Rich);
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::Gfm029);
+    editor->SetMarkdownRenderingEnabled(true);
+    prepare();
+    const std::array atomic{RichTextSourceHighlight{0u, 7u, false}, RichTextSourceHighlight{3u, 1u, true}};
+    editor->SetSourceHighlights(atomic);
+    prepare();
+    Check(editor->DebugGetState().preparedHighlightRectangles == 1u,
+          "active coverage inside a transformed source token wins once for the complete atomic glyph range");
 }
 template <typename Prepare> void Rendering(ControlHost& host, Prepare&& prepare)
 {

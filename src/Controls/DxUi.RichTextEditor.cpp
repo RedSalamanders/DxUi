@@ -118,7 +118,9 @@ D2D1_COLOR_F DecorationColor(const ThemePalette& theme, RichTextDecorationRole r
 }
 // Preparation-only source coverage: unlike raw coordinate-range merging this
 // preserves the active-highlight role, which takes priority over ordinary ink.
-void UnionHighlights(std::span<const RichTextSourceHighlight> input, std::vector<RichTextSourceHighlight>& output)
+void UnionHighlights(std::span<const RichTextSourceHighlight> input,
+                     std::span<const RichText::MarkdownRange> atomic,
+                     std::vector<RichTextSourceHighlight>& output)
 {
     struct Edge
     {
@@ -127,11 +129,22 @@ void UnionHighlights(std::span<const RichTextSourceHighlight> input, std::vector
     };
     std::vector<Edge> edges(0u);
     edges.reserve(input.size() * 2u);
+    const auto snap = [&](size_t position, bool trailing)
+    {
+        const auto next = std::upper_bound(atomic.begin(), atomic.end(), position, [](size_t value, const auto& range) { return value < range.first; });
+        if (next != atomic.begin())
+        {
+            const auto& range = *std::prev(next);
+            if (range.first < position && position < range.last)
+                return trailing ? range.last : range.first;
+        }
+        return position;
+    };
     for (const auto& range : input)
         if (range.length)
         {
-            edges.push_back({range.start, range.current ? 0 : 1, range.current ? 1 : 0});
-            edges.push_back({range.start + range.length, range.current ? 0 : -1, range.current ? -1 : 0});
+            edges.push_back({snap(range.start, false), range.current ? 0 : 1, range.current ? 1 : 0});
+            edges.push_back({snap(range.start + range.length, true), range.current ? 0 : -1, range.current ? -1 : 0});
         }
     std::ranges::sort(edges, {}, &Edge::at);
     size_t previous = 0u, at = 0u;
@@ -2168,7 +2181,16 @@ void RichTextEditor::PrepareOverlayGeometry(ControlHost& host)
         std::vector<State::HighlightRectangle> rectangles(0u);
         std::vector<State::DecorationRectangle> decorations(0u);
         std::vector<RichTextSourceHighlight> normalized(0u);
-        UnionHighlights(state.highlights, normalized);
+        std::vector<RichText::MarkdownRange> atomic(0u);
+        if (! state.highlights.empty())
+            if (const auto* semantic = layout.SemanticGeometry())
+            {
+                for (const auto& span : semantic->Document().Map().Spans())
+                    if (span.primary && (span.kind == RichText::DisplaySpanKind::Transformed || span.kind == RichText::DisplaySpanKind::Object))
+                        atomic.push_back(span.source);
+                std::ranges::sort(atomic, {}, &RichText::MarkdownRange::first);
+            }
+        UnionHighlights(state.highlights, atomic, normalized);
         for (const auto& highlight : normalized)
             for (const auto& rectangle : layout.SourceRange(highlight.start, highlight.start + highlight.length))
                 rectangles.push_back({rectangle, highlight.current});
