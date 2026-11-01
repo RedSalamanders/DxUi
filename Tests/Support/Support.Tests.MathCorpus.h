@@ -772,11 +772,11 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
 #if DXUI_ENABLE_DIAGNOSTICS
     for (const auto& [source, expectedStrokes] : {std::pair{L"a\\over b", 1u}, std::pair{L"a\\atop b", 0u}})
     {
-        Detail::PreparedMath prepared(factory, std::make_shared<const MathExpression>(ParseMath(source)), 24.f);
-        while (! prepared.Advance())
+        Detail::PreparedMath fractionLayout(factory, std::make_shared<const MathExpression>(ParseMath(source)), 24.f);
+        while (! fractionLayout.Advance())
         {
         }
-        check(prepared.StrokeLayouts().size() == expectedStrokes && prepared.GlyphLayouts().size() == 2u,
+        check(fractionLayout.StrokeLayouts().size() == expectedStrokes && fractionLayout.GlyphLayouts().size() == 2u,
               "fraction layout paints a rule only for over while preserving both SDK-shaped operands");
     }
 #endif
@@ -983,10 +983,10 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
         BOOL found{};
         THROW_IF_FAILED(collection->FindFamilyName(L"Cambria Math", &familyIndex, &found));
         check(found, "ex rule oracle requires the system math font");
-        wil::com_ptr<IDWriteFontFamily> family;
-        THROW_IF_FAILED(collection->GetFontFamily(familyIndex, family.put()));
+        wil::com_ptr<IDWriteFontFamily> mathFamily;
+        THROW_IF_FAILED(collection->GetFontFamily(familyIndex, mathFamily.put()));
         wil::com_ptr<IDWriteFont> font;
-        THROW_IF_FAILED(family->GetFirstMatchingFont(DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL, font.put()));
+        THROW_IF_FAILED(mathFamily->GetFirstMatchingFont(DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL, font.put()));
         DWRITE_FONT_METRICS metrics{};
         font->GetMetrics(&metrics);
         const float exRatio = metrics.designUnitsPerEm && metrics.xHeight ? static_cast<float>(metrics.xHeight) / metrics.designUnitsPerEm : .45f;
@@ -1015,10 +1015,10 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
               "absolute unit scale changes point rules without rescaling font-relative em rules");
         for (const float invalid : {0.f, -1.f, std::numeric_limits<float>::infinity(), std::numeric_limits<float>::quiet_NaN()})
         {
-            bool rejected{};
+            bool scaleRejected{};
             try { Detail::PreparedMath bad(factory, points, 24.f, false, nullptr, 96.f, {}, invalid); }
-            catch (const std::invalid_argument&) { rejected = true; }
-            check(rejected, "invalid absolute-unit scale rejects before preparation");
+            catch (const std::invalid_argument&) { scaleRejected = true; }
+            check(scaleRejected, "invalid absolute-unit scale rejects before preparation");
         }
     }
 #endif
