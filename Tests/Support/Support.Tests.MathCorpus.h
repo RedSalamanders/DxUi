@@ -38,6 +38,7 @@ inline constexpr Scenario prepared[] = {
     {L"M18", L"\\text{Unicode \u03b2 \U0001f600}+\\mathrm{speed}"},
     {L"M19", L"\\alpha\\leq\\infty"},
     {L"M20", L"\\widehat{ABC}+\\ddot{x}+\\underline{y}"},
+    {L"binomial", L"\\binom{n}{k}+\\dbinom{a+b}{2}+\\tbinom{x}{y}"},
     {L"styles", L"\\displaystyle\\sum_{i=0}^n\\frac{x_i}{2}+{\\scriptstyle x^{y^z}}"},
     {L"limits after scripts", L"\\sum_0^1\\nolimits+\\operatorname*{argmax}\\limits_x"},
     {L"sized delimiters", L"\\bigl( x \\Bigr]+\\biggl\\lfloor x\\Biggr\\rceil"},
@@ -52,6 +53,7 @@ inline constexpr Scenario prepared[] = {
 inline constexpr Scenario rejected[] = {
     {L"row separator outside environment", L"a\\\\b"},
     {L"E01 missing fraction argument", L"\\frac{a}"},
+    {L"missing binomial argument", L"\\binom{n}"},
     {L"E02 missing index close", L"\\sqrt[3{x}"},
     {L"E03 missing script argument", L"x_"},
     {L"E04 duplicate subscript", L"x_1_2"},
@@ -211,6 +213,17 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
               prime.root.children[0u].children[2u].text == L"′′",
           "prime runs are superscripts on the preceding atom and coexist with subscripts");
     check(! ParseMath(L"f'^2"), "a prime followed by a second superscript is rejected rather than misrendered");
+    const auto binomial = ParseMath(L"\\binom{n}{k}");
+    check(binomial && binomial.root.children.size() == 1u && binomial.root.children[0u].kind == MathKind::Matrix &&
+              binomial.root.children[0u].text == L"pmatrix" && binomial.root.children[0u].columns == 1u && binomial.root.children[0u].children.size() == 2u,
+          "binomial is a two-row parenthesized construct with no fraction rule");
+    for (const auto& [source, style] : {std::pair{L"\\dbinom{n}{k}", L"displaystyle"}, std::pair{L"\\tbinom{n}{k}", L"textstyle"}})
+    {
+        const auto expression = ParseMath(source);
+        check(expression && expression.root.children.size() == 1u && expression.root.children[0u].kind == MathKind::Style &&
+                  expression.root.children[0u].text == style && expression.root.children[0u].children[0u].kind == MathKind::Matrix,
+              "explicit binomial style applies to the complete construct");
+    }
     static_assert(std::size(Detail::NativeMathSymbols) == 411u);
     for (const auto& symbol : Detail::NativeMathSymbols)
     {

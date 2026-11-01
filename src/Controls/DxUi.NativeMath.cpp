@@ -276,6 +276,13 @@ class Parser
             const auto name = source.substr(first, at - first);
             if (name == L"frac" || name == L"dfrac" || name == L"tfrac")
                 return Make(MathKind::Fraction, std::wstring(name), {Atom(depth + 1), Atom(depth + 1)});
+            if (name == L"binom" || name == L"dbinom" || name == L"tbinom")
+            {
+                auto binomial = Make(MathKind::Matrix, L"pmatrix", {Atom(depth + 1), Atom(depth + 1)}, 1u);
+                if (name == L"binom")
+                    return binomial;
+                return Make(MathKind::Style, name == L"dbinom" ? L"displaystyle" : L"textstyle", {std::move(binomial)});
+            }
             if (name == L"sqrt")
             {
                 Space();

@@ -2058,6 +2058,8 @@ remove grouping braces while retaining escaped literal braces. Matrix rows may
 have a trailing separator; gathered rows have one column and cases at most two.
 Unsupported commands remain local exact source. This is a named native profile,
 not a claim of all KaTeX functions or identical TeX font metrics and glyph assemblies.
+Native `binom`, `dbinom` and `tbinom` form a two-row parenthesized matrix with
+explicit display or text style where requested.
 A hash-verified KaTeX 0.16.11 source generates 411 bounded alphabetic one-codepoint
 symbols and their atom classes; vertical delimiter commands retain the paired native glyph contract.
 In math mode ASCII minus and asterisk shape as U+2212 and U+2217; tilde supplies
