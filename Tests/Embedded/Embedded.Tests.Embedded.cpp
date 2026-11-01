@@ -1727,6 +1727,20 @@ __declspec(noinline) static int RunFunctionalTests()
     RichSemanticTests::Run(RichSemanticGeometryTests::DiagramPaletteTargetReplacement);
     RichSemanticTests::Run(RichSemanticGeometryTests::DiagramLabelWidthReflow);
     RichSemanticTests::Run(RichSemanticGeometryTests::HtmlBlockAlignment);
+    RichSemanticTests::Run([]
+    {
+        bool allocated{};
+        std::size_t calls{};
+        const auto wasCounting = countAllocations;
+        const auto originalCalls = allocations;
+        const auto restore = wil::scope_exit([&]() noexcept { countAllocations = wasCounting; allocations = originalCalls; });
+        RichSemanticGeometryTests::HtmlScripts([&](bool before) noexcept
+        {
+            if (before) { calls = allocations; countAllocations = true; }
+            else { allocated = allocated || allocations != calls; countAllocations = wasCounting; }
+        });
+        Check(! allocated, "script native and RTL linked drawing performs zero tracked C++ allocations");
+    });
 #if DXUI_ENABLE_DIAGNOSTICS
     RichSemanticTests::Run(RichSemanticGeometryTests::MathWidthReflowAndTargetReplacement);
 #endif

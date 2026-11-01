@@ -216,6 +216,7 @@ void TestRichSemanticGeometryLinkRasterOracle()
     RichSemanticTests::Run(RichSemanticGeometryTests::DiagramPaletteTargetReplacement);
     RichSemanticTests::Run(RichSemanticGeometryTests::DiagramLabelWidthReflow);
     RichSemanticTests::Run(RichSemanticGeometryTests::HtmlBlockAlignment);
+    RichSemanticTests::Run([] { RichSemanticGeometryTests::HtmlScripts(); });
 #if DXUI_ENABLE_DIAGNOSTICS
     RichSemanticTests::Run(RichSemanticGeometryTests::MathWidthReflowAndTargetReplacement);
 #endif

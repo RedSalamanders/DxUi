@@ -1457,7 +1457,7 @@ static void TestSemanticDiagramAllocationFailures(bool trace = false)
     };
     // Count the actual allocation schedule, including native parsing, captions,
     // normalized-to-raw provenance, diagnostic publication and footer ownership.
-    const std::array<std::wstring_view, 12u> sources = {SemanticDiagramTests::scenarios[5u].source,
+    const std::array<std::wstring_view, 14u> sources = {SemanticDiagramTests::scenarios[5u].source,
                                                         L"main[^n]\r\n\r\n[^n]: note\r\n    > ```mermaid\r\n    > graph LR;A{wide}-->|yes|B\r\n    > ```\r\n",
                                                         SemanticDiagramTests::scenarios[11u].source,
                                                         SemanticDiagramTests::scenarios[8u].source,
@@ -1468,7 +1468,9 @@ static void TestSemanticDiagramAllocationFailures(bool trace = false)
                                                         L"```mermaid\nmindmap\n root\n  First\n   Leaf\n  Second\n```\n",
                                                         L"```math\n\\frac{1}{2}\n```\n",
                                                         L"$$\n\\frac{1}{2}\n$$\n",
-                                                        L"```latex\n\\frac{1}{2}\n"};
+                                                        L"```latex\n\\frac{1}{2}\n",
+                                                        L"<p>x<sup><b>hello</b></sup> y<sub>world</sub></p>\n",
+                                                        L"x<sup>![alt](image.png)</sup>\n"};
     const auto observe                               = [](auto&& operation)
     {
         const auto oldCounting = countAllocations;
@@ -1547,9 +1549,11 @@ static void TestSemanticDiagramAllocationFailures(bool trace = false)
     const auto write       = PreparedFlowchartTests::WriteFactory();
     const auto drawing     = PreparedFlowchartTests::DrawingFactory();
     const auto oldDocument = SemanticDiagramTests::Build(L"previous", Check);
-    for (std::size_t scenario = 0u; scenario < 4u; ++scenario)
+    for (std::size_t scenario = 0u; scenario < 5u; ++scenario)
     {
-        const auto document = SemanticDiagramTests::Build(SemanticDiagramTests::scenarios[scenario == 3u ? 0u : scenario].source, Check);
+        const auto document = SemanticDiagramTests::Build(scenario == 4u ? L"<p>x<sup>hello</sup> y<sub>world</sub></p>\n"
+                                                                           : SemanticDiagramTests::scenarios[scenario == 3u ? 0u : scenario].source,
+                                                          Check);
         LayoutOptions options;
         options.widthDip = scenario == 3u ? 40.0f : 1024.0f;
         LayoutOptions previousOptions;
@@ -1616,7 +1620,7 @@ static void TestSemanticDiagramAllocationFailures(bool trace = false)
             geometry.Begin(write.get(), document, options, drawing.get(), {3u, 3u});
             const auto ready = finish(geometry);
             Check(scenario == 3u ? ! ready && &geometry.Document() == oldDocument.get()
-                                 : ready && geometry.HasNativeObjects() && &geometry.Document() == document.get(),
+                                 : ready && (scenario == 4u || geometry.HasNativeObjects()) && &geometry.Document() == document.get(),
                   "explicit retry distinguishes intrinsic-width capacity from transient allocation failure");
             {
                 const auto oldFailure = failAllocationAfter;
@@ -1629,7 +1633,7 @@ static void TestSemanticDiagramAllocationFailures(bool trace = false)
         }
         geometryRequests += requests;
     }
-    std::cout << "semantic diagram/math failure scenarios=12 sweptRequests=" << semanticRequests << " geometryScenarios=4 sweptRequests=" << geometryRequests
+    std::cout << "semantic diagram/math/HTML failure scenarios=14 sweptRequests=" << semanticRequests << " geometryScenarios=5 sweptRequests=" << geometryRequests
               << " preservedPublication=1 preservedPendingBegin=1 explicitRetry=1 retirementAllocations=0\n";
 }
 

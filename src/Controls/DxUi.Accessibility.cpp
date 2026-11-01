@@ -6426,6 +6426,8 @@ struct RichSourceAttribute
     {
         case UIA_IsReadOnlyAttributeId: return {VT_BOOL, record.controlValueReadOnly || ! record.controlEnabled ? 1.0 : 0.0};
         case UIA_IsItalicAttributeId: return {VT_BOOL, (flags & RichText::Italic) ? 1.0 : 0.0};
+        case UIA_IsSuperscriptAttributeId: return {VT_BOOL, (flags & RichText::Superscript) ? 1.0 : 0.0};
+        case UIA_IsSubscriptAttributeId: return {VT_BOOL, (flags & RichText::Subscript) ? 1.0 : 0.0};
         case UIA_FontWeightAttributeId: return {VT_I4, (flags & RichText::Bold) ? 700.0 : run.heading ? 600.0 : 400.0};
         case UIA_UnderlineStyleAttributeId:
         {
@@ -6439,11 +6441,14 @@ struct RichSourceAttribute
         case UIA_StyleIdAttributeId: return {VT_I4, run.heading ? StyleId_Heading1 + static_cast<double>(run.heading - 1u) : StyleId_Normal};
         case UIA_FontNameAttributeId: return {VT_BSTR, 0.0, (flags & RichText::Code) ? record.controlRichText->codeFont : record.controlRichText->bodyFont};
         case UIA_FontSizeAttributeId:
+        {
+            const auto scale = flags & (RichText::Superscript | RichText::Subscript) ? .75 : 1.0;
             if (run.heading && record.controlRichText->headingFontSizeDip[run.heading - 1u] > 0.0f)
-                return {VT_R8, static_cast<double>(record.controlRichText->headingFontSizeDip[run.heading - 1u]) * 72.0 / 96.0};
+                return {VT_R8, scale * static_cast<double>(record.controlRichText->headingFontSizeDip[run.heading - 1u]) * 72.0 / 96.0};
             return {VT_R8,
-                    ((flags & RichText::Code) ? record.controlRichText->codeFontSizePoints : record.controlRichText->fontSizePoints) *
+                    scale * ((flags & RichText::Code) ? record.controlRichText->codeFontSizePoints : record.controlRichText->fontSizePoints) *
                         (run.heading ? (1.0 + record.controlRichText->headingScaleStep * static_cast<double>(7u - run.heading)) : 1.0)};
+        }
         default: return {};
     }
 }

@@ -1591,6 +1591,12 @@ It defaults to false for existing layouts. Wheel input bubbles at either edge.
 Geometry getters and drawing only read the offset; caret reveal runs during
 owner preparation.
 
+Attribute-free `<sup>` and `<sub>` use smaller text on a raised or lowered
+baseline, preserving exact source, editing and selection. They can contain
+ordinary nested text styles and links; conflicting nested scripts and embedded
+images or math remain literal. Color fonts require a compatible color-glyph
+target; unavailable support retains the entire affected HTML leaf as source.
+
 Balanced HTML-block `<p>` and `<div>` wrappers accept one quoted `align`
 attribute with `left`, `center` or `right`; physical alignment is preserved in
 left-to-right and right-to-left text. Unsupported values, duplicate attributes

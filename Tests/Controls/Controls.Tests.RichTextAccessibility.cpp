@@ -905,6 +905,26 @@ void NativeHtmlAndMarkersClient(bool embedded)
     }
     Require(caretX[0u] + 40.f < caretX[1u] && caretX[1u] + 40.f < caretX[2u],
             "native and embedded aligned HTML caret geometry follows physical left, center and right placement");
+    const std::wstring scripts = L"<p>x<sup>hello</sup> y<sub>world</sub></p>\n";
+    fixture.editor->SetText(scripts);
+    fixture.Publish();
+    const auto superInfo = client.InspectTextRange(editor, L"hello", {UIA_IsSuperscriptAttributeId, UIA_IsSubscriptAttributeId, UIA_FontSizeAttributeId});
+    const auto subInfo = client.InspectTextRange(editor, L"world", {UIA_IsSuperscriptAttributeId, UIA_IsSubscriptAttributeId, UIA_FontSizeAttributeId});
+    const auto bodyInfo = client.InspectTextRange(editor, L"x", {UIA_FontSizeAttributeId});
+    Require(superInfo.attributes[0].type == VT_BOOL && superInfo.attributes[0].number == 1.0 && superInfo.attributes[1].number == 0.0 &&
+                subInfo.attributes[0].number == 0.0 && subInfo.attributes[1].type == VT_BOOL && subInfo.attributes[1].number == 1.0 &&
+                std::abs(superInfo.attributes[2].number / bodyInfo.attributes[0].number - .75) < .001 &&
+                std::abs(subInfo.attributes[2].number / bodyInfo.attributes[0].number - .75) < .001,
+            "actual UIA clients receive script flags and the scaled font size from exact source ranges");
+    const auto word = scripts.find(L"hello");
+    fixture.editor->SetSelection({word, word + 5u});
+    fixture.Publish();
+    Require(client.DocumentText(editor) == scripts && client.TextSelectionText(editor) == L"hello",
+            "native and embedded clients expose exact authored script source and selection");
+    Require(fixture.editor->ReplaceSelection(L"globe") && fixture.editor->GetText() == L"<p>x<sup>globe</sup> y<sub>world</sub></p>\n" &&
+                fixture.editor->Undo() && fixture.editor->GetText() == scripts,
+            "script text edits and undo preserve exact HTML delimiters and source");
+    fixture.Publish();
 }
 void TestRichTextAccessibilityWindowNativeHtmlAndMarkersClient()
 {

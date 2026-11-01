@@ -3238,7 +3238,8 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
                 for (const auto element : elements)
                 {
                     if (element >= value->Elements().size() ||
-                        (value->Elements()[element].role != RichText::SemanticRole::Math && value->Elements()[element].role != RichText::SemanticRole::Diagram))
+                        (value->Elements()[element].role != RichText::SemanticRole::Math && value->Elements()[element].role != RichText::SemanticRole::Diagram &&
+                         ! value->Elements()[element].nativeHtml))
                         break;
                     const auto source = value->Elements()[element].source;
                     if (std::ranges::find(objects, source) == objects.end())
@@ -3252,7 +3253,8 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
                                         [&](const auto element)
                 {
                     return element < value->Elements().size() && (value->Elements()[element].role == RichText::SemanticRole::Math ||
-                                                                  value->Elements()[element].role == RichText::SemanticRole::Diagram);
+                                                                  value->Elements()[element].role == RichText::SemanticRole::Diagram ||
+                                                                  value->Elements()[element].nativeHtml);
                 }))
                 {
                     std::ranges::sort(objects, {}, &RichText::MarkdownRange::first);

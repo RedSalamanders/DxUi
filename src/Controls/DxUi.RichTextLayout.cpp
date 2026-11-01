@@ -1,5 +1,6 @@
 #include "DxUi.PreparedLayoutAccess.h"
 #include "DxUi.RichTextSourceInkRenderer.h"
+#include "DxUi.RichTextScriptRenderer.h"
 #include "DxUi.TextElements.h"
 #include <DxUi/RichTextLayout.h>
 #include <algorithm>
@@ -242,7 +243,8 @@ void Detail::PreparedLayoutAccess::Prepare(PreparedLayout& owner,
     for (const auto& run : projection.runs)
     {
         if (run.start > projection.text.size() || run.length > projection.text.size() - run.start || run.heading > 6 ||
-            (run.flags & ~(Bold | Italic | Code | Strike | Underline | Link | Marked)) || ! IsEditBoundary(projection.text, run.start) ||
+            (run.flags & ~(Bold | Italic | Code | Strike | Underline | Link | Marked | Superscript | Subscript)) ||
+            (run.flags & (Superscript | Subscript)) == (Superscript | Subscript) || ! IsEditBoundary(projection.text, run.start) ||
             ! IsEditBoundary(projection.text, run.start + run.length))
             throw std::invalid_argument("Invalid rich-text style range");
     }
@@ -295,6 +297,7 @@ void Detail::PreparedLayoutAccess::Prepare(PreparedLayout& owner,
         Check(layout->SetFontSize(0.01f, {0u, textOffset}), "Set private origin font size");
         Check(layout->SetInlineObject(positioning.get(), {0u, 1u}), "Set private layout origin");
     }
+    float scriptTopOutset{}, scriptBottomOutset{};
     for (const auto& run : projection.runs)
     {
         DWRITE_TEXT_RANGE range{static_cast<UINT32>(run.start) + textOffset, static_cast<UINT32>(run.length)};
@@ -322,6 +325,16 @@ void Detail::PreparedLayoutAccess::Prepare(PreparedLayout& owner,
             Check(layout->SetFontWeight(semanticDisplay && (run.flags & Bold) ? DWRITE_FONT_WEIGHT_BOLD : DWRITE_FONT_WEIGHT_SEMI_BOLD, range),
                   "SetFontWeight");
         }
+        if (run.flags & (Superscript | Subscript))
+        {
+            auto size = (run.flags & Code) && options.codeFontSizeDip > 0.0f ? options.codeFontSizeDip : fontSize;
+            if (run.heading)
+                size = options.headingFontSizeDip[run.heading - 1u] > 0.0f ? options.headingFontSizeDip[run.heading - 1u]
+                                                                          : size * (1.0f + options.headingScaleStep * static_cast<float>(7u - run.heading));
+            Check(layout->SetFontSize(size * .75f, range), "Set HTML script font size");
+            if (run.flags & Superscript) scriptTopOutset = std::max(scriptTopOutset, size * .30f);
+            if (run.flags & Subscript) scriptBottomOutset = std::max(scriptBottomOutset, size * .20f);
+        }
     }
     if (marker)
     {
@@ -338,7 +351,8 @@ void Detail::PreparedLayoutAccess::Prepare(PreparedLayout& owner,
     const auto headingRun = std::ranges::find_if(projection.runs, [](const auto& run) { return run.heading != 0u; });
     if (semanticDisplay && headingRun != projection.runs.end() && options.headingLineHeightMultiplier[headingRun->heading - 1u] > 0.0f)
         lineHeight = options.headingLineHeightMultiplier[headingRun->heading - 1u];
-    if (lineHeight > 0.0f)
+    const bool scripts = std::ranges::any_of(projection.runs, [](const auto& run) { return (run.flags & (Superscript | Subscript)) != 0u; });
+    if (lineHeight > 0.0f || scripts)
     {
         auto size = fontSize;
         for (const auto& run : projection.runs)
@@ -352,7 +366,7 @@ void Detail::PreparedLayoutAccess::Prepare(PreparedLayout& owner,
         }
         // Font-relative line height matches a document's 16/1.65 typography.
         // Inline images/math must still reserve their complete ascent/descent.
-        auto ascent = size * 0.8f, descent = size * 0.2f;
+        auto ascent = size * (scripts ? 1.05f : .8f), descent = size * (scripts ? .4f : .2f);
         const auto accommodate = [&](IDWriteInlineObject* value)
         {
             DWRITE_INLINE_OBJECT_METRICS extent{};
@@ -378,8 +392,8 @@ void Detail::PreparedLayoutAccess::Prepare(PreparedLayout& owner,
     Check(layout->GetMetrics(&metrics), "GetMetrics");
     DWRITE_OVERHANG_METRICS overhang{};
     Check(layout->GetOverhangMetrics(&overhang), "GetOverhangMetrics");
-    const auto drawingTop    = std::min(verticalOrigin, -overhang.top);
-    const auto drawingBottom = std::max(metrics.height, metrics.layoutHeight + overhang.bottom);
+    const auto drawingTop    = std::min(verticalOrigin, -overhang.top) - scriptTopOutset;
+    const auto drawingBottom = std::max(metrics.height, metrics.layoutHeight + overhang.bottom) + scriptBottomOutset;
     if (! std::isfinite(metrics.height) || ! std::isfinite(drawingTop) || ! std::isfinite(drawingBottom))
         throw std::overflow_error("Nonfinite rich-text drawing metrics");
     std::vector<std::size_t> clusters{0};
@@ -572,16 +586,31 @@ std::pair<std::size_t, std::size_t> PreparedLayout::VisibleRange(float top, floa
     }
     return {first.value_or(0), last};
 }
+bool Detail::PreparedLayoutAccess::ScriptTargetSupported(const PreparedLayout& owner, ID2D1RenderTarget* target)
+{
+    if (! std::ranges::any_of(owner.projection_.runs, [](const auto& run) { return (run.flags & (Superscript | Subscript)) != 0u; }))
+        return true;
+    if (! owner.state_) return false;
+    ScriptTextRenderer renderer(target, nullptr, owner.state_->layout.get(), owner.projection_, owner.state_->textOffset, {});
+    const auto result = owner.state_->layout->Draw(nullptr, &renderer, 0.f, 0.f);
+    Check(result, "Preflight HTML script target");
+    if (renderer.Result() == DWRITE_E_UNSUPPORTEDOPERATION) return false;
+    Check(renderer.Result(), "Preflight HTML script callbacks");
+    return true;
+}
 void PreparedLayout::Draw(ID2D1RenderTarget* target, ID2D1Brush* brush, D2D1_POINT_2F origin, const LinkDrawing* links) const
 {
     if (! target || ! brush || ! state_)
         throw std::invalid_argument("Unprepared drawing");
-    if (! links)
+    const bool scripts = std::ranges::any_of(projection_.runs, [](const auto& run) { return (run.flags & (Superscript | Subscript)) != 0u; });
+    if (! links && ! scripts)
     {
         target->DrawTextLayout(origin, state_->layout.get(), brush, D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
         return;
     }
-    if (links->directSourceInkPreview &&
+    const LinkDrawing defaultDrawing{};
+    if (! links) links = &defaultDrawing;
+    if (! scripts && links->directSourceInkPreview &&
         Detail::DrawSourceInkIfSupported(target, brush, state_->layout.get(), state_->positioning.get(), state_->textOffset, projection_, *links, origin) ==
             Detail::SourceInkDrawResult::Drawn)
         return;
@@ -661,6 +690,16 @@ void PreparedLayout::Draw(ID2D1RenderTarget* target, ID2D1Brush* brush, D2D1_POI
                 Check(state_->layout->SetDrawingEffect(linkBrush, range), "Set transient link ink");
             }
         }
-    target->DrawTextLayout(origin, state_->layout.get(), brush, D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
+    if (scripts)
+    {
+        Detail::ScriptTextRenderer renderer(target, brush, state_->layout.get(), projection_, state_->textOffset, origin);
+        Check(state_->layout->Draw(nullptr, &renderer, origin.x, origin.y), "Preflight HTML script rendering");
+        Check(renderer.Result(), "Preflight HTML script callbacks");
+        renderer.BeginPaint();
+        Check(state_->layout->Draw(nullptr, &renderer, origin.x, origin.y), "Draw HTML script rendering");
+        Check(renderer.Result(), "Draw HTML script callbacks");
+    }
+    else
+        target->DrawTextLayout(origin, state_->layout.get(), brush, D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
 }
 } // namespace DxUi::RichText

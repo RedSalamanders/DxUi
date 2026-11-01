@@ -31,6 +31,8 @@ enum class NativeHtmlKind
     Mark,
     Img,
     Hr,
+    Sup,
+    Sub,
     Comment
 };
 inline bool HtmlSpace(wchar_t value) noexcept
@@ -62,6 +64,8 @@ inline unsigned HtmlFlags(NativeHtmlKind kind) noexcept
         case NativeHtmlKind::Pre: return Code;
         case NativeHtmlKind::A: return Link;
         case NativeHtmlKind::Mark: return Marked;
+        case NativeHtmlKind::Sup: return Superscript;
+        case NativeHtmlKind::Sub: return Subscript;
         case ::DxUi::RichText::Detail::NativeHtmlKind::Br:
         case ::DxUi::RichText::Detail::NativeHtmlKind::Div:
         case ::DxUi::RichText::Detail::NativeHtmlKind::H1:
@@ -140,7 +144,7 @@ inline bool ParseNativeHtmlTag(std::wstring_view value, NativeHtmlTag& tag)
         return true;
     }
     constexpr std::wstring_view names[] = {L"b",  L"strong", L"i",  L"em", L"u",  L"s",  L"del", L"code", L"span", L"a",    L"br",  L"p", L"div",
-                                           L"h1", L"h2",     L"h3", L"h4", L"h5", L"h6", L"pre", L"kbd",  L"ins",  L"mark", L"img", L"hr"};
+                                           L"h1", L"h2",     L"h3", L"h4", L"h5", L"h6", L"pre", L"kbd",  L"ins",  L"mark", L"img", L"hr", L"sup", L"sub"};
     if (value.size() < 3u || value.front() != L'<' || value.back() != L'>')
         return false;
     std::size_t at = 1u;
@@ -261,6 +265,8 @@ struct NativeHtmlPlan
             {
                 if (tag.closing)
                     return false;
+                if ((activeFlags & (Superscript | Subscript)) && (tag.kind == NativeHtmlKind::Img || tag.kind == NativeHtmlKind::Hr))
+                    return false;
                 if (tag.kind == NativeHtmlKind::Hr)
                 {
                     if (! block || tags.size() != 1u || ! std::all_of(text.begin(), text.begin() + static_cast<std::ptrdiff_t>(tag.first), HtmlSpace) ||
@@ -305,6 +311,8 @@ struct NativeHtmlPlan
                         return false;
                     anchor = true;
                 }
+                if ((tag.kind == NativeHtmlKind::Sup || tag.kind == NativeHtmlKind::Sub) && (activeFlags & (Superscript | Subscript)))
+                    return false;
                 activeFlags |= HtmlFlags(tag.kind);
                 if (HtmlHeading(tag.kind))
                     activeHeading = HtmlHeading(tag.kind);
@@ -322,7 +330,7 @@ struct NativeHtmlPlan
         if (normalized.text.find(L'<') == std::wstring::npos || leaf.firstInline == MarkdownNoNode)
             return;
         std::vector<std::size_t> pending(1u, leaf.firstInline);
-        std::vector<MarkdownRange> markdownLinks(0u);
+        std::vector<MarkdownRange> markdownLinks(0u), inlineObjects(0u);
         const auto& inlines = syntax.Inlines();
         while (! pending.empty())
         {
@@ -331,6 +339,8 @@ struct NativeHtmlPlan
             const auto& node = inlines[index];
             if (node.nextSibling != MarkdownNoNode)
                 pending.push_back(node.nextSibling);
+            if (node.kind == MarkdownInlineKind::Image || node.kind == MarkdownInlineKind::Math || node.kind == MarkdownInlineKind::SourceEditor)
+                inlineObjects.push_back(node.source);
             if (node.kind == MarkdownInlineKind::Image)
                 continue; // Alternatives are atomic literal labels.
             if (node.firstChild != MarkdownNoNode)
@@ -349,6 +359,15 @@ struct NativeHtmlPlan
         }
         if (! present || ! Validate(false, {}))
             return;
+        std::sort(inlineObjects.begin(), inlineObjects.end(), [](auto a, auto b) { return a.first < b.first; });
+        for (const auto& tag : tags)
+            if ((tag.kind == NativeHtmlKind::Sup || tag.kind == NativeHtmlKind::Sub) && ! tag.closing)
+            {
+                const auto last = tags[tag.mate].source.last;
+                const auto next = std::lower_bound(inlineObjects.begin(), inlineObjects.end(), tag.source.first,
+                                                   [](auto range, auto first) { return range.last <= first; });
+                if (next != inlineObjects.end() && next->first < last) return;
+            }
         // Markdown and native anchors must not overlap. Sorting keeps admission
         // O(n log n), rather than comparing every tag with every source link.
         std::sort(markdownLinks.begin(), markdownLinks.end(), [](auto a, auto b) { return a.first < b.first; });

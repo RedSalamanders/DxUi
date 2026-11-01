@@ -16,7 +16,9 @@ enum Style : unsigned
     Strike    = 8,
     Underline = 16,
     Link      = 32, // Semantic link presentation, never an implicit activation request.
-    Marked    = 64
+    Marked    = 64,
+    Superscript = 128,
+    Subscript = 256
 };
 struct StyleRun
 {

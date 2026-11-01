@@ -540,6 +540,8 @@ struct PreparedSemanticGeometry::State
           sourceLines(0u) // Fallible size constructor: MSVC Debug's noexcept default allocates an iterator proxy.
     {
         width = options.widthDip;
+        hasScripts = std::ranges::any_of(document->Runs(), [](const auto& run) { return (run.flags & (Superscript | Subscript)) != 0u; });
+        if (hasScripts) scriptTarget = raster;
         if (options.markdownPresentation == MarkdownPresentationStyle::Subtle)
         {
             decorations = std::make_unique<MarkdownDecorations>();
@@ -569,6 +571,8 @@ struct PreparedSemanticGeometry::State
     LayoutOptions options;
     std::shared_ptr<const RichImageResourceSet> imageResources;
     FlowchartResourceEpoch imageEpochs;
+    wil::com_ptr<ID2D1RenderTarget> scriptTarget;
+    bool hasScripts{};
     std::vector<std::size_t> rejected;
     void Reject(std::size_t element)
     {
@@ -719,7 +723,7 @@ struct PreparedSemanticGeometry::Preparation
                          const State* previous,
                          const State* previousNative)
         : state(std::make_unique<State>(std::move(document), factory, options, drawing, epochs, std::move(images), target, previousImages)),
-          raster(state->images || (state->native && state->native->targetBound) ? target : nullptr),
+          raster(state->images || state->hasScripts || (state->native && state->native->targetBound) ? target : nullptr),
           previousState(previous),
           previousNativeState(previousNative),
           reusable(std::less<std::uint64_t>{}),
@@ -1720,6 +1724,8 @@ struct PreparedSemanticGeometry::Preparation
                 auto& destination = marked ? box->markChips : box->codeChips;
                 destination.insert(destination.end(), chips.begin(), chips.end());
             }
+        if (! PreparedLayoutAccess::ScriptTargetSupported(box->layout, raster.get()))
+            next.Reject(content.element);
         box->height = box->layout.Height();
         box->frame  = D2D1::RectF(box->x, box->y, box->x + box->width, box->y + box->height);
         if (paddedCode)
@@ -1882,6 +1888,7 @@ LayoutPreparationStatus PreparedSemanticGeometry::Begin(IDWriteFactory* factory,
     {
         return state.factory.get() == factory && state.document == document && SameOptions(state.options, options) && state.imageResources == images &&
                (! state.images || (state.images->targetIdentity == raster && state.imageEpochs == epochs)) &&
+               (! state.hasScripts || state.scriptTarget.get() == raster) &&
                (! state.native || (state.native->drawing.get() == drawing && state.native->epochs == epochs &&
                                    (! state.native->targetBound || state.native->targetIdentity == raster)));
     };

@@ -1569,6 +1569,7 @@ part of retained layout/reuse keys and require owner preparation before drawing.
 | --- | --- |
 | b, strong, i, em, u, s, del, code, span, kbd, ins | Attribute-free nested styles: bold, italic, underline, strike, code font or a transparent span. Keyboard text uses the code font; inserted text is underlined. |
 | mark | Attribute-free highlighted text, combinable with the nested styles above. Source delimiters remain hidden with exact source ownership. |
+| sup, sub | Attribute-free text scripts use a 0.75-size native font and a shifted baseline, retaining every authored source ACP, selection and undo operation. Ordinary nested inline text styles and links are supported; nested conflicting script tags and embedded images or math keep the complete leaf literal. Color-font runs require a compatible color-glyph render target; if unavailable, that HTML leaf alone falls back to exact source and retries when its target changes. |
 | img, img/ | Exactly one quoted src, optional quoted alt/title, and no other attributes. The complete tag owns one atomic image alternative and uses the ordinary bounded image resource pipeline. |
 | hr, hr/ | One standalone attribute-free rule in its HTML block, with only surrounding whitespace. It uses native thematic-break geometry, accessibility and source editing. Inline or attributed forms remain literal. |
 | a | Exactly one quoted href and optional quoted title, with no other attributes. Destination/title references are decoded; the resolved label is an inert underlined link. |

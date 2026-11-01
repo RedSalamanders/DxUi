@@ -1269,7 +1269,8 @@ struct SemanticBuilder::Preparation
         }
         if (NativeSourceFallback(node.block.source))
         {
-            DiagramDiagnostic(visit, SemanticDiagnosticKind::DiagramCapacity, node.block.source, Label(AccessibilityTextId::DiagramGeometryCapacity));
+            if (node.block.kind == MarkdownBlockKind::FencedCode)
+                DiagramDiagnostic(visit, SemanticDiagnosticKind::DiagramCapacity, node.block.source, Label(AccessibilityTextId::DiagramGeometryCapacity));
             visit.flags   = Code;
             visit.heading = 0u;
             close         = BeginLeafParagraph(visit, true);
