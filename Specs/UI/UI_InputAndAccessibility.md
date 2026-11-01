@@ -1282,7 +1282,7 @@ payloads, opaque inline interiors and expressions beyond native math source
 capacity. Top-level display expressions may span nonblank physical lines;
 blank-line and nested multiline admission remains unavailable.
 An unmatched math opener cannot claim a closing delimiter inside a subsequent
-recognized inline code span or HTML token; those tokens retain their Markdown
+recognized inline code span, HTML token or angle autolink; those tokens retain their Markdown
 ownership and the unmatched opener remains literal.
 InsertHardBreak preserves representable quote and nested-list prefixes, replacing
 each list marker on the split line with equal-width continuation indentation.
