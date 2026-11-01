@@ -282,6 +282,47 @@ template <typename Check> inline void Core(Check&& check)
             check(std::to_integer<unsigned>(output->Pixels()[i * 4u]) == expected[orientation - 1u][i] * 30u,
                   "TIFF EXIF metadata matches independent orientation pixels");
     }
+    {
+        auto encoded = Encode(factory.get(), GUID_ContainerFormatTiff, source, 2u, 3u, 6u);
+        check(encoded.size() >= 8u && encoded[0] == 'I' && encoded[1] == 'I', "metadata fixture uses little-endian TIFF");
+        const auto read16 = [&](std::size_t at) { return unsigned(encoded[at]) | (unsigned(encoded[at + 1u]) << 8u); };
+        const auto read32 = [&](std::size_t at) { return read16(at) | (read16(at + 2u) << 16u); };
+        const auto ifd    = static_cast<std::size_t>(read32(4u));
+        check(ifd + 2u <= encoded.size(), "metadata fixture has a bounded IFD");
+        const auto count = read16(ifd);
+        check(count <= (encoded.size() - ifd - 2u) / 12u, "metadata fixture entries fit within the encoded TIFF");
+        bool changed{};
+        for (std::size_t index = 0u; index < count; ++index)
+        {
+            const auto entry = ifd + 2u + index * 12u;
+            if (read16(entry) == 274u)
+            {
+                check(read16(entry + 2u) == 3u && read32(entry + 4u) == 1u, "orientation starts as one unsigned SHORT");
+                encoded[entry + 2u] = 8u; // TIFF SSHORT, not the EXIF unsigned SHORT.
+                encoded[entry + 3u] = 0u;
+                changed             = true;
+                break;
+            }
+        }
+        check(changed, "actual WIC-encoded TIFF contains an orientation entry");
+        wil::com_ptr<IWICStream> stream;
+        THROW_IF_FAILED(factory->CreateStream(stream.put()));
+        THROW_IF_FAILED(stream->InitializeFromMemory(encoded.data(), static_cast<DWORD>(encoded.size())));
+        wil::com_ptr<IWICBitmapDecoder> decoder;
+        THROW_IF_FAILED(factory->CreateDecoderFromStream(stream.get(), nullptr, WICDecodeMetadataCacheOnLoad, decoder.put()));
+        wil::com_ptr<IWICBitmapFrameDecode> frame;
+        THROW_IF_FAILED(decoder->GetFrame(0u, frame.put()));
+        wil::com_ptr<IWICMetadataQueryReader> metadata;
+        THROW_IF_FAILED(frame->GetMetadataQueryReader(metadata.put()));
+        wil::unique_prop_variant value;
+        const HRESULT metadataResult = metadata->GetMetadataByName(L"/ifd/{ushort=274}", &value);
+        check(FAILED(metadataResult) || (value.vt != VT_UI1 && value.vt != VT_UI2 && value.vt != VT_UI4 && value.vt != VT_BOOL),
+              "actual WIC metadata returns an unsupported orientation type or metadata error");
+        THROW_IF_FAILED(Decode(factory.get(), encoded, output));
+        check(output->Width() == 2u && output->Height() == 3u && std::to_integer<unsigned>(output->Pixels()[0u]) == 30u &&
+                  std::to_integer<unsigned>(output->Pixels()[20u]) == 180u,
+              "invalid optional orientation preserves decodable unrotated TIFF pixels");
+    }
     std::array<BYTE, 256u> solid{};
     for (unsigned i = 0u; i < 64u; ++i)
     {

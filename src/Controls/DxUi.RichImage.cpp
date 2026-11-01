@@ -271,9 +271,13 @@ public:
                 return reader;
             if (SUCCEEDED(reader))
             {
-                RETURN_IF_FAILED(
-                    MetadataUnsigned(metadata.get(), *clsid == CLSID_WICJpegDecoder ? L"/app1/ifd/{ushort=274}" : L"/ifd/{ushort=274}", orientation));
-                if (orientation < 1u || orientation > 8u)
+                const auto orientationResult =
+                    MetadataUnsigned(metadata.get(), *clsid == CLSID_WICJpegDecoder ? L"/app1/ifd/{ushort=274}" : L"/ifd/{ushort=274}", orientation);
+                if (orientationResult == E_OUTOFMEMORY)
+                    return orientationResult;
+                // Orientation is optional. A corrupt or unsupported metadata
+                // value does not invalidate otherwise decodable image pixels.
+                if (FAILED(orientationResult) || orientation < 1u || orientation > 8u)
                     orientation = 1u;
             }
         }

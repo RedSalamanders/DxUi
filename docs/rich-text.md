@@ -591,7 +591,8 @@ placements/sources, rather than every image token or a cumulative error count.
 
 The raster profile is built-in PNG, JPEG, BMP, GIF and TIFF, with one static first
 frame. GIF respects its logical canvas/offsets/background/transparency; JPEG/TIFF
-EXIF orientation is applied to the pixels. Remote images are disabled by default;
+Valid EXIF orientation is applied to the pixels; missing or malformed optional
+orientation leaves otherwise decodable pixels unrotated. Remote images are disabled by default;
 call `SetRemoteImagesEnabled(true)` only after the application authorizes network
 loading. Absolute HTTP(S) destinations then produce `RemoteHttp` requests with
 the URL in `Source()` and an empty `FilePath()`. The application fetches bounded

@@ -1090,7 +1090,9 @@ Raster image resources MUST be immutable premultiplied BGRA, fully decoded befor
 owner publication. Separately enabled SVG resources retain immutable admitted
 bytes and use the bounded preparation contract below. The raster profile uses the built-in PNG/JPEG/BMP/GIF/
 TIFF codecs and first static frame; GIF canvas placement/transparency/background
-and JPEG/TIFF EXIF orientation MUST be preserved. Unsupported resources MUST keep
+and valid JPEG/TIFF EXIF orientation MUST be preserved. Missing, malformed or
+unsupported optional orientation metadata MUST fall back to unrotated decoded
+pixels; out-of-memory remains a failure. Unsupported resources MUST keep
 the source-exact alternative. Admission is at most 16 MiB encoded, 4096 per side,
 4,194,304 decoded pixels, 32 unique active image sources and 64 MiB unique retained
 CPU pixels. Admitted image placements, mathematical expressions and diagrams
