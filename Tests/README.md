@@ -196,7 +196,7 @@ the original Debug failure is a preserved negative diagnostic, never a suite pas
 ## Native rich images
 
 `test-consumer.ps1` also copies the application-owned image-loader header into
-the relocated sample, compiles all eight public rich-text headers independently,
+the relocated sample, compiles the public rich-text and math headers independently,
 and renders the rich sample with explicit document-location metadata. Its receipt
 hashes the new capture. This supplements the existing minimal/complex/text-service
 and multi-module checks; it does not qualify physical IME/AT or performance.

@@ -188,7 +188,7 @@ They preserve neutral font, focus, pointer, Unicode-unit and HMENU bridging poli
 commands, theme conversion, resource loading and window-subclass policy stay in consumer adapters.
 Private compatibility includes inside src only forward to the canonical public headers. Consumers
 must not include src paths. The relocated fixture compiles each helper header independently.
-It also compiles `DxUi/RichTextExport.h` independently, and the extracted SDK smoke
+It also compiles `DxUi/RichMath.h` and `DxUi/RichTextExport.h` independently, and the extracted SDK smoke
 parses and exports a heading and emphasis using only the packaged headers and archive.
 Native menu host function bodies remain in `src/Controls/NativeMenuInterop.cpp` and link from the archive;
 the public header contains declarations and layout, with no extra wrapper allocation.

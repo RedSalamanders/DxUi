@@ -115,6 +115,8 @@ try {
             $fixture=Join-Path $repository 'Tools/ConsumerApi/ConsumerApi.Tests.Revision4.cpp'
             $consumer=Join-Path $repository 'test-consumer.ps1'
             Assert-Scope ((Test-Path -LiteralPath $fixture) -and [IO.File]::ReadAllText($consumer).Contains('Tools/ConsumerApi/ConsumerApi.Tests.Revision4.cpp') -and [IO.File]::ReadAllText($consumer).Contains('ConsumerApi.Tests.Revision4.cpp')) 'Frozen public API fixture is not compiled by the exact-pin consumer gate'
+            $headerLoop=[regex]::Match([IO.File]::ReadAllText($consumer),'(?s)\$headerUnits\s*=\s*foreach\s*\(.*?\)\s*\{')
+            Assert-Scope ($headerLoop.Success -and $headerLoop.Value.Contains("'RichMath'")) 'Exact-pin consumer must compile RichMath as an independent public header'
         }
     }
     Run-Case 'active names require exact Tests spelling and reject historical inventory membership' {
