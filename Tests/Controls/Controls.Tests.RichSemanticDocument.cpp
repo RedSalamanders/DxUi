@@ -210,6 +210,42 @@ void TestRichMathPreparedStyleSpacingScriptsAndLimits()
                 mixedScript->origin.x >= mixedPlus->origin.x + mixedPlus->extent.width - .01f &&
                 std::abs(mixedScript->origin.x - mixedPlus->origin.x - mixedPlus->extent.width - mixedPlus->italicCorrection) < .05f,
             "a grouped script anchor uses the final drawable operator instead of an earlier italic variable");
+    const auto scalableFence = prepare(L"\\left(\\frac{1}{\\frac{x}{y}}\\right)");
+    const auto fenceSize     = scalableFence->Size();
+    for (const auto& variant : scalableFence->VariantLayouts())
+        Require(variant.left >= -.01f && variant.top >= -.01f && variant.left + variant.width <= fenceSize.width + .01f &&
+                    variant.top + variant.height <= fenceSize.height + .01f && variant.glyph != 0u,
+                "font-selected scalable delimiter ink remains inside prepared bounds");
+    Require(scalableFence->VariantLayouts().size() * 3u + scalableFence->StrokeLayouts().size() >= 8u,
+            "scalable parentheses use font variants when available or deterministic vector fallback");
+    const auto isolatedFence = prepare(L"\\Big(");
+    if (! isolatedFence->VariantLayouts().empty())
+    {
+        Require(isolatedFence->StrokeLayouts().empty(), "the isolated font delimiter has no vector fallback strokes");
+        wil::com_ptr<IWICImagingFactory> imaging;
+        THROW_IF_FAILED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(imaging.put())));
+        wil::com_ptr<IWICBitmap> bitmap;
+        THROW_IF_FAILED(imaging->CreateBitmap(128u, 128u, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnLoad, bitmap.put()));
+        const auto drawing = PreparedFlowchartTests::DrawingFactory();
+        wil::com_ptr<ID2D1RenderTarget> target;
+        const auto properties =
+            D2D1::RenderTargetProperties(D2D1_RENDER_TARGET_TYPE_SOFTWARE, D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
+        THROW_IF_FAILED(drawing->CreateWicBitmapRenderTarget(bitmap.get(), properties, target.put()));
+        wil::com_ptr<ID2D1SolidColorBrush> brush;
+        THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(1.f, 1.f, 1.f, 1.f), brush.put()));
+        target->BeginDraw();
+        target->Clear(D2D1::ColorF(0.f, 0.f, 0.f, 0.f));
+        isolatedFence->Draw(target.get(), brush.get(), D2D1::Point2F(8.f, 8.f), 1.f);
+        THROW_IF_FAILED(target->EndDraw());
+        std::vector<BYTE> pixels(128u * 128u * 4u);
+        THROW_IF_FAILED(bitmap->CopyPixels(nullptr, 128u * 4u, static_cast<UINT>(pixels.size()), pixels.data()));
+        bool visible{};
+        for (std::size_t offset = 3u; offset < pixels.size(); offset += 4u)
+            visible = visible || pixels[offset] != 0u;
+        Require(visible, "a selected OpenType delimiter variant paints visible pixels to an offscreen target");
+    }
+    else
+        Require(! isolatedFence->StrokeLayouts().empty(), "a font without an adequate variant retains the vector fallback");
     const auto displayFraction = prepare(L"\\dfrac{x}{y}"), textFraction = prepare(L"\\tfrac{x}{y}");
     Require(displayFraction->GlyphLayouts().size() == 2u && textFraction->GlyphLayouts().size() == 2u &&
                 displayFraction->GlyphLayouts()[0u].font > textFraction->GlyphLayouts()[0u].font &&

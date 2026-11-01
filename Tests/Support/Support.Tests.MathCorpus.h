@@ -1,6 +1,7 @@
 #pragma once
 #include "Controls/DxUi.NativeMathSymbols.h"
 #include "Controls/DxUi.PreparedMath.h"
+#include "Support.Tests.MathFontTable.h"
 #include <DxUi/RichMath.h>
 #include <array>
 #include <cmath>
@@ -149,6 +150,24 @@ inline std::wstring Matrix(unsigned rows, unsigned columns)
 }
 template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
 {
+    MathFontTableTests::Run(check);
+#if DXUI_ENABLE_DIAGNOSTICS
+    const auto readsBefore = Detail::testRichMathConstantReads;
+    auto cachedExpression  = std::make_shared<const MathExpression>(ParseMath(L"\\left(\\frac{x_i}{y^2}\\right)"));
+    Detail::PreparedMath anchor(factory, cachedExpression, 24.f);
+    while (! anchor.Advance())
+    {
+    }
+    for (std::size_t i = 1u; i < 128u; ++i)
+    {
+        Detail::PreparedMath item(factory, cachedExpression, 24.f, false, &anchor);
+        while (! item.Advance())
+        {
+        }
+        check(item.Size().width > 0.f && item.Size().height > 0.f, "cached font data prepares every admitted object");
+    }
+    check(Detail::testRichMathConstantReads == readsBefore + 1u, "128 formulas share one generation-scoped font table snapshot");
+#endif
     std::size_t scenarioIndex{};
     for (const auto& scenario : prepared)
     {

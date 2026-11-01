@@ -1038,3 +1038,5 @@ A paused ProgressBar contributes no animation continuation and keeps its current
 Native swap-chain creation, back-buffer retrieval, and target-bitmap creation route device-loss HRESULTs through the same shared-generation retirement and full-repaint recovery as presentation failures. Unrelated preparation failures preserve their existing retry policy.
 
 Single-line grapheme movement and unindexed deletion may use locally established ASCII boundaries, with CRLF and uncertain Unicode context retained on the full grapheme path. Native text-input synchronization transfers the exported text buffer into its snapshot instead of copying it again; this does not change ownership, notifications, or secure cache retirement.
+
+Prepared math shares a generation-scoped immutable OpenType MATH snapshot, capped at 4 MiB, and bounded glyph-indexed correction and variant-offset arrays across formula preparations and width reflows. Preparation may query glyph metrics; painting performs no table parsing, allocations or font discovery. Malformed or unavailable data uses deterministic fallback and does not suppress the rest of the document.

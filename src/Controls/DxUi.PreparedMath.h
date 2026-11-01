@@ -1,4 +1,5 @@
 #pragma once
+#include "DxUi.MathFontTable.h"
 #include <DxUi/Configuration.h>
 #include <DxUi/RichDocument.h>
 #include <DxUi/RichMath.h>
@@ -44,6 +45,39 @@ class PreparedMath final
         float italicCorrection{};
         float leftOverhang{}, topOverhang{}, rightOverhang{}, bottomOverhang{};
     };
+    struct MathFontData
+    {
+        static constexpr std::int32_t MissingCorrection = (std::numeric_limits<std::int32_t>::max)();
+        MathFontData(IDWriteFontFace* source, std::span<const std::uint8_t> bytes, std::uint16_t units)
+            : face(source),
+              table(bytes.begin(), bytes.end()),
+              corrections(source->GetGlyphCount(), MissingCorrection),
+              constructions(source->GetGlyphCount(), 0u),
+              designUnits(units)
+        {
+            const MathFontTable parsed(table);
+            for (std::size_t index = 0u; index < corrections.size(); ++index)
+            {
+                const auto glyph      = static_cast<std::uint16_t>(index);
+                const auto correction = parsed.ItalicCorrection(glyph);
+                if (correction)
+                    corrections[index] = correction.value();
+                const auto construction = parsed.VerticalConstruction(glyph);
+                if (construction)
+                    constructions[index] = static_cast<std::uint32_t>(construction.value());
+            }
+        }
+        wil::com_ptr<IDWriteFontFace> face;
+        std::vector<std::uint8_t> table;
+        std::vector<std::int32_t> corrections;
+        std::vector<std::uint32_t> constructions;
+        std::uint16_t designUnits{};
+    };
+    struct VariantGlyph
+    {
+        std::uint16_t glyph{};
+        float x{}, baseline{}, fontSize{}, scaleX{}, left{}, top{}, width{}, height{};
+    };
     struct Line
     {
         D2D1_POINT_2F first, last;
@@ -62,9 +96,11 @@ class PreparedMath final
     };
     std::shared_ptr<const MathExpression> expression;
     wil::com_ptr<IDWriteFactory> factory;
+    std::shared_ptr<const MathFontData> mathData;
     std::vector<Glyph> glyphs;
     std::vector<Box> boxes;
     std::vector<Line> lines;
+    std::vector<VariantGlyph> variants;
     std::size_t cursor{};
     float font{}, axis{};
     float scriptScale{.7f}, scriptScriptScale{.5f};
@@ -97,13 +133,13 @@ class PreparedMath final
         upperLimitGap *= font;
         lowerLimitGap *= font;
     }
-    void ReadMathConstants(IDWriteFactory* write) noexcept
+    void ReadMathConstants(IDWriteFactory* write)
     {
 #if DXUI_ENABLE_DIAGNOSTICS
         ++testRichMathConstantReads;
 #endif
         // A missing, truncated, or implausible MATH table uses deterministic
-        // em-relative constants. Only the bounded header/constants prefix is read.
+        // em-relative constants. A valid table up to four MiB is copied and parsed once per geometry generation.
         wil::com_ptr<IDWriteFontCollection> collection;
         if (FAILED(write->GetSystemFontCollection(collection.put(), FALSE)))
             return;
@@ -144,6 +180,8 @@ class PreparedMath final
         const auto axisUnits      = Signed16(constants + 12);
         DWRITE_FONT_METRICS metrics{};
         face->GetMetrics(&metrics);
+        if (metrics.designUnitsPerEm != 0u && size <= 4u * 1024u * 1024u)
+            mathData = std::make_shared<MathFontData>(face.get(), std::span(bytes, static_cast<std::size_t>(size)), metrics.designUnitsPerEm);
         if (metrics.designUnitsPerEm == 0)
             return;
         if (first >= 30 && first <= 100)
@@ -183,9 +221,10 @@ class PreparedMath final
             axis = candidateAxis;
     }
     // The source belongs to this same factory/generation and uses the same Cambria Math face.
-    // All dimensional constants are em-relative; never retain a font face or table pointer.
+    // Dimensional constants are em-relative; retain the shared COM font face, and parsed bounded table, never a borrowed table pointer.
     void CopyMathConstants(const PreparedMath& source) noexcept
     {
+        mathData                        = source.mathData;
         const float ratio               = font / source.font;
         scriptScale                     = source.scriptScale;
         scriptScriptScale               = source.scriptScriptScale;
@@ -449,6 +488,27 @@ class PreparedMath final
         if (node.text == L";")
             return size * 5.f / 18.f;
         return size / 3.f;
+    }
+    [[nodiscard]] std::optional<float> FontItalicCorrection(std::wstring_view text, float size) const noexcept
+    {
+        if (! mathData || text.empty())
+            return std::nullopt;
+        std::uint32_t scalar = static_cast<std::uint16_t>(text.back());
+        if (scalar >= 0xdc00u && scalar <= 0xdfffu && text.size() >= 2u)
+        {
+            const auto lead = static_cast<std::uint16_t>(text[text.size() - 2u]);
+            if (lead < 0xd800u || lead > 0xdbffu)
+                return std::nullopt;
+            scalar = 0x10000u + ((lead - 0xd800u) << 10u) + (scalar - 0xdc00u);
+        }
+        UINT16 glyph{};
+        if (FAILED(mathData->face->GetGlyphIndices(&scalar, 1u, &glyph)) || glyph == 0u || glyph >= mathData->corrections.size())
+            return std::nullopt;
+        const auto correction = mathData->corrections[glyph];
+        if (correction == MathFontData::MissingCorrection)
+            return std::nullopt;
+        const auto scaled = static_cast<float>(correction) * size / static_cast<float>(mathData->designUnits);
+        return std::isfinite(scaled) && std::abs(scaled) <= size * 2.f ? std::optional<float>(scaled) : std::nullopt;
     }
     float ItalicCorrection(std::size_t index) const noexcept
     {
@@ -742,9 +802,48 @@ class PreparedMath final
     {
         lines.push_back({{x1, y1}, {x2, y2}, thickness});
     }
-    void Fence(wchar_t shape, float x, float top, float bottom, float width, float thickness)
+    bool AddVerticalVariant(wchar_t shape, float x, float top, float bottom, float width, float size)
+    {
+        if (! mathData || width <= 0.f || size <= 0.f || bottom <= top)
+            return false;
+        const auto required = (bottom - top) * static_cast<float>(mathData->designUnits) / size;
+        if (! std::isfinite(required) || required <= 0.f || required > 65535.f)
+            return false;
+        const std::uint32_t scalar = static_cast<std::uint16_t>(shape);
+        UINT16 baseGlyph{};
+        if (FAILED(mathData->face->GetGlyphIndices(&scalar, 1u, &baseGlyph)) || baseGlyph == 0u)
+            return false;
+        if (baseGlyph >= mathData->constructions.size() || mathData->constructions[baseGlyph] == 0u)
+            return false;
+        const MathFontTable table(mathData->table);
+        const auto choice = table.VerticalVariantAt(mathData->constructions[baseGlyph], static_cast<std::uint16_t>(std::ceil(required)));
+        if (! choice)
+            return false;
+        const auto glyph = choice.value().glyph;
+        DWRITE_GLYPH_METRICS metrics{};
+        if (FAILED(mathData->face->GetDesignGlyphMetrics(&glyph, 1u, &metrics, FALSE)))
+            return false;
+        const float units = size / static_cast<float>(mathData->designUnits);
+        const float inkWidth =
+            (static_cast<float>(metrics.advanceWidth) - static_cast<float>(metrics.leftSideBearing) - static_cast<float>(metrics.rightSideBearing)) * units;
+        const float inkAbove = (static_cast<float>(metrics.verticalOriginY) - static_cast<float>(metrics.topSideBearing)) * units;
+        const float inkBelow =
+            (static_cast<float>(metrics.advanceHeight) - static_cast<float>(metrics.verticalOriginY) - static_cast<float>(metrics.bottomSideBearing)) * units;
+        const float height = inkAbove + inkBelow;
+        if (! std::isfinite(inkWidth + height + inkAbove) || inkWidth <= 0.f || height < bottom - top || height > 65536.f)
+            return false;
+        const float scaleX   = (std::min)(1.f, width / inkWidth);
+        const float left     = x + (width - inkWidth * scaleX) / 2.f;
+        const float baseline = (top + bottom - height) / 2.f + inkAbove;
+        const float originX  = left - static_cast<float>(metrics.leftSideBearing) * units * scaleX;
+        variants.push_back({glyph, originX, baseline, size, scaleX, left, baseline - inkAbove, inkWidth * scaleX, height});
+        return true;
+    }
+    void Fence(wchar_t shape, float x, float top, float bottom, float width, float thickness, float size)
     {
         if (shape == L'.')
+            return;
+        if (AddVerticalVariant(shape, x, top, bottom, width, size))
             return;
         const bool right  = shape == L')' || shape == L']' || shape == L'}' || shape == L'⟩' || shape == L'⌋' || shape == L'⌉';
         const auto outer  = right ? x + width : x;
@@ -878,15 +977,15 @@ class PreparedMath final
             const float top = baseline - box.extent.above, bottom = baseline + box.extent.below;
             Place(ChildAt(index, 0u), x + leftAdvance, baseline);
             if (leftVisible)
-                Fence(node.text[0u], x, top, bottom, width, stroke);
+                Fence(node.text[0u], x, top, bottom, width, stroke, box.size);
             if (rightVisible)
-                Fence(node.text[1u], x + box.extent.width - rightAdvance, top, bottom, width, stroke);
+                Fence(node.text[1u], x + box.extent.width - rightAdvance, top, bottom, width, stroke, box.size);
             return;
         }
         if (node.kind == Delimiter)
         {
             const auto width = box.extent.width;
-            Fence(node.text.empty() ? L'.' : node.text[0], x, baseline - box.extent.above, baseline + box.extent.below, width, stroke);
+            Fence(node.text.empty() ? L'.' : node.text[0], x, baseline - box.extent.above, baseline + box.extent.below, width, stroke, box.size);
             return;
         }
         if (node.kind == Accent && node.children.size() == 1u)
@@ -982,9 +1081,9 @@ class PreparedMath final
                                    : node.text == L"Vmatrix"                          ? L'‖'
                                                                                       : L'[';
                 const auto right = left == L'(' ? L')' : left == L'{' ? L'}' : left == L'[' ? L']' : left;
-                Fence(left, x + 2.f, top, bottom, box.size * .2f, stroke);
+                Fence(left, x + 2.f, top, bottom, box.size * .2f, stroke, box.size);
                 if (node.text != L"cases")
-                    Fence(right, x + box.extent.width - box.size * .2f - 2.f, top, bottom, box.size * .2f, stroke);
+                    Fence(right, x + box.extent.width - box.size * .2f - 2.f, top, bottom, box.size * .2f, stroke, box.size);
             }
             return;
         }
@@ -1021,6 +1120,7 @@ class PreparedMath final
         if (extent.width > 65536.f || extent.above + extent.below > 65536.f || ! std::isfinite(extent.width + extent.above + extent.below))
             throw std::length_error("Mathematical geometry capacity exceeded");
         lines.reserve(boxes.size() * 6u);
+        variants.reserve(boxes.size() * 2u);
         Place(0u, 0.f, extent.above);
         float left{}, right = extent.width, top{}, bottom = extent.above + extent.below;
         for (const auto& glyph : glyphs)
@@ -1029,6 +1129,13 @@ class PreparedMath final
             right  = std::max(right, glyph.origin.x + glyph.extent.width + glyph.rightOverhang);
             top    = std::min(top, glyph.origin.y - glyph.topOverhang);
             bottom = std::max(bottom, glyph.origin.y + glyph.extent.above + glyph.extent.below + glyph.bottomOverhang);
+        }
+        for (const auto& variant : variants)
+        {
+            left   = std::min(left, variant.left);
+            right  = std::max(right, variant.left + variant.width);
+            top    = std::min(top, variant.top);
+            bottom = std::max(bottom, variant.top + variant.height);
         }
         for (const auto& line : lines)
         {
@@ -1046,6 +1153,13 @@ class PreparedMath final
         {
             glyph.origin.x += shiftX;
             glyph.origin.y += shiftY;
+        }
+        for (auto& variant : variants)
+        {
+            variant.x += shiftX;
+            variant.baseline += shiftY;
+            variant.left += shiftX;
+            variant.top += shiftY;
         }
         for (auto& line : lines)
         {
@@ -1065,6 +1179,7 @@ public:
           glyphs(0u),
           boxes(0u),
           lines(0u),
+          variants(0u),
           font(size),
           displayStyle(display)
     {
@@ -1136,7 +1251,7 @@ public:
             const float leftInk = std::isfinite(overhang.left) ? std::max(0.f, overhang.left) : 0.f;
             const float rightOverhang =
                 std::isfinite(overhang.right) ? std::max(0.f, layoutWidth + overhang.right - metrics.widthIncludingTrailingWhitespace) : 0.f;
-            const float italicCorrection = leaf.italic ? rightOverhang : 0.f;
+            const float italicCorrection = leaf.italic ? FontItalicCorrection(leaf.node->text, leaf.font).value_or(rightOverhang) : 0.f;
             const Extent shapedExtent{metrics.widthIncludingTrailingWhitespace, line.baseline, metrics.height - line.baseline};
             leaf.layout                       = std::move(layout);
             leaf.extent                       = shapedExtent;
@@ -1167,6 +1282,10 @@ public:
     {
         return glyphs;
     }
+    const auto& VariantLayouts() const noexcept
+    {
+        return variants;
+    }
     const auto& StrokeLayouts() const noexcept
     {
         return lines;
@@ -1180,6 +1299,15 @@ public:
             target->DrawTextLayout(glyph.origin, glyph.layout.get(), brush);
         for (const auto& line : lines)
             target->DrawLine(line.first, line.last, brush, line.thickness);
+        for (const auto& variant : variants)
+        {
+            D2D1_MATRIX_3X2_F current;
+            target->GetTransform(&current);
+            target->SetTransform(D2D1::Matrix3x2F::Scale(variant.scaleX, 1.f, D2D1::Point2F(variant.x, variant.baseline)) * current);
+            const DWRITE_GLYPH_RUN run{mathData->face.get(), variant.fontSize, 1u, &variant.glyph, nullptr, nullptr, FALSE, 0u};
+            target->DrawGlyphRun(D2D1::Point2F(variant.x, variant.baseline), &run, brush, DWRITE_MEASURING_MODE_NATURAL);
+            target->SetTransform(current);
+        }
         target->SetTransform(previous);
     }
 };
