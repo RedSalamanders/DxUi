@@ -1258,8 +1258,10 @@ Ctrl+Enter in a top-level fenced block exits to an empty following source line;
 an unclosed block receives its matching closing fence first, in one undo step.
 InsertMath in the RichMarkdown profile wraps a selected source expression, or
 inserts a supplied nonempty expression, using inline or display delimiters.
-It selects the expression and rejects conflicting delimiters, multiline payloads,
-opaque inline interiors and expressions beyond native math source capacity.
+It selects the expression and rejects conflicting delimiters, inline multiline
+payloads, opaque inline interiors and expressions beyond native math source
+capacity. Top-level display expressions may span nonblank physical lines;
+blank-line and nested multiline admission remains unavailable.
 The non-mutating command-state query reports current style, heading and list
 presentation without constructing an edit; unavailable editor states report
 `available = false`. Applicability remains unknown for an enabled rich editor

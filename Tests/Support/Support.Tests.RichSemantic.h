@@ -337,6 +337,12 @@ inline void ListsAndHeadings()
             request.mathDisplay = true;
             request.text        = L"x";
             Exact(L"", {}, request, L"\\[x\\]", Selection{2u, 3u}, profile);
+            request.text = L"x\ny";
+            Exact(L"", {}, request, L"\\[x\ny\\]", Selection{2u, 5u}, profile);
+            Document displayMath(L"\\[x\ny\\]");
+            const auto displaySyntax = Parse(displayMath, profile);
+            Check(std::ranges::any_of(displaySyntax->Inlines(), [](const auto& node) { return node.kind == MarkdownInlineKind::Math; }),
+                  "multiline display insertion remains one math source envelope");
             request.mathDisplay = false;
         }
         else

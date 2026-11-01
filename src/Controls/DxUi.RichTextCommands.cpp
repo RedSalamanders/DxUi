@@ -172,8 +172,29 @@ bool CanInsertMath(const MarkdownSyntax& syntax, Selection selection, std::wstri
                 return false;
     const auto payload = first == last ? requested : text.substr(first, last - first);
     const auto closer  = display ? std::wstring_view(L"\\]") : std::wstring_view(L"\\)");
-    return ! payload.empty() && payload.size() <= MathMaximumSourceUnits && IsValidUtf16(payload) && payload.find_first_of(L"\r\n") == payload.npos &&
-           payload.find(closer) == payload.npos && payload.size() + 4u <= Document::MaximumUnits - (text.size() - (last - first));
+    if (payload.empty() || payload.size() > MathMaximumSourceUnits || ! IsValidUtf16(payload) || payload.find(closer) != payload.npos ||
+        payload.size() + 4u > Document::MaximumUnits - (text.size() - (last - first)))
+        return false;
+    if (payload.find_first_of(L"\r\n") != payload.npos)
+    {
+        if (! display ||
+            (leaf != MarkdownNoNode && (nodes[leaf].parent == MarkdownNoNode || nodes[nodes[leaf].parent].block.kind != MarkdownBlockKind::Document)))
+            return false;
+        size_t line = 0u;
+        while (line <= payload.size())
+        {
+            const auto end      = payload.find_first_of(L"\r\n", line);
+            const auto lastUnit = end == payload.npos ? payload.size() : end;
+            if (payload.substr(line, lastUnit - line).find_first_not_of(L" \t") == payload.npos)
+                return false; // A blank physical line would split the Markdown leaf.
+            if (end == payload.npos)
+                break;
+            line = end + 1u;
+            if (payload[end] == L'\r' && line < payload.size() && payload[line] == L'\n')
+                ++line;
+        }
+    }
+    return true;
 }
 std::optional<std::size_t> FindCodeLanguageTarget(const MarkdownSyntax& syntax, Selection selection, std::wstring_view language) noexcept
 {
