@@ -75,7 +75,8 @@ void TestRichMathLimitModifiersAndSymbolIdentity()
     for (const auto source : {L"\\limits x", L"x\\nolimits_2", L"\\sum\\limits\\nolimits_2"})
         Require(! ParseMath(source), "limit modifiers without one eligible operator reject instead of changing another atom");
     const auto symbols = ParseMath(L"\\epsilon\\varepsilon\\phi\\varphi\\cdot");
-    Require(symbols && MathLeafText(symbols.root) == L"\u03f5\u03b5\u03d5\u03c6\u22c5", "TeX variant Greek letters and centered dot preserve their distinct identities");
+    Require(symbols && MathLeafText(symbols.root) == L"\u03f5\u03b5\u03d5\u03c6\u22c5",
+            "TeX variant Greek letters and centered dot preserve their distinct identities");
 }
 void TestRichMathExplicitDelimiterRecognition()
 {

@@ -1,10 +1,10 @@
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "Controls.Tests.TextStoreComposition.h"
-#include "GraphicsFixture.h"
-#include <DxUi/Embedded.h>
 #include "Controls/DxUi.Internal.h"
 #include "Controls/TextStoreTarget.h"
+#include "GraphicsFixture.h"
 #include "Support/WindowMessages.h"
+#include <DxUi/Embedded.h>
 #include <thread>
 
 #include <array>
@@ -1075,10 +1075,11 @@ void VerifyNativeTextInputTsfCallbacksPreserveReentrantSameControlSession(Native
         wil::com_ptr_nothrow<ITfDocumentMgr> sentinel;
         RequireSucceeded(sentinelUnknown.query_to(sentinel.put()), "query the external association sentinel");
         wil::com_ptr_nothrow<ITfDocumentMgr> oldAssociation;
-        RequireSucceeded(window.Host().DebugSwapNativeTextInputAssociationForTest(sentinel.get(), oldAssociation.put()), "install the external association sentinel");
+        RequireSucceeded(window.Host().DebugSwapNativeTextInputAssociationForTest(sentinel.get(), oldAssociation.put()),
+                         "install the external association sentinel");
         wil::com_ptr_nothrow<IUnknown> stagedDocument;
         setFocusReentered = false;
-        sink.onSetFocus = [&]
+        sink.onSetFocus   = [&]
         {
             if (setFocusReentered || window.Host().GetFocusControl() != requested)
                 return;
@@ -1086,7 +1087,7 @@ void VerifyNativeTextInputTsfCallbacksPreserveReentrantSameControlSession(Native
             if (window.Host().DebugGetFocusedNativeTextInputDocumentForTest(focused.put()) != S_OK || ! focused || focused.get() == sentinelUnknown.get())
                 return;
             setFocusReentered = true;
-            stagedDocument = focused;
+            stagedDocument    = focused;
             window.Host().SetFocusControl(requested);
         };
         window.Host().SetFocusControl(requested);
@@ -9754,7 +9755,7 @@ void TestRichCommandStateDuringNativeComposition()
     RequireSucceeded(GraphicsDevice::Create(graphics.device.get(), pool), "native composition fixture graphics pool");
     EmbeddedHost view;
     RequireSucceeded(view.Attach(pool), "native composition fixture headless host");
-    auto& host = view.Controls();
+    auto& host  = view.Controls();
     auto editor = std::make_unique<RichTextEditor>(L"**a**");
     auto* raw   = editor.get();
     raw->SetMarkdownAnalysisProfile(MarkdownProfile::Gfm029);
@@ -9774,8 +9775,8 @@ void TestRichCommandStateDuringNativeComposition()
     request.command = MarkdownCommand::ToggleStyle;
     request.style   = MarkdownTextStyle::Strong;
     Require(raw->PrepareMarkdownCommandState(request), "prepare command state before native composition");
-    const auto originalRevision = raw->Revision();
-    const auto originalSelection = raw->GetSelection();
+    const auto originalRevision     = raw->Revision();
+    const auto originalSelection    = raw->GetSelection();
     unsigned selectionNotifications = 0u;
     raw->SetOnSelectionChanged([&] { ++selectionNotifications; });
     const auto beforeComposition = raw->QueryMarkdownCommandState(request);

@@ -26,9 +26,9 @@ using RichSemanticTests::Check;
 class DirectPrepareRichTextEditor final : public RichTextEditor
 {
 public:
-    using RichTextEditor::RichTextEditor;
     using RichTextEditor::ExportTextInputState;
     using RichTextEditor::ImportTextInputState;
+    using RichTextEditor::RichTextEditor;
     HRESULT PrepareOnce(ControlHost& host) noexcept
     {
         return PrepareContent(host);
@@ -867,14 +867,14 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     auto retainedState = editor->QueryMarkdownCommandState(preparedRequest);
     Check(retainedState && retainedState->available.has_value(), "unchanged silent import retains the exact prepared result");
     imported.selectionAnchorIndex = 1u;
-    imported.caretIndex = 1u;
+    imported.caretIndex           = 1u;
     Check(editor->ImportTextInputState(host, imported, false), "selection-changing silent import succeeds");
     auto changedState = editor->QueryMarkdownCommandState(preparedRequest);
     Check(changedState && ! changedState->available.has_value(), "selection-changing import invalidates the prepared result");
     Check(editor->PrepareMarkdownCommandState(preparedRequest), "reprepare after selection change");
-    imported.text = L"changed";
+    imported.text                 = L"changed";
     imported.selectionAnchorIndex = 0u;
-    imported.caretIndex = 0u;
+    imported.caretIndex           = 0u;
     Check(editor->ImportTextInputState(host, imported, false), "source-changing silent import succeeds");
     changedState = editor->QueryMarkdownCommandState(preparedRequest);
     Check(! changedState || ! changedState->available.has_value(), "source-changing import invalidates the prepared result");

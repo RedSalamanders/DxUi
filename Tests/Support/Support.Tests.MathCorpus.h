@@ -193,7 +193,7 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
     PinnedSupportRows(factory, check);
     MathFontTableTests::Run(check);
     {
-        const auto source = L"\\mathbb{\\text{" + std::wstring(8200u, L'A') + L"}}";
+        const auto source     = L"\\mathbb{\\text{" + std::wstring(8200u, L'A') + L"}}";
         const auto expression = std::make_shared<const MathExpression>(ParseMath(source));
         check(static_cast<bool>(*expression), "authored blackboard source below the source cap parses before expansion");
         Detail::PreparedMath expanded(factory, expression, 1.f);
@@ -215,7 +215,7 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
         check(refused, "direct mathematical text payloads remain bounded after allowing alphabet expansion");
     }
     {
-        const auto dots = std::make_shared<const MathExpression>(ParseMath(L"a\\ldots b"));
+        const auto dots    = std::make_shared<const MathExpression>(ParseMath(L"a\\ldots b"));
         const auto literal = std::make_shared<const MathExpression>(ParseMath(L"a…b"));
         check(*dots && dots->root.children.size() == 3u && dots->root.children[1u].atomClass == MathAtomClass::Inner && *literal &&
                   literal->root.children.size() == 3u && literal->root.children[1u].atomClass == MathAtomClass::Ordinary,
@@ -307,12 +307,16 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
             void* context{};
             BOOL exists{};
             THROW_IF_FAILED(face->TryGetFontTable(DWRITE_MAKE_OPENTYPE_TAG('M', 'A', 'T', 'H'), &bytes, &byteCount, &context, &exists));
-            const auto releaseTable = wil::scope_exit([&]() noexcept { if (context) face->ReleaseFontTable(context); });
+            const auto releaseTable = wil::scope_exit([&]() noexcept
+            {
+                if (context)
+                    face->ReleaseFontTable(context);
+            });
             check(exists && bytes && fontMetrics.designUnitsPerEm, "SDK shift oracle has the actual system MATH table");
             if (exists && bytes && fontMetrics.designUnitsPerEm)
             {
                 const Detail::MathFontTable table(std::span(static_cast<const std::uint8_t*>(bytes), byteCount));
-                const auto record = table.MathConstant(36u);
+                const auto record   = table.MathConstant(36u);
                 const auto minShift = record ? table.AdjustedValue(record.value(), 24.f, 96.f, fontMetrics.designUnitsPerEm) : std::nullopt;
                 check(minShift.has_value(), "SDK MATH table supplies the superscript minimum shift");
                 for (const auto source : {L"H^x", L".^x"})
@@ -332,7 +336,7 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
                     THROW_IF_FAILED(glyphs[0u].layout->GetLineMetrics(&line, 1u, &count));
                     THROW_IF_FAILED(glyphs[0u].layout->GetOverhangMetrics(&ink));
                     const float expected = std::max(minShift.value(), std::max(0.f, line.baseline + ink.top) - 24.f * .08f);
-                    const float actual = glyphs[0u].origin.y + glyphs[0u].extent.above - glyphs[1u].origin.y - glyphs[1u].extent.above;
+                    const float actual   = glyphs[0u].origin.y + glyphs[0u].extent.above - glyphs[1u].origin.y - glyphs[1u].extent.above;
                     check(std::abs(actual - expected) < .05f, "superscript baseline uses actual glyph ink and SDK MATH minimum");
                 }
                 for (const auto source : {L"{.+.}^x", L"{H_i}^x", L"{\\frac{.}{.}}^x"})
@@ -356,8 +360,8 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
                     for (const auto& stroke : composite.StrokeLayouts())
                         top = std::min(top, std::min(stroke.first.y, stroke.last.y) - stroke.thickness * .5f);
                     const float expected = std::max(minShift.value(), composite.Baseline() - top - 24.f * .08f);
-                    const auto& upper = glyphs.back();
-                    const float actual = composite.Baseline() - upper.origin.y - upper.extent.above;
+                    const auto& upper    = glyphs.back();
+                    const float actual   = composite.Baseline() - upper.origin.y - upper.extent.above;
                     check(std::abs(actual - expected) < .05f, "row, nested script and fraction bases use their actual staged ink union");
                 }
                 const auto constant = [&](std::size_t offset) -> std::optional<float>
@@ -381,8 +385,8 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
                     DWRITE_OVERHANG_METRICS ink{};
                     THROW_IF_FAILED(fractionGlyphs[1u].layout->GetLineMetrics(&line, 1u, &count));
                     THROW_IF_FAILED(fractionGlyphs[1u].layout->GetOverhangMetrics(&ink));
-                    const float expected = std::max(denominator.value(), std::max(0.f, line.baseline + ink.top) + gap.value() +
-                                                                            std::max(1.f, rule.value()) * .5f - axis.value());
+                    const float expected =
+                        std::max(denominator.value(), std::max(0.f, line.baseline + ink.top) + gap.value() + std::max(1.f, rule.value()) * .5f - axis.value());
                     const float actual = fractionGlyphs[1u].origin.y + fractionGlyphs[1u].extent.above - fraction.Baseline();
                     check(std::abs(actual - expected) < .05f, "fraction denominator uses actual glyph ink and SDK MATH gaps");
                 }
@@ -406,7 +410,7 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
                         inkAbove = std::max(inkAbove, line.baseline + ink.top);
                     }
                     const float expected = std::max(denominator.value(), inkAbove + gap.value() + std::max(1.f, rule.value()) * .5f - axis.value());
-                    const float actual = rowGlyphs[1u].origin.y + rowGlyphs[1u].extent.above - rowFraction.Baseline();
+                    const float actual   = rowGlyphs[1u].origin.y + rowGlyphs[1u].extent.above - rowFraction.Baseline();
                     check(std::abs(actual - expected) < .05f, "multi-atom denominator uses the union of actual SDK ink");
                 }
                 auto pairedExpression = std::make_shared<const MathExpression>(ParseMath(L"H_i^x"));
@@ -415,14 +419,14 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
                 {
                 }
                 const auto& pairedGlyphs = paired.GlyphLayouts();
-                const auto scriptGap = constant(52u);
+                const auto scriptGap     = constant(52u);
                 check(pairedGlyphs.size() == 3u && scriptGap, "paired-script SDK oracle has both scripts and a minimum gap");
                 if (pairedGlyphs.size() == 3u && scriptGap)
                 {
                     DWRITE_OVERHANG_METRICS subInk{}, superInk{};
                     THROW_IF_FAILED(pairedGlyphs[1u].layout->GetOverhangMetrics(&subInk));
                     THROW_IF_FAILED(pairedGlyphs[2u].layout->GetOverhangMetrics(&superInk));
-                    const float subTop = pairedGlyphs[1u].origin.y - subInk.top;
+                    const float subTop      = pairedGlyphs[1u].origin.y - subInk.top;
                     const float superBottom = pairedGlyphs[2u].origin.y + pairedGlyphs[2u].layout->GetMaxHeight() + superInk.bottom;
                     check(subTop - superBottom + .05f >= scriptGap.value(), "paired scripts preserve the SDK MATH ink gap");
                 }

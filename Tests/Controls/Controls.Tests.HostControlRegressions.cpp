@@ -467,9 +467,9 @@ void TestSliderReleaseThroughHostPreservesReplacementCapture()
     for (const bool scrolled : {false, true})
     {
         WindowHost host;
-        auto root = std::make_unique<Panel>();
+        auto root       = std::make_unique<Panel>();
         auto* rootPanel = root.get();
-        Panel* parent = rootPanel;
+        Panel* parent   = rootPanel;
         if (scrolled)
         {
             auto* scroll = root->AddChild<ScrollPanel>();
@@ -484,7 +484,7 @@ void TestSliderReleaseThroughHostPreservesReplacementCapture()
         replacement->SetBounds(D2D1::RectF(250, 20, 300, 68));
         host.SetRoot(std::move(root));
         rootPanel->SetBounds(D2D1::RectF(0, 0, 320, 240));
-        bool armed = false;
+        bool armed       = false;
         unsigned commits = 0u, cancels = 0u;
         slider->SetOnChange([&](SliderChange change)
         {
@@ -499,9 +499,9 @@ void TestSliderReleaseThroughHostPreservesReplacementCapture()
                 ++cancels;
         });
         const auto thumb = slider->DebugGetThumbRect();
-        const LONG x = static_cast<LONG>((thumb.left + thumb.right) * 0.5f);
-        const LONG y = static_cast<LONG>((thumb.top + thumb.bottom) * 0.5f);
-        bool handled = false;
+        const LONG x     = static_cast<LONG>((thumb.left + thumb.right) * 0.5f);
+        const LONG y     = static_cast<LONG>((thumb.top + thumb.bottom) * 0.5f);
+        bool handled     = false;
         static_cast<void>(host.HandleMessage(nullptr, WM_LBUTTONDOWN, MK_LBUTTON, MAKELPARAM(x, y), handled));
         armed = true;
         static_cast<void>(host.HandleMessage(nullptr, WM_LBUTTONUP, 0, MAKELPARAM(200, y), handled));

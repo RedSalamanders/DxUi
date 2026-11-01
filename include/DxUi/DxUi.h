@@ -1920,7 +1920,11 @@ protected:
     // Either callback may retire this panel or the subtree; the ancestor walk checks lifetimes after each callback.
     virtual void OnDescendantDetaching(Control& subtree) noexcept;
     virtual void OnDescendantDetached(Control& subtree) noexcept;
-    enum class DescendantDetachPhase { Detaching, Detached };
+    enum class DescendantDetachPhase
+    {
+        Detaching,
+        Detached
+    };
     void NotifyContainersOfDetaching(Control& subtree, DescendantDetachPhase phase = DescendantDetachPhase::Detaching) noexcept;
     [[nodiscard]] Control* HitTest(D2D1_POINT_2F point) override;
     [[nodiscard]] const Control* HitTest(D2D1_POINT_2F point) const override;
@@ -4730,7 +4734,7 @@ private:
     std::weak_ptr<int> _innerHoveredLifetime;
     std::weak_ptr<int> _innerCapturedLifetime;
     // The button whose press began the forwarded gesture; only its release ends it.
-    bool _innerCaptureRightButton = false;
+    bool _innerCaptureRightButton  = false;
     uint64_t _innerCaptureRevision = 0u;
 
     void SetInnerHovered(Control* child) noexcept;

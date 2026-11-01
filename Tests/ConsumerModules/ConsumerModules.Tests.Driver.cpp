@@ -22,7 +22,7 @@ int wmain()
     if (! firstProbe || ! secondProbe)
         return 11;
     int executed = 0;
-    int passed = 0;
+    int passed   = 0;
     // Join before unloading: all module-owned UI-thread resources must finish before DLL teardown.
     for (int generation = 0; generation != 2; ++generation)
     {

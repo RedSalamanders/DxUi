@@ -2218,10 +2218,17 @@ void TestPanelLegacyDetachNotificationCall()
     class DerivedPanel final : public Panel
     {
     public:
-        void Notify(Control& child) noexcept { NotifyContainersOfDetaching(child); }
+        void Notify(Control& child) noexcept
+        {
+            NotifyContainersOfDetaching(child);
+        }
         unsigned calls = 0u;
+
     protected:
-        void OnDescendantDetaching(Control& /*child*/) noexcept override { ++calls; }
+        void OnDescendantDetaching(Control& /*child*/) noexcept override
+        {
+            ++calls;
+        }
     };
 #pragma warning(pop)
     DerivedPanel panel;
@@ -2233,7 +2240,7 @@ void TestScrollPanelPreservesHoverWhenNestedExtractionIsRefused()
 {
     using namespace DxUi;
     WindowHost host;
-    auto root = std::make_unique<Panel>();
+    auto root    = std::make_unique<Panel>();
     auto* scroll = root->AddChild<ScrollPanel>();
     scroll->SetBounds(D2D1::RectF(0, 0, 300, 200));
     scroll->SetContentHeight(200);
@@ -2261,8 +2268,7 @@ void TestScrollPanelPreservesHoverWhenNestedExtractionIsRefused()
     auto refused = list->TakeChild(0u);
     Require(restored && ! refused && host.GetFocusControl() == row && row->IsHovered(),
             "refused extraction preserves callback-restored focus and the existing hover");
-    Require(state.hoverLeaveCount == 0u && state.mouseLeaveCount == 0u,
-            "refused extraction sends no spurious hover departure");
+    Require(state.hoverLeaveCount == 0u && state.mouseLeaveCount == 0u, "refused extraction sends no spurious hover departure");
     host.SetOnFocusChanged({});
     auto taken = list->TakeChild(0u);
     Require(taken.get() == row && ! row->IsHovered() && state.hoverLeaveCount == 1u && state.mouseLeaveCount == 1u,
@@ -2272,7 +2278,7 @@ void TestScrollPanelCommittedHoverCallbackCanRetireHostRoot()
 {
     using namespace DxUi;
     WindowHost host;
-    auto root = std::make_unique<Panel>();
+    auto root    = std::make_unique<Panel>();
     auto* scroll = root->AddChild<ScrollPanel>();
     scroll->SetBounds(D2D1::RectF(0, 0, 300, 200));
     scroll->SetContentHeight(200);
@@ -2287,7 +2293,7 @@ void TestScrollPanelCommittedHoverCallbackCanRetireHostRoot()
     static_cast<void>(host.HandleMessage(nullptr, WM_MOUSEMOVE, 0, MAKELPARAM(50, 20), handled));
     Require(row->IsHovered(), "the row is hovered before its committed removal");
     state.onHoverLeave = [&] { host.SetRoot({}); };
-    auto taken = list->TakeChild(0u);
+    auto taken         = list->TakeChild(0u);
     Require(taken.get() == row && host.GetRoot() == nullptr && state.hoverLeaveCount == 1u,
             "committed hover callback may retire the host root while the detached child survives");
 }
@@ -2296,9 +2302,9 @@ void TestScrollPanelHoverDepartureStopsAfterHostRebinding()
     using namespace DxUi;
     WindowHost host;
     WindowHost destination;
-    auto root = std::make_unique<Panel>();
+    auto root       = std::make_unique<Panel>();
     auto* rootPanel = root.get();
-    auto* scroll = root->AddChild<ScrollPanel>();
+    auto* scroll    = root->AddChild<ScrollPanel>();
     scroll->SetBounds(D2D1::RectF(0, 0, 300, 200));
     scroll->SetContentHeight(200);
     auto* list = scroll->AddChild<Panel>();
@@ -2312,7 +2318,7 @@ void TestScrollPanelHoverDepartureStopsAfterHostRebinding()
     static_cast<void>(host.HandleMessage(nullptr, WM_MOUSEMOVE, 0, MAKELPARAM(50, 20), handled));
     Require(row->IsHovered(), "the row is hovered before its removal");
     state.onHoverLeave = [&] { destination.SetRoot(rootPanel->TakeChild(0u)); };
-    auto taken = list->TakeChild(0u);
+    auto taken         = list->TakeChild(0u);
     Require(taken.get() == row && destination.GetRoot() == scroll && state.hoverLeaveCount == 1u,
             "the hover callback can move its enclosing panel to another host");
     Require(state.mouseLeaveCount == 0u, "the old host sends no remaining leave callback after the panel changes hosts");

@@ -1964,7 +1964,10 @@ void SemanticFrontMatterDiagnostics(bool embedded)
         Require(retired(*metadata.get()), "same-host rebinding cannot resurrect an older semantic epoch");
     }
 }
-wil::com_ptr_nothrow<IRawElementProviderSimple> FindNamedSemanticPart(IRawElementProviderSimple& root, std::wstring_view name, unsigned depth = 0u, CONTROLTYPEID type = 0)
+wil::com_ptr_nothrow<IRawElementProviderSimple> FindNamedSemanticPart(IRawElementProviderSimple& root,
+                                                                      std::wstring_view name,
+                                                                      unsigned depth     = 0u,
+                                                                      CONTROLTYPEID type = 0)
 {
     Require(depth < 24u, "named semantic provider walk is bounded");
     wil::com_ptr_nothrow<IRawElementProviderFragment> fragment, child;
@@ -2540,15 +2543,16 @@ void SemanticWikiActivation(bool embedded)
     const std::wstring source = L"[[#application|wiki label]]";
     fixture.editor->SetText(source);
     fixture.Publish();
-    auto simple = fixture.Simple();
+    auto simple                  = fixture.Simple();
     const auto sameNameParagraph = FindNamedSemanticPart(*simple.get(), L"wiki label");
-    Require(sameNameParagraph && ReadProviderLongProperty(*sameNameParagraph.get(), UIA_ControlTypePropertyId, "same-name paragraph type") == UIA_TextControlTypeId,
+    Require(sameNameParagraph &&
+                ReadProviderLongProperty(*sameNameParagraph.get(), UIA_ControlTypePropertyId, "same-name paragraph type") == UIA_TextControlTypeId,
             "the same-name paragraph precedes the nested wiki hyperlink");
     auto link = FindNamedSemanticPart(*simple.get(), L"wiki label", 0u, UIA_HyperlinkControlTypeId);
     wil::com_ptr_nothrow<IUnknown> pattern;
     Require(link && SUCCEEDED(link->GetPatternProvider(UIA_InvokePatternId, pattern.put())) && ! pattern,
             "unresolved wiki fragment has no implicit heading Invoke");
-    const auto revision = fixture.editor->Revision();
+    const auto revision  = fixture.editor->Revision();
     const auto selection = fixture.editor->GetSelection();
     unsigned calls{};
     fixture.editor->SetOnLinkActivated([&](const RichTextLinkActivation& value)

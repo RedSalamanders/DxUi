@@ -1286,9 +1286,9 @@ void Panel::OnDescendantDetached(Control& /*subtree*/) noexcept
 void Panel::NotifyContainersOfDetaching(Control& subtree, DescendantDetachPhase phase) noexcept
 {
     const std::weak_ptr<int> subtreeLifetime = subtree.GetLifetimeToken();
-    const std::weak_ptr<int> ownerLifetime = GetLifetimeToken();
-    ControlHost* const ownerHost = GetHost();
-    Control* const ownerParent = _parent;
+    const std::weak_ptr<int> ownerLifetime   = GetLifetimeToken();
+    ControlHost* const ownerHost             = GetHost();
+    Control* const ownerParent               = _parent;
     for (Control* ancestor = this; ancestor && ! subtreeLifetime.expired();)
     {
         const std::weak_ptr<int> ancestorLifetime = ancestor->GetLifetimeToken();
@@ -1314,8 +1314,8 @@ std::unique_ptr<Control> Panel::TakeChild(size_t index) noexcept
     const std::weak_ptr<int> ownerLifetime = GetLifetimeToken();
     Control* const requested               = _children[index].get();
     const std::weak_ptr<int> childLifetime = requested->GetLifetimeToken();
-    ControlHost* const initialHost = GetHost();
-    const uint64_t focusBeforeObservers = initialHost ? initialHost->_focusRequestRevision : 0u;
+    ControlHost* const initialHost         = GetHost();
+    const uint64_t focusBeforeObservers    = initialHost ? initialHost->_focusRequestRevision : 0u;
     // Capture callbacks run while the child is still attached.
     NotifyContainersOfDetaching(*requested, DescendantDetachPhase::Detaching);
     if (ownerLifetime.expired() || childLifetime.expired())
@@ -8628,7 +8628,7 @@ bool TabControl::RemoveTabByIdentity(Control* page, const std::weak_ptr<int>& pa
     {
         return false;
     }
-    ControlHost* const initialHost = GetHost();
+    ControlHost* const initialHost      = GetHost();
     const uint64_t focusBeforeObservers = initialHost ? initialHost->_focusRequestRevision : 0u;
     // Cancel forwarded capture while the page is still attached.
     NotifyContainersOfDetaching(*page, DescendantDetachPhase::Detaching);
@@ -10843,9 +10843,9 @@ bool ScrollPanel::HostCaptureCarriesGesture(const ControlHost& host) const noexc
 
 void ScrollPanel::OnDescendantDetaching(Control& subtree) noexcept
 {
-    ControlHost* const host                  = GetHost();
-    const std::weak_ptr<int> selfLifetime    = GetLifetimeToken();
-    Control* const parent = _parent;
+    ControlHost* const host               = GetHost();
+    const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
+    Control* const parent                 = _parent;
     if (Control* const captured = LiveInnerCaptured(); captured && IsControlInTree(&subtree, captured))
     {
         SetInnerCaptured(nullptr);
@@ -10864,7 +10864,7 @@ void ScrollPanel::OnDescendantDetached(Control& subtree) noexcept
 {
     ControlHost* const host                  = GetHost();
     const std::weak_ptr<int> selfLifetime    = GetLifetimeToken();
-    Control* const parent = _parent;
+    Control* const parent                    = _parent;
     const std::weak_ptr<int> subtreeLifetime = subtree.GetLifetimeToken();
     if (selfLifetime.expired() || subtreeLifetime.expired())
         return;
@@ -11553,7 +11553,7 @@ bool ScrollPanel::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightBu
         const bool gestureEnds                = rightButton == _innerCaptureRightButton;
         const uint64_t captureRevision        = _innerCaptureRevision;
         ControlHost* const originalHost       = GetHost();
-        const bool handled = capturedChild ? capturedChild->OnMouseUp(host, ToContentSpace(point), rightButton, modifiers) : true;
+        const bool handled                    = capturedChild ? capturedChild->OnMouseUp(host, ToContentSpace(point), rightButton, modifiers) : true;
         if (selfLifetime.expired() || ! gestureEnds || GetHost() != originalHost || _innerCaptureRevision != captureRevision)
             return handled;
         // Keep the forwarded owner visible during its release; a callback may have replaced the gesture.

@@ -1816,11 +1816,11 @@ void TestRichTextSourceInkPreparationRolesAndCapacity()
 
     // Bracketed display delimiters embedded in a paragraph are ordinary source, not a math object.
     const std::wstring literalBrackets = L"prose \\[y\\] remains literal\n";
-    const auto literalSyntax = parse(literalBrackets, MarkdownProfile::RichMarkdown);
+    const auto literalSyntax           = parse(literalBrackets, MarkdownProfile::RichMarkdown);
     while (! ink.Advance(literalSyntax, [](size_t value) { return value; }))
         Require(ink.LastWork() <= Detail::RichSourceInk::WorkPerTurn, "literal bracket source ink remains cooperatively prepared");
     const auto literalFirst = literalBrackets.find(L"\\[");
-    const auto literalLast = literalBrackets.find(L"\\]");
+    const auto literalLast  = literalBrackets.find(L"\\]");
     Require(! roleAt(literalFirst) && ! roleAt(literalFirst + 1u) && ! roleAt(literalLast) && ! roleAt(literalLast + 1u),
             "inline bracket escapes remain literal instead of receiving display math ink");
     const std::wstring listFixture = L"- outer\n  - nested\n-\t- tab nested\n12. ordered\n> - quoted\n- [x] task\n";

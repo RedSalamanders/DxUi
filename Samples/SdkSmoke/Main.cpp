@@ -1,17 +1,17 @@
-#include <DxUi/FileDrop.h>
 #include <DxUi/DxUi.h>
 #include <DxUi/Embedded.h>
+#include <DxUi/FileDrop.h>
 #include <DxUi/FrameRuntime.h>
-#include <DxUi/RichTextExport.h>
 #include <DxUi/RichImage.h>
+#include <DxUi/RichTextExport.h>
 #include <ole2.h>
-#include <wil/resource.h>
 #include <span>
 #include <string_view>
+#include <wil/resource.h>
 
 int main()
 {
-    const auto com = wil::CoInitializeEx(COINIT_APARTMENTTHREADED);
+    const auto com                   = wil::CoInitializeEx(COINIT_APARTMENTTHREADED);
     constexpr std::wstring_view text = L"SDK drag text";
     wil::com_ptr<IDataObject> data;
     if (FAILED(DxUi::CreateRichTextDragData(text, data.put())) || ! data)

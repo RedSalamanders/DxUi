@@ -3668,7 +3668,7 @@ try
             const D2D1_POINT_2F point = PointFromLParam(lp);
             if (HandleTooltipInspectionPointer(msg, point))
                 return 0;
-            Control* target = _capturedControl;
+            Control* target                      = _capturedControl;
             const uint64_t captureBeforeDispatch = _captureRequestRevision;
             if (! target)
             {

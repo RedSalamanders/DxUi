@@ -837,8 +837,7 @@ bool ControlHost::ActivateNativeTextInputTsf(Control* control) noexcept
         // If that session captured our staged association as its predecessor,
         // splice it out before this document is popped. Preserve unrelated
         // associations installed by application or TSF callbacks.
-        if (_nativeTextInputTsfActive && documentMgr &&
-            Internal::HasSameComIdentity(_nativeTextInputTsfPreviousFocusDocumentMgr.get(), documentMgr.get()))
+        if (_nativeTextInputTsfActive && documentMgr && Internal::HasSameComIdentity(_nativeTextInputTsfPreviousFocusDocumentMgr.get(), documentMgr.get()))
         {
             _nativeTextInputTsfPreviousFocusDocumentMgr = previousFocusDocumentMgr.get();
         }
