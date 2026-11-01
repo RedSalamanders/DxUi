@@ -1,4 +1,5 @@
 #pragma once
+#include <DxUi/Configuration.h>
 #include <cstddef>
 #include <cstdint>
 #include <span>
@@ -21,6 +22,12 @@ struct Utf16CodePoint
 // from the beginning to retain RI/Indic/emoji context. Unpaired surrogates are
 // preserved as individual code units for legacy callers; the rich model rejects them.
 [[nodiscard]] std::size_t FindNextTextElementBoundary(std::wstring_view text, std::size_t start) noexcept;
+// Returns the preceding boundary, or the containing element's start for an
+// interior UTF-16 position. Contextual RI/Indic/emoji runs remain unbounded.
+[[nodiscard]] std::size_t FindPreviousTextElementBoundary(std::wstring_view text, std::size_t position) noexcept;
+#if DXUI_ENABLE_DIAGNOSTICS
+extern thread_local std::size_t testTextElementPropertyLookups;
+#endif
 struct TextElementRange
 {
     std::size_t first{}, last{};

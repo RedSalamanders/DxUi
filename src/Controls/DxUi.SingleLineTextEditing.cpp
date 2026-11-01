@@ -55,19 +55,7 @@ constexpr float kSingleLineMeasureWidthDip = 32768.0f;
     // history; CRLF is the one ASCII pair that remains a single element.
     if (text[caret - 1u] <= 0x7fu && (caret == 1u || (text[caret - 2u] <= 0x7fu && ! (text[caret - 2u] == L'\r' && text[caret - 1u] == L'\n'))))
         return finish(caret - 1u);
-    size_t cursor = 0u;
-    while (cursor < text.size())
-    {
-        const size_t nextBoundary = FindNextTextElementBoundary(text, cursor);
-        if (nextBoundary >= caret)
-        {
-            return finish(cursor);
-        }
-
-        cursor = nextBoundary;
-    }
-
-    return finish(0u);
+    return finish(FindPreviousTextElementBoundary(text, caret));
 }
 
 [[nodiscard]] size_t StepToNextTextElement(std::wstring_view text, size_t caretIndex) noexcept
