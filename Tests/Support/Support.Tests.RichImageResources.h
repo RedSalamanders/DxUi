@@ -204,6 +204,36 @@ template <typename Prepare, typename Check> inline void Retained(DxUi::RichTextE
     editor.SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
     editor.SetMarkdownRenderingEnabled(true);
     editor.SetDocumentFilePath(L"C:\\docs\\note.md");
+    {
+        const std::wstring htmlSource = L"<img src='html.png' alt='A &amp; B' title='Hint'>\n";
+        editor.SetText(htmlSource);
+        prepare();
+        std::vector<RichImageRequest> htmlRequests(0u);
+        editor.TakePendingImageRequests(htmlRequests);
+        check(htmlRequests.size() == 1u && htmlRequests.front().FilePath() == L"C:\\docs\\html.png",
+              "HTML image uses the existing explicit-base caller-owned resource request");
+        check(editor.CompleteImageRequest(htmlRequests.front(), Picture()), "HTML image accepts a current owner completion");
+        prepare();
+        const auto htmlDocument = editor.GetAcknowledgedSemanticDocument(host);
+        check(static_cast<bool>(htmlDocument), "HTML image publishes current semantic geometry");
+        const auto htmlImage = std::ranges::find(htmlDocument->Elements(), SemanticRole::Image, &SemanticElement::role);
+        check(htmlImage != htmlDocument->Elements().end() && htmlImage->name == L"A & B" && htmlImage->nativeHtml,
+              "loaded HTML image keeps its decoded accessible alternative");
+        const auto htmlBounds = editor.GetSemanticElementBounds(host, static_cast<std::size_t>(htmlImage - htmlDocument->Elements().begin()));
+        check(htmlBounds && std::abs(htmlBounds->right - htmlBounds->left - 96.f) < .02f && std::abs(htmlBounds->bottom - htmlBounds->top - 64.f) < .02f &&
+                  editor.GetText() == htmlSource && ! editor.CanUndo(),
+              "HTML pixels share intrinsic image geometry without modifying source or history");
+        editor.SetText(L"<img src='https://example.invalid/image.png' alt='remote'>\n");
+        prepare();
+        editor.TakePendingImageRequests(htmlRequests);
+        check(htmlRequests.empty(), "HTML remote images keep the default opt-in boundary");
+        editor.SetRemoteImagesEnabled(true);
+        prepare();
+        editor.TakePendingImageRequests(htmlRequests);
+        check(htmlRequests.size() == 1u && htmlRequests.front().SourceKind() == RichImageSourceKind::RemoteHttp,
+              "explicit remote opt-in exposes only an immutable caller-owned HTML request");
+        editor.SetRemoteImagesEnabled(false);
+    }
     const std::wstring source = L"before ![sample](image.png) after\n\n![same](image.png)\n";
     editor.SetText(source);
     editor.SetSelection({4u, 2u});
@@ -320,13 +350,12 @@ template <typename Prepare, typename Check> inline void Retained(DxUi::RichTextE
     check(! editor.GetAcknowledgedSemanticDocument(host), "old image completion is not exposed as current semantics");
     prepare();
     editor.TakePendingImageRequests(requests);
-    check(requests.empty() && editor.GetImageResourceStatistics().readySources == 1u,
-          "new semantics adopts the completed image without a second request");
+    check(requests.empty() && editor.GetImageResourceStatistics().readySources == 1u, "new semantics adopts the completed image without a second request");
     editor.ReloadImages();
     prepare();
     editor.TakePendingImageRequests(requests);
     check(requests.size() == 1u, "affected-edit fixture dispatches a fresh request");
-    const auto affected = requests[0];
+    const auto affected    = requests[0];
     const auto destination = editor.GetText().find(L"pending.png");
     check(destination != std::wstring::npos, "affected-edit destination exists");
     editor.SetSelection({destination, destination + 1u});

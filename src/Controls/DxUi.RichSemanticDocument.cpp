@@ -320,8 +320,32 @@ struct SemanticBuilder::Preparation
         }
         return std::wstring(result);
     }
+    void CompleteImage(std::size_t element, MarkdownRange source, std::wstring_view alternative, unsigned flags, unsigned heading)
+    {
+        std::wstring value(0u, L' ');
+        value.append(L"[image");
+        if (! alternative.empty())
+            value.append(L": ").append(alternative);
+        value.push_back(L']');
+        output.Emit(value, source, DisplaySpanKind::Object, flags, heading);
+        auto& image        = document->elements_[element];
+        image.display.last = output.text.size();
+        image.name         = alternative;
+        auto& extensions   = Extensions();
+        if (extensions.images.size() + extensions.maths.size() + extensions.diagrams.size() < Detail::SemanticExtensions::MaximumObjects)
+            extensions.images.push_back(element);
+    }
     void HtmlTag(const Detail::NativeHtmlTag& tag, std::size_t parent, unsigned flags, unsigned heading)
     {
+        if (tag.kind == Detail::NativeHtmlKind::Img)
+        {
+            const auto owner                         = html.linkElement == MarkdownNoNode ? parent : html.linkElement;
+            const auto element                       = Element(SemanticRole::Image, tag.source, owner);
+            document->elements_[element].destination = tag.destination;
+            document->elements_[element].title       = tag.title;
+            document->elements_[element].nativeHtml  = true;
+            CompleteImage(element, tag.source, tag.alternative, flags | html.flags, html.heading ? html.heading : heading);
+        }
         if (tag.kind == Detail::NativeHtmlKind::A)
         {
             if (tag.closing)
@@ -464,18 +488,7 @@ struct SemanticBuilder::Preparation
             if (node.kind == MarkdownInlineKind::Image)
             {
                 const auto alternative = ImageAlternative(node);
-                std::wstring value(0u, L' ');
-                value.append(L"[image");
-                if (! alternative.empty())
-                    value.append(L": ").append(alternative);
-                value.push_back(L']');
-                output.Emit(value, node.source, DisplaySpanKind::Object, flags, visit.heading);
-                auto& image        = document->elements_[element];
-                image.display.last = output.text.size();
-                image.name         = alternative;
-                auto& extensions   = Extensions();
-                if (extensions.images.size() + extensions.maths.size() + extensions.diagrams.size() < Detail::SemanticExtensions::MaximumObjects)
-                    extensions.images.push_back(element);
+                CompleteImage(element, node.source, alternative, flags, visit.heading);
                 return;
             }
             auto close    = visit;

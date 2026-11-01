@@ -1509,6 +1509,10 @@ as underlined inserted text. Attribute-free `mark` retains a theme surface,
 including nested emphasis; high contrast outlines the range. Source view, source selection and clipboard copy
 retain every original character. Other unsupported HTML remains literal for the
 complete leaf; no DOM or script execution is involved.
+Quoted `img src` with optional quoted `alt` and `title` uses the same atomic
+alternative, base path, cancellation, resource bounds and caller-owned completion
+as Markdown images. Remote images still require explicit opt-in. Unknown
+attributes and unsupported source schemes keep the complete leaf as exact source.
 
 `SetZoom` and `GetZoom` expose font scale in `.25..4`; Ctrl+wheel, Ctrl+Plus/Minus
 and Ctrl+zero use the same presentation setting. Effective font sizes remain
