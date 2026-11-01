@@ -2253,8 +2253,11 @@ State diagrams admit single-line `note left of ID: text` and `note right of
 ID: text`. Notes retain their state and composite membership, use the bounded
 plain-label grammar, and render a folded-corner box on the requested physical
 side with a dotted attachment. Their target and text are included in the
-accessible graph alternative. Notes that collide with another node fail closed
-to exact source; multiline notes and other note forms remain unsupported.
+accessible graph alternative. Multiline notes use `note left of ID` or `note right of ID` followed by
+plain lines and a standalone `end note`; trimmed lines are joined with LF,
+including empty lines and literal semicolons or percent characters. Text is
+limited to 1024 UTF-16 units. Colliding notes, unsupported note forms and
+unterminated blocks fail closed to exact source.
 
 Class relationships admit composition (`*--`, `--*`, `*..`, `..*`) and
 aggregation (`o--`, `--o`, `o..`, `..o`). The diamond remains attached to the

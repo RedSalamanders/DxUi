@@ -704,7 +704,7 @@ template <typename Check> inline void StateNoteRaster(Check&& check)
         for (const bool left : {false, true})
         {
             const auto source = std::wstring(L"stateDiagram-v2\ndirection ") + direction + L"\nS\n" +
-                                (left ? L"note left of S: hello\n" : L"note right of S: hello\n");
+                                (left ? L"note left of S\nhello\nworld\nend note\n" : L"note right of S: hello\n");
             const auto graph = FlowchartLayoutTests::Graph(source);
             PreparedFlowchart prepared;
             prepared.Begin(write.get(), drawing.get(), graph, {}, {1u, 1u});

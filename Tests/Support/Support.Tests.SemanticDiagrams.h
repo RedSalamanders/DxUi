@@ -145,6 +145,12 @@ template <typename Check> inline void Core(Check&& check)
               "state notes expose their target and text in the accessible graph alternative");
     }
     {
+        const auto doc = Build(L"```mermaid\nstateDiagram-v2\nS\nnote left of S\nFirst line\nSecond line\nend note\n```", check);
+        const auto diagrams = SemanticExtensionAccess::Diagrams(*doc);
+        check(diagrams.size() == 1u && doc->Elements()[diagrams.front().element].name.find(L"S note: First line\nSecond line") != std::wstring::npos,
+              "multiline notes retain their text and target in the accessible alternative");
+    }
+    {
         const auto doc = Build(L"```mermaid\nclassDiagram\nWhole *-- Part\n```", check);
         const auto diagrams = SemanticExtensionAccess::Diagrams(*doc);
         check(diagrams.size() == 1u && doc->Elements()[diagrams.front().element].name.find(L"Part is part of Whole") != std::wstring::npos,

@@ -591,10 +591,28 @@ template <typename Check> inline void CheckFamilyGrammar(Check&& check)
               stateNote->nodes[1].groupMask == 1u && stateNote->nodes[1].label == L"Review this state" &&
               stateNote->edges[0].relation == FlowchartRelation::Note && stateNote->edges[0].style == FlowchartLineStyle::Dotted,
           "state note retains its target, requested side, text and composite membership");
-    parser.Begin(L"stateDiagram-v2\nnote right of S\nmultiline\nend note\n", 1u);
+    parser.Begin(L"stateDiagram-v2\nnote right of S\nfirst; 100%\n\nsecond %% literal\nend note\n", 1u);
     const auto multilineNote = Complete(parser);
-    check(multilineNote->outcome == FlowchartOutcome::Unsupported && multilineNote->nodes.empty(),
-          "unsupported multiline notes retain source without a partial graph");
+    check(multilineNote->outcome == FlowchartOutcome::Prepared && multilineNote->nodes.size() == 2u &&
+              multilineNote->nodes[1].label == L"first; 100%\n\nsecond %% literal" && multilineNote->nodes[1].shape == FlowchartShape::Note,
+          "multiline state notes retain punctuation, empty lines and source-order text");
+    parser.Begin(L"stateDiagram-v2\nnote right of S\nmissing terminator\n", 1u);
+    const auto unclosedNote = Complete(parser);
+    check(unclosedNote->outcome == FlowchartOutcome::Malformed && unclosedNote->diagnostic.issue == FlowchartIssue::UnexpectedToken &&
+              unclosedNote->nodes.empty() && unclosedNote->edges.empty(), "unterminated state notes preserve source without a partial graph");
+    std::wstring maximumNote = L"stateDiagram-v2\nnote right of S\n";
+    maximumNote.append(NativeFlowchartParser::MaximumLabelUnits, L'x');
+    maximumNote += L"\nend note\n";
+    parser.Begin(maximumNote, 1u);
+    const auto admittedNote = Complete(parser);
+    check(admittedNote->outcome == FlowchartOutcome::Prepared && admittedNote->nodes.size() == 2u &&
+              admittedNote->nodes[1].label.size() == NativeFlowchartParser::MaximumLabelUnits,
+          "multiline note admits the exact label capacity without charging an unrendered trailing newline");
+    maximumNote.insert(maximumNote.find(L"\nend note"), 1u, L'x');
+    parser.Begin(maximumNote, 1u);
+    const auto oversizedNote = Complete(parser);
+    check(oversizedNote->outcome == FlowchartOutcome::Capacity && oversizedNote->diagnostic.issue == FlowchartIssue::LabelCapacity && oversizedNote->nodes.empty(),
+          "oversized multiline notes discard staged graph state");
     for (const auto source : {L"graph TD\nsubgraph G\nA\n", L"graph TD\nsubgraph A\nend\n",
                               L"graph TD\nsubgraph A\nX\nend\nsubgraph B\nX\nend\n"})
     {

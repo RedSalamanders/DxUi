@@ -33,14 +33,17 @@ bool Trail(wchar_t c) noexcept
 struct NativeFlowchartParser::Preparation
 {
     std::shared_ptr<FlowchartModel> model;
+    std::wstring noteBlockText;
     std::size_t scan{}, first{}, depth{}, statements{}, classBlockNode{}, classBlockStart{}, descriptionBlockStart{};
+    std::size_t noteBlockStart{}, noteBlockTarget{};
     std::array<bool, MaximumNodes> stateDescriptions{};
     std::array<bool, MaximumNodes> classAnnotations{};
     std::array<std::uint8_t, MaximumNodes> pseudoKinds{};
     std::array<std::size_t, 4u> groupStack{};
     std::size_t groupDepth{};
     bool quote{}, escaped{}, pipe{}, comment{}, header{}, done{}, classBlock{}, titleSeen{}, descriptionSeen{}, descriptionBlock{}, descriptionHasLine{};
-    explicit Preparation(std::wstring_view source, std::uint64_t revision) : model(std::make_shared<FlowchartModel>(source, revision))
+    bool noteBlock{}, noteBlockLeft{}, noteBlockHasLine{};
+    explicit Preparation(std::wstring_view source, std::uint64_t revision) : model(std::make_shared<FlowchartModel>(source, revision)), noteBlockText(0u, L' ')
     {
         if (source.size() > MaximumSourceUnits)
             Fail(FlowchartOutcome::Capacity, FlowchartIssue::SourceCapacity, {0u, source.size()});
@@ -221,6 +224,46 @@ struct NativeFlowchartParser::Preparation
         model->groups[groupIndex].source.last = end;
         --groupDepth;
         return true;
+    }
+    bool AddStateNote(std::size_t target, bool left, std::size_t start, std::size_t end, std::wstring_view text)
+    {
+        if (text.empty())
+            return Error(FlowchartIssue::UnsupportedStatement, start, end, FlowchartOutcome::Unsupported);
+        if (model->nodes.size() == MaximumNodes)
+            return Error(FlowchartIssue::NodeCapacity, start, end, FlowchartOutcome::Capacity);
+        if (model->edges.size() == MaximumEdges)
+            return Error(FlowchartIssue::EdgeCapacity, start, end, FlowchartOutcome::Capacity);
+        FlowchartNode note;
+        note.key.assign(L"@note");
+        note.key.append(std::to_wstring(model->nodes.size()));
+        note.identifier = {start, start + 4u};
+        note.declaration = {start, end};
+        note.shape = FlowchartShape::Note;
+        note.noteTarget = target;
+        note.noteLeft = left;
+        note.groupMask = model->nodes[target].groupMask;
+        note.label.assign(text);
+        const auto noteIndex = model->nodes.size();
+        model->nodes.push_back(note);
+        FlowchartEdge edge;
+        edge.from = target;
+        edge.to = noteIndex;
+        edge.source = {start, end};
+        edge.relation = FlowchartRelation::Note;
+        edge.style = FlowchartLineStyle::Dotted;
+        model->edges.push_back(edge);
+        return true;
+    }
+    bool NoteLine(std::size_t at, std::size_t end)
+    {
+        if (noteBlockHasLine)
+        {
+            if (noteBlockText.size() == MaximumLabelUnits)
+                return Error(FlowchartIssue::LabelCapacity, at, end, FlowchartOutcome::Capacity);
+            noteBlockText.push_back(L'\n');
+        }
+        noteBlockHasLine = true;
+        return PlainText(at, end, noteBlockText);
     }
     bool OpenGroup(std::wstring_view key, std::wstring_view title, std::size_t keyStart, std::size_t start, std::size_t end)
     {
@@ -489,6 +532,8 @@ struct NativeFlowchartParser::Preparation
         Skip(at, end);
         while (end > at && Space(Text()[end - 1u]))
             --end;
+        if (at == end && noteBlock)
+            return NoteLine(at, end);
         if (at == end && descriptionBlock)
             return DescriptionLine(at, end);
         if (at == end)
@@ -538,6 +583,13 @@ struct NativeFlowchartParser::Preparation
             return DescriptionLine(at, end);
         }
         const auto statement = Text().substr(at, end - at);
+        if (noteBlock)
+        {
+            if (statement != L"end note")
+                return NoteLine(at, end);
+            noteBlock = false;
+            return AddStateNote(noteBlockTarget, noteBlockLeft, noteBlockStart, end, noteBlockText);
+        }
         if (model->family == NativeDiagramFamily::Flowchart && statement == L"end")
             return CloseGroup(at, end);
         if (model->family == NativeDiagramFamily::State && statement == L"}")
@@ -688,36 +740,25 @@ struct NativeFlowchartParser::Preparation
             if (! Node(at, end, target))
                 return false;
             Skip(at, end);
-            if (at == end || Text()[at++] != L':')
+            if (at == end)
+            {
+                noteBlock = true;
+                noteBlockLeft = left;
+                noteBlockStart = noteStart;
+                noteBlockTarget = target;
+                noteBlockHasLine = false;
+                noteBlockText.clear();
+                return true;
+            }
+            if (Text()[at++] != L':')
                 return Error(FlowchartIssue::UnsupportedStatement, noteStart, end, FlowchartOutcome::Unsupported);
             Skip(at, end);
             if (at == end)
                 return Error(FlowchartIssue::UnsupportedStatement, noteStart, end, FlowchartOutcome::Unsupported);
-            if (model->nodes.size() == MaximumNodes)
-                return Error(FlowchartIssue::NodeCapacity, noteStart, end, FlowchartOutcome::Capacity);
-            if (model->edges.size() == MaximumEdges)
-                return Error(FlowchartIssue::EdgeCapacity, noteStart, end, FlowchartOutcome::Capacity);
-            FlowchartNode note;
-            note.key.assign(L"@note");
-            note.key.append(std::to_wstring(model->nodes.size()));
-            note.identifier = {noteStart, noteStart + 4u};
-            note.declaration = {noteStart, end};
-            note.shape = FlowchartShape::Note;
-            note.noteTarget = target;
-            note.noteLeft = left;
-            note.groupMask = model->nodes[target].groupMask;
-            if (! PlainText(at, end, note.label))
+            std::wstring text(0u, L' ');
+            if (! PlainText(at, end, text))
                 return false;
-            const auto noteIndex = model->nodes.size();
-            model->nodes.push_back(note);
-            FlowchartEdge edge;
-            edge.from = target;
-            edge.to = noteIndex;
-            edge.source = {noteStart, end};
-            edge.relation = FlowchartRelation::Note;
-            edge.style = FlowchartLineStyle::Dotted;
-            model->edges.push_back(edge);
-            return true;
+            return AddStateNote(target, left, noteStart, end, text);
         }
         if (model->family != NativeDiagramFamily::Flowchart && Text().substr(at, 9u) == L"direction" && (at + 9u == end || Space(Text()[at + 9u])))
         {
@@ -1104,9 +1145,9 @@ struct NativeFlowchartParser::Preparation
         {
             if (! comment && ! Statement(scan))
                 return;
-            if (classBlock || descriptionBlock || groupDepth)
+            if (classBlock || descriptionBlock || noteBlock || groupDepth)
             {
-                const auto start = descriptionBlock ? descriptionBlockStart : classBlock ? classBlockStart : model->groups[groupStack[groupDepth - 1u]].source.first;
+                const auto start = noteBlock ? noteBlockStart : descriptionBlock ? descriptionBlockStart : classBlock ? classBlockStart : model->groups[groupStack[groupDepth - 1u]].source.first;
                 Error(FlowchartIssue::UnexpectedToken, start, scan);
                 return;
             }
@@ -1120,7 +1161,7 @@ struct NativeFlowchartParser::Preparation
         }
         const auto c       = text[scan];
         const bool newline = c == L'\r' || c == L'\n';
-        if (! descriptionBlock && ! comment && ! quote && ! depth && ! pipe && c == L'%' && scan + 1u < text.size() && text[scan + 1u] == L'%')
+        if (! descriptionBlock && ! noteBlock && ! comment && ! quote && ! depth && ! pipe && c == L'%' && scan + 1u < text.size() && text[scan + 1u] == L'%')
         {
             if (scan + 2u < text.size() && text[scan + 2u] == L'{')
             {
@@ -1131,7 +1172,7 @@ struct NativeFlowchartParser::Preparation
                 return;
             comment = true;
         }
-        if (newline || (! descriptionBlock && ! comment && ! quote && ! depth && ! pipe && c == L';'))
+        if (newline || (! descriptionBlock && ! noteBlock && ! comment && ! quote && ! depth && ! pipe && c == L';'))
         {
             if (! comment && ! Statement(scan))
                 return;
