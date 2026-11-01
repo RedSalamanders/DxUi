@@ -189,7 +189,7 @@ class Parser
                                    L"vmatrix",
                                    L"Vmatrix",
                                    L"smallmatrix",
-                                   L"cases",
+                                   L"cases", L"rcases", L"dcases", L"drcases",
                                    L"aligned",
                                    L"gathered",
                                    L"align",
@@ -253,7 +253,7 @@ class Parser
             const bool gathered = environment == L"gathered" || environment == L"gather" || environment == L"gather*" || environment == L"equation" ||
                                   environment == L"equation*";
             const bool equation = environment == L"equation" || environment == L"equation*";
-            if ((gathered && columns != 1u) || (equation && rows != 1u) || (environment == L"cases" && columns > 2u))
+            if ((gathered && columns != 1u) || (equation && rows != 1u) || ((environment == L"cases" || environment == L"rcases" || environment == L"dcases" || environment == L"drcases") && columns > 2u))
                 Reject();
             if (static_cast<std::size_t>(rows) * columns > MathMaximumMatrixCells)
                 Reject(MathIssue::Capacity);

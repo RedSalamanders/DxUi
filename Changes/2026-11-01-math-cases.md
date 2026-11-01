@@ -1,0 +1,1 @@
+- Support right-braced and display-style native math cases within the existing matrix bounds.

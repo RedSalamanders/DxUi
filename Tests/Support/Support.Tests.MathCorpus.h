@@ -749,6 +749,20 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
         check(! ParseMath(L"\\begin{alignat}{1}a&b&c\\end{alignat}") && ! ParseMath(L"\\begin{alignat}{0}a\\end{alignat}"),
               "alignat rejects too many columns or a zero pair count");
     }
+#if DXUI_ENABLE_DIAGNOSTICS
+    {
+        Detail::PreparedMath normal(factory, std::make_shared<const MathExpression>(ParseMath(L"\\begin{cases}\\frac{a}{b}\\end{cases}")), 24.f);
+        Detail::PreparedMath display(factory, std::make_shared<const MathExpression>(ParseMath(L"\\begin{dcases}\\frac{a}{b}\\end{dcases}")), 24.f);
+        Detail::PreparedMath reverse(factory, std::make_shared<const MathExpression>(ParseMath(L"\\begin{rcases}\\frac{a}{b}\\end{rcases}")), 24.f);
+        while (! normal.Advance()) {}
+        while (! display.Advance()) {}
+        while (! reverse.Advance()) {}
+        check(display.GlyphLayouts()[0u].font > normal.GlyphLayouts()[0u].font && normal.GlyphLayouts()[0u].origin.x > reverse.GlyphLayouts()[0u].origin.x,
+              "display cases use display-style fractions and reverse cases place the brace after the content");
+    }
+#endif
+    check(static_cast<bool>(ParseMath(L"\\begin{drcases}a&b\\end{drcases}")) &&
+              ! ParseMath(L"\\begin{drcases}a&b&c\\end{drcases}"), "reverse display cases retain the two-column admission bound");
     const auto binomial = ParseMath(L"\\binom{n}{k}");
     check(binomial && binomial.root.children.size() == 1u && binomial.root.children[0u].kind == MathKind::Matrix &&
               binomial.root.children[0u].text == L"pmatrix" && binomial.root.children[0u].columns == 1u && binomial.root.children[0u].children.size() == 2u,
