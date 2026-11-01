@@ -91,7 +91,7 @@ void TestRichSemanticNativeMathCaretMetrics()
     const auto isolatedStart = editor->TryGetTextInputCaretRect(window.Host(), 0u);
     const auto isolatedEnd   = editor->TryGetTextInputCaretRect(window.Host(), isolated.size());
     Require(isolatedStart && isolatedEnd && std::isfinite(isolatedStart->top) && std::isfinite(isolatedEnd->top) &&
-                isolatedStart->bottom > isolatedStart->top && isolatedEnd->bottom > isolatedEnd->top,
+                std::abs((isolatedStart->bottom - isolatedStart->top) - text.height) < .1f && isolatedEnd->bottom > isolatedEnd->top,
             "an isolated formula without a neighboring text glyph retains usable caret geometry");
     std::cout << "isolated math caret start=" << isolatedStart->top << "," << isolatedStart->bottom << " end=" << isolatedEnd->top << "," << isolatedEnd->bottom
               << '\n';

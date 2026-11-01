@@ -720,6 +720,45 @@ struct PreparedSemanticGeometry::Preparation
         if (! std::isfinite(height) || height <= 0.0f || ! std::isfinite(paragraphGap))
             throw std::overflow_error("Nonfinite semantic paragraph spacing");
     }
+    CaretGeometry StandaloneMathCaret(const SemanticBox& box, std::size_t position, const LayoutOptions& options, float lineTop, float baseline) const
+    {
+        const auto& runs   = box.layout.Content().runs;
+        const auto found   = std::ranges::find_if(runs, [&](const auto& run) { return run.start <= position && position - run.start < run.length; });
+        const auto flags   = found == runs.end() ? 0u : found->flags;
+        const auto heading = found == runs.end() ? 0u : found->heading;
+        const auto& family = (flags & Code) ? options.codeFontFamily : options.fontFamily;
+        float size         = (flags & Code) && options.codeFontSizeDip > 0.f ? options.codeFontSizeDip : options.fontSizeDip;
+        if (heading)
+            size = options.headingFontSizeDip[heading - 1u] > 0.f ? options.headingFontSizeDip[heading - 1u]
+                                                                  : size * (1.f + options.headingScaleStep * static_cast<float>(7u - heading));
+        const auto weight = heading ? ((flags & Bold) ? DWRITE_FONT_WEIGHT_BOLD : DWRITE_FONT_WEIGHT_SEMI_BOLD)
+                                    : ((flags & Bold) ? DWRITE_FONT_WEIGHT_BOLD : DWRITE_FONT_WEIGHT_NORMAL);
+        const auto style  = (flags & Italic) ? DWRITE_FONT_STYLE_ITALIC : DWRITE_FONT_STYLE_NORMAL;
+        wil::com_ptr<IDWriteFontCollection> collection;
+        THROW_IF_FAILED(state->factory->GetSystemFontCollection(collection.put()));
+        UINT32 index{};
+        BOOL exists{};
+        THROW_IF_FAILED(collection->FindFamilyName(family.c_str(), &index, &exists));
+        if (! exists)
+            THROW_IF_FAILED(collection->FindFamilyName(L"Segoe UI", &index, &exists));
+        if (! exists)
+            index = 0u;
+        wil::com_ptr<IDWriteFontFamily> selected;
+        THROW_IF_FAILED(collection->GetFontFamily(index, selected.put()));
+        wil::com_ptr<IDWriteFont> font;
+        THROW_IF_FAILED(selected->GetFirstMatchingFont(weight, DWRITE_FONT_STRETCH_NORMAL, style, font.put()));
+        DWRITE_FONT_METRICS metrics{};
+        font->GetMetrics(&metrics);
+        if (! metrics.designUnitsPerEm)
+            throw std::logic_error("Mathematical caret font has no design units");
+        const float scale  = size / static_cast<float>(metrics.designUnitsPerEm);
+        const float gap    = static_cast<float>(metrics.lineGap) * scale;
+        const float ascent = static_cast<float>(metrics.ascent) * scale;
+        const float height = (static_cast<float>(metrics.ascent) + static_cast<float>(metrics.descent) + static_cast<float>(metrics.lineGap)) * scale;
+        if (! std::isfinite(height) || height <= 0.f)
+            throw std::logic_error("Mathematical caret font has invalid line metrics");
+        return {0.f, lineTop + baseline - ascent - gap * .5f, height};
+    }
     void MeasureBodyLine()
     {
         // Only native-height opt-in calls need an SDK measurement. Uniform
@@ -1482,13 +1521,11 @@ struct PreparedSemanticGeometry::Preparation
                                     const auto after    = image.display.last - content.display.first;
                                     const auto before   = local > lineStart ? box->layout.PreviousCluster(local) : lineEnd;
                                     const auto neighbor = usable(before) ? before : usable(after) ? after : lineEnd;
-                                    if (neighbor < lineEnd)
-                                    {
-                                        const auto textCaret = box->layout.Caret(neighbor);
-                                        image.mathCaretTop   = textCaret.y;
-                                        image.caretHeight    = textCaret.height;
-                                        image.hasMathCaret   = true;
-                                    }
+                                    const auto textCaret =
+                                        neighbor < lineEnd ? box->layout.Caret(neighbor) : StandaloneMathCaret(*box, local, options, lineTop, line.baseline);
+                                    image.mathCaretTop = textCaret.y;
+                                    image.caretHeight  = textCaret.height;
+                                    image.hasMathCaret = true;
                                 }
                                 const auto size     = image.Size();
                                 const auto scale    = std::min(1.0f, options.widthDip / size.width);
