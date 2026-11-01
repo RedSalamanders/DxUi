@@ -139,6 +139,8 @@ During an active or indeterminate native composition, every structural command
 reports unavailable while its current style presentation remains visible.
 Task, table and strikethrough commands also report unavailable when the active
 dialect disables their corresponding extensions.
+Paragraph and hard-break insertion reject selections spanning physical lines;
+their remaining source and container admission is reported separately.
 List state considers the complete selected source interval, including nested
 and intervening list kinds, using an allocation-free syntax traversal. Beyond
 64 nested items, parent-link recovery may add work proportional to ancestor depth.

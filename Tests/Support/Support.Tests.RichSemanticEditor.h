@@ -594,6 +594,18 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
               "disabled dialect features are unavailable in both command state and execution");
     }
     editor->SetMarkdownAnalysisProfile(MarkdownProfile::Gfm029);
+    editor->SetText(L"one\r\n\r\ntwo");
+    prepare();
+    editor->SetSelection({0u, 7u});
+    for (const auto command : {MarkdownCommand::InsertParagraph, MarkdownCommand::InsertHardBreak})
+    {
+        MarkdownCommandRequest spanning;
+        spanning.command = command;
+        const auto spanningState = editor->QueryMarkdownCommandState(spanning);
+        Check(spanningState && spanningState->available == std::optional<bool>{false} &&
+                  editor->ExecuteMarkdownCommand(spanning) == MarkdownCommandStatus::Unavailable,
+              "multiline selection is unavailable for line-local insertion commands");
+    }
     editor->SetText(L"~~~\nx\n~~~\n");
     prepare();
     editor->SetSelection({4u, 4u});

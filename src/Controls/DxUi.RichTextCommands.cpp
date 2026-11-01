@@ -131,6 +131,12 @@ bool IsCommandFeatureEnabled(const MarkdownSyntax& syntax, MarkdownCommand comma
         return HasMarkdownExtension(extensions, MarkdownExtensions::Tables);
     return true;
 }
+bool IsSingleLineCommandSelection(const MarkdownSyntax& syntax, Selection selection) noexcept
+{
+    const auto source = syntax.Source();
+    const auto first = selection.Start(), last = selection.End();
+    return last <= source.size() && source.substr(first, last - first).find_first_of(L"\r\n") == std::wstring_view::npos;
+}
 static MarkdownRange JoinVisibleBody(const MarkdownSyntax& syntax, std::size_t leaf) noexcept
 {
     const auto& block = syntax.Nodes()[leaf].block.content;
@@ -1086,7 +1092,7 @@ struct MarkdownCommandPlanner
     {
         const auto first = plan.before_.Start(), last = plan.before_.End();
         const auto& line = Line(first);
-        if (Line(last).first != line.first)
+        if (! IsSingleLineCommandSelection(*plan.syntax_, plan.before_))
             return;
         for (const auto kind : {Kind::FencedCode, Kind::IndentedCode, Kind::HtmlBlock, Kind::FrontMatter})
         {
@@ -1859,7 +1865,8 @@ void MarkdownCommandPlanner::HardBreak()
     const auto first = plan.before_.Start(), last = plan.before_.End();
     const auto caret = first;
     const auto leaf  = LeafAt(caret);
-    if (leaf == MarkdownNoNode || nodes[leaf].block.kind != Kind::Paragraph || last > nodes[leaf].block.content.last || Line(first).first != Line(last).first)
+    if (leaf == MarkdownNoNode || nodes[leaf].block.kind != Kind::Paragraph || last > nodes[leaf].block.content.last ||
+        ! IsSingleLineCommandSelection(*plan.syntax_, plan.before_))
         return;
     for (const auto& node : plan.syntax_->Inlines())
     {

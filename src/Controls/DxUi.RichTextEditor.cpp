@@ -2283,7 +2283,9 @@ std::optional<RichText::MarkdownCommandState> RichTextEditor::QueryMarkdownComma
         result.active = result.listKind && result.listKind.value() == request.listKind;
         result.mixed  = ! result.listKind;
     }
-    if (inputBlocked || ((request.command != MarkdownCommand::SetList || ! request.listStart || request.listStart.value() <= 999999999u) &&
+    if (inputBlocked || ((request.command == MarkdownCommand::InsertParagraph || request.command == MarkdownCommand::InsertHardBreak) &&
+                         ! IsSingleLineCommandSelection(*document->Syntax(), selection)) ||
+        ((request.command != MarkdownCommand::SetList || ! request.listStart || request.listStart.value() <= 999999999u) &&
                          ! IsCommandFeatureEnabled(*document->Syntax(), request.command, request.style, request.listKind)))
         result.available = false;
     return result;
