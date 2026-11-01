@@ -1963,6 +1963,8 @@ sites by display order and index visual line units as an ordered raw-source
 partition; generated backlink-only rows add no raw line units. Reordered note
 data MUST remain optional, without enlarging ordinary inline records.
 
+Resolved footnote body selections admit bounded inline style, link and task commands when every staged edit stays within the definition content and inserts no line break. Literal unresolved definitions and other structural commands retain their existing guards.
+
 Retained selection remains one source-contiguous anchor/caret pair. A selection
 crossing main text and a footer may highlight disjoint visual fragments. Copy,
 deletion, composition replacement and UIA ranges MUST retain that exact raw

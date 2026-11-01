@@ -348,6 +348,19 @@ inline void ListsAndHeadings()
 inline void InlineTasksLinks()
 {
     MarkdownCommandRequest request;
+    {
+        constexpr std::wstring_view source = L"ref[^n]\n\n[^n]: body\n";
+        const auto start                   = source.find(L"body");
+        request.command                    = MarkdownCommand::ToggleStyle;
+        request.style                      = MarkdownTextStyle::Strong;
+        Exact(source, {start, start + 4u}, request, L"ref[^n]\n\n[^n]: **body**\n", std::nullopt, MarkdownProfile::RichMarkdown);
+        Unavailable(L"[^n]: body\n", {6u, 10u}, request, MarkdownProfile::RichMarkdown);
+        Unavailable(source, {0u, start + 4u}, request, MarkdownProfile::RichMarkdown);
+        constexpr std::wstring_view task = L"ref[^n]\n\n[^n]: - [ ] task\n";
+        const auto taskText              = task.find(L"task");
+        request.command                  = MarkdownCommand::ToggleTask;
+        Exact(task, {taskText, taskText}, request, L"ref[^n]\n\n[^n]: - [x] task\n", std::nullopt, MarkdownProfile::RichMarkdown);
+    }
     request.command = MarkdownCommand::ToggleStyle;
     for (const auto style : {MarkdownTextStyle::Strong, MarkdownTextStyle::Emphasis, MarkdownTextStyle::Strikethrough})
     {

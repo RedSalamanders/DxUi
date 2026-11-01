@@ -1000,6 +1000,19 @@ struct MarkdownCommandPlanner
         }
         return mapped + position - previous;
     }
+    void RestrictToNote(std::size_t note)
+    {
+        if (note == MarkdownNoNode || ! plan.applicable_)
+            return;
+        const auto content = nodes[note].block.content.first;
+        const auto end     = nodes[note].block.source.last;
+        for (const auto& edit : plan.edits_)
+            if (edit.source.first < content || edit.source.last > end || edit.replacement.find_first_of(L"\r\n") != std::wstring::npos)
+            {
+                plan.applicable_ = false;
+                return;
+            }
+    }
     MarkdownCommandPlan Finish()
     {
         if (! plan.applicable_)
@@ -2331,14 +2344,25 @@ MarkdownCommandPlan BuildMarkdownCommand(const SourceSnapshot& source,
     if (static_cast<unsigned>(request.command) > static_cast<unsigned>(MarkdownCommand::PreviousTableCell))
         throw std::invalid_argument("Invalid Markdown command");
     Detail::MarkdownCommandPlanner builder(source, revision, std::move(syntax), selection);
-    // Initial definition presentation is literal source. Until note-aware
-    // transactions are implemented, never apply a child paragraph/list edit
-    // through its owning definition's label or four-column continuation prefix.
-    for (const auto& node : builder.nodes)
-        if (node.block.kind == MarkdownBlockKind::FootnoteDefinition &&
-            (selection.Start() == selection.End() ? builder.NodeAt(MarkdownBlockKind::FootnoteDefinition, selection.Start()) != MarkdownNoNode
-                                                  : node.block.source.first < selection.End() && selection.Start() < node.block.source.last))
+    // A resolved definition owns editable inline content, but its label and
+    // continuation prefixes remain structural source. Other note-aware
+    // operations remain unavailable until their complete prefix plans exist.
+    auto note = MarkdownNoNode;
+    for (std::size_t index = 0u; index < builder.nodes.size(); ++index)
+    {
+        const auto& node = builder.nodes[index];
+        if (node.block.kind != MarkdownBlockKind::FootnoteDefinition ||
+            ! (selection.Start() == selection.End() ? builder.NodeAt(MarkdownBlockKind::FootnoteDefinition, selection.Start()) == index
+                                                    : node.block.source.first < selection.End() && selection.Start() < node.block.source.last))
+            continue;
+        const auto resolved      = std::ranges::find(builder.plan.Syntax()->Footnotes(), index, &MarkdownFootnote::definition);
+        const bool inlineCommand = request.command == MarkdownCommand::ToggleStyle || request.command == MarkdownCommand::SetLink ||
+                                   request.command == MarkdownCommand::RemoveLink || request.command == MarkdownCommand::ToggleTask;
+        if (note != MarkdownNoNode || resolved == builder.plan.Syntax()->Footnotes().end() || ! resolved->ordinal || ! inlineCommand ||
+            selection.Start() < node.block.content.first || selection.End() > node.block.source.last)
             return builder.Finish();
+        note = index;
+    }
     switch (request.command)
     {
         case MarkdownCommand::InsertParagraph: builder.Continue(); break;
@@ -2362,6 +2386,7 @@ MarkdownCommandPlan BuildMarkdownCommand(const SourceSnapshot& source,
         case MarkdownCommand::PreviousTableCell: builder.Table(request); break;
         default: throw std::invalid_argument("Invalid Markdown command");
     }
+    builder.RestrictToNote(note);
     return builder.Finish();
 }
 MarkdownCommandPlan BuildMarkdownDeletion(const SourceSnapshot& source,
