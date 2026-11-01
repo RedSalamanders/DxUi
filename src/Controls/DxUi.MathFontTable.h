@@ -95,7 +95,7 @@ public:
     struct AssemblyPlacement
     {
         AssemblyPart part;
-        std::uint32_t offset{}; // From the bottom of the vertical assembly, in design units.
+        std::uint32_t offset{}; // From the bottom (vertical) or left (horizontal), in design units.
     };
     struct AssemblyPlan
     {
@@ -115,6 +115,22 @@ public:
         if (! index || index.value() >= count.value())
             return std::nullopt;
         const auto relative = U16(table.value() + 10u + index.value() * 2u);
+        if (! relative || relative.value() == 0u)
+            return std::nullopt;
+        return table.value() + relative.value();
+    }
+    [[nodiscard]] std::optional<std::size_t> HorizontalConstruction(std::uint16_t glyph) const noexcept
+    {
+        const auto table = HeaderOffset(8u);
+        if (! table)
+            return std::nullopt;
+        const auto coverage = U16(table.value() + 4u), verticalCount = U16(table.value() + 6u), horizontalCount = U16(table.value() + 8u);
+        if (! coverage || ! verticalCount || ! horizontalCount || coverage.value() == 0u)
+            return std::nullopt;
+        const auto index = Coverage(table.value() + coverage.value(), glyph);
+        if (! index || index.value() >= horizontalCount.value())
+            return std::nullopt;
+        const auto relative = U16(table.value() + 10u + static_cast<std::size_t>(verticalCount.value()) * 2u + index.value() * 2u);
         if (! relative || relative.value() == 0u)
             return std::nullopt;
         return table.value() + relative.value();
@@ -149,6 +165,10 @@ public:
     {
         const auto construction = VerticalConstruction(glyph);
         return construction ? VerticalVariantAt(construction.value(), minimum) : std::nullopt;
+    }
+    [[nodiscard]] std::optional<Variant> HorizontalVariantAt(std::size_t construction, std::uint16_t minimum) const noexcept
+    {
+        return VerticalVariantAt(construction, minimum);
     }
     [[nodiscard]] std::optional<AssemblyPlan> VerticalAssemblyAt(std::size_t construction, std::uint32_t minimum) const noexcept
     {
@@ -247,6 +267,10 @@ public:
             return plan;
         }
         return std::nullopt;
+    }
+    [[nodiscard]] std::optional<AssemblyPlan> HorizontalAssemblyAt(std::size_t construction, std::uint32_t minimum) const noexcept
+    {
+        return VerticalAssemblyAt(construction, minimum);
     }
 };
 } // namespace DxUi::RichText::Detail

@@ -95,10 +95,47 @@ template <typename Check> void Run(Check&& check)
         check(! DxUi::RichText::Detail::MathFontTable(std::span(assemblyBytes.data(), length)).VerticalAssemblyAt(20u, 320u),
               "truncated glyph assemblies fall back without reading beyond the table");
     check(! assembly.VerticalAssemblyAt(20u, 1000000u), "glyph assemblies cap the number of repeated parts");
+    const auto horizontalAssembly = assembly.HorizontalAssemblyAt(20u, 320u);
+    check(horizontalAssembly && horizontalAssembly->count == 4u && horizontalAssembly->advance == 320u &&
+              horizontalAssembly->placements[1u].offset == 87u && horizontalAssembly->placements[3u].offset == 220u,
+          "horizontal assemblies use the independently expected left-to-right connector placements");
     put(52u, 2u);
     check(! assembly.VerticalAssemblyAt(20u, 320u), "unknown glyph-part flags are rejected");
     put(52u, 1u);
     put(38u, 5u);
     check(! assembly.VerticalAssemblyAt(20u, 320u), "incompatible connector overlap is rejected");
+    std::array<std::uint8_t, 64u> horizontalBytes{};
+    const auto setHorizontal = [&](std::size_t offset, std::uint16_t value)
+    {
+        horizontalBytes[offset] = static_cast<std::uint8_t>(value >> 8u);
+        horizontalBytes[offset + 1u] = static_cast<std::uint8_t>(value & 0xffu);
+    };
+    setHorizontal(0u, 1u);
+    setHorizontal(8u, 10u);  // variants table
+    setHorizontal(14u, 16u); // horizontal coverage at 26
+    setHorizontal(16u, 1u);  // one vertical offset precedes horizontal offsets
+    setHorizontal(18u, 1u);  // one horizontal construction
+    setHorizontal(22u, 30u); // construction at 40
+    setHorizontal(26u, 1u);
+    setHorizontal(28u, 1u);
+    setHorizontal(30u, 5u);
+    setHorizontal(42u, 2u);
+    setHorizontal(44u, 11u);
+    setHorizontal(46u, 1000u);
+    setHorizontal(48u, 12u);
+    setHorizontal(50u, 2000u);
+    const DxUi::RichText::Detail::MathFontTable horizontal(horizontalBytes);
+    const auto construction = horizontal.HorizontalConstruction(5u);
+    const auto selected = construction ? horizontal.HorizontalVariantAt(construction.value(), 1500u) : std::nullopt;
+    check(construction && construction.value() == 40u && selected && selected->glyph == 12u && selected->advance == 2000u &&
+              ! horizontal.HorizontalConstruction(6u),
+          "horizontal coverage follows the vertical construction array and chooses the smallest adequate variant");
+    for (std::size_t length = 0u; length < 52u; ++length)
+    {
+        const DxUi::RichText::Detail::MathFontTable truncated(std::span(horizontalBytes.data(), length));
+        const auto partial = truncated.HorizontalConstruction(5u);
+        check(! partial || ! truncated.HorizontalVariantAt(partial.value(), 1500u),
+              "truncated horizontal variants never read beyond the supplied table");
+    }
 }
 } // namespace MathFontTableTests

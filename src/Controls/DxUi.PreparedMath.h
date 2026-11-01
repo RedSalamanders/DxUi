@@ -55,6 +55,7 @@ class PreparedMath final
               table(bytes.begin(), bytes.end()),
               corrections(source->GetGlyphCount(), MissingCorrection),
               constructions(source->GetGlyphCount(), 0u),
+              horizontalConstructions(source->GetGlyphCount(), 0u),
               designUnits(units)
         {
             const MathFontTable parsed(table);
@@ -67,12 +68,16 @@ class PreparedMath final
                 const auto construction = parsed.VerticalConstruction(glyph);
                 if (construction)
                     constructions[index] = static_cast<std::uint32_t>(construction.value());
+                const auto horizontal = parsed.HorizontalConstruction(glyph);
+                if (horizontal)
+                    horizontalConstructions[index] = static_cast<std::uint32_t>(horizontal.value());
             }
         }
         wil::com_ptr<IDWriteFontFace> face;
         std::vector<std::uint8_t> table;
         std::vector<std::int32_t> corrections;
         std::vector<std::uint32_t> constructions;
+        std::vector<std::uint32_t> horizontalConstructions;
         std::uint16_t designUnits{};
     };
     struct VariantGlyph
@@ -944,6 +949,81 @@ class PreparedMath final
         variants.push_back({glyph, originX, baseline, size, scaleX, left, baseline - inkAbove, inkWidth * scaleX, height});
         return true;
     }
+    bool AddHorizontalAccent(wchar_t shape, float x, float top, float bottom, float width, float size)
+    {
+        if (! mathData || width <= 0.f || size <= 0.f || bottom <= top)
+            return false;
+        const auto required = width * static_cast<float>(mathData->designUnits) / size;
+        if (! std::isfinite(required) || required <= 0.f || required > static_cast<float>((std::numeric_limits<std::uint32_t>::max)() / 2u))
+            return false;
+        const std::uint32_t scalar = static_cast<std::uint16_t>(shape);
+        UINT16 baseGlyph{};
+        if (! OptionalFontOperation(GlyphIndex(scalar, baseGlyph)) || baseGlyph == 0u || baseGlyph >= mathData->horizontalConstructions.size())
+            return false;
+        const auto construction = mathData->horizontalConstructions[baseGlyph];
+        if (! construction)
+            return false;
+        const MathFontTable table(mathData->table);
+        const auto minimum = static_cast<std::uint32_t>(std::ceil(required));
+        const auto choice = minimum <= 65535u ? table.HorizontalVariantAt(construction, static_cast<std::uint16_t>(minimum)) : std::nullopt;
+        const auto plan = choice ? std::optional<MathFontTable::AssemblyPlan>{} : table.HorizontalAssemblyAt(construction, minimum);
+        const auto count = choice ? 1u : plan ? plan->count : 0u;
+        constexpr std::size_t MaximumAssemblyPartsPerFormula = 512u;
+        if (! count || variants.size() >= MaximumAssemblyPartsPerFormula || count > MaximumAssemblyPartsPerFormula - variants.size())
+            return false;
+        const auto totalAdvance = choice ? static_cast<std::uint32_t>(choice->advance) : plan->advance;
+        const float units = size / static_cast<float>(mathData->designUnits);
+        const float span = static_cast<float>(totalAdvance) * units;
+        if (! std::isfinite(span) || span <= 0.f)
+            return false;
+        const float scaleX = (std::min)(1.f, width / span);
+        const float start = x + (width - span * scaleX) / 2.f;
+        std::array<DWRITE_GLYPH_METRICS, 64u> metrics{};
+        float inkTop = (std::numeric_limits<float>::max)(), inkBottom = -(std::numeric_limits<float>::max)();
+        for (std::size_t index = 0u; index < count; ++index)
+        {
+            const auto glyph = choice ? choice->glyph : plan->placements[index].part.glyph;
+            if (glyph >= mathData->face->GetGlyphCount())
+                return false;
+            std::size_t previous{};
+            while (previous < index && plan->placements[previous].part.glyph != glyph)
+                ++previous;
+            if (previous < index)
+                metrics[index] = metrics[previous];
+            else if (! OptionalFontOperation(GlyphMetrics(glyph, metrics[index])))
+                return false;
+            if (! choice && std::abs(static_cast<std::int64_t>(metrics[index].advanceWidth) -
+                                     static_cast<std::int64_t>(plan->placements[index].part.advance)) > 2)
+                return false;
+            inkTop = std::min(inkTop, (static_cast<float>(metrics[index].topSideBearing) - static_cast<float>(metrics[index].verticalOriginY)) * units);
+            inkBottom = std::max(inkBottom, (static_cast<float>(metrics[index].advanceHeight) - static_cast<float>(metrics[index].verticalOriginY) -
+                                            static_cast<float>(metrics[index].bottomSideBearing)) * units);
+        }
+        const auto height = inkBottom - inkTop;
+        if (! std::isfinite(height) || height < 0.f || height > bottom - top)
+            return false;
+        const auto baseline = (top + bottom - height) / 2.f - inkTop;
+        std::array<VariantGlyph, 64u> staged{};
+        for (std::size_t index = 0u; index < count; ++index)
+        {
+            const auto glyph = choice ? choice->glyph : plan->placements[index].part.glyph;
+            const auto offset = choice ? 0u : plan->placements[index].offset;
+            const auto origin = start + static_cast<float>(offset) * units * scaleX;
+            const auto& metric = metrics[index];
+            const auto left = origin + static_cast<float>(metric.leftSideBearing) * units * scaleX;
+            const auto partWidth = (static_cast<float>(metric.advanceWidth) - static_cast<float>(metric.leftSideBearing) -
+                                    static_cast<float>(metric.rightSideBearing)) * units * scaleX;
+            const auto partTop = baseline + (static_cast<float>(metric.topSideBearing) - static_cast<float>(metric.verticalOriginY)) * units;
+            const auto partHeight = (static_cast<float>(metric.advanceHeight) - static_cast<float>(metric.topSideBearing) -
+                                     static_cast<float>(metric.bottomSideBearing)) * units;
+            if (! std::isfinite(origin + left + partWidth + partTop + partHeight) || partWidth < 0.f || partHeight < 0.f || left < x - .01f ||
+                left + partWidth > x + width + .01f)
+                return false;
+            staged[index] = {glyph, origin, baseline, size, scaleX, left, partTop, partWidth, partHeight};
+        }
+        variants.insert(variants.end(), staged.begin(), staged.begin() + static_cast<std::ptrdiff_t>(count));
+        return true;
+    }
     void Fence(wchar_t shape, float x, float top, float bottom, float width, float thickness, float size)
     {
         if (shape == L'.')
@@ -1099,6 +1179,9 @@ class PreparedMath final
         {
             Place(ChildAt(index, 0u), x, baseline);
             const float y = node.text == L"underline" ? baseline + box.extent.below - 2.f : baseline - box.extent.above + box.size * .1f;
+            const auto shape = node.text == L"widehat" ? L'\u0302' : node.text == L"widetilde" ? L'\u0303' : node.text == L"vec" ? L'\u20d7' : L'\0';
+            if (shape && AddHorizontalAccent(shape, x, baseline - box.extent.above, baseline - box.extent.above + box.size * .3f, box.extent.width, box.size))
+                return;
             if (node.text == L"hat" || node.text == L"widehat")
             {
                 Stroke(x, y + box.size * .15f, x + box.extent.width / 2.f, y, stroke);

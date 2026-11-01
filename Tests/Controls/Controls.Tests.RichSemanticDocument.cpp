@@ -301,6 +301,93 @@ void TestRichMathPreparedStyleSpacingScriptsAndLimits()
     }
     else
         Require(! isolatedFence->StrokeLayouts().empty(), "a font without an adequate variant retains the vector fallback");
+    const auto horizontalAccent = prepare(L"\\vec{abcdefghijk}");
+#if DXUI_ENABLE_DIAGNOSTICS
+    const auto uprightAccent = prepare(L"\\vec{\\mathrm{abcdefghijk}}");
+    if (! uprightAccent->VariantLayouts().empty())
+    {
+        const auto oldMetricFailure = DxUi::RichText::Detail::testRichMathGlyphMetricsFailure;
+        const auto oldIndexFailure = DxUi::RichText::Detail::testRichMathGlyphIndexFailure;
+        const auto restoreAccentFailures = wil::scope_exit([oldMetricFailure, oldIndexFailure]() noexcept
+        {
+            DxUi::RichText::Detail::testRichMathGlyphMetricsFailure = oldMetricFailure;
+            DxUi::RichText::Detail::testRichMathGlyphIndexFailure = oldIndexFailure;
+        });
+        const auto accentExpression = std::make_shared<const MathExpression>(ParseMath(L"\\vec{\\mathrm{abcdefghijk}}"));
+        for (const bool failMetric : {false, true})
+        {
+            DxUi::RichText::Detail::PreparedMath interrupted(factory.get(), accentExpression, 24.f);
+            if (failMetric)
+                DxUi::RichText::Detail::testRichMathGlyphMetricsFailure = E_OUTOFMEMORY;
+            else
+                DxUi::RichText::Detail::testRichMathGlyphIndexFailure = E_OUTOFMEMORY;
+            HRESULT failureCode = S_OK;
+            try
+            {
+                while (! interrupted.Advance()) {}
+            }
+            catch (const wil::ResultException& failure)
+            {
+                failureCode = failure.GetErrorCode();
+            }
+            Require(failureCode == E_OUTOFMEMORY, "horizontal font lookup preserves transient glyph failure for owner retry");
+            DxUi::RichText::Detail::PreparedMath retry(factory.get(), accentExpression, 24.f);
+            while (! retry.Advance()) {}
+            Require(! retry.VariantLayouts().empty(), "horizontal accent retries successfully after transient failure");
+        }
+    }
+#endif
+    const auto accentSize = horizontalAccent->Size();
+    float accentLeft = accentSize.width, accentRight{}, accentTop = accentSize.height, accentBottom{};
+    for (const auto& part : horizontalAccent->VariantLayouts())
+    {
+        Require(part.left >= -.01f && part.top >= -.01f && part.left + part.width <= accentSize.width + .01f &&
+                    part.top + part.height <= accentSize.height + .01f,
+                "horizontal font accent ink remains within prepared formula bounds");
+        accentLeft = std::min(accentLeft, part.left);
+        accentRight = std::max(accentRight, part.left + part.width);
+        accentTop = std::min(accentTop, part.top);
+        accentBottom = std::max(accentBottom, part.top + part.height);
+    }
+    if (horizontalAccent->VariantLayouts().size() > 2u && accentSize.width < 240.f && accentSize.height < 100.f)
+    {
+        wil::com_ptr<IWICImagingFactory> imaging;
+        THROW_IF_FAILED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(imaging.put())));
+        wil::com_ptr<IWICBitmap> bitmap;
+        THROW_IF_FAILED(imaging->CreateBitmap(256u, 128u, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnLoad, bitmap.put()));
+        const auto drawing = PreparedFlowchartTests::DrawingFactory();
+        wil::com_ptr<ID2D1RenderTarget> target;
+        const auto properties = D2D1::RenderTargetProperties(D2D1_RENDER_TARGET_TYPE_SOFTWARE,
+                                                               D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
+        THROW_IF_FAILED(drawing->CreateWicBitmapRenderTarget(bitmap.get(), properties, target.put()));
+        wil::com_ptr<ID2D1SolidColorBrush> brush;
+        THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(1.f, 1.f, 1.f, 1.f), brush.put()));
+        target->BeginDraw();
+        target->Clear(D2D1::ColorF(0.f, 0.f, 0.f, 0.f));
+        horizontalAccent->Draw(target.get(), brush.get(), D2D1::Point2F(8.f, 8.f), 1.f);
+        THROW_IF_FAILED(target->EndDraw());
+        std::vector<BYTE> pixels(256u * 128u * 4u);
+        THROW_IF_FAILED(bitmap->CopyPixels(nullptr, 256u * 4u, static_cast<UINT>(pixels.size()), pixels.data()));
+        unsigned columns{}, gap{}, maximumGap{};
+        for (auto column = static_cast<unsigned>(8.f + std::ceil(accentLeft)) + 2u;
+             column + 2u < static_cast<unsigned>(8.f + std::floor(accentRight)); ++column)
+        {
+            bool hit{};
+            for (auto row = static_cast<unsigned>(8.f + std::floor(accentTop)); row <= static_cast<unsigned>(8.f + std::ceil(accentBottom)); ++row)
+                hit = hit || pixels[(static_cast<std::size_t>(row) * 256u + column) * 4u + 3u] != 0u;
+            if (hit)
+            {
+                ++columns;
+                gap = 0u;
+            }
+            else
+                maximumGap = std::max(maximumGap, ++gap);
+        }
+        Require(columns > 20u && maximumGap <= 4u, "horizontal font assembly connectors paint without visible internal gaps");
+    }
+    else
+        Require(! horizontalAccent->VariantLayouts().empty() || ! horizontalAccent->StrokeLayouts().empty(),
+                "fonts without a compatible horizontal assembly retain the bounded vector fallback");
     std::wstring tallFenceSource = L"\\left(\\begin{gathered}";
     for (unsigned row = 0u; row < 16u; ++row)
     {
