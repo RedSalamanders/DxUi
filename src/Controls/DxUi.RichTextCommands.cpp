@@ -1266,7 +1266,7 @@ void MarkdownCommandPlanner::Quote(MarkdownQuoteAction action)
         --end;
     for (std::size_t i = 1u; i < nodes.size(); ++i)
     {
-        if (! TextLeaf(nodes[i].block.kind) || nodes[i].block.kind == Kind::TableCell || Ancestor(i, Kind::ListItem) != MarkdownNoNode)
+        if (! TextLeaf(nodes[i].block.kind) || nodes[i].block.kind == Kind::TableCell)
             continue;
         for (const auto& content : nodes[i].lines)
         {

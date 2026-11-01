@@ -298,10 +298,11 @@ inline void ListsAndHeadings()
         Exact(L"> alpha\n", {2u, 2u}, request, L"alpha\n", std::nullopt, profile);
         request.quoteAction = MarkdownQuoteAction::Outdent;
         Exact(L"> > alpha\n", {4u, 4u}, request, L"> alpha\n", std::nullopt, profile);
-        Unavailable(L"- item\n", {2u, 2u}, request, profile);
+        Exact(L"> - > item\n", {6u, 6u}, request, L"> - item\n", std::nullopt, profile);
         request.quoteAction = MarkdownQuoteAction::Toggle;
-        request.command     = MarkdownCommand::SetCodeBlock;
-        request.text        = L"cpp";
+        Exact(L"- item\n", {2u, 2u}, request, L"- > item\n", std::nullopt, profile);
+        request.command = MarkdownCommand::SetCodeBlock;
+        request.text    = L"cpp";
         Exact(L"hello\n", {0u, 5u}, request, L"~~~cpp\nhello\n~~~\n", std::nullopt, profile);
         Exact(L"a ~~~ b\n", {0u, 7u}, request, L"~~~~cpp\na ~~~ b\n~~~~\n", std::nullopt, profile);
         Exact(L"~~~\nhello\n~~~\n", {5u, 5u}, request, L"hello\n", std::nullopt, profile);
