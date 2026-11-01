@@ -1071,5 +1071,38 @@ inline void GuardsAndDeletion()
         Check(ApplyMarkdownCommand(deleting, deletion) && deleting.Text().empty(), "whole visual body recursively cleans owned formatting/link wrappers");
         Check(deleting.Undo() && deleting.Snapshot().IsSameRevision(old), "cleanup restores exact original spelling in one undo");
     }
+    for (const std::wstring_view spelling : {L"`\nfoo\n`", L"`\rfoo\r`", L"`\r\nfoo\r\n`", L"` foo `", L"`  foo  `"})
+    {
+        Document deleting(spelling);
+        const auto at = spelling.find(L"foo");
+        deleting.SetSelection({at + 3u, at});
+        const auto old        = deleting.Snapshot();
+        const auto codeSyntax = Parse(deleting);
+        const std::array ranges{MarkdownRange{at, at + 3u}};
+        const auto deletion = BuildMarkdownDeletion(old, deleting.Revision(), codeSyntax, deleting.GetSelection(), ranges);
+        Check(ApplyMarkdownCommand(deleting, deletion), "code-span body deletion applies");
+        const bool onePadding = spelling != L"`  foo  `";
+        Check(deleting.Text() == (onePadding ? L"" : L"`    `"), "only a completely selected normalized code body removes its wrapper");
+        Check(deleting.Undo() && deleting.Snapshot().IsSameRevision(old), "code-span deletion undo restores exact original EOL spelling");
+    }
+    {
+        Document deleting(L"`   `");
+        deleting.SetSelection({1u, 4u});
+        const auto old      = deleting.Snapshot();
+        const auto deletion = BuildMarkdownDeletion(old, deleting.Revision(), Parse(deleting), deleting.GetSelection(), std::array{MarkdownRange{1u, 4u}});
+        Check(ApplyMarkdownCommand(deleting, deletion) && deleting.Text().empty(), "an all-space code body retains and deletes all authored spaces");
+        Check(deleting.Undo() && deleting.Snapshot().IsSameRevision(old), "all-space code deletion restores the original source");
+    }
+    {
+        constexpr std::wstring_view spelling = L"> `\r\n> foo\r\n> `";
+        Document deleting(spelling);
+        const auto at = spelling.find(L"foo");
+        deleting.SetSelection({at, at + 3u});
+        const auto old      = deleting.Snapshot();
+        const auto deletion = BuildMarkdownDeletion(old, deleting.Revision(), Parse(deleting), deleting.GetSelection(), std::array{MarkdownRange{at, at + 3u}});
+        Check(ApplyMarkdownCommand(deleting, deletion) && deleting.Text() == L"> ",
+              "code wrapper cleanup follows normalized source units across quote prefixes");
+        Check(deleting.Undo() && deleting.Snapshot().IsSameRevision(old), "nested code deletion restores container prefixes and CRLF exactly");
+    }
 }
 } // namespace RichCommandTests

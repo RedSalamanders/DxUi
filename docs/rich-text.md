@@ -1389,7 +1389,9 @@ toggle styles, Ctrl+Enter toggles tasks, and Ctrl+Z/Y retain transaction history
 Typing a literal pipe/backslash in an empty/padded cell escapes it and uses the
 focused cell's real source insertion. Visual deletion removes empty owned
 Markdown/validated inline HTML wrappers only when their complete body is deleted;
-raw TSF/programmatic replacement does not run cleanup.
+code spans use their normalized visible body and exact source mapping, including
+newline padding and nested container prefixes. All-space code bodies retain all
+their spaces. Raw TSF/programmatic replacement does not run cleanup.
 
 The sample toolbar exercises all these families with the same retained API.
 At the M4e checkpoint, structured UIA was still pending; M4f is described below.

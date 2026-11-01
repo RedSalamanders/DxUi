@@ -600,6 +600,11 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     Check(editor->OnKeyDown(host, VK_BACK, 0u) && editor->GetText().empty() && editor->Undo() && editor->GetText() == L"**a**" && editor->Undo() &&
               editor->GetText() == L"**abc**",
           "plain semantic erasures coalesce while structural wrapper removal remains a separate undo");
+    editor->SetText(L"`\r\nfoo\r\n`");
+    prepare();
+    editor->SetSelection({6u, 3u});
+    Check(editor->OnKeyDown(host, VK_DELETE, 0u) && editor->GetText().empty() && editor->Undo() && editor->GetText() == L"`\r\nfoo\r\n`",
+          "deleting a complete normalized code body removes its original CRLF-padded wrapper in one undo");
     editor->SetText(L"");
     Check(editor->OnChar(host, L'a', 0u) && editor->OnChar(host, L' ', 0u) && editor->OnChar(host, L'b', 0u) && editor->Undo() && editor->GetText() == L"a ",
           "whitespace ends a typing undo group");

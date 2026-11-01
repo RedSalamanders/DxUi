@@ -4007,15 +4007,34 @@ void MarkdownCommandPlanner::Delete(std::span<const MarkdownRange> ranges)
         MarkdownRange source, body;
     };
     std::vector<Wrapper> wrappers(0u);
+    std::vector<const MarkdownInline*> codeInlines(0u);
     for (const auto& node : plan.syntax_->Inlines())
-        if (const auto body = InlineBody(node); body && body->first < body->last)
+        if (node.kind == MarkdownInlineKind::Code)
+            codeInlines.push_back(&node);
+        else if (const auto body = InlineBody(node); body && body->first < body->last)
             wrappers.push_back({node.source, *body});
+    std::sort(codeInlines.begin(), codeInlines.end(), [](const auto* a, const auto* b) { return a->source.first < b->source.first; });
     for (std::size_t i = 1u; i < nodes.size(); ++i)
     {
         if (! TextLeaf(nodes[i].block.kind) && nodes[i].block.kind != Kind::HtmlBlock)
             continue;
         SemanticValue normalized;
         NormalizeSemanticLeaf(*plan.syntax_, i, normalized);
+        const auto firstCode = std::lower_bound(
+            codeInlines.begin(), codeInlines.end(), nodes[i].block.source.first, [](const auto* node, auto first) { return node->source.first < first; });
+        for (auto code = firstCode; code != codeInlines.end() && (*code)->source.first < nodes[i].block.source.last; ++code)
+        {
+            if ((*code)->source.last > nodes[i].block.source.last)
+                continue;
+            SemanticValue value;
+            ResolveSemanticValue(*plan.syntax_, normalized, **code, value);
+            if (! value.units.empty())
+            {
+                const MarkdownRange body{value.units.front().source.first, value.units.back().source.last};
+                if (body.first < body.last)
+                    wrappers.push_back({(*code)->source, body});
+            }
+        }
         NativeHtmlPlan html;
         if (nodes[i].block.kind == Kind::HtmlBlock)
             html.Block(normalized);
