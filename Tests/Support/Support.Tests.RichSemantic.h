@@ -322,6 +322,10 @@ inline void ListsAndHeadings()
         request.command = MarkdownCommand::InsertMath;
         if (profile == MarkdownProfile::RichMarkdown)
         {
+            Document mathState(L"alpha");
+            const auto mathSyntax = Parse(mathState, profile);
+            Check(CanInsertMath(*mathSyntax, {0u, 5u}, {}, false) && ! CanInsertMath(*mathSyntax, {0u, 0u}, {}, false),
+                  "math insertion query shares planner admission for selected and empty payloads");
             Exact(L"alpha", {0u, 5u}, request, L"\\(alpha\\)", Selection{2u, 7u}, profile);
             request.mathDisplay = true;
             request.text        = L"x";

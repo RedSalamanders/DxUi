@@ -9,6 +9,75 @@
 
 namespace DxUi::RichText
 {
+bool CanInsertMath(const MarkdownSyntax& syntax, Selection selection, std::wstring_view requested, bool display) noexcept
+{
+    const auto text  = syntax.Source();
+    const auto first = selection.Start(), last = selection.End();
+    if (syntax.Profile() != MarkdownProfile::RichMarkdown || syntax.SourceRegion() || ! IsEditBoundary(text, first) || ! IsEditBoundary(text, last))
+        return false;
+    const auto& nodes = syntax.Nodes();
+    const auto nodeAt = [&](MarkdownBlockKind kind, size_t at) noexcept
+    {
+        size_t best = MarkdownNoNode;
+        for (size_t i = 1u; i < nodes.size(); ++i)
+        {
+            const auto range = nodes[i].block.source;
+            if (nodes[i].block.kind == kind && range.first <= at &&
+                (at < range.last || (at == range.last && at == text.size() &&
+                                     (text.empty() || (text.back() != L'\r' && text.back() != L'\n') ||
+                                      ((kind == MarkdownBlockKind::FencedCode || kind == MarkdownBlockKind::FrontMatter) && ! nodes[i].block.closed)))) &&
+                (best == MarkdownNoNode || range.last - range.first <= nodes[best].block.source.last - nodes[best].block.source.first))
+                best = i;
+        }
+        return best;
+    };
+    if (first == last)
+    {
+        if (nodeAt(MarkdownBlockKind::FootnoteDefinition, first) != MarkdownNoNode)
+            return false;
+    }
+    else
+        for (const auto& node : nodes)
+            if (node.block.kind == MarkdownBlockKind::FootnoteDefinition && node.block.source.first < last && first < node.block.source.last)
+                return false;
+    size_t leaf = MarkdownNoNode;
+    for (const auto kind : {MarkdownBlockKind::Paragraph, MarkdownBlockKind::AtxHeading, MarkdownBlockKind::SetextHeading, MarkdownBlockKind::TableCell})
+    {
+        const auto node = nodeAt(kind, first);
+        if (node != MarkdownNoNode && (leaf == MarkdownNoNode || nodes[node].block.source.last - nodes[node].block.source.first <
+                                                                     nodes[leaf].block.source.last - nodes[leaf].block.source.first))
+            leaf = node;
+    }
+    if (leaf == MarkdownNoNode)
+    {
+        if (first != last || (first != 0u && text[first - 1u] != L'\r' && text[first - 1u] != L'\n') ||
+            (first != text.size() && text[first] != L'\r' && text[first] != L'\n'))
+            return false;
+        for (const auto kind : {MarkdownBlockKind::FencedCode, MarkdownBlockKind::IndentedCode, MarkdownBlockKind::HtmlBlock, MarkdownBlockKind::FrontMatter})
+            if (nodeAt(kind, first) != MarkdownNoNode)
+                return false;
+    }
+    else if (last > nodes[leaf].block.content.last)
+        return false;
+    for (const auto& node : syntax.Inlines())
+    {
+        if (node.kind == MarkdownInlineKind::Text || node.source.last <= first || node.source.first >= last)
+            continue;
+        const bool style =
+            node.kind == MarkdownInlineKind::Strong || node.kind == MarkdownInlineKind::Emphasis || node.kind == MarkdownInlineKind::Strikethrough;
+        const size_t count = node.kind == MarkdownInlineKind::Emphasis ? 1u : 2u;
+        if (! style || node.source.last - node.source.first < count * 2u || first < node.source.first + count || last > node.source.last - count)
+            return false;
+    }
+    if (first == last)
+        for (const auto& node : syntax.Inlines())
+            if ((node.kind == MarkdownInlineKind::Code || node.kind == MarkdownInlineKind::Html) && node.source.first < first && first < node.source.last)
+                return false;
+    const auto payload = first == last ? requested : text.substr(first, last - first);
+    const auto closer  = display ? std::wstring_view(L"\\]") : std::wstring_view(L"\\)");
+    return ! payload.empty() && payload.size() <= MathMaximumSourceUnits && IsValidUtf16(payload) && payload.find_first_of(L"\r\n") == payload.npos &&
+           payload.find(closer) == payload.npos && payload.size() + 4u <= Document::MaximumUnits - (text.size() - (last - first));
+}
 std::optional<std::size_t> FindCodeLanguageTarget(const MarkdownSyntax& syntax, Selection selection, std::wstring_view language) noexcept
 {
     if (language.size() > 255u || ! IsValidUtf16(language) || language.find_first_of(L"\r\n") != language.npos)
@@ -1407,31 +1476,11 @@ void MarkdownCommandPlanner::ExitCode()
 
 void MarkdownCommandPlanner::Math(const MarkdownCommandRequest& request)
 {
-    if (plan.syntax_->Profile() != MarkdownProfile::RichMarkdown)
-        return;
-    std::size_t leaf{};
-    if (! InlineSelection(leaf))
+    if (! CanInsertMath(*plan.syntax_, plan.before_, request.text, request.mathDisplay))
         return;
     const auto first = plan.before_.Start(), last = plan.before_.End();
-    for (const auto& node : plan.syntax_->Inlines())
-    {
-        if (node.kind == MarkdownInlineKind::Text || node.source.last <= first || node.source.first >= last)
-            continue;
-        const auto body = node.kind == MarkdownInlineKind::Strong || node.kind == MarkdownInlineKind::Emphasis || node.kind == MarkdownInlineKind::Strikethrough
-                              ? InlineBody(node)
-                              : std::nullopt;
-        if (! body || first < body->first || last > body->last)
-            return;
-    }
-    if (first == last)
-        for (const auto range : opaqueInlines)
-            if (range.first < first && first < range.last)
-                return;
-    const auto payload = first == last ? request.text : Slice(first, last);
-    const auto closer  = request.mathDisplay ? std::wstring_view(L"\\]") : std::wstring_view(L"\\)");
-    if (payload.empty() || payload.size() > MathMaximumSourceUnits || ! IsValidUtf16(payload) || payload.find_first_of(L"\r\n") != payload.npos ||
-        payload.find(closer) != payload.npos)
-        return;
+    const auto payload     = first == last ? request.text : Slice(first, last);
+    const auto closer      = request.mathDisplay ? std::wstring_view(L"\\]") : std::wstring_view(L"\\)");
     std::wstring insertion = request.mathDisplay ? L"\\[" : L"\\(";
     insertion += payload;
     insertion += closer;

@@ -70,6 +70,7 @@ struct MarkdownCommandState
 // Shared nonallocating admission predicate for the source-exact code exit.
 std::optional<std::size_t> FindExitCodeBlock(const MarkdownSyntax& syntax, Selection selection) noexcept;
 std::optional<std::size_t> FindCodeLanguageTarget(const MarkdownSyntax& syntax, Selection selection, std::wstring_view language) noexcept;
+bool CanInsertMath(const MarkdownSyntax& syntax, Selection selection, std::wstring_view text, bool display) noexcept;
 struct MarkdownCommandRequest
 {
     MarkdownCommand command{};
