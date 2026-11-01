@@ -1,3 +1,1 @@
-# Mathematical number-suppression declarations
-
-The bounded mathematical parser consumes nonumber and notag without adding geometry; the profile does not synthesize automatic equation numbers. Explicit tags retain their separate behavior.
+- The bounded mathematical parser consumes nonumber and notag without adding geometry; the profile does not synthesize automatic equation numbers. Explicit tags retain their separate behavior.

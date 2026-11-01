@@ -1,3 +1,1 @@
-# Bound native math recursion frames
-
-Native math parsing and prepared geometry use smaller recursive frames for admitted deep expressions, including nested matrices and fractions. The ordinary-stack corpus covers both parsing and geometry at the existing depth boundary.
+- Native math parsing and prepared geometry use smaller recursive frames for admitted deep expressions, including nested matrices and fractions. The ordinary-stack corpus covers both parsing and geometry at the existing depth boundary.
