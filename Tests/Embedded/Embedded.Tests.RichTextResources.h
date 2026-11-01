@@ -3278,6 +3278,14 @@ static void TestEmbeddedImageResources(GraphicsFixture& gpu)
         Check(selected ? ! red : red, selected ? "SVG selection applies prepared image opacity" : "SVG pixels are rendered by the prepared Direct2D document");
     };
     verifySvg(replacement);
+#if DXUI_ENABLE_DIAGNOSTICS
+    const auto svgRasterizations = RichText::Detail::testRichSvgRasterizations;
+    Hr(PrepareRichEmbeddedContent(view, gpu.width - 8u, gpu.height), "SVG width-only reflow");
+    Check(RichText::Detail::testRichSvgRasterizations == svgRasterizations,
+          "width-only reflow reuses the same target-generation SVG bitmap when pixel dimensions are unchanged");
+    prepare();
+    Check(RichText::Detail::testRichSvgRasterizations == svgRasterizations, "restoring width reuses the prepared SVG bitmap");
+#endif
     editor->SetSelection({0u, editor->GetText().size()});
     prepare();
     verifySvg(replacement, true);
@@ -3297,6 +3305,36 @@ static void TestEmbeddedImageResources(GraphicsFixture& gpu)
         Hr(view.Composite(gpu.context.get(), gpu.Viewport()), "warm SVG composition");
     countAllocations = false;
     Check(allocations == svgAllocations, "warm SVG draw performs no C++ allocations");
+    constexpr std::wstring_view sizedSvgSource = L"<img src='shape.svg' alt='vector' width='48' height='40'>\n";
+    editor->SetText(std::wstring(sizedSvgSource));
+    prepare();
+    editor->TakePendingImageRequests(requests);
+    if (! requests.empty())
+    {
+        Check(requests.size() == 1u && editor->CompleteImageRequest(requests.front(), vectorImage), "publish authored-size SVG resource");
+        prepare();
+    }
+    const auto sizedDocument = editor->GetAcknowledgedSemanticDocument(view.Controls());
+    Check(static_cast<bool>(sizedDocument), "authored SVG has current semantic geometry");
+    const auto sizedImage = std::ranges::find(sizedDocument->Elements(), RichText::SemanticRole::Image, &RichText::SemanticElement::role);
+    Check(sizedImage != sizedDocument->Elements().end(), "authored SVG retains its image owner");
+    const auto sizedBounds = editor->GetSemanticElementBounds(view.Controls(), static_cast<std::size_t>(sizedImage - sizedDocument->Elements().begin()));
+    Check(sizedBounds && std::abs(sizedBounds->right - sizedBounds->left - 48.f) < .02f &&
+              std::abs(sizedBounds->bottom - sizedBounds->top - 40.f) < .02f,
+          "authored SVG uses its non-square 48 by 40 geometry");
+    gpu.Bind();
+    Hr(view.Composite(gpu.context.get(), gpu.Viewport()), "compose authored SVG geometry");
+    std::vector<std::uint8_t> sizedPixels(0u);
+    Hr(gpu.Read(sizedPixels), "read authored SVG pixels");
+    for (const auto [dx, dy] : std::array<std::pair<float, float>, 4u>{{{4.f, 4.f}, {44.f, 4.f}, {4.f, 36.f}, {44.f, 36.f}}})
+    {
+        const auto x = static_cast<unsigned>(sizedBounds->left + dx), y = static_cast<unsigned>(sizedBounds->top + dy);
+        Check(x < gpu.width && y < gpu.height, "authored SVG edge oracle samples within the target");
+        const auto offset = (static_cast<std::size_t>(y) * gpu.width + x) * 4u;
+        Check(sizedPixels[offset] < 5u && sizedPixels[offset + 1u] < 5u && sizedPixels[offset + 2u] > 250u && sizedPixels[offset + 3u] > 250u,
+              "SVG fills each authored edge rather than retaining its nominal viewport extent");
+    }
+    Check(editor->GetText() == sizedSvgSource, "authored SVG rendering preserves exact HTML source");
 }
 static void TestEmbeddedImagePathPaste(GraphicsFixture& gpu)
 {

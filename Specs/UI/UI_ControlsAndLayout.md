@@ -1146,10 +1146,15 @@ particular `use` is not supported. This profile is bounded to 262,144 encoded
 bytes, 2,048 elements, depth 64 and 65,536 aggregate path/point units; embedded
 images have a zero budget. The existing dimension, pixel-equivalent and total
 retained-byte limits still apply. XML admission belongs on a caller worker.
-Direct2D SVG document, stream, context and layer creation occur in preparation,
-are private to the device generation and never occur during Draw. Unsupported
-target or SVG content keeps that object's alternative; device loss follows the
-normal preparation recovery. Disabling SVG immediately evicts SVG resources.
+Direct2D SVG document, stream and private same-device context creation occur in
+preparation. The bounded SVG raster is prepared at the authored, viewport-clamped
+size and current DPI in budgeted pixel tiles. Its pixels and source bytes share
+the existing aggregate retained-image ceiling; identical resources share a raster
+only at the same pixel dimensions. Completed GPU bitmaps are private to the
+device generation; Draw uses the ordinary bitmap path, with no SVG parsing,
+device queries or SVG-specific resource creation. Unsupported targets, oversized
+rasters or unsupported SVG content keep that object's alternative; device loss
+follows normal preparation recovery. Disabling SVG evicts SVG resources.
 
 In the opt-in Subtle Markdown style, fenced and indented code blocks have a neutral themed fill and a six-DIP inner frame; narrow viewports clamp horizontal insets to retain a one-DIP text width. Their source caret and selection use the inset content geometry. A fenced block with a language token of at most 128 UTF-16 units shows that token in a nonselectable prepared header; longer labels are omitted. When the frame has room for both its font-scaled gutter and at least 56 DIP of content, a nonselectable gutter displays prepared physical line numbers, aligned after wrapping and mirrored for right-to-left layout. Preparation admits at most 4096 number layouts per document, omits blocks with more than 4096 visual lines and stops numbering when that cap is reached; narrower frames omit the gutter. Default presentation retains its original code frame.
 

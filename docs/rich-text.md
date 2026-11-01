@@ -620,7 +620,9 @@ The bounded ASCII profile accepts basic paths and shapes only; it rejects CSS,
 references, embedded images, entities, animation and scripts. The application
 supplies nominal dimensions and performs admission on its worker. Unsupported
 devices and unavailable formats keep their alternative. SVG byte storage counts
-against the same retained image budget reported by `decodedBytes`. The source parser still preserves every original
+against the same retained image budget reported by `decodedBytes`; preparation
+also bounds its device bitmap and creates it in budgeted tiles for the current
+viewport and DPI. The source parser still preserves every original
 destination. Limits are 16 MiB encoded, 4096 pixels per side, 4,194,304 decoded
 pixels, 32 unique sources, 128 native placements shared with diagrams and 64 MiB
 of unique retained CPU pixels. Shared images also share prepared GPU bitmaps.

@@ -29,6 +29,7 @@ struct RichImageRasterCalls
 #if DXUI_ENABLE_DIAGNOSTICS
 extern thread_local const RichImageRasterCalls* testRichImageRasterCalls;
 extern thread_local bool testRichSvgTargetUnsupported;
+extern thread_local std::size_t testRichSvgRasterizations;
 // Private owner-thread seams for proving that native preparation errors retain
 // their HRESULT and that the editor can substitute an instrumented factory.
 extern thread_local IDWriteFactory* testRichSemanticWriteFactory;

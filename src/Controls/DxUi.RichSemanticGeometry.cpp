@@ -29,6 +29,7 @@ namespace DxUi::RichText::Detail
 #if DXUI_ENABLE_DIAGNOSTICS
 thread_local const RichImageRasterCalls* testRichImageRasterCalls{};
 thread_local bool testRichSvgTargetUnsupported{};
+thread_local std::size_t testRichSvgRasterizations{};
 thread_local IDWriteFactory* testRichSemanticWriteFactory{};
 thread_local HRESULT testRichMathLineMetricsFailure{S_OK};
 thread_local bool testRichScriptTargetUnsupported{};
@@ -166,7 +167,7 @@ struct NativeImagePlacement
     wil::com_ptr<ID2D1Bitmap> bitmap;
     wil::com_ptr<ID2D1DeviceContext5> svgContext;
     wil::com_ptr<ID2D1SvgDocument> svgDocument;
-    wil::com_ptr<ID2D1Layer> svgLayer;
+    wil::com_ptr<ID2D1Bitmap1> svgTarget;
     std::shared_ptr<PreparedMath> math;
     std::shared_ptr<PreparedMath> tag;
     std::shared_ptr<std::vector<RowTag>> rowTags;
@@ -236,6 +237,7 @@ struct NativeImagePlacement
     float caretHeight{}, mathCaretTop{};
     bool hasMathCaret{};
     UINT32 uploadedX{}, uploadedY{}; // Staging only; never published partially.
+    UINT32 svgWidth{}, svgHeight{};
 };
 #pragma warning(pop)
 struct NativeImageGeometry
@@ -267,9 +269,30 @@ struct NativeImageGeometry
             placement.pixels      = resource.image;
             placement.imageWidth  = document.Elements()[resource.element].imageWidth;
             placement.imageHeight = document.Elements()[resource.element].imageHeight;
-            const auto prior      = std::find_if(resources.placements.begin(),
-                                                 resources.placements.begin() + static_cast<std::ptrdiff_t>(index),
-                                                 [&](const auto& value) { return value.image == resource.image; });
+            if (! resource.image->SvgBytes().empty())
+            {
+                const auto size = placement.Size();
+                const auto scale = std::min(1.f, options.widthDip / size.width) * options.dpi / 96.f;
+                const auto rasterWidth = std::ceil(size.width * scale), rasterHeight = std::ceil(size.height * scale);
+                if (std::isfinite(rasterWidth) && std::isfinite(rasterHeight) && rasterWidth >= 1.f && rasterHeight >= 1.f &&
+                    rasterWidth <= RichImage::MaximumDimension && rasterHeight <= RichImage::MaximumDimension &&
+                    rasterWidth * rasterHeight <= RichImage::MaximumPixels)
+                {
+                    placement.svgWidth = static_cast<UINT32>(rasterWidth);
+                    placement.svgHeight = static_cast<UINT32>(rasterHeight);
+                    if (previous)
+                    {
+                        const auto priorRaster = std::ranges::find_if(previous->placements, [&](const auto& prior) {
+                            return prior.pixels == placement.pixels && prior.svgWidth == placement.svgWidth && prior.svgHeight == placement.svgHeight && prior.bitmap;
+                        });
+                        if (priorRaster != previous->placements.end())
+                            placement.bitmap = priorRaster->bitmap;
+                    }
+                }
+            }
+            const auto prior  = std::find_if(resources.placements.begin(),
+                                             resources.placements.begin() + static_cast<std::ptrdiff_t>(index),
+                                             [&](const auto& value) { return value.image == resource.image; });
             if (prior == resources.placements.begin() + static_cast<std::ptrdiff_t>(index))
             {
                 if (resource.image->RetainedBytes() > RichImageResources::MaximumDecodedBytes - bytes)
@@ -277,6 +300,7 @@ struct NativeImageGeometry
                 bytes += resource.image->RetainedBytes();
             }
         }
+        retainedImageBytes = bytes;
         const auto maths              = SemanticExtensionAccess::Maths(document);
         const PreparedMath* constants = nullptr;
         std::shared_ptr<MathTextFormats> textFormats;
@@ -363,6 +387,7 @@ struct NativeImageGeometry
     }
     std::vector<NativeImagePlacement> placements;
     std::vector<const RichImage*> unsupportedPixels;
+    std::size_t retainedImageBytes{};
     ID2D1RenderTarget* targetIdentity; // Identity only after staging; never dereferenced here.
     struct UploadProgress
     {
@@ -387,35 +412,100 @@ struct NativeImageGeometry
             if (testRichSvgTargetUnsupported)
                 return reject();
 #endif
-            const auto found = std::find_if(placements.begin(), placements.begin() + static_cast<std::ptrdiff_t>(index), [&](const auto& prior) {
-                return prior.pixels == placement.pixels;
-            });
-            if (found != placements.begin() + static_cast<std::ptrdiff_t>(index))
+            if (! placement.svgWidth || ! placement.svgHeight)
+                return {true, true, true, 0u};
+            if (! placement.svgTarget)
             {
-                placement.svgContext  = found->svgContext;
-                placement.svgDocument = found->svgDocument;
-                placement.svgLayer    = found->svgLayer;
-                return {true, false, false, 0u};
+                const auto found = std::find_if(placements.begin(), placements.begin() + static_cast<std::ptrdiff_t>(index), [&](const auto& prior) {
+                    return prior.pixels == placement.pixels && prior.svgWidth == placement.svgWidth && prior.svgHeight == placement.svgHeight;
+                });
+                if (found != placements.begin() + static_cast<std::ptrdiff_t>(index))
+                {
+                    placement.bitmap = found->bitmap;
+                    return {true, false, false, 0u};
+                }
+                const auto pixelBytes = static_cast<std::size_t>(placement.svgWidth) * placement.svgHeight * 4u;
+                if (pixelBytes > RichImageResources::MaximumDecodedBytes - retainedImageBytes)
+                    return {true, true, true, 0u};
+                if (placement.bitmap)
+                {
+                    retainedImageBytes += pixelBytes;
+                    return {true, false, false, 0u};
+                }
+                wil::com_ptr<ID2D1DeviceContext> ownerContext;
+                const auto query = target->QueryInterface(IID_PPV_ARGS(ownerContext.put()));
+                if (query == E_NOINTERFACE || query == E_NOTIMPL || query == D2DERR_UNSUPPORTED_OPERATION)
+                    return reject();
+                THROW_IF_FAILED(query);
+                wil::com_ptr<ID2D1Device> device;
+                ownerContext->GetDevice(device.put());
+                if (! device)
+                    return reject();
+                wil::com_ptr<ID2D1DeviceContext> privateContext;
+                const auto contextResult = device->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE, privateContext.put());
+                if (contextResult == E_NOTIMPL || contextResult == D2DERR_UNSUPPORTED_OPERATION)
+                    return reject();
+                THROW_IF_FAILED(contextResult);
+                const auto svgQuery = privateContext->QueryInterface(IID_PPV_ARGS(placement.svgContext.put()));
+                if (svgQuery == E_NOINTERFACE || svgQuery == E_NOTIMPL || svgQuery == D2DERR_UNSUPPORTED_OPERATION)
+                    return reject();
+                THROW_IF_FAILED(svgQuery);
+                const auto bytes = placement.pixels->SvgBytes();
+                wil::com_ptr<IStream> stream;
+                stream.attach(SHCreateMemStream(reinterpret_cast<const BYTE*>(bytes.data()), static_cast<UINT>(bytes.size())));
+                if (! stream)
+                    throw std::bad_alloc();
+                const auto create = placement.svgContext->CreateSvgDocument(stream.get(), D2D1::SizeF(static_cast<float>(width), static_cast<float>(height)),
+                                                                             placement.svgDocument.put());
+                if (FAILED(create) && create != E_OUTOFMEMORY && create != D2DERR_RECREATE_TARGET)
+                    return reject();
+                THROW_IF_FAILED(create);
+                const auto properties = D2D1::BitmapProperties1(D2D1_BITMAP_OPTIONS_TARGET,
+                    D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED), 96.f, 96.f);
+                const auto bitmapResult = placement.svgContext->CreateBitmap(D2D1::SizeU(placement.svgWidth, placement.svgHeight), nullptr, 0u,
+                                                                             &properties, placement.svgTarget.put());
+                if (bitmapResult == E_NOTIMPL || bitmapResult == D2DERR_UNSUPPORTED_OPERATION)
+                    return reject();
+                THROW_IF_FAILED(bitmapResult);
+                retainedImageBytes += pixelBytes;
+                placement.svgContext->SetTarget(placement.svgTarget.get());
+                placement.svgContext->SetDpi(96.f, 96.f);
             }
-            const auto query = target->QueryInterface(IID_PPV_ARGS(placement.svgContext.put()));
-            if (query == E_NOINTERFACE || query == E_NOTIMPL || query == D2DERR_UNSUPPORTED_OPERATION)
-                return reject();
-            THROW_IF_FAILED(query);
-            const auto bytes = placement.pixels->SvgBytes();
-            wil::com_ptr<IStream> stream;
-            stream.attach(SHCreateMemStream(reinterpret_cast<const BYTE*>(bytes.data()), static_cast<UINT>(bytes.size())));
-            if (! stream)
-                throw std::bad_alloc();
-            const auto create = placement.svgContext->CreateSvgDocument(
-                stream.get(), D2D1::SizeF(static_cast<float>(width), static_cast<float>(height)), placement.svgDocument.put());
-            if (FAILED(create) && create != E_OUTOFMEMORY && create != D2DERR_RECREATE_TARGET)
-                return reject();
-            THROW_IF_FAILED(create);
-            const auto layer = target->CreateLayer(nullptr, placement.svgLayer.put());
-            if (layer == E_NOTIMPL || layer == D2DERR_UNSUPPORTED_OPERATION)
-                return reject();
-            THROW_IF_FAILED(layer);
-            return {true, true, false, 0u};
+            const auto columns = static_cast<UINT32>(std::min(static_cast<std::size_t>(placement.svgWidth - placement.uploadedX), maximumBytes / 4u));
+            const auto rows = placement.uploadedX == 0u && columns == placement.svgWidth
+                ? static_cast<UINT32>(std::min(static_cast<std::size_t>(placement.svgHeight - placement.uploadedY),
+                                                maximumBytes / (static_cast<std::size_t>(placement.svgWidth) * 4u))) : 1u;
+            auto* context = placement.svgContext.get();
+            context->BeginDraw();
+            context->SetTransform(D2D1::Matrix3x2F::Identity());
+            context->PushAxisAlignedClip(D2D1::RectF(static_cast<float>(placement.uploadedX), static_cast<float>(placement.uploadedY),
+                                                     static_cast<float>(placement.uploadedX + columns), static_cast<float>(placement.uploadedY + rows)),
+                                         D2D1_ANTIALIAS_MODE_ALIASED);
+            context->Clear(D2D1::ColorF(0.f, 0.f, 0.f, 0.f));
+            context->SetTransform(D2D1::Matrix3x2F::Scale(static_cast<float>(placement.svgWidth) / static_cast<float>(width),
+                                                           static_cast<float>(placement.svgHeight) / static_cast<float>(height)));
+            context->DrawSvgDocument(placement.svgDocument.get());
+            context->PopAxisAlignedClip();
+            THROW_IF_FAILED(context->EndDraw());
+#if DXUI_ENABLE_DIAGNOSTICS
+            ++testRichSvgRasterizations;
+#endif
+            placement.uploadedX += columns;
+            if (placement.uploadedX == placement.svgWidth)
+            {
+                placement.uploadedX = 0u;
+                placement.uploadedY += rows;
+            }
+            const bool complete = placement.uploadedY == placement.svgHeight;
+            if (complete)
+            {
+                context->SetTarget(nullptr);
+                placement.bitmap = placement.svgTarget.get();
+                placement.svgTarget.reset();
+                placement.svgDocument.reset();
+                placement.svgContext.reset();
+            }
+            return {complete, true, false, static_cast<std::size_t>(columns) * rows * 4u};
         }
         if (! placement.bitmap)
         {
@@ -3342,28 +3432,6 @@ void PreparedSemanticGeometry::Draw(ID2D1RenderTarget* target,
                                              (image.bounds.right - image.bounds.left) / image.Size().width,
                                              image.mathPalette.get(),
                                              colorContext);
-                            continue;
-                        }
-                        if (image.svgDocument)
-                        {
-                            const auto svgLeft = origin.x + box->x + image.bounds.left, svgTop = origin.y + box->y + image.bounds.top;
-                            const auto svgRight = origin.x + box->x + image.bounds.right, svgBottom = origin.y + box->y + image.bounds.bottom;
-                            D2D1_MATRIX_3X2_F previous{};
-                            target->GetTransform(&previous);
-                            target->PushLayer(D2D1::LayerParameters(D2D1::RectF(svgLeft, svgTop, svgRight, svgBottom),
-                                                                    nullptr,
-                                                                    D2D1_ANTIALIAS_MODE_PER_PRIMITIVE,
-                                                                    D2D1::Matrix3x2F::Identity(),
-                                                                    imageOpacity),
-                                              image.svgLayer.get());
-                            // The SVG document retains its nominal viewport; authored image size
-                            // changes the destination rectangle, not that viewport.
-                            target->SetTransform(D2D1::Matrix3x2F::Scale((svgRight - svgLeft) / static_cast<float>(image.pixels->Width()),
-                                                                         (svgBottom - svgTop) / static_cast<float>(image.pixels->Height())) *
-                                                 D2D1::Matrix3x2F::Translation(svgLeft, svgTop) * previous);
-                            image.svgContext->DrawSvgDocument(image.svgDocument.get());
-                            target->SetTransform(previous);
-                            target->PopLayer();
                             continue;
                         }
                         target->DrawBitmap(image.bitmap.get(),
