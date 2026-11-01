@@ -258,19 +258,28 @@ void TestRichDocumentConcurrentSnapshotReads()
     const auto snapshot = document.Snapshot();
     const auto expected = snapshot.Text();
     std::atomic<bool> valid{true};
-    std::thread reader([snapshot, &valid, &expected]
+    std::atomic<unsigned> publishedRound{0u}, observedRound{0u};
+    std::thread reader([snapshot, &valid, &expected, &publishedRound, &observedRound]
     {
-        for (std::size_t round = 0u; round < 512u; ++round)
+        for (unsigned round = 1u; round <= 256u; ++round)
+        {
+            while (publishedRound.load(std::memory_order_acquire) < round)
+                std::this_thread::yield();
             if (snapshot.Slice(1u, 3u) != L"\r\n" || snapshot.Slice(4u, snapshot.Length()) != std::wstring_view(expected).substr(4u) ||
                 snapshot.IsBoundary(2u) || snapshot.IsBoundary(5u))
                 valid.store(false, std::memory_order_relaxed);
+            observedRound.store(round, std::memory_order_release);
+        }
     });
-    for (std::size_t round = 0u; round < 256u; ++round)
+    for (unsigned round = 1u; round <= 256u; ++round)
     {
         document.Reset(L"new revision");
         document.ReplaceSelection(L"x");
         document.Undo();
         document.Redo();
+        publishedRound.store(round, std::memory_order_release);
+        while (observedRound.load(std::memory_order_acquire) < round)
+            std::this_thread::yield();
     }
     reader.join();
     Require(valid.load(std::memory_order_relaxed) && snapshot.Text() == expected,
