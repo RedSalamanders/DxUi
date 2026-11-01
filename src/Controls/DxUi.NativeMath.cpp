@@ -62,7 +62,7 @@ class Parser
                   std::vector<MathNode>&& children = std::vector<MathNode>(0u),
                   unsigned columns                 = 0)
     {
-        if (++nodes > 512)
+        if (++nodes > MathMaximumNodes)
             Reject(MathIssue::Capacity);
         MathNode result{kind, std::move(text), std::move(children), columns};
         if (kind == MathKind::Text)
@@ -145,8 +145,8 @@ class Parser
             }
             else if (c == L'{')
             {
-                if (++depth > 24)
-                    Reject();
+                if (++depth > MathMaximumGroupDepth)
+                    Reject(MathIssue::Capacity);
                 if (! textMode)
                     value += c;
             }
@@ -196,7 +196,7 @@ class Parser
         if (std::ranges::find(names, environment) == names.end())
             Reject(MathIssue::UnsupportedEnvironment);
         std::vector<MathNode> cells(0u);
-        std::array<unsigned, 16u> rowWidths{};
+        std::array<unsigned, MathMaximumRows> rowWidths{};
         unsigned columns{}, rowColumns{}, rows{};
         const auto finish = [&]() -> MathNode
         {
@@ -208,8 +208,10 @@ class Parser
             const bool gathered = environment == L"gathered" || environment == L"gather" || environment == L"gather*" || environment == L"equation" ||
                                   environment == L"equation*";
             const bool equation = environment == L"equation" || environment == L"equation*";
-            if ((gathered && columns != 1u) || (equation && rows != 1u) || (environment == L"cases" && columns > 2u) || rows * columns > 128u)
+            if ((gathered && columns != 1u) || (equation && rows != 1u) || (environment == L"cases" && columns > 2u))
                 Reject();
+            if (static_cast<std::size_t>(rows) * columns > MathMaximumMatrixCells)
+                Reject(MathIssue::Capacity);
             if (environment == L"align" || environment == L"align*" || environment == L"split")
                 environment = L"aligned";
             else if (gathered)
@@ -238,10 +240,10 @@ class Parser
                     Reject(MathIssue::MismatchedEnvironment);
                 return finish();
             }
-            if (! rowColumns && ++rows > 16u)
-                Reject();
-            if (rowColumns == 16u || cells.size() == 128u)
-                Reject();
+            if (! rowColumns && ++rows > MathMaximumRows)
+                Reject(MathIssue::Capacity);
+            if (rowColumns == MathMaximumColumns || cells.size() == MathMaximumMatrixCells)
+                Reject(MathIssue::Capacity);
             cells.push_back(Row(depth + 1, false, true));
             ++rowColumns;
             if (source.substr(at, 5) == L"\\end{")
@@ -341,7 +343,7 @@ class Parser
     }
     MathNode Atom(unsigned depth)
     {
-        if (depth > 24)
+        if (depth > MathMaximumGroupDepth)
             Reject(MathIssue::Capacity);
         Space();
         if (at == source.size())
@@ -428,7 +430,7 @@ class Parser
                 std::vector<MathNode> rows(0u);
                 while (true)
                 {
-                    if (rows.size() == 16u)
+                    if (rows.size() == MathMaximumRows)
                         Reject(MathIssue::Capacity);
                     rows.push_back(Row(depth + 1u, false, true, false, false, true));
                     if (source.substr(at, 2u) == L"\\\\")
@@ -737,8 +739,8 @@ class Parser
                 const auto declaration = source.substr(first, end - first);
                 if (declaration == L"displaystyle" || declaration == L"textstyle" || declaration == L"scriptstyle" || declaration == L"scriptscriptstyle")
                 {
-                    if (depth >= 24u)
-                        Reject();
+                    if (depth >= MathMaximumGroupDepth)
+                        Reject(MathIssue::Capacity);
                     at = end;
                     children.push_back(Make(MathKind::Style, std::wstring(declaration), {Row(depth + 1, grouped, cell, right, indexClose, stopBrace)}));
                     return Make(MathKind::Row, L"", std::move(children));
@@ -829,22 +831,24 @@ public:
 } // namespace
 MathExpression ParseMath(std::wstring_view source)
 {
-    if (source.empty() || source.size() > MathMaximumSourceUnits || ! IsValidUtf16(source) ||
+    if (source.size() > MathMaximumSourceUnits)
+        return {{}, L"Equation source exceeds 16,384 UTF-16 units. Source is preserved.", MathIssue::Capacity};
+    if (source.empty() || ! IsValidUtf16(source) ||
         std::ranges::any_of(source, [](wchar_t c) { return (c < L' ' && ! iswspace(c)) || (c >= 0x7f && c <= 0x9f); }))
-        return {{}, L"Equation source is empty, invalid or exceeds 4,096 UTF-16 units. Source is preserved.", MathIssue::InvalidSource};
+        return {{}, L"Equation source is empty or invalid. Source is preserved.", MathIssue::InvalidSource};
     try
     {
         auto root        = Parser(source).Parse();
         const auto count = [](auto&& self, const MathNode& node, unsigned depth) -> std::size_t
         {
-            if (depth > 24)
+            if (depth > MathMaximumNodeDepth)
                 throw std::invalid_argument("Equation nesting capacity");
             std::size_t result = 1;
             for (const auto& child : node.children)
                 result += self(self, child, depth + 1);
             return result;
         };
-        if (count(count, root, 0) > 512)
+        if (count(count, root, 0) > MathMaximumNodes)
             throw std::invalid_argument("Equation node capacity");
         return {std::move(root), L""};
     }

@@ -473,6 +473,7 @@
   },
   "currentImplementation": {
     "profile": "DxUiNativeMath1",
+    "admission": "16,384 source units, 4,096 staging/syntax nodes, 64 parsed nesting levels, 64 rows/columns and 1,024 matrix cells including padding. Group rows and script wrappers have a separate bounded data-only AST depth of 130. Math nodes, graph records and image placements share a source-ordered 32,768-record ceiling and 128 admitted native objects. Capacity refusal preserves exact source without a partial formula.",
     "coverage": "Owned fixtures in Tests/Support/Support.Tests.MathCorpus.h and Controls.Tests.RichSemanticDocument.cpp cover the implemented parser, atom/style layout and local fallback. Target command/envelope lists and desired per-case diagnostics remain distinct from current support.",
     "envelopes": "Inline dollar and explicit slash math, own-line double-dollar/bracket display blocks, and closed math/latex fenced blocks are implemented. Unclosed display blocks and math fences retain exact source with a diagnostic.",
     "layout": "Selected OpenType MATH constants, DPI device corrections and bounded vertical/horizontal variants and assemblies, with shaped text overhang and stroke delimiter/accent fallbacks. Complete font variant, MathKern and mathematical-font fallback qualification remain open.",

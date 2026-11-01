@@ -341,8 +341,11 @@ struct SemanticBuilder::Preparation
         image.display.last = output.text.size();
         image.name         = alternative;
         auto& extensions   = Extensions();
-        if (extensions.CanAdmitObject())
+        if (extensions.CanAdmitObject() && extensions.CanAdmitRecords(1u))
+        {
             extensions.images.push_back(element);
+            ++extensions.records;
+        }
         else
             extensions.diagnostics.push_back({SemanticDiagnosticKind::ImageCapacity, source, element});
     }
@@ -462,7 +465,7 @@ struct SemanticBuilder::Preparation
                 return result;
             };
             const auto records = expression ? count(count, expression->root) : 0u;
-            if (expression && *expression && records <= 4096u - extensions.mathRecords && extensions.CanAdmitObject())
+            if (expression && *expression && extensions.CanAdmitRecords(records) && extensions.CanAdmitObject())
             {
                 output.Emit(L"\ufffc", node.source, DisplaySpanKind::Object, flags, visit.heading);
                 auto& formula        = document->elements_[element];
@@ -471,12 +474,12 @@ struct SemanticBuilder::Preparation
                 formula.title        = Label(AccessibilityTextId::Equation);
                 const auto raw       = document->syntax_->Slice(node.source);
                 extensions.maths.push_back({element, std::move(expression), raw.starts_with(L"$$") || raw.starts_with(L"\\[")});
-                extensions.mathRecords += records;
+                extensions.records += records;
             }
             else
             {
                 const bool capacity = expression && (expression->issue == MathIssue::Capacity ||
-                                                     (*expression && (records > 4096u - extensions.mathRecords || ! extensions.CanAdmitObject())));
+                                                     (*expression && (! extensions.CanAdmitRecords(records) || ! extensions.CanAdmitObject())));
                 extensions.diagnostics.push_back(
                     {capacity ? SemanticDiagnosticKind::MathCapacity : SemanticDiagnosticKind::UnsupportedMath, node.source, element});
                 auto& formula = document->elements_[element];
@@ -770,7 +773,7 @@ struct SemanticBuilder::Preparation
                                                                                                 : Label(AccessibilityTextId::EmptyDiagram));
                 return;
             }
-            if (graph.nodes.size() + graph.edges.size() + graph.groups.size() > Detail::SemanticExtensions::MaximumRecords - Extensions().records)
+            if (! Extensions().CanAdmitRecords(graph.nodes.size() + graph.edges.size() + graph.groups.size()))
             {
                 RejectDiagram(SemanticDiagnosticKind::DiagramCapacity, node.block.source, Label(AccessibilityTextId::NativeObjectCapacity));
                 return;
@@ -1059,7 +1062,7 @@ struct SemanticBuilder::Preparation
             };
             const auto records  = expression ? count(count, expression->root) : 0u;
             const bool capacity = expression && (expression->issue == MathIssue::Capacity ||
-                                                 (*expression && (records > 4096u - extensions.mathRecords || ! extensions.CanAdmitObject())));
+                                                 (*expression && (! extensions.CanAdmitRecords(records) || ! extensions.CanAdmitObject())));
             auto& formula       = document->elements_[visit.element];
             formula.role        = SemanticRole::Math;
             formula.name        = normalized.text;
@@ -1072,7 +1075,7 @@ struct SemanticBuilder::Preparation
                 formula.title = Label(AccessibilityTextId::Equation);
                 output.Emit(L"\ufffc", node.block.source, DisplaySpanKind::Object, visit.flags, visit.heading);
                 extensions.maths.push_back({visit.element, std::move(expression), true});
-                extensions.mathRecords += records;
+                extensions.records += records;
             }
             else
             {

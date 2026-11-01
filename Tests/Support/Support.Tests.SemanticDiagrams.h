@@ -213,6 +213,36 @@ template <typename Check> inline void Core(Check&& check)
                   mixed->Diagnostics().size() == 1u && mixed->Diagnostics()[0u].kind == SemanticDiagnosticKind::UnsupportedMath,
               "rejected math consumes no admitted-object slot");
     }
+    {
+        const std::wstring formula(4095u, L'+'); // 4095 atoms plus their root: independently counted 4096 records.
+        std::wstring formulas(0u, L' ');
+        for (unsigned index = 0u; index < 9u; ++index)
+        {
+            if (index < 4u)
+                formulas.append(L"$").append(formula).append(L"$\n\n");
+            else
+                formulas.append(L"```math\n").append(formula).append(L"\n```\n\n");
+        }
+        const auto exact = Build(formulas, check);
+        check(SemanticExtensionAccess::Maths(*exact).size() == 8u && exact->Diagnostics().size() == 1u &&
+                  exact->Diagnostics()[0u].kind == SemanticDiagnosticKind::MathCapacity && exact->Map().Source() == formulas,
+              "inline and fenced math share the exact 32768-record document boundary and preserve the first refused source");
+        const auto objects = std::wstring(L"![fixture](fixture.png)\n\n") + std::wstring(scenarios[0u].source) + L"\n";
+        const auto first   = Build(objects + formulas, check);
+        check(SemanticExtensionAccess::Maths(*first).size() == 7u && SemanticExtensionAccess::Images(*first).size() == 1u &&
+                  SemanticExtensionAccess::Diagrams(*first).size() == 1u && first->Diagnostics().size() == 2u &&
+                  std::ranges::all_of(first->Diagnostics(), [](const auto& issue) { return issue.kind == SemanticDiagnosticKind::MathCapacity; }),
+              "image placements and graph records reserve the same ledger before later formulas are considered");
+        // Eight formulas fill the ledger; remove the already refused ninth one
+        // so only the later image and graph diagnostics remain.
+        const auto lastFence = formulas.rfind(L"```math\n");
+        const auto last      = Build(formulas.substr(0u, lastFence) + objects, check);
+        check(SemanticExtensionAccess::Maths(*last).size() == 8u && SemanticExtensionAccess::Images(*last).empty() &&
+                  SemanticExtensionAccess::Diagrams(*last).empty() && last->Diagnostics().size() == 2u &&
+                  last->Diagnostics()[0u].kind == SemanticDiagnosticKind::ImageCapacity &&
+                  last->Diagnostics()[1u].kind == SemanticDiagnosticKind::DiagramCapacity,
+              "a full mathematical record ledger refuses later image and graph admission in source order");
+    }
     const auto large = Build(L"```mermaid\n" + std::wstring(NativeFlowchartParser::MaximumSourceUnits + 1u, L' ') + L"\n```\n", check);
     check(SemanticExtensionAccess::Diagrams(*large).empty() && large->Diagnostics().size() == 1u &&
               large->Diagnostics().front().kind == SemanticDiagnosticKind::DiagramCapacity,

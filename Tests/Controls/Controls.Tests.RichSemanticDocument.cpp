@@ -709,11 +709,11 @@ void TestRichMathRootIndexSharesParserBudget()
             Require(++turns <= 512u, "nested root degrees prepare within the shared formula budget");
     }
     std::wstring degree = L"3";
-    for (unsigned level = 0u; level < 32u; ++level)
+    for (unsigned level = 0u; level <= MathMaximumGroupDepth; ++level)
         degree = L"\\sqrt[" + degree + L"]{x}";
     Require(! ParseMath(degree), "optional root degrees do not restart the global nesting allowance");
     std::wstring wideDegree = L"\\sqrt[";
-    for (unsigned atom = 0u; atom < 260u; ++atom)
+    for (std::size_t atom = 0u; atom <= MathMaximumNodes / 2u; ++atom)
         wideDegree += L"x+";
     wideDegree += L"y]{x}";
     Require(! ParseMath(wideDegree), "optional root degrees do not restart the global syntax-node allowance");

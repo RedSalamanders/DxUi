@@ -1426,8 +1426,12 @@ guarantee is implied. Text-only/v0 preparation ignores this image budget.
 geometry, code-ink, source-ink or source-guide work. Optional overlay fallback
 dirtiness is reported separately from a ready content frame.
 
-Limits are 4,096 source units, 512 syntax nodes, nesting 24, 16 rows/columns and 128
-cells per formula, 4,096 total mathematical records and 128 combined native objects.
+Limits are 16,384 source units, 4,096 staging/syntax nodes, 64 parsed nesting
+levels, 64 rows/columns and 1,024 cells per formula including generated padding.
+Math nodes, graph nodes/edges/groups and image placements share 32,768 records
+and 128 admitted native objects per document. Excess notation keeps exact source
+with a capacity diagnostic. The bounded data-only AST permits up to 130 levels
+to include group rows and script wrappers around those parsed nesting levels.
 Preparation shapes at most one mathematical leaf per SDK-layout event. Cached
 DirectWrite glyphs and line geometry draw in the owner's target with caller brushes;
 no filesystem, worker, font downloads or allocation occurs in drawing. Reflow and

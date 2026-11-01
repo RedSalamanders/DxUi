@@ -394,15 +394,15 @@ class PreparedMath final
             const MathNode* node;
             unsigned depth;
         };
-        std::array<Pending, 512u> pending{};
+        std::array<Pending, MathMaximumNodes> pending{};
         std::size_t top{}, count{};
         pending[top++] = {&root, 0u};
         while (top != 0u)
         {
             const auto current = pending[--top];
             const auto& node   = *current.node;
-            if (++count > 512u || current.depth > 24u || node.children.size() > 512u - top || node.text.size() > MathMaximumSourceUnits ||
-                ! IsValidUtf16(node.text))
+            if (++count > MathMaximumNodes || current.depth > MathMaximumNodeDepth || node.children.size() > MathMaximumNodes - top ||
+                node.text.size() > MathMaximumSourceUnits || ! IsValidUtf16(node.text))
                 throw std::length_error("Mathematical syntax capacity exceeded");
             switch (node.kind)
             {
@@ -431,8 +431,8 @@ class PreparedMath final
                         throw std::length_error("Invalid mathematical scripts node");
                     break;
                 case MathKind::Matrix:
-                    if (node.columns == 0u || node.columns > 16u || node.children.empty() || node.children.size() > 128u ||
-                        node.children.size() % node.columns != 0u || node.children.size() / node.columns > 16u ||
+                    if (node.columns == 0u || node.columns > MathMaximumColumns || node.children.empty() || node.children.size() > MathMaximumMatrixCells ||
+                        node.children.size() % node.columns != 0u || node.children.size() / node.columns > MathMaximumRows ||
                         (node.text != L"matrix" && node.text != L"smallmatrix" && node.text != L"pmatrix" && node.text != L"bmatrix" &&
                          node.text != L"Bmatrix" && node.text != L"vmatrix" && node.text != L"Vmatrix" && node.text != L"cases" && node.text != L"aligned" &&
                          node.text != L"gathered"))
@@ -728,9 +728,9 @@ class PreparedMath final
     }
     void NormalizeRows() noexcept
     {
-        std::array<std::size_t, 512u> children{};
-        std::array<MathAtomClass, 512u> original{}, next{};
-        std::array<bool, 512u> hasNext{};
+        std::array<std::size_t, MathMaximumNodes> children{};
+        std::array<MathAtomClass, MathMaximumNodes> original{}, next{};
+        std::array<bool, MathMaximumNodes> hasNext{};
         for (std::size_t rowIndex = 0u; rowIndex < boxes.size(); ++rowIndex)
         {
             const auto& row = boxes[rowIndex];
@@ -855,19 +855,21 @@ class PreparedMath final
             }
             if (node.kind == Matrix && node.columns > 0u)
             {
-                std::array<float, 16u> widths{};
+                std::array<float, MathMaximumColumns> widths{};
                 float totalHeight{};
                 std::size_t ci{};
                 for (auto cellIndex = box.firstChild; cellIndex < box.endChild; cellIndex = NextSibling(cellIndex), ++ci)
                     widths[ci % node.columns] = std::max(widths[ci % node.columns], boxes[cellIndex].extent.width);
+                auto rowCell = box.firstChild;
                 for (std::size_t row = 0u; row < node.children.size(); row += node.columns)
                 {
                     float above{}, below{};
                     for (unsigned col = 0u; col < node.columns; ++col)
                     {
-                        const auto cell = child(row + col);
+                        const auto cell = boxes[rowCell].extent;
                         above           = std::max(above, cell.above);
                         below           = std::max(below, cell.below);
+                        rowCell         = NextSibling(rowCell);
                     }
                     totalHeight += std::max(box.size, above + below) + box.size * .3f;
                 }
@@ -1361,7 +1363,7 @@ class PreparedMath final
         }
         if (node.kind == Matrix && node.columns > 0u)
         {
-            std::array<float, 16u> widths{};
+            std::array<float, MathMaximumColumns> widths{};
             unsigned childColumn{};
             for (auto child = box.firstChild; child < box.endChild; child = NextSibling(child))
             {

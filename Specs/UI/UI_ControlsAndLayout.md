@@ -1953,7 +1953,8 @@ whole UTF-16 scalars and original CRLF pairs.
 
 Semantic preparation MUST advance graph parsing and alternative construction
 cooperatively. A document processes at most 128 diagram candidates and 32,768 combined native
-node/edge records before adding the next graph; the candidate bound is separate
+records across math AST nodes, graph nodes/edges/groups and image placements;
+the candidate bound is separate
 from the shared admitted-object limit. Prepared graphs use one atomic
 object display character owning the complete original fence. Optional document
 state retains the CPU model and code-body provenance, including removed container
@@ -2306,8 +2307,14 @@ shared 1.15 native-math scale; explicit heading size overrides take precedence.
 A caret beside a formula uses the surrounding text line's DirectWrite geometry.
 Native `overset`, `underset` and `stackrel` center bounded annotations above or below their base while retaining its atom class; `stackrel` is relational.
 
-Limits are 4,096 source units, 512 syntax nodes, nesting 24, 16 rows/columns and 128
-cells per formula, 4,096 total mathematical records and 128 combined native objects.
+Limits are 16,384 source units, 4,096 staging/syntax nodes, 64 parsed nesting
+levels, 64 rows/columns and 1,024 cells per formula including generated padding.
+Group rows and script wrappers may add AST levels; direct data-only trees have a
+separate maximum depth of 130. Math AST nodes, graph nodes/edges/groups and image
+placements share a source-ordered ceiling of 32,768 records and 128 admitted
+native objects. Capacity refusals publish no partial formula and retain exact
+source. Matrix padding is admitted before allocation; matrix measurement walks
+each cell once instead of repeatedly finding it from the start of the row tree.
 Preparation shapes at most one mathematical leaf per SDK-layout event. Cached
 DirectWrite glyphs and line geometry draw in the owner's target with caller brushes;
 no filesystem, worker, font downloads or allocation occurs in drawing. Reflow and

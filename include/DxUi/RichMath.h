@@ -7,7 +7,15 @@
 
 namespace DxUi::RichText
 {
-inline constexpr std::size_t MathMaximumSourceUnits = 4096u;
+inline constexpr std::size_t MathMaximumSourceUnits = 16384u;
+inline constexpr std::size_t MathMaximumNodes       = 4096u;
+inline constexpr unsigned MathMaximumGroupDepth     = 64u;
+inline constexpr unsigned MathMaximumRows = 64u, MathMaximumColumns = 64u;
+inline constexpr std::size_t MathMaximumMatrixCells   = 1024u;
+inline constexpr std::size_t MathMaximumDocumentNodes = 32768u;
+// Group rows and script wrappers can each add an AST level to one parsed
+// nesting level. Retain a separate bounded depth for direct data-only ASTs.
+inline constexpr unsigned MathMaximumNodeDepth = MathMaximumGroupDepth * 2u + 2u;
 // Data-only, bounded native mathematical notation. This never evaluates TeX,
 // reads files, expands user macros, invokes processes or fetches resources.
 enum class MathKind
@@ -141,8 +149,9 @@ struct MathExpression
         return diagnostic.empty();
     }
 };
-// Limits: 4096 source units, 512 syntax nodes, 24 nesting levels, at most
-// 16 rows/columns and 128 total matrix cells. Styles/limits are data, not TeX execution.
+// Limits: 16384 source units, 4096 staging/syntax nodes, 64 parsed nesting
+// levels, 64 rows/columns and 1024 matrix cells including generated padding.
+// Styles/limits are data, not TeX execution.
 // Unsupported/malformed input is all-or-nothing; no partially rendered formula.
 [[nodiscard]] MathExpression ParseMath(std::wstring_view source);
 } // namespace DxUi::RichText

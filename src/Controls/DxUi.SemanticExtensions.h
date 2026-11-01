@@ -34,7 +34,7 @@ struct SemanticDiagram
 };
 struct SemanticExtensions
 {
-    static constexpr std::size_t MaximumObjects = 128u, MaximumRecords = 32768u;
+    static constexpr std::size_t MaximumObjects = 128u, MaximumRecords = MathMaximumDocumentNodes;
     SemanticExtensions() : diagrams(0u), maths(0u), diagnostics(0u), images(0u), sourceObjects(0u)
     {
     }
@@ -49,10 +49,14 @@ struct SemanticExtensions
     std::vector<SemanticDiagnostic> diagnostics;
     std::vector<std::size_t> images;
     std::vector<MarkdownRange> sourceObjects;
-    std::size_t candidates{}, records{}, mathRecords{};
+    std::size_t candidates{}, records{};
     bool CanAdmitObject() const noexcept
     {
         return images.size() + maths.size() + diagrams.size() < MaximumObjects;
+    }
+    bool CanAdmitRecords(std::size_t count) const noexcept
+    {
+        return count <= MaximumRecords - records;
     }
 };
 struct SemanticExtensionAccess

@@ -321,8 +321,20 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
                   ragged.root.children[0u].children.size() == 4u,
               "short matrix rows are padded to the widest row, including before a trailing separator");
     }
-    check(! ParseMath(L"\\begin{matrix}a&b&c&d&e&f&g&h&i&j&k&l&m&n&o&p\\\\a\\\\a\\\\a\\\\a\\\\a\\\\a\\\\a\\\\a\\end{matrix}"),
-          "implicit empty matrix cells count toward the 128-cell admission bound");
+    std::wstring ragged = L"\\begin{matrix}";
+    for (unsigned column = 0u; column < 64u; ++column)
+    {
+        if (column)
+            ragged += L'&';
+        ragged += L'a';
+    }
+    for (unsigned row = 1u; row < 16u; ++row)
+        ragged += L"\\\\a";
+    const auto padded = ParseMath(ragged + L"\\end{matrix}");
+    check(padded && padded.root.children[0u].children.size() == 1024u, "implicit empty cells are admitted at the exact 1024-cell rectangular bound");
+    const auto paddingOverflow = ParseMath(ragged + L"\\\\a\\end{matrix}");
+    check(! paddingOverflow && paddingOverflow.issue == MathIssue::Capacity && paddingOverflow.root.children.empty(),
+          "generated empty cells reject rectangular overflow before allocating the padded grid");
     for (const auto& [source, canonical] : {std::pair{L"\\begin{align}a&=b\\\\c&=d\\end{align}", L"aligned"},
                                             std::pair{L"\\begin{align*}a&=b\\end{align*}", L"aligned"},
                                             std::pair{L"\\begin{split}a&=b\\end{split}", L"aligned"},
@@ -348,14 +360,14 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
     check(static_cast<bool>(ParseMath(L"\\sum_{\\substack{i=0\\\\j=1}}")) && ! ParseMath(L"\\substack{a&b}") && ! ParseMath(L"\\substack{a\\\\b"),
           "substack composes with operator limits and rejects extra columns and missing braces");
     std::wstring substackLimit = L"\\substack{";
-    for (unsigned row = 0u; row < 16u; ++row)
+    for (unsigned row = 0u; row < 64u; ++row)
     {
         if (row)
             substackLimit += L"\\\\";
         substackLimit += L'x';
     }
     check(static_cast<bool>(ParseMath(substackLimit + L"}")) && ! ParseMath(substackLimit + L"\\\\x}"),
-          "substack admits at most 16 rows without publishing excess geometry");
+          "substack admits at most 64 rows without publishing excess geometry");
     for (const auto& [source, style] : {std::pair{L"\\dbinom{n}{k}", L"displaystyle"}, std::pair{L"\\tbinom{n}{k}", L"textstyle"}})
     {
         const auto expression = ParseMath(source);
@@ -381,10 +393,44 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
                   expression.root.children[0u].atomClass == atom,
               "independent representative relation, binary and ordinary symbols match their reviewed identities");
     }
-    for (const auto [rows, columns] : {std::pair{16u, 8u}, std::pair{8u, 16u}})
-        check(static_cast<bool>(ParseMath(Matrix(rows, columns))), "matrix admits exactly 128 cells within row and column bounds");
-    for (const auto [rows, columns] : {std::pair{17u, 1u}, std::pair{1u, 17u}, std::pair{16u, 9u}})
-        check(! ParseMath(Matrix(rows, columns)), "matrix rejects row, column and total-cell overflow independently");
+    for (const auto [rows, columns] : {std::pair{64u, 1u}, std::pair{1u, 64u}, std::pair{64u, 16u}, std::pair{16u, 64u}, std::pair{32u, 32u}})
+    {
+        const auto expression = std::make_shared<const MathExpression>(ParseMath(Matrix(rows, columns)));
+        check(static_cast<bool>(*expression) && expression->root.children[0u].columns == columns &&
+                  expression->root.children[0u].children.size() == static_cast<std::size_t>(rows) * columns,
+              "matrix admits exact independent row, column and 1024-cell boundaries");
+        Detail::PreparedMath geometry(factory, expression, 12.f);
+        std::size_t turns{};
+        while (! geometry.Advance())
+            check(++turns <= 1024u, "maximum matrix shapes at most one admitted cell per advance");
+        const auto& glyphs = geometry.GlyphLayouts();
+        check(glyphs.size() == static_cast<std::size_t>(rows) * columns && std::isfinite(geometry.Size().width) && std::isfinite(geometry.Size().height) &&
+                  geometry.Size().width > 0.f && geometry.Size().height > 0.f,
+              "maximum admitted matrix has complete finite prepared geometry");
+        for (unsigned row = 0u; row < rows; ++row)
+            for (unsigned column = 0u; column < columns; ++column)
+            {
+                const auto index = static_cast<std::size_t>(row) * columns + column;
+                check((! row || glyphs[index].origin.y > glyphs[index - columns].origin.y) &&
+                          (! column || glyphs[index].origin.x > glyphs[index - 1u].origin.x),
+                      "maximum matrix retains source-ordered row baselines and distinct column positions");
+            }
+    }
+    for (const auto [rows, columns] : {std::pair{65u, 1u}, std::pair{1u, 65u}, std::pair{32u, 33u}})
+    {
+        const auto rejected = ParseMath(Matrix(rows, columns));
+        check(! rejected && rejected.issue == MathIssue::Capacity && rejected.root.children.empty(),
+              "matrix rejects first row, column and total-cell overflow independently without partial syntax");
+    }
+    const auto atNodes   = ParseMath(std::wstring(4095u, L'+'));
+    const auto overNodes = ParseMath(std::wstring(4096u, L'+'));
+    check(atNodes && atNodes.root.children.size() == 4095u && ! overNodes && overNodes.issue == MathIssue::Capacity && overNodes.root.children.empty(),
+          "AST admission includes the root at 4096 nodes and refuses the first excess atom");
+    const auto nested    = ParseMath(std::wstring(64u, L'{') + L"x" + std::wstring(64u, L'}'));
+    const auto overDepth = ParseMath(std::wstring(65u, L'{') + L"x" + std::wstring(65u, L'}'));
+    check(nested && ! overDepth && overDepth.issue == MathIssue::Capacity, "64 parsed group levels are distinct from bounded terminal and script AST wrappers");
+    Detail::PreparedMath nestedGeometry(factory, std::make_shared<const MathExpression>(nested), 12.f);
+    check(! nestedGeometry.Advance() && nestedGeometry.Advance(), "the exact group-depth boundary also prepares its terminal glyph");
     check(static_cast<bool>(ParseMath(L"\\text{" + std::wstring(MathMaximumSourceUnits - 7u, L'x') + L"}")) &&
               ! ParseMath(L"\\text{" + std::wstring(MathMaximumSourceUnits - 6u, L'x') + L"}"),
           "equation source admission accepts its exact UTF-16 limit and rejects the next unit");
