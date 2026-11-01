@@ -11,7 +11,9 @@
 // adding a vendor search path to the consumer compiler profile.
 #pragma warning(push)
 #pragma warning(disable : 4464)
+#define toml dxui_private_toml
 #include "../../ThirdParty/tomlplusplus/3.4.0/toml.hpp"
+#undef toml
 #pragma warning(pop)
 
 namespace DxUi::RichText::Detail
