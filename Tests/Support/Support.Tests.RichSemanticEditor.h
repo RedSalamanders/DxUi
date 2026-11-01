@@ -308,6 +308,45 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     Check(editor->OnChar(host, L'"', 0u) && editor->GetText() == L"\u201c", "smart quote opens at the start of prose");
     editor->SetSmartTypographyEnabled(false);
     editor->SetText(L"");
+    prepare();
+    Check(! editor->IsMarkdownAutoFormatEnabled() && editor->OnChar(host, L'#', 0u) && editor->OnChar(host, L' ', 0u) && editor->Undo() &&
+              editor->GetText() == L"#",
+          "Markdown trigger coalescing is disabled by default");
+    editor->SetMarkdownAutoFormatEnabled(true);
+    for (const auto trigger :
+         {std::wstring_view(L"## "), std::wstring_view(L"- "), std::wstring_view(L"1. "), std::wstring_view(L"> "), std::wstring_view(L"---")})
+    {
+        editor->SetText(L"");
+        prepare();
+        for (const auto character : trigger)
+            Check(editor->OnChar(host, character, 0u), "direct Markdown trigger character is handled");
+        if (trigger == L"---")
+        {
+            prepare();
+            Check(
+                std::ranges::any_of(editor->GetMarkdownSyntax()->Nodes(), [](const auto& node) { return node.block.kind == MarkdownBlockKind::ThematicBreak; }),
+                "thematic trigger reparses to a real rule");
+        }
+        Check(editor->GetText() == trigger && editor->Undo() && editor->GetText().empty(),
+              "a complete top-level Markdown trigger is one source-exact undo transaction");
+    }
+    editor->SetText(L"");
+    prepare();
+    Check(editor->OnChar(host, L'`', 0u) && editor->OnChar(host, L'`', 0u) && editor->OnChar(host, L'`', 0u) && editor->GetText() == L"```\r\n\r\n```" &&
+              editor->GetSelection() == Selection{5u, 5u},
+          "a fenced-code trigger creates a closed editable block in one undo step");
+    prepare();
+    Check(std::ranges::any_of(editor->GetMarkdownSyntax()->Nodes(),
+                              [](const auto& node) { return node.block.kind == MarkdownBlockKind::FencedCode && node.block.closed; }) &&
+              editor->Undo() && editor->GetText().empty(),
+          "fence trigger publishes a closed code block and undoes atomically");
+    editor->SetText(L"~~~\n\n~~~");
+    prepare();
+    editor->SetSelection({4u, 4u});
+    Check(editor->OnChar(host, L'#', 0u) && editor->OnChar(host, L' ', 0u) && editor->Undo() && editor->GetText() == L"~~~\n#\n~~~",
+          "Markdown trigger policy does not transform fenced-code input");
+    editor->SetMarkdownAutoFormatEnabled(false);
+    editor->SetText(L"");
     Check(editor->OnChar(host, L'a', 0u) && editor->OnChar(host, L'b', 0u) && editor->OnChar(host, L'c', 0u) && editor->GetText() == L"abc" && editor->Undo() &&
               editor->GetText().empty(),
           "adjacent direct word typing coalesces into one undo");

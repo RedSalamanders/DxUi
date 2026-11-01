@@ -1267,6 +1267,14 @@ three hyphens to en and em dashes, and direct straight quotes to contextual
 curly quotes. Each replacement is a single undo transaction. It declines code,
 opaque inline syntax, active source-region editing and native composition;
 pairing takes precedence when both policies are enabled.
+Default-off Markdown auto-format recognizes top-level empty-line heading,
+bullet, ordered-list, quote, thematic-rule and triple-backtick/tilde fence
+triggers. A completed marker is one undo transaction; a fence trigger creates
+a closed block with the caret on its empty body line. Trigger recognition
+precedes auto-pair and smart typography, and declines code, nonempty lines,
+source-region editing and native composition. A new trigger requires current
+syntax; once started, its revision and selection guard allow completion while
+replacement syntax is still pending.
 Rich-view deletion also groups adjacent single plain-source erasures; structural
 wrapper removal, transformed tokens and disjoint fragments remain separate
 transactions so their ownership is preserved.

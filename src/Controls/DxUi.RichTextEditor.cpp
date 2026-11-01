@@ -110,6 +110,43 @@ wchar_t AutoPairClosing(wchar_t character) noexcept
         default: return 0;
     }
 }
+enum class AutoFormatMatch
+{
+    None,
+    Prefix,
+    Marker,
+    Fence,
+    Rule
+};
+AutoFormatMatch MatchAutoFormat(std::wstring_view value) noexcept
+{
+    if (value.empty())
+        return AutoFormatMatch::None;
+    const auto complete = value.back() == L' ';
+    const auto marker   = complete ? value.substr(0u, value.size() - 1u) : value;
+    if (marker.empty())
+        return AutoFormatMatch::None;
+    if (marker.front() == L'#' && marker.size() <= 6u && marker.find_first_not_of(L'#') == marker.npos)
+        return complete ? AutoFormatMatch::Marker : AutoFormatMatch::Prefix;
+    if (marker == L"-" || marker == L"+" || marker == L"*" || marker == L">")
+        return complete ? AutoFormatMatch::Marker : AutoFormatMatch::Prefix;
+    if (! complete && marker == L"--")
+        return AutoFormatMatch::Prefix;
+    if (! complete && marker == L"---")
+        return AutoFormatMatch::Rule;
+    if (! complete && (marker.front() == L'`' || marker.front() == L'~') && marker.size() <= 3u && marker.find_first_not_of(marker.front()) == marker.npos)
+        return marker.size() == 3u ? AutoFormatMatch::Fence : AutoFormatMatch::Prefix;
+    auto digits = size_t{};
+    while (digits < marker.size() && digits < 9u && marker[digits] >= L'0' && marker[digits] <= L'9')
+        ++digits;
+    if (! digits)
+        return AutoFormatMatch::None;
+    if (digits == marker.size())
+        return complete ? AutoFormatMatch::None : AutoFormatMatch::Prefix;
+    if (digits + 1u == marker.size() && (marker[digits] == L'.' || marker[digits] == L')'))
+        return complete ? AutoFormatMatch::Marker : AutoFormatMatch::Prefix;
+    return AutoFormatMatch::None;
+}
 // Group complete UTF-16 text elements without splitting supplementary scalars
 // or combining sequences. Punctuation and whitespace still terminate a run.
 bool IsHistoryWordElement(std::wstring_view text) noexcept
@@ -256,9 +293,16 @@ struct RichTextEditor::State
     RichText::SourceSearchOptions searchOptions;
     bool searchShortcutsEnabled = false;
     std::shared_ptr<const std::function<void()>> onFindRequested;
-    bool markdownShortcutsEnabled = false;
-    bool autoPairEnabled          = false;
-    bool smartTypographyEnabled   = false;
+    bool markdownShortcutsEnabled  = false;
+    bool autoPairEnabled           = false;
+    bool smartTypographyEnabled    = false;
+    bool markdownAutoFormatEnabled = false;
+    struct AutoFormatRun
+    {
+        uint64_t revision{}, selectionEpoch{}, lastTick{};
+        size_t caret{}, lineStart{};
+    };
+    std::optional<AutoFormatRun> autoFormatRun;
     struct SmartTypingSite
     {
         uint64_t revision{};
@@ -1702,6 +1746,15 @@ void RichTextEditor::SetSmartTypographyEnabled(bool enabled) noexcept
 bool RichTextEditor::IsSmartTypographyEnabled() const noexcept
 {
     return _state->smartTypographyEnabled;
+}
+void RichTextEditor::SetMarkdownAutoFormatEnabled(bool enabled) noexcept
+{
+    _state->markdownAutoFormatEnabled = enabled;
+    _state->autoFormatRun.reset();
+}
+bool RichTextEditor::IsMarkdownAutoFormatEnabled() const noexcept
+{
+    return _state->markdownAutoFormatEnabled;
 }
 void RichTextEditor::SetOnLinkEditRequested(std::function<void()> callback)
 {
@@ -4160,6 +4213,83 @@ bool RichTextEditor::OnChar(ControlHost& host, wchar_t character, UINT modifiers
                 text.assign(1, character);
             else
                 return false; // Tab is host traversal; control characters never enter the source.
+        }
+        if (_state->markdownAutoFormatEnabled && _state->markdownRendering && _state->mode == RichText::ViewMode::Rich && ! _state->sourceEditing &&
+            text.size() == 1u && GetSelection().Start() == GetSelection().End())
+        {
+            const auto selection  = GetSelection();
+            const auto source     = Snapshot();
+            const auto now        = GetTickCount64();
+            const auto previous   = _state->autoFormatRun;
+            const bool continuing = previous && previous->revision == Revision() && previous->selectionEpoch == _state->document.selectionEpoch_ &&
+                                    previous->caret == selection.caret && now >= previous->lastTick && now - previous->lastTick <= 1000u &&
+                                    _state->document.CanUndo();
+            const auto start      = continuing ? previous->lineStart : selection.caret;
+            auto candidate        = source.Slice(start, selection.caret);
+            candidate += text;
+            const auto match       = MatchAutoFormat(candidate);
+            bool allowed           = match != AutoFormatMatch::None;
+            const bool focused     = host.GetFocusControl() == this;
+            const auto composition = focused ? host.GetNativeTextCompositionActive(this) : std::optional<bool>{false};
+            allowed = allowed && (! focused || ! host.HasActiveNativeTextInputSession() || composition.has_value()) && ! composition.value_or(false);
+            if (allowed && ! continuing)
+            {
+                bool lineStart = selection.caret == 0u;
+                if (! lineStart && source.IsBoundary(selection.caret - 1u))
+                {
+                    const auto preceding = source.Slice(selection.caret - 1u, selection.caret);
+                    lineStart            = preceding == L"\r" || preceding == L"\n";
+                }
+                else if (! lineStart && selection.caret >= 2u && source.IsBoundary(selection.caret - 2u))
+                    lineStart = source.Slice(selection.caret - 2u, selection.caret) == L"\r\n";
+                bool lineEnd = selection.caret == source.Length();
+                if (! lineEnd && source.IsBoundary(selection.caret + 1u))
+                {
+                    const auto following = source.Slice(selection.caret, selection.caret + 1u);
+                    lineEnd              = following == L"\r" || following == L"\n";
+                }
+                else if (! lineEnd && selection.caret + 2u <= source.Length() && source.IsBoundary(selection.caret + 2u))
+                    lineEnd = source.Slice(selection.caret, selection.caret + 2u) == L"\r\n";
+                const auto syntax = GetMarkdownSyntax();
+                allowed           = lineStart && lineEnd && syntax != nullptr;
+                if (syntax)
+                    for (const auto& node : syntax->Nodes())
+                        if (node.block.kind != RichText::MarkdownBlockKind::Document && node.block.kind != RichText::MarkdownBlockKind::BlankLine &&
+                            node.block.source.first <= selection.caret &&
+                            (selection.caret < node.block.source.last ||
+                             (selection.caret == node.block.source.last && selection.caret == source.Length() &&
+                              ((node.block.kind == RichText::MarkdownBlockKind::FencedCode && ! node.block.closed) ||
+                               node.block.kind == RichText::MarkdownBlockKind::HtmlBlock))))
+                            allowed = false;
+            }
+            if (allowed)
+            {
+                std::wstring insertion(text);
+                auto caret = selection.caret + insertion.size();
+                if (match == AutoFormatMatch::Fence)
+                {
+                    const auto all              = source.Text();
+                    const auto newline          = all.find_first_of(L"\r\n");
+                    const std::wstring_view eol = newline == all.npos ? std::wstring_view(L"\r\n")
+                                                  : all[newline] == L'\r' && newline + 1u < all.size() && all[newline + 1u] == L'\n'
+                                                      ? std::wstring_view(L"\r\n")
+                                                  : all[newline] == L'\r' ? std::wstring_view(L"\r")
+                                                                          : std::wstring_view(L"\n");
+                    insertion += eol;
+                    caret += eol.size();
+                    insertion += eol;
+                    insertion += candidate;
+                }
+                _state->typingRun.reset();
+                const bool changed = _state->document.ReplaceImpl(selection.caret, selection.caret, insertion, {caret, caret}, true, continuing);
+                if (changed && match == AutoFormatMatch::Prefix)
+                    _state->autoFormatRun = State::AutoFormatRun{Revision(), _state->document.selectionEpoch_, now, caret, start};
+                else
+                    _state->autoFormatRun.reset();
+                Changed(changed);
+                return true;
+            }
+            _state->autoFormatRun.reset();
         }
         if (_state->markdownRendering && _state->mode == RichText::ViewMode::Rich && LayoutIsCurrent(host))
             if (const auto* geometry = _state->layout.SemanticGeometry(); geometry && geometry->IsCellSourceSite(GetSelection().caret, _state->sourceCaretSite))
