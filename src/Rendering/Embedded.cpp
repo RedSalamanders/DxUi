@@ -612,7 +612,7 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
         s.dirty                       = s.revision != revision;
         ++s.stats.preparations;
         _host.PublishPreparedContent();
-        if (auto* focused = _host.GetFocusControl(); focused && focused != _host._nativeTextInputControl && focused->SupportsTextInput())
+        if (auto* focused = _host.GetFocusControl(); focused && focused != _host._nativeTextInputControl)
         {
             _host.ActivateTextInput(focused, false);
             if (! preparationIsCurrent())
