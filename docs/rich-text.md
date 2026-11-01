@@ -546,6 +546,10 @@ text clipboard behavior; structured file transport is an optional interface.
 Embedded text clients may additionally implement `TextClipboardFilePaste` to
 commit a prepared file list through the view's source-site-aware transaction;
 the replacement-only transform remains available to existing clients.
+The sample adapter also implements `TextClipboardSemanticCut` and forwards the
+original snapshot to `EmbeddedHost::ApplyClipboardCut`. The host revalidates
+focus, revision, source and selection after the clipboard write; `E_NOTIMPL`
+leaves non-rich clients on their existing raw text replacement path.
 Limits are 16 paths, 32767 UTF-16 units per path and 65536 total path units, plus
 the existing document source limit. Clipboard paths may recognize formats whose
 decoders are not available. Displaying an image also requires the application to
