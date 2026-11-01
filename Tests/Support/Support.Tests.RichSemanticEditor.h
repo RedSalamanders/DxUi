@@ -1256,6 +1256,20 @@ inline void NativeMathHRESULTFailureContainment(ControlHost& host)
     }
 
     {
+        constexpr std::wstring_view source = L"$x$ and $x$\n";
+        auto* editor                       = install(std::wstring(source));
+        SemanticWriteFactoryOverride override(host);
+        auto* calls                    = override.Get();
+        calls->failLayoutText          = L"x";
+        calls->layoutFailure           = DWRITE_E_UNSUPPORTEDOPERATION;
+        calls->failMatchingLayoutCount = 2u;
+        Check(PrepareUntilSettled(*editor, host) == S_OK, "multiple native math failures settle together");
+        const auto document = editor->GetAcknowledgedSemanticDocument(host);
+        Check(document && document->Diagnostics().size() == 2u && calls->failedLayouts == 2u && editor->DebugGetState().semanticPreparationAdvances == 2u &&
+                  editor->GetText() == source,
+              "all unsupported formula owners produce one semantic fallback rebuild without partial publication");
+    }
+    {
         constexpr std::wstring_view source = L"$x$\n";
         auto* editor                       = install(std::wstring(source));
         editor->SetSelection({1u, 1u});

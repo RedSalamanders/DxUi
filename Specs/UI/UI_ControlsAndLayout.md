@@ -2069,7 +2069,7 @@ device replacement regenerate prepared geometry without changing source.
 Every rejected formula has its own Math element, accessible explanation and exact
 source diagnostic; rejection cannot overwrite its enclosing link's title or destination.
 A persistent native geometry-capacity failure falls back only the affected formula
-or complete Mermaid fence, including its original container prefixes and EOLs.
+or complete Mermaid fence, including its original container prefixes and EOLs. Native preparation collects all independently rejected objects in the bounded geometry pass, then rebuilds the semantic publication once; staged partial geometry is never published.
 For an individual math formula, DirectWrite `DWRITE_E_UNSUPPORTEDOPERATION` during
 leaf preparation is also a persistent object-local rejection: the operation is not
 supported by the selected font type. The formula's accessible explanation uses

@@ -353,5 +353,12 @@ template <typename Prepare, typename Check> inline void Editor(RichTextEditor& e
     editor.SetViewMode(ViewMode::Rich);
     prepare(480u);
     check(editor.GetMarkdownRenderingStatus() == MarkdownRenderingStatus::Semantic, "returning to rich view prepares the edited graph");
+    editor.SetText(source + L"\n" + source);
+    const auto beforeBatch = editor.DebugGetState().semanticPreparationAdvances;
+    prepare(50u);
+    const auto batch = editor.GetAcknowledgedSemanticDocument(host);
+    check(batch && batch->Diagnostics().size() == 2u && SemanticExtensionAccess::Diagrams(*batch).empty() &&
+              editor.DebugGetState().semanticPreparationAdvances - beforeBatch == 2u && editor.GetText() == source + L"\n" + source,
+          "multiple oversized diagrams are rejected together in one semantic rebuild");
 }
 } // namespace SemanticDiagramTests

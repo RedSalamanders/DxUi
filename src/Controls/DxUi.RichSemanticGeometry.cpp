@@ -140,7 +140,8 @@ struct NativeImageGeometry
                         ID2D1RenderTarget* target,
                         IDWriteFactory* write,
                         const LayoutOptions& options,
-                        const NativeImageGeometry* previous)
+                        const NativeImageGeometry* previous,
+                        std::vector<std::size_t>& rejected)
         : placements(resources.placements.size() + SemanticExtensionAccess::Maths(document).size()),
           targetIdentity(target)
     {
@@ -212,9 +213,10 @@ struct NativeImageGeometry
             }
             catch (const std::length_error&)
             {
-                throw NativeObjectCapacity("Mathematical object exceeds its preparation capacity", placement.element);
+                rejected.push_back(placement.element);
             }
         }
+        std::erase_if(placements, [](const auto& placement) { return ! placement.math && ! placement.pixels; });
         std::ranges::sort(placements, {}, &NativeImagePlacement::element);
     }
     std::vector<NativeImagePlacement> placements;
@@ -395,6 +397,7 @@ struct PreparedSemanticGeometry::State
           options(inputOptions),
           imageResources(std::move(inputImages)),
           imageEpochs(epochs),
+          rejected(0u),
           boxes(0u),
           glyphBoxes(0u),
           nodeElements(document->Syntax()->Nodes().size(), MarkdownNoNode),
@@ -406,7 +409,8 @@ struct PreparedSemanticGeometry::State
         if ((imageResources && ! imageResources->placements.empty()) || ! SemanticExtensionAccess::Maths(*document).empty())
         {
             const RichImageResourceSet empty;
-            images = std::make_unique<NativeImageGeometry>(imageResources ? *imageResources : empty, *document, raster, factory.get(), options, previousImages);
+            images = std::make_unique<NativeImageGeometry>(
+                imageResources ? *imageResources : empty, *document, raster, factory.get(), options, previousImages, rejected);
         }
         const auto diagrams = SemanticExtensionAccess::Diagrams(*document);
         if (! diagrams.empty())
@@ -424,6 +428,16 @@ struct PreparedSemanticGeometry::State
     LayoutOptions options;
     std::shared_ptr<const RichImageResourceSet> imageResources;
     FlowchartResourceEpoch imageEpochs;
+    std::vector<std::size_t> rejected;
+    void Reject(std::size_t element)
+    {
+        if (std::ranges::find(rejected, element) == rejected.end())
+        {
+            if (rejected.size() == SemanticExtensions::MaximumObjects)
+                throw NativeObjectCapacity("Native rejection set exceeds object capacity");
+            rejected.push_back(element);
+        }
+    }
     std::unique_ptr<NativeImageGeometry> images;
     std::unique_ptr<NativeDiagramGeometry> native;
     std::vector<std::unique_ptr<SemanticBox>> boxes;
@@ -1131,13 +1145,19 @@ struct PreparedSemanticGeometry::Preparation
             {
                 const auto extent = native->paint->Geometry()->extent;
                 if (extent.width > options.widthDip)
-                    throw NativeObjectCapacity("Diagram does not fit this view width", native->element);
-                const auto height = static_cast<float>(extent.height);
-                const auto object = Microsoft::WRL::Make<SemanticObjectPlaceholder>(
-                    DWRITE_INLINE_OBJECT_METRICS{static_cast<float>(extent.width), height, std::min(options.fontSizeDip, height), FALSE});
-                if (! object)
-                    throw std::bad_alloc();
-                placeholder = object.Get();
+                {
+                    next.Reject(native->element);
+                    native = nullptr;
+                }
+                if (native)
+                {
+                    const auto height = static_cast<float>(extent.height);
+                    const auto object = Microsoft::WRL::Make<SemanticObjectPlaceholder>(
+                        DWRITE_INLINE_OBJECT_METRICS{static_cast<float>(extent.width), height, std::min(options.fontSizeDip, height), FALSE});
+                    if (! object)
+                        throw std::bad_alloc();
+                    placeholder = object.Get();
+                }
             }
             const auto objectOffset = native ? static_cast<UINT32>(native->display - content.display.first) : 0u;
             struct ImageInlines
@@ -1216,7 +1236,7 @@ struct PreparedSemanticGeometry::Preparation
             {
                 const auto textBounds = box->layout.HorizontalTextBounds();
                 if (textBounds.second > options.widthDip + 0.01f)
-                    throw NativeObjectCapacity("Diagram and its marker do not fit this view width", native->element);
+                    next.Reject(native->element);
                 const auto rectangles = box->layout.Range(objectOffset, objectOffset + 1u);
                 if (rectangles.size() != 1u)
                     throw std::logic_error("Native diagram did not produce one atomic SDK object");
@@ -1367,8 +1387,6 @@ LayoutPreparationStatus PreparedSemanticGeometry::Begin(IDWriteFactory* factory,
         throw NativeObjectCapacity("Combined native image/diagram capacity exceeded");
     if (! diagrams.empty() && ! drawing)
         throw std::invalid_argument("Native semantic objects require a drawing factory");
-    if (! diagrams.empty() && options.fontSizeDip > 512.0f)
-        throw NativeObjectCapacity("Native object font exceeds its supported extent", diagrams.front().element);
     const auto same = [&](const State& state)
     {
         return state.factory.get() == factory && state.document == document && SameOptions(state.options, options) && state.imageResources == images &&
@@ -1550,12 +1568,21 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                 const auto diagrams = SemanticExtensionAccess::Diagrams(*state.document);
                 if (work.nativeIndex == diagrams.size())
                 {
+                    if (state.native)
+                        std::erase_if(state.native->placements, [](const auto& item) { return ! item.paint; });
                     work.phase = Preparation::Phase::NativeImages;
                     continue;
                 }
                 if (result.layoutsPrepared == budget.maximumLayouts)
                     break;
                 auto& placement = state.native->placements[work.nativeIndex];
+                if (state.options.fontSizeDip > 512.0f)
+                {
+                    state.Reject(placement.element);
+                    ++work.nativeIndex;
+                    ++result.blockSteps;
+                    continue;
+                }
                 if (! placement.paint)
                 {
                     placement.paint = std::make_unique<PreparedFlowchart>();
@@ -1570,7 +1597,10 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                 if (advance.status == LayoutPreparationStatus::Complete)
                 {
                     if (! placement.paint->Ready())
-                        throw NativeObjectCapacity("Native diagram exceeds its font/geometry capacity", placement.element);
+                    {
+                        state.Reject(placement.element);
+                        placement.paint.reset();
+                    }
                     ++work.nativeIndex;
                 }
                 if (! advance.blockSteps && ! advance.layoutsPrepared)
@@ -1589,10 +1619,27 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                 {
                     if (result.layoutsPrepared == budget.maximumLayouts)
                         break;
-                    if (work.state->images->PrepareMath(work.imageIndex))
-                        ++work.imageIndex;
-                    else
+                    try
+                    {
+                        if (work.state->images->PrepareMath(work.imageIndex))
+                            ++work.imageIndex;
+                        else
+                            ++result.layoutsPrepared;
+                    }
+                    catch (const NativeObjectUnsupported& failure)
+                    {
+                        if (failure.Error() != DWRITE_E_UNSUPPORTEDOPERATION)
+                            throw;
                         ++result.layoutsPrepared;
+                        work.state->Reject(failure.Element());
+                        work.state->images->placements.erase(work.state->images->placements.begin() + static_cast<std::ptrdiff_t>(work.imageIndex));
+                    }
+                    catch (const NativeObjectCapacity& failure)
+                    {
+                        ++result.layoutsPrepared;
+                        work.state->Reject(failure.Element());
+                        work.state->images->placements.erase(work.state->images->placements.begin() + static_cast<std::ptrdiff_t>(work.imageIndex));
+                    }
                     ++result.blockSteps;
                     continue;
                 }
@@ -1760,6 +1807,8 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
             }
             else
             {
+                if (! work.state->rejected.empty())
+                    throw NativeObjectsRejected(work.state->rejected);
                 state_ = std::move(work.state);
                 next_.reset();
                 valid_ = true;

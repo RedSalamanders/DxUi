@@ -1381,16 +1381,38 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
     state.lastAdvanceLayouts = state.lastAdvanceBlockSteps = 0u;
     state.lastAdvanceMarkdownWork                          = 0u;
     state.lastAdvanceSemanticWork                          = 0u;
-    const auto rejectNativeObject                          = [&](std::size_t element) -> HRESULT
+    const auto rejectNativeObjects                         = [&](std::span<const std::size_t> elements) -> HRESULT
     {
         const auto value = GetSemanticDocument();
         if (value && state.markdownRendering && state.mode == RichText::ViewMode::Rich)
         {
-            if (element < value->Elements().size() &&
-                (value->Elements()[element].role == RichText::SemanticRole::Math || value->Elements()[element].role == RichText::SemanticRole::Diagram))
+            try
             {
-                try
+                std::vector<RichText::MarkdownRange> objects(0u);
+                if (state.nativeObjectRejections)
+                    objects = state.nativeObjectRejections->objects;
+                bool added = false;
+                for (const auto element : elements)
                 {
+                    if (element >= value->Elements().size() ||
+                        (value->Elements()[element].role != RichText::SemanticRole::Math && value->Elements()[element].role != RichText::SemanticRole::Diagram))
+                        break;
+                    const auto source = value->Elements()[element].source;
+                    if (std::ranges::find(objects, source) == objects.end())
+                    {
+                        objects.push_back(source);
+                        added = true;
+                    }
+                }
+                if (added && ! elements.empty() && objects.size() <= RichText::Detail::SemanticExtensions::MaximumObjects &&
+                    std::ranges::all_of(elements,
+                                        [&](const auto element)
+                {
+                    return element < value->Elements().size() && (value->Elements()[element].role == RichText::SemanticRole::Math ||
+                                                                  value->Elements()[element].role == RichText::SemanticRole::Diagram);
+                }))
+                {
+                    std::ranges::sort(objects, {}, &RichText::MarkdownRange::first);
                     if (! state.nativeObjectRejections)
                     {
                         auto& rejected      = state.nativeObjectRejections.emplace();
@@ -1403,28 +1425,20 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
                         rejected.appearance = state.appearanceRevision;
                         rejected.rtl        = IsRightToLeft();
                     }
-                    auto& objects     = state.nativeObjectRejections->objects;
-                    const auto source = value->Elements()[element].source;
-                    if (objects.size() < RichText::Detail::SemanticExtensions::MaximumObjects && std::ranges::find(objects, source) == objects.end())
-                    {
-                        objects.push_back(source);
-                        std::ranges::sort(objects, {}, &RichText::MarkdownRange::first);
-                        RetireSemanticAccessibility();
-                        state.semantic.Clear();
-                        state.layout.Invalidate();
-                        state.requestActive = false;
-                        return S_FALSE;
-                    }
-                }
-                catch (const std::bad_alloc&)
-                {
-                    // This noexcept preparation boundary reports resource
-                    // exhaustion without publishing a partial rejection set.
-                    state.nativeObjectRejections.reset();
+                    state.nativeObjectRejections->objects.swap(objects);
+                    RetireSemanticAccessibility();
+                    state.semantic.Clear();
                     state.layout.Invalidate();
                     state.requestActive = false;
-                    return E_OUTOFMEMORY;
+                    return S_FALSE;
                 }
+            }
+            catch (const std::bad_alloc&)
+            {
+                // Do not publish a partial rejection set on allocation failure.
+                state.layout.Invalidate();
+                state.requestActive = false;
+                return E_OUTOFMEMORY;
             }
             state.nativeGeometryRejected.emplace(value,
                                                  std::max(1.0f, TextViewport().right - TextViewport().left),
@@ -1735,17 +1749,23 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
         UpdateCaretLinkDisplayRange();
         return PrepareSourceInk() ? S_OK : S_FALSE;
     }
+    catch (const RichText::Detail::NativeObjectsRejected& failure)
+    {
+        return rejectNativeObjects(failure.Elements());
+    }
     catch (const RichText::Detail::NativeObjectUnsupported& failure)
     {
         if (failure.Error() != DWRITE_E_UNSUPPORTEDOPERATION)
             return failure.Error();
-        return rejectNativeObject(failure.Element());
+        const auto element = failure.Element();
+        return rejectNativeObjects(std::span(&element, 1u));
     }
     catch (const RichText::Detail::NativeObjectCapacity& failure)
     {
         // Bounded geometry capacity and the explicitly classified font-local
         // unsupported operation both reject only the owning object/key.
-        return rejectNativeObject(failure.Element());
+        const auto element = failure.Element();
+        return rejectNativeObjects(std::span(&element, 1u));
     }
     catch (const std::length_error&)
     {

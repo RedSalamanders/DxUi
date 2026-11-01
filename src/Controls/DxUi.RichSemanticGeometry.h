@@ -3,7 +3,9 @@
 #include <DxUi/Configuration.h>
 #include <DxUi/RichSemanticDocument.h>
 #include <DxUi/RichTextLayout.h>
+#include <span>
 #include <stdexcept>
+#include <vector>
 
 namespace DxUi::RichText::Detail
 {
@@ -20,6 +22,24 @@ extern thread_local const RichImageRasterCalls* testRichImageRasterCalls;
 // their HRESULT and that the editor can substitute an instrumented factory.
 extern thread_local IDWriteFactory* testRichSemanticWriteFactory;
 #endif
+class NativeObjectsRejected final : public std::exception
+{
+public:
+    explicit NativeObjectsRejected(const std::vector<std::size_t>& elements) : elements_(elements)
+    {
+    }
+    std::span<const std::size_t> Elements() const noexcept
+    {
+        return elements_;
+    }
+    const char* what() const noexcept override
+    {
+        return "Native object geometry rejected";
+    }
+
+private:
+    std::vector<std::size_t> elements_;
+};
 class NativeObjectCapacity final : public std::length_error
 {
 public:

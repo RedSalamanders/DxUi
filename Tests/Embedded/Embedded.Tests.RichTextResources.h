@@ -828,6 +828,10 @@ static void TestSemanticDiagramAllocationFailures(bool trace = false)
             {
                 return false;
             }
+            catch (const NativeObjectsRejected&)
+            {
+                return false;
+            }
         };
         PreparedSemanticGeometry measured;
         measured.Begin(write.get(), oldDocument, previousOptions, drawing.get(), {1u, 1u});
