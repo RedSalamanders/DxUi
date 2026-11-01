@@ -863,6 +863,14 @@ void TestRichTextApplicationImageClipboard()
             "clipboard write changing selection cannot apply a stale semantic cut");
     clipboard.afterWrite = {};
     editor->SetText(L"replace");
+    prepare();
+    clipboard.content.text = L"a\r\nb\rc\n";
+    editor->SetSelection({7u, 0u});
+    RequireSucceeded(services.Clipboard(TextClipboardCommand::Paste, &clipboard), "plain mixed-EOL paste traverses the application TSF adapter");
+    Require(editor->GetText() == L"a\r\nb\rc\n" && editor->Undo() && editor->GetText() == L"replace" && editor->GetSelection() == Selection{7u, 0u} &&
+                ! editor->CanUndo(),
+            "embedded RichText paste preserves CRLF, CR and LF spelling in one undoable source transaction");
+    clipboard.content.text.clear();
     clipboard.content.filePaths = {L"C:\\docs\\images\\\u6771\U0001f600.png"};
     editor->SetSelection({7u, 0u});
     prepare();

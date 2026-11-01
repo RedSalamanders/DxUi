@@ -1,0 +1,1 @@
+- Cover exact mixed line endings and undo through the embedded RichText application clipboard adapter.
