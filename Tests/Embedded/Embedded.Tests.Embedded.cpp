@@ -2,6 +2,7 @@
 #include <DxUi/EmbeddedAccessibility.h>
 
 #include "Controls/DxUi.TextElements.h"
+#include "Controls/DxUi.Internal.h"
 #include "EmbeddedScene.h"
 #include "GraphicsFixture.h"
 #include "Support.Tests.FailureReports.h"
@@ -638,6 +639,31 @@ __declspec(noinline) static void TestEmbeddedIconLayoutRebuildsAfterFormatCacheE
     Check(button->DebugGetPreparedIconTextLayoutBuildCount() == warmBuilds && button->DebugGetPreparedIconTextLayoutFactoryLookupCount() == warmLookups,
           "a subsequent warm embedded preparation adds no layout or factory lookup");
     Check(evictedPixels == warmPixels, "the warm embedded frame remains pixel-identical after eviction");
+    button->SetVariant(DxUi::ButtonVariant::Hyperlink);
+    button->SetText(L"Embedded hyperlink");
+    button->SetBounds(D2D1::RectF(8.f, 8.f, 160.f, 40.f));
+    Hr(PrepareRichEmbeddedContent(view, 320u, 120u), "prepare embedded hyperlink");
+    static_cast<void>(view.DispatchPointer({DxUi::PointerAction::Move, 20, 20}));
+    static_cast<void>(capture());
+    Check(button->IsHovered() && button->DebugGetPreparedHyperlinkWidthDip() > 0.f && button->DebugGetHyperlinkMeasureCount() > 0u,
+          "first embedded hovered hyperlink frame has prepared underline geometry");
+    const auto measureLayouts = DxUi::testSingleLineMeasureLayoutCreations;
+    const auto hyperlinkMeasures = button->DebugGetHyperlinkMeasureCount();
+    gpu.Bind();
+    const auto beforeHoverPaints = allocations;
+    countAllocations = true;
+    for (unsigned frame = 0u; frame < 8u; ++frame)
+    {
+        view.MarkDirty();
+        Hr(view.Composite(gpu.context.get(), gpu.Viewport()), "repeat hovered hyperlink paint");
+    }
+    countAllocations = false;
+    Check(allocations == beforeHoverPaints && DxUi::testSingleLineMeasureLayoutCreations == measureLayouts &&
+              button->DebugGetHyperlinkMeasureCount() == hyperlinkMeasures,
+          "repeated hovered embedded paints allocate no C++ memory or measuring layouts");
+    Hr(button->SetContentFontSizeDip(24.f), "change embedded hyperlink font size");
+    static_cast<void>(capture());
+    Check(button->DebugGetHyperlinkMeasureCount() == hyperlinkMeasures + 1u, "font-size change prepares a new hyperlink underline");
 }
 
 __declspec(noinline) static void TestPointerDoesNotRetargetAfterHoverOrHitGeometryMutation(GraphicsFixture& gpu)

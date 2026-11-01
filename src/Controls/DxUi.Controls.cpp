@@ -2947,6 +2947,8 @@ void Button::RetirePreparedIconTextLayout() noexcept
     _preparedIconTextFlow                         = FlowDirection::LeftToRight;
     _preparedIconTextKeyValid                     = false;
     _preparedIconTextFailed                       = false;
+    _preparedHyperlinkValid                       = false;
+    _preparedHyperlinkHost                        = nullptr;
     ++_iconTextInputRevision;
 }
 
@@ -3033,6 +3035,49 @@ void Button::PrepareVisualContent(ControlHost& host) noexcept
     };
     if (! root || rootLifetime.expired() || GetHost() != &host || ! IsControlInTree(root, this))
         return;
+    if (_variant == ButtonVariant::Hyperlink && ! dynamic_cast<const Toggle*>(this) && ! dynamic_cast<const RadioButton*>(this))
+    {
+        try
+        {
+            const auto bounds = GetBounds();
+            const float width = (std::max)(0.0f, bounds.right - bounds.left);
+            const float height = (std::max)(1.0f, bounds.bottom - bounds.top);
+            const auto flow = GetFlowDirection();
+            const auto revision = _iconTextInputRevision;
+            const auto resources = host.GetResourceGeneration();
+            const auto typography = host.GetTypographyRevision();
+            if (! _preparedHyperlinkValid || _preparedHyperlinkHost != &host || _preparedHyperlinkRevision != revision ||
+                _preparedHyperlinkResources != resources || _preparedHyperlinkTypography != typography || _preparedHyperlinkFlow != flow ||
+                _preparedHyperlinkBoundsWidth != width || _preparedHyperlinkBoundsHeight != height)
+            {
+                const std::wstring text(_text);
+#if DXUI_ENABLE_DIAGNOSTICS
+                ++_debugHyperlinkMeasureCount;
+#endif
+                const float measured = MeasureSingleLineTextWidthDip(&host, text, FontRole::Body, height, ResolveReadingDirection(flow),
+                                                                     ResolveContentTextFormat(host, FontRole::Body));
+                if (! hostStillCurrent() || _iconTextInputRevision != revision || _text != text || GetFlowDirection() != flow ||
+                    host.GetResourceGeneration() != resources || host.GetTypographyRevision() != typography)
+                    return;
+                const auto current = GetBounds();
+                if ((std::max)(0.0f, current.right - current.left) != width || (std::max)(1.0f, current.bottom - current.top) != height)
+                    return;
+                _preparedHyperlinkWidthDip = measured;
+                _preparedHyperlinkBoundsWidth = width;
+                _preparedHyperlinkBoundsHeight = height;
+                _preparedHyperlinkHost = &host;
+                _preparedHyperlinkRevision = revision;
+                _preparedHyperlinkResources = resources;
+                _preparedHyperlinkTypography = typography;
+                _preparedHyperlinkFlow = flow;
+                _preparedHyperlinkValid = true;
+            }
+        }
+        catch (const std::bad_alloc&)
+        {
+            return;
+        }
+    }
     if (! _shortcutText.empty())
     {
         try
@@ -3068,7 +3113,8 @@ void Button::PrepareVisualContent(ControlHost& host) noexcept
     // for them would retain a resource that can never be consumed.
     if (_variant != ButtonVariant::IconOnly || dynamic_cast<const Toggle*>(this) || dynamic_cast<const RadioButton*>(this))
     {
-        RetirePreparedIconTextLayout();
+        if (_variant != ButtonVariant::Hyperlink || dynamic_cast<const Toggle*>(this) || dynamic_cast<const RadioButton*>(this))
+            RetirePreparedIconTextLayout();
         return;
     }
 
@@ -3351,7 +3397,7 @@ void Button::SetVariant(ButtonVariant variant) noexcept
     RetirePreparedIconTextLayout();
     if (lifetime.expired())
         return;
-    if (variant == ButtonVariant::IconOnly && ! dynamic_cast<Toggle*>(this) && ! dynamic_cast<RadioButton*>(this))
+    if ((variant == ButtonVariant::IconOnly || variant == ButtonVariant::Hyperlink) && ! dynamic_cast<Toggle*>(this) && ! dynamic_cast<RadioButton*>(this))
         EnableVisualContentPreparation();
     else
         RequestVisualContentPreparation(false);
@@ -3658,13 +3704,16 @@ void Button::Paint(ControlHost& host) const
             const float widthDip     = (std::max)(0.0f, b.right - b.left);
             const float heightDip    = (std::max)(1.0f, b.bottom - b.top);
             const float availableDip = (std::max)(0.0f, widthDip - 8.0f);
-            const float textWidthDip = MeasureSingleLineTextWidthDip(
-                &host, _text, FontRole::Body, heightDip, ResolveReadingDirection(flowDirection), ResolveContentTextFormat(host, FontRole::Body));
-            const float underlineWidthDip = (std::clamp)(textWidthDip, 0.0f, availableDip);
-            const float underlineLeftDip  = b.left + ((widthDip - underlineWidthDip) * 0.5f);
-            const float underlineRightDip = underlineLeftDip + underlineWidthDip;
-            const float underlineYDip     = SnapDipToPixel(host, b.bottom - 3.0f);
-            DrawLineWithColor(host, D2D1::Point2F(underlineLeftDip, underlineYDip), D2D1::Point2F(underlineRightDip, underlineYDip), fg, 1.0f);
+            if (_preparedHyperlinkValid && _preparedHyperlinkHost == &host && _preparedHyperlinkRevision == _iconTextInputRevision &&
+                _preparedHyperlinkResources == host.GetResourceGeneration() && _preparedHyperlinkTypography == host.GetTypographyRevision() &&
+                _preparedHyperlinkFlow == flowDirection && _preparedHyperlinkBoundsWidth == widthDip && _preparedHyperlinkBoundsHeight == heightDip)
+            {
+                const float underlineWidthDip = (std::clamp)(_preparedHyperlinkWidthDip, 0.0f, availableDip);
+                const float underlineLeftDip  = b.left + ((widthDip - underlineWidthDip) * 0.5f);
+                const float underlineRightDip = underlineLeftDip + underlineWidthDip;
+                const float underlineYDip     = SnapDipToPixel(host, b.bottom - 3.0f);
+                DrawLineWithColor(host, D2D1::Point2F(underlineLeftDip, underlineYDip), D2D1::Point2F(underlineRightDip, underlineYDip), fg, 1.0f);
+            }
         }
         return;
     }

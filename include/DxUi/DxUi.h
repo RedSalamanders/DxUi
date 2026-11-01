@@ -2182,6 +2182,8 @@ public:
     {
         return _debugShortcutMeasureCount;
     }
+    [[nodiscard]] uint64_t DebugGetHyperlinkMeasureCount() const noexcept { return _debugHyperlinkMeasureCount; }
+    [[nodiscard]] float DebugGetPreparedHyperlinkWidthDip() const noexcept { return _preparedHyperlinkWidthDip; }
     void DebugFailNextPreparedIconTextLayoutForTest() noexcept;
     void DebugSetPreparedIconTextLayoutDisabledForTest(bool disabled) noexcept;
 #endif
@@ -2281,6 +2283,7 @@ private:
     uint64_t _debugPreparedIconTextLayoutFactoryLookupCount = 0u;
     mutable uint64_t _debugPreparedIconTextLayoutPaintCount = 0u;
     uint64_t _debugShortcutMeasureCount                     = 0u;
+    uint64_t _debugHyperlinkMeasureCount                    = 0u;
     bool _debugFailNextPreparedIconTextLayout               = false;
     bool _debugDisablePreparedIconTextLayout                = false;
 #endif
@@ -2294,6 +2297,11 @@ private:
     uint64_t _preparedShortcutResources = 0u, _preparedShortcutTypography = 0u;
     FlowDirection _preparedShortcutFlow = FlowDirection::LeftToRight;
     bool _preparedShortcutValid         = false;
+    float _preparedHyperlinkWidthDip{}, _preparedHyperlinkBoundsWidth{}, _preparedHyperlinkBoundsHeight{};
+    const ControlHost* _preparedHyperlinkHost{};
+    uint64_t _preparedHyperlinkRevision{}, _preparedHyperlinkResources{}, _preparedHyperlinkTypography{};
+    FlowDirection _preparedHyperlinkFlow = FlowDirection::LeftToRight;
+    bool _preparedHyperlinkValid{};
 };
 #pragma warning(pop)
 

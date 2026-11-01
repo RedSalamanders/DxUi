@@ -45,6 +45,10 @@ High contrast preserves the existing system color pair and focus/border treatmen
 filled treatment. Leading Fluent icons and trailing keyboard hints on Standard/DropDown/Repeat buttons participate
 in intrinsic measurement, reserve the same paint lanes and mirror with flow direction. Hints describe consumer-owned
 shortcuts; they never register keys or change the button's accessible command name.
+Hyperlink button underline width is prepared with the current text, content font,
+host typography, flow and bounds before painting. Hover painting uses only the
+prepared width and creates no DirectWrite measuring layout. Text, font, bounds,
+flow and host typography/resource changes retire the measurement.
 
 `TreeAppearance` may suppress background/border or decorative expanders and may reserve the expander lane on
 leaf rows. Hit testing follows the visible lane; keyboard expansion, hierarchy, selection and UI Automation retain

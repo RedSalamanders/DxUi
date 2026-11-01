@@ -760,6 +760,9 @@ constexpr uint64_t kTypeaheadResetMs = 1000u;
 [[nodiscard]] bool ShouldEmitSingleLineBiDiTextMetric(std::wstring_view text, DWRITE_READING_DIRECTION readingDirection) noexcept;
 
 void ClearSingleLineTextLayoutCache(SingleLineTextLayoutCache& cache, bool secureText = false) noexcept;
+#if DXUI_ENABLE_DIAGNOSTICS
+extern thread_local uint64_t testSingleLineMeasureLayoutCreations;
+#endif
 
 [[nodiscard]] float MeasureSingleLineTextWidthDip(const ControlHost* host,
                                                   std::wstring_view text,

@@ -1,0 +1,1 @@
+- Prepare hyperlink-button underline width before paint so repeated hover frames do not create DirectWrite measuring layouts.

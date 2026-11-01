@@ -2,6 +2,7 @@
 
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "GraphicsFixture.h"
+#include "Controls/DxUi.Internal.h"
 
 #include <DxUi/Typography.h>
 #include <dwrite_1.h>
@@ -847,6 +848,48 @@ void TestButtonPreparedIconTextLayoutMatchesDrawTextW()
         button->SetShortcutText(L"F2");
         static_cast<void>(capture());
         Require(button->DebugGetShortcutMeasureCount() == measured + 1u, "changing the shortcut prepares its new width once");
+        button->SetShortcutText(L"");
+        button->SetVariant(ButtonVariant::Hyperlink);
+        button->SetText(L"Prepared hyperlink");
+        button->SetBounds(D2D1::RectF(12.f, 12.f, 112.f, 40.f));
+        const auto bounds = button->GetBounds();
+        const auto x = static_cast<SHORT>(host.DipsToPixels((bounds.left + bounds.right) * .5f));
+        const auto y = static_cast<SHORT>(host.DipsToPixels((bounds.top + bounds.bottom) * .5f));
+        bool handled = false;
+        static_cast<void>(host.HandleMessage(window.Hwnd(), WM_MOUSEMOVE, 0u, MAKELPARAM(0, 0), handled));
+        const auto idleHyperlink = capture();
+        static_cast<void>(host.HandleMessage(window.Hwnd(), WM_MOUSEMOVE, 0u, MAKELPARAM(x, y), handled));
+        const auto hoveredHyperlink = capture();
+        Require(handled && button->IsHovered() && button->DebugGetPreparedHyperlinkWidthDip() > 0.f && button->DebugGetHyperlinkMeasureCount() > 0u,
+                "first hovered hyperlink frame uses a prepared nonempty underline");
+        const auto lineY = static_cast<UINT>(host.DipsToPixels(bounds.bottom - 3.f));
+        bool underlinePixelChanged = false;
+        for (UINT row = lineY > 1u ? lineY - 1u : 0u; row <= lineY + 1u && row < hoveredHyperlink.heightPx; ++row)
+            for (UINT column = static_cast<UINT>(x) - 1u; column <= static_cast<UINT>(x) + 1u && column < hoveredHyperlink.widthPx; ++column)
+            {
+                const auto offset = (static_cast<size_t>(row) * hoveredHyperlink.widthPx + column) * 4u;
+                underlinePixelChanged = underlinePixelChanged || ! std::equal(hoveredHyperlink.bgraPixels.data() + offset,
+                                                                               hoveredHyperlink.bgraPixels.data() + offset + 4u,
+                                                                               idleHyperlink.bgraPixels.data() + offset);
+            }
+        Require(underlinePixelChanged, "the first hovered capture contains the underline pixels");
+        const auto layouts = testSingleLineMeasureLayoutCreations;
+        const auto measures = button->DebugGetHyperlinkMeasureCount();
+        for (unsigned repeat = 0u; repeat < 8u; ++repeat)
+            static_cast<void>(capture());
+        Require(testSingleLineMeasureLayoutCreations == layouts && button->DebugGetHyperlinkMeasureCount() == measures,
+                "repeated hovered hyperlink paints create no single-line measuring layouts");
+        button->SetText(L"New link");
+        static_cast<void>(capture());
+        Require(button->DebugGetHyperlinkMeasureCount() == measures + 1u, "changing hyperlink text prepares a new underline width");
+        const auto textMeasures = button->DebugGetHyperlinkMeasureCount();
+        button->SetBounds(D2D1::RectF(12.f, 12.f, 95.f, 45.f));
+        static_cast<void>(capture());
+        Require(button->DebugGetHyperlinkMeasureCount() == textMeasures + 1u, "changing hyperlink bounds prepares a current underline width");
+        const auto boundsMeasures = button->DebugGetHyperlinkMeasureCount();
+        button->SetFlowDirection(FlowDirection::RightToLeft);
+        static_cast<void>(capture());
+        Require(button->DebugGetHyperlinkMeasureCount() == boundsMeasures + 1u, "changing reading direction prepares a current underline width");
     });
     Require(WaitForDxUiEventWithSentMessagesUntil(fixture.native_handle(), GetTickCount64() + 30000u) == WAIT_OBJECT_0,
             "the isolated prepared-layout fixture finishes without desktop activation");

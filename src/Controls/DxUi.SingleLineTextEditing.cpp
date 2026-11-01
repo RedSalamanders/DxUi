@@ -16,6 +16,9 @@
 
 namespace DxUi
 {
+#if DXUI_ENABLE_DIAGNOSTICS
+thread_local uint64_t testSingleLineMeasureLayoutCreations{};
+#endif
 constexpr float kSingleLineMeasureWidthDip = 32768.0f;
 
 [[nodiscard]] bool HasCharTypeFlag(wchar_t ch, WORD mask) noexcept
@@ -369,6 +372,9 @@ constexpr float kSingleLineMeasureWidthDip = 32768.0f;
         if (factory && format)
         {
             wil::com_ptr<IDWriteTextLayout> layout;
+#if DXUI_ENABLE_DIAGNOSTICS
+            ++testSingleLineMeasureLayoutCreations;
+#endif
             if (SUCCEEDED(factory->CreateTextLayout(
                     text.data(), static_cast<UINT32>(text.size()), format, kSingleLineMeasureWidthDip, heightDip, layout.addressof())) &&
                 layout)
