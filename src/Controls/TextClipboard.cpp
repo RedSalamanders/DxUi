@@ -90,7 +90,9 @@ public:
                 if (buffer)
                 {
                     const auto unlock = wil::scope_exit([&]() noexcept { GlobalUnlock(data); });
-                    std::wstring fragment;
+                    // MSVC Debug's empty size constructor reports proxy OOM to
+                    // this HRESULT boundary; its default constructor is noexcept.
+                    std::wstring fragment(0u, L' ');
                     const auto htmlResult = DecodeClipboardHtml(std::span(buffer, bytes), fragment);
                     if (htmlResult == E_OUTOFMEMORY)
                         return htmlResult;

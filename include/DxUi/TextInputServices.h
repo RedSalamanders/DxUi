@@ -42,7 +42,7 @@ public:
 struct TextClipboardContent
 {
     static constexpr size_t MaximumFiles = 16u, MaximumFileUnits = 32767u, MaximumTotalFileUnits = 65536u;
-    TextClipboardContent() : text(0u, L' '), filePaths(0u)
+    TextClipboardContent() : text(0u, L' '), filePaths(0u), htmlFragment(0u, L' ')
     {
     }
     TextClipboardContent(const TextClipboardContent&)            = default;
