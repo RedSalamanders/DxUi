@@ -2011,6 +2011,23 @@ bool RichTextEditor::EndSemanticSourceEdit(ControlHost& host)
     SourcePresentationChanged(host);
     return true;
 }
+bool RichTextEditor::BeginReferenceDefinitionSourceEdit(ControlHost& host,
+                                                        const std::shared_ptr<const RichText::MarkdownSyntax>& expected,
+                                                        size_t node)
+{
+    const auto semantic = GetAcknowledgedSemanticDocument(host);
+    if (! expected || ! semantic || semantic->Syntax() != expected || ! CanChangeSemanticSourcePresentation(host) || _state->sourceEditing ||
+        node >= expected->Nodes().size() || expected->Nodes()[node].block.kind != RichText::MarkdownBlockKind::ReferenceDefinition)
+        return false;
+    const auto source = expected->Nodes()[node].block.source;
+    auto session = _state->nextSourceEditingSession++;
+    if (! session)
+        session = _state->nextSourceEditingSession++;
+    _state->sourceEditing.emplace(State::SourceEditingSession{{source, session, RichText::MarkdownSourceRegionKind::Block}, Snapshot()});
+    _state->document.SetSelection({source.first, source.first});
+    SourcePresentationChanged(host);
+    return true;
+}
 void RichTextEditor::SourcePresentationChanged(ControlHost& host)
 {
     _state->autoFormatRun.reset();
@@ -5308,6 +5325,13 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
                 // a new object's leading site when two envelopes touch.
                 if (trailing != RichText::MarkdownNoNode)
                     return BeginSemanticSourceEdit(host, document, trailing);
+                const auto& syntax = document->Syntax();
+                for (std::size_t node = 0u; node < syntax->Nodes().size(); ++node)
+                {
+                    const auto& block = syntax->Nodes()[node].block;
+                    if (block.kind == RichText::MarkdownBlockKind::ReferenceDefinition && caret >= block.source.first && caret < block.source.last)
+                        return BeginReferenceDefinitionSourceEdit(host, syntax, node);
+                }
             }
             return false;
         }

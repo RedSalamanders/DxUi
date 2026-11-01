@@ -1594,6 +1594,39 @@ template <typename Prepare> void InlineMathSourceEditing(ControlHost& host, Prep
               editor->GetSemanticSourceRegion()->inlineKind == MarkdownInlineSourceKind::Image,
           "a nested image trailing edge selects its more specific owner inside the link");
     Check(editor->OnKeyDown(host, VK_ESCAPE, 0u), "nested image source session exits");
+    const std::wstring definition(L"[ref]: <target> \"title\"\n\nUse [label][ref].");
+    editor->SetText(definition);
+    prepare();
+    const auto syntax = editor->GetMarkdownSyntax();
+    auto reference = MarkdownNoNode;
+    for (std::size_t node = 0u; node < syntax->Nodes().size(); ++node)
+        if (syntax->Nodes()[node].block.kind == MarkdownBlockKind::ReferenceDefinition)
+            reference = node;
+    Check(reference != MarkdownNoNode, "reference definition has a revision-local syntax owner");
+    const auto referenceSource = syntax->Nodes()[reference].block.source;
+    editor->SetSelection({referenceSource.first, referenceSource.first});
+    Check(editor->OnKeyDown(host, VK_F2, 0u), "F2 opens a hidden reference definition at its source caret");
+    prepare();
+    Check(editor->GetSemanticSourceRegion() && editor->GetSemanticSourceRegion()->source == referenceSource &&
+              editor->GetAcknowledgedSemanticDocument(host)->Map().Display().find(L"[ref]: <target>") != std::wstring_view::npos,
+          "hidden reference definition becomes exact editable source");
+    editor->SetSelection({referenceSource.first, referenceSource.last});
+    Check(editor->ReplaceSelection(L"[broken\nreference") && editor->Undo() && editor->GetText() == definition,
+          "broken multiline reference edits retain exact source and one undo");
+    prepare();
+    Check(editor->OnKeyDown(host, VK_ESCAPE, 0u), "reference source session exits");
+    prepare();
+    Check(! editor->BeginReferenceDefinitionSourceEdit(host, syntax, reference), "stale reference syntax cannot reopen a different revision");
+    const auto current = editor->GetMarkdownSyntax();
+    auto currentReference = MarkdownNoNode;
+    for (std::size_t node = 0u; node < current->Nodes().size(); ++node)
+        if (current->Nodes()[node].block.kind == MarkdownBlockKind::ReferenceDefinition)
+            currentReference = node;
+    editor->SetReadOnly(true);
+    Check(currentReference != MarkdownNoNode && editor->BeginReferenceDefinitionSourceEdit(host, current, currentReference) &&
+              ! editor->ReplaceSelection(L"x") && editor->OnKeyDown(host, VK_ESCAPE, 0u),
+          "explicit reference source inspection respects read-only and exits");
+    editor->SetReadOnly(false);
 }
 template <typename Prepare> void ScrollbarAndNotifications(ControlHost& host, Prepare&& prepare)
 {

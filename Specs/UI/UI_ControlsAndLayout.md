@@ -2017,6 +2017,12 @@ HTML, file-reference or URL conversion, subject to ordinary edit and composition
 F2 also opens a Markdown link or image's exact inline envelope. Its UIA
 ExpandCollapse action enters and exits that presentation; a link's Invoke retains
 its navigation action. Native HTML links and images do not use this inline action.
+Hidden Markdown reference definitions may be opened by F2 at their source caret
+or by `BeginReferenceDefinitionSourceEdit` with the acknowledged syntax and its
+revision-local definition node. The latter rejects stale syntax, non-definition
+nodes and active composition; read-only inspection remains available. Their raw
+definition becomes a source-editing block until exit, with ordinary undo and
+source-session rebasing while incomplete.
 Neither presentation transition edits source/history or acquires OS focus.
 Transitions MUST cancel the editor's old pointer gesture and release its capture
 before publishing the new presentation, with lifetime/binding guards after

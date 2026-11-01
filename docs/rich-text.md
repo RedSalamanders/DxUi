@@ -306,6 +306,10 @@ envelope/session. Moving selection outside the envelope finishes its presentatio
 Read-only inspection is allowed; active native/embedded composition blocks entry
 and exit. UIA source actions preserve dispatch, lifetime and stale-provider guards
 and do not acquire OS focus. Inline math F2/Invoke uses an exact raw interval within its existing paragraph, preserving neighboring formatting while source is incomplete or spans lines. F2 also edits an exact Markdown link or image envelope; UIA ExpandCollapse enters or exits that source presentation while link Invoke continues to navigate. Native HTML links and images do not expose this inline source action.
+Hidden reference definitions can be opened at their source caret with F2, or by
+passing their current syntax node to `BeginReferenceDefinitionSourceEdit`.
+The definition stays available as exact source while incomplete; stale syntax
+is rejected and read-only inspection is allowed.
 See the [focused source-editing evidence and actual application captures](../Measurements/RichText/README.md).
 
 RichMarkdown footnote definition containers, Unicode label binding, diagnostics
