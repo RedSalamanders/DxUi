@@ -1,9 +1,12 @@
 #include "DxUi.RichSemanticHtml.h"
+#include "DxUi.MarkdownLabels.h"
 #include "DxUi.RichSourceWindow.h"
 #include "DxUi.SemanticExtensions.h"
 #include <algorithm>
 #include <atomic>
 #include <optional>
+#include <unordered_map>
+#include <unordered_set>
 
 namespace DxUi::RichText
 {
@@ -166,11 +169,82 @@ SemanticDocument::SemanticDocument(std::shared_ptr<const MarkdownSyntax> syntax)
       elements_(0u),
       paragraphs_(0u),
       navigation_(0u),
+      headings_(0u),
       runs_(0u),
       sourceRuns_(0u)
 {
     static std::atomic<std::uint64_t> nextIdentity{1u};
     identity_ = nextIdentity.fetch_add(1u, std::memory_order_relaxed);
+}
+std::optional<MarkdownRange> SemanticDocument::ResolveHeadingFragment(std::wstring_view fragment) const
+{
+    if (! fragment.starts_with(L'#')) return std::nullopt;
+    if (fragment.size() == 1u) return MarkdownRange{};
+    std::wstring wanted(0u, L' ');
+    try
+    {
+        const auto encoded = EncodeUtf8(fragment.substr(1u));
+        std::string decoded(0u, '\0');
+        decoded.reserve(encoded.size());
+        const auto hex = [](char value) noexcept -> unsigned
+        {
+            if (value >= '0' && value <= '9') return static_cast<unsigned>(value - '0');
+            if (value >= 'a' && value <= 'f') return static_cast<unsigned>(value - 'a') + 10u;
+            if (value >= 'A' && value <= 'F') return static_cast<unsigned>(value - 'A') + 10u;
+            return 16u;
+        };
+        for (std::size_t index = 0u; index < encoded.size(); ++index)
+        {
+            auto value = encoded[index];
+            if (value == '%')
+            {
+                if (index + 2u >= encoded.size() || hex(encoded[index + 1u]) > 15u || hex(encoded[index + 2u]) > 15u) return std::nullopt;
+                value = static_cast<char>((hex(encoded[index + 1u]) << 4u) | hex(encoded[index + 2u]));
+                index += 2u;
+            }
+            if (! value) return std::nullopt;
+            decoded.push_back(value);
+        }
+        wanted = DecodeUtf8(decoded);
+    }
+    catch (const std::invalid_argument&) { return std::nullopt; }
+    catch (const std::length_error&) { return std::nullopt; }
+    const auto found = std::ranges::find(headings_, wanted, &SemanticHeading::slug);
+    return found == headings_.end() ? std::nullopt : std::optional(found->target);
+}
+std::wstring BuildHeadingTableOfContents(const SemanticDocument& document)
+{
+    std::wstring result(0u, L' ');
+    const auto push = [&](wchar_t value)
+    {
+        if (result.size() == SourceDisplayMap::MaximumDisplayUnits) throw std::length_error("Heading table of contents capacity exceeded");
+        result.push_back(value);
+    };
+    constexpr wchar_t digits[] = L"0123456789ABCDEF";
+    for (const auto& heading : document.Headings())
+    {
+        for (unsigned indent = 1u; indent < std::clamp(heading.level, 1u, 6u); ++indent) { push(L' '); push(L' '); }
+        push(L'-'); push(L' '); push(L'[');
+        bool emitted = false;
+        for (const auto value : heading.name)
+        {
+            if (value == L'\ufffc') continue;
+            if (value == L'\n' || value == L'\r') { push(L' '); emitted = true; continue; }
+            if (std::wstring_view(L"\\`*_{}[]<>()#+-.!|~^$=").find(value) != std::wstring_view::npos) push(L'\\');
+            push(value); emitted = true;
+        }
+        if (! emitted) for (const auto value : heading.slug) push(value);
+        push(L']'); push(L'('); push(L'#');
+        for (const auto byte : EncodeUtf8(heading.slug))
+        {
+            const auto value = static_cast<unsigned char>(byte);
+            if ((value >= 'a' && value <= 'z') || (value >= 'A' && value <= 'Z') || (value >= '0' && value <= '9') || value == '-' || value == '_')
+                push(static_cast<wchar_t>(value));
+            else { push(L'%'); push(digits[value >> 4u]); push(digits[value & 15u]); }
+        }
+        push(L')'); push(L'\n');
+    }
+    return std::wstring(result);
 }
 std::optional<MarkdownRange> SemanticDocument::NavigationTarget(std::size_t element) const noexcept
 {
@@ -257,6 +331,12 @@ struct SemanticBuilder::Preparation
 // Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
 #pragma warning(push)
 #pragma warning(disable : 4625 4626 5026 5027)
+    struct HeadingCache
+    {
+        HeadingCache() : used(0u), suffixes(0u) {}
+        std::unordered_set<std::wstring> used;
+        std::unordered_map<std::wstring, std::size_t> suffixes;
+    };
     struct DiagramWork
     {
         DiagramWork(Visit value, std::wstring_view body, std::uint64_t revision) : visit(value)
@@ -325,6 +405,7 @@ struct SemanticBuilder::Preparation
     Detail::SemanticValue normalized;
     Detail::NativeHtmlPlan html;
     std::unique_ptr<DiagramWork> diagram;
+    std::unique_ptr<HeadingCache> headingCache;
     std::size_t htmlDisplayFirst{};
     std::vector<Visit> visits;
     std::vector<std::size_t> tails;
@@ -593,6 +674,37 @@ struct SemanticBuilder::Preparation
             default: return false;
         }
     }
+    void RecordHeading(std::size_t index)
+    {
+        const auto& element = document->elements_[index];
+        const auto folded = Detail::NormalizeMarkdownLabel(element.name, document->syntax_->Profile());
+        std::wstring base(0u, L' ');
+        for (const auto unit : folded)
+        {
+            if (unit == L' ') base.push_back(L'-');
+            else if (unit != L'\ufffc' && (unit >= 128u || (unit >= L'a' && unit <= L'z') ||
+                     (unit >= L'0' && unit <= L'9') || unit == L'_' || unit == L'-')) base.push_back(unit);
+        }
+        if (base.empty()) base = L"section";
+        if (! headingCache) headingCache = std::make_unique<HeadingCache>();
+        auto [position, inserted] = headingCache->suffixes.try_emplace(base, 1u);
+        static_cast<void>(inserted);
+        std::wstring slug(base);
+        while (headingCache->used.contains(slug))
+        {
+            slug.assign(base);
+            slug.push_back(L'-');
+            slug.append(Number(position->second++));
+        }
+        headingCache->used.insert(slug);
+        auto& heading = document->headings_.emplace_back();
+        heading.element = index;
+        heading.level = element.heading;
+        heading.source = element.source;
+        heading.target = element.syntaxNode < document->syntax_->Nodes().size() ? document->syntax_->Nodes()[element.syntaxNode].block.content : element.source;
+        heading.name.assign(element.name);
+        heading.slug.assign(slug);
+    }
     void CloseElement(std::size_t index)
     {
         auto& element        = document->elements_[index];
@@ -628,6 +740,7 @@ struct SemanticBuilder::Preparation
             case ::DxUi::RichText::SemanticRole::Task:
             default: break;
         }
+        if (element.role == SemanticRole::Heading) RecordHeading(index);
     }
     std::wstring ImageAlternative(const MarkdownInline& image) const
     {

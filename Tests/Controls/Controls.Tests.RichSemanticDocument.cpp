@@ -950,6 +950,7 @@ void TestRichSemanticDocumentSchedulingAndAdmission()
 void TestRichSemanticDocumentNativeHtmlAndLinkPresentation()
 {
     RichSemanticTests::Run(RichSemanticDocumentTests::NativeHtmlAndLinkPresentation);
+    RichSemanticTests::Run(RichSemanticDocumentTests::HeadingOutlineAndFragments);
     RichSemanticTests::Run(RichSemanticDocumentTests::OptionalDefinitionsAndAbbreviations);
     RichSemanticTests::Run(RichSemanticDocumentTests::FootnoteHtmlActionAdmission);
 }

@@ -180,6 +180,25 @@ static_assert(static_cast<unsigned>(MarkdownExtensions::RichAll) == 1023u);
 static_assert(static_cast<unsigned>(MarkdownExtensions::DefinitionLists) == 1024u);
 static_assert(static_cast<unsigned>(MarkdownExtensions::Abbreviations) == 2048u);
 static_assert(static_cast<unsigned>(MarkdownExtensions::RichOptionalMask) == 4095u);
+inline void HeadingOutlineAndFragments()
+{
+    const std::wstring source = L"# Hello *world*\n\n## Hello world\n\n# Hello world-1\n\n# Hello world\n\n# Caf\u00e9\n";
+    const auto document = Build(source, MarkdownProfile::RichMarkdown);
+    const auto headings = document->Headings();
+    Check(headings.size() == 5u && headings[0].level == 1u && headings[1].level == 2u &&
+              headings[0].name == L"Hello world" && headings[0].slug == L"hello-world" && headings[1].slug == L"hello-world-1" &&
+              headings[2].slug == L"hello-world-1-1" && headings[3].slug == L"hello-world-2" && headings[4].slug == L"caf\u00e9",
+          "outline retains heading order, levels, formatted names and collision-safe fragment ids");
+    Check(headings[0].source.first == 0u && headings[0].target.first == 2u &&
+              document->ResolveHeadingFragment(L"#hello-world-2") == headings[3].target &&
+              document->ResolveHeadingFragment(L"#caf%C3%A9") == headings[4].target &&
+              ! document->ResolveHeadingFragment(L"#caf%ZZ") && ! document->ResolveHeadingFragment(L"https://example.test"),
+          "fragment resolution shares exact source targets and rejects malformed external references");
+    const auto toc = BuildHeadingTableOfContents(*document);
+    Check(toc == L"- [Hello world](#hello-world)\n  - [Hello world](#hello-world-1)\n- [Hello world-1](#hello-world-1-1)\n- [Hello world](#hello-world-2)\n- [Caf\u00e9](#caf%C3%A9)\n",
+          "generated Markdown outline escapes and percent-encodes stable heading references");
+    Check(document->Map().Source() == source, "outline generation leaves source intact");
+}
 inline void OptionalDefinitionsAndAbbreviations()
 {
     const std::wstring source = L"HTML and HTML5 and html. `HTML`\n\n*[HTML]: Hyper Text Markup Language\n\nTerm\n: first **description**\n: second description\n\nAfter\n";

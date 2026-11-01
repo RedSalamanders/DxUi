@@ -21,7 +21,6 @@
 #include <UIAutomation.h>
 #include <cmath>
 #include <limits>
-#include <set>
 #include <stdexcept>
 #include <wil/result.h>
 
@@ -126,78 +125,6 @@ std::optional<RichText::MarkdownListKind> UniformListKind(const RichText::Markdo
     if (mixed)
         return std::nullopt;
     return result.value_or(MarkdownListKind::None);
-}
-std::optional<RichText::MarkdownRange> HeadingFragment(const RichText::SemanticDocument& document, std::wstring_view destination)
-{
-    if (! destination.starts_with(L'#'))
-        return std::nullopt;
-    if (destination.size() == 1u)
-        return RichText::MarkdownRange{};
-    std::wstring wanted(0u, L' ');
-    try
-    {
-        const auto encoded = RichText::EncodeUtf8(destination.substr(1u));
-        std::string decoded(0u, '\0');
-        decoded.reserve(encoded.size());
-        const auto hex = [](char c) noexcept -> unsigned
-        {
-            if (c >= '0' && c <= '9')
-                return static_cast<unsigned>(c - '0');
-            if (c >= 'a' && c <= 'f')
-                return static_cast<unsigned>(c - 'a') + 10u;
-            if (c >= 'A' && c <= 'F')
-                return static_cast<unsigned>(c - 'A') + 10u;
-            return 16u;
-        };
-        for (size_t index = 0u; index < encoded.size(); ++index)
-        {
-            auto value = encoded[index];
-            if (value == '%')
-            {
-                if (index + 2u >= encoded.size() || hex(encoded[index + 1u]) > 15u || hex(encoded[index + 2u]) > 15u)
-                    return std::nullopt;
-                value = static_cast<char>((hex(encoded[index + 1u]) << 4u) | hex(encoded[index + 2u]));
-                index += 2u;
-            }
-            if (! value)
-                return std::nullopt;
-            decoded.push_back(value);
-        }
-        wanted = RichText::DecodeUtf8(decoded);
-    }
-    catch (const std::invalid_argument&)
-    {
-        return std::nullopt; // A malformed URI fragment never navigates a partial prefix.
-    }
-    catch (const std::length_error&)
-    {
-        return std::nullopt;
-    }
-    std::set<std::wstring> used;
-    for (const auto& element : document.Elements())
-    {
-        if (element.role != RichText::SemanticRole::Heading)
-            continue;
-        const auto folded = RichText::Detail::NormalizeMarkdownLabel(element.name, document.Syntax()->Profile());
-        std::wstring base(0u, L' ');
-        for (const auto unit : folded)
-        {
-            if (unit == L' ')
-                base.push_back(L'-');
-            else if (unit != L'\ufffc' && (unit >= 128u || (unit >= L'a' && unit <= L'z') || (unit >= L'0' && unit <= L'9') || unit == L'_' || unit == L'-'))
-                base.push_back(unit);
-        }
-        if (base.empty())
-            base = L"section";
-        std::wstring id(base);
-        size_t suffix = 0u;
-        while (used.contains(id))
-            id = base + L"-" + std::to_wstring(++suffix);
-        used.insert(id);
-        if (id == wanted)
-            return element.syntaxNode < document.Syntax()->Nodes().size() ? document.Syntax()->Nodes()[element.syntaxNode].block.content : element.source;
-    }
-    return std::nullopt;
 }
 wchar_t AutoPairClosing(wchar_t character) noexcept
 {
@@ -2077,7 +2004,7 @@ bool RichTextEditor::NavigateSemanticElement(ControlHost& host, const std::share
     if (! target && link.role == RichText::SemanticRole::Link)
     {
         if (! link.wiki && link.destination.starts_with(L'#'))
-            target = HeadingFragment(*document, link.destination);
+            target = document->ResolveHeadingFragment(link.destination);
         else
         {
             const auto callback = _state->onLinkActivated;

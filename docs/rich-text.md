@@ -1817,3 +1817,8 @@ at most 4096. Native and embedded editor hosts supply their current host DPI;
 DPI changes invalidate reusable math geometry. Shared immutable MATH bytes
 remain reusable, but device adjustments are evaluated again for each math style's
 font size and DPI.
+
+A published SemanticDocument provides Headings() for source-ordered outline entries
+and ResolveHeadingFragment() for the same fragment targets used by the editor.
+BuildHeadingTableOfContents() returns Markdown links without changing the document;
+its output is bounded by the display-unit limit and throws length_error on overflow.

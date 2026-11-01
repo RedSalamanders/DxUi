@@ -2706,3 +2706,9 @@ During pending Source or semantic layout, logical caret and erase operations use
 At the end of a nonempty table cell, file-reference paste can infer the table context when the cell uniquely owns that source position. Row-end positions shared with synthetic padded cells require the retained geometry-site identity; a source-only ambiguous request is declined.
 
 Rich clipboard paste preparation declines malformed or over-budget file lists with false and leaves the caller's replacement, source, selection, and undo history unchanged. Allocation failures remain distinguishable from content refusal.
+
+SemanticDocument exposes its source-ordered heading index with level, display name,
+collision-resolved fragment slug and exact source/navigation ranges. Fragment resolution
+uses the same index as editor navigation. BuildHeadingTableOfContents generates bounded
+Markdown links with escaped labels and percent-encoded UTF-8 fragments without editing
+the document; a result exceeding the display-unit limit throws length_error.

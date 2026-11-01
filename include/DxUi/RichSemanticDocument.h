@@ -72,9 +72,20 @@ struct SemanticParagraph
     std::size_t markerEnd{}, markerOwner = MarkdownNoNode;
     std::size_t emptyInsertion = MarkdownNoNode;
 };
-// Internal document navigation has no URL semantics and never changes source.
-// Generated backlinks own an empty source range inside their definition; their
-// separate target points to the complete original reference marker.
+// Immutable source-ordered heading index. `source` is the whole authored
+// owner, `target` is the same source range used by fragment navigation.
+struct SemanticHeading
+{
+    SemanticHeading() : name(0u, L' '), slug(0u, L' ') {}
+    SemanticHeading(const SemanticHeading&) = default;
+    SemanticHeading& operator=(const SemanticHeading&) = default;
+    std::size_t element{};
+    unsigned level{};
+    MarkdownRange source, target;
+    std::wstring name, slug;
+};
+// Internal navigation never changes source. Generated backlinks own an empty
+// source range; their target points to the complete original reference marker.
 struct SemanticNavigation
 {
     std::size_t element{};
@@ -136,6 +147,9 @@ public:
     {
         return paragraphs_;
     }
+    std::span<const SemanticHeading> Headings() const noexcept { return headings_; }
+    // Accepts a leading # and percent-encoded UTF-8; # alone addresses document start.
+    std::optional<MarkdownRange> ResolveHeadingFragment(std::wstring_view fragment) const;
     std::span<const SemanticNavigation> Navigation() const noexcept
     {
         return navigation_;
@@ -178,6 +192,7 @@ private:
     std::vector<SemanticElement> elements_;
     std::vector<SemanticParagraph> paragraphs_;
     std::vector<SemanticNavigation> navigation_;
+    std::vector<SemanticHeading> headings_;
     std::vector<StyleRun> runs_, sourceRuns_;
     // Optional document-level state keeps native graphs out of ordinary inline
     // values and unrelated controls. No SDK/host resource belongs to semantics.
@@ -195,6 +210,9 @@ private:
 using SemanticWordVisitor = bool (*)(void* context, std::wstring_view text, MarkdownRange display, std::span<const MarkdownRange> source);
 std::size_t VisitSemanticWords(const SemanticDocument& document, MarkdownRange display, SemanticWordVisitor visitor, void* context);
 std::size_t CountWords(const SemanticDocument& document);
+// Generate bounded Markdown links from the immutable heading index. It does
+// not mutate source or create an in-document [TOC] object.
+std::wstring BuildHeadingTableOfContents(const SemanticDocument& document);
 // Owner-serialized pure preparation. Each advance resumes block/inline events;
 // one bounded leaf normalization/value tokenization, image alternative or final
 // map/index build is indivisible. Budgets count events, not wall-clock deadlines.
