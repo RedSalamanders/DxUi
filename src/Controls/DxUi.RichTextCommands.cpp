@@ -1544,12 +1544,34 @@ void MarkdownCommandPlanner::CodeBlock(const MarkdownCommandRequest& request)
     const auto& firstLine = Line(first);
     const auto& lastLine  = Line(end);
     const auto begin = firstLine.first, finish = lastLine.end;
+    std::wstring containerPrefix(0u, L' ');
+    const auto leaf = NodeAt(Kind::Paragraph, first);
+    if (leaf != MarkdownNoNode && nodes[leaf].parent != MarkdownNoNode && nodes[nodes[leaf].parent].block.kind == Kind::BlockQuote)
+    {
+        if (last > nodes[leaf].block.source.last)
+            return;
+        for (auto parent = nodes[leaf].parent; parent != MarkdownNoNode; parent = nodes[parent].parent)
+            if (nodes[parent].block.kind != Kind::Document && nodes[parent].block.kind != Kind::BlockQuote)
+                return;
+        std::size_t firstContent{};
+        if (! OuterOffset(leaf, firstLine, firstContent))
+            return;
+        containerPrefix = Slice(firstLine.first, firstContent);
+        for (const auto& line : lines)
+        {
+            if (line.first < begin || line.first >= finish)
+                continue;
+            std::size_t content{};
+            if (! OuterOffset(leaf, line, content) || Slice(line.first, content) != containerPrefix)
+                return;
+        }
+    }
     for (std::size_t i = 1u; i < nodes.size(); ++i)
     {
         const auto& node = nodes[i];
         if (node.block.source.last <= begin || node.block.source.first >= finish)
             continue;
-        if (node.block.kind != Kind::Paragraph && node.block.kind != Kind::BlankLine)
+        if (node.block.kind != Kind::Paragraph && node.block.kind != Kind::BlankLine && (containerPrefix.empty() || node.block.kind != Kind::BlockQuote))
             return;
     }
     size_t longest = 0u, run = 0u;
@@ -1559,12 +1581,14 @@ void MarkdownCommandPlanner::CodeBlock(const MarkdownCommandRequest& request)
         longest = std::max(longest, run);
     }
     const std::wstring fence(std::max(size_t{3u}, longest + 1u), L'~');
-    std::wstring opening = fence;
+    std::wstring opening = containerPrefix;
+    opening += fence;
     opening += request.text;
     opening += Eol(firstLine);
     std::wstring closing(0u, L' ');
     if (lastLine.end == lastLine.bodyEnd)
         closing += Eol(lastLine);
+    closing += containerPrefix;
     closing += fence;
     if (lastLine.end != lastLine.bodyEnd)
         closing += Eol(lastLine);

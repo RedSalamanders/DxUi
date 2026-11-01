@@ -1263,9 +1263,10 @@ lines with representable container prefixes. A mixed toggle quotes the
 unquoted lines while preserving existing quotes, including parsed empty-line
 trivia with representable prefixes. It declines lazy missing prefixes and
 selections containing unsupported blocks rather than partially rewriting them.
-SetCodeBlock wraps supported top-level paragraph lines in a tilde fence longer
-than any contained run, or unwraps a closed top-level or quote-contained fence. SetCodeLanguage
-replaces a current fence info string, including one in a list or quote. Nested container conversion and
+SetCodeBlock wraps supported top-level paragraph lines or a quote-contained
+paragraph with a consistent physical prefix in a tilde fence longer than any
+contained run, or unwraps a closed top-level or quote-contained fence. SetCodeLanguage
+replaces a current fence info string, including one in a list or quote. List-container conversion and
 unclosed-fence unwrapping are unavailable pending their source-prefix policy.
 Ctrl+Enter in a top-level fenced block exits to an empty following source line;
 an unclosed block receives its matching closing fence first, in one undo step.
