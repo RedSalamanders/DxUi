@@ -246,6 +246,61 @@ void TestRichMathPreparedStyleSpacingScriptsAndLimits()
     }
     else
         Require(! isolatedFence->StrokeLayouts().empty(), "a font without an adequate variant retains the vector fallback");
+    std::wstring tallFenceSource = L"\\left(\\begin{gathered}";
+    for (unsigned row = 0u; row < 16u; ++row)
+    {
+        if (row)
+            tallFenceSource += L"\\\\";
+        tallFenceSource += L'x';
+    }
+    tallFenceSource += L"\\end{gathered}\\right)";
+    const auto tallFence = prepare(tallFenceSource.c_str());
+    const auto tallSize  = tallFence->Size();
+    for (const auto& part : tallFence->VariantLayouts())
+        Require(part.left >= -.01f && part.top >= -.01f && part.left + part.width <= tallSize.width + .01f && part.top + part.height <= tallSize.height + .01f,
+                "every font assembly part stays inside the complete formula bounds");
+    if (tallFence->VariantLayouts().size() > 2u && tallSize.width < 200.f && tallSize.height < 780.f)
+    {
+        wil::com_ptr<IWICImagingFactory> imaging;
+        THROW_IF_FAILED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(imaging.put())));
+        wil::com_ptr<IWICBitmap> bitmap;
+        THROW_IF_FAILED(imaging->CreateBitmap(256u, 800u, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnLoad, bitmap.put()));
+        const auto drawing = PreparedFlowchartTests::DrawingFactory();
+        wil::com_ptr<ID2D1RenderTarget> target;
+        const auto properties =
+            D2D1::RenderTargetProperties(D2D1_RENDER_TARGET_TYPE_SOFTWARE, D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
+        THROW_IF_FAILED(drawing->CreateWicBitmapRenderTarget(bitmap.get(), properties, target.put()));
+        wil::com_ptr<ID2D1SolidColorBrush> brush;
+        THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(1.f, 1.f, 1.f, 1.f), brush.put()));
+        target->BeginDraw();
+        target->Clear(D2D1::ColorF(0.f, 0.f, 0.f, 0.f));
+        tallFence->Draw(target.get(), brush.get(), D2D1::Point2F(8.f, 8.f), 1.f);
+        THROW_IF_FAILED(target->EndDraw());
+        std::vector<BYTE> pixels(256u * 800u * 4u);
+        THROW_IF_FAILED(bitmap->CopyPixels(nullptr, 256u * 4u, static_cast<UINT>(pixels.size()), pixels.data()));
+        unsigned inkRows{}, gap{}, maxGap{};
+        const auto right = static_cast<unsigned>(8.f + tallSize.width * .35f);
+        for (unsigned y = 25u; y < static_cast<unsigned>(tallSize.height) - 10u; ++y)
+        {
+            bool hit{};
+            for (unsigned x = 8u; x < right; ++x)
+                hit = hit || pixels[(static_cast<std::size_t>(y) * 256u + x) * 4u + 3u] != 0u;
+            if (hit)
+            {
+                ++inkRows;
+                gap = 0u;
+            }
+            else
+                maxGap = std::max(maxGap, ++gap);
+        }
+        Require(inkRows > 200u && maxGap <= 4u, "assembled delimiter extenders join without visible gaps in offscreen raster output");
+    }
+    std::wstring manyFences(0u, L' ');
+    for (unsigned index = 0u; index < 14u; ++index)
+        manyFences += tallFenceSource;
+    const auto boundedFences = prepare(manyFences);
+    Require(boundedFences->VariantLayouts().size() <= 512u,
+            "many oversized delimiters obey the per-formula assembly-part budget and use vector fallback when exhausted");
     const auto displayFraction = prepare(L"\\dfrac{x}{y}"), textFraction = prepare(L"\\tfrac{x}{y}");
     Require(displayFraction->GlyphLayouts().size() == 2u && textFraction->GlyphLayouts().size() == 2u &&
                 displayFraction->GlyphLayouts()[0u].font > textFraction->GlyphLayouts()[0u].font &&

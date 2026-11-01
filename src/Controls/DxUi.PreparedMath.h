@@ -811,12 +811,70 @@ class PreparedMath final
     {
         lines.push_back({{x1, y1}, {x2, y2}, thickness});
     }
+    bool AddVerticalAssembly(
+        const MathFontTable& table, std::size_t construction, std::uint32_t minimum, float x, float top, float bottom, float width, float size)
+    {
+        const auto plan                                      = table.VerticalAssemblyAt(construction, minimum);
+        constexpr std::size_t MaximumAssemblyPartsPerFormula = 512u;
+        if (! plan || plan->count == 0u || variants.size() >= MaximumAssemblyPartsPerFormula || plan->count > MaximumAssemblyPartsPerFormula - variants.size())
+            return false;
+        const float units = size / static_cast<float>(mathData->designUnits);
+        std::array<DWRITE_GLYPH_METRICS, 64u> metrics{};
+        float left = (std::numeric_limits<float>::max)(), right = -(std::numeric_limits<float>::max)();
+        for (std::size_t index = 0u; index < plan->count; ++index)
+        {
+            const auto glyph = plan->placements[index].part.glyph;
+            if (glyph >= mathData->face->GetGlyphCount())
+                return false;
+            std::size_t previous{};
+            while (previous < index && plan->placements[previous].part.glyph != glyph)
+                ++previous;
+            if (previous < index)
+                metrics[index] = metrics[previous];
+            else if (FAILED(mathData->face->GetDesignGlyphMetrics(&glyph, 1u, &metrics[index], FALSE)))
+                return false;
+            left  = std::min(left, static_cast<float>(metrics[index].leftSideBearing) * units);
+            right = std::max(right, (static_cast<float>(metrics[index].advanceWidth) - static_cast<float>(metrics[index].rightSideBearing)) * units);
+        }
+        const auto inkWidth = right - left;
+        if (! std::isfinite(inkWidth) || inkWidth <= 0.f)
+            return false;
+        const auto scaleX         = (std::min)(1.f, width / inkWidth);
+        const auto originX        = x + (width - inkWidth * scaleX) / 2.f - left * scaleX;
+        const auto assemblyHeight = static_cast<float>(plan->advance) * units;
+        const auto assemblyBottom = (top + bottom + assemblyHeight) / 2.f;
+        std::array<VariantGlyph, 64u> staged{};
+        for (std::size_t index = 0u; index < plan->count; ++index)
+        {
+            const auto& part    = plan->placements[index];
+            const auto& metric  = metrics[index];
+            const auto inkUnits = static_cast<std::int64_t>(metric.advanceHeight) - metric.topSideBearing - metric.bottomSideBearing;
+            if (std::abs(inkUnits - static_cast<std::int64_t>(part.part.advance)) > 2)
+                return false; // Unknown part origin convention: retain the vector fallback.
+            const auto partTop = assemblyBottom - static_cast<float>(part.offset + part.part.advance) * units;
+            // For the admitted ink-aligned subset, MATH fullAdvance covers
+            // the part ink; DirectWrite's vertical origin includes its top bearing.
+            const auto baseline = partTop + (static_cast<float>(metric.verticalOriginY) - static_cast<float>(metric.topSideBearing)) * units;
+            const auto inkLeft  = originX + static_cast<float>(metric.leftSideBearing) * units * scaleX;
+            const auto partWidth =
+                (static_cast<float>(metric.advanceWidth) - static_cast<float>(metric.leftSideBearing) - static_cast<float>(metric.rightSideBearing)) * units *
+                scaleX;
+            const auto inkTop = baseline + (static_cast<float>(metric.topSideBearing) - static_cast<float>(metric.verticalOriginY)) * units;
+            const auto inkHeight =
+                (static_cast<float>(metric.advanceHeight) - static_cast<float>(metric.topSideBearing) - static_cast<float>(metric.bottomSideBearing)) * units;
+            if (! std::isfinite(originX + baseline + inkLeft + partWidth + inkTop + inkHeight) || partWidth < 0.f || inkHeight < 0.f || inkHeight > 65536.f)
+                return false;
+            staged[index] = {part.part.glyph, originX, baseline, size, scaleX, inkLeft, inkTop, partWidth, inkHeight};
+        }
+        variants.insert(variants.end(), staged.begin(), staged.begin() + static_cast<std::ptrdiff_t>(plan->count));
+        return true;
+    }
     bool AddVerticalVariant(wchar_t shape, float x, float top, float bottom, float width, float size)
     {
         if (! mathData || width <= 0.f || size <= 0.f || bottom <= top)
             return false;
         const auto required = (bottom - top) * static_cast<float>(mathData->designUnits) / size;
-        if (! std::isfinite(required) || required <= 0.f || required > 65535.f)
+        if (! std::isfinite(required) || required <= 0.f || required > static_cast<float>((std::numeric_limits<std::uint32_t>::max)() / 2u))
             return false;
         const std::uint32_t scalar = static_cast<std::uint16_t>(shape);
         UINT16 baseGlyph{};
@@ -825,9 +883,10 @@ class PreparedMath final
         if (baseGlyph >= mathData->constructions.size() || mathData->constructions[baseGlyph] == 0u)
             return false;
         const MathFontTable table(mathData->table);
-        const auto choice = table.VerticalVariantAt(mathData->constructions[baseGlyph], static_cast<std::uint16_t>(std::ceil(required)));
+        const auto minimum = static_cast<std::uint32_t>(std::ceil(required));
+        const auto choice = minimum <= 65535u ? table.VerticalVariantAt(mathData->constructions[baseGlyph], static_cast<std::uint16_t>(minimum)) : std::nullopt;
         if (! choice)
-            return false;
+            return AddVerticalAssembly(table, mathData->constructions[baseGlyph], minimum, x, top, bottom, width, size);
         const auto glyph = choice.value().glyph;
         DWRITE_GLYPH_METRICS metrics{};
         if (FAILED(mathData->face->GetDesignGlyphMetrics(&glyph, 1u, &metrics, FALSE)))
