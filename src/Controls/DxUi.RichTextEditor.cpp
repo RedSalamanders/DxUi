@@ -1645,7 +1645,7 @@ bool RichTextEditor::ApplySourceEdits(const RichText::SourceSnapshot& expectedSo
 }
 void RichTextEditor::SetSearchQuery(std::wstring_view query, RichText::SourceSearchOptions options)
 {
-    if (query.size() > RichText::Document::MaximumUnits || ! RichText::IsValidUtf16(query))
+    if (query.size() > RichText::Document::MaximumUnits || ! RichText::IsValidSourceUtf16(query))
         throw std::invalid_argument("Invalid search query");
     std::wstring staged(query);
     _state->searchQuery.swap(staged);
