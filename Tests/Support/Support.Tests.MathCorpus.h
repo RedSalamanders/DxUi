@@ -322,11 +322,11 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
                 for (const auto source : {L"H^x", L".^x"})
                 {
                     auto expression = std::make_shared<const MathExpression>(ParseMath(source));
-                    Detail::PreparedMath prepared(factory, expression, 24.f);
-                    while (! prepared.Advance())
+                    Detail::PreparedMath scriptInkProbe(factory, expression, 24.f);
+                    while (! scriptInkProbe.Advance())
                     {
                     }
-                    const auto& glyphs = prepared.GlyphLayouts();
+                    const auto& glyphs = scriptInkProbe.GlyphLayouts();
                     check(glyphs.size() == 2u, "SDK shift fixture shapes a base and superscript");
                     if (glyphs.size() != 2u || ! minShift)
                         continue;

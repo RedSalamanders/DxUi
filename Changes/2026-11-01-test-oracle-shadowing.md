@@ -1,0 +1,1 @@
+- Remove shadowed local names from the image-caption and mathematical ink test oracles to keep every native profile warning-free.

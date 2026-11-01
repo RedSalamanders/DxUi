@@ -346,11 +346,11 @@ inline void AuthoredImagePresentation()
     }
     for (const auto caption : {L"A *styled* text", L"[see](url)"})
     {
-        const std::wstring input  = L"![map](map.png){caption=\"" + std::wstring(caption) + L"\"}\n";
-        const auto literalCaption = Build(input, MarkdownProfile::RichMarkdown);
-        const auto captionAt      = literalCaption->Map().Display().find(caption);
+        const std::wstring input    = L"![map](map.png){caption=\"" + std::wstring(caption) + L"\"}\n";
+        const auto literalCaption   = Build(input, MarkdownProfile::RichMarkdown);
+        const auto literalCaptionAt = literalCaption->Map().Display().find(caption);
         CheckGraph(*literalCaption);
-        Check(captionAt != std::wstring_view::npos && literalCaption->Map().ToSource(captionAt) == input.find(caption) &&
+        Check(literalCaptionAt != std::wstring_view::npos && literalCaption->Map().ToSource(literalCaptionAt) == input.find(caption) &&
                   std::ranges::count(literalCaption->Elements(), SemanticRole::Image, &SemanticElement::role) == 1u &&
                   std::ranges::none_of(literalCaption->Elements(), [](const auto& item) { return item.role == SemanticRole::Link; }),
               "quoted caption punctuation remains literal and maps to its original source");
