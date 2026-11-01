@@ -306,6 +306,10 @@ inline void ListsAndHeadings()
         Exact(L"a\n\nb\n", {0u, 4u}, request, L"> a\n> \n> b\n", std::nullopt, profile);
         Exact(L"~~~\nx\n~~~\n", {4u, 4u}, request, L"> ~~~\n> x\n> ~~~\n", std::nullopt, profile);
         Exact(L"> ~~~\n> x\n> ~~~\n", {8u, 8u}, request, L"~~~\nx\n~~~\n", std::nullopt, profile);
+        Exact(L"<div>\nx\n</div>\n", {5u, 5u}, request, L"> <div>\n> x\n> </div>\n", std::nullopt, profile);
+        Exact(L"---\n", {1u, 1u}, request, L"> ---\n", std::nullopt, profile);
+        if (profile != MarkdownProfile::CommonMark0312)
+            Exact(L"a | b\n- | -\nx | y\n", {2u, 2u}, request, L"> a | b\n> - | -\n> x | y\n", std::nullopt, profile);
         request.command = MarkdownCommand::SetCodeBlock;
         request.text    = L"cpp";
         Exact(L"hello\n", {0u, 5u}, request, L"~~~cpp\nhello\n~~~\n", std::nullopt, profile);

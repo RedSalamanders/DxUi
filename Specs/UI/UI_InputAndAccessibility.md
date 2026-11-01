@@ -1289,8 +1289,8 @@ lines with representable container prefixes. A mixed toggle quotes the
 unquoted lines while preserving existing quotes, including parsed empty-line
 trivia with representable prefixes. It declines lazy missing prefixes and
 selections containing unsupported blocks rather than partially rewriting them.
-An intersected fenced code block is quoted or unquoted as a whole, preserving
-its fence and body lines.
+An intersected code block, HTML block, table, thematic rule or reference
+definition is quoted or unquoted as a whole, preserving its physical lines.
 SetCodeBlock wraps supported top-level paragraph lines or a container-owned
 paragraph with representable physical prefixes in a tilde fence longer than any
 contained run, or unwraps a top-level or representable container fence, whether
