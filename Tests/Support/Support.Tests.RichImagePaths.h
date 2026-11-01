@@ -197,6 +197,33 @@ template <typename Prepare, typename Check> inline void RetainedFileReferences(D
               replacement ==
                   L"\"C\\:\\\\docs\\\\media\\\\a\\.png\"\r\n\"C\\:\\\\docs\\\\files\\\\report\\.pdf\"\r\n\"D\\:\\\\other\\.txt\"\r\n\"relative\\.txt\"",
           "an unrepresentable structured path preserves the entire displayed list as escaped literal text");
+    std::wstring deepPath    = L"C:";
+    std::wstring deepLiteral = L"\"C\\:";
+    for (std::size_t i = 0u; i < 512u; ++i)
+    {
+        deepPath.append(L"\\a");
+        deepLiteral.append(L"\\\\a");
+    }
+    check(Detail::BuildMarkdownFileReference(L"C:\\docs\\note.md", deepPath).has_value(), "512-component file reference remains representable");
+    deepPath.append(L"\\file.png");
+    deepLiteral.append(L"\\\\file\\.png\"");
+    check(! Detail::BuildMarkdownFileReference(L"C:\\docs\\note.md", deepPath), "over-deep file reference is unrepresentable");
+    content.filePaths        = {L"C:\\docs\\a.png", deepPath};
+    replacement              = L"sentinel";
+    const auto deepRevision  = editor.Revision();
+    const auto deepSelection = editor.GetSelection();
+    check(editor.TryPrepareClipboardPaste(content, replacement) && replacement == L"\"C\\:\\\\docs\\\\a\\.png\"\r\n" + deepLiteral &&
+              editor.GetText() == L"ok" && editor.Revision() == deepRevision && editor.GetSelection() == deepSelection && ! editor.CanUndo(),
+          "an over-deep structured path preserves every path literally without changing source or history");
+    check(editor.ReplaceSelection(replacement) && editor.CanUndo() && editor.Undo() && editor.GetText() == L"ok",
+          "the literal deep-path list commits as one undoable edit");
+    editor.SetText(L"ok");
+    editor.SetSelection({2u, 2u});
+    prepare();
+    content.filePaths = {deepPath + L"\"bad"};
+    replacement       = L"sentinel";
+    check(! editor.TryPrepareClipboardPaste(content, replacement) && replacement == L"sentinel" && editor.GetText() == L"ok" && ! editor.CanUndo(),
+          "invalid over-deep paths still decline atomically");
     content.filePaths = {L"\\\\?\\C:\\docs\\a.png"};
     check(editor.TryPrepareClipboardPaste(content, replacement) && replacement == L"![a](a.png)",
           "structured paste preserves supported extended-length Windows paths");

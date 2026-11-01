@@ -483,8 +483,16 @@ inline std::optional<std::wstring> BuildMarkdownFileReference(std::wstring_view 
     if (clipboard.size() > 1u && clipboard.front() == L'"' && clipboard.back() == L'"')
         clipboard = clipboard.substr(1u, clipboard.size() - 2u);
     ParsedLocalFilePath file;
-    if (! ParseLocalFilePath(clipboard, file))
+    try
+    {
+        if (! ParseLocalFilePath(clipboard, file))
+            return std::nullopt;
+    }
+    catch (const std::length_error&)
+    {
+        // Preserve an over-deep structured clipboard path as literal source.
         return std::nullopt;
+    }
     const bool image = HasImageFileExtension(file);
     std::wstring destination(0u, L' '), raw(0u, L' ');
     bool relative{};

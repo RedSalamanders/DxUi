@@ -1053,7 +1053,9 @@ paragraph separators; list and quote continuations retain their containing prefi
 and a table cell uses a single space so no row or table is split. Ambiguous or
 cross-container source selections MUST refuse rather than alter surrounding structure.
 Image descriptions use the filename stem; text link
-labels retain the complete filename. If any structured path is unrepresentable,
+labels retain the complete filename. A path exceeding the 512-component lexical
+reference budget is unrepresentable, even when it fits the clipboard size limit.
+If any structured path is unrepresentable,
 the complete original list MUST remain quoted literal text; Rich-mode source escapes
 Markdown punctuation while opaque/Source mode retains raw spelling. One paste MUST record one transaction
 and preserve exact undo/redo and backward selections. Path construction is

@@ -3433,6 +3433,49 @@ static void TestEmbeddedFileReferencePaste(GraphicsFixture& gpu)
         Check(editor->TryPrepareClipboardPaste(content, replacement) && replacement == expected, "mixed paste retries every allocation failure exactly");
     }
     std::cout << "mixed file paste allocation points=" << requests << '\n';
+    std::wstring deepPath = L"C:";
+    for (std::size_t i = 0u; i < 513u; ++i)
+        deepPath.append(L"\\a");
+    content.filePaths = {L"C:\\docs\\a.png", deepPath};
+    expected.clear();
+    {
+        const bool oldCounting = countAllocations;
+        const auto oldCalls = allocations, oldBytes = allocationBytes;
+        const auto restore = wil::scope_exit([=] noexcept
+        {
+            countAllocations = oldCounting;
+            allocations      = oldCalls;
+            allocationBytes  = oldBytes;
+        });
+        allocations = allocationBytes = 0u;
+        countAllocations              = true;
+        const bool transformed        = editor->TryPrepareClipboardPaste(content, expected);
+        countAllocations              = false;
+        requests                      = allocations;
+        Check(transformed && requests > 0u && requests < 512u, "deep literal paste has an observed bounded allocation schedule");
+    }
+    for (std::size_t point = 0u; point < requests; ++point)
+    {
+        std::wstring replacement = L"sentinel";
+        bool rejected{};
+        {
+            const auto oldFailure = failAllocationAfter;
+            const auto restore    = wil::scope_exit([=] noexcept { failAllocationAfter = oldFailure; });
+            failAllocationAfter   = point;
+            try
+            {
+                static_cast<void>(editor->TryPrepareClipboardPaste(content, replacement));
+            }
+            catch (const std::bad_alloc&)
+            {
+                rejected = true;
+            }
+        }
+        Check(rejected && replacement == L"sentinel" && editor->GetText() == source && editor->Revision() == revision && editor->GetSelection() == selection &&
+                  ! editor->CanUndo(),
+              "failed deep literal paste leaves caller output, source, selection and history exact");
+        Check(editor->TryPrepareClipboardPaste(content, replacement) && replacement == expected, "deep literal paste retries every allocation failure exactly");
+    }
     BITMAPV5HEADER header{};
     header.bV5Size        = sizeof(header);
     header.bV5Width       = 2;
