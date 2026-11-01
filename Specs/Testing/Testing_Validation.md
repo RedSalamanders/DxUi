@@ -1193,3 +1193,5 @@ The modal timer-ID collision fixture establishes on-screen owner geometry and ve
 Sent-cancellation menu fixtures pump activation delivery and discard preceding queued mouse input before each popup, then require the owner to remain foreground and focused. Missing popups remain failures, with terminal owner diagnostics; the four sent messages and their existing bounds are unchanged.
 
 PrePush validates changelog state for the candidate commit. Uncommitted, staged or untracked `CHANGELOG.md` or `Changes/` inputs are refused until committed or restored; other dirty source inputs retain their local testing obligations. Explain remains read-only and does not claim a passed gate.
+
+The tooling roster resets the native exit status before each script, reports both nonzero status and thrown failures, and still runs its remaining scripts. A changelog fold reports each skipped duplicate fragment name while retaining retry idempotence.

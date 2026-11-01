@@ -6,7 +6,7 @@ Validates all input before writing, folds newest filenames first under Unrelease
 then removes only folded files. Preserves UTF-8 BOM and changelog line endings.
 Fragments are folded on the default branch after merge, normally by Tools/Submit-ChangelogFold.ps1;
 a feature change keeps its fragment. An interrupted cleanup can be retried without duplicating
-already published entries.
+already published entries; skipped fragment names are reported as warnings.
 .PARAMETER Root
 Repository root; defaults to the repository containing this command.
 .PARAMETER Check

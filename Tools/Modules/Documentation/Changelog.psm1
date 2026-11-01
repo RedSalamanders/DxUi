@@ -232,7 +232,7 @@ function Get-ChangelogFoldProblems([Parameter(Mandatory)][string] $Root, [Parame
     return , $problems.ToArray()
 }
 
-function Merge-ChangelogFragments([Parameter(Mandatory)][string] $Changelog, [object[]] $Fragments) {
+function Merge-ChangelogFragments([Parameter(Mandatory)][string] $Changelog, [object[]] $Fragments, [switch] $ReportSkipped) {
     # The changelog with the fragments' entries first under its Unreleased heading, in the order given, in the
     # changelog's own line endings.
     $heading = [regex]::Match($Changelog, $script:UnreleasedHeadingPattern)
@@ -249,6 +249,7 @@ function Merge-ChangelogFragments([Parameter(Mandatory)][string] $Changelog, [ob
         $normalized = $fragment.Text.Trim() -replace '\r\n', "`n"
         # Retry after publication but before cleanup must not duplicate the published entry.
         if ($seen.Add($normalized)) { ($normalized -replace "`n", $newline) + $newline }
+        elseif ($ReportSkipped) { Write-Warning -WarningAction Continue "Changelog entry already present; skipping Changes/$($fragment.Name)." }
     }
     $separator = if ($at -gt 0 -and $Changelog[$at - 1] -ne "`n") { $newline + $newline } else { '' }
     return $Changelog.Substring(0, $at) + $separator + ($entries -join '') + $Changelog.Substring($at)
@@ -280,7 +281,7 @@ function Invoke-ChangelogFold([Parameter(Mandatory)][string] $Root) {
         $original = Read-ChangelogText $changelog
         $bytes = [IO.File]::ReadAllBytes($changelog)
         $bom = $bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF
-        $merged = Merge-ChangelogFragments $original $fragments
+        $merged = Merge-ChangelogFragments $original $fragments -ReportSkipped
         $stage = Join-Path $Root ('.changelog-' + [guid]::NewGuid().ToString('N') + '.tmp')
         Assert-ChangelogPath $stage $Root
         Write-ChangelogStage $stage $merged $bom

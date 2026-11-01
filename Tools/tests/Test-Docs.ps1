@@ -317,6 +317,31 @@ Invoke-TestCase 'merging keeps the changelog''s own line endings' {
     Assert-Throws { Merge-ChangelogFragments "# Changelog`n" $fragments } 'a changelog without the heading is refused'
 }
 
+Invoke-FixtureCase 'fold reports the other author when two fragments have identical notes' {
+    param($root)
+    Set-ChangelogFixture $root
+    Set-FixtureFile $root 'Changes/2026-11-01-a.md' "- Same note.`n"
+    Set-FixtureFile $root 'Changes/2026-11-01-b.md' "- Same note.`n"
+    $warnings = @()
+    & $foldChangelog -Root $root -WarningVariable warnings 6>$null
+    $content = [IO.File]::ReadAllText((Join-Path $root 'CHANGELOG.md'))
+    Assert-Equal 1 ([regex]::Matches($content, '(?m)^- Same note\.$').Count) 'fold publishes one note'
+    Assert-True (($warnings | Out-String) -match '2026-11-01-a\.md') 'fold warns about the skipped author fragment'
+    Assert-Equal 1 @(Get-ChildItem -LiteralPath (Join-Path $root 'Changes') -File).Count 'both processed fragments removed'
+}
+Invoke-TestCase 'duplicate fragment text is idempotent and identifies each skipped author' {
+    $fragments = @(
+        [pscustomobject]@{ Name = '2026-11-01-b.md'; Text = "- Shared.`n" },
+        [pscustomobject]@{ Name = '2026-11-01-a.md'; Text = "- Shared.`n" },
+        [pscustomobject]@{ Name = '2026-11-01-retry.md'; Text = "- Existing.`n" }
+    )
+    $warnings = @()
+    $merged = Merge-ChangelogFragments "# Changelog`n`n## Unreleased`n`n- Existing.`n" $fragments -ReportSkipped -WarningVariable warnings
+    Assert-Equal 1 ([regex]::Matches($merged, '(?m)^- Shared\.$').Count) 'same text is folded once'
+    Assert-Equal 1 ([regex]::Matches($merged, '(?m)^- Existing\.$').Count) 'published retry is not duplicated'
+    Assert-Equal 2 $warnings.Count 'both skipped fragment names are reported'
+    Assert-True (($warnings | Out-String) -match '2026-11-01-a\.md' -and ($warnings | Out-String) -match '2026-11-01-retry\.md') 'distinct author and retry names are reported'
+}
 # --- Publishing docs/gallery from a manual workflow ------------------------------------------------------------------------
 
 $repository = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
