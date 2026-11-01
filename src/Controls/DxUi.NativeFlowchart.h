@@ -48,6 +48,12 @@ enum class FlowchartShape
     Subroutine,
     DoubleCircle,
     Cylinder,
+    Asymmetric,
+    Parallelogram,
+    ReverseParallelogram,
+    Trapezoid,
+    ReverseTrapezoid,
+    Ellipse,
     Note
 };
 enum class FlowchartRelation

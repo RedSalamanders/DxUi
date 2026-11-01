@@ -242,7 +242,7 @@ using an explicit document location:
 
 The native extension engine choice is C++ only. `DxUiNativeFlowchart1` currently
 has an internal CPU parser with focused Debug checks for rectangles, rounded nodes, circles,
-diamonds, double circles, cylinders, stadiums, hexagons and subroutines, four directions and bounded solid, dotted, thick and invisible edge chains. Bounded state, class, sequence, pie, ER, Gantt and mind map profiles are also available; other Mermaid families,
+diamonds, double circles, cylinders, stadiums, hexagons, subroutines, asymmetric and slanted polygons, and ellipses, with four directions and bounded solid, dotted, thick and invisible edge chains. Bounded state, class, sequence, pie, ER, Gantt and mind map profiles are also available; other Mermaid families,
 other expanded shapes/edges, advanced subgraph forms, additional styling, icons and executable directives remain
 unsupported. The pinned original corpus distinguishes accepted graphs from
 rejected definitions. Source-independent cooperative CPU geometry passes focused

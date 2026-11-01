@@ -728,6 +728,60 @@ template <typename Check> inline void GroupRaster(Check&& check)
     check(! rejected.Ready() && rejected.Geometry() && rejected.Geometry()->issue == FlowchartLayoutIssue::DiagramExtent && rejected.Geometry()->groups.empty(),
           "overlapping unrelated groups fail without publishing partial geometry");
 }
+template <typename Check> inline void LegacyPolygonRaster(Check&& check)
+{
+    const auto initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+    if (FAILED(initialized) && initialized != RPC_E_CHANGED_MODE) THROW_IF_FAILED(initialized);
+    const auto apartment = wil::scope_exit([&]() noexcept { if (SUCCEEDED(initialized)) CoUninitialize(); });
+    struct Case { std::wstring_view source; FlowchartShape shape; bool topLeft, bottomLeft, topRight; };
+    constexpr std::array cases{
+        Case{L"flowchart TD\nA>flag]\n", FlowchartShape::Asymmetric, true, true, false},
+        Case{L"flowchart TD\nA[/forward/]\n", FlowchartShape::Parallelogram, false, true, true},
+        Case{L"flowchart TD\nA[\\reverse\\]\n", FlowchartShape::ReverseParallelogram, true, false, false},
+        Case{L"flowchart TD\nA[/up\\]\n", FlowchartShape::Trapezoid, false, true, false},
+        Case{L"flowchart TD\nA[\\down/]\n", FlowchartShape::ReverseTrapezoid, true, false, true},
+        Case{L"flowchart TD\nA(-oval-)\n", FlowchartShape::Ellipse, false, false, false}};
+    const auto write = WriteFactory();
+    const auto drawing = DrawingFactory();
+    wil::com_ptr<IWICImagingFactory> imaging;
+    THROW_IF_FAILED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(imaging.put())));
+    constexpr UINT width = 256u, height = 256u, stride = width * 4u;
+    for (const auto& item : cases)
+    {
+        const auto graph = FlowchartLayoutTests::Graph(item.source);
+        check(graph->outcome == FlowchartOutcome::Prepared && graph->nodes.size() == 1u && graph->nodes[0u].shape == item.shape,
+              "legacy shape parser retains the independently specified shape");
+        if (graph->outcome != FlowchartOutcome::Prepared || graph->nodes.size() != 1u) return;
+        PreparedFlowchart prepared;
+        prepared.Begin(write.get(), drawing.get(), graph, {}, {1u, 1u});
+        Complete(prepared, check);
+        wil::com_ptr<IWICBitmap> bitmap;
+        THROW_IF_FAILED(imaging->CreateBitmap(width, height, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnLoad, bitmap.put()));
+        wil::com_ptr<ID2D1RenderTarget> target;
+        const auto properties = D2D1::RenderTargetProperties(D2D1_RENDER_TARGET_TYPE_SOFTWARE,
+                                                               D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
+        THROW_IF_FAILED(drawing->CreateWicBitmapRenderTarget(bitmap.get(), properties, target.put()));
+        wil::com_ptr<ID2D1SolidColorBrush> text, stroke, fill;
+        THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black), text.put()));
+        THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Blue), stroke.put()));
+        THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Red), fill.put()));
+        target->BeginDraw(); target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+        check(prepared.Draw(target.get(), text.get(), stroke.get(), fill.get(), {}), "legacy shape paints on the borrowed target");
+        THROW_IF_FAILED(target->EndDraw());
+        std::vector<BYTE> pixels(stride * height);
+        THROW_IF_FAILED(bitmap->CopyPixels(nullptr, stride, static_cast<UINT>(pixels.size()), pixels.data()));
+        const auto rect = prepared.Geometry()->nodes[0u].bounds;
+        const auto red = [&](double x, double y)
+        {
+            const auto px = static_cast<std::size_t>(rect.x + x * rect.width), py = static_cast<std::size_t>(rect.y + y * rect.height);
+            if (px >= width || py >= height) return false;
+            const auto offset = py * stride + px * 4u;
+            return pixels[offset] < 100u && pixels[offset + 1u] < 100u && pixels[offset + 2u] > 150u;
+        };
+        check(red(.1, .1) == item.topLeft && red(.1, .9) == item.bottomLeft && red(.9, .1) == item.topRight,
+              "legacy shape has its independently specified painted silhouette");
+    }
+}
 template <typename Check> inline void ExpandedShapeRaster(Check&& check)
 {
     const auto initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);

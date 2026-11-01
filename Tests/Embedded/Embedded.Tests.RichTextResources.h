@@ -1380,7 +1380,8 @@ static void TestPreparedFlowchartAllocationFailures(bool trace = false)
                               L"pie\n\"Dogs\": 3\n\"Cats\": 2\n\"Birds\": 1\n",
                               L"erDiagram\nCUSTOMER ||--o{ ORDER : places\nORDER ||--|{ ITEM : contains\n",
                               L"gantt\ntitle Release\nCompile : 2024-02-27, 3d\nTest : 2024-03-01, 2d\n",
-                              L"mindmap\n root\n  First\n   Leaf\n  Second\n"})
+                              L"mindmap\n root\n  First\n   Leaf\n  Second\n",
+                              L"flowchart LR\nA[/input/] --> B[(store)] --> C(((finish)))\n"})
     {
         const auto graph = FlowchartLayoutTests::Graph(source);
         LayoutOptions options;
@@ -1436,7 +1437,7 @@ static void TestPreparedFlowchartAllocationFailures(bool trace = false)
         }
     });
     Check(! drawAllocated, "actual borrowed-target native drawing creates zero tracked C++ allocations");
-    std::cout << "native paint C++ failure scenarios=7 sweptRequests=" << total << " retirementAllocations=0 drawAllocations=0\n";
+    std::cout << "native paint C++ failure scenarios=8 sweptRequests=" << total << " retirementAllocations=0 drawAllocations=0\n";
 }
 static void TestNativeFlowchartLayoutAllocationFailureAtomicity(bool trace = false)
 {

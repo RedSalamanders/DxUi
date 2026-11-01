@@ -436,7 +436,7 @@ template <typename Check> inline void CheckOriginalCorpus(Check&& check)
                       result->diagnostic.source.first < result->diagnostic.source.last && result->diagnostic.source.last <= result->source.size(),
                   "unsupported original family examples retain their independently classified diagnostic and exact source fallback");
     }
-    check(prepared == 34u && unsupported == 71u && std::size(NativeFlowchartCorpus::familyExamples) == 20u,
+    check(prepared == 39u && unsupported == 66u && std::size(NativeFlowchartCorpus::familyExamples) == 20u,
           "Mermaid corpus has no omitted examples/families and separates graph preparation from rejection");
     CheckFamilyGrammar(check);
     CheckFanout(check);
@@ -482,6 +482,12 @@ inline wchar_t ShapeCode(FlowchartShape shape) noexcept
         case FlowchartShape::Subroutine: return L'U';
         case FlowchartShape::DoubleCircle: return L'2';
         case FlowchartShape::Cylinder: return L'Y';
+        case FlowchartShape::Asymmetric: return L'A';
+        case FlowchartShape::Parallelogram: return L'P';
+        case FlowchartShape::ReverseParallelogram: return L'Q';
+        case FlowchartShape::Trapezoid: return L'T';
+        case FlowchartShape::ReverseTrapezoid: return L'V';
+        case FlowchartShape::Ellipse: return L'E';
         case FlowchartShape::Note: return L'N';
     }
     return L'?';
@@ -556,7 +562,7 @@ inline constexpr FamilyGrammarExpectation familyGrammarExpectations[] = {
     {L"flowchart LR\nid1([This is the text in the box])\n", FlowchartOutcome::Prepared, FlowchartIssue::None, L"F|L|id1=This is the text in the box:S;|"},
     {L"flowchart TD\nA[path\\next]\n", FlowchartOutcome::Prepared, FlowchartIssue::None, L"F|T|A=path\\next:R;|"},
     {L"flowchart TD\nA[\"path\\nnext\"]\n", FlowchartOutcome::Prepared, FlowchartIssue::None, L"F|T|A=path\nnext:R;|"},
-    {L"flowchart TD\nA(-x-)\n", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedShape, {}},
+    {L"flowchart TD\nA(-x-)\n", FlowchartOutcome::Prepared, FlowchartIssue::None, L"F|T|A=x:E;|"},
     {L"flowchart TD\nA[|field:value|text]\n", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedShape, {}},
     {L"flowchart TD\nA(\"-x-\")\n", FlowchartOutcome::Prepared, FlowchartIssue::None, L"F|T|A=-x-:O;|"},
     {L"flowchart TD\nA[\"|field:value|text\"]\n", FlowchartOutcome::Prepared, FlowchartIssue::None, L"F|T|A=|field:value|text:R;|"},

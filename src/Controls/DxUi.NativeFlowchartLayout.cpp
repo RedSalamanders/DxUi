@@ -269,6 +269,14 @@ struct NativeFlowchartLayout::Preparation
         }
         else if (shape == FlowchartShape::Hexagon)
             width *= 2.0; // The centered label fits inside the straight middle half.
+        else if (shape == FlowchartShape::Asymmetric || shape == FlowchartShape::Parallelogram || shape == FlowchartShape::ReverseParallelogram ||
+                 shape == FlowchartShape::Trapezoid || shape == FlowchartShape::ReverseTrapezoid)
+            width *= 2.0; // The label stays within every slanted edge's central band.
+        else if (shape == FlowchartShape::Ellipse)
+        {
+            width *= 1.5;
+            height *= 1.5;
+        }
         else if (shape == FlowchartShape::Subroutine)
             width = std::max(width, nodeLabels[index].width + 40.0);
         else if (shape == FlowchartShape::Cylinder)
@@ -966,6 +974,23 @@ struct NativeFlowchartLayout::Preparation
             if (edge.relation == FlowchartRelation::Aggregation || edge.relation == FlowchartRelation::Composition)
                 Include(point);
         }
+        if (horizontal)
+        {
+            const auto& sourceEdge = graph->edges[cursor - 1u];
+            const auto inset = [&](std::size_t nodeIndex, FlowchartPoint point)
+            {
+                const auto& node = plan->nodes[nodeIndex];
+                if (node.shape < FlowchartShape::Parallelogram || node.shape > FlowchartShape::ReverseTrapezoid) return 0.0;
+                const auto amount = node.bounds.width * .125;
+                return point.x <= node.bounds.x + node.bounds.width / 2.0 ? amount : -amount;
+            };
+            edge.path.front().x += inset(sourceEdge.from, edge.path.front());
+            const auto targetInset = inset(sourceEdge.to, edge.path.back());
+            edge.path.back().x += targetInset;
+            if (edge.hasArrow) for (auto& point : edge.arrow) point.x += targetInset;
+            if (edge.relation == FlowchartRelation::Aggregation || edge.relation == FlowchartRelation::Composition)
+                for (auto& point : edge.diamond) point.x += targetInset;
+        }
         edge.label = Transform(edge.label);
         if (edge.hasLabel)
             Include(edge.label);
@@ -1130,7 +1155,7 @@ void NativeFlowchartLayout::Begin(std::shared_ptr<const FlowchartModel> graph,
             throw std::invalid_argument("Invalid native node stroke width");
     for (const auto& node : graph->nodes)
         if (node.shape < FlowchartShape::Rectangle || node.shape > FlowchartShape::Note ||
-            ((node.shape == FlowchartShape::DoubleCircle || node.shape == FlowchartShape::Cylinder) && graph->family != NativeDiagramFamily::Flowchart) ||
+            ((node.shape >= FlowchartShape::DoubleCircle && node.shape <= FlowchartShape::Ellipse) && graph->family != NativeDiagramFamily::Flowchart) ||
             (node.shape == FlowchartShape::Note &&
              ((graph->family != NativeDiagramFamily::State && graph->family != NativeDiagramFamily::Class) ||
               (node.noteTarget == MarkdownNoNode ? graph->family != NativeDiagramFamily::Class

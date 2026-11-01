@@ -475,16 +475,37 @@ struct NativeFlowchartParser::Preparation
         bool explicitLabel = false;
         if (model->family != NativeDiagramFamily::Flowchart && ! terminal && at < end && (Text()[at] == L'[' || Text()[at] == L'(' || Text()[at] == L'{'))
             return Error(FlowchartIssue::UnsupportedShape, at, at + 1u, FlowchartOutcome::Unsupported);
-        if (at < end && (Text()[at] == L'[' || Text()[at] == L'(' || Text()[at] == L'{'))
+        if (model->family == NativeDiagramFamily::Flowchart && at < end && Text()[at] == L'>')
+        {
+            ++at;
+            candidate.shape = FlowchartShape::Asymmetric;
+            if (! Label(at, end, L']', candidate.label)) return false;
+            explicitLabel = true;
+        }
+        else if (at < end && (Text()[at] == L'[' || Text()[at] == L'(' || Text()[at] == L'{'))
         {
             const auto open    = Text()[at++];
             const bool stadium = model->family == NativeDiagramFamily::Flowchart && open == L'(' && at < end && Text()[at] == L'[';
             const bool cylinder = model->family == NativeDiagramFamily::Flowchart && open == L'[' && at < end && Text()[at] == L'(';
-            const auto close   = stadium ? L']' : cylinder ? L')' : (open == L'[' ? L']' : (open == L'(' ? L')' : L'}'));
+            const bool ellipse = model->family == NativeDiagramFamily::Flowchart && open == L'(' && at < end && Text()[at] == L'-';
+            const bool polygon = model->family == NativeDiagramFamily::Flowchart && open == L'[' && at < end && (Text()[at] == L'/' || Text()[at] == L'\\');
+            auto close   = stadium ? L']' : cylinder ? L')' : ellipse ? L'-' : (open == L'[' ? L']' : (open == L'(' ? L')' : L'}'));
             candidate.shape    = stadium ? FlowchartShape::Stadium
                                          : (open == L'[' ? FlowchartShape::Rectangle : (open == L'(' ? FlowchartShape::Rounded : FlowchartShape::Diamond));
-            if (stadium || cylinder)
+            if (stadium || cylinder || ellipse)
                 ++at;
+            if (ellipse) candidate.shape = FlowchartShape::Ellipse;
+            if (polygon)
+            {
+                const auto left = Text()[at++];
+                const auto bracket = Text().find(L']', at);
+                if (bracket == std::wstring_view::npos || bracket >= end || bracket == at ||
+                    (Text()[bracket - 1u] != L'/' && Text()[bracket - 1u] != L'\\'))
+                    return Error(FlowchartIssue::UnsupportedShape, start, end, FlowchartOutcome::Unsupported);
+                close = Text()[bracket - 1u];
+                candidate.shape = left == L'/' ? (close == L'/' ? FlowchartShape::Parallelogram : FlowchartShape::Trapezoid)
+                                                : (close == L'\\' ? FlowchartShape::ReverseParallelogram : FlowchartShape::ReverseTrapezoid);
+            }
             const bool circle     = ! stadium && open == L'(' && at < end && Text()[at] == L'(';
             const bool hexagon    = open == L'{' && at < end && Text()[at] == L'{';
             const bool subroutine = open == L'[' && at < end && Text()[at] == L'[';
@@ -521,6 +542,10 @@ struct NativeFlowchartParser::Preparation
             if (candidate.shape == FlowchartShape::DoubleCircle && (at == end || Text()[at++] != L')'))
                 return Error(FlowchartIssue::MissingLabelClose, start, at);
             if (cylinder && (at == end || Text()[at++] != L']'))
+                return Error(FlowchartIssue::MissingLabelClose, start, at);
+            if (polygon && (at == end || Text()[at++] != L']'))
+                return Error(FlowchartIssue::MissingLabelClose, start, at);
+            if (ellipse && (at == end || Text()[at++] != L')'))
                 return Error(FlowchartIssue::MissingLabelClose, start, at);
             if (stadium && (at == end || Text()[at++] != L')'))
                 return Error(FlowchartIssue::MissingLabelClose, start, at);

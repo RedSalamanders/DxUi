@@ -270,7 +270,7 @@ LayoutPreparationStatus PreparedFlowchart::Begin(IDWriteFactory* write,
     for (const auto& node : graph->nodes)
     {
         if (node.label.size() > NativeFlowchartParser::MaximumLabelUnits || node.shape < FlowchartShape::Rectangle || node.shape > FlowchartShape::Note ||
-            ((node.shape == FlowchartShape::DoubleCircle || node.shape == FlowchartShape::Cylinder) && graph->family != NativeDiagramFamily::Flowchart) ||
+            ((node.shape >= FlowchartShape::DoubleCircle && node.shape <= FlowchartShape::Ellipse) && graph->family != NativeDiagramFamily::Flowchart) ||
             node.groupMask >= (1u << graph->groups.size()) ||
             (node.shape == FlowchartShape::Note &&
              ((graph->family != NativeDiagramFamily::State && graph->family != NativeDiagramFamily::Class) ||
@@ -470,6 +470,27 @@ LayoutAdvance PreparedFlowchart::Advance(LayoutWorkBudget budget)
                                                                         {rect.x + rect.width * .25, rect.y + rect.height},
                                                                         {rect.x, rect.y + rect.height * .5}}};
                         state.nodePaths[work.cursor]                = Path(state.drawing.get(), points);
+                    }
+                    else if (state.geometry->nodes[work.cursor].shape >= FlowchartShape::Asymmetric &&
+                             state.geometry->nodes[work.cursor].shape <= FlowchartShape::ReverseTrapezoid)
+                    {
+                        const auto& node = state.geometry->nodes[work.cursor];
+                        const auto r = node.bounds;
+                        const auto point = [&](double x, double y) { return FlowchartPoint{r.x + x * r.width, r.y + y * r.height}; };
+                        if (node.shape == FlowchartShape::Asymmetric)
+                        {
+                            const std::array points{point(0.0, 0.0), point(.75, 0.0), point(1.0, .5), point(.75, 1.0), point(0.0, 1.0)};
+                            state.nodePaths[work.cursor] = Path(state.drawing.get(), points);
+                        }
+                        else
+                        {
+                            const auto topLeft = node.shape == FlowchartShape::Parallelogram || node.shape == FlowchartShape::Trapezoid ? .25 : 0.0;
+                            const auto topRight = node.shape == FlowchartShape::ReverseParallelogram || node.shape == FlowchartShape::Trapezoid ? .75 : 1.0;
+                            const auto bottomLeft = node.shape == FlowchartShape::ReverseParallelogram || node.shape == FlowchartShape::ReverseTrapezoid ? .25 : 0.0;
+                            const auto bottomRight = node.shape == FlowchartShape::Parallelogram || node.shape == FlowchartShape::ReverseTrapezoid ? .75 : 1.0;
+                            const std::array points{point(topLeft, 0.0), point(topRight, 0.0), point(bottomRight, 1.0), point(bottomLeft, 1.0)};
+                            state.nodePaths[work.cursor] = Path(state.drawing.get(), points);
+                        }
                     }
                     ++work.cursor;
                     break;
@@ -690,12 +711,13 @@ bool PreparedFlowchart::Draw(ID2D1RenderTarget* target, ID2D1Brush* text, ID2D1B
         {
             target->FillRectangle(bounds, stroke);
         }
-        else if (node.shape == FlowchartShape::Diamond || node.shape == FlowchartShape::Hexagon)
+        else if (node.shape == FlowchartShape::Diamond || node.shape == FlowchartShape::Hexagon ||
+                 (node.shape >= FlowchartShape::Asymmetric && node.shape <= FlowchartShape::ReverseTrapezoid))
         {
             target->FillGeometry(state.nodePaths[index].get(), fill);
             target->DrawGeometry(state.nodePaths[index].get(), stroke, nodeStrokeWidth);
         }
-        else if (node.shape == FlowchartShape::Circle || node.shape == FlowchartShape::DoubleCircle)
+        else if (node.shape == FlowchartShape::Circle || node.shape == FlowchartShape::DoubleCircle || node.shape == FlowchartShape::Ellipse)
         {
             const auto ellipse = D2D1::Ellipse(D2D1::Point2F((bounds.left + bounds.right) / 2.0f, (bounds.top + bounds.bottom) / 2.0f),
                                                (bounds.right - bounds.left) / 2.0f,

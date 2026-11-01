@@ -375,6 +375,11 @@ template <typename Check> inline void Invariants(const FlowchartLayoutPlan& plan
         const auto relativeX = label.width / bounds.width, relativeY = label.height / bounds.height;
         if (plan.nodes[index].shape == FlowchartShape::Circle)
             check(relativeX * relativeX + relativeY * relativeY <= 1.0, "all label corners lie inside the circle");
+        if (plan.nodes[index].shape == FlowchartShape::Ellipse)
+            check(relativeX * relativeX + relativeY * relativeY <= 1.0, "all label corners lie inside the ellipse");
+        if (plan.nodes[index].shape >= FlowchartShape::Asymmetric && plan.nodes[index].shape <= FlowchartShape::ReverseTrapezoid)
+            check(label.x >= bounds.x + bounds.width * .25 && label.x + label.width <= bounds.x + bounds.width * .75,
+                  "legacy polygon label remains within the independently safe central band");
         if (plan.nodes[index].shape == FlowchartShape::DoubleCircle)
         {
             const auto innerX = label.width / (bounds.width - 8.0), innerY = label.height / (bounds.height - 8.0);
@@ -415,7 +420,18 @@ template <typename Check> inline void Invariants(const FlowchartLayoutPlan& plan
             check(Near(first.x, last.x) || Near(first.y, last.y), "every retained route segment is orthogonal");
             check(first.x >= 0.0 && first.y >= 0.0 && first.x <= plan.extent.width && first.y <= plan.extent.height, "routes remain inside retained bounds");
             for (const auto& node : plan.nodes)
-                check(! InteriorSegment(first, last, node.bounds), "edge routes never enter any node rectangle, including skipped ranks");
+            {
+                const auto& rect = node.bounds;
+                const auto slanted = node.shape >= FlowchartShape::Parallelogram && node.shape <= FlowchartShape::ReverseTrapezoid;
+                const auto sideGap = [&](FlowchartPoint endpoint, FlowchartPoint outer)
+                {
+                    return slanted && Near(endpoint.y, rect.y + rect.height / 2.0) && Near(endpoint.y, outer.y) &&
+                           ((Near(endpoint.x, rect.x + rect.width * .125) && outer.x <= rect.x) ||
+                            (Near(endpoint.x, rect.x + rect.width * .875) && outer.x >= rect.x + rect.width));
+                };
+                const bool allowed = (index == 1u && sideGap(first, last)) || (index + 1u == edge.path.size() && sideGap(last, first));
+                check(allowed || ! InteriorSegment(first, last, rect), "edge routes avoid node interiors, including skipped ranks");
+            }
         }
     }
 }
@@ -471,7 +487,29 @@ template <typename Check> inline void Corpus(Check&& check)
                       "budget choice cannot change edge routing");
         ++admitted;
     }
-    check(admitted == 34u, "geometry covers every admitted original reference graph");
+    check(admitted == 39u, "geometry covers every admitted original reference graph");
+    for (const auto direction : {L"TB", L"BT", L"LR", L"RL"})
+    {
+        const auto source = std::wstring(L"flowchart ") + direction +
+                            L"\nA>flag] --> B[/forward/] --> C[\\reverse\\] --> D[/up\\] --> E[\\down/] --> F(-oval-)\n";
+        const auto graph = Graph(source);
+        const auto plan = Place(graph, check, 7u);
+        check(graph->outcome == FlowchartOutcome::Prepared && graph->nodes.size() == 6u && graph->edges.size() == 5u,
+              "all slanted legacy shapes and ellipse form one source-ordered chain");
+        Invariants(*plan, check);
+        if (plan->nodes.size() == 6u && plan->edges.size() == 5u && (graph->direction == FlowchartDirection::LeftRight || graph->direction == FlowchartDirection::RightLeft))
+            for (std::size_t edge = 0u; edge < 5u; ++edge)
+            {
+                const auto& target = plan->nodes[edge + 1u];
+                const auto& tip = plan->edges[edge].path.back();
+                const double inset = target.shape >= FlowchartShape::Parallelogram && target.shape <= FlowchartShape::ReverseTrapezoid
+                                         ? target.bounds.width * .125 : 0.0;
+                const auto expectedX = graph->direction == FlowchartDirection::LeftRight ? target.bounds.x + inset
+                                                                                         : target.bounds.x + target.bounds.width - inset;
+                check(Near(tip.x, expectedX) && Near(tip.y, target.bounds.y + target.bounds.height / 2.0),
+                      "horizontal arrows meet the actual slanted shape boundary");
+            }
+    }
     for (const auto direction : {L"TB", L"BT", L"LR", L"RL"})
     {
         const auto source = std::wstring(L"flowchart ") + direction + L"\nc1-->a2\nsubgraph ide1 [one]\na1-->a2\nend\n";

@@ -1754,7 +1754,9 @@ An identifier is `[A-Za-z_][A-Za-z0-9_]*` with exact case-sensitive identity.
 `end`, `subgraph`, `direction`, `style`, `class`, `classDef`, `click`,
 `linkStyle` and `note` are reserved except for the bounded subgraph statements below. A node is an identifier alone or followed by `[label]`
 (rectangle), `(label)` (rounded), `((label))` (circle), `(((label)))` (double circle), `[(label)]` (cylinder), `([label])` (stadium
-capsule), `{label}` (diamond), `{{label}}` (hexagon) or `[[label]]` (subroutine). Other expanded shape syntax is unsupported. An explicit declaration replaces the
+capsule), `{label}` (diamond), `{{label}}` (hexagon), `[[label]]` (subroutine),
+`>label]` (asymmetric), `[/label/]` and `[\label\]` (parallelograms),
+`[/label\]` and `[\label/]` (trapezoids), or `(-label-)` (ellipse). Other expanded shape syntax is unsupported. An explicit declaration replaces the
 node's previous label/shape; a bare endpoint preserves it. Node order is first
 appearance order and edge order is source order, including cycles/self-loops.
 
@@ -1895,8 +1897,8 @@ remains separately reported and does not withhold an otherwise ready frame.
 `lastAdvanceUploadBytes` reports the last geometry advance's upload work.
 
 The pinned Mermaid 11.4.1 inventory and all 105 original flowchart examples MUST
-remain accounted for. Independent subset expectations distinguish 34 admitted
-graphs from 71 unsupported definitions and record each issue and exact UTF-16 diagnostic range, including the documented stadium and
+remain accounted for. Independent subset expectations distinguish 39 admitted
+graphs from 66 unsupported definitions and record each issue and exact UTF-16 diagnostic range, including the documented stadium and
 the original endpoint-group fan-out examples.
 The family matrix separately identifies the limited flowchart, state, class and
 sequence, pie, ER, Gantt and mind map profiles, the example collection, and 13 unsupported diagram families. Generated
