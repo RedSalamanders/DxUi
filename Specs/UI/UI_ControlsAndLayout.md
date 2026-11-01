@@ -2206,7 +2206,7 @@ does not establish completed platform or performance qualification.
 
 ## Native in-document mathematics and broader diagrams (RedTilde continuation)
 
-RichMarkdown recognizes `$...$`, `$$...$$`, `\(...\)` and `\[...\]` inside ordinary
+RichMarkdown recognizes `$...$` and `\(...\)` inside ordinary
 inline leaves. Single-dollar math is single-line and requires nonspace content edges;
 a closing dollar followed by a digit is currency text. Explicit `\(...\)` delimiters
 permit edge whitespace and a following digit, while retaining the physical-line bound.
@@ -2214,8 +2214,10 @@ Escaped delimiters, code spans, other fenced/indented code and CommonMark/GFM
 profiles retain their existing grammar. A closed `math` or `latex` fenced block
 is one display-style native formula over the complete source fence; an unclosed
 fence or unsupported expression preserves its exact source with a diagnostic.
-Display delimiters may span logical lines of one Markdown paragraph. Blank paragraphs
-and GFM table boundaries still delimit leaves. Original source, delimiters, CRLF,
+Paired `$$` or `\[` / `\]` delimiters on their own logical lines own display
+math across intervening blank lines. An unclosed opener preserves the complete
+owned source with a diagnostic. Double-dollar text within a sentence is literal.
+Original source, delimiters, CRLF,
 selection and history remain authoritative; one successful formula owns one atomic
 native display position and a `SemanticRole::Math` child named with its TeX notation.
 

@@ -559,7 +559,7 @@ void TestRichTextEditorNativeHostAndLayoutReuse()
 void TestRichTextEditorMarkdownPresentationAppearance()
 {
     AttachedHostWindow window;
-    const std::wstring source = L"> shaded quote\n\n$$x^2$$\n";
+    const std::wstring source = L"> shaded quote\n\n$$\nx^2\n$$\n";
     auto owned                = std::make_unique<RichTextEditor>(source);
     auto* editor              = owned.get();
     editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);

@@ -1454,8 +1454,14 @@ class MarkdownInlines
     {
         const auto first = cursor_;
         const auto c     = text_[first];
+        if (profile_ == MarkdownProfile::RichMarkdown && std::wstring_view(text_).substr(first, 2u) == L"$$")
+        {
+            cursor_ += 2u;
+            Append(Kind::Text, first, cursor_, std::wstring_view(text_).substr(first, 2u));
+            return;
+        }
         if (profile_ == MarkdownProfile::RichMarkdown &&
-            (c == L'$' || (c == L'\\' && first + 1u < text_.size() && (text_[first + 1u] == L'(' || text_[first + 1u] == L'['))))
+            (c == L'$' || (c == L'\\' && first + 1u < text_.size() && text_[first + 1u] == L'(')))
         {
             const bool dollars = c == L'$';
             const auto width   = dollars && std::wstring_view(text_).substr(first, 2u) != L"$$" ? 1u : 2u;

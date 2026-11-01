@@ -1026,7 +1026,7 @@ struct SemanticBuilder::Preparation
         auto fenceInfo = syntax.Slice(node.block.info);
         while (! fenceInfo.empty() && (fenceInfo.back() == L' ' || fenceInfo.back() == L'\t')) fenceInfo.remove_suffix(1u);
         const bool mathFence = syntax.Profile() == MarkdownProfile::RichMarkdown && node.block.kind == MarkdownBlockKind::FencedCode &&
-                               (fenceInfo == L"math" || fenceInfo == L"latex");
+                               (fenceInfo == L"math" || fenceInfo == L"latex" || node.block.fenceMarker == L'$' || node.block.fenceMarker == L'[');
         if (mathFence && analyzeNative)
         {
             Detail::NormalizeSemanticLeaf(syntax, visit.node, normalized);
@@ -1047,8 +1047,10 @@ struct SemanticBuilder::Preparation
             auto& formula = document->elements_[visit.element];
             formula.role = SemanticRole::Math;
             formula.name = normalized.text;
-            close = BeginLeafParagraph(visit, true);
-            if (expression && *expression && ! capacity)
+            const bool prepared = expression && *expression && ! capacity;
+            if (prepared) visit.flags &= ~Code;
+            close = BeginLeafParagraph(visit, ! prepared);
+            if (prepared)
             {
                 formula.title = L"Mathematical expression. Exact TeX source is available as document text.";
                 output.Emit(L"\ufffc", node.block.source, DisplaySpanKind::Object, visit.flags, visit.heading);
@@ -1059,7 +1061,9 @@ struct SemanticBuilder::Preparation
             {
                 extensions.diagnostics.push_back({capacity ? SemanticDiagnosticKind::MathCapacity : SemanticDiagnosticKind::UnsupportedMath,
                                                   node.block.source, visit.element});
-                formula.title = ! node.block.closed ? L"Missing closing math fence. Exact source is preserved."
+                formula.title = ! node.block.closed && (node.block.fenceMarker == L'$' || node.block.fenceMarker == L'[')
+                                  ? L"Missing closing display math delimiter. Exact source is preserved."
+                              : ! node.block.closed ? L"Missing closing math fence. Exact source is preserved."
                               : sourceFallback ? L"Equation cannot be prepared natively for this view. Exact source is preserved."
                               : capacity ? L"Equation exceeds native object capacity. Exact source is preserved."
                                          : L"Unsupported native equation. Exact source is preserved.";
@@ -1473,7 +1477,7 @@ void SemanticBuilder::BeginWithNativeFallbacks(std::shared_ptr<const MarkdownSyn
             while (! info.empty() && (info.back() == L' ' || info.back() == L'\t')) info.remove_suffix(1u);
             return node.block.kind == MarkdownBlockKind::FencedCode && node.block.source == range &&
                    ((info.starts_with(L"mermaid") && (info.size() == 7u || info[7u] == L' ' || info[7u] == L'\t')) ||
-                    info == L"math" || info == L"latex");
+                    info == L"math" || info == L"latex" || node.block.fenceMarker == L'$' || node.block.fenceMarker == L'[');
         });
         if (syntax->Profile() != MarkdownProfile::RichMarkdown || (! inlineMath && ! diagram))
             throw std::invalid_argument("Native source fallback requires an exact native syntax owner");

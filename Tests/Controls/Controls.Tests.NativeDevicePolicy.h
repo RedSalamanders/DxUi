@@ -30,7 +30,7 @@ inline void TestWindowHostExplicitWarpPolicyRejectsConflictsAndSurvivesDeviceLos
             Require(peer.Host().Attach(peer.Hwnd(), warp), "matching explicit WARP attachment is idempotent");
             Require(defaultOwner.Host().Attach(defaultOwner.Hwnd()), "default peer inherits the established WARP policy");
             auto root    = std::make_unique<DxUi::Panel>();
-            auto* editor = root->AddChild<DxUi::RichTextEditor>(L"Native $a_i^2$ and $$\\frac{1}{2}$$");
+            auto* editor = root->AddChild<DxUi::RichTextEditor>(L"Native $a_i^2$ and $\\frac{1}{2}$");
             editor->SetBounds(D2D1::RectF(8, 8, 250, 130));
             editor->SetMarkdownAnalysisProfile(DxUi::RichText::MarkdownProfile::RichMarkdown);
             editor->SetMarkdownRenderingEnabled(true);

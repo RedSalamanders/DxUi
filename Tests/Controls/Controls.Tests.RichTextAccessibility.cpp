@@ -2116,7 +2116,7 @@ void SemanticMathLiteralFallback(bool embedded)
     verify(unsupportedSource, unsupportedExpression, L"Unsupported native equation. Exact source is preserved.", L"original title", true);
 
     const std::wstring capacityExpression = L"\\text{" + std::wstring(1400u, L'm') + L"}";
-    const std::wstring capacitySource     = L"before $$" + capacityExpression + L"$$ after [link](https://example.test \"capacity title\")\r\n";
+    const std::wstring capacitySource     = L"before $" + capacityExpression + L"$ after [link](https://example.test \"capacity title\")\r\n";
     auto appearance                       = fixture.editor->GetAppearance();
     appearance.bodyFontSizeDip            = 96.f;
     fixture.editor->SetAppearance(appearance);

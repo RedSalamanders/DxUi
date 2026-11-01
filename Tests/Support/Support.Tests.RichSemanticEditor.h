@@ -1064,7 +1064,7 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
 }
 template <typename Prepare> void NativeObjectSourceContract(ControlHost& host, Prepare&& prepare)
 {
-    for (const std::wstring source : {L"Before $x_i^2+\\frac{1}{2}$ after.\r\n\r\n$$\\begin{bmatrix}a&b\\\\c&d\\end{bmatrix}$$\r\n",
+    for (const std::wstring source : {L"Before $x_i^2+\\frac{1}{2}$ after.\r\n\r\n$$\r\n\\begin{bmatrix}a&b\\\\c&d\\end{bmatrix}\r\n$$\r\n",
                                       L"```mermaid\nstateDiagram-v2\n[*] --> Ready\nReady --> Active : Begin\n```\n",
                                       L"```mermaid\nclassDiagram\nAnimal <|-- Bird\nBird : +fly()\n```\n",
                                       L"before ![fixture](image.png) after\n"})
@@ -2022,8 +2022,8 @@ template <typename Prepare, typename PrepareDpi> void RenderingAdmissionFallback
 inline void NativeMathHRESULTFailureContainment(ControlHost& host);
 template <typename Prepare> void NativeObjectFailureContainment(ControlHost& host, Prepare&& prepare)
 {
-    const std::wstring source = L"# Heading\n\n$y$ and [before $\\unknown{x}$ after](https://example.test \"original title\")\n\n$$\\text{" +
-                                std::wstring(1400u, L'm') + L"}$$\n\n**after**\n";
+    const std::wstring source = L"# Heading\n\n$y$ and [before $\\unknown{x}$ after](https://example.test \"original title\")\n\n$$\n\\text{" +
+                                std::wstring(1400u, L'm') + L"}\n$$\n\n**after**\n";
     auto root                 = std::make_unique<RichTextEditor>(source);
     auto* editor              = root.get();
     editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
@@ -2041,7 +2041,7 @@ template <typename Prepare> void NativeObjectFailureContainment(ControlHost& hos
     const auto large = std::ranges::find_if(rejected->Elements(),
                                             [](const auto& element) { return element.role == SemanticRole::Math && element.name.starts_with(L"\\text{"); });
     Check(large != rejected->Elements().end() && large->display.last > large->display.first + 1u &&
-              rejected->Map().Display().substr(large->display.first, large->display.last - large->display.first).starts_with(L"$$\\text{"),
+              rejected->Map().Display().substr(large->display.first, large->display.last - large->display.first).starts_with(L"$$\n\\text{"),
           "geometry rejection preserves the complete exact equation envelope as visible source");
     const auto heldDisplay = std::wstring(rejected->Map().Display());
     const auto before      = editor->DebugGetState();

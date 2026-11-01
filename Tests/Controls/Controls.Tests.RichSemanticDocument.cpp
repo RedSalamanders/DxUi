@@ -723,7 +723,7 @@ void TestRichSemanticNativeMathematicsAndBroaderMermaid()
     using namespace DxUi::RichText;
     static_assert(! std::is_nothrow_default_constructible_v<MathNode> && ! std::is_nothrow_default_constructible_v<MathExpression>);
     const std::wstring source = L"Before $a_i^2+\\frac{1}{2}$ after.\r\n\r\n"
-                                L"$$\\begin{bmatrix}a&b\\\\c&d\\end{bmatrix}$$\r\n\r\n"
+                                L"$$\r\n\\begin{bmatrix}a&b\\\\c&d\\end{bmatrix}\r\n$$\r\n\r\n"
                                 L"\\(\\sqrt[3]{x}+\\alpha\\)\r\n\r\n`$literal$` and \\$escaped and $5 and $10.\r\n\r\n"
                                 L"```tex\n$x$\n```\n";
     const auto document       = RichSemanticDocumentTests::Build(source, MarkdownProfile::RichMarkdown);
@@ -872,6 +872,9 @@ void TestRichSemanticNativeMathematicsAndBroaderMermaid()
         Require(fenceDocument->Map().Source() == fenceSource && formula != fenceDocument->Elements().end() &&
                     fenceDocument->Map().Display().find(L'\ufffc') != std::wstring::npos && fenceDocument->Diagnostics().empty(),
                 "closed display math fence prepares a native object and preserves exact source");
+        Require(std::ranges::any_of(fenceDocument->Runs(), [&](const auto& run)
+                { return run.start <= formula->display.first && run.start + run.length > formula->display.first && !(run.flags & Code); }),
+                "prepared math uses body typography rather than code-block style");
         const auto index = static_cast<std::size_t>(formula - fenceDocument->Elements().begin());
         Require(fenceDocument->SourceEditingNode(index).has_value() && fenceDocument->SourceEditingRange(index).has_value(),
                 "math fence source edit is owned by its complete block");
@@ -886,6 +889,21 @@ void TestRichSemanticNativeMathematicsAndBroaderMermaid()
     Require(rejectedDocument->Map().Source() == rejectedMath && rejectedDocument->Map().Display().find(rejectedMath) != std::wstring::npos &&
                 std::ranges::any_of(rejectedDocument->Diagnostics(), [](const auto& diagnostic) { return diagnostic.kind == SemanticDiagnosticKind::UnsupportedMath; }),
             "unsupported fenced math retains its exact source and diagnostic");
+    for (const auto* displaySource : {L"$$\nx + 1\n$$\n", L"\\[\nx + 1\n\\]\n"})
+    {
+        const auto displayDocument = RichSemanticDocumentTests::Build(displaySource, MarkdownProfile::RichMarkdown);
+        Require(displayDocument->Map().Source() == displaySource && displayDocument->Diagnostics().empty() &&
+                    std::ranges::count(displayDocument->Elements(), SemanticRole::Math, &SemanticElement::role) == 1,
+                "own-line paired display delimiters create one source-backed formula");
+    }
+    const auto inlineDisplay = RichSemanticDocumentTests::Build(L"Energy $$x$$ here\n", MarkdownProfile::RichMarkdown);
+    Require(std::ranges::count(inlineDisplay->Elements(), SemanticRole::Math, &SemanticElement::role) == 0 &&
+                inlineDisplay->Map().Display().find(L"$$x$$") != std::wstring::npos,
+            "display delimiters embedded in a sentence remain literal");
+    const std::wstring missingDisplay = L"$$\nx\n\ny\n";
+    const auto missingDocument = RichSemanticDocumentTests::Build(missingDisplay, MarkdownProfile::RichMarkdown);
+    Require(missingDocument->Map().Source() == missingDisplay && missingDocument->Map().Display().find(missingDisplay) != std::wstring::npos &&
+                ! missingDocument->Diagnostics().empty(), "unclosed display owns all remaining lines and reports a diagnostic");
 }
 void TestRichSemanticDocumentStructuralStyleValues()
 {
