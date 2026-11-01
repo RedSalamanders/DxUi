@@ -87,7 +87,7 @@ selection notification. Selection-only changes and non-notifying TSF preview,
 cancellation and selection imports retain their immediate selection callback. A
 non-notifying text-service preview or cancellation that changes the source
 revision publishes selection state even when its anchor, caret and gesture state
-are unchanged; reimporting the same source revision and selection is silent. Such
+are unchanged; reimporting the same source revision and selection is silent and retains any still-matching prepared command state. Such
 transient notifications never become committed text or history events;
 `SetText` remains silent for the text callback.
 `IsSelectionGestureActive` identifies pointer selection/press updates. Consumers

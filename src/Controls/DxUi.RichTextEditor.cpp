@@ -4536,6 +4536,11 @@ bool RichTextEditor::ImportTextInputState(ControlHost& host, const TextInputStat
         // are rejected atomically, without escaping a native noexcept handler.
         return false;
     }
+    // A silent, exact no-op import must not discard prepared command state. The
+    // document transaction above has already validated and normalized the source
+    // and selection. An active gesture still needs its normal cancellation path.
+    if (! notifyChange && ! changed && selection == previousSelection && ! _state->dragging)
+        return true;
     _state->dragging = false;
     if (changed || selection != previousSelection)
         _state->sourceCaretSite = RichText::MarkdownNoNode;

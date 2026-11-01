@@ -27,6 +27,8 @@ class DirectPrepareRichTextEditor final : public RichTextEditor
 {
 public:
     using RichTextEditor::RichTextEditor;
+    using RichTextEditor::ExportTextInputState;
+    using RichTextEditor::ImportTextInputState;
     HRESULT PrepareOnce(ControlHost& host) noexcept
     {
         return PrepareContent(host);
@@ -233,7 +235,7 @@ template <typename Prepare, typename Key, typename Character> void StructuralHos
 }
 template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&& prepare)
 {
-    auto root    = std::make_unique<RichTextEditor>(L"word");
+    auto root    = std::make_unique<DirectPrepareRichTextEditor>(L"word");
     auto* editor = root.get();
     editor->SetMarkdownAnalysisProfile(MarkdownProfile::Gfm029);
     editor->SetMarkdownRenderingEnabled(true);
@@ -859,6 +861,26 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
           "prepare a reusable style state without source or selection callbacks");
     editor->SetOnTextChanged({});
     editor->SetOnSelectionChanged({});
+    TextInputState imported;
+    Check(editor->ExportTextInputState(imported), "export shared command-state input snapshot");
+    Check(editor->ImportTextInputState(host, imported, false), "unchanged silent import succeeds");
+    auto retainedState = editor->QueryMarkdownCommandState(preparedRequest);
+    Check(retainedState && retainedState->available.has_value(), "unchanged silent import retains the exact prepared result");
+    imported.selectionAnchorIndex = 1u;
+    imported.caretIndex = 1u;
+    Check(editor->ImportTextInputState(host, imported, false), "selection-changing silent import succeeds");
+    auto changedState = editor->QueryMarkdownCommandState(preparedRequest);
+    Check(changedState && ! changedState->available.has_value(), "selection-changing import invalidates the prepared result");
+    Check(editor->PrepareMarkdownCommandState(preparedRequest), "reprepare after selection change");
+    imported.text = L"changed";
+    imported.selectionAnchorIndex = 0u;
+    imported.caretIndex = 0u;
+    Check(editor->ImportTextInputState(host, imported, false), "source-changing silent import succeeds");
+    changedState = editor->QueryMarkdownCommandState(preparedRequest);
+    Check(! changedState || ! changedState->available.has_value(), "source-changing import invalidates the prepared result");
+    editor->SetText(L"word");
+    prepare();
+    editor->SetSelection({0u, 4u});
     auto differentRequest  = preparedRequest;
     differentRequest.title = L"different";
     const auto different   = editor->QueryMarkdownCommandState(differentRequest);

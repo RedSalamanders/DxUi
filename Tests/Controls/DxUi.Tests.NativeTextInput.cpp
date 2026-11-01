@@ -1,5 +1,7 @@
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "Controls.Tests.TextStoreComposition.h"
+#include "GraphicsFixture.h"
+#include <DxUi/Embedded.h>
 #include "Controls/DxUi.Internal.h"
 #include "Controls/TextStoreTarget.h"
 #include "Support/WindowMessages.h"
@@ -9746,8 +9748,13 @@ void TestRichCommandStateDuringNativeComposition()
 {
     using namespace DxUi;
     using namespace DxUi::RichText;
-    AttachedHostWindow window;
-    auto& host  = window.Host();
+    GraphicsFixture graphics;
+    RequireSucceeded(graphics.Create(), "native composition fixture WARP device");
+    std::shared_ptr<GraphicsDevice> pool;
+    RequireSucceeded(GraphicsDevice::Create(graphics.device.get(), pool), "native composition fixture graphics pool");
+    EmbeddedHost view;
+    RequireSucceeded(view.Attach(pool), "native composition fixture headless host");
+    auto& host = view.Controls();
     auto editor = std::make_unique<RichTextEditor>(L"**a**");
     auto* raw   = editor.get();
     raw->SetMarkdownAnalysisProfile(MarkdownProfile::Gfm029);
@@ -9755,7 +9762,7 @@ void TestRichCommandStateDuringNativeComposition()
     host.SetRoot(std::move(editor));
     host.SetFocusControl(raw, false);
     raw->SetSelection({3u, 3u});
-    Require(PrepareNativeContentForTests(host), "prepare semantic command state for native composition");
+    RequireSucceeded(PrepareEmbeddedContentForTests(view, 480u, 240u), "prepare semantic command state for native composition");
     NativeTextStoreTestSink sink;
     wil::com_ptr_nothrow<ITextStoreACP> store;
     store.attach(host.DebugCreateNativeTextInputTextStoreForTest());
@@ -9767,6 +9774,10 @@ void TestRichCommandStateDuringNativeComposition()
     request.command = MarkdownCommand::ToggleStyle;
     request.style   = MarkdownTextStyle::Strong;
     Require(raw->PrepareMarkdownCommandState(request), "prepare command state before native composition");
+    const auto originalRevision = raw->Revision();
+    const auto originalSelection = raw->GetSelection();
+    unsigned selectionNotifications = 0u;
+    raw->SetOnSelectionChanged([&] { ++selectionNotifications; });
     const auto beforeComposition = raw->QueryMarkdownCommandState(request);
     Require(beforeComposition && beforeComposition->available == std::optional<bool>{true}, "prepared command is initially available");
     ClientComposition composition;
@@ -9786,7 +9797,8 @@ void TestRichCommandStateDuringNativeComposition()
     RequireSucceeded(store->RequestLock(TS_LF_READWRITE | TS_LF_SYNC, &session), "end composition state lock");
     RequireSucceeded(session, "end composition state session");
     const auto afterComposition = raw->QueryMarkdownCommandState(request);
-    Require(afterComposition && afterComposition->available == std::optional<bool>{true},
+    Require(afterComposition && afterComposition->available == std::optional<bool>{true} && raw->Revision() == originalRevision &&
+                raw->GetSelection() == originalSelection && ! raw->CanUndo() && selectionNotifications == 0u,
             "unchanged source, selection and policy restore the prepared result after composition ends");
     RequireSucceeded(store->UnadviseSink(&sink), "unadvise composition state sink");
 }
