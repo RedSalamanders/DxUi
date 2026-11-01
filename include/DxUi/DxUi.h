@@ -1586,6 +1586,16 @@ struct DesiredSize
     bool overflow = false;
 };
 
+class RichTextSourceMove final
+{
+    friend class RichTextEditor;
+    const RichTextEditor* owner_ = nullptr;
+    std::weak_ptr<int> lifetime_;
+    RichText::SourceSnapshot source_;
+    RichText::Selection selection_;
+    uint64_t revision_ = 0, selectionEpoch_ = 0, binding_ = 0;
+};
+
 // Existing identity/RAII/reference traits intentionally delete these implicit operations.
 // Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
 #pragma warning(push)
@@ -3446,6 +3456,10 @@ public:
                           uint64_t expectedRevision,
                           std::span<const RichText::SourceEdit> edits,
                           RichText::Selection after);
+    // A gesture token retains the immutable source and rejects intervening
+    // source, selection or binding changes, including a restored selection.
+    [[nodiscard]] std::optional<RichTextSourceMove> BeginSourceMove() const noexcept;
+    bool MoveSelectedSource(const RichTextSourceMove& move, size_t destination);
     // Replace every non-overlapping source match in one undo transaction.
     // Returns the match count when text changed, otherwise zero.
     size_t ReplaceAllSourceMatches(std::wstring_view query, std::wstring_view replacement, RichText::SourceSearchOptions options = {});

@@ -274,6 +274,13 @@ mode, without changing source or history. Native and embedded hosts apply the
 same sequencing, and ScrollPanel forwards the event in content coordinates.
 Controls without a triple-click override receive an ordinary third press.
 
+`BeginSourceMove` creates a source/selection/binding-guarded token for a
+nonempty editable selection. `MoveSelectedSource` accepts a source-coordinate
+destination outside that selection and performs one source-exact undoable
+transaction, selecting the moved text. Intervening source or selection changes,
+including selection changes later restored, and active composition refuse the
+move. This primitive alone does not initiate or route an OLE drag gesture.
+
 Bulk Character movement snaps once using the existing nearest/forward-tie
 policy, then walks established boundaries. Negative movement counts the bounded
 prefix and visits its target ordinal. INT_MIN/INT_MAX requests return actual

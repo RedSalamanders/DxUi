@@ -166,6 +166,29 @@ static void TestRichTooltipReentrantTransitions(GraphicsFixture& gpu)
     Check(view.Controls().DebugGetPendingTooltipText() == L"Current title", "subsequent hover resolves the current document's authored title");
 }
 
+static void TestRichSourceMoveTransaction()
+{
+    using namespace DxUi;
+    RichTextEditor editor(L"one two three");
+    editor.SetSelection({4u, 7u});
+    const auto move = editor.BeginSourceMove();
+    Check(move && editor.MoveSelectedSource(*move, 13u), "move selected source to end");
+    Check(editor.GetText() == L"one  threetwo" && editor.GetSelection() == RichText::Selection{10u, 13u},
+          "move preserves exact source and selects the moved span");
+    Check(editor.Undo() && editor.GetText() == L"one two three", "one undo restores the whole move");
+    editor.SetSelection({4u, 7u});
+    const auto stale = editor.BeginSourceMove();
+    editor.SetSelection({0u, 0u});
+    editor.SetSelection({4u, 7u});
+    Check(stale && ! editor.MoveSelectedSource(*stale, 0u) && editor.GetText() == L"one two three",
+          "restoring the same selection cannot revive a stale move");
+    const auto current = editor.BeginSourceMove();
+    Check(current && ! editor.MoveSelectedSource(*current, 5u), "a destination inside the source selection is a no-op");
+    Check(editor.MoveSelectedSource(*current, 0u) && editor.GetText() == L"twoone  three", "move to an earlier source position");
+    editor.SetReadOnly(true);
+    Check(! editor.BeginSourceMove(), "read-only editor does not begin a move");
+}
+
 static void TestRichTripleClickParagraph(GraphicsFixture& gpu)
 {
     using namespace DxUi;

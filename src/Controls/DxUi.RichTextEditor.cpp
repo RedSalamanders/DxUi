@@ -2218,6 +2218,38 @@ bool RichTextEditor::ApplySourceEdits(const RichText::SourceSnapshot& expectedSo
     Changed(changed);
     return changed;
 }
+std::optional<RichTextSourceMove> RichTextEditor::BeginSourceMove() const noexcept
+{
+    const auto selection = GetSelection();
+    if (! Editable() || MarkdownCommandInputBlocked(GetHost(), this) || selection.Start() == selection.End())
+        return std::nullopt;
+    RichTextSourceMove move;
+    move.owner_ = this;
+    move.lifetime_ = GetLifetimeToken();
+    move.source_ = Snapshot();
+    move.selection_ = selection;
+    move.revision_ = Revision();
+    move.selectionEpoch_ = _state->document.selectionEpoch_;
+    move.binding_ = _state->bindingRevision;
+    return move;
+}
+bool RichTextEditor::MoveSelectedSource(const RichTextSourceMove& move, size_t destination)
+{
+    if (move.owner_ != this || move.lifetime_.expired() || ! Editable() || MarkdownCommandInputBlocked(GetHost(), this) ||
+        Revision() != move.revision_ || _state->bindingRevision != move.binding_ || _state->document.selectionEpoch_ != move.selectionEpoch_ ||
+        ! Snapshot().IsSameRevision(move.source_) || GetSelection() != move.selection_)
+        return false;
+    const auto first = move.selection_.Start(), last = move.selection_.End();
+    if (first == last || destination > move.source_.Length() || (destination >= first && destination <= last) ||
+        ! move.source_.IsBoundary(first) || ! move.source_.IsBoundary(last) || ! move.source_.IsBoundary(destination))
+        return false;
+    const auto text = move.source_.Slice(first, last);
+    const RichText::SourceEdit remove{{first, last}, {}};
+    const RichText::SourceEdit insert{{destination, destination}, text};
+    const std::array edits = destination < first ? std::array{insert, remove} : std::array{remove, insert};
+    const auto target = destination < first ? destination : destination - (last - first);
+    return ApplySourceEdits(move.source_, move.revision_, edits, {target, target + text.size()});
+}
 void RichTextEditor::SetSearchQuery(std::wstring_view query, RichText::SourceSearchOptions options)
 {
     if (query.size() > RichText::Document::MaximumUnits || ! RichText::IsValidSourceUtf16(query))
