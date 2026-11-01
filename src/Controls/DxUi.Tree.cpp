@@ -1936,6 +1936,8 @@ bool Tree::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool right
     else if (_delegate && ! _invokeOnSingleClick)
     {
         Invalidate(host);
+        if (! guard.IsCurrent())
+            return true; // Scheduling may have retired or rebound the Tree.
         _delegate->OnTreeItemInvoked(currentItem.id);
         return true;
     }
@@ -1988,6 +1990,8 @@ bool Tree::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, U
             }
         }
         Invalidate(host);
+        if (! guard.IsCurrent())
+            return dragged; // Embedded scheduling may retire or rebind the owner.
         if (commit)
         {
             _delegate->OnTreeReorder(drop);

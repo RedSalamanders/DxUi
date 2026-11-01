@@ -2346,6 +2346,63 @@ void TestWindowHostMouseMoveUpdatesHoverTarget()
                            nullptr);
 }
 
+void TestWindowHostThrowingMouseLeaveStillClearsTooltip()
+{
+    using namespace DxUi;
+    struct ThrowingHover final : Control
+    {
+        ThrowingHover() = default;
+        ThrowingHover(const ThrowingHover&) = delete;
+        ThrowingHover& operator=(const ThrowingHover&) = delete;
+        ThrowingHover(ThrowingHover&&) = delete;
+        ThrowingHover& operator=(ThrowingHover&&) = delete;
+        bool throwHover{}, throwLeave{}, replaceRoot{};
+        unsigned leaveCalls{};
+        void Paint(ControlHost&) const override {}
+        void OnHoverChanged(ControlHost& host, bool hovered) override
+        {
+            Control::OnHoverChanged(host, hovered);
+            if (! hovered && replaceRoot)
+            {
+                host.SetRoot(std::make_unique<Panel>());
+                host.SetTooltip(L"replacement tooltip", D2D1::Point2F(32, 32));
+                return;
+            }
+            if (! hovered && throwHover)
+                throw std::runtime_error("planned hover-leave failure");
+        }
+        bool OnMouseLeave(ControlHost&) override
+        {
+            ++leaveCalls;
+            if (throwLeave)
+                throw std::runtime_error("planned mouse-leave failure");
+            return true;
+        }
+    };
+    for (const unsigned scenario : {0u, 1u, 2u})
+    {
+        ScopedNonActivatingTestWindows nonActivating;
+        AttachedHostWindow window;
+        auto root = std::make_unique<Panel>();
+        root->SetBounds(D2D1::RectF(0, 0, 320, 200));
+        auto* item = root->AddChild<ThrowingHover>();
+        item->SetBounds(D2D1::RectF(0, 0, 160, 80));
+        item->throwHover = scenario == 0u;
+        item->throwLeave = scenario == 1u;
+        item->replaceRoot = scenario == 2u;
+        window.Host().SetRoot(std::move(root));
+        static_cast<void>(SendMessageW(window.Hwnd(), WM_MOUSEMOVE, 0, MAKELPARAM(32, 32)));
+        Require(item->IsHovered(), "throwing leave fixture has an actual hovered control");
+        Require(window.Host().SetTooltip(L"synthetic tooltip", D2D1::Point2F(32, 32)), "throwing leave fixture shows a tooltip");
+        static_cast<void>(SendMessageW(window.Hwnd(), WM_MOUSELEAVE, 0, 0));
+        if (scenario == 2u)
+            Require(window.Host().GetTooltipText() == L"replacement tooltip", "old leave never clears a replacement root's new tooltip");
+        else
+            Require(item->leaveCalls == 1u && window.Host().GetTooltipText().empty(),
+                    "a throwing hover or mouse-leave callback does not skip remaining leave or tooltip cleanup");
+    }
+}
+
 void TestWindowHostMouseLeaveOverForeignPopupClearsHover()
 {
     using namespace DxUi;
@@ -7461,6 +7518,7 @@ void RunWindowHostTests()
     DXUI_RUN_TEST(TestWindowHostScrollPanelScrollbarSurvivesForcedNullSolidBrushes);
     DXUI_RUN_TEST(TestWindowHostComboBoxPopupSurvivesForcedNullSolidBrushes);
     DXUI_RUN_TEST(TestWindowHostDisabledOrHiddenCaptureCancelsTheDrag);
+    DXUI_RUN_TEST(TestWindowHostThrowingMouseLeaveStillClearsTooltip);
     DXUI_RUN_TEST(TestWindowHostSmokeOverlayRendersBelowRootOverlay);
     DXUI_RUN_TEST(TestWindowHostOverlayHitTestingPrecedesContentHitTesting);
     DXUI_RUN_TEST(TestWindowHostOverlayHitTestRetiringRootStopsPointerResolutionAndDispatch);

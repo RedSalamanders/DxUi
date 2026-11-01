@@ -753,6 +753,10 @@ the initiating host's root and retire the control that requested capture. Contro
 state before transfer, retain a weak lifetime across it, and revalidate both lifetime and current host ownership
 before later member access or callbacks. A retired requester consumes the original input without continuing against
 the replacement tree. This does not extend to destroying the owning host during its own callback.
+An embedded invalidation may synchronously request preparation and retire or rebind the Tree. A Tree input handler
+that continues to a reorder or invoke delegate MUST revalidate its lifetime and model/host binding after that wake.
+Native mouse-leave contains ordinary hover and leave callback failures before clearing the old tooltip; if a callback
+replaces the interaction tree, the old leave MUST not clear the replacement's tooltip.
 ControlHost retains native Win32 TSF/IME and UIA behavior, exercised by the
 ported suites. EmbeddedHost owns no OS-focus HWND. Application-side `TextInputServices` borrows the caller's HWND;
 `AttachAccessibility` publishes providers without creating one. Cross-plugin COM/POD transport, composition/IME

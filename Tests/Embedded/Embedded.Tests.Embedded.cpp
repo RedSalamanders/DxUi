@@ -1128,6 +1128,65 @@ __declspec(noinline) static void TestGridModelMutationDuringCellPaintAbortsPrepa
     }
 }
 
+__declspec(noinline) static void TestTreeReorderWakeRetiresOwner(GraphicsFixture& gpu)
+{
+    using namespace DxUi;
+    struct Model final : ITreeModel
+    {
+        size_t GetVisibleItemCount() const noexcept override { return 3u; }
+        void GetVisibleItem(size_t index, TreeItemData& item) const override
+        { item = {.id = index + 1u, .text = L"Row " + std::to_wstring(index + 1u)}; }
+        std::optional<size_t> FindVisibleItemById(uint64_t id) const noexcept override
+        { return id >= 1u && id <= 3u ? std::optional<size_t>(static_cast<size_t>(id - 1u)) : std::nullopt; }
+    } model;
+    struct Delegate final : ITreeDelegate
+    {
+        unsigned reorders{};
+        void OnTreeReorder(const TreeDrop&) override { ++reorders; }
+    } delegate;
+    struct Wake
+    {
+        EmbeddedHost* view{};
+        bool armed{};
+        unsigned retirements{};
+    } wake;
+    std::shared_ptr<GraphicsDevice> graphics;
+    Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "create Tree reorder retirement graphics");
+    EmbeddedHost view;
+    wake.view = &view;
+    EmbeddedCallbacks callbacks{};
+    callbacks.context = &wake;
+    callbacks.requestPreparation = [](void* context) noexcept
+    {
+        auto& state = *static_cast<Wake*>(context);
+        if (std::exchange(state.armed, false))
+        {
+            ++state.retirements;
+            state.view->Controls().SetRoot(nullptr);
+        }
+    };
+    Hr(view.Attach(graphics, callbacks), "attach Tree reorder retirement host");
+    auto root = std::make_unique<Panel>();
+    auto* tree = root->AddChild<Tree>();
+    tree->SetBounds(D2D1::RectF(0, 0, 220, 160));
+    tree->SetReorderEnabled(true);
+    tree->SetModel(&model);
+    tree->SetDelegate(&delegate);
+    view.Controls().SetRoot(std::move(root));
+    Hr(PrepareRichEmbeddedContent(view, 320, 160), "prepare Tree reorder retirement fixture");
+    const auto first = tree->GetVisibleItemHitRect(0u), third = tree->GetVisibleItemHitRect(2u);
+    Check(first && third, "Tree reorder retirement rows have actual hit rectangles");
+    const auto from = D2D1::Point2F((first->left + first->right) * .5f, (first->top + first->bottom) * .5f);
+    const auto target = D2D1::Point2F((third->left + third->right) * .5f, third->top + 2.f);
+    Check(tree->OnMouseDown(view.Controls(), from, false, 0u) && tree->OnMouseMove(view.Controls(), target, 0u),
+          "Tree reorder retirement fixture arms a real drop");
+    Hr(PrepareRichEmbeddedContent(view, 320, 160), "consume the reorder move wake before release");
+    wake.armed = true;
+    static_cast<void>(tree->OnMouseUp(view.Controls(), target, false, 0u));
+    Check(wake.retirements == 1u && ! view.Controls().GetRoot() && delegate.reorders == 0u,
+          "release scheduling can retire the Tree before reorder dispatch without invoking its stale delegate");
+}
+
 __declspec(noinline) static void TestTreeDelegateMutationDuringItemPaintAbortsPreparation(GraphicsFixture& gpu)
 {
     struct QueryState final
@@ -1644,6 +1703,7 @@ __declspec(noinline) static int RunFunctionalTests()
 #endif
     TestGridModelMutationDuringCellPaintAbortsPreparation(gpu);
     TestTreeDelegateMutationDuringItemPaintAbortsPreparation(gpu);
+    TestTreeReorderWakeRetiresOwner(gpu);
     TestPointerDoesNotRetargetAfterHoverOrHitGeometryMutation(gpu);
     TestPageReplacementDuringPaintDefersBoundsUntilPreparation(gpu);
     TestLocalizedShortViewport(gpu,

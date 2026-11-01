@@ -3477,15 +3477,22 @@ try
             handled = msg == WM_MOUSELEAVE;
             if (HandleTooltipInspectionPointer(msg, D2D1::Point2F()))
                 return 0;
+            Control* const originalRoot = _root.get();
+            const auto originalRootLifetime = originalRoot ? GetControlLifetimeToken(*originalRoot) : std::weak_ptr<int>{};
+            const auto originalInteraction = GetInteractionRevision();
             if (_hoveredControl)
             {
                 Control* const oldHover                   = _hoveredControl;
                 const std::weak_ptr<int> oldHoverLifetime = oldHover->GetLifetimeToken();
                 _hoveredControl                           = nullptr;
-                oldHover->OnHoverChanged(*this, false);
+                static_cast<void>(TryControlCallback([&] { oldHover->OnHoverChanged(*this, false); }));
+                if ((originalRoot && (originalRootLifetime.expired() || _root.get() != originalRoot)) || GetInteractionRevision() != originalInteraction)
+                    return 0;
                 if (Control* const liveOldHover = RevalidateDispatchedControl(oldHoverLifetime, _root.get(), oldHover))
                 {
-                    liveOldHover->OnMouseLeave(*this);
+                    static_cast<void>(TryControlCallback([&] { liveOldHover->OnMouseLeave(*this); }));
+                    if ((originalRoot && (originalRootLifetime.expired() || _root.get() != originalRoot)) || GetInteractionRevision() != originalInteraction)
+                        return 0;
                 }
             }
             _supplementalTooltipControl = nullptr;
