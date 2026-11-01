@@ -851,7 +851,26 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     editor->SetSelection({0u, 4u});
     const auto changedSource = editor->QueryMarkdownCommandState(originalRequest);
     Check(changedSource && ! changedSource->available, "source publication retires prepared command availability");
+    Check(editor->PrepareMarkdownCommandState(originalRequest), "prepare before view-mode change");
+    editor->SetViewMode(ViewMode::Source);
+    const auto sourceView = editor->QueryMarkdownCommandState(originalRequest);
+    editor->SetViewMode(ViewMode::Rich);
+    prepare();
+    const auto restoredView = editor->QueryMarkdownCommandState(originalRequest);
+    Check(sourceView && sourceView->available == std::optional<bool>{false} && restoredView && ! restoredView->available,
+          "view-mode transitions retire prepared availability");
+    Check(editor->PrepareMarkdownCommandState(originalRequest), "prepare before document location changes");
+    editor->SetDocumentFilePath(L"C:\\docs\\prepared-state.md");
+    prepare();
+    const auto changedPath = editor->QueryMarkdownCommandState(originalRequest);
+    Check(changedPath && ! changedPath->available, "document location changes retire prepared request policy");
+    editor->SetDocumentFilePath(L"");
+    prepare();
+    Check(editor->PrepareMarkdownCommandState(originalRequest), "prepare before Markdown profile changes");
     editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    prepare();
+    const auto changedProfile = editor->QueryMarkdownCommandState(originalRequest);
+    Check(changedProfile && ! changedProfile->available, "syntax profile changes retire prepared availability");
     for (const bool referenced : {false, true})
     {
         const std::wstring source = referenced ? L"note[^n]\n\n[^n]:\n    ~~~cpp\n    x\n    ~~~\n" : L"[^n]:\n    ~~~cpp\n    x\n    ~~~\n";
