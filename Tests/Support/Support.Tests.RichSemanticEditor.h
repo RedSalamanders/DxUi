@@ -350,13 +350,17 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
               "an empty quote or list item admits an atomic nested heading trigger");
     }
     for (const auto& sample : {std::pair{std::wstring_view(L"> \n"), std::wstring_view(L"> ```\n> \n> ```\n")},
-                               std::pair{std::wstring_view(L"- \n"), std::wstring_view(L"- ```\n  \n  ```\n")}})
+                               std::pair{std::wstring_view(L"- \n"), std::wstring_view(L"- ```\n  \n  ```\n")},
+                               std::pair{std::wstring_view(L"-\t\n"), std::wstring_view(L"-\t```\n \t\n \t```\n")},
+                               std::pair{std::wstring_view(L"12. \n"), std::wstring_view(L"12. ```\n    \n    ```\n")}})
     {
         editor->SetText(std::wstring(sample.first));
         prepare();
-        editor->SetSelection({2u, 2u});
+        const auto start = sample.first.find(L'\n');
+        editor->SetSelection({start, start});
+        const auto bodyCaret = sample.second.find(L'\n') + 1u + start;
         Check(editor->OnChar(host, L'`', 0u) && editor->OnChar(host, L'`', 0u) && editor->OnChar(host, L'`', 0u) && editor->GetText() == sample.second &&
-                  editor->GetSelection() == Selection{8u, 8u},
+                  editor->GetSelection() == Selection{bodyCaret, bodyCaret},
               "nested fence trigger retains a proven continuation prefix and interior caret");
         prepare();
         Check(std::ranges::any_of(editor->GetMarkdownSyntax()->Nodes(),
