@@ -19,6 +19,8 @@ namespace DxUi::RichText::Detail
 #if DXUI_ENABLE_DIAGNOSTICS
 // Private test seam for preserving HRESULT classification from GetLineMetrics.
 extern thread_local HRESULT testRichMathLineMetricsFailure;
+extern thread_local std::size_t testRichMathConstantReads;
+extern thread_local std::size_t testRichMathPreparations;
 #endif
 // PreparedMath owns all shaping and geometry. The syntax tree is admitted and
 // indexed once; Advance shapes one text leaf per call and finalizes from cached
@@ -97,6 +99,9 @@ class PreparedMath final
     }
     void ReadMathConstants(IDWriteFactory* write) noexcept
     {
+#if DXUI_ENABLE_DIAGNOSTICS
+        ++testRichMathConstantReads;
+#endif
         // A missing, truncated, or implausible MATH table uses deterministic
         // em-relative constants. Only the bounded header/constants prefix is read.
         wil::com_ptr<IDWriteFontCollection> collection;
@@ -176,6 +181,31 @@ class PreparedMath final
         const auto candidateAxis        = font * static_cast<float>(axisUnits) / static_cast<float>(metrics.designUnitsPerEm);
         if (std::isfinite(candidateAxis) && candidateAxis > 0 && candidateAxis < font)
             axis = candidateAxis;
+    }
+    // The source belongs to this same factory/generation and uses the same Cambria Math face.
+    // All dimensional constants are em-relative; never retain a font face or table pointer.
+    void CopyMathConstants(const PreparedMath& source) noexcept
+    {
+        const float ratio               = font / source.font;
+        scriptScale                     = source.scriptScale;
+        scriptScriptScale               = source.scriptScriptScale;
+        delimitedMinimum                = source.delimitedMinimum;
+        displayOperatorMinimum          = source.displayOperatorMinimum;
+        axis                            = source.axis * ratio;
+        subscriptShift                  = source.subscriptShift * ratio;
+        superscriptShift                = source.superscriptShift * ratio;
+        scriptGapMinimum                = source.scriptGapMinimum * ratio;
+        fractionNumeratorShift          = source.fractionNumeratorShift * ratio;
+        fractionDenominatorShift        = source.fractionDenominatorShift * ratio;
+        fractionNumeratorGap            = source.fractionNumeratorGap * ratio;
+        fractionDenominatorGap          = source.fractionDenominatorGap * ratio;
+        fractionNumeratorDisplayShift   = source.fractionNumeratorDisplayShift * ratio;
+        fractionDenominatorDisplayShift = source.fractionDenominatorDisplayShift * ratio;
+        fractionNumeratorDisplayGap     = source.fractionNumeratorDisplayGap * ratio;
+        fractionDenominatorDisplayGap   = source.fractionDenominatorDisplayGap * ratio;
+        fractionRuleThickness           = source.fractionRuleThickness * ratio;
+        upperLimitGap                   = source.upperLimitGap * ratio;
+        lowerLimitGap                   = source.lowerLimitGap * ratio;
     }
     static std::size_t CountAndValidate(const MathNode& root)
     {
@@ -1029,7 +1059,7 @@ class PreparedMath final
     }
 
 public:
-    PreparedMath(IDWriteFactory* write, std::shared_ptr<const MathExpression> value, float size, bool display = false)
+    PreparedMath(IDWriteFactory* write, std::shared_ptr<const MathExpression> value, float size, bool display = false, const PreparedMath* constants = nullptr)
         : expression(std::move(value)),
           factory(write),
           glyphs(0u),
@@ -1040,12 +1070,18 @@ public:
     {
         if (! expression || ! *expression || ! std::isfinite(size) || size <= 0.f || size > 4096.f || ! write)
             throw std::invalid_argument("Invalid mathematical preparation request");
+#if DXUI_ENABLE_DIAGNOSTICS
+        ++testRichMathPreparations;
+#endif
         const auto count = CountAndValidate(expression->root);
         boxes.reserve(count);
         glyphs.reserve(count);
         axis = font * .25f;
         InitializeFallbackConstants();
-        ReadMathConstants(write);
+        if (constants && constants->factory.get() == write)
+            CopyMathConstants(*constants);
+        else
+            ReadMathConstants(write);
         Flatten(expression->root, font, false, false, false, displayStyle, 0u);
     }
     bool Advance()

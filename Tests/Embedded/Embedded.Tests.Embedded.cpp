@@ -1580,6 +1580,9 @@ __declspec(noinline) static int RunFunctionalTests()
     RichSemanticTests::Run(RichSemanticGeometryTests::SourceCaretSites);
     RichSemanticTests::Run(RichSemanticGeometryTests::HangingMarkersLinksAndHtml);
     RichSemanticTests::Run(RichSemanticGeometryTests::LinkRasterOracle);
+#if DXUI_ENABLE_DIAGNOSTICS
+    RichSemanticTests::Run(RichSemanticGeometryTests::MathWidthReflowAndTargetReplacement);
+#endif
     RichSemanticTests::Run(RichSemanticGeometryTests::TaskCheckboxAlignment);
     RichSemanticTests::Run(RichSemanticGeometryTests::LiteralFootnoteBlockCaretSites);
     RichSemanticTests::Run(RichSemanticGeometryTests::ReorderedFootnoteCaretSitesAndSourceLines);

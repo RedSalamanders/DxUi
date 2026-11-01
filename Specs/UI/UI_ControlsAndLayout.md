@@ -1725,6 +1725,8 @@ remains source-independent; labels and device-independent factory paths may
 survive replacement borrowed devices with the same factory. Final process/GPU
 resource, device-loss and host object qualification remain separate requirements.
 
+Native math preparation reads Cambria Math constants once per semantic geometry generation and shares the resulting em-relative values across formulas. A width-only reflow may reuse finalized DirectWrite math layouts while rebuilding placement geometry, provided the semantic document, factory, render target, resource epochs, image bindings and all other layout options match. Changed font, factory, target, epoch or document retires the incompatible resources; clearing the owner releases them. No global factory or font cache extends their lifetime.
+
 The pinned Mermaid 11.4.1 inventory and all 105 original flowchart examples MUST
 remain accounted for. Independent subset expectations distinguish 16 admitted
 graphs from 89 unsupported definitions, including the documented stadium and

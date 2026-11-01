@@ -77,6 +77,9 @@ void TestRichSemanticGeometryHangingMarkersLinksAndHtml()
 void TestRichSemanticGeometryLinkRasterOracle()
 {
     RichSemanticTests::Run(RichSemanticGeometryTests::LinkRasterOracle);
+#if DXUI_ENABLE_DIAGNOSTICS
+    RichSemanticTests::Run(RichSemanticGeometryTests::MathWidthReflowAndTargetReplacement);
+#endif
 }
 void TestRichSemanticGeometryTaskCheckboxAlignment()
 {

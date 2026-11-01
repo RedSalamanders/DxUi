@@ -1,4 +1,5 @@
 #pragma once
+#include "Controls/DxUi.PreparedMath.h"
 #include "Controls/DxUi.RichSemanticGeometry.h"
 #include "Support.Tests.RichSemanticDocument.h"
 #include <cmath>
@@ -170,6 +171,59 @@ inline void LiteralFootnoteBlockCaretSites()
     Check(geometry.Ready() && geometry.BoxCount() == 1u && geometry.SourceLines().size() == 1026u,
           "many literal note blank lines remain real source lines without creating duplicate layout boxes");
 }
+#if DXUI_ENABLE_DIAGNOSTICS
+inline void MathWidthReflowAndTargetReplacement()
+{
+    const auto initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+    if (FAILED(initialized) && initialized != RPC_E_CHANGED_MODE)
+        THROW_IF_FAILED(initialized);
+    const auto apartment = wil::scope_exit([&]() noexcept
+    {
+        if (SUCCEEDED(initialized))
+            CoUninitialize();
+    });
+    wil::com_ptr<IWICImagingFactory> imaging;
+    THROW_IF_FAILED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(imaging.put())));
+    wil::com_ptr<ID2D1Factory> drawing;
+    THROW_IF_FAILED(D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, drawing.put()));
+    wil::com_ptr<IWICBitmap> bitmap;
+    THROW_IF_FAILED(imaging->CreateBitmap(512u, 512u, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnLoad, bitmap.put()));
+    const auto properties = D2D1::RenderTargetProperties(
+        D2D1_RENDER_TARGET_TYPE_SOFTWARE, D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED), 96.0f, 96.0f);
+    wil::com_ptr<ID2D1RenderTarget> target, replacement;
+    THROW_IF_FAILED(drawing->CreateWicBitmapRenderTarget(bitmap.get(), properties, target.put()));
+    THROW_IF_FAILED(drawing->CreateWicBitmapRenderTarget(bitmap.get(), properties, replacement.put()));
+    const auto document = RichSemanticDocumentTests::Build(L"Body $x^2$\n\n# Heading $\\frac{1}{2}$\n", MarkdownProfile::RichMarkdown);
+    auto factory        = Factory();
+    PreparedSemanticGeometry geometry;
+    LayoutOptions options;
+    options.widthDip        = 360.0f;
+    const auto preparations = DxUi::RichText::Detail::testRichMathPreparations;
+    const auto reads        = DxUi::RichText::Detail::testRichMathConstantReads;
+    geometry.Begin(factory.get(), document, options, drawing.get(), {}, {}, target.get());
+    Complete(geometry);
+    Check(DxUi::RichText::Detail::testRichMathPreparations == preparations + 2u && DxUi::RichText::Detail::testRichMathConstantReads == reads + 1u,
+          "two formulas share one font-constant read");
+    for (float width : {180.0f, 240.0f, 360.0f})
+    {
+        options.widthDip = width;
+        geometry.Begin(factory.get(), document, options, drawing.get(), {}, {}, target.get());
+        Complete(geometry);
+    }
+    Check(DxUi::RichText::Detail::testRichMathPreparations == preparations + 2u && DxUi::RichText::Detail::testRichMathConstantReads == reads + 1u,
+          "width-only reflows reuse finalized formulas");
+    options.widthDip = 220.0f;
+    geometry.Begin(factory.get(), document, options, drawing.get(), {}, {}, replacement.get());
+    Complete(geometry);
+    Check(DxUi::RichText::Detail::testRichMathPreparations == preparations + 4u && DxUi::RichText::Detail::testRichMathConstantReads == reads + 2u,
+          "target replacement retires prior generation resources");
+    options.fontSizeDip += 2.0f;
+    geometry.Begin(factory.get(), document, options, drawing.get(), {}, {}, replacement.get());
+    Complete(geometry);
+    Check(DxUi::RichText::Detail::testRichMathPreparations == preparations + 6u && DxUi::RichText::Detail::testRichMathConstantReads == reads + 3u,
+          "font change rebuilds math rather than reusing stale geometry");
+}
+#endif
 inline void LinkRasterOracle()
 {
     const auto initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);

@@ -22,6 +22,8 @@ namespace DxUi::RichText::Detail
 thread_local const RichImageRasterCalls* testRichImageRasterCalls{};
 thread_local IDWriteFactory* testRichSemanticWriteFactory{};
 thread_local HRESULT testRichMathLineMetricsFailure{S_OK};
+thread_local std::size_t testRichMathConstantReads{};
+thread_local std::size_t testRichMathPreparations{};
 #endif
 namespace
 {
@@ -117,7 +119,7 @@ struct NativeImagePlacement
     MarkdownRange display;
     std::shared_ptr<const RichImage> pixels;
     wil::com_ptr<ID2D1Bitmap> bitmap;
-    std::unique_ptr<PreparedMath> math;
+    std::shared_ptr<PreparedMath> math;
     D2D1_SIZE_F Size() const noexcept
     {
         return math ? math->Size() : D2D1::SizeF(static_cast<float>(pixels->Width()), static_cast<float>(pixels->Height()));
@@ -133,8 +135,12 @@ struct NativeImagePlacement
 #pragma warning(pop)
 struct NativeImageGeometry
 {
-    NativeImageGeometry(
-        const RichImageResourceSet& resources, const SemanticDocument& document, ID2D1RenderTarget* target, IDWriteFactory* write, const LayoutOptions& options)
+    NativeImageGeometry(const RichImageResourceSet& resources,
+                        const SemanticDocument& document,
+                        ID2D1RenderTarget* target,
+                        IDWriteFactory* write,
+                        const LayoutOptions& options,
+                        const NativeImageGeometry* previous)
         : placements(resources.placements.size() + SemanticExtensionAccess::Maths(document).size()),
           targetIdentity(target)
     {
@@ -162,7 +168,8 @@ struct NativeImageGeometry
                 bytes += resource.image->Pixels().size();
             }
         }
-        const auto maths = SemanticExtensionAccess::Maths(document);
+        const auto maths              = SemanticExtensionAccess::Maths(document);
+        const PreparedMath* constants = nullptr;
         for (std::size_t index = 0; index < maths.size(); ++index)
         {
             auto& placement   = placements[resources.placements.size() + index];
@@ -189,7 +196,19 @@ struct NativeImageGeometry
             // reject this formula as a local geometry-capacity failure.
             try
             {
-                placement.math = std::make_unique<PreparedMath>(write, maths[index].expression, font * 1.15f, maths[index].display);
+                if (previous)
+                {
+                    const auto prior =
+                        std::lower_bound(previous->placements.begin(), previous->placements.end(), placement.element, [](const auto& value, auto element) {
+                        return value.element < element;
+                    });
+                    if (prior != previous->placements.end() && prior->element == placement.element)
+                        placement.math = prior->math;
+                }
+                if (! placement.math)
+                    placement.math = std::make_shared<PreparedMath>(write, maths[index].expression, font * 1.15f, maths[index].display, constants);
+                if (! constants)
+                    constants = placement.math.get();
             }
             catch (const std::length_error&)
             {
@@ -369,7 +388,8 @@ struct PreparedSemanticGeometry::State
           ID2D1Factory* drawing,
           FlowchartResourceEpoch epochs,
           std::shared_ptr<const RichImageResourceSet> inputImages,
-          ID2D1RenderTarget* raster)
+          ID2D1RenderTarget* raster,
+          const NativeImageGeometry* previousImages)
         : document(std::move(input)),
           factory(writeFactory),
           options(inputOptions),
@@ -386,7 +406,7 @@ struct PreparedSemanticGeometry::State
         if ((imageResources && ! imageResources->placements.empty()) || ! SemanticExtensionAccess::Maths(*document).empty())
         {
             const RichImageResourceSet empty;
-            images = std::make_unique<NativeImageGeometry>(imageResources ? *imageResources : empty, *document, raster, factory.get(), options);
+            images = std::make_unique<NativeImageGeometry>(imageResources ? *imageResources : empty, *document, raster, factory.get(), options, previousImages);
         }
         const auto diagrams = SemanticExtensionAccess::Diagrams(*document);
         if (! diagrams.empty())
@@ -522,8 +542,9 @@ struct PreparedSemanticGeometry::Preparation
                          ID2D1Factory* drawing,
                          FlowchartResourceEpoch epochs,
                          std::shared_ptr<const RichImageResourceSet> images,
-                         ID2D1RenderTarget* target)
-        : state(std::make_unique<State>(std::move(document), factory, options, drawing, epochs, std::move(images), target)),
+                         ID2D1RenderTarget* target,
+                         const NativeImageGeometry* previousImages)
+        : state(std::make_unique<State>(std::move(document), factory, options, drawing, epochs, std::move(images), target, previousImages)),
           raster(state->images ? target : nullptr),
           markers(state->document->Paragraphs().size()),
           gutters(state->document->Syntax()->Nodes().size(), 0.0f),
@@ -1362,7 +1383,18 @@ LayoutPreparationStatus PreparedSemanticGeometry::Begin(IDWriteFactory* factory,
         valid_ = true;
         return LayoutPreparationStatus::Complete;
     }
-    auto next = std::make_unique<Preparation>(std::move(document), factory, options, drawing, epochs, std::move(images), raster);
+    // Reuse only fully published math for a width-only reflow. Prepared math owns
+    // DirectWrite layouts, not raster-target resources; placement geometry is rebuilt.
+    const NativeImageGeometry* previousImages = nullptr;
+    if (state_ && state_->images && state_->factory.get() == factory && state_->document == document && state_->imageResources == images &&
+        state_->images->targetIdentity == raster && state_->imageEpochs == epochs)
+    {
+        LayoutOptions priorOptions = state_->options;
+        priorOptions.widthDip      = options.widthDip;
+        if (SameOptions(priorOptions, options))
+            previousImages = state_->images.get();
+    }
+    auto next = std::make_unique<Preparation>(std::move(document), factory, options, drawing, epochs, std::move(images), raster, previousImages);
     next_.swap(next);
     return LayoutPreparationStatus::Pending;
 }
