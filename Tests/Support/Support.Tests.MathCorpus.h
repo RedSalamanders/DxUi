@@ -840,6 +840,19 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
         check(empty.StrokeLayouts().size() == 2u, "empty array column safely retains both declared rules");
     }
 #endif
+#if DXUI_ENABLE_DIAGNOSTICS
+    {
+        const auto expression = ParseMath(L"\\begin{array}{|l|r|}\\hline a&b\\\\\\hline c&d\\\\\\hline\\end{array}");
+        check(expression && expression.root.children[0u].text == L"array:lr:|||:---", "array records each row and column rule separately");
+        Detail::PreparedMath layout(factory, std::make_shared<const MathExpression>(expression), 24.f);
+        while (! layout.Advance()) {}
+        const auto lines = layout.StrokeLayouts();
+        check(lines.size() == 6u && lines[0u].first.y == lines[0u].last.y && lines[1u].first.y == lines[1u].last.y &&
+                  lines[2u].first.y == lines[2u].last.y && lines[0u].first.y < lines[1u].first.y && lines[1u].first.y < lines[2u].first.y,
+              "array stages top, internal and bottom horizontal rules in source order");
+    }
+#endif
+    check(! ParseMath(L"\\begin{array}{c}\\hline\\hline x\\end{array}"), "unimplemented duplicate array rules retain source");
     const auto binomial = ParseMath(L"\\binom{n}{k}");
     check(binomial && binomial.root.children.size() == 1u && binomial.root.children[0u].kind == MathKind::Matrix &&
               binomial.root.children[0u].text == L"pmatrix" && binomial.root.children[0u].columns == 1u && binomial.root.children[0u].children.size() == 2u,

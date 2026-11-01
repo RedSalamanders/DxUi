@@ -1,0 +1,1 @@
+- Prepare bounded native math array horizontal rules at row boundaries.

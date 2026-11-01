@@ -281,14 +281,15 @@ class Parser
         }
         std::vector<MathNode> cells(0u);
         if (matrixRowWidths.empty())
-            matrixRowWidths.resize((MathMaximumGroupDepth + 1u) * MathMaximumRows);
-        auto* const rowWidths = matrixRowWidths.data() + static_cast<std::size_t>(depth) * MathMaximumRows;
+            matrixRowWidths.resize((MathMaximumGroupDepth + 1u) * (MathMaximumRows + 1u));
+        auto* const rowWidths = matrixRowWidths.data() + static_cast<std::size_t>(depth) * (MathMaximumRows + 1u);
+        std::fill_n(rowWidths, MathMaximumRows + 1u, 0u);
         unsigned columns{}, rowColumns{}, rows{};
         const auto finish = [&]() -> MathNode
         {
             if (rowColumns)
             {
-                rowWidths[rows - 1u] = rowColumns;
+                rowWidths[rows - 1u] |= rowColumns;
                 columns              = std::max(columns, rowColumns);
             }
             if (declaredColumns && columns > declaredColumns)
@@ -313,7 +314,23 @@ class Parser
             else if (environment == L"alignat*")
                 environment = L"alignat";
             else if (environment == L"array")
+            {
                 environment = L"array:" + columnSpec;
+                bool horizontal{};
+                for (unsigned row = 0u; row <= rows; ++row)
+                    horizontal = horizontal || (rowWidths[row] & 0x100u) != 0u;
+                if (horizontal)
+                {
+                    if (columnSpec.find(L':') == std::wstring::npos)
+                    {
+                        environment.push_back(L':');
+                        environment.append(columns + 1u, L'.');
+                    }
+                    environment.push_back(L':');
+                    for (unsigned row = 0u; row <= rows; ++row)
+                        environment.push_back((rowWidths[row] & 0x100u) != 0u ? L'-' : L'.');
+                }
+            }
             else if (gathered)
                 environment = L"gathered";
             if (cells.size() == static_cast<std::size_t>(rows) * columns)
@@ -323,9 +340,9 @@ class Parser
             std::size_t index{};
             for (unsigned row = 0u; row < rows; ++row)
             {
-                for (unsigned column = 0u; column < rowWidths[row]; ++column)
+                for (unsigned column = 0u; column < (rowWidths[row] & 0xffu); ++column)
                     rectangular.push_back(std::move(cells[index++]));
-                for (unsigned column = rowWidths[row]; column < columns; ++column)
+                for (unsigned column = rowWidths[row] & 0xffu; column < columns; ++column)
                     rectangular.push_back(Make(MathKind::Row));
             }
             return Make(MathKind::Matrix, std::move(environment), std::move(rectangular), columns);
@@ -333,6 +350,15 @@ class Parser
         while (at < source.size())
         {
             Space();
+            if (environment == L"array" && ! rowColumns && source.substr(at, 6u) == L"\\hline" &&
+                (at + 6u == source.size() || ! Letter(source[at + 6u])))
+            {
+                if ((rowWidths[rows] & 0x100u) != 0u)
+                    Reject(MathIssue::UnsupportedCommand);
+                rowWidths[rows] |= 0x100u;
+                at += 6u;
+                continue;
+            }
             if (! rowColumns && ! cells.empty() && source.substr(at, 5) == L"\\end{")
             {
                 at += 4;
@@ -361,7 +387,7 @@ class Parser
             if (source.substr(at, 2) != L"\\\\")
                 Reject();
             at += 2;
-            rowWidths[rows - 1u] = rowColumns;
+            rowWidths[rows - 1u] |= rowColumns;
             columns              = std::max(columns, rowColumns);
             rowColumns           = 0;
         }

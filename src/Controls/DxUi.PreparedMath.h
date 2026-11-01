@@ -243,19 +243,22 @@ class PreparedMath final
             return name.substr(0u, name.size() - 2u);
         return name;
     }
-    static bool MatrixName(std::wstring_view name, unsigned columns) noexcept
+    static bool MatrixName(std::wstring_view name, unsigned columns, std::size_t rows) noexcept
     {
         if (name.starts_with(L"array:"))
         {
-            const auto plainSize = 6u + columns;
-            if (name.size() != plainSize && name.size() != plainSize + columns + 2u)
+            const auto plainSize = 6u + columns, verticalEnd = plainSize + columns + 2u;
+            if (name.size() != plainSize && name.size() != verticalEnd && name.size() != verticalEnd + rows + 2u)
                 return false;
             if (! std::ranges::all_of(name.substr(6u, columns), [](wchar_t c) { return c == L'l' || c == L'c' || c == L'r'; }))
                 return false;
-            return name.size() == plainSize || (name[plainSize] == L':' &&
-                   std::ranges::all_of(name.substr(plainSize + 1u), [](wchar_t c) { return c == L'.' || c == L'|'; }));
-        }
-        const auto base = MatrixBase(name);
+            if (name.size() == plainSize)
+                return true;
+            if (name[plainSize] != L':' || ! std::ranges::all_of(name.substr(plainSize + 1u, columns + 1u), [](wchar_t c) { return c == L'.' || c == L'|'; }))
+                return false;
+            return name.size() == verticalEnd || (name[verticalEnd] == L':' &&
+                   std::ranges::all_of(name.substr(verticalEnd + 1u), [](wchar_t c) { return c == L'.' || c == L'-'; }));
+        }        const auto base = MatrixBase(name);
         const bool suffix = base.size() != name.size();
         if (suffix && base != L"matrix" && base != L"pmatrix" && base != L"bmatrix" && base != L"Bmatrix" && base != L"vmatrix" && base != L"Vmatrix")
             return false;
@@ -632,7 +635,7 @@ class PreparedMath final
                         node.children.size() % node.columns != 0u || node.children.size() / node.columns > MathMaximumRows ||
                         (node.text == L"alignat" && node.columns % 2u != 0u) ||
                         ((node.text == L"cases" || node.text == L"rcases" || node.text == L"dcases" || node.text == L"drcases") && node.columns > 2u) ||
-                        ! MatrixName(node.text, node.columns))
+                        ! MatrixName(node.text, node.columns, node.children.size() / node.columns))
                         throw std::length_error("Mathematical matrix capacity exceeded");
                     break;
                 case MathKind::Accent:
@@ -1872,8 +1875,13 @@ class PreparedMath final
             const float top = baseline - box.extent.above, bottom = baseline + box.extent.below;
             float y       = top + box.size * .15f;
             auto rowFirst = box.firstChild;
+            const auto horizontalStart = static_cast<std::size_t>(9u + 2u * node.columns);
+            const auto horizontal = node.text.starts_with(L"array:") && node.text.size() > horizontalStart
+                                        ? std::wstring_view(node.text).substr(horizontalStart) : std::wstring_view{};
             for (unsigned row = 0; row < rows; ++row)
             {
+                if (! horizontal.empty() && horizontal[row] == L'-')
+                    Stroke(x, y - box.size * .15f, x + box.extent.width, y - box.size * .15f, stroke);
                 float above{}, below{};
                 auto cell = rowFirst;
                 for (unsigned col = 0; col < node.columns; ++col)
@@ -1901,6 +1909,8 @@ class PreparedMath final
                 y += std::max(box.size, above + below) + box.size * .3f;
                 rowFirst = cell;
             }
+            if (! horizontal.empty() && horizontal[rows] == L'-')
+                Stroke(x, y - box.size * .15f, x + box.extent.width, y - box.size * .15f, stroke);
             if (node.text.starts_with(L"array:") && node.text.size() > 6u + node.columns)
             {
                 const auto rules = std::wstring_view(node.text).substr(7u + node.columns);
