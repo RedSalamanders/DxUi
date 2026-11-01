@@ -2286,6 +2286,7 @@ void ControlHost::CaptureMouse(Control* control) noexcept
     {
         return;
     }
+    ++_captureRequestRevision;
     _capturedControl = control;
     _capturedBounds  = control ? control->GetBounds() : D2D1_RECT_F{};
     // Some controls capture during their own mouse-down handling; avoid a
@@ -2311,6 +2312,7 @@ Control* ControlHost::GetCapturedControl() const noexcept
 
 void ControlHost::ReleaseMouseCapture() noexcept
 {
+    ++_captureRequestRevision;
     _capturedControl = nullptr;
     if (_hwnd && GetCapture() == _hwnd)
     {
@@ -3667,6 +3669,7 @@ try
             if (HandleTooltipInspectionPointer(msg, point))
                 return 0;
             Control* target = _capturedControl;
+            const uint64_t captureBeforeDispatch = _captureRequestRevision;
             if (! target)
             {
                 target = HitTestControl(point);
@@ -3716,7 +3719,7 @@ try
             }
             // A gesture lasts until its last routed button is up: releasing a second button pressed during a drag (a
             // right press while a slider's thumb is held) leaves the capture, and the drag's own release, to the drag.
-            if ((static_cast<UINT>(wp) & (rightButton ? MK_LBUTTON : MK_RBUTTON)) == 0u)
+            if ((static_cast<UINT>(wp) & (rightButton ? MK_LBUTTON : MK_RBUTTON)) == 0u && _captureRequestRevision == captureBeforeDispatch)
             {
                 ReleaseMouseCapture();
             }

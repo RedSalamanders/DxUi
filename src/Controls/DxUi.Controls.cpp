@@ -10807,6 +10807,7 @@ void ScrollPanel::SetInnerHovered(Control* child) noexcept
 
 void ScrollPanel::SetInnerCaptured(Control* child, bool rightButton) noexcept
 {
+    ++_innerCaptureRevision;
     _innerCapturedChild      = child;
     _innerCapturedLifetime   = child ? child->GetLifetimeToken() : std::weak_ptr<int>{};
     _innerCaptureRightButton = child && rightButton;
@@ -11550,15 +11551,13 @@ bool ScrollPanel::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightBu
         Control* const capturedChild          = LiveInnerCaptured();
         const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
         const bool gestureEnds                = rightButton == _innerCaptureRightButton;
-        if (gestureEnds)
-        {
-            SetInnerCaptured(nullptr);
-        }
+        const uint64_t captureRevision        = _innerCaptureRevision;
+        ControlHost* const originalHost       = GetHost();
         const bool handled = capturedChild ? capturedChild->OnMouseUp(host, ToContentSpace(point), rightButton, modifiers) : true;
-        if (selfLifetime.expired() || ! gestureEnds)
-        {
+        if (selfLifetime.expired() || ! gestureEnds || GetHost() != originalHost || _innerCaptureRevision != captureRevision)
             return handled;
-        }
+        // Keep the forwarded owner visible during its release; a callback may have replaced the gesture.
+        SetInnerCaptured(nullptr);
         UpdateInnerHover(host, point);
         return handled;
     }

@@ -4730,6 +4730,7 @@ private:
     std::weak_ptr<int> _innerCapturedLifetime;
     // The button whose press began the forwarded gesture; only its release ends it.
     bool _innerCaptureRightButton = false;
+    uint64_t _innerCaptureRevision = 0u;
 
     void SetInnerHovered(Control* child) noexcept;
     void SetInnerCaptured(Control* child, bool rightButton = false) noexcept;
@@ -6711,6 +6712,7 @@ private:
 
     Control* _hoveredControl             = nullptr;
     Control* _capturedControl            = nullptr;
+    uint64_t _captureRequestRevision     = 0u;
     D2D1_RECT_F _capturedBounds          = {};
     Control* _focusedControl             = nullptr;
     uint64_t _focusRequestRevision       = 0u;

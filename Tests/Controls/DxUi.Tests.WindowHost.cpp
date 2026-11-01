@@ -7398,6 +7398,7 @@ void RunWindowHostTests()
     DXUI_RUN_TEST(TestScrollPanelForwardsSecondaryPressInContentCoordinates);
     DXUI_RUN_TEST(TestScrollPanelModelContextMenusUseScreenCoordinates);
     DXUI_RUN_TEST(TestASecondButtonDuringADragLeavesTheDragToItsControl);
+    DXUI_RUN_TEST(TestSliderReleaseThroughHostPreservesReplacementCapture);
     DXUI_RUN_TEST(TestScrollPanelScrollbarDoubleClickPagesAgain);
     DXUI_RUN_TEST(TestScrollPanelKeepsTheFocusAChildTakesOnAnUnhandledPress);
     DXUI_RUN_TEST(TestKeyboardContextAnchorsStayInsideTheScrollViewport);

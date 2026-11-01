@@ -8,6 +8,7 @@ void TestNativeCaretTicksInvalidateOnlyWhenPixelsChange();
 void TestScrollPanelForwardsSecondaryPressInContentCoordinates();
 void TestScrollPanelModelContextMenusUseScreenCoordinates();
 void TestASecondButtonDuringADragLeavesTheDragToItsControl();
+void TestSliderReleaseThroughHostPreservesReplacementCapture();
 void TestScrollPanelScrollbarDoubleClickPagesAgain();
 void TestScrollPanelKeepsTheFocusAChildTakesOnAnUnhandledPress();
 void TestKeyboardContextAnchorsStayInsideTheScrollViewport();
