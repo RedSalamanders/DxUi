@@ -1884,6 +1884,45 @@ inline void MarkdownSubtlePresentation()
     THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black), textBrush.put()));
     THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(1.0f, 0.0f, 0.0f, 1.0f), decorationBrush.put()));
     THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White), fillBrush.put()));
+    {
+        constexpr std::wstring_view marked = L"A\u0302\u0302\u0302\u0302";
+        wil::com_ptr<IDWriteTextFormat> format;
+        THROW_IF_FAILED(factory->CreateTextFormat(
+            L"Segoe UI", nullptr, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, 96.f, L"", format.put()));
+        wil::com_ptr<IDWriteTextLayout> reference;
+        THROW_IF_FAILED(factory->CreateTextLayout(marked.data(), static_cast<UINT32>(marked.size()), format.get(), 400.f, 10000.f, reference.put()));
+        DWRITE_OVERHANG_METRICS overhang{};
+        THROW_IF_FAILED(reference->GetOverhangMetrics(&overhang));
+        Check(overhang.top > 10.f, "independent DirectWrite fixture has ink well above the logical line frame");
+        const auto documentWithOverhang = RichSemanticDocumentTests::Build(marked);
+        LayoutOptions optionsWithOverhang;
+        optionsWithOverhang.widthDip    = 400.f;
+        optionsWithOverhang.fontSizeDip = 96.f;
+        PreparedSemanticGeometry geometryWithOverhang;
+        geometryWithOverhang.Begin(factory.get(), documentWithOverhang, optionsWithOverhang);
+        Complete(geometryWithOverhang);
+        const auto clippedInk = [&](bool bounded)
+        {
+            target->BeginDraw();
+            target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+            target->PushAxisAlignedClip(D2D1::RectF(0.f, 60.f, 400.f, 96.f), D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
+            geometryWithOverhang.Draw(target.get(),
+                                      textBrush.get(),
+                                      decorationBrush.get(),
+                                      D2D1::Point2F(0.f, 100.f),
+                                      bounded ? -40.f : -100.f,
+                                      bounded ? -4.f : geometryWithOverhang.Height(),
+                                      fillBrush.get());
+            target->PopAxisAlignedClip();
+            THROW_IF_FAILED(target->EndDraw());
+            std::vector<BYTE> bytes(stride * rasterHeight);
+            THROW_IF_FAILED(bitmap->CopyPixels(nullptr, stride, static_cast<UINT>(bytes.size()), bytes.data()));
+            return bytes;
+        };
+        const auto allInk = clippedInk(false);
+        Check(std::ranges::any_of(allInk, [](BYTE value) { return value < 220u; }) && clippedInk(true) == allInk,
+              "overhang beyond the logical frame remains painted when only that ink intersects the viewport");
+    }
     const auto clippedRaster = [&](bool culled, float clipTop, float clipBottom)
     {
         target->BeginDraw();

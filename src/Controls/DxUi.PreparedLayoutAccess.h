@@ -26,6 +26,10 @@ struct PreparedLayoutAccess
     {
         return owner.HorizontalTextBounds();
     }
+    static std::pair<float, float> DrawingVerticalBounds(const PreparedLayout& owner)
+    {
+        return owner.DrawingVerticalBounds();
+    }
     static float MinimumTextWidth(const PreparedLayout& owner);
     static bool ScriptTargetSupported(const PreparedLayout& owner, ID2D1RenderTarget* target);
     static void PrepareSemantic(PreparedLayout& owner,

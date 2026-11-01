@@ -1982,6 +1982,8 @@ structured UIA publication, extension rendering or consumer qualification.
 Semantic visible-range queries include only intersecting text or caret lines;
 table frame padding alone MUST NOT make offscreen cell source or display text
 visible. Intersecting native objects retain their complete source ownership.
+Semantic paint culling MUST include prepared glyph overhang in addition to the
+logical frame; this paint-only bound does not enlarge hit or visible-text ranges.
 
 ### RichMarkdown metadata envelopes (M5a)
 

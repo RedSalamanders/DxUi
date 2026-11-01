@@ -2783,7 +2783,13 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                     const auto i = work.paintCursor++;
                     std::optional<D2D1_RECT_F> rect;
                     if (work.paintGroup == 0u)
-                        rect = state.boxes[i]->frame;
+                    {
+                        const auto& box = *state.boxes[i];
+                        rect            = box.frame;
+                        const auto ink  = PreparedLayoutAccess::DrawingVerticalBounds(box.layout);
+                        rect->top       = std::min(rect->top, box.y + ink.first);
+                        rect->bottom    = std::max(rect->bottom, box.y + ink.second);
+                    }
                     else if (work.paintGroup == 1u)
                         rect = state.bounds[i];
                     else if (work.paintGroup == 2u)
