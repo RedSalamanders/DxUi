@@ -1,6 +1,7 @@
 #include "DxUi.NativeColor.h"
 #include "DxUi.NativeMathDimension.h"
 #include "DxUi.NativeMathSymbols.h"
+#include <DxUi/Configuration.h>
 #include <DxUi/RichDocument.h>
 #include <DxUi/RichMath.h>
 #include <algorithm>
