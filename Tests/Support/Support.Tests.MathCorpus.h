@@ -720,7 +720,7 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
               "SDK-shaped cells share their independently specified left, center and right anchors");
 #endif
     }
-    for (const auto source : {L"\\begin{array}{}a\\end{array}", L"\\begin{array}{l:r}a&b\\end{array}",
+    for (const auto source : {L"\\begin{array}{}a\\end{array}", L"\\begin{array}{l!r}a&b\\end{array}",
                               L"\\begin{array}{l}a&b\\end{array}", L"\\begin{array}{z}a\\end{array}"})
         check(! ParseMath(source), "unsupported or overwide array specifications retain source instead of partial rendering");
     {
@@ -853,6 +853,21 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
     }
 #endif
     check(! ParseMath(L"\\begin{array}{c}\\hline\\hline x\\end{array}"), "unimplemented duplicate array rules retain source");
+#if DXUI_ENABLE_DIAGNOSTICS
+    {
+        const auto expression = ParseMath(L"\\begin{array}{:l:r:}\\hdashline a&bb\\\\\\hdashline\\end{array}");
+        check(static_cast<bool>(expression), "dashed column and row rules are admitted");
+        Detail::PreparedMath layout(factory, std::make_shared<const MathExpression>(expression), 24.f);
+        while (! layout.Advance()) {}
+        unsigned horizontal{}, vertical{};
+        for (const auto& line : layout.StrokeLayouts())
+        {
+            horizontal += line.first.y == line.last.y;
+            vertical += line.first.x == line.last.x;
+        }
+        check(horizontal >= 2u && vertical >= 3u, "dashed rules stage bounded separate horizontal and vertical segments");
+    }
+#endif
     const auto binomial = ParseMath(L"\\binom{n}{k}");
     check(binomial && binomial.root.children.size() == 1u && binomial.root.children[0u].kind == MathKind::Matrix &&
               binomial.root.children[0u].text == L"pmatrix" && binomial.root.children[0u].columns == 1u && binomial.root.children[0u].children.size() == 2u,

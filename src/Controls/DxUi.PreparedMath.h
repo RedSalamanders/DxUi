@@ -254,11 +254,12 @@ class PreparedMath final
                 return false;
             if (name.size() == plainSize)
                 return true;
-            if (name[plainSize] != L':' || ! std::ranges::all_of(name.substr(plainSize + 1u, columns + 1u), [](wchar_t c) { return c == L'.' || c == L'|'; }))
+            if (name[plainSize] != L':' || ! std::ranges::all_of(name.substr(plainSize + 1u, columns + 1u), [](wchar_t c) { return c == L'.' || c == L'|' || c == L':'; }))
                 return false;
             return name.size() == verticalEnd || (name[verticalEnd] == L':' &&
-                   std::ranges::all_of(name.substr(verticalEnd + 1u), [](wchar_t c) { return c == L'.' || c == L'-'; }));
-        }        const auto base = MatrixBase(name);
+                   std::ranges::all_of(name.substr(verticalEnd + 1u), [](wchar_t c) { return c == L'.' || c == L'-' || c == L'='; }));
+        }
+        const auto base = MatrixBase(name);
         const bool suffix = base.size() != name.size();
         if (suffix && base != L"matrix" && base != L"pmatrix" && base != L"bmatrix" && base != L"Bmatrix" && base != L"vmatrix" && base != L"Vmatrix")
             return false;
@@ -1279,6 +1280,22 @@ class PreparedMath final
         if (colored)
             paintOperations.push_back({PaintKind::Line, lines.size() - 1u, activeBackground, activeColor, {}});
     }
+    void DashedLine(float x1, float y1, float x2, float y2, float thickness)
+    {
+        const float length = std::hypot(x2 - x1, y2 - y1);
+        if (length <= 0.f)
+            return;
+        const auto count = static_cast<unsigned>(std::clamp(std::ceil(length / 8.f), 1.f, 128.f));
+        constexpr std::size_t MaximumPreparedLines = 32768u;
+        if (lines.size() > MaximumPreparedLines || count > MaximumPreparedLines - lines.size())
+            throw std::length_error("Dashed mathematical rule capacity exceeded");
+        for (unsigned i = 0u; i < count; ++i)
+        {
+            const float first = static_cast<float>(2u * i) / static_cast<float>(2u * count);
+            const float last = static_cast<float>(2u * i + 1u) / static_cast<float>(2u * count);
+            Stroke(x1 + (x2 - x1) * first, y1 + (y2 - y1) * first, x1 + (x2 - x1) * last, y1 + (y2 - y1) * last, thickness);
+        }
+    }
     bool AddVerticalAssembly(
         const MathFontTable& table, std::size_t construction, std::uint32_t minimum, float x, float top, float bottom, float width, float size)
     {
@@ -1880,8 +1897,13 @@ class PreparedMath final
                                         ? std::wstring_view(node.text).substr(horizontalStart) : std::wstring_view{};
             for (unsigned row = 0; row < rows; ++row)
             {
-                if (! horizontal.empty() && horizontal[row] == L'-')
-                    Stroke(x, y - box.size * .15f, x + box.extent.width, y - box.size * .15f, stroke);
+                if (! horizontal.empty() && horizontal[row] != L'.')
+                {
+                    if (horizontal[row] == L'=')
+                        DashedLine(x, y - box.size * .15f, x + box.extent.width, y - box.size * .15f, stroke);
+                    else
+                        Stroke(x, y - box.size * .15f, x + box.extent.width, y - box.size * .15f, stroke);
+                }
                 float above{}, below{};
                 auto cell = rowFirst;
                 for (unsigned col = 0; col < node.columns; ++col)
@@ -1909,19 +1931,27 @@ class PreparedMath final
                 y += std::max(box.size, above + below) + box.size * .3f;
                 rowFirst = cell;
             }
-            if (! horizontal.empty() && horizontal[rows] == L'-')
-                Stroke(x, y - box.size * .15f, x + box.extent.width, y - box.size * .15f, stroke);
+            if (! horizontal.empty() && horizontal[rows] != L'.')
+            {
+                if (horizontal[rows] == L'=')
+                    DashedLine(x, y - box.size * .15f, x + box.extent.width, y - box.size * .15f, stroke);
+                else
+                    Stroke(x, y - box.size * .15f, x + box.extent.width, y - box.size * .15f, stroke);
+            }
             if (node.text.starts_with(L"array:") && node.text.size() > 6u + node.columns)
             {
                 const auto rules = std::wstring_view(node.text).substr(7u + node.columns);
                 float boundary = x;
                 for (unsigned col = 0u; col <= node.columns; ++col)
                 {
-                    if (rules[col] == L'|')
+                    if (rules[col] == L'|' || rules[col] == L':')
                     {
                         const float ruleX = std::clamp(boundary - (col > 0u && col < node.columns ? box.size * .325f : 0.f),
                                                        x, x + box.extent.width);
-                        Stroke(ruleX, top, ruleX, bottom, stroke);
+                        if (rules[col] == L':')
+                            DashedLine(ruleX, top, ruleX, bottom, stroke);
+                        else
+                            Stroke(ruleX, top, ruleX, bottom, stroke);
                     }
                     if (col < node.columns)
                         boundary += widths[col] + (col + 1u < node.columns ? box.size * .65f : 0.f);

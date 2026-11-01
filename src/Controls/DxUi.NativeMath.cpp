@@ -210,11 +210,11 @@ class Parser
         {
             if (iswspace(ch))
                 continue;
-            if (ch == L'|')
+            if (ch == L'|' || ch == L':')
             {
                 if (rules.back() != L'.')
                     Reject(MathIssue::UnsupportedCommand);
-                rules.back() = L'|';
+                rules.back() = ch;
                 continue;
             }
             if (ch != L'l' && ch != L'c' && ch != L'r')
@@ -226,12 +226,26 @@ class Parser
         }
         if (columns.empty())
             Reject(MathIssue::MissingRequiredArgument);
-        if (rules.find(L'|') != std::wstring::npos)
+        if (rules.find_first_of(L"|:") != std::wstring::npos)
         {
             columns.push_back(L':');
             columns.append(rules);
         }
         return std::wstring(columns);
+    }
+    bool ConsumeArrayRule(unsigned& row)
+    {
+        if (at >= source.size() || source[at] != L'\\')
+            return false;
+        const bool solid = source.substr(at, 6u) == L"\\hline" && (at + 6u == source.size() || ! Letter(source[at + 6u]));
+        const bool dashed = source.substr(at, 10u) == L"\\hdashline" && (at + 10u == source.size() || ! Letter(source[at + 10u]));
+        if (! solid && ! dashed)
+            return false;
+        if ((row & 0x300u) != 0u)
+            Reject(MathIssue::UnsupportedCommand);
+        row |= solid ? 0x100u : 0x200u;
+        at += solid ? 6u : 10u;
+        return true;
     }
     MathNode Matrix(std::wstring environment, unsigned depth)
     {
@@ -318,7 +332,7 @@ class Parser
                 environment = L"array:" + columnSpec;
                 bool horizontal{};
                 for (unsigned row = 0u; row <= rows; ++row)
-                    horizontal = horizontal || (rowWidths[row] & 0x100u) != 0u;
+                    horizontal = horizontal || (rowWidths[row] & 0x300u) != 0u;
                 if (horizontal)
                 {
                     if (columnSpec.find(L':') == std::wstring::npos)
@@ -328,7 +342,7 @@ class Parser
                     }
                     environment.push_back(L':');
                     for (unsigned row = 0u; row <= rows; ++row)
-                        environment.push_back((rowWidths[row] & 0x100u) != 0u ? L'-' : L'.');
+                        environment.push_back((rowWidths[row] & 0x100u) != 0u ? L'-' : (rowWidths[row] & 0x200u) != 0u ? L'=' : L'.');
                 }
             }
             else if (gathered)
@@ -350,16 +364,8 @@ class Parser
         while (at < source.size())
         {
             Space();
-            if (environment == L"array" && ! rowColumns && source.substr(at, 6u) == L"\\hline" &&
-                (at + 6u == source.size() || ! Letter(source[at + 6u])))
-            {
-                if ((rowWidths[rows] & 0x100u) != 0u)
-                    Reject(MathIssue::UnsupportedCommand);
-                rowWidths[rows] |= 0x100u;
-                at += 6u;
-                continue;
-            }
-            if (! rowColumns && ! cells.empty() && source.substr(at, 5) == L"\\end{")
+            if (environment == L"array" && ! rowColumns && ConsumeArrayRule(rowWidths[rows]))
+                continue;            if (! rowColumns && ! cells.empty() && source.substr(at, 5) == L"\\end{")
             {
                 at += 4;
                 if (GroupText() != environment)
