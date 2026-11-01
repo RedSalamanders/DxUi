@@ -285,6 +285,19 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
           "code-exit state uses the same admission as execution without copying the native text cache");
     editor->SetText(L"word");
     prepare();
+    editor->SetMarkdownShortcutsEnabled(true);
+    editor->SetSelection({0u, 4u});
+    Check(editor->OnKeyDown(host, 'X', MK_CONTROL | MK_SHIFT) && editor->GetText() == L"~~word~~" && editor->Undo(),
+          "opt-in Ctrl+Shift+X toggles semantic strikethrough");
+    prepare();
+    editor->SetSelection({2u, 2u});
+    Check(editor->OnKeyDown(host, '2', MK_CONTROL | MK_SHIFT) && editor->GetText() == L"## word" && editor->Undo(),
+          "opt-in Ctrl+Shift+2 applies a level-two heading");
+    prepare();
+    unsigned linkRequests = 0u;
+    editor->SetOnLinkEditRequested([&] { ++linkRequests; });
+    Check(editor->OnKeyDown(host, 'K', MK_CONTROL) && linkRequests == 1u, "opt-in Ctrl+K delivers one consumer link-edit request");
+    editor->SetMarkdownShortcutsEnabled(false);
     std::size_t notifications = 0u;
     editor->SetOnTextChanged([&] { ++notifications; });
     const auto exact = [&](std::wstring_view source,

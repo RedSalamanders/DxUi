@@ -3361,6 +3361,8 @@ public:
     void SetSearchQuery(std::wstring_view query, RichText::SourceSearchOptions options = {});
     void SetSearchShortcutsEnabled(bool enabled) noexcept;
     void SetOnFindRequested(std::function<void()> callback);
+    void SetMarkdownShortcutsEnabled(bool enabled) noexcept;
+    void SetOnLinkEditRequested(std::function<void()> callback);
     bool ToggleFormatting(std::wstring_view marker);
     // Opt-in semantic editing: current CPU analysis is required; commands never
     // advance preparation. Plans also guard syntax identity and source selection.

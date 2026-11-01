@@ -1210,6 +1210,10 @@ and F3/Shift+F3 to next/previous matches of the configured query; they are
 disabled by default. The consumer owns the find interface and query updates.
 The find-request delegate is held across dispatch, may retire its editor, and
 is delivered once; observer allocation failure follows the fatal observer policy.
+Optional Markdown shortcuts use Ctrl+Shift+1–6 for heading levels,
+Ctrl+Shift+0 to clear a heading, Ctrl+Shift+X for strikethrough and Ctrl+`
+for inline code. Ctrl+K requests a consumer-owned link editor. They are disabled
+by default; Ctrl+0 remains available for zoom reset and AltGr remains text input.
 Selection, source-highlight and native composition rectangles are staged with
 current layout before painting; selection or highlight changes retire their
 prepared geometry until the host prepares the replacement.

@@ -206,6 +206,8 @@ struct RichTextEditor::State
     RichText::SourceSearchOptions searchOptions;
     bool searchShortcutsEnabled = false;
     std::shared_ptr<const std::function<void()>> onFindRequested;
+    bool markdownShortcutsEnabled = false;
+    std::shared_ptr<const std::function<void()>> onLinkEditRequested;
     struct HighlightRectangle
     {
         D2D1_RECT_F rectangle{};
@@ -1541,6 +1543,15 @@ void RichTextEditor::SetOnFindRequested(std::function<void()> callback)
 {
     auto next = callback ? std::make_shared<const std::function<void()>>(std::move(callback)) : nullptr;
     _state->onFindRequested.swap(next);
+}
+void RichTextEditor::SetMarkdownShortcutsEnabled(bool enabled) noexcept
+{
+    _state->markdownShortcutsEnabled = enabled;
+}
+void RichTextEditor::SetOnLinkEditRequested(std::function<void()> callback)
+{
+    auto next = callback ? std::make_shared<const std::function<void()>>(std::move(callback)) : nullptr;
+    _state->onLinkEditRequested.swap(next);
 }
 bool RichTextEditor::SelectSourceMatch(std::wstring_view query, bool backwards, RichText::SourceSearchOptions options)
 {
@@ -3731,6 +3742,15 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
         const bool control = ModifiersContainCtrl(modifiers), shift = ModifiersContainShift(modifiers);
         if (control || key == VK_ESCAPE || key == VK_RETURN || key == VK_TAB || key == VK_F2)
             _state->typingRun.reset();
+        if (_state->markdownShortcutsEnabled && control && ! ModifiersContainAlt(modifiers) && shift && key >= '0' && key <= '6' && _state->markdownRendering &&
+            _state->mode == RichText::ViewMode::Rich && ! _state->sourceEditing)
+        {
+            RichText::MarkdownCommandRequest request;
+            request.command      = RichText::MarkdownCommand::SetHeading;
+            request.headingLevel = key - static_cast<UINT>('0');
+            static_cast<void>(ExecuteMarkdownCommand(request));
+            return true;
+        }
         if (ModifiersContainAlt(modifiers))
             return false;
         if (control && ! shift && (key == VK_OEM_PLUS || key == VK_ADD || key == VK_OEM_MINUS || key == VK_SUBTRACT || key == L'0'))
@@ -3747,6 +3767,41 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
             _state->taskPressPlan.reset();
             PublishSelectionChanged();
             return true;
+        }
+        if (_state->markdownShortcutsEnabled && control && _state->markdownRendering && _state->mode == RichText::ViewMode::Rich && ! _state->sourceEditing)
+        {
+            if ((! shift && key == VK_OEM_3) || (shift && key == 'X'))
+            {
+                RichText::MarkdownCommandRequest request;
+                request.command = RichText::MarkdownCommand::ToggleStyle;
+                request.style   = shift ? RichText::MarkdownTextStyle::Strikethrough : RichText::MarkdownTextStyle::Code;
+                static_cast<void>(ExecuteMarkdownCommand(request));
+                return true;
+            }
+            if (! shift && key == 'K')
+            {
+                const auto composition = host.GetFocusControl() == this ? host.GetNativeTextCompositionActive(this) : std::optional<bool>{false};
+                if ((host.GetFocusControl() == this && host.HasActiveNativeTextInputSession() && ! composition) || composition.value_or(false))
+                    return true;
+                const auto callback = _state->onLinkEditRequested;
+                if (! callback)
+                    return false;
+                try
+                {
+                    (*callback)();
+                }
+                catch (const std::bad_alloc&)
+                {
+                    // Observer allocation failure remains fatal at the native input boundary.
+                    std::terminate();
+                }
+                catch (const std::exception&)
+                {
+                    // The link-edit request was already delivered; do not replay it.
+                    Debug::Warning(L"DxUi::RichTextEditor: link edit request callback failed.");
+                }
+                return true;
+            }
         }
         if (_state->searchShortcutsEnabled)
         {
