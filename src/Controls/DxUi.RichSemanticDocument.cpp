@@ -829,6 +829,14 @@ struct SemanticBuilder::Preparation
         element.title  = graph.family == Detail::NativeDiagramFamily::State   ? L"State diagram. Source is available as document text."
                          : graph.family == Detail::NativeDiagramFamily::Class ? L"Class diagram. Source is available as document text."
                                                                               : L"Flowchart. Source is available as document text.";
+        if (! graph.accessibleTitle.empty())
+        {
+            if (graph.accessibleDescription.empty())
+                element.title = element.name;
+            element.name = graph.accessibleTitle;
+        }
+        if (! graph.accessibleDescription.empty())
+            element.title = graph.accessibleDescription;
         auto close     = BeginLeafParagraph(work.visit);
         result.display = {output.text.size(), output.text.size() + 1u};
         output.Emit(L"\ufffc", node.block.source, DisplaySpanKind::Object, work.visit.flags, work.visit.heading);

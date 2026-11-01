@@ -1,0 +1,1 @@
+- Expose bounded Mermaid accessibility titles and descriptions through diagram UI Automation semantics.

@@ -1543,3 +1543,13 @@ within `1..512` DIP. Source, selection, history and focus are preserved.
 `sourceMonospace` selects the code family for Source view, and `tabStopDip`
 sets an explicit tab interval independently of typed indentation. Both remain
 optional; existing Source view typography is preserved by default.
+
+Flowchart, state and class diagrams accept one `accTitle: text` and one
+`accDescr: text` or multiline `accDescr {` / `accDescr{` block closed by a
+standalone `}`. Values are plain text, each bounded to 1024 UTF-16 units;
+multiline descriptions join trimmed physical lines with LF, retaining empty
+lines. Duplicate declarations, unsupported control characters and unterminated
+blocks retain the original source with a diagnostic. The diagram UI Automation
+name uses the authored title when present; its help text uses the authored
+description, or the generated graph summary when only a title is supplied.
+Without an authored title the generated graph summary remains the name.

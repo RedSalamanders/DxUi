@@ -754,6 +754,31 @@ template <typename Check> inline void CheckFamilyGrammar(Check&& check)
     check(unclosedSubroutine->outcome == FlowchartOutcome::Malformed && unclosedSubroutine->diagnostic.issue == FlowchartIssue::MissingLabelClose &&
               unclosedSubroutine->nodes.empty(),
           "missing subroutine closer never publishes a partial graph");
+    for (const auto family : {L"flowchart TD", L"stateDiagram-v2", L"classDiagram"})
+    {
+        const auto source = std::wstring(family) + L"\naccTitle: Overview β\naccDescr {\nFirst line; 100%\n\nSecond line\n}\nA-->B\n";
+        parser.Begin(source, 41u);
+        const auto result = Complete(parser);
+        check(result->outcome == FlowchartOutcome::Prepared && result->source == source && result->accessibleTitle == L"Overview β" &&
+                  result->accessibleDescription == L"First line; 100%\n\nSecond line" && result->nodes.size() == 2u,
+              "bounded accessibility title and multiline description apply to every native diagram family");
+    }
+    for (const auto source : {L"flowchart TD\naccTitle: one\naccTitle: two\nA\n", L"flowchart TD\naccDescr {\nmissing close\n",
+                              L"flowchart TD\naccDescr: one\naccDescr: two\nA\n"})
+    {
+        parser.Begin(source, 42u);
+        const auto result = Complete(parser);
+        check(result->outcome != FlowchartOutcome::Prepared && result->source == source && result->nodes.empty() && result->edges.empty(),
+              "duplicate or unclosed accessibility metadata retains exact source without a partial graph");
+    }
+    std::wstring longDescription = L"flowchart TD\naccDescr: ";
+    longDescription.append(NativeFlowchartParser::MaximumLabelUnits + 1u, L'x');
+    longDescription += L"\nA\n";
+    parser.Begin(longDescription, 43u);
+    const auto descriptionCapacity = Complete(parser);
+    check(descriptionCapacity->outcome == FlowchartOutcome::Capacity && descriptionCapacity->diagnostic.issue == FlowchartIssue::LabelCapacity &&
+              descriptionCapacity->source == longDescription && descriptionCapacity->nodes.empty(),
+          "accessibility text obeys the bounded UTF-16 label budget");
     std::wstring oversizedMember = L"classDiagram\nclass A {\n+";
     oversizedMember.append(NativeFlowchartParser::MaximumLabelUnits, L'x');
     oversizedMember.append(L"\n}\n");

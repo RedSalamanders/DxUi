@@ -4,6 +4,7 @@
 #include "Support.Tests.PreparedFlowchart.h"
 #include "Support.Tests.RichSemanticDocument.h"
 #include <DxUi/DxUi.h>
+#include <tuple>
 
 namespace SemanticDiagramTests
 {
@@ -95,6 +96,23 @@ template <typename Check> inline void Core(Check&& check)
                 check(doc->Map().Source().substr(diagnostic.source.first, diagnostic.source.last - diagnostic.source.first) == L"\U0001f600",
                       "invalid non-ASCII identifier selects the complete supplementary scalar");
         }
+    }
+    for (const auto& [metadata, expectedName, expectedHelp] : {
+             std::tuple{L"accTitle: System map\naccDescr: Describes the system\n", L"System map", L"Describes the system"},
+             std::tuple{L"accTitle: System map\n", L"System map", L""},
+             std::tuple{L"accDescr: Describes the system\n", L"", L"Describes the system"}})
+    {
+        const std::wstring source = std::wstring(L"```mermaid\ngraph TD\n") + metadata + L"A-->B\n```";
+        const auto doc = Build(source, check);
+        const auto diagrams = SemanticExtensionAccess::Diagrams(*doc);
+        check(diagrams.size() == 1u && doc->Map().Source() == source, "accessible metadata retains the original source");
+        if (diagrams.size() != 1u)
+            continue;
+        const auto& element = doc->Elements()[diagrams.front().element];
+        check(*expectedName ? element.name == expectedName : element.name.find(L"Connections:") != std::wstring::npos,
+              "diagram name uses the authored title or generated graph summary");
+        check(*expectedHelp ? element.title == expectedHelp : element.title.find(L"Connections:") != std::wstring::npos,
+              "diagram help uses the authored description or generated graph summary");
     }
     for (const auto profile : {MarkdownProfile::CommonMark0312, MarkdownProfile::Gfm029})
     {
