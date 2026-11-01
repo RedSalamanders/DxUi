@@ -55,10 +55,11 @@ struct NativeFlowchartLayout::Preparation
     std::shared_ptr<FlowchartLayoutPlan> plan;
     std::array<FlowchartSize, Nodes> nodeLabels{};
     std::array<FlowchartSize, Edges> edgeLabels{};
-    std::array<std::size_t, Nodes> head{}, tail{}, rank{}, indegree{}, before{}, after{}, color{};
+    std::array<std::size_t, Nodes> head{}, tail{}, rank{}, indegree{}, before{}, after{}, color{}, incoming{}, outgoing{}, rowCount{};
     std::array<bool, Nodes> ranked{};
     std::array<std::size_t, Edges> next{}, startPort{}, endPort{};
     std::array<double, Edges> laneOffset{}, laneWidth{};
+    std::array<bool, Edges> direct{};
     std::array<DfsFrame, Nodes> stack{};
     std::array<double, Nodes> rowWidth{}, rowHeight{}, rowTop{}, rowCursor{};
     std::size_t cursor{}, roots{}, depth{}, rankedCount{}, active{}, activeEdge{}, maximumRank{};
@@ -190,6 +191,8 @@ struct NativeFlowchartLayout::Preparation
         else
             head[edge.from] = index;
         tail[edge.from] = index;
+        ++outgoing[edge.from];
+        ++incoming[edge.to];
         plan->edges.emplace_back();
     }
     void Dfs()
@@ -247,6 +250,8 @@ struct NativeFlowchartLayout::Preparation
         {
             if (rankedCount == graph->nodes.size())
             {
+                for (std::size_t node = 0u; node < graph->nodes.size(); ++node)
+                    ++rowCount[rank[node]];
                 Then(Stage::Ports);
                 return;
             }
@@ -289,11 +294,15 @@ struct NativeFlowchartLayout::Preparation
             Then(Stage::Rows);
             return;
         }
-        const auto index  = cursor++;
-        const auto& edge  = graph->edges[index];
-        const auto back   = plan->edges[index].route == FlowchartRoute::Back;
-        startPort[index]  = back ? ++before[rank[edge.from]] : ++after[rank[edge.from]];
-        endPort[index]    = back ? ++after[rank[edge.to]] : ++before[rank[edge.to]];
+        const auto index = cursor++;
+        const auto& edge = graph->edges[index];
+        const auto back  = plan->edges[index].route == FlowchartRoute::Back;
+        startPort[index] = back ? ++before[rank[edge.from]] : ++after[rank[edge.from]];
+        endPort[index]   = back ? ++after[rank[edge.to]] : ++before[rank[edge.to]];
+        direct[index]    = plan->edges[index].route == FlowchartRoute::Forward && edge.label.empty() && rank[edge.to] == rank[edge.from] + 1u &&
+                           rowCount[rank[edge.from]] == 1u && rowCount[rank[edge.to]] == 1u && outgoing[edge.from] == 1u && incoming[edge.to] == 1u;
+        if (direct[index])
+            return;
         laneWidth[index]  = edge.label.empty() ? PortGap : std::max(PortGap, Cross(edgeLabels[index]) + Margin);
         auto& sideWidth   = back ? leftWidth : rightWidth;
         laneOffset[index] = sideWidth;
@@ -374,19 +383,20 @@ struct NativeFlowchartLayout::Preparation
                                 : rowTop[from.rank] + rowHeight[from.rank] + static_cast<double>(startPort[index]) * PortGap;
         const auto last  = back ? rowTop[to.rank] + rowHeight[to.rank] + static_cast<double>(endPort[index]) * PortGap
                                 : rowTop[to.rank] - static_cast<double>(endPort[index]) * PortGap;
-        // Every edge has its own exterior lane, including parallel edges and
-        // self loops. Horizontal corridors are outside complete rank rows;
-        // skipped ranks therefore cannot put a line through a node interior.
-        const auto cross = back ? Margin + leftWidth - laneOffset[index] - laneWidth[index] : bandLeft + bandWidth + Margin + laneOffset[index];
         const auto fromX = from.bounds.x + from.bounds.width / 2.0, toX = to.bounds.x + to.bounds.width / 2.0;
-        placed.path     = {{{fromX, start}, {fromX, first}, {cross, first}, {cross, last}, {toX, last}, {toX, end}}};
-        placed.relation = edge.relation;
-        placed.style    = edge.style;
-        placed.hasArrow = edge.arrow;
-        const auto base = end + (back ? Margin : -Margin);
-        placed.arrow    = {{{toX, end}, {toX - 4.0, base}, {toX + 4.0, base}}};
-        placed.hasLabel = ! edge.label.empty();
-        placed.label    = {cross + 4.0, (first + last - Major(edgeLabels[index])) / 2.0, Cross(edgeLabels[index]), Major(edgeLabels[index])};
+        // Unambiguous adjacent single-node ranks share a centerline; every
+        // other route retains its exterior lane and rank-row corridors.
+        const auto cross = direct[index] ? fromX
+                           : back        ? Margin + leftWidth - laneOffset[index] - laneWidth[index]
+                                         : bandLeft + bandWidth + Margin + laneOffset[index];
+        placed.path      = {{{fromX, start}, {fromX, first}, {cross, first}, {cross, last}, {toX, last}, {toX, end}}};
+        placed.relation  = edge.relation;
+        placed.style     = edge.style;
+        placed.hasArrow  = edge.arrow;
+        const auto base  = end + (back ? Margin : -Margin);
+        placed.arrow     = {{{toX, end}, {toX - 4.0, base}, {toX + 4.0, base}}};
+        placed.hasLabel  = ! edge.label.empty();
+        placed.label     = {cross + 4.0, (first + last - Major(edgeLabels[index])) / 2.0, Cross(edgeLabels[index]), Major(edgeLabels[index])};
     }
     void TransformNodes()
     {

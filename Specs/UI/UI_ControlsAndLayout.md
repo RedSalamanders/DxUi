@@ -1729,8 +1729,10 @@ rank. Rectangles/rounded rectangles pad labels, circles contain the padded label
 diagonal, diamonds contain twice the padded width/height, hexagons double padded width to contain the label in their straight middle band, subroutines reserve room for inset rules, and stadium capsules
 keep the complete measured label inside their straight middle band. Their centerline
 ports lie on the capsule boundary in all four flow directions. Direction changes
-flow without rotating text. Every edge gets a distinct exterior lane sized for its own
-label and minimum separation, rather than the widest label in the graph; endpoint
+flow without rotating text. An unlabeled forward edge between adjacent single-node
+ranks uses their common centerline when its source has one outgoing and target one
+incoming edge. Other edges retain distinct exterior lanes sized for their own
+labels and minimum separation, rather than the widest label in the graph; endpoint
 corridors remain outside full rank rows, including for skipped-rank edges,
 cycles, self-loops and parallel edges. Crossings are permitted; optimal routing
 and upstream Mermaid coordinate compatibility are not claimed.
@@ -2124,6 +2126,8 @@ operator scripts; a trailing row separator is accepted.
 and substitutes their Unicode negations; other operands retain exact source.
 Unsupported commands remain local exact source. This is a named native profile,
 not a claim of all KaTeX functions or identical TeX font metrics. The Cambria Math face supplies bounded OpenType MATH italic corrections and precomposed vertical delimiter variants when available; larger delimiters use up to 32 distinct part records and 64 total compatible vertical glyph parts per delimiter, with 512 per formula. Connector overlap follows the [OpenType MATH format](https://learn.microsoft.com/en-us/typography/opentype/spec/math); part origins whose ink metrics do not match their advance within two design units use vector fallback. Missing, malformed or oversized font data also falls back. Horizontal assemblies and variable-font device corrections are not implemented. The at-most-4-MiB font snapshot and bounded glyph-indexed tables are shared per geometry generation.
+Font lookup and glyph-query HRESULT failures remain retryable; only a known
+unsupported font operation or absent/invalid font data uses the vector fallback.
 Native `binom`, `dbinom` and `tbinom` form a two-row parenthesized matrix with
 explicit display or text style where requested.
 A hash-verified KaTeX 0.16.11 source generates 411 bounded alphabetic one-codepoint

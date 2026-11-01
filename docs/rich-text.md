@@ -159,12 +159,12 @@ explicit document location and bounded preparation/resource handling:
 
 The native extension engine choice is C++ only. `DxUiNativeFlowchart1` currently
 has an internal CPU parser with focused Debug checks for rectangles, rounded nodes, circles,
-diamonds, four directions and bounded solid, dotted, thick and invisible edge chains. Simple state and class profiles are also available; other Mermaid families,
-expanded shapes/edges, subgraphs, styling, icons and executable directives remain
+diamonds, stadiums, hexagons and subroutines, four directions and bounded solid, dotted, thick and invisible edge chains. Simple state and class profiles are also available; other Mermaid families,
+other expanded shapes/edges, subgraphs, styling, icons and executable directives remain
 unsupported. The pinned original corpus distinguishes accepted graphs from
 rejected definitions. Source-independent cooperative CPU geometry passes focused
-x64 Debug checks, with stable ranks, four orientations and separate exterior lanes
-for forward/back/self/parallel edges. It accepts measured label sizes and creates
+x64 Debug checks, with stable ranks, four orientations, direct unambiguous adjacent
+edges and separate exterior lanes for other forward/back/self/parallel edges. It accepts measured label sizes and creates
 no SDK resources; complete extents are capped at 65,536 DIP per axis. DWrite
 shaping and reusable native paint resources pass focused Debug checks, with intercepted
 SDK-call budgets, independent Unicode/bidi/multiline raster checks, separate
@@ -1428,6 +1428,8 @@ operator scripts; a trailing row separator is accepted.
 and substitutes their Unicode negations; other operands retain exact source.
 Unsupported commands remain local exact source. This is a named native profile,
 not a claim of all KaTeX functions or identical TeX font metrics. Prepared math reads bounded OpenType MATH italic corrections, selects adequate precomposed vertical delimiter variants, and assembles up to 32 distinct part records and 64 total compatible vertical glyph parts per delimiter, with 512 per formula when the active Cambria Math face supplies them. Assembly connector overlap follows the [OpenType MATH format](https://learn.microsoft.com/en-us/typography/opentype/spec/math); part origins whose ink metrics do not match their advance within two design units use vector fallback. Missing, truncated, oversized or unavailable font data also uses vector fallback. Horizontal assemblies and variable-font device corrections are not implemented. The at-most-4-MiB MATH snapshot and glyph-indexed lookup data are shared within one geometry generation; painting performs no font-table reads.
+Font lookup and glyph-query HRESULT failures remain retryable; only a known
+unsupported font operation or absent/invalid font data uses the vector fallback.
 ASCII minus and asterisk use mathematical operator glyphs, tilde supplies spacing,
 and successive primes are raised as one superscript. A second explicit superscript
 on the same atom remains source with a diagnostic. Heading formulas follow the
