@@ -422,6 +422,21 @@ inline void ListsAndHeadings()
                       "many separate math openers share one leaf terminator index with linear-scale work");
                 previousManyWork = work;
             }
+            std::size_t previousUnclosedWork{};
+            for (const size_t count : {size_t{600u}, size_t{1200u}})
+            {
+                std::wstring unclosed(0u, L' ');
+                for (size_t i = 0u; i < count; ++i)
+                    unclosed += L"\\(";
+                Document candidate(unclosed);
+                DxUi::RichText::Detail::testMathOwnershipProbeWork = 0u;
+                const auto syntax                                  = Parse(candidate, profile);
+                const auto work                                    = DxUi::RichText::Detail::testMathOwnershipProbeWork;
+                Check(std::ranges::none_of(syntax->Inlines(), [](const auto& node) { return node.kind == MarkdownInlineKind::Math; }) &&
+                          (! previousUnclosedWork || work > previousUnclosedWork * 3u),
+                      "characterize repeated unclosed math-opener scan amplification below capacity fallback");
+                previousUnclosedWork = work;
+            }
             MarkdownParser cancelled;
             std::wstring oldSource(L"$x<y$ > ");
             for (size_t i = 0u; i < 400u; ++i)

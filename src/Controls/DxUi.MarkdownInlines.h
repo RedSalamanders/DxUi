@@ -1439,6 +1439,8 @@ class MarkdownInlines
 #endif
                 for (auto end = content; end < std::min(text_.size(), content + MathMaximumSourceUnits + 1u); ++end)
                 {
+                    if (probeWork)
+                        ++*probeWork;
                     if (! display && text_[end] == L'\n')
                     {
                         endedLine = true;
