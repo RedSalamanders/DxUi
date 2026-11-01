@@ -283,6 +283,29 @@ template <typename Check> inline void SourceRegions(Check&& check)
                   std::ranges::none_of(restored->Nodes(), [](const auto& item) { return item.block.kind == MarkdownBlockKind::SourceEditor; }),
               "ordinary parsing at the same source/revision removes the noncanonical editing hint");
     }
+    for (const auto source : {L"> previous\n```literal\nbody\n```\n", L"- previous\n```literal\nbody\n```\n"})
+    {
+        Document model{source};
+        MarkdownParser region;
+        const auto first = model.Text().find(L"```");
+        region.BeginSourceRegion(model.Snapshot(), model.Revision(), {{first, model.Length()}, 93u});
+        const auto syntax = CompleteRegion(region, check);
+        check(syntax->Nodes()[syntax->SourceRegionNode()].parent == 0u,
+              "a raw source block without the preceding quote/list prefix belongs to the document rather than the stale container");
+    }
+    for (const auto source : {L"    code\n  \n \nend", L"    code\r\n  \r\n \r\n"})
+    {
+        const auto document = SemanticDiagramTests::Build(source, check);
+        const auto lines    = document->Syntax()->EmptyLines();
+        check(lines.size() >= 2u && lines[0u].source.first < lines[1u].source.first,
+              "trailing indented-code blank lines retain separate source-ordered caret sites");
+        PreparedSemanticGeometry geometry;
+        geometry.Begin(write.get(), document, LayoutOptions{.widthDip = 240.0f});
+        while (geometry.Pending())
+            static_cast<void>(geometry.Advance());
+        for (const auto& line : lines)
+            check(geometry.IsEmptySourceSite(line.insertion), "each trimmed code blank line has current native source caret geometry");
+    }
     Document unicode{L"\U0001f600\r\nbody\n"};
     MarkdownParser parser;
     parser.BeginSourceRegion(unicode.Snapshot(), unicode.Revision(), {{0u, 4u}, 1u});

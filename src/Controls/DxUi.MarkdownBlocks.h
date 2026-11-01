@@ -592,15 +592,30 @@ class MarkdownBlocks
             References(leaf_);
         if (leaf_ != MarkdownNoNode && nodes_[leaf_].block.kind == Kind::IndentedCode)
         {
-            auto& node = nodes_[leaf_];
-            while (! node.lines.empty())
+            auto& node    = nodes_[leaf_];
+            auto retained = node.lines.size();
+            while (retained)
             {
-                const auto& line = node.lines.back();
+                const auto& line = node.lines[retained - 1u];
                 auto text        = source_.substr(line.source.first, line.source.last - line.source.first);
                 if (text.find_first_not_of(L" \t\r\n") != std::wstring_view::npos)
                     break;
-                node.lines.pop_back();
+                --retained;
             }
+            // CommonMark removes trailing code-body blank lines from rendered
+            // code, but their raw insertion sites still belong to the editor.
+            // Record them in source order before retiring the content records.
+            for (auto index = retained; index < node.lines.size(); ++index)
+            {
+                const auto range = node.lines[index].source;
+                auto first = range.first, bodyEnd = range.last;
+                while (first && source_[first - 1u] != L'\r' && source_[first - 1u] != L'\n')
+                    --first;
+                while (bodyEnd > first && (source_[bodyEnd - 1u] == L'\r' || source_[bodyEnd - 1u] == L'\n'))
+                    --bodyEnd;
+                emptyLines_.push_back({{first, range.last}, bodyEnd, node.parent, containerIndent_});
+            }
+            node.lines.resize(retained);
         }
         leaf_ = MarkdownNoNode;
     }
@@ -959,13 +974,9 @@ public:
             }
             CloseLeaf();
         }
-        if (sourceRegion_ && ! sourceRegionStarted_ && sourceRegion_->source.first >= first &&
-            (sourceRegion_->source.first < end || (sourceRegion_->source.first == end && end == source_.size() && bodyEnd == end)))
-        {
-            StartSourceRegion(bodyEnd);
-            return;
-        }
-        if (FrontMatterLine(first, bodyEnd, end))
+        const bool startsSourceRegion = sourceRegion_ && ! sourceRegionStarted_ && sourceRegion_->source.first >= first &&
+                                        (sourceRegion_->source.first < end || (sourceRegion_->source.first == end && end == source_.size() && bodyEnd == end));
+        if (! startsSourceRegion && FrontMatterLine(first, bodyEnd, end))
             return;
         lastOtherMarker_.fill(MarkdownNoNode);
         constexpr wchar_t markers[] = {L'-', L'*', L'_'};
@@ -1026,7 +1037,7 @@ public:
             const bool interrupts  = listSibling || Thematic(cursor) || HtmlStart(cursor, true) || (cursor.Indent() <= 3u && trimmed.Peek() == L'>') ||
                                      Atx(cursor) || Fence(cursor) || FootnoteAt(cursor, true).valid ||
                                      (marker.valid && ! marker.empty && (! marker.ordered || marker.start == 1u));
-            if (paragraph && ! empty && ! interrupts)
+            if (paragraph && ! empty && ! interrupts && ! startsSourceRegion)
             {
                 Content(leaf_, trimmed, bodyEnd);
                 Extend();
@@ -1035,6 +1046,16 @@ public:
             CloseLeaf();
             while (open_.size() > matched)
                 PopContainer();
+        }
+        if (startsSourceRegion)
+        {
+            CloseLeaf();
+            // Only containers whose prefixes matched this physical line can
+            // own an opaque editor. A leftover list shell has no current item.
+            while (nodes_[open_.back()].block.kind == Kind::List)
+                PopContainer();
+            StartSourceRegion(bodyEnd);
+            return;
         }
         if (leaf_ != MarkdownNoNode)
         {
@@ -1317,11 +1338,13 @@ public:
             lineFirst_ = lineEnd_ = source_.size();
             StartSourceRegion(source_.size());
         }
-        const bool trailingInLeaf =
+        bool trailingInLeaf =
             leaf_ != MarkdownNoNode && nodes_[leaf_].block.content.last == source_.size() &&
             (nodes_[leaf_].block.kind == Kind::FencedCode || nodes_[leaf_].block.kind == Kind::IndentedCode || nodes_[leaf_].block.kind == Kind::HtmlBlock ||
              nodes_[leaf_].block.kind == Kind::FrontMatter || nodes_[leaf_].block.kind == Kind::SourceEditor);
         CloseLeaf();
+        if (! emptyLines_.empty() && emptyLines_.back().source.last == source_.size() && emptyLines_.back().source.first < source_.size())
+            trailingInLeaf = false;
         for (const auto container : open_)
         {
             nodes_[container].block.source.last = acceptedEnd_;
