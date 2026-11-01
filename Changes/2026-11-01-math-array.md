@@ -1,0 +1,1 @@
+- Add bounded native math arrays with source-preserving column alignment and refusal of unsupported rules.

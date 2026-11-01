@@ -198,9 +198,28 @@ class Parser
                                    L"gather",
                                    L"gather*",
                                    L"equation",
-                                   L"equation*"};
+                                   L"equation*",
+                                   L"array"};
         if (std::ranges::find(names, environment) == names.end())
             Reject(MathIssue::UnsupportedEnvironment);
+        std::wstring columnSpec(0u, L' ');
+        unsigned declaredColumns{};
+        if (environment == L"array")
+        {
+            for (const auto ch : GroupText())
+            {
+                if (iswspace(ch))
+                    continue;
+                if (ch != L'l' && ch != L'c' && ch != L'r')
+                    Reject(MathIssue::UnsupportedCommand);
+                if (columnSpec.size() == MathMaximumColumns)
+                    Reject(MathIssue::Capacity);
+                columnSpec.push_back(ch);
+            }
+            if (columnSpec.empty())
+                Reject(MathIssue::MissingRequiredArgument);
+            declaredColumns = static_cast<unsigned>(columnSpec.size());
+        }
         std::vector<MathNode> cells(0u);
         std::array<unsigned, MathMaximumRows> rowWidths{};
         unsigned columns{}, rowColumns{}, rows{};
@@ -211,6 +230,10 @@ class Parser
                 rowWidths[rows - 1u] = rowColumns;
                 columns              = std::max(columns, rowColumns);
             }
+            if (declaredColumns && columns > declaredColumns)
+                Reject(MathIssue::Capacity);
+            if (declaredColumns)
+                columns = declaredColumns;
             const bool gathered = environment == L"gathered" || environment == L"gather" || environment == L"gather*" || environment == L"equation" ||
                                   environment == L"equation*";
             const bool equation = environment == L"equation" || environment == L"equation*";
@@ -220,6 +243,8 @@ class Parser
                 Reject(MathIssue::Capacity);
             if (environment == L"align" || environment == L"align*" || environment == L"split")
                 environment = L"aligned";
+            else if (environment == L"array")
+                environment = L"array:" + columnSpec;
             else if (gathered)
                 environment = L"gathered";
             if (cells.size() == static_cast<std::size_t>(rows) * columns)

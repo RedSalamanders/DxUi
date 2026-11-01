@@ -631,6 +631,26 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
               "fraction layout paints a rule only for over while preserving both SDK-shaped operands");
     }
 #endif
+    {
+        const auto expression = ParseMath(L"\\begin{array}{lcr}a&aa&aaa\\\\aa&a&a\\end{array}");
+        check(expression && expression.root.children.size() == 1u && expression.root.children[0u].text == L"array:lcr" &&
+                  expression.root.children[0u].columns == 3u && expression.root.children[0u].children.size() == 6u,
+              "array retains its explicit ordered alignment and rectangular cells");
+#if DXUI_ENABLE_DIAGNOSTICS
+        Detail::PreparedMath layout(factory, std::make_shared<const MathExpression>(expression), 24.f);
+        while (! layout.Advance())
+        {
+        }
+        const auto glyphs = layout.GlyphLayouts();
+        check(glyphs.size() == 6u && std::abs(glyphs[0u].origin.x - glyphs[3u].origin.x) < .01f &&
+                  std::abs(glyphs[1u].origin.x + glyphs[1u].extent.width * .5f - glyphs[4u].origin.x - glyphs[4u].extent.width * .5f) < .01f &&
+                  std::abs(glyphs[2u].origin.x + glyphs[2u].extent.width - glyphs[5u].origin.x - glyphs[5u].extent.width) < .01f,
+              "SDK-shaped cells share their independently specified left, center and right anchors");
+#endif
+    }
+    for (const auto source : {L"\\begin{array}{}a\\end{array}", L"\\begin{array}{l|r}a&b\\end{array}",
+                              L"\\begin{array}{l}a&b\\end{array}", L"\\begin{array}{z}a\\end{array}"})
+        check(! ParseMath(source), "unsupported or overwide array specifications retain source instead of partial rendering");
     const auto binomial = ParseMath(L"\\binom{n}{k}");
     check(binomial && binomial.root.children.size() == 1u && binomial.root.children[0u].kind == MathKind::Matrix &&
               binomial.root.children[0u].text == L"pmatrix" && binomial.root.children[0u].columns == 1u && binomial.root.children[0u].children.size() == 2u,
