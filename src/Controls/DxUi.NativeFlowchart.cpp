@@ -33,6 +33,7 @@ struct NativeFlowchartParser::Preparation
     std::shared_ptr<FlowchartModel> model;
     std::size_t scan{}, first{}, depth{}, statements{}, classBlockNode{}, classBlockStart{};
     std::array<bool, MaximumNodes> stateDescriptions{};
+    std::array<std::uint8_t, MaximumNodes> pseudoKinds{};
     bool quote{}, escaped{}, pipe{}, comment{}, header{}, done{}, classBlock{};
     explicit Preparation(std::wstring_view source, std::uint64_t revision) : model(std::make_shared<FlowchartModel>(source, revision))
     {
@@ -111,7 +112,7 @@ struct NativeFlowchartParser::Preparation
     {
         if (description.empty())
             return true;
-        if (model->nodes[node].shape == FlowchartShape::Diamond)
+        if (model->nodes[node].shape == FlowchartShape::Diamond || model->nodes[node].shape == FlowchartShape::Bar)
             return Error(FlowchartIssue::UnsupportedStatement, firstUnit, end, FlowchartOutcome::Unsupported);
         auto& label = model->nodes[node].label;
         if (stateDescriptions[node])
@@ -409,17 +410,28 @@ struct NativeFlowchartParser::Preparation
         }
         if (stateDeclaration)
         {
-            constexpr std::wstring_view marker = L"<<choice>>";
-            const auto markerAt                = Text().find(marker, at);
-            if (markerAt != std::wstring_view::npos && markerAt + marker.size() == end)
+            struct Pseudostate
             {
+                std::wstring_view marker;
+                FlowchartShape shape;
+                std::uint8_t kind;
+            };
+            constexpr std::array pseudostates{Pseudostate{L"<<choice>>", FlowchartShape::Diamond, 1u},
+                                              Pseudostate{L"<<fork>>", FlowchartShape::Bar, 2u},
+                                              Pseudostate{L"<<join>>", FlowchartShape::Bar, 3u}};
+            for (const auto& [marker, shape, kind] : pseudostates)
+            {
+                const auto markerAt = Text().find(marker, at);
+                if (markerAt == std::wstring_view::npos || markerAt + marker.size() != end)
+                    continue;
                 std::size_t node{};
                 if (! Node(at, markerAt, node))
                     return false;
                 Skip(at, markerAt);
-                if (at != markerAt || stateDescriptions[node])
+                if (at != markerAt || stateDescriptions[node] || (pseudoKinds[node] != 0u && pseudoKinds[node] != kind))
                     return Error(FlowchartIssue::UnsupportedStatement, at, end, FlowchartOutcome::Unsupported);
-                model->nodes[node].shape = FlowchartShape::Diamond;
+                pseudoKinds[node]        = kind;
+                model->nodes[node].shape = shape;
                 model->nodes[node].label.clear();
                 return true;
             }

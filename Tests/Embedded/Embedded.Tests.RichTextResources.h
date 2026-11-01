@@ -1201,6 +1201,7 @@ static void TestNativeFlowchartAllocationFailureAtomicity(bool trace = false)
                                     L"flowchart LR;A-.->B;B==>C;C~~~D",
                                     L"stateDiagram-v2;state \"Ready\" as S;S : Running;S-->T : go",
                                     L"stateDiagram-v2;state C <<choice>>;A-->C;C-->B : yes",
+                                    L"stateDiagram-v2;state F <<fork>>;state J <<join>>;A-->F;F-->J;J-->B",
                                     L"classDiagram;Base <|-- Derived;Derived : member",
                                     L"classDiagram\nclass Animal {\n+name: String\n+run()\n}\nAnimal -- Pond\n"};
     std::size_t total{};

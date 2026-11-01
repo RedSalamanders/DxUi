@@ -147,6 +147,12 @@ struct NativeFlowchartLayout::Preparation
         auto width       = std::max(40.0, nodeLabels[index].width + 24.0);
         auto height      = std::max(32.0, nodeLabels[index].height + 16.0);
         const auto shape = graph->nodes[index].shape;
+        if (shape == FlowchartShape::Bar)
+        {
+            // Canonical top-to-bottom coordinates rotate with the graph, so the bar remains perpendicular to the flow.
+            plan->nodes.push_back({shape, 0u, {0.0, 0.0, 64.0, 8.0}, {}});
+            return;
+        }
         if (shape == FlowchartShape::Circle)
             width = height = std::hypot(width, height);
         else if (shape == FlowchartShape::Diamond)
@@ -470,7 +476,7 @@ void NativeFlowchartLayout::Begin(std::shared_ptr<const FlowchartModel> graph,
     if (graph->direction < FlowchartDirection::TopBottom || graph->direction > FlowchartDirection::RightLeft)
         throw std::invalid_argument("Invalid flowchart layout direction");
     for (const auto& node : graph->nodes)
-        if (node.shape < FlowchartShape::Rectangle || node.shape > FlowchartShape::Stadium)
+        if (node.shape < FlowchartShape::Rectangle || node.shape > FlowchartShape::Bar)
             throw std::invalid_argument("Invalid flowchart layout shape");
     for (const auto& edge : graph->edges)
         if (edge.from >= graph->nodes.size() || edge.to >= graph->nodes.size() || edge.relation < FlowchartRelation::Line ||

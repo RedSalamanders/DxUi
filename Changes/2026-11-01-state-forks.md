@@ -1,0 +1,1 @@
+- Render bounded Mermaid state fork and join pseudostates as direction-aware native bars.

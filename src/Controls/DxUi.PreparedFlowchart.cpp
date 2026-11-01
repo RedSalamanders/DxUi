@@ -186,7 +186,7 @@ LayoutPreparationStatus PreparedFlowchart::Begin(IDWriteFactory* write,
     if (graph->direction < FlowchartDirection::TopBottom || graph->direction > FlowchartDirection::RightLeft)
         throw std::invalid_argument("Invalid native flowchart direction");
     for (const auto& node : graph->nodes)
-        if (node.label.size() > NativeFlowchartParser::MaximumLabelUnits || node.shape < FlowchartShape::Rectangle || node.shape > FlowchartShape::Stadium)
+        if (node.label.size() > NativeFlowchartParser::MaximumLabelUnits || node.shape < FlowchartShape::Rectangle || node.shape > FlowchartShape::Bar)
             throw std::invalid_argument("Invalid flowchart node label/shape");
     for (const auto& edge : graph->edges)
         if (edge.label.size() > NativeFlowchartParser::MaximumLabelUnits || edge.from >= graph->nodes.size() || edge.to >= graph->nodes.size() ||
@@ -391,7 +391,11 @@ bool PreparedFlowchart::Draw(ID2D1RenderTarget* target, ID2D1Brush* text, ID2D1B
     {
         const auto& node  = plan.nodes[index];
         const auto bounds = Rect(node.bounds);
-        if (node.shape == FlowchartShape::Diamond)
+        if (node.shape == FlowchartShape::Bar)
+        {
+            target->FillRectangle(bounds, stroke);
+        }
+        else if (node.shape == FlowchartShape::Diamond)
         {
             target->FillGeometry(state.nodePaths[index].get(), fill);
             target->DrawGeometry(state.nodePaths[index].get(), stroke);

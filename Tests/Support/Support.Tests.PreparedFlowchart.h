@@ -574,5 +574,33 @@ template <typename Check> inline void LineStyleRasterOracle(Check&& check)
     }
     check(ink[2u] > ink[0u] && pathHits[0u] > pathHits[1u] && pathHits[1u] > 0u && pathHits[3u] == 0u,
           "thick edges add ink, dotted edges contain visible gaps, and invisible edges add no path pixels");
+    for (const auto& [direction, horizontal] : {std::pair{L"TB", false}, std::pair{L"BT", false}, std::pair{L"LR", true}, std::pair{L"RL", true}})
+    {
+        const auto graph = FlowchartLayoutTests::Graph(L"stateDiagram-v2\ndirection " + std::wstring(direction) + L"\nstate F <<fork>>\nA --> F\nF --> B\n");
+        PreparedFlowchart prepared;
+        prepared.Begin(write.get(), drawing.get(), graph, {}, {1u, 1u});
+        Complete(prepared, check);
+        check(prepared.Ready() && prepared.Geometry()->nodes[0u].shape == FlowchartShape::Bar, "fork fixture prepares its native bar");
+        wil::com_ptr<IWICBitmap> bitmap;
+        THROW_IF_FAILED(imaging->CreateBitmap(512u, 256u, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnLoad, bitmap.put()));
+        const auto properties =
+            D2D1::RenderTargetProperties(D2D1_RENDER_TARGET_TYPE_SOFTWARE, D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
+        wil::com_ptr<ID2D1RenderTarget> target;
+        THROW_IF_FAILED(drawing->CreateWicBitmapRenderTarget(bitmap.get(), properties, target.put()));
+        wil::com_ptr<ID2D1SolidColorBrush> stroke, fill;
+        THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(1.f, 1.f, 1.f, 1.f), stroke.put()));
+        THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(0.f, 0.f, 0.f, 0.f), fill.put()));
+        target->BeginDraw();
+        target->Clear(D2D1::ColorF(0.f, 0.f, 0.f, 0.f));
+        check(prepared.Draw(target.get(), stroke.get(), stroke.get(), fill.get(), D2D1::Point2F(4.f, 4.f)), "fork diagram draws offscreen");
+        THROW_IF_FAILED(target->EndDraw());
+        std::vector<BYTE> pixels(512u * 256u * 4u);
+        THROW_IF_FAILED(bitmap->CopyPixels(nullptr, 512u * 4u, static_cast<UINT>(pixels.size()), pixels.data()));
+        const auto bounds = prepared.Geometry()->nodes[0u].bounds;
+        const auto x      = static_cast<unsigned>(std::lround(4.0 + bounds.x + bounds.width * (horizontal ? .5 : .25)));
+        const auto y      = static_cast<unsigned>(std::lround(4.0 + bounds.y + bounds.height * (horizontal ? .25 : .5)));
+        check(x < 512u && y < 256u && pixels[(static_cast<std::size_t>(y) * 512u + x) * 4u + 3u] != 0u,
+              "fork bar paints opaque pixels away from its connector in each direction");
+    }
 }
 } // namespace PreparedFlowchartTests

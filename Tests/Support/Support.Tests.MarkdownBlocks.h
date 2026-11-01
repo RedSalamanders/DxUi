@@ -457,6 +457,7 @@ inline wchar_t ShapeCode(FlowchartShape shape) noexcept
         case FlowchartShape::Circle: return L'C';
         case FlowchartShape::Diamond: return L'D';
         case FlowchartShape::Stadium: return L'S';
+        case FlowchartShape::Bar: return L'B';
     }
     return L'?';
 }
@@ -500,6 +501,12 @@ inline constexpr FamilyGrammarExpectation familyGrammarExpectations[] = {
     {L"stateDiagram-v2\nS : S\nS : Running\n", FlowchartOutcome::Prepared, FlowchartIssue::None, L"S|T|S=S\nRunning:O;|"},
     {L"stateDiagram-v2\nstate \"\" as S\nS : \n", FlowchartOutcome::Prepared, FlowchartIssue::None, L"S|T|S=S:O;|"},
     {L"classDiagram\nS : Ready\n", FlowchartOutcome::Prepared, FlowchartIssue::None, L"C|T|S=S\nReady:R;|"},
+    {L"stateDiagram-v2\nstate F <<fork>>\nstate J <<join>>\nA --> F\nF --> J\nJ --> B\n",
+     FlowchartOutcome::Prepared,
+     FlowchartIssue::None,
+     L"S|T|F=:B;J=:B;A=A:O;B=B:O;|2>0:A:;0>1:A:;1>3:A:;"},
+    {L"stateDiagram-v2\nstate F <<fork>>\nF : label\n", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedStatement, {}},
+    {L"stateDiagram-v2\nstate F <<fork>>\nstate F <<join>>\n", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedStatement, {}},
     {L"stateDiagram-v2\nstate Choice <<choice>>\nA --> Choice\nChoice --> B : yes\n",
      FlowchartOutcome::Prepared,
      FlowchartIssue::None,

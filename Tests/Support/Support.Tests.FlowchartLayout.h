@@ -63,6 +63,14 @@ template <typename Check> inline void Geometry(Check&& check)
               "forward edge follows the independent six-point corridor oracle");
     check(plan->edges[0u].hasArrow && Near(plan->edges[0u].arrow[1u].x, 24.0) && Near(plan->edges[0u].arrow[1u].y, 88.0),
           "arrow head ends on the target shape boundary");
+    for (const auto& [direction, horizontal] : {std::pair{L"TB", false}, std::pair{L"BT", false}, std::pair{L"LR", true}, std::pair{L"RL", true}})
+    {
+        const auto graph = Graph(L"stateDiagram-v2\ndirection " + std::wstring(direction) + L"\nstate F <<fork>>\nA --> F\nF --> B\n");
+        const auto bars  = Place(graph, check);
+        const auto& bar  = bars->nodes[0u];
+        check(bar.shape == FlowchartShape::Bar && (horizontal ? bar.bounds.height > bar.bounds.width : bar.bounds.width > bar.bounds.height),
+              "fork bars stay perpendicular to the selected graph direction");
+    }
     const auto choice = Place(Graph(L"stateDiagram-v2\nstate C <<choice>>\nA --> C\nC --> B : yes\n"), check);
     check(choice->nodes.size() == 3u && choice->nodes[0u].shape == FlowchartShape::Diamond && choice->edges.size() == 2u,
           "state choice pseudostates retain diamond geometry and both transitions");

@@ -31,7 +31,8 @@ enum class FlowchartShape
     Rounded,
     Circle,
     Diamond,
-    Stadium
+    Stadium,
+    Bar
 };
 enum class FlowchartRelation
 {
