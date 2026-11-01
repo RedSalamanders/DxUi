@@ -5660,6 +5660,7 @@ void TestMenuKeyboardInputCancelsPendingSubmenuHoverTimers()
         bool accessibilitySurvivedCloseTimer             = false;
         bool openTimerCanceledImmediatelyAfterHome       = false;
         bool keyboardChildOpened                         = false;
+        bool stationaryParentPreservedKeyboardChild      = false;
         bool keyboardChildSurvivedStaleOpenTimer         = false;
         int keyboardChildIndexAfterOpenTimer             = -1;
         bool previousChildClosed                         = false;
@@ -5801,6 +5802,10 @@ void TestMenuKeyboardInputCancelsPendingSubmenuHoverTimers()
                 ContextMenuPopupDebugState childState{};
                 observed.keyboardChildOpened =
                     submenu && DebugGetContextMenuPopupState(submenu, childState) && childState.keyboardIndex == std::optional<size_t>{0u};
+                childState                                      = {};
+                observed.stationaryParentPreservedKeyboardChild = submenu && moveToRow(b1) && DebugGetContextMenuPopupState(submenu, childState) &&
+                                                                  childState.keyboardIndex == std::optional<size_t>{0u} && rootStateAvailable() &&
+                                                                  ! rootState.hoverTimerActive;
 
                 // Direct synchronous WM_TIMER delivery intentionally models a stale already-queued
                 // native timer. DebugFireContextMenuPopupHoverTimer posts and would run after this sequence.
@@ -5920,6 +5925,7 @@ void TestMenuKeyboardInputCancelsPendingSubmenuHoverTimers()
             "UIA focus cancels the entire cascade synchronously and survives stale native open/close WM_TIMER delivery");
     Require(observed.openTimerCanceledImmediatelyAfterHome, "Home cancels the root pending-open timer before Right opens a child");
     Require(observed.keyboardChildOpened, "Right opens B11 with keyboard focus");
+    Require(observed.stationaryParentPreservedKeyboardChild, "stationary parent hover preserves keyboard child focus and does not arm a timer");
     Require(observed.keyboardChildSurvivedStaleOpenTimer && observed.keyboardChildIndexAfterOpenTimer == 0,
             "stale root open-timer delivery preserves keyboard-focused B11");
     Require(observed.previousChildClosed, "Left closes B11 before the pointer-open close-timer phase");
@@ -5990,21 +5996,6 @@ void TestMenuKeyboardLeftArrowMatchesWindowsMenuLoop()
         const auto dismissPopup = wil::scope_exit([&]() noexcept { DismissOwnedContextMenuPopupChain(ownerWindow.Hwnd()); });
 
         ContextMenuPopupDebugState popupState{};
-        D2D1_RECT_F b2Rect{};
-        if (! WaitForContextMenuPopupItemRect(bPopupHwnd, 1u, b2Rect))
-        {
-            driverFailure = "B2 row geometry is available before keyboard ownership";
-            return;
-        }
-        const float dpi = static_cast<float>(GetDpiForWindow(bPopupHwnd));
-        POINT stationaryPoint{static_cast<LONG>(std::lround((b2Rect.left + b2Rect.right) * 0.5f * dpi / USER_DEFAULT_SCREEN_DPI)),
-                              static_cast<LONG>(std::lround((b2Rect.top + b2Rect.bottom) * 0.5f * dpi / USER_DEFAULT_SCREEN_DPI))};
-        if (ClientToScreen(bPopupHwnd, &stationaryPoint) == FALSE)
-        {
-            driverFailure = "B2 row maps to screen before keyboard ownership";
-            return;
-        }
-        static_cast<void>(SendCapturedMouseMessageForMenuSuite(bPopupHwnd, WM_MOUSEMOVE, 0, stationaryPoint));
         PostMessageW(bPopupHwnd, WM_KEYDOWN, VK_HOME, 0);
         if (! WaitForContextMenuPopupState(bPopupHwnd, [](const ContextMenuPopupDebugState& state) noexcept {
             return state.keyboardIndex.has_value() && state.keyboardIndex.value() == 0u;
@@ -6027,17 +6018,6 @@ void TestMenuKeyboardLeftArrowMatchesWindowsMenuLoop()
         }, popupState))
         {
             driverFailure = "Right arrow on B1 focuses B11 before left-arrow validation";
-            return;
-        }
-
-        static_cast<void>(SendCapturedMouseMessageForMenuSuite(bPopupHwnd, WM_MOUSEMOVE, 0, stationaryPoint));
-        ContextMenuPopupDebugState parentState{};
-        if (! WaitForContextMenuPopupState(
-                bSubmenuHwnd, [](const ContextMenuPopupDebugState& state) noexcept { return state.keyboardIndex == std::optional<size_t>{0u}; }, popupState) ||
-            ! WaitForContextMenuPopupState(
-                bPopupHwnd, [](const ContextMenuPopupDebugState& state) noexcept { return ! state.hoverTimerPendingClose; }, parentState))
-        {
-            driverFailure = "stationary parent hover preserves B11 keyboard focus and does not arm a close timer";
             return;
         }
 
