@@ -1515,7 +1515,8 @@ struct PreparedSemanticGeometry::Preparation
                                                                          [&](const auto& candidate)
                             {
                                 if (candidate.owner != &old || candidate.display.first - old.paragraph.display.first != first ||
-                                    candidate.display.last - old.paragraph.display.first != last || bool(candidate.math) != bool(item.math))
+                                    candidate.display.last - old.paragraph.display.first != last || bool(candidate.math) != bool(item.math) ||
+                                    bool(candidate.tag) != bool(item.tag))
                                     return false;
                                 const auto a = candidate.Size(), b = item.Size();
                                 return a.width == b.width && a.height == b.height && candidate.Baseline() == item.Baseline();
