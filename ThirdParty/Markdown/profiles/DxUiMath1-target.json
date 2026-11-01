@@ -454,7 +454,7 @@
     "profile": "RichMarkdown only; base CommonMark/GFM behavior unchanged",
     "inlineDollar": "Unescaped single dollar, non-whitespace next unit; close after non-whitespace and not immediately before ASCII digit; no physical newline; absent valid close remains literal currency/source",
     "inlineExplicit": "Backslash-parenthesis pair; no physical newline; recognized before punctuation escape but after opaque code/HTML/link-destination precedence",
-    "display": "Own logical line with at most three spaces after container prefixes: paired double dollar or backslash-bracket lines; trailing horizontal whitespace allowed; missing close owns body through EOF with diagnostic",
+    "display": "Own logical line with at most three spaces after container prefixes: paired double dollar or backslash-bracket lines; trailing horizontal whitespace allowed; missing close owns through root EOF or its enclosing container boundary with diagnostic",
     "fenced": "Exact first info word math or latex, case-sensitive; code fence source owner retained",
     "precedence": "Code spans, fenced non-math code, opaque HTML and link destinations do not acquire math; escaped dollar remains literal",
     "source": "Whole raw envelope owns one source-bearing object; exact UTF-16, untouched trivia and EOLs survive edits; diagnostics never reserialize TeX"

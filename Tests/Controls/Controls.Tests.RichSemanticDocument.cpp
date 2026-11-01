@@ -904,6 +904,22 @@ void TestRichSemanticNativeMathematicsAndBroaderMermaid()
     const auto missingDocument = RichSemanticDocumentTests::Build(missingDisplay, MarkdownProfile::RichMarkdown);
     Require(missingDocument->Map().Source() == missingDisplay && missingDocument->Map().Display().find(missingDisplay) != std::wstring::npos &&
                 ! missingDocument->Diagnostics().empty(), "unclosed display owns all remaining lines and reports a diagnostic");
+    const std::wstring scopedDisplay = L"> $$\n> x\n\nafter\n";
+    const auto scopedDocument = RichSemanticDocumentTests::Build(scopedDisplay, MarkdownProfile::RichMarkdown);
+    Require(scopedDocument->Map().Source() == scopedDisplay && ! scopedDocument->Diagnostics().empty() &&
+                std::ranges::any_of(scopedDocument->Elements(), [](const auto& element)
+                { return element.role == SemanticRole::Math && element.source == MarkdownRange{0u, 9u}; }) &&
+                std::ranges::any_of(scopedDocument->Elements(), [](const auto& element)
+                { return element.role == SemanticRole::Paragraph && element.source == MarkdownRange{10u, 16u}; }),
+            "unclosed nested display stops at its quote boundary and leaves the following paragraph independent");
+    const std::wstring listDisplay = L"- $$\n  x\n\nafter\n";
+    const auto listDocument = RichSemanticDocumentTests::Build(listDisplay, MarkdownProfile::RichMarkdown);
+    Require(listDocument->Map().Source() == listDisplay && ! listDocument->Diagnostics().empty() &&
+                std::ranges::any_of(listDocument->Elements(), [](const auto& element)
+                { return element.role == SemanticRole::Math && element.source == MarkdownRange{0u, 10u}; }) &&
+                std::ranges::any_of(listDocument->Elements(), [](const auto& element)
+                { return element.role == SemanticRole::Paragraph && element.source == MarkdownRange{10u, 16u}; }),
+            "unclosed nested display stops at its list boundary and leaves the following paragraph independent");
 }
 void TestRichSemanticDocumentStructuralStyleValues()
 {
