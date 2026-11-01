@@ -715,6 +715,12 @@ inline void Tables()
     request.text                 = L"()";
     request.tableCellCaretOffset = 1u;
     Exact(L"a | b\n- | -\nx | y\n", {16u, 16u}, request, L"a | b\n- | -\nx | ()\n", Selection{17u, 17u});
+    Document caretBoundarySource(L"a | b\n- | -\nx | y\n");
+    const auto caretBoundarySyntax = Parse(caretBoundarySource);
+    request.text                   = L"\U0001f600";
+    Reject<std::out_of_range>([&] {
+        static_cast<void>(BuildMarkdownCommand(caretBoundarySource.Snapshot(), caretBoundarySource.Revision(), caretBoundarySyntax, {16u, 16u}, request));
+    }, "table replacement caret cannot split a supplementary scalar");
     request.tableCellCaretOffset.reset();
     Document padded(L"| a | b | c |\r\n| :- | -: | --- |\r\n| x |\r\n");
     const auto syntax = Parse(padded);
