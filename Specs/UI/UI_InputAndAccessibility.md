@@ -1313,8 +1313,11 @@ InsertMath in the RichMarkdown profile wraps a selected source expression, or
 inserts a supplied nonempty expression, using inline or display delimiters.
 It selects the expression and rejects conflicting delimiters, inline multiline
 payloads, opaque inline interiors and expressions beyond native math source
-capacity. Top-level display expressions may span nonblank physical lines;
-blank-line and nested multiline admission remains unavailable.
+capacity. Display insertion uses own-line delimiters and selects the expression;
+it accepts whole physical paragraph lines, retaining quote/list container
+prefixes on both generated continuation lines. A top-level supplied expression
+may contain multiple physical lines. Partial physical lines, table cells and
+multiline values within containers are unavailable.
 An unmatched math opener cannot claim a closing delimiter inside a subsequent
 recognized inline code span, HTML token or angle autolink; those tokens retain their Markdown
 ownership and the unmatched opener remains literal.
