@@ -303,6 +303,21 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     Check(exitState && exitState->available == std::optional<bool>{true} && editor->ExecuteMarkdownCommand(stateRequest) == MarkdownCommandStatus::Changed &&
               editor->Undo(),
           "code-exit state uses the same admission as execution without copying the native text cache");
+    editor->SetText(L"[link](https://example.invalid)");
+    prepare();
+    editor->SetSelection({2u, 2u});
+    stateRequest.command      = MarkdownCommand::InsertEscapedText;
+    stateRequest.text         = L"[x]*";
+    const auto blockedLiteral = editor->QueryMarkdownCommandState(stateRequest);
+    Check(blockedLiteral && blockedLiteral->available == std::optional<bool>{false} &&
+              editor->ExecuteMarkdownCommand(stateRequest) == MarkdownCommandStatus::Unavailable,
+          "literal command state and execution both reject an opaque link interior");
+    editor->SetText(L"");
+    prepare();
+    const auto literalState = editor->QueryMarkdownCommandState(stateRequest);
+    Check(literalState && literalState->available == std::optional<bool>{true} &&
+              editor->ExecuteMarkdownCommand(stateRequest) == MarkdownCommandStatus::Changed && editor->GetText() == L"\\[x\\]\\*" && editor->Undo(),
+          "literal command state admits an insertion the editor can execute and undo");
     editor->SetText(L"word");
     prepare();
     editor->SetMarkdownShortcutsEnabled(true);
