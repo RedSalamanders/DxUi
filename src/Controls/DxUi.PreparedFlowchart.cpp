@@ -186,7 +186,7 @@ LayoutPreparationStatus PreparedFlowchart::Begin(IDWriteFactory* write,
     if (graph->direction < FlowchartDirection::TopBottom || graph->direction > FlowchartDirection::RightLeft)
         throw std::invalid_argument("Invalid native flowchart direction");
     for (const auto& node : graph->nodes)
-        if (node.label.size() > NativeFlowchartParser::MaximumLabelUnits || node.shape < FlowchartShape::Rectangle || node.shape > FlowchartShape::Hexagon)
+        if (node.label.size() > NativeFlowchartParser::MaximumLabelUnits || node.shape < FlowchartShape::Rectangle || node.shape > FlowchartShape::Subroutine)
             throw std::invalid_argument("Invalid flowchart node label/shape");
     for (const auto& edge : graph->edges)
         if (edge.label.size() > NativeFlowchartParser::MaximumLabelUnits || edge.from >= graph->nodes.size() || edge.to >= graph->nodes.size() ||
@@ -431,6 +431,13 @@ bool PreparedFlowchart::Draw(ID2D1RenderTarget* target, ID2D1Brush* text, ID2D1B
             const auto stadium = D2D1::RoundedRect(bounds, radius, radius);
             target->FillRoundedRectangle(stadium, fill);
             target->DrawRoundedRectangle(stadium, stroke);
+        }
+        else if (node.shape == FlowchartShape::Subroutine)
+        {
+            target->FillRectangle(bounds, fill);
+            target->DrawRectangle(bounds, stroke);
+            target->DrawLine(D2D1::Point2F(bounds.left + 8.f, bounds.top), D2D1::Point2F(bounds.left + 8.f, bounds.bottom), stroke);
+            target->DrawLine(D2D1::Point2F(bounds.right - 8.f, bounds.top), D2D1::Point2F(bounds.right - 8.f, bounds.bottom), stroke);
         }
         else
         {

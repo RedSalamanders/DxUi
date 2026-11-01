@@ -422,7 +422,7 @@ template <typename Check> inline void CheckOriginalCorpus(Check&& check)
                       result->diagnostic.source.first < result->diagnostic.source.last && result->diagnostic.source.last <= result->source.size(),
                   "unsupported original family examples retain their independently classified diagnostic and exact source fallback");
     }
-    check(prepared == 29u && unsupported == 76u && std::size(NativeFlowchartCorpus::familyExamples) == 20u,
+    check(prepared == 30u && unsupported == 75u && std::size(NativeFlowchartCorpus::familyExamples) == 20u,
           "Mermaid corpus has no omitted examples/families and separates graph preparation from rejection");
     CheckFamilyGrammar(check);
     CheckFanout(check);
@@ -460,6 +460,7 @@ inline wchar_t ShapeCode(FlowchartShape shape) noexcept
         case FlowchartShape::Stadium: return L'S';
         case FlowchartShape::Bar: return L'B';
         case FlowchartShape::Hexagon: return L'H';
+        case FlowchartShape::Subroutine: return L'U';
     }
     return L'?';
 }
@@ -724,6 +725,16 @@ template <typename Check> inline void CheckFamilyGrammar(Check&& check)
     check(unclosedHexagon->outcome == FlowchartOutcome::Malformed && unclosedHexagon->diagnostic.issue == FlowchartIssue::MissingLabelClose &&
               unclosedHexagon->nodes.empty(),
           "missing hexagon closer never publishes a partial graph");
+    parser.Begin(L"flowchart TD\nA[[operation]]-->B\n", 37u);
+    const auto subroutine = Complete(parser);
+    check(subroutine->outcome == FlowchartOutcome::Prepared && subroutine->nodes.size() == 2u && subroutine->nodes[0u].shape == FlowchartShape::Subroutine &&
+              subroutine->nodes[0u].label == L"operation",
+          "double-bracket flowchart nodes retain the subroutine shape and label");
+    parser.Begin(L"flowchart TD\nA[[operation]\n", 38u);
+    const auto unclosedSubroutine = Complete(parser);
+    check(unclosedSubroutine->outcome == FlowchartOutcome::Malformed && unclosedSubroutine->diagnostic.issue == FlowchartIssue::MissingLabelClose &&
+              unclosedSubroutine->nodes.empty(),
+          "missing subroutine closer never publishes a partial graph");
     std::wstring oversizedMember = L"classDiagram\nclass A {\n+";
     oversizedMember.append(NativeFlowchartParser::MaximumLabelUnits, L'x');
     oversizedMember.append(L"\n}\n");

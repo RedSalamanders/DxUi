@@ -33,7 +33,8 @@ enum class FlowchartShape
     Diamond,
     Stadium,
     Bar,
-    Hexagon
+    Hexagon,
+    Subroutine
 };
 enum class FlowchartRelation
 {

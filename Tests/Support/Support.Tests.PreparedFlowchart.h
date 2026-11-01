@@ -632,5 +632,21 @@ template <typename Check> inline void LineStyleRasterOracle(Check&& check)
     check(y < 256u && middle < 512u && corner < 512u && pixels[(static_cast<std::size_t>(y) * 512u + middle) * 4u + 3u] != 0u &&
               pixels[(static_cast<std::size_t>(y) * 512u + corner) * 4u + 3u] == 0u,
           "hexagon has a top edge but no rectangular top-left corner");
+    const auto subroutineGraph = FlowchartLayoutTests::Graph(L"flowchart TD;A[[label]]-->B");
+    PreparedFlowchart subroutine;
+    subroutine.Begin(write.get(), drawing.get(), subroutineGraph, {}, {1u, 1u});
+    Complete(subroutine, check);
+    target->BeginDraw();
+    target->Clear(D2D1::ColorF(0.f, 0.f, 0.f, 0.f));
+    check(subroutine.Draw(target.get(), stroke.get(), stroke.get(), fill.get(), D2D1::Point2F(4.f, 4.f)), "subroutine draws offscreen");
+    THROW_IF_FAILED(target->EndDraw());
+    THROW_IF_FAILED(bitmap->CopyPixels(nullptr, 512u * 4u, static_cast<UINT>(pixels.size()), pixels.data()));
+    const auto subBounds = subroutine.Geometry()->nodes[0u].bounds;
+    const auto subY      = static_cast<unsigned>(4.0 + subBounds.y + 4.0);
+    const auto rule      = static_cast<unsigned>(4.0 + subBounds.x + 8.0);
+    const auto gap       = static_cast<unsigned>(4.0 + subBounds.x + 4.0);
+    check(subY < 256u && rule < 512u && gap < 512u && pixels[(static_cast<std::size_t>(subY) * 512u + rule) * 4u + 3u] != 0u &&
+              pixels[(static_cast<std::size_t>(subY) * 512u + gap) * 4u + 3u] == 0u,
+          "subroutine has a separate inset vertical rule with clear space before the outer border");
 }
 } // namespace PreparedFlowchartTests

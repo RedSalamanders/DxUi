@@ -104,6 +104,10 @@ template <typename Check> inline void Geometry(Check&& check)
               Near(hexagon->edges[0u].path[0u].x, hexagon->nodes[0u].bounds.x + hexagon->nodes[0u].bounds.width / 2.0) &&
               Near(hexagon->edges[0u].path[0u].y, hexagon->nodes[0u].bounds.y + hexagon->nodes[0u].bounds.height),
           "hexagon encloses its label in its straight middle band and attaches at the bottom edge");
+    const auto subroutine = Place(Graph(L"flowchart TD;A[[operation]]-->B"), check);
+    check(subroutine->issue == FlowchartLayoutIssue::None && subroutine->nodes[0u].shape == FlowchartShape::Subroutine &&
+              subroutine->nodes[0u].bounds.width >= subroutine->nodes[0u].label.width + 40.0,
+          "subroutine label remains inside the inset vertical rules");
     const auto stadium           = Place(Graph(L"flowchart LR;A([capsule label])-->B([target])"), check);
     const auto& capsule          = stadium->nodes[0u];
     const auto& port             = stadium->edges[0u].path[0u];
