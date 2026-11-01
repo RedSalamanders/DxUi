@@ -1,5 +1,13 @@
 # Control guide
 
+For a native host, call `SetNativePresentationVisible(false)` on its owner thread
+when the application knows that presentation is unnecessary. It stops drawing and
+animation subscriptions until a true signal requests a full frame. The method
+does not hide, activate or change the input state of the HWND. It reports
+E_UNEXPECTED for embedded or unattached hosts; embedded callers use
+`EmbeddedHost::SetVisible`. The application owns occlusion detection and event
+delivery; DxUi adds no polling or global window tracking.
+
 Custom native title bars can use square `ButtonAppearance::Caption` and
 `CaptionClose` controls for neutral and red close-button hover/press feedback.
 High contrast retains its system colors. Hosts can pass nonclient hover/leave

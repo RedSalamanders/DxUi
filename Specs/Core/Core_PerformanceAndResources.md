@@ -883,6 +883,12 @@ with no embedded timer/worker/polling loop. Share immutable resources per device
 caches, textures, replacement peaks and concurrent instances. Checked arithmetic/capacity failures must fail cleanly,
 release ownership and retain coherent visual/input state. Destroy device-generation resources together on recovery.
 
+Native occlusion is an application visibility signal through
+`SetNativePresentationVisible`: the application supplies known occlusion,
+suspension or display availability changes. Native flip-model hosts do not infer
+arbitrary coverage by other windows and add no polling or global tracking hook.
+Embedded visibility remains application-owned through `EmbeddedHost::SetVisible`.
+
 ## Independent measurement ownership
 
 DxUi owns its samples, synthetic data, benchmark workloads and baseline receipts. They MUST build and run using

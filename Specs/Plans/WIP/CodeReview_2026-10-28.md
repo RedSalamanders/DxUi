@@ -935,4 +935,12 @@ R28-51 and the CR-29 to CR-31 entries describe `09f6d96a`; recheck their line re
 
 ## Current-source disposition — 1 November 2026
 
+Q17/R28-42 owner decision: use an explicit application visibility signal. Native
+flip-model Present does not provide the proposed covered-window status, and DXGI
+system occlusion notifications do not establish arbitrary coverage by another
+window. `SetNativePresentationVisible` now supplies owner-thread, event-driven
+suspension and full-frame resume; the native host contract defines the boundary.
+Its directed native subscription/tick/frame/owner-thread checks require the final
+integrated runtime campaign; this decision alone is not a passing receipt.
+
 The earlier findings and unchecked boxes below describe the review baseline, not proof that all defects still reproduce. Current-source repairs are integrated or in progress under CodeReview_2026-10-31; map each finding to code and directed coverage before disposition. Final-source builds, runtime and shared qualification remain open.

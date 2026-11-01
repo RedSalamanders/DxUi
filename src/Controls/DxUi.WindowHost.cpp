@@ -1521,7 +1521,9 @@ void ControlHost::Detach(bool processExit) noexcept
         Ui::AnimationDispatcher::GetInstance().Unsubscribe(_animationSubscriptionId);
         _animationSubscriptionId = 0u;
     }
-    _animationSuspendedWhileHidden = false;
+    _animationSuspendedWhileHidden     = false;
+    _nativePresentationVisible         = true;
+    _nativePresentationResumeAnimation = false;
 #if DXUI_ENABLE_DIAGNOSTICS
     _debugTextStoreLayoutObserver.reset();
 #endif
@@ -1818,7 +1820,7 @@ void ControlHost::Invalidate() const noexcept
 #if DXUI_ENABLE_DIAGNOSTICS
     ++_debugInvalidateCount;
 #endif
-    if (_hwnd && IsHostWindowEffectivelyVisible(_hwnd))
+    if (_hwnd && _nativePresentationVisible && IsHostWindowEffectivelyVisible(_hwnd))
     {
         InvalidateRect(_hwnd, nullptr, FALSE);
     }
@@ -1829,20 +1831,58 @@ void ControlHost::RefreshAccessibilitySnapshot() noexcept
     RefreshWindowHostAccessibilitySnapshot(_hwnd, this);
 }
 
+HRESULT ControlHost::SetNativePresentationVisible(bool visible) noexcept
+{
+    if (_embedded || ! _hwnd)
+        return E_UNEXPECTED;
+    if (_attachmentOwnerThreadId != GetCurrentThreadId())
+        return RPC_E_WRONG_THREAD;
+    if (_nativePresentationVisible == visible)
+        return S_FALSE;
+    _nativePresentationVisible = visible;
+    ++_nativePresentationRevision;
+    if (! visible)
+    {
+        _nativePresentationResumeAnimation = _animationSubscriptionId != 0u;
+        if (_animationSubscriptionId != 0u)
+        {
+            Ui::AnimationDispatcher::GetInstance().Unsubscribe(_animationSubscriptionId);
+            _animationSubscriptionId = 0u;
+        }
+    }
+    else
+    {
+        const bool resumeAnimation        = std::exchange(_nativePresentationResumeAnimation, false);
+        _forceFullPresentAfterBufferReset = true;
+        if (resumeAnimation)
+            RequestAnimation();
+        Invalidate();
+    }
+    return S_OK;
+}
+
+bool ControlHost::IsNativePresentationVisible() const noexcept
+{
+    return _nativePresentationVisible;
+}
+
 bool ControlHost::PrimeForShow() noexcept
 {
-    return EnsureSizeDependentResources(true);
+    return _nativePresentationVisible && EnsureSizeDependentResources(true);
 }
 
 bool ControlHost::RenderInitialFrameForShow() noexcept
 {
+    if (! _nativePresentationVisible)
+        return false;
+    const auto presentationRevision = _nativePresentationRevision;
     if (! EnsureSizeDependentResources(true))
     {
         return false;
     }
 
     Render(nullptr, true);
-    return true;
+    return _nativePresentationVisible && _nativePresentationRevision == presentationRevision;
 }
 
 void ControlHost::RequestAnimation() noexcept
@@ -1858,6 +1898,11 @@ void ControlHost::RequestAnimation() noexcept
             _animationTimelineRebase = true;
             Invalidate();
         }
+        return;
+    }
+    if (! _nativePresentationVisible)
+    {
+        _nativePresentationResumeAnimation = true;
         return;
     }
     if (_animationSubscriptionId == 0u)
@@ -2997,7 +3042,7 @@ bool ControlHost::IsInitialRootChildBatchActive(const Panel& root) const noexcep
 {
     const InitialRootChildBatchFrame* const frame = _initialRootChildBatchFrame;
     return frame && _batchInitialRootChildren && ! _embedded && _swapChain && _d2dContext && frame->root == &root && frame->flushesRemaining != 0u &&
-           SUCCEEDED(frame->firstFlushFailure) && _root.get() == &root && _interactionRevision == frame->interactionRevision;
+           SUCCEEDED(frame->firstFlushFailure) && _nativePresentationVisible && _root.get() == &root && _interactionRevision == frame->interactionRevision;
 }
 
 void ControlHost::FlushInitialRootChildBatch(const Panel& root) noexcept
@@ -4537,9 +4582,12 @@ void ControlHost::RecreateBrushCache() const
 void ControlHost::Render(const RECT* dirtyRectPx, bool allowHidden) noexcept
 try
 {
+    if (! _nativePresentationVisible)
+        return;
 #if DXUI_ENABLE_DIAGNOSTICS
     Render(dirtyRectPx, nullptr, allowHidden);
 #else
+    const auto presentationRevision = _nativePresentationRevision;
     if (_initialRootChildBatchFrame)
     {
         // A nested render cannot safely begin another D2D frame while the opted-in root batch is active.
@@ -4579,7 +4627,7 @@ try
             // A root installed by a paint callback receives its bounds in this update stage.
             _root->SetBounds(GetClientBoundsDip());
         }
-        if (! PreparePendingPageLayout())
+        if (! PreparePendingPageLayout() || ! _nativePresentationVisible || _nativePresentationRevision != presentationRevision)
         {
             if (_contentPreparationContinues)
                 Invalidate();
@@ -4629,7 +4677,10 @@ try
         const auto rootLifetime            = paintRoot ? paintRoot->GetLifetimeToken() : std::weak_ptr<int>{};
         const uint64_t interactionRevision = _interactionRevision;
         const auto treeStillCurrent        = [&]() noexcept
-        { return (! paintRoot || ! rootLifetime.expired()) && _root.get() == paintRoot && _interactionRevision == interactionRevision; };
+        {
+            return _nativePresentationVisible && _nativePresentationRevision == presentationRevision && (! paintRoot || ! rootLifetime.expired()) &&
+                   _root.get() == paintRoot && _interactionRevision == interactionRevision;
+        };
         InitialRootChildBatchFrame initialBatchFrame{};
         const bool batchInitialFrame =
             _initialRootChildBatchPending && ! isPartialDirty && _batchInitialRootChildren && ! _embedded && _swapChain && dynamic_cast<Panel*>(paintRoot);
@@ -4833,6 +4884,9 @@ bool ControlHost::CaptureCurrentBackBuffer(WindowHostBitmapCapture& out) noexcep
 void ControlHost::Render(const RECT* dirtyRectPx, WindowHostBitmapCapture* capture, bool allowHidden) noexcept
 try
 {
+    if (! _nativePresentationVisible)
+        return;
+    const auto presentationRevision = _nativePresentationRevision;
     if (_initialRootChildBatchFrame)
     {
         // A nested render cannot safely begin another D2D frame while the opted-in root batch is active.
@@ -4873,7 +4927,7 @@ try
             // A root installed by a paint callback receives its bounds in this update stage.
             _root->SetBounds(GetClientBoundsDip());
         }
-        if (! PreparePendingPageLayout())
+        if (! PreparePendingPageLayout() || ! _nativePresentationVisible || _nativePresentationRevision != presentationRevision)
         {
             if (_contentPreparationContinues)
                 Invalidate();
@@ -4932,7 +4986,10 @@ try
         const auto rootLifetime            = paintRoot ? paintRoot->GetLifetimeToken() : std::weak_ptr<int>{};
         const uint64_t interactionRevision = _interactionRevision;
         const auto treeStillCurrent        = [&]() noexcept
-        { return (! paintRoot || ! rootLifetime.expired()) && _root.get() == paintRoot && _interactionRevision == interactionRevision; };
+        {
+            return _nativePresentationVisible && _nativePresentationRevision == presentationRevision && (! paintRoot || ! rootLifetime.expired()) &&
+                   _root.get() == paintRoot && _interactionRevision == interactionRevision;
+        };
         InitialRootChildBatchFrame initialBatchFrame{};
         const bool batchInitialFrame =
             _initialRootChildBatchPending && ! isPartialDirty && _batchInitialRootChildren && ! _embedded && _swapChain && dynamic_cast<Panel*>(paintRoot);
@@ -5898,6 +5955,12 @@ bool ControlHost::AnimationTickThunk(void* context, uint64_t nowTickMs) noexcept
 
 bool ControlHost::OnAnimationTick(uint64_t nowTickMs) noexcept
 {
+    if (! _nativePresentationVisible)
+    {
+        _nativePresentationResumeAnimation = true;
+        _animationSubscriptionId           = 0u;
+        return false;
+    }
     if (_hwnd && ! IsHostWindowEffectivelyVisible(_hwnd))
     {
         _animationSuspendedWhileHidden = true;
@@ -5921,6 +5984,11 @@ bool ControlHost::OnAnimationTick(uint64_t nowTickMs) noexcept
     // A tree whose Tick throws stops ticking until a control asks for animation again, rather than failing every frame.
     bool rootTicking = false;
     static_cast<void>(TryControlCallback([&] { rootTicking = _root->Tick(*this, nowTickMs); }));
+    if (! _nativePresentationVisible)
+    {
+        _nativePresentationResumeAnimation = _nativePresentationResumeAnimation || rootTicking;
+        return false;
+    }
     const bool tooltipTicking = _tooltipLayer.Tick(*this, nowTickMs);
     const bool keepTicking    = rootTicking || tooltipTicking;
     if (! keepTicking)

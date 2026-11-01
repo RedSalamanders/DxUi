@@ -2182,8 +2182,14 @@ public:
     {
         return _debugShortcutMeasureCount;
     }
-    [[nodiscard]] uint64_t DebugGetHyperlinkMeasureCount() const noexcept { return _debugHyperlinkMeasureCount; }
-    [[nodiscard]] float DebugGetPreparedHyperlinkWidthDip() const noexcept { return _preparedHyperlinkWidthDip; }
+    [[nodiscard]] uint64_t DebugGetHyperlinkMeasureCount() const noexcept
+    {
+        return _debugHyperlinkMeasureCount;
+    }
+    [[nodiscard]] float DebugGetPreparedHyperlinkWidthDip() const noexcept
+    {
+        return _preparedHyperlinkWidthDip;
+    }
     void DebugFailNextPreparedIconTextLayoutForTest() noexcept;
     void DebugSetPreparedIconTextLayoutDisabledForTest(bool disabled) noexcept;
 #endif
@@ -6132,6 +6138,11 @@ public:
 
     void Invalidate() const noexcept;
     void RefreshAccessibilitySnapshot() noexcept;
+    // Application-owned native presentation visibility (for example known occlusion).
+    // False suppresses drawing and animation subscriptions until explicitly restored.
+    // Requires an attached native host; embedded callers use EmbeddedHost::SetVisible.
+    [[nodiscard]] HRESULT SetNativePresentationVisible(bool visible) noexcept;
+    [[nodiscard]] bool IsNativePresentationVisible() const noexcept;
     [[nodiscard]] bool PrimeForShow() noexcept;
     [[nodiscard]] bool RenderInitialFrameForShow() noexcept;
     void RequestAnimation() noexcept;
@@ -6722,6 +6733,8 @@ private:
     bool _animationTimelineRebase         = true;
     std::optional<uint64_t> _animationClockForTest;
     bool _animationSuspendedWhileHidden = false;
+    bool _nativePresentationVisible = true, _nativePresentationResumeAnimation = false;
+    uint64_t _nativePresentationRevision{};
     // Logical input ownership, unlike a focus-request revision, survives idempotent focus refreshes.
     uint64_t _keyboardOwnerEpoch                = 0u;
     KeyCharacterDispatch* _keyCharacterDispatch = nullptr; // Synchronous borrowed stack frame only.

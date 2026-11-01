@@ -21,6 +21,9 @@ int main()
     }
     if (stage != DxUi::FrameStage::Idle)
         return 3;
+    DxUi::ControlHost detached;
+    if (detached.SetNativePresentationVisible(false) != E_UNEXPECTED)
+        return 5;
     DxUi::RichText::MarkdownParser parser;
     parser.Begin(L"# SDK\n\n**export**\n", 1u, DxUi::RichText::MarkdownProfile::RichMarkdown);
     while (parser.HasPendingPreparation())

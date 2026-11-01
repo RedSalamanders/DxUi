@@ -6066,6 +6066,74 @@ void TestWindowHostRestoreFromMinimizeRearmsSuspendedAnimation()
     Require(window.Host().DebugHasActiveAnimationSubscription(), "SIZE_RESTORED re-arms a suspended animation for an effectively visible host");
 }
 
+void TestWindowHostApplicationVisibilitySuspendsNativePresentation()
+{
+    using namespace DxUi;
+    WindowHost detached;
+    Require(detached.SetNativePresentationVisible(false) == E_UNEXPECTED, "an unattached host refuses an application native-visibility signal");
+    AttachedHostWindow window;
+    auto& host          = window.Host();
+    HRESULT otherThread = S_OK;
+    std::jthread caller([&] { otherThread = host.SetNativePresentationVisible(false); });
+    caller.join();
+    Require(otherThread == RPC_E_WRONG_THREAD && host.IsNativePresentationVisible(), "native visibility changes require the attachment owner thread");
+    auto root     = std::make_unique<Panel>();
+    auto* ticking = root->AddChild<AnimationTickTraceControl>();
+    host.SetRoot(std::move(root));
+    ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+    Require(host.RenderInitialFrameForShow(), "prepare visible native presentation");
+    host.RequestAnimation();
+    Require(host.DebugHasActiveAnimationSubscription(), "the visible fixture owns an animation subscription");
+    Require(host.SetNativePresentationVisible(false) == S_OK && ! host.IsNativePresentationVisible() && ! host.DebugHasActiveAnimationSubscription(),
+            "application occlusion immediately releases the native animation subscription");
+    Require(host.SetNativePresentationVisible(false) == S_FALSE, "repeated occlusion is idempotent");
+    ValidateRect(window.Hwnd(), nullptr);
+    const auto ticks = ticking->tickCount, renders = host.DebugGetRenderCount();
+    for (unsigned repeat = 0u; repeat < 8u; ++repeat)
+    {
+        host.RequestAnimation();
+        host.Invalidate();
+        Require(! host.DebugAnimationTickForTest(1000u + repeat) && ! host.PrimeForShow() && ! host.RenderInitialFrameForShow(),
+                "suppressed native presentation performs no animation or explicit preparation frame");
+        bool handled = false;
+        static_cast<void>(host.HandleMessage(window.Hwnd(), WM_PAINT, 0u, 0, handled));
+        Require(handled && ! host.DebugHasActiveAnimationSubscription(), "queued paint and animation requests cannot rearm suppressed work");
+    }
+    Require(ticking->tickCount == ticks && host.DebugGetRenderCount() == renders && ! GetUpdateRect(window.Hwnd(), nullptr, FALSE),
+            "occluded native work stays event-blocked without root ticks, frames or invalidation polling");
+    const auto fullPresents = host.DebugGetFullPresentAttemptCount();
+    Require(host.SetNativePresentationVisible(true) == S_OK && host.IsNativePresentationVisible() && host.DebugHasActiveAnimationSubscription(),
+            "an explicit visible event resumes deferred animation");
+    Require(host.RenderInitialFrameForShow() && host.DebugGetRenderCount() > renders && host.DebugGetFullPresentAttemptCount() > fullPresents,
+            "restored application visibility renders a complete fresh native frame");
+    Require(host.SetNativePresentationVisible(true) == S_FALSE, "repeated visible signal adds no work");
+    host.Detach();
+    Require(host.IsNativePresentationVisible(), "a later attachment starts with the default presentation policy");
+}
+
+void TestWindowHostVisibilityChangedDuringPaintRequiresFreshFrame()
+{
+    using namespace DxUi;
+    AttachedHostWindow window;
+    auto& host = window.Host();
+    ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+    WindowHostRootReplacementPaintState state;
+    state.firstPaintCallback = [](WindowHost& owner)
+    {
+        Require(owner.SetNativePresentationVisible(false) == S_OK && owner.SetNativePresentationVisible(true) == S_OK,
+                "paint callback changes the application visibility generation");
+    };
+    host.SetRoot(std::make_unique<ReplaceRootDuringWindowHostPaintControl>(state));
+    const auto presents = host.DebugGetFullPresentAttemptCount();
+    WindowHostBitmapCapture interrupted;
+    Require(! host.DebugCaptureBitmap(interrupted) && interrupted.bgraPixels.empty() && host.DebugGetFullPresentAttemptCount() == presents &&
+                state.paintCount == 1u,
+            "a visibility change during paint prevents stale capture and presentation");
+    WindowHostBitmapCapture resumed;
+    Require(host.DebugCaptureBitmap(resumed) && ! resumed.bgraPixels.empty() && host.DebugGetFullPresentAttemptCount() > presents,
+            "the next frame presents the current visible generation in full");
+}
+
 void TestNoninteractiveWindowActivationBlockerRejectsFocusStealing()
 {
     using DxUi::TestSupport::ScopedWindowActivationBlocker;
@@ -7391,5 +7459,7 @@ void RunWindowHostTests()
     DXUI_RUN_TEST(TestNativeMenuConversionKeepsAmpersandsForThePopupToDecode);
     DXUI_RUN_TEST(TestWindowHostHiddenAnimationTickDropsSubscriptionUntilShown);
     DXUI_RUN_TEST(TestWindowHostRestoreFromMinimizeRearmsSuspendedAnimation);
+    DXUI_RUN_TEST(TestWindowHostApplicationVisibilitySuspendsNativePresentation);
+    DXUI_RUN_TEST(TestWindowHostVisibilityChangedDuringPaintRequiresFreshFrame);
     DXUI_RUN_TEST(TestNoninteractiveWindowActivationBlockerRejectsFocusStealing);
 }
