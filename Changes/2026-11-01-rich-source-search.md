@@ -1,0 +1,1 @@
+- Add bounded ordinal source search with case and whole-word options, suitable for existing highlights and atomic source replacement; native qualification remains pending.

@@ -1179,6 +1179,10 @@ many spaces, or a tab when `sourceTabUsesTabs` is set. A selected set of physica
 Shift+Tab removes up to that many leading spaces or one leading tab per line.
 Source-region edits never reach outside their active interval. Ctrl+Tab remains
 available for host traversal. Active text composition suppresses this edit.
+Source search returns non-overlapping, scalar/CRLF-safe raw ranges using ordinal
+Unicode comparison. Optional whole-word boundaries treat letters, digits,
+underscore, combining marks and surrogate units as word characters. Consumers
+can highlight matches and apply replacements in one revision-checked edit.
 
 A task press MUST stage an immutable current source plan without editing text.
 Only matching release inside its checkbox can apply it. Leaving the rectangle,

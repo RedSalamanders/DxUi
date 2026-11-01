@@ -151,6 +151,18 @@ inline void UnicodeAndAdmission()
 }
 inline void TransactionOracles()
 {
+    Document search(L"Alpha alpha alphabet\r\nALPHA");
+    const auto matches = FindInSource(search.Snapshot(), L"alpha", {.wholeWord = true});
+    Check(matches == std::vector<MarkdownRange>{{0u, 5u}, {6u, 11u}, {22u, 27u}}, "ordinal whole-word search returns source ranges");
+    Check(FindInSource(search.Snapshot(), L"alpha", {.matchCase = true}) == std::vector<MarkdownRange>{{6u, 11u}, {12u, 17u}},
+          "case-sensitive search preserves source offsets");
+    std::vector<SourceEdit> replacements(0u);
+    for (const auto match : matches)
+        replacements.push_back({match, L"x"});
+    const auto originalSearch = search.Snapshot();
+    Check(ApplySourceEdits(search, originalSearch, search.Revision(), replacements, {1u, 1u}) && search.Text() == L"x x alphabet\r\nx" && search.Undo() &&
+              search.Snapshot().IsSameRevision(originalSearch),
+          "search replacements apply as one undoable snapshot transaction");
     Document document(L"- [ ] one\r\n- [x] two\n");
     document.SetSelection({9u, 6u});
     const auto initial  = document.Text();

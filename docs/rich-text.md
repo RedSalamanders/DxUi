@@ -61,6 +61,13 @@ Temporary link and source-ink decoration follows the shared
 `SetSourceHighlights` accepts bounded source ranges with an optional `current`
 marker. These paint below selection and never alter source, selection or history;
 source edits clear them so a search owner can recompute current results.
+`FindInSource` returns ordered non-overlapping raw-source matches, with optional
+ordinal case-insensitive and whole-word matching. Whole-word boundaries treat
+letters, digits, underscore, combining marks and surrogate units as word
+characters; this is a conservative source rule, not linguistic word breaking.
+The owner can submit those ranges as source highlights and replace matches
+with one revision-checked `ApplySourceEdits` transaction. Search UI, navigation
+bindings and the richer decoration kinds remain separate work.
 `SetFocusModeEnabled(true)` draws inactive paragraphs with subdued text while the
 caret paragraph stays normal, including the final source insertion. Selection
 remains fully legible; source mode and high contrast disable dimming. These options work in both hosting modes and create no timer,
