@@ -1723,7 +1723,7 @@ public:
         if (! ReadState(state))
             return TS_E_INVALIDPOS;
         if (state.readOnly)
-            return E_ACCESSDENIED;
+            return TS_E_READONLY;
         const AcpRange range = GetSelectionRange(state);
         // One edit inserts at most 65,536 UTF-16 units. The document is as long as its field allows: a long multiline
         // field takes IME, emoji and dictation edits like a short one.

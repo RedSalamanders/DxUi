@@ -1326,6 +1326,13 @@ Grid SelectionItem AddToSelection and RemoveFromSelection report successful acce
 
 Native text-store layout notifications include focused text-control bounds and typography changes, window moves, DPI changes, and publication of changed prepared content. Locked TSF notifications use the existing coalesced deferred path; callbacks are lifetime and session guarded.
 
+Read-only text mutation through `SetText` and `InsertTextAtSelection` returns
+`TS_E_READONLY`, consistently with query admission and [the TSF return-value
+contract](https://learn.microsoft.com/en-us/windows/win32/tsf/text-store-return-values).
+Read-only selection and geometry queries remain available. Masked-field access
+refusal is a separate transport policy and retains its existing access-denied
+result.
+
 Source highlight input remains available exactly as submitted. Preparation unions
 overlapping coverage, with `current` taking priority, before querying geometry;
 duplicated full-document intervals must not multiply retained rectangles. The
