@@ -1,0 +1,103 @@
+{
+  "exitCode": 0,
+  "lease": {
+    "State": "completed",
+    "Exit": 0,
+    "Reason": "",
+    "Confirmation": "autostarted",
+    "AutoStart": true,
+    "ConfirmationSeconds": 30,
+    "ConfirmationDuplicates": [],
+    "SavedForeground": "class 'Chrome_WidgetWin_1' of ChatGPT.exe (process 24992)",
+    "Foreground": "unchanged",
+    "Focus": "unchanged",
+    "FocusCapture": {
+      "Reason": "recorded",
+      "QueryError": 0
+    },
+    "FocusCaptureProblems": [],
+    "Cursor": "restored",
+    "CursorSaved": "3005,1687",
+    "CursorAtExit": "3005,1688",
+    "CursorDiagnostics": null,
+    "RunMovedSomething": true,
+    "Children": [
+      {
+        "Name": "RedXe-API4-Debug-Menu",
+        "Launched": true,
+        "ExitCode": 0,
+        "Seconds": 66.3,
+        "TimedOut": false,
+        "Interrupted": false
+      },
+      {
+        "Name": "RedXe-API4-Debug-MenuResources",
+        "Launched": true,
+        "ExitCode": 0,
+        "Seconds": 5.9,
+        "TimedOut": false,
+        "Interrupted": false
+      },
+      {
+        "Name": "RedXe-API4-Debug-MenuResourceScaling",
+        "Launched": true,
+        "ExitCode": 0,
+        "Seconds": 14.4,
+        "TimedOut": false,
+        "Interrupted": false
+      },
+      {
+        "Name": "RedXe-API4-Release-Menu",
+        "Launched": true,
+        "ExitCode": 0,
+        "Seconds": 65.2,
+        "TimedOut": false,
+        "Interrupted": false
+      },
+      {
+        "Name": "RedXe-API4-Release-MenuResources",
+        "Launched": true,
+        "ExitCode": 0,
+        "Seconds": 5.5,
+        "TimedOut": false,
+        "Interrupted": false
+      },
+      {
+        "Name": "RedXe-API4-Release-MenuResourceScaling",
+        "Launched": true,
+        "ExitCode": 0,
+        "Seconds": 13.6,
+        "TimedOut": false,
+        "Interrupted": false
+      },
+      {
+        "Name": "RedXe-API4-ASanDebug-Menu",
+        "Launched": true,
+        "ExitCode": 0,
+        "Seconds": 92.4,
+        "TimedOut": false,
+        "Interrupted": false
+      },
+      {
+        "Name": "RedXe-API4-ASanDebug-MenuResources",
+        "Launched": true,
+        "ExitCode": 0,
+        "Seconds": 9.6,
+        "TimedOut": false,
+        "Interrupted": false
+      },
+      {
+        "Name": "RedXe-API4-ASanDebug-MenuResourceScaling",
+        "Launched": true,
+        "ExitCode": 0,
+        "Seconds": 20.7,
+        "TimedOut": false,
+        "Interrupted": false
+      }
+    ],
+    "ReceiptProblems": []
+  },
+  "completedUtc": "2026-11-02T07:44:24.2091865Z",
+  "source": "a8cb8e1d7a4106750b195e6e8f2f686d66be9075",
+  "problems": []
+}

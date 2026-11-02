@@ -1,0 +1,15 @@
+{
+  "arguments": [
+    "-NoProfile",
+    "-File",
+    "\"Z:\\src\\DxUi-worktrees\\wip-compat-redprism-menu-20261101\\.build\\focus-qualified-ordinary-20261102\\Invoke-One.ps1\"",
+    "-Root",
+    "\"Z:\\src\\DxUi-worktrees\\wip-compat-redprism-menu-20261101\"",
+    "-Configuration",
+    "\"Debug\""
+  ],
+  "createdUtc": "2026-11-02T10:43:34.8226681Z",
+  "configuration": "Debug",
+  "source": "a5b3ac81dedc39eaf1a8d131c497e59644ea794b",
+  "pid": 86000
+}

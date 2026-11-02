@@ -1,0 +1,8 @@
+{
+  "source": "a5b3ac81dedc39eaf1a8d131c497e59644ea794b",
+  "platform": "x64",
+  "configuration": "ASan Debug",
+  "acceptedBuild": true,
+  "buildExit": 0,
+  "error": null
+}

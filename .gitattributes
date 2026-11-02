@@ -68,3 +68,6 @@ Measurements/RedesignCompletion_2026-10-26/ci-4077f57d/native-and-paired/** -tex
 # Vendored parser releases and documented patch hashes require exact source bytes.
 ThirdParty/tomlplusplus/** -text -whitespace
 ThirdParty/rapidyaml/** -text -whitespace
+
+# Preserve hashed delivery snapshots and their normalized metadata byte for byte.
+Measurements/WipDelivery_2026-11-02/** -text -whitespace

@@ -1,0 +1,8 @@
+{
+  "reviewedSixImages": true,
+  "source": "9909da1065e297247cb490b970b2265a0e4d8b9e",
+  "sourceDirty": false,
+  "reviewedUtc": "2026-11-02T07:52:48.5334117Z",
+  "review": "All six harness-generated images visually inspected; synthetic sample data, math/diagrams, menu wrapping, touch halo and embedded scene present",
+  "generationSha256": "F96418D76D71F3090430D665C941C237DA25D37D5EBB65184ADEB69CCB51BC13"
+}

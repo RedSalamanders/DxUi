@@ -93,7 +93,10 @@ If a transport can retain the exact key/character association itself, pass that 
 `DispatchCharacter` overload instead. Keep a separate receipt per keydown (including repeats) and retain it across
 key-up. The correlated overload consumes a matching stale character without retargeting; a foreign or mismatched
 attempt is rejected and leaves the receipt available for its correct view/character. Do not retry a rejected
-correlated character through the bare overload. The bare overload remains independent committed text input and is
+correlated character through the bare overload. A false return does not prove a matching receipt remains
+unconsumed: the receipt is reset before `OnChar`, which may return false or throw a non-allocation exception.
+Before a transport begins passing correlated receipts, repair and test those post-consumption outcomes so they
+report the character handled and cannot cause a fallback or duplicate delivery. The bare overload remains independent committed text input and is
 appropriate for standalone characters, including Unicode and IME paths that are not translated from Return or Space.
 An explicitly accepted editor Return and an unhandled text-input key can still insert once into the same focused owner.
 Nested key dispatches must use distinct receipt objects. Reusing one object for overlapping calls invalidates its

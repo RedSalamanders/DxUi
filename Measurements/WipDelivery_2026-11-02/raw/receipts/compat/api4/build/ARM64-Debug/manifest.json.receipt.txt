@@ -1,0 +1,84 @@
+{
+  "frozenUtc": "2026-11-02T07:02:00.9903604Z",
+  "receipts": [
+    {
+      "present": true,
+      "name": "v2-build.json",
+      "sha256": "72B71FD71A34E221AD6A7875D671CABAF5EABBAC5E4CE6EF88CC2E2E18455D63"
+    },
+    {
+      "present": true,
+      "name": "incremental-build.json",
+      "sha256": "9DDAECBDD520B2658640AA1166D779844178416AB820244DE81AD7240AA39D18"
+    },
+    {
+      "present": false,
+      "name": "scoped-build.json"
+    }
+  ],
+  "platform": "ARM64",
+  "files": [
+    {
+      "bytes": 32773632,
+      "sha256": "B1728A20FBC6E7F74EAA0E9AB26A0D7380450A3645001FD05680289B2A551DF1",
+      "name": "DxUi.ControlTests.exe"
+    },
+    {
+      "bytes": 71921664,
+      "sha256": "0FC3BEAEF8DE76004D14E71470E87FECB10E81705B5377B1CA730F9677948E79",
+      "name": "DxUi.ControlTests.pdb"
+    },
+    {
+      "bytes": 11586048,
+      "sha256": "D294021DA9492C1D49AE4BC274BC80A5E2E8257A214BC4A32E52EA71CC9B6650",
+      "name": "DxUi.EmbeddedControls.exe"
+    },
+    {
+      "bytes": 27185152,
+      "sha256": "7A0A974711BE9384F7B3E23BEEFAD48930C439E70F7F1E53552AEACBADFF810B",
+      "name": "DxUi.EmbeddedControls.pdb"
+    },
+    {
+      "bytes": 14162944,
+      "sha256": "770BDD930EB8758A5FF78EC1184F913E7292357DE5782607570B838DD88BE966",
+      "name": "DxUi.EmbeddedTests.exe"
+    },
+    {
+      "bytes": 32550912,
+      "sha256": "2774CCC154810C873E68ACD437A181CE8C19FFD166AD1CBC37CA59B6FEB3D2F6",
+      "name": "DxUi.EmbeddedTests.pdb"
+    },
+    {
+      "bytes": 11309568,
+      "sha256": "95D9099547B71BB8BE4DCCF3E4E4F75731766AF287820735289083E917CA5F79",
+      "name": "DxUi.FoundationTests.exe"
+    },
+    {
+      "bytes": 26611712,
+      "sha256": "BF635A351221EF70F110F7A4D522719FCA7C43C7C789EACB866C2AB920ACA6CF",
+      "name": "DxUi.FoundationTests.pdb"
+    },
+    {
+      "bytes": 2529280,
+      "sha256": "1D40BCE7FFECB22E473863BE9E3A1B9A424838BD6F1221F43043446DD724F1EA",
+      "name": "DxUi.InteractiveLease.exe"
+    },
+    {
+      "bytes": 6787072,
+      "sha256": "95D5540665BF6DB8B08F2ACC2F12262561905E315F60101E96C6DF5934EB5ABB",
+      "name": "DxUi.InteractiveLease.pdb"
+    },
+    {
+      "bytes": 96090270,
+      "sha256": "4EAF8EB1EABF204EA43F2AC31186218234E94070E4A1DA115B38994EDF944B4A",
+      "name": "DxUi.lib"
+    },
+    {
+      "bytes": 8048640,
+      "sha256": "6CB51E691A5B19C6BE282501045AB54648358C388B9BCEA4CCD4D8DF4AD3B22F",
+      "name": "DxUi.pdb"
+    }
+  ],
+  "configuration": "Debug",
+  "source": "a8cb8e1d7a4106750b195e6e8f2f686d66be9075"
+}

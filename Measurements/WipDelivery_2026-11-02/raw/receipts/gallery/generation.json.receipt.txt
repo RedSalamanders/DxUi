@@ -1,0 +1,35 @@
+{
+  "command": "gallery.ps1 -PublishDocs",
+  "sourceCommit": "9909da1065e297247cb490b970b2265a0e4d8b9e",
+  "sourceDirty": false,
+  "configuration": "Debug",
+  "platform": "x64",
+  "nativeArchitecture": "X64",
+  "controlCount": 35,
+  "images": [
+    {
+      "file": "embedded-controls.png",
+      "sha256": "86D2FE80791134ABFF1B352051CF471AEC0F88ADAADB6B1BC743EAC0373B1240"
+    },
+    {
+      "file": "theme-controls-dark.png",
+      "sha256": "FD71CFAD8F34BB6A8B2DDF692059C74CFB76F1FABD0A55137E0615FC8A77DB9F"
+    },
+    {
+      "file": "theme-controls-high-contrast.png",
+      "sha256": "EBA833D7A20A61C717DD1A33BE2DAB1FD24D0A9C734EAE70F3C62CDC299C64F6"
+    },
+    {
+      "file": "theme-controls-light.png",
+      "sha256": "3D1DFF9C2F19CBA90910279D38F8ABFDAD7097EF97197256A022561C335C4919"
+    },
+    {
+      "file": "theme-controls-rainbow-dark.png",
+      "sha256": "443B9A3ED31D24E108250B0E717A350E1621888AC91387711397736F747EAC6B"
+    },
+    {
+      "file": "theme-controls-rainbow-light.png",
+      "sha256": "4B1BCF575FB5F41C906DE1D8F72931244A034F79A9C6B629950B919E9EB9EC00"
+    }
+  ]
+}

@@ -1,0 +1,542 @@
+[
+  {
+    "source": "9909da1065e297247cb490b970b2265a0e4d8b9e",
+    "profile": "x64-Debug",
+    "exitCode": 0,
+    "accepted": true,
+    "sourceUnchanged": true,
+    "suites": [
+      "Foundation",
+      "Embedded",
+      "Grid",
+      "Theme",
+      "Control",
+      "MenuExitLifetime",
+      "NewControls",
+      "EditorControls",
+      "TextField",
+      "MultilineText",
+      "ReadOnly",
+      "ComboBox",
+      "Tree",
+      "Tooltip",
+      "Rendering",
+      "Animation",
+      "Accessibility",
+      "WindowHost",
+      "InteractiveLease",
+      "MenuTextLayoutResources",
+      "ButtonContrast"
+    ],
+    "reports": [
+      {
+        "receipt": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\candidate-r27\\x64-Debug\\ordinary\\reports\\Foundation-x64-Debug.json",
+        "suite": "Foundation",
+        "sha256": "9BB7B23D32D05D2B7AC91B4A41EFB4161F215C64B8445501BF8A31505C4E43AB",
+        "skips": 0,
+        "exitCode": 0
+      },
+      {
+        "receipt": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\candidate-r27\\x64-Debug\\ordinary\\reports\\Embedded-x64-Debug.json",
+        "suite": "Embedded",
+        "sha256": "FE8EB4B614008AFB7984228D878DB511AE31DF16D2A9ADA6EF8B4B1362972556",
+        "skips": 0,
+        "exitCode": 0
+      },
+      {
+        "receipt": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\candidate-r27\\x64-Debug\\ordinary\\reports\\Grid-x64-Debug.json",
+        "suite": "Grid",
+        "sha256": "397FF62C471FC422F6D61B18362FBF4ACC9A599916235EE345CC38A676600E3F",
+        "skips": 0,
+        "exitCode": 0
+      },
+      {
+        "receipt": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\candidate-r27\\x64-Debug\\ordinary\\reports\\Theme-x64-Debug.json",
+        "suite": "Theme",
+        "sha256": "397FF62C471FC422F6D61B18362FBF4ACC9A599916235EE345CC38A676600E3F",
+        "skips": 0,
+        "exitCode": 0
+      },
+      {
+        "receipt": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\candidate-r27\\x64-Debug\\ordinary\\reports\\Control-x64-Debug.json",
+        "suite": "Control",
+        "sha256": "397FF62C471FC422F6D61B18362FBF4ACC9A599916235EE345CC38A676600E3F",
+        "skips": 0,
+        "exitCode": 0
+      },
+      {
+        "receipt": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\candidate-r27\\x64-Debug\\ordinary\\reports\\MenuExitLifetime-x64-Debug.json",
+        "suite": "MenuExitLifetime",
+        "sha256": "397FF62C471FC422F6D61B18362FBF4ACC9A599916235EE345CC38A676600E3F",
+        "skips": 0,
+        "exitCode": 0
+      },
+      {
+        "receipt": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\candidate-r27\\x64-Debug\\ordinary\\reports\\NewControls-x64-Debug.json",
+        "suite": "NewControls",
+        "sha256": "397FF62C471FC422F6D61B18362FBF4ACC9A599916235EE345CC38A676600E3F",
+        "skips": 0,
+        "exitCode": 0
+      },
+      {
+        "receipt": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\candidate-r27\\x64-Debug\\ordinary\\reports\\EditorControls-x64-Debug.json",
+        "suite": "EditorControls",
+        "sha256": "397FF62C471FC422F6D61B18362FBF4ACC9A599916235EE345CC38A676600E3F",
+        "skips": 0,
+        "exitCode": 0
+      },
+      {
+        "receipt": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\candidate-r27\\x64-Debug\\ordinary\\reports\\TextField-x64-Debug.json",
+        "suite": "TextField",
+        "sha256": "397FF62C471FC422F6D61B18362FBF4ACC9A599916235EE345CC38A676600E3F",
+        "skips": 0,
+        "exitCode": 0
+      },
+      {
+        "receipt": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\candidate-r27\\x64-Debug\\ordinary\\reports\\MultilineText-x64-Debug.json",
+        "suite": "MultilineText",
+        "sha256": "397FF62C471FC422F6D61B18362FBF4ACC9A599916235EE345CC38A676600E3F",
+        "skips": 0,
+        "exitCode": 0
+      },
+      {
+        "receipt": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\candidate-r27\\x64-Debug\\ordinary\\reports\\ReadOnly-x64-Debug.json",
+        "suite": "ReadOnly",
+        "sha256": "397FF62C471FC422F6D61B18362FBF4ACC9A599916235EE345CC38A676600E3F",
+        "skips": 0,
+        "exitCode": 0
+      },
+      {
+        "receipt": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\candidate-r27\\x64-Debug\\ordinary\\reports\\ComboBox-x64-Debug.json",
+        "suite": "ComboBox",
+        "sha256": "397FF62C471FC422F6D61B18362FBF4ACC9A599916235EE345CC38A676600E3F",
+        "skips": 0,
+        "exitCode": 0
+      },
+      {
+        "receipt": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\candidate-r27\\x64-Debug\\ordinary\\reports\\Tree-x64-Debug.json",
+        "suite": "Tree",
+        "sha256": "397FF62C471FC422F6D61B18362FBF4ACC9A599916235EE345CC38A676600E3F",
+        "skips": 0,
+        "exitCode": 0
+      },
+      {
+        "receipt": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\candidate-r27\\x64-Debug\\ordinary\\reports\\Tooltip-x64-Debug.json",
+        "suite": "Tooltip",
+        "sha256": "397FF62C471FC422F6D61B18362FBF4ACC9A599916235EE345CC38A676600E3F",
+        "skips": 0,
+        "exitCode": 0
+      },
+      {
+        "receipt": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\candidate-r27\\x64-Debug\\ordinary\\reports\\Rendering-x64-Debug.json",
+        "suite": "Rendering",
+        "sha256": "397FF62C471FC422F6D61B18362FBF4ACC9A599916235EE345CC38A676600E3F",
+        "skips": 0,
+        "exitCode": 0
+      },
+      {
+        "receipt": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\candidate-r27\\x64-Debug\\ordinary\\reports\\Animation-x64-Debug.json",
+        "suite": "Animation",
+        "sha256": "397FF62C471FC422F6D61B18362FBF4ACC9A599916235EE345CC38A676600E3F",
+        "skips": 0,
+        "exitCode": 0
+      },
+      {
+        "receipt": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\candidate-r27\\x64-Debug\\ordinary\\reports\\Accessibility-x64-Debug.json",
+        "suite": "Accessibility",
+        "sha256": "397FF62C471FC422F6D61B18362FBF4ACC9A599916235EE345CC38A676600E3F",
+        "skips": 0,
+        "exitCode": 0
+      },
+      {
+        "receipt": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\candidate-r27\\x64-Debug\\ordinary\\reports\\WindowHost-x64-Debug.json",
+        "suite": "WindowHost",
+        "sha256": "397FF62C471FC422F6D61B18362FBF4ACC9A599916235EE345CC38A676600E3F",
+        "skips": 0,
+        "exitCode": 0
+      },
+      {
+        "receipt": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\candidate-r27\\x64-Debug\\ordinary\\reports\\InteractiveLease-x64-Debug.json",
+        "suite": "InteractiveLease",
+        "sha256": "397FF62C471FC422F6D61B18362FBF4ACC9A599916235EE345CC38A676600E3F",
+        "skips": 0,
+        "exitCode": 0
+      },
+      {
+        "receipt": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\candidate-r27\\x64-Debug\\ordinary\\reports\\MenuTextLayoutResources-x64-Debug.json",
+        "suite": "MenuTextLayoutResources",
+        "sha256": "397FF62C471FC422F6D61B18362FBF4ACC9A599916235EE345CC38A676600E3F",
+        "skips": 0,
+        "exitCode": 0
+      },
+      {
+        "receipt": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\candidate-r27\\x64-Debug\\ordinary\\reports\\ButtonContrast-x64-Debug.json",
+        "suite": "ButtonContrast",
+        "sha256": "397FF62C471FC422F6D61B18362FBF4ACC9A599916235EE345CC38A676600E3F",
+        "skips": 0,
+        "exitCode": 0
+      }
+    ],
+    "completedUtc": "2026-11-02T07:01:35.0502865Z"
+  },
+  {
+    "source": "9909da1065e297247cb490b970b2265a0e4d8b9e",
+    "profile": "x64-Release",
+    "exitCode": 0,
+    "accepted": true,
+    "sourceUnchanged": true,
+    "suites": [
+      "Foundation",
+      "Embedded",
+      "Grid",
+      "Theme",
+      "Control",
+      "MenuExitLifetime",
+      "NewControls",
+      "EditorControls",
+      "TextField",
+      "MultilineText",
+      "ReadOnly",
+      "ComboBox",
+      "Tree",
+      "Tooltip",
+      "Rendering",
+      "Animation",
+      "Accessibility",
+      "WindowHost",
+      "InteractiveLease",
+      "MenuTextLayoutResources",
+      "ButtonContrast"
+    ],
+    "reports": [
+      {
+        "receipt": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\candidate-r27\\x64-Release\\ordinary\\reports\\Foundation-x64-Release.json",
+        "suite": "Foundation",
+        "sha256": "FA0EB990F3A8C29DA814196CE1E058DF7421E18C549565017C42F5A973DEA2F3",
+        "skips": 0,
+        "exitCode": 0
+      },
+      {
+        "receipt": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\candidate-r27\\x64-Release\\ordinary\\reports\\Embedded-x64-Release.json",
+        "suite": "Embedded",
+        "sha256": "123E72C314A051552456D942E43EB4ECCBFD93F52B041A7D8D1AD9FB4FD2B9DC",
+        "skips": 0,
+        "exitCode": 0
+      },
+      {
+        "receipt": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\candidate-r27\\x64-Release\\ordinary\\reports\\Grid-x64-Release.json",
+        "suite": "Grid",
+        "sha256": "C818FC4A416FE77C272387FB83266D6A27375156A93DC1CA9A4EC8C0DE160605",
+        "skips": 0,
+        "exitCode": 0
+      },
+      {
+        "receipt": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\candidate-r27\\x64-Release\\ordinary\\reports\\Theme-x64-Release.json",
+        "suite": "Theme",
+        "sha256": "C818FC4A416FE77C272387FB83266D6A27375156A93DC1CA9A4EC8C0DE160605",
+        "skips": 0,
+        "exitCode": 0
+      },
+      {
+        "receipt": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\candidate-r27\\x64-Release\\ordinary\\reports\\Control-x64-Release.json",
+        "suite": "Control",
+        "sha256": "C818FC4A416FE77C272387FB83266D6A27375156A93DC1CA9A4EC8C0DE160605",
+        "skips": 0,
+        "exitCode": 0
+      },
+      {
+        "receipt": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\candidate-r27\\x64-Release\\ordinary\\reports\\MenuExitLifetime-x64-Release.json",
+        "suite": "MenuExitLifetime",
+        "sha256": "C818FC4A416FE77C272387FB83266D6A27375156A93DC1CA9A4EC8C0DE160605",
+        "skips": 0,
+        "exitCode": 0
+      },
+      {
+        "receipt": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\candidate-r27\\x64-Release\\ordinary\\reports\\NewControls-x64-Release.json",
+        "suite": "NewControls",
+        "sha256": "C818FC4A416FE77C272387FB83266D6A27375156A93DC1CA9A4EC8C0DE160605",
+        "skips": 0,
+        "exitCode": 0
+      },
+      {
+        "receipt": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\candidate-r27\\x64-Release\\ordinary\\reports\\EditorControls-x64-Release.json",
+        "suite": "EditorControls",
+        "sha256": "C818FC4A416FE77C272387FB83266D6A27375156A93DC1CA9A4EC8C0DE160605",
+        "skips": 0,
+        "exitCode": 0
+      },
+      {
+        "receipt": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\candidate-r27\\x64-Release\\ordinary\\reports\\TextField-x64-Release.json",
+        "suite": "TextField",
+        "sha256": "C818FC4A416FE77C272387FB83266D6A27375156A93DC1CA9A4EC8C0DE160605",
+        "skips": 0,
+        "exitCode": 0
+      },
+      {
+        "receipt": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\candidate-r27\\x64-Release\\ordinary\\reports\\MultilineText-x64-Release.json",
+        "suite": "MultilineText",
+        "sha256": "C818FC4A416FE77C272387FB83266D6A27375156A93DC1CA9A4EC8C0DE160605",
+        "skips": 0,
+        "exitCode": 0
+      },
+      {
+        "receipt": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\candidate-r27\\x64-Release\\ordinary\\reports\\ReadOnly-x64-Release.json",
+        "suite": "ReadOnly",
+        "sha256": "C818FC4A416FE77C272387FB83266D6A27375156A93DC1CA9A4EC8C0DE160605",
+        "skips": 0,
+        "exitCode": 0
+      },
+      {
+        "receipt": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\candidate-r27\\x64-Release\\ordinary\\reports\\ComboBox-x64-Release.json",
+        "suite": "ComboBox",
+        "sha256": "C818FC4A416FE77C272387FB83266D6A27375156A93DC1CA9A4EC8C0DE160605",
+        "skips": 0,
+        "exitCode": 0
+      },
+      {
+        "receipt": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\candidate-r27\\x64-Release\\ordinary\\reports\\Tree-x64-Release.json",
+        "suite": "Tree",
+        "sha256": "C818FC4A416FE77C272387FB83266D6A27375156A93DC1CA9A4EC8C0DE160605",
+        "skips": 0,
+        "exitCode": 0
+      },
+      {
+        "receipt": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\candidate-r27\\x64-Release\\ordinary\\reports\\Tooltip-x64-Release.json",
+        "suite": "Tooltip",
+        "sha256": "C818FC4A416FE77C272387FB83266D6A27375156A93DC1CA9A4EC8C0DE160605",
+        "skips": 0,
+        "exitCode": 0
+      },
+      {
+        "receipt": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\candidate-r27\\x64-Release\\ordinary\\reports\\Rendering-x64-Release.json",
+        "suite": "Rendering",
+        "sha256": "C818FC4A416FE77C272387FB83266D6A27375156A93DC1CA9A4EC8C0DE160605",
+        "skips": 0,
+        "exitCode": 0
+      },
+      {
+        "receipt": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\candidate-r27\\x64-Release\\ordinary\\reports\\Animation-x64-Release.json",
+        "suite": "Animation",
+        "sha256": "C818FC4A416FE77C272387FB83266D6A27375156A93DC1CA9A4EC8C0DE160605",
+        "skips": 0,
+        "exitCode": 0
+      },
+      {
+        "receipt": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\candidate-r27\\x64-Release\\ordinary\\reports\\Accessibility-x64-Release.json",
+        "suite": "Accessibility",
+        "sha256": "C818FC4A416FE77C272387FB83266D6A27375156A93DC1CA9A4EC8C0DE160605",
+        "skips": 0,
+        "exitCode": 0
+      },
+      {
+        "receipt": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\candidate-r27\\x64-Release\\ordinary\\reports\\WindowHost-x64-Release.json",
+        "suite": "WindowHost",
+        "sha256": "C818FC4A416FE77C272387FB83266D6A27375156A93DC1CA9A4EC8C0DE160605",
+        "skips": 0,
+        "exitCode": 0
+      },
+      {
+        "receipt": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\candidate-r27\\x64-Release\\ordinary\\reports\\InteractiveLease-x64-Release.json",
+        "suite": "InteractiveLease",
+        "sha256": "C818FC4A416FE77C272387FB83266D6A27375156A93DC1CA9A4EC8C0DE160605",
+        "skips": 0,
+        "exitCode": 0
+      },
+      {
+        "receipt": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\candidate-r27\\x64-Release\\ordinary\\reports\\MenuTextLayoutResources-x64-Release.json",
+        "suite": "MenuTextLayoutResources",
+        "sha256": "C818FC4A416FE77C272387FB83266D6A27375156A93DC1CA9A4EC8C0DE160605",
+        "skips": 0,
+        "exitCode": 0
+      },
+      {
+        "receipt": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\candidate-r27\\x64-Release\\ordinary\\reports\\ButtonContrast-x64-Release.json",
+        "suite": "ButtonContrast",
+        "sha256": "C818FC4A416FE77C272387FB83266D6A27375156A93DC1CA9A4EC8C0DE160605",
+        "skips": 0,
+        "exitCode": 0
+      }
+    ],
+    "completedUtc": "2026-11-02T07:06:04.3820339Z"
+  },
+  {
+    "source": "9909da1065e297247cb490b970b2265a0e4d8b9e",
+    "profile": "x64-ASanDebug",
+    "exitCode": 0,
+    "accepted": true,
+    "sourceUnchanged": true,
+    "suites": [
+      "Foundation",
+      "Embedded",
+      "Grid",
+      "Theme",
+      "Control",
+      "MenuExitLifetime",
+      "NewControls",
+      "EditorControls",
+      "TextField",
+      "MultilineText",
+      "ReadOnly",
+      "ComboBox",
+      "Tree",
+      "Tooltip",
+      "Rendering",
+      "Animation",
+      "Accessibility",
+      "WindowHost",
+      "InteractiveLease",
+      "MenuTextLayoutResources",
+      "ButtonContrast"
+    ],
+    "reports": [
+      {
+        "receipt": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\candidate-r27\\x64-ASanDebug\\ordinary\\reports\\Foundation-x64-ASan Debug.json",
+        "suite": "Foundation",
+        "sha256": "1BC0282CE76F0504C0F8A95D3BCAD102E4D5B655041D9574AC722FA75F5DD991",
+        "skips": 0,
+        "exitCode": 0
+      },
+      {
+        "receipt": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\candidate-r27\\x64-ASanDebug\\ordinary\\reports\\Embedded-x64-ASan Debug.json",
+        "suite": "Embedded",
+        "sha256": "1804DA6AAAEF805A10AEE6177BBEBAF442E4C010C58FFAC7EA0754F02C662C24",
+        "skips": 0,
+        "exitCode": 0
+      },
+      {
+        "receipt": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\candidate-r27\\x64-ASanDebug\\ordinary\\reports\\Grid-x64-ASan Debug.json",
+        "suite": "Grid",
+        "sha256": "4F75E63D330E41D5C059E0F7A5F904CE8C1091CEAECAD8D0C9A497C46D616A08",
+        "skips": 0,
+        "exitCode": 0
+      },
+      {
+        "receipt": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\candidate-r27\\x64-ASanDebug\\ordinary\\reports\\Theme-x64-ASan Debug.json",
+        "suite": "Theme",
+        "sha256": "4F75E63D330E41D5C059E0F7A5F904CE8C1091CEAECAD8D0C9A497C46D616A08",
+        "skips": 0,
+        "exitCode": 0
+      },
+      {
+        "receipt": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\candidate-r27\\x64-ASanDebug\\ordinary\\reports\\Control-x64-ASan Debug.json",
+        "suite": "Control",
+        "sha256": "4F75E63D330E41D5C059E0F7A5F904CE8C1091CEAECAD8D0C9A497C46D616A08",
+        "skips": 0,
+        "exitCode": 0
+      },
+      {
+        "receipt": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\candidate-r27\\x64-ASanDebug\\ordinary\\reports\\MenuExitLifetime-x64-ASan Debug.json",
+        "suite": "MenuExitLifetime",
+        "sha256": "4F75E63D330E41D5C059E0F7A5F904CE8C1091CEAECAD8D0C9A497C46D616A08",
+        "skips": 0,
+        "exitCode": 0
+      },
+      {
+        "receipt": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\candidate-r27\\x64-ASanDebug\\ordinary\\reports\\NewControls-x64-ASan Debug.json",
+        "suite": "NewControls",
+        "sha256": "4F75E63D330E41D5C059E0F7A5F904CE8C1091CEAECAD8D0C9A497C46D616A08",
+        "skips": 0,
+        "exitCode": 0
+      },
+      {
+        "receipt": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\candidate-r27\\x64-ASanDebug\\ordinary\\reports\\EditorControls-x64-ASan Debug.json",
+        "suite": "EditorControls",
+        "sha256": "4F75E63D330E41D5C059E0F7A5F904CE8C1091CEAECAD8D0C9A497C46D616A08",
+        "skips": 0,
+        "exitCode": 0
+      },
+      {
+        "receipt": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\candidate-r27\\x64-ASanDebug\\ordinary\\reports\\TextField-x64-ASan Debug.json",
+        "suite": "TextField",
+        "sha256": "4F75E63D330E41D5C059E0F7A5F904CE8C1091CEAECAD8D0C9A497C46D616A08",
+        "skips": 0,
+        "exitCode": 0
+      },
+      {
+        "receipt": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\candidate-r27\\x64-ASanDebug\\ordinary\\reports\\MultilineText-x64-ASan Debug.json",
+        "suite": "MultilineText",
+        "sha256": "4F75E63D330E41D5C059E0F7A5F904CE8C1091CEAECAD8D0C9A497C46D616A08",
+        "skips": 0,
+        "exitCode": 0
+      },
+      {
+        "receipt": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\candidate-r27\\x64-ASanDebug\\ordinary\\reports\\ReadOnly-x64-ASan Debug.json",
+        "suite": "ReadOnly",
+        "sha256": "4F75E63D330E41D5C059E0F7A5F904CE8C1091CEAECAD8D0C9A497C46D616A08",
+        "skips": 0,
+        "exitCode": 0
+      },
+      {
+        "receipt": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\candidate-r27\\x64-ASanDebug\\ordinary\\reports\\ComboBox-x64-ASan Debug.json",
+        "suite": "ComboBox",
+        "sha256": "4F75E63D330E41D5C059E0F7A5F904CE8C1091CEAECAD8D0C9A497C46D616A08",
+        "skips": 0,
+        "exitCode": 0
+      },
+      {
+        "receipt": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\candidate-r27\\x64-ASanDebug\\ordinary\\reports\\Tree-x64-ASan Debug.json",
+        "suite": "Tree",
+        "sha256": "4F75E63D330E41D5C059E0F7A5F904CE8C1091CEAECAD8D0C9A497C46D616A08",
+        "skips": 0,
+        "exitCode": 0
+      },
+      {
+        "receipt": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\candidate-r27\\x64-ASanDebug\\ordinary\\reports\\Tooltip-x64-ASan Debug.json",
+        "suite": "Tooltip",
+        "sha256": "4F75E63D330E41D5C059E0F7A5F904CE8C1091CEAECAD8D0C9A497C46D616A08",
+        "skips": 0,
+        "exitCode": 0
+      },
+      {
+        "receipt": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\candidate-r27\\x64-ASanDebug\\ordinary\\reports\\Rendering-x64-ASan Debug.json",
+        "suite": "Rendering",
+        "sha256": "4F75E63D330E41D5C059E0F7A5F904CE8C1091CEAECAD8D0C9A497C46D616A08",
+        "skips": 0,
+        "exitCode": 0
+      },
+      {
+        "receipt": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\candidate-r27\\x64-ASanDebug\\ordinary\\reports\\Animation-x64-ASan Debug.json",
+        "suite": "Animation",
+        "sha256": "4F75E63D330E41D5C059E0F7A5F904CE8C1091CEAECAD8D0C9A497C46D616A08",
+        "skips": 0,
+        "exitCode": 0
+      },
+      {
+        "receipt": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\candidate-r27\\x64-ASanDebug\\ordinary\\reports\\Accessibility-x64-ASan Debug.json",
+        "suite": "Accessibility",
+        "sha256": "4F75E63D330E41D5C059E0F7A5F904CE8C1091CEAECAD8D0C9A497C46D616A08",
+        "skips": 0,
+        "exitCode": 0
+      },
+      {
+        "receipt": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\candidate-r27\\x64-ASanDebug\\ordinary\\reports\\WindowHost-x64-ASan Debug.json",
+        "suite": "WindowHost",
+        "sha256": "4F75E63D330E41D5C059E0F7A5F904CE8C1091CEAECAD8D0C9A497C46D616A08",
+        "skips": 0,
+        "exitCode": 0
+      },
+      {
+        "receipt": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\candidate-r27\\x64-ASanDebug\\ordinary\\reports\\InteractiveLease-x64-ASan Debug.json",
+        "suite": "InteractiveLease",
+        "sha256": "4F75E63D330E41D5C059E0F7A5F904CE8C1091CEAECAD8D0C9A497C46D616A08",
+        "skips": 0,
+        "exitCode": 0
+      },
+      {
+        "receipt": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\candidate-r27\\x64-ASanDebug\\ordinary\\reports\\MenuTextLayoutResources-x64-ASan Debug.json",
+        "suite": "MenuTextLayoutResources",
+        "sha256": "4F75E63D330E41D5C059E0F7A5F904CE8C1091CEAECAD8D0C9A497C46D616A08",
+        "skips": 0,
+        "exitCode": 0
+      },
+      {
+        "receipt": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\candidate-r27\\x64-ASanDebug\\ordinary\\reports\\ButtonContrast-x64-ASan Debug.json",
+        "suite": "ButtonContrast",
+        "sha256": "4F75E63D330E41D5C059E0F7A5F904CE8C1091CEAECAD8D0C9A497C46D616A08",
+        "skips": 0,
+        "exitCode": 0
+      }
+    ],
+    "completedUtc": "2026-11-02T07:11:41.1226504Z"
+  }
+]

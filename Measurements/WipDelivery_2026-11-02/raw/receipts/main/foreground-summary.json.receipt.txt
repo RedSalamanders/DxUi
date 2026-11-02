@@ -1,0 +1,116 @@
+[
+  {
+    "source": "9909da1065e297247cb490b970b2265a0e4d8b9e",
+    "exitCode": 0,
+    "profile": "Debug",
+    "accepted": true,
+    "reports": [
+      {
+        "suite": "Menu",
+        "receiptSha256": "4FAB65904964FB982A27DA6C8B4DCF13677A8644981817AC7EFDD0A5F2139706",
+        "exitCode": 0,
+        "skips": 0,
+        "sha256": "397FF62C471FC422F6D61B18362FBF4ACC9A599916235EE345CC38A676600E3F"
+      },
+      {
+        "suite": "NativeTextInput",
+        "receiptSha256": "6B37C551582A850C8FC9F4220273454BCE970FB861451D87A5E867799F8A9579",
+        "exitCode": 0,
+        "skips": 0,
+        "sha256": "397FF62C471FC422F6D61B18362FBF4ACC9A599916235EE345CC38A676600E3F"
+      },
+      {
+        "suite": "MenuResources",
+        "receiptSha256": "852ADA16999448693689402E2C52EDD70FA48109C35DF79222EB700010612D3A",
+        "exitCode": 0,
+        "skips": 0,
+        "sha256": "397FF62C471FC422F6D61B18362FBF4ACC9A599916235EE345CC38A676600E3F"
+      },
+      {
+        "suite": "MenuResourceScaling",
+        "receiptSha256": "B8BB8704E7E1F0A756A7AFBB6A0C35150A956D390A8C368F86E7757A5915D98F",
+        "exitCode": 0,
+        "skips": 0,
+        "sha256": "397FF62C471FC422F6D61B18362FBF4ACC9A599916235EE345CC38A676600E3F"
+      }
+    ],
+    "sourceUnchanged": true,
+    "completedUtc": "2026-11-02T07:26:52.4988774Z"
+  },
+  {
+    "source": "9909da1065e297247cb490b970b2265a0e4d8b9e",
+    "exitCode": 0,
+    "profile": "Release",
+    "accepted": true,
+    "reports": [
+      {
+        "suite": "Menu",
+        "receiptSha256": "DF310BEEF272534F81E490BA483FF620932355142686CDBAD5613DD4D980A97A",
+        "exitCode": 0,
+        "skips": 0,
+        "sha256": "C818FC4A416FE77C272387FB83266D6A27375156A93DC1CA9A4EC8C0DE160605"
+      },
+      {
+        "suite": "NativeTextInput",
+        "receiptSha256": "852EF8AB0B2C755E5607E9A679E623FD8C2CC9F0A125D2FA6BDE354D38C9F1A3",
+        "exitCode": 0,
+        "skips": 0,
+        "sha256": "C818FC4A416FE77C272387FB83266D6A27375156A93DC1CA9A4EC8C0DE160605"
+      },
+      {
+        "suite": "MenuResources",
+        "receiptSha256": "6F2479BD2A1289283833190894865F43A80DAC042E57DFCDDEE2EEC2D4AF8C12",
+        "exitCode": 0,
+        "skips": 0,
+        "sha256": "C818FC4A416FE77C272387FB83266D6A27375156A93DC1CA9A4EC8C0DE160605"
+      },
+      {
+        "suite": "MenuResourceScaling",
+        "receiptSha256": "1CAED5A88C5BAF4E9FC655744106E9F6A85B16B18CABA971098E25FF852D2B54",
+        "exitCode": 0,
+        "skips": 0,
+        "sha256": "C818FC4A416FE77C272387FB83266D6A27375156A93DC1CA9A4EC8C0DE160605"
+      }
+    ],
+    "sourceUnchanged": true,
+    "completedUtc": "2026-11-02T07:32:02.8962811Z"
+  },
+  {
+    "source": "9909da1065e297247cb490b970b2265a0e4d8b9e",
+    "exitCode": 0,
+    "profile": "ASanDebug",
+    "accepted": true,
+    "reports": [
+      {
+        "suite": "Menu",
+        "receiptSha256": "9A94BDE0B7C92CC59E46A500201E5435D13A599F71191AAE2F6DFCC89E6DA1AA",
+        "exitCode": 0,
+        "skips": 0,
+        "sha256": "4F75E63D330E41D5C059E0F7A5F904CE8C1091CEAECAD8D0C9A497C46D616A08"
+      },
+      {
+        "suite": "NativeTextInput",
+        "receiptSha256": "EF0213DCDBDC6AB1C77663EB1619BCDE01728743839F1D4C3889CD7F93DD5B9D",
+        "exitCode": 0,
+        "skips": 0,
+        "sha256": "4F75E63D330E41D5C059E0F7A5F904CE8C1091CEAECAD8D0C9A497C46D616A08"
+      },
+      {
+        "suite": "MenuResources",
+        "receiptSha256": "BD5126E9E6562B1F80CCE441DC96C2F67F4DC0ABAD2940BFB9F4FE6EC579768D",
+        "exitCode": 0,
+        "skips": 0,
+        "sha256": "4F75E63D330E41D5C059E0F7A5F904CE8C1091CEAECAD8D0C9A497C46D616A08"
+      },
+      {
+        "suite": "MenuResourceScaling",
+        "receiptSha256": "2F887071FE1202D74510704B3FD2E442F32DB5AB5EDB3C74B93057328BA50998",
+        "exitCode": 0,
+        "skips": 0,
+        "sha256": "4F75E63D330E41D5C059E0F7A5F904CE8C1091CEAECAD8D0C9A497C46D616A08"
+      }
+    ],
+    "sourceUnchanged": true,
+    "completedUtc": "2026-11-02T07:38:56.8465260Z"
+  }
+]

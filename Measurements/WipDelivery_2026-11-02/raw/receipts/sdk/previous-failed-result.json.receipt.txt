@@ -1,0 +1,5 @@
+{
+  "exitCode": 1,
+  "phase": "sdk-package",
+  "completedUtc": "2026-11-02T07:20:18.1994672Z"
+}

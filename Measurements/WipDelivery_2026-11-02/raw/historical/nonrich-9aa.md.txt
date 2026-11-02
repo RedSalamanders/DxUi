@@ -1,0 +1,54 @@
+# Non-Rich review disposition — 9aa837486286605e45b52f26e1b6edbf9962c0bc
+
+Read-only source/test review. Existing source and test bodies are not final-source execution receipts. This report does not authorize branch deletion, ruleset changes, consumer pin changes, deployment or publication. Current-source paths below are relative to the DxUi candidate. Shared platform, physical input, performance-policy, hosted and consumer holds are owned by Specs/Plans/WIP/ConsumerUiQualification_2026-10-11.md. Native ARM execution is deferred by the user. The pending Tab and code-span work is not assumed integrated merely from a candidate branch.
+
+## Concrete outstanding items
+
+- docs/controls.md:89 has a malformed Tree row: a misplaced backtick begins before `SetInvokeOnSingleClick` and closes after `iconText`, and the ExpandCollapse sentence is duplicated. This affects published documentation; source behavior is separate.
+- DX-1: src/Controls/DxUi.Tree.cpp:2017–2034 resumes the stable model after collapse and re-hit-tests the item, but I have not located the exact requested three-flag multi-select + reorder + single-click fixture checking callback refresh of the retained row versus removal. Existing single-click/reorder tests are adjacent, not that precise proof. This is a local test gap, not a demonstrated current failure.
+- The historical Embedded UIA transition test produced an unexplained red under concurrent activity; isolated 9c42 tracing found one producer raise per item but duplicate client deliveries. Fixture isolation bbab3f47 passed three directed no-activate runs; original cause is not proved and final-source suite remains necessary.
+
+## DeliveryReview DX disposition
+
+| Row | Current source/test disposition |
+| --- | --- |
+| DX-1 | Code path repaired (Tree.cpp:2017–2034); exact callback refresh/removal oracle remains unlocated as above. |
+| DX-2 | Menu hover cancellation and UIA focus handoff in DxUi.Menu.cpp; focused actual timer/focus checks Tests/Controls/DxUi.Tests.Menu.cpp around 5672–5958. Final foreground and consumer adoption separately required. |
+| Source Enter | RichTextEditor OnChar source mode and Tests/Controls/Controls.Tests.RichTextEditor.cpp:150+ cover matching selection and document EOL. |
+| DX-3 | RichTextEditor file paste staging and Tests/Support/Support.Tests.RichImagePaths.h invalid quote/newline and ordinary path oracles; consumer pins remain separate. |
+| DX-4 | ACP/embedded state length checked against 65536 in DxUi.TextStoreACP.cpp and Embedded.cpp; native tests include a write-lock boundary. Real IME and ARM execution remain external. |
+| DX-5 | Separator constructor is fallible (DxUi.Controls.cpp:2715); Tests/Embedded/Embedded.Tests.Embedded.cpp:834–859 sweeps observed factory allocations and checks E_OUTOFMEMORY plus unchanged result. |
+| DX-6 | TagPicker::ClearChildren compacts, DxUi.Controls.cpp:7518; direct derived-picker check Tests/Controls/DxUi.Tests.Controls.cpp:1459. |
+| DX-7 | Explicit historical not-scheduled contract: correlated receipt is consumed before dispatch, but standard exception still returns false in Embedded.cpp:1150–1164. Do not claim the unscheduled proposal implemented; if a consumer adopts receipts, revisit it. bad_alloc after consumed receipt now returns handled and has direct embedded test. |
+| DX-8 | Tree.cpp:83 uses theme.text for inactive ink; DxUi.Tests.Tree.cpp:1415 and :2951 cover contrast and high-contrast behavior. |
+| DX-9 | DxUi.Layout.cpp:282–292 obtains first line baseline and multiline width; Controls.Tests.IntrinsicLayout.cpp:330+ covers typography and geometry. |
+| DX-10 | RichTextEditor has commit-aware exception handling rather than the older proposed noexcept removal; Embedded.Tests.EmbeddedTextInput.h:135–165 covers custom callback pre/post-commit bad_alloc and consumed correlated receipt. Controls.Tests.RichTextEditor.cpp:285–296 covers committed standard observer exception. No conclusion about arbitrary non-Rich callback policy. |
+| DX-11 | Optional ordinal restoration is not implemented; no consumer serializes numeric ordinals, matched headers/library are required, and unconditional renumbering risks compatibility. Original proposal expressly permits leaving it unchecked; do not call it fixed. |
+
+## ProductionReview Q and lead disposition
+
+These were recommended answers, not blanket evidence that every proposal was adopted. Source-specific tests and final candidate qualification remain distinct.
+
+- Q1–Q2: Panel TakeChild and TabControl TakeTab preserve ownership/metadata, and callback paths are bounded by lifetime, model, host and reentry guards; see Controls.cpp Panel/Tab paths and CodexBranchReview's delegate audit appendix. Arbitrary raw-slot rearrangement, whole-host destruction and mandatory deferred-physical-deletion architecture are not promised.
+- Q3–Q6: worker UIA reentrancy/lifetime fixtures and explicit publication/snapshot boundaries exist. Real out-of-process assistive-technology and multi-host/device qualification is external; suggested universal queue/nonrecursive lock rewrites are architectural alternatives, not established missing features. Early shutdown and no-callback async menu teardown remain covered by host/menu tests.
+- Q7–Q9: synchronous menu cancellation, Unicode mnemonic routes and bounded described-menu sizing/accessible help are implemented; bare capture-loss recapture is deliberate. Real keyboard-layout/dead-key/IME and consumer-sized menus remain external evidence; do not invent a row cap.
+- Q10–Q11: current contracts specify concrete per-control RTL and high-contrast behavior (UI_ControlsAndLayout.md:241–242, 358+, 580+, 758+) and tests cover controlled layouts. Broader physical/consumer language and all contrast-theme verification remain external, not proof of unlimited mirroring.
+- Q12–Q14: Grid and Tree independent focus, Ctrl/Shift anchors and selection/UIA contract are specified at UI_ControlsAndLayout.md:672–703, 758–775 and InputAndAccessibility.md; DxUi.Tests.Grid.cpp / Tree.cpp and native/embedded UIA suites own implementation proofs. Current selection-event timing incident and final run stay open.
+- Q15–Q16: stable attachment root identity and item focus publication use Accessibility.cpp and native/embedded provider tests; consumer OS placement and adapter adoption are external.
+- Q17–Q19: composition/undo, password, tokenized transport, quoted clipboard and full-value inspection have current owner contracts and focused native/embedded tests. Actual IME/TIP, physical devices and downstream clipboard interoperability remain consumer/manual holds; speculative pointer trust relaxation is rejected.
+- Q20–Q22: real-focus suites require the approved lease; synthetic contact is not physical touch. Hosted acceptance, unqualified benchmark policy and paired outcomes remain external. Q21's old per-PR six-profile/paired required gate is superseded in scope by Build_UnifiedCI.md compiler-free PR checks and quiet serialized native-main roles, not claimed equivalent; ruleset/auto-merge administration is separate. Q22 measured or statistically qualified conclusions require the retained independent study and policy, not an unchanged fingerprint.
+- Q23–Q25: retain documented Windows PowerShell restore and consumer script interfaces, revision-4 matched-source/static-library ABI, scoped test evidence and capability reporting. Consumer adoption and plan status cannot be inferred from library source.
+- Q26: synthetic Slider touch halo clip/overlay/scrolled viewport visual and hit coverage is Tests/Controls/DxUi.Tests.Animation.cpp:502; physical touch remains unqualified. Historical PR ordering remains historical evidence.
+- Q27–Q31: Affected/NO_WORK and PrePush are accounting, not Full acceptance; exact receipts bind actual inputs and skip-bearing runs do not qualify. Delegation and environment identity follow current Testing/Build specs. Hosted focus/cancellation and exact candidate/engine are external. Any aggregate gate recommendation that duplicates a compiler-free PR build conflicts with current unified policy.
+
+## CodeReview 10 October CR-29–31
+
+- CR-29 trusted old paired-PR recommendation is superseded as PR policy: current .github/workflows/ci.yml delegates to the pinned shared engine; Build_UnifiedCI.md says PR compiler-free and native main/extended paired qualification are distinct. This is a scope decision, not proof that trusted-base execution of the former paired PR gate exists. Event-SHA/engine binding and hosted policy verification remain with the current hosted gate; the separate local paired policy is still unqualified.
+- CR-30 formatting write job is manual and on the explicit same-repository path; compiler-free CI and current build-input identity replace old branch-push assumptions. Its other scoped-obligation and fingerprint fixes need matching tooling execution, not historical CI success.
+- CR-31 benchmark allocator lives in Tests/Embedded/Embedded.Tests.BenchmarkInstrument.h, included in common harness; PrePush identity covers the declared full workflow/tooling closure. The interactive lease has an attached process and explicit interruption fixtures, but a true console Ctrl+C/focus-restoration qualification is not inferred from the source fixture.
+
+## CodexBranchReview delegate and retention
+
+The existing plan's 1 November appendix audits Grid group/checkbox, Tree selection/invocation, Button, Toggle, RadioButtons, PageIndicator, TagPicker, MenuBar, TabControl, ColorSwatch and ScrollPanel continuations against 3257, and adds ScrollPanel/Slider/ComboBox guards; later Tree reorder release guard is in Tree.cpp:1970–2045, and the registered Embedded retired-wake test covers that path. Audit is bounded to those actual sites and their present implementation, not a proof about all future delegates or raw model getters. Final native/embedded/ASan tests must exercise the integrated candidate.
+
+The historical branch disposition is not a reason to delete any current branch. The archive tag `archive/redsalamander-pin-19ca44d` resolves locally to 19ca44d95a0cd493fc7fb1a57f4d4ad227bdefc1, preserving the old commit. A local tag does not prove RedSalamander#110 merge, current product adoption, or that remote branches may safely be removed. No consumer changes or branch cleanup performed.

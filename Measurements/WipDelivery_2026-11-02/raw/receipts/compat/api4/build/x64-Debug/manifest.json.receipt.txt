@@ -1,0 +1,84 @@
+{
+  "files": [
+    {
+      "bytes": 21394432,
+      "sha256": "1C28175771A1ACB9F3A8F0D0D677CB3451B3D2CFD864006CE357A44360E6F51B",
+      "name": "DxUi.ControlTests.exe"
+    },
+    {
+      "bytes": 68603904,
+      "sha256": "E10C6FF09BE772D33A28E0CF7EC8BF858BD89C14430BC7DFD0F34F5BED086DEB",
+      "name": "DxUi.ControlTests.pdb"
+    },
+    {
+      "bytes": 7796736,
+      "sha256": "52E745A9F627B9801586280EAFA22E668C7A6881EEDCF2DFB7E711FDE75AD7B2",
+      "name": "DxUi.EmbeddedControls.exe"
+    },
+    {
+      "bytes": 26456064,
+      "sha256": "9783375DFE1C215C5940BD71AAA04E5C2A673189888143BA6E5F7FF639CF1A93",
+      "name": "DxUi.EmbeddedControls.pdb"
+    },
+    {
+      "bytes": 9439232,
+      "sha256": "0E646D8989A66458B4BBA9D66ED52C4E4FB7AB0BFB0CB94B270771E1A8E5A568",
+      "name": "DxUi.EmbeddedTests.exe"
+    },
+    {
+      "bytes": 31444992,
+      "sha256": "AF6682189A7B300172CC94CD75BDFCB583EBCDD2102BED607F397C089039C47F",
+      "name": "DxUi.EmbeddedTests.pdb"
+    },
+    {
+      "bytes": 7616000,
+      "sha256": "6D0D86CFC6B65D4E449B1AE6EE5D5A4EA5119F2EBB3936F6D297F86AF78A5007",
+      "name": "DxUi.FoundationTests.exe"
+    },
+    {
+      "bytes": 25907200,
+      "sha256": "DDE0779343BDD9546F88C64D41ABC40E74372F5F89499EDA0905AB16F9F3C4F5",
+      "name": "DxUi.FoundationTests.pdb"
+    },
+    {
+      "bytes": 2066944,
+      "sha256": "66B677719E75179FC9C0C1F3512A33FF913C953CE522EA623593416D5667602E",
+      "name": "DxUi.InteractiveLease.exe"
+    },
+    {
+      "bytes": 7286784,
+      "sha256": "DF6DA77F11FF0A9B98B198454F582DE059D8998876A696C4069B3F96790DF075",
+      "name": "DxUi.InteractiveLease.pdb"
+    },
+    {
+      "bytes": 86650238,
+      "sha256": "B173A8E989AFA4597B14BAF76840EBE8D5F770C041F9F08B5B15463BB1823E05",
+      "name": "DxUi.lib"
+    },
+    {
+      "bytes": 8056832,
+      "sha256": "9B45706064BB247C61BC5798690944E6E43DAA0D99B2027AB39193AAB21543B3",
+      "name": "DxUi.pdb"
+    }
+  ],
+  "frozenUtc": "2026-11-02T07:01:57.6626422Z",
+  "source": "a8cb8e1d7a4106750b195e6e8f2f686d66be9075",
+  "platform": "x64",
+  "configuration": "Debug",
+  "receipts": [
+    {
+      "sha256": "6D2FF8754CC4D30256782EA42CBE3090F702839FE3A19CB77941DB008011D623",
+      "present": true,
+      "name": "v2-build.json"
+    },
+    {
+      "sha256": "0EE09C193897AF10B5C8E2F326F8D71EAE1EC9EE02801F85B750A9F09E4EFC70",
+      "present": true,
+      "name": "incremental-build.json"
+    },
+    {
+      "present": false,
+      "name": "scoped-build.json"
+    }
+  ]
+}

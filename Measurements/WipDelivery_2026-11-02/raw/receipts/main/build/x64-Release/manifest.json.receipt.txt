@@ -1,0 +1,69 @@
+{
+  "configuration": "Release",
+  "acceptedBuild": true,
+  "frozenUtc": "2026-11-02T06:56:09.7911237Z",
+  "files": [
+    {
+      "bytes": 13873664,
+      "name": "DxUi.ControlTests.exe",
+      "sha256": "C818FC4A416FE77C272387FB83266D6A27375156A93DC1CA9A4EC8C0DE160605"
+    },
+    {
+      "bytes": 101707776,
+      "name": "DxUi.ControlTests.pdb",
+      "sha256": "994FC858685AA54A100B03BEC5F5227F87EA3B1C068E722314191CBDEEF12B23"
+    },
+    {
+      "bytes": 3586048,
+      "name": "DxUi.EmbeddedControls.exe",
+      "sha256": "9A64DAFBBE32516FEB5E7C0319CC9593ADAA5A74A4E4F27C2FE8AE0271F623DF"
+    },
+    {
+      "bytes": 28651520,
+      "name": "DxUi.EmbeddedControls.pdb",
+      "sha256": "1CF3F2C4D6C589D2CA0C21653463C0293AA08F32FBD5A69F8AC4E10539AB7E06"
+    },
+    {
+      "bytes": 6939136,
+      "name": "DxUi.EmbeddedTests.exe",
+      "sha256": "123E72C314A051552456D942E43EB4ECCBFD93F52B041A7D8D1AD9FB4FD2B9DC"
+    },
+    {
+      "bytes": 47755264,
+      "name": "DxUi.EmbeddedTests.pdb",
+      "sha256": "706C51307C13C4F4B119D3FC13E2B7384E4622FD5EB9A6653DA51FA7186F1903"
+    },
+    {
+      "bytes": 649216,
+      "name": "DxUi.FoundationTests.exe",
+      "sha256": "FA0EB990F3A8C29DA814196CE1E058DF7421E18C549565017C42F5A973DEA2F3"
+    },
+    {
+      "bytes": 15699968,
+      "name": "DxUi.FoundationTests.pdb",
+      "sha256": "71E4813588DAECD135232293FD6FC59F1A9476962ABBD9F8C437AA1A6388ACC5"
+    },
+    {
+      "bytes": 456704,
+      "name": "DxUi.InteractiveLease.exe",
+      "sha256": "3CDC8C32CC136FD9C6E7CEF35EBEC07FC648519864142D1E085D055A3E0BF763"
+    },
+    {
+      "bytes": 3993600,
+      "name": "DxUi.InteractiveLease.pdb",
+      "sha256": "BBCB3BBC0B22A6412C151EA8299F21C748DDA86DEF234A3EE74B7D2250F324E7"
+    },
+    {
+      "bytes": 236095678,
+      "name": "DxUi.lib",
+      "sha256": "499B075FC934335261E86003D95BE6EEC5D5AA5524E7A26AD889D9E6D64A6406"
+    },
+    {
+      "bytes": 15454208,
+      "name": "DxUi.pdb",
+      "sha256": "8611C79FED57FDC90D58B79D3B88C212DD81D37DCB0C48B4D17EAB6E09A2545E"
+    }
+  ],
+  "source": "9909da1065e297247cb490b970b2265a0e4d8b9e",
+  "platform": "x64"
+}

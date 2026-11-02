@@ -1,0 +1,89 @@
+Locating Visual Studio and MSBuild...
+[DXUI_BUILD_PHASE] phase=VisualStudioDiscovery state=BEGIN utc=2026-11-02T07:30:23.3749305Z elapsedMs=0.000
+[DXUI_BUILD_PHASE] phase=VisualStudioDiscovery state=END utc=2026-11-02T07:30:23.4980028Z elapsedMs=126.377
+[DXUI_BUILD_PHASE] phase=OutputUseChecks state=BEGIN utc=2026-11-02T07:30:23.5037125Z elapsedMs=0.000
+[DXUI_BUILD_PHASE] phase=OutputUseChecks state=END utc=2026-11-02T07:30:24.9989277Z elapsedMs=1494.997
+[DXUI_BUILD_PHASE] phase=DependencyAdmission state=BEGIN utc=2026-11-02T07:30:24.9996552Z elapsedMs=0.000
+[DXUI_BUILD_PHASE] phase=DependencyAdmission state=END utc=2026-11-02T07:30:25.0034148Z elapsedMs=3.736
+╭────────────────────────────────────────────────────────────────────────╮
+│                                                                        │
+│                      ██████╗ ██╗  ██╗██╗   ██╗██╗                      │
+│                      ██╔══██╗╚██╗██╔╝██║   ██║██║                      │
+│                      ██║  ██║ ╚███╔╝ ██║   ██║██║                      │
+│                      ██║  ██║ ██╔██╗ ██║   ██║██║                      │
+│                      ██████╔╝██╔╝ ██╗╚██████╔╝██║                      │
+│                      ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚═╝                      │
+│                                                                        │
+│      ✦  PIXELS PRIMED  •  CONTROLS READY  •  COMPILE MODE: GO!  ✦      │
+│                  ⚡  RELEASE  /  X64  /  REBUILD  ⚡                   │
+│                                                                        │
+╰────────────────────────────────────────────────────────────────────────╯
+
+Build configuration:
+  Configuration: Release
+  Platform:      x64
+  Target:        Rebuild
+  Toolchain:     C:\Program Files\Microsoft Visual Studio\18\Insiders
+  Output:        Z:\src\DxUi-worktrees\wip-delivery-sdk-20261102\.build\
+
+Compiling DxUi...
+[DXUI_BUILD_PHASE] phase=MSBuild state=BEGIN utc=2026-11-02T07:30:25.0401716Z elapsedMs=0.000
+
+  compilation header save succeeded; see Z:\src\DxUi-worktrees\wip-delivery-sdk-20261102\.build\Intermediate\x64\Release\DxUi\DxUiCompositeVS.h
+  compilation object save succeeded; see Z:\src\DxUi-worktrees\wip-delivery-sdk-20261102\.build\Intermediate\x64\Release\DxUi\DxUiCompositeVS.cso
+  compilation header save succeeded; see Z:\src\DxUi-worktrees\wip-delivery-sdk-20261102\.build\Intermediate\x64\Release\DxUi\DxUiCompositePS.h
+  compilation object save succeeded; see Z:\src\DxUi-worktrees\wip-delivery-sdk-20261102\.build\Intermediate\x64\Release\DxUi\DxUiCompositePS.cso
+  DxUi.YamlMetadata.cpp
+  DxUi.MarkdownMetadata.cpp
+  DxUi.RichDocument.cpp
+  DxUi.RichMarkdownProjection.cpp
+  DxUi.RichSemantic.cpp
+  DxUi.RichTextCommands.cpp
+  DxUi.RichAccessibilityText.cpp
+  DxUi.RichSemanticDocument.cpp
+  DxUi.RichTextExport.cpp
+  DxUi.RichSemanticGeometry.cpp
+  DxUi.MarkdownSyntax.cpp
+  DxUi.NativeFlowchart.cpp
+  DxUi.NativeMath.cpp
+  DxUi.NativeFlowchartLayout.cpp
+  DxUi.PreparedFlowchart.cpp
+  DxUi.RichTextLayout.cpp
+  DxUi.RichDocumentLayout.cpp
+  DxUi.RichTextEditor.cpp
+  DxUi.RichImage.cpp
+  ControlCatalog.cpp
+  Compiling...
+  NativeMenuInterop.cpp
+  Embedded.cpp
+  FrameRuntime.cpp
+  DxUi.Accessibility.cpp
+  DxUi.ComboBox.cpp
+  DxUi.Controls.cpp
+  DxUi.Layout.cpp
+  DxUi.Forms.cpp
+  DxUi.EditorControls.cpp
+  DxUi.cpp
+  DxUi.Grid.cpp
+  DxUi.Menu.cpp
+  DxUi.NativeTextInput.cpp
+  DxUi.PointerInput.cpp
+  DxUi.Scrollbar.cpp
+  DxUi.SingleLineTextEditing.cpp
+  DxUi.TextInput.cpp
+  DxUi.TextStoreACP.cpp
+  TextInputServices.cpp
+  TextClipboard.cpp
+  Compiling...
+  DxUi.FileDrop.cpp
+  DxUi.Theme.cpp
+  DxUi.Tree.cpp
+  DxUi.Typeahead.cpp
+  DxUi.WindowHost.cpp
+  DxUi.TextElements.cpp
+  DxUi.vcxproj -> Z:\src\DxUi-worktrees\wip-delivery-sdk-20261102\.build\x64\Release\DxUi.lib
+[DXUI_BUILD_PHASE] phase=MSBuild state=END utc=2026-11-02T07:32:13.8071723Z elapsedMs=108767.401
+BUILD SUCCEEDED: DxUi | x64 | Release | 00:01:50
+Diagnostics: 0 warning(s), 0 error(s)
+Artifact: Z:\src\DxUi-worktrees\wip-delivery-sdk-20261102\.build\x64\Release\DxUi.lib
+Log: Z:\src\DxUi-worktrees\wip-delivery-sdk-20261102\.build\logs\build-x64-Release-e8ff0cd3292143e088efcee7b951ebe8.log

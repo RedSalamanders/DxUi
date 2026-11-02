@@ -1,0 +1,84 @@
+{
+  "frozenUtc": "2026-11-02T07:02:04.9984158Z",
+  "files": [
+    {
+      "name": "DxUi.ControlTests.exe",
+      "bytes": 7725056,
+      "sha256": "BB33BB9EDB3BAE26EBC263E3BDFA731169EC3145C0E77EBD365B51AB92CEBA8E"
+    },
+    {
+      "name": "DxUi.ControlTests.pdb",
+      "bytes": 53555200,
+      "sha256": "A16F97DCDA2C4950CC1EFD0340AB384A4808A47668F6BC0C257D909B59A63DD2"
+    },
+    {
+      "name": "DxUi.EmbeddedControls.exe",
+      "bytes": 3643392,
+      "sha256": "F317DFEA9BFD70C6BC59C7E0789274474075BD0410A31C8A4B74CBD09DC73571"
+    },
+    {
+      "name": "DxUi.EmbeddedControls.pdb",
+      "bytes": 20451328,
+      "sha256": "C616112AD5E14909FCA56C86A48DD3A47BF76578CAF0052A7EF51080B874E9BB"
+    },
+    {
+      "name": "DxUi.EmbeddedTests.exe",
+      "bytes": 4774400,
+      "sha256": "082D899363FAC2FAA79AE8AA802359790B891442C15A335B58DF514B8186CD11"
+    },
+    {
+      "name": "DxUi.EmbeddedTests.pdb",
+      "bytes": 24875008,
+      "sha256": "546F49AE91D1581E862779DDCB8AFC9BCA3D88C4789B7D7484C931A5AA6D4172"
+    },
+    {
+      "name": "DxUi.FoundationTests.exe",
+      "bytes": 3513856,
+      "sha256": "CE30194B28AC98D3F0AD1FCEFA3BFF8B8023E2FF16D9AC97097D7C6C0632BBCC"
+    },
+    {
+      "name": "DxUi.FoundationTests.pdb",
+      "bytes": 19828736,
+      "sha256": "AD95954EA26AD635D18F2F2853C1B3CDE2C7C4AEB90779107F958A6116DDBF5F"
+    },
+    {
+      "name": "DxUi.InteractiveLease.exe",
+      "bytes": 985088,
+      "sha256": "2265172D4040638DCB57E0757897ADF264C756BE42168E04C01603B976A9F162"
+    },
+    {
+      "name": "DxUi.InteractiveLease.pdb",
+      "bytes": 6033408,
+      "sha256": "E725DB4B036874CFE5AD23E689E557B05620754776FDCF80BB56A877682957EC"
+    },
+    {
+      "name": "DxUi.lib",
+      "bytes": 41040398,
+      "sha256": "DEDBD6426BB488B8930915AAC49A2CAFCF5968B4121D4A38C52E6B75579951AA"
+    },
+    {
+      "name": "DxUi.pdb",
+      "bytes": 7901184,
+      "sha256": "1DA3722E624368B06A779AA71AA3295A3962E6AAABC79CFA4D9310F414D90B7E"
+    }
+  ],
+  "platform": "ARM64",
+  "receipts": [
+    {
+      "name": "v2-build.json",
+      "present": true,
+      "sha256": "F127D440B5C53A45B2BEE2DC6A790A1A09FB8BA060A18D54224185A207F0137D"
+    },
+    {
+      "name": "incremental-build.json",
+      "present": true,
+      "sha256": "9B18225D1191F4E179841ECEAE47DAF87D7B6581EC81F555EDF42757D333DFA2"
+    },
+    {
+      "present": false,
+      "name": "scoped-build.json"
+    }
+  ],
+  "source": "a8cb8e1d7a4106750b195e6e8f2f686d66be9075",
+  "configuration": "Release"
+}

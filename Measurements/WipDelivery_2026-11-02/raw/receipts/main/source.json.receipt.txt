@@ -1,0 +1,7 @@
+{
+  "previousQualifiedBuildSource": "1fea2221e3dc3f94223b382dc1b08f6efdbe6a12",
+  "frozenUtc": "2026-11-02T06:47:58.2333421Z",
+  "source": "9909da1065e297247cb490b970b2265a0e4d8b9e",
+  "delta": "Test-only OLE STA coordinate fixture and test-only Markdown serializer coverage; production/include/build inputs unchanged",
+  "archiveSha256": "90D229BD5A47F87EB479CA5DFFF1B55CB1AC1B3D121AFE139F1E4B91D319B49F"
+}

@@ -1,0 +1,8 @@
+{
+  "source": "9909da1065e297247cb490b970b2265a0e4d8b9e",
+  "platform": "ARM64",
+  "configuration": "Release",
+  "buildExit": 0,
+  "acceptedBuild": true,
+  "buildElapsedMs": 503310.262
+}

@@ -1,0 +1,1505 @@
+{
+  "source": "1fea2221e3dc3f94223b382dc1b08f6efdbe6a12",
+  "scope": "81 original Rich audit headings. Source/test inspection is not a runtime pass.",
+  "counts": {
+    "fix": 41,
+    "invalid": 5,
+    "challenged": 35
+  },
+  "items": [
+    {
+      "id": "commands-01",
+      "title": "DeleteTableColumn reads slots[column - 1] out of bounds for a one-cell body row",
+      "outcome": "fix",
+      "reason": "One-cell padded body column deletion has a directed exact-source oracle, protecting the former index underflow.",
+      "source": [
+        "src/Controls/DxUi.RichTextCommands.cpp"
+      ],
+      "tests": [
+        "Tests/Support/Support.Tests.RichSemantic.h"
+      ],
+      "reviewContext": "evidence/rich-targeted.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 36
+      }
+    },
+    {
+      "id": "commands-02",
+      "title": "Prefix() takes the first text leaf's content line as the item content start, deleting nested heading/quote/list markers",
+      "outcome": "fix",
+      "reason": "Nested heading, list and quote markers are preserved by prefix planning; task cases are refused.",
+      "source": [
+        "src/Controls/DxUi.RichTextCommands.cpp"
+      ],
+      "tests": [
+        "Tests/Support/Support.Tests.RichSemantic.h"
+      ],
+      "reviewContext": "evidence/rich-targeted.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 46
+      }
+    },
+    {
+      "id": "commands-03",
+      "title": "Header-row deletion drops the header EOL when the promoted row is the last line without a trailing EOL",
+      "outcome": "fix",
+      "reason": "Header promotion retains the physical header EOL when the promoted final row lacks a terminator.",
+      "source": [
+        "src/Controls/DxUi.RichTextCommands.cpp"
+      ],
+      "tests": [
+        "Tests/Support/Support.Tests.RichSemantic.h"
+      ],
+      "reviewContext": "evidence/rich-targeted.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 56
+      }
+    },
+    {
+      "id": "commands-04",
+      "title": "InsertTableColumn at column 0 breaks rows that have no leading pipe",
+      "outcome": "fix",
+      "reason": "Column-zero insertion in a row without a leading pipe has an exact-source oracle.",
+      "source": [
+        "src/Controls/DxUi.RichTextCommands.cpp"
+      ],
+      "tests": [
+        "Tests/Support/Support.Tests.RichSemantic.h"
+      ],
+      "reviewContext": "evidence/rich-targeted.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 66
+      }
+    },
+    {
+      "id": "commands-05",
+      "title": "ToggleStyle/SetLink wrap path accepts selections that partially overlap an existing emphasis/strong/strike/link node",
+      "outcome": "fix",
+      "reason": "Partial overlap with emphasis or links is rejected instead of wrapping only part of an owned node.",
+      "source": [
+        "src/Controls/DxUi.RichTextCommands.cpp"
+      ],
+      "tests": [
+        "Tests/Support/Support.Tests.RichSemantic.h"
+      ],
+      "reviewContext": "evidence/rich-targeted.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 76
+      }
+    },
+    {
+      "id": "commands-06",
+      "title": "CodeValue silently drops Math and FootnoteReference inlines (and link destinations) when converting a selection to code",
+      "outcome": "fix",
+      "reason": "Conversion to code refuses math, footnotes and destination-owning links rather than losing content.",
+      "source": [
+        "src/Controls/DxUi.RichTextCommands.cpp"
+      ],
+      "tests": [
+        "Tests/Support/Support.Tests.RichSemantic.h"
+      ],
+      "reviewContext": "evidence/rich-targeted.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 86
+      }
+    },
+    {
+      "id": "commands-07",
+      "title": "OutdentList removes exactly parent.contentIndent columns, so an over-indented child (4-space nesting) stays nested",
+      "outcome": "fix",
+      "reason": "Over-indented nested child outdents one structural level, covered by a directed exact result.",
+      "source": [
+        "src/Controls/DxUi.RichTextCommands.cpp"
+      ],
+      "tests": [
+        "Tests/Support/Support.Tests.RichSemantic.h"
+      ],
+      "reviewContext": "evidence/rich-targeted.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 96
+      }
+    },
+    {
+      "id": "commands-08",
+      "title": "Unwrapping strong/emphasis/strike escapes every ASCII punctuation character in the body, not only context-sensitive ones",
+      "outcome": "fix",
+      "reason": "Context-aware NeedsUnwrapEscape limits punctuation escaping, with unwrap and rewrap oracles.",
+      "source": [
+        "src/Controls/DxUi.RichTextCommands.cpp"
+      ],
+      "tests": [
+        "Tests/Support/Support.Tests.RichSemantic.h"
+      ],
+      "reviewContext": "evidence/rich-targeted.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 117
+      }
+    },
+    {
+      "id": "commands-09",
+      "title": "InsertParagraph on a non-leaf block inside a block quote deletes the quote marker instead of inserting a line",
+      "outcome": "fix",
+      "reason": "Quoted thematic-break Enter retains the quote and inserts the intended source.",
+      "source": [
+        "src/Controls/DxUi.RichTextCommands.cpp"
+      ],
+      "tests": [
+        "Tests/Support/Support.Tests.RichSemantic.h"
+      ],
+      "reviewContext": "evidence/rich-targeted.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 106
+      }
+    },
+    {
+      "id": "commands-10",
+      "title": "SetList paragraph path lacks the nine-digit ordered-marker overflow guard",
+      "outcome": "fix",
+      "reason": "Ordered list conversion rejects nine-digit marker overflow.",
+      "source": [
+        "src/Controls/DxUi.RichTextCommands.cpp"
+      ],
+      "tests": [
+        "Tests/Support/Support.Tests.RichSemantic.h"
+      ],
+      "reviewContext": "evidence/rich-targeted.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 128
+      }
+    },
+    {
+      "id": "commands-11",
+      "title": "IndentList appends trailing spaces to blank lines inside a loose item",
+      "outcome": "fix",
+      "reason": "Nested loose-list indentation retains interior blank-line source without adding spaces.",
+      "source": [
+        "src/Controls/DxUi.RichTextCommands.cpp"
+      ],
+      "tests": [
+        "Tests/Support/Support.Tests.RichSemantic.h"
+      ],
+      "reviewContext": "evidence/rich-targeted.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 138
+      }
+    },
+    {
+      "id": "commands-12",
+      "title": "Indent/Outdent/SetList(None) of a nested loose item with an empty interior line is rejected",
+      "outcome": "fix",
+      "reason": "Nested loose-list indent, outdent and unlist accept an empty interior line, with exact source and selection cases.",
+      "source": [
+        "src/Controls/DxUi.RichTextCommands.cpp"
+      ],
+      "tests": [
+        "Tests/Support/Support.Tests.RichSemantic.h"
+      ],
+      "reviewContext": "evidence/rich-targeted.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 148
+      }
+    },
+    {
+      "id": "commands-13",
+      "title": "Table capacity boundaries signal inconsistently: one-off limits throw while larger ones return Unavailable",
+      "outcome": "invalid",
+      "reason": "The independent original verifier refuted the claimed inconsistent capacity failure; it was not scheduled.",
+      "source": [
+        "src/Controls/DxUi.RichTextCommands.cpp"
+      ],
+      "tests": [
+        "Tests/Support/Support.Tests.RichSemantic.h"
+      ],
+      "reviewContext": "evidence/rich-targeted.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 159
+      }
+    },
+    {
+      "id": "commands-14",
+      "title": "Removing an HTML anchor title leaves the attribute's leading whitespace",
+      "outcome": "fix",
+      "reason": "Removing an HTML anchor title removes its preceding attribute whitespace.",
+      "source": [
+        "src/Controls/DxUi.RichTextCommands.cpp"
+      ],
+      "tests": [
+        "Tests/Support/Support.Tests.RichSemantic.h"
+      ],
+      "reviewContext": "evidence/rich-targeted.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 170
+      }
+    },
+    {
+      "id": "commands-15",
+      "title": "Header promotion caret `content.first + 2` can land inside a surrogate pair and abort the command",
+      "outcome": "fix",
+      "reason": "Header promotion has a supplementary-scalar and valid caret-boundary case.",
+      "source": [
+        "src/Controls/DxUi.RichTextCommands.cpp"
+      ],
+      "tests": [
+        "Tests/Support/Support.Tests.RichSemantic.h"
+      ],
+      "reviewContext": "evidence/rich-targeted.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 181
+      }
+    },
+    {
+      "id": "commands-16",
+      "title": "Every plan, including per-keystroke deletion, performs several full-document passes and allocations",
+      "outcome": "challenged",
+      "reason": "Multiple full edit-validation passes remain; a shorter planner is an unmeasured optimization and must preserve transaction atomicity and snapshots.",
+      "source": [
+        "src/Controls/DxUi.RichTextCommands.cpp"
+      ],
+      "tests": [
+        "Tests/Support/Support.Tests.RichSemantic.h"
+      ],
+      "reviewContext": "evidence/rich-targeted.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 192
+      }
+    },
+    {
+      "id": "commands-17",
+      "title": "Duplicated helpers: tab-stop arithmetic, Space/Digit, ASCII punctuation set, code pad rule, code-fence stripping, physical line scanner",
+      "outcome": "challenged",
+      "reason": "Utility and scanner deduplication is not complete; one shared EOL policy conflicts with the distinct raw and structural contracts. The separately discovered code-span deletion behavior is fixed by 3d365075/e149f04f, not evidence that all listed helpers were unified.",
+      "source": [
+        "src/Controls/DxUi.RichTextCommands.cpp"
+      ],
+      "tests": [
+        "Tests/Support/Support.Tests.RichSemantic.h"
+      ],
+      "reviewContext": "evidence/rich-targeted.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 203
+      }
+    },
+    {
+      "id": "commands-18",
+      "title": "Table(), Link(), Style() and Continue() are oversized and Link() embeds a second HTML attribute parser",
+      "outcome": "challenged",
+      "reason": "Splitting planner methods and replacing the HTML attribute parser is optional architecture; source ranges, ownership and guards must remain intact.",
+      "source": [
+        "src/Controls/DxUi.RichTextCommands.cpp"
+      ],
+      "tests": [
+        "Tests/Support/Support.Tests.RichSemantic.h"
+      ],
+      "reviewContext": "evidence/rich-targeted.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 214
+      }
+    },
+    {
+      "id": "commands-19",
+      "title": "Footnote guard and leaf lookups repeat linear NodeAt scans",
+      "outcome": "challenged",
+      "reason": "Consolidating repeated leaf and footnote lookups is an optional unmeasured traversal optimization.",
+      "source": [
+        "src/Controls/DxUi.RichTextCommands.cpp"
+      ],
+      "tests": [
+        "Tests/Support/Support.Tests.RichSemantic.h"
+      ],
+      "reviewContext": "evidence/rich-targeted.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 225
+      }
+    },
+    {
+      "id": "blocks-01",
+      "title": "Reference-definition extraction bypasses the 32,768 node admission limit and can publish an over-capacity tree",
+      "outcome": "fix",
+      "reason": "Reference extraction participates in bounded admission; accepted/rejected outputs and atomic retention/retry are covered by capacity fixtures.",
+      "source": [
+        "src/Controls/DxUi.MarkdownBlocks.h",
+        "src/Controls/DxUi.MarkdownSyntax.cpp"
+      ],
+      "tests": [
+        "Tests/Support/Support.Tests.MarkdownCapacity.h"
+      ],
+      "reviewContext": "evidence/rich-targeted.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 238
+      }
+    },
+    {
+      "id": "blocks-02",
+      "title": "Trailing blank lines of an indented code block lose their caret sites: popped from lines, never recorded in EmptyLines, and the EOF trailing line is suppressed",
+      "outcome": "fix",
+      "reason": "Trailing indented-code blank lines retain empty caret sites, including EOF; directed source-block tests cover them.",
+      "source": [
+        "src/Controls/DxUi.MarkdownBlocks.h",
+        "src/Controls/DxUi.MarkdownSyntax.cpp"
+      ],
+      "tests": [
+        "Tests/Support/Support.Tests.SemanticSourceBlock.h"
+      ],
+      "reviewContext": "evidence/rich-targeted.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 248
+      }
+    },
+    {
+      "id": "blocks-03",
+      "title": "SourceEditor region is attached to open\\_.back() without container matching, nesting a top-level block inside a still-open list item or footnote",
+      "outcome": "fix",
+      "reason": "Unmatched containers close before source-region creation and orphan shells are removed; the parent assertion is in the source-block test.",
+      "source": [
+        "src/Controls/DxUi.MarkdownBlocks.h",
+        "src/Controls/DxUi.MarkdownSyntax.cpp"
+      ],
+      "tests": [
+        "Tests/Support/Support.Tests.SemanticSourceBlock.h"
+      ],
+      "reviewContext": "evidence/rich-targeted.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 258
+      }
+    },
+    {
+      "id": "blocks-04",
+      "title": "Lazy-continuation decision ignores the 'last matched container' rule used by cmark/commonmark.js for list markers, empty items and type-7 HTML",
+      "outcome": "fix",
+      "reason": "Profile-specific lazy continuation after unmatched containers is integrated as 2193fc35, with pinned GFM/CommonMark grammar cases.",
+      "source": [
+        "src/Controls/DxUi.MarkdownBlocks.h",
+        "src/Controls/DxUi.MarkdownSyntax.cpp"
+      ],
+      "tests": [
+        "Tests/Support/Support.Tests.MarkdownBlocks.h"
+      ],
+      "reviewContext": "evidence/rich-targeted.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 268
+      }
+    },
+    {
+      "id": "blocks-05",
+      "title": "A multi-line paragraph followed by a delimiter row never becomes a table (GFM reference splits the paragraph and uses its last line as header)",
+      "outcome": "fix",
+      "reason": "GFM table promotion splits preceding paragraph content from the final header line; integrated 29b94fce includes source-partition cases.",
+      "source": [
+        "src/Controls/DxUi.MarkdownBlocks.h",
+        "src/Controls/DxUi.MarkdownSyntax.cpp"
+      ],
+      "tests": [
+        "Tests/Support/Support.Tests.MarkdownBlocks.h"
+      ],
+      "reviewContext": "evidence/rich-targeted.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 278
+      }
+    },
+    {
+      "id": "blocks-06",
+      "title": "HTML block type 4 accepts a lowercase letter after `<!` under Gfm029, where the pinned GFM 0.29 spec requires uppercase",
+      "outcome": "fix",
+      "reason": "Gfm029 declaration blocks require uppercase after <! while other profiles retain their specified behavior; integrated 3fce5260.",
+      "source": [
+        "src/Controls/DxUi.MarkdownBlocks.h",
+        "src/Controls/DxUi.MarkdownSyntax.cpp"
+      ],
+      "tests": [
+        "Tests/Support/Support.Tests.MarkdownBlocks.h"
+      ],
+      "reviewContext": "evidence/rich-targeted.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 288
+      }
+    },
+    {
+      "id": "blocks-07",
+      "title": "acceptedEnd\\_/Extend() is a redundant deferred boundary: it always equals lineFirst\\_ at every PopContainer and source\\_.size() in Finish",
+      "outcome": "challenged",
+      "reason": "acceptedEnd_ participates in partial and closed container finalization; removing it as redundant requires an invariant proof.",
+      "source": [
+        "src/Controls/DxUi.MarkdownBlocks.h",
+        "src/Controls/DxUi.MarkdownSyntax.cpp"
+      ],
+      "tests": [
+        "Tests/Support/Support.Tests.MarkdownBlocks.h"
+      ],
+      "reviewContext": "evidence/rich-targeted.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 298
+      }
+    },
+    {
+      "id": "blocks-08",
+      "title": "MarkdownBlocks::Line() is a 360-line function mixing five phases and re-running the same lookahead helpers",
+      "outcome": "challenged",
+      "reason": "Line remains a resumable multi-phase parser; its length alone does not establish a correctness defect.",
+      "source": [
+        "src/Controls/DxUi.MarkdownBlocks.h",
+        "src/Controls/DxUi.MarkdownSyntax.cpp"
+      ],
+      "tests": [
+        "Tests/Support/Support.Tests.MarkdownBlocks.h"
+      ],
+      "reviewContext": "evidence/rich-targeted.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 308
+      }
+    },
+    {
+      "id": "blocks-09",
+      "title": "Duplicated ASCII/UTF-16 helpers and label scanners across the Markdown units",
+      "outcome": "challenged",
+      "reason": "Character/label helper duplication remains; scanner unification is optional and must preserve distinct source and label semantics.",
+      "source": [
+        "src/Controls/DxUi.MarkdownBlocks.h",
+        "src/Controls/DxUi.MarkdownSyntax.cpp"
+      ],
+      "tests": [
+        "Tests/Support/Support.Tests.MarkdownBlocks.h"
+      ],
+      "reviewContext": "evidence/rich-targeted.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 318
+      }
+    },
+    {
+      "id": "blocks-10",
+      "title": "Block scanning spends one Advance work unit per UTF-16 unit just to find line ends",
+      "outcome": "challenged",
+      "reason": "One work unit per UTF-16 scan remains; a chunked scan is an unmeasured optimization that must preserve cooperative budgets.",
+      "source": [
+        "src/Controls/DxUi.MarkdownBlocks.h",
+        "src/Controls/DxUi.MarkdownSyntax.cpp"
+      ],
+      "tests": [
+        "Tests/Support/Support.Tests.MarkdownBlocks.h"
+      ],
+      "reviewContext": "evidence/rich-targeted.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 328
+      }
+    },
+    {
+      "id": "blocks-11",
+      "title": "Finish() compaction and TableRow copy node/cell vectors instead of moving them",
+      "outcome": "challenged",
+      "reason": "Staging-vector copies remain; replacing them must preserve fallible MSVC Debug moves and publication ownership.",
+      "source": [
+        "src/Controls/DxUi.MarkdownBlocks.h",
+        "src/Controls/DxUi.MarkdownSyntax.cpp"
+      ],
+      "tests": [
+        "Tests/Support/Support.Tests.MarkdownBlocks.h"
+      ],
+      "reviewContext": "evidence/rich-targeted.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 338
+      }
+    },
+    {
+      "id": "blocks-12",
+      "title": "Dead or redundant checks: parent re-verification inside the identity lookup, unreachable blank-line guards in ReferenceAt, redundant Empty() after Space(Peek())",
+      "outcome": "challenged",
+      "reason": "Defensive identity/reference checks remain; removing them is optional without a proof covering partial staging and trusted callers.",
+      "source": [
+        "src/Controls/DxUi.MarkdownBlocks.h",
+        "src/Controls/DxUi.MarkdownSyntax.cpp"
+      ],
+      "tests": [
+        "Tests/Support/Support.Tests.MarkdownBlocks.h"
+      ],
+      "reviewContext": "evidence/rich-targeted.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 348
+      }
+    },
+    {
+      "id": "blocks-13",
+      "title": "After partial reference extraction the surviving paragraph starts at its content offset (no line prefix) and the preceding definition absorbs the next line's prefix",
+      "outcome": "fix",
+      "reason": "Definition and surviving paragraph preserve their physical line prefixes; integrated 0af69bf7 has LF, CRLF and consecutive-reference fixtures.",
+      "source": [
+        "src/Controls/DxUi.MarkdownBlocks.h",
+        "src/Controls/DxUi.MarkdownSyntax.cpp"
+      ],
+      "tests": [
+        "Tests/Support/Support.Tests.MarkdownBlocks.h"
+      ],
+      "reviewContext": "evidence/rich-targeted.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 358
+      }
+    },
+    {
+      "id": "blocks-14",
+      "title": "Generated (padded) table cells are anchored at the row's lineEnd\\_, i.e. after the EOL, forcing downstream special-casing",
+      "outcome": "challenged",
+      "reason": "Parser still anchors padded cell nodes at row content.last, potentially after the EOL; geometry maps to the correct insertion site and tests cover CRLF/CR and EOF. Moving the parser anchor and removing downstream handling is an unimplemented architecture proposal.",
+      "source": [
+        "src/Controls/DxUi.MarkdownBlocks.h",
+        "src/Controls/DxUi.MarkdownSyntax.cpp"
+      ],
+      "tests": [
+        "Tests/Support/Support.Tests.RichSemanticGeometry.h"
+      ],
+      "reviewContext": "evidence/rich-targeted.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 368
+      }
+    },
+    {
+      "id": "blocks-15",
+      "title": "Snapshot Begin materialises the full source twice and scans it three times before any parsing",
+      "outcome": "challenged",
+      "reason": "Snapshot Begin still flattens and validates source; eliminating copies is an unmeasured proposal constrained by immutable parser publication.",
+      "source": [
+        "src/Controls/DxUi.MarkdownBlocks.h",
+        "src/Controls/DxUi.MarkdownSyntax.cpp"
+      ],
+      "tests": [
+        "Tests/Support/Support.Tests.MarkdownBlocks.h"
+      ],
+      "reviewContext": "evidence/rich-targeted.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 378
+      }
+    },
+    {
+      "id": "inlines-01",
+      "title": "Extended-autolink pass resolves a whole text region in one work unit with O(n^2) adversarial scans",
+      "outcome": "fix",
+      "reason": "Extended-autolink scanning is staged and work-counted; capacity fixtures exercise accepted and rejected output under bounded work.",
+      "source": [
+        "src/Controls/DxUi.MarkdownInlines.h"
+      ],
+      "tests": [
+        "Tests/Support/Support.Tests.MarkdownCapacity.h"
+      ],
+      "reviewContext": "evidence/rich-targeted.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 390
+      }
+    },
+    {
+      "id": "inlines-02",
+      "title": "AutolinkSplice re-decodes and double-copies the entire remaining node after every spliced link",
+      "outcome": "fix",
+      "reason": "Incremental autolink processing avoids the historical repeated whole-remainder decode/copy; bounded-work tests cover splicing.",
+      "source": [
+        "src/Controls/DxUi.MarkdownInlines.h"
+      ],
+      "tests": [
+        "Tests/Support/Support.Tests.MarkdownCapacity.h"
+      ],
+      "reviewContext": "evidence/rich-targeted.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 400
+      }
+    },
+    {
+      "id": "inlines-03",
+      "title": "Rule-of-3 and opener floors use consumed delimiter lengths instead of original run lengths",
+      "outcome": "fix",
+      "reason": "Delimiter processing retains original run lengths for rule-of-three behavior; directed grammar case covers the original example.",
+      "source": [
+        "src/Controls/DxUi.MarkdownInlines.h"
+      ],
+      "tests": [
+        "Tests/Support/Support.Tests.MarkdownInlines.h"
+      ],
+      "reviewContext": "evidence/rich-targeted.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 410
+      }
+    },
+    {
+      "id": "inlines-04",
+      "title": "Emphasis wrappers and autolink child nodes bypass the 32,768-record staging budget",
+      "outcome": "fix",
+      "reason": "Emphasis wrappers and autolink children use the shared staging admission limit; capacity tests cover atomic refusal and retry.",
+      "source": [
+        "src/Controls/DxUi.MarkdownInlines.h"
+      ],
+      "tests": [
+        "Tests/Support/Support.Tests.MarkdownCapacity.h"
+      ],
+      "reviewContext": "evidence/rich-targeted.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 420
+      }
+    },
+    {
+      "id": "inlines-05",
+      "title": "Autolink walk descent into Emphasis/Strong/Strikethrough and the `parent` plumbing are unreachable",
+      "outcome": "challenged",
+      "reason": "Descent and parent plumbing remain; deletion is optional because wrapper ordering and splice ownership must be preserved.",
+      "source": [
+        "src/Controls/DxUi.MarkdownInlines.h"
+      ],
+      "tests": [
+        "Tests/Support/Support.Tests.MarkdownInlines.h"
+      ],
+      "reviewContext": "evidence/rich-targeted.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 430
+      }
+    },
+    {
+      "id": "inlines-06",
+      "title": "Unused AppendScalar, triplicated scalar encode/decode helpers and a redundant decoder function pointer",
+      "outcome": "challenged",
+      "reason": "Scalar and decoder helper copies remain; consolidation must preserve differing source, label and escape semantics.",
+      "source": [
+        "src/Controls/DxUi.MarkdownInlines.h"
+      ],
+      "tests": [
+        "Tests/Support/Support.Tests.MarkdownInlines.h"
+      ],
+      "reviewContext": "evidence/rich-targeted.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 440
+      }
+    },
+    {
+      "id": "inlines-07",
+      "title": "Scan() is 157 lines; Step() and Emphasis() duplicate leaf-finish and cleanup blocks; Lookup runs twice for shortcut refs",
+      "outcome": "challenged",
+      "reason": "Dispatcher, finish and lookup consolidation remains optional maintenance, not an established parsing failure.",
+      "source": [
+        "src/Controls/DxUi.MarkdownInlines.h"
+      ],
+      "tests": [
+        "Tests/Support/Support.Tests.MarkdownInlines.h"
+      ],
+      "reviewContext": "evidence/rich-targeted.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 450
+      }
+    },
+    {
+      "id": "inlines-08",
+      "title": "StartLeaf allocates a fresh backtick index scratch vector for every leaf",
+      "outcome": "challenged",
+      "reason": "Per-leaf backtick scratch allocation remains; reusable storage is an optional measured optimization.",
+      "source": [
+        "src/Controls/DxUi.MarkdownInlines.h"
+      ],
+      "tests": [
+        "Tests/Support/Support.Tests.MarkdownInlines.h"
+      ],
+      "reviewContext": "evidence/rich-targeted.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 460
+      }
+    },
+    {
+      "id": "inlines-09",
+      "title": "AngleAutolink searches for '>' to the end of the leaf regardless of whitespace",
+      "outcome": "fix",
+      "reason": "Angle-autolink scanning stops on invalid URI/email characters and records inspection units; 32c11296 adds a long-prefix linear-work oracle.",
+      "source": [
+        "src/Controls/DxUi.MarkdownInlines.h"
+      ],
+      "tests": [
+        "Tests/Support/Support.Tests.MarkdownCapacity.h"
+      ],
+      "reviewContext": "evidence/rich-targeted.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 470
+      }
+    },
+    {
+      "id": "inlines-10",
+      "title": "\\\\(...\\\\) inherits the single-dollar nonspace-edge and trailing-digit rules but docs state them only for \\$...\\$",
+      "outcome": "fix",
+      "reason": "Dollar-only nonspace/currency guards no longer improperly apply to backslash-delimited formulas; explicit-delimiter tests cover the distinction.",
+      "source": [
+        "src/Controls/DxUi.MarkdownInlines.h"
+      ],
+      "tests": [
+        "Tests/Support/Support.Tests.RichSemantic.h"
+      ],
+      "reviewContext": "evidence/rich-targeted.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 480
+      }
+    },
+    {
+      "id": "inlines-11",
+      "title": "Escaped table-cell pipe leaves a one-unit source hole and splits otherwise contiguous Text nodes",
+      "outcome": "fix",
+      "reason": "Escaped pipe text owns both source units inside a table; integrated 8fffb932 adds ordinary and code-cell source-range cases.",
+      "source": [
+        "src/Controls/DxUi.MarkdownInlines.h"
+      ],
+      "tests": [
+        "Tests/Controls/Controls.Tests.RichMarkdown.cpp"
+      ],
+      "reviewContext": "evidence/rich-targeted.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 490
+      }
+    },
+    {
+      "id": "document-01",
+      "title": "Draw contains an unreachable lazy whole-layout preparation path that would do layout/heap work during raster drawing",
+      "outcome": "fix",
+      "reason": "Draw consumes published reference or prepared chunks only; it does not lazily prepare layouts while rasterizing.",
+      "source": [
+        "src/Controls/DxUi.RichDocumentLayout.cpp"
+      ],
+      "tests": [
+        "Tests/Controls/Controls.Tests.RichDocumentLayout.cpp"
+      ],
+      "reviewContext": "evidence/rich-targeted.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 502
+      }
+    },
+    {
+      "id": "document-02",
+      "title": "BeginPreparation clones the whole published projection and then Prepare rebuilds a second full block index from the clone",
+      "outcome": "challenged",
+      "reason": "The old projection is still cloned and v0 rebuilds its index; less-copying preparation remains an unmeasured bounded-memory optimization.",
+      "source": [
+        "src/Controls/DxUi.RichDocumentLayout.cpp"
+      ],
+      "tests": [
+        "Tests/Controls/Controls.Tests.RichDocumentLayout.cpp"
+      ],
+      "reviewContext": "evidence/rich-targeted.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 512
+      }
+    },
+    {
+      "id": "document-03",
+      "title": "Every recorded edit, undo and redo copies the entire 128-entry history vector for exception safety",
+      "outcome": "fix",
+      "reason": "HistoryRing push and take-back avoid cloning all 128 entries; wrapped-history behavior has a directed test.",
+      "source": [
+        "src/Controls/DxUi.RichDocument.cpp"
+      ],
+      "tests": [
+        "Tests/Support/Support.Tests.RichTextStateReplacement.h"
+      ],
+      "reviewContext": "evidence/rich-targeted.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 522
+      }
+    },
+    {
+      "id": "document-04",
+      "title": "VisibleRange issues one DirectWrite HitTestTextPosition per line (including a phantom terminal entry) although line heights are already retained",
+      "outcome": "challenged",
+      "reason": "VisibleRange still uses caret hit tests; retaining extra metrics is optional unmeasured performance work.",
+      "source": [
+        "src/Controls/DxUi.RichTextLayout.cpp"
+      ],
+      "tests": [
+        "Tests/Controls/Controls.Tests.RichDocumentLayout.cpp"
+      ],
+      "reviewContext": "evidence/rich-targeted.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 532
+      }
+    },
+    {
+      "id": "document-05",
+      "title": "Undo/Redo during a transient (IME preview) revision records the uncommitted preview text as a redo/undo entry",
+      "outcome": "fix",
+      "reason": "f15c01c6 preserves the entry marker for transient preview history so undo/redo cannot record preview text as a committed history entry.",
+      "source": [
+        "src/Controls/DxUi.RichDocument.cpp"
+      ],
+      "tests": [
+        "Tests/Support/Support.Tests.RichTextStateReplacement.h"
+      ],
+      "reviewContext": "evidence/rich-targeted.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 542
+      }
+    },
+    {
+      "id": "document-06",
+      "title": "PrepareOwned and AdvancePreparation are ~185-line functions mixing validation, SDK calls, state machine and statistics",
+      "outcome": "challenged",
+      "reason": "Splitting PrepareOwned and AdvancePreparation by line count is optional and must retain validation, SDK and state-machine behavior.",
+      "source": [
+        "src/Controls/DxUi.RichTextLayout.cpp"
+      ],
+      "tests": [
+        "Tests/Controls/Controls.Tests.RichDocumentLayout.cpp"
+      ],
+      "reviewContext": "evidence/rich-targeted.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 552
+      }
+    },
+    {
+      "id": "document-07",
+      "title": "The fallibly constructed empty Projection literal is duplicated five times although a helper already exists",
+      "outcome": "challenged",
+      "reason": "Fallible empty projection construction remains; refactoring must preserve MSVC Debug proxy allocation exception behavior.",
+      "source": [
+        "src/Controls/DxUi.RichDocumentLayout.cpp"
+      ],
+      "tests": [
+        "Tests/Controls/Controls.Tests.RichDocumentLayout.cpp"
+      ],
+      "reviewContext": "evidence/rich-targeted.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 562
+      }
+    },
+    {
+      "id": "document-08",
+      "title": "Preparation::reusable is sized per physical line (up to 64K pointers) although at most 127 entries can be non-null",
+      "outcome": "challenged",
+      "reason": "The physical-block-sized reusable pointer vector remains; a sparse representation needs retained-storage and lookup measurements.",
+      "source": [
+        "src/Controls/DxUi.RichDocumentLayout.cpp"
+      ],
+      "tests": [
+        "Tests/Controls/Controls.Tests.RichDocumentLayout.cpp"
+      ],
+      "reviewContext": "evidence/rich-targeted.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 572
+      }
+    },
+    {
+      "id": "document-09",
+      "title": "The reuse scan compares full line strings per block instead of first checking shared payload identity",
+      "outcome": "challenged",
+      "reason": "Reuse still compares line contents; payload identity short-circuiting needs exact change/snapshot proof and measurement.",
+      "source": [
+        "src/Controls/DxUi.RichDocumentLayout.cpp"
+      ],
+      "tests": [
+        "Tests/Controls/Controls.Tests.RichDocumentLayout.cpp"
+      ],
+      "reviewContext": "evidence/rich-targeted.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 582
+      }
+    },
+    {
+      "id": "document-10",
+      "title": "A stale whole-layout reference is kept for raster even when chunk placement is exact, forcing an O(n) join per preparation and a full-document DrawTextLayout per paint",
+      "outcome": "challenged",
+      "reason": "A whole reference can remain for raster despite exact chunk placement; this real remaining work is an unimplemented performance proposal, not a claimed optimization. Pixel parity and matched measurement are required before changing it.",
+      "source": [
+        "src/Controls/DxUi.RichDocumentLayout.cpp"
+      ],
+      "tests": [
+        "Tests/Controls/Controls.Tests.RichDocumentLayout.cpp"
+      ],
+      "reviewContext": "evidence/rich-targeted.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 592
+      }
+    },
+    {
+      "id": "document-11",
+      "title": "Two complete rendering pipelines (v0 projection/chunk layout and semantic map/geometry) remain live with no retirement gate, and the editor still materialises whole-document v0 projections per keystroke",
+      "outcome": "challenged",
+      "reason": "The v0 and semantic pipelines deliberately remain for separate compatibility contracts; universal zero-copy for v0 was rejected by the owner and bounded linear materialization remains.",
+      "source": [
+        "src/Controls/DxUi.RichEditorLayout.h"
+      ],
+      "tests": [
+        "Tests/Support/Support.Tests.RichSemanticEditor.h"
+      ],
+      "reviewContext": "evidence/rich-targeted.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 602
+      }
+    },
+    {
+      "id": "document-12",
+      "title": "ChangedRangeFrom's common-ancestor search is O(128^2) over two zero-initialised 5 KiB stack arrays although identities are monotone along a lineage",
+      "outcome": "challenged",
+      "reason": "Bounded common-ancestor lineage scans remain; a monotone shortcut is optional CPU/stack optimization.",
+      "source": [
+        "src/Controls/DxUi.RichDocument.cpp"
+      ],
+      "tests": [
+        "Tests/Support/Support.Tests.RichTextStateReplacement.h"
+      ],
+      "reviewContext": "evidence/rich-targeted.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 612
+      }
+    },
+    {
+      "id": "document-13",
+      "title": "After Invalidate(), ChunkCount/UsesWholeGeometry/UsesWholeRaster still report the retained graph while Height/Revision/LastPreparation report empty and Generation does not change",
+      "outcome": "invalid",
+      "reason": "Invalidation deliberately retains chunks while publishable height/readiness is unavailable; retained-resource diagnostics are not a readiness claim.",
+      "source": [
+        "src/Controls/DxUi.RichDocumentLayout.cpp"
+      ],
+      "tests": [
+        "Tests/Controls/Controls.Tests.RichDocumentLayout.cpp"
+      ],
+      "reviewContext": "evidence/rich-targeted.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 622
+      }
+    },
+    {
+      "id": "document-14",
+      "title": "Sizing calls to GetLineMetrics and HitTestTextRange ignore their HRESULT, silently producing zero lines / empty selection on unexpected failure",
+      "outcome": "invalid",
+      "reason": "Original verifier refuted the alleged sizing-call HRESULT failure; the two-pass pattern remains and no new unexpected SDK failure is demonstrated.",
+      "source": [
+        "src/Controls/DxUi.RichTextLayout.cpp"
+      ],
+      "tests": [
+        "Tests/Controls/Controls.Tests.RichDocumentLayout.cpp"
+      ],
+      "reviewContext": "evidence/rich-targeted.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 632
+      }
+    },
+    {
+      "id": "document-15",
+      "title": "Each insertion allocates its own immutable buffer, so sequential typing never coalesces and one piece plus ~1 KiB leaf node is retained per keystroke",
+      "outcome": "challenged",
+      "reason": "Immutable insertion buffers remain; compaction needs snapshot/history ownership proof and paired retained-memory evidence.",
+      "source": [
+        "src/Controls/DxUi.RichDocument.cpp"
+      ],
+      "tests": [
+        "Tests/Support/Support.Tests.RichTextStateReplacement.h"
+      ],
+      "reviewContext": "evidence/rich-targeted.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 642
+      }
+    },
+    {
+      "id": "document-16",
+      "title": "The Placement phase's VerticalOrigin check is tautological and the Reuse-phase Unchanged guards are unreachable",
+      "outcome": "challenged",
+      "reason": "VerticalOrigin compares real prepared placement and is no longer a tautology; positioned-reference tests protect the guard.",
+      "source": [
+        "src/Controls/DxUi.RichDocumentLayout.cpp"
+      ],
+      "tests": [
+        "Tests/Controls/Controls.Tests.RichDocumentLayout.cpp"
+      ],
+      "reviewContext": "evidence/rich-targeted.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 652
+      }
+    },
+    {
+      "id": "document-17",
+      "title": "AllocateIdentity uses a CAS loop with an unreachable 2^64 exhaustion exception",
+      "outcome": "challenged",
+      "reason": "Bounded identity exhaustion guard remains defensive; removing it does not establish a correctness improvement.",
+      "source": [
+        "src/Controls/DxUi.RichDocument.cpp"
+      ],
+      "tests": [
+        "Tests/Support/Support.Tests.RichTextStateReplacement.h"
+      ],
+      "reviewContext": "evidence/rich-targeted.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 662
+      }
+    },
+    {
+      "id": "document-18",
+      "title": "Builder::Inline searches for the closing marker past the end of the current line",
+      "outcome": "challenged",
+      "reason": "The marker scan can extend past the line but does not accept a cross-line match; bounded search is optional optimization.",
+      "source": [
+        "src/Controls/DxUi.RichMarkdownProjection.cpp"
+      ],
+      "tests": [
+        "Tests/Controls/Controls.Tests.RichDocumentLayout.cpp"
+      ],
+      "reviewContext": "evidence/rich-targeted.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 672
+      }
+    },
+    {
+      "id": "editor-01",
+      "title": "Keyboard caret movement never exits an F2 source-editing envelope",
+      "outcome": "fix",
+      "reason": "Keyboard source-envelope exit and subsequent Enter are covered by the integrated directed keyboard fixture 6b421e71.",
+      "source": [
+        "src/Controls/DxUi.RichTextEditor.cpp"
+      ],
+      "tests": [
+        "Tests/Support/Support.Tests.SemanticSourceBlock.h"
+      ],
+      "reviewContext": "evidence/editor-host-register.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 684
+      }
+    },
+    {
+      "id": "editor-02",
+      "title": "Typing into an empty/padded cell silently drops characters when the table exceeds planner caps",
+      "outcome": "fix",
+      "reason": "Planner refusal falls back to raw insertion; 258-row padded-cell typing and undo are covered by df0c4573.",
+      "source": [
+        "src/Controls/DxUi.RichTextEditor.cpp"
+      ],
+      "tests": [
+        "Tests/Support/Support.Tests.RichSemanticEditor.h",
+        "Tests/Controls/Controls.Tests.RichSemanticGeometry.cpp",
+        "Tests/Embedded/Embedded.Tests.Embedded.cpp"
+      ],
+      "reviewContext": "evidence/editor-host-register.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 694
+      }
+    },
+    {
+      "id": "editor-03",
+      "title": "IME preview imports discard the whole retained layout graph instead of invalidating it",
+      "outcome": "fix",
+      "reason": "4bee3b86 retains reusable geometry for transient previews, with changed-preview and cancellation cases.",
+      "source": [
+        "src/Controls/DxUi.RichTextEditor.cpp"
+      ],
+      "tests": [
+        "Tests/Support/Support.Tests.RichSemanticEditor.h",
+        "Tests/Controls/Controls.Tests.RichSemanticGeometry.cpp",
+        "Tests/Embedded/Embedded.Tests.Embedded.cpp"
+      ],
+      "reviewContext": "evidence/editor-host-register.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 704
+      }
+    },
+    {
+      "id": "editor-04",
+      "title": "Each image completion retires and fully rebuilds the semantic geometry",
+      "outcome": "fix",
+      "reason": "Image completions coalesce retirement before publication; separated completions can still cause later work, so no universal coalescing claim.",
+      "source": [
+        "src/Controls/DxUi.RichTextEditor.cpp"
+      ],
+      "tests": [
+        "Tests/Support/Support.Tests.RichSemanticEditor.h",
+        "Tests/Controls/Controls.Tests.RichTextEditor.cpp"
+      ],
+      "reviewContext": "evidence/editor-host-register.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 714
+      }
+    },
+    {
+      "id": "editor-05",
+      "title": "Hot input paths repeatedly materialize the whole source/display text",
+      "outcome": "challenged",
+      "reason": "Owner rejects universal zero-copy for prepared v0 and visual/source fallback; raw/pending windows are addressed and affected fallback actions retain bounded linear materialization.",
+      "source": [
+        "src/Controls/DxUi.RichTextEditor.cpp"
+      ],
+      "tests": [
+        "Tests/Support/Support.Tests.RichSemanticEditor.h",
+        "Tests/Controls/Controls.Tests.RichTextEditor.cpp"
+      ],
+      "reviewContext": "evidence/editor-host-register.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 724
+      }
+    },
+    {
+      "id": "editor-06",
+      "title": "Paint computes the full selection geometry and re-walks all elements per visible selection line",
+      "outcome": "fix",
+      "reason": "Selection geometry and union mask are prepared before Paint; no-mask fallback deliberately draws clipped per rectangle.",
+      "source": [
+        "src/Controls/DxUi.RichTextEditor.cpp"
+      ],
+      "tests": [
+        "Tests/Support/Support.Tests.RichSemanticEditor.h",
+        "Tests/Controls/Controls.Tests.RichTextEditor.cpp"
+      ],
+      "reviewContext": "evidence/editor-host-register.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 734
+      }
+    },
+    {
+      "id": "editor-07",
+      "title": "The 'active composition blocks this action' guard is copy-pasted five times",
+      "outcome": "fix",
+      "reason": "A shared MarkdownCommandInputBlocked guard checks host composition without copying the full text.",
+      "source": [
+        "src/Controls/DxUi.RichTextEditor.cpp"
+      ],
+      "tests": [
+        "Tests/Support/Support.Tests.RichSemanticEditor.h",
+        "Tests/Controls/Controls.Tests.RichTextEditor.cpp"
+      ],
+      "reviewContext": "evidence/editor-host-register.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 744
+      }
+    },
+    {
+      "id": "editor-08",
+      "title": "Layout request/publication key is scattered across eleven loose State scalars",
+      "outcome": "challenged",
+      "reason": "Named LayoutKey exists, but request, publication and rejection identities intentionally differ; one identical key is not required.",
+      "source": [
+        "src/Controls/DxUi.RichTextEditor.cpp"
+      ],
+      "tests": [
+        "Tests/Support/Support.Tests.RichSemanticEditor.h",
+        "Tests/Controls/Controls.Tests.RichTextEditor.cpp"
+      ],
+      "reviewContext": "evidence/editor-host-register.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 754
+      }
+    },
+    {
+      "id": "editor-09",
+      "title": "Nine divergent 'reset the preparation pipeline' sequences",
+      "outcome": "challenged",
+      "reason": "RetireLayout centralizes common retirement while hidden, rejected and preview paths preserve different ownership; a universal reset abstraction is not implemented.",
+      "source": [
+        "src/Controls/DxUi.RichTextEditor.cpp"
+      ],
+      "tests": [
+        "Tests/Support/Support.Tests.RichSemanticEditor.h",
+        "Tests/Controls/Controls.Tests.RichTextEditor.cpp"
+      ],
+      "reviewContext": "evidence/editor-host-register.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 764
+      }
+    },
+    {
+      "id": "editor-10",
+      "title": "PrepareContent, OnKeyDown and Erase are oversized multi-strategy functions",
+      "outcome": "challenged",
+      "reason": "Splitting long methods is optional maintenance; size alone does not demonstrate broken behavior.",
+      "source": [
+        "src/Controls/DxUi.RichTextEditor.cpp"
+      ],
+      "tests": [
+        "Tests/Support/Support.Tests.RichSemanticEditor.h",
+        "Tests/Controls/Controls.Tests.RichTextEditor.cpp"
+      ],
+      "reviewContext": "evidence/editor-host-register.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 774
+      }
+    },
+    {
+      "id": "editor-11",
+      "title": "Const members mutate editor state through \\_state; hit testing silently rewrites caret affinity",
+      "outcome": "invalid",
+      "reason": "Original finding was refuted; source caret affinity is a meaningful distinct state and prepared hit behavior must preserve it.",
+      "source": [
+        "src/Controls/DxUi.RichTextEditor.cpp"
+      ],
+      "tests": [
+        "Tests/Support/Support.Tests.RichSemanticEditor.h",
+        "Tests/Controls/Controls.Tests.RichTextEditor.cpp"
+      ],
+      "reviewContext": "evidence/editor-host-register.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 784
+      }
+    },
+    {
+      "id": "editor-12",
+      "title": "Enter inserts CRLF in Source/raw contexts but the document's local EOL in semantic commands",
+      "outcome": "challenged",
+      "reason": "Raw Enter uses first document EOL; structural commands use local physical EOL with fallback. A universal selection policy conflicts with the documented mixed-EOL contracts.",
+      "source": [
+        "src/Controls/DxUi.RichTextEditor.cpp"
+      ],
+      "tests": [
+        "Tests/Support/Support.Tests.RichSemanticEditor.h",
+        "Tests/Controls/Controls.Tests.RichTextEditor.cpp"
+      ],
+      "reviewContext": "evidence/editor-host-register.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 794
+      }
+    },
+    {
+      "id": "editor-13",
+      "title": "TryPrepareClipboardPaste throws where its contract promises false, and validates files twice",
+      "outcome": "fix",
+      "reason": "TryPrepareClipboardPaste catches named input errors and uses one file-validation loop; deep unrepresentable paths additionally use bounded literal fallback.",
+      "source": [
+        "src/Controls/DxUi.RichTextEditor.cpp"
+      ],
+      "tests": [
+        "Tests/Support/Support.Tests.RichImagePaths.h",
+        "Tests/Controls/Controls.Tests.RichTextInput.cpp"
+      ],
+      "reviewContext": "evidence/editor-host-register.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 804
+      }
+    },
+    {
+      "id": "editor-14",
+      "title": "GetMarkdownRenderingStatus reports Semantic for a ready-but-stale layout",
+      "outcome": "invalid",
+      "reason": "Original verifier refuted a reachable ready-but-stale state; a current-layout check and retirement test were nevertheless added. The directed test does not independently reproduce the historical claim.",
+      "source": [
+        "src/Controls/DxUi.RichTextEditor.cpp"
+      ],
+      "tests": [
+        "Tests/Support/Support.Tests.RichSemanticEditor.h",
+        "Tests/Controls/Controls.Tests.RichTextEditor.cpp"
+      ],
+      "reviewContext": "evidence/editor-host-register.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 814
+      }
+    },
+    {
+      "id": "editor-15",
+      "title": "Inconsistent failure bookkeeping and misleading debug counters in PrepareContent",
+      "outcome": "fix",
+      "reason": "Terminal length-error retirement clears request state; 124b8d67 separately measures actual image preparation work rather than mislabeling it as block work.",
+      "source": [
+        "src/Controls/DxUi.RichTextEditor.cpp"
+      ],
+      "tests": [
+        "Tests/Support/Support.Tests.RichImageResources.h",
+        "Tests/Support/Support.Tests.RichSemanticEditor.h"
+      ],
+      "reviewContext": "evidence/editor-host-register.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 824
+      }
+    },
+    {
+      "id": "editor-16",
+      "title": "RichEditorLayout facade is bypassed for semantic-only operations",
+      "outcome": "challenged",
+      "reason": "Semantic operations and the v0 facade support different source and compatibility contracts; a universal facade is optional architecture.",
+      "source": [
+        "src/Controls/DxUi.RichTextEditor.cpp"
+      ],
+      "tests": [
+        "Tests/Support/Support.Tests.RichSemanticEditor.h",
+        "Tests/Controls/Controls.Tests.RichTextEditor.cpp"
+      ],
+      "reviewContext": "evidence/editor-host-register.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 834
+      }
+    },
+    {
+      "id": "editor-17",
+      "title": "No coverage for keyboard envelope exit, over-cap table typing, or IME preview chunk reuse",
+      "outcome": "fix",
+      "reason": "Integrated keyboard envelope exit, over-capacity padded table typing and multi-chunk preview reuse cases cover the three named gaps.",
+      "source": [
+        "src/Controls/DxUi.RichTextEditor.cpp"
+      ],
+      "tests": [
+        "Tests/Support/Support.Tests.SemanticSourceBlock.h",
+        "Tests/Support/Support.Tests.RichSemanticEditor.h",
+        "Tests/Embedded/Embedded.Tests.Embedded.cpp"
+      ],
+      "reviewContext": "evidence/editor-host-register.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 844
+      }
+    },
+    {
+      "id": "editor-18",
+      "title": "OnMouseDown takes focus before it knows the press can be honoured",
+      "outcome": "fix",
+      "reason": "Input preflights current layout before focus; task-plan failures and reentrant focus/lifetime paths have directed tests.",
+      "source": [
+        "src/Controls/DxUi.RichTextEditor.cpp"
+      ],
+      "tests": [
+        "Tests/Controls/Controls.Tests.RichTextInput.cpp",
+        "Tests/Support/Support.Tests.RichSemanticEditor.h",
+        "Tests/Embedded/Embedded.Tests.Embedded.cpp"
+      ],
+      "reviewContext": "evidence/editor-host-register.md",
+      "qualification": "Source/test presence only; final-source execution is independently qualified.",
+      "originalFinding": {
+        "file": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+        "line": 854
+      }
+    }
+  ]
+}

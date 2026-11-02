@@ -1,0 +1,15 @@
+{
+  "source": "a8cb8e1d7a4106750b195e6e8f2f686d66be9075",
+  "configuration": "Release",
+  "arguments": [
+    "-NoProfile",
+    "-File",
+    "\"Z:\\src\\DxUi-worktrees\\wip-compat-redxe-menu-20261101\\.build\\fixture-qualified-ordinary-20261102\\Invoke-One.ps1\"",
+    "-Root",
+    "\"Z:\\src\\DxUi-worktrees\\wip-compat-redxe-menu-20261101\"",
+    "-Configuration",
+    "\"Release\""
+  ],
+  "createdUtc": "2026-11-02T07:05:26.0242127Z",
+  "pid": 86652
+}

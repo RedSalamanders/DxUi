@@ -1,0 +1,168 @@
+# Semantic batch descriptive report
+
+Source: Z:\src\DxUi-worktrees\wip-delivery-20261101\.build\review-delivery\semantic-owner-final\private-batch-reviewed\delivery-01; schedule SHA-256 C5D261A0CB545984134C8A3FFADBD770ED0ADEF0685F92CA57BAE88EBC9F7AC9. All 64 slots retained; no warmups omitted.
+
+Descriptive only; no significance, non-regression, policy, leak or editor-exclusive claims.
+Uninstrumented character edit_elapsed_us
+Requested C++ new user bytes including fixture/callers; excludes allocator overhead, SDK/COM/GPU and other processes. Tagged timing is diagnostic.
+- private_bytes is whole-process private memory
+- owner turns are not vsync latency
+- old completed jobs may report cancelled; cancellation is not a worker restart
+- inflight owner-thread counters exclude aligned, SDK and other-thread allocations
+
+## Group summaries
+
+| Scenario / role | Metric | Count | Median | p95 nearest rank | Min | Max |
+|---|---|---:|---:|---:|---:|---:|
+| character/Base442 | paragraphs | 12 | 1000 | 1000 | 1000 | 1000 |
+| character/Base442 | source_units | 12 | 48056 | 48056 | 48056 | 48056 |
+| character/Base442 | initial_turns | 12 | 548 | 548 | 548 | 548 |
+| character/Base442 | image_jobs | 12 | 2 | 2 | 2 | 2 |
+| character/Base442 | image_completions | 12 | 2 | 2 | 2 | 2 |
+| character/Base442 | burst_turns | 12 | 507 | 507 | 507 | 507 |
+| character/Base442 | burst_layout_advances | 12 | 507 | 507 | 507 | 507 |
+| character/Base442 | edit_turns | 12 | 548 | 548 | 548 | 548 |
+| character/Base442 | edit_layout_advances | 12 | 507 | 507 | 507 | 507 |
+| character/Base442 | edit_semantic_advances | 12 | 2 | 2 | 2 | 2 |
+| character/Base442 | retained_chunks | 12 | 2016 | 2016 | 2016 | 2016 |
+| character/Base442 | private_bytes | 12 | 46153728 | 50647040 | 45441024 | 50647040 |
+| character/Base442 | elapsed_ms | 12 | 95.5 | 119 | 92 | 119 |
+| character/Base442 | edit_cancelled_preparations | 12 | 0 | 0 | 0 | 0 |
+| character/Base442 | post_edit_jobs | 12 | 0 | 0 | 0 | 0 |
+| character/Base442 | old_jobs_cancelled | 12 | 2 | 2 | 2 | 2 |
+| character/Base442 | repeated_request_ids | 12 | 0 | 0 | 0 | 0 |
+| character/Base442 | edit_elapsed_us | 12 | 34398 | 40757 | 33274 | 40757 |
+| character/Candidate990 | paragraphs | 12 | 1000 | 1000 | 1000 | 1000 |
+| character/Candidate990 | source_units | 12 | 48056 | 48056 | 48056 | 48056 |
+| character/Candidate990 | initial_turns | 12 | 587 | 587 | 587 | 587 |
+| character/Candidate990 | image_jobs | 12 | 2 | 2 | 2 | 2 |
+| character/Candidate990 | image_completions | 12 | 2 | 2 | 2 | 2 |
+| character/Candidate990 | burst_turns | 12 | 259 | 259 | 259 | 259 |
+| character/Candidate990 | burst_layout_advances | 12 | 259 | 259 | 259 | 259 |
+| character/Candidate990 | edit_turns | 12 | 317 | 317 | 317 | 317 |
+| character/Candidate990 | edit_layout_advances | 12 | 259 | 259 | 259 | 259 |
+| character/Candidate990 | edit_semantic_advances | 12 | 2 | 2 | 2 | 2 |
+| character/Candidate990 | retained_chunks | 12 | 2016 | 2016 | 2016 | 2016 |
+| character/Candidate990 | private_bytes | 12 | 46465024 | 47321088 | 46223360 | 47321088 |
+| character/Candidate990 | elapsed_ms | 12 | 59 | 102 | 56 | 102 |
+| character/Candidate990 | edit_cancelled_preparations | 12 | 0 | 0 | 0 | 0 |
+| character/Candidate990 | post_edit_jobs | 12 | 0 | 0 | 0 | 0 |
+| character/Candidate990 | old_jobs_cancelled | 12 | 2 | 2 | 2 | 2 |
+| character/Candidate990 | repeated_request_ids | 12 | 0 | 0 | 0 | 0 |
+| character/Candidate990 | edit_elapsed_us | 12 | 15809.5 | 27286 | 14687 | 27286 |
+| inflight/Base442 | paragraphs | 8 | 1000 | 1000 | 1000 | 1000 |
+| inflight/Base442 | source_units | 8 | 48057 | 48057 | 48057 | 48057 |
+| inflight/Base442 | initial_turns | 8 | 548 | 548 | 548 | 548 |
+| inflight/Base442 | image_jobs | 8 | 2 | 2 | 2 | 2 |
+| inflight/Base442 | image_completions | 8 | 2 | 2 | 2 | 2 |
+| inflight/Base442 | burst_turns | 8 | 507 | 507 | 507 | 507 |
+| inflight/Base442 | burst_layout_advances | 8 | 507 | 507 | 507 | 507 |
+| inflight/Base442 | edit_turns | 8 | 548 | 548 | 548 | 548 |
+| inflight/Base442 | edit_layout_advances | 8 | 507 | 507 | 507 | 507 |
+| inflight/Base442 | edit_semantic_advances | 8 | 2 | 2 | 2 | 2 |
+| inflight/Base442 | retained_chunks | 8 | 2016 | 2016 | 2016 | 2016 |
+| inflight/Base442 | private_bytes | 8 | 49573888 | 52428800 | 49020928 | 52428800 |
+| inflight/Base442 | elapsed_ms | 8 | 133.5 | 162 | 131 | 162 |
+| inflight/Base442 | edit_cancelled_preparations | 8 | 0 | 0 | 0 | 0 |
+| inflight/Base442 | post_edit_jobs | 8 | 0 | 0 | 0 | 0 |
+| inflight/Base442 | old_jobs_cancelled | 8 | 2 | 2 | 2 | 2 |
+| inflight/Base442 | repeated_request_ids | 8 | 0 | 0 | 0 | 0 |
+| inflight/Base442 | edit_elapsed_us | 8 | 35027.5 | 35545 | 34076 | 35545 |
+| inflight/Base442 | burst_cancelled_preparations | 8 | 0 | 0 | 0 | 0 |
+| inflight/Base442 | inflight_original_jobs | 8 | 2 | 2 | 2 | 2 |
+| inflight/Base442 | inflight_cancelled | 8 | 2 | 2 | 2 | 2 |
+| inflight/Base442 | inflight_new_jobs | 8 | 2 | 2 | 2 | 2 |
+| inflight/Base442 | inflight_reissued_sources | 8 | 2 | 2 | 2 | 2 |
+| inflight/Base442 | owner_thread_plain_live_initial | 8 | 7411002 | 7411002 | 7411002 | 7411002 |
+| inflight/Base442 | owner_thread_plain_live_burst | 8 | 7512353 | 7512353 | 7512353 | 7512353 |
+| inflight/Base442 | owner_thread_plain_live_edit | 8 | 7611288 | 7611288 | 7611288 | 7611288 |
+| inflight/Base442 | owner_thread_plain_live_after_fixture | 8 | 576 | 576 | 576 | 576 |
+| inflight/Base442 | owner_thread_plain_peak | 8 | 14817702 | 14817702 | 14817702 | 14817702 |
+| inflight/Candidate990 | paragraphs | 8 | 1000 | 1000 | 1000 | 1000 |
+| inflight/Candidate990 | source_units | 8 | 48057 | 48057 | 48057 | 48057 |
+| inflight/Candidate990 | initial_turns | 8 | 587 | 587 | 587 | 587 |
+| inflight/Candidate990 | image_jobs | 8 | 2 | 2 | 2 | 2 |
+| inflight/Candidate990 | image_completions | 8 | 2 | 2 | 2 | 2 |
+| inflight/Candidate990 | burst_turns | 8 | 259 | 259 | 259 | 259 |
+| inflight/Candidate990 | burst_layout_advances | 8 | 259 | 259 | 259 | 259 |
+| inflight/Candidate990 | edit_turns | 8 | 317 | 317 | 317 | 317 |
+| inflight/Candidate990 | edit_layout_advances | 8 | 259 | 259 | 259 | 259 |
+| inflight/Candidate990 | edit_semantic_advances | 8 | 2 | 2 | 2 | 2 |
+| inflight/Candidate990 | retained_chunks | 8 | 2016 | 2016 | 2016 | 2016 |
+| inflight/Candidate990 | private_bytes | 8 | 46804992 | 47165440 | 46292992 | 47165440 |
+| inflight/Candidate990 | elapsed_ms | 8 | 76.5 | 119 | 72 | 119 |
+| inflight/Candidate990 | edit_cancelled_preparations | 8 | 0 | 0 | 0 | 0 |
+| inflight/Candidate990 | post_edit_jobs | 8 | 0 | 0 | 0 | 0 |
+| inflight/Candidate990 | old_jobs_cancelled | 8 | 2 | 2 | 2 | 2 |
+| inflight/Candidate990 | repeated_request_ids | 8 | 0 | 0 | 0 | 0 |
+| inflight/Candidate990 | edit_elapsed_us | 8 | 16024 | 50002 | 14730 | 50002 |
+| inflight/Candidate990 | burst_cancelled_preparations | 8 | 0 | 0 | 0 | 0 |
+| inflight/Candidate990 | inflight_original_jobs | 8 | 2 | 2 | 2 | 2 |
+| inflight/Candidate990 | inflight_cancelled | 8 | 0 | 0 | 0 | 0 |
+| inflight/Candidate990 | inflight_new_jobs | 8 | 0 | 0 | 0 | 0 |
+| inflight/Candidate990 | inflight_reissued_sources | 8 | 0 | 0 | 0 | 0 |
+| inflight/Candidate990 | owner_thread_plain_live_initial | 8 | 6816445 | 6816445 | 6816445 | 6816445 |
+| inflight/Candidate990 | owner_thread_plain_live_burst | 8 | 6777755 | 6777755 | 6777755 | 6777755 |
+| inflight/Candidate990 | owner_thread_plain_live_edit | 8 | 6876618 | 6876618 | 6876618 | 6876618 |
+| inflight/Candidate990 | owner_thread_plain_live_after_fixture | 8 | 576 | 576 | 576 | 576 |
+| inflight/Candidate990 | owner_thread_plain_peak | 8 | 13506868 | 13506868 | 13506868 | 13506868 |
+| tagged/Base442 | source_units | 8 | 48057 | 48057 | 48057 | 48057 |
+| tagged/Base442 | initial_turns | 8 | 548 | 548 | 548 | 548 |
+| tagged/Base442 | edit_turns | 8 | 548 | 548 | 548 | 548 |
+| tagged/Base442 | image_jobs | 8 | 2 | 2 | 2 | 2 |
+| tagged/Base442 | image_completions | 8 | 2 | 2 | 2 | 2 |
+| tagged/Base442 | inflight_cancelled | 8 | 2 | 2 | 2 | 2 |
+| tagged/Base442 | inflight_reissued_sources | 8 | 2 | 2 | 2 | 2 |
+| tagged/Base442 | burst_cancelled_preparations | 8 | 0 | 0 | 0 | 0 |
+| tagged/Base442 | initial_live_cpp_bytes | 8 | 7411002 | 7411002 | 7411002 | 7411002 |
+| tagged/Base442 | burst_live_cpp_bytes | 8 | 7512353 | 7512353 | 7512353 | 7512353 |
+| tagged/Base442 | edit_live_cpp_bytes | 8 | 7611288 | 7611288 | 7611288 | 7611288 |
+| tagged/Base442 | peak_before_output_cpp_bytes | 8 | 14817702 | 14817702 | 14817702 | 14817702 |
+| tagged/Base442 | after_teardown_before_output_cpp_bytes | 8 | 576 | 576 | 576 | 576 |
+| tagged/Base442 | allocation_requests | 8 | 286704 | 286704 | 286704 | 286704 |
+| tagged/Base442 | retained_chunks | 8 | 2016 | 2016 | 2016 | 2016 |
+| tagged/Base442 | diagnostic_edit_us | 8 | 35065 | 44997 | 33815 | 44997 |
+| tagged/Candidate990 | source_units | 8 | 48057 | 48057 | 48057 | 48057 |
+| tagged/Candidate990 | initial_turns | 8 | 587 | 587 | 587 | 587 |
+| tagged/Candidate990 | edit_turns | 8 | 317 | 317 | 317 | 317 |
+| tagged/Candidate990 | image_jobs | 8 | 2 | 2 | 2 | 2 |
+| tagged/Candidate990 | image_completions | 8 | 2 | 2 | 2 | 2 |
+| tagged/Candidate990 | inflight_cancelled | 8 | 0 | 0 | 0 | 0 |
+| tagged/Candidate990 | inflight_reissued_sources | 8 | 0 | 0 | 0 | 0 |
+| tagged/Candidate990 | burst_cancelled_preparations | 8 | 0 | 0 | 0 | 0 |
+| tagged/Candidate990 | initial_live_cpp_bytes | 8 | 6816445 | 6816445 | 6816445 | 6816445 |
+| tagged/Candidate990 | burst_live_cpp_bytes | 8 | 6777755 | 6777755 | 6777755 | 6777755 |
+| tagged/Candidate990 | edit_live_cpp_bytes | 8 | 6876618 | 6876618 | 6876618 | 6876618 |
+| tagged/Candidate990 | peak_before_output_cpp_bytes | 8 | 13506868 | 13506868 | 13506868 | 13506868 |
+| tagged/Candidate990 | after_teardown_before_output_cpp_bytes | 8 | 576 | 576 | 576 | 576 |
+| tagged/Candidate990 | allocation_requests | 8 | 257024 | 257024 | 257024 | 257024 |
+| tagged/Candidate990 | retained_chunks | 8 | 2016 | 2016 | 2016 | 2016 |
+| tagged/Candidate990 | diagnostic_edit_us | 8 | 16148.5 | 46599 | 15195 | 46599 |
+| original/Base442 | paragraphs | 4 | 1000 | 1000 | 1000 | 1000 |
+| original/Base442 | source_units | 4 | 48056 | 48056 | 48056 | 48056 |
+| original/Base442 | initial_turns | 4 | 548 | 548 | 548 | 548 |
+| original/Base442 | image_jobs | 4 | 2 | 2 | 2 | 2 |
+| original/Base442 | image_completions | 4 | 2 | 2 | 2 | 2 |
+| original/Base442 | burst_turns | 4 | 507 | 507 | 507 | 507 |
+| original/Base442 | burst_layout_advances | 4 | 507 | 507 | 507 | 507 |
+| original/Base442 | edit_turns | 4 | 548 | 548 | 548 | 548 |
+| original/Base442 | edit_layout_advances | 4 | 507 | 507 | 507 | 507 |
+| original/Base442 | edit_semantic_advances | 4 | 2 | 2 | 2 | 2 |
+| original/Base442 | retained_chunks | 4 | 2016 | 2016 | 2016 | 2016 |
+| original/Base442 | private_bytes | 4 | 47892480 | 50065408 | 45375488 | 50065408 |
+| original/Base442 | elapsed_ms | 4 | 93.5 | 96 | 93 | 96 |
+| original/Candidate990 | paragraphs | 4 | 1000 | 1000 | 1000 | 1000 |
+| original/Candidate990 | source_units | 4 | 48056 | 48056 | 48056 | 48056 |
+| original/Candidate990 | initial_turns | 4 | 587 | 587 | 587 | 587 |
+| original/Candidate990 | image_jobs | 4 | 2 | 2 | 2 | 2 |
+| original/Candidate990 | image_completions | 4 | 2 | 2 | 2 | 2 |
+| original/Candidate990 | burst_turns | 4 | 259 | 259 | 259 | 259 |
+| original/Candidate990 | burst_layout_advances | 4 | 259 | 259 | 259 | 259 |
+| original/Candidate990 | edit_turns | 4 | 317 | 317 | 317 | 317 |
+| original/Candidate990 | edit_layout_advances | 4 | 259 | 259 | 259 | 259 |
+| original/Candidate990 | edit_semantic_advances | 4 | 2 | 2 | 2 | 2 |
+| original/Candidate990 | retained_chunks | 4 | 2016 | 2016 | 2016 | 2016 |
+| original/Candidate990 | private_bytes | 4 | 46348288 | 47079424 | 45289472 | 47079424 |
+| original/Candidate990 | elapsed_ms | 4 | 59.5 | 62 | 56 | 62 |
+
+Raw per-slot values and all per-block candidate-minus-base mean differences are in descriptive-report.json.

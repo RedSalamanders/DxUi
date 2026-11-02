@@ -1,0 +1,16 @@
+{
+  "arguments": [
+    "-NoProfile",
+    "-File",
+    "\"Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\test-consumer.ps1\"",
+    "-Platform",
+    "x64",
+    "-Configuration",
+    "\"Release\"",
+    "-FixtureRoot",
+    "E:\\DxUi.Perf\\delivery-consumers-20261102"
+  ],
+  "pid": 26404,
+  "source": "9909da1065e297247cb490b970b2265a0e4d8b9e",
+  "createdUtc": "2026-11-02T06:49:30.7014596Z"
+}

@@ -1,0 +1,8 @@
+{
+  "source": "9909da1065e297247cb490b970b2265a0e4d8b9e",
+  "producerManifestSha256": "BC441CD8388CC73BD7BC9B17B708AF57E93C2757CC5A0E20B33CB98EB37A52EE",
+  "configuration": "Debug",
+  "activation": "Explicit --no-activate harness generation; synthetic fixture data",
+  "command": "gallery.ps1 -Configuration Debug -Platform x64 -SkipBuild -PublishDocs -OutputDirectory <this>/captures",
+  "platform": "x64"
+}

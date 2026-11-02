@@ -1,0 +1,40 @@
+{
+  "slot": {
+    "slot": 24,
+    "block": 6,
+    "scenario": "tagged",
+    "scenarioBlock": 4,
+    "pattern": "ABBA",
+    "withinBlock": 4,
+    "side": "A"
+  },
+  "command": "\"Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\semantic-owner-final\\baseline-tagged-attempt-03\\tagged\\out\\RichOwnerProbe.exe\"",
+  "workingDirectory": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\semantic-owner-final\\baseline-tagged-attempt-03\\tagged\\out",
+  "exe": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\semantic-owner-final\\baseline-tagged-attempt-03\\tagged\\out\\RichOwnerProbe.exe",
+  "exeSha256": "064B8416F99751745AEBD957A9C94CD015189E40BD69307C0627121534050625",
+  "pdb": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\semantic-owner-final\\baseline-tagged-attempt-03\\tagged\\out\\RichOwnerProbe.pdb",
+  "pdbSha256": "5A8852D43B8FC06DA8B1E58F89D7F71585AD41CE3C6F20E1F8BF511079F57EE4",
+  "certificate": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\semantic-owner-final\\baseline-tagged-attempt-03\\validated-input-closure\\validated-build-provenance.json",
+  "certificateSha256": "20CC343EE6174D008514E697ADB1A52668B98E76DE84074F9B48E55D3CC6E719",
+  "sourceCommit": "4423074dee2410acb28e62b41072e6c561a79eb8",
+  "sourceArchive": {
+    "path": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\semantic-owner-final\\source-provenance\\baseline-442-source.tar",
+    "sha256": "33EEF22A11D573266195924F74C1C2E311252C658123965C7C810207D18CDD82"
+  },
+  "v2Certificate": {
+    "path": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\semantic-owner-final\\source-provenance\\baseline-442-v2-build.json",
+    "sha256": "13EF094A4D1D6008FA2DD325A99D08472EDACC0C3C475902382FA35B3C808561"
+  },
+  "verification": {
+    "path": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\semantic-owner-final\\source-provenance\\baseline-442-verified.json",
+    "sha256": "9EA1298C4AF3B098391E8B94E301D849E1972162326BF3FE0C3751D22815B6E9"
+  },
+  "tlogSha256": {
+    "link.command.1.tlog": "5CB2E3C7A106463C6E87C9267E082C3AC115231AD7A8A998D9DA88E848181788",
+    "CL.read.1.tlog": "258EA3036245A6C602E83C5066B808F3D507521560AD6C22EB2D61E5D6DE9A73",
+    "CL.command.1.tlog": "CF55E4136F63065154189830295A91B16BD83F0142D123A44EF5AA88A4ACFC36",
+    "link.read.1.tlog": "3748C2AEE78DF3D358FCC231CACA8CB92249252E9A75AD65D30FCD81F2871059"
+  },
+  "timeoutSeconds": 120,
+  "submittedUtc": "2026-11-02T08:48:42.6717632Z"
+}

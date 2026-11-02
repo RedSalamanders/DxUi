@@ -1,0 +1,771 @@
+{
+  "sourceHead": "1fea2221e3dc3f94223b382dc1b08f6efdbe6a12",
+  "qualification": "Current source/test disposition; final runtime pending. Six canonical builds reported separately.",
+  "items": [
+    {
+      "id": "semantic-01",
+      "title": "Data-dependent builder invariant failures are rethrown as logic\\_error/invalid\\_argument, which the retained editor treats as transient: endless rebuild-and-fail loop",
+      "outcome": "invalid",
+      "reason": "Original invariant retry allegation refuted; no demonstrated endless failure.",
+      "source_and_tests": "src/Controls/DxUi.RichSemanticDocument.cpp; Tests/Support/Support.Tests.RichSemantic.h",
+      "original_location": "`src/Controls/DxUi.RichSemanticDocument.cpp:1128` · bug · minor · refuted (refute: refuted; reproduce: uncertain) · plan: not scheduled (refuted)",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "semantic-02",
+      "title": "Native object budget is enforced inconsistently across math, diagrams and images, so a document can be published that geometry must reject wholesale",
+      "outcome": "accepted fix",
+      "reason": "Combined admitted math, diagram and Markdown/HTML image ceiling; Support.Tests.SemanticDiagrams.h covers combined budget.",
+      "source_and_tests": "src/Controls/DxUi.RichSemanticDocument.cpp; Tests/Support/Support.Tests.RichSemantic.h",
+      "original_location": "`src/Controls/DxUi.RichSemanticDocument.cpp:551` · bug · major · confirmed (refute: confirmed; reproduce: confirmed) · plan: W1.5",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "semantic-03",
+      "title": "Rejected inline math overwrites the parent element's title, clobbering Markdown link titles exposed as UIA HelpText",
+      "outcome": "accepted fix",
+      "reason": "Rejected formula owns its diagnostic, preserving parent link title; Controls.Tests.RichSemanticDocument.cpp covers local rejection.",
+      "source_and_tests": "src/Controls/DxUi.RichSemanticDocument.cpp; Tests/Support/Support.Tests.RichSemantic.h",
+      "original_location": "`src/Controls/DxUi.RichSemanticDocument.cpp:344` · bug · minor · confirmed (refute: confirmed; reproduce: confirmed) · plan: W1.5",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "semantic-04",
+      "title": "A leaf whose display already ends with a transformed LF (\\<br>) skips the generated cell/paragraph separator",
+      "outcome": "accepted fix",
+      "reason": "Nonfinal cell emits tab after transformed HTML break; matched before/after fixture.",
+      "source_and_tests": "src/Controls/DxUi.RichSemanticDocument.cpp; Tests/Support/Support.Tests.RichSemantic.h",
+      "original_location": "`src/Controls/DxUi.RichSemanticDocument.cpp:845` · bug · minor · confirmed (refute: confirmed; reproduce: confirmed) · plan: W2.13",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "semantic-05",
+      "title": "ApplySourceEdits rejects an insertion followed by a replacement at the same offset, beyond the documented 'two insertions' rule",
+      "outcome": "invalid",
+      "reason": "Same-start edits are prohibited by the owning contract, including insertion plus replacement.",
+      "source_and_tests": "src/Controls/DxUi.RichSemanticDocument.cpp; Tests/Support/Support.Tests.RichSemantic.h",
+      "original_location": "`src/Controls/DxUi.RichSemantic.cpp:243` · doc-mismatch · minor · disputed (refute: refuted; reproduce: confirmed) · plan: W2.13",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "semantic-06",
+      "title": "Repeated (non-primary) display spans are a dead feature: no production path can emit them",
+      "outcome": "invalid",
+      "reason": "SemanticBuilder does not emit nonprimary spans, but SourceDisplayMap and DisplaySpan are public standalone primitives; dead-feature conclusion is refuted.",
+      "source_and_tests": "src/Controls/DxUi.RichSemanticDocument.cpp; Tests/Support/Support.Tests.RichSemantic.h",
+      "original_location": "`src/Controls/DxUi.RichSemantic.cpp:104` · simplification · minor · refuted (refute: refuted; reproduce: refuted) · plan: not scheduled (refuted)",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "semantic-07",
+      "title": "SemanticElement::name duplicates the display text of every paragraph, heading, code block, cell and link although the UIA consumer already falls back to the display slice",
+      "outcome": "challenged",
+      "reason": "Removing duplicate names is unmeasured and must preserve accessibility ownership.",
+      "source_and_tests": "src/Controls/DxUi.RichSemanticDocument.cpp; Tests/Support/Support.Tests.RichSemantic.h",
+      "original_location": "`src/Controls/DxUi.RichSemanticDocument.cpp:213` · performance · minor · confirmed (refute: uncertain; reproduce: confirmed) · plan: W2.13, W4.2",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "semantic-08",
+      "title": "Unreachable Html-inline branches in ResolveSemanticValue and Inline()",
+      "outcome": "challenged",
+      "reason": "Alleged unreachable HTML branches are optional cleanup, without demonstrated behavior failure.",
+      "source_and_tests": "src/Controls/DxUi.RichSemanticDocument.cpp; Tests/Support/Support.Tests.RichSemantic.h",
+      "original_location": "`src/Controls/DxUi.RichSemanticValues.h:138` · simplification · minor · confirmed (refute: confirmed; reproduce: confirmed) · plan: W2.13",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "semantic-09",
+      "title": "Three duplicated helpers: diagram body-to-source mapping, integer formatting, and per-unit span-kind emission",
+      "outcome": "challenged",
+      "reason": "Helper consolidation is optional and must preserve source mapping and ownership semantics.",
+      "source_and_tests": "src/Controls/DxUi.RichSemanticDocument.cpp; Tests/Support/Support.Tests.RichSemantic.h",
+      "original_location": "`src/Controls/DxUi.RichSemanticDocument.cpp:574` · simplification · minor · confirmed (refute: confirmed; reproduce: confirmed) · plan: W2.13",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "semantic-10",
+      "title": "Redundant admission in SemanticBuilder::Begin: UTF-16 revalidation and node/inline caps that the parser already guarantees",
+      "outcome": "invalid",
+      "reason": "Original verifier found node-count checks reachable because parser caps do not cover all paths; independent admission is intentional.",
+      "source_and_tests": "src/Controls/DxUi.RichSemanticDocument.cpp; Tests/Support/Support.Tests.RichSemantic.h",
+      "original_location": "`src/Controls/DxUi.RichSemanticDocument.cpp:1072` · simplification · minor · refuted (refute: refuted; reproduce: refuted) · plan: not scheduled (refuted)",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "semantic-11",
+      "title": "SourceDisplayMap rebuilds dense per-unit anchor tables and copies source/display/spans on every publication; fragment queries and the editor's atomic-span scan are linear in span count",
+      "outcome": "challenged",
+      "reason": "Dense maps and linear scans are an unmeasured storage optimization, not a proven current defect.",
+      "source_and_tests": "src/Controls/DxUi.RichSemanticDocument.cpp; Tests/Support/Support.Tests.RichSemantic.h",
+      "original_location": "`src/Controls/DxUi.RichSemantic.cpp:48` · performance · minor · disputed (refute: refuted; reproduce: confirmed) · plan: W2.13, W4.2",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "semantic-12",
+      "title": "Inline math parses the full expression before any admission check, re-walks the tree to count records, and its diagnostics bypass the capacity guard used for diagrams",
+      "outcome": "challenged",
+      "reason": "ParseMath still precedes admission and math diagnostics use separate paths; original verifier established bounded wasted work with correct output. Earlier admission and helper consolidation are unimplemented optional optimization.",
+      "source_and_tests": "src/Controls/DxUi.RichSemanticDocument.cpp; Tests/Support/Support.Tests.RichSemantic.h",
+      "original_location": "`src/Controls/DxUi.RichSemanticDocument.cpp:319` · simplification · minor · confirmed (refute: confirmed; reproduce: confirmed) · plan: W1.5",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "semantic-13",
+      "title": "HTML comments and declarations turn the entire enclosing leaf into literal code ink",
+      "outcome": "challenged",
+      "reason": "Literal unsupported HTML fallback preserves source under the bounded profile.",
+      "source_and_tests": "src/Controls/DxUi.RichSemanticDocument.cpp; Tests/Support/Support.Tests.RichSemantic.h",
+      "original_location": "`src/Controls/DxUi.RichSemanticHtml.h:291` · architecture · minor · disputed (refute: refuted; reproduce: confirmed) · plan: W2.13",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "semantic-14",
+      "title": "SemanticBuilder::Preparation is one ~1000-line struct that interleaves tree traversal, native HTML, diagram staging, footnote footers and source-format derivation",
+      "outcome": "challenged",
+      "reason": "Splitting preparation is an optional architecture proposal; size alone does not show incorrect output.",
+      "source_and_tests": "src/Controls/DxUi.RichSemanticDocument.cpp; Tests/Support/Support.Tests.RichSemantic.h",
+      "original_location": "`src/Controls/DxUi.RichSemanticDocument.cpp:50` · architecture · minor · disputed (refute: refuted; reproduce: confirmed) · plan: W2.13",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "semantic-15",
+      "title": "Native anchor title attribute is decoded but not filtered, so control characters reach UIA HelpText",
+      "outcome": "invalid",
+      "reason": "Original control-character HelpText claim was refuted.",
+      "source_and_tests": "src/Controls/DxUi.RichSemanticDocument.cpp; Tests/Support/Support.Tests.RichSemantic.h",
+      "original_location": "`src/Controls/DxUi.RichSemanticHtml.h:175` · security · minor · refuted (refute: refuted; reproduce: refuted) · plan: not scheduled (refuted)",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "geometry-01",
+      "title": "StepSource walks boxes in display order, so reordered footnote bodies are unreachable by Left/Right and Right dead-ends before a visible footer",
+      "outcome": "accepted fix",
+      "reason": "StepSource handles reordered footers; Support.Tests.RichSemanticGeometry.h exercises traversal.",
+      "source_and_tests": "src/Controls/DxUi.RichSemanticGeometry.cpp; Tests/Support/Support.Tests.RichSemanticGeometry.h",
+      "original_location": "`src/Controls/DxUi.RichSemanticGeometry.cpp:1447` · bug · major · confirmed (refute: confirmed; reproduce: confirmed) · plan: W1.10",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "geometry-02",
+      "title": "Draw walks every element and every box per call and re-submits whole paragraph layouts per band; per-selection-line calls make this quadratic",
+      "outcome": "accepted fix",
+      "reason": "PaintIndex culls boxes and elements; directed order and edge raster fixtures exist; performance proof remains separate.",
+      "source_and_tests": "src/Controls/DxUi.RichSemanticGeometry.cpp; Tests/Support/Support.Tests.RichSemanticGeometry.h",
+      "original_location": "`src/Controls/DxUi.RichSemanticGeometry.cpp:1675` · performance · minor · confirmed (refute: confirmed; reproduce: confirmed) · plan: W2.7",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "geometry-03",
+      "title": "A single diagram wider than the view rejects native geometry for the whole document (source fallback) instead of a per-object literal fallback",
+      "outcome": "accepted fix",
+      "reason": "Oversized objects retry locally while neighboring content remains; Support.Tests.RichSemanticEditor.h covers narrow retry.",
+      "source_and_tests": "src/Controls/DxUi.RichSemanticGeometry.cpp; Tests/Support/Support.Tests.RichSemanticGeometry.h",
+      "original_location": "`src/Controls/DxUi.RichSemanticGeometry.cpp:749` · architecture · minor · disputed (refute: refuted; reproduce: confirmed) · plan: C6",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "geometry-04",
+      "title": "Draw culls boxes by logical frame and ignores glyph overhang; DrawingVerticalBounds is never consulted by the semantic path",
+      "outcome": "accepted fix",
+      "reason": "DrawingVerticalBounds participates in PaintIndex; independent DirectWrite overhang and WIC fixture cover ink beyond frames.",
+      "source_and_tests": "src/Controls/DxUi.RichSemanticGeometry.cpp; Tests/Support/Support.Tests.RichSemanticGeometry.h",
+      "original_location": "`src/Controls/DxUi.RichSemanticGeometry.cpp:1692` · bug · minor · confirmed (refute: confirmed; reproduce: confirmed) · plan: W1.10",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "geometry-05",
+      "title": "Math placements are forced through NativeImageGeometry, coupling DWrite-only formulas to a D2D render target identity",
+      "outcome": "challenged",
+      "reason": "Generic math/image extraction is unimplemented and unmeasured; CPU shaping and raster ownership differ.",
+      "source_and_tests": "src/Controls/DxUi.RichSemanticGeometry.cpp; Tests/Support/Support.Tests.RichSemanticGeometry.h",
+      "original_location": "`src/Controls/DxUi.RichSemanticGeometry.cpp:289` · architecture · minor · confirmed (feasibility: confirmed) · plan: W2.5",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "geometry-06",
+      "title": "LayoutOne (~290 lines) and Advance (~360 lines, 15 inline phases) exceed the split threshold and share a bag of reused cursors",
+      "outcome": "challenged",
+      "reason": "Phase splitting remains optional; function size alone is not a correctness defect.",
+      "source_and_tests": "src/Controls/DxUi.RichSemanticGeometry.cpp; Tests/Support/Support.Tests.RichSemanticGeometry.h",
+      "original_location": "`src/Controls/DxUi.RichSemanticGeometry.cpp:605` · simplification · minor · confirmed (feasibility: confirmed) · plan: W2.13",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "geometry-07",
+      "title": "The paragraph/empty-line merge decision is duplicated between CountSites preflight and LayoutOne",
+      "outcome": "challenged",
+      "reason": "Preflight/layout merge consolidation is optional and must preserve admission and geometry parity.",
+      "source_and_tests": "src/Controls/DxUi.RichSemanticGeometry.cpp; Tests/Support/Support.Tests.RichSemanticGeometry.h",
+      "original_location": "`src/Controls/DxUi.RichSemanticGeometry.cpp:1049` · simplification · minor · confirmed (feasibility: confirmed) · plan: W2.13",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "geometry-08",
+      "title": "PlaceRowOne recomputes indent, gutter and cell width instead of reusing what LayoutOne already derived",
+      "outcome": "challenged",
+      "reason": "Sharing placement arithmetic is unmeasured and must preserve staged budget behavior.",
+      "source_and_tests": "src/Controls/DxUi.RichSemanticGeometry.cpp; Tests/Support/Support.Tests.RichSemanticGeometry.h",
+      "original_location": "`src/Controls/DxUi.RichSemanticGeometry.cpp:901` · simplification · minor · confirmed (feasibility: confirmed) · plan: W2.13",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "geometry-09",
+      "title": "Two merge orders (source-order when no footers, display-order via caretSites otherwise) double the caret-site code paths",
+      "outcome": "challenged",
+      "reason": "Footers reorder visual and source order; merging paths requires explicit mapping.",
+      "source_and_tests": "src/Controls/DxUi.RichSemanticGeometry.cpp; Tests/Support/Support.Tests.RichSemanticGeometry.h",
+      "original_location": "`src/Controls/DxUi.RichSemanticGeometry.cpp:455` · simplification · minor · disputed (refute: refuted; reproduce: confirmed) · plan: W2.13",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "geometry-10",
+      "title": "SourceBox recovers a box index by pointer scan after BoxAt already located it",
+      "outcome": "challenged",
+      "reason": "Removing pointer scan is an unmeasured optimization rather than a demonstrated defect.",
+      "source_and_tests": "src/Controls/DxUi.RichSemanticGeometry.cpp; Tests/Support/Support.Tests.RichSemanticGeometry.h",
+      "original_location": "`src/Controls/DxUi.RichSemanticGeometry.cpp:359` · simplification · minor · confirmed (refute: confirmed; reproduce: confirmed) · plan: W2.13",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "geometry-11",
+      "title": "Every empty, trailing or container-only source line consumes one DirectWrite layout and one admission slot",
+      "outcome": "challenged",
+      "reason": "Empty physical lines retain distinct caret/source identity; removing owners risks keyboard semantics.",
+      "source_and_tests": "src/Controls/DxUi.RichSemanticGeometry.cpp; Tests/Support/Support.Tests.RichSemanticGeometry.h",
+      "original_location": "`src/Controls/DxUi.RichSemanticGeometry.cpp:740` · performance · minor · disputed (refute: refuted; reproduce: confirmed) · plan: W2.13",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "geometry-12",
+      "title": "Display-offset entry points (Caret, HitTest, LineBoundary, VisibleRange, public Range) are unreachable from the control in semantic mode",
+      "outcome": "challenged",
+      "reason": "Display-coordinate geometry APIs are public; editor-only call reachability cannot justify removal.",
+      "source_and_tests": "src/Controls/DxUi.RichSemanticGeometry.cpp; Tests/Support/Support.Tests.RichSemanticGeometry.h",
+      "original_location": "`src/Controls/DxUi.RichSemanticGeometry.cpp:1369` · simplification · minor · confirmed (refute: confirmed; reproduce: confirmed) · plan: W2.13",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "geometry-13",
+      "title": "Equal-width cells have no minimum width: narrow views wrap every glyph and push cell text outside its clipped frame",
+      "outcome": "accepted fix",
+      "reason": "Opt-in intrinsic table minima and RTL overflow have geometry fixtures; legacy default is not claimed changed.",
+      "source_and_tests": "src/Controls/DxUi.RichSemanticGeometry.cpp; Tests/Support/Support.Tests.RichSemanticGeometry.h",
+      "original_location": "`src/Controls/DxUi.RichSemanticGeometry.cpp:725` · bug · minor · confirmed (refute: confirmed; reproduce: confirmed) · plan: W1.10",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "geometry-14",
+      "title": "Hit testing and visible-range queries scan all boxes linearly although boxes are laid out in nondecreasing y",
+      "outcome": "invalid",
+      "reason": "The blanket monotonic ordering premise was refuted; overlap and ordering complicate binary search.",
+      "source_and_tests": "src/Controls/DxUi.RichSemanticGeometry.cpp; Tests/Support/Support.Tests.RichSemanticGeometry.h",
+      "original_location": "`src/Controls/DxUi.RichSemanticGeometry.cpp:369` · performance · minor · refuted (refute: refuted; reproduce: refuted) · plan: not scheduled (refuted)",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "geometry-15",
+      "title": "VisibleRange/VisibleSourceRange extend the result to a box start even when none of its lines is visible",
+      "outcome": "accepted fix",
+      "reason": "Actual visible lines govern range; matched old/new fixture covers padding-only, cells and math.",
+      "source_and_tests": "src/Controls/DxUi.RichSemanticGeometry.cpp; Tests/Support/Support.Tests.RichSemanticGeometry.h",
+      "original_location": "`src/Controls/DxUi.RichSemanticGeometry.cpp:1533` · bug · minor · confirmed (refute: confirmed; reproduce: confirmed) · plan: W1.10",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "math-parser-01",
+      "title": "Parser accepts text leaves DirectWrite cannot lay out on one line; the resulting std::length\\_error rejects the whole document's semantic preview",
+      "outcome": "accepted fix",
+      "reason": "Text group normalization and formula-local fallback avoid whole-document failure; Controls.Tests.RichSemanticDocument.cpp.",
+      "source_and_tests": "src/Controls/DxUi.NativeMath.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "original_location": "`src/Controls/DxUi.NativeMath.cpp:97` · bug · major · confirmed (refute: confirmed; reproduce: confirmed) · plan: W1.2",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "math-parser-02",
+      "title": "\\\\(...\\\\) inline math wrongly inherits the single-dollar currency heuristics, so '\\\\( x+1 \\\\)' is silently reduced to escaped text",
+      "outcome": "accepted fix",
+      "reason": "Currency guards apply to dollar syntax; explicit delimiters have separate Support.Tests.RichSemantic.h cases.",
+      "source_and_tests": "src/Controls/DxUi.NativeMath.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "original_location": "`src/Controls/DxUi.MarkdownInlines.h:1215` · bug · minor · confirmed (refute: confirmed; reproduce: confirmed) · plan: W1.6",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "math-parser-03",
+      "title": "Closer search is a raw scan that does not respect code spans or raw HTML between the opener and closer",
+      "outcome": "accepted fix",
+      "reason": "Closer scanning yields to code and HTML; directed inline cases cover both.",
+      "source_and_tests": "src/Controls/DxUi.NativeMath.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "original_location": "`src/Controls/DxUi.MarkdownInlines.h:1218` · bug · major · confirmed (refute: confirmed; reproduce: confirmed) · plan: W1.6",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "math-parser-04",
+      "title": "Trailing '\\\\\\\\' before \\\\end is rejected for multi-column environments but silently adds a phantom row for single-column ones",
+      "outcome": "accepted fix",
+      "reason": "Trailing matrix row behavior has a directed Support.Tests.MathCorpus.h case.",
+      "source_and_tests": "src/Controls/DxUi.NativeMath.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "original_location": "`src/Controls/DxUi.NativeMath.cpp:121` · bug · minor · confirmed (refute: confirmed; reproduce: confirmed) · plan: W1.6",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "math-parser-05",
+      "title": "A rejected inline formula overwrites its parent element's title, clobbering the UIA HelpText of an enclosing link",
+      "outcome": "accepted fix",
+      "reason": "Rejected math retains local diagnostic and does not overwrite enclosing title.",
+      "source_and_tests": "src/Controls/DxUi.NativeMath.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "original_location": "`src/Controls/DxUi.RichSemanticDocument.cpp:344` · bug · minor · confirmed (refute: confirmed; reproduce: confirmed) · plan: W1.5",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "math-parser-06",
+      "title": "MathNode/MathExpression declare copy operations and no move operations, so every std::move in the parser deep-copies subtrees",
+      "outcome": "accepted fix",
+      "reason": "MathNode and MathExpression define move constructors; no universal allocation-free claim.",
+      "source_and_tests": "src/Controls/DxUi.NativeMath.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "original_location": "`include/DxUi/RichMath.h:35` · performance · minor · confirmed (refute: confirmed; reproduce: confirmed) · plan: W2.12",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "math-parser-07",
+      "title": "DxUiMath1-target.json and the WIP plan contradict the implemented parser (status, admission limits, envelopes, command lists, diagnostics)",
+      "outcome": "accepted fix",
+      "reason": "Target profile documents bounded support and fallback; final matching corpus remains pending.",
+      "source_and_tests": "src/Controls/DxUi.NativeMath.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "original_location": "`ThirdParty/Markdown/profiles/DxUiMath1-target.json:4` · doc-mismatch · minor · confirmed (refute: confirmed; reproduce: confirmed) · plan: W1.11",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "math-parser-08",
+      "title": "\\\\limits and \\\\nolimits silently become an empty Space node that then serves as the base of the following scripts",
+      "outcome": "accepted fix",
+      "reason": "Limit modifier AST cases are directed in Controls.Tests.RichSemanticDocument.cpp.",
+      "source_and_tests": "src/Controls/DxUi.NativeMath.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "original_location": "`src/Controls/DxUi.NativeMath.cpp:240` · bug · minor · confirmed (refute: confirmed; reproduce: confirmed) · plan: W1.6",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "math-parser-09",
+      "title": "\\\\sqrt[...] index is cut at the first ']' and parsed by a fresh recursive ParseMath with its own node/depth budget",
+      "outcome": "accepted fix",
+      "reason": "Indexed root parsing shares the node/depth budget and has directed boundary tests.",
+      "source_and_tests": "src/Controls/DxUi.NativeMath.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "original_location": "`src/Controls/DxUi.NativeMath.cpp:200` · bug · minor · confirmed (refute: confirmed; reproduce: confirmed) · plan: W1.6",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "math-parser-10",
+      "title": "Node-count and depth limits are enforced three times with different semantics (Make counter, ParseMath post-walk, semantic builder re-walk)",
+      "outcome": "challenged",
+      "reason": "Post-parse recount remains optional; public direct-AST admission needs independent validation.",
+      "source_and_tests": "src/Controls/DxUi.NativeMath.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "original_location": "`src/Controls/DxUi.NativeMath.cpp:440` · simplification · minor · confirmed (refute: confirmed; reproduce: confirmed) · plan: W2.11",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "math-parser-11",
+      "title": "Matrix row/column/cell caps are checked after the cell has been parsed and pushed",
+      "outcome": "accepted fix",
+      "reason": "Exact row, column and cell boundaries are tested in Support.Tests.MathCorpus.h.",
+      "source_and_tests": "src/Controls/DxUi.NativeMath.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "original_location": "`src/Controls/DxUi.NativeMath.cpp:112` · bug · minor · confirmed (refute: confirmed; reproduce: confirmed) · plan: W1.6",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "math-parser-12",
+      "title": "'\\\\\\\\\\\\\\\\' outside an environment is silently accepted as a literal backslash instead of being rejected",
+      "outcome": "invalid",
+      "reason": "Blanket rejection of double backslash conflicts with a supported distinct escape; ampersand rejection is tested separately.",
+      "source_and_tests": "src/Controls/DxUi.NativeMath.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "original_location": "`src/Controls/DxUi.NativeMath.cpp:358` · bug · minor · confirmed (refute: confirmed; reproduce: confirmed) · plan: W1.6",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "math-parser-13",
+      "title": "Adjacent Text atoms are merged into one run, fusing function names and symbols with their operands",
+      "outcome": "accepted fix",
+      "reason": "Named operators and atom spacing have directed AST and layout fixtures.",
+      "source_and_tests": "src/Controls/DxUi.NativeMath.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "original_location": "`src/Controls/DxUi.NativeMath.cpp:413` · bug · minor · confirmed (refute: confirmed; reproduce: confirmed) · plan: W1.6",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "math-parser-14",
+      "title": "Space() uses locale-dependent iswspace, so parse results can vary with the process locale",
+      "outcome": "invalid",
+      "reason": "Original UCRT iswspace locale dependence allegation was refuted; alternative policy not implemented.",
+      "source_and_tests": "src/Controls/DxUi.NativeMath.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "original_location": "`src/Controls/DxUi.NativeMath.cpp:22` · bug · minor · refuted (refute: refuted; reproduce: refuted) · plan: not scheduled (refuted)",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "math-parser-15",
+      "title": "Atom() is ~194 lines with an inline 106-entry linear symbol table, and Delimiter() duplicates part of that table",
+      "outcome": "challenged",
+      "reason": "Symbol table and dispatcher consolidation remains unimplemented optional cleanup.",
+      "source_and_tests": "src/Controls/DxUi.NativeMath.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "original_location": "`src/Controls/DxUi.NativeMath.cpp:176` · simplification · minor · confirmed (refute: confirmed; reproduce: confirmed) · plan: W2.11",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "math-parser-16",
+      "title": "PreparedMath re-measures subtrees repeatedly with a linear leaf lookup instead of caching extents",
+      "outcome": "accepted fix",
+      "reason": "PreparedMath caches indexed extents rather than repeatedly performing linear leaf lookup.",
+      "source_and_tests": "src/Controls/DxUi.NativeMath.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "original_location": "`src/Controls/DxUi.PreparedMath.h:191` · performance · minor · confirmed (refute: confirmed; reproduce: confirmed) · plan: W2.11",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "math-parser-17",
+      "title": "An unclosed '\\$\\$' is handled inconsistently: silent literal text in short paragraphs, whole-paragraph source takeover with a diagnostic in long ones",
+      "outcome": "accepted fix",
+      "reason": "Inline double dollars are literal independent of paragraph length; display fences are separate.",
+      "source_and_tests": "src/Controls/DxUi.NativeMath.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "original_location": "`src/Controls/DxUi.MarkdownInlines.h:1237` · bug · minor · disputed (refute: refuted; reproduce: confirmed) · plan: W1.6",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "math-parser-18",
+      "title": "No test pins ParseMath or the inline recognizer against the target corpus or the edge rules",
+      "outcome": "accepted fix",
+      "reason": "Pinned corpus and explicit delimiter and edge tests exist; runtime remains pending.",
+      "source_and_tests": "src/Controls/DxUi.NativeMath.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "original_location": "`Tests/Controls/Scope.Tests.RichSemanticDocument.cpp:66` · test-gap · minor · confirmed (refute: confirmed; reproduce: confirmed) · plan: T1",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "math-layout-01",
+      "title": "A newline inside \\\\text{} or an over-wide leaf drops the whole document to source view instead of a per-formula fallback",
+      "outcome": "accepted fix",
+      "reason": "Text normalization and local formula rejection preserve the document; host retry remains to qualify.",
+      "source_and_tests": "src/Controls/DxUi.PreparedMath.h; Tests/Controls/Controls.Tests.RichSemanticDocument.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "original_location": "`src/Controls/DxUi.PreparedMath.h:332` · bug · major · confirmed (refute: confirmed; reproduce: confirmed) · plan: W1.2",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "math-layout-02",
+      "title": "Variables are never set in math italic; every identifier renders upright",
+      "outcome": "accepted fix",
+      "reason": "Math italic and explicit styles have directed fixtures.",
+      "source_and_tests": "src/Controls/DxUi.PreparedMath.h; Tests/Controls/Controls.Tests.RichSemanticDocument.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "original_location": "`src/Controls/DxUi.PreparedMath.h:41` · bug · minor · confirmed (refute: confirmed; reproduce: confirmed) · plan: C4",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "math-layout-03",
+      "title": "No atom-class spacing: adjacent atoms are merged into one DWrite run, so bin/rel/op spacing and function-name spacing are lost",
+      "outcome": "accepted fix",
+      "reason": "Atom classes and operator spacing have same-glyph directed fixtures.",
+      "source_and_tests": "src/Controls/DxUi.PreparedMath.h; Tests/Controls/Controls.Tests.RichSemanticDocument.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "original_location": "`src/Controls/DxUi.NativeMath.cpp:413` · bug · minor · confirmed (refute: confirmed; reproduce: confirmed) · plan: C4",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "math-layout-04",
+      "title": "Large operators and \\\\lim never take limits above/below; \\\\limits and \\\\nolimits are silently discarded",
+      "outcome": "accepted fix",
+      "reason": "Limit modes and display style have explicit AST/layout coverage.",
+      "source_and_tests": "src/Controls/DxUi.PreparedMath.h; Tests/Controls/Controls.Tests.RichSemanticDocument.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "original_location": "`src/Controls/DxUi.PreparedMath.h:221` · bug · minor · confirmed (refute: confirmed; reproduce: confirmed) · plan: C4",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "math-layout-05",
+      "title": "Superscript/subscript shifts are fixed fractions of the font size and ignore the base's height/depth",
+      "outcome": "accepted fix",
+      "reason": "Script shifts use staged ink and SDK MATH metrics with independent gap oracles.",
+      "source_and_tests": "src/Controls/DxUi.PreparedMath.h; Tests/Controls/Controls.Tests.RichSemanticDocument.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "original_location": "`src/Controls/DxUi.PreparedMath.h:225` · bug · minor · confirmed (refute: confirmed; reproduce: confirmed) · plan: C4",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "math-layout-06",
+      "title": "Vertical metrics come from DWrite line boxes, not glyph ink or MATH constants; fractions are ~3 em tall and dfrac/tfrac/display are identical",
+      "outcome": "accepted fix",
+      "reason": "Ink extents and MATH constants inform fraction geometry; SDK-derived gap fixtures exist.",
+      "source_and_tests": "src/Controls/DxUi.PreparedMath.h; Tests/Controls/Controls.Tests.RichSemanticDocument.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "original_location": "`src/Controls/DxUi.PreparedMath.h:335` · bug · minor · confirmed (refute: confirmed; reproduce: confirmed) · plan: C4",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "math-layout-07",
+      "title": "Stretchy delimiters are drawn as straight-line polylines; \\\\big-family is ignored, \\\\left. reserves full width and \\| fences are asymmetric",
+      "outcome": "accepted fix",
+      "reason": "Bounded vertical variants and assemblies plus deterministic fallback have SDK and fallback fixtures.",
+      "source_and_tests": "src/Controls/DxUi.PreparedMath.h; Tests/Controls/Controls.Tests.RichSemanticDocument.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "original_location": "`src/Controls/DxUi.PreparedMath.h:140` · bug · minor · confirmed (refute: confirmed; reproduce: confirmed) · plan: C4",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "math-layout-08",
+      "title": "Display math (\\$\\$…\\$\\$, \\\\[…\\\\]) is laid out exactly like inline math: no display style and no centering",
+      "outcome": "accepted fix",
+      "reason": "Display style and large operator behavior have directed fixtures.",
+      "source_and_tests": "src/Controls/DxUi.PreparedMath.h; Tests/Controls/Controls.Tests.RichSemanticDocument.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "original_location": "`src/Controls/DxUi.MarkdownInlines.h:1234` · bug · minor · confirmed (refute: confirmed; reproduce: confirmed) · plan: C4",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "math-layout-09",
+      "title": "Math is always prepared at body font x 1.15, so formulas in headings are far smaller than the heading text",
+      "outcome": "accepted fix",
+      "reason": "Formula sizing derives from enclosing run; heading fixture checks proportional size.",
+      "source_and_tests": "src/Controls/DxUi.PreparedMath.h; Tests/Controls/Controls.Tests.RichSemanticDocument.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "original_location": "`src/Controls/DxUi.RichSemanticGeometry.cpp:147` · bug · minor · confirmed (refute: confirmed; reproduce: confirmed) · plan: W1.12",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "math-layout-10",
+      "title": "\\\\epsilon/\\\\varepsilon and \\\\phi/\\\\varphi are swapped; \\\\cdot maps to MIDDLE DOT",
+      "outcome": "accepted fix",
+      "reason": "Epsilon, phi and cdot identity checks are explicit.",
+      "source_and_tests": "src/Controls/DxUi.PreparedMath.h; Tests/Controls/Controls.Tests.RichSemanticDocument.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "original_location": "`src/Controls/DxUi.NativeMath.cpp:248` · bug · minor · confirmed (refute: confirmed; reproduce: confirmed) · plan: W1.6",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "math-layout-11",
+      "title": "ASCII '-', '\\*', \"'\", '%' and '~' are rendered literally instead of as minus, asterisk operator, prime, comment and nbsp",
+      "outcome": "accepted fix",
+      "reason": "ASCII operator and prime AST cases are present under bounded profile.",
+      "source_and_tests": "src/Controls/DxUi.PreparedMath.h; Tests/Controls/Controls.Tests.RichSemanticDocument.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "original_location": "`src/Controls/DxUi.NativeMath.cpp:363` · bug · minor · confirmed (refute: confirmed; reproduce: confirmed) · plan: W1.6",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "math-layout-12",
+      "title": "Script and fraction sizes are fixed ratios that compound without a scriptscript floor",
+      "outcome": "accepted fix",
+      "reason": "Script sizing and floor have bounded style fixtures.",
+      "source_and_tests": "src/Controls/DxUi.PreparedMath.h; Tests/Controls/Controls.Tests.RichSemanticDocument.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "original_location": "`src/Controls/DxUi.PreparedMath.h:48` · bug · minor · confirmed (refute: confirmed; reproduce: confirmed) · plan: C4",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "math-layout-13",
+      "title": "Spacing commands have wrong widths: \\\\, \\\\: \\\\; are equal, \\\\! is zero, \\\\quad/\\\\qquad are half size",
+      "outcome": "accepted fix",
+      "reason": "Spacing command widths have directed corpus cases.",
+      "source_and_tests": "src/Controls/DxUi.PreparedMath.h; Tests/Controls/Controls.Tests.RichSemanticDocument.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "original_location": "`src/Controls/DxUi.NativeMath.cpp:356` · bug · minor · confirmed (refute: confirmed; reproduce: confirmed) · plan: W1.6",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "math-layout-14",
+      "title": "Accents are full-width strokes with fixed DIP constants and no skew/centering; \\\\hat and \\\\widehat are identical",
+      "outcome": "accepted fix",
+      "reason": "Horizontal variants and accent positioning have SDK and fallback cases.",
+      "source_and_tests": "src/Controls/DxUi.PreparedMath.h; Tests/Controls/Controls.Tests.RichSemanticDocument.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "original_location": "`src/Controls/DxUi.PreparedMath.h:229` · bug · minor · confirmed (refute: confirmed; reproduce: confirmed) · plan: C4",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "math-layout-15",
+      "title": "One fixed column/row gap for every environment: aligned gets a gap before '=', cases/matrix gaps differ from TeX, smallmatrix is full size",
+      "outcome": "accepted fix",
+      "reason": "Named matrix/array placement fixtures cover bounded environments, not full TeX spacing.",
+      "source_and_tests": "src/Controls/DxUi.PreparedMath.h; Tests/Controls/Controls.Tests.RichSemanticDocument.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "original_location": "`src/Controls/DxUi.PreparedMath.h:94` · bug · minor · confirmed (refute: confirmed; reproduce: confirmed) · plan: C4",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "math-layout-16",
+      "title": "All rules share one stroke width and are not pixel-aligned; radical/fraction insets are DIP constants",
+      "outcome": "accepted fix",
+      "reason": "Fractional-origin and DPI formula raster fixtures compare actual pixels with Direct2D; no universal snapping claim.",
+      "source_and_tests": "src/Controls/DxUi.PreparedMath.h; Tests/Controls/Controls.Tests.RichSemanticDocument.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "original_location": "`src/Controls/DxUi.PreparedMath.h:364` · bug · minor · confirmed (refute: confirmed; reproduce: confirmed) · plan: C4",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "math-layout-17",
+      "title": "Font is hard-coded to Cambria Math / en-US with no fallback detection; \\\\text uses the math font and \\\\mathbf/\\\\mathit rely on DWrite simulations",
+      "outcome": "accepted fix",
+      "reason": "Configurable family/locale and unsupported-font fallback have SDK/fallback fixtures.",
+      "source_and_tests": "src/Controls/DxUi.PreparedMath.h; Tests/Controls/Controls.Tests.RichSemanticDocument.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "original_location": "`src/Controls/DxUi.PreparedMath.h:318` · bug · minor · confirmed (refute: confirmed; reproduce: confirmed) · plan: W2.11",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "math-layout-18",
+      "title": "Math target profile, plan checkbox and docs disagree about what is implemented and the limits",
+      "outcome": "accepted fix",
+      "reason": "Profile and documentation describe bounded native math and exact-source fallback.",
+      "source_and_tests": "src/Controls/DxUi.PreparedMath.h; Tests/Controls/Controls.Tests.RichSemanticDocument.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "original_location": "`ThirdParty/Markdown/profiles/DxUiMath1-target.json:4` · doc-mismatch · minor · confirmed (refute: confirmed; reproduce: confirmed) · plan: W1.11",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "math-layout-19",
+      "title": "No tests for baseline alignment, script/fraction/radical placement, delimiter extents, heading size, hit testing or Draw allocation",
+      "outcome": "accepted fix",
+      "reason": "SDK, geometry, baseline and heading fixtures now cover named gaps; host/runtime remains separate.",
+      "source_and_tests": "src/Controls/DxUi.PreparedMath.h; Tests/Controls/Controls.Tests.RichSemanticDocument.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "original_location": "`Tests/Controls/Scope.Tests.RichSemanticDocument.cpp:15` · test-gap · minor · confirmed (refute: confirmed; reproduce: confirmed) · plan: T1",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "math-layout-20",
+      "title": "Measure is recomputed inside Place (twice per matrix cell) and Leaf() is a linear search; node-count lambdas are triplicated",
+      "outcome": "accepted fix",
+      "reason": "Indexed cached extents avoid repeated subtree measurement; independent admission remains.",
+      "source_and_tests": "src/Controls/DxUi.PreparedMath.h; Tests/Controls/Controls.Tests.RichSemanticDocument.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "original_location": "`src/Controls/DxUi.PreparedMath.h:191` · simplification · minor · confirmed (refute: confirmed; reproduce: confirmed) · plan: W2.11",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "math-layout-21",
+      "title": "Math placements are smuggled through NativeImageGeometry and inherit image-only invariants (raster target identity, pixel dedup, diagram brushes)",
+      "outcome": "challenged",
+      "reason": "Generic image/math owner extraction is unimplemented; CPU and raster lifetimes differ.",
+      "source_and_tests": "src/Controls/DxUi.PreparedMath.h; Tests/Controls/Controls.Tests.RichSemanticDocument.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "original_location": "`src/Controls/DxUi.RichSemanticGeometry.cpp:92` · architecture · minor · confirmed (refute: confirmed; reproduce: confirmed) · plan: W2.5",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "math-layout-22",
+      "title": "Caret beside a tall math object is anchored to the object's bottom, not the text baseline",
+      "outcome": "accepted fix",
+      "reason": "Adjacent caret uses text baseline with multiple-DPI fixture.",
+      "source_and_tests": "src/Controls/DxUi.PreparedMath.h; Tests/Controls/Controls.Tests.RichSemanticDocument.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "original_location": "`src/Controls/DxUi.RichSemanticGeometry.cpp:196` · bug · minor · confirmed (refute: confirmed; reproduce: confirmed) · plan: W1.12",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "mermaid-01",
+      "title": "State/class descriptions, transition labels and aliases bypass Label() validation and silently render unsupported markup",
+      "outcome": "accepted fix",
+      "reason": "State/class label policy and unsupported diagnostics have independent grammar fixtures.",
+      "source_and_tests": "src/Controls/DxUi.NativeFlowchart.cpp; src/Controls/DxUi.NativeFlowchartLayout.cpp; Tests/Support/Support.Tests.MarkdownBlocks.h",
+      "original_location": "`src/Controls/DxUi.NativeFlowchart.cpp:294` · bug · minor · confirmed (refute: confirmed; reproduce: confirmed) · plan: W1.7",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "mermaid-02",
+      "title": "Every width-only reflow throws away all diagram label layouts and path geometries; PreparedFlowchart's width-independent coalescing is unreachable in production",
+      "outcome": "accepted fix",
+      "reason": "Width-only reflow retains labels and geometry; editor and prepared-flowchart fixtures cover reuse.",
+      "source_and_tests": "src/Controls/DxUi.NativeFlowchart.cpp; src/Controls/DxUi.NativeFlowchartLayout.cpp; Tests/Support/Support.Tests.MarkdownBlocks.h",
+      "original_location": "`src/Controls/DxUi.RichSemanticGeometry.cpp:1098` · performance · minor · confirmed (refute: confirmed; reproduce: confirmed) · plan: W3.5",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "mermaid-03",
+      "title": "Router gives every edge its own exterior lane and per-rank corridor row, so ordinary diagrams become comb-shaped and overflow the view width",
+      "outcome": "accepted fix",
+      "reason": "Disjoint ranks reuse lanes; direct and reusable layout fixtures exist; router remains bounded.",
+      "source_and_tests": "src/Controls/DxUi.NativeFlowchart.cpp; src/Controls/DxUi.NativeFlowchartLayout.cpp; Tests/Support/Support.Tests.MarkdownBlocks.h",
+      "original_location": "`src/Controls/DxUi.NativeFlowchartLayout.cpp:357` · architecture · minor · disputed (refute: refuted; reproduce: confirmed) · plan: C6",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "mermaid-04",
+      "title": "Spec still normatively says native painting/source editing/UIA 'remain M5 work' and that a prepared graph MUST NOT be reported as rendered",
+      "outcome": "accepted fix",
+      "reason": "Normative native rendering status corrected in UI_ControlsAndLayout.md.",
+      "source_and_tests": "src/Controls/DxUi.NativeFlowchart.cpp; src/Controls/DxUi.NativeFlowchartLayout.cpp; Tests/Support/Support.Tests.MarkdownBlocks.h",
+      "original_location": "`Specs/UI/UI_ControlsAndLayout.md:1379` · doc-mismatch · minor · confirmed (refute: confirmed; reproduce: confirmed) · plan: W1.11",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "mermaid-05",
+      "title": "Family matrix, ThirdParty README, generator and corpus test still classify stateDiagram/classDiagram as unsupported families; the class example passes only because of `note`",
+      "outcome": "accepted fix",
+      "reason": "Family matrix and generator describe bounded state/class support; final corpus execution remains pending.",
+      "source_and_tests": "src/Controls/DxUi.NativeFlowchart.cpp; src/Controls/DxUi.NativeFlowchartLayout.cpp; Tests/Support/Support.Tests.MarkdownBlocks.h",
+      "original_location": "`ThirdParty/Markdown/mermaid-11.4.1/dxui-family-matrix.json:24` · doc-mismatch · minor · confirmed (refute: confirmed; reproduce: confirmed) · plan: W1.11",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "mermaid-06",
+      "title": "State/class profiles have only two smoke checks; no directed scenario table covers their grammar, rejection or layout",
+      "outcome": "accepted fix",
+      "reason": "Directed grammar, rejection and diagnostic cases replace family smoke-only tests.",
+      "source_and_tests": "src/Controls/DxUi.NativeFlowchart.cpp; src/Controls/DxUi.NativeFlowchartLayout.cpp; Tests/Support/Support.Tests.MarkdownBlocks.h",
+      "original_location": "`Tests/Controls/Scope.Tests.RichSemanticDocument.cpp:86` · test-gap · major · confirmed (refute: confirmed; reproduce: confirmed) · plan: T2",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "mermaid-07",
+      "title": "Flowchart node shapes and `|label|` edge text are accepted inside state and class bodies, turning invalid Mermaid into a rendered graph",
+      "outcome": "accepted fix",
+      "reason": "Family-specific grammar rejects unsupported flowchart node and edge syntax.",
+      "source_and_tests": "src/Controls/DxUi.NativeFlowchart.cpp; src/Controls/DxUi.NativeFlowchartLayout.cpp; Tests/Support/Support.Tests.MarkdownBlocks.h",
+      "original_location": "`src/Controls/DxUi.NativeFlowchart.cpp:147` · bug · minor · confirmed (refute: confirmed; reproduce: confirmed) · plan: W1.7",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "mermaid-08",
+      "title": "One wide edge label widens every lane: laneWidth is a single global maximum",
+      "outcome": "accepted fix",
+      "reason": "Per-lane widths have wide/narrow label oracle in Support.Tests.FlowchartLayout.h.",
+      "source_and_tests": "src/Controls/DxUi.NativeFlowchart.cpp; src/Controls/DxUi.NativeFlowchartLayout.cpp; Tests/Support/Support.Tests.MarkdownBlocks.h",
+      "original_location": "`src/Controls/DxUi.NativeFlowchartLayout.cpp:179` · bug · minor · confirmed (refute: confirmed; reproduce: confirmed) · plan: C6",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "mermaid-09",
+      "title": "Inheritance is encoded as a magic synthesized edge label 'inherits' rather than an edge kind; painted as text and indistinguishable from a user label",
+      "outcome": "accepted fix",
+      "reason": "Inheritance and realization use typed relation kinds with parser/layout cases.",
+      "source_and_tests": "src/Controls/DxUi.NativeFlowchart.cpp; src/Controls/DxUi.NativeFlowchartLayout.cpp; Tests/Support/Support.Tests.MarkdownBlocks.h",
+      "original_location": "`src/Controls/DxUi.NativeFlowchart.cpp:308` · doc-mismatch · minor · confirmed (feasibility: confirmed) · plan: W1.7",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "mermaid-10",
+      "title": "docs/rich-text.md introduction contradicts its own RedTilde section on state/class support",
+      "outcome": "accepted fix",
+      "reason": "Rich-text documentation and family matrix describe bounded state/class support consistently.",
+      "source_and_tests": "src/Controls/DxUi.NativeFlowchart.cpp; src/Controls/DxUi.NativeFlowchartLayout.cpp; Tests/Support/Support.Tests.MarkdownBlocks.h",
+      "original_location": "`docs/rich-text.md:21` · doc-mismatch · minor · confirmed (feasibility: confirmed) · plan: W1.11",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "mermaid-11",
+      "title": "Statement() is a 165-line multiplexed function with duplicated direction parsing and an `at -= 1; at += 3` edge hack",
+      "outcome": "challenged",
+      "reason": "Statement dispatcher cleanup is unimplemented and optional; size alone is not a behavioral defect.",
+      "source_and_tests": "src/Controls/DxUi.NativeFlowchart.cpp; src/Controls/DxUi.NativeFlowchartLayout.cpp; Tests/Support/Support.Tests.MarkdownBlocks.h",
+      "original_location": "`src/Controls/DxUi.NativeFlowchart.cpp:195` · simplification · minor · confirmed (feasibility: confirmed) · plan: W2.11",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "mermaid-12",
+      "title": "The same model invariants are validated three times and PreparedFlowchart::Begin prefers a pending mismatched request over an already-complete matching state",
+      "outcome": "challenged",
+      "reason": "Avoidable restaging is unimplemented; pending-request publication policy and independent public model validation remain intentional.",
+      "source_and_tests": "src/Controls/DxUi.NativeFlowchart.cpp; src/Controls/DxUi.NativeFlowchartLayout.cpp; Tests/Support/Support.Tests.MarkdownBlocks.h",
+      "original_location": "`src/Controls/DxUi.PreparedFlowchart.cpp:167` · simplification · minor · uncertain (feasibility: uncertain) · plan: W2.11",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "mermaid-13",
+      "title": "Backslash escapes are applied to unquoted labels although the spec limits them to quoted labels",
+      "outcome": "accepted fix",
+      "reason": "Quoted/unquoted labels and malformed syntax have bounded family grammar cases.",
+      "source_and_tests": "src/Controls/DxUi.NativeFlowchart.cpp; src/Controls/DxUi.NativeFlowchartLayout.cpp; Tests/Support/Support.Tests.MarkdownBlocks.h",
+      "original_location": "`src/Controls/DxUi.NativeFlowchart.cpp:101` · doc-mismatch · minor · confirmed (feasibility: confirmed) · plan: W1.7",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "mermaid-14",
+      "title": "Valid Mermaid (direction-less header, digit-leading ids, flowchart-elk) is reported as Malformed instead of Unsupported",
+      "outcome": "accepted fix",
+      "reason": "Recognized unsupported constructs have directed outcome and diagnostic examples.",
+      "source_and_tests": "src/Controls/DxUi.NativeFlowchart.cpp; src/Controls/DxUi.NativeFlowchartLayout.cpp; Tests/Support/Support.Tests.MarkdownBlocks.h",
+      "original_location": "`src/Controls/DxUi.NativeFlowchart.cpp:221` · architecture · minor · confirmed (feasibility: confirmed) · plan: W1.7",
+      "runtime": "Final source-bound runtime pending"
+    },
+    {
+      "id": "mermaid-15",
+      "title": "Layout state machine mixes three dispatch styles: Rank() multiplexes three stages and two stages are inlined in Step()",
+      "outcome": "challenged",
+      "reason": "Unifying stage dispatch is optional and unimplemented; differing stage styles do not prove incorrect output.",
+      "source_and_tests": "src/Controls/DxUi.NativeFlowchart.cpp; src/Controls/DxUi.NativeFlowchartLayout.cpp; Tests/Support/Support.Tests.MarkdownBlocks.h",
+      "original_location": "`src/Controls/DxUi.NativeFlowchartLayout.cpp:218` · simplification · minor · confirmed (feasibility: confirmed) · plan: W2.11",
+      "runtime": "Final source-bound runtime pending"
+    }
+  ]
+}

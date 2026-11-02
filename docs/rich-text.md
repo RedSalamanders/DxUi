@@ -1519,11 +1519,19 @@ Markdown style, heading, list, quote and table commands reject metadata targets.
 content is checked against TOML 1.0.0 and reports invalid input or a nesting-
 capacity refusal while preserving the entire source. YAML 1.2.2 core-schema validation
 distinguishes invalid syntax, duplicate mapping
-keys, unresolved aliases and explicit capacity limits. Conformance-corpus,
-allocation-failure and native profile qualification remain open in M5.
-Earlier envelope and diagnostic transport tests passed in focused Debug/native/
-embedded checks, including actual clients and allocation failures. Final qualification
-pending; this does not establish YAML/TOML conformance or complete M5 support.
+keys, unresolved aliases and explicit capacity limits. The pinned native validity
+corpus covers 717 TOML and 382 single-document YAML cases; 20 multi-document YAML
+streams are explicitly excluded, and two duplicate-key cases have specific
+diagnostics. Observed allocation-failure sweeps preserve the previous publication
+and permit retry; capacity refusal remains distinct from invalid input. See the
+[TOML pin](../ThirdParty/Markdown/corpora/toml-test-96fd088/README.md),
+[YAML pin](../ThirdParty/Markdown/corpora/yaml-test-suite-6ad3d2c/README.md),
+[native corpus test](../Tests/Controls/Controls.Tests.RichMarkdown.cpp) and
+[allocation-failure sweep](../Tests/Embedded/Embedded.Tests.RichTextResources.h).
+These checks do not validate decoded values or establish full YAML/TOML value
+conformance. See the [source-bound evidence report](../Measurements/WipDelivery_2026-11-02/README.md)
+and [shared qualification ledger](../Specs/Plans/WIP/ConsumerUiQualification_2026-10-11.md)
+for execution and remaining platform status.
 
 ## Footnote rendering and navigation (M5b preview)
 

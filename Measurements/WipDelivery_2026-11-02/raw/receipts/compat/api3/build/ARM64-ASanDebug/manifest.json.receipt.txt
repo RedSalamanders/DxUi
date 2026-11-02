@@ -1,0 +1,77 @@
+{
+  "source": "a5b3ac81dedc39eaf1a8d131c497e59644ea794b",
+  "frozenUtc": "2026-11-02T10:43:28.0310555Z",
+  "receipts": [
+    {
+      "present": false,
+      "name": "v2-build.json"
+    },
+    {
+      "present": false,
+      "name": "incremental-build.json"
+    },
+    {
+      "present": false,
+      "name": "scoped-build.json"
+    }
+  ],
+  "files": [
+    {
+      "sha256": "C8D6EE580003316179EA4718C268230FF23A17CF1AD791D9FEB8AD779C3044CB",
+      "bytes": 1278592,
+      "name": "clang_rt.asan_dynamic-aarch64.dll"
+    },
+    {
+      "sha256": "27C73EDA060D60448CF6ACA5BCBCF3461AA48CC4E4D8DD97CC75E6DB8608CBCC",
+      "bytes": 18492416,
+      "name": "DxUi.ControlTests.exe"
+    },
+    {
+      "sha256": "E1504D2C27B28C8EB34429DD5ACE6995A00CA16F4C8C2BCE0C5599AD242C0310",
+      "bytes": 40341504,
+      "name": "DxUi.ControlTests.pdb"
+    },
+    {
+      "sha256": "978F4F6A842695A9ED86E0C5595EC2F951C20C4320FF9E869C78DC9BC2F75112",
+      "bytes": 7311360,
+      "name": "DxUi.EmbeddedControls.exe"
+    },
+    {
+      "sha256": "E068AB4882A8F644AE4A94BAB36F51E47CC7F22195C1E70DFCF50394F2B70DE8",
+      "bytes": 21319680,
+      "name": "DxUi.EmbeddedControls.pdb"
+    },
+    {
+      "sha256": "D0C17159891D8962077C2CE2715B644CBBFD58BA208790B227E22D852880DA3F",
+      "bytes": 8176640,
+      "name": "DxUi.EmbeddedTests.exe"
+    },
+    {
+      "sha256": "C4E7180E595C685C4627E68F9D52E1D73E3613F88B2ADAA56BC6118C851C050F",
+      "bytes": 22818816,
+      "name": "DxUi.EmbeddedTests.pdb"
+    },
+    {
+      "sha256": "47A0DEDC1181BE6288EF68D25E41C94EC1FFD4FCCE36B5075CFF2F290FA7578D",
+      "bytes": 7138816,
+      "name": "DxUi.FoundationTests.exe"
+    },
+    {
+      "sha256": "5E4F9B911F2619C94A54C9E3736DC684DF699459369155FC7D8FD35E4CF6B236",
+      "bytes": 20910080,
+      "name": "DxUi.FoundationTests.pdb"
+    },
+    {
+      "sha256": "47300BAD18B9260278EAE9D3E35580916E08FDD93772C139055F7F06E9373018",
+      "bytes": 70433418,
+      "name": "DxUi.lib"
+    },
+    {
+      "sha256": "1AB4B99B112B51FEF68A4B536739F3DCD08A743C88E7D370E4F804CB7AD269BD",
+      "bytes": 7196672,
+      "name": "DxUi.pdb"
+    }
+  ],
+  "platform": "ARM64",
+  "configuration": "ASan Debug"
+}

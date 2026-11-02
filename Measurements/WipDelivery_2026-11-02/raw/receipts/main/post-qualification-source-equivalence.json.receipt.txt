@@ -1,0 +1,21 @@
+{
+  "nativeAndRunnerTreeUnchanged": true,
+  "nativeQualifiedSource": "9909da1065e297247cb490b970b2265a0e4d8b9e",
+  "recordedUtc": "2026-11-02T07:52:49.0563784Z",
+  "SDKOnlyDelta": "Normal MSBuild diagnostic verbosity, help, inventory prose, normative SDK contract and fragment",
+  "currentSource": "21a74896bdc05524ccca106fdfaabe0e96b6477c",
+  "SDKSource": "68f6b15e342f0c19f791347d45878225c22bb5ea",
+  "pathsChanged": [
+    "Changes/2026-11-02-sdk-diagnostic-summary.md",
+    "Specs/Build/Build_UnifiedCI.md",
+    "Tools/New-SdkPackage.ps1",
+    "Tools/README.md",
+    "docs/gallery/README.md",
+    "docs/gallery/generation.json",
+    "docs/gallery/theme-controls-dark.png",
+    "docs/gallery/theme-controls-high-contrast.png",
+    "docs/gallery/theme-controls-light.png",
+    "docs/gallery/theme-controls-rainbow-dark.png",
+    "docs/gallery/theme-controls-rainbow-light.png"
+  ]
+}

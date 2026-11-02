@@ -2000,8 +2000,9 @@ logical frame; this paint-only bound does not enlarge hit or visible-text ranges
 
 ### RichMarkdown metadata envelopes (M5a)
 
-Status: source-envelope and bounded YAML/TOML validation are implemented;
-dedicated property-schema editing and complete M5 qualification remain pending.
+Status: source-envelope and bounded single-document YAML/TOML source-validity
+validation are implemented. Applications own property schemas and structured
+editing. Physical input, native ARM64 and broader M5 qualification remain separate.
 
 Only RichMarkdown MUST recognize an exact `---` (YAML 1.2.2) or `+++` (TOML
 1.0.0) first physical line, optionally preceded by one document BOM. No leading
@@ -2029,7 +2030,7 @@ Source ACPs/history remain authoritative. Markdown structural style,
 heading, list, quote and table commands MUST reject metadata targets atomically; ordinary
 source replacement/undo/redo and source-view selection remain available.
 Envelope recognition alone MUST NOT be presented as YAML/TOML validity or full
-extension conformance. Closed TOML content is checked against TOML 1.0.0 without changing source; invalid content and nesting beyond 128 values or dotted-key segments, or more than 1,024 total key segments, have distinct source-owned diagnostics. Missing fences take precedence. Closed YAML content is checked using the YAML 1.2.2 core schema; syntax, duplicate mapping keys, unresolved aliases and resource-capacity refusals are distinct diagnostics. Complete corpus and native qualification remain pending.
+extension conformance. Closed TOML content is checked against TOML 1.0.0 without changing source; invalid content and nesting beyond 128 values or dotted-key segments, or more than 1,024 total key segments, have distinct source-owned diagnostics. Missing fences take precedence. Closed YAML content is checked using the YAML 1.2.2 core schema; syntax, duplicate mapping keys, unresolved aliases and resource-capacity refusals are distinct diagnostics. The pinned [TOML](../../ThirdParty/Markdown/corpora/toml-test-96fd088/README.md) and [YAML](../../ThirdParty/Markdown/corpora/yaml-test-suite-6ad3d2c/README.md) validity corpora and [native test](../../Tests/Controls/Controls.Tests.RichMarkdown.cpp) exercise 717 TOML and 382 single-document YAML cases, with 20 multi-document YAML streams explicitly excluded and two duplicate-key outcomes checked as diagnostics. The [allocation-failure sweeps](../../Tests/Embedded/Embedded.Tests.RichTextResources.h) cover observed staging failure and retry; capacity refusals remain distinct from invalid syntax. These cases validate source admission and diagnostics, not decoded values or complete YAML/TOML value conformance. See the [source-bound evidence report](../../Measurements/WipDelivery_2026-11-02/README.md) and [shared qualification ledger](../Plans/WIP/ConsumerUiQualification_2026-10-11.md) for execution and remaining platform status.
 An unclosed envelope MUST publish an `UnclosedFrontMatter` diagnostic with the
 exact opening marker range and revision-local owner node. Semantic UIA HelpText
 MUST explain the missing closing fence. Source edits retire that provider; a

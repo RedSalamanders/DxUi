@@ -1,0 +1,16 @@
+{
+  "source": "a5b3ac81dedc39eaf1a8d131c497e59644ea794b",
+  "arguments": [
+    "-NoProfile",
+    "-File",
+    "\"Z:\\src\\DxUi-worktrees\\wip-compat-redprism-menu-20261101\\build.ps1\"",
+    "-Platform",
+    "x64",
+    "-Configuration",
+    "\"Release\""
+  ],
+  "pid": 38712,
+  "configuration": "Release",
+  "createdUtc": "2026-11-02T10:43:02.2490242Z",
+  "platform": "x64"
+}

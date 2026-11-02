@@ -1,0 +1,72 @@
+{
+  "source": "a5b3ac81dedc39eaf1a8d131c497e59644ea794b",
+  "receipts": [
+    {
+      "present": false,
+      "name": "v2-build.json"
+    },
+    {
+      "present": false,
+      "name": "incremental-build.json"
+    },
+    {
+      "present": false,
+      "name": "scoped-build.json"
+    }
+  ],
+  "configuration": "Release",
+  "platform": "x64",
+  "files": [
+    {
+      "bytes": 4874752,
+      "sha256": "796C960848985875AF7F21262A64FC9CEC25E328D092ECB4E688F292E68DCFF4",
+      "name": "DxUi.ControlTests.exe"
+    },
+    {
+      "bytes": 34107392,
+      "sha256": "96E1E328623A0718D509B071D23300EA2C8BA6ED9A00CD66C01B1DAD6BD0E4D4",
+      "name": "DxUi.ControlTests.pdb"
+    },
+    {
+      "bytes": 2549760,
+      "sha256": "A059E4B579986801363C01EE6609D0DD2A57F5940A83C499767521D30CBA255A",
+      "name": "DxUi.EmbeddedControls.exe"
+    },
+    {
+      "bytes": 21336064,
+      "sha256": "6E0911592F63E410B0DF723035114596A7EC8A24537514DDE7D80A4982124DCF",
+      "name": "DxUi.EmbeddedControls.pdb"
+    },
+    {
+      "bytes": 2886656,
+      "sha256": "572B35DD0E73E927520CE295FCCCE522FBE101C1CDD69932A2A0D0D32202B7EE",
+      "name": "DxUi.EmbeddedTests.exe"
+    },
+    {
+      "bytes": 23392256,
+      "sha256": "2588ED5566B55B246B13663BFA8F385D1D30ECA1B5F6C1F812AF193009738E3C",
+      "name": "DxUi.EmbeddedTests.pdb"
+    },
+    {
+      "bytes": 2470400,
+      "sha256": "1FDEA64E8C3A97C2EF3012CEE6F769D4D07E208E7D8C836AFEBDDE2534CEFB75",
+      "name": "DxUi.FoundationTests.exe"
+    },
+    {
+      "bytes": 20721664,
+      "sha256": "9F8FFC3A585E59EA4E11E77ADC89E4AE1AFFF73545BC27683FEC52D51DF2A372",
+      "name": "DxUi.FoundationTests.pdb"
+    },
+    {
+      "bytes": 34398814,
+      "sha256": "27AE118E288110D224D5F7C2F1085AAC2B17262228D40AB92BCED17B03B978C0",
+      "name": "DxUi.lib"
+    },
+    {
+      "bytes": 6967296,
+      "sha256": "A484A98E2F2ABD3D9FBACEC2B3F33A281B5A037EE2456FEFC36126947B1E45E4",
+      "name": "DxUi.pdb"
+    }
+  ],
+  "frozenUtc": "2026-11-02T10:43:30.2565142Z"
+}

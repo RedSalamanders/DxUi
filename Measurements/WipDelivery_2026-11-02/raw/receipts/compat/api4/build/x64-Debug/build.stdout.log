@@ -1,0 +1,103 @@
+Locating Visual Studio and MSBuild...
+Rebuilding because no current v2 attestation binds these exact inputs, tools and artifacts.
+?ÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ?
+³                                                                        ³
+³                      ÛÛÛÛÛÛ» ÛÛ»  ÛÛ»ÛÛ»   ÛÛ»ÛÛ»                      ³
+³                      ÛÛÉÍÍÛÛ»ÈÛÛ»ÛÛÉ¼ÛÛº   ÛÛºÛÛº                      ³
+³                      ÛÛº  ÛÛº ÈÛÛÛÉ¼ ÛÛº   ÛÛºÛÛº                      ³
+³                      ÛÛº  ÛÛº ÛÛÉÛÛ» ÛÛº   ÛÛºÛÛº                      ³
+³                      ÛÛÛÛÛÛÉ¼ÛÛÉ¼ ÛÛ»ÈÛÛÛÛÛÛÉ¼ÛÛº                      ³
+³                      ÈÍÍÍÍÍ¼ ÈÍ¼  ÈÍ¼ ÈÍÍÍÍÍ¼ ÈÍ¼                      ³
+³                                                                        ³
+³      ?  PIXELS PRIMED    CONTROLS READY    COMPILE MODE: GO!  ?      ³
+³                   ?  DEBUG  /  X64  /  REBUILD  ?                    ³
+³                                                                        ³
+?ÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ?
+
+Build configuration:
+  Configuration: Debug
+  Platform:      x64
+  Target:        Rebuild
+  Toolchain:     C:\Program Files\Microsoft Visual Studio\18\Insiders
+  Output:        Z:\src\DxUi-worktrees\wip-compat-redxe-menu-20261101\.build\
+
+Compiling DxUi...
+
+  compilation header save succeeded; see Z:\src\DxUi-worktrees\wip-compat-redxe-menu-20261101\.build\Intermediate\x64\Debug\DxUi\DxUiCompositeVS.h
+  compilation object save succeeded; see Z:\src\DxUi-worktrees\wip-compat-redxe-menu-20261101\.build\Intermediate\x64\Debug\DxUi\DxUiCompositeVS.cso
+  compilation header save succeeded; see Z:\src\DxUi-worktrees\wip-compat-redxe-menu-20261101\.build\Intermediate\x64\Debug\DxUi\DxUiCompositePS.h
+  compilation object save succeeded; see Z:\src\DxUi-worktrees\wip-compat-redxe-menu-20261101\.build\Intermediate\x64\Debug\DxUi\DxUiCompositePS.cso
+  ControlCatalog.cpp
+  NativeMenuInterop.cpp
+  Embedded.cpp
+  FrameRuntime.cpp
+  DxUi.Accessibility.cpp
+  DxUi.ComboBox.cpp
+  DxUi.Controls.cpp
+  DxUi.Layout.cpp
+  DxUi.Forms.cpp
+  DxUi.EditorControls.cpp
+  DxUi.cpp
+  DxUi.Grid.cpp
+  DxUi.Menu.cpp
+  DxUi.NativeTextInput.cpp
+  DxUi.PointerInput.cpp
+  DxUi.Scrollbar.cpp
+  DxUi.SingleLineTextEditing.cpp
+  DxUi.TextInput.cpp
+  DxUi.TextStoreACP.cpp
+  TextInputServices.cpp
+  Generating Code...
+  Compiling...
+  TextClipboard.cpp
+  DxUi.Theme.cpp
+  DxUi.Tree.cpp
+  DxUi.Typeahead.cpp
+  DxUi.WindowHost.cpp
+  Generating Code...
+  DxUi.vcxproj -> Z:\src\DxUi-worktrees\wip-compat-redxe-menu-20261101\.build\x64\Debug\DxUi.lib
+  Foundation.Tests.Foundation.cpp
+  Main.cpp
+  Embedded.Tests.Embedded.cpp
+  Controls.Tests.MenuPopupReadiness.cpp
+  InteractiveLease.Tests.Runner.cpp
+  Foundation.Tests.PublicHelpers.cpp
+  Generating Code...
+  DxUi.InteractiveLease.vcxproj -> Z:\src\DxUi-worktrees\wip-compat-redxe-menu-20261101\.build\x64\Debug\DxUi.InteractiveLease.exe
+  DxUi.Tests.Accessibility.cpp
+  DxUi.EmbeddedControls.vcxproj -> Z:\src\DxUi-worktrees\wip-compat-redxe-menu-20261101\.build\x64\Debug\DxUi.EmbeddedControls.exe
+  DxUi.FoundationTests.vcxproj -> Z:\src\DxUi-worktrees\wip-compat-redxe-menu-20261101\.build\x64\Debug\DxUi.FoundationTests.exe
+  DxUi.EmbeddedTests.vcxproj -> Z:\src\DxUi-worktrees\wip-compat-redxe-menu-20261101\.build\x64\Debug\DxUi.EmbeddedTests.exe
+  Scope.Tests.FormAccessibility.cpp
+  Scope.Tests.GridUiaPattern.cpp
+  Scope.Tests.IntrinsicLayout.cpp
+  Scope.Tests.Forms.cpp
+  DxUi.Tests.Animation.cpp
+  DxUi.Tests.ComboBox.cpp
+  DxUi.Tests.Controls.cpp
+  DxUi.Tests.Runner.cpp
+  DxUi.Tests.EditorControls.cpp
+  DxUi.Tests.Gallery.cpp
+  DxUi.Tests.Grid.cpp
+  DxUi.Tests.InteractiveLease.cpp
+  DxUi.Tests.Menu.cpp
+  DxUi.Tests.MultilineText.cpp
+  DxUi.Tests.NativeTextInput.cpp
+  DxUi.Tests.NewControls.cpp
+  DxUi.Tests.ReadOnly.cpp
+  DxUi.Tests.Rendering.cpp
+  Generating Code...
+  Compiling...
+  DxUi.Tests.TextField.cpp
+  DxUi.Tests.Theme.cpp
+  DxUi.Tests.Tooltip.cpp
+  DxUi.Tests.Tree.cpp
+  DxUi.Tests.WindowHost.cpp
+  Generating Code...
+  DxUi.ControlTests.vcxproj -> Z:\src\DxUi-worktrees\wip-compat-redxe-menu-20261101\.build\x64\Debug\DxUi.ControlTests.exe
+
+========================================
+DxUi build passed in 03:15
+Output: Z:\src\DxUi-worktrees\wip-compat-redxe-menu-20261101\.build\
+Log: Z:\src\DxUi-worktrees\wip-compat-redxe-menu-20261101\.build\logs\build-x64-Debug-4a9fab53f81e4cef9bf1fbffd1c92e0a.log
+========================================

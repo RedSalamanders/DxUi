@@ -1,0 +1,28 @@
+{
+  "exitCode": 0,
+  "completedUtc": "2026-11-02T10:44:30.0175128Z",
+  "configuration": "Debug",
+  "source": "a5b3ac81dedc39eaf1a8d131c497e59644ea794b",
+  "receipts": [
+    {
+      "suite": "Foundation",
+      "sha256": "3699657D9C582B8B6354F5BC35B28DCFE0DC64A83E10808450EFD0949A9F408E"
+    },
+    {
+      "suite": "Embedded",
+      "sha256": "AAC3FAA9134115DA58A8170D06260EA62BF2E8CA2A2E60B3F125F48D7AE2A338"
+    },
+    {
+      "suite": "Control",
+      "sha256": "A27E221546C85001895093B6074AA2453C018587A5F5A8F5B57AF055C5B1EB75"
+    },
+    {
+      "suite": "Accessibility",
+      "sha256": "89E9EC46F9FFEA6F5FC2F737E5A703D3F54566FAD847057B18EE6C992BBCF1DA"
+    },
+    {
+      "suite": "MenuExitLifetime",
+      "sha256": "F13D498A7EC8AFD59B10E4EFA3834400082A8FD3EE4B1487B85453B6C26ED5A7"
+    }
+  ]
+}

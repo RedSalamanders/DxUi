@@ -1,0 +1,45 @@
+# Paired performance review
+
+Source: baseline 4423074dee2410acb28e62b41072e6c561a79eb8; candidate and harness 21a74896bdc05524ccca106fdfaabe0e96b6477c. The candidate is 21a, not the earlier 990 native binary.
+Raw summary SHA-256: D4F51BF79993A326985874CA3B0CEB68425DFCC30718203D297D965A6DB707F7. Schedule: 12 independent blocks, seed 1345905475, independent-ABBA-BAAB-v1.
+
+Independently inspected 144 receipts and checked 144 sealed hashes, 78 metric rows, 936 block effects, 78 exact p-values and Holm adjustments, 72 controls and 1872 control observations. Mismatches: 0.
+
+| Scenario | Migrated judge | Legacy judge | Stable / unstable controls |
+|---|---|---|---|
+| Default | within-noise-budget | within-noise-budget | 0 / 24 |
+| MultilineGrid | within-noise-budget | within-noise-budget | 0 / 24 |
+| MultilineGridDistinct | within-noise-budget | within-noise-budget | 1 / 23 |
+
+Recorded judge verdict agreement and byte stability hold for all scenarios. 549 of 1872 control observations crossed their applicable bands, across 71 unstable of 72 controls.
+Policy: policy-review-required; trusted=false. No acceptance or no-regression conclusion follows.
+
+| Scenario | Phase | Metric | Baseline median | Candidate median | Paired geometric change | Adjusted p |
+|---|---|---|---:|---:|---:|---:|
+| Default | clean | fps | 2611.323598 | 2623.8025995 | 4.44% | 1 |
+| Default | clean | frameP95Ms | 0.46495 | 0.4573 | -11.41% | 1 |
+| Default | clean | privateBytes | 27506688 | 27885568 | 1.38% | 0.7412109375 |
+| Default | dirty | fps | 654.67150305 | 650.65672685 | 2.10% | 1 |
+| Default | dirty | frameP95Ms | 1.7015500000000001 | 1.6966 | -5.23% | 1 |
+| Default | dirty | privateBytes | 29100032 | 29270016 | 0.58% | 1 |
+| MultilineGrid | clean | fps | 2512.8024725 | 2537.500051 | -0.40% | 1 |
+| MultilineGrid | clean | frameP95Ms | 0.4829 | 0.48165 | 0.54% | 1 |
+| MultilineGrid | clean | privateBytes | 32468992 | 32274432 | 0.20% | 1 |
+| MultilineGrid | dirty | fps | 113.4845456 | 112.0866942 | -2.45% | 1 |
+| MultilineGrid | dirty | frameP95Ms | 8.91 | 9.26715 | 5.99% | 0.80859375 |
+| MultilineGrid | dirty | privateBytes | 34078720 | 34326528 | 0.63% | 1 |
+| MultilineGridDistinct | clean | fps | 2686.3928880000003 | 2679.3215010000004 | -0.33% | 1 |
+| MultilineGridDistinct | clean | frameP95Ms | 0.44830000000000003 | 0.45965 | 2.20% | 1 |
+| MultilineGridDistinct | clean | privateBytes | 29491200 | 29782016 | 0.54% | 1 |
+| MultilineGridDistinct | dirty | fps | 632.5505986999999 | 636.8032483 | 1.02% | 1 |
+| MultilineGridDistinct | dirty | frameP95Ms | 1.7786 | 1.76725 | -1.05% | 1 |
+| MultilineGridDistinct | dirty | privateBytes | 31135744 | 31358976 | 1.07% | 0.80859375 |
+
+The paired geometric change is derived from block effects; it is not the ratio of the two displayed medians. For Default, the maximum recorded round-level frame-p95 was 7.8413 ms baseline versus 13.5041 ms candidate in the clean phase, and 13.7445 versus 15.4107 ms in the dirty phase. These are extremes, not pooled frame-level percentiles. The first Default baseline control changed clean FPS from 705.5 to 2731.1 (+287.1%), with clean frame-p95 changing from 2.8618 to 0.4315 ms. The JSON retains the other control changes, exact-budget maxima and all 936 block effects; these observations do not establish their cause.
+
+- No continuous machine-wide host observer covered this local study. Preflight coordinated holds and a mid-run machine-wide snapshot are bounded observations, not proof of quiet/build-free intervals throughout.
+- Migrated policy is not independently qualified in the measured base. within-noise-budget is not a candidate performance acceptance or proof of no regression.
+- Controls and timing shifts are observations; no scheduler, GPU or external-load cause is established.
+- Judge agreement is the recorded comparison; raw effect/p-value/Holm and control arithmetic were independently recomputed here.
+
+No arithmetic, identity or receipt-hash mismatches found in this review. Distinct scenario fixture names and side-specific resolved build identities are expected; each is stable within its required scope. Baseline receipts record sourceDirty=true with the retained shared-harness overlay in place; the complete dirty diff is not independently reconstructed here.

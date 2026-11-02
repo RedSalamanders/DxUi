@@ -1,0 +1,83 @@
+# Targeted RichText finding disposition, 2026-11-02
+
+Source basis: isolated documentation branch at 0af69 with 64736fec; primary integration and final-source native execution must be verified separately. Finding numbers refer to `Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md`. Source tests below are not final qualification. Explicit native ARM runtime is deferred. A literal optimization/refactor being unimplemented is not represented as an implemented feature.
+
+## Outstanding decisions or proof
+
+- images-clipboard-07: independent JPEG APP1 orientation WIC pixel oracle is missing; current `Tests/Support/Support.Tests.RichImage.h:276–283` covers TIFF eight orientations, not the JPEG query. This is a test gap, not a proved JPEG defect.
+- images-clipboard-09/10: actual worker copies/orientation and bitmap upload on geometry rebuild remain performance work; root owns. `DxUi.RichImage.cpp:178–207,249–291,451–499`; `DxUi.RichSemanticGeometry.cpp:274–291,515–533`. Exact before/after and final source qualification still needed.
+- images-clipboard-13: aggregate native image/math placement or byte ceiling may throw before a specific object is identified (`DxUi.RichSemanticGeometry.cpp:259–301`); the general editor rejection path resets semantic document and clears images (`DxUi.RichTextEditor.cpp:3568,3894–3903`). The previous oversized single-diagram trigger is locally handled; aggregate reachability and image lifecycle need a directed case. Source-level concern only, not a reproduced defect.
+- host-integration-05: `Embedded.cpp:1192–1221` repeatedly reads and syncs complete native text session; this remains a measurable performance proposal. A revision cache must account for independently changed control text/selection/composition and preserve notification ordering. No paired performance claim.
+- status-truth-01: historical top-level target limits and later implemented bounded profile have distinct values; target must explicitly identify which applies. `include/DxUi/RichMath.h:10–18` supplies actual caps; do not treat historic values as current. Check exact target generator and corpus before closeout.
+- status-truth-07 and mermaid-04: root owns remaining UI_ControlsAndLayout normative correction.
+- status-truth-21: retained gallery provenance records a clean source but is not current-candidate capture evidence; regenerate after final source freeze under canonical capture.
+
+## images-clipboard
+
+| ID | Disposition / evidence |
+|---|---|
+| 01 | Refuted as library-wide prohibition: UNC is caller policy; `RichImageLoader.h:30,235` defaults off, `Controls.Tests.RichTextInput.cpp:606–654` checks rejection before I/O. |
+| 02 | Inert export and native image presentation are separate contracts; `docs/rich-text.md` native-image section describes the latter. 64736fec updates stale M5 introduction. |
+| 03 | Dead nested guard and clear/swap duplication in `RichImageResources.h:283–301` remain cleanup; any rewrite must preserve atomic publication/cancel ownership. No observed functional error. |
+| 04 | Duplicate validation and escaping in `RichTextEditor.cpp` remain factoring; no demonstrated divergent input behavior. |
+| 05 | Bounded deep path fallback fixed in controls commit 29cab5d2; source and focused evidence must be integrated/qualified. |
+| 06 | Diagnostics seam is defined in supported profile; forcing unsupported macro-off configuration is not proof of a supported build bug. Confirm current build contract on final source. |
+| 07 | JPEG-specific oracle remains open, above. |
+| 08 | `DiscardCancelled`/`Drain` compaction duplication is optional cleanup, not proof of incorrect accounting; preserve queue lock and ownership. |
+| 09 | Real source copies remain; root owns performance work, above. |
+| 10 | Cross-rebuild raster GPU reuse remains; root owns, above. |
+| 11 | Relative candidate normalizes canonical document base repeatedly in `RichImagePaths.h:352`; bounded optimization proposal, with no measured benefit or cache invalidation proof. |
+| 12 | GIF canvas is zero-initialized then filled (`RichImage.cpp:149–151`); preserve nonzero background behavior; optimization proposal without measured benefit. |
+| 13 | Object-local single failure exists, but aggregate capacity concern remains above. |
+| 14 | Fixed f595acd3: explicit failed bit distinguishes cancel/suspend; shared pending, failure and editor stats tests; matched R23 producer-TU embedded test passed. Final integrated run remains. |
+| 15 | Fixed 7397f30c: malformed orientation metadata ignored except OOM; real WIC TIFF before/after case passed. Exact WIC OOM injection not run. |
+| 16 | 64736fec documents default sample UNC refusal as lexical application policy, not network security boundary. |
+| 17 | Negative cache across unrelated edits tested `Support.Tests.RichImageResources.h:455–460`; final run remains. |
+
+## host-integration
+
+| ID | Disposition / evidence |
+|---|---|
+| 01 | Exact clipboard line-ending policy remains owned by native and embedded text-input transport; review final shared clipboard fixture with controls' current formatted-cut work, rather than infer pass from parser tests. |
+| 02 | Fixed 1130fc7b/45e5d680/c49291bb: suspend surface input without losing logical focus; fresh guarded session on restore; public Cancel still clears focus. Matched R23 no-activate embedded hide/zero/device/stale-receipt test passed; final native/embedded integrated run remains. |
+| 03 | Sample 9ad92f45 removes unconditional message/pump refresh; source-frozen sample no-activate capture passed. |
+| 04 | `Embedded.cpp` distinguishes pending S_FALSE and failures; public `Embedded.h` documents pending; sample handles superseded E_ABORT. Final run remains. |
+| 05 | Repeated side-effecting read/sync remains performance proposal above. |
+| 06 | 64736fec states optional transform must be mixed into the same client object as SetClient; matches dynamic_cast in TextInputServices. |
+| 07 | Root owns Prepare immediate-context mutation doc correction. |
+| 08 | Cooperative pending S_FALSE is documented in `Embedded.h:146` and handled in sample; final host run remains. |
+| 09 | Native/embedded lifecycle factoring is optional; focus and cancellation ownership differ. No claim one generic helper exists. |
+| 10 | Duplicate validators remain optional cross-layer factoring; preserve independent ABI/lifetime validation. |
+| 11 | Sample 9ad92f45 tracks and dispatches owned mouse leave; source-frozen no-activate capture passed; hidden proof is not live pointer-leave qualification. |
+| 12 | Sample 9ad92f45 publishes layout on window position changes; hidden proof checks routing, not an actual live TSF sink callback. |
+| 13 | 64736fec limits 96-DPI assertion to deterministic captures; live sample uses per-monitor DPI. |
+| 14 | Vector Drain overload is used by tests; removing it as unused is unsupported. |
+| 15 | Sample `Main.cpp:287–299` services NeedsAnimation/AdvanceAnimation; fixed reduced motion is an intentional deterministic sample setting. Embedded animation lifecycle cases in `Embedded.Tests.Embedded.cpp:505–534,2312–2326`. |
+
+## status-truth
+
+| ID | Disposition / evidence |
+|---|---|
+| 01 | Historic target/current limits distinction remains above. |
+| 02 | Native image docs and inert-export behavior are separate; stale introduction corrected by 64736fec. |
+| 03 | Matrix state/class entries are bounded implemented profiles; verify final generator/corpus artifact, not just parser source. |
+| 04 | MathLimits is represented in `RichMath.h:81`; `Support.Tests.MathCorpus.h:74,85,93,113–115` tests admitted and invalid modifier forms. Exact pinned-target command coverage and final run remain. |
+| 05 | Own-line and fenced math source ownership implemented in shared semantic tests; final native/embedded run remains. |
+| 06 | Epsilon/phi mappings and distinct variants covered in MathCorpus; no general swap remains. |
+| 07 | Root owns remaining stale normative sentence. |
+| 08 | README structural/style UIA text updated; current source is not final physical AT qualification. |
+| 09 | 64736fec corrects family/gallery prose. |
+| 10 | 64736fec corrects ThirdParty/Markdown README M5 future tense. |
+| 11 | Math F2 owner and source editing tests in `Support.Tests.RichSemanticEditor.h`; physical/consumer qualification separate. |
+| 12 | Open plan gates legitimately include broader target and final qualification; capability means bounded implemented subset, not all plan acceptance. |
+| 13 | 64736fec reconciles M3 and footnote prose. |
+| 14 | 64736fec corrects semantic UIA and format attribute stale sentence. |
+| 15 | `RichMath.h:10–18` declares current 64 group depth, 1024 matrix cells and independent node-depth cap. |
+| 16 | Splitting/deduplicating NativeFlowchartParser Statement is optional factoring, not a demonstrated diagnostic defect. |
+| 17 | `Support.Tests.MarkdownBlocks.h:600,742–765` pins state/class independent outcomes and source ranges; final corpus remains. |
+| 18 | Duplicate usage-style material is editorial; authority and consistent bounded contract matter, but removing one copy alone is not an implementation. |
+| 19 | Existing stable `bounded-native-mermaid-state-class-preview` capability describes flowchart and other families; separate flowchart alias is absent. Adding a stable public ID is a compatibility decision, not implemented. |
+| 20 | Explicit move constructors now exist for MathExpression (`RichMath.h:133`); fallible Debug proxy allocation and ownership must be preserved. No blanket claim all diagram copies eliminated. |
+| 21 | Gallery provenance is not final candidate evidence, above. |
+
+`tests-host-15`: 64736fec expands the source test inventory in `docs/rich-text.md`; these are test owners, not a claim their final executions passed.

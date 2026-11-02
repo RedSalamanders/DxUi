@@ -1,0 +1,23 @@
+state: completed
+exit: 0
+confirmation: autostarted
+confirmation.autoStart: 1
+confirmation.seconds: 30
+foreground.saved: class 'ZPPTMainFrmWndClassEx' of Zoom.exe (process 47948)
+focus.capture.reason: recorded
+focus.capture.error: 0
+restoration.foreground: unchanged
+restoration.focus: unchanged
+restoration.cursor: unchanged
+cursor.saved: 3488,776
+cursor.atExit: 3488,776
+restoration.runMovedSomething: 0
+child: API3-Debug-Menu launched=1 exit=0 seconds=49.8 timedout=0 interrupted=0
+child: API3-Debug-MenuResources launched=1 exit=0 seconds=6.5 timedout=0 interrupted=0
+child: API3-Debug-MenuResourceScaling launched=1 exit=0 seconds=12.2 timedout=0 interrupted=0
+child: API3-Release-Menu launched=1 exit=0 seconds=49.5 timedout=0 interrupted=0
+child: API3-Release-MenuResources launched=1 exit=0 seconds=6.2 timedout=0 interrupted=0
+child: API3-Release-MenuResourceScaling launched=1 exit=0 seconds=11.5 timedout=0 interrupted=0
+child: API3-ASanDebug-Menu launched=1 exit=0 seconds=70.3 timedout=0 interrupted=0
+child: API3-ASanDebug-MenuResources launched=1 exit=0 seconds=10.6 timedout=0 interrupted=0
+child: API3-ASanDebug-MenuResourceScaling launched=1 exit=0 seconds=17.8 timedout=0 interrupted=0

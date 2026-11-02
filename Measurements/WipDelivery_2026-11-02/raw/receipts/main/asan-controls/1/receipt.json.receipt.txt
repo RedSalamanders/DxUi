@@ -1,0 +1,13 @@
+{
+  "suite": "AddressSanitizer",
+  "configuration": "ASan Debug",
+  "platform": "x64",
+  "nativeArchitecture": "X64",
+  "completedUtc": "2026-11-02T07:08:16.8871950Z",
+  "executable": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\x64\\ASan Debug\\DxUi.FoundationTests.exe",
+  "sha256": "1BC0282CE76F0504C0F8A95D3BCAD102E4D5B655041D9574AC722FA75F5DD991",
+  "exitCode": 1,
+  "detected": true,
+  "log": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\evidence\\test-runs\\20261102T070635293Z-84300-7de20fc4001347399c2dd6e36ea0c8c1\\payload\\logs\\test-AddressSanitizer-x64.log",
+  "evidenceRun": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\evidence\\test-runs\\20261102T070635293Z-84300-7de20fc4001347399c2dd6e36ea0c8c1"
+}

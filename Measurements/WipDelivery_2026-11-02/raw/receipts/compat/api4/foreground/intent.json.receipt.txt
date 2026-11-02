@@ -1,0 +1,102 @@
+{
+  "authorization": "User approved required menu foreground suites when ready with restoring lease and visible 30-second automatic-start countdown",
+  "lease": "Z:/src/DxUi-worktrees/wip-menu-hover-fixture-20261102/.build/menu-fixture-probe-20261102/lease/DxUi.InteractiveLease.exe",
+  "files": [
+    {
+      "path": "Z:\\src\\DxUi-worktrees\\wip-compat-redxe-menu-20261101\\.build\\x64\\Debug\\DxUi.ControlTests.exe",
+      "sha256": "1C28175771A1ACB9F3A8F0D0D677CB3451B3D2CFD864006CE357A44360E6F51B",
+      "preserved": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\compat-foreground-20261102-fixture-qualified\\RedXe-API4\\Debug-DxUi.ControlTests.exe"
+    },
+    {
+      "path": "Z:\\src\\DxUi-worktrees\\wip-compat-redxe-menu-20261101\\.build\\x64\\Debug\\DxUi.ControlTests.pdb",
+      "sha256": "E10C6FF09BE772D33A28E0CF7EC8BF858BD89C14430BC7DFD0F34F5BED086DEB",
+      "preserved": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\compat-foreground-20261102-fixture-qualified\\RedXe-API4\\Debug-DxUi.ControlTests.pdb"
+    },
+    {
+      "path": "Z:\\src\\DxUi-worktrees\\wip-compat-redxe-menu-20261101\\.build\\x64\\Debug\\DxUi.lib",
+      "sha256": "B173A8E989AFA4597B14BAF76840EBE8D5F770C041F9F08B5B15463BB1823E05",
+      "preserved": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\compat-foreground-20261102-fixture-qualified\\RedXe-API4\\Debug-DxUi.lib"
+    },
+    {
+      "path": "Z:\\src\\DxUi-worktrees\\wip-compat-redxe-menu-20261101\\.build\\x64\\Release\\DxUi.ControlTests.exe",
+      "sha256": "0F8AE3DDAEABF924364099BD9CC2212F70482B8A98289F99D75261C6BAAB8DFC",
+      "preserved": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\compat-foreground-20261102-fixture-qualified\\RedXe-API4\\Release-DxUi.ControlTests.exe"
+    },
+    {
+      "path": "Z:\\src\\DxUi-worktrees\\wip-compat-redxe-menu-20261101\\.build\\x64\\Release\\DxUi.ControlTests.pdb",
+      "sha256": "7618F8545356812DF8A174C615D268FC890C8A8281628C46064E400DC0EA2BDD",
+      "preserved": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\compat-foreground-20261102-fixture-qualified\\RedXe-API4\\Release-DxUi.ControlTests.pdb"
+    },
+    {
+      "path": "Z:\\src\\DxUi-worktrees\\wip-compat-redxe-menu-20261101\\.build\\x64\\Release\\DxUi.lib",
+      "sha256": "60459FFCEA3AE7A4654EA3FEEE1B3FF17364164FF2F173F5408A5C86B7F7B633",
+      "preserved": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\compat-foreground-20261102-fixture-qualified\\RedXe-API4\\Release-DxUi.lib"
+    },
+    {
+      "path": "Z:\\src\\DxUi-worktrees\\wip-compat-redxe-menu-20261101\\.build\\x64\\ASan Debug\\DxUi.ControlTests.exe",
+      "sha256": "28FD65857C0C6E4CFEF1A3668F643CEA60B757753F704296A78F5FC368047252",
+      "preserved": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\compat-foreground-20261102-fixture-qualified\\RedXe-API4\\ASanDebug-DxUi.ControlTests.exe"
+    },
+    {
+      "path": "Z:\\src\\DxUi-worktrees\\wip-compat-redxe-menu-20261101\\.build\\x64\\ASan Debug\\DxUi.ControlTests.pdb",
+      "sha256": "5BA6F724FBFF416FFBF73D68F6F0986E9CA970D1A67F1C379EB2D01543B25D43",
+      "preserved": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\compat-foreground-20261102-fixture-qualified\\RedXe-API4\\ASanDebug-DxUi.ControlTests.pdb"
+    },
+    {
+      "path": "Z:\\src\\DxUi-worktrees\\wip-compat-redxe-menu-20261101\\.build\\x64\\ASan Debug\\DxUi.lib",
+      "sha256": "A06B465056B3D7ED35046E1CE0006584E55EEE18C7937CFEC4B3590F39CB9347",
+      "preserved": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\compat-foreground-20261102-fixture-qualified\\RedXe-API4\\ASanDebug-DxUi.lib"
+    }
+  ],
+  "moduleSha256": "6B83EAC689886928B94F4DDACD5A39AF4A7BA86418E61F53EE0D4AE05EA5EF14",
+  "source": "a8cb8e1d7a4106750b195e6e8f2f686d66be9075",
+  "runs": [
+    {
+      "Name": "RedXe-API4-Debug-Menu",
+      "Log": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\compat-foreground-20261102-fixture-qualified\\RedXe-API4\\RedXe-API4-Debug-Menu.log",
+      "CommandLine": "\"Z:\\src\\DxUi-worktrees\\wip-compat-redxe-menu-20261101\\.build\\x64\\Debug\\DxUi.ControlTests.exe\" --suite=Menu"
+    },
+    {
+      "Name": "RedXe-API4-Debug-MenuResources",
+      "Log": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\compat-foreground-20261102-fixture-qualified\\RedXe-API4\\RedXe-API4-Debug-MenuResources.log",
+      "CommandLine": "\"Z:\\src\\DxUi-worktrees\\wip-compat-redxe-menu-20261101\\.build\\x64\\Debug\\DxUi.ControlTests.exe\" --suite=MenuResources"
+    },
+    {
+      "Name": "RedXe-API4-Debug-MenuResourceScaling",
+      "Log": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\compat-foreground-20261102-fixture-qualified\\RedXe-API4\\RedXe-API4-Debug-MenuResourceScaling.log",
+      "CommandLine": "\"Z:\\src\\DxUi-worktrees\\wip-compat-redxe-menu-20261101\\.build\\x64\\Debug\\DxUi.ControlTests.exe\" --suite=MenuResourceScaling"
+    },
+    {
+      "Name": "RedXe-API4-Release-Menu",
+      "Log": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\compat-foreground-20261102-fixture-qualified\\RedXe-API4\\RedXe-API4-Release-Menu.log",
+      "CommandLine": "\"Z:\\src\\DxUi-worktrees\\wip-compat-redxe-menu-20261101\\.build\\x64\\Release\\DxUi.ControlTests.exe\" --suite=Menu"
+    },
+    {
+      "Name": "RedXe-API4-Release-MenuResources",
+      "Log": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\compat-foreground-20261102-fixture-qualified\\RedXe-API4\\RedXe-API4-Release-MenuResources.log",
+      "CommandLine": "\"Z:\\src\\DxUi-worktrees\\wip-compat-redxe-menu-20261101\\.build\\x64\\Release\\DxUi.ControlTests.exe\" --suite=MenuResources"
+    },
+    {
+      "Name": "RedXe-API4-Release-MenuResourceScaling",
+      "Log": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\compat-foreground-20261102-fixture-qualified\\RedXe-API4\\RedXe-API4-Release-MenuResourceScaling.log",
+      "CommandLine": "\"Z:\\src\\DxUi-worktrees\\wip-compat-redxe-menu-20261101\\.build\\x64\\Release\\DxUi.ControlTests.exe\" --suite=MenuResourceScaling"
+    },
+    {
+      "Name": "RedXe-API4-ASanDebug-Menu",
+      "Log": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\compat-foreground-20261102-fixture-qualified\\RedXe-API4\\RedXe-API4-ASanDebug-Menu.log",
+      "CommandLine": "\"Z:\\src\\DxUi-worktrees\\wip-compat-redxe-menu-20261101\\.build\\x64\\ASan Debug\\DxUi.ControlTests.exe\" --suite=Menu"
+    },
+    {
+      "Name": "RedXe-API4-ASanDebug-MenuResources",
+      "Log": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\compat-foreground-20261102-fixture-qualified\\RedXe-API4\\RedXe-API4-ASanDebug-MenuResources.log",
+      "CommandLine": "\"Z:\\src\\DxUi-worktrees\\wip-compat-redxe-menu-20261101\\.build\\x64\\ASan Debug\\DxUi.ControlTests.exe\" --suite=MenuResources"
+    },
+    {
+      "Name": "RedXe-API4-ASanDebug-MenuResourceScaling",
+      "Log": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\compat-foreground-20261102-fixture-qualified\\RedXe-API4\\RedXe-API4-ASanDebug-MenuResourceScaling.log",
+      "CommandLine": "\"Z:\\src\\DxUi-worktrees\\wip-compat-redxe-menu-20261101\\.build\\x64\\ASan Debug\\DxUi.ControlTests.exe\" --suite=MenuResourceScaling"
+    }
+  ],
+  "leaseSha256": "4E7485CF3BD78627BFB3593FD6FBAE7760D5A6A5BB4C2634037ED55BA6EDE0A9",
+  "root": "Z:\\src\\DxUi-worktrees\\wip-compat-redxe-menu-20261101"
+}

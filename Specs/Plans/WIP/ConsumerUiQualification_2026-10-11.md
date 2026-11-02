@@ -18,6 +18,35 @@ historical; this relocation closes no acceptance gate below.
 - **Ownership**: DxUi retains library measurements/platform qualification; consumer product behavior and adoption
   measurements remain in each application repository. No consumer is changed implicitly.
 
+## Delivery checkpoint — 2 November 2026
+
+The [source-bound delivery packet](../../../Measurements/WipDelivery_2026-11-02/README.md)
+owns this task's reviewed findings, actual receipts and retained limitations. R27
+`9909da1065e297247cb490b970b2265a0e4d8b9e` passes six x64/ARM64 builds with zero warnings/errors,
+63 ordinary and 12 foreground x64 suite executions with zero skips, two deliberate
+ASan detection controls, and four relocated standalone consumer profiles. The
+separately identified production SDK passes extracted smoke, 391-file header closure
+and the real warning-control rejection; six harness gallery captures were reviewed.
+API3 `a5b3ac81` and API4 `a8cb8e1d` each pass six builds, 15 ordinary and nine
+foreground suite runs. The final API3 lease verifies all desktop states unchanged.
+These are source-specific library/fixture results, not product pin adoption.
+
+The complete local paired collection uses baseline `4423074d` and candidate/harness
+`21a74896`, twelve independent blocks per scenario, and retains all 144 receipts.
+Both judges report within-noise-budget, with no regressed rows; 71/72 controls are
+unstable, and 549/1,872 control observations cross bands. The base policy remains
+unqualified. Coordinated holds and preflight/mid-run observations do not prove
+whole-interval quiet: no continuous host observer covered this local campaign.
+The separate 64-slot semantic experiment is descriptive and retains its increased
+initial owner turns and adverse in-flight tail. Neither collection establishes
+accepted non-regression, a leak finding, a causal explanation or policy approval.
+
+Native ARM64 execution is deferred by the user's explicit decision. Physical
+IME/assistive technology/touch, hosted qualification, each real consumer's exact
+pin, complete rebuild, adoption and rollback, independent performance-policy
+qualification and CR34 history-purge administration remain open here with their
+existing owners. Current local implementation and testing are not deferred into
+this ledger. S3–S7 and FrameUpdate remain outside the requested implementation.
 ## Shared qualification ownership (16 October 2026)
 
 This is the single execution ledger for cross-plan qualification. Feature/remediation plans own implementation,

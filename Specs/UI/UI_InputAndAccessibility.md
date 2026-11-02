@@ -926,7 +926,9 @@ memory. Writes check terminator/byte arithmetic before allocation and reject emb
 failures are explicit. The application-side embedded edit/snapshot ceiling remains 65,536 units: an oversized paste
 fails without truncation or document mutation. Copy requires a selection; masked copy/cut
 and read-only cut/paste fail before clipboard access. A failed copy cannot delete selected text. Paste normalizes
-line endings and commits once against the captured revision. Embedded controls have no clipboard HWND: commands
+line endings in the generic fallback and commits once against the captured revision. For a successful RichText plain Unicode
+source paste, the transform preserves the clipboard text's CRLF, CR and LF spelling; generic fallback retains
+normalization and single-line conversion. Embedded controls have no clipboard HWND: commands
 go through the application service. Automated control suites inject a private clipboard, including their setup/read
 helpers, and never use a desktop clipboard as a test data channel.
 
@@ -1542,7 +1544,13 @@ Embedded key and character dispatch declines allocation failure before entering
 an application control callback. Once an arbitrary control callback has begun,
 the host cannot infer whether it committed; an allocation failure is consumed
 and cannot authorize a translated character or retarget input. A matching
-character receipt is consumed once before the callback. This does not promise
+character receipt is consumed once before the callback. The current correlated
+character overload can still return false after consuming a matching receipt
+when `OnChar` returns false or throws a non-allocation standard exception. A
+false return MUST NOT authorize retry or retargeting. Before a transport adopts
+correlated receipts, those post-consumption results MUST be repaired and tested
+to report the character handled; this retained adoption condition is not an
+implemented repair. This does not promise
 rollback of arbitrary consumer code or change the fatal observer policy.
 
 RichTextEditor exposes prepared `RichTextScrollInfo` and finite, clamped

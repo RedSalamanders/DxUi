@@ -1,0 +1,197 @@
+# Historical finding inventory: candidate 5fe2f8e0
+
+Read-only source audit. Untraced means no disposition claimed. Existing runtime evidence is not re-run here. Source-relative line numbers refer to the candidate tree.
+
+## CodeReview_2026-10-28.md
+
+- R28-01 Grid and Tree never re-clamp scroll offsets when they grow (plan:76) — PARTIAL TRACE; see evidence below
+- R28-02 Any pending content preparation cancels an unrelated mouse capture (plan:84) — PARTIAL TRACE; see evidence below
+- R28-03 `lineHeightMultiplier` is ignored for every v0/Source chunk after the first (plan:93) — PARTIAL TRACE; see evidence below
+- R28-04 Subtle table columns collapse in RTL (plan:102) — PARTIAL TRACE; see evidence below
+- R28-05 RichTextEditor TSF edits over capacity are accepted, then fail at lock end (plan:111) — PARTIAL TRACE; see evidence below
+- R28-06 The text store never reports read-only or multiline status (plan:120) — PARTIAL TRACE; see evidence below
+- R28-07 `\\` outside a matrix renders a literal backslash (plan:129) — SOURCE TRACE / explicit gaps below
+- R28-08 `\|` draws a single bar or rejects the formula (plan:135) — PARTIAL TRACE; see evidence below
+- R28-09 State and class diagrams turn `:::`, `accTitle` and `accDescr` into content (plan:139) — PARTIAL TRACE; see evidence below
+- R28-10 Source ink colours bare autolinks and `\(..\)` math wrongly (plan:148) — PARTIAL TRACE; see evidence below
+- R28-11 A UIA `ScrollIntoView` on rich text leaves the published snapshot stale (plan:156) — PARTIAL TRACE; see evidence below
+- R28-12 Grid and Tree state setters do not repaint (plan:163) — PARTIAL TRACE; see evidence below
+- R28-13 Tree refresh and typeahead fight the user (plan:176) — PARTIAL TRACE; see evidence below
+- R28-40 A read-only editor swallows printable key-downs meant for the application (plan:188) — PARTIAL TRACE; see evidence below
+- R28-14 A setter can touch a control that its own invalidation retired (plan:199) — SOURCE TRACE / explicit gaps below
+- R28-15 Allocation failure terminates the process at some input boundaries and not others (plan:214) — SOURCE TRACE / explicit gaps below
+- R28-16 A large text-range geometry query can terminate the process (plan:225) — PARTIAL TRACE; see evidence below
+- R28-17 A deterministic embedded content failure returns `E_ABORT` and never asks again (plan:234) — PARTIAL TRACE; see evidence below
+- R28-18 Tree item-status events are uncapped and the embedded property queue is unbounded (plan:243) — PARTIAL TRACE; see evidence below
+- R28-19 Embedded tree-item event providers pin the creation snapshot (plan:250) — PARTIAL TRACE; see evidence below
+- R28-20 Selecting many ids is quadratic (plan:261) — PARTIAL TRACE; see evidence below
+- R28-21 Tree expansion does unbounded work per toggle and per frame (plan:267) — PARTIAL TRACE; see evidence below
+- R28-22 Every formula re-reads the system math font, and a width-only reflow rebuilds all formulas (plan:275) — PARTIAL TRACE; see evidence below
+- R28-23 Per-object native fallback is discovered one object per full rebuild (plan:282) — SOURCE TRACE / explicit gaps below
+- R28-24 The read-only Source mirror relays out and scrolls to the top on every sync (plan:292) — PARTIAL TRACE; see evidence below
+- R28-25 The direct source-ink renderer is reachable in production before its performance is qualified (plan:299) — SOURCE TRACE / explicit gaps below
+- R28-26 `Button::Paint` creates a DirectWrite layout for shortcut text on every paint (plan:312) — PARTIAL TRACE; related hyperlink Paint defect remains below
+- R28-27 Failed remote images are requested again on every edit (plan:318) — PARTIAL TRACE; see evidence below
+- R28-41 Device loss during swap-chain resize or creation never resets the device (plan:325) — PARTIAL TRACE; see evidence below
+- R28-42 Occluded native windows keep ticking and rendering (plan:335) — SOURCE TRACE / explicit gaps below
+- R28-44 `Grid::SetModel` keeps a dangling model pointer after an allocation failure (plan:342) — PARTIAL TRACE; see evidence below
+- R28-45 Every typed character cancels pending pointer cascade timers (plan:352) — PARTIAL TRACE; see evidence below
+- R28-48 Retained IconOnly preparation walks the whole tree 4-14 times per button (plan:368) — SOURCE TRACE / explicit gaps below
+- R28-28 `ControlKind::Separator` was inserted mid-enum (plan:386) — PARTIAL TRACE; see evidence below
+- R28-29 Rich editor selection notifications (plan:389) — SOURCE TRACE / explicit gaps below
+- R28-30 Stale hover underline after an edit (plan:395) — SOURCE TRACE / explicit gaps below
+- R28-31 Tree-item and text-pattern UIA gaps (plan:397) — SOURCE TRACE / explicit gaps below
+- R28-32 Controls (plan:406) — SOURCE TRACE / explicit gaps below
+- R28-33 Grid and Tree (plan:417) — SOURCE TRACE / explicit gaps below
+- R28-34 Rich text (plan:428) — SOURCE TRACE / explicit gaps below
+- R28-35 Math and Mermaid (plan:438) — SOURCE TRACE / explicit gaps below
+- R28-36 Text input (plan:450) — SOURCE TRACE / explicit gaps below
+- R28-43 Win32 host (plan:460) — SOURCE TRACE / explicit gaps below
+- R28-46 The new menu tests prove less than their names (plan:468) — PARTIAL TRACE; see evidence below
+- R28-47 `Attach` is no longer idempotent when only an option differs (plan:485) — PARTIAL TRACE; see evidence below
+- R28-49 Tree pointer hit testing builds the full row layout (plan:491) — PARTIAL TRACE; see evidence below
+- R28-50 Re-adopting the same Markdown syntax compares the whole text (plan:498) — PARTIAL TRACE; see evidence below
+- R28-37 CODEOWNERS leaves the scripts CI runs unowned (plan:507) — PARTIAL TRACE; see evidence below
+- R28-38 `prContractFiles` omits scripts that decide CI results (plan:514) — PARTIAL TRACE; see evidence below
+- R28-39 Smaller tooling defects (plan:524) — PARTIAL TRACE; finalizer masking remains confirmed below
+- R28-51 The zero-warning gate can turn green without inspecting a compile (plan:538) — PARTIAL TRACE; see evidence below
+- R28-52 Fold submission trusts names on the remote (plan:558) — PARTIAL TRACE; see evidence below
+- R28-53 `Test-Changelog -Base` refuses legitimate changes (plan:564) — PARTIAL TRACE; see evidence below
+
+## DeliveryReview_2026-10-31.md
+
+- DX-2 Menu hover timers and UIA focus (plan:39) — PARTIAL TRACE; see evidence below
+- Source-view Enter (plan:48) — PARTIAL TRACE; see evidence below
+- DX-4 Native IME past 64Ki (plan:57) — PARTIAL TRACE; see evidence below
+- DX-3 Quoted file-paste fallback (plan:65) — PARTIAL TRACE; see evidence below
+- DX-1 Tree release invoke after a collapsing refresh (plan:76) — SOURCE TRACE / explicit gaps below
+- DX-8 Unfocused Tree selection text (plan:85) — PARTIAL TRACE; see evidence below
+- DX-9 Wrapped label with a typography override (plan:94) — SOURCE TRACE / explicit gaps below
+- DX-10 OnChar swallows bad_alloc after publish (plan:101) — PARTIAL TRACE; see evidence below
+- DX-5 Separator construction and bad_alloc (plan:107) — PARTIAL TRACE; see evidence below
+- DX-6 TagPicker::ClearChildren leaves null slots (plan:114) — PARTIAL TRACE; see evidence below
+- DX-11 ControlKind ordinals (plan:121) — SOURCE TRACE / explicit gaps below
+- DX-7 Character receipt (plan:129) — SOURCE TRACE / explicit gaps below
+
+## CodexBranchReview_2026-10-02.md
+
+- CB-01 (plan:44): - [x] Bind the window's root element, when a single semantic control collapses into it, to that control's identity, as — SOURCE TRACE / explicit gaps below
+- CB-02 (plan:47): - [x] Stop `Button::Invoke` once a focus callback has destroyed the button, and make an element's `SetFocus` and — SOURCE TRACE / explicit gaps below
+- CB-03 (plan:49): - [x] Answer `GetRuntimeId` of an element whose control is gone with `UIA_E_ELEMENTNOTAVAILABLE`. — SOURCE TRACE / explicit gaps below
+- CB-04 (plan:50): - [x] Clip a multiline `TextField`'s caret to its text viewport (`19ca44d`). — SOURCE TRACE / explicit gaps below
+- CB-05 (plan:51): - [x] Keep the oracle tests: the five native-lifetime tests in the Accessibility suite, with a sixth for a root acquired — SOURCE TRACE / explicit gaps below
+- CB-06 (plan:55): - [x] Decide with the developer whether ordinary menus get per-entry elements (`15be545`, `d45c361`): it changes the — SOURCE TRACE / explicit gaps below
+- CB-07 (plan:61): - [x] Measure `65b0257` on a large menu before taking it; leave it out unless a paired run shows a gain. Taken: rebuilt — SOURCE TRACE / explicit gaps below
+- CB-08 (plan:64): - [x] Audit the other controls that focus themselves and go on using `this` (about 25 `SetFocusControl(this)` call — SOURCE TRACE / explicit gaps below
+- CB-09 (plan:72): - [ ] An application delegate that destroys its control in the middle of an input handler is a wider class than the — SOURCE TRACE / explicit gaps below
+- CB-10 (plan:80): - [ ] Keep the four codex branches until RedSalamander's `codex/fileops-ui-i26` pins a DxUi main. On 3 October the — SOURCE TRACE / explicit gaps below
+
+## Independently traced source evidence (partial; historical checkboxes unchanged)
+
+- R28-01: candidate `src/Controls/DxUi.Grid.cpp:6490` and `DxUi.Tree.cpp:2901` override OnBoundsChanged and clamp scroll; directed grow-viewport test not yet located, so source fix only.
+- R28-02: `src/Controls/DxUi.Controls.cpp:2478-2505` restricts cancellation to the still-current pending capture/gesture owner. Directed exact unrelated-subtree oracle not yet located.
+- R28-03: `src/Controls/DxUi.RichDocumentLayout.cpp:307` chooses canonical whole-reference geometry when lineHeightMultiplier is explicit; `Tests/Controls/Controls.Tests.RichDocumentLayout.cpp:501-505` asserts that fallback, and CompareDocumentGeometry at 480-495 gives the independent DirectWrite geometry oracle. It is correctness by whole-layout fallback, not positioned-chunk reuse.
+- R28-04: `src/Controls/DxUi.RichSemanticGeometry.cpp:1907-1918` destructures horizontal bounds as left plus width. Direct RTL-table acceptance test not yet identified.
+- R28-05 / DX-4: `src/Controls/DxUi.TextStoreACP.cpp:206,1505` applies RichText's 65,536-unit cap on native ACP; `Tests/Controls/DxUi.Tests.NativeTextInput.cpp:9812-9829` runs a boundary write lock. Native physical IME remains external qualification.
+- R28-06: `src/Controls/DxUi.TextStoreACP.cpp:1347-1362,1385,1952` reports multiline/read-only, rejects writes and notifies status; `Tests/Controls/DxUi.Tests.NativeTextInput.cpp:9799-9810` tests the transition.
+- R28-08: current math test `Tests/Support/Support.Tests.MathCorpus.h:774-782` asserts distinct double-bar glyphs; parser-source branch and final host runtime not yet traced.
+- R28-09: current bounded product grew beyond the historical reject-all decision; `src/Controls/DxUi.NativeFlowchart.cpp:645-648,1010-1019` distinguishes reserved metadata, and `Tests/Support/Support.Tests.MarkdownBlocks.h:941-962` exercises accepted and invalid accTitle/accDescr. State/class and ::: paths need separate verification; do not call the whole row closed.
+- R28-40: `src/Controls/DxUi.WindowHost.cpp:3833` gates printable swallowing on AcceptsTypedText; `src/Controls/DxUi.RichTextEditor.cpp:4234` implements the editor policy. Direct native key-routing oracle not yet located.
+- R28-41: `src/Controls/DxUi.WindowHost.cpp:4400-4414` resets device/shared graphics on resize device loss. `Tests/Controls/Controls.Tests.NativeDevicePolicy.h:59-71` injects creation/back-buffer/target failures and verifies recovery; `include/DxUi/DxUi.h:6281` identifies those stages. Actual ResizeBuffers HRESULT injection is not among those stages and its exact directed test remains untraced.
+- R28-44: `src/Controls/DxUi.Grid.cpp:1196-1228` unconditionally installs the borrowed replacement before the selection-copy allocation and clears stale selection on bad_alloc. `Tests/Controls/DxUi.Tests.Grid.cpp:244-300` covers a throwing new-model getter and reentrant replacement; the exact selection-copy allocation fixture still needs an explicit pointer.
+- R28-45 / R28-46 / DX-2: `src/Controls/DxUi.Menu.cpp:3520-3526,4324,5510-5731` transfers keyboard/UIA ownership and cancels timers. `Tests/Controls/DxUi.Tests.Menu.cpp:5672-5958` actually observes pending open/close, unmatched input and UIA focus before firing stale timers. This is source/test trace, not an assertion that final interactive runtime passed.
+- DX-3: `Tests/Support/Support.Tests.RichImagePaths.h:199-218,247-261` checks escaped rich-mode literal fallback, invalid quote/newline refusal and raw Source/opaque cases. Current staging implementation at `src/Controls/DxUi.RichTextEditor.cpp:1081-1148` is the owner; exact consumer branch pins remain external.
+- Source-view Enter: `src/Controls/DxUi.RichTextEditor.cpp` OnChar ending selection at 5333-5341; `Tests/Controls/Controls.Tests.RichTextEditor.cpp:150` covers first LF/CRLF/default selection.
+- DX-5: `include/DxUi/DxUi.h:2098` and `src/Controls/DxUi.Controls.cpp:2675` declare/define fallible Separator construction, with no noexcept. Directed OOM constructor oracle untraced.
+- DX-6: `src/Controls/DxUi.Controls.cpp:7353` owns TagPicker clearing; `Tests/Controls/DxUi.Tests.Controls.cpp:1459` directly asserts compaction.
+- DX-8: `Tests/Controls/DxUi.Tests.Tree.cpp:2944-2970` checks inactive fill and readable contrast; corresponding paint path needs exact pointer.
+- DX-10: accepted Q2 policy differs from the old proposed removal of noexcept. `src/Controls/DxUi.RichTextEditor.cpp:5270-5284` detects whether a callback/source/selection/gesture commit occurred and retains noexcept input with explicit catch boundary; `Tests/Embedded/Embedded.Tests.RichTextResources.h:746-815` sweeps precommit failures and retry. Postcommit observer failure and bare Embedded behavior still need direct code/test tracing.
+- Codex checklist focus/lifetime: `src/Controls/DxUi.Tree.cpp:1707,1891-1911` uses FocusControlAndSurvive plus resumed model guards; `Tests/Controls/DxUi.Tests.Accessibility.cpp:3888-3958,4063` contains collapsed-root and selection-delegate replacement tests; `Tests/Embedded/Embedded.Tests.EmbeddedTextInput.h:40-73` covers caret clipping. The broader delegate audit in CodexBranchReview current-source appendix is bounded, not proof of all future callbacks. The historical consumer pin and retained branch are external, not a library feature.
+
+No complete runtime, performance, consumer, physical IME, or platform qualification was run during this trace. The rows above are source and test evidence only, not checked off final gates. The remaining UNTRACED entries remain open for review; no claim is made that they are defects or resolved.
+
+## Tooling traces
+
+- R28-37: `.github/CODEOWNERS:7-13` now covers the CI, Tests, Tools, Build, root PowerShell and Directory.Build paths. Effective branch protection/ruleset is a hosted policy question, not established by local source. `Tools/tests/Test-CodeOwners.ps1` is the directed owner-policy suite.
+- R28-38: `Tools/ScopedTesting.psm1:332-371` binds all tracked owned command, policy and test trees plus manifest behavior when `prContractClosure` is true; `Tests/test-scopes.json:638-651` enables closure and advertises empty PR native coverage under current compiler-free CI. `Tools/tests/Test-ScopedTesting.ps1:531-538` checks newly added tooling and manifest mutations change the digest. Hosted quiet-period qualification remains external.
+- R28-51: `Build/BuildConsole.psm1:19-53` rejects absent/incomplete success summaries and nonzero diagnostics; `Tools/tests/Test-BuildConsole.ps1:21-31` exercises empty/truncated/fake summaries. This establishes the log gate; the original multi-subitem consumer-build/log, stale increment, skipped compiler attestation and localization paths require separate tracing.
+- R28-52: `Tools/Submit-ChangelogFold.ps1:60-81` filters cross-repository PR heads and checks advertised remote SHA, exact parent and permitted changes before reuse. `Tools/Test-ChangelogWorkflow.ps1:459-480` tests paginated filtered queries and forged/incomplete remote folds. No remote actions were performed here.
+- R28-53: `Tools/Test-ChangelogWorkflow.ps1:326-329,366-368` covers pending-fragment withdrawal and exact generated release, `Tools/Test-Changelog.ps1:7` documents these policies. Historical optional Git-error handling, combined add/fold range and dirty comparison remain untraced individually.
+
+- R28-39 confirmed remaining diagnostic defect: test.ps1:329 throws the accumulated suite error, but the unconditional finalizer at :337 can throw its own identity/inventory/artifact/output failure (Tools/TestRunEvidence.psm1:235-255), replacing the primary exception. Earlier FAIL output may survive; process remains failed. No dual-failure directed oracle located. Bound and log installer fix exists at .github/actions/setup-msvc/Setup.ps1:69-99. Other subitems untraced.
+
+- R28-10: `Tests/Controls/Controls.Tests.RichTextLayout.cpp:1796-1815` asserts both endpoints of bare URL/email and two-unit escaped math delimiters, with normal inner math; its source-ink producer still needs exact producer line captured.
+- R28-11: `src/Controls/DxUi.Accessibility.cpp:7687-7712` revalidates lifetime and republishes the snapshot after successful rich scroll. `Tests/Controls/Controls.Tests.RichTextAccessibility.cpp:527-551,592-595` exercises both scroll alignments, current geometry and stale owner behavior; direct post-scroll snapshot oracle remains to trace.
+- R28-24: `src/Controls/DxUi.RichTextEditor.cpp:641` owns SynchronizeReadOnlySourceSnapshot. `Tests/Controls/Controls.Tests.RichTextAccessibility.cpp:572-582` verifies independently scrolled source and unchanged positioned chunks after sync. Native and embedded execution remains final-source qualification.
+
+- R28-26 / CR-25: shortcut width is staged in `src/Controls/DxUi.Controls.cpp:3023-3050`; however a separate still-active hyperlink hover path in `Button::Paint` at :3655-3664 calls `MeasureSingleLineTextWidthDip` on every paint. Its actual implementation `DxUi.SingleLineTextEditing.cpp:352-379` invokes `IDWriteFactory::CreateTextLayout`, so a hovered hyperlink repeatedly allocates SDK layout work. This is a confirmed related paint-purity defect; stage/cache width and add a repeated hovered-paint oracle. Existing `Tests/Controls/DxUi.Tests.NewControls.cpp:374` tests the variant, not repeat-paint creation counts. Tab and TagPicker paths are untraced.
+- R28-27: `src/Controls/DxUi.RichImageResources.h` retains failed entries on compatible rebuild; `Tests/Support/Support.Tests.RichImageResources.h:454-463` asserts no repeat request after unrelated edit and explicit reload retry. Final shared-host runtime remains pending.
+
+- R28-16: `src/Controls/DxUi.Accessibility.cpp:6838-6948` contains the range-rectangle COM allocation boundary, and `Tests/Embedded/Embedded.Tests.RichTextResources.h:4254-4309` sweeps observed direct TextPattern allocations and requires E_OUTOFMEMORY with successful retry. Exact large native ACP/other-host failure paths should be reconciled with the final shared-suite run.
+
+- R28-12: `src/Controls/DxUi.Grid.cpp:1496-1537` invalidates header busy changes and visible sort transitions; `DxUi.Tree.cpp:836,931` contains selection setters. Full per-setter and callback-retirement continuation plus direct repaint oracle still untraced; do not mark whole row complete.
+- R28-13: `src/Controls/DxUi.Tree.cpp:2298-2338,3584` retains prefix state and chooses matches. `Tests/Controls/DxUi.Tests.Tree.cpp:3609-3636` directly asserts growing prefix does not oscillate and refresh does not reveal old selection.
+- R28-18: `src/Controls/DxUi.Accessibility.cpp:13001-13020` caps individual badge events at 20 and promotes larger changes to structure invalidation. `Tests/Embedded/Embedded.Tests.EmbeddedUia.h:576-610` tests burst promotion and queue bounds; native event path needs its own final qualification.
+- R28-19: `src/Controls/DxUi.Accessibility.cpp:5896,12864,12937,13039` constructs item event peers with EventTag. `Tests/Embedded/Embedded.Tests.PreparedTreeEvents.h:470` directly asserts a pending event sender does not pin superseded prepared rows.
+- R28-20: `src/Controls/DxUi.Grid.cpp:1072,6960` and `src/Controls/DxUi.Tree.cpp:957` share AssignInOrder; `Tests/Controls/DxUi.Tests.Grid.cpp:483-491` exercises 20,000 visible/requested IDs and repeats. Complexity/performance acceptance must use the separate recorded benchmark, not this source trace alone.
+
+- R28-21: `src/Controls/DxUi.Tree.cpp:1066-1079` disables expansion snapshots entirely for reduced motion, no host and more than 4,096 visible rows. `Tests/Controls/DxUi.Tests.Tree.cpp:3543-3607` checks reduced motion and a large-model expansion/collapse without snapshots or ticks. This bounds the historical 20,000-row trigger; it does not prove the original proposed viewport-index approach or every smaller-model cost.
+- R28-22: `src/Controls/DxUi.PreparedMath.h:55` defines shared MathTextFormats; `DxUi.RichSemanticGeometry.cpp:307-358` stages the generation's shared formats and retains previous math geometry for compatible reflow. `Tests/Support/Support.Tests.MathCorpus.h:402-421` counts format creation, and `Tests/Support/Support.Tests.RichSemanticGeometry.h:828-949` covers width-only and font/scale reflow. Performance qualification remains separate.
+
+- R28-28 / DX-11: `include/DxUi/ControlCatalog.h:5-41` still has Separator inserted before Label. The sequencer explicitly classifies ordinal restoration DX-11 as optional and requires assertions if chosen; no source-compatibility assertion or claim of restored old ordinals was found. Do not call it fixed, and do not convert it to an undisputed mandatory ABI break.
+- R28-47: `Specs/Rendering/Rendering_Win32Host.md:43-51` now defines repeated attachment identity including batch and WARP policy. `Tests/Controls/DxUi.Tests.WindowHost.cpp:2163-2169` verifies mismatch refusal and matching idempotence; `Controls.Tests.NativeDevicePolicy.h:22-31` covers WARP pool conflicts. This is the explicit contract option, not an implementation of universal old idempotence.
+- R28-49: `src/Controls/DxUi.Tree.cpp:2550,2692` uses geometry-only ExpanderLane on hit; `Tests/Controls/DxUi.Tests.Tree.cpp:2575` checks mirrored RTL reserved expander hit. Separate perf qualification remains applicable.
+- R28-50: `src/Controls/DxUi.MarkdownSyntax.cpp:878-903` checks the immutable source revision and canonical parsed-data owner before MatchesText. `Tests/Controls/Controls.Tests.RichMarkdown.cpp:1346` checks repeat adoption keeps the same published wrapper; direct piece-walk counter oracle not independently located.
+
+- R28-17: `include/DxUi/Embedded.h:148-150` distinguishes unchanged content failure from superseded E_ABORT and specifies no automatic retry; `Tests/Embedded/Embedded.Tests.RichTextResources.h:3919-3923` asserts unchanged abort is distinct and a changed source explicitly retries. Exact host implementation return mapping needs source-line audit; runtime remains pending.
+
+## Additional current-source traces and unresolved subclaims
+
+- CB-01/02/03/05/08: `src/Controls/DxUi.Accessibility.cpp:9090` resolves RuntimeId from live identity; the root/replacement/focus lifecycle corpus includes `Tests/Controls/DxUi.Tests.Accessibility.cpp:3888-3958,4002,4063`. Grid/Tree focus continuations use `FocusControlAndSurvive` (e.g. Tree.cpp:1707,1891) plus model guards. Per-call-site complete proof is not asserted.
+- CB-04: `Tests/Embedded/Embedded.Tests.EmbeddedTextInput.h:7-73` checks actual clipped multiline caret pixels; corresponding TextField drawing at `src/Controls/DxUi.TextInput.cpp` requires further exact-line extraction.
+- CB-06/07: `src/Controls/DxUi.Menu.cpp:3503-3560` creates accessible row controls; `Tests/Controls/DxUi.Tests.Menu.cpp:9843` is a registered client invoke/disconnect oracle. Historical 2026-10-02 paired packet `Measurements/PlainMenuUia/2026-10-02/README.md:6,39,78` records the accepted presizing measurement; do not transplant that measurement to the new tree as current performance qualification.
+- CB-09: the Codex plan's delegate continuation appendix lists reviewed guards and focused tests at baseline 3257a8d2; `Tree.cpp:1990-1993` still has a confirmed reorder-release continuation after embedded invalidation may retire the Tree. Owner notified; requires lifetime/model guard and destructive scheduling-callback test. Wider callback work remains path-specific.
+- CB-10: historical branch/tag/pin retention is consumer/repository coordination; neither absence of a local branch nor a library compile proves RedSalamander pin migration. Remains external, no consumer branch port performed.
+- DX-1 / R28-33: `src/Controls/DxUi.Tree.cpp:1974-2008` captures stable invoke identity, resumes the model after selection collapse, and checks release hit; exact selection-refresh invocation oracle not yet located. The subsequent reorder invalidation/commit UAF above remains. `Tree.cpp:2071` returns unhandled at wheel edges; `DxUi.Grid.cpp:5852-5871` rejects unrelated keys before row enumeration and `:6119` handles page keys. `Tests/Controls/DxUi.Tests.Grid.cpp:5176-5201` checks viewport page size and same-count column identity replacement.
+- DX-9: `Tests/Controls/Controls.Tests.IntrinsicLayout.cpp:335-380` covers wrapped override and direct rendered parity; actual visual/font and all-profile qualification remain external.
+- DX-7: historical receipt path explicitly not scheduled in the owning DeliveryReview plan; `src/Rendering/Embedded.cpp:1076` remains the owner and this audit does not silently classify it implemented or mandatory for non-using consumers.
+- DX-11 is the optional historical enum/ordinal proposal, still unimplemented; see R28-28 earlier.
+- R28-07: `Tests/Support/Support.Tests.MathCorpus.h:96` has the outside-environment row-separator rejection vector; the bounded parser and semantic fallback preserve source. Direct accepted row vs outside-row checks require matching-source runtime.
+- R28-14: examples use explicit lifetime guards after invalidation, e.g. `src/Controls/DxUi.Controls.cpp:1360-1375` and `DxUi.cpp:1333,1350`; setter retirement fixture `Tests/Controls/Controls.Tests.IntrinsicLayout.cpp:2072-2080`. This is not blanket validation of every callback continuation; the Tree reorder continuation above is confirmed.
+- R28-15: Q2 recommends atomic precommit failure and handled postcommit policy; it is not an owner reply. `src/Controls/DxUi.RichTextEditor.cpp:5271,5626-5635` explicitly distinguishes them; `Tests/Embedded/Embedded.Tests.RichTextResources.h:746-815` sweeps observed input allocations and retry. Other control/receipt ABI boundaries need separate tracing; do not infer every route from this test.
+- R28-23: `src/Controls/DxUi.RichSemanticGeometry.cpp:713` accumulates bounded rejected native objects; `DxUi.RichTextEditor.cpp:3481-3554,3735-3827` publishes/retains refusal ranges across compatible edits. Direct batch-and-unrelated-edit fixture pointer not yet located, so coverage incomplete.
+- R28-25: `include/DxUi/DxUi.h:3129` defaults directSourceInkPreview off, with guarded renderer in `DxUi.RichTextLayout.cpp:644-646`; `Specs/UI/UI_ControlsAndLayout.md:7` labels it experimental until paired qualification. Consumer paired performance and physical/platform qualification remain in SourceInkRendererQualification and ConsumerUiQualification, not a general production claim.
+- R28-29: `DxUi.RichTextEditor.cpp:2895-2905,3140-3175,7296` retains independent callback registrations and final drag selection publication. `Tests/Controls/Controls.Tests.RichTextEditor.cpp:283-305` tests text callback re-registration and selection callback replacement; `Tests/Controls/DxUi.Tests.WindowHost.cpp:5448` covers hidden/disabled drag cancellation. Exact synchronous selection notification during visibility callback needs revalidation.
+- R28-30: `DxUi.RichTextEditor.cpp:2956,3042,3123,3291` resets hoveredLink on source/owner changes; `Tests/Embedded/Embedded.Tests.RichTextResources.h:1508-1524` is a link-hover fixture, but direct edit-after-hover assertion not yet located.
+- R28-31: at baseline, legacy same-ID rename emitted no UIA Name event (Accessibility.cpp:8721,13010-13026,13894-13904) and ordinary text events performed full tree path lookup (Accessibility.cpp:13136-13155). Separate candidate commits 2ea71202/ddec107b implement name notifications/cap and indexed validation, with native/embedded tests compile-only; they are not evidence that 5fe2 had those repairs. Existing underline hover behavior is explicitly contractual, not a defect. Nested embedded dead branch and final runtime remain untraced.
+- R28-32: at baseline `DxUi.cpp:689` SetMnemonic neither invalidates nor changes Label typography cache key; `DxUi.Controls.cpp:2841-2887` builds underline into the cached layout. Confirmed stale underline and missing repaint; root owns repair. Separator no longer noexcept and TagPicker clearing has the previously cited test. Intrinsic OOM retry, selector-icon policy and observer-order subclaims remain untraced.
+- R28-34: prepared selection union mask `DxUi.RichTextEditor.cpp:3338-3363,4822` replaces per-rectangle repeated layout drawing; table width tests `Tests/Support/Support.Tests.RichSemanticGeometry.h:1736-1805`, heading margin test :2186. Source inspection alone does not establish every selection/marker-font/hidden-refusal subclaim.
+- R28-35: pinned JSON includes the named symbol set and `Tests/Support/Support.Tests.MathCorpus.h:127` tests those; MATH and italic correction tests :1090-1146 cover a subset. Broad math/diagram fidelity, final draw/runtime and unsupported source exactness are governed by the math/diagram plans, not inferred complete by this audit.
+- R28-36: TextField buffers a lead surrogate in `src/Controls/DxUi.TextInput.cpp:2748-2775`; text-store layout notifications and nested activation have tests `DxUi.Tests.NativeTextInput.cpp:648-687,9145-9152`. `DxUi.SingleLineTextEditing.cpp:31-66` only fast-paths ASCII; non-ASCII previous-grapheme movement still scans from index 0. Long CJK repeated Backspace/Left is an outstanding performance issue; safe repair needs Unicode-aware checkpoints, not a fixed local slice.
+- R28-42: no native occlusion registration/suspension found; `DxUi.WindowHost.cpp:4695,5010` and Present branches :4734-4768 treat occluded successful draw without suspending animation. Performance spec :881 says occluded work is event-blocked, but review Q17 explicitly asks native scope and Windows flip-model semantics do not guarantee DXGI_STATUS_OCCLUDED for covered windows. Contract and supported event source need explicit owner decision; the proposed registration is not proved correct, and no test exists.
+- R28-43: `DxUi.WindowHost.cpp:3430-3451` still calls hover-leave callbacks without containment before ClearTooltip; a throwing callback skips cleanup, confirmed. SetVisible and doc/capability subclaims need independent trace.
+- R28-48: `DxUi.Controls.cpp:3023-3041` now uses one initial tree-membership check with retained lifetime/root/revision guards; but prepared cache still keys the exact `IDWriteTextFormat*` at :3138-3145, so the proposed format-key/eviction change and paired performance proof are not established. Test counter/evidence not yet located.
+
+- R28-15 confirmed remaining embedded boundary defect: `src/Rendering/Embedded.cpp:1028-1030,1126-1128` still terminates on bad_alloc in key dispatch and correlated-character receipt dispatch; this is wider than the fixed RichText catch and conflicts with accepted Q2's precommit atomic-decline policy. Preserve receipt-consumption semantics and differentiate postcommit before repair; host-boundary allocation tests are needed.
+- R28-31 historical dead branch remains literally nested at `src/Controls/DxUi.Accessibility.cpp:1439-1446` (`if (! target.embedded)` inside embedded condition); it is unreachable cleanup, not separately demonstrated user-facing loss. Name and event path repairs were submitted separately and require integrated runtime.
+- R28-43 Win32 tooltip callback exception and Tree reorder wake lifetime fixes submitted in 527d0511 (branch ej/dxui-tree-leave-lifetime-20261101), compiled only. 5fe2 itself remains unfixed.
+
+- R28-23 directed coverage located: `Tests/Support/Support.Tests.RichSemanticEditor.h:3167-3172` verifies unchanged failed math survives unrelated edits/undo; :3211 exercises several native math failures settling together. The published native-object key and tests still require final-source runtime.
+
+
+## Subclaim reconciliation and later candidate work
+
+- R28-33: `Tests/Controls/DxUi.Tests.Tree.cpp:1959-2001` verifies single-click opt-in and that Ctrl/Shift selection does not invoke; :3640 verifies Tree wheel bubbles at the lower edge. `Tests/Controls/DxUi.Tests.Grid.cpp:5176-5201` directly tests viewport page distance and ID-based same-count column replacement. A Tree embedded wake-retirement defect remains distinct from those cases; commits 527d0511/d22875ba add guards, with runtime pending.
+- R28-32: `Panel::TakeChild` calls `NotifyContainersOfDetaching` before final ownership validation at `src/Controls/DxUi.Controls.cpp:1280-1325`; observer-notification-before-later-refusal remains possible by design of the existing detachment sequence and has not been demonstrated to lose user state. `Controls.Tests.IntrinsicLayout.cpp:157-179,1938` tests measurement E_OUTOFMEMORY and preserved previous geometry, but not the proposed automatic transient retry. That retry subclaim remains a coverage/design gap, not silently declared done. Selector ignored-leading-icon/shortcut policy remains untraced; Separator and TagPicker evidence are above. Baseline mnemonic was confirmed stale; current owner repair is separate.
+- R28-34: table intrinsic/overflow tests at `Tests/Support/Support.Tests.RichSemanticGeometry.h:1736-1805` compare geometry and native text widths; :2186-2237 checks document heading margins. It does not by itself prove the old marker-font measurement mismatch for every task glyph. Native rejection retention remains bounded to current source/geometry keys; hidden-memory-retention extent remains untraced.
+- R28-35: `ThirdParty/Markdown/profiles/DxUiMath1-target.json:110-121` and `Tests/Support/Support.Tests.MathCorpus.h:127` reconcile the named target symbols; italic accent correction has directed :1090-1146 checks. Formula ink/shift fidelity, post-cap mathbb expansion and matrix/ldots atom-class subclaims are not disposed solely by those tests. The current math plan, pinned support-row suite and final platform evidence own their separate closeout.
+- R28-36: ASCII local predecessor fast path is `DxUi.SingleLineTextEditing.cpp:31-66`; all-CJK prefix scan remains at baseline, with another agent preparing a Unicode-safe bounded/checkpoint repair. Multiple whole-string native-store copies are not established removed. Nested activation test `DxUi.Tests.NativeTextInput.cpp:648-687,1244` covers one owner-transfer case; exact previous-association subcase still needs further trace.
+- R28-43: `src/Controls/DxUi.cpp:427` still sets pending flags on visibility change. Whether every flag is necessary for nested accessibility/layout/animation invariants and cost should be measured before replacing it; no mandatory generic rewrite claimed. Native `batchInitialRootChildren` is specified at `Specs/Rendering/Rendering_Win32Host.md:100`; a docs/hosting capability mention is still not established. Leave-callback cleanup repair is in submitted 527d0511.
+- R28-48: single membership check and revision/lifetime guard implemented in `DxUi.Controls.cpp:3023-3041`; configured-format pointer remains part of its key at :3138-3145, and no same-fixture retained paired benchmark for eviction was verified. Do not call format-key proposal implemented.
+- R28-39: besides the confirmed finalizer masking, bounded installer execution is now `setup-msvc/Setup.ps1:69-99`; changelog dedupe, tooling child exits, consumer receipt independent counts, SDK path and hosted-runner authenticity remain separate explicit untraced subclaims.
+- R28-53: withdrawn fragment and generated-release direct fixtures were located; same-range add/fold, dirty-PrePush comparison, and Optional Git-error discrimination remain explicitly untraced.
+
+- R28-39 tooling subclaims: `Tools/tests/Invoke-ToolingTests.ps1:5-12` catches child script exceptions but does not inspect `$LASTEXITCODE`; this is latent for a child that returns nonzero without throwing (all current children need not have that behavior). `Tools/Modules/Documentation/Changelog.psm1:235-252` intentionally deduplicates normalized fragment content for interrupted-fold retry, without reporting skipped names; distinct same-text changes can collapse. `Tools/ConsumerQualification.psm1:107-129` now counts completed negative phases, refuting that half of the old literal-count claim; `test-consumer.ps1:153-154` still writes literal `nativeModuleChecks=12` and `ConsumerQualification.psm1:135` checks it against 12, while the driver exit check at test-consumer.ps1:119-121 does execute. This is a remaining receipt-count provenance gap, not proof the native driver skipped checks. Setup installer timeout now exists as cited above; setup still pins Windows SDK (`.github/actions/setup-msvc/Setup.ps1`, machine-dependent), and hosted runner identity uses environment metadata rather than an attestation; distinguish these policy choices from verified breakage.
+- R28-53 Git error handling: `Tools/Modules/Documentation/Changelog.psm1:121-144,170-181` treats missing historical CHANGELOG via ls-tree separately and throws on git failure; `Tools/Test-ChangelogWorkflow.ps1:344-345` rejects nonexistent base, refuting the old blanket Optional fail-open path. `Get-ChangelogFoldProblems` still compares the worktree changelog to the merge-base fragment set at :166-181, so an add-and-fold entirely after a stale base is not independently proven accepted; current Changes contract requires fragments kept in feature changes and folding on main. Dirty PrePush use requires separate workflow tracing; do not promise an unsupported mixed-range release route.
+
+- CR-29 / CR-30 / CR-31 historical CI carryovers: old paired-PR gate contract described in CodeReview_2026-10-28.md:573-581 is superseded in scope by the current unified CI workflow `.github/workflows/ci.yml` and `Specs/Build/Build_UnifiedCI.md:27-48`: PR checks are compiler-free and main qualification is a separate native serialized pipeline; extended paired evidence remains manual. `Tools/Test-CiGate.ps1:6-27` still defines the old optional environment checks, but its former caller's absence is not proof that the new shared engine performs equivalent PR pairing. Hosted exact source/head/engine and quiet-period gates remain external and must be verified independently. `format.yml:10-36` deliberately runs a manually invoked same-repository formatting operation with a write token against main tooling plus the pinned engine; its current policy is not the old automatic PR workflow, though full shared-engine trust closure was not re-audited here. The old gallery workflow is absent at this baseline. `Tests/InteractiveLease/InteractiveLease.Tests.Runner.cpp:8` and `Tests/Support/Support.Tests.InteractiveLease.h:28,105` name Ctrl+C interrupted behavior; a real console-control delivery oracle has not been identified.

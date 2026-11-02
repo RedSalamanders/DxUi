@@ -1,0 +1,72 @@
+{
+  "receipts": [
+    {
+      "name": "v2-build.json",
+      "present": false
+    },
+    {
+      "name": "incremental-build.json",
+      "present": false
+    },
+    {
+      "name": "scoped-build.json",
+      "present": false
+    }
+  ],
+  "files": [
+    {
+      "name": "DxUi.ControlTests.exe",
+      "bytes": 4965888,
+      "sha256": "A4F23014A45E91249DCB1C204FF011EE6A62B7B9E4D847A5AA2262911B7E727D"
+    },
+    {
+      "name": "DxUi.ControlTests.pdb",
+      "bytes": 34418688,
+      "sha256": "66C65433612E3754574108289463CE8148F944C0F5F795460E6B15E1D590DD19"
+    },
+    {
+      "name": "DxUi.EmbeddedControls.exe",
+      "bytes": 2942464,
+      "sha256": "2F487C5967EFD9300A6D0E738D61C590DEA9BC7A184CB2AA2C6E41B25A5AF804"
+    },
+    {
+      "name": "DxUi.EmbeddedControls.pdb",
+      "bytes": 20377600,
+      "sha256": "F6EDDF2CC11FB422AF8BDCA753A78C7760159FD1FECE2F2A78EA0910092B0809"
+    },
+    {
+      "name": "DxUi.EmbeddedTests.exe",
+      "bytes": 3396608,
+      "sha256": "4B806B54326803ED02CD65DD96AF06B54E8F998C1AD6EA84EFA8CCFC973F12B2"
+    },
+    {
+      "name": "DxUi.EmbeddedTests.pdb",
+      "bytes": 22491136,
+      "sha256": "A913F5C11024010B86DF18FEFBB241C5501052FDD382807C955A64F968B0F1BB"
+    },
+    {
+      "name": "DxUi.FoundationTests.exe",
+      "bytes": 2838528,
+      "sha256": "6C412C7735AF05F47FB1C6A6803D763D6B4F1D9A4B0928EA99DD57DDEB16A012"
+    },
+    {
+      "name": "DxUi.FoundationTests.pdb",
+      "bytes": 19738624,
+      "sha256": "BD051D422A808E8FFDC1709D72710553BDE40DDAEB4EB83C3DF93E389EE8A76A"
+    },
+    {
+      "name": "DxUi.lib",
+      "bytes": 34526338,
+      "sha256": "C390F4AEE08EF437B47D1A5DB4B3947FF58CA2CABBDE0E918B05FE4D80F53FB5"
+    },
+    {
+      "name": "DxUi.pdb",
+      "bytes": 6967296,
+      "sha256": "9B8FAE5BC63C5B944791C5853E36C761730E1D79DFFE571F3A3ADBA4AE0FDF5D"
+    }
+  ],
+  "configuration": "Release",
+  "source": "a5b3ac81dedc39eaf1a8d131c497e59644ea794b",
+  "frozenUtc": "2026-11-02T10:43:31.4226809Z",
+  "platform": "ARM64"
+}
