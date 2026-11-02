@@ -401,9 +401,14 @@ public:
     }
     [[nodiscard]] bool AlignCursor(POINT point) noexcept
     {
-        // Keep the established popup-context alignment; record its actual physical
-        // result so restoration does not round-trip through virtualized coordinates.
-        if (GetPhysicalCursorPos(&_originalCursor) == FALSE || SetCursorPos(point.x, point.y) == FALSE || GetPhysicalCursorPos(&_alignedCursor) == FALSE)
+        POINT current{};
+        if (GetPhysicalCursorPos(&current) == FALSE)
+            return false;
+        if (_cursorAligned && (current.x != _alignedCursor.x || current.y != _alignedCursor.y))
+            return false; // Preserve the person's movement rather than overwriting it.
+        if (! _cursorAligned)
+            _originalCursor = current;
+        if (SetCursorPos(point.x, point.y) == FALSE || GetPhysicalCursorPos(&_alignedCursor) == FALSE)
             return false;
         _cursorAligned = true;
         return true;
@@ -416,6 +421,14 @@ private:
     POINT _alignedCursor{};
     bool _cursorAligned = false;
 };
+
+// Use the popup's DPI context for conversion and retain the original pointer for restoration.
+[[nodiscard]] bool AlignMenuPointerToClientPoint(ScopedMenuPointerFixture& fixture, HWND popup, LONG x, LONG y) noexcept
+{
+    [[maybe_unused]] const ScopedMenuPointerFixture popupDpiContext(popup);
+    POINT screen{x, y};
+    return ClientToScreen(popup, &screen) != FALSE && fixture.AlignCursor(screen);
+}
 
 [[nodiscard]] LRESULT SendCapturedMouseMessageForMenuSuite(HWND hwnd, UINT message, WPARAM wParam, POINT screenPoint) noexcept
 {
@@ -2057,6 +2070,10 @@ void TestMenuKeyboardRightArrowMatchesWindowsMenuLoop()
 
     Require(TryActivateDxUiTestWindow(ownerWindow.Hwnd()), "modal menu owner activates before its popup opens");
     ownerWindow.PumpMessages();
+    ScopedMenuPointerFixture pointerFixture(ownerWindow.Hwnd());
+    const RECT virtualScreen = GetVirtualScreenBounds();
+    Require(pointerFixture.AlignCursor(POINT{virtualScreen.left + 4, virtualScreen.top + 4}),
+            "the owned pointer parks outside the keyboard root-switch popups");
     DrainPendingMouseMessagesForMenuSuite();
 
     const std::vector<std::vector<MenuFlyoutItem>> rootMenus = {
@@ -3390,12 +3407,31 @@ void TestMenuHoveringSiblingClosesOpenSubmenuAfterDelay()
             return;
         }
 
+        ScopedMenuPointerFixture pointerFixture(rootPopupHwnd);
+        if (! pointerFixture.WaitForCapture())
+        {
+            driverFailure = "delayed-close popup obtains capture before pointer movement";
+            return;
+        }
         const float scale = static_cast<float>(popupState.dpi) / 96.0f;
         const LONG b1X    = static_cast<LONG>(std::lround(((firstItemRectDip.left + firstItemRectDip.right) * 0.5f) * scale));
         const LONG b1Y    = static_cast<LONG>(std::lround(((firstItemRectDip.top + firstItemRectDip.bottom) * 0.5f) * scale));
         const LONG b2X    = static_cast<LONG>(std::lround(((secondItemRectDip.left + secondItemRectDip.right) * 0.5f) * scale));
         const LONG b2Y    = static_cast<LONG>(std::lround(((secondItemRectDip.top + secondItemRectDip.bottom) * 0.5f) * scale));
 
+        // Initial hover may not schedule a timer. Enter B1 from a distinct row.
+        if (! AlignMenuPointerToClientPoint(pointerFixture, rootPopupHwnd, b2X, b2Y) || ! SendSettledClientMouseMoveForMenuSuite(rootPopupHwnd, b2X, b2Y) ||
+            ! WaitForContextMenuPopupState(
+                rootPopupHwnd, [](const ContextMenuPopupDebugState& state) noexcept { return state.hoveredIndex == 1u; }, popupState) ||
+            ! AlignMenuPointerToClientPoint(pointerFixture, rootPopupHwnd, b1X, b1Y))
+        {
+            driverFailure = std::format("delayed-close pointer setup failed: hover={} keyboard={} timer={} open={}",
+                                        popupState.hoveredIndex.has_value() ? static_cast<long long>(popupState.hoveredIndex.value()) : -1ll,
+                                        popupState.keyboardIndex.has_value() ? static_cast<long long>(popupState.keyboardIndex.value()) : -1ll,
+                                        popupState.hoverTimerActive,
+                                        popupState.hoverTimerPendingOpen);
+            return;
+        }
         if (! SendSettledClientMouseMoveForMenuSuite(rootPopupHwnd, b1X, b1Y) ||
             ! WaitForContextMenuPopupState(rootPopupHwnd, [](const ContextMenuPopupDebugState& state) noexcept {
             return state.hoveredIndex.has_value() && state.hoveredIndex.value() == 0u;
@@ -3408,11 +3444,15 @@ void TestMenuHoveringSiblingClosesOpenSubmenuAfterDelay()
         HWND submenuHwnd = nullptr;
         if (! WaitForSubmenuOpenAfterHoverForMenuSuite(ownerWindow.Hwnd(), rootPopupHwnd, 0u, L"B11", submenuHwnd, popupState))
         {
-            driverFailure = "hovering B1 long enough opens its submenu before delayed close validation";
+            driverFailure = std::format("B1 submenu did not open: hover={} keyboard={} timer={} open={}",
+                                        popupState.hoveredIndex.has_value() ? static_cast<long long>(popupState.hoveredIndex.value()) : -1ll,
+                                        popupState.keyboardIndex.has_value() ? static_cast<long long>(popupState.keyboardIndex.value()) : -1ll,
+                                        popupState.hoverTimerActive,
+                                        popupState.hoverTimerPendingOpen);
             return;
         }
 
-        if (! SendSettledClientMouseMoveForMenuSuite(rootPopupHwnd, b2X, b2Y) ||
+        if (! AlignMenuPointerToClientPoint(pointerFixture, rootPopupHwnd, b2X, b2Y) || ! SendSettledClientMouseMoveForMenuSuite(rootPopupHwnd, b2X, b2Y) ||
             ! WaitForContextMenuPopupState(rootPopupHwnd, [](const ContextMenuPopupDebugState& state) noexcept {
             return state.hoveredIndex.has_value() && state.hoveredIndex.value() == 1u;
         }, popupState))
@@ -5446,7 +5486,9 @@ void TestMenuCheckedRowsDoNotPaintLeadingCheckedBox()
 
             // Two distinct routed points establish pointer ownership even when the
             // physical cursor initially coincides with the requested row.
-            if (! SendSettledClientMouseMoveForMenuSuite(popupHwnd, checkedX, checkedY) ||
+            if (! AlignMenuPointerToClientPoint(pointerFixture, popupHwnd, checkedX, checkedY) ||
+                ! SendSettledClientMouseMoveForMenuSuite(popupHwnd, checkedX, checkedY) ||
+                ! AlignMenuPointerToClientPoint(pointerFixture, popupHwnd, checkedX + 1, checkedY) ||
                 ! SendSettledClientMouseMoveForMenuSuite(popupHwnd, checkedX + 1, checkedY) ||
                 ! WaitForContextMenuPopupState(popupHwnd, [](const ContextMenuPopupDebugState& state) noexcept {
                 return state.hoveredIndex == 0u && ! state.keyboardIndex.has_value();
@@ -5464,7 +5506,8 @@ void TestMenuCheckedRowsDoNotPaintLeadingCheckedBox()
                 return;
             }
 
-            if (! SendSettledClientMouseMoveForMenuSuite(popupHwnd, hoverX, hoverY) ||
+            if (! AlignMenuPointerToClientPoint(pointerFixture, popupHwnd, hoverX, hoverY) ||
+                ! SendSettledClientMouseMoveForMenuSuite(popupHwnd, hoverX, hoverY) ||
                 ! WaitForContextMenuPopupState(popupHwnd, [](const ContextMenuPopupDebugState& state) noexcept {
                 return state.hoveredIndex == 1u && ! state.keyboardIndex.has_value();
             }, popupState))
@@ -9507,12 +9550,17 @@ void TestMenuPointerCursorIsArrowOverPopupsAndTheWindowsOwnOutside()
         SkipDxUiTest(reason.c_str());
         return;
     }
+    ScopedMenuPointerFixture pointerFixture(popup);
+    Require(pointerFixture.WaitForCapture(), "cursor menu owns capture before pointer routing");
+    Require(pointerFixture.AlignCursor(overMenu), "the owned pointer moves over the menu");
     SetCursor(resize); // The window's own cursor when the pointer reaches the menu.
     static_cast<void>(SendCapturedMouseMessageForMenuSuite(popup, WM_MOUSEMOVE, 0, overMenu));
     Require(GetCursor() == arrow, "the arrow shows over the menu whatever cursor the window had set");
+    Require(pointerFixture.AlignCursor(overText), "the owned pointer moves over the text window");
     static_cast<void>(SendCapturedMouseMessageForMenuSuite(popup, WM_MOUSEMOVE, 0, overText));
     owner.PumpMessages(); // The forward is posted, so no window's WM_SETCURSOR runs inside a menu handler.
     Require(GetCursor() == textCursor, "outside the menu the window under the pointer chooses its own cursor");
+    Require(pointerFixture.AlignCursor(overMenu), "the owned pointer returns over the menu");
     static_cast<void>(SendCapturedMouseMessageForMenuSuite(popup, WM_MOUSEMOVE, 0, overMenu));
     Require(GetCursor() == arrow, "the arrow shows again when the pointer returns to the menu");
     std::cout << "Menu pointer cursor: the arrow over the menu, the window's own cursor outside it\n";
