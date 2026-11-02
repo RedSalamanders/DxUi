@@ -4545,6 +4545,10 @@ void TraceMenuPointerRoute(MenuController& controller,
                     TracePopupIndex(controller, targetPopup),
                     controller.popups.size());
 
+    // A synthesized same-position move may arrive after a keyboard-opened child
+    // appears. Only real pointer movement may take keyboard ownership away.
+    if (! pointerMoved && std::ranges::any_of(controller.popups, [](const auto& popup) { return popup->keyboardIndex.has_value(); }))
+        return MenuInputDisposition::Ignored;
     const bool initializeStationaryPopupHover =
         ! pointerMoved && targetPopup && ! targetPopup->hoveredIndex.has_value() && ! targetPopup->keyboardIndex.has_value();
     const bool stationaryCascadeParentReturn = ! pointerMoved && targetPopup && controller.popups.size() > 1u && controller.GetTopmostPopup() != targetPopup;
