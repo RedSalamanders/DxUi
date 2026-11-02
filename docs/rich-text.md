@@ -681,7 +681,8 @@ rectangles again. Hidden/retired controls and incoherent embedded preparation do
 not supply current geometry. `GetVisibleSourceRange(host)` includes complete
 wrapped lines intersecting the viewport, including partial lines.
 
-Composition Preview updates are silent and preserve undo and redo. Cancel
+Composition Preview updates are silent and preserve undo and redo entries; undo
+and redo are unavailable while a changed preview is active. Cancel
 restores entry source and selection; Commit restores entry source before recording
 one ordinary transaction and one callback, including when the result equals its
 last preview. Revisions remain monotonic. The reusable Document::ReplaceTransient

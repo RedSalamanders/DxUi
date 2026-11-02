@@ -881,6 +881,9 @@ same-content replacement only acknowledges its exact valid selection; it allocat
 no source/history, advances no revision and preserves undo/redo. Stage every
 changed tree and required history copy before publishing. Allocation failure in
 replacement, transient replacement, reset, undo or redo preserves all state.
+An active changed transient preview keeps history entries but makes undo and redo
+unavailable until its entry source is restored. A recorded edit that supersedes
+the preview records the entry source, not uncommitted preview text, for undo.
 Document source-taking operations borrow std::wstring_view synchronously and
 copy changed source into immutable owned buffers before returning. Recognize
 valid no-ops before creating owning strings or staging history. This avoids

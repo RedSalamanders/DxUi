@@ -138,17 +138,19 @@ public:
     // OS composition previews and their rollback change source/selection with a
     // fresh revision, preserving both histories. Restore the entry text before
     // recording the final committed replacement as one ordinary transaction.
+    // Undo/redo decline while a changed transient preview is active. An explicit
+    // recorded edit supersedes it and uses the entry source for undo.
     bool ReplaceTransient(std::wstring_view text, Selection selection);
     bool ReplaceSelection(std::wstring_view text);
     bool Undo();
     bool Redo();
     bool CanUndo() const noexcept
     {
-        return ! undo_.Empty();
+        return ! transientEntry_ && ! undo_.Empty();
     }
     bool CanRedo() const noexcept
     {
-        return ! redo_.Empty();
+        return ! transientEntry_ && ! redo_.Empty();
     }
 
 private:
@@ -157,6 +159,7 @@ private:
         SourceSnapshot source;
         Selection selection;
     };
+    std::optional<History> transientEntry_;
     SourceSnapshot source_;
     Selection selection_{};
     std::uint64_t revision_{};

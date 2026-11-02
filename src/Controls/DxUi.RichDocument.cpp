@@ -645,6 +645,7 @@ bool Document::AdoptReadOnlySourceSnapshot(const SourceSnapshot& source, Selecti
         return false;
     source_    = source;
     selection_ = selection;
+    transientEntry_.reset();
     undo_.Clear();
     redo_.Clear();
     ++revision_; // Local Document revisions remain independent of the source Document.
@@ -663,6 +664,7 @@ void Document::Reset(std::wstring_view text)
     SourceSnapshot next(std::make_shared<const SourceSnapshot::Revision>(std::move(root), nullptr, 0u, 0u, 0u));
     source_    = std::move(next);
     selection_ = {};
+    transientEntry_.reset();
     undo_.Clear();
     redo_.Clear();
     ++revision_;
@@ -728,7 +730,14 @@ bool Document::Replace(std::size_t begin, std::size_t end, std::wstring_view tex
 }
 bool Document::ReplaceTransient(std::wstring_view text, Selection selection)
 {
-    return ReplaceWholeTextImpl(text, selection, false);
+    const auto entry = transientEntry_ ? *transientEntry_ : History{source_, selection_};
+    const bool restoresEntry = entry.source.MatchesText(text);
+    const bool changed = ReplaceWholeTextImpl(text, selection, false);
+    if (restoresEntry)
+        transientEntry_.reset();
+    else if (changed && ! transientEntry_)
+        transientEntry_.emplace(entry);
+    return changed;
 }
 bool Document::ReplaceWholeText(std::wstring_view text, Selection selection)
 {
@@ -839,13 +848,16 @@ bool Document::ReplaceImpl(std::size_t begin, std::size_t end, std::wstring_view
     const auto root = source_.state_ ? source_.state_->root : nullptr;
     auto nextRoot   = SourceSnapshot::PieceTreeNode::ReplaceRange(root, begin, end, insertion);
     SourceSnapshot candidate(std::make_shared<const SourceSnapshot::Revision>(std::move(nextRoot), source_.state_.get(), begin, end, insertedEnd));
-    if (recordHistory && ! coalesceHistory)
+    if (recordHistory && (! coalesceHistory || transientEntry_))
         undo_.PreparePush(); // Fallible allocation precedes the source commit.
-    if (recordHistory && ! coalesceHistory)
-        undo_.Push({source_, selection_});
+    if (recordHistory && (! coalesceHistory || transientEntry_))
+        undo_.Push(transientEntry_ ? *transientEntry_ : History{source_, selection_});
     source_ = std::move(candidate);
     if (recordHistory)
+    {
         redo_.Clear();
+        transientEntry_.reset();
+    }
     selection_ = after;
     ++revision_;
     return true;
@@ -857,7 +869,7 @@ bool Document::ReplaceSelection(std::wstring_view text)
 }
 bool Document::Undo()
 {
-    if (undo_.Empty())
+    if (transientEntry_ || undo_.Empty())
         return false;
     redo_.PreparePush();
     auto old = undo_.TakeBack();
@@ -869,7 +881,7 @@ bool Document::Undo()
 }
 bool Document::Redo()
 {
-    if (redo_.Empty())
+    if (transientEntry_ || redo_.Empty())
         return false;
     undo_.PreparePush();
     auto next = redo_.TakeBack();

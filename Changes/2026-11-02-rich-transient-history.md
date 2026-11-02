@@ -1,0 +1,1 @@
+- Keep uncommitted rich-text composition previews out of undo and redo history, restoring entry history on cancellation and on superseding edits.
