@@ -255,6 +255,8 @@ void TestRichTextOleAdapterRevocation()
     RunFileDropAdapterOnSta(RichTextOleAdapterRevocationOnSta);
 }
 
+void RichTextEmbeddedFileDropCoordinatesOnSta();
+
 void TestRichTextOleAdapterFromMta()
 {
     RunFileDropApartmentFixture(COINIT_MULTITHREADED,
@@ -262,6 +264,7 @@ void TestRichTextOleAdapterFromMta()
     {
         RunFileDropAdapterOnSta(RichTextOleSourceMoveOnSta);
         RunFileDropAdapterOnSta(RichTextOleAdapterRevocationOnSta);
+        RunFileDropAdapterOnSta(RichTextEmbeddedFileDropCoordinatesOnSta);
     });
 }
 
@@ -458,7 +461,7 @@ void TestRichTextEmbeddedFileDropInsertion()
     Require(! view.CommitFileDrop(currentPoint, *data.Get()) && lifetime.expired() && data->releases == 2u,
             "detach during GetData retires the target without dereferencing it and releases its medium");
 }
-void TestRichTextEmbeddedFileDropCoordinates()
+void RichTextEmbeddedFileDropCoordinatesOnSta()
 {
     GraphicsFixture gpu;
     RequireSucceeded(gpu.Create(), "two-view drop graphics device");
@@ -520,6 +523,11 @@ void TestRichTextEmbeddedFileDropCoordinates()
                 editors[1]->GetText() == L"al![a](a.png)pha",
             "only the routed view receives the source insertion");
     adapter.Detach();
+}
+
+void TestRichTextEmbeddedFileDropCoordinates()
+{
+    RunFileDropAdapterOnSta(RichTextEmbeddedFileDropCoordinatesOnSta);
 }
 
 void TestRichTextApplicationImageLoading()
