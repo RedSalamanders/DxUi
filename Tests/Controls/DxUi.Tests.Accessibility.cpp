@@ -10351,7 +10351,7 @@ void TestAccessibilityRadioButtonsAreSelectionItems()
     RequireSucceeded(fragment.query_to(simple.put()), "the radio button exposes properties");
     Require(ReadProviderLongProperty(*simple.get(), UIA_ControlTypePropertyId, "radio button control type") == UIA_RadioButtonControlTypeId,
             "a radio button is a RadioButton element");
-    // Every choice sits under the window's root, beside the other controls: its place in its own group comes from it.
+    // Each choice reports its position within the radio group.
     Require(ReadProviderLongProperty(*simple.get(), UIA_PositionInSetPropertyId, "radio button position") == 2 &&
                 ReadProviderLongProperty(*simple.get(), UIA_SizeOfSetPropertyId, "radio group size") == 2,
             "the second of two choices says so");
@@ -10430,6 +10430,49 @@ void TestAccessibilityRadioButtonsAreSelectionItems()
             "retained radio providers cannot return a retired group");
     SAFEARRAY* stale = nullptr;
     Require(groupSelection->GetSelection(&stale) == UIA_E_ELEMENTNOTAVAILABLE && ! stale, "retired group selection provider is unavailable");
+}
+
+void TestAccessibilityRadioButtonsAsCollapsedRoot()
+{
+    using namespace DxUi;
+    AttachedHostWindow window;
+    auto group = std::make_unique<RadioButtons>();
+    group->SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 104.0f));
+    group->AddItem(L"First")->SetBounds(D2D1::RectF(0.0f, 24.0f, 240.0f, 56.0f));
+    group->AddItem(L"Last")->SetBounds(D2D1::RectF(0.0f, 64.0f, 240.0f, 96.0f));
+    group->SetSelectedIndex(0);
+    window.Host().SetRoot(std::move(group));
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> root;
+    root.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+    Require(root != nullptr, "collapsed radio group has a root provider");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> rootFragment, first, last, sibling, parent;
+    RequireSucceeded(root.query_to(rootFragment.put()), "collapsed group root fragment");
+    RequireSucceeded(rootFragment->Navigate(NavigateDirection_FirstChild, first.put()), "collapsed group first child");
+    RequireSucceeded(rootFragment->Navigate(NavigateDirection_LastChild, last.put()), "collapsed group last child");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> firstSimple, lastSimple;
+    Require(first && last && SUCCEEDED(first.query_to(firstSimple.put())) && SUCCEEDED(last.query_to(lastSimple.put())) &&
+                ReadProviderStringProperty(*firstSimple.get(), UIA_NamePropertyId, "collapsed first") == L"First" &&
+                ReadProviderStringProperty(*lastSimple.get(), UIA_NamePropertyId, "collapsed last") == L"Last",
+            "collapsed group exposes both choices in order");
+    RequireSucceeded(first->Navigate(NavigateDirection_NextSibling, sibling.put()), "first choice sibling");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> siblingSimple;
+    Require(sibling && SUCCEEDED(sibling.query_to(siblingSimple.put())) &&
+                ReadProviderStringProperty(*siblingSimple.get(), UIA_NamePropertyId, "collapsed sibling") == L"Last",
+            "collapsed group choices remain siblings");
+    RequireSucceeded(last->Navigate(NavigateDirection_Parent, parent.put()), "collapsed choice parent");
+    wil::com_ptr_nothrow<IUnknown> rootIdentity, parentIdentity;
+    RequireSucceeded(root.query_to(rootIdentity.put()), "root identity");
+    Require(parent && SUCCEEDED(parent.query_to(parentIdentity.put())) && rootIdentity.get() == parentIdentity.get(),
+            "choice parent is the canonical window root");
+    wil::com_ptr_nothrow<IUnknown> pattern;
+    RequireSucceeded(lastSimple->GetPatternProvider(UIA_SelectionItemPatternId, pattern.put()), "collapsed choice selection item");
+    wil::com_ptr_nothrow<ISelectionItemProvider> selection;
+    RequireSucceeded(pattern.query_to(selection.put()), "collapsed choice selection provider");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> container;
+    RequireSucceeded(selection->get_SelectionContainer(container.put()), "collapsed group selection container");
+    wil::com_ptr_nothrow<IUnknown> containerIdentity;
+    Require(container && SUCCEEDED(container.query_to(containerIdentity.put())) && rootIdentity.get() == containerIdentity.get(),
+            "selection container is the canonical window root");
 }
 
 // A page indicator with pages to choose between is a Slider element whose RangeValue is the page, from 1 to its page
@@ -11578,6 +11621,7 @@ void RunAccessibilityTests()
     DXUI_RUN_TEST(TestTreeExpansionReachesAClientSubscribedToTheWindow);
     DXUI_RUN_TEST(TestPreparedTreeExpansionOfTheFocusedItemReachesAClient);
     DXUI_RUN_TEST(TestAccessibilityRadioButtonsAreSelectionItems);
+    DXUI_RUN_TEST(TestAccessibilityRadioButtonsAsCollapsedRoot);
     DXUI_RUN_TEST(TestAccessibilityTabControlTabsAreSelectionItems);
     DXUI_RUN_TEST(TestAccessibilityPageIndicatorIsAPageSlider);
     DXUI_RUN_TEST(TestSingleGridWindowRowAndCellEventsReachAClientSubscribedToTheWindow);

@@ -1375,8 +1375,10 @@ WindowHostSnapshotChanges PublishWindowHostAccessibilitySnapshot(WindowHostAcces
     {
         ControlPath collapsedRootPath{};
         const bool explicitStatusRoot      = root->GetAccessibilityRole() == AccessibilityRole::Status;
-        snapshot->hasCollapsedSemanticRoot = TryResolveSingleSemanticRootControlPath(root, collapsedRootPath) && ! snapshot->semanticControlOrder.empty() &&
-                                             (snapshot->semanticControlOrder.size() == 1u || explicitStatusRoot) &&
+        snapshot->hasCollapsedSemanticRoot = TryResolveSingleSemanticRootControlPath(root, collapsedRootPath) &&
+                                             ! snapshot->semanticControlOrder.empty() &&
+                                             (snapshot->semanticControlOrder.size() == 1u || explicitStatusRoot ||
+                                              (! snapshot->controlNavigationRecords.empty() && snapshot->controlNavigationRecords.front().radioGroup)) &&
                                              AreControlPathsEqual(snapshot->semanticControlOrder.front(), collapsedRootPath);
     }
     if (! AppendAccessibilitySnapshotPointHits(host, root, ControlPath{}, *snapshot, build))
@@ -1698,7 +1700,7 @@ template <typename TControl> [[nodiscard]] TControl* ResolveControlAtPath(TContr
 
 [[nodiscard]] bool TryResolveSingleSemanticRootControlPath(const Control* root, ControlPath& outPath) noexcept
 {
-    if (root && root->GetAccessibilityRole() == AccessibilityRole::Status)
+    if (root && (root->GetAccessibilityRole() == AccessibilityRole::Status || dynamic_cast<const RadioButtons*>(root)))
     {
         outPath = {};
         return true;
@@ -3791,6 +3793,9 @@ std::optional<AccessibilityNavigationTarget> ResolveSnapshotNavigationTarget(con
             {
                 if (SnapshotHasCollapsedSemanticRoot(snapshot))
                 {
+                    const AccessibilityControlNavigationSnapshot* const collapsed = ResolveSnapshotControlRecord(snapshot, kind, path);
+                    if (collapsed && collapsed->radioGroup)
+                        return LastControlFragmentTarget(*collapsed);
                     if (snapshot.semanticControlOrder.size() > 1u)
                     {
                         for (size_t index = snapshot.semanticControlOrder.size(); index-- > 1u;)
@@ -3798,7 +3803,6 @@ std::optional<AccessibilityNavigationTarget> ResolveSnapshotNavigationTarget(con
                                 return MakeControlNavigationTarget(snapshot.semanticControlOrder[index]);
                         return std::nullopt;
                     }
-                    const AccessibilityControlNavigationSnapshot* const collapsed = ResolveSnapshotControlRecord(snapshot, kind, path);
                     return collapsed ? LastControlFragmentTarget(*collapsed) : std::nullopt;
                 }
                 if (! snapshot.semanticControlOrder.empty())
