@@ -22,7 +22,29 @@ using namespace RichFileDropTests;
 // of TSF's own validation. Production callers go through ControlHost/EmbeddedHost.
 using ServiceRichEditor = RichTextStateReplacementTests::ServiceEditor;
 
-void TestRichTextOleSourceMove()
+// The suite's WIC helper may retain an MTA on the caller. Run STA-only adapter
+// fixtures on their own thread without changing that caller's apartment.
+void RunFileDropAdapterOnSta(void (*test)())
+{
+    APTTYPE before{};
+    APTTYPEQUALIFIER beforeQualifier{};
+    const HRESULT beforeResult = CoGetApartmentType(&before, &beforeQualifier);
+    std::thread sta([test]
+    {
+        const HRESULT initialized = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+        RequireSucceeded(initialized, "initialize isolated file-drop STA");
+        const auto apartment = wil::scope_exit([] { CoUninitialize(); });
+        test();
+    });
+    sta.join();
+    APTTYPE after{};
+    APTTYPEQUALIFIER afterQualifier{};
+    const HRESULT afterResult = CoGetApartmentType(&after, &afterQualifier);
+    Require(afterResult == beforeResult && (FAILED(beforeResult) || (before == after && beforeQualifier == afterQualifier)),
+            "file-drop STA fixture preserves its caller's COM apartment");
+}
+
+void RichTextOleSourceMoveOnSta()
 {
     class Receiver final : public RichFileDropReceiver
     {
@@ -105,6 +127,11 @@ void TestRichTextOleSourceMove()
             "a cancelled token refuses the drop without changing source");
 }
 
+void TestRichTextOleSourceMove()
+{
+    RunFileDropAdapterOnSta(RichTextOleSourceMoveOnSta);
+}
+
 void TestRichTextOleFileListOwnership()
 {
     auto data = Microsoft::WRL::Make<DropDataObject>();
@@ -149,7 +176,7 @@ void TestRichTextOleFileListOwnership()
     Require(ReadDataObjectFilePaths(data.Get(), content) == E_OUTOFMEMORY && content.filePaths.size() == 2u && data->releases == 6u,
             "transport allocation failure preserves the prior owned output");
 }
-void TestRichTextOleAdapterRevocation()
+void RichTextOleAdapterRevocationOnSta()
 {
     auto data = Microsoft::WRL::Make<DropDataObject>();
     Require(data != nullptr, "OLE adapter test object allocation");
@@ -202,6 +229,24 @@ void TestRichTextOleAdapterRevocation()
     Require(retained->DragEnter(data.Get(), 0u, {}, &effect) == S_OK && effect == DROPEFFECT_NONE && receiver->commits == 0u,
             "revoke during QueryGetData cannot publish a stale accepting target");
 }
+void TestRichTextOleAdapterRevocation()
+{
+    RunFileDropAdapterOnSta(RichTextOleAdapterRevocationOnSta);
+}
+
+void TestRichTextOleAdapterFromMta()
+{
+    std::thread mta([]
+    {
+        const HRESULT initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+        RequireSucceeded(initialized, "initialize caller MTA");
+        const auto apartment = wil::scope_exit([] { CoUninitialize(); });
+        RunFileDropAdapterOnSta(RichTextOleSourceMoveOnSta);
+        RunFileDropAdapterOnSta(RichTextOleAdapterRevocationOnSta);
+    });
+    mta.join();
+}
+
 template <typename Prepare, typename Preview, typename Commit>
 void CheckFileDropInsertion(ControlHost& host, RichTextEditor& editor, Prepare&& prepare, Preview&& preview, Commit&& commit)
 {
@@ -1403,6 +1448,7 @@ void RunRichTextInputTests()
     DXUI_RUN_TEST(TestRichTextOleSourceMove);
     DXUI_RUN_TEST(TestRichTextOleFileListOwnership);
     DXUI_RUN_TEST(TestRichTextOleAdapterRevocation);
+    DXUI_RUN_TEST(TestRichTextOleAdapterFromMta);
     DXUI_RUN_TEST(TestRichTextEmbeddedFileDropInsertion);
     DXUI_RUN_TEST(TestRichTextNativeFileDropInsertion);
     DXUI_RUN_TEST(TestRichTextEmbeddedFileDropCoordinates);
