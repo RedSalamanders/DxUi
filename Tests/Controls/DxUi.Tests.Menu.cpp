@@ -6042,6 +6042,22 @@ void TestMenuKeyboardLeftArrowMatchesWindowsMenuLoop()
         const auto dismissPopup = wil::scope_exit([&]() noexcept { DismissOwnedContextMenuPopupChain(ownerWindow.Hwnd()); });
 
         ContextMenuPopupDebugState popupState{};
+        D2D1_RECT_F b1{};
+        if (! DebugGetContextMenuPopupState(bPopupHwnd, popupState) || popupState.dpi == 0u || ! DebugGetContextMenuPopupItemRect(bPopupHwnd, 0u, b1))
+        {
+            driverFailure = "obtain B1 geometry for the stationary pointer oracle";
+            return;
+        }
+        const LONG pointerX = static_cast<LONG>(std::lround((b1.left + b1.right) * 0.5f * static_cast<float>(popupState.dpi) / 96.f));
+        const LONG pointerY = static_cast<LONG>(std::lround((b1.top + b1.bottom) * 0.5f * static_cast<float>(popupState.dpi) / 96.f));
+        ScopedMenuPointerFixture pointerFixture(bPopupHwnd);
+        RECT popupRect{};
+        if (! GetWindowRect(bPopupHwnd, &popupRect) || ! pointerFixture.AlignCursor(POINT{popupRect.left + pointerX, popupRect.top + pointerY}) ||
+            ! SendClientMouseMoveForMenuSuite(bPopupHwnd, pointerX, pointerY))
+        {
+            driverFailure = "align and deliver initial B1 pointer position";
+            return;
+        }
         PostMessageW(bPopupHwnd, WM_KEYDOWN, VK_HOME, 0);
         if (! WaitForContextMenuPopupState(bPopupHwnd, [](const ContextMenuPopupDebugState& state) noexcept {
             return state.keyboardIndex.has_value() && state.keyboardIndex.value() == 0u;
@@ -6084,6 +6100,12 @@ void TestMenuKeyboardLeftArrowMatchesWindowsMenuLoop()
             return;
         }
 
+        if (! SendClientMouseMoveForMenuSuite(bPopupHwnd, pointerX, pointerY) || ! DebugGetContextMenuPopupState(bSubmenuHwnd, popupState) ||
+            ! popupState.keyboardIndex || popupState.keyboardIndex.value() != 0u)
+        {
+            driverFailure = "stationary parent pointer move preserves keyboard focus on B11";
+            return;
+        }
         PostMessageW(bSubmenuHwnd, WM_KEYDOWN, VK_LEFT, 0);
         if (! WaitForWindowDestroyed(bSubmenuHwnd))
         {
