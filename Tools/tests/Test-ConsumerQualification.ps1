@@ -458,12 +458,13 @@ try{
             [Threading.Thread]::Sleep(60000)
         } -NegativeCheck
     }catch{
-        $exception=$_.Exception.GetBaseException();$unsigned=[BitConverter]::ToUInt32([BitConverter]::GetBytes([int]$exception.HResult),0);$hrHex=[Convert]::ToString($unsigned,16).PadLeft(8,'0')
-        $detail="CHILD_PHASE_FAILURE: type=$($exception.GetType().FullName) HResult=0x$hrHex`n$($_.Exception.ToString())"
+        $originalFailure=$_
+        $exception=$originalFailure.Exception.GetBaseException();$unsigned=[BitConverter]::ToUInt32([BitConverter]::GetBytes([int]$exception.HResult),0);$hrHex=[Convert]::ToString($unsigned,16).PadLeft(8,'0')
+        $detail="CHILD_PHASE_FAILURE: type=$($exception.GetType().FullName) HResult=0x$hrHex`n$($originalFailure.Exception.ToString())"
         try{[IO.File]::WriteAllText($FailureLog,$detail,[Text.UTF8Encoding]::new($false))}
         catch{[Console]::Error.WriteLine("CHILD_FAILURE_LOG_WRITE_FAILED: $($_.Exception.Message)")}
         [Console]::Error.WriteLine($detail)
-        throw
+        throw $originalFailure
     }
 }finally{$held.Dispose()}
 '@)
