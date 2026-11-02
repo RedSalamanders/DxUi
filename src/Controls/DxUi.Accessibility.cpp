@@ -1,3 +1,5 @@
+#include <DxUi/Failure.h>
+
 #include "DxUi.AccessibilityTextUnits.h"
 #include "DxUi.Internal.h"
 #include "DxUi.RichAccessibilityEpoch.h"
@@ -1185,6 +1187,7 @@ struct AccessibilitySnapshotBuild
     const Control* root;
     std::weak_ptr<int> rootLifetime;
     uint64_t revision;
+    HRESULT& failure;
 
     [[nodiscard]] bool IsCurrent() const noexcept
     {
@@ -1296,6 +1299,7 @@ struct SelectionChange
 // What a window-host publish changed for UI Automation clients; an embedded host diffs the rest of its snapshots itself.
 struct WindowHostSnapshotChanges
 {
+    HRESULT result        = S_OK;
     bool focusMoved       = false;           // Another element (control, tree item, grid row, or none) has focus.
     bool structureChanged = false;           // A semantic control was added, removed or replaced at its path.
     std::vector<SelectionChange> selections; // Trees and grids whose selection changed (embedded hosts too).
@@ -1360,7 +1364,8 @@ WindowHostSnapshotChanges PublishWindowHostAccessibilitySnapshot(WindowHostAcces
     snapshot->placement        = target.placement;
     snapshot->pixelsToDipScale = USER_DEFAULT_SCREEN_DPI / host.GetDpi();
     const Control* const root  = host.GetRoot();
-    const AccessibilitySnapshotBuild build{target, host, root, root ? GetControlLifetimeToken(*root) : std::weak_ptr<int>{}, revision};
+    HRESULT buildFailure       = S_OK;
+    const AccessibilitySnapshotBuild build{target, host, root, root ? GetControlLifetimeToken(*root) : std::weak_ptr<int>{}, revision, buildFailure};
     snapshot->hasRetainedRoot = root != nullptr;
     // Sized once: a menu's rows make thousands of records, which growing vectors would move again and again.
     const size_t semanticControls = CountAccessibilitySnapshotNavigation(root, ControlPath{});
@@ -1368,7 +1373,11 @@ WindowHostSnapshotChanges PublishWindowHostAccessibilitySnapshot(WindowHostAcces
     snapshot->controlsByAddress.reserve(semanticControls);
     snapshot->controlNavigationRecords.reserve(semanticControls);
     if (! AppendAccessibilitySnapshotNavigation(host, root, root, ControlPath{}, *snapshot, build))
-        return {};
+    {
+        WindowHostSnapshotChanges failure;
+        failure.result = buildFailure;
+        return failure;
+    }
     if (! AppendRequestedGridRows(host, target, *snapshot, build))
         return {};
     if (root && ! target.embedded)
@@ -2345,10 +2354,10 @@ bool AppendAccessibilitySnapshotNavigation(ControlHost& host,
                     // Capture the source/epoch pair before fallible preparation;
                     // a retired pair cannot be restamped as a newer publication.
                     auto rich             = std::make_shared<AccessibilityRichTextSnapshot>(document, epoch, semanticRevision);
-                    const auto readFamily = [](IDWriteTextFormat* format, std::wstring& family)
+                    const auto readFamily = [](IDWriteTextFormat* format, std::wstring& family) -> HRESULT
                     {
                         if (! format)
-                            THROW_HR(E_UNEXPECTED);
+                            return E_UNEXPECTED;
                         family.resize(static_cast<size_t>(format->GetFontFamilyNameLength()) + 1u);
                         auto result = format->GetFontFamilyName(family.data(), static_cast<UINT32>(family.size()));
 #if DXUI_ENABLE_DIAGNOSTICS
@@ -2358,12 +2367,24 @@ bool AppendAccessibilitySnapshotNavigation(ControlHost& host,
                             result = g_richAccessibilityFontFailure;
                         }
 #endif
-                        THROW_IF_FAILED(result);
+                        if (FAILED(result))
+                            return result;
                         family.pop_back();
+                        return S_OK;
                     };
-                    auto* body = host.GetTextFormat(FontRole::Body);
-                    readFamily(body, rich->bodyFont);
-                    readFamily(host.GetTextFormat(FontRole::Monospace), rich->codeFont);
+                    auto* body               = host.GetTextFormat(FontRole::Body);
+                    const HRESULT bodyResult = readFamily(body, rich->bodyFont);
+                    if (FAILED(bodyResult))
+                    {
+                        build.failure = bodyResult;
+                        return false;
+                    }
+                    const HRESULT codeResult = readFamily(host.GetTextFormat(FontRole::Monospace), rich->codeFont);
+                    if (FAILED(codeResult))
+                    {
+                        build.failure = codeResult;
+                        return false;
+                    }
                     rich->fontSizePoints                = static_cast<double>(body->GetFontSize()) * 72.0 / 96.0;
                     rich->externalLinkActivationEnabled = editor->HasLinkActivationHandler();
                     rich->readOnlyTasksInteractive      = editor->GetTaskTogglePolicy() == RichTextTaskTogglePolicy::AlwaysInteractive;
@@ -3178,9 +3199,7 @@ bool AppendRequestedGridRows(ControlHost& host, WindowHostAccessibilityTarget& t
         }
         catch (const std::exception&)
         {
-            // A model that cannot produce this offscreen row (including allocation failure) loses only this request. A
-            // retained request would otherwise fail every later publication of the window until newer requests evict it.
-            rowReadFailed = true;
+            Failure::FailUnexpected();
         }
         if (rowReadFailed)
         {
@@ -5724,11 +5743,11 @@ template <typename Action, typename Republish> HRESULT ContainAccessibilityUiAct
     }
     catch (const std::bad_alloc&)
     {
-        failure = E_OUTOFMEMORY;
+        Failure::FailAllocation();
     }
     catch (const std::exception&)
     {
-        Debug::Error(L"DxUi: a UI Automation action failed in application code");
+        Failure::FailUnexpected();
     }
     republish();
     return failure;
@@ -6380,6 +6399,7 @@ size_t AccessibilityTextRangeProvider::SemanticEnclosing(const AccessibilityCont
 
 HRESULT AccessibilityTextRangeProvider::QueryInterface(REFIID riid, void** ppvObject) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (! ppvObject)
     {
         return E_POINTER;
@@ -6418,6 +6438,7 @@ ULONG AccessibilityTextRangeProvider::Release() noexcept
 
 HRESULT AccessibilityTextRangeProvider::Clone(ITextRangeProvider** outClone) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (outClone)
         *outClone = nullptr;
 
@@ -6441,6 +6462,7 @@ HRESULT AccessibilityTextRangeProvider::Clone(ITextRangeProvider** outClone) noe
 
 HRESULT AccessibilityTextRangeProvider::Compare(ITextRangeProvider* range, BOOL* outSame) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (outSame)
         *outSame = {};
 
@@ -6470,6 +6492,7 @@ HRESULT AccessibilityTextRangeProvider::CompareEndpoints(TextPatternRangeEndpoin
                                                          int* outResult) noexcept
 try
 {
+    const Failure::Scope outerFailureScope;
     if (outResult)
         *outResult = {};
 
@@ -6506,8 +6529,7 @@ try
 }
 catch (const std::bad_alloc&)
 {
-    // COM boundary: allocation failure leaves the initialized output and both ranges unchanged.
-    return E_OUTOFMEMORY;
+    Failure::FailAllocation();
 }
 
 // Attribute values borrow the immutable snapshot. Comparing runs therefore
@@ -6617,6 +6639,7 @@ HRESULT SetSourceAttribute(VARIANT* result, const RichSourceAttribute& value) no
 HRESULT AccessibilityTextRangeProvider::ExpandToEnclosingUnit(TextUnit unit) noexcept
 try
 {
+    const Failure::Scope outerFailureScope;
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     if (unit < TextUnit_Character || unit > TextUnit_Document)
@@ -6716,12 +6739,12 @@ try
 
 catch (const std::bad_alloc&)
 {
-    // COM boundary: fallible preparation precedes the endpoint/geometry commit.
-    return E_OUTOFMEMORY;
+    Failure::FailAllocation();
 }
 
 HRESULT AccessibilityTextRangeProvider::FindAttribute(TEXTATTRIBUTEID attributeId, VARIANT value, BOOL backward, ITextRangeProvider** outRange) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (outRange)
         *outRange = nullptr;
 
@@ -6835,6 +6858,7 @@ HRESULT AccessibilityTextRangeProvider::FindAttribute(TEXTATTRIBUTEID attributeI
 
 HRESULT AccessibilityTextRangeProvider::FindText(BSTR text, BOOL backward, BOOL ignoreCase, ITextRangeProvider** outRange) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (outRange)
         *outRange = nullptr;
 
@@ -6893,6 +6917,7 @@ HRESULT AccessibilityTextRangeProvider::FindText(BSTR text, BOOL backward, BOOL 
 
 HRESULT AccessibilityTextRangeProvider::GetAttributeValue(TEXTATTRIBUTEID attributeId, VARIANT* outValue) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (outValue)
         *outValue = {};
 
@@ -6940,6 +6965,7 @@ HRESULT AccessibilityTextRangeProvider::GetAttributeValue(TEXTATTRIBUTEID attrib
 HRESULT AccessibilityTextRangeProvider::GetBoundingRectangles(SAFEARRAY** outRectangles) noexcept
 try
 {
+    const Failure::Scope outerFailureScope;
     if (outRectangles)
         *outRectangles = nullptr;
 
@@ -7049,12 +7075,12 @@ try
 
 catch (const std::bad_alloc&)
 {
-    // COM boundary: leave the result null when preparing text or rectangles runs out of memory.
-    return E_OUTOFMEMORY;
+    Failure::FailAllocation();
 }
 
 HRESULT AccessibilityTextRangeProvider::GetEnclosingElement(IRawElementProviderSimple** outElement) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (outElement)
         *outElement = nullptr;
 
@@ -7102,6 +7128,7 @@ HRESULT AccessibilityTextRangeProvider::GetEnclosingElement(IRawElementProviderS
 HRESULT AccessibilityTextRangeProvider::GetText(int maxLength, BSTR* outText) noexcept
 try
 {
+    const Failure::Scope outerFailureScope;
     if (outText)
         *outText = {};
 
@@ -7139,13 +7166,13 @@ try
 
 catch (const std::bad_alloc&)
 {
-    // COM boundary: text-copy failure must not terminate the host or publish a partial BSTR.
-    return E_OUTOFMEMORY;
+    Failure::FailAllocation();
 }
 
 HRESULT AccessibilityTextRangeProvider::Move(TextUnit unit, int count, int* outMoved) noexcept
 try
 {
+    const Failure::Scope outerFailureScope;
     if (outMoved)
         *outMoved = {};
 
@@ -7298,13 +7325,13 @@ try
 
 catch (const std::bad_alloc&)
 {
-    // COM boundary: move calculation allocates before changing the range.
-    return E_OUTOFMEMORY;
+    Failure::FailAllocation();
 }
 
 HRESULT AccessibilityTextRangeProvider::MoveEndpointByUnit(TextPatternRangeEndpoint endpoint, TextUnit unit, int count, int* outMoved) noexcept
 try
 {
+    const Failure::Scope outerFailureScope;
     if (outMoved)
         *outMoved = {};
 
@@ -7431,14 +7458,14 @@ try
 
 catch (const std::bad_alloc&)
 {
-    // COM boundary: preserve the previous endpoints when line/text preparation fails.
-    return E_OUTOFMEMORY;
+    Failure::FailAllocation();
 }
 
 HRESULT AccessibilityTextRangeProvider::MoveEndpointByRange(TextPatternRangeEndpoint endpoint,
                                                             ITextRangeProvider* targetRange,
                                                             TextPatternRangeEndpoint targetEndpoint) noexcept
 {
+    const Failure::Scope outerFailureScope;
     const auto snapshot = CaptureSnapshot();
     if (! snapshot)
         return UIA_E_ELEMENTNOTAVAILABLE;
@@ -7473,11 +7500,13 @@ HRESULT AccessibilityTextRangeProvider::MoveEndpointByRange(TextPatternRangeEndp
 
 HRESULT AccessibilityTextRangeProvider::Select() noexcept
 {
+    const Failure::Scope outerFailureScope;
     return ChangeSelection(AccessibilityUiActionKind::Select);
 }
 
 HRESULT AccessibilityTextRangeProvider::ChangeSelection(AccessibilityUiActionKind kind) noexcept
 {
+    const Failure::Scope outerFailureScope;
     const auto site      = _target && _target->embedded && IsCurrentThreadWindowThread() ? _target->site : nullptr;
     const auto completed = wil::scope_exit([&]
     {
@@ -7499,6 +7528,7 @@ HRESULT AccessibilityTextRangeProvider::ChangeSelection(AccessibilityUiActionKin
 
 HRESULT AccessibilityTextRangeProvider::ExecuteUiThreadAction(AccessibilityUiActionRequest& request)
 {
+    const Failure::Scope outerFailureScope;
     switch (request.kind)
     {
         case AccessibilityUiActionKind::Select:
@@ -7545,6 +7575,7 @@ HRESULT AccessibilityTextRangeProvider::ExecuteUiThreadAction(AccessibilityUiAct
 
 HRESULT AccessibilityTextRangeProvider::ExecuteSelectOnWindowThread(AccessibilityUiActionKind kind)
 {
+    const Failure::Scope outerFailureScope;
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     const auto startedAt = std::chrono::steady_clock::now();
@@ -7607,7 +7638,7 @@ HRESULT AccessibilityTextRangeProvider::ExecuteSelectOnWindowThread(Accessibilit
         }
         catch (const std::exception&)
         {
-            return E_INVALIDARG;
+            Failure::FailUnexpected();
         }
         if (! stillCurrent())
             return UIA_E_ELEMENTNOTAVAILABLE;
@@ -7648,6 +7679,7 @@ HRESULT AccessibilityTextRangeProvider::ExecuteSelectOnWindowThread(Accessibilit
 HRESULT AccessibilityTextRangeProvider::ExecuteExpandToVisualLineOnWindowThread(
     size_t start, size_t end, size_t& outStart, size_t& outEnd, std::wstring_view expectedText)
 {
+    const Failure::Scope outerFailureScope;
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     ControlHost* const host      = ResolveHost();
@@ -7669,6 +7701,7 @@ HRESULT AccessibilityTextRangeProvider::ExecuteExpandToVisualLineOnWindowThread(
 HRESULT AccessibilityTextRangeProvider::ExecuteMoveByVisualLineOnWindowThread(
     size_t start, size_t end, int count, size_t& outStart, size_t& outEnd, int& outMoved, std::wstring_view expectedText)
 {
+    const Failure::Scope outerFailureScope;
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     ControlHost* const host      = ResolveHost();
@@ -7690,6 +7723,7 @@ HRESULT AccessibilityTextRangeProvider::ExecuteMoveByVisualLineOnWindowThread(
 HRESULT AccessibilityTextRangeProvider::ExecuteMoveEndpointByVisualLineOnWindowThread(
     size_t start, size_t end, TextPatternRangeEndpoint endpoint, int count, size_t& outStart, size_t& outEnd, int& outMoved, std::wstring_view expectedText)
 {
+    const Failure::Scope outerFailureScope;
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     ControlHost* const host      = ResolveHost();
@@ -7724,6 +7758,7 @@ HRESULT AccessibilityTextRangeProvider::ExecuteResolveBoundsOnWindowThread(size_
                                                                            std::vector<D2D1_RECT_F>& outBoundsDip,
                                                                            float& outDipToPixelScale)
 {
+    const Failure::Scope outerFailureScope;
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     outBoundsDip.clear();
@@ -7758,16 +7793,19 @@ HRESULT AccessibilityTextRangeProvider::ExecuteResolveBoundsOnWindowThread(size_
 
 HRESULT AccessibilityTextRangeProvider::AddToSelection() noexcept
 {
+    const Failure::Scope outerFailureScope;
     return ChangeSelection(AccessibilityUiActionKind::AddToSelection);
 }
 
 HRESULT AccessibilityTextRangeProvider::RemoveFromSelection() noexcept
 {
+    const Failure::Scope outerFailureScope;
     return ChangeSelection(AccessibilityUiActionKind::RemoveFromSelection);
 }
 
 HRESULT AccessibilityTextRangeProvider::ScrollIntoView(BOOL alignToTop) noexcept
 {
+    const Failure::Scope outerFailureScope;
     const auto site      = _target && _target->embedded && IsCurrentThreadWindowThread() ? _target->site : nullptr;
     const auto completed = wil::scope_exit([&]
     {
@@ -7789,6 +7827,7 @@ HRESULT AccessibilityTextRangeProvider::ScrollIntoView(BOOL alignToTop) noexcept
 
 HRESULT AccessibilityTextRangeProvider::ExecuteScrollIntoViewOnWindowThread(bool alignToTop)
 {
+    const Failure::Scope outerFailureScope;
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     auto* host    = ResolveHost();
@@ -7816,6 +7855,7 @@ HRESULT AccessibilityTextRangeProvider::ExecuteScrollIntoViewOnWindowThread(bool
 
 HRESULT AccessibilityTextRangeProvider::GetChildren(SAFEARRAY** outChildren) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (outChildren)
         *outChildren = nullptr;
 
@@ -7860,7 +7900,7 @@ HRESULT AccessibilityTextRangeProvider::GetChildren(SAFEARRAY** outChildren) noe
     }
     catch (const std::bad_alloc&)
     {
-        return E_OUTOFMEMORY;
+        Failure::FailAllocation();
     }
 }
 
@@ -7963,13 +8003,12 @@ try
 }
 catch (const std::bad_alloc&)
 {
-    // shared_ptr's control block can fail even after nothrow allocation of its
-    // payload. No C++ exception may escape this COM/owner-dispatch boundary.
-    return E_OUTOFMEMORY;
+    Failure::FailAllocation();
 }
 
 HRESULT AccessibilityTextRangeProvider::DispatchActionToWindowThread(AccessibilityUiActionRequest& request) const noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     if (_target && _target->embedded)
@@ -7980,6 +8019,7 @@ HRESULT AccessibilityTextRangeProvider::DispatchActionToWindowThread(Accessibili
 HRESULT AccessibilityTextRangeProvider::DispatchVisualLineExpansionToWindowThread(
     size_t start, size_t end, size_t& outStart, size_t& outEnd, std::wstring& expectedText) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     AccessibilityUiActionRequest request{};
@@ -8001,6 +8041,7 @@ HRESULT AccessibilityTextRangeProvider::DispatchVisualLineExpansionToWindowThrea
 HRESULT AccessibilityTextRangeProvider::DispatchLineMovementToWindowThread(
     size_t start, size_t end, int count, size_t& outStart, size_t& outEnd, int& outMoved, std::wstring& expectedText) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     AccessibilityUiActionRequest request{};
@@ -8031,6 +8072,7 @@ HRESULT AccessibilityTextRangeProvider::DispatchEndpointLineMovementToWindowThre
                                                                                    int& outMoved,
                                                                                    std::wstring& expectedText) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     AccessibilityUiActionRequest request{};
@@ -8058,6 +8100,7 @@ HRESULT AccessibilityTextRangeProvider::DispatchBoundingRectanglesToWindowThread
                                                                                  std::vector<D2D1_RECT_F>& outBoundsDip,
                                                                                  float& outDipToPixelScale) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     AccessibilityUiActionRequest request{};
@@ -8209,6 +8252,7 @@ std::wstring AccessibilityTextRangeProvider::ResolveControlText(const Control* c
 HRESULT AccessibilityTextRangeProvider::CommitDispatchedRange(
     size_t expectedStart, size_t expectedEnd, size_t resultStart, size_t resultEnd, std::wstring_view expectedText) noexcept
 {
+    const Failure::Scope outerFailureScope;
     const auto snapshot = CaptureSnapshot();
     if (! snapshot)
         return UIA_E_ELEMENTNOTAVAILABLE;
@@ -8439,6 +8483,7 @@ AccessibilityPatternQueryResult AccessibilityProvider::QueryPattern(Accessibilit
 
 HRESULT AccessibilityProvider::QueryInterface(REFIID riid, void** ppvObject) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (! ppvObject)
     {
         return E_POINTER;
@@ -8503,6 +8548,7 @@ ULONG AccessibilityProvider::Release() noexcept
 
 HRESULT AccessibilityProvider::get_ProviderOptions(ProviderOptions* outOptions) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (! outOptions)
     {
         return E_POINTER;
@@ -8517,6 +8563,7 @@ HRESULT AccessibilityProvider::get_ProviderOptions(ProviderOptions* outOptions) 
 
 HRESULT AccessibilityProvider::GetPatternProvider(PATTERNID patternId, IUnknown** outProvider) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (outProvider)
         *outProvider = nullptr;
 
@@ -8546,6 +8593,7 @@ HRESULT AccessibilityProvider::GetPatternProvider(PATTERNID patternId, IUnknown*
 
 HRESULT AccessibilityProvider::GetItem(int row, int column, IRawElementProviderSimple** outProvider) noexcept
 {
+    const Failure::Scope outerFailureScope;
     try
     {
         if (outProvider)
@@ -8632,17 +8680,17 @@ HRESULT AccessibilityProvider::GetItem(int row, int column, IRawElementProviderS
     }
     catch (const std::bad_alloc&)
     {
-        return E_OUTOFMEMORY;
+        Failure::FailAllocation();
     }
     catch (const std::exception&)
     {
-        Debug::Error(L"UIA Grid.GetItem model callback raised std::exception");
-        return E_FAIL;
+        Failure::FailUnexpected();
     }
 }
 
 HRESULT AccessibilityProvider::get_RowCount(int* outCount) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (! outCount)
     {
         return E_POINTER;
@@ -8664,6 +8712,7 @@ HRESULT AccessibilityProvider::get_RowCount(int* outCount) noexcept
 
 HRESULT AccessibilityProvider::get_ColumnCount(int* outCount) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (! outCount)
     {
         return E_POINTER;
@@ -8685,6 +8734,7 @@ HRESULT AccessibilityProvider::get_ColumnCount(int* outCount) noexcept
 
 HRESULT AccessibilityProvider::GetPropertyValue(PROPERTYID propertyId, VARIANT* outValue) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (outValue)
         *outValue = {};
 
@@ -9094,6 +9144,7 @@ HRESULT AccessibilityProvider::GetPropertyValue(PROPERTYID propertyId, VARIANT* 
 
 HRESULT AccessibilityProvider::get_HostRawElementProvider(IRawElementProviderSimple** outProvider) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (outProvider)
         *outProvider = nullptr;
 
@@ -9116,6 +9167,7 @@ HRESULT AccessibilityProvider::get_HostRawElementProvider(IRawElementProviderSim
 
 HRESULT AccessibilityProvider::Navigate(NavigateDirection direction, IRawElementProviderFragment** outProvider) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (outProvider)
         *outProvider = nullptr;
 
@@ -9192,6 +9244,7 @@ HRESULT AccessibilityProvider::Navigate(NavigateDirection direction, IRawElement
 
 HRESULT AccessibilityProvider::GetRuntimeId(SAFEARRAY** outRuntimeId) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (_target && _target->embedded)
     {
         if (! outRuntimeId)
@@ -9266,6 +9319,7 @@ HRESULT AccessibilityProvider::GetRuntimeId(SAFEARRAY** outRuntimeId) noexcept
 
 HRESULT AccessibilityProvider::get_BoundingRectangle(UiaRect* outRect) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (outRect)
         *outRect = {};
 
@@ -9382,6 +9436,7 @@ HRESULT AccessibilityProvider::get_BoundingRectangle(UiaRect* outRect) noexcept
 
 HRESULT AccessibilityProvider::GetEmbeddedFragmentRoots(SAFEARRAY** outRoots) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (outRoots)
         *outRoots = nullptr;
 
@@ -9398,6 +9453,7 @@ HRESULT AccessibilityProvider::GetEmbeddedFragmentRoots(SAFEARRAY** outRoots) no
 
 HRESULT AccessibilityProvider::SetFocus() noexcept
 {
+    const Failure::Scope outerFailureScope;
     const auto site      = _target && _target->embedded && IsCurrentThreadWindowThread() ? _target->site : nullptr;
     const auto completed = wil::scope_exit([&]
     {
@@ -9419,6 +9475,7 @@ HRESULT AccessibilityProvider::SetFocus() noexcept
 
 HRESULT AccessibilityProvider::get_FragmentRoot(IRawElementProviderFragmentRoot** outRoot) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (outRoot)
         *outRoot = nullptr;
 
@@ -9446,6 +9503,7 @@ HRESULT AccessibilityProvider::get_FragmentRoot(IRawElementProviderFragmentRoot*
 
 HRESULT AccessibilityProvider::ElementProviderFromPoint(double x, double y, IRawElementProviderFragment** outProvider) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (outProvider)
         *outProvider = nullptr;
 
@@ -9539,6 +9597,7 @@ HRESULT AccessibilityProvider::ElementProviderFromPoint(double x, double y, IRaw
 
 HRESULT AccessibilityProvider::GetFocus(IRawElementProviderFragment** outProvider) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (outProvider)
         *outProvider = nullptr;
 
@@ -9604,6 +9663,7 @@ HRESULT AccessibilityProvider::GetFocus(IRawElementProviderFragment** outProvide
 
 HRESULT AccessibilityProvider::Invoke() noexcept
 {
+    const Failure::Scope outerFailureScope;
     const auto site      = _target && _target->embedded && IsCurrentThreadWindowThread() ? _target->site : nullptr;
     const auto completed = wil::scope_exit([&]
     {
@@ -9625,6 +9685,7 @@ HRESULT AccessibilityProvider::Invoke() noexcept
 
 HRESULT AccessibilityProvider::Toggle() noexcept
 {
+    const Failure::Scope outerFailureScope;
     const auto site      = _target && _target->embedded && IsCurrentThreadWindowThread() ? _target->site : nullptr;
     const auto completed = wil::scope_exit([&]
     {
@@ -9646,6 +9707,7 @@ HRESULT AccessibilityProvider::Toggle() noexcept
 
 HRESULT AccessibilityProvider::get_ToggleState(ToggleState* outState) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (outState)
         *outState = {};
 
@@ -9685,6 +9747,7 @@ HRESULT AccessibilityProvider::get_ToggleState(ToggleState* outState) noexcept
 
 HRESULT AccessibilityProvider::GetVisibleRanges(SAFEARRAY** outRanges) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (outRanges)
         *outRanges = nullptr;
 
@@ -9728,6 +9791,7 @@ HRESULT AccessibilityProvider::GetVisibleRanges(SAFEARRAY** outRanges) noexcept
 
 HRESULT AccessibilityProvider::RangeFromChild(IRawElementProviderSimple* childElement, ITextRangeProvider** outRange) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (outRange)
         *outRange = nullptr;
 
@@ -9756,6 +9820,7 @@ HRESULT AccessibilityProvider::RangeFromChild(IRawElementProviderSimple* childEl
 
 HRESULT AccessibilityProvider::RangeFromPoint(UiaPoint point, ITextRangeProvider** outRange) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (outRange)
         *outRange = nullptr;
 
@@ -9796,6 +9861,7 @@ HRESULT AccessibilityProvider::RangeFromPoint(UiaPoint point, ITextRangeProvider
 
 HRESULT AccessibilityProvider::ExecuteResolveTextRangeFromPointOnWindowThread(UiaPoint point, size_t& outCaretIndex, size_t& outTextLength)
 {
+    const Failure::Scope outerFailureScope;
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     outCaretIndex = 0u;
@@ -9851,6 +9917,7 @@ HRESULT AccessibilityProvider::ExecuteResolveTextRangeFromPointOnWindowThread(Ui
 
 HRESULT AccessibilityProvider::get_DocumentRange(ITextRangeProvider** outRange) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (outRange)
         *outRange = nullptr;
 
@@ -9879,6 +9946,7 @@ HRESULT AccessibilityProvider::get_DocumentRange(ITextRangeProvider** outRange) 
 
 HRESULT AccessibilityProvider::get_SupportedTextSelection(SupportedTextSelection* outSupportedSelection) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (outSupportedSelection)
         *outSupportedSelection = {};
 
@@ -9903,6 +9971,7 @@ HRESULT AccessibilityProvider::get_SupportedTextSelection(SupportedTextSelection
 
 HRESULT AccessibilityProvider::GetActiveComposition(ITextRangeProvider** outRange) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (outRange)
         *outRange = nullptr;
 
@@ -9942,6 +10011,7 @@ HRESULT AccessibilityProvider::GetActiveComposition(ITextRangeProvider** outRang
 
 HRESULT AccessibilityProvider::GetConversionTarget(ITextRangeProvider** outRange) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (outRange)
         *outRange = nullptr;
 
@@ -9981,6 +10051,7 @@ HRESULT AccessibilityProvider::GetConversionTarget(ITextRangeProvider** outRange
 
 HRESULT AccessibilityProvider::GetCaretRange(BOOL* active, ITextRangeProvider** range) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (active)
         *active = FALSE;
     if (range)
@@ -10002,6 +10073,7 @@ HRESULT AccessibilityProvider::GetCaretRange(BOOL* active, ITextRangeProvider** 
 }
 HRESULT AccessibilityProvider::RangeFromAnnotation(IRawElementProviderSimple* annotation, ITextRangeProvider** range) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (! range)
         return E_POINTER;
     *range              = nullptr;
@@ -10021,6 +10093,7 @@ HRESULT AccessibilityProvider::RangeFromAnnotation(IRawElementProviderSimple* an
 
 HRESULT AccessibilityProvider::SetValue(LPCWSTR value) noexcept
 {
+    const Failure::Scope outerFailureScope;
     const auto site      = _target && _target->embedded && IsCurrentThreadWindowThread() ? _target->site : nullptr;
     const auto completed = wil::scope_exit([&]
     {
@@ -10043,7 +10116,7 @@ HRESULT AccessibilityProvider::SetValue(LPCWSTR value) noexcept
         }
         catch (const std::bad_alloc&)
         {
-            return E_OUTOFMEMORY;
+            Failure::FailAllocation();
         }
         return DispatchActionToWindowThread(request);
     }
@@ -10053,6 +10126,7 @@ HRESULT AccessibilityProvider::SetValue(LPCWSTR value) noexcept
 
 HRESULT AccessibilityProvider::SetValue(double value) noexcept
 {
+    const Failure::Scope outerFailureScope;
     const auto site      = _target && _target->embedded && IsCurrentThreadWindowThread() ? _target->site : nullptr;
     const auto completed = wil::scope_exit([&]
     {
@@ -10075,6 +10149,7 @@ HRESULT AccessibilityProvider::SetValue(double value) noexcept
 
 HRESULT AccessibilityProvider::get_Value(BSTR* outValue) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (outValue)
         *outValue = {};
 
@@ -10116,6 +10191,7 @@ HRESULT AccessibilityProvider::get_Value(BSTR* outValue) noexcept
 
 HRESULT AccessibilityProvider::get_Value(double* outValue) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (outValue)
         *outValue = {};
 
@@ -10154,6 +10230,7 @@ HRESULT AccessibilityProvider::get_Value(double* outValue) noexcept
 
 HRESULT AccessibilityProvider::get_IsReadOnly(BOOL* outReadOnly) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (outReadOnly)
         *outReadOnly = {};
 
@@ -10193,6 +10270,7 @@ HRESULT AccessibilityProvider::get_IsReadOnly(BOOL* outReadOnly) noexcept
 
 HRESULT AccessibilityProvider::get_Maximum(double* outMaximum) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (outMaximum)
         *outMaximum = {};
 
@@ -10232,6 +10310,7 @@ HRESULT AccessibilityProvider::get_Maximum(double* outMaximum) noexcept
 
 HRESULT AccessibilityProvider::get_Minimum(double* outMinimum) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (outMinimum)
         *outMinimum = {};
 
@@ -10271,6 +10350,7 @@ HRESULT AccessibilityProvider::get_Minimum(double* outMinimum) noexcept
 
 HRESULT AccessibilityProvider::get_LargeChange(double* outLargeChange) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (outLargeChange)
         *outLargeChange = {};
 
@@ -10310,6 +10390,7 @@ HRESULT AccessibilityProvider::get_LargeChange(double* outLargeChange) noexcept
 
 HRESULT AccessibilityProvider::get_SmallChange(double* outSmallChange) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (outSmallChange)
         *outSmallChange = {};
 
@@ -10350,6 +10431,7 @@ HRESULT AccessibilityProvider::get_SmallChange(double* outSmallChange) noexcept
 HRESULT AccessibilityProvider::GetSelection(SAFEARRAY** outSelection) noexcept
 try
 {
+    const Failure::Scope outerFailureScope;
     if (outSelection)
         *outSelection = nullptr;
 
@@ -10468,11 +10550,12 @@ try
 }
 catch (const std::bad_alloc&)
 {
-    return E_OUTOFMEMORY;
+    Failure::FailAllocation();
 }
 
 HRESULT AccessibilityProvider::get_CanSelectMultiple(BOOL* outCanSelectMultiple) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (outCanSelectMultiple)
         *outCanSelectMultiple = {};
 
@@ -10512,6 +10595,7 @@ HRESULT AccessibilityProvider::get_CanSelectMultiple(BOOL* outCanSelectMultiple)
 
 HRESULT AccessibilityProvider::get_IsSelectionRequired(BOOL* outIsSelectionRequired) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (outIsSelectionRequired)
         *outIsSelectionRequired = {};
 
@@ -10536,6 +10620,7 @@ HRESULT AccessibilityProvider::get_IsSelectionRequired(BOOL* outIsSelectionRequi
 
 HRESULT AccessibilityProvider::GetRowHeaders(SAFEARRAY** outRowHeaders) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (outRowHeaders)
         *outRowHeaders = nullptr;
 
@@ -10560,6 +10645,7 @@ HRESULT AccessibilityProvider::GetRowHeaders(SAFEARRAY** outRowHeaders) noexcept
 
 HRESULT AccessibilityProvider::GetColumnHeaders(SAFEARRAY** outColumnHeaders) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (outColumnHeaders)
         *outColumnHeaders = nullptr;
 
@@ -10607,6 +10693,7 @@ HRESULT AccessibilityProvider::GetColumnHeaders(SAFEARRAY** outColumnHeaders) no
 
 HRESULT AccessibilityProvider::get_RowOrColumnMajor(RowOrColumnMajor* outRowOrColumnMajor) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     if (! outRowOrColumnMajor)
@@ -10628,6 +10715,7 @@ HRESULT AccessibilityProvider::get_RowOrColumnMajor(RowOrColumnMajor* outRowOrCo
 
 HRESULT AccessibilityProvider::Select() noexcept
 {
+    const Failure::Scope outerFailureScope;
     const auto site      = _target && _target->embedded && IsCurrentThreadWindowThread() ? _target->site : nullptr;
     const auto completed = wil::scope_exit([&]
     {
@@ -10649,6 +10737,7 @@ HRESULT AccessibilityProvider::Select() noexcept
 
 HRESULT AccessibilityProvider::AddToSelection() noexcept
 {
+    const Failure::Scope outerFailureScope;
     const auto site      = _target && _target->embedded && IsCurrentThreadWindowThread() ? _target->site : nullptr;
     const auto completed = wil::scope_exit([&]
     {
@@ -10670,6 +10759,7 @@ HRESULT AccessibilityProvider::AddToSelection() noexcept
 
 HRESULT AccessibilityProvider::RemoveFromSelection() noexcept
 {
+    const Failure::Scope outerFailureScope;
     const auto site      = _target && _target->embedded && IsCurrentThreadWindowThread() ? _target->site : nullptr;
     const auto completed = wil::scope_exit([&]
     {
@@ -10691,6 +10781,7 @@ HRESULT AccessibilityProvider::RemoveFromSelection() noexcept
 
 HRESULT AccessibilityProvider::get_IsSelected(BOOL* outSelected) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (outSelected)
         *outSelected = {};
 
@@ -10749,6 +10840,7 @@ HRESULT AccessibilityProvider::get_IsSelected(BOOL* outSelected) noexcept
 
 HRESULT AccessibilityProvider::get_SelectionContainer(IRawElementProviderSimple** outContainer) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (outContainer)
         *outContainer = nullptr;
 
@@ -10807,6 +10899,7 @@ HRESULT AccessibilityProvider::get_SelectionContainer(IRawElementProviderSimple*
 
 HRESULT AccessibilityProvider::Expand() noexcept
 {
+    const Failure::Scope outerFailureScope;
     const auto site      = _target && _target->embedded && IsCurrentThreadWindowThread() ? _target->site : nullptr;
     const auto completed = wil::scope_exit([&]
     {
@@ -10828,6 +10921,7 @@ HRESULT AccessibilityProvider::Expand() noexcept
 
 HRESULT AccessibilityProvider::Collapse() noexcept
 {
+    const Failure::Scope outerFailureScope;
     const auto site      = _target && _target->embedded && IsCurrentThreadWindowThread() ? _target->site : nullptr;
     const auto completed = wil::scope_exit([&]
     {
@@ -10849,6 +10943,7 @@ HRESULT AccessibilityProvider::Collapse() noexcept
 
 HRESULT AccessibilityProvider::get_ExpandCollapseState(ExpandCollapseState* outState) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (outState)
         *outState = ExpandCollapseState_LeafNode;
     if (! CaptureSnapshot())
@@ -10893,6 +10988,7 @@ HRESULT AccessibilityProvider::get_ExpandCollapseState(ExpandCollapseState* outS
 
 HRESULT AccessibilityProvider::get_Row(int* outRow) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (outRow)
         *outRow = {};
 
@@ -10917,6 +11013,7 @@ HRESULT AccessibilityProvider::get_Row(int* outRow) noexcept
 
 HRESULT AccessibilityProvider::get_Column(int* outColumn) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (outColumn)
         *outColumn = {};
 
@@ -10943,6 +11040,7 @@ HRESULT AccessibilityProvider::get_Column(int* outColumn) noexcept
 
 HRESULT AccessibilityProvider::get_RowSpan(int* outRowSpan) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (outRowSpan)
         *outRowSpan = {};
 
@@ -10967,6 +11065,7 @@ HRESULT AccessibilityProvider::get_RowSpan(int* outRowSpan) noexcept
 
 HRESULT AccessibilityProvider::get_ColumnSpan(int* outColumnSpan) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (outColumnSpan)
         *outColumnSpan = {};
 
@@ -10991,6 +11090,7 @@ HRESULT AccessibilityProvider::get_ColumnSpan(int* outColumnSpan) noexcept
 
 HRESULT AccessibilityProvider::get_ContainingGrid(IRawElementProviderSimple** outContainingGrid) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (outContainingGrid)
         *outContainingGrid = nullptr;
 
@@ -11023,6 +11123,7 @@ HRESULT AccessibilityProvider::get_ContainingGrid(IRawElementProviderSimple** ou
 
 HRESULT AccessibilityProvider::GetRowHeaderItems(SAFEARRAY** outRowHeaderItems) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (outRowHeaderItems)
         *outRowHeaderItems = nullptr;
 
@@ -11047,6 +11148,7 @@ HRESULT AccessibilityProvider::GetRowHeaderItems(SAFEARRAY** outRowHeaderItems) 
 
 HRESULT AccessibilityProvider::GetColumnHeaderItems(SAFEARRAY** outColumnHeaderItems) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (outColumnHeaderItems)
         *outColumnHeaderItems = nullptr;
 
@@ -11080,6 +11182,7 @@ HRESULT AccessibilityProvider::GetColumnHeaderItems(SAFEARRAY** outColumnHeaderI
 
 HRESULT AccessibilityProvider::ScrollIntoView() noexcept
 {
+    const Failure::Scope outerFailureScope;
     const auto site      = _target && _target->embedded && IsCurrentThreadWindowThread() ? _target->site : nullptr;
     const auto completed = wil::scope_exit([&]
     {
@@ -11101,6 +11204,7 @@ HRESULT AccessibilityProvider::ScrollIntoView() noexcept
 
 HRESULT AccessibilityProvider::RevealGridItemOnWindowThread(bool includeColumn)
 {
+    const Failure::Scope outerFailureScope;
     Grid* const grid = ResolveMutableGridControl();
     size_t rowIndex  = 0u;
     if (! grid || ! ResolveGridRowIndex(rowIndex))
@@ -11118,6 +11222,7 @@ HRESULT AccessibilityProvider::RevealGridItemOnWindowThread(bool includeColumn)
 
 HRESULT AccessibilityProvider::ExecuteScrollIntoViewOnWindowThread()
 {
+    const Failure::Scope outerFailureScope;
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     if (_kind != AccessibilityFragmentKind::GridRow && _kind != AccessibilityFragmentKind::GridCell)
@@ -11342,8 +11447,7 @@ try
 }
 catch (const std::exception&)
 {
-    // A failed application model or geometry read must not escape this COM action's noexcept resolution path.
-    return false;
+    Failure::FailUnexpected();
 }
 
 WindowHostAccessibilityTarget* AccessibilityProvider::AddRefTarget() const noexcept
@@ -11364,6 +11468,7 @@ bool AccessibilityProvider::IsCurrentThreadWindowThread() const noexcept
 
 HRESULT AccessibilityProvider::DispatchActionToWindowThread(AccessibilityUiActionRequest& request) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     if (_target && _target->embedded)
@@ -11373,6 +11478,7 @@ HRESULT AccessibilityProvider::DispatchActionToWindowThread(AccessibilityUiActio
 
 HRESULT AccessibilityProvider::ExecuteGetGridItemOnWindowThread(AccessibilityUiActionRequest& request)
 {
+    const Failure::Scope outerFailureScope;
     try
     {
         const auto snapshot = CaptureSnapshot();
@@ -11511,17 +11617,17 @@ HRESULT AccessibilityProvider::ExecuteGetGridItemOnWindowThread(AccessibilityUiA
     }
     catch (const std::bad_alloc&)
     {
-        return E_OUTOFMEMORY;
+        Failure::FailAllocation();
     }
     catch (const std::exception&)
     {
-        Debug::Error(L"UIA Grid.GetItem model callback raised std::exception on the owner thread");
-        return E_FAIL;
+        Failure::FailUnexpected();
     }
 }
 
 HRESULT AccessibilityProvider::ExecuteUiThreadAction(AccessibilityUiActionRequest& request)
 {
+    const Failure::Scope outerFailureScope;
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     switch (request.kind)
@@ -11562,6 +11668,7 @@ template <typename ResolveCurrentTarget>
 
 HRESULT AccessibilityProvider::ValidateActionEnabled() const noexcept
 {
+    const Failure::Scope outerFailureScope;
     ControlHost* const host = ResolveHost();
     Control* const control =
         _kind == AccessibilityFragmentKind::TreeItem
@@ -11580,6 +11687,7 @@ HRESULT AccessibilityProvider::ValidateActionEnabled() const noexcept
 
 HRESULT AccessibilityProvider::ExecuteSetFocusOnWindowThread()
 {
+    const Failure::Scope outerFailureScope;
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     if (const HRESULT result = ValidateActionEnabled(); FAILED(result))
@@ -11846,6 +11954,7 @@ HRESULT AccessibilityProvider::ExecuteSetFocusOnWindowThread()
 
 HRESULT AccessibilityProvider::ExecuteInvokeOnWindowThread()
 {
+    const Failure::Scope outerFailureScope;
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     if (const HRESULT result = ValidateActionEnabled(); FAILED(result))
@@ -11927,6 +12036,7 @@ HRESULT AccessibilityProvider::ExecuteInvokeOnWindowThread()
 
 HRESULT AccessibilityProvider::ExecuteToggleOnWindowThread()
 {
+    const Failure::Scope outerFailureScope;
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     if (const HRESULT result = ValidateActionEnabled(); FAILED(result))
@@ -12021,6 +12131,7 @@ HRESULT AccessibilityProvider::ExecuteToggleOnWindowThread()
 
 HRESULT AccessibilityProvider::ExecuteSetStringValueOnWindowThread(LPCWSTR value)
 {
+    const Failure::Scope outerFailureScope;
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     if (const HRESULT result = ValidateActionEnabled(); FAILED(result))
@@ -12075,16 +12186,17 @@ HRESULT AccessibilityProvider::ExecuteSetStringValueOnWindowThread(LPCWSTR value
     }
     catch (const std::bad_alloc&)
     {
-        return E_OUTOFMEMORY;
+        Failure::FailAllocation();
     }
     catch (const std::exception&)
     {
-        return E_FAIL;
+        Failure::FailUnexpected();
     }
 }
 
 HRESULT AccessibilityProvider::ExecuteSetRangeValueOnWindowThread(double value)
 {
+    const Failure::Scope outerFailureScope;
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     if (const HRESULT result = ValidateActionEnabled(); FAILED(result))
@@ -12144,6 +12256,7 @@ HRESULT AccessibilityProvider::ExecuteSetRangeValueOnWindowThread(double value)
 
 HRESULT AccessibilityProvider::ExecuteSelectOnWindowThread()
 {
+    const Failure::Scope outerFailureScope;
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     if (const HRESULT result = ValidateActionEnabled(); FAILED(result))
@@ -12209,6 +12322,7 @@ HRESULT AccessibilityProvider::ExecuteSelectOnWindowThread()
 
 HRESULT AccessibilityProvider::ExecuteAddToSelectionOnWindowThread()
 {
+    const Failure::Scope outerFailureScope;
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     if (const HRESULT result = ValidateActionEnabled(); FAILED(result))
@@ -12300,6 +12414,7 @@ HRESULT AccessibilityProvider::ExecuteAddToSelectionOnWindowThread()
 
 HRESULT AccessibilityProvider::ExecuteRemoveFromSelectionOnWindowThread()
 {
+    const Failure::Scope outerFailureScope;
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     if (const HRESULT result = ValidateActionEnabled(); FAILED(result))
@@ -12403,6 +12518,7 @@ HRESULT AccessibilityProvider::ExecuteRemoveFromSelectionOnWindowThread()
 // always holds one selected tab, so the selected one is never removed from its selection and no other joins it.
 HRESULT AccessibilityProvider::ExecuteTabSelectionOnWindowThread(AccessibilityUiActionKind kind)
 {
+    const Failure::Scope outerFailureScope;
     ControlHost* const host = ResolveHost();
     auto* const tabs        = dynamic_cast<TabControl*>(ResolveMutableControl());
     if (! host || ! tabs)
@@ -12439,6 +12555,7 @@ HRESULT AccessibilityProvider::ExecuteTabSelectionOnWindowThread(AccessibilityUi
 // already holds another choice would make two.
 HRESULT AccessibilityProvider::ExecuteRadioSelectionOnWindowThread(AccessibilityUiActionKind kind)
 {
+    const Failure::Scope outerFailureScope;
     ControlHost* const host = ResolveHost();
     auto* const radio       = dynamic_cast<RadioButton*>(ResolveMutableControl());
     if (! host || ! radio)
@@ -12482,6 +12599,7 @@ void RaiseTreeItemExpansionChange(
 
 HRESULT AccessibilityProvider::ExecuteExpandOnWindowThread(bool expanded)
 {
+    const Failure::Scope outerFailureScope;
     const auto beforeSnapshot = CaptureSnapshot();
     if (! beforeSnapshot)
         return UIA_E_ELEMENTNOTAVAILABLE;
@@ -13435,8 +13553,7 @@ bool RaiseWindowHostTextInputAutomationEvent(HWND hwnd, const Control* control, 
         }
         catch (const std::bad_alloc&)
         {
-            OutputDebugStringW(L"DxUi: accessibility caret-state allocation failed.\n");
-            return false;
+            Failure::FailAllocation();
         }
     }
     RefreshWindowHostAccessibilitySnapshot(hwnd, host);
@@ -13466,9 +13583,7 @@ void RegisterWindowHostAccessibilityTarget(HWND hwnd, ControlHost* host) noexcep
         }
         catch (const std::bad_alloc&)
         {
-            static_cast<void>(target->Release());
-            SetLastError(ERROR_NOT_ENOUGH_MEMORY);
-            return;
+            Failure::FailAllocation();
         }
 
         if (SetPropW(hwnd, kWindowHostPropName, target) == 0)
@@ -13807,6 +13922,7 @@ namespace
 {
 void CALLBACK DeliverAccessibilityNotifications(PTP_CALLBACK_INSTANCE instance, void* context, PTP_WORK) noexcept
 {
+    const Failure::Scope outerFailureScope;
     auto* target                 = static_cast<WindowHostAccessibilityTarget*>(context);
     constexpr auto releaseTarget = [](WindowHostAccessibilityTarget* value) noexcept { static_cast<void>(value->Release()); };
     wil::unique_any<WindowHostAccessibilityTarget*, decltype(releaseTarget), releaseTarget> retained(target);
@@ -14052,7 +14168,7 @@ void QueueEmbeddedPropertyChange(WindowHostAccessibilityTarget& target,
     }
     catch (const std::bad_alloc&)
     {
-        Debug::Error(L"DxUi: embedded property notification allocation failed");
+        Failure::FailAllocation();
     }
 }
 
@@ -14124,8 +14240,7 @@ void RaiseAccessibilitySnapshotChanges(WindowHostAccessibilityTarget& target,
         }
         catch (const std::bad_alloc&)
         {
-            Debug::Error(L"DxUi: embedded property notification retirement allocation failed");
-            return;
+            Failure::FailAllocation();
         }
     }
     const auto connected = [&]
@@ -14330,19 +14445,21 @@ HRESULT FlushNativeAccessibilitySnapshot(WindowHostAccessibilityTarget& target) 
         // A caption callback can replace the root. Retry once; never publish its predecessor.
         for (size_t attempt = 0; attempt != 2u && target.publishedRevision != target.dirtyRevision; ++attempt)
             if (ControlHost* const host = target.ResolveHost())
-                static_cast<void>(PublishWindowHostAccessibilitySnapshot(target, *host));
+            {
+                const auto changes = PublishWindowHostAccessibilitySnapshot(target, *host);
+                if (FAILED(changes.result))
+                    return changes.result;
+            }
             else
                 break;
     }
     catch (const std::bad_alloc&)
     {
-        OutputDebugStringW(L"DxUi: accessibility snapshot allocation failed; coherent prior snapshot retained.\n");
-        return E_OUTOFMEMORY;
+        Failure::FailAllocation();
     }
     catch (const std::exception&)
     {
-        OutputDebugStringW(L"DxUi: accessibility model callback failed; coherent prior snapshot retained.\n");
-        return E_FAIL;
+        Failure::FailUnexpected();
     }
     return target.publishedRevision == target.dirtyRevision ? S_OK : static_cast<HRESULT>(UIA_E_ELEMENTNOTAVAILABLE);
 }
@@ -14420,7 +14537,7 @@ void DrainNativeAccessibilityPublication(WindowHostAccessibilityTarget& target) 
     }
     catch (const std::bad_alloc&)
     {
-        OutputDebugStringW(L"DxUi: accessibility event diff allocation failed; event baseline retained.\n");
+        Failure::FailAllocation();
     }
 }
 } // namespace
@@ -14429,6 +14546,7 @@ HRESULT EmbeddedHost::AttachAccessibility(std::shared_ptr<EmbeddedAccessibilityS
                                           uint64_t runtimeId,
                                           const EmbeddedAccessibilityPlacement& placement) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (! site || runtimeId == 0)
         return E_INVALIDARG;
     if (EmbeddedAccessibilityAccess::Target(_host))
@@ -14458,6 +14576,7 @@ HRESULT EmbeddedHost::AttachAccessibility(std::shared_ptr<EmbeddedAccessibilityS
 }
 HRESULT EmbeddedHost::UpdateAccessibility(const EmbeddedAccessibilityPlacement& placement) noexcept
 {
+    const Failure::Scope outerFailureScope;
     auto* target = static_cast<WindowHostAccessibilityTarget*>(EmbeddedAccessibilityAccess::Target(_host));
     if (! target)
         return S_FALSE;
@@ -14484,7 +14603,9 @@ HRESULT EmbeddedHost::UpdateAccessibility(const EmbeddedAccessibilityPlacement& 
         target->placement   = placement;
         // The publish diffs the selections against `previous` while clients listen.
         const WindowHostSnapshotChanges changes = PublishWindowHostAccessibilitySnapshot(*target, _host);
-        target->preparation                     = preparation;
+        if (FAILED(changes.result))
+            return changes.result;
+        target->preparation = preparation;
         // Before raising: a client callback during the raise may disconnect and destroy the target.
         target->eventBaseline = target->snapshot.load(std::memory_order_acquire);
         RaiseAccessibilitySnapshotChanges(*target, previous, changes);
@@ -14492,18 +14613,16 @@ HRESULT EmbeddedHost::UpdateAccessibility(const EmbeddedAccessibilityPlacement& 
     }
     catch (const std::bad_alloc&)
     {
-        return E_OUTOFMEMORY;
+        Failure::FailAllocation();
     }
     catch (const std::exception&)
     {
-        // A Tree or Grid model getter failed while the snapshot was built, as the native flush and Prepare contain it. The
-        // prior snapshot stays published and the preparation is not marked published, so the next call retries.
-        Debug::Error(L"DxUi: embedded accessibility model callback failed; the coherent prior snapshot is kept");
-        return E_FAIL;
+        Failure::FailUnexpected();
     }
 }
 HRESULT EmbeddedHost::GetAccessibilityProvider(IRawElementProviderFragmentRoot** result) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (! result)
         return E_POINTER;
     *result      = nullptr;
@@ -14585,7 +14704,7 @@ IRawElementProviderFragmentRoot* CreateWindowHostAccessibilityProvider(HWND hwnd
         }
         catch (const std::bad_alloc&)
         {
-            return nullptr;
+            Failure::FailAllocation();
         }
     }
 

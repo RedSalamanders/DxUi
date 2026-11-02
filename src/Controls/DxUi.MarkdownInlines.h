@@ -3,6 +3,7 @@
 #include "DxUi.MarkdownUnicodeData.h"
 #include "DxUi.TextElements.h"
 #include <DxUi/Configuration.h>
+#include <DxUi/Failure.h>
 #include <DxUi/MarkdownSyntax.h>
 #include <DxUi/RichMath.h>
 #include <algorithm>
@@ -10,7 +11,6 @@
 #include <cstdint>
 #include <iterator>
 #include <limits>
-#include <stdexcept>
 
 namespace DxUi::RichText::Detail
 {
@@ -107,6 +107,7 @@ class MarkdownInlines
     bool referencesComplete_{}, leafActive_{}, autolinksActive_{};
     bool referencesSorted_{}, compactComplete_{}, footnoteWalkStarted_{};
     bool footnoteReferencesFinal_{};
+    bool capacityExceeded_{};
     std::size_t footnoteReferenceCursor_{}, footnoteReferenceCount_{};
     std::size_t footnoteUniqueCursor_{}, footnoteUniqueCount_{}, footnoteOrdinal_{}, footnoteQueueHead_{};
 
@@ -268,7 +269,10 @@ class MarkdownInlines
             return tail_;
         }
         if (blocks_.size() >= MarkdownSyntax::MaximumNodeRecords || nodes_.size() >= MarkdownSyntax::MaximumNodeRecords - blocks_.size())
-            throw std::length_error("Markdown inline node capacity exceeded");
+        {
+            capacityExceeded_ = true;
+            return MarkdownNoNode;
+        }
         const auto index = nodes_.size();
         nodes_.emplace_back();
         previous_.push_back(tail_);
@@ -328,7 +332,10 @@ class MarkdownInlines
     void OpaqueHtmlBlock()
     {
         if (blocks_.size() >= MarkdownSyntax::MaximumNodeRecords || nodes_.size() >= MarkdownSyntax::MaximumNodeRecords - blocks_.size())
-            throw std::length_error("Markdown HTML inline node capacity exceeded");
+        {
+            capacityExceeded_ = true;
+            return;
+        }
         const auto index = nodes_.size();
         nodes_.emplace_back();
         previous_.push_back(MarkdownNoNode);
@@ -388,7 +395,7 @@ class MarkdownInlines
                 const auto index = offsets_.back();
                 offsets_.pop_back();
                 if (previous_[index] != MarkdownNoNode)
-                    throw std::logic_error("Inline tree edge is not unique");
+                    DxUi::Failure::FailContract(E_UNEXPECTED);
                 previous_[index] = 0u;
                 if (nodes_[index].firstChild != MarkdownNoNode)
                     offsets_.push_back(nodes_[index].firstChild);
@@ -525,7 +532,10 @@ class MarkdownInlines
             const auto first = nodes_[openNode].nextSibling, last = previous_[closeNode];
             const auto wrapper = nodes_.size();
             if (blocks_.size() >= MarkdownSyntax::MaximumNodeRecords || wrapper >= MarkdownSyntax::MaximumNodeRecords - blocks_.size())
-                throw std::length_error("Markdown emphasis node capacity exceeded");
+            {
+                capacityExceeded_ = true;
+                return;
+            }
             nodes_.emplace_back();
             previous_.push_back(openNode);
             nodes_[wrapper].kind         = close.marker == L'~'   ? (use == 2u ? Kind::Strikethrough : Kind::Subscript)
@@ -645,7 +655,10 @@ class MarkdownInlines
         if (profile_ == MarkdownProfile::RichMarkdown && text_.find_first_of(L"$\\") != std::wstring::npos)
         {
             if (text_.size() >= none)
-                throw std::length_error("Markdown inline terminator index capacity exceeded");
+            {
+                capacityExceeded_ = true;
+                return;
+            }
             htmlNext_.resize(text_.size() + 1u);
             htmlNext_.back() = next;
             std::size_t slashes{};
@@ -832,6 +845,8 @@ class MarkdownInlines
             return false;
         const auto binding = FootnoteFor(label);
         Emphasis(bracket.delimiter);
+        if (capacityExceeded_)
+            return true;
         auto& node  = nodes_[bracket.node];
         node.kind   = Kind::FootnoteReference;
         node.source = range;
@@ -898,6 +913,8 @@ class MarkdownInlines
         if (! found)
             return false;
         Emphasis(bracket.delimiter);
+        if (capacityExceeded_)
+            return true;
         const auto first = nodes_[bracket.node].nextSibling;
         if (first != MarkdownNoNode)
         {
@@ -1017,14 +1034,19 @@ class MarkdownInlines
         const auto found = AngleAutolinkEnd(cursor_, std::nullopt, &autolinkInspectionUnits_);
         if (! found)
             return false;
-        const auto end           = found.value();
-        const auto content       = std::wstring_view(text_).substr(cursor_ + 1u, end - cursor_ - 1u);
-        const bool email         = content.find(L':') == std::wstring_view::npos;
-        const auto link          = Append(Kind::Link, cursor_, end + 1u);
+        const auto end     = found.value();
+        const auto content = std::wstring_view(text_).substr(cursor_ + 1u, end - cursor_ - 1u);
+        const bool email   = content.find(L':') == std::wstring_view::npos;
+        const auto link    = Append(Kind::Link, cursor_, end + 1u);
+        if (link == MarkdownNoNode)
+            return true;
         nodes_[link].destination = email ? std::wstring(L"mailto:") + std::wstring(content) : std::wstring(content);
         const auto child         = nodes_.size();
         if (blocks_.size() >= MarkdownSyntax::MaximumNodeRecords || child >= MarkdownSyntax::MaximumNodeRecords - blocks_.size())
-            throw std::length_error("Markdown autolink node capacity exceeded");
+        {
+            capacityExceeded_ = true;
+            return true;
+        }
         nodes_.emplace_back();
         previous_.push_back(MarkdownNoNode);
         nodes_[child].kind      = Kind::Text;
@@ -1269,13 +1291,18 @@ class MarkdownInlines
         }
         if (! length)
             return false;
-        const auto link          = Append(Kind::Link, cursor_, cursor_ + length);
+        const auto link = Append(Kind::Link, cursor_, cursor_ + length);
+        if (link == MarkdownNoNode)
+            return true;
         nodes_[link].destination = email          ? std::wstring(L"mailto:") + std::wstring(rest.substr(0u, length))
                                    : scheme == 4u ? std::wstring(L"http://") + std::wstring(rest.substr(0u, length))
                                                   : std::wstring(rest.substr(0u, length));
         const auto child         = nodes_.size();
         if (blocks_.size() >= MarkdownSyntax::MaximumNodeRecords || child >= MarkdownSyntax::MaximumNodeRecords - blocks_.size())
-            throw std::length_error("Markdown autolink node capacity exceeded");
+        {
+            capacityExceeded_ = true;
+            return true;
+        }
         nodes_.emplace_back();
         previous_.push_back(MarkdownNoNode);
         nodes_[child].kind      = Kind::Text;
@@ -1356,7 +1383,9 @@ class MarkdownInlines
             // Defer this suffix until it becomes a final prefix or the region
             // finishes. Decoding the complete remaining suffix after each URL
             // made a paragraph of small links quadratic.
-            current                   = Append(Kind::Text, last, end);
+            current = Append(Kind::Text, last, end);
+            if (current == MarkdownNoNode)
+                return;
             autolinkRegion_->deferred = current;
         }
         nodes_[tail_].nextSibling = after;
@@ -1442,8 +1471,12 @@ class MarkdownInlines
             root_ = tail_ = lastLiteral_ = MarkdownNoNode;
             if (ExtendedAutolink())
             {
+                if (capacityExceeded_)
+                    return std::nullopt;
                 const auto link = root_;
                 AutolinkSplice(link, at, cursor_, region.current, visit.parent);
+                if (capacityExceeded_)
+                    return std::nullopt;
                 DelimiterHistory(nodes_[link].source.last, nodes_[link].source);
                 autolinkBoundary_ = emailBoundary_ = false;
                 return std::nullopt;
@@ -1600,6 +1633,8 @@ class MarkdownInlines
             {
                 cursor_ += length;
                 const auto node = Append(Kind::Html, first, cursor_, std::wstring_view(text_).substr(first, length));
+                if (node == MarkdownNoNode)
+                    return;
                 FilterHtml(node);
                 return;
             }
@@ -1705,10 +1740,14 @@ class MarkdownInlines
                 }
                 if (valid)
                 {
-                    const auto owner   = Append(wikiImage ? Kind::Image : Kind::Link, first, wikiClose_ + 2u, {}, false);
+                    const auto owner = Append(wikiImage ? Kind::Image : Kind::Link, first, wikiClose_ + 2u, {}, false);
+                    if (owner == MarkdownNoNode)
+                        return;
                     nodes_[owner].wiki = true;
                     nodes_[owner].destination.assign(text_.data() + body, separator - body);
                     const auto child = Append(Kind::Text, labelFirst, wikiClose_, std::wstring_view(text_).substr(labelFirst, wikiClose_ - labelFirst), false);
+                    if (child == MarkdownNoNode)
+                        return;
                     Remove(child);
                     previous_[child]         = MarkdownNoNode;
                     nodes_[owner].firstChild = child;
@@ -1726,6 +1765,8 @@ class MarkdownInlines
             const bool image = c == L'!';
             cursor_ += image ? 2u : 1u;
             const auto node = Append(Kind::Text, first, cursor_, std::wstring_view(text_).substr(first, cursor_ - first), false);
+            if (node == MarkdownNoNode)
+                return;
             brackets_.push_back({node, first, delimiterTail_, image});
             return;
         }
@@ -1742,6 +1783,8 @@ class MarkdownInlines
                 ++cursor_;
             const auto length = cursor_ - first;
             const auto node   = Append(Kind::Text, first, cursor_, std::wstring_view(text_).substr(first, length), false);
+            if (node == MarkdownNoNode)
+                return;
             if ((c == L'~' && ! ((length == 2u && HasMarkdownExtension(extensions_, MarkdownExtensions::Strikethrough)) ||
                                  (length == 1u && HasMarkdownExtension(extensions_, MarkdownExtensions::Subscript)))) ||
                 (c == L'^' && length != 1u) || ((c == L'=' || c == L'+') && length != 2u))
@@ -1806,7 +1849,7 @@ class MarkdownInlines
                         return binding.inlineNode < wanted;
                     });
                     if (reference == footnoteReferences_.end() || reference->inlineNode != visit.node)
-                        throw std::logic_error("Missing final footnote reference binding");
+                        DxUi::Failure::FailContract(E_UNEXPECTED);
                     if (reference->footnote != MarkdownNoNode)
                     {
                         auto& note = footnotes_[reference->footnote];
@@ -1848,6 +1891,10 @@ class MarkdownInlines
     }
 
 public:
+    bool CapacityExceeded() const noexcept
+    {
+        return capacityExceeded_;
+    }
     MarkdownInlines(std::wstring_view source,
                     std::wstring_view rawSource,
                     std::optional<MarkdownSourceRegion> sourceRegion,
@@ -1993,10 +2040,12 @@ public:
                 // unit and can detach or corrupt the empty editable owner.
                 if (sourceRegion_->source.first == sourceRegion_->source.last && cursor_ == first && cursor_ < text_.size() && text_[cursor_] == L'\ufffc')
                     ++cursor_;
-                const auto index     = Append(Kind::SourceEditor,
-                                              first,
-                                              cursor_,
-                                              rawSource_.substr(sourceRegion_->source.first, sourceRegion_->source.last - sourceRegion_->source.first));
+                const auto index = Append(Kind::SourceEditor,
+                                          first,
+                                          cursor_,
+                                          rawSource_.substr(sourceRegion_->source.first, sourceRegion_->source.last - sourceRegion_->source.first));
+                if (index == MarkdownNoNode)
+                    return false;
                 nodes_[index].source = sourceRegion_->source;
                 sourceRegionEmitted_ = true;
             }

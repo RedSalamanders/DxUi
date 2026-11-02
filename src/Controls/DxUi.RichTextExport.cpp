@@ -1,4 +1,6 @@
 #include "DxUi.MarkdownLabels.h"
+#include <DxUi/Configuration.h>
+#include <DxUi/Failure.h>
 #include <DxUi/RichTextExport.h>
 #include <algorithm>
 #include <array>
@@ -7,17 +9,47 @@
 
 namespace DxUi::RichText
 {
+#if DXUI_ENABLE_DIAGNOSTICS
+namespace Detail
+{
+thread_local std::size_t testRichExportUnitLimit = ExportContent::MaximumUnits;
+}
+#endif
 namespace
 {
-void Append(std::wstring& output, std::wstring_view text)
+struct BoundedOutput
 {
-    if (text.size() > ExportContent::MaximumUnits - output.size())
-        throw std::length_error("Rich text export capacity exceeded");
-    output.append(text);
+    explicit BoundedOutput(std::wstring& output) noexcept : text(output)
+    {
+#if DXUI_ENABLE_DIAGNOSTICS
+        limit = (std::min)(limit, Detail::testRichExportUnitLimit);
+#endif
+    }
+    BoundedOutput(const BoundedOutput&)            = delete;
+    BoundedOutput& operator=(const BoundedOutput&) = delete;
+    BoundedOutput(BoundedOutput&&)                 = delete;
+    BoundedOutput& operator=(BoundedOutput&&)      = delete;
+    std::wstring& text;
+    std::size_t limit = ExportContent::MaximumUnits;
+    bool exceeded{};
+};
+void Append(BoundedOutput& output, std::wstring_view text)
+{
+    if (output.exceeded)
+        return;
+    if (output.text.size() > output.limit || text.size() > output.limit - output.text.size())
+    {
+        output.exceeded = true;
+        return;
+    }
+    output.text.append(text);
 }
-void Escape(std::wstring& output, std::wstring_view text)
+void Escape(BoundedOutput& output, std::wstring_view text)
 {
     for (const auto unit : text)
+    {
+        if (output.exceeded)
+            return;
         switch (unit)
         {
             case L'&': Append(output, L"&amp;"); break;
@@ -32,12 +64,15 @@ void Escape(std::wstring& output, std::wstring_view text)
                 break;
             }
         }
+    }
 }
-void EscapeInline(std::wstring& output, std::wstring_view text)
+void EscapeInline(BoundedOutput& output, std::wstring_view text)
 {
     std::size_t first = 0u;
     for (std::size_t index = 0u; index < text.size(); ++index)
     {
+        if (output.exceeded)
+            return;
         if (text[index] != L'\n' && text[index] != L'\r')
             continue;
         Escape(output, text.substr(first, index - first));
@@ -140,22 +175,22 @@ class Serializer
         }
         return ExtensionTag(role);
     }
-    void Open(std::wstring& output, std::wstring_view tag) const
+    void Open(BoundedOutput& output, std::wstring_view tag) const
     {
         Append(output, L"<");
         Append(output, tag);
         Append(output, L">");
     }
-    void Close(std::wstring& output, std::wstring_view tag) const
+    void Close(BoundedOutput& output, std::wstring_view tag) const
     {
         Append(output, L"</");
         Append(output, tag);
         Append(output, L">");
     }
-    void Inline(std::wstring& output, MarkdownRange range, bool insidePre = false) const
+    void Inline(BoundedOutput& output, MarkdownRange range, bool insidePre = false) const
     {
         if (range.first > range.last || range.last > display.size())
-            throw std::logic_error("Invalid export display range");
+            Failure::FailContract(E_UNEXPECTED);
         std::vector<std::size_t> boundaries(0u);
         boundaries.push_back(range.first);
         boundaries.push_back(range.last);
@@ -180,7 +215,7 @@ class Serializer
         }
         std::sort(boundaries.begin(), boundaries.end());
         boundaries.erase(std::unique(boundaries.begin(), boundaries.end()), boundaries.end());
-        for (std::size_t index = 1u; index < boundaries.size(); ++index)
+        for (std::size_t index = 1u; index < boundaries.size() && ! output.exceeded; ++index)
         {
             const auto first = boundaries[index - 1u], last = boundaries[index];
             while (run != runs.end() && run->start + run->length <= first)
@@ -260,7 +295,7 @@ public:
           markerEnds(value.Elements().size(), 0u)
     {
         if (range.first > range.last || range.last > display.size() || ! IsEditBoundary(display, range.first) || ! IsEditBoundary(display, range.last))
-            throw std::invalid_argument("Invalid export display range");
+            Failure::FailContract(E_INVALIDARG);
         for (const auto& heading : document.Headings())
         {
             if (heading.element < headingIds.size())
@@ -315,11 +350,13 @@ public:
         std::sort(abbreviations.begin(), abbreviations.end(), order);
         std::ranges::sort(blockedFragments);
     }
-    void Text(std::wstring& result) const
+    void Text(BoundedOutput& result) const
     {
         std::size_t first = selected.first;
         for (const auto* object : objects)
         {
+            if (result.exceeded)
+                return;
             if (object->display.last <= selected.first || object->display.first >= selected.last)
                 continue;
             Append(result, display.substr(first, object->display.first - first));
@@ -328,7 +365,7 @@ public:
         }
         Append(result, display.substr(first, selected.last - first));
     }
-    void Html(std::wstring& result) const
+    void Html(BoundedOutput& result) const
     {
         struct Visit
         {
@@ -349,7 +386,13 @@ public:
                 (selected.first > first || selected.last < last))
             {
                 std::wstring text(0u, L' ');
-                Text(text);
+                BoundedOutput plain{text};
+                Text(plain);
+                if (plain.exceeded)
+                {
+                    result.exceeded = true;
+                    return;
+                }
                 Open(result, L"pre");
                 Escape(result, text);
                 Close(result, L"pre");
@@ -357,7 +400,7 @@ public:
                 return;
             }
         }
-        while (! pending.empty())
+        while (! pending.empty() && ! result.exceeded)
         {
             const auto visit = pending.back();
             pending.pop_back();
@@ -461,27 +504,62 @@ public:
 } // namespace
 ExportContent ExportSemanticDocument(const SemanticDocument& document)
 {
+    Failure::Scope failureScope;
     return ExportSemanticDocument(document, {0u, document.Map().Display().size()});
 }
 ExportContent ExportSemanticDocument(const SemanticDocument& document, MarkdownRange displayRange)
 {
+    Failure::Scope failureScope;
+    std::optional<ExportContent> result;
+    if (TryExportSemanticDocument(document, displayRange, result) != SourceResult::Success)
+        Failure::FailContract(E_INVALIDARG);
+    return std::move(result.value());
+}
+SourceResult TryExportSemanticDocument(const SemanticDocument& document, MarkdownRange displayRange, std::optional<ExportContent>& output)
+{
+    Failure::Scope failureScope;
+    const auto display = document.Map().Display();
+    if (displayRange.first > displayRange.last || displayRange.last > display.size() || ! IsEditBoundary(display, displayRange.first) ||
+        ! IsEditBoundary(display, displayRange.last))
+        return SourceResult::InvalidRange;
     const Serializer serializer(document, displayRange);
     std::wstring text(0u, L' '), html(0u, L' ');
-    serializer.Text(text);
-    serializer.Html(html);
-    return ExportContent(std::move(text), std::move(html));
+    BoundedOutput textOutput{text}, htmlOutput{html};
+    serializer.Text(textOutput);
+    if (textOutput.exceeded)
+        return SourceResult::CapacityExceeded;
+    serializer.Html(htmlOutput);
+    if (htmlOutput.exceeded)
+        return SourceResult::CapacityExceeded;
+    output = ExportContent(std::move(text), std::move(html));
+    return SourceResult::Success;
 }
 ExportContent ExportMarkdownSyntax(std::shared_ptr<const MarkdownSyntax> syntax)
 {
+    Failure::Scope failureScope;
+    std::optional<ExportContent> result;
+    if (TryExportMarkdownSyntax(std::move(syntax), result) != SourceResult::Success)
+        Failure::FailContract(E_INVALIDARG);
+    return std::move(result.value());
+}
+SourceResult TryExportMarkdownSyntax(std::shared_ptr<const MarkdownSyntax> syntax, std::optional<ExportContent>& output)
+{
+    Failure::Scope failureScope;
     if (! syntax)
-        throw std::invalid_argument("Export requires a Markdown syntax publication");
+        return SourceResult::InvalidSource;
     SemanticBuilder builder;
-    builder.Begin(std::move(syntax));
+    const auto admission = builder.TryBegin(std::move(syntax));
+    if (admission != SourceResult::Success)
+        return admission;
     while (builder.HasPendingPreparation())
-        static_cast<void>(builder.Advance());
+    {
+        const auto step = builder.Advance();
+        if (step.status == MarkdownPreparationStatus::Failed)
+            return step.result == MarkdownResult::CapacityExceeded ? SourceResult::CapacityExceeded : SourceResult::InvalidRange;
+    }
     const auto document = builder.Published();
     if (! document)
-        throw std::logic_error("Markdown export did not publish a semantic document");
-    return ExportSemanticDocument(*document);
+        Failure::FailContract(E_UNEXPECTED);
+    return TryExportSemanticDocument(*document, {0u, document->Map().Display().size()}, output);
 }
 } // namespace DxUi::RichText

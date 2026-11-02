@@ -1,10 +1,10 @@
 #pragma once
 #include "DxUi.MarkdownLabels.h"
 #include "DxUi.MarkdownTableCells.h"
+#include <DxUi/Failure.h>
 #include <DxUi/MarkdownSyntax.h>
 #include <cwctype>
 #include <optional>
-#include <stdexcept>
 
 namespace DxUi::RichText::Detail
 {
@@ -42,11 +42,14 @@ class MarkdownBlocks
     std::optional<MarkdownSourceRegion> sourceRegion_;
     bool sourceRegionStarted_{};
     bool emptyInlineRegion_{};
+    bool capacityExceeded_{};
 
     void StartSourceRegion(std::size_t bodyEnd)
     {
         CloseLeaf();
-        leaf_                = Add(Kind::SourceEditor, open_.back());
+        leaf_ = Add(Kind::SourceEditor, open_.back());
+        if (leaf_ == MarkdownNoNode)
+            return;
         sourceRegionStarted_ = true;
         Content(leaf_, Cursor{source_, lineFirst_, bodyEnd}, bodyEnd);
         Extend();
@@ -455,8 +458,13 @@ class MarkdownBlocks
         // all its columns against the remaining document budget before any row
         // or cell allocation; subtraction avoids overflow in large products.
         if (alignment.size() >= MarkdownSyntax::MaximumNodeRecords - nodes_.size())
-            throw std::length_error("Markdown table node capacity exceeded");
-        const auto row            = Add(Kind::TableRow, table);
+        {
+            capacityExceeded_ = true;
+            return;
+        }
+        const auto row = Add(Kind::TableRow, table);
+        if (row == MarkdownNoNode)
+            return;
         nodes_[row].tableHeader   = header;
         nodes_[row].block.source  = {header ? nodes_[table].block.source.first : lineFirst_, line.source.last};
         nodes_[row].block.content = line.source;
@@ -475,6 +483,8 @@ class MarkdownBlocks
         if (rest.find_first_not_of(L" |:-\t") != std::wstring_view::npos || rest.find(L'-') == std::wstring_view::npos)
             return false;
         References(leaf_);
+        if (capacityExceeded_)
+            return true;
         if (nodes_[leaf_].parent == MarkdownNoNode)
         {
             // An all-definition paragraph was replaced by reference nodes.
@@ -518,9 +528,11 @@ class MarkdownBlocks
                 --contentEnd;
             const auto parent = nodes_[leaf_].parent;
             nodes_[leaf_].lines.pop_back();
-            nodes_[leaf_].block.source.last   = preceding;
-            nodes_[leaf_].block.content.last  = contentEnd;
-            table                             = Add(Kind::Table, parent);
+            nodes_[leaf_].block.source.last  = preceding;
+            nodes_[leaf_].block.content.last = contentEnd;
+            table                            = Add(Kind::Table, parent);
+            if (table == MarkdownNoNode)
+                return true;
             nodes_[table].block.source.first  = preceding;
             nodes_[table].block.content.first = header.source.first;
             nodes_[table].lines.push_back(header);
@@ -539,13 +551,18 @@ class MarkdownBlocks
         for (auto cell = nodes_[header].firstChild; cell != MarkdownNoNode; cell = nodes_[cell].nextSibling)
             alignment.push_back(nodes_[cell].alignment);
         TableRow(leaf_, {{cursor.offset, lineEnd_}, cursor.remaining}, alignment, false);
+        if (capacityExceeded_)
+            return;
         nodes_[leaf_].block.source.last  = lineEnd_;
         nodes_[leaf_].block.content.last = lineEnd_;
     }
     std::size_t Add(Kind kind, std::size_t parent)
     {
-        if (nodes_.size() >= MarkdownSyntax::MaximumNodeRecords)
-            throw std::length_error("Markdown block node capacity exceeded");
+        if (capacityExceeded_ || nodes_.size() >= MarkdownSyntax::MaximumNodeRecords)
+        {
+            capacityExceeded_ = true;
+            return MarkdownNoNode;
+        }
         const auto index = nodes_.size();
         nodes_.emplace_back();
         tails_.push_back(MarkdownNoNode);
@@ -666,7 +683,9 @@ class MarkdownBlocks
         const auto marker = body.substr(bom);
         if (marker != L"---" && marker != L"+++")
             return false;
-        leaf_                = Add(Kind::FrontMatter, 0u);
+        leaf_ = Add(Kind::FrontMatter, 0u);
+        if (leaf_ == MarkdownNoNode)
+            return true;
         auto& node           = nodes_[leaf_];
         node.frontMatterKind = marker == L"---" ? MarkdownFrontMatterKind::Yaml : MarkdownFrontMatterKind::Toml;
         node.block.content   = {end, end};
@@ -865,7 +884,10 @@ class MarkdownBlocks
             // Reference extraction splices before the paragraph rather than using Add's tail linkage.
             // It must still share the complete block/inline graph admission ceiling.
             if (nodes_.size() >= MarkdownSyntax::MaximumNodeRecords)
-                throw std::length_error("Markdown reference node capacity exceeded");
+            {
+                capacityExceeded_ = true;
+                return;
+            }
             const auto index = nodes_.size();
             nodes_.emplace_back();
             tails_.push_back(MarkdownNoNode);
@@ -922,6 +944,10 @@ class MarkdownBlocks
     }
 
 public:
+    bool CapacityExceeded() const noexcept
+    {
+        return capacityExceeded_;
+    }
     bool AdvanceTableCell()
     {
         if (! tableRow_)
@@ -932,11 +958,13 @@ public:
             tableRow_.reset();
             return true;
         }
-        const auto column         = pending.column++;
-        const auto row            = pending.row;
-        const auto end            = nodes_[row].block.content.last;
-        const auto range          = column < pending.cells.size() ? pending.cells[column] : MarkdownRange{end, end};
-        const auto cell           = Add(Kind::TableCell, row);
+        const auto column = pending.column++;
+        const auto row    = pending.row;
+        const auto end    = nodes_[row].block.content.last;
+        const auto range  = column < pending.cells.size() ? pending.cells[column] : MarkdownRange{end, end};
+        const auto cell   = Add(Kind::TableCell, row);
+        if (cell == MarkdownNoNode)
+            return true;
         nodes_[cell].alignment    = pending.alignment[column];
         nodes_[cell].tableHeader  = nodes_[row].tableHeader;
         nodes_[cell].block.source = nodes_[cell].block.content = range;
@@ -994,9 +1022,11 @@ public:
         const auto shift = [&](std::size_t at) noexcept { return currentFirst + (at - oldFirst); };
         const auto range = [&](MarkdownRange value) noexcept
         { return value.first == 0u && value.last == 0u ? value : MarkdownRange{shift(value.first), shift(value.last)}; };
-        lineFirst_           = currentFirst;
-        lineEnd_             = currentFirst + (old.block.source.last - oldFirst);
-        const auto index     = Add(old.block.kind, parent);
+        lineFirst_       = currentFirst;
+        lineEnd_         = currentFirst + (old.block.source.last - oldFirst);
+        const auto index = Add(old.block.kind, parent);
+        if (index == MarkdownNoNode)
+            return MarkdownNoNode;
         auto& node           = nodes_[index];
         node.block           = old.block;
         node.block.source    = {shift(old.block.source.first), shift(old.block.source.last)};
@@ -1038,14 +1068,16 @@ public:
     {
         if (! CanImportClosedRoot() || old.parent != 0u || old.block.kind != Kind::Paragraph || old.firstChild != MarkdownNoNode ||
             old.block.source.first > old.block.source.last)
-            throw std::invalid_argument("Invalid closed root paragraph reuse");
+            DxUi::Failure::FailContract(E_INVALIDARG);
         const auto oldFirst   = old.block.source.first;
         const auto shift      = [&](std::size_t position) { return currentFirst + (position - oldFirst); };
         const auto shiftRange = [&](MarkdownRange range)
         { return range.first == 0u && range.last == 0u ? range : MarkdownRange{shift(range.first), shift(range.last)}; };
-        lineFirst_         = currentFirst;
-        lineEnd_           = shift(old.block.source.last);
-        const auto index   = Add(Kind::Paragraph, 0u);
+        lineFirst_       = currentFirst;
+        lineEnd_         = shift(old.block.source.last);
+        const auto index = Add(Kind::Paragraph, 0u);
+        if (index == MarkdownNoNode)
+            return;
         auto copy          = old;
         copy.block.source  = shiftRange(copy.block.source);
         copy.block.content = shiftRange(copy.block.content);
@@ -1261,7 +1293,7 @@ public:
                 return;
             }
         }
-        if (StartTable(cursor, bodyEnd))
+        if (StartTable(cursor, bodyEnd) || capacityExceeded_)
         {
             Extend();
             return;
@@ -1274,6 +1306,8 @@ public:
             {
                 CloseLeaf();
                 const auto quote = Add(Kind::BlockQuote, open_.back());
+                if (quote == MarkdownNoNode)
+                    return;
                 open_.push_back(quote);
                 ++containerIndent_;
                 cursor = trimmed;
@@ -1295,7 +1329,9 @@ public:
                         PopContainer();
                         parent = open_.back();
                     }
-                    const auto list         = Add(Kind::List, parent);
+                    const auto list = Add(Kind::List, parent);
+                    if (list == MarkdownNoNode)
+                        return;
                     nodes_[list].listMarker = marker.symbol;
                     nodes_[list].listStart  = marker.ordered ? marker.start : 0u;
                     open_.push_back(list);
@@ -1303,7 +1339,9 @@ public:
                 const auto list = open_.back();
                 if (blank_[list] && nodes_[list].firstChild != MarkdownNoNode)
                     nodes_[list].tight = false;
-                const auto item            = Add(Kind::ListItem, list);
+                const auto item = Add(Kind::ListItem, list);
+                if (item == MarkdownNoNode)
+                    return;
                 nodes_[item].block.info    = marker.source;
                 nodes_[item].contentIndent = marker.indent;
                 open_.push_back(item);
@@ -1319,7 +1357,9 @@ public:
             if (const auto note = FootnoteAt(cursor); note.valid)
             {
                 CloseLeaf();
-                const auto index            = Add(Kind::FootnoteDefinition, open_.back());
+                const auto index = Add(Kind::FootnoteDefinition, open_.back());
+                if (index == MarkdownNoNode)
+                    return;
                 nodes_[index].label         = note.label;
                 nodes_[index].block.info    = note.marker;
                 nodes_[index].block.content = {note.content.offset, end};
@@ -1348,6 +1388,8 @@ public:
                 // Definitions precede setext interpretation; an all-definition
                 // paragraph cannot turn the underline into a heading.
                 References(leaf_);
+                if (capacityExceeded_)
+                    return;
                 if (nodes_[leaf_].parent != MarkdownNoNode)
                 {
                     nodes_[leaf_].block.kind        = Kind::SetextHeading;
@@ -1368,7 +1410,9 @@ public:
                 std::ranges::all_of(rest.substr(2u), [](wchar_t c) { return c == L' ' || c == L'\t'; }))
             {
                 CloseLeaf();
-                leaf_             = Add(Kind::FencedCode, open_.back());
+                leaf_ = Add(Kind::FencedCode, open_.back());
+                if (leaf_ == MarkdownNoNode)
+                    return;
                 auto& block       = nodes_[leaf_].block;
                 block.fenceMarker = rest[0u] == L'$' ? L'$' : L'[';
                 block.fenceLength = 2u;
@@ -1385,7 +1429,9 @@ public:
             if (symbol == L'#' && run <= 6u && (run == rest.size() || Space(rest[run])))
             {
                 CloseLeaf();
-                const auto node            = Add(Kind::AtxHeading, open_.back());
+                const auto node = Add(Kind::AtxHeading, open_.back());
+                if (node == MarkdownNoNode)
+                    return;
                 nodes_[node].block.heading = static_cast<unsigned>(run);
                 for (std::size_t i = 0; i < run; ++i)
                     trimmed.Take();
@@ -1417,7 +1463,9 @@ public:
             if ((symbol == L'`' || symbol == L'~') && run >= 3u && (symbol == L'~' || rest.substr(run).find(L'`') == std::wstring_view::npos))
             {
                 CloseLeaf();
-                leaf_             = Add(Kind::FencedCode, open_.back());
+                leaf_ = Add(Kind::FencedCode, open_.back());
+                if (leaf_ == MarkdownNoNode)
+                    return;
                 auto& block       = nodes_[leaf_].block;
                 block.fenceMarker = symbol;
                 block.fenceLength = run;
@@ -1436,7 +1484,9 @@ public:
             if (const auto html = HtmlStart(cursor, leaf_ != MarkdownNoNode))
             {
                 CloseLeaf();
-                leaf_                  = Add(Kind::HtmlBlock, open_.back());
+                leaf_ = Add(Kind::HtmlBlock, open_.back());
+                if (leaf_ == MarkdownNoNode)
+                    return;
                 nodes_[leaf_].htmlType = html;
                 Content(leaf_, cursor, bodyEnd);
                 if (HtmlEnd(html, cursor.Rest()))
@@ -1454,12 +1504,16 @@ public:
         if (indent >= 4u)
         {
             leaf_ = Add(Kind::IndentedCode, open_.back());
+            if (leaf_ == MarkdownNoNode)
+                return;
             cursor.Spaces(4u);
             Content(leaf_, cursor, bodyEnd);
         }
         else
         {
             leaf_ = Add(Kind::Paragraph, open_.back());
+            if (leaf_ == MarkdownNoNode)
+                return;
             Content(leaf_, trimmed, bodyEnd);
         }
         Extend();
@@ -1470,6 +1524,8 @@ public:
         {
             lineFirst_ = lineEnd_ = 0u;
             leaf_                 = Add(Kind::Paragraph, open_.back());
+            if (leaf_ == MarkdownNoNode)
+                return;
             Content(leaf_, Cursor{source_, 0u, 0u}, 0u);
             Extend();
         }

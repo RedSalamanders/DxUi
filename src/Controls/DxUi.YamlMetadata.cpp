@@ -1,123 +1,27 @@
 #include "DxUi.MarkdownMetadata.h"
+#include <DxUi/Failure.h>
 #include <algorithm>
 #include <cctype>
 #include <charconv>
 #include <limits>
 #include <memory>
-#include <new>
-#include <stdexcept>
 #include <string>
 #include <vector>
-
-// The upstream integer-event amalgamation omits its event handler. This private
-// copy includes the exact upstream handler and isolates C4 symbols from consumers.
-#define RYML_SINGLE_HDR_DEFINE_NOW
-#define RYML_WITH_TAB_TOKENS
-#define RYML_MAX_TAG_DIRECTIVES 128
-#define c4 dxui_private_c4
 #pragma warning(push)
 #pragma warning(disable : 4464)
-#include "../../ThirdParty/rapidyaml/0.16.0/rapidyaml.hpp"
+#include "../../ThirdParty/libyaml/0.2.5/yaml.h"
 #pragma warning(pop)
-#undef c4
+
+extern "C" void dxui_yaml_fatal_allocation(std::size_t bytes)
+{
+    DxUi::Failure::FailAllocation(bytes);
+}
 
 namespace DxUi::RichText::Detail
 {
 namespace
 {
-namespace yaml   = dxui_private_c4::yml;
-namespace events = dxui_private_c4::yml::extra::ievt;
-struct YamlSyntaxError
-{
-};
-struct YamlCapacityError
-{
-};
-struct Budget
-{
-    std::size_t bytes{};
-    static constexpr std::size_t MaximumBytes = 4u * 1024u * 1024u;
-};
-void* AllocateYaml(std::size_t length, void*, void* context)
-{
-    auto& budget = *static_cast<Budget*>(context);
-    if (length > Budget::MaximumBytes - budget.bytes)
-        throw YamlCapacityError{};
-    auto* const result = ::operator new(length);
-    budget.bytes += length;
-    return result;
-}
-void FreeYaml(void* allocation, std::size_t length, void* context)
-{
-    auto& budget = *static_cast<Budget*>(context);
-    budget.bytes -= length;
-    ::operator delete(allocation);
-}
-[[noreturn]] void YamlBasicError(dxui_private_c4::csubstr, const yaml::ErrorDataBasic&, void*)
-{
-    throw YamlSyntaxError{};
-}
-[[noreturn]] void YamlParseError(dxui_private_c4::csubstr message, const yaml::ErrorDataParse&, void*)
-{
-    if (std::string_view(message.str, message.len) == "too many %TAG directives")
-        throw YamlCapacityError{};
-    throw YamlSyntaxError{};
-}
-[[noreturn]] void YamlVisitError(dxui_private_c4::csubstr, const yaml::ErrorDataVisit&, void*)
-{
-    throw YamlSyntaxError{};
-}
-struct EventStream
-{
-    EventStream() : source(0u, '\0'), arena(0u, '\0'), words(0u)
-    {
-    }
-    std::string source;
-    std::string arena;
-    std::vector<events::evt_bits> words;
-};
-MetadataIssue ParseYamlEvents(std::wstring_view text, EventStream& out)
-{
-    if (! MetadataUtf8(text, out.source))
-        return MetadataIssue::Invalid;
-    // The handler counts required output even when a bounded buffer fills.
-    // Exhaustion is a capacity result, not a malformed-YAML diagnosis.
-    constexpr std::size_t MaximumWords = 256u * 1024u;
-    constexpr std::size_t MaximumArena = 512u * 1024u;
-    out.words.resize((std::min)(MaximumWords, out.source.size() * 8u + 64u));
-    out.arena.resize((std::min)(MaximumArena, out.source.size() * 3u + 64u));
-    Budget budget;
-    yaml::Callbacks callbacks;
-    callbacks.m_user_data   = &budget;
-    callbacks.m_allocate    = AllocateYaml;
-    callbacks.m_free        = FreeYaml;
-    callbacks.m_error_basic = YamlBasicError;
-    callbacks.m_error_parse = YamlParseError;
-    callbacks.m_error_visit = YamlVisitError;
-    try
-    {
-        yaml::extra::EventHandlerInts handler(callbacks);
-        yaml::ParserOptions options;
-        options.resolve_tags_all(true);
-        yaml::ParseEngine<yaml::extra::EventHandlerInts> parser(&handler, options);
-        const dxui_private_c4::substr input(out.source.data(), out.source.size());
-        handler.reset(
-            input, dxui_private_c4::substr(out.arena.data(), out.arena.size()), out.words.data(), static_cast<yaml::extra::evt_size>(out.words.size()));
-        parser.parse_in_place_ev(dxui_private_c4::csubstr("front-matter"), input);
-        if (! handler.fits_buffers())
-            return MetadataIssue::Capacity;
-        out.words.resize(static_cast<std::size_t>(handler.required_size_events()));
-        return MetadataIssue::None;
-    }
-    catch (const YamlSyntaxError&)
-    {
-        return MetadataIssue::Invalid;
-    }
-    catch (const YamlCapacityError&)
-    {
-        return MetadataIssue::Capacity;
-    }
-}
+
 struct YamlNode
 {
     explicit YamlNode(bool isMap, bool isSeq) : map(isMap), sequence(isSeq), scalar(0u, '\0'), tag(0u, '\0'), children(0u)
@@ -174,90 +78,146 @@ struct YamlGraph
     }
 };
 
-MetadataIssue MakeYamlGraph(const EventStream& stream, YamlGraph& graph)
+struct YamlBudgetScope
 {
-    std::vector<std::unique_ptr<std::string>> directiveHandles(0u);
-    bool versionSeen = false;
-    for (std::size_t index = 0u; index < stream.words.size();)
+    dxui_yaml_budget_t budget{};
+    YamlBudgetScope()
     {
-        const auto bits = stream.words[index++];
-        std::string_view value;
-        if (bits & events::WSTR)
+        dxui_yaml_budget_begin(&budget, 4u * 1024u * 1024u);
+    }
+    ~YamlBudgetScope()
+    {
+        dxui_yaml_budget_end(&budget);
+    }
+    MetadataIssue Failure() const
+    {
+        return MetadataIssue::Capacity;
+    }
+};
+struct YamlParserScope
+{
+    dxui_yaml_parser_t parser{};
+    bool initialized{};
+    ~YamlParserScope()
+    {
+        if (initialized)
+            dxui_yaml_parser_delete(&parser);
+    }
+};
+struct YamlEventScope
+{
+    dxui_yaml_event_t event{};
+    bool initialized{};
+    ~YamlEventScope()
+    {
+        if (initialized)
+            dxui_yaml_event_delete(&event);
+    }
+};
+std::string_view YamlText(const dxui_yaml_char_t* value)
+{
+    return value ? std::string_view(reinterpret_cast<const char*>(value)) : std::string_view{};
+}
+MetadataIssue MakeYamlGraph(std::wstring_view text, YamlGraph& graph)
+{
+    std::string source;
+    if (! MetadataUtf8(text, source))
+        return MetadataIssue::Invalid;
+    YamlBudgetScope budget;
+    YamlParserScope parser;
+    if (! dxui_yaml_parser_initialize(&parser.parser))
+        return budget.Failure();
+    parser.initialized = true;
+    dxui_yaml_parser_set_input_string(&parser.parser, reinterpret_cast<const unsigned char*>(source.data()), source.size());
+    std::size_t documents = 0u, eventWords = 0u, arenaBytes = 0u;
+    MetadataIssue graphIssue = MetadataIssue::None;
+    for (;;)
+    {
+        YamlEventScope current;
+        if (! dxui_yaml_parser_parse(&parser.parser, &current.event))
+            return parser.parser.error == YAML_MEMORY_ERROR ? budget.Failure() : MetadataIssue::Invalid;
+        current.initialized = true;
+        const auto& event   = current.event;
+        if (++eventWords > 256u * 1024u)
+            return MetadataIssue::Capacity;
+        if (event.type == YAML_STREAM_END_EVENT)
+            break;
+        if (event.type == YAML_DOCUMENT_START_EVENT)
         {
-            if (index + 1u >= stream.words.size())
+            if (++documents > 1u)
                 return MetadataIssue::Invalid;
-            const auto offset = static_cast<std::size_t>(stream.words[index++]);
-            const auto length = static_cast<std::size_t>(stream.words[index++]);
-            const auto& bytes = bits & events::AREN ? stream.arena : stream.source;
-            if (offset > bytes.size() || length > bytes.size() - offset)
-                return MetadataIssue::Invalid;
-            value = std::string_view(bytes).substr(offset, length);
+            const auto* first = event.data.document_start.tag_directives.start;
+            const auto* last  = event.data.document_start.tag_directives.end;
+            if (first && last - first > 128)
+                return MetadataIssue::Capacity;
+            continue;
         }
-        if (bits & events::YAML)
+        // Syntax was validated for the entire stream before graph construction
+        // in the previous backend. Continue parsing after a graph refusal so a
+        // later syntax error retains that precedence.
+        if (graphIssue != MetadataIssue::None)
+            continue;
+        if (event.type == YAML_ALIAS_EVENT)
         {
-            if (versionSeen)
-                return MetadataIssue::Invalid;
-            versionSeen = true;
-        }
-        else if (bits & events::TAGH)
-        {
-            for (const auto& prior : directiveHandles)
-                if (*prior == value)
-                    return MetadataIssue::Invalid;
-            directiveHandles.push_back(std::make_unique<std::string>(value));
-        }
-        else if (bits & events::ANCH)
-            graph.pendingAnchor.assign(value);
-        else if (bits & events::TAG_)
-        {
-            if (value.size() >= 2u && value.front() == '<' && value.back() == '>')
-                value = value.substr(1u, value.size() - 2u);
-            graph.pendingTag.assign(value);
-        }
-        else if (bits & events::ALIA)
-        {
-            auto found = graph.anchors.rend();
+            eventWords += 2u;
+            const auto name = YamlText(event.data.alias.anchor);
+            auto found      = graph.anchors.rend();
             for (auto it = graph.anchors.rbegin(); it != graph.anchors.rend(); ++it)
-                if ((*it)->name == value)
+                if ((*it)->name == name)
                 {
                     found = it;
                     break;
                 }
             if (found == graph.anchors.rend())
-                return MetadataIssue::UnresolvedAlias;
+            {
+                graphIssue = MetadataIssue::UnresolvedAlias;
+                continue;
+            }
             const auto issue = graph.Add(false, false, false, {}, (*found)->node);
             if (issue != MetadataIssue::None)
-                return issue;
+                graphIssue = issue;
+            continue;
         }
-        else if (bits & events::SCLR)
-        {
-            const auto issue = graph.Add(false, false, (bits & events::PLAI) != 0, value);
-            if (issue != MetadataIssue::None)
-                return issue;
-        }
-        else if ((bits & events::BEG_) && (bits & (events::MAP_ | events::SEQ_)))
-        {
-            const auto issue = graph.Add((bits & events::MAP_) != 0, (bits & events::SEQ_) != 0, false, {});
-            if (issue != MetadataIssue::None)
-                return issue;
-        }
-        else if ((bits & events::END_) && (bits & (events::MAP_ | events::SEQ_)))
+        if (event.type == YAML_MAPPING_END_EVENT || event.type == YAML_SEQUENCE_END_EVENT)
         {
             if (graph.stack.empty())
-                return MetadataIssue::Invalid;
+            {
+                graphIssue = MetadataIssue::Invalid;
+                continue;
+            }
             graph.stack.pop_back();
+            continue;
         }
-        else if ((bits & events::BDOC) == events::BDOC)
-        {
-            // An envelope owns one YAML document and anchors never cross it.
-            if (graph.rootCount)
-                return MetadataIssue::Invalid;
-        }
+        const bool scalar   = event.type == YAML_SCALAR_EVENT;
+        const bool map      = event.type == YAML_MAPPING_START_EVENT;
+        const bool sequence = event.type == YAML_SEQUENCE_START_EVENT;
+        if (! scalar && ! map && ! sequence)
+            continue;
+        const auto anchor = scalar ? event.data.scalar.anchor : map ? event.data.mapping_start.anchor : event.data.sequence_start.anchor;
+        const auto tag    = scalar ? event.data.scalar.tag : map ? event.data.mapping_start.tag : event.data.sequence_start.tag;
+        const auto value  = scalar ? std::string_view(reinterpret_cast<const char*>(event.data.scalar.value), event.data.scalar.length) : std::string_view{};
+        const auto anchorText = YamlText(anchor), tagText = YamlText(tag);
+        eventWords += 2u + (anchor ? 3u : 0u) + (tag ? 3u : 0u);
+        if (eventWords > 256u * 1024u)
+            return MetadataIssue::Capacity;
+        // Plain scalar bytes are sourced directly from the input in the prior
+        // event representation; quoted scalars require decoded staging.
+        const auto addition = scalar && event.data.scalar.style != YAML_PLAIN_SCALAR_STYLE ? value.size() : 0u;
+        if (addition > 512u * 1024u - arenaBytes)
+            return MetadataIssue::Capacity;
+        arenaBytes += addition;
+        graph.pendingAnchor.assign(anchorText);
+        graph.pendingTag.assign(tagText);
+        const auto issue = graph.Add(map, sequence, scalar && event.data.scalar.style == YAML_PLAIN_SCALAR_STYLE, value);
+        if (issue != MetadataIssue::None)
+            graphIssue = issue;
     }
+    if (graphIssue != MetadataIssue::None)
+        return graphIssue;
     return graph.stack.empty() && graph.rootCount <= 1u ? MetadataIssue::None : MetadataIssue::Invalid;
 }
 
-bool YamlInteger(std::string_view input, std::string& out)
+bool YamlInteger(std::string_view input, std::string& out, MetadataIssue& issue)
 {
     if (input.empty())
         return false;
@@ -292,7 +252,10 @@ bool YamlInteger(std::string_view input, std::string& out)
             return false;
     }
     if (input.size() - pos > 256u)
-        throw YamlCapacityError{};
+    {
+        issue = MetadataIssue::Capacity;
+        return false;
+    }
     std::string decimal(1u, '0');
     for (; pos < input.size(); ++pos)
     {
@@ -320,7 +283,7 @@ bool YamlInteger(std::string_view input, std::string& out)
     return true;
 }
 
-bool YamlFloat(std::string_view input, std::string& out, bool explicitFloat)
+bool YamlFloat(std::string_view input, std::string& out, bool explicitFloat, MetadataIssue& issue)
 {
     if (input.empty())
         return false;
@@ -382,7 +345,10 @@ bool YamlFloat(std::string_view input, std::string& out, bool explicitFloat)
             expText.remove_prefix(1u);
         }
         if (expText.size() > 6u)
-            throw YamlCapacityError{};
+        {
+            issue = MetadataIssue::Capacity;
+            return false;
+        }
         for (const auto c : expText)
             exp = exp * 10 + (c - '0');
         if (expNegative)
@@ -391,7 +357,10 @@ bool YamlFloat(std::string_view input, std::string& out, bool explicitFloat)
     if ((! dot && ! exponent && ! explicitFloat) || pos != input.size())
         return false;
     if (digits.size() > 256u)
-        throw YamlCapacityError{};
+    {
+        issue = MetadataIssue::Capacity;
+        return false;
+    }
     const auto first = digits.find_first_not_of('0');
     if (first == std::string::npos)
     {
@@ -413,7 +382,7 @@ bool YamlFloat(std::string_view input, std::string& out, bool explicitFloat)
     return true;
 }
 
-std::string YamlScalarKey(const YamlNode& node)
+std::string YamlScalarKey(const YamlNode& node, MetadataIssue& issue)
 {
     const auto value       = std::string_view(node.scalar);
     const auto tag         = std::string_view(node.tag);
@@ -424,7 +393,10 @@ std::string YamlScalarKey(const YamlNode& node)
     const bool boolean     = tag == "!!bool" || tag == "tag:yaml.org,2002:bool";
     const bool null        = tag == "!!null" || tag == "tag:yaml.org,2002:null";
     if (tag == "!!map" || tag == "!!seq" || tag == "tag:yaml.org,2002:map" || tag == "tag:yaml.org,2002:seq")
-        throw YamlSyntaxError{};
+    {
+        issue = MetadataIssue::Invalid;
+        return {};
+    }
     if (forceString)
         return "s" + node.scalar;
     if (implicit || null)
@@ -438,12 +410,19 @@ std::string YamlScalarKey(const YamlNode& node)
             return "b0";
     }
     std::string normalized(0u, '\0');
-    if ((implicit || integer) && YamlInteger(value, normalized))
+    if ((implicit || integer) && YamlInteger(value, normalized, issue))
         return "i" + normalized;
-    if ((implicit || floating) && YamlFloat(value, normalized, floating))
+    if (issue != MetadataIssue::None)
+        return {};
+    if ((implicit || floating) && YamlFloat(value, normalized, floating, issue))
         return "f" + normalized;
+    if (issue != MetadataIssue::None)
+        return {};
     if (integer || floating || boolean || null)
-        throw YamlSyntaxError{};
+    {
+        issue = MetadataIssue::Invalid;
+        return {};
+    }
     if (! implicit)
     {
         std::string result("t");
@@ -459,14 +438,23 @@ std::string YamlScalarKey(const YamlNode& node)
 struct CanonicalBudget
 {
     std::size_t visits{}, bytes{};
+    MetadataIssue issue{MetadataIssue::None};
 };
 void AppendYamlPart(std::string& target, std::string_view value, CanonicalBudget& budget)
 {
+    if (budget.issue != MetadataIssue::None)
+        return;
     if (value.size() > 8u * 1024u * 1024u - budget.bytes)
-        throw YamlCapacityError{};
+    {
+        budget.issue = MetadataIssue::Capacity;
+        return;
+    }
     budget.bytes += value.size();
     if (target.size() + value.size() > 1024u * 1024u)
-        throw YamlCapacityError{};
+    {
+        budget.issue = MetadataIssue::Capacity;
+        return;
+    }
     target += std::to_string(value.size());
     target.push_back(':');
     target.append(value);
@@ -474,11 +462,16 @@ void AppendYamlPart(std::string& target, std::string_view value, CanonicalBudget
 
 std::string CanonicalYamlNode(const YamlGraph& graph, std::size_t index, std::vector<unsigned char>& active, std::size_t depth, CanonicalBudget& budget)
 {
+    if (budget.issue != MetadataIssue::None)
+        return {};
     if (++budget.visits > 100000u || depth >= 128u || active[index])
-        throw YamlCapacityError{};
+    {
+        budget.issue = MetadataIssue::Capacity;
+        return {};
+    }
     const auto& node = *graph.nodes[index];
     if (! node.map && ! node.sequence)
-        return YamlScalarKey(node);
+        return YamlScalarKey(node, budget.issue);
     active[index] = 1u;
     std::string result(node.map ? "m" : "q");
     const bool ordinaryTag = node.tag.empty() || node.tag == "!" || node.tag == "?" ||
@@ -488,13 +481,21 @@ std::string CanonicalYamlNode(const YamlGraph& graph, std::size_t index, std::ve
     if (node.map)
     {
         if (node.children.size() % 2u)
-            throw YamlSyntaxError{};
+        {
+            budget.issue = MetadataIssue::Invalid;
+            return {};
+        }
         std::vector<std::unique_ptr<std::string>> pairs(0u);
         for (std::size_t i = 0u; i < node.children.size(); i += 2u)
         {
             auto pair = std::make_unique<std::string>(0u, '\0');
             AppendYamlPart(*pair, CanonicalYamlNode(graph, node.children[i], active, depth + 1u, budget), budget);
             AppendYamlPart(*pair, CanonicalYamlNode(graph, node.children[i + 1u], active, depth + 1u, budget), budget);
+            if (budget.issue != MetadataIssue::None)
+            {
+                active[index] = 0u;
+                return {};
+            }
             pairs.push_back(std::move(pair));
         }
         std::sort(pairs.begin(), pairs.end(), [](const auto& a, const auto& b) { return *a < *b; });
@@ -517,7 +518,11 @@ MetadataIssue CheckYamlKeys(const YamlGraph& graph)
         if (! node->map && ! node->sequence)
         {
             if (! node->tag.empty() && node->tag != "!" && node->tag != "?")
-                static_cast<void>(YamlScalarKey(*node));
+            {
+                static_cast<void>(YamlScalarKey(*node, budget.issue));
+                if (budget.issue != MetadataIssue::None)
+                    return budget.issue;
+            }
             continue;
         }
         const auto& tag = node->tag;
@@ -533,9 +538,11 @@ MetadataIssue CheckYamlKeys(const YamlGraph& graph)
         for (std::size_t i = 0u; i < node->children.size(); i += 2u)
         {
             const auto canonical = CanonicalYamlNode(graph, node->children[i], active, 0u, budget);
-            auto key             = std::make_unique<std::string>(canonical);
+            if (budget.issue != MetadataIssue::None)
+                return budget.issue;
+            auto key = std::make_unique<std::string>(canonical);
             if (key->size() > 8u * 1024u * 1024u - budget.bytes)
-                throw YamlCapacityError{};
+                return MetadataIssue::Capacity;
             budget.bytes += key->size();
             keys.push_back(std::move(key));
         }
@@ -560,23 +567,8 @@ MetadataIssue ValidateYamlMetadata(std::wstring_view text)
             continue;
         return MetadataIssue::Invalid;
     }
-    EventStream events;
-    const auto issue = ParseYamlEvents(text, events);
-    if (issue != MetadataIssue::None)
-        return issue;
-    try
-    {
-        YamlGraph graph;
-        const auto graphIssue = MakeYamlGraph(events, graph);
-        return graphIssue == MetadataIssue::None ? CheckYamlKeys(graph) : graphIssue;
-    }
-    catch (const YamlSyntaxError&)
-    {
-        return MetadataIssue::Invalid;
-    }
-    catch (const YamlCapacityError&)
-    {
-        return MetadataIssue::Capacity;
-    }
+    YamlGraph graph;
+    const auto graphIssue = MakeYamlGraph(text, graph);
+    return graphIssue == MetadataIssue::None ? CheckYamlKeys(graph) : graphIssue;
 }
 } // namespace DxUi::RichText::Detail

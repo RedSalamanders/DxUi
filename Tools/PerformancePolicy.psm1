@@ -360,9 +360,49 @@ function Get-PerformanceProjectProfile {
     }
     $clItems = @($Items['ClCompile'])
     $compileItemsIdentity = Get-ResolvedCompileItemsIdentity -Items $clItems -Root $Root
+    foreach ($item in $clItems) {
+        $values = Get-PerformanceItemValues $item $Root
+        $extension = [IO.Path]::GetExtension([string]$values['Identity'])
+        $language = if ($values.Contains('CompileAs')) { [string]$values['CompileAs'] } else { '' }
+        if ([string]$values['AdditionalOptions'] -match '(?:^|\s)["'']?[/-][tT][cCpP]') {
+            throw 'Opaque /TC or /TP language overrides are unsupported; use CompileAs metadata.'
+        }
+        if (($extension -ieq '.cpp' -and $language -notin @('','Default','CompileAsCpp')) -or
+            ($extension -ieq '.c' -and $language -cne 'CompileAsC') -or
+            $extension -inotmatch '^\.(cpp|c)$') {
+            throw "Unsupported explicit compiler language for $($values['Identity'])."
+        }
+    }
+    $cSources = @($clItems | Where-Object { [IO.Path]::GetExtension([string]$_.Identity) -ieq '.c' })
+    if ($cSources.Count -and ($Role -cne 'library' -or $cSources.Count -eq $clItems.Count)) {
+        throw 'Native C support is limited to the mixed C/C++ library profile.'
+    }
     $clProfiles = @($clItems | ForEach-Object { (Get-PerformanceItemValues $_ $Root -Profile) | ConvertTo-Json -Depth 12 -Compress } | Select-Object -Unique)
-    # A set of profiles would hide a /O2-/Od swap between two files. Support only one uniform profile per project.
-    if ($clProfiles.Count -ne 1) { throw "Heterogeneous ClCompile options are unsupported in the $Role performance build." }
+    # Bind flags to each source above: an /O2-/Od swap must never be hidden by a
+    # set of profiles. A native C parser may differ solely in its explicit /TC
+    # language selection; all other effective options must match the C++ role.
+    if ($clProfiles.Count -ne 1) {
+        $cppItems = @($clItems | Where-Object { [IO.Path]::GetExtension([string]$_.Identity) -ieq '.cpp' })
+        $cItems = @($clItems | Where-Object { [IO.Path]::GetExtension([string]$_.Identity) -ieq '.c' })
+        $cppProfiles = @($cppItems | ForEach-Object { (Get-PerformanceItemValues $_ $Root -Profile) | ConvertTo-Json -Depth 12 -Compress } | Select-Object -Unique)
+        $mixedValid = $Role -ceq 'library' -and $cItems.Count -gt 0 -and $cppProfiles.Count -eq 1 -and
+            ($cppItems.Count + $cItems.Count) -eq $clItems.Count
+        if ($mixedValid) {
+            $cppProfile = Get-PerformanceItemValues $cppItems[0] $Root -Profile
+            if ($cppProfile.Contains('CompileAs') -and $cppProfile['CompileAs'] -notin @('','Default','CompileAsCpp')) { $mixedValid = $false }
+            foreach ($item in $cItems) {
+                $cProfile = Get-PerformanceItemValues $item $Root -Profile
+                if (-not $cProfile.Contains('CompileAs') -or $cProfile['CompileAs'] -cne 'CompileAsC') { $mixedValid = $false; break }
+                if ($cppProfile.Contains('CompileAs')) { $cProfile['CompileAs'] = $cppProfile['CompileAs'] }
+                else { $cProfile.Remove('CompileAs') }
+                if (($cProfile | ConvertTo-Json -Depth 12 -Compress) -cne $cppProfiles[0]) { $mixedValid = $false; break }
+            }
+        }
+        if (-not $mixedValid) { throw "Heterogeneous ClCompile options are unsupported in the $Role performance build." }
+        # The exact per-file language remains in compileItemsIdentity and
+        # resolvedItemsIdentity; retain the unchanged common compiler profile.
+        $clProfiles = $cppProfiles
+    }
     $fxProfiles = [ordered]@{}
     $fxRows = @($Items['FxCompile'] | ForEach-Object { Get-PerformanceItemValues $_ $Root })
     $expectedFx = [ordered]@{ 'Rendering\CompositeVS.hlsl'='Vertex'; 'Rendering\CompositePS.hlsl'='Pixel' }
@@ -538,7 +578,8 @@ function Get-PerformanceNativeInputClosure {
     $libraries = @($libraries | ForEach-Object { [IO.Path]::GetFullPath($_).TrimEnd('\','/') } | Sort-Object -Unique)
     $triplet = if ($Platform -eq 'ARM64') { 'arm64-windows' } else { 'x64-windows' }
     $dependencyRoot = Join-Path $rootPath ".build/vcpkg_installed/$Platform/$triplet"
-    $nativeDirectories = @('src','include','Tests/Embedded','Tests/Support','Samples/EmbeddedControls','Samples/ComplexUi','ThirdParty/tomlplusplus/3.4.0','ThirdParty/rapidyaml/0.16.0')
+    $nativeDirectories = @('src','include','Tests/Embedded','Tests/Foundation','Tests/Support','Samples/EmbeddedControls','Samples/ComplexUi','Samples/Shared',
+        'ThirdParty/tomlplusplus/3.4.0','ThirdParty/rapidyaml/0.16.0','ThirdParty/libyaml/0.2.5')
     # Reuse scoped Git discovery, but retain every byte in the supported native input trees, including extensionless files
     # and prose that could be included explicitly. Ignored inputs and reparse points cannot become invisible dependencies.
     $tracked = & (Get-Module ScopedTesting) { param($Root) Get-ScopedTrackedPaths $Root } $rootPath
@@ -558,7 +599,7 @@ function Get-PerformanceNativeInputClosure {
             $sha = (Get-FileHash -LiteralPath $entry.FullName -Algorithm SHA256).Hash
             $inputFiles[$entry.FullName] = $sha
             $rows.Add("$path $sha")
-            if ($entry.Extension -in @('.cpp','.h','.hpp','.inl','.hlsl') -or -not $entry.Extension) {
+            if ($entry.Extension -in @('.c','.cpp','.h','.hpp','.inl','.hlsl') -or -not $entry.Extension) {
                 $text = [IO.File]::ReadAllText($entry.FullName)
                 $text = [regex]::Replace($text, '\\\r?\n', '')
                 if ($text -match '(?im)^\s*#\s*(?:using|embed)\b') { throw "Unsupported native file-loading directive: $path" }
@@ -568,7 +609,7 @@ function Get-PerformanceNativeInputClosure {
                     if ($operand -notmatch '^[<"]([^>"]+)[>"]') { throw "Macro native includes are unsupported: $path" }
                     $include = $Matches[1]
                     $extension = [IO.Path]::GetExtension($include)
-                    if ($extension -and $extension -notin @('.h','.hpp','.inl','.hlsl','.inc')) { throw "Unsupported native include extension: $path" }
+                    if ($extension -and $extension -notin @('.h','.hpp','.inl','.hlsl','.inc','.cpp')) { throw "Unsupported native include extension: $path" }
                     if ([IO.Path]::IsPathRooted($include)) { throw "Absolute native includes are unsupported: $path" }
                     if ($include -match '(^|[\\/])\.\.([\\/]|$)') {
                         $full = Resolve-PerformanceInputPath $include $entry.DirectoryName

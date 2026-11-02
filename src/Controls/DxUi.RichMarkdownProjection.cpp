@@ -1,30 +1,48 @@
 #include "DxUi.RichProjectionWindow.h"
+#include <DxUi/Failure.h>
 #include <DxUi/RichMarkdown.h>
 #include <stdexcept>
 namespace DxUi::RichText
 {
+SourceResult Projection::TryToDisplay(std::size_t offset, std::size_t& output) const noexcept
+{
+    if (offset > source.size() || offset >= sourceToDisplay.size())
+        return SourceResult::InvalidRange;
+    const auto result = sourceToDisplay[offset];
+    if (result > text.size())
+        return SourceResult::InvalidRange;
+    output = result;
+    return SourceResult::Success;
+}
+SourceResult Projection::TryToSource(std::size_t offset, bool trailing, std::size_t& output) const noexcept
+{
+    if (offset > text.size() || units.size() != text.size())
+        return SourceResult::InvalidRange;
+    if (units.empty())
+    {
+        output = source.size();
+        return SourceResult::Success;
+    }
+    const bool useEnd = offset == units.size() || (trailing && offset > 0);
+    const auto& unit  = units[useEnd ? offset - 1 : offset];
+    if (unit.start >= unit.end || unit.end > source.size())
+        return SourceResult::InvalidRange;
+    output = useEnd ? unit.end : unit.start;
+    return SourceResult::Success;
+}
 std::size_t Projection::ToDisplay(std::size_t offset) const
 {
-    if (offset > source.size())
-        throw std::out_of_range("Source offset");
-    const auto result = sourceToDisplay.at(offset);
-    if (result > text.size())
-        throw std::invalid_argument("Invalid source mapping");
+    std::size_t result{};
+    if (TryToDisplay(offset, result) != SourceResult::Success)
+        Failure::FailContract(E_INVALIDARG);
     return result;
 }
 std::size_t Projection::ToSource(std::size_t offset, bool trailing) const
 {
-    if (offset > text.size())
-        throw std::out_of_range("Display offset");
-    if (units.size() != text.size())
-        throw std::invalid_argument("Invalid display mapping");
-    if (units.empty())
-        return source.size();
-    const bool useEnd = offset == units.size() || (trailing && offset > 0);
-    const auto& unit  = units.at(useEnd ? offset - 1 : offset);
-    if (unit.start >= unit.end || unit.end > source.size())
-        throw std::invalid_argument("Invalid display source range");
-    return useEnd ? unit.end : unit.start;
+    std::size_t result{};
+    if (TryToSource(offset, trailing, result) != SourceResult::Success)
+        Failure::FailContract(E_INVALIDARG);
+    return result;
 }
 namespace
 {
@@ -114,7 +132,7 @@ public:
 void FillProjection(Projection& result, std::wstring&& text, std::uint64_t revision, ViewMode mode)
 {
     if (mode != ViewMode::Source && mode != ViewMode::Rich)
-        throw std::invalid_argument("Unknown rich-text view mode");
+        Failure::FailContract(E_INVALIDARG);
     Builder builder(result);
     result.source = std::move(text);
     result.sourceToDisplay.resize(result.source.size() + 1);
@@ -187,9 +205,28 @@ std::shared_ptr<const Projection> Detail::ProjectRichSourceWindow(std::wstring&&
 }
 Projection Project(SourceSnapshot source, std::uint64_t revision, ViewMode mode)
 {
+    Failure::Scope failureScope;
     auto result = MakeEmptyProjection();
+    if (mode != ViewMode::Source && mode != ViewMode::Rich)
+        Failure::FailContract(E_INVALIDARG);
     FillProjection(result, source.Text(), revision, mode);
     return result;
+}
+SourceResult TryProject(SourceSnapshot source, std::uint64_t revision, ViewMode mode, Projection& output)
+{
+    Failure::Scope failureScope;
+    if (mode != ViewMode::Source && mode != ViewMode::Rich)
+        return SourceResult::InvalidSource;
+    auto result = MakeEmptyProjection();
+    FillProjection(result, source.Text(), revision, mode);
+    output.source.swap(result.source);
+    output.text.swap(result.text);
+    output.sourceToDisplay.swap(result.sourceToDisplay);
+    output.units.swap(result.units);
+    output.runs.swap(result.runs);
+    output.revision = result.revision;
+    output.mode     = result.mode;
+    return SourceResult::Success;
 }
 struct PreparedProjection::State
 {
@@ -234,7 +271,7 @@ ProjectionPreparation PreparedProjection::LastPreparation() const noexcept
 const std::vector<ProjectionBlock>& PreparedProjection::Blocks() const
 {
     if (! state_)
-        throw std::logic_error("Projection has not been prepared");
+        Failure::FailContract(E_UNEXPECTED);
     return state_->blocks;
 }
 void PreparedProjection::Clear() noexcept
@@ -243,6 +280,7 @@ void PreparedProjection::Clear() noexcept
 }
 PreparedProjection PreparedProjection::Clone() const
 {
+    Failure::Scope failureScope;
     PreparedProjection copy;
     if (state_)
         copy.state_ = std::make_unique<State>(*state_);
@@ -250,15 +288,22 @@ PreparedProjection PreparedProjection::Clone() const
 }
 void PreparedProjection::Prepare(SourceSnapshot source, std::uint64_t revision, ViewMode mode)
 {
+    Failure::Scope failureScope;
+    if (TryPrepare(std::move(source), revision, mode) != SourceResult::Success)
+        Failure::FailContract(E_INVALIDARG);
+}
+SourceResult PreparedProjection::TryPrepare(SourceSnapshot source, std::uint64_t revision, ViewMode mode)
+{
+    Failure::Scope failureScope;
     if (mode != ViewMode::Source && mode != ViewMode::Rich)
-        throw std::invalid_argument("Unknown rich-text view mode");
+        return SourceResult::InvalidSource;
     const auto change = state_ ? source.ChangedRangeFrom(state_->source) : SourceChangeRange{};
     if (state_ && state_->mode == mode && change.kind == SourceChangeKind::Unchanged)
     {
         state_->source   = std::move(source);
         state_->revision = revision;
         state_->last     = {0u, state_->blocks.size(), 0u};
-        return;
+        return SourceResult::Success;
     }
     auto next         = std::make_unique<State>();
     next->source      = source;
@@ -342,38 +387,62 @@ void PreparedProjection::Prepare(SourceSnapshot source, std::uint64_t revision, 
         next->displayLength += block.content->text.size();
     }
     if (sourceOffset != source.Length())
-        throw std::logic_error("Projection block coverage differs from source");
+        Failure::FailContract(E_UNEXPECTED);
     state_.swap(next);
+    return SourceResult::Success;
 }
-std::size_t PreparedProjection::ToDisplay(std::size_t offset) const
+SourceResult PreparedProjection::TryToDisplay(std::size_t offset, std::size_t& output) const noexcept
 {
-    const auto& blocks = Blocks();
-    if (offset > SourceLength())
-        throw std::out_of_range("Source offset");
+    if (! state_ || offset > SourceLength() || state_->blocks.empty())
+        return SourceResult::InvalidRange;
+    const auto& blocks = state_->blocks;
     const auto end =
         std::upper_bound(blocks.begin(), blocks.end(), offset, [](std::size_t position, const ProjectionBlock& block) { return position < block.sourceStart; });
     const auto& block = end == blocks.begin() ? blocks.front() : *std::prev(end);
-    return block.displayStart + block.content->ToDisplay(offset - block.sourceStart);
+    std::size_t local{};
+    if (! block.content || block.content->TryToDisplay(offset - block.sourceStart, local) != SourceResult::Success)
+        return SourceResult::InvalidRange;
+    output = block.displayStart + local;
+    return SourceResult::Success;
 }
-std::size_t PreparedProjection::ToSource(std::size_t offset, bool trailing) const
+SourceResult PreparedProjection::TryToSource(std::size_t offset, bool trailing, std::size_t& output) const noexcept
 {
-    const auto& blocks = Blocks();
-    if (offset > DisplayLength())
-        throw std::out_of_range("Display offset");
+    if (! state_ || offset > DisplayLength() || state_->blocks.empty())
+        return SourceResult::InvalidRange;
+    const auto& blocks = state_->blocks;
     if (! DisplayLength())
-        return SourceLength();
+    {
+        output = SourceLength();
+        return SourceResult::Success;
+    }
     const bool useEnd    = offset == DisplayLength() || (trailing && offset > 0u);
     const auto unitIndex = useEnd ? offset - 1u : offset;
     const auto found     = std::upper_bound(blocks.begin(), blocks.end(), unitIndex, [](std::size_t position, const ProjectionBlock& block) {
         return position < block.displayStart + block.content->text.size();
     });
-    if (found == blocks.end())
-        throw std::logic_error("Projection block does not cover display unit");
-    const auto& unit = found->content->units.at(unitIndex - found->displayStart);
-    return found->sourceStart + (useEnd ? unit.end : unit.start);
+    if (found == blocks.end() || ! found->content || unitIndex - found->displayStart >= found->content->units.size())
+        return SourceResult::InvalidRange;
+    const auto& unit = found->content->units[unitIndex - found->displayStart];
+    output           = found->sourceStart + (useEnd ? unit.end : unit.start);
+    return SourceResult::Success;
+}
+std::size_t PreparedProjection::ToDisplay(std::size_t offset) const
+{
+    std::size_t output{};
+    if (TryToDisplay(offset, output) != SourceResult::Success)
+        Failure::FailContract(E_INVALIDARG);
+    return output;
+}
+std::size_t PreparedProjection::ToSource(std::size_t offset, bool trailing) const
+{
+    std::size_t output{};
+    if (TryToSource(offset, trailing, output) != SourceResult::Success)
+        Failure::FailContract(E_INVALIDARG);
+    return output;
 }
 std::wstring PreparedProjection::DisplayText() const
 {
+    Failure::Scope failureScope;
     const auto& blocks = Blocks();
     std::wstring result(0u, L'\0');
     result.reserve(DisplayLength());
@@ -382,23 +451,42 @@ std::wstring PreparedProjection::DisplayText() const
     return result;
 }
 
-bool ToggleMarker(Document& document, std::wstring_view marker)
+SourceResult TryToggleMarker(Document& document, std::wstring_view marker, bool& changed)
 {
+    Failure::Scope failureScope;
+    changed = false;
     if (marker != L"**" && marker != L"*" && marker != L"`" && marker != L"~~")
-        throw std::invalid_argument("Unsupported prototype format marker");
+        return SourceResult::InvalidSource;
     const auto snapshot  = document.Snapshot();
     const auto selection = document.GetSelection();
     const auto first = selection.Start(), last = selection.End();
     // Apply delimiter deltas to anchor and caret separately
     // so a backwards rich selection keeps its active end.
-    const auto size = marker.size();
-    if (first >= size && size <= snapshot.Length() - last && snapshot.IsBoundary(first - size) && snapshot.IsBoundary(last + size) &&
-        snapshot.Slice(first - size, first) == marker && snapshot.Slice(last, last + size) == marker)
+    const auto size     = marker.size();
+    const auto markerAt = [&](std::size_t offset) noexcept
+    {
+        for (std::size_t index = 0u; index < size; ++index)
+            if (snapshot.CharacterAt(offset + index) != marker[index])
+                return false;
+        return true;
+    };
+    if (first >= size && size <= snapshot.Length() - last && snapshot.IsBoundary(first - size) && snapshot.IsBoundary(last + size) && markerAt(first - size) &&
+        markerAt(last))
     {
         auto content = snapshot.Slice(first, last);
-        return document.Replace(first - size, last + size, std::move(content), {selection.anchor - size, selection.caret - size});
+        return document.TryReplace(first - size, last + size, content, {selection.anchor - size, selection.caret - size}, changed);
     }
+    if (size * 2u > Document::MaximumUnits - snapshot.Length())
+        return SourceResult::CapacityExceeded;
     auto content = std::wstring(marker) + snapshot.Slice(first, last) + std::wstring(marker);
-    return document.Replace(first, last, std::move(content), {selection.anchor + size, selection.caret + size});
+    return document.TryReplace(first, last, content, {selection.anchor + size, selection.caret + size}, changed);
+}
+bool ToggleMarker(Document& document, std::wstring_view marker)
+{
+    Failure::Scope failureScope;
+    bool changed = false;
+    if (TryToggleMarker(document, marker, changed) != SourceResult::Success)
+        Failure::FailContract(E_INVALIDARG);
+    return changed;
 }
 } // namespace DxUi::RichText

@@ -28,19 +28,6 @@ using MarkdownBlockTests::BlockSignature;
 static_assert(! std::is_constructible_v<MarkdownSyntax, std::wstring_view>);
 static_assert(! std::is_copy_assignable_v<MarkdownSyntax>);
 void CheckInlineForest(const MarkdownSyntax& syntax);
-template <typename F> void Reject(F&& operation, const char* description)
-{
-    bool rejected = false;
-    try
-    {
-        operation();
-    }
-    catch (const std::exception&)
-    {
-        rejected = true;
-    }
-    Require(rejected, description);
-}
 void TestRichMarkdownPrototypeContracts()
 {
     Document document(L"# Title\r\nA **bold** and *italic* with "
@@ -114,12 +101,26 @@ void TestRichMarkdownSnapshotAndValidationContracts()
     auto projection = Project(old, revision, ViewMode::Rich);
     Require(projection.text == L"old" && projection.revision == revision && projection.source == L"**old**",
             "worker snapshot/revision is explicit and immutable");
-    Reject([&] { Project(old, revision, static_cast<ViewMode>(99)); }, "invalid public mode rejected");
-    Reject([&] { projection.ToSource(999); }, "display mapping out of range rejected");
-    Reject([&] { projection.ToDisplay(999); }, "source mapping out of range rejected");
+    std::size_t mapped = 42u;
+    Require(TryProject(old, revision, static_cast<ViewMode>(99), projection) == SourceResult::InvalidSource && projection.text == L"old",
+            "invalid public mode leaves projection intact");
+    Require(projection.TryToSource(999, false, mapped) == SourceResult::InvalidRange && projection.TryToDisplay(999, mapped) == SourceResult::InvalidRange &&
+                mapped == 42u,
+            "mapping bounds rejected");
     const auto before = document.Text();
-    Reject([&] { ToggleMarker(document, L"not-a-supported-marker"); }, "unsupported formatting command rejected");
+    bool changed      = true;
+    Require(TryToggleMarker(document, L"not-a-supported-marker", changed) == SourceResult::InvalidSource && ! changed,
+            "unsupported formatting command rejected");
     Require(document.Text() == before && ! document.CanUndo(), "invalid format command is atomic");
+    Document full(std::wstring(Document::MaximumUnits, L'x'));
+    full.SetSelection({1u, 2u});
+    const auto fullSource    = full.Snapshot();
+    const auto fullRevision  = full.Revision();
+    const auto fullSelection = full.GetSelection();
+    changed                  = true;
+    Require(TryToggleMarker(full, L"**", changed) == SourceResult::CapacityExceeded && ! changed && full.Snapshot().IsSameRevision(fullSource) &&
+                full.Revision() == fullRevision && full.GetSelection() == fullSelection && ! full.CanUndo(),
+            "full source refuses marker insertion without publishing an edit");
 }
 void TestRichMarkdownV0StylesCommandsAndMalformedMappings()
 {
@@ -151,15 +152,16 @@ void TestRichMarkdownV0StylesCommandsAndMalformedMappings()
     Document empty;
     ToggleMarker(empty, L"**");
     Require(empty.Text() == L"****" && empty.GetSelection() == Selection{2, 2}, "collapsed formatting inserts a typing position");
-    auto malformed = projection;
+    auto malformed     = projection;
+    std::size_t mapped = 42u;
     malformed.units.clear();
-    Reject([&] { malformed.ToSource(1, true); }, "mapping query rejects missing display units");
+    Require(malformed.TryToSource(1, true, mapped) == SourceResult::InvalidRange, "mapping query rejects missing display units");
     malformed                   = projection;
     malformed.units.front().end = projection.source.size() + 1;
-    Reject([&] { malformed.ToSource(1, true); }, "mapping query rejects invalid source range");
+    Require(malformed.TryToSource(1, true, mapped) == SourceResult::InvalidRange, "mapping query rejects invalid source range");
     malformed                         = projection;
     malformed.sourceToDisplay.front() = projection.text.size() + 1;
-    Reject([&] { malformed.ToDisplay(0); }, "mapping query rejects invalid display result");
+    Require(malformed.TryToDisplay(0, mapped) == SourceResult::InvalidRange && mapped == 42u, "mapping query rejects invalid display result");
 }
 std::shared_ptr<const MarkdownSyntax> CompleteMarkdown(MarkdownParser& parser, std::size_t budget = 7u)
 {
@@ -509,8 +511,10 @@ void TestLosslessMarkdownInlineScenariosAndExtensionIdentity()
                 MarkdownHtmlTests::Html(*disabled) == L"<p>~~x~~</p>\n",
             "extension options participate in same-revision request identity");
     parser.Begin(L"pending", 8u, MarkdownProfile::Gfm029);
-    Reject([&] { parser.Begin(L"bad", 8u, MarkdownProfile::Gfm029, static_cast<MarkdownExtensions>(64u)); }, "unknown extension bits rejected");
-    Reject([&] { parser.Begin(L"bad", 8u, MarkdownProfile::CommonMark0312, MarkdownExtensions::All); }, "CommonMark cannot silently enable GFM extensions");
+    Require(parser.TryBegin(L"bad", 8u, MarkdownProfile::Gfm029, static_cast<MarkdownExtensions>(64u)) == MarkdownResult::InvalidProfile,
+            "unknown extension bits rejected");
+    Require(parser.TryBegin(L"bad", 8u, MarkdownProfile::CommonMark0312, MarkdownExtensions::All) == MarkdownResult::InvalidProfile,
+            "CommonMark cannot silently enable GFM extensions");
     Require(CompleteMarkdown(parser)->Source() == L"pending", "invalid extension admission retains the preceding pending request");
     const std::wstring flat(Document::MaximumUnits, L'x');
     parser.Begin(flat, 9u);
@@ -884,9 +888,12 @@ void TestLosslessMarkdownLexicalValuesAndAffinity()
     const auto syntax = CompleteMarkdown(parser, 1u);
     CheckMarkdownPartitions(*syntax, original);
     Require(syntax->Source()[1u] == L'\0' && syntax->LexemeValue(1u) == L"\ufffd", "NUL replacement never modifies the admitted parser source");
-    Reject([&] { syntax->Slice({2u, original.size() + 1u}); }, "out of bounds syntax slice rejected");
-    Reject([&] { syntax->LexemeValue(999u); }, "out of bounds lexical index rejected");
-    Reject([&] { syntax->LexemeSourceAnchor(1u, 9u); }, "out of bounds transformed offset rejected");
+    std::wstring_view value = L"unchanged";
+    std::size_t anchor      = 42u;
+    Require(syntax->TrySlice({2u, original.size() + 1u}, value) == SourceResult::InvalidRange &&
+                syntax->TryLexemeValue(999u, value) == SourceResult::InvalidRange && value == L"unchanged",
+            "invalid syntax slices leave output intact");
+    Require(syntax->TryLexemeSourceAnchor(1u, 9u, false, anchor) == SourceResult::InvalidRange && anchor == 42u, "out of bounds transformed offset rejected");
 }
 void TestLosslessMarkdownFrontMatterFencesAndProfileIsolation()
 {
@@ -918,6 +925,13 @@ void TestLosslessMarkdownFrontMatterFencesAndProfileIsolation()
 }
 void TestYamlFrontMatterValidationAndSourcePreservation()
 {
+    using DxUi::RichText::Detail::MetadataIssue;
+    using DxUi::RichText::Detail::ValidateYamlMetadata;
+    Require(ValidateYamlMetadata(L"key: *missing\n") == MetadataIssue::UnresolvedAlias, "a single-document unresolved alias retains its distinct diagnosis");
+    Require(ValidateYamlMetadata(L"key: *missing\n---\nother: value\n") == MetadataIssue::Invalid,
+            "the single-document envelope rejects a second document before alias diagnostics");
+    Require(ValidateYamlMetadata(L"key: *missing\nbroken: [unterminated\n") == MetadataIssue::Invalid,
+            "a later YAML syntax failure takes precedence over graph diagnostics");
     struct Case
     {
         std::wstring_view source;
@@ -1241,8 +1255,9 @@ void TestNativeFlowchartSchedulingAndAtomicAdmission()
     parser.Begin(held->source, held->revision);
     Require(! parser.HasPendingPreparation() && parser.Published() == held, "identical completed native request reuses immutable graph");
     parser.Begin(L"graph TB;C", 3u);
-    Reject([&] { parser.Begin(std::wstring(1u, 0xd800), 4u); }, "native graph rejects unpaired surrogate");
-    Reject([&] { parser.Begin(std::wstring(Document::MaximumUnits + 1u, L'x'), 4u); }, "native graph rejects unbounded source before copying");
+    Require(parser.Begin(std::wstring(1u, 0xd800), 4u) == FlowchartAdmission::InvalidSource, "native graph rejects unpaired surrogate");
+    Require(parser.Begin(std::wstring(Document::MaximumUnits + 1u, L'x'), 4u) == FlowchartAdmission::CapacityExceeded,
+            "native graph rejects unbounded source before copying");
     Require(Complete(parser)->source == L"graph TB;C", "failed native Begin preserves the previous pending request");
     parser.Begin(L"graph TB;D", 3u);
     parser.Advance(2u);
@@ -1314,9 +1329,9 @@ void TestLosslessMarkdownSchedulingCancellationAndIdentity()
     Require(! parser.HasPendingPreparation() && parser.Published() == published, "same completed request retains immutable identity");
     parser.Begin(L"pending", 3u);
     parser.Advance(1u);
-    Reject([&] { parser.Begin(std::wstring(1u, 0xd800), 3u); }, "malformed UTF-16 request rejected");
-    Reject([&] { parser.Begin(std::wstring(Document::MaximumUnits + 1u, L'x'), 3u); }, "oversized request rejected");
-    Reject([&] { parser.Begin(L"pending", 3u, static_cast<MarkdownProfile>(99)); }, "unknown profile rejected");
+    Require(parser.TryBegin(std::wstring(1u, 0xd800), 3u) == MarkdownResult::InvalidSource, "malformed UTF-16 request rejected");
+    Require(parser.TryBegin(std::wstring(Document::MaximumUnits + 1u, L'x'), 3u) == MarkdownResult::CapacityExceeded, "oversized request rejected");
+    Require(parser.TryBegin(L"pending", 3u, static_cast<MarkdownProfile>(99)) == MarkdownResult::InvalidProfile, "unknown profile rejected");
     Require(parser.HasPendingPreparation() && CompleteMarkdown(parser)->Source() == L"pending", "invalid Begin preserves the previous pending request");
     parser.Begin(L"new same revision", 3u);
     Require(CompleteMarkdown(parser)->Source() == L"new same revision", "equal numeric revision cannot alias different source");
@@ -1462,7 +1477,8 @@ void TestRichMarkdownInlineExtensions()
     CheckInlineForest(*nested);
     Require(MarkdownHtmlTests::Html(*nested) == L"<p><mark><strong>bold</strong></mark> <a href=\"dest\"><ins>label</ins></a> <code>^literal^</code></p>\n",
             "extension nesting respects Markdown link and code ownership");
-    Reject([&] { parser.Begin(input, 5u, MarkdownProfile::Gfm029, MarkdownExtensions::Highlight); }, "RichMarkdown delimiter flags cannot change GFM parsing");
+    Require(parser.TryBegin(input, 5u, MarkdownProfile::Gfm029, MarkdownExtensions::Highlight) == MarkdownResult::InvalidProfile,
+            "RichMarkdown delimiter flags cannot change GFM parsing");
 }
 void TestRichMarkdownWikiLinks()
 {

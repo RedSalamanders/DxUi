@@ -1,4 +1,5 @@
 #pragma once
+#include <DxUi/Failure.h>
 #include <DxUi/RichDocument.h>
 #include <algorithm>
 #include <optional>
@@ -64,7 +65,7 @@ inline bool ValidLocalFileComponent(std::wstring_view value) noexcept
     }
     return true;
 }
-inline bool ParseLocalFilePath(std::wstring_view input, ParsedLocalFilePath& result)
+inline bool ParseLocalFilePath(std::wstring_view input, ParsedLocalFilePath& result, bool* capacityExceeded = nullptr)
 {
     if (input.size() > 32767u)
         return false;
@@ -137,7 +138,11 @@ inline bool ParseLocalFilePath(std::wstring_view input, ParsedLocalFilePath& res
             if (! ValidLocalFileComponent(value))
                 return false;
             if (result.parts.size() >= 512u)
-                throw std::length_error("image path component capacity exceeded");
+            {
+                if (capacityExceeded)
+                    *capacityExceeded = true;
+                return false;
+            }
             result.parts.push_back({at, end});
         }
         if (found == text.npos)
@@ -154,14 +159,27 @@ inline std::wstring CanonicalLocalFilePath(const ParsedLocalFilePath& path)
         result.append(L"\\").append(path.Slice(component));
     return std::wstring(result);
 }
-inline std::wstring NormalizeDocumentFilePath(std::wstring_view path)
+inline SourceResult TryNormalizeDocumentFilePath(std::wstring_view path, std::wstring& output)
 {
     if (path.empty())
-        return std::wstring(0u, L' ');
+    {
+        output.clear();
+        return SourceResult::Success;
+    }
     ParsedLocalFilePath parsed;
-    if (! ParseLocalFilePath(path, parsed))
-        throw std::invalid_argument("Document location must be an absolute Unicode file path");
-    return CanonicalLocalFilePath(parsed);
+    bool capacityExceeded = false;
+    if (! ParseLocalFilePath(path, parsed, &capacityExceeded))
+        return capacityExceeded ? SourceResult::CapacityExceeded : SourceResult::InvalidSource;
+    auto candidate = CanonicalLocalFilePath(parsed);
+    output.swap(candidate);
+    return SourceResult::Success;
+}
+inline std::wstring NormalizeDocumentFilePath(std::wstring_view path)
+{
+    std::wstring output(0u, L' ');
+    if (TryNormalizeDocumentFilePath(path, output) != SourceResult::Success)
+        Failure::FailContract(E_INVALIDARG);
+    return std::wstring(output);
 }
 inline bool SameLocalImagePath(std::wstring_view left, std::wstring_view right) noexcept
 {
@@ -302,7 +320,7 @@ inline std::optional<std::wstring> DecodeLocalImageUriPath(std::wstring_view val
 }
 // Resolve local file destinations only. Scheme/authority are classified before
 // URI decoding; encoded punctuation cannot turn a relative path into a scheme.
-inline std::optional<std::wstring> ResolveLocalImagePath(std::wstring_view document, std::wstring_view destination)
+inline std::optional<std::wstring> ResolveLocalImagePath(std::wstring_view document, std::wstring_view destination, bool* capacityExceeded = nullptr)
 {
     std::wstring raw(0u, L' ');
     bool absoluteUri{};
@@ -341,7 +359,7 @@ inline std::optional<std::wstring> ResolveLocalImagePath(std::wstring_view docum
     if (! decoded)
         return std::nullopt;
     ParsedLocalFilePath absolute;
-    if (ParseLocalFilePath(*decoded, absolute))
+    if (ParseLocalFilePath(*decoded, absolute, capacityExceeded))
     {
         const auto canonical = CanonicalLocalFilePath(absolute);
         return std::optional<std::wstring>(std::in_place, canonical);
@@ -349,14 +367,21 @@ inline std::optional<std::wstring> ResolveLocalImagePath(std::wstring_view docum
     // A failed rooted spelling is never reinterpreted under the document base.
     if (absoluteUri || decoded->find(L':') != decoded->npos || decoded->starts_with(L"/") || decoded->starts_with(L"\\") || document.empty())
         return std::nullopt;
-    const auto doc   = NormalizeDocumentFilePath(document);
+    std::wstring doc(0u, L' ');
+    const auto docResult = TryNormalizeDocumentFilePath(document, doc);
+    if (docResult != SourceResult::Success)
+    {
+        if (capacityExceeded && docResult == SourceResult::CapacityExceeded)
+            *capacityExceeded = true;
+        return std::nullopt;
+    }
     const auto slash = doc.find_last_of(L'\\');
     if (slash == doc.npos || decoded->size() > 32767u - slash - 1u)
         return std::nullopt;
     std::wstring joined(doc, 0u, slash + 1u);
     joined.append(*decoded);
     ParsedLocalFilePath relative;
-    if (! ParseLocalFilePath(joined, relative))
+    if (! ParseLocalFilePath(joined, relative, capacityExceeded))
         return std::nullopt;
     const auto canonical = CanonicalLocalFilePath(relative);
     return std::optional<std::wstring>(std::in_place, canonical);
@@ -412,7 +437,7 @@ inline void AppendUriEncodedByte(std::wstring& result, unsigned byte)
     result.push_back(hex[(byte >> 4u) & 15u]);
     result.push_back(hex[byte & 15u]);
 }
-inline void AppendUriPath(std::wstring_view text, std::wstring& result, bool drive = false)
+inline bool AppendUriPath(std::wstring_view text, std::wstring& result, bool drive = false)
 {
     for (std::size_t at = 0; at < text.size(); ++at)
     {
@@ -420,8 +445,8 @@ inline void AppendUriPath(std::wstring_view text, std::wstring& result, bool dri
         if ((c >= L'a' && c <= L'z') || (c >= L'A' && c <= L'Z') || (c >= L'0' && c <= L'9') || c == L'-' || c == L'_' || c == L'.' || c == L'~' || c == L'/' ||
             (drive && at == 1u && c == L':'))
         {
-            if (result.size() == Document::MaximumUnits)
-                throw std::length_error("image URI capacity exceeded");
+            if (result.size() >= Document::MaximumUnits)
+                return false;
             result.push_back(static_cast<wchar_t>(c));
             continue;
         }
@@ -431,8 +456,8 @@ inline void AppendUriPath(std::wstring_view text, std::wstring& result, bool dri
             c                = 0x10000u + ((c - 0xd800u) << 10u) + trail - 0xdc00u;
         }
         const auto encodedUnits = c < 0x80u ? 3u : c < 0x800u ? 6u : c < 0x10000u ? 9u : 12u;
-        if (encodedUnits > Document::MaximumUnits - result.size())
-            throw std::length_error("image URI capacity exceeded");
+        if (result.size() > Document::MaximumUnits || encodedUnits > Document::MaximumUnits - result.size())
+            return false;
         if (c < 0x80u)
             AppendUriEncodedByte(result, c);
         else if (c < 0x800u)
@@ -454,24 +479,33 @@ inline void AppendUriPath(std::wstring_view text, std::wstring& result, bool dri
             AppendUriEncodedByte(result, 0x80u | (c & 63u));
         }
     }
+    return true;
 }
 inline bool MarkdownPathPunctuation(wchar_t c) noexcept
 {
     return c >= 33 && c <= 126 && ! ((c >= L'a' && c <= L'z') || (c >= L'A' && c <= L'Z') || (c >= L'0' && c <= L'9'));
 }
-inline void AppendMarkdownLiteralPath(std::wstring_view text, std::wstring& output)
+inline bool AppendMarkdownLiteralPath(std::wstring_view text, std::wstring& output)
 {
     auto units = text.size();
+    if (units > Document::MaximumUnits)
+        return false;
     for (const auto c : text)
-        units += MarkdownPathPunctuation(c) ? 1u : 0u;
+        if (MarkdownPathPunctuation(c))
+        {
+            if (units == Document::MaximumUnits)
+                return false;
+            ++units;
+        }
     if (output.size() > Document::MaximumUnits || units > Document::MaximumUnits - output.size())
-        throw std::length_error("Literal file path source capacity exceeded");
+        return false;
     for (const auto c : text)
     {
         if (MarkdownPathPunctuation(c))
             output.push_back(L'\\');
         output.push_back(c);
     }
+    return true;
 }
 // Recognized image suffixes produce displayed images; every other absolute
 // file path produces a text link. Both use the same lexical destination rules.
@@ -483,28 +517,24 @@ inline std::optional<std::wstring> BuildMarkdownFileReference(std::wstring_view 
     if (clipboard.size() > 1u && clipboard.front() == L'"' && clipboard.back() == L'"')
         clipboard = clipboard.substr(1u, clipboard.size() - 2u);
     ParsedLocalFilePath file;
-    try
-    {
-        if (! ParseLocalFilePath(clipboard, file))
-            return std::nullopt;
-    }
-    catch (const std::length_error&)
-    {
-        // Preserve an over-deep structured clipboard path as literal source.
+    bool pathCapacityExceeded{};
+    if (! ParseLocalFilePath(clipboard, file, &pathCapacityExceeded))
         return std::nullopt;
-    }
     const bool image = HasImageFileExtension(file);
     std::wstring destination(0u, L' '), raw(0u, L' ');
     bool relative{};
     if (! document.empty())
     {
         ParsedLocalFilePath doc;
-        if (! ParseLocalFilePath(document, doc))
-            throw std::invalid_argument("document location must be an absolute file path");
+        if (! ParseLocalFilePath(document, doc, &pathCapacityExceeded))
+            return std::nullopt;
         relative = AppendDocumentRelativeFilePath(doc, file, raw);
     }
     if (relative)
-        AppendUriPath(raw, destination);
+    {
+        if (! AppendUriPath(raw, destination))
+            return std::nullopt;
+    }
     else
     {
         raw.assign(file.text, 0u, file.rootEnd);
@@ -512,7 +542,8 @@ inline std::optional<std::wstring> BuildMarkdownFileReference(std::wstring_view 
             raw.append(L"\\").append(file.Slice(part));
         std::ranges::replace(raw, L'\\', L'/');
         destination.append(file.unc ? L"file:" : L"file:///");
-        AppendUriPath(raw, destination, ! file.unc);
+        if (! AppendUriPath(raw, destination, ! file.unc))
+            return std::nullopt;
     }
     const auto filename    = file.Slice(file.parts.back());
     const auto dot         = filename.find_last_of(L'.');
@@ -524,14 +555,15 @@ inline std::optional<std::wstring> BuildMarkdownFileReference(std::wstring_view 
     // Check the complete escaped source before allocating its final buffer.
     const auto markerUnits = image ? 5u : 4u;
     if (labelUnits + markerUnits > Document::MaximumUnits || destination.size() > Document::MaximumUnits - labelUnits - markerUnits)
-        throw std::length_error("file reference Markdown source capacity exceeded");
+        return std::nullopt;
     std::wstring result(0u, L' ');
     result.reserve(labelUnits + destination.size() + markerUnits);
     result.append(image ? L"![" : L"[");
-    AppendMarkdownLiteralPath(name, result);
+    if (! AppendMarkdownLiteralPath(name, result))
+        return std::nullopt;
     result.append(L"](").append(destination).append(L")");
     if (result.size() > Document::MaximumUnits)
-        throw std::length_error("file reference Markdown source capacity exceeded");
+        return std::nullopt;
     return std::optional<std::wstring>(std::in_place, result);
 }
 } // namespace DxUi::RichText::Detail

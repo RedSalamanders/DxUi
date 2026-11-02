@@ -6,6 +6,7 @@
 #include <cmath>
 #include <memory>
 #include <vector>
+#include <wil/result.h>
 
 namespace DxUi::RichText::Detail
 {
@@ -77,10 +78,10 @@ public:
         staged->options.wrap          = false;
         next_.swap(staged);
     }
-    bool Advance(IDWriteFactory* factory, const RichEditorLayout& geometry)
+    HRESULT Advance(IDWriteFactory* factory, const RichEditorLayout& geometry)
     {
         if (! next_)
-            return true;
+            return S_OK;
         auto& stage = *next_;
         std::size_t work{}, layouts{};
         while (work < 256u)
@@ -90,15 +91,16 @@ public:
                 if (stage.numbers)
                 {
                     if (layouts == 4u)
-                        return false;
+                        return S_FALSE;
                     Document number{std::to_wstring(stage.line)};
                     auto projection = Project(number.Snapshot(), number.Revision(), ViewMode::Source);
                     auto label      = std::make_unique<PreparedLayout>();
                     // A by-value call would invoke Projection's implicit
                     // noexcept move, whose Debug STL proxies may allocate.
-                    PreparedLayoutAccess::Prepare(*label, factory, projection, stage.options);
-                    const float position = geometry.SourceCaret(stage.cursor).y;
-                    stage.stagedNumbers.emplace_back(std::move(label), position);
+                    RETURN_IF_FAILED(PreparedLayoutAccess::Prepare(*label, factory, projection, stage.options));
+                    CaretGeometry caret{};
+                    RETURN_IF_FAILED(geometry.TrySourceCaret(stage.cursor, MarkdownNoNode, caret));
+                    stage.stagedNumbers.emplace_back(std::move(label), caret.y);
                     ++layouts;
                 }
                 stage.numberNeeded = false;
@@ -114,7 +116,7 @@ public:
                 numbersEnabled_ = stage.numbers;
                 marksEnabled_   = stage.marks;
                 next_.reset();
-                return true;
+                return S_OK;
             }
             const auto ch         = stage.source[stage.cursor];
             const auto first      = stage.cursor;
@@ -122,8 +124,9 @@ public:
             const auto nextCursor = first + (ch == L'\r' && first + 1u < stage.source.size() && stage.source[first + 1u] == L'\n' ? 2u : 1u);
             if (stage.marks && (ch == L' ' || ch == L'\t' || eol))
             {
-                const auto caret = geometry.SourceCaret(first);
-                const auto next  = geometry.SourceCaret(nextCursor);
+                CaretGeometry caret{}, next{};
+                RETURN_IF_FAILED(geometry.TrySourceCaret(first, MarkdownNoNode, caret));
+                RETURN_IF_FAILED(geometry.TrySourceCaret(nextCursor, MarkdownNoNode, next));
                 const auto width = ! eol && next.y == caret.y ? std::abs(next.x - caret.x) : 0.0f;
                 stage.stagedMarks.push_back({caret.x, caret.y, width, caret.height, eol ? L'\n' : ch});
             }
@@ -135,7 +138,7 @@ public:
             }
             ++work;
         }
-        return false;
+        return S_FALSE;
     }
     std::span<const Number> Numbers() const noexcept
     {

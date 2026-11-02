@@ -1,3 +1,5 @@
+#include <DxUi/Failure.h>
+
 #include "DxUi.Internal.h"
 
 #include <algorithm>
@@ -43,6 +45,7 @@ FormField::FormField() : FormField({}, {})
 }
 FormField::FormField(std::wstring id, std::wstring label) : _fieldId(std::move(id))
 {
+    const Failure::Scope outerFailureScope;
     EnableIntrinsicLayout();
     _label               = AddChild<Label>(std::move(label));
     _description         = AddChild<Label>();
@@ -120,6 +123,7 @@ void FormField::RemoveFailedEditor(Control* editor) noexcept
 }
 HRESULT FormField::SyncAccessibility() noexcept
 {
+    const Failure::Scope outerFailureScope;
     auto* const editor = GetSemanticEditor();
     if (! editor)
     {
@@ -156,11 +160,12 @@ HRESULT FormField::SyncAccessibility() noexcept
     }
     catch (const std::bad_alloc&)
     {
-        return E_OUTOFMEMORY;
+        Failure::FailAllocation();
     }
 }
 void FormField::SetLabel(std::wstring text)
 {
+    const Failure::Scope outerFailureScope;
     Label* const label = LabelPart();
     // An unchanged label (an application that refreshes the form on every edit) relays out nothing.
     if (! label || label->GetText() == text)
@@ -180,6 +185,7 @@ void FormField::SetLabel(std::wstring text)
 }
 void FormField::SetDescription(std::wstring text)
 {
+    const Failure::Scope outerFailureScope;
     Label* const description = DescriptionPart();
     const bool visible       = ! text.empty();
     if (! description || (description->GetText() == text && description->IsVisible() == visible))
@@ -198,6 +204,7 @@ void FormField::SetDescription(std::wstring text)
 }
 HRESULT FormField::SetValidation(ValidationState state, std::wstring explanation) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if ((state != ValidationState::None && state != ValidationState::Error) || (state == ValidationState::Error && explanation.empty()) ||
         explanation.size() > 65536)
         return E_INVALIDARG;
@@ -224,7 +231,7 @@ HRESULT FormField::SetValidation(ValidationState state, std::wstring explanation
     }
     catch (const std::bad_alloc&)
     {
-        return E_OUTOFMEMORY;
+        Failure::FailAllocation();
     }
 }
 HRESULT FormField::SetRequired(bool required) noexcept
@@ -247,6 +254,7 @@ HRESULT FormField::SetEditorPreferredSize(D2D1_SIZE_F sizeDip) noexcept
 
 HRESULT FormField::MeasurePart(const Control* control, const MeasureContext& context, float widthDip, PartMeasure& cache, DesiredSize& desired) const noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (! control || ! control->IsVisible())
     {
         desired = {};
@@ -285,6 +293,7 @@ HRESULT FormField::MeasurePart(const Control* control, const MeasureContext& con
 }
 HRESULT FormField::MeasureSharedLabel(const MeasureContext& context, float widthDip, DesiredSize& desired) const noexcept
 {
+    const Failure::Scope outerFailureScope;
     const Label* const label = LabelPart();
     if (label && label->GetText().empty())
     {
@@ -332,6 +341,7 @@ HRESULT FormField::MeasureParts(const MeasureContext& context,
                                 std::array<DesiredSize, 4>& parts,
                                 PartColumns* columns) const noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (_measuring)
         return E_ABORT;
     if (! ValidRect(fieldBounds) || ! ValidExtent(labelWidthDip) || (GetHost() && GetHost() != &context.host))
@@ -430,6 +440,7 @@ HRESULT FormField::ApplyLayout(const ControlHost& host) noexcept
 HRESULT FormField::StageLayout(
     const MeasureContext& context, const D2D1_RECT_F& bounds, LabelPlacement placement, float labelWidthDip, std::array<PartLayout, 4>& staged) const noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (! ValidRect(bounds))
         return E_INVALIDARG;
     std::array<DesiredSize, 4> parts;
@@ -468,6 +479,7 @@ HRESULT FormField::StageLayout(
 }
 bool FormField::ArePartsCurrent(const std::array<PartLayout, 4>& parts, size_t completed) const noexcept
 {
+    const Failure::Scope outerFailureScope;
     const Control* const controls[] = {LabelPart(), GetEditor(), DescriptionPart(), ValidationPart()};
     for (size_t index = 0; index < parts.size(); ++index)
     {
@@ -586,6 +598,7 @@ std::unique_ptr<Control> FormField::TakeChild(size_t index) noexcept
 }
 void FormField::ClearChildren() noexcept
 {
+    const Failure::Scope outerFailureScope;
     // The parts stay with their text and state, so the field takes a new editor as it was. The other children leave in
     // reverse order of the slots held at entry: one a detach callback adds (a replacement editor) stays in the live field.
     const auto lifetime   = GetLifetimeToken();
@@ -627,6 +640,7 @@ FormPanel::FormPanel()
 }
 FormField* FormPanel::AddField(std::wstring id, std::wstring label)
 {
+    const Failure::Scope outerFailureScope;
     if (id.empty() || id.size() > 65536 || label.size() > 65536 || CountLiveChildren(*this) >= kMaxFormFields)
         return nullptr;
     for (const auto& child : GetChildren())
@@ -702,6 +716,7 @@ uint64_t FormPanel::DebugGetMeasureCount() const noexcept
 HRESULT FormPanel::BuildLayout(
     const MeasureContext& context, float widthDip, D2D1_POINT_2F origin, D2D1_SIZE_F& content, float& labelWidthDip, bool& overflow) const noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (_buildingLayout)
         return E_ABORT;
     if (! ValidExtent(widthDip) || ! std::isfinite(origin.x) || ! std::isfinite(origin.y) || CountLiveChildren(*this) > kMaxFormFields ||
@@ -888,7 +903,7 @@ HRESULT FormPanel::BuildLayout(
     }
     catch (const std::bad_alloc&)
     {
-        return E_OUTOFMEMORY;
+        Failure::FailAllocation();
     }
 }
 HRESULT FormPanel::MeasureOverride(const MeasureContext& context, const LayoutConstraints& constraints, DesiredSize& desired) const noexcept
@@ -907,6 +922,7 @@ HRESULT FormPanel::MeasureOverride(const MeasureContext& context, const LayoutCo
 }
 HRESULT FormPanel::ApplyLayout(const ControlHost& host) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (IsRenderStageActiveForDebug())
         return E_UNEXPECTED;
     if (GetHost() && GetHost() != &host)

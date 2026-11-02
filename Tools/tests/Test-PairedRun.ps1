@@ -26,6 +26,38 @@ function New-Side([string] $Kind, [string] $Commit, [string] $Root = '', [string
     return $side
 }
 
+Invoke-TestCase 'paired benchmark stages one measured driver without changing either library project' {
+    [xml]$project = Get-Content -Raw -LiteralPath (Join-Path $repository 'Tests/Embedded/DxUi.EmbeddedTests.vcxproj')
+    $ns = [Xml.XmlNamespaceManager]::new($project.NameTable)
+    $ns.AddNamespace('m', 'http://schemas.microsoft.com/developer/msbuild/2003')
+    $paired = @($project.SelectNodes('//m:ItemGroup[@Condition="''$(DxUiPairedBenchmark)'' == ''true''"]/m:ClCompile', $ns))
+    Assert-Equal 1 $paired.Count 'paired build has exactly one benchmark translation unit'
+    Assert-Equal 'Embedded.Tests.PairedBenchmark.cpp' $paired[0].Include 'paired translation unit'
+    $compilerOptions = $project.SelectSingleNode('//m:ItemDefinitionGroup/m:ClCompile/m:AdditionalOptions', $ns)
+    Assert-True ($null -ne $compilerOptions -and $compilerOptions.InnerText.Contains('/bigobj')) 'paired unit keeps the shared compiler option'
+    $ordinary = @($project.SelectNodes('//m:ItemGroup[@Condition="''$(DxUiPairedBenchmark)'' != ''true''"]/m:ClCompile', $ns))
+    Assert-Contains @($ordinary | ForEach-Object Include) 'Embedded.Tests.Embedded.cpp' 'ordinary functional dispatcher remains'
+    Assert-True (@($ordinary | Where-Object Include -Match 'Foundation.Tests.Failure.cpp').Count -eq 1) 'ordinary fatal tests remain'
+    Assert-True (@($ordinary | Where-Object Include -Match 'FailureHost.cpp').Count -eq 1) 'ordinary application failure host remains'
+    $references = @($project.SelectNodes('//m:ProjectReference', $ns) | ForEach-Object Include)
+    Assert-Equal 1 $references.Count 'each side links its own library project'
+    Assert-Equal '../../src/DxUi.vcxproj' $references[0] 'library source registration stays local to the side'
+    $inputs = @(Get-BenchmarkInputPaths)
+    foreach ($path in @('Tests/Embedded/Embedded.Tests.PairedBenchmark.cpp', 'Samples/Shared/FailureHost.h', 'Samples/Shared/FailureHost.cpp')) {
+        Assert-Contains $inputs $path 'every paired driver dependency is fingerprinted and overlaid'
+    }
+    Assert-True ('src/DxUi.vcxproj' -cnotin @(Get-PairedHarness)) 'the candidate library project is never a harness overlay'
+    $driver = Get-Content -Raw -LiteralPath (Join-Path $repository 'Tests/Embedded/Embedded.Tests.PairedBenchmark.cpp')
+    Assert-True $driver.Contains('#if defined(DXUI_HAS_FAILURE_POLICY)') 'the older library does not compile the new host adapter'
+    Assert-True $driver.Contains('#include "Embedded.Tests.BenchmarkInstrument.h"') 'both libraries use the same instrument'
+    Assert-True $driver.Contains('#include "Embedded.Tests.ComplexUiBenchmark.h"') 'both libraries use the same workload'
+    Assert-True $driver.Contains('#include "Embedded.Tests.BenchmarkMain.h"') 'both libraries use the same scenario dispatch'
+    $script = Get-Content -Raw -LiteralPath (Join-Path $repository 'performance-paired.ps1')
+    Assert-True $script.Contains('$env:DxUiPairedBenchmark = ''true''') 'paired property is inherited by build and attestation'
+    Assert-True $script.Contains('Set-Item Env:DxUiPairedBenchmark -Value $previousPairedBenchmark') 'previous paired property is restored'
+    Assert-True $script.Contains('Remove-Item Env:DxUiPairedBenchmark -ErrorAction Stop') 'previously absent paired property is removed'
+}
+
 Invoke-TestCase 'the baseline and candidate are chosen by revision, named tree or checkout' {
     $selection = Get-PairedSelection -BaselineRevision 'abc123'
     Assert-Equal 'revision' $selection.Baseline.Kind 'baseline kind'

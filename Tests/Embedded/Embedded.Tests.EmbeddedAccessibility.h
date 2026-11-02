@@ -346,9 +346,11 @@ static void TestEmbeddedTreeMultiSelect(GraphicsFixture& gpu)
     view.Detach();
 }
 
-// CR-17 of the 10 October review: a Tree model getter that throws while the embedded snapshot is built fails that one
-// publication. The prior snapshot stays, the process goes on, and the next publication succeeds.
-static void TestEmbeddedAccessibilityContainsAThrowingModelGetter(GraphicsFixture& gpu)
+[[noreturn]] __declspec(noinline) static void EmbeddedTreeModelThrowOrigin(const std::runtime_error& error)
+{
+    throw error;
+}
+static void TestEmbeddedAccessibilityContainsAThrowingModelGetter(GraphicsFixture& gpu, bool fatalChild = false)
 {
     struct ThrowingTreeModel final : DxUi::ITreeModel
     {
@@ -357,10 +359,13 @@ static void TestEmbeddedAccessibilityContainsAThrowingModelGetter(GraphicsFixtur
         {
             return 3u;
         }
-        void GetVisibleItem(size_t visibleIndex, DxUi::TreeItemData& outItem) const override
+        __declspec(noinline) void GetVisibleItem(size_t visibleIndex, DxUi::TreeItemData& outItem) const override
         {
             if (fail)
-                throw std::runtime_error("tree model getter failure");
+            {
+                const std::runtime_error error("tree model getter failure");
+                EmbeddedTreeModelThrowOrigin(error);
+            }
             outItem = DxUi::TreeItemData{.id = visibleIndex + 1u, .text = L"Row " + std::to_wstring(visibleIndex + 1u)};
         }
     };
@@ -379,10 +384,14 @@ static void TestEmbeddedAccessibilityContainsAThrowingModelGetter(GraphicsFixtur
     Hr(view.AttachAccessibility(site, 0x5555, placement), "attach the tree's accessibility");
     tree->NotifyDataChanged();
     Hr(view.Prepare(720, 510, 144), "prepare the refreshed tree");
-    model.fail = true;
-    Check(view.UpdateAccessibility(placement) == E_FAIL, "a throwing model getter fails the publication instead of ending the process");
-    model.fail = false;
-    Hr(view.UpdateAccessibility(placement), "the next publication succeeds");
+    if (fatalChild)
+    {
+        model.fail = true;
+        (void)view.UpdateAccessibility(placement);
+        return;
+    }
+    Check(DxUiFailureTests::ExpectFatalChild(L"embedded-tree-model-callback-throw"), "tree model exception terminates in its owned child");
+    Hr(view.UpdateAccessibility(placement), "healthy tree publication succeeds");
     view.Detach();
 }
 

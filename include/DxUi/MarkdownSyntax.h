@@ -311,6 +311,9 @@ public:
     const MarkdownFootnoteReference* FootnoteReferenceFor(std::size_t inlineNode) const noexcept;
     std::wstring_view Slice(MarkdownRange range) const;
     std::wstring_view LexemeValue(std::size_t index) const;
+    [[nodiscard]] SourceResult TrySlice(MarkdownRange range, std::wstring_view& result) const noexcept;
+    [[nodiscard]] SourceResult TryLexemeValue(std::size_t index, std::wstring_view& result) const noexcept;
+    [[nodiscard]] SourceResult TryLexemeSourceAnchor(std::size_t index, std::size_t valueOffset, bool trailing, std::size_t& result) const noexcept;
     // Text has source-backed interior ACPs; transformed values have explicit
     // leading/trailing anchors, including multi-scalar named entity expansion.
     // This is lexical affinity, not yet a formatted-document editing command.
@@ -356,12 +359,23 @@ enum class MarkdownPreparationStatus
 {
     Idle,
     Pending,
-    Complete
+    Complete,
+    Failed
+};
+enum class MarkdownResult
+{
+    Success,
+    InvalidProfile,
+    InvalidSource,
+    InvalidRange,
+    CapacityExceeded
 };
 struct MarkdownAdvance
 {
     MarkdownPreparationStatus status{};
     std::size_t workUnits{};
+    // Failed retires only staged work; the previous publication remains usable.
+    MarkdownResult result{MarkdownResult::Success};
 };
 // Owned parser, no foreign implementation/dependency, worker, host or graphics.
 // Begin copies/validates bounded source. Advance resumes source/lexical cursors,
@@ -381,6 +395,19 @@ public:
     MarkdownParser& operator=(MarkdownParser&&) noexcept;
     MarkdownParser(const MarkdownParser&)            = delete;
     MarkdownParser& operator=(const MarkdownParser&) = delete;
+    [[nodiscard]] MarkdownResult TryBegin(std::wstring_view source,
+                                          std::uint64_t revision,
+                                          MarkdownProfile profile                      = MarkdownProfile::CommonMark0312,
+                                          std::optional<MarkdownExtensions> extensions = std::nullopt);
+    [[nodiscard]] MarkdownResult TryBegin(const SourceSnapshot& source,
+                                          std::uint64_t revision,
+                                          MarkdownProfile profile                      = MarkdownProfile::CommonMark0312,
+                                          std::optional<MarkdownExtensions> extensions = std::nullopt);
+    [[nodiscard]] MarkdownResult TryBeginSourceRegion(const SourceSnapshot& source,
+                                                      std::uint64_t revision,
+                                                      MarkdownSourceRegion region,
+                                                      MarkdownProfile profile                      = MarkdownProfile::RichMarkdown,
+                                                      std::optional<MarkdownExtensions> extensions = std::nullopt);
     // An identical pending/completed request coalesces. Equal revision numbers
     // with different source or profile are distinct requests. Failed Begin leaves
     // the previous request intact; failed Advance discards only staged work.

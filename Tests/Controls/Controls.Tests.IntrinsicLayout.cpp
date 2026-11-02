@@ -3,7 +3,9 @@
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "Controls/DxUi.Internal.h"
 #include "GraphicsFixture.h"
+#include "Support.Tests.FatalChildren.h"
 
+#include <DxUi/Failure.h>
 #include <DxUi/Typography.h>
 #include <dwrite_1.h>
 #include <exception>
@@ -62,6 +64,33 @@ protected:
     }
 };
 #pragma warning(pop)
+
+__declspec(noinline) void IntrinsicAllocationThrowOrigin()
+{
+    throw std::bad_alloc();
+}
+[[noreturn]] __declspec(noinline) void IntrinsicCallbackThrowOrigin(const std::runtime_error& error)
+{
+    throw error;
+}
+template <bool Allocation> void IntrinsicMeasureFailureChild()
+{
+    ControlHost host;
+    MeasuredProbe probe;
+    if constexpr (Allocation)
+        probe.measureCallback = IntrinsicAllocationThrowOrigin;
+    else
+        probe.measureCallback = []
+        {
+            const std::runtime_error error("measurement failure");
+            IntrinsicCallbackThrowOrigin(error);
+        };
+    DesiredSize output{};
+    (void)probe.Measure({host}, {}, output);
+}
+[[maybe_unused]] const bool intrinsicFailureChildrenRegistered =
+    DxUiFailureTests::RegisterFatalChildCase({L"intrinsic-measure-allocation", "IntrinsicAllocationThrowOrigin", IntrinsicMeasureFailureChild<true>}) &&
+    DxUiFailureTests::RegisterFatalChildCase({L"intrinsic-measure-callback", "IntrinsicCallbackThrowOrigin", IntrinsicMeasureFailureChild<false>});
 
 // Existing identity/RAII/reference traits intentionally delete these implicit operations.
 // Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
@@ -175,10 +204,10 @@ void TestIntrinsicMeasurementContainsFailuresAndPreservesOutputs()
     probe.desired.baselineDip = 21.0f;
     Require(probe.Measure({host}, {}, result) == E_INVALIDARG && result.sizeDip.width == 123.0f, "invalid custom baselines never publish");
     probe.desired.baselineDip.reset();
-    probe.measureCallback = [] { throw std::bad_alloc(); };
-    Require(probe.Measure({host}, {}, result) == E_OUTOFMEMORY && result.sizeDip.height == 456.0f, "measurement allocation failure is contained");
-    probe.measureCallback = [] { throw std::runtime_error("measurement failure"); };
-    Require(probe.Measure({host}, {}, result) == E_FAIL && result.overflow, "named callback exceptions are contained at the public boundary");
+    Require(DxUiFailureTests::ExpectFatalChild(L"intrinsic-measure-allocation"), "measurement allocation exception terminates its owned child");
+    Require(DxUiFailureTests::ExpectFatalChild(L"intrinsic-measure-callback"), "measurement callback exception terminates its owned child");
+    Require(probe.Measure({host}, {}, result) == S_OK, "valid intrinsic measurement succeeds");
+    result = initial;
     Label tooLong(std::wstring(kMaxIntrinsicTextUnits + 1u, L'x'));
     Require(tooLong.Measure({host}, {}, result) == HRESULT_FROM_WIN32(ERROR_BUFFER_OVERFLOW) && result.sizeDip.width == 123.0f,
             "UTF16 measurement work is bounded before allocating shaping resources");
@@ -435,7 +464,7 @@ void TestLabelZeroSpacingOverrideMatchesDefaultLayout()
         }
         catch (const std::bad_alloc&)
         {
-            std::terminate();
+            DxUi::Failure::FailAllocation();
         }
         catch (const std::exception&)
         {
@@ -1611,7 +1640,7 @@ void TestFlexClearChildrenPreservesCallbackAuthoredReplacementOptions()
         }
         catch (const std::bad_alloc&)
         {
-            callbackResult = E_OUTOFMEMORY;
+            Failure::FailAllocation();
         }
     });
     panel->ClearChildren();

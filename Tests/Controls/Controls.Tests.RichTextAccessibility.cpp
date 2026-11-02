@@ -1684,26 +1684,10 @@ void RichEditorPresentationAndLinkCues(bool embedded)
             "find highlights and focus paint reuse native geometry");
     auto invalid            = appearance;
     invalid.bodyFontSizeDip = std::numeric_limits<float>::quiet_NaN();
-    bool rejected           = false;
-    try
-    {
-        editor->SetAppearance(invalid);
-    }
-    catch (const std::invalid_argument&)
-    {
-        rejected = true;
-    }
+    bool rejected           = editor->TrySetAppearance(invalid) == RichText::SourceResult::InvalidSource;
     Require(rejected && editor->GetAppearance() == appearance, "invalid appearance is atomically rejected");
-    rejected = false;
     const std::array malformed{RichTextSourceHighlight{source.find(L"\U0001f600") + 1u, 1u, false}};
-    try
-    {
-        editor->SetSourceHighlights(malformed);
-    }
-    catch (const std::invalid_argument&)
-    {
-        rejected = true;
-    }
+    rejected = editor->TrySetSourceHighlights(malformed) == RichText::SourceResult::InvalidRange;
     Require(rejected && editor->GetSourceHighlights().size() == 2u, "highlight cannot split a UTF-16 scalar");
     editor->SetSelection({alpha, alpha});
     Require(editor->ReplaceSelection(L"!") && editor->GetSourceHighlights().empty(), "source mutation retires all stale highlights");
@@ -2742,15 +2726,7 @@ void SemanticOptionalDefinitionsAndAbbreviations(bool embedded)
             "extension configuration change retires the previous abbreviation provider");
     fixture.editor->SetMarkdownAnalysisProfile(MarkdownProfile::Gfm029);
     Require(! fixture.editor->GetMarkdownAnalysisExtensions(), "changing profiles resets the explicit extension mask");
-    bool invalid = false;
-    try
-    {
-        fixture.editor->SetMarkdownAnalysisExtensions(MarkdownExtensions::Abbreviations);
-    }
-    catch (const std::invalid_argument&)
-    {
-        invalid = true;
-    }
+    const bool invalid = fixture.editor->TrySetMarkdownAnalysisExtensions(MarkdownExtensions::Abbreviations) == RichText::SourceResult::InvalidArgument;
     Require(invalid && fixture.editor->GetMarkdownAnalysisProfile() == MarkdownProfile::Gfm029 && ! fixture.editor->GetMarkdownAnalysisExtensions(),
             "non-RichMarkdown profiles refuse rich-only extension bits atomically");
 }
@@ -3016,6 +2992,9 @@ void SemanticCodeCopyAction(bool embedded)
         ++calls;
     },
         L"Copy example code");
+    Require(fixture.editor->TrySetOnCodeCopyRequested([](std::wstring_view) {}, L"") == RichText::SourceResult::InvalidArgument &&
+                fixture.editor->GetCodeCopyAccessibleName() == L"Copy example code",
+            "invalid code-copy label returns a checked refusal and retains the prior callback label");
     fixture.Publish();
     auto root = fixture.Simple();
     auto copy = FindNamedSemanticPart(*root.get(), L"Copy example code");
@@ -3804,15 +3783,7 @@ void DecorationAnnotations(bool embedded)
             "annotation publication and client queries preserve source, backward selection and history");
     auto invalid          = decorations;
     invalid[0].annotation = static_cast<RichTextAnnotationKind>(99);
-    bool rejected{};
-    try
-    {
-        fixture.editor->SetDecorations(source, invalid);
-    }
-    catch (const std::invalid_argument&)
-    {
-        rejected = true;
-    }
+    const bool rejected   = fixture.editor->TrySetDecorations(source, invalid) == E_INVALIDARG;
     int type{};
     Require(rejected && SUCCEEDED(pattern->get_AnnotationTypeId(&type)) && type == AnnotationType_SpellingError,
             "invalid annotation metadata leaves the prior immutable publication alive");

@@ -1,3 +1,5 @@
+#include <DxUi/Failure.h>
+
 #include "Controls/DxUi.Internal.h"
 #include "Support/Diagnostics.h"
 #include <DxUi/Embedded.h>
@@ -123,7 +125,7 @@ HRESULT GraphicsDevice::Create(ID3D11Device* device, std::shared_ptr<GraphicsDev
     }
     catch (const std::bad_alloc&)
     {
-        return E_OUTOFMEMORY;
+        Failure::FailAllocation();
     }
 }
 struct EmbeddedHost::State
@@ -156,6 +158,7 @@ EmbeddedHost::~EmbeddedHost()
 }
 HRESULT EmbeddedHost::Attach(std::shared_ptr<GraphicsDevice> graphics, EmbeddedCallbacks callbacks) noexcept
 {
+    const Failure::Scope failureScope;
     if (_detaching || ! graphics || graphics->_state->thread != GetCurrentThreadId())
         return E_INVALIDARG;
     if (_state)
@@ -166,7 +169,7 @@ HRESULT EmbeddedHost::Attach(std::shared_ptr<GraphicsDevice> graphics, EmbeddedC
     }
     catch (const std::bad_alloc&)
     {
-        return E_OUTOFMEMORY;
+        Failure::FailAllocation();
     }
     ++_attachmentRevision;
     _state->callbacks = callbacks;
@@ -209,6 +212,7 @@ void EmbeddedHost::Detach() noexcept
 }
 HRESULT EmbeddedHost::ReplaceDevice(std::shared_ptr<GraphicsDevice> graphics) noexcept
 {
+    const Failure::Scope failureScope;
     if (! _state || _detaching || _replacingDevice || ! graphics || graphics->_state->thread != GetCurrentThreadId())
         return E_INVALIDARG;
     State* const attachedState        = _state.get();
@@ -320,6 +324,7 @@ void EmbeddedHost::ReleaseSurface() noexcept
 }
 void EmbeddedHost::SetVisible(bool visible) noexcept
 {
+    const Failure::Scope failureScope;
     if (! _state || _detaching || _state->visible == visible)
         return;
     State* const attachedState        = _state.get();
@@ -364,6 +369,7 @@ bool EmbeddedHost::NeedsAnimation() const noexcept
 }
 bool EmbeddedHost::AdvanceAnimation(uint64_t tick) noexcept
 {
+    const Failure::Scope failureScope;
     if (! NeedsAnimation())
         return false;
     // The timeline counts the time between ticks the view asked for: the first tick after a pause sets the baseline,
@@ -388,12 +394,12 @@ bool EmbeddedHost::AdvanceAnimation(uint64_t tick) noexcept
     }
     catch (const std::exception&)
     {
-        _host._embeddedAnimationRequested = false;
-        return false;
+        Failure::FailUnexpected();
     }
 }
 HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
 {
+    const Failure::Scope failureScope;
     if (! _state || ! _state->graphics || _detaching || _replacingDevice)
         return E_UNEXPECTED;
     State* const attachedState        = _state.get();
@@ -629,15 +635,16 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
     }
     catch (const std::bad_alloc&)
     {
-        return E_OUTOFMEMORY;
+        Failure::FailAllocation();
     }
     catch (const std::exception&)
     {
-        return E_FAIL;
+        Failure::FailUnexpected();
     }
 }
 HRESULT EmbeddedHost::PrepareInteraction(UINT width, UINT height, float dpi) noexcept
 {
+    const Failure::Scope failureScope;
     if (! _state || ! _state->graphics || _detaching || _replacingDevice)
         return E_UNEXPECTED;
     State* const attachedState        = _state.get();
@@ -745,6 +752,7 @@ bool EmbeddedHost::CapturedDragContinues() const noexcept
 
 void EmbeddedHost::CancelPointer(bool clearPendingDoubleClick) noexcept
 {
+    const Failure::Scope failureScope;
     auto* captured         = _host._capturedControl;
     _host._capturedControl = nullptr;
     try
@@ -761,7 +769,8 @@ void EmbeddedHost::CancelPointer(bool clearPendingDoubleClick) noexcept
         _host.PruneStaleInteractionState();
     }
     catch (const std::exception&)
-    { /* Capture is already cleared. */
+    {
+        Failure::FailUnexpected();
     }
 }
 bool EmbeddedHost::InputIsCoherent(bool allowDirty) noexcept
@@ -782,11 +791,13 @@ bool EmbeddedHost::InputIsCoherent(bool allowDirty) noexcept
 }
 bool EmbeddedHost::PreviewFileDrop(D2D1_POINT_2F point) noexcept
 {
+    const Failure::Scope failureScope;
     return _state && _host._attachmentOwnerThreadId == GetCurrentThreadId() && ! _state->zeroSized && ! _state->contentPending &&
            ! _host.GetCapturedControl() && InputIsCoherent(true) && _host.PreviewFileDrop(point);
 }
 bool EmbeddedHost::CommitFileDrop(D2D1_POINT_2F point, IDataObject& dataObject, bool (*validate)(void*) noexcept, void* context) noexcept
 {
+    const Failure::Scope failureScope;
     if (! PreviewFileDrop(point))
         return false;
     struct Validation
@@ -826,6 +837,7 @@ bool EmbeddedHost::KeyboardInputIsAvailable() noexcept
 }
 bool EmbeddedHost::DispatchPointer(const PointerEvent& event) noexcept
 {
+    const Failure::Scope failureScope;
     // Pointer hit-testing is valid on a paint-dirty view. Requiring a clean surface
     // here dropped the Down that followed a hover/focus Invalidate, so a touch looked
     // like "first contact focuses, second contact activates."
@@ -932,21 +944,23 @@ bool EmbeddedHost::DispatchPointer(const PointerEvent& event) noexcept
     }
     catch (const std::exception&)
     {
-        CancelPointer();
-        return false;
+        Failure::FailUnexpected();
     }
 }
 bool EmbeddedHost::DispatchKey(UINT key, bool down, UINT modifiers) noexcept
 {
+    const Failure::Scope failureScope;
     return DispatchKeyImpl(key, down, modifiers, nullptr);
 }
 bool EmbeddedHost::DispatchKey(UINT key, bool down, UINT modifiers, EmbeddedKeyDispatchReceipt& receipt) noexcept
 {
+    const Failure::Scope failureScope;
     receipt.Reset();
     return DispatchKeyImpl(key, down, modifiers, &receipt);
 }
 bool EmbeddedHost::DispatchKeyImpl(UINT key, bool down, UINT modifiers, EmbeddedKeyDispatchReceipt* receipt) noexcept
 {
+    const Failure::Scope failureScope;
     uint64_t issuedReceiptSequence = 0u;
     // Overlapping use of the same out-object cannot identify which caller's raw key should translate.
     // Invalidate it on every outer exit, including a callback failure; independent receipts stay valid.
@@ -1042,26 +1056,16 @@ bool EmbeddedHost::DispatchKeyImpl(UINT key, bool down, UINT modifiers, Embedded
     }
     catch (const std::bad_alloc&)
     {
-        if (receipt && issuedReceiptSequence != 0u && receipt->_valid && receipt->_embeddedHost == this && receipt->_controlHost == &_host &&
-            receipt->_sequence == issuedReceiptSequence)
-            receipt->_allowCharacter = false;
-        Debug::Warning(L"DxUi::EmbeddedHost: key dispatch allocation failed; translated character permission withheld.");
-        // An arbitrary control may have committed before throwing. Do not
-        // retarget that key or authorize a translated character on uncertainty.
-        return enteredControlCallback;
+        Failure::FailAllocation();
     }
     catch (const std::exception&)
     {
-        // Noexcept input boundary: a failed key route must not authorize a later translated character.
-        if (receipt && issuedReceiptSequence != 0u && receipt->_valid && receipt->_embeddedHost == this && receipt->_controlHost == &_host &&
-            receipt->_sequence == issuedReceiptSequence)
-            receipt->_allowCharacter = false;
-        Debug::Warning(L"DxUi::EmbeddedHost: key dispatch failed; translated character permission withheld.");
-        return false;
+        Failure::FailUnexpected();
     }
 }
 bool EmbeddedHost::DispatchCharacter(wchar_t character, UINT modifiers) noexcept
 {
+    const Failure::Scope failureScope;
     if (! KeyboardInputIsAvailable())
         return false;
     bool enteredControlCallback = false;
@@ -1078,12 +1082,11 @@ bool EmbeddedHost::DispatchCharacter(wchar_t character, UINT modifiers) noexcept
     }
     catch (const std::bad_alloc&)
     {
-        Debug::Warning(L"DxUi::EmbeddedHost: character dispatch allocation failed.");
-        return enteredControlCallback; // An unknown callback may already have committed.
+        Failure::FailAllocation();
     }
     catch (const std::exception&)
     {
-        return false;
+        Failure::FailUnexpected();
     }
 }
 bool EmbeddedHost::ShouldTranslateCharacter(const EmbeddedKeyDispatchReceipt& receipt) noexcept
@@ -1105,6 +1108,7 @@ bool EmbeddedHost::ShouldTranslateCharacter(const EmbeddedKeyDispatchReceipt& re
 }
 bool EmbeddedHost::DispatchCharacter(wchar_t character, UINT modifiers, EmbeddedKeyDispatchReceipt& receipt) noexcept
 {
+    const Failure::Scope failureScope;
     if (! receipt._valid)
         return false;
 
@@ -1155,16 +1159,11 @@ bool EmbeddedHost::DispatchCharacter(wchar_t character, UINT modifiers, Embedded
     }
     catch (const std::bad_alloc&)
     {
-        // The matching receipt was consumed before dispatch. The control may
-        // have committed before throwing, so never retarget the character.
-        Debug::Warning(L"DxUi::EmbeddedHost: correlated character dispatch allocation failed; receipt consumed.");
-        return true;
+        Failure::FailAllocation();
     }
     catch (const std::exception&)
     {
-        // Noexcept input boundary: the matching receipt remains consumed when a control callback fails.
-        Debug::Warning(L"DxUi::EmbeddedHost: correlated character dispatch failed; receipt consumed.");
-        return false;
+        Failure::FailUnexpected();
     }
 }
 namespace
@@ -1200,6 +1199,7 @@ bool ValidEmbeddedTextState(const NativeTextInputState& state, bool preview) noe
 } // namespace
 HRESULT EmbeddedHost::ReadTextInput(EmbeddedTextInputSnapshot& snapshot) noexcept
 {
+    const Failure::Scope failureScope;
     snapshot = {};
     if (! _state || ! _state->graphics)
         return E_UNEXPECTED;
@@ -1238,13 +1238,13 @@ HRESULT EmbeddedHost::ReadTextInput(EmbeddedTextInputSnapshot& snapshot) noexcep
     }
     catch (const std::bad_alloc&)
     {
-        snapshot = {};
-        return E_OUTOFMEMORY;
+        Failure::FailAllocation();
     }
 }
 HRESULT EmbeddedHost::ApplyClipboardCut(const EmbeddedTextInputSnapshot& snapshot) noexcept
 try
 {
+    const Failure::Scope failureScope;
     EmbeddedTextInputSnapshot current;
     const HRESULT result = ReadTextInput(current);
     if (result != S_OK)
@@ -1261,15 +1261,16 @@ try
 }
 catch (const std::bad_alloc&)
 {
-    return E_OUTOFMEMORY;
+    Failure::FailAllocation();
 }
 catch (const std::exception&)
 {
-    return E_FAIL;
+    Failure::FailUnexpected();
 }
 HRESULT EmbeddedHost::ApplyClipboardFilePaste(uint64_t revision, uint64_t focusId, const TextClipboardContent& content) noexcept
 try
 {
+    const Failure::Scope failureScope;
     EmbeddedTextInputSnapshot current;
     const auto result = ReadTextInput(current);
     if (result != S_OK)
@@ -1285,19 +1286,20 @@ try
 }
 catch (const std::bad_alloc&)
 {
-    return E_OUTOFMEMORY;
+    Failure::FailAllocation();
 }
 catch (const std::length_error&)
 {
-    return HRESULT_FROM_WIN32(ERROR_BUFFER_OVERFLOW);
+    Failure::FailUnexpected();
 }
 catch (const std::exception&)
 {
-    return E_INVALIDARG;
+    Failure::FailUnexpected();
 }
 HRESULT EmbeddedHost::ApplyClipboardBitmapPaste(uint64_t revision, uint64_t focusId, const TextClipboardContent& content) noexcept
 try
 {
+    const Failure::Scope failureScope;
     EmbeddedTextInputSnapshot current;
     const auto result = ReadTextInput(current);
     if (result != S_OK)
@@ -1313,19 +1315,20 @@ try
 }
 catch (const std::bad_alloc&)
 {
-    return E_OUTOFMEMORY;
+    Failure::FailAllocation();
 }
 catch (const std::length_error&)
 {
-    return HRESULT_FROM_WIN32(ERROR_BUFFER_OVERFLOW);
+    Failure::FailUnexpected();
 }
 catch (const std::exception&)
 {
-    return E_INVALIDARG;
+    Failure::FailUnexpected();
 }
 HRESULT EmbeddedHost::TransformClipboardPaste(uint64_t revision, uint64_t focusId, const TextClipboardContent& content, std::wstring& replacement) noexcept
 try
 {
+    const Failure::Scope failureScope;
     EmbeddedTextInputSnapshot current;
     const auto result = ReadTextInput(current);
     if (result != S_OK)
@@ -1352,18 +1355,19 @@ try
 }
 catch (const std::bad_alloc&)
 {
-    return E_OUTOFMEMORY;
+    Failure::FailAllocation();
 }
 catch (const std::length_error&)
 {
-    return HRESULT_FROM_WIN32(ERROR_BUFFER_OVERFLOW);
+    Failure::FailUnexpected();
 }
 catch (const std::exception&)
 {
-    return E_INVALIDARG;
+    Failure::FailUnexpected();
 }
 HRESULT EmbeddedHost::ApplyTextInput(uint64_t revision, const NativeTextInputState& state, EmbeddedTextInputAction action) noexcept
 {
+    const Failure::Scope failureScope;
     if (! _state || ! _state->graphics)
         return E_UNEXPECTED;
     if (_state->graphics->_state->thread != GetCurrentThreadId())
@@ -1453,24 +1457,16 @@ HRESULT EmbeddedHost::ApplyTextInput(uint64_t revision, const NativeTextInputSta
     }
     catch (const std::bad_alloc&)
     {
-        _state->coherent                   = false;
-        _state->interactionLayoutAvailable = false;
-        MarkDirty();
-        return E_OUTOFMEMORY;
+        Failure::FailAllocation();
     }
     catch (const std::exception&)
     {
-        // Consumer callbacks can throw after changing text. Suppress interaction until the next prepare
-        // publishes a coherent control state; never let an exception escape this noexcept input boundary.
-        _host.ClearNativeTextInputCompositionState();
-        _state->coherent                   = false;
-        _state->interactionLayoutAvailable = false;
-        MarkDirty();
-        return E_FAIL;
+        Failure::FailUnexpected();
     }
 }
 HRESULT EmbeddedHost::HitTestTextInput(uint64_t revision, D2D1_POINT_2F point, size_t& index) noexcept
 {
+    const Failure::Scope failureScope;
     index = 0;
     if (! std::isfinite(point.x) || ! std::isfinite(point.y))
         return E_INVALIDARG;
@@ -1490,6 +1486,7 @@ HRESULT EmbeddedHost::HitTestTextInput(uint64_t revision, D2D1_POINT_2F point, s
 }
 HRESULT EmbeddedHost::GetTextInputRangeBounds(uint64_t revision, size_t start, size_t end, D2D1_RECT_F& bounds, bool& clipped) noexcept
 {
+    const Failure::Scope failureScope;
     bounds  = {};
     clipped = true;
     EmbeddedTextInputSnapshot snapshot;
@@ -1557,19 +1554,16 @@ HRESULT EmbeddedHost::GetTextInputRangeBounds(uint64_t revision, size_t start, s
     }
     catch (const std::bad_alloc&)
     {
-        bounds  = {};
-        clipped = true;
-        return E_OUTOFMEMORY;
+        Failure::FailAllocation();
     }
     catch (const std::exception&)
     {
-        bounds  = {};
-        clipped = true;
-        return E_FAIL;
+        Failure::FailUnexpected();
     }
 }
 void EmbeddedHost::CancelTextInput() noexcept
 {
+    const Failure::Scope failureScope;
     if (! _state || (_state->graphics && _state->graphics->_state->thread != GetCurrentThreadId()))
         return;
     ++_state->revision;

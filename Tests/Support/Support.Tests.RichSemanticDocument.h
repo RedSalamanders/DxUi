@@ -172,8 +172,7 @@ inline void DirectedValues()
     Check(visibleBreak->Map().Source() == L"one\r\ntwo\n" && visibleBreak->Map().Display() == L"one\ntwo\n" && ordinaryBreak->Map().Display() == L"one two\n",
           "line-break policy changes only presentation and retains the previous immutable document");
     RichSemanticTests::CheckRanges(visibleBreak->Map().SourceRanges({3u, 4u}), {{3u, 5u}}, "displayed soft break maps to its full source CRLF");
-    RichSemanticTests::Reject<std::invalid_argument>([&] { breakBuilder.SetSoftBreakPolicy(static_cast<SoftBreakPolicy>(99)); },
-                                                     "invalid soft-break policy is rejected");
+    Check(breakBuilder.TrySetSoftBreakPolicy(static_cast<SoftBreakPolicy>(99)) == SourceResult::InvalidSource, "invalid soft-break policy is rejected");
     Check(breakBuilder.Published() == visibleBreak, "invalid soft-break policy leaves the current publication intact");
 }
 static_assert(static_cast<unsigned>(MarkdownExtensions::WikiLinks) == 512u);
@@ -192,9 +191,15 @@ inline void HeadingOutlineAndFragments()
           "outline retains heading order, levels, formatted names and collision-safe fragment ids");
     Check(headings[0].source.first == 0u && headings[0].target.first == 2u && document->ResolveHeadingFragment(L"#hello-world-2") == headings[3].target &&
               document->ResolveHeadingFragment(L"#caf%C3%A9") == headings[4].target && ! document->ResolveHeadingFragment(L"#caf%ZZ") &&
-              ! document->ResolveHeadingFragment(L"https://example.test"),
+              ! document->ResolveHeadingFragment(L"#%C0%80") && ! document->ResolveHeadingFragment(L"https://example.test"),
           "fragment resolution shares exact source targets and rejects malformed external references");
-    const auto toc = BuildHeadingTableOfContents(*document);
+    const auto toc          = BuildHeadingTableOfContents(*document);
+    std::wstring checkedToc = L"old";
+    Check(TryBuildHeadingTableOfContents(*document, checkedToc) == SourceResult::Success && checkedToc == toc,
+          "checked heading export matches the complete value-returning result");
+    std::size_t count = 42u;
+    Check(TryVisitSemanticWords(*document, {1u, document->Map().Display().size() + 1u}, nullptr, nullptr, count) == SourceResult::InvalidRange && count == 42u,
+          "invalid word interval preserves the caller's count");
     Check(toc == L"- [Hello world](#hello-world)\n  - [Hello world](#hello-world-1)\n- [Hello world\\-1](#hello-world-1-1)\n- [Hello world](#hello-world-2)\n- "
                  L"[Caf\u00e9](#caf%C3%A9)\n- [A &amp; B](#a--b)\n",
           "generated Markdown outline escapes and percent-encodes stable heading references");
@@ -241,8 +246,8 @@ inline void OptionalDefinitionsAndAbbreviations()
           "Markdown inline emphasis inside a description retains native semantic styling");
     for (const auto profile : {MarkdownProfile::CommonMark0312, MarkdownProfile::Gfm029})
     {
-        RichSemanticTests::Reject<std::invalid_argument>([&] { parser.Begin(source, 2u, profile, extensions); },
-                                                         "opt-in rich extensions are unavailable to standard profiles");
+        Check(parser.TryBegin(source, 2u, profile, extensions) == MarkdownResult::InvalidProfile,
+              "opt-in rich extensions are unavailable to standard profiles");
         Check(parser.Published() == syntax && ! parser.HasPendingPreparation(), "invalid profile options leave the prior parser publication intact");
     }
     const std::wstring malformed = L"*[X]: First\n\n*[X]: Second\n\nBad term\n: <formatted>\n\nX Xray\n";
@@ -613,8 +618,10 @@ inline void SchedulingAndAdmission()
     Check(first.status == MarkdownPreparationStatus::Pending && first.workUnits == 1u && builder.Published() == old,
           "semantic owner yields without publishing a partial document");
     builder.Begin(newSyntax);
-    RichSemanticTests::Reject<std::invalid_argument>([&] { builder.Advance(0u); }, "zero semantic event budget rejected");
-    RichSemanticTests::Reject<std::invalid_argument>([&] { builder.Begin(nullptr); }, "null semantic request rejected");
+    const auto zeroBudget = builder.Advance(0u);
+    Check(zeroBudget.status == MarkdownPreparationStatus::Failed && zeroBudget.result == MarkdownResult::InvalidRange && zeroBudget.workUnits == 0u,
+          "zero semantic event budget rejected");
+    Check(builder.TryBegin(nullptr) == SourceResult::InvalidSource, "null semantic request rejected");
     Check(builder.HasPendingPreparation() && builder.Published() == old, "rejected arguments preserve pending and published ownership");
     builder.Begin(oldSyntax);
     Check(! builder.HasPendingPreparation() && builder.Published() == old, "returning to a published request cancels superseded preparation");
@@ -648,8 +655,9 @@ inline void SchedulingAndAdmission()
               "inline code, fenced code, HTML and link text normalize NUL while retaining its exact source mapping");
     }
     const wchar_t unpaired = static_cast<wchar_t>(0xd800u);
-    RichSemanticTests::Reject<std::invalid_argument>([&] { Parse(std::wstring_view(&unpaired, 1u)); },
-                                                     "raw Markdown parser rejects an unpaired source surrogate");
+    MarkdownParser invalidParser;
+    Check(invalidParser.TryBegin(std::wstring_view(&unpaired, 1u), 1u) == MarkdownResult::InvalidSource,
+          "raw Markdown parser rejects an unpaired source surrogate");
     std::wstring many;
     for (std::size_t i = 0u; i <= SemanticDocument::MaximumParagraphs; ++i)
         many.append(L"a\n\n");
@@ -657,7 +665,11 @@ inline void SchedulingAndAdmission()
     builder.Begin(oldSyntax);
     Complete(builder, *oldSyntax);
     builder.Begin(excessive);
-    RichSemanticTests::Reject<std::length_error>([&] { Complete(builder, *excessive); }, "semantic geometry leaf admission fails before unbounded SDK work");
+    MarkdownAdvance failed{};
+    while (builder.HasPendingPreparation())
+        failed = builder.Advance(7u);
+    Check(failed.status == MarkdownPreparationStatus::Failed && failed.result == MarkdownResult::CapacityExceeded,
+          "semantic geometry leaf admission fails before unbounded SDK work");
     Check(builder.Published()->Syntax() == oldSyntax && ! builder.HasPendingPreparation(), "failed semantic advance preserves publication and retires staging");
     std::wstring table(L"|");
     for (unsigned cell = 0u; cell < 128u; ++cell)
@@ -668,7 +680,13 @@ inline void SchedulingAndAdmission()
     table.push_back(L'\n');
     for (unsigned row = 0u; row < 300u; ++row)
         table.append(L"| |\n");
-    RichSemanticTests::Reject<std::length_error>([&] { Parse(table); }, "sparse table amplification is rejected before allocating an excessive parser graph");
+    MarkdownParser oversizedTable;
+    oversizedTable.Begin(table, 1u);
+    MarkdownAdvance tableResult{};
+    while (oversizedTable.HasPendingPreparation())
+        tableResult = oversizedTable.Advance();
+    Check(tableResult.status == MarkdownPreparationStatus::Failed && tableResult.result == MarkdownResult::CapacityExceeded,
+          "sparse table amplification is rejected before allocating an excessive parser graph");
     Check(builder.Published()->Syntax() == oldSyntax && ! builder.HasPendingPreparation(), "failed semantic admission preserves its previous request state");
 }
 inline void LocalizedAccessibilityLabels()
@@ -706,7 +724,11 @@ inline void LocalizedAccessibilityLabels()
                              AccessibilityTextOverride{LabelId::MindmapHelp, L"Source de la carte disponible."},
                              AccessibilityTextOverride{LabelId::UnclosedDisplayMath, L"Délimiteur mathématique manquant."},
                              AccessibilityTextOverride{LabelId::UnclosedMathFence, L"Clôture mathématique manquante."}};
-    const auto labels = std::make_shared<const AccessibilityLabels>(entries);
+    const auto labels          = std::make_shared<const AccessibilityLabels>(entries);
+    std::wstring invalidNumber = L"unchanged";
+    Check(AccessibilityLabels::TryNumber(labels.get(), LabelId::Equation, 1u, 2u, invalidNumber) == SourceResult::InvalidSource &&
+              invalidNumber == L"unchanged",
+          "non-numbered labels refuse formatting without changing output");
     borrowed.assign(L"caller storage changed");
     SemanticBuilder builder;
     builder.Begin(original->Syntax());
@@ -804,27 +826,38 @@ inline void LocalizedAccessibilityLabels()
     for (const auto pattern : {L"missing", L"{0}{0}", L"{1}", L"{0:02}", L"}{0}"})
     {
         const std::array invalid{AccessibilityTextOverride{LabelId::FootnoteName, pattern}};
-        RichSemanticTests::Reject<std::invalid_argument>([&] { AccessibilityLabels value(invalid); }, "invalid numbered label is rejected before ownership");
+        auto retained = labels;
+        Check(AccessibilityLabels::TryCreate(invalid, retained) == SourceResult::InvalidSource && retained == labels,
+              "invalid numbered label preserves the existing dictionary");
     }
     const std::array duplicate{AccessibilityTextOverride{LabelId::Equation, L"first"}, AccessibilityTextOverride{LabelId::Equation, L"second"}};
-    RichSemanticTests::Reject<std::invalid_argument>([&] { AccessibilityLabels value(duplicate); }, "duplicate label identity is rejected");
+    auto retained = labels;
+    Check(AccessibilityLabels::TryCreate(duplicate, retained) == SourceResult::InvalidSource && retained == labels, "duplicate label identity is rejected");
+    const std::array<AccessibilityTextOverride, static_cast<std::size_t>(LabelId::Count) + 1u> tooMany{};
+    Check(AccessibilityLabels::TryCreate(tooMany, retained) == SourceResult::CapacityExceeded && retained == labels,
+          "label-count capacity refusal preserves the existing dictionary");
     const std::wstring nul(L"a\0b", 3u);
     const std::array invalidUnicode{AccessibilityTextOverride{LabelId::Equation, nul}};
-    RichSemanticTests::Reject<std::invalid_argument>([&] { AccessibilityLabels value(invalidUnicode); }, "label transport rejects embedded NUL");
+    Check(AccessibilityLabels::TryCreate(invalidUnicode, retained) == SourceResult::InvalidSource && retained == labels,
+          "label transport rejects embedded NUL");
     const std::wstring surrogate(1u, static_cast<wchar_t>(0xd800u));
     const std::array invalidSurrogate{AccessibilityTextOverride{LabelId::Equation, surrogate}};
-    RichSemanticTests::Reject<std::invalid_argument>([&] { AccessibilityLabels value(invalidSurrogate); }, "label transport rejects malformed UTF-16");
+    Check(AccessibilityLabels::TryCreate(invalidSurrogate, retained) == SourceResult::InvalidSource && retained == labels,
+          "label transport rejects malformed UTF-16");
     const std::array invalidId{AccessibilityTextOverride{LabelId::Count, L"invalid"}};
-    RichSemanticTests::Reject<std::invalid_argument>([&] { AccessibilityLabels value(invalidId); }, "label transport rejects unknown identities");
+    Check(AccessibilityLabels::TryCreate(invalidId, retained) == SourceResult::InvalidSource && retained == labels,
+          "label transport rejects unknown identities");
     const std::array empty{AccessibilityTextOverride{LabelId::Equation, L""}};
-    RichSemanticTests::Reject<std::invalid_argument>([&] { AccessibilityLabels value(empty); }, "empty override cannot erase required accessibility help");
+    Check(AccessibilityLabels::TryCreate(empty, retained) == SourceResult::InvalidSource && retained == labels,
+          "empty override cannot erase required accessibility help");
     const std::wstring maximum(AccessibilityLabels::MaximumTextUnits, L'a');
     const std::array atLimit{AccessibilityTextOverride{LabelId::Equation, maximum}};
     const AccessibilityLabels maximumLabels(atLimit);
     Check(maximumLabels.Get(LabelId::Equation) == maximum, "label admission accepts its exact per-entry bound");
     const std::wstring tooLong(AccessibilityLabels::MaximumTextUnits + 1u, L'a');
     const std::array overLimit{AccessibilityTextOverride{LabelId::Equation, tooLong}};
-    RichSemanticTests::Reject<std::invalid_argument>([&] { AccessibilityLabels value(overLimit); }, "label transport rejects its first excess code unit");
+    Check(AccessibilityLabels::TryCreate(overLimit, retained) == SourceResult::InvalidSource && retained == labels,
+          "label transport rejects its first excess code unit");
     Check(AccessibilityLabels::Text(nullptr, LabelId::Equation) == L"Mathematical expression. Exact TeX source is available as document text.",
           "default label lookup remains byte-identical without allocating a dictionary");
     builder.SetAccessibilityLabels(nullptr);

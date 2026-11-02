@@ -5,6 +5,16 @@
 // Sinks and their string views are borrowed synchronously on the calling UI thread. Do not re-enter controls.
 namespace DxUi::Diagnostics
 {
+// Counts the checked native control-object heap beside ordinary C++ allocation
+// instrumentation. Synchronous, borrowed and non-reentrant, like the sinks below.
+struct NativeAllocationRecord
+{
+    bool allocating;
+    size_t requestedBytes;
+    size_t reservedBytes;
+};
+using NativeAllocationSink                                    = void (*)(const NativeAllocationRecord&) noexcept;
+inline thread_local NativeAllocationSink nativeAllocationSink = nullptr;
 struct PerformanceRecord
 {
     std::wstring_view name;

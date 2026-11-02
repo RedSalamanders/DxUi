@@ -56,15 +56,7 @@ template <typename Check> inline void Admission(Check&& check)
         builder.Begin(pendingSyntax, pendingNode);
         for (const auto target : {SourceBlock(*syntax), syntax->Nodes().size(), syntax->Nodes().size() + 7u})
         {
-            bool rejected{};
-            try
-            {
-                builder.Begin(syntax, target);
-            }
-            catch (const std::invalid_argument&)
-            {
-                rejected = true;
-            }
+            const bool rejected = builder.TryBegin(syntax, target) == SourceResult::InvalidRange;
             check(rejected && builder.HasPendingPreparation() && builder.Published() == old,
                   "hidden/duplicate-declaration and out-of-range source targets preserve publication and the original pending request");
         }
@@ -117,15 +109,7 @@ template <typename Check> inline void Core(Check&& check)
         builder.Begin(syntax, node);
         check(! builder.HasPendingPreparation() && builder.Published() == doc, "identical scoped requests coalesce without a new publication");
         builder.Begin(syntax);
-        bool rejected{};
-        try
-        {
-            builder.Begin(syntax, 0u);
-        }
-        catch (const std::invalid_argument&)
-        {
-            rejected = true;
-        }
+        const bool rejected = builder.TryBegin(syntax, 0u) == SourceResult::InvalidRange;
         check(rejected && builder.HasPendingPreparation() && builder.Published() == doc,
               "invalid container targets preserve both pending restoration and current source presentation");
         const auto restored = SemanticDiagramTests::Complete(builder, check);
@@ -218,24 +202,11 @@ template <typename Check> inline void SourceRegions(Check&& check)
         {
             MarkdownCommandRequest request;
             request.command = MarkdownCommand::ToggleStyle;
-            bool commandRejected{}, deletionRejected{};
-            try
-            {
-                static_cast<void>(BuildMarkdownCommand(model.Snapshot(), model.Revision(), syntax, selection, request));
-            }
-            catch (const std::invalid_argument&)
-            {
-                commandRejected = true;
-            }
+            std::optional<MarkdownCommandPlan> output;
+            const bool commandRejected = TryBuildMarkdownCommand(model.Snapshot(), model.Revision(), syntax, selection, request, output) == SourceResult::Stale;
             const std::array ranges{scenario.effective};
-            try
-            {
-                static_cast<void>(BuildMarkdownDeletion(model.Snapshot(), model.Revision(), syntax, selection, ranges));
-            }
-            catch (const std::invalid_argument&)
-            {
-                deletionRejected = true;
-            }
+            const bool deletionRejected =
+                TryBuildMarkdownDeletion(model.Snapshot(), model.Revision(), syntax, selection, ranges, output) == SourceResult::Stale;
             check(commandRejected && deletionRejected && model.Text() == scenario.source && ! model.CanUndo() && parser.Published() == syntax,
                   "pure structural and deletion planning reject presentation-only syntax inside or outside its active raw region before staging");
         }
@@ -317,19 +288,7 @@ template <typename Check> inline void SourceRegions(Check&& check)
                                MarkdownSourceRegion{{0u, 10u}, 3u},
                                MarkdownSourceRegion{{0u, 4u}, 0u}})
     {
-        bool rejected{};
-        try
-        {
-            parser.BeginSourceRegion(unicode.Snapshot(), unicode.Revision(), invalid);
-        }
-        catch (const std::invalid_argument&)
-        {
-            rejected = true;
-        }
-        catch (const std::out_of_range&)
-        {
-            rejected = true;
-        }
+        const bool rejected = parser.TryBeginSourceRegion(unicode.Snapshot(), unicode.Revision(), invalid) == MarkdownResult::InvalidRange;
         check(rejected && parser.Published() == published && parser.HasPendingPreparation(),
               "invalid session/scalar/CRLF/order/capacity admission preserves publication and the pending request");
     }

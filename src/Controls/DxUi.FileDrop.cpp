@@ -1,3 +1,5 @@
+#include <DxUi/Failure.h>
+
 #include <DxUi/FileDrop.h>
 #include <DxUi/RichDocument.h>
 #include <atomic>
@@ -111,6 +113,7 @@ public:
 HRESULT CreateRichTextDragData(std::wstring_view text, IDataObject** result) noexcept
 try
 {
+    const Failure::Scope failureScope;
     if (! result)
         return E_POINTER;
     *result = nullptr;
@@ -124,7 +127,7 @@ try
 }
 catch (const std::bad_alloc&)
 {
-    return E_OUTOFMEMORY;
+    Failure::FailAllocation();
 }
 
 HRESULT CreateRichTextDragSource(IDropSource** result) noexcept
@@ -161,10 +164,12 @@ class RichFileDropTarget final : public Microsoft::WRL::RuntimeClass<Microsoft::
 public:
     explicit RichFileDropTarget(std::shared_ptr<RichFileDropAdapter::State> state) noexcept : _state(std::move(state))
     {
+        const Failure::Scope outerFailureScope;
     }
     HRESULT STDMETHODCALLTYPE DragEnter(IDataObject* data, DWORD keys, POINTL point, DWORD* effect) noexcept override
     try
     {
+        const Failure::Scope failureScope;
         if (! effect)
             return E_POINTER;
         const DWORD allowed = *effect;
@@ -195,18 +200,15 @@ public:
     }
     catch (const std::bad_alloc&)
     {
-        if (effect)
-            *effect = DROPEFFECT_NONE;
-        return E_OUTOFMEMORY;
+        Failure::FailAllocation();
     }
     catch (const std::exception&)
     {
-        if (effect)
-            *effect = DROPEFFECT_NONE;
-        return E_FAIL;
+        Failure::FailUnexpected();
     }
     HRESULT STDMETHODCALLTYPE DragOver(DWORD keys, POINTL point, DWORD* effect) noexcept override
     {
+        const Failure::Scope failureScope;
         if (! effect)
             return E_POINTER;
         const DWORD allowed = *effect;
@@ -226,6 +228,7 @@ public:
     }
     HRESULT STDMETHODCALLTYPE Drop(IDataObject* data, DWORD keys, POINTL point, DWORD* effect) noexcept override
     {
+        const Failure::Scope failureScope;
         if (! effect)
             return E_POINTER;
         const DWORD allowed = *effect;
@@ -309,6 +312,7 @@ RichFileDropAdapter::~RichFileDropAdapter()
 HRESULT RichFileDropAdapter::Attach(std::weak_ptr<RichFileDropReceiver> receiver) noexcept
 try
 {
+    const Failure::Scope outerFailureScope;
     if (receiver.expired())
         return E_INVALIDARG;
     if (_state && _state->thread != GetCurrentThreadId())
@@ -334,7 +338,7 @@ try
 }
 catch (const std::bad_alloc&)
 {
-    return E_OUTOFMEMORY;
+    Failure::FailAllocation();
 }
 void RichFileDropAdapter::Detach() noexcept
 {

@@ -104,7 +104,7 @@ try {
             Assert-Scope (@($full | Where-Object suite -eq 'NativeTextInput').Count -gt 0) 'Full local work hid the separate native text-input gate'
         }
     }
-    Run-Case 'one PrePush entry point accounts for six profiles and the revision-4 fixture is wired into consumers' {
+    Run-Case 'one PrePush entry point accounts for six profiles and revision-4 and revision-5 fixtures are wired into consumers' {
         if ($manifest.repository -like '*/DxUi') {
             $prePush=Join-Path $repository 'Test-PrePush.ps1'
             $tokens=$null;$errors=$null
@@ -115,6 +115,13 @@ try {
             $fixture=Join-Path $repository 'Tools/ConsumerApi/ConsumerApi.Tests.Revision4.cpp'
             $consumer=Join-Path $repository 'test-consumer.ps1'
             Assert-Scope ((Test-Path -LiteralPath $fixture) -and [IO.File]::ReadAllText($consumer).Contains('Tools/ConsumerApi/ConsumerApi.Tests.Revision4.cpp') -and [IO.File]::ReadAllText($consumer).Contains('ConsumerApi.Tests.Revision4.cpp')) 'Frozen public API fixture is not compiled by the exact-pin consumer gate'
+            $fixture5=Join-Path $repository 'Tools/ConsumerApi/ConsumerApi.Tests.Revision5.cpp'
+            Assert-Scope ((Test-Path -LiteralPath $fixture5) -and [IO.File]::ReadAllText($consumer).Contains('Tools/ConsumerApi/ConsumerApi.Tests.Revision5.cpp') -and [IO.File]::ReadAllText($consumer).Contains('ConsumerApi.Tests.Revision5.cpp') -and [IO.File]::ReadAllText($consumer).Contains('Samples/Shared/FailureHost.cpp')) 'Revision-5 fixture and application-owned host are not compiled by the consumer gate'
+            Assert-Scope ([IO.File]::ReadAllText($consumer).Contains('DXUI_NATIVE_MODULE_FATAL executed=4 passed=4')) 'Consumer gate must require all independent module fatal child probes'
+            $sdk=[IO.File]::ReadAllText((Join-Path $repository 'Tools/New-SdkPackage.ps1'))
+            foreach($required in @('ThirdParty/libyaml/0.2.5/LICENSE','samples/Shared','FailureHost.cpp','DbgHelp.lib',"@('Main','FailureHost')")) {
+                Assert-Scope ($sdk.Contains($required)) "SDK package or independent source dependency check is missing $required"
+            }
             $headerLoop=[regex]::Match([IO.File]::ReadAllText($consumer),'(?s)\$headerUnits\s*=\s*foreach\s*\(.*?\)\s*\{')
             Assert-Scope ($headerLoop.Success -and $headerLoop.Value.Contains("'RichMath'")) 'Exact-pin consumer must compile RichMath as an independent public header'
         }

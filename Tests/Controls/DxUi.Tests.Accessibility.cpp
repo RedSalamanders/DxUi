@@ -5,6 +5,7 @@
 #include "Controls.Tests.HostControlRegressions.h"
 #include "Controls.Tests.RichTextAccessibility.h"
 #include "Controls/DxUi.AccessibilityTextUnits.h"
+#include "Support.Tests.FatalChildren.h"
 #include "Support.Tests.SelectionEventInterruption.h"
 #include "Support.Tests.UiaTestClient.h"
 #include "Support/PostedPayload.h"
@@ -762,10 +763,19 @@ void TestAccessibilityToggleCallbacksDoNotBlockSnapshotQueries()
     Require(completedInsideCallback, "application callbacks run without the global accessibility snapshot mutex");
 }
 
-// A UI Automation action whose application callback throws ends with E_FAIL, called on the window's thread or dispatched
-// to it, for the callback contract's named standard exceptions. The actions were noexcept, so a toggle
-// handler's exception ended the process from a screen reader's command.
-void TestAccessibilityActionsContainAThrowingCallback()
+[[noreturn]] __declspec(noinline) void AccessibilityToggleRuntimeOrigin(const std::runtime_error& error)
+{
+    throw error;
+}
+[[noreturn]] __declspec(noinline) void AccessibilityToggleArgumentOrigin(const std::invalid_argument& error)
+{
+    throw error;
+}
+__declspec(noinline) void AccessibilityToggleAllocationOrigin()
+{
+    throw std::bad_alloc();
+}
+void AccessibilityToggleCallbackFixture(unsigned fatalScenario)
 {
     using namespace DxUi;
     AttachedHostWindow window;
@@ -786,13 +796,34 @@ void TestAccessibilityActionsContainAThrowingCallback()
     unsigned calls = 0u;
     toggle->SetOnToggled([&](bool)
     {
-        if (++calls == 2u)
-            throw std::invalid_argument("another standard callback failure");
-        throw std::runtime_error("the application's handler failed");
+        ++calls;
+        if (fatalScenario == 1u || fatalScenario == 4u)
+        {
+            const std::runtime_error error("toggle callback failure");
+            AccessibilityToggleRuntimeOrigin(error);
+        }
+        if (fatalScenario == 2u)
+        {
+            const std::invalid_argument error("toggle callback failure");
+            AccessibilityToggleArgumentOrigin(error);
+        }
+        if (fatalScenario == 3u)
+            AccessibilityToggleAllocationOrigin();
     });
+    if (fatalScenario >= 1u && fatalScenario <= 3u)
+    {
+        (void)action->Toggle();
+        return;
+    }
+    if (fatalScenario == 0u)
+    {
+        Require(DxUiFailureTests::ExpectFatalChild(L"accessibility-toggle-runtime"), "toggle runtime exception terminates its owned child");
+        Require(DxUiFailureTests::ExpectFatalChild(L"accessibility-toggle-argument"), "toggle argument exception terminates its owned child");
+        Require(DxUiFailureTests::ExpectFatalChild(L"accessibility-toggle-allocation"), "toggle allocation exception terminates its owned child");
+        Require(DxUiFailureTests::ExpectFatalChild(L"accessibility-toggle-dispatched"), "dispatched toggle exception terminates its owned child");
+        RequireSucceeded(action->Toggle(), "healthy toggle action succeeds");
+    }
 
-    Require(action->Toggle() == E_FAIL && calls == 1u, "a handler's std::exception ends the action with E_FAIL");
-    Require(action->Toggle() == E_FAIL && calls == 2u, "another standard exception ends the action with E_FAIL too");
     std::atomic<HRESULT> dispatched{E_PENDING};
     std::thread worker([&]
     {
@@ -808,15 +839,31 @@ void TestAccessibilityActionsContainAThrowingCallback()
         static_cast<void>(MsgWaitForMultipleObjects(0u, nullptr, FALSE, 10u, QS_ALLINPUT));
     }
     worker.join();
-    Require(dispatched.load(std::memory_order_acquire) == E_FAIL && calls == 3u, "an action dispatched to the window's thread ends with E_FAIL");
+    if (fatalScenario != 0u)
+        return;
+    Require(dispatched.load(std::memory_order_acquire) == S_OK && calls == 2u, "healthy dispatched toggle action succeeds");
     ToggleState state = ToggleState_Indeterminate;
-    RequireSucceeded(action->get_ToggleState(&state), "the provider still answers after the failures");
+    RequireSucceeded(action->get_ToggleState(&state), "the provider answers after healthy actions");
     Require(state == (toggle->IsChecked() ? ToggleState_On : ToggleState_Off), "the published state is the toggle's");
-    toggle->SetOnToggled([](bool) { throw std::bad_alloc(); });
-    Require(action->Toggle() == E_OUTOFMEMORY, "a named allocation failure retains its HRESULT at the action boundary");
-    RequireSucceeded(action->get_ToggleState(&state), "the provider still answers after allocation failure");
-    Require(state == (toggle->IsChecked() ? ToggleState_On : ToggleState_Off), "allocation failure republishes the actual state");
 }
+void TestAccessibilityActionsContainAThrowingCallback()
+{
+    AccessibilityToggleCallbackFixture(0u);
+}
+template <unsigned Scenario> void AccessibilityToggleFailureChild()
+{
+    const HRESULT hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+    if (FAILED(hr))
+        return;
+    const auto uninitialize = wil::scope_exit([] { CoUninitialize(); });
+    AccessibilityToggleCallbackFixture(Scenario);
+}
+[[maybe_unused]] const bool accessibilityToggleFailureChildrenRegistered =
+    DxUiFailureTests::RegisterFatalChildCase({L"accessibility-toggle-runtime", "AccessibilityToggleRuntimeOrigin", AccessibilityToggleFailureChild<1u>}) &&
+    DxUiFailureTests::RegisterFatalChildCase({L"accessibility-toggle-argument", "AccessibilityToggleArgumentOrigin", AccessibilityToggleFailureChild<2u>}) &&
+    DxUiFailureTests::RegisterFatalChildCase(
+        {L"accessibility-toggle-allocation", "AccessibilityToggleAllocationOrigin", AccessibilityToggleFailureChild<3u>}) &&
+    DxUiFailureTests::RegisterFatalChildCase({L"accessibility-toggle-dispatched", "AccessibilityToggleRuntimeOrigin", AccessibilityToggleFailureChild<4u>});
 
 // A UI Automation action that times out on a window whose thread does not answer gives back its payload slot (CR-28 of the
 // 10 October review): the registry's 128 slots are the process's, and each timed-out action kept one, with references to

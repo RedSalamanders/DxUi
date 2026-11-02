@@ -1,3 +1,5 @@
+#include <DxUi/Failure.h>
+
 #include "DxUi.RichImage.h"
 #include "DxUi.RichImagePaths.h"
 #include <DxUi/RichImage.h>
@@ -311,6 +313,7 @@ HRESULT RichImage::CreateSvg(unsigned width,
                              const std::atomic_bool* cancellation) noexcept
 try
 {
+    Failure::Scope failureScope;
     if (! Detail::DimensionsAllowed(width, height) || encoded.empty() || encoded.size() > MaximumSvgBytes)
         return E_INVALIDARG;
     if (Detail::Cancelled(cancellation))
@@ -427,12 +430,13 @@ try
 }
 catch (const std::bad_alloc&)
 {
-    return E_OUTOFMEMORY;
+    Failure::FailAllocation();
 }
 HRESULT RichImage::CreatePbgra(
     unsigned width, unsigned height, std::span<const std::byte> pixels, std::shared_ptr<const RichImage>& output, const std::atomic_bool* cancellation) noexcept
 try
 {
+    Failure::Scope failureScope;
     if (! Detail::DimensionsAllowed(width, height) || pixels.size() != static_cast<std::size_t>(width) * height * 4u)
         return E_INVALIDARG;
     for (std::size_t at = 0u; at < pixels.size(); at += 4u)
@@ -446,7 +450,7 @@ try
 }
 catch (const std::bad_alloc&)
 {
-    return E_OUTOFMEMORY;
+    Failure::FailAllocation();
 }
 HRESULT RichImage::Decode(IWICImagingFactory* factory,
                           std::span<const std::byte> encoded,
@@ -454,11 +458,12 @@ HRESULT RichImage::Decode(IWICImagingFactory* factory,
                           const std::atomic_bool* cancellation) noexcept
 try
 {
+    Failure::Scope failureScope;
     return Detail::RichImageDecoder::Decode(factory, encoded, output, cancellation);
 }
 catch (const std::bad_alloc&)
 {
-    return E_OUTOFMEMORY;
+    Failure::FailAllocation();
 }
 HRESULT RichImage::LoadFile(IWICImagingFactory* factory,
                             std::wstring_view absolutePath,
@@ -466,12 +471,16 @@ HRESULT RichImage::LoadFile(IWICImagingFactory* factory,
                             const std::atomic_bool* cancellation) noexcept
 try
 {
+    Failure::Scope failureScope;
     if (! factory)
         return E_INVALIDARG;
     if (Detail::Cancelled(cancellation))
         return HRESULT_FROM_WIN32(ERROR_CANCELLED);
-    const auto path = Detail::NormalizeDocumentFilePath(absolutePath);
-    if (path.empty())
+    std::wstring path(0u, L' ');
+    const auto admission = Detail::TryNormalizeDocumentFilePath(absolutePath, path);
+    if (admission == SourceResult::CapacityExceeded)
+        return HRESULT_FROM_WIN32(ERROR_BUFFER_OVERFLOW);
+    if (admission != SourceResult::Success || path.empty())
         return E_INVALIDARG;
     std::wstring native(0u, L' ');
     if (path.starts_with(L"\\\\"))
@@ -512,14 +521,10 @@ try
 }
 catch (const std::bad_alloc&)
 {
-    return E_OUTOFMEMORY;
+    Failure::FailAllocation();
 }
-catch (const std::length_error&)
+catch (const std::exception&)
 {
-    return HRESULT_FROM_WIN32(ERROR_BUFFER_OVERFLOW);
-}
-catch (const std::invalid_argument&)
-{
-    return E_INVALIDARG;
+    Failure::FailUnexpected();
 }
 } // namespace DxUi::RichText

@@ -4,6 +4,7 @@
 #include "Controls/DxUi.RichEditorLayout.h"
 #include "Controls/TextClipboard.h"
 #include "Support.Tests.ClipboardFixture.h"
+#include "Support.Tests.FatalChildren.h"
 #include "Support.Tests.Footnotes.h"
 #include "Support.Tests.MarkdownBlocks.h"
 #include "Support.Tests.MarkdownCapacity.h"
@@ -14,6 +15,7 @@
 #include "Support.Tests.SemanticDiagrams.h"
 #include "Support.Tests.SemanticSourceBlock.h"
 #include <DxUi/ControlCatalog.h>
+#include <DxUi/Failure.h>
 #include <DxUi/RichSemanticDocument.h>
 #include <chrono>
 #include <iostream>
@@ -53,7 +55,7 @@ public:
         }
         catch (const std::bad_alloc&)
         {
-            return E_OUTOFMEMORY;
+            Failure::FailAllocation();
         }
     }
     HRESULT Write(HWND, std::wstring_view value) noexcept override
@@ -69,24 +71,10 @@ public:
         }
         catch (const std::bad_alloc&)
         {
-            return E_OUTOFMEMORY;
+            Failure::FailAllocation();
         }
     }
 };
-
-template <typename F> void RejectEditor(F&& operation)
-{
-    bool rejected = false;
-    try
-    {
-        operation();
-    }
-    catch (const std::exception&)
-    {
-        rejected = true;
-    }
-    Require(rejected, "invalid editor update is rejected");
-}
 
 void RenderEditor(AttachedHostWindow& window)
 {
@@ -106,10 +94,10 @@ void TestRichTextEditorTransactionsAndValidation()
     Require(editor.Redo() && editor.GetText() == L"a\U0001f600" && changes == 3, "redo and one notification per change");
     const auto revision = editor.Revision();
     const auto snapshot = editor.Snapshot();
-    RejectEditor([&] { editor.SetSelection({2, 2}); });
-    RejectEditor([&] { editor.SetText(std::wstring(1, wchar_t(0xd800))); });
-    RejectEditor([&] { editor.ReplaceSelection(std::wstring(Document::MaximumUnits + 1, L'x')); });
-    RejectEditor([&] { editor.SetViewMode(static_cast<ViewMode>(99)); });
+    Require(editor.TrySetSelection({2, 2}) == SourceResult::InvalidRange, "split scalar selection is refused");
+    Require(editor.TrySetText(std::wstring(1, wchar_t(0xd800))) == SourceResult::InvalidSource, "invalid source is refused");
+    Require(! editor.ReplaceSelection(std::wstring(Document::MaximumUnits + 1, L'x')), "over-capacity replacement is refused");
+    Require(editor.TrySetViewMode(static_cast<ViewMode>(99)) == SourceResult::InvalidSource, "invalid view mode is refused");
     Require(editor.Revision() == revision && snapshot.Text() == editor.GetText() && changes == 3, "rejections preserve source history and callbacks");
     editor.SetReadOnly(true);
     Require(! editor.ReplaceSelection(L"x") && ! editor.Undo() && ! editor.Redo() && ! editor.ToggleFormatting(L"**"), "read-only blocks source commands");
@@ -183,7 +171,7 @@ void TestRichTextEditorFormattingAndModePreserveSource()
     Require(editor.ToggleFormatting(L"*") && editor.ToggleFormatting(L"~~") && editor.ToggleFormatting(L"`"), "all four v0 formatting commands");
     Require(editor.Undo() && editor.Redo(), "formatting is undoable");
     const auto source = editor.GetText();
-    RejectEditor([&] { editor.ToggleFormatting(L"unsupported"); });
+    Require(! editor.ToggleFormatting(L"unsupported"), "unsupported formatting is a checked refusal");
     Require(editor.GetText() == source, "unsupported formatting preserves source");
 }
 
@@ -203,8 +191,7 @@ void TestRichTextEditorCallbackRetirementAndFailure()
     auto replacement = std::make_unique<RichTextEditor>();
     raw              = replacement.get();
     host.SetRoot(std::move(replacement));
-    raw->SetOnTextChanged([] { throw std::runtime_error("notification failed"); });
-    Require(raw->OnChar(host, L'z', 0) && raw->GetText() == L"z" && raw->CanUndo(), "callback failure leaves committed edit usable");
+    Require(DxUiFailureTests::ExpectFatalChild(L"rich-text-notify"), "text callback exception terminates its isolated child");
     raw->SetOnTextChanged([&]
     {
         raw->SetOnTextChanged({});
@@ -237,9 +224,7 @@ void TestRichTextEditorSelectionPublicationAndRetirement()
     editor.SetOnSelectionChanged([&] { editor.SetOnSelectionChanged({}); });
     editor.SetSelection({0u, 0u});
     editor.SetSelection({1u, 1u});
-    editor.SetOnSelectionChanged([] { throw std::runtime_error("selection notification failed"); });
-    editor.SetSelection({2u, 2u});
-    Require(editor.GetSelection() == Selection{2u, 2u} && ! editor.CanUndo(), "notification failure preserves committed selection and history");
+    Require(DxUiFailureTests::ExpectFatalChild(L"rich-selection-notify"), "selection callback exception terminates its isolated child");
 
     auto owned = std::make_unique<RichTextEditor>(L"owned");
     auto* raw  = owned.get();
@@ -285,17 +270,7 @@ void TestRichTextEditorCommittedTextThenSelectionCallbacks()
     Require(editor.Redo() && events == std::vector<char>{'T', 'S'} && selections == std::vector<Selection>{{2u, 2u}},
             "self-clearing text callback does not suppress its surviving selection publication");
 
-    RichTextEditor throwing(L"ab");
-    throwing.SetSelection({1u, 1u});
-    std::vector<char> failedCallbackEvents;
-    throwing.SetOnTextChanged([&]
-    {
-        failedCallbackEvents.push_back('T');
-        throw std::runtime_error("planned committed text callback failure");
-    });
-    throwing.SetOnSelectionChanged([&] { failedCallbackEvents.push_back('S'); });
-    Require(throwing.ReplaceSelection(L"x") && throwing.GetText() == L"axb" && throwing.CanUndo() && failedCallbackEvents == std::vector<char>{'T', 'S'},
-            "standard text callback failure retains committed source/history and still publishes selection");
+    Require(DxUiFailureTests::ExpectFatalChild(L"rich-text-notify"), "committed text callback exception cannot continue into selection publication");
 
     RichTextEditor replacedRegistration(L"abc");
     replacedRegistration.SetSelection({1u, 1u});
@@ -636,7 +611,7 @@ void TestRichTextEditorMarkdownPresentationAppearance()
             "Markdown presentation settings do not restyle or rewrite the literal Source view");
     const auto beforeInvalid        = editor->GetAppearance();
     appearance.markdownPresentation = static_cast<RichText::MarkdownPresentationStyle>(99);
-    RejectEditor([&] { editor->SetAppearance(appearance); });
+    Require(editor->TrySetAppearance(appearance) == SourceResult::InvalidSource, "invalid appearance is refused");
     Require(editor->GetAppearance() == beforeInvalid, "invalid presentation enum is rejected atomically");
 }
 
@@ -1322,9 +1297,13 @@ void TestRichTextEditorNativePreparationCanReplaceRoot()
                 {
                     host.SetRoot(std::move(replacement));
                 }
+                catch (const std::bad_alloc&)
+                {
+                    Failure::FailAllocation();
+                }
                 catch (const std::exception&)
                 {
-                    return E_FAIL;
+                    Failure::FailUnexpected();
                 }
                 return S_FALSE; // this has retired; do not read another member.
             }
@@ -1963,7 +1942,8 @@ void TestRichTextEditorNativeLosslessMarkdownPreparation()
     Require(editor->ReplaceSelection(L"x") && editor->Undo(), "analysis-enabled edit undo retains source");
     const auto selection = editor->GetSelection();
     const auto revision  = editor->Revision();
-    RejectEditor([&] { editor->SetMarkdownAnalysisProfile(static_cast<MarkdownProfile>(99)); });
+    Require(editor->TrySetMarkdownAnalysisProfile(static_cast<MarkdownProfile>(99)) == SourceResult::InvalidArgument,
+            "invalid Markdown profile returns a checked refusal");
     Require(editor->GetSelection() == selection && editor->Revision() == revision && editor->CanRedo(), "invalid profile is atomic");
     editor->SetMarkdownAnalysisProfile(std::nullopt);
     RenderEditor(window);

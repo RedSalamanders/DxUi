@@ -2,6 +2,7 @@
 #include "DxUi.RichTextScriptRenderer.h"
 #include "DxUi.RichTextSourceInkRenderer.h"
 #include "DxUi.TextElements.h"
+#include <DxUi/Failure.h>
 #include <DxUi/RichTextLayout.h>
 #include <algorithm>
 #include <cmath>
@@ -20,10 +21,10 @@ namespace DxUi::RichText
 {
 namespace
 {
-void Check(HRESULT result, const char* operation)
+void Check(HRESULT result, const char*)
 {
     if (FAILED(result))
-        THROW_HR_MSG(result, "%hs", operation);
+        Failure::FailContract(result);
 }
 // A positioning-only first line lets DirectWrite perform its own sequential
 // document-coordinate rounding, mixed-font caret math and color-font drawing.
@@ -149,42 +150,49 @@ void PreparedLayout::Prepare(IDWriteFactory* factory, Projection projection, flo
     LayoutOptions options;
     options.widthDip    = width;
     options.fontSizeDip = fontSize;
-    PrepareOwned(factory, projection, options);
+    if (const auto status = PrepareOwned(factory, projection, options); FAILED(status))
+        Failure::FailContract(status);
 }
 void PreparedLayout::Prepare(IDWriteFactory* factory, Projection projection, const LayoutOptions& options)
 {
-    PrepareOwned(factory, projection, options);
+    if (const auto status = PrepareOwned(factory, projection, options); FAILED(status))
+        Failure::FailContract(status);
 }
-void PreparedLayout::PrepareOwned(IDWriteFactory* factory, Projection& projection, const LayoutOptions& options, float verticalOrigin)
+HRESULT PreparedLayout::TryPrepare(IDWriteFactory* factory, Projection projection, const LayoutOptions& options)
 {
-    Detail::PreparedLayoutAccess::Prepare(*this, factory, projection, options, verticalOrigin);
+    return PrepareOwned(factory, projection, options);
 }
-void Detail::PreparedLayoutAccess::PrepareSemantic(PreparedLayout& owner,
-                                                   IDWriteFactory* factory,
-                                                   SemanticInput& input,
-                                                   const LayoutOptions& options,
-                                                   bool marker,
-                                                   IDWriteInlineObject* object,
-                                                   UINT32 objectOffset,
-                                                   std::span<const InlineObject> objects)
+HRESULT PreparedLayout::PrepareOwned(IDWriteFactory* factory, Projection& projection, const LayoutOptions& options, float verticalOrigin)
+{
+    return Detail::PreparedLayoutAccess::Prepare(*this, factory, projection, options, verticalOrigin);
+}
+HRESULT Detail::PreparedLayoutAccess::PrepareSemantic(PreparedLayout& owner,
+                                                      IDWriteFactory* factory,
+                                                      SemanticInput& input,
+                                                      const LayoutOptions& options,
+                                                      bool marker,
+                                                      IDWriteInlineObject* object,
+                                                      UINT32 objectOffset,
+                                                      std::span<const InlineObject> objects)
 {
     Projection projection{std::wstring(0u, L' '), std::wstring(0u, L' '), std::vector<std::size_t>(0u), std::vector<SourceUnit>(0u), std::vector<StyleRun>(0u)};
     projection.text.swap(input.text);
     projection.runs.swap(input.runs);
     projection.revision = input.revision;
-    Prepare(owner, factory, projection, options, 0.0f, true, marker, object, objectOffset, objects);
+    return Prepare(owner, factory, projection, options, 0.0f, true, marker, object, objectOffset, objects);
 }
-void Detail::PreparedLayoutAccess::Prepare(PreparedLayout& owner,
-                                           IDWriteFactory* factory,
-                                           Projection& projection,
-                                           const LayoutOptions& options,
-                                           float verticalOrigin,
-                                           bool semanticDisplay,
-                                           bool marker,
-                                           IDWriteInlineObject* object,
-                                           UINT32 objectOffset,
-                                           std::span<const InlineObject> objects)
+HRESULT Detail::PreparedLayoutAccess::Prepare(PreparedLayout& owner,
+                                              IDWriteFactory* factory,
+                                              Projection& projection,
+                                              const LayoutOptions& options,
+                                              float verticalOrigin,
+                                              bool semanticDisplay,
+                                              bool marker,
+                                              IDWriteInlineObject* object,
+                                              UINT32 objectOffset,
+                                              std::span<const InlineObject> objects)
 {
+    const Failure::Scope failureScope;
     const auto width = options.widthDip, fontSize = options.fontSizeDip;
     const auto validName          = [](const std::wstring& name) { return ! name.empty() && name.size() <= 255 && IsValidUtf16(name); };
     const auto validHeadingSize   = [](float value) noexcept { return std::isfinite(value) && (value == 0.0f || (value >= 1.0f && value <= 512.0f)); };
@@ -208,15 +216,15 @@ void Detail::PreparedLayoutAccess::Prepare(PreparedLayout& owner,
         ! std::ranges::all_of(options.headingLineHeightMultiplier, validHeadingHeight) || ! validSpacing(options.paragraphSpacingAfterLines, 4.0f) ||
         ! validSpacing(options.listItemSpacingDip, 256.0f) || (options.semanticSpacing && ! options.semanticSpacing->IsValid()) ||
         (options.markdownPresentation != MarkdownPresentationStyle::Default && options.markdownPresentation != MarkdownPresentationStyle::Subtle))
-        throw std::invalid_argument("Invalid rich-text layout options");
+        return E_INVALIDARG;
     const auto maximum = semanticDisplay ? Document::MaximumUnits * 2u : Document::MaximumUnits;
     if (projection.text.size() > maximum || ! IsValidSourceUtf16(projection.text) ||
         (! semanticDisplay &&
          (projection.source.size() > maximum || ! IsValidSourceUtf16(projection.source) || projection.units.size() != projection.text.size() ||
           projection.sourceToDisplay.size() != projection.source.size() + 1 || (projection.mode != ViewMode::Source && projection.mode != ViewMode::Rich))))
-        throw std::invalid_argument("Invalid rich-text display text");
+        return E_INVALIDARG;
     if (object && (! semanticDisplay || objectOffset >= projection.text.size() || projection.text[objectOffset] != L'\ufffc'))
-        throw std::invalid_argument("Invalid semantic object placement");
+        return E_INVALIDARG;
     std::size_t objectEnd{};
     for (const auto& inlineObject : objects)
     {
@@ -225,7 +233,7 @@ void Detail::PreparedLayoutAccess::Prepare(PreparedLayout& owner,
             ! IsEditBoundary(projection.text, inlineObject.first) ||
             ! IsEditBoundary(projection.text, static_cast<std::size_t>(inlineObject.first) + inlineObject.length) ||
             (object && objectOffset >= inlineObject.first && objectOffset < static_cast<std::size_t>(inlineObject.first) + inlineObject.length))
-            throw std::invalid_argument("Invalid semantic inline object range");
+            return E_INVALIDARG;
         objectEnd = static_cast<std::size_t>(inlineObject.first) + inlineObject.length;
     }
     if (! semanticDisplay)
@@ -234,13 +242,13 @@ void Detail::PreparedLayoutAccess::Prepare(PreparedLayout& owner,
         for (const auto offset : projection.sourceToDisplay)
         {
             if (offset < previousDisplay || offset > projection.text.size())
-                throw std::invalid_argument("Invalid rich-text source mapping");
+                return E_INVALIDARG;
             previousDisplay = offset;
         }
         for (const auto& unit : projection.units)
         {
             if (unit.start < previousSource || unit.start >= unit.end || unit.end > projection.source.size())
-                throw std::invalid_argument("Invalid rich-text display mapping");
+                return E_INVALIDARG;
             previousSource = unit.end;
         }
     }
@@ -250,24 +258,23 @@ void Detail::PreparedLayoutAccess::Prepare(PreparedLayout& owner,
             (run.flags & ~(Bold | Italic | Code | Strike | Underline | Link | Marked | Superscript | Subscript)) ||
             (run.flags & (Superscript | Subscript)) == (Superscript | Subscript) || ! IsEditBoundary(projection.text, run.start) ||
             ! IsEditBoundary(projection.text, run.start + run.length))
-            throw std::invalid_argument("Invalid rich-text style range");
+            return E_INVALIDARG;
     }
     // Create the retained text format through the supplied DirectWrite factory.
     wil::com_ptr<IDWriteTextFormat> format;
-    Check(factory->CreateTextFormat(options.fontFamily.c_str(),
-                                    nullptr,
-                                    DWRITE_FONT_WEIGHT_NORMAL,
-                                    DWRITE_FONT_STYLE_NORMAL,
-                                    DWRITE_FONT_STRETCH_NORMAL,
-                                    fontSize,
-                                    options.locale.c_str(),
-                                    format.put()),
-          "CreateTextFormat");
-    Check(format->SetWordWrapping(marker || object || ! options.wrap ? DWRITE_WORD_WRAPPING_NO_WRAP : DWRITE_WORD_WRAPPING_WRAP), "SetWordWrapping");
-    Check(format->SetReadingDirection(options.readingDirection), "SetReadingDirection");
-    Check(format->SetTextAlignment(options.textAlignment), "SetTextAlignment");
+    RETURN_IF_FAILED(factory->CreateTextFormat(options.fontFamily.c_str(),
+                                               nullptr,
+                                               DWRITE_FONT_WEIGHT_NORMAL,
+                                               DWRITE_FONT_STYLE_NORMAL,
+                                               DWRITE_FONT_STRETCH_NORMAL,
+                                               fontSize,
+                                               options.locale.c_str(),
+                                               format.put()));
+    RETURN_IF_FAILED(format->SetWordWrapping(marker || object || ! options.wrap ? DWRITE_WORD_WRAPPING_NO_WRAP : DWRITE_WORD_WRAPPING_WRAP));
+    RETURN_IF_FAILED(format->SetReadingDirection(options.readingDirection));
+    RETURN_IF_FAILED(format->SetTextAlignment(options.textAlignment));
     if (options.tabStopDip > 0.0f)
-        Check(format->SetIncrementalTabStop(options.tabStopDip), "SetIncrementalTabStop");
+        RETURN_IF_FAILED(format->SetIncrementalTabStop(options.tabStopDip));
     wil::com_ptr<IDWriteTextLayout> layout;
     std::wstring positionedText(0u, L'\0');
     const UINT32 textOffset = verticalOrigin > 0.0f ? 2u : 0u;
@@ -288,7 +295,7 @@ void Detail::PreparedLayoutAccess::Prepare(PreparedLayout& owner,
             std::fill_n(positionedText.begin() + inlineObject.first + textOffset, inlineObject.length, L'\ufffc');
     }
     const auto text = textOffset || ! objects.empty() ? std::wstring_view(positionedText) : std::wstring_view(projection.text);
-    Check(factory->CreateTextLayout(text.data(), static_cast<UINT32>(text.size()), format.get(), width, 1000000.0f, layout.put()), "CreateTextLayout");
+    RETURN_IF_FAILED(factory->CreateTextLayout(text.data(), static_cast<UINT32>(text.size()), format.get(), width, 1000000.0f, layout.put()));
     wil::com_ptr<IDWriteInlineObject> positioning;
     if (textOffset)
     {
@@ -296,38 +303,36 @@ void Detail::PreparedLayoutAccess::Prepare(PreparedLayout& owner,
         // allocation result to the existing fallible staging contract.
         auto origin = Microsoft::WRL::Make<InvisibleLayoutOrigin>(verticalOrigin);
         if (origin.Get() == nullptr)
-            throw std::bad_alloc();
+            return E_OUTOFMEMORY;
         positioning = origin.Get();
-        Check(layout->SetFontSize(0.01f, {0u, textOffset}), "Set private origin font size");
-        Check(layout->SetInlineObject(positioning.get(), {0u, 1u}), "Set private layout origin");
+        RETURN_IF_FAILED(layout->SetFontSize(0.01f, {0u, textOffset}));
+        RETURN_IF_FAILED(layout->SetInlineObject(positioning.get(), {0u, 1u}));
     }
     float scriptTopOutset{}, scriptBottomOutset{};
     for (const auto& run : projection.runs)
     {
         DWRITE_TEXT_RANGE range{static_cast<UINT32>(run.start) + textOffset, static_cast<UINT32>(run.length)};
         if (run.flags & Bold)
-            Check(layout->SetFontWeight(DWRITE_FONT_WEIGHT_BOLD, range), "SetFontWeight");
+            RETURN_IF_FAILED(layout->SetFontWeight(DWRITE_FONT_WEIGHT_BOLD, range));
         if (run.flags & Italic)
-            Check(layout->SetFontStyle(DWRITE_FONT_STYLE_ITALIC, range), "SetFontStyle");
+            RETURN_IF_FAILED(layout->SetFontStyle(DWRITE_FONT_STYLE_ITALIC, range));
         if (run.flags & Strike)
-            Check(layout->SetStrikethrough(TRUE, range), "SetStrikethrough");
+            RETURN_IF_FAILED(layout->SetStrikethrough(TRUE, range));
         if (run.flags & (Underline | Link))
-            Check(layout->SetUnderline(TRUE, range), "SetUnderline");
+            RETURN_IF_FAILED(layout->SetUnderline(TRUE, range));
         if (run.flags & Code)
         {
-            Check(layout->SetFontFamilyName(options.codeFontFamily.c_str(), range), "SetFontFamilyName");
+            RETURN_IF_FAILED(layout->SetFontFamilyName(options.codeFontFamily.c_str(), range));
             if (options.codeFontSizeDip > 0.0f)
-                Check(layout->SetFontSize(options.codeFontSizeDip, range), "Set code font size");
+                RETURN_IF_FAILED(layout->SetFontSize(options.codeFontSizeDip, range));
         }
         if (run.heading)
         {
             const auto size         = (run.flags & Code) && options.codeFontSizeDip > 0.0f ? options.codeFontSizeDip : fontSize;
             const auto overrideSize = options.headingFontSizeDip[run.heading - 1u];
-            Check(
-                layout->SetFontSize(overrideSize > 0.0f ? overrideSize : size * (1.0f + options.headingScaleStep * static_cast<float>(7 - run.heading)), range),
-                "SetFontSize");
-            Check(layout->SetFontWeight(semanticDisplay && (run.flags & Bold) ? DWRITE_FONT_WEIGHT_BOLD : DWRITE_FONT_WEIGHT_SEMI_BOLD, range),
-                  "SetFontWeight");
+            RETURN_IF_FAILED(layout->SetFontSize(
+                overrideSize > 0.0f ? overrideSize : size * (1.0f + options.headingScaleStep * static_cast<float>(7 - run.heading)), range));
+            RETURN_IF_FAILED(layout->SetFontWeight(semanticDisplay && (run.flags & Bold) ? DWRITE_FONT_WEIGHT_BOLD : DWRITE_FONT_WEIGHT_SEMI_BOLD, range));
         }
         if (run.flags & (Superscript | Subscript))
         {
@@ -335,7 +340,7 @@ void Detail::PreparedLayoutAccess::Prepare(PreparedLayout& owner,
             if (run.heading)
                 size = options.headingFontSizeDip[run.heading - 1u] > 0.0f ? options.headingFontSizeDip[run.heading - 1u]
                                                                            : size * (1.0f + options.headingScaleStep * static_cast<float>(7u - run.heading));
-            Check(layout->SetFontSize(size * .75f, range), "Set HTML script font size");
+            RETURN_IF_FAILED(layout->SetFontSize(size * .75f, range));
             if (run.flags & Superscript)
                 scriptTopOutset = std::max(scriptTopOutset, size * .30f);
             if (run.flags & Subscript)
@@ -351,7 +356,7 @@ void Detail::PreparedLayoutAccess::Prepare(PreparedLayout& owner,
         // and generated list ordinals retain the caller's requested font.
         for (std::size_t i = 0u; i < projection.text.size(); ++i)
             if (projection.text[i] == L'\u2610' || projection.text[i] == L'\u2611')
-                Check(layout->SetFontFamilyName(L"Segoe UI Symbol", {static_cast<UINT32>(i) + textOffset, 1u}), "Set task checkbox font");
+                RETURN_IF_FAILED(layout->SetFontFamilyName(L"Segoe UI Symbol", {static_cast<UINT32>(i) + textOffset, 1u}));
     }
     auto lineHeight       = options.lineHeightMultiplier;
     const auto headingRun = std::ranges::find_if(projection.runs, [](const auto& run) { return run.heading != 0u; });
@@ -373,35 +378,35 @@ void Detail::PreparedLayoutAccess::Prepare(PreparedLayout& owner,
         // Font-relative line height matches a document's 16/1.65 typography.
         // Inline images/math must still reserve their complete ascent/descent.
         auto ascent = size * (scripts ? 1.05f : .8f), descent = size * (scripts ? .4f : .2f);
-        const auto accommodate = [&](IDWriteInlineObject* value)
+        const auto accommodate = [&](IDWriteInlineObject* value) -> HRESULT
         {
             DWRITE_INLINE_OBJECT_METRICS extent{};
-            Check(value->GetMetrics(&extent), "Get inline metrics for line spacing");
+            RETURN_IF_FAILED(value->GetMetrics(&extent));
             ascent  = std::max(ascent, extent.baseline);
             descent = std::max(descent, extent.height - extent.baseline);
+            return S_OK;
         };
         if (object)
-            accommodate(object);
+            RETURN_IF_FAILED(accommodate(object));
         for (const auto& inlineObject : objects)
-            accommodate(inlineObject.object);
+            RETURN_IF_FAILED(accommodate(inlineObject.object));
         const auto height = std::max(size * lineHeight, ascent + descent);
-        Check(layout->SetLineSpacing(DWRITE_LINE_SPACING_METHOD_UNIFORM, height, ascent + (height - ascent - descent) * 0.5f),
-              "Set font-relative line spacing");
+        RETURN_IF_FAILED(layout->SetLineSpacing(DWRITE_LINE_SPACING_METHOD_UNIFORM, height, ascent + (height - ascent - descent) * 0.5f));
     }
     DWRITE_TEXT_METRICS metrics{};
     // The layout retains this COM property. Its no-op Draw reserves metrics;
     // native graphics paint explicitly on the owner's known target later.
     if (object)
-        Check(layout->SetInlineObject(object, {objectOffset + textOffset, 1u}), "Set semantic object metrics");
+        RETURN_IF_FAILED(layout->SetInlineObject(object, {objectOffset + textOffset, 1u}));
     for (const auto& inlineObject : objects)
-        Check(layout->SetInlineObject(inlineObject.object, {inlineObject.first + textOffset, inlineObject.length}), "Set prepared image metrics");
-    Check(layout->GetMetrics(&metrics), "GetMetrics");
+        RETURN_IF_FAILED(layout->SetInlineObject(inlineObject.object, {inlineObject.first + textOffset, inlineObject.length}));
+    RETURN_IF_FAILED(layout->GetMetrics(&metrics));
     DWRITE_OVERHANG_METRICS overhang{};
-    Check(layout->GetOverhangMetrics(&overhang), "GetOverhangMetrics");
+    RETURN_IF_FAILED(layout->GetOverhangMetrics(&overhang));
     const auto drawingTop    = std::min(verticalOrigin, -overhang.top) - scriptTopOutset;
     const auto drawingBottom = std::max(metrics.height, metrics.layoutHeight + overhang.bottom) + scriptBottomOutset;
     if (! std::isfinite(metrics.height) || ! std::isfinite(drawingTop) || ! std::isfinite(drawingBottom))
-        throw std::overflow_error("Nonfinite rich-text drawing metrics");
+        return E_UNEXPECTED;
     std::vector<std::size_t> clusters{0};
     while (clusters.back() < projection.text.size())
         clusters.push_back(::DxUi::FindNextTextElementBoundary(projection.text, clusters.back()));
@@ -409,7 +414,7 @@ void Detail::PreparedLayoutAccess::Prepare(PreparedLayout& owner,
     layout->GetLineMetrics(nullptr, 0, &count);
     std::vector<DWRITE_LINE_METRICS> lineMetrics(count);
     if (count)
-        Check(layout->GetLineMetrics(lineMetrics.data(), count, &count), "GetLineMetrics");
+        RETURN_IF_FAILED(layout->GetLineMetrics(lineMetrics.data(), count, &count));
     // An empty suffix would inherit the tiny prefix LF's terminal font. Keep
     // that uncommon case on canonical whole geometry instead.
     const bool positionedExactly = ! textOffset || (! projection.text.empty() && ! lineMetrics.empty() && lineMetrics.front().length == textOffset &&
@@ -424,13 +429,13 @@ void Detail::PreparedLayoutAccess::Prepare(PreparedLayout& owner,
     if (scripts)
     {
         Detail::ScriptTextRenderer collector(nullptr, nullptr, layout.get(), projection, textOffset, {}, next->scripts, true);
-        Check(layout->Draw(nullptr, &collector, 0.f, 0.f), "Prepare HTML script metadata");
+        RETURN_IF_FAILED(layout->Draw(nullptr, &collector, 0.f, 0.f));
         if (collector.Result() == E_OUTOFMEMORY)
-            throw std::bad_alloc();
+            return E_OUTOFMEMORY;
         if (collector.Result() == DWRITE_E_UNSUPPORTEDOPERATION)
             next->scripts.unsupported = true;
         else
-            Check(collector.Result(), "Prepare HTML script callbacks");
+            RETURN_IF_FAILED(collector.Result());
         std::sort(next->scripts.decorations.begin(), next->scripts.decorations.end(), [](const auto& a, const auto& b) {
             return a.baseline < b.baseline || (a.baseline == b.baseline && a.left < b.left);
         });
@@ -451,6 +456,7 @@ void Detail::PreparedLayoutAccess::Prepare(PreparedLayout& owner,
     next->positionedExactly = positionedExactly;
     owner.state_.swap(next);
     ++owner.generation_;
+    return S_OK;
 }
 void PreparedLayout::Clear() noexcept
 {
@@ -473,29 +479,29 @@ void PreparedLayout::Clear() noexcept
 std::pair<float, float> PreparedLayout::DrawingVerticalBounds() const
 {
     if (! state_)
-        throw std::logic_error("Unprepared rich-text drawing bounds");
+        Failure::FailContract(E_INVALIDARG);
     return {state_->drawingTop, state_->drawingBottom};
 }
 std::span<const DWRITE_LINE_METRICS> PreparedLayout::LineMetrics() const
 {
     if (! state_)
-        throw std::logic_error("Unprepared rich-text line metrics");
+        Failure::FailContract(E_INVALIDARG);
     return state_->lineMetrics;
 }
 std::pair<float, float> PreparedLayout::HorizontalTextBounds() const
 {
     if (! state_)
-        throw std::logic_error("Unprepared rich-text horizontal metrics");
+        Failure::FailContract(E_INVALIDARG);
     return {state_->textLeft, state_->textWidth};
 }
 float Detail::PreparedLayoutAccess::MinimumTextWidth(const PreparedLayout& owner)
 {
     if (! owner.state_)
-        throw std::logic_error("Unprepared rich-text intrinsic width");
+        Failure::FailContract(E_INVALIDARG);
     float minimum{};
     Check(owner.state_->layout->DetermineMinWidth(&minimum), "DetermineMinWidth");
     if (! std::isfinite(minimum) || minimum < 0.0f)
-        throw std::overflow_error("Nonfinite rich-text intrinsic width");
+        Failure::FailContract(E_INVALIDARG);
     return minimum;
 }
 float PreparedLayout::VerticalOrigin() const noexcept
@@ -506,106 +512,196 @@ bool PreparedLayout::PositionedExactly() const noexcept
 {
     return state_ && state_->positionedExactly;
 }
-Hit PreparedLayout::HitTest(float x, float y) const
+HRESULT PreparedLayout::TryHitTest(float x, float y, Hit& output) const
 {
     if (! state_ || ! std::isfinite(x) || ! std::isfinite(y))
-        throw std::invalid_argument("Invalid hit test");
+        return E_INVALIDARG;
     BOOL trailing = FALSE, inside = FALSE;
     DWRITE_HIT_TEST_METRICS metrics{};
-    Check(state_->layout->HitTestPoint(x, y, &trailing, &inside, &metrics), "HitTestPoint");
-    const auto actualPosition = static_cast<std::size_t>(metrics.textPosition) + (trailing ? metrics.length : 0u);
-    auto position             = std::min<std::size_t>(actualPosition > state_->textOffset ? actualPosition - state_->textOffset : 0u, Content().text.size());
-    // A font/OS can shape one Unicode grapheme into several glyph clusters.
-    // Mouse navigation uses the same logical stops as deletion and arrows;
-    // explicit ACP caret/range geometry still goes directly to DirectWrite.
-    const auto stop = std::lower_bound(state_->clusters.begin(), state_->clusters.end(), position);
+    const auto hr = state_->layout->HitTestPoint(x, y, &trailing, &inside, &metrics);
+    if (FAILED(hr))
+        return hr;
+    const auto actual = static_cast<std::size_t>(metrics.textPosition) + (trailing ? metrics.length : 0u);
+    auto position     = std::min<std::size_t>(actual > state_->textOffset ? actual - state_->textOffset : 0u, Content().text.size());
+    const auto stop   = std::lower_bound(state_->clusters.begin(), state_->clusters.end(), position);
     if (stop != state_->clusters.end() && *stop != position)
         position = trailing ? *stop : (stop == state_->clusters.begin() ? 0u : *std::prev(stop));
-    return {position, trailing != FALSE, inside != FALSE};
+    output = {position, trailing != FALSE, inside != FALSE};
+    return S_OK;
+}
+Hit PreparedLayout::HitTest(float x, float y) const
+{
+    Hit output{};
+    const auto hr = TryHitTest(x, y, output);
+    if (FAILED(hr))
+        Failure::FailContract(hr);
+    return output;
+}
+HRESULT PreparedLayout::TryCaret(std::size_t position, CaretGeometry& output) const
+{
+    if (! state_ || position > Content().text.size())
+        return E_INVALIDARG;
+    float x = 0, y = 0;
+    DWRITE_HIT_TEST_METRICS metrics{};
+    const auto hr = state_->layout->HitTestTextPosition(static_cast<UINT32>(position) + state_->textOffset, FALSE, &x, &y, &metrics);
+    if (FAILED(hr))
+        return hr;
+    output = {x, y, metrics.height};
+    return S_OK;
 }
 CaretGeometry PreparedLayout::Caret(std::size_t position) const
 {
-    if (! state_ || position > Content().text.size())
-        throw std::out_of_range("Caret position");
-    float x = 0, y = 0;
-    DWRITE_HIT_TEST_METRICS metrics{};
-    Check(state_->layout->HitTestTextPosition(static_cast<UINT32>(position) + state_->textOffset, FALSE, &x, &y, &metrics), "HitTestTextPosition");
-    return {x, y, metrics.height};
+    CaretGeometry output{};
+    const auto hr = TryCaret(position, output);
+    if (FAILED(hr))
+        Failure::FailContract(hr);
+    return output;
+}
+HRESULT PreparedLayout::TryRange(std::size_t first, std::size_t last, std::vector<D2D1_RECT_F>& output) const
+{
+    Failure::Scope failureScope;
+    if (! state_ || first > last || last > Content().text.size())
+        return E_INVALIDARG;
+    std::vector<D2D1_RECT_F> rectangles(0u);
+    if (first != last)
+    {
+        UINT32 count = 0;
+        const auto query =
+            state_->layout->HitTestTextRange(static_cast<UINT32>(first) + state_->textOffset, static_cast<UINT32>(last - first), 0, 0, nullptr, 0, &count);
+        if (FAILED(query) && query != HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER))
+            return query;
+        std::vector<DWRITE_HIT_TEST_METRICS> metrics(count);
+        if (count)
+        {
+            const auto hr = state_->layout->HitTestTextRange(
+                static_cast<UINT32>(first) + state_->textOffset, static_cast<UINT32>(last - first), 0, 0, metrics.data(), count, &count);
+            if (FAILED(hr))
+                return hr;
+            if (count > metrics.size())
+                return E_UNEXPECTED;
+        }
+        rectangles.reserve(count);
+        for (UINT32 index = 0u; index < count; ++index)
+        {
+            const auto& item = metrics[index];
+            rectangles.push_back({item.left, item.top, item.left + item.width, item.top + item.height});
+        }
+    }
+    output.swap(rectangles);
+    return S_OK;
 }
 std::vector<D2D1_RECT_F> PreparedLayout::Range(std::size_t first, std::size_t last) const
 {
-    if (! state_ || first > last || last > Content().text.size())
-        throw std::out_of_range("Selection range");
-    if (first == last)
-        return std::vector<D2D1_RECT_F>(0u);
-    UINT32 count = 0;
-    state_->layout->HitTestTextRange(static_cast<UINT32>(first) + state_->textOffset, static_cast<UINT32>(last - first), 0, 0, nullptr, 0, &count);
-    std::vector<DWRITE_HIT_TEST_METRICS> metrics(count);
-    if (count)
-        Check(state_->layout->HitTestTextRange(
-                  static_cast<UINT32>(first) + state_->textOffset, static_cast<UINT32>(last - first), 0, 0, metrics.data(), count, &count),
-              "HitTestTextRange");
-    std::vector<D2D1_RECT_F> rectangles(0u);
-    rectangles.reserve(count);
-    for (const auto& item : metrics)
-        rectangles.push_back({item.left, item.top, item.left + item.width, item.top + item.height});
-    // Do not rely on optional NRVO: MSVC Debug's noexcept vector move can
-    // allocate an iterator proxy. A fallible copy/prvalue keeps query/staging
-    // allocation failures inside the caller's exception boundary.
-    return std::vector<D2D1_RECT_F>(rectangles);
+    Failure::Scope failureScope;
+    std::vector<D2D1_RECT_F> output(0u);
+    const auto hr = TryRange(first, last, output);
+    if (FAILED(hr))
+        Failure::FailContract(hr);
+    return std::vector<D2D1_RECT_F>(output);
+}
+HRESULT PreparedLayout::TryPreviousCluster(std::size_t position, std::size_t& output) const
+{
+    if (! state_ || position > Content().text.size())
+        return E_INVALIDARG;
+    const auto found = std::lower_bound(state_->clusters.begin(), state_->clusters.end(), position);
+    output           = found == state_->clusters.begin() ? 0u : *std::prev(found);
+    return S_OK;
+}
+HRESULT PreparedLayout::TryNextCluster(std::size_t position, std::size_t& output) const
+{
+    if (! state_ || position > Content().text.size())
+        return E_INVALIDARG;
+    const auto found = std::upper_bound(state_->clusters.begin(), state_->clusters.end(), position);
+    output           = found == state_->clusters.end() ? Content().text.size() : *found;
+    return S_OK;
 }
 std::size_t PreparedLayout::PreviousCluster(std::size_t position) const
 {
-    if (! state_ || position > Content().text.size())
-        throw std::out_of_range("Cluster position");
-    auto found = std::lower_bound(state_->clusters.begin(), state_->clusters.end(), position);
-    return found == state_->clusters.begin() ? 0 : *std::prev(found);
+    std::size_t output{};
+    const auto hr = TryPreviousCluster(position, output);
+    if (FAILED(hr))
+        Failure::FailContract(hr);
+    return output;
 }
 std::size_t PreparedLayout::NextCluster(std::size_t position) const
 {
+    std::size_t output{};
+    const auto hr = TryNextCluster(position, output);
+    if (FAILED(hr))
+        Failure::FailContract(hr);
+    return output;
+}
+HRESULT PreparedLayout::TryDeletionRange(std::size_t position, bool backwards, std::pair<std::size_t, std::size_t>& output) const
+{
     if (! state_ || position > Content().text.size())
-        throw std::out_of_range("Cluster position");
-    const auto found = std::upper_bound(state_->clusters.begin(), state_->clusters.end(), position);
-    return found == state_->clusters.end() ? Content().text.size() : *found;
+        return E_INVALIDARG;
+    const auto range = ::DxUi::GetTextElementDeletionRange(Content().text, position, backwards, state_->clusters);
+    output           = {range.first, range.last};
+    return S_OK;
 }
 std::pair<std::size_t, std::size_t> PreparedLayout::DeletionRange(std::size_t position, bool backwards) const
 {
+    std::pair<std::size_t, std::size_t> output{};
+    const auto hr = TryDeletionRange(position, backwards, output);
+    if (FAILED(hr))
+        Failure::FailContract(hr);
+    return output;
+}
+HRESULT PreparedLayout::TryLineBoundary(std::size_t position, bool end, std::size_t& output) const
+{
     if (! state_ || position > Content().text.size())
-        throw std::out_of_range("Deletion position");
-    const auto range = ::DxUi::GetTextElementDeletionRange(Content().text, position, backwards, state_->clusters);
-    return {range.first, range.last};
+        return E_INVALIDARG;
+    const auto found = std::upper_bound(state_->lines.begin(), state_->lines.end(), position);
+    if (! end)
+        output = found == state_->lines.begin() ? 0u : *std::prev(found);
+    else
+    {
+        auto result = found == state_->lines.end() ? Content().text.size() : *found;
+        if (result > position && Content().text[result - 1u] == L'\n')
+            --result;
+        output = result;
+    }
+    return S_OK;
 }
 std::size_t PreparedLayout::LineBoundary(std::size_t position, bool end) const
 {
-    if (! state_ || position > Content().text.size())
-        throw std::out_of_range("Line position");
-    auto found = std::upper_bound(state_->lines.begin(), state_->lines.end(), position);
-    if (! end)
-        return found == state_->lines.begin() ? 0 : *std::prev(found);
-    auto result = found == state_->lines.end() ? Content().text.size() : *found;
-    if (result > position && Content().text[result - 1] == L'\n')
-        --result;
-    return result;
+    std::size_t output{};
+    const auto hr = TryLineBoundary(position, end, output);
+    if (FAILED(hr))
+        Failure::FailContract(hr);
+    return output;
 }
-std::pair<std::size_t, std::size_t> PreparedLayout::VisibleRange(float top, float bottom) const
+HRESULT PreparedLayout::TryVisibleRange(float top, float bottom, std::pair<std::size_t, std::size_t>& output) const
 {
     if (! state_ || ! std::isfinite(top) || ! std::isfinite(bottom) || bottom < top)
-        throw std::invalid_argument("Invalid visible text viewport");
+        return E_INVALIDARG;
     std::optional<std::size_t> first;
-    std::size_t last = 0;
+    std::size_t last = 0u;
     for (std::size_t index = 0; index < state_->lines.size(); ++index)
     {
-        const auto caret = Caret(state_->lines[index]);
+        CaretGeometry caret{};
+        const auto hr = TryCaret(state_->lines[index], caret);
+        if (FAILED(hr))
+            return hr;
         if (caret.y >= bottom)
             break;
         if (caret.y + caret.height > top)
         {
             if (! first)
                 first = state_->lines[index];
-            last = index + 1 < state_->lines.size() ? state_->lines[index + 1] : Content().text.size();
+            last = index + 1u < state_->lines.size() ? state_->lines[index + 1u] : Content().text.size();
         }
     }
-    return {first.value_or(0), last};
+    output = {first.value_or(0u), last};
+    return S_OK;
+}
+std::pair<std::size_t, std::size_t> PreparedLayout::VisibleRange(float top, float bottom) const
+{
+    std::pair<std::size_t, std::size_t> output{};
+    const auto hr = TryVisibleRange(top, bottom, output);
+    if (FAILED(hr))
+        Failure::FailContract(hr);
+    return output;
 }
 bool Detail::PreparedLayoutAccess::ScriptTargetSupported(const PreparedLayout& owner, ID2D1RenderTarget* target)
 {
@@ -628,23 +724,53 @@ bool Detail::PreparedLayoutAccess::ScriptTargetSupported(const PreparedLayout& o
 }
 void PreparedLayout::Draw(ID2D1RenderTarget* target, ID2D1Brush* brush, D2D1_POINT_2F origin, const LinkDrawing* links) const
 {
+    const auto hr = TryDraw(target, brush, origin, links);
+    if (FAILED(hr))
+        Failure::FailContract(hr);
+}
+HRESULT PreparedLayout::TryDraw(ID2D1RenderTarget* target, ID2D1Brush* brush, D2D1_POINT_2F origin, const LinkDrawing* links) const
+{
+    Failure::Scope failureScope;
     if (! target || ! brush || ! state_)
-        throw std::invalid_argument("Unprepared drawing");
+        return E_INVALIDARG;
     const bool scripts = state_->hasScripts;
-    if (scripts && ! Detail::PreparedLayoutAccess::ScriptTargetSupported(*this, target))
-        THROW_HR_MSG(DWRITE_E_UNSUPPORTEDOPERATION, "Unsupported HTML script color target");
+    if (scripts && state_->scripts.unsupported)
+        return DWRITE_E_UNSUPPORTEDOPERATION;
+    if (scripts && state_->scripts.requiresColor)
+    {
+        wil::com_ptr<ID2D1DeviceContext7> color;
+        const auto hr = target->QueryInterface(IID_PPV_ARGS(color.put()));
+        if (hr == E_NOINTERFACE)
+            return DWRITE_E_UNSUPPORTEDOPERATION;
+        if (FAILED(hr))
+            return hr;
+    }
     if (! links && ! scripts)
     {
         target->DrawTextLayout(origin, state_->layout.get(), brush, D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
-        return;
+        return S_OK;
     }
     const LinkDrawing defaultDrawing{};
     if (! links)
         links = &defaultDrawing;
-    if (! scripts && links->directSourceInkPreview &&
-        Detail::DrawSourceInkIfSupported(target, brush, state_->layout.get(), state_->positioning.get(), state_->textOffset, projection_, *links, origin) ==
-            Detail::SourceInkDrawResult::Drawn)
-        return;
+    if (! scripts && links->directSourceInkPreview)
+    {
+        HRESULT paintResult = S_OK;
+        const auto drawn    = Detail::DrawSourceInkIfSupported(target,
+                                                               brush,
+                                                               state_->layout.get(),
+                                                               state_->positioning.get(),
+                                                               state_->textOffset,
+                                                               projection_,
+                                                               *links,
+                                                               origin,
+                                                               Detail::SourceInkColorContextLookup::QueryTarget,
+                                                               &paintResult);
+        if (FAILED(paintResult))
+            return paintResult;
+        if (drawn == Detail::SourceInkDrawResult::Drawn)
+            return S_OK;
+    }
     // SDK drawing attributes are borrowed for this synchronous owner-thread
     // raster call. Copies may share the layout; restore its canonical style
     // even when setting a later range fails. No brush survives this call.
@@ -670,9 +796,10 @@ void PreparedLayout::Draw(ID2D1RenderTarget* target, ID2D1Brush* brush, D2D1_POI
         if (first < last)
         {
             drawingEffectAttempted = true;
-            Check(state_->layout->SetDrawingEffect(links->emphasisBrush,
-                                                   {static_cast<UINT32>(first - links->displayOrigin) + state_->textOffset, static_cast<UINT32>(last - first)}),
-                  "Set paragraph emphasis ink");
+            const auto hr          = state_->layout->SetDrawingEffect(
+                links->emphasisBrush, {static_cast<UINT32>(first - links->displayOrigin) + state_->textOffset, static_cast<UINT32>(last - first)});
+            if (FAILED(hr))
+                return hr;
         }
     }
     for (auto ink = std::lower_bound(links->inkRanges.begin(),
@@ -687,23 +814,31 @@ void PreparedLayout::Draw(ID2D1RenderTarget* target, ID2D1Brush* brush, D2D1_POI
             continue;
         const auto first = std::max(ink->display.first, links->displayOrigin);
         const auto last  = std::min(ink->display.last, links->displayOrigin + projection_.text.size());
-        const auto apply = [&](size_t begin, size_t end)
+        const auto apply = [&](size_t begin, size_t end) -> HRESULT
         {
             if (begin < end)
             {
                 drawingEffectAttempted = true;
-                Check(state_->layout->SetDrawingEffect(
-                          links->inkBrushes[role], {static_cast<UINT32>(begin - links->displayOrigin) + state_->textOffset, static_cast<UINT32>(end - begin)}),
-                      "Set prepared source syntax ink");
+                return state_->layout->SetDrawingEffect(
+                    links->inkBrushes[role], {static_cast<UINT32>(begin - links->displayOrigin) + state_->textOffset, static_cast<UINT32>(end - begin)});
             }
+            return S_OK;
         };
         if (links->inkExclusion && links->inkExclusion->first < last && first < links->inkExclusion->last)
         {
-            apply(first, std::min(last, links->inkExclusion->first));
-            apply(std::max(first, links->inkExclusion->last), last);
+            auto hr = apply(first, std::min(last, links->inkExclusion->first));
+            if (FAILED(hr))
+                return hr;
+            hr = apply(std::max(first, links->inkExclusion->last), last);
+            if (FAILED(hr))
+                return hr;
         }
         else
-            apply(first, last);
+        {
+            const auto hr = apply(first, last);
+            if (FAILED(hr))
+                return hr;
+        }
     }
     for (const auto& run : projection_.runs)
         if (run.flags & Link)
@@ -712,22 +847,30 @@ void PreparedLayout::Draw(ID2D1RenderTarget* target, ID2D1Brush* brush, D2D1_POI
             const auto first = links->displayOrigin + run.start, last = first + run.length;
             const bool underline =
                 (run.flags & Underline) || links->underline || intersects(links->hover, first, last) || intersects(links->caret, first, last);
-            Check(state_->layout->SetUnderline(underline ? TRUE : FALSE, range), "Set transient link underline");
+            const auto underlineResult = state_->layout->SetUnderline(underline ? TRUE : FALSE, range);
+            if (FAILED(underlineResult))
+                return underlineResult;
             auto* linkBrush =
                 links->emphasis && ! intersects(links->emphasis, first, last) && links->inactiveLinkBrush ? links->inactiveLinkBrush : links->brush;
             if (linkBrush)
             {
                 drawingEffectAttempted = true;
-                Check(state_->layout->SetDrawingEffect(linkBrush, range), "Set transient link ink");
+                const auto hr          = state_->layout->SetDrawingEffect(linkBrush, range);
+                if (FAILED(hr))
+                    return hr;
             }
         }
     if (scripts)
     {
         Detail::ScriptTextRenderer renderer(target, brush, state_->layout.get(), projection_, state_->textOffset, origin, state_->scripts, false);
-        Check(state_->layout->Draw(nullptr, &renderer, origin.x, origin.y), "Draw HTML script rendering");
-        Check(renderer.Result(), "Draw HTML script callbacks");
+        const auto hr = state_->layout->Draw(nullptr, &renderer, origin.x, origin.y);
+        if (FAILED(hr))
+            return hr;
+        if (FAILED(renderer.Result()))
+            return renderer.Result();
     }
     else
         target->DrawTextLayout(origin, state_->layout.get(), brush, D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
+    return S_OK;
 }
 } // namespace DxUi::RichText

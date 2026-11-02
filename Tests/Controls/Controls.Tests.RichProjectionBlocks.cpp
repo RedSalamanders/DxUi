@@ -69,6 +69,13 @@ void TestRichProjectionBlockFullEquivalence()
             PreparedProjection prepared;
             prepared.Prepare(document.Snapshot(), document.Revision(), mode);
             CheckPreparedProjection(document, prepared, mode);
+            std::size_t mapped = 42u;
+            Require(prepared.TryToDisplay(document.Length() + 1u, mapped) == SourceResult::InvalidRange &&
+                        prepared.TryToSource(prepared.DisplayLength() + 1u, false, mapped) == SourceResult::InvalidRange && mapped == 42u,
+                    "checked prepared mapping refuses outside positions without changing output");
+            Require(prepared.TryPrepare(document.Snapshot(), document.Revision(), static_cast<ViewMode>(99)) == SourceResult::InvalidSource &&
+                        prepared.Mode() == mode && prepared.Revision() == document.Revision(),
+                    "invalid mode keeps the prepared publication");
         }
 }
 
@@ -184,37 +191,13 @@ void TestRichProjectionBlockFallbackModesAndLifetime()
             "retirement releases the complete prepared state and resets its public identity");
     moved.Prepare(document.Snapshot(), document.Revision(), ViewMode::Rich);
     CheckPreparedProjection(document, moved, ViewMode::Rich);
-    bool rejected = false;
-    try
-    {
-        moved.Prepare(document.Snapshot(), 999u, static_cast<ViewMode>(99));
-    }
-    catch (const std::invalid_argument&)
-    {
-        rejected = true;
-    }
-    Require(rejected && moved.Revision() == document.Revision(), "invalid preparation cannot replace an existing published revision");
+    Require(moved.TryPrepare(document.Snapshot(), 999u, static_cast<ViewMode>(99)) == SourceResult::InvalidSource && moved.Revision() == document.Revision(),
+            "invalid preparation cannot replace an existing published revision");
     CheckPreparedProjection(document, moved, ViewMode::Rich);
-    rejected = false;
-    try
-    {
-        static_cast<void>(moved.ToDisplay(document.Length() + 1u));
-    }
-    catch (const std::out_of_range&)
-    {
-        rejected = true;
-    }
-    Require(rejected, "invalid source ACP is rejected");
-    rejected = false;
-    try
-    {
-        static_cast<void>(moved.ToSource(moved.DisplayLength() + 1u));
-    }
-    catch (const std::out_of_range&)
-    {
-        rejected = true;
-    }
-    Require(rejected, "invalid display ACP is rejected");
+    size_t result = 17u;
+    Require(moved.TryToDisplay(document.Length() + 1u, result) == SourceResult::InvalidRange && result == 17u, "invalid source ACP preserves output");
+    Require(moved.TryToSource(moved.DisplayLength() + 1u, false, result) == SourceResult::InvalidRange && result == 17u,
+            "invalid display ACP preserves output");
 }
 
 void TestRichProjectionBlockMaximumSource()

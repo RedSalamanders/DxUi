@@ -1,3 +1,4 @@
+#include "FailureHost.h"
 #include <DxUi/DxUi.h>
 #include <DxUi/Embedded.h>
 #include <DxUi/FileDrop.h>
@@ -11,6 +12,10 @@
 
 int main()
 {
+    DxUiSample::FailureHost::Host failureHost;
+    if (FAILED(failureHost.StartBesideExecutable()))
+        return 1;
+    const DxUi::Failure::Scope failureScope;
     const auto com                   = wil::CoInitializeEx(COINIT_APARTMENTTHREADED);
     constexpr std::wstring_view text = L"SDK drag text";
     wil::com_ptr<IDataObject> data;

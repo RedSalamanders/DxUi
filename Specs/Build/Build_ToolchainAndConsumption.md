@@ -86,7 +86,7 @@ simultaneous releases of the two applications.
 `src/DxUi.vcxproj` produces the only archive, `DxUi.lib`. FoundationTests, ControlTests, EmbeddedTests and the
 standalone EmbeddedControls executable all consume it. The test-only `DxUi.InteractiveLease.exe` (the desktop lease behind
 `test.ps1 -Interactive`) is built beside them in every configuration and does not link it. The supported lock target is
-`["DxUi"]`, API revision 4.
+`["DxUi"]`, API revision 5; the failure-policy qualification remains open.
 
 Run `vcpkg-install.ps1 -Platform x64` (or ARM64/All) before build. WIL and the vcpkg tool revision are pinned.
 The manifest's ports builtin-baseline and vcpkg-tool.json's executable checkout are independent nonzero full Git
@@ -139,6 +139,11 @@ END/FAIL records with UTC and monotonic elapsed milliseconds. Consumer-owned out
 separate attestation contract, so the two default-output attestation phases apply only to default builds. Timing
 records add no input paths or environment values and cannot replace operation output or its original failure;
 these diagnostics are not native workload measurements or performance acceptance.
+
+The canonical performance-build attestation admits a library C parser with explicit `CompileAsC` only when its
+remaining evaluated compiler options match the C++ profile. It still binds each source's exact language and flags;
+other heterogeneous settings fail closed as specified in [performance provenance](../Core/Core_PerformanceAndResources.md).
+
 `test.ps1 -SkipBuild` also requires the complete scoped native test-source/dependency/artifact receipt, which default `build.ps1` revokes before compilation and publishes only after a successful stable build. A missing or stale receipt forces a Rebuild, including test edits whose timestamps did not change. `test.ps1 -SkipBuild` first requires the canonical current v2 attestation, inside the fixed SkipBuildGate timing
 phase, before any native desktop probe, filter/watchdog self-check or suite. Source, dependency, resolved toolchain
 or final-artifact drift refuses early; no fallback relabels or rebuilds an invalid receipt. The later native and
@@ -224,6 +229,16 @@ does not qualify a consumer product.
 
 `apiRevision` in `capabilities.json` is the compatibility number a consumer lock pins, and `validate_consumer.ps1`
 rejects a lock that names another, so a consumer adopts a new revision in the reviewed change that moves its pin.
+
+Revision 5 requires an application-owned failure host before any scoped DxUi work or direct control construction.
+Install process hooks on the application owner thread, register the host services explicitly with each independently
+linked module outside loader callbacks, stop work and detach those modules before uninstalling on the same thread.
+Direct stack or smart-pointer control construction requires an active failure scope; checked factory callers handle
+its returned refusal. `MarkdownParser::Advance` can return `Failed` with `CapacityExceeded`; consumers preserve the
+previous publication and handle that result. The frozen revision 4 and [revision 5](../../Tools/ConsumerApi/ConsumerApi.Tests.Revision5.cpp)
+fixtures compile for every exact-pin consumer profile. The sample host is an application example, not a consumer
+crash-infrastructure qualification. The implementation and consumer adoption gates remain open until their native,
+dump-context and product-specific checks pass.
 
 The revision increments when a consumer built against the previous one could stop compiling, linking or behaving as before
 without a change of its own:

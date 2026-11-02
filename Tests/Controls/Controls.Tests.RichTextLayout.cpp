@@ -1,5 +1,6 @@
 #include "Controls.Tests.RichTextLayout.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
+#include "Controls/DxUi.PreparedLayoutAccess.h"
 #include "Controls/DxUi.RichSourceInk.h"
 #include "Controls/DxUi.RichTextSourceInkRenderer.h"
 #include "GraphicsFixture.h"
@@ -23,16 +24,7 @@ namespace
 using namespace DxUi::RichText;
 template <typename F> void Reject(F&& operation, const char* description)
 {
-    bool rejected = false;
-    try
-    {
-        operation();
-    }
-    catch (const std::exception&)
-    {
-        rejected = true;
-    }
-    Require(rejected, description);
+    Require(FAILED(operation()), description);
 }
 
 // Existing identity/RAII/reference traits intentionally delete these implicit operations.
@@ -42,14 +34,19 @@ template <typename F> void Reject(F&& operation, const char* description)
 class SourceInkTestPositioning final : public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>, IDWriteInlineObject>
 {
 public:
+    HRESULT metricsResult = S_OK;
+    unsigned metricQueries{};
     HRESULT STDMETHODCALLTYPE Draw(void*, IDWriteTextRenderer*, FLOAT, FLOAT, BOOL, BOOL, IUnknown*) noexcept override
     {
         return S_OK;
     }
     HRESULT STDMETHODCALLTYPE GetMetrics(DWRITE_INLINE_OBJECT_METRICS* metrics) noexcept override
     {
+        ++metricQueries;
         if (! metrics)
             return E_POINTER;
+        if (FAILED(metricsResult))
+            return metricsResult;
         *metrics = {0.0f, 20.0f, 10.0f, FALSE};
         return S_OK;
     }
@@ -302,17 +299,40 @@ void TestRichTextLayoutPrototypeContracts()
     Require(std::isfinite(caret.x) && caret.height > 18, "heading caret geometry");
     const auto hit = layout.HitTest(caret.x + 0.1f, caret.y + caret.height / 2);
     Require(hit.position == 0, "caret hit test");
+    CaretGeometry checkedCaret{};
+    Hit checkedHit{};
+    Require(SUCCEEDED(layout.TryCaret(0u, checkedCaret)) && checkedCaret.x == caret.x && checkedCaret.y == caret.y && checkedCaret.height == caret.height &&
+                SUCCEEDED(layout.TryHitTest(caret.x + 0.1f, caret.y + caret.height / 2, checkedHit)) && checkedHit.position == hit.position &&
+                checkedHit.trailing == hit.trailing && checkedHit.inside == hit.inside,
+            "checked caret and hit queries match ordinary geometry");
     const auto rectangles = layout.Range(0, text.size());
     Require(rectangles.size() >= 3, "multiline bidi selection geometry");
+    std::vector<D2D1_RECT_F> checkedRectangles;
+    Require(SUCCEEDED(layout.TryRange(0u, text.size(), checkedRectangles)) && checkedRectangles.size() == rectangles.size(),
+            "checked range returns the same multiline geometry count");
     for (const auto& r : rectangles)
         Require(r.right >= r.left && r.bottom > r.top, "valid selection bounds");
     Require(layout.LineBoundary(0, false) == 0 && layout.LineBoundary(0, true) == 7, "line home and end");
     const auto generation = layout.Generation();
     layout.Prepare(factory.get(), Project(document.Snapshot(), document.Revision(), ViewMode::Rich), 80);
     Require(layout.Generation() == generation + 1, "new width prepares new layout");
-    Reject([&] { layout.Prepare(nullptr, {}, 100); }, "null borrowed factory rejected");
+    Reject([&] { return layout.TryPrepare(nullptr, {}, LayoutOptions{}); }, "null borrowed factory rejected");
     Require(layout.Generation() == generation + 1 && layout.Ready(), "failed preparation retains previous consistent layout");
-    Reject([&] { layout.Caret(text.size() + 1000); }, "invalid caret rejected");
+    Reject(
+        [&]
+    {
+        CaretGeometry output{};
+        return layout.TryCaret(text.size() + 1000, output);
+    },
+        "invalid caret rejected");
+    Hit invalidHit{42u, true, true};
+    Require(layout.TryHitTest(std::numeric_limits<float>::quiet_NaN(), 0.0f, invalidHit) == E_INVALIDARG && invalidHit.position == 42u && invalidHit.trailing &&
+                invalidHit.inside,
+            "invalid hit coordinates preserve caller output");
+    std::vector<D2D1_RECT_F> retainedRange{{1.f, 2.f, 3.f, 4.f}};
+    Require(layout.TryRange(text.size() + 1u, text.size() + 2u, retainedRange) == E_INVALIDARG && retainedRange.size() == 1u &&
+                retainedRange.front().left == 1.f,
+            "invalid range preserves caller output");
     Document plain(L"MMMM"), strong(L"**MMMM**");
     PreparedLayout regular, bold;
     regular.Prepare(factory.get(), Project(plain.Snapshot(), 1, ViewMode::Rich), 500);
@@ -335,12 +355,42 @@ void TestRichTextLayoutOptionsFailureAtomicityAndRetirement()
     Document document(L"Plain **bold** \U0001f600");
     const auto projection = Project(document.Snapshot(), document.Revision(), ViewMode::Rich);
     PreparedLayout layout;
-    Reject([&] { layout.PreviousCluster(0); }, "unprepared reverse navigation rejects");
-    Reject([&] { layout.NextCluster(0); }, "unprepared navigation rejects");
-    Reject([&] { layout.LineBoundary(0, false); }, "unprepared line navigation rejects");
-    Reject([&] { layout.HitTest(0, 0); }, "unprepared hit test rejects");
-    Reject([&] { layout.Range(0, 0); }, "unprepared selection geometry rejects");
-    Reject([&] { layout.Draw(nullptr, nullptr, {}); }, "unprepared raster preparation rejects");
+    Reject(
+        [&]
+    {
+        std::size_t output{};
+        return layout.TryPreviousCluster(0, output);
+    },
+        "unprepared reverse navigation rejects");
+    Reject(
+        [&]
+    {
+        std::size_t output{};
+        return layout.TryNextCluster(0, output);
+    },
+        "unprepared navigation rejects");
+    Reject(
+        [&]
+    {
+        std::size_t output{};
+        return layout.TryLineBoundary(0, false, output);
+    },
+        "unprepared line navigation rejects");
+    Reject(
+        [&]
+    {
+        Hit output{};
+        return layout.TryHitTest(0, 0, output);
+    },
+        "unprepared hit test rejects");
+    Reject(
+        [&]
+    {
+        std::vector<D2D1_RECT_F> output;
+        return layout.TryRange(0, 0, output);
+    },
+        "unprepared selection geometry rejects");
+    Reject([&] { return layout.TryDraw(nullptr, nullptr, {}); }, "unprepared raster preparation rejects");
     LayoutOptions options;
     options.widthDip       = 360;
     options.fontFamily     = L"Consolas";
@@ -355,54 +405,66 @@ void TestRichTextLayoutOptionsFailureAtomicityAndRetirement()
     const auto generation = layout.Generation();
     auto invalid          = options;
     invalid.widthDip      = std::numeric_limits<float>::quiet_NaN();
-    Reject([&] { layout.Prepare(factory.get(), projection, invalid); }, "nonfinite geometry rejected");
+    Reject([&] { return layout.TryPrepare(factory.get(), projection, invalid); }, "nonfinite geometry rejected");
     invalid = options;
     invalid.fontFamily.clear();
-    Reject([&] { layout.Prepare(factory.get(), projection, invalid); }, "empty font family rejected");
+    Reject([&] { return layout.TryPrepare(factory.get(), projection, invalid); }, "empty font family rejected");
     invalid        = options;
     invalid.locale = std::wstring(L"fr\0FR", 5);
-    Reject([&] { layout.Prepare(factory.get(), projection, invalid); }, "embedded NUL locale rejected");
+    Reject([&] { return layout.TryPrepare(factory.get(), projection, invalid); }, "embedded NUL locale rejected");
     invalid                            = options;
     invalid.paragraphSpacingAfterLines = std::numeric_limits<float>::quiet_NaN();
-    Reject([&] { layout.Prepare(factory.get(), projection, invalid); }, "nonfinite semantic paragraph spacing rejected at public layout admission");
+    Reject([&] { return layout.TryPrepare(factory.get(), projection, invalid); }, "nonfinite semantic paragraph spacing rejected at public layout admission");
     invalid                    = options;
     invalid.listItemSpacingDip = 257.0f;
-    Reject([&] { layout.Prepare(factory.get(), projection, invalid); }, "out-of-range semantic list spacing rejected at public layout admission");
+    Reject([&] { return layout.TryPrepare(factory.get(), projection, invalid); }, "out-of-range semantic list spacing rejected at public layout admission");
     invalid     = options;
     invalid.dpi = 0.f;
-    Reject([&] { layout.Prepare(factory.get(), projection, invalid); }, "invalid device DPI rejected at public layout admission");
+    Reject([&] { return layout.TryPrepare(factory.get(), projection, invalid); }, "invalid device DPI rejected at public layout admission");
     auto malformed                = projection;
     malformed.runs.front().length = projection.text.size() + 1;
-    Reject([&] { layout.Prepare(factory.get(), malformed, options); }, "out-of-range public style rejected");
+    Reject([&] { return layout.TryPrepare(factory.get(), malformed, options); }, "out-of-range public style rejected");
     malformed                      = projection;
     malformed.runs.front().heading = 7;
-    Reject([&] { layout.Prepare(factory.get(), malformed, options); }, "invalid heading rejected");
+    Reject([&] { return layout.TryPrepare(factory.get(), malformed, options); }, "invalid heading rejected");
     malformed = projection;
     malformed.text.assign(1, 0xd800);
-    Reject([&] { layout.Prepare(factory.get(), malformed, options); }, "invalid display UTF-16 rejected");
+    Reject([&] { return layout.TryPrepare(factory.get(), malformed, options); }, "invalid display UTF-16 rejected");
     malformed                         = projection;
     malformed.sourceToDisplay.front() = projection.text.size() + 1;
-    Reject([&] { layout.Prepare(factory.get(), malformed, options); }, "invalid source/display map rejected");
+    Reject([&] { return layout.TryPrepare(factory.get(), malformed, options); }, "invalid source/display map rejected");
     malformed                   = projection;
     malformed.units.front().end = projection.source.size() + 1;
-    Reject([&] { layout.Prepare(factory.get(), malformed, options); }, "invalid display/source map rejected");
+    Reject([&] { return layout.TryPrepare(factory.get(), malformed, options); }, "invalid display/source map rejected");
     malformed = projection;
     malformed.units.clear();
-    Reject([&] { layout.Prepare(factory.get(), malformed, options); }, "missing display mapping rejected");
+    Reject([&] { return layout.TryPrepare(factory.get(), malformed, options); }, "missing display mapping rejected");
     malformed                    = projection;
     malformed.runs.front().flags = 0x200;
-    Reject([&] { layout.Prepare(factory.get(), malformed, options); }, "unknown style bits rejected");
+    Reject([&] { return layout.TryPrepare(factory.get(), malformed, options); }, "unknown style bits rejected");
     malformed                     = projection;
     malformed.runs.front().start  = projection.text.size() - 1;
     malformed.runs.front().length = 1;
-    Reject([&] { layout.Prepare(factory.get(), malformed, options); }, "surrogate-splitting style rejected");
+    Reject([&] { return layout.TryPrepare(factory.get(), malformed, options); }, "surrogate-splitting style rejected");
     Require(layout.Generation() == generation && layout.Caret(5).x > smallAdvance * 1.5f,
             "failed preparations retain matching previous projection and geometry");
     const auto source = document.Text();
     layout.Clear();
     Require(! layout.Ready() && layout.Height() == 0 && layout.Generation() == generation + 1, "clear retires layout and generation");
-    Reject([&] { layout.Caret(0); }, "retired caret rejected");
-    Reject([&] { layout.PreviousCluster(0); }, "retired navigation rejected");
+    Reject(
+        [&]
+    {
+        CaretGeometry output{};
+        return layout.TryCaret(0, output);
+    },
+        "retired caret rejected");
+    Reject(
+        [&]
+    {
+        std::size_t output{};
+        return layout.TryPreviousCluster(0, output);
+    },
+        "retired navigation rejected");
     Require(document.Text() == source, "retiring prepared resources preserves document");
     layout.Prepare(factory.get(), projection, options);
     Require(layout.Ready() && layout.Content().revision == document.Revision(), "prepare resumes after retirement");
@@ -1498,7 +1560,7 @@ void TestRichTextLayoutHostLocaleAndReadingDirection()
     Require(layout.Caret(0).x > leadingX + 100, "host RTL direction changes real paragraph placement");
     const auto generation    = layout.Generation();
     options.readingDirection = static_cast<DWRITE_READING_DIRECTION>(99);
-    Reject([&] { layout.Prepare(factory.get(), projection, options); }, "invalid reading direction rejected");
+    Reject([&] { return layout.TryPrepare(factory.get(), projection, options); }, "invalid reading direction rejected");
     Require(layout.Generation() == generation && layout.Ready(), "direction failure keeps prior prepared geometry");
 }
 
@@ -1535,9 +1597,21 @@ void TestRichTextLayoutDeletionRangesAndRetirement()
                 "prepared deletion encloses an interior ACP independent of direction");
     Require(layout.DeletionRange(1u, true) == std::pair<size_t, size_t>{0u, 1u} && layout.DeletionRange(3u, false) == std::pair<size_t, size_t>{3u, 4u},
             "exact boundary deletion uses its preceding or following complete element");
-    Reject([&] { static_cast<void>(layout.DeletionRange(5u, true)); }, "prepared deletion validates its display offset");
+    Reject(
+        [&]
+    {
+        std::pair<std::size_t, std::size_t> output{};
+        return layout.TryDeletionRange(5u, true, output);
+    },
+        "prepared deletion validates its display offset");
     layout.Clear();
-    Reject([&] { static_cast<void>(layout.DeletionRange(0u, false)); }, "retirement invalidates prepared deletion queries");
+    Reject(
+        [&]
+    {
+        std::pair<std::size_t, std::size_t> output{};
+        return layout.TryDeletionRange(0u, false, output);
+    },
+        "retirement invalidates prepared deletion queries");
 }
 void TestRichTextLayoutTrailingEmptyLineBoundary()
 {
@@ -2013,17 +2087,61 @@ void TestRichTextLayoutExplicitTypographyAndInvalidOptions()
     const auto height            = layout.Height();
     auto invalid                 = options;
     invalid.lineHeightMultiplier = std::numeric_limits<float>::infinity();
-    Reject([&] { layout.Prepare(factory.get(), projection, invalid); }, "nonfinite line spacing rejected");
+    Reject([&] { return layout.TryPrepare(factory.get(), projection, invalid); }, "nonfinite line spacing rejected");
     invalid                       = options;
     invalid.headingFontSizeDip[4] = -1.0f;
-    Reject([&] { layout.Prepare(factory.get(), projection, invalid); }, "invalid explicit heading size rejected");
+    Reject([&] { return layout.TryPrepare(factory.get(), projection, invalid); }, "invalid explicit heading size rejected");
     invalid                                = options;
     invalid.headingLineHeightMultiplier[0] = 0.5f;
-    Reject([&] { layout.Prepare(factory.get(), projection, invalid); }, "clipping-prone heading line spacing rejected");
+    Reject([&] { return layout.TryPrepare(factory.get(), projection, invalid); }, "clipping-prone heading line spacing rejected");
     Require(layout.Generation() == generation && layout.Height() == height, "invalid typography retains prior source/geometry publication");
+}
+void TestRichTextInlineMetricsFailurePreservesPreparedLayout()
+{
+    const auto factory = CreateRichTextTestFactory();
+    Document original(L"retained source geometry");
+    Document candidate(L"replacement inline object");
+    PreparedLayout layout;
+    LayoutOptions options;
+    options.widthDip             = 320.f;
+    options.lineHeightMultiplier = 1.65f;
+    layout.Prepare(factory.get(), Project(original.Snapshot(), original.Revision(), ViewMode::Source), options);
+    const auto generation = layout.Generation();
+    const auto height     = layout.Height();
+    const auto caret      = layout.Caret(2u);
+    const auto hit        = layout.HitTest(caret.x + .1f, caret.y + caret.height * .5f);
+    auto object           = Microsoft::WRL::Make<SourceInkTestPositioning>();
+    Require(object.Get() != nullptr, "inline metrics failure fixture allocates its object");
+    for (const bool useSpan : {false, true})
+    {
+        auto projection       = Project(candidate.Snapshot(), candidate.Revision(), ViewMode::Source);
+        object->metricQueries = 0u;
+        object->metricsResult = useSpan ? E_FAIL : E_OUTOFMEMORY;
+        const std::array inlineObjects{Detail::PreparedLayoutAccess::InlineObject{object.Get(), 0u, 1u}};
+        const HRESULT result = Detail::PreparedLayoutAccess::Prepare(layout,
+                                                                     factory.get(),
+                                                                     projection,
+                                                                     options,
+                                                                     0.f,
+                                                                     false,
+                                                                     false,
+                                                                     useSpan ? nullptr : object.Get(),
+                                                                     0u,
+                                                                     useSpan ? std::span<const Detail::PreparedLayoutAccess::InlineObject>(inlineObjects)
+                                                                             : std::span<const Detail::PreparedLayoutAccess::InlineObject>{});
+        Require(result == object->metricsResult && object->metricQueries > 0u, "inline metrics failure returns its exact native status");
+        Require(layout.Ready() && layout.Generation() == generation && layout.Height() == height && layout.Content().source == original.Text(),
+                "failed inline preparation retains the previous source and layout");
+        const auto retainedCaret = layout.Caret(2u);
+        const auto retainedHit   = layout.HitTest(retainedCaret.x + .1f, retainedCaret.y + retainedCaret.height * .5f);
+        Require(retainedCaret.x == caret.x && retainedCaret.y == caret.y && retainedCaret.height == caret.height && retainedHit.position == hit.position &&
+                    retainedHit.trailing == hit.trailing && retainedHit.inside == hit.inside,
+                "failed inline preparation retains the previous source and hit geometry");
+    }
 }
 void RunRichTextLayoutTests()
 {
+    DXUI_RUN_TEST(TestRichTextInlineMetricsFailurePreservesPreparedLayout);
     DXUI_RUN_TEST(TestRichTextLayoutTransientLinkInkAndUnderlineRestoreSharedState);
     DXUI_RUN_TEST(TestRichTextLayoutExplicitTypographyAndInvalidOptions);
     DXUI_RUN_TEST(TestRichTextDocumentLinePitchMatchesCanonicalAcrossChunks);

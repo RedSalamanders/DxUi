@@ -1,6 +1,33 @@
 # Upgrade a DxUi consumer
 
-**Failure-policy review, 2 November 2026:** the [target allocation/exception policy](../Specs/Core/Core_FailureHandling.md)
+**API 5 migration in progress:** the source in this worktree is unqualified and no API 5 consumer pin is published.
+The application owns `Failure::ProcessHooks`, its reporter, crash storage and termination policy. Install it on the
+application owner thread before constructing controls or entering DxUi. Pass its versioned POD `HostServices` to
+each independently linked module and register there outside `DllMain`, before that module creates objects or starts
+workers. Stop new work, join workers, destroy controls, detach every module, and uninstall the host on its installing
+thread. [The example host](../Samples/Shared/FailureHost.h) illustrates ownership; consumers must qualify their own
+original-context dump handling, module boundaries and native configurations. The
+[migration plan](../Specs/Plans/WIP/FailurePolicy_2026-11-02.md) remains open.
+
+Direct stack, `new` and `std::make_unique` control construction requires an enclosing host-owned `Failure::Scope`.
+`Separator()` is again declared `noexcept`; this does not make member construction fallible or permit unexpected
+exceptions to continue. `CreateControl` uses genuinely checked outer heap storage: check its HRESULT and retain the
+existing output on failure. Nested C++/STL construction failure takes the fatal host route. Use the new checked
+setters and query results for invalid input, preserve checked native HRESULTs, and handle `MarkdownParser::Advance`
+returning `Failed` without replacing its prior publication. Audit custom allocations and placement construction.
+Rebuild every EXE and DLL with the exact matching headers, archive, compiler, platform, configuration and CRT; API 5
+changes both source contracts and object layout. Changing a lock alone neither ports nor qualifies an application.
+
+For editor configuration, handle `TrySetDefaultContextMenuLabels`, `TrySetMarkdownAnalysisProfile`,
+`TrySetMarkdownAnalysisExtensions`, `TrySetMarkdownRenderingEnabled` and `TrySetOnCodeCopyRequested` results.
+`TrySetDecorations` returns an HRESULT: invalid ranges use `E_INVALIDARG`, capacity uses `E_BOUNDS`,
+and a stale source uses `HRESULT_FROM_WIN32(ERROR_REVISION_MISMATCH)`; native query errors are returned unchanged.
+Use checked document and syntax queries such as `TrySlice` and `TryLexemeValue` for externally supplied ranges.
+Handle checked native preparation HRESULTs in the application, including device loss and allocation refusal;
+do not rely on catching a C++ exception as the native error channel. Legacy convenience entrypoints that cannot
+report invalid input use the host contract-failure route.
+
+**Historical failure-policy review, 2 November 2026:** the [target allocation/exception policy](../Specs/Core/Core_FailureHandling.md)
 requires checked nonthrowing refusal or host fatal diagnostics with useful originating context and dump. Published
 source `5fc4d4c383bfa4891ee57a138924107bbbf11a2e` still uses exception recovery and is not qualified against that
 new requirement. Follow the [open migration plan](../Specs/Plans/WIP/FailurePolicy_2026-11-02.md); this guide's
@@ -14,12 +41,11 @@ Its original runtime delivery commit is:
 6df17007875ae731a3808b475b10bd056328bbdf
 ```
 
-For first consumer adoption, select the final reviewed main commit **including this guide**, and record its
-complete 40-character SHA in the lock. A documentation-only descendant can advance the consumer pin while
-retaining the delivered native inputs. The original SHA above identifies the implementation/evidence cohort;
-it does not require a new consumer to remain on the pre-guide commit. Review any intervening code changes.
+The SHA above is the historical API 4 implementation/evidence cohort, not an API 5 pin. Select a reviewed,
+qualified API 5 commit only after its implementation and acceptance gates close; record its complete SHA in the
+consumer lock and review intervening changes.
 
-The library still declares **API revision 4** and one static target, **DxUi**. C++ object layouts have changed:
+The historical delivery declared **API revision 4** and one static target, **DxUi**. C++ object layouts have changed:
 rebuild every module that uses DxUi with matching headers, archive, compiler, configuration and CRT.
 An unchanged API revision does not establish binary compatibility.
 
@@ -27,9 +53,9 @@ An unchanged API revision does not establish binary compatibility.
 
 | Current consumer | Work to do |
 | --- | --- |
-| Already on API 4 | Update the exact pin, review the delivery changes below, restore isolated dependencies and rebuild the full dependent closure. Existing supported consumer imports remain available. |
-| Still on API 3 | Also port the revision-4 Grid/Tree focus and selection, child/tab transfer and menu contracts below. Update the consumer's expected-revision guard together with its adapters and lock. |
-| API 2 or older | First apply the earlier interface/script renames in the [compatibility contract](../Specs/Build/Build_ToolchainAndConsumption.md#compatibility-and-the-consumer-interface), then the revision-4 migration. |
+| Already on API 4 | Implement the API 5 host, checked-result and rebuild work above; adopt a qualified exact API 5 pin when available. |
+| Still on API 3 | Also port the historical revision-4 Grid/Tree focus and selection, child/tab transfer and menu contracts below. Update the consumer's expected-revision guard together with its adapters and lock. |
+| API 2 or older | First apply the earlier interface/script renames in the [compatibility contract](../Specs/Build/Build_ToolchainAndConsumption.md#compatibility-and-the-consumer-interface), then the revision-4 and API 5 migrations. |
 
 Read the actual `Dependencies/DxUi.lock.json` in the application branch being upgraded. Historical pins in plans
 or another application's successful build do not identify or qualify this application's starting point.
@@ -41,8 +67,8 @@ or another application's successful build do not identify or qualify this applic
    [getting started](getting-started.md#consume-the-library) and the
    [consumption contract](../Specs/Build/Build_ToolchainAndConsumption.md).
 2. Use the consumer's existing update workflow, or edit its exact lock in that reviewed change. Preserve any
-   additional consumer-owned fields. This minimal implemented lock illustrates the original runtime delivery;
-   replace `commit` with the final reviewed main SHA selected for adoption, including this guide:
+   additional consumer-owned fields. The following is a **historical API 4 lock**, provided to identify the old
+   cohort; it cannot be used as an API 5 lock:
 
    ```json
    {
@@ -53,7 +79,8 @@ or another application's successful build do not identify or qualify this applic
    }
    ```
 
-   A consumer that explicitly expects API 3 must port its adapters and advance that guard as part of the same
+   For a future qualified API 5 adoption, set `apiRevision` to 5 and `commit` to that exact qualified 40-character
+   commit. A consumer that explicitly expects API 3 or 4 must port its adapters and advance that guard in the same
    change. Changing the lock alone will correctly fail restore. Pin the complete commit, rather than `main`.
 3. Run the consumer's restore entrypoint for each target architecture. It resolves a clean, isolated source
    checkout and fingerprinted outputs; it must leave any developer sibling checkout alone. Its resolved
@@ -101,7 +128,7 @@ for implementation dispositions and executed evidence.
 | --- | --- |
 | C++ compatibility | Public retained/host/document/clipboard types gained state. Recompile the full closure. Review aggregate initialization and exhaustive enum switches against the new headers; avoid positional field assumptions or persisted enum ordinals. |
 | Rich editor appearance | `RichTextEditorAppearance` inserts fields before `maximumTextWidthDip`, including source presentation and the default-off `directSourceInkPreview`. Replace positional initialization with member assignment or designated members; keep the application's intended defaults. |
-| Custom code | `Separator()` is no longer `noexcept`. Review any construction traits or exception-boundary assumptions that depend on its old declaration. New `PointerAction`, `WindowHostCursorKind`, Markdown diagnostic and semantic entries need appropriate handling in application switches. |
+| Custom code | The historical API 4 delivery removed `Separator()`'s `noexcept`; API 5 restores it under the fatal host contract above. Review construction traits and ensure direct construction is scoped. New `PointerAction`, `WindowHostCursorKind`, Markdown diagnostic and semantic entries need appropriate handling in application switches. |
 | Embedded rendering | `Prepare` can change PS shader-resource slot 0 and output-merger targets. Rebind application graphics state after preparation. Handle failed preparation without a tight retry loop; a superseded-frame `E_ABORT` requests another owner turn. See [hosting](hosting.md#embedded-view). |
 | Native visibility | Optional `ControlHost::SetNativePresentationVisible(false)` suppresses native drawing and animation for application-known occlusion. Restore `true` when presentation is needed. It defaults to visible, requires the attached owner thread, and does not discover covering windows. Embedded hosting continues to use `SetVisible`. |
 | Exact source and metadata | Counted RichText source preserves BOM, embedded NUL and mixed CR/LF/CRLF. Keep length/revision-aware mirrors and UTF-16 offsets. RichMarkdown closed front matter now has bounded YAML/TOML validation; handle syntax, duplicate-key, alias and capacity diagnostics separately. Application schemas and structured property editing remain application-owned. |

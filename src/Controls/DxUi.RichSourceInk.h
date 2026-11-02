@@ -1,4 +1,5 @@
 #pragma once
+#include <DxUi/Failure.h>
 #include <DxUi/RichTextLayout.h>
 #include <algorithm>
 #include <exception>
@@ -35,21 +36,9 @@ public:
     }
     template <typename Map> bool Advance(const std::shared_ptr<const MarkdownSyntax>& syntax, Map&& map)
     {
+        const Failure::Scope failureScope;
         lastWork_ = 0u;
-        try
-        {
-            return AdvanceCore(syntax, std::forward<Map>(map));
-        }
-        catch (const std::bad_alloc&)
-        {
-            Clear();
-            throw;
-        }
-        catch (const std::exception&)
-        {
-            Clear();
-            throw;
-        }
+        return AdvanceCore(syntax, std::forward<Map>(map));
     }
     std::span<const TextInkRange> Ranges() const noexcept
     {

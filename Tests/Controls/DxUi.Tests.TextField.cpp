@@ -2202,20 +2202,17 @@ void TestTextFieldTextChangeDispatchDoesNotCopyRegisteredCallable()
 #pragma warning(disable : 4626)
     struct CopyGuardedCallback final
     {
-        bool* throwOnCopy = nullptr;
-        int* callCount    = nullptr;
+        int* copyCount = nullptr;
+        int* callCount = nullptr;
 
-        CopyGuardedCallback(bool& copyGuard, int& calls) noexcept : throwOnCopy(&copyGuard), callCount(&calls)
+        CopyGuardedCallback(int& copies, int& calls) noexcept : copyCount(&copies), callCount(&calls)
         {
         }
-        CopyGuardedCallback(const CopyGuardedCallback& other) : throwOnCopy(other.throwOnCopy), callCount(other.callCount)
+        CopyGuardedCallback(const CopyGuardedCallback& other) noexcept : copyCount(other.copyCount), callCount(other.callCount)
         {
-            if (*throwOnCopy)
-            {
-                throw std::bad_alloc{};
-            }
+            ++*copyCount;
         }
-        CopyGuardedCallback(CopyGuardedCallback&& other) noexcept : throwOnCopy(other.throwOnCopy), callCount(other.callCount)
+        CopyGuardedCallback(CopyGuardedCallback&& other) noexcept : copyCount(other.copyCount), callCount(other.callCount)
         {
         }
 
@@ -2227,23 +2224,13 @@ void TestTextFieldTextChangeDispatchDoesNotCopyRegisteredCallable()
 #pragma warning(pop)
 
     TextField field(L"copy guard");
-    bool throwOnCopy = false;
-    int callCount    = 0;
-    field.SetOnTextChanged(CopyGuardedCallback{throwOnCopy, callCount});
-    throwOnCopy = true;
-
-    bool dispatchThrew = false;
-    try
-    {
-        field.SetTextAndNotify(L"notified");
-    }
-    catch (const std::bad_alloc&)
-    {
-        dispatchThrew = true;
-    }
-
-    Require(! dispatchThrew, "text-change dispatch does not copy the registered callback target");
-    Require(callCount == 1, "registered text-change callback still runs after copy is disabled");
+    int copyCount = 0;
+    int callCount = 0;
+    field.SetOnTextChanged(CopyGuardedCallback{copyCount, callCount});
+    copyCount = 0;
+    field.SetTextAndNotify(L"notified");
+    Require(copyCount == 0, "text-change dispatch does not copy the registered callback target");
+    Require(callCount == 1, "registered text-change callback still runs exactly once");
 }
 
 void TestTextFieldTextChangeSnapshotCleanupRetiresRootBeforeCallerContinues()

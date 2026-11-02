@@ -3,6 +3,7 @@
 #include "Controls.Tests.HostControlRegressions.h"
 #include "Controls.Tests.NativeDevicePolicy.h"
 #include "Controls/DxUi.Typography.h"
+#include "Support.Tests.FatalChildren.h"
 #include "Support.Tests.PerformanceCapture.h"
 #include "Support/AnimationDispatcher.h"
 #include "Support/PostedPayload.h"
@@ -28,6 +29,20 @@
 
 namespace
 {
+thread_local unsigned windowHostFatalCase{};
+// Distinct observable code preserves this origin under identical-code folding;
+// this marker is evidence only and is not synchronization.
+std::atomic<unsigned> windowHostOriginMarker{};
+[[noreturn]] __declspec(noinline) void WindowHostCallbackFailureOrigin(const std::runtime_error& error)
+{
+    windowHostOriginMarker.store(101u, std::memory_order_relaxed);
+    throw error;
+}
+[[noreturn]] void RaiseWindowHostCallbackFailure()
+{
+    const std::runtime_error error("isolated WindowHost callback failure");
+    WindowHostCallbackFailureOrigin(error);
+}
 
 void TestFocusAutomationCacheRequestInitializesOnItsClientThread()
 {
@@ -915,7 +930,7 @@ public:
     {
         if (_state->mouseDownCount++ == 0u)
         {
-            throw std::runtime_error("intentional one-shot WindowHost input failure");
+            RaiseWindowHostCallbackFailure();
         }
         return true;
     }
@@ -945,7 +960,7 @@ public:
     {
         if (_state->paintCount++ == 0u)
         {
-            throw std::runtime_error("intentional one-shot WindowHost paint failure");
+            RaiseWindowHostCallbackFailure();
         }
 
         auto* const dc = host.GetDeviceContext();
@@ -1518,6 +1533,11 @@ void TestWindowHostEmitsFrameStageMetricsForCaptureRender()
 void TestWindowHostCaptureRecoversAfterControlPaintThrows()
 {
     using namespace DxUi;
+    if (! windowHostFatalCase)
+    {
+        Require(DxUiFailureTests::ExpectFatalChild(L"window-paint-callback"), "paint callback failure is fatal in its owned child");
+        return;
+    }
 
     AttachedHostWindow window;
     ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
@@ -1526,17 +1546,7 @@ void TestWindowHostCaptureRecoversAfterControlPaintThrows()
     window.Host().SetRoot(std::make_unique<ThrowOnceDuringWindowHostPaintControl>(state));
 
     WindowHostBitmapCapture failedCapture;
-    const bool firstCaptureSucceeded = window.Host().DebugCaptureBitmap(failedCapture);
-    Require(! firstCaptureSucceeded, "a capture whose control paint throws is discarded instead of reporting a partial frame");
-    Require(failedCapture.widthPx == 0u && failedCapture.heightPx == 0u && failedCapture.bgraPixels.empty(),
-            "the failed paint leaves no mixed-frame bitmap in the capture output");
-    Require(state.paintCount == 1u, "the first capture reaches the one-shot throwing paint exactly once");
-
-    WindowHostBitmapCapture recoveredCapture;
-    Require(window.Host().DebugCaptureBitmap(recoveredCapture), "a later capture succeeds after the one-shot paint exception");
-    Require(recoveredCapture.widthPx > 0u && recoveredCapture.heightPx > 0u && ! recoveredCapture.bgraPixels.empty(),
-            "the recovered capture contains a complete bitmap");
-    Require(state.paintCount == 2u, "the later capture retries the control paint once without a retry loop");
+    static_cast<void>(window.Host().DebugCaptureBitmap(failedCapture));
 }
 
 void TestWindowHostCaptureDiscardsFrameWhenPaintReplacesItsRoot()
@@ -2349,6 +2359,11 @@ void TestWindowHostMouseMoveUpdatesHoverTarget()
 void TestWindowHostThrowingMouseLeaveStillClearsTooltip()
 {
     using namespace DxUi;
+    if (! windowHostFatalCase)
+    {
+        Require(DxUiFailureTests::ExpectFatalChild(L"window-hover-leave-callback"), "hover-leave failure is fatal in its owned child");
+        Require(DxUiFailureTests::ExpectFatalChild(L"window-mouse-leave-callback"), "mouse-leave failure is fatal in its owned child");
+    }
     struct ThrowingHover final : Control
     {
         ThrowingHover()                                = default;
@@ -2371,18 +2386,20 @@ void TestWindowHostThrowingMouseLeaveStillClearsTooltip()
                 return;
             }
             if (! hovered && throwHover)
-                throw std::runtime_error("planned hover-leave failure");
+                RaiseWindowHostCallbackFailure();
         }
         bool OnMouseLeave(ControlHost&) override
         {
             ++leaveCalls;
             if (throwLeave)
-                throw std::runtime_error("planned mouse-leave failure");
+                RaiseWindowHostCallbackFailure();
             return true;
         }
     };
     for (const unsigned scenario : {0u, 1u, 2u})
     {
+        if ((! windowHostFatalCase && scenario != 2u) || (windowHostFatalCase && scenario != windowHostFatalCase - 10u))
+            continue;
         ScopedNonActivatingTestWindows nonActivating;
         AttachedHostWindow window;
         auto root = std::make_unique<Panel>();
@@ -3040,7 +3057,7 @@ public:
     bool OnKeyDown(DxUi::ControlHost& host, UINT, UINT) override
     {
         host.AllowTranslatedCharacter();
-        throw std::runtime_error("a permitted key failed before completing its route");
+        RaiseWindowHostCallbackFailure();
     }
 
 protected:
@@ -3054,6 +3071,8 @@ protected:
 void TestWindowHostKeyboardMessageRejectsRetiredForeignAndFailedOwners()
 {
     using namespace DxUi;
+    if (! windowHostFatalCase)
+        Require(DxUiFailureTests::ExpectFatalChild(L"window-key-permission-callback"), "key callback failure is fatal in its owned child");
     AttachedHostWindow window;
     AttachedHostWindow foreign;
     auto& host             = window.Host();
@@ -3085,12 +3104,15 @@ void TestWindowHostKeyboardMessageRejectsRetiredForeignAndFailedOwners()
     Require(! host.DispatchKeyboardMessage(other), "system-key translation retains the native menu/IME path");
     other.message = WM_KEYUP;
     Require(! host.DispatchKeyboardMessage(other), "native key releases retain their ordinary dispatch");
-    auto failed   = std::make_unique<ThrowingCharacterPermission>();
-    auto* failure = failed.get();
-    host.SetRoot(std::move(failed));
-    host.SetFocusControl(failure);
-    Require(host.DispatchKeyboardMessage(ActivationKeyMessage(window.Hwnd(), VK_SPACE)) && DispatchTranslatedCharacters(window.Hwnd()) == 0u,
-            "a failed callback cannot publish character permission during exception unwinding");
+    if (windowHostFatalCase)
+    {
+        auto failed   = std::make_unique<ThrowingCharacterPermission>();
+        auto* failure = failed.get();
+        host.SetRoot(std::move(failed));
+        host.SetFocusControl(failure);
+        static_cast<void>(host.DispatchKeyboardMessage(ActivationKeyMessage(window.Hwnd(), VK_SPACE)));
+        return;
+    }
     auto escapeField = std::make_unique<TextField>(L"retired");
     auto* oldField   = escapeField.get();
     host.SetRoot(std::move(escapeField));
@@ -4568,6 +4590,9 @@ void TestWindowHostTakesTheRequestedLifetimeBeforePruningFocus()
 void TestWindowHostNewerCallbackFocusRequestWins()
 {
     using namespace DxUi;
+    if (! windowHostFatalCase)
+        for (const auto* name : {L"window-focus-loss-callback", L"window-focus-gain-callback", L"window-focus-notification-callback"})
+            Require(DxUiFailureTests::ExpectFatalChild(name), "focus callback failure is fatal in its owned child");
 // Existing identity/RAII/reference traits intentionally delete these implicit operations.
 // Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
 #pragma warning(push)
@@ -4593,6 +4618,8 @@ void TestWindowHostNewerCallbackFocusRequestWins()
 #pragma warning(pop)
     for (unsigned phase = 0u; phase < 3u; ++phase)
     {
+        if (windowHostFatalCase && phase != windowHostFatalCase - 3u)
+            continue;
         WindowHost host;
         auto root       = std::make_unique<Panel>();
         auto* previous  = root->AddChild<FocusCallbackControl>();
@@ -4605,8 +4632,8 @@ void TestWindowHostNewerCallbackFocusRequestWins()
         {
             ++callbackCount;
             callbackHost.SetFocusControl(winner, false);
-            // The exception fallback must also leave the newer focus alone.
-            throw std::runtime_error("failed outer callback after choosing focus");
+            if (windowHostFatalCase)
+                RaiseWindowHostCallbackFailure();
         };
         if (phase == 0u)
             previous->callback = [&](ControlHost& callbackHost, bool focused)
@@ -4635,6 +4662,12 @@ void TestWindowHostNewerCallbackFocusRequestWins()
 void TestWindowHostFailedBlurBeforeBasePreservesOnlyTheNewFocus()
 {
     using namespace DxUi;
+    if (! windowHostFatalCase)
+    {
+        for (const auto* name : {L"window-blur-other-callback", L"window-blur-self-callback"})
+            Require(DxUiFailureTests::ExpectFatalChild(name), "blur callback failure is fatal in its owned child");
+        return;
+    }
 // Existing identity/RAII/reference traits intentionally delete these implicit operations.
 // Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
 #pragma warning(push)
@@ -4660,6 +4693,8 @@ void TestWindowHostFailedBlurBeforeBasePreservesOnlyTheNewFocus()
 #pragma warning(pop)
     for (bool refocusSame : {false, true})
     {
+        if (windowHostFatalCase && refocusSame != (windowHostFatalCase == 7u))
+            continue;
         WindowHost host;
         auto root             = std::make_unique<Panel>();
         auto* previous        = root->AddChild<BlurBeforeBaseControl>();
@@ -4671,7 +4706,8 @@ void TestWindowHostFailedBlurBeforeBasePreservesOnlyTheNewFocus()
         previous->onBlur = [&](ControlHost& callbackHost)
         {
             callbackHost.SetFocusControl(winner, false);
-            throw std::runtime_error("blur failed before base acknowledgement");
+            if (windowHostFatalCase)
+                RaiseWindowHostCallbackFailure();
         };
         host.SetFocusControl(requested, false);
         Require(host.GetFocusControl() == winner && winner->HasFocus(), "a before-base throwing blur preserves the newer callback choice");
@@ -4741,6 +4777,12 @@ void TestWindowHostResetPreservesExplicitFocusAndRootReplacementRetiresOldChoice
 void TestWindowHostThrowingFocusCallbacksAcknowledgeTransitionsAndRetirement()
 {
     using namespace DxUi;
+    if (! windowHostFatalCase)
+    {
+        Require(DxUiFailureTests::ExpectFatalChild(L"window-focus-override-callback"), "focus override exception is fatal in its owned child");
+        Require(DxUiFailureTests::ExpectFatalChild(L"window-focus-retire-callback"), "retiring focus callback exception is fatal in its owned child");
+        return;
+    }
 // Existing identity/RAII/reference traits intentionally delete these implicit operations.
 // Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
 #pragma warning(push)
@@ -4756,10 +4798,12 @@ void TestWindowHostThrowingFocusCallbacksAcknowledgeTransitionsAndRetirement()
         void Paint(ControlHost&) const override
         {
         }
-        void OnFocusChanged(ControlHost&, bool) override
+        void OnFocusChanged(ControlHost& host, bool focused) override
         {
             ++notificationCount;
-            throw std::runtime_error("focus override failed before base acknowledgement");
+            if (windowHostFatalCase == 8u)
+                RaiseWindowHostCallbackFailure();
+            Control::OnFocusChanged(host, focused);
         }
     };
 #pragma warning(pop)
@@ -4767,19 +4811,14 @@ void TestWindowHostThrowingFocusCallbacksAcknowledgeTransitionsAndRetirement()
     auto root     = std::make_unique<Panel>();
     auto* control = root->AddChild<ThrowingFocusControl>();
     host.SetRoot(std::move(root));
-    host.SetFocusControl(control, false);
-    Require(host.GetFocusControl() == control && control->HasFocus() && control->notificationCount == 1u,
-            "a failing gain callback falls back to base focus acknowledgement");
-    host.ResetInteractionState();
-    Require(! host.GetFocusControl() && ! control->HasFocus() && control->notificationCount == 2u,
-            "a failing reset callback leaves logical and acknowledged focus cleared");
-    host.SetOnFocusChanged([&](Control*)
+    host.SetOnFocusChanged([&](Control* notified)
     {
+        if (notified != control)
+            return;
         host.SetRoot(std::make_unique<Panel>());
-        throw std::runtime_error("focus notification retired the target before failing");
+        RaiseWindowHostCallbackFailure();
     });
     host.SetFocusControl(control, false);
-    Require(host.GetFocusControl() == nullptr, "a failing host callback can retire its notified control safely");
 }
 
 void TestWindowHostDetachDeactivatesSecureTextInputBeforeDestroyingRoot()
@@ -5639,6 +5678,11 @@ void TestWindowHostOverlayHitTestRetiringRootStopsPointerResolutionAndDispatch()
 void TestWindowHostContainsMouseDownCallbackExceptionAndContinues()
 {
     using namespace DxUi;
+    if (! windowHostFatalCase)
+    {
+        Require(DxUiFailureTests::ExpectFatalChild(L"window-mouse-down-callback"), "mouse callback failure is fatal in its owned child");
+        return;
+    }
 
     WindowHost host;
     ThrowOnceOnMouseDownState state;
@@ -5646,15 +5690,8 @@ void TestWindowHostContainsMouseDownCallbackExceptionAndContinues()
     host.SetRoot(std::move(root));
     host.GetRoot()->SetBounds(D2D1::RectF(0.0f, 0.0f, 80.0f, 40.0f));
 
-    bool handled                       = false;
-    const LRESULT failedCallbackResult = host.HandleMessage(nullptr, WM_LBUTTONDOWN, MK_LBUTTON, MAKELPARAM(12, 12), handled);
-    Require(handled && failedCallbackResult == 0, "the host consumes the mouse-down whose control callback throws");
-    Require(state.mouseDownCount == 1u, "the failing input callback is contained after one invocation");
-
-    handled                               = false;
-    const LRESULT recoveredCallbackResult = host.HandleMessage(nullptr, WM_LBUTTONDOWN, MK_LBUTTON, MAKELPARAM(12, 12), handled);
-    Require(handled && recoveredCallbackResult == 0, "the next mouse-down is handled normally after the callback failure");
-    Require(state.mouseDownCount == 2u, "the next input reaches the callback once and does not retry the failed callback");
+    bool handled = false;
+    static_cast<void>(host.HandleMessage(nullptr, WM_LBUTTONDOWN, MK_LBUTTON, MAKELPARAM(12, 12), handled));
 }
 
 void TestWindowHostEscapeClosesMouseOpenedComboPopupBeforeCancelButton()
@@ -7212,12 +7249,21 @@ void TestWindowHostRefusedFocusRequestInABlurHandlerKeepsTheOuterRequest()
     Require(host.GetFocusControl() == next, "a refused request from the blur handler leaves the outer request to complete");
 }
 
-// CR-24 of the 10 October review: application code reached from noexcept host paths (the Tab boundary callback, hover
-// and move dispatch, a mnemonic, a character and an animation tick) that throws is contained instead of terminating the
-// process.
+// Each noexcept dispatch path is exercised in its own fatal child.
 void TestWindowHostContainsThrowingCallbacksOnNoexceptPaths()
 {
     using namespace DxUi;
+    if (! windowHostFatalCase)
+    {
+        for (const auto* name : {L"window-tab-boundary-callback",
+                                 L"window-hover-callback",
+                                 L"window-move-callback",
+                                 L"window-character-callback",
+                                 L"window-mnemonic-callback",
+                                 L"window-tick-callback"})
+            Require(DxUiFailureTests::ExpectFatalChild(name), "noexcept dispatch callback failure is fatal in its owned child");
+        return;
+    }
 // Existing identity/RAII/reference traits intentionally delete these implicit operations.
 // Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
 #pragma warning(push)
@@ -7231,7 +7277,9 @@ void TestWindowHostContainsThrowingCallbacksOnNoexceptPaths()
         bool OnMouseMove(ControlHost& /*host*/, D2D1_POINT_2F /*point*/, UINT /*modifiers*/) override
         {
             ++moves;
-            throw std::runtime_error("move failure");
+            if (windowHostFatalCase == 15u)
+                RaiseWindowHostCallbackFailure();
+            return false;
         }
         size_t moves = 0u;
 
@@ -7239,7 +7287,8 @@ void TestWindowHostContainsThrowingCallbacksOnNoexceptPaths()
         void OnHoverChanged(ControlHost& host, bool hovered) override
         {
             Control::OnHoverChanged(host, hovered);
-            throw std::runtime_error("hover failure");
+            if (windowHostFatalCase == 14u)
+                RaiseWindowHostCallbackFailure();
         }
     };
 #pragma warning(pop)
@@ -7261,17 +7310,23 @@ void TestWindowHostContainsThrowingCallbacksOnNoexceptPaths()
         bool OnChar(ControlHost& /*host*/, wchar_t /*ch*/, UINT /*modifiers*/) override
         {
             ++characters;
-            throw std::runtime_error("character failure");
+            if (windowHostFatalCase == 16u)
+                RaiseWindowHostCallbackFailure();
+            return false;
         }
         bool OnMnemonic(ControlHost& /*host*/) override
         {
             ++mnemonics;
-            throw std::runtime_error("mnemonic failure");
+            if (windowHostFatalCase == 17u)
+                RaiseWindowHostCallbackFailure();
+            return false;
         }
         bool Tick(ControlHost& /*host*/, uint64_t /*nowTickMs*/) override
         {
             ++ticks;
-            throw std::runtime_error("tick failure");
+            if (windowHostFatalCase == 18u)
+                RaiseWindowHostCallbackFailure();
+            return false;
         }
         size_t characters = 0u;
         size_t mnemonics  = 0u;
@@ -7291,17 +7346,16 @@ void TestWindowHostContainsThrowingCallbacksOnNoexceptPaths()
     host.SetRoot(std::move(root));
     rootPanel->SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 240.0f));
 
-    host.SetOnTabBoundary([](bool) -> bool { throw std::runtime_error("boundary failure"); });
+    host.SetOnTabBoundary([](bool) -> bool
+    {
+        if (windowHostFatalCase == 13u)
+            RaiseWindowHostCallbackFailure();
+        return false;
+    });
     host.SetFocusControl(last);
     bool handled = false;
     static_cast<void>(host.HandleMessage(nullptr, WM_KEYDOWN, VK_TAB, 0, handled));
-    Require(host.GetFocusControl() == first, "a throwing Tab boundary callback handles nothing, and Tab wraps");
-
     static_cast<void>(host.HandleMessage(nullptr, WM_MOUSEMOVE, 0, MAKELPARAM(50, 120), handled));
-    static_cast<void>(host.HandleMessage(nullptr, WM_MOUSEMOVE, 0, MAKELPARAM(52, 122), handled));
-    Require(probe->moves == 2u, "hover and move dispatch go on after a control's callbacks threw");
-    static_cast<void>(host.HandleMessage(nullptr, WM_MOUSEMOVE, 0, MAKELPARAM(50, 20), handled));
-    Require(first->IsHovered(), "the hover moves on to the next control");
 
     auto* keys = rootPanel->AddChild<ThrowingKeyboardControl>();
     keys->SetBounds(D2D1::RectF(0.0f, 150.0f, 100.0f, 180.0f));
@@ -7309,14 +7363,9 @@ void TestWindowHostContainsThrowingCallbacksOnNoexceptPaths()
     Require(host.GetFocusControl() == keys, "the throwing keyboard control takes the focus");
     handled = false;
     static_cast<void>(host.HandleMessage(nullptr, WM_CHAR, L'x', 0, handled));
-    Require(keys->characters == 1u && handled, "a character whose handler threw is taken");
     handled = false;
     static_cast<void>(host.HandleMessage(nullptr, WM_SYSCHAR, L'q', 0, handled));
-    Require(keys->mnemonics == 1u && handled && keys->characters == 1u,
-            "a mnemonic whose handler threw is taken, and not offered to the focused control as Alt+character");
-    Require(! host.DebugAnimationTickForTest(1'000u) && keys->ticks == 1u, "a tree whose Tick threw stops ticking");
-    static_cast<void>(host.HandleMessage(nullptr, WM_CHAR, L'y', 0, handled));
-    Require(keys->characters == 2u && host.GetFocusControl() == keys, "and the host goes on dispatching to the same control");
+    static_cast<void>(host.DebugAnimationTickForTest(1'000u));
 }
 
 // A secondary press whose handler already consumed the release (a blocking menu loop) or handed the pointer to a popup
@@ -7377,6 +7426,49 @@ void TestWindowHostSecondaryPressCapturesOnlyWhileItOwnsThePointer()
     Require(menus == 3u && GetCapture() == popup.get() && window.Host().GetCapturedControl() == nullptr,
             "a popup that took the pointer during the handler keeps it");
 }
+
+namespace
+{
+template <unsigned Case> void WindowHostFatalChild()
+{
+    windowHostFatalCase = Case;
+    if constexpr (Case == 1u)
+        TestWindowHostCaptureRecoversAfterControlPaintThrows();
+    if constexpr (Case == 2u)
+        TestWindowHostContainsMouseDownCallbackExceptionAndContinues();
+    if constexpr (Case >= 3u && Case <= 5u)
+        TestWindowHostNewerCallbackFocusRequestWins();
+    if constexpr (Case >= 6u && Case <= 7u)
+        TestWindowHostFailedBlurBeforeBasePreservesOnlyTheNewFocus();
+    if constexpr (Case >= 8u && Case <= 9u)
+        TestWindowHostThrowingFocusCallbacksAcknowledgeTransitionsAndRetirement();
+    if constexpr (Case >= 10u && Case <= 11u)
+        TestWindowHostThrowingMouseLeaveStillClearsTooltip();
+    if constexpr (Case == 12u)
+        TestWindowHostKeyboardMessageRejectsRetiredForeignAndFailedOwners();
+    if constexpr (Case >= 13u && Case <= 18u)
+        TestWindowHostContainsThrowingCallbacksOnNoexceptPaths();
+}
+[[maybe_unused]] const bool registeredWindowHostFatalCases =
+    DxUiFailureTests::RegisterFatalChildCase({L"window-paint-callback", "WindowHostCallbackFailureOrigin", WindowHostFatalChild<1u>}) &&
+    DxUiFailureTests::RegisterFatalChildCase({L"window-mouse-down-callback", "WindowHostCallbackFailureOrigin", WindowHostFatalChild<2u>}) &&
+    DxUiFailureTests::RegisterFatalChildCase({L"window-focus-loss-callback", "WindowHostCallbackFailureOrigin", WindowHostFatalChild<3u>}) &&
+    DxUiFailureTests::RegisterFatalChildCase({L"window-focus-gain-callback", "WindowHostCallbackFailureOrigin", WindowHostFatalChild<4u>}) &&
+    DxUiFailureTests::RegisterFatalChildCase({L"window-focus-notification-callback", "WindowHostCallbackFailureOrigin", WindowHostFatalChild<5u>}) &&
+    DxUiFailureTests::RegisterFatalChildCase({L"window-blur-other-callback", "WindowHostCallbackFailureOrigin", WindowHostFatalChild<6u>}) &&
+    DxUiFailureTests::RegisterFatalChildCase({L"window-blur-self-callback", "WindowHostCallbackFailureOrigin", WindowHostFatalChild<7u>}) &&
+    DxUiFailureTests::RegisterFatalChildCase({L"window-focus-override-callback", "WindowHostCallbackFailureOrigin", WindowHostFatalChild<8u>}) &&
+    DxUiFailureTests::RegisterFatalChildCase({L"window-focus-retire-callback", "WindowHostCallbackFailureOrigin", WindowHostFatalChild<9u>}) &&
+    DxUiFailureTests::RegisterFatalChildCase({L"window-hover-leave-callback", "WindowHostCallbackFailureOrigin", WindowHostFatalChild<10u>}) &&
+    DxUiFailureTests::RegisterFatalChildCase({L"window-mouse-leave-callback", "WindowHostCallbackFailureOrigin", WindowHostFatalChild<11u>}) &&
+    DxUiFailureTests::RegisterFatalChildCase({L"window-key-permission-callback", "WindowHostCallbackFailureOrigin", WindowHostFatalChild<12u>}) &&
+    DxUiFailureTests::RegisterFatalChildCase({L"window-tab-boundary-callback", "WindowHostCallbackFailureOrigin", WindowHostFatalChild<13u>}) &&
+    DxUiFailureTests::RegisterFatalChildCase({L"window-hover-callback", "WindowHostCallbackFailureOrigin", WindowHostFatalChild<14u>}) &&
+    DxUiFailureTests::RegisterFatalChildCase({L"window-move-callback", "WindowHostCallbackFailureOrigin", WindowHostFatalChild<15u>}) &&
+    DxUiFailureTests::RegisterFatalChildCase({L"window-character-callback", "WindowHostCallbackFailureOrigin", WindowHostFatalChild<16u>}) &&
+    DxUiFailureTests::RegisterFatalChildCase({L"window-mnemonic-callback", "WindowHostCallbackFailureOrigin", WindowHostFatalChild<17u>}) &&
+    DxUiFailureTests::RegisterFatalChildCase({L"window-tick-callback", "WindowHostCallbackFailureOrigin", WindowHostFatalChild<18u>});
+} // namespace
 
 void RunWindowHostTests()
 {

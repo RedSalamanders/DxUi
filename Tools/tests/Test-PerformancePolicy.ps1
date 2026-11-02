@@ -454,6 +454,74 @@ Invoke-TestCase 'global and per-file compiler flags are bound without a lossy pr
     }
 }
 
+Invoke-TestCase 'library C parser has explicit language identity without relaxing other compiler metadata' {
+    $root = Join-Path ([IO.Path]::GetTempPath()) 'DxUi-mixed-language-fixture'
+    $cpp = New-PerformanceProjectFixture $root
+    $cppProfile = Get-FixtureProjectProfile $cpp
+    $mixed = Copy-JsonValue $cpp
+    $c = Copy-JsonValue $mixed.items.ClCompile[0]
+    $c.Identity = Join-Path 'ThirdParty' 'parser.c'
+    $c.FullPath = [IO.Path]::GetFullPath((Join-Path $root 'src/ThirdParty/parser.c'))
+    $c['CompileAs'] = 'CompileAsC'
+    $mixed.items.ClCompile += $c
+    $mixedProfile = Get-FixtureProjectProfile $mixed
+    Assert-Equal $cppProfile.profileIdentity $mixedProfile.profileIdentity 'language-only C parser keeps the common comparison profile'
+    Assert-True ($cppProfile.compileItemsIdentity -cne $mixedProfile.compileItemsIdentity) 'adding the C source changes per-file compiler identity'
+    Assert-True ($cppProfile.resolvedItemsIdentity -cne $mixedProfile.resolvedItemsIdentity) 'adding the C source changes the resolved inventory'
+    foreach ($language in @('Default','CompileAsCpp')) {
+        $explicitCpp = Copy-JsonValue $cpp
+        foreach ($item in $explicitCpp.items.ClCompile) { $item['CompileAs'] = $language }
+        $explicitMixed = Copy-JsonValue $explicitCpp
+        $explicitMixed.items.ClCompile += (Copy-JsonValue $c)
+        Assert-Equal (Get-FixtureProjectProfile $explicitCpp).profileIdentity (Get-FixtureProjectProfile $explicitMixed).profileIdentity "C source preserves the explicit $language C++ profile"
+    }
+    foreach ($name in @('Optimization','PreprocessorDefinitions','WarningLevel','TreatWarningAsError','AdditionalOptions','CustomCompilerFlag')) {
+        $changed = Copy-JsonValue $mixed
+        $changed.items.ClCompile[2][$name] += ' changed'
+        Assert-Throws { Get-FixtureProjectProfile $changed } "C-only $name drift was accepted"
+        Assert-True ($mixedProfile.compileItemsIdentity -cne (Get-ResolvedCompileItemsIdentity $changed.items.ClCompile $root)) "$name remains bound to the C source"
+    }
+    foreach ($languageSwitch in @('/TC','/TP','-TC','"/TP"')) {
+        $overridden = Copy-JsonValue $mixed
+        foreach ($item in $overridden.items.ClCompile) { $item.AdditionalOptions += " $languageSwitch" }
+        Assert-Throws { Get-FixtureProjectProfile $overridden } "shared $languageSwitch language override was accepted"
+    }
+    foreach ($language in @('', 'CompileAsCpp')) {
+        $changed = Copy-JsonValue $mixed
+        $changed.items.ClCompile[2]['CompileAs'] = $language
+        Assert-Throws { Get-FixtureProjectProfile $changed } "C source with language '$language' was accepted"
+        Assert-True ($mixedProfile.compileItemsIdentity -cne (Get-ResolvedCompileItemsIdentity $changed.items.ClCompile $root)) 'the exact C language setting is attested per source'
+    }
+    $missingC = Copy-JsonValue $mixed
+    [void]$missingC.items.ClCompile[2].Remove('CompileAs')
+    Assert-Throws { Get-FixtureProjectProfile $missingC } 'homogeneous mixed extensions with no explicit C language were accepted'
+    Assert-True ($mixedProfile.compileItemsIdentity -cne (Get-ResolvedCompileItemsIdentity $missingC.items.ClCompile $root)) 'omitting C language changes per-file identity'
+    $wrongCpp = Copy-JsonValue $mixed
+    $wrongCpp.items.ClCompile[0]['CompileAs'] = 'CompileAsC'
+    Assert-Throws { Get-FixtureProjectProfile $wrongCpp } 'CompileAsC on one C++ source was accepted'
+    $allWrongCpp = Copy-JsonValue $cpp
+    foreach ($item in $allWrongCpp.items.ClCompile) { $item['CompileAs'] = 'CompileAsC' }
+    Assert-Throws { Get-FixtureProjectProfile $allWrongCpp } 'homogeneous CompileAsC on C++ sources was accepted'
+    $allWrongMixed = Copy-JsonValue $mixed
+    foreach ($item in $allWrongMixed.items.ClCompile) { $item['CompileAs'] = 'CompileAsC' }
+    Assert-Throws { Get-FixtureProjectProfile $allWrongMixed } 'homogeneous CompileAsC on mixed extensions was accepted'
+    $onlyC = Copy-JsonValue $mixed
+    $onlyC.items.ClCompile = @($onlyC.items.ClCompile[2])
+    Assert-Throws { Get-FixtureProjectProfile $onlyC } 'a library without a C++ profile was accepted'
+    $benchmark = New-PerformanceProjectFixture $root benchmark
+    $wrongBenchmark = Copy-JsonValue $benchmark
+    foreach ($item in $wrongBenchmark.items.ClCompile) { $item['CompileAs'] = 'CompileAsC' }
+    Assert-Throws { Get-FixtureProjectProfile $wrongBenchmark } 'homogeneous CompileAsC on benchmark C++ sources was accepted'
+    $benchmarkC = Copy-JsonValue $benchmark.items.ClCompile[0]
+    $benchmarkC.Identity = Join-Path 'ThirdParty' 'parser.c'
+    $benchmarkC.FullPath = [IO.Path]::GetFullPath((Join-Path $root 'Tests/Embedded/ThirdParty/parser.c'))
+    $benchmarkC['CompileAs'] = 'CompileAsC'
+    $benchmark.items.ClCompile += $benchmarkC
+    Assert-Throws { Get-FixtureProjectProfile $benchmark } 'mixed C compiler profiles in the benchmark role were accepted'
+    $benchmark.items.ClCompile = @($benchmarkC)
+    Assert-Throws { Get-FixtureProjectProfile $benchmark } 'a C-only benchmark profile was accepted'
+}
+
 Invoke-TestCase 'shader roles, linker and librarian flags and target-time overrides participate in comparison' {
     $fixture = New-PerformanceProjectFixture (Join-Path ([IO.Path]::GetTempPath()) 'DxUi-shader-link-fixture')
     $original = Get-FixtureProjectProfile $fixture

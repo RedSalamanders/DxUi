@@ -1,3 +1,5 @@
+#include <DxUi/Failure.h>
+
 #include "DxUi.Internal.h"
 #include "TextStoreTarget.h"
 
@@ -403,7 +405,7 @@ public:
         }
         catch (const std::bad_alloc&)
         {
-            return E_OUTOFMEMORY;
+            Failure::FailAllocation();
         }
 
         // TSF can insert into the staged document and then start its composition
@@ -596,10 +598,7 @@ public:
     }
     catch (const std::bad_alloc&)
     {
-        // TSF is a COM boundary. A geometry query cannot unwind through it.
-        *prc       = RECT{};
-        *pfClipped = TRUE;
-        return E_OUTOFMEMORY;
+        Failure::FailAllocation();
     }
     HRESULT GetScreenRect(RECT* prc) const noexcept override
     {
@@ -648,8 +647,7 @@ public:
             }
             catch (const std::bad_alloc&)
             {
-                outState = {};
-                return false;
+                Failure::FailAllocation();
             }
         }
         return ReadBackingState(outState) && ! outState.masked;
@@ -697,7 +695,7 @@ public:
         }
         catch (const std::bad_alloc&)
         {
-            return false;
+            Failure::FailAllocation();
         }
     }
 
@@ -741,9 +739,7 @@ private:
         }
         catch (const std::bad_alloc&)
         {
-            // Without an exact ownership marker, cancellation must preserve current text.
-            _compositionExpectedText.reset();
-            return false;
+            Failure::FailAllocation();
         }
     }
 
@@ -823,8 +819,7 @@ private:
         }
         catch (const std::bad_alloc&)
         {
-            outState = {};
-            return false;
+            Failure::FailAllocation();
         }
     }
 
@@ -891,8 +886,7 @@ private:
         }
         catch (const std::exception&)
         {
-            // Contain allocation/user callback failures at the COM boundary. SetText already invalidated its view.
-            return false;
+            Failure::FailUnexpected();
         }
         return false;
     }
@@ -985,11 +979,11 @@ private:
         }
         catch (const std::bad_alloc&)
         {
-            return false;
+            Failure::FailAllocation();
         }
         catch (const std::exception&)
         {
-            return false;
+            Failure::FailUnexpected();
         }
     }
 
@@ -1049,6 +1043,7 @@ public:
 
     HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void** ppvObject) noexcept override
     {
+        const Failure::Scope failureScope;
         if (! ppvObject)
         {
             return E_POINTER;
@@ -1110,6 +1105,7 @@ public:
 
     HRESULT STDMETHODCALLTYPE OnStartComposition(ITfCompositionView* composition, BOOL* outAccepted) noexcept override
     {
+        const Failure::Scope failureScope;
         if (! outAccepted)
         {
             return E_POINTER;
@@ -1121,16 +1117,19 @@ public:
 
     HRESULT STDMETHODCALLTYPE OnUpdateComposition(ITfCompositionView* composition, ITfRange* rangeNew) noexcept override
     {
+        const Failure::Scope failureScope;
         return _target->UpdateComposition(composition, rangeNew);
     }
 
     HRESULT STDMETHODCALLTYPE OnEndComposition(ITfCompositionView* composition) noexcept override
     {
+        const Failure::Scope failureScope;
         return _target->EndComposition(composition);
     }
 
     HRESULT STDMETHODCALLTYPE AdviseSink(REFIID riid, IUnknown* punk, DWORD dwMask) noexcept override
     {
+        const Failure::Scope failureScope;
         if (! punk)
         {
             return E_INVALIDARG;
@@ -1173,6 +1172,7 @@ public:
 
     HRESULT STDMETHODCALLTYPE UnadviseSink(IUnknown* punk) noexcept override
     {
+        const Failure::Scope failureScope;
         if (! punk)
         {
             return E_INVALIDARG;
@@ -1205,6 +1205,7 @@ public:
 
     HRESULT STDMETHODCALLTYPE RequestLock(DWORD dwLockFlags, HRESULT* phrSession) noexcept override
     {
+        const Failure::Scope failureScope;
         if (! phrSession)
         {
             return E_POINTER;
@@ -1346,6 +1347,7 @@ public:
 
     HRESULT STDMETHODCALLTYPE GetStatus(TS_STATUS* pdcs) noexcept override
     {
+        const Failure::Scope failureScope;
         if (! pdcs)
         {
             return E_POINTER;
@@ -1365,6 +1367,7 @@ public:
 
     HRESULT STDMETHODCALLTYPE QueryInsert(LONG acpTestStart, LONG acpTestEnd, ULONG cch, LONG* pacpResultStart, LONG* pacpResultEnd) noexcept override
     {
+        const Failure::Scope failureScope;
         if (pacpResultStart)
             *pacpResultStart = 0;
         if (pacpResultEnd)
@@ -1392,6 +1395,7 @@ public:
 
     HRESULT STDMETHODCALLTYPE GetSelection(ULONG ulIndex, ULONG ulCount, TS_SELECTION_ACP* pSelection, ULONG* pcFetched) noexcept override
     {
+        const Failure::Scope failureScope;
         if (! HasReadLock())
         {
             return TS_E_NOLOCK;
@@ -1424,6 +1428,7 @@ public:
 
     HRESULT STDMETHODCALLTYPE SetSelection(ULONG ulCount, const TS_SELECTION_ACP* pSelection) noexcept override
     {
+        const Failure::Scope failureScope;
         if (! HasReadWriteLock())
         {
             return TS_E_NOLOCK;
@@ -1467,6 +1472,7 @@ public:
                                       ULONG* pcRunInfoRet,
                                       LONG* pacpNext) noexcept override
     {
+        const Failure::Scope failureScope;
         if (! HasReadLock())
         {
             return TS_E_NOLOCK;
@@ -1504,6 +1510,7 @@ public:
 
     HRESULT STDMETHODCALLTYPE SetText(DWORD dwFlags, LONG acpStart, LONG acpEnd, const WCHAR* pchText, ULONG cch, TS_TEXTCHANGE* pChange) noexcept override
     {
+        const Failure::Scope failureScope;
         if (! HasReadWriteLock())
         {
             return TS_E_NOLOCK;
@@ -1514,6 +1521,7 @@ public:
 
     HRESULT STDMETHODCALLTYPE GetFormattedText(LONG /*acpStart*/, LONG /*acpEnd*/, IDataObject** ppDataObject) noexcept override
     {
+        const Failure::Scope failureScope;
         if (! ppDataObject)
         {
             return E_POINTER;
@@ -1525,6 +1533,7 @@ public:
 
     HRESULT STDMETHODCALLTYPE GetEmbedded(LONG /*acpPos*/, REFGUID /*rguidService*/, REFIID /*riid*/, IUnknown** ppunk) noexcept override
     {
+        const Failure::Scope failureScope;
         if (! ppunk)
         {
             return E_POINTER;
@@ -1536,6 +1545,7 @@ public:
 
     HRESULT STDMETHODCALLTYPE QueryInsertEmbedded(const GUID* /*pguidService*/, const FORMATETC* /*pFormatEtc*/, BOOL* pfInsertable) noexcept override
     {
+        const Failure::Scope failureScope;
         if (! pfInsertable)
         {
             return E_POINTER;
@@ -1548,11 +1558,13 @@ public:
     HRESULT STDMETHODCALLTYPE
     InsertEmbedded(DWORD /*dwFlags*/, LONG /*acpStart*/, LONG /*acpEnd*/, IDataObject* /*pDataObject*/, TS_TEXTCHANGE* /*pChange*/) noexcept override
     {
+        const Failure::Scope failureScope;
         return E_NOTIMPL;
     }
 
     HRESULT STDMETHODCALLTYPE RequestSupportedAttrs(DWORD /*dwFlags*/, ULONG /*cFilterAttrs*/, const TS_ATTRID* /*paFilterAttrs*/) noexcept override
     {
+        const Failure::Scope failureScope;
         return S_OK;
     }
 
@@ -1561,6 +1573,7 @@ public:
                                                      const TS_ATTRID* /*paFilterAttrs*/,
                                                      DWORD /*dwFlags*/) noexcept override
     {
+        const Failure::Scope failureScope;
         return S_OK;
     }
 
@@ -1569,6 +1582,7 @@ public:
                                                                   const TS_ATTRID* /*paFilterAttrs*/,
                                                                   DWORD /*dwFlags*/) noexcept override
     {
+        const Failure::Scope failureScope;
         return S_OK;
     }
 
@@ -1581,6 +1595,7 @@ public:
                                                      BOOL* pfFound,
                                                      LONG* plFoundOffset) noexcept override
     {
+        const Failure::Scope failureScope;
         if (! pacpNext || ! pfFound || ! plFoundOffset)
         {
             return E_POINTER;
@@ -1594,6 +1609,7 @@ public:
 
     HRESULT STDMETHODCALLTYPE RetrieveRequestedAttrs(ULONG /*ulCount*/, TS_ATTRVAL* /*paAttrVals*/, ULONG* pcFetched) noexcept override
     {
+        const Failure::Scope failureScope;
         if (! pcFetched)
         {
             return E_POINTER;
@@ -1605,6 +1621,7 @@ public:
 
     HRESULT STDMETHODCALLTYPE GetEndACP(LONG* pacp) noexcept override
     {
+        const Failure::Scope failureScope;
         if (! HasReadLock())
         {
             return TS_E_NOLOCK;
@@ -1626,6 +1643,7 @@ public:
 
     HRESULT STDMETHODCALLTYPE GetActiveView(TsViewCookie* pvcView) noexcept override
     {
+        const Failure::Scope failureScope;
         if (! pvcView)
         {
             return E_POINTER;
@@ -1637,6 +1655,7 @@ public:
 
     HRESULT STDMETHODCALLTYPE GetACPFromPoint(TsViewCookie vcView, const POINT* ptScreen, DWORD /*dwFlags*/, LONG* pacp) noexcept override
     {
+        const Failure::Scope failureScope;
         if (! HasReadLock())
         {
             return TS_E_NOLOCK;
@@ -1655,6 +1674,7 @@ public:
 
     HRESULT STDMETHODCALLTYPE GetTextExt(TsViewCookie vcView, LONG acpStart, LONG acpEnd, RECT* prc, BOOL* pfClipped) noexcept override
     {
+        const Failure::Scope failureScope;
         if (! HasReadLock())
         {
             return TS_E_NOLOCK;
@@ -1673,6 +1693,7 @@ public:
 
     HRESULT STDMETHODCALLTYPE GetScreenExt(TsViewCookie vcView, RECT* prc) noexcept override
     {
+        const Failure::Scope failureScope;
         if (! prc)
         {
             return E_POINTER;
@@ -1686,6 +1707,7 @@ public:
 
     HRESULT STDMETHODCALLTYPE GetWnd(TsViewCookie vcView, HWND* phwnd) noexcept override
     {
+        const Failure::Scope failureScope;
         if (! phwnd)
         {
             return E_POINTER;
@@ -1702,6 +1724,7 @@ public:
     HRESULT STDMETHODCALLTYPE
     InsertTextAtSelection(DWORD dwFlags, const WCHAR* pchText, ULONG cch, LONG* pacpStart, LONG* pacpEnd, TS_TEXTCHANGE* pChange) noexcept override
     {
+        const Failure::Scope failureScope;
         if (pacpStart)
             *pacpStart = 0;
         if (pacpEnd)
@@ -1747,6 +1770,7 @@ public:
     HRESULT STDMETHODCALLTYPE
     InsertEmbeddedAtSelection(DWORD /*dwFlags*/, IDataObject* /*pDataObject*/, LONG* pacpStart, LONG* pacpEnd, TS_TEXTCHANGE* /*pChange*/) noexcept override
     {
+        const Failure::Scope failureScope;
         if (! pacpStart || ! pacpEnd)
         {
             return E_POINTER;
@@ -1833,7 +1857,7 @@ private:
         }
         catch (const std::bad_alloc&)
         {
-            return E_OUTOFMEMORY;
+            Failure::FailAllocation();
         }
         state.caretIndex = newCaret;
         state.selectionAnchorIndex.reset();
@@ -1922,10 +1946,7 @@ public:
         }
         catch (const std::bad_alloc&)
         {
-            _pendingExternalNotification = true;
-            // Keep the change pending for the next real external-change notification; do not repost indefinitely
-            // under sustained allocation failure.
-            return false;
+            Failure::FailAllocation();
         }
         _observedState               = std::move(currentState);
         _observedViewport            = currentViewport;
@@ -2106,7 +2127,7 @@ ITextStoreACP* CreateNativeTextInputTextStore(ControlHost& host, Control& contro
     }
     catch (const std::bad_alloc&)
     {
-        return nullptr;
+        Failure::FailAllocation();
     }
 }
 

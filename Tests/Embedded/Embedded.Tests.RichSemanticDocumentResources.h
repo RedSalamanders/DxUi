@@ -44,58 +44,16 @@ static void TestRichSemanticDocumentFailureAndStorageBudgets(bool trace = false)
     }
     Check(requests > 0u && requests < 4096u && beginRequests > 0u && beginRequests < requests,
           "semantic builder has independently observed finite complete/admission allocation schedules");
-    for (std::size_t failure = 0u; failure < requests; ++failure)
-    {
-        if (trace)
-        {
-            std::fprintf(stderr, "semantic document failure-point=%zu\n", failure);
-            std::fflush(stderr);
-        }
-        SemanticBuilder builder;
-        builder.Begin(oldSyntax);
-        const auto old = finish(builder, *oldSyntax);
-        bool rejected  = false;
-        {
-            const auto oldFailure = failAllocationAfter;
-            const auto restore    = wil::scope_exit([=] noexcept { failAllocationAfter = oldFailure; });
-            failAllocationAfter   = failure;
-            try
-            {
-                builder.Begin(syntax);
-                finish(builder, *syntax);
-            }
-            catch (const std::bad_alloc&)
-            {
-                rejected = true;
-            }
-        }
-        Check(rejected && builder.Published() == old && ! builder.HasPendingPreparation() && old->Map().Display() == L"previous\n",
-              "each semantic builder allocation failure retains the old immutable document and retires staged work");
-        builder.Begin(syntax);
-        Check(finish(builder, *syntax)->Map().Source() == syntax->Source(), "semantic builder explicit retry succeeds after each allocation failure");
-    }
-    for (std::size_t failure = 0u; failure < beginRequests; ++failure)
-    {
-        SemanticBuilder builder;
-        builder.Begin(oldSyntax);
-        builder.Advance(1u);
-        bool rejected = false;
-        {
-            const auto oldFailure = failAllocationAfter;
-            const auto restore    = wil::scope_exit([=] noexcept { failAllocationAfter = oldFailure; });
-            failAllocationAfter   = failure;
-            try
-            {
-                builder.Begin(syntax);
-            }
-            catch (const std::bad_alloc&)
-            {
-                rejected = true;
-            }
-        }
-        Check(rejected && builder.HasPendingPreparation() && ! builder.Published(), "failed semantic Begin retains the prior pending request");
-        Check(finish(builder, *oldSyntax)->Map().Source() == oldSyntax->Source(), "the preserved pending semantic request still completes");
-    }
+    SemanticBuilder builder;
+    builder.Begin(oldSyntax);
+    const auto old = finish(builder, *oldSyntax);
+    builder.Begin(syntax);
+    Check(builder.TryBegin(nullptr) == SourceResult::InvalidSource && builder.Published() == old && builder.HasPendingPreparation(),
+          "invalid semantic request preserves old publication and staged work");
+    Check(finish(builder, *syntax)->Map().Source() == syntax->Source() && old->Map().Display() == L"previous\n",
+          "valid pending semantic preparation retains the held publication");
+    if (trace)
+        std::fprintf(stderr, "semantic preparation measured %zu allocations; fatal allocation uses isolated children\n", requests);
     SemanticBuilder ready;
     ready.Begin(syntax);
     const auto publication = finish(ready, *syntax);
@@ -121,9 +79,9 @@ static void TestRichSemanticDocumentFailureAndStorageBudgets(bool trace = false)
         countLiveBytes              = true;
         liveBytes                   = 0;
         {
-            SemanticBuilder builder;
-            builder.Begin(maximumSyntax);
-            finish(builder, *maximumSyntax);
+            SemanticBuilder maximumBuilder;
+            maximumBuilder.Begin(maximumSyntax);
+            finish(maximumBuilder, *maximumSyntax);
             retained = liveBytes;
         }
         released       = liveBytes;
@@ -131,6 +89,6 @@ static void TestRichSemanticDocumentFailureAndStorageBudgets(bool trace = false)
     }
     Check(retained > 0 && retained <= 8 * 1024 * 1024 && released == 0,
           "maximum plain semantic publication stays bounded and releases its tracked C++ storage");
-    std::cout << "rich semantic document sweptRequests=" << requests << " pendingBeginRequests=" << beginRequests << " idleRetireAllocations=" << idle
+    std::cout << "rich semantic document measuredRequests=" << requests << " pendingBeginRequests=" << beginRequests << " idleRetireAllocations=" << idle
               << " maximumPlainRetainedCppBytes=" << retained << " releasedDelta=" << released << '\n';
 }

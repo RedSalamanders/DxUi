@@ -1,3 +1,5 @@
+#include <DxUi/Failure.h>
+
 #include "DxUi.Internal.h"
 #include "DxUi.MarkdownLabels.h"
 #include "DxUi.PaintIndex.h"
@@ -19,6 +21,7 @@
 #include <DxUi/AccessibilityTextUnits.h>
 #include <DxUi/RichTextLayout.h>
 #include <UIAutomation.h>
+#include <atomic>
 #include <cmath>
 #include <limits>
 #include <stdexcept>
@@ -28,6 +31,21 @@ namespace DxUi
 {
 namespace
 {
+#if DXUI_ENABLE_DIAGNOSTICS
+// Distinct observable literals preserve the selected staging origin under
+// Release ICF/LTCG. This test marker does not synchronize application state.
+std::atomic<unsigned> diagnosticOriginMarker{};
+[[noreturn]] __declspec(noinline) void SemanticStagingDiagnosticThrowOrigin(const std::logic_error& error)
+{
+    diagnosticOriginMarker.store(1u, std::memory_order_relaxed);
+    throw error;
+}
+[[noreturn]] __declspec(noinline) void NativeGeometryDiagnosticThrowOrigin(const std::logic_error& error)
+{
+    diagnosticOriginMarker.store(2u, std::memory_order_relaxed);
+    throw error;
+}
+#endif
 bool MarkdownCommandInputBlocked(const ControlHost* host, const Control* control) noexcept
 {
     if (! host || host->GetFocusControl() != control)
@@ -606,7 +624,15 @@ RichTextEditor::~RichTextEditor() noexcept
 }
 void RichTextEditor::SetText(std::wstring text)
 {
-    _state->document.Reset(std::move(text));
+    if (TrySetText(text) != RichText::SourceResult::Success)
+        Failure::FailContract(E_INVALIDARG);
+}
+RichText::SourceResult RichTextEditor::TrySetText(std::wstring_view text)
+{
+    const Failure::Scope failureScope;
+    const auto result = _state->document.TryReset(text);
+    if (result != RichText::SourceResult::Success)
+        return result;
     _state->highlights.clear();
     _state->decorations.clear();
     _state->decorationStatus = RichTextDecorationStatus::None;
@@ -627,9 +653,10 @@ void RichTextEditor::SetText(std::wstring text)
     if (tooltipHost)
         tooltipHost->InvalidateRichTitleTooltip(this);
     if (tooltipLifetime.expired() || GetHost() != tooltipHost || Revision() != tooltipRevision || _state->bindingRevision != tooltipBinding)
-        return;
+        return RichText::SourceResult::Success;
     RetireLayout();
     SelectionChanged();
+    return RichText::SourceResult::Success;
 }
 std::wstring RichTextEditor::GetText() const
 {
@@ -697,9 +724,7 @@ HRESULT RichTextEditor::TryAdoptReadOnlyMarkdownSyntax(const RichText::SourceSna
     }
     catch (const std::bad_alloc&)
     {
-        // Resource exhaustion crosses this noexcept preparation boundary as an
-        // HRESULT. The parser stages its allocation before changing state.
-        return E_OUTOFMEMORY;
+        Failure::FailAllocation();
     }
     if (_state->markdown.Published() == previous)
         return S_OK;
@@ -719,9 +744,18 @@ HRESULT RichTextEditor::TryAdoptReadOnlyMarkdownSyntax(const RichText::SourceSna
 }
 void RichTextEditor::SetDocumentFilePath(std::wstring path)
 {
-    auto normalized = RichText::Detail::NormalizeDocumentFilePath(path);
+    if (TrySetDocumentFilePath(path) != RichText::SourceResult::Success)
+        Failure::FailContract(E_INVALIDARG);
+}
+RichText::SourceResult RichTextEditor::TrySetDocumentFilePath(std::wstring_view path)
+{
+    const Failure::Scope failureScope;
+    std::wstring normalized(0u, L' ');
+    const auto admission = RichText::Detail::TryNormalizeDocumentFilePath(path, normalized);
+    if (admission != RichText::SourceResult::Success)
+        return admission;
     if (normalized == _state->documentFilePath)
-        return;
+        return RichText::SourceResult::Success;
     _state->documentFilePath.swap(normalized);
     ++_state->imageLocationRevision;
     _state->images.Clear();
@@ -731,6 +765,7 @@ void RichTextEditor::SetDocumentFilePath(std::wstring path)
     // Metadata invalidation also changes the embedded transport revision.
     // Do not synchronize/cancel an active composition or edit source/history.
     RequestInvalidate();
+    return RichText::SourceResult::Success;
 }
 std::wstring_view RichTextEditor::GetDocumentFilePath() const noexcept
 {
@@ -931,21 +966,7 @@ bool RichTextEditor::TryPrepareClipboardPaste(const TextClipboardContent& conten
 {
     if (stale)
         *stale = false;
-    const auto prepareFileReference = [&]()
-    {
-        try
-        {
-            return TryPrepareFileReferencesAt(content, GetSelection(), replacement);
-        }
-        catch (const std::invalid_argument&)
-        {
-            return false; // Invalid external file text never publishes a partial plan.
-        }
-        catch (const std::length_error&)
-        {
-            return false; // Capacity rejection retains the caller's result.
-        }
-    };
+    const auto prepareFileReference = [&]() { return TryPrepareFileReferencesAt(content, GetSelection(), replacement); };
     if (! content.filePaths.empty())
         return prepareFileReference();
     const auto selection = GetSelection();
@@ -977,16 +998,11 @@ bool RichTextEditor::TryPrepareClipboardPaste(const TextClipboardContent& conten
         }
         catch (const std::bad_alloc&)
         {
-            throw;
+            Failure::FailAllocation();
         }
         catch (const std::exception&)
         {
-            if (stale && (lifetime.expired() || GetHost() != host || (host && host->GetFocusControl() != focus) || Revision() != revision ||
-                          _state->bindingRevision != binding || GetSelection() != selection || _state->htmlPasteConverter != converter || ! Editable() ||
-                          ! _state->markdownRendering || _state->mode != RichText::ViewMode::Rich))
-                *stale = true;
-            // Application converter failure retains ordinary Unicode paste unless the target changed.
-            return false;
+            Failure::FailUnexpected();
         }
     }
     if (! Editable() || ! _state->appearance.pasteUrlOnSelection || ! _state->markdownRendering || _state->mode != RichText::ViewMode::Rich ||
@@ -1015,23 +1031,14 @@ bool RichTextEditor::TryPrepareClipboardPaste(const TextClipboardContent& conten
     RichText::MarkdownCommandRequest request;
     request.command     = RichText::MarkdownCommand::SetLink;
     request.destination = url;
-    try
-    {
-        const auto plan  = RichText::BuildMarkdownCommand(Snapshot(), Revision(), syntax, selection, request);
-        const auto edits = plan.Edits();
-        if (! plan.IsApplicable() || edits.size() != 1u || edits[0].source.first != selection.Start() || edits[0].source.last != selection.End())
-            return prepareFileReference();
-        replacement = edits[0].replacement;
-        return true;
-    }
-    catch (const std::invalid_argument&)
-    {
-        return prepareFileReference(); // Ineligible destination retains ordinary paste.
-    }
-    catch (const std::length_error&)
-    {
+    std::optional<RichText::MarkdownCommandPlan> plan;
+    if (RichText::TryBuildMarkdownCommand(Snapshot(), Revision(), syntax, selection, request, plan) != RichText::SourceResult::Success)
         return prepareFileReference();
-    }
+    const auto edits = plan->Edits();
+    if (! plan->IsApplicable() || edits.size() != 1u || edits[0].source.first != selection.Start() || edits[0].source.last != selection.End())
+        return prepareFileReference();
+    replacement = edits[0].replacement;
+    return true;
 }
 bool RichTextEditor::TryPrepareFileReferencesAt(const TextClipboardContent& content,
                                                 RichText::Selection selection,
@@ -1041,15 +1048,15 @@ bool RichTextEditor::TryPrepareFileReferencesAt(const TextClipboardContent& cont
     if (! Editable())
         return false;
     if (content.filePaths.size() > TextClipboardContent::MaximumFiles)
-        throw std::length_error("Clipboard file capacity exceeded");
+        return false;
     std::size_t totalFileUnits{};
     for (const auto& file : content.filePaths)
     {
         if (file.empty() || ! RichText::IsValidUtf16(file) || file.find(L'\0') != file.npos || file.find_first_of(L"\"\r\n") != file.npos ||
             file.size() > TextClipboardContent::MaximumFileUnits)
-            throw std::invalid_argument("Invalid Unicode clipboard file path");
+            return false;
         if (file.size() > TextClipboardContent::MaximumTotalFileUnits - totalFileUnits)
-            throw std::length_error("Clipboard file capacity exceeded");
+            return false;
         totalFileUnits += file.size();
     }
     const bool references = CanPasteMarkdownFileReferences(selection);
@@ -1122,7 +1129,7 @@ bool RichTextEditor::TryPrepareFileReferencesAt(const TextClipboardContent& cont
             }
             const auto separator = staged.empty() ? 0u : referenceSeparator.size();
             if (separator > RichText::Document::MaximumUnits - staged.size() || markdown->size() > RichText::Document::MaximumUnits - staged.size() - separator)
-                throw std::length_error("File reference paste source capacity exceeded");
+                return false;
             if (separator)
                 staged.append(referenceSeparator);
             staged.append(*markdown);
@@ -1140,14 +1147,14 @@ bool RichTextEditor::TryPrepareFileReferencesAt(const TextClipboardContent& cont
                 const auto separator = staged.empty() ? 0u : literalSeparator.size();
                 if (separator + 2u > RichText::Document::MaximumUnits - staged.size() ||
                     literal.size() > RichText::Document::MaximumUnits - staged.size() - separator - 2u)
-                    throw std::length_error("Clipboard file source capacity exceeded");
+                    return false;
                 if (! staged.empty())
                     staged.append(literalSeparator);
                 staged.push_back(L'"');
                 staged.append(literal);
                 staged.push_back(L'"');
                 if (staged.size() > RichText::Document::MaximumUnits)
-                    throw std::length_error("Clipboard file source capacity exceeded");
+                    return false;
             }
         }
     }
@@ -1176,12 +1183,11 @@ bool RichTextEditor::ApplyClipboardBitmapPaste(const TextClipboardContent& conte
         }
         catch (const std::bad_alloc&)
         {
-            std::terminate(); // Application observer allocation failures remain fatal at input boundaries.
+            Failure::FailAllocation();
         }
         catch (const std::exception&)
         {
-            Debug::Warning(L"DxUi::RichTextEditor: bitmap paste handler failed.");
-            return std::nullopt;
+            Failure::FailUnexpected();
         }
     };
     const auto path = invoke();
@@ -1229,14 +1235,18 @@ std::optional<RichTextEditor::FileDropPosition> RichTextEditor::FileDropCaret(co
     if (point.x < viewport.left || point.x >= viewport.right || point.y < viewport.top || point.y >= viewport.bottom)
         return std::nullopt;
     const auto x = point.x - viewport.left - HorizontalTranslation(), y = point.y - viewport.top + _state->scrollDip;
-    const auto hit = _state->layout.HitTestSource(x, y);
+    RichText::Detail::SourceCaretHit hit{};
+    if (FAILED(_state->layout.TryHitTestSource(x, y, hit)))
+        return std::nullopt;
     if (const auto* geometry = _state->layout.SemanticGeometry())
     {
         const auto syntax = GetMarkdownSyntax();
         if (! syntax)
             return std::nullopt;
         const auto& document = geometry->Document();
-        const auto visual    = geometry->HitTest(x, y);
+        RichText::Hit visual{};
+        if (FAILED(geometry->TryHitTest(x, y, visual)))
+            return std::nullopt;
         if (visual.inside)
         {
             const auto position = visual.trailing && visual.position ? visual.position - 1u : visual.position;
@@ -1267,7 +1277,7 @@ try
 }
 catch (const std::exception&)
 {
-    return std::nullopt;
+    Failure::FailUnexpected();
 }
 bool RichTextEditor::CommitFileDrop(FileDropPosition position, const TextClipboardContent& content)
 {
@@ -1291,7 +1301,10 @@ bool RichTextEditor::CommitFileDrop(FileDropPosition position, const TextClipboa
             request.targetCell  = geometry->SourceSyntaxNode(caret, position.site);
             request.text        = replacement;
             const auto revision = Revision();
-            const auto plan     = RichText::BuildMarkdownCommand(source, revision, GetMarkdownSyntax(), {caret, caret}, request);
+            std::optional<RichText::MarkdownCommandPlan> planned;
+            if (RichText::TryBuildMarkdownCommand(source, revision, GetMarkdownSyntax(), {caret, caret}, request, planned) != RichText::SourceResult::Success)
+                return false;
+            const auto& plan = planned.value();
             if (! plan.IsApplicable())
                 return false;
             std::vector<RichText::SourceEdit> edits(0u);
@@ -1310,9 +1323,18 @@ uint64_t RichTextEditor::Revision() const noexcept
 }
 void RichTextEditor::SetSelection(RichText::Selection selection)
 {
-    _state->document.SetSelection(selection);
+    if (TrySetSelection(selection) != RichText::SourceResult::Success)
+        Failure::FailContract(E_INVALIDARG);
+}
+RichText::SourceResult RichTextEditor::TrySetSelection(RichText::Selection selection)
+{
+    const Failure::Scope failureScope;
+    const auto result = _state->document.TrySetSelection(selection);
+    if (result != RichText::SourceResult::Success)
+        return result;
     _state->sourceCaretSite = RichText::MarkdownNoNode;
     SelectionChanged();
+    return RichText::SourceResult::Success;
 }
 RichText::Selection RichTextEditor::GetSelection() const noexcept
 {
@@ -1324,10 +1346,16 @@ std::optional<RichText::SourceLocation> RichTextEditor::GetSourceCaretLocation()
 }
 void RichTextEditor::SetViewMode(RichText::ViewMode mode)
 {
+    if (TrySetViewMode(mode) != RichText::SourceResult::Success)
+        Failure::FailContract(E_INVALIDARG);
+}
+RichText::SourceResult RichTextEditor::TrySetViewMode(RichText::ViewMode mode)
+{
+    const Failure::Scope failureScope;
     if (mode != RichText::ViewMode::Source && mode != RichText::ViewMode::Rich)
-        throw std::invalid_argument("Invalid rich-text view mode");
+        return RichText::SourceResult::InvalidSource;
     if (_state->mode == mode)
-        return;
+        return RichText::SourceResult::Success;
     _state->autoFormatRun.reset();
     _state->smartTypingSite.reset();
     RetireSemanticAccessibility();
@@ -1343,9 +1371,10 @@ void RichTextEditor::SetViewMode(RichText::ViewMode mode)
         tooltipHost->InvalidateRichTitleTooltip(this);
     if (tooltipLifetime.expired() || GetHost() != tooltipHost || Revision() != tooltipRevision || _state->bindingRevision != tooltipBinding ||
         _state->mode != mode)
-        return;
+        return RichText::SourceResult::Success;
     RetireLayout();
     SelectionChanged();
+    return RichText::SourceResult::Success;
 }
 RichText::ViewMode RichTextEditor::GetViewMode() const noexcept
 {
@@ -1353,9 +1382,15 @@ RichText::ViewMode RichTextEditor::GetViewMode() const noexcept
 }
 void RichTextEditor::SetAppearance(const RichTextEditorAppearance& appearance)
 {
+    if (TrySetAppearance(appearance) != RichText::SourceResult::Success)
+        Failure::FailContract(E_INVALIDARG);
+}
+RichText::SourceResult RichTextEditor::TrySetAppearance(const RichTextEditorAppearance& appearance)
+{
+    const Failure::Scope failureScope;
     if (! std::isfinite(appearance.zoom) || appearance.zoom < .25f || appearance.zoom > 4.0f || ! std::isfinite(appearance.tabStopDip) ||
         appearance.tabStopDip < 0.0f || appearance.tabStopDip > 4096.0f || (appearance.tabStopDip > 0.0f && appearance.tabStopDip < 1.0f))
-        throw std::invalid_argument("Invalid rich editor zoom or tab stop");
+        return RichText::SourceResult::InvalidSource;
     const auto validFont = [](std::wstring_view value) noexcept
     { return value.size() <= 255u && value.find(L'\0') == value.npos && RichText::IsValidUtf16(value); };
     const auto validSize    = [](float value) noexcept { return std::isfinite(value) && (value == 0.0f || (value >= 1.0f && value <= 512.0f)); };
@@ -1377,9 +1412,9 @@ void RichTextEditor::SetAppearance(const RichTextEditorAppearance& appearance)
         (appearance.enterPolicy != RichText::MarkdownEnterPolicy::RawNewline && appearance.enterPolicy != RichText::MarkdownEnterPolicy::NewParagraph) ||
         (appearance.markdownPresentation != RichText::MarkdownPresentationStyle::Default &&
          appearance.markdownPresentation != RichText::MarkdownPresentationStyle::Subtle))
-        throw std::invalid_argument("Invalid rich editor appearance");
+        return RichText::SourceResult::InvalidSource;
     if (_state->appearance == appearance)
-        return;
+        return RichText::SourceResult::Success;
     auto next            = appearance; // Stage all owned strings before publishing any option.
     const auto& previous = _state->appearance;
     const bool geometryChanged =
@@ -1447,7 +1482,8 @@ void RichTextEditor::SetAppearance(const RichTextEditorAppearance& appearance)
             _state->images.SuspendForEdit(Snapshot(), *_state->imageSource);
         else
             _state->images.Cancel();
-        _state->semantic.SetSoftBreakPolicy(value.softBreakPolicy);
+        if (_state->semantic.TrySetSoftBreakPolicy(value.softBreakPolicy) != RichText::SourceResult::Success)
+            Failure::FailContract(E_INVALIDARG);
         _state->semanticRejected.reset();
         RetireSemanticAccessibility();
     }
@@ -1464,6 +1500,7 @@ void RichTextEditor::SetAppearance(const RichTextEditorAppearance& appearance)
     }
     if (! lifetime.expired())
         RequestInvalidate();
+    return RichText::SourceResult::Success;
 }
 const RichTextEditorAppearance& RichTextEditor::GetAppearance() const noexcept
 {
@@ -1471,9 +1508,17 @@ const RichTextEditorAppearance& RichTextEditor::GetAppearance() const noexcept
 }
 void RichTextEditor::SetZoom(float zoom)
 {
+    if (TrySetZoom(zoom) != RichText::SourceResult::Success)
+        Failure::FailContract(E_INVALIDARG);
+}
+RichText::SourceResult RichTextEditor::TrySetZoom(float zoom)
+{
+    const Failure::Scope failureScope;
+    if (! std::isfinite(zoom) || zoom < .25f || zoom > 4.f)
+        return RichText::SourceResult::InvalidSource;
     auto appearance = GetAppearance();
     appearance.zoom = zoom;
-    SetAppearance(appearance);
+    return TrySetAppearance(appearance);
 }
 float RichTextEditor::GetZoom() const noexcept
 {
@@ -1481,12 +1526,18 @@ float RichTextEditor::GetZoom() const noexcept
 }
 void RichTextEditor::SetLinkUnderlinePolicy(RichTextLinkUnderlinePolicy policy)
 {
+    if (TrySetLinkUnderlinePolicy(policy) != RichText::SourceResult::Success)
+        Failure::FailContract(E_INVALIDARG);
+}
+RichText::SourceResult RichTextEditor::TrySetLinkUnderlinePolicy(RichTextLinkUnderlinePolicy policy)
+{
     if (policy != RichTextLinkUnderlinePolicy::Always && policy != RichTextLinkUnderlinePolicy::HoverOrCaret)
-        throw std::invalid_argument("Invalid rich editor link underline policy");
+        return RichText::SourceResult::InvalidSource;
     if (_state->linkUnderlinePolicy == policy)
-        return;
+        return RichText::SourceResult::Success;
     _state->linkUnderlinePolicy = policy;
     RequestInvalidate();
+    return RichText::SourceResult::Success;
 }
 RichTextLinkUnderlinePolicy RichTextEditor::GetLinkUnderlinePolicy() const noexcept
 {
@@ -1535,15 +1586,21 @@ bool RichTextEditor::IsLinkUnderlineVisible(size_t sourceOffset) const noexcept
 }
 void RichTextEditor::SetSourceHighlights(std::span<const RichTextSourceHighlight> highlights)
 {
+    if (TrySetSourceHighlights(highlights) != RichText::SourceResult::Success)
+        Failure::FailContract(E_INVALIDARG);
+}
+RichText::SourceResult RichTextEditor::TrySetSourceHighlights(std::span<const RichTextSourceHighlight> highlights)
+{
+    const Failure::Scope failureScope;
     if (highlights.size() > 4096u)
-        throw std::length_error("Too many rich source highlights");
+        return RichText::SourceResult::CapacityExceeded;
     const auto source = Snapshot();
     for (const auto& highlight : highlights)
         if (highlight.start > source.Length() || highlight.length > source.Length() - highlight.start || ! source.IsBoundary(highlight.start) ||
             ! source.IsBoundary(highlight.start + highlight.length))
-            throw std::invalid_argument("Invalid rich source highlight");
+            return RichText::SourceResult::InvalidRange;
     if (std::ranges::equal(_state->highlights, highlights))
-        return;
+        return RichText::SourceResult::Success;
     std::vector<RichTextSourceHighlight> next(highlights.begin(), highlights.end());
     _state->highlights.swap(next);
     _state->overlayHighlightsDirty = true;
@@ -1551,29 +1608,42 @@ void RichTextEditor::SetSourceHighlights(std::span<const RichTextSourceHighlight
     RequestContentPreparation(false);
     if (! lifetime.expired())
         RequestInvalidate();
+    return RichText::SourceResult::Success;
 }
 void RichTextEditor::SetSearchMatches(const RichText::SourceSnapshot& expectedSource,
                                       std::span<const RichText::MarkdownRange> matches,
                                       std::optional<size_t> activeIndex)
 {
+    if (TrySetSearchMatches(expectedSource, matches, activeIndex) != RichText::SourceResult::Success)
+        Failure::FailContract(E_INVALIDARG);
+}
+RichText::SourceResult RichTextEditor::TrySetSearchMatches(const RichText::SourceSnapshot& expectedSource,
+                                                           std::span<const RichText::MarkdownRange> matches,
+                                                           std::optional<size_t> activeIndex)
+{
+    const Failure::Scope failureScope;
     if (! Snapshot().IsSameRevision(expectedSource))
-        throw std::invalid_argument("Stale search matches");
+        return RichText::SourceResult::Stale;
     if (matches.size() > 4096u)
-        throw std::length_error("Too many search matches");
+        return RichText::SourceResult::CapacityExceeded;
     if (activeIndex && activeIndex.value() >= matches.size())
-        throw std::out_of_range("Invalid active search match");
-    std::vector<RichTextSourceHighlight> highlights(0u);
-    highlights.reserve(matches.size());
+        return RichText::SourceResult::InvalidRange;
     size_t previousEnd = 0u;
     for (size_t i = 0u; i < matches.size(); ++i)
     {
         const auto range = matches[i];
         if (range.first >= range.last || range.first < previousEnd || ! expectedSource.IsBoundary(range.first) || ! expectedSource.IsBoundary(range.last))
-            throw std::invalid_argument("Invalid search match range");
-        highlights.push_back({range.first, range.last - range.first, activeIndex && activeIndex.value() == i});
+            return RichText::SourceResult::InvalidRange;
         previousEnd = range.last;
     }
-    SetSourceHighlights(highlights);
+    std::vector<RichTextSourceHighlight> highlights(0u);
+    highlights.reserve(matches.size());
+    for (size_t i = 0u; i < matches.size(); ++i)
+    {
+        const auto range = matches[i];
+        highlights.push_back({range.first, range.last - range.first, activeIndex && activeIndex.value() == i});
+    }
+    return TrySetSourceHighlights(highlights);
 }
 void RichTextEditor::ClearSourceHighlights() noexcept
 {
@@ -1592,10 +1662,16 @@ std::span<const RichTextSourceHighlight> RichTextEditor::GetSourceHighlights() c
 }
 void RichTextEditor::SetDecorations(const RichText::SourceSnapshot& expectedSource, std::span<const RichTextDecoration> decorations)
 {
+    if (const auto result = TrySetDecorations(expectedSource, decorations); FAILED(result))
+        Failure::FailContract(result);
+}
+HRESULT RichTextEditor::TrySetDecorations(const RichText::SourceSnapshot& expectedSource, std::span<const RichTextDecoration> decorations)
+{
+    const Failure::Scope failureScope;
     if (! Snapshot().IsSameRevision(expectedSource))
-        throw std::invalid_argument("Stale rich decoration source");
+        return HRESULT_FROM_WIN32(ERROR_REVISION_MISMATCH);
     if (decorations.size() > 256u)
-        throw std::length_error("Too many rich decorations");
+        return E_BOUNDS;
     for (const auto& item : decorations)
         if (item.start > expectedSource.Length() || item.length > expectedSource.Length() - item.start || ! expectedSource.IsBoundary(item.start) ||
             ! expectedSource.IsBoundary(item.start + item.length) ||
@@ -1603,9 +1679,9 @@ void RichTextEditor::SetDecorations(const RichText::SourceSnapshot& expectedSour
             static_cast<unsigned>(item.role) > static_cast<unsigned>(RichTextDecorationRole::Error) ||
             static_cast<unsigned>(item.annotation) > static_cast<unsigned>(RichTextAnnotationKind::GrammarError) ||
             (item.annotation != RichTextAnnotationKind::None && item.length == 0u))
-            throw std::invalid_argument("Invalid rich decoration");
+            return E_INVALIDARG;
     if (std::ranges::equal(_state->decorations, decorations))
-        return;
+        return S_OK;
     if (! decorations.empty())
     {
         const auto* host = GetHost();
@@ -1614,9 +1690,10 @@ void RichTextEditor::SetDecorations(const RichText::SourceSnapshot& expectedSour
             size_t rectangleCount = 0u;
             for (const auto& item : decorations)
             {
-                const auto rectangles = _state->layout.SourceRange(item.start, item.start + item.length);
+                std::vector<D2D1_RECT_F> rectangles;
+                RETURN_IF_FAILED(_state->layout.TrySourceRange(item.start, item.start + item.length, rectangles));
                 if (rectangles.size() > _state->decorationRectangleLimit - rectangleCount)
-                    throw std::length_error("Rich decoration rectangle capacity exceeded");
+                    return E_BOUNDS;
                 rectangleCount += rectangles.size();
             }
         }
@@ -1654,6 +1731,7 @@ void RichTextEditor::SetDecorations(const RichText::SourceSnapshot& expectedSour
     RequestContentPreparation(false);
     if (! lifetime.expired())
         RequestInvalidate();
+    return S_OK;
 }
 std::span<const RichTextDecoration> RichTextEditor::GetDecorations() const noexcept
 {
@@ -1687,19 +1765,27 @@ void RichTextEditor::DebugSetDecorationRectangleLimitForTest(size_t limit) noexc
 #endif
 void RichTextEditor::SetDefaultContextMenuLabels(const RichTextContextMenuLabels* labels)
 {
+    if (TrySetDefaultContextMenuLabels(labels) != RichText::SourceResult::Success)
+        Failure::FailContract(E_INVALIDARG);
+}
+RichText::SourceResult RichTextEditor::TrySetDefaultContextMenuLabels(const RichTextContextMenuLabels* labels)
+{
+    const Failure::Scope failureScope;
     if (! labels)
     {
         _state->contextMenuLabels.reset();
-        return;
+        return RichText::SourceResult::Success;
     }
     for (const auto* text : {&labels->undo, &labels->redo, &labels->cut, &labels->copy, &labels->paste, &labels->selectAll, &labels->bold, &labels->italic})
         if (text->empty() || text->size() > 255u || ! RichText::IsValidUtf16(*text))
-            throw std::invalid_argument("Invalid rich context menu label");
+            return RichText::SourceResult::InvalidArgument;
     auto next = std::make_shared<const RichTextContextMenuLabels>(*labels);
     _state->contextMenuLabels.swap(next);
+    return RichText::SourceResult::Success;
 }
 void RichTextEditor::BuildDefaultContextMenuItems(std::vector<MenuFlyoutItem>& out) const
 {
+    const Failure::Scope failureScope;
     std::vector<MenuFlyoutItem> items(0u);
     const auto labels = _state->contextMenuLabels;
     if (! labels)
@@ -1757,11 +1843,17 @@ bool RichTextEditor::IsFocusModeEnabled() const noexcept
 }
 void RichTextEditor::SetMarkdownAnalysisProfile(std::optional<RichText::MarkdownProfile> profile)
 {
+    if (TrySetMarkdownAnalysisProfile(profile) != RichText::SourceResult::Success)
+        Failure::FailContract(E_INVALIDARG);
+}
+RichText::SourceResult RichTextEditor::TrySetMarkdownAnalysisProfile(std::optional<RichText::MarkdownProfile> profile)
+{
+    const Failure::Scope failureScope;
     if (profile && *profile != RichText::MarkdownProfile::CommonMark0312 && *profile != RichText::MarkdownProfile::Gfm029 &&
         *profile != RichText::MarkdownProfile::RichMarkdown)
-        throw std::invalid_argument("Invalid Markdown analysis profile");
+        return RichText::SourceResult::InvalidArgument;
     if (_state->markdownProfile == profile)
-        return;
+        return RichText::SourceResult::Success;
     _state->autoFormatRun.reset();
     _state->smartTypingSite.reset();
     RetireSemanticAccessibility();
@@ -1781,6 +1873,7 @@ void RichTextEditor::SetMarkdownAnalysisProfile(std::optional<RichText::Markdown
     _state->nativeObjectRejections.reset();
     RetireLayout();
     SelectionChanged();
+    return RichText::SourceResult::Success;
 }
 std::optional<RichText::MarkdownProfile> RichTextEditor::GetMarkdownAnalysisProfile() const noexcept
 {
@@ -1788,19 +1881,25 @@ std::optional<RichText::MarkdownProfile> RichTextEditor::GetMarkdownAnalysisProf
 }
 void RichTextEditor::SetMarkdownAnalysisExtensions(std::optional<RichText::MarkdownExtensions> extensions)
 {
+    if (TrySetMarkdownAnalysisExtensions(extensions) != RichText::SourceResult::Success)
+        Failure::FailContract(E_INVALIDARG);
+}
+RichText::SourceResult RichTextEditor::TrySetMarkdownAnalysisExtensions(std::optional<RichText::MarkdownExtensions> extensions)
+{
+    const Failure::Scope failureScope;
     if (extensions)
     {
         if (! _state->markdownProfile)
-            throw std::invalid_argument("Markdown extensions require an analysis profile");
+            return RichText::SourceResult::InvalidArgument;
         const auto profile = *_state->markdownProfile;
         const auto mask    = profile == RichText::MarkdownProfile::RichMarkdown ? RichText::MarkdownExtensions::RichOptionalMask
                              : profile == RichText::MarkdownProfile::Gfm029     ? RichText::MarkdownExtensions::All
                                                                                 : RichText::MarkdownExtensions::None;
         if ((static_cast<unsigned>(*extensions) & ~static_cast<unsigned>(mask)) != 0u)
-            throw std::invalid_argument("Markdown extensions are not supported by this profile");
+            return RichText::SourceResult::InvalidArgument;
     }
     if (_state->markdownExtensions == extensions)
-        return;
+        return RichText::SourceResult::Success;
     _state->markdownExtensions = extensions;
     _state->autoFormatRun.reset();
     _state->smartTypingSite.reset();
@@ -1820,6 +1919,7 @@ void RichTextEditor::SetMarkdownAnalysisExtensions(std::optional<RichText::Markd
     _state->sourceCaretSite = RichText::MarkdownNoNode;
     RetireLayout();
     SelectionChanged();
+    return RichText::SourceResult::Success;
 }
 std::optional<RichText::MarkdownExtensions> RichTextEditor::GetMarkdownAnalysisExtensions() const noexcept
 {
@@ -1859,10 +1959,16 @@ std::shared_ptr<const RichText::MarkdownSyntax> RichTextEditor::GetMarkdownSynta
 }
 void RichTextEditor::SetMarkdownRenderingEnabled(bool enabled)
 {
+    if (TrySetMarkdownRenderingEnabled(enabled) != RichText::SourceResult::Success)
+        Failure::FailContract(E_INVALIDARG);
+}
+RichText::SourceResult RichTextEditor::TrySetMarkdownRenderingEnabled(bool enabled)
+{
+    const Failure::Scope failureScope;
     if (enabled && ! _state->markdownProfile)
-        throw std::invalid_argument("Semantic rendering requires a Markdown analysis profile");
+        return RichText::SourceResult::InvalidArgument;
     if (_state->markdownRendering == enabled)
-        return;
+        return RichText::SourceResult::Success;
     // Allocate only for the semantic opt-in, before changing any live state.
     // Retirement itself is one atomic increment and must survive allocation
     // failure or a delayed/failed accessibility snapshot publication.
@@ -1880,6 +1986,7 @@ void RichTextEditor::SetMarkdownRenderingEnabled(bool enabled)
     _state->nativeGeometryRejected.reset();
     RetireLayout();
     SelectionChanged();
+    return RichText::SourceResult::Success;
 }
 bool RichTextEditor::IsMarkdownRenderingEnabled() const noexcept
 {
@@ -1942,7 +2049,9 @@ std::optional<D2D1_RECT_F> RichTextEditor::GetSemanticElementBounds(const Contro
     const auto document = GetAcknowledgedSemanticDocument(host);
     if (! document || element >= document->Elements().size())
         return std::nullopt;
-    auto bounds = _state->layout.SemanticGeometry()->ElementBounds(element);
+    std::optional<D2D1_RECT_F> bounds;
+    if (FAILED(_state->layout.SemanticGeometry()->TryElementBounds(element, bounds)))
+        return std::nullopt;
     if (bounds)
     {
         const auto viewport = TextViewport();
@@ -1973,17 +2082,24 @@ bool RichTextEditor::ToggleSemanticTask(ControlHost& host, const std::shared_ptr
     }
     const wchar_t value = task.task == MarkdownTask::Checked ? L' ' : L'x';
     const SourceEdit edit{{task.taskMarker.first + 1u, task.taskMarker.first + 2u}, std::wstring_view(&value, 1u)};
-    const bool changed      = RichText::ApplySourceEdits(_state->document, Snapshot(), Revision(), std::span(&edit, 1u), GetSelection());
+    bool changed{};
+    if (RichText::TryApplySourceEdits(_state->document, Snapshot(), Revision(), std::span(&edit, 1u), GetSelection(), changed) != SourceResult::Success)
+        return false;
     _state->sourceCaretSite = MarkdownNoNode;
     Changed(changed);
     return changed;
 }
 void RichTextEditor::SetTaskTogglePolicy(RichTextTaskTogglePolicy policy)
 {
+    if (TrySetTaskTogglePolicy(policy) != RichText::SourceResult::Success)
+        Failure::FailContract(E_INVALIDARG);
+}
+RichText::SourceResult RichTextEditor::TrySetTaskTogglePolicy(RichTextTaskTogglePolicy policy)
+{
     if (policy != RichTextTaskTogglePolicy::EditableOnly && policy != RichTextTaskTogglePolicy::AlwaysInteractive)
-        throw std::invalid_argument("Invalid task toggle policy");
+        return RichText::SourceResult::InvalidSource;
     if (_state->taskTogglePolicy == policy)
-        return;
+        return RichText::SourceResult::Success;
     _state->taskTogglePolicy = policy;
     _state->taskPressPlan.reset();
     _state->taskFocusIntent.reset();
@@ -1991,6 +2107,7 @@ void RichTextEditor::SetTaskTogglePolicy(RichTextTaskTogglePolicy policy)
     _state->keyboardNavigationElement = RichText::MarkdownNoNode;
     RetireSemanticAccessibility();
     RequestInvalidate();
+    return RichText::SourceResult::Success;
 }
 RichTextTaskTogglePolicy RichTextEditor::GetTaskTogglePolicy() const noexcept
 {
@@ -2085,15 +2202,16 @@ bool RichTextEditor::NavigateSemanticElement(ControlHost& host, const std::share
             const RichTextLinkActivation activation{link.source, link.destination, link.title, link.name, link.wiki};
             try
             {
+                const Failure::Scope callbackFailureScope;
                 (*callback)(activation);
             }
             catch (const std::bad_alloc&)
             {
-                std::terminate(); // Same application-notification contract as text and selection callbacks.
+                Failure::FailAllocation();
             }
             catch (const std::exception&)
             {
-                Debug::Warning(L"DxUi::RichTextEditor: link notification failed; source retained.");
+                Failure::FailUnexpected();
             }
             return true; // A dispatched intent remains handled if the callback retires its owner.
         }
@@ -2111,6 +2229,7 @@ bool RichTextEditor::NavigateSemanticElement(ControlHost& host, const std::share
 }
 void RichTextEditor::SetOnLinkActivated(std::function<void(const RichTextLinkActivation&)> callback)
 {
+    const Failure::Scope failureScope;
     auto next                      = callback ? std::make_shared<const std::function<void(const RichTextLinkActivation&)>>(std::move(callback)) : nullptr;
     const bool availabilityChanged = bool(next) != bool(_state->onLinkActivated);
     _state->onLinkActivated.swap(next);
@@ -2126,6 +2245,7 @@ bool RichTextEditor::HasLinkActivationHandler() const noexcept
 }
 void RichTextEditor::SetOnImageActivated(std::function<void(const RichTextImageActivation&)> callback)
 {
+    const Failure::Scope failureScope;
     auto next = callback ? std::make_shared<const std::function<void(const RichTextImageActivation&)>>(std::move(callback)) : nullptr;
     _state->onImageActivated.swap(next);
 }
@@ -2152,15 +2272,16 @@ bool RichTextEditor::ActivateSemanticImage(ControlHost& host, const std::shared_
     const RichTextImageActivation activation{image.source, image.destination, image.title, image.name, image.wiki};
     try
     {
+        const Failure::Scope callbackFailureScope;
         (*callback)(activation);
     }
     catch (const std::bad_alloc&)
     {
-        std::terminate(); // Application notification allocation failure is fatal.
+        Failure::FailAllocation();
     }
     catch (const std::exception&)
     {
-        Debug::Warning(L"DxUi::RichTextEditor: image notification failed; source retained.");
+        Failure::FailUnexpected();
     }
     return true; // The callback may have retired this owner.
 }
@@ -2330,7 +2451,9 @@ bool RichTextEditor::ReplaceSelection(std::wstring text)
 {
     if (! Editable())
         return false;
-    const bool changed = _state->document.ReplaceSelection(std::move(text));
+    bool changed{};
+    if (_state->document.TryReplaceSelection(text, changed) != RichText::SourceResult::Success)
+        return false;
     Changed(changed);
     return changed;
 }
@@ -2338,7 +2461,9 @@ bool RichTextEditor::ToggleFormatting(std::wstring_view marker)
 {
     if (! Editable())
         return false;
-    const bool changed = RichText::ToggleMarker(_state->document, marker);
+    bool changed{};
+    if (RichText::TryToggleMarker(_state->document, marker, changed) != RichText::SourceResult::Success)
+        return false;
     Changed(changed);
     return changed;
 }
@@ -2349,7 +2474,9 @@ bool RichTextEditor::ApplySourceEdits(const RichText::SourceSnapshot& expectedSo
 {
     if (! Editable())
         return false;
-    const bool changed      = RichText::ApplySourceEdits(_state->document, expectedSource, expectedRevision, edits, after);
+    bool changed{};
+    if (RichText::TryApplySourceEdits(_state->document, expectedSource, expectedRevision, edits, after, changed) != RichText::SourceResult::Success)
+        return false;
     _state->sourceCaretSite = RichText::MarkdownNoNode;
     Changed(changed);
     return changed;
@@ -2376,6 +2503,7 @@ void RichTextEditor::CancelSourceMove() noexcept
 }
 void RichTextEditor::SetOnSourceDragRequested(std::function<void(const RichTextSourceMove&, std::wstring_view)> callback)
 {
+    const Failure::Scope failureScope;
     auto next = callback ? std::make_shared<const std::function<void(const RichTextSourceMove&, std::wstring_view)>>(std::move(callback)) : nullptr;
     _state->onSourceDragRequested.swap(next);
     CancelSourceMove();
@@ -2411,11 +2539,20 @@ bool RichTextEditor::CompleteExternalSourceMove(const RichTextSourceMove& move)
 }
 void RichTextEditor::SetSearchQuery(std::wstring_view query, RichText::SourceSearchOptions options)
 {
-    if (query.size() > RichText::Document::MaximumUnits || ! RichText::IsValidSourceUtf16(query))
-        throw std::invalid_argument("Invalid search query");
+    if (TrySetSearchQuery(query, options) != RichText::SourceResult::Success)
+        Failure::FailContract(E_INVALIDARG);
+}
+RichText::SourceResult RichTextEditor::TrySetSearchQuery(std::wstring_view query, RichText::SourceSearchOptions options)
+{
+    const Failure::Scope failureScope;
+    if (query.size() > RichText::Document::MaximumUnits)
+        return RichText::SourceResult::CapacityExceeded;
+    if (! RichText::IsValidSourceUtf16(query))
+        return RichText::SourceResult::InvalidSource;
     std::wstring staged(query);
     _state->searchQuery.swap(staged);
     _state->searchOptions = options;
+    return RichText::SourceResult::Success;
 }
 void RichTextEditor::SetSearchShortcutsEnabled(bool enabled) noexcept
 {
@@ -2423,6 +2560,7 @@ void RichTextEditor::SetSearchShortcutsEnabled(bool enabled) noexcept
 }
 void RichTextEditor::SetOnFindRequested(std::function<void()> callback)
 {
+    const Failure::Scope failureScope;
     auto next = callback ? std::make_shared<const std::function<void()>>(std::move(callback)) : nullptr;
     _state->onFindRequested.swap(next);
 }
@@ -2460,12 +2598,13 @@ bool RichTextEditor::IsMarkdownAutoFormatEnabled() const noexcept
 }
 void RichTextEditor::SetOnLinkEditRequested(std::function<void()> callback)
 {
+    const Failure::Scope failureScope;
     auto next = callback ? std::make_shared<const std::function<void()>>(std::move(callback)) : nullptr;
     _state->onLinkEditRequested.swap(next);
 }
 bool RichTextEditor::SelectSourceMatch(std::wstring_view query, bool backwards, RichText::SourceSearchOptions options)
 {
-    if (! IsEnabled())
+    if (! IsEnabled() || ! RichText::IsValidSourceUtf16(query))
         return false;
     if (auto* host = GetHost(); host && host->GetFocusControl() == this)
     {
@@ -2474,7 +2613,9 @@ bool RichTextEditor::SelectSourceMatch(std::wstring_view query, bool backwards, 
         if ((host->HasActiveNativeTextInputSession() && ! available) || (available && (input.compositionStartIndex || input.compositionEndIndex)))
             return false;
     }
-    const auto matches = RichText::FindInSource(Snapshot(), query, options);
+    std::vector<RichText::MarkdownRange> matches(0u);
+    if (RichText::TryFindInSource(Snapshot(), query, matches, options) != RichText::SourceResult::Success)
+        return false;
     if (matches.empty())
         return false;
     const auto selection = GetSelection();
@@ -2509,11 +2650,13 @@ size_t RichTextEditor::ReplaceAllSourceMatches(std::wstring_view query, std::wst
         if ((host->HasActiveNativeTextInputSession() && ! available) || (available && (input.compositionStartIndex || input.compositionEndIndex)))
             return 0u;
     }
-    if (replacement.size() > RichText::Document::MaximumUnits)
-        throw std::length_error("Search replacement exceeds source capacity");
+    if (replacement.size() > RichText::Document::MaximumUnits || ! RichText::IsValidSourceUtf16(replacement) || ! RichText::IsValidSourceUtf16(query))
+        return 0u;
     const auto source   = Snapshot();
     const auto revision = Revision();
-    const auto matches  = RichText::FindInSource(source, query, options);
+    std::vector<RichText::MarkdownRange> matches(0u);
+    if (RichText::TryFindInSource(source, query, matches, options) != RichText::SourceResult::Success)
+        return 0u;
     if (matches.empty())
         return 0u;
     std::vector<RichText::SourceEdit> edits(0u);
@@ -2533,13 +2676,15 @@ bool RichTextEditor::ReplaceSelectedSourceMatch(std::wstring_view query, std::ws
         if ((host->HasActiveNativeTextInputSession() && ! composition) || composition.value_or(false))
             return false;
     }
-    if (replacement.size() > RichText::Document::MaximumUnits)
-        throw std::length_error("Search replacement exceeds source capacity");
+    if (replacement.size() > RichText::Document::MaximumUnits || ! RichText::IsValidSourceUtf16(replacement) || ! RichText::IsValidSourceUtf16(query))
+        return false;
     const auto source    = Snapshot();
     const auto revision  = Revision();
     const auto selection = GetSelection();
-    const auto matches   = RichText::FindInSource(source, query, options);
-    const auto found     = std::ranges::find(matches, RichText::MarkdownRange{selection.Start(), selection.End()});
+    std::vector<RichText::MarkdownRange> matches(0u);
+    if (RichText::TryFindInSource(source, query, matches, options) != RichText::SourceResult::Success)
+        return false;
+    const auto found = std::ranges::find(matches, RichText::MarkdownRange{selection.Start(), selection.End()});
     if (found == matches.end())
         return false;
     const RichText::SourceEdit edit{*found, replacement};
@@ -2555,7 +2700,7 @@ RichText::MarkdownCommandStatus RichTextEditor::ApplyMarkdownCommand(const RichT
     if (! syntax)
         return MarkdownCommandStatus::Unavailable;
     if (syntax != plan.Syntax())
-        throw std::invalid_argument("Stale Markdown command syntax publication");
+        return MarkdownCommandStatus::Unavailable;
     if (MarkdownCommandInputBlocked(GetHost(), this))
         return MarkdownCommandStatus::Unavailable;
     auto site = MarkdownNoNode;
@@ -2567,7 +2712,9 @@ RichText::MarkdownCommandStatus RichTextEditor::ApplyMarkdownCommand(const RichT
             return MarkdownCommandStatus::Unavailable;
         site = geometry->SourceSiteForSyntaxNode(plan.AfterCell());
     }
-    const bool changed = RichText::ApplyMarkdownCommand(_state->document, plan);
+    bool changed{};
+    if (RichText::TryApplyMarkdownCommand(_state->document, plan, changed) != RichText::SourceResult::Success)
+        return MarkdownCommandStatus::Unavailable;
     if (! plan.IsApplicable())
         return MarkdownCommandStatus::Unavailable;
     _state->sourceCaretSite = changed ? MarkdownNoNode : site;
@@ -2576,8 +2723,9 @@ RichText::MarkdownCommandStatus RichTextEditor::ApplyMarkdownCommand(const RichT
     // access follows it; the result describes this committed attempt.
     return changed ? MarkdownCommandStatus::Changed : MarkdownCommandStatus::Unchanged;
 }
-RichText::MarkdownCommandPlan RichTextEditor::BuildCurrentMarkdownCommand(const RichText::MarkdownCommandRequest& request,
-                                                                          const std::shared_ptr<const RichText::MarkdownSyntax>& syntax) const
+RichText::SourceResult RichTextEditor::TryBuildCurrentMarkdownCommand(const RichText::MarkdownCommandRequest& request,
+                                                                      const std::shared_ptr<const RichText::MarkdownSyntax>& syntax,
+                                                                      std::optional<RichText::MarkdownCommandPlan>& output) const
 {
     using namespace RichText;
     auto resolved = request;
@@ -2587,7 +2735,7 @@ RichText::MarkdownCommandPlan RichTextEditor::BuildCurrentMarkdownCommand(const 
         {
             const auto marker = reference->rfind(L"](");
             if (marker == reference->npos || reference->empty() || reference->back() != L')')
-                throw std::logic_error("Invalid generated file reference");
+                return SourceResult::InvalidSource;
             imageDestination.assign(*reference, marker + 2u, reference->size() - marker - 3u);
             resolved.destination = imageDestination;
         }
@@ -2601,7 +2749,7 @@ RichText::MarkdownCommandPlan RichTextEditor::BuildCurrentMarkdownCommand(const 
                 if (node < syntax->Nodes().size() && syntax->Nodes()[node].block.kind == MarkdownBlockKind::TableCell)
                     resolved.targetCell = node;
             }
-    return BuildMarkdownCommand(Snapshot(), Revision(), syntax, GetSelection(), resolved);
+    return TryBuildMarkdownCommand(Snapshot(), Revision(), syntax, GetSelection(), resolved, output);
 }
 RichText::MarkdownCommandStatus RichTextEditor::ExecuteMarkdownCommand(const RichText::MarkdownCommandRequest& request)
 {
@@ -2611,21 +2759,25 @@ RichText::MarkdownCommandStatus RichTextEditor::ExecuteMarkdownCommand(const Ric
     const auto syntax = GetMarkdownSyntax();
     if (! syntax)
         return MarkdownCommandStatus::Unavailable;
-    const auto plan = BuildCurrentMarkdownCommand(request, syntax);
-    return ApplyMarkdownCommand(plan);
+    std::optional<MarkdownCommandPlan> plan;
+    if (TryBuildCurrentMarkdownCommand(request, syntax, plan) != SourceResult::Success)
+        return MarkdownCommandStatus::Unavailable;
+    return ApplyMarkdownCommand(plan.value());
 }
 bool RichTextEditor::PrepareMarkdownCommandState(const RichText::MarkdownCommandRequest& request)
 {
     using namespace RichText;
     if (request.text.size() > Document::MaximumUnits || request.destination.size() > Document::MaximumUnits || request.title.size() > Document::MaximumUnits)
-        throw std::length_error("Structural request text exceeds source capacity");
+        return false;
     if (! Editable() || ! _state->markdownRendering || _state->mode != ViewMode::Rich || _state->sourceEditing || MarkdownCommandInputBlocked(GetHost(), this))
         return false;
     const auto document = GetSemanticDocument();
     const auto syntax   = GetMarkdownSyntax();
     if (! document || ! syntax || document->Syntax() != syntax)
         return false;
-    const auto plan             = BuildCurrentMarkdownCommand(request, syntax);
+    std::optional<MarkdownCommandPlan> plan;
+    if (TryBuildCurrentMarkdownCommand(request, syntax, plan) != SourceResult::Success)
+        return false;
     const auto source           = Snapshot();
     auto next                   = std::make_unique<State::PreparedCommandState>(request, source, syntax);
     const auto* host            = GetHost();
@@ -2637,7 +2789,7 @@ bool RichTextEditor::PrepareMarkdownCommandState(const RichText::MarkdownCommand
     next->bindingRevision       = _state->bindingRevision;
     next->imageLocationRevision = _state->imageLocationRevision;
     next->sourceCaretSite       = _state->sourceCaretSite;
-    next->available             = plan.IsApplicable() && (plan.AfterCell() == MarkdownNoNode || (next->layoutCurrent && next->geometry));
+    next->available             = plan->IsApplicable() && (plan->AfterCell() == MarkdownNoNode || (next->layoutCurrent && next->geometry));
     _state->preparedCommand.swap(next);
     return true;
 }
@@ -2796,6 +2948,7 @@ bool RichText::TokenizeBuiltinCode(std::wstring_view language, std::wstring_view
 }
 void RichTextEditor::SetCodeTokenizer(RichText::CodeTokenizer tokenizer)
 {
+    const Failure::Scope failureScope;
     auto next = tokenizer ? std::make_shared<const RichText::CodeTokenizer>(std::move(tokenizer)) : nullptr;
     _state->codeTokenizer.swap(next);
     _state->codeInkDocument.reset();
@@ -2807,11 +2960,13 @@ void RichTextEditor::SetCodeTokenizer(RichText::CodeTokenizer tokenizer)
 }
 void RichTextEditor::SetHtmlPasteConverter(std::function<std::optional<std::wstring>(std::wstring_view)> converter)
 {
+    const Failure::Scope failureScope;
     auto next = converter ? std::make_shared<const std::function<std::optional<std::wstring>(std::wstring_view)>>(std::move(converter)) : nullptr;
     _state->htmlPasteConverter.swap(next);
 }
 void RichTextEditor::SetBitmapPasteHandler(std::function<std::optional<std::wstring>(std::span<const std::byte>, bool)> handler)
 {
+    const Failure::Scope failureScope;
     auto next = handler ? std::make_shared<const std::function<std::optional<std::wstring>(std::span<const std::byte>, bool)>>(std::move(handler)) : nullptr;
     _state->bitmapPasteHandler.swap(next);
 }
@@ -2825,8 +2980,14 @@ bool RichTextEditor::HasHtmlPasteConverter() const noexcept
 }
 void RichTextEditor::SetOnCodeCopyRequested(std::function<void(std::wstring_view)> callback, std::wstring accessibleName)
 {
+    if (TrySetOnCodeCopyRequested(std::move(callback), std::move(accessibleName)) != RichText::SourceResult::Success)
+        Failure::FailContract(E_INVALIDARG);
+}
+RichText::SourceResult RichTextEditor::TrySetOnCodeCopyRequested(std::function<void(std::wstring_view)> callback, std::wstring accessibleName)
+{
+    const Failure::Scope failureScope;
     if (callback && (accessibleName.empty() || accessibleName.size() > 1024u || ! RichText::IsValidUtf16(accessibleName)))
-        throw std::invalid_argument("Invalid code copy accessible name");
+        return RichText::SourceResult::InvalidArgument;
     auto next                    = callback ? std::make_shared<const std::function<void(std::wstring_view)>>(std::move(callback)) : nullptr;
     const bool visibilityChanged = bool(next) != bool(_state->onCodeCopyRequested);
     const bool labelChanged      = _state->codeCopyAccessibleName != accessibleName;
@@ -2840,6 +3001,7 @@ void RichTextEditor::SetOnCodeCopyRequested(std::function<void(std::wstring_view
             RetireLayout();
         RequestInvalidate(); // Scheduling may retire the owner; no member access follows.
     }
+    return RichText::SourceResult::Success;
 }
 std::wstring_view RichTextEditor::GetCodeCopyAccessibleName() const noexcept
 {
@@ -2857,8 +3019,10 @@ std::optional<D2D1_RECT_F> RichTextEditor::GetSemanticCodeCopyBounds(const Contr
         (nodes[value.syntaxNode].block.kind != RichText::MarkdownBlockKind::FencedCode &&
          nodes[value.syntaxNode].block.kind != RichText::MarkdownBlockKind::IndentedCode))
         return std::nullopt;
-    const auto frame = _state->layout.SemanticGeometry()->ElementBounds(element);
-    auto bounds      = frame ? RichText::Detail::CodeCopyBounds(*frame, IsRightToLeft()) : std::nullopt;
+    std::optional<D2D1_RECT_F> frame;
+    if (FAILED(_state->layout.SemanticGeometry()->TryElementBounds(element, frame)))
+        return std::nullopt;
+    auto bounds = frame ? RichText::Detail::CodeCopyBounds(*frame, IsRightToLeft()) : std::nullopt;
     if (! bounds)
         return std::nullopt;
     const auto viewport = TextViewport();
@@ -2883,24 +3047,27 @@ HRESULT RichTextEditor::InvokeSemanticCodeCopy(ControlHost& host, const std::sha
              nodes[value.syntaxNode].block.kind != RichText::MarkdownBlockKind::IndentedCode))
             return UIA_E_ELEMENTNOTAVAILABLE;
         const auto callback = _state->onCodeCopyRequested;
+        const Failure::Scope callbackFailureScope;
         (*callback)(CodeCopyText(*document, value));
         return S_OK; // The callback may retire this owner.
     }
     catch (const std::bad_alloc&)
     {
-        return E_OUTOFMEMORY;
+        Failure::FailAllocation();
     }
     catch (const std::exception&)
     {
-        return E_FAIL; // Callback failure does not edit source.
+        Failure::FailUnexpected();
     }
 }
 void RichTextEditor::SetOnTextChanged(std::function<void()> callback)
 {
+    const Failure::Scope failureScope;
     _state->onTextChanged = callback ? std::make_shared<const std::function<void()>>(std::move(callback)) : nullptr;
 }
 void RichTextEditor::SetOnSelectionChanged(std::function<void()> callback)
 {
+    const Failure::Scope failureScope;
     auto next                          = callback ? std::make_shared<const std::function<void()>>(std::move(callback)) : nullptr;
     _state->publishedSelection         = GetSelection();
     _state->publishedSelectionGesture  = _state->dragging;
@@ -2917,6 +3084,7 @@ std::optional<RichTextScrollInfo> RichTextEditor::GetScrollInfo() const noexcept
 }
 void RichTextEditor::SetOnScrollChanged(std::function<void(float)> callback)
 {
+    const Failure::Scope failureScope;
     auto next                  = callback ? std::make_shared<const std::function<void(float)>>(std::move(callback)) : nullptr;
     _state->publishedScrollDip = _state->scrollDip;
     _state->onScrollChanged.swap(next);
@@ -2932,16 +3100,16 @@ void RichTextEditor::PublishScrollChanged() noexcept
         return;
     try
     {
+        const Failure::Scope callbackFailureScope;
         (*callback)(offset);
     }
     catch (const std::bad_alloc&)
     {
-        // As with committed text/selection observers, allocation failure is fatal.
-        std::terminate();
+        Failure::FailAllocation();
     }
     catch (const std::exception&)
     {
-        Debug::Warning(L"DxUi::RichTextEditor: scroll notification failed; committed offset retained.");
+        Failure::FailUnexpected();
     }
     // The observer may detach or destroy this editor. No owner reads follow.
 }
@@ -2985,6 +3153,7 @@ std::optional<RichTextHorizontalScrollInfo> RichTextEditor::GetHorizontalScrollI
 }
 void RichTextEditor::SetOnHorizontalScrollChanged(std::function<void(float)> callback)
 {
+    const Failure::Scope failureScope;
     auto next                            = callback ? std::make_shared<const std::function<void(float)>>(std::move(callback)) : nullptr;
     _state->publishedHorizontalScrollDip = _state->horizontalScrollDip;
     _state->onHorizontalScrollChanged.swap(next);
@@ -3000,15 +3169,16 @@ void RichTextEditor::PublishHorizontalScrollChanged() noexcept
         return;
     try
     {
+        const Failure::Scope callbackFailureScope;
         (*callback)(offset);
     }
     catch (const std::bad_alloc&)
     {
-        std::terminate();
+        Failure::FailAllocation();
     }
     catch (const std::exception&)
     {
-        Debug::Warning(L"DxUi::RichTextEditor: horizontal scroll notification failed; committed offset retained.");
+        Failure::FailUnexpected();
     }
 }
 float RichTextEditor::SourceGutterWidth() const noexcept
@@ -3082,17 +3252,16 @@ void RichTextEditor::PublishSelectionChanged() noexcept
         return;
     try
     {
+        const Failure::Scope callbackFailureScope;
         (*callback)();
     }
     catch (const std::bad_alloc&)
     {
-        // Allocation failure is fatal at the native notification boundary.
-        std::terminate();
+        Failure::FailAllocation();
     }
     catch (const std::exception&)
     {
-        // Selection is already committed; a failed notification cannot undo it.
-        Debug::Warning(L"DxUi::RichTextEditor: selection notification failed; committed selection retained.");
+        Failure::FailUnexpected();
     }
     // The callback may have destroyed or detached this control. No owner reads.
 }
@@ -3170,17 +3339,16 @@ void RichTextEditor::Changed(bool sourceChanged, bool synchronizeTextInput)
     {
         try
         {
+            const Failure::Scope callbackFailureScope;
             (*callback)();
         }
         catch (const std::bad_alloc&)
         {
-            // Allocation failure is fatal at this native notification boundary.
-            std::terminate();
+            Failure::FailAllocation();
         }
         catch (const std::exception&)
         {
-            // The source edit is committed; notification failure cannot roll it back.
-            Debug::Warning(L"DxUi::RichTextEditor: text notification failed; committed source retained.");
+            Failure::FailUnexpected();
         }
     }
     // The text callback may replace its own registration; that must not suppress
@@ -3323,7 +3491,7 @@ bool RichTextEditor::AcceptsTextInputDuringPreparation() const noexcept
 {
     return true; // Source/selection/transactions are independent of glyph preparation.
 }
-void RichTextEditor::PrepareOverlayGeometry(ControlHost& host)
+HRESULT RichTextEditor::PrepareOverlayGeometry(ControlHost& host)
 {
     auto& state        = *_state;
     const auto& layout = state.layout;
@@ -3337,7 +3505,8 @@ void RichTextEditor::PrepareOverlayGeometry(ControlHost& host)
     if (state.overlaySelectionDirty)
     {
         const auto selection = GetSelection();
-        auto selected        = layout.SourceRange(selection.Start(), selection.End());
+        std::vector<D2D1_RECT_F> selected;
+        RETURN_IF_FAILED(layout.TrySourceRange(selection.Start(), selection.End(), selected));
         wil::com_ptr<ID2D1PathGeometry> mask;
         wil::com_ptr<ID2D1Layer> layer = state.selectionLayer;
         const auto viewport            = TextViewport();
@@ -3345,12 +3514,13 @@ void RichTextEditor::PrepareOverlayGeometry(ControlHost& host)
         if (selected.size() > 1u)
         {
             auto* context = host.GetDeviceContext();
-            THROW_HR_IF(E_UNEXPECTED, ! context);
+            if (! context)
+                return E_UNEXPECTED;
             wil::com_ptr<ID2D1Factory> factory;
             context->GetFactory(factory.put());
-            THROW_IF_FAILED(factory->CreatePathGeometry(mask.put()));
+            RETURN_IF_FAILED(factory->CreatePathGeometry(mask.put()));
             wil::com_ptr<ID2D1GeometrySink> sink;
-            THROW_IF_FAILED(mask->Open(sink.put()));
+            RETURN_IF_FAILED(mask->Open(sink.put()));
             sink->SetFillMode(D2D1_FILL_MODE_WINDING);
             for (const auto& rectangle : selected)
             {
@@ -3360,21 +3530,19 @@ void RichTextEditor::PrepareOverlayGeometry(ControlHost& host)
                 sink->AddLine(D2D1::Point2F(rectangle.left, rectangle.bottom));
                 sink->EndFigure(D2D1_FIGURE_END_CLOSED);
             }
-            THROW_IF_FAILED(sink->Close());
+            RETURN_IF_FAILED(sink->Close());
             if (! layer || state.selectionLayerWidth != width || state.selectionLayerHeight != height ||
                 state.selectionLayerGeneration != host.GetResourceGeneration())
-                THROW_IF_FAILED(context->CreateLayer(D2D1::SizeF(width, height), layer.put()));
+                RETURN_IF_FAILED(context->CreateLayer(D2D1::SizeF(width, height), layer.put()));
         }
         std::vector<D2D1_RECT_F> composition(0u), conversion(0u);
         NativeTextInputState input{.text = std::wstring(0u, L' '), .compositionClauseBoundaries = std::vector<size_t>(0u)};
         if (host.TryReadNativeTextInputState(this, input) && layout.SourceMatches(input.text) && input.compositionStartIndex && input.compositionEndIndex)
         {
-            auto staged = layout.SourceRange(*input.compositionStartIndex, *input.compositionEndIndex);
-            composition.swap(staged);
+            RETURN_IF_FAILED(layout.TrySourceRange(*input.compositionStartIndex, *input.compositionEndIndex, composition));
             if (input.conversionTargetStartIndex && input.conversionTargetEndIndex)
             {
-                auto target = layout.SourceRange(*input.conversionTargetStartIndex, *input.conversionTargetEndIndex);
-                conversion.swap(target);
+                RETURN_IF_FAILED(layout.TrySourceRange(*input.conversionTargetStartIndex, *input.conversionTargetEndIndex, conversion));
             }
         }
         state.selectionRectangles.swap(selected);
@@ -3404,8 +3572,12 @@ void RichTextEditor::PrepareOverlayGeometry(ControlHost& host)
             }
         UnionHighlights(state.highlights, atomic, normalized);
         for (const auto& highlight : normalized)
-            for (const auto& rectangle : layout.SourceRange(highlight.start, highlight.start + highlight.length))
+        {
+            std::vector<D2D1_RECT_F> mapped;
+            RETURN_IF_FAILED(layout.TrySourceRange(highlight.start, highlight.start + highlight.length, mapped));
+            for (const auto& rectangle : mapped)
                 rectangles.push_back({rectangle, highlight.current});
+        }
         std::ranges::sort(rectangles, [](const auto& a, const auto& b) {
             return a.rectangle.top < b.rectangle.top || (a.rectangle.top == b.rectangle.top && a.current < b.current);
         });
@@ -3419,7 +3591,8 @@ void RichTextEditor::PrepareOverlayGeometry(ControlHost& host)
         }
         for (const auto& decoration : state.decorations)
         {
-            const auto mapped = layout.SourceRange(decoration.start, decoration.start + decoration.length);
+            std::vector<D2D1_RECT_F> mapped;
+            RETURN_IF_FAILED(layout.TrySourceRange(decoration.start, decoration.start + decoration.length, mapped));
             if (mapped.size() > state.decorationRectangleLimit - decorations.size())
             {
                 decorationCapacityExceeded = true;
@@ -3457,6 +3630,7 @@ void RichTextEditor::PrepareOverlayGeometry(ControlHost& host)
                                                                     : RichTextDecorationStatus::Ready;
         state.overlayHighlightsDirty = false;
     }
+    return S_OK;
 }
 void RichTextEditor::CancelContentPreparation() noexcept
 {
@@ -3465,8 +3639,8 @@ void RichTextEditor::CancelContentPreparation() noexcept
 }
 HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
 {
-    auto& state                = *_state;
-    bool richPreparationActive = false;
+    const Failure::Scope failureScope;
+    auto& state = *_state;
     if (state.codeCallbackActive)
         return S_FALSE;
     state.lastAdvanceLayouts = state.lastAdvanceBlockSteps = 0u;
@@ -3565,10 +3739,7 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
             }
             catch (const std::bad_alloc&)
             {
-                // Do not publish a partial rejection set on allocation failure.
-                state.layout.Invalidate();
-                state.requestActive = false;
-                return E_OUTOFMEMORY;
+                Failure::FailAllocation();
             }
             state.nativeGeometryRejected.emplace(value,
                                                  std::max(1.0f, TextViewport().right - TextViewport().left),
@@ -3664,12 +3835,13 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
         if (LayoutIsCurrent(host))
         {
             prepareSemanticBrushes();
-            UpdateCaretScroll();
-            PrepareOverlayGeometry(host);
+            RETURN_IF_FAILED(UpdateCaretScroll());
+            RETURN_IF_FAILED(PrepareOverlayGeometry(host));
             const auto codeInk = PrepareCodeInk(state.mode == RichText::ViewMode::Rich && state.layout.Semantic() ? GetSemanticDocument() : nullptr);
             if (codeInk != S_OK)
                 return codeInk;
-            const auto result          = PrepareSourceInk() && PrepareSourceGuides(host) ? S_OK : S_FALSE;
+            const auto result = PrepareSourceInk() ? PrepareSourceGuides(host) : S_FALSE;
+            RETURN_IF_FAILED(result);
             const auto lifetime        = GetLifetimeToken();
             const auto callbackBinding = state.bindingRevision, callbackRevision = Revision();
             PublishHorizontalScrollChanged();
@@ -3687,10 +3859,23 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
                     // Parsing resumes its own cursors, without DirectWrite or a
                     // per-control worker. Semantic preparation consumes only a
                     // completed current tree within the remaining owner-turn budget.
-                    if (state.sourceEditing)
-                        state.markdown.BeginSourceRegion(Snapshot(), Revision(), state.sourceEditing->region, *state.markdownProfile, state.markdownExtensions);
-                    else
-                        state.markdown.Begin(Snapshot(), Revision(), *state.markdownProfile, state.markdownExtensions);
+                    const auto admission = state.sourceEditing
+                                               ? state.markdown.TryBeginSourceRegion(
+                                                     Snapshot(), Revision(), state.sourceEditing->region, *state.markdownProfile, state.markdownExtensions)
+                                               : state.markdown.TryBegin(Snapshot(), Revision(), *state.markdownProfile, state.markdownExtensions);
+                    if (admission != RichText::MarkdownResult::Success)
+                    {
+                        state.markdown.Cancel();
+                        state.markdownRequestActive = false;
+                        if (admission == RichText::MarkdownResult::CapacityExceeded)
+                        {
+                            state.semantic.Clear();
+                            state.semanticRejected.reset();
+                            state.nativeGeometryRejected.reset();
+                            state.markdownCapacityRejected.emplace(Snapshot(), Revision(), *state.markdownProfile);
+                        }
+                        return S_FALSE;
+                    }
                     state.markdownRequestRevision = Revision();
                     state.markdownRequestActive   = true;
                 }
@@ -3700,21 +3885,22 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
                 if (advance.status == RichText::MarkdownPreparationStatus::Pending)
                     return S_FALSE;
                 state.markdownRequestActive = false;
+                if (advance.status == RichText::MarkdownPreparationStatus::Failed)
+                {
+                    if (advance.result != RichText::MarkdownResult::CapacityExceeded)
+                        return E_FAIL;
+                    state.semantic.Clear();
+                    state.semanticRejected.reset();
+                    state.nativeGeometryRejected.reset();
+                    state.markdownCapacityRejected.emplace(Snapshot(), Revision(), *state.markdownProfile);
+                }
                 if (state.sourceEditing)
                     if (const auto syntax = GetMarkdownSyntax())
                         state.sourceEditing->region = *syntax->SourceRegion();
             }
             catch (const std::length_error&)
             {
-                // This exact request cannot fit the rich preview. Retain its
-                // shared source identity without copying text or inventing a
-                // partial tree. Memory failures remain separately retryable.
-                state.markdown.Cancel();
-                state.markdownRequestActive = false;
-                state.semantic.Clear();
-                state.semanticRejected.reset();
-                state.nativeGeometryRejected.reset();
-                state.markdownCapacityRejected.emplace(Snapshot(), Revision(), *state.markdownProfile);
+                Failure::FailUnexpected();
             }
         }
         const auto currentSyntax = GetMarkdownSyntax();
@@ -3848,41 +4034,50 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
                         return S_FALSE;
                     if (! state.semantic.HasPendingPreparation())
                     {
-                        richPreparationActive = true;
-                        if (state.nativeObjectRejections || ! state.disclosureStates.empty())
-                            RichText::Detail::SemanticExtensionAccess::BeginWithPresentation(
-                                state.semantic,
-                                syntax,
-                                state.nativeObjectRejections ? std::span<const RichText::MarkdownRange>(state.nativeObjectRejections->objects)
-                                                             : std::span<const RichText::MarkdownRange>{},
-                                state.disclosureStates);
-                        else
-                            state.semantic.Begin(syntax);
+                        const auto admission =
+                            state.nativeObjectRejections || ! state.disclosureStates.empty()
+                                ? RichText::Detail::SemanticExtensionAccess::TryBeginWithPresentation(
+                                      state.semantic,
+                                      syntax,
+                                      state.nativeObjectRejections ? std::span<const RichText::MarkdownRange>(state.nativeObjectRejections->objects)
+                                                                   : std::span<const RichText::MarkdownRange>{},
+                                      state.disclosureStates)
+                                : state.semantic.TryBegin(syntax);
+                        if (admission != RichText::SourceResult::Success)
+                        {
+                            if (admission != RichText::SourceResult::CapacityExceeded)
+                                return E_FAIL;
+                            state.semantic.Clear();
+                            state.semanticRejected = syntax;
+                            return S_FALSE;
+                        }
                     }
                     ++state.semanticAdvances;
-                    richPreparationActive = true;
 #if DXUI_ENABLE_DIAGNOSTICS
                     if (RichText::Detail::testRichPreparationFailure == 1u)
                     {
                         ++RichText::Detail::testRichPreparationFailureAttempts;
-                        throw std::logic_error("injected deterministic semantic staging failure");
+                        const std::logic_error failure("injected deterministic semantic staging failure");
+                        SemanticStagingDiagnosticThrowOrigin(failure);
                     }
 #endif
                     const auto advance            = state.semantic.Advance(sharedWorkBudget - state.lastAdvanceMarkdownWork);
-                    richPreparationActive         = false;
                     state.lastAdvanceSemanticWork = advance.workUnits;
                     if (advance.status == RichText::MarkdownPreparationStatus::Pending)
                         return S_FALSE;
+                    if (advance.status == RichText::MarkdownPreparationStatus::Failed)
+                    {
+                        if (advance.result != RichText::MarkdownResult::CapacityExceeded)
+                            return E_FAIL;
+                        state.semantic.Clear();
+                        state.semanticRejected = syntax;
+                        return S_FALSE;
+                    }
                     semanticDocument = GetSemanticDocument();
                 }
                 catch (const std::length_error&)
                 {
-                    richPreparationActive = false;
-                    // Admission is a preview bound, not a document failure.
-                    // Remember this exact immutable syntax so idle preparation
-                    // cannot repeatedly fail. Editing/profile changes retry.
-                    state.semantic.Clear();
-                    state.semanticRejected = syntax;
+                    Failure::FailUnexpected();
                 }
             }
         }
@@ -3924,19 +4119,19 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
             auto* format        = host.GetTextFormat(FontRole::Body);
             auto* codeFormat    = host.GetTextFormat(FontRole::Monospace);
             if (! factory || ! format || ! codeFormat)
-                THROW_HR(E_UNEXPECTED);
+                return E_UNEXPECTED;
             RichText::LayoutOptions options;
             options.dpi         = host.GetDpi();
             options.widthDip    = width;
             options.fontSizeDip = format->GetFontSize();
             options.fontFamily.resize(static_cast<size_t>(format->GetFontFamilyNameLength()) + 1u);
-            THROW_IF_FAILED(format->GetFontFamilyName(options.fontFamily.data(), static_cast<UINT32>(options.fontFamily.size())));
+            RETURN_IF_FAILED(format->GetFontFamilyName(options.fontFamily.data(), static_cast<UINT32>(options.fontFamily.size())));
             options.fontFamily.pop_back();
             options.codeFontFamily.resize(static_cast<size_t>(codeFormat->GetFontFamilyNameLength()) + 1u);
-            THROW_IF_FAILED(codeFormat->GetFontFamilyName(options.codeFontFamily.data(), static_cast<UINT32>(options.codeFontFamily.size())));
+            RETURN_IF_FAILED(codeFormat->GetFontFamilyName(options.codeFontFamily.data(), static_cast<UINT32>(options.codeFontFamily.size())));
             options.codeFontFamily.pop_back();
             options.locale.resize(static_cast<size_t>(format->GetLocaleNameLength()) + 1u);
-            THROW_IF_FAILED(format->GetLocaleName(options.locale.data(), static_cast<UINT32>(options.locale.size())));
+            RETURN_IF_FAILED(format->GetLocaleName(options.locale.data(), static_cast<UINT32>(options.locale.size())));
             options.locale.pop_back();
             const auto& appearance = state.appearance;
             if (appearance.bodyFontSizeDip > 0.0f)
@@ -3979,37 +4174,60 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
             options.autoParagraphDirection = appearance.autoParagraphDirection;
             options.readingDirection       = IsRightToLeft() ? DWRITE_READING_DIRECTION_RIGHT_TO_LEFT : DWRITE_READING_DIRECTION_LEFT_TO_RIGHT;
             state.sourceGuideOptions       = options;
-            richPreparationActive          = semanticDocument != nullptr;
-            state.layout.BeginPreparation(factory,
-                                          state.document.Snapshot(),
-                                          revision,
-                                          effectiveMode,
-                                          options,
-                                          semanticDocument,
-                                          nullptr,
-                                          {typography, resources},
-                                          state.images.Snapshot(),
-                                          host.GetDeviceContext());
-            richPreparationActive = false;
-            state.requestKey      = requestKey;
-            state.requestActive   = true;
+            const auto layoutAdmission     = state.layout.BeginPreparation(factory,
+                                                                           state.document.Snapshot(),
+                                                                           revision,
+                                                                           effectiveMode,
+                                                                           options,
+                                                                           semanticDocument,
+                                                                           nullptr,
+                                                                           {typography, resources},
+                                                                           state.images.Snapshot(),
+                                                                           host.GetDeviceContext());
+            if (layoutAdmission == RichText::LayoutPreparationStatus::Failed)
+            {
+                const auto failure = state.layout.Result();
+                if (failure == E_BOUNDS && semanticDocument && state.semanticRejected != GetMarkdownSyntax())
+                {
+                    state.semanticRejected = GetMarkdownSyntax();
+                    state.semantic.Clear();
+                    state.layout.Invalidate();
+                    return S_FALSE;
+                }
+                return FAILED(failure) ? failure : E_FAIL;
+            }
+            state.requestKey    = requestKey;
+            state.requestActive = true;
         }
         if (state.layout.HasPendingPreparation())
         {
             ++state.preparationAdvances;
-            richPreparationActive = semanticDocument != nullptr;
 #if DXUI_ENABLE_DIAGNOSTICS
-            if (richPreparationActive && RichText::Detail::testRichPreparationFailure == 2u)
+            if (semanticDocument && RichText::Detail::testRichPreparationFailure == 2u)
             {
                 ++RichText::Detail::testRichPreparationFailureAttempts;
-                throw std::logic_error("injected deterministic native geometry failure");
+                const std::logic_error failure("injected deterministic native geometry failure");
+                NativeGeometryDiagnosticThrowOrigin(failure);
             }
 #endif
-            const auto advance           = state.layout.AdvancePreparation();
-            richPreparationActive        = false;
+            const auto advance = state.layout.AdvancePreparation();
+            if (const auto rejected = state.layout.RejectedNativeObjects(); ! rejected.empty())
+                return rejectNativeObjects(rejected);
             state.lastAdvanceLayouts     = advance.layoutsPrepared;
             state.lastAdvanceBlockSteps  = advance.blockSteps;
             state.lastAdvanceUploadBytes = advance.uploadedBytes;
+            if (advance.status == RichText::LayoutPreparationStatus::Failed)
+            {
+                state.requestActive = false;
+                if (advance.result == E_BOUNDS && semanticDocument && state.semanticRejected != GetMarkdownSyntax())
+                {
+                    state.semanticRejected = GetMarkdownSyntax();
+                    state.semantic.Clear();
+                    state.layout.Invalidate();
+                    return S_FALSE;
+                }
+                return FAILED(advance.result) ? advance.result : E_FAIL;
+            }
             if (advance.status == RichText::LayoutPreparationStatus::Pending)
                 return S_FALSE;
         }
@@ -4028,13 +4246,14 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
         state.resourceGeneration    = resources;
         state.requestActive         = false;
         state.overlaySelectionDirty = state.overlayHighlightsDirty = true;
-        UpdateCaretScroll();
+        RETURN_IF_FAILED(UpdateCaretScroll());
         UpdateCaretLinkDisplayRange();
-        PrepareOverlayGeometry(host);
+        RETURN_IF_FAILED(PrepareOverlayGeometry(host));
         const auto codeInk = PrepareCodeInk(semanticDocument);
         if (codeInk != S_OK)
             return codeInk;
-        const auto result          = PrepareSourceInk() && PrepareSourceGuides(host) ? S_OK : S_FALSE;
+        const auto result = PrepareSourceInk() ? PrepareSourceGuides(host) : S_FALSE;
+        RETURN_IF_FAILED(result);
         const auto lifetime        = GetLifetimeToken();
         const auto callbackBinding = state.bindingRevision, callbackRevision = Revision();
         PublishHorizontalScrollChanged();
@@ -4042,111 +4261,30 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
             PublishScrollChanged();
         return result;
     }
-    catch (const RichText::Detail::NativeObjectsRejected& failure)
-    {
-        return rejectNativeObjects(failure.Elements());
-    }
-    catch (const RichText::Detail::NativeObjectUnsupported& failure)
-    {
-        if (failure.Error() != DWRITE_E_UNSUPPORTEDOPERATION)
-            return failure.Error();
-        const auto element = failure.Element();
-        return rejectNativeObjects(std::span(&element, 1u));
-    }
-    catch (const RichText::Detail::NativeObjectCapacity& failure)
-    {
-        // Bounded geometry capacity and the explicitly classified font-local
-        // unsupported operation both reject only the owning object/key.
-        const auto element = failure.Element();
-        return rejectNativeObjects(std::span(&element, 1u));
-    }
     catch (const std::length_error&)
     {
-        // Native caret scaffolding shares the paragraph/cell admission ceiling.
-        // Reject this syntax once, then prepare exact source geometry next turn.
-        if (state.markdownRendering && state.mode == RichText::ViewMode::Rich && state.semanticRejected != GetMarkdownSyntax())
-        {
-            state.semanticRejected = GetMarkdownSyntax();
-            state.semantic.Clear();
-            state.layout.Invalidate();
-            state.requestActive = false;
-            return S_FALSE;
-        }
-        state.layout.Invalidate();
-        state.requestActive = false;
-        return E_FAIL;
+        Failure::FailUnexpected();
     }
     catch (const std::bad_alloc&)
     {
-        state.images.Cancel();
-        state.layout.Invalidate();
-        state.markdown.Cancel();
-        state.semantic.Cancel();
-        state.markdownRequestActive = false;
-        state.requestActive         = false;
-        return E_OUTOFMEMORY;
-    }
-    catch (const wil::ResultException& failure)
-    {
-        // Preserve native HRESULTs across this noexcept preparation boundary.
-        // In particular, target loss remains visible to the host and memory
-        // exhaustion never becomes an object-capacity rejection.
-        state.images.Cancel();
-        state.layout.Invalidate();
-        state.markdown.Cancel();
-        state.semantic.Cancel();
-        state.markdownRequestActive = false;
-        state.requestActive         = false;
-        return failure.GetErrorCode();
+        Failure::FailAllocation();
     }
     catch (const std::logic_error&)
     {
-        if (richPreparationActive && GetHost() == &host && state.markdownRendering && state.mode == RichText::ViewMode::Rich)
-        {
-            const auto viewport = TextViewport();
-            auto& rejected      = state.preparationRejected.emplace();
-            rejected.source     = Snapshot();
-            rejected.profile    = state.markdownProfile;
-            if (state.sourceEditing)
-                rejected.region = state.sourceEditing->region;
-            rejected.mode       = state.mode;
-            rejected.width      = std::max(1.0f, viewport.right - viewport.left);
-            rejected.dpi        = host.GetDpi();
-            rejected.rtl        = IsRightToLeft();
-            rejected.typography = host.GetTypographyRevision();
-            rejected.resources  = host.GetResourceGeneration();
-            rejected.binding    = state.bindingRevision;
-            rejected.appearance = state.appearanceRevision;
-            state.images.Cancel();
-            state.semantic.Clear();
-            RetireSemanticAccessibility();
-            state.layout.Invalidate();
-            state.requestActive = false;
-            Debug::Warning(L"DxUi::RichTextEditor: deterministic rich preparation failed; exact source is shown for this view key.");
-            return S_FALSE;
-        }
-        state.layout.Invalidate();
-        state.semantic.Cancel();
-        state.requestActive = false;
-        return E_FAIL;
+        Failure::FailUnexpected();
     }
     catch (const std::exception&)
     {
-        state.layout.Invalidate();
-        state.markdown.Cancel();
-        state.semantic.Cancel();
-        state.markdownRequestActive = false;
-        state.requestActive         = false;
-        return E_FAIL;
+        Failure::FailUnexpected();
     }
 }
 void RichTextEditor::RequireCurrentLayout(const ControlHost& host) const
 {
     // Geometry queries, input and painting never drain pending preparation.
     if (! LayoutIsCurrent(host))
-        throw std::logic_error("Rich-text geometry is pending or unavailable");
+        Failure::FailContract(E_UNEXPECTED);
 }
-void RichTextEditor::UpdateCaretScroll() const
+HRESULT RichTextEditor::UpdateCaretScroll() const
 {
     auto& state                   = *_state;
     const auto previousScroll     = state.scrollDip;
@@ -4155,7 +4293,8 @@ void RichTextEditor::UpdateCaretScroll() const
     const float height            = std::max(0.0f, viewport.bottom - viewport.top);
     if (state.revealCaret)
     {
-        const auto caret = state.layout.SourceCaret(state.document.GetSelection().caret, state.sourceCaretSite);
+        RichText::CaretGeometry caret{};
+        RETURN_IF_FAILED(state.layout.TrySourceCaret(state.document.GetSelection().caret, state.sourceCaretSite, caret));
         if (caret.y < state.scrollDip)
             state.scrollDip = caret.y;
         if (caret.y + caret.height > state.scrollDip + height)
@@ -4177,6 +4316,7 @@ void RichTextEditor::UpdateCaretScroll() const
         state.hoveredLink.reset();
         ++state.fileDropEpoch;
     }
+    return S_OK;
 }
 RichTextEditorDebugState RichTextEditor::DebugGetState() const noexcept
 {
@@ -4281,8 +4421,7 @@ std::optional<std::vector<RichText::MarkdownRange>> RichTextEditor::GetPreparedC
     }
     catch (const std::exception&)
     {
-        // Prepared geometry can retire or temporary storage can fail; publish no range.
-        return std::nullopt;
+        Failure::FailUnexpected();
     }
 }
 
@@ -4294,12 +4433,13 @@ std::optional<std::vector<std::pair<size_t, size_t>>> RichTextEditor::GetSourceV
     }
     catch (const std::exception&)
     {
-        return std::nullopt;
+        Failure::FailUnexpected();
     }
 }
 std::optional<std::vector<std::pair<size_t, size_t>>> RichTextEditor::SourceVisualLineRangesFallible(const ControlHost& host) const
 {
-    RequireCurrentLayout(host);
+    if (! LayoutIsCurrent(host))
+        return std::nullopt;
     const auto& projection = _state->layout;
     std::vector<std::pair<size_t, size_t>> ranges(0u);
     if (const auto* semantic = projection.SemanticGeometry())
@@ -4311,7 +4451,9 @@ std::optional<std::vector<std::pair<size_t, size_t>>> RichTextEditor::SourceVisu
     size_t sourceStart  = 0;
     do
     {
-        size_t displayEnd = _state->layout.LineBoundary(displayStart, true);
+        size_t displayEnd{};
+        if (FAILED(_state->layout.TryLineBoundary(displayStart, true, displayEnd)))
+            return std::nullopt;
         if (displayEnd < projection.DisplayLength() && projection.DisplayUnit(displayEnd) == L'\n')
             ++displayEnd;
         const size_t sourceEnd = displayEnd == projection.DisplayLength() ? projection.SourceLength() : projection.SourceBoundary(displayEnd);
@@ -4340,14 +4482,18 @@ bool RichTextEditor::ScrollSourceRangeIntoView(ControlHost& host, size_t sourceS
         if (! LayoutIsCurrent(host))
             return false;
         const auto& projection = _state->layout;
-        const auto rectangles  = projection.SourceRange(sourceStart, sourceEnd);
+        std::vector<D2D1_RECT_F> rectangles;
+        if (FAILED(projection.TrySourceRange(sourceStart, sourceEnd, rectangles)))
+            return false;
         // Hidden-only syntax has no painted extent to reveal. Do not jump to
         // an offscreen marker's anchor or fabricate a visible rectangle.
         if (sourceStart != sourceEnd && rectangles.empty())
             return true;
-        const auto caret = _state->layout.SourceCaret(sourceStart, sourceStart == GetSelection().caret ? _state->sourceCaretSite : RichText::MarkdownNoNode);
-        float top        = caret.y;
-        float bottom     = caret.y + caret.height;
+        RichText::CaretGeometry caret{};
+        if (FAILED(_state->layout.TrySourceCaret(sourceStart, sourceStart == GetSelection().caret ? _state->sourceCaretSite : RichText::MarkdownNoNode, caret)))
+            return false;
+        float top    = caret.y;
+        float bottom = caret.y + caret.height;
         if (! rectangles.empty())
         {
             top    = rectangles.front().top;
@@ -4365,7 +4511,7 @@ bool RichTextEditor::ScrollSourceRangeIntoView(ControlHost& host, size_t sourceS
     }
     catch (const std::exception&)
     {
-        return false;
+        Failure::FailUnexpected();
     }
 }
 std::optional<std::pair<size_t, size_t>> RichTextEditor::GetVisibleSourceRange(const ControlHost& host) const noexcept
@@ -4374,13 +4520,17 @@ std::optional<std::pair<size_t, size_t>> RichTextEditor::GetVisibleSourceRange(c
         return std::nullopt;
     try
     {
-        RequireCurrentLayout(host);
+        if (! LayoutIsCurrent(host))
+            return std::nullopt;
         const auto viewport = TextViewport();
-        return _state->layout.VisibleSourceRange(_state->scrollDip, _state->scrollDip + viewport.bottom - viewport.top);
+        std::pair<size_t, size_t> range{};
+        if (FAILED(_state->layout.TryVisibleSourceRange(_state->scrollDip, _state->scrollDip + viewport.bottom - viewport.top, range)))
+            return std::nullopt;
+        return range;
     }
     catch (const std::exception&)
     {
-        return std::nullopt;
+        Failure::FailUnexpected();
     }
 }
 std::optional<RichText::MarkdownRange> RichTextEditor::GetVisibleSemanticDisplayRange(const ControlHost& host) const noexcept
@@ -4390,28 +4540,40 @@ std::optional<RichText::MarkdownRange> RichTextEditor::GetVisibleSemanticDisplay
     try
     {
         const auto viewport = TextViewport();
-        const auto range    = _state->layout.VisibleRange(_state->scrollDip, _state->scrollDip + viewport.bottom - viewport.top);
+        std::pair<size_t, size_t> range{};
+        if (FAILED(_state->layout.TryVisibleRange(_state->scrollDip, _state->scrollDip + viewport.bottom - viewport.top, range)))
+            return std::nullopt;
         return RichText::MarkdownRange{range.first, range.second};
     }
     catch (const std::exception&)
     {
-        return std::nullopt;
+        Failure::FailUnexpected();
     }
 }
 void RichTextEditor::DrawPreparedPage(ControlHost& host, D2D1_RECT_F destination, float sourceTopDip, const RichText::ExportDrawing& drawing) const
 {
+    if (const auto result = DrawPreparedPageResult(host, destination, sourceTopDip, drawing); FAILED(result))
+        Failure::FailContract(result);
+}
+bool RichTextEditor::TryDrawPreparedPage(ControlHost& host, D2D1_RECT_F destination, float sourceTopDip, const RichText::ExportDrawing& drawing) const
+{
+    return SUCCEEDED(DrawPreparedPageResult(host, destination, sourceTopDip, drawing));
+}
+HRESULT RichTextEditor::DrawPreparedPageResult(ControlHost& host, D2D1_RECT_F destination, float sourceTopDip, const RichText::ExportDrawing& drawing) const
+{
     if (GetHost() != &host || ! drawing.text || ! std::isfinite(destination.left) || ! std::isfinite(destination.top) || ! std::isfinite(destination.right) ||
         ! std::isfinite(destination.bottom) || destination.right <= destination.left || destination.bottom <= destination.top ||
         ! std::isfinite(sourceTopDip) || sourceTopDip < 0.f)
-        throw std::invalid_argument("Invalid rich text export page");
-    RequireCurrentLayout(host);
+        return E_INVALIDARG;
+    if (! LayoutIsCurrent(host))
+        return E_UNEXPECTED;
     const auto viewport = TextViewport();
     const auto bottom   = sourceTopDip + destination.bottom - destination.top;
     if (! std::isfinite(bottom) || std::abs(destination.right - destination.left - (viewport.right - viewport.left)) > .01f)
-        throw std::invalid_argument("Export page width must match prepared content");
+        return E_INVALIDARG;
     auto* context = host.GetDeviceContext();
     if (! context)
-        THROW_HR(E_UNEXPECTED);
+        return E_UNEXPECTED;
     RichText::LinkDrawing links;
     links.brush             = drawing.link;
     links.underline         = drawing.underlineLinks;
@@ -4420,17 +4582,17 @@ void RichTextEditor::DrawPreparedPage(ControlHost& host, D2D1_RECT_F destination
     const RichText::Detail::DiagramColorContext diagramColors{drawing.pageText, drawing.pageStroke, drawing.pageFill};
     context->PushAxisAlignedClip(destination, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
     const auto restoreClip = wil::scope_exit([context]() noexcept { context->PopAxisAlignedClip(); });
-    _state->layout.Draw(context,
-                        drawing.text,
-                        drawing.decoration ? drawing.decoration : drawing.text,
-                        D2D1::Point2F(destination.left, destination.top - sourceTopDip),
-                        sourceTopDip,
-                        bottom,
-                        drawing.fill,
-                        1.0f,
-                        &links,
-                        drawing.quoteFill,
-                        drawing.preserveAuthorColors ? &diagramColors : nullptr);
+    return _state->layout.TryDraw(context,
+                                  drawing.text,
+                                  drawing.decoration ? drawing.decoration : drawing.text,
+                                  D2D1::Point2F(destination.left, destination.top - sourceTopDip),
+                                  sourceTopDip,
+                                  bottom,
+                                  drawing.fill,
+                                  1.0f,
+                                  &links,
+                                  drawing.quoteFill,
+                                  drawing.preserveAuthorColors ? &diagramColors : nullptr);
 }
 std::optional<D2D1_RECT_F> RichTextEditor::GetTextInputViewportRect() const noexcept
 {
@@ -4445,8 +4607,11 @@ std::optional<D2D1_RECT_F> RichTextEditor::GetTextInputCaretRect(const ControlHo
         return std::nullopt;
     try
     {
-        RequireCurrentLayout(host);
-        const auto caret    = _state->layout.SourceCaret(sourceIndex, sourceIndex == GetSelection().caret ? _state->sourceCaretSite : RichText::MarkdownNoNode);
+        if (! LayoutIsCurrent(host))
+            return std::nullopt;
+        RichText::CaretGeometry caret{};
+        if (FAILED(_state->layout.TrySourceCaret(sourceIndex, sourceIndex == GetSelection().caret ? _state->sourceCaretSite : RichText::MarkdownNoNode, caret)))
+            return std::nullopt;
         const auto viewport = TextViewport();
         // Keep the un-clipped caret for TSF's clipped flag; painting and native
         // screen transport clip it to the same prepared text viewport.
@@ -4457,7 +4622,7 @@ std::optional<D2D1_RECT_F> RichTextEditor::GetTextInputCaretRect(const ControlHo
     }
     catch (const std::exception&)
     {
-        return std::nullopt;
+        Failure::FailUnexpected();
     }
 }
 std::optional<std::vector<D2D1_RECT_F>> RichTextEditor::GetTextInputRangeRects(const ControlHost& host, size_t sourceStart, size_t sourceEnd) const
@@ -4467,10 +4632,13 @@ std::optional<std::vector<D2D1_RECT_F>> RichTextEditor::GetTextInputRangeRects(c
         return std::nullopt;
     try
     {
-        RequireCurrentLayout(host);
+        if (! LayoutIsCurrent(host))
+            return std::nullopt;
         const auto& projection = _state->layout;
         const auto viewport    = TextViewport();
-        auto rectangles        = projection.SourceRange(sourceStart, sourceEnd);
+        std::vector<D2D1_RECT_F> rectangles;
+        if (FAILED(projection.TrySourceRange(sourceStart, sourceEnd, rectangles)))
+            return std::nullopt;
         for (auto& rectangle : rectangles)
         {
             rectangle.left += viewport.left + HorizontalTranslation();
@@ -4486,14 +4654,11 @@ std::optional<std::vector<D2D1_RECT_F>> RichTextEditor::GetTextInputRangeRects(c
     }
     catch (const std::bad_alloc&)
     {
-        // Fallible geometry propagates to its TSF/UIA boundary, which must
-        // distinguish resource exhaustion from a stale/unavailable layout.
-        throw;
+        Failure::FailAllocation();
     }
     catch (const std::exception&)
     {
-        // Invalid or unavailable geometry remains a layout refusal.
-        return std::nullopt;
+        Failure::FailUnexpected();
     }
 }
 std::optional<size_t> RichTextEditor::HitTestTextInputPoint(const ControlHost& host, D2D1_POINT_2F point) const noexcept
@@ -4502,13 +4667,17 @@ std::optional<size_t> RichTextEditor::HitTestTextInputPoint(const ControlHost& h
         return std::nullopt;
     try
     {
-        RequireCurrentLayout(host);
+        if (! LayoutIsCurrent(host))
+            return std::nullopt;
         const auto viewport = TextViewport();
-        return _state->layout.HitTestSource(point.x - viewport.left - HorizontalTranslation(), point.y - viewport.top + _state->scrollDip).position;
+        RichText::Detail::SourceCaretHit hit{};
+        if (FAILED(_state->layout.TryHitTestSource(point.x - viewport.left - HorizontalTranslation(), point.y - viewport.top + _state->scrollDip, hit)))
+            return std::nullopt;
+        return hit.position;
     }
     catch (const std::exception&)
     {
-        return std::nullopt;
+        Failure::FailUnexpected();
     }
 }
 bool RichTextEditor::ExportTextInputState(TextInputState& state) const
@@ -4531,17 +4700,11 @@ bool RichTextEditor::ImportTextInputState(ControlHost& host, const TextInputStat
     // Hosts restore entry source before a notifying commit. Preview updates,
     // cancellation and selection-only imports preserve both undo and redo.
     const auto previousSelection = GetSelection();
-    bool changed;
-    try
-    {
-        changed = notifyChange ? _state->document.ReplaceWholeText(state.text, selection) : _state->document.ReplaceTransient(state.text, selection);
-    }
-    catch (const std::logic_error&)
-    {
-        // Malformed service text, oversized input and split scalar/CRLF ACPs
-        // are rejected atomically, without escaping a native noexcept handler.
+    bool changed{};
+    const auto result = notifyChange ? _state->document.TryReplaceWholeText(state.text, selection, changed)
+                                     : _state->document.TryReplaceTransient(state.text, selection, changed);
+    if (result != RichText::SourceResult::Success)
         return false;
-    }
     // A silent, exact no-op import must not discard prepared command state. The
     // document transaction above has already validated and normalized the source
     // and selection. An active gesture still needs its normal cancellation path.
@@ -4577,7 +4740,7 @@ void RichTextEditor::Paint(ControlHost& host) const
         return;
     auto* context = host.GetDeviceContext();
     if (! context)
-        THROW_HR(E_UNEXPECTED);
+        Failure::FailContract(E_UNEXPECTED);
     auto style             = ResolveTextFieldVisualStyle(host.GetTheme(), IsEnabled(), IsHovered(), HasFocus(), HasFocus() && host.IsKeyboardFocusVisible());
     const auto& appearance = _state->appearance;
     if (appearance.blendWithWindowBackground)
@@ -4600,9 +4763,8 @@ void RichTextEditor::Paint(ControlHost& host) const
                           host.GetSolidBrush(host.GetTheme().accent),
                           2.0f);
     const auto viewport = TextViewport();
-    if (viewport.right <= viewport.left || viewport.bottom <= viewport.top)
+    if (viewport.right <= viewport.left || viewport.bottom <= viewport.top || ! LayoutIsCurrent(host))
         return;
-    RequireCurrentLayout(host);
     auto& state               = *_state;
     auto* textBrush           = host.GetSolidBrush(style.text);
     auto* selectedTextBrush   = host.GetSolidBrush(style.selectionText);
@@ -5116,7 +5278,9 @@ bool RichTextEditor::Erase(ControlHost& host, bool backwards, bool byWord, bool 
                 last             = range.last;
             }
         }
-        const bool changed = _state->document.ReplaceImpl(first, last, {}, {first, first}, true, coalesceHistory);
+        bool changed{};
+        if (_state->document.TryReplaceImpl(first, last, {}, {first, first}, true, coalesceHistory, changed) != RichText::SourceResult::Success)
+            return false;
         Changed(changed);
         return changed;
     }
@@ -5126,8 +5290,10 @@ bool RichTextEditor::Erase(ControlHost& host, bool backwards, bool byWord, bool 
             if (const auto syntax = GetMarkdownSyntax())
             {
                 const std::array ranges{RichText::MarkdownRange{selection.Start(), selection.End()}};
-                const auto plan = RichText::BuildMarkdownDeletion(Snapshot(), Revision(), syntax, selection, ranges);
-                return ApplyMarkdownCommand(plan) == RichText::MarkdownCommandStatus::Changed;
+                std::optional<RichText::MarkdownCommandPlan> plan;
+                if (RichText::TryBuildMarkdownDeletion(Snapshot(), Revision(), syntax, selection, ranges, plan) != RichText::SourceResult::Success)
+                    return false;
+                return ApplyMarkdownCommand(plan.value()) == RichText::MarkdownCommandStatus::Changed;
             }
         return ReplaceSelection({});
     }
@@ -5169,7 +5335,9 @@ bool RichTextEditor::Erase(ControlHost& host, bool backwards, bool byWord, bool 
                 backwards ? (byWord ? FindPreviousWordBoundary(text, selection.caret) : StepToPreviousTextElement(text, selection.caret)) : selection.caret;
             const auto last =
                 backwards ? selection.caret : (byWord ? FindNextWordBoundary(text, selection.caret) : StepToNextTextElement(text, selection.caret));
-            const bool changed = _state->document.Replace(first, last, L"", {first, first});
+            bool changed{};
+            if (_state->document.TryReplace(first, last, L"", {first, first}, changed) != RichText::SourceResult::Success)
+                return false;
             Changed(changed);
             return changed;
         }
@@ -5204,7 +5372,10 @@ bool RichTextEditor::Erase(ControlHost& host, bool backwards, bool byWord, bool 
             const auto ranges = map.SourceRanges({range.first, range.second});
             if (ranges.empty())
                 return false; // Generated separators need an explicit structural join command (M4e).
-            const auto plan = RichText::BuildMarkdownDeletion(Snapshot(), Revision(), document->Syntax(), selection, ranges);
+            std::optional<RichText::MarkdownCommandPlan> planned;
+            if (RichText::TryBuildMarkdownDeletion(Snapshot(), Revision(), document->Syntax(), selection, ranges, planned) != RichText::SourceResult::Success)
+                return false;
+            const auto& plan = planned.value();
             // Only a single plain source erasure may join a typing run. Plans
             // that also remove markup or combine disjoint spans stay atomic.
             if (! byWord && plan.IsApplicable() && plan.Edits().size() == 1u && plan.Edits()[0].replacement.empty())
@@ -5226,7 +5397,10 @@ bool RichTextEditor::Erase(ControlHost& host, bool backwards, bool byWord, bool 
                                           previous->selectionEpoch == _state->document.selectionEpoch_ && previous->caret == selection.caret &&
                                           now >= previous->lastTick && now - previous->lastTick <= 1000u && previous->units + units <= 64u &&
                                           _state->document.CanUndo();
-                    const bool changed  = _state->document.ReplaceImpl(edit.source.first, edit.source.last, {}, plan.After(), true, merge);
+                    bool changed{};
+                    if (_state->document.TryReplaceImpl(edit.source.first, edit.source.last, {}, plan.After(), true, merge, changed) !=
+                        RichText::SourceResult::Success)
+                        return false;
                     if (changed)
                         _state->typingRun = State::TypingRun{
                             kind, Revision(), _state->document.selectionEpoch_, now, plan.After().caret, merge ? previous->units + units : units};
@@ -5251,7 +5425,10 @@ bool RichTextEditor::Erase(ControlHost& host, bool backwards, bool byWord, bool 
             const auto range = RichText::Detail::SourceWindowRange(Snapshot(), selection.caret, operation);
             if (range.first == range.last)
                 return false;
-            const bool changed = _state->document.ReplaceImpl(range.first, range.last, {}, {range.first, range.first}, true, coalesceHistory);
+            bool changed{};
+            if (_state->document.TryReplaceImpl(range.first, range.last, {}, {range.first, range.first}, true, coalesceHistory, changed) !=
+                RichText::SourceResult::Success)
+                return false;
             Changed(changed);
             return changed;
         }
@@ -5261,7 +5438,10 @@ bool RichTextEditor::Erase(ControlHost& host, bool backwards, bool byWord, bool 
         const auto range = RichText::Detail::RichSourceWindowRange(Snapshot(), selection.caret, operation, true);
         if (range.first == range.last)
             return false;
-        const bool changed = _state->document.ReplaceImpl(range.first, range.last, {}, {range.first, range.first}, true, coalesceHistory);
+        bool changed{};
+        if (_state->document.TryReplaceImpl(range.first, range.last, {}, {range.first, range.first}, true, coalesceHistory, changed) !=
+            RichText::SourceResult::Success)
+            return false;
         Changed(changed);
         return changed;
     }
@@ -5273,27 +5453,16 @@ bool RichTextEditor::Erase(ControlHost& host, bool backwards, bool byWord, bool 
                                       : state.layout.DeletionRange(position, backwards);
     if (first == last)
         return false;
-    const auto begin   = projection.ToSource(first);
-    const auto end     = projection.ToSource(last, true);
-    const bool changed = state.document.ReplaceImpl(begin, end, {}, {begin, begin}, true, coalesceHistory);
+    const auto begin = projection.ToSource(first);
+    const auto end   = projection.ToSource(last, true);
+    bool changed{};
+    if (state.document.TryReplaceImpl(begin, end, {}, {begin, begin}, true, coalesceHistory, changed) != RichText::SourceResult::Success)
+        return false;
     Changed(changed);
     return changed;
 }
-bool RichTextEditor::InputFailureHandled(const std::weak_ptr<int>& lifetime, uint64_t revision, uint64_t epoch, RichText::Selection selection) const noexcept
-{
-    // Once publication/cancellation has crossed a callback boundary, a native
-    // input remains handled even if its follow-up work failed. Precommit OOM
-    // declines with the document's atomic transaction intact.
-    return lifetime.expired() || Revision() != revision || _state->fileDropEpoch != epoch || GetSelection() != selection || _state->dragging ||
-           _state->scrollbarDragging;
-}
 bool RichTextEditor::OnChar(ControlHost& host, wchar_t character, UINT modifiers) noexcept
 {
-    const auto inputLifetime  = GetLifetimeToken();
-    const auto inputRevision  = Revision();
-    const auto inputEpoch     = _state->fileDropEpoch;
-    const auto inputSelection = GetSelection();
-    const auto pendingLead    = _state->pendingLeadSurrogate;
     try
     {
         const bool taskSpace = std::exchange(_state->suppressTaskSpace, false);
@@ -5464,7 +5633,10 @@ bool RichTextEditor::OnChar(ControlHost& host, wchar_t character, UINT modifiers
                     insertion += candidate;
                 }
                 _state->typingRun.reset();
-                const bool changed = _state->document.ReplaceImpl(selection.caret, selection.caret, insertion, {caret, caret}, true, continuing);
+                bool changed{};
+                if (_state->document.TryReplaceImpl(selection.caret, selection.caret, insertion, {caret, caret}, true, continuing, changed) !=
+                    RichText::SourceResult::Success)
+                    return false;
                 if (changed && match == AutoFormatMatch::Prefix)
                     _state->autoFormatRun = State::AutoFormatRun{Revision(), _state->document.selectionEpoch_, now, caret, start, nested, continuationPrefix};
                 else
@@ -5519,7 +5691,10 @@ bool RichTextEditor::OnChar(ControlHost& host, wchar_t character, UINT modifiers
                 const auto begin = selection.Start() + 1u, end = selection.End() + 1u;
                 const RichText::Selection after = selection.anchor <= selection.caret ? RichText::Selection{begin, end} : RichText::Selection{end, begin};
                 _state->typingRun.reset();
-                const bool changed = _state->document.ReplaceImpl(selection.Start(), selection.End(), replacement, after, true);
+                bool changed{};
+                if (_state->document.TryReplaceImpl(selection.Start(), selection.End(), replacement, after, true, false, changed) !=
+                    RichText::SourceResult::Success)
+                    return false;
                 Changed(changed);
                 return true;
             }
@@ -5588,8 +5763,11 @@ bool RichTextEditor::OnChar(ControlHost& host, wchar_t character, UINT modifiers
                 if (permitted && replacement)
                 {
                     _state->typingRun.reset();
-                    const auto end          = first + 1u;
-                    const bool changed      = _state->document.ReplaceImpl(first, selection.caret, std::wstring_view(&replacement, 1u), {end, end}, true);
+                    const auto end = first + 1u;
+                    bool changed{};
+                    if (_state->document.TryReplaceImpl(first, selection.caret, std::wstring_view(&replacement, 1u), {end, end}, true, false, changed) !=
+                        RichText::SourceResult::Success)
+                        return false;
                     _state->smartTypingSite = changed ? std::optional{State::SmartTypingSite{Revision(), end}} : std::nullopt;
                     Changed(changed);
                     return true;
@@ -5597,8 +5775,11 @@ bool RichTextEditor::OnChar(ControlHost& host, wchar_t character, UINT modifiers
                 if (permitted)
                 {
                     _state->typingRun.reset();
-                    const auto end          = selection.caret + text.size();
-                    const bool changed      = _state->document.ReplaceImpl(selection.caret, selection.caret, text, {end, end}, true);
+                    const auto end = selection.caret + text.size();
+                    bool changed{};
+                    if (_state->document.TryReplaceImpl(selection.caret, selection.caret, text, {end, end}, true, false, changed) !=
+                        RichText::SourceResult::Success)
+                        return false;
                     _state->smartTypingSite = changed ? std::optional{State::SmartTypingSite{Revision(), end}} : std::nullopt;
                     Changed(changed);
                     return true;
@@ -5615,7 +5796,9 @@ bool RichTextEditor::OnChar(ControlHost& host, wchar_t character, UINT modifiers
                                   now >= previous->lastTick && now - previous->lastTick <= 1000u && previous->units + text.size() <= 64u &&
                                   _state->document.CanUndo();
             const auto end      = selection.caret + text.size();
-            const bool changed  = _state->document.ReplaceImpl(selection.caret, selection.caret, text, {end, end}, true, merge);
+            bool changed{};
+            if (_state->document.TryReplaceImpl(selection.caret, selection.caret, text, {end, end}, true, merge, changed) != RichText::SourceResult::Success)
+                return false;
             if (changed)
                 _state->typingRun = State::TypingRun{State::TypingRun::Kind::Insert,
                                                      Revision(),
@@ -5636,22 +5819,15 @@ bool RichTextEditor::OnChar(ControlHost& host, wchar_t character, UINT modifiers
     }
     catch (const std::bad_alloc&)
     {
-        const bool handled = InputFailureHandled(inputLifetime, inputRevision, inputEpoch, inputSelection);
-        if (! handled)
-            _state->pendingLeadSurrogate = pendingLead;
-        return handled;
+        Failure::FailAllocation();
     }
     catch (const std::exception&)
     {
-        return InputFailureHandled(inputLifetime, inputRevision, inputEpoch, inputSelection);
+        Failure::FailUnexpected();
     }
 }
 bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noexcept
 {
-    const auto inputLifetime  = GetLifetimeToken();
-    const auto inputRevision  = Revision();
-    const auto inputEpoch     = _state->fileDropEpoch;
-    const auto inputSelection = GetSelection();
     try
     {
         if (! IsEnabled())
@@ -5804,17 +5980,16 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
                     return false;
                 try
                 {
+                    const Failure::Scope callbackFailureScope;
                     (*callback)();
                 }
                 catch (const std::bad_alloc&)
                 {
-                    // Observer allocation failure remains fatal at the native input boundary.
-                    std::terminate();
+                    Failure::FailAllocation();
                 }
                 catch (const std::exception&)
                 {
-                    // The link-edit request was already delivered; do not replay it.
-                    Debug::Warning(L"DxUi::RichTextEditor: link edit request callback failed.");
+                    Failure::FailUnexpected();
                 }
                 return true;
             }
@@ -5828,17 +6003,16 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
                     return false;
                 try
                 {
+                    const Failure::Scope callbackFailureScope;
                     (*callback)();
                 }
                 catch (const std::bad_alloc&)
                 {
-                    // Observer allocation failure remains fatal at the native input boundary.
-                    std::terminate();
+                    Failure::FailAllocation();
                 }
                 catch (const std::exception&)
                 {
-                    // The find request was already delivered; do not replay it.
-                    Debug::Warning(L"DxUi::RichTextEditor: find request callback failed.");
+                    Failure::FailUnexpected();
                 }
                 return true;
             }
@@ -5862,6 +6036,7 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
                         element.source.first <= caret && caret < element.source.last)
                     {
                         const auto callback = _state->onCodeCopyRequested;
+                        const Failure::Scope callbackFailureScope;
                         (*callback)(CodeCopyText(*document, element));
                         return true; // Callback may retire the owner.
                     }
@@ -5976,7 +6151,9 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
                     if (target != RichText::MarkdownNoNode)
                     {
                         const auto* geometry = _state->layout.SemanticGeometry();
-                        const auto bounds    = geometry ? geometry->ElementBounds(target) : std::nullopt;
+                        std::optional<D2D1_RECT_F> bounds;
+                        if (! geometry || FAILED(geometry->TryElementBounds(target, bounds)))
+                            return false;
                         if (! bounds)
                             return false;
                         _state->keyboardNavigationDocument = document;
@@ -6311,19 +6488,15 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
     }
     catch (const std::bad_alloc&)
     {
-        return InputFailureHandled(inputLifetime, inputRevision, inputEpoch, inputSelection);
+        Failure::FailAllocation();
     }
     catch (const std::exception&)
     {
-        return InputFailureHandled(inputLifetime, inputRevision, inputEpoch, inputSelection);
+        Failure::FailUnexpected();
     }
 }
 bool RichTextEditor::OnContextMenu(ControlHost& host, bool keyboardInvocation, D2D1_POINT_2F point) noexcept
 {
-    const auto inputLifetime  = GetLifetimeToken();
-    const auto inputRevision  = Revision();
-    const auto inputEpoch     = _state->fileDropEpoch;
-    const auto inputSelection = GetSelection();
     try
     {
         if (! IsEnabled() || ! IsVisible())
@@ -6357,14 +6530,11 @@ bool RichTextEditor::OnContextMenu(ControlHost& host, bool keyboardInvocation, D
         }
         catch (const std::bad_alloc&)
         {
-            // A consumer observer's allocation failure remains fatal.
-            std::terminate();
+            Failure::FailAllocation();
         }
         catch (const std::exception&)
         {
-            // The consumer has received the request; never open a second menu.
-            Debug::Warning(L"DxUi::RichTextEditor: context menu callback failed.");
-            return true;
+            Failure::FailUnexpected();
         }
         const auto hwnd = host.GetHwnd();
         if (! _state->contextMenuLabels || ! hwnd)
@@ -6392,11 +6562,11 @@ bool RichTextEditor::OnContextMenu(ControlHost& host, bool keyboardInvocation, D
     }
     catch (const std::bad_alloc&)
     {
-        return InputFailureHandled(inputLifetime, inputRevision, inputEpoch, inputSelection);
+        Failure::FailAllocation();
     }
     catch (const std::exception&)
     {
-        return InputFailureHandled(inputLifetime, inputRevision, inputEpoch, inputSelection);
+        Failure::FailUnexpected();
     }
 }
 bool RichTextEditor::OnCopy(ControlHost& host) noexcept
@@ -6414,7 +6584,7 @@ bool RichTextEditor::OnCopy(ControlHost& host) noexcept
     }
     catch (const std::exception&)
     {
-        return false;
+        Failure::FailUnexpected();
     }
 }
 bool RichTextEditor::OnSelectAll(ControlHost&) noexcept
@@ -6428,15 +6598,11 @@ bool RichTextEditor::OnSelectAll(ControlHost&) noexcept
     }
     catch (const std::exception&)
     {
-        return false;
+        Failure::FailUnexpected();
     }
 }
 bool RichTextEditor::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers) noexcept
 {
-    const auto inputLifetime  = GetLifetimeToken();
-    const auto inputRevision  = Revision();
-    const auto inputEpoch     = _state->fileDropEpoch;
-    const auto inputSelection = GetSelection();
     try
     {
         if (_state->middleAutoScroll)
@@ -6542,7 +6708,9 @@ bool RichTextEditor::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool ri
                     const auto& element = document.Elements()[i];
                     if (element.role != RichText::SemanticRole::Task)
                         continue;
-                    auto bounds = semantic->ElementBounds(i);
+                    std::optional<D2D1_RECT_F> bounds;
+                    if (FAILED(semantic->TryElementBounds(i, bounds)))
+                        return false;
                     if (! bounds)
                         continue;
                     bounds->left += viewport.left + HorizontalTranslation();
@@ -6553,19 +6721,10 @@ bool RichTextEditor::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool ri
                         continue;
                     RichText::MarkdownCommandRequest request;
                     request.command = RichText::MarkdownCommand::ToggleTask;
-                    try
-                    {
-                        taskPlan = std::make_shared<const RichText::MarkdownCommandPlan>(
-                            RichText::BuildMarkdownCommand(Snapshot(), Revision(), document.Syntax(), RichText::Selection{source, source}, request));
-                    }
-                    catch (const std::bad_alloc&)
-                    {
-                        // A task-plan failure disables only the optional checkbox gesture.
-                    }
-                    catch (const std::logic_error&)
-                    {
-                        // An inadmissible task plan still permits ordinary caret placement.
-                    }
+                    std::optional<RichText::MarkdownCommandPlan> planned;
+                    if (RichText::TryBuildMarkdownCommand(Snapshot(), Revision(), document.Syntax(), RichText::Selection{source, source}, request, planned) ==
+                        RichText::SourceResult::Success)
+                        taskPlan = std::make_shared<const RichText::MarkdownCommandPlan>(std::move(planned.value()));
                     taskRect = *bounds;
                     break;
                 }
@@ -6595,11 +6754,11 @@ bool RichTextEditor::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool ri
     }
     catch (const std::bad_alloc&)
     {
-        return InputFailureHandled(inputLifetime, inputRevision, inputEpoch, inputSelection);
+        Failure::FailAllocation();
     }
     catch (const std::exception&)
     {
-        return InputFailureHandled(inputLifetime, inputRevision, inputEpoch, inputSelection);
+        Failure::FailUnexpected();
     }
 }
 WindowHostCursorKind RichTextEditor::ResolveCursorKind(ControlHost&, D2D1_POINT_2F point) const noexcept
@@ -6645,10 +6804,6 @@ bool RichTextEditor::OnMouseMiddleDown(ControlHost& host, D2D1_POINT_2F point, U
 
 bool RichTextEditor::OnMouseTripleClick(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT) noexcept
 {
-    const auto inputLifetime  = GetLifetimeToken();
-    const auto inputRevision  = Revision();
-    const auto inputEpoch     = _state->fileDropEpoch;
-    const auto inputSelection = GetSelection();
     try
     {
         if (! IsEnabled() || rightButton || ! LayoutIsCurrent(host))
@@ -6684,23 +6839,19 @@ bool RichTextEditor::OnMouseTripleClick(ControlHost& host, D2D1_POINT_2F point, 
     }
     catch (const std::bad_alloc&)
     {
-        return InputFailureHandled(inputLifetime, inputRevision, inputEpoch, inputSelection);
+        Failure::FailAllocation();
     }
     catch (const std::exception&)
     {
-        return InputFailureHandled(inputLifetime, inputRevision, inputEpoch, inputSelection);
+        Failure::FailUnexpected();
     }
 }
 
 bool RichTextEditor::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT) noexcept
 {
-    const auto inputLifetime  = GetLifetimeToken();
-    const auto inputRevision  = Revision();
-    const auto inputEpoch     = _state->fileDropEpoch;
-    const auto inputSelection = GetSelection();
     try
     {
-        if (! IsEnabled() || rightButton)
+        if (! IsEnabled() || rightButton || ! LayoutIsCurrent(host))
             return false;
         const auto source      = HitSource(host, point);
         const auto& projection = _state->layout;
@@ -6723,11 +6874,11 @@ bool RichTextEditor::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, 
     }
     catch (const std::bad_alloc&)
     {
-        return InputFailureHandled(inputLifetime, inputRevision, inputEpoch, inputSelection);
+        Failure::FailAllocation();
     }
     catch (const std::exception&)
     {
-        return InputFailureHandled(inputLifetime, inputRevision, inputEpoch, inputSelection);
+        Failure::FailUnexpected();
     }
 }
 std::optional<RichText::MarkdownRange> RichTextEditor::HoveredLinkDisplayRange(ControlHost& host, D2D1_POINT_2F point) const
@@ -6741,7 +6892,9 @@ std::optional<RichText::MarkdownRange> RichTextEditor::HoveredLinkDisplayRange(C
     if (point.x < viewport.left || point.x >= viewport.right || point.y < viewport.top || point.y >= viewport.bottom)
         return std::nullopt;
     const auto x = point.x - viewport.left - HorizontalTranslation(), y = point.y - viewport.top + _state->scrollDip;
-    const auto hit = geometry->HitTest(x, y);
+    RichText::Hit hit{};
+    if (FAILED(geometry->TryHitTest(x, y, hit)))
+        return std::nullopt;
     if (! hit.inside)
         return std::nullopt;
     const auto display = hit.trailing && hit.position > 0u ? hit.position - 1u : hit.position;
@@ -6763,7 +6916,9 @@ std::wstring_view RichTextEditor::HoveredTitle(ControlHost& host, D2D1_POINT_2F 
     const auto viewport = TextViewport();
     if (point.x < viewport.left || point.x >= viewport.right || point.y < viewport.top || point.y >= viewport.bottom)
         return {};
-    const auto hit = geometry->HitTest(point.x - viewport.left - HorizontalTranslation(), point.y - viewport.top + _state->scrollDip);
+    RichText::Hit hit{};
+    if (FAILED(geometry->TryHitTest(point.x - viewport.left - HorizontalTranslation(), point.y - viewport.top + _state->scrollDip, hit)))
+        return {};
     if (! hit.inside)
         return {};
     const auto display  = hit.trailing && hit.position > 0u ? hit.position - 1u : hit.position;
@@ -6840,15 +6995,16 @@ HRESULT RichTextEditor::PrepareCodeInk(const std::shared_ptr<const RichText::Sem
         state.codeCallbackActive = true;
         try
         {
+            const Failure::Scope callbackFailureScope;
             accepted = (*callback)(language, code, tokens);
         }
         catch (const std::bad_alloc&)
         {
-            allocationFailure = true;
+            Failure::FailAllocation();
         }
         catch (const std::exception&)
         {
-            // A failed consumer tokenizer leaves this block in ordinary ink.
+            Failure::FailUnexpected();
         }
         if (lifetime.expired())
             return E_ABORT;
@@ -6894,7 +7050,7 @@ HRESULT RichTextEditor::PrepareCodeInk(const std::shared_ptr<const RichText::Sem
     state.codeInkComplete = true;
     return S_OK;
 }
-bool RichTextEditor::PrepareSourceGuides(ControlHost& host)
+HRESULT RichTextEditor::PrepareSourceGuides(ControlHost& host)
 {
     auto& state        = *_state;
     const bool numbers = state.mode == RichText::ViewMode::Source && state.appearance.sourceLineNumbers;
@@ -6902,11 +7058,11 @@ bool RichTextEditor::PrepareSourceGuides(ControlHost& host)
     if (! numbers && ! marks)
     {
         state.sourceGuides.Clear();
-        return true;
+        return S_OK;
     }
     const auto revision = Revision(), generation = state.layout.Generation();
     if (state.sourceGuides.Current(revision, generation, numbers, marks))
-        return true;
+        return S_OK;
     const auto viewport    = TextViewport();
     const auto gutterWidth = numbers ? std::min(SourceGutterWidth(), std::max(0.0f, viewport.right - viewport.left - 1.0f)) : 0.0f;
     state.sourceGuides.Begin(Snapshot(), revision, generation, numbers, marks, state.sourceGuideOptions, gutterWidth);
@@ -6942,10 +7098,6 @@ std::optional<RichText::MarkdownRange> RichTextEditor::ActiveParagraphDisplayRan
 }
 bool RichTextEditor::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT) noexcept
 {
-    const auto inputLifetime  = GetLifetimeToken();
-    const auto inputRevision  = Revision();
-    const auto inputEpoch     = _state->fileDropEpoch;
-    const auto inputSelection = GetSelection();
     try
     {
         if (_state->middleAutoScroll)
@@ -6989,25 +7141,25 @@ bool RichTextEditor::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT) n
                 const auto text = snapshot.Slice(selection.Start(), selection.End());
                 try
                 {
+                    const Failure::Scope callbackFailureScope;
                     (*callback)(*move, text);
                 }
                 catch (const std::bad_alloc&)
                 {
-                    // Consumer callbacks are observer boundaries; allocation failure is fatal.
-                    std::terminate();
+                    Failure::FailAllocation();
                 }
                 catch (const std::exception&)
                 {
-                    // The application declined the released gesture.
+                    Failure::FailUnexpected();
                 }
             }
             catch (const std::bad_alloc&)
             {
-                // Source staging declined after the capture was released.
+                Failure::FailAllocation();
             }
             catch (const std::exception&)
             {
-                // Invalidated source staging leaves the released gesture consumed.
+                Failure::FailUnexpected();
             }
             return true;
         }
@@ -7059,6 +7211,8 @@ bool RichTextEditor::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT) n
             if (lifetime.expired() || GetHost() != &host || ! LayoutIsCurrent(host) || ! _state->dragging)
                 return true;
         }
+        if (! LayoutIsCurrent(host))
+            return true;
         const auto source = HitSource(host, point);
         _state->document.SetSelection({GetSelection().anchor, source});
         SelectionChanged();
@@ -7066,11 +7220,11 @@ bool RichTextEditor::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT) n
     }
     catch (const std::bad_alloc&)
     {
-        return InputFailureHandled(inputLifetime, inputRevision, inputEpoch, inputSelection);
+        Failure::FailAllocation();
     }
     catch (const std::exception&)
     {
-        return InputFailureHandled(inputLifetime, inputRevision, inputEpoch, inputSelection);
+        Failure::FailUnexpected();
     }
 }
 bool RichTextEditor::OnMouseLeave(ControlHost&) noexcept
@@ -7125,15 +7279,16 @@ bool RichTextEditor::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool righ
             point.x >= rect.left && point.x <= rect.right && point.y >= rect.top && point.y <= rect.bottom)
             try
             {
+                const Failure::Scope callbackFailureScope;
                 (*callback)(CodeCopyText(*document, document->Elements()[element]));
             }
             catch (const std::bad_alloc&)
             {
-                // The released copy gesture is consumed without changing source or history.
+                Failure::FailAllocation();
             }
             catch (const std::exception&)
             {
-                // A failed application copy handler does not edit source.
+                Failure::FailUnexpected();
             }
         return true; // The callback may retire the control.
     }
@@ -7150,20 +7305,23 @@ bool RichTextEditor::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool righ
             if (! Editable() && IsEnabled() && _state->taskTogglePolicy == RichTextTaskTogglePolicy::AlwaysInteractive && ! _state->sourceEditing &&
                 GetMarkdownSyntax() == plan->Syntax() && ! MarkdownCommandInputBlocked(&host, this) && plan->IsApplicable())
             {
-                const bool changed      = RichText::ApplyMarkdownCommand(_state->document, *plan);
-                _state->sourceCaretSite = RichText::MarkdownNoNode;
-                Changed(changed);
+                bool changed{};
+                if (RichText::TryApplyMarkdownCommand(_state->document, *plan, changed) == RichText::SourceResult::Success)
+                {
+                    _state->sourceCaretSite = RichText::MarkdownNoNode;
+                    Changed(changed);
+                }
             }
             else
                 static_cast<void>(ApplyMarkdownCommand(*plan));
         }
         catch (const std::bad_alloc&)
         {
-            // The release already ended the gesture. The document transaction
-            // itself is atomic; report the owned release as handled below.
+            Failure::FailAllocation();
         }
         catch (const std::exception&)
-        { /* Stale/rebound gestures make no source edit. */
+        {
+            Failure::FailUnexpected();
         }
     if (! lifetime.expired() && GetHost() == &host)
         PublishSelectionChanged();
@@ -7181,7 +7339,8 @@ bool RichTextEditor::OnMouseWheel(ControlHost& host, D2D1_POINT_2F, float delta,
             SetZoom(std::clamp(GetZoom() * std::pow(1.1f, detents), .25f, 4.0f));
             return true;
         }
-        RequireCurrentLayout(host);
+        if (! LayoutIsCurrent(host))
+            return false;
         if (ModifiersContainShift(modifiers) && ! ModifiersContainAlt(modifiers))
         {
             const auto info = GetHorizontalScrollInfo();
@@ -7199,7 +7358,7 @@ bool RichTextEditor::OnMouseWheel(ControlHost& host, D2D1_POINT_2F, float delta,
     }
     catch (const std::exception&)
     {
-        return false;
+        Failure::FailUnexpected();
     }
 }
 void RichTextEditor::PropagateHost(ControlHost* host) noexcept

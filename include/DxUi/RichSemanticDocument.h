@@ -222,18 +222,23 @@ private:
 // are borrowed for each synchronous callback; false stops traversal. A word
 // intersecting the interval is returned whole. The
 // caller keeps the immutable document alive and checks its publication identity
-// before applying suggestions or decorations. Throws on invalid display ranges
-// or allocation failure. Passing a null callback counts without producing ranges.
+// before applying suggestions or decorations. Passing a null callback counts
+// without producing ranges; invalid display ranges are checked before callbacks.
 using SemanticWordVisitor = bool (*)(void* context, std::wstring_view text, MarkdownRange display, std::span<const MarkdownRange> source);
 std::size_t VisitSemanticWords(const SemanticDocument& document, MarkdownRange display, SemanticWordVisitor visitor, void* context);
+[[nodiscard]] SourceResult TryVisitSemanticWords(
+    const SemanticDocument& document, MarkdownRange display, SemanticWordVisitor visitor, void* context, std::size_t& count);
 std::size_t CountWords(const SemanticDocument& document);
 // Generate bounded Markdown links from the immutable heading index. It does
 // not mutate source or create an in-document [TOC] object.
 std::wstring BuildHeadingTableOfContents(const SemanticDocument& document);
+[[nodiscard]] SourceResult TryBuildHeadingTableOfContents(const SemanticDocument& document, std::wstring& output);
 // Owner-serialized pure preparation. Each advance resumes block/inline events;
 // one bounded leaf normalization/value tokenization, image alternative or final
 // map/index build is indivisible. Budgets count events, not wall-clock deadlines.
-// Begin/Advance failures retain the previous publication; explicit retry is legal.
+// Checked Begin refusals retain pending and published work. An Advance capacity
+// failure retires staged work and retains the previous publication; a zero
+// budget is rejected without retiring staging. Explicit retry is legal.
 enum class SoftBreakPolicy
 {
     Space,
@@ -250,15 +255,18 @@ public:
     // remain immutable; source and the next Begin request are otherwise unchanged.
     void SetAccessibilityLabels(std::shared_ptr<const AccessibilityLabels> labels) noexcept;
     void SetSoftBreakPolicy(SoftBreakPolicy policy);
+    [[nodiscard]] SourceResult TrySetSoftBreakPolicy(SoftBreakPolicy policy);
     const std::shared_ptr<const AccessibilityLabels>& AccessibilityLabelSet() const noexcept
     {
         return labels_;
     }
     void Begin(std::shared_ptr<const MarkdownSyntax> syntax);
+    [[nodiscard]] SourceResult TryBegin(std::shared_ptr<const MarkdownSyntax> syntax);
     // One current source-bearing block; this does not alter syntax or source.
     // Invalid/non-leaf and hidden literal-declaration descendants are rejected
     // before replacing pending work.
     void Begin(std::shared_ptr<const MarkdownSyntax> syntax, std::size_t sourceBlock);
+    [[nodiscard]] SourceResult TryBegin(std::shared_ptr<const MarkdownSyntax> syntax, std::size_t sourceBlock);
     MarkdownAdvance Advance(std::size_t maximumEvents = 4096u);
     void Cancel() noexcept;
     void Clear() noexcept;
@@ -272,6 +280,10 @@ private:
                                   std::size_t sourceBlock,
                                   std::span<const MarkdownRange> sourceObjects,
                                   std::span<const Detail::DisclosureOverride> disclosures = {});
+    [[nodiscard]] SourceResult TryBeginWithNativeFallbacks(std::shared_ptr<const MarkdownSyntax> syntax,
+                                                           std::size_t sourceBlock,
+                                                           std::span<const MarkdownRange> sourceObjects,
+                                                           std::span<const Detail::DisclosureOverride> disclosures = {});
     struct Preparation;
     std::unique_ptr<Preparation> next_;
     std::shared_ptr<const SemanticDocument> published_;

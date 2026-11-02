@@ -1,8 +1,10 @@
 #pragma once
+#include <DxUi/Failure.h>
 #include <DxUi/RichImage.h>
 #include <algorithm>
 #include <array>
 #include <mutex>
+#include <new>
 #include <wil/com.h>
 #include <wil/resource.h>
 #include <wincodec.h>
@@ -24,15 +26,20 @@ public:
     ~RichImageLoader()
     {
         Shutdown();
+        WaitForRetiredWork();
     }
     RichImageLoader(const RichImageLoader&)            = delete;
     RichImageLoader& operator=(const RichImageLoader&) = delete;
     HRESULT Initialize(HWND window, UINT message, WPARAM cookie, bool allowNetworkFiles = false) noexcept
     try
     {
+        const DxUi::Failure::Scope failureScope;
         if (! window || message < WM_APP)
             return E_INVALIDARG;
-        auto state               = std::make_shared<State>();
+        auto state = std::make_shared<State>();
+        state->retired.reset(CreateEventW(nullptr, TRUE, TRUE, nullptr));
+        if (! state->retired)
+            return HRESULT_FROM_WIN32(GetLastError());
         state->window            = window;
         state->message           = message;
         state->cookie            = cookie;
@@ -41,12 +48,13 @@ public:
         if (! state->work)
             return HRESULT_FROM_WIN32(GetLastError());
         Shutdown();
+        WaitForRetiredWork();
         state_ = std::move(state);
         return S_OK;
     }
     catch (const std::bad_alloc&)
     {
-        return E_OUTOFMEMORY;
+        DxUi::Failure::FailAllocation();
     }
     void Shutdown() noexcept
     {
@@ -67,7 +75,6 @@ public:
         // An active callback retains only State and its owned job. It checks
         // cancellation and cannot call the view/editor or post after closure.
         // Closing the UI never joins a decoder or waits for a filesystem call.
-        state_.reset();
     }
     HRESULT Submit(std::span<const DxUi::RichText::RichImageRequest> requests) noexcept
     {
@@ -172,11 +179,13 @@ private:
                                      MaximumImageBytes = static_cast<std::size_t>(DxUi::RichText::RichImage::MaximumPixels) * 4u;
         using Work                                     = wil::unique_any<PTP_WORK, decltype(&CloseThreadpoolWork), CloseThreadpoolWork>;
         Work work;
+        wil::unique_handle retired;
         std::mutex mutex;
         std::array<DxUi::RichText::RichImageRequest, MaximumJobs> jobs{};
         std::array<Result, MaximumJobs> results{};
         DxUi::RichText::RichImageRequest current;
         std::size_t jobCount{}, resultCount{}, resultBytes{};
+        std::size_t callbacks{};
         std::atomic_bool hasResults{false};
         bool active{}, closing{}, allowNetworkFiles{};
         HWND window{};
@@ -187,6 +196,9 @@ private:
         {
             if (active || closing || ! jobCount || resultCount == MaximumJobs || resultBytes > MaximumResultBytes - MaximumImageBytes)
                 return;
+            if (callbacks == 0u && ! ResetEvent(retired.get()))
+                DxUi::Failure::FailContract(HRESULT_FROM_WIN32(GetLastError()));
+            ++callbacks;
             callbackLifetime = lifetime;
             active           = true;
             SubmitThreadpoolWork(work.get());
@@ -194,6 +206,14 @@ private:
         static void CALLBACK Worker(PTP_CALLBACK_INSTANCE, void* context, PTP_WORK) noexcept
         {
             auto& state = *static_cast<State*>(context);
+            // Declared first so retirement is signaled after the failure scope exits.
+            const auto retireCallback = wil::scope_exit([&state] noexcept
+            {
+                std::lock_guard lock(state.mutex);
+                if (--state.callbacks == 0u && ! SetEvent(state.retired.get()))
+                    DxUi::Failure::FailContract(HRESULT_FROM_WIN32(GetLastError()));
+            });
+            const DxUi::Failure::Scope failureScope;
             std::shared_ptr<State> lifetime;
             {
                 std::lock_guard lock(state.mutex);
@@ -256,5 +276,20 @@ private:
         }
     };
 #pragma warning(pop)
+    // UI closure remains nonblocking; only final teardown or reinitialization
+    // waits so the process failure host outlives every worker scope.
+    void WaitForRetiredWork() noexcept
+    {
+        if (state_)
+        {
+            const auto wait = WaitForSingleObject(state_->retired.get(), 10000u);
+            if (wait == WAIT_TIMEOUT)
+                DxUi::Failure::FailContract(HRESULT_FROM_WIN32(ERROR_TIMEOUT));
+            if (wait != WAIT_OBJECT_0)
+                DxUi::Failure::FailContract(wait == WAIT_FAILED ? HRESULT_FROM_WIN32(GetLastError()) : E_UNEXPECTED);
+            WaitForThreadpoolWorkCallbacks(state_->work.get(), FALSE);
+            state_.reset();
+        }
+    }
     std::shared_ptr<State> state_;
 };

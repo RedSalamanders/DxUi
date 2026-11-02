@@ -12,6 +12,9 @@
 
 #include <algorithm>
 #include <limits>
+#if defined(DXUI_ENABLE_FATAL_INJECTION_WITNESS)
+#include "Support.Tests.FatalChildren.h"
+#endif
 
 // Counts library C++ heap calls within the deliberately isolated composition loop, not driver allocations. The bytes they ask
 // for are counted beside them, for the opt-in measurement of Embedded.Tests.GridSelectionBenchmark.h. That measurement also asks what this
@@ -25,14 +28,47 @@ static thread_local ptrdiff_t liveBytes    = 0;
 // Opt-in replacement-peak observation for geometry/parser resource fixtures. Dormant
 // for canonical benchmarks and all earlier live-storage measurements.
 static thread_local ptrdiff_t* liveBytesPeak = nullptr;
+#if defined(DXUI_HAS_CHECKED_CONTROL_ALLOCATION)
+// API 5 puts control-object storage on a checked native heap. Include that same
+// allocation domain so a move away from operator new cannot hide bytes or calls.
+static void ObserveNativeControlAllocation(const DxUi::Diagnostics::NativeAllocationRecord& record) noexcept
+{
+    if (record.allocating && countAllocations)
+    {
+        ++allocations;
+        allocationBytes += record.requestedBytes;
+    }
+    if (countLiveBytes)
+    {
+        liveBytes += record.allocating ? static_cast<ptrdiff_t>(record.reservedBytes) : -static_cast<ptrdiff_t>(record.reservedBytes);
+        if (liveBytesPeak)
+            *liveBytesPeak = (std::max)(*liveBytesPeak, liveBytes);
+    }
+}
+static void InstallNativeControlAllocationInstrument() noexcept
+{
+    DxUi::Diagnostics::nativeAllocationSink = ObserveNativeControlAllocation;
+}
+#else
+static void InstallNativeControlAllocationInstrument() noexcept
+{
+}
+#endif
 // Test-only fault injection is dormant outside an explicit operation sweep.
 static thread_local size_t failAllocationAfter = std::numeric_limits<size_t>::max();
+__declspec(noinline) static void ThrowInjectedAllocation()
+{
+#if defined(DXUI_ENABLE_FATAL_INJECTION_WITNESS)
+    DxUiFailureTests::MarkInjectedAllocation();
+#endif
+    throw std::bad_alloc();
+}
 static void FailAllocationIfRequested()
 {
     if (failAllocationAfter != std::numeric_limits<size_t>::max())
     {
         if (! failAllocationAfter)
-            throw std::bad_alloc();
+            ThrowInjectedAllocation();
         --failAllocationAfter;
     }
 }

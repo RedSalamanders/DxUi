@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "apiRevision": 4,
+  "apiRevision": 5,
   "library": "DxUi",
   "consumerInterface": {
     "scripts": {

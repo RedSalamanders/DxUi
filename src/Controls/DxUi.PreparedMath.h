@@ -4,6 +4,7 @@
 #include "DxUi.NativeColorPalette.h"
 #include "DxUi.NativeMathDimension.h"
 #include <DxUi/Configuration.h>
+#include <DxUi/Failure.h>
 #include <DxUi/RichDocument.h>
 #include <DxUi/RichMath.h>
 #include <DxUi/RichTextLayout.h>
@@ -71,7 +72,7 @@ public:
           formats_(0u)
     {
         if (! factory)
-            throw std::invalid_argument("Mathematical text formats need a factory");
+            Failure::FailContract(E_INVALIDARG);
     }
     IDWriteFactory* Factory() const noexcept
     {
@@ -89,63 +90,67 @@ public:
     {
         return formats_.size();
     }
-    IDWriteTextFormat* Get(float size, bool bold, bool italic, MathTextFamily textFamily = MathTextFamily::Math)
+    HRESULT TryGet(float size, bool bold, bool italic, MathTextFamily textFamily, IDWriteTextFormat*& output)
     {
         if (! std::isfinite(size) || size <= 0.f || size > 4096.f)
-            throw std::invalid_argument("Invalid mathematical format size");
+            return E_INVALIDARG;
         for (const auto& entry : formats_)
             if (entry.size == size && entry.bold == bold && entry.italic == italic && entry.family == textFamily)
-                return entry.format.get();
+            {
+                output = entry.format.get();
+                return S_OK;
+            }
         if (formats_.size() == 4096u)
-            throw std::length_error("Mathematical text format capacity exceeded");
+            return E_BOUNDS;
         if (textFamily == MathTextFamily::Script && ! scriptVerified_)
         {
             wil::com_ptr<IDWriteFontCollection> collection;
-            THROW_IF_FAILED(factory_->GetSystemFontCollection(collection.put()));
+            RETURN_IF_FAILED(factory_->GetSystemFontCollection(collection.put()));
             UINT32 index{};
             BOOL exists{};
-            THROW_IF_FAILED(collection->FindFamilyName(scriptFamily_.c_str(), &index, &exists));
+            RETURN_IF_FAILED(collection->FindFamilyName(scriptFamily_.c_str(), &index, &exists));
             if (! exists)
-                THROW_HR(DWRITE_E_UNSUPPORTEDOPERATION);
+                return DWRITE_E_UNSUPPORTEDOPERATION;
             wil::com_ptr<IDWriteFontFamily> family;
             wil::com_ptr<IDWriteFont> font;
             wil::com_ptr<IDWriteFontFace> face;
-            THROW_IF_FAILED(collection->GetFontFamily(index, family.put()));
-            THROW_IF_FAILED(family->GetFirstMatchingFont(DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL, font.put()));
-            THROW_IF_FAILED(font->CreateFontFace(face.put()));
+            RETURN_IF_FAILED(collection->GetFontFamily(index, family.put()));
+            RETURN_IF_FAILED(family->GetFirstMatchingFont(DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL, font.put()));
+            RETURN_IF_FAILED(font->CreateFontFace(face.put()));
             std::array<UINT32, 26u> scalars{};
             std::array<UINT16, 26u> glyphs{};
             for (std::size_t i = 0u; i < scalars.size(); ++i)
                 scalars[i] = static_cast<UINT32>(L'A') + static_cast<UINT32>(i);
-            THROW_IF_FAILED(face->GetGlyphIndices(scalars.data(), static_cast<UINT32>(scalars.size()), glyphs.data()));
+            RETURN_IF_FAILED(face->GetGlyphIndices(scalars.data(), static_cast<UINT32>(scalars.size()), glyphs.data()));
             if (std::ranges::find(glyphs, 0u) != glyphs.end())
-                THROW_HR(DWRITE_E_UNSUPPORTEDOPERATION);
+                return DWRITE_E_UNSUPPORTEDOPERATION;
             scriptVerified_ = true;
         }
         wil::com_ptr<IDWriteTextFormat> format;
-        THROW_IF_FAILED(factory_->CreateTextFormat(textFamily == MathTextFamily::Sans        ? sansFamily_.c_str()
-                                                   : textFamily == MathTextFamily::Monospace ? monoFamily_.c_str()
-                                                   : textFamily == MathTextFamily::Script    ? scriptFamily_.c_str()
-                                                                                             : family_.c_str(),
-                                                   nullptr,
-                                                   bold ? DWRITE_FONT_WEIGHT_BOLD : DWRITE_FONT_WEIGHT_NORMAL,
-                                                   italic ? DWRITE_FONT_STYLE_ITALIC : DWRITE_FONT_STYLE_NORMAL,
-                                                   DWRITE_FONT_STRETCH_NORMAL,
-                                                   size,
-                                                   locale_.c_str(),
-                                                   format.put()));
+        RETURN_IF_FAILED(factory_->CreateTextFormat(textFamily == MathTextFamily::Sans        ? sansFamily_.c_str()
+                                                    : textFamily == MathTextFamily::Monospace ? monoFamily_.c_str()
+                                                    : textFamily == MathTextFamily::Script    ? scriptFamily_.c_str()
+                                                                                              : family_.c_str(),
+                                                    nullptr,
+                                                    bold ? DWRITE_FONT_WEIGHT_BOLD : DWRITE_FONT_WEIGHT_NORMAL,
+                                                    italic ? DWRITE_FONT_STYLE_ITALIC : DWRITE_FONT_STYLE_NORMAL,
+                                                    DWRITE_FONT_STRETCH_NORMAL,
+                                                    size,
+                                                    locale_.c_str(),
+                                                    format.put()));
 #if DXUI_ENABLE_DIAGNOSTICS
         ++testRichMathTextFormats;
 #endif
         formats_.push_back({size, bold, italic, textFamily, std::move(format)});
-        return formats_.back().format.get();
+        output = formats_.back().format.get();
+        return S_OK;
     }
 
 private:
     static std::wstring_view ValidateName(std::wstring_view value, bool emptyAllowed)
     {
         if ((! emptyAllowed && value.empty()) || value.size() > 255u || ! IsValidUtf16(value))
-            throw std::invalid_argument("Invalid mathematical family or locale");
+            Failure::FailContract(E_INVALIDARG);
         return value;
     }
     struct Entry
@@ -217,14 +222,18 @@ public:
     unsigned runs{};
 };
 #pragma warning(pop)
-inline bool OptionalMathFontOperation(HRESULT result)
+inline bool OptionalMathFontOperation(HRESULT result, HRESULT& failure)
 {
     if (result == DWRITE_E_UNSUPPORTEDOPERATION)
         return false;
-    THROW_IF_FAILED(result);
+    if (FAILED(result))
+    {
+        failure = result;
+        return false;
+    }
     return true;
 }
-inline bool SameMathFontFile(IDWriteFontFace* left, IDWriteFontFace* right)
+inline bool SameMathFontFile(IDWriteFontFace* left, IDWriteFontFace* right, HRESULT& failure)
 {
     if (! left || ! right || left->GetType() != right->GetType() || left->GetIndex() != right->GetIndex() || left->GetSimulations() != right->GetSimulations())
         return false;
@@ -232,46 +241,46 @@ inline bool SameMathFontFile(IDWriteFontFace* left, IDWriteFontFace* right)
     // If instance identity cannot be inspected, decline optional kerning safely.
     wil::com_ptr<IDWriteFontFace5> left5, right5;
     const auto leftQuery = left->QueryInterface(IID_PPV_ARGS(left5.put()));
-    if (leftQuery == E_NOINTERFACE || ! OptionalMathFontOperation(leftQuery))
+    if (leftQuery == E_NOINTERFACE || ! OptionalMathFontOperation(leftQuery, failure))
         return false;
     const auto rightQuery = right->QueryInterface(IID_PPV_ARGS(right5.put()));
-    if (rightQuery == E_NOINTERFACE || ! OptionalMathFontOperation(rightQuery))
+    if (rightQuery == E_NOINTERFACE || ! OptionalMathFontOperation(rightQuery, failure))
         return false;
     constexpr UINT32 maximumAxes = 64u;
     const auto axisCount         = left5->GetFontAxisValueCount();
     if (axisCount != right5->GetFontAxisValueCount() || axisCount > maximumAxes)
         return false;
     std::array<DWRITE_FONT_AXIS_VALUE, maximumAxes> leftAxes{}, rightAxes{};
-    if (axisCount && (! OptionalMathFontOperation(left5->GetFontAxisValues(leftAxes.data(), axisCount)) ||
-                      ! OptionalMathFontOperation(right5->GetFontAxisValues(rightAxes.data(), axisCount))))
+    if (axisCount && (! OptionalMathFontOperation(left5->GetFontAxisValues(leftAxes.data(), axisCount), failure) ||
+                      ! OptionalMathFontOperation(right5->GetFontAxisValues(rightAxes.data(), axisCount), failure)))
         return false;
     for (UINT32 i = 0; i < axisCount; ++i)
         if (leftAxes[i].axisTag != rightAxes[i].axisTag || leftAxes[i].value != rightAxes[i].value)
             return false;
     UINT32 leftCount{}, rightCount{};
-    if (! OptionalMathFontOperation(left->GetFiles(&leftCount, nullptr)))
+    if (! OptionalMathFontOperation(left->GetFiles(&leftCount, nullptr), failure))
         return false;
-    if (! OptionalMathFontOperation(right->GetFiles(&rightCount, nullptr)))
+    if (! OptionalMathFontOperation(right->GetFiles(&rightCount, nullptr), failure))
         return false;
     if (leftCount != 1u || rightCount != 1u)
         return false;
     wil::com_ptr<IDWriteFontFile> a, b;
-    if (! OptionalMathFontOperation(left->GetFiles(&leftCount, a.put())))
+    if (! OptionalMathFontOperation(left->GetFiles(&leftCount, a.put()), failure))
         return false;
-    if (! OptionalMathFontOperation(right->GetFiles(&rightCount, b.put())))
+    if (! OptionalMathFontOperation(right->GetFiles(&rightCount, b.put()), failure))
         return false;
     wil::com_ptr<IDWriteFontFileLoader> aLoader, bLoader;
-    if (! OptionalMathFontOperation(a->GetLoader(aLoader.put())))
+    if (! OptionalMathFontOperation(a->GetLoader(aLoader.put()), failure))
         return false;
-    if (! OptionalMathFontOperation(b->GetLoader(bLoader.put())))
+    if (! OptionalMathFontOperation(b->GetLoader(bLoader.put()), failure))
         return false;
     if (aLoader.get() != bLoader.get())
         return false;
     const void *aKey{}, *bKey{};
     UINT32 aSize{}, bSize{};
-    if (! OptionalMathFontOperation(a->GetReferenceKey(&aKey, &aSize)))
+    if (! OptionalMathFontOperation(a->GetReferenceKey(&aKey, &aSize), failure))
         return false;
-    if (! OptionalMathFontOperation(b->GetReferenceKey(&bKey, &bSize)))
+    if (! OptionalMathFontOperation(b->GetReferenceKey(&bKey, &bSize), failure))
         return false;
     return aSize == bSize && (! aSize || (aKey && bKey && std::memcmp(aKey, bKey, aSize) == 0));
 }
@@ -533,15 +542,16 @@ class PreparedMath final
     float fractionNumeratorDisplayShift{.6f}, fractionDenominatorDisplayShift{.6f}, fractionNumeratorDisplayGap{.2f}, fractionDenominatorDisplayGap{.2f};
     float fractionRuleThickness{1.f / 24.f}, upperLimitGap{.12f}, lowerLimitGap{.12f};
     Extent extent;
-    bool displayStyle{}, finalized{};
+    bool displayStyle{}, finalized{}, capacityExceeded{};
+    mutable HRESULT lastResult = S_OK;
 
     static std::int16_t Signed16(const BYTE* bytes) noexcept
     {
         return static_cast<std::int16_t>((static_cast<unsigned>(bytes[0]) << 8u) | bytes[1]);
     }
-    static bool OptionalFontOperation(HRESULT result)
+    bool OptionalFontOperation(HRESULT result) const
     {
-        return OptionalMathFontOperation(result);
+        return OptionalMathFontOperation(result, lastResult);
     }
     HRESULT GlyphMetrics(UINT16 glyph, DWRITE_GLYPH_METRICS& metrics) const noexcept
     {
@@ -706,50 +716,52 @@ class PreparedMath final
         const auto adjusted = MathFontTable(mathData->table).AdjustedValue(mathData->constants[index], size, dpi, mathData->designUnits);
         return adjusted && adjusted.value() >= 0.f && adjusted.value() <= size * 2.f ? adjusted.value() : fallback;
     }
-    static std::size_t CountAndValidate(const MathNode& root, bool display)
+    static std::optional<std::size_t> CountAndValidate(const MathNode& root, bool display) noexcept
     {
         struct Pending
         {
             const MathNode* node;
             unsigned depth;
             bool rowCell;
+            bool scriptFamily;
         };
         std::array<Pending, MathMaximumNodes> pending{};
         std::size_t top{}, count{};
-        pending[top++] = {&root, 0u, false};
+        pending[top++] = {&root, 0u, false, false};
         while (top != 0u)
         {
             const auto current = pending[--top];
             const auto& node   = *current.node;
             if (++count > MathMaximumNodes || current.depth > MathMaximumNodeDepth || node.children.size() > MathMaximumNodes - top ||
                 node.text.size() > (node.kind == MathKind::Text ? 2u * MathMaximumSourceUnits : MathMaximumSourceUnits) || ! IsValidUtf16(node.text))
-                throw std::length_error("Mathematical syntax capacity exceeded");
+                return std::nullopt;
             switch (node.kind)
             {
                 case MathKind::Row: break;
                 case MathKind::Text:
-                    if (node.children.size() != 0u)
-                        throw std::length_error("Invalid mathematical text node");
+                    if (node.children.size() != 0u ||
+                        (current.scriptFamily && ! std::ranges::all_of(node.text, [](wchar_t ch) { return ch >= L'A' && ch <= L'Z'; })))
+                        return std::nullopt;
                     break;
                 case MathKind::Space:
                     if (! node.children.empty() || (node.text != L"" && node.text != L"quad" && node.text != L"qquad" && node.text != L"," &&
                                                     node.text != L":" && node.text != L";" && node.text != L"!" && node.text != L" "))
-                        throw std::length_error("Invalid mathematical space node");
+                        return std::nullopt;
                     break;
                 case MathKind::Fraction:
                     if (node.text != L"frac" && node.text != L"dfrac" && node.text != L"tfrac" && node.text != L"atop" && node.text != L"cfrac" &&
                         ! (node.text.starts_with(L"rule:") && ParseMathDimension(std::wstring_view(node.text).substr(5u))))
-                        throw std::length_error("Invalid mathematical fraction style");
+                        return std::nullopt;
                     if (node.children.size() != 2u)
-                        throw std::length_error("Invalid mathematical pair node");
+                        return std::nullopt;
                     break;
                 case MathKind::Root:
                     if (node.children.size() != 2u)
-                        throw std::length_error("Invalid mathematical pair node");
+                        return std::nullopt;
                     break;
                 case MathKind::Scripts:
                     if (node.children.size() != 3u)
-                        throw std::length_error("Invalid mathematical scripts node");
+                        return std::nullopt;
                     break;
                 case MathKind::Matrix:
                     if (node.columns == 0u || node.columns > MathMaximumColumns || node.children.empty() || node.children.size() > MathMaximumMatrixCells ||
@@ -759,7 +771,7 @@ class PreparedMath final
                           MatrixCore(node.text) == L"drcases") &&
                          node.columns > 2u) ||
                         ! MatrixName(node.text, node.columns, node.children.size() / node.columns))
-                        throw std::length_error("Mathematical matrix capacity exceeded");
+                        return std::nullopt;
                     break;
                 case MathKind::Accent:
                     if (node.text != L"overline" && node.text != L"underline" && node.text != L"bar" && node.text != L"hat" && node.text != L"widehat" &&
@@ -769,15 +781,15 @@ class PreparedMath final
                         node.text != L"underbrace" && node.text != L"overgroup" && node.text != L"undergroup" && node.text != L"boxed" &&
                         node.text != L"cancel" && node.text != L"bcancel" && node.text != L"xcancel" && node.text != L"sout" && node.text != L"phase" &&
                         node.text != L"angl" && ! ColorBox(node.text) && ! ExtensibleArrow(node.text) && ! ArrowAccent(node.text))
-                        throw std::length_error("Invalid mathematical accent");
+                        return std::nullopt;
                     if (node.children.size() != (ExtensibleArrow(node.text) ? 2u : 1u))
-                        throw std::length_error("Invalid mathematical accent arguments");
+                        return std::nullopt;
                     break;
                 case MathKind::Style:
                     if (node.text == L"rowtag")
                     {
                         if (! display || ! current.rowCell || node.children.size() != 2u || ! RowTagLabel(node.children[1u]))
-                            throw std::length_error("Row tags require a display matrix row");
+                            return std::nullopt;
                         break;
                     }
                     if (node.text != L"mathrm" && node.text != L"mathbf" && node.text != L"mathit" && node.text != L"mathnormal" &&
@@ -790,25 +802,25 @@ class PreparedMath final
                         node.text != L"sixptsize" && node.text != L"scriptsize" && node.text != L"footnotesize" && node.text != L"small" &&
                         node.text != L"normalsize" && node.text != L"large" && node.text != L"Large" && node.text != L"LARGE" && node.text != L"huge" &&
                         node.text != L"Huge" && ! ColorArgument(node.text, L"textcolor:"))
-                        throw std::length_error("Invalid mathematical style");
+                        return std::nullopt;
                     if (node.children.size() != 1u)
-                        throw std::length_error("Invalid mathematical unary node");
+                        return std::nullopt;
                     break;
                 case MathKind::Delimited:
                     if (node.kind == MathKind::Delimited &&
                         (node.text.size() != 2u || std::wstring_view(L"()[]{}|.⟨⟩‖⌊⌋⌈⌉/<>\\↑↓↕⇑⇓⇕").find(node.text[0]) == std::wstring_view::npos ||
                          std::wstring_view(L"()[]{}|.⟨⟩‖⌊⌋⌈⌉/<>\\↑↓↕⇑⇓⇕").find(node.text[1]) == std::wstring_view::npos))
-                        throw std::length_error("Invalid mathematical fence pair");
+                        return std::nullopt;
                     if (node.children.size() != 1u)
-                        throw std::length_error("Invalid mathematical unary node");
+                        return std::nullopt;
                     break;
                 case MathKind::Delimiter:
                     if (! node.children.empty() || node.text.size() != 1u ||
                         std::wstring_view(L"()[]{}|.⟨⟩‖⌊⌋⌈⌉/<>\\↑↓↕⇑⇓⇕").find(node.text[0]) == std::wstring_view::npos || node.delimiterSize < 1u ||
                         node.delimiterSize > 4u)
-                        throw std::length_error("Invalid sized mathematical delimiter");
+                        return std::nullopt;
                     break;
-                default: throw std::length_error("Unknown mathematical node kind");
+                default: return std::nullopt;
             }
             switch (node.atomClass)
             {
@@ -820,17 +832,25 @@ class PreparedMath final
                 case MathAtomClass::Closing:
                 case MathAtomClass::Punctuation:
                 case MathAtomClass::Inner: break;
-                default: throw std::length_error("Unknown mathematical atom class");
+                default: return std::nullopt;
             }
             if (node.limits != MathLimits::Automatic && node.limits != MathLimits::AboveBelow && node.limits != MathLimits::Side)
-                throw std::length_error("Unknown mathematical limits mode");
+                return std::nullopt;
             for (std::size_t i = 0u; i < node.children.size(); ++i)
             {
                 const auto matrixName = MatrixBase(node.text);
                 const bool rootMatrix = current.depth == 0u || (current.depth == 1u && root.kind == MathKind::Row);
                 const bool rowCell    = rootMatrix && node.kind == MathKind::Matrix && node.columns && i % node.columns == 0u &&
                                         (matrixName == L"aligned" || matrixName == L"alignat" || matrixName == L"gathered");
-                pending[top++]        = {&node.children[i], current.depth + 1u, rowCell};
+                bool childScript      = current.scriptFamily;
+                if (node.kind == MathKind::Style)
+                {
+                    if (node.text == L"mathscr")
+                        childScript = true;
+                    else if (node.text == L"textsf" || node.text == L"texttt" || node.text == L"textrm" || node.text == L"textnormal")
+                        childScript = false;
+                }
+                pending[top++] = {&node.children[i], current.depth + 1u, rowCell, childScript};
             }
         }
         return count;
@@ -906,7 +926,7 @@ class PreparedMath final
                     if (! rowTags)
                         rowTags.emplace(0u);
                     if (rowTags->size() == MathMaximumNodes)
-                        throw std::length_error("Too many mathematical row tags");
+                        Failure::FailContract(E_BOUNDS);
                     boxes[index].rowTag = rowTags->size();
                     rowTags->push_back({&node.children[1u], 0.f});
                 }
@@ -930,7 +950,7 @@ class PreparedMath final
                 if (node.kind == MathKind::Text)
                 {
                     if (textFamily == MathTextFamily::Script && ! std::ranges::all_of(node.text, [](wchar_t ch) { return ch >= L'A' && ch <= L'Z'; }))
-                        throw std::length_error("Unsupported mathematical script alphabet");
+                        Failure::FailContract(E_INVALIDARG);
                     if (node.text.empty())
                     {
                         boxes[index].endChild = boxes.size();
@@ -1640,7 +1660,10 @@ class PreparedMath final
         const auto count                           = static_cast<unsigned>(std::clamp(std::ceil(length / 8.f), 1.f, 128.f));
         constexpr std::size_t MaximumPreparedLines = 32768u;
         if (lines.size() > MaximumPreparedLines || count > MaximumPreparedLines - lines.size())
-            throw std::length_error("Dashed mathematical rule capacity exceeded");
+        {
+            capacityExceeded = true;
+            return;
+        }
         for (unsigned i = 0u; i < count; ++i)
         {
             const float first = static_cast<float>(2u * i) / static_cast<float>(2u * count);
@@ -2444,6 +2467,8 @@ class PreparedMath final
     }
     void Place(std::size_t index, float x, float baseline)
     {
+        if (capacityExceeded)
+            return;
 #if DXUI_ENABLE_DIAGNOSTICS
         if (testRichMathLowestStackAddress)
         {
@@ -2555,7 +2580,7 @@ class PreparedMath final
             child = NextSibling(child);
         }
     }
-    void Finalize()
+    bool Finalize()
     {
         lines.clear();
         paintOperations.clear();
@@ -2565,12 +2590,20 @@ class PreparedMath final
         MeasureBoxes();
         extent = boxes.empty() ? Extent{} : boxes[0u].extent;
         if (extent.width > 65536.f || extent.above + extent.below > 65536.f || ! std::isfinite(extent.width + extent.above + extent.below))
-            throw std::length_error("Mathematical geometry capacity exceeded");
+        {
+            capacityExceeded = true;
+            return false;
+        }
         lines.reserve(boxes.size() * 6u);
         variants.reserve(boxes.size() * 2u);
         Place(0u, 0.f, extent.above);
+        if (capacityExceeded)
+            return false;
         if (paintOperations.size() > 32768u)
-            throw std::length_error("Mathematical paint capacity exceeded");
+        {
+            capacityExceeded = true;
+            return false;
+        }
         backgroundHeads.assign(backgroundCount, std::numeric_limits<std::size_t>::max());
         for (std::size_t index = paintOperations.size(); index-- > 0u;)
         {
@@ -2607,7 +2640,10 @@ class PreparedMath final
         }
         const float width = right - left, above = extent.above - top, below = bottom - extent.above;
         if (! std::isfinite(width + above + below) || width > 65536.f || above + below > 65536.f)
-            throw std::length_error("Mathematical ink geometry capacity exceeded");
+        {
+            capacityExceeded = true;
+            return false;
+        }
         const float shiftX = -left, shiftY = -top;
         for (auto& glyph : glyphs)
         {
@@ -2641,9 +2677,19 @@ class PreparedMath final
             }
         extent    = {width, above, below};
         finalized = true;
+        return true;
     }
 
 public:
+    [[nodiscard]] static bool CanPrepareParameters(IDWriteFactory* write, const MathExpression* value, float size, float deviceDpi, float unitScale) noexcept
+    {
+        return write && value && *value && std::isfinite(size) && size > 0.f && size <= 4096.f && std::isfinite(deviceDpi) && deviceDpi > 0.f &&
+               deviceDpi <= 4096.f && std::isfinite(unitScale) && unitScale > 0.f && unitScale <= 16.f;
+    }
+    [[nodiscard]] static bool CanPrepareSyntax(const MathNode& root, bool display) noexcept
+    {
+        return CountAndValidate(root, display).has_value();
+    }
     PreparedMath(IDWriteFactory* write,
                  std::shared_ptr<const MathExpression> value,
                  float size,
@@ -2667,19 +2713,20 @@ public:
           absoluteUnitScale(unitScale),
           displayStyle(display)
     {
-        if (! expression || ! *expression || ! std::isfinite(size) || size <= 0.f || size > 4096.f || ! std::isfinite(deviceDpi) || deviceDpi <= 0.f ||
-            deviceDpi > 4096.f || ! std::isfinite(unitScale) || unitScale <= 0.f || unitScale > 16.f || ! write)
-            throw std::invalid_argument("Invalid mathematical preparation request");
+        if (! CanPrepareParameters(write, expression.get(), size, deviceDpi, unitScale))
+            Failure::FailContract(E_INVALIDARG);
 #if DXUI_ENABLE_DIAGNOSTICS
         ++testRichMathPreparations;
 #endif
         const auto count = CountAndValidate(expression->root, displayStyle);
+        if (! count)
+            Failure::FailContract(E_INVALIDARG);
         if (! textFormats)
             textFormats = std::make_shared<MathTextFormats>(write);
         if (textFormats->Factory() != write)
-            throw std::invalid_argument("Mathematical formats belong to another factory");
-        boxes.reserve(count);
-        glyphs.reserve(count);
+            Failure::FailContract(E_INVALIDARG);
+        boxes.reserve(count.value());
+        glyphs.reserve(count.value());
         axis = font * .25f;
         InitializeFallbackConstants();
         if (constants && constants->factory.get() == write && constants->textFormats->Family() == textFormats->Family())
@@ -2698,19 +2745,55 @@ public:
                         glyphs[boxes[index].glyph].needsKern = true;
                 }
     }
+    enum class AdvanceResult
+    {
+        Pending,
+        Complete,
+        Capacity,
+        Failed
+    };
     bool Advance()
     {
+        const auto result = TryAdvance();
+        if (result == AdvanceResult::Capacity)
+            Failure::FailContract(E_BOUNDS);
+        if (result == AdvanceResult::Failed)
+            Failure::FailContract(lastResult);
+        return result == AdvanceResult::Complete;
+    }
+    HRESULT Result() const noexcept
+    {
+        return lastResult;
+    }
+    AdvanceResult TryAdvance()
+    {
+        if (FAILED(lastResult))
+            return AdvanceResult::Failed;
+        if (capacityExceeded)
+            return AdvanceResult::Capacity;
         if (finalized)
-            return true;
+            return AdvanceResult::Complete;
         if (cursor < glyphs.size())
         {
-            auto& leaf   = glyphs[cursor];
-            auto* format = textFormats->Get(leaf.font, leaf.bold, leaf.italic, leaf.textFamily);
+            auto& leaf                = glyphs[cursor];
+            IDWriteTextFormat* format = nullptr;
+            lastResult                = textFormats->TryGet(leaf.font, leaf.bold, leaf.italic, leaf.textFamily, format);
+            if (lastResult == E_BOUNDS)
+            {
+                lastResult       = S_OK;
+                capacityExceeded = true;
+                return AdvanceResult::Capacity;
+            }
+            if (FAILED(lastResult))
+                return AdvanceResult::Failed;
             wil::com_ptr<IDWriteTextLayout> layout;
-            THROW_IF_FAILED(
-                factory->CreateTextLayout(leaf.node->text.data(), static_cast<UINT32>(leaf.node->text.size()), format, 65536.f, 65536.f, layout.put()));
+            lastResult = factory->CreateTextLayout(leaf.node->text.data(), static_cast<UINT32>(leaf.node->text.size()), format, 65536.f, 65536.f, layout.put());
+            if (FAILED(lastResult))
+                return AdvanceResult::Failed;
             DWRITE_TEXT_METRICS metrics{};
-            THROW_IF_FAILED(layout->GetMetrics(&metrics));
+            lastResult = layout->GetMetrics(&metrics);
+            if (FAILED(lastResult))
+                return AdvanceResult::Failed;
             DWRITE_LINE_METRICS line{};
             UINT32 lineCount{};
             HRESULT hr{};
@@ -2729,16 +2812,30 @@ public:
             // while still returning the required line count. That is the
             // expected local capacity signal for our one-line leaf.
             if (hr == E_NOT_SUFFICIENT_BUFFER && lineCount > 1u)
-                throw std::length_error("Mathematical text leaf must occupy one line");
-            THROW_IF_FAILED(hr);
+            {
+                capacityExceeded = true;
+                return AdvanceResult::Capacity;
+            }
+            lastResult = hr;
+            if (FAILED(lastResult))
+                return AdvanceResult::Failed;
             if (lineCount != 1u)
-                throw std::length_error("Mathematical text leaf must occupy one line");
+            {
+                capacityExceeded = true;
+                return AdvanceResult::Capacity;
+            }
             const float layoutWidth  = std::min(65536.f, metrics.widthIncludingTrailingWhitespace + leaf.font);
             const float layoutHeight = std::min(65536.f, metrics.height + leaf.font);
-            THROW_IF_FAILED(layout->SetMaxWidth(std::max(1.f, layoutWidth)));
-            THROW_IF_FAILED(layout->SetMaxHeight(std::max(1.f, layoutHeight)));
+            lastResult               = layout->SetMaxWidth(std::max(1.f, layoutWidth));
+            if (FAILED(lastResult))
+                return AdvanceResult::Failed;
+            lastResult = layout->SetMaxHeight(std::max(1.f, layoutHeight));
+            if (FAILED(lastResult))
+                return AdvanceResult::Failed;
             DWRITE_OVERHANG_METRICS overhang{};
-            THROW_IF_FAILED(layout->GetOverhangMetrics(&overhang));
+            lastResult = layout->GetOverhangMetrics(&overhang);
+            if (FAILED(lastResult))
+                return AdvanceResult::Failed;
             if (std::isfinite(overhang.top) && std::isfinite(overhang.bottom))
             {
                 leaf.visualAbove  = std::max(0.f, line.baseline + overhang.top);
@@ -2749,13 +2846,20 @@ public:
             const float rightOverhang =
                 std::isfinite(overhang.right) ? std::max(0.f, layoutWidth + overhang.right - metrics.widthIncludingTrailingWhitespace) : 0.f;
             const float italicCorrection = leaf.italic ? FontItalicCorrection(leaf.node->text, leaf.font).value_or(rightOverhang) : 0.f;
+            if (FAILED(lastResult))
+                return AdvanceResult::Failed;
             if (leaf.needsKern && mathData)
             {
                 auto probe = Microsoft::WRL::Make<MathGlyphProbe>();
                 if (! probe)
-                    throw std::bad_alloc();
-                THROW_IF_FAILED(layout->Draw(nullptr, probe.Get(), 0.f, 0.f));
-                if (probe->runs == 1u && probe->glyph && SameMathFontFile(probe->face.get(), mathData->face.get()))
+                {
+                    lastResult = E_OUTOFMEMORY;
+                    return AdvanceResult::Failed;
+                }
+                lastResult = layout->Draw(nullptr, probe.Get(), 0.f, 0.f);
+                if (FAILED(lastResult))
+                    return AdvanceResult::Failed;
+                if (probe->runs == 1u && probe->glyph && SameMathFontFile(probe->face.get(), mathData->face.get(), lastResult))
                 {
                     DWRITE_GLYPH_METRICS ink{};
                     if (OptionalFontOperation(probe->face->GetDesignGlyphMetrics(&probe->glyph, 1u, &ink, FALSE)))
@@ -2769,6 +2873,8 @@ public:
                     }
                 }
             }
+            if (FAILED(lastResult))
+                return AdvanceResult::Failed;
             const Extent shapedExtent{metrics.widthIncludingTrailingWhitespace, line.baseline, metrics.height - line.baseline};
             leaf.layout                       = std::move(layout);
             leaf.extent                       = shapedExtent;
@@ -2782,10 +2888,14 @@ public:
             boxes[leaf.boxIndex].extent.above = leaf.extent.above + leaf.topOverhang;
             boxes[leaf.boxIndex].extent.below = leaf.extent.below + leaf.bottomOverhang;
             ++cursor;
-            return false;
+            return AdvanceResult::Pending;
         }
-        Finalize();
-        return true;
+        const auto completed = Finalize();
+        if (FAILED(lastResult))
+            return AdvanceResult::Failed;
+        if (! completed)
+            return AdvanceResult::Capacity;
+        return AdvanceResult::Complete;
     }
     D2D1_SIZE_F Size() const noexcept
     {
@@ -2802,7 +2912,7 @@ public:
     std::shared_ptr<PreparedMath> PrepareRowTag(std::size_t index) const
     {
         if (! rowTags || index >= rowTags->size())
-            throw std::out_of_range("Mathematical row tag index");
+            Failure::FailContract(E_INVALIDARG);
         const std::wstring empty(0u, L' ');
         const auto label = std::make_shared<const MathExpression>(*rowTags.value()[index].label, empty);
         return std::make_shared<PreparedMath>(factory.get(), label, font, false, this, dpi, textFormats, absoluteUnitScale);

@@ -38,58 +38,6 @@ extern thread_local bool testRichScriptTargetUnsupported;
 extern thread_local unsigned testRichPreparationFailure;
 extern thread_local std::size_t testRichPreparationFailureAttempts;
 #endif
-class NativeObjectsRejected final : public std::exception
-{
-public:
-    explicit NativeObjectsRejected(const std::vector<std::size_t>& elements) : elements_(elements)
-    {
-    }
-    std::span<const std::size_t> Elements() const noexcept
-    {
-        return elements_;
-    }
-    const char* what() const noexcept override
-    {
-        return "Native object geometry rejected";
-    }
-
-private:
-    std::vector<std::size_t> elements_;
-};
-class NativeObjectCapacity final : public std::length_error
-{
-public:
-    using std::length_error::length_error;
-    NativeObjectCapacity(const char* message, std::size_t element) : std::length_error(message), element_(element)
-    {
-    }
-    std::size_t Element() const noexcept
-    {
-        return element_;
-    }
-
-private:
-    std::size_t element_ = MarkdownNoNode;
-};
-class NativeObjectUnsupported final : public std::runtime_error
-{
-public:
-    NativeObjectUnsupported(const char* message, std::size_t element, HRESULT error) : std::runtime_error(message), element_(element), error_(error)
-    {
-    }
-    std::size_t Element() const noexcept
-    {
-        return element_;
-    }
-    HRESULT Error() const noexcept
-    {
-        return error_;
-    }
-
-private:
-    std::size_t element_ = MarkdownNoNode;
-    HRESULT error_{};
-};
 struct SourceCaretHit
 {
     std::size_t position{}, site = MarkdownNoNode;
@@ -113,6 +61,11 @@ public:
                                   std::shared_ptr<const RichImageResourceSet> images = {},
                                   ID2D1RenderTarget* raster                          = nullptr);
     LayoutAdvance Advance(LayoutWorkBudget budget = {});
+    HRESULT Result() const noexcept
+    {
+        return beginResult_;
+    }
+    std::span<const std::size_t> RejectedNativeObjects() const noexcept;
     void Cancel() noexcept;
     void Invalidate() noexcept;
     void Clear() noexcept;
@@ -128,30 +81,46 @@ public:
     bool HasNativeObjects() const noexcept;
     const SemanticDocument& Document() const;
     Hit HitTest(float x, float y) const;
+    [[nodiscard]] HRESULT TryHitTest(float x, float y, Hit& output) const;
     CaretGeometry Caret(std::size_t displayOffset) const;
+    [[nodiscard]] HRESULT TryCaret(std::size_t displayOffset, CaretGeometry& output) const;
     // Site affinity is revision-local native geometry identity, never a TSF ACP.
     // It distinguishes padded cells that share one exact raw insertion offset.
     CaretGeometry SourceCaret(std::size_t sourceOffset, std::size_t site = MarkdownNoNode) const;
+    [[nodiscard]] HRESULT TrySourceCaret(std::size_t sourceOffset, std::size_t site, CaretGeometry& output) const;
     SourceCaretHit HitTestSource(float x, float y) const;
+    [[nodiscard]] HRESULT TryHitTestSource(float x, float y, SourceCaretHit& output) const;
     // Nearest distinct prepared visual line, independent of inter-block gaps.
     // Retains source/site affinity and preferred x; performs no preparation.
     SourceCaretHit AdjacentSourceLine(std::size_t sourceOffset, std::size_t site, float preferredX, bool down) const;
+    [[nodiscard]] HRESULT TryAdjacentSourceLine(std::size_t sourceOffset, std::size_t site, float preferredX, bool down, SourceCaretHit& output) const;
     SourceCaretHit StepSource(std::size_t sourceOffset, std::size_t site, bool forwards) const;
+    [[nodiscard]] HRESULT TryStepSource(std::size_t sourceOffset, std::size_t site, bool forwards, SourceCaretHit& output) const;
     SourceCaretHit SourceLineBoundary(std::size_t sourceOffset, std::size_t site, bool end) const;
+    [[nodiscard]] HRESULT TrySourceLineBoundary(std::size_t sourceOffset, std::size_t site, bool end, SourceCaretHit& output) const;
     bool IsEmptySourceSite(std::size_t sourceOffset, std::size_t site) const;
     bool IsCellSourceSite(std::size_t sourceOffset, std::size_t site) const;
     std::size_t SourceSyntaxNode(std::size_t sourceOffset, std::size_t site) const;
     std::size_t SourceSiteForSyntaxNode(std::size_t node) const;
     std::pair<std::size_t, std::size_t> VisibleSourceRange(float top, float bottom) const;
+    [[nodiscard]] HRESULT TryVisibleSourceRange(float top, float bottom, std::pair<std::size_t, std::size_t>& output) const;
     std::vector<D2D1_RECT_F> Range(std::size_t first, std::size_t last) const;
+    [[nodiscard]] HRESULT TryRange(std::size_t first, std::size_t last, std::vector<D2D1_RECT_F>& output) const;
     std::vector<D2D1_RECT_F> SourceRange(MarkdownRange source) const;
+    [[nodiscard]] HRESULT TrySourceRange(MarkdownRange source, std::vector<D2D1_RECT_F>& output) const;
     std::optional<D2D1_RECT_F> ElementBounds(std::size_t element) const;
+    [[nodiscard]] HRESULT TryElementBounds(std::size_t element, std::optional<D2D1_RECT_F>& output) const;
     std::span<const std::pair<std::size_t, std::size_t>> SourceLines() const;
     std::size_t PreviousCluster(std::size_t offset) const;
+    [[nodiscard]] HRESULT TryPreviousCluster(std::size_t offset, std::size_t& output) const;
     std::size_t NextCluster(std::size_t offset) const;
+    [[nodiscard]] HRESULT TryNextCluster(std::size_t offset, std::size_t& output) const;
     std::pair<std::size_t, std::size_t> DeletionRange(std::size_t offset, bool backwards) const;
+    [[nodiscard]] HRESULT TryDeletionRange(std::size_t offset, bool backwards, std::pair<std::size_t, std::size_t>& output) const;
     std::size_t LineBoundary(std::size_t offset, bool end) const;
+    [[nodiscard]] HRESULT TryLineBoundary(std::size_t offset, bool end, std::size_t& output) const;
     std::pair<std::size_t, std::size_t> VisibleRange(float top, float bottom) const;
+    [[nodiscard]] HRESULT TryVisibleRange(float top, float bottom, std::pair<std::size_t, std::size_t>& output) const;
     void Draw(ID2D1RenderTarget* target,
               ID2D1Brush* text,
               ID2D1Brush* decoration,
@@ -165,15 +134,30 @@ public:
               const DiagramColorContext* diagramColors = nullptr,
               ID2D1Brush* calloutAccent                = nullptr,
               ID2D1Brush* propertiesInk                = nullptr) const;
+    [[nodiscard]] HRESULT TryDraw(ID2D1RenderTarget* target,
+                                  ID2D1Brush* text,
+                                  ID2D1Brush* decoration,
+                                  D2D1_POINT_2F origin,
+                                  float top,
+                                  float bottom,
+                                  ID2D1Brush* fill                         = nullptr,
+                                  float imageOpacity                       = 1.0f,
+                                  const LinkDrawing* links                 = nullptr,
+                                  ID2D1Brush* quoteFill                    = nullptr,
+                                  const DiagramColorContext* diagramColors = nullptr,
+                                  ID2D1Brush* calloutAccent                = nullptr,
+                                  ID2D1Brush* propertiesInk                = nullptr) const;
 
 private:
     struct State;
     struct Preparation;
     std::unique_ptr<State> state_;
     std::unique_ptr<Preparation> next_;
+    std::vector<std::size_t> rejectedNativeObjects_;
     std::uint64_t generation_{};
     bool valid_{};
+    HRESULT beginResult_ = S_OK;
     const State& Current() const;
-    static std::vector<D2D1_RECT_F> RangeFromState(const State& state, std::size_t first, std::size_t last);
+    static HRESULT TryRangeFromState(const State& state, std::size_t first, std::size_t last, std::vector<D2D1_RECT_F>& output);
 };
 } // namespace DxUi::RichText::Detail

@@ -703,40 +703,19 @@ template <typename Check> inline void Admission(Check&& check)
           "zero budget preserves pending geometry and previous publication");
     nodes[0u].width = std::numeric_limits<double>::quiet_NaN();
     bool invalid{};
-    try
-    {
-        layout.Begin(graph, nodes, edges);
-    }
-    catch (const std::invalid_argument&)
-    {
-        invalid = true;
-    }
+    invalid = layout.Begin(graph, nodes, edges) == SourceResult::InvalidArgument;
     check(invalid && layout.HasPendingPreparation() && layout.Published() == previous, "invalid measurements cannot replace admitted pending geometry");
     for (const auto bad : {-1.0, std::numeric_limits<double>::infinity(), NativeFlowchartLayout::MaximumExtent + 1.0})
     {
         nodes[0u].width = bad;
         invalid         = false;
-        try
-        {
-            layout.Begin(graph, nodes, edges);
-        }
-        catch (const std::invalid_argument&)
-        {
-            invalid = true;
-        }
+        invalid         = layout.Begin(graph, nodes, edges) == SourceResult::InvalidArgument;
         check(invalid && layout.HasPendingPreparation() && layout.Published() == previous,
               "negative, infinite and over-admission metrics preserve the previous request");
     }
     nodes[0u].width = 16.0;
     invalid         = false;
-    try
-    {
-        layout.Begin(graph, std::span<const FlowchartSize>(nodes).first(1u), edges);
-    }
-    catch (const std::invalid_argument&)
-    {
-        invalid = true;
-    }
+    invalid         = layout.Begin(graph, std::span<const FlowchartSize>(nodes).first(1u), edges) == SourceResult::InvalidArgument;
     check(invalid && layout.HasPendingPreparation(), "measurement cardinality must match the complete graph");
     auto broken = std::make_shared<FlowchartModel>(L"invalid caller", 0u);
     broken->nodes.emplace_back();
@@ -744,14 +723,7 @@ template <typename Check> inline void Admission(Check&& check)
     broken->edges[0u].to                           = 1u;
     const std::array<FlowchartSize, 1u> oneInvalid = {{{16.0, 12.0}}};
     invalid                                        = false;
-    try
-    {
-        layout.Begin(broken, oneInvalid, oneInvalid);
-    }
-    catch (const std::invalid_argument&)
-    {
-        invalid = true;
-    }
+    invalid                                        = layout.Begin(broken, oneInvalid, oneInvalid) == SourceResult::InvalidArgument;
     check(invalid && layout.HasPendingPreparation(), "invalid edge endpoints are rejected before indexing fixed staging arrays");
     layout.Advance(3u);
     layout.Cancel();

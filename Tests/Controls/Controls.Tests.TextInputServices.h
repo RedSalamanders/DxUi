@@ -2,6 +2,7 @@
 
 #include "Controls.Tests.TextStoreComposition.h"
 
+#include <DxUi/Failure.h>
 #include <atomic>
 
 class TestTextClient final : public DxUi::TextInputClient
@@ -33,8 +34,7 @@ public:
         }
         catch (const std::bad_alloc&)
         {
-            result = {};
-            return E_OUTOFMEMORY;
+            DxUi::Failure::FailAllocation();
         }
     }
     HRESULT Apply(uint64_t revision, const DxUi::NativeTextInputState& state, DxUi::EmbeddedTextInputAction action) noexcept override
@@ -62,7 +62,7 @@ public:
         }
         catch (const std::bad_alloc&)
         {
-            return E_OUTOFMEMORY;
+            DxUi::Failure::FailAllocation();
         }
     }
     void Cancel() noexcept override
@@ -471,6 +471,10 @@ public:
             {
                 callback();
             }
+            catch (const std::bad_alloc&)
+            {
+                DxUi::Failure::FailAllocation();
+            }
             catch (const std::exception&)
             {
                 return E_FAIL;
@@ -820,7 +824,7 @@ void TestApplicationClipboardCommands()
             }
             catch (const std::bad_alloc&)
             {
-                return E_OUTOFMEMORY;
+                DxUi::Failure::FailAllocation();
             }
         }
         HRESULT Write(HWND, std::wstring_view value) noexcept override
@@ -835,7 +839,7 @@ void TestApplicationClipboardCommands()
             }
             catch (const std::bad_alloc&)
             {
-                return E_OUTOFMEMORY;
+                DxUi::Failure::FailAllocation();
             }
         }
     } clipboard;

@@ -1,7 +1,9 @@
 #pragma once
 #include <DxUi/Embedded.h>
+#include <DxUi/Failure.h>
 #include <array>
 #include <exception>
+#include <new>
 #include <wil/result.h>
 
 // This sample uses only installed public headers. The application supplies the device and presents the result.
@@ -94,9 +96,13 @@ struct EmbeddedScene
                                                                                      : L"Already in that state.");
                         view.Controls().SetFocusControl(rich, false);
                     }
+                    catch (const std::bad_alloc&)
+                    {
+                        DxUi::Failure::FailAllocation();
+                    }
                     catch (const std::exception&)
                     {
-                        status->SetText(L"This edit could not be applied. The original text is preserved.");
+                        DxUi::Failure::FailUnexpected();
                     }
                 });
             }

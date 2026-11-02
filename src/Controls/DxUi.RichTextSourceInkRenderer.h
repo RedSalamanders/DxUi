@@ -388,8 +388,11 @@ inline SourceInkDrawResult DrawSourceInkIfSupported(ID2D1RenderTarget* target,
                                                     const Projection& projection,
                                                     const LinkDrawing& drawing,
                                                     D2D1_POINT_2F origin,
-                                                    SourceInkColorContextLookup colorContextLookup = SourceInkColorContextLookup::QueryTarget)
+                                                    SourceInkColorContextLookup colorContextLookup = SourceInkColorContextLookup::QueryTarget,
+                                                    HRESULT* paintFailure                          = nullptr)
 {
+    if (paintFailure)
+        *paintFailure = S_OK;
 #if DXUI_ENABLE_DIAGNOSTICS
     ++testSourceInkRendererAttempts;
 #endif
@@ -407,19 +410,34 @@ inline SourceInkDrawResult DrawSourceInkIfSupported(ID2D1RenderTarget* target,
         return SourceInkDrawResult::Rejected;
     const HRESULT preflight = layout->Draw(nullptr, &renderer, origin.x, origin.y);
     if (FAILED(preflight) || ! renderer.Accepted())
+    {
+        if (paintFailure && FAILED(preflight) && renderer.Accepted() && preflight != E_NOTIMPL)
+            *paintFailure = preflight;
         return SourceInkDrawResult::Rejected;
+    }
 
     wil::com_ptr<ID2D1DeviceContext7> colorContext;
     if (renderer.RequiresColorContext())
     {
-        if (colorContextLookup == SourceInkColorContextLookup::Unavailable || FAILED(target->QueryInterface(IID_PPV_ARGS(colorContext.put()))))
+        if (colorContextLookup == SourceInkColorContextLookup::Unavailable)
             return SourceInkDrawResult::Rejected;
+        const auto hr = target->QueryInterface(IID_PPV_ARGS(colorContext.put()));
+        if (FAILED(hr))
+        {
+            if (paintFailure && hr != E_NOINTERFACE)
+                *paintFailure = hr;
+            return SourceInkDrawResult::Rejected;
+        }
     }
     renderer.SetColorContext(colorContext.get());
     renderer.BeginPaint();
-    THROW_IF_FAILED(layout->Draw(nullptr, &renderer, origin.x, origin.y));
-    if (! renderer.Accepted())
-        THROW_HR_MSG(E_UNEXPECTED, "Preflighted source syntax renderer rejected a paint callback");
+    const auto paintResult = layout->Draw(nullptr, &renderer, origin.x, origin.y);
+    if (FAILED(paintResult) || ! renderer.Accepted())
+    {
+        if (paintFailure)
+            *paintFailure = FAILED(paintResult) ? paintResult : E_UNEXPECTED;
+        return SourceInkDrawResult::Rejected;
+    }
     return SourceInkDrawResult::Drawn;
 }
 } // namespace DxUi::RichText::Detail

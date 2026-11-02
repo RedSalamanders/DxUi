@@ -85,6 +85,15 @@ template <typename Check> inline void Paths(Check&& check)
               ! SameLocalImagePath(L"C:\\Docs\\a.png", L"C:\\docs\\a.png"),
           "resource keys coalesce Windows roots while preserving case-sensitive file/directory spelling");
     check(NormalizeDocumentFilePath(L"C:/docs/../note.md") == L"C:\\note.md", "document metadata uses a lexical canonical absolute spelling");
+    std::wstring retainedPath = L"retained";
+    check(TryNormalizeDocumentFilePath(L"relative/file.md", retainedPath) == DxUi::RichText::SourceResult::InvalidSource && retainedPath == L"retained",
+          "invalid document location preserves the previous canonical path");
+    std::wstring deepPath = L"C:\\";
+    for (std::size_t index = 0u; index < 513u; ++index)
+        deepPath.append(L"a\\");
+    deepPath.append(L"file.md");
+    check(TryNormalizeDocumentFilePath(deepPath, retainedPath) == DxUi::RichText::SourceResult::CapacityExceeded && retainedPath == L"retained",
+          "deep document paths report bounded capacity without changing output");
     const auto contextAt = [](std::wstring text, std::wstring_view needle)
     {
         DxUi::RichText::Document document(text);
@@ -103,14 +112,7 @@ template <typename Check> inline void Paths(Check&& check)
     check(uniqueBeforePadding && uniqueBeforePadding->table, "nonempty cell end before padded row boundary is unique");
     const auto paddedEnd = contextAt(L"a | b | c\n- | - | -\n| x\n", L"\n");
     check(! paddedEnd, "shared row-end ACP refuses table insertion without a geometry site");
-    try
-    {
-        static_cast<void>(BuildMarkdownFileReference(L"", L"C:\\" + std::wstring(22000u, L'\u6771') + L".png"));
-        check(false, "encoded source capacity must fail");
-    }
-    catch (const std::length_error&)
-    {
-    }
+    check(! BuildMarkdownFileReference(L"", L"C:\\" + std::wstring(22000u, L'\u6771') + L".png"), "encoded source capacity must fail");
 }
 template <typename Check> inline void FileReferences(Check&& check)
 {
@@ -143,14 +145,7 @@ template <typename Check> inline void FileReferences(Check&& check)
     }
     for (const auto* invalid : {L"report.pdf", L"C:report.pdf", L"https://example.invalid/report.pdf", L"C:\\NUL.pdf", L"C:\\report.pdf:stream"})
         check(! BuildMarkdownFileReference(L"C:\\docs\\note.md", invalid), "non-absolute, remote and ambiguous file references remain literal");
-    try
-    {
-        static_cast<void>(BuildMarkdownFileReference(L"", L"C:\\" + std::wstring(22000u, L'\u6771') + L".pdf"));
-        check(false, "encoded file-link capacity must fail");
-    }
-    catch (const std::length_error&)
-    {
-    }
+    check(! BuildMarkdownFileReference(L"", L"C:\\" + std::wstring(22000u, L'\u6771') + L".pdf"), "encoded file-link capacity must fail");
 }
 
 template <typename Prepare, typename Check> inline void RetainedFileReferences(DxUi::RichTextEditor& editor, Prepare&& prepare, Check&& check)
@@ -415,6 +410,9 @@ template <typename Prepare, typename Check> inline void Retained(DxUi::RichTextE
     editor.SetDocumentFilePath(L"C:/docs/note.md");
     check(editor.GetDocumentFilePath() == L"C:\\docs\\note.md" && editor.Revision() == revision && editor.GetSelection() == selection && ! editor.CanUndo(),
           "document location is metadata with no source or history transaction");
+    check(editor.TrySetDocumentFilePath(L"relative/file.md") == SourceResult::InvalidSource && editor.GetDocumentFilePath() == L"C:\\docs\\note.md" &&
+              editor.Revision() == revision && editor.GetSelection() == selection,
+          "invalid document location leaves metadata, source and selection unchanged");
     prepare();
     TextClipboardContent content;
     content.text             = L"\"C:\\docs\\media\\a #.png\"";

@@ -1,4 +1,5 @@
 #include "DxUi.RichLayoutOptions.h"
+#include <DxUi/Failure.h>
 #include <DxUi/RichTextLayout.h>
 #include <algorithm>
 #include <cmath>
@@ -180,16 +181,17 @@ struct PreparedDocumentLayout::Preparation
     {
         return ! compact && block < reusable.size() ? reusable[block] : nullptr;
     }
-    void Append(std::size_t begin, std::size_t limit, std::shared_ptr<const GeometryChunk> geometry)
+    bool Append(std::size_t begin, std::size_t limit, std::shared_ptr<const GeometryChunk> geometry)
     {
         const auto& blocks = next->projection.Blocks();
         const auto& block  = blocks[begin];
         const auto bottom  = limit == blocks.size() ? geometry->layout.Height() : geometry->continuationBottom;
-        next->width        = std::max(next->width, geometry->layout.HorizontalTextBounds().second);
+        if (! std::isfinite(bottom))
+            return false;
+        next->width = std::max(next->width, geometry->layout.HorizontalTextBounds().second);
         next->chunks.push_back({block.sourceStart, block.displayStart, begin, limit - begin, next->height, bottom - next->height, std::move(geometry)});
         next->height = bottom;
-        if (! std::isfinite(bottom))
-            throw std::overflow_error("Rich geometry height overflow");
+        return true;
     }
 };
 #pragma warning(pop)
@@ -198,7 +200,7 @@ PreparedDocumentLayout::~PreparedDocumentLayout() noexcept = default;
 const PreparedDocumentLayout::State& PreparedDocumentLayout::Prepared() const
 {
     if (! Ready())
-        throw std::logic_error("Unprepared rich document geometry");
+        Failure::FailContract(E_INVALIDARG);
     return *state_;
 }
 bool PreparedDocumentLayout::Ready() const noexcept
@@ -251,11 +253,25 @@ void PreparedDocumentLayout::Clear() noexcept
 }
 void PreparedDocumentLayout::Prepare(IDWriteFactory* factory, SourceSnapshot source, std::uint64_t revision, ViewMode mode, const LayoutOptions& options)
 {
-    if (BeginPreparation(factory, std::move(source), revision, mode, options) == LayoutPreparationStatus::Complete)
-        return;
-    const LayoutWorkBudget unlimited{std::numeric_limits<std::size_t>::max(), std::numeric_limits<std::size_t>::max()};
-    while (AdvancePreparation(unlimited).status == LayoutPreparationStatus::Pending)
+    if (const auto status = TryPrepare(factory, std::move(source), revision, mode, options); FAILED(status))
+        Failure::FailContract(status);
+}
+HRESULT PreparedDocumentLayout::TryPrepare(IDWriteFactory* factory, SourceSnapshot source, std::uint64_t revision, ViewMode mode, const LayoutOptions& options)
+{
+    const Failure::Scope failureScope;
+    const auto admitted = BeginPreparation(factory, std::move(source), revision, mode, options);
+    if (admitted == LayoutPreparationStatus::Complete)
+        return S_OK;
+    if (admitted == LayoutPreparationStatus::Failed)
+        return result_;
+    const LayoutWorkBudget unlimited{(std::numeric_limits<std::size_t>::max)(), (std::numeric_limits<std::size_t>::max)()};
+    for (;;)
     {
+        const auto advance = AdvancePreparation(unlimited);
+        if (advance.status == LayoutPreparationStatus::Failed)
+            return advance.result;
+        if (advance.status != LayoutPreparationStatus::Pending)
+            return S_OK;
     }
 }
 bool PreparedDocumentLayout::HasPendingPreparation() const noexcept
@@ -274,6 +290,13 @@ void PreparedDocumentLayout::CancelPreparation() noexcept
 LayoutPreparationStatus PreparedDocumentLayout::BeginPreparation(
     IDWriteFactory* factory, SourceSnapshot source, std::uint64_t revision, ViewMode mode, const LayoutOptions& options)
 {
+    const Failure::Scope failureScope;
+    result_ = S_OK;
+    if (! factory || (mode != ViewMode::Source && mode != ViewMode::Rich))
+    {
+        result_ = E_INVALIDARG;
+        return LayoutPreparationStatus::Failed;
+    }
     // Retain compatible pending work so the host can resume preparation in
     // bounded steps on the thread that owns the layout factory.
     if (pending_ && pending_->next->factory.get() == factory && pending_->next->projection.Mode() == mode &&
@@ -284,7 +307,11 @@ LayoutPreparationStatus PreparedDocumentLayout::BeginPreparation(
     const auto change     = state_ ? source.ChangedRangeFrom(state_->source) : SourceChangeRange{};
     if (compatible && change.kind == SourceChangeKind::Unchanged)
     {
-        state_->projection.Prepare(source, revision, mode);
+        if (const auto status = state_->projection.TryPrepare(source, revision, mode); status != SourceResult::Success)
+        {
+            result_ = status == SourceResult::CapacityExceeded ? E_BOUNDS : E_INVALIDARG;
+            return LayoutPreparationStatus::Failed;
+        }
         state_->source = std::move(source);
         state_->last   = {0u, state_->chunks.size(), 0u, 0u, state_->reference ? 1u : 0u, 0u};
         CancelPreparation();
@@ -298,7 +325,11 @@ LayoutPreparationStatus PreparedDocumentLayout::BeginPreparation(
         next.projection = state_->projection.Clone();
     // This bounded v0 parser/index pass is still indivisible. Do not describe a
     // work-unit budget around DirectWrite as a resumable Markdown parser.
-    next.projection.Prepare(source, revision, mode);
+    if (const auto status = next.projection.TryPrepare(source, revision, mode); status != SourceResult::Success)
+    {
+        result_ = status == SourceResult::CapacityExceeded ? E_BOUNDS : E_INVALIDARG;
+        return LayoutPreparationStatus::Failed;
+    }
     next.source         = std::move(source);
     next.options        = options;
     next.factory        = factory;
@@ -322,11 +353,23 @@ LayoutPreparationStatus PreparedDocumentLayout::BeginPreparation(
 }
 LayoutAdvance PreparedDocumentLayout::AdvancePreparation(const LayoutWorkBudget& budget)
 {
-    if (! budget.maximumLayouts || ! budget.maximumBlockSteps)
-        throw std::invalid_argument("Rich preparation budgets must be positive");
+    const Failure::Scope failureScope;
     if (! pending_)
         return {};
     LayoutAdvance result;
+    if (! budget.maximumLayouts || ! budget.maximumBlockSteps)
+    {
+        result.status = LayoutPreparationStatus::Failed;
+        result.result = E_INVALIDARG;
+        return result;
+    }
+    const auto fail = [&](HRESULT error)
+    {
+        result_       = error;
+        result.status = LayoutPreparationStatus::Failed;
+        result.result = error;
+        return result;
+    };
     auto discardOnFailure = wil::scope_exit([&] { pending_.reset(); });
     const auto leave      = [&](LayoutPreparationStatus status)
     {
@@ -385,7 +428,7 @@ LayoutAdvance PreparedDocumentLayout::AdvancePreparation(const LayoutWorkBudget&
                 if (next.chunks.size() == MaximumChunks)
                 {
                     if (request.compact)
-                        throw std::logic_error("Rich geometry chunk bound exceeded");
+                        return fail(E_BOUNDS);
                     if (result.blockSteps == budget.maximumBlockSteps)
                         return leave(LayoutPreparationStatus::Pending);
                     ++result.blockSteps;
@@ -404,7 +447,8 @@ LayoutAdvance PreparedDocumentLayout::AdvancePreparation(const LayoutWorkBudget&
                         if (result.blockSteps == budget.maximumBlockSteps)
                             return leave(LayoutPreparationStatus::Pending);
                         ++result.blockSteps;
-                        request.Append(request.first, request.first + old->blockCount, old->geometry);
+                        if (! request.Append(request.first, request.first + old->blockCount, old->geometry))
+                            return fail(E_BOUNDS);
                         request.first += old->blockCount;
                         request.end = request.first;
                         ++next.last.reusedChunks;
@@ -424,7 +468,8 @@ LayoutAdvance PreparedDocumentLayout::AdvancePreparation(const LayoutWorkBudget&
                 Projection joined{
                     std::wstring(0u, L'\0'), std::wstring(0u, L'\0'), std::vector<std::size_t>(0u), std::vector<SourceUnit>(0u), std::vector<StyleRun>(0u)};
                 JoinBlocks(joined, blocks, request.first, request.end, next.projection.Mode());
-                geometry->layout.PrepareOwned(next.factory.get(), joined, next.options, next.height);
+                if (const auto status = geometry->layout.PrepareOwned(next.factory.get(), joined, next.options, next.height); FAILED(status))
+                    return fail(status);
                 ++result.layoutsPrepared;
                 const auto drawingBounds     = geometry->layout.DrawingVerticalBounds();
                 geometry->drawingTop         = drawingBounds.first;
@@ -435,7 +480,8 @@ LayoutAdvance PreparedDocumentLayout::AdvancePreparation(const LayoutWorkBudget&
                 const auto count             = ! text.empty() && text.back() == L'\n' && ! lineMetrics.empty() ? lineMetrics.size() - 1u : lineMetrics.size();
                 for (std::size_t line = 0u; line < count; ++line)
                     geometry->continuationBottom = AddCoordinate(geometry->continuationBottom, lineMetrics[line].height);
-                request.Append(request.first, request.end, std::move(geometry));
+                if (! request.Append(request.first, request.end, std::move(geometry)))
+                    return fail(E_BOUNDS);
                 next.last.preparedSourceUnits += request.units;
                 ++next.last.preparedChunks;
                 request.first = request.end;
@@ -480,7 +526,8 @@ LayoutAdvance PreparedDocumentLayout::AdvancePreparation(const LayoutWorkBudget&
                                           std::vector<StyleRun>(0u)};
                         JoinBlocks(joined, blocks, 0u, blocks.size(), next.projection.Mode());
                         auto reference = std::make_shared<PreparedLayout>();
-                        reference->PrepareOwned(next.factory.get(), joined, next.options);
+                        if (const auto status = reference->PrepareOwned(next.factory.get(), joined, next.options); FAILED(status))
+                            return fail(status);
                         next.reference = std::move(reference);
                         ++result.layoutsPrepared;
                         ++next.last.wholeLayoutsPrepared;
@@ -539,9 +586,18 @@ bool PreparedDocumentLayout::SourceMatches(std::wstring_view source) const
 }
 std::size_t PreparedDocumentLayout::SourceBoundary(std::size_t position) const
 {
-    const auto& projection = Prepared().projection;
+    std::size_t result{};
+    if (const auto status = TrySourceBoundary(position, result); FAILED(status))
+        Failure::FailContract(status);
+    return result;
+}
+HRESULT PreparedDocumentLayout::TrySourceBoundary(std::size_t position, std::size_t& output) const
+{
+    if (! Ready())
+        return E_UNEXPECTED;
+    const auto& projection = state_->projection;
     if (position > projection.DisplayLength())
-        throw std::out_of_range("Rich display boundary");
+        return E_INVALIDARG;
     std::size_t first = 0u, end = projection.SourceLength();
     while (first < end)
     {
@@ -551,15 +607,40 @@ std::size_t PreparedDocumentLayout::SourceBoundary(std::size_t position) const
         else
             end = middle;
     }
-    return first;
+    output = first;
+    return S_OK;
 }
 std::size_t PreparedDocumentLayout::ToDisplay(std::size_t position) const
 {
-    return Prepared().projection.ToDisplay(position);
+    std::size_t result{};
+    if (const auto status = TryToDisplay(position, result); FAILED(status))
+        Failure::FailContract(status);
+    return result;
+}
+HRESULT PreparedDocumentLayout::TryToDisplay(std::size_t position, std::size_t& output) const
+{
+    if (! Ready())
+        return E_UNEXPECTED;
+    if (position > state_->projection.SourceLength())
+        return E_INVALIDARG;
+    output = state_->projection.ToDisplay(position);
+    return S_OK;
 }
 std::size_t PreparedDocumentLayout::ToSource(std::size_t position, bool trailing) const
 {
-    return Prepared().projection.ToSource(position, trailing);
+    std::size_t result{};
+    if (const auto status = TryToSource(position, trailing, result); FAILED(status))
+        Failure::FailContract(status);
+    return result;
+}
+HRESULT PreparedDocumentLayout::TryToSource(std::size_t position, bool trailing, std::size_t& output) const
+{
+    if (! Ready())
+        return E_UNEXPECTED;
+    if (position > state_->projection.DisplayLength())
+        return E_INVALIDARG;
+    output = state_->projection.ToSource(position, trailing);
+    return S_OK;
 }
 std::wstring PreparedDocumentLayout::DisplayText() const
 {
@@ -569,98 +650,207 @@ std::size_t PreparedDocumentLayout::ChunkAt(std::size_t position) const
 {
     const auto& state = Prepared();
     if (position > state.projection.DisplayLength())
-        throw std::out_of_range("Rich geometry position");
+        Failure::FailContract(E_INVALIDARG);
     const auto found = std::upper_bound(
         state.chunks.begin(), state.chunks.end(), position, [](std::size_t offset, const ChunkPlacement& chunk) { return offset < chunk.displayStart; });
     return found == state.chunks.begin() ? 0u : static_cast<std::size_t>(found - state.chunks.begin() - 1);
 }
+HRESULT PreparedDocumentLayout::TryCaret(std::size_t position, CaretGeometry& result) const
+{
+    const Failure::Scope failureScope;
+    if (! Ready())
+        return E_UNEXPECTED;
+    const auto& state = *state_;
+    if (position > state.projection.DisplayLength())
+        return E_INVALIDARG;
+    if (state.referenceForGeometry)
+        return state.reference->TryCaret(position, result);
+    const auto& chunk = state.chunks[ChunkAt(position)];
+    return chunk.geometry->layout.TryCaret(position - chunk.displayStart, result);
+}
 CaretGeometry PreparedDocumentLayout::Caret(std::size_t position) const
 {
-    if (const auto& state = Prepared(); state.referenceForGeometry)
-        return state.reference->Caret(position);
-    const auto& chunk = Prepared().chunks[ChunkAt(position)];
-    return chunk.geometry->layout.Caret(position - chunk.displayStart);
+    CaretGeometry result;
+    if (const auto status = TryCaret(position, result); FAILED(status))
+        Failure::FailContract(status);
+    return result;
 }
 Hit PreparedDocumentLayout::HitTest(float x, float y) const
 {
-    const auto& state = Prepared();
-    if (state.referenceForGeometry)
-        return state.reference->HitTest(x, y);
+    Hit result{};
+    if (const auto status = TryHitTest(x, y, result); FAILED(status))
+        Failure::FailContract(status);
+    return result;
+}
+HRESULT PreparedDocumentLayout::TryHitTest(float x, float y, Hit& output) const
+{
+    const Failure::Scope failureScope;
+    if (! Ready())
+        return E_UNEXPECTED;
+    const auto& state = *state_;
     if (! std::isfinite(x) || ! std::isfinite(y))
-        throw std::invalid_argument("Invalid rich document hit test");
+        return E_INVALIDARG;
+    if (state.referenceForGeometry)
+        return state.reference->TryHitTest(x, y, output);
     const auto found  = std::upper_bound(state.chunks.begin(), state.chunks.end(), y, [](float top, const ChunkPlacement& chunk) { return top < chunk.y; });
     const auto& chunk = found == state.chunks.begin() ? state.chunks.front() : *std::prev(found);
-    auto hit          = chunk.geometry->layout.HitTest(x, y);
+    Hit hit{};
+    if (const auto status = chunk.geometry->layout.TryHitTest(x, y, hit); FAILED(status))
+        return status;
     hit.position += chunk.displayStart;
-    return hit;
+    output = hit;
+    return S_OK;
 }
 std::vector<D2D1_RECT_F> PreparedDocumentLayout::Range(std::size_t first, std::size_t last) const
 {
-    const auto& state = Prepared();
-    if (state.referenceForGeometry)
-        return state.reference->Range(first, last);
+    const Failure::Scope failureScope;
+    std::vector<D2D1_RECT_F> result;
+    if (const auto status = TryRange(first, last, result); FAILED(status))
+        Failure::FailContract(status);
+    return result;
+}
+HRESULT PreparedDocumentLayout::TryRange(std::size_t first, std::size_t last, std::vector<D2D1_RECT_F>& output) const
+{
+    const Failure::Scope failureScope;
+    if (! Ready())
+        return E_UNEXPECTED;
+    const auto& state = *state_;
     if (first > last || last > state.projection.DisplayLength())
-        throw std::out_of_range("Rich document selection range");
+        return E_INVALIDARG;
+    if (state.referenceForGeometry)
+        return state.reference->TryRange(first, last, output);
     std::vector<D2D1_RECT_F> rectangles(0u);
-    if (first == last)
-        return std::vector<D2D1_RECT_F>(0u);
-    for (auto index = ChunkAt(first); index < state.chunks.size(); ++index)
+    for (auto index = first == last ? state.chunks.size() : ChunkAt(first); index < state.chunks.size(); ++index)
     {
         const auto& chunk = state.chunks[index];
         if (chunk.displayStart >= last)
             break;
         const auto end = std::min(last - chunk.displayStart, chunk.geometry->layout.Content().text.size());
-        auto local     = chunk.geometry->layout.Range(first > chunk.displayStart ? first - chunk.displayStart : 0u, end);
+        std::vector<D2D1_RECT_F> local;
+        if (const auto status = chunk.geometry->layout.TryRange(first > chunk.displayStart ? first - chunk.displayStart : 0u, end, local); FAILED(status))
+            return status;
         rectangles.insert(rectangles.end(), local.begin(), local.end());
     }
-    // Preserve the query's fallible boundary when Debug omits NRVO. Its vector
-    // move constructor can allocate a proxy despite being noexcept.
-    return std::vector<D2D1_RECT_F>(rectangles);
+    output.swap(rectangles);
+    return S_OK;
 }
 std::size_t PreparedDocumentLayout::PreviousCluster(std::size_t position) const
 {
-    if (const auto& state = Prepared(); state.referenceForGeometry)
-        return state.reference->PreviousCluster(position);
+    std::size_t result{};
+    if (const auto status = TryPreviousCluster(position, result); FAILED(status))
+        Failure::FailContract(status);
+    return result;
+}
+HRESULT PreparedDocumentLayout::TryPreviousCluster(std::size_t position, std::size_t& output) const
+{
+    const Failure::Scope failureScope;
+    if (! Ready())
+        return E_UNEXPECTED;
+    if (position > state_->projection.DisplayLength())
+        return E_INVALIDARG;
+    if (state_->referenceForGeometry)
+        return state_->reference->TryPreviousCluster(position, output);
     auto index         = ChunkAt(position);
-    const auto& chunks = Prepared().chunks;
+    const auto& chunks = state_->chunks;
     if (index && position == chunks[index].displayStart)
         --index;
     const auto& chunk = chunks[index];
-    return chunk.displayStart + chunk.geometry->layout.PreviousCluster(position - chunk.displayStart);
+    std::size_t local{};
+    if (const auto status = chunk.geometry->layout.TryPreviousCluster(position - chunk.displayStart, local); FAILED(status))
+        return status;
+    output = chunk.displayStart + local;
+    return S_OK;
 }
 std::size_t PreparedDocumentLayout::NextCluster(std::size_t position) const
 {
-    if (const auto& state = Prepared(); state.referenceForGeometry)
-        return state.reference->NextCluster(position);
-    const auto& chunk = Prepared().chunks[ChunkAt(position)];
-    return chunk.displayStart + chunk.geometry->layout.NextCluster(position - chunk.displayStart);
+    std::size_t result{};
+    if (const auto status = TryNextCluster(position, result); FAILED(status))
+        Failure::FailContract(status);
+    return result;
+}
+HRESULT PreparedDocumentLayout::TryNextCluster(std::size_t position, std::size_t& output) const
+{
+    const Failure::Scope failureScope;
+    if (! Ready())
+        return E_UNEXPECTED;
+    if (position > state_->projection.DisplayLength())
+        return E_INVALIDARG;
+    if (state_->referenceForGeometry)
+        return state_->reference->TryNextCluster(position, output);
+    const auto& chunk = state_->chunks[ChunkAt(position)];
+    std::size_t local{};
+    if (const auto status = chunk.geometry->layout.TryNextCluster(position - chunk.displayStart, local); FAILED(status))
+        return status;
+    output = chunk.displayStart + local;
+    return S_OK;
 }
 std::pair<std::size_t, std::size_t> PreparedDocumentLayout::DeletionRange(std::size_t position, bool backwards) const
 {
-    if (const auto& state = Prepared(); state.referenceForGeometry)
-        return state.reference->DeletionRange(position, backwards);
+    std::pair<std::size_t, std::size_t> result{};
+    if (const auto status = TryDeletionRange(position, backwards, result); FAILED(status))
+        Failure::FailContract(status);
+    return result;
+}
+HRESULT PreparedDocumentLayout::TryDeletionRange(std::size_t position, bool backwards, std::pair<std::size_t, std::size_t>& output) const
+{
+    const Failure::Scope failureScope;
+    if (! Ready())
+        return E_UNEXPECTED;
+    if (position > state_->projection.DisplayLength())
+        return E_INVALIDARG;
+    if (state_->referenceForGeometry)
+        return state_->reference->TryDeletionRange(position, backwards, output);
     auto index         = ChunkAt(position);
-    const auto& chunks = Prepared().chunks;
+    const auto& chunks = state_->chunks;
     if (backwards && index && position == chunks[index].displayStart)
         --index;
     const auto& chunk = chunks[index];
-    const auto range  = chunk.geometry->layout.DeletionRange(position - chunk.displayStart, backwards);
-    return {chunk.displayStart + range.first, chunk.displayStart + range.second};
+    std::pair<std::size_t, std::size_t> range{};
+    if (const auto status = chunk.geometry->layout.TryDeletionRange(position - chunk.displayStart, backwards, range); FAILED(status))
+        return status;
+    output = {chunk.displayStart + range.first, chunk.displayStart + range.second};
+    return S_OK;
 }
 std::size_t PreparedDocumentLayout::LineBoundary(std::size_t position, bool end) const
 {
-    if (const auto& state = Prepared(); state.referenceForGeometry)
-        return state.reference->LineBoundary(position, end);
-    const auto& chunk = Prepared().chunks[ChunkAt(position)];
-    return chunk.displayStart + chunk.geometry->layout.LineBoundary(position - chunk.displayStart, end);
+    std::size_t result{};
+    if (const auto status = TryLineBoundary(position, end, result); FAILED(status))
+        Failure::FailContract(status);
+    return result;
+}
+HRESULT PreparedDocumentLayout::TryLineBoundary(std::size_t position, bool end, std::size_t& output) const
+{
+    const Failure::Scope failureScope;
+    if (! Ready())
+        return E_UNEXPECTED;
+    if (position > state_->projection.DisplayLength())
+        return E_INVALIDARG;
+    if (state_->referenceForGeometry)
+        return state_->reference->TryLineBoundary(position, end, output);
+    const auto& chunk = state_->chunks[ChunkAt(position)];
+    std::size_t local{};
+    if (const auto status = chunk.geometry->layout.TryLineBoundary(position - chunk.displayStart, end, local); FAILED(status))
+        return status;
+    output = chunk.displayStart + local;
+    return S_OK;
 }
 std::pair<std::size_t, std::size_t> PreparedDocumentLayout::VisibleRange(float top, float bottom) const
 {
-    const auto& state = Prepared();
-    if (state.referenceForGeometry)
-        return state.reference->VisibleRange(top, bottom);
+    std::pair<std::size_t, std::size_t> result{};
+    if (const auto status = TryVisibleRange(top, bottom, result); FAILED(status))
+        Failure::FailContract(status);
+    return result;
+}
+HRESULT PreparedDocumentLayout::TryVisibleRange(float top, float bottom, std::pair<std::size_t, std::size_t>& output) const
+{
+    const Failure::Scope failureScope;
+    if (! Ready())
+        return E_UNEXPECTED;
+    const auto& state = *state_;
     if (! std::isfinite(top) || ! std::isfinite(bottom) || bottom < top)
-        throw std::invalid_argument("Invalid rich document viewport");
+        return E_INVALIDARG;
+    if (state.referenceForGeometry)
+        return state.reference->TryVisibleRange(top, bottom, output);
     std::optional<std::size_t> first;
     std::size_t last = 0u;
     for (const auto& chunk : state.chunks)
@@ -669,7 +859,9 @@ std::pair<std::size_t, std::size_t> PreparedDocumentLayout::VisibleRange(float t
             break;
         if (chunk.y + chunk.height <= top)
             continue;
-        const auto range = chunk.geometry->layout.VisibleRange(top, std::min(bottom, chunk.y + chunk.height));
+        std::pair<std::size_t, std::size_t> range{};
+        if (const auto status = chunk.geometry->layout.TryVisibleRange(top, std::min(bottom, chunk.y + chunk.height), range); FAILED(status))
+            return status;
         // A collapsed range at the final display ACP can be a visible empty
         // line/end caret. Only {0,0} for a nonempty layout means no line here.
         if (range.first == range.second && range.first != chunk.geometry->layout.Content().text.size())
@@ -678,13 +870,23 @@ std::pair<std::size_t, std::size_t> PreparedDocumentLayout::VisibleRange(float t
             first = chunk.displayStart + range.first;
         last = chunk.displayStart + range.second;
     }
-    return {first.value_or(0u), last};
+    output = {first.value_or(0u), last};
+    return S_OK;
 }
 void PreparedDocumentLayout::Draw(ID2D1RenderTarget* target, ID2D1Brush* brush, D2D1_POINT_2F origin, float top, float bottom, const LinkDrawing* links) const
 {
-    const auto& state = Prepared();
+    if (const auto status = TryDraw(target, brush, origin, top, bottom, links); FAILED(status))
+        Failure::FailContract(status);
+}
+HRESULT PreparedDocumentLayout::TryDraw(
+    ID2D1RenderTarget* target, ID2D1Brush* brush, D2D1_POINT_2F origin, float top, float bottom, const LinkDrawing* links) const
+{
+    const Failure::Scope failureScope;
+    if (! Ready())
+        return E_UNEXPECTED;
+    const auto& state = *state_;
     if (! target || ! brush || ! std::isfinite(top) || ! std::isfinite(bottom) || bottom < top)
-        throw std::invalid_argument("Invalid rich document drawing");
+        return E_INVALIDARG;
     D2D1_MATRIX_3X2_F transform{};
     target->GetTransform(&transform);
     float dpiX = 0.0f, dpiY = 0.0f;
@@ -699,8 +901,7 @@ void PreparedDocumentLayout::Draw(ID2D1RenderTarget* target, ID2D1Brush* brush, 
     // constructs layouts, joins projections or changes preparation statistics.
     if (state.reference)
     {
-        state.reference->Draw(target, brush, origin, links);
-        return;
+        return state.reference->TryDraw(target, brush, origin, links);
     }
     for (const auto& chunk : state.chunks)
     {
@@ -708,8 +909,10 @@ void PreparedDocumentLayout::Draw(ID2D1RenderTarget* target, ID2D1Brush* brush, 
         {
             auto local = links ? *links : LinkDrawing{};
             local.displayOrigin += chunk.displayStart;
-            chunk.geometry->layout.Draw(target, brush, origin, links ? &local : nullptr);
+            if (const auto status = chunk.geometry->layout.TryDraw(target, brush, origin, links ? &local : nullptr); FAILED(status))
+                return status;
         }
     }
+    return S_OK;
 }
 } // namespace DxUi::RichText

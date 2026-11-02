@@ -3,7 +3,9 @@
 #include "EmbeddedTextClient.h"
 #include "GraphicsFixture.h"
 #include "RichImageLoader.h"
+#include <DxUi/Failure.h>
 #include <DxUi/FileDrop.h>
+#include <exception>
 #include <iostream>
 #include <new>
 #include <ole2.h>
@@ -111,7 +113,7 @@ struct App
         }
         catch (const std::bad_alloc&)
         {
-            ClearText();
+            DxUi::Failure::FailAllocation();
         }
     }
     static UINT Modifiers() noexcept
@@ -147,7 +149,7 @@ struct App
                 }
                 catch (const std::bad_alloc&)
                 {
-                    static_cast<void>(scene.rich->CompleteImageRequest(result.request, {}));
+                    DxUi::Failure::FailAllocation();
                 }
                 result = {};
             }
@@ -181,8 +183,8 @@ struct App
             }
             catch (const std::bad_alloc&)
             {
-                pendingImages.clear();
-            } // Preserve the alternative; retry on a later requested frame.
+                DxUi::Failure::FailAllocation();
+            }
             if (! pendingImages.empty() && FAILED(imageLoader.Submit(pendingImages)))
                 for (const auto& request : pendingImages)
                     static_cast<void>(scene.rich->CompleteImageRequest(request, {}));
@@ -408,11 +410,13 @@ struct App
                 default: break;
             }
         }
+        catch (const std::bad_alloc&)
+        {
+            DxUi::Failure::FailAllocation();
+        }
         catch (const std::exception&)
         {
-            // Win32 callback boundary: stop the owned sample on a standard failure.
-            PostQuitMessage(1);
-            return 0;
+            DxUi::Failure::FailUnexpected();
         }
         return DefWindowProcW(hwnd, msg, wp, lp);
     }
@@ -606,11 +610,11 @@ struct App
                     }
                     catch (const std::bad_alloc&)
                     {
-                        return false; // Source staging did not commit.
+                        DxUi::Failure::FailAllocation();
                     }
                     catch (const std::exception&)
                     {
-                        return false; // The source transaction is atomic on failure.
+                        DxUi::Failure::FailUnexpected();
                     }
                 }
 
@@ -652,7 +656,7 @@ struct App
                         }
                         catch (const std::bad_alloc&)
                         {
-                            // Leave the source intact if external-move completion cannot stage deletion.
+                            DxUi::Failure::FailAllocation();
                         }
                     }
                     else if (! movedHere)
@@ -697,8 +701,13 @@ struct App
 };
 #pragma warning(pop)
 } // namespace
+#include "FailureHost.h"
 int wmain(int argc, wchar_t** argv)
 {
+    DxUiSample::FailureHost::Host failureHost;
+    if (FAILED(failureHost.StartBesideExecutable()))
+        return 1;
+    const DxUi::Failure::Scope failureScope;
     const auto hr = OleInitialize(nullptr);
     if (FAILED(hr))
         return 1;
@@ -809,8 +818,7 @@ int wmain(int argc, wchar_t** argv)
                         }
                         catch (const std::bad_alloc&)
                         {
-                            // COM-style clipboard boundary: leave the caller's edit uncommitted.
-                            return E_OUTOFMEMORY;
+                            DxUi::Failure::FailAllocation();
                         }
                     }
                     HRESULT Write(HWND, std::wstring_view) noexcept override
@@ -834,9 +842,12 @@ int wmain(int argc, wchar_t** argv)
         }
         return FAILED(app.Run()) ? 1 : 0;
     }
-    catch (const std::exception& error)
+    catch (const std::bad_alloc&)
     {
-        std::cerr << error.what() << '\n';
-        return 1;
+        DxUi::Failure::FailAllocation();
+    }
+    catch (const std::exception&)
+    {
+        DxUi::Failure::FailUnexpected();
     }
 }

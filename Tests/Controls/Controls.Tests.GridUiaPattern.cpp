@@ -1,6 +1,7 @@
 #include "Controls.Tests.GridUiaPattern.h"
 
 #include "Controls.Tests.DxUiTestHelpers.h"
+#include "Support.Tests.FatalChildren.h"
 
 #include <atomic>
 #include <stdexcept>
@@ -10,6 +11,18 @@
 
 namespace
 {
+[[noreturn]] __declspec(noinline) void GridUiaReadThrowOrigin(const std::runtime_error& error)
+{
+    throw error;
+}
+[[noreturn]] __declspec(noinline) void GridUiaAllocationThrowOrigin()
+{
+    throw std::bad_alloc();
+}
+[[noreturn]] __declspec(noinline) void GridUiaRowThrowOrigin(const std::runtime_error& error)
+{
+    throw error;
+}
 
 // Existing identity/RAII/reference traits intentionally delete these implicit operations.
 // Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
@@ -41,20 +54,22 @@ public:
         return column;
     }
 
-    void GetCellData(size_t rowIndex, size_t columnIndex, DxUi::GridCellData& outCell) const override
+    __declspec(noinline) void GetCellData(size_t rowIndex, size_t columnIndex, DxUi::GridCellData& outCell) const override
     {
         _cellReads.fetch_add(1u, std::memory_order_relaxed);
         if (_throwOnRead)
         {
             if (_throwBadAlloc)
             {
-                throw std::bad_alloc();
+                GridUiaAllocationThrowOrigin();
             }
-            throw std::runtime_error("requested test callback failure");
+            const std::runtime_error error("requested test callback failure");
+            GridUiaReadThrowOrigin(error);
         }
         if (_throwOnRow && rowIndex == _throwOnRow.value())
         {
-            throw std::runtime_error("requested test row failure");
+            const std::runtime_error error("requested test row failure");
+            GridUiaRowThrowOrigin(error);
         }
         if (_replaceOnRow && rowIndex == _replaceOnRow.value())
         {
@@ -827,7 +842,7 @@ void TestGridUiaPatternInvalidatesProvidersAfterSameAddressModelAssignment()
             "new model assignment produces a distinct row runtime id even when address and stable row id match");
 }
 
-void TestGridUiaPatternContainsModelExceptionsAtTheProviderBoundary()
+static void TestGridUiaPatternContainsModelExceptionsAtTheProviderBoundaryImpl(unsigned fatalScenario = 0u)
 {
     using namespace DxUi;
     ScopedNonActivatingTestWindows nonActivating;
@@ -843,21 +858,15 @@ void TestGridUiaPatternContainsModelExceptionsAtTheProviderBoundary()
     RequireSucceeded(rootSimple->GetPatternProvider(UIA_GridPatternId, patternUnknown.put()), "throwing fixture advertises GridPattern");
     wil::com_ptr_nothrow<IGridProvider> pattern;
     RequireSucceeded(patternUnknown.query_to(pattern.put()), "throwing fixture exposes IGridProvider");
-    model.SetThrowOnRead(true);
-    IRawElementProviderSimple* failedCell = nullptr;
-    const HRESULT result                  = pattern->GetItem(1500, 0, &failedCell);
-    wil::com_ptr_nothrow<IRawElementProviderSimple> retainedFailure;
-    retainedFailure.attach(failedCell);
-    Require(result == E_FAIL && retainedFailure == nullptr, "a standard model exception becomes a failed HRESULT at the COM boundary");
-
-    model.SetThrowOnRead(true, true);
-    IRawElementProviderSimple* outOfMemoryCell = nullptr;
-    const HRESULT outOfMemoryResult            = pattern->GetItem(1501, 0, &outOfMemoryCell);
-    wil::com_ptr_nothrow<IRawElementProviderSimple> retainedOutOfMemory;
-    retainedOutOfMemory.attach(outOfMemoryCell);
-    Require(outOfMemoryResult == E_OUTOFMEMORY && retainedOutOfMemory == nullptr, "a model allocation failure maps to E_OUTOFMEMORY at the COM boundary");
-
-    model.SetThrowOnRead(false);
+    if (fatalScenario != 0u)
+    {
+        model.SetThrowOnRead(true, fatalScenario == 2u);
+        wil::com_ptr_nothrow<IRawElementProviderSimple> cell;
+        (void)pattern->GetItem(1500, 0, cell.put());
+        return;
+    }
+    Require(DxUiFailureTests::ExpectFatalChild(L"grid-uia-model-throw"), "grid model exception terminates its owned child");
+    Require(DxUiFailureTests::ExpectFatalChild(L"grid-uia-model-allocation"), "grid model allocation exception terminates its owned child");
     wil::com_ptr_nothrow<IRawElementProviderSimple> recoveredCell;
     RequireSucceeded(pattern->GetItem(1500, 0, recoveredCell.put()), "a later valid GetItem succeeds after a model callback exception");
     Require(ReadGridCellName(*recoveredCell) == L"row-1500-name", "failed callback publication does not expose a partial cell");
@@ -941,7 +950,7 @@ void TestGridUiaPatternWindowAnswersAfterRequestedRowsAreDeleted()
     Require(answer != 0, "WM_GETOBJECT returns the window root after the remembered rows were deleted");
 }
 
-void TestGridUiaPatternWindowAnswersWhenTheFirstPublicationFails()
+static void TestGridUiaPatternWindowAnswersWhenTheFirstPublicationFailsImpl(bool fatalChild = false)
 {
     using namespace DxUi;
     ScopedNonActivatingTestWindows nonActivating;
@@ -950,17 +959,21 @@ void TestGridUiaPatternWindowAnswersWhenTheFirstPublicationFails()
     Grid* grid = nullptr;
     AttachGrid(window, model, grid);
 
-    // The first client arrives while the model cannot produce its cells, so the first publication fails. The window still
-    // answers with its root (a null root was dereferenced here before the fix) instead of failing the client.
-    model.SetThrowOnRead(true);
+    // Exercise a model exception during first publication in an isolated child.
+    if (fatalChild)
+    {
+        model.SetThrowOnRead(true);
+        (void)SendMessageW(window.Hwnd(), WM_GETOBJECT, 0, static_cast<LPARAM>(UiaRootObjectId));
+        return;
+    }
+    Require(DxUiFailureTests::ExpectFatalChild(L"grid-uia-first-publication-throw"), "first publication model exception terminates its owned child");
     const LRESULT answer = SendMessageW(window.Hwnd(), WM_GETOBJECT, 0, static_cast<LPARAM>(UiaRootObjectId));
     Require(answer != 0, "WM_GETOBJECT returns the window root even when the first publication fails");
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> failingRoot;
     failingRoot.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
     Require(failingRoot != nullptr, "a client obtains the window root while publication keeps failing");
 
-    // Once the model recovers, a client acquiring the window gets the grid it shows.
-    model.SetThrowOnRead(false);
+    // A healthy first publication exposes the grid to a client.
     grid->NotifyDataChanged();
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> root;
     root.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
@@ -979,7 +992,7 @@ void TestGridUiaPatternWindowAnswersWhenTheFirstPublicationFails()
     Require(ReadGridCellName(*cell) == L"row-0-name", "the recovered root exposes the model content");
 }
 
-void TestGridUiaPatternDropsARequestedRowItsModelCannotRead()
+static void TestGridUiaPatternDropsARequestedRowItsModelCannotReadImpl(bool fatalChild = false)
 {
     using namespace DxUi;
     ScopedNonActivatingTestWindows nonActivating;
@@ -999,10 +1012,19 @@ void TestGridUiaPatternDropsARequestedRowItsModelCannotRead()
     wil::com_ptr_nothrow<IRawElementProviderSimple> remembered;
     RequireSucceeded(pattern->GetItem(1500, 0, remembered.put()), "a client remembers an offscreen row");
 
-    // The model now fails for that one remembered row. Only the request is lost: the refresh is still published.
-    model.SetThrowOnRow(1500u);
+    // Exercise the remembered-row callback exception in a child, and retain a healthy refresh check here.
+    if (fatalChild)
+        model.SetThrowOnRow(1500u);
+    else
+        Require(DxUiFailureTests::ExpectFatalChild(L"grid-uia-remembered-row-throw"), "remembered-row exception terminates its owned child");
     model.SetContentRevision(1u);
     grid->NotifyDataChanged();
+    if (fatalChild)
+    {
+        wil::com_ptr_nothrow<IRawElementProviderSimple> trigger;
+        (void)pattern->GetItem(0, 0, trigger.put());
+        return;
+    }
     wil::com_ptr_nothrow<IRawElementProviderSimple> visibleCell;
     RequireSucceeded(pattern->GetItem(0, 0, visibleCell.put()), "GetItem on a visible row succeeds while one remembered row cannot be read");
     Require(ReadGridCellName(*visibleCell) == L"revision-1-row-0-name", "the refresh is published despite the unreadable remembered row");
@@ -1165,3 +1187,37 @@ void TestGridUiaPatternFocusesACellOfAScrolledOutColumn()
     held.attach(header);
     Require(ReadElementName(*held.get()) == L"Details", "the cell's header is its column's");
 }
+
+void TestGridUiaPatternContainsModelExceptionsAtTheProviderBoundary()
+{
+    TestGridUiaPatternContainsModelExceptionsAtTheProviderBoundaryImpl();
+}
+void TestGridUiaPatternWindowAnswersWhenTheFirstPublicationFails()
+{
+    TestGridUiaPatternWindowAnswersWhenTheFirstPublicationFailsImpl();
+}
+void TestGridUiaPatternDropsARequestedRowItsModelCannotRead()
+{
+    TestGridUiaPatternDropsARequestedRowItsModelCannotReadImpl();
+}
+namespace
+{
+template <unsigned Scenario> void GridUiaModelFailureChild()
+{
+    const HRESULT hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+    if (FAILED(hr))
+        return;
+    const auto uninitialize = wil::scope_exit([] { CoUninitialize(); });
+    if constexpr (Scenario <= 2u)
+        TestGridUiaPatternContainsModelExceptionsAtTheProviderBoundaryImpl(Scenario);
+    else if constexpr (Scenario == 3u)
+        TestGridUiaPatternWindowAnswersWhenTheFirstPublicationFailsImpl(true);
+    else
+        TestGridUiaPatternDropsARequestedRowItsModelCannotReadImpl(true);
+}
+[[maybe_unused]] const bool gridUiaFailureChildrenRegistered =
+    DxUiFailureTests::RegisterFatalChildCase({L"grid-uia-model-throw", "GridUiaReadThrowOrigin", GridUiaModelFailureChild<1u>}) &&
+    DxUiFailureTests::RegisterFatalChildCase({L"grid-uia-model-allocation", "GridUiaAllocationThrowOrigin", GridUiaModelFailureChild<2u>}) &&
+    DxUiFailureTests::RegisterFatalChildCase({L"grid-uia-first-publication-throw", "GridUiaReadThrowOrigin", GridUiaModelFailureChild<3u>}) &&
+    DxUiFailureTests::RegisterFatalChildCase({L"grid-uia-remembered-row-throw", "GridUiaRowThrowOrigin", GridUiaModelFailureChild<4u>});
+} // namespace

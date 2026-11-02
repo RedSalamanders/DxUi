@@ -1,0 +1,1 @@
+- Introduce API 5 with application-owned fatal diagnostics, checked control-object allocation and explicit input results; restore the `Separator` noexcept declaration and require scoped direct construction. Broad native, corpus, performance and consumer qualification remain open in the migration plan.

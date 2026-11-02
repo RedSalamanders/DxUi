@@ -51,7 +51,7 @@ Win32 text/accessibility and presentation support inside the same archive.
 their explicit bounds. Applications own values, validation decisions, scrolling and fixed footer actions.
 
 Consumers import [Build/DxUi.Consumer.props](Build/DxUi.Consumer.props) and
-[Build/DxUi.Consumer.targets](Build/DxUi.Consumer.targets), pin an exact commit/API revision 4 with target `["DxUi"]`,
+[Build/DxUi.Consumer.targets](Build/DxUi.Consumer.targets), pin an exact commit/API revision 5 with target `["DxUi"]`,
 and use an isolated restore/build output root. See [the consumption contract](Specs/Build/Build_ToolchainAndConsumption.md).
 Existing applications can follow [the consumer upgrade guide](docs/upgrade.md) for the delivery pin, client changes,
 complete rebuild, validation and rollback.

@@ -1,3 +1,5 @@
+#include <DxUi/Failure.h>
+
 #include "DxUi.Internal.h"
 #include "TextClipboard.h"
 #include "TextStoreTarget.h"
@@ -457,12 +459,11 @@ template <typename... Args> void TraceWindowHostDiagnostics(std::wstring_view ev
     }
     catch (const std::bad_alloc&)
     {
-        std::terminate();
+        Failure::FailAllocation();
     }
     catch (const std::format_error&)
     {
-        // DxUi tracing is diagnostic only; formatting failure must not disturb input dispatch.
-        TraceContextMenuDiagnostics(eventName, L"formatting failed");
+        Failure::FailUnexpected();
     }
 }
 
@@ -498,12 +499,13 @@ template <typename... Args> void TraceWindowHostDiagnostics(std::wstring_view ev
 
 [[nodiscard]] std::map<DWORD, SharedWindowHostGraphicsResources>& GetSharedWindowHostGraphicsResourcesByThread() noexcept
 {
+    const Failure::Scope failureScope;
     static auto* const resourcesByThread = []() noexcept
     {
         auto* resources = new (std::nothrow) std::map<DWORD, SharedWindowHostGraphicsResources>();
         if (resources == nullptr)
         {
-            std::terminate();
+            Failure::FailAllocation(sizeof(std::map<DWORD, SharedWindowHostGraphicsResources>));
         }
         return resources;
     }();
@@ -642,16 +644,13 @@ void ResetAllSharedWindowHostGraphicsResourcesForProcessExit() noexcept
         }
         catch (const std::bad_alloc&)
         {
-            hosts.pop_back();
-            SetLastError(ERROR_NOT_ENOUGH_MEMORY);
-            return false;
+            Failure::FailAllocation();
         }
         return true;
     }
     catch (const std::bad_alloc&)
     {
-        SetLastError(ERROR_NOT_ENOUGH_MEMORY);
-        return false;
+        Failure::FailAllocation();
     }
 }
 
@@ -867,7 +866,7 @@ void ReleaseSharedWindowHostAttachment(ControlHost* host, DWORD ownerThreadId) n
         }
         catch (const std::exception&)
         {
-            value = 0u;
+            Failure::FailUnexpected();
         }
         if (value == 0u)
         {
@@ -1577,6 +1576,7 @@ const ThemePalette& ControlHost::GetTheme() const noexcept
 
 void ControlHost::SetRoot(std::unique_ptr<Control> root)
 {
+    const Failure::Scope failureScope;
     const bool wasReplacingRoot = std::exchange(_replacingRoot, true);
     const auto endReplacingRoot = wil::scope_exit([this, wasReplacingRoot]() noexcept { _replacingRoot = wasReplacingRoot; });
     // A promoted child still points at its original parent. Reset callbacks may replace or detach that tree,
@@ -1830,6 +1830,7 @@ void ControlHost::Invalidate() const noexcept
 
 void ControlHost::RefreshAccessibilitySnapshot() noexcept
 {
+    const Failure::Scope failureScope;
     RefreshWindowHostAccessibilitySnapshot(_hwnd, this);
 }
 
@@ -1875,6 +1876,7 @@ bool ControlHost::PrimeForShow() noexcept
 
 bool ControlHost::RenderInitialFrameForShow() noexcept
 {
+    const Failure::Scope failureScope;
     if (! _nativePresentationVisible)
         return false;
     const auto presentationRevision = _nativePresentationRevision;
@@ -1978,6 +1980,7 @@ void ControlHost::ResetInteractionState() noexcept
 
 void ControlHost::SetFocusControl(Control* control, bool transferNativeFocus) noexcept
 {
+    const Failure::Scope failureScope;
     if (_detachInProgress.load(std::memory_order_acquire))
         return;
     // A target this host would refuse (disabled, hidden, unfocusable or outside the tree) changes nothing, not even the
@@ -2143,6 +2146,7 @@ void ControlHost::SetFocusControl(Control* control, bool transferNativeFocus) no
 
 void ControlHost::NotifyControlFocusChanged(Control* control, bool focused) noexcept
 {
+    const Failure::Scope failureScope;
     const std::weak_ptr<int> lifetime = control->GetLifetimeToken();
     const uint64_t requestRevision    = _focusRequestRevision;
     if (! TryControlCallback([&] { control->OnFocusChanged(*this, focused); }) && IsFocusedControlStillHeld(lifetime, _root.get(), control) &&
@@ -2162,6 +2166,7 @@ Control* ControlHost::GetFocusControl() const noexcept
 
 bool ControlHost::HandleMnemonic(wchar_t mnemonic) noexcept
 {
+    const Failure::Scope failureScope;
     if (! _root)
     {
         return false;
@@ -2248,6 +2253,7 @@ bool ControlHost::RouteFocusedCharInput(wchar_t ch, UINT modifiers, const wchar_
 
 bool ControlHost::HandleTabNavigation(bool reverse) noexcept
 {
+    const Failure::Scope failureScope;
     if (! _root)
     {
         return false;
@@ -2547,7 +2553,7 @@ try
 }
 catch (const std::exception&)
 {
-    return false;
+    Failure::FailUnexpected();
 }
 bool ControlHost::CommitFileDrop(D2D1_POINT_2F point, IDataObject& dataObject, bool (*validate)(void*) noexcept, void* context) noexcept
 {
@@ -2602,7 +2608,7 @@ try
 }
 catch (const std::exception&)
 {
-    return false;
+    Failure::FailUnexpected();
 }
 
 IDWriteTextFormat* ControlHost::GetTextFormat(FontRole role) const noexcept
@@ -3130,6 +3136,7 @@ void ControlHost::AllowTranslatedCharacter() noexcept
 
 bool ControlHost::DispatchKeyboardMessage(const MSG& message) noexcept
 {
+    const Failure::Scope failureScope;
     if (message.message != WM_KEYDOWN || (message.wParam != VK_RETURN && message.wParam != VK_SPACE) || ! message.hwnd ||
         GetWindowThreadProcessId(message.hwnd, nullptr) != GetCurrentThreadId())
         return false;
@@ -3176,6 +3183,7 @@ bool DispatchAttachedWindowHostKeyboardMessage(const MSG& message) noexcept
 LRESULT ControlHost::HandleMessage(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp, bool& handled) noexcept
 try
 {
+    const Failure::Scope failureScope;
     handled = false;
     if (hwnd != _hwnd)
     {
@@ -4031,13 +4039,12 @@ try
 // DPI scaling is handled by the D2D device context, not by recreating text formats.
 catch (const std::exception&)
 {
-    // A custom control's failed callback must not escape the Windows boundary or replay a partially processed message.
-    handled = true;
-    return 0;
+    Failure::FailUnexpected();
 }
 
 bool ControlHost::EnsureDeviceIndependentResources() const noexcept
 {
+    const Failure::Scope failureScope;
     if (_embedded && ! _dwriteFactory)
         return false;
     if (! _dwriteFactory)
@@ -4204,6 +4211,7 @@ bool ControlHost::EnsureDeviceIndependentResources() const noexcept
 
 bool ControlHost::EnsureDeviceResources() noexcept
 {
+    const Failure::Scope failureScope;
     if (_embedded)
         return _d3dDevice && _d2dContext && _d2dFactory;
     SharedWindowHostGraphicsResources& shared = GetSharedWindowHostGraphicsResources();
@@ -4277,6 +4285,7 @@ bool ControlHost::EnsureDeviceResources() noexcept
 
 bool ControlHost::EnsureSizeDependentResources(const bool allowHidden) noexcept
 {
+    const Failure::Scope failureScope;
     if (! _hwnd || _widthPx == 0u || _heightPx == 0u)
     {
         return false;
@@ -4594,6 +4603,7 @@ void ControlHost::RecreateBrushCache() const
 void ControlHost::Render(const RECT* dirtyRectPx, bool allowHidden) noexcept
 try
 {
+    const Failure::Scope failureScope;
     if (! _nativePresentationVisible)
         return;
 #if DXUI_ENABLE_DIAGNOSTICS
@@ -4840,13 +4850,13 @@ try
 }
 catch (const std::exception&)
 {
-    // A custom control may throw while painting. Skip this frame after draw cleanup; a later invalidation can retry.
-    EmitPendingNativeTextInputPaintMetric(E_FAIL);
+    Failure::FailUnexpected();
 }
 
 #if DXUI_ENABLE_DIAGNOSTICS
 bool ControlHost::CaptureCurrentBackBuffer(WindowHostBitmapCapture& out) noexcept
 {
+    const Failure::Scope failureScope;
     if (! _swapChain || ! _d3dDevice || ! _d3dContext)
     {
         return false;
@@ -4896,6 +4906,7 @@ bool ControlHost::CaptureCurrentBackBuffer(WindowHostBitmapCapture& out) noexcep
 void ControlHost::Render(const RECT* dirtyRectPx, WindowHostBitmapCapture* capture, bool allowHidden) noexcept
 try
 {
+    const Failure::Scope failureScope;
     if (! _nativePresentationVisible)
         return;
     const auto presentationRevision = _nativePresentationRevision;
@@ -5166,8 +5177,7 @@ try
 }
 catch (const std::exception&)
 {
-    // Keep the failed frame out of presentation after draw cleanup; a later invalidation can retry.
-    EmitPendingNativeTextInputPaintMetric(E_FAIL);
+    Failure::FailUnexpected();
 }
 #endif
 
@@ -5493,7 +5503,7 @@ void ControlHost::CancelCapturedControlInteraction() noexcept
         }
         catch (const std::exception&)
         {
-            // Capture is already released; a failing cancel callback must not unwind through the window procedure.
+            Failure::FailUnexpected();
         }
     }
 }
@@ -5655,6 +5665,7 @@ void ControlHost::ResetRootInteractionState() noexcept
 Control* ControlHost::HitTestControl(D2D1_POINT_2F pointDip) noexcept
 try
 {
+    const Failure::Scope failureScope;
     if (! _root)
     {
         return nullptr;
@@ -5681,8 +5692,7 @@ try
 }
 catch (const std::exception&)
 {
-    // A failed application hit query must not dispatch input to a partially resolved target.
-    return nullptr;
+    Failure::FailUnexpected();
 }
 
 WindowHostCursorKind ControlHost::ResolveCursorKindForPoint(D2D1_POINT_2F pointDip) noexcept
@@ -5795,11 +5805,11 @@ std::wstring_view ControlHost::SupplementalTooltipText(Control* target, D2D1_POI
         }
         catch (const std::bad_alloc&)
         {
-            // A failed optional hit query falls back to the consumer tooltip.
+            Failure::FailAllocation();
         }
         catch (const std::exception&)
         {
-            // Unavailable semantic geometry falls back to the consumer tooltip.
+            Failure::FailUnexpected();
         }
     }
     return target->GetTooltipText();
@@ -5859,11 +5869,11 @@ try
 }
 catch (const std::bad_alloc&)
 {
-    // Tooltip presentation is optional; preserve its last coherent state.
+    Failure::FailAllocation();
 }
 catch (const std::exception&)
 {
-    // Failed hit testing or tooltip preparation leaves the previous state usable.
+    Failure::FailUnexpected();
 }
 
 void ControlHost::ValidateSupplementalTooltipTarget() noexcept

@@ -1,0 +1,44 @@
+#pragma once
+
+#include <DxUi/Failure.h>
+#include <array>
+#include <atomic>
+#include <string_view>
+#include <wil/resource.h>
+
+namespace DxUiSample::FailureHost
+{
+// DbgHelp is process-global and not thread-safe. A real application should
+// share this gate with every one of its own DbgHelp users.
+inline constinit SRWLOCK dbgHelpGate = SRWLOCK_INIT;
+// Application-owned example. Start before installing hooks or entering DxUi.
+// The host and its borrowed services must outlive every registered module.
+class Host final
+{
+public:
+    Host() noexcept = default;
+    ~Host();
+    Host(const Host&)            = delete;
+    Host& operator=(const Host&) = delete;
+    [[nodiscard]] HRESULT Start(std::wstring_view outputPrefix) noexcept;
+    [[nodiscard]] HRESULT StartBesideExecutable() noexcept;
+    [[nodiscard]] HRESULT Install() noexcept;
+    [[nodiscard]] HRESULT Uninstall() noexcept;
+    [[nodiscard]] const DxUi::Failure::HostServices* Services() const noexcept;
+    // Reuse this prestarted writer behind an application-provided reporter.
+    [[nodiscard]] HRESULT ReportRecord(const DxUi::Failure::Record& record) noexcept;
+
+private:
+    static DWORD WINAPI WorkerEntry(void* context) noexcept;
+    static HRESULT Report(void* context, const DxUi::Failure::Record& record) noexcept;
+    DWORD Worker() noexcept;
+    HRESULT WriteEvidence() noexcept;
+
+    std::array<wchar_t, 1024> prefix_{};
+    DxUi::Failure::ProcessHooks hooks_;
+    wil::unique_handle request_, stop_, done_, thread_;
+    DxUi::Failure::Record record_{};
+    std::atomic<LONG> reporting_{};
+    HRESULT result_{E_PENDING};
+};
+} // namespace DxUiSample::FailureHost

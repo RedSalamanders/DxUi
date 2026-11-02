@@ -552,14 +552,7 @@ void TestRichDocumentLayoutEditsAndFailurePublication()
     auto invalid          = options;
     invalid.widthDip      = std::numeric_limits<float>::quiet_NaN();
     bool rejected         = false;
-    try
-    {
-        prepared.Prepare(factory.get(), document.Snapshot(), document.Revision(), ViewMode::Rich, invalid);
-    }
-    catch (const std::invalid_argument&)
-    {
-        rejected = true;
-    }
+    rejected              = prepared.TryPrepare(factory.get(), document.Snapshot(), document.Revision(), ViewMode::Rich, invalid) == E_INVALIDARG;
     Require(rejected && prepared.Ready() && prepared.Generation() == generation && prepared.Revision() == document.Revision(),
             "invalid geometry options leave the published source/geometry pair unchanged");
     prepared.Prepare(factory.get(), document.Snapshot(), document.Revision(), ViewMode::Rich, options);
@@ -573,14 +566,8 @@ void TestRichDocumentLayoutEditsAndFailurePublication()
     prepared.Clear();
     Require(! prepared.Ready() && prepared.ChunkCount() == 0u && prepared.Height() == 0.0f, "full retirement discards the complete chunk graph");
     rejected = false;
-    try
-    {
-        static_cast<void>(prepared.Caret(0u));
-    }
-    catch (const std::logic_error&)
-    {
-        rejected = true;
-    }
+    CaretGeometry unavailable{};
+    rejected = prepared.TryCaret(0u, unavailable) == E_UNEXPECTED;
     Require(rejected, "retired geometry is unavailable");
     prepared.Prepare(factory.get(), document.Snapshot(), document.Revision(), ViewMode::Rich, options);
     Require(prepared.Ready() && prepared.LastPreparation().reusedChunks == 0u, "retired resources are rebuilt on resumed preparation");
@@ -827,7 +814,7 @@ void TestRichDocumentLayoutBranchesOptionsAndCompaction()
     Require(prepared.LastPreparation().reusedChunks == 0u && prepared.LastPreparation().preparedSourceUnits == sibling.Length(),
             "expired bounded source ancestry falls back to complete preparation");
 }
-void DrainDocumentPreparation(PreparedDocumentLayout& layout, const LayoutWorkBudget& budget)
+HRESULT DrainDocumentPreparation(PreparedDocumentLayout& layout, const LayoutWorkBudget& budget)
 {
     for (size_t call = 0u; call < 200000u; ++call)
     {
@@ -835,11 +822,14 @@ void DrainDocumentPreparation(PreparedDocumentLayout& layout, const LayoutWorkBu
         Require(advance.layoutsPrepared <= budget.maximumLayouts && advance.blockSteps <= budget.maximumBlockSteps,
                 "each cooperative advance obeys both independent work budgets");
         if (advance.status == LayoutPreparationStatus::Complete)
-            return;
+            return S_OK;
+        if (advance.status == LayoutPreparationStatus::Failed)
+            return advance.result;
         Require(advance.status == LayoutPreparationStatus::Pending && layout.HasPendingPreparation(),
                 "incomplete preparation retains an explicit continuation");
     }
     Require(false, "finite document preparation must terminate within its independent test bound");
+    return E_FAIL;
 }
 void TestRichDocumentLayoutCooperativeBudgetsAndGeometry()
 {
@@ -907,27 +897,14 @@ void TestRichDocumentLayoutCoalescingCancellationAndFailure()
     invalid.widthDip               = std::numeric_limits<float>::quiet_NaN();
     layout.BeginPreparation(factory.get(), candidate.Snapshot(), candidate.Revision(), ViewMode::Rich, invalid);
     bool rejected = false;
-    try
-    {
-        DrainDocumentPreparation(layout, {1u, 1u});
-    }
-    catch (const std::invalid_argument&)
-    {
-        rejected = true;
-    }
+    rejected      = DrainDocumentPreparation(layout, {1u, 1u}) == E_INVALIDARG;
     Require(rejected && ! layout.HasPendingPreparation() && layout.Generation() == publishedGeneration && layout.SourceMatches(replacement.Text()),
             "failed advance discards staging and preserves the published pair");
     layout.BeginPreparation(factory.get(), candidate.Snapshot(), candidate.Revision(), ViewMode::Rich, options);
-    rejected = false;
-    try
-    {
-        static_cast<void>(layout.AdvancePreparation({0u, 1u}));
-    }
-    catch (const std::invalid_argument&)
-    {
-        rejected = true;
-    }
-    Require(rejected && layout.HasPendingPreparation(), "invalid work budget leaves a valid pending request intact");
+    rejected                 = false;
+    const auto refusedBudget = layout.AdvancePreparation({0u, 1u});
+    rejected                 = refusedBudget.status == LayoutPreparationStatus::Failed && refusedBudget.result == E_INVALIDARG;
+    Require(rejected && layout.HasPendingPreparation(), "refused zero work budget leaves a valid pending request intact");
     layout.Invalidate();
     Require(! layout.Ready() && ! layout.HasPendingPreparation(), "invalidation cancels an obsolete request and rejects old geometry");
     layout.BeginPreparation(factory.get(), candidate.Snapshot(), candidate.Revision(), ViewMode::Rich, options);

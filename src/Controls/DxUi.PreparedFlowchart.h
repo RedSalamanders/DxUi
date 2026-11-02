@@ -25,6 +25,10 @@ struct DiagramPalette
     DiagramPalette(DiagramPalette&&) noexcept            = default;
     DiagramPalette& operator=(DiagramPalette&&) noexcept = default;
     bool Advance();
+    HRESULT Result() const noexcept
+    {
+        return palette ? palette->Result() : E_INVALIDARG;
+    }
     bool Ready() const noexcept
     {
         return ready;
@@ -68,6 +72,10 @@ public:
     void Clear() noexcept;
     bool Pending() const noexcept;
     bool Ready() const noexcept;
+    HRESULT Result() const noexcept
+    {
+        return result_;
+    }
     std::uint64_t Generation() const noexcept;
     std::uint64_t Revision() const noexcept;
     std::shared_ptr<const FlowchartLayoutPlan> Geometry() const noexcept;
@@ -90,5 +98,6 @@ private:
     std::unique_ptr<Preparation> next_;
     std::uint64_t generation_{};
     bool valid_{};
+    HRESULT result_ = S_OK;
 };
 } // namespace DxUi::RichText::Detail

@@ -51,9 +51,10 @@ inline bool DecodeHeadingFragment(std::wstring_view fragment, std::wstring& outp
 {
     if (! fragment.starts_with(L'#') || fragment.size() == 1u)
         return false;
-    try
     {
-        const auto encoded = EncodeUtf8(fragment.substr(1u));
+        std::string encoded(0u, '\0');
+        if (TryEncodeUtf8(fragment.substr(1u), encoded) != SourceResult::Success)
+            return false;
         std::string decoded(0u, '\0');
         decoded.reserve(encoded.size());
         const auto hex = [](char value) noexcept -> unsigned
@@ -80,17 +81,11 @@ inline bool DecodeHeadingFragment(std::wstring_view fragment, std::wstring& outp
                 return false;
             decoded.push_back(value);
         }
-        auto staged = DecodeUtf8(decoded);
+        std::wstring staged(0u, L'\0');
+        if (TryDecodeUtf8(decoded, staged) != SourceResult::Success)
+            return false;
         output.swap(staged);
         return true;
-    }
-    catch (const std::invalid_argument&)
-    {
-        return false;
-    }
-    catch (const std::length_error&)
-    {
-        return false;
     }
 }
 // Shared identity for ordinary references and the named footnote profile. No

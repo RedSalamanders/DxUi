@@ -178,16 +178,16 @@ template <typename... Args> void TraceButtonDiagnostics(std::wstring_view eventN
 
     try
     {
+        const Failure::Scope failureScope;
         TraceContextMenuDiagnostics(eventName, std::format(format, std::forward<Args>(args)...));
     }
     catch (const std::bad_alloc&)
     {
-        std::terminate();
+        Failure::FailAllocation();
     }
     catch (const std::format_error&)
     {
-        // Button tracing is diagnostic only; formatting failure must not disturb input dispatch.
-        TraceContextMenuDiagnostics(eventName, L"formatting failed");
+        Failure::FailUnexpected();
     }
 }
 
@@ -2724,7 +2724,7 @@ void CardPanel::Paint(ControlHost& host) const
     Panel::Paint(host);
 }
 
-Separator::Separator()
+Separator::Separator() noexcept
 {
     SetFocusable(false);
     SetAccessibilityRole(AccessibilityRole::Separator);
@@ -2950,6 +2950,7 @@ void Label::PrepareVisualContent(ControlHost& host) noexcept
     }
     try
     {
+        const Failure::Scope failureScope;
         const auto bounds = GetBounds();
         const float width = (std::max)(1.0f, bounds.right - bounds.left), height = (std::max)(1.0f, bounds.bottom - bounds.top);
         const auto revision  = _typographyInputRevision;
@@ -3006,7 +3007,7 @@ void Label::PrepareVisualContent(ControlHost& host) noexcept
     }
     catch (const std::bad_alloc&)
     {
-        // Optional visual preparation retains the normal text fallback.
+        Failure::FailAllocation();
     }
 }
 
@@ -3167,6 +3168,7 @@ void Button::PrepareVisualContent(ControlHost& host) noexcept
     {
         try
         {
+            const Failure::Scope failureScope;
             const auto bounds     = GetBounds();
             const float width     = (std::max)(0.0f, bounds.right - bounds.left);
             const float height    = (std::max)(1.0f, bounds.bottom - bounds.top);
@@ -3203,13 +3205,14 @@ void Button::PrepareVisualContent(ControlHost& host) noexcept
         }
         catch (const std::bad_alloc&)
         {
-            return;
+            Failure::FailAllocation();
         }
     }
     if (! _shortcutText.empty())
     {
         try
         {
+            const Failure::Scope failureScope;
             const auto flow       = GetFlowDirection();
             const auto resources  = host.GetResourceGeneration();
             const auto typography = host.GetTypographyRevision();
@@ -3234,7 +3237,7 @@ void Button::PrepareVisualContent(ControlHost& host) noexcept
         }
         catch (const std::bad_alloc&)
         {
-            return;
+            Failure::FailAllocation();
         }
     }
     // Toggle and radio-button descendants have distinct Paint implementations; preparing a base-button layout
@@ -6446,6 +6449,7 @@ void Slider::NotifyChange(SliderChangePhase phase, bool notifyLegacy) noexcept
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     try
     {
+        const Failure::Scope failureScope;
         const auto life    = GetLifetimeToken();
         const auto legacy  = _onValueChanged;
         const auto changed = _onChange;
@@ -6457,7 +6461,7 @@ void Slider::NotifyChange(SliderChangePhase phase, bool notifyLegacy) noexcept
     }
     catch (const std::exception&)
     {
-        Debug::Warning(L"Slider change callback failed");
+        Failure::FailUnexpected();
     }
     if (! lifetime.expired())
         if (ControlHost* const host = GetHost())

@@ -2,12 +2,16 @@
 
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "GraphicsFixture.h"
+#include "Support.Tests.FatalChildren.h"
 #include "Support/AnimationDispatcher.h"
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <functional>
 #include <limits>
+#include <optional>
+#include <stdexcept>
 
 namespace
 {
@@ -129,6 +133,32 @@ private:
     size_t _tickCount        = 0u;
     uint64_t _subscriptionId = 0u;
 };
+std::atomic<unsigned> animationFailureMarker{};
+[[noreturn]] __declspec(noinline) void AnimationTickFailureOrigin(const std::runtime_error& error)
+{
+    animationFailureMarker.store(1u, std::memory_order_relaxed);
+    throw error;
+}
+bool AnimationFailureCallback(void* context, uint64_t) noexcept
+{
+    AnimationTickFailureOrigin(*static_cast<std::runtime_error*>(context));
+}
+void AnimationTickFailureChild()
+{
+    std::optional<std::runtime_error> error;
+    uint64_t subscription{};
+    {
+        const DxUi::Failure::Scope setupScope;
+        error.emplace("animation tick callback");
+        auto& dispatcher = DxUi::Ui::AnimationDispatcher::GetInstance();
+        subscription     = dispatcher.Subscribe(AnimationFailureCallback, &error.value());
+        Require(subscription != 0u, "subscribe fatal animation child");
+    }
+    static_cast<void>(DispatchMessagesUntil([] { return false; }));
+    DxUi::Ui::AnimationDispatcher::GetInstance().Unsubscribe(subscription);
+}
+[[maybe_unused]] const bool animationFailureChildRegistered = DxUiFailureTests::RegisterFatalChildCase(
+    {L"animation-tick-callback", "AnimationTickFailureOrigin", AnimationTickFailureChild, DxUiFailureTests::FatalFaultClass::CppException, false});
 } // namespace
 
 // N-14 and Q14 of the 10 October review: a Button's hover stamped system uptime while an embedded view's ticks carried the
@@ -457,6 +487,7 @@ void TestEmbeddedAnimationClockContinuesAcrossAttachments()
 // too, never the last tick that host received.
 void TestNativeAnimationClockIsTheDispatcherTimeline()
 {
+    Require(DxUiFailureTests::ExpectFatalChild(L"animation-tick-callback"), "animation callback fails at its origin");
     using namespace DxUi;
     auto& dispatcher = Ui::AnimationDispatcher::GetInstance();
     WindowHost host;

@@ -5,6 +5,7 @@
 #include "DxUi.MarkdownMetadata.h"
 #include "DxUi.MarkdownSourceCorrelation.h"
 #include "DxUi.TextElements.h"
+#include <DxUi/Failure.h>
 #include <DxUi/MarkdownSyntax.h>
 #include <atomic>
 #include <iterator>
@@ -20,11 +21,6 @@ bool Punctuation(wchar_t value) noexcept
 {
     return (value >= L'!' && value <= L'/') || (value >= L':' && value <= L'@') || (value >= L'[' && value <= L'`') || (value >= L'{' && value <= L'~');
 }
-void ValidateProfile(MarkdownProfile profile)
-{
-    if (profile != MarkdownProfile::CommonMark0312 && profile != MarkdownProfile::Gfm029 && profile != MarkdownProfile::RichMarkdown)
-        throw std::invalid_argument("Unknown Markdown profile");
-}
 bool TryResolveExtensions(MarkdownProfile profile, std::optional<MarkdownExtensions> extensions, MarkdownExtensions& result) noexcept
 {
     if (profile != MarkdownProfile::CommonMark0312 && profile != MarkdownProfile::Gfm029 && profile != MarkdownProfile::RichMarkdown)
@@ -36,32 +32,18 @@ bool TryResolveExtensions(MarkdownProfile profile, std::optional<MarkdownExtensi
               ~static_cast<unsigned>(profile == MarkdownProfile::RichMarkdown ? MarkdownExtensions::RichOptionalMask : MarkdownExtensions::All)) &&
            (profile != MarkdownProfile::CommonMark0312 || result == MarkdownExtensions::None);
 }
-MarkdownExtensions ValidateExtensions(MarkdownProfile profile, std::optional<MarkdownExtensions> extensions)
+void RequireSuccess(MarkdownResult result)
 {
-    ValidateProfile(profile);
-    MarkdownExtensions result{};
-    if (! TryResolveExtensions(profile, extensions, result))
-        throw std::invalid_argument("Invalid Markdown extensions for this profile");
-    return result;
+    if (result != MarkdownResult::Success)
+        Failure::FailContract(E_INVALIDARG);
 }
-std::wstring_view ValidateSource(std::wstring_view text, MarkdownProfile profile)
+MarkdownResult ValidateSource(std::wstring_view text) noexcept
 {
-    ValidateProfile(profile);
     if (text.size() > Document::MaximumUnits)
-        throw std::length_error("Markdown source exceeds bounded preparation capacity");
-    for (std::size_t offset = 0; offset < text.size(); ++offset)
-    {
-        if (IsUtf16LeadSurrogate(text[offset]))
-        {
-            if (++offset == text.size() || ! IsUtf16TrailSurrogate(text[offset]))
-                throw std::invalid_argument("Unpaired Markdown source surrogate");
-        }
-        else if (IsUtf16TrailSurrogate(text[offset]))
-            throw std::invalid_argument("Unpaired Markdown source surrogate");
-    }
+        return MarkdownResult::CapacityExceeded;
     // NUL is a valid source scalar here. Its lexical replacement does not edit
     // the original. The existing editor Document admission remains separate.
-    return text;
+    return IsValidSourceUtf16(text) ? MarkdownResult::Success : MarkdownResult::InvalidSource;
 }
 void AppendScalar(MarkdownLexeme& token, std::uint32_t scalar) noexcept
 {
@@ -150,7 +132,7 @@ bool Detail::DecodeMarkdownCharacterReference(std::wstring_view input, std::size
 
 MarkdownSyntax::MarkdownSyntax(
     std::wstring_view source, std::uint64_t revision, MarkdownProfile profile, MarkdownExtensions extensions, std::optional<MarkdownSourceRegion> sourceRegion)
-    : source_(ValidateSource(source, profile)),
+    : source_(source),
       revision_(revision),
       profile_(profile),
       extensions_(extensions),
@@ -272,33 +254,67 @@ const MarkdownFootnoteReference* MarkdownSyntax::FootnoteReferenceFor(std::size_
         std::lower_bound(references.begin(), references.end(), inlineNode, [](const auto& reference, auto wanted) { return reference.inlineNode < wanted; });
     return found != references.end() && found->inlineNode == inlineNode ? &*found : nullptr;
 }
-std::wstring_view MarkdownSyntax::Slice(MarkdownRange range) const
+SourceResult MarkdownSyntax::TrySlice(MarkdownRange range, std::wstring_view& output) const noexcept
 {
     const auto source = Source();
     if (range.first > range.last || range.last > source.size())
-        throw std::out_of_range("Markdown source range");
-    return source.substr(range.first, range.last - range.first);
+        return SourceResult::InvalidRange;
+    output = source.substr(range.first, range.last - range.first);
+    return SourceResult::Success;
+}
+SourceResult MarkdownSyntax::TryLexemeValue(std::size_t index, std::wstring_view& output) const noexcept
+{
+    if (parsedDataOwner_)
+        return parsedDataOwner_->TryLexemeValue(index, output);
+    if (index >= lexemes_.size())
+        return SourceResult::InvalidRange;
+    const auto& token = lexemes_[index];
+    if (token.kind == MarkdownLexemeKind::Text)
+        return TrySlice(token.source, output);
+    if (token.valueLength > token.value.size())
+        return SourceResult::InvalidRange;
+    output = std::wstring_view(token.value.data(), token.valueLength);
+    return SourceResult::Success;
+}
+SourceResult MarkdownSyntax::TryLexemeSourceAnchor(std::size_t index, std::size_t valueOffset, bool trailing, std::size_t& output) const noexcept
+{
+    if (parsedDataOwner_)
+        return parsedDataOwner_->TryLexemeSourceAnchor(index, valueOffset, trailing, output);
+    std::wstring_view value;
+    if (TryLexemeValue(index, value) != SourceResult::Success)
+        return SourceResult::InvalidRange;
+    const auto& token = lexemes_[index];
+    const auto length = value.size();
+    if (valueOffset > length)
+        return SourceResult::InvalidRange;
+    if (token.kind == MarkdownLexemeKind::Text)
+        output = token.source.first + valueOffset;
+    else if (! valueOffset)
+        output = token.source.first;
+    else
+        output = valueOffset == length || trailing ? token.source.last : token.source.first;
+    return SourceResult::Success;
+}
+std::wstring_view MarkdownSyntax::Slice(MarkdownRange range) const
+{
+    std::wstring_view output;
+    if (TrySlice(range, output) != SourceResult::Success)
+        Failure::FailContract(E_INVALIDARG);
+    return output;
 }
 std::wstring_view MarkdownSyntax::LexemeValue(std::size_t index) const
 {
-    if (parsedDataOwner_)
-        return parsedDataOwner_->LexemeValue(index);
-    const auto& token = lexemes_.at(index);
-    return token.kind == MarkdownLexemeKind::Text ? Slice(token.source) : std::wstring_view(token.value.data(), token.valueLength);
+    std::wstring_view output;
+    if (TryLexemeValue(index, output) != SourceResult::Success)
+        Failure::FailContract(E_INVALIDARG);
+    return output;
 }
 std::size_t MarkdownSyntax::LexemeSourceAnchor(std::size_t index, std::size_t valueOffset, bool trailing) const
 {
-    if (parsedDataOwner_)
-        return parsedDataOwner_->LexemeSourceAnchor(index, valueOffset, trailing);
-    const auto& token = lexemes_.at(index);
-    const auto length = LexemeValue(index).size();
-    if (valueOffset > length)
-        throw std::out_of_range("Markdown lexical value offset");
-    if (token.kind == MarkdownLexemeKind::Text)
-        return token.source.first + valueOffset;
-    if (! valueOffset)
-        return token.source.first;
-    return valueOffset == length || trailing ? token.source.last : token.source.first;
+    std::size_t output{};
+    if (TryLexemeSourceAnchor(index, valueOffset, trailing, output) != SourceResult::Success)
+        Failure::FailContract(E_INVALIDARG);
+    return output;
 }
 
 // Existing identity/RAII/reference traits intentionally delete these implicit operations.
@@ -638,9 +654,12 @@ struct MarkdownParser::Preparation
                 work.phase       = ClosedRootReuse::Phase::CopyEmpty;
                 return;
             }
-            const auto& node  = nodes[work.scan];
-            const auto parent = work.scan == work.root ? 0u : work.remap[node.parent - work.root];
-            work.remap.push_back(blocks.ImportClosedNode(node, parent, oldFirst, work.newFirst));
+            const auto& node    = nodes[work.scan];
+            const auto parent   = work.scan == work.root ? 0u : work.remap[node.parent - work.root];
+            const auto imported = blocks.ImportClosedNode(node, parent, oldFirst, work.newFirst);
+            if (imported == MarkdownNoNode)
+                return;
+            work.remap.push_back(imported);
             work.line  = 0u;
             work.phase = ClosedRootReuse::Phase::CopyLines;
             return;
@@ -881,6 +900,7 @@ bool MarkdownParser::TryAdoptParsedSnapshot(const SourceSnapshot& source,
                                             MarkdownProfile profile,
                                             std::optional<MarkdownExtensions> extensions)
 {
+    Failure::Scope failureScope;
     MarkdownExtensions resolved{};
     if (! syntax || ! TryResolveExtensions(profile, extensions, resolved) || syntax->Profile() != profile || syntax->Extensions() != resolved ||
         syntax->sourceRegionRequest_)
@@ -928,18 +948,40 @@ void MarkdownParser::Clear() noexcept
 }
 void MarkdownParser::Begin(std::wstring_view source, std::uint64_t revision, MarkdownProfile profile, std::optional<MarkdownExtensions> extensions)
 {
-    BeginSource(source, revision, profile, ValidateExtensions(profile, extensions), std::nullopt);
+    RequireSuccess(TryBegin(source, revision, profile, extensions));
+}
+MarkdownResult MarkdownParser::TryBegin(std::wstring_view source, std::uint64_t revision, MarkdownProfile profile, std::optional<MarkdownExtensions> extensions)
+{
+    Failure::Scope failureScope;
+    MarkdownExtensions enabled{};
+    if (! TryResolveExtensions(profile, extensions, enabled))
+        return MarkdownResult::InvalidProfile;
+    const auto result = ValidateSource(source);
+    if (result != MarkdownResult::Success)
+        return result;
+    BeginSource(source, revision, profile, enabled, std::nullopt);
+    return MarkdownResult::Success;
 }
 void MarkdownParser::Begin(const SourceSnapshot& source, std::uint64_t revision, MarkdownProfile profile, std::optional<MarkdownExtensions> extensions)
 {
-    const auto enabled = ValidateExtensions(profile, extensions);
-    const auto change  = publishedSource_ ? std::optional(source.ChangedRangeFrom(*publishedSource_)) : std::nullopt;
+    RequireSuccess(TryBegin(source, revision, profile, extensions));
+}
+MarkdownResult MarkdownParser::TryBegin(const SourceSnapshot& source,
+                                        std::uint64_t revision,
+                                        MarkdownProfile profile,
+                                        std::optional<MarkdownExtensions> extensions)
+{
+    Failure::Scope failureScope;
+    MarkdownExtensions enabled{};
+    if (! TryResolveExtensions(profile, extensions, enabled))
+        return MarkdownResult::InvalidProfile;
+    const auto change = publishedSource_ ? std::optional(source.ChangedRangeFrom(*publishedSource_)) : std::nullopt;
     if (change && change->kind == SourceChangeKind::Unchanged && published_ && published_->Revision() == revision && published_->Profile() == profile &&
         published_->Extensions() == enabled && ! published_->sourceRegionRequest_)
     {
         Cancel();
         publishedSource_ = source;
-        return;
+        return MarkdownResult::Success;
     }
     const auto flat = source.Text();
     BeginSource(flat, revision, profile, enabled, change);
@@ -947,27 +989,37 @@ void MarkdownParser::Begin(const SourceSnapshot& source, std::uint64_t revision,
         preparation_->snapshot = source;
     else
         publishedSource_ = source;
+    return MarkdownResult::Success;
 }
 void MarkdownParser::BeginSourceRegion(
     const SourceSnapshot& source, std::uint64_t revision, MarkdownSourceRegion region, MarkdownProfile profile, std::optional<MarkdownExtensions> extensions)
 {
+    RequireSuccess(TryBeginSourceRegion(source, revision, region, profile, extensions));
+}
+MarkdownResult MarkdownParser::TryBeginSourceRegion(
+    const SourceSnapshot& source, std::uint64_t revision, MarkdownSourceRegion region, MarkdownProfile profile, std::optional<MarkdownExtensions> extensions)
+{
+    Failure::Scope failureScope;
     if (! region.session)
-        throw std::invalid_argument("Source editing requires a nonzero session");
+        return MarkdownResult::InvalidRange;
     if ((region.kind != MarkdownSourceRegionKind::Block && region.kind != MarkdownSourceRegionKind::Inline) ||
         (region.inlineKind != MarkdownInlineSourceKind::Math && region.inlineKind != MarkdownInlineSourceKind::Link &&
          region.inlineKind != MarkdownInlineSourceKind::Image) ||
         (region.kind == MarkdownSourceRegionKind::Block && region.inlineKind != MarkdownInlineSourceKind::Math))
-        throw std::invalid_argument("Invalid source editing kind");
+        return MarkdownResult::InvalidRange;
     if (region.source.first > region.source.last || ! source.IsBoundary(region.source.first) || ! source.IsBoundary(region.source.last))
-        throw std::out_of_range("Invalid source editing envelope");
-    const auto enabled = ValidateExtensions(profile, extensions);
-    const auto change  = publishedSource_ ? std::optional(source.ChangedRangeFrom(*publishedSource_)) : std::nullopt;
-    const auto flat    = source.Text();
+        return MarkdownResult::InvalidRange;
+    MarkdownExtensions enabled{};
+    if (! TryResolveExtensions(profile, extensions, enabled))
+        return MarkdownResult::InvalidProfile;
+    const auto change = publishedSource_ ? std::optional(source.ChangedRangeFrom(*publishedSource_)) : std::nullopt;
+    const auto flat   = source.Text();
     BeginSource(flat, revision, profile, enabled, change, region);
     if (preparation_)
         preparation_->snapshot = source;
     else
         publishedSource_ = source;
+    return MarkdownResult::Success;
 }
 void MarkdownParser::BeginSource(std::wstring_view source,
                                  std::uint64_t revision,
@@ -976,7 +1028,6 @@ void MarkdownParser::BeginSource(std::wstring_view source,
                                  std::optional<SourceChangeRange> change,
                                  std::optional<MarkdownSourceRegion> sourceRegion)
 {
-    ValidateProfile(profile);
     const auto same = [&](const auto& syntax)
     {
         return syntax && syntax->Revision() == revision && syntax->Profile() == profile && syntax->Extensions() == extensions && syntax->Source() == source &&
@@ -1005,45 +1056,45 @@ void MarkdownParser::BeginSource(std::wstring_view source,
 }
 MarkdownAdvance MarkdownParser::Advance(std::size_t maximumWorkUnits)
 {
+    Failure::Scope failureScope;
     if (! preparation_)
         return {published_ ? MarkdownPreparationStatus::Complete : MarkdownPreparationStatus::Idle};
     MarkdownAdvance result{MarkdownPreparationStatus::Pending};
-    try
+    auto& pending = *preparation_;
+    while (result.workUnits < maximumWorkUnits)
     {
-        auto& pending = *preparation_;
-        while (result.workUnits < maximumWorkUnits)
+        ++result.workUnits;
+        if (! pending.blocksComplete)
+            pending.ScanBlockUnit();
+        else if (! pending.rootsComplete)
+            pending.RootUnit();
+        else if (! pending.lexemesComplete)
+            pending.ScanLexicalUnit();
+        else if (! pending.inlinesComplete)
         {
-            ++result.workUnits;
-            if (! pending.blocksComplete)
-                pending.ScanBlockUnit();
-            else if (! pending.rootsComplete)
-                pending.RootUnit();
-            else if (! pending.lexemesComplete)
-                pending.ScanLexicalUnit();
-            else if (! pending.inlinesComplete)
-            {
-                pending.inlinesComplete = pending.inlines.Step();
-                if (pending.inlinesComplete)
-                    pending.syntax->inlineStatistics_ = {
-                        pending.inlines.AutolinkInspectionUnits(), pending.inlines.AutolinkDecodedUnits(), pending.inlines.WikiInspectionUnits()};
-            }
-            else if (! pending.identitiesComplete)
-                pending.IdentityUnit();
-            else
-            {
-                nextNodeIdentity_ = pending.nextIdentity;
-                publishedSource_  = std::move(pending.snapshot);
-                published_        = std::move(pending.syntax);
-                preparation_.reset();
-                result.status = MarkdownPreparationStatus::Complete;
-                break;
-            }
+            pending.inlinesComplete = pending.inlines.Step();
+            if (pending.inlinesComplete)
+                pending.syntax->inlineStatistics_ = {
+                    pending.inlines.AutolinkInspectionUnits(), pending.inlines.AutolinkDecodedUnits(), pending.inlines.WikiInspectionUnits()};
         }
-    }
-    catch (const std::exception&)
-    {
-        Cancel();
-        throw;
+        else if (! pending.identitiesComplete)
+            pending.IdentityUnit();
+        else
+        {
+            nextNodeIdentity_ = pending.nextIdentity;
+            publishedSource_  = std::move(pending.snapshot);
+            published_        = std::move(pending.syntax);
+            preparation_.reset();
+            result.status = MarkdownPreparationStatus::Complete;
+            break;
+        }
+        if (pending.blocks.CapacityExceeded() || pending.inlines.CapacityExceeded())
+        {
+            preparation_.reset();
+            result.status = MarkdownPreparationStatus::Failed;
+            result.result = MarkdownResult::CapacityExceeded;
+            break;
+        }
     }
     return result;
 }

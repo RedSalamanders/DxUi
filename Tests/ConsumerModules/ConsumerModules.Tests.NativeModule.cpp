@@ -1,11 +1,15 @@
 #include <DxUi/DxUi.h>
+#include <DxUi/Failure.h>
 
 #include <array>
 #include <cstdio>
+#include <stdexcept>
+#include <thread>
 #include <wil/win32_helpers.h>
 
 namespace
 {
+DxUi::Failure::ModuleRegistration moduleRegistration;
 class AnimationProbe final : public DxUi::Control
 {
 public:
@@ -33,6 +37,7 @@ bool WindowProcedureBelongsToModule(HWND hwnd, HINSTANCE expected) noexcept
 
 static int RunModuleProbe()
 {
+    DxUi::Failure::Scope failureScope;
     const HINSTANCE instance = wil::GetModuleInstanceHandle();
     wil::unique_hwnd owner(CreateWindowExW(
         WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE, L"STATIC", L"DxUi module fixture", WS_POPUP, 160, 160, 320, 240, nullptr, nullptr, instance, nullptr));
@@ -109,6 +114,30 @@ static int RunModuleProbe()
                 invoked,
                 probePointer->ticks);
     return animationWorks && dispatcherOwned && popupOwned && invoked ? 0 : 5;
+}
+
+// The executable owns the host. Each DLL registers explicitly after loading,
+// then detaches after all module work has joined and before FreeLibrary.
+extern "C" __declspec(dllexport) HRESULT DxUiModuleAttach(const DxUi::Failure::HostServices* services) noexcept
+{
+    return services ? moduleRegistration.Attach(*services) : E_INVALIDARG;
+}
+extern "C" __declspec(dllexport) HRESULT DxUiModuleDetach() noexcept
+{
+    return moduleRegistration.Detach();
+}
+__declspec(noinline) void DxUiModuleFatalWorker(int kind)
+{
+    DxUi::Failure::Scope workerScope;
+    if (kind == 1)
+        throw std::bad_alloc{};
+    throw 17;
+}
+extern "C" __declspec(dllexport) void DxUiModuleFatal(int kind) noexcept
+{
+    DxUi::Failure::Scope failureScope;
+    std::jthread worker([kind] { DxUiModuleFatalWorker(kind); });
+    worker.join();
 }
 
 // Each module owns its HWNDs, controls and callback storage. Only a POD result crosses the ABI.

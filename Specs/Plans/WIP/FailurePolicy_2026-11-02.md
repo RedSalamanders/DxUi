@@ -1,17 +1,19 @@
 # Explicit failure results and host fatal diagnostics
 
-Status: **SPEC READY**
+Status: **IMPLEMENTING**
 Owner: DxUi maintainers; application owners for host dump integration
 Priority: high; required before claiming the new failure policy is implemented
 Reviewed baseline: `5fc4d4c383bfa4891ee57a138924107bbbf11a2e`
 
 ## Scope and owner decision
 
-The 2 November owner request is a normative-policy review: `std::bad_alloc`, like any unexpected C++ exception,
+The 2 November owner request establishes the policy: `std::bad_alloc`, like any unexpected C++ exception,
 must not be ordinary recovery. Check nonthrowing allocation results and return an error when safe, or terminate
 the host through a diagnostic path retaining a useful original callstack and dump. The owning
-[failure contract](../../Core/Core_FailureHandling.md) expresses this target. This review changes documentation
-and records implementation work; it does not claim the runtime, host applications or native fault tests were changed.
+[failure contract](../../Core/Core_FailureHandling.md) expresses this target. The owner's subsequent **go** authorizes
+the library implementation, public host integration example and native fault qualification below. Runtime edits are
+in progress; no new-policy native acceptance is claimed until the recorded checks pass. Actual consumer product
+adoption remains owned by each application and is not implied by library qualification.
 
 The published baseline still uses exception-based parser validation and allocation/callback recovery. Its
 earlier functional receipts remain valid for their original source/contract; they do not qualify this new policy.
@@ -100,6 +102,34 @@ reopening their historical checklists or relabeling old allocation sweeps as fat
 
 ## Ordered implementation and acceptance
 
+### Working-tree progress, not acceptance
+
+- API 5 introduces the explicit host/module handoff, scoped fatal routing, checked control-object allocation in
+  `CreateControl`, and an application-owned sample dump writer. A concurrent-failure completion handshake and
+  owned fatal-child probes have been written. Their builds, dumps, matching symbols, thread/context assertions,
+  cross-module behavior and failure-to-write behavior remain unrun and must not be reported as passes.
+- TOML uses its pinned status interface; YAML uses a private bounded libyaml event backend and retains graph-level
+  key/alias checks. Markdown, native math, source/document and several geometry paths now have checked results.
+  The entire existing metadata and 1,135-row math corpora, exact limits and source preservation remain open gates.
+- Checked factory allocation covers outer control storage, not arbitrary STL/shared-owner/debug-proxy construction.
+  The sample host is not a qualified consumer crash writer. Actual application adoption, native ARM64 and interactive
+  qualification remain separately owned. Retain historical evidence under its original identity.
+- Source review found remaining expected-error/recovery paths that cannot be silently covered by a broad
+  first-chance scope: `src/Controls/TextClipboard.cpp` HTML-offset capacity; `DxUi.Grid.cpp` selection reserve
+  `length_error` catches; `DxUi.RichImage.cpp` decode length/argument catches; `DxUi.RichImageResources.h` path
+  rejection and preparation rethrow; `DxUi.RichSemanticGeometry.cpp` formula/native-result and geometry admission
+  throws; `DxUi.RichDocumentLayout.cpp` geometry/admission/query throws; `DxUi.RichSemantic.cpp` legacy query
+  throws; and `DxUi.RichTextEditor.cpp` profile/query preconditions and diagnostics-only staging injections.
+  The rich accessibility and script-renderer catches identified during review are being migrated; verify current
+  source before claiming closure. Treat unexpected C++ failures as fatal, expose expected refusal as checked status,
+  and isolate deliberate test injections. Keep S0/S3/S4 open until the complete call graph is classified.
+- The 2 November static inventory also found terminal named catches throughout `DxUi.Accessibility.cpp`,
+  `DxUi.Controls.cpp`, `DxUi.cpp`, `DxUi.EditorControls.cpp`, `DxUi.FileDrop.cpp`, `DxUi.Forms.cpp`,
+  `DxUi.Grid.cpp`, `DxUi.Layout.cpp`, `DxUi.Menu.cpp`, `DxUi.NativeTextInput.cpp`, `DxUi.RichTextEditor.cpp`,
+  `DxUi.TextStoreACP.cpp`, `DxUi.Tree.cpp`, `DxUi.WindowHost.cpp`, `TextClipboard.cpp`, `TextInputServices.cpp`,
+  `src/Foundation/ControlAllocation.cpp`, and `src/Rendering/Embedded.cpp`. Their presence alone proves neither
+  originating-site context nor coverage of foreign exception types; verify reachable scopes and child evidence.
+
 - [x] Review the published baseline, owner requirement, representative production paths and conflicting normative clauses.
 - [x] Record the central target policy, current implementation gap and this indexed migration scope.
 - [ ] **S0 — Freeze the full inventory.** Classify in-scope throws/catches, allocation mechanisms, public constructors,
@@ -173,6 +203,6 @@ exit, no continuation, readable dump, originating function/thread and matching E
 Stop a slice if the chosen backend lacks a safe status interface, a host cannot preserve failure-site context,
 the fatal path allocates/returns, ownership is ambiguous, or the API/consumer port is not coordinated. Keep its
 gate open; do not weaken the oracle or rename a caught throw to a checked refusal. Roll back code/pin changes
-through normal reviewed commits, preserving fault evidence and historical packets. Broad allocator/ABI or
-consumer changes require their own implementation validation; this review is not authorization to crash a host,
-replace its process-global handlers or publish a new runtime.
+through normal reviewed commits, preserving fault evidence and historical packets. The owner authorized this
+implementation and owned isolated-child tests; consumer process-hook adoption, publication and application product
+qualification remain separate. Never inject a fatal fault into an interactive consumer.

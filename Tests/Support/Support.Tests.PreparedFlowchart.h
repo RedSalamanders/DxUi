@@ -32,7 +32,7 @@ template <typename Check> inline std::size_t Complete(PreparedFlowchart& prepare
     {
         const auto before = calls ? calls->layouts : 0u;
         const auto result = prepared.Advance({1u, 3u});
-        check(result.layoutsPrepared <= 1u && result.blockSteps <= 3u && result.blockSteps > 0u,
+        check(result.layoutsPrepared <= 1u && result.blockSteps <= 3u && (result.blockSteps > 0u || result.status == LayoutPreparationStatus::Failed),
               "native paint preparation respects SDK and CPU event allowances");
         if (calls)
             check(calls->layouts - before == result.layoutsPrepared, "reported label work equals actual intercepted CreateTextLayout calls");
@@ -80,25 +80,18 @@ template <typename Check> inline void BudgetAndLifecycle(Check&& check)
           "cancelled font replacement preserves complete prior resources");
     prepared.Begin(calls.Get(), drawing.get(), graph, options, {2u, 2u});
     bool invalid{};
-    try
-    {
-        prepared.Begin(nullptr, drawing.get(), graph, options, {3u, 3u});
-    }
-    catch (const std::invalid_argument&)
-    {
-        invalid = true;
-    }
+    invalid = prepared.Begin(nullptr, drawing.get(), graph, options, {3u, 3u}) == LayoutPreparationStatus::Failed;
     check(invalid && prepared.Pending() && prepared.Geometry() == original, "invalid native resource admission preserves pending work");
+    const auto resumed = prepared.Advance({1u, 1u});
+    check(resumed.status == LayoutPreparationStatus::Pending && resumed.result == S_OK && prepared.Result() == S_OK && prepared.Pending() &&
+              prepared.Geometry() == original,
+          "a rejected admission does not poison resumption of the prior request");
+    prepared.Cancel();
+    prepared.Begin(calls.Get(), drawing.get(), graph, options, {2u, 2u});
     calls->formatFailure = E_OUTOFMEMORY;
     bool failed{};
-    try
-    {
-        Complete(prepared, check, calls.Get());
-    }
-    catch (const wil::ResultException& error)
-    {
-        failed = error.GetErrorCode() == E_OUTOFMEMORY;
-    }
+    Complete(prepared, check, calls.Get());
+    failed               = prepared.Result() == E_OUTOFMEMORY;
     calls->formatFailure = S_OK;
     check(failed && ! prepared.Pending() && prepared.Geometry() == original && prepared.Generation() == generation,
           "format HRESULT failure retires staging while preserving old publication");
@@ -112,14 +105,8 @@ template <typename Check> inline void BudgetAndLifecycle(Check&& check)
         calls->failLayoutAt = calls->layouts + failure;
         prepared.Begin(calls.Get(), drawing.get(), graph, options, {2u, 10u + failure});
         failed = false;
-        try
-        {
-            Complete(prepared, check, calls.Get());
-        }
-        catch (const wil::ResultException& error)
-        {
-            failed = error.GetErrorCode() == E_OUTOFMEMORY;
-        }
+        Complete(prepared, check, calls.Get());
+        failed              = prepared.Result() == E_OUTOFMEMORY;
         calls->failLayoutAt = std::numeric_limits<std::size_t>::max();
         check(failed && ! prepared.Pending() && prepared.Geometry() == old && prepared.Generation() == generation,
               "each actual label SDK failure preserves the old prepared graph");
@@ -788,14 +775,7 @@ template <typename Check> inline void ConfiguredLabelWidth(Check&& check)
         {
             options.diagramLabelWidthDip = invalid;
             bool rejected{};
-            try
-            {
-                prepared.Begin(write.get(), drawing.get(), graph, options, {1u, 1u});
-            }
-            catch (const std::invalid_argument&)
-            {
-                rejected = true;
-            }
+            rejected = prepared.Begin(write.get(), drawing.get(), graph, options, {1u, 1u}) == LayoutPreparationStatus::Failed;
             check(rejected && prepared.Ready(), "invalid label width leaves prior prepared geometry intact");
         }
     }
@@ -835,6 +815,15 @@ template <typename Check, typename Observe = std::nullptr_t> inline void Palette
     THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black), text.put()));
     THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Blue), stroke.put()));
     THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White), fill.put()));
+    DiagramPalette noGraph({}, target.get());
+    check(noGraph.Result() == E_INVALIDARG && ! noGraph.Advance() && ! noGraph.Ready(),
+          "null graph refuses palette advancement without dereferencing its owner");
+    DiagramPalette noTarget(graph, nullptr);
+    check(noTarget.Result() == E_INVALIDARG && ! noTarget.Advance() && ! noTarget.Ready(),
+          "missing target refuses a colored palette without dereferencing its resources");
+    auto emptyGraph = std::make_shared<FlowchartModel>(L"", 0u);
+    DiagramPalette emptyNoTarget(emptyGraph, nullptr);
+    check(emptyNoTarget.Result() == E_INVALIDARG && ! emptyNoTarget.Advance() && ! emptyNoTarget.Ready(), "an invalid empty palette never publishes ready");
     DiagramPalette palette(graph, target.get());
     std::size_t steps{};
     while (! palette.Advance())
@@ -849,14 +838,7 @@ template <typename Check, typename Observe = std::nullptr_t> inline void Palette
     const auto restoreFailure          = wil::scope_exit([&]() noexcept { testNativeColorPaletteBrushFailure = oldFailure; });
     testNativeColorPaletteBrushFailure = E_OUTOFMEMORY;
     bool rejected{};
-    try
-    {
-        static_cast<void>(pending.Advance());
-    }
-    catch (const wil::ResultException& error)
-    {
-        rejected = error.GetErrorCode() == E_OUTOFMEMORY;
-    }
+    rejected                           = ! pending.Advance() && pending.Result() == E_OUTOFMEMORY;
     testNativeColorPaletteBrushFailure = S_OK;
     check(rejected && ! pending.Ready() && pending.cursor == 0u && palette.Ready(),
           "diagram color creation failure retains its pending slot and prior publication");
@@ -1193,23 +1175,11 @@ template <typename Check> inline void StyledLabelRaster(Check&& check)
     invalid->nodes[0u].styles.spans[0u].last = invalid->nodes[0u].label.size() + 1u;
     const std::vector<FlowchartSize> nodes(invalid->nodes.size(), {16.0, 12.0}), edges(invalid->edges.size(), {16.0, 12.0});
     bool layoutRejected{}, paintRejected{};
-    try
     {
         NativeFlowchartLayout layout;
-        layout.Begin(invalid, nodes, edges);
+        layoutRejected = layout.Begin(invalid, nodes, edges) == SourceResult::InvalidArgument;
     }
-    catch (const std::invalid_argument&)
-    {
-        layoutRejected = true;
-    }
-    try
-    {
-        prepared.Begin(write.get(), drawing.get(), invalid, {}, {1u, 1u});
-    }
-    catch (const std::invalid_argument&)
-    {
-        paintRejected = true;
-    }
+    paintRejected = prepared.Begin(write.get(), drawing.get(), invalid, {}, {1u, 1u}) == LayoutPreparationStatus::Failed;
     check(layoutRejected && paintRejected && prepared.Ready(), "forged out-of-range label styles fail before replacing publication");
     const auto inlineEdge = FlowchartLayoutTests::Graph(L"flowchart TD\nA -- <b>go</b> --> B\n");
     check(inlineEdge->outcome == FlowchartOutcome::Prepared && inlineEdge->edges.size() == 1u && inlineEdge->edges[0u].label == L"go" &&
@@ -1410,23 +1380,11 @@ template <typename Check> inline void NodeStrokeRaster(Check&& check)
     invalid->nodes[0u].strokeWidth = 4u;
     bool layoutRejected{}, paintRejected{};
     const std::vector<FlowchartSize> nodeSizes(1u, {16.0, 12.0});
-    try
     {
         NativeFlowchartLayout layout;
-        layout.Begin(invalid, nodeSizes, {});
+        layoutRejected = layout.Begin(invalid, nodeSizes, {}) == SourceResult::InvalidArgument;
     }
-    catch (const std::invalid_argument&)
-    {
-        layoutRejected = true;
-    }
-    try
-    {
-        prepared.Begin(write.get(), drawing.get(), invalid, {}, {1u, 1u});
-    }
-    catch (const std::invalid_argument&)
-    {
-        paintRejected = true;
-    }
+    paintRejected = prepared.Begin(write.get(), drawing.get(), invalid, {}, {1u, 1u}) == LayoutPreparationStatus::Failed;
     check(layoutRejected && paintRejected && prepared.Ready(), "invalid direct stroke widths fail both services before publication");
     for (const auto source : {L"flowchart TD\nA\nstyle A fill:red\n",
                               L"flowchart TD\nA\nstyle A stroke-width:4px\n",
@@ -1516,23 +1474,11 @@ template <typename Check> inline void MindmapRaster(Check&& check)
             case 4u: invalid->nodes[0u].shape = FlowchartShape::Bar; break;
         }
         bool layoutRejected{}, paintRejected{};
-        try
         {
             NativeFlowchartLayout layout;
-            layout.Begin(invalid, nodes, edges);
+            layoutRejected = layout.Begin(invalid, nodes, edges) == SourceResult::InvalidArgument;
         }
-        catch (const std::invalid_argument&)
-        {
-            layoutRejected = true;
-        }
-        try
-        {
-            prepared.Begin(write.get(), drawing.get(), invalid, {}, {1u, 1u});
-        }
-        catch (const std::invalid_argument&)
-        {
-            paintRejected = true;
-        }
+        paintRejected = prepared.Begin(write.get(), drawing.get(), invalid, {}, {1u, 1u}) == LayoutPreparationStatus::Failed;
         check(! ValidMindmapModel(*invalid) && layoutRejected && paintRejected && prepared.Ready() && prepared.Geometry() == geometry,
               "direct invalid mindmap models fail both services without replacing prior publication");
     }
@@ -1597,23 +1543,11 @@ template <typename Check> inline void GanttRaster(Check&& check)
             case 4u: invalid->nodes[0u].ganttEndSource.last = invalid->source.size() + 1u; break;
         }
         bool layoutRejected{}, paintRejected{};
-        try
         {
             NativeFlowchartLayout layout;
-            layout.Begin(invalid, nodes, {}, {}, {}, labels);
+            layoutRejected = layout.Begin(invalid, nodes, {}, {}, {}, labels) == SourceResult::InvalidArgument;
         }
-        catch (const std::invalid_argument&)
-        {
-            layoutRejected = true;
-        }
-        try
-        {
-            prepared.Begin(write.get(), drawing.get(), invalid, {}, {1u, 1u});
-        }
-        catch (const std::invalid_argument&)
-        {
-            paintRejected = true;
-        }
+        paintRejected = prepared.Begin(write.get(), drawing.get(), invalid, {}, {1u, 1u}) == LayoutPreparationStatus::Failed;
         check(! ValidGanttModel(*invalid) && layoutRejected && paintRejected && prepared.Ready() && prepared.Geometry() == geometry,
               "direct invalid Gantt models fail both services without replacing the prior publication");
     }
@@ -1688,23 +1622,11 @@ template <typename Check> inline void ErRaster(Check&& check)
             case 4u: invalid->edges[0u].arrow = true; break;
         }
         bool layoutRejected{}, paintRejected{};
-        try
         {
             NativeFlowchartLayout layout;
-            layout.Begin(invalid, nodeSizes, edgeSizes, endpointSizes, endpointSizes);
+            layoutRejected = layout.Begin(invalid, nodeSizes, edgeSizes, endpointSizes, endpointSizes) == SourceResult::InvalidArgument;
         }
-        catch (const std::invalid_argument&)
-        {
-            layoutRejected = true;
-        }
-        try
-        {
-            prepared.Begin(write.get(), drawing.get(), invalid, {}, {1u, 1u});
-        }
-        catch (const std::invalid_argument&)
-        {
-            paintRejected = true;
-        }
+        paintRejected = prepared.Begin(write.get(), drawing.get(), invalid, {}, {1u, 1u}) == LayoutPreparationStatus::Failed;
         check(! ValidErModel(*invalid) && layoutRejected && paintRejected && prepared.Ready() && prepared.Geometry() == geometry,
               "direct invalid ER models fail both services without replacing the prior publication");
     }
@@ -1776,23 +1698,11 @@ template <typename Check> inline void PieRaster(Check&& check)
             case 4u: invalid->nodes[0u].valueSource.last = invalid->source.size() + 1u; break;
         }
         bool layoutRejected{}, paintRejected{};
-        try
         {
             NativeFlowchartLayout layout;
-            layout.Begin(invalid, nodes, {}, {}, {}, labels);
+            layoutRejected = layout.Begin(invalid, nodes, {}, {}, {}, labels) == SourceResult::InvalidArgument;
         }
-        catch (const std::invalid_argument&)
-        {
-            layoutRejected = true;
-        }
-        try
-        {
-            prepared.Begin(write.get(), drawing.get(), invalid, {}, {1u, 1u});
-        }
-        catch (const std::invalid_argument&)
-        {
-            paintRejected = true;
-        }
+        paintRejected = prepared.Begin(write.get(), drawing.get(), invalid, {}, {1u, 1u}) == LayoutPreparationStatus::Failed;
         check(! ValidPieModel(*invalid) && layoutRejected && paintRejected && prepared.Ready() && prepared.Geometry() == geometry,
               "direct invalid pie models fail in both services without replacing the prior publication");
     }
@@ -1897,24 +1807,12 @@ template <typename Check> inline void SequenceRaster(Check&& check)
         }
         check(! ValidSequenceModel(*invalid), "direct sequence model validator rejects unsupported topology or message kinds");
         bool layoutRejected{}, paintRejected{};
-        try
         {
             NativeFlowchartLayout layout;
             const std::vector<FlowchartSize> groups(invalid->groups.size());
-            layout.Begin(invalid, nodeSizes, edgeSizes, {}, {}, groups);
+            layoutRejected = layout.Begin(invalid, nodeSizes, edgeSizes, {}, {}, groups) == SourceResult::InvalidArgument;
         }
-        catch (const std::invalid_argument&)
-        {
-            layoutRejected = true;
-        }
-        try
-        {
-            prepared.Begin(write.get(), drawing.get(), invalid, {}, {1u, 1u});
-        }
-        catch (const std::invalid_argument&)
-        {
-            paintRejected = true;
-        }
+        paintRejected = prepared.Begin(write.get(), drawing.get(), invalid, {}, {1u, 1u}) == LayoutPreparationStatus::Failed;
         check(layoutRejected && paintRejected && prepared.Ready() && prepared.Geometry() == published,
               "layout and paint reject forged sequence models while preserving the prior publication");
     }

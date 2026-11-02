@@ -3,6 +3,7 @@
 #include "DxUi.RichFileReferenceContext.h"
 #include "DxUi.RichImagePaths.h"
 #include "DxUi.RichSemanticHtml.h"
+#include <DxUi/Failure.h>
 #include <DxUi/RichMath.h>
 #include <DxUi/RichTextCommands.h>
 #include <array>
@@ -871,11 +872,12 @@ struct MarkdownCommandPlanner
     std::vector<PhysicalLine> lines;
     std::vector<MarkdownRange> opaqueInlines;
     bool explicitSelection{};
+    SourceResult failure = SourceResult::Success;
 
     MarkdownCommandPlanner(const SourceSnapshot& source, std::uint64_t revision, std::shared_ptr<const MarkdownSyntax> syntax, Selection selection)
         : plan(source, revision, std::move(syntax), selection),
           text(plan.syntax_ ? plan.syntax_->Source() : std::wstring_view{}),
-          nodes(CheckedSyntax(source, revision, plan.syntax_, selection).Nodes()),
+          nodes(plan.syntax_->Nodes()),
           lines(0u),
           opaqueInlines(0u)
     {
@@ -904,18 +906,17 @@ struct MarkdownCommandPlanner
                 opaqueInlines.push_back(node.source);
         std::sort(opaqueInlines.begin(), opaqueInlines.end(), [](auto a, auto b) { return a.first < b.first; });
     }
-    static const MarkdownSyntax& CheckedSyntax(const SourceSnapshot& source,
-                                               std::uint64_t revision,
-                                               const std::shared_ptr<const MarkdownSyntax>& syntax,
-                                               Selection selection)
+    static SourceResult Admission(const SourceSnapshot& source,
+                                  std::uint64_t revision,
+                                  const std::shared_ptr<const MarkdownSyntax>& syntax,
+                                  Selection selection) noexcept
     {
-        if (syntax && syntax->SourceRegion())
-            throw std::invalid_argument("Markdown commands require canonical syntax outside source editing");
-        if (! syntax || syntax->Revision() != revision || syntax->Source().size() != source.Length() || source.Text() != syntax->Source())
-            throw std::invalid_argument("Markdown command requires current source analysis");
+        if (! syntax || syntax->SourceRegion() || syntax->Revision() != revision ||
+            ! (source.MatchesText(syntax->Source()) || (source.Length() == 0u && syntax->Source().empty())))
+            return SourceResult::Stale;
         if (! source.IsBoundary(selection.anchor) || ! source.IsBoundary(selection.caret))
-            throw std::out_of_range("Invalid Markdown command selection");
-        return *syntax;
+            return SourceResult::InvalidRange;
+        return SourceResult::Success;
     }
     const PhysicalLine& Line(std::size_t at) const
     {
@@ -937,10 +938,23 @@ struct MarkdownCommandPlanner
     }
     void Add(std::size_t first, std::size_t last, std::wstring_view replacement)
     {
+        if (failure != SourceResult::Success)
+            return;
         if (first > last || ! plan.source_.IsBoundary(first) || ! plan.source_.IsBoundary(last))
-            throw std::out_of_range("Invalid structural source edit");
-        if (replacement.size() > Document::MaximumUnits || ! IsValidSourceUtf16(replacement))
-            throw std::invalid_argument("Invalid structural replacement");
+        {
+            failure = SourceResult::InvalidRange;
+            return;
+        }
+        if (replacement.size() > Document::MaximumUnits)
+        {
+            failure = SourceResult::CapacityExceeded;
+            return;
+        }
+        if (! IsValidSourceUtf16(replacement))
+        {
+            failure = SourceResult::InvalidSource;
+            return;
+        }
         if (Slice(first, last) != replacement)
             plan.edits_.emplace_back(MarkdownRange{first, last}, replacement);
     }
@@ -1329,7 +1343,10 @@ struct MarkdownCommandPlanner
     void Continue(MarkdownEnterPolicy policy)
     {
         if (policy != MarkdownEnterPolicy::RawNewline && policy != MarkdownEnterPolicy::NewParagraph)
-            throw std::invalid_argument("Invalid Markdown Enter policy");
+        {
+            failure = SourceResult::InvalidSource;
+            return;
+        }
         const auto first = plan.before_.Start(), last = plan.before_.End();
         const auto& line = Line(first);
         if (! IsSingleLineCommandSelection(*plan.syntax_, plan.before_))
@@ -1474,7 +1491,10 @@ struct MarkdownCommandPlanner
     void Heading(unsigned level)
     {
         if (level > 6u)
-            throw std::invalid_argument("Heading level must be zero through six");
+        {
+            failure = SourceResult::InvalidSource;
+            return;
+        }
         if (! CanSetHeading(*plan.syntax_, plan.before_, level))
             return;
         if (HasOpaqueSelection())
@@ -1805,27 +1825,35 @@ struct MarkdownCommandPlanner
     }
     MarkdownCommandPlan Finish()
     {
+        if (failure != SourceResult::Success)
+            return std::move(plan);
         if (! plan.applicable_)
         {
             plan.edits_.clear();
-            return plan;
+            return std::move(plan);
         }
         std::sort(plan.edits_.begin(), plan.edits_.end(), [](const auto& a, const auto& b) { return a.source.first < b.source.first; });
         for (std::size_t i = 1u; i < plan.edits_.size(); ++i)
         {
             if (plan.edits_[i].source.first < plan.edits_[i - 1u].source.last || plan.edits_[i].source.first == plan.edits_[i - 1u].source.first)
-                throw std::logic_error("Overlapping structural command edits");
+                Failure::FailContract(E_UNEXPECTED);
         }
         std::size_t removed = 0u, inserted = 0u;
         for (const auto& edit : plan.edits_)
         {
             removed += edit.source.last - edit.source.first;
             if (edit.replacement.size() > Document::MaximumUnits - inserted)
-                throw std::length_error("Structural insertion capacity exceeded");
+            {
+                failure = SourceResult::CapacityExceeded;
+                return std::move(plan);
+            }
             inserted += edit.replacement.size();
         }
         if (inserted > Document::MaximumUnits - (text.size() - removed))
-            throw std::length_error("Structural command source capacity exceeded");
+        {
+            failure = SourceResult::CapacityExceeded;
+            return std::move(plan);
+        }
         const auto length = text.size() - removed + inserted;
         if (! explicitSelection)
             plan.after_ = {MapPosition(plan.after_.anchor), MapPosition(plan.after_.caret)};
@@ -1840,8 +1868,8 @@ struct MarkdownCommandPlanner
         }
         candidate += Slice(cursor, text.size());
         if (! IsValidSourceUtf16(candidate) || ! IsEditBoundary(candidate, plan.after_.anchor) || ! IsEditBoundary(candidate, plan.after_.caret))
-            throw std::out_of_range("Invalid structural command result selection");
-        return plan;
+            failure = SourceResult::InvalidRange;
+        return std::move(plan);
     }
 };
 #pragma warning(pop)
@@ -1863,12 +1891,18 @@ void MarkdownCommandPlanner::Renumber(const MarkdownCommandRequest& request)
         return;
     auto number = request.listStart.value_or(initial.number);
     if (number > 999999999u)
-        throw std::out_of_range("Ordered list start exceeds Markdown capacity");
+    {
+        failure = SourceResult::InvalidRange;
+        return;
+    }
     std::size_t count = 0u;
     for (auto node = first; node != MarkdownNoNode; node = nodes[node].nextSibling)
         ++count;
     if (count && count - 1u > 999999999u - number)
-        throw std::length_error("Ordered list numbering exceeds Markdown capacity");
+    {
+        failure = SourceResult::CapacityExceeded;
+        return;
+    }
     for (auto node = first; node != MarkdownNoNode; node = nodes[node].nextSibling, ++number)
     {
         ItemPrefix prefix;
@@ -1954,7 +1988,10 @@ void MarkdownCommandPlanner::MoveLine(bool up)
 void MarkdownCommandPlanner::Quote(MarkdownQuoteAction action)
 {
     if (action != MarkdownQuoteAction::Toggle && action != MarkdownQuoteAction::Indent && action != MarkdownQuoteAction::Outdent)
-        throw std::invalid_argument("Invalid quote action");
+    {
+        failure = SourceResult::InvalidSource;
+        return;
+    }
     struct SelectedLine
     {
         std::size_t first, at;
@@ -2064,7 +2101,10 @@ void MarkdownCommandPlanner::Quote(MarkdownQuoteAction action)
 void MarkdownCommandPlanner::CodeBlock(const MarkdownCommandRequest& request)
 {
     if (request.text.size() > 255u || ! IsValidUtf16(request.text) || request.text.find_first_of(L"\r\n") != request.text.npos)
-        throw std::invalid_argument("Invalid code language");
+    {
+        failure = SourceResult::InvalidSource;
+        return;
+    }
     if (request.command == MarkdownCommand::SetCodeLanguage)
     {
         const auto target = FindCodeLanguageTarget(*plan.syntax_, plan.before_, request.text);
@@ -2415,9 +2455,15 @@ void MarkdownCommandPlanner::SetList(const MarkdownCommandRequest& request)
         return;
     if (request.listKind != MarkdownListKind::None && request.listKind != MarkdownListKind::Unordered && request.listKind != MarkdownListKind::Ordered &&
         request.listKind != MarkdownListKind::Task)
-        throw std::invalid_argument("Invalid Markdown list kind");
+    {
+        failure = SourceResult::InvalidSource;
+        return;
+    }
     if (request.listStart && *request.listStart > 999999999u)
-        throw std::out_of_range("Ordered list start exceeds nine digits");
+    {
+        failure = SourceResult::InvalidRange;
+        return;
+    }
     if (! IsCommandFeatureEnabled(*plan.syntax_, MarkdownCommand::SetList, MarkdownTextStyle::Strong, request.listKind))
         return;
     const auto items = SelectedItems();
@@ -2461,7 +2507,10 @@ void MarkdownCommandPlanner::SetList(const MarkdownCommandRequest& request)
                 if (wantedOrdered)
                     ++number;
                 if (number > 1000000000u)
-                    throw std::out_of_range("Ordered list numbering overflow");
+                {
+                    failure = SourceResult::InvalidRange;
+                    return;
+                }
                 Add(prefix.first, prefix.content, marker);
                 // Continuation indentation belongs to the affected item. Preserve
                 // its content, sibling numbers and all physical line endings.
@@ -2780,15 +2829,21 @@ std::wstring LiteralMarkdown(std::wstring_view value)
     }
     return std::wstring(result);
 }
-std::wstring AttributeSource(std::wstring_view value, bool markdown = true)
+std::wstring AttributeSource(std::wstring_view value, SourceResult& failure, bool markdown = true)
 {
     if (! IsValidUtf16(value))
-        throw std::invalid_argument("Invalid Unicode link metadata");
+    {
+        failure = SourceResult::InvalidSource;
+        return std::wstring(0u, L' ');
+    }
     std::wstring result(0u, L' ');
     for (const auto c : value)
     {
         if (c < L' ' || (c >= 0x7f && c <= 0x9f))
-            throw std::invalid_argument("Control character in link metadata");
+        {
+            failure = SourceResult::InvalidSource;
+            return std::wstring(0u, L' ');
+        }
         if (c == L'&')
             result += L"&amp;";
         else if (c == L'\"')
@@ -2823,7 +2878,10 @@ void MarkdownCommandPlanner::Footnote(const MarkdownCommandRequest& request)
     if (plan.syntax_->Profile() != MarkdownProfile::RichMarkdown || plan.before_.anchor != plan.before_.caret)
         return;
     if (! ValidFootnoteLabel(request.text))
-        throw std::invalid_argument("Invalid footnote label");
+    {
+        failure = SourceResult::InvalidSource;
+        return;
+    }
     const auto site = FindInlineInsertionSite(*plan.syntax_, plan.before_);
     if (! site)
         return;
@@ -2908,9 +2966,14 @@ void MarkdownCommandPlanner::Footnote(const MarkdownCommandRequest& request)
 }
 void MarkdownCommandPlanner::Image(const MarkdownCommandRequest& request)
 {
-    const bool relative = NativeHtmlDestination(request.destination) && request.destination.find(L':') == request.destination.npos;
-    if (request.destination.empty() || (! relative && ! ResolveRemoteImageSource(request.destination) && ! ResolveLocalImagePath({}, request.destination)))
-        throw std::invalid_argument("Ineligible image destination");
+    const bool relative       = NativeHtmlDestination(request.destination) && request.destination.find(L':') == request.destination.npos;
+    bool pathCapacityExceeded = false;
+    if (request.destination.empty() ||
+        (! relative && ! ResolveRemoteImageSource(request.destination) && ! ResolveLocalImagePath({}, request.destination, &pathCapacityExceeded)))
+    {
+        failure = pathCapacityExceeded ? SourceResult::CapacityExceeded : SourceResult::InvalidSource;
+        return;
+    }
     std::size_t leaf{};
     if (! InlineSelection(leaf))
         return;
@@ -2931,12 +2994,12 @@ void MarkdownCommandPlanner::Image(const MarkdownCommandRequest& request)
     std::wstring insertion(L"![");
     insertion += LiteralMarkdown(alt);
     insertion += L"](<";
-    insertion += AttributeSource(request.destination);
+    insertion += AttributeSource(request.destination, failure);
     insertion += L'>';
     if (! request.title.empty())
     {
         insertion += L" \"";
-        insertion += AttributeSource(request.title);
+        insertion += AttributeSource(request.title, failure);
         insertion += L'\"';
     }
     insertion += L')';
@@ -2950,7 +3013,10 @@ void MarkdownCommandPlanner::Style(MarkdownTextStyle style)
 {
     if (style != MarkdownTextStyle::Strong && style != MarkdownTextStyle::Emphasis && style != MarkdownTextStyle::Strikethrough &&
         style != MarkdownTextStyle::Code)
-        throw std::invalid_argument("Invalid Markdown text style");
+    {
+        failure = SourceResult::InvalidSource;
+        return;
+    }
     if (! IsCommandFeatureEnabled(*plan.syntax_, MarkdownCommand::ToggleStyle, style, MarkdownListKind::None))
         return;
     std::size_t leaf{};
@@ -3137,7 +3203,10 @@ void MarkdownCommandPlanner::Style(MarkdownTextStyle style)
 void MarkdownCommandPlanner::Link(const MarkdownCommandRequest& request, bool remove)
 {
     if (! remove && (! NativeHtmlDestination(request.destination) || ! IsValidUtf16(request.destination)))
-        throw std::invalid_argument("Ineligible inert link destination");
+    {
+        failure = SourceResult::InvalidSource;
+        return;
+    }
     auto leaf = LeafAt(plan.before_.Start());
     if (leaf == MarkdownNoNode)
         leaf = NodeAt(Kind::HtmlBlock, plan.before_.Start());
@@ -3147,12 +3216,12 @@ void MarkdownCommandPlanner::Link(const MarkdownCommandRequest& request, bool re
         if (remove || ! InlineSelection(unused))
             return;
         std::wstring replacement(L"[](<");
-        replacement += AttributeSource(request.destination);
+        replacement += AttributeSource(request.destination, failure);
         replacement += L'>';
         if (! request.title.empty())
         {
             replacement += L" \"";
-            replacement += AttributeSource(request.title);
+            replacement += AttributeSource(request.title, failure);
             replacement += L'\"';
         }
         replacement += L")";
@@ -3240,19 +3309,19 @@ void MarkdownCommandPlanner::Link(const MarkdownCommandRequest& request, bool re
                     if (HtmlName(name, L"href"))
                     {
                         const auto value = range(first, last);
-                        Add(value.first, value.last, AttributeSource(request.destination, false));
+                        Add(value.first, value.last, AttributeSource(request.destination, failure, false));
                     }
                     else
                     {
                         title            = true;
                         const auto value = request.title.empty() ? range(whitespaceFirst, at) : range(first, last);
-                        Add(value.first, value.last, AttributeSource(request.title, false));
+                        Add(value.first, value.last, AttributeSource(request.title, failure, false));
                     }
                 }
                 if (! title && ! request.title.empty())
                 {
                     std::wstring attribute(L" title=\"");
-                    attribute += AttributeSource(request.title, false);
+                    attribute += AttributeSource(request.title, failure, false);
                     attribute += L'\"';
                     Add(tag.source.last - 1u, tag.source.last - 1u, attribute);
                 }
@@ -3303,13 +3372,13 @@ void MarkdownCommandPlanner::Link(const MarkdownCommandRequest& request, bool re
         std::wstring linked(L"[");
         linked += replacement;
         linked += L"](<";
-        linked += AttributeSource(request.destination);
+        linked += AttributeSource(request.destination, failure);
         linked += L'>';
         replacement = linked;
         if (! request.title.empty())
         {
             replacement += L" \"";
-            replacement += AttributeSource(request.title);
+            replacement += AttributeSource(request.title, failure);
             replacement += L'\"';
         }
         replacement += L")";
@@ -3341,9 +3410,15 @@ void MarkdownCommandPlanner::Table(const MarkdownCommandRequest& request)
         {
             if ((request.tableInputFormat != MarkdownTableInputFormat::Tsv && request.tableInputFormat != MarkdownTableInputFormat::Csv) ||
                 ! IsValidUtf16(request.text))
-                throw std::invalid_argument("Invalid delimited table input");
+            {
+                failure = SourceResult::InvalidSource;
+                return;
+            }
             if (request.text.size() > 64u * 1024u)
-                throw std::length_error("Delimited table input capacity exceeded");
+            {
+                failure = SourceResult::CapacityExceeded;
+                return;
+            }
             const wchar_t separator = request.tableInputFormat == MarkdownTableInputFormat::Tsv ? L'\t' : L',';
             std::vector<std::wstring> row(0u);
             // Keep Debug STL proxy allocation on fallible reserve/copy paths;
@@ -3355,19 +3430,28 @@ void MarkdownCommandPlanner::Table(const MarkdownCommandRequest& request)
             const auto finishField = [&]
             {
                 if (row.size() == 64u)
-                    throw std::length_error("Delimited table column capacity exceeded");
+                {
+                    failure = SourceResult::CapacityExceeded;
+                    return false;
+                }
                 row.emplace_back(field);
                 field.clear();
                 closed  = false;
                 atStart = true;
+                return true;
             };
             const auto finishRow = [&]
             {
-                finishField();
+                if (! finishField())
+                    return false;
                 if (rows.size() == 257u)
-                    throw std::length_error("Delimited table row capacity exceeded");
+                {
+                    failure = SourceResult::CapacityExceeded;
+                    return false;
+                }
                 rows.emplace_back(row);
                 row.clear();
+                return true;
             };
             for (std::size_t i = 0u; i < request.text.size(); ++i)
             {
@@ -3391,10 +3475,14 @@ void MarkdownCommandPlanner::Table(const MarkdownCommandRequest& request)
                         field.push_back(ch);
                 }
                 else if (ch == separator)
-                    finishField();
+                {
+                    if (! finishField())
+                        return;
+                }
                 else if (ch == L'\r' || ch == L'\n')
                 {
-                    finishRow();
+                    if (! finishRow())
+                        return;
                     if (ch == L'\r' && i + 1u < request.text.size() && request.text[i + 1u] == L'\n')
                         ++i;
                 }
@@ -3406,22 +3494,34 @@ void MarkdownCommandPlanner::Table(const MarkdownCommandRequest& request)
                 else
                 {
                     if (closed || ch == L'"')
-                        throw std::invalid_argument("Malformed quoted table field");
+                    {
+                        failure = SourceResult::InvalidSource;
+                        return;
+                    }
                     field.push_back(ch);
                     atStart = false;
                 }
             }
             if (quoted)
-                throw std::invalid_argument("Unclosed quoted table field");
+            {
+                failure = SourceResult::InvalidSource;
+                return;
+            }
             if (request.text.empty() || (request.text.back() != L'\r' && request.text.back() != L'\n'))
-                finishRow();
+            {
+                if (! finishRow())
+                    return;
+            }
             columns = 0u;
             for (const auto& values : rows)
                 columns = (std::max)(columns, values.size());
             bodyRows = rows.size() - 1u;
         }
         if (columns == 0u || columns > 64u || bodyRows > 256u || (bodyRows + 1u) * columns > 4096u)
-            throw std::length_error("Structural table dimensions exceed command capacity");
+        {
+            failure = SourceResult::CapacityExceeded;
+            return;
+        }
         const auto& line = Line(plan.before_.Start());
         if (Line(plan.before_.End()).first != line.first)
             return;
@@ -3508,7 +3608,10 @@ void MarkdownCommandPlanner::Table(const MarkdownCommandRequest& request)
             value += rowSource(row + 1u);
         }
         if (! rows.empty() && value.size() > 64u * 1024u)
-            throw std::length_error("Delimited table source capacity exceeded");
+        {
+            failure = SourceResult::CapacityExceeded;
+            return;
+        }
         Add(plan.before_.Start(), plan.before_.End(), value);
         plan.after_       = {plan.before_.Start() + 2u, plan.before_.Start() + 2u};
         explicitSelection = true;
@@ -3517,7 +3620,10 @@ void MarkdownCommandPlanner::Table(const MarkdownCommandRequest& request)
     }
     auto cell = request.targetCell;
     if (cell != MarkdownNoNode && (cell >= nodes.size() || nodes[cell].block.kind != Kind::TableCell))
-        throw std::out_of_range("Invalid revision-local table cell");
+    {
+        failure = SourceResult::InvalidRange;
+        return;
+    }
     auto row   = cell == MarkdownNoNode ? NodeAt(Kind::TableRow, plan.before_.caret) : nodes[cell].parent;
     auto table = row == MarkdownNoNode ? NodeAt(Kind::Table, plan.before_.caret) : nodes[row].parent;
     if (table == MarkdownNoNode)
@@ -3600,7 +3706,10 @@ void MarkdownCommandPlanner::Table(const MarkdownCommandRequest& request)
     const auto insertRow = [&](std::size_t afterRow)
     {
         if (rows.size() == 257u || (rows.size() + 1u) * columns > 4096u)
-            throw std::length_error("Structural table row capacity exceeded");
+        {
+            failure = SourceResult::CapacityExceeded;
+            return;
+        }
         const auto& physical = afterRow == rows.front() ? separator : Line(nodes[afterRow].block.source.first);
         const auto at        = physical.end;
         std::wstring value(0u, L' ');
@@ -3635,7 +3744,10 @@ void MarkdownCommandPlanner::Table(const MarkdownCommandRequest& request)
         {
             if (request.tableAlignment != MarkdownAlignment::None && request.tableAlignment != MarkdownAlignment::Left &&
                 request.tableAlignment != MarkdownAlignment::Center && request.tableAlignment != MarkdownAlignment::Right)
-                throw std::invalid_argument("Invalid table alignment");
+            {
+                failure = SourceResult::InvalidSource;
+                return;
+            }
             const auto slots = MarkdownTableCells(text, separatorRange);
             if (column >= slots.size())
                 return;
@@ -3676,7 +3788,10 @@ void MarkdownCommandPlanner::Table(const MarkdownCommandRequest& request)
                 if (slots.size() > columns)
                 {
                     if (slots.size() > 64u || slots.size() > 4096u / rows.size())
-                        throw std::length_error("Moved table header exceeds command capacity");
+                    {
+                        failure = SourceResult::CapacityExceeded;
+                        return;
+                    }
                     const auto separators = MarkdownTableCells(text, separatorRange, false);
                     const auto at         = separators.back().last;
                     const bool terminal   = at < text.size() && text[at] == L'|';
@@ -3795,19 +3910,31 @@ void MarkdownCommandPlanner::Table(const MarkdownCommandRequest& request)
         case MarkdownCommand::SetTableCell:
         {
             if (! IsValidSourceUtf16(request.text) || request.text.find_first_of(L"\r\n") != std::wstring_view::npos)
-                throw std::invalid_argument("Cell source must be valid single-line Unicode");
+            {
+                failure = SourceResult::InvalidSource;
+                return;
+            }
             if (request.tableCellCaretOffset && ! IsEditBoundary(request.text, request.tableCellCaretOffset.value()))
-                throw std::out_of_range("Invalid table cell replacement caret");
+            {
+                failure = SourceResult::InvalidRange;
+                return;
+            }
             for (std::size_t at = 0u; at < request.text.size(); ++at)
             {
                 if (request.text[at] == L'\\')
                 {
                     if (at + 1u == request.text.size())
-                        throw std::invalid_argument("Dangling table cell escape");
+                    {
+                        failure = SourceResult::InvalidSource;
+                        return;
+                    }
                     ++at;
                 }
                 else if (request.text[at] == L'|')
-                    throw std::invalid_argument("Unescaped table cell separator");
+                {
+                    failure = SourceResult::InvalidSource;
+                    return;
+                }
             }
             const auto slots = MarkdownTableCells(text, nodes[row].block.content, false);
             std::size_t caret{};
@@ -3841,7 +3968,10 @@ void MarkdownCommandPlanner::Table(const MarkdownCommandRequest& request)
                 auto value              = std::wstring(Slice(nodes[promote].block.content.first, promotedLine.bodyEnd));
                 const auto actual       = MarkdownTableCells(text, nodes[promote].block.content, false);
                 if (actual.size() > 64u || actual.size() * (rows.size() - 1u) > 4096u)
-                    throw std::length_error("Promoted table header exceeds command capacity");
+                {
+                    failure = SourceResult::CapacityExceeded;
+                    return;
+                }
                 if (actual.size() < columns)
                 {
                     const auto at       = actual.back().last - nodes[promote].block.content.first;
@@ -3886,7 +4016,10 @@ void MarkdownCommandPlanner::Table(const MarkdownCommandRequest& request)
         {
             const bool insert = request.command == MarkdownCommand::InsertTableColumn;
             if (insert && (columns == 64u || (columns + 1u) * rows.size() > 4096u))
-                throw std::length_error("Structural table column capacity exceeded");
+            {
+                failure = SourceResult::CapacityExceeded;
+                return;
+            }
             if (! insert && columns == 1u)
             {
                 removeTable();
@@ -3986,7 +4119,10 @@ void MarkdownCommandPlanner::Delete(std::span<const MarkdownRange> ranges)
     std::vector<MarkdownRange> owned(ranges.begin(), ranges.end());
     for (const auto range : owned)
         if (range.first > range.last || ! plan.source_.IsBoundary(range.first) || ! plan.source_.IsBoundary(range.last))
-            throw std::out_of_range("Invalid visual source deletion");
+        {
+            failure = SourceResult::InvalidRange;
+            return;
+        }
     const auto merge = [&]
     {
         std::sort(owned.begin(), owned.end(), [](auto a, auto b) { return a.first < b.first; });
@@ -4105,6 +4241,8 @@ std::optional<Detail::FileReferenceContext> Detail::FileReferenceInsertionContex
                                                                                   std::shared_ptr<const MarkdownSyntax> syntax,
                                                                                   Selection selection)
 {
+    if (MarkdownCommandPlanner::Admission(source, revision, syntax, selection) != SourceResult::Success)
+        return std::nullopt;
     MarkdownCommandPlanner planner(source, revision, std::move(syntax), selection);
     // A nonempty cell's terminal ACP lies just outside its half-open source
     // range. It is safe to retain the table context only if exactly one cell
@@ -4238,21 +4376,32 @@ std::optional<Detail::FileReferenceContext> Detail::FileReferenceInsertionContex
     return result;
 }
 
-MarkdownCommandPlan BuildMarkdownCommand(const SourceSnapshot& source,
-                                         std::uint64_t revision,
-                                         std::shared_ptr<const MarkdownSyntax> syntax,
-                                         Selection selection,
-                                         const MarkdownCommandRequest& request)
+SourceResult TryBuildMarkdownCommand(const SourceSnapshot& source,
+                                     std::uint64_t revision,
+                                     std::shared_ptr<const MarkdownSyntax> syntax,
+                                     Selection selection,
+                                     const MarkdownCommandRequest& request,
+                                     std::optional<MarkdownCommandPlan>& output)
 {
+    Failure::Scope failureScope;
     if (request.text.size() > Document::MaximumUnits || request.destination.size() > Document::MaximumUnits || request.title.size() > Document::MaximumUnits)
-        throw std::length_error("Structural request text exceeds source capacity");
+        return SourceResult::CapacityExceeded;
     if (static_cast<unsigned>(request.command) > static_cast<unsigned>(MarkdownCommand::RenumberList))
-        throw std::invalid_argument("Invalid Markdown command");
+        return SourceResult::InvalidSource;
+    const auto admission = Detail::MarkdownCommandPlanner::Admission(source, revision, syntax, selection);
+    if (admission != SourceResult::Success)
+        return admission;
     Detail::MarkdownCommandPlanner builder(source, revision, std::move(syntax), selection);
     // Footnote labels and unresolved definitions are protected source.
     const auto note = FindCommandFootnoteOwner(*builder.plan.Syntax(), selection);
     if (! note)
-        return builder.Finish();
+    {
+        auto candidate = builder.Finish();
+        if (builder.failure != SourceResult::Success)
+            return builder.failure;
+        output = std::move(candidate);
+        return SourceResult::Success;
+    }
     switch (request.command)
     {
         case MarkdownCommand::InsertParagraph: builder.Continue(request.enterPolicy); break;
@@ -4293,10 +4442,51 @@ MarkdownCommandPlan BuildMarkdownCommand(const SourceSnapshot& source,
         case MarkdownCommand::MoveTableRowDown:
         case MarkdownCommand::MoveTableColumnLeft:
         case MarkdownCommand::MoveTableColumnRight: builder.Table(request); break;
-        default: throw std::invalid_argument("Invalid Markdown command");
+        default: return SourceResult::InvalidSource;
     }
+    if (builder.failure != SourceResult::Success)
+        return builder.failure;
     builder.RestrictToNote(note.value());
-    return builder.Finish();
+    auto candidate = builder.Finish();
+    if (builder.failure != SourceResult::Success)
+        return builder.failure;
+    output = std::move(candidate);
+    return SourceResult::Success;
+}
+MarkdownCommandPlan BuildMarkdownCommand(const SourceSnapshot& source,
+                                         std::uint64_t revision,
+                                         std::shared_ptr<const MarkdownSyntax> syntax,
+                                         Selection selection,
+                                         const MarkdownCommandRequest& request)
+{
+    Failure::Scope failureScope;
+    std::optional<MarkdownCommandPlan> output;
+    if (TryBuildMarkdownCommand(source, revision, std::move(syntax), selection, request, output) != SourceResult::Success)
+        Failure::FailContract(E_INVALIDARG);
+    return std::move(output.value());
+}
+SourceResult TryBuildMarkdownDeletion(const SourceSnapshot& source,
+                                      std::uint64_t revision,
+                                      std::shared_ptr<const MarkdownSyntax> syntax,
+                                      Selection selection,
+                                      std::span<const MarkdownRange> ranges,
+                                      std::optional<MarkdownCommandPlan>& output)
+{
+    Failure::Scope failureScope;
+    if (ranges.size() > SourceDisplayMap::MaximumSpans)
+        return SourceResult::CapacityExceeded;
+    const auto admission = Detail::MarkdownCommandPlanner::Admission(source, revision, syntax, selection);
+    if (admission != SourceResult::Success)
+        return admission;
+    Detail::MarkdownCommandPlanner builder(source, revision, std::move(syntax), selection);
+    builder.Delete(ranges);
+    if (builder.failure != SourceResult::Success)
+        return builder.failure;
+    auto candidate = builder.Finish();
+    if (builder.failure != SourceResult::Success)
+        return builder.failure;
+    output = std::move(candidate);
+    return SourceResult::Success;
 }
 MarkdownCommandPlan BuildMarkdownDeletion(const SourceSnapshot& source,
                                           std::uint64_t revision,
@@ -4304,23 +4494,33 @@ MarkdownCommandPlan BuildMarkdownDeletion(const SourceSnapshot& source,
                                           Selection selection,
                                           std::span<const MarkdownRange> ranges)
 {
-    if (ranges.size() > SourceDisplayMap::MaximumSpans)
-        throw std::length_error("Structural deletion fragment capacity exceeded");
-    Detail::MarkdownCommandPlanner builder(source, revision, std::move(syntax), selection);
-    builder.Delete(ranges);
-    return builder.Finish();
+    Failure::Scope failureScope;
+    std::optional<MarkdownCommandPlan> output;
+    if (TryBuildMarkdownDeletion(source, revision, std::move(syntax), selection, ranges, output) != SourceResult::Success)
+        Failure::FailContract(E_INVALIDARG);
+    return std::move(output.value());
 }
-bool ApplyMarkdownCommand(Document& document, const MarkdownCommandPlan& plan)
+SourceResult TryApplyMarkdownCommand(Document& document, const MarkdownCommandPlan& plan, bool& changed)
 {
+    Failure::Scope failureScope;
+    changed = false;
     if (document.Revision() != plan.ExpectedRevision() || ! document.Snapshot().IsSameRevision(plan.ExpectedSource()) ||
         document.GetSelection() != plan.Before())
-        throw std::invalid_argument("Stale Markdown command source or selection");
+        return SourceResult::Stale;
     if (! plan.IsApplicable())
-        return false;
+        return SourceResult::Success;
     std::vector<SourceEdit> edits(0u);
     edits.reserve(plan.Edits().size());
     for (const auto& edit : plan.Edits())
         edits.push_back({edit.source, edit.replacement});
-    return ApplySourceEdits(document, plan.ExpectedSource(), plan.ExpectedRevision(), edits, plan.After());
+    return TryApplySourceEdits(document, plan.ExpectedSource(), plan.ExpectedRevision(), edits, plan.After(), changed);
+}
+bool ApplyMarkdownCommand(Document& document, const MarkdownCommandPlan& plan)
+{
+    Failure::Scope failureScope;
+    bool changed = false;
+    if (TryApplyMarkdownCommand(document, plan, changed) != SourceResult::Success)
+        Failure::FailContract(E_INVALIDARG);
+    return changed;
 }
 } // namespace DxUi::RichText

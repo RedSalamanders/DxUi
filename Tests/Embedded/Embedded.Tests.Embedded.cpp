@@ -1,10 +1,12 @@
 // Compile the public accessibility header first: consumers must not supply its COM prerequisites.
 #include <DxUi/EmbeddedAccessibility.h>
+#include <DxUi/FileDrop.h>
 
 #include "Controls/DxUi.Internal.h"
 #include "Controls/DxUi.TextElements.h"
 #include "EmbeddedScene.h"
 #include "GraphicsFixture.h"
+#include "Support.Tests.FailureHost.h"
 #include "Support.Tests.FailureReports.h"
 #include "Support.Tests.MarkdownSourceCorrelation.h"
 #include "Support.Tests.RichTextStateReplacement.h"
@@ -14,6 +16,7 @@
 #include <DxUi/ControlCatalog.h>
 #include <DxUi/Diagnostics.h>
 #include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
@@ -27,6 +30,7 @@
 #include <stdexcept>
 #include <type_traits>
 
+#define DXUI_ENABLE_FATAL_INJECTION_WITNESS 1
 #include "Embedded.Tests.BenchmarkInstrument.h"
 static size_t checks = 0;
 static void Check(bool value, const char* text)
@@ -90,6 +94,7 @@ static HRESULT PrepareRichEmbeddedContent(DxUi::EmbeddedHost& view, UINT width, 
 // reproduces the previous pixels. Device replacement while hidden keeps working without a surface.
 __declspec(noinline) static void TestSurfaceLifetime(GraphicsFixture& gpu)
 {
+    Check(DxUiFailureTests::ExpectFatalChild(L"embedded-drag-data-allocation"), "drag-data nested allocation is fatal in its owned child");
     EmbeddedScene scene;
     size_t requests = 0;
     Hr(scene.Initialize(gpu.device.get(), {&requests, [](void* p) noexcept { ++*static_cast<size_t*>(p); }}), "surface lifetime scene");
@@ -830,12 +835,16 @@ __declspec(noinline) static void TestPointerDoesNotRetargetAfterHoverOrHitGeomet
     }
 }
 
-// The existing thread-local allocator seam is armed only around the catalog call. Sweeping
-// every allocation observed on the successful path includes Separator's Control lifetime
-// token even when Debug STL iterator proxies add allocations before that token.
+__declspec(noinline) static void SeparatorCatalogFaultOrigin()
+{
+    std::unique_ptr<DxUi::Control> output;
+    DxUi::Failure::Scope scope;
+    failAllocationAfter = 0u;
+    (void)DxUi::CreateControl(DxUi::ControlKind::Separator, output);
+}
 static void TestSeparatorCatalogAllocationFailures()
 {
-    static_assert(! std::is_nothrow_default_constructible_v<DxUi::Separator>);
+    static_assert(std::is_nothrow_default_constructible_v<DxUi::Separator>);
     std::unique_ptr<DxUi::Control> output;
     const auto oldCount    = allocations;
     const auto oldCounting = countAllocations;
@@ -847,20 +856,14 @@ static void TestSeparatorCatalogAllocationFailures()
     allocations            = oldCount;
     Check(success == S_OK && dynamic_cast<DxUi::Separator*>(output.get()) && observed >= 2u,
           "catalog success observes both object and lifetime-token allocation");
-    for (size_t point = 0u; point < observed; ++point)
-    {
-        auto sentinel                           = std::make_unique<DxUi::Label>(L"sentinel");
-        DxUi::Control* const original           = sentinel.get();
-        std::unique_ptr<DxUi::Control> retained = std::move(sentinel);
-        const auto previous                     = failAllocationAfter;
-        failAllocationAfter                     = point;
-        const HRESULT result                    = DxUi::CreateControl(DxUi::ControlKind::Separator, retained);
-        failAllocationAfter                     = previous;
-        Check(result == E_OUTOFMEMORY && retained.get() == original, "every observed Separator factory allocation failure preserves the caller result");
-    }
+    Check(DxUiFailureTests::ExpectFatalChild(L"embedded-separator-catalog-allocation"), "separator factory allocation terminates in its owned child");
 }
 // Keep unrelated functional-test locals out of the benchmark entry stack, even under LTCG.
-__declspec(noinline) static void TestPreparationCallbacksCanRetireRoot(GraphicsFixture& gpu)
+[[noreturn]] __declspec(noinline) static void EmbeddedPaintFailureOrigin(const std::runtime_error& error)
+{
+    throw error;
+}
+__declspec(noinline) static void TestPreparationCallbacksCanRetireRoot(GraphicsFixture& gpu, bool fatalChild = false)
 {
     struct State final
     {
@@ -951,12 +954,21 @@ __declspec(noinline) static void TestPreparationCallbacksCanRetireRoot(GraphicsF
         DxUi::EmbeddedHost view;
         Hr(view.Attach(graphics), "attach failing preparation host");
         view.Controls().SetRoot(std::make_unique<CallbackRoot>(state));
-        state.paint = [] { throw std::runtime_error("injected paint failure"); };
-        Check(view.Prepare(320, 160) == E_FAIL && view.NeedsPreparation(), "a standard paint exception leaves preparation pending");
+        if (fatalChild)
+        {
+            state.paint = []
+            {
+                const std::runtime_error error("injected paint failure");
+                EmbeddedPaintFailureOrigin(error);
+            };
+            (void)view.Prepare(320, 160);
+            return;
+        }
+        Check(DxUiFailureTests::ExpectFatalChild(L"embedded-paint-callback-throw"), "paint callback exception terminates in its owned child");
+        Hr(view.Prepare(320, 160), "healthy painting succeeds");
         gpu.Bind();
-        Check(view.Composite(gpu.context.get(), gpu.Viewport()) == S_FALSE, "failed painting suppresses composition");
-        Hr(view.Prepare(320, 160), "draw state is restored for a later successful preparation");
-        Check(state.paintCalls == 2u && state.overlayCalls == 1u, "only successful preparation reaches overlay painting");
+        Hr(view.Composite(gpu.context.get(), gpu.Viewport()), "healthy painting composes");
+        Check(state.paintCalls == 1u && state.overlayCalls == 1u, "successful preparation reaches overlay painting");
     }
 }
 
@@ -2463,7 +2475,579 @@ __declspec(noinline) static int RunFunctionalTests()
     return 0;
 }
 
+// Registered before child dispatch without modifying the fingerprinted benchmark driver.
+static std::atomic<unsigned> embeddedDragDataOriginMarker{};
+__declspec(noinline) static void EmbeddedDragDataAllocationOrigin()
+{
+    const std::wstring text(4096u, L'x');
+    wil::com_ptr_nothrow<IDataObject> output;
+    embeddedDragDataOriginMarker.store(17u, std::memory_order_relaxed);
+    failAllocationAfter = 1u;
+    static_cast<void>(DxUi::CreateRichTextDragData(text, output.put()));
+    failAllocationAfter = (std::numeric_limits<size_t>::max)();
+}
+__declspec(noinline) static void EmbeddedRichCodecOrigin()
+{
+    std::wstring output(0u, L' ');
+    failAllocationAfter = 0u;
+    static_cast<void>(DxUi::RichText::TryDecodeUtf8("a deliberately long UTF-8 source requiring allocated output", output));
+    failAllocationAfter = (std::numeric_limits<size_t>::max)();
+}
+__declspec(noinline) static void EmbeddedRichDocumentOrigin()
+{
+    using namespace DxUi::RichText;
+    Document document(L"a deliberately long document source");
+    bool changed        = false;
+    failAllocationAfter = 0u;
+    static_cast<void>(document.TryReplace(0u, 1u, L"replacement requiring allocation", {1u, 1u}, changed));
+    failAllocationAfter = (std::numeric_limits<size_t>::max)();
+}
+__declspec(noinline) static void EmbeddedRichProjectionOrigin()
+{
+    using namespace DxUi::RichText;
+    Document document(L"a deliberately long projection source");
+    PreparedProjection projection;
+    failAllocationAfter = 0u;
+    static_cast<void>(projection.TryPrepare(document.Snapshot(), document.Revision(), ViewMode::Rich));
+    failAllocationAfter = (std::numeric_limits<size_t>::max)();
+}
+__declspec(noinline) static void EmbeddedRichCommandOrigin()
+{
+    using namespace DxUi::RichText;
+    Document document(L"a deliberately long formatted command input");
+    const auto syntax = RichCommandTests::Parse(document);
+    MarkdownCommandRequest request;
+    request.command = MarkdownCommand::ToggleStyle;
+    std::optional<MarkdownCommandPlan> output;
+    failAllocationAfter = 0u;
+    static_cast<void>(TryBuildMarkdownCommand(document.Snapshot(), document.Revision(), syntax, {0u, 4u}, request, output));
+    failAllocationAfter = (std::numeric_limits<size_t>::max)();
+}
+__declspec(noinline) static void EmbeddedRichParserOrigin()
+{
+    using namespace DxUi::RichText;
+    MarkdownParser parser;
+    failAllocationAfter = 0u;
+    static_cast<void>(parser.TryBegin(L"a deliberately long parser source requiring allocated staging", 1u));
+    failAllocationAfter = (std::numeric_limits<size_t>::max)();
+}
+__declspec(noinline) static void EmbeddedRichSemanticOrigin()
+{
+    using namespace DxUi::RichText;
+    const auto syntax = RichSemanticDocumentTests::Parse(L"a deliberately long semantic source with **strong text**");
+    SemanticBuilder builder;
+    if (builder.TryBegin(syntax) != SourceResult::Success)
+        return;
+    DxUi::Failure::Scope scope;
+    failAllocationAfter = 0u;
+    static_cast<void>(builder.Advance(4096u));
+    failAllocationAfter = (std::numeric_limits<size_t>::max)();
+}
+__declspec(noinline) static void EmbeddedRichExportOrigin()
+{
+    using namespace DxUi::RichText;
+    const auto document = RichSemanticDocumentTests::Build(L"a deliberately long **semantic export** source");
+    std::optional<ExportContent> output;
+    failAllocationAfter = 0u;
+    static_cast<void>(TryExportSemanticDocument(*document, {0u, document->Map().Display().size()}, output));
+    failAllocationAfter = (std::numeric_limits<size_t>::max)();
+}
+__declspec(noinline) static void EmbeddedRichGeometryOrigin()
+{
+    using namespace DxUi::RichText;
+    const auto factory  = RichSemanticGeometryTests::Factory();
+    const auto document = RichSemanticDocumentTests::Build(L"a deliberately long semantic geometry source");
+    Detail::PreparedSemanticGeometry geometry;
+    LayoutOptions options;
+    options.widthDip = 360.0f;
+    DxUi::Failure::Scope scope;
+    failAllocationAfter = 0u;
+    geometry.Begin(factory.get(), document, options);
+    failAllocationAfter = (std::numeric_limits<size_t>::max)();
+}
+static void EmbeddedRichNativeToggleChild()
+{
+    const auto hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+    if (FAILED(hr))
+        return;
+    const auto uninitialize = wil::scope_exit([] { CoUninitialize(); });
+    TestRichSemanticNativeDispatchFailureAtomicity(true);
+}
+static void EmbeddedRichUiaCollectionChild(unsigned scenario)
+{
+    const auto hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+    if (FAILED(hr))
+        return;
+    const auto uninitialize = wil::scope_exit([] { CoUninitialize(); });
+    GraphicsFixture gpu;
+    if (FAILED(gpu.Create()))
+        return;
+    TestRichSemanticAccessibilityFailureAtomicity(gpu, scenario);
+}
+static void EmbeddedRichUiaChildrenChild()
+{
+    EmbeddedRichUiaCollectionChild(0u);
+}
+static void EmbeddedRichUiaHeadersChild()
+{
+    EmbeddedRichUiaCollectionChild(1u);
+}
+static void EmbeddedRichCommandHostChild(unsigned scenario)
+{
+    const auto hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+    if (FAILED(hr))
+        return;
+    const auto uninitialize = wil::scope_exit([] { CoUninitialize(); });
+    GraphicsFixture gpu;
+    if (FAILED(gpu.Create()))
+        return;
+    TestRichMarkdownCommandHostFailureAtomicity(gpu, scenario);
+}
+static void EmbeddedRichTextCacheChild()
+{
+    EmbeddedRichCommandHostChild(1u);
+}
+static void EmbeddedRichCommandApplyChild()
+{
+    EmbeddedRichCommandHostChild(2u);
+}
+static void EmbeddedRichPaintIndexChild()
+{
+    TestPaintIndexTransactionalBuild(true);
+}
+static void EmbeddedRichMathChild(const wchar_t* source)
+{
+    const auto hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+    if (FAILED(hr))
+        return;
+    const auto uninitialize = wil::scope_exit([] { CoUninitialize(); });
+    TestMathPreparationAllocationFailures(source, true);
+}
+static void EmbeddedRichMathKernChild()
+{
+    EmbeddedRichMathChild(L"1_1^1");
+}
+static void EmbeddedRichMathColorChild()
+{
+    EmbeddedRichMathChild(L"\\textcolor{white}{\\fcolorbox{blue}{black}{hello}}+\\color{blue}x^2");
+}
+static void EmbeddedRichLayoutCopyChild()
+{
+    const auto hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+    if (FAILED(hr))
+        return;
+    const auto uninitialize = wil::scope_exit([] { CoUninitialize(); });
+    TestRichPreparedLayoutValueFailureAtomicity(false, true);
+}
+static void EmbeddedRichDocumentGeometryChild(bool whole)
+{
+    const auto hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+    if (FAILED(hr))
+        return;
+    const auto uninitialize = wil::scope_exit([] { CoUninitialize(); });
+    TestRichDocumentGeometryFailureAtomicity(false, whole, true);
+}
+static void EmbeddedRichDocumentGeometryChunkChild()
+{
+    EmbeddedRichDocumentGeometryChild(false);
+}
+static void EmbeddedRichDocumentGeometryWholeChild()
+{
+    EmbeddedRichDocumentGeometryChild(true);
+}
+static void EmbeddedRichSourceGuideChild()
+{
+    const auto hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+    if (FAILED(hr))
+        return;
+    const auto uninitialize = wil::scope_exit([] { CoUninitialize(); });
+    TestSourceGuideAllocationAtomicity(true);
+}
+static void EmbeddedRichClipboardBitmapChild()
+{
+    TestHtmlClipboardFragment(1u);
+}
+static void EmbeddedRichClipboardHtmlChild()
+{
+    TestHtmlClipboardFragment(2u);
+}
+template <unsigned Scenario> static void EmbeddedSemanticGeometryChild()
+{
+    const auto hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+    if (FAILED(hr))
+        return;
+    const auto uninitialize = wil::scope_exit([] { CoUninitialize(); });
+    TestRichSemanticGeometryFailureBudgets(false, (Scenario & 1u) != 0u, (Scenario & 2u) != 0u, (Scenario & 4u) != 0u, (Scenario & 8u) != 0u, true);
+}
+template <unsigned Scenario> static void EmbeddedSemanticQueryChild()
+{
+    const auto hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+    if (FAILED(hr))
+        return;
+    const auto uninitialize = wil::scope_exit([] { CoUninitialize(); });
+    GraphicsFixture gpu;
+    if (FAILED(gpu.Create()))
+        return;
+    TestRichSemanticEditorQueryFailureBudgets(gpu, false, Scenario);
+}
+template <unsigned Scenario> static void EmbeddedImagePathChild()
+{
+    TestRichImagePathAllocationFailures(Scenario);
+}
+static void EmbeddedDefaultMenuChild()
+{
+    TestRichDefaultMenuModelAllocationFailureAtomicity(true);
+}
+template <unsigned Scenario> static void EmbeddedImageDecoderChild()
+{
+    TestRichImageDecoderAllocationFailures(Scenario);
+}
+template <unsigned Scenario> static void EmbeddedImageResourceChild()
+{
+    TestRichImageResourceAllocationFailures(Scenario);
+}
+template <unsigned Scenario> static void EmbeddedPreparedFlowchartChild()
+{
+    const auto hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+    if (FAILED(hr))
+        return;
+    const auto uninitialize = wil::scope_exit([] { CoUninitialize(); });
+    TestPreparedFlowchartAllocationFailures(false, Scenario);
+}
+template <unsigned Scenario> static void EmbeddedFlowchartLayoutChild()
+{
+    TestNativeFlowchartLayoutAllocationFailureAtomicity(false, Scenario);
+}
+template <unsigned Scenario> static void EmbeddedFlowchartParserChild()
+{
+    TestNativeFlowchartAllocationFailureAtomicity(false, Scenario);
+}
+template <unsigned Scenario> static void EmbeddedSnapshotAdoptionChild()
+{
+    TestReadOnlyParsedSnapshotAllocationFailures(Scenario);
+}
+template <unsigned Scenario> static void EmbeddedInputChild()
+{
+    TestRichInputAllocationFailureAtomicity(Scenario);
+}
+template <unsigned Scenario> static void EmbeddedWordQueryChild()
+{
+    const auto hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+    if (FAILED(hr))
+        return;
+    const auto uninitialize = wil::scope_exit([] { CoUninitialize(); });
+    GraphicsFixture gpu;
+    if (FAILED(gpu.Create()))
+        return;
+    TestRichPreparedWordFailureAtomicity(gpu, Scenario);
+}
+template <unsigned Scenario> static void EmbeddedPasteChild()
+{
+    const auto hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+    if (FAILED(hr))
+        return;
+    const auto uninitialize = wil::scope_exit([] { CoUninitialize(); });
+    GraphicsFixture gpu;
+    if (FAILED(gpu.Create()))
+        return;
+    TestEmbeddedFileReferencePaste(gpu, Scenario);
+}
+template <unsigned Scenario> static void EmbeddedUiaRangeChild()
+{
+    const auto hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+    if (FAILED(hr))
+        return;
+    const auto uninitialize = wil::scope_exit([] { CoUninitialize(); });
+    GraphicsFixture gpu;
+    if (FAILED(gpu.Create()))
+        return;
+    TestRetainedRichTextUiaRangeAllocationBudget(gpu, Scenario);
+}
+template <unsigned Scenario> static void EmbeddedInputCallbackChild()
+{
+    const auto hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+    if (FAILED(hr))
+        return;
+    const auto uninitialize = wil::scope_exit([] { CoUninitialize(); });
+    GraphicsFixture gpu;
+    if (FAILED(gpu.Create()))
+        return;
+    TestEmbeddedInputCallbackAllocationBoundary(gpu, Scenario);
+}
+template <bool Nested> static void EmbeddedInputExceptionChild()
+{
+    const auto hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+    if (FAILED(hr))
+        return;
+    const auto uninitialize = wil::scope_exit([] { CoUninitialize(); });
+    GraphicsFixture gpu;
+    if (FAILED(gpu.Create()))
+        return;
+    if constexpr (Nested)
+        TestEmbeddedTranslatedCharacterOwnership(gpu, true);
+    else
+        TestEmbeddedTextInput(gpu, true);
+}
+static void EmbeddedTaskPointerChild()
+{
+    const auto hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+    if (FAILED(hr))
+        return;
+    const auto uninitialize = wil::scope_exit([] { CoUninitialize(); });
+    GraphicsFixture gpu;
+    if (FAILED(gpu.Create()))
+        return;
+    TestRichTaskPlanAllocationFailureKeepsPointerSelection(gpu, true);
+}
+static void EmbeddedCodeCopyChild()
+{
+    const auto hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+    if (FAILED(hr))
+        return;
+    const auto uninitialize = wil::scope_exit([] { CoUninitialize(); });
+    GraphicsFixture gpu;
+    if (FAILED(gpu.Create()))
+        return;
+    TestEmbeddedCodeLineNumberPixels(gpu, true);
+}
+static void EmbeddedRichPaintCallbackChild()
+{
+    const auto hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+    if (FAILED(hr))
+        return;
+    const auto uninitialize = wil::scope_exit([] { CoUninitialize(); });
+    GraphicsFixture gpu;
+    if (FAILED(gpu.Create()))
+        return;
+    TestRetainedRichTextFailedPreparation(gpu, true);
+}
+static void EmbeddedTreeModelCallbackChild()
+{
+    const auto hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+    if (FAILED(hr))
+        return;
+    const auto uninitialize = wil::scope_exit([] { CoUninitialize(); });
+    GraphicsFixture gpu;
+    if (FAILED(gpu.Create()))
+        return;
+    TestEmbeddedAccessibilityContainsAThrowingModelGetter(gpu, true);
+}
+static void EmbeddedParserPreparationChild()
+{
+    const auto hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+    if (FAILED(hr))
+        return;
+    const auto uninitialize = wil::scope_exit([] { CoUninitialize(); });
+    GraphicsFixture gpu;
+    if (FAILED(gpu.Create()))
+        return;
+    TestParserCapacityMemoryFailureIsRetryable(gpu, true);
+}
+static void EmbeddedPaintCallbackChild()
+{
+    const auto hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+    if (FAILED(hr))
+        return;
+    const auto uninitialize = wil::scope_exit([] { CoUninitialize(); });
+    GraphicsFixture gpu;
+    if (FAILED(gpu.Create()))
+        return;
+    TestPreparationCallbacksCanRetireRoot(gpu, true);
+}
+static void EmbeddedFileDropTransactionChild()
+{
+    const auto hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+    if (FAILED(hr))
+        return;
+    const auto uninitialize = wil::scope_exit([] { CoUninitialize(); });
+    GraphicsFixture gpu;
+    if (FAILED(gpu.Create()))
+        return;
+    TestRichFileDropTransactionAllocationFailures(gpu, true);
+}
+static void EmbeddedImageGeometryChild()
+{
+    TestRichImageGeometryAllocationFailures(true);
+}
+static void EmbeddedFileDropTransportChild()
+{
+    TestRichFileDropTransportAllocationFailures(true);
+}
+#if DXUI_ENABLE_DIAGNOSTICS
+template <unsigned Stage> static void EmbeddedPreparationFailureChild()
+{
+    const auto hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+    if (FAILED(hr))
+        return;
+    const auto uninitialize = wil::scope_exit([] { CoUninitialize(); });
+    GraphicsFixture gpu;
+    if (FAILED(gpu.Create()))
+        return;
+    std::shared_ptr<DxUi::GraphicsDevice> graphics;
+    if (FAILED(DxUi::GraphicsDevice::Create(gpu.device.get(), graphics)))
+        return;
+    DxUi::EmbeddedHost view;
+    if (FAILED(view.Attach(graphics)))
+        return;
+    auto editor = std::make_unique<DxUi::RichTextEditor>(L"**retained** and $x$\n");
+    editor->SetMarkdownAnalysisProfile(DxUi::RichText::MarkdownProfile::RichMarkdown);
+    editor->SetMarkdownRenderingEnabled(true);
+    view.Controls().SetRoot(std::move(editor));
+    DxUi::RichText::Detail::testRichPreparationFailure = Stage;
+    (void)PrepareRichEmbeddedContent(view, 480u, 240u);
+}
+#endif
+static bool RegisterEmbeddedFatalCases() noexcept
+{
+    const auto RegisterFatalChildCase = [](DxUiFailureTests::FatalChildCase entry) noexcept
+    {
+        if (entry.name)
+        {
+            const std::wstring_view name(entry.name);
+            if (name.starts_with(L"embedded-") && ! name.ends_with(L"-throw"))
+                entry.faultClass = DxUiFailureTests::FatalFaultClass::InjectedAllocation;
+        }
+        return DxUiFailureTests::RegisterFatalChildCase(entry);
+    };
+    return RegisterFatalChildCase({L"embedded-drag-data-allocation", "EmbeddedDragDataAllocationOrigin", EmbeddedDragDataAllocationOrigin}) &&
+           RegisterFatalChildCase({L"embedded-codec-allocation", "EmbeddedRichCodecOrigin", EmbeddedRichCodecOrigin}) &&
+           RegisterFatalChildCase({L"embedded-document-allocation", "EmbeddedRichDocumentOrigin", EmbeddedRichDocumentOrigin}) &&
+           RegisterFatalChildCase({L"embedded-projection-allocation", "EmbeddedRichProjectionOrigin", EmbeddedRichProjectionOrigin}) &&
+           RegisterFatalChildCase({L"embedded-command-allocation", "EmbeddedRichCommandOrigin", EmbeddedRichCommandOrigin}) &&
+           RegisterFatalChildCase({L"embedded-parser-allocation", "EmbeddedRichParserOrigin", EmbeddedRichParserOrigin}) &&
+           RegisterFatalChildCase({L"embedded-semantic-allocation", "EmbeddedRichSemanticOrigin", EmbeddedRichSemanticOrigin}) &&
+           RegisterFatalChildCase({L"embedded-export-allocation", "EmbeddedRichExportOrigin", EmbeddedRichExportOrigin}) &&
+           RegisterFatalChildCase({L"embedded-geometry-allocation", "EmbeddedRichGeometryOrigin", EmbeddedRichGeometryOrigin}) &&
+           RegisterFatalChildCase({L"embedded-uia-toggle-allocation", "RichNativeToggleFaultOrigin", EmbeddedRichNativeToggleChild}) &&
+           RegisterFatalChildCase({L"embedded-uia-children-allocation", "RichUiaCollectionFaultOrigin", EmbeddedRichUiaChildrenChild}) &&
+           RegisterFatalChildCase({L"embedded-uia-headers-allocation", "RichUiaCollectionFaultOrigin", EmbeddedRichUiaHeadersChild}) &&
+           RegisterFatalChildCase({L"embedded-text-cache-allocation", "RichInputCacheFaultOrigin", EmbeddedRichTextCacheChild}) &&
+           RegisterFatalChildCase({L"embedded-command-apply-allocation", "RichCommandApplyFaultOrigin", EmbeddedRichCommandApplyChild}) &&
+           RegisterFatalChildCase({L"embedded-paint-index-allocation", "RichPaintIndexFaultOrigin", EmbeddedRichPaintIndexChild}) &&
+           RegisterFatalChildCase({L"embedded-math-kern-allocation", "RichMathAllocationOrigin", EmbeddedRichMathKernChild}) &&
+           RegisterFatalChildCase({L"embedded-math-color-allocation", "RichMathAllocationOrigin", EmbeddedRichMathColorChild}) &&
+           RegisterFatalChildCase({L"embedded-layout-copy-allocation", "RichLayoutCopyFaultOrigin", EmbeddedRichLayoutCopyChild}) &&
+           RegisterFatalChildCase(
+               {L"embedded-document-geometry-chunk-allocation", "RichDocumentGeometryFaultOrigin", EmbeddedRichDocumentGeometryChunkChild}) &&
+           RegisterFatalChildCase(
+               {L"embedded-document-geometry-whole-allocation", "RichDocumentGeometryFaultOrigin", EmbeddedRichDocumentGeometryWholeChild}) &&
+           RegisterFatalChildCase({L"embedded-source-guide-allocation", "RichSourceGuideFaultOrigin", EmbeddedRichSourceGuideChild}) &&
+           RegisterFatalChildCase({L"embedded-clipboard-bitmap-allocation", "RichClipboardBitmapFaultOrigin", EmbeddedRichClipboardBitmapChild}) &&
+           RegisterFatalChildCase({L"embedded-clipboard-html-allocation", "RichClipboardHtmlFaultOrigin", EmbeddedRichClipboardHtmlChild}) &&
+           RegisterFatalChildCase(
+               {L"embedded-appearance-construction-allocation", "RichAppearanceConstructionFaultOrigin", RichAppearanceConstructionFaultOrigin}) &&
+           RegisterFatalChildCase({L"embedded-editor-construction-allocation", "RichEditorConstructionFaultOrigin", RichEditorConstructionFaultOrigin}) &&
+           RegisterFatalChildCase({L"embedded-semantic-geometry-default", "RichSemanticGeometryFaultOrigin", EmbeddedSemanticGeometryChild<0u>}) &&
+           RegisterFatalChildCase({L"embedded-semantic-geometry-literal", "RichSemanticGeometryFaultOrigin", EmbeddedSemanticGeometryChild<1u>}) &&
+           RegisterFatalChildCase({L"embedded-semantic-geometry-rendered", "RichSemanticGeometryFaultOrigin", EmbeddedSemanticGeometryChild<2u>}) &&
+           RegisterFatalChildCase({L"embedded-semantic-geometry-spacing", "RichSemanticGeometryFaultOrigin", EmbeddedSemanticGeometryChild<4u>}) &&
+           RegisterFatalChildCase({L"embedded-semantic-geometry-literal-spacing", "RichSemanticGeometryFaultOrigin", EmbeddedSemanticGeometryChild<5u>}) &&
+           RegisterFatalChildCase({L"embedded-semantic-geometry-rendered-spacing", "RichSemanticGeometryFaultOrigin", EmbeddedSemanticGeometryChild<6u>}) &&
+           RegisterFatalChildCase({L"embedded-semantic-geometry-subtle", "RichSemanticGeometryFaultOrigin", EmbeddedSemanticGeometryChild<8u>}) &&
+           RegisterFatalChildCase({L"embedded-semantic-geometry-subtle-spacing", "RichSemanticGeometryFaultOrigin", EmbeddedSemanticGeometryChild<12u>}) &&
+           RegisterFatalChildCase({L"embedded-source-range-query", "RichSemanticQueryFaultOrigin", EmbeddedSemanticQueryChild<1u>}) &&
+           RegisterFatalChildCase({L"embedded-source-line-query", "RichSemanticQueryFaultOrigin", EmbeddedSemanticQueryChild<2u>}) &&
+           RegisterFatalChildCase({L"embedded-semantic-range-query", "RichSemanticQueryFaultOrigin", EmbeddedSemanticQueryChild<3u>}) &&
+           RegisterFatalChildCase({L"embedded-semantic-line-query", "RichSemanticQueryFaultOrigin", EmbeddedSemanticQueryChild<4u>}) &&
+           RegisterFatalChildCase({L"embedded-history-undo-allocation", "RichHistoryUndoFaultOrigin", RichHistoryUndoFaultOrigin}) &&
+           RegisterFatalChildCase({L"embedded-image-reference-allocation", "RichImagePathFaultOrigin", EmbeddedImagePathChild<1u>}) &&
+           RegisterFatalChildCase({L"embedded-file-list-decode-allocation", "RichImagePathFaultOrigin", EmbeddedImagePathChild<2u>}) &&
+           RegisterFatalChildCase({L"embedded-file-reference-allocation", "RichImagePathFaultOrigin", EmbeddedImagePathChild<3u>}) &&
+           RegisterFatalChildCase({L"embedded-image-path-resolution-allocation", "RichImagePathFaultOrigin", EmbeddedImagePathChild<4u>}) &&
+           RegisterFatalChildCase({L"embedded-image-geometry-allocation", "RichImageGeometryFaultOrigin", EmbeddedImageGeometryChild}) &&
+           RegisterFatalChildCase({L"embedded-input-character-allocation", "RichInputFaultOrigin", EmbeddedInputChild<1u>}) &&
+           RegisterFatalChildCase({L"embedded-input-command-allocation", "RichInputFaultOrigin", EmbeddedInputChild<2u>}) &&
+           RegisterFatalChildCase({L"embedded-input-backspace-allocation", "RichInputFaultOrigin", EmbeddedInputChild<3u>}) &&
+           RegisterFatalChildCase({L"embedded-input-surrogate-allocation", "RichInputFaultOrigin", EmbeddedInputChild<4u>}) &&
+           RegisterFatalChildCase({L"embedded-source-word-query", "RichPreparedWordFaultOrigin", EmbeddedWordQueryChild<1u>}) &&
+           RegisterFatalChildCase({L"embedded-rich-word-query", "RichPreparedWordFaultOrigin", EmbeddedWordQueryChild<2u>}) &&
+           RegisterFatalChildCase({L"embedded-file-drop-transport-allocation", "RichFileDropTransportFaultOrigin", EmbeddedFileDropTransportChild}) &&
+           RegisterFatalChildCase({L"embedded-file-drop-transaction-allocation", "RichFileDropTransactionFaultOrigin", EmbeddedFileDropTransactionChild}) &&
+           RegisterFatalChildCase({L"embedded-image-decode-allocation", "RichImageDecoderFaultOrigin", EmbeddedImageDecoderChild<1u>}) &&
+           RegisterFatalChildCase({L"embedded-image-create-allocation", "RichImageDecoderFaultOrigin", EmbeddedImageDecoderChild<2u>}) &&
+           RegisterFatalChildCase({L"embedded-flowchart-prepared-allocation", "RichPreparedFlowchartFaultOrigin", EmbeddedPreparedFlowchartChild<1u>}) &&
+           RegisterFatalChildCase({L"embedded-flowchart-capacity-allocation", "RichPreparedFlowchartFaultOrigin", EmbeddedPreparedFlowchartChild<2u>}) &&
+           RegisterFatalChildCase({L"embedded-flowchart-sequence-allocation", "RichPreparedFlowchartFaultOrigin", EmbeddedPreparedFlowchartChild<3u>}) &&
+           RegisterFatalChildCase({L"embedded-flowchart-pie-allocation", "RichPreparedFlowchartFaultOrigin", EmbeddedPreparedFlowchartChild<4u>}) &&
+           RegisterFatalChildCase({L"embedded-flowchart-er-allocation", "RichPreparedFlowchartFaultOrigin", EmbeddedPreparedFlowchartChild<5u>}) &&
+           RegisterFatalChildCase({L"embedded-flowchart-gantt-allocation", "RichPreparedFlowchartFaultOrigin", EmbeddedPreparedFlowchartChild<6u>}) &&
+           RegisterFatalChildCase({L"embedded-flowchart-mindmap-allocation", "RichPreparedFlowchartFaultOrigin", EmbeddedPreparedFlowchartChild<7u>}) &&
+           RegisterFatalChildCase({L"embedded-flowchart-shapes-allocation", "RichPreparedFlowchartFaultOrigin", EmbeddedPreparedFlowchartChild<8u>}) &&
+           RegisterFatalChildCase({L"embedded-flowchart-label-allocation", "RichPreparedFlowchartFaultOrigin", EmbeddedPreparedFlowchartChild<9u>}) &&
+           RegisterFatalChildCase({L"embedded-flowchart-style-allocation", "RichPreparedFlowchartFaultOrigin", EmbeddedPreparedFlowchartChild<10u>}) &&
+           RegisterFatalChildCase({L"embedded-diagram-palette-allocation", "RichPreparedFlowchartFaultOrigin", EmbeddedPreparedFlowchartChild<11u>}) &&
+           RegisterFatalChildCase({L"embedded-flowchart-layout-normal", "RichNativeFlowchartLayoutFaultOrigin", EmbeddedFlowchartLayoutChild<1u>}) &&
+           RegisterFatalChildCase({L"embedded-flowchart-layout-node-capacity", "RichNativeFlowchartLayoutFaultOrigin", EmbeddedFlowchartLayoutChild<2u>}) &&
+           RegisterFatalChildCase({L"embedded-flowchart-layout-edge-capacity", "RichNativeFlowchartLayoutFaultOrigin", EmbeddedFlowchartLayoutChild<3u>}) &&
+           RegisterFatalChildCase({L"embedded-flowchart-layout-sequence", "RichNativeFlowchartLayoutFaultOrigin", EmbeddedFlowchartLayoutChild<4u>}) &&
+           RegisterFatalChildCase({L"embedded-flowchart-layout-pie", "RichNativeFlowchartLayoutFaultOrigin", EmbeddedFlowchartLayoutChild<5u>}) &&
+           RegisterFatalChildCase({L"embedded-flowchart-layout-er", "RichNativeFlowchartLayoutFaultOrigin", EmbeddedFlowchartLayoutChild<6u>}) &&
+           RegisterFatalChildCase({L"embedded-flowchart-layout-gantt", "RichNativeFlowchartLayoutFaultOrigin", EmbeddedFlowchartLayoutChild<7u>}) &&
+           RegisterFatalChildCase({L"embedded-flowchart-layout-mindmap", "RichNativeFlowchartLayoutFaultOrigin", EmbeddedFlowchartLayoutChild<8u>}) &&
+           RegisterFatalChildCase({L"embedded-flowchart-parser-01", "RichNativeFlowchartParserFaultOrigin", EmbeddedFlowchartParserChild<1u>}) &&
+           RegisterFatalChildCase({L"embedded-flowchart-parser-02", "RichNativeFlowchartParserFaultOrigin", EmbeddedFlowchartParserChild<2u>}) &&
+           RegisterFatalChildCase({L"embedded-flowchart-parser-03", "RichNativeFlowchartParserFaultOrigin", EmbeddedFlowchartParserChild<3u>}) &&
+           RegisterFatalChildCase({L"embedded-flowchart-parser-04", "RichNativeFlowchartParserFaultOrigin", EmbeddedFlowchartParserChild<4u>}) &&
+           RegisterFatalChildCase({L"embedded-flowchart-parser-05", "RichNativeFlowchartParserFaultOrigin", EmbeddedFlowchartParserChild<5u>}) &&
+           RegisterFatalChildCase({L"embedded-flowchart-parser-06", "RichNativeFlowchartParserFaultOrigin", EmbeddedFlowchartParserChild<6u>}) &&
+           RegisterFatalChildCase({L"embedded-flowchart-parser-07", "RichNativeFlowchartParserFaultOrigin", EmbeddedFlowchartParserChild<7u>}) &&
+           RegisterFatalChildCase({L"embedded-flowchart-parser-08", "RichNativeFlowchartParserFaultOrigin", EmbeddedFlowchartParserChild<8u>}) &&
+           RegisterFatalChildCase({L"embedded-flowchart-parser-09", "RichNativeFlowchartParserFaultOrigin", EmbeddedFlowchartParserChild<9u>}) &&
+           RegisterFatalChildCase({L"embedded-flowchart-parser-10", "RichNativeFlowchartParserFaultOrigin", EmbeddedFlowchartParserChild<10u>}) &&
+           RegisterFatalChildCase({L"embedded-flowchart-parser-11", "RichNativeFlowchartParserFaultOrigin", EmbeddedFlowchartParserChild<11u>}) &&
+           RegisterFatalChildCase({L"embedded-flowchart-parser-12", "RichNativeFlowchartParserFaultOrigin", EmbeddedFlowchartParserChild<12u>}) &&
+           RegisterFatalChildCase({L"embedded-flowchart-parser-13", "RichNativeFlowchartParserFaultOrigin", EmbeddedFlowchartParserChild<13u>}) &&
+           RegisterFatalChildCase({L"embedded-flowchart-parser-14", "RichNativeFlowchartParserFaultOrigin", EmbeddedFlowchartParserChild<14u>}) &&
+           RegisterFatalChildCase({L"embedded-flowchart-parser-15", "RichNativeFlowchartParserFaultOrigin", EmbeddedFlowchartParserChild<15u>}) &&
+           RegisterFatalChildCase({L"embedded-flowchart-parser-16", "RichNativeFlowchartParserFaultOrigin", EmbeddedFlowchartParserChild<16u>}) &&
+           RegisterFatalChildCase({L"embedded-flowchart-parser-17", "RichNativeFlowchartParserFaultOrigin", EmbeddedFlowchartParserChild<17u>}) &&
+           RegisterFatalChildCase({L"embedded-flowchart-parser-18", "RichNativeFlowchartParserFaultOrigin", EmbeddedFlowchartParserChild<18u>}) &&
+           RegisterFatalChildCase({L"embedded-flowchart-parser-19", "RichNativeFlowchartParserFaultOrigin", EmbeddedFlowchartParserChild<19u>}) &&
+           RegisterFatalChildCase({L"embedded-flowchart-parser-20", "RichNativeFlowchartParserFaultOrigin", EmbeddedFlowchartParserChild<20u>}) &&
+           RegisterFatalChildCase({L"embedded-flowchart-parser-21", "RichNativeFlowchartParserFaultOrigin", EmbeddedFlowchartParserChild<21u>}) &&
+           RegisterFatalChildCase({L"embedded-flowchart-parser-22", "RichNativeFlowchartParserFaultOrigin", EmbeddedFlowchartParserChild<22u>}) &&
+           RegisterFatalChildCase({L"embedded-flowchart-parser-23", "RichNativeFlowchartParserFaultOrigin", EmbeddedFlowchartParserChild<23u>}) &&
+           RegisterFatalChildCase({L"embedded-default-menu-allocation", "RichDefaultMenuFaultOrigin", EmbeddedDefaultMenuChild}) &&
+           RegisterFatalChildCase({L"embedded-parser-adoption-allocation", "RichSnapshotAdoptionFaultOrigin", EmbeddedSnapshotAdoptionChild<1u>}) &&
+           RegisterFatalChildCase({L"embedded-editor-adoption-allocation", "RichSnapshotAdoptionFaultOrigin", EmbeddedSnapshotAdoptionChild<2u>}) &&
+           RegisterFatalChildCase({L"embedded-typing-pair-allocation", "RichSnapshotAdoptionFaultOrigin", EmbeddedSnapshotAdoptionChild<3u>}) &&
+           RegisterFatalChildCase({L"embedded-typing-typography-allocation", "RichSnapshotAdoptionFaultOrigin", EmbeddedSnapshotAdoptionChild<4u>}) &&
+           RegisterFatalChildCase({L"embedded-typing-fence-allocation", "RichSnapshotAdoptionFaultOrigin", EmbeddedSnapshotAdoptionChild<5u>}) &&
+           RegisterFatalChildCase({L"embedded-mixed-paste-allocation", "RichPasteTransformFaultOrigin", EmbeddedPasteChild<1u>}) &&
+           RegisterFatalChildCase({L"embedded-deep-paste-allocation", "RichPasteTransformFaultOrigin", EmbeddedPasteChild<2u>}) &&
+           RegisterFatalChildCase({L"embedded-uia-range-compare", "RichUiaRangeFaultOrigin", EmbeddedUiaRangeChild<1u>}) &&
+           RegisterFatalChildCase({L"embedded-uia-range-expand", "RichUiaRangeFaultOrigin", EmbeddedUiaRangeChild<2u>}) &&
+           RegisterFatalChildCase({L"embedded-uia-range-rectangles", "RichUiaRangeFaultOrigin", EmbeddedUiaRangeChild<3u>}) &&
+           RegisterFatalChildCase({L"embedded-uia-range-text", "RichUiaRangeFaultOrigin", EmbeddedUiaRangeChild<4u>}) &&
+           RegisterFatalChildCase({L"embedded-uia-range-move", "RichUiaRangeFaultOrigin", EmbeddedUiaRangeChild<5u>}) &&
+           RegisterFatalChildCase({L"embedded-uia-range-endpoint", "RichUiaRangeFaultOrigin", EmbeddedUiaRangeChild<6u>}) &&
+           RegisterFatalChildCase({L"embedded-task-pointer-allocation", "RichTaskPointerFaultOrigin", EmbeddedTaskPointerChild}) &&
+           RegisterFatalChildCase({L"embedded-code-copy-allocation", "RichCodeCopyFaultOrigin", EmbeddedCodeCopyChild}) &&
+           RegisterFatalChildCase({L"embedded-image-resource-stage", "RichImageResourceFaultOrigin", EmbeddedImageResourceChild<1u>}) &&
+           RegisterFatalChildCase({L"embedded-image-resource-take", "RichImageResourceFaultOrigin", EmbeddedImageResourceChild<2u>}) &&
+           RegisterFatalChildCase({L"embedded-image-resource-publish", "RichImageResourceFaultOrigin", EmbeddedImageResourceChild<3u>}) &&
+           RegisterFatalChildCase({L"embedded-image-resource-frame", "RichImageResourceFaultOrigin", EmbeddedImageResourceChild<4u>}) &&
+           RegisterFatalChildCase({L"embedded-image-resource-remote", "RichImageResourceFaultOrigin", EmbeddedImageResourceChild<5u>}) &&
+           RegisterFatalChildCase({L"embedded-separator-catalog-allocation", "SeparatorCatalogFaultOrigin", SeparatorCatalogFaultOrigin}) &&
+           RegisterFatalChildCase({L"embedded-input-key-throw", "EmbeddedInputAllocationThrowOrigin", EmbeddedInputCallbackChild<1u>}) &&
+           RegisterFatalChildCase({L"embedded-input-character-throw", "EmbeddedInputAllocationThrowOrigin", EmbeddedInputCallbackChild<2u>}) &&
+           RegisterFatalChildCase({L"embedded-input-receipt-throw", "EmbeddedInputAllocationThrowOrigin", EmbeddedInputCallbackChild<3u>}) &&
+           RegisterFatalChildCase({L"embedded-input-key-commit-throw", "EmbeddedInputAllocationThrowOrigin", EmbeddedInputCallbackChild<4u>}) &&
+           RegisterFatalChildCase({L"embedded-input-character-commit-throw", "EmbeddedInputAllocationThrowOrigin", EmbeddedInputCallbackChild<5u>}) &&
+           RegisterFatalChildCase({L"embedded-input-receipt-commit-throw", "EmbeddedInputAllocationThrowOrigin", EmbeddedInputCallbackChild<6u>}) &&
+           RegisterFatalChildCase({L"embedded-text-change-callback-throw", "EmbeddedTextChangeThrowOrigin", EmbeddedInputExceptionChild<false>}) &&
+           RegisterFatalChildCase({L"embedded-nested-key-callback-throw", "EmbeddedNestedKeyThrowOrigin", EmbeddedInputExceptionChild<true>}) &&
+           RegisterFatalChildCase({L"embedded-rich-paint-callback-throw", "EmbeddedRichPaintThrowOrigin", EmbeddedRichPaintCallbackChild}) &&
+           RegisterFatalChildCase({L"embedded-tree-model-callback-throw", "EmbeddedTreeModelThrowOrigin", EmbeddedTreeModelCallbackChild}) &&
+           RegisterFatalChildCase({L"embedded-paint-callback-throw", "EmbeddedPaintFailureOrigin", EmbeddedPaintCallbackChild}) &&
+           RegisterFatalChildCase({L"embedded-parser-preparation-allocation", "RichParserPreparationFaultOrigin", EmbeddedParserPreparationChild})
+#if DXUI_ENABLE_DIAGNOSTICS
+           && RegisterFatalChildCase({L"rich-preparation-stage1", "SemanticStagingDiagnosticThrowOrigin", EmbeddedPreparationFailureChild<1u>}) &&
+           RegisterFatalChildCase({L"rich-preparation-stage2", "NativeGeometryDiagnosticThrowOrigin", EmbeddedPreparationFailureChild<2u>})
+#endif
+        ;
+}
 // Routed before main runs, so that Embedded.Tests.BenchmarkMain.h, a fingerprinted benchmark input, stays as it is.
-const bool g_failureReportsRouted = (DxUiTestFailureReports::RouteAwayFromDialogs(), true);
+const bool g_failureReportsRouted = (DxUiTestFailureReports::RouteAwayFromDialogs(), RegisterEmbeddedFatalCases());
 
 #include "Embedded.Tests.BenchmarkMain.h"

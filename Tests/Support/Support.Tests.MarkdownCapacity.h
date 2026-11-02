@@ -1,7 +1,6 @@
 #pragma once
 #include "Controls/DxUi.MarkdownBlocks.h"
 #include <DxUi/MarkdownSyntax.h>
-#include <stdexcept>
 
 namespace MarkdownCapacityTests
 {
@@ -65,16 +64,15 @@ template <typename Check> inline void ParserBounds(Check&& check)
         Complete(parser, check);
         const auto previous = parser.Published();
         parser.Begin(source, 3u, MarkdownProfile::Gfm029);
-        bool capacity{};
-        try
+        MarkdownAdvance failed{};
+        while (parser.HasPendingPreparation())
         {
-            Complete(parser, check);
+            failed = parser.Advance(113u);
+            if (failed.status == MarkdownPreparationStatus::Failed)
+                break;
         }
-        catch (const std::length_error&)
-        {
-            capacity = true;
-        }
-        check(capacity && parser.Published() == previous && ! parser.HasPendingPreparation() && previous->Source() == L"old" && old->Source() == L"old",
+        check(failed.status == MarkdownPreparationStatus::Failed && failed.result == MarkdownResult::CapacityExceeded && parser.Published() == previous &&
+                  ! parser.HasPendingPreparation() && previous->Source() == L"old" && old->Source() == L"old",
               "table/global/inline/HTML capacity failure retires staging without publishing or changing held source");
         parser.Begin(L"retry", 4u, MarkdownProfile::Gfm029);
         check(Complete(parser, check)->Source() == L"retry", "a parser can explicitly retry after every capacity failure");

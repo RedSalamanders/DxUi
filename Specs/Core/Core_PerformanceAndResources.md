@@ -329,7 +329,11 @@ qualification replays them exactly. Repetitions inside a block are not treated a
   expanded projects and resolved compile/shader inventory belong to its build-input identity. The comparison profile
   separately binds actual MSBuild, compiler/backend, shader compiler, linker/librarian and SDK bytes plus effective
   options and target evaluation context for both the library and benchmark. A changed source inventory alone is not a
-  toolchain mismatch. Missing metadata, mixed compiler profiles and unsupported build overrides are inconclusive;
+  toolchain mismatch. A library `.c` item may explicitly select `CompileAsC` alongside C++ items only when every
+  other effective compiler option matches the common C++ profile. Each source path retains its exact language and
+  compiler metadata in the build-input identities; opaque `/TC` or `/TP` option overrides, a C++ item compiled as C,
+  C-only option drift, a mixed benchmark
+  profile, missing metadata, other mixed compiler profiles and unsupported build overrides are inconclusive;
   historical attestations cannot be relabelled as v2 or reused without a fresh build.
 - Default-output incremental `Build` additionally requires a separate receipt binding every intermediate path and byte
   in the supported platform/configuration profile, including objects, tracking logs and generated shaders for all solution
@@ -907,6 +911,9 @@ Renamed benchmark headers MUST also overlay any existing legacy include paths in
 current payload. Those aliases exist only in the temporary overlay and are restored with it; recorded current inputs
 and the older entrypoint must reach the same fixture bytes. Every overlaid path MUST match its retained SHA-256
 after copying, before build/reuse, and before and after every measurement.
+The paired overlay builds its benchmark-only translation unit with `DxUiPairedBenchmark=true`, using the same
+scenario and instrumentation on both sides. Each side builds and links its own library project and runtime;
+the translation unit and sample failure-host source and header are part of the hashed, restored overlay inputs.
 Overlay rollback MUST retain and verify the original hash, refuse changed backups, preserve and report later edits
 to either replaced or overlay-created paths, and attempt the remaining restorations. It records the actual installed
 bytes immediately after copying so an owned partial copy can still be rolled back without treating later edits as its own,

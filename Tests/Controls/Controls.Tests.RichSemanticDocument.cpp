@@ -695,26 +695,11 @@ void TestRichMathPreparedStyleSpacingScriptsAndLimits()
     Detail::PreparedMath retry(factory.get(), oversizedExpression, 4096.f);
     for (std::size_t leaf = 0u; leaf < retry.GlyphLayouts().size(); ++leaf)
         Require(! retry.Advance(), "oversized geometry fixture shapes each bounded glyph leaf before finalization");
-    bool firstFailure{}, secondFailure{};
-    try
-    {
-        retry.Advance();
-    }
-    catch (const std::length_error&)
-    {
-        firstFailure = true;
-    }
-    const float firstExtent = retry.Size().width;
-    try
-    {
-        retry.Advance();
-    }
-    catch (const std::length_error&)
-    {
-        secondFailure = true;
-    }
+    const bool firstFailure  = retry.TryAdvance() == Detail::PreparedMath::AdvanceResult::Capacity;
+    const float firstExtent  = retry.Size().width;
+    const bool secondFailure = retry.TryAdvance() == Detail::PreparedMath::AdvanceResult::Capacity;
     Require(firstFailure && secondFailure && firstExtent > 65536.f && retry.Size().width == firstExtent,
-            "failed geometry finalization can be retried without accumulating row extents or strokes");
+            "geometry capacity remains refused without accumulating row extents or strokes");
 }
 void TestRichMathBoundedCompatibilityCorpus()
 {
@@ -1047,8 +1032,8 @@ void TestRichSemanticDocumentPinnedSourceCases()
         {
             if (! IsValidSourceUtf16(cases[index]))
             {
-                RichSemanticTests::Reject<std::invalid_argument>([&] { RichSemanticDocumentTests::Parse(cases[index], profile); },
-                                                                 "unpaired source UTF-16 remains outside parser admission");
+                MarkdownParser parser;
+                Require(parser.TryBegin(cases[index], 1u, profile) == MarkdownResult::InvalidSource, "unpaired source UTF-16 remains outside parser admission");
                 ++rejectedSource;
                 continue;
             }

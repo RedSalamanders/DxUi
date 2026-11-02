@@ -32,23 +32,23 @@ struct PreparedLayoutAccess
     }
     static float MinimumTextWidth(const PreparedLayout& owner);
     static bool ScriptTargetSupported(const PreparedLayout& owner, ID2D1RenderTarget* target);
-    static void PrepareSemantic(PreparedLayout& owner,
-                                IDWriteFactory* factory,
-                                SemanticInput& input,
-                                const LayoutOptions& options,
-                                bool marker                           = false,
-                                IDWriteInlineObject* object           = nullptr,
-                                UINT32 objectOffset                   = 0u,
-                                std::span<const InlineObject> objects = {});
-    static void Prepare(PreparedLayout& owner,
-                        IDWriteFactory* factory,
-                        Projection& projection,
-                        const LayoutOptions& options,
-                        float verticalOrigin                  = 0.0f,
-                        bool semanticDisplay                  = false,
-                        bool marker                           = false,
-                        IDWriteInlineObject* object           = nullptr,
-                        UINT32 objectOffset                   = 0u,
-                        std::span<const InlineObject> objects = {});
+    static HRESULT PrepareSemantic(PreparedLayout& owner,
+                                   IDWriteFactory* factory,
+                                   SemanticInput& input,
+                                   const LayoutOptions& options,
+                                   bool marker                           = false,
+                                   IDWriteInlineObject* object           = nullptr,
+                                   UINT32 objectOffset                   = 0u,
+                                   std::span<const InlineObject> objects = {});
+    static HRESULT Prepare(PreparedLayout& owner,
+                           IDWriteFactory* factory,
+                           Projection& projection,
+                           const LayoutOptions& options,
+                           float verticalOrigin                  = 0.0f,
+                           bool semanticDisplay                  = false,
+                           bool marker                           = false,
+                           IDWriteInlineObject* object           = nullptr,
+                           UINT32 objectOffset                   = 0u,
+                           std::span<const InlineObject> objects = {});
 };
 } // namespace DxUi::RichText::Detail

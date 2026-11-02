@@ -1,3 +1,5 @@
+#include <DxUi/Failure.h>
+
 #include "DxUi.Internal.h"
 
 #include <algorithm>
@@ -178,6 +180,7 @@ bool AreValidLayoutConstraints(const LayoutConstraints& constraints) noexcept
 
 HRESULT Control::Measure(const MeasureContext& context, const LayoutConstraints& constraints, DesiredSize& result) const noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (! AreValidLayoutConstraints(constraints))
         return E_INVALIDARG;
     if (IsRenderStageActiveForDebug())
@@ -206,11 +209,11 @@ HRESULT Control::Measure(const MeasureContext& context, const LayoutConstraints&
     }
     catch (const std::bad_alloc&)
     {
-        hr = E_OUTOFMEMORY;
+        Failure::FailAllocation();
     }
     catch (const std::exception&)
     {
-        hr = E_FAIL;
+        Failure::FailUnexpected();
     }
     if (lifetime.expired())
         return E_ABORT;
@@ -239,6 +242,7 @@ HRESULT Control::MeasureOverride(const MeasureContext& /*context*/, const Layout
 
 HRESULT Label::MeasureOverride(const MeasureContext& context, const LayoutConstraints& constraints, DesiredSize& result) const
 {
+    const Failure::Scope outerFailureScope;
     if (_typographyOverride)
     {
         const size_t shapedUnits = _text.empty() ? 2u : _text.size();
@@ -528,6 +532,7 @@ bool FlexPanel::IsWrapping() const noexcept
 
 HRESULT FlexPanel::SynchronizeRecords() const noexcept
 {
+    const Failure::Scope outerFailureScope;
     const auto children = GetChildren();
     // The cap counts live children: a slot TakeChild emptied holds nothing to lay out.
     if (static_cast<size_t>(std::ranges::count_if(children, [](const auto& child) noexcept { return child != nullptr; })) > kMaxLayoutChildren)
@@ -542,7 +547,7 @@ HRESULT FlexPanel::SynchronizeRecords() const noexcept
     }
     catch (const std::bad_alloc&)
     {
-        return E_OUTOFMEMORY;
+        Failure::FailAllocation();
     }
     for (size_t index = 0u; index < children.size(); ++index)
     {
@@ -616,6 +621,7 @@ HRESULT FlexPanel::BuildLayout(const MeasureContext& context,
                                DesiredSize& result,
                                const std::optional<D2D1_RECT_F>& arrangementBounds) const noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (_buildingLayout)
         return E_ABORT;
     const auto origin = arrangementBounds ? D2D1::Point2F(arrangementBounds->left, arrangementBounds->top) : D2D1::Point2F();
@@ -964,6 +970,7 @@ HRESULT FlexPanel::MeasureOverride(const MeasureContext& context, const LayoutCo
 
 HRESULT FlexPanel::ApplyLayout(const ControlHost& host) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (GetHost() && GetHost() != &host)
         return E_INVALIDARG;
     if (IsRenderStageActiveForDebug())
@@ -1078,6 +1085,7 @@ uint64_t FlexPanel::DebugGetMeasureCount() const noexcept
 
 void FlexPanel::ClearChildren() noexcept
 {
+    const Failure::Scope outerFailureScope;
     // Retire only the entry snapshot. Panel keeps children added by detach callbacks, including their newer
     // options and any completed layout, so never clear the live scratch after those callbacks return.
     _records.clear();

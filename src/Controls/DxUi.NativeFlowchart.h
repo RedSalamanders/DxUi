@@ -438,6 +438,12 @@ inline bool ValidMindmapModel(const FlowchartModel& graph) noexcept
     }
     return true;
 }
+enum class FlowchartAdmission
+{
+    Accepted,
+    InvalidSource,
+    CapacityExceeded
+};
 class NativeFlowchartParser
 {
 public:
@@ -447,9 +453,10 @@ public:
     ~NativeFlowchartParser() noexcept;
     NativeFlowchartParser(const NativeFlowchartParser&)            = delete;
     NativeFlowchartParser& operator=(const NativeFlowchartParser&) = delete;
-    // Invalid UTF-16/oversized Document admission leaves the old request intact.
-    // A source-capacity result retains bounded exact source but builds no graph.
-    void Begin(std::wstring_view source, std::uint64_t revision);
+    // Invalid UTF-16/oversized Document admission returns its reason and leaves
+    // the old request intact. A source-capacity result within Document admission
+    // retains bounded exact source but builds no graph.
+    FlowchartAdmission Begin(std::wstring_view source, std::uint64_t revision);
     // Scanning resumes per UTF-16 unit. One statement parse is indivisible:
     // at most 16K source units, a 256-node lookup table and 512 admitted edges.
     // Units are not elapsed time.

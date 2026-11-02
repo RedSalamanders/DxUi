@@ -1,7 +1,16 @@
 #pragma once
 #include "Support.Tests.RichSemanticGeometry.h"
 
-static void TestRichSemanticEditorQueryFailureBudgets(GraphicsFixture& gpu, bool trace = false)
+__declspec(noinline) static void RichSemanticQueryFaultOrigin(DxUi::RichTextEditor& editor, DxUi::EmbeddedHost& view, size_t length, unsigned operation)
+{
+    DxUi::Failure::Scope scope;
+    failAllocationAfter = 0u;
+    if (operation == 0u)
+        (void)editor.TryGetTextInputRangeRects(view.Controls(), 0u, length);
+    else
+        (void)editor.GetSourceVisualLineRanges(view.Controls());
+}
+static void TestRichSemanticEditorQueryFailureBudgets(GraphicsFixture& gpu, bool trace = false, unsigned fatalScenario = 0u)
 {
     using namespace DxUi;
     const std::wstring source =
@@ -28,6 +37,11 @@ static void TestRichSemanticEditorQueryFailureBudgets(GraphicsFixture& gpu, bool
                                        : editor->GetSourceVisualLineRanges(view.Controls()).has_value();
             };
             Check(query(), "query failure fixture starts with available glyph/line geometry");
+            if (fatalScenario == 1u + (semantic ? 2u : 0u) + operation)
+            {
+                RichSemanticQueryFaultOrigin(*editor, view, source.size(), operation);
+                return;
+            }
             size_t requests = 0u;
             {
                 const auto oldCounting = countAllocations;
@@ -45,40 +59,33 @@ static void TestRichSemanticEditorQueryFailureBudgets(GraphicsFixture& gpu, bool
                 requests                      = allocations;
                 Check(available && requests > 0u && requests < 256u, "query allocation schedule is finite and independently observed");
             }
-            for (size_t point = 0u; point < requests; ++point)
+            if (fatalScenario == 0u)
             {
-                if (trace)
-                {
-                    std::fprintf(
-                        stderr, "semantic query engine=%u operation=%u allocation failure point=%zu of %zu\n", semantic ? 1u : 0u, operation, point, requests);
-                    std::fflush(stderr);
-                }
-                bool available = false, exhausted = false;
-                {
-                    const auto previous = failAllocationAfter;
-                    const auto restore  = wil::scope_exit([=] noexcept { failAllocationAfter = previous; });
-                    failAllocationAfter = point;
-                    try
-                    {
-                        available = query();
-                    }
-                    catch (const std::bad_alloc&)
-                    {
-                        exhausted = true;
-                    }
-                }
-                Check(! available && exhausted == (operation == 0u) && editor->Revision() == revision && editor->DebugGetState().layoutReady &&
-                          editor->DebugGetState().layoutGeneration == generation && editor->GetText() == source && ! editor->CanUndo(),
-                      "range query propagates exhaustion and line query reports unavailable without source/history/geometry mutation");
-                Check(query(), "text-service geometry query succeeds after every injected failure");
+                const wchar_t* child = semantic ? (operation ? L"embedded-semantic-line-query" : L"embedded-semantic-range-query")
+                                                : (operation ? L"embedded-source-line-query" : L"embedded-source-range-query");
+                Check(DxUiFailureTests::ExpectFatalChild(child), "text-service geometry query allocation terminates in its owned child");
             }
-            std::cout << "rich semantic query engine=" << semantic << " operation=" << operation << " sweptRequests=" << requests << '\n';
+            Check(query() && editor->Revision() == revision && editor->DebugGetState().layoutReady && editor->DebugGetState().layoutGeneration == generation &&
+                      editor->GetText() == source && ! editor->CanUndo(),
+                  "text-service geometry query preserves source, history and geometry");
+            if (trace)
+                std::cout << "rich semantic query engine=" << semantic << " operation=" << operation << " requests=" << requests << '\n';
         }
     }
 }
 
+__declspec(noinline) static void RichSemanticGeometryFaultOrigin(DxUi::RichText::Detail::PreparedSemanticGeometry& geometry,
+                                                                 IDWriteFactory* factory,
+                                                                 const std::shared_ptr<const DxUi::RichText::SemanticDocument>& document,
+                                                                 const DxUi::RichText::LayoutOptions& options)
+{
+    DxUi::Failure::Scope scope;
+    failAllocationAfter = 0u;
+    geometry.Begin(factory, document, options);
+    RichSemanticGeometryTests::Complete(geometry);
+}
 static void TestRichSemanticGeometryFailureBudgets(
-    bool trace = false, bool literalFootnotes = false, bool renderedFootnotes = false, bool spacing = false, bool subtle = false)
+    bool trace = false, bool literalFootnotes = false, bool renderedFootnotes = false, bool spacing = false, bool subtle = false, bool fatalChild = false)
 {
     using namespace DxUi::RichText;
     using DxUi::RichText::Detail::PreparedSemanticGeometry;
@@ -107,6 +114,14 @@ static void TestRichSemanticGeometryFailureBudgets(
         options.paragraphSpacingAfterLines = 1.0f;
         options.listItemSpacingDip         = 10.0f;
     }
+    if (fatalChild)
+    {
+        PreparedSemanticGeometry prior;
+        prior.Begin(factory.get(), previous, options);
+        RichSemanticGeometryTests::Complete(prior);
+        RichSemanticGeometryFaultOrigin(prior, factory.get(), candidate, options);
+        return;
+    }
     size_t requests = 0u;
     {
         PreparedSemanticGeometry geometry;
@@ -125,41 +140,43 @@ static void TestRichSemanticGeometryFailureBudgets(
         requests         = allocations;
     }
     Check(requests > 0u && requests < 4096u, "semantic geometry has an independently observed finite owned allocation schedule");
-    for (size_t point = 0u; point < requests; ++point)
     {
-        if (trace)
-        {
-            std::fprintf(stderr, "semantic geometry allocation failure point=%zu of %zu\n", point, requests);
-            std::fflush(stderr);
-        }
-        PreparedSemanticGeometry geometry;
-        geometry.Begin(factory.get(), previous, options);
-        RichSemanticGeometryTests::Complete(geometry);
-        const auto generation = geometry.Generation();
-        bool rejected         = false;
-        {
-            const auto oldFailure = failAllocationAfter;
-            const auto restore    = wil::scope_exit([=] noexcept { failAllocationAfter = oldFailure; });
-            failAllocationAfter   = point;
-            try
-            {
-                geometry.Begin(factory.get(), candidate, options);
-                RichSemanticGeometryTests::Complete(geometry);
-            }
-            catch (const std::bad_alloc&)
-            {
-                rejected = true;
-            }
-        }
-        Check(rejected && geometry.Ready() && ! geometry.Pending() && geometry.Generation() == generation && &geometry.Document() == previous.get(),
-              "every geometry allocation failure preserves the complete previous source/layout publication and retires staging");
-        geometry.Begin(factory.get(), candidate, options);
-        RichSemanticGeometryTests::Complete(geometry);
-        Check(&geometry.Document() == candidate.get(), "explicit semantic geometry retry succeeds after each failed allocation");
+        PreparedSemanticGeometry prior;
+        prior.Begin(factory.get(), previous, options);
+        RichSemanticGeometryTests::Complete(prior);
+        const wchar_t* child = subtle              ? (spacing ? L"embedded-semantic-geometry-subtle-spacing" : L"embedded-semantic-geometry-subtle")
+                               : literalFootnotes  ? (spacing ? L"embedded-semantic-geometry-literal-spacing" : L"embedded-semantic-geometry-literal")
+                               : renderedFootnotes ? (spacing ? L"embedded-semantic-geometry-rendered-spacing" : L"embedded-semantic-geometry-rendered")
+                                                   : (spacing ? L"embedded-semantic-geometry-spacing" : L"embedded-semantic-geometry-default");
+        Check(DxUiFailureTests::ExpectFatalChild(child), "semantic geometry allocation terminates in its owned child");
+        prior.Begin(factory.get(), candidate, options);
+        RichSemanticGeometryTests::Complete(prior);
+        Check(&prior.Document() == candidate.get(), "semantic geometry publishes the complete candidate");
     }
     PreparedSemanticGeometry geometry;
     geometry.Begin(factory.get(), candidate, options);
     RichSemanticGeometryTests::Complete(geometry);
+    {
+        Hit hit{};
+        hit.position = 19u;
+        Check(geometry.TryHitTest((std::numeric_limits<float>::quiet_NaN)(), 0.0f, hit) == E_INVALIDARG && hit.position == 19u,
+              "invalid hit coordinates preserve the output");
+        CaretGeometry caret{};
+        caret.x = 17.0f;
+        Check(geometry.TryCaret(candidate->Map().Display().size() + 1u, caret) == E_INVALIDARG && caret.x == 17.0f,
+              "invalid display caret preserves the output");
+        std::vector<D2D1_RECT_F> rectangles{{1.0f, 2.0f, 3.0f, 4.0f}};
+        Check(geometry.TryRange(1u, 0u, rectangles) == E_INVALIDARG && rectangles.size() == 1u && rectangles[0].left == 1.0f,
+              "invalid display range preserves the output");
+        Check(geometry.TrySourceRange({1u, 0u}, rectangles) == E_INVALIDARG && rectangles.size() == 1u && rectangles[0].left == 1.0f,
+              "invalid source range preserves the output");
+        std::optional<D2D1_RECT_F> bounds{D2D1_RECT_F{1.0f, 2.0f, 3.0f, 4.0f}};
+        Check(geometry.TryElementBounds((std::numeric_limits<size_t>::max)(), bounds) == E_INVALIDARG && bounds && bounds->left == 1.0f,
+              "invalid element index preserves the output");
+        std::pair<size_t, size_t> viewport{3u, 7u};
+        Check(geometry.TryVisibleRange(2.0f, 1.0f, viewport) == E_INVALIDARG && viewport == std::pair<size_t, size_t>{3u, 7u},
+              "invalid viewport preserves the output");
+    }
     const auto oldCalls = allocations;
     countAllocations    = true;
     for (size_t repeat = 0u; repeat < 8u; ++repeat)
@@ -191,5 +208,5 @@ static void TestRichSemanticGeometryFailureBudgets(
     std::cout << "rich semantic geometry literalFootnotes=" << literalFootnotes << " renderedFootnotes=" << renderedFootnotes << " spacing=" << spacing
               << " completeFailures=" << requests << " idle/retireAllocations=0\n";
     if (! spacing)
-        TestRichSemanticGeometryFailureBudgets(trace, literalFootnotes, renderedFootnotes, true);
+        TestRichSemanticGeometryFailureBudgets(trace, literalFootnotes, renderedFootnotes, true, subtle);
 }

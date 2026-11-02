@@ -1,4 +1,5 @@
 #include "DxUi.TextElements.h"
+#include <DxUi/Failure.h>
 #include <DxUi/RichDocument.h>
 #include <array>
 #include <atomic>
@@ -19,12 +20,16 @@ bool IsEditJoinAllowed(wchar_t before, wchar_t after) noexcept
 {
     return ! (IsUtf16LeadSurrogate(before) && IsUtf16TrailSurrogate(after)) && ! (before == L'\r' && after == L'\n');
 }
-void Validate(std::wstring_view text)
+SourceResult Validate(std::wstring_view text) noexcept
 {
     if (text.size() > Document::MaximumUnits)
-        throw std::length_error("Rich-text v0 source exceeds 64 Ki UTF-16 units");
-    if (! IsValidSourceUtf16(text))
-        throw std::invalid_argument("Invalid UTF-16 source");
+        return SourceResult::CapacityExceeded;
+    return IsValidSourceUtf16(text) ? SourceResult::Success : SourceResult::InvalidSource;
+}
+void RequireSuccess(SourceResult result)
+{
+    if (result != SourceResult::Success)
+        Failure::FailContract(E_INVALIDARG);
 }
 } // namespace
 bool IsValidSourceUtf16(std::wstring_view text) noexcept
@@ -53,39 +58,62 @@ bool IsEditBoundary(std::wstring_view text, std::size_t offset) noexcept
         return true;
     return IsEditJoinAllowed(text[offset - 1], text[offset]);
 }
-std::wstring DecodeUtf8(std::string_view bytes)
+SourceResult TryDecodeUtf8(std::string_view bytes, std::wstring& output)
 {
+    Failure::Scope failureScope;
     if (bytes.empty())
-        return std::wstring(0u, L'\0');
+    {
+        output.clear();
+        return SourceResult::Success;
+    }
     if (bytes.size() > Document::MaximumUnits * 3u || bytes.size() > static_cast<std::size_t>(std::numeric_limits<int>::max()))
-        throw std::length_error("UTF-8 input too large");
+        return SourceResult::CapacityExceeded;
     const int length = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, bytes.data(), static_cast<int>(bytes.size()), nullptr, 0);
     if (! length)
-        throw std::invalid_argument("Invalid UTF-8 input");
+        return SourceResult::InvalidSource;
     // A UTF-16 unit needs at most three UTF-8 bytes; paired supplementary
     // scalars need four bytes for two units. Reject both bounds before allocation.
     if (static_cast<std::size_t>(length) > Document::MaximumUnits)
-        throw std::length_error("Decoded UTF-8 source exceeds capacity");
+        return SourceResult::CapacityExceeded;
     std::wstring text(static_cast<std::size_t>(length), L'\0');
     if (MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, bytes.data(), static_cast<int>(bytes.size()), text.data(), length) != length)
-        throw std::runtime_error("UTF-8 conversion failed");
-    Validate(text);
-    // A Debug STL move may allocate its iterator proxy inside a noexcept move.
-    // Construct the returned value through the fallible copy constructor.
-    return std::wstring(text);
+        Failure::FailUnexpected();
+    output.swap(text);
+    return SourceResult::Success;
+}
+SourceResult TryEncodeUtf8(std::wstring_view text, std::string& output)
+{
+    Failure::Scope failureScope;
+    const auto result = Validate(text);
+    if (result != SourceResult::Success)
+        return result;
+    if (text.empty())
+    {
+        output.clear();
+        return SourceResult::Success;
+    }
+    const auto length = WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, text.data(), static_cast<int>(text.size()), nullptr, 0, nullptr, nullptr);
+    if (! length)
+        Failure::FailUnexpected();
+    std::string bytes(static_cast<std::size_t>(length), '\0');
+    if (WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, text.data(), static_cast<int>(text.size()), bytes.data(), length, nullptr, nullptr) != length)
+        Failure::FailUnexpected();
+    output.swap(bytes);
+    return SourceResult::Success;
+}
+std::wstring DecodeUtf8(std::string_view bytes)
+{
+    Failure::Scope failureScope;
+    std::wstring output(0u, L'\0');
+    RequireSuccess(TryDecodeUtf8(bytes, output));
+    return std::wstring(output);
 }
 std::string EncodeUtf8(std::wstring_view text)
 {
-    Validate(text);
-    if (text.empty())
-        return std::string(0u, '\0');
-    const auto length = WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, text.data(), static_cast<int>(text.size()), nullptr, 0, nullptr, nullptr);
-    if (! length)
-        throw std::invalid_argument("Invalid UTF-16 input");
-    std::string bytes(static_cast<std::size_t>(length), '\0');
-    if (WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, text.data(), static_cast<int>(text.size()), bytes.data(), length, nullptr, nullptr) != length)
-        throw std::runtime_error("UTF-16 conversion failed");
-    return std::string(bytes);
+    Failure::Scope failureScope;
+    std::string output(0u, '\0');
+    RequireSuccess(TryEncodeUtf8(text, output));
+    return std::string(output);
 }
 struct SourceSnapshot::PieceTreeNode
 {
@@ -382,7 +410,7 @@ struct SnapshotLineage
         do
         {
             if (value == std::numeric_limits<std::uint64_t>::max())
-                throw std::length_error("Source snapshot identity space exhausted");
+                Failure::FailContract(HRESULT_FROM_WIN32(ERROR_ARITHMETIC_OVERFLOW));
         } while (! nextIdentity.compare_exchange_weak(value, value + 1u, std::memory_order_relaxed));
         return value;
     }
@@ -463,6 +491,7 @@ bool SourceSnapshot::MatchesText(std::wstring_view text) const noexcept
 }
 std::wstring SourceSnapshot::Text() const
 {
+    Failure::Scope failureScope;
     return Slice(0u, Length());
 }
 wchar_t SourceSnapshot::CharacterAt(std::size_t offset) const noexcept
@@ -520,10 +549,11 @@ std::optional<SourceLocation> SourceSnapshot::LocationAt(std::size_t offset) con
     });
     return location;
 }
-std::wstring SourceSnapshot::Slice(std::size_t first, std::size_t last) const
+SourceResult SourceSnapshot::TrySlice(std::size_t first, std::size_t last, std::wstring& output) const
 {
+    Failure::Scope failureScope;
     if (first > last || ! IsBoundary(first) || ! IsBoundary(last))
-        throw std::out_of_range("Invalid snapshot slice");
+        return SourceResult::InvalidRange;
     // The size constructor can propagate Debug STL proxy allocation failure;
     // the default constructor allocates that proxy inside a noexcept path.
     std::wstring result(0u, L'\0');
@@ -536,7 +566,15 @@ std::wstring SourceSnapshot::Slice(std::size_t first, std::size_t last) const
         result.append(fragment);
         return true;
     });
-    return result;
+    output.swap(result);
+    return SourceResult::Success;
+}
+std::wstring SourceSnapshot::Slice(std::size_t first, std::size_t last) const
+{
+    Failure::Scope failureScope;
+    std::wstring output(0u, L'\0');
+    RequireSuccess(TrySlice(first, last, output));
+    return std::wstring(output);
 }
 SourceChangeRange SourceSnapshot::ChangedRangeFrom(const SourceSnapshot& previous) const noexcept
 {
@@ -651,9 +689,12 @@ bool Document::AdoptReadOnlySourceSnapshot(const SourceSnapshot& source, Selecti
     ++revision_; // Local Document revisions remain independent of the source Document.
     return true;
 }
-void Document::Reset(std::wstring_view text)
+SourceResult Document::TryReset(std::wstring_view text)
 {
-    Validate(text);
+    Failure::Scope failureScope;
+    const auto result = Validate(text);
+    if (result != SourceResult::Success)
+        return result;
     std::shared_ptr<const SourceSnapshot::PieceTreeNode> root;
     if (! text.empty())
     {
@@ -668,13 +709,24 @@ void Document::Reset(std::wstring_view text)
     undo_.Clear();
     redo_.Clear();
     ++revision_;
+    return SourceResult::Success;
+}
+SourceResult Document::TrySetSelection(Selection selection) noexcept
+{
+    if (! source_.IsBoundary(selection.anchor) || ! source_.IsBoundary(selection.caret))
+        return SourceResult::InvalidRange;
+    selection_ = selection;
+    ++selectionEpoch_;
+    return SourceResult::Success;
+}
+void Document::Reset(std::wstring_view text)
+{
+    Failure::Scope failureScope;
+    RequireSuccess(TryReset(text));
 }
 void Document::SetSelection(Selection selection)
 {
-    if (! source_.IsBoundary(selection.anchor) || ! source_.IsBoundary(selection.caret))
-        throw std::out_of_range("Selection splits a Unicode scalar or CRLF");
-    selection_ = selection;
-    ++selectionEpoch_;
+    RequireSuccess(TrySetSelection(selection));
 }
 Document::HistoryRing::HistoryRing(HistoryRing&& other) : entries(0u)
 {
@@ -726,26 +778,57 @@ void Document::HistoryRing::Clear() noexcept
 }
 bool Document::Replace(std::size_t begin, std::size_t end, std::wstring_view text, Selection after)
 {
+    Failure::Scope failureScope;
     return ReplaceImpl(begin, end, text, after, true);
 }
-bool Document::ReplaceTransient(std::wstring_view text, Selection selection)
+SourceResult Document::TryReplace(std::size_t begin, std::size_t end, std::wstring_view text, Selection after, bool& changed)
 {
+    Failure::Scope failureScope;
+    return TryReplaceImpl(begin, end, text, after, true, false, changed);
+}
+SourceResult Document::TryReplaceTransient(std::wstring_view text, Selection selection, bool& changed)
+{
+    Failure::Scope failureScope;
     const auto entry         = transientEntry_ ? *transientEntry_ : History{source_, selection_};
     const bool restoresEntry = entry.source.MatchesText(text);
-    const bool changed       = ReplaceWholeTextImpl(text, selection, false);
+    const auto result        = TryReplaceWholeTextImpl(text, selection, false, changed);
+    if (result != SourceResult::Success)
+        return result;
     if (restoresEntry)
         transientEntry_.reset();
     else if (changed && ! transientEntry_)
         transientEntry_.emplace(entry);
+    return SourceResult::Success;
+}
+bool Document::ReplaceTransient(std::wstring_view text, Selection selection)
+{
+    Failure::Scope failureScope;
+    bool changed = false;
+    RequireSuccess(TryReplaceTransient(text, selection, changed));
     return changed;
+}
+SourceResult Document::TryReplaceWholeText(std::wstring_view text, Selection selection, bool& changed)
+{
+    Failure::Scope failureScope;
+    return TryReplaceWholeTextImpl(text, selection, true, changed);
 }
 bool Document::ReplaceWholeText(std::wstring_view text, Selection selection)
 {
+    Failure::Scope failureScope;
     return ReplaceWholeTextImpl(text, selection, true);
 }
 bool Document::ReplaceWholeTextImpl(std::wstring_view text, Selection selection, bool recordHistory)
 {
-    Validate(text);
+    bool changed = false;
+    RequireSuccess(TryReplaceWholeTextImpl(text, selection, recordHistory, changed));
+    return changed;
+}
+SourceResult Document::TryReplaceWholeTextImpl(std::wstring_view text, Selection selection, bool recordHistory, bool& changed)
+{
+    changed           = false;
+    const auto result = Validate(text);
+    if (result != SourceResult::Success)
+        return result;
     const auto length      = Length();
     const auto commonLimit = std::min(length, text.size());
     size_t prefix          = 0u;
@@ -789,17 +872,27 @@ bool Document::ReplaceWholeTextImpl(std::wstring_view text, Selection selection,
     // The OS supplies complete text for previews and notifying commits. Retain
     // only the changed interval; untouched buffers/paths and useful incremental
     // metadata stay shared. The caller chooses ordinary or transient history.
-    return ReplaceImpl(prefix, length - suffix, text.substr(prefix, text.size() - prefix - suffix), selection, recordHistory);
+    return TryReplaceImpl(prefix, length - suffix, text.substr(prefix, text.size() - prefix - suffix), selection, recordHistory, false, changed);
 }
 
 bool Document::ReplaceImpl(std::size_t begin, std::size_t end, std::wstring_view text, Selection after, bool recordHistory, bool coalesceHistory)
 {
-    Validate(text);
+    bool changed = false;
+    RequireSuccess(TryReplaceImpl(begin, end, text, after, recordHistory, coalesceHistory, changed));
+    return changed;
+}
+SourceResult Document::TryReplaceImpl(
+    std::size_t begin, std::size_t end, std::wstring_view text, Selection after, bool recordHistory, bool coalesceHistory, bool& changed)
+{
+    changed           = false;
+    const auto result = Validate(text);
+    if (result != SourceResult::Success)
+        return result;
     const auto length = source_.Length();
     if (begin > end || ! source_.IsBoundary(begin) || ! source_.IsBoundary(end))
-        throw std::out_of_range("Invalid replacement range");
+        return SourceResult::InvalidRange;
     if (text.size() > MaximumUnits - (length - (end - begin)))
-        throw std::length_error("Bounded rich-text source limit");
+        return SourceResult::CapacityExceeded;
     const auto resultingLength = length - (end - begin) + text.size();
     const auto insertedEnd     = begin + text.size();
     const auto futureCharacter = [&](size_t offset) noexcept
@@ -819,7 +912,7 @@ bool Document::ReplaceImpl(std::size_t begin, std::size_t end, std::wstring_view
     // Inspect the virtual prefix/insertion/suffix join before any storage or
     // history allocation. These checks include newly formed cross-piece CRLF.
     if (! validFutureBoundary(after.anchor) || ! validFutureBoundary(after.caret))
-        throw std::out_of_range("Invalid resulting selection");
+        return SourceResult::InvalidRange;
     bool equal      = end - begin == text.size();
     size_t compared = 0u;
     if (equal)
@@ -837,7 +930,7 @@ bool Document::ReplaceImpl(std::size_t begin, std::size_t end, std::wstring_view
         if (selection_ != after)
             ++selectionEpoch_;
         selection_ = after;
-        return false;
+        return SourceResult::Success;
     }
     SourceSnapshot::PieceTreeNode::Fragment insertion;
     if (! text.empty())
@@ -860,15 +953,30 @@ bool Document::ReplaceImpl(std::size_t begin, std::size_t end, std::wstring_view
     }
     selection_ = after;
     ++revision_;
-    return true;
+    changed = true;
+    return SourceResult::Success;
+}
+SourceResult Document::TryReplaceSelection(std::wstring_view text, bool& changed)
+{
+    Failure::Scope failureScope;
+    if (text.size() > MaximumUnits)
+    {
+        changed = false;
+        return SourceResult::CapacityExceeded;
+    }
+    const auto end = selection_.Start() + text.size();
+    return TryReplace(selection_.Start(), selection_.End(), text, {end, end}, changed);
 }
 bool Document::ReplaceSelection(std::wstring_view text)
 {
-    const auto end = selection_.Start() + text.size();
-    return Replace(selection_.Start(), selection_.End(), text, {end, end});
+    Failure::Scope failureScope;
+    bool changed = false;
+    RequireSuccess(TryReplaceSelection(text, changed));
+    return changed;
 }
 bool Document::Undo()
 {
+    Failure::Scope failureScope;
     if (transientEntry_ || undo_.Empty())
         return false;
     redo_.PreparePush();
@@ -881,6 +989,7 @@ bool Document::Undo()
 }
 bool Document::Redo()
 {
+    Failure::Scope failureScope;
     if (transientEntry_ || redo_.Empty())
         return false;
     undo_.PreparePush();

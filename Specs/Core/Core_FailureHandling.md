@@ -7,11 +7,13 @@ This contract owns C++ failure handling in DxUi, including application callbacks
 requires explicit checked failures or a fatal host diagnostic path. `std::bad_alloc` is unexpected, like any other
 escaping C++ exception; catching it and continuing is not the ordinary allocation-failure protocol.
 
-**Implementation status:** published source `5fc4d4c383bfa4891ee57a138924107bbbf11a2e` does not yet conform.
-It includes throwing allocation/parser paths, exception-to-HRESULT recovery and callback suppression. The
-[implementation and test migration plan](../Plans/WIP/FailurePolicy_2026-11-02.md) records the gaps. Historical
-functional receipts establish their original behavior, not acceptance of this policy. No fatal hook or dump
-guarantee is claimed to exist by this document.
+**Implementation status:** published source `5fc4d4c383bfa4891ee57a138924107bbbf11a2e` does not conform.
+The active worktree introduces a versioned `Failure::HostServices` handoff, explicit module registration and
+`Failure::Scope`, an application-owned sample reporter, checked control factory storage, and checked results in
+several document and parser paths. These are implementation in progress, not qualified behavior: remaining
+exception sites and the unrun native, corpus, fatal-child, dump-context, performance and consumer gates are tracked
+in the [migration plan](../Plans/WIP/FailurePolicy_2026-11-02.md). Historical functional receipts establish their
+original behavior only. No dump guarantee or product adoption is claimed.
 
 ## Failure classification
 
@@ -27,6 +29,20 @@ This policy applies to library C++ paths, not PowerShell validation exceptions o
 isolated assertion protocol. It does not authorize changes to a consumer's unrelated failure domains.
 
 ## Checked allocation and construction
+
+API revision 5 consumers install the application-owned host before using scoped DxUi work. A module links and
+registers its own copy of the immutable host services outside `DllMain`; its workers and objects must quiesce
+before detachment. The installing thread performs host uninstall after stopping new entries. Direct stack or
+smart-pointer construction of a control requires an enclosing host-owned `Failure::Scope`; the library does not
+implicitly install process-wide hooks. See [the consumer contract](../Build/Build_ToolchainAndConsumption.md).
+
+`CreateControl` checks the outer control-object storage through a null-returning allocation and reports
+`E_OUTOFMEMORY` while preserving the caller's existing output. An unavailable host returns `CO_E_NOTINITIALIZED`;
+with a configured host an unknown kind returns `E_INVALIDARG`. It enters a failure scope before constructing nested members, which do
+not become checked merely because the outer allocation is nonthrowing. `Separator` remains `noexcept` under the
+host fatal contract. Public fallible queries, document operations and Markdown preparation use their declared
+`Try`/result APIs; a failed Markdown `Advance` reports its checked status without replacing the previous publication.
+These interfaces and their concurrency, allocation and ABI boundaries still require the plan's native evidence.
 
 Use one canonical owned helper/factory for each supported checked-allocation mechanism. Retain RAII ownership,
 validate sizes/overflow before allocation, check null or the returned status immediately, and stage all storage

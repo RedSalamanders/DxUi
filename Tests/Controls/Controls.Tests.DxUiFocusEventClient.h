@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Controls.Tests.DxUiTestHelpers.h"
+#include <DxUi/Failure.h>
 
 #include <array>
 #include <atomic>
@@ -66,12 +67,13 @@ public:
             return S_OK;
         try
         {
+            const DxUi::Failure::Scope failureScope;
             const std::scoped_lock lock(_mutex);
             _names.emplace_back(name.get(), SysStringLen(name.get()));
         }
         catch (const std::bad_alloc&)
         {
-            // A dropped name fails the test's own count; the client callback never throws.
+            DxUi::Failure::FailAllocation();
         }
         return S_OK;
     }

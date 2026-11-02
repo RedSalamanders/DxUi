@@ -70,6 +70,7 @@ Copy-Item -LiteralPath (Join-Path $root 'docs/licenses/katex.txt') -Destination 
 Copy-Item -LiteralPath (Join-Path $root 'docs/licenses/tomlplusplus.txt') -Destination (Join-Path $stage 'licenses/tomlplusplus-LICENSE.txt')
 Copy-Item -LiteralPath (Join-Path $root 'docs/licenses/rapidyaml.txt') -Destination (Join-Path $stage 'licenses/rapidyaml-LICENSE.txt')
 Copy-Item -LiteralPath (Join-Path $root 'docs/licenses/rapidyaml-bundled.txt') -Destination (Join-Path $stage 'licenses/rapidyaml-bundled-NOTICES.txt')
+Copy-Item -LiteralPath (Join-Path $root 'ThirdParty/libyaml/0.2.5/LICENSE') -Destination (Join-Path $stage 'licenses/libyaml-LICENSE.txt')
 $props=@'
 <Project>
   <PropertyGroup>
@@ -108,6 +109,8 @@ $manifest=[ordered]@{schemaVersion=1;version=$Version;platform=$Platform;configu
 $manifest|ConvertTo-Json -Depth 12|Set-Content -LiteralPath (Join-Path $stage 'sdk-manifest.json') -Encoding utf8
 New-Item -ItemType Directory -Path (Join-Path $stage 'samples/Smoke') -Force | Out-Null
 Copy-Item -LiteralPath (Join-Path $root 'Samples/SdkSmoke/Main.cpp') -Destination (Join-Path $stage 'samples/Smoke/Main.cpp')
+New-Item -ItemType Directory -Path (Join-Path $stage 'samples/Shared') -Force | Out-Null
+foreach($name in @('FailureHost.h','FailureHost.cpp')){Copy-Item -LiteralPath (Join-Path $root "Samples/Shared/$name") -Destination (Join-Path $stage 'samples/Shared')}
 $archive=Join-Path $directory "DxUi-SDK-$Version-$Platform.zip"
 if(Test-Path -LiteralPath $archive){throw 'A previous SDK ZIP already occupies this identity; use a fresh production workspace.'}
 Compress-Archive -Path (Join-Path $stage '*') -DestinationPath $archive
@@ -115,7 +118,6 @@ $smoke=Join-Path $SmokeRoot ('dxui-sdk-'+[guid]::NewGuid().ToString('N'))
 if(Test-Path -LiteralPath $smoke){throw 'SDK consumer scratch identity is already occupied.'}
 $extracted=Join-Path $smoke 'extracted SDK'
 Expand-Archive -LiteralPath $archive -DestinationPath $extracted
-Copy-Item -LiteralPath (Join-Path $extracted 'samples/Smoke/Main.cpp') -Destination (Join-Path $smoke 'Main.cpp')
 # Empty parent policy isolates the consumer from the source checkout's build imports.
 '<Project />'|Set-Content -LiteralPath (Join-Path $smoke 'Directory.Build.props')
 '<Project />'|Set-Content -LiteralPath (Join-Path $smoke 'Directory.Build.targets')
@@ -132,8 +134,8 @@ $project=@'
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <PropertyGroup><OutDir>$(MSBuildProjectDirectory)\bin\</OutDir><IntDir>$(MSBuildProjectDirectory)\obj\</IntDir></PropertyGroup>
   <Import Project="$(MSBuildProjectDirectory)\extracted SDK\DxUi.Sdk.props" />
-  <ItemDefinitionGroup><Link><SubSystem>Console</SubSystem></Link><ClCompile><WarningLevel>EnableAllWarnings</WarningLevel><TreatWarningAsError>false</TreatWarningAsError><AdditionalOptions>/sourceDependencies "$(MSBuildProjectDirectory)\source-dependencies.json" %(AdditionalOptions)</AdditionalOptions></ClCompile></ItemDefinitionGroup>
-  <ItemGroup><ClCompile Include="Main.cpp" /></ItemGroup>
+  <ItemDefinitionGroup><Link><SubSystem>Console</SubSystem><AdditionalDependencies>DbgHelp.lib;%(AdditionalDependencies)</AdditionalDependencies></Link><ClCompile><WarningLevel>EnableAllWarnings</WarningLevel><TreatWarningAsError>false</TreatWarningAsError><AdditionalIncludeDirectories>$(MSBuildProjectDirectory)\extracted SDK\samples\Shared;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories><AdditionalOptions>/sourceDependencies "$(IntDir)%(Filename).source-dependencies.json" %(AdditionalOptions)</AdditionalOptions></ClCompile></ItemDefinitionGroup>
+  <ItemGroup><ClCompile Include="extracted SDK\samples\Smoke\Main.cpp" /><ClCompile Include="extracted SDK\samples\Shared\FailureHost.cpp" /></ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>
 '@
@@ -151,14 +153,16 @@ $propertiesJson=& $msbuild $projectPath /nologo /p:Configuration=Release "/p:Pla
 if($LASTEXITCODE -ne 0){throw 'Cannot evaluate the extracted consumer toolchain roots.'}
 $properties=($propertiesJson -join [Environment]::NewLine|ConvertFrom-Json).Properties
 $allowedRoots=@($extracted,$installation,$properties.WindowsSdkDir)|ForEach-Object{[IO.Path]::GetFullPath($_).TrimEnd('\','/')+[IO.Path]::DirectorySeparatorChar}
-$dependenciesPath=Join-Path $smoke 'source-dependencies.json'
-$dependencies=Get-Content -LiteralPath $dependenciesPath -Raw|ConvertFrom-Json
-if(@($dependencies.Data.Includes).Count -eq 0){throw 'SDK smoke has no compiler header-closure proof.'}
-foreach($header in $dependencies.Data.Includes){
-    $full=[IO.Path]::GetFullPath($header)
-    if(-not @($allowedRoots|Where-Object{$full.StartsWith($_,[StringComparison]::OrdinalIgnoreCase)}).Count){throw "SDK consumer used an unpackaged header: $header"}
+foreach($unit in @('Main','FailureHost')){
+    $dependenciesPath=Join-Path $smoke "obj/$unit.source-dependencies.json"
+    $dependencies=Get-Content -LiteralPath $dependenciesPath -Raw|ConvertFrom-Json
+    if(@($dependencies.Data.Includes).Count -eq 0){throw "SDK smoke $unit has no compiler header-closure proof."}
+    foreach($header in $dependencies.Data.Includes){
+        $full=[IO.Path]::GetFullPath($header)
+        if(-not @($allowedRoots|Where-Object{$full.StartsWith($_,[StringComparison]::OrdinalIgnoreCase)}).Count){throw "SDK consumer used an unpackaged header: $header"}
+    }
+    Copy-Item -LiteralPath $dependenciesPath -Destination (Join-Path $logs "sdk-headers-$Version-$Platform-$unit.json")
 }
-Copy-Item -LiteralPath $dependenciesPath -Destination (Join-Path $logs "sdk-headers-$Version-$Platform.json")
 & (Join-Path $smoke 'bin/SdkSmoke.exe')
 if($LASTEXITCODE -ne 0){throw 'Extracted SDK-only consumer failed at runtime.'}
 if((Get-FileHash -LiteralPath (Join-Path $extracted "lib/$Platform/Release/DxUi.lib")).Hash -cne $before){throw 'Consumer build changed the SDK archive library.'}
@@ -167,7 +171,8 @@ if((Get-FileHash -LiteralPath (Join-Path $extracted "lib/$Platform/Release/DxUi.
 $warningProject=Join-Path $smoke 'SdkWarningControl.vcxproj'
 $warningSource=Join-Path $smoke 'WarningControl.cpp'
 [IO.File]::WriteAllText($warningSource,'int main() { int unused = 1; return 0; }')
-[IO.File]::WriteAllText($warningProject,$project.Replace('Include="Main.cpp"','Include="WarningControl.cpp"'))
+$warningXml=$project.Replace('Include="extracted SDK\samples\Smoke\Main.cpp"','Include="WarningControl.cpp"').Replace('<ClCompile Include="extracted SDK\samples\Shared\FailureHost.cpp" />','')
+[IO.File]::WriteAllText($warningProject,$warningXml)
 $warningLog=Join-Path $logs "sdk-warning-control-$Version-$Platform.log"
 $warningArguments=@($warningProject,'/nologo','/m','/v:normal','/p:Configuration=Release',
     ("/p:Platform=$Platform"),("/p:VCToolsVersion=$($identity.Identity.vcToolsVersion)"),

@@ -2,6 +2,7 @@
 #include "Controls/TextClipboard.h"
 #include "Support/AnimationDispatcher.h"
 
+#include "Support.Tests.FailureHost.h"
 #include "Support.Tests.FailureReports.h"
 #include "Support.Tests.ForegroundThief.h"
 #include "Support.Tests.PerformanceCapture.h"
@@ -94,6 +95,8 @@ void RunWatchdogSelfTestProgress()
 int wmain(int argc, wchar_t** argv)
 {
     DxUiTestFailureReports::RouteAwayFromDialogs();
+    if (const auto child = DxUiFailureTests::RunFailureChild(argc, argv); child >= 0)
+        return child;
     if (argc == 2 && std::wstring_view(argv[1]) == L"--ci-assertion-probe")
     {
         try
@@ -124,6 +127,10 @@ int wmain(int argc, wchar_t** argv)
 #endif
     }
 
+    if (FAILED(DxUiFailureTests::ConfigureFailureEvidence()) || FAILED(DxUiFailureTests::InstallFailureHost()))
+        return 1;
+    const auto failureHost = wil::scope_exit([] { static_cast<void>(DxUiFailureTests::UninstallFailureHost()); });
+
     class TestClipboard final : public DxUi::TextClipboard
     {
         std::optional<std::wstring> _text;
@@ -131,6 +138,7 @@ int wmain(int argc, wchar_t** argv)
     public:
         HRESULT Read(HWND, std::wstring& text) noexcept override
         {
+            const DxUi::Failure::Scope failureScope;
             text.clear();
             if (! _text)
                 return S_FALSE;
@@ -141,11 +149,12 @@ int wmain(int argc, wchar_t** argv)
             }
             catch (const std::bad_alloc&)
             {
-                return E_OUTOFMEMORY;
+                DxUi::Failure::FailAllocation();
             }
         }
         HRESULT Write(HWND, std::wstring_view text) noexcept override
         {
+            const DxUi::Failure::Scope failureScope;
             try
             {
                 _text = std::wstring(text);
@@ -153,7 +162,7 @@ int wmain(int argc, wchar_t** argv)
             }
             catch (const std::bad_alloc&)
             {
-                return E_OUTOFMEMORY;
+                DxUi::Failure::FailAllocation();
             }
         }
     } clipboard;

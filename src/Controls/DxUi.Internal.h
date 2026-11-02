@@ -2,6 +2,7 @@
 
 #include "DxUi.TextElements.h"
 #include "DxUi.h"
+#include <DxUi/Failure.h>
 
 #include <algorithm>
 #include <bit>
@@ -203,34 +204,23 @@ private:
     uint64_t _geometryRevision;
 };
 
-// Application callbacks can throw standard exceptions. The caller supplies the failed-operation fallback and
-// revalidates borrowed lifetimes and operation generations after either outcome, before using retained state.
+// Callback refusal is an explicit result owned by the callback contract. Any C++
+// exception is unexpected; observe it before unwinding, including unknown types.
+// Callers still revalidate borrowed lifetimes after a normally returning callback.
 template <typename Callback> [[nodiscard]] bool TryControlCallback(Callback&& callback) noexcept
 {
-    try
-    {
-        std::forward<Callback>(callback)();
-        return true;
-    }
-    catch (const std::exception&)
-    {
-        return false;
-    }
+    const Failure::Scope failureScope;
+    std::forward<Callback>(callback)();
+    return true;
 }
 
 // Registration owns the callable; dispatch retains this storage without cloning mutable state or allocating.
 template <typename Signature>
 void ReplaceControlCallback(std::shared_ptr<const std::function<Signature>>& destination, std::function<Signature> callback) noexcept
 {
-    try
-    {
-        auto replacement = callback ? std::make_shared<const std::function<Signature>>(std::move(callback)) : nullptr;
-        destination      = std::move(replacement);
-    }
-    catch (const std::bad_alloc&)
-    {
-        // Preserve the previous subscription if storage for its replacement cannot be allocated.
-    }
+    const Failure::Scope failureScope;
+    auto replacement = callback ? std::make_shared<const std::function<Signature>>(std::move(callback)) : nullptr;
+    destination      = std::move(replacement);
 }
 
 // Retained text layouts (the Grid's multiline cells and their omitted tails) live in set-associative tables: a mixed
@@ -365,14 +355,8 @@ void EndTextLayoutPaint(std::vector<Entry>& table, uint64_t generation, size_t i
     }
     if (table.size() > initialEntries && used * 8u < table.size())
     {
-        try
-        {
-            ResizeTextLayoutTable(table, table.size() / 2u, generation);
-        }
-        catch (const std::bad_alloc&)
-        {
-            // Keeping the larger table is always correct; a later paint tries again.
-        }
+        const Failure::Scope failureScope;
+        ResizeTextLayoutTable(table, table.size() / 2u, generation);
     }
 }
 struct safearray_deleter
