@@ -1112,7 +1112,8 @@ void TestRichTextTransientSourcePreservesHistory()
     Require(document.ReplaceSelection(L"!") && document.Undo(), "fixture retains redo before composition");
     const auto revision = document.Revision();
     Require(document.ReplaceTransient(L"base\u4eee", {5, 5}), "preview changes source");
-    Require(! document.CanUndo() && document.CanRedo() && document.Revision() > revision, "preview preserves both histories with a fresh revision");
+    Require(! document.CanUndo() && ! document.CanRedo() && document.Revision() > revision,
+            "preview retains both histories but declines commands until entry restoration");
     Require(document.ReplaceTransient(L"base", {4, 4}) && document.CanRedo(), "cancel restores entry text without destroying redo");
     Require(document.Redo() && document.Text() == L"base!", "pre-composition redo still works");
     const auto before = document.Snapshot();
