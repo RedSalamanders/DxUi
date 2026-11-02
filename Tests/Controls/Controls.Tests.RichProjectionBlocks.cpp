@@ -1,11 +1,38 @@
 #include "Controls.Tests.RichProjectionBlocks.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
+#include "Support.Tests.FatalChildren.h"
 #include <DxUi/RichMarkdown.h>
 #include <chrono>
+#include <cstdlib>
 #include <iostream>
 #include <stdexcept>
 namespace
 {
+__declspec(noinline) void RetiredProjectionBlocksOrigin()
+{
+    DxUi::RichText::PreparedProjection retired;
+    static_cast<void>(retired.Blocks());
+    std::exit(7); // A returned fatal convenience call must fail the child oracle.
+}
+__declspec(noinline) void RetiredProjectionTextOrigin()
+{
+    DxUi::RichText::PreparedProjection retired;
+    static_cast<void>(retired.DisplayText());
+    std::exit(8);
+}
+[[maybe_unused]] const bool registeredRetiredProjectionChildren =
+    DxUiFailureTests::RegisterFatalChildCase({L"projection-retired-blocks",
+                                              "RetiredProjectionBlocksOrigin",
+                                              RetiredProjectionBlocksOrigin,
+                                              DxUiFailureTests::FatalFaultClass::ContractViolation,
+                                              true,
+                                              static_cast<std::uint32_t>(E_INVALIDARG)}) &&
+    DxUiFailureTests::RegisterFatalChildCase({L"projection-retired-text",
+                                              "RetiredProjectionTextOrigin",
+                                              RetiredProjectionTextOrigin,
+                                              DxUiFailureTests::FatalFaultClass::ContractViolation,
+                                              true,
+                                              static_cast<std::uint32_t>(E_INVALIDARG)});
 void CheckPreparedProjection(const DxUi::RichText::Document& document, const DxUi::RichText::PreparedProjection& prepared, DxUi::RichText::ViewMode mode)
 {
     using namespace DxUi::RichText;
@@ -304,23 +331,12 @@ void TestRichProjectionBlockBranchesAndRetirement()
     Require(prepared.Blocks().front().content == old.front().content && prepared.Blocks().back().content == old.back().content,
             "sibling source changes retain exact immutable outer block identity");
     prepared.Clear();
-    const auto rejectsRetired = [&](const auto& operation)
-    {
-        bool rejected = false;
-        try
-        {
-            operation();
-        }
-        catch (const std::logic_error&)
-        {
-            rejected = true;
-        }
-        Require(rejected, "retired/default projection rejects content and mapping queries");
-    };
-    rejectsRetired([&] { static_cast<void>(prepared.Blocks()); });
-    rejectsRetired([&] { static_cast<void>(prepared.DisplayText()); });
-    rejectsRetired([&] { static_cast<void>(prepared.ToDisplay(0u)); });
-    rejectsRetired([&] { static_cast<void>(prepared.ToSource(0u)); });
+    std::size_t mapped = 73u;
+    Require(! prepared.Ready() && prepared.TryToDisplay(0u, mapped) == SourceResult::InvalidRange && mapped == 73u &&
+                prepared.TryToSource(0u, false, mapped) == SourceResult::InvalidRange && mapped == 73u,
+            "retired projection rejects checked mapping without changing output");
+    Require(DxUiFailureTests::ExpectFatalChild(L"projection-retired-blocks"), "retired block convenience query is a fatal contract failure");
+    Require(DxUiFailureTests::ExpectFatalChild(L"projection-retired-text"), "retired text convenience query is a fatal contract failure");
     Document empty;
     prepared.Prepare(empty.Snapshot(), empty.Revision(), ViewMode::Rich);
     CheckPreparedProjection(empty, prepared, ViewMode::Rich);

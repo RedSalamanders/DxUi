@@ -20,6 +20,7 @@
 #include <limits>
 #include <memory>
 #include <new>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -124,6 +125,171 @@ __declspec(noinline) void StandardOrigin()
 {
     DxUi::Failure::Scope scope;
     throw std::runtime_error("fatal test");
+}
+std::atomic<unsigned> nativeCallbackMarker{};
+[[noreturn]] __declspec(noinline) void NativeCallbackUnknownOrigin()
+{
+    nativeCallbackMarker.store(41u, std::memory_order_relaxed);
+    throw 42;
+}
+[[noreturn]] __declspec(noinline) void NativeCallbackStandardOrigin(const std::runtime_error& error)
+{
+    nativeCallbackMarker.store(42u, std::memory_order_relaxed);
+    throw error;
+}
+[[noreturn]] __declspec(noinline) void NativeCallbackAllocationOrigin()
+{
+    nativeCallbackMarker.store(43u, std::memory_order_relaxed);
+    throw std::bad_alloc{};
+}
+[[noreturn]] __declspec(noinline) void NativeAfterBoundaryOrigin(const std::runtime_error& error)
+{
+    nativeCallbackMarker.store(44u, std::memory_order_relaxed);
+    throw error;
+}
+void NativeCallbackFromAbi(unsigned kind, const std::runtime_error& error) noexcept
+{
+    const DxUi::Failure::Scope callback;
+    MarkWitness(WitnessTriggerReached);
+    if (kind == 0u)
+        NativeCallbackUnknownOrigin();
+    if (kind == 1u)
+        NativeCallbackStandardOrigin(error);
+    NativeCallbackAllocationOrigin();
+}
+extern "C" __declspec(noinline) void NativeAbiDispatch(void (*callback)(unsigned, const std::runtime_error&) noexcept,
+                                                       unsigned kind,
+                                                       const std::runtime_error& error) noexcept
+{
+    callback(kind, error);
+}
+void NativeCallbackFailure(unsigned kind)
+{
+    const std::runtime_error error("native reentrant callback");
+    const DxUi::Failure::Scope outer;
+    const DxUi::Failure::NativeCallScope native;
+    NativeAbiDispatch(NativeCallbackFromAbi, kind, error);
+}
+void NativeOptionalFromAbi(unsigned kind, const std::runtime_error&) noexcept
+{
+    const DxUi::Failure::Scope callback(std::nothrow);
+    if (! callback.IsActive())
+        return;
+    MarkWitness(WitnessTriggerReached);
+    if (kind == 0u)
+        NativeCallbackUnknownOrigin();
+    NativeCallbackAllocationOrigin();
+}
+void NativeOptionalFailure(unsigned kind)
+{
+    const std::runtime_error error("optional native callback");
+    const DxUi::Failure::Scope outer;
+    const DxUi::Failure::NativeCallScope native;
+    NativeAbiDispatch(NativeOptionalFromAbi, kind, error);
+}
+[[noreturn]] __declspec(noinline) void NativePinnedReleaseOrigin()
+{
+    nativeCallbackMarker.store(48u, std::memory_order_relaxed);
+    throw 48;
+}
+struct PinnedCallbackPayload
+{
+    ~PinnedCallbackPayload() noexcept
+    {
+        const DxUi::Failure::Scope scope(std::nothrow);
+        if (! scope.IsActive())
+            return;
+        MarkWitness(WitnessTriggerReached);
+        NativePinnedReleaseOrigin();
+    }
+};
+struct PinnedCallbackOwner
+{
+    PinnedCallbackOwner()                                      = default;
+    PinnedCallbackOwner(const PinnedCallbackOwner&)            = delete;
+    PinnedCallbackOwner& operator=(const PinnedCallbackOwner&) = delete;
+    PinnedCallbackOwner(PinnedCallbackOwner&&)                 = delete;
+    PinnedCallbackOwner& operator=(PinnedCallbackOwner&&)      = delete;
+    DxUi::Failure::ObjectLifetime lifetime;
+    PinnedCallbackPayload payload;
+};
+void NativePinnedReleaseFailure()
+{
+    const DxUi::Failure::Scope outer;
+    std::optional<PinnedCallbackOwner> owner(std::in_place);
+    const DxUi::Failure::NativeCallScope native;
+    owner.reset();
+}
+extern "C" __declspec(noinline) HRESULT NativeHandledFailure(bool allocation, const std::runtime_error& error) noexcept
+{
+    try
+    {
+        if (allocation)
+            throw std::bad_alloc{};
+        throw error;
+    }
+    catch (const std::bad_alloc&)
+    {
+        return E_OUTOFMEMORY;
+    }
+    catch (const std::runtime_error&)
+    {
+        return E_FAIL;
+    }
+}
+extern "C" __declspec(noinline) HRESULT NativeHandledAbi(unsigned kind, const std::runtime_error* error) noexcept
+{
+    return NativeHandledFailure(kind != 0u, *error);
+}
+__declspec(noinline) HRESULT NativeEscapingThrow(unsigned kind, const std::runtime_error* error)
+{
+    nativeCallbackMarker.store(51u + kind, std::memory_order_relaxed);
+    MarkWitness(WitnessTriggerReached);
+    if (kind == 0u)
+        throw 51;
+    if (kind == 1u)
+        throw *error;
+    throw std::bad_alloc{};
+}
+extern "C" __declspec(noinline) HRESULT NativeEscapingAbi(unsigned kind, const std::runtime_error* error)
+{
+    const HRESULT result = NativeEscapingThrow(kind, error);
+    nativeCallbackMarker.store(55u, std::memory_order_relaxed);
+    return result;
+}
+void NativeEscapingFailure(unsigned kind)
+{
+    const std::runtime_error error("escaping native exception");
+    static_cast<void>(DxUi::Failure::InvokeNative(&NativeEscapingAbi, kind, &error));
+    nativeCallbackMarker.store(54u, std::memory_order_relaxed);
+}
+void NativeAfterBoundaryFailure()
+{
+    const std::runtime_error error("after native ABI");
+    const DxUi::Failure::Scope outer;
+    {
+        const DxUi::Failure::NativeCallScope native;
+        static_cast<void>(NativeHandledFailure(false, error));
+    }
+    MarkWitness(WitnessTriggerReached);
+    NativeAfterBoundaryOrigin(error);
+}
+__declspec(noinline) void NativeBoundaryInvalidOrigin(bool closeScope)
+{
+    nativeCallbackMarker.store(closeScope ? 45u : 46u, std::memory_order_relaxed);
+    std::optional<DxUi::Failure::Scope> outer;
+    outer.emplace();
+    std::optional<DxUi::Failure::NativeCallScope> first;
+    first.emplace();
+    MarkWitness(WitnessTriggerReached);
+    if (closeScope)
+        outer.reset();
+    else
+    {
+        const DxUi::Failure::NativeCallScope second;
+        first.reset();
+    }
+    nativeCallbackMarker.store(47u, std::memory_order_relaxed);
 }
 __declspec(noinline) void StaleCaughtOrigin()
 {
@@ -253,6 +419,63 @@ struct LifecycleProbe
     HANDLE entered{}, release{};
     HRESULT wrongThread{E_PENDING};
 };
+struct OptionalLifecycleProbe
+{
+    HANDLE entered{}, release{}, released{}, closed{}, finished{};
+    bool active{}, inactiveAfterClose{};
+};
+struct ObjectLifetimeProbe
+{
+    HANDLE release{}, finished{};
+    std::unique_ptr<DxUi::Failure::ObjectLifetime>* owner{};
+};
+struct OptionalUnregisterProbe
+{
+    HANDLE started{};
+    bool sawInactive{};
+};
+DWORD WINAPI OptionalUnregisterWorker(void* context) noexcept
+{
+    auto& probe = *static_cast<OptionalUnregisterProbe*>(context);
+    SetEvent(probe.started);
+    for (unsigned index = 0; index < 50000u; ++index)
+    {
+        const DxUi::Failure::Scope scope(std::nothrow);
+        if (! scope.IsActive())
+        {
+            probe.sawInactive = true;
+            break;
+        }
+    }
+    return 0u;
+}
+DWORD WINAPI ObjectLifetimeWorker(void* context) noexcept
+{
+    auto& probe = *static_cast<ObjectLifetimeProbe*>(context);
+    if (WaitForSingleObject(probe.release, TimeoutMs) != WAIT_OBJECT_0)
+        return 1u;
+    probe.owner->reset();
+    SetEvent(probe.finished);
+    return 0u;
+}
+DWORD WINAPI OptionalLifecycleWorker(void* context) noexcept
+{
+    auto& probe = *static_cast<OptionalLifecycleProbe*>(context);
+    {
+        const DxUi::Failure::Scope lease(std::nothrow);
+        probe.active = lease.IsActive();
+        SetEvent(probe.entered);
+        if (WaitForSingleObject(probe.release, TimeoutMs) != WAIT_OBJECT_0)
+            return 1u;
+    }
+    SetEvent(probe.released);
+    if (WaitForSingleObject(probe.closed, TimeoutMs) != WAIT_OBJECT_0)
+        return 1u;
+    const DxUi::Failure::Scope late(std::nothrow);
+    probe.inactiveAfterClose = ! late.IsActive();
+    SetEvent(probe.finished);
+    return 0u;
+}
 DWORD WINAPI LifecycleWorker(void* context) noexcept
 {
     auto& probe = *static_cast<LifecycleProbe*>(context);
@@ -305,6 +528,12 @@ void Enter(void*, const DxUi::Failure::Site&) noexcept
 {
 }
 void Leave(void*) noexcept
+{
+}
+void BeginNative(void*, DxUi::Failure::NativeCallToken*) noexcept
+{
+}
+void EndNative(void*, DxUi::Failure::NativeCallToken*) noexcept
 {
 }
 void ReturningFatal(void*, const DxUi::Failure::Record&) noexcept
@@ -397,8 +626,10 @@ bool CheckEvidence(const std::wstring& prefix, std::wstring_view name)
         return false;
     const auto* registered = FindAdditional(name);
     const bool firstChance = (! registered || registered->faultClass != FatalFaultClass::ContractViolation) &&
-                             (name == L"unknown" || name == L"bad_alloc" || name == L"standard" || name == L"worker" ||
-                              name.starts_with(L"accessible-invoke-") || name.starts_with(L"rich-") || name == L"context-menu-callback" || registered);
+                             (name == L"unknown" || name == L"bad_alloc" || name == L"standard" || name == L"worker" || name.starts_with(L"native-callback-") ||
+                              name.starts_with(L"native-optional-") || name.starts_with(L"native-escaping-") || name == L"native-pinned-release" ||
+                              name == L"native-after-boundary" || name.starts_with(L"accessible-invoke-") || name.starts_with(L"rich-") ||
+                              name == L"context-menu-callback" || registered);
     if (firstChance && ! (flags & DxUi::Failure::FirstChanceContext))
         return false;
     if (registered && registered->faultClass == FatalFaultClass::ContractViolation)
@@ -431,6 +662,22 @@ bool CheckEvidence(const std::wstring& prefix, std::wstring_view name)
         std::uint64_t kind{}, requested{};
         if (! ParseNumber(Field(record, "kind="), kind, 10) || kind != static_cast<std::uint64_t>(DxUi::Failure::Kind::Allocation) ||
             ! ParseNumber(Field(record, "allocation_bytes="), requested, 10) || requested == 0u || (flags & DxUi::Failure::FirstChanceContext) != 0u)
+            return false;
+    }
+    if (name.starts_with(L"native-callback-") && Field(record, "function=").find("NativeCallbackFromAbi") == std::string_view::npos)
+        return false;
+    if (name.starts_with(L"native-optional-") && Field(record, "function=").find("NativeOptionalFromAbi") == std::string_view::npos)
+        return false;
+    if (name == L"native-pinned-release" && Field(record, "function=").find("PinnedCallbackPayload") == std::string_view::npos)
+        return false;
+    if (name == L"native-after-boundary" && Field(record, "function=").find("NativeAfterBoundaryFailure") == std::string_view::npos)
+        return false;
+    if (name.starts_with(L"native-invalid-"))
+    {
+        std::uint64_t kind{}, result{};
+        if (! ParseNumber(Field(record, "kind="), kind, 10) || kind != static_cast<std::uint64_t>(DxUi::Failure::Kind::ContractViolation) ||
+            ! ParseNumber(Field(record, "result="), result, 16) || result != static_cast<std::uint32_t>(E_UNEXPECTED) ||
+            (flags & DxUi::Failure::FirstChanceContext) != 0u)
             return false;
     }
     if (name == L"allocation" && Field(record, "function=").find("AllocationOrigin") == std::string_view::npos)
@@ -529,12 +776,14 @@ int RunFailureChild(int argc, char** argv)
     {
         int owner{};
         DxUi::Failure::HostServices services;
-        services.context = &owner;
-        services.retain  = Retain;
-        services.release = Release;
-        services.enter   = Enter;
-        services.leave   = Leave;
-        services.fatal   = ReturningFatal;
+        services.context     = &owner;
+        services.retain      = Retain;
+        services.release     = Release;
+        services.enter       = Enter;
+        services.leave       = Leave;
+        services.beginNative = BeginNative;
+        services.endNative   = EndNative;
+        services.fatal       = ReturningFatal;
         if (FAILED(DxUi::Failure::RegisterModule(services)))
             return 92;
         MarkWitness(WitnessTriggerReached);
@@ -601,6 +850,30 @@ int RunFailureChild(int argc, char** argv)
         BadAllocOrigin();
     if (std::strcmp(kind, "standard") == 0)
         StandardOrigin();
+    if (std::strcmp(kind, "native-callback-unknown") == 0)
+        NativeCallbackFailure(0u);
+    if (std::strcmp(kind, "native-callback-standard") == 0)
+        NativeCallbackFailure(1u);
+    if (std::strcmp(kind, "native-callback-allocation") == 0)
+        NativeCallbackFailure(2u);
+    if (std::strcmp(kind, "native-optional-unknown") == 0)
+        NativeOptionalFailure(0u);
+    if (std::strcmp(kind, "native-optional-allocation") == 0)
+        NativeOptionalFailure(1u);
+    if (std::strcmp(kind, "native-pinned-release") == 0)
+        NativePinnedReleaseFailure();
+    if (std::strcmp(kind, "native-escaping-unknown") == 0)
+        NativeEscapingFailure(0u);
+    if (std::strcmp(kind, "native-escaping-standard") == 0)
+        NativeEscapingFailure(1u);
+    if (std::strcmp(kind, "native-escaping-allocation") == 0)
+        NativeEscapingFailure(2u);
+    if (std::strcmp(kind, "native-after-boundary") == 0)
+        NativeAfterBoundaryFailure();
+    if (std::strcmp(kind, "native-invalid-scope") == 0)
+        NativeBoundaryInvalidOrigin(true);
+    if (std::strcmp(kind, "native-invalid-order") == 0)
+        NativeBoundaryInvalidOrigin(false);
     if (std::strcmp(kind, "stale-caught") == 0)
         StaleCaughtOrigin();
     if (std::strcmp(kind, "new_handler") == 0)
@@ -711,6 +984,15 @@ bool CheckOriginSymbols(HANDLE child, const std::wstring& exe, std::string_view 
                                 : name == L"yaml-allocation"                           ? "YamlAllocationOrigin"
                                 : name == L"bad_alloc"                                 ? "BadAllocOrigin"
                                 : name == L"standard"                                  ? "StandardOrigin"
+                                : name == L"native-callback-unknown"                   ? "NativeCallbackUnknownOrigin"
+                                : name == L"native-callback-standard"                  ? "NativeCallbackStandardOrigin"
+                                : name == L"native-callback-allocation"                ? "NativeCallbackAllocationOrigin"
+                                : name == L"native-optional-unknown"                   ? "NativeCallbackUnknownOrigin"
+                                : name == L"native-optional-allocation"                ? "NativeCallbackAllocationOrigin"
+                                : name == L"native-pinned-release"                     ? "NativePinnedReleaseOrigin"
+                                : name.starts_with(L"native-escaping-")                ? "NativeEscapingThrow"
+                                : name == L"native-after-boundary"                     ? "NativeAfterBoundaryOrigin"
+                                : name.starts_with(L"native-invalid-")                 ? "NativeBoundaryInvalidOrigin"
                                 : name == L"unknown" || name == L"worker"              ? "UnknownOrigin"
                                 : name == L"new_handler"                               ? "NewHandlerOrigin"
                                 : name == L"stale-caught"                              ? "StaleCaughtOrigin"
@@ -826,6 +1108,10 @@ bool ExpectFatalChild(const wchar_t* caseName)
                GetFileAttributesW((prefix + L".dmp").c_str()) == INVALID_FILE_ATTRIBUTES;
     if ((name == L"control-allocation" || name == L"yaml-allocation") && (bits & WitnessTriggerReached) == 0L)
         return false;
+    if ((name.starts_with(L"native-callback-") || name.starts_with(L"native-optional-") || name.starts_with(L"native-invalid-") ||
+         name.starts_with(L"native-escaping-") || name == L"native-after-boundary" || name == L"native-pinned-release") &&
+        (bits & WitnessTriggerReached) == 0L)
+        return false;
     if (name == L"yaml-allocation" && (bits & WitnessTriggerReturned) != 0L)
         return false;
     if (name == L"returning" || name == L"recursive" || failurePath)
@@ -869,6 +1155,11 @@ bool TestFailurePolicy()
 {
     if (evidenceRoot.empty())
         return false;
+    {
+        const DxUi::Failure::Scope absent(std::nothrow);
+        if (absent.IsActive())
+            return false;
+    }
     // This test is intentionally not run while another process owner is installed.
     DxUiSample::FailureHost::Host host;
     const auto prefix = evidenceRoot + L"\\healthy-" + std::to_wstring(GetCurrentProcessId());
@@ -881,6 +1172,25 @@ bool TestFailurePolicy()
         DxUi::Failure::Scope active;
         if (host.Uninstall() != HRESULT_FROM_WIN32(ERROR_BUSY))
             return false;
+        const DxUi::Failure::Scope nestedOptional(std::nothrow);
+        if (! nestedOptional.IsActive())
+            return false;
+        const std::runtime_error error("handled by native ABI");
+        if (DxUi::Failure::InvokeNative(&NativeHandledAbi, 0u, &error) != E_FAIL || DxUi::Failure::InvokeNative(&NativeHandledAbi, 1u, &error) != E_OUTOFMEMORY)
+            return false;
+        {
+            DxUi::Failure::NativeCallScope native;
+            if (host.Uninstall() != HRESULT_FROM_WIN32(ERROR_BUSY) || NativeHandledFailure(false, error) != E_FAIL ||
+                NativeHandledFailure(true, error) != E_OUTOFMEMORY)
+                return false;
+            {
+                DxUi::Failure::NativeCallScope nested;
+                if (NativeHandledFailure(false, error) != E_FAIL)
+                    return false;
+            }
+            if (NativeHandledFailure(true, error) != E_OUTOFMEMORY)
+                return false;
+        }
     }
     wil::unique_handle entered(CreateEventW(nullptr, TRUE, FALSE, nullptr));
     wil::unique_handle release(CreateEventW(nullptr, TRUE, FALSE, nullptr));
@@ -901,7 +1211,80 @@ bool TestFailurePolicy()
     SetEvent(release.get());
     if (WaitForSingleObject(worker.get(), TimeoutMs) != WAIT_OBJECT_0)
         return false;
-    if (FAILED(host.Uninstall()))
+    // An already-retired object may outlive every thread Scope and be released
+    // by a different thread. Its pin alone must keep the registration alive.
+    auto retiredObject = std::make_unique<DxUi::Failure::ObjectLifetime>();
+    wil::unique_handle raceStarted(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    if (! raceStarted)
+        return false;
+    OptionalUnregisterProbe race{raceStarted.get()};
+    wil::unique_handle raceWorker(CreateThread(nullptr, 0, OptionalUnregisterWorker, &race, 0, nullptr));
+    if (! raceWorker)
+        return false;
+    const auto finishRace = wil::scope_exit([&]() noexcept
+    {
+        if (WaitForSingleObject(raceWorker.get(), TimeoutMs) != WAIT_OBJECT_0)
+            DxUi::Failure::FailContract(HRESULT_FROM_WIN32(ERROR_TIMEOUT));
+    });
+    if (WaitForSingleObject(raceStarted.get(), TimeoutMs) != WAIT_OBJECT_0)
+        return false;
+    for (unsigned index = 0; index < 50000u; ++index)
+        if (DxUi::Failure::UnregisterModule(*services) != HRESULT_FROM_WIN32(ERROR_BUSY))
+            return false;
+    if (WaitForSingleObject(raceWorker.get(), TimeoutMs) != WAIT_OBJECT_0 || race.sawInactive)
+        return false;
+    wil::unique_handle pinRelease(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    wil::unique_handle pinFinished(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    if (! pinRelease || ! pinFinished)
+        return false;
+    ObjectLifetimeProbe pinProbe{pinRelease.get(), pinFinished.get(), &retiredObject};
+    wil::unique_handle pinWorker(CreateThread(nullptr, 0, ObjectLifetimeWorker, &pinProbe, 0, nullptr));
+    if (! pinWorker)
+        return false;
+    const auto finishPin = wil::scope_exit([&]
+    {
+        SetEvent(pinRelease.get());
+        WaitForSingleObject(pinWorker.get(), TimeoutMs);
+    });
+    if (host.Uninstall() != HRESULT_FROM_WIN32(ERROR_BUSY))
+        return false;
+    SetEvent(pinRelease.get());
+    if (WaitForSingleObject(pinFinished.get(), TimeoutMs) != WAIT_OBJECT_0 || WaitForSingleObject(pinWorker.get(), TimeoutMs) != WAIT_OBJECT_0 || retiredObject)
+        return false;
+    if (FAILED(host.Uninstall()) || FAILED(host.Install()))
+        return false;
+    wil::unique_handle optionalEntered(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    wil::unique_handle optionalRelease(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    wil::unique_handle optionalReleased(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    wil::unique_handle optionalClosed(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    wil::unique_handle optionalFinished(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    if (! optionalEntered || ! optionalRelease || ! optionalReleased || ! optionalClosed || ! optionalFinished)
+        return false;
+    OptionalLifecycleProbe optional{optionalEntered.get(), optionalRelease.get(), optionalReleased.get(), optionalClosed.get(), optionalFinished.get()};
+    wil::unique_handle optionalWorker(CreateThread(nullptr, 0, OptionalLifecycleWorker, &optional, 0, nullptr));
+    if (! optionalWorker)
+        return false;
+    const auto finishOptional = wil::scope_exit([&]
+    {
+        SetEvent(optionalRelease.get());
+        SetEvent(optionalClosed.get());
+        WaitForSingleObject(optionalWorker.get(), TimeoutMs);
+    });
+    if (WaitForSingleObject(optionalEntered.get(), TimeoutMs) != WAIT_OBJECT_0 || ! optional.active || host.Uninstall() != HRESULT_FROM_WIN32(ERROR_BUSY))
+        return false;
+    SetEvent(optionalRelease.get());
+    if (WaitForSingleObject(optionalReleased.get(), TimeoutMs) != WAIT_OBJECT_0 || FAILED(host.Uninstall()))
+        return false;
+    SetEvent(optionalClosed.get());
+    if (WaitForSingleObject(optionalFinished.get(), TimeoutMs) != WAIT_OBJECT_0 || ! optional.inactiveAfterClose ||
+        WaitForSingleObject(optionalWorker.get(), TimeoutMs) != WAIT_OBJECT_0)
+        return false;
+    {
+        const DxUi::Failure::Scope retired(std::nothrow);
+        if (retired.IsActive())
+            return false;
+    }
+    if (host.Uninstall() != S_FALSE)
         return false;
     for (const auto* name : {L"allocation",
                              L"missing-host",
@@ -911,6 +1294,18 @@ bool TestFailurePolicy()
                              L"unknown",
                              L"bad_alloc",
                              L"standard",
+                             L"native-callback-unknown",
+                             L"native-callback-standard",
+                             L"native-callback-allocation",
+                             L"native-optional-unknown",
+                             L"native-optional-allocation",
+                             L"native-pinned-release",
+                             L"native-escaping-unknown",
+                             L"native-escaping-standard",
+                             L"native-escaping-allocation",
+                             L"native-after-boundary",
+                             L"native-invalid-scope",
+                             L"native-invalid-order",
                              L"stale-caught",
                              L"new_handler",
                              L"worker",

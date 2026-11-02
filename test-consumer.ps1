@@ -99,6 +99,7 @@ if ($LASTEXITCODE -ne 0) { throw 'The relocated rich-text consumer failed to ren
 # state crosses their C ABI; native class dispatch and animation must remain in the owning module.
 Copy-Item -LiteralPath (Join-Path $checkout 'Tests/ConsumerModules/ConsumerModules.Tests.NativeModule.cpp') -Destination $consumer
 Copy-Item -LiteralPath (Join-Path $checkout 'Tests/ConsumerModules/ConsumerModules.Tests.Driver.cpp') -Destination $consumer
+Copy-Item -LiteralPath (Join-Path $checkout 'Tests/Support/Support.Tests.DumpReader.h') -Destination $consumer
 foreach ($moduleName in @('NativeModuleA','NativeModuleB','NativeModuleDriver')) {
     $moduleProject = [xml]$project
     $ns = [Xml.XmlNamespaceManager]::new($moduleProject.NameTable)
@@ -125,7 +126,8 @@ foreach ($moduleName in @('NativeModuleA','NativeModuleB','NativeModuleDriver'))
 $moduleOutput = @(& (Join-Path $consumer 'bin/NativeModuleDriver.exe'))
 $moduleExit = $LASTEXITCODE
 $moduleOutput | ForEach-Object { Write-Host $_ }
-if (@($moduleOutput | Where-Object { $_ -ceq 'DXUI_NATIVE_MODULE_FATAL executed=4 passed=4' }).Count -ne 1) { throw 'Native module fatal children did not all prove their dump context and symbols.' }
+if (@($moduleOutput | Where-Object { $_ -ceq 'DXUI_NATIVE_MODULE_NATIVE_ALLOWED executed=2 passed=2' }).Count -ne 1) { throw 'Native module caught-exception probes did not both pass.' }
+if (@($moduleOutput | Where-Object { $_ -ceq 'DXUI_NATIVE_MODULE_FATAL executed=16 passed=16' }).Count -ne 1) { throw 'Native module fatal children did not all prove their dump context and symbols.' }
 $moduleResult = Set-ConsumerNativeModuleResult -Progress $progress -Lines $moduleOutput -ExitCode $moduleExit
 if (-not (Test-Path (Join-Path $output "$Platform/$Configuration/DxUi.lib")) -or (Test-Path (Join-Path $checkout ".build/$Platform/$Configuration/DxUi.lib"))) { throw 'Consumer outputs are not isolated.' }
 $validator=Join-Path $checkout 'Tools/validate_consumer.ps1'
@@ -159,7 +161,7 @@ Assert-ConsumerQualificationChecks -Progress $progress
     nativeArchitecture=[System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString();
     disableStlAnnotations=$DisableStlAnnotations.IsPresent;buildIdentity=$buildIdentity;exitCode=0;fixture=$root;negativeChecks=$progress.Record.negativeChecks;
     nativeModuleExecuted=$moduleResult.Executed;nativeModuleChecks=$moduleResult.Passed;executableSha256=(Get-FileHash (Join-Path $consumer 'bin/ExternalConsumer.exe')).Hash;
-    nativeModuleFatalChecks=4;
+    nativeModuleFatalChecks=16;nativeModuleNativeAllowedChecks=2;
     richTextCaptureSha256=(Get-FileHash (Join-Path $consumer 'rich-text-consumer.png')).Hash;
     librarySha256=(Get-FileHash (Join-Path $output "$Platform/$Configuration/DxUi.lib")).Hash;
     completedUtc=[DateTime]::UtcNow.ToString('o')} | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $reports "ExternalConsumer-$Platform-$Configuration-annotationsDisabled$annotationsXml.json") -Encoding utf8

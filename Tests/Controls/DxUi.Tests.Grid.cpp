@@ -202,8 +202,12 @@ void GridKeyboardGetterFixture(bool fatalChild)
         return;
     }
     Require(DxUiFailureTests::ExpectFatalChild(L"grid-keyboard-getter-throw"), "keyboard model callback exception terminates its owned child");
-    (void)grid->OnKeyDown(host, VK_SPACE, 0u);
-    Require(model.cellDataCalls == 1u && host.GetRoot() != nullptr, "healthy checkbox lookup keeps its Grid installed");
+    const auto previousRoot = host.GetRoot();
+    const auto callsBefore  = model.cellDataCalls;
+    Require(grid->OnKeyDown(host, VK_SPACE, 0u), "healthy checkbox lookup handles Space");
+    // Resolve the checkbox column, then revalidate its cell before toggling.
+    Require(model.cellDataCalls - callsBefore == 2u && host.GetRoot() == previousRoot,
+            "healthy checkbox lookup revalidates the cell and keeps the same Grid installed");
 }
 void TestGridKeyboardCheckboxQueryContainsModelGetterExceptions()
 {
@@ -282,8 +286,9 @@ void GridGroupGetterFixture(bool fatalChild)
         return;
     }
 
-    Require(grid.GetModel() == &model && grid.GetSelectionModel().GetCount() == 0u,
-            "new-model reconciliation installs the borrowed model and clears old-model selection");
+    Require(grid.GetModel() == &model && grid.GetSelectionModel().GetCount() == 1u && grid.GetSelectionModel().IsSelected(1u) &&
+                ! grid.GetSelectionModel().IsSelected(99u),
+            "new-model reconciliation installs the borrowed model and selects its nearest visible replacement row");
     Require(grid.GetVisibleColumnCount() == 1u, "Grid geometry exposes its healthy visible column");
 }
 void TestGridNoexceptGeometryContainsThrowingGroupGetter()

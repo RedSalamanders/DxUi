@@ -86,26 +86,19 @@ template <typename Check> inline void Core(Check&& check)
     const auto stable         = document.Snapshot();
     const auto selection      = document.GetSelection();
     const auto stableRevision = document.Revision();
-    const auto reject         = [&](std::wstring_view text, Selection after)
+    const auto reject         = [&](std::wstring_view text, Selection after, SourceResult expected)
     {
-        bool rejected{};
-        try
-        {
-            document.ReplaceWholeText(text, after);
-        }
-        catch (const std::logic_error&)
-        {
-            rejected = true;
-        }
-        check(rejected && document.Snapshot().IsSameRevision(stable) && document.GetSelection() == selection && document.Revision() == stableRevision &&
-                  document.CanRedo() && ! document.CanUndo(),
+        bool changed      = true;
+        const auto result = document.TryReplaceWholeText(text, after, changed);
+        check(result == expected && ! changed && document.Snapshot().IsSameRevision(stable) && document.GetSelection() == selection &&
+                  document.Revision() == stableRevision && document.CanRedo() && ! document.CanUndo(),
               "invalid complete service state preserves source/selection/revision and both histories");
     };
-    reject(std::wstring(1u, wchar_t(0xd800)), {});
-    reject(std::wstring(Document::MaximumUnits + 1u, L'x'), {});
-    reject(L"\U0001f600", {1u, 1u});
-    reject(L"\r\n", {1u, 1u});
-    reject(L"x", {2u, 2u});
+    reject(std::wstring(1u, wchar_t(0xd800)), {}, SourceResult::InvalidSource);
+    reject(std::wstring(Document::MaximumUnits + 1u, L'x'), {}, SourceResult::CapacityExceeded);
+    reject(L"\U0001f600", {1u, 1u}, SourceResult::InvalidRange);
+    reject(L"\r\n", {1u, 1u}, SourceResult::InvalidRange);
+    reject(L"x", {2u, 2u}, SourceResult::InvalidRange);
     Document ring;
     for (size_t i = 0u; i < 10u; ++i)
         ring.ReplaceSelection(L"x");

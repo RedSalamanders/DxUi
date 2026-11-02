@@ -1,4 +1,5 @@
 #include "FailureHost.h"
+#include "Support.Tests.DumpReader.h"
 #include <objbase.h>
 #include <wil/com.h>
 #include <wil/resource.h>
@@ -9,8 +10,11 @@
 #include <bit>
 #include <charconv>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
+#include <cwchar>
 #include <initializer_list>
+#include <limits>
 #include <string>
 #include <string_view>
 #include <thread>
@@ -31,7 +35,7 @@ bool ReadNumber(std::string_view content, std::string_view key, int base, std::u
     const auto result = std::from_chars(content.data() + begin, content.data() + end, value, base);
     return result.ec == std::errc{} && result.ptr == content.data() + end;
 }
-bool HasModuleOrigin(HANDLE process, std::string_view record, std::string_view moduleName)
+bool HasModuleOrigin(HANDLE process, std::string_view record, std::string_view moduleName, std::string_view origin)
 {
     if (! SymInitializeW(process, nullptr, FALSE))
         return false;
@@ -73,7 +77,7 @@ bool HasModuleOrigin(HANDLE process, std::string_view record, std::string_view m
                         symbol->MaxNameLen   = MAX_SYM_NAME;
                         DWORD64 displacement{};
                         if (SymFromAddr(process, frame, &displacement, symbol) &&
-                            std::string_view(symbol->Name, symbol->NameLen).find("DxUiModuleFatalWorker") != std::string_view::npos)
+                            std::string_view(symbol->Name, symbol->NameLen).find(origin) != std::string_view::npos)
                             return true;
                     }
                 }
@@ -119,6 +123,8 @@ bool FatalModuleChild(int kind)
     if (slash == std::wstring::npos)
         return false;
     directory.resize(slash);
+    const bool originInA  = kind <= 2 || (kind >= 5 && kind <= 6) || (kind >= 11 && kind <= 14);
+    const auto modulePath = directory + (originInA ? L"\\NativeModuleA.dll" : L"\\NativeModuleB.dll");
     directory += L"\\FailureEvidence\\" + std::to_wstring(info.dwProcessId) + L"\\failure";
     wil::unique_hfile record(
         CreateFileW((directory + L".record").c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr));
@@ -129,7 +135,8 @@ bool FatalModuleChild(int kind)
     if (! ReadFile(record.get(), text.data(), static_cast<DWORD>(text.size()), &read, nullptr) || ! read)
         return false;
     const std::string_view content(text.data(), read);
-    const auto moduleName = kind <= 2 ? "NativeModuleA.dll" : "NativeModuleB.dll";
+    const auto moduleName = originInA ? "NativeModuleA.dll" : "NativeModuleB.dll";
+    const auto origin     = kind <= 4 ? "DxUiModuleFatalWorker" : kind <= 12 ? "DxUiModuleReentrantOrigin" : "DxUiModuleEscapingNativeOrigin";
     std::uint64_t flags{};
     if (! ReadNumber(content, "flags=", 10, flags) || (flags & DxUi::Failure::FirstChanceContext) == 0 || (flags & DxUi::Failure::LiveFailureContext) != 0 ||
         content.find("exception_code=e06d7363") == std::string_view::npos || content.find(moduleName) == std::string_view::npos ||
@@ -137,7 +144,11 @@ bool FatalModuleChild(int kind)
         return false;
     std::uint64_t threadId{}, ip{};
     if (! ReadNumber(content, "thread=", 10, threadId) || ! ReadNumber(content, "context_ip=", 16, ip) || ! threadId || ! ip ||
-        ! HasModuleOrigin(process.get(), content, moduleName))
+        threadId > (std::numeric_limits<DWORD>::max)())
+        return false;
+    AcquireSRWLockExclusive(&DxUiSample::FailureHost::dbgHelpGate);
+    const auto unlock = wil::scope_exit([] { ReleaseSRWLockExclusive(&DxUiSample::FailureHost::dbgHelpGate); });
+    if (! HasModuleOrigin(process.get(), content, moduleName, origin))
         return false;
     wil::unique_hfile dump(CreateFileW((directory + L".dmp").c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr));
     if (! dump)
@@ -162,12 +173,13 @@ bool FatalModuleChild(int kind)
     CONTEXT context{};
     std::memcpy(&context, static_cast<const std::byte*>(view.get()) + exception.ThreadContext.Rva, sizeof(context));
 #if defined(_M_X64)
-    return context.Rip == ip;
+    const bool contextMatches = context.Rip == ip;
 #elif defined(_M_ARM64)
-    return context.Pc == ip;
+    const bool contextMatches = context.Pc == ip;
 #else
     return false;
 #endif
+    return contextMatches && DxUiFailureTests::DumpReader::Verify(directory + L".dmp", process.get(), static_cast<DWORD>(threadId), ip, modulePath, origin);
 }
 } // namespace
 
@@ -199,14 +211,43 @@ int wmain(int argc, wchar_t** argv)
     const auto detachSecond = wil::scope_exit([&]() noexcept { static_cast<void>(secondDetach()); });
     if (failureHost.Uninstall() != HRESULT_FROM_WIN32(ERROR_BUSY))
         return 15;
-    if (argc == 2 && std::wstring_view(argv[1]).starts_with(L"--module-fatal=") && argv[1][15] >= L'1' && argv[1][15] <= L'4' && argv[1][16] == L'\0')
+    if (argc == 2 && std::wstring_view(argv[1]).starts_with(L"--module-fatal="))
     {
-        using Fatal        = void (*)(int) noexcept;
-        const int scenario = argv[1][15] - L'0';
-        const auto fatal   = std::bit_cast<Fatal>(GetProcAddress(scenario <= 2 ? first.get() : second.get(), "DxUiModuleFatal"));
-        if (! fatal)
+        wchar_t* end{};
+        const long scenario = std::wcstol(argv[1] + 15, &end, 10);
+        if (! end || *end != L'\0' || scenario < 1 || scenario > 16)
             return 16;
-        fatal(scenario % 2 ? 1 : 2);
+        const int kind = scenario % 2 ? 1 : 2;
+        if (scenario <= 4)
+        {
+            using Fatal      = void (*)(int) noexcept;
+            const auto fatal = std::bit_cast<Fatal>(GetProcAddress(scenario <= 2 ? first.get() : second.get(), "DxUiModuleFatal"));
+            if (! fatal)
+                return 16;
+            fatal(kind);
+        }
+        else if (scenario <= 12)
+        {
+            using Invoke           = void (*)(int) noexcept;
+            using Reenter          = void (*)(int, Invoke) noexcept;
+            const bool outerInA    = scenario <= 6 || (scenario >= 9 && scenario <= 10);
+            const bool crossModule = scenario >= 9;
+            const auto outer       = outerInA ? first.get() : second.get();
+            const auto inner       = outerInA ? second.get() : first.get();
+            const auto reenter     = std::bit_cast<Reenter>(GetProcAddress(outer, "DxUiModuleNativeReentry"));
+            const auto bridge      = crossModule ? std::bit_cast<Invoke>(GetProcAddress(inner, "DxUiModuleInvokeReentrant")) : nullptr;
+            if (! reenter || (crossModule && ! bridge))
+                return 16;
+            reenter(kind, bridge);
+        }
+        else
+        {
+            using Escaping      = void (*)(int) noexcept;
+            const auto escaping = std::bit_cast<Escaping>(GetProcAddress(scenario <= 14 ? first.get() : second.get(), "DxUiModuleEscapingNative"));
+            if (! escaping)
+                return 16;
+            escaping(kind);
+        }
         return 17;
     }
     int executed = 0;
@@ -231,10 +272,15 @@ int wmain(int argc, wchar_t** argv)
         ui.join();
     }
     std::printf("DXUI_NATIVE_MODULE_PROBES executed=%d passed=%d\n", executed, passed);
+    using NativeCaught      = HRESULT (*)() noexcept;
+    const auto firstCaught  = std::bit_cast<NativeCaught>(GetProcAddress(first.get(), "DxUiModuleNativeCaught"));
+    const auto secondCaught = std::bit_cast<NativeCaught>(GetProcAddress(second.get(), "DxUiModuleNativeCaught"));
+    const int nativePassed  = (firstCaught && firstCaught() == E_ACCESSDENIED ? 1 : 0) + (secondCaught && secondCaught() == E_ACCESSDENIED ? 1 : 0);
+    std::printf("DXUI_NATIVE_MODULE_NATIVE_ALLOWED executed=2 passed=%d\n", nativePassed);
     int fatalPassed = 0;
-    for (int scenario = 1; scenario <= 4; ++scenario)
+    for (int scenario = 1; scenario <= 16; ++scenario)
         if (FatalModuleChild(scenario))
             ++fatalPassed;
-    std::printf("DXUI_NATIVE_MODULE_FATAL executed=4 passed=%d\n", fatalPassed);
-    return executed == 12 && passed == executed && fatalPassed == 4 ? 0 : 12;
+    std::printf("DXUI_NATIVE_MODULE_FATAL executed=16 passed=%d\n", fatalPassed);
+    return executed == 12 && passed == executed && nativePassed == 2 && fatalPassed == 16 ? 0 : 12;
 }

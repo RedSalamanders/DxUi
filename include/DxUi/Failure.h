@@ -8,13 +8,14 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <new>
 #include <source_location>
 #include <type_traits>
 #include <windows.h>
 
 namespace DxUi::Failure
 {
-inline constexpr uint32_t ProtocolVersion = 1;
+inline constexpr uint32_t ProtocolVersion = 2;
 inline constexpr size_t MaximumFrames     = 64;
 
 enum class Kind : uint32_t
@@ -41,6 +42,16 @@ struct Site
     const char* function = nullptr;
     uint32_t line        = 0;
     uint32_t column      = 0;
+};
+
+// Host-owned state saved across one audited native ABI call. Tokens are used
+// only synchronously on the entering thread and must be ended in LIFO order.
+struct NativeCallToken
+{
+    Site previousSite;
+    uint32_t previousBoundaryDepth = 0;
+    uint32_t enteredDepth          = 0;
+    NativeCallToken* previous      = nullptr;
 };
 
 // No owning C++ state crosses the host/module boundary. Both modules must use
@@ -76,14 +87,16 @@ using Reporter = HRESULT (*)(void* context, const Record& record) noexcept;
 // modules before removing the process owner. Callbacks never throw or allocate.
 struct HostServices
 {
-    uint32_t size                                = sizeof(HostServices);
-    uint32_t version                             = ProtocolVersion;
-    void* context                                = nullptr;
-    bool (*retain)(void*) noexcept               = nullptr;
-    void (*release)(void*) noexcept              = nullptr;
-    void (*enter)(void*, const Site&) noexcept   = nullptr;
-    void (*leave)(void*) noexcept                = nullptr;
-    void (*fatal)(void*, const Record&) noexcept = nullptr;
+    uint32_t size                                         = sizeof(HostServices);
+    uint32_t version                                      = ProtocolVersion;
+    void* context                                         = nullptr;
+    bool (*retain)(void*) noexcept                        = nullptr;
+    void (*release)(void*) noexcept                       = nullptr;
+    void (*enter)(void*, const Site&) noexcept            = nullptr;
+    void (*leave)(void*) noexcept                         = nullptr;
+    void (*beginNative)(void*, NativeCallToken*) noexcept = nullptr;
+    void (*endNative)(void*, NativeCallToken*) noexcept   = nullptr;
+    void (*fatal)(void*, const Record&) noexcept          = nullptr;
 };
 static_assert(std::is_trivially_copyable_v<Record> && std::is_standard_layout_v<Record>);
 static_assert(offsetof(Record, size) == 0u && offsetof(Record, version) == sizeof(uint32_t));
@@ -98,9 +111,16 @@ class Scope final
 {
 public:
     explicit Scope(std::source_location location = std::source_location::current()) noexcept;
+    // Inactive only after registration closes; callers may then perform only
+    // allocation-free, callback-free teardown without entering DxUi work.
+    explicit Scope(std::nothrow_t, std::source_location location = std::source_location::current()) noexcept;
     ~Scope();
     Scope(const Scope&)            = delete;
     Scope& operator=(const Scope&) = delete;
+    [[nodiscard]] bool IsActive() const noexcept
+    {
+        return _services != nullptr;
+    }
 
 private:
     const HostServices* _services = nullptr;
@@ -110,6 +130,87 @@ private:
 [[noreturn]] void FailAllocation(size_t requestedBytes = 0, std::source_location location = std::source_location::current()) noexcept;
 [[noreturn]] void FailUnexpected(std::source_location location = std::source_location::current()) noexcept;
 [[noreturn]] void FailContract(HRESULT result, std::source_location location = std::source_location::current()) noexcept;
+
+// Surround only a synchronous, audited native ABI call that handles its own
+// exceptions. Requires a live Scope; nested DxUi scopes re-enable observation.
+class NativeCallScope final
+{
+public:
+    NativeCallScope() noexcept;
+    ~NativeCallScope();
+    NativeCallScope(const NativeCallScope&)            = delete;
+    NativeCallScope& operator=(const NativeCallScope&) = delete;
+
+private:
+    const HostServices* _services = nullptr;
+    NativeCallToken _token;
+};
+
+// Pins this module's registration while an object may own callback-capable
+// state. Construct before other members and destroy after them; release may
+// occur on any thread. This does not enter a thread-local failure Scope.
+class ObjectLifetime final
+{
+public:
+    explicit ObjectLifetime(std::source_location location = std::source_location::current()) noexcept;
+    ~ObjectLifetime();
+    ObjectLifetime(const ObjectLifetime&)            = delete;
+    ObjectLifetime& operator=(const ObjectLifetime&) = delete;
+    ObjectLifetime(ObjectLifetime&&)                 = delete;
+    ObjectLifetime& operator=(ObjectLifetime&&)      = delete;
+
+private:
+    const HostServices* _services = nullptr;
+};
+
+namespace Detail
+{
+// Called only from an SEH filter while its exception pointers remain live.
+int NativeExceptionFilter(EXCEPTION_POINTERS* pointers) noexcept;
+
+// No C++ owner or nontrivial destructor may be introduced in this function:
+// the filter must inspect an escaping native exception before stack unwinding.
+template <typename Function, typename... Args>
+__declspec(noinline) auto NativeInvokeTrampoline(Function function, Args... args) noexcept -> decltype(function(args...))
+{
+    using Result = decltype(function(args...));
+    __try
+    {
+        if constexpr (std::is_void_v<Result>)
+        {
+            function(args...);
+            return;
+        }
+        else
+            return function(args...);
+    }
+    __except (NativeExceptionFilter(GetExceptionInformation()))
+    {
+        __assume(0);
+    }
+}
+} // namespace Detail
+
+// Arguments are evaluated before entry. Only pass an audited native function
+// pointer and trivially copyable arguments/results; caught native exceptions
+// remain native, while any escaping C++ exception is fatal before unwind.
+// Source-location metadata may describe the boundary rather than the throw;
+// the failure record retains the original exception and machine context.
+template <typename Function, typename... Args> auto InvokeNative(Function function, Args... args) noexcept -> decltype(function(args...))
+{
+    using Result = decltype(function(args...));
+    static_assert(std::is_pointer_v<Function> && std::is_function_v<std::remove_pointer_t<Function>>);
+    static_assert(((std::is_trivially_copyable_v<Args> && std::is_trivially_destructible_v<Args>) && ...));
+    static_assert(std::is_void_v<Result> || (std::is_trivially_copyable_v<Result> && std::is_trivially_destructible_v<Result>));
+    const Scope scope;
+    if (! function)
+        FailContract(E_INVALIDARG);
+    const NativeCallScope native;
+    if constexpr (std::is_void_v<Result>)
+        Detail::NativeInvokeTrampoline(function, args...);
+    else
+        return Detail::NativeInvokeTrampoline(function, args...);
+}
 
 namespace Detail
 {

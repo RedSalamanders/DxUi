@@ -15,7 +15,13 @@ static_assert(std::is_same_v<decltype(&DxUi::Failure::UnregisterModule), HRESULT
 static_assert(std::is_same_v<decltype(DxUi::RichText::MarkdownAdvance{}.result), DxUi::RichText::MarkdownResult>);
 static_assert(std::is_same_v<decltype(&DxUi::RichTextEditor::TrySetDecorations),
                              HRESULT (DxUi::RichTextEditor::*)(const DxUi::RichText::SourceSnapshot&, std::span<const DxUi::RichTextDecoration>)>);
-static_assert(DxUi::Failure::ProtocolVersion == 1);
+static_assert(DxUi::Failure::ProtocolVersion == 2);
+static_assert(std::is_standard_layout_v<DxUi::Failure::NativeCallToken>);
+static_assert(! std::is_copy_constructible_v<DxUi::Failure::NativeCallScope>);
+static_assert(! std::is_copy_constructible_v<DxUi::Failure::ObjectLifetime>);
+static_assert(std::is_nothrow_constructible_v<DxUi::Failure::Scope, std::nothrow_t>);
+static_assert(std::is_same_v<decltype(std::declval<const DxUi::Failure::Scope&>().IsActive()), bool>);
+static_assert(std::is_same_v<decltype(DxUi::Failure::InvokeNative(&GetCurrentThreadId)), DWORD>);
 
 // Proposed public checked-result surface. Compile-only API checks do not qualify
 // runtime refusal, atomicity, host integration or consumer product behavior.

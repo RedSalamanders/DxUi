@@ -18,6 +18,14 @@ returning `Failed` without replacing its prior publication. Audit custom allocat
 Rebuild every EXE and DLL with the exact matching headers, archive, compiler, platform, configuration and CRT; API 5
 changes both source contracts and object layout. Changing a lock alone neither ports nor qualifies an application.
 
+Use failure host **protocol 2** consistently in every EXE and DLL. It adds native-call
+entry/exit handling so Windows can handle its own internal exceptions while reentrant
+DxUi callbacks remain protected. Prefer the provided `ProcessHooks` table; a custom
+table must implement and qualify the complete protocol. Keep the reporter and module
+registration alive until outstanding UI Automation peers, retained snapshots and
+queued notifications are released. `Uninstall`/`Detach` returns `BUSY` while these
+objects still pin the host; closing a view alone does not prove their completion.
+
 For editor configuration, handle `TrySetDefaultContextMenuLabels`, `TrySetMarkdownAnalysisProfile`,
 `TrySetMarkdownAnalysisExtensions`, `TrySetMarkdownRenderingEnabled` and `TrySetOnCodeCopyRequested` results.
 `TrySetDecorations` returns an HRESULT: invalid ranges use `E_INVALIDARG`, capacity uses `E_BOUNDS`,

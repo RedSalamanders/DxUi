@@ -117,7 +117,8 @@ try {
             Assert-Scope ((Test-Path -LiteralPath $fixture) -and [IO.File]::ReadAllText($consumer).Contains('Tools/ConsumerApi/ConsumerApi.Tests.Revision4.cpp') -and [IO.File]::ReadAllText($consumer).Contains('ConsumerApi.Tests.Revision4.cpp')) 'Frozen public API fixture is not compiled by the exact-pin consumer gate'
             $fixture5=Join-Path $repository 'Tools/ConsumerApi/ConsumerApi.Tests.Revision5.cpp'
             Assert-Scope ((Test-Path -LiteralPath $fixture5) -and [IO.File]::ReadAllText($consumer).Contains('Tools/ConsumerApi/ConsumerApi.Tests.Revision5.cpp') -and [IO.File]::ReadAllText($consumer).Contains('ConsumerApi.Tests.Revision5.cpp') -and [IO.File]::ReadAllText($consumer).Contains('Samples/Shared/FailureHost.cpp')) 'Revision-5 fixture and application-owned host are not compiled by the consumer gate'
-            Assert-Scope ([IO.File]::ReadAllText($consumer).Contains('DXUI_NATIVE_MODULE_FATAL executed=4 passed=4')) 'Consumer gate must require all independent module fatal child probes'
+            Assert-Scope ([IO.File]::ReadAllText($consumer).Contains('DXUI_NATIVE_MODULE_FATAL executed=16 passed=16') -and [IO.File]::ReadAllText($consumer).Contains('DXUI_NATIVE_MODULE_NATIVE_ALLOWED executed=2 passed=2')) 'Consumer gate must require all independent module fatal and native caught-exception probes'
+            Assert-Scope ([IO.File]::ReadAllText($consumer).Contains('Tests/Support/Support.Tests.DumpReader.h')) 'Consumer gate must copy the canonical dump-unwind oracle'
             $sdk=[IO.File]::ReadAllText((Join-Path $repository 'Tools/New-SdkPackage.ps1'))
             foreach($required in @('ThirdParty/libfyaml/0.9.4/LICENSE','ThirdParty/libfyaml/0.9.4/LICENSE-xxHash.txt','samples/Shared','FailureHost.cpp','DbgHelp.lib',"@('Main','FailureHost')")) {
                 Assert-Scope ($sdk.Contains($required)) "SDK package or independent source dependency check is missing $required"

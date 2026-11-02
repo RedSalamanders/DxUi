@@ -129,6 +129,14 @@ struct EmbeddedAccessibilityAccess
 
 namespace
 {
+// Stage arguments before masking first-chance observation for the synchronous
+// Windows UI Automation ABI call. Reentrant DxUi provider methods open their
+// own scopes and therefore retain fatal observation for application callbacks.
+template <typename Function, typename... Args> auto InvokeNativeUia(Function function, Args... args) noexcept
+{
+    return Failure::InvokeNative(function, args...);
+}
+
 constexpr PCWSTR kWindowHostPropName                                = kNativeAccessibilityTargetProperty;
 constexpr uint32_t kAccessibilityMaxDepth                           = 16u;
 constexpr DWORD kAccessibilityUiActionDispatchTimeoutMs             = 5000u;
@@ -1046,6 +1054,9 @@ void CALLBACK DeliverAccessibilityNotifications(PTP_CALLBACK_INSTANCE, void*, PT
 
 struct WindowHostAccessibilityTarget final
 {
+    // Retire application-owned snapshots before releasing the module pin.
+    Failure::ObjectLifetime failureLifetime;
+
     explicit WindowHostAccessibilityTarget(HWND hwnd, ControlHost* host) noexcept : hwnd(hwnd), host(host)
     {
     }
@@ -1065,6 +1076,8 @@ struct WindowHostAccessibilityTarget final
         const ULONG remaining = _referenceCount.fetch_sub(1u, std::memory_order_acq_rel) - 1u;
         if (remaining == 0u)
         {
+            // The object's module pin keeps this lease active through retirement.
+            const Failure::Scope retirementScope{std::nothrow};
             delete this;
         }
         return remaining;
@@ -1470,7 +1483,7 @@ WindowHostSnapshotChanges PublishWindowHostAccessibilitySnapshot(WindowHostAcces
     if (! previous || ! previous->alive)
         previous = std::move(target.diffBaseline); // A root swap's stand-in: compare with the tree before it.
     target.diffBaseline.reset();
-    if (target.embedded && previous && previous->alive && previous->hasRetainedRoot && UiaClientsAreListening())
+    if (target.embedded && previous && previous->alive && previous->hasRetainedRoot && InvokeNativeUia(UiaClientsAreListening))
     {
         changes.focusMoved = ! SameFocusedElement(*previous, *snapshot);
         if (! target.embedded)
@@ -5755,6 +5768,8 @@ template <typename Action, typename Republish> HRESULT ContainAccessibilityUiAct
 
 class AccessibilityTextRangeProvider final : public ITextRangeProvider
 {
+    Failure::ObjectLifetime _failureLifetime;
+
 public:
     [[nodiscard]] bool HasControlIdentity(const AccessibilityControlIdentity& identity) const noexcept
     {
@@ -5934,6 +5949,8 @@ class AccessibilityProvider final : public IRawElementProviderSimple,
                                     public ITableItemProvider,
                                     public IScrollItemProvider
 {
+    Failure::ObjectLifetime _failureLifetime;
+
 public:
     struct TreeItemTag
     {
@@ -6272,6 +6289,7 @@ private:
 
 [[nodiscard]] wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> AcquireCanonicalRootProvider(WindowHostAccessibilityTarget* target) noexcept
 {
+    const Failure::Scope failureScope;
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> root;
     if (! target)
     {
@@ -6325,6 +6343,7 @@ private:
                                                                                    HWND hwnd,
                                                                                    const ControlPath& path) noexcept
 {
+    const Failure::Scope failureScope;
     wil::com_ptr_nothrow<IRawElementProviderSimple> element;
     if (! target)
     {
@@ -6358,6 +6377,7 @@ private:
                                                                                    const ControlPath& path,
                                                                                    const AccessibilityControlIdentity& expectedIdentity) noexcept
 {
+    const Failure::Scope failureScope;
     HoldAccessibilityPeerCreationForTest(hwnd);
     auto element = CreateControlElement(target, hwnd, path);
     if (element && ! static_cast<AccessibilityProvider*>(element.get())->HasControlIdentity(expectedIdentity))
@@ -6368,6 +6388,7 @@ private:
 [[nodiscard]] wil::com_ptr_nothrow<IRawElementProviderSimple> CreateControlEventElement(WindowHostAccessibilityTarget& target,
                                                                                         const AccessibilityControlNavigationSnapshot& record) noexcept
 {
+    const Failure::Scope failureScope;
     if (! target.embedded)
         return CreateControlElement(&target, target.hwnd, record.path, CaptureControlIdentity(record));
     static_cast<void>(target.AddRef());
@@ -6426,6 +6447,7 @@ ULONG AccessibilityTextRangeProvider::Release() noexcept
     const ULONG remaining = _referenceCount.fetch_sub(1u, std::memory_order_acq_rel) - 1u;
     if (remaining == 0u)
     {
+        const Failure::Scope retirementScope{std::nothrow};
         if (_target)
         {
             static_cast<void>(_target->Release());
@@ -6597,7 +6619,7 @@ HRESULT SetSourceAttribute(VARIANT* result, const RichSourceAttribute& value) no
         case VT_I4: *result = VariantFromInt(static_cast<int>(value.number)); return S_OK;
         case VT_R8: *result = VariantFromDouble(value.number); return S_OK;
         case VT_BSTR: return SetVariantFromString(result, value.text);
-        default: result->vt = VT_UNKNOWN; return UiaGetReservedNotSupportedValue(&result->punkVal);
+        default: result->vt = VT_UNKNOWN; return InvokeNativeUia(UiaGetReservedNotSupportedValue, &result->punkVal);
     }
 }
 [[nodiscard]] bool MatchesSourceAttribute(const RichSourceAttribute& expected, const VARIANT& value) noexcept
@@ -6945,7 +6967,7 @@ HRESULT AccessibilityTextRangeProvider::GetAttributeValue(TEXTATTRIBUTEID attrib
             if (run.start + run.length > range.start && SourceAttribute(*semanticRecord, run, attributeId) != first)
             {
                 outValue->vt = VT_UNKNOWN;
-                return UiaGetReservedMixedAttributeValue(&outValue->punkVal);
+                return InvokeNativeUia(UiaGetReservedMixedAttributeValue, &outValue->punkVal);
             }
         }
         return SetSourceAttribute(outValue, first);
@@ -6959,7 +6981,7 @@ HRESULT AccessibilityTextRangeProvider::GetAttributeValue(TEXTATTRIBUTEID attrib
         return S_OK;
     }
     outValue->vt = VT_UNKNOWN;
-    return UiaGetReservedNotSupportedValue(&outValue->punkVal);
+    return InvokeNativeUia(UiaGetReservedNotSupportedValue, &outValue->punkVal);
 }
 
 HRESULT AccessibilityTextRangeProvider::GetBoundingRectangles(SAFEARRAY** outRectangles) noexcept
@@ -8294,6 +8316,7 @@ TextRangeSpan AccessibilityTextRangeProvider::ClampCurrentRange(size_t textLengt
 
 ITextRangeProvider* AccessibilityTextRangeProvider::CreateRange(size_t start, size_t end) const noexcept
 {
+    const Failure::Scope failureScope;
     HoldAccessibilityPeerCreationForTest(_hwnd);
     WindowHostAccessibilityTarget* target = _target;
     if (target)
@@ -8536,6 +8559,7 @@ ULONG AccessibilityProvider::Release() noexcept
     const ULONG remaining = _referenceCount.fetch_sub(1u, std::memory_order_acq_rel) - 1u;
     if (remaining == 0u)
     {
+        const Failure::Scope retirementScope{std::nothrow};
         if (_target)
         {
             static_cast<void>(_target->Release());
@@ -9162,7 +9186,7 @@ HRESULT AccessibilityProvider::get_HostRawElementProvider(IRawElementProviderSim
     }
     if (_target && _target->embedded)
         return S_OK;
-    return UiaHostProviderFromHwnd(_hwnd, outProvider);
+    return InvokeNativeUia(UiaHostProviderFromHwnd, _hwnd, outProvider);
 }
 
 HRESULT AccessibilityProvider::Navigate(NavigateDirection direction, IRawElementProviderFragment** outProvider) noexcept
@@ -13066,7 +13090,7 @@ AccessibilityTextUnitSpan GetEnclosingAccessibilityTextUnitSpan(std::wstring_vie
 // retained target and pins no snapshot, so UIA's retention of event providers stays O(1) per event.
 [[nodiscard]] wil::com_ptr_nothrow<IRawElementProviderSimple> CreateWindowHostEventProvider(HWND hwnd, const Control* control) noexcept
 {
-    if (! hwnd || ! control || ! UiaClientsAreListening())
+    if (! hwnd || ! control || ! InvokeNativeUia(UiaClientsAreListening))
         return {};
     // This internal intrusive target is not IUnknown (its Release result is nodiscard).
     // Give WIL an explicit close policy instead of imposing COM pointer semantics on it.
@@ -13092,7 +13116,8 @@ namespace
 // raised the event.
 bool AnnounceWindowHostFocus(HWND hwnd) noexcept
 {
-    if (! hwnd || IsNativeMenuPopupWindow(hwnd) || ! UiaClientsAreListening())
+    const Failure::Scope failureScope;
+    if (! hwnd || IsNativeMenuPopupWindow(hwnd) || ! InvokeNativeUia(UiaClientsAreListening))
         return false;
     GUITHREADINFO focus{};
     focus.cbSize = sizeof(focus);
@@ -13147,7 +13172,7 @@ bool AnnounceWindowHostFocus(HWND hwnd) noexcept
         static_cast<void>(target.release());
         provider.attach(raw);
     }
-    return SUCCEEDED(UiaRaiseAutomationEvent(provider.get(), UIA_AutomationFocusChangedEventId));
+    return SUCCEEDED(InvokeNativeUia(UiaRaiseAutomationEvent, provider.get(), UIA_AutomationFocusChangedEventId));
 }
 
 // The UI Automation selection events for the selection changes a publish found in trees and grids (see SelectionChange): per
@@ -13160,6 +13185,7 @@ bool AnnounceWindowHostFocus(HWND hwnd) noexcept
 // which republishes). The providers never touch a control; the events left are dropped, not raised on elements that are gone.
 void RaiseSelectionEvents(WindowHostAccessibilityTarget& target, HWND hwnd, const std::vector<SelectionChange>& changes) noexcept
 {
+    const Failure::Scope failureScope;
     const auto expectedSnapshot = target.snapshot.load(std::memory_order_acquire);
     const auto connected        = [&]() noexcept
     {
@@ -13206,12 +13232,15 @@ void RaiseSelectionEvents(WindowHostAccessibilityTarget& target, HWND hwnd, cons
             return false;
         if (const wil::com_ptr_nothrow<IRawElementProviderSimple> item = makeItemProvider(change, id))
         {
-            static_cast<void>(UiaRaiseAutomationPropertyChangedEvent(
-                item.get(), UIA_SelectionItemIsSelectedPropertyId, VariantFromBool(! selected), VariantFromBool(selected)));
+            static_cast<void>(InvokeNativeUia(UiaRaiseAutomationPropertyChangedEvent,
+                                              item.get(),
+                                              UIA_SelectionItemIsSelectedPropertyId,
+                                              VariantFromBool(! selected),
+                                              VariantFromBool(selected)));
             NotifySelectionEventRaisedForTest();
             if (eventId != 0 && live(change))
             {
-                static_cast<void>(UiaRaiseAutomationEvent(item.get(), eventId));
+                static_cast<void>(InvokeNativeUia(UiaRaiseAutomationEvent, item.get(), eventId));
                 NotifySelectionEventRaisedForTest();
             }
         }
@@ -13229,7 +13258,7 @@ void RaiseSelectionEvents(WindowHostAccessibilityTarget& target, HWND hwnd, cons
             // The tree or grid itself: its own element, or the window's when a collapsed semantic root stands for it, as clients see it.
             if (const wil::com_ptr_nothrow<IRawElementProviderSimple> container = CreateControlElement(&target, hwnd, change.path))
             {
-                static_cast<void>(UiaRaiseAutomationEvent(container.get(), UIA_Selection_InvalidatedEventId));
+                static_cast<void>(InvokeNativeUia(UiaRaiseAutomationEvent, container.get(), UIA_Selection_InvalidatedEventId));
                 NotifySelectionEventRaisedForTest();
             }
             continue;
@@ -13258,6 +13287,7 @@ void QueueEmbeddedPropertyChange(WindowHostAccessibilityTarget& target,
 void RaiseTreeItemExpansionChange(
     WindowHostAccessibilityTarget& target, const AccessibilityControlNavigationSnapshot& record, uint64_t itemId, bool wasExpanded, bool expanded) noexcept
 {
+    const Failure::Scope failureScope;
     const auto state = [](bool value) noexcept { return VariantFromInt(value ? ExpandCollapseState_Expanded : ExpandCollapseState_Collapsed); };
     static_cast<void>(target.AddRef());
     auto* const raw = new (std::nothrow) AccessibilityProvider(
@@ -13274,7 +13304,8 @@ void RaiseTreeItemExpansionChange(
     if (target.embedded)
         QueueEmbeddedPropertyChange(target, record, provider.get(), UIA_ExpandCollapseExpandCollapseStatePropertyId, previous, current, itemId);
     else
-        static_cast<void>(UiaRaiseAutomationPropertyChangedEvent(provider.get(), UIA_ExpandCollapseExpandCollapseStatePropertyId, previous, current));
+        static_cast<void>(
+            InvokeNativeUia(UiaRaiseAutomationPropertyChangedEvent, provider.get(), UIA_ExpandCollapseExpandCollapseStatePropertyId, previous, current));
     NotifyPropertyEventRaisedForTest(UIA_ExpandCollapseExpandCollapseStatePropertyId);
 }
 
@@ -13331,6 +13362,7 @@ template <typename Connected>
                                               bool& structureChanged,
                                               const Connected& connected) noexcept
 {
+    const Failure::Scope failureScope;
     if (before.treeItems.size() != record.treeItems.size() ||
         ! std::ranges::equal(
             before.treeItems, record.treeItems, {}, &AccessibilityTreeItemSnapshotRecord::itemId, &AccessibilityTreeItemSnapshotRecord::itemId))
@@ -13392,7 +13424,7 @@ template <typename Connected>
                 if (target.embedded)
                     QueueEmbeddedPropertyChange(target, record, provider.get(), id, oldValue, newValue, currentItem.itemId);
                 else
-                    static_cast<void>(UiaRaiseAutomationPropertyChangedEvent(provider.get(), id, oldValue, newValue));
+                    static_cast<void>(InvokeNativeUia(UiaRaiseAutomationPropertyChangedEvent, provider.get(), id, oldValue, newValue));
                 NotifyPropertyEventRaisedForTest(id);
             }
         };
@@ -13490,7 +13522,7 @@ struct RangePropertyChange
 void RaiseWindowHostFocusChanged(HWND hwnd, const Control* control) noexcept
 {
     if (const auto provider = CreateWindowHostEventProvider(hwnd, control))
-        static_cast<void>(UiaRaiseAutomationEvent(provider.get(), UIA_AutomationFocusChangedEventId));
+        static_cast<void>(InvokeNativeUia(UiaRaiseAutomationEvent, provider.get(), UIA_AutomationFocusChangedEventId));
 }
 
 void RaiseWindowHostDisclosureChanged(HWND hwnd, const Control* control, bool expanded) noexcept
@@ -13561,6 +13593,7 @@ bool RaiseWindowHostTextInputAutomationEvent(HWND hwnd, const Control* control, 
 }
 void RegisterWindowHostAccessibilityTarget(HWND hwnd, ControlHost* host) noexcept
 {
+    const Failure::Scope failureScope;
     if (hwnd && host)
     {
         const std::scoped_lock lock(GetAccessibilityTargetMutex());
@@ -13641,9 +13674,9 @@ void UnregisterWindowHostAccessibilityTarget(HWND hwnd, ControlHost* host) noexc
     // UI Automation may otherwise retain that provider when Win32 recycles the HWND for a later host.
     if (providerToDisconnect)
     {
-        static_cast<void>(UiaDisconnectProvider(providerToDisconnect.get()));
+        static_cast<void>(InvokeNativeUia(UiaDisconnectProvider, providerToDisconnect.get()));
     }
-    static_cast<void>(UiaReturnRawElementProvider(hwnd, 0, 0, nullptr));
+    static_cast<void>(InvokeNativeUia(UiaReturnRawElementProvider, hwnd, WPARAM{}, LPARAM{}, nullptr));
 }
 
 void NotifyWindowHostAccessibilityDestroyed(HWND hwnd) noexcept
@@ -13652,7 +13685,7 @@ void NotifyWindowHostAccessibilityDestroyed(HWND hwnd) noexcept
     {
         // UI Automation requires the provider map to be retired while handling window destruction.
         // Unregister repeats this as a fallback for owners that detach before WM_DESTROY.
-        static_cast<void>(UiaReturnRawElementProvider(hwnd, 0, 0, nullptr));
+        static_cast<void>(InvokeNativeUia(UiaReturnRawElementProvider, hwnd, WPARAM{}, LPARAM{}, nullptr));
     }
 }
 
@@ -13672,7 +13705,7 @@ void RefreshWindowHostAccessibilitySnapshot(HWND hwnd, ControlHost* host, Access
     // The already-posted flush will publish content changes. Focus-capable mutations keep the general path below.
     if (mutation == AccessibilityMutationKind::ContentOnly && target->flushPosted)
         return;
-    bool interested = target->providerRequested.load(std::memory_order_acquire) || UiaClientsAreListening();
+    bool interested = target->providerRequested.load(std::memory_order_acquire) || InvokeNativeUia(UiaClientsAreListening);
 #if DXUI_ENABLE_DIAGNOSTICS
     // Tests override only this attachment's owner-thread mutation decision, never global UIA interest.
     const auto& interestOverride = g_accessibilityMutationInterestOverride;
@@ -13752,7 +13785,7 @@ void BeginWindowHostFocusGain(HWND hwnd, ControlHost* host) noexcept
 
 void EndWindowHostFocusGainTurn(HWND hwnd, ControlHost* host) noexcept
 {
-    if (! hwnd || ! host || ! EmbeddedAccessibilityAccess::FocusGainIsUnreported(*host) || ! UiaClientsAreListening())
+    if (! hwnd || ! host || ! EmbeddedAccessibilityAccess::FocusGainIsUnreported(*host) || ! InvokeNativeUia(UiaClientsAreListening))
         return;
 
     {
@@ -13822,7 +13855,7 @@ LRESULT ReturnWindowHostAccessibilityProvider(HWND hwnd, WPARAM wp, LPARAM lp) n
     if (! rootProvider || FAILED(rootProvider.query_to(provider.put())) || ! provider)
         return 0;
 
-    return UiaReturnRawElementProvider(hwnd, wp, lp, provider.get());
+    return InvokeNativeUia(UiaReturnRawElementProvider, hwnd, wp, lp, provider.get());
 }
 
 bool TryHandleWindowHostAccessibilityMessage(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp, LRESULT& outResult) noexcept
@@ -13962,8 +13995,9 @@ void CALLBACK DeliverAccessibilityNotifications(PTP_CALLBACK_INSTANCE instance, 
         }
         // An embedded invalidation carries no historical property values. Its canonical root resolves the
         // current epoch on each provider call; a held client callback must not pin intermediate row graphs.
-        if (invalidateStructure && root && (target->embedded || snapshot) && target->host.load(std::memory_order_acquire) && alive && UiaClientsAreListening())
-            static_cast<void>(UiaRaiseStructureChangedEvent(root.get(), StructureChangeType_ChildrenInvalidated, nullptr, 0));
+        if (invalidateStructure && root && (target->embedded || snapshot) && target->host.load(std::memory_order_acquire) && alive &&
+            InvokeNativeUia(UiaClientsAreListening))
+            static_cast<void>(InvokeNativeUia(UiaRaiseStructureChangedEvent, root.get(), StructureChangeType_ChildrenInvalidated, nullptr, 0));
         for (const auto& property : properties)
         {
             if (! target->host.load(std::memory_order_acquire))
@@ -13980,11 +14014,12 @@ void CALLBACK DeliverAccessibilityNotifications(PTP_CALLBACK_INSTANCE instance, 
                     Debug::Error(L"DxUi: embedded property notification value resolution failed ({:08X}, {:08X})", oldResult, newResult);
                     continue; // No raw-interface or synchronous fallback after failed marshalling.
                 }
-                // Scalar/BSTR values already belong to this batch; do not copy or allocate them again during delivery.
-                const HRESULT deliveryResult = UiaRaiseAutomationPropertyChangedEvent(provider.get(),
-                                                                                      property.propertyId,
-                                                                                      property.previousInterface ? previous : property.previous,
-                                                                                      property.currentInterface ? current : property.current);
+                // Shallow VARIANT values borrow this batch's scalar/BSTR storage for the synchronous call.
+                const VARIANT previousValue =
+                    property.previousInterface ? static_cast<const VARIANT&>(previous) : static_cast<const VARIANT&>(property.previous);
+                const VARIANT currentValue = property.currentInterface ? static_cast<const VARIANT&>(current) : static_cast<const VARIANT&>(property.current);
+                const HRESULT deliveryResult =
+                    InvokeNativeUia(UiaRaiseAutomationPropertyChangedEvent, provider.get(), property.propertyId, previousValue, currentValue);
                 if (FAILED(deliveryResult))
                     Debug::Error(L"DxUi: embedded property notification delivery failed (property {}, {:08X})", property.propertyId, deliveryResult);
             }
@@ -14199,7 +14234,7 @@ void RaiseAccessibilitySnapshotChanges(WindowHostAccessibilityTarget& target,
                                        const WindowHostSnapshotChanges& changes) noexcept
 {
     const auto current = target.snapshot.load(std::memory_order_acquire);
-    if (! previous || ! current || ! UiaClientsAreListening())
+    if (! previous || ! current || ! InvokeNativeUia(UiaClientsAreListening))
         return;
     // Keep target/provider alive through UIA callbacks; disconnect during a callback stops later notifications.
     static_cast<void>(target.AddRef());
@@ -14323,7 +14358,7 @@ void RaiseAccessibilitySnapshotChanges(WindowHostAccessibilityTarget& target,
                 if (target.embedded)
                     QueueEmbeddedPropertyChange(target, record, provider.get(), id, oldValue, newValue);
                 else
-                    static_cast<void>(UiaRaiseAutomationPropertyChangedEvent(provider.get(), id, oldValue, newValue));
+                    static_cast<void>(InvokeNativeUia(UiaRaiseAutomationPropertyChangedEvent, provider.get(), id, oldValue, newValue));
                 // Test retirement stays on the owner. Embedded delivery occurs later on the work item's MTA;
                 // this hook denotes queue-time publication there, never a foreign-thread control callback.
                 NotifyPropertyEventRaisedForTest(id);
@@ -14392,7 +14427,7 @@ void RaiseAccessibilitySnapshotChanges(WindowHostAccessibilityTarget& target,
                      VariantFromBool(before->controlSelectionItemSelected),
                      VariantFromBool(record.controlSelectionItemSelected));
             if (record.controlSelectionItemSelected && connected() && ! record.controlLifetime.expired())
-                static_cast<void>(UiaRaiseAutomationEvent(provider.get(), UIA_SelectionItem_ElementSelectedEventId));
+                static_cast<void>(InvokeNativeUia(UiaRaiseAutomationEvent, provider.get(), UIA_SelectionItem_ElementSelectedEventId));
         }
         if (record.controlDisclosureExpanded.has_value() && before->controlDisclosureExpanded.has_value() &&
             record.controlDisclosureExpanded != before->controlDisclosureExpanded)
@@ -14408,14 +14443,14 @@ void RaiseAccessibilitySnapshotChanges(WindowHostAccessibilityTarget& target,
             property(UIA_HasKeyboardFocusPropertyId, VariantFromBool(before->controlHasFocus), VariantFromBool(record.controlHasFocus));
         }
         if (connected() && ! record.controlLifetime.expired() && record.controlSupportsText && textChanged)
-            static_cast<void>(UiaRaiseAutomationEvent(provider.get(), UIA_Text_TextChangedEventId));
+            static_cast<void>(InvokeNativeUia(UiaRaiseAutomationEvent, provider.get(), UIA_Text_TextChangedEventId));
         if (connected() && ! record.controlLifetime.expired() && record.controlSupportsText && selectionChanged)
-            static_cast<void>(UiaRaiseAutomationEvent(provider.get(), UIA_Text_TextSelectionChangedEventId));
+            static_cast<void>(InvokeNativeUia(UiaRaiseAutomationEvent, provider.get(), UIA_Text_TextSelectionChangedEventId));
         if (connected() && ! record.controlLifetime.expired() && record.controlSupportsText && compositionChanged)
         {
             unique_safearray changed(SafeArrayCreateVector(VT_BSTR, 0, 0));
             if (changed)
-                static_cast<void>(UiaRaiseTextEditTextChangedEvent(provider.get(), TextEditChangeType_Composition, changed.get()));
+                static_cast<void>(InvokeNativeUia(UiaRaiseTextEditTextChangedEvent, provider.get(), TextEditChangeType_Composition, changed.get()));
         }
     }
     if (connected() && structureChanged)
@@ -14428,7 +14463,7 @@ void RaiseAccessibilitySnapshotChanges(WindowHostAccessibilityTarget& target,
         wil::com_ptr_nothrow<IRawElementProviderFragment> focused;
         wil::com_ptr_nothrow<IRawElementProviderSimple> provider;
         if (fragmentRoot && SUCCEEDED(fragmentRoot->GetFocus(focused.put())) && focused && SUCCEEDED(focused.query_to(provider.put())) && connected())
-            static_cast<void>(UiaRaiseAutomationEvent(provider.get(), UIA_AutomationFocusChangedEventId));
+            static_cast<void>(InvokeNativeUia(UiaRaiseAutomationEvent, provider.get(), UIA_AutomationFocusChangedEventId));
     }
     if (connected())
         RaiseSelectionEvents(target, target.hwnd, changes.selections);
@@ -14466,6 +14501,7 @@ HRESULT FlushNativeAccessibilitySnapshot(WindowHostAccessibilityTarget& target) 
 
 void DrainNativeAccessibilityPublication(WindowHostAccessibilityTarget& target) noexcept
 {
+    const Failure::Scope failureScope;
     auto previous = target.eventBaseline;
     FlushNativeAccessibilitySnapshot(target);
     if (! previous)
@@ -14481,7 +14517,7 @@ void DrainNativeAccessibilityPublication(WindowHostAccessibilityTarget& target) 
         changes.current          = current;
         changes.focusMoved       = ! SameFocusedElement(*previous, *current);
         changes.structureChanged = ! SameSemanticControls(*previous, *current);
-        if (UiaClientsAreListening())
+        if (InvokeNativeUia(UiaClientsAreListening))
             changes.selections = CollectSelectionChanges(*previous, *current);
         // Fresh owner queries do not consume the event baseline.
         target.eventBaseline               = current;
@@ -14527,12 +14563,12 @@ void DrainNativeAccessibilityPublication(WindowHostAccessibilityTarget& target) 
                 else
                     static_cast<void>(target.Release());
                 if (range)
-                    static_cast<void>(UiaRaiseActiveTextPositionChangedEvent(provider.get(), range.get()));
+                    static_cast<void>(InvokeNativeUia(UiaRaiseActiveTextPositionChangedEvent, provider.get(), range.get()));
             }
             if (target.ResolveHost() == host && target.snapshot.load(std::memory_order_acquire) == current &&
                 target.publishedRevision == target.dirtyRevision &&
                 (pending.kinds & (1u << static_cast<unsigned>(TextInputAutomationEventKind::TextEditConversionTargetChanged))) != 0u)
-                static_cast<void>(UiaRaiseAutomationEvent(provider.get(), UIA_TextEdit_ConversionTargetChangedEventId));
+                static_cast<void>(InvokeNativeUia(UiaRaiseAutomationEvent, provider.get(), UIA_TextEdit_ConversionTargetChangedEventId));
         }
     }
     catch (const std::bad_alloc&)
@@ -14669,7 +14705,7 @@ void EmbeddedHost::DisconnectAccessibility() noexcept
         provider = std::move(target->rootProvider);
     }
     if (provider)
-        static_cast<void>(UiaDisconnectProvider(provider.get()));
+        static_cast<void>(InvokeNativeUia(UiaDisconnectProvider, provider.get()));
     static_cast<void>(target->Release());
 }
 
@@ -14749,8 +14785,12 @@ bool RaiseWindowHostAccessibilityNotification(HWND hwnd, std::wstring_view notif
         return false;
     }
 
-    return SUCCEEDED(UiaRaiseNotificationEvent(
-        simpleProvider.get(), NotificationKind_ActionCompleted, NotificationProcessing_MostRecent, notificationText.get(), activityText.get()));
+    return SUCCEEDED(InvokeNativeUia(UiaRaiseNotificationEvent,
+                                     simpleProvider.get(),
+                                     NotificationKind_ActionCompleted,
+                                     NotificationProcessing_MostRecent,
+                                     notificationText.get(),
+                                     activityText.get()));
 }
 
 #if DXUI_ENABLE_DIAGNOSTICS

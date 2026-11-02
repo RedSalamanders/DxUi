@@ -104,6 +104,21 @@ reopening their historical checklists or relabeling old allocation sweeps as fat
 
 ### Working-tree progress, not acceptance
 
+- The `87820968` cohort passed all six warning-free builds, four clean-pin consumer configurations, the extracted
+  production SDK smoke, and compiler-free validation. These receipts remain historical: subsequent runtime
+  failures required source changes, so they do not qualify the current cohort.
+- Actual Debug execution exposed internally handled Windows UI Automation exceptions under the first-chance
+  observer. Failure protocol 2 now masks only an audited native call, re-enables observation for nested DxUi
+  callbacks, and uses a POD-only SEH trampoline to capture an escaping C++ exception before unwinding. It does
+  not whitelist a Windows module, exception type, or HRESULT. Independent-module probes now require actual dump
+  unwinding for 16 fatal scenarios, plus two internally handled native calls and 12 healthy scenarios.
+- Retained accessibility objects pin registration until their application-owned snapshots and callbacks have
+  retired. Busy unregister leaves the admission gate open; optional final-release scopes acquire atomically.
+  Focused race/native-boundary probes and isolated translation-unit builds pass, but canonical current-source
+  builds and runtime qualification remain open. The failed UIA dumps and matching `87820968` binaries are preserved.
+- Runtime review also corrected stale Grid selection/query expectations and RichText tests that still expected
+  recoverable `logic_error`. Checked refusals assert unchanged state; convenience-contract violations retain
+  isolated fatal children with originating-frame dump checks. Full runtime execution must verify these changes.
 - The API 5 implementation includes explicit host/module registration, scoped fatal routing, checked outer
   control storage, transactional expected-error results, and an application-owned bounded dump writer.
   First-party unexpected exceptions are fatal; deliberate fault injections run only in owned children.

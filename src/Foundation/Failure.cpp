@@ -194,7 +194,9 @@ struct ProcessReader
 };
 struct ProcessThread
 {
-    uint32_t depth = 0;
+    uint32_t depth               = 0;
+    uint32_t nativeBoundaryDepth = 0;
+    NativeCallToken* nativeToken = nullptr;
     Site site;
     bool observed = false;
     Record lastException;
@@ -263,9 +265,13 @@ void Release(void* context) noexcept
 
 void Enter(void*, const Site& site) noexcept
 {
-    if (! processThread.depth++)
+    if (processThread.depth == (std::numeric_limits<uint32_t>::max)())
+        FailContract(E_UNEXPECTED);
+    const auto previousDepth = processThread.depth++;
+    if (previousDepth == processThread.nativeBoundaryDepth)
+        processThread.site = site;
+    if (! previousDepth)
     {
-        processThread.site     = site;
         processThread.observed = false;
         // MSVC maintains termination handlers per thread. Bind workers for the
         // duration of their outer host-owned scope, then restore their owner.
@@ -275,13 +281,36 @@ void Enter(void*, const Site& site) noexcept
 
 void Leave(void*) noexcept
 {
-    if (processThread.depth && ! --processThread.depth)
+    if (! processThread.depth || processThread.depth <= processThread.nativeBoundaryDepth)
+        FailContract(E_UNEXPECTED);
+    if (! --processThread.depth)
     {
         processThread.site     = {};
         processThread.observed = false;
         if (std::get_terminate() == Terminated)
             RestoreTerminate(processThread.previousTerminate);
     }
+}
+
+void BeginNative(void*, NativeCallToken* token) noexcept
+{
+    if (! token || ! processThread.depth)
+        FailContract(E_UNEXPECTED);
+    token->previousSite               = processThread.site;
+    token->previousBoundaryDepth      = processThread.nativeBoundaryDepth;
+    token->enteredDepth               = processThread.depth;
+    token->previous                   = processThread.nativeToken;
+    processThread.nativeToken         = token;
+    processThread.nativeBoundaryDepth = processThread.depth;
+}
+
+void EndNative(void*, NativeCallToken* token) noexcept
+{
+    if (! token || processThread.nativeToken != token || processThread.depth != token->enteredDepth || processThread.nativeBoundaryDepth != token->enteredDepth)
+        FailContract(E_UNEXPECTED);
+    processThread.site                = token->previousSite;
+    processThread.nativeBoundaryDepth = token->previousBoundaryDepth;
+    processThread.nativeToken         = token->previous;
 }
 
 [[noreturn]] void HostFatal(void* context, const Record& incoming) noexcept
@@ -317,7 +346,7 @@ void Leave(void*) noexcept
 LONG CALLBACK Observe(PEXCEPTION_POINTERS pointers) noexcept
 {
     // Foreign caught exceptions are not candidates for a later DxUi failure.
-    if (! processThread.depth || ! pointers || ! pointers->ExceptionRecord || ! pointers->ContextRecord ||
+    if (processThread.depth <= processThread.nativeBoundaryDepth || ! pointers || ! pointers->ExceptionRecord || ! pointers->ContextRecord ||
         pointers->ExceptionRecord->ExceptionCode != CppExceptionCode)
         return EXCEPTION_CONTINUE_SEARCH;
     ProcessReader owner;
@@ -365,10 +394,31 @@ LONG CALLBACK Observe(PEXCEPTION_POINTERS pointers) noexcept
 }
 } // namespace
 
+namespace Detail
+{
+int NativeExceptionFilter(EXCEPTION_POINTERS* pointers) noexcept
+{
+    if (! pointers || ! pointers->ExceptionRecord || ! pointers->ContextRecord || pointers->ExceptionRecord->ExceptionCode != CppExceptionCode)
+        return EXCEPTION_CONTINUE_SEARCH;
+    Record record;
+    Capture(record, Kind::UnexpectedException, E_FAIL, 0, processThread.site, FirstChanceContext);
+    record.context                   = *pointers->ContextRecord;
+    record.exception                 = *pointers->ExceptionRecord;
+    record.exception.ExceptionRecord = nullptr;
+    // The trampoline may live in a separately linked module. Its active
+    // Scope pins the registered host table even when this module has no
+    // processOwner of its own.
+    const auto* services = moduleThread.services;
+    if (services && services->fatal)
+        services->fatal(services->context, record);
+    HardFail(record);
+}
+} // namespace Detail
+
 HRESULT RegisterModule(const HostServices& services) noexcept
 {
     if (services.size != sizeof(HostServices) || services.version != ProtocolVersion || ! services.context || ! services.retain || ! services.release ||
-        ! services.enter || ! services.leave || ! services.fatal)
+        ! services.enter || ! services.leave || ! services.beginNative || ! services.endNative || ! services.fatal)
         return E_INVALIDARG;
     if (moduleUpdate.test_and_set(std::memory_order_acquire))
         return HRESULT_FROM_WIN32(ERROR_BUSY);
@@ -392,12 +442,9 @@ HRESULT UnregisterModule(const HostServices& services) noexcept
     const auto clear = wil::scope_exit([] { moduleUpdate.clear(std::memory_order_release); });
     if (moduleServices.load(std::memory_order_acquire) != &services)
         return E_INVALIDARG;
-    const auto gate = moduleGate.fetch_or(Closed, std::memory_order_acq_rel);
-    if (gate & ~Closed)
-    {
-        moduleGate.fetch_and(~Closed, std::memory_order_release);
+    uint64_t expectedGate = 0;
+    if (! moduleGate.compare_exchange_strong(expectedGate, Closed, std::memory_order_acq_rel))
         return HRESULT_FROM_WIN32(ERROR_BUSY);
-    }
     moduleServices.store(nullptr, std::memory_order_release);
     services.release(services.context);
     return S_OK;
@@ -408,29 +455,60 @@ bool IsConfigured() noexcept
     return ! (moduleGate.load(std::memory_order_acquire) & Closed);
 }
 
-Scope::Scope(std::source_location location) noexcept
+Scope::Scope(std::source_location location) noexcept : Scope(std::nothrow, location)
 {
-    if (moduleThread.depth++)
-        return;
-    _outer    = true;
-    _services = AcquireModule();
     if (! _services)
         Fail(Kind::MissingHost, CO_E_NOTINITIALIZED, 0, Location(location), 0);
-    moduleThread.services = _services;
+}
+Scope::Scope(std::nothrow_t, std::source_location location) noexcept
+{
+    if (moduleThread.depth == (std::numeric_limits<uint32_t>::max)())
+        FailContract(E_UNEXPECTED);
+    _outer    = moduleThread.depth == 0u;
+    _services = _outer ? AcquireModule() : moduleThread.services;
+    if (! _services)
+        return;
+    ++moduleThread.depth;
+    if (_outer)
+        moduleThread.services = _services;
     _services->enter(_services->context, Location(location));
 }
 
 Scope::~Scope()
 {
-    if (! moduleThread.depth)
+    if (! _services)
         return;
+    if (! moduleThread.depth)
+        FailContract(E_UNEXPECTED);
+    _services->leave(_services->context);
     --moduleThread.depth;
     if (_outer)
     {
-        _services->leave(_services->context);
         moduleThread.services = nullptr;
         moduleGate.fetch_sub(1, std::memory_order_release);
     }
+}
+
+NativeCallScope::NativeCallScope() noexcept
+{
+    _services = moduleThread.services;
+    if (! moduleThread.depth || ! _services)
+        FailContract(E_UNEXPECTED);
+    _services->beginNative(_services->context, &_token);
+}
+NativeCallScope::~NativeCallScope()
+{
+    _services->endNative(_services->context, &_token);
+}
+
+ObjectLifetime::ObjectLifetime(std::source_location location) noexcept : _services(AcquireModule())
+{
+    if (! _services)
+        Fail(Kind::MissingHost, CO_E_NOTINITIALIZED, 0, Location(location), 0);
+}
+ObjectLifetime::~ObjectLifetime()
+{
+    moduleGate.fetch_sub(1, std::memory_order_release);
 }
 
 [[noreturn]] void FailAllocation(size_t requestedBytes, std::source_location location) noexcept
@@ -476,6 +554,8 @@ HRESULT ProcessHooks::Install(Reporter reporter, void* context) noexcept
     staged->services.release       = Release;
     staged->services.enter         = Enter;
     staged->services.leave         = Leave;
+    staged->services.beginNative   = BeginNative;
+    staged->services.endNative     = EndNative;
     staged->services.fatal         = HostFatal;
     Detail::ProcessState* expected = nullptr;
     if (! processOwner.compare_exchange_strong(expected, staged.get(), std::memory_order_acq_rel))

@@ -88,6 +88,12 @@ standalone EmbeddedControls executable all consume it. The test-only `DxUi.Inter
 `test.ps1 -Interactive`) is built beside them in every configuration and does not link it. The supported lock target is
 `["DxUi"]`, API revision 5; the failure-policy qualification remains open.
 
+Failure host services use protocol 2 in every independently linked module. Rebuild
+the complete EXE/DLL closure; protocol-1 table sizes are refused. Retained UIA peers
+and notification targets keep a module lifetime pin, so detach/uninstall must handle
+`BUSY` until those objects and active entries finish. The checked lifecycle result
+does not authorize unloading a module with retained provider state.
+
 Run `vcpkg-install.ps1 -Platform x64` (or ARM64/All) before build. WIL and the vcpkg tool revision are pinned.
 The manifest's ports builtin-baseline and vcpkg-tool.json's executable checkout are independent nonzero full Git
 revisions. Restore uses each for its own role; metadata validation checks both immutable identities and never

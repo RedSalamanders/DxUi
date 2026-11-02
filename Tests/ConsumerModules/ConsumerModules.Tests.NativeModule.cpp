@@ -5,6 +5,7 @@
 #include <cstdio>
 #include <stdexcept>
 #include <thread>
+#include <wil/result.h>
 #include <wil/win32_helpers.h>
 
 namespace
@@ -138,6 +139,68 @@ extern "C" __declspec(dllexport) void DxUiModuleFatal(int kind) noexcept
     DxUi::Failure::Scope failureScope;
     std::jthread worker([kind] { DxUiModuleFatalWorker(kind); });
     worker.join();
+}
+
+// A real DxUi callback entered while a synthetic native ABI is on the stack.
+// This origin must remain present in the owning module's matched PDB.
+__declspec(noinline) void DxUiModuleReentrantOrigin(int kind)
+{
+    if (kind == 1)
+        throw std::bad_alloc{};
+    throw 19;
+}
+extern "C" __declspec(dllexport) void DxUiModuleInvokeReentrant(int kind) noexcept
+{
+    const DxUi::Failure::Scope entryScope;
+    DxUi::ControlHost host;
+    AnimationProbe control;
+    control.SetAccessibleInvoke([kind](DxUi::ControlHost&) { DxUiModuleReentrantOrigin(kind); });
+    static_cast<void>(control.InvokeAccessibleResult(host));
+}
+using NativeReentry = void (*)(int) noexcept;
+extern "C" __declspec(dllexport) void DxUiModuleNativeReentry(int kind, NativeReentry bridge) noexcept
+{
+    const DxUi::Failure::Scope outerScope;
+    // Prepare this module's callback before entering the native allowance.
+    DxUi::ControlHost host;
+    AnimationProbe control;
+    control.SetAccessibleInvoke([kind](DxUi::ControlHost&) { DxUiModuleReentrantOrigin(kind); });
+    const DxUi::Failure::NativeCallScope nativeScope;
+    if (bridge)
+        bridge(kind);
+    else
+        static_cast<void>(control.InvokeAccessibleResult(host));
+}
+__declspec(noinline) HRESULT DxUiModuleSimulatedNativeAbi(HRESULT result)
+{
+    try
+    {
+        if (FAILED(result))
+            THROW_HR(result);
+        return result;
+    }
+    catch (const wil::ResultException& error)
+    {
+        return error.GetErrorCode();
+    }
+}
+extern "C" __declspec(dllexport) HRESULT DxUiModuleNativeCaught() noexcept
+{
+    return DxUi::Failure::InvokeNative(&DxUiModuleSimulatedNativeAbi, E_ACCESSDENIED);
+}
+// An escaping exception has no nested DxUi Scope in the native function.
+// The invoking module's SEH filter must report this origin through the EXE host.
+__declspec(noinline) int DxUiModuleEscapingNativeOrigin(int kind)
+{
+    if (kind == 1)
+        throw std::bad_alloc{};
+    if (kind == 2)
+        throw 23;
+    return kind;
+}
+extern "C" __declspec(dllexport) void DxUiModuleEscapingNative(int kind) noexcept
+{
+    static_cast<void>(DxUi::Failure::InvokeNative(&DxUiModuleEscapingNativeOrigin, kind));
 }
 
 // Each module owns its HWNDs, controls and callback storage. Only a POD result crosses the ABI.

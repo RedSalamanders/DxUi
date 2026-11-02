@@ -93,6 +93,26 @@ prohibited; the host must prove a terminal runtime/crash route for unknown types
 before unwinding. A plain noexcept/terminate fallback without that proof is not conformance. Keep the integration
 gate open if no supported mechanism meets both the catch restriction and the context/dump requirement.
 
+Windows ABI implementations may raise and handle C++ exceptions internally before
+returning an HRESULT. Such an internal event is not evidence that an exception
+escaped into DxUi. Audited UI Automation calls use `Failure::InvokeNative` with
+pre-evaluated POD arguments. Its native allowance masks only the synchronous
+foreign implementation; every nested DxUi scope reactivates observation for
+reentrant providers and application callbacks. Never apply this allowance to an
+application delegate or use it to ignore WIL exception types or whole modules.
+A separate noinline POD-only SEH trampoline catches no failure for recovery: its
+filter sends an escaping MSVC C++ exception's original exception pointers to the
+host before unwinding; non-C++ SEH continues its existing search. `/EHsc` remains.
+
+Failure host protocol 2 includes the native entry/exit callbacks. All linked
+modules must use the same table version and headers. Callback-capable UIA targets
+and peers retain `Failure::ObjectLifetime` until their owned fields are destroyed,
+including on another thread after control retirement. Host/module uninstall returns
+`BUSY` while such peers, active entries or queued notifications remain. Release
+retained interfaces and finish those callbacks before removing their host/module.
+An atomic optional scope supports final retirement without a check-then-enter race;
+an inactive optional scope permits only allocation-free, callback-free cleanup.
+
 `noexcept` is a verified contract, not allocation error handling. Adding it to a throwing construction path can
 terminate before useful fault-site diagnostics; removing it merely exposes the throw. Neither change alone
 implements this policy. Review the complete base/member/factory path before changing `Separator` or another

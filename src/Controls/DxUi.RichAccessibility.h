@@ -100,6 +100,8 @@ class RichSemanticElementProvider final : public IRawElementProviderSimple,
                                           public IGridItemProvider,
                                           public ITableItemProvider
 {
+    Failure::ObjectLifetime failureLifetime_;
+
 public:
     RichSemanticElementProvider(
         WindowHostAccessibilityTarget* target, HWND hwnd, const AccessibilityControlNavigationSnapshot& record, size_t element, bool codeCopy) noexcept
@@ -122,6 +124,7 @@ public:
                                                                   bool codeCopy    = false,
                                                                   HRESULT* failure = nullptr) noexcept
     {
+        const Failure::Scope outerFailureScope;
         wil::com_ptr_nothrow<IRawElementProviderSimple> result;
         if (failure)
             *failure = UIA_E_ELEMENTNOTAVAILABLE;
@@ -184,6 +187,7 @@ public:
         const auto remaining = references_.fetch_sub(1u, std::memory_order_acq_rel) - 1u;
         if (! remaining)
         {
+            const Failure::Scope retirementScope{std::nothrow};
             static_cast<void>(target_->Release());
             delete this;
         }
@@ -496,7 +500,6 @@ public:
     try
     {
         const Failure::Scope outerFailureScope;
-        Failure::Scope failureScope;
         const auto snapshot = CaptureSnapshot();
         if (! snapshot)
             return UIA_E_ELEMENTNOTAVAILABLE;
@@ -540,7 +543,6 @@ public:
     try
     {
         const Failure::Scope outerFailureScope;
-        Failure::Scope failureScope;
         const auto snapshot = CaptureSnapshot();
         if (! snapshot)
             return UIA_E_ELEMENTNOTAVAILABLE;
