@@ -229,6 +229,12 @@ void TestRichSemanticNativeMathAndBroaderDiagrams()
             bool handled{};
             static_cast<void>(window.Host().HandleMessage(window.Hwnd(), WM_DPICHANGED, MAKEWPARAM(dpi, dpi), 0, handled));
             Require(handled && window.Host().GetDpi() == static_cast<float>(dpi), "owned native fixture adopts the requested DPI without activation");
+            // Element bounds are viewport-clipped. Keep every styled line visible
+            // at each DPI so the height oracle measures complete objects.
+            const auto width = static_cast<int>(640u * dpi / 96u), height = static_cast<int>(480u * dpi / 96u);
+            window.AllowOuterSizeBeyondDesktop({width, height});
+            Require(SetWindowPos(window.Hwnd(), nullptr, 0, 0, width, height, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE) != FALSE,
+                    "size the styled math viewport in DIPs without activation");
             RichSemanticEditorTests::MathRunFontSize(window.Host(),
                                                      [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare styled math at the requested DPI"); });
         }

@@ -2004,7 +2004,7 @@ __declspec(noinline) static int RunFunctionalTests()
                 RichSemanticEditorTests::MathRunFontSize(transactionView.Controls(),
                                                          [&]
                 {
-                    Hr(PrepareRichEmbeddedContent(transactionView, 480u * dpi / 96u, 240u * dpi / 96u, static_cast<float>(dpi)),
+                    Hr(PrepareRichEmbeddedContent(transactionView, 640u * dpi / 96u, 480u * dpi / 96u, static_cast<float>(dpi)),
                        "prepare styled embedded math at the requested DPI");
                 });
             RichSemanticEditorTests::InlineMathSourceEditing(
