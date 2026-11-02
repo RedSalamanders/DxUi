@@ -214,6 +214,35 @@ void TestSplitterDragPreviewsCommitsAndCancels()
     Require(! splitter->OnMouseDown(host, D2D1::Point2F(153.0f, 50.0f), true, 0), "a right press does not start a drag");
 }
 
+void TestSplitterEscapePreservesReplacementCapture()
+{
+    for (const bool transferInCallback : {false, true})
+    {
+        WindowHost host;
+        auto root      = std::make_unique<Panel>();
+        auto* splitter = root->AddChild<Splitter>();
+        auto* other    = root->AddChild<Button>(L"Other");
+        splitter->SetBounds(D2D1::RectF(0, 0, 300, 100));
+        splitter->SetPosition(100);
+        size_t cancels{};
+        splitter->SetOnChange([&](SplitterChange change)
+        {
+            if (change.phase == SplitterChangePhase::Cancel)
+            {
+                ++cancels;
+                if (transferInCallback)
+                    host.CaptureMouse(other);
+            }
+        });
+        host.SetRoot(std::move(root));
+        Require(splitter->OnMouseDown(host, D2D1::Point2F(103, 50), false, 0), "start splitter gesture before capture transfer");
+        if (! transferInCallback)
+            host.CaptureMouse(other);
+        Require(splitter->OnKeyDown(host, VK_ESCAPE, 0) && cancels == 1u && host.GetCapturedControl() == other,
+                "splitter Escape preserves an unrelated replacement capture");
+    }
+}
+
 void TestSplitterKeyboardStepsAndCommits()
 {
     WindowHost host;
@@ -309,6 +338,28 @@ void TestSplitterHorizontalOrientationAndCursors()
     Require(host.DebugResolveCursorKindForPoint(D2D1::Point2F(250.0f, 50.0f)) == WindowHostCursorKind::HorizontalResize,
             "an active drag keeps the resize cursor away from the separator");
     Require(vertical->OnMouseUp(host, D2D1::Point2F(103.0f, 50.0f), false, 0), "the vertical separator drag ends");
+}
+
+void TestTextControlsRequestTextCursor()
+{
+    WindowHost host;
+    auto root    = std::make_unique<Panel>();
+    auto* field  = root->AddChild<TextField>();
+    auto* editor = root->AddChild<RichTextEditor>();
+    field->SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 40.0f));
+    field->SetText(L"text");
+    field->SetClearButtonEnabled(true);
+    editor->SetBounds(D2D1::RectF(0.0f, 50.0f, 240.0f, 150.0f));
+    host.SetRoot(std::move(root));
+    static_cast<Panel*>(host.GetRoot())->SetBounds(D2D1::RectF(0.0f, 0.0f, 300.0f, 180.0f));
+    host.SetFocusControl(field);
+
+    Require(host.DebugResolveCursorKindForPoint(D2D1::Point2F(30.0f, 20.0f)) == WindowHostCursorKind::IBeam, "text field content requests an I-beam");
+    Require(host.DebugResolveCursorKindForPoint(D2D1::Point2F(230.0f, 20.0f)) == WindowHostCursorKind::Default,
+            "the text field clear button keeps its normal cursor");
+    Require(host.DebugResolveCursorKindForPoint(D2D1::Point2F(30.0f, 80.0f)) == WindowHostCursorKind::IBeam, "rich editor content requests an I-beam");
+    editor->SetEnabled(false);
+    Require(editor->ResolveCursorKind(host, D2D1::Point2F(30.0f, 80.0f)) == WindowHostCursorKind::Default, "disabled text does not request an I-beam");
 }
 
 void TestSplitterDisabledAndRequestPosition()
@@ -1962,6 +2013,7 @@ void RunEditorControlTests()
     DXUI_RUN_TEST(TestSplitterClampsToPaneMinimums);
     DXUI_RUN_TEST(TestSplitterHitBoundsCoverOnlySeparator);
     DXUI_RUN_TEST(TestSplitterDragPreviewsCommitsAndCancels);
+    DXUI_RUN_TEST(TestSplitterEscapePreservesReplacementCapture);
     DXUI_RUN_TEST(TestSplitterKeyboardStepsAndCommits);
     DXUI_RUN_TEST(TestSplitterHorizontalOrientationAndCursors);
     DXUI_RUN_TEST(TestSplitterDisabledAndRequestPosition);
@@ -2012,6 +2064,7 @@ void RunEditorControlTests()
     DXUI_RUN_TEST(TestMovingAControlAnnouncesWhatItNowInheritsOnce);
     DXUI_RUN_TEST(TestPageHostInheritsItsControlParentFlowAndDensity);
     DXUI_RUN_TEST(TestPanelSkipsTheSlotOfAChildMovedOutThroughGetChildren);
+    DXUI_RUN_TEST(TestTextControlsRequestTextCursor);
     DXUI_RUN_TEST(TestEditorControlsAreCatalogued);
     DXUI_RUN_TEST(TestEditorControlPressesLeaveAControlTheFocusCallbackDestroyed);
 }

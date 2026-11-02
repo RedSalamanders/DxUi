@@ -1,0 +1,14 @@
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations"><ProjectConfiguration Include="Debug|x64"><Configuration>Debug</Configuration><Platform>x64</Platform></ProjectConfiguration><ProjectConfiguration Include="Release|x64"><Configuration>Release</Configuration><Platform>x64</Platform></ProjectConfiguration><ProjectConfiguration Include="ASan Debug|x64"><Configuration>ASan Debug</Configuration><Platform>x64</Platform></ProjectConfiguration><ProjectConfiguration Include="Debug|ARM64"><Configuration>Debug</Configuration><Platform>ARM64</Platform></ProjectConfiguration><ProjectConfiguration Include="Release|ARM64"><Configuration>Release</Configuration><Platform>ARM64</Platform></ProjectConfiguration><ProjectConfiguration Include="ASan Debug|ARM64"><Configuration>ASan Debug</Configuration><Platform>ARM64</Platform></ProjectConfiguration></ItemGroup>
+  <PropertyGroup Label="Globals"><ProjectGuid>{9B64DAF2-3E18-4A6C-90C8-429459313019}</ProjectGuid><Keyword>Win32Proj</Keyword><WindowsTargetPlatformVersion>10.0.26100.0</WindowsTargetPlatformVersion></PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Label="Configuration"><ConfigurationType>Application</ConfigurationType><PlatformToolset>v145</PlatformToolset><UseDebugLibraries Condition="'$(Configuration)'=='Debug' or '$(Configuration)'=='ASan Debug'">true</UseDebugLibraries><UseDebugLibraries Condition="'$(Configuration)'=='Release'">false</UseDebugLibraries></PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ItemDefinitionGroup>
+    <ClCompile><AdditionalOptions>/external:I"$(TargetRoot)\.build\vcpkg_installed\$(Platform)\$(DxUiTriplet)\include" /external:W0 %(AdditionalOptions)</AdditionalOptions><AdditionalIncludeDirectories>$(TargetRoot)\include;$(TargetRoot)\.build\vcpkg_installed\$(Platform)\$(DxUiTriplet)\include;$(TargetRoot)\Samples\EmbeddedControls;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories></ClCompile>
+    <Link><SubSystem>Console</SubSystem><AdditionalDependencies>$(TargetRoot)\.build\$(Platform)\$(Configuration)\DxUi.lib;%(AdditionalDependencies)</AdditionalDependencies></Link>
+  </ItemDefinitionGroup>
+  <Target Name="RequireTargetRoot" BeforeTargets="PrepareForBuild"><Error Condition="'$(TargetRoot)'==''" Text="Pass TargetRoot for the exact test-enabled matching-platform/configuration producer." /></Target>
+  <ItemGroup><ClCompile Include="Embedded.Tests.RichPreparationBenchmark.cpp" /></ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

@@ -112,9 +112,14 @@ directory and keep its synthetic cases separate from runtime evidence.
 ./Test-Changes.ps1 -Scopes <name> -SkipBuild
 ./Test-Changes.ps1 -Mode Full -Force
 ./test.ps1 -Full
+./test.ps1 -Full -ParallelSuites 4
 ```
 
-Repeated unchanged scopes print REUSED. Force reruns them. SkipBuild requires an attestation established by a prior Test-Changes build; stale binaries are rejected. Explicit test.ps1 suite/named-test calls retain the lower-level diagnostic interface. Its ordinary call now routes to affected iteration; Full is explicit. An unknown local comparison ref fails with Git's diagnostic rather than silently selecting no work.
+Repeated unchanged scopes print REUSED. Force reruns them. SkipBuild requires matching full native test-source/artifact and v2 toolchain receipts established by a prior default build; stale source or binaries are rejected. Explicit test.ps1 suite/named-test calls retain the lower-level diagnostic interface. Its ordinary call now routes to affected iteration; Full is explicit. An unknown local comparison ref fails with Git's diagnostic rather than silently selecting no work.
+
+`-ParallelSuites` opts the lower-level runner into 1–8 simultaneous non-foreground
+suite processes (default 1). Performance and preflight run before the batch; a
+foreground lease stays serial and separate. Each suite keeps its own log and receipt.
 
 PrePush lists the separate focus-taking and menu-resource suites as `INTERACTIVE_NOT_RUN`; run those only with `test.ps1 -Interactive` after the person at the desktop agrees to the time. Capability-skipped scopes remain partial evidence and do not create reusable receipts.
 
@@ -191,7 +196,7 @@ the original Debug failure is a preserved negative diagnostic, never a suite pas
 ## Native rich images
 
 `test-consumer.ps1` also copies the application-owned image-loader header into
-the relocated sample, compiles all eight public rich-text headers independently,
+the relocated sample, compiles the public rich-text and math headers independently,
 and renders the rich sample with explicit document-location metadata. Its receipt
 hashes the new capture. This supplements the existing minimal/complex/text-service
 and multi-module checks; it does not qualify physical IME/AT or performance.

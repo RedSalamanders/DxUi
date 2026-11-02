@@ -1,0 +1,45 @@
+ok   the filter runs only the named tests, in suite order
+ok   an unknown name fails the run instead of passing with nothing run
+ok   one unknown name fails a run that also names a known test
+ok   names are exact and case-sensitive
+ok   an empty or malformed list is rejected
+ok   a fixture suite without named tests rejects the filter before it runs
+ok   no runner calls a test directly, so the filter can select every test
+ok   without the filter a suite runs every test its runner registers
+Test filter: 8 of 8 passed
+ok   a test that never returns ends the run at its deadline, named
+ok   a fixture suite without named tests is bounded as a whole
+ok   a fixture that reports progress outlives its deadline as a whole
+ok   without a deadline the same test never returns
+ok   an armed watchdog waits instead of polling
+ok   the deadline defaults to 300 seconds and --test-timeout sets it
+ok   a test that finishes in time is not ended and reports its duration
+ok   a malformed --test-timeout is rejected before any test runs
+ok   the self-test is a switch of its own
+ok   a failed runtime check ends the run with its report instead of waiting on a dialog
+ok   test.ps1 surfaces the timeout: the exit code and the TIMEOUT line among the printed lines
+ok   every driver thread of the Menu suite starts with the guard that closes its menu when it fails
+Test watchdog: 12 of 12 passed
+Complex UI clean round 1: 2379.49 completed offscreen FPS; p95 0.5395 ms; private 27254784 bytes
+Complex UI clean round 2: 2479.93 completed offscreen FPS; p95 0.4386 ms; private 27656192 bytes
+Complex UI clean round 3: 2424.79 completed offscreen FPS; p95 0.4564 ms; private 27951104 bytes
+Complex UI clean round 4: 2503.29 completed offscreen FPS; p95 0.4615 ms; private 28094464 bytes
+Complex UI clean round 5: 2410.39 completed offscreen FPS; p95 0.4681 ms; private 28164096 bytes
+Complex UI dirty round 1: 598.264 completed offscreen FPS; p95 1.9698 ms; private 29556736 bytes
+Complex UI dirty round 2: 615.744 completed offscreen FPS; p95 1.7834 ms; private 29696000 bytes
+Complex UI dirty round 3: 618.142 completed offscreen FPS; p95 1.8435 ms; private 29917184 bytes
+Complex UI dirty round 4: 339.61 completed offscreen FPS; p95 12.5564 ms; private 29990912 bytes
+Complex UI dirty round 5: 540.594 completed offscreen FPS; p95 2.7434 ms; private 29667328 bytes
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi-worktrees\wip-compat-redxe-menu-20261101\.build\reports\Performance-x64-Release-5732a4197ee04eeea40bc2ffed71ca91.json
+Running Foundation (x64 Release)
+PASS Foundation (0 capability skips recorded)
+Running Embedded (x64 Release)
+PASS Embedded (0 capability skips recorded)
+Running Control (x64 Release)
+PASS Control (0 capability skips recorded)
+Running Accessibility (x64 Release)
+PASS Accessibility (0 capability skips recorded)
+Running MenuExitLifetime (x64 Release)
+PASS MenuExitLifetime (0 capability skips recorded)
+All 5 requested suites passed.

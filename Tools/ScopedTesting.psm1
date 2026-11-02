@@ -340,13 +340,29 @@ function Get-ScopedPrContractDigest {
     if (-not $Manifest.PSObject.Properties['prContractFiles']) {
         return Get-ScopedDigest ([IO.File]::ReadAllText((Join-Path $Root $workflowPath)) -replace "`r`n", "`n")
     }
-    $files = @($Manifest.prContractFiles | Sort-Object -CaseSensitive -Unique)
+    $files = @($Manifest.prContractFiles)
+    if ($Manifest.PSObject.Properties['prContractClosure'] -and $Manifest.prContractClosure) {
+        # Bind entire owned command/policy/test trees, including newly added files, and root entrypoints.
+        $files += @(Get-ScopedTrackedPaths $Root | Where-Object {
+            ($_ -cne 'Tests/test-scopes.json') -and ($_ -cmatch '^(?:\.github/|\.ci/|Build/|Tools/|Tests/)' -or $_ -cmatch '^[^/]+\.ps1$' -or $_ -cmatch '^Directory\.Build\.[^/]+$')
+        })
+    }
+    $files = @($files | Sort-Object -CaseSensitive -Unique)
     if ($files -cnotcontains $workflowPath) { throw "The CI coverage contract must include $workflowPath." }
     $rows = [Collections.Generic.List[string]]::new()
     foreach ($path in $files) {
         $full = Join-Path $Root $path
         if (-not [IO.File]::Exists($full)) { throw "The CI coverage contract file $path is missing." }
-        $rows.Add("$path`n$(Get-ScopedDigest ([IO.File]::ReadAllText($full) -replace "`r`n", "`n"))")
+        if ($Manifest.PSObject.Properties['prContractClosure'] -and $Manifest.prContractClosure) {
+            $rows.Add("$path`n$((Get-FileHash -LiteralPath $full -Algorithm SHA256).Hash.ToLowerInvariant())")
+        } else {
+            $rows.Add("$path`n$(Get-ScopedDigest ([IO.File]::ReadAllText($full) -replace "`r`n", "`n"))")
+        }
+    }
+    if ($Manifest.PSObject.Properties['prContractClosure'] -and $Manifest.prContractClosure) {
+        $manifestCopy = (ConvertTo-Json -InputObject $Manifest -Depth 100 -Compress) | ConvertFrom-Json
+        $manifestCopy.PSObject.Properties.Remove('prWorkflowDigest')
+        $rows.Add("manifest`n$(Get-ScopedDigest (ConvertTo-Json -InputObject $manifestCopy -Depth 100 -Compress))")
     }
     $rows.Add("prCoverage`n$(Get-ScopedDigest (ConvertTo-Json -InputObject @($Manifest.prCoverage) -Depth 8 -Compress))")
     return Get-ScopedDigest ("dxui-pr-contract-v1`n" + ($rows -join "`n"))

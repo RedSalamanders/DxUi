@@ -267,41 +267,37 @@ static void TestRichMarkdownCommandHostFailureAtomicity(GraphicsFixture& gpu)
     }
     Check(! read && host.TryReadNativeTextInputState(editor, available) && available.text == source,
           "cache-copy allocation failure returns unavailable without terminating or changing the cache");
-    std::size_t constructorRequests = 0u;
-    {
-        const auto oldCounting = countAllocations;
-        const auto oldCalls = allocations, oldBytes = allocationBytes;
-        const auto restore = wil::scope_exit([=] noexcept
-        {
-            countAllocations = oldCounting;
-            allocations      = oldCalls;
-            allocationBytes  = oldBytes;
-        });
-        allocations = allocationBytes = 0u;
-        countAllocations              = true;
-        NativeTextInputState local{.text = std::wstring(0u, L' '), .compositionClauseBoundaries = std::vector<size_t>(0u)};
-        countAllocations    = false;
-        constructorRequests = allocations;
-    }
     MarkdownCommandRequest request;
-    request.command              = MarkdownCommand::ToggleTask;
-    const auto original          = editor->Snapshot();
-    const auto revision          = editor->Revision();
-    const auto selection         = editor->GetSelection();
-    const auto plan              = BuildMarkdownCommand(original, revision, editor->GetMarkdownSyntax(), selection, request);
-    MarkdownCommandStatus result = MarkdownCommandStatus::Changed;
+    request.command      = MarkdownCommand::ToggleTask;
+    const auto original  = editor->Snapshot();
+    const auto revision  = editor->Revision();
+    const auto selection = editor->GetSelection();
+    const auto plan      = BuildMarkdownCommand(original, revision, editor->GetMarkdownSyntax(), selection, request);
+    bool rejected        = false;
+    std::optional<bool> composition;
     {
         const auto old      = failAllocationAfter;
         const auto restore  = wil::scope_exit([=] noexcept { failAllocationAfter = old; });
-        failAllocationAfter = constructorRequests;
-        result              = editor->ApplyMarkdownCommand(plan);
+        failAllocationAfter = 0u;
+        // The composition guard reads its cached scalar without allocating; the
+        // first injected failure belongs to the subsequent transaction staging.
+        composition = host.GetNativeTextCompositionActive(editor);
+        try
+        {
+            (void)editor->ApplyMarkdownCommand(plan);
+        }
+        catch (const std::bad_alloc&)
+        {
+            rejected = true;
+        }
     }
-    Check(result == MarkdownCommandStatus::Unavailable && editor->Snapshot().IsSameRevision(original) && editor->Revision() == revision &&
-              editor->GetSelection() == selection && ! editor->CanUndo(),
-          "structural command fails closed when current composition state cannot be read");
+    Check(composition.has_value() && ! composition.value(), "composition guard remains available under allocation failure");
+    Check(rejected && editor->Snapshot().IsSameRevision(original) && editor->Revision() == revision && editor->GetSelection() == selection &&
+              ! editor->CanUndo(),
+          "structural staging allocation failure preserves source and selection");
     Check(editor->ApplyMarkdownCommand(plan) == MarkdownCommandStatus::Changed && editor->Undo() && editor->Snapshot().IsSameRevision(original),
-          "guard failure can retry once and undo exactly");
-    std::cout << "rich command host cache failure: guardCtorRequests=" << constructorRequests << " sourcePreserved=1 retryUndo=1\n";
+          "staging failure can retry once and undo exactly");
+    std::cout << "rich command host cache failure: compositionAvailable=1 sourcePreserved=1 retryUndo=1\n";
 }
 static void TestRichMarkdownCommandFailureAtomicity()
 {

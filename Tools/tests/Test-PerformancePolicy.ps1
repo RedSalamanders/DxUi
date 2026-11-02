@@ -3,6 +3,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot 'TestSupport.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot '../PerformancePolicy.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot '../ScopedTesting.psm1') -Force
 
 Invoke-TestCase 'process environment restoration distinguishes unset from empty' {
     $name = 'DXUI_TEST_PROCESS_ENV_RESTORE'
@@ -363,6 +364,7 @@ function New-PerformanceProjectFixture([string] $Root, [string] $Role = 'library
             ConfigurationType=$(if ($Role -eq 'library') { 'StaticLibrary' } else { 'Application' }); VCToolArchitecture='Native32Bit'; WindowsSDKToolArchitecture='Native32Bit';
             IncludePath="$Root/include;$Root/toolchain/msvc/include"; LibraryPath="$Root/toolchain/msvc/lib/x64;$Root/toolchain/sdk/Lib/10.0/um/x64";
             IntDir="$Root/.build/Intermediate/x64/Release/$(if ($Role -eq 'library') { 'DxUi' } else { 'DxUi.EmbeddedTests' })/";
+            TLogLocation="$Root/.build/Intermediate/x64/Release/$(if ($Role -eq 'library') { 'DxUi/DxUi.tlog' } else { 'DxUi.EmbeddedTests/DxUi.Emb.8B4FAB6F.tlog' })/";
             OutDir="$Root/.build/x64/Release/"; VSInstallDir="$Root/toolchain/vs/"; UniversalCRTSdkDir="$Root/toolchain/sdk/"; UCRTVersion='10.0'; NETFXKitsDir="$Root/toolchain/netfx/";
             ExecutablePath="$Root/toolchain/bin"; FixtureFlag='/fixture0' }).GetEnumerator()) {
         $properties[$entry.Key] = $entry.Value
@@ -769,6 +771,32 @@ Invoke-FixtureCase 'native and incremental root junctions cannot redirect attest
     Get-FixtureNativeClosure $fixture | Out-Null
 }
 
+Invoke-FixtureCase 'vendored parser input is owned and participates in native closure' {
+    param($root)
+    Invoke-FixtureGit $root @('init','-q','-b','main')
+    Set-FixtureFile $root '.gitignore' ".build/`n"
+    $fixture = New-PerformanceProjectFixture $root
+    foreach ($path in @('src/Controls/One.cpp','src/Controls/Two.cpp','src/Rendering/CompositeVS.hlsl','src/Rendering/CompositePS.hlsl','include/owned.h')) { Set-FixtureFile $root $path '// owned native bytes' }
+    $vendor = 'ThirdParty/tomlplusplus/3.4.0/toml.hpp'
+    $realHeader = [IO.File]::ReadAllText((Join-Path $PSScriptRoot '../../ThirdParty/tomlplusplus/3.4.0/toml.hpp'))
+    Set-FixtureFile $root $vendor $realHeader
+    Set-FixtureFile $root 'src/Controls/One.cpp' '#include "../../ThirdParty/tomlplusplus/3.4.0/toml.hpp"'
+    $first = Get-FixtureNativeClosure $fixture
+    Set-FixtureFile $root $vendor ($realHeader + "`n// changed")
+    $second = Get-FixtureNativeClosure $fixture
+    Assert-True ((ConvertTo-Json $first -Depth 20 -Compress) -cne (ConvertTo-Json $second -Depth 20 -Compress)) 'vendored header edits change native input closure'
+    $yamlHeader = [IO.File]::ReadAllText((Join-Path $PSScriptRoot '../../ThirdParty/rapidyaml/0.16.0/rapidyaml.hpp'))
+    Set-FixtureFile $root 'ThirdParty/rapidyaml/0.16.0/rapidyaml.hpp' $yamlHeader
+    $third = Get-FixtureNativeClosure $fixture
+    Assert-True ((ConvertTo-Json $second -Depth 20 -Compress) -cne (ConvertTo-Json $third -Depth 20 -Compress)) 'the actual vendored YAML header participates in native input closure'
+    Set-FixtureFile $root $vendor '#include UNKNOWN_HEADER'
+    Assert-Throws { Get-FixtureNativeClosure $fixture } 'vendored macro-selected external includes must be rejected'
+    Set-FixtureFile $root $vendor '#include <vector>'
+    Set-FixtureFile $root 'ThirdParty/tomlplusplus/3.4.0/ignored.txt' 'shadow input'
+    Add-Content -LiteralPath (Join-Path $root '.gitignore') -Value 'ThirdParty/tomlplusplus/3.4.0/ignored.txt'
+    Assert-Throws { Get-FixtureNativeClosure $fixture } 'ignored files under the vendored search root must be rejected'
+}
+
 Invoke-FixtureCase 'resolved native inputs require owned bytes and reject ignored external forced response and cache-shadow inputs' {
     param($root)
     Invoke-FixtureGit $root @('init','-q','-b','main')
@@ -868,6 +896,7 @@ Invoke-FixtureCase 'a module reload cannot forget the byte identity of its alrea
         $path = Join-Path $root 'engine/Microsoft.Build.dll'
         [AppDomain]::CurrentDomain.SetData($key, @{ path=$path; sha=(Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash; assembly=$null })
         Import-Module (Join-Path $PSScriptRoot '../PerformancePolicy.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot '../ScopedTesting.psm1') -Force
         Set-FixtureFile $root 'engine/Microsoft.Build.dll' 'replacement parser bytes'
         $message = ''
         try { & (Get-Module PerformancePolicy) { param($Root) Get-PerformanceSolutionConfiguration (Join-Path $Root 'engine/MSBuild.exe') (Join-Path $Root 'DxUi.sln') Release x64 } $root }
@@ -943,6 +972,7 @@ function Invoke-PerformanceBuildFixture([string] $Root, [scriptblock] $Body) {
     Invoke-FixtureGit $Root @('init','-q','-b','main')
     Set-FixtureFile $Root '.gitignore' ".build/`n"
     Set-FixtureFile $Root 'src/Control.cpp' 'original compiled source'
+    Set-FixtureFile $Root 'Tests/Controls/ControlTests.cpp' 'original control test'
     Set-FixtureFile $Root '.build/toolchain/compiler.bin' 'original resolved compiler'
     Set-FixtureFile $Root '.build/toolchain/fxc.bin' 'original resolved shader compiler'
     Set-FixtureFile $Root '.build/toolchain/linker.bin' 'original resolved linker'
@@ -1062,12 +1092,18 @@ Invoke-FixtureCase 'failed native build markers permit a guarded retry only in e
             Complete-PerformanceBuildAttestation -Root $fixtureRoot -Platform x64 -Configuration Release -Before $before
             $failed = Start-PerformanceBuildAttestation -Root $fixtureRoot -Platform x64 -Configuration Release
             foreach ($project in @('DxUi','DxUi.EmbeddedTests')) {
-                Set-FixtureFile $fixtureRoot ".build/Intermediate/x64/Release/$project/$project.tlog/unsuccessfulbuild" ''
+                $marker = Join-Path $fixtures[$(if ($project -eq 'DxUi') { 'library' } else { 'benchmark' })].properties.TLogLocation 'unsuccessfulbuild'
+                [IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($marker)) | Out-Null
+                [IO.File]::WriteAllText($marker, '')
             }
             Assert-Throws { Assert-PerformanceBuildAttestation -Root $fixtureRoot -Platform x64 -Configuration Release } 'the failed attempt cannot leave a passing final receipt'
             $retry = Start-PerformanceBuildAttestation -Root $fixtureRoot -Platform x64 -Configuration Release
             Assert-True $retry.rebuildRequired 'the failed build retries with Rebuild instead of reusing prior outputs'
             Assert-Equal $failed.buildInputIdentity $retry.buildInputIdentity 'canonical failure status markers are not source inputs'
+            $benchmarkMarker = Join-Path $fixtures['benchmark'].properties.TLogLocation 'unsuccessfulbuild'
+            [IO.File]::WriteAllText($benchmarkMarker, 'unexpected input bytes')
+            Assert-Throws { Start-PerformanceBuildAttestation -Root $fixtureRoot -Platform x64 -Configuration Release } 'a populated failure marker is rejected'
+            [IO.File]::WriteAllText($benchmarkMarker, '')
             foreach ($project in @('DxUi','DxUi.EmbeddedTests')) {
                 foreach ($name in @('unsuccessfulbuild','Other.tlog/unsuccessfulbuild',"$project.tlog/nested/unsuccessfulbuild",'vector',"$project.tlog/vector")) {
                     $path = ".build/Intermediate/x64/Release/$project/$name"
@@ -1119,11 +1155,12 @@ Invoke-FixtureCase 'default build entrypoint rebuilds stale inputs and preserves
     Assert-Equal 0 $errors.Count 'the production build entrypoint parses'
     $initial = $ast.Find({ param($Node) $Node -is [Management.Automation.Language.AssignmentStatementAst] -and $Node.Left.Extent.Text -ceq '$target' }, $true)
     $guard = $ast.Find({ param($Node) $Node -is [Management.Automation.Language.IfStatementAst] -and $Node.Extent.Text.Contains('Start-PerformanceBuildAttestation') }, $true)
+    $consumerGuard = $ast.Find({ param($Node) $Node -is [Management.Automation.Language.IfStatementAst] -and $Node.Extent.Text.StartsWith('if (-not $attestPerformanceBuild)') }, $true)
     $arguments = $ast.Find({ param($Node) $Node -is [Management.Automation.Language.AssignmentStatementAst] -and $Node.Left.Extent.Text -ceq '$arguments' }, $true)
     # Execute the actual pre-MSBuild entrypoint stage with real v2 attestation logic. No native build is invoked;
     # only its import is suppressed because the test already imported the production module and supplies a VS fixture.
     $stageText = 'param($Platform,$Configuration,$attestPerformanceBuild,$Rebuild)' + "`n" +
-        "function Import-Module { param(`$Name, [switch]`$Force) }`n" + $initial.Extent.Text + "`n" + $guard.Extent.Text + "`n" +
+        "function Import-Module { param(`$Name, [switch]`$Force) }`n" + $initial.Extent.Text + "`n" + $consumerGuard.Extent.Text + "`n" + $guard.Extent.Text + "`n" +
         '$log="fixture.log"; $output=(Join-Path $PSScriptRoot ''.build'')' + "`n" + $arguments.Extent.Text + "`n" +
         '[ordered]@{ arguments=$arguments; state=$(if ($attestPerformanceBuild) { $performanceBuildBefore } else { $null }) }'
     # File-backed nested blocks retain the production automatic PSScriptRoot; ScriptBlock.Create has none.
@@ -1131,10 +1168,14 @@ Invoke-FixtureCase 'default build entrypoint rebuilds stale inputs and preserves
     $stage = Join-Path $root 'build-entrypoint-stage.ps1'
     Invoke-PerformanceBuildFixture $root {
         param($fixture)
-        foreach ($case in @(@($true,$false,'/t:Rebuild'), @($true,$false,'/t:Build'), @($true,$true,'/t:Rebuild'), @($false,$false,'/t:Build'))) {
+        foreach ($case in @(@($true,$false,'/t:Rebuild'), @($true,$false,'/t:Build'), @($true,$true,'/t:Rebuild'), @($false,$false,'/t:Rebuild'))) {
             $result = & $stage x64 Release $case[0] $case[1] 6>$null
             Assert-Contains $result.arguments $case[2] 'the actual native invocation receives the required build target'
-            if ($case[0]) { Complete-PerformanceBuildAttestation -Root $fixture -Platform x64 -Configuration Release -Before $result.state }
+            if ($case[0]) {
+                Complete-PerformanceBuildAttestation -Root $fixture -Platform x64 -Configuration Release -Before $result.state
+                $input=Get-ScopedBuildInputIdentity $fixture x64; $artifact=Get-ScopedArtifactIdentity $fixture x64 Release
+                Write-ScopedReceipt (Join-Path $fixture '.build/reports/scoped-tests/x64-Release/build.json') (Get-ScopedDigest ($input+"`n"+$artifact))
+            }
         }
         $path = Join-Path $fixture '.build/toolchain/compiler.bin'
         [IO.File]::WriteAllText($path, 'changed compiler bytes')
@@ -1299,6 +1340,14 @@ Invoke-FixtureCase 'the actual SkipBuild runner gate rejects invalid v2 identity
             Assert-PerformanceBuildAttestation -Root $fixture -Platform x64 -Configuration Release
         } 6>$null)
         Assert-Equal 0 $gateOutput.Count 'the real successful SkipBuild gate remains void'
+        Assert-Throws { & $stage $sentinel 6>$null } 'v2 alone cannot attest native test sources'
+        $input=Get-ScopedBuildInputIdentity $fixture x64; $artifact=Get-ScopedArtifactIdentity $fixture x64 Release
+        Write-ScopedReceipt (Join-Path $fixture '.build/reports/scoped-tests/x64-Release/build.json') (Get-ScopedDigest ($input+"`n"+$artifact))
+        $testPath=Join-Path $fixture 'Tests/Controls/ControlTests.cpp'
+        $testBytes=[IO.File]::ReadAllText($testPath)
+        [IO.File]::WriteAllText($testPath, $testBytes+' changed')
+        Assert-Throws { & $stage $sentinel 6>$null } 'changed control test must invalidate native receipt even when v2 is unchanged'
+        [IO.File]::WriteAllText($testPath, $testBytes)
         $output = @(& $stage $sentinel 6>$null)
         Assert-Equal 1 $sentinel.nativeCalls 'a current v2 receipt admits exactly the next operation'
         Assert-Equal 'native operation reached' $output[0] 'diagnostics do not pollute gate output'

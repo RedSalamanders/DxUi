@@ -1,0 +1,1 @@
+- Preserve reusable geometry during transient input previews and align rich clipboard Cut with semantic deletion while keeping exact copied source.

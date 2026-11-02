@@ -1,0 +1,1 @@
+- Preserve the original test-runner failure when evidence finalization also fails, report the secondary failure separately and continue to fail when finalization is the only error.

@@ -178,6 +178,15 @@
       "reason": "independent bounded native math syntax and geometry compatibility fixtures"
     },
     {
+      "pattern": "Tests/Support/Support.Tests.NativeMath*",
+      "scopes": [
+        "EditorControls",
+        "Embedded",
+        "Accessibility"
+      ],
+      "reason": "exhaustive pinned math parser inventory consumed by shared native fixtures"
+    },
+    {
       "pattern": "Tests/Support/Support.Tests.*Flowchart*",
       "scopes": [
         "EditorControls",
@@ -627,6 +636,7 @@
     }
   ],
   "prCoverage": [],
+  "prContractClosure": true,
   "prContractFiles": [
     ".ci/project.json",
     ".github/workflows/ci.yml",

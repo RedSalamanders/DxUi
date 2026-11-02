@@ -3,7 +3,7 @@
 The summaries and same-binary control comparisons of the two hosted A/A runs retained on 1 October 2026, which
 `Tools/tests/Test-BenchmarkGate.ps1` reads to check the gate's conclusion on real hosted data. They are copied from the
 archives of the [retained packet](../../../../Measurements/HostedPairedGate/2026-10-01/README.md), which leave the
-repository with the other raw evidence (Q4 and Q11 of the [10 October review](../../../../Specs/Plans/WIP/CodeReview_2026-10-10.md)).
+repository with the other raw evidence (Q4 and Q11 of the [10 October review](../../../../Specs/Plans/Done/CodeReview_2026-10-10.md)).
 
 | Fixture | Archive | SHA-256 of the archive |
 |---|---|---|

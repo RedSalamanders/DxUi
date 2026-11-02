@@ -1,0 +1,16 @@
+{
+  "createdUtc": "2026-11-02T06:57:44.5594767Z",
+  "platform": "ARM64",
+  "pid": 49736,
+  "arguments": [
+    "-NoProfile",
+    "-File",
+    "\"Z:\\src\\DxUi-worktrees\\wip-compat-redxe-menu-20261101\\build.ps1\"",
+    "-Platform",
+    "ARM64",
+    "-Configuration",
+    "\"ASan Debug\""
+  ],
+  "configuration": "ASan Debug",
+  "source": "a8cb8e1d7a4106750b195e6e8f2f686d66be9075"
+}

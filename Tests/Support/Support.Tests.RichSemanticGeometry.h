@@ -1,9 +1,15 @@
 #pragma once
+#include "Controls/DxUi.NativeColorPalette.h"
+#include "Controls/DxUi.PaintIndex.h"
+#include "Controls/DxUi.PreparedLayoutAccess.h"
+#include "Controls/DxUi.PreparedMath.h"
 #include "Controls/DxUi.RichSemanticGeometry.h"
+#include "Controls/DxUi.SemanticExtensions.h"
 #include "Support.Tests.RichSemanticDocument.h"
 #include <cmath>
 #include <iostream>
 #include <limits>
+#include <type_traits>
 #include <wil/resource.h>
 #include <wil/result.h>
 #include <wincodec.h>
@@ -106,6 +112,46 @@ inline void ReorderedFootnoteCaretSitesAndSourceLines()
         const auto ranges = geometry.SourceRange({0u, source.size()});
         Check(! ranges.empty(), "whole-source selection paints reordered real text without owning generated backlinks");
     }
+    {
+        constexpr std::wstring_view source = L"[^n]: note\n\nmain[^n]\n";
+        const auto document                = RichSemanticDocumentTests::Build(source, MarkdownProfile::RichMarkdown);
+        PreparedSemanticGeometry geometry;
+        LayoutOptions options;
+        options.widthDip = 360.0f;
+        geometry.Begin(factory.get(), document, options);
+        Complete(geometry);
+        const auto main = source.find(L"main"), note = source.find(L"note");
+        auto forward       = SourceCaretHit{main + 4u, MarkdownNoNode};
+        bool enteredFooter = false;
+        for (unsigned step = 0u; step != 32u; ++step)
+        {
+            const auto next = geometry.StepSource(forward.position, forward.site, true);
+            if (next.position == forward.position && next.site == forward.site)
+                break;
+            forward = next;
+            if (forward.position >= note && forward.position < note + 4u)
+            {
+                enteredFooter = true;
+                break;
+            }
+        }
+        Check(enteredFooter, "Right enters a visually later footnote whose source occurs before main text");
+        auto backward    = SourceCaretHit{note, MarkdownNoNode};
+        bool enteredMain = false;
+        for (unsigned step = 0u; step != 32u; ++step)
+        {
+            const auto next = geometry.StepSource(backward.position, backward.site, false);
+            if (next.position == backward.position && next.site == backward.site)
+                break;
+            backward = next;
+            if (backward.position >= main && backward.position <= source.size())
+            {
+                enteredMain = true;
+                break;
+            }
+        }
+        Check(enteredMain, "Left from the footer returns to visually earlier main text at a later raw source offset");
+    }
     const auto atomic = RichSemanticDocumentTests::Build(L"![a very long image alternative that wraps over many SDK lines](local)\n");
     PreparedSemanticGeometry wrapped;
     LayoutOptions narrow;
@@ -170,6 +216,971 @@ inline void LiteralFootnoteBlockCaretSites()
     Check(geometry.Ready() && geometry.BoxCount() == 1u && geometry.SourceLines().size() == 1026u,
           "many literal note blank lines remain real source lines without creating duplicate layout boxes");
 }
+template <typename Observe = std::nullptr_t> inline void HtmlScripts(Observe observe = nullptr)
+{
+    const auto initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+    if (FAILED(initialized) && initialized != RPC_E_CHANGED_MODE)
+        THROW_IF_FAILED(initialized);
+    const auto apartment      = wil::scope_exit([&]() noexcept
+    {
+        if (SUCCEEDED(initialized))
+            CoUninitialize();
+    });
+    const std::wstring source = L"<p>x<sup>abc</sup> and y<sub>def</sub></p>\n";
+    const auto document       = RichSemanticDocumentTests::Build(source, MarkdownProfile::RichMarkdown);
+    Check(document->Map().Source() == source && document->Map().Display() == L"xabc and ydef\n", "arbitrary HTML script content retains text and exact source");
+    const auto runs = document->Runs();
+    Check(std::ranges::any_of(runs, [](const auto& run) { return (run.flags & Superscript) && run.length == 3u; }) &&
+              std::ranges::any_of(runs, [](const auto& run) { return (run.flags & Subscript) && run.length == 3u; }),
+          "script styles retain exact independent ranges");
+    auto factory = Factory();
+    wil::com_ptr<ID2D1Factory> drawing;
+    THROW_IF_FAILED(D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, drawing.put()));
+    wil::com_ptr<IWICImagingFactory> imaging;
+    THROW_IF_FAILED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(imaging.put())));
+    wil::com_ptr<IWICBitmap> bitmap;
+    THROW_IF_FAILED(imaging->CreateBitmap(400u, 100u, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnLoad, bitmap.put()));
+    wil::com_ptr<ID2D1RenderTarget> target;
+    THROW_IF_FAILED(drawing->CreateWicBitmapRenderTarget(bitmap.get(), D2D1::RenderTargetProperties(), target.put()));
+    wil::com_ptr<ID2D1SolidColorBrush> ink;
+    THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black), ink.put()));
+    LayoutOptions options;
+    options.widthDip = 400.f;
+    PreparedSemanticGeometry geometry;
+    geometry.Begin(factory.get(), document, options);
+    Complete(geometry);
+    target->BeginDraw();
+    target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+    if constexpr (! std::is_same_v<Observe, std::nullptr_t>)
+        observe(true);
+    geometry.Draw(target.get(), ink.get(), ink.get(), {}, 0.f, 100.f);
+    if constexpr (! std::is_same_v<Observe, std::nullptr_t>)
+        observe(false);
+    THROW_IF_FAILED(target->EndDraw());
+    std::vector<BYTE> pixels(400u * 100u * 4u);
+    THROW_IF_FAILED(bitmap->CopyPixels(nullptr, 1600u, static_cast<UINT>(pixels.size()), pixels.data()));
+    const auto top = [&](std::size_t start, std::size_t end)
+    {
+        const auto a = geometry.SourceCaret(start).x, b = geometry.SourceCaret(end).x;
+        const auto x1 = static_cast<unsigned>(std::ceil(std::min(a, b))), x2 = static_cast<unsigned>(std::floor(std::max(a, b)));
+        unsigned result = 100u;
+        for (unsigned y = 0u; y < 100u; ++y)
+            for (unsigned x = x1; x < x2 && x < 400u; ++x)
+            {
+                const auto offset = (static_cast<std::size_t>(y) * 400u + x) * 4u;
+                if (pixels[offset] < 180u && pixels[offset + 1u] < 180u && pixels[offset + 2u] < 180u)
+                    result = std::min(result, y);
+            }
+        return result;
+    };
+    const auto upper = source.find(L"abc"), lower = source.find(L"def");
+    const auto upperTop = top(upper, upper + 3u), lowerTop = top(lower, lower + 3u);
+    Check(upperTop < 100u && lowerTop < 100u && upperTop + 4u < lowerTop, "actual WIC pixels put arbitrary superscript glyphs above subscript glyphs");
+    for (auto position : {upper, upper + 1u, upper + 2u, lower, lower + 1u, lower + 2u})
+    {
+        const auto caret = geometry.SourceCaret(position);
+        const auto hit   = geometry.HitTestSource(caret.x + .1f, caret.y + caret.height * .5f);
+        Check(hit.position == position, "script glyph caret and hit testing retain each original source ACP");
+    }
+    for (const auto mode : {0u, 1u})
+        for (const auto direction : {DWRITE_READING_DIRECTION_LEFT_TO_RIGHT, DWRITE_READING_DIRECTION_RIGHT_TO_LEFT})
+            for (const float dpi : {96.f, 120.f, 144.f, 192.f})
+                for (const float translation : {0.f, .25f, -.25f, .6f})
+                {
+                    const auto sample = RichSemanticDocumentTests::Build(
+                        mode == 0u ? L"<p><sup><s><u>abc</u></s></sup></p>\n" : L"<p><sub><s><u>abc</u></s></sub></p>\n", MarkdownProfile::RichMarkdown);
+                    PreparedSemanticGeometry sampleGeometry;
+                    auto sampleOptions             = options;
+                    sampleOptions.readingDirection = direction;
+                    sampleGeometry.Begin(factory.get(), sample, sampleOptions);
+                    Complete(sampleGeometry);
+                    std::array<std::vector<BYTE>, 2u> comparison{std::vector<BYTE>(640000u), std::vector<BYTE>(640000u)};
+                    for (std::size_t pass = 0u; pass < comparison.size(); ++pass)
+                    {
+                        wil::com_ptr<IWICBitmap> surface;
+                        THROW_IF_FAILED(imaging->CreateBitmap(800u, 200u, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnLoad, surface.put()));
+                        wil::com_ptr<ID2D1RenderTarget> raster;
+                        THROW_IF_FAILED(drawing->CreateWicBitmapRenderTarget(surface.get(), D2D1::RenderTargetProperties(), raster.put()));
+                        raster->SetDpi(dpi, dpi);
+                        raster->SetTransform(D2D1::Matrix3x2F::Translation(translation, translation));
+                        wil::com_ptr<ID2D1SolidColorBrush> text;
+                        THROW_IF_FAILED(raster->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black), text.put()));
+                        raster->BeginDraw();
+                        raster->Clear(D2D1::ColorF(D2D1::ColorF::White));
+                        if (! pass)
+                        {
+                            // A transient ink effect splits the underline without changing its prepared shift.
+                            const std::array<TextInkRange, 1u> splitInk = {{{{1u, 2u}, TextInkRole::Accent}}};
+                            LinkDrawing linkDrawing;
+                            linkDrawing.inkRanges                                                 = splitInk;
+                            linkDrawing.inkBrushes[static_cast<std::size_t>(TextInkRole::Accent)] = text.get();
+                            sampleGeometry.Draw(raster.get(), text.get(), text.get(), {}, 0.f, 100.f, nullptr, 1.f, &linkDrawing);
+                        }
+                        else
+                        {
+                            wil::com_ptr<IDWriteTextFormat> format;
+                            THROW_IF_FAILED(factory->CreateTextFormat(L"Segoe UI",
+                                                                      nullptr,
+                                                                      DWRITE_FONT_WEIGHT_NORMAL,
+                                                                      DWRITE_FONT_STYLE_NORMAL,
+                                                                      DWRITE_FONT_STRETCH_NORMAL,
+                                                                      13.5f,
+                                                                      L"en-us",
+                                                                      format.put()));
+                            THROW_IF_FAILED(format->SetReadingDirection(direction));
+                            wil::com_ptr<IDWriteTextLayout> reference;
+                            THROW_IF_FAILED(factory->CreateTextLayout(L"abc", 3u, format.get(), 400.f, 1000.f, reference.put()));
+                            THROW_IF_FAILED(reference->SetUnderline(TRUE, {0u, 3u}));
+                            THROW_IF_FAILED(reference->SetStrikethrough(TRUE, {0u, 3u}));
+                            DWRITE_LINE_METRICS line{};
+                            UINT32 count{};
+                            THROW_IF_FAILED(reference->GetLineMetrics(&line, 1u, &count));
+                            wil::com_ptr<IDWriteTextFormat> parentFormat;
+                            THROW_IF_FAILED(factory->CreateTextFormat(L"Segoe UI",
+                                                                      nullptr,
+                                                                      DWRITE_FONT_WEIGHT_NORMAL,
+                                                                      DWRITE_FONT_STYLE_NORMAL,
+                                                                      DWRITE_FONT_STRETCH_NORMAL,
+                                                                      18.f,
+                                                                      L"en-us",
+                                                                      parentFormat.put()));
+                            wil::com_ptr<IDWriteTextLayout> parentLayout;
+                            THROW_IF_FAILED(factory->CreateTextLayout(L"abc", 3u, parentFormat.get(), 400.f, 1000.f, parentLayout.put()));
+                            THROW_IF_FAILED(parentLayout->SetLineSpacing(DWRITE_LINE_SPACING_METHOD_UNIFORM, 18.f * 1.45f, 18.f * 1.05f));
+                            DWRITE_LINE_METRICS parentLine{};
+                            THROW_IF_FAILED(parentLayout->GetLineMetrics(&parentLine, 1u, &count));
+                            const float pixelsPerDip = dpi / 96.f;
+                            const float expectedBaseline =
+                                (translation == 0.f ? std::round(parentLine.baseline * pixelsPerDip) / pixelsPerDip : parentLine.baseline) +
+                                (mode == 0u ? -18.f * .30f : 18.f * .20f);
+                            raster->DrawTextLayout(
+                                {0.f, expectedBaseline - line.baseline}, reference.get(), text.get(), D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
+                        }
+                        THROW_IF_FAILED(raster->EndDraw());
+                        THROW_IF_FAILED(surface->CopyPixels(nullptr, 3200u, static_cast<UINT>(comparison[pass].size()), comparison[pass].data()));
+                    }
+                    std::size_t inkPixels{}, disagreement{};
+                    for (std::size_t index = 0u; index < comparison[0u].size(); index += 4u)
+                    {
+                        const bool actual = comparison[0u][index] < 200u, expected = comparison[1u][index] < 200u;
+                        inkPixels += expected;
+                        disagreement += actual != expected;
+                    }
+                    if (translation == 0.f)
+                        Check(inkPixels > 0u && disagreement == 0u,
+                              "script glyph, underline and strike pixels match independently positioned DirectWrite reference ink at each DPI");
+                    else
+                    {
+                        std::size_t unmatched{};
+                        for (std::size_t pass = 0u; pass < 2u; ++pass)
+                            for (int y = 0; y < 200; ++y)
+                                for (int x = 0; x < 800; ++x)
+                                {
+                                    if (comparison[pass][static_cast<std::size_t>((y * 800 + x) * 4)] >= 200u)
+                                        continue;
+                                    bool nearby = false;
+                                    for (int dy = -1; dy <= 1 && ! nearby; ++dy)
+                                        for (int dx = -1; dx <= 1 && ! nearby; ++dx)
+                                            if (x + dx >= 0 && x + dx < 800 && y + dy >= 0 && y + dy < 200)
+                                                nearby = comparison[1u - pass][static_cast<std::size_t>(((y + dy) * 800 + x + dx) * 4)] < 200u;
+                                    unmatched += ! nearby;
+                                }
+                        if (unmatched)
+                            std::cerr << "script translated reference mode=" << mode << " dir=" << static_cast<unsigned>(direction) << " dpi=" << dpi
+                                      << " unmatched=" << unmatched << '\n';
+                        Check(inkPixels > 0u && unmatched == 0u,
+                              "fractionally translated glyphs and decorations stay within one device pixel of independent DirectWrite ink");
+                    }
+                }
+    const std::wstring rtlSource = L"<p>אב <a href=\"local\"><sup><u>דהו</u></sup></a> ז</p>\n";
+    const auto rtlDocument       = RichSemanticDocumentTests::Build(rtlSource, MarkdownProfile::RichMarkdown);
+    Check(rtlDocument->Map().Source() == rtlSource && rtlDocument->Map().Display() == L"אב דהו ז\n",
+          "RTL nested link and underline preserve original HTML source and text");
+    LayoutOptions rtlOptions    = options;
+    rtlOptions.readingDirection = DWRITE_READING_DIRECTION_RIGHT_TO_LEFT;
+    PreparedSemanticGeometry rtlGeometry;
+    rtlGeometry.Begin(factory.get(), rtlDocument, rtlOptions, drawing.get(), {}, {}, target.get());
+    Complete(rtlGeometry);
+    LinkDrawing links;
+    links.brush = ink.get();
+    target->BeginDraw();
+    target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+    if constexpr (! std::is_same_v<Observe, std::nullptr_t>)
+        observe(true);
+    rtlGeometry.Draw(target.get(), ink.get(), ink.get(), {}, 0.f, 100.f, nullptr, 1.f, &links);
+    if constexpr (! std::is_same_v<Observe, std::nullptr_t>)
+        observe(false);
+    THROW_IF_FAILED(target->EndDraw());
+    const auto rtlStart = rtlSource.find(L"דהו");
+    for (std::size_t index = 0u; index < 3u; ++index)
+    {
+        const auto caret = rtlGeometry.SourceCaret(rtlStart + index);
+        const auto hit   = rtlGeometry.HitTestSource(caret.x - .1f, caret.y + caret.height * .5f);
+        Check(hit.position == rtlStart + index, "RTL script glyphs retain source ACP hit and caret ownership");
+    }
+    const auto nested = RichSemanticDocumentTests::Build(L"<p>x<sup><b><u>word</u></b></sup></p>\n", MarkdownProfile::RichMarkdown);
+    Check(nested->Map().Display() == L"xword\n" &&
+              std::ranges::any_of(nested->Runs(),
+                                  [](const auto& run) { return (run.flags & (Superscript | Bold | Underline)) == (Superscript | Bold | Underline); }),
+          "nested bold and underline styles retain script ownership");
+    const std::wstring unsupported = L"<p><sup><sub>x</sub></sup></p>\n";
+    const auto literal             = RichSemanticDocumentTests::Build(unsupported, MarkdownProfile::RichMarkdown);
+    Check(literal->Map().Source() == unsupported && literal->Map().Display() == unsupported, "nested conflicting script baselines remain exact literal HTML");
+    for (const auto sourceWithObject : {L"x<sup>![alt](image.png)</sup>\n", L"<p>x<sup><img src=\"image.png\"></sup></p>\n"})
+    {
+        const auto rejectedObject = RichSemanticDocumentTests::Build(sourceWithObject, MarkdownProfile::RichMarkdown);
+        Check(rejectedObject->Map().Source() == sourceWithObject && rejectedObject->Map().Display() == sourceWithObject,
+              "an image inside a script retains the whole HTML leaf as exact source");
+    }
+    const auto colored            = RichSemanticDocumentTests::Build(L"<p>x<sup>😀</sup></p>\n", MarkdownProfile::RichMarkdown);
+    const auto previousGeneration = geometry.Generation();
+    auto emojiOptions             = options;
+    emojiOptions.fontFamily       = L"Segoe UI Emoji";
+    geometry.Begin(factory.get(), colored, emojiOptions);
+    bool rejected{};
+    try
+    {
+        Complete(geometry);
+    }
+    catch (const DxUi::RichText::Detail::NativeObjectsRejected& failure)
+    {
+        rejected = failure.Elements().size() == 1u && colored->Elements()[failure.Elements()[0u]].nativeHtml;
+    }
+    Check(rejected && geometry.Ready() && geometry.Generation() == previousGeneration,
+          "a script color glyph without a compatible target rejects only its source-owned HTML leaf and preserves prior geometry");
+    for (const auto profile : {MarkdownProfile::CommonMark0312, MarkdownProfile::RichMarkdown})
+        for (const bool initiallyOpen : {false, true})
+        {
+            const std::wstring disclosureSource = initiallyOpen ? L"<details open>\n<summary><b>More</b></summary>\nBody text\n</details>\n\n**After**\n"
+                                                                : L"<details>\n<summary><b>More</b></summary>\nBody text\n</details>\n\n**After**\n";
+            const auto syntax                   = RichSemanticDocumentTests::Parse(disclosureSource, profile);
+            SemanticBuilder builder;
+            builder.Begin(syntax);
+            const auto initial = RichSemanticDocumentTests::Complete(builder, *syntax);
+            const auto summary = std::ranges::find(initial->Elements(), SemanticRole::Disclosure, &SemanticElement::role);
+            Check(summary != initial->Elements().end() && summary->name == L"More" && summary->disclosureExpanded == initiallyOpen &&
+                      initial->Map().Source() == disclosureSource && initial->Map().Display().ends_with(L"After\n") &&
+                      (initial->Map().Display().find(L"Body text") != std::wstring::npos) == initiallyOpen,
+                  "bounded HTML disclosure keeps exact source, authored summary and initial open state");
+            const std::array states{Detail::DisclosureOverride{summary->blockIdentity, ! initiallyOpen}};
+            Detail::SemanticExtensionAccess::BeginWithPresentation(builder, syntax, {}, states);
+            const auto toggled = RichSemanticDocumentTests::Complete(builder, *syntax);
+            const auto next    = std::ranges::find(toggled->Elements(), SemanticRole::Disclosure, &SemanticElement::role);
+            Check(next != toggled->Elements().end() && next->disclosureExpanded != initiallyOpen && toggled->Map().Source() == disclosureSource &&
+                      (toggled->Map().Display().find(L"Body text") != std::wstring::npos) != initiallyOpen && initial->Map().Source() == disclosureSource,
+                  "view-state override reverses presentation without changing immutable source/publication");
+            PreparedSemanticGeometry initialGeometry, toggledGeometry;
+            initialGeometry.Begin(factory.get(), initial, options);
+            toggledGeometry.Begin(factory.get(), toggled, options);
+            Complete(initialGeometry);
+            Complete(toggledGeometry);
+            const auto initialIndex = static_cast<std::size_t>(summary - initial->Elements().begin());
+            const auto toggledIndex = static_cast<std::size_t>(next - toggled->Elements().begin());
+            Check(initialGeometry.ElementBounds(initialIndex).has_value() && toggledGeometry.ElementBounds(toggledIndex).has_value() &&
+                      (initialGeometry.Height() > toggledGeometry.Height()) == initiallyOpen,
+                  "disclosure summary has independently actionable bounds and its body changes actual native layout height");
+            const auto wordPosition = disclosureSource.find(L"More");
+            const auto caret        = initialGeometry.SourceCaret(wordPosition);
+            Check(initialGeometry.HitTestSource(caret.x + .1f, caret.y + caret.height * .5f).position == wordPosition,
+                  "summary caret and hit testing retain the exact authored source ACP");
+            std::array<std::size_t, 2u> inkCounts{};
+            for (std::size_t pass = 0u; pass < 2u; ++pass)
+            {
+                target->BeginDraw();
+                target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+                (pass ? toggledGeometry : initialGeometry).Draw(target.get(), ink.get(), ink.get(), {}, 0.f, 100.f);
+                THROW_IF_FAILED(target->EndDraw());
+                THROW_IF_FAILED(bitmap->CopyPixels(nullptr, 1600u, static_cast<UINT>(pixels.size()), pixels.data()));
+                for (std::size_t byte = 0u; byte < pixels.size(); byte += 4u)
+                    inkCounts[pass] += pixels[byte] < 180u;
+            }
+            const auto expandedInk  = inkCounts[initiallyOpen ? 0u : 1u];
+            const auto collapsedInk = inkCounts[initiallyOpen ? 1u : 0u];
+            Check(collapsedInk > 10u && expandedInk > collapsedInk + 10u,
+                  "actual offscreen pixels contain a summary in both states and additional visible body ink only when expanded");
+            builder.Begin(syntax);
+            const auto restored        = RichSemanticDocumentTests::Complete(builder, *syntax);
+            const auto restoredSummary = std::ranges::find(restored->Elements(), SemanticRole::Disclosure, &SemanticElement::role);
+            Check(restoredSummary != restored->Elements().end() && restoredSummary->disclosureExpanded == initiallyOpen,
+                  "removing view overrides restores authored default even when syntax and native fallbacks are unchanged");
+        }
+    for (const auto& sample : {std::pair{std::wstring_view(L"> [!NOTE]\n> text **bold**\n"), std::wstring_view(L"NOTE")},
+                               std::pair{std::wstring_view(L"> [!tip]+ Custom title\n> text **bold**\n"), std::wstring_view(L"Custom title")},
+                               std::pair{std::wstring_view(L"> [!WARNING]\n>\n> separate body\n"), std::wstring_view(L"WARNING")}})
+    {
+        const auto calloutDoc = RichSemanticDocumentTests::Build(sample.first, MarkdownProfile::RichMarkdown);
+        const auto callout    = std::ranges::find(calloutDoc->Elements(), SemanticRole::Callout, &SemanticElement::role);
+        const auto display    = calloutDoc->Map().Display();
+        Check(calloutDoc->HasCallouts() && callout != calloutDoc->Elements().end() && callout->name == sample.second &&
+                  calloutDoc->Map().Source() == sample.first && display.find(L"[!") == std::wstring::npos &&
+                  (display.find(L"body") != std::wstring::npos || display.find(L"text bold") != std::wstring::npos),
+              "callout semantics project a source-owned title and retain the authored body/inline styles");
+        PreparedSemanticGeometry calloutGeometry;
+        calloutGeometry.Begin(factory.get(), calloutDoc, options);
+        Complete(calloutGeometry);
+        wil::com_ptr<ID2D1SolidColorBrush> accent;
+        THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(1.f, 0.f, 0.f), accent.put()));
+        target->BeginDraw();
+        target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+        calloutGeometry.Draw(target.get(), ink.get(), ink.get(), {}, 0.f, 100.f, nullptr, 1.f, nullptr, nullptr, nullptr, accent.get());
+        THROW_IF_FAILED(target->EndDraw());
+        THROW_IF_FAILED(bitmap->CopyPixels(nullptr, 1600u, static_cast<UINT>(pixels.size()), pixels.data()));
+        std::size_t accentPixels{};
+        for (std::size_t byte = 0u; byte < pixels.size(); byte += 4u)
+            accentPixels += pixels[byte] < 100u && pixels[byte + 1u] < 100u && pixels[byte + 2u] > 180u;
+        Check(accentPixels > 5u && accent->GetOpacity() == 1.f, "native callout paints a borrowed theme accent bar without mutating its brush");
+    }
+    {
+        const std::wstring calloutSource = L"> [!tip]- Closed title\n> hidden **body**\n";
+        const auto syntax                = RichSemanticDocumentTests::Parse(calloutSource, MarkdownProfile::RichMarkdown);
+        SemanticBuilder builder;
+        builder.Begin(syntax);
+        const auto collapsed  = RichSemanticDocumentTests::Complete(builder, *syntax);
+        const auto disclosure = std::ranges::find(collapsed->Elements(), SemanticRole::Disclosure, &SemanticElement::role);
+        Check(disclosure != collapsed->Elements().end() && ! disclosure->disclosureExpanded && disclosure->name == L"Closed title" &&
+                  collapsed->Map().Display().find(L"hidden") == std::wstring::npos && collapsed->Map().Source() == calloutSource,
+              "folded Obsidian callout hides its body without changing raw source");
+        const std::array states{Detail::DisclosureOverride{disclosure->blockIdentity, true}};
+        Detail::SemanticExtensionAccess::BeginWithPresentation(builder, syntax, {}, states);
+        const auto opened = RichSemanticDocumentTests::Complete(builder, *syntax);
+        Check(opened->Map().Display().find(L"hidden body") != std::wstring::npos && opened->Map().Source() == calloutSource &&
+                  collapsed->Map().Display().find(L"hidden") == std::wstring::npos,
+              "expanded callout restores body formatting while held collapsed publication remains immutable");
+        for (const auto profile : {MarkdownProfile::CommonMark0312, MarkdownProfile::Gfm029})
+        {
+            const auto standard = RichSemanticDocumentTests::Build(calloutSource, profile);
+            Check(! standard->HasCallouts() &&
+                      std::ranges::none_of(standard->Elements(), [](const auto& element) { return element.role == SemanticRole::Callout; }) &&
+                      standard->Map().Display().find(L"[!tip]") != std::wstring::npos,
+                  "callout extensions do not change CommonMark or GFM quote behavior");
+        }
+    }
+    for (const std::wstring_view sourceText : {L"> [!unknown]\n> body\n", L"> [!NOTE] *formatted*\n> body\n", L"> prefix [!NOTE]\n> body\n"})
+    {
+        const auto ordinary = RichSemanticDocumentTests::Build(sourceText, MarkdownProfile::RichMarkdown);
+        Check(std::ranges::none_of(ordinary->Elements(), [](const auto& element) { return element.role == SemanticRole::Callout; }) &&
+                  ordinary->Map().Source() == sourceText,
+              "unknown or unsupported callout headings retain ordinary quote semantics and exact source");
+    }
+    for (const std::wstring_view propertiesSource : {L"---\nname: \u03b2\ncount: 2\n---\n\nAfter\n", L"+++\nname = \"\u03b2\"\ncount = 2\n+++\n\nAfter\n"})
+    {
+        const auto syntax = RichSemanticDocumentTests::Parse(propertiesSource, MarkdownProfile::RichMarkdown);
+        SemanticBuilder builder;
+        builder.Begin(syntax);
+        const auto closed = RichSemanticDocumentTests::Complete(builder, *syntax);
+        const auto header = std::ranges::find(closed->Elements(), SemanticRole::Disclosure, &SemanticElement::role);
+        Check(syntax->Diagnostics().empty() && header != closed->Elements().end() && header->name == L"Properties" && ! header->disclosureExpanded &&
+                  ! closed->HasPropertiesBody() && closed->Map().Source() == propertiesSource && closed->Map().Display().find(L"name") == std::wstring::npos &&
+                  closed->Map().Display().ends_with(L"After\n"),
+              "validated YAML/TOML default to a local collapsed properties header");
+        const std::array states{Detail::DisclosureOverride{header->blockIdentity, true}};
+        Detail::SemanticExtensionAccess::BeginWithPresentation(builder, syntax, {}, states);
+        const auto opened = RichSemanticDocumentTests::Complete(builder, *syntax);
+        Check(opened->HasPropertiesBody() && opened->Map().Source() == propertiesSource && opened->Map().Display().find(L"name") != std::wstring::npos &&
+                  opened->Map().Display().find(L"count") != std::wstring::npos && opened->Map().Display().find(L"---") == std::wstring::npos &&
+                  opened->Map().Display().find(L"+++") == std::wstring::npos && closed->Map().Display().find(L"name") == std::wstring::npos,
+              "expanded validated properties show raw body text, hide fences, and preserve the held source publication");
+        PreparedSemanticGeometry propertiesGeometry;
+        propertiesGeometry.Begin(factory.get(), opened, options);
+        Complete(propertiesGeometry);
+        const auto openHeader   = std::ranges::find(opened->Elements(), SemanticRole::Disclosure, &SemanticElement::role);
+        const auto headerBounds = propertiesGeometry.ElementBounds(static_cast<std::size_t>(openHeader - opened->Elements().begin()));
+        Check(headerBounds.has_value(), "properties header has prepared interactive geometry");
+        const auto headerHit =
+            propertiesGeometry.HitTestSource((headerBounds->left + headerBounds->right) * .5f, (headerBounds->top + headerBounds->bottom) * .5f);
+        const auto bodySource        = propertiesSource.find(L"count");
+        const auto bodyCaret         = propertiesGeometry.SourceCaret(bodySource);
+        const auto previousSiteCaret = propertiesGeometry.SourceCaret(bodySource, headerHit.site);
+        Check(std::abs(bodyCaret.y - previousSiteCaret.y) < .01f && bodyCaret.y > headerBounds->top,
+              "moving from the generated properties header into source text selects the body caret site");
+        wil::com_ptr<ID2D1SolidColorBrush> dim;
+        THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(.55f, .55f, .55f), dim.put()));
+        std::array<std::vector<BYTE>, 2u> rendered{std::vector<BYTE>(pixels.size()), std::vector<BYTE>(pixels.size())};
+        for (std::size_t pass = 0u; pass < 2u; ++pass)
+        {
+            target->BeginDraw();
+            target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+            propertiesGeometry.Draw(
+                target.get(), ink.get(), ink.get(), {}, 0.f, 100.f, nullptr, 1.f, nullptr, nullptr, nullptr, nullptr, pass ? dim.get() : nullptr);
+            THROW_IF_FAILED(target->EndDraw());
+            THROW_IF_FAILED(bitmap->CopyPixels(nullptr, 1600u, static_cast<UINT>(rendered[pass].size()), rendered[pass].data()));
+        }
+        std::size_t dimmedPixels{};
+        for (std::size_t byte = 0u; byte < rendered[0u].size(); byte += 4u)
+            dimmedPixels += rendered[1u][byte] > rendered[0u][byte] + 30u && rendered[1u][byte] < 240u;
+        Check(dimmedPixels > 10u && dim->GetOpacity() == 1.f, "expanded property body uses the borrowed subdued ink without modifying the brush");
+        builder.Begin(syntax);
+        const auto restored = RichSemanticDocumentTests::Complete(builder, *syntax);
+        Check(! restored->HasPropertiesBody() && restored->Map().Display().find(L"name") == std::wstring::npos,
+              "clearing the properties view override restores the collapsed default");
+    }
+    {
+        const auto syntax = RichSemanticDocumentTests::Parse(L"---\nname: value\n---\n", MarkdownProfile::RichMarkdown);
+        const std::array entries{AccessibilityTextOverride{AccessibilityTextId::Properties, L"Eigenschaften"}};
+        SemanticBuilder builder;
+        builder.SetAccessibilityLabels(std::make_shared<AccessibilityLabels>(entries));
+        builder.Begin(syntax);
+        const auto localized = RichSemanticDocumentTests::Complete(builder, *syntax);
+        const auto header    = std::ranges::find(localized->Elements(), SemanticRole::Disclosure, &SemanticElement::role);
+        Check(header != localized->Elements().end() && header->name == L"Eigenschaften" &&
+                  localized->Map().Display().find(L"Eigenschaften") != std::wstring::npos,
+              "properties visible and accessibility text come from the same immutable per-document label set");
+    }
+    {
+        const std::wstring definitionSource = L"Term\n: first description\n: second description\n";
+        MarkdownParser parser;
+        parser.Begin(definitionSource, 1u, MarkdownProfile::RichMarkdown, MarkdownExtensions::RichAll | MarkdownExtensions::DefinitionLists);
+        while (parser.HasPendingPreparation())
+            parser.Advance(7u);
+        const auto syntax = parser.Published();
+        SemanticBuilder builder;
+        builder.Begin(syntax);
+        const auto definition = RichSemanticDocumentTests::Complete(builder, *syntax);
+        PreparedSemanticGeometry definitionGeometry;
+        definitionGeometry.Begin(factory.get(), definition, options);
+        Complete(definitionGeometry);
+        const auto term = definitionSource.find(L"Term"), description = definitionSource.find(L"second description");
+        const auto termCaret  = definitionGeometry.SourceCaret(term);
+        const auto termHit    = definitionGeometry.HitTestSource(termCaret.x + .1f, termCaret.y + termCaret.height * .5f);
+        const auto expected   = definitionGeometry.SourceCaret(description);
+        const auto reusedSite = definitionGeometry.SourceCaret(description, termHit.site);
+        Check(termHit.position == term && std::abs(expected.y - reusedSite.y) < .01f && expected.y > termCaret.y,
+              "moving between source-owned definition paragraphs cannot reuse the prior term's caret site");
+    }
+    for (const std::wstring disclosureSource : {L"<details><summary></summary>body</details>\n",
+                                                L"<details><summary>x</summary><summary>y</summary></details>\n",
+                                                L"<details onclick=\"run()\"><summary>x</summary>body</details>\n",
+                                                L"<details><summary>x</summary><p>body</p></details>\n",
+                                                L"<details><summary><a href=\"x\">x</a></summary>body</details>\n"})
+    {
+        const auto literalDisclosure = RichSemanticDocumentTests::Build(disclosureSource, MarkdownProfile::RichMarkdown);
+        Check(literalDisclosure->Map().Source() == disclosureSource && literalDisclosure->Map().Display() == disclosureSource,
+              "unsupported disclosure syntax remains an exact literal HTML leaf");
+    }
+}
+inline void HtmlBlockAlignment()
+{
+    const auto initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+    if (FAILED(initialized) && initialized != RPC_E_CHANGED_MODE)
+        THROW_IF_FAILED(initialized);
+    const auto apartment = wil::scope_exit([&]() noexcept
+    {
+        if (SUCCEEDED(initialized))
+            CoUninitialize();
+    });
+    auto factory         = Factory();
+    wil::com_ptr<ID2D1Factory> drawing;
+    THROW_IF_FAILED(D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, drawing.put()));
+    wil::com_ptr<IWICImagingFactory> imaging;
+    THROW_IF_FAILED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(imaging.put())));
+    for (const auto direction : {DWRITE_READING_DIRECTION_LEFT_TO_RIGHT, DWRITE_READING_DIRECTION_RIGHT_TO_LEFT})
+    {
+        std::array<float, 3u> left{};
+        std::array<unsigned, 3u> firstInk{};
+        const std::array<std::wstring_view, 3u> sources = {
+            L"<p align=\"left\">word</p>\n", L"<div align=\"center\">word</div>\n", L"<p align=\"right\">word</p>\n"};
+        const std::array expected = {MarkdownAlignment::Left, MarkdownAlignment::Center, MarkdownAlignment::Right};
+        for (std::size_t i = 0u; i < sources.size(); ++i)
+        {
+            const auto document = RichSemanticDocumentTests::Build(sources[i], MarkdownProfile::RichMarkdown);
+            Check(document->Map().Source() == sources[i] && document->Map().Display() == L"word\n" && document->Paragraphs().size() == 1u &&
+                      document->Paragraphs()[0u].alignment == expected[i],
+                  "balanced alignment wrapper preserves exact source and typed semantic paragraph alignment");
+            LayoutOptions options;
+            options.widthDip         = 400.f;
+            options.readingDirection = direction;
+            PreparedSemanticGeometry geometry;
+            geometry.Begin(factory.get(), document, options);
+            Complete(geometry);
+            left[i]              = geometry.SourceCaret(sources[i].find(L"word")).x;
+            constexpr UINT width = 400u, height = 100u, stride = width * 4u;
+            wil::com_ptr<IWICBitmap> bitmap;
+            THROW_IF_FAILED(imaging->CreateBitmap(width, height, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnLoad, bitmap.put()));
+            wil::com_ptr<ID2D1RenderTarget> target;
+            THROW_IF_FAILED(drawing->CreateWicBitmapRenderTarget(bitmap.get(), D2D1::RenderTargetProperties(), target.put()));
+            wil::com_ptr<ID2D1SolidColorBrush> ink;
+            THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black), ink.put()));
+            target->BeginDraw();
+            target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+            geometry.Draw(target.get(), ink.get(), ink.get(), {}, 0.f, 100.f);
+            THROW_IF_FAILED(target->EndDraw());
+            std::vector<BYTE> pixels(static_cast<std::size_t>(stride) * height);
+            THROW_IF_FAILED(bitmap->CopyPixels(nullptr, stride, static_cast<UINT>(pixels.size()), pixels.data()));
+            firstInk[i] = width;
+            for (UINT y = 0u; y < height; ++y)
+                for (UINT x = 0u; x < width; ++x)
+                {
+                    const auto offset = static_cast<std::size_t>(y) * stride + static_cast<std::size_t>(x) * 4u;
+                    if (pixels[offset] < 200u && pixels[offset + 1u] < 200u && pixels[offset + 2u] < 200u)
+                        firstInk[i] = std::min(firstInk[i], x);
+                }
+        }
+        Check(firstInk[0u] < 400u && firstInk[0u] + 80u < firstInk[1u] && firstInk[1u] + 80u < firstInk[2u],
+              "rendered pixels follow physical left, center and right alignment in both reading directions");
+        Check(left[0u] + 80.f < left[1u] && left[1u] + 80.f < left[2u],
+              "left, center and right HTML alignment produce distinct physical caret positions in both reading directions");
+    }
+    for (const auto source :
+         {L"<p align=\"justify\">word</p>\n", L"<p align=\"left\" align=\"right\">word</p>\n", L"<div style=\"text-align:center\">word</div>\n"})
+    {
+        const auto document = RichSemanticDocumentTests::Build(source, MarkdownProfile::RichMarkdown);
+        Check(document->Map().Source() == source && document->Map().Display() == source,
+              "unsupported or duplicate alignment attributes preserve the complete literal source");
+    }
+}
+inline void DiagramLabelWidthReflow()
+{
+    const auto initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+    if (FAILED(initialized) && initialized != RPC_E_CHANGED_MODE)
+        THROW_IF_FAILED(initialized);
+    const auto apartment = wil::scope_exit([&]() noexcept
+    {
+        if (SUCCEEDED(initialized))
+            CoUninitialize();
+    });
+    wil::com_ptr<ID2D1Factory> drawing;
+    THROW_IF_FAILED(D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, drawing.put()));
+    auto factory        = Factory();
+    const auto document = RichSemanticDocumentTests::Build(L"```mermaid\ngraph TD;A[\"Unicode αβ words and several more words for wrapping\"]\n```\n",
+                                                           MarkdownProfile::RichMarkdown);
+    const auto elements = document->Elements();
+    const auto found    = std::ranges::find_if(elements, [](const auto& element) { return element.role == SemanticRole::Diagram; });
+    Check(found != elements.end(), "width reflow fixture has a native diagram");
+    const auto element = static_cast<std::size_t>(found - elements.begin());
+    LayoutOptions options;
+    options.widthDip             = 600.f;
+    options.diagramLabelWidthDip = 100.f;
+    PreparedSemanticGeometry geometry;
+    geometry.Begin(factory.get(), document, options, drawing.get());
+    Complete(geometry);
+    const auto narrow            = geometry.ElementBounds(element);
+    const auto generation        = geometry.Generation();
+    options.diagramLabelWidthDip = 300.f;
+    Check(geometry.Begin(factory.get(), document, options, drawing.get()) == LayoutPreparationStatus::Pending,
+          "diagram label cap participates in semantic reuse identity");
+    Complete(geometry);
+    const auto wide = geometry.ElementBounds(element);
+    Check(narrow && wide && wide->right - wide->left > narrow->right - narrow->left && wide->bottom - wide->top < narrow->bottom - narrow->top &&
+              geometry.Generation() > generation,
+          "semantic reflow replaces cached native diagram with its new measured label width");
+}
+inline void DiagramPaletteTargetReplacement()
+{
+    const auto initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+    if (FAILED(initialized) && initialized != RPC_E_CHANGED_MODE)
+        THROW_IF_FAILED(initialized);
+    const auto apartment = wil::scope_exit([&]() noexcept
+    {
+        if (SUCCEEDED(initialized))
+            CoUninitialize();
+    });
+    wil::com_ptr<IWICImagingFactory> imaging;
+    THROW_IF_FAILED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(imaging.put())));
+    wil::com_ptr<IWICBitmap> bitmap, otherBitmap;
+    THROW_IF_FAILED(imaging->CreateBitmap(600u, 400u, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnLoad, bitmap.put()));
+    THROW_IF_FAILED(imaging->CreateBitmap(600u, 400u, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnLoad, otherBitmap.put()));
+    wil::com_ptr<ID2D1Factory> drawing;
+    THROW_IF_FAILED(D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, drawing.put()));
+    wil::com_ptr<ID2D1RenderTarget> target, replacement;
+    THROW_IF_FAILED(drawing->CreateWicBitmapRenderTarget(bitmap.get(), D2D1::RenderTargetProperties(), target.put()));
+    THROW_IF_FAILED(drawing->CreateWicBitmapRenderTarget(otherBitmap.get(), D2D1::RenderTargetProperties(), replacement.put()));
+    auto factory = Factory();
+    const auto document =
+        RichSemanticDocumentTests::Build(L"```mermaid\nflowchart TD\nA[Alpha]-->B[Beta]\nstyle A fill:#000,color:#fff\n```\n", MarkdownProfile::RichMarkdown);
+    LayoutOptions options;
+    options.widthDip = 500.f;
+    PreparedSemanticGeometry geometry;
+    geometry.Begin(factory.get(), document, options, drawing.get(), {1u, 1u}, {}, target.get());
+    Complete(geometry);
+    const auto generation = geometry.Generation();
+    PreparedSemanticGeometry withoutTarget;
+    withoutTarget.Begin(factory.get(), document, options, drawing.get(), {1u, 1u});
+    bool rejected{};
+    try
+    {
+        while (withoutTarget.Pending())
+            withoutTarget.Advance({1u, 3u});
+    }
+    catch (const DxUi::RichText::Detail::NativeObjectsRejected& failure)
+    {
+        rejected = failure.Elements().size() == 1u && document->Elements()[failure.Elements()[0u]].role == SemanticRole::Diagram;
+    }
+    Check(rejected && geometry.Ready() && geometry.Generation() == generation,
+          "a missing palette target rejects only its owning object without replacing prior geometry");
+    Check(geometry.Begin(factory.get(), document, options, drawing.get(), {1u, 1u}, {}, replacement.get()) == LayoutPreparationStatus::Pending,
+          "replacing a raster target retires target-bound diagram brushes");
+    Complete(geometry);
+    Check(geometry.Generation() > generation, "replacement target publishes new palette resources");
+    wil::com_ptr<ID2D1SolidColorBrush> text, stroke, fill;
+    THROW_IF_FAILED(replacement->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black), text.put()));
+    THROW_IF_FAILED(replacement->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Blue), stroke.put()));
+    THROW_IF_FAILED(replacement->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White), fill.put()));
+    const DxUi::RichText::Detail::DiagramColorContext colors{
+        D2D1::ColorF(D2D1::ColorF::Black), D2D1::ColorF(D2D1::ColorF::Blue), D2D1::ColorF(D2D1::ColorF::White)};
+    replacement->BeginDraw();
+    geometry.Draw(replacement.get(), text.get(), stroke.get(), {}, 0.f, 400.f, fill.get(), 1.f, nullptr, nullptr, &colors);
+    THROW_IF_FAILED(replacement->EndDraw());
+    RichSemanticTests::Reject<std::logic_error>([&] {
+        geometry.Draw(target.get(), text.get(), stroke.get(), {}, 0.f, 400.f, fill.get(), 1.f, nullptr, nullptr, &colors);
+    }, "old target cannot borrow a palette prepared on its replacement");
+}
+#if DXUI_ENABLE_DIAGNOSTICS
+inline void MathWidthReflowAndTargetReplacement()
+{
+    const auto initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+    if (FAILED(initialized) && initialized != RPC_E_CHANGED_MODE)
+        THROW_IF_FAILED(initialized);
+    const auto apartment = wil::scope_exit([&]() noexcept
+    {
+        if (SUCCEEDED(initialized))
+            CoUninitialize();
+    });
+    wil::com_ptr<IWICImagingFactory> imaging;
+    THROW_IF_FAILED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(imaging.put())));
+    wil::com_ptr<ID2D1Factory> drawing;
+    THROW_IF_FAILED(D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, drawing.put()));
+    wil::com_ptr<IWICBitmap> bitmap;
+    THROW_IF_FAILED(imaging->CreateBitmap(512u, 512u, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnLoad, bitmap.put()));
+    const auto properties = D2D1::RenderTargetProperties(
+        D2D1_RENDER_TARGET_TYPE_SOFTWARE, D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED), 96.0f, 96.0f);
+    wil::com_ptr<ID2D1RenderTarget> target, replacement;
+    THROW_IF_FAILED(drawing->CreateWicBitmapRenderTarget(bitmap.get(), properties, target.put()));
+    THROW_IF_FAILED(drawing->CreateWicBitmapRenderTarget(bitmap.get(), properties, replacement.put()));
+    {
+        const std::array<std::uint32_t, 3u> colors{0xff0000u, 0x112233u, 0xff0000u};
+        Detail::NativeColorPalette palette(target.get(), colors);
+        Check(! palette.Ready() && palette.Matches(target.get()) && ! palette.Matches(replacement.get()) && ! palette.Brush(0xff0000u),
+              "math palette is target-bound and stays unpublished while staging");
+        Check(! palette.Advance() && palette.Advance() && palette.Ready() && palette.Advance() && palette.Brush(0xff0000u) && palette.Brush(0x112233u) &&
+                  ! palette.Brush(0x445566u),
+              "math palette stages distinct colors one per step and shares duplicates");
+        const auto color = palette.Brush(0x112233u)->GetColor();
+        Check(std::abs(color.r - 17.f / 255.f) < .0001f && std::abs(color.g - 34.f / 255.f) < .0001f && std::abs(color.b - 51.f / 255.f) < .0001f &&
+                  color.a == 1.f,
+              "math palette publishes the requested opaque SDK color");
+        bool rejected{};
+        try
+        {
+            const std::array<std::uint32_t, 1u> invalid{0x1000000u};
+            Detail::NativeColorPalette invalidPalette(target.get(), invalid);
+        }
+        catch (const std::invalid_argument&)
+        {
+            rejected = true;
+        }
+        Check(rejected, "math palette rejects out-of-domain colors before publication");
+        Detail::NativeColorPalette pending(target.get(), colors);
+        const auto savedFailure                    = Detail::testNativeColorPaletteBrushFailure;
+        const auto restoreFailure                  = wil::scope_exit([&]() noexcept { Detail::testNativeColorPaletteBrushFailure = savedFailure; });
+        Detail::testNativeColorPaletteBrushFailure = E_OUTOFMEMORY;
+        bool failed{};
+        try
+        {
+            static_cast<void>(pending.Advance());
+        }
+        catch (const wil::ResultException& error)
+        {
+            failed = error.GetErrorCode() == E_OUTOFMEMORY;
+        }
+        Detail::testNativeColorPaletteBrushFailure = S_OK;
+        Check(failed && ! pending.Ready() && ! pending.Brush(0xff0000u) && palette.Ready() && palette.Brush(0xff0000u),
+              "failed palette staging preserves the prior publication and exposes no partial brushes");
+        Check(! pending.Advance() && pending.Advance() && pending.Ready(), "failed palette staging retries from the same color");
+    }
+    const auto document = RichSemanticDocumentTests::Build(L"Body $x^2$\n\n# Heading $\\frac{1}{2}$\n", MarkdownProfile::RichMarkdown);
+    auto factory        = Factory();
+    PreparedSemanticGeometry geometry;
+    LayoutOptions options;
+    options.widthDip        = 360.0f;
+    const auto preparations = DxUi::RichText::Detail::testRichMathPreparations;
+    const auto reads        = DxUi::RichText::Detail::testRichMathConstantReads;
+    geometry.Begin(factory.get(), document, options, drawing.get(), {}, {}, target.get());
+    Complete(geometry);
+    Check(DxUi::RichText::Detail::testRichMathPreparations == preparations + 2u && DxUi::RichText::Detail::testRichMathConstantReads == reads + 1u,
+          "two formulas share one font-constant read");
+    for (float width : {180.0f, 240.0f, 360.0f})
+    {
+        options.widthDip = width;
+        geometry.Begin(factory.get(), document, options, drawing.get(), {}, {}, target.get());
+        Complete(geometry);
+    }
+    Check(DxUi::RichText::Detail::testRichMathPreparations == preparations + 2u && DxUi::RichText::Detail::testRichMathConstantReads == reads + 1u,
+          "width-only reflows reuse finalized formulas");
+    options.widthDip = 220.0f;
+    geometry.Begin(factory.get(), document, options, drawing.get(), {}, {}, replacement.get());
+    Complete(geometry);
+    Check(DxUi::RichText::Detail::testRichMathPreparations == preparations + 4u && DxUi::RichText::Detail::testRichMathConstantReads == reads + 2u,
+          "target replacement retires prior generation resources");
+    options.fontSizeDip += 2.0f;
+    geometry.Begin(factory.get(), document, options, drawing.get(), {}, {}, replacement.get());
+    Complete(geometry);
+    Check(DxUi::RichText::Detail::testRichMathPreparations == preparations + 6u && DxUi::RichText::Detail::testRichMathConstantReads == reads + 3u,
+          "font change rebuilds math rather than reusing stale geometry");
+    options.mathFontFamily = L"Segoe UI";
+    options.locale         = L"fr-FR";
+    geometry.Begin(factory.get(), document, options, drawing.get(), {}, {}, replacement.get());
+    Complete(geometry);
+    Check(DxUi::RichText::Detail::testRichMathPreparations == preparations + 8u && DxUi::RichText::Detail::testRichMathConstantReads == reads + 4u,
+          "mathematical family and locale changes retire the native math generation");
+    options.widthDip += 10.f;
+    geometry.Begin(factory.get(), document, options, drawing.get(), {}, {}, replacement.get());
+    Complete(geometry);
+    Check(DxUi::RichText::Detail::testRichMathPreparations == preparations + 8u && DxUi::RichText::Detail::testRichMathConstantReads == reads + 4u,
+          "the configured mathematical family still reuses finalized geometry across width-only reflow");
+    const auto beforeScale   = DxUi::RichText::Detail::testRichMathPreparations;
+    const auto previousWidth = geometry.Width();
+    for (const float invalid : {0.f, -1.f, std::numeric_limits<float>::infinity(), std::numeric_limits<float>::quiet_NaN()})
+    {
+        auto rejected                  = options;
+        rejected.mathAbsoluteUnitScale = invalid;
+        RichSemanticTests::Reject<std::invalid_argument>([&] { geometry.Begin(factory.get(), document, rejected, drawing.get(), {}, {}, replacement.get()); },
+                                                         "invalid math absolute-unit scale rejects before staging");
+        Check(geometry.Width() == previousWidth && DxUi::RichText::Detail::testRichMathPreparations == beforeScale,
+              "invalid unit scale retains the published generation");
+    }
+    options.mathAbsoluteUnitScale = 2.f;
+    geometry.Begin(factory.get(), document, options, drawing.get(), {}, {}, replacement.get());
+    Complete(geometry);
+    Check(DxUi::RichText::Detail::testRichMathPreparations == beforeScale + 2u,
+          "absolute-unit scale change rebuilds math even when font size and source are unchanged");
+    options.widthDip += 10.f;
+    geometry.Begin(factory.get(), document, options, drawing.get(), {}, {}, replacement.get());
+    Complete(geometry);
+    Check(DxUi::RichText::Detail::testRichMathPreparations == beforeScale + 2u, "width-only reflow still reuses the new math scale");
+    {
+        Detail::PreparedMath regular(factory.get(), std::make_shared<const MathExpression>(ParseMath(L"\\mu")), 48.f);
+        Detail::PreparedMath shadow(factory.get(), std::make_shared<const MathExpression>(ParseMath(L"\\pmb{\\mu}")), 48.f);
+        while (! regular.Advance())
+        {
+        }
+        while (! shadow.Advance())
+        {
+        }
+        wil::com_ptr<ID2D1SolidColorBrush> black;
+        THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black), black.put()));
+        const auto pixelsFor = [&](const Detail::PreparedMath& value)
+        {
+            target->BeginDraw();
+            target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+            value.Draw(target.get(), black.get(), D2D1::Point2F(20.f, 20.f), 1.f);
+            THROW_IF_FAILED(target->EndDraw());
+            std::vector<BYTE> pixels(512u * 512u * 4u, 0u);
+            THROW_IF_FAILED(bitmap->CopyPixels(nullptr, 512u * 4u, static_cast<UINT>(pixels.size()), pixels.data()));
+            return std::vector<BYTE>(pixels);
+        };
+        const auto regularPixels = pixelsFor(regular);
+        const auto shadowPixels  = pixelsFor(shadow);
+        Check(regularPixels != shadowPixels, "poor-man bold's staged offset changes actual WIC raster pixels");
+        Detail::PreparedMath colored(factory.get(), std::make_shared<const MathExpression>(ParseMath(L"\\textcolor{red}{x}")), 48.f);
+        Detail::PreparedMath coloredShadow(factory.get(), std::make_shared<const MathExpression>(ParseMath(L"\\textcolor{red}{\\pmb{x}}")), 48.f);
+        while (! colored.Advance())
+        {
+        }
+        while (! coloredShadow.Advance())
+        {
+        }
+        Check(pixelsFor(colored) != pixelsFor(coloredShadow), "colored paint operations retain the poor-man-bold overprint");
+        Detail::PreparedMath fraction(factory.get(), std::make_shared<const MathExpression>(ParseMath(L"\\frac{x}{y}")), 48.f);
+        while (! fraction.Advance())
+        {
+        }
+        Check(fraction.GlyphLayouts().size() == 2u && fraction.StrokeLayouts().size() == 1u && fraction.VariantLayouts().empty(),
+              "fraction oracle contains exactly two text layouts and one rule");
+        for (const float dpi : {120.f, 144.f, 168.f})
+        {
+            target->SetDpi(dpi, dpi);
+            const auto fractionPixels = [&](bool sdkReference)
+            {
+                const auto origin = D2D1::Point2F(20.375f, 20.625f);
+                target->BeginDraw();
+                target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+                if (sdkReference)
+                {
+                    target->SetTransform(D2D1::Matrix3x2F::Translation(origin.x, origin.y));
+                    for (const auto& glyph : fraction.GlyphLayouts())
+                        target->DrawTextLayout(glyph.origin, glyph.layout.get(), black.get());
+                    for (const auto& line : fraction.StrokeLayouts())
+                        target->DrawLine(line.first, line.last, black.get(), line.thickness);
+                    target->SetTransform(D2D1::Matrix3x2F::Identity());
+                }
+                else
+                    fraction.Draw(target.get(), black.get(), origin, 1.f);
+                THROW_IF_FAILED(target->EndDraw());
+                std::vector<BYTE> pixels(512u * 512u * 4u);
+                THROW_IF_FAILED(bitmap->CopyPixels(nullptr, 512u * 4u, static_cast<UINT>(pixels.size()), pixels.data()));
+                return pixels;
+            };
+            const auto preparedPixels = fractionPixels(false);
+            Check(preparedPixels == fractionPixels(true) && std::ranges::any_of(preparedPixels, [](BYTE value) { return value < 200u; }),
+                  "fraction glyph and rule pixels match direct Direct2D at fractional origin and each DPI");
+        }
+        target->SetDpi(96.f, 96.f);
+    }
+    const auto tagged = RichSemanticDocumentTests::Build(L"$$\nx+1\\tag{Eq. 1}\n$$\n", MarkdownProfile::RichMarkdown);
+    geometry.Clear();
+    const auto beforeTagged = DxUi::RichText::Detail::testRichMathPreparations;
+    wil::com_ptr<ID2D1SolidColorBrush> ink;
+    THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black), ink.put()));
+    for (const float width : {240.f, 360.f})
+    {
+        options.widthDip = width;
+        geometry.Begin(factory.get(), tagged, options, drawing.get(), {}, {}, target.get());
+        Complete(geometry);
+        target->BeginDraw();
+        target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+        geometry.Draw(target.get(), ink.get(), ink.get(), D2D1::Point2F(0.f, 0.f), 0.f, 512.f);
+        THROW_IF_FAILED(target->EndDraw());
+        constexpr UINT stride = 512u * 4u;
+        std::vector<BYTE> pixels(stride * 512u);
+        THROW_IF_FAILED(bitmap->CopyPixels(nullptr, stride, static_cast<UINT>(pixels.size()), pixels.data()));
+        unsigned centerInk{}, trailingInk{};
+        for (UINT y = 0; y < 120u; ++y)
+            for (UINT x = 0; x < static_cast<UINT>(width); ++x)
+                if (pixels[y * stride + x * 4u] < 240u)
+                {
+                    const auto position = static_cast<float>(x);
+                    if (position > width * .35f && position < width * .65f)
+                        ++centerInk;
+                    if (position > width - 60.f)
+                        ++trailingInk;
+                }
+        Check(centerInk && trailingInk, "tagged display paints centered body and independent trailing label at both widths");
+    }
+    Check(DxUi::RichText::Detail::testRichMathPreparations == beforeTagged + 2u,
+          "tagged body and label both retain their immutable shapes across width reflow");
+    const auto inlineTag = RichSemanticDocumentTests::Build(L"Before $x\\tag{A}$ after", MarkdownProfile::RichMarkdown);
+    Check(inlineTag->Map().Display().find(L"$x\\tag{A}$") != std::wstring_view::npos &&
+              std::ranges::any_of(inlineTag->Diagnostics(), [](const auto& item) { return item.kind == SemanticDiagnosticKind::UnsupportedMath; }),
+          "inline tagged equations retain exact source with an unsupported diagnostic");
+    const auto nestedTag = RichSemanticDocumentTests::Build(L"> $$\n> x+1\\tag{Eq. 1}\n> $$\n", MarkdownProfile::RichMarkdown);
+    geometry.Clear();
+    options.widthDip = 240.f;
+    geometry.Begin(factory.get(), nestedTag, options, drawing.get(), {}, {}, target.get());
+    Complete(geometry);
+    const auto taggedElement = std::ranges::find(nestedTag->Elements(), SemanticRole::Math, &SemanticElement::role);
+    Check(taggedElement != nestedTag->Elements().end(), "nested tagged equation retains its math source element");
+    const auto taggedBounds = geometry.ElementBounds(static_cast<std::size_t>(taggedElement - nestedTag->Elements().begin()));
+    Check(taggedBounds && taggedBounds->left > 0.f && taggedBounds->right <= options.widthDip && taggedBounds->right > taggedBounds->left,
+          "tagged placeholder occupies the containing quote width after its indentation");
+    const auto rowTagged =
+        RichSemanticDocumentTests::Build(L"> $$\n> \\begin{align}a&=b\\tag{ONE}\\\\c&=d\\tag*{TWO}\\end{align}\n> $$\n", MarkdownProfile::RichMarkdown);
+    geometry.Clear();
+    const auto beforeRowTags = DxUi::RichText::Detail::testRichMathPreparations;
+    for (const float rowWidth : {240.f, 360.f})
+    {
+        options.widthDip = rowWidth;
+        geometry.Begin(factory.get(), rowTagged, options, drawing.get(), {}, {}, target.get());
+        Complete(geometry);
+        target->BeginDraw();
+        target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+        geometry.Draw(target.get(), ink.get(), ink.get(), D2D1::Point2F(0.f, 0.f), 0.f, 512.f);
+        THROW_IF_FAILED(target->EndDraw());
+        constexpr UINT rowStride = 512u * 4u;
+        std::vector<BYTE> rowPixels(rowStride * 512u);
+        THROW_IF_FAILED(bitmap->CopyPixels(nullptr, rowStride, static_cast<UINT>(rowPixels.size()), rowPixels.data()));
+        unsigned bands{};
+        bool previousInk{};
+        for (UINT y = 0u; y < 160u; ++y)
+        {
+            bool inkOnRow{};
+            for (UINT x = static_cast<UINT>(rowWidth - 65.f); x < static_cast<UINT>(rowWidth); ++x)
+                inkOnRow = inkOnRow || rowPixels[y * rowStride + x * 4u] < 240u;
+            if (inkOnRow && ! previousInk)
+                ++bands;
+            previousInk = inkOnRow;
+        }
+        Check(bands >= 2u, "independent row tags paint in distinct trailing bands within the containing quote");
+    }
+    Check(DxUi::RichText::Detail::testRichMathPreparations == beforeRowTags + 3u, "row body and both labels retain prepared shapes across width-only reflow");
+    const auto inlineRowTag = RichSemanticDocumentTests::Build(L"Before $\\begin{align}a\\tag{1}\\end{align}$ after", MarkdownProfile::RichMarkdown);
+    Check(inlineRowTag->Map().Display().find(L"$\\begin{align}a\\tag{1}\\end{align}$") != std::wstring_view::npos &&
+              std::ranges::any_of(inlineRowTag->Diagnostics(), [](const auto& item) { return item.kind == SemanticDiagnosticKind::UnsupportedMath; }),
+          "inline row-tagged equations retain complete source with an unsupported diagnostic");
+    const auto coloredDocument = RichSemanticDocumentTests::Build(L"$a\\textcolor{blue}{+}b+\\fcolorbox{blue}{white}{hi}$\n", MarkdownProfile::RichMarkdown);
+    geometry.Clear();
+    geometry.Begin(factory.get(), coloredDocument, options, drawing.get(), {}, {}, target.get());
+    Complete(geometry);
+    Check(geometry.HasNativeObjects() && coloredDocument->Map().Display().find(L'\ufffc') != std::wstring_view::npos,
+          "authored-color equation publishes a native source-owned object");
+    const Detail::DiagramColorContext authorContext{D2D1::ColorF(D2D1::ColorF::Black), D2D1::ColorF(D2D1::ColorF::Black), D2D1::ColorF(D2D1::ColorF::White)};
+    const auto countBlue = [&](const Detail::DiagramColorContext* context)
+    {
+        target->BeginDraw();
+        target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+        geometry.Draw(target.get(), ink.get(), ink.get(), D2D1::Point2F(0.f, 0.f), 0.f, 512.f, nullptr, 1.f, nullptr, nullptr, context);
+        THROW_IF_FAILED(target->EndDraw());
+        constexpr UINT stride = 512u * 4u;
+        std::vector<BYTE> pixels(stride * 512u);
+        THROW_IF_FAILED(bitmap->CopyPixels(nullptr, stride, static_cast<UINT>(pixels.size()), pixels.data()));
+        std::size_t blue{};
+        for (std::size_t offset = 0u; offset < pixels.size(); offset += 4u)
+            if (pixels[offset] > 100u && pixels[offset + 2u] < 100u)
+                ++blue;
+        return blue;
+    };
+    auto unknownBackdrop   = authorContext;
+    unknownBackdrop.fill.a = .5f;
+    for (const auto direction : {DWRITE_READING_DIRECTION_LEFT_TO_RIGHT, DWRITE_READING_DIRECTION_RIGHT_TO_LEFT})
+    {
+        for (const float dpi : {120.f, 144.f, 168.f})
+        {
+            target->SetDpi(dpi, dpi);
+            options.dpi              = dpi;
+            options.readingDirection = direction;
+            geometry.Begin(factory.get(), coloredDocument, options, drawing.get(), {}, {}, target.get());
+            Complete(geometry);
+            Check(countBlue(&authorContext) > 0u && countBlue(nullptr) == 0u,
+                  "math author color raster follows the palette gate at each DPI and text direction");
+            Check(countBlue(&unknownBackdrop) == 0u, "math color raster falls back for translucent backdrop at each DPI");
+        }
+    }
+    target->SetDpi(96.f, 96.f);
+    options.dpi              = 96.f;
+    options.readingDirection = DWRITE_READING_DIRECTION_LEFT_TO_RIGHT;
+    const auto mathElement   = std::ranges::find(coloredDocument->Elements(), SemanticRole::Math, &SemanticElement::role);
+    Check(mathElement != coloredDocument->Elements().end(), "visible atomic-object fixture retains its math element");
+    const auto mathBounds = geometry.ElementBounds(static_cast<std::size_t>(mathElement - coloredDocument->Elements().begin()));
+    Check(mathBounds.has_value(), "visible atomic-object fixture has prepared bounds");
+    const auto mathVisible = geometry.VisibleSourceRange(mathBounds->top + 1.f, mathBounds->bottom - 1.f);
+    Check(mathVisible.first <= mathElement->source.first && mathVisible.second >= mathElement->source.last,
+          "a visible atomic math object retains its complete source range");
+    const auto quotedColor = RichSemanticDocumentTests::Build(L"> $a\\textcolor{blue}{+}b$\n", MarkdownProfile::RichMarkdown);
+    geometry.Clear();
+    geometry.Begin(factory.get(), quotedColor, options, drawing.get(), {}, {}, target.get());
+    Complete(geometry);
+    Check(countBlue(&authorContext) == 0u, "math author color yields to the theme on an unknown quote backdrop");
+    const auto nestedColor = RichSemanticDocumentTests::Build(L"$\\colorbox{black}{\\textcolor{white}{hello}}$\n", MarkdownProfile::RichMarkdown);
+    geometry.Clear();
+    geometry.Begin(factory.get(), nestedColor, options, drawing.get(), {}, {}, target.get());
+    Complete(geometry);
+    const auto darkPixels = [&](const Detail::DiagramColorContext* context)
+    {
+        target->BeginDraw();
+        target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+        geometry.Draw(target.get(), ink.get(), ink.get(), D2D1::Point2F(0.f, 0.f), 0.f, 512.f, nullptr, 1.f, nullptr, nullptr, context);
+        THROW_IF_FAILED(target->EndDraw());
+        constexpr UINT stride = 512u * 4u;
+        std::vector<BYTE> pixels(stride * 512u);
+        THROW_IF_FAILED(bitmap->CopyPixels(nullptr, stride, static_cast<UINT>(pixels.size()), pixels.data()));
+        std::size_t dark{};
+        for (std::size_t offset = 0u; offset < pixels.size(); offset += 4u)
+            if (pixels[offset] < 40u && pixels[offset + 1u] < 40u && pixels[offset + 2u] < 40u)
+                ++dark;
+        return dark;
+    };
+    Check(darkPixels(&authorContext) > darkPixels(nullptr) * 2u,
+          "nested white text retains a readable dark colorbox and selection suppresses its authored background");
+    const auto diagram = RichSemanticDocumentTests::Build(L"```mermaid\nflowchart LR\nA[Start] --> B[Finish]\n```\n", MarkdownProfile::RichMarkdown);
+    geometry.Clear();
+    geometry.Begin(factory.get(), diagram, options, nullptr, {}, {}, target.get());
+    Complete(geometry);
+    const auto generation = geometry.Generation();
+    Check(geometry.Ready() && geometry.BoxCount() != 0u, "native objects derive their factory from the supplied raster target");
+    Check(geometry.Begin(factory.get(), diagram, options, drawing.get(), {}, {}, target.get()) == LayoutPreparationStatus::Complete &&
+              geometry.Generation() == generation,
+          "derived and explicit factory identities reuse the same prepared native objects");
+}
+#endif
 inline void LinkRasterOracle()
 {
     const auto initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
@@ -667,18 +1678,92 @@ inline void ParagraphsTablesAndSourceRanges()
     Check(! geometry.Ready() && ! geometry.Pending() && geometry.Height() == 0.0f, "semantic retirement releases both staged and published SDK graphs");
     SemanticSpacingPolicy();
 }
+inline void PaddedCodePresentation()
+{
+    {
+        using Access     = DxUi::RichText::Detail::PreparedLayoutAccess;
+        const auto write = Factory();
+        PreparedLayout layout;
+        LayoutOptions options;
+        options.widthDip = 200.0f;
+        Access::SemanticInput input;
+        input.text = L"semantic text";
+        input.runs.push_back({0u, 8u, Bold, 0u});
+        Access::PrepareSemantic(layout, write.get(), input, options);
+        Check(layout.Content().text == L"semantic text" && layout.Content().runs.size() == 1u && layout.Content().source.empty() &&
+                  layout.Content().units.empty() && layout.Content().sourceToDisplay.empty(),
+              "semantic layout retains only display text and runs without a fabricated source map");
+        const auto generation = layout.Generation();
+        Access::SemanticInput invalid;
+        invalid.text = L"x";
+        invalid.runs.push_back({0u, 2u, Bold, 0u});
+        RichSemanticTests::Reject<std::invalid_argument>([&] { Access::PrepareSemantic(layout, write.get(), invalid, options); },
+                                                         "semantic display still validates run bounds");
+        Check(layout.Generation() == generation && layout.Content().text == L"semantic text",
+              "invalid semantic staging leaves the previous published layout intact");
+    }
+    const auto factory        = Factory();
+    const std::wstring source = L"```cpp\nint x;\n```\n";
+    const auto document       = RichSemanticDocumentTests::Build(source);
+    const auto code           = std::ranges::find(document->Elements(), SemanticRole::Code, &SemanticElement::role);
+    Check(code != document->Elements().end(), "code frame fixture has a semantic code element");
+    const auto element = static_cast<std::size_t>(code - document->Elements().begin());
+    const auto prepare = [&](float width, MarkdownPresentationStyle style)
+    {
+        auto geometry = std::make_unique<PreparedSemanticGeometry>();
+        LayoutOptions options;
+        options.widthDip             = width;
+        options.markdownPresentation = style;
+        geometry->Begin(factory.get(), document, options);
+        Complete(*geometry);
+        return geometry;
+    };
+    const auto legacy   = prepare(200.0f, MarkdownPresentationStyle::Default);
+    const auto subtle   = prepare(200.0f, MarkdownPresentationStyle::Subtle);
+    const auto oldFrame = legacy->ElementBounds(element), frame = subtle->ElementBounds(element);
+    const auto position = source.find(L"int");
+    const auto caret    = subtle->SourceCaret(position);
+    Check(oldFrame && frame && frame->bottom - frame->top >= oldFrame->bottom - oldFrame->top + 11.9f && caret.x >= frame->left + 5.9f &&
+              caret.y >= frame->top + 5.9f,
+          "subtle code frame reserves inner padding and preserves source caret geometry");
+    const auto unlabeled = RichSemanticDocumentTests::Build(L"```\nint x;\n```\n");
+    PreparedSemanticGeometry noLabel;
+    LayoutOptions labelOptions;
+    labelOptions.widthDip             = 200.0f;
+    labelOptions.markdownPresentation = MarkdownPresentationStyle::Subtle;
+    noLabel.Begin(factory.get(), unlabeled, labelOptions);
+    Complete(noLabel);
+    const auto noLabelCode   = std::ranges::find(unlabeled->Elements(), SemanticRole::Code, &SemanticElement::role);
+    const auto noLabelBounds = noLabel.ElementBounds(static_cast<std::size_t>(noLabelCode - unlabeled->Elements().begin()));
+    Check(noLabelBounds && frame && frame->bottom - frame->top >= noLabelBounds->bottom - noLabelBounds->top &&
+              subtle->HitTestSource(caret.x, caret.y + caret.height * 0.5f).position == position,
+          "language badge reserves nonselectable header space while code caret still resolves to source");
+    const auto narrow = prepare(5.0f, MarkdownPresentationStyle::Subtle);
+    const auto bounds = narrow->ElementBounds(element);
+    Check(bounds && bounds->right - bounds->left <= 5.01f, "narrow code frame clamps its horizontal padding to the viewport");
+}
 inline void MarkdownSubtlePresentation()
 {
+    const std::array<D2D1_RECT_F, 6> alternating{{{0, 0, 10, 10}, {0, 100, 10, 110}, {0, 5, 10, 25}, {0, 120, 10, 130}, {0, 8, 10, 15}, {0, 90, 10, 100}}};
+    DxUi::RichText::Detail::PaintIndex paintIndex;
+    paintIndex.Build(alternating.size(), [&](size_t i) { return alternating[i]; });
+    std::vector<size_t> visited(0u);
+    paintIndex.ForEach(9.0f, 20.0f, [&](size_t i) { visited.push_back(i); });
+    Check(visited == std::vector<size_t>({0u, 2u, 4u}), "viewport index preserves original order for interleaved overlapping intervals");
+    visited.clear();
+    paintIndex.ForEach(40.0f, 50.0f, [&](size_t i) { visited.push_back(i); });
+    Check(visited.empty(), "viewport index excludes alternating offscreen intervals");
     const auto factory        = Factory();
     const std::wstring source = L"# Main title\n\n## Section\n\n### Plain heading\n\n| tiny | a much wider second column |\n| --- | --- |\n| x | content |\n";
     const auto document       = RichSemanticDocumentTests::Build(source);
-    const auto makeGeometry   = [&](float width, DWRITE_READING_DIRECTION direction, MarkdownPresentationStyle style)
+    const auto makeGeometry   = [&](float width, DWRITE_READING_DIRECTION direction, MarkdownPresentationStyle style, float dpi = 96.f)
     {
         auto geometry = std::make_unique<PreparedSemanticGeometry>();
         LayoutOptions options;
         options.widthDip             = width;
         options.readingDirection     = direction;
         options.markdownPresentation = style;
+        options.dpi                  = dpi;
         geometry->Begin(factory.get(), document, options);
         Complete(*geometry);
         return geometry;
@@ -717,6 +1802,50 @@ inline void MarkdownSubtlePresentation()
     const auto first  = subtle->ElementBounds(cellIndices[0u]);
     const auto second = subtle->ElementBounds(cellIndices[1u]);
     Check(first && second && second->right - second->left > first->right - first->left, "intrinsic table sizing gives unequal content-driven column widths");
+    // A long wrappable neighbor must not steal a word's intrinsic minimum.
+    // Obtain the independent SDK oracle directly, rather than calling the
+    // private helper used by semantic table allocation.
+    const std::wstring word = L"UnbreakableIdentifier";
+    wil::com_ptr<IDWriteTextFormat> wordFormat;
+    THROW_IF_FAILED(factory->CreateTextFormat(
+        L"Segoe UI", nullptr, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, 18.0f, L"en-us", wordFormat.put()));
+    wil::com_ptr<IDWriteTextLayout> wordLayout;
+    THROW_IF_FAILED(factory->CreateTextLayout(word.data(), static_cast<UINT32>(word.size()), wordFormat.get(), 4096.0f, 4096.0f, wordLayout.put()));
+    float wordMinimum{};
+    THROW_IF_FAILED(wordLayout->DetermineMinWidth(&wordMinimum));
+    const auto minimumDocument = RichSemanticDocumentTests::Build(
+        L"| id | description |\n| --- | --- |\n| UnbreakableIdentifier | many short words which can wrap without breaking words across a long column |\n");
+    for (const auto direction : {DWRITE_READING_DIRECTION_LEFT_TO_RIGHT, DWRITE_READING_DIRECTION_RIGHT_TO_LEFT})
+    {
+        PreparedSemanticGeometry minimumTable;
+        LayoutOptions minimumOptions;
+        minimumOptions.widthDip             = 360.0f;
+        minimumOptions.markdownPresentation = MarkdownPresentationStyle::Subtle;
+        minimumOptions.readingDirection     = direction;
+        minimumTable.Begin(factory.get(), minimumDocument, minimumOptions);
+        Complete(minimumTable);
+        const auto cells = minimumDocument->Elements();
+        const auto cell =
+            std::ranges::find_if(cells, [](const auto& value) { return value.role == SemanticRole::Cell && value.name == L"UnbreakableIdentifier"; });
+        Check(cell != cells.end(), "intrinsic minimum fixture owns the exact body cell");
+        const auto bounds = minimumTable.ElementBounds(static_cast<std::size_t>(cell - cells.begin()));
+        Check(bounds && bounds->right - bounds->left + .1f >= wordMinimum + 12.0f, "wrappable column yields space to an unbreakable word in either direction");
+        const auto wordSource = minimumDocument->Syntax()->Source().find(word);
+        const auto caret      = minimumTable.SourceCaret(wordSource);
+        Check(caret.height > 0.0f && minimumTable.HitTestSource(caret.x, caret.y + caret.height * .5f).position == wordSource,
+              "minimum-width allocation keeps the source caret aligned with its cell");
+        minimumOptions.widthDip      = 80.0f;
+        minimumOptions.tableOverflow = true;
+        minimumTable.Begin(factory.get(), minimumDocument, minimumOptions);
+        Complete(minimumTable);
+        const auto overflow = minimumTable.ElementBounds(static_cast<std::size_t>(cell - cells.begin()));
+        Check(overflow && overflow->left >= 0.0f && overflow->right - overflow->left + .1f >= wordMinimum + 12.0f && minimumTable.Width() > 80.0f,
+              "opt-in table overflow preserves minimum content widths and a positive physical extent in either direction");
+        minimumOptions.tableOverflow = false;
+        minimumTable.Begin(factory.get(), minimumDocument, minimumOptions);
+        Complete(minimumTable);
+        Check(minimumTable.Width() <= 80.1f, "disabling overflow retires oversized widths and restores bounded wrapping");
+    }
     for (const auto [width, direction] : {std::pair{520.0f, DWRITE_READING_DIRECTION_LEFT_TO_RIGHT},
                                           std::pair{230.0f, DWRITE_READING_DIRECTION_LEFT_TO_RIGHT},
                                           std::pair{520.0f, DWRITE_READING_DIRECTION_RIGHT_TO_LEFT}})
@@ -744,7 +1873,7 @@ inline void MarkdownSubtlePresentation()
     THROW_IF_FAILED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(imaging.put())));
     wil::com_ptr<ID2D1Factory> drawing;
     THROW_IF_FAILED(D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, drawing.put()));
-    constexpr UINT rasterWidth = 520u, rasterHeight = 360u, stride = rasterWidth * 4u;
+    constexpr UINT rasterWidth = 520u, rasterHeight = 700u, stride = rasterWidth * 4u;
     wil::com_ptr<IWICBitmap> bitmap;
     THROW_IF_FAILED(imaging->CreateBitmap(rasterWidth, rasterHeight, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnLoad, bitmap.put()));
     wil::com_ptr<ID2D1RenderTarget> target;
@@ -755,9 +1884,74 @@ inline void MarkdownSubtlePresentation()
     THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black), textBrush.put()));
     THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(1.0f, 0.0f, 0.0f, 1.0f), decorationBrush.put()));
     THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White), fillBrush.put()));
-    const auto raster = [&](MarkdownPresentationStyle style)
     {
-        auto geometry = makeGeometry(520.0f, DWRITE_READING_DIRECTION_LEFT_TO_RIGHT, style);
+        constexpr std::wstring_view marked = L"A\u0302\u0302\u0302\u0302";
+        wil::com_ptr<IDWriteTextFormat> format;
+        THROW_IF_FAILED(factory->CreateTextFormat(
+            L"Segoe UI", nullptr, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, 96.f, L"", format.put()));
+        wil::com_ptr<IDWriteTextLayout> reference;
+        THROW_IF_FAILED(factory->CreateTextLayout(marked.data(), static_cast<UINT32>(marked.size()), format.get(), 400.f, 10000.f, reference.put()));
+        DWRITE_OVERHANG_METRICS overhang{};
+        THROW_IF_FAILED(reference->GetOverhangMetrics(&overhang));
+        Check(overhang.top > 10.f, "independent DirectWrite fixture has ink well above the logical line frame");
+        const auto documentWithOverhang = RichSemanticDocumentTests::Build(marked);
+        LayoutOptions optionsWithOverhang;
+        optionsWithOverhang.widthDip    = 400.f;
+        optionsWithOverhang.fontSizeDip = 96.f;
+        PreparedSemanticGeometry geometryWithOverhang;
+        geometryWithOverhang.Begin(factory.get(), documentWithOverhang, optionsWithOverhang);
+        Complete(geometryWithOverhang);
+        const auto clippedInk = [&](bool bounded)
+        {
+            target->BeginDraw();
+            target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+            target->PushAxisAlignedClip(D2D1::RectF(0.f, 60.f, 400.f, 96.f), D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
+            geometryWithOverhang.Draw(target.get(),
+                                      textBrush.get(),
+                                      decorationBrush.get(),
+                                      D2D1::Point2F(0.f, 100.f),
+                                      bounded ? -40.f : -100.f,
+                                      bounded ? -4.f : geometryWithOverhang.Height(),
+                                      fillBrush.get());
+            target->PopAxisAlignedClip();
+            THROW_IF_FAILED(target->EndDraw());
+            std::vector<BYTE> bytes(stride * rasterHeight);
+            THROW_IF_FAILED(bitmap->CopyPixels(nullptr, stride, static_cast<UINT>(bytes.size()), bytes.data()));
+            return bytes;
+        };
+        const auto allInk = clippedInk(false);
+        Check(std::ranges::any_of(allInk, [](BYTE value) { return value < 220u; }) && clippedInk(true) == allInk,
+              "overhang beyond the logical frame remains painted when only that ink intersects the viewport");
+    }
+    const auto clippedRaster = [&](bool culled, float clipTop, float clipBottom)
+    {
+        target->BeginDraw();
+        target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+        target->PushAxisAlignedClip(D2D1::RectF(0.0f, clipTop, static_cast<float>(rasterWidth), clipBottom), D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
+        subtle->Draw(target.get(),
+                     textBrush.get(),
+                     decorationBrush.get(),
+                     D2D1::Point2F(),
+                     culled ? clipTop : 0.0f,
+                     culled ? clipBottom : subtle->Height(),
+                     fillBrush.get(),
+                     1.0f,
+                     nullptr,
+                     fillBrush.get());
+        target->PopAxisAlignedClip();
+        THROW_IF_FAILED(target->EndDraw());
+        std::vector<BYTE> pixels(stride * rasterHeight);
+        THROW_IF_FAILED(bitmap->CopyPixels(nullptr, stride, static_cast<UINT>(pixels.size()), pixels.data()));
+        return pixels;
+    };
+    Check(clippedRaster(false, 100.0f, 220.0f) == clippedRaster(true, 100.0f, 220.0f),
+          "indexed viewport paint preserves every clipped pixel and original overlap order");
+    const auto ruleBoundary = subtle->ElementBounds(headings[0u].element).value().bottom - 1.0f;
+    Check(clippedRaster(false, 0.0f, ruleBoundary) == clippedRaster(true, 0.0f, ruleBoundary),
+          "a heading rule centered exactly on the viewport edge retains its clipped antialiased pixels");
+    const auto raster = [&](MarkdownPresentationStyle style, float dpi = 96.f)
+    {
+        auto geometry = makeGeometry(520.0f, DWRITE_READING_DIRECTION_LEFT_TO_RIGHT, style, dpi);
         target->BeginDraw();
         target->Clear(D2D1::ColorF(D2D1::ColorF::White));
         geometry->Draw(
@@ -788,9 +1982,148 @@ inline void MarkdownSubtlePresentation()
     const auto firstRow      = subtle->ElementBounds(cellIndices[0u]).value();
     const auto secondRowCell = subtle->ElementBounds(cellIndices[1u]).value();
     Check(ruleCount(subtlePixels, firstRow) > 100u, "subtle table raster draws its horizontal row separator");
+    for (const float dpi : {120.f, 144.f, 168.f})
+    {
+        target->SetDpi(dpi, dpi);
+        const auto scaledGeometry = makeGeometry(520.f, DWRITE_READING_DIRECTION_LEFT_TO_RIGHT, MarkdownPresentationStyle::Subtle, dpi);
+        const auto scaledRow      = scaledGeometry->ElementBounds(cellIndices[0u]);
+        Check(scaledRow.has_value(), "DPI-specific table retains its header row bounds");
+        const auto pixels = raster(MarkdownPresentationStyle::Subtle, dpi);
+        const auto ruleY  = static_cast<long>(std::lround((scaledRow.value().bottom - 1.f) * dpi / 96.f));
+        Check(ruleY >= 3l && ruleY + 3l < static_cast<long>(rasterHeight), "DPI-specific rule sample remains inside the raster");
+        unsigned columns{};
+        for (UINT x = 8u; x + 8u < rasterWidth; ++x)
+        {
+            bool red{};
+            for (long y = std::max(0l, ruleY - 3l); y <= std::min(static_cast<long>(rasterHeight - 1u), ruleY + 3l); ++y)
+            {
+                const auto offset = static_cast<std::size_t>(y) * stride + static_cast<std::size_t>(x) * 4u;
+                red               = red || (static_cast<unsigned>(pixels[offset + 2u]) > static_cast<unsigned>(pixels[offset + 1u]) + 40u &&
+                                            static_cast<unsigned>(pixels[offset + 2u]) > static_cast<unsigned>(pixels[offset]) + 40u);
+            }
+            columns += red ? 1u : 0u;
+        }
+        Check(columns > 100u, "subtle table separator reaches actual pixels at fractional DPI");
+    }
+    target->SetDpi(96.f, 96.f);
+    const auto paddingSource  = subtle->VisibleSourceRange(firstRow.top, firstRow.top + 1.f);
+    const auto paddingDisplay = subtle->VisibleRange(firstRow.top, firstRow.top + 1.f);
+    Check(paddingSource == std::pair<std::size_t, std::size_t>{0u, 0u} && paddingDisplay == std::pair<std::size_t, std::size_t>{0u, 0u},
+          "viewport covering only table top padding does not report invisible source or display lines");
+    const auto emptyDocument = RichSemanticDocumentTests::Build(L"| a | b |\n| - | - |\n| x | |\n");
+    PreparedSemanticGeometry emptyTable;
+    LayoutOptions emptyOptions;
+    emptyOptions.widthDip = 520.f;
+    emptyTable.Begin(factory.get(), emptyDocument, emptyOptions);
+    Complete(emptyTable);
+    std::vector<std::size_t> bodyCells(0u);
+    for (std::size_t i = 0u; i < emptyDocument->Elements().size(); ++i)
+        if (emptyDocument->Elements()[i].role == SemanticRole::Cell && ! emptyDocument->Elements()[i].tableHeader)
+            bodyCells.push_back(i);
+    Check(bodyCells.size() == 2u, "empty-cell visibility fixture has two body cells");
+    const auto body = emptyTable.ElementBounds(bodyCells[0u]);
+    Check(body.has_value(), "empty-cell visibility fixture retains its row frame");
+    Check(emptyTable.VisibleSourceRange(body->top, body->top + 1.f) == std::pair<std::size_t, std::size_t>{0u, 0u},
+          "empty and nonempty cells in a padding-only viewport do not claim source visibility");
+    const auto bodyVisible = emptyTable.VisibleSourceRange(body->top + 7.f, body->bottom - 1.f);
+    Check(bodyVisible.second > bodyVisible.first && bodyVisible.first <= emptyDocument->Elements()[bodyCells[0u]].source.first,
+          "an intersecting body line remains visible beside an empty cell");
     const auto separatorX = static_cast<UINT>(std::clamp(std::lround((firstRow.right + secondRowCell.left) * 0.5f), 0l, static_cast<long>(rasterWidth - 1u)));
     const auto verticalY  = static_cast<UINT>(std::clamp(std::lround((firstRow.top + firstRow.bottom) * 0.5f), 0l, static_cast<long>(rasterHeight - 1u)));
     Check(! isRed(subtlePixels, separatorX, verticalY), "subtle table raster has no vertical grid line between intrinsic columns");
+    const auto paletteDocument = RichSemanticDocumentTests::Build(L"plain `code` text\n\n| header |\n| --- |\n| body |\n");
+    PreparedSemanticGeometry paletteGeometry;
+    LayoutOptions paletteOptions;
+    paletteOptions.widthDip             = 520.0f;
+    paletteOptions.markdownPresentation = MarkdownPresentationStyle::Subtle;
+    paletteGeometry.Begin(factory.get(), paletteDocument, paletteOptions);
+    Complete(paletteGeometry);
+    wil::com_ptr<ID2D1SolidColorBrush> surfaceBrush;
+    THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(0.0f, 1.0f, 0.0f, 1.0f), surfaceBrush.put()));
+    target->BeginDraw();
+    target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+    paletteGeometry.Draw(target.get(),
+                         textBrush.get(),
+                         decorationBrush.get(),
+                         D2D1::Point2F(),
+                         0.0f,
+                         static_cast<float>(rasterHeight),
+                         fillBrush.get(),
+                         1.0f,
+                         nullptr,
+                         surfaceBrush.get());
+    THROW_IF_FAILED(target->EndDraw());
+    std::vector<BYTE> palettePixels(stride * rasterHeight);
+    THROW_IF_FAILED(bitmap->CopyPixels(nullptr, stride, static_cast<UINT>(palettePixels.size()), palettePixels.data()));
+    const auto isGreen = [&](float x, float y)
+    {
+        const auto pixelX = static_cast<UINT>(std::clamp(std::lround(x), 0l, static_cast<long>(rasterWidth - 1u)));
+        const auto pixelY = static_cast<UINT>(std::clamp(std::lround(y), 0l, static_cast<long>(rasterHeight - 1u)));
+        const auto offset = static_cast<std::size_t>(pixelY) * stride + static_cast<std::size_t>(pixelX) * 4u;
+        return palettePixels[offset] < 32u && palettePixels[offset + 1u] > 220u && palettePixels[offset + 2u] < 32u;
+    };
+    const auto chip = paletteGeometry.SourceRange({7u, 11u});
+    Check(chip.size() == 1u && isGreen((chip.front().left + chip.front().right) * .5f, chip.front().top + 1.0f),
+          "inline code paints a retained semantic surface below its text");
+    bool sawHeader = false, sawBody = false;
+    for (std::size_t elementIndex = 0u; elementIndex < paletteDocument->Elements().size(); ++elementIndex)
+    {
+        const auto& value = paletteDocument->Elements()[elementIndex];
+        if (value.role != SemanticRole::Cell)
+            continue;
+        const auto bounds = paletteGeometry.ElementBounds(elementIndex);
+        Check(bounds.has_value(), "palette fixture cells have retained frames");
+        const bool colored = isGreen(bounds->left + 2.0f, bounds->top + 2.0f);
+        if (value.tableHeader)
+            sawHeader = colored;
+        else
+            sawBody = ! colored;
+    }
+    Check(sawHeader && sawBody, "semantic header fill stays distinct from ordinary body cells");
+    const auto markDocument = RichSemanticDocumentTests::Build(L"before <mark>marked</mark> after\n");
+    PreparedSemanticGeometry markedGeometry;
+    LayoutOptions markedOptions;
+    markedOptions.widthDip = 520.0f;
+    markedGeometry.Begin(factory.get(), markDocument, markedOptions);
+    Complete(markedGeometry);
+    Check(markedGeometry.HasMarkedText(), "ordinary presentation retains marked text surface geometry");
+    LinkDrawing markedDrawing;
+    markedDrawing.markedTextFill = surfaceBrush.get();
+    target->BeginDraw();
+    target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+    markedGeometry.Draw(
+        target.get(), textBrush.get(), decorationBrush.get(), D2D1::Point2F(), 0.0f, static_cast<float>(rasterHeight), fillBrush.get(), 1.0f, &markedDrawing);
+    THROW_IF_FAILED(target->EndDraw());
+    THROW_IF_FAILED(bitmap->CopyPixels(nullptr, stride, static_cast<UINT>(palettePixels.size()), palettePixels.data()));
+    const auto markRange = markedGeometry.SourceRange({13u, 19u});
+    Check(markRange.size() == 1u && isGreen((markRange.front().left + markRange.front().right) * .5f, markRange.front().top + 1.0f),
+          "HTML mark paints its retained background without requiring Subtle presentation");
+    const auto ruleDocument = RichSemanticDocumentTests::Build(L"<hr />\n");
+    PreparedSemanticGeometry ruleGeometry;
+    ruleGeometry.Begin(factory.get(), ruleDocument, markedOptions);
+    Complete(ruleGeometry);
+    const auto ruleElement = std::ranges::find(ruleDocument->Elements(), SemanticRole::Rule, &SemanticElement::role);
+    Check(ruleElement != ruleDocument->Elements().end(), "HTML rule raster owns a native rule element");
+    const auto ruleBounds = ruleGeometry.ElementBounds(static_cast<std::size_t>(ruleElement - ruleDocument->Elements().begin()));
+    Check(ruleBounds.has_value(), "HTML rule retains its complete horizontal frame");
+    target->BeginDraw();
+    target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+    ruleGeometry.Draw(target.get(), textBrush.get(), decorationBrush.get(), D2D1::Point2F(), 0.0f, static_cast<float>(rasterHeight), fillBrush.get());
+    THROW_IF_FAILED(target->EndDraw());
+    THROW_IF_FAILED(bitmap->CopyPixels(nullptr, stride, static_cast<UINT>(palettePixels.size()), palettePixels.data()));
+    const auto middle = static_cast<long>(std::lround((ruleBounds->top + ruleBounds->bottom) * .5f));
+    unsigned redColumns{};
+    for (UINT x = 4u; x + 4u < rasterWidth; ++x)
+    {
+        bool red{};
+        for (long y = std::max(0l, middle - 2l); y <= std::min(static_cast<long>(rasterHeight - 1u), middle + 2l); ++y)
+        {
+            const auto offset = static_cast<std::size_t>(y) * stride + static_cast<std::size_t>(x) * 4u;
+            red               = red || (palettePixels[offset + 2u] > 200u && palettePixels[offset] < 240u && palettePixels[offset + 1u] < 240u);
+        }
+        redColumns += red ? 1u : 0u;
+    }
+    Check(redColumns > 450u, "HTML rule raster spans the native document width instead of painting a replacement glyph");
 }
 inline void AtomicNavigationAndCancellation()
 {

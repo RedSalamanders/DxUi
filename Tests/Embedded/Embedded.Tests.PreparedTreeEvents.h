@@ -32,6 +32,7 @@ public:
     bool retireRoot        = true;
     bool relationshipEvent = false;
     std::atomic<bool> heardLatestProperty{false};
+    std::atomic<bool> heardTreeExpansion{false};
     std::atomic<bool> heardFirstRelationship{false};
     std::atomic<HRESULT> firstRelationshipResult{E_PENDING};
     std::atomic<HRESULT> retainedRelationshipResult{E_PENDING};
@@ -155,6 +156,8 @@ public:
                 ++intermediateRelationships;
             return S_OK;
         }
+        if (property == UIA_ExpandCollapseExpandCollapseStatePropertyId && eventValue.vt == VT_I4 && eventValue.lVal == ExpandCollapseState_Collapsed)
+            heardTreeExpansion.store(true);
         if (property == UIA_NamePropertyId && eventValue.vt == VT_BSTR && eventValue.bstrVal &&
             std::wstring_view(eventValue.bstrVal, SysStringLen(eventValue.bstrVal)) == L"Root replacement dernier Ω")
             heardLatestProperty.store(true);
@@ -340,8 +343,9 @@ static void RunPreparedTreeReentrantEmbeddedClient(GraphicsFixture& gpu, bool co
         {
             if (propertyEvent)
             {
-                PROPERTYID property = relationshipEvent ? UIA_LabeledByPropertyId : UIA_NamePropertyId;
-                result = automation->AddPropertyChangedEventHandlerNativeArray(element.get(), TreeScope_Subtree, nullptr, observer.get(), &property, 1);
+                PROPERTYID properties[] = {relationshipEvent ? UIA_LabeledByPropertyId : UIA_NamePropertyId, UIA_ExpandCollapseExpandCollapseStatePropertyId};
+                result                  = automation->AddPropertyChangedEventHandlerNativeArray(
+                    element.get(), TreeScope_Subtree, nullptr, observer.get(), properties, relationshipEvent ? 1 : 2);
             }
             else
                 result = automation->AddStructureChangedEventHandler(element.get(), TreeScope_Subtree, nullptr, observer.get());
@@ -442,13 +446,38 @@ static void RunPreparedTreeReentrantEmbeddedClient(GraphicsFixture& gpu, bool co
     {
         Check(waitFor(gatedPropertyBatch ? batchEntered.get() : observer->entered.get()),
               "the active notification batch or real callback enters its explicit gate before the publication burst");
+        if (propertyEvent && ! relationshipEvent)
+        {
+            tree->SetSelectedItemId(ThreePreparedTreeRows::Ids[0u]);
+            auto collapsed = std::make_shared<PreparedTreeSourceWitness>();
+            auto expanded  = std::make_shared<PreparedTreeSourceWitness>();
+            auto final     = std::make_shared<PreparedTreeSourceWitness>();
+            const ThreePreparedTreeRows::Names names{L"Alpha α", L"Beta nouveau β", L"Omega nouveau Ω"};
+            model.Replace(std::make_shared<ThreePreparedTreeRows>(names, collapsed, true, false));
+            tree->NotifyDataChanged();
+            Hr(view.Prepare(320, 240), "prepare expandable row");
+            Hr(bridge.Update(), "publish expandable row");
+            model.Replace(std::make_shared<ThreePreparedTreeRows>(names, expanded, true, true));
+            tree->NotifyDataChanged();
+            Hr(view.Prepare(320, 240), "prepare expanded row");
+            Hr(bridge.Update(), "queue expanded TreeItem event while delivery is held");
+            Check(DebugCountPendingTreeItemPropertiesForTest(view.Controls(), UIA_ExpandCollapseExpandCollapseStatePropertyId) == 1u,
+                  "the expansion event is actually pending behind the delivery gate");
+            model.Replace(std::make_shared<ThreePreparedTreeRows>(names, final, true, false));
+            tree->NotifyDataChanged();
+            Hr(view.Prepare(320, 240), "prepare collapsed row");
+            Hr(bridge.Update(), "coalesce collapsed TreeItem event");
+            Check(expanded->destructions.load() == 1u, "a pending TreeItem event sender does not pin the superseded prepared row source");
+        }
         std::array<std::shared_ptr<PreparedTreeSourceWitness>, 32u> burstWitnesses;
         for (size_t index = 0u; index < burstWitnesses.size(); ++index)
         {
             burstWitnesses[index] = std::make_shared<PreparedTreeSourceWitness>();
             model.Replace(std::make_shared<ThreePreparedTreeRows>(
                 ThreePreparedTreeRows::Names{L"Alpha α", L"Beta nouveau β", index + 1u == burstWitnesses.size() ? L"Omega nouveau Ω" : L"Omega en attente Ω"},
-                burstWitnesses[index]));
+                burstWitnesses[index],
+                propertyEvent && ! relationshipEvent,
+                false));
             tree->NotifyDataChanged();
 #if defined(DXUI_HAS_INTRINSIC_LAYOUT)
             if (relationshipEvent)
@@ -491,6 +520,16 @@ static void RunPreparedTreeReentrantEmbeddedClient(GraphicsFixture& gpu, bool co
             Sleep(1);
         }
         Check(observer->heardLatestProperty.load(), "held property delivery coalesces to the latest literal value");
+        if (coalescedBurst && propertyEvent && ! relationshipEvent)
+        {
+            const auto expansionDeadline = GetTickCount64() + 20000;
+            while (! observer->heardTreeExpansion.load() && GetTickCount64() < expansionDeadline)
+            {
+                bridge.Pump();
+                Sleep(1);
+            }
+            Check(observer->heardTreeExpansion.load(), "the client hears the coalesced TreeItem expansion event");
+        }
         if (relationshipEvent)
         {
             Check(observer->latestRelationshipResult.load() == S_OK, "latest relationship event and current LabeledBy property name the same live label");

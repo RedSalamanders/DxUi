@@ -1,0 +1,1 @@
+- Expose prepared caret-word source ranges with Unicode grapheme boundaries, exact transformed owners and disjoint hidden-markup mapping; native and performance qualification remain pending.

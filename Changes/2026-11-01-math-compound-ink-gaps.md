@@ -1,0 +1,1 @@
+- Retain staged ink unions for mathematical rows and nested fractions and scripts so compound operands use accurate gap constraints.

@@ -1,6 +1,7 @@
 #include "Controls.Tests.TextElements.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "Controls.Tests.UnicodeGraphemeCorpus.h"
+#include "Controls/DxUi.TextElements.h"
 
 namespace
 {
@@ -53,11 +54,49 @@ void TestTextElementBoundsMalformedAndLongContext()
             cursor = next;
         }
     }
+    const std::wstring longAscii(100000u, L'a');
+    const auto middle = longAscii.size() / 2u;
+    Require(DxUi::StepToPreviousTextElement(longAscii, middle) == middle - 1u && DxUi::StepToNextTextElement(longAscii, middle) == middle + 1u,
+            "long ASCII movement preserves the adjacent boundaries");
+    const auto backward = DxUi::GetTextElementDeletionRange(longAscii, middle, true);
+    const auto forward  = DxUi::GetTextElementDeletionRange(longAscii, middle, false);
+    Require(backward.first == middle - 1u && backward.last == middle && forward.first == middle && forward.last == middle + 1u,
+            "long ASCII deletion uses the same independent neighboring boundaries");
     const std::wstring longElement = L"a" + std::wstring(8192, L'\u0301');
     Require(DxUi::CountTextElements(longElement) == 1 && DxUi::StepToPreviousTextElement(longElement, longElement.size()) == 0,
             "long extender context uses a bounded state machine without recursive lookbehind");
     Require(DxUi::CountTextElements(L"a\u200db") == 2, "ZWJ does not join arbitrary non-pictographic letters");
     Require(DxUi::CountTextElements(L"\U0001f1e6\u0301\U0001f1e7") == 2, "an extender interrupts a regional-indicator run");
+}
+void TestReverseCjkTraversalAndContext()
+{
+    constexpr size_t length = 20000u;
+    const std::wstring text(length, L'\u4e2d');
+#if DXUI_ENABLE_DIAGNOSTICS
+    const auto before = DxUi::testTextElementPropertyLookups;
+#endif
+    for (size_t caret = text.size(); caret > 0u; --caret)
+    {
+        Require(DxUi::StepToPreviousTextElement(text, caret) == caret - 1u, "reverse CJK movement visits each independent element");
+        const auto deletion = DxUi::GetTextElementDeletionRange(text, caret, true);
+        Require(deletion.first == caret - 1u && deletion.last == caret, "CJK backspace selects exactly the preceding element");
+    }
+#if DXUI_ENABLE_DIAGNOSTICS
+    Require(DxUi::testTextElementPropertyLookups - before <= 12u * length, "reverse CJK traversal performs linear Unicode property work");
+#endif
+    // Independent forward boundaries are the oracle at every UTF-16 ACP,
+    // including RI parity, Indic linkers, ZWJ sequences and surrogate interiors.
+    const std::wstring mixed = L"\u4e2d\U0001f1e6\U0001f1e7\U0001f1e8\u0915\u094d\u0915\U0001f469\u200d\U0001f4bb\u4e2d";
+    std::vector<size_t> boundaries(1u, 0u);
+    while (boundaries.back() < mixed.size())
+        boundaries.push_back(DxUi::FindNextTextElementBoundary(mixed, boundaries.back()));
+    for (size_t caret = 0u; caret <= mixed.size(); ++caret)
+    {
+        const auto it       = std::lower_bound(boundaries.begin(), boundaries.end(), caret);
+        const auto expected = it == boundaries.begin() ? 0u : *std::prev(it);
+        Require(DxUi::FindPreviousTextElementBoundary(mixed, caret) == expected,
+                "reverse boundary retains contextual Unicode behavior at every UTF-16 position");
+    }
 }
 } // namespace
 
@@ -65,4 +104,5 @@ void RunTextElementTests()
 {
     DXUI_RUN_TEST(TestUnicode17DefaultGraphemeCorpus);
     DXUI_RUN_TEST(TestTextElementBoundsMalformedAndLongContext);
+    DXUI_RUN_TEST(TestReverseCjkTraversalAndContext);
 }

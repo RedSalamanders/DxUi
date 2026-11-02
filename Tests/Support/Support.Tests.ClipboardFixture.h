@@ -35,10 +35,13 @@ public:
     void (*check)(bool, const char*);
     wil::unique_hglobal data;
     wil::unique_hglobal fileData;
+    wil::unique_hglobal htmlData;
+    wil::unique_hglobal dibData, dibV5Data;
     bool busy              = false;
     bool failAllocation    = false;
     bool failEmpty         = false;
     bool failPublish       = false;
+    bool failHtmlPublish   = false;
     size_t opens           = 0;
     size_t closes          = 0;
     size_t allocations     = 0;
@@ -64,8 +67,13 @@ private:
     }
     static HANDLE WINAPI GetData(UINT format)
     {
-        _current->check(format == CF_UNICODETEXT || format == CF_HDROP, "transport reads Unicode text or wide file lists");
-        return format == CF_HDROP ? _current->fileData.get() : _current->data.get();
+        const auto htmlFormat = RegisterClipboardFormatW(L"HTML Format");
+        _current->check(format == CF_UNICODETEXT || format == CF_HDROP || format == htmlFormat || format == CF_DIB || format == CF_DIBV5,
+                        "transport reads supported clipboard formats");
+        return format == CF_HDROP   ? _current->fileData.get()
+               : format == CF_DIB   ? _current->dibData.get()
+               : format == CF_DIBV5 ? _current->dibV5Data.get()
+                                    : (format == htmlFormat ? _current->htmlData.get() : _current->data.get());
     }
     static BOOL WINAPI Empty()
     {
@@ -75,17 +83,20 @@ private:
             return FALSE;
         }
         _current->data.reset();
+        _current->fileData.reset();
+        _current->htmlData.reset();
         return TRUE;
     }
     static HANDLE WINAPI SetData(UINT format, HANDLE value)
     {
-        _current->check(format == CF_UNICODETEXT, "transport publishes Unicode clipboard data");
-        if (_current->failPublish)
+        const auto html = RegisterClipboardFormatW(L"HTML Format");
+        _current->check(format == CF_UNICODETEXT || format == html, "transport publishes supported clipboard formats");
+        if (_current->failPublish || (format == html && _current->failHtmlPublish))
         {
             SetLastError(ERROR_ACCESS_DENIED);
             return nullptr;
         }
-        _current->data.reset(static_cast<HGLOBAL>(value));
+        (format == html ? _current->htmlData : _current->data).reset(static_cast<HGLOBAL>(value));
         ++_current->publications;
         return value;
     }

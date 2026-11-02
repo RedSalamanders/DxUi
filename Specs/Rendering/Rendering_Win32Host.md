@@ -3,6 +3,24 @@
 Status: normative intended contract
 Last reviewed: 2026-10-23
 
+The application may report known occlusion through
+`ControlHost::SetNativePresentationVisible(false)` on the attachment owner thread.
+The signal defaults to true for each attachment. False immediately releases the
+animation subscription, coalesces later animation requests and suppresses native
+invalidation, preparation and rendering, including explicit initial frames.
+Restoring true requests a full frame and resumes deferred animation without
+activating the window. It changes presentation only, preserving the logical tree,
+input, source and accessibility state. The method returns S_FALSE for an unchanged
+signal, E_UNEXPECTED for an unattached or embedded host and RPC_E_WRONG_THREAD for
+a different caller thread. Embedded applications retain `EmbeddedHost::SetVisible`.
+
+The application owns the visibility decision and its event source; DxUi installs
+no global window hooks and does not poll other windows. Both native presentation
+modes use flip-model swap chains, for which Windows does not return
+DXGI_STATUS_OCCLUDED. The historical proposal to infer arbitrary window coverage
+from Present or DXGI occlusion notifications is not this contract; see
+[Microsoft's status documentation](https://learn.microsoft.com/en-us/windows/win32/direct3ddxgi/dxgi-status).
+
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
 
@@ -41,7 +59,7 @@ frame under an unchanged root. Attachment changes schedule a corrective native p
 renders the current tree. Delegate replacement from a model getter cannot publish a partially painted frame.
 
 Attach runs on a same-process HWND's owner thread. One host owns an HWND, and one host has at most one attachment.
-Repeating Attach for the same HWND and presentation mode is idempotent; switching either requires Detach first.
+Repeating Attach is idempotent only for the same HWND, presentation mode and batch-initial-children option; a repeated force-WARP request also requires the existing shared pool to be WARP. A default force-WARP option inherits the current pool policy. Changing HWND, mode or batch option requires Detach first; an incompatible explicit WARP request fails.
 Attach attempted synchronously from a teardown callback fails with `ERROR_BUSY`; a later attachment after Detach
 returns remains supported. Teardown cannot acquire a new HWND or resurrect focus or a native text-input session.
 A rejected attachment preserves the existing host, accessibility peers, payloads and shared-resource accounting.

@@ -35,6 +35,25 @@ function New-Fixture([string] $Name) {
     return $path
 }
 
+# Exercise the real finalizer with a closed run and a simultaneous synthetic suite failure.
+$dualRoot = New-Fixture 'dual-failure'
+$dualRun = Start-TestRunEvidence $dualRoot @{scenario='dual-failure'}
+Complete-TestRunEvidence $dualRun $false
+$primary = [InvalidOperationException]::new('synthetic suite failure')
+$observed = $null
+$finalizerWarnings = @()
+try {
+    $pendingFailure = $null
+    try { throw $primary }
+    catch { $pendingFailure = $_; throw }
+    finally { Complete-TestRunEvidenceAfterFailure -Run $dualRun -Passed $false -PrimaryFailure $pendingFailure -WarningVariable finalizerWarnings }
+} catch { $observed = $_ }
+Assert-Evidence ($null -ne $observed -and [object]::ReferenceEquals($observed.Exception, $primary)) 'Finalization replaced the original suite exception.'
+Assert-Evidence ($finalizerWarnings.Count -eq 1 -and $finalizerWarnings[0].Message -match 'finalization also failed: Run evidence has already been closed') 'Secondary finalization failure was not reported.'
+$finalizerOnly = $null
+try { Complete-TestRunEvidenceAfterFailure -Run $dualRun -Passed $true -PrimaryFailure $null }
+catch { $finalizerOnly = $_ }
+Assert-Evidence ($null -ne $finalizerOnly -and $finalizerOnly.Exception.Message -match 'Run evidence has already been closed') 'A finalization-only failure was not fatal.'
 $root = New-Fixture 'ordinary'
 $a = Start-TestRunEvidence $root @{scenario='first'}
 $b = Start-TestRunEvidence $root @{scenario='concurrent'}

@@ -1,8 +1,13 @@
 #pragma once
 #include "Embedded.h"
+#include <cstddef>
 
 namespace DxUi
 {
+namespace RichText
+{
+class ExportContent;
+}
 // Application-side C++ adapter. Keep it in the module linking DxUi.lib; use application-defined COM/POD
 // transport to a plugin. Calls are synchronous on the attaching UI thread, outside rendering.
 class TextInputClient
@@ -36,23 +41,46 @@ public:
     virtual HRESULT Read(HWND owner, std::wstring& text) noexcept      = 0;
     virtual HRESULT Write(HWND owner, std::wstring_view text) noexcept = 0;
 };
+// Optional explicit rendered-copy transport. Existing clipboard virtuals and
+// ordinary source-copy behavior are unchanged. Content is borrowed only for
+// this synchronous call; an application adapter can transport its owned copy.
+class HtmlTextClipboardWriter
+{
+public:
+    virtual ~HtmlTextClipboardWriter()                                                       = default;
+    virtual HRESULT WriteExport(HWND owner, const RichText::ExportContent& content) noexcept = 0;
+};
+// Default system transport stages Unicode and CF_HTML before one nonblocking
+// clipboard ownership attempt. A legacy adapter receives rendered Unicode.
+// A failure after EmptyClipboard may leave only Unicode; it is still reported
+// as failure. No document mutation is coupled to this explicit copy operation.
+HRESULT CopyExportToClipboard(HWND owner, const RichText::ExportContent& content, TextClipboard* clipboard = nullptr) noexcept;
 
 // Optional structured paste transport. Existing TextClipboard implementations
 // and Unicode-only controls retain their original Read/Write behavior.
 struct TextClipboardContent
 {
     static constexpr size_t MaximumFiles = 16u, MaximumFileUnits = 32767u, MaximumTotalFileUnits = 65536u;
-    TextClipboardContent() : text(0u, L' '), filePaths(0u)
+    static constexpr size_t MaximumBitmapBytes = 32u * 1024u * 1024u;
+    TextClipboardContent() : text(0u, L' '), filePaths(0u), htmlFragment(0u, L' '), bitmapDib(0u)
     {
     }
     TextClipboardContent(const TextClipboardContent&)            = default;
     TextClipboardContent& operator=(const TextClipboardContent&) = default;
     std::wstring text;
     std::vector<std::wstring> filePaths;
+    std::wstring htmlFragment; // Validated, bounded CF_HTML UTF-8 fragment.
+    bool hasHtmlFragment = false;
+    std::vector<std::byte> bitmapDib; // Owned validated packed DIB; never a clipboard handle.
+    bool bitmapV5 = false;
     void Swap(TextClipboardContent& other) noexcept
     {
         text.swap(other.text);
         filePaths.swap(other.filePaths);
+        htmlFragment.swap(other.htmlFragment);
+        std::swap(hasHtmlFragment, other.hasHtmlFragment);
+        bitmapDib.swap(other.bitmapDib);
+        std::swap(bitmapV5, other.bitmapV5);
     }
 };
 class StructuredTextClipboard
@@ -63,6 +91,21 @@ public:
     // over Unicode text; failures leave the supplied owned result unchanged.
     virtual HRESULT ReadContent(HWND owner, TextClipboardContent& content) noexcept = 0;
 };
+// Optional extension for independently selecting rich formats in one ownership attempt.
+class SelectiveStructuredTextClipboard
+{
+public:
+    virtual ~SelectiveStructuredTextClipboard()                                                                                  = default;
+    virtual HRESULT ReadSelectedContent(HWND owner, TextClipboardContent& content, bool includeFiles, bool includeHtml) noexcept = 0;
+};
+// Optional bitmap-aware extension; existing clipboard vtables remain unchanged.
+class BitmapStructuredTextClipboard
+{
+public:
+    virtual ~BitmapStructuredTextClipboard() = default;
+    virtual HRESULT ReadSelectedBitmapContent(HWND owner, TextClipboardContent& content, bool includeFiles, bool includeHtml, bool includeBitmap) noexcept = 0;
+};
+// Optional transform discovery uses a cross-cast from the same TextInputClient object passed to SetClient.
 // Application-side optional source-paste transform. Called on the attaching UI
 // thread, outside rendering, before the existing revision-checked commit. It
 // prepares text only: no document mutation or clipboard ownership is delegated.
@@ -74,6 +117,37 @@ public:
     // S_OK supplies a complete replacement; S_FALSE/E_NOTIMPL keeps ordinary
     // Unicode paste. File-only content requires an explicit supported result.
     virtual HRESULT TransformPaste(const EmbeddedTextInputSnapshot& snapshot, const TextClipboardContent& content, std::wstring& replacement) noexcept = 0;
+};
+// Independent HTML opt-in; existing file-paste clients need not change.
+class TextClipboardHtmlPaste
+{
+public:
+    virtual ~TextClipboardHtmlPaste()                                                  = default;
+    virtual bool AcceptsHtml(const EmbeddedTextInputSnapshot& snapshot) const noexcept = 0;
+};
+// Optional additive path for controls whose prepared caret site is richer than
+// a source ACP. The client validates the supplied focus/revision and commits
+// one transaction; existing replacement-only clients remain unchanged.
+class TextClipboardFilePaste
+{
+public:
+    virtual ~TextClipboardFilePaste()                                                                                       = default;
+    virtual HRESULT ApplyFilePaste(const EmbeddedTextInputSnapshot& snapshot, const TextClipboardContent& content) noexcept = 0;
+};
+// Optional source-aware cut after clipboard publication. E_NOTIMPL requests
+// the ordinary text-client replacement; other results are final.
+class TextClipboardSemanticCut
+{
+public:
+    virtual ~TextClipboardSemanticCut()                                                  = default;
+    virtual HRESULT ApplySemanticCut(const EmbeddedTextInputSnapshot& snapshot) noexcept = 0;
+};
+class TextClipboardBitmapPaste
+{
+public:
+    virtual ~TextClipboardBitmapPaste()                                                                                       = default;
+    virtual bool AcceptsBitmap(const EmbeddedTextInputSnapshot& snapshot) const noexcept                                      = 0;
+    virtual HRESULT ApplyBitmapPaste(const EmbeddedTextInputSnapshot& snapshot, const TextClipboardContent& content) noexcept = 0;
 };
 
 // One lazy TSF service per application HWND. Borrows the HWND and retains only the active client.

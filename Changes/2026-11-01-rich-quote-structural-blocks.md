@@ -1,0 +1,1 @@
+- Quote whole tables, HTML, code, rules, and reference definitions with their source lines intact.

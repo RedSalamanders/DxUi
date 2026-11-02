@@ -1,0 +1,1 @@
+- Render bounded Mermaid class realization relationships with dotted lines and hollow triangle endpoints.

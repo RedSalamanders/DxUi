@@ -1,0 +1,1 @@
+- Share the bounded owner-turn work budget between Markdown parsing and semantic preparation.

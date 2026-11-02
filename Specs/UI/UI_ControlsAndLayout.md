@@ -4,7 +4,7 @@ RichTextEditor `RichTextEditorAppearance::colorizeMarkdownSource` is opt-in and
 uses the configured lossless Markdown analysis profile. Source glyph geometry
 MUST stay identical: syntax delimiters receive subdued ink, heading/list markers
 and exact source link destinations receive accent ink, and selection ink wins.
-No source text, UTF-16 offset, history or text-service state changes. Color ranges
+The experimental direct renderer has its own default-off `directSourceInkPreview` switch; the ordinary colored DirectWrite path remains the default until paired performance qualification succeeds. No source text, UTF-16 offset, history or text-service state changes. Color ranges
 MUST publish only after complete owner preparation, be disjoint/sorted and stay
 bounded to 65,536 staging events. Source/host/layout retirement cancels pending
 ink. Capacity overflow falls back to the whole ordinary source view and is
@@ -45,6 +45,16 @@ High contrast preserves the existing system color pair and focus/border treatmen
 filled treatment. Leading Fluent icons and trailing keyboard hints on Standard/DropDown/Repeat buttons participate
 in intrinsic measurement, reserve the same paint lanes and mirror with flow direction. Hints describe consumer-owned
 shortcuts; they never register keys or change the button's accessible command name.
+Hyperlink button underline width is prepared with the current text, content font,
+host typography, flow and bounds before painting. Hover painting uses only the
+prepared width and creates no DirectWrite measuring layout. Text, font, bounds,
+flow and host typography/resource changes retire the measurement.
+
+Label mnemonic changes invalidate the owner only when the normalized mnemonic
+changes. Labels with a mnemonic or typography override prepare their DirectWrite
+layout before paint, keyed by text, mnemonic, typography, flow, bounds and host
+resource/typography identity. Repeated paints reuse that layout; labels with no
+mnemonic and no typography override retain their ordinary text draw path.
 
 `TreeAppearance` may suppress background/border or decorative expanders and may reserve the expander lane on
 leaf rows. Hit testing follows the visible lane; keyboard expansion, hierarchy, selection and UI Automation retain
@@ -141,7 +151,7 @@ Intrinsic owners request work through the shared pending-layout traversal used b
 that changed the tree mid-pass) prevents the host from publishing that preparation and requests another one. A
 layout that fails (text beyond the shaping budget, an unsupported child without an explicit size, arithmetic
 overflow) keeps the owner's previous geometry, which the frame paints, and is reported once through the diagnostics
-sink; the owner is laid out again when its content, constraints or bounds change. A failure never blanks the
+sink; the owner is laid out again when its content, constraints or bounds change. An `E_OUTOFMEMORY` result receives one cooperative retry per layout request; a second failure remains latched until a new request. A failure never blanks the
 window. Measure invalidation moves no geometry until that preparation, so it leaves the interaction revision alone:
 pending layout neither drops input nor cancels a press. After a successful deferred pass the native host
 republishes the UI Automation snapshot, whose bounds an earlier publication may have read before the pass. The
@@ -233,7 +243,7 @@ uses right-to-left text shaping, and opens submenus toward the left before flipp
 the work area requires it. It does not reverse the characters in any menu string. The popup's hit
 geometry and keyboard navigation follow the same flow direction.
 
-The [described-menu plan](../Plans/WIP/MenuDescriptions_2026-09-21.md) extends native command
+The [described-menu plan](../Plans/Done/MenuDescriptions_2026-09-21.md) extends native command
 rows with opt-in literal secondary text. Standard/Toggle/Radio/Info rows must measure both fields
 at the final monitor-constrained width, including the scrollbar lane, then publish matching
 paint/hit geometry. The lane decision uses the viewport the popup will actually have: the requested
@@ -361,6 +371,7 @@ physical application DPI presentation and real assistive-technology journeys req
   PageHost participates in the same inheritance chain as Panel; its pages resolve through the PageHost rather than
   directly through the host. Root replacement snapshots the incoming control's previous inherited values before
   interaction-reset callbacks can retire its old parent, then reparents without dereferencing that old chain.
+- TabControl stages title measurements, header geometry, attached-tab path geometries and its host palette and text-format resources before painting. Host transfer, DPI, content and overflow scrolling retire the affected cache and schedule visual preparation; the first subsequent prepared frame draws the current tabs without creating a title layout or rebuilding header geometry during Paint.
 - Tree walks go through logical children (`Control::GetLogicalChildCount`/`GetLogicalChild`): a Panel's children and a
   PageHost's current page. Membership (`IsControlInTree`), Tab order, native text input and its text store, the
   ComboBox scroll-container lookup and the UI Automation tree all use that one walk, so the content of a page takes
@@ -391,7 +402,7 @@ Button variants. Null preserves the existing role defaults (Body 13 DIP, Icon 12
 for a normalized no-op and `S_OK` for a change. The getter returns the normalized optional value. Intrinsic
 measurement, wrapping, glyph painting and hyperlink underline width MUST use the same requested size while
 retaining the host role's UI/icon family, fallback, weight, alignment and flow direction. Internal dropdown,
-selector, split and acknowledged disclosure chevrons retain their original chrome metrics. Consumers can
+selector, split and acknowledged disclosure chevrons retain their original chrome metrics. Selector buttons reserve an empty leading lane to balance the trailing chevron; leading icons and shortcut text are not rendered or measured for this variant. Consumers can
 request 14-DIP chrome labels and 18-DIP line icons without changing global typography or creating local controls.
 Reuse the host's bounded configured-format cache and common drawing/measurement helpers; stable painting MUST
 not allocate new formats per frame. A changed override invalidates intrinsic measurement before requesting
@@ -521,7 +532,9 @@ Slider 48 DIP of cross-axis room to show the full touch halo and keep neighborin
 viewport or host edge clips both the halo and the control's rendering. Popup and menu overlay layers paint above the halo.
 An acknowledgement through `SetValue` snaps and stops position animation even when it equals the accepted target.
 Non-finite values, range limits and steps leave the previous valid state unchanged. A range whose span overflows
-also leaves the prior range intact. Off-center thumb grabs retain the pointer offset, continue outside bounds under
+also leaves the prior range intact. A release that invokes a preview callback revalidates its drag generation, host and capture owner before committing. A callback that transfers capture cancels only the old draft; a canceled and restarted drag retains its own capture and release.
+
+Off-center thumb grabs retain the pointer offset, continue outside bounds under
 capture, and restore the initial value on cancellation without a later release committing it.
 
 Each control also requires accurate usage documentation in `docs/controls.md`. Code changes review affected docs
@@ -620,6 +633,19 @@ one. Such a row shows only its part inside: its fill, focus ring, text, badge an
 same applies to rows an expansion or collapse animates. The reorder marker is clipped 1 DIP past the viewport, inside
 the inset, so an insertion line on the edge keeps its full 2 DIP.
 
+### Tree expansion animation capacity
+
+Tree expansion and collapse retain their model, selection, focus, delegate and accessibility semantics at any model size. Row and chevron transitions are optional: if either visible-row snapshot would exceed 4096 rows, or animation preparation cannot allocate, the accepted change appears immediately. Admitted transitions prepare stable-ID indexes once and reuse them during painting. Reduced-motion settings also apply the change immediately.
+
+### TextField supplementary character input
+
+Character input buffers a UTF-16 lead surrogate privately until its matching trail arrives, then inserts and publishes the complete pair as one edit. An orphan trail is consumed without changing text. Caret or selection commands, pointer input, focus changes, text replacement, text-store imports and read-only transitions cancel a pending lead; no change callback or accessibility publication exposes it alone.
+### Grid keyboard paging and column identity
+
+Page Up and Page Down use the body viewport height and prepared row/group geometry, with at least one-row progress where possible. Unhandled keys return before querying the model or enumerating rows. A model refresh compares the cached column IDs; when those identities change, widths, display order and current-cell index are rebuilt for the new columns rather than retained by position.
+### Tree refresh and input routing
+
+A model refresh reconciles identities and clamps the scroll offset without moving the viewport to an unchanged focus. Typeahead cycles after the current row on a fresh one-character search and retains the current match as the prefix grows. A first keyboard action that selects the first row reports that selection; movement reports its final landing once. Ctrl and Shift row-selection gestures do not trigger single-click invocation. A wheel event directed outward at a scroll extent bubbles to an enclosing scroller, including partial detents.
 ### Tree row drag
 
 `Tree::SetReorderEnabled` arms a pointer drag on a row (not the expander or the scrollbar). After the pointer moves
@@ -783,7 +809,7 @@ process-global language. Each product/module provides its current translated str
 
 ## Intended rich-text editor contract
 
-The [owned Unicode rich-text editor plan](../Plans/WIP/RichTextEditor_2026-10-17.md)
+The [owned Unicode rich-text editor plan](../Plans/Done/RichTextEditor_2026-10-17.md)
 tracks the retained RichTextEditor v0 preview now implemented in the library and
 catalog. It is bounded to the existing 64 Ki UTF-16/128-history model, with D2d
 shared native/embedded source TSF/IME/UIA adapters. Full rich-text/Markdown and
@@ -855,6 +881,9 @@ same-content replacement only acknowledges its exact valid selection; it allocat
 no source/history, advances no revision and preserves undo/redo. Stage every
 changed tree and required history copy before publishing. Allocation failure in
 replacement, transient replacement, reset, undo or redo preserves all state.
+An active changed transient preview keeps history entries but makes undo and redo
+unavailable until its entry source is restored. A recorded edit that supersedes
+the preview records the entry source, not uncommitted preview text, for undo.
 Document source-taking operations borrow std::wstring_view synchronously and
 copy changed source into immutable owned buffers before returning. Recognize
 valid no-ops before creating owning strings or staging history. This avoids
@@ -895,6 +924,9 @@ the complete bounded source. Two empty sources may remain semantically unchanged
 across unrelated identities. Adjacent equal physical lines may share one immutable
 payload. Preparation statistics count processed/reused block slots and the widened
 source slice, not individual parser calls or timing acceptance.
+
+Tracked edits may reuse a proven unchanged closed Markdown root and its complete source-correlated subtree; prefix roots require an unchanged document-owned separator, and shifted suffixes retain their unchanged continuation through EOF. Unsupported or ambiguous closure, reference-definition staging, incompatible profiles and source-region parses use the normal parser. Reuse is cooperatively prepared, publishes only a complete parse, and rebuilds inline resolution and identities against the new source; cancellation leaves the prior immutable result intact.
+
 Stage every new payload and prefix index before nonthrowing publication. Failure
 must preserve the entire prior state, revision, statistics and block identities.
 Clear releases all owned prepared state; default/moved/retired services reject
@@ -912,7 +944,24 @@ not call it from composition. No HWND/device/thread/timer/worker belongs to the
 core. The caller supplies scheduling and stale-result/lifetime checks until the
 retained/shared preparation integration is implemented.
 
+Rich view exposes an authored link or image title through the host's delayed
+supplemental tooltip when its visible content is hovered. Editable editors require
+Ctrl; read-only editors do not. A nested image title takes precedence over its
+containing link title. Otherwise the control's consumer tooltip remains eligible.
+Tooltip selection does not mutate source, selection, history or focus. Source
+changes, scrolling, hiding and control detachment retire the previous title.
+Editor setters commit before clearing a visible title tooltip; synchronous
+embedded invalidation may call a newer setter, and that newer state wins.
+After clearing visible tooltip content, the host resolves the hovered target and
+text again before publication. This also applies when a generic consumer tooltip
+was visible: its invalidation callback may replace the candidate rich document.
+An expanded inline source owner's edit help is not an authored hover title.
+
 ## Retained RichTextEditor v0 preview (D2c)
+
+Diagnostic native math corpus cases observe recursive parser entry addresses on the actual thread stack and require 128 KiB remaining for the 64-level array, arrow, infix, general-fraction, unary-accent and math-style fixtures, including mixed nesting. The shared corpus also prepares 64-level arrays, fractions and structured binary expressions on the ordinary thread stack. This sampled entry-address guard is not a complete stack high-water measurement. Matrix and substack rows accept either the double-backslash or `\cr` separator. Double-backslash separators accept nonnegative row-spacing dimensions in pt (0–64), em or ex (0–4), using the mathematical absolute-unit scale for pt. Unsupported dimensions and dimensions after `\cr` retain complete formula source.
+
+The bounded math parser supports one `\over`, `\atop`, `\choose`, `\brace` or `\brack` infix operator per math group; nested groups independently admit an operator. Ruled and ruleless fractions and the three fenced forms retain their distinct geometry. Duplicate operators reject the complete formula to source. General fractions and above accept nonnegative bounded rule dimensions in pt (0–64), em or ex (0–4), and general fractions accept single-character delimiters and style selectors 0–3. Unbraced native delimiter commands and braced above dimensions are accepted; unsupported values, units and delimiters reject to source. Semantic layout accepts a finite `mathAbsoluteUnitScale` in (0,16], default 1, applied only to point dimensions; the editor supplies its zoom and geometry reuse includes this value. v0 text layout ignores the semantic-only option. Continued fractions use display style and reserve a numerator strut; optional alignment rejects to source. The array environment accepts 1–64 l/c/r columns with independently aligned cells and bounded rectangular padding; single solid or dashed vertical and horizontal rules stage between or beside cells; repeated rules reject to source. Dashed rules cap each rule at 128 segments and the formula at 32,768 staged lines. Display align, alignat, gather and equation environments support one text tag or starred tag per row. Independently prepared labels align to their actual matrix-row baselines and the containing semantic box trailing edge; duplicate row tags, nested row tags, unsupported environments and inline tagged formulas retain source. Row labels are staged under the shared geometry budget and reused on width-only reflow. Nonumber and notag are consumed without an atom because the profile does not synthesize automatic equation numbers; explicit tags remain independent. Alignat and alignedat admit 1–32 column pairs, pads incomplete rows and adds no automatic inter-column gap. Starred matrix families accept a bounded optional l/c/r cell-alignment argument and retain their fence family. Subarray accepts one l or c column and stages script-style cells; darray uses the bounded array column/rule grammar with display-style cells. Native rcases place the brace on the right; dcases and drcases use display-style contents, with at most two columns. Dot and double-dot accents stage filled circles with their actual ink bounds. Single italic-glyph accents use the logical glyph center plus half the font italic correction, capped at one quarter em; compound bases retain box-centered placement. Native over/under left, right and bidirectional arrows, over-harpoons and double right arrows stage directed strokes; over/under line segments retain both end bars. Native check, widecheck, breve, acute, grave, mathring, underbar and utilde accents stage bounded, direction-specific geometry during preparation. When no usable font variant exists, hat and widehat retain a triangular vector fallback; ring strokes reserve their small-size ascent. Over/underbrace and over/undergroup stage distinct outline geometry and above/below script placement. Textup, textmd and textnormal groups reset the appropriate inherited font attributes; text family, weight and shape groups may nest within the normal depth bound. Flat text and colored text accept single-scalar TeX accents as base-plus-combining sequences; malformed and multi-scalar arguments retain source. Textsf and texttt use configured body and code font families; textrm returns to the math family. The generation-scoped format key distinguishes these roles; emph toggles inherited italic style. Poor-man bold retains the source font, stages an offset glyph overprint and includes that ink in prepared bounds. Scoped legacy math font switches are bounded and respect nested explicit alphabet overrides; bold/frak/Bbb consume one argument. Mathscr accepts uppercase Latin letters in a distinct Segoe Script face only after the system family and complete alphabet coverage are verified; missing coverage refuses the exact formula source. Its system face is an approximation of the pinned KaTeX script font. Unsupported text-family nesting preserves source. Bounded extensible left/right, bidirectional, double, hook, double-headed, opposing, single and paired harpoon, maps-to and equality relations stage their shafts and independently positioned upper and optional lower labels.
 
 The bounded retained-geometry component is functionally qualified:
 PreparedDocumentLayout stages immutable projection clones and DirectWrite chunks
@@ -937,6 +986,9 @@ origin, preserving its mixed-font caret and color-font behavior. Reuse requires
 the same vertical origin; a height-changing edit rebuilds dependent suffixes and
 reports all that work. An inexact synthetic line or an empty displayed suffix
 retains canonical whole geometry, including terminal-font behavior.
+Private semantic DirectWrite preparation consumes bounded display text and runs without fabricating source identity arrays; public Projection preparation retains its strict source mapping validation. Semantic staging remains transactional, and matching public headers and library builds remain required.
+
+Semantic paint stages order-preserving viewport interval indexes for box frames, element decorations, code numbers, heading rules and table rows as part of its unpublished geometry. Draw queries them without allocation and preserves authored paint order even for overlapping bounds. The query includes a 3-DIP paint outset so strokes and antialiasing crossing a viewport edge remain visible; rebuilding an index stages its replacement before publication. Application-supplied decoration rectangles use the same order-preserving interval index to cull offscreen work. Selection normally uses the prepared union mask and draws one viewport pass; if that resource is unavailable, its per-rectangle fallback remains correct and benefits from indexed viewport culling, but may redraw a box more than once.
 Whole-layout preparation/reuse/source units are reported separately and cannot be
 credited as bounded incremental work. Original height/raster failures remain
 retained. All three x64 profiles pass geometry and 108 exact WARP pairs each,
@@ -970,7 +1022,7 @@ character pairs never enter the model. AltGr Unicode entry remains accepted.
 `SynchronizeReadOnlySourceSnapshot(snapshot, selection)` is an owner-thread setter for a read-only Source view.
 It shares the immutable source tree without materializing a replacement string or copying source revision counters.
 Changed source advances the target's own monotonic revision, clears only its undo/redo history, and retires the same
-highlights, image/source-edit state, accessibility and prepared geometry as `SetText`; ordinary selection/text-service
+highlights, image/source-edit state and accessibility as `SetText`. It invalidates stale geometry while retaining reusable immutable chunks and the mirror scroll offset, clamped to the new extent; ordinary selection/text-service
 publication runs last. The parser remains independent and publishes at the target revision. Same-snapshot selection
 changes follow `SetSelection`, including clearing visual caret affinity; identical snapshot/selection is idempotent.
 An absent snapshot, invalid scalar/CRLF boundary, exhausted target revision or incompatible target profile returns
@@ -1000,37 +1052,56 @@ Markdown links for other files, relative to the document parent;
 unsaved/cross-root paths MUST use an absolute file URI. Component case MUST be
 preserved, including case-sensitive directory correctness. Code/HTML/metadata,
 active source scopes and partial atomic inline contexts MUST retain literal
-paste. Multiple files MUST use blank paragraphs and preserve clipboard order,
-including mixed images/links. Image descriptions use the filename stem; text link
-labels retain the complete filename. If any structured path is unrepresentable,
-the complete original list MUST remain quoted source. One paste MUST record one transaction
+paste. Multiple files MUST preserve clipboard order, including mixed images and links. Ordinary paragraphs use blank
+paragraph separators; list and quote continuations retain their containing prefixes,
+and a table cell uses a single space so no row or table is split. Ambiguous or
+cross-container source selections MUST refuse rather than alter surrounding structure.
+Image descriptions use the filename stem; text link
+labels retain the complete filename. A path exceeding the 512-component lexical
+reference budget is unrepresentable, even when it fits the clipboard size limit.
+If any structured path is unrepresentable,
+the complete original list MUST remain quoted literal text; Rich-mode source escapes
+Markdown punctuation while opaque/Source mode retains raw spelling. One paste MUST record one transaction
 and preserve exact undo/redo and backward selections. Path construction is
 lexical, bounded and fallible; no control-owned I/O, file copy/move or remote
 fetch is implied. Display requires caller-serviced immutable image resources;
 unserviced or declined resources retain their alternative. File links retain
 the existing inert link presentation. Paste MUST NOT activate/open a file, query
 existence or register drag-and-drop; classification uses the path suffix only.
+An opt-in bitmap-paste handler may save validated owned DIB bytes and return a
+supported absolute image path. It runs after clipboard release; the editor
+rechecks source, selection epoch, binding, focus and composition before the
+same one-transaction file-reference insertion. Invalid, canceled or stale
+results do not mutate source. The application owns any asset side effects.
 
-The separate [file-drop plan](../Plans/WIP/RichTextFileDrop_2026-10-20.md) specifies
-pending drag-and-drop support with the same displayed-image/relative-file-link
-policy. Its insertion target MUST be a prepared source caret at the drop point;
+The file-drop transport uses the same displayed-image/relative-file-link
+policy as paste. Its insertion target MUST be a prepared source caret at the drop point;
 preview MUST NOT move the existing selection, and one accepted file list MUST
 produce one atomic insertion whose undo restores that selection. Native and
 embedded transports MUST share path/context rules and the application-owned image
-pipeline. This planned capability is not implemented by file-reference paste.
+pipeline. Native and embedded applications own OLE registration and routing;
+the library provides the bounded adapter and guarded insertion services. The
+[file-drop plan](../Plans/Done/RichTextFileDrop_2026-10-20.md) retains current-source
+qualification and consumer adoption separately from implementation.
 
 Pure structural command/deletion planning MUST reject syntax carrying a
 presentation-only source-region hint before staging any document change, even
 when the requested selection lies outside that region. Callers obtain canonical
 syntax for structural planning.
 
-Rich image resources MUST be immutable premultiplied BGRA, fully decoded before
-owner publication. The initial raster profile uses the built-in PNG/JPEG/BMP/GIF/
+Raster image resources MUST be immutable premultiplied BGRA, fully decoded before
+owner publication. Separately enabled SVG resources retain immutable admitted
+bytes and use the bounded preparation contract below. The raster profile uses the built-in PNG/JPEG/BMP/GIF/
 TIFF codecs and first static frame; GIF canvas placement/transparency/background
-and JPEG/TIFF EXIF orientation MUST be preserved. Unsupported resources MUST keep
+and valid JPEG/TIFF EXIF orientation MUST be preserved. Missing, malformed or
+unsupported optional orientation metadata MUST fall back to unrotated decoded
+pixels; out-of-memory remains a failure. Unsupported resources MUST keep
 the source-exact alternative. Admission is at most 16 MiB encoded, 4096 per side,
 4,194,304 decoded pixels, 32 unique active image sources and 64 MiB unique retained
-CPU pixels. Native image placements plus diagrams MUST stay within 128 objects.
+CPU pixels. Admitted image placements, mathematical expressions and diagrams
+share a source-ordered limit of 128 objects. An image beyond that limit retains
+its text alternative and authored title, and reports an ImageCapacity diagnostic
+over its original source. Rejected objects do not consume an admitted slot.
 Shared immutable pixel objects MUST be counted/uploaded once. Other source/format
 capacity contracts are unchanged; process/driver and transient staging overhead
 require separate measurement.
@@ -1059,18 +1130,87 @@ the policy-only bounded preparation rebuild. Re-enabling remote admission create
 fresh remote identities; old completions MUST never republish pixels. Every policy
 transition MUST preserve exact document source, selection, history and IME state.
 
+Data image admission is independently disabled by default. When enabled with
+`SetDataImagesEnabled`, a bounded, well-formed opaque `data:` destination
+produces a `RichImageSourceKind::Data` request whose `Source()` preserves the
+exact spelling and whose `FilePath()` is empty. Admission does not decode or
+authorize its media type: the application owns validation and decoding under the
+same image limits. Disabling it cancels its jobs and evicts its pixels without
+retiring local, remote or wiki jobs; toggling the remote policy likewise retains
+data jobs. Stale completions cannot publish after cancellation.
+
+An application may register an image activation intent callback. Ctrl+click
+and Ctrl+Enter request activation on a current prepared image; an enclosing
+link retains its existing navigation priority. The callback borrows the exact
+semantic source range, destination, title and alternative while the immutable
+publication is held. A stale publication or active composition is refused;
+the library performs no navigation or source/history mutation. Image UIA source
+editing retains its existing action and is not changed into activation.
+
+Animation timing and decoding remain application-owned. The owner may submit a
+bounded immutable replacement frame against a completed image request and the
+exact current acknowledged semantic document. Stale source, binding, pending
+preparation or composition refuses the replacement; a refused frame leaves the
+current pixels intact. Frame publication shares the existing image count and
+decoded-byte limits and does not mutate document source, selection or history.
+
+SVG image completion is separately disabled by default. Callers MAY explicitly
+construct an immutable SVG resource with nominal dimensions and enable the
+editor policy. Admission accepts ASCII XML in the SVG namespace with `svg`,
+`g`, `path`, `rect`, `circle`, `ellipse`, `line`, `polyline` and `polygon`
+and attributes `viewBox`, `width`, `height`, `x`, `y`, `cx`, `cy`, `r`, `rx`,
+`ry`, `x1`, `x2`, `y1`, `y2`, `d`, `points`, `fill`, `stroke`,
+`stroke-width`, `opacity`, `fill-opacity`, `stroke-opacity`, `stroke-linecap`,
+`stroke-linejoin`, `fill-rule` and `transform`. It rejects DTDs,
+entities, style sheets, references, embedded images, scripts and animation; in
+particular `use` is not supported. This profile is bounded to 262,144 encoded
+bytes, 2,048 elements, depth 64 and 65,536 aggregate path/point units; embedded
+images have a zero budget. The existing dimension, pixel-equivalent and total
+retained-byte limits still apply. XML admission belongs on a caller worker.
+Direct2D SVG document, stream and private same-device context creation occur in
+preparation. The bounded SVG raster is prepared at the authored, viewport-clamped
+size and current DPI in budgeted pixel tiles. Its logical BGRA pixel bytes and
+source bytes share the existing candidate retained-image ceiling; identical resources share a raster
+only at the same pixel dimensions. Completed GPU bitmaps are private to the
+device generation; Draw uses the ordinary bitmap path, with no SVG parsing,
+device queries or SVG-specific resource creation. Unsupported targets, oversized
+rasters or unsupported SVG content keep that object's alternative; device loss
+follows normal preparation recovery. Disabling SVG evicts SVG resources.
+
+In the opt-in Subtle Markdown style, fenced and indented code blocks have a neutral themed fill and a six-DIP inner frame; narrow viewports clamp horizontal insets to retain a one-DIP text width. Their source caret and selection use the inset content geometry. A fenced block with a language token of at most 128 UTF-16 units shows that token in a nonselectable prepared header; longer labels are omitted. When the frame has room for both its font-scaled gutter and at least 56 DIP of content, a nonselectable gutter displays prepared physical line numbers, aligned after wrapping and mirrored for right-to-left layout. Preparation admits at most 4096 number layouts per document, omits blocks with more than 4096 visual lines and stops numbering when that cap is reached; narrower frames omit the gutter. Default presentation retains its original code frame.
+
+An application may register a localized accessible name and code-copy intent callback. In Subtle style the prepared header then exposes a pointer action and a distinct UIA Invoke child; Ctrl+Shift+C invokes the block containing the source caret. The callback receives a borrowed counted rendered-code view with the block's normalized line endings, including any NUL; the application owns clipboard format policy. The existing code-element Invoke remains source editing. Stale, canceled, detached, or retired gestures and peers cannot invoke a replacement owner, and the action never changes source, selection or history.
+Source presentation may disable wrapping and opt into physical line numbers and space, tab and line-ending guides. The line-number lane grows with source length and zoom, clamped to preserve at least half the available text viewport. The gutter and guide coordinates are staged cooperatively from the exact counted source and current geometry; they do not add source units, selection, or text-service content. CRLF is one physical ending, and the trailing empty line remains addressable. Published guides use the current viewport and font, support high contrast, and Paint reads cached layouts/coordinates. Horizontal extent and offset apply to unwrapped Source and opt-in overflowing Rich tables; scrolling changes neither source nor history, translates painting, hit testing, TSF and UIA geometry together, clamps to the available extent, and notifies the registered owner callback. Shift+wheel may scroll horizontally; edge input bubbles. Source right-to-left scrolling follows the opposite visual direction.
+An optional code tokenizer receives borrowed language and rendered code views on the owner preparation thread. Built-in JSON, C-like, PowerShell and diff tokenizers supply bounded comment, keyword and literal spans. Application results must contain at most 4096 sorted, disjoint, nonempty UTF-16 ranges within the code body, without splitting surrogate pairs; invalid results or tokenizer failures use ordinary ink. The editor stages all ranges until the current semantic publication is complete, validates owner, binding and source after every callback, and invokes at most one code tokenizer per preparation turn. Paint uses the cached ranges; selected text and high contrast take precedence. Changing the tokenizer requests a fresh owner preparation without editing source or history.
 Image requests MUST execute in caller-owned scheduling, with callback-free
 cancellation and source/base/binding/visibility validation at owner completion.
 The caller authorizes file access, including any UNC policy. Source replacement,
 presentation withdrawal, hide/rebind/destruction MUST cancel old jobs; completed
-pixels MAY survive unrelated edits and device replacement. Failed/capacity
-completion MUST stop idle retries while preserving editable source/alternative.
-Resource-only completion MUST NOT edit source/history/selection or cancel IME.
+pixels MAY survive unrelated edits and device replacement. For a tracked edit, an in-flight request MAY remain active when at least one prior image source range is untouched; completion stays private until the new semantic document confirms its source and binding. An affected source range or untracked replacement cancels the old request. Failed/capacity
+completion MUST remain cached across unrelated source edits while preserving editable source/alternative. Explicit reload, document location or remote-image policy changes retry failed sources. Resource statistics count only actual failed completions as failed sources; canceled requests are neither pending nor failed while awaiting re-admission.
+Replacing accessibility labels without changing source retains eligible in-flight image requests and already-staged pixels privately until the new semantic document rebinds them. Resource-only completion MUST NOT edit source/history/selection or cancel IME. Multiple accepted image completions before the next owner preparation stage pixels privately and publish one immutable resource snapshot; allocation failure preserves the previous publication and leaves staged pixels retryable.
 Request preparation processes at most four image candidates per owner turn;
+the editor's image-work diagnostic counts actual visits separately from geometry block work.
 caller adapters MUST wake valid queued work when draining or cancel-pruning
 results frees a completion reservation; closure MUST serialize posting with
 owner retirement without joining a codec/filesystem call.
-GPU preparation uploads at most one bounded bitmap per turn. Native image
+Identity-orientation raster decoding writes into the unpublished owned pixel
+buffer and publishes that buffer only after successful decode and cancellation
+checks; it does not allocate a second full decoded image merely to copy pixels.
+Non-identity orientation and GIF canvas composition retain their bounded staging.
+GPU preparation performs at most one data upload per turn and never exceeds
+`LayoutWorkBudget::maximumUploadBytes` (4 MiB by default, minimum 4 bytes for
+image-capable semantic geometry; text-only/v0 services ignore this budget).
+An image fitting the budget uses one bitmap creation/upload. Larger images
+allocate private bounded bitmap storage, then copy complete pixel tiles across
+turns; even a budget smaller than one source row makes progress. Bitmap allocation
+itself is indivisible and remains subject to image dimension/decoded-byte bounds.
+Only complete bitmaps can enter a published geometry; duplicate placements share
+the completed bitmap. A width-only reflow on the same factory, immutable image
+snapshot, target and resource epoch reuses completed raster bitmaps by image
+identity without another upload or tile copy. A target or epoch change rebuilds
+the target-bound bitmap. `LayoutAdvance::uploadedBytes` reports transferred BGRA
+pixel bytes, excluding unused source-row padding. Native image
 geometry MUST use actual inline baseline/aspect rather than the larger SDK line
 selection cell. Text ACPs, UIA alternatives and structural atomicity remain intact.
 Only the private SDK layout buffer MAY neutralize image-alternative code units
@@ -1078,9 +1218,13 @@ to equal-length object placeholders; authoritative source/display strings,
 alternative names and maps MUST remain unchanged. This prevents script/emoji
 analysis from splitting one atomic image into multiple native rectangles.
 Reused placements MUST consume exactly one preparation event, without an extra
-common phase-tail count. Invalid zero semantic budgets MUST preserve staging
+common phase-tail count. Invalid zero layout/event budgets or semantic upload
+budgets below four bytes MUST preserve staging
 and create no bitmap. Bitmap memory/device HRESULT failures MUST retire staging,
 preserve the prior complete geometry and permit an explicit current retry.
+`D2DERR_UNSUPPORTED_OPERATION` for an image upload is target-local: preparation
+uses the image alternative, tries duplicate shared pixels only once for that
+preparation, and permits a retry when the preparation key changes.
 
 The [guide](../../docs/rich-text.md) lists exact navigation/format/clipboard
 commands and v0 limits. Layout survives palette/selection repaint, rebuilds on
@@ -1132,7 +1276,7 @@ The pinned dialect's seven HTML-block forms are opaque literal source, with
 container/EOF termination and their appropriate closing/blank-line conditions.
 CommonMark 0.31.2 textarea/search behavior remains distinct from strict GFM 0.29.
 Resolved inline forests and GFM extension metadata are implemented in M3; its
-bounded profile qualification is retained in the [sealed M3 packet](../../Measurements/RichText/README.md); semantic rendering/editing remains pending.
+bounded profile qualification is retained in the [sealed M3 packet](../../Measurements/RichText/README.md). Later bounded semantic rendering and editing are implemented as specified below; final-source qualification remains separate.
 BlockStatistics records deterministic prefix-inspection and container-finalization
 work. Indentation lookahead stops at its required threshold; a line's marker
 metadata rejects incompatible thematic suffixes without rescanning each nested
@@ -1169,12 +1313,24 @@ may replace node identities; Clear explicitly starts a new document namespace.
 
 Every result carries its CommonMark0312, Gfm029 or RichMarkdown target, extension
 options and source revision. M3 supplies base inline parsing and specified GFM
-extensions; RichMarkdown math/Mermaid/footnotes/front matter and semantic native
-rendering/editing remain later gates.
+extensions. Later sections define the implemented bounded RichMarkdown math, Mermaid, footnote, front-matter and semantic editing profiles; full conformance and final-source qualification remain separate.
+The Gfm029 HTML declaration block start requires an uppercase ASCII letter after
+`<!`, as in its pinned grammar; CommonMark0312 and RichMarkdown accept either
+ASCII letter case.
+When a quote prefix fails to match, a valid list marker starts a new block
+outside that quote, including an empty item or a non-one ordered start. A
+type-seven HTML opener closes that quote in Gfm029; CommonMark0312 and
+RichMarkdown preserve the lazy paragraph continuation.
+For a valid GFM table delimiter after a multi-line paragraph, only its last
+physical line becomes the table header; preceding lines remain a paragraph,
+and each block retains its original source prefixes and EOLs.
+When reference definitions are split from a following paragraph, each block
+owns its own physical-line prefix and EOL; prefix-stripped content coordinates
+remain distinct from the complete source range.
 Begin validates/owns at most 65,536 UTF-16 units, accepting raw NUL and rejecting
 unpaired surrogates. Reference-label folding replaces raw NUL with U+FFFD before
 matching, consistently with normalized inline text; exact Source() stays intact.
-This parser behavior does not admit NUL through Document or native text services.
+The RichText document, UTF-8 codecs, text-service state and UIA retain counted NUL as an exact source unit. Clipboard CF_UNICODETEXT cannot represent counted NUL: copying a selection containing one fails without changing clipboard or source. Other controls retain their own admission rules.
 Equal source/revision/profile/change requests coalesce.
 Snapshot admission uses bounded source materialization and tracked change queries;
 unchanged completed snapshots avoid materialization. Invalid/failed Begin keeps
@@ -1204,10 +1360,55 @@ HTML and soft/hard breaks. Code and HTML remain opaque to entity/escape decoding
 Code values normalize physical line endings to spaces and apply the standard
 single leading/trailing-space rule. Exact source spelling is retained separately.
 
-`MarkdownExtensions` defaults to None for CommonMark and All for Gfm029 and
-RichMarkdown. Explicit options select Tables, TaskLists, Strikethrough, Autolinks
-and TagFilter; unknown bits and CommonMark/GFM-option combinations are rejected
+`MarkdownExtensions` defaults to None for CommonMark, All for Gfm029 and
+RichAll for RichMarkdown. Explicit options select Tables, TaskLists, Strikethrough, Autolinks,
+TagFilter and the RichMarkdown-only Highlight, Superscript, Subscript, Inserted, WikiLinks,
+DefinitionLists and Abbreviations flags; the latter two are opt-in and are not
+included in the existing RichAll default. RichOptionalMask is the full admissible
+RichMarkdown bit mask. `SetMarkdownAnalysisExtensions` selects an explicit mask
+for the editor's current profile, or null to restore its default; changing profile
+resets the explicit mask. The mask participates in syntax adoption, cancellation,
+semantic publication and reuse identity; changing it preserves source and history;
+unknown bits and unsupported profile/option combinations are rejected
 atomically. Options participate in request coalescing/publication identity.
+RichMarkdown resolves exact `==...==`, `^...^`, `~...~` and `++...++` delimiter
+runs as marked, superscript, subscript and underlined insertion respectively;
+`~~...~~` remains strikethrough. Delimiters obey inline flanking and nesting,
+code/HTML/math ownership and exact source mapping. GFM/CommonMark keep the new
+spellings literal. Invalid run lengths remain literal. The existing script
+renderer prepares typography and falls back to the exact owning source leaf if
+the target cannot draw script content; a matching resource-key change retries.
+RichMarkdown WikiLinks accepts `[[target]]`, `[[target|alias]]` and their
+`!`-prefixed image embeds. Targets and labels are counted, case-sensitive
+unresolved text of at most 2048 UTF-16 units each. Empty, nested, escaped,
+multiline, control-bearing or multiply separated candidates remain literal;
+code, HTML and math retain precedence. Link activation exposes the target,
+label and wiki identity to the application instead of following local fragments.
+Wiki embeds create bounded `WikiTarget` image requests with an empty FilePath;
+the application resolves the target and supplies immutable pixels. Neither
+path performs filesystem, vault or network resolution. Lookahead work is
+cooperatively bounded and amortized linear over a leaf.
+
+With DefinitionLists enabled, one plain term line followed by 1–16 `: `
+description lines in the same paragraph projects a source-owned definition
+list, term and descriptions. Descriptions support single-line Markdown inline
+formatting; HTML and inline owners crossing lines stay ordinary. Each line is
+at most 1,024 UTF-16 units; empty, over-bound, malformed or aggregate-capacity
+rejected forms retain normal Markdown presentation. With
+Abbreviations enabled, up to 128 unique top-level single-line declarations of
+`*[KEY]: expansion` are recognized; keys are 1–64 ASCII letters/digits, and
+expansions are 1–512 UTF-16 units without controls or angle brackets. Their first
+accepted declaration is hidden only in semantic presentation. A matching exact,
+case-sensitive standalone ASCII word gets a source-owned abbreviation element,
+its authored expansion as UIA HelpText and the ordinary read-only/Ctrl hover title.
+Code, transformed tokens and words adjacent to Unicode or Markdown delimiters
+are left ordinary. Duplicate, malformed or over-capacity declarations remain
+visible as ordinary Markdown. Accepted hidden declarations retain F2 source
+editing. Declaration collection and text matching yield cooperatively. Changing
+the extension mask preserves same-source in-flight image requests. No source,
+selection, history, or network behavior
+changes, and CommonMark/GFM cannot enable these two flags.
+
 GFM tables are recognized before cell inlines, retain alignment/header metadata,
 unescape cell pipes even in code, pad missing cells and retain ignored excess
 source. Task metadata belongs to the list item, requires its first paragraph
@@ -1258,7 +1459,7 @@ Every display unit belongs to exactly one nonempty span. Primary source ownershi
 is disjoint; repeated spans require an exact primary source range and kind.
 Display order may differ from source order. Admission caps source at 65,536 UTF-16
 units, display at 131,072 and spans at 65,536, before copying/index allocation.
-Malformed UTF-16/NUL, scalar/CRLF splits, unknown enums, incomplete coverage and
+Malformed UTF-16, scalar/CRLF splits, unknown enums, incomplete coverage and
 ambiguous primary ownership are errors. This does not raise Document capacity.
 
 Leading/trailing affinities resolve shared edges, hidden source and transformed
@@ -1293,6 +1494,54 @@ notification or lifecycle guards. RichTextEditor exposes its own ApplySourceEdit
 adapter through the existing Changed/SelectionChanged path, enforcing those
 guards and invalidating stale parser/geometry access before notification. It
 preserves the pure helper's single history entry and exact source coordinates.
+Command-state list membership covers the complete selected source interval,
+including nested items and unlisted gaps, rather than sampling only endpoints.
+The query uses a small bounded stack and parent-link recovery at deeper nesting;
+the latter may add ancestor-depth work. It does not allocate or build edit strings.
+Heading availability shares the planner's source and container-prefix admission,
+including task-list restrictions, Setext conversion and resulting source capacity.
+Its prefix proof uses a bounded stack with parent-link recovery at deeper nesting;
+the recovery can add ancestor-depth work. Inside resolved footnote definitions,
+an unprepared positive command availability remains unknown until the planner's final physical
+prefix checks can also be proved without constructing edits. Consumers needing
+exact availability for an arbitrary command and its payload may call
+`PrepareMarkdownCommandState` on the owner thread, then read the same request
+with `QueryMarkdownCommandState`. Preparation uses the actual command planner,
+owns the request payload and keeps at most one result; it may allocate or throw,
+does not commit an edit or notify consumers, and preserves the previous prepared
+result on failure. A false preparation result means the owner or semantic input
+is currently unavailable. Query remains allocation-free: an unprepared request
+has unknown availability unless a cheap proof applies, while a matching prepared
+result reports the planner's exact availability. The key includes source and
+syntax identity, selection epoch, attachment, path policy and the current table
+caret site and geometry. Source, selection, presentation, enabled, read-only,
+attachment and geometry retirement discard the cached result. Composition
+always refuses command execution and reports unavailable during composition;
+if it ends without changing the keyed inputs, the same prepared result remains
+valid. Consumers must prepare again when a key changes.
+When a focused native input session has an active or indeterminate composition,
+command-state availability is false for every structural command, matching
+execution; current style and list presentation remain queryable.
+At the start of a heading's visible content, `JoinBackward` removes its ATX or
+setext heading spelling through the same structural heading conversion; inside
+the heading it remains unavailable. The operation is a single undo transaction.
+At the first paragraph of a quote, a backward join outdents the entire quote
+only when its outer prefixes are proven; parser-owned lazy continuation lines
+remain exact. Otherwise it leaves the source intact. The nearest quote or list
+container determines which level is removed.
+`SourceSnapshot::LocationAt` and `RichTextEditor::GetSourceCaretLocation` return
+zero-based logical source line and UTF-16 column, treating CRLF as one break.
+They visit immutable source pieces without allocating or flattening, in time
+proportional to the inspected prefix. Invalid snapshots, offsets and edit
+boundaries have no location; visual wrapping and reordered content do not alter it.
+`GetPreparedCaretWordSourceRanges` requires current prepared layout and returns
+the caret's UIA word expanded to complete Unicode graphemes as source-owned
+ranges. Hidden delimiters and generated display text do not become source;
+transformed spans retain their complete source owner and disjoint ranges stay
+separate. Queries copy a local prepared-display window, expanding only until
+word and grapheme boundaries are proved; an unusually long word or cluster may
+require the full bounded display. A stale layout or storage failure
+returns no result.
 
 ### Semantic document preparation (M4c bounded preview)
 
@@ -1310,7 +1559,8 @@ held documents. No worker, graphics object, HWND or timer belongs to this servic
 Admission bounds the combined block/inline graph to 32,768 nodes and geometry
 paragraphs to 4,096, in addition to Document and SourceDisplayMap capacities.
 These are preview admission limits, not larger-document or all-input latency
-qualification. Raw parser NUL remains outside Document/semantic admission.
+qualification. Counted source NUL is retained by Document/codecs/text services;
+the Markdown normalization rules replace it only in the derived display value.
 Each event is counted; leaf normalization, value tokenization, image alternative
 flattening and final map/index construction are bounded indivisible operations,
 not hard time deadlines. Empty/padded cells use generated content; amplification
@@ -1322,7 +1572,10 @@ entity/escape spelling; ordinary Text decodes lexical references/escapes. Code
 retains opaque spelling, normalizes line endings to spaces and hides its fences
 and standard trimmed spaces. Removed container prefixes stay outside glyph spans.
 Virtual tab columns are generated, not duplicated source ownership. Soft breaks
-become flow spaces and hard breaks become line breaks. Generic source fragments
+default to flow spaces; opt-in `SoftBreakPolicy::LineBreak` displays them as
+line breaks while retaining the exact source range. Hard breaks remain line
+breaks. Changing this policy retires the semantic publication without changing
+source or history. Generic source fragments
 do not by themselves implement grammar-aware line joining or empty-format cleanup.
 
 The role graph retains headings, quotes, lists/items, code, tables/rows/cells,
@@ -1336,6 +1589,34 @@ structural commands are specified in M4e below. The semantic UIA contract is in
 [input/accessibility](UI_InputAndAccessibility.md). The bounded M4f implementation
 is [functionally qualified](../../Measurements/RichText/README.md);
 physical IME/AT, native ARM64 runtime and D4c performance acceptance remain open.
+
+`AccessibilityLabels` is immutable, callback-free configuration for library-generated
+semantic names/help: footnotes, equations, diagram vocabulary/fallbacks, metadata
+diagnostics and source-entry/exit hints. `SemanticBuilder::SetAccessibilityLabels`
+and `RichTextEditor::SetAccessibilityLabels` accept a shared const dictionary;
+installing a different identity schedules retained native or embedded preparation,
+while reinstalling the same identity leaves settled work unchanged. The host
+scheduling callback may retire the editor; it is the setter's final owner access.
+Null uses byte-identical English defaults. Entries copy their construction-time
+views and require a unique known `AccessibilityTextId`, nonempty valid UTF-16 with
+no NUL and at most 1,024 units per entry. Missing entries use their English default.
+Footnote name/help templates contain `{0}` exactly once. Return-reference
+name/help templates contain `{0}` (reference ordinal) and `{1}` (footnote ordinal)
+exactly once each, in any order; no other braces or format directives are accepted
+in numbered templates. Other entries are literal text. Invalid configuration
+throws before it can be installed; construction and preparation remain fallible.
+Each native diagram family exposes its own header and help, including pie slice
+and Gantt task vocabulary, identifying/non-identifying ER relationships and empty
+family diagnostics. Display and fenced math closing-delimiter diagnostics use
+the same dictionary. Authored titles, labels, dates, values and TeX remain exact.
+
+Changing dictionary identity retires pending/published semantics and stale UIA
+children before rebuilding. Held documents retain their own immutable dictionary.
+The same dictionary is a no-op. A retained editor preserves exact source, selection,
+history, source-editing region and focus, and emits no text-change callback.
+Authored names, labels, destinations, titles and descriptions remain authored
+text; localization changes no visible projection or source/display ownership.
+UIA reads use only immutable document data and invoke no application localizer.
 
 These pure primitives remain independent of graphics. The explicit retained
 rendering preview below consumes them. M4e adds source-exact structural editing;
@@ -1423,15 +1704,45 @@ Ctrl+Home retains the exact raw document start.
 Only the following native HTML subset is projected. Tag and attribute names use
 ASCII case-insensitive matching; opening/closing tag identities must balance.
 
+RichTextEditor font zoom is an owner-thread presentation option in `.25..4`.
+It scales inherited/explicit body, code and heading font sizes, clamping the
+effective configured sizes to `1..512` DIP. It preserves source, selection,
+history and focus and is allowed in read-only views. Ctrl+wheel and Ctrl+Plus,
+Minus and zero adjust/reset the same option. Non-finite/out-of-range public
+requests refuse atomically. Optional `sourceMonospace` uses the configured code
+family/size in Source view; false retains the existing body-font presentation.
+`tabStopDip` is zero for the SDK default or `1..4096` DIP, independent of the
+number of spaces inserted by source Tab commands. All typography options are
+part of retained layout/reuse keys and require owner preparation before drawing.
+
 | Form | Native behavior and validation |
 | --- | --- |
-| b, strong, i, em, u, s, del, code, span | Attribute-free nested styles: bold, italic, underline, strike, code font or a transparent span. |
+| b, strong, i, em, u, s, del, code, span, kbd, ins | Attribute-free nested styles: bold, italic, underline, strike, code font or a transparent span. Keyboard text uses the code font; inserted text is underlined. |
+| mark | Attribute-free highlighted text, combinable with the nested styles above. Source delimiters remain hidden with exact source ownership. |
+| sup, sub | Attribute-free text scripts use a 0.75-size native font and a shifted baseline, retaining every authored source ACP, selection and undo operation. Ordinary nested inline text styles and links are supported; nested conflicting script tags and embedded images or math keep the complete leaf literal. Color-font runs require a compatible color-glyph render target; if unavailable, that HTML leaf alone falls back to exact source and retries when its target changes. |
+| img, img/ | Exactly one quoted src, optional quoted alt/title, and no other attributes. The complete tag owns one atomic image alternative and uses the ordinary bounded image resource pipeline. |
+| hr, hr/ | One standalone attribute-free rule in its HTML block, with only surrounding whitespace. It uses native thematic-break geometry, accessibility and source editing. Inline or attributed forms remain literal. |
 | a | Exactly one quoted href and optional quoted title, with no other attributes. Destination/title references are decoded; the resolved label is an inert underlined link. |
 | br, br/, br / | Attribute-free void break, mapped atomically from its complete raw tag to one native LF. A closing br tag or another self-closing style tag is unsupported. |
-| p, div, h1-h6, pre | At most one outer wrapper in an HTML block, outside which only whitespace is permitted. Paragraph/heading/code presentation uses existing native styles; nested/sibling block wrappers are unsupported. |
+| p, div, h1-h6, pre | At most one outer wrapper in an HTML block, outside which only whitespace is permitted. `p` and `div` optionally accept one quoted `align` attribute with `left`, `center`, or `right` (case-insensitive), interpreted as physical paragraph alignment in either reading direction. Paragraph/heading/code presentation uses existing native styles; nested/sibling block wrappers and other attributes are unsupported. |
+| details, summary | A complete HTML block with one outer `details`, optional bare `open`, and one nonempty first-child `summary` is a bounded disclosure. The summary accepts native inline text styles but not links or images; the body accepts the ordinary inline native HTML subset and no nested block wrappers or disclosures. A summary click, Ctrl+Tab then Space, or UIA ExpandCollapse changes editor-owned view state without changing source, selection, revision, or history. Closed bodies remain in exact source and Source view. Override state is bounded to 4,096 block identities, follows surviving incremental identities, and is retired on full source replacement. Malformed, empty-summary, unknown-attribute and other unsupported forms retain the complete literal leaf. |
+| `<!-- ... -->` | Complete comments are hidden; their bodies are never scanned as tags, Markdown or entities. Their exact source remains available in Source view and raw ACPs. |
+
+RichMarkdown additionally recognizes a block quote beginning with a standalone
+`[!KIND]` line as a callout. Supported case-insensitive kinds are note, tip,
+important, warning, caution, info, todo, success, question, failure, danger, bug,
+example and quote. A plain authored title may follow the marker; `+` or `-`
+immediately after `]` makes the callout initially expanded or collapsed.
+Titles are at most 256 UTF-16 units and the heading line at most 512; unsupported
+kinds, formatted titles and malformed headers remain ordinary quotes. The native
+view shows an icon, bold title and theme-accent bar, using text ink in high
+contrast. Foldable titles use the same mouse, keyboard and UIA disclosure action
+and bounded per-view state as HTML details. The original marker, quote prefixes,
+body, selection and history remain authoritative. CommonMark/GFM profiles do not
+apply this extension.
 
 One leaf permits at most 4,096 tags and 32 simultaneous opening tags. Unknown
-tags, comments/declarations, attributes (including class/style/events), malformed,
+tags, declarations, attributes (including class/style/events), malformed,
 crossed or unclosed tags, depth/tag overflow, overlapping Markdown/native anchors
 and ineligible HTML destinations reject the complete leaf before any tag is
 hidden. The resulting leaf contents use literal monospaced presentation after
@@ -1443,7 +1754,10 @@ HTML destination eligibility allows http, https and mailto schemes plus empty,
 relative and fragment values. Decode references first, then reject ASCII spaces,
 C0/C1 controls, quotes, angle brackets, backslashes and other schemes. These values
 remain inert metadata: the control resolves no URL, opens no resource and makes
-no network request. Other HTML structures, including HTML lists/tables/images,
+no network request. Image src additionally permits file URLs and excludes mailto;
+decoded alternatives remain literal text. Only explicit caller-owned image requests
+can load pixels, with the existing local-path admission and default-disabled remote
+policy. Other HTML structures, including HTML lists/tables,
 remain literal; their Markdown counterparts retain their native behavior.
 
 Valid inline HTML preserves surrounding Markdown inline semantics. HTML-block
@@ -1505,7 +1819,7 @@ explicit in the WIP plan; this opt-in does not close M4 as a whole.
 
 RichTextEditor analysis is opt-in through `SetMarkdownAnalysisProfile`; null
 disables it. The default and formatted pixels retain their v0 behavior. Analysis
-uses ControlHost turns before geometry, with a 4,096-operation default per turn.
+uses ControlHost turns before geometry, with a shared 4,096-operation parser and semantic-builder budget per turn. The semantic builder may start in the parser completion turn only with its remaining budget.
 `GetMarkdownSyntax` never advances preparation and returns only a completed current
 source/revision/profile, or null. Source edits invalidate current-result access
 immediately, cancel pending analysis and preserve held immutable revisions.
@@ -1513,9 +1827,10 @@ Profile changes preserve source, selection and undo/redo. Hiding, zero extent,
 rebinding and resource retirement cancel pending work. No extra worker/HWND/timer
 is permitted in either host. Completed pure analysis is independent of geometry.
 
-The raw parser's NUL admission deliberately does not change the existing Document,
-codec, clipboard or source text-store admission contract. End-to-end NUL editing,
-complete pinned grammar/HTML output, extensions and semantic commands remain open.
+Document, codecs, semantic source ownership and text services preserve counted NUL.
+CF_UNICODETEXT refuses copies containing it without changing source or clipboard;
+this clipboard transport limit does not narrow source admission. Physical-input,
+capacity/performance and complete extension qualification remain separate.
 
 The bounded base block-tree/identity slice is qualified in the
 [M2 evidence packet](../../Measurements/RichText/README.md):
@@ -1571,6 +1886,13 @@ selected task, or insert task markers where permitted by the explicit dialect.
 Removing task syntax MUST reject a literal label that would be reinterpreted as
 another block marker; it must not silently reformat that label.
 
+Rich Markdown Enter defaults to the existing raw-newline continuation policy.
+Opt-in `MarkdownEnterPolicy::NewParagraph` inserts an EOL, the proven container
+prefix, a second EOL and the prefix again in an ordinary paragraph. List and
+opaque-code continuation retain their existing policies; Shift+Enter remains a
+hard break. The request's Enter policy is part of prepared command-state identity.
+Source view and pending-analysis fallback retain their existing raw insertion.
+
 GFM table commands create/remove tables, insert/delete rows/columns and edit or
 navigate cells. Unaffected cell/escape/alignment/pipe/EOL spelling MUST survive.
 Header deletion promotes the first body row while retaining the delimiter row;
@@ -1581,18 +1903,106 @@ forward navigation from the last cell appends a row. Limits are 64 columns,
 256 body rows, 4,096 declared cells and the existing 64 Ki UTF-16 source cap.
 New structure uses local EOL, then first document EOL, then CRLF. Cell source
 must be single-line Unicode with escaped pipes and no dangling escape.
+`SetTableAlignment` changes only the selected column's delimiter colons, retaining
+its hyphen and surrounding whitespace spelling. `MoveTableRowUp/Down` exchange
+adjacent row contents, including the header, while retaining each physical line's
+container prefix and EOL. A sparse promoted header gains the missing empty cells;
+a wider one extends the delimiter within the declared table limits.
+`MoveTableColumnLeft/Right` exchange adjacent raw cells
+and their delimiter alignment in every row; implicit empty cells are materialized
+only when needed. Boundary moves and selections outside the owned row or cell
+are unavailable. Directional selection follows the moved content. These commands
+use the same syntax-local `targetCell`, atomic source transaction and undo path.
+An application clipboard hook can pass counted Unicode text to `InsertTable`
+with `tableInputFormat` set to TSV or CSV. The first record becomes the header,
+short records are padded and a final record terminator does not add a row.
+Double-quoted fields allow separators, CR/LF and doubled quotes; malformed quoting
+is rejected atomically. Literal cell text is encoded as Markdown, including
+numeric character references for spaces and line breaks. Quoted CRLF and CR
+normalize to LF in the resulting cell text. The same table limits
+apply to input and generated source; preparation keys the format and exact text.
+Ordinary paste is unchanged unless the application invokes this command.
+Alt+Up/Down moves the selected physical line within its paragraph, or a whole
+adjacent sibling list item including nested contents, as one source transaction.
+Source mode moves physical lines directly. Selection follows its original text;
+mixed ownership, list boundaries, active source sessions and composition refuse
+the action. Original list markers are not renumbered automatically.
+`RenumberList` explicitly numbers the current ordered sibling list from its
+first marker or the requested `listStart`, preserving punctuation and adjusting
+owned continuation indentation when marker width changes. It rejects overflow
+or ambiguous indentation atomically and is one undoable transaction.
+Tasks default to `EditableOnly`. An application may opt into
+`AlwaysInteractive` to permit pointer, focused Space and UIA Toggle actions on
+an enabled read-only editor. Each action changes only the exact task marker and
+records one undo transaction; other source edits remain read-only. Undo becomes
+available under the normal editable policy. Composition, stale publication and
+disabled controls still reject actions. Policy changes retire old task peers.
+`VisitSemanticWords` enumerates complete prose words intersecting a requested
+display interval with borrowed text and source fragments, using the existing
+Unicode word/grapheme policy. It excludes generated text, code, literal HTML
+blocks, metadata, URLs and native objects; supported inline HTML styling keeps
+its visible prose. `CountWords` applies the same policy to the full immutable
+semantic document. `GetVisibleSemanticDisplayRange` returns a conservative
+current-layout envelope or no value while publication is pending. Consumers
+must validate document identity before publishing decorations or suggestions;
+existing context-menu and decoration callbacks own the UI. The interval bounds
+word traversal; exclusion preparation currently scans document elements, runs
+and spans and must not be called from Paint. No dictionary or reading-rate policy
+is supplied by the library.
+Rendered export MUST operate on one immutable semantic publication. Full or
+half-open display-range export produces owned Unicode text and inert escaped
+HTML, with readable native-object alternatives and no document-authored active
+HTML or external resource loads. UTF-16 scalar and CRLF boundaries are required;
+each output is bounded to 4 Mi UTF-16 units. Prepared-page drawing MUST clip a
+vertical slice of the current retained layout at the exact prepared viewport
+width, use caller-supplied target-compatible brushes, avoid C++ heap allocation,
+and preserve source, selection, scroll and history. The caller owns the D2D
+target, page iteration and print/PDF/image transport; stale geometry fails.
+The syntax convenience entry builds a default semantic publication synchronously
+outside Paint, and retains the same bounded export and failure contract.
+HTML heading IDs MUST use the published collision-resolved heading slugs. Local
+fragment links without a target in the selected export, and unresolved wiki
+targets, MUST remain inert text. Display line breaks outside preformatted blocks
+MUST be emitted as HTML line-break elements.
+When a display selection intersects only part of a generated list marker,
+HTML uses a flat preformatted block containing the selected rendered text, so
+the browser preserves whitespace and cannot add a second marker; this fallback drops rich structure for
+that selection and still replaces native objects with their text alternatives.
+
+`autoParagraphDirection` is an opt-in semantic layout policy. Each paragraph
+uses the first Unicode 17 strong L, R or AL scalar outside nested bidi isolates.
+the pinned DerivedBidiClass defaults and explicit overrides apply to unassigned
+scalars and noncharacters as well as assigned characters.
+When no strong scalar exists it inherits the host direction. List marker and
+indent placement follow the paragraph. Table cell text resolves independently,
+while physical table column order remains governed by the host direction.
+Changing this policy retires geometry and accessibility publication without
+changing source, history or in-flight image ownership. The direction policy is
+part of the layout and native-resource reuse identity.
 
 Semantic visual deletion MUST remove empty owned Markdown/validated inline
 HTML wrappers only when their complete body is deleted, recursively. Block HTML
-wrappers remain outside this cleanup. Raw programmatic/TSF replacement MUST NOT
-apply this semantic cleanup policy. Unsupported mixed opaque targets reject
+wrappers remain outside this cleanup. Code-span body coverage uses normalized
+display units mapped to their exact source, including the single CommonMark
+padding unit removed at each edge and CR, LF, CRLF or container prefixes; an
+all-space code span retains its spaces. Raw programmatic/TSF replacement MUST NOT
+apply this semantic cleanup policy. An explicit clipboard Cut MUST first publish
+the exact selected source, then apply the same semantic deletion when the owner
+and selection are still current; generic text-service clients retain their raw
+replacement behavior. Unsupported mixed opaque targets reject
 atomically. These operations do not provide general Markdown reformatting,
 structured UIA publication, extension rendering or consumer qualification.
+Semantic visible-range queries include only intersecting text or caret lines;
+table frame padding alone MUST NOT make offscreen cell source or display text
+visible. Intersecting native objects retain their complete source ownership.
+Semantic paint culling MUST include prepared glyph overhang in addition to the
+logical frame; this paint-only bound does not enlarge hit or visible-text ranges.
 
 ### RichMarkdown metadata envelopes (M5a)
 
-Status: initial source-envelope implementation in development; validity,
-dedicated object editing and complete M5 qualification remain pending.
+Status: source-envelope and bounded single-document YAML/TOML source-validity
+validation are implemented. Applications own property schemas and structured
+editing. Physical input, native ARM64 and broader M5 qualification remain separate.
 
 Only RichMarkdown MUST recognize an exact `---` (YAML 1.2.2) or `+++` (TOML
 1.0.0) first physical line, optionally preceded by one document BOM. No leading
@@ -1609,13 +2019,18 @@ text or fabricate a close. Metadata content MUST NOT define Markdown references,
 headings, lists or inlines in the following document. Unknown fields, comments,
 spelling, order, BOM and original EOLs MUST survive every untouched source range.
 
-Before validated metadata presentation is available, semantic rendering MUST
-display the entire literal envelope, including fences, without entity/Markdown
-decoding. Source ACPs/history remain authoritative. Markdown structural style,
-heading and table commands MUST reject metadata targets atomically; ordinary
+A closed metadata envelope with no validation diagnostic presents a collapsed,
+localized Properties disclosure by default. Expansion shows the source-owned
+fence-excluding content as dimmed literal text; high contrast uses ordinary text.
+Mouse, keyboard and UIA use the same bounded view-state contract as HTML details;
+F2 enters the exact raw envelope and Escape exits source presentation. No property
+schema, value conversion or writeback is inferred. Invalid, over-capacity and
+unclosed metadata remains fully literal, including fences, with its diagnostic.
+Source ACPs/history remain authoritative. Markdown structural style,
+heading, list, quote and table commands MUST reject metadata targets atomically; ordinary
 source replacement/undo/redo and source-view selection remain available.
 Envelope recognition alone MUST NOT be presented as YAML/TOML validity or full
-extension conformance. Later M5 work owns metadata content-validity diagnostics and source editors.
+extension conformance. Closed TOML content is checked against TOML 1.0.0 without changing source; invalid content and nesting beyond 128 values or dotted-key segments, or more than 1,024 total key segments, have distinct source-owned diagnostics. Missing fences take precedence. Closed YAML content is checked using the YAML 1.2.2 core schema; syntax, duplicate mapping keys, unresolved aliases and resource-capacity refusals are distinct diagnostics. The pinned [TOML](../../ThirdParty/Markdown/corpora/toml-test-96fd088/README.md) and [YAML](../../ThirdParty/Markdown/corpora/yaml-test-suite-6ad3d2c/README.md) validity corpora and [native test](../../Tests/Controls/Controls.Tests.RichMarkdown.cpp) exercise 717 TOML and 382 single-document YAML cases, with 20 multi-document YAML streams explicitly excluded and two duplicate-key outcomes checked as diagnostics. The [allocation-failure sweeps](../../Tests/Embedded/Embedded.Tests.RichTextResources.h) cover observed staging failure and retry; capacity refusals remain distinct from invalid syntax. These cases validate source admission and diagnostics, not decoded values or complete YAML/TOML value conformance. See the [source-bound evidence report](../../Measurements/WipDelivery_2026-11-02/README.md) and [shared qualification ledger](../Plans/WIP/ConsumerUiQualification_2026-10-11.md) for execution and remaining platform status.
 An unclosed envelope MUST publish an `UnclosedFrontMatter` diagnostic with the
 exact opening marker range and revision-local owner node. Semantic UIA HelpText
 MUST explain the missing closing fence. Source edits retire that provider; a
@@ -1625,9 +2040,13 @@ does not validate the YAML/TOML payload.
 ### Native Mermaid flowchart profile
 
 The owner's extension engine choice is C++ only. `DxUiNativeFlowchart1` is the
-named limited grammar below. The CPU parser and geometric layout are in development; native painting,
-source-object editing and UIA diagram publication remain M5 work. A prepared
-graph MUST NOT be reported as a rendered diagram until those layers qualify.
+named limited grammar below. Its bounded CPU parser, geometric layout, native
+painting, F2 source-object editing and semantic UIA diagram publication are
+implemented. An individual object is rendered only after its geometry and native
+resources publish successfully; unsupported, malformed or over-capacity objects
+retain exact source and their diagnostic. This implementation status does not
+establish full Mermaid compatibility, physical accessibility or consumer
+qualification. Other bounded diagram families have their own documented profiles.
 
 The body starts with `flowchart` or `graph`, horizontal whitespace and one exact
 direction: `TB`/`TD`, `BT`, `LR` or `RL`. Statements end at a physical CR/LF/CRLF
@@ -1637,23 +2056,44 @@ YAML, `%%{...}%%` configuration, directives and other families are unsupported.
 
 An identifier is `[A-Za-z_][A-Za-z0-9_]*` with exact case-sensitive identity.
 `end`, `subgraph`, `direction`, `style`, `class`, `classDef`, `click`,
-`linkStyle` and `note` are reserved. A node is an identifier alone or followed by `[label]`
-(rectangle), `(label)` (rounded), `((label))` (circle), `([label])` (stadium
-capsule) or `{label}` (diamond). Other expanded shape syntax is unsupported. An explicit declaration replaces the
+`linkStyle` and `note` are reserved except for the bounded subgraph statements below. A node is an identifier alone or followed by `[label]`
+(rectangle), `(label)` (rounded), `((label))` (circle), `(((label)))` (double circle), `[(label)]` (cylinder), `([label])` (stadium
+capsule), `{label}` (diamond), `{{label}}` (hexagon), `[[label]]` (subroutine),
+`>label]` (asymmetric), `[/label/]` and `[\label\]` (parallelograms),
+`[/label\]` and `[\label/]` (trapezoids), or `(-label-)` (ellipse). Other expanded shape syntax is unsupported. An explicit declaration replaces the
 node's previous label/shape; a bare endpoint preserves it. Node order is first
 appearance order and edge order is source order, including cycles/self-loops.
 
 An edge chain is `endpoint-group (edge endpoint-group)*`, where an
-`endpoint-group` is one node or nodes joined by `&`, and edge is `-->` or `---`
-optionally followed by `|label|`. Each edge expands the Cartesian product of its
+`endpoint-group` is one node or nodes joined by `&`. Edges include solid `-->` / `---`,
+dotted `-.->` / `-.-`, thick `==>` / `===`, and invisible `~~~`; visible edges may
+carry `|label|` or bounded plain inline text (`-- text -->`, `-- text ---`,
+`-. text .->`, `-. text .-`, `== text ==>`, `== text ===`). Each edge expands the Cartesian product of its
 left and right endpoint groups in stable source order; a chain continues from
-the preceding right-hand group. Expanded, dotted, thick, reversed and named
-edge syntax is unsupported. In particular `A---oB`/`A---xB` MUST NOT be silently
+the preceding right-hand group. Quotes and pipe characters inside inline edge text
+remain unsupported rather than being displayed literally. Other expanded, reversed and named edge syntax
+is unsupported. In particular `A---oB`/`A---xB` MUST NOT be silently
 treated as edges to IDs `oB`/`xB`; use whitespace before such IDs for a plain line.
 Quoted labels allow Unicode scalar text and `\"`, `\\`, `\n` escapes. Unquoted
-labels trim surrounding horizontal whitespace and must quote delimiter/semicolon
-text. Literal ampersands are label text; HTML, Markdown labels, entity escapes, icon syntax and inline math labels
-are unsupported; they MUST NOT silently acquire a different label meaning.
+labels keep backslashes literally, trim surrounding horizontal whitespace and must quote delimiter/semicolon
+text. In flowchart node and pipe-edge labels, Mermaid `#name;` and decimal
+`#number;` references use the pinned Markdown character-reference decoder;
+`<br>`, `<br/>` and `<br />` insert line breaks. Node, pipe-edge and inline-edge
+labels also accept properly nested, attribute-free `<b>`, `<strong>`, `<i>`,
+`<em>`, `<u>`, `<s>` and `<span>` pairs, with at most eight nested tags and 32
+styled ranges; DirectWrite applies styles before measurement. Unsupported tags,
+attributes, unbalanced markup, references and decoded controls other than
+tab/newline retain exact source. Literal
+ampersands are label text; Markdown labels, icon syntax and inline math labels
+remain unsupported; they MUST NOT silently acquire a different label meaning.
+Hash characters without a well-formed `#name;`/`#number;` reference, plain
+comparison characters and ordinary text containing `fa:` are literal; actual
+`fa:fa-` / variant-prefix icons and HTML-like tags remain unsupported.
+Visible solid, dotted and thick links admit up to 16 minimum ranks using Mermaid's
+extra dash, dot or equals syntax, including the right side of an inline label.
+The DAG ranking honors each forward constraint; a link above the bound or an
+accumulated rank outside the 256-rank layout limit fails without partial geometry.
+Back edges and self-loops do not constrain the DAG ranks.
 
 Admission limits are 16,384 source UTF-16 units, 256 nodes, 512 expanded edges, 1,024
 nonempty statements including the header, 1,024 decoded label units and 128 ID
@@ -1674,13 +2114,40 @@ published geometry, or allocate while advancing. Stable first-seen DFS removes
 gray back edges and self-loops from ranking; stable Kahn traversal assigns
 longest-path ranks to the remaining DAG. Nodes retain first-seen order in each
 rank. Rectangles/rounded rectangles pad labels, circles contain the padded label
-diagonal, diamonds contain twice the padded width/height, and stadium capsules
+diagonal, diamonds contain twice the padded width/height, hexagons double padded width to contain the label in their straight middle band, subroutines reserve room for inset rules, and stadium capsules
 keep the complete measured label inside their straight middle band. Their centerline
 ports lie on the capsule boundary in all four flow directions. Direction changes
-flow without rotating text. Every edge gets a distinct exterior lane; endpoint
-corridors remain outside full rank rows, including for skipped-rank edges,
+flow without rotating text. An unlabeled forward edge between adjacent ranks
+without parallel edges, groups, notes or cardinality uses an orthogonal elbow within the empty
+inter-rank corridor, with a straight centerline when its endpoints align. A
+complete matching of equal-width nodes in two adjacent ranks also orders targets
+by their source when the source nodes precede the targets in model order. Model
+identities and source order remain intact. Other edges use exterior lanes sized for their own labels and minimum
+separation; unlabeled lanes may be shared only when their inclusive rank intervals
+do not intersect. Labeled lanes remain exclusive. When two ranks contain exactly one
+member of each non-nested group, columns align in group order and reserve the
+largest node or title width, preserving model identity while avoiding unrelated
+group overlap. A two-rank single group with one member per rank and one
+ungrouped sibling uses separate member and sibling columns. Other group
+configurations retain collision detection.
+For ungrouped flowcharts without notes, two stable adjacent-rank barycenter
+sweeps may reorder nodes within their ranks without changing model identities.
+A candidate is used only when both adjacent-rank endpoint inversions and proper
+interior crossings between orthogonal route segments strictly decrease compared
+with source order; otherwise source-order positions and routes are restored.
+Ties are stable. Groups and notes retain their collision-checked placement, and
+long edges participate in routing but not barycenter scoring. Each scoring,
+sorting and route-comparison event handles one bounded node or edge.
+Endpoint corridors remain outside full rank rows, including for skipped-rank edges,
 cycles, self-loops and parallel edges. Crossings are permitted; optimal routing
 and upstream Mermaid coordinate compatibility are not claimed.
+
+Native node and edge labels wrap with DirectWrite at 12.5 times the selected font
+size (225 DIP at 18 DIP), preserving explicit line breaks and complete Unicode
+text. Ink and multiline height participate in geometry and capacity checks. This
+is the default. `diagramLabelWidthDip` optionally sets a 1–4096 DIP width for
+all native diagram labels in the editor; zero retains the font-relative default.
+Changing it invalidates label geometry and preserves source, selection and history.
 
 All shapes, labels, routes and arrowheads MUST fit the complete diagram bounds,
 with a 65,536-DIP extent limit per axis. Node/aggregate extent rejection publishes
@@ -1717,16 +2184,48 @@ remains source-independent; labels and device-independent factory paths may
 survive replacement borrowed devices with the same factory. Final process/GPU
 resource, device-loss and host object qualification remain separate requirements.
 
+The bounded math parser exposes a stable typed issue for the named malformed and unsupported target examples while retaining its source-preserving human-readable fallback. Its target corpus checks the complete ordered AST for M01–M20, including matrix dimensions and explicit style/command payloads; equivalent adjacent ordinary glyphs may be stored as one text node.
+
+Native math preparation uses `LayoutOptions::mathFontFamily` (Cambria Math by
+default) and the layout's locale. A retained editor's empty
+`RichTextEditorAppearance::mathFontFamily` retains that default; a nonempty value
+selects the mathematical family independently of body/code fonts. Names use the
+same valid-UTF-16, no-NUL, 255-unit admission as other font families. Fonts without
+usable MATH data retain deterministic em/stroke fallbacks. The selected family's
+MATH constants are read once per semantic geometry generation and shared across
+formulas. Text formats are cached within that owner-thread staging generation by
+exact size, weight and italic style, at most 4,096 entries; no format is recreated
+for another leaf with that key. Paint never queries or mutates the cache.
+A width-only reflow may reuse finalized DirectWrite math layouts while rebuilding
+placement geometry, provided the semantic document, factory, render target,
+resource epochs, image bindings and all other layout options match. Changed
+mathematical family or locale also retires incompatible math. Clearing the owner
+releases its resources; no global factory/font cache extends their lifetime.
+
+The shared private layout-options comparison retains v0's intentional omission
+of math family, semantic presentation and code-copy affordance. Semantic compatibility
+includes every option. Math leaves and diagram labels consume both their existing
+layout budget and a block step; bitmap tiles consume a block step and their pixel
+byte budget. These counts bound work units, not elapsed time. `DebugGetState`
+reports the next pending stage across Markdown, semantics, image resources,
+geometry, code ink, source ink and source guides. `preparationPending` includes
+all these cooperative stages; cancellation retires them. Overlay fallback dirtiness
+remains separately reported and does not withhold an otherwise ready frame.
+`lastAdvanceUploadBytes` reports the last geometry advance's upload work.
+
 The pinned Mermaid 11.4.1 inventory and all 105 original flowchart examples MUST
-remain accounted for. Independent subset expectations distinguish 16 admitted
-graphs from 89 unsupported definitions, including the documented stadium and
+remain accounted for. Independent subset expectations distinguish 41 admitted
+graphs from 64 unsupported definitions and record each issue and exact UTF-16 diagnostic range, including the documented stadium and
 the original endpoint-group fan-out examples.
-The family matrix separately identifies the limited flowchart, state and class
-profiles, the example collection, and 18 unsupported diagram families. Generated
+The family matrix separately identifies the limited flowchart, state, class and
+sequence, pie, ER, Gantt and mind map profiles, the example collection, and 13 unsupported diagram families. Generated
 first-example fixtures specify the exact expected outcome and diagnostic for all
 20 diagram-family documents: the state example prepares five nodes and six
-transitions; the class example falls back on its unsupported `note` directive;
-the remaining 18 examples are unsupported-family fallbacks. These cases measure
+transitions; the class example prepares six nodes and four relationships, and
+the sequence example prepares two participants and three messages, and the pie
+example prepares three slices, and the ER example prepares four entities and three
+relationships. The Gantt reference example retains source because it uses task
+identifiers and dependencies; the mind map example retains source because it uses an icon. The remaining 13 examples are unsupported-family fallbacks. These cases measure
 local subset coverage, not complete Mermaid family conformance. Original reference
 bytes and MIT notice remain under `ThirdParty/Markdown/mermaid-11.4.1`.
 
@@ -1741,8 +2240,10 @@ explanation and an exact selectable source diagnostic. Diagnostics MUST contain
 whole UTF-16 scalars and original CRLF pairs.
 
 Semantic preparation MUST advance graph parsing and alternative construction
-cooperatively. A document admits at most 128 candidates and 32,768 combined native
-node/edge records before adding the next graph. Prepared graphs use one atomic
+cooperatively. A document processes at most 128 diagram candidates and 32,768 combined native
+records across math AST nodes, graph nodes/edges/groups and image placements;
+the candidate bound is separate
+from the shared admitted-object limit. Prepared graphs use one atomic
 object display character owning the complete original fence. Optional document
 state retains the CPU model and code-body provenance, including removed container
 prefixes, virtual indentation and normalized EOLs. Source spelling and source
@@ -1757,9 +2258,21 @@ target. Carets around a graphic remain text-sized. Prepared geometry and UIA
 publication must match the same source, binding, typography and resource request.
 The diagram child exposes Image semantics, a meaningful alternative and an exact
 raw fence range. Source changes and presentation withdrawal retire old children.
-F2 and guarded UIA Invoke enter an acknowledged code/HTML/metadata object's
+F2 and guarded UIA Invoke enter an acknowledged code/HTML/metadata or math object's
 exact source in place. Esc, F2 or Ctrl+Enter leaves that presentation. Enabled
 read-only owners permit source inspection; edits still require an editable owner.
+The editor accepts Ctrl+Insert for copy, Shift+Insert for paste and Shift+Delete
+for cut. Ctrl+Shift+V inserts the clipboard's Unicode text without optional
+HTML, file-reference or URL conversion, subject to ordinary edit and composition guards.
+F2 also opens a Markdown link or image's exact inline envelope. Its UIA
+ExpandCollapse action enters and exits that presentation; a link's Invoke retains
+its navigation action. Native HTML links and images do not use this inline action.
+Hidden Markdown reference definitions may be opened by F2 at their source caret
+or by `BeginReferenceDefinitionSourceEdit` with the acknowledged syntax and its
+revision-local definition node. The latter rejects stale syntax, non-definition
+nodes and active composition; read-only inspection remains available. Their raw
+definition becomes a source-editing block until exit, with ordinary undo and
+source-session rebasing while incomplete.
 Neither presentation transition edits source/history or acquires OS focus.
 Transitions MUST cancel the editor's old pointer gesture and release its capture
 before publishing the new presentation, with lifetime/binding guards after
@@ -1803,14 +2316,13 @@ identity; ordinary interior edits preserve that node within its session.
 
 All source edits, Unicode character input, previews, cancellation, undo and redo
 continue through the one authoritative Document and full source text store.
-Tracked interior changes rebase the editing envelope before callbacks. EOL joins
+Tracked interior changes rebase the editing envelope before callbacks. For block scopes, EOL joins
 expand to complete physical lines on preparation. Outside changes or selection,
 SetText and explicit mode/profile/rendering replacement retire the local scope.
 Raw source input MUST bypass rich list/table/atomic-object deletion commands;
 ordinary source grapheme/range deletion and literal CRLF insertion apply.
 Leaving presentation MUST preserve committed edits and redo; Esc is not a
-second unrecorded rollback. Other paragraphs retain semantic rendering. Math
-and inline-object source entry follow their accepted M5 object implementations.
+second unrecorded rollback. Other paragraphs retain semantic rendering. An inline math, Markdown link or Markdown image scope owns its exact raw interval within the existing paragraph. The inline region preserves neighboring Markdown formatting while its text is invalid or contains physical newlines; it does not widen to a physical paragraph.
 Selected native objects MUST retain the resolved selection text/surface pair,
 including high contrast. Their opaque node and edge-label backing uses the
 selection surface composited over the ordinary opaque object surface; it MUST
@@ -1851,7 +2363,8 @@ flow/typography or resource preparation MUST NOT repeatedly parse that same requ
 Edits/reset/undo/redo/profile changes re-evaluate their own request. Transient
 `bad_alloc` remains retryable `E_OUTOFMEMORY` and MUST NOT latch capacity fallback.
 These limits do not establish larger-document or worst-case latency qualification;
-raw NUL admission and final capacity/performance profiles remain separate M6 work.
+final capacity/performance profiles remain separate M6 work; counted raw NUL
+admission follows the exact source contract above.
 
 ### RichMarkdown footnote definition grammar
 
@@ -1880,7 +2393,7 @@ the initial fallback stage, render the complete definition literally once with
 source ACPs; do not independently render its parsed child subtree or add extra
 caret rows for its child blank trivia. Structural commands touching this fallback
 MUST be unavailable atomically; raw source replacement and undo/redo remain valid.
-Future note-aware structural commands require their own prefix/transaction tests.
+Resolved definitions use the separate note-aware command rules below.
 
 Global resolution uses the existing Unicode 17 default case-fold and ASCII
 whitespace collapse without changing label source. No NFC/NFKC or entity decoding
@@ -1943,6 +2456,16 @@ sites by display order and index visual line units as an ordered raw-source
 partition; generated backlink-only rows add no raw line units. Reordered note
 data MUST remain optional, without enlarging ordinary inline records.
 
+Resolved footnote body selections use the ordinary structural planners with note-aware opening-marker and continuation prefixes. Every staged edit must preserve the definition label and existing continuation ownership; inserted physical lines retain the enclosing note and outer containers. Unresolved literal definitions remain guarded. F8 and Shift+F8 select the next or previous exact source diagnostic, wrapping in source order. Selection requires a current syntax/layout, no composition, and a live unchanged host; it changes neither source/history nor focus. The same source selection is exposed through UIA TextPattern.
+`InsertFootnote` accepts an exact raw valid label through `request.text` in
+RichMarkdown and requires a collapsed, proven inline insertion site. It rejects
+an existing definition or reference with the same normalized identity, including
+unresolved references, so insertion cannot retarget existing source. It inserts
+the reference at the caret and a top-level empty definition at document end in
+one source transaction, using the existing EOL policy and placing the caret at
+the new definition. Unclosed terminal fences or metadata, terminal HTML blocks,
+unmatched inline brackets and a preceding odd escape run are unavailable.
+
 Retained selection remains one source-contiguous anchor/caret pair. A selection
 crossing main text and a footer may highlight disjoint visual fragments. Copy,
 deletion, composition replacement and UIA ranges MUST retain that exact raw
@@ -1952,10 +2475,10 @@ an enabled binding and no active composition. It selects and scrolls without
 editing history or acquiring keyboard focus; read-only navigation is allowed.
 UIA exposes internal references/backlinks as Hyperlink + Invoke, dispatching
 native mutations to the owner and rejecting embedded foreign-thread mutation.
-External destinations remain inert. Source/presentation/binding retirement MUST
+External destinations remain inert until the application registers a link activation handler; registration and removal retire the prior semantic accessibility publication. Source/presentation/binding retirement MUST
 make held navigation providers unavailable before a replacement publication.
 Ctrl+click activates internal links; Ctrl+Enter at a source-bearing reference
-activates its definition. Generated backlink keyboard traversal remains M5e.
+activates its definition. Ctrl+Tab and Ctrl+Shift+Tab cycle generated backlinks in display order without changing the raw selection; the focused backlink has a visible outline and Ctrl+Enter activates it. Navigation is refused during composition and never transfers keyboard focus.
 Resolved footnote references are link actions for native HTML admission. They
 MUST NOT overlap a native `<a>` envelope: preserve the entire conflicting leaf
 literally, as with nested Markdown/native anchors. The footer's independent
@@ -1989,40 +2512,71 @@ Source text, selection, undo history, source view and semantic roles do not chan
 
 Subtle H1/H2 headings have a one-DIP separator below the text, included in element
 bounds and backed by at least fourteen DIP of following space. Tables use bounded
-natural column measurements plus twelve DIP of cell padding, proportionally
-shrunk when necessary, and draw horizontal row rules without vertical cell borders.
+natural and minimum nonbreaking column measurements plus twelve DIP of cell padding.
+When natural widths exceed the viewport, columns first retain their widest word or
+native object's minimum and share remaining width according to their wrappable
+content. Only when the summed minima exceed the viewport are those minima reduced
+proportionally, allowing DirectWrite's emergency character breaks. Tables draw
+horizontal row rules without vertical cell borders.
+Opt-in `tableOverflow` on the editor appearance or pure layout options preserves
+those minima even when they exceed the viewport. The retained width includes the
+complete table; both reading directions use nonnegative physical coordinates so
+the editor's horizontal scroll API can reach every cell. With the option off,
+tables retain viewport-bounded emergency wrapping. This view option never rewrites
+source alignment markers or column definitions.
 RTL placement and explicit cell alignment remain supported. Standalone diagrams
 and display-only mathematical paragraphs center through prepared DWrite geometry,
 so source hit testing and caret placement agree with drawing. Inline math retains
-the surrounding paragraph's alignment. Quotes accept a shaded background.
+the surrounding paragraph's alignment. Math edge carets use the neighboring text's height and baseline on the same visual line while preserving the exact object-edge x and wrapped-line affinity. When no ordinary glyph shares that line, preparation caches the enclosing body/code/heading font metrics and aligns the caret to the line baseline; caret queries do no new font work. Quotes accept a shaded background.
 
 The editor resolves neutral decoration from `borderDefault` and shades quotes with
 an eight-percent blend of ordinary text ink over the document fill during preparation.
 This remains visible when input/card roles coincide. High contrast uses resolved text/surface
 colors. Caller-provided drawing brushes remain supported by prepared layouts.
+Subtle table headers and inline code use the same theme-resolved neutral surface
+as quotes and code blocks. Inline chips retain source-derived rectangles during
+preparation; painting adds no layout or range mapping. At more than 16,384 chip
+rectangles, the generation omits all cosmetic chips while retaining code font,
+source, selection and accessible content. Header fill is independent of body rows.
+HTML `mark` shares the bounded retained inline-surface geometry in either Markdown
+presentation. Its theme-resolved neutral fill keeps ordinary text ink; high
+contrast outlines the marked range instead. The selected-text pass uses the
+resolved selection surface. No source markup is rewritten.
 The new style's runtime and consumer qualification is tracked in the
-[active plan](../Plans/WIP/SubtleMarkdownPresentation_2026-10-27.md); this contract
+[active plan](../Plans/Done/SubtleMarkdownPresentation_2026-10-27.md); this contract
 does not establish completed platform or performance qualification.
 
 ## Native in-document mathematics and broader diagrams (RedTilde continuation)
 
-RichMarkdown recognizes `$...$`, `$$...$$`, `\(...\)` and `\[...\]` inside ordinary
+RichMarkdown recognizes `$...$` and `\(...\)` inside ordinary
 inline leaves. Single-dollar math is single-line and requires nonspace content edges;
 a closing dollar followed by a digit is currency text. Explicit `\(...\)` delimiters
 permit edge whitespace and a following digit, while retaining the physical-line bound.
-Escaped delimiters, code spans,
-fenced/indented code and CommonMark/GFM profiles retain their existing grammar.
-Display delimiters may span logical lines of one Markdown paragraph. Blank paragraphs
-and GFM table boundaries still delimit leaves. Original source, delimiters, CRLF,
+Escaped delimiters, code spans, other fenced/indented code and CommonMark/GFM
+profiles retain their existing grammar. A closed `math` or `latex` fenced block
+is one display-style native formula over the complete source fence; an unclosed
+fence or unsupported expression preserves its exact source with a diagnostic.
+Paired `$$` or `\[` / `\]` delimiters on their own logical lines own display
+math across intervening blank lines. An unclosed opener preserves the complete
+owned source with a diagnostic. Double-dollar text within a sentence is literal.
+The syntax snapshot represents these display owners as fenced-code leaves with
+the `$` or `[` marker respectively; semantic publication recognizes them as
+Math, and source editing addresses the complete leaf. Container termination
+still bounds a nested source leaf.
+Original source, delimiters, CRLF,
 selection and history remain authoritative; one successful formula owns one atomic
 native display position and a `SemanticRole::Math` child named with its TeX notation.
 
 `RichMath.h` exposes the data-only `ParseMath` model. Supported notation includes
 fractions (`frac`, `dfrac`, `tfrac`), indexed roots, simultaneous scripts, Greek and
-operator symbols, named functions, text/operator names, roman/bold/italic and
-blackboard/script alphabets, accents, scalable paired delimiters, matrices, cases,
-aligned and gathered rows. Matrix rows use `\\` and cells use `&`; rows must have
-consistent columns. User macros, packages, file input, evaluation and full LaTeX
+operator symbols, named functions, text/operator names (including bold and italic
+text commands), roman/bold/italic and
+blackboard, script, Fraktur, sans-serif and monospace mathematical alphabets, accents,
+scalable paired delimiters (including single and double vertical arrows), matrices,
+cases, aligned and gathered rows. Alphabet
+mapping covers ASCII letters; blackboard, sans-serif and monospace also map ASCII
+digits. Other characters are preserved. Matrix rows use `\\` and cells use `&`; shorter rows
+are padded with empty cells to the widest row, within the total-cell limit. User macros, packages, file input, evaluation and full LaTeX
 compatibility are unsupported. Rejection retains the complete literal equation with
 a source-ranged diagnostic, rather than drawing a misleading partial expression.
 
@@ -2031,14 +2585,45 @@ operator limit policy in its typed model. Variables are italic by default; numbe
 text groups and named operators are upright. Binary atoms at unary positions use
 ordinary spacing. Explicit math atom wrappers, display/text/script declarations,
 `limits`/`nolimits`, starred `operatorname`, sized `big`/`Big`/`bigg`/`Bigg` delimiters,
-and `tilde`/`widetilde` are admitted. Text groups collapse source whitespace and
-remove grouping braces while retaining escaped literal braces. Matrix rows may
+and `tilde`/`widetilde` are admitted. Escaped `\|` produces a double vertical bar
+as an ordinary atom and as a scalable or sized delimiter. Paired and sized
+delimiters also accept `\lparen`, `\rparen`, `\lt`, `\gt`, `/` and `\backslash`.
+Text groups collapse source whitespace and remove grouping braces while retaining escaped literal braces. Matrix rows may
 have a trailing separator; gathered rows have one column and cases at most two.
+`\boldsymbol` and `\bm` request bold while retaining the current math slant;
+`\mathnormal` restores default math weight and per-atom slant inside its argument.
+Inside an admitted math envelope, `align`, `align*` and `split` use aligned-row
+geometry; `gather`, `gather*`, `equation` and `equation*` use centered one-column
+geometry. Equation forms admit one row. These bounded aliases do not add numbering.
+`\substack{...}` provides up to 16 centered one-column rows, including inside
+operator scripts; a trailing row separator is accepted.
+`\not` admits ungrouped single relation glyphs `= < > ≤ ≥ ∈ ∋ ⊂ ⊃ ⊆ ⊇ ∼ ≡ ≈ ∣ ∥`
+and substitutes their Unicode negations; other operands retain exact source.
 Unsupported commands remain local exact source. This is a named native profile,
-not a claim of all KaTeX functions or identical TeX font metrics and glyph assemblies.
+not a claim of all KaTeX functions or identical TeX font metrics. The selected mathematical face supplies bounded OpenType MATH italic corrections and precomposed vertical delimiter variants when available; larger delimiters use up to 32 distinct part records and 64 total compatible vertical glyph parts per delimiter, with 512 per formula. Connector overlap follows the [OpenType MATH format](https://learn.microsoft.com/en-us/typography/opentype/spec/math); part origins whose ink metrics do not match their advance within two design units use vector fallback. Missing, malformed or oversized font data also falls back. For `\widehat`, `\widetilde` and `\vec`, bounded horizontal variants or assemblies are used when their metrics fit the reserved accent envelope; missing, malformed or incompatible data retains vector fallback. Validated OpenType Device-table deltas for the supported math constants and italic corrections are applied at the formula ppem and converted from pixels to DIP using the effective DPI. Missing or malformed records fall back to the unadjusted design value; variable-font VariationIndex corrections remain unsupported. A single root-level `\tag{label}` or `\tag*{label}` on a display equation stages the body and plain text label separately, centers the body in its containing box and places the label at its trailing edge; the unstarred form adds parentheses. Inline, repeated within one equation or row, nested, or embedded-math labels are rejected to exact source. Supported display align, alignat, gather and equation environments may instead have one independent tag per row as specified above. The full box is the atomic source hit/selection extent; width changes retain shaped body and label. The bounded size declarations `\tiny` through `\Huge` scope to the enclosing group and use the pinned KaTeX size and script-size mapping while preserving source. The bounded annotation commands `\boxed`, `\cancel`, `\bcancel`, `\xcancel`, `\sout`, `\phase` and `\angl` retain their authored source and stage their frame, strike, phasor or actuarial strokes with the formula geometry; nested operands use the same bounds and no brushes or geometry are created during draw. For direct single-glyph script operands whose actual shaped faces match the retained MATH font file, bounded MathKern corner tables adjust horizontal subscript and superscript placement using the two correction heights and OpenType minimum; device deltas are scaled at each glyph ppem. Missing, malformed, oversized, fallback-font or compound-box data uses zero kern. The source and object ownership remain exact. The at-most-4-MiB font snapshot and bounded glyph-indexed tables are shared per geometry generation.
+Font lookup and glyph-query HRESULT failures remain retryable; only a known
+unsupported font operation or absent/invalid font data uses the vector fallback.
+Native `binom`, `dbinom` and `tbinom` form a two-row parenthesized matrix with
+explicit display or text style where requested.
+A hash-verified KaTeX 0.16.11 source generates 411 bounded alphabetic one-codepoint
+symbols and their atom classes; vertical delimiter commands retain the paired native glyph contract.
+In math mode ASCII minus and asterisk shape as U+2212 and U+2217; tilde supplies
+spacing, and a run of primes becomes a superscript of the preceding atom. A
+second explicit superscript on that atom is rejected with the original source.
+Math uses the enclosing run's effective body, code or heading size before the
+shared 1.15 native-math scale; explicit heading size overrides take precedence.
+A caret beside a formula uses the surrounding text line's DirectWrite geometry.
+Native `overset`, `underset` and `stackrel` center bounded annotations above or below their base while retaining its atom class; `stackrel` is relational.
+Native `\color` and `\textcolor` preserve math atom spacing while applying scoped author ink. `\colorbox` and `\fcolorbox` admit bounded text-mode contents, including nested color and supported text-style commands. Colors are opaque named CSS colors or three- and six-digit hexadecimal values; unsupported colors, alpha forms and embedded math in text-mode boxes remain exact source with a diagnostic. Colored glyphs, rules, variants, borders and backgrounds are staged in authored order. Their deduplicated brushes belong to the exact raster target and are prepared incrementally; paint does not allocate or create resources. Author colors yield to theme ink for selection, high contrast, translucent or unknown backdrops, and fail contrast checks conservatively. Width-only reflow retains completed mathematical shaping and same-target palettes.
 
-Limits are 4,096 source units, 512 syntax nodes, nesting 24, 16 rows/columns and 128
-cells per formula, 4,096 total mathematical records and 128 combined native objects.
+Limits are 16,384 source units, 4,096 staging/syntax nodes, 64 parsed nesting
+levels, 64 rows/columns and 1,024 cells per formula including generated padding.
+Group rows and script wrappers may add AST levels; direct data-only trees have a
+separate maximum depth of 130. Math AST nodes, graph nodes/edges/groups and image
+placements share a source-ordered ceiling of 32,768 records and 128 admitted
+native objects. Capacity refusals publish no partial formula and retain exact
+source. Matrix padding is admitted before allocation; matrix measurement walks
+each cell once instead of repeatedly finding it from the start of the row tree.
 Preparation shapes at most one mathematical leaf per SDK-layout event. Cached
 DirectWrite glyphs and line geometry draw in the owner's target with caller brushes;
 no filesystem, worker, font downloads or allocation occurs in drawing. Reflow and
@@ -2047,38 +2632,233 @@ device replacement regenerate prepared geometry without changing source.
 Every rejected formula has its own Math element, accessible explanation and exact
 source diagnostic; rejection cannot overwrite its enclosing link's title or destination.
 A persistent native geometry-capacity failure falls back only the affected formula
-or complete Mermaid fence, including its original container prefixes and EOLs.
+or complete Mermaid fence, including its original container prefixes and EOLs. Native preparation collects all independently rejected objects in the bounded geometry pass, then rebuilds the semantic publication once; staged partial geometry is never published.
 For an individual math formula, DirectWrite `DWRITE_E_UNSUPPORTEDOPERATION` during
 leaf preparation is also a persistent object-local rejection: the operation is not
 supported by the selected font type. The formula's accessible explanation uses
 cause-neutral wording because the same source-preserving view fallback also covers
 capacity and font-operation failures. Other semantic content stays rich. The
 presentation rejection key includes immutable syntax, width, direction, host
-typography/resource generation, binding and local appearance geometry revision.
-Repeated idle preparation does not retry the same rejection; changing a key retries
-it. DirectWrite `GetLineMetrics` reports a one-line-capacity rejection only when it
+typography/resource generation, effective DPI, binding and local appearance geometry revision.
+Repeated idle preparation does not retry the same rejection. A tracked edit outside an unchanged object retains its refusal when its exact syntax owner and diagram container geometry context remain equivalent; changing the view key or object retries it. DirectWrite `GetLineMetrics` reports a one-line-capacity rejection only when it
 returns `E_NOT_SUFFICIENT_BUFFER` and reports more than one required line. Other
-failed HRESULTs from leaf layout/metrics and image upload preserve their original
+failed HRESULTs from leaf layout/metrics and image upload, except the explicit
+unsupported-image result above, preserve their original
 error channel and leave the request retryable. In particular, `E_OUTOFMEMORY`,
 `DWRITE_E_UNEXPECTED`, `D2DERR_RECREATE_TARGET` and DXGI device-loss results must not
 be converted into permanent source rejection; they remain eligible for explicit
 preparation retry or resource-generation recovery.
 
+A deterministic `std::logic_error` in semantic staging or native rich geometry is
+logged once and memoized for the exact source, profile, source-editing region,
+view, width, DPI, direction, typography, resource generation, binding and local
+appearance key. The editor prepares source presentation without changing the
+requested view, source, selection or history; idle turns do not retry the rejected
+key. A changed key permits rich preparation again. Memory, device and unknown
+HRESULT failures remain retryable and do not use this deterministic fallback.
+
 The native Mermaid engine additionally accepts a bounded `stateDiagram` /
 `stateDiagram-v2` profile: direction, simple declarations/quoted aliases,
-`[*]` initial/final states, transitions with colon labels and state descriptions.
+`[*]` initial/final states, explicit `state Name <<choice>>` diamonds and `<<fork>>` / `<<join>>` bars perpendicular to graph direction, transitions with colon labels and state descriptions. Pseudostate labels are not admitted.
 The first nonempty quoted or colon state description replaces the fallback ID;
 later descriptions append in declaration order, within the shared label limit.
 An explicit description equal to the ID still counts as the first description.
 The bounded `classDiagram` profile accepts direction, simple class declarations,
-colon members, directed/undirected associations and inheritance (`<|--`, `--|>`).
+colon members and bounded multiline `class Name { ... }` member blocks, directed/undirected associations and inheritance (`<|--`, `--|>`). Blocks require a standalone closing brace; nested blocks and markup retain exact source with a diagnostic. Member types accept nonempty, non-nested `List~int~`-style generic arguments and display them with angle brackets; malformed or nested forms retain exact source.
+One alphabetic `<<annotation>>` per existing class is accepted on a separate line
+or inside its block and displayed as `«annotation»` above the class name; repeated,
+nonalphabetic or undefined-class annotations retain source.
+Class diagrams also accept `note "text"` and `note for Name "text"` with
+bounded quoted plain text. Standalone notes occupy their own node; attached notes
+use a dotted connection and expose their target and text in the graph alternative.
+Simple `namespace Name { ... }` groups, nested at most four levels, use the
+shared bounded group layout; identifiers remain globally unique, and group
+overlap or unsupported namespace syntax retains source with a diagnostic.
 State/class layouts use the deterministic native graph router; members are plain
 multiline node labels. Inheritance uses the native triangle arrow. This is not
-Mermaid coordinate compatibility. Composite states, class namespaces/generics,
-block member declarations, relationship multiplicities, stereotypes, styling,
+Mermaid coordinate compatibility. Advanced composite-state syntax, nested class generics,
+class compartments, relationship multiplicities, other stereotypes, styling,
 interaction directives and other diagram families remain exact fenced source.
-The existing flowchart grammar and source-provenance rules remain unchanged.
+Invisible edge labels remain unsupported. Other flowchart grammar and source-provenance rules remain unchanged.
 
 Aligned rows alternate right-aligned left operands and left-aligned right operands at each ampersand pair. Cases use left-aligned expression/condition columns (at most two); ordinary matrices center their columns. Gathered rows have one column. Geometry tests compare the actual cached glyph positions consumed by drawing.
 
 Over-capacity notation conservatively retains the remaining physical inline line (display notation: logical leaf) as literal source with a diagnostic. This prevents nested Markdown interpretation and bounds repeated failed delimiter scans. The consumer inspector uses MathMaximumSourceUnits and clears rather than accepting an oversized value.
+
+The bounded `sequenceDiagram` profile retains participants in first-appearance
+order, with optional plain `participant ID as label` declarations. Ordered solid
+`->>` and dotted `-->>` messages use filled heads; solid `-)` and dotted `--)`
+messages use open heads. Self messages use a loop. Each participant has a
+measured header and a dashed lifeline; measured messages appear in source order.
+The diagram alternative exposes participants, messages and their order, and its
+text range owns the exact source fence. Notes, activations, actors, loops,
+grouping, directives and other syntax retain the entire source with a diagnostic.
+The shared diagram source, node, edge, label and extent budgets apply.
+
+The bounded `pie` profile accepts an optional plain title and `showData`, followed
+by up to 16 unique quoted plain labels and nonnegative decimal values with at most 15
+integer digits and two fractional digits. The total must be positive; invalid or
+unsupported notation retains the exact fence with a diagnostic. Native sectors
+follow source order clockwise and use repeated theme-derived shades with a matching
+ordered legend; `showData` includes the original value spelling in the legend.
+The accessible alternative exposes the title and all labels and values in order.
+
+The bounded `erDiagram` profile accepts named entities, plain attribute blocks,
+solid identifying or dotted non-identifying relationships with plain labels, and
+the `||`, `o|`, `|o`, `}|`, `|{`, `}o` and `o{` endpoint multiplicities. Entity
+IDs may contain ASCII letters, digits, underscores and hyphens after the first
+character. Typed multiplicities use bars, circles and crow's feet in native
+geometry and are named in the accessible alternative. Unsupported forms retain
+the complete source with a diagnostic; diagram source, node, edge, label and
+extent budgets apply.
+
+The bounded `gantt` profile accepts `dateFormat YYYY-MM-DD`, an optional plain
+title and sections, and up to 32 tasks of the form `label : YYYY-MM-DD, Nd` or
+`label : YYYY-MM-DD, YYYY-MM-DD`. Dates are checked Gregorian dates; durations
+are positive whole days and intervals are half-open. A task and the complete
+chart may span at most 366 days. Native bars use the shared calendar scale and
+show section, task and source date/duration text; the accessible alternative
+retains the same data in source order. Task identifiers, dependencies, status
+tags, exclusions and other directives retain the complete fence with a diagnostic.
+
+The bounded `mindmap` profile accepts one root and up to 127 descendants, with
+space-indented levels through depth eight and consistent indentation for each
+level. Plain labels and rectangular, rounded and circular label forms are
+supported. Native layout places alternating root branches around the central
+node, connects descendants to their parents, and preserves source order in the
+accessible alternative. Icons, unsupported shapes, tabs and malformed indentation
+retain the complete fence with a diagnostic.
+
+Flowchart node styles accept comma-separated `stroke-width:Npx` (1–3),
+`stroke-dasharray:5 5` or `0`, `font-weight:bold` or `normal`,
+`font-style:italic` or `normal`, and opaque `fill`, `stroke` and `color` values
+in `#RGB` or `#RRGGBB` form. `style ID`, named `classDef` and `class ID name`
+or `ID:::name` accept bounded comma-separated identifier/class lists; definitions
+may follow their use, and direct style overrides classes, which override
+`classDef default`. Up to 64 named definitions and 512 assignments are retained.
+`linkStyle N` or `linkStyle default` accepts width, dash and stroke for existing
+zero-based edges, with explicit edge properties overriding defaults. Unsupported
+properties, colors, unknown targets/classes and widths retain exact source with
+a diagnostic.
+
+Author colors use target-bound solid brushes prepared incrementally before
+publication and recreated for a replacement render target. The chosen text and
+outline must contrast against the chosen fill by at least 4.5:1 and 3:1;
+edge strokes must contrast against the theme background by 3:1. Otherwise the
+corresponding theme colors are used. High contrast and selected/overlay text
+use the caller's theme brushes. A translucent document fill or a differently
+shaded quote, table header or marked paragraph also uses theme brushes when the
+actual backdrop cannot be established by the prepared color context.
+Painting creates no palette resources and does
+not change borrowed brush attributes.
+
+Flowchart, state, class, sequence, pie, ER, Gantt and mind map diagrams accept one `accTitle: text` and one
+`accDescr: text` or multiline `accDescr {` / `accDescr{` block closed by a
+standalone `}`. Values are plain text, each bounded to 1024 UTF-16 units;
+multiline descriptions join trimmed physical lines with LF, retaining empty
+lines. Duplicate declarations, unsupported control characters and unterminated
+blocks retain the original source with a diagnostic. The diagram UI Automation
+name uses the authored title when present; its help text uses the authored
+description, or the generated graph summary when only a title is supplied.
+Without an authored title the generated graph summary remains the name.
+
+Class diagrams also accept realization relationships `A <|.. B` and `B ..|> A`, rendered as a dotted line with the hollow triangle at the interface.
+
+Class diagrams also accept dotted association `A .. B` without an arrowhead.
+
+Class member blocks and colon members retain source order; a horizontal separator
+precedes the first member and each subsequent attribute/method group change.
+A member containing `(` starts a method group; other members are attributes.
+At most 16 groups per class are admitted. Additional groups preserve the exact
+source with a capacity diagnostic. Separators use measured text line positions,
+including wrapped labels and bidi layout, and remain within the class box.
+
+Class relationship endpoints may carry quoted cardinalities of at most 32 ASCII
+units drawn from digits, space, `*`, `.`, `+`, `-` and `?`, for example
+`A "1" --> "0..*" B`. The labels follow their original endpoints when a
+relation reverses, are independently measured, painted beside those endpoints
+and included in the accessible graph alternative. If a cardinality label would
+overlap a node or another label, native geometry fails closed and the editor
+retains the original source with its geometry diagnostic.
+
+Flowcharts admit up to 16 `subgraph ID` or `subgraph ID[title]` containers,
+nested at most four levels and closed by `end`. Each requires at least one node;
+IDs and titles obey the existing bounded identifier and label grammar. Nodes
+referenced inside a group belong to that group and its ancestors; sibling group
+membership conflicts, group endpoints, local `direction`, empty or unclosed
+containers retain exact source with a diagnostic. Group titles and containment
+are exposed in the accessible graph alternative. Native geometry measures titles,
+paints nested containers and fails closed when unrelated groups, nodes or labels
+cannot fit without overlap. This is a limited flowchart subset, not unrestricted
+Mermaid subgraph compatibility.
+
+State diagrams admit nested `state ID { ... }` composites and
+`state "title" as ID { ... }` composites under the same 16-container and
+four-level limits as flowchart groups. Initial and final `[*]` pseudostates are
+scoped to the enclosing composite, so separate regions do not share a terminal.
+Composite boxes, titles and membership are rendered and included in the
+accessible graph alternative. Empty/unclosed composites, transitions to a
+composite endpoint, overlapping unrelated boxes and unsupported region syntax
+retain source with a diagnostic. This profile does not claim unrestricted
+Mermaid state-machine support.
+
+State diagrams admit single-line `note left of ID: text` and `note right of
+ID: text`. Notes retain their state and composite membership, use the bounded
+plain-label grammar, and render a folded-corner box on the requested physical
+side with a dotted attachment. Their target and text are included in the
+accessible graph alternative. Multiline notes use `note left of ID` or `note right of ID` followed by
+plain lines and a standalone `end note`; trimmed lines are joined with LF,
+including empty lines and literal semicolons or percent characters. Text is
+limited to 1024 UTF-16 units. Colliding notes, unsupported note forms and
+unterminated blocks fail closed to exact source.
+
+Class relationships admit composition (`*--`, `--*`, `*..`, `..*`) and
+aggregation (`o--`, `--o`, `o..`, `..o`). The diamond remains attached to the
+whole in either spelling; composition paints a filled diamond and aggregation a
+hollow one. Dot variants use dotted lines. The accessible graph alternative
+describes the part-to-whole relationship and preserves any endpoint cardinalities.
+
+`LayoutOptions::dpi` is the effective device DPI for native math positioning,
+defaulting to 96 for standalone callers. It must be finite, greater than zero and
+at most 4096. Native and embedded editor hosts supply their current host DPI;
+DPI changes invalidate reusable math geometry. Shared immutable MATH bytes
+remain reusable, but device adjustments are evaluated again for each math style's
+font size and DPI.
+
+Opt-in Rich editor URL paste can turn a selected source label into a link using the current Markdown command planner. It requires a current analysis and an eligible http, https, or mailto destination; unsupported selections and invalid destinations keep ordinary paste. The replacement is one undoable source transaction, and Source mode keeps literal paste.
+
+Structured rich-text clipboard reads may independently request file lists and a CF_HTML fragment alongside Unicode text in one ownership attempt; the legacy file-only transport contract is unchanged. The medium is limited to 266,240 bytes, requires ordered, in-bounds HTML and fragment byte offsets and strict UTF-8, and limits the decoded fragment to 65,536 UTF-16 units. An application may opt into HTML-to-Markdown conversion by supplying a synchronous converter; source, selection, focus binding, mode, and converter identity must remain current before its counted result can be committed as one edit. Failed, invalid, or unsupported conversions fall back to the normal Unicode paste policy; stale conversions are declined, and file lists retain precedence. HTML-only data without a successful converter is not an edit.
+
+During pending Source or semantic layout, logical caret and erase operations use a local source window anchored only at proven Unicode-independent boundaries. Context expands across uninterrupted grapheme and word runs and may reach the document edge; CRLF, regional-indicator parity, Indic conjuncts and emoji ZWJ sequences retain the same boundaries as the full source. The v0 Rich fallback projects complete local physical lines, including preceding line context, through the canonical projection builder; hidden-marker and source-affinity behavior matches a complete projection, and long lines or word runs can extend the window to the document edge.
+
+At the end of a nonempty table cell, file-reference paste can infer the table context when the cell uniquely owns that source position. Row-end positions shared with synthetic padded cells require the retained geometry-site identity; a source-only ambiguous request is declined.
+
+Rich clipboard paste preparation declines malformed or over-budget file lists with false and leaves the caller's replacement, source, selection, and undo history unchanged. Allocation failures remain distinguishable from content refusal.
+
+SemanticDocument exposes its source-ordered heading index with level, display name,
+collision-resolved fragment slug and exact source/navigation ranges. Fragment resolution
+uses the same index as editor navigation. BuildHeadingTableOfContents generates bounded
+Markdown links with escaped labels and percent-encoded UTF-8 fragments without editing
+the document; a result exceeding the display-unit limit throws length_error.
+
+RichMarkdown admits a bounded presentation suffix immediately after a standalone
+image: `{width=48 height=40 align=center caption="Map overview"}`. Fields are
+optional, unique and space-separated; dimensions are integer DIPs from 1 through
+4096, alignment is left, center or right, and the explicit plain caption is
+1–256 UTF-16 units without control characters, quotes, backslashes or closing braces. The
+caption retains Markdown punctuation literally even when inline parsing splits it into formatting or link nodes. A single
+dimension preserves intrinsic aspect ratio; two set the authored size before
+normal viewport-fit admission. Unknown, duplicate, malformed or non-standalone
+suffixes remain ordinary literal source. CommonMark and GFM do not consume the
+suffix. The image including its suffix remains one atomic source owner; caption
+presentation is generated at its authored source anchor, and F2 edits the whole
+owner. Caption display is available to text/UIA and rendered export but is not
+independently source-editable. Caption is never inferred from a title.
+
+Native HTML images accept bounded quoted integer `width`/`height` and, on a
+standalone image leaf, `align` and explicit `data-caption`. The whole supported
+leaf validates before projection; unsupported or non-standalone alignment or
+caption stays literal. Caption display is generated at the tag's ending source
+anchor. Width/height preserve ratio when only one is authored. Geometry and
+caption text are prepared with the existing layout and resource budgets; Draw
+performs no new shaping or resource allocation.

@@ -1,0 +1,1 @@
+- Preserve viewport-edge stroke pixels and prior paint indexes on allocation failure when rebuilding the shared culling index.

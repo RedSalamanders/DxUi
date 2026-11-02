@@ -3,7 +3,7 @@
 This packet archives the logs and receipts of the Grid, Rendering, Accessibility, Embedded and MultilineText suites in x64
 Debug, Release and ASan Debug, run after 16 new tests of the Grid's bounded multiline cells were added, and the table of
 temporary mutations each new test failed under. It closes the verification item of
-[the grid overflow plan](../../../../Specs/Plans/WIP/GridTextOverflow_2026-09-21.md) for x64; it does not claim native ARM64
+[the grid overflow plan](../../../../Specs/Plans/Done/GridTextOverflow_2026-09-21.md) for x64; it does not claim native ARM64
 execution, resource acceptance, assistive-technology acceptance or consumer adoption (see [Not claimed](#not-claimed)).
 
 ## Source and machine

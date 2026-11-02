@@ -1,0 +1,1 @@
+- Exercise native and embedded rich accessibility snapshot recovery after an injected font-family SDK HRESULT failure.

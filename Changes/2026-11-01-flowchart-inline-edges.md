@@ -1,0 +1,1 @@
+- Render bounded plain inline Mermaid edge text with solid, dotted, and thick links.

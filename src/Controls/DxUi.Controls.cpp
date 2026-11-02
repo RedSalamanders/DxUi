@@ -15,6 +15,9 @@
 
 namespace DxUi
 {
+#if DXUI_ENABLE_DIAGNOSTICS
+thread_local uint64_t testMnemonicLayoutCreations{};
+#endif
 std::weak_ptr<int> GetControlLifetimeToken(const Control& control) noexcept
 {
     return control.GetLifetimeToken();
@@ -653,25 +656,26 @@ void DrawRoundedRect(ControlHost& host, const D2D1_RECT_F& rect, const D2D1_COLO
     }
 }
 
-void DrawTopRoundedAttachedRect(ControlHost& host,
-                                const D2D1_RECT_F& rect,
-                                const D2D1_COLOR_F& fill,
-                                const D2D1_COLOR_F& stroke,
-                                float radiusDip,
-                                float fillBottomExtensionDip,
-                                float strokeBottomInsetDip)
+template <typename Geometry>
+void PrepareTopRoundedAttachedRect(ControlHost& host,
+                                   const D2D1_RECT_F& rect,
+                                   bool stroke,
+                                   float radiusDip,
+                                   float fillBottomExtensionDip,
+                                   float strokeBottomInsetDip,
+                                   Geometry& result,
+                                   uint64_t* creationCount)
 {
-    auto* dc = host.GetDeviceContext();
-    if (! dc)
-    {
-        return;
-    }
-
+    result                       = {};
     const D2D1_RECT_F fillRect   = SnapRectToPixel(host, D2D1::RectF(rect.left, rect.top, rect.right, rect.bottom + (std::max)(0.0f, fillBottomExtensionDip)));
     const D2D1_RECT_F strokeRect = SnapRectToPixel(host, rect);
-    const float width            = (std::max)(0.0f, fillRect.right - fillRect.left);
-    const float height           = (std::max)(0.0f, fillRect.bottom - fillRect.top);
-    const float radius           = std::clamp(radiusDip, 0.0f, (std::min)(width * 0.5f, height));
+    result.fillRect              = fillRect;
+    auto* dc                     = host.GetDeviceContext();
+    if (! dc)
+        return;
+    const float width  = (std::max)(0.0f, fillRect.right - fillRect.left);
+    const float height = (std::max)(0.0f, fillRect.bottom - fillRect.top);
+    const float radius = std::clamp(radiusDip, 0.0f, (std::min)(width * 0.5f, height));
     if (width <= 0.0f || height <= 0.0f)
     {
         return;
@@ -681,21 +685,20 @@ void DrawTopRoundedAttachedRect(ControlHost& host,
     dc->GetFactory(factory.addressof());
     if (! factory)
     {
-        FillRectangleWithColor(host, fillRect, fill);
         return;
     }
 
     wil::com_ptr<ID2D1PathGeometry> fillGeometry;
+    if (creationCount)
+        ++*creationCount;
     if (FAILED(factory->CreatePathGeometry(fillGeometry.addressof())) || ! fillGeometry)
     {
-        FillRectangleWithColor(host, fillRect, fill);
         return;
     }
 
     wil::com_ptr<ID2D1GeometrySink> sink;
     if (FAILED(fillGeometry->Open(sink.addressof())) || ! sink)
     {
-        FillRectangleWithColor(host, fillRect, fill);
         return;
     }
 
@@ -711,21 +714,19 @@ void DrawTopRoundedAttachedRect(ControlHost& host,
     sink->EndFigure(D2D1_FIGURE_END_CLOSED);
     if (FAILED(sink->Close()))
     {
-        FillRectangleWithColor(host, fillRect, fill);
         return;
     }
 
-    if (auto* fillBrush = host.GetSolidBrush(fill))
-    {
-        dc->FillGeometry(fillGeometry.get(), fillBrush);
-    }
+    result.fill = std::move(fillGeometry);
 
-    if (stroke.a <= 0.0f)
+    if (! stroke)
     {
         return;
     }
 
     wil::com_ptr<ID2D1PathGeometry> strokeGeometry;
+    if (creationCount)
+        ++*creationCount;
     if (FAILED(factory->CreatePathGeometry(strokeGeometry.addressof())) || ! strokeGeometry)
     {
         return;
@@ -752,12 +753,26 @@ void DrawTopRoundedAttachedRect(ControlHost& host,
         return;
     }
 
-    if (auto* strokeBrush = host.GetSolidBrush(stroke))
-    {
-        dc->DrawGeometry(strokeGeometry.get(), strokeBrush, 1.0f);
-    }
+    result.stroke = std::move(strokeGeometry);
 }
 
+template <typename Geometry>
+void DrawPreparedTopRoundedAttachedRect(ControlHost& host, const Geometry& geometry, const D2D1_COLOR_F& fill, const D2D1_COLOR_F& stroke)
+{
+    auto* const dc = host.GetDeviceContext();
+    if (! dc)
+        return;
+    if (geometry.fill)
+    {
+        if (auto* brush = host.GetSolidBrush(fill))
+            dc->FillGeometry(geometry.fill.get(), brush);
+    }
+    else
+        FillRectangleWithColor(host, geometry.fillRect, fill);
+    if (geometry.stroke && stroke.a > 0.f)
+        if (auto* brush = host.GetSolidBrush(stroke))
+            dc->DrawGeometry(geometry.stroke.get(), brush, 1.0f);
+}
 void PaintFocusRing(ControlHost& host, const D2D1_RECT_F& controlBounds, float controlCornerRadiusDip) noexcept
 {
     const auto& palette = host.GetTheme();
@@ -1182,6 +1197,9 @@ void DrawTextWithMnemonic(ControlHost& host,
     const float width  = (std::max)(1.0f, rect.right - rect.left);
     const float height = (std::max)(1.0f, rect.bottom - rect.top);
     wil::com_ptr<IDWriteTextLayout> layout;
+#if DXUI_ENABLE_DIAGNOSTICS
+    ++testMnemonicLayoutCreations;
+#endif
     if (FAILED(factory->CreateTextLayout(text.data(), static_cast<UINT32>(text.size()), format, width, height, layout.addressof())) || ! layout)
     {
         DrawCenteredText(host, text, rect, fontRole, color, alignment, paragraphAlignment, wrap, flowDirection);
@@ -1273,15 +1291,28 @@ void Panel::OnDescendantDetaching(Control& /*subtree*/) noexcept
 {
 }
 
-void Panel::NotifyContainersOfDetaching(Control& subtree) noexcept
+void Panel::OnDescendantDetached(Control& /*subtree*/) noexcept
+{
+}
+
+void Panel::NotifyContainersOfDetaching(Control& subtree, DescendantDetachPhase phase) noexcept
 {
     const std::weak_ptr<int> subtreeLifetime = subtree.GetLifetimeToken();
+    const std::weak_ptr<int> ownerLifetime   = GetLifetimeToken();
+    ControlHost* const ownerHost             = GetHost();
+    Control* const ownerParent               = _parent;
     for (Control* ancestor = this; ancestor && ! subtreeLifetime.expired();)
     {
         const std::weak_ptr<int> ancestorLifetime = ancestor->GetLifetimeToken();
         if (auto* const container = dynamic_cast<Panel*>(ancestor))
-            container->OnDescendantDetaching(subtree);
-        if (ancestorLifetime.expired() || subtreeLifetime.expired() || subtree._parent != this)
+        {
+            if (phase == DescendantDetachPhase::Detaching)
+                container->OnDescendantDetaching(subtree);
+            else
+                container->OnDescendantDetached(subtree);
+        }
+        if (ownerLifetime.expired() || ancestorLifetime.expired() || subtreeLifetime.expired() || GetHost() != ownerHost || _parent != ownerParent ||
+            (phase == DescendantDetachPhase::Detaching ? subtree._parent != this : subtree._parent != nullptr))
             return;
         ancestor = ancestor->_parent;
     }
@@ -1295,14 +1326,19 @@ std::unique_ptr<Control> Panel::TakeChild(size_t index) noexcept
     const std::weak_ptr<int> ownerLifetime = GetLifetimeToken();
     Control* const requested               = _children[index].get();
     const std::weak_ptr<int> childLifetime = requested->GetLifetimeToken();
-    // Every enclosing container ends its own observers inside the subtree (inner hover, inner capture) while the child is
-    // still attached.
-    NotifyContainersOfDetaching(*requested);
+    ControlHost* const initialHost         = GetHost();
+    const uint64_t focusBeforeObservers    = initialHost ? initialHost->_focusRequestRevision : 0u;
+    // Capture callbacks run while the child is still attached.
+    NotifyContainersOfDetaching(*requested, DescendantDetachPhase::Detaching);
     if (ownerLifetime.expired() || childLifetime.expired())
         return {};
     ControlHost* const host = GetHost();
+    if (host != initialHost)
+        return {};
     if (host)
     {
+        if (Control* focused = host->GetFocusControl(); host->_focusRequestRevision != focusBeforeObservers && focused && IsControlInTree(requested, focused))
+            return {};
         const uint64_t focusBeforeCancellation = host->_focusRequestRevision;
         if (Control* captured = host->GetCapturedControl(); captured && IsControlInTree(requested, captured))
             host->CancelCapturedControlInteraction();
@@ -1331,7 +1367,16 @@ std::unique_ptr<Control> Panel::TakeChild(size_t index) noexcept
         if (slot.get() != requested)
             continue;
         auto child = std::move(slot);
+        // Detach before callbacks so they cannot restore focus to a departing subtree.
         DetachChildPreservingInheritance(*child);
+        if (childLifetime.expired())
+        {
+            static_cast<void>(child.release());
+            return {};
+        }
+        if (ownerLifetime.expired())
+            return child;
+        NotifyContainersOfDetaching(*child, DescendantDetachPhase::Detached);
         if (childLifetime.expired())
         {
             static_cast<void>(child.release());
@@ -1340,7 +1385,9 @@ std::unique_ptr<Control> Panel::TakeChild(size_t index) noexcept
         if (! ownerLifetime.expired())
         {
             InvalidateMeasure();
-            if (host)
+            if (ownerLifetime.expired())
+                return child;
+            if (host && GetHost() == host)
                 host->RefreshAccessibilitySnapshot();
             if (! ownerLifetime.expired())
                 RequestInvalidate();
@@ -1365,6 +1412,8 @@ size_t Panel::CompactChildren() noexcept
     // The children's indices, and the accessibility paths built from them, changed.
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     InvalidateMeasure();
+    if (lifetime.expired())
+        return removed;
     if (ControlHost* const host = GetHost())
         host->RefreshAccessibilitySnapshot();
     if (! lifetime.expired())
@@ -1720,7 +1769,8 @@ void PageHost::SetPage(std::unique_ptr<Control> page, std::wstring connectedAnim
     }
 
     host->RequestAnimation();
-    RequestInvalidate();
+    if (! ownerLifetime.expired() && GetHost() == host)
+        RequestInvalidate();
 }
 
 Control* PageHost::GetPage() noexcept
@@ -2318,6 +2368,7 @@ bool ControlHost::PreparePendingPageLayout() noexcept
     const bool prepareAllVisual =
         _forceAllVisualPreparation || _preparedVisualResources != GetResourceGeneration() || _preparedVisualTypography != GetTypographyRevision();
     _contentPreparationContinues = false;
+    _contentPreparationFailure   = S_OK;
     if (! _pendingPageLayout && ! _pendingIntrinsicLayout && ! _pendingContentPreparation && ! prepareAllContent && ! _pendingVisualPreparation &&
         ! prepareAllVisual)
         return true;
@@ -2354,6 +2405,13 @@ bool ControlHost::PreparePendingPageLayout() noexcept
                 // Layout fails before it commits geometry: the control keeps what it last arranged, this frame paints
                 // that, and the control is laid out again once its content, constraints or bounds change. Content the
                 // layout cannot take (an oversized paste, an unsupported child) never blanks the window.
+                // Retry one transient allocation failure on a later preparation turn. A new explicit
+                // layout request resets the allowance; repeated OOM must not keep the host busy.
+                if (hr == E_OUTOFMEMORY && ! control._intrinsicLayoutPending && ! control._intrinsicAllocationRetryUsed)
+                {
+                    control._intrinsicAllocationRetryUsed = true;
+                    control._intrinsicLayoutPending       = true;
+                }
                 ++_intrinsicLayoutFailureCount;
                 if (_reportedLayoutFailureControl != &control || _reportedLayoutFailure != hr)
                 {
@@ -2382,7 +2440,11 @@ bool ControlHost::PreparePendingPageLayout() noexcept
             if (content == S_FALSE || FAILED(content))
                 control._contentPreparationPending = true;
             if (FAILED(content))
+            {
+                if (SUCCEEDED(_contentPreparationFailure))
+                    _contentPreparationFailure = content == E_ABORT ? E_FAIL : content;
                 complete = false;
+            }
             if (content == S_OK)
                 _contentGeometryChanged = true;
         }
@@ -2465,7 +2527,34 @@ bool ControlHost::PreparePendingPageLayout() noexcept
         }
     }
     // Reentrant replacement requests another preparation; never publish its deferred geometry as complete.
-    if (contentPending && rootCurrent() && _capturedControl)
+    Control* const pendingCapture     = contentPending && rootCurrent() ? _capturedControl : nullptr;
+    Control* const pendingGesture     = pendingCapture ? ControlCaptureAccess::GestureOwner(*this) : nullptr;
+    const auto pendingCaptureLifetime = pendingCapture ? GetControlLifetimeToken(*pendingCapture) : std::weak_ptr<int>{};
+    const auto pendingGestureLifetime = pendingGesture ? GetControlLifetimeToken(*pendingGesture) : std::weak_ptr<int>{};
+    // Inspect the current gesture's ancestor path once, after all preparation
+    // callbacks. Resolving capture for every prepared control made this pass
+    // quadratic for a deeply nested ScrollPanel chain.
+    const auto pendingOnPath = [&](auto&& self, Control& control, bool ancestorsVisible) noexcept -> std::optional<bool>
+    {
+        const auto lifetime = GetControlLifetimeToken(control);
+        const bool visible  = ancestorsVisible && control.IsVisible();
+        const bool pending  = visible && control._contentPreparationEnabled && control._contentPreparationPending;
+        if (&control == pendingGesture)
+            return pending;
+        const auto count = control.GetLogicalChildCount();
+        for (size_t index = 0u; index < count && ! lifetime.expired() && rootCurrent(); ++index)
+        {
+            auto* const child = control.GetLogicalChild(index);
+            if (lifetime.expired() || ! rootCurrent())
+                return std::nullopt;
+            if (child)
+                if (const auto found = self(self, *child, visible); found.has_value())
+                    return pending || found.value();
+        }
+        return std::nullopt;
+    };
+    if (pendingGesture && pendingOnPath(pendingOnPath, *root, true).value_or(false) && rootCurrent() && ! pendingCaptureLifetime.expired() &&
+        _capturedControl == pendingCapture && ! pendingGestureLifetime.expired() && ControlCaptureAccess::GestureOwner(*this) == pendingGesture)
     {
         // Pending geometry cannot receive the matching Up. Cancel the logical
         // gesture rather than leave capture/drafts active across reflow.
@@ -2473,7 +2562,7 @@ bool ControlHost::PreparePendingPageLayout() noexcept
         ClearPendingPointerDoubleClick();
     }
     const bool layoutComplete    = complete && (! root || rootCurrent()) && ! _pendingPageLayout && ! _pendingIntrinsicLayout;
-    _contentPreparationContinues = layoutComplete && _pendingContentPreparation;
+    _contentPreparationContinues = _pendingIntrinsicLayout || (layoutComplete && _pendingContentPreparation);
     if (layoutComplete)
     {
         _preparedContentResources  = GetResourceGeneration();
@@ -2594,6 +2683,7 @@ void ControlHost::PublishPreparedContent() noexcept
     if (auto* focused = GetFocusControl())
         SyncTextInput(focused);
     RefreshAccessibilitySnapshot();
+    NotifyTextInputLayoutChanged(_nativeTextInputControl);
 }
 
 bool PageHost::FinishTransition() noexcept
@@ -2634,7 +2724,7 @@ void CardPanel::Paint(ControlHost& host) const
     Panel::Paint(host);
 }
 
-Separator::Separator() noexcept
+Separator::Separator()
 {
     SetFocusable(false);
     SetAccessibilityRole(AccessibilityRole::Separator);
@@ -2691,6 +2781,37 @@ const Control* Separator::HitTest(D2D1_POINT_2F /*point*/) const
 
 Label::Label(std::wstring text) : _text(std::move(text))
 {
+    EnableVisualContentPreparation();
+}
+void Label::InvalidateTypographyPreparation() noexcept
+{
+    ++_typographyInputRevision;
+    RequestVisualContentPreparation(false);
+}
+void Label::CancelVisualContentPreparation() noexcept
+{
+    _typographyLayoutHost = nullptr;
+    _typographyLayout.reset();
+}
+void Label::OnBoundsChanged() noexcept
+{
+    InvalidateTypographyPreparation();
+    Control::OnBoundsChanged();
+}
+void Label::OnFlowDirectionChanged() noexcept
+{
+    InvalidateTypographyPreparation();
+    Control::OnFlowDirectionChanged();
+}
+void Label::OnDensityChanged() noexcept
+{
+    InvalidateTypographyPreparation();
+    Control::OnDensityChanged();
+}
+void Label::OnHostDpiChanged(ControlHost& host) noexcept
+{
+    InvalidateTypographyPreparation();
+    Control::OnHostDpiChanged(host);
 }
 
 void Label::SetText(std::wstring text)
@@ -2699,6 +2820,7 @@ void Label::SetText(std::wstring text)
     {
         const std::weak_ptr<int> lifetime = GetLifetimeToken();
         _text                             = std::move(text);
+        InvalidateTypographyPreparation();
         InvalidateMeasure();
         // Embedded preparation can synchronously retire the owning root.
         if (lifetime.expired())
@@ -2727,7 +2849,8 @@ void Label::SetFontRole(FontRole fontRole) noexcept
 {
     if (_fontRole == fontRole)
         return;
-    _fontRole           = fontRole;
+    _fontRole = fontRole;
+    InvalidateTypographyPreparation();
     const auto lifetime = GetLifetimeToken();
     InvalidateMeasure();
     // Embedded layout scheduling can synchronously retire the control's root.
@@ -2738,7 +2861,10 @@ void Label::SetFontRole(FontRole fontRole) noexcept
 
 void Label::SetAlignment(DWRITE_TEXT_ALIGNMENT alignment) noexcept
 {
+    if (_alignment == alignment)
+        return;
     _alignment = alignment;
+    InvalidateTypographyPreparation();
     RequestInvalidate();
 }
 
@@ -2748,6 +2874,7 @@ void Label::SetMultiline(bool multiline) noexcept
         return;
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     _multiline                        = multiline;
+    InvalidateTypographyPreparation();
     InvalidateMeasure();
     // Embedded preparation can synchronously retire the owning root.
     if (lifetime.expired())
@@ -2775,8 +2902,9 @@ HRESULT Label::SetTypographyOverride(std::optional<LabelTypography> typography) 
     if (_typographyOverride == typography)
         return S_FALSE;
     _typographyOverride = typography;
-    _typographyLayout.reset();
-    _typographyLayoutText.clear();
+    InvalidateTypographyPreparation();
+    if (typography)
+        EnableVisualContentPreparation();
     const auto lifetime = GetLifetimeToken();
     InvalidateMeasure();
     // Embedded layout scheduling can synchronously retire the control's root.
@@ -2803,70 +2931,108 @@ void Label::SetMnemonicTarget(Control* target) noexcept
     }
 }
 
+void Label::PrepareVisualContent(ControlHost& host) noexcept
+{
+    const auto lifetime     = GetLifetimeToken();
+    Control* const root     = host.GetRoot();
+    const auto rootLifetime = root ? GetControlLifetimeToken(*root) : std::weak_ptr<int>{};
+    const auto interaction  = host.GetInteractionRevision();
+    const auto current      = [&]() noexcept
+    {
+        return ! lifetime.expired() && ! rootLifetime.expired() && GetHost() == &host && host.GetRoot() == root && host.GetInteractionRevision() == interaction;
+    };
+    if (! root || ! current() || ! IsControlInTree(root, this) || ! current())
+        return;
+    if (! _typographyOverride && ! GetMnemonic())
+    {
+        CancelVisualContentPreparation();
+        return;
+    }
+    try
+    {
+        const auto bounds = GetBounds();
+        const float width = (std::max)(1.0f, bounds.right - bounds.left), height = (std::max)(1.0f, bounds.bottom - bounds.top);
+        const auto revision  = _typographyInputRevision;
+        const auto resources = host.GetResourceGeneration(), typographyRevision = host.GetTypographyRevision();
+        const auto mnemonic = GetMnemonic();
+        if (_typographyLayout && _typographyLayoutHost == &host && _typographyPreparedInputRevision == revision && _typographyLayoutGeneration == resources &&
+            _typographyLayoutRevision == typographyRevision && _typographyLayoutMnemonic == mnemonic && _typographyLayoutSize.width == width &&
+            _typographyLayoutSize.height == height)
+            return;
+        std::wstring text(_text);
+        const auto typography = _typographyOverride;
+        auto* format =
+            typography ? host.GetTextFormat(_fontRole,
+                                            typography->fontSizeDip,
+                                            typography->fontWeight,
+                                            _alignment,
+                                            DWRITE_PARAGRAPH_ALIGNMENT_CENTER,
+                                            _multiline,
+                                            ResolveReadingDirection(GetFlowDirection()))
+                       : host.GetTextFormat(_fontRole, _alignment, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, _multiline, ResolveReadingDirection(GetFlowDirection()));
+        if (! current() || ! format || host.GetResourceGeneration() != resources || host.GetTypographyRevision() != typographyRevision ||
+            ! host.GetWriteFactory())
+            return;
+        wil::com_ptr<IDWriteTextLayout> layout;
+#if DXUI_ENABLE_DIAGNOSTICS
+        ++testMnemonicLayoutCreations;
+#endif
+        if (FAILED(host.GetWriteFactory()->CreateTextLayout(text.data(), static_cast<UINT32>(text.size()), format, width, height, layout.put())) || ! layout)
+            return;
+        const DWRITE_TEXT_RANGE range{0u, static_cast<UINT32>(text.size())};
+        const float spacing = typography ? typography->characterSpacingDip * .5f : 0.f;
+        if (spacing != 0.f)
+        {
+            wil::com_ptr<IDWriteTextLayout1> layout1;
+            if (FAILED(layout->QueryInterface(IID_PPV_ARGS(layout1.put()))) || FAILED(layout1->SetCharacterSpacing(spacing, spacing, 0.f, range)))
+                return;
+        }
+        if (const auto index = FindMnemonicTextIndex(text, mnemonic); index)
+            static_cast<void>(layout->SetUnderline(TRUE, DWRITE_TEXT_RANGE{static_cast<UINT32>(*index), 1u}));
+        if (! current() || _typographyInputRevision != revision || GetMnemonic() != mnemonic || _text != text || host.GetResourceGeneration() != resources ||
+            host.GetTypographyRevision() != typographyRevision)
+            return;
+        const auto now = GetBounds();
+        if ((std::max)(1.0f, now.right - now.left) != width || (std::max)(1.0f, now.bottom - now.top) != height)
+            return;
+        auto retired                     = std::move(_typographyLayout);
+        _typographyLayout                = std::move(layout);
+        _typographyLayoutSize            = D2D1::SizeF(width, height);
+        _typographyLayoutGeneration      = resources;
+        _typographyLayoutRevision        = typographyRevision;
+        _typographyLayoutHost            = &host;
+        _typographyPreparedInputRevision = revision;
+        _typographyLayoutMnemonic        = mnemonic;
+    }
+    catch (const std::bad_alloc&)
+    {
+        // Optional visual preparation retains the normal text fallback.
+    }
+}
+
 void Label::Paint(ControlHost& host) const
 {
     const LabelVisualStyle style = ResolveLabelVisualStyle(host.GetTheme(), _textColor);
-    if (_typographyOverride)
+    if (_typographyOverride || GetMnemonic())
     {
-        auto* dc           = host.GetDeviceContext();
-        const auto bounds  = GetBounds();
-        const float width  = (std::max)(1.0f, bounds.right - bounds.left);
-        const float height = (std::max)(1.0f, bounds.bottom - bounds.top);
-        auto* format       = host.GetTextFormat(_fontRole,
-                                                _typographyOverride->fontSizeDip,
-                                                _typographyOverride->fontWeight,
-                                                _alignment,
-                                                DWRITE_PARAGRAPH_ALIGNMENT_CENTER,
-                                                _multiline,
-                                                ResolveReadingDirection(GetFlowDirection()));
-        if (dc && format && host.GetWriteFactory())
+        const auto bounds = GetBounds();
+        const float width = (std::max)(1.0f, bounds.right - bounds.left), height = (std::max)(1.0f, bounds.bottom - bounds.top);
+        if (_typographyLayout && _typographyLayoutHost == &host && _typographyPreparedInputRevision == _typographyInputRevision &&
+            _typographyLayoutGeneration == host.GetResourceGeneration() && _typographyLayoutRevision == host.GetTypographyRevision() &&
+            _typographyLayoutMnemonic == GetMnemonic() && _typographyLayoutSize.width == width && _typographyLayoutSize.height == height)
         {
-            const bool stale = ! _typographyLayout || _typographyLayoutText != _text || _typographyLayoutFormat != format ||
-                               _typographyLayoutSize.width != width || _typographyLayoutSize.height != height ||
-                               _typographyLayoutGeneration != host.GetResourceGeneration() || _typographyLayoutRevision != host.GetTypographyRevision();
-            if (stale)
-            {
-                _typographyLayout.reset();
-                _typographyLayoutFormat = nullptr;
-                wil::com_ptr<IDWriteTextLayout> layout;
-                if (SUCCEEDED(
-                        host.GetWriteFactory()->CreateTextLayout(_text.data(), static_cast<UINT32>(_text.size()), format, width, height, layout.addressof())) &&
-                    layout)
-                {
-                    const DWRITE_TEXT_RANGE range{0u, static_cast<UINT32>(_text.size())};
-                    const float spacing = _typographyOverride->characterSpacingDip * 0.5f;
-                    bool spacingApplied = spacing == 0.0f;
-                    if (! spacingApplied)
-                    {
-                        wil::com_ptr<IDWriteTextLayout1> layout1;
-                        spacingApplied = SUCCEEDED(layout->QueryInterface(IID_PPV_ARGS(layout1.put()))) &&
-                                         SUCCEEDED(layout1->SetCharacterSpacing(spacing, spacing, 0.0f, range));
-                    }
-                    if (spacingApplied)
-                    {
-                        if (const auto mnemonicIndex = FindMnemonicTextIndex(_text, GetMnemonic()); mnemonicIndex)
-                            static_cast<void>(layout->SetUnderline(TRUE, DWRITE_TEXT_RANGE{static_cast<UINT32>(*mnemonicIndex), 1u}));
-                        _typographyLayout           = std::move(layout);
-                        _typographyLayoutText       = _text;
-                        _typographyLayoutFormat     = format;
-                        _typographyLayoutSize       = D2D1::SizeF(width, height);
-                        _typographyLayoutGeneration = host.GetResourceGeneration();
-                        _typographyLayoutRevision   = host.GetTypographyRevision();
-                    }
-                }
-            }
-            if (_typographyLayout)
-            {
+            if (auto* dc = host.GetDeviceContext())
                 if (auto* brush = host.GetSolidBrush(style.text))
                     dc->DrawTextLayout(D2D1::Point2F(bounds.left, bounds.top), _typographyLayout.get(), brush, kTextDrawOptions);
-                return;
-            }
+            return;
         }
+        // An unavailable optional prepared layout uses ordinary text without
+        // creating a replacement layout in the paint path.
+        DrawCenteredText(host, _text, bounds, _fontRole, style.text, _alignment, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, _multiline, GetFlowDirection());
+        return;
     }
-    DrawTextWithMnemonic(
-        host, _text, GetBounds(), _fontRole, style.text, GetMnemonic(), _alignment, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, _multiline, GetFlowDirection());
+    DrawCenteredText(host, _text, GetBounds(), _fontRole, style.text, _alignment, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, _multiline, GetFlowDirection());
 }
-
 Control* Label::HitTest(D2D1_POINT_2F /*point*/)
 {
     // Labels are text/mnemonic surfaces; pointer-interactive label-like UI should use a button/link control.
@@ -2909,6 +3075,8 @@ void Button::RetirePreparedIconTextLayout() noexcept
     _preparedIconTextFlow                         = FlowDirection::LeftToRight;
     _preparedIconTextKeyValid                     = false;
     _preparedIconTextFailed                       = false;
+    _preparedHyperlinkValid                       = false;
+    _preparedHyperlinkHost                        = nullptr;
     ++_iconTextInputRevision;
 }
 
@@ -2916,9 +3084,11 @@ void Button::SetMultiline(bool multiline) noexcept
 {
     if (_multiline != multiline)
     {
-        _multiline = multiline;
+        _multiline          = multiline;
+        const auto lifetime = GetLifetimeToken();
         InvalidateMeasure();
-        RequestInvalidate();
+        if (! lifetime.expired())
+            RequestInvalidate();
     }
 }
 
@@ -2985,14 +3155,94 @@ void Button::PrepareVisualContent(ControlHost& host) noexcept
     const std::weak_ptr<int> lifetime     = GetLifetimeToken();
     Control* const root                   = host.GetRoot();
     const std::weak_ptr<int> rootLifetime = root ? GetControlLifetimeToken(*root) : std::weak_ptr<int>{};
+    const uint64_t interactionRevision    = host.GetInteractionRevision();
     const auto hostStillCurrent           = [&]() noexcept
-    { return ! lifetime.expired() && ! rootLifetime.expired() && GetHost() == &host && host.GetRoot() == root && IsControlInTree(root, this); };
+    {
+        return ! lifetime.expired() && ! rootLifetime.expired() && GetHost() == &host && host.GetRoot() == root &&
+               host.GetInteractionRevision() == interactionRevision;
+    };
+    if (! root || rootLifetime.expired() || GetHost() != &host || ! IsControlInTree(root, this))
+        return;
+    if (_variant == ButtonVariant::Hyperlink && ! dynamic_cast<const Toggle*>(this) && ! dynamic_cast<const RadioButton*>(this))
+    {
+        try
+        {
+            const auto bounds     = GetBounds();
+            const float width     = (std::max)(0.0f, bounds.right - bounds.left);
+            const float height    = (std::max)(1.0f, bounds.bottom - bounds.top);
+            const auto flow       = GetFlowDirection();
+            const auto revision   = _iconTextInputRevision;
+            const auto resources  = host.GetResourceGeneration();
+            const auto typography = host.GetTypographyRevision();
+            if (! _preparedHyperlinkValid || _preparedHyperlinkHost != &host || _preparedHyperlinkRevision != revision ||
+                _preparedHyperlinkResources != resources || _preparedHyperlinkTypography != typography || _preparedHyperlinkFlow != flow ||
+                _preparedHyperlinkBoundsWidth != width || _preparedHyperlinkBoundsHeight != height)
+            {
+                const std::wstring text(_text);
+#if DXUI_ENABLE_DIAGNOSTICS
+                ++_debugHyperlinkMeasureCount;
+#endif
+                const float measured = MeasureSingleLineTextWidthDip(
+                    &host, text, FontRole::Body, height, ResolveReadingDirection(flow), ResolveContentTextFormat(host, FontRole::Body));
+                if (! hostStillCurrent() || _iconTextInputRevision != revision || _text != text || GetFlowDirection() != flow ||
+                    host.GetResourceGeneration() != resources || host.GetTypographyRevision() != typography)
+                    return;
+                const auto current = GetBounds();
+                if ((std::max)(0.0f, current.right - current.left) != width || (std::max)(1.0f, current.bottom - current.top) != height)
+                    return;
+                _preparedHyperlinkWidthDip     = measured;
+                _preparedHyperlinkBoundsWidth  = width;
+                _preparedHyperlinkBoundsHeight = height;
+                _preparedHyperlinkHost         = &host;
+                _preparedHyperlinkRevision     = revision;
+                _preparedHyperlinkResources    = resources;
+                _preparedHyperlinkTypography   = typography;
+                _preparedHyperlinkFlow         = flow;
+                _preparedHyperlinkValid        = true;
+            }
+        }
+        catch (const std::bad_alloc&)
+        {
+            return;
+        }
+    }
+    if (! _shortcutText.empty())
+    {
+        try
+        {
+            const auto flow       = GetFlowDirection();
+            const auto resources  = host.GetResourceGeneration();
+            const auto typography = host.GetTypographyRevision();
+            if (! _preparedShortcutValid || _preparedShortcutHost != &host || _preparedShortcutResources != resources ||
+                _preparedShortcutTypography != typography || _preparedShortcutFlow != flow)
+            {
+                const std::wstring shortcut = _shortcutText;
+#if DXUI_ENABLE_DIAGNOSTICS
+                ++_debugShortcutMeasureCount;
+#endif
+                const float width = MeasureSingleLineTextWidthDip(&host, shortcut, FontRole::Small, 20.0f, ResolveReadingDirection(flow));
+                if (! hostStillCurrent() || _shortcutText != shortcut || GetFlowDirection() != flow || host.GetResourceGeneration() != resources ||
+                    host.GetTypographyRevision() != typography)
+                    return;
+                _preparedShortcutWidthDip   = width;
+                _preparedShortcutHost       = &host;
+                _preparedShortcutResources  = resources;
+                _preparedShortcutTypography = typography;
+                _preparedShortcutFlow       = flow;
+                _preparedShortcutValid      = true;
+            }
+        }
+        catch (const std::bad_alloc&)
+        {
+            return;
+        }
+    }
     // Toggle and radio-button descendants have distinct Paint implementations; preparing a base-button layout
     // for them would retain a resource that can never be consumed.
-    if (_variant != ButtonVariant::IconOnly || dynamic_cast<const Toggle*>(this) || dynamic_cast<const RadioButton*>(this) || ! root ||
-        rootLifetime.expired() || GetHost() != &host || ! IsControlInTree(root, this))
+    if (_variant != ButtonVariant::IconOnly || dynamic_cast<const Toggle*>(this) || dynamic_cast<const RadioButton*>(this))
     {
-        RetirePreparedIconTextLayout();
+        if (_variant != ButtonVariant::Hyperlink || dynamic_cast<const Toggle*>(this) || dynamic_cast<const RadioButton*>(this))
+            RetirePreparedIconTextLayout();
         return;
     }
 
@@ -3012,11 +3262,13 @@ void Button::PrepareVisualContent(ControlHost& host) noexcept
         return;
     }
 
-    const FlowDirection flow    = GetFlowDirection();
-    const uint64_t revision     = _iconTextInputRevision;
-    const uint64_t resources    = host.GetResourceGeneration();
-    const uint64_t typography   = host.GetTypographyRevision();
-    const FontRole role         = host.HasFluentIconFont() ? FontRole::Icon : FontRole::Body;
+    const FlowDirection flow  = GetFlowDirection();
+    const uint64_t revision   = _iconTextInputRevision;
+    const uint64_t resources  = host.GetResourceGeneration();
+    const uint64_t typography = host.GetTypographyRevision();
+    const FontRole role       = host.HasFluentIconFont() ? FontRole::Icon : FontRole::Body;
+    if (! hostStillCurrent())
+        return;
     const auto contentFontSize  = _contentFontSizeDip;
     const auto readingDirection = ResolveReadingDirection(flow);
     auto* rawFormat             = host.GetTextFormat(role, DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, false, readingDirection);
@@ -3048,7 +3300,7 @@ void Button::PrepareVisualContent(ControlHost& host) noexcept
         if (lifetime.expired() || rootLifetime.expired())
             return false;
         const auto currentBounds = GetBounds();
-        return GetHost() == &host && host.GetRoot() == root && IsControlInTree(root, this) && _variant == ButtonVariant::IconOnly &&
+        return GetHost() == &host && host.GetRoot() == root && host.GetInteractionRevision() == interactionRevision && _variant == ButtonVariant::IconOnly &&
                _iconTextInputRevision == revision && _text.size() == length && _text[0] == text[0] && (length == 1u || _text[1] == text[1]) &&
                GetFlowDirection() == flow && currentBounds.left == bounds.left && currentBounds.top == bounds.top && currentBounds.right == bounds.right &&
                currentBounds.bottom == bounds.bottom && host.GetResourceGeneration() == resources && host.GetTypographyRevision() == typography;
@@ -3129,6 +3381,8 @@ void Button::PrepareVisualContent(ControlHost& host) noexcept
 
 void Button::CancelVisualContentPreparation() noexcept
 {
+    _preparedShortcutValid = false;
+    _preparedShortcutHost  = nullptr;
     RetirePreparedIconTextLayout();
 }
 
@@ -3271,7 +3525,7 @@ void Button::SetVariant(ButtonVariant variant) noexcept
     RetirePreparedIconTextLayout();
     if (lifetime.expired())
         return;
-    if (variant == ButtonVariant::IconOnly && ! dynamic_cast<Toggle*>(this) && ! dynamic_cast<RadioButton*>(this))
+    if ((variant == ButtonVariant::IconOnly || variant == ButtonVariant::Hyperlink) && ! dynamic_cast<Toggle*>(this) && ! dynamic_cast<RadioButton*>(this))
         EnableVisualContentPreparation();
     else
         RequestVisualContentPreparation(false);
@@ -3319,7 +3573,10 @@ void Button::SetShortcutText(std::wstring text)
 {
     if (_shortcutText == text)
         return;
-    _shortcutText       = std::move(text);
+    _shortcutText             = std::move(text);
+    _preparedShortcutWidthDip = 0.0f;
+    _preparedShortcutValid    = false;
+    EnableVisualContentPreparation();
     const auto lifetime = GetLifetimeToken();
     InvalidateMeasure();
     if (! lifetime.expired())
@@ -3354,7 +3611,10 @@ void Button::SetDisclosureExpanded(bool expanded) noexcept
         _disclosureTransition.anchored      = false;
         _disclosureTransition.initialized   = true;
         _disclosureTransition.active        = false;
+        const auto lifetime                 = GetLifetimeToken();
         RequestInvalidate();
+        if (lifetime.expired())
+            return;
         if (ControlHost* const host = GetHost())
         {
             host->RefreshAccessibilitySnapshot();
@@ -3367,6 +3627,7 @@ void Button::SetDisclosureExpanded(bool expanded) noexcept
         return;
     }
 
+    const auto lifetime     = GetLifetimeToken();
     ControlHost* const host = GetHost();
     // The rotation runs on its own ticks: it starts at the first one, so a button hidden now (it gets none until it
     // paints again) rotates when it shows, and a pause in them pauses it instead of skipping to the end.
@@ -3380,15 +3641,21 @@ void Button::SetDisclosureExpanded(bool expanded) noexcept
     if (_disclosureTransition.active)
     {
         host->RequestAnimation();
+        if (lifetime.expired() || GetHost() != host)
+            return;
     }
     else
     {
         _disclosureTransition.progress = target;
     }
     RequestInvalidate();
+    if (lifetime.expired() || GetHost() != host)
+        return;
     if (host)
     {
         host->RefreshAccessibilitySnapshot();
+        if (lifetime.expired() || GetHost() != host)
+            return;
         RaiseWindowHostDisclosureChanged(host->GetHwnd(), this, expanded);
     }
 }
@@ -3404,7 +3671,10 @@ void Button::ClearDisclosureState() noexcept
     {
         _disclosureExpanded.reset();
         _disclosureTransition = {};
+        const auto lifetime   = GetLifetimeToken();
         RequestInvalidate();
+        if (lifetime.expired())
+            return;
         if (ControlHost* const host = GetHost())
         {
             host->RefreshAccessibilitySnapshot();
@@ -3532,7 +3802,7 @@ void Button::Paint(ControlHost& host) const
         }
         if (! _shortcutText.empty())
         {
-            const float width = MeasureSingleLineTextWidthDip(&host, _shortcutText, FontRole::Small, 20.0f, ResolveReadingDirection(flowDirection)) + 10.0f;
+            const float width = _preparedShortcutWidthDip + 10.0f;
             const float left  = rtl ? textBounds.left + 6.0f : textBounds.right - width - 6.0f;
             const float top   = (bounds.top + bounds.bottom - 20.0f) * 0.5f;
             const auto hint   = D2D1::RectF(left, top, left + width, top + 20.0f);
@@ -3562,13 +3832,16 @@ void Button::Paint(ControlHost& host) const
             const float widthDip     = (std::max)(0.0f, b.right - b.left);
             const float heightDip    = (std::max)(1.0f, b.bottom - b.top);
             const float availableDip = (std::max)(0.0f, widthDip - 8.0f);
-            const float textWidthDip = MeasureSingleLineTextWidthDip(
-                &host, _text, FontRole::Body, heightDip, ResolveReadingDirection(flowDirection), ResolveContentTextFormat(host, FontRole::Body));
-            const float underlineWidthDip = (std::clamp)(textWidthDip, 0.0f, availableDip);
-            const float underlineLeftDip  = b.left + ((widthDip - underlineWidthDip) * 0.5f);
-            const float underlineRightDip = underlineLeftDip + underlineWidthDip;
-            const float underlineYDip     = SnapDipToPixel(host, b.bottom - 3.0f);
-            DrawLineWithColor(host, D2D1::Point2F(underlineLeftDip, underlineYDip), D2D1::Point2F(underlineRightDip, underlineYDip), fg, 1.0f);
+            if (_preparedHyperlinkValid && _preparedHyperlinkHost == &host && _preparedHyperlinkRevision == _iconTextInputRevision &&
+                _preparedHyperlinkResources == host.GetResourceGeneration() && _preparedHyperlinkTypography == host.GetTypographyRevision() &&
+                _preparedHyperlinkFlow == flowDirection && _preparedHyperlinkBoundsWidth == widthDip && _preparedHyperlinkBoundsHeight == heightDip)
+            {
+                const float underlineWidthDip = (std::clamp)(_preparedHyperlinkWidthDip, 0.0f, availableDip);
+                const float underlineLeftDip  = b.left + ((widthDip - underlineWidthDip) * 0.5f);
+                const float underlineRightDip = underlineLeftDip + underlineWidthDip;
+                const float underlineYDip     = SnapDipToPixel(host, b.bottom - 3.0f);
+                DrawLineWithColor(host, D2D1::Point2F(underlineLeftDip, underlineYDip), D2D1::Point2F(underlineRightDip, underlineYDip), fg, 1.0f);
+            }
         }
         return;
     }
@@ -4106,11 +4379,14 @@ void Button::UpdateInteractionTransition(ControlHost& host, InteractionTransitio
 
     // Seed from the host's animation clock, which its ticks follow, so a fresh transition neither fast-forwards on its first
     // tick nor waits for the clock to catch up.
-    transition.lastTickMs = host.GetAnimationTickMs();
-    transition.anchored   = true;
-    transition.active     = true;
+    transition.lastTickMs           = host.GetAnimationTickMs();
+    transition.anchored             = true;
+    transition.active               = true;
+    const auto lifetime             = GetLifetimeToken();
+    ControlHost* const originalHost = GetHost();
     host.RequestAnimation();
-    Invalidate(host);
+    if (! lifetime.expired() && GetHost() == originalHost)
+        Invalidate(host);
 }
 
 bool Button::AdvanceInteractionTransition(const ControlHost& host, InteractionTransitionState& transition, uint64_t nowTickMs) noexcept
@@ -4240,10 +4516,12 @@ void Toggle::SetStateLabels(std::wstring uncheckedText, std::wstring checkedText
     // Unchanged labels (an application that sets them on every refresh) relay out nothing.
     if (_uncheckedText == uncheckedText && _checkedText == checkedText)
         return;
-    _uncheckedText = std::move(uncheckedText);
-    _checkedText   = std::move(checkedText);
+    _uncheckedText      = std::move(uncheckedText);
+    _checkedText        = std::move(checkedText);
+    const auto lifetime = GetLifetimeToken();
     InvalidateMeasure();
-    RequestInvalidate();
+    if (! lifetime.expired())
+        RequestInvalidate();
 }
 
 std::wstring_view Toggle::GetActiveStateLabel() const noexcept
@@ -4861,8 +5139,11 @@ void ProgressBar::SetValue(double value) noexcept
     // Like Slider, a non-finite value is rejected: NaN would reach UI Automation and never compare equal.
     if (! std::isfinite(value))
         return;
-    _value = value;
+    _value              = value;
+    const auto lifetime = GetLifetimeToken();
     RequestInvalidate();
+    if (lifetime.expired())
+        return;
     if (ControlHost* const host = GetHost())
         RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
 }
@@ -4876,8 +5157,11 @@ void ProgressBar::SetMinimum(double minimum) noexcept
 {
     if (! std::isfinite(minimum))
         return;
-    _minimum = minimum;
+    _minimum            = minimum;
+    const auto lifetime = GetLifetimeToken();
     RequestInvalidate();
+    if (lifetime.expired())
+        return;
     if (ControlHost* const host = GetHost())
         RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
 }
@@ -4891,8 +5175,11 @@ void ProgressBar::SetMaximum(double maximum) noexcept
 {
     if (! std::isfinite(maximum))
         return;
-    _maximum = maximum;
+    _maximum            = maximum;
+    const auto lifetime = GetLifetimeToken();
     RequestInvalidate();
+    if (lifetime.expired())
+        return;
     if (ControlHost* const host = GetHost())
         RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
 }
@@ -4909,9 +5196,10 @@ void ProgressBar::SetIndeterminate(bool indeterminate) noexcept
         return;
     }
 
-    _indeterminate  = indeterminate;
-    _animationPhase = 0.0f;
-    _lastTickMs     = 0u;
+    _indeterminate      = indeterminate;
+    _animationPhase     = 0.0f;
+    _lastTickMs         = 0u;
+    const auto lifetime = GetLifetimeToken();
     if (indeterminate && ! _animationPaused && IsEnabled() && IsVisible())
     {
         if (ControlHost* host = GetHost(); host && ! host->GetTheme().reducedMotion)
@@ -4919,7 +5207,8 @@ void ProgressBar::SetIndeterminate(bool indeterminate) noexcept
             host->RequestAnimation();
         }
     }
-    RequestInvalidate();
+    if (! lifetime.expired())
+        RequestInvalidate();
 }
 
 bool ProgressBar::IsIndeterminate() const noexcept
@@ -4931,14 +5220,16 @@ void ProgressBar::SetAnimationPaused(bool paused) noexcept
 {
     if (_animationPaused == paused)
         return;
-    _animationPaused = paused;
-    _lastTickMs      = 0u;
+    _animationPaused    = paused;
+    _lastTickMs         = 0u;
+    const auto lifetime = GetLifetimeToken();
     if (! paused && _indeterminate && IsEnabled() && IsVisible())
     {
         if (ControlHost* host = GetHost(); host && ! host->GetTheme().reducedMotion)
             host->RequestAnimation();
     }
-    RequestInvalidate();
+    if (! lifetime.expired())
+        RequestInvalidate();
 }
 
 bool ProgressBar::IsAnimationPaused() const noexcept
@@ -6216,13 +6507,16 @@ void Slider::BeginValueAnimation(ControlHost& host, double fromValue, double toV
         return;
     }
 
-    _displayedValue            = fromValue;
-    _valueAnimationStart       = fromValue;
-    _valueAnimationTarget      = toValue;
-    _valueAnimationStartTickMs = host.GetAnimationTickMs();
-    _valueAnimationActive      = true;
+    _displayedValue                 = fromValue;
+    _valueAnimationStart            = fromValue;
+    _valueAnimationTarget           = toValue;
+    _valueAnimationStartTickMs      = host.GetAnimationTickMs();
+    _valueAnimationActive           = true;
+    const auto lifetime             = GetLifetimeToken();
+    ControlHost* const originalHost = GetHost();
     host.RequestAnimation();
-    Invalidate(host);
+    if (! lifetime.expired() && GetHost() == originalHost)
+        Invalidate(host);
 }
 
 bool Slider::AdvanceValueAnimation(ControlHost& host, uint64_t nowTickMs) noexcept
@@ -6269,12 +6563,15 @@ void Slider::BeginVisualTransition(ControlHost& host, VisualTransitionState& tra
         return;
     }
 
-    transition.startProgress = transition.progress;
-    transition.target        = clampedTarget;
-    transition.startTickMs   = host.GetAnimationTickMs();
-    transition.active        = true;
+    transition.startProgress        = transition.progress;
+    transition.target               = clampedTarget;
+    transition.startTickMs          = host.GetAnimationTickMs();
+    transition.active               = true;
+    const auto lifetime             = GetLifetimeToken();
+    ControlHost* const originalHost = GetHost();
     host.RequestAnimation();
-    Invalidate(host);
+    if (! lifetime.expired() && GetHost() == originalHost)
+        Invalidate(host);
 }
 
 bool Slider::AdvanceVisualTransition(VisualTransitionState& transition, uint64_t nowTickMs, EasingCurve curve) noexcept
@@ -6324,8 +6621,14 @@ void Slider::SnapVisualTransitions() noexcept
 
 void Slider::SyncInteractionVisuals(ControlHost& host) noexcept
 {
+    const auto lifetime             = GetLifetimeToken();
+    ControlHost* const originalHost = GetHost();
     BeginVisualTransition(host, _hoverTransition, (IsHovered() || _dragging) ? 1.0f : 0.0f);
+    if (lifetime.expired() || GetHost() != originalHost)
+        return;
     BeginVisualTransition(host, _pressTransition, _dragging ? 1.0f : 0.0f);
+    if (lifetime.expired() || GetHost() != originalHost)
+        return;
     BeginVisualTransition(host, _touchTransition, (_dragging && _touchDragging) ? 1.0f : 0.0f);
 }
 
@@ -6347,8 +6650,9 @@ void Slider::SetValueInternal(ControlHost* host, double value, bool notifyChange
         return;
     }
 
-    const double previousDisplayed = _displayedValue;
-    _value                         = clamped;
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    const double previousDisplayed    = _displayedValue;
+    _value                            = clamped;
     if (_dragging || ! animatePosition || ! host || host->GetTheme().reducedMotion)
     {
         SnapDisplayedValue();
@@ -6366,7 +6670,8 @@ void Slider::SetValueInternal(ControlHost* host, double value, bool notifyChange
         BeginValueAnimation(*host, previousDisplayed, _value);
     }
 
-    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    if (lifetime.expired())
+        return;
     if (notifyChanged)
         NotifyChange(_dragging ? SliderChangePhase::Preview : SliderChangePhase::Commit, true);
     if (! notifyChanged && ! lifetime.expired())
@@ -6663,6 +6968,7 @@ bool Slider::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButto
     {
         return true;
     }
+    ++_dragEpoch;
     _dragInitialValue          = _value;
     _dragging                  = true;
     _touchDragging             = host.GetPointerDevice() == PointerDevice::Touch;
@@ -6679,8 +6985,14 @@ bool Slider::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButto
     {
         _dragThumbPointerOffsetDip = 0.0f;
     }
+    const auto lifetime             = GetLifetimeToken();
+    ControlHost* const originalHost = GetHost();
     host.CaptureMouse(this);
+    if (lifetime.expired() || GetHost() != originalHost || (originalHost && host.GetCapturedControl() != this))
+        return true;
     SyncInteractionVisuals(host);
+    if (lifetime.expired() || GetHost() != originalHost)
+        return true;
     UpdateValueFromPoint(host, point);
     return true;
 }
@@ -6703,16 +7015,32 @@ bool Slider::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
         return false;
     }
 
-    const auto life = GetLifetimeToken();
+    const auto life                 = GetLifetimeToken();
+    ControlHost* const originalHost = GetHost();
+    const auto dragEpoch            = _dragEpoch;
     UpdateValueFromPoint(host, point);
-    if (life.expired())
+    // The preview callback may cancel, restart, detach or transfer capture.
+    // An older release must never end the newer gesture.
+    if (life.expired() || GetHost() != originalHost || _dragEpoch != dragEpoch || ! _dragging)
         return true;
+    if (ControlCaptureAccess::GestureOwner(host) != this)
+    {
+        OnCaptureLost(host);
+        return true;
+    }
+    ++_dragEpoch;
     _dragging                  = false;
     _touchDragging             = false;
     _dragThumbPointerOffsetDip = 0.0f;
     host.ReleaseMouseCapture();
+    if (life.expired() || GetHost() != originalHost)
+        return true;
     SyncInteractionVisuals(host);
+    if (life.expired() || GetHost() != originalHost)
+        return true;
     Invalidate(host);
+    if (life.expired() || GetHost() != originalHost)
+        return true;
     NotifyChange(SliderChangePhase::Commit, false);
     return true;
 }
@@ -6726,8 +7054,8 @@ bool Slider::OnKeyDown(ControlHost& host, UINT virtualKey, UINT /*modifiers*/)
 
     if (virtualKey == VK_ESCAPE && _dragging)
     {
+        const auto releaseCapture = ReleaseUnchangedCaptureOnExit(host, *this);
         OnCaptureLost(host);
-        host.ReleaseMouseCapture();
         return true;
     }
 
@@ -6788,6 +7116,7 @@ void Slider::OnCaptureLost(ControlHost& host)
 {
     if (_dragging)
     {
+        ++_dragEpoch;
         _dragging                  = false;
         _touchDragging             = false;
         _dragThumbPointerOffsetDip = 0.0f;
@@ -7207,6 +7536,8 @@ void TagPicker::ClearChildren() noexcept
         if (const auto children = GetChildren(); index < children.size() && children[index] && children[index].get() != _combo)
             static_cast<void>(Panel::TakeChild(index));
     }
+    if (! lifetime.expired())
+        std::erase_if(AccessChildren(), [](const std::unique_ptr<Control>& child) noexcept { return ! child; });
 }
 
 bool TagPicker::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)
@@ -8233,6 +8564,7 @@ void MenuBar::InvalidateIfInteractive(ControlHost& host) noexcept
 
 TabControl::TabControl()
 {
+    EnableVisualContentPreparation();
     SetFocusable(true);
 }
 
@@ -8309,16 +8641,22 @@ bool TabControl::RemoveTabByIdentity(Control* page, const std::weak_ptr<int>& pa
     {
         return false;
     }
-    // Enclosing containers end their own observers inside the page (inner hover, inner capture) while it is attached.
-    NotifyContainersOfDetaching(*page);
+    ControlHost* const initialHost      = GetHost();
+    const uint64_t focusBeforeObservers = initialHost ? initialHost->_focusRequestRevision : 0u;
+    // Cancel forwarded capture while the page is still attached.
+    NotifyContainersOfDetaching(*page, DescendantDetachPhase::Detaching);
     if (controlLifetime.expired())
         return false;
     currentIndex = FindTabIndex(page, pageLifetime);
     if (! currentIndex)
         return false;
 
+    if (GetHost() != initialHost)
+        return false;
     if (ControlHost* host = GetHost())
     {
+        if (Control* focused = host->GetFocusControl(); host->_focusRequestRevision != focusBeforeObservers && focused && IsControlInTree(page, focused))
+            return false;
         if (Control* captured = host->GetCapturedControl(); captured && IsControlInTree(page, captured))
         {
             const uint64_t focusBeforeCancellation = host->_focusRequestRevision;
@@ -8399,9 +8737,17 @@ bool TabControl::RemoveTabByIdentity(Control* page, const std::weak_ptr<int>& pa
         }
     }
 
+    // Detach before hover callbacks so the removed page cannot regain focus.
+    DetachChildPreservingInheritance(*removedPage);
+    if (pageLifetime.expired())
+    {
+        static_cast<void>(removedPage.release());
+        return false;
+    }
+    if (! controlLifetime.expired())
+        NotifyContainersOfDetaching(*removedPage, DescendantDetachPhase::Detached);
     if (takenPage)
     {
-        DetachChildPreservingInheritance(*removedPage);
         if (pageLifetime.expired())
         {
             static_cast<void>(removedPage.release());
@@ -8629,6 +8975,7 @@ D2D1_RECT_F TabControl::GetContentRect() const noexcept
 void TabControl::InvalidateTabHeaderLayoutCache() const noexcept
 {
     _tabHeaderLayoutCache.valid = false;
+    RequestVisualContentPreparation(false);
 }
 
 void TabControl::InvalidateTabTitleMeasurements() const noexcept
@@ -8731,6 +9078,9 @@ const TabControl::TabHeaderLayoutCache& TabControl::EnsureTabHeaderLayoutCache()
         return _tabHeaderLayoutCache;
     }
 
+#if DXUI_ENABLE_DIAGNOSTICS
+    ++_debugHeaderLayoutBuildCount;
+#endif
     TabHeaderLayoutCache& layout = _tabHeaderLayoutCache;
     layout.valid                 = true;
     layout.needsOverflowButtons  = false;
@@ -9036,6 +9386,7 @@ bool TabControl::UpdateVisiblePageBounds() noexcept
 
 bool TabControl::SyncLayout() noexcept
 {
+    RequestVisualContentPreparation(false);
     const std::weak_ptr<int> ownerLifetime = GetLifetimeToken();
     Debug::Perf::Scope syncPerf(L"dxui.tabcontrol.sync_layout_us");
     const float viewportWidth = (std::max)(0.0f, GetHeaderViewportRight() - GetHeaderViewportLeft());
@@ -9058,6 +9409,8 @@ bool TabControl::SyncLayout() noexcept
         return false;
     }
     RequestInvalidate();
+    if (ownerLifetime.expired())
+        return false;
     // Its tabs, their titles and the selected one are what UI Automation reads of a tab control, and every change of them
     // comes through here. Publishing marks the view and runs no application code unless the focus moved unpublished.
     if (ControlHost* const host = GetHost())
@@ -9414,21 +9767,19 @@ void TabControl::Paint(ControlHost& host) const
         {
             continue;
         }
-        const D2D1_RECT_F tabRect         = GetTabRect(index);
-        const bool selected               = _selectedIndex.has_value() && _selectedIndex.value() == index;
-        const bool hovered                = _hoveredTabIndex.has_value() && _hoveredTabIndex.value() == index;
-        const bool closeVisible           = IsCloseButtonVisible(index);
-        const D2D1_COLOR_F fill           = selected ? theme.cardBackground : (hovered ? theme.headerHovered : theme.windowBackground);
-        const D2D1_COLOR_F transparent    = D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.0f);
-        const D2D1_RECT_F attachedTabRect = D2D1::RectF(tabRect.left, tabRect.top, tabRect.right, tabRect.bottom);
+        const D2D1_RECT_F tabRect      = GetTabRect(index);
+        const bool selected            = _selectedIndex.has_value() && _selectedIndex.value() == index;
+        const bool hovered             = _hoveredTabIndex.has_value() && _hoveredTabIndex.value() == index;
+        const bool closeVisible        = IsCloseButtonVisible(index);
+        const D2D1_COLOR_F fill        = selected ? theme.cardBackground : (hovered ? theme.headerHovered : theme.windowBackground);
+        const D2D1_COLOR_F transparent = D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.0f);
         if (selected)
         {
-            DrawTopRoundedAttachedRect(
-                host, attachedTabRect, fill, theme.borderDefault, kTabCornerRadiusDip, kTabAttachFillExtensionDip, kTabAttachStrokeInsetDip);
+            DrawPreparedTopRoundedAttachedRect(host, _selectedHeaderGeometry, fill, theme.borderDefault);
         }
         else if (hovered)
         {
-            DrawTopRoundedAttachedRect(host, attachedTabRect, fill, transparent, kTabCornerRadiusDip, kTabAttachFillExtensionDip, 0.0f);
+            DrawPreparedTopRoundedAttachedRect(host, _hoveredHeaderGeometry, fill, transparent);
         }
 
         const D2D1_RECT_F closeRect = GetCloseButtonRect(index);
@@ -9539,6 +9890,7 @@ bool TabControl::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modi
     if (_hoveredTabIndex != nextHover)
     {
         _hoveredTabIndex = nextHover;
+        RequestVisualContentPreparation(false);
         Invalidate(host);
     }
     else if (tooltipChanged)
@@ -9568,6 +9920,7 @@ bool TabControl::OnMouseLeave(ControlHost& host)
     if (_hoveredTabIndex.has_value())
     {
         _hoveredTabIndex.reset();
+        RequestVisualContentPreparation(false);
         Invalidate(host);
     }
     else if (tooltipChanged)
@@ -9719,6 +10072,67 @@ const Control* TabControl::HitTest(D2D1_POINT_2F point) const
     return Panel::HitTest(point);
 }
 
+void TabControl::PrepareVisualContent(ControlHost& host) noexcept
+{
+    if (GetHost() != &host)
+        return;
+    const auto& header = EnsureTabHeaderLayoutCache();
+    const auto prepare = [&](std::optional<size_t> index, bool stroke, PreparedAttachedGeometry& geometry)
+    {
+        if (! index || index.value() >= header.tabRects.size() || ! _tabs[index.value()].visible)
+        {
+            geometry = {};
+            return;
+        }
+        const auto rect = header.tabRects[index.value()];
+        if (geometry.valid && geometry.owner == &host && geometry.resourceGeneration == host.GetResourceGeneration() && geometry.dpi == host.GetDpi() &&
+            geometry.sourceRect.left == rect.left && geometry.sourceRect.top == rect.top && geometry.sourceRect.right == rect.right &&
+            geometry.sourceRect.bottom == rect.bottom)
+            return;
+        uint64_t* creationCount = nullptr;
+#if DXUI_ENABLE_DIAGNOSTICS
+        creationCount = &_debugHeaderGeometryBuildCount;
+        if (std::exchange(_debugFailNextHeaderGeometry, false))
+        {
+            geometry          = {};
+            geometry.fillRect = SnapRectToPixel(host, D2D1::RectF(rect.left, rect.top, rect.right, rect.bottom + kTabAttachFillExtensionDip));
+        }
+        else
+#endif
+            PrepareTopRoundedAttachedRect(
+                host, rect, stroke, kTabCornerRadiusDip, kTabAttachFillExtensionDip, stroke ? kTabAttachStrokeInsetDip : 0.f, geometry, creationCount);
+        geometry.owner              = &host;
+        geometry.sourceRect         = rect;
+        geometry.resourceGeneration = host.GetResourceGeneration();
+        geometry.dpi                = host.GetDpi();
+        geometry.valid              = geometry.fill && (! stroke || geometry.stroke);
+    };
+    prepare(_selectedIndex, true, _selectedHeaderGeometry);
+    prepare(_hoveredTabIndex != _selectedIndex ? _hoveredTabIndex : std::nullopt, false, _hoveredHeaderGeometry);
+    const auto& theme = host.GetTheme();
+    for (const auto& color : {theme.windowBackground,
+                              theme.cardBackground,
+                              theme.headerBackground,
+                              theme.headerHovered,
+                              theme.borderDefault,
+                              theme.border,
+                              theme.borderStrong,
+                              theme.text,
+                              theme.subduedText,
+                              theme.focusStrokeOuter,
+                              theme.focusStrokeInner})
+        static_cast<void>(host.GetSolidBrush(color));
+    static_cast<void>(host.GetTextFormat(
+        FontRole::Body, DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, false, ResolveReadingDirection(GetFlowDirection())));
+    static_cast<void>(
+        host.GetTextFormat(FontRole::Icon, DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, false, DWRITE_READING_DIRECTION_LEFT_TO_RIGHT));
+}
+
+void TabControl::CancelVisualContentPreparation() noexcept
+{
+    _selectedHeaderGeometry = {};
+    _hoveredHeaderGeometry  = {};
+}
 void TabControl::PropagateHost(ControlHost* host) noexcept
 {
     const std::weak_ptr<int> ownerLifetime = GetLifetimeToken();
@@ -10472,6 +10886,7 @@ void ScrollPanel::SetInnerHovered(Control* child) noexcept
 
 void ScrollPanel::SetInnerCaptured(Control* child, bool rightButton) noexcept
 {
+    ++_innerCaptureRevision;
     _innerCapturedChild      = child;
     _innerCapturedLifetime   = child ? child->GetLifetimeToken() : std::weak_ptr<int>{};
     _innerCaptureRightButton = child && rightButton;
@@ -10507,33 +10922,39 @@ bool ScrollPanel::HostCaptureCarriesGesture(const ControlHost& host) const noexc
 
 void ScrollPanel::OnDescendantDetaching(Control& subtree) noexcept
 {
-    ControlHost* const host                  = GetHost();
-    const std::weak_ptr<int> selfLifetime    = GetLifetimeToken();
-    const std::weak_ptr<int> subtreeLifetime = subtree.GetLifetimeToken();
+    ControlHost* const host               = GetHost();
+    const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
+    Control* const parent                 = _parent;
     if (Control* const captured = LiveInnerCaptured(); captured && IsControlInTree(&subtree, captured))
     {
         SetInnerCaptured(nullptr);
         if (host)
         {
             static_cast<void>(TryControlCallback([&] { captured->OnCaptureLost(*host); }));
-            if (selfLifetime.expired())
+            if (selfLifetime.expired() || GetHost() != host || _parent != parent)
                 return;
             if (! _dragThumb && host->GetCapturedControl() == this)
                 host->ReleaseMouseCapture();
         }
     }
-    // The capture callback may have retired the subtree itself (and with it the inner hover inside it): membership is
-    // only asked of a live subtree.
+}
+
+void ScrollPanel::OnDescendantDetached(Control& subtree) noexcept
+{
+    ControlHost* const host                  = GetHost();
+    const std::weak_ptr<int> selfLifetime    = GetLifetimeToken();
+    Control* const parent                    = _parent;
+    const std::weak_ptr<int> subtreeLifetime = subtree.GetLifetimeToken();
     if (selfLifetime.expired() || subtreeLifetime.expired())
         return;
-    if (Control* const hovered = LiveInnerHovered(); hovered && IsControlInTree(&subtree, hovered))
+    if (Control* const hovered = _innerHoveredChild; hovered && ! _innerHoveredLifetime.expired() && IsControlInTree(&subtree, hovered))
     {
         SetInnerHovered(nullptr);
         if (host)
         {
             const std::weak_ptr<int> hoveredLifetime = hovered->GetLifetimeToken();
             static_cast<void>(TryControlCallback([&] { hovered->OnHoverChanged(*host, false); }));
-            if (! selfLifetime.expired() && ! hoveredLifetime.expired())
+            if (! selfLifetime.expired() && ! hoveredLifetime.expired() && ! subtreeLifetime.expired() && GetHost() == host && _parent == parent)
                 static_cast<void>(TryControlCallback([&] { hovered->OnMouseLeave(*host); }));
         }
     }
@@ -10731,7 +11152,10 @@ bool ScrollPanel::NotifyScrollChanged(float previousOffsetDip) noexcept
     if (_scrollOffsetDip != previousOffsetDip && _onScrollChanged)
     {
         const auto onScrollChanged = _onScrollChanged;
-        (*onScrollChanged)(_scrollOffsetDip);
+        // The scroll has committed; a standard application exception stops this
+        // continuation without escaping the noexcept setter/input boundary.
+        if (! TryControlCallback([&] { (*onScrollChanged)(_scrollOffsetDip); }))
+            return false;
     }
     return ! lifetime.expired();
 }
@@ -10922,7 +11346,7 @@ bool ScrollPanel::DismissOverlayOnPointerDown(ControlHost& host, D2D1_POINT_2F p
 
 bool ScrollPanel::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)
 {
-    return DispatchPress(host, point, rightButton, modifiers, false);
+    return DispatchPress(host, point, rightButton, modifiers, 1u);
 }
 
 bool ScrollPanel::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)
@@ -10930,15 +11354,27 @@ bool ScrollPanel::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, boo
     // The second press of a double-click reaches the child under the pointer as that child's double-click (a control
     // without one treats it as a press, so a second right-click opens its menu again), and the scrollbar as a press: a
     // second click on the track pages again and a second press on the thumb drags it, as on a native scrollbar.
-    return DispatchPress(host, point, rightButton, modifiers, true);
+    return DispatchPress(host, point, rightButton, modifiers, 2u);
 }
 
-bool ScrollPanel::DispatchPress(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers, bool doubleClick)
+bool ScrollPanel::OnMouseTripleClick(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)
+{
+    return DispatchPress(host, point, rightButton, modifiers, 3u);
+}
+
+bool ScrollPanel::OnMouseMiddleDown(ControlHost& host, D2D1_POINT_2F point, UINT modifiers)
+{
+    return DispatchPress(host, point, false, modifiers, 4u);
+}
+
+bool ScrollPanel::DispatchPress(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers, unsigned clickCount)
 {
     const auto forward = [&](Control& child, D2D1_POINT_2F contentPoint)
     {
-        return doubleClick ? child.OnMouseDoubleClick(host, contentPoint, rightButton, modifiers)
-                           : child.OnMouseDown(host, contentPoint, rightButton, modifiers);
+        return clickCount == 4u   ? child.OnMouseMiddleDown(host, contentPoint, modifiers)
+               : clickCount == 3u ? child.OnMouseTripleClick(host, contentPoint, rightButton, modifiers)
+               : clickCount == 2u ? child.OnMouseDoubleClick(host, contentPoint, rightButton, modifiers)
+                                  : child.OnMouseDown(host, contentPoint, rightButton, modifiers);
     };
     if ((_innerCapturedChild || _dragThumb) && ! HostCaptureCarriesGesture(host))
     {
@@ -10991,7 +11427,7 @@ bool ScrollPanel::DispatchPress(ControlHost& host, D2D1_POINT_2F point, bool rig
     }
 
     // Scrollbars respond only to the primary button; secondary presses continue to content-space children.
-    if (! rightButton && UsesInternalScrollbar())
+    if (clickCount != 4u && ! rightButton && UsesInternalScrollbar())
     {
         const D2D1_RECT_F track = GetScrollbarTrackRect();
         if (PointInRect(track, point))
@@ -11194,15 +11630,13 @@ bool ScrollPanel::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightBu
         Control* const capturedChild          = LiveInnerCaptured();
         const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
         const bool gestureEnds                = rightButton == _innerCaptureRightButton;
-        if (gestureEnds)
-        {
-            SetInnerCaptured(nullptr);
-        }
-        const bool handled = capturedChild ? capturedChild->OnMouseUp(host, ToContentSpace(point), rightButton, modifiers) : true;
-        if (selfLifetime.expired() || ! gestureEnds)
-        {
+        const uint64_t captureRevision        = _innerCaptureRevision;
+        ControlHost* const originalHost       = GetHost();
+        const bool handled                    = capturedChild ? capturedChild->OnMouseUp(host, ToContentSpace(point), rightButton, modifiers) : true;
+        if (selfLifetime.expired() || ! gestureEnds || GetHost() != originalHost || _innerCaptureRevision != captureRevision)
             return handled;
-        }
+        // Keep the forwarded owner visible during its release; a callback may have replaced the gesture.
+        SetInnerCaptured(nullptr);
         UpdateInnerHover(host, point);
         return handled;
     }

@@ -1,0 +1,1 @@
+- Render bounded over- and under-annotations on native math expressions while retaining their spacing classes.

@@ -3,8 +3,10 @@
 #include "EmbeddedTextClient.h"
 #include "GraphicsFixture.h"
 #include "RichImageLoader.h"
+#include <DxUi/FileDrop.h>
 #include <iostream>
 #include <new>
+#include <ole2.h>
 #include <windowsx.h>
 #pragma comment(lib, "user32.lib")
 namespace
@@ -17,6 +19,7 @@ constexpr UINT ImageReadyMessage = WM_APP + 2;
 #pragma warning(disable : 4625 4626)
 struct App
 {
+    static constexpr DWORD WindowStyle = WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX;
     App() : pendingImages(0u)
     {
     }
@@ -30,15 +33,39 @@ struct App
     wil::com_ptr_nothrow<IDXGISwapChain> swapChain;
     wil::unique_hwnd window;
     DxUi::TextInputServices textServices;
+    DxUi::RichFileDropAdapter dropAdapter;
+    std::shared_ptr<DxUi::RichFileDropReceiver> dropReceiver;
+    wil::com_ptr_nothrow<IDataObject> textDragData;
+    std::optional<DxUi::RichTextSourceMove> textDragMove;
+    bool textDragMoved     = false;
+    using DropRegistration = wil::unique_any<HWND, decltype(&RevokeDragDrop), RevokeDragDrop>;
+    DropRegistration dropRegistration;
     std::shared_ptr<EmbeddedTextClient> textClient;
     RichImageLoader imageLoader;
     std::vector<DxUi::RichText::RichImageRequest> pendingImages;
     std::array<RichImageLoader::Result, RichImageLoader::MaximumResults> imageResults{};
-    bool imageLoading = false;
-    bool textInput    = false;
-    bool richText     = false;
+    bool imageLoading       = false;
+    bool textInput          = false;
+    bool richText           = false;
+    bool trackingMouseLeave = false;
+    bool quitOnDestroy      = true;
+    // The embedded library owns no HWND; this sample owns its leave registration.
+    void StopMouseTracking(HWND hwnd) noexcept
+    {
+        if (trackingMouseLeave)
+        {
+            TRACKMOUSEEVENT tracking{sizeof(tracking), TME_CANCEL | TME_LEAVE, hwnd, 0u};
+            static_cast<void>(TrackMouseEvent(&tracking));
+            trackingMouseLeave = false;
+        }
+    }
+    uint64_t textRefreshCalls        = 0u;
+    uint64_t textLayoutNotifications = 0u;
     ~App()
     {
+        dropAdapter.Detach();
+        dropRegistration.reset();
+        dropReceiver.reset();
         imageLoader.Shutdown();
         ClearText();
         textServices.Detach();
@@ -55,6 +82,7 @@ struct App
     }
     void RefreshText() noexcept
     {
+        ++textRefreshCalls;
         try
         {
             if (! textInput || ! window || GetFocus() != window.get())
@@ -89,6 +117,11 @@ struct App
     static UINT Modifiers() noexcept
     {
         return DxUi::ComposeModifierMask((GetKeyState(VK_SHIFT) & 0x8000) != 0, (GetKeyState(VK_CONTROL) & 0x8000) != 0, (GetKeyState(VK_MENU) & 0x8000) != 0);
+    }
+    void NotifyTextLayout() noexcept
+    {
+        ++textLayoutNotifications;
+        textServices.NotifyLayoutChanged();
     }
     bool queued = false;
     float dpi   = 96;
@@ -155,9 +188,11 @@ struct App
                     static_cast<void>(scene.rich->CompleteImageRequest(request, {}));
             pendingImages.clear();
         }
-        RefreshText();
         if (prepared == S_OK)
-            textServices.NotifyLayoutChanged();
+        {
+            RefreshText();
+            NotifyTextLayout();
+        }
         gpu.Bind();
         RETURN_IF_FAILED(View().Composite(gpu.context.get(), gpu.Viewport()));
         if (swapChain)
@@ -188,14 +223,11 @@ struct App
                 app->RefreshText();
                 return 0;
             }
-            const auto refresh = wil::scope_exit([&] { app->RefreshText(); });
             switch (msg)
             {
                 case WM_PAINT:
                 {
-                    PAINTSTRUCT paint{};
-                    BeginPaint(hwnd, &paint);
-                    EndPaint(hwnd, &paint);
+                    [[maybe_unused]] wil::unique_hdc_paint paint = wil::BeginPaint(hwnd);
                     app->Request();
                     return 0;
                 }
@@ -209,22 +241,66 @@ struct App
                     return 0;
                 case WM_LBUTTONDOWN:
                     SetFocus(hwnd);
-                    SetCapture(hwnd);
-                    app->View().DispatchPointer({DxUi::PointerAction::Down,
-                                                 float(GET_X_LPARAM(lp)),
-                                                 float(GET_Y_LPARAM(lp)),
-                                                 UINT(wp),
-                                                 0.0f,
-                                                 DxUi::PointerDeviceFromMessageExtraInfo(GetMessageExtraInfo())});
+                    if (app->View().DispatchPointer({DxUi::PointerAction::Down,
+                                                     float(GET_X_LPARAM(lp)),
+                                                     float(GET_Y_LPARAM(lp)),
+                                                     UINT(wp),
+                                                     0.0f,
+                                                     DxUi::PointerDeviceFromMessageExtraInfo(GetMessageExtraInfo())}))
+                        app->RefreshText();
+                    if (app->View().Controls().GetCapturedControl())
+                        SetCapture(hwnd);
+                    else if (GetCapture() == hwnd)
+                        ReleaseCapture();
+                    return 0;
+                case WM_MBUTTONDOWN:
+                    SetFocus(hwnd);
+                    if (app->View().DispatchPointer({DxUi::PointerAction::MiddleDown, float(GET_X_LPARAM(lp)), float(GET_Y_LPARAM(lp)), UINT(wp)}))
+                    {
+                        if (app->View().Controls().GetCapturedControl())
+                            SetCapture(hwnd);
+                        else if (GetCapture() == hwnd)
+                            ReleaseCapture();
+                        app->RefreshText();
+                    }
+                    return 0;
+                case WM_MBUTTONUP:
+                    if (app->View().DispatchPointer({DxUi::PointerAction::MiddleUp, float(GET_X_LPARAM(lp)), float(GET_Y_LPARAM(lp)), UINT(wp)}))
+                        app->RefreshText();
+                    if (! app->View().Controls().GetCapturedControl() && GetCapture() == hwnd)
+                        ReleaseCapture();
                     return 0;
                 case WM_MOUSEMOVE:
+                    if (! app->trackingMouseLeave)
+                    {
+                        TRACKMOUSEEVENT tracking{sizeof(tracking), TME_LEAVE, hwnd, 0u};
+                        app->trackingMouseLeave = TrackMouseEvent(&tracking) != FALSE;
+                    }
                     app->View().DispatchPointer({DxUi::PointerAction::Move,
                                                  float(GET_X_LPARAM(lp)),
                                                  float(GET_Y_LPARAM(lp)),
                                                  UINT(wp),
                                                  0.0f,
                                                  DxUi::PointerDeviceFromMessageExtraInfo(GetMessageExtraInfo())});
+                    if (app->View().Controls().GetCapturedControl())
+                        app->RefreshText();
+                    if (app->View().NeedsAnimation())
+                        SetTimer(hwnd, 1u, 16u, nullptr);
                     return 0;
+                case WM_MOUSELEAVE:
+                    app->trackingMouseLeave = false;
+                    app->View().DispatchPointer({DxUi::PointerAction::Leave});
+                    return 0;
+                case WM_TIMER:
+                    if (wp == 1u)
+                    {
+                        if (app->View().AdvanceAnimation(GetTickCount64()) && app->View().Controls().GetCapturedControl())
+                            app->RefreshText();
+                        if (! app->View().NeedsAnimation())
+                            KillTimer(hwnd, 1u);
+                        return 0;
+                    }
+                    break;
                 case WM_MOUSEWHEEL:
                 {
                     POINT point{GET_X_LPARAM(lp), GET_Y_LPARAM(lp)};
@@ -238,19 +314,42 @@ struct App
                     return 0;
                 }
                 case WM_LBUTTONUP:
-                    app->View().DispatchPointer({DxUi::PointerAction::Up,
-                                                 float(GET_X_LPARAM(lp)),
-                                                 float(GET_Y_LPARAM(lp)),
-                                                 UINT(wp),
-                                                 0.0f,
-                                                 DxUi::PointerDeviceFromMessageExtraInfo(GetMessageExtraInfo())});
-                    if (GetCapture() == hwnd)
+                    if (app->View().DispatchPointer({DxUi::PointerAction::Up,
+                                                     float(GET_X_LPARAM(lp)),
+                                                     float(GET_Y_LPARAM(lp)),
+                                                     UINT(wp),
+                                                     0.0f,
+                                                     DxUi::PointerDeviceFromMessageExtraInfo(GetMessageExtraInfo())}))
+                        app->RefreshText();
+                    if (! app->View().Controls().GetCapturedControl() && GetCapture() == hwnd)
                         ReleaseCapture();
                     return 0;
-                case WM_CAPTURECHANGED: app->View().DispatchPointer({DxUi::PointerAction::Cancel}); return 0;
-                case WM_KEYDOWN: static_cast<void>(app->View().DispatchKey(UINT(wp), true, Modifiers())); return 0;
-                case WM_KEYUP: app->View().DispatchKey(UINT(wp), false, Modifiers()); return 0;
-                case WM_CHAR: app->View().DispatchCharacter(wchar_t(wp), Modifiers()); return 0;
+                case WM_CAPTURECHANGED:
+                    if (app->View().DispatchPointer({DxUi::PointerAction::Cancel}))
+                        app->RefreshText();
+                    return 0;
+                case WM_KEYDOWN:
+                    if (app->View().DispatchKey(UINT(wp), true, Modifiers()))
+                        app->RefreshText();
+                    if (! app->View().Controls().GetCapturedControl() && GetCapture() == hwnd)
+                        ReleaseCapture();
+                    return 0;
+                case WM_KEYUP:
+                    if (app->View().DispatchKey(UINT(wp), false, Modifiers()))
+                        app->RefreshText();
+                    return 0;
+                case WM_CHAR:
+                    if (app->View().DispatchCharacter(wchar_t(wp), Modifiers()))
+                        app->RefreshText();
+                    return 0;
+                case WM_SETFOCUS: app->RefreshText(); return 0;
+                case WM_WINDOWPOSCHANGED:
+                {
+                    const auto* position = reinterpret_cast<const WINDOWPOS*>(lp);
+                    if (position && (position->flags & SWP_NOMOVE) == 0u)
+                        app->NotifyTextLayout();
+                    break; // DefWindowProc still sends WM_SIZE/WM_MOVE when appropriate.
+                }
                 case WM_KILLFOCUS:
                     app->ClearText();
                     app->View().CancelTextInput();
@@ -266,12 +365,19 @@ struct App
                     return 0;
                 }
                 case WM_SHOWWINDOW:
+                    if (! wp)
+                    {
+                        app->StopMouseTracking(hwnd);
+                        app->ClearText();
+                    }
                     app->View().SetVisible(wp != 0);
                     app->imageLoader.DiscardCancelled();
                     break;
                 case WM_SIZE:
                     if (wp == SIZE_MINIMIZED)
                     {
+                        app->StopMouseTracking(hwnd);
+                        app->ClearText();
                         app->View().SetVisible(false);
                         app->imageLoader.DiscardCancelled();
                     }
@@ -281,9 +387,18 @@ struct App
                         app->Request();
                     }
                     return 0;
-                case WM_CLOSE: app->window.reset(); return 0;
-                case WM_DESTROY: PostQuitMessage(0); return 0;
+                case WM_CLOSE:
+                    app->dropAdapter.Detach();
+                    app->dropRegistration.reset();
+                    app->dropReceiver.reset();
+                    app->window.reset();
+                    return 0;
+                case WM_DESTROY:
+                    if (app->quitOnDestroy)
+                        PostQuitMessage(0);
+                    return 0;
                 case WM_NCDESTROY:
+                    app->StopMouseTracking(hwnd);
                     app->ClearText();
                     app->textServices.Detach();
                     app->View().SetVisible(false);
@@ -301,14 +416,74 @@ struct App
         }
         return DefWindowProcW(hwnd, msg, wp, lp);
     }
-    HRESULT Run()
+    static HRESULT VerifyMessageRouting(ID3D11Device* device)
     {
-        const auto previousDpi = SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
-        const auto restoreDpi  = wil::scope_exit([&]
+        const HWND foreground = GetForegroundWindow();
+        const HWND focus      = GetFocus();
+        struct PointerState
         {
-            if (previousDpi)
-                SetThreadDpiAwarenessContext(previousDpi);
-        });
+            unsigned moves{}, leaves{};
+        } state;
+        class PointerProbe final : public DxUi::Control
+        {
+        public:
+            explicit PointerProbe(PointerState& observed) noexcept : _observed(&observed)
+            {
+            }
+            PointerProbe(const PointerProbe&)            = delete;
+            PointerProbe& operator=(const PointerProbe&) = delete;
+            PointerProbe(PointerProbe&&)                 = delete;
+            PointerProbe& operator=(PointerProbe&&)      = delete;
+            void Paint(DxUi::ControlHost&) const override
+            {
+            } // Hit-test-only routing fixture.
+            bool OnMouseMove(DxUi::ControlHost&, D2D1_POINT_2F, UINT) override
+            {
+                ++_observed->moves;
+                return true;
+            }
+            bool OnMouseLeave(DxUi::ControlHost&) override
+            {
+                ++_observed->leaves;
+                return true;
+            }
+
+        private:
+            PointerState* _observed;
+        };
+        App sample;
+        sample.quitOnDestroy = false; // This hidden proof owns no GetMessage loop or WM_QUIT.
+        std::shared_ptr<DxUi::GraphicsDevice> graphics;
+        RETURN_IF_FAILED(DxUi::GraphicsDevice::Create(device, graphics));
+        RETURN_IF_FAILED(sample.View().Attach(std::move(graphics)));
+        auto root     = std::make_unique<DxUi::Panel>();
+        auto* pointer = root->AddChild<PointerProbe>(state);
+        pointer->SetBounds(D2D1::RectF(0.f, 0.f, 240.f, 180.f));
+        sample.View().Controls().SetRoot(std::move(root));
+        RETURN_IF_FAILED(sample.View().Prepare(240u, 180u));
+        RETURN_IF_FAILED(sample.CreateHostWindow()); // Hidden; never activates or acquires capture.
+        const auto refreshBefore = sample.textRefreshCalls;
+        static_cast<void>(SendMessageW(sample.window.get(), WM_APP + 77u, 0u, 0));
+        static_cast<void>(SendMessageW(sample.window.get(), WM_MOUSEMOVE, 0u, MAKELPARAM(24, 24)));
+        if (! state.moves || sample.textRefreshCalls != refreshBefore)
+            return E_FAIL;
+        static_cast<void>(SendMessageW(sample.window.get(), WM_MOUSELEAVE, 0u, 0));
+        if (state.leaves != 1u || sample.textRefreshCalls != refreshBefore)
+            return E_FAIL;
+        POINT before{}, after{};
+        if (! ClientToScreen(sample.window.get(), &before))
+            return HRESULT_FROM_WIN32(GetLastError());
+        const auto notificationsBefore = sample.textLayoutNotifications;
+        if (! SetWindowPos(sample.window.get(), nullptr, before.x + 37, before.y + 29, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE) ||
+            ! ClientToScreen(sample.window.get(), &after))
+            return HRESULT_FROM_WIN32(GetLastError());
+        if ((before.x == after.x && before.y == after.y) || sample.textLayoutNotifications <= notificationsBefore || sample.textRefreshCalls != refreshBefore ||
+            GetForegroundWindow() != foreground || GetFocus() != focus)
+            return E_FAIL;
+        return S_OK;
+    }
+    HRESULT CreateHostWindow()
+    {
         WNDCLASSW wc{};
         wc.hInstance     = GetModuleHandleW(nullptr);
         wc.lpfnWndProc   = Proc;
@@ -316,13 +491,12 @@ struct App
         wc.hCursor       = LoadCursorW(nullptr, IDC_ARROW);
         if (! RegisterClassW(&wc) && GetLastError() != ERROR_CLASS_ALREADY_EXISTS)
             return HRESULT_FROM_WIN32(GetLastError());
-        constexpr DWORD style = WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX;
         RECT bounds{0, 0, static_cast<LONG>(gpu.width), static_cast<LONG>(gpu.height)};
-        AdjustWindowRectEx(&bounds, style, FALSE, 0);
+        AdjustWindowRectEx(&bounds, WindowStyle, FALSE, 0);
         window.reset(CreateWindowExW(0,
                                      wc.lpszClassName,
                                      richText ? L"DxUi - Unicode RichTextEditor semantic preview" : L"DxUi - supplied Direct3D device",
-                                     style,
+                                     WindowStyle,
                                      CW_USEDEFAULT,
                                      CW_USEDEFAULT,
                                      bounds.right - bounds.left,
@@ -333,6 +507,17 @@ struct App
                                      this));
         if (! window)
             return HRESULT_FROM_WIN32(GetLastError());
+        return S_OK;
+    }
+    HRESULT Run()
+    {
+        const auto previousDpi = SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+        const auto restoreDpi  = wil::scope_exit([&]
+        {
+            if (previousDpi)
+                SetThreadDpiAwarenessContext(previousDpi);
+        });
+        RETURN_IF_FAILED(CreateHostWindow());
         if (richText)
         {
             RETURN_IF_FAILED(imageLoader.Initialize(window.get(), ImageReadyMessage, reinterpret_cast<WPARAM>(this)));
@@ -359,8 +544,124 @@ struct App
         if (textInput)
             RETURN_IF_FAILED(textServices.Attach(window.get()));
         dpi = float(GetDpiForWindow(window.get()));
+        if (richText)
+        {
+            class Receiver final : public DxUi::RichFileDropReceiver
+            {
+            public:
+                explicit Receiver(App& owner) noexcept : app(&owner)
+                {
+                }
+                bool Preview(POINTL screen) noexcept override
+                {
+                    POINT client{screen.x, screen.y};
+                    if (! app->window || ! ScreenToClient(app->window.get(), &client) || app->dpi <= 0.f)
+                        return false;
+                    return app->View().PreviewFileDrop(D2D1::Point2F(float(client.x) * 96.f / app->dpi, float(client.y) * 96.f / app->dpi));
+                }
+                bool Drop(POINTL screen, IDataObject& data, DxUi::RichFileDropGuard guard) noexcept override
+                {
+                    POINT client{screen.x, screen.y};
+                    if (! app->window || ! ScreenToClient(app->window.get(), &client) || app->dpi <= 0.f)
+                        return false;
+                    const bool committed = app->View().CommitFileDrop(
+                        D2D1::Point2F(float(client.x) * 96.f / app->dpi, float(client.y) * 96.f / app->dpi), data, guard.current, guard.context);
+                    if (committed)
+                        app->RefreshText();
+                    return committed;
+                }
+                bool PreviewText(POINTL screen) noexcept override
+                {
+                    if (! app->textDragMove || ! app->textDragData || ! app->textDragMove->IsOwnerAlive() || ! app->scene.rich || ! app->window ||
+                        app->dpi <= 0.f)
+                        return false;
+                    POINT client{screen.x, screen.y};
+                    if (! ScreenToClient(app->window.get(), &client))
+                        return false;
+                    const auto point = D2D1::Point2F(float(client.x) * 96.f / app->dpi, float(client.y) * 96.f / app->dpi);
+                    if (! app->View().PreviewFileDrop(point) || ! app->textDragMove || ! app->textDragMove->IsOwnerAlive())
+                        return false;
+                    const auto position = app->scene.rich->HitTestSourceDropPoint(app->View().Controls(), point);
+                    if (! position)
+                        return false;
+                    const auto selected = app->scene.rich->GetSelection();
+                    return *position < selected.Start() || *position > selected.End();
+                }
+                bool DropText(POINTL screen, IDataObject& data, DxUi::RichFileDropGuard guard) noexcept override
+                {
+                    if (&data != app->textDragData.get() || ! PreviewText(screen) || ! app->textDragMove || ! app->textDragMove->IsOwnerAlive() ||
+                        (guard.current && ! guard.current(guard.context)))
+                        return false;
+                    POINT client{screen.x, screen.y};
+                    if (! ScreenToClient(app->window.get(), &client))
+                        return false;
+                    const auto position = app->scene.rich->HitTestSourceDropPoint(
+                        app->View().Controls(), D2D1::Point2F(float(client.x) * 96.f / app->dpi, float(client.y) * 96.f / app->dpi));
+                    if (! position || (guard.current && ! guard.current(guard.context)) || ! app->textDragMove || ! app->textDragMove->IsOwnerAlive())
+                        return false;
+                    try
+                    {
+                        app->textDragMoved = app->scene.rich->MoveSelectedSource(*app->textDragMove, *position);
+                        return app->textDragMoved;
+                    }
+                    catch (const std::bad_alloc&)
+                    {
+                        return false; // Source staging did not commit.
+                    }
+                    catch (const std::exception&)
+                    {
+                        return false; // The source transaction is atomic on failure.
+                    }
+                }
+
+            private:
+                App* app; // Borrowed; the application retires the adapter before destroying its window or view.
+            };
+            dropReceiver = std::make_shared<Receiver>(*this);
+            RETURN_IF_FAILED(dropAdapter.Attach(dropReceiver));
+            RETURN_IF_FAILED(RegisterDragDrop(window.get(), dropAdapter.Target()));
+            dropRegistration.reset(window.get());
+            scene.rich->SetOnSourceDragRequested([this](const DxUi::RichTextSourceMove& move, std::wstring_view text)
+            {
+                // The embedded host has released its logical capture before this
+                // callback; the application owns and must release HWND capture too.
+                if (window && GetCapture() == window.get())
+                    ReleaseCapture();
+                if (! move.IsOwnerAlive())
+                    return;
+                wil::com_ptr_nothrow<IDataObject> data;
+                wil::com_ptr_nothrow<IDropSource> source;
+                if (FAILED(DxUi::CreateRichTextDragData(text, data.put())) || FAILED(DxUi::CreateRichTextDragSource(source.put())))
+                    return;
+                auto* editor  = scene.rich;
+                textDragMove  = move;
+                textDragData  = data;
+                textDragMoved = false;
+                DWORD effect{};
+                const HRESULT result = DoDragDrop(data.get(), source.get(), DROPEFFECT_MOVE, &effect);
+                const bool movedHere = textDragMoved;
+                textDragData.reset();
+                textDragMove.reset();
+                if (move.IsOwnerAlive())
+                {
+                    if (! movedHere && result == DRAGDROP_S_DROP && effect == DROPEFFECT_MOVE)
+                    {
+                        try
+                        {
+                            static_cast<void>(editor->CompleteExternalSourceMove(move));
+                        }
+                        catch (const std::bad_alloc&)
+                        {
+                            // Leave the source intact if external-move completion cannot stage deletion.
+                        }
+                    }
+                    else if (! movedHere)
+                        editor->CancelSourceMove();
+                }
+            });
+        }
         RECT scaled{0, 0, LONG(float(gpu.width) * dpi / 96), LONG(float(gpu.height) * dpi / 96)};
-        if (! AdjustWindowRectExForDpi(&scaled, style, FALSE, 0, UINT(dpi)))
+        if (! AdjustWindowRectExForDpi(&scaled, WindowStyle, FALSE, 0, UINT(dpi)))
             return HRESULT_FROM_WIN32(GetLastError());
         SetWindowPos(window.get(), nullptr, 0, 0, scaled.right - scaled.left, scaled.bottom - scaled.top, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
         ShowWindow(window.get(), SW_SHOWNORMAL);
@@ -369,7 +670,6 @@ struct App
         BOOL got = 0;
         while ((got = GetMessageW(&message, nullptr, 0, 0)) > 0)
         {
-            RefreshText();
             bool handled = false;
             static_cast<void>(textServices.PreTranslate(message, handled));
             if (handled)
@@ -399,10 +699,10 @@ struct App
 } // namespace
 int wmain(int argc, wchar_t** argv)
 {
-    const auto hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+    const auto hr = OleInitialize(nullptr);
     if (FAILED(hr))
         return 1;
-    const auto com = wil::scope_exit([] { CoUninitialize(); });
+    const auto com = wil::scope_exit([] { OleUninitialize(); });
     try
     {
         bool complex                = false;
@@ -473,6 +773,8 @@ int wmain(int argc, wchar_t** argv)
                 return 1;
             if (textInput)
             {
+                if (FAILED(App::VerifyMessageRouting(app.gpu.device.get())))
+                    return 1;
                 wil::unique_hwnd hidden(
                     CreateWindowExW(0, L"STATIC", L"DxUi public text proof", WS_POPUP, 0, 0, 480, 340, nullptr, nullptr, GetModuleHandleW(nullptr), nullptr));
                 if (! hidden)

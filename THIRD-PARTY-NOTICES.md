@@ -4,10 +4,16 @@ The imported DxUi source and tests originate in RedSalamander, copyright (c) 202
 under the MIT license retained in [LICENSE.txt](LICENSE.txt). See the historical per-file hashes in
 [source origin](Specs/Done/SourceImport/source-origin.json). Copied reference images are test baselines, not shipping assets.
 
-DxUi's only vcpkg library dependency is WIL (Windows Implementation Libraries), Microsoft Corporation, MIT.
+DxUi uses WIL (Windows Implementation Libraries), Microsoft Corporation, MIT.
 The exact restored version is governed by [vcpkg.json](vcpkg.json) and its pinned baseline; the current dependency
 is 1.0.260126.7. Its full [MIT notice](docs/licenses/WIL.txt) is retained and must accompany redistributions.
 WIL is used by the implemented controls, graphics and host services; it is no longer a planned dependency.
+
+DxUi uses [toml++ 3.4.0](https://github.com/marzer/tomlplusplus/tree/v3.4.0), Mark Gillard, MIT, as a private header-only TOML validator. Its full [notice](docs/licenses/tomlplusplus.txt) accompanies redistributions. The private vendored header records its upstream hash and local allocation-safety patch in [its README](ThirdParty/tomlplusplus/README.md).
+
+DxUi derives its bounded native math symbol table from [KaTeX 0.16.11](https://github.com/KaTeX/KaTeX/tree/v0.16.11), Khan Academy and contributors, MIT. The full [notice](docs/licenses/katex.txt) accompanies redistributions; source provenance is in the [pinned inventory](ThirdParty/Markdown/katex-0.16.11/collection.json).
+
+DxUi uses [rapidyaml 0.16.0](https://github.com/biojppm/rapidyaml/tree/v0.16.0) as a private YAML event parser. Its [MIT license](docs/licenses/rapidyaml.txt) and [bundled notices](docs/licenses/rapidyaml-bundled.txt) accompany redistributions. [Source provenance and local patches](ThirdParty/rapidyaml/README.md) are retained.
 
 DxUi also links Windows SDK/system libraries, using the consumer's matching MSVC runtime. Those components are
 supplied under their respective Microsoft terms, not relicensed by this project's MIT license. System fonts are

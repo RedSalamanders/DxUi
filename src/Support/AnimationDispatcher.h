@@ -130,6 +130,10 @@ public:
     }
 
 #if DXUI_ENABLE_DIAGNOSTICS
+    [[nodiscard]] size_t DebugGetActiveSubscriptionCountForTest() const noexcept
+    {
+        return CountActiveSubscriptions(_subscriptions) + CountActiveSubscriptions(_pendingAdds);
+    }
     struct DebugTimingForTest
     {
         uint64_t callbackDeltaUs = 0u;

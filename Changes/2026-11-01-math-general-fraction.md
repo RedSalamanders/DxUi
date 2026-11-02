@@ -1,0 +1,1 @@
+- Add bounded general fractions with independent fences, zero/default rules and style selection.

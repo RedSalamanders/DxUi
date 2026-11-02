@@ -1,0 +1,1 @@
+- Reject oversized decoration replacements atomically and report reflow capacity separately without withholding the document frame; native qualification remains pending.

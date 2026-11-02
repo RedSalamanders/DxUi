@@ -1,0 +1,1 @@
+- Preserve or place the rich editor selection appropriately before invoking a consumer context menu, with guarded callback reentry; native qualification remains pending.

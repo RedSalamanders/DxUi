@@ -840,20 +840,63 @@ HRESULT TextInputServices::Clipboard(TextClipboardCommand command, TextClipboard
                 return TF_E_DISCONNECTED;
             if (command == TextClipboardCommand::Copy)
                 return S_OK;
+            if (auto* cut = dynamic_cast<TextClipboardSemanticCut*>(client.get()))
+            {
+                const HRESULT result = cut->ApplySemanticCut(snapshot);
+                if (result != E_NOTIMPL)
+                {
+                    if (result == S_OK && client == _state->client)
+                        NotifyChanged();
+                    return result;
+                }
+                if (client != _state->client)
+                    return TF_E_DISCONNECTED;
+            }
         }
         std::wstring replacement(0u, L' ');
         if (command == TextClipboardCommand::Paste)
         {
             auto* transform = dynamic_cast<TextClipboardPasteTransform*>(client.get());
             TextClipboardContent content;
-            const bool includeFiles = transform && transform->AcceptsFilePaths(snapshot);
+            const bool includeFiles  = transform && transform->AcceptsFilePaths(snapshot);
+            auto* html               = dynamic_cast<TextClipboardHtmlPaste*>(client.get());
+            const bool includeHtml   = transform && html && html->AcceptsHtml(snapshot);
+            auto* bitmap             = dynamic_cast<TextClipboardBitmapPaste*>(client.get());
+            const bool includeBitmap = bitmap && bitmap->AcceptsBitmap(snapshot);
             if (client != _state->client)
                 return TF_E_DISCONNECTED;
-            const HRESULT paste = ReadTextClipboardContent(service, _state->hwnd, content, includeFiles);
+            const HRESULT paste = ReadTextClipboardContent(service, _state->hwnd, content, includeFiles, includeHtml, includeBitmap);
             if (paste != S_OK)
                 return paste;
             if (client != _state->client)
                 return TF_E_DISCONNECTED;
+            if (content.filePaths.empty() && ! content.bitmapDib.empty() && bitmap)
+            {
+                const auto result = bitmap->ApplyBitmapPaste(snapshot, content);
+                if (result == S_OK)
+                {
+                    if (client == _state->client)
+                        NotifyChanged();
+                    return S_OK;
+                }
+                if (client != _state->client)
+                    return TF_E_DISCONNECTED;
+                return result;
+            }
+            if (! content.filePaths.empty())
+                if (auto* direct = dynamic_cast<TextClipboardFilePaste*>(client.get()))
+                {
+                    const auto result = direct->ApplyFilePaste(snapshot, content);
+                    if (result == S_OK)
+                    {
+                        if (client == _state->client)
+                            NotifyChanged();
+                        return S_OK; // The transaction committed even if its callback retired the client.
+                    }
+                    if (client != _state->client)
+                        return TF_E_DISCONNECTED;
+                    return result;
+                }
             replacement.assign(content.filePaths.empty() ? std::wstring_view(content.text) : std::wstring_view{});
             if (replacement.size() > kMaximumTextUnits || replacement.find(L'\0') != std::wstring::npos)
                 return E_INVALIDARG;
@@ -874,14 +917,13 @@ HRESULT TextInputServices::Clipboard(TextClipboardCommand command, TextClipboard
             replacement.resize(written);
             if (transform)
             {
-                content.text.assign(replacement);
                 std::wstring transformed(0u, L' ');
                 const auto result = transform->TransformPaste(snapshot, content, transformed);
                 if (result == S_OK)
                     replacement.swap(transformed);
                 else if (FAILED(result) && result != E_NOTIMPL)
                     return result;
-                else if (! content.filePaths.empty())
+                else if (! content.filePaths.empty() || (content.hasHtmlFragment && content.text.empty()))
                     return S_FALSE;
             }
             else if (! content.filePaths.empty())

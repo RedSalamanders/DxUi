@@ -1,0 +1,51 @@
+[
+  {
+    "name": "Debug-False",
+    "arguments": [
+      "-NoProfile",
+      "-File",
+      "\"Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\Run-Consumer-r27.ps1\"",
+      "-Configuration",
+      "\"Debug\""
+    ],
+    "pid": 91556,
+    "createdUtc": "2026-11-02T06:49:30.1282721Z"
+  },
+  {
+    "name": "Release-False",
+    "arguments": [
+      "-NoProfile",
+      "-File",
+      "\"Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\Run-Consumer-r27.ps1\"",
+      "-Configuration",
+      "\"Release\""
+    ],
+    "pid": 92148,
+    "createdUtc": "2026-11-02T06:49:30.1411951Z"
+  },
+  {
+    "name": "ASanDebug-False",
+    "arguments": [
+      "-NoProfile",
+      "-File",
+      "\"Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\Run-Consumer-r27.ps1\"",
+      "-Configuration",
+      "\"ASan Debug\""
+    ],
+    "pid": 19204,
+    "createdUtc": "2026-11-02T06:49:30.1482375Z"
+  },
+  {
+    "name": "ASanDebug-True",
+    "arguments": [
+      "-NoProfile",
+      "-File",
+      "\"Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\Run-Consumer-r27.ps1\"",
+      "-Configuration",
+      "\"ASan Debug\"",
+      "-DisableStlAnnotations"
+    ],
+    "pid": 85584,
+    "createdUtc": "2026-11-02T06:49:30.1555896Z"
+  }
+]

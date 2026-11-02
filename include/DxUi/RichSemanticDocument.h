@@ -1,4 +1,5 @@
 #pragma once
+#include <DxUi/RichAccessibilityText.h>
 #include <DxUi/RichMarkdown.h>
 #include <DxUi/RichSemantic.h>
 #include <optional>
@@ -9,6 +10,12 @@ namespace Detail
 {
 struct SemanticExtensions;
 struct SemanticExtensionAccess;
+struct DisclosureOverride
+{
+    std::uint64_t identity{};
+    bool expanded{};
+    bool operator==(const DisclosureOverride&) const = default;
+};
 } // namespace Detail
 enum class SemanticRole
 {
@@ -32,7 +39,13 @@ enum class SemanticRole
     FootnoteReference,
     FootnoteBacklink,
     Diagram,
-    Math
+    Math,
+    Disclosure,
+    Callout,
+    DefinitionList,
+    DefinitionTerm,
+    DefinitionDescription,
+    Abbreviation
 };
 struct SemanticElement
 {
@@ -49,8 +62,9 @@ struct SemanticElement
     unsigned heading{};
     MarkdownTask task{};
     MarkdownAlignment alignment{};
-    bool tableHeader{}, nativeHtml{};
+    bool tableHeader{}, nativeHtml{}, wiki{}, disclosureExpanded{};
     std::size_t rows{}, columns{};
+    unsigned imageWidth{}, imageHeight{}; // Authored DIP size; zero means intrinsic.
     std::wstring name, destination, title;
 };
 struct SemanticParagraph
@@ -64,9 +78,22 @@ struct SemanticParagraph
     std::size_t markerEnd{}, markerOwner = MarkdownNoNode;
     std::size_t emptyInsertion = MarkdownNoNode;
 };
-// Internal document navigation has no URL semantics and never changes source.
-// Generated backlinks own an empty source range inside their definition; their
-// separate target points to the complete original reference marker.
+// Immutable source-ordered heading index. `source` is the whole authored
+// owner, `target` is the same source range used by fragment navigation.
+struct SemanticHeading
+{
+    SemanticHeading() : name(0u, L' '), slug(0u, L' ')
+    {
+    }
+    SemanticHeading(const SemanticHeading&)            = default;
+    SemanticHeading& operator=(const SemanticHeading&) = default;
+    std::size_t element{};
+    unsigned level{};
+    MarkdownRange source, target;
+    std::wstring name, slug;
+};
+// Internal navigation never changes source. Generated backlinks own an empty
+// source range; their target points to the complete original reference marker.
 struct SemanticNavigation
 {
     std::size_t element{};
@@ -79,7 +106,9 @@ enum class SemanticDiagnosticKind
     DiagramCapacity,
     UnclosedDiagram,
     EmptyDiagram,
-    UnsupportedMath
+    UnsupportedMath,
+    MathCapacity,
+    ImageCapacity
 };
 struct SemanticDiagnostic
 {
@@ -102,6 +131,10 @@ public:
     {
         return syntax_;
     }
+    const std::shared_ptr<const AccessibilityLabels>& AccessibilityLabelSet() const noexcept
+    {
+        return labels_;
+    }
     // Process-local publication identity, distinct even when the same syntax
     // is rendered again after disabling/re-enabling semantic presentation.
     std::uint64_t Identity() const noexcept
@@ -112,6 +145,14 @@ public:
     {
         return *map_;
     }
+    bool HasCallouts() const noexcept
+    {
+        return hasCallouts_;
+    }
+    bool HasPropertiesBody() const noexcept
+    {
+        return hasPropertiesBody_;
+    }
     std::span<const SemanticElement> Elements() const noexcept
     {
         return elements_;
@@ -120,6 +161,12 @@ public:
     {
         return paragraphs_;
     }
+    std::span<const SemanticHeading> Headings() const noexcept
+    {
+        return headings_;
+    }
+    // Accepts a leading # and percent-encoded UTF-8; # alone addresses document start.
+    std::optional<MarkdownRange> ResolveHeadingFragment(std::wstring_view fragment) const;
     std::span<const SemanticNavigation> Navigation() const noexcept
     {
         return navigation_;
@@ -128,6 +175,8 @@ public:
     // Visible source-bearing code/HTML/metadata leaf, or the active opaque
     // editor. Revision-local eligibility only; the retained owner guards actions.
     std::optional<std::size_t> SourceEditingNode(std::size_t element) const noexcept;
+    std::optional<MarkdownRange> SourceEditingRange(std::size_t element) const noexcept;
+    bool IsSourceEditingElement(std::size_t element) const noexcept;
     // Native extension diagnostics own exact raw source ranges. Human-readable
     // explanations live in the named element's title; Syntax() remains immutable.
     std::span<const SemanticDiagnostic> Diagnostics() const noexcept;
@@ -153,11 +202,14 @@ public:
 private:
     explicit SemanticDocument(std::shared_ptr<const MarkdownSyntax> syntax);
     std::shared_ptr<const MarkdownSyntax> syntax_;
+    std::shared_ptr<const AccessibilityLabels> labels_;
     std::uint64_t identity_{};
+    bool hasCallouts_{}, hasPropertiesBody_{};
     std::shared_ptr<const SourceDisplayMap> map_;
     std::vector<SemanticElement> elements_;
     std::vector<SemanticParagraph> paragraphs_;
     std::vector<SemanticNavigation> navigation_;
+    std::vector<SemanticHeading> headings_;
     std::vector<StyleRun> runs_, sourceRuns_;
     // Optional document-level state keeps native graphs out of ordinary inline
     // values and unrelated controls. No SDK/host resource belongs to semantics.
@@ -166,10 +218,27 @@ private:
     friend class SemanticBuilder;
     friend struct Detail::SemanticExtensionAccess;
 };
+// Visit prose word units in an explicit display interval. Text and source ranges
+// are borrowed for each synchronous callback; false stops traversal. A word
+// intersecting the interval is returned whole. The
+// caller keeps the immutable document alive and checks its publication identity
+// before applying suggestions or decorations. Throws on invalid display ranges
+// or allocation failure. Passing a null callback counts without producing ranges.
+using SemanticWordVisitor = bool (*)(void* context, std::wstring_view text, MarkdownRange display, std::span<const MarkdownRange> source);
+std::size_t VisitSemanticWords(const SemanticDocument& document, MarkdownRange display, SemanticWordVisitor visitor, void* context);
+std::size_t CountWords(const SemanticDocument& document);
+// Generate bounded Markdown links from the immutable heading index. It does
+// not mutate source or create an in-document [TOC] object.
+std::wstring BuildHeadingTableOfContents(const SemanticDocument& document);
 // Owner-serialized pure preparation. Each advance resumes block/inline events;
 // one bounded leaf normalization/value tokenization, image alternative or final
 // map/index build is indivisible. Budgets count events, not wall-clock deadlines.
 // Begin/Advance failures retain the previous publication; explicit retry is legal.
+enum class SoftBreakPolicy
+{
+    Space,
+    LineBreak
+};
 class SemanticBuilder
 {
 public:
@@ -177,6 +246,14 @@ public:
     ~SemanticBuilder() noexcept;
     SemanticBuilder(const SemanticBuilder&)            = delete;
     SemanticBuilder& operator=(const SemanticBuilder&) = delete;
+    // Changed immutable labels retire pending/published semantics. Held documents
+    // remain immutable; source and the next Begin request are otherwise unchanged.
+    void SetAccessibilityLabels(std::shared_ptr<const AccessibilityLabels> labels) noexcept;
+    void SetSoftBreakPolicy(SoftBreakPolicy policy);
+    const std::shared_ptr<const AccessibilityLabels>& AccessibilityLabelSet() const noexcept
+    {
+        return labels_;
+    }
     void Begin(std::shared_ptr<const MarkdownSyntax> syntax);
     // One current source-bearing block; this does not alter syntax or source.
     // Invalid/non-leaf and hidden literal-declaration descendants are rejected
@@ -191,10 +268,15 @@ public:
 private:
     // Host-owned geometry rejection is presentation state for one layout key.
     // It never edits syntax and is not a consumer-authored source mask.
-    void BeginWithNativeFallbacks(std::shared_ptr<const MarkdownSyntax> syntax, std::size_t sourceBlock, std::span<const MarkdownRange> sourceObjects);
+    void BeginWithNativeFallbacks(std::shared_ptr<const MarkdownSyntax> syntax,
+                                  std::size_t sourceBlock,
+                                  std::span<const MarkdownRange> sourceObjects,
+                                  std::span<const Detail::DisclosureOverride> disclosures = {});
     struct Preparation;
     std::unique_ptr<Preparation> next_;
     std::shared_ptr<const SemanticDocument> published_;
+    std::shared_ptr<const AccessibilityLabels> labels_;
+    SoftBreakPolicy softBreakPolicy_ = SoftBreakPolicy::Space;
     friend struct Detail::SemanticExtensionAccess;
 };
 } // namespace DxUi::RichText

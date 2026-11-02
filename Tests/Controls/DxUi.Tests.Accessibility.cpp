@@ -4310,6 +4310,40 @@ void TestAccessibilitySelectorFocusPreservesMembershipAndSelectionDoesNotActivat
     }
 }
 
+void TestAccessibilityTextEventsUseIndexedOwnerValidation()
+{
+    using namespace DxUi;
+    ScopedNonActivatingTestWindows nonActivating;
+    AttachedHostWindow window;
+    auto root = std::make_unique<Panel>();
+    for (size_t index = 0u; index < 256u; ++index)
+        root->AddChild<Label>(L"unrelated sibling");
+    auto* field = root->AddChild<TextField>(L"text event owner");
+    field->SetBounds(D2D1::RectF(0, 0, 160, 28));
+    window.Host().SetRoot(std::move(root));
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> provider;
+    provider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+    Require(provider != nullptr, "text-event fixture has a published accessibility index");
+    Require(DebugSetAccessibilityMutationInterestForTest(window.Hwnd(), false), "keep text-event accounting free of unrelated client refreshes");
+    const auto clearInterest = wil::scope_exit([]() noexcept
+    { Require(DebugSetAccessibilityMutationInterestForTest(nullptr, std::nullopt), "clear text-event mutation-interest override"); });
+    DebugSetAccessibilityResolutionCountingForTest(true);
+    const auto stopCounting = wil::scope_exit([]() noexcept { DebugSetAccessibilityResolutionCountingForTest(false); });
+    DebugResetAccessibilityResolutionVisitCountForTest();
+    for (const auto kind : {TextInputAutomationEventKind::TextChanged,
+                            TextInputAutomationEventKind::TextSelectionChanged,
+                            TextInputAutomationEventKind::TextEditCompositionChanged})
+        Require(RaiseWindowHostTextInputAutomationEvent(window.Hwnd(), field, kind), "ordinary text event accepts the indexed live owner");
+    Require(DebugGetAccessibilityResolutionVisitCountForTest() < 128u, "ordinary text events do not scan unrelated siblings");
+    DebugResetAccessibilityResolutionVisitCountForTest();
+    Require(RaiseWindowHostTextInputAutomationEvent(window.Hwnd(), field, TextInputAutomationEventKind::TextEditConversionTargetChanged),
+            "queued conversion event resolves the live owner path");
+    Require(DebugGetAccessibilityResolutionVisitCountForTest() >= 256u, "the special queued event retains live-tree path resolution");
+    field->SetVisible(false);
+    Require(! RaiseWindowHostTextInputAutomationEvent(window.Hwnd(), field, TextInputAutomationEventKind::TextChanged),
+            "indexed text-event validation still rejects a hidden stale owner");
+}
+
 void TestAccessibilityInterestedMutationsBoundFocusedPathResolution()
 {
     using namespace DxUi;
@@ -9970,7 +10004,7 @@ void TestTreeBadgeStatusUpdatesReachSubscribedClientWithoutStructureChange()
     Require(firstVisibleBefore > 0u, "the test starts with a nonzero Tree viewport offset");
 
     UiaTest::Subscription subscription;
-    subscription.properties = {UIA_ItemStatusPropertyId};
+    subscription.properties = {UIA_ItemStatusPropertyId, UIA_NamePropertyId};
     subscription.structure  = true;
     SingleControlClient walk(test.window, std::move(subscription));
     const std::vector<UiaTest::ElementId> initialItems = walk.client.Children(walk.root);
@@ -10022,6 +10056,25 @@ void TestTreeBadgeStatusUpdatesReachSubscribedClientWithoutStructureChange()
     update(L"Saved", false, std::nullopt, "changing only dot presentation does not change the accessible status");
     update(L"3", false, std::wstring_view(L"3"), "a non-dot count update raises ItemStatus on the original TreeItem");
     update(L"", false, std::wstring_view(L""), "removing a badge raises an empty ItemStatus on the original TreeItem");
+    static_cast<void>(walk.client.WaitOutTheStream());
+    const auto renameMark = walk.client.Mark();
+    auto renamed          = rows(L"", false);
+    renamed[0u].text      = L"Renamed General";
+    test.model.SetVisibleItems(std::move(renamed));
+    Require(test.tree->NotifyItemPresentationChanged(1u), "the existing visible TreeItem accepts its renamed presentation");
+    walk.Expect(walk.client.WaitUntil(UiaTest::Client::kNotificationDeadlineMs,
+                                      [&]
+    {
+        const auto events = walk.client.DistinctSince(renameMark);
+        return std::ranges::any_of(events,
+                                   [](const UiaTest::HeardEvent& event)
+        {
+            return event.kind == UiaTest::EventKind::Property && event.id == UIA_NamePropertyId && event.controlType == UIA_TreeItemControlTypeId &&
+                   event.value == L"Renamed General";
+        });
+    }),
+                "native client hears the existing TreeItem's changed Name");
+    walk.Expect(walk.Name(editedItem) == L"Renamed General", "native TreeItem identity remains stable across rename");
     const uint64_t invalidationsBeforeMissing = test.window.Host().DebugGetInvalidateCount();
     Require(! test.tree->NotifyItemPresentationChanged(9999u), "a missing Tree row rejects the presentation notification");
     Require(test.window.Host().DebugGetInvalidateCount() == invalidationsBeforeMissing,
@@ -10207,6 +10260,65 @@ void TestPreparedTreeExpansionOfTheFocusedItemReachesAClient()
     };
     hear(true);
     hear(false);
+    const auto unfocusedRows = [](bool expanded)
+    {
+        std::vector<TreeItemData> items{TreeItemData{.id = 1u, .text = L"Général", .hasChildren = true},
+                                        TreeItemData{.id = 2u, .text = L"Volets", .hasChildren = true, .expanded = expanded}};
+        if (expanded)
+            items.push_back(TreeItemData{.id = 21u, .parentId = 2u, .text = L"Second child", .depth = 1u});
+        return items;
+    };
+    class ToggleDelegate final : public DxUi::ITreeDelegate
+    {
+    public:
+        std::function<void(uint64_t, bool)> toggle;
+        void OnTreeToggleExpanded(uint64_t id, bool expanded) override
+        {
+            toggle(id, expanded);
+        }
+    } delegate;
+    delegate.toggle = [&](uint64_t id, bool expanded)
+    {
+        Require(id == 2u, "UIA targets the unfocused item");
+        model.Publish(unfocusedRows(expanded));
+        tree->NotifyDataChanged();
+    };
+    tree->SetDelegate(&delegate);
+    model.Publish(unfocusedRows(false));
+    tree->NotifyDataChanged();
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> treeRoot;
+    treeRoot.attach(DxUi::CreateWindowHostAccessibilityProvider(window.Hwnd()));
+    wil::com_ptr_nothrow<IRawElementProviderFragment> rootFragment, firstRow, secondRow;
+    Require(treeRoot && SUCCEEDED(treeRoot.query_to(rootFragment.put())), "prepared tree root fragment");
+    RequireSucceeded(rootFragment->Navigate(NavigateDirection_FirstChild, firstRow.put()), "first prepared row provider");
+    Require(firstRow && SUCCEEDED(firstRow->Navigate(NavigateDirection_NextSibling, secondRow.put())) && secondRow,
+            "unfocused prepared row provider is reachable");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> secondSimple;
+    wil::com_ptr_nothrow<IUnknown> expandUnknown;
+    wil::com_ptr_nothrow<IExpandCollapseProvider> expand;
+    RequireSucceeded(secondRow.query_to(secondSimple.put()), "unfocused prepared row properties");
+    RequireSucceeded(secondSimple->GetPatternProvider(UIA_ExpandCollapsePatternId, expandUnknown.put()), "unfocused expansion pattern");
+    RequireSucceeded(expandUnknown.query_to(expand.put()), "unfocused expansion interface");
+    static_cast<void>(walk.client.WaitOutTheStream());
+    const size_t mark = walk.client.Mark();
+    RequireSucceeded(expand->Expand(), "expand unfocused prepared item via UIA");
+    const bool heardUnfocused = walk.client.WaitUntil(UiaTest::Client::kNotificationDeadlineMs,
+                                                      [&]
+    {
+        const auto events = walk.client.DistinctSince(mark);
+        return std::ranges::any_of(events,
+                                   [](const UiaTest::HeardEvent& event)
+        {
+            return event.kind == UiaTest::EventKind::Property && event.id == UIA_ExpandCollapseExpandCollapseStatePropertyId && event.name == L"Volets" &&
+                   event.value == std::to_wstring(ExpandCollapseState_Expanded);
+        });
+    });
+    walk.Expect(heardUnfocused, "the client hears the unfocused prepared item's own expansion event");
+    ExpandCollapseState expandedState{};
+    RequireSucceeded(expand->get_ExpandCollapseState(&expandedState), "retained unfocused row state");
+    Require(expandedState == ExpandCollapseState_Expanded && tree->GetFocusedItemId() == 1u,
+            "unfocused expansion reports its current state without moving focus");
+    tree->SetDelegate(nullptr);
 }
 
 // A radio button is a RadioButton element with the SelectionItem pattern, selected while it is checked, instead of an
@@ -10222,6 +10334,7 @@ void TestAccessibilityRadioButtonsAreSelectionItems()
     group->SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 104.0f));
     RadioButton* const first  = group->AddItem(L"Premier");
     RadioButton* const second = group->AddItem(L"Second");
+    panel->AddChild<Button>(L"Following")->SetBounds(D2D1::RectF(0.0f, 120.0f, 240.0f, 152.0f));
     first->SetBounds(D2D1::RectF(0.0f, 24.0f, 240.0f, 56.0f));
     second->SetBounds(D2D1::RectF(0.0f, 64.0f, 240.0f, 96.0f));
     group->SetSelectedIndex(0);
@@ -10237,7 +10350,7 @@ void TestAccessibilityRadioButtonsAreSelectionItems()
     RequireSucceeded(fragment.query_to(simple.put()), "the radio button exposes properties");
     Require(ReadProviderLongProperty(*simple.get(), UIA_ControlTypePropertyId, "radio button control type") == UIA_RadioButtonControlTypeId,
             "a radio button is a RadioButton element");
-    // Every choice sits under the window's root, beside the other controls: its place in its own group comes from it.
+    // Each choice reports its position within the radio group.
     Require(ReadProviderLongProperty(*simple.get(), UIA_PositionInSetPropertyId, "radio button position") == 2 &&
                 ReadProviderLongProperty(*simple.get(), UIA_SizeOfSetPropertyId, "radio group size") == 2,
             "the second of two choices says so");
@@ -10247,6 +10360,52 @@ void TestAccessibilityRadioButtonsAreSelectionItems()
     RequireSucceeded(simple->GetPatternProvider(UIA_SelectionItemPatternId, unknown.put()), "the SelectionItem lookup succeeds");
     wil::com_ptr_nothrow<ISelectionItemProvider> selection;
     RequireSucceeded(unknown.query_to(selection.put()), "a radio button is a selection item");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> container;
+    RequireSucceeded(selection->get_SelectionContainer(container.put()), "radio choice returns its group container");
+    Require(container && ReadProviderLongProperty(*container.get(), UIA_ControlTypePropertyId, "radio group type") == UIA_GroupControlTypeId,
+            "the selection container is the actual radio group element");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> groupFragment, firstChoice, lastChoice, parent, next;
+    RequireSucceeded(container.query_to(groupFragment.put()), "radio group has fragment navigation");
+    RequireSucceeded(groupFragment->Navigate(NavigateDirection_FirstChild, firstChoice.put()), "first radio group child");
+    RequireSucceeded(groupFragment->Navigate(NavigateDirection_LastChild, lastChoice.put()), "last radio group child");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> firstSimple, lastSimple;
+    Require(firstChoice && lastChoice && SUCCEEDED(firstChoice.query_to(firstSimple.put())) && SUCCEEDED(lastChoice.query_to(lastSimple.put())) &&
+                ReadProviderStringProperty(*firstSimple.get(), UIA_NamePropertyId, "first group child") == L"Premier" &&
+                ReadProviderStringProperty(*lastSimple.get(), UIA_NamePropertyId, "last group child") == L"Second",
+            "group fragment children contain the visible radio choices in order");
+    RequireSucceeded(fragment->Navigate(NavigateDirection_Parent, parent.put()), "radio choice parent");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> parentSimple;
+    Require(parent && SUCCEEDED(parent.query_to(parentSimple.put())) &&
+                ReadProviderLongProperty(*parentSimple.get(), UIA_ControlTypePropertyId, "radio parent type") == UIA_GroupControlTypeId,
+            "radio choice navigates back to its group");
+    RequireSucceeded(fragment->Navigate(NavigateDirection_NextSibling, next.put()), "last choice sibling");
+    Require(! next, "the last radio does not expose unrelated root controls as siblings");
+    RequireSucceeded(groupFragment->Navigate(NavigateDirection_NextSibling, next.put()), "group next root sibling");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> nextSimple;
+    Require(next && SUCCEEDED(next.query_to(nextSimple.put())) &&
+                ReadProviderStringProperty(*nextSimple.get(), UIA_NamePropertyId, "group next sibling") == L"Following",
+            "root navigation skips grouped radio children and reaches the following control");
+    wil::com_ptr_nothrow<IUnknown> groupPattern;
+    RequireSucceeded(container->GetPatternProvider(UIA_SelectionPatternId, groupPattern.put()), "radio group exposes Selection");
+    wil::com_ptr_nothrow<ISelectionProvider> groupSelection;
+    RequireSucceeded(groupPattern.query_to(groupSelection.put()), "radio group selection provider is available");
+    BOOL multiple = TRUE, required = TRUE;
+    RequireSucceeded(groupSelection->get_CanSelectMultiple(&multiple), "radio group selection cardinality");
+    RequireSucceeded(groupSelection->get_IsSelectionRequired(&required), "radio group selection requirement");
+    Require(! multiple && ! required, "radio group supports one or no selected choice");
+    const auto selectedName = [&]()
+    {
+        SAFEARRAY* values = nullptr;
+        RequireSucceeded(groupSelection->GetSelection(&values), "radio group reports selected providers");
+        const auto cleanup = wil::scope_exit([&] { SafeArrayDestroy(values); });
+        LONG upper         = -1;
+        Require(values && SUCCEEDED(SafeArrayGetUBound(values, 1u, &upper)) && upper == 0, "one radio is selected");
+        LONG index = 0;
+        wil::com_ptr_nothrow<IRawElementProviderSimple> chosen;
+        RequireSucceeded(SafeArrayGetElement(values, &index, chosen.put()), "read selected radio provider");
+        return ReadProviderStringProperty(*chosen.get(), UIA_NamePropertyId, "selected radio name");
+    };
+    Require(selectedName() == L"Premier", "group selection initially exposes the first choice");
     BOOL selected = TRUE;
     RequireSucceeded(selection->get_IsSelected(&selected), "IsSelected answers");
     Require(! selected, "the second choice is not selected");
@@ -10259,10 +10418,60 @@ void TestAccessibilityRadioButtonsAreSelectionItems()
                 {L"Selected RadioButton 'Second'", L"IsSelected:true RadioButton 'Second'", L"IsSelected:false RadioButton 'Premier'"},
                 "choosing the second radio button");
     Require(second->IsChecked() && ! first->IsChecked() && group->GetSelectedIndex() == 1 && selections == 1, "Select chose it as a click does");
+    Require(selectedName() == L"Second", "group selection follows the changed choice");
     RequireSucceeded(selection->get_IsSelected(&selected), "IsSelected answers again");
     Require(selected, "the chosen radio button is selected");
     Require(selection->RemoveFromSelection() == UIA_E_INVALIDOPERATION, "a chosen radio button cannot leave its group's selection");
     Require(selection->AddToSelection() == S_OK && selections == 1, "adding the chosen radio button changes nothing");
+    window.Host().SetRoot(std::make_unique<Label>(L"replacement"));
+    container.reset();
+    Require(selection->get_SelectionContainer(container.put()) == UIA_E_ELEMENTNOTAVAILABLE && ! container,
+            "retained radio providers cannot return a retired group");
+    SAFEARRAY* stale = nullptr;
+    Require(groupSelection->GetSelection(&stale) == UIA_E_ELEMENTNOTAVAILABLE && ! stale, "retired group selection provider is unavailable");
+}
+
+void TestAccessibilityRadioButtonsAsCollapsedRoot()
+{
+    using namespace DxUi;
+    AttachedHostWindow window;
+    auto group = std::make_unique<RadioButtons>();
+    group->SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 104.0f));
+    group->AddItem(L"First")->SetBounds(D2D1::RectF(0.0f, 24.0f, 240.0f, 56.0f));
+    group->AddItem(L"Last")->SetBounds(D2D1::RectF(0.0f, 64.0f, 240.0f, 96.0f));
+    group->SetSelectedIndex(0);
+    window.Host().SetRoot(std::move(group));
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> root;
+    root.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+    Require(root != nullptr, "collapsed radio group has a root provider");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> rootFragment, first, last, sibling, parent;
+    RequireSucceeded(root.query_to(rootFragment.put()), "collapsed group root fragment");
+    RequireSucceeded(rootFragment->Navigate(NavigateDirection_FirstChild, first.put()), "collapsed group first child");
+    RequireSucceeded(rootFragment->Navigate(NavigateDirection_LastChild, last.put()), "collapsed group last child");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> firstSimple, lastSimple;
+    Require(first && last && SUCCEEDED(first.query_to(firstSimple.put())) && SUCCEEDED(last.query_to(lastSimple.put())) &&
+                ReadProviderStringProperty(*firstSimple.get(), UIA_NamePropertyId, "collapsed first") == L"First" &&
+                ReadProviderStringProperty(*lastSimple.get(), UIA_NamePropertyId, "collapsed last") == L"Last",
+            "collapsed group exposes both choices in order");
+    RequireSucceeded(first->Navigate(NavigateDirection_NextSibling, sibling.put()), "first choice sibling");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> siblingSimple;
+    Require(sibling && SUCCEEDED(sibling.query_to(siblingSimple.put())) &&
+                ReadProviderStringProperty(*siblingSimple.get(), UIA_NamePropertyId, "collapsed sibling") == L"Last",
+            "collapsed group choices remain siblings");
+    RequireSucceeded(last->Navigate(NavigateDirection_Parent, parent.put()), "collapsed choice parent");
+    wil::com_ptr_nothrow<IUnknown> rootIdentity, parentIdentity;
+    RequireSucceeded(root.query_to(rootIdentity.put()), "root identity");
+    Require(parent && SUCCEEDED(parent.query_to(parentIdentity.put())) && rootIdentity.get() == parentIdentity.get(),
+            "choice parent is the canonical window root");
+    wil::com_ptr_nothrow<IUnknown> pattern;
+    RequireSucceeded(lastSimple->GetPatternProvider(UIA_SelectionItemPatternId, pattern.put()), "collapsed choice selection item");
+    wil::com_ptr_nothrow<ISelectionItemProvider> selection;
+    RequireSucceeded(pattern.query_to(selection.put()), "collapsed choice selection provider");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> container;
+    RequireSucceeded(selection->get_SelectionContainer(container.put()), "collapsed group selection container");
+    wil::com_ptr_nothrow<IUnknown> containerIdentity;
+    Require(container && SUCCEEDED(container.query_to(containerIdentity.put())) && rootIdentity.get() == containerIdentity.get(),
+            "selection container is the canonical window root");
 }
 
 // A page indicator with pages to choose between is a Slider element whose RangeValue is the page, from 1 to its page
@@ -11411,6 +11620,7 @@ void RunAccessibilityTests()
     DXUI_RUN_TEST(TestTreeExpansionReachesAClientSubscribedToTheWindow);
     DXUI_RUN_TEST(TestPreparedTreeExpansionOfTheFocusedItemReachesAClient);
     DXUI_RUN_TEST(TestAccessibilityRadioButtonsAreSelectionItems);
+    DXUI_RUN_TEST(TestAccessibilityRadioButtonsAsCollapsedRoot);
     DXUI_RUN_TEST(TestAccessibilityTabControlTabsAreSelectionItems);
     DXUI_RUN_TEST(TestAccessibilityPageIndicatorIsAPageSlider);
     DXUI_RUN_TEST(TestSingleGridWindowRowAndCellEventsReachAClientSubscribedToTheWindow);
@@ -11508,6 +11718,7 @@ void RunAccessibilityTests()
     DXUI_RUN_TEST(TestAccessibilityPublicationMutationBatchRetainsFinalStateAndReportsCost);
     DXUI_RUN_TEST(TestAccessibilityLazyPublicationCoalescesAndOwnerQueriesStayFresh);
     DXUI_RUN_TEST(TestAccessibilityInterestedMutationsBoundFocusedPathResolution);
+    DXUI_RUN_TEST(TestAccessibilityTextEventsUseIndexedOwnerValidation);
     DXUI_RUN_TEST(TestAccessibilityGetFocusDoesNotBindCapturedSnapshotToReplacementAtSamePath);
     DXUI_RUN_TEST(TestAccessibilitySnapshotDerivedPeerFactoriesRejectSamePathReplacement);
     DXUI_RUN_TEST(TestAccessibilityCaptionReentrancyCannotPublishARetiredRoot);

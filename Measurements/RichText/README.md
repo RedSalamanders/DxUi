@@ -16,7 +16,7 @@ Unicode file-reference paste inserts displayed Markdown images and relative
 named links for other files. Unsaved or cross-root destinations use file URIs;
 one mixed paste is one undo transaction. See the
 [usage guide](../../docs/rich-text.md). File drag-and-drop remains a
-[spec and test plan](../../Specs/Plans/WIP/RichTextFileDrop_2026-10-20.md).
+[spec and test plan](../../Specs/Plans/Done/RichTextFileDrop_2026-10-20.md).
 Complete math/diagram/metadata support, larger-document capacity, physical
 IME/assistive-technology qualification and consumer adoption remain open.
 
@@ -51,6 +51,11 @@ and release gates remain open. Application measurements belong in their applicat
 repository and do not close SDK acceptance.
 
 ## Functional evidence
+
+[Archived usage-guide qualification notes](2026-11-01-usage-history.md) preserve
+the earlier source-bound prototype, source-storage, geometry and WARP diagnostic
+history moved out of the current usage guide. They retain the original document's
+Git revision and blob identity and provide no new qualification result.
 
 | Source and coverage | Result and limit |
 | --- | --- |
@@ -100,7 +105,7 @@ retention regressions fail before the fix; all 40 interactive-wrapper tooling
 cases pass after it, including missing output, repeated refusals, literal Unicode
 paths and a locked-file retention failure. This preserves future diagnostics;
 it neither recovers already overwritten output nor fixes foreground admission.
-The [implementation plan](../../Specs/Plans/WIP/RichTextEditor_2026-10-17.md)
+The [implementation plan](../../Specs/Plans/Done/RichTextEditor_2026-10-17.md)
 records source-specific qualification and remaining work. Layout/gallery pixels
 are unchanged by the menu input-state repair.
 

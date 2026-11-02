@@ -1,6 +1,6 @@
 # Directed input restoration on main, 30 September 2026
 
-The directed-input qualification the [described-menu plan](../../../../Specs/Plans/WIP/MenuDescriptions_2026-09-21.md)
+The directed-input qualification the [described-menu plan](../../../../Specs/Plans/Done/MenuDescriptions_2026-09-21.md)
 requires. Menu and NativeTextInput run in x64 Debug, Release and ASan Debug, each under the retained V4 wrapper. The
 wrapper holds RedSalamander's desktop lease and shows its input warning. It activates only its own bootstrap window,
 grants the foreground only to the test process it starts, and then checks that the person's foreground window,

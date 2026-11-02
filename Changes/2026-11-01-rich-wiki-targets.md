@@ -1,0 +1,1 @@
+- Add bounded RichMarkdown wiki links and image embeds with application-owned target resolution, exact source mapping and linear lookahead; focused x64 Debug parser and embedded WARP checks passed, with integrated qualification pending.

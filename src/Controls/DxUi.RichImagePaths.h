@@ -174,6 +174,24 @@ inline bool SameLocalImagePath(std::wstring_view left, std::wstring_view right) 
     }
     return left == right;
 }
+inline std::optional<std::wstring> ResolveDataImageSource(std::wstring_view source)
+{
+    // Opaque lexical admission only; the application owns media policy and decoding.
+    if (source.size() > Document::MaximumUnits || source.size() < 6u || ! IsValidUtf16(source) ||
+        ! EqualWindowsPathInsensitive(source.substr(0u, 5u), L"data:") || source.find(L',', 5u) == source.npos ||
+        std::ranges::any_of(source, [](wchar_t c) { return c <= 32 || c == 127 || c == L'\\'; }))
+        return std::nullopt;
+    const auto hex = [](wchar_t c) { return (c >= L'0' && c <= L'9') || (c >= L'a' && c <= L'f') || (c >= L'A' && c <= L'F'); };
+    for (std::size_t index = 5u; index < source.size(); ++index)
+        if (source[index] == L'%')
+        {
+            if (index + 2u >= source.size() || ! hex(source[index + 1u]) || ! hex(source[index + 2u]))
+                return std::nullopt;
+            index += 2u;
+        }
+    return std::optional<std::wstring>(std::in_place, source);
+}
+
 inline std::optional<std::wstring> ResolveRemoteImageSource(std::wstring_view source)
 {
     // Lexical admission only. The consumer owns anonymous transport, TLS,
@@ -437,6 +455,24 @@ inline void AppendUriPath(std::wstring_view text, std::wstring& result, bool dri
         }
     }
 }
+inline bool MarkdownPathPunctuation(wchar_t c) noexcept
+{
+    return c >= 33 && c <= 126 && ! ((c >= L'a' && c <= L'z') || (c >= L'A' && c <= L'Z') || (c >= L'0' && c <= L'9'));
+}
+inline void AppendMarkdownLiteralPath(std::wstring_view text, std::wstring& output)
+{
+    auto units = text.size();
+    for (const auto c : text)
+        units += MarkdownPathPunctuation(c) ? 1u : 0u;
+    if (output.size() > Document::MaximumUnits || units > Document::MaximumUnits - output.size())
+        throw std::length_error("Literal file path source capacity exceeded");
+    for (const auto c : text)
+    {
+        if (MarkdownPathPunctuation(c))
+            output.push_back(L'\\');
+        output.push_back(c);
+    }
+}
 // Recognized image suffixes produce displayed images; every other absolute
 // file path produces a text link. Both use the same lexical destination rules.
 // No existence/type query, file copy or link activation occurs during paste.
@@ -447,8 +483,16 @@ inline std::optional<std::wstring> BuildMarkdownFileReference(std::wstring_view 
     if (clipboard.size() > 1u && clipboard.front() == L'"' && clipboard.back() == L'"')
         clipboard = clipboard.substr(1u, clipboard.size() - 2u);
     ParsedLocalFilePath file;
-    if (! ParseLocalFilePath(clipboard, file))
+    try
+    {
+        if (! ParseLocalFilePath(clipboard, file))
+            return std::nullopt;
+    }
+    catch (const std::length_error&)
+    {
+        // Preserve an over-deep structured clipboard path as literal source.
         return std::nullopt;
+    }
     const bool image = HasImageFileExtension(file);
     std::wstring destination(0u, L' '), raw(0u, L' ');
     bool relative{};
@@ -475,7 +519,7 @@ inline std::optional<std::wstring> BuildMarkdownFileReference(std::wstring_view 
     const auto name        = image && dot && dot != filename.npos ? filename.substr(0u, dot) : filename;
     std::size_t labelUnits = name.size();
     for (const auto c : name)
-        if (c >= 33 && c <= 126 && ! ((c >= L'a' && c <= L'z') || (c >= L'A' && c <= L'Z') || (c >= L'0' && c <= L'9')))
+        if (MarkdownPathPunctuation(c))
             ++labelUnits;
     // Check the complete escaped source before allocating its final buffer.
     const auto markerUnits = image ? 5u : 4u;
@@ -484,12 +528,7 @@ inline std::optional<std::wstring> BuildMarkdownFileReference(std::wstring_view 
     std::wstring result(0u, L' ');
     result.reserve(labelUnits + destination.size() + markerUnits);
     result.append(image ? L"![" : L"[");
-    for (const auto c : name)
-    {
-        if (c >= 33 && c <= 126 && ! ((c >= L'a' && c <= L'z') || (c >= L'A' && c <= L'Z') || (c >= L'0' && c <= L'9')))
-            result.push_back(L'\\');
-        result.push_back(c);
-    }
+    AppendMarkdownLiteralPath(name, result);
     result.append(L"](").append(destination).append(L")");
     if (result.size() > Document::MaximumUnits)
         throw std::length_error("file reference Markdown source capacity exceeded");

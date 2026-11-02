@@ -1,0 +1,40 @@
+{
+  "slot": {
+    "slot": 43,
+    "block": 11,
+    "scenario": "original",
+    "scenarioBlock": 2,
+    "pattern": "ABBA",
+    "withinBlock": 3,
+    "side": "B"
+  },
+  "command": "\"Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\semantic-owner-final\\candidate-r27-attempt-01\\original\\out\\RichOwnerProbe.exe\"",
+  "workingDirectory": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\semantic-owner-final\\candidate-r27-attempt-01\\original\\out",
+  "exe": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\semantic-owner-final\\candidate-r27-attempt-01\\original\\out\\RichOwnerProbe.exe",
+  "exeSha256": "FDFA2035DF5DF8A694865F19894E512094EC9442BB9F27E621EB29AC37A39E87",
+  "pdb": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\semantic-owner-final\\candidate-r27-attempt-01\\original\\out\\RichOwnerProbe.pdb",
+  "pdbSha256": "AA1E445079DF91C5E826DB9A021DCF6CFFF437E46D2408B1590FA0AD29B69DBB",
+  "certificate": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\semantic-owner-final\\candidate-r27-attempt-01\\validated-input-closure\\validated-build-provenance.json",
+  "certificateSha256": "DF5ACB9E4791F42F3E38361E4C200BC03A870345C46CD97FE2863F92387ECB28",
+  "sourceCommit": "9909da1065e297247cb490b970b2265a0e4d8b9e",
+  "sourceArchive": {
+    "path": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\candidate-r27\\source.zip",
+    "sha256": "90D229BD5A47F87EB479CA5DFFF1B55CB1AC1B3D121AFE139F1E4B91D319B49F"
+  },
+  "v2Certificate": {
+    "path": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\candidate-r27\\x64-Release\\v2-build.json",
+    "sha256": "1DAA90D2B7E0F259F8903501078FFA9004AF8ABB114A116A03735DE8A9734347"
+  },
+  "verification": {
+    "path": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\candidate-r27\\x64-Release\\manifest.json",
+    "sha256": "1342DF8C0BE3C58AB836A711115D65E9B194AA30ED4C7DE43854F9C4DBC851BC"
+  },
+  "tlogSha256": {
+    "CL.command.1.tlog": "AA1C394B80079FD89CE3A3D58FB45A206ED1BBF74287EA97856E6AFC35DDA5AA",
+    "CL.read.1.tlog": "4CA405EE765067217022BF70E6869CAB8B9282C18D0C5817891CA312403F0D84",
+    "link.read.1.tlog": "AF50B4ECC3461B609CF466329C51A51EE71599882E09837BDC25C5F5433D12ED",
+    "link.command.1.tlog": "CAE66AE68DA3E59C325665B6F6C3E5A4ED5E06B4A7553F7DC514D5542FA79993"
+  },
+  "timeoutSeconds": 120,
+  "submittedUtc": "2026-11-02T08:49:03.6296030Z"
+}

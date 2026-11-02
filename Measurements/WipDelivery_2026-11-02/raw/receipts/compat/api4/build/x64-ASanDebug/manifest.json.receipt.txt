@@ -1,0 +1,89 @@
+{
+  "receipts": [
+    {
+      "name": "v2-build.json",
+      "present": true,
+      "sha256": "FBA67F8DFEA3FB085ACF9D0E072BE4B042BEC3D6A31BFD58E0E2961FAF8492D9"
+    },
+    {
+      "name": "incremental-build.json",
+      "present": true,
+      "sha256": "BD16EF42425821C57F87742F1CC99C3E3E649C2CCE852FC2975B3641BC2B5379"
+    },
+    {
+      "name": "scoped-build.json",
+      "present": false
+    }
+  ],
+  "platform": "x64",
+  "frozenUtc": "2026-11-02T07:01:51.6549239Z",
+  "configuration": "ASan Debug",
+  "files": [
+    {
+      "name": "clang_rt.asan_dynamic-x86_64.dll",
+      "bytes": 1731408,
+      "sha256": "2B952AA118F22FA330069C27CA42C79D94B654F369787B89BF3A495774D66DAC"
+    },
+    {
+      "name": "DxUi.ControlTests.exe",
+      "bytes": 33915392,
+      "sha256": "28FD65857C0C6E4CFEF1A3668F643CEA60B757753F704296A78F5FC368047252"
+    },
+    {
+      "name": "DxUi.ControlTests.pdb",
+      "bytes": 62255104,
+      "sha256": "5BA6F724FBFF416FFBF73D68F6F0986E9CA970D1A67F1C379EB2D01543B25D43"
+    },
+    {
+      "name": "DxUi.EmbeddedControls.exe",
+      "bytes": 11539456,
+      "sha256": "5E8D90F09ABB5E59ACD62DB84FAB95C677B9F6D7DFF6B2B507B8415B6B923B40"
+    },
+    {
+      "name": "DxUi.EmbeddedControls.pdb",
+      "bytes": 24498176,
+      "sha256": "49316FD480638A96A840E2E73AE6205F292AD968BC611BF3C01903A23AA4DC19"
+    },
+    {
+      "name": "DxUi.EmbeddedTests.exe",
+      "bytes": 14057984,
+      "sha256": "550FADD9BD25826E493470D4A865661DCF17E4CC658E9D6B7F44BF596E635826"
+    },
+    {
+      "name": "DxUi.EmbeddedTests.pdb",
+      "bytes": 29175808,
+      "sha256": "C806EFA0190D02A2BD0A5E3D487A4BF7FEA5849073BFCDD10DE84CE0CBB5B2CD"
+    },
+    {
+      "name": "DxUi.FoundationTests.exe",
+      "bytes": 11308032,
+      "sha256": "8AD41AFEEDBF791650AC18CF26860F5713A3C1EEB76541D5570E6C2236FCA4F0"
+    },
+    {
+      "name": "DxUi.FoundationTests.pdb",
+      "bytes": 24047616,
+      "sha256": "991059E808DF467654F5885AFD924794C8884C5EF35500F12C337C4C34C3630C"
+    },
+    {
+      "name": "DxUi.InteractiveLease.exe",
+      "bytes": 2438656,
+      "sha256": "A67B2C140D650F299387415474E9076E4EFE4D112F1A7C8CBFB6F966CB7FFABC"
+    },
+    {
+      "name": "DxUi.InteractiveLease.pdb",
+      "bytes": 6828032,
+      "sha256": "E9F761C139ED3B2571FFC486AE6CEE6B276FD10E7C11DD1038DB48CEA146E237"
+    },
+    {
+      "name": "DxUi.lib",
+      "bytes": 92942550,
+      "sha256": "A06B465056B3D7ED35046E1CE0006584E55EEE18C7937CFEC4B3590F39CB9347"
+    },
+    {
+      "name": "DxUi.pdb",
+      "bytes": 8138752,
+      "sha256": "3C32B6A01B09A0614F19AEE656BA332E9B8355FCB863BDE7DF2ADD662BEE003E"
+    }
+  ],
+  "source": "a8cb8e1d7a4106750b195e6e8f2f686d66be9075"
+}

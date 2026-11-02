@@ -1,0 +1,1 @@
+- Accept revision-guarded rich text annotations before layout and publish their eventual geometry admission through the existing status.

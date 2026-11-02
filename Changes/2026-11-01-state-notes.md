@@ -1,0 +1,1 @@
+- Render bounded one-line Mermaid state notes on their requested side with accessible descriptions.

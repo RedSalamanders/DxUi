@@ -1,0 +1,1379 @@
+{
+  "source": "1fea2221e3dc3f94223b382dc1b08f6efdbe6a12",
+  "scope": "112 original IDs; source disposition only. Final integrated runtime pending; local gaps are not external deferrals.",
+  "items": [
+    {
+      "id": "images-clipboard-01",
+      "title": "Scheme-relative Markdown destination //host/share/x.png becomes a UNC file request",
+      "outcome": "challenged",
+      "reason": "Refuted as library-wide prohibition: UNC is caller policy; `RichImageLoader.h:30,235` defaults off, `Controls.Tests.RichTextInput.cpp:606–654` checks rejection before I/O.",
+      "currentPaths": [
+        "Samples/EmbeddedControls/RichImageLoader.h",
+        "Tests/Controls/Controls.Tests.RichTextInput.cpp"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "images-clipboard-02",
+      "title": "docs/rich-text.md intro still says images show only alt text and display is future M5g work",
+      "outcome": "fixed/source addressed",
+      "reason": "Inert export and native image presentation are separate contracts; `docs/rich-text.md` native-image section describes the latter. 64736fec updates stale M5 introduction.",
+      "currentPaths": [
+        "docs/rich-text.md",
+        "src/Controls/DxUi.RichImage.cpp",
+        "Tests/Support/Support.Tests.RichImage.h"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "images-clipboard-03",
+      "title": "RichImageResources::Take has a dead guard and a redundant clear/swap pattern",
+      "outcome": "challenged",
+      "reason": "Dead nested guard and clear/swap duplication in `RichImageResources.h:283–301` remain cleanup; any rewrite must preserve atomic publication/cancel ownership. No observed functional error.",
+      "currentPaths": [
+        "src/Controls/DxUi.RichImageResources.h",
+        "src/Controls/DxUi.RichImage.cpp",
+        "Tests/Support/Support.Tests.RichImage.h",
+        "Tests/Support/Support.Tests.RichImageResources.h"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "images-clipboard-04",
+      "title": "Per-file clipboard validation and Markdown label-escape predicate are duplicated",
+      "outcome": "challenged",
+      "reason": "Duplicate validation and escaping in `RichTextEditor.cpp` remain factoring; no demonstrated divergent input behavior.",
+      "currentPaths": [
+        "src/Controls/DxUi.RichTextEditor.cpp",
+        "src/Controls/DxUi.RichImage.cpp",
+        "Tests/Support/Support.Tests.RichImage.h",
+        "Tests/Support/Support.Tests.RichImagePaths.h"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "images-clipboard-05",
+      "title": "A clipboard path with 512+ components throws past the documented quoted-literal fallback; native paste is silently dropped",
+      "outcome": "fixed/source addressed",
+      "reason": "Bounded deep-path fallback is integrated; final integrated runtime qualification is separate.",
+      "currentPaths": [
+        "src/Controls/DxUi.RichImagePaths.h",
+        "src/Controls/DxUi.RichImage.cpp",
+        "Tests/Support/Support.Tests.RichImage.h",
+        "Tests/Support/Support.Tests.RichImagePaths.h"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "images-clipboard-06",
+      "title": "ClipboardCalls() references the diagnostics-only seam without the DXUI\\_ENABLE\\_DIAGNOSTICS guard",
+      "outcome": "challenged",
+      "reason": "The diagnostics seam is defined by the supported build profile; forcing an unsupported macro-off configuration does not establish a supported-build defect.",
+      "currentPaths": [
+        "src/Controls/TextClipboard.cpp",
+        "src/Controls/DxUi.RichImage.cpp",
+        "Tests/Support/Support.Tests.RichImage.h",
+        "src/Controls/DxUi.RichImageResources.h"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "images-clipboard-07",
+      "title": "JPEG EXIF orientation query path (/app1/ifd/{ushort=274}) is never exercised by tests",
+      "outcome": "fixed/source addressed",
+      "reason": "Actual JPEG APP1 orientation six fixture reads the WIC metadata tag and checks rotated dimensions and pixels against independently decoded unoriented JPEG baseline; TIFF covers eight orientations.",
+      "currentPaths": [
+        "src/Controls/DxUi.RichImage.cpp",
+        "Tests/Support/Support.Tests.RichImage.h"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "images-clipboard-08",
+      "title": "RichImageLoader duplicates the results compaction/accounting block in DiscardCancelled and Drain",
+      "outcome": "challenged",
+      "reason": "`DiscardCancelled`/`Drain` compaction duplication is optional cleanup, not proof of incorrect accounting; preserve queue lock and ownership.",
+      "currentPaths": [
+        "Samples/EmbeddedControls/RichImageLoader.h",
+        "src/Controls/DxUi.RichImage.cpp",
+        "Tests/Support/Support.Tests.RichImage.h",
+        "src/Controls/DxUi.RichImageResources.h",
+        "Tests/Support/Support.Tests.RichImageResources.h"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "images-clipboard-09",
+      "title": "Decode pipeline makes up to four 16 MiB transient copies per image (owned stream copy, unconditional Orient copy)",
+      "outcome": "fixed/source addressed",
+      "reason": "Identity EXIF avoids second pixel buffer; paired evidence records 9 to 7 allocations and 2.1 MB to 1.05 MB with identical pixels.",
+      "currentPaths": [
+        "src/Controls/DxUi.RichImage.cpp",
+        "Tests/Support/Support.Tests.RichImage.h"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "images-clipboard-10",
+      "title": "GPU image bitmaps are re-uploaded on every width/typography geometry rebuild although target and pixels are unchanged",
+      "outcome": "fixed/source addressed",
+      "reason": "Width reflow reuses completed raster bitmaps when image identity and target/epoch match. Embedded fixture checks no upload or tile copy and compares reflow pixels with independent fresh geometry.",
+      "currentPaths": [
+        "src/Controls/DxUi.RichSemanticGeometry.cpp",
+        "Tests/Embedded/Embedded.Tests.RichImageFailures.h"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "images-clipboard-11",
+      "title": "ResolveLocalImagePath re-normalises the already-canonical document base for every relative image candidate",
+      "outcome": "challenged",
+      "reason": "Relative candidate normalizes canonical document base repeatedly in `RichImagePaths.h:352`; bounded optimization proposal, with no measured benefit or cache invalidation proof.",
+      "currentPaths": [
+        "src/Controls/DxUi.RichImagePaths.h",
+        "src/Controls/DxUi.RichImage.cpp",
+        "Tests/Support/Support.Tests.RichImage.h"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "images-clipboard-12",
+      "title": "ComposeGifCanvas refills an already zero-initialised canvas and can use a single pattern fill",
+      "outcome": "challenged",
+      "reason": "GIF canvas is zero-initialized then filled (`RichImage.cpp:149–151`); preserve nonzero background behavior; optimization proposal without measured benefit.",
+      "currentPaths": [
+        "src/Controls/DxUi.RichImage.cpp",
+        "Tests/Support/Support.Tests.RichImage.h"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "images-clipboard-13",
+      "title": "A NativeObjectCapacity rejection clears all retained decoded images, forcing full re-decode on retry",
+      "outcome": "fixed/source addressed",
+      "reason": "Editor routes native object rejections through rejectNativeObjects for local math/diagram fallback; the shared native and embedded diagram-width case checks exact source, history and recovery. Mixed 128-object admission and geometry fixture admits two formulas, one diagram and 125 image placements, preserves the excess image alternative, and reflows without a new image request. This tests supported bounded admission; it does not force malformed over-capacity resource snapshots.",
+      "currentPaths": [
+        "src/Controls/DxUi.RichTextEditor.cpp",
+        "src/Controls/DxUi.RichSemanticGeometry.cpp",
+        "Tests/Support/Support.Tests.SemanticDiagrams.h",
+        "Tests/Support/Support.Tests.RichImageResources.h",
+        "Tests/Embedded/Embedded.Tests.RichImageFailures.h",
+        "Tests/Controls/Controls.Tests.RichTextEditor.cpp",
+        "Tests/Embedded/Embedded.Tests.RichTextResources.h"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "images-clipboard-14",
+      "title": "Statistics() reports cancelled in-flight sources as failedSources",
+      "outcome": "fixed/source addressed",
+      "reason": "Fixed f595acd3: explicit failed bit distinguishes cancel/suspend; shared pending, failure and editor stats tests; matched R23 producer-TU embedded test passed. Final integrated run remains.",
+      "currentPaths": [
+        "src/Controls/DxUi.RichImageResources.h",
+        "src/Controls/DxUi.RichImage.cpp",
+        "Tests/Support/Support.Tests.RichImage.h",
+        "Tests/Support/Support.Tests.RichImageResources.h"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "images-clipboard-15",
+      "title": "Unexpected EXIF Orientation VARIANT type or metadata read error rejects an otherwise decodable JPEG/TIFF",
+      "outcome": "fixed/source addressed",
+      "reason": "Fixed 7397f30c: malformed orientation metadata ignored except OOM; real WIC TIFF before/after case passed. Exact WIC OOM injection not run.",
+      "currentPaths": [
+        "src/Controls/DxUi.RichImage.cpp",
+        "Tests/Support/Support.Tests.RichImage.h"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "images-clipboard-16",
+      "title": "Sample loader's default 'declines UNC access' policy is purely lexical and the guide does not say so",
+      "outcome": "fixed/source addressed",
+      "reason": "64736fec documents default sample UNC refusal as lexical application policy, not network security boundary.",
+      "currentPaths": [
+        "Samples/EmbeddedControls/RichImageLoader.h",
+        "src/Controls/DxUi.RichImage.cpp",
+        "Tests/Support/Support.Tests.RichImage.h",
+        "docs/rich-text.md"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "images-clipboard-17",
+      "title": "Failed sources are not remembered across semantic documents, so every edit re-issues the failing file request",
+      "outcome": "fixed/source addressed",
+      "reason": "Negative cache across unrelated edits tested `Support.Tests.RichImageResources.h:455–460`; final run remains.",
+      "currentPaths": [
+        "src/Controls/DxUi.RichImageResources.h",
+        "src/Controls/DxUi.RichImage.cpp",
+        "Tests/Support/Support.Tests.RichImage.h",
+        "Tests/Support/Support.Tests.RichImageResources.h"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "accessibility-01",
+      "title": "noexcept TextRange COM methods call allocating helpers without a handler (terminate on bad\\_alloc)",
+      "outcome": "fixed/source addressed",
+      "reason": "Range methods have named bad_alloc boundaries and TextPattern allocation failure schedule",
+      "currentPaths": [
+        "src/Controls/DxUi.Accessibility.cpp",
+        "Tests/Embedded/Embedded.Tests.RichTextResources.h",
+        "src/Controls/DxUi.RichAccessibility.h",
+        "Tests/Controls/Controls.Tests.RichTextAccessibility.cpp"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "accessibility-02",
+      "title": "Every range navigation/compare copies the full source (128 KiB per call at the cap)",
+      "outcome": "challenged",
+      "reason": "Compare is metadata-only; ResolveText still copies on navigation. Universal zero-copy is unimplemented and needs measured justification preserving snapshot ownership",
+      "currentPaths": [
+        "src/Controls/DxUi.Accessibility.cpp",
+        "Tests/Embedded/Embedded.Tests.RichTextResources.h",
+        "src/Controls/DxUi.RichAccessibility.h",
+        "Tests/Controls/Controls.Tests.RichTextAccessibility.cpp"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "accessibility-03",
+      "title": "GetAttributeValue/FindAttribute scan SourceRuns from index 0 despite an existing lower\\_bound helper",
+      "outcome": "fixed/source addressed",
+      "reason": "Source-run lookups use lower_bound; not every annotation query is claimed indexed",
+      "currentPaths": [
+        "src/Controls/DxUi.Accessibility.cpp",
+        "Tests/Embedded/Embedded.Tests.RichTextResources.h",
+        "src/Controls/DxUi.RichAccessibility.h",
+        "Tests/Controls/Controls.Tests.RichTextAccessibility.cpp"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "accessibility-04",
+      "title": "Stale-publication null from RichSemanticElementProvider::Create is reported as E\\_OUTOFMEMORY",
+      "outcome": "fixed/source addressed",
+      "reason": "Retired UIA child and allocation failures now return different HRESULTs; race test source added",
+      "currentPaths": [
+        "src/Controls/DxUi.RichAccessibility.h",
+        "src/Controls/DxUi.Accessibility.cpp",
+        "Tests/Embedded/Embedded.Tests.RichTextResources.h",
+        "Tests/Controls/Controls.Tests.RichTextAccessibility.cpp"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "accessibility-05",
+      "title": "RichSemanticElementProvider repeats the same capture/record/role prologue in 15 methods",
+      "outcome": "challenged",
+      "reason": "Provider prologue factoring optional given lifetime contract",
+      "currentPaths": [
+        "src/Controls/DxUi.RichAccessibility.h",
+        "src/Controls/DxUi.Accessibility.cpp",
+        "Tests/Embedded/Embedded.Tests.RichTextResources.h",
+        "Tests/Controls/Controls.Tests.RichTextAccessibility.cpp"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "accessibility-06",
+      "title": "Triplicated foreign-thread Line dispatch blocks and helper trios in AccessibilityTextRangeProvider",
+      "outcome": "challenged",
+      "reason": "Dispatch factoring optional: native owner dispatch and embedded wrong-thread semantics differ",
+      "currentPaths": [
+        "src/Controls/DxUi.Accessibility.cpp",
+        "Tests/Embedded/Embedded.Tests.RichTextResources.h",
+        "src/Controls/DxUi.RichAccessibility.h",
+        "Tests/Controls/Controls.Tests.RichTextAccessibility.cpp"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "accessibility-07",
+      "title": "Duplicate ResolveControl/ResolveMutableControl, forwarding header, and bare runtime-id literal",
+      "outcome": "challenged",
+      "reason": "Forwarder and naming cleanup optional",
+      "currentPaths": [
+        "src/Controls/DxUi.Accessibility.cpp",
+        "Tests/Embedded/Embedded.Tests.RichTextResources.h",
+        "src/Controls/DxUi.RichAccessibility.h",
+        "Tests/Controls/Controls.Tests.RichTextAccessibility.cpp"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "accessibility-08",
+      "title": "Rich font-family read throws wil::ResultException inside a publish path whose embedded caller catches only bad\\_alloc",
+      "outcome": "invalid",
+      "reason": "Original missing exception boundary refuted; SDK HRESULT injection covers publication failure and recovery",
+      "currentPaths": [
+        "src/Controls/DxUi.Accessibility.cpp",
+        "Tests/Embedded/Embedded.Tests.RichTextResources.h",
+        "src/Controls/DxUi.RichAccessibility.h",
+        "Tests/Controls/Controls.Tests.RichTextAccessibility.cpp"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "accessibility-09",
+      "title": "Snapshot build re-validates acknowledgment per semantic element when collecting bounds",
+      "outcome": "fixed/source addressed",
+      "reason": "Rich owner captured once per snapshot rather than per element",
+      "currentPaths": [
+        "src/Controls/DxUi.Accessibility.cpp",
+        "Tests/Embedded/Embedded.Tests.RichTextResources.h",
+        "src/Controls/DxUi.RichAccessibility.h",
+        "Tests/Controls/Controls.Tests.RichTextAccessibility.cpp"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "accessibility-10",
+      "title": "No allocation-failure sweep covers TextPattern range commands",
+      "outcome": "fixed/source addressed",
+      "reason": "Direct observed-allocation TextPattern schedule added",
+      "currentPaths": [
+        "src/Controls/DxUi.Accessibility.cpp",
+        "Tests/Embedded/Embedded.Tests.RichTextResources.h",
+        "src/Controls/DxUi.RichAccessibility.h",
+        "Tests/Controls/Controls.Tests.RichTextAccessibility.cpp"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "host-integration-01",
+      "title": "Embedded clipboard paste rewrites CRLF to LF for RichTextEditor while the native host inserts exact clipboard bytes",
+      "outcome": "fixed/source addressed",
+      "reason": "Embedded text clipboard adapter preserves mixed CRLF, CR and LF spelling and undo selection; a directed test drives the real adapter. Native clipboard and OLE transport fixtures are separate; integrated runtime remains pending.",
+      "currentPaths": [
+        "src/Controls/TextInputServices.cpp",
+        "Tests/Controls/Controls.Tests.RichTextInput.cpp"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "host-integration-02",
+      "title": "Hiding, zero-sizing or replacing the device on an EmbeddedHost drops logical keyboard focus; the native host keeps it",
+      "outcome": "fixed/source addressed",
+      "reason": "Fixed 1130fc7b/45e5d680/c49291bb: suspend surface input without losing logical focus; fresh guarded session on restore; public Cancel still clears focus. Matched R23 no-activate embedded hide/zero/device/stale-receipt test passed; final native/embedded integrated run remains.",
+      "currentPaths": [
+        "src/Rendering/Embedded.cpp",
+        "Tests/Embedded/Embedded.Tests.Embedded.cpp",
+        "include/DxUi/Embedded.h"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "host-integration-03",
+      "title": "Sample refreshes the TSF client on every message, re-copying the whole document ~30 times per WM\\_MOUSEMOVE",
+      "outcome": "fixed/source addressed",
+      "reason": "Sample 9ad92f45 removes unconditional message/pump refresh; source-frozen sample no-activate capture passed.",
+      "currentPaths": [
+        "Samples/EmbeddedControls/Main.cpp",
+        "src/Rendering/Embedded.cpp",
+        "Tests/Embedded/Embedded.Tests.Embedded.cpp",
+        "include/DxUi/Embedded.h"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "host-integration-04",
+      "title": "Content-preparation failures and benign incomplete layouts both surface as E\\_ABORT with no wakeup, and the sample treats E\\_ABORT as fatal",
+      "outcome": "fixed/source addressed",
+      "reason": "`Embedded.cpp` distinguishes pending S_FALSE and failures; public `Embedded.h` documents pending; sample handles superseded E_ABORT. Final run remains.",
+      "currentPaths": [
+        "src/Rendering/Embedded.cpp",
+        "Tests/Embedded/Embedded.Tests.Embedded.cpp",
+        "include/DxUi/Embedded.h"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "host-integration-05",
+      "title": "EmbeddedHost::ReadTextInput performs a full side-effecting session sync on every read, including TSF geometry queries",
+      "outcome": "challenged",
+      "reason": "ReadTextInput still performs session synchronization on each read; revision caching is an unmeasured proposal that must account for independently changed control state and notification order.",
+      "currentPaths": [
+        "src/Rendering/Embedded.cpp",
+        "Tests/Embedded/Embedded.Tests.Embedded.cpp",
+        "include/DxUi/Embedded.h"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "host-integration-06",
+      "title": "TextClipboardPasteTransform is discovered by dynamic\\_cast on the TextInputClient, which no header or doc states",
+      "outcome": "fixed/source addressed",
+      "reason": "64736fec states optional transform must be mixed into the same client object as SetClient; matches dynamic_cast in TextInputServices.",
+      "currentPaths": [
+        "src/Controls/TextInputServices.cpp",
+        "src/Rendering/Embedded.cpp",
+        "Tests/Embedded/Embedded.Tests.Embedded.cpp",
+        "include/DxUi/Embedded.h"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "host-integration-07",
+      "title": "Prepare unbinds the application's render targets and PS shader resource slot 0 on the immediate context, undocumented",
+      "outcome": "fixed/source addressed",
+      "reason": "Current embedded Prepare contract documents immediate context mutation.",
+      "currentPaths": [
+        "src/Rendering/Embedded.cpp",
+        "Tests/Embedded/Embedded.Tests.Embedded.cpp",
+        "include/DxUi/Embedded.h"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "host-integration-08",
+      "title": "Public Prepare/docs list S\\_FALSE meanings without the cooperative 'content pending' case",
+      "outcome": "fixed/source addressed",
+      "reason": "Cooperative pending S_FALSE is documented in `Embedded.h:146` and handled in sample; final host run remains.",
+      "currentPaths": [
+        "include/DxUi/Embedded.h",
+        "src/Rendering/Embedded.cpp",
+        "Tests/Embedded/Embedded.Tests.Embedded.cpp"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "host-integration-09",
+      "title": "Hide handling is split between Control::OnHidden (embedded) and ControlHost::CancelPreparedContent (native), duplicating RichTextEditor logic",
+      "outcome": "challenged",
+      "reason": "Native/embedded lifecycle factoring is optional; focus and cancellation ownership differ. No claim one generic helper exists.",
+      "currentPaths": [
+        "src/Rendering/Embedded.cpp",
+        "Tests/Embedded/Embedded.Tests.Embedded.cpp",
+        "include/DxUi/Embedded.h"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "host-integration-10",
+      "title": "Duplicated text-state validators and 65,536 literals across EmbeddedHost and TextInputServices",
+      "outcome": "challenged",
+      "reason": "Duplicate validators remain optional cross-layer factoring; preserve independent ABI/lifetime validation.",
+      "currentPaths": [
+        "src/Rendering/Embedded.cpp",
+        "Tests/Embedded/Embedded.Tests.Embedded.cpp",
+        "include/DxUi/Embedded.h"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "host-integration-11",
+      "title": "Sample never dispatches PointerAction::Leave, so hover state sticks when the mouse leaves the window",
+      "outcome": "fixed/source addressed",
+      "reason": "Sample 9ad92f45 tracks and dispatches owned mouse leave; source-frozen no-activate capture passed; hidden proof is not live pointer-leave qualification.",
+      "currentPaths": [
+        "Samples/EmbeddedControls/Main.cpp",
+        "src/Rendering/Embedded.cpp",
+        "Tests/Embedded/Embedded.Tests.Embedded.cpp",
+        "include/DxUi/Embedded.h"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "host-integration-12",
+      "title": "Sample publishes TSF layout only after a successful Prepare, never when the window moves on screen",
+      "outcome": "fixed/source addressed",
+      "reason": "Sample 9ad92f45 publishes layout on window position changes; hidden proof checks routing, not an actual live TSF sink callback.",
+      "currentPaths": [
+        "Samples/EmbeddedControls/Main.cpp",
+        "src/Rendering/Embedded.cpp",
+        "Tests/Embedded/Embedded.Tests.Embedded.cpp",
+        "include/DxUi/Embedded.h"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "host-integration-13",
+      "title": "EmbeddedControls README claims fixed 96-DPI canvases while the text/rich modes use per-monitor DPI",
+      "outcome": "fixed/source addressed",
+      "reason": "64736fec limits 96-DPI assertion to deterministic captures; live sample uses per-monitor DPI.",
+      "currentPaths": [
+        "Samples/EmbeddedControls/README.md",
+        "src/Rendering/Embedded.cpp",
+        "Tests/Embedded/Embedded.Tests.Embedded.cpp",
+        "include/DxUi/Embedded.h"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "host-integration-14",
+      "title": "RichImageLoader::Drain(std::vector&) is an unused allocating overload",
+      "outcome": "challenged",
+      "reason": "Vector Drain overload is used by tests; removing it as unused is unsupported.",
+      "currentPaths": [
+        "Samples/EmbeddedControls/RichImageLoader.h",
+        "src/Rendering/Embedded.cpp",
+        "Tests/Embedded/Embedded.Tests.Embedded.cpp",
+        "include/DxUi/Embedded.h"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "host-integration-15",
+      "title": "Sample hard-codes reducedMotion and never services NeedsAnimation/AdvanceAnimation, so the rich caret never blinks and NeedsAnimation stays latched",
+      "outcome": "fixed/source addressed",
+      "reason": "Sample `Main.cpp:287–299` services NeedsAnimation/AdvanceAnimation; fixed reduced motion is an intentional deterministic sample setting. Embedded animation lifecycle cases in `Embedded.Tests.Embedded.cpp:505–534,2312–2326`.",
+      "currentPaths": [
+        "Samples/EmbeddedControls/EmbeddedScene.h",
+        "src/Rendering/Embedded.cpp",
+        "Tests/Embedded/Embedded.Tests.Embedded.cpp",
+        "include/DxUi/Embedded.h",
+        "Samples/SdkSmoke/Main.cpp",
+        "Samples/EmbeddedControls/Main.cpp"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "status-truth-02",
+      "title": "docs/rich-text.md and the plan still say images show only alt text while native image rendering is implemented and documented later in the same file",
+      "outcome": "fixed/source addressed",
+      "reason": "Native image docs and inert-export behavior are separate; stale introduction corrected by 64736fec.",
+      "currentPaths": [
+        "docs/rich-text.md",
+        "include/DxUi/RichMath.h",
+        "Specs/UI/UI_ControlsAndLayout.md"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "status-truth-03",
+      "title": "dxui-family-matrix.json pins stateDiagram/classDiagram as unsupported-family while the parser, tests, spec and docs treat them as bounded supported profiles",
+      "outcome": "fixed/source addressed",
+      "reason": "State/class entries identify the bounded implemented profile; generator and corpus expectations accompany the profile rather than implying universal Mermaid support.",
+      "currentPaths": [
+        "ThirdParty/Markdown/mermaid-11.4.1/dxui-family-matrix.json",
+        "docs/rich-text.md",
+        "include/DxUi/RichMath.h",
+        "Specs/UI/UI_ControlsAndLayout.md"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "status-truth-06",
+      "title": "\\\\epsilon/\\\\varepsilon and \\\\phi/\\\\varphi map to the swapped Unicode glyphs",
+      "outcome": "fixed/source addressed",
+      "reason": "Epsilon/phi mappings and distinct variants covered in MathCorpus; no general swap remains.",
+      "currentPaths": [
+        "src/Controls/DxUi.NativeMath.cpp",
+        "docs/rich-text.md",
+        "include/DxUi/RichMath.h",
+        "Specs/UI/UI_ControlsAndLayout.md"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "status-truth-07",
+      "title": "Normative flowchart contract still says the native diagram layers are unqualified and MUST NOT be reported as rendered",
+      "outcome": "fixed/source addressed",
+      "reason": "Normative controls spec describes bounded native profile, not full browser or Mermaid parity.",
+      "currentPaths": [
+        "Specs/UI/UI_ControlsAndLayout.md",
+        "docs/rich-text.md",
+        "include/DxUi/RichMath.h"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "status-truth-08",
+      "title": "README.md says structural/style UIA is pending although M4f is closed and listed as a supported capability",
+      "outcome": "fixed/source addressed",
+      "reason": "README structural/style UIA text updated; current source is not final physical AT qualification.",
+      "currentPaths": [
+        "README.md",
+        "docs/rich-text.md",
+        "include/DxUi/RichMath.h",
+        "Specs/UI/UI_ControlsAndLayout.md"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "status-truth-09",
+      "title": "docs/rich-text.md contradicts itself on Mermaid families and describes a gallery tile that no longer exists",
+      "outcome": "fixed/source addressed",
+      "reason": "64736fec corrects family/gallery prose.",
+      "currentPaths": [
+        "docs/rich-text.md",
+        "include/DxUi/RichMath.h",
+        "Specs/UI/UI_ControlsAndLayout.md"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "status-truth-12",
+      "title": "Plan checkboxes M5c and M5a.3 are open while capabilities.json, docs and the gallery present native math as supported",
+      "outcome": "challenged",
+      "reason": "Open plan gates legitimately include broader target and final qualification; capability means bounded implemented subset, not all plan acceptance.",
+      "currentPaths": [
+        "Specs/Plans/WIP/RichTextEditor_2026-10-17.md",
+        "docs/rich-text.md",
+        "include/DxUi/RichMath.h",
+        "Specs/UI/UI_ControlsAndLayout.md"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "status-truth-01",
+      "title": "DxUiMath1-target.json declares math parser/rendering not implemented and pins limits that contradict the shipped code",
+      "outcome": "fixed/source addressed",
+      "reason": "Current RichMath.h gives bounded profile limits; broader target is a separate goal.",
+      "currentPaths": [
+        "ThirdParty/Markdown/profiles/DxUiMath1-target.json",
+        "docs/rich-text.md",
+        "include/DxUi/RichMath.h",
+        "Specs/UI/UI_ControlsAndLayout.md"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "status-truth-04",
+      "title": "Commands the pinned math target lists as required are rejected by ParseMath, and \\\\limits/\\\\nolimits are silently discarded",
+      "outcome": "fixed/source addressed",
+      "reason": "MathLimits is represented in `RichMath.h:81`; `Support.Tests.MathCorpus.h:74,85,93,113–115` tests admitted and invalid modifier forms. Exact pinned-target command coverage and final run remain.",
+      "currentPaths": [
+        "ThirdParty/Markdown/profiles/DxUiMath1-target.json",
+        "docs/rich-text.md",
+        "include/DxUi/RichMath.h",
+        "Specs/UI/UI_ControlsAndLayout.md",
+        "Tests/Support/Support.Tests.MathCorpus.h"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "status-truth-05",
+      "title": "Pinned math envelope rules (own-line display math, '''math/latex fences) do not match the implemented inline recognizer",
+      "outcome": "fixed/source addressed",
+      "reason": "Own-line and fenced math source ownership implemented in shared semantic tests; final native/embedded run remains.",
+      "currentPaths": [
+        "ThirdParty/Markdown/profiles/DxUiMath1-target.json",
+        "docs/rich-text.md",
+        "include/DxUi/RichMath.h",
+        "Specs/UI/UI_ControlsAndLayout.md"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "status-truth-10",
+      "title": "ThirdParty/Markdown/README.md says the flowchart profile and the native math parser/layout \"remain M5 work\"",
+      "outcome": "fixed/source addressed",
+      "reason": "64736fec corrects ThirdParty/Markdown README M5 future tense.",
+      "currentPaths": [
+        "ThirdParty/Markdown/README.md",
+        "docs/rich-text.md",
+        "include/DxUi/RichMath.h",
+        "Specs/UI/UI_ControlsAndLayout.md"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "status-truth-11",
+      "title": "Design-system guideline promises F2 source access for native mathematics, but the editor only enters code/HTML/metadata/footnote blocks",
+      "outcome": "fixed/source addressed",
+      "reason": "Math F2 owner and source editing tests in `Support.Tests.RichSemanticEditor.h`; physical/consumer qualification separate.",
+      "currentPaths": [
+        "Specs/DesignSystem/components/RichTextEditor/README.md",
+        "docs/rich-text.md",
+        "include/DxUi/RichMath.h",
+        "Specs/UI/UI_ControlsAndLayout.md",
+        "Tests/Support/Support.Tests.RichSemanticEditor.h"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "status-truth-13",
+      "title": "Spec footnote and M3 sections still say footer rendering/navigation and all RichMarkdown extensions are future gates",
+      "outcome": "fixed/source addressed",
+      "reason": "64736fec reconciles M3 and footnote prose.",
+      "currentPaths": [
+        "Specs/UI/UI_ControlsAndLayout.md",
+        "docs/rich-text.md",
+        "include/DxUi/RichMath.h"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "status-truth-14",
+      "title": "Input/accessibility contract still says semantic UIA children and format attributes remain open in M4",
+      "outcome": "fixed/source addressed",
+      "reason": "64736fec corrects semantic UIA and format attribute stale sentence.",
+      "currentPaths": [
+        "Specs/UI/UI_InputAndAccessibility.md",
+        "docs/rich-text.md",
+        "include/DxUi/RichMath.h",
+        "Specs/UI/UI_ControlsAndLayout.md"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "status-truth-15",
+      "title": "RichMath.h limit comment (16x16 cells, 24 nesting levels) does not match the enforced 128-cell cap and tree-depth check",
+      "outcome": "fixed/source addressed",
+      "reason": "`RichMath.h:10–18` declares current 64 group depth, 1024 matrix cells and independent node-depth cap.",
+      "currentPaths": [
+        "docs/rich-text.md",
+        "include/DxUi/RichMath.h",
+        "Specs/UI/UI_ControlsAndLayout.md"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "status-truth-16",
+      "title": "NativeFlowchartParser::Preparation::Statement is 165 lines with the direction parser duplicated",
+      "outcome": "challenged",
+      "reason": "Splitting/deduplicating NativeFlowchartParser Statement is optional factoring, not a demonstrated diagnostic defect.",
+      "currentPaths": [
+        "src/Controls/DxUi.NativeFlowchart.cpp",
+        "docs/rich-text.md",
+        "include/DxUi/RichMath.h",
+        "Specs/UI/UI_ControlsAndLayout.md"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "status-truth-17",
+      "title": "State alias and class relation errors are classified with the wrong diagnostic/outcome",
+      "outcome": "fixed/source addressed",
+      "reason": "`Support.Tests.MarkdownBlocks.h:600,742–765` pins state/class independent outcomes and source ranges; final corpus remains.",
+      "currentPaths": [
+        "src/Controls/DxUi.NativeFlowchart.cpp",
+        "docs/rich-text.md",
+        "include/DxUi/RichMath.h",
+        "Specs/UI/UI_ControlsAndLayout.md",
+        "Tests/Support/Support.Tests.MarkdownBlocks.h"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "status-truth-18",
+      "title": "The math/diagram section is pasted verbatim into the normative spec, including usage-guide prose",
+      "outcome": "challenged",
+      "reason": "Duplicate usage-style material is editorial; authority and consistent bounded contract matter, but removing one copy alone is not an implementation.",
+      "currentPaths": [
+        "Specs/UI/UI_ControlsAndLayout.md",
+        "docs/rich-text.md",
+        "include/DxUi/RichMath.h"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "status-truth-19",
+      "title": "capabilities.json advertises the state/class Mermaid preview but has no entry for the earlier native flowchart preview",
+      "outcome": "challenged",
+      "reason": "Existing stable `bounded-native-mermaid-state-class-preview` capability describes flowchart and other families; separate flowchart alias is absent. Adding a stable public ID is a compatibility decision, not implemented.",
+      "currentPaths": [
+        "capabilities.json",
+        "docs/rich-text.md",
+        "include/DxUi/RichMath.h",
+        "Specs/UI/UI_ControlsAndLayout.md"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "status-truth-20",
+      "title": "MathNode/MathExpression and FlowchartNode/FlowchartEdge suppress implicit moves by defaulting the copy operations, forcing deep copies in the parsers",
+      "outcome": "fixed/source addressed",
+      "reason": "Explicit move constructors now exist for MathExpression (`RichMath.h:133`); fallible Debug proxy allocation and ownership must be preserved. No blanket claim all diagram copies eliminated.",
+      "currentPaths": [
+        "docs/rich-text.md",
+        "include/DxUi/RichMath.h",
+        "Specs/UI/UI_ControlsAndLayout.md"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "status-truth-21",
+      "title": "Published gallery provenance records a dirty worktree, so the math/diagram sheets cannot be reproduced from the recorded commit",
+      "outcome": "local gap",
+      "reason": "Retained gallery provenance identifies its original source, not current candidate; current capture remains separate qualification.",
+      "currentPaths": [
+        "docs/gallery/generation.json",
+        "docs/rich-text.md",
+        "include/DxUi/RichMath.h",
+        "Specs/UI/UI_ControlsAndLayout.md"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "tests-engine-01",
+      "title": "ParseMath is only smoke-tested as a bool; no test asserts the MathNode tree",
+      "outcome": "fixed/source addressed",
+      "reason": "AST identity/classes/scripts directly asserted",
+      "currentPaths": [
+        "Tests/Support/Support.Tests.MathCorpus.h",
+        "Tests/Support/Support.Tests.MarkdownBlocks.h"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "tests-engine-02",
+      "title": "Most DxUiMath1-target.json case ids are never exercised and the corpus is not pinned or generated",
+      "outcome": "fixed/source addressed",
+      "reason": "Pinned corpus enumerates 1,135 prepared-or-declined cases, not universal support",
+      "currentPaths": [
+        "ThirdParty/Markdown/profiles/DxUiMath1-target.json",
+        "Tests/Support/Support.Tests.MathCorpus.h",
+        "Tests/Support/Support.Tests.MarkdownBlocks.h"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "tests-engine-03",
+      "title": "State/class diagram grammar has two happy-path bodies with `>=` count oracles and no negative cases",
+      "outcome": "fixed/source addressed",
+      "reason": "State/class typed, malformed and range cases exist",
+      "currentPaths": [
+        "Tests/Support/Support.Tests.MathCorpus.h",
+        "Tests/Support/Support.Tests.MarkdownBlocks.h"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "tests-engine-05",
+      "title": "PreparedMath layout/paint has one geometry test; fraction, root, scripts, accents, delimiters, styles, Draw and capacity are untested",
+      "outcome": "fixed/source addressed",
+      "reason": "Math shape, geometry, fallback and raster fixtures exist",
+      "currentPaths": [
+        "Tests/Support/Support.Tests.MathCorpus.h",
+        "Tests/Support/Support.Tests.MarkdownBlocks.h",
+        "Tests/Controls/Controls.Tests.RichSemanticDocument.cpp"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "tests-engine-06",
+      "title": "Inline math delimiter grammar is largely untested and the HTML test serializer silently drops Math inlines",
+      "outcome": "local gap",
+      "reason": "Inline delimiter and opaque-token tests exist, but MarkdownHtml::Inline lists Math in its tag switch and then falls through to generic child traversal without emitting node.value; the original serializer concern remains.",
+      "currentPaths": [
+        "Tests/Support/Support.Tests.RichSemantic.h",
+        "Tests/Support/Support.Tests.MarkdownHtml.h"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "tests-engine-07",
+      "title": "92 unsupported flowchart corpus examples only check `issue != None`; the JSON `reason` is discarded by the generator",
+      "outcome": "fixed/source addressed",
+      "reason": "Tests assert exact reason, issue and diagnostic",
+      "currentPaths": [
+        "Tests/Support/Support.Tests.MathCorpus.h",
+        "Tests/Support/Support.Tests.MarkdownBlocks.h"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "tests-engine-08",
+      "title": "No UIA or text-service test for SemanticRole::Math objects",
+      "outcome": "fixed/source addressed",
+      "reason": "Actual UIA math name/source/range and editor F2, DPI and bounds cases exist",
+      "currentPaths": [
+        "Tests/Support/Support.Tests.MathCorpus.h",
+        "Tests/Support/Support.Tests.MarkdownBlocks.h",
+        "Tests/Support/Support.Tests.RichSemanticEditor.h",
+        "Tests/Controls/Controls.Tests.RichTextAccessibility.cpp"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "tests-engine-09",
+      "title": "Math capability status is contradictory across the target profile, ThirdParty README, docs and the WIP plan",
+      "outcome": "fixed/source addressed",
+      "reason": "Current docs distinguish bounded profile and broader target",
+      "currentPaths": [
+        "ThirdParty/Markdown/profiles/DxUiMath1-target.json",
+        "Tests/Support/Support.Tests.MathCorpus.h",
+        "Tests/Support/Support.Tests.MarkdownBlocks.h",
+        "docs/rich-text.md"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "tests-engine-10",
+      "title": "No edit/identity/cancellation/capacity-cap tests per math feature; 4096-record and shared 128-object caps untested for math",
+      "outcome": "fixed/source addressed",
+      "reason": "Math and shared object capacity tests exist",
+      "currentPaths": [
+        "src/Controls/DxUi.RichSemanticDocument.cpp",
+        "Tests/Support/Support.Tests.MathCorpus.h",
+        "Tests/Support/Support.Tests.MarkdownBlocks.h",
+        "Tests/Support/Support.Tests.SemanticDiagrams.h"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "tests-engine-04",
+      "title": "dxui-family-matrix.json still marks stateDiagram/classDiagram as unsupported families; test hard-codes the exception",
+      "outcome": "fixed/source addressed",
+      "reason": "Current family matrix records bounded profile",
+      "currentPaths": [
+        "ThirdParty/Markdown/mermaid-11.4.1/dxui-family-matrix.json",
+        "Tests/Support/Support.Tests.MathCorpus.h",
+        "Tests/Support/Support.Tests.MarkdownBlocks.h"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "tests-engine-11",
+      "title": "Twelve near-identical 'advance until complete' helpers, several without a turn bound",
+      "outcome": "challenged",
+      "reason": "Advance helper merger optional given distinct budgets",
+      "currentPaths": [
+        "Tests/Support/Support.Tests.MathCorpus.h",
+        "Tests/Support/Support.Tests.MarkdownBlocks.h"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "tests-engine-12",
+      "title": "DWrite/D2D/WIC raster fixture code duplicated across four Support headers",
+      "outcome": "challenged",
+      "reason": "Raster fixture merger optional given different resource contexts",
+      "currentPaths": [
+        "Tests/Support/Support.Tests.MathCorpus.h",
+        "Tests/Support/Support.Tests.MarkdownBlocks.h"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "tests-engine-13",
+      "title": "Boundary/LCG/Reject helpers re-implemented per file instead of shared",
+      "outcome": "challenged",
+      "reason": "Boundary helper merger optional",
+      "currentPaths": [
+        "Tests/Support/Support.Tests.MathCorpus.h",
+        "Tests/Support/Support.Tests.MarkdownBlocks.h"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "tests-engine-14",
+      "title": "CR/CRLF normalization and entity unescape duplicated inside the block-corpus test instead of using MarkdownHtmlTests::Lines/Escape",
+      "outcome": "challenged",
+      "reason": "Normalization helper merger optional absent proven equivalence",
+      "currentPaths": [
+        "Tests/Support/Support.Tests.MathCorpus.h",
+        "Tests/Support/Support.Tests.MarkdownBlocks.h"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "tests-engine-15",
+      "title": "Loose or count-only oracles: `checked > 560u`, `!name.empty()`, `height > 20`, hard-coded 13/92",
+      "outcome": "challenged",
+      "reason": "Independent atom, geometry, typed/range and endpoint assertions exist; count-only checks are limited",
+      "currentPaths": [
+        "Tests/Support/Support.Tests.MathCorpus.h",
+        "Tests/Support/Support.Tests.MarkdownBlocks.h"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "tests-engine-16",
+      "title": "Three Support test functions exceed 150 lines and bundle unrelated fixtures",
+      "outcome": "challenged",
+      "reason": "Splitting long test bodies is optional",
+      "currentPaths": [
+        "Tests/Support/Support.Tests.MathCorpus.h",
+        "Tests/Support/Support.Tests.MarkdownBlocks.h"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "tests-engine-17",
+      "title": "Stray external-linkage test functions outside the anonymous namespace and literal revisions",
+      "outcome": "challenged",
+      "reason": "Scope and literal revision hygiene optional",
+      "currentPaths": [
+        "Tests/Support/Support.Tests.MathCorpus.h",
+        "Tests/Support/Support.Tests.MarkdownBlocks.h"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "tests-engine-18",
+      "title": "Flowchart layout tests never assert edge endpoints attach to their from/to node boundaries",
+      "outcome": "fixed/source addressed",
+      "reason": "Hand-calculated endpoint and boundary cases exist",
+      "currentPaths": [
+        "Tests/Support/Support.Tests.MathCorpus.h",
+        "Tests/Support/Support.Tests.MarkdownBlocks.h",
+        "Tests/Support/Support.Tests.FlowchartLayout.h"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "tests-engine-19",
+      "title": "Generator summary counts are hard-coded strings and never cross-checked with the data",
+      "outcome": "invalid",
+      "reason": "Original verifier refuted hard-coded generator counter claim",
+      "currentPaths": [
+        "Tools/Generate-MarkdownTestData.ps1",
+        "Tests/Support/Support.Tests.MathCorpus.h",
+        "Tests/Support/Support.Tests.MarkdownBlocks.h",
+        "Tools/tests/Test-MarkdownData.ps1"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "tests-engine-20",
+      "title": "Semantic test Check() calls std::exit(1), bypassing the runner's per-test reporting",
+      "outcome": "invalid",
+      "reason": "Original verifier refuted runner-reporting claim",
+      "currentPaths": [
+        "Tests/Support/Support.Tests.MathCorpus.h",
+        "Tests/Support/Support.Tests.MarkdownBlocks.h",
+        "Tests/Support/Support.Tests.RichSemantic.h"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "tests-engine-21",
+      "title": "Table-cell staging test depends on a magic 6130-turn constant",
+      "outcome": "fixed/source addressed",
+      "reason": "Direct per-cell staging replaces magic turn count, with cancellation and publication case",
+      "currentPaths": [
+        "Tests/Support/Support.Tests.MathCorpus.h",
+        "Tests/Support/Support.Tests.MarkdownBlocks.h",
+        "Tests/Support/Support.Tests.MarkdownCapacity.h"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "tests-engine-22",
+      "title": "Concurrent snapshot tests do not guarantee reader/owner overlap",
+      "outcome": "fixed/source addressed",
+      "reason": "Release/acquire rendezvous coordinates 256 revisions and reads, not proof of simultaneous execution",
+      "currentPaths": [
+        "Tests/Support/Support.Tests.MathCorpus.h",
+        "Tests/Support/Support.Tests.MarkdownBlocks.h",
+        "Tests/Controls/Controls.Tests.RichDocument.cpp"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "tests-engine-23",
+      "title": "Generator error branches (counts, expectation ids, YAML strip) are untested by Test-MarkdownData.ps1",
+      "outcome": "fixed/source addressed",
+      "reason": "Generator fixture tests bad counts, duplicate IDs and outcomes; YAML byte regeneration separately covers strip",
+      "currentPaths": [
+        "Tools/tests/Test-MarkdownData.ps1",
+        "Tests/Support/Support.Tests.MathCorpus.h",
+        "Tests/Support/Support.Tests.MarkdownBlocks.h",
+        "Tools/Generate-MarkdownTestData.ps1"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "tests-engine-24",
+      "title": "Flowchart paint raster oracles cover only rectangle nodes and edge-label interiors",
+      "outcome": "fixed/source addressed",
+      "reason": "Nonrectangular and relationship raster fixtures exist; final fractional DPI/palette qualification separate",
+      "currentPaths": [
+        "Tests/Support/Support.Tests.MathCorpus.h",
+        "Tests/Support/Support.Tests.MarkdownBlocks.h",
+        "Tests/Support/Support.Tests.PreparedFlowchart.h"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "tests-host-01",
+      "title": "Math objects have no retained-editor, UIA, F2/Esc, clipboard, hit-test or DPI coverage",
+      "outcome": "fixed/source addressed",
+      "reason": "Shared math bounds, DPI, F2/Escape and UIA source cases exist; physical AT separate",
+      "currentPaths": [
+        "Tests/Controls/Controls.Tests.RichTextEditor.cpp",
+        "Tests/Embedded/Embedded.Tests.RichTextResources.h",
+        "Tests/Support/Support.Tests.RichSemanticEditor.h",
+        "Tests/Controls/Controls.Tests.RichTextAccessibility.cpp"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "tests-host-02",
+      "title": "Native and embedded editor scenario bodies are duplicated instead of shared (editor, host, prepare, check) templates",
+      "outcome": "challenged",
+      "reason": "Shared host-independent bodies exist; additional factoring optional",
+      "currentPaths": [
+        "Tests/Controls/Controls.Tests.RichTextEditor.cpp",
+        "Tests/Embedded/Embedded.Tests.RichTextResources.h"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "tests-host-03",
+      "title": "Allocation-sweep boilerplate repeated ~35 times across seven embedded headers with inconsistent restore semantics",
+      "outcome": "challenged",
+      "reason": "Allocation injection remains duplicated; scope restoration and scheduling must be preserved",
+      "currentPaths": [
+        "Tests/Controls/Controls.Tests.RichTextEditor.cpp",
+        "Tests/Embedded/Embedded.Tests.RichTextResources.h"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "tests-host-04",
+      "title": "test-consumer.ps1 independent-header compilation omits RichMath.h while Tests/README.md claims all eight public rich-text headers",
+      "outcome": "fixed/source addressed",
+      "reason": "RichMath.h first-include public consumer fixture exists",
+      "currentPaths": [
+        "Tests/README.md",
+        "Tests/Controls/Controls.Tests.RichTextEditor.cpp",
+        "Tests/Embedded/Embedded.Tests.RichTextResources.h",
+        "test-consumer.ps1",
+        "include/DxUi/RichMath.h"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "tests-host-05",
+      "title": "TestRichTextEditorNativeCompatibilityWorkIsReported never checks the reporting it is named for: its fallback branch is unreachable",
+      "outcome": "fixed/source addressed",
+      "reason": "Reachability corrected; native whole-fallback counter test added",
+      "currentPaths": [
+        "Tests/Controls/Controls.Tests.RichTextEditor.cpp",
+        "Tests/Embedded/Embedded.Tests.RichTextResources.h"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "tests-host-06",
+      "title": "DebugGetState chunk counters are the sole oracle for native/embedded geometry reuse; UIA tests are coupled to them",
+      "outcome": "fixed/source addressed",
+      "reason": "Fresh whole-layout geometry parity independently tests host publication",
+      "currentPaths": [
+        "Tests/Controls/Controls.Tests.RichTextEditor.cpp",
+        "Tests/Embedded/Embedded.Tests.RichTextResources.h",
+        "Tests/Support/Support.Tests.RichSemanticEditor.h",
+        "Tests/Embedded/Embedded.Tests.Embedded.cpp"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "tests-host-07",
+      "title": "Negative 'no repaint loop' assertion relies on a 40 ms wall-clock window; polling waits are re-implemented in eight places",
+      "outcome": "challenged",
+      "reason": "Original delayed polling claim refuted; deterministic no-tick assertion remains an improvement",
+      "currentPaths": [
+        "Tests/Controls/Controls.Tests.RichTextEditor.cpp",
+        "Tests/Embedded/Embedded.Tests.RichTextResources.h"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "tests-host-08",
+      "title": "Exhaustive geometry/raster oracles dominate EditorControls time and write 216 PNG files on every passing run",
+      "outcome": "invalid",
+      "reason": "Original performance claim refuted; failure/comparison images remain meaningful",
+      "currentPaths": [
+        "Tests/Controls/Controls.Tests.RichTextEditor.cpp",
+        "Tests/Embedded/Embedded.Tests.RichTextResources.h",
+        "Tests/Controls/Controls.Tests.RichDocumentLayout.cpp"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "tests-host-09",
+      "title": "RunRawLineOrigins is a 228-line diagnostic with one trivial assertion living in the test binary",
+      "outcome": "challenged",
+      "reason": "Diagnostic extraction is optional",
+      "currentPaths": [
+        "Tests/Controls/Controls.Tests.RichTextEditor.cpp",
+        "Tests/Embedded/Embedded.Tests.RichTextResources.h",
+        "Tests/Controls/Controls.Tests.RichDocumentLayout.cpp"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "tests-host-10",
+      "title": "Duplicated UIA tree walkers, screen-point lambdas and foreign-thread dispatch blocks in the accessibility suite",
+      "outcome": "challenged",
+      "reason": "UIA walker consolidation optional across different lifetimes",
+      "currentPaths": [
+        "Tests/Controls/Controls.Tests.RichTextEditor.cpp",
+        "Tests/Embedded/Embedded.Tests.RichTextResources.h"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "tests-host-11",
+      "title": "Three ad-hoc TextClipboard test doubles instead of one fixture in Scope.Tests.ClipboardFixture.h",
+      "outcome": "challenged",
+      "reason": "Distinct legacy, structured and reentrant clipboard doubles; consolidation optional",
+      "currentPaths": [
+        "Tests/Controls/Controls.Tests.RichTextEditor.cpp",
+        "Tests/Embedded/Embedded.Tests.RichTextResources.h"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "tests-host-12",
+      "title": "Hidden test nesting: native dispatch sweep runs inside an embedded test; unrelated sweeps and a pure Document test are embedded in other fixtures",
+      "outcome": "challenged",
+      "reason": "Nesting alone does not establish skipped execution",
+      "currentPaths": [
+        "Tests/Controls/Controls.Tests.RichTextEditor.cpp",
+        "Tests/Embedded/Embedded.Tests.RichTextResources.h"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "tests-host-13",
+      "title": "Several 150-200 line multi-concern test functions block sharing and triage",
+      "outcome": "challenged",
+      "reason": "Long test split optional; shared host templates exist",
+      "currentPaths": [
+        "Tests/Controls/Controls.Tests.RichTextEditor.cpp",
+        "Tests/Embedded/Embedded.Tests.RichTextResources.h"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "tests-host-14",
+      "title": "Test functions defined after the anonymous namespace closes have external linkage; a store-test declaration lives in the wrong header",
+      "outcome": "challenged",
+      "reason": "Linkage cleanup optional with no demonstrated runtime defect",
+      "currentPaths": [
+        "Tests/Controls/Controls.Tests.RichTextEditor.cpp",
+        "Tests/Embedded/Embedded.Tests.RichTextResources.h"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "tests-host-15",
+      "title": "docs/rich-text.md names only three rich test files and never mentions the retained-editor, input, accessibility or embedded resource suites",
+      "outcome": "fixed/source addressed",
+      "reason": "Documentation lists editor, input, accessibility and embedded test owners",
+      "currentPaths": [
+        "docs/rich-text.md",
+        "Tests/Controls/Controls.Tests.RichTextEditor.cpp",
+        "Tests/Embedded/Embedded.Tests.RichTextResources.h"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "tests-host-16",
+      "title": "Ordinary Embedded run order-couples every rich test to an absolute allocation counter checked later",
+      "outcome": "fixed/source addressed",
+      "reason": "Warm-composite allocation comparison uses local baseline",
+      "currentPaths": [
+        "Tests/Controls/Controls.Tests.RichTextEditor.cpp",
+        "Tests/Embedded/Embedded.Tests.RichTextResources.h",
+        "Tests/Embedded/Embedded.Tests.Embedded.cpp"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "tests-host-17",
+      "title": "Native host has no post-device-loss pixel/geometry recovery check, unlike the embedded suite",
+      "outcome": "fixed/source addressed",
+      "reason": "Native bitmap and diagram device-loss pixel recovery test added",
+      "currentPaths": [
+        "Tests/Controls/Controls.Tests.RichTextEditor.cpp",
+        "Tests/Embedded/Embedded.Tests.RichTextResources.h"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "tests-host-18",
+      "title": "Native flowchart corpus fixture sizes its window in physical pixels without DPI scaling, unlike sibling fixtures",
+      "outcome": "invalid",
+      "reason": "Original mismatch refuted for DPI-unaware test process; no physical DPI qualification follows",
+      "currentPaths": [
+        "Tests/Controls/Controls.Tests.RichTextEditor.cpp",
+        "Tests/Embedded/Embedded.Tests.RichTextResources.h"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "tests-host-19",
+      "title": "Four copies of the cooperative 'prepare until settled' loop across both binaries",
+      "outcome": "challenged",
+      "reason": "Prepare loop merger optional because budget and host HRESULT differ",
+      "currentPaths": [
+        "Tests/Controls/Controls.Tests.RichTextEditor.cpp",
+        "Tests/Embedded/Embedded.Tests.RichTextResources.h"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "tests-host-20",
+      "title": "Pure helper suites executed twice in different binaries",
+      "outcome": "challenged",
+      "reason": "Repeated pure helper runs are optional cleanup; keep host-specific bodies",
+      "currentPaths": [
+        "Tests/Controls/Controls.Tests.RichTextEditor.cpp",
+        "Tests/Embedded/Embedded.Tests.RichTextResources.h"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "critic-01",
+      "title": "Multi-file reference paste inserts bare blank-line separators, breaking the enclosing table, list or block quote",
+      "outcome": "fixed/source addressed",
+      "reason": "Multi-file reference insertion preserves enclosing list, quote and table prefixes; actual OLE/file list fixtures added",
+      "currentPaths": [
+        "src/Controls/DxUi.RichTextEditor.cpp",
+        "Tests/Support/Support.Tests.RichSemanticEditor.h",
+        "Tests/Support/Support.Tests.RichImagePaths.h"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "critic-02",
+      "title": "Paste (and TSF/IME import) at an empty or padded table cell inserts at the shared row-end ACP instead of materializing the focused cell",
+      "outcome": "fixed/source addressed",
+      "reason": "Padded and empty table paste/IME materializes focused cell with undo",
+      "currentPaths": [
+        "src/Controls/DxUi.RichTextEditor.cpp",
+        "Tests/Support/Support.Tests.RichSemanticEditor.h",
+        "Tests/Controls/Controls.Tests.RichTextInput.cpp"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "critic-03",
+      "title": "Ctrl+X of a content-only formatted selection leaves a visible empty delimiter pair that Delete would remove",
+      "outcome": "fixed/source addressed",
+      "reason": "Native and embedded cut perform guarded semantic deletion with reentrant selection and focus checks",
+      "currentPaths": [
+        "src/Controls/DxUi.RichTextEditor.cpp",
+        "src/Controls/TextInputServices.cpp",
+        "Tests/Controls/Controls.Tests.RichTextInput.cpp"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "critic-04",
+      "title": "Scoped test rules for src/include Rich\\* omit the Accessibility suite that runs the rich UIA provider tests",
+      "outcome": "fixed/source addressed",
+      "reason": "Rich include/source and shared test scope includes Accessibility",
+      "currentPaths": [
+        "Tests/test-scopes.json",
+        "src/Controls/DxUi.RichTextEditor.cpp",
+        "Tests/Support/Support.Tests.RichSemanticEditor.h"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    },
+    {
+      "id": "critic-05",
+      "title": "Rich UIA names, help texts and diagnostics are hard-coded English with no consumer override",
+      "outcome": "fixed/source addressed",
+      "reason": "Consumer label override permits localized names with lifecycle tests",
+      "currentPaths": [
+        "src/Controls/DxUi.RichSemanticDocument.cpp",
+        "src/Controls/DxUi.RichTextEditor.cpp",
+        "Tests/Support/Support.Tests.RichSemanticEditor.h",
+        "include/DxUi/DxUi.h",
+        "Tests/Controls/Controls.Tests.RichTextAccessibility.cpp"
+      ],
+      "runtime": "Final matching-source runtime pending."
+    }
+  ]
+}

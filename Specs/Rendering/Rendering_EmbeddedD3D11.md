@@ -43,10 +43,13 @@ This follows the [device-context model](https://learn.microsoft.com/en-us/window
 and [DXGI interoperability](https://learn.microsoft.com/en-us/windows/win32/direct2d/direct2d-and-direct3d-interoperation-overview).
 No CPU readback/upload round trip is permitted in production rendering. Test premultiplied alpha, target format,
 text antialiasing and D2D/D3D ordering. End preparation before composition and rebind the application's pipeline state.
+Preparing a changed surface mutates the borrowed immediate context, including clearing PS shader-resource slot 0
+and output-merger render targets before D2D work. Preparation does not preserve application bindings; pipeline
+mutation is not limited to Composite. The application rebinds its state before its next draw.
 
 Share an explicit GraphicsDevice pool among views using the same device generation. Each view owns its control tree,
 focus/capture, drafts and surface. Release old-generation graphics references on device loss while retaining logical
-state. Graphics recovery must not execute unrelated application operations.
+state. Graphics recovery must not execute unrelated application operations. Surface loss, hiding and zero-size suspension cancel composition and retire old text-session and dispatch tokens while retaining a still-owned logical focus. A successful visible sized preparation creates a fresh input session for that focus; explicit CancelTextInput on OS focus loss still clears it.
 
 Device replacement and detach release the view's owned targets, surfaces and graphics references without calling
 ClearState or Flush on the application's supplied immediate context. Native swap-chain retirement owns that
@@ -123,10 +126,10 @@ pool and application model; their trees and hit rectangles remain independent. T
 interactive and supplies view-local physical coordinates. This replaces the earlier single-tree/two-surface sketch.
 
 Attach, prepare, input, animation, replace-device and destruction are UI-thread affine. The borrowed preparation
-callback is synchronous and must not re-enter the host. Dirty requests coalesce; requests raised during painting
+callback is synchronous and may retire or replace retained controls. Dirty requests coalesce; requests raised during painting
 remain pending after preparation. The caller advances animation only when NeedsAnimation is true. Hidden views
 request no periodic work; zero-sized targets disable interaction. Prepare returns S_FALSE for a clean or suspended
-view. Failed preparation suppresses composition/input until a successful prepare. No automatic retry loop exists.
+view. Failed preparation suppresses composition/input until a successful prepare. An unchanged content failure returns its HRESULT (E_ABORT is normalized to E_FAIL), and schedules no automatic retry; a caller may retry under its own bounded policy. E_ABORT remains reserved for superseded work.
 The callback must not re-enter EmbeddedHost preparation, composition, input, device replacement or lifecycle methods.
 It may retire or replace controls through a `ControlHost` reference borrowed before the callback; this limited
 retirement is tolerated. Library continuations that may run after synchronous scheduling or measurement callbacks
@@ -236,3 +239,12 @@ suspend preparation requests and animation ticks. Dirty state and pending motion
 them by showing the view or preparing a nonzero target, which allocates exactly one surface (one
 `surfaceAllocations` increment) and re-rasterizes the content. Hidden and zero-sized views never request background
 frames for those deferred changes.
+
+The supplied-device sample refreshes its text-service client after accepted input/focus changes and completed
+preparation, not after every unhandled window message or cooperative pending turn. Its HWND owns TME_LEAVE
+tracking and forwards PointerAction::Leave; hide and teardown cancel the registration. A changed window origin
+notifies TextInputServices::NotifyLayoutChanged without a text refresh. Native mouse capture mirrors the
+still-current logical capture after dispatch, preserving a new capture acquired by a release callback. The
+headless text-input proof sends messages only to its hidden owned HWND and verifies leave routing, unhandled-message
+refresh counts, origin notification and unchanged foreground/focus; native text-service suites own sink-delivery
+assertions. The proof does not post WM_QUIT into its caller's message loop.

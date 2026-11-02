@@ -1,0 +1,1 @@
+- Allow guarded inline formatting, links, and task actions inside resolved RichText footnote bodies.

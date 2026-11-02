@@ -1,3 +1,5 @@
+#include "DxUi.PreparedLayoutAccess.h"
+#include "DxUi.RichTextScriptRenderer.h"
 #include "DxUi.RichTextSourceInkRenderer.h"
 #include "DxUi.TextElements.h"
 #include <DxUi/RichTextLayout.h>
@@ -80,6 +82,8 @@ struct PreparedLayout::State
     {
     }
     Projection retirement;
+    Detail::ScriptMetadata scripts;
+    bool hasScripts{};
     wil::com_ptr<IDWriteTextLayout> layout;
     wil::com_ptr<IDWriteInlineObject> positioning;
     std::vector<std::size_t> clusters, lines;
@@ -151,25 +155,35 @@ void PreparedLayout::Prepare(IDWriteFactory* factory, Projection projection, con
 {
     PrepareOwned(factory, projection, options);
 }
-void PreparedLayout::PrepareSemanticOwned(IDWriteFactory* factory,
-                                          Projection& projection,
-                                          const LayoutOptions& options,
-                                          bool marker,
-                                          IDWriteInlineObject* object,
-                                          UINT32 objectOffset,
-                                          std::span<const SemanticInlineObject> objects)
+void PreparedLayout::PrepareOwned(IDWriteFactory* factory, Projection& projection, const LayoutOptions& options, float verticalOrigin)
 {
-    PrepareOwned(factory, projection, options, 0.0f, true, marker, object, objectOffset, objects);
+    Detail::PreparedLayoutAccess::Prepare(*this, factory, projection, options, verticalOrigin);
 }
-void PreparedLayout::PrepareOwned(IDWriteFactory* factory,
-                                  Projection& projection,
-                                  const LayoutOptions& options,
-                                  float verticalOrigin,
-                                  bool semanticDisplay,
-                                  bool marker,
-                                  IDWriteInlineObject* object,
-                                  UINT32 objectOffset,
-                                  std::span<const SemanticInlineObject> objects)
+void Detail::PreparedLayoutAccess::PrepareSemantic(PreparedLayout& owner,
+                                                   IDWriteFactory* factory,
+                                                   SemanticInput& input,
+                                                   const LayoutOptions& options,
+                                                   bool marker,
+                                                   IDWriteInlineObject* object,
+                                                   UINT32 objectOffset,
+                                                   std::span<const InlineObject> objects)
+{
+    Projection projection{std::wstring(0u, L' '), std::wstring(0u, L' '), std::vector<std::size_t>(0u), std::vector<SourceUnit>(0u), std::vector<StyleRun>(0u)};
+    projection.text.swap(input.text);
+    projection.runs.swap(input.runs);
+    projection.revision = input.revision;
+    Prepare(owner, factory, projection, options, 0.0f, true, marker, object, objectOffset, objects);
+}
+void Detail::PreparedLayoutAccess::Prepare(PreparedLayout& owner,
+                                           IDWriteFactory* factory,
+                                           Projection& projection,
+                                           const LayoutOptions& options,
+                                           float verticalOrigin,
+                                           bool semanticDisplay,
+                                           bool marker,
+                                           IDWriteInlineObject* object,
+                                           UINT32 objectOffset,
+                                           std::span<const InlineObject> objects)
 {
     const auto width = options.widthDip, fontSize = options.fontSizeDip;
     const auto validName          = [](const std::wstring& name) { return ! name.empty() && name.size() <= 255 && IsValidUtf16(name); };
@@ -177,11 +191,16 @@ void PreparedLayout::PrepareOwned(IDWriteFactory* factory,
     const auto validHeadingHeight = [](float value) noexcept { return std::isfinite(value) && (value == 0.0f || (value >= 1.0f && value <= 4.0f)); };
     const auto validSpacing       = [](const std::optional<float>& value, float maximum) noexcept
     { return ! value || (std::isfinite(value.value()) && value.value() >= 0.0f && value.value() <= maximum); };
-    if (! factory || ! std::isfinite(width) || width <= 0 || ! std::isfinite(fontSize) || fontSize <= 0 || ! std::isfinite(options.codeFontSizeDip) ||
-        options.codeFontSizeDip < 0.0f || options.codeFontSizeDip > 512.0f || ! std::isfinite(options.lineHeightMultiplier) ||
+    if (! factory || ! std::isfinite(width) || width <= 0 || ! std::isfinite(fontSize) || fontSize <= 0 || ! std::isfinite(options.dpi) ||
+        options.dpi <= 0.0f || options.dpi > 4096.0f || ! std::isfinite(options.codeFontSizeDip) || options.codeFontSizeDip < 0.0f ||
+        options.codeFontSizeDip > 512.0f || ! std::isfinite(options.lineHeightMultiplier) || ! std::isfinite(options.tabStopDip) || options.tabStopDip < 0.0f ||
+        options.tabStopDip > 4096.0f || (options.tabStopDip > 0.0f && options.tabStopDip < 1.0f) ||
         (options.lineHeightMultiplier != 0.0f && (options.lineHeightMultiplier < 1.0f || options.lineHeightMultiplier > 4.0f)) ||
         ! std::isfinite(options.headingScaleStep) || options.headingScaleStep < 0.0f || options.headingScaleStep > 1.0f || ! validName(options.fontFamily) ||
-        ! validName(options.codeFontFamily) || options.locale.size() > 255 || ! IsValidUtf16(options.locale) ||
+        ! validName(options.codeFontFamily) ||
+        (semanticDisplay && (! validName(options.mathFontFamily) || ! std::isfinite(options.mathAbsoluteUnitScale) || options.mathAbsoluteUnitScale <= 0.f ||
+                             options.mathAbsoluteUnitScale > 16.f)) ||
+        options.locale.size() > 255 || ! IsValidUtf16(options.locale) ||
         (options.readingDirection != DWRITE_READING_DIRECTION_LEFT_TO_RIGHT && options.readingDirection != DWRITE_READING_DIRECTION_RIGHT_TO_LEFT) ||
         (options.textAlignment != DWRITE_TEXT_ALIGNMENT_LEADING && options.textAlignment != DWRITE_TEXT_ALIGNMENT_TRAILING &&
          options.textAlignment != DWRITE_TEXT_ALIGNMENT_CENTER) ||
@@ -191,9 +210,10 @@ void PreparedLayout::PrepareOwned(IDWriteFactory* factory,
         (options.markdownPresentation != MarkdownPresentationStyle::Default && options.markdownPresentation != MarkdownPresentationStyle::Subtle))
         throw std::invalid_argument("Invalid rich-text layout options");
     const auto maximum = semanticDisplay ? Document::MaximumUnits * 2u : Document::MaximumUnits;
-    if (projection.text.size() > maximum || ! IsValidUtf16(projection.text) || projection.source.size() > maximum || ! IsValidUtf16(projection.source) ||
-        projection.units.size() != projection.text.size() || projection.sourceToDisplay.size() != projection.source.size() + 1 ||
-        (projection.mode != ViewMode::Source && projection.mode != ViewMode::Rich))
+    if (projection.text.size() > maximum || ! IsValidSourceUtf16(projection.text) ||
+        (! semanticDisplay &&
+         (projection.source.size() > maximum || ! IsValidSourceUtf16(projection.source) || projection.units.size() != projection.text.size() ||
+          projection.sourceToDisplay.size() != projection.source.size() + 1 || (projection.mode != ViewMode::Source && projection.mode != ViewMode::Rich))))
         throw std::invalid_argument("Invalid rich-text display text");
     if (object && (! semanticDisplay || objectOffset >= projection.text.size() || projection.text[objectOffset] != L'\ufffc'))
         throw std::invalid_argument("Invalid semantic object placement");
@@ -208,23 +228,27 @@ void PreparedLayout::PrepareOwned(IDWriteFactory* factory,
             throw std::invalid_argument("Invalid semantic inline object range");
         objectEnd = static_cast<std::size_t>(inlineObject.first) + inlineObject.length;
     }
-    std::size_t previousDisplay = 0, previousSource = 0;
-    for (const auto offset : projection.sourceToDisplay)
+    if (! semanticDisplay)
     {
-        if (offset < previousDisplay || offset > projection.text.size())
-            throw std::invalid_argument("Invalid rich-text source mapping");
-        previousDisplay = offset;
-    }
-    for (const auto& unit : projection.units)
-    {
-        if (unit.start < previousSource || unit.start >= unit.end || unit.end > projection.source.size())
-            throw std::invalid_argument("Invalid rich-text display mapping");
-        previousSource = unit.end;
+        std::size_t previousDisplay = 0, previousSource = 0;
+        for (const auto offset : projection.sourceToDisplay)
+        {
+            if (offset < previousDisplay || offset > projection.text.size())
+                throw std::invalid_argument("Invalid rich-text source mapping");
+            previousDisplay = offset;
+        }
+        for (const auto& unit : projection.units)
+        {
+            if (unit.start < previousSource || unit.start >= unit.end || unit.end > projection.source.size())
+                throw std::invalid_argument("Invalid rich-text display mapping");
+            previousSource = unit.end;
+        }
     }
     for (const auto& run : projection.runs)
     {
         if (run.start > projection.text.size() || run.length > projection.text.size() - run.start || run.heading > 6 ||
-            (run.flags & ~(Bold | Italic | Code | Strike | Underline | Link)) || ! IsEditBoundary(projection.text, run.start) ||
+            (run.flags & ~(Bold | Italic | Code | Strike | Underline | Link | Marked | Superscript | Subscript)) ||
+            (run.flags & (Superscript | Subscript)) == (Superscript | Subscript) || ! IsEditBoundary(projection.text, run.start) ||
             ! IsEditBoundary(projection.text, run.start + run.length))
             throw std::invalid_argument("Invalid rich-text style range");
     }
@@ -239,9 +263,11 @@ void PreparedLayout::PrepareOwned(IDWriteFactory* factory,
                                     options.locale.c_str(),
                                     format.put()),
           "CreateTextFormat");
-    Check(format->SetWordWrapping(marker || object ? DWRITE_WORD_WRAPPING_NO_WRAP : DWRITE_WORD_WRAPPING_WRAP), "SetWordWrapping");
+    Check(format->SetWordWrapping(marker || object || ! options.wrap ? DWRITE_WORD_WRAPPING_NO_WRAP : DWRITE_WORD_WRAPPING_WRAP), "SetWordWrapping");
     Check(format->SetReadingDirection(options.readingDirection), "SetReadingDirection");
     Check(format->SetTextAlignment(options.textAlignment), "SetTextAlignment");
+    if (options.tabStopDip > 0.0f)
+        Check(format->SetIncrementalTabStop(options.tabStopDip), "SetIncrementalTabStop");
     wil::com_ptr<IDWriteTextLayout> layout;
     std::wstring positionedText(0u, L'\0');
     const UINT32 textOffset = verticalOrigin > 0.0f ? 2u : 0u;
@@ -275,6 +301,7 @@ void PreparedLayout::PrepareOwned(IDWriteFactory* factory,
         Check(layout->SetFontSize(0.01f, {0u, textOffset}), "Set private origin font size");
         Check(layout->SetInlineObject(positioning.get(), {0u, 1u}), "Set private layout origin");
     }
+    float scriptTopOutset{}, scriptBottomOutset{};
     for (const auto& run : projection.runs)
     {
         DWRITE_TEXT_RANGE range{static_cast<UINT32>(run.start) + textOffset, static_cast<UINT32>(run.length)};
@@ -302,6 +329,18 @@ void PreparedLayout::PrepareOwned(IDWriteFactory* factory,
             Check(layout->SetFontWeight(semanticDisplay && (run.flags & Bold) ? DWRITE_FONT_WEIGHT_BOLD : DWRITE_FONT_WEIGHT_SEMI_BOLD, range),
                   "SetFontWeight");
         }
+        if (run.flags & (Superscript | Subscript))
+        {
+            auto size = (run.flags & Code) && options.codeFontSizeDip > 0.0f ? options.codeFontSizeDip : fontSize;
+            if (run.heading)
+                size = options.headingFontSizeDip[run.heading - 1u] > 0.0f ? options.headingFontSizeDip[run.heading - 1u]
+                                                                           : size * (1.0f + options.headingScaleStep * static_cast<float>(7u - run.heading));
+            Check(layout->SetFontSize(size * .75f, range), "Set HTML script font size");
+            if (run.flags & Superscript)
+                scriptTopOutset = std::max(scriptTopOutset, size * .30f);
+            if (run.flags & Subscript)
+                scriptBottomOutset = std::max(scriptBottomOutset, size * .20f);
+        }
     }
     if (marker)
     {
@@ -318,7 +357,8 @@ void PreparedLayout::PrepareOwned(IDWriteFactory* factory,
     const auto headingRun = std::ranges::find_if(projection.runs, [](const auto& run) { return run.heading != 0u; });
     if (semanticDisplay && headingRun != projection.runs.end() && options.headingLineHeightMultiplier[headingRun->heading - 1u] > 0.0f)
         lineHeight = options.headingLineHeightMultiplier[headingRun->heading - 1u];
-    if (lineHeight > 0.0f && ! textOffset)
+    const bool scripts = std::ranges::any_of(projection.runs, [](const auto& run) { return (run.flags & (Superscript | Subscript)) != 0u; });
+    if (lineHeight > 0.0f || scripts)
     {
         auto size = fontSize;
         for (const auto& run : projection.runs)
@@ -332,7 +372,7 @@ void PreparedLayout::PrepareOwned(IDWriteFactory* factory,
         }
         // Font-relative line height matches a document's 16/1.65 typography.
         // Inline images/math must still reserve their complete ascent/descent.
-        auto ascent = size * 0.8f, descent = size * 0.2f;
+        auto ascent = size * (scripts ? 1.05f : .8f), descent = size * (scripts ? .4f : .2f);
         const auto accommodate = [&](IDWriteInlineObject* value)
         {
             DWRITE_INLINE_OBJECT_METRICS extent{};
@@ -358,8 +398,8 @@ void PreparedLayout::PrepareOwned(IDWriteFactory* factory,
     Check(layout->GetMetrics(&metrics), "GetMetrics");
     DWRITE_OVERHANG_METRICS overhang{};
     Check(layout->GetOverhangMetrics(&overhang), "GetOverhangMetrics");
-    const auto drawingTop    = std::min(verticalOrigin, -overhang.top);
-    const auto drawingBottom = std::max(metrics.height, metrics.layoutHeight + overhang.bottom);
+    const auto drawingTop    = std::min(verticalOrigin, -overhang.top) - scriptTopOutset;
+    const auto drawingBottom = std::max(metrics.height, metrics.layoutHeight + overhang.bottom) + scriptBottomOutset;
     if (! std::isfinite(metrics.height) || ! std::isfinite(drawingTop) || ! std::isfinite(drawingBottom))
         throw std::overflow_error("Nonfinite rich-text drawing metrics");
     std::vector<std::size_t> clusters{0};
@@ -379,8 +419,23 @@ void PreparedLayout::PrepareOwned(IDWriteFactory* factory,
     std::vector<std::size_t> lines{0};
     for (const auto& line : lineMetrics)
         lines.push_back(lines.back() + line.length);
-    auto next               = std::make_unique<State>();
-    projection_             = std::move(projection);
+    auto next        = std::make_unique<PreparedLayout::State>();
+    next->hasScripts = scripts;
+    if (scripts)
+    {
+        Detail::ScriptTextRenderer collector(nullptr, nullptr, layout.get(), projection, textOffset, {}, next->scripts, true);
+        Check(layout->Draw(nullptr, &collector, 0.f, 0.f), "Prepare HTML script metadata");
+        if (collector.Result() == E_OUTOFMEMORY)
+            throw std::bad_alloc();
+        if (collector.Result() == DWRITE_E_UNSUPPORTEDOPERATION)
+            next->scripts.unsupported = true;
+        else
+            Check(collector.Result(), "Prepare HTML script callbacks");
+        std::sort(next->scripts.decorations.begin(), next->scripts.decorations.end(), [](const auto& a, const auto& b) {
+            return a.baseline < b.baseline || (a.baseline == b.baseline && a.left < b.left);
+        });
+    }
+    owner.projection_       = std::move(projection);
     next->layout            = std::move(layout);
     next->positioning       = std::move(positioning);
     next->clusters          = std::move(clusters);
@@ -394,8 +449,8 @@ void PreparedLayout::PrepareOwned(IDWriteFactory* factory,
     next->verticalOrigin    = verticalOrigin;
     next->textOffset        = textOffset;
     next->positionedExactly = positionedExactly;
-    state_.swap(next);
-    ++generation_;
+    owner.state_.swap(next);
+    ++owner.generation_;
 }
 void PreparedLayout::Clear() noexcept
 {
@@ -432,6 +487,16 @@ std::pair<float, float> PreparedLayout::HorizontalTextBounds() const
     if (! state_)
         throw std::logic_error("Unprepared rich-text horizontal metrics");
     return {state_->textLeft, state_->textWidth};
+}
+float Detail::PreparedLayoutAccess::MinimumTextWidth(const PreparedLayout& owner)
+{
+    if (! owner.state_)
+        throw std::logic_error("Unprepared rich-text intrinsic width");
+    float minimum{};
+    Check(owner.state_->layout->DetermineMinWidth(&minimum), "DetermineMinWidth");
+    if (! std::isfinite(minimum) || minimum < 0.0f)
+        throw std::overflow_error("Nonfinite rich-text intrinsic width");
+    return minimum;
 }
 float PreparedLayout::VerticalOrigin() const noexcept
 {
@@ -542,17 +607,43 @@ std::pair<std::size_t, std::size_t> PreparedLayout::VisibleRange(float top, floa
     }
     return {first.value_or(0), last};
 }
+bool Detail::PreparedLayoutAccess::ScriptTargetSupported(const PreparedLayout& owner, ID2D1RenderTarget* target)
+{
+    if (! owner.state_)
+        return false;
+    if (! owner.state_->hasScripts)
+        return true;
+    if (owner.state_->scripts.unsupported)
+        return false;
+    if (! owner.state_->scripts.requiresColor)
+        return true;
+    if (! target)
+        return false;
+    wil::com_ptr<ID2D1DeviceContext7> color;
+    const auto result = target->QueryInterface(IID_PPV_ARGS(color.put()));
+    if (result == E_NOINTERFACE)
+        return false;
+    Check(result, "Validate HTML script color target");
+    return true;
+}
 void PreparedLayout::Draw(ID2D1RenderTarget* target, ID2D1Brush* brush, D2D1_POINT_2F origin, const LinkDrawing* links) const
 {
     if (! target || ! brush || ! state_)
         throw std::invalid_argument("Unprepared drawing");
-    if (! links)
+    const bool scripts = state_->hasScripts;
+    if (scripts && ! Detail::PreparedLayoutAccess::ScriptTargetSupported(*this, target))
+        THROW_HR_MSG(DWRITE_E_UNSUPPORTEDOPERATION, "Unsupported HTML script color target");
+    if (! links && ! scripts)
     {
         target->DrawTextLayout(origin, state_->layout.get(), brush, D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
         return;
     }
-    if (Detail::DrawSourceInkIfSupported(target, brush, state_->layout.get(), state_->positioning.get(), state_->textOffset, projection_, *links, origin) ==
-        Detail::SourceInkDrawResult::Drawn)
+    const LinkDrawing defaultDrawing{};
+    if (! links)
+        links = &defaultDrawing;
+    if (! scripts && links->directSourceInkPreview &&
+        Detail::DrawSourceInkIfSupported(target, brush, state_->layout.get(), state_->positioning.get(), state_->textOffset, projection_, *links, origin) ==
+            Detail::SourceInkDrawResult::Drawn)
         return;
     // SDK drawing attributes are borrowed for this synchronous owner-thread
     // raster call. Copies may share the layout; restore its canonical style
@@ -630,6 +721,13 @@ void PreparedLayout::Draw(ID2D1RenderTarget* target, ID2D1Brush* brush, D2D1_POI
                 Check(state_->layout->SetDrawingEffect(linkBrush, range), "Set transient link ink");
             }
         }
-    target->DrawTextLayout(origin, state_->layout.get(), brush, D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
+    if (scripts)
+    {
+        Detail::ScriptTextRenderer renderer(target, brush, state_->layout.get(), projection_, state_->textOffset, origin, state_->scripts, false);
+        Check(state_->layout->Draw(nullptr, &renderer, origin.x, origin.y), "Draw HTML script rendering");
+        Check(renderer.Result(), "Draw HTML script callbacks");
+    }
+    else
+        target->DrawTextLayout(origin, state_->layout.get(), brush, D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
 }
 } // namespace DxUi::RichText

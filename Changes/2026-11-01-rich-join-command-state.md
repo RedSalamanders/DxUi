@@ -1,0 +1,1 @@
+- Report structural joins unavailable for noncollapsed selections, unsupported leaves and non-edge carets using the planner's shared admission checks; full container applicability and native qualification remain pending.

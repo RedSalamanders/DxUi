@@ -1,0 +1,1 @@
+- Preserve supplementary scalars and combining text elements when coalescing rich editor typing and source deletion undo groups.

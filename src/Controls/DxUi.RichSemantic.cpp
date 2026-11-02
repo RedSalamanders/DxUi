@@ -1,9 +1,54 @@
 #include <DxUi/RichSemantic.h>
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <Windows.h>
 #include <limits>
 #include <stdexcept>
 
 namespace DxUi::RichText
 {
+std::vector<MarkdownRange> FindInSource(const SourceSnapshot& snapshot, std::wstring_view query, SourceSearchOptions options)
+{
+    if (! IsValidSourceUtf16(query))
+        throw std::invalid_argument("Invalid search UTF-16");
+    std::vector<MarkdownRange> result(0u);
+    if (query.empty() || query.size() > snapshot.Length())
+        return result;
+    const auto source = snapshot.Text();
+    const auto word   = [](wchar_t ch) noexcept
+    {
+        if (ch == L'_' || (ch >= 0xD800 && ch <= 0xDFFF))
+            return true;
+        WORD type = 0u;
+        if (GetStringTypeW(CT_CTYPE1, &ch, 1, &type) && (type & (C1_ALPHA | C1_DIGIT)) != 0u)
+            return true;
+        return GetStringTypeW(CT_CTYPE3, &ch, 1, &type) && (type & (C3_NONSPACING | C3_DIACRITIC | C3_VOWELMARK)) != 0u;
+    };
+    size_t cursor = 0u;
+    while (source.size() - cursor >= query.size())
+    {
+        const int found = FindStringOrdinal(FIND_FROMSTART,
+                                            source.data() + cursor,
+                                            static_cast<int>(source.size() - cursor),
+                                            query.data(),
+                                            static_cast<int>(query.size()),
+                                            ! options.matchCase);
+        if (found < 0)
+            break;
+        const auto first = cursor + static_cast<size_t>(found);
+        const auto last  = first + query.size();
+        if (IsEditBoundary(source, first) && IsEditBoundary(source, last) &&
+            (! options.wholeWord || ((first == 0u || ! word(source[first - 1u])) && (last == source.size() || ! word(source[last])))))
+        {
+            result.push_back({first, last});
+            cursor = last;
+        }
+        else
+            cursor = first + 1u;
+    }
+    return result;
+}
 namespace
 {
 constexpr auto MissingAnchor = std::numeric_limits<std::size_t>::max();
@@ -37,7 +82,7 @@ std::shared_ptr<const SourceDisplayMap> SourceDisplayMap::Build(std::wstring_vie
     // Admission precedes copies and indexes, including multiplication/amplification.
     if (source.size() > Document::MaximumUnits || display.size() > MaximumDisplayUnits || spans.size() > MaximumSpans)
         throw std::length_error("Semantic coordinate capacity exceeded");
-    if (! IsValidUtf16(source) || ! IsValidUtf16(display))
+    if (! IsValidSourceUtf16(source) || ! IsValidSourceUtf16(display))
         throw std::invalid_argument("Invalid semantic UTF-16");
     return std::shared_ptr<const SourceDisplayMap>(new SourceDisplayMap(source, display, spans));
 }
@@ -244,7 +289,7 @@ bool ApplySourceEdits(
             throw std::invalid_argument("Semantic edits must be ordered and disjoint");
         if (edit.replacement.size() > Document::MaximumUnits - inserted)
             throw std::length_error("Semantic insertion capacity exceeded");
-        if (! IsValidUtf16(edit.replacement))
+        if (! IsValidSourceUtf16(edit.replacement))
             throw std::invalid_argument("Invalid semantic replacement UTF-16");
         inserted += edit.replacement.size();
         removed += edit.source.last - edit.source.first;

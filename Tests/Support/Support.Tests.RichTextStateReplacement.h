@@ -24,6 +24,20 @@ inline constexpr Example examples[] = {{L"prefix \u03b2 body suffix\r\n", L"pref
                                        {L"abc", L"abc", 0u, 0u, 0u}};
 template <typename Check> inline void Core(Check&& check)
 {
+    {
+        Document lines(L"a\r\nb\U0001f600\nc\rd");
+        const auto source = lines.Snapshot();
+        check(source.LocationAt(0u) == SourceLocation{0u, 0u} && source.LocationAt(3u) == SourceLocation{1u, 0u} &&
+                  source.LocationAt(6u) == SourceLocation{1u, 3u} && source.LocationAt(7u) == SourceLocation{2u, 0u} &&
+                  source.LocationAt(9u) == SourceLocation{3u, 0u},
+              "source coordinates count mixed line endings and UTF-16 columns");
+        check(! source.LocationAt(2u) && ! source.LocationAt(5u) && ! source.LocationAt(source.Length() + 1u) && ! SourceSnapshot{}.LocationAt(0u),
+              "source coordinates reject CRLF and surrogate interior boundaries and invalid revisions");
+        lines.SetSelection({3u, 3u});
+        lines.ReplaceSelection(L"new\n");
+        check(lines.Snapshot().LocationAt(7u) == SourceLocation{2u, 0u} && source.LocationAt(3u) == SourceLocation{1u, 0u},
+              "piece-tree edits preserve old snapshot coordinates and count new pieces");
+    }
     for (const auto& example : examples)
     {
         Document document(example.before);
@@ -92,6 +106,32 @@ template <typename Check> inline void Core(Check&& check)
     reject(L"\U0001f600", {1u, 1u});
     reject(L"\r\n", {1u, 1u});
     reject(L"x", {2u, 2u});
+    Document ring;
+    for (size_t i = 0u; i < 10u; ++i)
+        ring.ReplaceSelection(L"x");
+    const auto retained = ring.Snapshot();
+    for (size_t i = 10u; i < Document::MaximumHistory + 20u; ++i)
+        ring.ReplaceSelection(L"x");
+    Document copy = ring;
+    size_t undos{};
+    while (ring.Undo())
+        ++undos;
+    check(undos == Document::MaximumHistory && ring.Text() == std::wstring(20u, L'x') && retained.Text() == std::wstring(10u, L'x') &&
+              copy.Text() == std::wstring(Document::MaximumHistory + 20u, L'x'),
+          "history eviction retains the last 128 states, held snapshots, and independent document copies");
+    size_t redos{};
+    while (ring.Redo())
+        ++redos;
+    check(redos == Document::MaximumHistory && ring.Text() == copy.Text(), "the wrapped history ring redoes every retained state in order");
+    check(ring.Undo() && ring.Undo() && ring.ReplaceSelection(L"y") && ! ring.CanRedo() && copy.CanUndo(),
+          "a new edit clears only its own redo ring after wraparound");
+    Document moved(std::move(copy));
+    check(! copy.CanUndo() && ! copy.CanRedo() && moved.CanUndo() && moved.Undo(),
+          "moving a populated document leaves its source history safely empty and transfers undo");
+    Document assigned;
+    assigned = std::move(moved);
+    check(! moved.CanUndo() && ! moved.CanRedo() && assigned.CanUndo() && assigned.CanRedo(),
+          "move assignment transfers both rings and leaves the moved-from history empty");
 }
 
 // The production adapter remains protected. Tests exercise service commits
@@ -110,6 +150,9 @@ public:
 #pragma warning(pop)
 template <typename Check> inline void Service(ServiceEditor& editor, ControlHost& host, Check&& check)
 {
+    editor.SetText(L"a\r\nb\U0001f600");
+    editor.SetSelection({6u, 3u});
+    check(editor.GetSourceCaretLocation() == SourceLocation{1u, 0u}, "editor reports the logical source location of the caret, including reversed selections");
     for (const auto& example : examples)
     {
         editor.SetText(std::wstring(example.before));
@@ -131,5 +174,14 @@ template <typename Check> inline void Service(ServiceEditor& editor, ControlHost
         else
             check(! editor.CanUndo() && editor.Snapshot().IsSameRevision(original), "same-content notifying import consumes no undo entry or source revision");
     }
+    editor.SetText(L"");
+    check(editor.ReplaceSelection(L"base"), "record a source edit before a service preview");
+    TextInputState preview{.text = L"base\u4eee", .caretIndex = 5u, .multiline = true};
+    check(editor.ImportTextInputState(host, preview, false) && ! editor.CanUndo() && ! editor.Undo() && ! editor.Redo() && editor.GetText() == L"base\u4eee",
+          "native/embedded service preview cannot enter undo or redo history");
+    preview.text       = L"base";
+    preview.caretIndex = 4u;
+    check(editor.ImportTextInputState(host, preview, false) && editor.Undo() && editor.GetText().empty() && editor.Redo() && editor.GetText() == L"base",
+          "rolling back the service preview restores the original recorded history");
 }
 } // namespace RichTextStateReplacementTests

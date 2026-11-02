@@ -1,0 +1,1 @@
+- Keep cancelled or suspended image requests out of the failed-source count while preserving real decode failures and pending request ownership.

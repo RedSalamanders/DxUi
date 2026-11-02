@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -29,7 +30,16 @@ struct Selection
     bool operator==(const Selection&) const = default;
 };
 
+// Zero-based logical source coordinates; column counts UTF-16 code units.
+struct SourceLocation
+{
+    std::size_t line{}, column{};
+    bool operator==(const SourceLocation&) const = default;
+};
+
 bool IsValidUtf16(std::wstring_view text) noexcept;
+// Counted RichText source admits U+0000; metadata and other existing callers remain strict.
+bool IsValidSourceUtf16(std::wstring_view text) noexcept;
 bool IsEditBoundary(std::wstring_view text, std::size_t offset) noexcept;
 std::wstring DecodeUtf8(std::string_view bytes);
 std::string EncodeUtf8(std::wstring_view text);
@@ -52,7 +62,7 @@ struct SourceChangeRange
 class SourceSnapshot
 {
 public:
-    SourceSnapshot();
+    SourceSnapshot() noexcept;
     std::wstring Text() const;
     std::size_t Length() const noexcept;
     // Compare against caller-owned text without flattening this immutable tree.
@@ -68,6 +78,9 @@ public:
     // is logarithmic; Slice visits only intersecting pieces after that lookup.
     // Scalar/CRLF boundaries are preserved; immutable snapshots support worker reads.
     bool IsBoundary(std::size_t offset) const noexcept;
+    // CRLF is one line break. Invalid revisions and non-edit boundaries return no location.
+    // Visits source pieces without allocating or flattening the immutable snapshot.
+    std::optional<SourceLocation> LocationAt(std::size_t offset) const noexcept;
     std::wstring Slice(std::size_t first, std::size_t last) const;
     // A conservative replacement interval, safe for Slice in both snapshots.
     // Tracked ranges may include unchanged text; missing bounded ancestry falls
@@ -125,17 +138,19 @@ public:
     // OS composition previews and their rollback change source/selection with a
     // fresh revision, preserving both histories. Restore the entry text before
     // recording the final committed replacement as one ordinary transaction.
+    // Undo/redo decline while a changed transient preview is active. An explicit
+    // recorded edit supersedes it and uses the entry source for undo.
     bool ReplaceTransient(std::wstring_view text, Selection selection);
     bool ReplaceSelection(std::wstring_view text);
     bool Undo();
     bool Redo();
     bool CanUndo() const noexcept
     {
-        return ! undo_.empty();
+        return ! transientEntry_ && ! undo_.Empty();
     }
     bool CanRedo() const noexcept
     {
-        return ! redo_.empty();
+        return ! transientEntry_ && ! redo_.Empty();
     }
 
 private:
@@ -144,14 +159,35 @@ private:
         SourceSnapshot source;
         Selection selection;
     };
+    std::optional<History> transientEntry_;
     SourceSnapshot source_;
     Selection selection_{};
     std::uint64_t revision_{};
+    std::uint64_t selectionEpoch_{}; // Detect selection moves even when a later move returns to the same ACP.
     friend class ::DxUi::RichTextEditor;
     [[nodiscard]] bool AdoptReadOnlySourceSnapshot(const SourceSnapshot& source, Selection selection) noexcept;
-    std::vector<History> undo_, redo_;
-    static void Push(std::vector<History>& history, History entry);
-    bool ReplaceImpl(std::size_t begin, std::size_t end, std::wstring_view text, Selection after, bool recordHistory);
+    struct HistoryRing
+    {
+        HistoryRing() : entries(0u)
+        {
+        }
+        HistoryRing(const HistoryRing&)            = default;
+        HistoryRing& operator=(const HistoryRing&) = default;
+        HistoryRing(HistoryRing&& other);
+        HistoryRing& operator=(HistoryRing&& other) noexcept;
+        [[nodiscard]] bool Empty() const noexcept
+        {
+            return count == 0u;
+        }
+        void PreparePush();
+        void Push(History entry) noexcept;
+        History TakeBack() noexcept;
+        void Clear() noexcept;
+        std::vector<History> entries;
+        std::size_t first{}, count{};
+    };
+    HistoryRing undo_, redo_;
+    bool ReplaceImpl(std::size_t begin, std::size_t end, std::wstring_view text, Selection after, bool recordHistory, bool coalesceHistory = false);
     bool ReplaceWholeTextImpl(std::wstring_view text, Selection after, bool recordHistory);
 };
 } // namespace DxUi::RichText

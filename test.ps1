@@ -21,11 +21,14 @@ Use only after the person at the desktop explicitly agrees to automatic start an
 dialog defaults to Start and starts after 30 seconds if nobody clicks; Cancel, Esc, closing the dialog and Ctrl+C stop the run.
 All desktop checks, the warning, suite accounting and verified restoration still apply. Ordinary -Interactive retains its Cancel default.
 .PARAMETER SkipBuild
-Requires the canonical current v2 build attestation before any native desktop probe, filter/watchdog self-check or suite.
+Requires both the canonical current v2 build attestation and the complete native test-source/artifact receipt before any native desktop probe, filter/watchdog self-check or suite.
 Missing, old or stale source/dependency/toolchain/output identity fails closed; build.ps1 creates the attestation.
 The bounded SkipBuildGate phase reports UTC/elapsed diagnostics without changing receipt or native assertions.
 .PARAMETER SkipTooling
 Leaves independent tooling tests to the selected Tooling scope or the CI validation job. Native runner/watchdog checks remain.
+.PARAMETER ParallelSuites
+Maximum concurrent non-foreground suite processes, from 1 to 8. The default is 1 (serial). Performance and preflight remain
+serial, and foreground suites always use their serial desktop lease. Parallel mode retains one log and receipt per suite.
 .PARAMETER Full
 Runs the full normal scopes, adding foreground suites on verified hosted Windows runners; ordinary calls use Test-Changes affected
 iteration.
@@ -42,6 +45,7 @@ param(
     [switch] $Interactive,
     [switch] $InteractiveAutoStart,
     [switch] $SkipTooling,
+    [ValidateRange(1,8)][int] $ParallelSuites = 1,
     [switch] $Full
 )
 Set-StrictMode -Version Latest
@@ -61,6 +65,9 @@ $instrumentation = @(Get-ScopedInstrumentation)
 # A comma-separated single value is accepted like an array, so -Tests 'A,B' and -Tests A,B are the same request.
 $Tests = @($Tests | ForEach-Object { $_ -split ',' } | Where-Object { $_ })
 $Suites = @($Suites | ForEach-Object { $_ -split ',' } | Where-Object { $_ })
+if ($ParallelSuites -gt 1 -and @($Suites | Group-Object | Where-Object { $_.Count -gt 1 }).Count) {
+    throw 'Parallel suite execution requires distinct suite names so logs and receipts cannot collide.'
+}
 # Verified GitHub-hosted jobs own their desktop. GITHUB_ACTIONS alone also describes self-hosted runners.
 $verifiedHostedRunner = Test-DxUiVerifiedGitHubHostedRunner
 if ($Full -and -not $PSBoundParameters.ContainsKey('Suites') -and $verifiedHostedRunner) {
@@ -92,6 +99,13 @@ else {
     Import-Module (Join-Path $PSScriptRoot 'Tools/PerformancePolicy.psm1') -Force
     Invoke-DxUiBuildPhase -Phase SkipBuildGate -Body {
         Assert-PerformanceBuildAttestation -Root $PSScriptRoot -Platform $Platform -Configuration $Configuration
+        Import-Module (Join-Path $PSScriptRoot 'Tools/ScopedTesting.psm1') -Force
+        $inputIdentity = Get-ScopedBuildInputIdentity $PSScriptRoot $Platform
+        $artifactIdentity = Get-ScopedArtifactIdentity $PSScriptRoot $Platform $Configuration
+        $receipt = Join-Path $PSScriptRoot ".build/reports/scoped-tests/$Platform-$($Configuration -replace ' ','')/build.json"
+        if (-not (Test-ScopedReceipt $receipt (Get-ScopedDigest ($inputIdentity+"`n"+$artifactIdentity)))) {
+            throw 'SkipBuild refused: native test sources, dependencies or artifacts changed, or no complete native test receipt exists. Run build.ps1 or test.ps1 without -SkipBuild.'
+        }
     }
 }
 $leaseExecutable = Join-Path $PSScriptRoot ".build/$Platform/$Configuration/DxUi.InteractiveLease.exe"
@@ -115,6 +129,7 @@ if ($verifiedHostedRunner -and @($Suites | Where-Object { Test-DxUiInteractiveSu
 Import-Module (Join-Path $PSScriptRoot 'Tools/TestRunEvidence.psm1') -Force
 $evidence = Start-TestRunEvidence -Repository $PSScriptRoot -CaptureNativeArtifacts -Context @{ project='DxUi'; platform=$Platform; configuration=$Configuration; suites=$Suites; tests=$Tests }
 $runPassed = $false
+$primaryFailure = $null
 try {
 # The runner's --test contract (single tests, unknown names) and its watchdog (a hung test ends the run, named) are checked
 # against the executable this run is about to use; an interactive run needs the second most, since the watchdog is what bounds a
@@ -211,7 +226,25 @@ try {
                 Cursor='none'; CursorSaved=''; CursorAtExit=''; CursorDiagnostics=$null; RunMovedSomething=$false; Children=@() }
         }
     }
+    $parallelResults = @{}
+    if ($ParallelSuites -gt 1) {
+        Import-Module (Join-Path $PSScriptRoot 'Tools/ParallelSuites.psm1') -Force
+        $ordinaryRuns = @(foreach ($suite in $Suites) {
+            if ($suite -notin $leaseSuites) {
+                $planned = Get-SuiteRun $suite
+                if (-not (Test-Path -LiteralPath $planned.Executable -PathType Leaf)) { throw "Test executable is missing: $($planned.Executable)" }
+                Write-Host "Running $suite ($Platform $Configuration)$(if ($planned.Filtered) { ", tests: $($Tests -join ', ')" })"
+                [pscustomobject]@{ Name=$suite; Executable=$planned.Executable; Arguments=$planned.Arguments; Log=$planned.Log }
+            }
+        })
+        if ($ordinaryRuns.Count) {
+            foreach ($result in @(Invoke-DxUiParallelSuites -Runs $ordinaryRuns -Limit $ParallelSuites -WorkingDirectory $PSScriptRoot)) {
+                $parallelResults[$result.Name] = $result
+            }
+        }
+    }
     foreach ($suite in $Suites) {
+        $completedUtc = $null
         $run = Get-SuiteRun $suite
         $executable = $run.Executable
         if (-not (Test-Path -LiteralPath $executable)) { throw "Test executable is missing: $executable" }
@@ -231,6 +264,10 @@ try {
                 Write-Host "Ran $suite ($Platform $Configuration) under the $(if ($hostedForegroundLease) { 'hosted' } else { 'interactive' }) foreground lease$(if ($filtered) { ", tests: $($Tests -join ', ')" })"
                 $testExit = $child.ExitCode
             }
+        } elseif ($ParallelSuites -gt 1) {
+            if (-not $parallelResults.ContainsKey($suite)) { throw "Parallel suite $suite has no completed child result." }
+            $testExit = $parallelResults[$suite].ExitCode
+            $completedUtc = $parallelResults[$suite].CompletedUtc
         } else {
             Write-Host "Running $suite ($Platform $Configuration)$(if ($filtered) { ", tests: $($Tests -join ', ')" })"
             & $executable @arguments *> $log
@@ -249,7 +286,7 @@ try {
         $failure = if ($testExit -ne 0) { Get-SuiteFailureReport -Suite $suite -ExitCode $testExit -LogPath $log }
         $receipt = [ordered]@{
             suite=$suite; configuration=$Configuration; platform=$Platform; nativeArchitecture=$nativeArchitecture
-            completedUtc=[DateTime]::UtcNow.ToString('o'); executable=$executable
+            completedUtc=$(if ($completedUtc) { $completedUtc } else { [DateTime]::UtcNow.ToString('o') }); executable=$executable
             sha256=(Get-FileHash -LiteralPath $executable -Algorithm SHA256).Hash; exitCode=$testExit; skips=$skips
             performanceReport=$performanceReport; performanceScenarios=$performance.scenarios
             performanceComparison=$performanceComparison.status; performanceExecutableSha256=$performance.executableSha256
@@ -298,7 +335,12 @@ Publish-TestRunEvidenceReceipt -Run $evidence -Name 'normal-suites.json' -Receip
     countUnit='suite'; discovered=@($Suites); executed=@($Suites); filtered=($Tests.Count -ne 0)
 })
 $runPassed = $true
-} finally { Complete-TestRunEvidence -Run $evidence -Passed $runPassed }
+} catch {
+    $primaryFailure = $_
+    throw
+} finally {
+    Complete-TestRunEvidenceAfterFailure -Run $evidence -Passed $runPassed -PrimaryFailure $primaryFailure
+}
 # Nested native probes can leave a failing child exit code even when every requested suite passed.
 # Reset only after successful evidence finalization so callers observe the runner's final result.
 $global:LASTEXITCODE = 0

@@ -31,7 +31,7 @@ Read [the example](Samples/EmbeddedControls/EmbeddedScene.h) for public-API cons
 - [DxUi.h](include/DxUi/DxUi.h): retained controls, layout, theme and ControlHost services.
 - [Embedded.h](include/DxUi/Embedded.h): supplied-device GraphicsDevice pool and EmbeddedHost preparation/composition.
 - [RichDocument.h](include/DxUi/RichDocument.h), [RichMarkdown.h](include/DxUi/RichMarkdown.h),
-  [RichTextLayout.h](include/DxUi/RichTextLayout.h): [bounded Unicode preparation core](docs/rich-text.md); retained RichTextEditor with shared Unicode 17 grapheme navigation and native/embedded source TSF/IME and UIA adapters. V0 formatting remains the default; `SetMarkdownRenderingEnabled(true)` adds the bounded semantic native rendering preview, measured hanging list gutters, underlined inert links and a validated native HTML subset with whole-leaf literal fallback. Distinct source caret sites cover empty/container/trailing lines, empty/padded cells and empty balanced HTML. Structural/style UIA, real IME/AT and accepted extensions remain pending.
+  [RichTextLayout.h](include/DxUi/RichTextLayout.h): [bounded Unicode preparation core and current capability matrix](docs/rich-text.md#current-capabilities). RichTextEditor provides native/embedded source TSF/IME and UIA adapters, semantic structure/style accessibility, caller-serviced images, file-reference paste/drop, footnotes, metadata validation and scoped source editing. V0 formatting remains the default; `SetMarkdownRenderingEnabled(true)` enables the bounded semantic preview with a validated native HTML subset, source-backed link intents and literal fallback. Named math/Mermaid profiles remain limited. Complete editor/conformance, physical IME/AT and performance acceptance retain separate gates.
 - [MarkdownSyntax.h](include/DxUi/MarkdownSyntax.h): owned lossless Unicode block/inline parsing and configurable GFM analysis,
   qualified against 1,324 original semantic expectations with cooperative preparation
   and opt-in RichTextEditor hosting. Complete semantic rendering/editing and the
@@ -71,7 +71,7 @@ remain separate. See [the adoption record](Specs/Plans/Done/RedSalamanderMigrati
 [Capabilities](capabilities.json) lists supported library mechanisms separately from those pending integrations.
 It distinguishes implemented behavior from open physical-touch, native-platform, interactive-suite and API-revision-4
 consumer qualification; the consumer-owned pin, adapter, publication and product-test actions are tracked in the
-[API revision 4 handoff register](Specs/Plans/WIP/ProductionReview_2026-10-05/api4-consumer-handoffs.md).
+[API revision 4 handoff register](Specs/Plans/Done/ProductionReview_2026-10-05/api4-consumer-handoffs.md).
 
 Start with [AGENTS.md](AGENTS.md), [spec authority](Specs/README.md), and [active plans](Specs/Plans/WIP/README.md).
 Every repository tool is a PowerShell 7 script: build, test, formatting, the validators and the tooling tests.

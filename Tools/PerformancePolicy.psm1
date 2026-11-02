@@ -316,7 +316,7 @@ function Get-PerformanceToolPropertyNames {
             'DxUiOutputRoot','VCTargetsPath','ConfigurationType','VCToolArchitecture','WindowsSDKToolArchitecture','FxCompileToolArchitecture','FxCompileToolExe',
             'FXCToolPath','CLToolPath','CLToolExe','LinkToolPath','LinkToolExe','LibToolPath','LibToolExe','ForceImportAfterCppTargets','MultiProcFXC',
             'IncludePath','LibraryPath','ExecutablePath','ReferencePath','ExcludePath','EnableASAN','UseDebugLibraries','LinkIncremental','LibAdditionalOptions',
-            'IntDir','OutDir','VSInstallDir','UniversalCRTSdkDir','UCRTVersion','NETFXKitsDir','ExternalIncludePath',
+            'IntDir','OutDir','TLogLocation','VSInstallDir','UniversalCRTSdkDir','UCRTVersion','NETFXKitsDir','ExternalIncludePath',
             'BuildingSolutionFile','CurrentSolutionConfigurationContents','SolutionDir','SolutionExt','SolutionFileName','SolutionName','SolutionPath','Configuration','Platform')) {
         [void]$names.Add($name)
     }
@@ -538,7 +538,7 @@ function Get-PerformanceNativeInputClosure {
     $libraries = @($libraries | ForEach-Object { [IO.Path]::GetFullPath($_).TrimEnd('\','/') } | Sort-Object -Unique)
     $triplet = if ($Platform -eq 'ARM64') { 'arm64-windows' } else { 'x64-windows' }
     $dependencyRoot = Join-Path $rootPath ".build/vcpkg_installed/$Platform/$triplet"
-    $nativeDirectories = @('src','include','Tests/Embedded','Tests/Support','Samples/EmbeddedControls','Samples/ComplexUi')
+    $nativeDirectories = @('src','include','Tests/Embedded','Tests/Support','Samples/EmbeddedControls','Samples/ComplexUi','ThirdParty/tomlplusplus/3.4.0','ThirdParty/rapidyaml/0.16.0')
     # Reuse scoped Git discovery, but retain every byte in the supported native input trees, including extensionless files
     # and prose that could be included explicitly. Ignored inputs and reparse points cannot become invisible dependencies.
     $tracked = & (Get-Module ScopedTesting) { param($Root) Get-ScopedTrackedPaths $Root } $rootPath
@@ -657,12 +657,18 @@ function Get-PerformanceNativeInputClosure {
     # IntDir is an include path for two derived shader headers only. Other headers there would be ignored source inputs.
     if (Test-Path -LiteralPath $intDir -PathType Container) {
         if ((Get-Item -LiteralPath $intDir).Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Reparse native intermediate roots are unsupported.' }
-        $failureMarker = Join-Path $intDir "$projectName.tlog/unsuccessfulbuild"
+        # MSBuild shortens tracking directory names for longer project paths;
+        # the evaluated property, not a guessed project-name spelling, owns it.
+        if (-not $Properties.Contains('TLogLocation') -or [string]::IsNullOrWhiteSpace([string]$Properties['TLogLocation'])) { throw 'The native tracking-log directory is missing.' }
+        $trackingDirectory = Resolve-PerformanceInputPath $Properties['TLogLocation'] $projectDirectory
+        if ([IO.Path]::GetDirectoryName($trackingDirectory) -ine [IO.Path]::GetFullPath($intDir).TrimEnd('\','/') -or [IO.Path]::GetExtension($trackingDirectory) -ine '.tlog') { throw 'The native tracking-log directory must be a direct .tlog child of its profile intermediate directory.' }
+        if ((Test-Path -LiteralPath $trackingDirectory) -and ((Get-Item -LiteralPath $trackingDirectory).Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'Reparse native tracking-log directories are unsupported.' }
+        $failureMarker = Join-Path $trackingDirectory 'unsuccessfulbuild'
         foreach ($file in Get-ChildItem -LiteralPath $intDir -Recurse -File -Force) {
             $shaderOutputs = @('DxUiCompositeVS.h','DxUiCompositePS.h','DxUiCompositeVS.cso','DxUiCompositePS.cso' | ForEach-Object { Join-Path $intDir $_ })
             # MSBuild leaves this status marker after a failed compilation. It permits retry, never build reuse or a
             # blanket extensionless-input allowance; the incremental receipt still binds its presence and bytes.
-            $isFailureMarker = $file.FullName -ieq $failureMarker -and -not ($file.Attributes -band [IO.FileAttributes]::ReparsePoint)
+            $isFailureMarker = $file.FullName -ieq $failureMarker -and $file.Length -eq 0 -and -not ($file.Attributes -band [IO.FileAttributes]::ReparsePoint)
             if ($file.FullName -notin $shaderOutputs -and -not $isFailureMarker -and $file.Extension -notin @('.obj','.tlog','.log','.lastbuildstate','.recipe','.pdb','.idb','.ilk','.ipdb','.iobj')) { throw "Unsupported ignored input/output in the native intermediate directory: $($file.FullName)" }
         }
     }

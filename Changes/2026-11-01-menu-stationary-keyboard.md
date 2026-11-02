@@ -1,0 +1,1 @@
+- Preserve keyboard-focused submenu state when a stationary ancestor pointer message arrives; foreground qualification remains pending.

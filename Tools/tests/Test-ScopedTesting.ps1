@@ -115,6 +115,8 @@ try {
             $fixture=Join-Path $repository 'Tools/ConsumerApi/ConsumerApi.Tests.Revision4.cpp'
             $consumer=Join-Path $repository 'test-consumer.ps1'
             Assert-Scope ((Test-Path -LiteralPath $fixture) -and [IO.File]::ReadAllText($consumer).Contains('Tools/ConsumerApi/ConsumerApi.Tests.Revision4.cpp') -and [IO.File]::ReadAllText($consumer).Contains('ConsumerApi.Tests.Revision4.cpp')) 'Frozen public API fixture is not compiled by the exact-pin consumer gate'
+            $headerLoop=[regex]::Match([IO.File]::ReadAllText($consumer),'(?s)\$headerUnits\s*=\s*foreach\s*\(.*?\)\s*\{')
+            Assert-Scope ($headerLoop.Success -and $headerLoop.Value.Contains("'RichMath'")) 'Exact-pin consumer must compile RichMath as an independent public header'
         }
     }
     Run-Case 'active names require exact Tests spelling and reject historical inventory membership' {
@@ -153,11 +155,14 @@ try {
     Run-Case 'unmapped executable input widens to every scope' {$plan=Get-ScopedTestPlan $manifest @('Unknown/new.cpp');Assert-Scope $plan.full 'Fallback was narrowed'}
     if($manifest.repository -like '*/DxUi') {
         Run-Case 'native rich grammar geometry and shared fixtures retain accessibility coverage' {
-            foreach($path in @('include/DxUi/RichMath.h','include/DxUi/RichSemanticDocument.h','src/Controls/DxUi.RichSemanticDocument.cpp',
+            foreach($path in @('include/DxUi/RichMath.h','include/DxUi/RichSemanticDocument.h','include/DxUi/RichTextExport.h',
+                              'src/Controls/DxUi.RichSemanticDocument.cpp','src/Controls/DxUi.RichTextExport.cpp','Tests/Support/Support.Tests.RichTextExport.h',
                               'src/Controls/DxUi.NativeMath.cpp','src/Controls/DxUi.PreparedMath.h','src/Controls/DxUi.NativeFlowchart.cpp',
                               'src/Controls/DxUi.NativeFlowchartLayout.h','src/Controls/DxUi.PreparedFlowchart.cpp','src/Controls/DxUi.SemanticExtensions.h',
+                              'src/Controls/DxUi.RichTextScriptRenderer.h','src/Controls/DxUi.RichBidi.h',
                               'Tests/Support/Support.Tests.RichSemanticEditor.h','Tests/Support/Support.Tests.MarkdownBlocks.h',
-                              'Tests/Support/Support.Tests.FlowchartLayout.h','Tests/Support/Support.Tests.PreparedFlowchart.h')) {
+                              'Tests/Support/Support.Tests.FlowchartLayout.h','Tests/Support/Support.Tests.PreparedFlowchart.h',
+                              'Tests/Support/Support.Tests.NativeMathSupportRows.h')) {
                 $plan=Get-ScopedTestPlan $manifest @($path)
                 Assert-Scope (-not $plan.full) "Rich presentation input unexpectedly fell through to an unmapped full plan: $path"
                 foreach($scope in @('EditorControls','Embedded','Accessibility')) {
@@ -525,6 +530,14 @@ try {
             Assert-Scope (@(Get-ScopedPrCoverage $delegate $claim x64 Release).Count -eq 0) 'A widened coverage claim was delegated'
             $missing=[pscustomobject]@{repository='fixture/example';defaultBranch='main';prContractFiles=@('.github/workflows/ci.yml','runner.ps1','gone.ps1');prWorkflowDigest=$contract.prWorkflowDigest;prCoverage=$coverage.prCoverage}
             Assert-Scope (@(Get-ScopedPrCoverage $delegate $missing x64 Release).Count -eq 0) 'A missing contract file was delegated'
+            $closure=[pscustomobject]@{repository='fixture/example';defaultBranch='main';prContractClosure=$true;prContractFiles=@('.github/workflows/ci.yml');prWorkflowDigest='';prCoverage=$coverage.prCoverage}
+            $closure.prWorkflowDigest=Get-ScopedPrContractDigest $delegate $closure
+            [IO.Directory]::CreateDirectory((Join-Path $delegate 'Tools')) | Out-Null
+            [IO.File]::WriteAllText((Join-Path $delegate 'Tools/new-ci-script.ps1'),'new CI behavior')
+            Assert-Scope ((Get-ScopedPrContractDigest $delegate $closure) -cne $closure.prWorkflowDigest) 'New CI tooling did not change the reviewed closure'
+            Remove-Item -LiteralPath (Join-Path $delegate 'Tools/new-ci-script.ps1')
+            $closure.prCoverage=@([pscustomobject]@{platform='x64';configuration='Release';scopes=@('Other')})
+            Assert-Scope ((Get-ScopedPrContractDigest $delegate $closure) -cne $closure.prWorkflowDigest) 'Manifest behavior changed without changing the reviewed closure'
             $noWorkflow=[pscustomobject]@{repository='fixture/example';defaultBranch='main';prContractFiles=@('runner.ps1');prWorkflowDigest='';prCoverage=$coverage.prCoverage}
             $threw=$false;try{[void](Get-ScopedPrContractDigest $delegate $noWorkflow)}catch{$threw=$true}
             Assert-Scope $threw 'A contract without the workflow has a digest'

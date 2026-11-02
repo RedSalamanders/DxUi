@@ -1,0 +1,1 @@
+- Bound hosted MSVC bootstrapper download and installer waits, retain failure logs, and terminate only the timed-out owned installer tree.

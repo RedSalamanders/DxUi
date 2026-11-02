@@ -1,0 +1,1 @@
+- Keep layout style validation coverage using an actually unsupported style bit.

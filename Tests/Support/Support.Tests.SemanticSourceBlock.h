@@ -283,6 +283,29 @@ template <typename Check> inline void SourceRegions(Check&& check)
                   std::ranges::none_of(restored->Nodes(), [](const auto& item) { return item.block.kind == MarkdownBlockKind::SourceEditor; }),
               "ordinary parsing at the same source/revision removes the noncanonical editing hint");
     }
+    for (const auto source : {L"> previous\n```literal\nbody\n```\n", L"- previous\n```literal\nbody\n```\n"})
+    {
+        Document model{source};
+        MarkdownParser region;
+        const auto first = model.Text().find(L"```");
+        region.BeginSourceRegion(model.Snapshot(), model.Revision(), {{first, model.Length()}, 93u});
+        const auto syntax = CompleteRegion(region, check);
+        check(syntax->Nodes()[syntax->SourceRegionNode()].parent == 0u,
+              "a raw source block without the preceding quote/list prefix belongs to the document rather than the stale container");
+    }
+    for (const auto source : {L"    code\n  \n \nend", L"    code\r\n  \r\n \r\n"})
+    {
+        const auto document = SemanticDiagramTests::Build(source, check);
+        const auto lines    = document->Syntax()->EmptyLines();
+        check(lines.size() >= 2u && lines[0u].source.first < lines[1u].source.first,
+              "trailing indented-code blank lines retain separate source-ordered caret sites");
+        PreparedSemanticGeometry geometry;
+        geometry.Begin(write.get(), document, LayoutOptions{.widthDip = 240.0f});
+        while (geometry.Pending())
+            static_cast<void>(geometry.Advance());
+        for (const auto& line : lines)
+            check(geometry.IsEmptySourceSite(line.insertion, MarkdownNoNode), "each trimmed code blank line has current native source caret geometry");
+    }
     Document unicode{L"\U0001f600\r\nbody\n"};
     MarkdownParser parser;
     parser.BeginSourceRegion(unicode.Snapshot(), unicode.Revision(), {{0u, 4u}, 1u});
@@ -453,6 +476,18 @@ template <typename Prepare, typename Check> inline void Retained(SourceEditingEd
     check(editor.Undo(), "physical-line join undo restores exact source");
     prepare();
     check(editor.EndSemanticSourceEdit(host), "joined source envelope can leave editing");
+    constexpr std::wstring_view keyboardSource = L"- item\n```\ncode\n```\n";
+    enter(keyboardSource);
+    for (unsigned step = 0u; step < 6u && editor.GetSemanticSourceRegion(); ++step)
+    {
+        check(editor.OnKeyDown(host, VK_UP, 0u), "keyboard movement is handled in a source region");
+        prepare();
+    }
+    check(! editor.GetSemanticSourceRegion() && editor.GetSelection().caret < keyboardSource.find(L"```"),
+          "keyboard movement outside the fence retires its raw source presentation");
+    editor.SetSelection({6u, 6u});
+    check(editor.OnChar(host, L'\r', 0u) && editor.GetText().starts_with(L"- item\n- "),
+          "Enter in the preceding list uses semantic continuation after keyboard source exit");
     enter(cases[5u]);
     editor.SetSelection({0u, 0u});
     check(! editor.GetSemanticSourceRegion(), "moving the caret outside a local source scope retires raw presentation");

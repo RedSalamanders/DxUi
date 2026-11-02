@@ -2,6 +2,7 @@
 #include "DxUi.MarkdownCharacterReference.h"
 #include "DxUi.MarkdownEntityData.h"
 #include "DxUi.MarkdownInlines.h"
+#include "DxUi.MarkdownMetadata.h"
 #include "DxUi.MarkdownSourceCorrelation.h"
 #include "DxUi.TextElements.h"
 #include <DxUi/MarkdownSyntax.h>
@@ -28,8 +29,11 @@ bool TryResolveExtensions(MarkdownProfile profile, std::optional<MarkdownExtensi
 {
     if (profile != MarkdownProfile::CommonMark0312 && profile != MarkdownProfile::Gfm029 && profile != MarkdownProfile::RichMarkdown)
         return false;
-    result = extensions.value_or(profile == MarkdownProfile::CommonMark0312 ? MarkdownExtensions::None : MarkdownExtensions::All);
-    return ! (static_cast<unsigned>(result) & ~static_cast<unsigned>(MarkdownExtensions::All)) &&
+    result = extensions.value_or(profile == MarkdownProfile::CommonMark0312 ? MarkdownExtensions::None
+                                 : profile == MarkdownProfile::RichMarkdown ? MarkdownExtensions::RichAll
+                                                                            : MarkdownExtensions::All);
+    return ! (static_cast<unsigned>(result) &
+              ~static_cast<unsigned>(profile == MarkdownProfile::RichMarkdown ? MarkdownExtensions::RichOptionalMask : MarkdownExtensions::All)) &&
            (profile != MarkdownProfile::CommonMark0312 || result == MarkdownExtensions::None);
 }
 MarkdownExtensions ValidateExtensions(MarkdownProfile profile, std::optional<MarkdownExtensions> extensions)
@@ -193,7 +197,11 @@ std::wstring_view MarkdownSyntax::Source() const noexcept
 }
 std::optional<MarkdownSourceRegion> MarkdownSyntax::SourceRegion() const noexcept
 {
-    if (! sourceRegionRequest_ || sourceRegionNode_ == MarkdownNoNode)
+    if (! sourceRegionRequest_)
+        return std::nullopt;
+    if (sourceRegionRequest_->kind == MarkdownSourceRegionKind::Inline)
+        return sourceRegionRequest_;
+    if (sourceRegionNode_ == MarkdownNoNode)
         return std::nullopt;
     return MarkdownSourceRegion{nodes_[sourceRegionNode_].block.source, sourceRegionRequest_->session};
 }
@@ -232,6 +240,10 @@ std::uint64_t MarkdownSyntax::DocumentIdentity() const noexcept
 MarkdownBlockStatistics MarkdownSyntax::BlockStatistics() const noexcept
 {
     return ParsedData().blockStatistics_;
+}
+MarkdownInlineStatistics MarkdownSyntax::InlineStatistics() const noexcept
+{
+    return ParsedData().inlineStatistics_;
 }
 const std::vector<MarkdownLexeme>& MarkdownSyntax::Lexemes() const noexcept
 {
@@ -305,7 +317,32 @@ struct MarkdownParser::Preparation
         : syntax(std::shared_ptr<MarkdownSyntax>(new MarkdownSyntax(source, revision, profile, extensions, sourceRegion)))
     {
     }
+    static std::optional<std::wstring> BlockSource(const MarkdownSyntax& syntax)
+    {
+        if (! syntax.sourceRegionRequest_ || syntax.sourceRegionRequest_->kind != MarkdownSourceRegionKind::Inline)
+            return std::nullopt;
+        std::wstring source(syntax.source_);
+        std::fill(source.begin() + static_cast<std::ptrdiff_t>(syntax.sourceRegionRequest_->source.first),
+                  source.begin() + static_cast<std::ptrdiff_t>(syntax.sourceRegionRequest_->source.last),
+                  L'x');
+        // A deleted object between delimiter runs must not turn its containing
+        // paragraph into a thematic break before inline parsing.
+        const auto range = syntax.sourceRegionRequest_->source;
+        if (range.first == range.last && ! source.empty())
+        {
+            const auto before = range.first ? source.find_last_of(L"\r\n", range.first - 1u) : std::wstring::npos;
+            const auto first  = before == std::wstring::npos ? 0u : before + 1u;
+            const auto after  = source.find_first_of(L"\r\n", range.first);
+            const auto last   = after == std::wstring::npos ? source.size() : after;
+            const auto line   = std::wstring_view(source).substr(first, last - first);
+            if (line.size() >= 3u && line.find_first_not_of(L"*_ -\t") == std::wstring_view::npos && range.first < last)
+                source[range.first] = L'x';
+        }
+        return source;
+    }
     std::shared_ptr<MarkdownSyntax> syntax;
+    std::optional<std::wstring> blockSourceStorage = BlockSource(*syntax);
+    std::wstring_view blockSource                  = blockSourceStorage ? std::wstring_view(*blockSourceStorage) : std::wstring_view(syntax->source_);
     std::shared_ptr<const MarkdownSyntax> previous;
     std::optional<SourceSnapshot> snapshot;
     std::optional<SourceChangeRange> change;
@@ -314,6 +351,8 @@ struct MarkdownParser::Preparation
     // Preserve their insertion order and consume each old identity only once.
     std::multimap<NodeKey, std::size_t> oldNodes;
     std::size_t commonFirst{}, commonOldEnd{}, commonNewEnd{}, identityCursor{}, oldIndexCursor{};
+    std::size_t lexicalPrefixLimit{}, lexicalPrefixIndex{}, lexicalSuffixIndex = MarkdownNoNode, lexicalSuffixStart{};
+    bool copyingLexicalSuffix{};
     std::uint64_t nextIdentity = 1u;
     bool identitiesComplete{};
     bool discardOldIdentities{};
@@ -334,6 +373,23 @@ struct MarkdownParser::Preparation
         commonOldEnd         = correlation.previousEnd;
         commonNewEnd         = correlation.currentEnd;
         discardOldIdentities = correlation.discardPrevious;
+        if (change && change->kind == SourceChangeKind::TrackedEdits && ! discardOldIdentities)
+        {
+            // Lexical constructs have a maximum 33-unit named reference (or a
+            // two-unit escape/CRLF). Keep a safety margin on both edit edges.
+            constexpr std::size_t margin = 34u;
+            lexicalPrefixLimit           = commonFirst > margin ? commonFirst - margin : 0u;
+            const auto oldSafe           = commonOldEnd + std::min(margin, a.size() - commonOldEnd);
+            const auto& lexemes          = previous->Lexemes();
+            auto suffix = std::lower_bound(lexemes.begin(), lexemes.end(), oldSafe, [](const auto& token, auto at) { return token.source.first < at; });
+            while (suffix != lexemes.end() && suffix->kind == MarkdownLexemeKind::Text)
+                ++suffix;
+            if (suffix != lexemes.end())
+            {
+                lexicalSuffixIndex = static_cast<std::size_t>(suffix - lexemes.begin());
+                lexicalSuffixStart = commonNewEnd + (suffix->source.first - commonOldEnd);
+            }
+        }
     }
     void IdentityUnit()
     {
@@ -361,6 +417,29 @@ struct MarkdownParser::Preparation
         // on a host input/read path just to discover incomplete envelopes.
         if (node.block.kind == MarkdownBlockKind::FrontMatter && ! node.block.closed)
             syntax->diagnostics_.push_back({MarkdownDiagnosticCode::UnclosedFrontMatter, node.block.info, nodeIndex});
+        else if (node.block.kind == MarkdownBlockKind::FrontMatter && node.frontMatterKind == MarkdownFrontMatterKind::Toml)
+        {
+            const auto issue =
+                Detail::ValidateTomlMetadata(syntax->Source().substr(node.block.content.first, node.block.content.last - node.block.content.first));
+            if (issue != Detail::MetadataIssue::None)
+                syntax->diagnostics_.push_back({issue == Detail::MetadataIssue::Capacity ? MarkdownDiagnosticCode::TomlFrontMatterCapacity
+                                                                                         : MarkdownDiagnosticCode::InvalidTomlFrontMatter,
+                                                node.block.content,
+                                                nodeIndex});
+        }
+        else if (node.block.kind == MarkdownBlockKind::FrontMatter && node.frontMatterKind == MarkdownFrontMatterKind::Yaml)
+        {
+            const auto issue =
+                Detail::ValidateYamlMetadata(syntax->Source().substr(node.block.content.first, node.block.content.last - node.block.content.first));
+            if (issue != Detail::MetadataIssue::None)
+            {
+                const auto code = issue == Detail::MetadataIssue::Capacity          ? MarkdownDiagnosticCode::YamlFrontMatterCapacity
+                                  : issue == Detail::MetadataIssue::DuplicateKey    ? MarkdownDiagnosticCode::DuplicateYamlKey
+                                  : issue == Detail::MetadataIssue::UnresolvedAlias ? MarkdownDiagnosticCode::UnresolvedYamlAlias
+                                                                                    : MarkdownDiagnosticCode::InvalidYamlFrontMatter;
+                syntax->diagnostics_.push_back({code, node.block.content, nodeIndex});
+            }
+        }
         if (identityCursor == 1u && previous)
         {
             node.identity = previous->Nodes()[0].identity;
@@ -414,8 +493,20 @@ struct MarkdownParser::Preparation
         if (! node.identity)
             node.identity = nextIdentity++;
     }
-    Detail::MarkdownBlocks blocks{syntax->source_, syntax->profile_, syntax->nodes_, syntax->emptyLines_, syntax->extensions_, syntax->sourceRegionRequest_};
-    Detail::MarkdownInlines inlines{syntax->source_,
+    Detail::MarkdownBlocks blocks{
+        blockSource,
+        syntax->profile_,
+        syntax->nodes_,
+        syntax->emptyLines_,
+        syntax->extensions_,
+        syntax->sourceRegionRequest_ && syntax->sourceRegionRequest_->kind == MarkdownSourceRegionKind::Block ? syntax->sourceRegionRequest_ : std::nullopt,
+        syntax->sourceRegionRequest_ && syntax->sourceRegionRequest_->kind == MarkdownSourceRegionKind::Inline && syntax->source_.empty()};
+    Detail::MarkdownInlines inlines{syntax->sourceRegionRequest_ && syntax->sourceRegionRequest_->kind == MarkdownSourceRegionKind::Inline &&
+                                            syntax->sourceRegionRequest_->source.first == syntax->sourceRegionRequest_->source.last
+                                        ? std::wstring_view(syntax->source_)
+                                        : blockSource,
+                                    syntax->source_,
+                                    syntax->sourceRegionRequest_,
                                     syntax->profile_,
                                     syntax->extensions_,
                                     syntax->nodes_,
@@ -425,12 +516,207 @@ struct MarkdownParser::Preparation
                                     syntax->diagnostics_,
                                     CharacterReference};
     std::size_t cursor{}, lineFirst{}, lexicalCursor{}, literalFirst{}, rootCursor{}, rootNode = MarkdownNoNode;
+    std::size_t reusableRootIndex = 1u;
+    struct ClosedRootReuse
+    {
+        ClosedRootReuse() : remap(0u)
+        {
+        }
+        enum class Phase
+        {
+            ValidateNodes,
+            ValidateLinks,
+            ValidateEmpty,
+            CopyNodes,
+            CopyLines,
+            CopyEmpty
+        };
+        Phase phase = Phase::ValidateNodes;
+        std::size_t root{}, scan{}, end{}, line = MarkdownNoNode, emptyBegin{}, emptyCursor{}, newFirst{};
+        std::vector<std::size_t> remap;
+    };
+    std::optional<ClosedRootReuse> closedRoot;
     bool blocksComplete{}, lexemesComplete{}, rootsComplete{}, inlinesComplete{};
+    void ClosedRootUnit()
+    {
+        auto& work          = *closedRoot;
+        const auto& nodes   = previous->Nodes();
+        const auto blanks   = previous->EmptyLines();
+        const auto& root    = nodes[work.root];
+        const auto oldFirst = root.block.source.first, oldLast = root.block.source.last;
+        const auto validRange = [&](MarkdownRange range) noexcept
+        { return (range.first == 0u && range.last == 0u) || (range.first >= oldFirst && range.first <= range.last && range.last <= oldLast); };
+        const auto fail = [&]() noexcept { closedRoot.reset(); };
+        if (work.phase == ClosedRootReuse::Phase::ValidateNodes)
+        {
+            if (work.scan == nodes.size() || (work.scan > work.root && nodes[work.scan].parent == 0u))
+            {
+                work.end = work.scan;
+                if ((root.nextSibling == MarkdownNoNode ? work.end != nodes.size() : root.nextSibling != work.end) ||
+                    ! blocks.CanImportNodeCount(work.end - work.root))
+                {
+                    fail();
+                    return;
+                }
+                work.scan  = work.root;
+                work.phase = ClosedRootReuse::Phase::ValidateLinks;
+                return;
+            }
+            const auto index = work.scan;
+            const auto& node = nodes[index];
+            if (work.line == MarkdownNoNode)
+            {
+                const bool parentValid = index == work.root ? node.parent == 0u : node.parent >= work.root && node.parent < index;
+                const bool childValid =
+                    node.firstChild == MarkdownNoNode || (node.firstChild > index && node.firstChild < nodes.size() && nodes[node.firstChild].parent == index);
+                const bool siblingValid = index == work.root || node.nextSibling == MarkdownNoNode ||
+                                          (node.nextSibling > index && node.nextSibling < nodes.size() && nodes[node.nextSibling].parent == node.parent);
+                if (! parentValid || ! childValid || ! siblingValid ||
+                    (node.block.kind == MarkdownBlockKind::SourceEditor || node.block.kind == MarkdownBlockKind::ReferenceDefinition) ||
+                    (node.block.source.first < oldFirst || node.block.source.first > node.block.source.last || node.block.source.last > oldLast) ||
+                    (node.block.content.first < oldFirst || node.block.content.first > node.block.content.last || node.block.content.last > oldLast) ||
+                    ! validRange(node.block.info) || ! validRange(node.label) || ! validRange(node.destination) || ! validRange(node.title))
+                {
+                    fail();
+                    return;
+                }
+                work.line = 0u;
+                return;
+            }
+            if (work.line < node.lines.size())
+            {
+                const auto line = node.lines[work.line++].source;
+                if (line.first < oldFirst || line.first > line.last || line.last > oldLast)
+                    fail();
+                return;
+            }
+            ++work.scan;
+            work.line = MarkdownNoNode;
+            return;
+        }
+        if (work.phase == ClosedRootReuse::Phase::ValidateLinks)
+        {
+            if (work.scan < work.end)
+            {
+                const auto index = work.scan++;
+                const auto& node = nodes[index];
+                if ((node.firstChild != MarkdownNoNode && node.firstChild >= work.end) ||
+                    (index != work.root && node.nextSibling != MarkdownNoNode && node.nextSibling >= work.end))
+                    fail();
+                return;
+            }
+            const auto blank =
+                std::lower_bound(blanks.begin(), blanks.end(), oldFirst, [](const auto& value, auto position) { return value.source.first < position; });
+            work.emptyBegin = work.emptyCursor = static_cast<std::size_t>(blank - blanks.begin());
+            work.phase                         = ClosedRootReuse::Phase::ValidateEmpty;
+            return;
+        }
+        if (work.phase == ClosedRootReuse::Phase::ValidateEmpty)
+        {
+            if (work.emptyCursor < blanks.size() && blanks[work.emptyCursor].source.first < oldLast)
+            {
+                const auto& blank            = blanks[work.emptyCursor++];
+                const auto retainedEnd       = root.lines.empty() ? oldFirst : root.lines.back().source.last;
+                const bool trailingCodeBlank = root.block.kind == MarkdownBlockKind::IndentedCode && blank.owner == 0u && blank.source.first >= retainedEnd &&
+                                               blank.source.last <= oldLast;
+                if ((! trailingCodeBlank && (blank.owner < work.root || blank.owner >= work.end)) || ! validRange(blank.source) ||
+                    blank.insertion < blank.source.first || blank.insertion > blank.source.last)
+                    fail();
+                return;
+            }
+            work.remap.reserve(work.end - work.root);
+            work.scan  = work.root;
+            work.line  = 0u;
+            work.phase = ClosedRootReuse::Phase::CopyNodes;
+            return;
+        }
+        if (work.phase == ClosedRootReuse::Phase::CopyNodes)
+        {
+            if (work.scan == work.end)
+            {
+                work.emptyCursor = work.emptyBegin;
+                work.phase       = ClosedRootReuse::Phase::CopyEmpty;
+                return;
+            }
+            const auto& node  = nodes[work.scan];
+            const auto parent = work.scan == work.root ? 0u : work.remap[node.parent - work.root];
+            work.remap.push_back(blocks.ImportClosedNode(node, parent, oldFirst, work.newFirst));
+            work.line  = 0u;
+            work.phase = ClosedRootReuse::Phase::CopyLines;
+            return;
+        }
+        if (work.phase == ClosedRootReuse::Phase::CopyLines)
+        {
+            const auto& node = nodes[work.scan];
+            if (work.line < node.lines.size())
+            {
+                blocks.ImportClosedLine(work.remap.back(), node.lines[work.line++], oldFirst, work.newFirst);
+                return;
+            }
+            ++work.scan;
+            work.phase = ClosedRootReuse::Phase::CopyNodes;
+            return;
+        }
+        if (work.emptyCursor < blanks.size() && blanks[work.emptyCursor].source.first < oldLast)
+        {
+            const auto& blank = blanks[work.emptyCursor++];
+            blocks.ImportClosedEmptyLine(blank, blank.owner == 0u ? 0u : work.remap[blank.owner - work.root], oldFirst, work.newFirst);
+            return;
+        }
+        cursor    = work.newFirst + (oldLast - oldFirst);
+        lineFirst = cursor;
+        blocks.FinishClosedRoot(cursor);
+        reusableRootIndex = work.end;
+        closedRoot.reset();
+    }
     void ScanBlockUnit()
     {
+        if (closedRoot)
+        {
+            ClosedRootUnit();
+            return;
+        }
         if (blocks.AdvanceTableCell())
             return;
-        const auto& source = syntax->source_;
+        const auto& source = blockSource;
+        if (previous && change && change->kind == SourceChangeKind::TrackedEdits && previous->Extensions() == syntax->Extensions() &&
+            ! previous->sourceRegionRequest_ && ! syntax->sourceRegionRequest_ && cursor == lineFirst && blocks.CanImportClosedRoot())
+        {
+            const bool prefix = cursor < commonFirst;
+            const bool suffix = cursor >= commonNewEnd;
+            if (prefix || suffix)
+            {
+                const auto oldPosition    = prefix ? cursor : commonOldEnd + (cursor - commonNewEnd);
+                const auto& previousNodes = previous->Nodes();
+                if (reusableRootIndex < previousNodes.size())
+                {
+                    const auto& old = previousNodes[reusableRootIndex];
+                    if (old.parent != 0u || old.block.source.first < oldPosition)
+                    {
+                        ++reusableRootIndex;
+                        return;
+                    }
+                    if (old.block.source.first == oldPosition)
+                    {
+                        ++reusableRootIndex;
+                        const auto& blanks = previous->EmptyLines();
+                        const auto blank   = std::lower_bound(
+                            blanks.begin(), blanks.end(), old.block.source.last, [](const auto& line, auto position) { return line.source.first < position; });
+                        const bool followingBlank = blank != blanks.end() && blank->owner == 0u && blank->source.first == old.block.source.last &&
+                                                    blank->source.last > blank->source.first && (! prefix || blank->source.last <= commonFirst);
+                        // A suffix is unchanged through EOF, so its existing closure remains valid.
+                        // Prefix roots require an unchanged document-owned separator.
+                        if ((followingBlank || suffix) && old.block.closed && old.block.source.last > old.block.source.first)
+                        {
+                            closedRoot.emplace();
+                            closedRoot->root = closedRoot->scan = reusableRootIndex - 1u;
+                            closedRoot->newFirst                = cursor;
+                            return;
+                        }
+                    }
+                }
+            }
+        }
         if (cursor == source.size())
         {
             if (lineFirst < cursor)
@@ -489,6 +775,37 @@ struct MarkdownParser::Preparation
     void ScanLexicalUnit()
     {
         const auto& source = syntax->source_;
+        if (previous && lexicalPrefixIndex < previous->Lexemes().size())
+        {
+            const auto& token = previous->Lexemes()[lexicalPrefixIndex];
+            if (token.source.first == lexicalCursor && token.source.last <= lexicalPrefixLimit)
+            {
+                syntax->lexemes_.push_back(token);
+                lexicalCursor = literalFirst = token.source.last;
+                ++lexicalPrefixIndex;
+                return;
+            }
+        }
+        if (lexicalSuffixIndex != MarkdownNoNode && (copyingLexicalSuffix || lexicalCursor == lexicalSuffixStart))
+        {
+            if (! copyingLexicalSuffix)
+            {
+                FlushLiteral(lexicalCursor);
+                copyingLexicalSuffix = true;
+            }
+            const auto& old = previous->Lexemes();
+            if (lexicalSuffixIndex < old.size())
+            {
+                auto token         = old[lexicalSuffixIndex++];
+                token.source.first = commonNewEnd + (token.source.first - commonOldEnd);
+                token.source.last  = commonNewEnd + (token.source.last - commonOldEnd);
+                syntax->lexemes_.push_back(token);
+                lexicalCursor = literalFirst = token.source.last;
+                return;
+            }
+            lexemesComplete = true;
+            return;
+        }
         if (lexicalCursor == source.size())
         {
             FlushLiteral(lexicalCursor);
@@ -570,18 +887,19 @@ bool MarkdownParser::TryAdoptParsedSnapshot(const SourceSnapshot& source,
         return false;
 
     const auto& canonical = syntax->parsedDataOwner_ ? syntax->parsedDataOwner_ : syntax;
-    if (canonical->parsedDataOwner_ || canonical->sourceRegionRequest_ || canonical->Profile() != profile || canonical->Extensions() != resolved ||
-        ! source.MatchesText(canonical->Source()))
+    if (canonical->parsedDataOwner_ || canonical->sourceRegionRequest_ || canonical->Profile() != profile || canonical->Extensions() != resolved)
         return false;
 
     if (published_ && published_->parsedDataOwner_ && published_->Revision() == revision && published_->Profile() == profile &&
         published_->Extensions() == resolved && publishedSource_ && publishedSource_->IsSameRevision(source) && published_->parsedDataOwner_ == canonical)
     {
-        // Reasserting the current publication supersedes a later staged
-        // request, just like Begin of an already published exact snapshot.
+        // The exact immutable source revision was already validated against this
+        // canonical parse. Retire later staged work without walking its pieces.
         Cancel();
         return true;
     }
+    if (! source.MatchesText(canonical->Source()))
+        return false;
 
     const auto identity = nextDocumentIdentity.fetch_add(1u, std::memory_order_relaxed);
     auto staged         = std::shared_ptr<MarkdownSyntax>(new MarkdownSyntax(canonical, revision, profile, resolved, identity));
@@ -635,6 +953,11 @@ void MarkdownParser::BeginSourceRegion(
 {
     if (! region.session)
         throw std::invalid_argument("Source editing requires a nonzero session");
+    if ((region.kind != MarkdownSourceRegionKind::Block && region.kind != MarkdownSourceRegionKind::Inline) ||
+        (region.inlineKind != MarkdownInlineSourceKind::Math && region.inlineKind != MarkdownInlineSourceKind::Link &&
+         region.inlineKind != MarkdownInlineSourceKind::Image) ||
+        (region.kind == MarkdownSourceRegionKind::Block && region.inlineKind != MarkdownInlineSourceKind::Math))
+        throw std::invalid_argument("Invalid source editing kind");
     if (region.source.first > region.source.last || ! source.IsBoundary(region.source.first) || ! source.IsBoundary(region.source.last))
         throw std::out_of_range("Invalid source editing envelope");
     const auto enabled = ValidateExtensions(profile, extensions);
@@ -698,7 +1021,12 @@ MarkdownAdvance MarkdownParser::Advance(std::size_t maximumWorkUnits)
             else if (! pending.lexemesComplete)
                 pending.ScanLexicalUnit();
             else if (! pending.inlinesComplete)
+            {
                 pending.inlinesComplete = pending.inlines.Step();
+                if (pending.inlinesComplete)
+                    pending.syntax->inlineStatistics_ = {
+                        pending.inlines.AutolinkInspectionUnits(), pending.inlines.AutolinkDecodedUnits(), pending.inlines.WikiInspectionUnits()};
+            }
             else if (! pending.identitiesComplete)
                 pending.IdentityUnit();
             else

@@ -460,6 +460,56 @@ void TestASecondButtonDuringADragLeavesTheDragToItsControl()
     }
 }
 
+// A preview observer may give capture to another control during the original button-up.
+void TestSliderReleaseThroughHostPreservesReplacementCapture()
+{
+    using namespace DxUi;
+    for (const bool scrolled : {false, true})
+    {
+        WindowHost host;
+        auto root       = std::make_unique<Panel>();
+        auto* rootPanel = root.get();
+        Panel* parent   = rootPanel;
+        if (scrolled)
+        {
+            auto* scroll = root->AddChild<ScrollPanel>();
+            scroll->SetBounds(D2D1::RectF(0, 0, 300, 200));
+            scroll->SetContentHeight(300);
+            parent = scroll;
+        }
+        auto* slider = parent->AddChild<Slider>();
+        slider->SetBounds(D2D1::RectF(20, 20, 220, 68));
+        slider->SetValue(0.5);
+        auto* replacement = root->AddChild<Button>(L"Replacement capture");
+        replacement->SetBounds(D2D1::RectF(250, 20, 300, 68));
+        host.SetRoot(std::move(root));
+        rootPanel->SetBounds(D2D1::RectF(0, 0, 320, 240));
+        bool armed       = false;
+        unsigned commits = 0u, cancels = 0u;
+        slider->SetOnChange([&](SliderChange change)
+        {
+            if (change.phase == SliderChangePhase::Preview && armed)
+            {
+                armed = false;
+                host.CaptureMouse(replacement);
+            }
+            else if (change.phase == SliderChangePhase::Commit)
+                ++commits;
+            else if (change.phase == SliderChangePhase::Cancel)
+                ++cancels;
+        });
+        const auto thumb = slider->DebugGetThumbRect();
+        const LONG x     = static_cast<LONG>((thumb.left + thumb.right) * 0.5f);
+        const LONG y     = static_cast<LONG>((thumb.top + thumb.bottom) * 0.5f);
+        bool handled     = false;
+        static_cast<void>(host.HandleMessage(nullptr, WM_LBUTTONDOWN, MK_LBUTTON, MAKELPARAM(x, y), handled));
+        armed = true;
+        static_cast<void>(host.HandleMessage(nullptr, WM_LBUTTONUP, 0, MAKELPARAM(200, y), handled));
+        Require(! armed && commits == 0u && cancels == 1u && host.GetCapturedControl() == replacement,
+                "the routed release cancels the old draft without releasing its replacement capture");
+        host.ReleaseMouseCapture();
+    }
+}
 // The second click of a double-click on a ScrollPanel's track pages again, as on a native scrollbar, and leaves the
 // focus where it was. It used to reach the panel as a double-click nothing handled, which lost the page and cleared the
 // focus.

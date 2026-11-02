@@ -1,0 +1,16 @@
+{
+  "source": "a8cb8e1d7a4106750b195e6e8f2f686d66be9075",
+  "pid": 70892,
+  "arguments": [
+    "-NoProfile",
+    "-File",
+    "\"Z:\\src\\DxUi-worktrees\\wip-compat-redxe-menu-20261101\\build.ps1\"",
+    "-Platform",
+    "x64",
+    "-Configuration",
+    "\"Release\""
+  ],
+  "configuration": "Release",
+  "platform": "x64",
+  "createdUtc": "2026-11-02T06:57:44.4821741Z"
+}

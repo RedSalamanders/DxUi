@@ -1,6 +1,7 @@
 // Compile the public accessibility header first: consumers must not supply its COM prerequisites.
 #include <DxUi/EmbeddedAccessibility.h>
 
+#include "Controls/DxUi.Internal.h"
 #include "Controls/DxUi.TextElements.h"
 #include "EmbeddedScene.h"
 #include "GraphicsFixture.h"
@@ -24,6 +25,7 @@
 #include <malloc.h>
 #include <new>
 #include <stdexcept>
+#include <type_traits>
 
 #include "Embedded.Tests.BenchmarkInstrument.h"
 static size_t checks = 0;
@@ -32,7 +34,7 @@ static void Check(bool value, const char* text)
     ++checks;
     if (! value)
     {
-        std::cerr << "FAIL: " << text << '\n';
+        DxUiTestFailureReports::WriteFailure(text);
         std::exit(1);
     }
 }
@@ -638,6 +640,31 @@ __declspec(noinline) static void TestEmbeddedIconLayoutRebuildsAfterFormatCacheE
     Check(button->DebugGetPreparedIconTextLayoutBuildCount() == warmBuilds && button->DebugGetPreparedIconTextLayoutFactoryLookupCount() == warmLookups,
           "a subsequent warm embedded preparation adds no layout or factory lookup");
     Check(evictedPixels == warmPixels, "the warm embedded frame remains pixel-identical after eviction");
+    button->SetVariant(DxUi::ButtonVariant::Hyperlink);
+    button->SetText(L"Embedded hyperlink");
+    button->SetBounds(D2D1::RectF(8.f, 8.f, 160.f, 40.f));
+    Hr(PrepareRichEmbeddedContent(view, 320u, 120u), "prepare embedded hyperlink");
+    static_cast<void>(view.DispatchPointer({DxUi::PointerAction::Move, 20, 20}));
+    static_cast<void>(capture());
+    Check(button->IsHovered() && button->DebugGetPreparedHyperlinkWidthDip() > 0.f && button->DebugGetHyperlinkMeasureCount() > 0u,
+          "first embedded hovered hyperlink frame has prepared underline geometry");
+    const auto measureLayouts    = DxUi::testSingleLineMeasureLayoutCreations;
+    const auto hyperlinkMeasures = button->DebugGetHyperlinkMeasureCount();
+    gpu.Bind();
+    const auto beforeHoverPaints = allocations;
+    countAllocations             = true;
+    for (unsigned frame = 0u; frame < 8u; ++frame)
+    {
+        view.MarkDirty();
+        Hr(view.Composite(gpu.context.get(), gpu.Viewport()), "repeat hovered hyperlink paint");
+    }
+    countAllocations = false;
+    Check(allocations == beforeHoverPaints && DxUi::testSingleLineMeasureLayoutCreations == measureLayouts &&
+              button->DebugGetHyperlinkMeasureCount() == hyperlinkMeasures,
+          "repeated hovered embedded paints allocate no C++ memory or measuring layouts");
+    Hr(button->SetContentFontSizeDip(24.f), "change embedded hyperlink font size");
+    static_cast<void>(capture());
+    Check(button->DebugGetHyperlinkMeasureCount() == hyperlinkMeasures + 1u, "font-size change prepares a new hyperlink underline");
 }
 
 __declspec(noinline) static void TestPointerDoesNotRetargetAfterHoverOrHitGeometryMutation(GraphicsFixture& gpu)
@@ -803,6 +830,35 @@ __declspec(noinline) static void TestPointerDoesNotRetargetAfterHoverOrHitGeomet
     }
 }
 
+// The existing thread-local allocator seam is armed only around the catalog call. Sweeping
+// every allocation observed on the successful path includes Separator's Control lifetime
+// token even when Debug STL iterator proxies add allocations before that token.
+static void TestSeparatorCatalogAllocationFailures()
+{
+    static_assert(! std::is_nothrow_default_constructible_v<DxUi::Separator>);
+    std::unique_ptr<DxUi::Control> output;
+    const auto oldCount    = allocations;
+    const auto oldCounting = countAllocations;
+    allocations            = 0u;
+    countAllocations       = true;
+    const HRESULT success  = DxUi::CreateControl(DxUi::ControlKind::Separator, output);
+    countAllocations       = oldCounting;
+    const size_t observed  = allocations;
+    allocations            = oldCount;
+    Check(success == S_OK && dynamic_cast<DxUi::Separator*>(output.get()) && observed >= 2u,
+          "catalog success observes both object and lifetime-token allocation");
+    for (size_t point = 0u; point < observed; ++point)
+    {
+        auto sentinel                           = std::make_unique<DxUi::Label>(L"sentinel");
+        DxUi::Control* const original           = sentinel.get();
+        std::unique_ptr<DxUi::Control> retained = std::move(sentinel);
+        const auto previous                     = failAllocationAfter;
+        failAllocationAfter                     = point;
+        const HRESULT result                    = DxUi::CreateControl(DxUi::ControlKind::Separator, retained);
+        failAllocationAfter                     = previous;
+        Check(result == E_OUTOFMEMORY && retained.get() == original, "every observed Separator factory allocation failure preserves the caller result");
+    }
+}
 // Keep unrelated functional-test locals out of the benchmark entry stack, even under LTCG.
 __declspec(noinline) static void TestPreparationCallbacksCanRetireRoot(GraphicsFixture& gpu)
 {
@@ -1102,6 +1158,106 @@ __declspec(noinline) static void TestGridModelMutationDuringCellPaintAbortsPrepa
     }
 }
 
+__declspec(noinline) static void TestTreeReorderWakeRetiresOwner(GraphicsFixture& gpu)
+{
+    using namespace DxUi;
+    struct Model final : ITreeModel
+    {
+        size_t GetVisibleItemCount() const noexcept override
+        {
+            return 3u;
+        }
+        void GetVisibleItem(size_t index, TreeItemData& item) const override
+        {
+            item = {.id = index + 1u, .text = L"Row " + std::to_wstring(index + 1u)};
+        }
+        std::optional<size_t> FindVisibleItemById(uint64_t id) const noexcept override
+        {
+            return id >= 1u && id <= 3u ? std::optional<size_t>(static_cast<size_t>(id - 1u)) : std::nullopt;
+        }
+    } model;
+    struct Delegate final : ITreeDelegate
+    {
+        unsigned reorders{}, menus{};
+        void OnTreeReorder(const TreeDrop&) override
+        {
+            ++reorders;
+        }
+        void OnTreeContextMenu(uint64_t, POINT) override
+        {
+            ++menus;
+        }
+    } delegate;
+    struct Wake
+    {
+        EmbeddedHost* view{};
+        bool armed{};
+        unsigned retirements{};
+    } wake;
+    std::shared_ptr<GraphicsDevice> graphics;
+    Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "create Tree reorder retirement graphics");
+    EmbeddedHost view;
+    wake.view = &view;
+    EmbeddedCallbacks callbacks{};
+    callbacks.context            = &wake;
+    callbacks.requestPreparation = [](void* context) noexcept
+    {
+        auto& state = *static_cast<Wake*>(context);
+        if (std::exchange(state.armed, false))
+        {
+            ++state.retirements;
+            state.view->Controls().SetRoot(nullptr);
+        }
+    };
+    Hr(view.Attach(graphics, callbacks), "attach Tree reorder retirement host");
+    auto root  = std::make_unique<Panel>();
+    auto* tree = root->AddChild<Tree>();
+    tree->SetBounds(D2D1::RectF(0, 0, 220, 160));
+    tree->SetReorderEnabled(true);
+    tree->SetModel(&model);
+    tree->SetDelegate(&delegate);
+    view.Controls().SetRoot(std::move(root));
+    Hr(PrepareRichEmbeddedContent(view, 320, 160), "prepare Tree reorder retirement fixture");
+    const auto first = tree->GetVisibleItemHitRect(0u), third = tree->GetVisibleItemHitRect(2u);
+    Check(first && third, "Tree reorder retirement rows have actual hit rectangles");
+    const auto from   = D2D1::Point2F((first->left + first->right) * .5f, (first->top + first->bottom) * .5f);
+    const auto target = D2D1::Point2F((third->left + third->right) * .5f, third->top + 2.f);
+    Check(tree->OnMouseDown(view.Controls(), from, false, 0u) && tree->OnMouseMove(view.Controls(), target, 0u),
+          "Tree reorder retirement fixture arms a real drop");
+    Hr(PrepareRichEmbeddedContent(view, 320, 160), "consume the reorder move wake before release");
+    wake.armed = true;
+    static_cast<void>(tree->OnMouseUp(view.Controls(), target, false, 0u));
+    Check(wake.retirements == 1u && ! view.Controls().GetRoot() && delegate.reorders == 0u,
+          "release scheduling can retire the Tree before reorder dispatch without invoking its stale delegate");
+    for (const bool rightClick : {true, false})
+    {
+        EmbeddedHost nextView;
+        Wake nextWake{.view = &nextView};
+        callbacks.context = &nextWake;
+        Hr(nextView.Attach(graphics, callbacks), "attach Tree cancellation retirement host");
+        auto nextRoot  = std::make_unique<Panel>();
+        auto* nextTree = nextRoot->AddChild<Tree>();
+        nextTree->SetBounds(D2D1::RectF(0, 0, 220, 160));
+        nextTree->SetReorderEnabled(true);
+        nextTree->SetModel(&model);
+        nextTree->SetDelegate(&delegate);
+        nextView.Controls().SetRoot(std::move(nextRoot));
+        Hr(PrepareRichEmbeddedContent(nextView, 320, 160), "prepare Tree cancellation retirement fixture");
+        const auto nextFirst = nextTree->GetVisibleItemHitRect(0u);
+        Check(nextFirst.has_value(), "Tree cancellation retirement row is hittable");
+        const auto press = D2D1::Point2F((nextFirst->left + nextFirst->right) * .5f, (nextFirst->top + nextFirst->bottom) * .5f);
+        Check(nextTree->OnMouseDown(nextView.Controls(), press, false, 0u), "arm Tree reorder before cancellation");
+        Hr(PrepareRichEmbeddedContent(nextView, 320, 160), "consume the initial Tree press wake");
+        nextWake.armed = true;
+        if (rightClick)
+            static_cast<void>(nextTree->OnMouseDown(nextView.Controls(), press, true, 0u));
+        else
+            nextTree->OnCaptureLost(nextView.Controls());
+        Check(nextWake.retirements == 1u && ! nextView.Controls().GetRoot() && delegate.menus == 0u && delegate.reorders == 0u,
+              "cancelling Tree reorder stops after a synchronous wake retires its owner");
+    }
+}
+
 __declspec(noinline) static void TestTreeDelegateMutationDuringItemPaintAbortsPreparation(GraphicsFixture& gpu)
 {
     struct QueryState final
@@ -1195,7 +1351,7 @@ __declspec(noinline) static int RunFunctionalTests()
          std::wstring_view(__wargv[1]) == L"--test-rich-semantic-document-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-semantic-uia-failures" ||
          std::wstring_view(__wargv[1]) == L"--test-rich-semantic-query-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-command-failures" ||
          std::wstring_view(__wargv[1]) == L"--test-rich-command-host-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-footnote-failures" ||
-         std::wstring_view(__wargv[1]) == L"--test-rich-capacity-failures"))
+         std::wstring_view(__wargv[1]) == L"--test-rich-capacity-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-input-failures"))
     {
         // Isolate unexpected noexcept termination without a CRT dialog. This
         // handler belongs only to the explicit diagnostic child, never a suite
@@ -1225,7 +1381,15 @@ __declspec(noinline) static int RunFunctionalTests()
 #pragma warning(disable : 5039)
         const auto restore = wil::scope_exit([=] noexcept { std::set_terminate(previous); });
 #pragma warning(pop)
-        if (std::wstring_view(__wargv[1]) == L"--test-rich-layout-clear")
+        if (std::wstring_view(__wargv[1]) == L"--test-rich-input-failures")
+        {
+            TestRichAppearanceConstructionFailureAtomicity();
+            TestRichInputAllocationFailureAtomicity();
+            GraphicsFixture gpu;
+            Hr(gpu.Create(), "task allocation failure WARP device");
+            TestRichTaskPlanAllocationFailureKeepsPointerSelection(gpu);
+        }
+        else if (std::wstring_view(__wargv[1]) == L"--test-rich-layout-clear")
             TestRichPreparedLayoutClearAllocationBudget(true);
         else if (std::wstring_view(__wargv[1]) == L"--test-rich-geometry-failures")
         {
@@ -1276,10 +1440,13 @@ __declspec(noinline) static int RunFunctionalTests()
         }
         else if (std::wstring_view(__wargv[1]) == L"--test-rich-image-failures")
             TestRichImagePathAllocationFailures();
+        else if (std::wstring_view(__wargv[1]) == L"--test-rich-file-drop-failures")
+            TestRichFileDropTransportAllocationFailures();
         else if (std::wstring_view(__wargv[1]) == L"--test-rich-file-reference-paste")
         {
             GraphicsFixture gpu;
             Hr(gpu.Create(), "file reference isolated WARP device");
+            TestEmbeddedImagePathPaste(gpu);
             TestEmbeddedFileReferencePaste(gpu);
             TestRichImagePathAllocationFailures();
         }
@@ -1290,6 +1457,7 @@ __declspec(noinline) static int RunFunctionalTests()
             TestRichImageResourceAllocationFailures();
             TestRichImageGeometryAllocationFailures();
             TestRichImageRasterFailureAndBudgets();
+            TestRichImageFrameHostFailure();
         }
         else if (std::wstring_view(__wargv[1]) == L"--test-rich-flowchart-failures")
         {
@@ -1393,7 +1561,11 @@ __declspec(noinline) static int RunFunctionalTests()
 #if DXUI_TEST_HAS_PREPARED_TREE_ROWS
         GraphicsFixture gpu;
         Hr(gpu.Create(), "prepared Tree semantics WARP device");
+        TestEmbeddedRadioGroupAccessibility(gpu);
         TestPreparedTreeAccessibilitySemantics(gpu);
+#if DXUI_ENABLE_DIAGNOSTICS
+        TestPreparedTreeUnfocusedExpansionAction(gpu);
+#endif
         TestPreparedTreeRootDoesNotRetainSupersededSource(gpu);
         return 0;
 #else
@@ -1451,6 +1623,12 @@ __declspec(noinline) static int RunFunctionalTests()
 #endif
         return 0;
     }
+    if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-markdown-closed-roots")
+    {
+        MarkdownSourceCorrelationTests::ClosedRootDifferential(Check);
+        MarkdownSourceCorrelationTests::ClosedRootCancellation(Check);
+        return 0;
+    }
     static size_t diagnosticCalls = 0;
     DxUi::Diagnostics::sink       = [](std::wstring_view, std::wstring_view message) noexcept
     {
@@ -1465,11 +1643,147 @@ __declspec(noinline) static int RunFunctionalTests()
     CleanPrepareTimerDiagnostic::RunOracle();
     GraphicsFixture gpu;
     Hr(gpu.Create(), "supplied WARP device");
+    if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-rich-incremental-preparation")
+    {
+        MarkdownSourceCorrelationTests::LexicalEdits(Check);
+        MarkdownSourceCorrelationTests::ClosedRootDifferential(Check);
+        MarkdownSourceCorrelationTests::ClosedRootCancellation(Check);
+        RichSemanticTests::Run(RichSemanticGeometryTests::MarkdownSubtlePresentation);
+        RichSemanticTests::Run(RichSemanticGeometryTests::PaddedCodePresentation);
+        RichSemanticTests::Run(RichSemanticEditorTests::SourceWindowUnicodeParity);
+        RichSemanticTests::Run(RichSemanticEditorTests::RichSourceWindowParity);
+        TestPaintIndexTransactionalBuild();
+        TestMathKernPreparationAllocationFailures();
+        TestEmbeddedSemanticReusePixels(gpu);
+        TestEmbeddedCodeLineNumberPixels(gpu);
+        TestEmbeddedSourceGuidesPixels(gpu);
+        TestSourceGuideAllocationAtomicity();
+        TestHtmlClipboardFragment();
+        TestEmbeddedImageResources(gpu);
+        DxUi::EmbeddedHost view;
+        std::shared_ptr<DxUi::GraphicsDevice> graphics;
+        Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), graphics), "incremental borrowed graphics");
+        Hr(view.Attach(graphics), "incremental embedded view");
+        RichSemanticTests::Run([&]
+        {
+            RichSemanticEditorTests::TransientPreviewRetainsChunks(
+                view.Controls(), [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "prepare embedded transient preview"); });
+            RichSemanticEditorTests::PendingPointerPreservesFocus(
+                view.Controls(), [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "prepare embedded pending pointer"); });
+            RichSemanticEditorTests::ReusedEditorGeometryMatchesFresh(
+                view.Controls(), [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "prepare embedded geometry parity"); });
+            RichSemanticEditorTests::OverCapacityPaddedCellTyping(
+                view.Controls(), [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "prepare embedded over-capacity table"); });
+#if DXUI_ENABLE_DIAGNOSTICS
+            RichSemanticEditorTests::SelectionCancellationPublication(
+                view.Controls(), [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "embedded selection cancellation"); });
+            RichSemanticEditorTests::TitleTooltipContract(view.Controls(),
+                                                          [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "embedded title tooltip preparation"); },
+                                                          [&](D2D1_POINT_2F point, UINT modifiers)
+            {
+                const auto scale = static_cast<float>(view.Controls().GetDpi()) / 96.f;
+                static_cast<void>(view.DispatchPointer({DxUi::PointerAction::Move, point.x * scale, point.y * scale, modifiers}));
+            },
+                                                          [&](bool down) { static_cast<void>(view.DispatchKey(VK_CONTROL, down, down ? MK_CONTROL : 0u)); });
+#endif
+            RichSemanticEditorTests::SemanticGeometryReuse(view.Controls(),
+                                                           [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "incremental preparation"); });
+            RichSemanticEditorTests::ImagePreparationWorkMetric(
+                view.Controls(), [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "prepare embedded image work metric"); });
+            RichSemanticEditorTests::NativeObjectSourceContract(view.Controls(),
+                                                                [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "shared embedded object contract"); });
+            RichSemanticEditorTests::PendingSourceWindowTransport(view.Controls());
+            RichSemanticEditorTests::PendingRichSourceWindowTransport(view.Controls());
+            RichSemanticEditorTests::UrlOnSelectionPaste(view.Controls(), [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "URL paste"); });
+            RichSemanticEditorTests::SemanticWords(view.Controls(), [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "semantic word viewport"); });
+            RichSemanticEditorTests::SemanticDirection(view.Controls(), [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "paragraph direction"); });
+            RichSemanticEditorTests::InlineExtensions(view.Controls(), [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "inline extension styles"); });
+            RichSemanticEditorTests::WikiTargets(view.Controls(), [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "wiki targets"); });
+            RichSemanticEditorTests::InlineScriptFallback(view.Controls(), [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "inline script fallback"); });
+            RichSemanticEditorTests::SourceHorizontalAndGuides(view.Controls(), [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "source guides"); });
+            RichSemanticEditorTests::RichTableHorizontalOverflow(view.Controls(), [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "table overflow"); });
+        });
+        std::vector<DxUi::RichText::CodeToken> tokens(0u);
+        Check(DxUi::RichText::TokenizeBuiltinCode(L"json", L"{\"a\": true, \"b\": 3}", tokens) && tokens.size() >= 4u,
+              "builtin JSON tokenizer emits bounded literal and keyword ranges");
+        Check(DxUi::RichText::TokenizeBuiltinCode(L"cpp", L"int x; // comment", tokens) && tokens.size() == 2u,
+              "builtin C-like tokenizer recognizes keywords and comments");
+        Check(DxUi::RichText::TokenizeBuiltinCode(L"pwsh", L"function f { # comment\n}", tokens) && tokens.size() == 2u,
+              "builtin PowerShell tokenizer recognizes keywords and comments");
+        Check(DxUi::RichText::TokenizeBuiltinCode(L"diff", L"+added\n-removed\n", tokens) && tokens.size() == 2u,
+              "builtin diff tokenizer recognizes changed lines");
+        Check(! DxUi::RichText::TokenizeBuiltinCode(L"unknown", L"text", tokens) && tokens.empty(), "unknown code language is ordinary ink");
+        auto owned   = std::make_unique<DxUi::RichTextEditor>();
+        auto* editor = owned.get();
+        view.Controls().SetRoot(std::move(owned));
+        editor->SetMarkdownAnalysisProfile(DxUi::RichText::MarkdownProfile::RichMarkdown);
+        editor->SetMarkdownRenderingEnabled(true);
+        editor->SetText(L"```json\n{\"a\": true}\n```\n");
+        Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "ordinary code preparation");
+        Hr(gpu.Resize(480u, 240u), "resize tokenizer raster fixture");
+        std::vector<std::uint8_t> ordinaryPixels, coloredPixels;
+        gpu.Bind();
+        Hr(view.Composite(gpu.context.get(), gpu.Viewport()), "ordinary code composite");
+        Hr(gpu.Read(ordinaryPixels), "ordinary code raster");
+        unsigned calls = 0u;
+        editor->SetCodeTokenizer([&](std::wstring_view language, std::wstring_view code, std::vector<DxUi::RichText::CodeToken>& out)
+        {
+            ++calls;
+            Check(language == L"json" && (code.find(L"true") != code.npos || code.find(L"false") != code.npos),
+                  "code callback borrows current language and display body");
+            return DxUi::RichText::TokenizeBuiltinCode(language, code, out);
+        });
+        Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "tokenized code preparation");
+        Check(calls == 1u && editor->GetText() == L"```json\n{\"a\": true}\n```\n", "tokenization is cached and does not edit source");
+        gpu.Bind();
+        Hr(view.Composite(gpu.context.get(), gpu.Viewport()), "colored code composite");
+        Hr(gpu.Read(coloredPixels), "colored code raster");
+        Check(ordinaryPixels != coloredPixels, "prepared token ranges change rendered glyph ink");
+        Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "idle tokenized preparation");
+        Check(calls == 1u, "idle preparation does not reinvoke tokenizer");
+        const auto boolean = editor->GetText().find(L"true");
+        editor->SetSelection({boolean, boolean + 4u});
+        Check(editor->ReplaceSelection(L"false"), "edit tokenized source");
+        Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "prepare edited tokenized code");
+        Check(calls == 2u && editor->GetText().find(L"false") != std::wstring::npos, "source edits retokenize the current code publication");
+        editor->SetCodeTokenizer([&](std::wstring_view, std::wstring_view, std::vector<DxUi::RichText::CodeToken>& out)
+        {
+            out.push_back({{999u, 1000u}, DxUi::RichText::CodeTokenRole::Keyword});
+            return true;
+        });
+        Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "invalid tokenizer result uses ordinary ink");
+        bool edited = false;
+        editor->SetCodeTokenizer([&](std::wstring_view, std::wstring_view, std::vector<DxUi::RichText::CodeToken>&)
+        {
+            if (! edited)
+            {
+                edited = true;
+                editor->SetText(L"plain replacement");
+            }
+            return true;
+        });
+        Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "reentrant tokenizer edit retries current source");
+        Check(edited && editor->GetText() == L"plain replacement", "reentrant tokenizer cannot publish stale code ranges");
+        editor->SetText(L"```cpp\nint x;\n```\n");
+        editor->SetCodeTokenizer([&](std::wstring_view, std::wstring_view, std::vector<DxUi::RichText::CodeToken>&)
+        {
+            view.Controls().SetRoot({});
+            return true;
+        });
+        static_cast<void>(PrepareRichEmbeddedContent(view, 480u, 240u));
+        Check(view.Controls().GetRoot() == nullptr, "tokenizer may retire its owner without use after free");
+        return 0;
+    }
     TestMultilineCaretViewport(gpu);
     TestEmbeddedTextInput(gpu);
+    TestEmbeddedTabHeaderPreparationAvoidsPaintWork(gpu);
+    TestEmbeddedInputCallbackAllocationBoundary(gpu);
     TestEmbeddedTranslatedCharacterOwnership(gpu);
     TestEmbeddedAccessibility(gpu);
     TestPreparedTreeAccessibilitySemantics(gpu);
+#if DXUI_ENABLE_DIAGNOSTICS
+    TestPreparedTreeUnfocusedExpansionAction(gpu);
+#endif
     TestPreparedTreeRootDoesNotRetainSupersededSource(gpu);
     TestInteractionLayoutWithoutPaint(gpu);
     TestEmbeddedUiaEventHarness(gpu);
@@ -1483,6 +1797,7 @@ __declspec(noinline) static int RunFunctionalTests()
 #endif
     TestGridModelMutationDuringCellPaintAbortsPreparation(gpu);
     TestTreeDelegateMutationDuringItemPaintAbortsPreparation(gpu);
+    TestTreeReorderWakeRetiresOwner(gpu);
     TestPointerDoesNotRetargetAfterHoverOrHitGeometryMutation(gpu);
     TestPageReplacementDuringPaintDefersBoundsUntilPreparation(gpu);
     TestLocalizedShortViewport(gpu,
@@ -1503,24 +1818,46 @@ __declspec(noinline) static int RunFunctionalTests()
     TestUnicodeGraphemeForwardWalkAllocationBudget();
     TestUnicodeBulkMovementAndDeletionAllocationBudget();
     TestRichTextUtf8RejectionAllocationBudget();
+    TestSeparatorCatalogAllocationFailures();
+    TestRichAppearanceConstructionFailureAtomicity();
+    TestRichInputAllocationFailureAtomicity();
     TestRichDocumentFragmentedHistoryStorageBudget();
     RichTextStateReplacementTests::Core(Check);
     TestRichRecordedWholeTextStorageBudget();
     TestEmbeddedLocalizedRecordedServiceCommit(gpu);
     TestEmbeddedRetainedObjectSourceEditing(gpu);
     TestEmbeddedImagePathPaste(gpu);
+    TestPreparedCommandStateAllocationFailures(gpu);
+    TestPreparedCommandStateComplexAllocationFailures(gpu);
+    TestTableCommandPreparationAllocationFailures(gpu);
     TestEmbeddedFileReferencePaste(gpu);
     TestEmbeddedImageResources(gpu);
     RichImageTests::Core(Check);
     RichImageResourceTests::Admission(Check);
     TestRichImagePathAllocationFailures();
+    TestRichFileDropTransportAllocationFailures();
+    TestRichFileDropTransactionAllocationFailures(gpu);
     TestRichImageDecoderAllocationFailures();
     TestRichEditorSteadyLinkHoverAllocatesNothing(gpu);
     TestRichImageResourceAllocationFailures();
     TestRichImageGeometryAllocationFailures();
     TestRichImageRasterFailureAndBudgets();
+    TestRichImageFrameHostFailure();
     TestRichDocumentSameContentAllocationBudget();
     TestRichDocumentAllocationFailureAtomicity();
+    TestRichLabelWakeupAndRetirement(gpu);
+    RichTextExportTests::Core(Check);
+    TestRichExportAllocationFailures();
+    TestRichPreparedPageRaster(gpu);
+    TestRichPageAuthoredColors(gpu);
+    TestRichTooltipReentrantTransitions(gpu);
+    TestRichSourceDragGesture(gpu);
+    TestRichMiddleAutoScroll(gpu);
+    TestRichSourceMoveTransaction();
+    TestRichTripleClickParagraph(gpu);
+    TestRichPreparedWordFailureAtomicity(gpu);
+    TestHeadingAdmissionNoAllocation();
+    TestRichDefaultMenuModelAllocationFailureAtomicity();
     TestReadOnlyParsedSnapshotAllocationFailures();
     TestRichSourceChangeAllocationBudget();
     TestRichSourceChangeTransientStorageBudget();
@@ -1532,6 +1869,7 @@ __declspec(noinline) static int RunFunctionalTests()
     TestRichProjectionPreparationAllocationFailureAtomicity();
     TestRichProjectionRetainedStorageBudget();
     TestRichProjectionMaximumSourceStorageBudget();
+    TestRichTaskPlanAllocationFailureKeepsPointerSelection(gpu);
     TestRetainedRichTextDefaultFontChunkReuse(gpu);
     TestRichTextCooperativeSchedulingAndTextInput(gpu);
     TestEmbeddedContinuationCallbackCannotReenterOrUseDetachedState(gpu);
@@ -1541,6 +1879,9 @@ __declspec(noinline) static int RunFunctionalTests()
     SemanticDiagramTests::Core(Check);
     MarkdownSourceCorrelationTests::Reads(Check);
     MarkdownSourceCorrelationTests::ParserIdentities(Check);
+    MarkdownSourceCorrelationTests::LexicalEdits(Check);
+    MarkdownSourceCorrelationTests::ClosedRootDifferential(Check);
+    MarkdownSourceCorrelationTests::ClosedRootCancellation(Check);
     SemanticSourceBlockTests::Core(Check);
     SemanticSourceBlockTests::Geometry(Check);
     SemanticSourceBlockTests::SourceRegions(Check);
@@ -1559,23 +1900,63 @@ __declspec(noinline) static int RunFunctionalTests()
     RichSemanticTests::Run(RichCommandTests::ListsAndHeadings);
     RichSemanticTests::Run(RichCommandTests::InlineTasksLinks);
     RichSemanticTests::Run(RichCommandTests::Tables);
+    RichSemanticTests::Run(RichCommandTests::MoveLinesAndItems);
     RichSemanticTests::Run(RichCommandTests::GuardsAndDeletion);
     RichSemanticTests::Run(TestRichMarkdownCommandFailureAtomicity);
     RichSemanticTests::Run([&] { TestRichMarkdownCommandHostFailureAtomicity(gpu); });
     RichSemanticTests::Run([&] { TestRichSemanticAccessibilityFailureAtomicity(gpu); });
     RichSemanticTests::Run(TestRichSemanticFailureAndStorageBudgets);
     RichSemanticTests::Run(RichSemanticDocumentTests::DirectedValues);
+    RichSemanticTests::Run(RichSemanticDocumentTests::LocalizedAccessibilityLabels);
     RichSemanticTests::Run(RichSemanticDocumentTests::StructuralStyleValues);
     RichSemanticTests::Run(RichSemanticDocumentTests::SourceFormatOwnership);
+    RichSemanticTests::Run(RichSemanticDocumentTests::AuthoredImagePresentation);
     RichSemanticTests::Run(RichSemanticDocumentTests::NativeHtmlAndLinkPresentation);
+    RichSemanticTests::Run(RichSemanticDocumentTests::HeadingOutlineAndFragments);
+    RichSemanticTests::Run(RichSemanticDocumentTests::OptionalDefinitionsAndAbbreviations);
     RichSemanticTests::Run(RichSemanticDocumentTests::FootnoteHtmlActionAdmission);
     RichSemanticTests::Run(RichSemanticDocumentTests::SchedulingAndAdmission);
     RichSemanticTests::Run(RichSemanticGeometryTests::ParagraphsTablesAndSourceRanges);
     RichSemanticTests::Run(RichSemanticGeometryTests::MarkdownSubtlePresentation);
+    RichSemanticTests::Run(RichSemanticGeometryTests::PaddedCodePresentation);
+    RichSemanticTests::Run(RichSemanticEditorTests::SourceWindowUnicodeParity);
+    RichSemanticTests::Run(RichSemanticEditorTests::RichSourceWindowParity);
     RichSemanticTests::Run(RichSemanticGeometryTests::AtomicNavigationAndCancellation);
     RichSemanticTests::Run(RichSemanticGeometryTests::SourceCaretSites);
     RichSemanticTests::Run(RichSemanticGeometryTests::HangingMarkersLinksAndHtml);
     RichSemanticTests::Run(RichSemanticGeometryTests::LinkRasterOracle);
+    RichSemanticTests::Run(RichSemanticGeometryTests::DiagramPaletteTargetReplacement);
+    RichSemanticTests::Run(RichSemanticGeometryTests::DiagramLabelWidthReflow);
+    RichSemanticTests::Run(RichSemanticGeometryTests::HtmlBlockAlignment);
+    RichSemanticTests::Run([]
+    {
+        bool allocated{};
+        std::size_t calls{};
+        const auto wasCounting   = countAllocations;
+        const auto originalCalls = allocations;
+        const auto restore       = wil::scope_exit([&]() noexcept
+        {
+            countAllocations = wasCounting;
+            allocations      = originalCalls;
+        });
+        RichSemanticGeometryTests::HtmlScripts([&](bool before) noexcept
+        {
+            if (before)
+            {
+                calls            = allocations;
+                countAllocations = true;
+            }
+            else
+            {
+                allocated        = allocated || allocations != calls;
+                countAllocations = wasCounting;
+            }
+        });
+        Check(! allocated, "script native and RTL linked drawing performs zero tracked C++ allocations");
+    });
+#if DXUI_ENABLE_DIAGNOSTICS
+    RichSemanticTests::Run(RichSemanticGeometryTests::MathWidthReflowAndTargetReplacement);
+#endif
     RichSemanticTests::Run(RichSemanticGeometryTests::TaskCheckboxAlignment);
     RichSemanticTests::Run(RichSemanticGeometryTests::LiteralFootnoteBlockCaretSites);
     RichSemanticTests::Run(RichSemanticGeometryTests::ReorderedFootnoteCaretSitesAndSourceLines);
@@ -1593,6 +1974,27 @@ __declspec(noinline) static int RunFunctionalTests()
         Hr(transactionView.Attach(transactionGraphics), "transaction embedded view");
         RichSemanticTests::Run([&]
         {
+#if DXUI_ENABLE_DIAGNOSTICS
+            RichSemanticEditorTests::TitleTooltipContract(
+                transactionView.Controls(),
+                [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded title tooltip preparation"); },
+                [&](D2D1_POINT_2F point, UINT modifiers)
+            {
+                const auto scale = static_cast<float>(transactionView.Controls().GetDpi()) / 96.f;
+                static_cast<void>(transactionView.DispatchPointer({DxUi::PointerAction::Move, point.x * scale, point.y * scale, modifiers}));
+            },
+                [&](bool down) { static_cast<void>(transactionView.DispatchKey(VK_CONTROL, down, down ? MK_CONTROL : 0u)); });
+#endif
+            RichSemanticEditorTests::SemanticGeometryReuse(transactionView.Controls(),
+                                                           [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded semantic reuse"); });
+            RichSemanticEditorTests::PendingSourceWindowTransport(transactionView.Controls());
+            RichSemanticEditorTests::PendingRichSourceWindowTransport(transactionView.Controls());
+            RichSemanticEditorTests::UrlOnSelectionPaste(transactionView.Controls(),
+                                                         [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "URL paste"); });
+            RichSemanticEditorTests::SourceHorizontalAndGuides(transactionView.Controls(),
+                                                               [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "source guides"); });
+            RichSemanticEditorTests::RichTableHorizontalOverflow(transactionView.Controls(),
+                                                                 [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "table overflow"); });
             RichSemanticEditorTests::Transactions(transactionView.Controls(),
                                                   [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded transaction preparation"); });
             RichSemanticEditorTests::StructuralCommands(transactionView.Controls(),
@@ -1605,12 +2007,25 @@ __declspec(noinline) static int RunFunctionalTests()
             RichSemanticEditorTests::MathAndBroaderDiagrams(transactionView.Controls(), [&] {
                 Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded in-document math and broader diagrams");
             });
+            for (const UINT dpi : {96u, 144u, 192u})
+                RichSemanticEditorTests::MathRunFontSize(transactionView.Controls(),
+                                                         [&]
+                {
+                    Hr(PrepareRichEmbeddedContent(transactionView, 640u * dpi / 96u, 480u * dpi / 96u, static_cast<float>(dpi)),
+                       "prepare styled embedded math at the requested DPI");
+                });
+            RichSemanticEditorTests::InlineMathSourceEditing(
+                transactionView.Controls(), [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded inline math source session"); });
             RichSemanticEditorTests::NativeObjectFailureContainment(
                 transactionView.Controls(), [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded local native object fallback"); });
             RichSemanticEditorTests::Rendering(transactionView.Controls(),
                                                [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded semantic rendering preparation"); });
-            RichSemanticEditorTests::RenderingAdmissionFallback(
-                transactionView.Controls(), [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded semantic fallback preparation"); });
+            RichSemanticEditorTests::RenderingAdmissionFallback(transactionView.Controls(), [&] {
+                Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded semantic fallback preparation");
+            }, [&](UINT dpi) {
+                Hr(PrepareRichEmbeddedContent(transactionView, 480u * dpi / 96u, 240u * dpi / 96u, static_cast<float>(dpi)),
+                   "embedded semantic fallback at changed DPI");
+            });
             RichSemanticEditorTests::SourceCaretSites(
                 transactionView.Controls(), [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded source caret site preparation"); });
             RichSemanticEditorTests::HangingMarkersLinksAndHtml(transactionView.Controls(), [&] {
@@ -1627,6 +2042,7 @@ __declspec(noinline) static int RunFunctionalTests()
     TestNativeFlowchartAllocationFailureAtomicity();
     FlowchartLayoutTests::Geometry(Check);
     FlowchartLayoutTests::Corpus(Check);
+    FlowchartLayoutTests::CrossingReduction(Check);
     FlowchartLayoutTests::Admission(Check);
     TestNativeFlowchartLayoutAllocationFailureAtomicity();
     TestPreparedFlowchartAllocationFailures();
@@ -1635,6 +2051,22 @@ __declspec(noinline) static int RunFunctionalTests()
     PreparedFlowchartTests::BudgetAndLifecycle(Check);
     PreparedFlowchartTests::RasterOracle(Check);
     PreparedFlowchartTests::EdgeLabelRasterOracle(Check);
+    PreparedFlowchartTests::LineStyleRasterOracle(Check);
+    PreparedFlowchartTests::CardinalityRaster(Check);
+    PreparedFlowchartTests::GroupRaster(Check);
+    PreparedFlowchartTests::SequenceRaster(Check);
+    PreparedFlowchartTests::PieRaster(Check);
+    PreparedFlowchartTests::ErRaster(Check);
+    PreparedFlowchartTests::GanttRaster(Check);
+    PreparedFlowchartTests::MindmapRaster(Check);
+    PreparedFlowchartTests::NodeStrokeRaster(Check);
+    PreparedFlowchartTests::ExpandedShapeRaster(Check);
+    PreparedFlowchartTests::LegacyPolygonRaster(Check);
+    PreparedFlowchartTests::StyledLabelRaster(Check);
+    PreparedFlowchartTests::ThemeStyleRaster(Check);
+    PreparedFlowchartTests::PaletteRaster(Check);
+    PreparedFlowchartTests::ConfiguredLabelWidth(Check);
+    PreparedFlowchartTests::StateNoteRaster(Check);
     TestRichTextCooperativeFailureDoesNotRetryAutomatically(gpu);
     TestRetainedRichTextSharedViewsAndResources(gpu);
     TestRetainedRichTextSharedViewsAndResources(gpu, true);
@@ -1645,6 +2077,13 @@ __declspec(noinline) static int RunFunctionalTests()
     TestRichDocumentGeometryUnchangedAllocationBudget();
     TestRichDocumentGeometryMaximumStorageBudget();
     TestRichDocumentGeometryReplacementPeakBudget();
+    TestPaintIndexTransactionalBuild();
+    TestMathKernPreparationAllocationFailures();
+    TestEmbeddedSemanticReusePixels(gpu);
+    TestEmbeddedCodeLineNumberPixels(gpu);
+    TestEmbeddedSourceGuidesPixels(gpu);
+    TestSourceGuideAllocationAtomicity();
+    TestHtmlClipboardFragment();
     TestEmbeddedRichGeometryReuseAndRetirement(gpu);
     TestRetainedRichTextSchedulingCanRetireOwner(gpu);
     TestRetainedRichTextFailedPreparation(gpu);
@@ -1716,13 +2155,14 @@ __declspec(noinline) static int RunFunctionalTests()
     const auto prepared = scene.view.GetStatistics();
     Check(scene.view.Prepare(480, 240) == S_FALSE, "clean preparation is skipped");
     gpu.Bind();
-    const auto start = std::chrono::steady_clock::now();
-    countAllocations = true;
+    const auto start                      = std::chrono::steady_clock::now();
+    const auto allocationsBeforeComposite = allocations;
+    countAllocations                      = true;
     for (int i = 0; i < 1000; ++i)
         Hr(scene.view.Composite(gpu.context.get(), gpu.Viewport()), "warm compose");
     countAllocations = false;
     const auto us    = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - start).count();
-    Check(allocations == 0, "1000 warm composites have zero C++ allocations");
+    Check(allocations == allocationsBeforeComposite, "1000 warm composites have zero C++ allocations");
     Check(scene.view.GetStatistics().surfaceAllocations == prepared.surfaceAllocations && scene.view.GetStatistics().preparations == prepared.preparations,
           "warm composition creates no surface or raster work");
     // Poison the state a preceding widget can leave behind; composite must establish its own pipeline.
@@ -2018,8 +2458,8 @@ __declspec(noinline) static int RunFunctionalTests()
         Check(complex.view.DispatchPointer({DxUi::PointerAction::Cancel}), "complex sample slider cancellation");
         Check(complex.progress[0]->GetValue() == 0, "complex sample cancellation restores progress");
     }
-    std::cout << "PASS " << checks << " checks; 1000 warm composites " << us << " us; C++ allocations " << allocations << "; changed toggle pixels " << changed
-              << '\n';
+    std::cout << "PASS " << checks << " checks; 1000 warm composites " << us << " us; C++ allocations " << allocations - allocationsBeforeComposite
+              << "; changed toggle pixels " << changed << '\n';
     return 0;
 }
 

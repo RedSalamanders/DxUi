@@ -1,0 +1,39 @@
+?ÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ?
+³                                                                        ³
+³                      ÛÛÛÛÛÛ» ÛÛ»  ÛÛ»ÛÛ»   ÛÛ»ÛÛ»                      ³
+³                      ÛÛÉÍÍÛÛ»ÈÛÛ»ÛÛÉ¼ÛÛº   ÛÛºÛÛº                      ³
+³                      ÛÛº  ÛÛº ÈÛÛÛÉ¼ ÛÛº   ÛÛºÛÛº                      ³
+³                      ÛÛº  ÛÛº ÛÛÉÛÛ» ÛÛº   ÛÛºÛÛº                      ³
+³                      ÛÛÛÛÛÛÉ¼ÛÛÉ¼ ÛÛ»ÈÛÛÛÛÛÛÉ¼ÛÛº                      ³
+³                      ÈÍÍÍÍÍ¼ ÈÍ¼  ÈÍ¼ ÈÍÍÍÍÍ¼ ÈÍ¼                      ³
+³                                                                        ³
+³      ?  PIXELS PRIMED    CONTROLS READY    COMPILE MODE: GO!  ?      ³
+³                  ?  RELEASE  /  ARM64  /  BUILD  ?                   ³
+³                                                                        ³
+?ÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ?
+
+Locating Visual Studio and MSBuild...
+Build configuration:
+  Configuration: Release
+  Platform:      ARM64
+  Target:        Build
+  Toolchain:     C:\Program Files\Microsoft Visual Studio\18\Insiders
+  Output:        Z:\src\DxUi-worktrees\wip-compat-redprism-menu-20261101\.build\
+
+Compiling DxUi...
+
+  DxUi.vcxproj -> Z:\src\DxUi-worktrees\wip-compat-redprism-menu-20261101\.build\ARM64\Release\DxUi.lib
+  DxUi.EmbeddedTests.vcxproj -> Z:\src\DxUi-worktrees\wip-compat-redprism-menu-20261101\.build\ARM64\Release\DxUi.EmbeddedTests.exe
+  DxUi.FoundationTests.vcxproj -> Z:\src\DxUi-worktrees\wip-compat-redprism-menu-20261101\.build\ARM64\Release\DxUi.FoundationTests.exe
+  DxUi.EmbeddedControls.vcxproj -> Z:\src\DxUi-worktrees\wip-compat-redprism-menu-20261101\.build\ARM64\Release\DxUi.EmbeddedControls.exe
+  DxUiTests.Menu.cpp
+  DxUiTests.WindowHost.cpp
+  Generating code
+  Finished generating code
+  DxUi.ControlTests.vcxproj -> Z:\src\DxUi-worktrees\wip-compat-redprism-menu-20261101\.build\ARM64\Release\DxUi.ControlTests.exe
+
+========================================
+DxUi build passed in 00:25
+Output: Z:\src\DxUi-worktrees\wip-compat-redprism-menu-20261101\.build\
+Log: Z:\src\DxUi-worktrees\wip-compat-redprism-menu-20261101\.build\logs\build-ARM64-Release-3b696a0a64b64d58b21d217c84d86be7.log
+========================================

@@ -13,14 +13,15 @@ namespace DxUi::RichText
 {
 namespace Detail
 {
-class PreparedSemanticGeometry;
-}
+struct PreparedLayoutAccess;
+} // namespace Detail
 struct LayoutOptions
 {
     float widthDip             = 1.0f;
     float fontSizeDip          = 18.0f;
     float codeFontSizeDip      = 0.0f;
     float lineHeightMultiplier = 0.0f;
+    float tabStopDip           = 0.0f;
     float headingScaleStep     = 0.15f;
     std::array<float, 6> headingFontSizeDip{};
     std::array<float, 6> headingLineHeightMultiplier{};
@@ -36,6 +37,17 @@ struct LayoutOptions
     std::optional<float> listItemSpacingDip;         // Finite 0..256 DIP between items.
     std::optional<SemanticSpacing> semanticSpacing;
     MarkdownPresentationStyle markdownPresentation = MarkdownPresentationStyle::Default;
+    bool wrap                                      = true;
+    bool codeCopyAction                            = false; // Host supplies an explicit copy-intent callback.
+    bool tableOverflow                             = false; // Subtle tables retain minimum widths beyond the viewport.
+    // Effective device DPI for ppem-dependent native math font corrections.
+    // Standalone layout callers without a device use the 96-DPI default.
+    float dpi = 96.0f;
+    // Independent mathematical family; a font without MATH uses em/stroke fallbacks.
+    std::wstring mathFontFamily = L"Cambria Math";
+    float diagramLabelWidthDip  = 0.0f;  // Zero uses 12.5 times the font size; otherwise 1..4096 DIP.
+    bool autoParagraphDirection = false; // Semantic paragraphs use first-strong text with host fallback.
+    float mathAbsoluteUnitScale = 1.0f;  // Semantic pt dimensions scale independently of font overrides.
 };
 struct CaretGeometry
 {
@@ -60,6 +72,8 @@ struct LinkDrawing
     ID2D1Brush* emphasisBrush     = nullptr;
     ID2D1Brush* inactiveLinkBrush = nullptr;
     bool underline                = true;
+    // Experimental renderer; canonical source coloring remains available when false.
+    bool directSourceInkPreview = false;
     std::optional<MarkdownRange> hover, caret, emphasis;
     std::size_t displayOrigin{};
     // Prepared disjoint ranges, sorted by display.first. Null brushes inherit
@@ -69,6 +83,8 @@ struct LinkDrawing
     // True selection keeps ordinary base ink beneath its selected-text pass,
     // including antialiased edges over a translucent selection fill.
     std::optional<MarkdownRange> inkExclusion;
+    ID2D1Brush* markedTextFill = nullptr;
+    bool outlineMarkedText     = false;
 };
 struct Hit
 {
@@ -129,33 +145,11 @@ public:
 
 private:
     friend class PreparedDocumentLayout;
-    friend class Detail::PreparedSemanticGeometry;
+    friend struct Detail::PreparedLayoutAccess;
     std::pair<float, float> DrawingVerticalBounds() const;
     std::pair<float, float> HorizontalTextBounds() const;
     std::span<const DWRITE_LINE_METRICS> LineMetrics() const;
-    struct SemanticInlineObject
-    {
-        IDWriteInlineObject* object{};
-        UINT32 first{}, length{};
-    };
-    void PrepareOwned(IDWriteFactory* factory,
-                      Projection& projection,
-                      const LayoutOptions& options,
-                      float verticalOrigin                          = 0.0f,
-                      bool semanticDisplay                          = false,
-                      bool marker                                   = false,
-                      IDWriteInlineObject* object                   = nullptr,
-                      UINT32 objectOffset                           = 0u,
-                      std::span<const SemanticInlineObject> objects = {});
-    // Private identity layout for already bounded semantic display, not a model
-    // capacity increase or a replacement for its nonmonotonic document map.
-    void PrepareSemanticOwned(IDWriteFactory* factory,
-                              Projection& projection,
-                              const LayoutOptions& options,
-                              bool marker                                   = false,
-                              IDWriteInlineObject* object                   = nullptr,
-                              UINT32 objectOffset                           = 0u,
-                              std::span<const SemanticInlineObject> objects = {});
+    void PrepareOwned(IDWriteFactory* factory, Projection& projection, const LayoutOptions& options, float verticalOrigin = 0.0f);
     float VerticalOrigin() const noexcept;
     bool PositionedExactly() const noexcept;
     struct State;
@@ -179,11 +173,15 @@ struct LayoutWorkBudget
 {
     std::size_t maximumLayouts    = 4u;
     std::size_t maximumBlockSteps = 4096u;
+    // Image-capable semantic geometry requires at least one BGRA pixel and
+    // stages large uploads in bounded tiles. Text-only/v0 services ignore this.
+    std::size_t maximumUploadBytes = 4u * 1024u * 1024u;
 };
 struct LayoutAdvance
 {
     LayoutPreparationStatus status = LayoutPreparationStatus::Idle;
     std::size_t layoutsPrepared{}, blockSteps{};
+    std::size_t uploadedBytes{};
 };
 // Owner-thread, bounded v0 document geometry. Chunks end at physical source
 // lines and target 1 Ki source units; 127 chunks plus one optional whole layout
@@ -218,6 +216,7 @@ public:
     void Clear() noexcept;
     bool Ready() const noexcept;
     float Height() const noexcept;
+    float Width() const noexcept;
     std::uint64_t Generation() const noexcept;
     std::uint64_t Revision() const noexcept;
     LayoutPreparation LastPreparation() const noexcept;

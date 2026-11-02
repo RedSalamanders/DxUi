@@ -1,0 +1,1 @@
+- Preserve quote container prefixes when exiting closed or unclosed fenced Markdown code blocks.

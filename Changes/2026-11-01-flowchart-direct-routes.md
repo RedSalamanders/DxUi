@@ -1,0 +1,1 @@
+- Route unambiguous adjacent Mermaid graph nodes directly.

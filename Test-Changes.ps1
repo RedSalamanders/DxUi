@@ -51,7 +51,13 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 # Pending fragments are expected: they are folded on the default branch after merge. CHANGELOG.md may change only by such a fold.
-if (-not $Explain -and $Mode -eq 'PrePush') { & (Join-Path $PSScriptRoot 'Tools/Test-Changelog.ps1') -Base $(if ($BaseRef) { $BaseRef } else { 'origin/main' }) }
+if (-not $Explain -and $Mode -eq 'PrePush') {
+    # Validate the exact candidate commit: a working-tree-only note or changelog edit cannot represent what Git will push.
+    $noteState=@(& git -C $PSScriptRoot status --porcelain --untracked-files=normal -- CHANGELOG.md Changes/ 2>&1)
+    if ($LASTEXITCODE -ne 0) { throw "Cannot inspect changelog candidate state: $($noteState -join ' ')" }
+    if ($noteState.Count) { throw 'PrePush requires committed CHANGELOG.md and Changes/ state; commit or restore those files before validation.' }
+    & (Join-Path $PSScriptRoot 'Tools/Test-Changelog.ps1') -Base $(if ($BaseRef) { $BaseRef } else { 'origin/main' })
+}
 $root=$PSScriptRoot
 $modulePath=Join-Path $root 'Tools/ScopedTesting.psm1'
 Import-Module $modulePath -Force

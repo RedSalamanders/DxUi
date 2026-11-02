@@ -1,0 +1,1 @@
+- Add opt-in Unicode first-strong direction per semantic paragraph and table cell, preserving host table order and image ownership; focused x64 Debug embedded WARP and Unicode generator checks passed, with native and integrated qualification pending.

@@ -4,6 +4,7 @@
 #include "Support.Tests.PreparedFlowchart.h"
 #include "Support.Tests.RichSemanticDocument.h"
 #include <DxUi/DxUi.h>
+#include <tuple>
 
 namespace SemanticDiagramTests
 {
@@ -26,7 +27,8 @@ inline constexpr Scenario scenarios[] = {
     {L"```Mermaid\ngraph TD;A-->B\n```\n"},
     {L"```mermaidx\ngraph TD;A-->B\n```\n"},
     {L"```mermaid {theme:default}\ngraph TD;A-->B\n```\n", false, true, SemanticDiagnosticKind::UnsupportedDiagram},
-    {L"```mermaid\nsequenceDiagram\nA->>B: hello\n```\n", false, true, SemanticDiagnosticKind::UnsupportedDiagram},
+    {L"```mermaid\nsequenceDiagram\nA->>B: hello\n```\n", true},
+    {L"```mermaid\nsequenceDiagram\nloop later\n```\n", false, true, SemanticDiagnosticKind::UnsupportedDiagram},
     {L"```mermaid\ngraph TD;A-->\n```\n", false, true, SemanticDiagnosticKind::MalformedDiagram},
     {L"```mermaid\ngraph TD;\U0001f600-->A\n```\n", false, true, SemanticDiagnosticKind::MalformedDiagram},
     {L"```mermaid\ngraph TD\n```\n", false, true, SemanticDiagnosticKind::EmptyDiagram},
@@ -96,6 +98,65 @@ template <typename Check> inline void Core(Check&& check)
                       "invalid non-ASCII identifier selects the complete supplementary scalar");
         }
     }
+    for (const auto& [metadata, expectedName, expectedHelp] :
+         {std::tuple{L"accTitle: System map\naccDescr: Describes the system\n", L"System map", L"Describes the system"},
+          std::tuple{L"accTitle: System map\n", L"System map", L""},
+          std::tuple{L"accDescr: Describes the system\n", L"", L"Describes the system"}})
+    {
+        const std::wstring source = std::wstring(L"```mermaid\ngraph TD\n") + metadata + L"A-->B\n```";
+        const auto doc            = Build(source, check);
+        const auto diagrams       = SemanticExtensionAccess::Diagrams(*doc);
+        check(diagrams.size() == 1u && doc->Map().Source() == source, "accessible metadata retains the original source");
+        if (diagrams.size() != 1u)
+            continue;
+        const auto& element = doc->Elements()[diagrams.front().element];
+        check(*expectedName ? element.name == expectedName : element.name.find(L"Connections:") != std::wstring::npos,
+              "diagram name uses the authored title or generated graph summary");
+        check(*expectedHelp ? element.title == expectedHelp : element.title.find(L"Connections:") != std::wstring::npos,
+              "diagram help uses the authored description or generated graph summary");
+    }
+    {
+        const auto doc      = Build(L"```mermaid\nclassDiagram\nInterface <|.. Implementation\n```", check);
+        const auto diagrams = SemanticExtensionAccess::Diagrams(*doc);
+        check(diagrams.size() == 1u && doc->Elements()[diagrams.front().element].name.find(L"Implementation implements Interface") != std::wstring::npos,
+              "class realization exposes implementation semantics in the accessible alternative");
+    }
+    {
+        const auto doc      = Build(L"```mermaid\nclassDiagram\nA \"1\" --> \"0..*\" B\n```", check);
+        const auto diagrams = SemanticExtensionAccess::Diagrams(*doc);
+        check(diagrams.size() == 1u && doc->Elements()[diagrams.front().element].name.find(L"A [1] \u2192 B [0..*]") != std::wstring::npos,
+              "class cardinalities remain attached to the correct accessible endpoints");
+    }
+    {
+        const auto doc      = Build(L"```mermaid\ngraph TD\nsubgraph O[Outer]\nsubgraph I[Inner]\nA-->B\nend\nend\n```", check);
+        const auto diagrams = SemanticExtensionAccess::Diagrams(*doc);
+        check(diagrams.size() == 1u && doc->Elements()[diagrams.front().element].name.find(L"Groups: Outer: A; B; Inner: A; B;") != std::wstring::npos,
+              "nested group titles and memberships occur in the accessible graph alternative");
+    }
+    {
+        const auto doc      = Build(L"```mermaid\nstateDiagram-v2\nstate Outer {\nstate Inner {\nA-->B\n}\n}\n```", check);
+        const auto diagrams = SemanticExtensionAccess::Diagrams(*doc);
+        check(diagrams.size() == 1u && doc->Elements()[diagrams.front().element].name.find(L"Groups: Outer: A; B; Inner: A; B;") != std::wstring::npos,
+              "state composite hierarchy appears in the accessible graph alternative");
+    }
+    {
+        const auto doc      = Build(L"```mermaid\nstateDiagram-v2\nS\nnote right of S: Review this state\n```", check);
+        const auto diagrams = SemanticExtensionAccess::Diagrams(*doc);
+        check(diagrams.size() == 1u && doc->Elements()[diagrams.front().element].name.find(L"S note: Review this state") != std::wstring::npos,
+              "state notes expose their target and text in the accessible graph alternative");
+    }
+    {
+        const auto doc      = Build(L"```mermaid\nstateDiagram-v2\nS\nnote left of S\nFirst line\nSecond line\nend note\n```", check);
+        const auto diagrams = SemanticExtensionAccess::Diagrams(*doc);
+        check(diagrams.size() == 1u && doc->Elements()[diagrams.front().element].name.find(L"S note: First line\nSecond line") != std::wstring::npos,
+              "multiline notes retain their text and target in the accessible alternative");
+    }
+    {
+        const auto doc      = Build(L"```mermaid\nclassDiagram\nWhole *-- Part\n```", check);
+        const auto diagrams = SemanticExtensionAccess::Diagrams(*doc);
+        check(diagrams.size() == 1u && doc->Elements()[diagrams.front().element].name.find(L"Part is part of Whole") != std::wstring::npos,
+              "composition exposes whole and part in the accessible alternative");
+    }
     for (const auto profile : {MarkdownProfile::CommonMark0312, MarkdownProfile::Gfm029})
     {
         const auto doc = Build(scenarios[0u].source, check, profile);
@@ -109,6 +170,79 @@ template <typename Check> inline void Core(Check&& check)
     check(SemanticExtensionAccess::Diagrams(*limited).size() == SemanticExtensions::MaximumObjects && limited->Diagnostics().size() == 1u &&
               limited->Diagnostics().front().kind == SemanticDiagnosticKind::DiagramCapacity,
           "document object admission occurs before preparing the next graph");
+    for (const bool mathFirst : {false, true})
+    {
+        std::wstring formulas(0u, L' '), graphs(0u, L' ');
+        for (std::size_t index = 0u; index < 100u; ++index)
+            formulas.append(L"$x$ ");
+        formulas.append(L"\n\n");
+        for (std::size_t index = 0u; index < 29u; ++index)
+            graphs.append(scenarios[0u].source);
+        const auto mixed = Build(mathFirst ? formulas + graphs : graphs + formulas, check);
+        check(SemanticExtensionAccess::Diagrams(*mixed).size() + SemanticExtensionAccess::Maths(*mixed).size() == SemanticExtensions::MaximumObjects &&
+                  mixed->Diagnostics().size() == 1u,
+              "math and diagrams share one source-ordered native object limit in either order");
+        check(mixed->Diagnostics().front().kind == (mathFirst ? SemanticDiagnosticKind::DiagramCapacity : SemanticDiagnosticKind::MathCapacity),
+              "the first object beyond the combined limit has the matching exact-source fallback diagnostic");
+    }
+    {
+        std::wstring source(0u, L' ');
+        for (std::size_t index = 0u; index < 126u; ++index)
+            source.append(L"$x$ ");
+        source.append(L"\n\n").append(scenarios[0u].source).append(L"\n![one](one.png) ![extra](extra.png \"Caption\") <img src='other.png' alt='other'>\n");
+        const auto mixed  = Build(source, check);
+        const auto images = SemanticExtensionAccess::Images(*mixed);
+        check(SemanticExtensionAccess::Maths(*mixed).size() == 126u && SemanticExtensionAccess::Diagrams(*mixed).size() == 1u && images.size() == 1u &&
+                  mixed->Diagnostics().size() == 2u && mixed->Map().Source() == source,
+              "math, diagrams, Markdown and HTML images share one admitted-object ceiling with exact source");
+        for (const auto& diagnostic : mixed->Diagnostics())
+            check(diagnostic.kind == SemanticDiagnosticKind::ImageCapacity && diagnostic.element < mixed->Elements().size() &&
+                      mixed->Elements()[diagnostic.element].role == SemanticRole::Image && diagnostic.source.first < diagnostic.source.last,
+                  "each over-capacity image reports its own source-ranged image diagnostic");
+        const auto extra =
+            std::ranges::find_if(mixed->Elements(), [](const auto& element) { return element.role == SemanticRole::Image && element.name == L"extra"; });
+        check(extra != mixed->Elements().end() && extra->title == L"Caption" && mixed->Map().Display().find(L"[image: extra]") != std::wstring::npos,
+              "over-capacity image preserves its authored title and visible alternative");
+    }
+    {
+        std::wstring source = L"$\\input{x}$ ";
+        for (std::size_t index = 0u; index < SemanticExtensions::MaximumObjects; ++index)
+            source.append(L"![x](x.png) ");
+        const auto mixed = Build(source, check);
+        check(SemanticExtensionAccess::Images(*mixed).size() == SemanticExtensions::MaximumObjects && SemanticExtensionAccess::Maths(*mixed).empty() &&
+                  mixed->Diagnostics().size() == 1u && mixed->Diagnostics()[0u].kind == SemanticDiagnosticKind::UnsupportedMath,
+              "rejected math consumes no admitted-object slot");
+    }
+    {
+        const std::wstring formula(4095u, L'+'); // 4095 atoms plus their root: independently counted 4096 records.
+        std::wstring formulas(0u, L' ');
+        for (unsigned index = 0u; index < 9u; ++index)
+        {
+            if (index < 4u)
+                formulas.append(L"$").append(formula).append(L"$\n\n");
+            else
+                formulas.append(L"```math\n").append(formula).append(L"\n```\n\n");
+        }
+        const auto exact = Build(formulas, check);
+        check(SemanticExtensionAccess::Maths(*exact).size() == 8u && exact->Diagnostics().size() == 1u &&
+                  exact->Diagnostics()[0u].kind == SemanticDiagnosticKind::MathCapacity && exact->Map().Source() == formulas,
+              "inline and fenced math share the exact 32768-record document boundary and preserve the first refused source");
+        const auto objects = std::wstring(L"![fixture](fixture.png)\n\n") + std::wstring(scenarios[0u].source) + L"\n";
+        const auto first   = Build(objects + formulas, check);
+        check(SemanticExtensionAccess::Maths(*first).size() == 7u && SemanticExtensionAccess::Images(*first).size() == 1u &&
+                  SemanticExtensionAccess::Diagrams(*first).size() == 1u && first->Diagnostics().size() == 2u &&
+                  std::ranges::all_of(first->Diagnostics(), [](const auto& issue) { return issue.kind == SemanticDiagnosticKind::MathCapacity; }),
+              "image placements and graph records reserve the same ledger before later formulas are considered");
+        // Eight formulas fill the ledger; remove the already refused ninth one
+        // so only the later image and graph diagnostics remain.
+        const auto lastFence = formulas.rfind(L"```math\n");
+        const auto last      = Build(formulas.substr(0u, lastFence) + objects, check);
+        check(SemanticExtensionAccess::Maths(*last).size() == 8u && SemanticExtensionAccess::Images(*last).empty() &&
+                  SemanticExtensionAccess::Diagrams(*last).empty() && last->Diagnostics().size() == 2u &&
+                  last->Diagnostics()[0u].kind == SemanticDiagnosticKind::ImageCapacity &&
+                  last->Diagnostics()[1u].kind == SemanticDiagnosticKind::DiagramCapacity,
+              "a full mathematical record ledger refuses later image and graph admission in source order");
+    }
     const auto large = Build(L"```mermaid\n" + std::wstring(NativeFlowchartParser::MaximumSourceUnits + 1u, L' ') + L"\n```\n", check);
     check(SemanticExtensionAccess::Diagrams(*large).empty() && large->Diagnostics().size() == 1u &&
               large->Diagnostics().front().kind == SemanticDiagnosticKind::DiagramCapacity,
@@ -177,6 +311,56 @@ template <typename Check> inline void Geometry(Check&& check)
             check(source == doc->Map().Source().size(), "native visual line units cover every original source unit");
         }
     }
+    const auto mathDocument = Build(L"$x^2$", check);
+    const auto initialized  = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+    if (FAILED(initialized) && initialized != RPC_E_CHANGED_MODE)
+        THROW_IF_FAILED(initialized);
+    const auto apartment = wil::scope_exit([&]() noexcept
+    {
+        if (SUCCEEDED(initialized))
+            CoUninitialize();
+    });
+    wil::com_ptr<IWICImagingFactory> imaging;
+    THROW_IF_FAILED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(imaging.put())));
+    wil::com_ptr<IWICBitmap> bitmap;
+    THROW_IF_FAILED(imaging->CreateBitmap(512u, 256u, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnLoad, bitmap.put()));
+    wil::com_ptr<ID2D1RenderTarget> target;
+    const auto properties =
+        D2D1::RenderTargetProperties(D2D1_RENDER_TARGET_TYPE_SOFTWARE, D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
+    THROW_IF_FAILED(drawing->CreateWicBitmapRenderTarget(bitmap.get(), properties, target.put()));
+    LayoutOptions mathOptions;
+    mathOptions.widthDip = 480.f;
+    PreparedSemanticGeometry mathGeometry;
+    check(mathGeometry.Begin(real.get(), mathDocument, mathOptions, drawing.get(), {1u, 1u}, {}, target.get()) == LayoutPreparationStatus::Pending,
+          "initial native math geometry prepares asynchronously");
+    while (mathGeometry.Pending())
+        static_cast<void>(mathGeometry.Advance());
+    check(mathGeometry.Begin(real.get(), mathDocument, mathOptions, drawing.get(), {1u, 1u}, {}, target.get()) == LayoutPreparationStatus::Complete,
+          "identical math geometry reuses its publication");
+    mathOptions.dpi = 192.f;
+    check(mathGeometry.Begin(real.get(), mathDocument, mathOptions, drawing.get(), {1u, 1u}, {}, target.get()) == LayoutPreparationStatus::Pending,
+          "a DPI change retires math geometry that may contain device corrections");
+    while (mathGeometry.Pending())
+        static_cast<void>(mathGeometry.Advance());
+    check(mathGeometry.Begin(real.get(), mathDocument, mathOptions, drawing.get(), {1u, 1u}, {}, target.get()) == LayoutPreparationStatus::Complete,
+          "the new DPI reuses only its own completed geometry");
+    for (const auto invalidDpi : {0.f, 4097.f})
+    {
+        auto invalid = mathOptions;
+        invalid.dpi  = invalidDpi;
+        bool rejected{};
+        try
+        {
+            mathGeometry.Begin(real.get(), mathDocument, invalid, drawing.get(), {1u, 1u}, {}, target.get());
+        }
+        catch (const std::invalid_argument&)
+        {
+            rejected = true;
+        }
+        check(rejected &&
+                  mathGeometry.Begin(real.get(), mathDocument, mathOptions, drawing.get(), {1u, 1u}, {}, target.get()) == LayoutPreparationStatus::Complete,
+              "invalid DPI preserves the previous published native geometry");
+    }
 }
 template <typename Check> inline void PositionedRaster(Check&& check)
 {
@@ -207,7 +391,7 @@ template <typename Check> inline void PositionedRaster(Check&& check)
         PreparedFlowchart reference;
         reference.Begin(write.get(), drawing.get(), object.graph, options, {1u, 1u});
         PreparedFlowchartTests::Complete(reference, check);
-        for (const auto dpi : {96.0f, 144.0f, 192.0f})
+        for (const auto dpi : {96.0f, 120.0f, 144.0f, 168.0f, 192.0f})
         {
             const auto render = [&](bool direct)
             {
@@ -302,6 +486,16 @@ template <typename Prepare, typename Check> inline void Editor(RichTextEditor& e
     check(after.preparationAdvances == idle.preparationAdvances && after.markdownPreparationAdvances == idle.markdownPreparationAdvances &&
               after.semanticPreparationAdvances == idle.semanticPreparationAdvances,
           "identical rejected native view requests add no idle parse or layout work");
+    editor.SetSelection({0u, 0u});
+    check(editor.ReplaceSelection(L"unrelated\n\n"), "edit before a rejected native diagram");
+    prepare(50u);
+    const auto shifted = editor.GetAcknowledgedSemanticDocument(host);
+    check(shifted && shifted->Diagnostics().size() == 1u && shifted->Diagnostics()[0].kind == SemanticDiagnosticKind::DiagramCapacity &&
+              SemanticExtensionAccess::Diagrams(*shifted).empty() && editor.GetText() == L"unrelated\n\n" + source,
+          "unchanged rejected diagram remains a local fallback after an unrelated edit shifts its source range");
+    check(editor.Undo(), "unrelated edit can be undone");
+    prepare(50u);
+    check(localFallback(), "fallback survives undo of an unrelated edit");
     const auto raw = source.find(L'A');
     auto erased    = source;
     erased.erase(raw, 1u);
@@ -328,5 +522,12 @@ template <typename Prepare, typename Check> inline void Editor(RichTextEditor& e
     editor.SetViewMode(ViewMode::Rich);
     prepare(480u);
     check(editor.GetMarkdownRenderingStatus() == MarkdownRenderingStatus::Semantic, "returning to rich view prepares the edited graph");
+    editor.SetText(source + L"\n" + source);
+    const auto beforeBatch = editor.DebugGetState().semanticPreparationAdvances;
+    prepare(50u);
+    const auto batch = editor.GetAcknowledgedSemanticDocument(host);
+    check(batch && batch->Diagnostics().size() == 2u && SemanticExtensionAccess::Diagrams(*batch).empty() &&
+              editor.DebugGetState().semanticPreparationAdvances - beforeBatch == 2u && editor.GetText() == source + L"\n" + source,
+          "multiple oversized diagrams are rejected together in one semantic rebuild");
 }
 } // namespace SemanticDiagramTests

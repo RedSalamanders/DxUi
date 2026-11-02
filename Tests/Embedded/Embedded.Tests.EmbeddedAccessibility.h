@@ -107,6 +107,7 @@ public:
 class EmbeddedGridGetItemModel final : public DxUi::IGridModel
 {
 public:
+    mutable DxUi::Grid* invalidateOnRowId{};
     [[nodiscard]] size_t GetRowCount() const noexcept override
     {
         return 2000u;
@@ -125,6 +126,12 @@ public:
     }
     [[nodiscard]] uint64_t GetStableRowId(size_t rowIndex) const noexcept override
     {
+        if (auto* grid = std::exchange(invalidateOnRowId, nullptr))
+        {
+            auto bounds = grid->GetBounds();
+            bounds.right += 1.f;
+            grid->SetBounds(bounds);
+        }
         return static_cast<uint64_t>(rowIndex) + 1u;
     }
     [[nodiscard]] std::optional<size_t> FindRowByStableId(uint64_t rowId) const noexcept override
@@ -180,6 +187,31 @@ static void TestEmbeddedGridOffscreenGetItem(GraphicsFixture& gpu)
     Hr(gridItem->get_Row(&row), "embedded GridItem row");
     Hr(gridItem->get_Column(&column), "embedded GridItem column");
     Check(row == 1500 && column == 1, "embedded GridItem coordinates match GetItem");
+
+    // Paint-only dirtiness preserves prepared geometry and the separate event baseline.
+    view.MarkDirty();
+    wil::com_ptr_nothrow<IRawElementProviderSimple> pendingCell;
+    Hr(gridPattern->GetItem(1500, 1, pendingCell.put()), "cached Grid.GetItem remains snapshot-backed while the surface is dirty");
+    Check(bool(pendingCell), "dirty surface retains the previously published cell");
+    pendingCell.reset();
+    Hr(gridPattern->GetItem(1502, 0, pendingCell.put()), "paint-only dirty geometry permits uncached Grid.GetItem");
+    Check(bool(pendingCell), "paint-only dirtiness retains coherent geometry");
+    pendingCell.reset();
+    auto changedBounds = grid->GetBounds();
+    changedBounds.right += 1.f;
+    grid->SetBounds(changedBounds);
+    Check(gridPattern->GetItem(1503, 0, pendingCell.put()) == UIA_E_ELEMENTNOTAVAILABLE && ! pendingCell,
+          "unprepared embedded geometry refuses uncached Grid.GetItem publication");
+    Hr(view.Prepare(720, 510, 96), "reprepare embedded grid after invalidation");
+    Hr(gridPattern->GetItem(1503, 0, pendingCell.put()), "coherent embedded grid permits the same uncached request");
+    Check(bool(pendingCell), "successful retry publishes the requested cell");
+    pendingCell.reset();
+    model.invalidateOnRowId = grid;
+    Check(gridPattern->GetItem(1504, 0, pendingCell.put()) == UIA_E_ELEMENTNOTAVAILABLE && ! pendingCell,
+          "model callback invalidation aborts an in-flight uncached Grid.GetItem before publication");
+    Hr(view.Prepare(720, 510, 96), "reprepare after model callback invalidation");
+    Hr(gridPattern->GetItem(1504, 0, pendingCell.put()), "retry callback-invalidated cell after preparation");
+    Check(bool(pendingCell), "callback-invalidated cell can be materialized after coherent preparation");
 
     // This intentionally calls the provider pointer directly from another initialized thread: it is an implementation
     // concurrency probe for the embedded adapter's early owner-thread rejection, not a marshaled UI Automation client.
@@ -354,8 +386,71 @@ static void TestEmbeddedAccessibilityContainsAThrowingModelGetter(GraphicsFixtur
     view.Detach();
 }
 
+static void TestEmbeddedRadioGroupAccessibility(GraphicsFixture& gpu)
+{
+    using namespace DxUi;
+    EmbeddedScene scene;
+    Hr(scene.Initialize(gpu.device.get()), "embedded radio group scene");
+    auto& view    = scene.view;
+    auto controls = std::make_unique<Panel>();
+    auto* group   = controls->AddChild<RadioButtons>();
+    group->SetBounds(D2D1::RectF(0.f, 0.f, 280.f, 100.f));
+    auto* first  = group->AddItem(L"First");
+    auto* second = group->AddItem(L"Second");
+    first->SetBounds(D2D1::RectF(0.f, 0.f, 280.f, 40.f));
+    second->SetBounds(D2D1::RectF(0.f, 40.f, 280.f, 80.f));
+    group->SetSelectedIndex(0);
+    view.Controls().SetRoot(std::move(controls));
+    Hr(view.Prepare(320u, 180u), "prepare embedded radio group");
+    auto site = std::make_shared<TestEmbeddedAccessibilitySite>();
+    EmbeddedAccessibilityPlacement placement{{0, 0, 320, 180}, true};
+    Hr(view.AttachAccessibility(site, 0x524144494f475250ull, placement), "attach embedded radio group");
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> root;
+    Hr(view.GetAccessibilityProvider(root.put()), "embedded radio group root");
+    site->root = root.get();
+    wil::com_ptr_nothrow<IRawElementProviderFragment> rootFragment, groupFragment, choice, last, parent;
+    Hr(root.query_to(rootFragment.put()), "embedded radio root fragment");
+    Hr(rootFragment->Navigate(NavigateDirection_FirstChild, groupFragment.put()), "embedded radio group child");
+    Hr(groupFragment->Navigate(NavigateDirection_FirstChild, choice.put()), "embedded first radio choice");
+    Hr(groupFragment->Navigate(NavigateDirection_LastChild, last.put()), "embedded last radio choice");
+    Hr(last->Navigate(NavigateDirection_Parent, parent.put()), "embedded radio choice parent");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> groupSimple, parentSimple;
+    Hr(groupFragment.query_to(groupSimple.put()), "embedded group properties");
+    Hr(parent.query_to(parentSimple.put()), "embedded group parent properties");
+    wil::unique_variant type;
+    Hr(parentSimple->GetPropertyValue(UIA_ControlTypePropertyId, &type), "embedded radio parent type");
+    Check(type.vt == VT_I4 && type.lVal == UIA_GroupControlTypeId, "embedded choices are children of a Group");
+    wil::com_ptr_nothrow<ISelectionItemProvider> item;
+    Hr(last.query_to(item.put()), "embedded radio selection item");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> container;
+    Hr(item->get_SelectionContainer(container.put()), "embedded radio selection container");
+    Check(bool(container), "embedded radio exposes its group container");
+    wil::com_ptr_nothrow<IUnknown> unknown;
+    Hr(container->GetPatternProvider(UIA_SelectionPatternId, unknown.put()), "embedded group selection pattern");
+    wil::com_ptr_nothrow<ISelectionProvider> selection;
+    Hr(unknown.query_to(selection.put()), "embedded group selection interface");
+    Hr(item->Select(), "select embedded second radio");
+    Hr(view.Prepare(320u, 180u), "prepare embedded radio selection");
+    Hr(view.UpdateAccessibility(placement), "publish embedded radio selection");
+    SAFEARRAY* values = nullptr;
+    Hr(selection->GetSelection(&values), "embedded group selected item");
+    const auto releaseValues = wil::scope_exit([&] { SafeArrayDestroy(values); });
+    LONG index = 0, upper = -1;
+    Check(values && SUCCEEDED(SafeArrayGetUBound(values, 1u, &upper)) && upper == 0, "embedded group has one selected choice");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> selected;
+    Hr(SafeArrayGetElement(values, &index, selected.put()), "embedded selected radio provider");
+    wil::unique_variant name;
+    Hr(selected->GetPropertyValue(UIA_NamePropertyId, &name), "embedded selected radio name");
+    Check(name.vt == VT_BSTR && name.bstrVal && std::wstring_view(name.bstrVal, SysStringLen(name.bstrVal)) == L"Second",
+          "embedded group selection follows the chosen radio");
+    view.Detach();
+    container.reset();
+    Check(item->get_SelectionContainer(container.put()) == UIA_E_ELEMENTNOTAVAILABLE && ! container, "embedded retained choice cannot expose a retired group");
+}
+
 static void TestEmbeddedAccessibility(GraphicsFixture& gpu)
 {
+    TestEmbeddedRadioGroupAccessibility(gpu);
     TestEmbeddedDisclosureAccessibility(gpu);
     TestEmbeddedGridOffscreenGetItem(gpu);
     TestEmbeddedTreeMultiSelect(gpu);

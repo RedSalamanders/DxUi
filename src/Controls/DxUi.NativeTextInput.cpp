@@ -108,10 +108,10 @@ void ShutdownNativeTextInputThreadManagerState(NativeTextInputThreadManagerState
     return true;
 }
 
-[[nodiscard]] NativeTextInputState ToNativeTextInputState(const Control& control, const TextInputState& controlState)
+[[nodiscard]] NativeTextInputState ToNativeTextInputState(const Control& control, TextInputState& controlState)
 {
     NativeTextInputState state;
-    state.text                 = controlState.text;
+    state.text.swap(controlState.text);
     state.selectionAnchorIndex = controlState.selectionAnchorIndex;
     state.caretIndex           = controlState.caretIndex;
     state.firstVisibleLine     = controlState.firstVisibleLine;
@@ -565,7 +565,17 @@ void ControlHost::ActivateNativeTextInputSession(Control* control, bool transfer
         return;
     }
 
-    TextInputState controlState;
+    std::optional<TextInputState> controlStateStorage;
+    try
+    {
+        controlStateStorage.emplace();
+    }
+    catch (const std::bad_alloc&)
+    {
+        DeactivateNativeTextInputSession();
+        return;
+    }
+    auto& controlState = controlStateStorage.value();
     try
     {
         if (! control->ExportTextInputState(controlState))
@@ -697,7 +707,22 @@ void ControlHost::ActivateNativeTextInputSession(Control* control, bool transfer
 void ControlHost::SecureClearNativeTextInputStateCache() noexcept
 {
     SecureWipe::SecureClear(_nativeTextInputStateCache.text);
-    _nativeTextInputStateCache      = NativeTextInputState{};
+    auto& state = _nativeTextInputStateCache;
+    state.selectionAnchorIndex.reset();
+    state.caretIndex = state.firstVisibleLine = 0u;
+    state.readOnly = state.masked = state.multiline = false;
+    state.compositionStartIndex.reset();
+    state.compositionEndIndex.reset();
+    state.conversionTargetStartIndex.reset();
+    state.conversionTargetEndIndex.reset();
+    state.compositionCursorIndex.reset();
+    state.compositionClauseBoundaries.clear();
+    state.flowDirection             = FlowDirection::LeftToRight;
+    state.readingDirection          = DWRITE_READING_DIRECTION_LEFT_TO_RIGHT;
+    state.passwordRevealMode        = PasswordRevealMode::Peek;
+    state.passwordRevealState       = PasswordRevealState::Hidden;
+    state.maskLengthPolicy          = PasswordMaskLengthPolicy::Exact;
+    state.secretVisibleDotCount     = 0u;
     _nativeTextInputStateCacheValid = false;
 }
 
@@ -834,6 +859,13 @@ bool ControlHost::ActivateNativeTextInputTsf(Control* control) noexcept
         [this, &threadMgr, &documentMgr, &pushed, &associated, &previousFocusDocumentMgr, &releaseUncommittedStore, activationRevision]() noexcept
     {
         // Unwind only this staged document. A callback may already have installed a newer host session.
+        // If that session captured our staged association as its predecessor,
+        // splice it out before this document is popped. Preserve unrelated
+        // associations installed by application or TSF callbacks.
+        if (_nativeTextInputTsfActive && documentMgr && Internal::HasSameComIdentity(_nativeTextInputTsfPreviousFocusDocumentMgr.get(), documentMgr.get()))
+        {
+            _nativeTextInputTsfPreviousFocusDocumentMgr = previousFocusDocumentMgr.get();
+        }
         ClearThreadManagerFocusIfOwnedBy(threadMgr.get(), documentMgr.get());
         if (associated && activationRevision == _nativeTextInputTsfTransitionRevision && ! _nativeTextInputTsfActive && _hwnd)
         {
@@ -1010,7 +1042,17 @@ void ControlHost::SyncNativeTextInputSession(Control* control) noexcept
                IsControlInTree(_root.get(), control);
     };
 
-    TextInputState controlState;
+    std::optional<TextInputState> controlStateStorage;
+    try
+    {
+        controlStateStorage.emplace();
+    }
+    catch (const std::bad_alloc&)
+    {
+        SecureClearNativeTextInputStateCache();
+        return;
+    }
+    auto& controlState = controlStateStorage.value();
     try
     {
         if (! control->ExportTextInputState(controlState))
@@ -1089,6 +1131,29 @@ void ControlHost::SyncNativeTextInputSession(Control* control) noexcept
     }
 }
 
+void ControlHost::NotifyTextInputLayoutChanged(Control* control) noexcept
+{
+    if (! control || control != _nativeTextInputControl || _nativeTextInputControlLifetime.expired() || ! IsControlInTree(_root.get(), control))
+        return;
+    const auto lifetime = _nativeTextInputControlLifetime;
+    const auto session  = _nativeTextInputSessionRevision;
+    wil::com_ptr_nothrow<ITextStoreACP> store;
+    if (_nativeTextInputTsfTextStore)
+        static_cast<void>(_nativeTextInputTsfTextStore.query_to(store.put()));
+#if DXUI_ENABLE_DIAGNOSTICS
+    auto observer = _debugTextStoreLayoutObserver;
+    if (observer && observer.get() != store.get())
+        NotifyTextStoreLayoutChanged(observer.get());
+#endif
+    if (! lifetime.expired() && session == _nativeTextInputSessionRevision && control == _nativeTextInputControl && store)
+        NotifyTextStoreLayoutChanged(store.get());
+}
+#if DXUI_ENABLE_DIAGNOSTICS
+void ControlHost::DebugSetTextStoreLayoutObserverForTest(ITextStoreACP* store) noexcept
+{
+    _debugTextStoreLayoutObserver = store;
+}
+#endif
 bool ControlHost::ScheduleNativeTextStoreDeferredWork(Control* control, UINT_PTR sessionCookie) noexcept
 {
     if (sessionCookie != _nativeTextStoreDispatchCookie || ! control || control != _nativeTextInputControl || _nativeTextInputControlLifetime.expired() ||
@@ -2016,6 +2081,12 @@ bool ControlHost::HandleNativeTextInputImeMessage(UINT msg, WPARAM wp, LPARAM lp
     return true;
 }
 
+std::optional<bool> ControlHost::GetNativeTextCompositionActive(const Control* control) const noexcept
+{
+    if (! control || control != _nativeTextInputControl || ! _nativeTextInputStateCacheValid)
+        return std::nullopt;
+    return _nativeTextInputStateCache.compositionStartIndex.has_value() || _nativeTextInputStateCache.compositionEndIndex.has_value();
+}
 bool ControlHost::TryReadNativeTextInputState(const Control* control, NativeTextInputState& outState) const noexcept
 {
     if (! control || control != _nativeTextInputControl || ! _nativeTextInputStateCacheValid)
@@ -2246,6 +2317,18 @@ HRESULT ControlHost::DebugGetFocusedNativeTextInputDocumentForTest(IUnknown** ou
 void ControlHost::DebugDeactivateNativeTextInputTsfForTest() noexcept
 {
     DeactivateNativeTextInputTsf();
+}
+
+HRESULT ControlHost::DebugSwapNativeTextInputAssociationForTest(ITfDocumentMgr* replacement, ITfDocumentMgr** previous) noexcept
+{
+    if (! previous || ! _hwnd)
+        return E_INVALIDARG;
+    *previous = nullptr;
+    wil::com_ptr_nothrow<ITfThreadMgr> threadMgr;
+    TfClientId clientId{};
+    if (! EnsureNativeTextInputThreadManager(threadMgr, clientId))
+        return E_FAIL;
+    return threadMgr->AssociateFocus(_hwnd, replacement, previous);
 }
 
 void ControlHost::DebugSetNativeTextInputImePayloadForTest(NativeTextInputImePayload payload)

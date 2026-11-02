@@ -4,6 +4,7 @@
 #include <cmath>
 #include <limits>
 #include <stdexcept>
+#include <tuple>
 
 namespace FlowchartLayoutTests
 {
@@ -34,11 +35,15 @@ inline std::shared_ptr<const FlowchartLayoutPlan> Place(std::shared_ptr<const Fl
 {
     const std::vector<FlowchartSize> nodes(graph->nodes.size(), {16.0, 12.0});
     std::vector<FlowchartSize> edges(graph->edges.size(), FlowchartSize{});
+    const bool cardinality = std::ranges::any_of(graph->edges, [](const auto& edge) { return ! edge.fromCardinality.empty() || ! edge.toCardinality.empty(); });
+    const std::vector<FlowchartSize> endpointLabels(cardinality ? graph->edges.size() : 0u, {16.0, 12.0});
+    const std::vector<FlowchartSize> groups(
+        graph->family == NativeDiagramFamily::Pie || graph->family == NativeDiagramFamily::Gantt ? 1u : graph->groups.size(), {16.0, 12.0});
     for (std::size_t index = 0u; index < edges.size(); ++index)
         if (! graph->edges[index].label.empty())
             edges[index] = {20.0, 12.0};
     NativeFlowchartLayout layout;
-    layout.Begin(std::move(graph), nodes, edges);
+    layout.Begin(std::move(graph), nodes, edges, endpointLabels, endpointLabels, groups);
     return Complete(layout, check, budget);
 }
 inline bool Near(double a, double b) noexcept
@@ -48,31 +53,245 @@ inline bool Near(double a, double b) noexcept
 template <typename Check> inline void Geometry(Check&& check)
 {
     // Hand-calculated two-rank oracle: 40x32 boxes, 16-DIP endpoint
-    // corridors, 24-DIP rank separation, 8-DIP margins and one exterior lane.
+    // corridors, 24-DIP rank separation, 8-DIP margins and one direct route.
     const auto graph = Graph(L"graph TD;A-->B");
     const auto plan  = Place(graph, check);
-    check(plan->issue == FlowchartLayoutIssue::None && plan->nodes.size() == 2u && plan->edges.size() == 1u && Near(plan->extent.width, 64.0) &&
+    check(plan->issue == FlowchartLayoutIssue::None && plan->nodes.size() == 2u && plan->edges.size() == 1u && Near(plan->extent.width, 56.0) &&
               Near(plan->extent.height, 136.0),
           "two-node graph has independently calculated total extents");
     check(Near(plan->nodes[0u].bounds.x, 8.0) && Near(plan->nodes[0u].bounds.y, 8.0) && Near(plan->nodes[0u].bounds.width, 40.0) &&
               Near(plan->nodes[0u].bounds.height, 32.0) && Near(plan->nodes[1u].bounds.y, 96.0) && plan->nodes[1u].rank == 1u,
           "two-node graph has exact independent shape placement and longest-path ranks");
-    constexpr FlowchartPoint expected[] = {{28.0, 40.0}, {28.0, 56.0}, {56.0, 56.0}, {56.0, 80.0}, {28.0, 80.0}, {28.0, 96.0}};
+    constexpr FlowchartPoint expected[] = {{28.0, 40.0}, {28.0, 56.0}, {28.0, 56.0}, {28.0, 80.0}, {28.0, 80.0}, {28.0, 96.0}};
     for (std::size_t index = 0u; index < std::size(expected); ++index)
         check(Near(plan->edges[0u].path[index].x, expected[index].x) && Near(plan->edges[0u].path[index].y, expected[index].y),
-              "forward edge follows the independent six-point corridor oracle");
+              "unambiguous adjacent ranks use the independent direct centerline oracle");
     check(plan->edges[0u].hasArrow && Near(plan->edges[0u].arrow[1u].x, 24.0) && Near(plan->edges[0u].arrow[1u].y, 88.0),
           "arrow head ends on the target shape boundary");
+    const auto sequence = Graph(L"sequenceDiagram\nparticipant Alice as Client\nparticipant Bob\nBob->>Alice: request\nAlice-->>Bob: reply\nBob-)Bob: self\n");
+    const auto timeline = Place(sequence, check);
+    check(sequence->outcome == FlowchartOutcome::Prepared && sequence->family == NativeDiagramFamily::Sequence && sequence->nodes.size() == 2u &&
+              sequence->nodes[0u].label == L"Client" && sequence->edges.size() == 3u && sequence->edges[0u].from == 1u && sequence->edges[0u].to == 0u &&
+              sequence->edges[1u].style == FlowchartLineStyle::Dotted && sequence->edges[2u].openArrow,
+          "sequence model retains participant and message order, aliases and message kinds");
+    check(timeline->issue == FlowchartLayoutIssue::None && timeline->nodes.size() == 2u && timeline->edges.size() == 3u &&
+              timeline->nodes[0u].bounds.x < timeline->nodes[1u].bounds.x && timeline->edges[0u].path[0u].y < timeline->edges[1u].path[0u].y &&
+              timeline->edges[1u].path[0u].y < timeline->edges[2u].path[0u].y && timeline->edges[2u].route == FlowchartRoute::Self &&
+              timeline->edges[2u].openArrow && timeline->edges[0u].arrow[1u].x > timeline->edges[0u].arrow[0u].x &&
+              timeline->edges[1u].arrow[1u].x < timeline->edges[1u].arrow[0u].x,
+          "sequence layout uses ordered lifelines, correctly directed messages and a self-message loop");
+    for (const auto invalid : {L"sequenceDiagram\nAlice->>Bob: x\nloop later\n", L"sequenceDiagram\nAlice->>Bob\n", L"sequenceDiagram\nactor Alice\n"})
+    {
+        const auto rejected = Graph(invalid);
+        check(rejected->outcome != FlowchartOutcome::Prepared && rejected->source == invalid && rejected->nodes.empty() && rejected->edges.empty(),
+              "unsupported sequence constructs retain exact source without partial events");
+    }
+    const auto pie     = Graph(L"pie showData title Inventory\n\"One\": 25\n\"Three\": 75\n\"Zero\": 0\n");
+    const auto piePlan = Place(pie, check);
+    check(pie->outcome == FlowchartOutcome::Prepared && pie->family == NativeDiagramFamily::Pie && pie->pieShowData && pie->pieTitle == L"Inventory" &&
+              pie->nodes.size() == 3u && pie->nodes[0u].pieValue == 25.0 && pie->nodes[1u].pieValue == 75.0,
+          "pie model retains title, numeric values, showData and source order");
+    check(piePlan->issue == FlowchartLayoutIssue::None && piePlan->nodes.size() == 3u && Near(piePlan->nodes[0u].pieStart, 0.0) &&
+              Near(piePlan->nodes[0u].pieEnd, 1.5707963267948966) && Near(piePlan->nodes[1u].pieEnd, 6.283185307179586) &&
+              Near(piePlan->nodes[2u].pieStart, piePlan->nodes[2u].pieEnd) && piePlan->pieCircle.width == piePlan->pieCircle.height,
+          "pie sectors have independently calculated quarter, three-quarter and zero angles");
+    for (const auto invalid : {L"pie\n\"x\": -1\n", L"pie\n\"x\": 1.234\n", L"pie\n\"x\": 0\n", L"pie\n\"x\": 1\n\"x\": 2\n"})
+    {
+        const auto rejected = Graph(invalid);
+        check(rejected->outcome != FlowchartOutcome::Prepared && rejected->source == invalid && rejected->nodes.empty(),
+              "invalid pie values retain exact source without partial slices");
+    }
+    const auto er         = Graph(L"erDiagram\nCUSTOMER ||--o{ ORDER : places\nCUSTOMER {\nstring name\nint id PK\n}\n");
+    const auto loneEntity = Graph(L"erDiagram\nCUSTOMER\n");
+    check(loneEntity->outcome == FlowchartOutcome::Prepared && loneEntity->nodes.size() == 1u && loneEntity->edges.empty(),
+          "standalone ER entities retain their source-owned identifier");
+    const auto erPlan = Place(er, check);
+    check(er->outcome == FlowchartOutcome::Prepared && er->family == NativeDiagramFamily::EntityRelationship && er->nodes.size() == 2u &&
+              er->nodes[0u].label == L"CUSTOMER\nstring name\nint id PK" && er->nodes[0u].compartmentCount == 1u && er->edges.size() == 1u &&
+              er->edges[0u].erFrom == ErMultiplicity::One && er->edges[0u].erTo == ErMultiplicity::ZeroOrMany && er->edges[0u].fromCardinality == L"1" &&
+              er->edges[0u].toCardinality == L"0..*",
+          "ER model retains typed entities, attributes and both endpoint multiplicities");
+    check(erPlan->issue == FlowchartLayoutIssue::None && erPlan->edges.size() == 1u && erPlan->edges[0u].erFrom == ErMultiplicity::One &&
+              erPlan->edges[0u].erTo == ErMultiplicity::ZeroOrMany,
+          "ER endpoint multiplicities reach native geometry");
+    for (const auto& [source, left, right] : {std::tuple{L"erDiagram\nA o|..|{ B : owns\n", ErMultiplicity::ZeroOrOne, ErMultiplicity::OneOrMany},
+                                              std::tuple{L"erDiagram\nA }o..|o B : owns\n", ErMultiplicity::ZeroOrMany, ErMultiplicity::ZeroOrOne},
+                                              std::tuple{L"erDiagram\nA }|..o{ B : owns\n", ErMultiplicity::OneOrMany, ErMultiplicity::ZeroOrMany}})
+    {
+        const auto relationship = Graph(source);
+        check(relationship->outcome == FlowchartOutcome::Prepared && relationship->edges.size() == 1u && relationship->edges[0u].erFrom == left &&
+                  relationship->edges[0u].erTo == right && relationship->edges[0u].style == FlowchartLineStyle::Dotted,
+              "ER alternate multiplicity spellings and non-identifying relationships retain typed meanings");
+    }
+    for (const auto invalid : {L"erDiagram\nA -- B : x\n", L"erDiagram\nA ||--o{ B\n", L"erDiagram\nA {\nstring id\n"})
+    {
+        const auto rejected = Graph(invalid);
+        check(rejected->outcome != FlowchartOutcome::Prepared && rejected->source == invalid && rejected->nodes.empty(),
+              "unsupported ER syntax retains exact source without partial entities");
+    }
+    const auto gantt     = Graph(L"gantt\ndateFormat YYYY-MM-DD\ntitle Release\nsection Build\nCompile : 2024-02-27, 3d\nShip : 2024-03-01, 2024-03-03\n");
+    const auto ganttPlan = Place(gantt, check);
+    check(gantt->outcome == FlowchartOutcome::Prepared && gantt->family == NativeDiagramFamily::Gantt && gantt->ganttTitle == L"Release" &&
+              gantt->nodes.size() == 2u && gantt->nodes[0u].ganttSection == L"Build" && gantt->nodes[0u].ganttEnd - gantt->nodes[0u].ganttStart == 3 &&
+              gantt->nodes[1u].ganttStart == gantt->nodes[0u].ganttEnd && gantt->nodes[1u].ganttEnd - gantt->nodes[1u].ganttStart == 2,
+          "Gantt model preserves sections, leap-day dates and half-open task durations");
+    check(ganttPlan->issue == FlowchartLayoutIssue::None && ganttPlan->nodes.size() == 2u && Near(ganttPlan->nodes[0u].bounds.width, 192.0) &&
+              Near(ganttPlan->nodes[1u].bounds.width, 128.0) &&
+              Near(ganttPlan->nodes[0u].bounds.x + ganttPlan->nodes[0u].bounds.width, ganttPlan->nodes[1u].bounds.x) &&
+              ganttPlan->nodes[0u].bounds.y < ganttPlan->nodes[1u].bounds.y,
+          "Gantt task bars follow independently calculated dates, durations and source order");
+    for (const auto invalid :
+         {L"gantt\nBad : 2023-02-29, 1d\n", L"gantt\nBad : 2024-01-01, 0d\n", L"gantt\nBad : after task, 3d\n", L"gantt\nBad : 2024-01-01, 367d\n"})
+    {
+        const auto rejected = Graph(invalid);
+        check(rejected->outcome != FlowchartOutcome::Prepared && rejected->source == invalid && rejected->nodes.empty(),
+              "invalid or unsupported Gantt task retains exact source without partial schedule");
+    }
+    const auto mind     = Graph(L"mindmap\n  root((Central))\n    First\n      Leaf\n    Second\n");
+    const auto mindPlan = Place(mind, check);
+    check(mind->outcome == FlowchartOutcome::Prepared && mind->family == NativeDiagramFamily::Mindmap && mind->nodes.size() == 4u &&
+              mind->nodes[0u].shape == FlowchartShape::Circle && mind->nodes[0u].label == L"Central" && mind->nodes[1u].mindParent == 0u &&
+              mind->nodes[2u].mindParent == 1u && mind->nodes[2u].mindDepth == 2u && mind->nodes[3u].mindParent == 0u,
+          "mindmap model preserves root, branch hierarchy, shape and source order");
+    check(mindPlan->issue == FlowchartLayoutIssue::None && mindPlan->nodes.size() == 4u && mindPlan->edges.size() == 3u &&
+              mindPlan->nodes[1u].bounds.x > mindPlan->nodes[0u].bounds.x + mindPlan->nodes[0u].bounds.width &&
+              mindPlan->nodes[2u].bounds.x > mindPlan->nodes[1u].bounds.x + mindPlan->nodes[1u].bounds.width &&
+              mindPlan->nodes[3u].bounds.x + mindPlan->nodes[3u].bounds.width < mindPlan->nodes[0u].bounds.x,
+          "mindmap lays out alternating branches on both sides of the central root");
+    for (const auto invalid :
+         {L"mindmap\n  Root\n  Other root\n", L"mindmap\n  Root\n    Child\n   Bad indent\n", L"mindmap\n  Root\n    ::icon(fa fa-book)\n"})
+    {
+        const auto rejected = Graph(invalid);
+        check(rejected->outcome != FlowchartOutcome::Prepared && rejected->source == invalid && rejected->nodes.empty(),
+              "unsupported or inconsistent mindmap indentation retains exact source without partial hierarchy");
+    }
+    for (const auto direction : {L"TD", L"BT", L"LR", L"RL"})
+    {
+        const auto pairs = Place(Graph(std::wstring(L"graph ") + direction + L";A;B;C;Z;Y;X;A-->X;B-->Y;C-->Z"), check);
+        check(pairs->issue == FlowchartLayoutIssue::None && pairs->edges.size() == 3u, "three disconnected pairs are placed");
+        const bool vertical = direction[0] == L'T' || direction[0] == L'B';
+        for (std::size_t index = 0u; index < pairs->edges.size(); ++index)
+        {
+            const auto& edge = pairs->edges[index];
+            for (const auto& point : edge.path)
+                check(vertical ? Near(point.x, edge.path[0].x) : Near(point.y, edge.path[0].y),
+                      "independent pair routes have straight, noncrossing centerlines");
+            const auto& target = pairs->nodes[5u - index].bounds;
+            check(vertical ? Near(edge.path.back().x, target.x + target.width / 2.0) : Near(edge.path.back().y, target.y + target.height / 2.0),
+                  "reordered route still terminates at its original target");
+        }
+        for (std::size_t first = 0u; first < pairs->edges.size(); ++first)
+            for (std::size_t second = first + 1u; second < pairs->edges.size(); ++second)
+                check(vertical ? ! Near(pairs->edges[first].path[0].x, pairs->edges[second].path[0].x)
+                               : ! Near(pairs->edges[first].path[0].y, pairs->edges[second].path[0].y),
+                      "independent routes occupy distinct columns while preserving edge identity");
+    }
+    const auto labeledPairs = Place(Graph(L"graph TD;A;B;D;C;A-->|label|C;B-->D"), check);
+    check(labeledPairs->edges[0].hasLabel && ! Near(labeledPairs->edges[0].path[1].x, labeledPairs->edges[0].path[2].x),
+          "labeled pairs retain the exterior label lane");
+    for (const auto& [direction, horizontal] : {std::pair{L"TB", false}, std::pair{L"BT", false}, std::pair{L"LR", true}, std::pair{L"RL", true}})
+    {
+        const auto forkGraph = Graph(L"stateDiagram-v2\ndirection " + std::wstring(direction) + L"\nstate F <<fork>>\nA --> F\nF --> B\n");
+        const auto bars      = Place(forkGraph, check);
+        const auto& bar      = bars->nodes[0u];
+        check(bar.shape == FlowchartShape::Bar && (horizontal ? bar.bounds.height > bar.bounds.width : bar.bounds.width > bar.bounds.height),
+              "fork bars stay perpendicular to the selected graph direction");
+    }
+    const auto choice = Place(Graph(L"stateDiagram-v2\nstate C <<choice>>\nA --> C\nC --> B : yes\n"), check);
+    check(choice->nodes.size() == 3u && choice->nodes[0u].shape == FlowchartShape::Diamond && choice->edges.size() == 2u,
+          "state choice pseudostates retain diamond geometry and both transitions");
+    const auto styled = Place(Graph(L"flowchart LR\nA -.-> B\nB -.- C\nC ==> D\nD === E\nE ~~~ F\n"), check);
+    check(styled->edges.size() == 5u && styled->edges[0u].style == FlowchartLineStyle::Dotted && styled->edges[1u].style == FlowchartLineStyle::Dotted &&
+              styled->edges[2u].style == FlowchartLineStyle::Thick && styled->edges[3u].style == FlowchartLineStyle::Thick &&
+              styled->edges[4u].style == FlowchartLineStyle::Invisible,
+          "layout preserves all five edge styles, including the invisible ranking constraint");
+    const auto spaced = Place(Graph(L"flowchart TD;A---->B;B-->C;A-->C"), check);
+    check(spaced->issue == FlowchartLayoutIssue::None && spaced->nodes[0u].rank == 0u && spaced->nodes[1u].rank == 3u && spaced->nodes[2u].rank == 4u,
+          "minimum link length participates in longest-path ranks");
+    std::wstring excessive = L"flowchart TD;";
+    for (unsigned i = 0u; i < 17u; ++i)
+        excessive += L"N" + std::to_wstring(i) + L"----------------->N" + std::to_wstring(i + 1u) + L";";
+    const auto beyondRanks = Place(Graph(excessive), check);
+    check(beyondRanks->issue == FlowchartLayoutIssue::DiagramExtent && beyondRanks->nodes.empty() && beyondRanks->edges.empty(),
+          "accumulated rank constraints beyond bounded geometry fail without partial placement");
     const auto relations = Place(Graph(L"classDiagram\nBase <|-- Derived\nDerived --> Client\nClient -- Contract\n"), check);
     check(relations->edges.size() == 3u && relations->edges[0u].relation == FlowchartRelation::Inheritance && relations->edges[0u].hasArrow &&
               relations->edges[1u].relation == FlowchartRelation::Arrow && relations->edges[1u].hasArrow &&
               relations->edges[2u].relation == FlowchartRelation::Line && ! relations->edges[2u].hasArrow,
           "class inheritance, directed association and plain association retain distinct edge kinds through layout");
+    const auto genericClass = Graph(L"classDiagram\nclass A {\n+List~int~ values\n+find(Key~T~ key) Result~T~\n}\n");
+    check(genericClass->outcome == FlowchartOutcome::Prepared && genericClass->nodes.size() == 1u &&
+              genericClass->nodes[0u].label == L"A\n+List<int> values\n+find(Key<T> key) Result<T>" && genericClass->nodes[0u].compartmentCount == 2u,
+          "bounded class generic notation becomes readable angle brackets in its original member compartments");
+    for (const auto source : {L"classDiagram\nA : List~int\n", L"classDiagram\nA : List~~\n"})
+    {
+        const auto rejected = Graph(source);
+        check(rejected->outcome == FlowchartOutcome::Unsupported && rejected->source == source && rejected->nodes.empty(),
+              "unclosed or empty class generic notation retains exact source without partial models");
+    }
+    const auto standaloneNote = Graph(L"classDiagram\nnote \"A standalone note\"\n");
+    const auto standalonePlan = Place(standaloneNote, check);
+    check(standaloneNote->nodes.size() == 1u && standaloneNote->nodes[0].shape == FlowchartShape::Note &&
+              standaloneNote->nodes[0].noteTarget == MarkdownNoNode && standaloneNote->nodes[0].label == L"A standalone note" &&
+              standalonePlan->issue == FlowchartLayoutIssue::None && standalonePlan->nodes.size() == 1u,
+          "standalone class notes retain their label and native note geometry");
+    const auto attachedNote = Graph(L"classDiagram\nclass A\nnote for A \"Attached note\"\n");
+    const auto attachedPlan = Place(attachedNote, check);
+    check(attachedNote->nodes.size() == 2u && attachedNote->nodes[1].shape == FlowchartShape::Note && attachedNote->nodes[1].noteTarget == 0u &&
+              attachedNote->edges.size() == 1u && attachedNote->edges[0].relation == FlowchartRelation::Note &&
+              attachedPlan->issue == FlowchartLayoutIssue::None && attachedPlan->edges.size() == 1u,
+          "attached class notes retain their target, dotted relation and native geometry");
+    for (const auto source : {L"classDiagram\nnote \"unclosed\n", L"classDiagram\nnote for A \"\"\n", L"classDiagram\nnote \"x\" trailing\n"})
+    {
+        const auto rejected = Graph(source);
+        check(rejected->outcome != FlowchartOutcome::Prepared && rejected->source == source && rejected->nodes.empty() && rejected->edges.empty(),
+              "malformed class notes retain exact source without partial graph publication");
+    }
+    const auto namespaced = Graph(L"classDiagram\nnamespace Domain {\nclass A\nclass B\nA --> B\n}\n");
+    const std::vector<FlowchartSize> namespaceNodes(namespaced->nodes.size(), {16.0, 12.0}), namespaceEdges(namespaced->edges.size()),
+        namespaceLabels(namespaced->groups.size(), {16.0, 12.0});
+    NativeFlowchartLayout namespaceLayout;
+    namespaceLayout.Begin(namespaced, namespaceNodes, namespaceEdges, {}, {}, namespaceLabels);
+    const auto namespacedPlan = Complete(namespaceLayout, check);
+    check(namespaced->groups.size() == 1u && namespaced->groups[0].title == L"Domain" && namespaced->nodes.size() == 2u &&
+              namespaced->nodes[0].groupMask == 1u && namespaced->nodes[1].groupMask == 1u && namespacedPlan->issue == FlowchartLayoutIssue::None &&
+              namespacedPlan->groups.size() == 1u,
+          "class namespace owns its members and has bounded native group geometry");
+    const auto grid = Graph(L"graph TD\nC1-->A2\nsubgraph One\nA1-->A2\nend\nsubgraph Two\nB1-->B2\nend\nsubgraph Three\nC1-->C2\nend\n");
+    const std::vector<FlowchartSize> gridNodes(grid->nodes.size(), {16.0, 12.0}), gridEdges(grid->edges.size()), gridLabels(grid->groups.size(), {16.0, 12.0});
+    NativeFlowchartLayout gridLayout;
+    gridLayout.Begin(grid, gridNodes, gridEdges, {}, {}, gridLabels);
+    const auto gridPlan = Complete(gridLayout, check);
+    check(gridPlan->issue == FlowchartLayoutIssue::None && gridPlan->groups.size() == 3u && gridPlan->nodes.size() == 6u,
+          "interleaved two-rank group grid is placed without group collisions");
+    if (gridPlan->groups.size() == 3u)
+        for (std::size_t group = 0u; group < gridPlan->groups.size(); ++group)
+            for (std::size_t other = group + 1u; other < gridPlan->groups.size(); ++other)
+                check(gridPlan->groups[group].bounds.x + gridPlan->groups[group].bounds.width <= gridPlan->groups[other].bounds.x ||
+                          gridPlan->groups[other].bounds.x + gridPlan->groups[other].bounds.width <= gridPlan->groups[group].bounds.x,
+                      "group columns have disjoint independently checked bounds");
+    for (const auto source :
+         {L"classDiagram\nnamespace Empty {\n}\n", L"classDiagram\nnamespace A {\nclass B\n", L"classDiagram\nnamespace 2Bad {\nclass A\n}\n"})
+    {
+        const auto rejected = Graph(source);
+        check(rejected->outcome != FlowchartOutcome::Prepared && rejected->source == source && rejected->groups.empty(),
+              "invalid class namespace retains exact source without a partial model");
+    }
     const auto shapes = Place(Graph(L"graph TD;A[box];B(round);C((circle));D{diamond}"), check);
     check(Near(shapes->nodes[0u].bounds.width, 40.0) && Near(shapes->nodes[1u].bounds.width, 40.0) && Near(shapes->nodes[2u].bounds.width, std::sqrt(2624.0)) &&
               Near(shapes->nodes[2u].bounds.height, std::sqrt(2624.0)) && Near(shapes->nodes[3u].bounds.width, 80.0) &&
               Near(shapes->nodes[3u].bounds.height, 64.0),
           "each supported shape contains the padded measured label");
+    const auto hexagon = Place(Graph(L"flowchart TD;A{{decision}}-->B"), check);
+    check(hexagon->issue == FlowchartLayoutIssue::None && hexagon->nodes[0u].shape == FlowchartShape::Hexagon &&
+              hexagon->nodes[0u].bounds.width >= 2.0 * hexagon->nodes[0u].label.width &&
+              Near(hexagon->edges[0u].path[0u].x, hexagon->nodes[0u].bounds.x + hexagon->nodes[0u].bounds.width / 2.0) &&
+              Near(hexagon->edges[0u].path[0u].y, hexagon->nodes[0u].bounds.y + hexagon->nodes[0u].bounds.height),
+          "hexagon encloses its label in its straight middle band and attaches at the bottom edge");
+    const auto subroutine = Place(Graph(L"flowchart TD;A[[operation]]-->B"), check);
+    check(subroutine->issue == FlowchartLayoutIssue::None && subroutine->nodes[0u].shape == FlowchartShape::Subroutine &&
+              subroutine->nodes[0u].bounds.width >= subroutine->nodes[0u].label.width + 40.0,
+          "subroutine label remains inside the inset vertical rules");
     const auto stadium           = Place(Graph(L"flowchart LR;A([capsule label])-->B([target])"), check);
     const auto& capsule          = stadium->nodes[0u];
     const auto& port             = stadium->edges[0u].path[0u];
@@ -92,6 +311,30 @@ template <typename Check> inline void Geometry(Check&& check)
               cycles->edges[2u].route == FlowchartRoute::Self && cycles->edges[3u].route == FlowchartRoute::Forward &&
               cycles->edges[0u].path[2u].x != cycles->edges[3u].path[2u].x,
           "stable DFS distinguishes cycles and self loops while parallel edges own separate lanes");
+    const auto lanesGraph = Graph(L"graph TD;A-->|wide|B;A-->|n|C;A-->|m|D;B-->|back|A;C-->A");
+    const std::vector<FlowchartSize> laneNodes(lanesGraph->nodes.size(), {16.0, 12.0});
+    std::vector<FlowchartSize> laneLabels(lanesGraph->edges.size(), FlowchartSize{});
+    laneLabels[0u] = {100.0, 12.0};
+    laneLabels[1u] = laneLabels[2u] = {8.0, 12.0};
+    laneLabels[3u]                  = {80.0, 12.0};
+    NativeFlowchartLayout laneLayout;
+    laneLayout.Begin(lanesGraph, laneNodes, laneLabels);
+    const auto variableLanes = Complete(laneLayout, check);
+    check(variableLanes->issue == FlowchartLayoutIssue::None && variableLanes->edges.size() == 5u &&
+              Near(variableLanes->edges[1u].path[2u].x - variableLanes->edges[0u].path[2u].x, 108.0) &&
+              Near(variableLanes->edges[2u].path[2u].x - variableLanes->edges[1u].path[2u].x, 16.0) &&
+              variableLanes->edges[0u].label.x + variableLanes->edges[0u].label.width < variableLanes->edges[1u].path[2u].x &&
+              variableLanes->edges[3u].label.x + variableLanes->edges[3u].label.width < variableLanes->nodes[0u].bounds.x,
+          "wide labels reserve only their own lane, on both sides of the graph");
+    const auto sharedLanes = Place(Graph(L"flowchart TD;A-->B;B-->C;C-->D;D-->E;E-->F;A-->C;D-->F;B-->D"), check);
+    check(sharedLanes->issue == FlowchartLayoutIssue::None && sharedLanes->edges.size() == 8u &&
+              Near(sharedLanes->edges[5u].path[2u].x, sharedLanes->edges[6u].path[2u].x) &&
+              ! Near(sharedLanes->edges[5u].path[2u].x, sharedLanes->edges[7u].path[2u].x),
+          "disjoint exterior rank intervals share a lane while intersecting intervals remain separate");
+    const auto sharedBack = Place(Graph(L"flowchart TD;A-->B;B-->C;C-->D;B-->A;D-->C"), check);
+    check(sharedBack->issue == FlowchartLayoutIssue::None && sharedBack->edges[3u].route == FlowchartRoute::Back &&
+              sharedBack->edges[4u].route == FlowchartRoute::Back && Near(sharedBack->edges[3u].path[2u].x, sharedBack->edges[4u].path[2u].x),
+          "disjoint back-edge intervals share a left-side lane");
     for (const auto direction : {std::wstring_view(L"BT"), std::wstring_view(L"LR"), std::wstring_view(L"RL")})
     {
         const auto oriented = Place(Graph(std::wstring(L"graph ") + std::wstring(direction) + L";A-->B"), check);
@@ -101,6 +344,9 @@ template <typename Check> inline void Geometry(Check&& check)
                   Near(oriented->nodes[0u].label.height, 12.0),
               "orientation preserves horizontal label and shape dimensions");
         check(direction == L"BT" ? first.y > last.y : direction == L"LR" ? first.x < last.x : first.x > last.x, "each direction changes actual flow ordering");
+        for (const auto point : oriented->edges[0u].path)
+            check(direction == L"BT" ? Near(point.x, oriented->edges[0u].path[0u].x) : Near(point.y, oriented->edges[0u].path[0u].y),
+                  "direct routes remain collinear in every reversed or horizontal orientation");
     }
 }
 inline bool InteriorSegment(FlowchartPoint first, FlowchartPoint last, FlowchartRect rect) noexcept
@@ -131,6 +377,16 @@ template <typename Check> inline void Invariants(const FlowchartLayoutPlan& plan
         const auto relativeX = label.width / bounds.width, relativeY = label.height / bounds.height;
         if (plan.nodes[index].shape == FlowchartShape::Circle)
             check(relativeX * relativeX + relativeY * relativeY <= 1.0, "all label corners lie inside the circle");
+        if (plan.nodes[index].shape == FlowchartShape::Ellipse)
+            check(relativeX * relativeX + relativeY * relativeY <= 1.0, "all label corners lie inside the ellipse");
+        if (plan.nodes[index].shape >= FlowchartShape::Asymmetric && plan.nodes[index].shape <= FlowchartShape::ReverseTrapezoid)
+            check(label.x >= bounds.x + bounds.width * .25 && label.x + label.width <= bounds.x + bounds.width * .75,
+                  "legacy polygon label remains within the independently safe central band");
+        if (plan.nodes[index].shape == FlowchartShape::DoubleCircle)
+        {
+            const auto innerX = label.width / (bounds.width - 8.0), innerY = label.height / (bounds.height - 8.0);
+            check(innerX * innerX + innerY * innerY <= 1.0, "all label corners lie inside the double circle's inner outline");
+        }
         if (plan.nodes[index].shape == FlowchartShape::Diamond)
             check(relativeX + relativeY <= 1.0, "all label corners lie inside the diamond");
         for (std::size_t other = 0u; other < index; ++other)
@@ -166,8 +422,154 @@ template <typename Check> inline void Invariants(const FlowchartLayoutPlan& plan
             check(Near(first.x, last.x) || Near(first.y, last.y), "every retained route segment is orthogonal");
             check(first.x >= 0.0 && first.y >= 0.0 && first.x <= plan.extent.width && first.y <= plan.extent.height, "routes remain inside retained bounds");
             for (const auto& node : plan.nodes)
-                check(! InteriorSegment(first, last, node.bounds), "edge routes never enter any node rectangle, including skipped ranks");
+            {
+                const auto& rect   = node.bounds;
+                const auto slanted = node.shape >= FlowchartShape::Parallelogram && node.shape <= FlowchartShape::ReverseTrapezoid;
+                const auto sideGap = [&](FlowchartPoint endpoint, FlowchartPoint outer)
+                {
+                    return slanted && Near(endpoint.y, rect.y + rect.height / 2.0) && Near(endpoint.y, outer.y) &&
+                           ((Near(endpoint.x, rect.x + rect.width * .125) && outer.x <= rect.x) ||
+                            (Near(endpoint.x, rect.x + rect.width * .875) && outer.x >= rect.x + rect.width));
+                };
+                const bool allowed = (index == 1u && sideGap(first, last)) || (index + 1u == edge.path.size() && sideGap(last, first));
+                check(allowed || ! InteriorSegment(first, last, rect), "edge routes avoid node interiors, including skipped ranks");
+            }
         }
+    }
+}
+template <typename Check> inline void CrossingReduction(Check&& check)
+{
+    // This is not a matching: two edges leave A and two enter Y. Source order
+    // has one adjacent-rank inversion and two proper routed crossings.
+    for (const auto direction : {L"TD", L"BT", L"LR", L"RL"})
+    {
+        const auto graph  = Graph(std::wstring(L"graph ") + direction + L";A;B;C;X;Y;Z;A-->X;A-->Y;B-->X");
+        const auto single = Place(graph, check, 1u), batched = Place(graph, check, 113u);
+        Invariants(*single, check);
+        const bool vertical = direction[0] == L'T' || direction[0] == L'B';
+        const auto center   = [&](const FlowchartLayoutPlan& plan, std::size_t node)
+        {
+            const auto& box = plan.nodes[node].bounds;
+            return vertical ? box.x + box.width / 2.0 : box.y + box.height / 2.0;
+        };
+        std::size_t sourceCrossings{}, actualCrossings{};
+        for (std::size_t edge = 0u; edge < graph->edges.size(); ++edge)
+            for (std::size_t prior = 0u; prior < edge; ++prior)
+            {
+                const auto& a = graph->edges[edge];
+                const auto& b = graph->edges[prior];
+                if (a.from == b.from || a.to == b.to)
+                    continue;
+                sourceCrossings += (a.from < b.from) != (a.to < b.to);
+                actualCrossings += (center(*single, a.from) < center(*single, b.from)) != (center(*single, a.to) < center(*single, b.to));
+            }
+        check(sourceCrossings == 1u && actualCrossings == 0u, "general stable rank ordering eliminates the independently counted inversion");
+        // Count only strict interior intersections of orthogonal segments;
+        // touching endpoints and coincident segments are not proper crossings.
+        std::size_t routedCrossings{};
+        for (std::size_t edge = 0u; edge < single->edges.size(); ++edge)
+            for (std::size_t prior = 0u; prior < edge; ++prior)
+                for (std::size_t a = 1u; a < 6u; ++a)
+                    for (std::size_t b = 1u; b < 6u; ++b)
+                    {
+                        const auto p = single->edges[edge].path[a - 1u], q = single->edges[edge].path[a];
+                        const auto r = single->edges[prior].path[b - 1u], t = single->edges[prior].path[b];
+                        const bool verticalA = Near(p.x, q.x), verticalB = Near(r.x, t.x);
+                        if (verticalA == verticalB)
+                            continue;
+                        const auto v = verticalA ? p : r, ve = verticalA ? q : t;
+                        const auto h = verticalA ? r : p, he = verticalA ? t : q;
+                        routedCrossings += v.x > std::min(h.x, he.x) && v.x < std::max(h.x, he.x) && h.y > std::min(v.y, ve.y) && h.y < std::max(v.y, ve.y);
+                    }
+        check(routedCrossings == 1u, "the independently counted proper routed crossings fall from two to one");
+        check(single->nodes.size() == 6u && single->edges.size() == 3u && batched->nodes.size() == 6u && batched->edges.size() == 3u,
+              "crossing reduction preserves authored node and edge identities");
+        for (std::size_t edge = 0u; edge < graph->edges.size(); ++edge)
+        {
+            const auto& source = single->nodes[graph->edges[edge].from].bounds;
+            const auto& target = single->nodes[graph->edges[edge].to].bounds;
+            const auto& path   = single->edges[edge].path;
+            check(vertical ? Near(path.front().x, source.x + source.width / 2.0) && Near(path.back().x, target.x + target.width / 2.0)
+                           : Near(path.front().y, source.y + source.height / 2.0) && Near(path.back().y, target.y + target.height / 2.0),
+                  "reordered routes remain attached to their original endpoints");
+            check(vertical ? Near(path[2u].x, target.x + target.width / 2.0) : Near(path[2u].y, target.y + target.height / 2.0),
+                  "unlabeled adjacent-rank route takes the direct corridor elbow rather than an exterior lane");
+        }
+        for (std::size_t node = 0u; node < single->nodes.size(); ++node)
+            check(Near(single->nodes[node].bounds.x, batched->nodes[node].bounds.x) && Near(single->nodes[node].bounds.y, batched->nodes[node].bounds.y),
+                  "single-event and batched sweeps publish identical node placement");
+    }
+    // The first rank contains a tall circle beside a short rectangle. Each
+    // elbow must leave the complete rank band, not merely its own source box.
+    for (const auto direction : {L"TD", L"BT", L"LR", L"RL"})
+    {
+        const auto graph = Graph(std::wstring(L"graph ") + direction + L";A((Tall));B[short];C[one];D[two];A-->C;B-->D");
+        const std::array<FlowchartSize, 4u> nodes{{{16.0, 80.0}, {10.0, 10.0}, {30.0, 18.0}, {50.0, 12.0}}};
+        const std::array<FlowchartSize, 2u> edges{};
+        NativeFlowchartLayout layout;
+        layout.Begin(graph, nodes, edges);
+        const auto plan = Complete(layout, check, 1u);
+        Invariants(*plan, check);
+        for (const auto& edge : plan->edges)
+        {
+            const auto point      = edge.path[1u];
+            const auto& circle    = plan->nodes[0u].bounds;
+            const auto& rectangle = plan->nodes[1u].bounds;
+            const bool outside    = direction[0] == L'T'   ? point.y >= std::max(circle.y + circle.height, rectangle.y + rectangle.height)
+                                    : direction[0] == L'B' ? point.y <= std::min(circle.y, rectangle.y)
+                                    : direction[0] == L'L' ? point.x >= std::max(circle.x + circle.width, rectangle.x + rectangle.width)
+                                                           : point.x <= std::min(circle.x, rectangle.x);
+            check(outside, "direct elbow begins beyond the complete unequal-height rank band");
+        }
+    }
+    // In this graph the candidate has three proper crossings versus two in
+    // source order. Retain the latter even though its endpoint score is worse.
+    const auto guarded = Place(Graph(L"graph TD;A;B;C;X;Y;Z;A-->X;A-->Y;B-->Y;C-->X;C-->Y"), check, 7u);
+    Invariants(*guarded, check);
+    check(guarded->nodes[0u].bounds.x < guarded->nodes[1u].bounds.x && guarded->nodes[1u].bounds.x < guarded->nodes[2u].bounds.x &&
+              guarded->nodes[3u].bounds.x < guarded->nodes[4u].bounds.x,
+          "a candidate with worse routed crossings restores both source-order ranks");
+    std::size_t guardedCrossings{};
+    for (std::size_t edge = 0u; edge < guarded->edges.size(); ++edge)
+        for (std::size_t prior = 0u; prior < edge; ++prior)
+            for (std::size_t a = 1u; a < 6u; ++a)
+                for (std::size_t b = 1u; b < 6u; ++b)
+                {
+                    const auto p = guarded->edges[edge].path[a - 1u], q = guarded->edges[edge].path[a];
+                    const auto r = guarded->edges[prior].path[b - 1u], t = guarded->edges[prior].path[b];
+                    const bool verticalA = Near(p.x, q.x), verticalB = Near(r.x, t.x);
+                    if (verticalA == verticalB)
+                        continue;
+                    const auto v = verticalA ? p : r, ve = verticalA ? q : t;
+                    const auto h = verticalA ? r : p, he = verticalA ? t : q;
+                    guardedCrossings += v.x > std::min(h.x, he.x) && v.x < std::max(h.x, he.x) && h.y > std::min(v.y, ve.y) && h.y < std::max(v.y, ve.y);
+                }
+    check(guardedCrossings == 2u, "route guard retains the independently counted original crossing count");
+    std::wstring maximum = L"graph TD;";
+    for (std::size_t node = 0u; node < 64u; ++node)
+        maximum += L"A" + std::to_wstring(node) + L";";
+    for (std::size_t node = 0u; node < 64u; ++node)
+        maximum += L"B" + std::to_wstring(node) + L";";
+    for (std::size_t edge = 0u; edge < 512u; ++edge)
+        maximum += L"A" + std::to_wstring(edge % 64u) + L"-->B" + std::to_wstring((edge * 7u + edge / 64u) % 64u) + L";";
+    const auto largeGraph = Graph(maximum);
+    check(largeGraph->outcome == FlowchartOutcome::Prepared && largeGraph->nodes.size() == 128u && largeGraph->edges.size() == 512u,
+          "maximum-edge crossing fixture is admitted without duplicate endpoint pairs");
+    const auto largePlan = Place(largeGraph, check, 1u);
+    check(largePlan->issue == FlowchartLayoutIssue::None && largePlan->nodes.size() == 128u && largePlan->edges.size() == 512u,
+          "maximum-edge routing completes within the finite event budget");
+    const auto graph = Graph(L"graph TD;A;B;C;X;Y;Z;A-->X;A-->Y;B-->Y;C-->X");
+    const std::vector<FlowchartSize> nodes(graph->nodes.size(), {16.0, 12.0}), edges(graph->edges.size(), {0.0, 0.0});
+    NativeFlowchartLayout layout;
+    layout.Begin(graph, nodes, edges);
+    const auto prior = Complete(layout, check, 7u);
+    for (const auto steps : {20u, 40u, 60u, 80u})
+    {
+        layout.Begin(graph, nodes, edges);
+        for (std::size_t step = 0u; step < steps && layout.HasPendingPreparation(); ++step)
+            check(layout.Advance(1u).workUnits == 1u, "crossing staging consumes one bounded event");
+        layout.Cancel();
+        check(! layout.HasPendingPreparation() && layout.Published() == prior, "cancelling ordering or route evaluation preserves the previous publication");
     }
 }
 template <typename Check> inline void Corpus(Check&& check)
@@ -180,9 +582,43 @@ template <typename Check> inline void Corpus(Check&& check)
         const auto graph = Graph(example.source);
         const auto first = Place(graph, check, 1u), batched = Place(graph, check, 113u);
         Invariants(*first, check);
+        Invariants(*batched, check);
+        check(first->groups.size() == graph->groups.size(), "all admitted source groups retain geometry");
+        for (std::size_t group = 0u; group < first->groups.size(); ++group)
+        {
+            const auto& bounds = first->groups[group].bounds;
+            const auto bit     = static_cast<std::uint16_t>(1u << group);
+            for (std::size_t node = 0u; node < first->nodes.size(); ++node)
+            {
+                const auto& shape = first->nodes[node].bounds;
+                if (graph->nodes[node].groupMask & bit)
+                    check(bounds.x <= shape.x && bounds.y <= shape.y && bounds.x + bounds.width >= shape.x + shape.width &&
+                              bounds.y + bounds.height >= shape.y + shape.height,
+                          "group bounds contain each authored member");
+                else
+                    check(bounds.x >= shape.x + shape.width || bounds.x + bounds.width <= shape.x || bounds.y >= shape.y + shape.height ||
+                              bounds.y + bounds.height <= shape.y,
+                          "group bounds do not cover an unrelated node");
+            }
+        }
         check(first->nodes.size() == batched->nodes.size() && first->edges.size() == batched->edges.size() &&
                   Near(first->extent.width, batched->extent.width) && Near(first->extent.height, batched->extent.height),
               "one-event and batched graph requests have deterministic extents and topology");
+        check(first->groups.size() == batched->groups.size(), "budget choice preserves group topology");
+        for (std::size_t index = 0u; index < first->nodes.size(); ++index)
+        {
+            const auto& a = first->nodes[index].bounds;
+            const auto& b = batched->nodes[index].bounds;
+            check(Near(a.x, b.x) && Near(a.y, b.y) && Near(a.width, b.width) && Near(a.height, b.height),
+                  "budget choice preserves every authored node's complete geometry");
+        }
+        for (std::size_t index = 0u; index < first->groups.size(); ++index)
+        {
+            const auto& a = first->groups[index].bounds;
+            const auto& b = batched->groups[index].bounds;
+            check(Near(a.x, b.x) && Near(a.y, b.y) && Near(a.width, b.width) && Near(a.height, b.height),
+                  "budget choice preserves every authored group envelope");
+        }
         for (std::size_t index = 0u; index < first->edges.size(); ++index)
             for (std::size_t point = 0u; point < first->edges[index].path.size(); ++point)
                 check(Near(first->edges[index].path[point].x, batched->edges[index].path[point].x) &&
@@ -190,7 +626,48 @@ template <typename Check> inline void Corpus(Check&& check)
                       "budget choice cannot change edge routing");
         ++admitted;
     }
-    check(admitted == 16u, "geometry covers every admitted original reference graph");
+    check(admitted == 41u, "geometry covers every admitted original reference graph");
+    for (const auto direction : {L"TB", L"BT", L"LR", L"RL"})
+    {
+        const auto source =
+            std::wstring(L"flowchart ") + direction + L"\nA>flag] --> B[/forward/] --> C[\\reverse\\] --> D[/up\\] --> E[\\down/] --> F(-oval-)\n";
+        const auto graph = Graph(source);
+        const auto plan  = Place(graph, check, 7u);
+        check(graph->outcome == FlowchartOutcome::Prepared && graph->nodes.size() == 6u && graph->edges.size() == 5u,
+              "all slanted legacy shapes and ellipse form one source-ordered chain");
+        Invariants(*plan, check);
+        if (plan->nodes.size() == 6u && plan->edges.size() == 5u &&
+            (graph->direction == FlowchartDirection::LeftRight || graph->direction == FlowchartDirection::RightLeft))
+            for (std::size_t edge = 0u; edge < 5u; ++edge)
+            {
+                const auto& target = plan->nodes[edge + 1u];
+                const auto& tip    = plan->edges[edge].path.back();
+                const double inset =
+                    target.shape >= FlowchartShape::Parallelogram && target.shape <= FlowchartShape::ReverseTrapezoid ? target.bounds.width * .125 : 0.0;
+                const auto expectedX =
+                    graph->direction == FlowchartDirection::LeftRight ? target.bounds.x + inset : target.bounds.x + target.bounds.width - inset;
+                check(Near(tip.x, expectedX) && Near(tip.y, target.bounds.y + target.bounds.height / 2.0),
+                      "horizontal arrows meet the actual slanted shape boundary");
+            }
+    }
+    for (const auto direction : {L"TB", L"BT", L"LR", L"RL"})
+    {
+        const auto source = std::wstring(L"flowchart ") + direction + L"\nc1-->a2\nsubgraph ide1 [one]\na1-->a2\nend\n";
+        const auto graph  = Graph(source);
+        const auto plan   = Place(graph, check, 7u);
+        Invariants(*plan, check);
+        check(plan->groups.size() == 1u && plan->nodes.size() == 3u && plan->edges.size() == 2u && graph->nodes[0u].key == L"c1" &&
+                  graph->nodes[1u].key == L"a2" && graph->nodes[2u].key == L"a1",
+              "mixed group and external node retain source identities and complete geometry in each direction");
+        if (plan->groups.size() == 1u && plan->nodes.size() == 3u)
+        {
+            const auto& group    = plan->groups[0u].bounds;
+            const auto& outsider = plan->nodes[0u].bounds;
+            check(group.x >= outsider.x + outsider.width || group.x + group.width <= outsider.x || group.y >= outsider.y + outsider.height ||
+                      group.y + group.height <= outsider.y,
+                  "mixed group envelope remains disjoint from the external node");
+        }
+    }
     const auto fanoutGraph = Graph(L"flowchart LR;A & B --> C & D --> E");
     const auto fanoutPlan  = Place(fanoutGraph, check, 7u);
     check(fanoutGraph->outcome == FlowchartOutcome::Prepared && fanoutPlan->nodes.size() == 5u && fanoutPlan->edges.size() == 6u,

@@ -1,0 +1,44 @@
+[
+  {
+    "path": "E:\\DxUi.Perf\\dxui-sdk-f423a293a53e4a70989a9fa5597f1862\\bin\\SdkSmoke.exe",
+    "length": 5242368,
+    "modifiedUtc": "2026-11-02T07:32:32.1948512Z",
+    "sha256": "76e549f83bff9de1cc12f61f3e80b5db269427ffa247314416a8dff3497e88f8"
+  },
+  {
+    "path": "E:\\DxUi.Perf\\dxui-sdk-f423a293a53e4a70989a9fa5597f1862\\bin\\SdkSmoke.pdb",
+    "length": 60870656,
+    "modifiedUtc": "2026-11-02T07:32:32.2068584Z",
+    "sha256": "a2cc9b53f35f681c8eea583a5cee1b9ca8d8362dc5ee89c8f9d87ab443a569c7"
+  },
+  {
+    "path": "E:\\DxUi.Perf\\dxui-sdk-f423a293a53e4a70989a9fa5597f1862\\warning-bin\\SdkWarningControl.exe",
+    "length": 12288,
+    "modifiedUtc": "2026-11-02T07:32:33.8998954Z",
+    "sha256": "eb5075ad6bb24e8c0524f22d1575b1c9e15443dba6327d37c8bec79b609c828b"
+  },
+  {
+    "path": "E:\\DxUi.Perf\\dxui-sdk-f423a293a53e4a70989a9fa5597f1862\\warning-bin\\SdkWarningControl.pdb",
+    "length": 487424,
+    "modifiedUtc": "2026-11-02T07:32:33.9018981Z",
+    "sha256": "e6393d2e31feb9d960b98237e9b460edda106be0e09ea3c001b6e266c52f8c91"
+  },
+  {
+    "path": "E:\\DxUi.Perf\\dxui-sdk-f423a293a53e4a70989a9fa5597f1862\\extracted SDK\\lib\\x64\\Release\\DxUi.lib",
+    "length": 236102058,
+    "modifiedUtc": "2026-11-02T07:32:12.0000000Z",
+    "sha256": "66bfca61c6b698140b1b5e8674a4cda426447fc12c8525027d5c5719a0a50d30"
+  },
+  {
+    "path": "Z:\\src\\DxUi-worktrees\\wip-delivery-sdk-20261102\\.build\\x64\\Release\\DxUi.lib",
+    "length": 236102058,
+    "modifiedUtc": "2026-11-02T07:32:13.5577876Z",
+    "sha256": "66bfca61c6b698140b1b5e8674a4cda426447fc12c8525027d5c5719a0a50d30"
+  },
+  {
+    "path": "Z:\\src\\DxUi-worktrees\\wip-delivery-sdk-20261102\\.build\\x64\\Release\\DxUi.pdb",
+    "length": 15454208,
+    "modifiedUtc": "2026-11-02T07:32:12.2370033Z",
+    "sha256": "587d7a26324b22b1094dd3aa33a1cd7554900442c335decc3c73b290ed0127bf"
+  }
+]

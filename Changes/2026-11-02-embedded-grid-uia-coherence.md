@@ -1,0 +1,1 @@
+- Reject uncached embedded Grid accessibility materialization while its prepared surface is incoherent, preserving the last published snapshot until preparation succeeds.

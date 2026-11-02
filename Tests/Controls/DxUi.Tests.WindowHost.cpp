@@ -4,6 +4,7 @@
 #include "Controls.Tests.NativeDevicePolicy.h"
 #include "Controls/DxUi.Typography.h"
 #include "Support.Tests.PerformanceCapture.h"
+#include "Support/AnimationDispatcher.h"
 #include "Support/PostedPayload.h"
 #include "Support/WindowMessages.h"
 #include <DxUi/NativeMenuInterop.h>
@@ -778,13 +779,19 @@ public:
     {
     }
 
-    bool Tick(DxUi::WindowHost& /*host*/, uint64_t nowTickMs) override
+    bool Tick(DxUi::WindowHost& host, uint64_t nowTickMs) override
     {
         lastTickMs = nowTickMs;
         ++tickCount;
+        if (onTick)
+        {
+            auto callback = std::move(onTick);
+            return callback(host);
+        }
         return true;
     }
 
+    std::function<bool(DxUi::WindowHost&)> onTick;
     uint64_t tickCount  = 0u;
     uint64_t lastTickMs = 0u;
 };
@@ -1588,9 +1595,10 @@ void TestWindowHostCaptureDiscardsFrameWhenPaintMutatesTheChildTree()
     using namespace DxUi;
     struct PaintState final
     {
-        size_t firstPaints   = 0u;
-        size_t secondPaints  = 0u;
-        size_t callbackCount = 0u;
+        size_t firstPaints                 = 0u;
+        size_t secondPaints                = 0u;
+        size_t callbackCount               = 0u;
+        uint64_t invalidatesBeforeMutation = 0u;
         std::function<void()> onNextPaint;
     };
 // Existing identity/RAII/reference traits intentionally delete these implicit operations.
@@ -1641,13 +1649,21 @@ void TestWindowHostCaptureDiscardsFrameWhenPaintMutatesTheChildTree()
         Require(window.Host().DebugCaptureBitmap(initialFrame), "initial child-tree capture completes");
         const uint64_t initialBatchFlushCount = window.Host().DebugGetInitialRootChildBatchFlushCount();
         Require(initialBatchFlushCount == 3u, "the initial tree submits one batch per visible direct root child");
-        ValidateRect(window.Hwnd(), nullptr);
-        Require(GetUpdateRect(window.Hwnd(), nullptr, FALSE) == FALSE, "initial capture has no pending native corrective paint");
         state.firstPaints  = 0u;
         state.secondPaints = 0u;
         state.onNextPaint  = [&]
         {
             ++state.callbackCount;
+            // The simulated device loss has already requested a paint. Prove
+            // a native update region can also arise without a host request,
+            // then clear both before measuring the mutation's own request.
+            Require(ValidateRect(window.Hwnd(), nullptr) != FALSE, "clear pre-existing native paint before the mutation");
+            const auto beforeExternal = window.Host().DebugGetInvalidateCount();
+            Require(InvalidateRect(window.Hwnd(), nullptr, FALSE) != FALSE && GetUpdateRect(window.Hwnd(), nullptr, FALSE) != FALSE &&
+                        window.Host().DebugGetInvalidateCount() == beforeExternal,
+                    "an independent native invalidation does not masquerade as a host request");
+            Require(ValidateRect(window.Hwnd(), nullptr) != FALSE, "clear the independent native invalidation");
+            state.invalidatesBeforeMutation = window.Host().DebugGetInvalidateCount();
             switch (mutation)
             {
                 case 0u: panel->ClearChildren(); break;
@@ -1669,7 +1685,8 @@ void TestWindowHostCaptureDiscardsFrameWhenPaintMutatesTheChildTree()
         Require((window.Host().GetRoot() == panel) == (mutation != 5u), "only root replacement changes the native root identity");
         if (mutation == 0u)
             Require(state.secondPaints == 0u && panel->GetChildren().empty(), "clearing children skips the retired sibling paint");
-        Require(GetUpdateRect(window.Hwnd(), nullptr, FALSE) != FALSE, "child-tree mutation schedules corrective native painting");
+        Require(window.Host().DebugGetInvalidateCount() > state.invalidatesBeforeMutation && GetUpdateRect(window.Hwnd(), nullptr, FALSE) != FALSE,
+                "child-tree mutation requests corrective host painting and leaves a native update region");
         WindowHostBitmapCapture freshFrame;
         Require(window.Host().DebugCaptureBitmap(freshFrame), "a later native capture completes for the current child tree");
         Require(! freshFrame.bgraPixels.empty() && ! state.onNextPaint, "recovery yields a complete frame without repeating the callback");
@@ -2327,6 +2344,65 @@ void TestWindowHostMouseMoveUpdatesHoverTarget()
                            nullptr,
                            GetModuleHandleW(nullptr),
                            nullptr);
+}
+
+void TestWindowHostThrowingMouseLeaveStillClearsTooltip()
+{
+    using namespace DxUi;
+    struct ThrowingHover final : Control
+    {
+        ThrowingHover()                                = default;
+        ThrowingHover(const ThrowingHover&)            = delete;
+        ThrowingHover& operator=(const ThrowingHover&) = delete;
+        ThrowingHover(ThrowingHover&&)                 = delete;
+        ThrowingHover& operator=(ThrowingHover&&)      = delete;
+        bool throwHover{}, throwLeave{}, replaceRoot{};
+        unsigned leaveCalls{};
+        void Paint(ControlHost&) const override
+        {
+        }
+        void OnHoverChanged(ControlHost& host, bool hovered) override
+        {
+            Control::OnHoverChanged(host, hovered);
+            if (! hovered && replaceRoot)
+            {
+                host.SetRoot(std::make_unique<Panel>());
+                host.SetTooltip(L"replacement tooltip", D2D1::Point2F(32, 32));
+                return;
+            }
+            if (! hovered && throwHover)
+                throw std::runtime_error("planned hover-leave failure");
+        }
+        bool OnMouseLeave(ControlHost&) override
+        {
+            ++leaveCalls;
+            if (throwLeave)
+                throw std::runtime_error("planned mouse-leave failure");
+            return true;
+        }
+    };
+    for (const unsigned scenario : {0u, 1u, 2u})
+    {
+        ScopedNonActivatingTestWindows nonActivating;
+        AttachedHostWindow window;
+        auto root = std::make_unique<Panel>();
+        root->SetBounds(D2D1::RectF(0, 0, 320, 200));
+        auto* item = root->AddChild<ThrowingHover>();
+        item->SetBounds(D2D1::RectF(0, 0, 160, 80));
+        item->throwHover  = scenario == 0u;
+        item->throwLeave  = scenario == 1u;
+        item->replaceRoot = scenario == 2u;
+        window.Host().SetRoot(std::move(root));
+        static_cast<void>(SendMessageW(window.Hwnd(), WM_MOUSEMOVE, 0, MAKELPARAM(32, 32)));
+        Require(item->IsHovered(), "throwing leave fixture has an actual hovered control");
+        Require(window.Host().SetTooltip(L"synthetic tooltip", D2D1::Point2F(32, 32)), "throwing leave fixture shows a tooltip");
+        static_cast<void>(SendMessageW(window.Hwnd(), WM_MOUSELEAVE, 0, 0));
+        if (scenario == 2u)
+            Require(window.Host().GetTooltipText() == L"replacement tooltip", "old leave never clears a replacement root's new tooltip");
+        else
+            Require(item->leaveCalls == 1u && window.Host().GetTooltipText().empty(),
+                    "a throwing hover or mouse-leave callback does not skip remaining leave or tooltip cleanup");
+    }
 }
 
 void TestWindowHostMouseLeaveOverForeignPopupClearsHover()
@@ -6056,6 +6132,85 @@ void TestWindowHostRestoreFromMinimizeRearmsSuspendedAnimation()
     Require(window.Host().DebugHasActiveAnimationSubscription(), "SIZE_RESTORED re-arms a suspended animation for an effectively visible host");
 }
 
+void TestWindowHostApplicationVisibilitySuspendsNativePresentation()
+{
+    using namespace DxUi;
+    auto& dispatcher         = Ui::AnimationDispatcher::GetInstance();
+    const auto subscriptions = dispatcher.DebugGetActiveSubscriptionCountForTest();
+    WindowHost detached;
+    Require(detached.SetNativePresentationVisible(false) == E_UNEXPECTED, "an unattached host refuses an application native-visibility signal");
+    AttachedHostWindow window;
+    auto& host          = window.Host();
+    HRESULT otherThread = S_OK;
+    std::jthread caller([&] { otherThread = host.SetNativePresentationVisible(false); });
+    caller.join();
+    Require(otherThread == RPC_E_WRONG_THREAD && host.IsNativePresentationVisible(), "native visibility changes require the attachment owner thread");
+    auto root     = std::make_unique<Panel>();
+    auto* ticking = root->AddChild<AnimationTickTraceControl>();
+    host.SetRoot(std::move(root));
+    ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+    Require(host.RenderInitialFrameForShow(), "prepare visible native presentation");
+    host.RequestAnimation();
+    Require(host.DebugHasActiveAnimationSubscription(), "the visible fixture owns an animation subscription");
+    Require(host.SetNativePresentationVisible(false) == S_OK && ! host.IsNativePresentationVisible() && ! host.DebugHasActiveAnimationSubscription(),
+            "application occlusion immediately releases the native animation subscription");
+    Require(host.SetNativePresentationVisible(false) == S_FALSE, "repeated occlusion is idempotent");
+    ValidateRect(window.Hwnd(), nullptr);
+    const auto ticks = ticking->tickCount, renders = host.DebugGetRenderCount();
+    for (unsigned repeat = 0u; repeat < 8u; ++repeat)
+    {
+        host.RequestAnimation();
+        host.Invalidate();
+        Require(! host.DebugAnimationTickForTest(1000u + repeat) && ! host.PrimeForShow() && ! host.RenderInitialFrameForShow(),
+                "suppressed native presentation performs no animation or explicit preparation frame");
+        bool handled = false;
+        static_cast<void>(host.HandleMessage(window.Hwnd(), WM_PAINT, 0u, 0, handled));
+        Require(handled && ! host.DebugHasActiveAnimationSubscription(), "queued paint and animation requests cannot rearm suppressed work");
+    }
+    Require(ticking->tickCount == ticks && host.DebugGetRenderCount() == renders && ! GetUpdateRect(window.Hwnd(), nullptr, FALSE),
+            "occluded native work stays event-blocked without root ticks, frames or invalidation polling");
+    const auto fullPresents = host.DebugGetFullPresentAttemptCount();
+    Require(host.SetNativePresentationVisible(true) == S_OK && host.IsNativePresentationVisible() && host.DebugHasActiveAnimationSubscription(),
+            "an explicit visible event resumes deferred animation");
+    Require(host.RenderInitialFrameForShow() && host.DebugGetRenderCount() > renders && host.DebugGetFullPresentAttemptCount() > fullPresents,
+            "restored application visibility renders a complete fresh native frame");
+    Require(host.SetNativePresentationVisible(true) == S_FALSE, "repeated visible signal adds no work");
+    ticking->onTick = [](WindowHost& owner)
+    {
+        Require(owner.SetNativePresentationVisible(false) == S_OK && owner.SetNativePresentationVisible(true) == S_OK,
+                "a tick callback starts a new visible subscription");
+        return false;
+    };
+    Require(! host.DebugAnimationTickForTest(2000u) && host.DebugHasActiveAnimationSubscription(),
+            "a stale tick cannot clear the replacement subscription created during its callback");
+    host.Detach();
+    Require(host.IsNativePresentationVisible(), "a later attachment starts with the default presentation policy");
+    Require(dispatcher.DebugGetActiveSubscriptionCountForTest() == subscriptions, "detach removes the replacement subscription without an orphan callback");
+}
+
+void TestWindowHostVisibilityChangedDuringPaintRequiresFreshFrame()
+{
+    using namespace DxUi;
+    AttachedHostWindow window;
+    auto& host = window.Host();
+    ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+    WindowHostRootReplacementPaintState state;
+    state.firstPaintCallback = [](WindowHost& owner)
+    {
+        Require(owner.SetNativePresentationVisible(false) == S_OK && owner.SetNativePresentationVisible(true) == S_OK,
+                "paint callback changes the application visibility generation");
+    };
+    host.SetRoot(std::make_unique<ReplaceRootDuringWindowHostPaintControl>(state));
+    const auto presents = host.DebugGetFullPresentAttemptCount();
+    WindowHostBitmapCapture interrupted;
+    Require(! host.DebugCaptureBitmap(interrupted) && interrupted.bgraPixels.empty() && host.DebugGetFullPresentAttemptCount() == presents &&
+                state.paintCount == 1u,
+            "a visibility change during paint prevents stale capture and presentation");
+    WindowHostBitmapCapture resumed;
+    Require(host.DebugCaptureBitmap(resumed) && ! resumed.bgraPixels.empty() && host.DebugGetFullPresentAttemptCount() > presents,
+            "the next frame presents the current visible generation in full");
+}
+
 void TestNoninteractiveWindowActivationBlockerRejectsFocusStealing()
 {
     using DxUi::TestSupport::ScopedWindowActivationBlocker;
@@ -7243,6 +7398,7 @@ void RunWindowHostTests()
     DXUI_RUN_TEST(TestScrollPanelForwardsSecondaryPressInContentCoordinates);
     DXUI_RUN_TEST(TestScrollPanelModelContextMenusUseScreenCoordinates);
     DXUI_RUN_TEST(TestASecondButtonDuringADragLeavesTheDragToItsControl);
+    DXUI_RUN_TEST(TestSliderReleaseThroughHostPreservesReplacementCapture);
     DXUI_RUN_TEST(TestScrollPanelScrollbarDoubleClickPagesAgain);
     DXUI_RUN_TEST(TestScrollPanelKeepsTheFocusAChildTakesOnAnUnhandledPress);
     DXUI_RUN_TEST(TestKeyboardContextAnchorsStayInsideTheScrollViewport);
@@ -7365,6 +7521,7 @@ void RunWindowHostTests()
     DXUI_RUN_TEST(TestWindowHostScrollPanelScrollbarSurvivesForcedNullSolidBrushes);
     DXUI_RUN_TEST(TestWindowHostComboBoxPopupSurvivesForcedNullSolidBrushes);
     DXUI_RUN_TEST(TestWindowHostDisabledOrHiddenCaptureCancelsTheDrag);
+    DXUI_RUN_TEST(TestWindowHostThrowingMouseLeaveStillClearsTooltip);
     DXUI_RUN_TEST(TestWindowHostSmokeOverlayRendersBelowRootOverlay);
     DXUI_RUN_TEST(TestWindowHostOverlayHitTestingPrecedesContentHitTesting);
     DXUI_RUN_TEST(TestWindowHostOverlayHitTestRetiringRootStopsPointerResolutionAndDispatch);
@@ -7381,5 +7538,7 @@ void RunWindowHostTests()
     DXUI_RUN_TEST(TestNativeMenuConversionKeepsAmpersandsForThePopupToDecode);
     DXUI_RUN_TEST(TestWindowHostHiddenAnimationTickDropsSubscriptionUntilShown);
     DXUI_RUN_TEST(TestWindowHostRestoreFromMinimizeRearmsSuspendedAnimation);
+    DXUI_RUN_TEST(TestWindowHostApplicationVisibilitySuspendsNativePresentation);
+    DXUI_RUN_TEST(TestWindowHostVisibilityChangedDuringPaintRequiresFreshFrame);
     DXUI_RUN_TEST(TestNoninteractiveWindowActivationBlockerRejectsFocusStealing);
 }

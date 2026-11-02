@@ -1,6 +1,11 @@
 #include "Controls.Tests.RichMarkdown.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "Controls.Tests.MarkdownCorpus.h"
+#include "Controls.Tests.MetadataCorpus.h"
+#pragma warning(push)
+#pragma warning(disable : 4464)
+#include "../../src/Controls/DxUi.MarkdownMetadata.h"
+#pragma warning(pop)
 #include "Support.Tests.FlowchartLayout.h"
 #include "Support.Tests.Footnotes.h"
 #include "Support.Tests.MarkdownBlocks.h"
@@ -441,6 +446,19 @@ void TestLosslessMarkdownInlineScenariosAndExtensionIdentity()
 {
     std::cout << "Directed inline scenarios: " << std::size(MarkdownInlineTests::scenarios) << "; profiles: 3\n";
     MarkdownParser parser;
+    for (const auto profile : {MarkdownProfile::Gfm029, MarkdownProfile::RichMarkdown})
+    {
+        const std::wstring_view table = L"| a\\|b | `\\|` |\n| --- | --- |\n";
+        parser.Begin(table, 1u, profile);
+        const auto syntax = CompleteMarkdown(parser, 1u);
+        const auto text =
+            std::ranges::find_if(syntax->Inlines(), [](const auto& node) { return node.kind == MarkdownInlineKind::Text && node.value == L"a|b"; });
+        const auto code = std::ranges::find_if(syntax->Inlines(), [](const auto& node) { return node.kind == MarkdownInlineKind::Code && node.value == L"|"; });
+        Require(text != syntax->Inlines().end() && text->source.first == 2u && text->source.last == 6u,
+                "escaped table pipe includes its backslash in the contiguous text source");
+        Require(code != syntax->Inlines().end() && code->source.first == 9u && code->source.last == 13u,
+                "escaped table pipe inside code retains the complete code source");
+    }
     const wchar_t nulLabel[] = L"[a\0b]: /url\n[a\0b]\n";
     for (const auto profile : {MarkdownProfile::CommonMark0312, MarkdownProfile::Gfm029, MarkdownProfile::RichMarkdown})
     {
@@ -517,6 +535,44 @@ void TestLosslessMarkdownInlineScenariosAndExtensionIdentity()
 }
 void TestLosslessMarkdownBlockScenariosAndNodeIdentity()
 {
+    {
+        constexpr std::wstring_view source = L"> [a]: /u\n> text\n";
+        MarkdownParser reference;
+        reference.Begin(source, 1u);
+        const auto syntax = CompleteMarkdown(reference, 1u);
+        CheckMarkdownPartitions(*syntax, source);
+        MarkdownBlockTests::CheckReferencePrefix(*syntax, Require);
+    }
+    {
+        constexpr std::wstring_view source = L"> [a]: /u\r\n> [b]: /v\r\n> text\r\n";
+        MarkdownParser reference;
+        reference.Begin(source, 1u);
+        const auto syntax = CompleteMarkdown(reference, 1u);
+        CheckMarkdownPartitions(*syntax, source);
+        MarkdownBlockTests::CheckReferencePrefixesCrLf(*syntax, Require);
+    }
+    for (const auto profile : {MarkdownProfile::Gfm029, MarkdownProfile::RichMarkdown})
+        for (const auto& scenario : MarkdownBlockTests::splitTables)
+        {
+            MarkdownParser split;
+            split.Begin(scenario.source, 1u, profile);
+            const auto syntax = CompleteMarkdown(split, 1u);
+            CheckMarkdownPartitions(*syntax, scenario.source);
+            MarkdownBlockTests::CheckSplitTable(*syntax, scenario, Require);
+        }
+    for (const auto profile : {MarkdownProfile::Gfm029, MarkdownProfile::CommonMark0312, MarkdownProfile::RichMarkdown})
+    {
+        MarkdownParser lazyHtml;
+        lazyHtml.Begin(L"> a\n<custom>", 1u, profile);
+        MarkdownBlockTests::CheckLazyHtmlProfile(*CompleteMarkdown(lazyHtml, 1u), Require);
+    }
+    for (const auto profile : {MarkdownProfile::Gfm029, MarkdownProfile::CommonMark0312, MarkdownProfile::RichMarkdown})
+        for (const bool uppercase : {false, true})
+        {
+            MarkdownParser declaration;
+            declaration.Begin(uppercase ? L"<!DOCTYPE html>\nfoo" : L"<!doctype html>\nfoo", 1u, profile);
+            MarkdownBlockTests::CheckDeclarationProfile(*CompleteMarkdown(declaration, 1u), uppercase, Require);
+        }
     for (const auto& scenario : MarkdownBlockTests::scenarios)
     {
         MarkdownParser parser;
@@ -860,6 +916,178 @@ void TestLosslessMarkdownFrontMatterFencesAndProfileIsolation()
     parser.Begin(L"+++\nkey = 'new'\n+++\n", 3u, MarkdownProfile::RichMarkdown);
     Require(CompleteMarkdown(parser)->Nodes()[1u].frontMatterKind == MarkdownFrontMatterKind::Toml, "a later TOML request cannot inherit YAML envelope state");
 }
+void TestYamlFrontMatterValidationAndSourcePreservation()
+{
+    struct Case
+    {
+        std::wstring_view source;
+        std::optional<MarkdownDiagnosticCode> issue;
+    };
+    // YAML 1.2.2 examples: https://yaml.org/spec/1.2.2/ . Complex keys,
+    // schema-resolved equality and undefined aliases are independent of fences.
+    constexpr Case cases[] = {
+        {L"---\nname:\tvalue\nsequence: [one, two]\n---\n", {}},
+        {L"---\n? [alpha, beta]\n: one\n? [alpha, gamma]\n: two\n---\n", {}},
+        {L"---\na: &anchor [one, two]\nb: *anchor\n---\n", {}},
+        {L"---\n11: number\n\"11\": text\n---\n", {}},
+        {L"---\ntrue: bool\n\"true\": text\n---\n", {}},
+        // P76L from pinned yaml-test-suite, with the inner document marker
+        // commented so the exact front-matter fence remains unambiguous.
+        {L"---\n%TAG !! tag:example.com,2000:app/\n--- # YAML document\n!!int 1 - 3 # Interval, not integer\n---\n", {}},
+        // The syntax corpus admits these as event streams; this validator also
+        // enforces YAML mapping-key uniqueness at the representation layer.
+        {L"---\n: a\n: b\n---\n", MarkdownDiagnosticCode::DuplicateYamlKey},
+        {L"---\n{ &a [a, &b b]: *b, *a : [c, *b, d]}\n---\n", MarkdownDiagnosticCode::DuplicateYamlKey},
+        {L"---\na: &same first\nb: &same second\nc: *same\n---\n", {}},
+        {L"---\n? {a: 1, b: 2}\n: one\n? {b: 2, a: 1}\n: two\n---\n", MarkdownDiagnosticCode::DuplicateYamlKey},
+        {L"---\na: [one, two\n---\n", MarkdownDiagnosticCode::InvalidYamlFrontMatter},
+        {L"---\nvalue: \x0001\n---\n", MarkdownDiagnosticCode::InvalidYamlFrontMatter},
+        {L"---\nkey: *missing\n---\n", MarkdownDiagnosticCode::UnresolvedYamlAlias},
+        {L"---\na: one\n\"a\": two\n---\n", MarkdownDiagnosticCode::DuplicateYamlKey},
+        {L"---\n0xB: one\n11: two\n---\n", MarkdownDiagnosticCode::DuplicateYamlKey},
+        {L"---\n1.0: one\n1e0: two\n---\n", MarkdownDiagnosticCode::DuplicateYamlKey},
+        {L"---\n!!int \"11\": one\n0xB: two\n---\n", MarkdownDiagnosticCode::DuplicateYamlKey},
+        {L"---\n? &first [one, two]\n: a\n? *first\n: b\n---\n", MarkdownDiagnosticCode::DuplicateYamlKey},
+        {L"---\nitem: !!int nope\n---\n", MarkdownDiagnosticCode::InvalidYamlFrontMatter},
+        {L"---\n? [one, two]\n: a\n? [one, two]\n: b\n---\n", MarkdownDiagnosticCode::DuplicateYamlKey},
+        {L"---\n? &cycle [*cycle]\n: value\n---\n", MarkdownDiagnosticCode::YamlFrontMatterCapacity},
+    };
+    for (const auto& item : cases)
+    {
+        MarkdownParser parser;
+        parser.Begin(item.source, 1u, MarkdownProfile::RichMarkdown);
+        const auto syntax = CompleteMarkdown(parser, 1u);
+        Require(syntax->Source() == item.source, "YAML validation preserves exact raw source");
+        const auto issues = syntax->Diagnostics();
+        Require(item.issue ? issues.size() == 1u && issues[0].code == item.issue.value() : issues.empty(),
+                "YAML 1.2.2 syntax, duplicate keys and aliases have independent outcomes");
+        if (item.issue)
+        {
+            const auto& issue = issues[0];
+            const auto& node  = syntax->Nodes()[issue.node];
+            Require(node.block.kind == MarkdownBlockKind::FrontMatter && issue.source.first >= node.block.content.first &&
+                        issue.source.last <= node.block.content.last && issue.source.first <= issue.source.last,
+                    "YAML diagnostic stays within its source-owned payload");
+        }
+    }
+    std::wstring manyNodes = L"---\nvalues: [";
+    for (std::size_t i = 0; i < 4097u; ++i)
+        manyNodes += i ? L", a" : L"a";
+    manyNodes += L"]\n---\n";
+    MarkdownParser parser;
+    parser.Begin(manyNodes, 2u, MarkdownProfile::RichMarkdown);
+    const auto bounded = CompleteMarkdown(parser, 1u);
+    Require(bounded->Diagnostics().size() == 1u && bounded->Diagnostics()[0].code == MarkdownDiagnosticCode::YamlFrontMatterCapacity,
+            "large YAML graphs report capacity instead of invalid content");
+}
+void TestMetadataIndependentValidityCorpora()
+{
+    using DxUi::RichText::Detail::MetadataIssue;
+    std::size_t tomlCount = 0u, yamlCount = 0u, skipped = 0u;
+    const auto check = [&](const MetadataCorpus::Case& item, bool yaml)
+    {
+        if (item.expected == MetadataCorpus::Expected::MultiDocument)
+        {
+            ++skipped;
+            return;
+        }
+        const int length           = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, item.bytes.data(), static_cast<int>(item.bytes.size()), nullptr, 0);
+        const bool invalidEncoding = length == 0 && ! item.bytes.empty();
+        std::wstring source(static_cast<std::size_t>(length), L'\0');
+        if (length > 0)
+            Require(MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, item.bytes.data(), static_cast<int>(item.bytes.size()), source.data(), length) == length,
+                    "metadata corpus UTF-8 conversion succeeds");
+        const auto actual  = invalidEncoding
+                                 ? MetadataIssue::Invalid
+                                 : (yaml ? DxUi::RichText::Detail::ValidateYamlMetadata(source) : DxUi::RichText::Detail::ValidateTomlMetadata(source));
+        const bool correct = item.expected == MetadataCorpus::Expected::Valid       ? actual == MetadataIssue::None
+                             : item.expected == MetadataCorpus::Expected::Duplicate ? actual == MetadataIssue::DuplicateKey
+                                                                                    : actual != MetadataIssue::None && actual != MetadataIssue::Capacity;
+        if (! correct)
+            std::cerr << "Metadata corpus failure " << item.name << " actual=" << static_cast<int>(actual) << '\n';
+        Require(correct, "independent metadata validity expectation");
+        if (yaml)
+            ++yamlCount;
+        else
+            ++tomlCount;
+    };
+    for (const auto& item : MetadataCorpus::Toml)
+        check(item, false);
+    for (const auto& item : MetadataCorpus::Yaml)
+        check(item, true);
+    Require(tomlCount == 717u && yamlCount == 382u && skipped == 20u, "all pinned single-document metadata cases were exercised");
+}
+
+void TestTomlFrontMatterValidationAndSourcePreservation()
+{
+    struct Case
+    {
+        std::wstring_view source;
+        bool valid;
+    };
+    // Independent examples from https://toml.io/en/v1.0.0: nested tables, heterogeneous
+    // arrays, Unicode, dates and invalid duplicate/table/value spellings.
+    constexpr Case cases[] = {
+        {L"+++\nname = \"caf\u00e9 \U0001f600\"\nvalues = [1, \"two\", true]\n[db]\nport = 8000\n+++\ntext\n", true},
+        {L"+++\r\nwhen = 1979-05-27T07:32:00Z\r\nquoted.\"a.b\" = 'v'\r\n+++\r\n", true},
+        {L"+++\nkey = 1\nkey = 2\n+++\n", false},
+        {L"+++\n[a]\nx = 1\n[a]\ny = 2\n+++\n", false},
+        {L"+++\nx = 01\n+++\n", false},
+        {L"+++\n[\n+++\n", false},
+        {L"+++\nx = \"unterminated\n+++\n", false},
+        {L"+++\nx = { a = 1, a = 2 }\n+++\n", false},
+        {L"+++\nx = 2024-02-30\n+++\n", false},
+    };
+    for (const auto& item : cases)
+    {
+        MarkdownParser parser;
+        parser.Begin(item.source, 1u, MarkdownProfile::RichMarkdown);
+        const auto syntax = CompleteMarkdown(parser, 1u);
+        Require(syntax->Source() == item.source, "TOML validation preserves raw source and line endings");
+        const auto diagnostics = syntax->Diagnostics();
+        Require(item.valid ? diagnostics.empty() : diagnostics.size() == 1u && diagnostics[0].code == MarkdownDiagnosticCode::InvalidTomlFrontMatter,
+                "TOML 1.0 validity and duplicate definitions must be reported");
+        if (! item.valid)
+        {
+            const auto& diagnostic = diagnostics[0];
+            const auto& node       = syntax->Nodes()[diagnostic.node];
+            Require(node.block.kind == MarkdownBlockKind::FrontMatter && diagnostic.source.first == node.block.content.first &&
+                        diagnostic.source.last == node.block.content.last,
+                    "TOML diagnostic identifies its exact source content and owner");
+        }
+    }
+    std::wstring deep = L"+++\nx = ";
+    deep.append(129u, L'[');
+    deep += L"0";
+    deep.append(129u, L']');
+    deep += L"\n+++\n";
+    MarkdownParser parser;
+    parser.Begin(deep, 2u, MarkdownProfile::RichMarkdown);
+    const auto capacity = CompleteMarkdown(parser, 1u);
+    Require(capacity->Diagnostics().size() == 1u && capacity->Diagnostics()[0].code == MarkdownDiagnosticCode::TomlFrontMatterCapacity,
+            "excess nesting is a capacity diagnostic, not invalid TOML");
+    std::wstring deepKey = L"+++\n";
+    for (std::size_t i = 0; i < 129u; ++i)
+        deepKey += i ? L".a" : L"a";
+    deepKey += L" = 1\n+++\n";
+    parser.Begin(deepKey, 3u, MarkdownProfile::RichMarkdown);
+    const auto keyCapacity = CompleteMarkdown(parser, 1u);
+    Require(keyCapacity->Diagnostics().size() == 1u && keyCapacity->Diagnostics()[0].code == MarkdownDiagnosticCode::TomlFrontMatterCapacity,
+            "excess dotted-key nesting is reported as capacity before materializing an unbounded graph");
+    std::wstring manyKeys = L"+++\n";
+    for (std::size_t i = 0; i < 1025u; ++i)
+        manyKeys += L"key" + std::to_wstring(i) + L" = 1\n";
+    manyKeys += L"+++\n";
+    parser.Begin(manyKeys, 4u, MarkdownProfile::RichMarkdown);
+    const auto totalCapacity = CompleteMarkdown(parser, 1u);
+    Require(totalCapacity->Diagnostics().size() == 1u && totalCapacity->Diagnostics()[0].code == MarkdownDiagnosticCode::TomlFrontMatterCapacity,
+            "excess total key segments report capacity independently of duplicate validation");
+    const auto held = totalCapacity;
+    parser.Begin(L"+++\nx = 1\n+++\n", 5u, MarkdownProfile::RichMarkdown);
+    parser.Advance(1u);
+    parser.Cancel();
+    Require(parser.Published() == held, "cancelled validation preserves the previous complete publication");
+}
 void TestLosslessMarkdownFootnoteBlockGrammarAndProfileIsolation()
 {
     for (const auto profile : {MarkdownProfile::CommonMark0312, MarkdownProfile::Gfm029, MarkdownProfile::RichMarkdown})
@@ -961,6 +1189,7 @@ void TestNativeFlowchartDeterministicGeometry()
 void TestNativeFlowchartLayoutIndependentCorpusAndRouting()
 {
     FlowchartLayoutTests::Corpus(Require);
+    FlowchartLayoutTests::CrossingReduction(Require);
 }
 void TestNativeFlowchartLayoutAdmissionAndCancellation()
 {
@@ -1212,6 +1441,71 @@ void TestLosslessMarkdownGlobalNodeAdmissionAndCooperativePadding()
 {
     MarkdownCapacityTests::ParserBounds(Require);
 }
+void TestRichMarkdownInlineExtensions()
+{
+    MarkdownParser parser;
+    constexpr std::wstring_view input = L"==highlight== ++insert++ ^high^ ~low~ ~~strike~~";
+    parser.Begin(input, 1u, MarkdownProfile::RichMarkdown);
+    const auto rich = CompleteMarkdown(parser, 1u);
+    CheckInlineForest(*rich);
+    Require(MarkdownHtmlTests::Html(*rich) == L"<p><mark>highlight</mark> <ins>insert</ins> <sup>high</sup> <sub>low</sub> <del>strike</del></p>\n",
+            "RichMarkdown parses each extension delimiter and preserves GFM strike");
+    parser.Begin(input, 2u, MarkdownProfile::Gfm029);
+    const auto gfm = CompleteMarkdown(parser, 1u);
+    Require(MarkdownHtmlTests::Html(*gfm) == L"<p>==highlight== ++insert++ ^high^ ~low~ <del>strike</del></p>\n",
+            "GFM keeps RichMarkdown-only delimiters literal");
+    parser.Begin(input, 3u, MarkdownProfile::RichMarkdown, MarkdownExtensions::All);
+    const auto disabled = CompleteMarkdown(parser, 1u);
+    Require(MarkdownHtmlTests::Html(*disabled) == MarkdownHtmlTests::Html(*gfm), "explicit extension mask can disable all four new delimiters");
+    parser.Begin(L"==**bold**== [++label++](dest) `^literal^`", 4u, MarkdownProfile::RichMarkdown);
+    const auto nested = CompleteMarkdown(parser, 1u);
+    CheckInlineForest(*nested);
+    Require(MarkdownHtmlTests::Html(*nested) == L"<p><mark><strong>bold</strong></mark> <a href=\"dest\"><ins>label</ins></a> <code>^literal^</code></p>\n",
+            "extension nesting respects Markdown link and code ownership");
+    Reject([&] { parser.Begin(input, 5u, MarkdownProfile::Gfm029, MarkdownExtensions::Highlight); }, "RichMarkdown delimiter flags cannot change GFM parsing");
+}
+void TestRichMarkdownWikiLinks()
+{
+    MarkdownParser parser;
+    constexpr std::wstring_view source = L"[[Folder/Page|alias]] ![[image.png]]";
+    parser.Begin(source, 1u, MarkdownProfile::RichMarkdown);
+    const auto rich = CompleteMarkdown(parser, 1u);
+    CheckInlineForest(*rich);
+    const auto link  = std::ranges::find_if(rich->Inlines(), [](const auto& node) { return node.kind == MarkdownInlineKind::Link && node.wiki; });
+    const auto image = std::ranges::find_if(rich->Inlines(), [](const auto& node) { return node.kind == MarkdownInlineKind::Image && node.wiki; });
+    Require(link != rich->Inlines().end() && link->destination == L"Folder/Page" && rich->Slice(link->source) == L"[[Folder/Page|alias]]" &&
+                image != rich->Inlines().end() && image->destination == L"image.png" && rich->Slice(image->source) == L"![[image.png]]",
+            "wiki objects preserve unresolved targets and exact source envelopes");
+    Require(MarkdownHtmlTests::Html(*rich) == L"<p><a href=\"Folder/Page\">alias</a> <img src=\"image.png\" alt=\"image.png\" /></p>\n",
+            "wiki aliases and embedded alternatives project independently from targets");
+    parser.Begin(source, 2u, MarkdownProfile::Gfm029);
+    const auto gfm = CompleteMarkdown(parser, 1u);
+    Require(std::ranges::none_of(gfm->Inlines(), [](const auto& node) { return node.wiki; }), "GFM never enables wiki syntax");
+    parser.Begin(source, 3u, MarkdownProfile::RichMarkdown, MarkdownExtensions::All);
+    const auto disabled = CompleteMarkdown(parser, 1u);
+    Require(std::ranges::none_of(disabled->Inlines(), [](const auto& node) { return node.wiki; }), "explicit earlier extension mask disables wiki syntax");
+    parser.Begin(L"[[bad||alias]] [[unterminated `[[code]]`", 4u, MarkdownProfile::RichMarkdown);
+    const auto malformed = CompleteMarkdown(parser, 1u);
+    Require(std::ranges::none_of(malformed->Inlines(), [](const auto& node) { return node.wiki; }), "malformed and code-owned wiki candidates remain literal");
+    std::wstring adversarial(0u, L' ');
+    for (unsigned i = 0u; i < 5000u; ++i)
+        adversarial += L"[[x";
+    parser.Begin(adversarial, 5u, MarkdownProfile::RichMarkdown);
+    const auto bounded = CompleteMarkdown(parser, 1024u);
+    Require(bounded->InlineStatistics().wikiInspectionUnits <= adversarial.size() * 8u &&
+                std::ranges::none_of(bounded->Inlines(), [](const auto& node) { return node.wiki; }),
+            "many unmatched wiki openers have linearly bounded inspected work");
+    parser.Begin(adversarial, 6u, MarkdownProfile::RichMarkdown);
+    static_cast<void>(parser.Advance(4u));
+    parser.Begin(L"[[target]]", 7u, MarkdownProfile::RichMarkdown);
+    const auto restarted = CompleteMarkdown(parser, 1u);
+    Require(std::ranges::any_of(restarted->Inlines(), [](const auto& node) { return node.wiki && node.destination == L"target"; }),
+            "superseded wiki scan clears its cached closer state");
+    parser.Begin(L"[[A]][[B]] `[[hidden]]`", 8u, MarkdownProfile::RichMarkdown);
+    const auto adjacent = CompleteMarkdown(parser, 1u);
+    Require(std::ranges::count_if(adjacent->Inlines(), [](const auto& node) { return node.wiki; }) == 2,
+            "adjacent wiki objects each own their closer and code remains opaque");
+}
 } // namespace
 
 void TestLosslessMarkdownCorrelationSourceReadBudget()
@@ -1221,9 +1515,14 @@ void TestLosslessMarkdownCorrelationSourceReadBudget()
 void TestLosslessMarkdownCorrelationSnapshotIdentity()
 {
     MarkdownSourceCorrelationTests::ParserIdentities(Require);
+    MarkdownSourceCorrelationTests::LexicalEdits(Require);
+    MarkdownSourceCorrelationTests::ClosedRootDifferential(Require);
+    MarkdownSourceCorrelationTests::ClosedRootCancellation(Require);
 }
 void RunRichMarkdownTests()
 {
+    DXUI_RUN_TEST(TestRichMarkdownInlineExtensions);
+    DXUI_RUN_TEST(TestRichMarkdownWikiLinks);
     DXUI_RUN_TEST(TestLosslessMarkdownCorrelationSourceReadBudget);
     DXUI_RUN_TEST(TestLosslessMarkdownCorrelationSnapshotIdentity);
     DXUI_RUN_TEST(TestRichMarkdownPrototypeContracts);
@@ -1244,6 +1543,9 @@ void RunRichMarkdownTests()
     DXUI_RUN_TEST(TestLosslessMarkdownSchedulingCancellationAndIdentity);
     DXUI_RUN_TEST(TestMarkdownParserAdoptsExactParsedSnapshot);
     DXUI_RUN_TEST(TestLosslessMarkdownFrontMatterFencesAndProfileIsolation);
+    DXUI_RUN_TEST(TestYamlFrontMatterValidationAndSourcePreservation);
+    DXUI_RUN_TEST(TestTomlFrontMatterValidationAndSourcePreservation);
+    DXUI_RUN_TEST(TestMetadataIndependentValidityCorpora);
     DXUI_RUN_TEST(TestNativeFlowchartGrammarAndGraphValues);
     DXUI_RUN_TEST(TestNativeFlowchartDeterministicGeometry);
     DXUI_RUN_TEST(TestNativeFlowchartLayoutIndependentCorpusAndRouting);

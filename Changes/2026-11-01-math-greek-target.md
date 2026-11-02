@@ -1,0 +1,1 @@
+- Admit the five previously missing Greek symbols in the bounded native math target and verify their Unicode identities. Native qualification remains pending.

@@ -488,9 +488,11 @@ void ComboBox::SetChromeVisible(bool visible) noexcept
         return;
     }
 
-    _chromeVisible = visible;
+    _chromeVisible      = visible;
+    const auto lifetime = GetLifetimeToken();
     InvalidateMeasure();
-    RequestInvalidate();
+    if (! lifetime.expired())
+        RequestInvalidate();
 }
 
 bool ComboBox::IsChromeVisible() const noexcept
@@ -917,6 +919,7 @@ void ComboBox::PaintOverlay(ControlHost& host) const
 
 bool ComboBox::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)
 {
+    ControlHost* const originalHost = GetHost();
     if (rightButton)
     {
         ResetSingleLineSelectionClickSequence(_selectionClickSequence);
@@ -996,7 +999,7 @@ bool ComboBox::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightBut
         else if (const std::optional<size_t> hitIndex = HitTestPopupItem(point))
         {
             CommitSelection(host, hitIndex.value(), true);
-            if (lifetime.expired())
+            if (lifetime.expired() || GetHost() != originalHost)
             {
                 return true;
             }
@@ -1029,7 +1032,7 @@ bool ComboBox::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightBut
         else if (! _items.empty())
         {
             static_cast<void>(RequestPopup(host));
-            if (lifetime.expired())
+            if (lifetime.expired() || GetHost() != originalHost)
             {
                 return true;
             }
@@ -1241,6 +1244,7 @@ bool ComboBox::OnMouseLeave(ControlHost& host)
 
 bool ComboBox::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
 {
+    ControlHost* const originalHost = GetHost();
     ResetSingleLineSelectionClickSequence(_selectionClickSequence);
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     if (virtualKey == VK_ESCAPE && _open)
@@ -1515,7 +1519,7 @@ bool ComboBox::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
         else
         {
             static_cast<void>(RequestPopup(host));
-            if (lifetime.expired())
+            if (lifetime.expired() || GetHost() != originalHost)
             {
                 return true;
             }
@@ -1528,7 +1532,7 @@ bool ComboBox::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
         if (! _open)
         {
             static_cast<void>(RequestPopup(host));
-            if (lifetime.expired())
+            if (lifetime.expired() || GetHost() != originalHost)
             {
                 return true;
             }
@@ -1561,12 +1565,12 @@ bool ComboBox::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
         }
         return std::nullopt;
     };
-    const auto commitPopupListIndex = [this, &host, &lifetime](size_t popupListIndex) -> bool
+    const auto commitPopupListIndex = [this, &host, &lifetime, originalHost](size_t popupListIndex) -> bool
     {
         if (const std::optional<size_t> itemIndex = GetPopupItemIndexAt(popupListIndex))
         {
             CommitSelection(host, itemIndex.value(), false);
-            if (lifetime.expired())
+            if (lifetime.expired() || GetHost() != originalHost)
             {
                 return true;
             }
@@ -1592,7 +1596,7 @@ bool ComboBox::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
         if (_editable && ! _open)
         {
             static_cast<void>(RequestPopup(host));
-            if (lifetime.expired())
+            if (lifetime.expired() || GetHost() != originalHost)
             {
                 return true;
             }
@@ -1620,7 +1624,7 @@ bool ComboBox::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
         if (_editable && ! _open)
         {
             static_cast<void>(RequestPopup(host));
-            if (lifetime.expired())
+            if (lifetime.expired() || GetHost() != originalHost)
             {
                 return true;
             }
@@ -1680,7 +1684,7 @@ bool ComboBox::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
         if (_open && GetHighlightedPopupIndex())
         {
             CommitSelection(host, GetHighlightedPopupIndex().value(), true);
-            if (lifetime.expired())
+            if (lifetime.expired() || GetHost() != originalHost)
             {
                 return true;
             }
@@ -1691,7 +1695,7 @@ bool ComboBox::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
         {
             const auto onSubmitted = _onSubmitted;
             (*onSubmitted)();
-            if (lifetime.expired())
+            if (lifetime.expired() || GetHost() != originalHost)
             {
                 return true;
             }
@@ -1721,6 +1725,7 @@ bool ComboBox::OnContextMenu(ControlHost& host, bool keyboardInvocation, D2D1_PO
 
 bool ComboBox::OnChar(ControlHost& host, wchar_t ch, UINT modifiers)
 {
+    ControlHost* const originalHost = GetHost();
     // Alt alone makes the system's characters (menu access keys, Alt+Space); AltGr arrives as Ctrl+Alt and types.
     if (ModifiersContainAlt(modifiers) && ! ModifiersContainCtrl(modifiers))
     {
@@ -1746,7 +1751,7 @@ bool ComboBox::OnChar(ControlHost& host, wchar_t ch, UINT modifiers)
         if (const std::optional<size_t> matchIndex = FindTypeaheadMatch(_typeaheadBuffer))
         {
             CommitSelection(host, matchIndex.value(), false);
-            if (lifetime.expired())
+            if (lifetime.expired() || GetHost() != originalHost)
             {
                 return true;
             }
@@ -1764,7 +1769,7 @@ bool ComboBox::OnChar(ControlHost& host, wchar_t ch, UINT modifiers)
         if (const std::optional<size_t> matchIndex = FindTypeaheadMatch(_typeaheadBuffer))
         {
             CommitSelection(host, matchIndex.value(), false);
-            if (lifetime.expired())
+            if (lifetime.expired() || GetHost() != originalHost)
             {
                 return true;
             }
@@ -1954,7 +1959,7 @@ std::optional<std::vector<D2D1_RECT_F>> ComboBox::GetTextInputRangeRects(const C
     }
 
     UINT32 actualCount = 0u;
-    std::vector<DWRITE_HIT_TEST_METRICS> metrics((rangeEnd - rangeStart) + 4u);
+    std::vector<DWRITE_HIT_TEST_METRICS> metrics(64u);
     HRESULT hr = layout->HitTestTextRange(static_cast<UINT32>(rangeStart),
                                           static_cast<UINT32>(rangeEnd - rangeStart),
                                           textRect.left - _editableHorizontalScrollDip,
@@ -2444,6 +2449,7 @@ void ComboBox::OpenPopup(ControlHost& host) noexcept
 bool ComboBox::RequestPopup(ControlHost& host)
 {
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    ControlHost* const originalHost   = GetHost();
     auto onPopupRequested             = _onPopupRequested;
     const bool handled                = onPopupRequested && (*onPopupRequested)();
     onPopupRequested.reset();
@@ -2451,7 +2457,7 @@ bool ComboBox::RequestPopup(ControlHost& host)
     {
         return true;
     }
-    if (lifetime.expired())
+    if (lifetime.expired() || GetHost() != originalHost)
     {
         return false;
     }
@@ -2733,6 +2739,7 @@ void ComboBox::CommitSelection(ControlHost& host, size_t itemIndex, bool closePo
         return;
     }
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    ControlHost* const originalHost   = GetHost();
 
     _selectedIndex    = itemIndex;
     _activePopupIndex = itemIndex;
@@ -2742,7 +2749,7 @@ void ComboBox::CommitSelection(ControlHost& host, size_t itemIndex, bool closePo
         _caretIndex = _text.size();
         _selectionAnchorIndex.reset();
         _dragSelecting = false;
-        if (! NotifyTextChanged())
+        if (! NotifyTextChanged() || lifetime.expired() || GetHost() != originalHost)
         {
             return;
         }
@@ -2761,7 +2768,7 @@ void ComboBox::CommitSelection(ControlHost& host, size_t itemIndex, bool closePo
     {
         (*onSelectionChanged)(itemIndex);
         onSelectionChanged.reset();
-        if (lifetime.expired())
+        if (lifetime.expired() || GetHost() != originalHost)
         {
             return;
         }
@@ -2771,7 +2778,7 @@ void ComboBox::CommitSelection(ControlHost& host, size_t itemIndex, bool closePo
     {
         host.SyncTextInput(this);
     }
-    if (lifetime.expired())
+    if (lifetime.expired() || GetHost() != originalHost)
     {
         return;
     }

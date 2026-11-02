@@ -1,0 +1,6 @@
+{
+  "completedUtc": "2026-11-02T08:49:27.0267004Z",
+  "slotsCompleted": 64,
+  "passed": true,
+  "policyAcceptance": false
+}

@@ -492,6 +492,34 @@ void TestRichDocumentLayoutWholeGeometryOracle()
                     CompareDocumentGeometry(prepared, flat);
                 }
 }
+void TestRichDocumentLayoutWholeReferenceReuseAndStyleChanges()
+{
+    const auto factory          = DocumentFactory();
+    const std::wstring original = L"plain\nline\n*tail*\nend";
+    LayoutOptions options;
+    options.widthDip             = 310.0f;
+    options.lineHeightMultiplier = 1.25f;
+    Document initial(original);
+    PreparedDocumentLayout prepared;
+    prepared.Prepare(factory.get(), initial.Snapshot(), initial.Revision(), ViewMode::Rich, options);
+    Require(prepared.UsesWholeGeometry(), "explicit line height requires the whole-reference fixture");
+    for (const auto replacement :
+         {std::wstring_view(original), std::wstring_view(L"plain\nline\n**tail**\nend"), std::wstring_view(L"plain\nline\n**tall**\nend")})
+    {
+        // A different document prevents the unchanged-snapshot fast path.
+        Document candidate(replacement);
+        Require(candidate.Snapshot().ChangedRangeFrom(initial.Snapshot()).kind == SourceChangeKind::FullReplacement,
+                "whole-reference comparison fixture has independent source ancestry");
+        prepared.Prepare(factory.get(), candidate.Snapshot(), candidate.Revision(), ViewMode::Rich, options);
+        const bool unchanged = replacement == original;
+        Require(prepared.LastPreparation().wholeLayoutsReused == (unchanged ? 1u : 0u) &&
+                    prepared.LastPreparation().wholeLayoutsPrepared == (unchanged ? 0u : 1u),
+                "whole-reference reuse compares joined text and coalesced styles across physical blocks");
+        PreparedLayout flat;
+        flat.Prepare(factory.get(), Project(candidate.Snapshot(), candidate.Revision(), ViewMode::Rich), options);
+        CompareDocumentGeometry(prepared, flat);
+    }
+}
 void TestRichDocumentLayoutEditsAndFailurePublication()
 {
     const auto factory = DocumentFactory();
@@ -918,6 +946,7 @@ void RunRichDocumentLayoutTests()
         DXUI_RUN_TEST(TestRichDocumentLayoutRawLineOriginDiagnostics);
 
     DXUI_RUN_TEST(TestRichDocumentLayoutWholeGeometryOracle);
+    DXUI_RUN_TEST(TestRichDocumentLayoutWholeReferenceReuseAndStyleChanges);
     DXUI_RUN_TEST(TestRichDocumentLayoutEditsAndFailurePublication);
     DXUI_RUN_TEST(TestRichDocumentLayoutHeightChangesRepositionSuffix);
     DXUI_RUN_TEST(TestRichDocumentLayoutPrivateOriginsDoNotEnterProjection);

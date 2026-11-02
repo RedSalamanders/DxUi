@@ -1,0 +1,1 @@
+- Make SVG stream dependencies self-contained for static-library consumers and include the diagnostic declaration directly in the shared SVG test fixture.

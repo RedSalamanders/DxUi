@@ -381,8 +381,12 @@ void Control::SetBounds(const D2D1_RECT_F& bounds) noexcept
         const std::weak_ptr<int> lifetime = GetLifetimeToken();
         OnBoundsChanged();
         if (lifetime.expired())
-        {
             return;
+        if (ControlHost* const host = GetHost())
+        {
+            host->NotifyTextInputLayoutChanged(this);
+            if (lifetime.expired() || GetHost() != host)
+                return;
         }
         RequestInvalidate();
     }
@@ -573,6 +577,16 @@ bool Control::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool ri
     return OnMouseDown(host, point, rightButton, modifiers);
 }
 
+bool Control::OnMouseTripleClick(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)
+{
+    return OnMouseDown(host, point, rightButton, modifiers);
+}
+
+bool Control::OnMouseMiddleDown(ControlHost&, D2D1_POINT_2F, UINT)
+{
+    return false;
+}
+
 bool Control::OnMouseUp(ControlHost& /*host*/, D2D1_POINT_2F /*point*/, bool /*rightButton*/, UINT /*modifiers*/)
 {
     return false;
@@ -674,7 +688,12 @@ ControlHost* Control::GetHost() const noexcept
 
 void Control::SetMnemonic(wchar_t mnemonic) noexcept
 {
-    _mnemonic = NormalizeMnemonicChar(mnemonic);
+    const auto normalized = NormalizeMnemonicChar(mnemonic);
+    if (_mnemonic == normalized)
+        return;
+    _mnemonic = normalized;
+    RequestVisualContentPreparation(false);
+    RequestInvalidate(); // Scheduling may synchronously retire this control.
 }
 
 wchar_t Control::GetMnemonic() const noexcept
@@ -793,8 +812,11 @@ void Control::SetAccessibleName(std::wstring name)
 {
     if (_accessibleName != name)
     {
-        _accessibleName = std::move(name);
+        _accessibleName     = std::move(name);
+        const auto lifetime = GetLifetimeToken();
         RequestInvalidate();
+        if (lifetime.expired())
+            return;
         if (ControlHost* const host = GetHost())
         {
             RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
@@ -812,7 +834,10 @@ void Control::SetAccessibleHelpText(std::wstring helpText)
     if (_accessibleHelpText != helpText)
     {
         _accessibleHelpText = std::move(helpText);
+        const auto lifetime = GetLifetimeToken();
         RequestInvalidate();
+        if (lifetime.expired())
+            return;
         if (ControlHost* const host = GetHost())
         {
             RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
@@ -846,7 +871,10 @@ HRESULT Control::SetAccessibleFormProperties(Control* label, bool required, bool
             properties->itemStatus = std::move(itemStatus);
         }
         _accessibleFormProperties.swap(properties);
+        const auto lifetime = GetLifetimeToken();
         RequestInvalidate();
+        if (lifetime.expired())
+            return S_OK;
         if (ControlHost* const host = GetHost())
             RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
         return S_OK;
@@ -899,8 +927,11 @@ void Control::SetAccessibilityRole(AccessibilityRole role) noexcept
 {
     if (_accessibilityRole != role)
     {
-        _accessibilityRole = role;
+        _accessibilityRole  = role;
+        const auto lifetime = GetLifetimeToken();
         RequestInvalidate();
+        if (lifetime.expired())
+            return;
         if (ControlHost* const host = GetHost())
         {
             RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
@@ -1090,8 +1121,9 @@ void Control::InvalidateMeasure() noexcept
         ++control->_measureRevision;
         if (control->_intrinsicLayoutEnabled)
         {
-            control->_intrinsicLayoutPending = true;
-            hasLayoutOwner                   = true;
+            control->_intrinsicAllocationRetryUsed = false;
+            control->_intrinsicLayoutPending       = true;
+            hasLayoutOwner                         = true;
         }
     }
     // Geometry moves only when the next preparation arranges it, and SetBounds then advances the interaction revision.
@@ -1114,7 +1146,8 @@ void Control::RequestIntrinsicLayout() noexcept
 {
     if (_intrinsicLayoutEnabled)
     {
-        _intrinsicLayoutPending = true;
+        _intrinsicAllocationRetryUsed = false;
+        _intrinsicLayoutPending       = true;
         if (_host)
         {
             _host->_pendingIntrinsicLayout = true;
@@ -1197,6 +1230,9 @@ void Control::PropagateHost(ControlHost* host) noexcept
     }
     if (previousHost)
     {
+        previousHost->InvalidateRichTitleTooltip(this);
+        if (lifetime.expired() || _host != previousHost)
+            return;
         ++previousHost->_interactionRevision;
         previousHost->Invalidate();
         if (lifetime.expired() || _host != previousHost)
@@ -1303,8 +1339,10 @@ void Control::OnBoundsChanged() noexcept
 
 void Control::OnFlowDirectionChanged() noexcept
 {
-    InvalidateMeasure();
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    InvalidateMeasure();
+    if (lifetime.expired())
+        return;
     if (_host && _host->GetFocusControl() == this && SupportsTextInput())
     {
         _host->SyncTextInput(this);
@@ -1318,8 +1356,10 @@ void Control::OnFlowDirectionChanged() noexcept
 
 void Control::OnDensityChanged() noexcept
 {
-    InvalidateMeasure();
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    InvalidateMeasure();
+    if (lifetime.expired())
+        return;
     if (_host && _host->GetFocusControl() == this && SupportsTextInput())
     {
         _host->SyncTextInput(this);
@@ -1361,6 +1401,11 @@ void Control::OnCaptureLost(ControlHost& /*host*/)
 bool Control::SupportsTextInput() const noexcept
 {
     return false;
+}
+
+bool Control::AcceptsTypedText() const noexcept
+{
+    return SupportsTextInput();
 }
 
 std::optional<D2D1_RECT_F> Control::GetTextInputViewportRect() const noexcept

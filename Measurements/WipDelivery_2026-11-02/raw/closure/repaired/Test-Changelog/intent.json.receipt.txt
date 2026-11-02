@@ -1,0 +1,12 @@
+{
+  "source": "1043b532b9f6f9f37b799e5342bcf868113cf710",
+  "entry": "Tools/Test-Changelog.ps1",
+  "arguments": [
+    "-NoProfile",
+    "-File",
+    "\"Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\Tools\\Test-Changelog.ps1\"",
+    "-Base",
+    "origin/main"
+  ],
+  "startedUtc": "2026-11-02T11:32:52.0074674Z"
+}

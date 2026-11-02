@@ -1,0 +1,1 @@
+- Fixed cooperative Markdown autolink preparation, original delimiter-run matching, combined native-object admission and exact source ink for bare links and escaped math delimiters.

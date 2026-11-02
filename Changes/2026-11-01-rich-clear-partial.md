@@ -1,0 +1,1 @@
+- Extend clear-formatting to single-style partial selections and inline code through the source-exact style splitter; native qualification remains pending.

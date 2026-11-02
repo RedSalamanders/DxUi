@@ -1,0 +1,194 @@
+Visual Studio: C:\Program Files\Microsoft Visual Studio\18\Insiders
+MSVC toolset:  14.52.37025, the default MSBuild compiles with; vcpkg is pinned to 14.52
+Cloning pinned vcpkg tooling into E:\DxUi.Perf\delivery-consumers-20261102\c39468db5676\app space\deps\vcpkg-tool
+Selecting pinned vcpkg commit 9e593bb18ea69cc5095e012465dcd675a822ed0d
+Bootstrapping vcpkg...
+Downloading https://github.com/microsoft/vcpkg-tool/releases/download/2026-07-27/vcpkg.exe -> E:\DxUi.Perf\delivery-consumers-20261102\c39468db5676\app space\deps\vcpkg-tool\vcpkg.exe... done.
+Validating signature... done.
+
+vcpkg package management program version 2026-07-27-98d7cb0cf1f4686a3e43aa5672b6230c1d56bce8
+
+See LICENSE.txt for license information.
+Overlay triplet E:\DxUi.Perf\delivery-consumers-20261102\c39468db5676\app space\deps\vcpkg-triplets\x64\x64-windows.cmake written
+Installing DxUi dependencies (x64-windows)
+A suitable version of cmake was not found (required v4.4.0).
+Downloading https://github.com/Kitware/CMake/releases/download/v4.4.0/cmake-4.4.0-windows-x86_64.zip -> cmake-4.4.0-windows-x86_64.zip
+Successfully downloaded cmake-4.4.0-windows-x86_64.zip
+Extracting cmake...
+Detecting compiler hash for triplet x64-windows...
+Compiler found: C:/Program Files/Microsoft Visual Studio/18/Insiders/VC/Tools/MSVC/14.52.37025/bin/Hostx64/x64/cl.exe
+The following packages will be built and installed:
+  * vcpkg-cmake:x64-windows@2025-08-07
+  * vcpkg-cmake-config:x64-windows@2026-07-21
+    wil:x64-windows@1.0.260126.7
+Additional packages (*) will be modified to complete this operation.
+Restored 3 package(s) from C:\Users\eric\AppData\Local\vcpkg\archives in 42.2 ms. Use --debug to see more details.
+Installing 1/3 vcpkg-cmake-config:x64-windows@2026-07-21...
+vcpkg-cmake-config:x64-windows@2026-07-21 package ABI: 900f0fb2c8fed632b41945adaf534262b153394b3bf6bb76ccada87abdd62de4
+Elapsed time to handle vcpkg-cmake-config:x64-windows: 49.8 ms
+Installing 2/3 vcpkg-cmake:x64-windows@2025-08-07...
+vcpkg-cmake:x64-windows@2025-08-07 package ABI: ca8b24f60b5134b802d2f0ec5e03ede721f0c7297e2e22ee173adbaa80d6ea75
+Elapsed time to handle vcpkg-cmake:x64-windows: 45.3 ms
+Installing 3/3 wil:x64-windows@1.0.260126.7...
+wil:x64-windows@1.0.260126.7 package ABI: 4299883436df8a8beeb6ef32eb165022ff3a55d27f44a4dbb387fc25a417af8d
+Elapsed time to handle wil:x64-windows: 154 ms
+Installed contents are licensed to you by owners. Microsoft is not responsible for, nor does it grant any licenses to, third-party packages.
+Packages installed in this vcpkg installation declare the following licenses:
+MIT
+wil provides CMake targets:
+
+  # this is heuristically generated, and may not be correct
+  find_package(wil CONFIG REQUIRED)
+  target_link_libraries(main PRIVATE WIL::WIL)
+
+All requested installations completed successfully in: 254 ms
+vcpkg dependencies are ready.
+
+  compilation header save succeeded; see E:\DxUi.Perf\delivery-consumers-20261102\c39468db5676\app space\deps\Intermediate\x64\Release\DxUi\DxUiCompositeVS.h
+  compilation object save succeeded; see E:\DxUi.Perf\delivery-consumers-20261102\c39468db5676\app space\deps\Intermediate\x64\Release\DxUi\DxUiCompositeVS.cso
+  compilation header save succeeded; see E:\DxUi.Perf\delivery-consumers-20261102\c39468db5676\app space\deps\Intermediate\x64\Release\DxUi\DxUiCompositePS.h
+  compilation object save succeeded; see E:\DxUi.Perf\delivery-consumers-20261102\c39468db5676\app space\deps\Intermediate\x64\Release\DxUi\DxUiCompositePS.cso
+  DxUi.YamlMetadata.cpp
+  DxUi.MarkdownMetadata.cpp
+  DxUi.RichDocument.cpp
+  DxUi.RichMarkdownProjection.cpp
+  DxUi.RichSemantic.cpp
+  DxUi.RichTextCommands.cpp
+  DxUi.RichAccessibilityText.cpp
+  DxUi.RichSemanticDocument.cpp
+  DxUi.RichTextExport.cpp
+  DxUi.RichSemanticGeometry.cpp
+  DxUi.MarkdownSyntax.cpp
+  DxUi.NativeFlowchart.cpp
+  DxUi.NativeMath.cpp
+  DxUi.NativeFlowchartLayout.cpp
+  DxUi.PreparedFlowchart.cpp
+  DxUi.RichTextLayout.cpp
+  DxUi.RichDocumentLayout.cpp
+  DxUi.RichTextEditor.cpp
+  DxUi.RichImage.cpp
+  ControlCatalog.cpp
+  Compiling...
+  NativeMenuInterop.cpp
+  Embedded.cpp
+  FrameRuntime.cpp
+  DxUi.Accessibility.cpp
+  DxUi.ComboBox.cpp
+  DxUi.Controls.cpp
+  DxUi.Layout.cpp
+  DxUi.Forms.cpp
+  DxUi.EditorControls.cpp
+  DxUi.cpp
+  DxUi.Grid.cpp
+  DxUi.Menu.cpp
+  DxUi.NativeTextInput.cpp
+  DxUi.PointerInput.cpp
+  DxUi.Scrollbar.cpp
+  DxUi.SingleLineTextEditing.cpp
+  DxUi.TextInput.cpp
+  DxUi.TextStoreACP.cpp
+  TextInputServices.cpp
+  TextClipboard.cpp
+  Compiling...
+  DxUi.FileDrop.cpp
+  DxUi.Theme.cpp
+  DxUi.Tree.cpp
+  DxUi.Typeahead.cpp
+  DxUi.WindowHost.cpp
+  DxUi.TextElements.cpp
+  DxUi.vcxproj -> E:\DxUi.Perf\delivery-consumers-20261102\c39468db5676\app space\deps\x64\Release\DxUi.lib
+  DxUi pin verified: 9909da1065e297247cb490b970b2265a0e4d8b9e
+  Main.cpp
+  ConsumerApi.Tests.Revision4.cpp
+  DxUi.cpp
+  Typography.cpp
+  FocusRestore.cpp
+  PointerInput.cpp
+  AccessibilityTextUnits.cpp
+  NativeMenuInterop.cpp
+  FileDrop.cpp
+  RichDocument.cpp
+  RichMarkdown.cpp
+  RichTextLayout.cpp
+  MarkdownSyntax.cpp
+  RichSemantic.cpp
+  RichSemanticDocument.cpp
+  RichTextCommands.cpp
+  RichImage.cpp
+  RichMath.cpp
+  RichTextExport.cpp
+  Generating Code...
+  DxUi.lib(DxUi.RichImage.obj) : MSIL .netmodule or module compiled with /GL found; restarting link with /LTCG; add /LTCG to the link command line to improve linker performance
+  Generating code
+  Finished generating code
+  ExternalConsumer.vcxproj -> E:\DxUi.Perf\delivery-consumers-20261102\c39468db5676\app space\bin\ExternalConsumer.exe
+Rendered independent DxUi sample to E:\DxUi.Perf\delivery-consumers-20261102\c39468db5676\app space\public-consumer.png
+Rendered independent DxUi sample to E:\DxUi.Perf\delivery-consumers-20261102\c39468db5676\app space\complex-consumer.png
+Rendered independent DxUi sample to E:\DxUi.Perf\delivery-consumers-20261102\c39468db5676\app space\text-consumer.png
+Rendered independent DxUi sample to E:\DxUi.Perf\delivery-consumers-20261102\c39468db5676\app space\rich-text-consumer.png
+
+  DxUi.vcxproj -> E:\DxUi.Perf\delivery-consumers-20261102\c39468db5676\app space\deps\x64\Release\DxUi.lib
+  DxUi pin verified: 9909da1065e297247cb490b970b2265a0e4d8b9e
+  ConsumerModules.Tests.NativeModule.cpp
+  DxUi.lib(DxUi.Menu.obj) : MSIL .netmodule or module compiled with /GL found; restarting link with /LTCG; add /LTCG to the link command line to improve linker performance
+     Creating library E:\DxUi.Perf\delivery-consumers-20261102\c39468db5676\app space\bin\NativeModuleA.lib and object E:\DxUi.Perf\delivery-consumers-20261102\c39468db5676\app space\bin\NativeModuleA.exp
+  Generating code
+  Finished generating code
+  NativeModuleA.vcxproj -> E:\DxUi.Perf\delivery-consumers-20261102\c39468db5676\app space\bin\NativeModuleA.dll
+
+  DxUi.vcxproj -> E:\DxUi.Perf\delivery-consumers-20261102\c39468db5676\app space\deps\x64\Release\DxUi.lib
+  DxUi pin verified: 9909da1065e297247cb490b970b2265a0e4d8b9e
+  ConsumerModules.Tests.NativeModule.cpp
+  DxUi.lib(DxUi.Menu.obj) : MSIL .netmodule or module compiled with /GL found; restarting link with /LTCG; add /LTCG to the link command line to improve linker performance
+     Creating library E:\DxUi.Perf\delivery-consumers-20261102\c39468db5676\app space\bin\NativeModuleB.lib and object E:\DxUi.Perf\delivery-consumers-20261102\c39468db5676\app space\bin\NativeModuleB.exp
+  Generating code
+  Finished generating code
+  NativeModuleB.vcxproj -> E:\DxUi.Perf\delivery-consumers-20261102\c39468db5676\app space\bin\NativeModuleB.dll
+
+  DxUi.vcxproj -> E:\DxUi.Perf\delivery-consumers-20261102\c39468db5676\app space\deps\x64\Release\DxUi.lib
+  DxUi pin verified: 9909da1065e297247cb490b970b2265a0e4d8b9e
+  ConsumerModules.Tests.NativeModule.cpp
+  ConsumerModules.Tests.Driver.cpp
+  Generating Code...
+  DxUi.lib(DxUi.Menu.obj) : MSIL .netmodule or module compiled with /GL found; restarting link with /LTCG; add /LTCG to the link command line to improve linker performance
+     Creating library E:\DxUi.Perf\delivery-consumers-20261102\c39468db5676\app space\bin\NativeModuleDriver.lib and object E:\DxUi.Perf\delivery-consumers-20261102\c39468db5676\app space\bin\NativeModuleDriver.exp
+  Generating code
+  Finished generating code
+  NativeModuleDriver.vcxproj -> E:\DxUi.Perf\delivery-consumers-20261102\c39468db5676\app space\bin\NativeModuleDriver.exe
+module=00007FF6154C0000 animation=1 dispatcher=1 popup=1 invoked=1 ticks=1
+module=00007FFF9C840000 animation=1 dispatcher=1 popup=1 invoked=1 ticks=1
+module=00007FFF9C220000 animation=1 dispatcher=1 popup=1 invoked=1 ticks=1
+module=00007FF6154C0000 animation=1 dispatcher=1 popup=1 invoked=1 ticks=1
+module=00007FFF9C840000 animation=1 dispatcher=1 popup=1 invoked=1 ticks=1
+module=00007FFF9C220000 animation=1 dispatcher=1 popup=1 invoked=1 ticks=1
+module=00007FF6154C0000 animation=1 dispatcher=1 popup=1 invoked=1 ticks=1
+module=00007FFF9C840000 animation=1 dispatcher=1 popup=1 invoked=1 ticks=1
+module=00007FFF9C220000 animation=1 dispatcher=1 popup=1 invoked=1 ticks=1
+module=00007FF6154C0000 animation=1 dispatcher=1 popup=1 invoked=1 ticks=1
+module=00007FFF9C840000 animation=1 dispatcher=1 popup=1 invoked=1 ticks=1
+module=00007FFF9C220000 animation=1 dispatcher=1 popup=1 invoked=1 ticks=1
+DXUI_NATIVE_MODULE_PROBES executed=12 passed=12
+[DXUI_CONSUMER_PHASE] phase=Pin-wrong-revision state=BEGIN
+[DXUI_CONSUMER_PHASE] phase=Pin-wrong-revision state=passed elapsedMs=3982.191
+[DXUI_CONSUMER_PHASE] phase=Pin-wrong-api state=BEGIN
+[DXUI_CONSUMER_PHASE] phase=Pin-wrong-api state=passed elapsedMs=1685.725
+[DXUI_CONSUMER_PHASE] phase=Pin-wrong-target state=BEGIN
+[DXUI_CONSUMER_PHASE] phase=Pin-wrong-target state=passed elapsedMs=1553.226
+[DXUI_CONSUMER_PHASE] phase=Pin-tracked-dirty state=BEGIN
+[DXUI_CONSUMER_PHASE] phase=Pin-tracked-dirty state=passed elapsedMs=1771.275
+[DXUI_CONSUMER_PHASE] phase=Pin-untracked-dirty state=BEGIN
+[DXUI_CONSUMER_PHASE] phase=Pin-untracked-dirty state=passed elapsedMs=1539.477
+[DXUI_CONSUMER_PHASE] phase=CleanPin state=BEGIN
+DxUi pin verified: 9909da1065e297247cb490b970b2265a0e4d8b9e
+[DXUI_CONSUMER_PHASE] phase=CleanPin state=passed elapsedMs=2013.515
+[DXUI_CONSUMER_PHASE] phase=DxUiConsumerToolset state=BEGIN
+[DXUI_CONSUMER_PHASE] phase=DxUiConsumerToolset state=passed elapsedMs=1478.365
+[DXUI_CONSUMER_PHASE] phase=DxUiConsumerVCToolsVersion state=BEGIN
+[DXUI_CONSUMER_PHASE] phase=DxUiConsumerVCToolsVersion state=passed elapsedMs=1389.319
+[DXUI_CONSUMER_PHASE] phase=DxUiConsumerSdkVersion state=BEGIN
+[DXUI_CONSUMER_PHASE] phase=DxUiConsumerSdkVersion state=passed elapsedMs=1412.415
+[DXUI_CONSUMER_PHASE] phase=DxUiConsumerPreferredToolArchitecture state=BEGIN
+[DXUI_CONSUMER_PHASE] phase=DxUiConsumerPreferredToolArchitecture state=passed elapsedMs=1373.903
+[DXUI_CONSUMER_PHASE] phase=DxUiDisableStlAnnotations state=BEGIN
+[DXUI_CONSUMER_PHASE] phase=DxUiDisableStlAnnotations state=passed elapsedMs=1394.234
+PASS relocated exact-pin consumer, rendering and 10 rejected pin/build mismatches: E:\DxUi.Perf\delivery-consumers-20261102\c39468db5676

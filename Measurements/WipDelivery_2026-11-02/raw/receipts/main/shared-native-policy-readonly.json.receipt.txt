@@ -1,0 +1,37 @@
+[
+  {
+    "root": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101",
+    "source": "9909da1065e297247cb490b970b2265a0e4d8b9e",
+    "policySha256": "A0DFBAC695D76433C98F63A6830AEF18618B8F2291AFE3BD559AF812F58E0149",
+    "repository": "DxUi",
+    "trackedDirty": []
+  },
+  {
+    "root": "Z:/src/RedSalamander",
+    "source": "7e7c4e8c68f5b02de7592aeb0e52f6607ce2be81",
+    "policySha256": "A0DFBAC695D76433C98F63A6830AEF18618B8F2291AFE3BD559AF812F58E0149",
+    "repository": "RedSalamander",
+    "trackedDirty": []
+  },
+  {
+    "root": "Z:/src/RedPrism",
+    "source": "1b0132dbf4cd37e9a5b7da7ccacb2f10e8b0a449",
+    "policySha256": "A0DFBAC695D76433C98F63A6830AEF18618B8F2291AFE3BD559AF812F58E0149",
+    "repository": "RedPrism",
+    "trackedDirty": []
+  },
+  {
+    "root": "Z:/src/RedTilde",
+    "source": "45651052e5868312a1908aabd4a93665abab97c5",
+    "policySha256": "A0DFBAC695D76433C98F63A6830AEF18618B8F2291AFE3BD559AF812F58E0149",
+    "repository": "RedTilde",
+    "trackedDirty": []
+  },
+  {
+    "root": "Z:/src/RedXe",
+    "source": "305e9447a3c058f7e75850e217bb906b77848f8b",
+    "policySha256": "A0DFBAC695D76433C98F63A6830AEF18618B8F2291AFE3BD559AF812F58E0149",
+    "repository": "RedXe",
+    "trackedDirty": []
+  }
+]

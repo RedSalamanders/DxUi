@@ -1,0 +1,36 @@
+{
+  "candidate": "9909da1065e297247cb490b970b2265a0e4d8b9e",
+  "review": "The full feature set increases the sample image by1.566208MB (+77.54%). This is material packaging cost, not measured application working set or a compiler speed claim. Retain all requested features; optional modular linkage is a future optimization rather than silently removing behavior.",
+  "files": [
+    {
+      "candidateBytes": 236095678,
+      "baselineBytes": 189760522,
+      "baselineSha256": "461D45AF8ADA65534F0DECC1938C1E24996B4E5F52046386CC193CD308BDCED8",
+      "name": "DxUi.lib",
+      "changeBytes": 46335156,
+      "changePercent": 24.41770053731197,
+      "candidateSha256": "499B075FC934335261E86003D95BE6EEC5D5AA5524E7A26AD889D9E6D64A6406"
+    },
+    {
+      "candidateBytes": 3586048,
+      "baselineBytes": 2019840,
+      "baselineSha256": "33E49C3186B8DC3ED77A7362B1A86D9C5F7307BD049C4EFF82300804AD1C16EF",
+      "name": "DxUi.EmbeddedControls.exe",
+      "changeBytes": 1566208,
+      "changePercent": 77.54119138149557,
+      "candidateSha256": "9A64DAFBBE32516FEB5E7C0319CC9593ADAA5A74A4E4F27C2FE8AE0271F623DF"
+    },
+    {
+      "candidateBytes": 6939136,
+      "baselineBytes": 4669952,
+      "baselineSha256": "8C2D40B0D318BC19E8B1809B008B6FB619EEA9B00096C8A8CE0058A0CEF4B009",
+      "name": "DxUi.EmbeddedTests.exe",
+      "changeBytes": 2269184,
+      "changePercent": 48.59116324964368,
+      "candidateSha256": "123E72C314A051552456D942E43EB4ECCBFD93F52B041A7D8D1AD9FB4FD2B9DC"
+    }
+  ],
+  "baseline": "4423074dee2410acb28e62b41072e6c561a79eb8",
+  "scope": "Both MSVC14.52; complete feature batch, not a compiler upgrade. EmbeddedControls is sample image; EmbeddedTests is test-only; lib contains LTCG IR.",
+  "baselineSource": "Retained unchanged baseline identities from release-sizes R25 and original442 verification; later preconditioning does not rewrite them"
+}

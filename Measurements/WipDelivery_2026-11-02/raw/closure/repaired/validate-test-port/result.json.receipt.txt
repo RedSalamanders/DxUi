@@ -1,0 +1,8 @@
+{
+  "source": "1043b532b9f6f9f37b799e5342bcf868113cf710",
+  "entry": "validate-test-port.ps1",
+  "exitCode": 0,
+  "pid": 44072,
+  "creationUtc": "2026-11-02T11:32:51.9666593Z",
+  "completedUtc": "2026-11-02T11:33:02.1631001Z"
+}

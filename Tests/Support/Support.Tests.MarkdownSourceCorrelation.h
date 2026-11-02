@@ -2,6 +2,7 @@
 #include "Controls/DxUi.MarkdownSourceCorrelation.h"
 #include <DxUi/MarkdownSyntax.h>
 #include <algorithm>
+#include <format>
 #include <string_view>
 
 namespace MarkdownSourceCorrelationTests
@@ -161,5 +162,191 @@ template <typename Check> inline void ParserIdentities(Check&& check)
         check(tracked.Published()->Source() == L"new" && manySyntax->Source() == many,
               "bounded replacement publishes exact new source and preserves the held large tree");
     }
+}
+template <typename Check> inline void LexicalEdits(Check&& check)
+{
+    std::wstring source;
+    for (unsigned line = 0u; line < 120u; ++line)
+        source += L"paragraph &amp; escaped\\* and &#x41;\r\n\r\n";
+    Document document(source);
+    MarkdownParser incremental;
+    incremental.Begin(document.Snapshot(), document.Revision(), MarkdownProfile::RichMarkdown);
+    Complete(incremental, check);
+    const std::wstring inserts[] = {L"&copy;", L"\\*", L"\r\n", std::wstring(L"\0", 1u), L"\U0001f600", L"&not-a-reference"};
+    for (const auto& value : inserts)
+    {
+        auto position = document.Length() / 2u;
+        while (! document.Snapshot().IsBoundary(position))
+            ++position;
+        document.Replace(position, position, value, {position + value.size(), position + value.size()});
+        incremental.Begin(document.Snapshot(), document.Revision(), MarkdownProfile::RichMarkdown);
+        const auto reused = Complete(incremental, check);
+        MarkdownParser fresh;
+        fresh.Begin(document.Snapshot(), document.Revision(), MarkdownProfile::RichMarkdown);
+        const auto expected = Complete(fresh, check);
+        check(reused && expected && reused->Source() == expected->Source() && reused->Lexemes().size() == expected->Lexemes().size(),
+              "tracked lexical edits preserve the complete fresh-parser partition");
+        check(reused->BlockStatistics().reusedClosedRoots > 0u && reused->Nodes().size() == expected->Nodes().size() &&
+                  reused->EmptyLines().size() == expected->EmptyLines().size(),
+              "separated closed root paragraphs are reused while retaining fresh-parser tree sizes");
+        for (std::size_t node = 0u; node < reused->Nodes().size(); ++node)
+        {
+            const auto& a = reused->Nodes()[node];
+            const auto& b = expected->Nodes()[node];
+            check(a.block.kind == b.block.kind && a.block.source == b.block.source && a.block.content == b.block.content && a.parent == b.parent &&
+                      a.firstChild == b.firstChild && a.nextSibling == b.nextSibling && a.firstInline == b.firstInline && a.lines.size() == b.lines.size(),
+                  "reused root nodes match fresh block structure and source ownership");
+            for (std::size_t line = 0u; line < a.lines.size(); ++line)
+                check(a.lines[line].source == b.lines[line].source && a.lines[line].leadingSpaces == b.lines[line].leadingSpaces,
+                      "reused root lines match fresh source mappings");
+        }
+        for (std::size_t index = 0u; index < reused->Lexemes().size(); ++index)
+        {
+            const auto& left  = reused->Lexemes()[index];
+            const auto& right = expected->Lexemes()[index];
+            check(left.kind == right.kind && left.source == right.source && left.valueLength == right.valueLength &&
+                      reused->LexemeValue(index) == expected->LexemeValue(index),
+                  "incremental lexical tokens match fresh source ranges and normalized values");
+        }
+    }
+}
+template <typename Check> inline void ClosedRootDifferential(Check&& check)
+{
+    struct Case
+    {
+        std::wstring_view source;
+        MarkdownBlockKind kind;
+        bool suffix;
+        bool expectReuse;
+    };
+    const Case cases[] = {
+        {L"paragraph *text*\n", MarkdownBlockKind::Paragraph, true, true},
+        {L"paragraph [label][missing] with reference\r\n", MarkdownBlockKind::Paragraph, true, true},
+        {L"```cpp\nopen\n", MarkdownBlockKind::FencedCode, true, false},
+        {L"# heading **bold**\n", MarkdownBlockKind::AtxHeading, true, true},
+        {L"heading\n===\n", MarkdownBlockKind::SetextHeading, true, true},
+        {L"***\n", MarkdownBlockKind::ThematicBreak, true, true},
+        {L"```cpp\none\ntwo\n```\n", MarkdownBlockKind::FencedCode, true, true},
+        {L"    one\n    two\n", MarkdownBlockKind::IndentedCode, true, true},
+        {L"<div>\none\n</div>\n", MarkdownBlockKind::HtmlBlock, true, true},
+        {L"> one\n> - nested\n>   text\n", MarkdownBlockKind::BlockQuote, true, true},
+        {L"- one\n  - nested\n\n  tail\n- two\n", MarkdownBlockKind::List, true, true},
+        {L"| a | b |\n| - | - |\n| c | d |\n", MarkdownBlockKind::Table, true, true},
+        {L"[^note]: first\n    continuation\n", MarkdownBlockKind::FootnoteDefinition, true, true},
+        {L"[key]: /target \"title\"\n", MarkdownBlockKind::ReferenceDefinition, true, false},
+        {L"---\nname: value\n---\n", MarkdownBlockKind::FrontMatter, false, true},
+    };
+    const auto equal = [&](const MarkdownSyntax& a, const MarkdownSyntax& b)
+    {
+        check(a.Source() == b.Source() && a.Nodes().size() == b.Nodes().size() && a.Blocks().size() == b.Blocks().size() &&
+                  a.EmptyLines().size() == b.EmptyLines().size() && a.Inlines().size() == b.Inlines().size() && a.Lexemes().size() == b.Lexemes().size() &&
+                  a.Diagnostics().size() == b.Diagnostics().size() && a.Footnotes().size() == b.Footnotes().size() &&
+                  a.FootnoteReferences().size() == b.FootnoteReferences().size(),
+              "incremental closed roots match fresh publication sizes");
+        const auto equalBlock = [](const auto& x, const auto& y)
+        {
+            return x.kind == y.kind && x.source == y.source && x.content == y.content && x.info == y.info && x.heading == y.heading &&
+                   x.fenceIndent == y.fenceIndent && x.fenceMarker == y.fenceMarker && x.fenceLength == y.fenceLength && x.closed == y.closed;
+        };
+        for (size_t i = 0u; i < a.Blocks().size(); ++i)
+            check(equalBlock(a.Blocks()[i], b.Blocks()[i]), "incremental root block metadata matches fresh parse");
+        for (size_t i = 0u; i < a.Nodes().size(); ++i)
+        {
+            const auto& x = a.Nodes()[i];
+            const auto& y = b.Nodes()[i];
+            check(equalBlock(x.block, y.block) && x.identity == y.identity && x.parent == y.parent && x.firstChild == y.firstChild &&
+                      x.nextSibling == y.nextSibling && x.firstInline == y.firstInline && x.label == y.label && x.destination == y.destination &&
+                      x.title == y.title && x.listStart == y.listStart && x.contentIndent == y.contentIndent && x.htmlType == y.htmlType &&
+                      x.listMarker == y.listMarker && x.tight == y.tight && x.alignment == y.alignment && x.task == y.task && x.tableHeader == y.tableHeader &&
+                      x.frontMatterKind == y.frontMatterKind && x.lines.size() == y.lines.size(),
+                  "incremental subtree metadata, links and reconciled identities match fresh parse");
+            for (size_t line = 0u; line < x.lines.size(); ++line)
+                check(x.lines[line].source == y.lines[line].source && x.lines[line].leadingSpaces == y.lines[line].leadingSpaces,
+                      "incremental descendant lines retain exact source and virtual indentation");
+        }
+        for (size_t i = 0u; i < a.EmptyLines().size(); ++i)
+        {
+            const auto& x = a.EmptyLines()[i];
+            const auto& y = b.EmptyLines()[i];
+            check(x.source == y.source && x.insertion == y.insertion && x.owner == y.owner && x.indent == y.indent,
+                  "incremental empty-line ownership matches fresh parse");
+        }
+        for (size_t i = 0u; i < a.Inlines().size(); ++i)
+        {
+            const auto& x = a.Inlines()[i];
+            const auto& y = b.Inlines()[i];
+            check(x.kind == y.kind && x.source == y.source && x.firstChild == y.firstChild && x.nextSibling == y.nextSibling && x.value == y.value &&
+                      x.destination == y.destination && x.title == y.title && x.filteredHtmlOpeners == y.filteredHtmlOpeners,
+                  "incremental inline and reference resolutions match fresh parse");
+        }
+        for (size_t i = 0u; i < a.Lexemes().size(); ++i)
+            check(a.Lexemes()[i].kind == b.Lexemes()[i].kind && a.Lexemes()[i].source == b.Lexemes()[i].source && a.LexemeValue(i) == b.LexemeValue(i),
+                  "incremental lexical partition matches fresh parse");
+        for (size_t i = 0u; i < a.Diagnostics().size(); ++i)
+            check(a.Diagnostics()[i].code == b.Diagnostics()[i].code && a.Diagnostics()[i].source == b.Diagnostics()[i].source &&
+                      a.Diagnostics()[i].node == b.Diagnostics()[i].node,
+                  "incremental diagnostics match fresh parse");
+        for (size_t i = 0u; i < a.Footnotes().size(); ++i)
+            check(a.Footnotes()[i].label == b.Footnotes()[i].label && a.Footnotes()[i].definition == b.Footnotes()[i].definition &&
+                      a.Footnotes()[i].ordinal == b.Footnotes()[i].ordinal && a.Footnotes()[i].references == b.Footnotes()[i].references,
+                  "incremental footnote definitions and occurrence order match fresh parse");
+        for (size_t i = 0u; i < a.FootnoteReferences().size(); ++i)
+            check(a.FootnoteReferences()[i].inlineNode == b.FootnoteReferences()[i].inlineNode &&
+                      a.FootnoteReferences()[i].footnote == b.FootnoteReferences()[i].footnote &&
+                      a.FootnoteReferences()[i].occurrence == b.FootnoteReferences()[i].occurrence,
+                  "incremental footnote references match fresh parse");
+    };
+    for (const auto& item : cases)
+        for (const bool suffix : {false, true})
+        {
+            if (suffix && ! item.suffix)
+                continue;
+            const auto source = suffix ? std::wstring(L"TARGET\n\n") + std::wstring(item.source) + L"\n" : std::wstring(item.source) + L"\nTARGET\n";
+            Document document(source);
+            MarkdownParser tracked, full;
+            tracked.Begin(document.Snapshot(), document.Revision(), MarkdownProfile::RichMarkdown);
+            full.Begin(document.Text(), document.Revision(), MarkdownProfile::RichMarkdown);
+            const auto old = Complete(tracked, check);
+            static_cast<void>(Complete(full, check));
+            check(std::ranges::any_of(old->Nodes(), [&](const auto& node) { return node.parent == 0u && node.block.kind == item.kind; }),
+                  "closed-root fixture contains its intended root kind");
+            const auto at = source.find(L"TARGET");
+            document.Replace(at, at + 6u, L"TARGET!", {at + 7u, at + 7u});
+            tracked.Begin(document.Snapshot(), document.Revision(), MarkdownProfile::RichMarkdown);
+            full.Begin(document.Text(), document.Revision(), MarkdownProfile::RichMarkdown);
+            const auto changed  = Complete(tracked, check);
+            const auto expected = Complete(full, check);
+            equal(*changed, *expected);
+            const auto description = std::format("closed root kind {} suffix {} should reuse", static_cast<unsigned>(item.kind), suffix);
+            if (item.expectReuse &&
+                ((item.kind != MarkdownBlockKind::IndentedCode && item.kind != MarkdownBlockKind::List && item.kind != MarkdownBlockKind::FootnoteDefinition) ||
+                 suffix))
+                check(changed->BlockStatistics().reusedClosedRoots > 0u, description.c_str());
+            else
+                check(changed->BlockStatistics().reusedClosedRoots == 0u, "unproven closure and reference-definition roots retain safe full parsing");
+        }
+}
+template <typename Check> inline void ClosedRootCancellation(Check&& check)
+{
+    const std::wstring source = L"TARGET\n\n- alpha\n  - beta\n    - gamma\n\n  tail\n";
+    Document document(source);
+    MarkdownParser parser;
+    parser.Begin(document.Snapshot(), document.Revision(), MarkdownProfile::RichMarkdown);
+    const auto published = Complete(parser, check);
+    const auto at        = source.find(L"TARGET");
+    document.Replace(at, at + 6u, L"TARGET!", {at + 7u, at + 7u});
+    parser.Begin(document.Snapshot(), document.Revision(), MarkdownProfile::RichMarkdown);
+    for (unsigned turn = 0u; turn < 20u; ++turn)
+    {
+        const auto advance = parser.Advance(1u);
+        check(advance.workUnits == 1u && parser.Published() == published && published->Source() == source,
+              "incremental subtree preparation is budgeted and retains prior publication");
+    }
+    parser.Cancel();
+    check(parser.Published() == published && published->Source() == source, "cancelling subtree preparation retains the published tree");
+    parser.Begin(document.Snapshot(), document.Revision(), MarkdownProfile::RichMarkdown);
+    const auto recovered = Complete(parser, check);
+    check(recovered && recovered->Source() == document.Text() && recovered->BlockStatistics().reusedClosedRoots > 0u,
+          "cancelled subtree preparation retries and reuses the unchanged subtree");
 }
 } // namespace MarkdownSourceCorrelationTests

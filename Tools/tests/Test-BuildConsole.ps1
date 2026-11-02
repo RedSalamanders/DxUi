@@ -18,8 +18,28 @@ function Refuses([scriptblock]$Body,[string]$Pattern){
     Require $failed "Expected refusal: $Pattern"
 }
 $clean=Join-Path $ScratchRoot 'clean.log'
-[IO.File]::WriteAllText($clean,'Build succeeded. 0 Warning(s) 0 Error(s)')
+[IO.File]::WriteAllText($clean,"Build succeeded.`n`n    0 Warning(s)`n    0 Error(s)`n`nTime Elapsed 00:00:01.00`n")
 Assert-NativeBuildDiagnostics -LogPath $clean
+foreach($incomplete in @('', 'Build succeeded.', '0 Warning(s) 0 Error(s)', 'Build succeeded. 0 Warning(s)', 'Build FAILED. 0 Warning(s) 0 Error(s)', 'Build succeeded. 1 Warning(s) 0 Error(s)')){
+    $partial=Join-Path $ScratchRoot 'incomplete.log'
+    [IO.File]::WriteAllText($partial,$incomplete)
+    Refuses {Assert-NativeBuildDiagnostics -LogPath $partial} 'Zero-warning'
+}
+foreach($imposter in @(
+    "message Build succeeded.`n0 Warning(s)`n0 Error(s)`nTime Elapsed 00:00:01.00",
+    "Build succeeded.`ntext 0 Warning(s)`n0 Error(s)`nTime Elapsed 00:00:01.00",
+    "Build succeeded.`n0 Error(s)`n0 Warning(s)`nTime Elapsed 00:00:01.00",
+    "Build succeeded.`n0 Warning(s)`n0 Error(s)",
+    "Build succeeded.`n0 Warning(s)`n0 Error(s)`nTime Elapsed 00:00:01.00`nBuild FAILED."
+)){
+    [IO.File]::WriteAllText($clean,$imposter)
+    Refuses {Assert-NativeBuildDiagnostics -LogPath $clean} 'Zero-warning'
+}
+[IO.File]::WriteAllText($clean,"Build succeeded.`n`n    0 Warning(s)`n    0 Error(s)`n`nTime Elapsed 00:00:01.00`n")
+$long=Join-Path $ScratchRoot 'long.log'
+[IO.File]::WriteAllText($long,('a' * 250000))
+try { Require ((Get-NativeBuildDiagnostics -LogPath $long).WarningCount -eq 0) 'Long ordinary output was classified as a warning.' }
+catch [System.Text.RegularExpressions.RegexMatchTimeoutException] { Write-Host 'Bounded matcher rejected oversized input on this runtime.' }
 foreach($diagnostic in @(
     'source.cpp(4): warning C4100: unused parameter',
     '2>C:\work\source.cpp(4): warning C4365: sign conversion',

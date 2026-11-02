@@ -1,0 +1,8 @@
+{
+  "source": "a8cb8e1d7a4106750b195e6e8f2f686d66be9075",
+  "platform": "ARM64",
+  "configuration": "Release",
+  "acceptedBuild": true,
+  "buildExit": 0,
+  "error": null
+}

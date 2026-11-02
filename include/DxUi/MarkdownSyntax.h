@@ -16,13 +16,22 @@ enum class MarkdownProfile
 };
 enum class MarkdownExtensions : unsigned
 {
-    None          = 0u,
-    Tables        = 1u,
-    TaskLists     = 2u,
-    Strikethrough = 4u,
-    Autolinks     = 8u,
-    TagFilter     = 16u,
-    All           = 31u
+    None             = 0u,
+    Tables           = 1u,
+    TaskLists        = 2u,
+    Strikethrough    = 4u,
+    Autolinks        = 8u,
+    TagFilter        = 16u,
+    All              = 31u,
+    Highlight        = 32u,
+    Superscript      = 64u,
+    Subscript        = 128u,
+    Inserted         = 256u,
+    WikiLinks        = 512u,
+    RichAll          = 1023u,
+    DefinitionLists  = 1024u,
+    Abbreviations    = 2048u,
+    RichOptionalMask = 4095u
 };
 constexpr MarkdownExtensions operator|(MarkdownExtensions a, MarkdownExtensions b) noexcept
 {
@@ -99,10 +108,18 @@ enum class MarkdownDiagnosticCode
 {
     UnclosedFrontMatter,
     DuplicateFootnoteDefinition,
-    UndefinedFootnote
+    UndefinedFootnote,
+    InvalidTomlFrontMatter,
+    TomlFrontMatterCapacity,
+    InvalidYamlFrontMatter,
+    DuplicateYamlKey,
+    UnresolvedYamlAlias,
+    YamlFrontMatterCapacity
 };
 // Diagnostics name exact raw source ranges in this immutable publication.
-// They do not change source, imply metadata validity, or carry SDK/UI objects.
+// They do not change source or carry SDK/UI objects. Closed metadata envelopes
+// are validated within documented admission limits; capacity is distinct from
+// invalid content.
 struct MarkdownDiagnostic
 {
     MarkdownDiagnosticCode code{};
@@ -122,7 +139,12 @@ enum class MarkdownInlineKind
     Image,
     Html,
     FootnoteReference,
-    Math
+    Math,
+    SourceEditor,
+    Highlight,
+    Superscript,
+    Subscript,
+    Inserted
 };
 // Resolved inline values, with original spelling retained in Source(). Indices
 // are revision-local. source encloses delimiters and any stripped line prefixes;
@@ -141,6 +163,7 @@ struct MarkdownInline
     // UTF-16 offsets in an opaque Html value whose '<' is filtered by GFM.
     // This is the tagfilter extension, not an HTML sanitizer or execution API.
     std::vector<std::size_t> filteredHtmlOpeners;
+    bool wiki = false; // Destination is an unresolved application-owned wiki target.
 };
 // Optional extension metadata does not enlarge every ordinary inline node.
 struct MarkdownFootnoteReference
@@ -203,12 +226,31 @@ struct MarkdownBlockStatistics
 {
     // Prefix metadata/cursor visits and container closure visits. These are
     // deterministic diagnostic counters, not elapsed-time or total CPU bounds.
-    std::size_t prefixInspectionUnits{}, containerFinalizations{};
+    std::size_t prefixInspectionUnits{}, containerFinalizations{}, reusedClosedRoots{};
+};
+struct MarkdownInlineStatistics
+{
+    // Deterministic autolink indexing/candidate visits and suffix decoding.
+    // These are algorithm diagnostics, not allocator or elapsed-time limits.
+    std::size_t autolinkInspectionUnits{}, autolinkDecodedUnits{}, wikiInspectionUnits{};
+};
+enum class MarkdownSourceRegionKind
+{
+    Block,
+    Inline
+};
+enum class MarkdownInlineSourceKind
+{
+    Math,
+    Link,
+    Image
 };
 struct MarkdownSourceRegion
 {
     MarkdownRange source;
     std::uint64_t session{};
+    MarkdownSourceRegionKind kind                      = MarkdownSourceRegionKind::Block;
+    MarkdownInlineSourceKind inlineKind                = MarkdownInlineSourceKind::Math;
     bool operator==(const MarkdownSourceRegion&) const = default;
 };
 // Context-free lexical candidates. Inline precedence (code, HTML, links,
@@ -254,6 +296,7 @@ public:
     std::span<const MarkdownEmptyLine> EmptyLines() const noexcept;
     std::uint64_t DocumentIdentity() const noexcept;
     MarkdownBlockStatistics BlockStatistics() const noexcept;
+    MarkdownInlineStatistics InlineStatistics() const noexcept;
     // A hinted syntax is an editing presentation, not a canonical grammar
     // result. The effective envelope expands to complete physical lines.
     std::optional<MarkdownSourceRegion> SourceRegion() const noexcept;
@@ -298,6 +341,7 @@ private:
     std::vector<MarkdownFootnoteReference> footnoteReferences_;
     std::uint64_t documentIdentity_{};
     MarkdownBlockStatistics blockStatistics_;
+    MarkdownInlineStatistics inlineStatistics_;
     std::optional<MarkdownSourceRegion> sourceRegionRequest_;
     // A borrowed parse wrapper owns no AST/string data. Its sole owner is an
     // original parsed result, never another wrapper; revision and document

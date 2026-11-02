@@ -1,0 +1,1 @@
+- Share physical-line selection admission for paragraph and hard-break commands with state queries; remaining site predicates and native qualification remain pending.

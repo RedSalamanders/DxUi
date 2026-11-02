@@ -1,0 +1,1 @@
+- Preserve prepared rich-text command state across an unchanged text-service composition while keeping changed imports invalidating it.

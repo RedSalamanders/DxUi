@@ -1,6 +1,7 @@
 #include "Controls.Tests.RichTextEditor.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "Controls.Tests.RichMarkdown.h"
+#include "Controls/DxUi.RichEditorLayout.h"
 #include "Controls/TextClipboard.h"
 #include "Support.Tests.ClipboardFixture.h"
 #include "Support.Tests.Footnotes.h"
@@ -38,6 +39,7 @@ public:
     std::wstring text;
     bool busy = false;
     std::function<void()> afterRead;
+    std::function<void()> afterWrite;
     HRESULT Read(HWND, std::wstring& out) noexcept override
     {
         if (busy)
@@ -61,6 +63,8 @@ public:
         try
         {
             text = value;
+            if (auto callback = std::exchange(afterWrite, {}))
+                callback();
             return S_OK;
         }
         catch (const std::bad_alloc&)
@@ -144,6 +148,24 @@ void TestRichTextEditorUnicodeCharacterTransactions()
     editor.SetReadOnly(false);
     static_cast<void>(editor.OnChar(host, wchar_t(0xde00), 0));
     Require(editor.GetText() == L"\r\n" && IsValidUtf16(editor.GetText()), "mode transition retires pending scalar");
+}
+
+void TestRichTextEditorEnterPreservesDocumentLineEndings()
+{
+    ControlHost host;
+    for (const auto ending : {std::wstring_view(L"\n"), std::wstring_view(L"\r"), std::wstring_view(L"\r\n")})
+        for (const auto mode : {ViewMode::Source, ViewMode::Rich})
+            for (const auto modifiers : {UINT{0u}, UINT{MK_SHIFT}})
+            {
+                const auto source = std::wstring(L"first") + std::wstring(ending) + L"last";
+                RichTextEditor editor(source);
+                editor.SetViewMode(mode);
+                editor.SetSelection({source.size(), source.size()});
+                Require(editor.OnChar(host, L'\r', modifiers) && editor.GetText() == source + std::wstring(ending),
+                        "source, Shift+Enter and unavailable paragraph commands preserve the document EOL");
+                Require(editor.Undo() && editor.GetText() == source && editor.GetSelection() == Selection{source.size(), source.size()},
+                        "one undo restores source spelling and the original caret after Enter");
+            }
 }
 
 void TestRichTextEditorFormattingAndModePreserveSource()
@@ -540,7 +562,7 @@ void TestRichTextEditorNativeHostAndLayoutReuse()
 void TestRichTextEditorMarkdownPresentationAppearance()
 {
     AttachedHostWindow window;
-    const std::wstring source = L"> shaded quote\n\n$$x^2$$\n";
+    const std::wstring source = L"> shaded quote\n\n$$\nx^2\n$$\n";
     auto owned                = std::make_unique<RichTextEditor>(source);
     auto* editor              = owned.get();
     editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
@@ -773,6 +795,36 @@ void TestRichTextEditorClipboardAtomicityAndSourceContract()
     Require(window.Host().CopyTextToClipboard(std::wstring(1, wchar_t(0xd800))), "transport fixture can supply malformed UTF-16");
     static_cast<void>(raw->OnKeyDown(window.Host(), 'V', MK_CONTROL));
     Require(raw->Revision() == revision && IsValidUtf16(raw->GetText()), "malformed paste rejected without edit");
+    raw->SetText(L"hello");
+    raw->SetSelection({0u, 5u});
+    Require(raw->OnKeyDown(window.Host(), VK_INSERT, MK_CONTROL) && clipboard.text == L"hello", "Ctrl+Insert copies the selected source");
+    Require(raw->OnKeyDown(window.Host(), VK_DELETE, MK_SHIFT) && raw->GetText().empty(), "Shift+Delete cuts the selected source");
+    Require(raw->OnKeyDown(window.Host(), VK_INSERT, MK_SHIFT) && raw->GetText() == L"hello", "Shift+Insert pastes the copied source");
+    raw->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    raw->SetMarkdownRenderingEnabled(true);
+    auto appearance                = raw->GetAppearance();
+    appearance.pasteUrlOnSelection = true;
+    raw->SetAppearance(appearance);
+    raw->SetSelection({0u, 5u});
+    clipboard.text = L"https://example.invalid";
+    Require(raw->OnKeyDown(window.Host(), 'V', MK_CONTROL | MK_SHIFT) && raw->GetText() == clipboard.text,
+            "Ctrl+Shift+V pastes literal Unicode instead of transforming a URL selection");
+    raw->SetText(L"x **bold** y");
+    raw->SetSelection({4u, 8u});
+    RenderEditor(window);
+    Require(raw->OnKeyDown(window.Host(), 'X', MK_CONTROL) && clipboard.text == L"bold" && raw->GetText() == L"x  y",
+            "rich cut copies selected body and removes its empty source wrapper");
+    Require(raw->Undo() && raw->GetText() == L"x **bold** y" && raw->GetSelection() == Selection{4u, 8u},
+            "rich cut restores exact source and selection in one undo");
+    RenderEditor(window);
+    clipboard.afterWrite = [&] { raw->SetSelection({0u, 1u}); };
+    Require(raw->OnKeyDown(window.Host(), 'X', MK_CONTROL) && raw->GetText() == L"x **bold** y" && raw->GetSelection() == Selection{0u, 1u},
+            "clipboard write changing selection cannot apply stale native cut");
+    raw->SetSelection({4u, 8u});
+    window.Host().SetFocusControl(raw, false);
+    clipboard.afterWrite = [&] { window.Host().SetFocusControl(nullptr, false); };
+    Require(raw->OnKeyDown(window.Host(), 'X', MK_CONTROL) && raw->GetText() == L"x **bold** y" && ! window.Host().GetFocusControl(),
+            "clipboard write changing focus cannot apply stale native cut");
     clipboard.text      = L"replacement";
     const auto original = raw->GetText();
     clipboard.afterRead = [&] { raw->SetSelection({1, 1}); };
@@ -783,6 +835,58 @@ void TestRichTextEditorClipboardAtomicityAndSourceContract()
             "clipboard callback may retire owner without resuming paste");
 }
 
+void TestRichTextEditorSelectionDrawWork()
+{
+#if DXUI_ENABLE_DIAGNOSTICS
+    AttachedHostWindow window;
+    std::wstring source(0u, L' ');
+    for (unsigned line = 0u; line < 40u; ++line)
+        source += L"A selected fixture line.\n";
+    auto owned   = std::make_unique<RichTextEditor>(source);
+    auto* editor = owned.get();
+    editor->SetViewMode(ViewMode::Source);
+    window.Host().SetRoot(std::move(owned));
+    RenderEditor(window);
+    editor->SetSelection({0u, source.size()});
+    DxUi::RichText::Detail::testRichLayoutDrawCalls = 0u;
+    RenderEditor(window);
+    const auto draws = DxUi::RichText::Detail::testRichLayoutDrawCalls;
+    Require(editor->DebugGetState().preparedSelectionRectangles >= 20u, "selection workload includes many independently prepared source lines");
+    Require(draws >= 2u && draws <= 4u, "multiline selection paints one base and one masked selected-text pass per frame");
+    Require(editor->GetSelection() == Selection{0u, source.size()} && editor->GetText() == source && ! editor->CanUndo(),
+            "selection rendering preserves exact source and selection without history");
+#endif
+}
+void TestRichTextEditorPointerGestureExclusion()
+{
+    AttachedHostWindow window;
+    auto editor = std::make_unique<RichTextEditor>(std::wstring(500u, L'\n'));
+    auto* raw   = editor.get();
+    window.Host().SetRoot(std::move(editor));
+    RenderEditor(window);
+    const auto point = D2D1::Point2F(40.0f, 40.0f);
+    Require(raw->GetScrollInfo() && raw->GetScrollInfo()->contentHeightDip > raw->GetScrollInfo()->viewportHeightDip,
+            "overlap fixture is vertically scrollable");
+    Require(raw->OnMouseDown(window.Host(), point, false, 0u), "primary press starts selection");
+    Require(! raw->OnMouseMiddleDown(window.Host(), point, 0u), "middle press declines while primary capture is active");
+    Require(raw->OnMouseUp(window.Host(), point, false, 0u) && ! window.Host().GetCapturedControl(), "primary release ends capture");
+    const float released = raw->GetScrollInfo()->offsetDip;
+    static_cast<void>(raw->OnMouseMove(window.Host(), D2D1::Point2F(40.0f, 100.0f), 0u));
+    static_cast<void>(raw->Tick(window.Host(), 200u));
+    static_cast<void>(raw->Tick(window.Host(), 250u));
+    Require(raw->GetScrollInfo()->offsetDip == released, "rejected middle press cannot scroll after primary release");
+    Require(raw->OnMouseMiddleDown(window.Host(), point, 0u), "middle starts after primary release");
+    Require(raw->OnMouseDown(window.Host(), point, false, 0u), "primary press cancels middle before starting selection");
+    bool handled = false;
+    static_cast<void>(window.Host().HandleMessage(window.Hwnd(), WM_CAPTURECHANGED, 0u, 0, handled));
+    Require(handled, "native capture cancellation is handled");
+    const float cancelled = raw->GetScrollInfo()->offsetDip;
+    static_cast<void>(raw->OnMouseMove(window.Host(), D2D1::Point2F(40.0f, 100.0f), 0u));
+    static_cast<void>(raw->Tick(window.Host(), 300u));
+    static_cast<void>(raw->Tick(window.Host(), 350u));
+    Require(! window.Host().GetCapturedControl() && raw->GetScrollInfo()->offsetDip == cancelled,
+            "capture cancellation after primary takeover leaves no auto-scroll");
+}
 void TestRichTextEditorScrollAndHostClock()
 {
     AttachedHostWindow window;
@@ -913,11 +1017,13 @@ void TestRichTextEditorNativeCompatibilityWorkIsReported()
     Require(state.layoutReady && state.retainedGeometryChunks <= 128u, "native compatibility resource graph remains coherent and bounded");
     Require(! state.wholeGeometryFallback && ! state.wholeRasterFallback && state.reusedGeometryChunks > 0u && state.preparedSourceUnits <= 2048u,
             "the actual default 13-DIP native editor reuses positioned chunks without whole-layout preparation or raster fallback");
-    if (state.wholeGeometryFallback || state.wholeRasterFallback)
-        Require(state.wholeLayoutsPrepared > 0u && state.wholeLayoutSourceUnits == seed.size(),
-                "whole-layout compatibility work is explicitly reported rather than attributed to bounded chunk preparation");
-    else
-        Require(state.reusedGeometryChunks > 0u && state.preparedSourceUnits <= 2048u, "native exact-placement path reports actual incremental geometry reuse");
+    auto appearance                 = raw->GetAppearance();
+    appearance.lineHeightMultiplier = 1.5f;
+    raw->SetAppearance(appearance);
+    RenderEditor(window);
+    const auto whole = raw->DebugGetState();
+    Require(whole.layoutReady && whole.wholeGeometryFallback && whole.wholeLayoutsPrepared > 0u && whole.wholeLayoutSourceUnits == raw->GetText().size(),
+            "native editor reports actual whole-layout geometry work when custom line height requires compatibility placement");
 }
 void TestRichTextEditorNativeChunkReuseAndRetirement()
 {
@@ -963,7 +1069,7 @@ void TestRichTextEditorNativeCooperativePreparation()
     Require(window.Host().RenderInitialFrameForShow(), "one native owner preparation turn");
     const auto pending = editor->DebugGetState();
     Require(pending.preparationPending && ! pending.layoutReady && window.Host().HasPendingContentPreparation() && pending.lastAdvanceLayouts <= 4u &&
-                pending.lastAdvanceBlockSteps <= 4096u,
+                pending.lastAdvanceBlockSteps <= 4096u && pending.activeStage == RichTextPreparationStage::Geometry && pending.lastAdvanceUploadBytes == 0u,
             "large native source yields after one bounded owner advance");
     Require(! editor->TryGetTextInputCaretRect(window.Host(), 0u) && ! editor->TryGetTextInputRangeRects(window.Host(), 0u, 4u) &&
                 ! editor->GetVisibleSourceRange(window.Host()) && ! editor->GetSourceVisualLineRanges(window.Host()),
@@ -1489,6 +1595,16 @@ void TestRichTextEditorNativeDiagramSelectionRaster()
     Require(window.Host().DebugCaptureBitmap(capture), "native selected graphic capture without activating the desktop");
     SemanticDiagramTests::SelectionPixels(
         *editor, window.Host(), capture.bgraPixels, capture.widthPx, capture.heightPx, window.Host().GetDpi() / 96.f, Require);
+    const auto diagramSource    = editor->GetText();
+    const auto diagramSelection = editor->GetSelection();
+    const auto diagramRevision  = editor->Revision();
+    window.Host().DebugSimulateDeviceLoss();
+    RenderEditor(window);
+    Require(window.Host().DebugCaptureBitmap(capture), "capture native diagram after device replacement");
+    SemanticDiagramTests::SelectionPixels(
+        *editor, window.Host(), capture.bgraPixels, capture.widthPx, capture.heightPx, window.Host().GetDpi() / 96.f, Require);
+    Require(editor->GetText() == diagramSource && editor->GetSelection() == diagramSelection && editor->Revision() == diagramRevision,
+            "native diagram device recovery preserves source, selection and revision");
 }
 void TestRichTextEditorNativeFootnoteBlockSourceEdits()
 {
@@ -1622,6 +1738,73 @@ void TestRichTextEditorNativeFileReferencePaste()
     Require(editor->OnKeyDown(window.Host(), 'V', MK_CONTROL) && editor->GetText() == L"[report\\.pdf](files/report.pdf)",
             "native quoted text file path becomes a full-filename relative link");
     Require(editor->Undo() && editor->GetText() == L"replace", "native text file-path link is one undo transaction");
+    BITMAPINFOHEADER header{};
+    header.biSize        = sizeof(header);
+    header.biWidth       = 2;
+    header.biHeight      = 2;
+    header.biPlanes      = 1u;
+    header.biBitCount    = 32u;
+    header.biCompression = BI_RGB;
+    header.biSizeImage   = 16u;
+    std::vector<std::byte> dib(sizeof(header) + 16u);
+    std::memcpy(dib.data(), &header, sizeof(header));
+    clipboard.dibData.reset(GlobalAlloc(GMEM_MOVEABLE, dib.size()));
+    Require(clipboard.dibData != nullptr, "bitmap fixture owns fake clipboard storage");
+    auto* bitmap = GlobalLock(clipboard.dibData.get());
+    Require(bitmap != nullptr, "bitmap fixture locks fake clipboard storage");
+    std::memcpy(bitmap, dib.data(), dib.size());
+    GlobalUnlock(clipboard.dibData.get());
+    RequireSucceeded(SystemTextClipboard().Write(window.Hwnd(), L"plain text"), "mixed bitmap fixture supplies Unicode text");
+    window.Host().SetFocusControl(editor, false);
+    editor->SetText(L"replace");
+    editor->SetSelection({7u, 0u});
+    RenderEditor(window);
+    unsigned bitmapCalls{};
+    editor->SetBitmapPasteHandler([&](std::span<const std::byte> bytes, bool v5) -> std::optional<std::wstring>
+    {
+        ++bitmapCalls;
+        Require(! v5 && std::ranges::equal(bytes, dib) && clipboard.opens == clipboard.closes,
+                "asset callback receives owned exact DIB after clipboard release");
+        return L"C:\\docs\\bitmap.png";
+    });
+    Require(editor->OnKeyDown(window.Host(), 'V', MK_CONTROL) && editor->GetText() == L"![bitmap](bitmap.png)" && bitmapCalls == 1u,
+            "bitmap paste takes priority over Unicode and inserts an application-saved asset");
+    Require(editor->Undo() && editor->GetText() == L"replace" && editor->GetSelection() == Selection{7u, 0u},
+            "bitmap paste restores exact source and backward selection in one undo");
+    clipboard.fileData.reset(GlobalAlloc(GMEM_MOVEABLE, bytes.size()));
+    Require(clipboard.fileData != nullptr, "mixed clipboard offers an owned file list");
+    auto* mixedFiles = GlobalLock(clipboard.fileData.get());
+    Require(mixedFiles != nullptr, "mixed file-list fixture locks its storage");
+    std::memcpy(mixedFiles, bytes.data(), bytes.size());
+    GlobalUnlock(clipboard.fileData.get());
+    RenderEditor(window);
+    Require(editor->OnKeyDown(window.Host(), 'V', MK_CONTROL) && editor->GetText() == L"![a](a.png)\r\n\r\n[report\\.pdf](report.pdf)" && bitmapCalls == 1u,
+            "file list takes priority over a simultaneous bitmap");
+    Require(editor->Undo() && editor->GetText() == L"replace", "mixed file-list paste remains one undo");
+    RenderEditor(window);
+    Require(editor->OnKeyDown(window.Host(), 'V', MK_CONTROL | MK_SHIFT) && editor->GetText() == L"plain text" && bitmapCalls == 1u,
+            "plain paste ignores a simultaneous bitmap offer");
+    Require(editor->Undo() && editor->GetText() == L"replace", "plain paste remains one undo");
+    clipboard.fileData.reset();
+    RenderEditor(window);
+    editor->SetBitmapPasteHandler([&](std::span<const std::byte>, bool) -> std::optional<std::wstring>
+    {
+        editor->SetSelection({0u, 0u});
+        return L"C:\\docs\\bitmap.png";
+    });
+    Require(editor->OnKeyDown(window.Host(), 'V', MK_CONTROL) && editor->GetText() == L"replace" && editor->GetSelection() == Selection{0u, 0u},
+            "asset callback selection changes supersede the pending paste");
+    editor->SetSelection({7u, 0u});
+    RenderEditor(window);
+    editor->SetBitmapPasteHandler([&](std::span<const std::byte>, bool) -> std::optional<std::wstring>
+    {
+        editor->SetSelection({0u, 0u});
+        editor->SetSelection({7u, 0u});
+        return L"C:\\docs\\bitmap.png";
+    });
+    Require(editor->OnKeyDown(window.Host(), 'V', MK_CONTROL) && editor->GetText() == L"replace" && editor->GetSelection() == Selection{7u, 0u},
+            "selection epoch rejects a callback that moves away and back to the same range");
+    editor->SetBitmapPasteHandler({});
 }
 void TestRichTextEditorNativeImageResources()
 {
@@ -1667,6 +1850,55 @@ void TestRichTextEditorNativeImagePixels()
     Require(window.Host().DebugCaptureBitmap(capture), "native selected image raster capture");
     RichImageResourceTests::PatternPixels(
         *editor, window.Host(), capture.bgraPixels, capture.widthPx, capture.heightPx, window.Host().GetDpi() / 96.f, Require, true);
+    const auto imageSource    = editor->GetText();
+    const auto imageSelection = editor->GetSelection();
+    const auto imageRevision  = editor->Revision();
+    window.Host().DebugSimulateDeviceLoss();
+    RenderEditor(window);
+    Require(window.Host().DebugCaptureBitmap(capture), "capture native raster image after device replacement");
+    RichImageResourceTests::PatternPixels(
+        *editor, window.Host(), capture.bgraPixels, capture.widthPx, capture.heightPx, window.Host().GetDpi() / 96.f, Require, true);
+    std::vector<RichImageRequest> recoveredRequests(0u);
+    editor->TakePendingImageRequests(recoveredRequests);
+    Require(recoveredRequests.empty() && editor->GetText() == imageSource && editor->GetSelection() == imageSelection && editor->Revision() == imageRevision,
+            "native raster device recovery preserves source and selection without re-requesting image bytes");
+    constexpr std::string_view svg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'><rect width='20' height='20' fill='red'/></svg>";
+    std::shared_ptr<const RichImage> vectorImage;
+    Require(SUCCEEDED(RichImage::CreateSvg(20u, 20u, std::as_bytes(std::span(svg)), vectorImage)), "create native SVG image fixture");
+    editor->SetSelection({0u, 0u});
+    editor->SetSvgImagesEnabled(true);
+    editor->SetText(L"![vector](shape.svg)\n");
+    RenderEditor(window);
+    std::vector<RichImageRequest> requests(0u);
+    editor->TakePendingImageRequests(requests);
+    Require(requests.size() == 1u && editor->CompleteImageRequest(requests.front(), vectorImage), "publish native SVG resource");
+    RenderEditor(window);
+    const auto verifySvg = [&]
+    {
+        Require(window.Host().DebugCaptureBitmap(capture), "capture prepared native SVG pixels without activation");
+        const auto document = editor->GetAcknowledgedSemanticDocument(window.Host());
+        Require(static_cast<bool>(document), "native SVG semantic publication is current");
+        const auto image = std::ranges::find(document->Elements(), SemanticRole::Image, &SemanticElement::role);
+        Require(image != document->Elements().end(), "native SVG image remains present");
+        const auto bounds = editor->GetSemanticElementBounds(window.Host(), static_cast<std::size_t>(image - document->Elements().begin()));
+        Require(bounds && std::abs(bounds->right - bounds->left - 20.f) < .02f, "native SVG uses its prepared nominal size");
+        const auto dpiScale = window.Host().GetDpi() / 96.f;
+        const auto x        = static_cast<unsigned>((bounds->left + bounds->right) * .5f * dpiScale);
+        const auto y        = static_cast<unsigned>((bounds->top + bounds->bottom) * .5f * dpiScale);
+        Require(x < capture.widthPx && y < capture.heightPx, "native SVG oracle samples within the captured target");
+        const auto offset = (static_cast<std::size_t>(y) * capture.widthPx + x) * 4u;
+        Require(capture.bgraPixels[offset] < 5u && capture.bgraPixels[offset + 1u] < 5u && capture.bgraPixels[offset + 2u] > 250u &&
+                    capture.bgraPixels[offset + 3u] > 250u,
+                "native SVG draws its prepared red pixels");
+    };
+    verifySvg();
+    const auto svgRevision = editor->Revision();
+    window.Host().DebugSimulateDeviceLoss();
+    RenderEditor(window);
+    verifySvg();
+    editor->TakePendingImageRequests(requests);
+    Require(requests.empty() && editor->Revision() == svgRevision && editor->GetText() == L"![vector](shape.svg)\n",
+            "native device recovery recreates SVG resources without changing source or re-requesting bytes");
 }
 void TestRichTextEditorNativeLosslessMarkdownPreparation()
 {
@@ -1817,6 +2049,7 @@ void RunRichTextEditorTests()
     ScopedNonActivatingTestWindows nonActivating;
     DXUI_RUN_TEST(TestRichTextEditorTransactionsAndValidation);
     DXUI_RUN_TEST(TestRichTextEditorUnicodeCharacterTransactions);
+    DXUI_RUN_TEST(TestRichTextEditorEnterPreservesDocumentLineEndings);
     DXUI_RUN_TEST(TestRichTextEditorFormattingAndModePreserveSource);
     DXUI_RUN_TEST(TestRichTextEditorCallbackRetirementAndFailure);
     DXUI_RUN_TEST(TestRichTextEditorSelectionPublicationAndRetirement);
@@ -1828,7 +2061,9 @@ void RunRichTextEditorTests()
     DXUI_RUN_TEST(TestRichTextEditorDocumentFocusChromeDoesNotRetireTextGeometry);
     DXUI_RUN_TEST(TestRichTextEditorNativeUnicodeRoutingAndNavigation);
     DXUI_RUN_TEST(TestRichTextEditorClipboardAtomicityAndSourceContract);
+    DXUI_RUN_TEST(TestRichTextEditorPointerGestureExclusion);
     DXUI_RUN_TEST(TestRichTextEditorScrollAndHostClock);
+    DXUI_RUN_TEST(TestRichTextEditorSelectionDrawWork);
     DXUI_RUN_TEST(TestRichTextEditorCatalogAndRebinding);
     // Repeated timing is an explicit diagnostic. Ordinary native behavior is
     // independently covered below; Debug/ASan need not repeat five timing trials.

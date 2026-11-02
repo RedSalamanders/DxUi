@@ -1,6 +1,8 @@
 #include "DxUi.AccessibilityTextUnits.h"
 #include "DxUi.Internal.h"
 #include "DxUi.RichAccessibilityEpoch.h"
+#include "DxUi.RichEditorAccessibilityAccess.h"
+#include "DxUi.RichSemanticGeometry.h"
 #include "Support/Diagnostics.h"
 #include "Support/LiveResourceCount.h"
 #include "Support/WindowMessages.h"
@@ -35,6 +37,12 @@ namespace DxUi
 {
 struct EmbeddedAccessibilityAccess
 {
+    [[nodiscard]] static std::optional<std::vector<std::pair<size_t, size_t>>> SourceLines(const RichTextEditor& editor, const ControlHost& host)
+    {
+        if (! editor.LayoutIsCurrent(host))
+            return std::nullopt;
+        return editor.SourceVisualLineRangesFallible(host);
+    }
     [[nodiscard]] static std::shared_ptr<const RichText::Detail::AccessibilityEpoch> RichSemanticEpoch(const RichTextEditor& editor) noexcept
     {
         return editor.AccessibilitySemanticEpoch();
@@ -42,6 +50,12 @@ struct EmbeddedAccessibilityAccess
     static void*& Target(ControlHost& host) noexcept
     {
         return host._embeddedAccessibilityTarget;
+    }
+    [[nodiscard]] static bool Coherent(EmbeddedHost& host) noexcept
+    {
+        // Grid materialization reads prepared geometry, not cached surface pixels.
+        // A paint-only selection change must not hide its still-coherent geometry.
+        return host.InputIsCoherent(true);
     }
 
     // Who reports the focus move a window host just published; focusResolutions is how many calls of the fragment
@@ -128,6 +142,7 @@ constexpr size_t kAccessibilityMaxMaterializedOffscreenSelectedRows = 256u;
 class AccessibilityProvider;
 class AccessibilityTextRangeProvider;
 class RichSemanticElementProvider;
+class RichAnnotationProvider;
 
 struct ControlPath
 {
@@ -262,6 +277,8 @@ std::atomic<HANDLE> g_accessibilityUiActionPostedEvent{nullptr};
 std::atomic<DWORD> g_accessibilityUiActionDispatchTimeoutOverrideMs{0u};
 std::atomic<uint32_t> g_accessibilityUiActionExecutionCount{0u};
 std::atomic<uint64_t> g_accessibilitySnapshotBuildCount{0u};
+thread_local HRESULT g_richAccessibilityFontFailure = S_OK;
+thread_local size_t g_richAccessibilityFontFailureCount{};
 std::atomic<size_t> g_accessibilityOffscreenSelectedRowMaterializationLimitOverride{0u};
 thread_local bool g_accessibilityResolutionCounting       = false;
 thread_local uint64_t g_accessibilityResolutionVisitCount = 0u;
@@ -566,6 +583,17 @@ struct TextRangeSpan
 
 // Optional data belongs only to a semantic editor. Menus/trees/grids do not pay
 // for extra strings, vector proxies or one rectangle per rich semantic element.
+struct AccessibilityRichAnnotation
+{
+    RichText::MarkdownRange source;
+    RichTextAnnotationKind kind{};
+    std::optional<D2D1_RECT_F> bounds;
+};
+struct AccessibilityAnnotationTypes
+{
+    RichText::MarkdownRange source;
+    unsigned mask{};
+};
 struct AccessibilityRichTextSnapshot
 {
     AccessibilityRichTextSnapshot(std::shared_ptr<const RichText::SemanticDocument> source,
@@ -574,26 +602,45 @@ struct AccessibilityRichTextSnapshot
         : document(std::move(source)),
           epoch(std::move(currentEpoch)),
           bounds(0u),
+          copyBounds(0u),
           underlinedLinks(0u),
+          annotations(0u),
+          annotationTypes(0u),
+          formatRuns(0u),
           bodyFont(0u, L' '),
           codeFont(0u, L' '),
+          copyName(0u, L' '),
           semanticRevision(capturedRevision)
     {
     }
     std::shared_ptr<const RichText::SemanticDocument> document;
     std::shared_ptr<const RichText::Detail::AccessibilityEpoch> epoch;
-    std::vector<std::optional<D2D1_RECT_F>> bounds;
+    std::vector<std::optional<D2D1_RECT_F>> bounds, copyBounds;
     std::vector<RichText::MarkdownRange> underlinedLinks;
-    std::wstring bodyFont, codeFont;
-    double fontSizePoints     = 0.0;
-    double codeFontSizePoints = 0.0;
-    double headingScaleStep   = 0.15;
+    std::vector<AccessibilityRichAnnotation> annotations;
+    std::vector<AccessibilityAnnotationTypes> annotationTypes;
+    std::vector<RichText::StyleRun> formatRuns;
+    [[nodiscard]] std::span<const RichText::StyleRun> SourceFormats() const noexcept
+    {
+        return formatRuns.empty() ? document->SourceRuns() : std::span<const RichText::StyleRun>(formatRuns);
+    }
+    std::wstring bodyFont, codeFont, copyName;
+    bool externalLinkActivationEnabled = false;
+    bool readOnlyTasksInteractive      = false;
+    double fontSizePoints              = 0.0;
+    double codeFontSizePoints          = 0.0;
+    double headingScaleStep            = 0.15;
     std::array<float, 6> headingFontSizeDip{};
     uint64_t semanticRevision;
     [[nodiscard]] bool IsCurrent() const noexcept
     {
         return epoch && semanticRevision == epoch->revision.load(std::memory_order_acquire);
     }
+};
+struct RadioGroupSnapshot
+{
+    std::vector<ControlPath> childPaths    = std::vector<ControlPath>(0u);
+    std::vector<ControlPath> selectedPaths = std::vector<ControlPath>(0u);
 };
 struct AccessibilityControlNavigationSnapshot
 {
@@ -626,8 +673,9 @@ struct AccessibilityControlNavigationSnapshot
     // A radio button: an item of its group's single selection, selected while it is checked.
     bool controlSupportsSelectionItem = false;
     bool controlSelectionItemSelected = false;
+    std::shared_ptr<const RadioGroupSnapshot> radioGroup;
     // A choice's place among its group's present choices (1-based) and their count; 0 when it belongs to no group. The
-    // flat tree puts every choice under the root, so a screen reader reads its "2 of 3" from these.
+    // group exposes these values directly so a screen reader can report "2 of 3".
     size_t controlPositionInSet    = 0u;
     size_t controlSizeOfSet        = 0u;
     bool controlValueReadOnly      = true;
@@ -685,6 +733,7 @@ struct AccessibilityControlNavigationSnapshot
     std::optional<size_t> focusedTreeVisibleIndex;
     std::vector<uint64_t> selectedTreeItemIds;
     std::vector<AccessibilityTreeItemSnapshotRecord> treeItems;
+    uint64_t treeBindingRevision = 0u;
     std::shared_ptr<const IPreparedTreeAccessibilityRows> preparedTreeRows;
     std::vector<AccessibilityGridHeaderSnapshotRecord> gridHeaders;
     std::vector<AccessibilityGridRowSnapshotRecord> gridRows;
@@ -1052,11 +1101,12 @@ struct WindowHostAccessibilityTarget final
     std::atomic<ULONG> _referenceCount{1u};
     HWND hwnd = nullptr;
     // Decided once: only a menu popup's snapshots count for DebugGetContextMenuResources.
-    const bool menuPopup = IsNativeMenuPopupWindow(hwnd);
-    bool embedded        = false;
-    DWORD threadId       = GetCurrentThreadId();
-    uint64_t runtimeId   = 0;
-    uint64_t preparation = 0;
+    const bool menuPopup        = IsNativeMenuPopupWindow(hwnd);
+    bool embedded               = false;
+    EmbeddedHost* embeddedOwner = nullptr; // Borrowed on the owner thread; cleared before disconnect.
+    DWORD threadId              = GetCurrentThreadId();
+    uint64_t runtimeId          = 0;
+    uint64_t preparation        = 0;
     std::weak_ptr<int> rootLifetime;
     std::shared_ptr<EmbeddedAccessibilitySite> site;
     EmbeddedAccessibilityPlacement placement{};
@@ -1080,6 +1130,14 @@ struct WindowHostAccessibilityTarget final
     };
     std::array<PendingTextEvents, 128u> pendingTextEvents{};
     size_t pendingTextEventCount = 0u;
+    struct PendingTreeExpansion
+    {
+        uint64_t identity = 0u, binding = 0u, itemId = 0u, serial = 0u;
+        bool expanded = false;
+    };
+    std::array<PendingTreeExpansion, 128u> pendingTreeExpansions{};
+    size_t pendingTreeExpansionCount    = 0u;
+    uint64_t pendingTreeExpansionSerial = 0u;
     // Mutable text-range helpers may recurse on one target; immutable provider reads do not take this lock.
     std::recursive_mutex snapshotMutex;
     std::mutex providerMutex;
@@ -1318,7 +1376,8 @@ WindowHostSnapshotChanges PublishWindowHostAccessibilitySnapshot(WindowHostAcces
         ControlPath collapsedRootPath{};
         const bool explicitStatusRoot      = root->GetAccessibilityRole() == AccessibilityRole::Status;
         snapshot->hasCollapsedSemanticRoot = TryResolveSingleSemanticRootControlPath(root, collapsedRootPath) && ! snapshot->semanticControlOrder.empty() &&
-                                             (snapshot->semanticControlOrder.size() == 1u || explicitStatusRoot) &&
+                                             (snapshot->semanticControlOrder.size() == 1u || explicitStatusRoot ||
+                                              (! snapshot->controlNavigationRecords.empty() && snapshot->controlNavigationRecords.front().radioGroup)) &&
                                              AreControlPathsEqual(snapshot->semanticControlOrder.front(), collapsedRootPath);
     }
     if (! AppendAccessibilitySnapshotPointHits(host, root, ControlPath{}, *snapshot, build))
@@ -1537,10 +1596,11 @@ template <typename TControl> [[nodiscard]] TControl* ResolveControlAtPath(TContr
 
 [[nodiscard]] bool IsSemanticAccessibilityControl(const Control* control) noexcept
 {
-    return dynamic_cast<const RichTextEditor*>(control) != nullptr || (control && control->GetAccessibilityRole() != AccessibilityRole::Default) ||
+    return Detail::RichEditorAccessibilityAccess::As(control) != nullptr || (control && control->GetAccessibilityRole() != AccessibilityRole::Default) ||
            dynamic_cast<const Label*>(control) != nullptr || dynamic_cast<const Button*>(control) != nullptr ||
-           dynamic_cast<const TextField*>(control) != nullptr || dynamic_cast<const ComboBox*>(control) != nullptr ||
-           dynamic_cast<const Tree*>(control) != nullptr || dynamic_cast<const Grid*>(control) != nullptr || dynamic_cast<const Slider*>(control) != nullptr ||
+           dynamic_cast<const RadioButtons*>(control) != nullptr || dynamic_cast<const TextField*>(control) != nullptr ||
+           dynamic_cast<const ComboBox*>(control) != nullptr || dynamic_cast<const Tree*>(control) != nullptr ||
+           dynamic_cast<const Grid*>(control) != nullptr || dynamic_cast<const Slider*>(control) != nullptr ||
            dynamic_cast<const ProgressBar*>(control) != nullptr || dynamic_cast<const ThroughputGraph*>(control) != nullptr ||
            dynamic_cast<const ColorSwatch*>(control) != nullptr || dynamic_cast<const Splitter*>(control) != nullptr ||
            dynamic_cast<const TabControl*>(control) != nullptr || IsPagedPageIndicator(control);
@@ -1630,7 +1690,7 @@ template <typename TControl> [[nodiscard]] TControl* ResolveControlAtPath(TContr
 
 [[nodiscard]] bool ShouldExposeSingleSemanticRootControl(const Control* control) noexcept
 {
-    return dynamic_cast<const RichTextEditor*>(control) != nullptr || dynamic_cast<const Checkbox*>(control) != nullptr ||
+    return Detail::RichEditorAccessibilityAccess::As(control) != nullptr || dynamic_cast<const Checkbox*>(control) != nullptr ||
            dynamic_cast<const Toggle*>(control) != nullptr || dynamic_cast<const Button*>(control) != nullptr ||
            dynamic_cast<const TextField*>(control) != nullptr || dynamic_cast<const ComboBox*>(control) != nullptr ||
            dynamic_cast<const Tree*>(control) != nullptr || dynamic_cast<const Slider*>(control) != nullptr || dynamic_cast<const Grid*>(control) != nullptr ||
@@ -1639,7 +1699,7 @@ template <typename TControl> [[nodiscard]] TControl* ResolveControlAtPath(TContr
 
 [[nodiscard]] bool TryResolveSingleSemanticRootControlPath(const Control* root, ControlPath& outPath) noexcept
 {
-    if (root && root->GetAccessibilityRole() == AccessibilityRole::Status)
+    if (root && (root->GetAccessibilityRole() == AccessibilityRole::Status || dynamic_cast<const RadioButtons*>(root)))
     {
         outPath = {};
         return true;
@@ -2198,6 +2258,22 @@ bool AppendAccessibilitySnapshotNavigation(ControlHost& host,
         }
         record.controlSupportsInvoke = SupportsInvokePattern(current);
         record.controlSupportsToggle = SupportsTogglePattern(current);
+        if (const auto* group = dynamic_cast<const RadioButtons*>(current))
+        {
+            auto radioGroup = std::make_shared<RadioGroupSnapshot>();
+            for (size_t index = 0u; index < group->GetLogicalChildCount(); ++index)
+            {
+                const auto* choice = dynamic_cast<const RadioButton*>(group->GetLogicalChild(index));
+                ControlPath childPath{};
+                if (choice && choice->IsVisible() && TryAppendPathIndex(basePath, index, childPath))
+                {
+                    radioGroup->childPaths.push_back(childPath);
+                    if (choice->IsChecked())
+                        radioGroup->selectedPaths.push_back(childPath);
+                }
+            }
+            record.radioGroup = std::move(radioGroup);
+        }
         if (const auto* radio = dynamic_cast<const RadioButton*>(current))
         {
             record.controlSupportsSelectionItem = true;
@@ -2223,7 +2299,7 @@ bool AppendAccessibilitySnapshotNavigation(ControlHost& host,
         }
         record.controlSupportsValue      = SupportsValuePattern(current);
         record.controlSupportsText       = SupportsTextPattern(current);
-        record.controlSupportsText2      = dynamic_cast<const RichTextEditor*>(current) != nullptr;
+        record.controlSupportsText2      = Detail::RichEditorAccessibilityAccess::As(current) != nullptr;
         record.controlSupportsRangeValue = SupportsRangeValuePattern(current);
         record.controlValueReadOnly      = IsValueReadOnly(current);
         if (record.controlSupportsValue)
@@ -2257,11 +2333,12 @@ bool AppendAccessibilitySnapshotNavigation(ControlHost& host,
                 record.controlTextSelectionEnd   = selectionRange.end;
             }
 
-            if (const auto* editor = dynamic_cast<const RichTextEditor*>(current))
+            if (const auto* editor = Detail::RichEditorAccessibilityAccess::As(current))
             {
-                record.controlTextCaretIndex   = editor->GetSelection().caret;
-                record.controlTextVisibleRange = editor->GetVisibleSourceRange(host);
-                if (const auto document = editor->GetAcknowledgedSemanticDocument(host))
+                const auto view                = Detail::RichEditorAccessibilityAccess::Capture(*editor, host);
+                record.controlTextCaretIndex   = view.selection.caret;
+                record.controlTextVisibleRange = view.visibleRange;
+                if (const auto& document = view.document)
                 {
                     const auto epoch            = EmbeddedAccessibilityAccess::RichSemanticEpoch(*editor);
                     const auto semanticRevision = epoch ? epoch->revision.load(std::memory_order_acquire) : 0u;
@@ -2273,14 +2350,24 @@ bool AppendAccessibilitySnapshotNavigation(ControlHost& host,
                         if (! format)
                             THROW_HR(E_UNEXPECTED);
                         family.resize(static_cast<size_t>(format->GetFontFamilyNameLength()) + 1u);
-                        THROW_IF_FAILED(format->GetFontFamilyName(family.data(), static_cast<UINT32>(family.size())));
+                        auto result = format->GetFontFamilyName(family.data(), static_cast<UINT32>(family.size()));
+#if DXUI_ENABLE_DIAGNOSTICS
+                        if (FAILED(g_richAccessibilityFontFailure))
+                        {
+                            ++g_richAccessibilityFontFailureCount;
+                            result = g_richAccessibilityFontFailure;
+                        }
+#endif
+                        THROW_IF_FAILED(result);
                         family.pop_back();
                     };
                     auto* body = host.GetTextFormat(FontRole::Body);
                     readFamily(body, rich->bodyFont);
                     readFamily(host.GetTextFormat(FontRole::Monospace), rich->codeFont);
-                    rich->fontSizePoints   = static_cast<double>(body->GetFontSize()) * 72.0 / 96.0;
-                    const auto& appearance = editor->GetAppearance();
+                    rich->fontSizePoints                = static_cast<double>(body->GetFontSize()) * 72.0 / 96.0;
+                    rich->externalLinkActivationEnabled = editor->HasLinkActivationHandler();
+                    rich->readOnlyTasksInteractive      = editor->GetTaskTogglePolicy() == RichTextTaskTogglePolicy::AlwaysInteractive;
+                    const auto& appearance              = editor->GetAppearance();
                     if (! appearance.bodyFontFamily.empty())
                         rich->bodyFont = appearance.bodyFontFamily;
                     if (! appearance.codeFontFamily.empty())
@@ -2291,12 +2378,97 @@ bool AppendAccessibilitySnapshotNavigation(ControlHost& host,
                         appearance.codeFontSizeDip > 0.0f ? static_cast<double>(appearance.codeFontSizeDip) * 72.0 / 96.0 : rich->fontSizePoints;
                     rich->headingScaleStep   = appearance.headingScaleStep;
                     rich->headingFontSizeDip = appearance.headingFontSizeDip;
+                    if (editor->GetDecorationStatus() == RichTextDecorationStatus::Ready)
+                        for (const auto& decoration : editor->GetDecorations())
+                            if (decoration.annotation != RichTextAnnotationKind::None)
+                            {
+                                std::optional<D2D1_RECT_F> bounds;
+                                if (const auto rectangles = editor->TryGetTextInputRangeRects(host, decoration.start, decoration.start + decoration.length))
+                                    for (const auto& rectangle : rectangles.value())
+                                    {
+                                        if (! bounds)
+                                            bounds = rectangle;
+                                        else
+                                        {
+                                            bounds->left   = std::min(bounds->left, rectangle.left);
+                                            bounds->top    = std::min(bounds->top, rectangle.top);
+                                            bounds->right  = std::max(bounds->right, rectangle.right);
+                                            bounds->bottom = std::max(bounds->bottom, rectangle.bottom);
+                                        }
+                                    }
+                                rich->annotations.push_back({{decoration.start, decoration.start + decoration.length}, decoration.annotation, bounds});
+                            }
+                    if (! rich->annotations.empty())
+                    {
+                        std::vector<size_t> boundaries(0u);
+                        boundaries.reserve(rich->annotations.size() * 2u + 2u);
+                        boundaries.push_back(0u);
+                        boundaries.push_back(document->Map().Source().size());
+                        for (const auto& annotation : rich->annotations)
+                        {
+                            boundaries.push_back(annotation.source.first);
+                            boundaries.push_back(annotation.source.last);
+                        }
+                        std::ranges::sort(boundaries);
+                        const auto duplicate = std::ranges::unique(boundaries);
+                        boundaries.erase(duplicate.begin(), duplicate.end());
+                        rich->annotationTypes.reserve(boundaries.size() - 1u);
+                        for (size_t boundary = 1u; boundary < boundaries.size(); ++boundary)
+                        {
+                            const auto first = boundaries[boundary - 1u], last = boundaries[boundary];
+                            unsigned mask{};
+                            for (const auto& annotation : rich->annotations)
+                                if (annotation.source.first <= first && first < annotation.source.last)
+                                    mask |= 1u << (static_cast<unsigned>(annotation.kind) - 1u);
+                            if (! rich->annotationTypes.empty() && rich->annotationTypes.back().mask == mask)
+                                rich->annotationTypes.back().source.last = last;
+                            else
+                                rich->annotationTypes.push_back({{first, last}, mask});
+                        }
+                        rich->formatRuns.reserve(document->SourceRuns().size() + boundaries.size());
+                        for (const auto& run : document->SourceRuns())
+                        {
+                            auto first      = run.start;
+                            const auto last = run.start + run.length;
+                            for (auto boundary = std::upper_bound(boundaries.begin(), boundaries.end(), first);
+                                 boundary != boundaries.end() && *boundary < last;
+                                 ++boundary)
+                            {
+                                auto split   = run;
+                                split.start  = first;
+                                split.length = *boundary - first;
+                                rich->formatRuns.push_back(split);
+                                first = *boundary;
+                            }
+                            auto split   = run;
+                            split.start  = first;
+                            split.length = last - first;
+                            rich->formatRuns.push_back(split);
+                        }
+                    }
                     for (const auto& run : document->SourceRuns())
                         if ((run.flags & RichText::Link) && editor->IsLinkUnderlineVisible(run.start))
                             rich->underlinedLinks.push_back({run.start, run.start + run.length});
                     rich->bounds.reserve(document->Elements().size());
+                    const auto copyName    = editor->GetCodeCopyAccessibleName();
+                    const bool copyEnabled = ! copyName.empty() && appearance.markdownPresentation == RichText::MarkdownPresentationStyle::Subtle &&
+                                             ! document->Syntax()->SourceRegion();
+                    if (copyEnabled)
+                    {
+                        rich->copyName.assign(copyName);
+                        rich->copyBounds.resize(document->Elements().size());
+                    }
                     for (size_t element = 0u; element < document->Elements().size(); ++element)
-                        rich->bounds.push_back(editor->GetSemanticElementBounds(host, element));
+                    {
+                        auto bounds = editor->GetSemanticElementBounds(host, element);
+                        rich->bounds.push_back(bounds);
+                        const auto& value = document->Elements()[element];
+                        const auto& nodes = document->Syntax()->Nodes();
+                        if (copyEnabled && value.role == RichText::SemanticRole::Code && value.syntaxNode < nodes.size() &&
+                            (nodes[value.syntaxNode].block.kind == RichText::MarkdownBlockKind::FencedCode ||
+                             nodes[value.syntaxNode].block.kind == RichText::MarkdownBlockKind::IndentedCode))
+                            rich->copyBounds[element] = editor->GetSemanticCodeCopyBounds(host, element);
+                    }
                     record.controlRichText = std::move(rich);
                 }
             }
@@ -2309,7 +2481,7 @@ bool AppendAccessibilitySnapshotNavigation(ControlHost& host,
                 {
                     record.controlTextSelectionBoundsDip = std::move(bounds.value());
                 }
-                else if (! dynamic_cast<const RichTextEditor*>(current))
+                else if (! Detail::RichEditorAccessibilityAccess::As(current))
                 {
                     record.controlTextSelectionBoundsDip.push_back(ResolveTextPatternViewportRect(current));
                 }
@@ -2371,6 +2543,7 @@ bool AppendAccessibilitySnapshotNavigation(ControlHost& host,
         else if (const auto* tree = dynamic_cast<const Tree*>(current))
         {
             record.isTree                = true;
+            record.treeBindingRevision   = ControlModelQueryAccess::BindingRevision(*tree);
             record.treeIsEnabled         = effectiveEnabled;
             record.treeCanSelectMultiple = tree->MultiSelectEnabled();
             if (const auto* model = tree->GetModel())
@@ -2641,7 +2814,7 @@ bool AppendAccessibilitySnapshotNavigation(ControlHost& host,
                     record.selectedTabId = items[index].id;
             }
         }
-        record.controlSupportsSelection = record.isTree || record.isGrid || record.isTabControl;
+        record.controlSupportsSelection = record.isTree || record.isGrid || record.isTabControl || static_cast<bool>(record.radioGroup);
         record.controlSupportsTable     = record.isGrid && record.gridColumnCount > 0u;
     }
 
@@ -3105,7 +3278,7 @@ bool SnapshotContainsTreeItem(const AccessibilityControlNavigationSnapshot& reco
 
 bool SnapshotSupportsSelectionProvider(const AccessibilityControlNavigationSnapshot& record) noexcept
 {
-    return record.isTree || record.isGrid || record.isTabControl;
+    return record.isTree || record.isGrid || record.isTabControl || static_cast<bool>(record.radioGroup);
 }
 
 // Focus is independent from membership in both single- and multiple-selection trees.
@@ -3495,6 +3668,8 @@ AccessibilityNavigationTarget MakeNavigationTarget(
 // grid's headers and then its rows, a text field's reveal button. A control with none has no children of its own.
 std::optional<AccessibilityNavigationTarget> FirstControlFragmentTarget(const AccessibilityControlNavigationSnapshot& controlRecord) noexcept
 {
+    if (controlRecord.radioGroup && ! controlRecord.radioGroup->childPaths.empty())
+        return MakeControlNavigationTarget(controlRecord.radioGroup->childPaths.front());
     if (! controlRecord.tabItems.empty())
     {
         return MakeNavigationTarget(AccessibilityFragmentKind::TabItem, controlRecord.path, 0u, controlRecord.tabItems.front().tabId);
@@ -3522,6 +3697,8 @@ std::optional<AccessibilityNavigationTarget> FirstControlFragmentTarget(const Ac
 
 std::optional<AccessibilityNavigationTarget> LastControlFragmentTarget(const AccessibilityControlNavigationSnapshot& controlRecord) noexcept
 {
+    if (controlRecord.radioGroup && ! controlRecord.radioGroup->childPaths.empty())
+        return MakeControlNavigationTarget(controlRecord.radioGroup->childPaths.back());
     if (! controlRecord.tabItems.empty())
     {
         return MakeNavigationTarget(AccessibilityFragmentKind::TabItem, controlRecord.path, 0u, controlRecord.tabItems.back().tabId);
@@ -3556,6 +3733,25 @@ std::optional<AccessibilityNavigationTarget> ResolveSnapshotNavigationTarget(con
                                                                              NavigateDirection direction) noexcept
 {
     const AccessibilityControlNavigationSnapshot* controlRecord = FindControlNavigationRecord(snapshot, path);
+    const auto findRadioChild                                   = [](const RadioGroupSnapshot& group, const ControlPath& candidate) noexcept
+    {
+        const auto index = candidate.indices[candidate.depth - 1u];
+        return std::lower_bound(group.childPaths.begin(), group.childPaths.end(), index, [](const ControlPath& child, uint16_t value) {
+            return child.indices[child.depth - 1u] < value;
+        });
+    };
+    const auto radioParent = [&](const ControlPath& candidate) noexcept -> const AccessibilityControlNavigationSnapshot*
+    {
+        if (candidate.depth == 0u)
+            return nullptr;
+        auto parent = candidate;
+        --parent.depth;
+        const auto* group = FindControlNavigationRecord(snapshot, parent);
+        if (! group || ! static_cast<bool>(group->radioGroup))
+            return nullptr;
+        const auto found = findRadioChild(*group->radioGroup, candidate);
+        return found != group->radioGroup->childPaths.end() && AreControlPathsEqual(*found, candidate) ? group : nullptr;
+    };
     const auto treeItem = kind == AccessibilityFragmentKind::TreeItem && controlRecord ? FindSnapshotTreeItemRecord(*controlRecord, treeItemId) : std::nullopt;
     switch (direction)
     {
@@ -3596,16 +3792,24 @@ std::optional<AccessibilityNavigationTarget> ResolveSnapshotNavigationTarget(con
             {
                 if (SnapshotHasCollapsedSemanticRoot(snapshot))
                 {
+                    const AccessibilityControlNavigationSnapshot* const collapsed = ResolveSnapshotControlRecord(snapshot, kind, path);
+                    if (collapsed && collapsed->radioGroup)
+                        return LastControlFragmentTarget(*collapsed);
                     if (snapshot.semanticControlOrder.size() > 1u)
                     {
-                        return MakeControlNavigationTarget(snapshot.semanticControlOrder.back());
+                        for (size_t index = snapshot.semanticControlOrder.size(); index-- > 1u;)
+                            if (! radioParent(snapshot.semanticControlOrder[index]))
+                                return MakeControlNavigationTarget(snapshot.semanticControlOrder[index]);
+                        return std::nullopt;
                     }
-                    const AccessibilityControlNavigationSnapshot* const collapsed = ResolveSnapshotControlRecord(snapshot, kind, path);
                     return collapsed ? LastControlFragmentTarget(*collapsed) : std::nullopt;
                 }
                 if (! snapshot.semanticControlOrder.empty())
                 {
-                    return MakeControlNavigationTarget(snapshot.semanticControlOrder.back());
+                    for (size_t index = snapshot.semanticControlOrder.size(); index-- > 0u;)
+                        if (! radioParent(snapshot.semanticControlOrder[index]))
+                            return MakeControlNavigationTarget(snapshot.semanticControlOrder[index]);
+                    return std::nullopt;
                 }
                 return std::nullopt;
             }
@@ -3631,6 +3835,8 @@ std::optional<AccessibilityNavigationTarget> ResolveSnapshotNavigationTarget(con
                 {
                     return std::nullopt;
                 }
+                if (const auto* group = radioParent(path))
+                    return MakeControlNavigationTarget(group->path);
                 return MakeNavigationTarget(AccessibilityFragmentKind::Root, ControlPath{});
             }
             if (kind == AccessibilityFragmentKind::GridCell)
@@ -3651,10 +3857,17 @@ std::optional<AccessibilityNavigationTarget> ResolveSnapshotNavigationTarget(con
                     return std::nullopt;
                 }
                 const std::optional<size_t> ordinal = FindSemanticControlOrderIndex(snapshot, path);
-                if (ordinal && (ordinal.value() + 1u) < snapshot.semanticControlOrder.size())
+                const auto* group                   = radioParent(path);
+                if (group)
                 {
-                    return MakeControlNavigationTarget(snapshot.semanticControlOrder[ordinal.value() + 1u]);
+                    const auto found = findRadioChild(*group->radioGroup, path);
+                    if (found != group->radioGroup->childPaths.end() && std::next(found) != group->radioGroup->childPaths.end())
+                        return MakeControlNavigationTarget(*std::next(found));
                 }
+                else if (ordinal)
+                    for (size_t index = ordinal.value() + 1u; index < snapshot.semanticControlOrder.size(); ++index)
+                        if (! radioParent(snapshot.semanticControlOrder[index]))
+                            return MakeControlNavigationTarget(snapshot.semanticControlOrder[index]);
             }
             else if (treeItem && (treeItem->visibleIndex + 1u) < controlRecord->treeVisibleItemCount)
             {
@@ -3709,10 +3922,17 @@ std::optional<AccessibilityNavigationTarget> ResolveSnapshotNavigationTarget(con
                 }
                 const std::optional<size_t> ordinal = FindSemanticControlOrderIndex(snapshot, path);
                 const size_t firstSiblingOrdinal    = SnapshotHasCollapsedSemanticRoot(snapshot) ? 1u : 0u;
-                if (ordinal && ordinal.value() > firstSiblingOrdinal)
+                const auto* group                   = radioParent(path);
+                if (group)
                 {
-                    return MakeControlNavigationTarget(snapshot.semanticControlOrder[ordinal.value() - 1u]);
+                    const auto found = findRadioChild(*group->radioGroup, path);
+                    if (found != group->radioGroup->childPaths.end() && found != group->radioGroup->childPaths.begin())
+                        return MakeControlNavigationTarget(*std::prev(found));
                 }
+                else if (ordinal)
+                    for (size_t index = ordinal.value(); index-- > firstSiblingOrdinal;)
+                        if (! radioParent(snapshot.semanticControlOrder[index]))
+                            return MakeControlNavigationTarget(snapshot.semanticControlOrder[index]);
             }
             else if (treeItem && treeItem->visibleIndex > 0u)
             {
@@ -3873,7 +4093,7 @@ std::optional<AccessibilityNavigationTarget> ResolveSnapshotNavigationTarget(con
 
 [[nodiscard]] bool SupportsTextPattern(const Control* control) noexcept
 {
-    if (dynamic_cast<const RichTextEditor*>(control))
+    if (Detail::RichEditorAccessibilityAccess::As(control))
         return true;
     if (const auto* textField = dynamic_cast<const TextField*>(control))
     {
@@ -3890,7 +4110,7 @@ std::optional<AccessibilityNavigationTarget> ResolveSnapshotNavigationTarget(con
 {
     // ACP, TextPattern and application selections share source UTF-16 offsets.
     // The control maps them to its prepared rich projection for geometry.
-    if (const auto* editor = dynamic_cast<const RichTextEditor*>(control))
+    if (const auto* editor = Detail::RichEditorAccessibilityAccess::As(control))
         return editor->GetText();
     if (const auto* textField = dynamic_cast<const TextField*>(control))
     {
@@ -4017,7 +4237,7 @@ std::optional<AccessibilityNavigationTarget> ResolveSnapshotNavigationTarget(con
                                                                                     std::wstring_view text,
                                                                                     const TextRangeSpan& range)
 {
-    if (dynamic_cast<const RichTextEditor*>(&control))
+    if (Detail::RichEditorAccessibilityAccess::As(&control))
     {
         auto rectangles = control.TryGetTextInputRangeRects(host, range.start, range.end);
         if (! rectangles)
@@ -4031,7 +4251,7 @@ std::optional<AccessibilityNavigationTarget> ResolveSnapshotNavigationTarget(con
             rectangle.bottom = std::clamp(rectangle.bottom, viewport.top, viewport.bottom);
         }
         std::erase_if(*rectangles, [](const auto& rect) { return rect.right <= rect.left || rect.bottom <= rect.top; });
-        return rectangles;
+        return std::optional<std::vector<D2D1_RECT_F>>(std::in_place, rectangles.value());
     }
     if (range.start == range.end)
     {
@@ -4043,7 +4263,7 @@ std::optional<AccessibilityNavigationTarget> ResolveSnapshotNavigationTarget(con
         if (std::optional<std::vector<D2D1_RECT_F>> rects = control.TryGetTextInputRangeRects(host, range.start, range.end);
             rects.has_value() && ! rects->empty())
         {
-            return rects;
+            return std::optional<std::vector<D2D1_RECT_F>>(std::in_place, rects.value());
         }
         return std::nullopt;
     }
@@ -4052,18 +4272,18 @@ std::optional<AccessibilityNavigationTarget> ResolveSnapshotNavigationTarget(con
     {
         if (std::optional<D2D1_RECT_F> rect = TryResolveSimpleTextRangeCaretRect(host, control, text, range); rect.has_value())
         {
-            return std::vector<D2D1_RECT_F>{rect.value()};
+            return std::optional<std::vector<D2D1_RECT_F>>(std::in_place, 1u, rect.value());
         }
         if (std::optional<std::vector<D2D1_RECT_F>> rects = control.TryGetTextInputRangeRects(host, range.start, range.end);
             rects.has_value() && ! rects->empty())
         {
-            return rects;
+            return std::optional<std::vector<D2D1_RECT_F>>(std::in_place, rects.value());
         }
         return std::nullopt;
     }
 
     const D2D1_RECT_F viewport = ResolveTextPatternViewportRect(&control);
-    std::vector<D2D1_RECT_F> rects;
+    std::vector<D2D1_RECT_F> rects(0u);
     size_t segmentStart   = (std::min)(range.start, text.size());
     const size_t rangeEnd = (std::min)(range.end, text.size());
     while (segmentStart < rangeEnd)
@@ -4108,7 +4328,7 @@ std::optional<AccessibilityNavigationTarget> ResolveSnapshotNavigationTarget(con
     {
         return std::nullopt;
     }
-    return rects;
+    return std::optional<std::vector<D2D1_RECT_F>>(std::in_place, rects);
 }
 
 [[nodiscard]] size_t GetTextRangeEndpointPosition(const TextRangeSpan& range, TextPatternRangeEndpoint endpoint) noexcept
@@ -4494,25 +4714,25 @@ struct TextRangeSpanMoveResult
 
 [[nodiscard]] std::optional<std::vector<TextRangeSpan>> TryResolveTextRangeVisualLineSpans(const ControlHost& host,
                                                                                            const Control& control,
-                                                                                           std::wstring_view text) noexcept
+                                                                                           std::wstring_view text)
 {
-    if (const auto* editor = dynamic_cast<const RichTextEditor*>(&control))
+    if (const auto* editor = Detail::RichEditorAccessibilityAccess::As(&control))
     {
-        const auto ranges = editor->GetSourceVisualLineRanges(host);
+        const auto ranges = EmbeddedAccessibilityAccess::SourceLines(*editor, host);
         if (! ranges)
             return std::nullopt;
-        std::vector<TextRangeSpan> spans;
+        std::vector<TextRangeSpan> spans(0u);
         spans.reserve(ranges->size());
         for (const auto& [start, end] : *ranges)
             spans.push_back({start, end});
-        return spans;
+        return std::optional<std::vector<TextRangeSpan>>(std::in_place, spans);
     }
     if (text.empty() || ! IsSimpleTextRangeCaretGeometrySupported(control, text))
     {
         return std::nullopt;
     }
 
-    std::vector<TextRangeSpan> spans;
+    std::vector<TextRangeSpan> spans(0u);
     size_t logicalLineCount = 0u;
     size_t logicalLineStart = 0u;
     while (logicalLineStart <= text.size())
@@ -4578,7 +4798,7 @@ struct TextRangeSpanMoveResult
     {
         return std::nullopt;
     }
-    return spans;
+    return std::optional<std::vector<TextRangeSpan>>(std::in_place, spans);
 }
 
 [[nodiscard]] size_t FindTextRangeVisualLineIndex(std::span<const TextRangeSpan> spans, size_t position) noexcept
@@ -4607,7 +4827,7 @@ struct TextRangeSpanMoveResult
 [[nodiscard]] std::optional<TextRangeSpan> TryGetEnclosingTextRangeVisualLineSpan(const ControlHost& host,
                                                                                   const Control& control,
                                                                                   std::wstring_view text,
-                                                                                  size_t position) noexcept
+                                                                                  size_t position)
 {
     const std::optional<std::vector<TextRangeSpan>> spans = TryResolveTextRangeVisualLineSpans(host, control, text);
     if (! spans || spans->empty())
@@ -4619,7 +4839,7 @@ struct TextRangeSpanMoveResult
 }
 
 [[nodiscard]] std::optional<TextRangeSpanMoveResult> TryMoveTextRangeSpanByVisualLine(
-    const ControlHost& host, const Control& control, std::wstring_view text, const TextRangeSpan& range, int count) noexcept
+    const ControlHost& host, const Control& control, std::wstring_view text, const TextRangeSpan& range, int count)
 {
     const TextRangeSpan clampedRange = ClampTextRangeSpan(range.start, range.end, text.size());
     if (count == 0)
@@ -4693,7 +4913,7 @@ struct TextRangeSpanMoveResult
 }
 
 [[nodiscard]] std::optional<TextRangeUnitMoveResult> TryMoveTextRangePositionByVisualLine(
-    const ControlHost& host, const Control& control, std::wstring_view text, size_t position, int count) noexcept
+    const ControlHost& host, const Control& control, std::wstring_view text, size_t position, int count)
 {
     const size_t clampedPosition = (std::min)(position, text.size());
     if (count == 0)
@@ -4724,7 +4944,7 @@ struct TextRangeSpanMoveResult
 
 [[nodiscard]] TextRangeSpan GetControlAccessibleSelectionRange(const ControlHost* host, const Control* control, size_t textLength) noexcept
 {
-    if (const auto* editor = dynamic_cast<const RichTextEditor*>(control))
+    if (const auto* editor = Detail::RichEditorAccessibilityAccess::As(control))
     {
         const auto selection = editor->GetSelection();
         return ClampTextRangeSpan(selection.anchor, selection.caret, textLength);
@@ -4869,7 +5089,7 @@ struct TextRangeSpanMoveResult
         return UIA_SeparatorControlTypeId;
     }
 
-    if (dynamic_cast<const RichTextEditor*>(control))
+    if (Detail::RichEditorAccessibilityAccess::As(control))
         return UIA_DocumentControlTypeId;
 
     if (dynamic_cast<const Checkbox*>(control) != nullptr)
@@ -4879,6 +5099,10 @@ struct TextRangeSpanMoveResult
     if (dynamic_cast<const RadioButton*>(control) != nullptr)
     {
         return UIA_RadioButtonControlTypeId;
+    }
+    if (dynamic_cast<const RadioButtons*>(control) != nullptr)
+    {
+        return UIA_GroupControlTypeId;
     }
     if (dynamic_cast<const Toggle*>(control) != nullptr || dynamic_cast<const Button*>(control) != nullptr)
     {
@@ -4966,7 +5190,7 @@ struct TextRangeSpanMoveResult
 
 [[nodiscard]] bool IsValueReadOnly(const Control* control) noexcept
 {
-    if (const auto* editor = dynamic_cast<const RichTextEditor*>(control))
+    if (const auto* editor = Detail::RichEditorAccessibilityAccess::As(control))
         return editor->IsReadOnly();
     if (const auto* textField = dynamic_cast<const TextField*>(control))
     {
@@ -5336,14 +5560,14 @@ HRESULT SetDoubleArray(SAFEARRAY** outArray, std::span<const double> values) noe
 }
 
 HRESULT SetScreenRectDoubleArray(
-    SAFEARRAY** outArray, WindowHostAccessibilityTarget* target, HWND hwnd, std::span<const D2D1_RECT_F> boundsDip, float dipToPixelScale) noexcept
+    SAFEARRAY** outArray, WindowHostAccessibilityTarget* target, HWND hwnd, std::span<const D2D1_RECT_F> boundsDip, float dipToPixelScale)
 {
     if (! std::isfinite(dipToPixelScale) || dipToPixelScale <= 0.0f)
     {
         dipToPixelScale = 1.0f;
     }
 
-    std::vector<double> values;
+    std::vector<double> values(0u);
     values.reserve(boundsDip.size() * 4u);
     const auto snapshot = CaptureAccessibilitySnapshot(target, hwnd);
     if (target && target->embedded && (! snapshot || ! snapshot->alive))
@@ -5765,6 +5989,22 @@ public:
     {
     }
 
+    AccessibilityProvider(WindowHostAccessibilityTarget* target,
+                          HWND hwnd,
+                          const ControlPath& path,
+                          uint64_t treeItemId,
+                          const AccessibilityControlIdentity& identity,
+                          TreeItemTag,
+                          EventTag) noexcept
+        : _target(target),
+          _hwnd(hwnd),
+          _path(path),
+          _kind(AccessibilityFragmentKind::TreeItem),
+          _treeItemId(treeItemId),
+          _identity(identity)
+    {
+    }
+
     AccessibilityProvider(WindowHostAccessibilityTarget* target, HWND hwnd, const ControlPath& path, size_t gridColumnIndex, GridHeaderTag) noexcept
         : _target(target),
           _hwnd(hwnd),
@@ -6121,7 +6361,11 @@ private:
     return element;
 }
 
+wil::com_ptr_nothrow<IRawElementProviderSimple> CreateFirstAnnotation(WindowHostAccessibilityTarget* target,
+                                                                      HWND hwnd,
+                                                                      const AccessibilityControlNavigationSnapshot& record) noexcept;
 #include "DxUi.RichAccessibility.h"
+#include "DxUi.RichAnnotations.h"
 
 size_t AccessibilityTextRangeProvider::SemanticEnclosing(const AccessibilityControlNavigationSnapshot& record, TextRangeSpan range) const noexcept
 {
@@ -6224,6 +6468,7 @@ HRESULT AccessibilityTextRangeProvider::CompareEndpoints(TextPatternRangeEndpoin
                                                          ITextRangeProvider* targetRange,
                                                          TextPatternRangeEndpoint targetEndpoint,
                                                          int* outResult) noexcept
+try
 {
     if (outResult)
         *outResult = {};
@@ -6259,6 +6504,11 @@ HRESULT AccessibilityTextRangeProvider::CompareEndpoints(TextPatternRangeEndpoin
     *outResult = position < targetPosition ? -1 : (position > targetPosition ? 1 : 0);
     return S_OK;
 }
+catch (const std::bad_alloc&)
+{
+    // COM boundary: allocation failure leaves the initialized output and both ranges unchanged.
+    return E_OUTOFMEMORY;
+}
 
 // Attribute values borrow the immutable snapshot. Comparing runs therefore
 // allocates no BSTR; only the final COM result owns a string.
@@ -6278,6 +6528,8 @@ struct RichSourceAttribute
     {
         case UIA_IsReadOnlyAttributeId: return {VT_BOOL, record.controlValueReadOnly || ! record.controlEnabled ? 1.0 : 0.0};
         case UIA_IsItalicAttributeId: return {VT_BOOL, (flags & RichText::Italic) ? 1.0 : 0.0};
+        case UIA_IsSuperscriptAttributeId: return {VT_BOOL, (flags & RichText::Superscript) ? 1.0 : 0.0};
+        case UIA_IsSubscriptAttributeId: return {VT_BOOL, (flags & RichText::Subscript) ? 1.0 : 0.0};
         case UIA_FontWeightAttributeId: return {VT_I4, (flags & RichText::Bold) ? 700.0 : run.heading ? 600.0 : 400.0};
         case UIA_UnderlineStyleAttributeId:
         {
@@ -6291,24 +6543,27 @@ struct RichSourceAttribute
         case UIA_StyleIdAttributeId: return {VT_I4, run.heading ? StyleId_Heading1 + static_cast<double>(run.heading - 1u) : StyleId_Normal};
         case UIA_FontNameAttributeId: return {VT_BSTR, 0.0, (flags & RichText::Code) ? record.controlRichText->codeFont : record.controlRichText->bodyFont};
         case UIA_FontSizeAttributeId:
+        {
+            const auto scale = flags & (RichText::Superscript | RichText::Subscript) ? .75 : 1.0;
             if (run.heading && record.controlRichText->headingFontSizeDip[run.heading - 1u] > 0.0f)
-                return {VT_R8, static_cast<double>(record.controlRichText->headingFontSizeDip[run.heading - 1u]) * 72.0 / 96.0};
+                return {VT_R8, scale * static_cast<double>(record.controlRichText->headingFontSizeDip[run.heading - 1u]) * 72.0 / 96.0};
             return {VT_R8,
-                    ((flags & RichText::Code) ? record.controlRichText->codeFontSizePoints : record.controlRichText->fontSizePoints) *
+                    scale * ((flags & RichText::Code) ? record.controlRichText->codeFontSizePoints : record.controlRichText->fontSizePoints) *
                         (run.heading ? (1.0 + record.controlRichText->headingScaleStep * static_cast<double>(7u - run.heading)) : 1.0)};
+        }
         default: return {};
     }
 }
 [[nodiscard]] size_t SourceFormatIndex(const AccessibilityControlNavigationSnapshot& record, size_t offset) noexcept
 {
-    const auto runs     = record.RichSemantic()->SourceRuns();
+    const auto runs     = record.controlRichText->SourceFormats();
     const auto position = std::min(offset, record.controlAccessibleText.empty() ? 0u : record.controlAccessibleText.size() - 1u);
     const auto found    = std::lower_bound(runs.begin(), runs.end(), position, [](const auto& run, auto value) { return run.start + run.length <= value; });
     return static_cast<size_t>(found - runs.begin());
 }
 [[nodiscard]] RichText::StyleRun SourceFormatAt(const AccessibilityControlNavigationSnapshot& record, size_t offset) noexcept
 {
-    const auto runs  = record.RichSemantic()->SourceRuns();
+    const auto runs  = record.controlRichText->SourceFormats();
     const auto index = SourceFormatIndex(record, offset);
     return index < runs.size() ? runs[index] : RichText::StyleRun{};
 }
@@ -6343,7 +6598,7 @@ HRESULT SetSourceAttribute(VARIANT* result, const RichSourceAttribute& value) no
                                                        int count,
                                                        bool nondegenerate = false) noexcept
 {
-    const auto runs = record.RichSemantic()->SourceRuns();
+    const auto runs = record.controlRichText->SourceFormats();
     if (runs.empty() || count == 0)
         return {position, 0};
     size_t index         = position == record.controlAccessibleText.size() && ! nondegenerate ? runs.size() : SourceFormatIndex(record, position);
@@ -6360,6 +6615,7 @@ HRESULT SetSourceAttribute(VARIANT* result, const RichSourceAttribute& value) no
 }
 
 HRESULT AccessibilityTextRangeProvider::ExpandToEnclosingUnit(TextUnit unit) noexcept
+try
 {
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
@@ -6391,7 +6647,7 @@ HRESULT AccessibilityTextRangeProvider::ExpandToEnclosingUnit(TextUnit unit) noe
         size_t rangeStart    = 0u;
         size_t rangeEnd      = 0u;
         size_t textLength    = 0u;
-        std::wstring expectedText;
+        std::wstring expectedText(0u, L' ');
         {
             const std::scoped_lock accessibilityLock(AccessibilitySnapshotMutex(_target));
             expectedText              = ResolveText();
@@ -6421,7 +6677,6 @@ HRESULT AccessibilityTextRangeProvider::ExpandToEnclosingUnit(TextUnit unit) noe
 
     const std::scoped_lock accessibilityLock(AccessibilitySnapshotMutex(_target));
     const std::wstring text = ResolveText();
-    _boundsOverrideDip.reset();
     TextRangeSpan expandedRange{};
     if (supportedUnit == TextUnit_Document)
     {
@@ -6448,14 +6703,21 @@ HRESULT AccessibilityTextRangeProvider::ExpandToEnclosingUnit(TextUnit unit) noe
                 : GetTextRangeLineSpanAtPosition(text, range.start);
     }
 
-    _rangeStart           = expandedRange.start;
-    _rangeEnd             = expandedRange.end;
+    _rangeStart = expandedRange.start;
+    _rangeEnd   = expandedRange.end;
+    _boundsOverrideDip.reset();
     const wchar_t* detail = supportedUnit == TextUnit_Character ? L"expand-character"
                             : supportedUnit == TextUnit_Word    ? L"expand-word"
                             : supportedUnit == TextUnit_Line    ? L"expand-line"
                                                                 : L"expand-document";
     Debug::Perf::Emit(L"dxui.uia.text_range_us", detail, Debug::Perf::ElapsedUs(startedAt), _rangeEnd - _rangeStart, text.size(), S_OK);
     return S_OK;
+}
+
+catch (const std::bad_alloc&)
+{
+    // COM boundary: fallible preparation precedes the endpoint/geometry commit.
+    return E_OUTOFMEMORY;
 }
 
 HRESULT AccessibilityTextRangeProvider::FindAttribute(TEXTATTRIBUTEID attributeId, VARIANT value, BOOL backward, ITextRangeProvider** outRange) noexcept
@@ -6477,6 +6739,58 @@ HRESULT AccessibilityTextRangeProvider::FindAttribute(TEXTATTRIBUTEID attributeI
         return UIA_E_ELEMENTNOTAVAILABLE;
     if (record->HasCurrentRichSemantic())
     {
+        if (attributeId == UIA_AnnotationTypesAttributeId)
+        {
+            if (value.vt != (VT_ARRAY | VT_I4) || ! value.parray || SafeArrayGetDim(value.parray) != 1u)
+                return E_INVALIDARG;
+            VARTYPE elementType{};
+            if (FAILED(SafeArrayGetVartype(value.parray, &elementType)) || elementType != VT_I4)
+                return E_INVALIDARG;
+            LONG lower{}, upper{};
+            RETURN_IF_FAILED(SafeArrayGetLBound(value.parray, 1u, &lower));
+            RETURN_IF_FAILED(SafeArrayGetUBound(value.parray, 1u, &upper));
+            const auto length = static_cast<int64_t>(upper) - lower + 1;
+            if (length < 0 || length > 4)
+                return S_OK;
+            std::array<LONG, 4u> expected{};
+            for (LONG index = 0; index < length; ++index)
+            {
+                LONG sourceIndex = lower + index;
+                RETURN_IF_FAILED(SafeArrayGetElement(value.parray, &sourceIndex, &expected[static_cast<size_t>(index)]));
+            }
+            std::sort(expected.begin(), expected.begin() + static_cast<ptrdiff_t>(length));
+            const auto matches = [&](size_t position) noexcept
+            {
+                std::array<LONG, 4u> actual{};
+                const auto count = AnnotationTypesAt(*record, position, actual);
+                return count == static_cast<size_t>(length) && std::equal(actual.begin(), actual.begin() + static_cast<ptrdiff_t>(count), expected.begin());
+            };
+            const auto range = ClampCurrentRange(record->controlAccessibleText.size());
+            std::optional<TextRangeSpan> found;
+            for (const auto& run : record->controlRichText->annotationTypes)
+            {
+                const auto first = std::max(range.start, run.source.first), last = std::min(range.end, run.source.last);
+                if (first >= last)
+                    continue;
+                if (matches(first))
+                {
+                    if (found && found->end == first)
+                        found->end = last;
+                    else if (! found || backward)
+                        found = TextRangeSpan{first, last};
+                }
+                else if (found && ! backward)
+                    break;
+            }
+            if (record->controlRichText->annotationTypes.empty() && matches(range.start))
+                found = range;
+            if (range.start == range.end && matches(range.start))
+                found = range;
+            if (! found)
+                return S_OK;
+            *outRange = CreateRange(found->start, found->end);
+            return *outRange ? S_OK : E_OUTOFMEMORY;
+        }
         const auto expected = SourceAttribute(*record, {}, attributeId);
         if (expected.type == VT_EMPTY)
             return UIA_E_NOTSUPPORTED;
@@ -6484,7 +6798,7 @@ HRESULT AccessibilityTextRangeProvider::FindAttribute(TEXTATTRIBUTEID attributeI
             return E_INVALIDARG;
         const auto range = ClampCurrentRange(record->controlAccessibleText.size());
         std::optional<TextRangeSpan> found;
-        for (const auto& run : record->RichSemantic()->SourceRuns())
+        for (const auto& run : record->controlRichText->SourceFormats())
         {
             const auto first = std::max(range.start, run.start), last = std::min(range.end, run.start + run.length);
             if (first >= last)
@@ -6533,12 +6847,16 @@ HRESULT AccessibilityTextRangeProvider::FindText(BSTR text, BOOL backward, BOOL 
     }
 
     const std::wstring_view needle(text ? text : L"", SysStringLen(text));
-    if (needle.empty() || ! RichText::IsValidUtf16(needle) || needle.size() > static_cast<size_t>(INT_MAX))
+    if (needle.empty() || ! RichText::IsValidSourceUtf16(needle) || needle.size() > static_cast<size_t>(INT_MAX))
         return E_INVALIDARG;
     const std::scoped_lock lock(AccessibilitySnapshotMutex(_target));
     const auto* record = FindControlNavigationRecord(*snapshot, _path);
     if (! record)
         return UIA_E_ELEMENTNOTAVAILABLE;
+    // Text2 identifies the retained RichText source contract in every view.
+    // A semantic snapshot is optional (Source/v0/pending views have none).
+    if (! record->controlSupportsText2 && ! RichText::IsValidUtf16(needle))
+        return E_INVALIDARG;
     const std::wstring_view source = _textOverride && ! record->controlSupportsText2 ? *_textOverride : record->controlAccessibleText;
     const auto range               = ClampCurrentRange(source.size());
     size_t first                   = range.start;
@@ -6592,8 +6910,10 @@ HRESULT AccessibilityTextRangeProvider::GetAttributeValue(TEXTATTRIBUTEID attrib
     if (semanticRecord && semanticRecord->HasCurrentRichSemantic())
     {
         const auto range = ClampCurrentRange(semanticRecord->controlAccessibleText.size());
+        if (attributeId == UIA_AnnotationTypesAttributeId || attributeId == UIA_AnnotationObjectsAttributeId)
+            return AnnotationAttribute(_target, _hwnd, *semanticRecord, range, attributeId, outValue);
         const auto first = SourceAttribute(*semanticRecord, SourceFormatAt(*semanticRecord, range.start), attributeId);
-        for (const auto& run : semanticRecord->RichSemantic()->SourceRuns())
+        for (const auto& run : semanticRecord->controlRichText->SourceFormats())
         {
             if (run.start >= range.end)
                 break;
@@ -6618,6 +6938,7 @@ HRESULT AccessibilityTextRangeProvider::GetAttributeValue(TEXTATTRIBUTEID attrib
 }
 
 HRESULT AccessibilityTextRangeProvider::GetBoundingRectangles(SAFEARRAY** outRectangles) noexcept
+try
 {
     if (outRectangles)
         *outRectangles = nullptr;
@@ -6671,7 +6992,7 @@ HRESULT AccessibilityTextRangeProvider::GetBoundingRectangles(SAFEARRAY** outRec
 
     if (! IsCurrentThreadWindowThread())
     {
-        std::vector<D2D1_RECT_F> boundsDip;
+        std::vector<D2D1_RECT_F> boundsDip(0u);
         float dipToPixelScale    = 1.0f;
         const HRESULT dispatchHr = DispatchBoundingRectanglesToWindowThread(range.start, range.end, boundsDip, dipToPixelScale);
         if (FAILED(dispatchHr))
@@ -6706,7 +7027,7 @@ HRESULT AccessibilityTextRangeProvider::GetBoundingRectangles(SAFEARRAY** outRec
     }
 
     auto resolved = TryResolveTextRangeCaretRects(*host, *control, text, range);
-    if (dynamic_cast<const RichTextEditor*>(control))
+    if (Detail::RichEditorAccessibilityAccess::As(control))
     {
         const auto snapshot = CaptureSnapshot();
         const auto* record  = snapshot ? FindControlNavigationRecord(*snapshot, _path) : nullptr;
@@ -6715,11 +7036,21 @@ HRESULT AccessibilityTextRangeProvider::GetBoundingRectangles(SAFEARRAY** outRec
         if (! resolved || ! record || record->controlAccessibleText != text)
             return SetDoubleArray(outRectangles, {});
     }
-    std::vector<D2D1_RECT_F> boundsDip = resolved.value_or(std::vector<D2D1_RECT_F>{ResolveTextPatternViewportRect(control)});
-    const float dipToPixelScale        = static_cast<float>(host->GetDpi()) / static_cast<float>(USER_DEFAULT_SCREEN_DPI);
-    const HRESULT hr                   = SetScreenRectDoubleArray(outRectangles, _target, _hwnd, boundsDip, dipToPixelScale);
+    std::vector<D2D1_RECT_F> boundsDip(0u);
+    if (resolved)
+        boundsDip.swap(resolved.value());
+    else
+        boundsDip.push_back(ResolveTextPatternViewportRect(control));
+    const float dipToPixelScale = static_cast<float>(host->GetDpi()) / static_cast<float>(USER_DEFAULT_SCREEN_DPI);
+    const HRESULT hr            = SetScreenRectDoubleArray(outRectangles, _target, _hwnd, boundsDip, dipToPixelScale);
     Debug::Perf::Emit(L"dxui.uia.text_range_us", L"bounding-rectangles", Debug::Perf::ElapsedUs(startedAt), boundsDip.size(), range.end - range.start, hr);
     return hr;
+}
+
+catch (const std::bad_alloc&)
+{
+    // COM boundary: leave the result null when preparing text or rectangles runs out of memory.
+    return E_OUTOFMEMORY;
 }
 
 HRESULT AccessibilityTextRangeProvider::GetEnclosingElement(IRawElementProviderSimple** outElement) noexcept
@@ -6749,9 +7080,10 @@ HRESULT AccessibilityTextRangeProvider::GetEnclosingElement(IRawElementProviderS
         const auto enclosing = SemanticEnclosing(*record, ClampCurrentRange(record->controlAccessibleText.size()));
         if (enclosing != 0u)
         {
-            auto element = RichSemanticElementProvider::Create(_target, _hwnd, *record, enclosing);
+            HRESULT failure{};
+            auto element = RichSemanticElementProvider::Create(_target, _hwnd, *record, enclosing, false, &failure);
             if (! element)
-                return E_OUTOFMEMORY;
+                return failure;
             *outElement = element.detach();
             return S_OK;
         }
@@ -6768,6 +7100,7 @@ HRESULT AccessibilityTextRangeProvider::GetEnclosingElement(IRawElementProviderS
 }
 
 HRESULT AccessibilityTextRangeProvider::GetText(int maxLength, BSTR* outText) noexcept
+try
 {
     if (outText)
         *outText = {};
@@ -6804,7 +7137,14 @@ HRESULT AccessibilityTextRangeProvider::GetText(int maxLength, BSTR* outText) no
     return hr;
 }
 
+catch (const std::bad_alloc&)
+{
+    // COM boundary: text-copy failure must not terminate the host or publish a partial BSTR.
+    return E_OUTOFMEMORY;
+}
+
 HRESULT AccessibilityTextRangeProvider::Move(TextUnit unit, int count, int* outMoved) noexcept
+try
 {
     if (outMoved)
         *outMoved = {};
@@ -6861,7 +7201,7 @@ HRESULT AccessibilityTextRangeProvider::Move(TextUnit unit, int count, int* outM
         size_t rangeStart    = 0u;
         size_t rangeEnd      = 0u;
         size_t textLength    = 0u;
-        std::wstring expectedText;
+        std::wstring expectedText(0u, L' ');
         {
             const std::scoped_lock accessibilityLock(AccessibilitySnapshotMutex(_target));
             expectedText              = ResolveText();
@@ -6956,7 +7296,14 @@ HRESULT AccessibilityTextRangeProvider::Move(TextUnit unit, int count, int* outM
     return S_OK;
 }
 
+catch (const std::bad_alloc&)
+{
+    // COM boundary: move calculation allocates before changing the range.
+    return E_OUTOFMEMORY;
+}
+
 HRESULT AccessibilityTextRangeProvider::MoveEndpointByUnit(TextPatternRangeEndpoint endpoint, TextUnit unit, int count, int* outMoved) noexcept
+try
 {
     if (outMoved)
         *outMoved = {};
@@ -7016,7 +7363,7 @@ HRESULT AccessibilityTextRangeProvider::MoveEndpointByUnit(TextPatternRangeEndpo
         size_t rangeStart    = 0u;
         size_t rangeEnd      = 0u;
         size_t textLength    = 0u;
-        std::wstring expectedText;
+        std::wstring expectedText(0u, L' ');
         {
             const std::scoped_lock accessibilityLock(AccessibilitySnapshotMutex(_target));
             expectedText              = ResolveText();
@@ -7080,6 +7427,12 @@ HRESULT AccessibilityTextRangeProvider::MoveEndpointByUnit(TextPatternRangeEndpo
     const wchar_t* detail = unit == TextUnit_Line ? L"move-endpoint-line" : unit == TextUnit_Word ? L"move-endpoint-word" : L"move-endpoint-character";
     Debug::Perf::Emit(L"dxui.uia.text_range_us", detail, Debug::Perf::ElapsedUs(startedAt), _rangeEnd - _rangeStart, text.size(), S_OK);
     return S_OK;
+}
+
+catch (const std::bad_alloc&)
+{
+    // COM boundary: preserve the previous endpoints when line/text preparation fails.
+    return E_OUTOFMEMORY;
 }
 
 HRESULT AccessibilityTextRangeProvider::MoveEndpointByRange(TextPatternRangeEndpoint endpoint,
@@ -7217,7 +7570,7 @@ HRESULT AccessibilityTextRangeProvider::ExecuteSelectOnWindowThread(Accessibilit
     bool backwards = false;
     if (kind != AccessibilityUiActionKind::Select)
     {
-        auto* editor = dynamic_cast<RichTextEditor*>(control);
+        auto* editor = Detail::RichEditorAccessibilityAccess::As(control);
         if (! editor)
             return UIA_E_NOTSUPPORTED;
         const auto selection = editor->GetSelection();
@@ -7246,7 +7599,7 @@ HRESULT AccessibilityTextRangeProvider::ExecuteSelectOnWindowThread(Accessibilit
                 range = {current.start, range.start};
         }
     }
-    if (auto* editor = dynamic_cast<RichTextEditor*>(control))
+    if (auto* editor = Detail::RichEditorAccessibilityAccess::As(control))
     {
         try
         {
@@ -7392,7 +7745,7 @@ HRESULT AccessibilityTextRangeProvider::ExecuteResolveBoundsOnWindowThread(size_
     }
 
     auto resolved = TryResolveTextRangeCaretRects(*host, *control, text, range);
-    if (dynamic_cast<const RichTextEditor*>(control))
+    if (Detail::RichEditorAccessibilityAccess::As(control))
     {
         const auto snapshot = CaptureSnapshot();
         const auto* record  = snapshot ? FindControlNavigationRecord(*snapshot, _path) : nullptr;
@@ -7444,7 +7797,7 @@ HRESULT AccessibilityTextRangeProvider::ExecuteScrollIntoViewOnWindowThread(bool
         return UIA_E_ELEMENTNOTAVAILABLE;
     if (! IsControlEffectivelyInteractive(host->GetRoot(), control))
         return UIA_E_ELEMENTNOTENABLED;
-    auto* editor = dynamic_cast<RichTextEditor*>(control);
+    auto* editor = Detail::RichEditorAccessibilityAccess::As(control);
     if (! editor)
         return UIA_E_NOTSUPPORTED;
     const auto lifetime = GetControlLifetimeToken(*control);
@@ -7456,6 +7809,8 @@ HRESULT AccessibilityTextRangeProvider::ExecuteScrollIntoViewOnWindowThread(bool
     const bool scrolled = editor->ScrollSourceRangeIntoView(*host, range.start, range.end, alignToTop);
     if (lifetime.expired() || ! _target || _target->ResolveHost() != host || ResolveMutableControl() != control)
         return UIA_E_ELEMENTNOTAVAILABLE;
+    if (scrolled)
+        RefreshWindowHostAccessibilitySnapshot(_hwnd, host);
     return scrolled ? S_OK : static_cast<HRESULT>(UIA_E_INVALIDOPERATION);
 }
 
@@ -7846,7 +8201,7 @@ std::wstring AccessibilityTextRangeProvider::ResolveText() const
 }
 std::wstring AccessibilityTextRangeProvider::ResolveControlText(const Control* control) const
 {
-    if (dynamic_cast<const RichTextEditor*>(control))
+    if (Detail::RichEditorAccessibilityAccess::As(control))
         return GetControlAccessibleTextRangeText(control);
     return _textOverride ? *_textOverride : GetControlAccessibleTextRangeText(control);
 }
@@ -8803,6 +9158,12 @@ HRESULT AccessibilityProvider::Navigate(NavigateDirection direction, IRawElement
         {
             const auto elements = record->RichSemantic()->Elements();
             auto child          = elements[0u].firstChild;
+            const auto count    = record->controlRichText->annotations.size();
+            if (count && (direction == NavigateDirection_LastChild || child == RichText::MarkdownNoNode))
+            {
+                auto peer = RichAnnotationProvider::Create(_target, _hwnd, *record, direction == NavigateDirection_LastChild ? count - 1u : 0u);
+                return peer ? peer.query_to(outProvider) : S_OK;
+            }
             if (direction == NavigateDirection_LastChild && child != RichText::MarkdownNoNode)
                 while (elements[child].nextSibling != RichText::MarkdownNoNode)
                     child = elements[child].nextSibling;
@@ -9140,7 +9501,10 @@ HRESULT AccessibilityProvider::ElementProviderFromPoint(double x, double y, IRaw
         for (size_t index = hitRecord->controlRichText->bounds.size(); index > 1u; --index)
             if (const auto& bounds = hitRecord->controlRichText->bounds[index - 1u]; bounds && PointInRect(*bounds, pointDip))
             {
-                auto peer = RichSemanticElementProvider::Create(_target, _hwnd, *hitRecord, index - 1u);
+                const auto element = index - 1u;
+                const bool copy    = element < hitRecord->controlRichText->copyBounds.size() && hitRecord->controlRichText->copyBounds[element] &&
+                                     PointInRect(*hitRecord->controlRichText->copyBounds[element], pointDip);
+                auto peer          = RichSemanticElementProvider::Create(_target, _hwnd, *hitRecord, element, copy);
                 return peer ? peer.query_to(outProvider) : S_OK;
             }
 
@@ -9636,12 +10000,23 @@ HRESULT AccessibilityProvider::GetCaretRange(BOOL* active, ITextRangeProvider** 
     *range = CreateTextRangeProvider(record->path, caret, caret, CaptureControlIdentity(*record));
     return *range ? S_OK : E_OUTOFMEMORY;
 }
-HRESULT AccessibilityProvider::RangeFromAnnotation(IRawElementProviderSimple*, ITextRangeProvider** range) noexcept
+HRESULT AccessibilityProvider::RangeFromAnnotation(IRawElementProviderSimple* annotation, ITextRangeProvider** range) noexcept
 {
     if (! range)
         return E_POINTER;
-    *range = nullptr;
-    return CaptureSnapshot() ? static_cast<HRESULT>(UIA_E_NOTSUPPORTED) : static_cast<HRESULT>(UIA_E_ELEMENTNOTAVAILABLE);
+    *range              = nullptr;
+    const auto snapshot = CaptureSnapshot();
+    if (! snapshot)
+        return UIA_E_ELEMENTNOTAVAILABLE;
+    const auto* record = ResolveSnapshotControlRecord(*snapshot, _kind, _path);
+    const auto* peer   = dynamic_cast<const RichAnnotationProvider*>(annotation);
+    if (! record || ! record->controlSupportsText2)
+        return UIA_E_NOTSUPPORTED;
+    if (! peer || ! peer->BelongsTo(_target, _hwnd, *record))
+        return E_INVALIDARG;
+    const auto source = peer->Source(*record);
+    *range            = CreateTextRangeProvider(record->path, source.first, source.last, CaptureControlIdentity(*record));
+    return *range ? S_OK : E_OUTOFMEMORY;
 }
 
 HRESULT AccessibilityProvider::SetValue(LPCWSTR value) noexcept
@@ -9973,6 +10348,7 @@ HRESULT AccessibilityProvider::get_SmallChange(double* outSmallChange) noexcept
 }
 
 HRESULT AccessibilityProvider::GetSelection(SAFEARRAY** outSelection) noexcept
+try
 {
     if (outSelection)
         *outSelection = nullptr;
@@ -9990,7 +10366,7 @@ HRESULT AccessibilityProvider::GetSelection(SAFEARRAY** outSelection) noexcept
         (snapshot && snapshot->alive && snapshot->hasRetainedRoot) ? ResolveSnapshotControlRecord(*snapshot, _kind, _path) : nullptr;
     if (record && SnapshotSupportsSelectionProvider(*record))
     {
-        std::vector<wil::com_ptr_nothrow<IRawElementProviderSimple>> selectionProviders;
+        std::vector<wil::com_ptr_nothrow<IRawElementProviderSimple>> selectionProviders(0u);
         if (record->isTree)
         {
             if (! record->selectedTreeItemIds.empty())
@@ -10036,8 +10412,22 @@ HRESULT AccessibilityProvider::GetSelection(SAFEARRAY** outSelection) noexcept
             }
             selectionProviders.push_back(std::move(simple));
         }
+        else if (static_cast<bool>(record->radioGroup))
+        {
+            selectionProviders.reserve(record->radioGroup->selectedPaths.size());
+            for (const auto& path : record->radioGroup->selectedPaths)
+            {
+                const auto* choice = FindControlNavigationRecord(*snapshot, path);
+                if (! choice || ! choice->controlSupportsSelectionItem || ! choice->controlSelectionItemSelected)
+                    continue;
+                auto simple = CreateControlElement(_target, _hwnd, path, CaptureControlIdentity(*choice));
+                if (! simple)
+                    return E_OUTOFMEMORY;
+                selectionProviders.push_back(std::move(simple));
+            }
+        }
 
-        std::vector<IRawElementProviderSimple*> rawProviders;
+        std::vector<IRawElementProviderSimple*> rawProviders(0u);
         rawProviders.reserve(selectionProviders.size());
         for (const auto& provider : selectionProviders)
         {
@@ -10076,6 +10466,10 @@ HRESULT AccessibilityProvider::GetSelection(SAFEARRAY** outSelection) noexcept
 
     return UIA_E_NOTSUPPORTED;
 }
+catch (const std::bad_alloc&)
+{
+    return E_OUTOFMEMORY;
+}
 
 HRESULT AccessibilityProvider::get_CanSelectMultiple(BOOL* outCanSelectMultiple) noexcept
 {
@@ -10107,7 +10501,7 @@ HRESULT AccessibilityProvider::get_CanSelectMultiple(BOOL* outCanSelectMultiple)
         *outCanSelectMultiple = record->gridCanSelectMultiple ? TRUE : FALSE;
         return S_OK;
     }
-    if (record->isTabControl)
+    if (record->isTabControl || static_cast<bool>(record->radioGroup))
     {
         *outCanSelectMultiple = FALSE;
         return S_OK;
@@ -10369,10 +10763,22 @@ HRESULT AccessibilityProvider::get_SelectionContainer(IRawElementProviderSimple*
     const std::shared_ptr<const AccessibilitySnapshot> snapshot = CaptureSnapshot();
     if (_kind == AccessibilityFragmentKind::Control || _kind == AccessibilityFragmentKind::Root)
     {
-        // A radio button's group draws its header but is no element of its own, so there is no container to name.
         const AccessibilityControlNavigationSnapshot* const control =
             (snapshot && snapshot->alive && snapshot->hasRetainedRoot) ? ResolveSnapshotControlRecord(*snapshot, _kind, _path) : nullptr;
-        return control && control->controlSupportsSelectionItem ? S_OK : static_cast<HRESULT>(UIA_E_NOTSUPPORTED);
+        if (! control || ! control->controlSupportsSelectionItem)
+            return UIA_E_NOTSUPPORTED;
+        if (control->path.depth == 0u)
+            return S_OK;
+        auto parentPath = control->path;
+        --parentPath.depth;
+        const auto* group = FindControlNavigationRecord(*snapshot, parentPath);
+        if (! group || ! static_cast<bool>(group->radioGroup))
+            return S_OK;
+        auto container = CreateControlElement(_target, _hwnd, group->path, CaptureControlIdentity(*group));
+        if (! container)
+            return E_OUTOFMEMORY;
+        *outContainer = container.detach();
+        return S_OK;
     }
     const AccessibilityControlNavigationSnapshot* record =
         (snapshot && snapshot->alive && snapshot->hasRetainedRoot) ? FindControlNavigationRecord(*snapshot, _path) : nullptr;
@@ -10999,6 +11405,8 @@ HRESULT AccessibilityProvider::ExecuteGetGridItemOnWindowThread(AccessibilityUiA
             {
                 return UIA_E_ELEMENTNOTAVAILABLE;
             }
+            if (! _target->embeddedOwner || ! EmbeddedAccessibilityAccess::Coherent(*_target->embeddedOwner))
+                return UIA_E_ELEMENTNOTAVAILABLE;
         }
         const AccessibilityControlIdentity identity{record->controlLifetime, record->controlIdentity};
         std::optional<BorrowedControlModelGuard<Grid, IGridModel>> modelGuard;
@@ -11047,6 +11455,8 @@ HRESULT AccessibilityProvider::ExecuteGetGridItemOnWindowThread(AccessibilityUiA
             return UIA_E_ELEMENTNOTAVAILABLE;
         }
 
+        if (_target->embedded && (! _target->embeddedOwner || ! EmbeddedAccessibilityAccess::Coherent(*_target->embeddedOwner)))
+            return UIA_E_ELEMENTNOTAVAILABLE;
         RememberRequestedGridRow(*_target, request.gridControlPath, request.gridControlIdentity, model, request.gridModelAssignmentGeneration, rowId);
         request.gridRowId = rowId;
         if (_target->embedded)
@@ -12067,9 +12477,13 @@ HRESULT AccessibilityProvider::ExecuteRadioSelectionOnWindowThread(Accessibility
     return S_OK;
 }
 
+void RaiseTreeItemExpansionChange(
+    WindowHostAccessibilityTarget& target, const AccessibilityControlNavigationSnapshot& record, uint64_t itemId, bool wasExpanded, bool expanded) noexcept;
+
 HRESULT AccessibilityProvider::ExecuteExpandOnWindowThread(bool expanded)
 {
-    if (! CaptureSnapshot())
+    const auto beforeSnapshot = CaptureSnapshot();
+    if (! beforeSnapshot)
         return UIA_E_ELEMENTNOTAVAILABLE;
     if (const HRESULT result = ValidateActionEnabled(); FAILED(result))
         return result;
@@ -12132,7 +12546,46 @@ HRESULT AccessibilityProvider::ExecuteExpandOnWindowThread(bool expanded)
         return UIA_E_NOTSUPPORTED;
     }
     const bool stateChanged = item.expanded != expanded;
-    const bool accepted     = tree->RequestExpandedState(visibleIndex, expanded);
+    const auto* treeRecord  = FindControlNavigationRecord(*beforeSnapshot, _path);
+    if (! treeRecord || treeRecord->treeBindingRevision != ControlModelQueryAccess::BindingRevision(*tree))
+        return UIA_E_ELEMENTNOTAVAILABLE;
+    uint64_t insertedHint = 0u;
+    if (_target && _target->embedded)
+    {
+        const auto* record = treeRecord;
+        if (record && record->preparedTreeRows)
+        {
+            size_t index = 0u;
+            while (index < _target->pendingTreeExpansionCount && (_target->pendingTreeExpansions[index].identity != record->controlIdentity ||
+                                                                  _target->pendingTreeExpansions[index].binding != record->treeBindingRevision ||
+                                                                  _target->pendingTreeExpansions[index].itemId != _treeItemId))
+                ++index;
+            // A no-op cannot cancel an earlier accepted asynchronous request.
+            if (stateChanged && index < _target->pendingTreeExpansionCount)
+            {
+                if (_target->pendingTreeExpansions[index].expanded != expanded)
+                    return HRESULT_FROM_WIN32(ERROR_BUSY);
+            }
+            else if (stateChanged)
+            {
+                if (_target->pendingTreeExpansionCount == _target->pendingTreeExpansions.size())
+                    return HRESULT_FROM_WIN32(ERROR_BUSY);
+                if (++_target->pendingTreeExpansionSerial == 0u)
+                    ++_target->pendingTreeExpansionSerial;
+                insertedHint                                                         = _target->pendingTreeExpansionSerial;
+                _target->pendingTreeExpansions[_target->pendingTreeExpansionCount++] = {
+                    record->controlIdentity, record->treeBindingRevision, _treeItemId, insertedHint, expanded};
+            }
+        }
+    }
+    const bool accepted = tree->RequestExpandedState(visibleIndex, expanded);
+    if (! accepted && insertedHint && _target)
+        for (size_t index = 0u; index < _target->pendingTreeExpansionCount; ++index)
+            if (_target->pendingTreeExpansions[index].serial == insertedHint)
+            {
+                _target->pendingTreeExpansions[index] = _target->pendingTreeExpansions[--_target->pendingTreeExpansionCount];
+                break;
+            }
     if (lifetime.expired())
         return UIA_E_ELEMENTNOTAVAILABLE;
     {
@@ -12150,6 +12603,34 @@ HRESULT AccessibilityProvider::ExecuteExpandOnWindowThread(bool expanded)
         size_t currentIndex = 0u;
         if (ResolveHost() != host || ResolveMutableTreeControl() != tree || ! ResolveTreeVisibleIndex(currentIndex))
             return UIA_E_ELEMENTNOTAVAILABLE;
+    }
+    // Prepared sources are never enumerated. The requested item ID is known,
+    // so report an unfocused action directly; the snapshot-diff path already
+    // reports it when either published focus points at this item.
+    if (stateChanged && _target && ! _target->embedded)
+    {
+        const auto afterSnapshot = CaptureSnapshot();
+        const auto* before       = FindControlNavigationRecord(*beforeSnapshot, _path);
+        const auto* after        = afterSnapshot ? FindControlNavigationRecord(*afterSnapshot, _path) : nullptr;
+        if (before && after && before->treeBindingRevision == after->treeBindingRevision && before->preparedTreeRows && after->preparedTreeRows &&
+            before->preparedTreeRows != after->preparedTreeRows)
+        {
+            const auto oldItem = FindSnapshotTreeItemRecord(*before, _treeItemId);
+            const auto newItem = FindSnapshotTreeItemRecord(*after, _treeItemId);
+            const auto focused = [](const AccessibilityControlNavigationSnapshot& record, uint64_t id)
+            {
+                const auto item =
+                    record.focusedTreeVisibleIndex ? FindSnapshotTreeItemRecordByVisibleIndex(record, *record.focusedTreeVisibleIndex) : std::nullopt;
+                return item && item->itemId == id;
+            };
+            if (oldItem && newItem && oldItem->hasChildren && newItem->hasChildren && oldItem->expanded != newItem->expanded &&
+                ! focused(*before, _treeItemId) && ! focused(*after, _treeItemId))
+            {
+                RaiseTreeItemExpansionChange(*_target, *after, _treeItemId, oldItem->expanded, newItem->expanded);
+                if (lifetime.expired() || ResolveHost() != host || ResolveMutableTreeControl() != tree)
+                    return UIA_E_ELEMENTNOTAVAILABLE;
+            }
+        }
     }
     if (stateChanged && ! host->GetTheme().reducedMotion)
     {
@@ -12587,7 +13068,10 @@ void RaiseSelectionEvents(WindowHostAccessibilityTarget& target, HWND hwnd, cons
             : change.itemKind == AccessibilityFragmentKind::GridRow
                 ? new (std::nothrow)
                       AccessibilityProvider(&target, hwnd, change.path, id, AccessibilityFragmentKind::GridRow, record->gridModelAssignmentGeneration)
-                : new (std::nothrow) AccessibilityProvider(&target, hwnd, change.path, id, AccessibilityProvider::TreeItemTag{});
+            : record
+                ? new (std::nothrow) AccessibilityProvider(
+                      &target, hwnd, change.path, id, CaptureControlIdentity(*record), AccessibilityProvider::TreeItemTag{}, AccessibilityProvider::EventTag{})
+                : nullptr;
         if (! raw)
         {
             static_cast<void>(target.Release());
@@ -12644,13 +13128,22 @@ void RaiseSelectionEvents(WindowHostAccessibilityTarget& target, HWND hwnd, cons
     }
 }
 
+void QueueEmbeddedPropertyChange(WindowHostAccessibilityTarget& target,
+                                 const AccessibilityControlNavigationSnapshot& record,
+                                 IRawElementProviderSimple* provider,
+                                 PROPERTYID id,
+                                 const VARIANT& previous,
+                                 const VARIANT& current,
+                                 std::optional<uint64_t> treeItemId) noexcept;
+
 // One tree item's ExpandCollapse state change, raised from the item's own element.
 void RaiseTreeItemExpansionChange(
     WindowHostAccessibilityTarget& target, const AccessibilityControlNavigationSnapshot& record, uint64_t itemId, bool wasExpanded, bool expanded) noexcept
 {
     const auto state = [](bool value) noexcept { return VariantFromInt(value ? ExpandCollapseState_Expanded : ExpandCollapseState_Collapsed); };
     static_cast<void>(target.AddRef());
-    auto* const raw = new (std::nothrow) AccessibilityProvider(&target, target.hwnd, record.path, itemId, AccessibilityProvider::TreeItemTag{});
+    auto* const raw = new (std::nothrow) AccessibilityProvider(
+        &target, target.hwnd, record.path, itemId, CaptureControlIdentity(record), AccessibilityProvider::TreeItemTag{}, AccessibilityProvider::EventTag{});
     if (! raw)
     {
         static_cast<void>(target.Release());
@@ -12658,8 +13151,12 @@ void RaiseTreeItemExpansionChange(
     }
     wil::com_ptr_nothrow<IRawElementProviderSimple> provider;
     provider.attach(static_cast<IRawElementProviderSimple*>(raw));
-    static_cast<void>(
-        UiaRaiseAutomationPropertyChangedEvent(provider.get(), UIA_ExpandCollapseExpandCollapseStatePropertyId, state(wasExpanded), state(expanded)));
+    const auto previous = state(wasExpanded);
+    const auto current  = state(expanded);
+    if (target.embedded)
+        QueueEmbeddedPropertyChange(target, record, provider.get(), UIA_ExpandCollapseExpandCollapseStatePropertyId, previous, current, itemId);
+    else
+        static_cast<void>(UiaRaiseAutomationPropertyChangedEvent(provider.get(), UIA_ExpandCollapseExpandCollapseStatePropertyId, previous, current));
     NotifyPropertyEventRaisedForTest(UIA_ExpandCollapseExpandCollapseStatePropertyId);
 }
 
@@ -12713,6 +13210,7 @@ template <typename Connected>
 [[nodiscard]] bool RaiseTreeItemStatusChanges(WindowHostAccessibilityTarget& target,
                                               const AccessibilityControlNavigationSnapshot& before,
                                               const AccessibilityControlNavigationSnapshot& record,
+                                              bool& structureChanged,
                                               const Connected& connected) noexcept
 {
     if (before.treeItems.size() != record.treeItems.size() ||
@@ -12720,11 +13218,24 @@ template <typename Connected>
             before.treeItems, record.treeItems, {}, &AccessibilityTreeItemSnapshotRecord::itemId, &AccessibilityTreeItemSnapshotRecord::itemId))
         return true;
 
+    constexpr size_t maximumItemEvents = 20u;
+    size_t changed{};
     for (size_t index = 0u; index < record.treeItems.size(); ++index)
     {
-        const AccessibilityTreeItemSnapshotRecord& previousItem = before.treeItems[index];
-        const AccessibilityTreeItemSnapshotRecord& currentItem  = record.treeItems[index];
-        if (previousItem.badgeText == currentItem.badgeText)
+        changed += before.treeItems[index].badgeText != record.treeItems[index].badgeText ? 1u : 0u;
+        changed += before.treeItems[index].text != record.treeItems[index].text ? 1u : 0u;
+        if (changed > maximumItemEvents)
+        {
+            structureChanged = true;
+            return true;
+        }
+    }
+
+    for (size_t index = 0u; index < record.treeItems.size(); ++index)
+    {
+        const auto& previousItem = before.treeItems[index];
+        const auto& currentItem  = record.treeItems[index];
+        if (previousItem.badgeText == currentItem.badgeText && previousItem.text == currentItem.text)
             continue;
         if (! connected())
             return false;
@@ -12732,8 +13243,13 @@ template <typename Connected>
             return true;
 
         static_cast<void>(target.AddRef());
-        AccessibilityProvider* const raw =
-            new (std::nothrow) AccessibilityProvider(&target, target.hwnd, record.path, currentItem.itemId, AccessibilityProvider::TreeItemTag{});
+        AccessibilityProvider* const raw = new (std::nothrow) AccessibilityProvider(&target,
+                                                                                    target.hwnd,
+                                                                                    record.path,
+                                                                                    currentItem.itemId,
+                                                                                    CaptureControlIdentity(record),
+                                                                                    AccessibilityProvider::TreeItemTag{},
+                                                                                    AccessibilityProvider::EventTag{});
         if (! raw)
         {
             static_cast<void>(target.Release());
@@ -12741,22 +13257,29 @@ template <typename Connected>
         }
         wil::com_ptr_nothrow<IRawElementProviderSimple> provider;
         provider.attach(static_cast<IRawElementProviderSimple*>(raw));
-        wil::unique_bstr previousText(SysAllocStringLen(previousItem.badgeText.data(), static_cast<UINT>(previousItem.badgeText.size())));
-        wil::unique_bstr currentText(SysAllocStringLen(currentItem.badgeText.data(), static_cast<UINT>(currentItem.badgeText.size())));
-        if ((! previousText && ! previousItem.badgeText.empty()) || (! currentText && ! currentItem.badgeText.empty()))
-            continue;
-        VARIANT oldValue{}, newValue{};
-        oldValue.vt = newValue.vt = VT_BSTR;
-        oldValue.bstrVal          = previousText.get();
-        newValue.bstrVal          = currentText.get();
-        if (connected() && ! record.controlLifetime.expired())
+        const auto raise = [&](PROPERTYID id, const std::wstring& previous, const std::wstring& current)
         {
-            if (target.embedded)
-                QueueEmbeddedPropertyChange(target, record, provider.get(), UIA_ItemStatusPropertyId, oldValue, newValue, currentItem.itemId);
-            else
-                static_cast<void>(UiaRaiseAutomationPropertyChangedEvent(provider.get(), UIA_ItemStatusPropertyId, oldValue, newValue));
-            NotifyPropertyEventRaisedForTest(UIA_ItemStatusPropertyId);
-        }
+            if (previous == current || ! connected() || record.controlLifetime.expired())
+                return;
+            wil::unique_bstr previousText(SysAllocStringLen(previous.data(), static_cast<UINT>(previous.size())));
+            wil::unique_bstr currentText(SysAllocStringLen(current.data(), static_cast<UINT>(current.size())));
+            if ((! previousText && ! previous.empty()) || (! currentText && ! current.empty()))
+                return;
+            VARIANT oldValue{}, newValue{};
+            oldValue.vt = newValue.vt = VT_BSTR;
+            oldValue.bstrVal          = previousText.get();
+            newValue.bstrVal          = currentText.get();
+            if (connected() && ! record.controlLifetime.expired())
+            {
+                if (target.embedded)
+                    QueueEmbeddedPropertyChange(target, record, provider.get(), id, oldValue, newValue, currentItem.itemId);
+                else
+                    static_cast<void>(UiaRaiseAutomationPropertyChangedEvent(provider.get(), id, oldValue, newValue));
+                NotifyPropertyEventRaisedForTest(id);
+            }
+        };
+        raise(UIA_NamePropertyId, previousItem.text, currentItem.text);
+        raise(UIA_ItemStatusPropertyId, previousItem.badgeText, currentItem.badgeText);
     }
     return connected();
 }
@@ -12771,6 +13294,8 @@ template <typename Connected>
                                                      const AccessibilityControlNavigationSnapshot& record,
                                                      const Connected& connected) noexcept
 {
+    if (before.treeBindingRevision != record.treeBindingRevision)
+        return true; // Rows from a replaced model do not carry the old model's expansion events.
     std::array<uint64_t, 2> candidates{};
     size_t count = 0u;
     for (const AccessibilityControlNavigationSnapshot* snapshot : {&before, &record})
@@ -12791,6 +13316,36 @@ template <typename Connected>
         if (record.controlLifetime.expired())
             return true;
         RaiseTreeItemExpansionChange(target, record, candidates[index], was->expanded, now->expanded);
+    }
+    if (target.embedded)
+    {
+        size_t index = 0u;
+        while (index < target.pendingTreeExpansionCount)
+        {
+            const auto hint = target.pendingTreeExpansions[index];
+            if (hint.identity != record.controlIdentity || hint.binding != record.treeBindingRevision)
+            {
+                ++index;
+                continue;
+            }
+            const auto was = FindSnapshotTreeItemRecord(before, hint.itemId);
+            const auto now = FindSnapshotTreeItemRecord(record, hint.itemId);
+            if (now && now->hasChildren && now->expanded != hint.expanded)
+            {
+                ++index; // The application has not published the requested state yet.
+                continue;
+            }
+            target.pendingTreeExpansions[index] = target.pendingTreeExpansions[--target.pendingTreeExpansionCount];
+            const bool focused                  = std::find(candidates.begin(), candidates.begin() + static_cast<ptrdiff_t>(count), hint.itemId) !=
+                                                  candidates.begin() + static_cast<ptrdiff_t>(count);
+            if (! was || ! now || ! was->hasChildren || ! now->hasChildren || was->expanded == now->expanded || focused)
+                continue;
+            if (! connected())
+                return false;
+            if (record.controlLifetime.expired())
+                return true;
+            RaiseTreeItemExpansionChange(target, record, hint.itemId, was->expanded, now->expanded);
+        }
     }
     return true;
 }
@@ -12842,11 +13397,18 @@ bool RaiseWindowHostTextInputAutomationEvent(HWND hwnd, const Control* control, 
     if (! host)
         return false;
     ControlPath path{};
-    if (! FindAccessibilityPathForTarget(host->GetRoot(), ControlPath{}, control, path))
+    const bool queued =
+        kind == TextInputAutomationEventKind::ActiveTextPositionChanged || kind == TextInputAutomationEventKind::TextEditConversionTargetChanged;
+    const auto snapshot = queued ? std::shared_ptr<const AccessibilitySnapshot>{} : target->snapshot.load(std::memory_order_acquire);
+    // Ordinary notifications only need to validate the current control. Use
+    // the published address index and validate its path; a stale/missing record
+    // retains the original live-tree search and refusal semantics.
+    if (queued ? ! FindAccessibilityPathForTarget(host->GetRoot(), ControlPath{}, control, path)
+               : ! FindWindowHostControlPath(snapshot.get(), host->GetRoot(), control, path))
         return false;
     // Ordinary text/selection/composition events are derived from the final snapshot difference.
     // Caret and conversion events also retain the final requested state in a bounded, reusable queue.
-    if (kind == TextInputAutomationEventKind::ActiveTextPositionChanged || kind == TextInputAutomationEventKind::TextEditConversionTargetChanged)
+    if (queued)
     {
         const auto lifetime = GetControlLifetimeToken(*control);
         size_t index        = 0u;
@@ -13219,9 +13781,11 @@ bool TryHandleWindowHostAccessibilityMessage(HWND hwnd, UINT msg, WPARAM wp, LPA
 
     if (request.semanticProvider)
     {
-        request.result = request.kind == AccessibilityUiActionKind::Toggle   ? request.semanticProvider->Toggle()
-                         : request.kind == AccessibilityUiActionKind::Invoke ? request.semanticProvider->Invoke()
-                                                                             : static_cast<HRESULT>(UIA_E_NOTSUPPORTED);
+        request.result = request.kind == AccessibilityUiActionKind::Toggle     ? request.semanticProvider->Toggle()
+                         : request.kind == AccessibilityUiActionKind::Invoke   ? request.semanticProvider->Invoke()
+                         : request.kind == AccessibilityUiActionKind::Expand   ? request.semanticProvider->Expand()
+                         : request.kind == AccessibilityUiActionKind::Collapse ? request.semanticProvider->Collapse()
+                                                                               : static_cast<HRESULT>(UIA_E_NOTSUPPORTED);
         return true;
     }
     if (request.provider)
@@ -13439,24 +14003,52 @@ void QueueEmbeddedPropertyChange(WindowHostAccessibilityTarget& target,
             return;
         }
         property.registration = std::move(registration);
-        const std::scoped_lock lock(target.structureNotificationMutex);
-        if (! target.structureNotificationWork)
+        bool overflow{};
         {
-            target.structureNotificationWork.reset(CreateThreadpoolWork(DeliverAccessibilityNotifications, &target, nullptr));
-            if (! target.structureNotificationWork)
+            const std::scoped_lock lock(target.structureNotificationMutex);
+            // Registration can reenter the owner. Recheck the key after it returns so a newer publication cannot
+            // leave duplicate pending entries. The discarded COM registration is released after the lock.
+            for (auto& pending : target.pendingProperties)
+                if (pending.controlIdentity == property.controlIdentity && pending.treeItemId == property.treeItemId && pending.propertyId == id &&
+                    AreControlPathsEqual(pending.path, property.path))
+                {
+                    // The reentrant entry is newer and owns the latest value; retain this publication's older baseline.
+                    std::swap(pending.previous, property.previous);
+                    pending.previousInterface.swap(property.previousInterface);
+                    return;
+                }
+            if (treeItemId)
             {
-                Debug::Error(L"DxUi: embedded property notification work creation failed ({:08X})", HRESULT_FROM_WIN32(GetLastError()));
-                return;
+                size_t queued{};
+                for (const auto& pending : target.pendingProperties)
+                    if (pending.treeItemId && pending.controlIdentity == property.controlIdentity && pending.propertyId == id &&
+                        AreControlPathsEqual(pending.path, property.path))
+                        ++queued;
+                overflow = queued >= 20u;
+            }
+            if (! overflow)
+            {
+                if (! target.structureNotificationWork)
+                {
+                    target.structureNotificationWork.reset(CreateThreadpoolWork(DeliverAccessibilityNotifications, &target, nullptr));
+                    if (! target.structureNotificationWork)
+                    {
+                        Debug::Error(L"DxUi: embedded property notification work creation failed ({:08X})", HRESULT_FROM_WIN32(GetLastError()));
+                        return;
+                    }
+                }
+                target.pendingProperties.push_back(std::move(property));
+                target.structureNotificationPending = true;
+                if (! target.structureNotificationScheduled)
+                {
+                    target.structureNotificationScheduled = true;
+                    static_cast<void>(target.AddRef());
+                    SubmitThreadpoolWork(target.structureNotificationWork.get());
+                }
             }
         }
-        target.pendingProperties.push_back(std::move(property));
-        target.structureNotificationPending = true;
-        if (! target.structureNotificationScheduled)
-        {
-            target.structureNotificationScheduled = true;
-            static_cast<void>(target.AddRef());
-            SubmitThreadpoolWork(target.structureNotificationWork.get());
-        }
+        if (overflow)
+            QueueStructureInvalidation(target);
     }
     catch (const std::bad_alloc&)
     {
@@ -13515,6 +14107,17 @@ void RaiseAccessibilitySnapshotChanges(WindowHostAccessibilityTarget& target,
     const uint64_t interactionRevision = notificationHost->GetInteractionRevision();
     if (target.embedded)
     {
+        for (size_t index = 0u; index < target.pendingTreeExpansionCount;)
+        {
+            const auto hint     = target.pendingTreeExpansions[index];
+            const bool retained = std::ranges::any_of(current->controlNavigationRecords, [&](const AccessibilityControlNavigationSnapshot& record) {
+                return record.controlIdentity == hint.identity && record.treeBindingRevision == hint.binding && record.isTree && record.preparedTreeRows;
+            });
+            if (! retained)
+                target.pendingTreeExpansions[index] = target.pendingTreeExpansions[--target.pendingTreeExpansionCount];
+            else
+                ++index;
+        }
         try
         {
             PruneEmbeddedPropertyChanges(target, *current);
@@ -13567,7 +14170,7 @@ void RaiseAccessibilitySnapshotChanges(WindowHostAccessibilityTarget& target,
                 structureChanged = true;
             if (! RaiseTreeExpansionChanges(target, *before, record, connected))
                 return;
-            if (! RaiseTreeItemStatusChanges(target, *before, record, connected))
+            if (! RaiseTreeItemStatusChanges(target, *before, record, structureChanged, connected))
                 return;
         }
         if (before->RichSemantic() != record.RichSemantic() || before->RichSemanticRevision() != record.RichSemanticRevision())
@@ -13843,6 +14446,7 @@ HRESULT EmbeddedHost::AttachAccessibility(std::shared_ptr<EmbeddedAccessibilityS
     if (! target)
         return E_OUTOFMEMORY;
     target->embedded                           = true;
+    target->embeddedOwner                      = this;
     target->runtimeId                          = runtimeId;
     target->rootLifetime                       = GetControlLifetimeToken(*_host.GetRoot());
     target->site                               = std::move(site);
@@ -13922,6 +14526,7 @@ void EmbeddedHost::DisconnectAccessibility() noexcept
     if (! target || target->threadId != GetCurrentThreadId())
         return;
     EmbeddedAccessibilityAccess::Target(_host) = nullptr;
+    target->embeddedOwner                      = nullptr;
     target->host.store(nullptr, std::memory_order_release);
     target->snapshot.store(nullptr, std::memory_order_release);
     target->site.reset();
@@ -14031,6 +14636,15 @@ bool RaiseWindowHostAccessibilityNotification(HWND hwnd, std::wstring_view notif
 
 #if DXUI_ENABLE_DIAGNOSTICS
 
+void DebugSetRichAccessibilityFontFailureForTest(HRESULT failure) noexcept
+{
+    g_richAccessibilityFontFailure      = failure;
+    g_richAccessibilityFontFailureCount = 0u;
+}
+size_t DebugGetRichAccessibilityFontFailureCountForTest() noexcept
+{
+    return g_richAccessibilityFontFailureCount;
+}
 void DebugSetAccessibilityUiActionHandlerStallForTest(HANDLE enteredEvent, HANDLE releaseEvent) noexcept
 {
     g_accessibilityUiActionHandlerEnteredEvent.store(enteredEvent, std::memory_order_release);
@@ -14167,6 +14781,17 @@ void DebugSetAccessibilityPropertyDeliveryGateForTest(ControlHost* host, HANDLE 
         g_accessibilityPropertyDeliveryGateHolders.wait(holders);
     g_accessibilityPropertyDeliveryGateEnteredEvent.store(nullptr, std::memory_order_release);
     g_accessibilityPropertyDeliveryGateReleaseEvent.store(nullptr, std::memory_order_release);
+}
+
+size_t DebugCountPendingTreeItemPropertiesForTest(ControlHost& host, int property) noexcept
+{
+    auto* const target = static_cast<WindowHostAccessibilityTarget*>(EmbeddedAccessibilityAccess::Target(host));
+    if (! target)
+        return 0u;
+    const std::scoped_lock lock(target->structureNotificationMutex);
+    return static_cast<size_t>(std::ranges::count_if(target->pendingProperties, [property](const AccessibilityPendingProperty& pending) {
+        return pending.treeItemId.has_value() && pending.propertyId == property;
+    }));
 }
 
 void DebugSetAccessibilitySelectionEventHookForTest(AccessibilitySelectionEventHookForTest hook, void* context) noexcept

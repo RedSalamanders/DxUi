@@ -1,0 +1,1 @@
+- Admit the named math target's 16,384 source units, 4,096 syntax nodes, 64 nesting and row/column limits and 1,024 matrix cells; share 32,768 source-ordered records across native objects and measure matrix cells in one traversal.

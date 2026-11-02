@@ -1412,7 +1412,7 @@ void TestTreeSelectedRowUsesRainbowOnlyInRainbowMode()
             "tree high-contrast selected row falls back to the shared selection fill");
 }
 
-void TestTreeInactiveSelectionPrefersSelectionTextWhenReadable()
+void TestTreeInactiveSelectionUsesNormalTextAndLegibleChrome()
 {
     using namespace DxUi;
     Tree tree;
@@ -1424,21 +1424,21 @@ void TestTreeInactiveSelectionPrefersSelectionTextWhenReadable()
     theme.rainbowMode           = false;
     theme.surfaceBackground     = D2D1::ColorF(1, 1, 1, 1);
     theme.selectionInactiveFill = D2D1::ColorF(.98f, .92f, .92f, 1);
-    theme.selectionText         = D2D1::ColorF(.63f, .16f, .20f, 1);
+    theme.text                  = D2D1::ColorF(0, 0, 0, 1);
+    theme.selectionText         = D2D1::ColorF(0, 0, .6f, 1);
     TreeDebugRowVisualState row;
     Require(! tree.HasFocus() && tree.DebugGetRowVisualState(theme, 0u, false, row) && row.selected,
             "inactive selected Tree row resolves through its native paint resolver");
-    Require(row.textArgb == PackColorForTest(theme.selectionText) && row.iconArgb == row.textArgb && row.expanderArgb == row.textArgb,
-            "readable selection text token controls inactive current-row label and icon chrome");
-    theme.selectionText = D2D1::ColorF(1, 1, 1, 1);
-    Require(tree.DebugGetRowVisualState(theme, 0u, false, row) &&
-                row.textArgb ==
-                    PackColorForTest(ChooseContrastingTextColorForTest(CompositeOverBackground(theme.selectionInactiveFill, theme.surfaceBackground))),
-            "unreadable inactive selection text still receives the shared contrast fallback");
+    Require(row.textArgb == 0xff000000u && row.iconArgb == 0xff000000u && row.expanderArgb == 0xff000000u,
+            "inactive selected label, icon and expander use normal black ink when both black and selection blue are readable");
+    theme.text = D2D1::ColorF(1, 1, 1, 1);
+    Require(tree.DebugGetRowVisualState(theme, 0u, false, row) && row.textArgb == 0xff000000u && row.iconArgb == 0xff000000u && row.expanderArgb == 0xff000000u,
+            "unreadable normal white ink falls back to black consistently across selected label and chrome");
     theme.highContrast          = true;
     theme.selectionInactiveFill = D2D1::ColorF(0, 0, .5f, 1);
-    Require(tree.DebugGetRowVisualState(theme, 0u, false, row) && row.textArgb == PackColorForTest(theme.selectionText),
-            "high contrast keeps the explicit HighlightText and Highlight pair");
+    theme.selectionText         = D2D1::ColorF(1, 1, 1, 1);
+    Require(tree.DebugGetRowVisualState(theme, 0u, false, row) && row.textArgb == 0xffffffffu && row.iconArgb == 0xffffffffu && row.expanderArgb == 0xffffffffu,
+            "high contrast retains white HighlightText for the label, icon and expander");
 }
 
 void TestTreeNotifyDataChangedClearsMissingSelection()
@@ -1694,8 +1694,15 @@ void TestTreeHoveredClippedTextShowsFullTextTooltip()
     Require(host.HasTooltip(), "tree clipped-text hover shows a full-text tooltip");
     Require(host.GetTooltipText() == clippedText, "tree clipped-text tooltip uses the full item text");
 
+    const auto geometryCount = tree->DebugGetTooltipGeometryCount();
+    Require(geometryCount != 0u, "the first overflow tooltip checks row geometry");
     Require(tree->OnMouseMove(host, hoverPoint, 0), "tree repeated clipped-text hover remains handled");
     Require(host.GetTooltipText() == clippedText, "tree repeated clipped-text hover keeps the full item tooltip");
+    Require(tree->DebugGetTooltipGeometryCount() == geometryCount, "a repeated hover reuses tooltip geometry without measuring a badge");
+    model.SetVisibleItems({TreeItemData{.id = 1u, .text = clippedText, .badgeText = L"badge", .tooltipText = L"Explicit help"}});
+    tree->NotifyDataChanged();
+    Require(tree->OnMouseMove(host, hoverPoint, 0) && host.GetTooltipText() == L"Explicit help", "explicit tooltip survives a badge change");
+    Require(tree->DebugGetTooltipGeometryCount() == geometryCount, "explicit tooltip needs neither badge nor overflow geometry");
 }
 
 } // namespace
@@ -1949,6 +1956,75 @@ public:
     DxUi::Tree* tree = nullptr;
 };
 
+void TestTreeSingleClickReleaseRevalidatesSelectionCallbackRefresh()
+{
+    using namespace DxUi;
+    class RefreshingDelegate final : public ITreeDelegate
+    {
+    public:
+        RefreshingDelegate(Tree& tree, MutableTreeModel& model, bool removeTarget) noexcept : _tree(tree), _model(model), _removeTarget(removeTarget)
+        {
+        }
+        RefreshingDelegate(const RefreshingDelegate&)            = delete;
+        RefreshingDelegate& operator=(const RefreshingDelegate&) = delete;
+        RefreshingDelegate(RefreshingDelegate&&)                 = delete;
+        RefreshingDelegate& operator=(RefreshingDelegate&&)      = delete;
+        void OnTreeSelectionSetChanged(std::span<const uint64_t>) override
+        {
+            if (! armed)
+                return;
+            armed = false;
+            ++refreshes;
+            if (_removeTarget)
+            {
+                auto rows = FlatTreeItems(5u);
+                std::erase_if(rows, [](const auto& row) { return row.id == 3u; });
+                _model.SetVisibleItems(std::move(rows));
+            }
+            _tree.NotifyDataChanged();
+        }
+        void OnTreeItemInvoked(uint64_t id) override
+        {
+            ++invocations;
+            invokedId = id;
+        }
+        bool armed         = false;
+        unsigned refreshes = 0u, invocations = 0u;
+        uint64_t invokedId = 0u;
+
+    private:
+        Tree& _tree;
+        MutableTreeModel& _model;
+        bool _removeTarget;
+    };
+    for (const bool removeTarget : {false, true})
+    {
+        TreeSelectionFixture fixture(FlatTreeItems(5u), true, true);
+        auto& tree = *fixture.tree;
+        RefreshingDelegate delegate(tree, fixture.model, removeTarget);
+        tree.SetDelegate(&delegate);
+        tree.SetInvokeOnSingleClick(true);
+        const std::array<uint64_t, 2u> selection{2u, 3u};
+        tree.SetSelectedItemIds(selection);
+        const auto point = fixture.RowPoint(2u);
+        delegate.armed   = true;
+        Require(tree.OnMouseDown(fixture.host, point, false, 0u), "press a selected row with reorder and single-click invocation enabled");
+        Require(delegate.refreshes == 0u && fixture.host.GetCapturedControl() == &tree, "the press retains the full selection and owns capture until release");
+        RequireTreeIds(fixture.Selected(), {2u, 3u}, "the press leaves the multi-selection intact");
+        static_cast<void>(tree.OnMouseUp(fixture.host, point, false, 0u));
+        Require(delegate.refreshes == 1u && fixture.host.GetCapturedControl() == nullptr,
+                "release collapses the selection, invokes the callback once and clears capture");
+        if (removeTarget)
+        {
+            Require(delegate.invocations == 0u && ! tree.IsItemSelected(3u), "a row removed by the collapse callback cannot be invoked");
+        }
+        else
+        {
+            RequireTreeIds(fixture.Selected(), {3u}, "selection collapses to the retained target");
+            Require(delegate.invocations == 1u && delegate.invokedId == 3u, "a retained stable target is invoked exactly once after refresh");
+        }
+    }
+}
 void TestTreeSingleClickInvokeIsOptInAndLeavesExpanderAndEnterSemanticsIntact()
 {
     using namespace DxUi;
@@ -1986,6 +2062,12 @@ void TestTreeSingleClickInvokeIsOptInAndLeavesExpanderAndEnterSemanticsIntact()
     Require(fixture.delegate.invokedCount == 3u && fixture.delegate.lastInvokedItemId == 20u, "a leaf row invokes on its completed single click");
     Require(fixture.tree->OnMouseDoubleClick(fixture.host, filePoint, false, 0u), "a leaf double-click remains handled");
     Require(fixture.delegate.invokedCount == 3u, "the double-click message does not invoke a leaf a second time");
+    for (const UINT modifier : {static_cast<UINT>(MK_CONTROL), static_cast<UINT>(MK_SHIFT)})
+    {
+        Require(fixture.tree->OnMouseDown(fixture.host, filePoint, false, modifier), "modified row press is handled");
+        static_cast<void>(fixture.tree->OnMouseUp(fixture.host, filePoint, false, modifier));
+    }
+    Require(fixture.delegate.invokedCount == 3u, "Ctrl and Shift selection gestures do not invoke");
 }
 
 void TestTreeMultiSelectIsOptInAndSingleSelectIsUnchanged()
@@ -2554,6 +2636,14 @@ void TestTreeRightToLeftMirrorsTheExpanderHitTarget()
     static_cast<void>(tree.OnMouseUp(fixture.host, mirroredExpander, false, 0u));
     Require(fixture.delegate.toggleCount == 1u && fixture.delegate.lastToggledItemId == 1u && ! fixture.delegate.lastExpandedState,
             "the RTL-side expander hit toggles the group row");
+    auto appearance                 = tree.GetAppearance();
+    appearance.reserveExpanderSpace = true;
+    tree.SetAppearance(appearance);
+    const auto metrics               = tree.GetItemLayoutMetrics(fixture.host, 0u);
+    const D2D1_POINT_2F reservedEdge = D2D1::Point2F(metrics.expanderRect.left + 1.0f, (metrics.expanderRect.top + metrics.expanderRect.bottom) * 0.5f);
+    Require(tree.OnMouseDown(fixture.host, reservedEdge, false, 0u), "the mirrored reserved expander lane accepts its whole width");
+    static_cast<void>(tree.OnMouseUp(fixture.host, reservedEdge, false, 0u));
+    Require(fixture.delegate.toggleCount == 2u, "the reserved RTL expander hit toggles the same group");
 }
 
 void TestTreeIdempotentAddPreservesFocusAndSelectAllKeepsItsPrimary()
@@ -2927,7 +3017,7 @@ void TestTreeMultiSelectPaintsEverySelectedRowWithTheSelectionColors()
         Require(tree.DebugGetRowVisualState(theme, index, true, state) && state.selected, "a selected row of an unfocused tree reports itself selected");
         Require(state.fillArgb == PackColorForTest(theme.selectionInactiveFill),
                 "a selected row of an unfocused tree is filled with the inactive selection color");
-        Require(state.textArgb == PackColorForTest(ResolveInactiveSelectionTextColor(theme, theme.selectionText, theme.surfaceBackground)),
+        Require(state.textArgb == PackColorForTest(ResolveInactiveSelectionTextColor(theme, theme.text, theme.surfaceBackground)),
                 "a selected row of an unfocused tree uses text contrasting with its painted inactive fill");
     }
 
@@ -2936,10 +3026,17 @@ void TestTreeMultiSelectPaintsEverySelectedRowWithTheSelectionColors()
         const ThemePalette polarityTheme = MakeDefaultThemePalette(dark);
         Require(tree.DebugGetRowVisualState(polarityTheme, 0u, true, state), "unfocused Tree resolves selected text in both light and dark themes");
         const D2D1_COLOR_F paintedFill = CompositeOverBackground(polarityTheme.selectionInactiveFill, polarityTheme.surfaceBackground);
-        Require(state.textArgb ==
-                    PackColorForTest(ResolveInactiveSelectionTextColor(polarityTheme, polarityTheme.selectionText, polarityTheme.surfaceBackground)),
+        Require(state.textArgb == PackColorForTest(ResolveInactiveSelectionTextColor(polarityTheme, polarityTheme.text, polarityTheme.surfaceBackground)),
                 "unfocused Tree preserves readable text or substitutes contrast over the painted alpha selection");
     }
+
+    auto distinctTextTheme                  = MakeDefaultThemePalette(false);
+    distinctTextTheme.surfaceBackground     = D2D1::ColorF(D2D1::ColorF::White);
+    distinctTextTheme.selectionInactiveFill = D2D1::ColorF(D2D1::ColorF::White);
+    distinctTextTheme.text                  = D2D1::ColorF(D2D1::ColorF::Black);
+    distinctTextTheme.selectionText         = D2D1::ColorF(0x000099);
+    Require(tree.DebugGetRowVisualState(distinctTextTheme, 0u, true, state) && state.textArgb == 0xff000000u,
+            "an unfocused selection prefers normal black text even when blue selection text also has sufficient contrast");
 
     const auto checkHighContrastPair = [&](uint32_t backgroundArgb, uint32_t textArgb, uint32_t selectionArgb, uint32_t selectionTextArgb, bool darkBase)
     {
@@ -3525,13 +3622,112 @@ void TestTreeExpansionAnimatesWhenTheDelegatePublishes()
     Require(delegate.toggles == 4u && model.GetVisibleItemCount() == 4u, "the refused collapse reached the delegate and changed nothing");
 }
 
+// Large models retain expansion semantics without allocating animation snapshots or scheduling transition ticks.
+void TestTreeLargeExpansionSkipsAnimation()
+{
+    using namespace DxUi;
+    class Delegate final : public ITreeDelegate
+    {
+    public:
+        Delegate(MutableTreeModel& model, Tree& tree) : model(model), tree(tree)
+        {
+        }
+        Delegate(const Delegate&)            = delete;
+        Delegate& operator=(const Delegate&) = delete;
+        Delegate(Delegate&&)                 = delete;
+        Delegate& operator=(Delegate&&)      = delete;
+        void OnTreeToggleExpanded(uint64_t id, bool expanded) override
+        {
+            Require(id == 1u, "the large tree toggles the requested row");
+            ++toggles;
+            auto items           = FlatTreeItems(5000u);
+            items[0].hasChildren = true;
+            items[0].expanded    = expanded;
+            model.SetVisibleItems(std::move(items));
+            tree.NotifyDataChanged();
+        }
+        MutableTreeModel& model;
+        Tree& tree;
+        size_t toggles{};
+    };
+    WindowHost host;
+    EnableMotionForTest(host);
+    auto root  = std::make_unique<Panel>();
+    Tree* tree = root->AddChild<Tree>();
+    tree->SetBounds(D2D1::RectF(0.0f, 0.0f, 220.0f, 160.0f));
+    MutableTreeModel model;
+    auto items           = FlatTreeItems(5000u);
+    items[0].hasChildren = true;
+    model.SetVisibleItems(std::move(items));
+    Delegate delegate(model, *tree);
+    tree->SetModel(&model);
+    tree->SetDelegate(&delegate);
+    host.SetRoot(std::move(root));
+    tree->SetSelectedItemId(4u);
+    const size_t captures = tree->DebugGetExpansionCaptureCount();
+    Require(tree->RequestExpandedState(0u, true), "large expansion succeeds");
+    TreeItemData item;
+    model.GetVisibleItem(0u, item);
+    Require(item.expanded && delegate.toggles == 1u && tree->IsItemSelected(4u), "expansion commits once and preserves selection");
+    Require(tree->RequestExpandedState(0u, false), "large collapse succeeds");
+    model.GetVisibleItem(0u, item);
+    Require(! item.expanded && delegate.toggles == 2u && tree->IsItemSelected(4u), "collapse commits once and preserves selection");
+    Require(tree->DebugGetExpansionCaptureCount() == captures && ! tree->DebugGetExpansionAnimationItemId(), "neither operation captures animation rows");
+    Require(! tree->Tick(host, 1000u), "large expansion and collapse do not leave an animation tick loop");
+}
+void TestTreeRefreshTypeaheadAndWheelBoundaries()
+{
+    using namespace DxUi;
+    WindowHost host;
+    auto root  = std::make_unique<Panel>();
+    Tree* tree = root->AddChild<Tree>();
+    tree->SetBounds(D2D1::RectF(0.0f, 0.0f, 220.0f, 100.0f));
+    MutableTreeModel model;
+    auto items    = FlatTreeItems(30u);
+    items[0].text = L"Alpha";
+    items[1].text = L"Alpine";
+    items[2].text = L"Beta";
+    model.SetVisibleItems(std::move(items));
+    RecordingTreeDelegate delegate;
+    tree->SetModel(&model);
+    tree->SetDelegate(&delegate);
+    host.SetRoot(std::move(root));
+    tree->SetSelectedItemId(1u);
+    Require(tree->OnChar(host, L'a', 0u) && tree->GetSelectedItemId() == 2u, "first character cycles to the next matching item");
+    Require(tree->OnChar(host, L'l', 0u) && tree->GetSelectedItemId() == 2u, "longer prefix keeps the current matching item");
+    Require(tree->OnChar(host, L'p', 0u) && tree->GetSelectedItemId() == 2u && delegate.selectionChangedCount == 1u,
+            "prefix extension does not oscillate or notify a second selection");
+    const auto point = D2D1::Point2F(100.0f, 50.0f);
+    Require(tree->OnMouseWheel(host, point, -120.0f, 0u), "wheel moves the tree away from its selection");
+    const float scroll = tree->DebugGetVerticalScrollDip();
+    Require(scroll > 0.0f, "tree is scrolled away from the focused row");
+    tree->NotifyDataChanged();
+    Require(tree->DebugGetVerticalScrollDip() == scroll, "model refresh clamps without revealing an old selection");
+    while (tree->OnMouseWheel(host, point, -120.0f, 0u))
+    {
+    }
+    Require(! tree->OnMouseWheel(host, point, -60.0f, 0u), "wheel bubbles at the lower extent even for a partial detent");
+}
+
+void TestTreeInitialActionReportsSelection()
+{
+    using namespace DxUi;
+    TreeSelectionFixture fixture(FlatTreeItems(3u), std::nullopt);
+    Require(fixture.Key(VK_RETURN), "first Return is handled");
+    RequireTreeIds(fixture.Selected(), {1u}, "first action selects the first row");
+    Require(fixture.delegate.selectionChangedCount == 1u && fixture.delegate.lastSelectedItemId == 1u,
+            "the initial selection is reported once before invocation");
+}
 } // namespace
 
 void RunTreeTests()
 {
     DXUI_RUN_TEST(TestTreeGesturesContinueWhenACallbackChangesAnotherControl);
     DXUI_RUN_TEST(TestTreeClickSurvivesAFocusHandlerThatChangesAnotherControl);
+    DXUI_RUN_TEST(TestTreeRefreshTypeaheadAndWheelBoundaries);
+    DXUI_RUN_TEST(TestTreeInitialActionReportsSelection);
     DXUI_RUN_TEST(TestTreeExpansionAnimatesWhenTheDelegatePublishes);
+    DXUI_RUN_TEST(TestTreeLargeExpansionSkipsAnimation);
     DXUI_RUN_TEST(TestTreeFocusRequestContainsAThrowingDelegate);
     DXUI_RUN_TEST(TestTreePointerRechecksTheModelAfterFocusCallbacks);
     DXUI_RUN_TEST(TestTreeUnhandledKeysLeaveAnEmptySelectionAlone);
@@ -3544,6 +3740,7 @@ void RunTreeTests()
     DXUI_RUN_TEST(TestTreeDragReorderRejectsItsOwnSubtreeAndFollowsModelChanges);
     DXUI_RUN_TEST(TestTreeMultiRowDragRejectsEverySelectedSubtree);
     DXUI_RUN_TEST(TestTreeExpanderClickRequestsToggle);
+    DXUI_RUN_TEST(TestTreeSingleClickReleaseRevalidatesSelectionCallbackRefresh);
     DXUI_RUN_TEST(TestTreeSingleClickInvokeIsOptInAndLeavesExpanderAndEnterSemanticsIntact);
     DXUI_RUN_TEST(TestTreeExpanderReResolvesStableItemAfterSelectionReorder);
     DXUI_RUN_TEST(TestTreeSelectionDelegateCanReplaceRootSafely);
@@ -3598,5 +3795,5 @@ void RunTreeTests()
     DXUI_RUN_TEST(TestTreeSelectionSettersAndModeSwitchKeepTheSelectionCoherent);
     DXUI_RUN_TEST(TestTreeTypographyOverrideValidatesAtomically);
     DXUI_RUN_TEST(TestTreeFramelessOutlinePreservesModelAndKeyboardExpansion);
-    DXUI_RUN_TEST(TestTreeInactiveSelectionPrefersSelectionTextWhenReadable);
+    DXUI_RUN_TEST(TestTreeInactiveSelectionUsesNormalTextAndLegibleChrome);
 }

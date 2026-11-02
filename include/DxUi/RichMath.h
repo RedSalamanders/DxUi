@@ -7,7 +7,15 @@
 
 namespace DxUi::RichText
 {
-inline constexpr std::size_t MathMaximumSourceUnits = 4096u;
+inline constexpr std::size_t MathMaximumSourceUnits = 16384u;
+inline constexpr std::size_t MathMaximumNodes       = 4096u;
+inline constexpr unsigned MathMaximumGroupDepth     = 64u;
+inline constexpr unsigned MathMaximumRows = 64u, MathMaximumColumns = 64u;
+inline constexpr std::size_t MathMaximumMatrixCells   = 1024u;
+inline constexpr std::size_t MathMaximumDocumentNodes = 32768u;
+// Group rows and script wrappers can each add an AST level to one parsed
+// nesting level. Retain a separate bounded depth for direct data-only ASTs.
+inline constexpr unsigned MathMaximumNodeDepth = MathMaximumGroupDepth * 2u + 2u;
 // Data-only, bounded native mathematical notation. This never evaluates TeX,
 // reads files, expands user macros, invokes processes or fetches resources.
 enum class MathKind
@@ -89,21 +97,40 @@ private:
         swap(largeOperator, other.largeOperator);
     }
 };
+// Stable local classification; the human-readable diagnostic remains source-preserving.
+enum class MathIssue
+{
+    None,
+    InvalidSource,
+    Capacity,
+    UnsupportedOrMalformed,
+    UnsupportedCommand,
+    UnsupportedEnvironment,
+    MissingRequiredArgument,
+    MissingRootIndexClose,
+    MissingScriptArgument,
+    DuplicateSubscript,
+    DuplicateSuperscript,
+    MissingGroupClose,
+    MissingRightDelimiter,
+    MismatchedEnvironment,
+    CellSeparatorOutsideEnvironment
+};
 struct MathExpression
 {
     MathExpression() : diagnostic(0u, L' ')
     {
     }
-    MathExpression(const MathNode& value, const std::wstring& issue) : root(value), diagnostic(issue)
+    MathExpression(const MathNode& value, const std::wstring& message, MathIssue kind = MathIssue::None) : root(value), diagnostic(message), issue(kind)
     {
     }
-    MathExpression(MathNode&& value, std::wstring&& issue) : root(std::move(value)), diagnostic(0u, L' ')
+    MathExpression(MathNode&& value, std::wstring&& message, MathIssue kind = MathIssue::None) : root(std::move(value)), diagnostic(0u, L' '), issue(kind)
     {
-        diagnostic.swap(issue);
+        diagnostic.swap(message);
     }
     MathExpression(const MathExpression&)            = default;
     MathExpression& operator=(const MathExpression&) = default;
-    MathExpression(MathExpression&& other) : root(std::move(other.root)), diagnostic(0u, L' ')
+    MathExpression(MathExpression&& other) : root(std::move(other.root)), diagnostic(0u, L' '), issue(other.issue)
     {
         diagnostic.swap(other.diagnostic);
     }
@@ -111,17 +138,20 @@ struct MathExpression
     {
         root = std::move(other.root);
         diagnostic.swap(other.diagnostic);
+        issue = other.issue;
         return *this;
     }
     MathNode root;
     std::wstring diagnostic;
+    MathIssue issue = MathIssue::None;
     explicit operator bool() const noexcept
     {
         return diagnostic.empty();
     }
 };
-// Limits: 4096 source units, 512 syntax nodes, 24 nesting levels, at most
-// 16 rows/columns and 128 total matrix cells. Styles/limits are data, not TeX execution.
+// Limits: 16384 source units, 4096 staging/syntax nodes, 64 parsed nesting
+// levels, 64 rows/columns and 1024 matrix cells including generated padding.
+// Styles/limits are data, not TeX execution.
 // Unsupported/malformed input is all-or-nothing; no partially rendered formula.
 [[nodiscard]] MathExpression ParseMath(std::wstring_view source);
 } // namespace DxUi::RichText

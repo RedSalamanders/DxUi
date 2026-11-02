@@ -30,7 +30,7 @@ inline void TestWindowHostExplicitWarpPolicyRejectsConflictsAndSurvivesDeviceLos
             Require(peer.Host().Attach(peer.Hwnd(), warp), "matching explicit WARP attachment is idempotent");
             Require(defaultOwner.Host().Attach(defaultOwner.Hwnd()), "default peer inherits the established WARP policy");
             auto root    = std::make_unique<DxUi::Panel>();
-            auto* editor = root->AddChild<DxUi::RichTextEditor>(L"Native $a_i^2$ and $$\\frac{1}{2}$$");
+            auto* editor = root->AddChild<DxUi::RichTextEditor>(L"Native $a_i^2$ and $\\frac{1}{2}$");
             editor->SetBounds(D2D1::RectF(8, 8, 250, 130));
             editor->SetMarkdownAnalysisProfile(DxUi::RichText::MarkdownProfile::RichMarkdown);
             editor->SetMarkdownRenderingEnabled(true);
@@ -60,6 +60,45 @@ inline void TestWindowHostExplicitWarpPolicyRejectsConflictsAndSurvivesDeviceLos
             Require(isSoftware(peer.Host()) && peer.Host().GetResourceGeneration() != generation,
                     "device replacement advances the resource generation and retains WARP");
             Require(isSoftware(defaultOwner.Host()), "peer recovers coherently on the same WARP pool");
+            for (unsigned stage : {1u, 2u, 3u})
+            {
+                peer.Host().DebugSimulateDeviceLoss();
+                peer.Host().DebugSetNextSizeResourceFailureForTest(stage, DXGI_ERROR_DEVICE_REMOVED);
+                Require(! peer.Host().RenderInitialFrameForShow() && ! peer.Host().DebugHasD2DContext(),
+                        "injected size-resource device removal discards the device instead of retaining a broken one");
+                const auto failureGeneration = peer.Host().GetResourceGeneration();
+                Require(isSoftware(peer.Host()) && peer.Host().GetResourceGeneration() != failureGeneration,
+                        "a later frame recreates the failed stage on a fresh WARP generation");
+                Require(isSoftware(defaultOwner.Host()), "the shared peer follows each replaced device generation");
+            }
+            RECT initial{};
+            Require(GetWindowRect(peer.Hwnd(), &initial) != FALSE, "read the existing native swap-chain window extent");
+            RECT initialClient{};
+            Require(GetClientRect(peer.Hwnd(), &initialClient) != FALSE, "read the existing native client extent");
+            const auto resizeFailures = peer.Host().DebugGetResizeFailureCount();
+            peer.Host().DebugSetNextSizeResourceFailureForTest(4u, DXGI_ERROR_DEVICE_REMOVED);
+            Require(SetWindowPos(peer.Hwnd(),
+                                 nullptr,
+                                 0,
+                                 0,
+                                 initial.right - initial.left + 37,
+                                 initial.bottom - initial.top + 29,
+                                 SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE) != FALSE,
+                    "resize the owned hidden window without activation");
+            Require(! peer.Host().RenderInitialFrameForShow() && peer.Host().DebugGetResizeFailureCount() == resizeFailures + 1u &&
+                        ! peer.Host().DebugHasD2DContext(),
+                    "ResizeBuffers device removal retires the device and rejects the failed frame");
+            const auto resizeFailureGeneration = peer.Host().GetResourceGeneration();
+            const auto rendersBeforeRecovery   = peer.Host().DebugGetRenderCount();
+            Require(isSoftware(peer.Host()) && peer.Host().GetResourceGeneration() != resizeFailureGeneration,
+                    "the next owner turn recreates the WARP device after ResizeBuffers device removal");
+            Require(PrepareNativeContentForTests(peer.Host()) && peer.Host().DebugGetRenderCount() > rendersBeforeRecovery,
+                    "bounded cooperative content preparation renders a frame on the recreated device");
+            DxUi::WindowHostBitmapCapture resizedFrame;
+            Require(peer.Host().DebugCaptureBitmap(resizedFrame, true) && resizedFrame.widthPx > static_cast<UINT>(initialClient.right - initialClient.left) &&
+                        resizedFrame.heightPx > static_cast<UINT>(initialClient.bottom - initialClient.top) && ! resizedFrame.bgraPixels.empty(),
+                    "the recovered hidden host produces an actual captured frame");
+            Require(isSoftware(defaultOwner.Host()), "the shared WARP peer recovers after resize device removal");
             peer.Host().Detach();
             defaultOwner.Host().Detach();
             Require(DxUi::DebugGetSharedWindowHostAttachmentCountForThread(GetCurrentThreadId()) == original,

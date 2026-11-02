@@ -7,7 +7,7 @@ Original pins, receipts and pending items below are preserved as historical evid
 Source: `a424c968d2055c7c8bd4683a906d39b6eb9eb685`, including main
 `fa5821c87f563a1d5b24ced7832b9c4fb9c1dcab`. Subsequent summary/gallery publication changes no native inputs.
 This is independent DxUi evidence on an x64 Windows host using WARP and synthetic library-owned models.
-The [active review plan](../../../Specs/Plans/WIP/CodeReview_2026-10-10.md) owns remaining decisions;
+The [active review plan](../../../Specs/Plans/Done/CodeReview_2026-10-10.md) owns remaining decisions;
 [draft PR #96](https://github.com/RedSalamanders/DxUi/pull/96) contains the reconciled implementation.
 
 ## Completed local checks
@@ -22,7 +22,7 @@ The [active review plan](../../../Specs/Plans/WIP/CodeReview_2026-10-10.md) owns
 | Native naming | Inventory validates 146 contextual `Scope.Tests.Something.h/.cpp` files, including the frozen API fixture. Literal `Scope` is rejected. |
 
 The exact suite, artifact, build, toolchain, dependency and unpaired diagnostic identities are retained in the
-[summary-only receipt inventory](../../../Specs/Plans/WIP/CodeReview_2026-10-10/qualification-20261021.json).
+[summary-only receipt inventory](../../../Specs/Plans/Done/CodeReview_2026-10-10/qualification-20261021.json).
 Original reports, logs, binaries and failed attempts remain in generated output and the private recovery archive;
 this summary does not substitute a different source identity for an original receipt.
 After the evidence/gallery edits, a read-only check against `Get-ScopedRunIdentity` and `Test-ScopedReceipt`
@@ -42,13 +42,13 @@ and maps named standard exceptions, including `std::bad_alloc` to `E_OUTOFMEMORY
 The extracted allocation instrument is identical to main's inline block after only CRLF and trailing-whitespace
 normalization: both SHA-256 values are
 `A17E152AFC13678906FCFF7B6D3CF892FD329BC0DCC066A5C4CAB03C308CFF24`.
-See the [block-equivalence record](../../../Specs/Plans/WIP/CodeReview_2026-10-10/benchmark-instrument-equivalence-20261021.json).
+See the [block-equivalence record](../../../Specs/Plans/Done/CodeReview_2026-10-10/benchmark-instrument-equivalence-20261021.json).
 
 Earlier Debug build attempts were refused because inputs changed during the build; no successful attestation
 was published for those attempts. Frozen-source Debug retries passed on both architectures. The enclosing matrix
 wrapper retains the original failed attempt's nonzero aggregate exit; the per-profile final receipts above are
 the qualification evidence. Earlier tooling/naming failures and the original native predicate failure remain
-listed in the [log seal](../../../Specs/Plans/WIP/CodeReview_2026-10-10/validation-log-hashes-20261021.json).
+listed in the [log seal](../../../Specs/Plans/Done/CodeReview_2026-10-10/validation-log-hashes-20261021.json).
 
 ## Remaining acceptance
 

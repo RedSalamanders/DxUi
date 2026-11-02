@@ -1,0 +1,1 @@
+- Refresh label mnemonic underlines on changes and prepare mnemonic and typography layouts before paint.

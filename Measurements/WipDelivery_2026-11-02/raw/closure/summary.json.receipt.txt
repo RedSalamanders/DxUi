@@ -1,0 +1,74 @@
+{
+  "source": "1043b532b9f6f9f37b799e5342bcf868113cf710",
+  "createdUtc": "2026-11-02T11:35:19.617Z",
+  "requestedPlansDone": [
+    "CodeReview_2026-10-10",
+    "CodeReview_2026-10-28",
+    "CodeReview_2026-10-31",
+    "CodexBranchReview_2026-10-02",
+    "CiRunScope_2026-10-04",
+    "DeliveryReview_2026-10-31",
+    "GridTextOverflow_2026-09-21",
+    "MenuDescriptions_2026-09-21",
+    "Msvc1452ReleaseOptimization_2026-10-23",
+    "NativeBuildPolicyCoherence_2026-10-28",
+    "PopupReadiness_2026-10-17",
+    "ProductionReview_2026-10-05",
+    "ReadOnlySourceSnapshot_2026-10-26",
+    "RichTextAudit_2026-10-21",
+    "RichTextEditor_2026-10-17",
+    "RichTextFileDrop_2026-10-20",
+    "ScopedTesting_2026-10-05",
+    "SliderTouchHalo_2026-10-04",
+    "SourceInkRendererQualification_2026-10-27",
+    "SubtleMarkdownPresentation_2026-10-27",
+    "WipFolderQuality_2026-10-31"
+  ],
+  "planMigrationCommit": "be06f052178cb6ad3ebf42551df51d44b34087f6",
+  "fullValidation": {
+    "source": "be06f052178cb6ad3ebf42551df51d44b34087f6",
+    "overallExitCode": 1,
+    "toolingScriptsPassed": 30,
+    "onlyFailedStep": "validate-dependencies.ps1",
+    "failure": "240 archived receipt paths exceeded the 150-character checkout budget"
+  },
+  "repair": {
+    "source": "1043b532b9f6f9f37b799e5342bcf868113cf710",
+    "archiveNamesOnly": true,
+    "originalReceiptBytesPreserved": 1146,
+    "originalPathRecordsPreserved": 1146,
+    "movedWithoutByteChanges": 434,
+    "validatorsPassed": 5,
+    "changelogBaseCheckPassed": true
+  },
+  "formatting": {
+    "source": "be06f052178cb6ad3ebf42551df51d44b34087f6",
+    "exitCode": 0,
+    "formatter": "clang-format 22.1.3",
+    "applicableSourceUnchanged": true
+  },
+  "sourceEquivalence": {
+    "nativeAndRunnerCohort": "9909da1065e297247cb490b970b2265a0e4d8b9e",
+    "nativeAndRunnerPathsUnchanged": true,
+    "fullToolingCohort": "be06f052178cb6ad3ebf42551df51d44b34087f6",
+    "fullToolingInputsUnchanged": true,
+    "onlyChangesAfterFullRun": [
+      "archived receipt names and active metadata",
+      "dated change fragment"
+    ]
+  },
+  "scopedPrePushExplain": {
+    "source": "be06f052178cb6ad3ebf42551df51d44b34087f6",
+    "profiles": 6,
+    "planningOnly": true,
+    "notAnExecutedTestPass": true
+  },
+  "remainingQualification": {
+    "nativeArmRuntime": "user-deferred",
+    "physicalInputsAndAssistiveTechnology": "open",
+    "consumerAdoptionAndRollback": "open",
+    "hostedQualification": "open",
+    "performancePolicyQualified": false
+  },
+  "finalPacket": "Subsequent changes only add these archived records and update packet links/catalog/seals; the closing worktree checks those final staged bytes and documentation/path contracts separately."
+}

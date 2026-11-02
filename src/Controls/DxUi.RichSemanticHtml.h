@@ -25,7 +25,17 @@ enum class NativeHtmlKind
     H4,
     H5,
     H6,
-    Pre
+    Pre,
+    Kbd,
+    Ins,
+    Mark,
+    Img,
+    Hr,
+    Sup,
+    Sub,
+    Details,
+    Summary,
+    Comment
 };
 inline bool HtmlSpace(wchar_t value) noexcept
 {
@@ -47,12 +57,17 @@ inline unsigned HtmlFlags(NativeHtmlKind kind) noexcept
         case NativeHtmlKind::Strong: return Bold;
         case NativeHtmlKind::I:
         case NativeHtmlKind::Em: return Italic;
-        case NativeHtmlKind::U: return Underline;
+        case NativeHtmlKind::U:
+        case NativeHtmlKind::Ins: return Underline;
         case NativeHtmlKind::S:
         case NativeHtmlKind::Del: return Strike;
         case NativeHtmlKind::Code:
+        case NativeHtmlKind::Kbd:
         case NativeHtmlKind::Pre: return Code;
         case NativeHtmlKind::A: return Link;
+        case NativeHtmlKind::Mark: return Marked;
+        case NativeHtmlKind::Sup: return Superscript;
+        case NativeHtmlKind::Sub: return Subscript;
         case ::DxUi::RichText::Detail::NativeHtmlKind::Br:
         case ::DxUi::RichText::Detail::NativeHtmlKind::Div:
         case ::DxUi::RichText::Detail::NativeHtmlKind::H1:
@@ -63,6 +78,11 @@ inline unsigned HtmlFlags(NativeHtmlKind kind) noexcept
         case ::DxUi::RichText::Detail::NativeHtmlKind::H6:
         case ::DxUi::RichText::Detail::NativeHtmlKind::P:
         case ::DxUi::RichText::Detail::NativeHtmlKind::Span:
+        case NativeHtmlKind::Comment:
+        case NativeHtmlKind::Details:
+        case NativeHtmlKind::Summary:
+        case NativeHtmlKind::Img:
+        case NativeHtmlKind::Hr:
         default: return 0u;
     }
 }
@@ -72,7 +92,7 @@ inline unsigned HtmlHeading(NativeHtmlKind kind) noexcept
 }
 inline bool HtmlBlockWrapper(NativeHtmlKind kind) noexcept
 {
-    return kind >= NativeHtmlKind::P;
+    return kind >= NativeHtmlKind::P && kind <= NativeHtmlKind::Pre;
 }
 inline std::wstring DecodeHtmlAttribute(std::wstring_view input)
 {
@@ -90,7 +110,7 @@ inline std::wstring DecodeHtmlAttribute(std::wstring_view input)
     }
     return std::wstring(result);
 }
-inline bool NativeHtmlDestination(std::wstring_view value) noexcept
+inline bool NativeHtmlDestination(std::wstring_view value, bool image = false) noexcept
 {
     // A presentation policy, not an URL resolver. No destination is executed.
     // Decode references before checking schemes/control obfuscation.
@@ -102,11 +122,11 @@ inline bool NativeHtmlDestination(std::wstring_view value) noexcept
     if (colon == std::wstring_view::npos || (path != std::wstring_view::npos && path < colon))
         return true;
     const auto scheme = value.substr(0u, colon);
-    return HtmlName(scheme, L"http") || HtmlName(scheme, L"https") || HtmlName(scheme, L"mailto");
+    return HtmlName(scheme, L"http") || HtmlName(scheme, L"https") || HtmlName(scheme, image ? L"file" : L"mailto") || (image && HtmlName(scheme, L"data"));
 }
 struct NativeHtmlTag
 {
-    NativeHtmlTag() : destination(0u, L' '), title(0u, L' ')
+    NativeHtmlTag() : destination(0u, L' '), title(0u, L' '), alternative(0u, L' '), caption(0u, L' ')
     {
     }
     NativeHtmlTag(const NativeHtmlTag&)            = default;
@@ -115,14 +135,22 @@ struct NativeHtmlTag
     MarkdownRange source; // Original UTF-16 ACPs, including raw CRLF within a tag.
     // first/last are normalized block-leaf offsets; mate is a tag-vector index.
     std::size_t first{}, last{}, mate = MarkdownNoNode;
-    bool closing{};
+    bool closing{}, open{};
+    MarkdownAlignment alignment{};
     unsigned flagsAfter{}, headingAfter{};
-    std::wstring destination, title;
+    unsigned imageWidth{}, imageHeight{};
+    std::wstring destination, title, alternative, caption;
 };
 inline bool ParseNativeHtmlTag(std::wstring_view value, NativeHtmlTag& tag)
 {
-    constexpr std::wstring_view names[] = {L"b",  L"strong", L"i",   L"em", L"u",  L"s",  L"del", L"code", L"span", L"a",
-                                           L"br", L"p",      L"div", L"h1", L"h2", L"h3", L"h4",  L"h5",   L"h6",   L"pre"};
+    if (value.starts_with(L"<!--") && value.ends_with(L"-->") && value.find(L"-->", 4u) == value.size() - 3u)
+    {
+        tag.kind = NativeHtmlKind::Comment;
+        return true;
+    }
+    constexpr std::wstring_view names[] = {L"b",   L"strong", L"i",    L"em",  L"u",  L"s",   L"del", L"code",    L"span",   L"a",
+                                           L"br",  L"p",      L"div",  L"h1",  L"h2", L"h3",  L"h4",  L"h5",      L"h6",     L"pre",
+                                           L"kbd", L"ins",    L"mark", L"img", L"hr", L"sup", L"sub", L"details", L"summary"};
     if (value.size() < 3u || value.front() != L'<' || value.back() != L'>')
         return false;
     std::size_t at = 1u;
@@ -138,24 +166,47 @@ inline bool ParseNativeHtmlTag(std::wstring_view value, NativeHtmlTag& tag)
     if (found == std::end(names))
         return false;
     tag.kind  = static_cast<NativeHtmlKind>(found - std::begin(names));
-    bool href = false, title = false;
+    bool href = false, title = false, alternative = false, alignment = false, width = false, height = false, caption = false;
+    const auto complete = [&]() noexcept { return tag.closing || (tag.kind != NativeHtmlKind::A && tag.kind != NativeHtmlKind::Img) || href; };
     for (;;)
     {
         const auto before = at;
         while (at < value.size() && HtmlSpace(value[at]))
             ++at;
         if (at == value.size() - 1u)
-            return tag.kind != NativeHtmlKind::A || tag.closing || href;
+            return complete();
         if (value[at] == L'/')
-            return ! tag.closing && tag.kind == NativeHtmlKind::Br && at + 1u == value.size() - 1u;
-        if (at == before || tag.closing || tag.kind != NativeHtmlKind::A)
+            return ! tag.closing && (tag.kind == NativeHtmlKind::Br || tag.kind == NativeHtmlKind::Img || tag.kind == NativeHtmlKind::Hr) && complete() &&
+                   at + 1u == value.size() - 1u;
+        if (at == before || tag.closing ||
+            (tag.kind != NativeHtmlKind::A && tag.kind != NativeHtmlKind::Img && tag.kind != NativeHtmlKind::P && tag.kind != NativeHtmlKind::Div &&
+             tag.kind != NativeHtmlKind::Details))
             return false;
         const auto nameFirst = at;
-        while (at < value.size() && HtmlLower(value[at]) >= L'a' && HtmlLower(value[at]) <= L'z')
+        while (at < value.size() && ((HtmlLower(value[at]) >= L'a' && HtmlLower(value[at]) <= L'z') || value[at] == L'-'))
             ++at;
-        const auto name   = value.substr(nameFirst, at - nameFirst);
-        const bool isHref = HtmlName(name, L"href"), isTitle = HtmlName(name, L"title");
-        if ((! isHref && ! isTitle) || (isHref ? href : title))
+        const auto name = value.substr(nameFirst, at - nameFirst);
+        if (tag.kind == NativeHtmlKind::Details && HtmlName(name, L"open"))
+        {
+            if (tag.open)
+                return false;
+            tag.open = true;
+            continue;
+        }
+        const bool isImage  = tag.kind == NativeHtmlKind::Img;
+        const bool isAnchor = tag.kind == NativeHtmlKind::A;
+        const bool isHref   = (isImage || isAnchor) && HtmlName(name, isImage ? L"src" : L"href");
+        const bool isTitle = (isImage || isAnchor) && HtmlName(name, L"title"), isAlternative = isImage && HtmlName(name, L"alt");
+        const bool isAlignment = (isImage || tag.kind == NativeHtmlKind::P || tag.kind == NativeHtmlKind::Div) && HtmlName(name, L"align");
+        const bool isWidth = isImage && HtmlName(name, L"width"), isHeight = isImage && HtmlName(name, L"height");
+        const bool isCaption = isImage && HtmlName(name, L"data-caption");
+        if ((! isHref && ! isTitle && ! isAlternative && ! isAlignment && ! isWidth && ! isHeight && ! isCaption) || (isHref          ? href
+                                                                                                                      : isTitle       ? title
+                                                                                                                      : isAlternative ? alternative
+                                                                                                                      : isAlignment   ? alignment
+                                                                                                                      : isWidth       ? width
+                                                                                                                      : isHeight      ? height
+                                                                                                                                      : caption))
             return false;
         while (at < value.size() && HtmlSpace(value[at]))
             ++at;
@@ -175,15 +226,57 @@ inline bool ParseNativeHtmlTag(std::wstring_view value, NativeHtmlTag& tag)
         ++at;
         if (isHref)
         {
-            if (! NativeHtmlDestination(decoded))
+            if (! NativeHtmlDestination(decoded, isImage))
                 return false;
             tag.destination = decoded;
             href            = true;
         }
-        else
+        else if (isTitle)
         {
             tag.title = decoded;
             title     = true;
+        }
+        else if (isAlternative)
+        {
+            tag.alternative = decoded;
+            alternative     = true;
+        }
+        else if (isCaption)
+        {
+            if (decoded.empty() || decoded.size() > 256u || std::ranges::any_of(decoded, [](wchar_t unit) { return unit < L' ' || unit == 0x7fu; }))
+                return false;
+            tag.caption = decoded;
+            caption     = true;
+        }
+        else if (isWidth || isHeight)
+        {
+            unsigned size{};
+            if (decoded.empty() || decoded.size() > 4u)
+                return false;
+            for (const auto character : decoded)
+            {
+                if (character < L'0' || character > L'9')
+                    return false;
+                size = size * 10u + static_cast<unsigned>(character - L'0');
+            }
+            if (! size || size > 4096u)
+                return false;
+            if (isWidth)
+                tag.imageWidth = size, width = true;
+            else
+                tag.imageHeight = size, height = true;
+        }
+        else
+        {
+            if (HtmlName(decoded, L"left"))
+                tag.alignment = MarkdownAlignment::Left;
+            else if (HtmlName(decoded, L"center"))
+                tag.alignment = MarkdownAlignment::Center;
+            else if (HtmlName(decoded, L"right"))
+                tag.alignment = MarkdownAlignment::Right;
+            else
+                return false;
+            alignment = true;
         }
     }
 }
@@ -200,7 +293,8 @@ struct NativeHtmlPlan
     std::vector<NativeHtmlTag> tags;
     bool present{}, valid{};
     unsigned flags{}, heading{};
-    std::size_t linkElement = MarkdownNoNode, emptyInsertion{}, bodyFirst{}, bodyLast{};
+    std::size_t linkElement = MarkdownNoNode, emptyInsertion{}, bodyFirst{}, bodyLast{}, summaryFirst{}, summaryLast{};
+    bool disclosureOpen{};
     std::optional<NativeHtmlKind> wrapper;
     void Reset()
     {
@@ -208,21 +302,31 @@ struct NativeHtmlPlan
         present = valid = false;
         flags = heading = 0u;
         linkElement     = MarkdownNoNode;
-        emptyInsertion = bodyFirst = bodyLast = 0u;
+        emptyInsertion = bodyFirst = bodyLast = summaryFirst = summaryLast = 0u;
+        disclosureOpen                                                     = false;
         wrapper.reset();
     }
     bool Validate(bool block, std::wstring_view text)
     {
         std::vector<std::size_t> stack(0u);
         unsigned activeFlags = 0u, activeHeading = 0u;
-        bool anchor = false;
+        bool anchor = false, summary = false;
         for (std::size_t index = 0u; index < tags.size(); ++index)
         {
             auto& tag = tags[index];
-            if (tag.kind == NativeHtmlKind::Br)
+            if (tag.kind == NativeHtmlKind::Br || tag.kind == NativeHtmlKind::Comment || tag.kind == NativeHtmlKind::Img || tag.kind == NativeHtmlKind::Hr)
             {
                 if (tag.closing)
                     return false;
+                if ((activeFlags & (Superscript | Subscript)) && (tag.kind == NativeHtmlKind::Img || tag.kind == NativeHtmlKind::Hr))
+                    return false;
+                if (tag.kind == NativeHtmlKind::Hr)
+                {
+                    if (! block || tags.size() != 1u || ! std::all_of(text.begin(), text.begin() + static_cast<std::ptrdiff_t>(tag.first), HtmlSpace) ||
+                        ! std::all_of(text.begin() + static_cast<std::ptrdiff_t>(tag.last), text.end(), HtmlSpace))
+                        return false;
+                    wrapper = NativeHtmlKind::Hr;
+                }
             }
             else if (tag.closing)
             {
@@ -234,7 +338,9 @@ struct NativeHtmlPlan
                 tags[opening].mate = index;
                 if (tag.kind == NativeHtmlKind::A)
                     anchor = false;
-                if (HtmlBlockWrapper(tag.kind))
+                if (tag.kind == NativeHtmlKind::Summary)
+                    summaryLast = tag.first;
+                if (HtmlBlockWrapper(tag.kind) || tag.kind == NativeHtmlKind::Details)
                 {
                     bodyLast = tag.first;
                     if (! std::all_of(text.begin() + static_cast<std::ptrdiff_t>(tag.last), text.end(), HtmlSpace))
@@ -247,12 +353,22 @@ struct NativeHtmlPlan
             {
                 if (stack.size() == MaximumDepth)
                     return false;
-                if (HtmlBlockWrapper(tag.kind))
+                if (tag.kind == NativeHtmlKind::Summary)
+                {
+                    if (! block || summary || stack.size() != 1u || tags[stack.back()].kind != NativeHtmlKind::Details ||
+                        ! std::all_of(text.begin() + static_cast<std::ptrdiff_t>(bodyFirst), text.begin() + static_cast<std::ptrdiff_t>(tag.first), HtmlSpace))
+                        return false;
+                    summary      = true;
+                    summaryFirst = tag.last;
+                }
+                if (HtmlBlockWrapper(tag.kind) || tag.kind == NativeHtmlKind::Details)
                 {
                     if (! block || wrapper || ! stack.empty() || ! std::all_of(text.begin(), text.begin() + static_cast<std::ptrdiff_t>(tag.first), HtmlSpace))
                         return false;
                     wrapper   = tag.kind;
                     bodyFirst = tag.last;
+                    if (tag.kind == NativeHtmlKind::Details)
+                        disclosureOpen = tag.open;
                 }
                 if (tag.kind == NativeHtmlKind::A)
                 {
@@ -260,6 +376,8 @@ struct NativeHtmlPlan
                         return false;
                     anchor = true;
                 }
+                if ((tag.kind == NativeHtmlKind::Sup || tag.kind == NativeHtmlKind::Sub) && (activeFlags & (Superscript | Subscript)))
+                    return false;
                 activeFlags |= HtmlFlags(tag.kind);
                 if (HtmlHeading(tag.kind))
                     activeHeading = HtmlHeading(tag.kind);
@@ -269,7 +387,44 @@ struct NativeHtmlPlan
             tag.flagsAfter   = activeFlags;
             tag.headingAfter = activeHeading;
         }
-        return stack.empty();
+        if (! stack.empty())
+            return false;
+        if (wrapper != NativeHtmlKind::Details)
+            return true;
+        if (! summary || summaryFirst >= summaryLast)
+            return false;
+        if (std::ranges::any_of(tags, [&](const auto& tag) {
+            return tag.first >= summaryFirst && tag.first < summaryLast && (tag.kind == NativeHtmlKind::A || tag.kind == NativeHtmlKind::Img);
+        }))
+            return false;
+        auto at = summaryFirst;
+        for (const auto& tag : tags)
+        {
+            if (tag.first < summaryFirst || tag.first >= summaryLast)
+                continue;
+            if (std::any_of(text.begin() + static_cast<std::ptrdiff_t>(at), text.begin() + static_cast<std::ptrdiff_t>(tag.first), [](wchar_t value) {
+                return ! HtmlSpace(value);
+            }))
+                return true;
+            at = tag.last;
+        }
+        return std::any_of(text.begin() + static_cast<std::ptrdiff_t>(at), text.begin() + static_cast<std::ptrdiff_t>(summaryLast), [](wchar_t value) {
+            return ! HtmlSpace(value);
+        });
+    }
+    bool StandaloneImagePresentation(std::wstring_view text) const
+    {
+        if (std::ranges::none_of(
+                tags, [](const auto& tag) { return tag.kind == NativeHtmlKind::Img && (tag.alignment != MarkdownAlignment::None || ! tag.caption.empty()); }))
+            return true;
+        if (tags.size() != 1u || tags.front().kind != NativeHtmlKind::Img)
+            return false;
+        while (! text.empty() && HtmlSpace(text.front()))
+            text.remove_prefix(1u);
+        while (! text.empty() && HtmlSpace(text.back()))
+            text.remove_suffix(1u);
+        NativeHtmlTag standalone;
+        return ParseNativeHtmlTag(text, standalone) && standalone.kind == NativeHtmlKind::Img;
     }
     void Inline(const MarkdownSyntax& syntax, const MarkdownNode& leaf, const SemanticValue& normalized)
     {
@@ -277,7 +432,7 @@ struct NativeHtmlPlan
         if (normalized.text.find(L'<') == std::wstring::npos || leaf.firstInline == MarkdownNoNode)
             return;
         std::vector<std::size_t> pending(1u, leaf.firstInline);
-        std::vector<MarkdownRange> markdownLinks(0u);
+        std::vector<MarkdownRange> markdownLinks(0u), inlineObjects(0u);
         const auto& inlines = syntax.Inlines();
         while (! pending.empty())
         {
@@ -286,6 +441,8 @@ struct NativeHtmlPlan
             const auto& node = inlines[index];
             if (node.nextSibling != MarkdownNoNode)
                 pending.push_back(node.nextSibling);
+            if (node.kind == MarkdownInlineKind::Image || node.kind == MarkdownInlineKind::Math || node.kind == MarkdownInlineKind::SourceEditor)
+                inlineObjects.push_back(node.source);
             if (node.kind == MarkdownInlineKind::Image)
                 continue; // Alternatives are atomic literal labels.
             if (node.firstChild != MarkdownNoNode)
@@ -302,8 +459,18 @@ struct NativeHtmlPlan
                 return;
             tags.push_back(tag);
         }
-        if (! present || ! Validate(false, {}))
+        if (! present || ! Validate(false, {}) || ! StandaloneImagePresentation(normalized.text))
             return;
+        std::sort(inlineObjects.begin(), inlineObjects.end(), [](auto a, auto b) { return a.first < b.first; });
+        for (const auto& tag : tags)
+            if ((tag.kind == NativeHtmlKind::Sup || tag.kind == NativeHtmlKind::Sub) && ! tag.closing)
+            {
+                const auto last = tags[tag.mate].source.last;
+                const auto next =
+                    std::lower_bound(inlineObjects.begin(), inlineObjects.end(), tag.source.first, [](auto range, auto first) { return range.last <= first; });
+                if (next != inlineObjects.end() && next->first < last)
+                    return;
+            }
         // Markdown and native anchors must not overlap. Sorting keeps admission
         // O(n log n), rather than comparing every tag with every source link.
         std::sort(markdownLinks.begin(), markdownLinks.end(), [](auto a, auto b) { return a.first < b.first; });
@@ -331,7 +498,18 @@ struct NativeHtmlPlan
                 continue;
             }
             NativeHtmlTag tag;
-            tag.first     = at;
+            tag.first = at;
+            if (std::wstring_view(input.text).substr(at).starts_with(L"<!--"))
+            {
+                const auto close = input.text.find(L"-->", at + 4u);
+                if (close == input.text.npos || tags.size() == MaximumTags)
+                    return;
+                tag.last = at = close + 3u;
+                tag.source    = {input.units[tag.first].source.first, input.units[tag.last - 1u].source.last};
+                tag.kind      = NativeHtmlKind::Comment;
+                tags.push_back(tag);
+                continue;
+            }
             wchar_t quote = 0;
             for (++at; at < input.text.size(); ++at)
             {
@@ -356,7 +534,7 @@ struct NativeHtmlPlan
                 return;
             tags.push_back(tag);
         }
-        valid = ! tags.empty() && Validate(true, input.text);
+        valid = ! tags.empty() && Validate(true, input.text) && StandaloneImagePresentation(input.text);
     }
     const NativeHtmlTag& At(MarkdownRange source) const
     {

@@ -5,9 +5,18 @@
 #include <msctf.h>
 
 // Module-local adapter using only public headers. Disconnect before destroying the view or HWND.
-class EmbeddedTextClient final : public DxUi::TextInputClient, public DxUi::TextClipboardPasteTransform
+class EmbeddedTextClient final : public DxUi::TextInputClient,
+                                 public DxUi::TextClipboardPasteTransform,
+                                 public DxUi::TextClipboardFilePaste,
+                                 public DxUi::TextClipboardSemanticCut,
+                                 public DxUi::TextClipboardHtmlPaste,
+                                 public DxUi::TextClipboardBitmapPaste
 {
 public:
+    HRESULT ApplySemanticCut(const DxUi::EmbeddedTextInputSnapshot& snapshot) noexcept override
+    {
+        return _view && snapshot.focusId == _focus ? _view->ApplyClipboardCut(snapshot) : TF_E_DISCONNECTED;
+    }
     EmbeddedTextClient(DxUi::EmbeddedHost& view, HWND window, uint64_t focus, float dpi) noexcept : _view(&view), _window(window), _focus(focus), _dpi(dpi)
     {
     }
@@ -28,11 +37,33 @@ public:
     {
         return _view && snapshot.focusId == _focus && dynamic_cast<DxUi::RichTextEditor*>(_view->Controls().GetFocusControl());
     }
+    bool AcceptsHtml(const DxUi::EmbeddedTextInputSnapshot& snapshot) const noexcept override
+    {
+        if (! _view || snapshot.focusId != _focus)
+            return false;
+        const auto* editor = dynamic_cast<DxUi::RichTextEditor*>(_view->Controls().GetFocusControl());
+        return editor && editor->HasHtmlPasteConverter() && editor->IsMarkdownRenderingEnabled() && editor->GetViewMode() == DxUi::RichText::ViewMode::Rich;
+    }
+    bool AcceptsBitmap(const DxUi::EmbeddedTextInputSnapshot& snapshot) const noexcept override
+    {
+        if (! _view || snapshot.focusId != _focus || snapshot.state.readOnly)
+            return false;
+        const auto* editor = dynamic_cast<DxUi::RichTextEditor*>(_view->Controls().GetFocusControl());
+        return editor && editor->HasBitmapPasteHandler() && editor->IsMarkdownRenderingEnabled() && editor->GetViewMode() == DxUi::RichText::ViewMode::Rich;
+    }
+    HRESULT ApplyBitmapPaste(const DxUi::EmbeddedTextInputSnapshot& snapshot, const DxUi::TextClipboardContent& content) noexcept override
+    {
+        return _view ? _view->ApplyClipboardBitmapPaste(snapshot.revision, _focus, content) : TF_E_DISCONNECTED;
+    }
     HRESULT TransformPaste(const DxUi::EmbeddedTextInputSnapshot& snapshot,
                            const DxUi::TextClipboardContent& content,
                            std::wstring& replacement) noexcept override
     {
         return _view ? _view->TransformClipboardPaste(snapshot.revision, _focus, content, replacement) : TF_E_DISCONNECTED;
+    }
+    HRESULT ApplyFilePaste(const DxUi::EmbeddedTextInputSnapshot& snapshot, const DxUi::TextClipboardContent& content) noexcept override
+    {
+        return _view && snapshot.focusId == _focus ? _view->ApplyClipboardFilePaste(snapshot.revision, _focus, content) : TF_E_DISCONNECTED;
     }
     HRESULT Read(DxUi::EmbeddedTextInputSnapshot& snapshot) noexcept override
     {

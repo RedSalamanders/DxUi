@@ -1,0 +1,42 @@
+Build started 02/11/2026 08:32:33.
+
+     1>Project "E:\DxUi.Perf\dxui-sdk-f423a293a53e4a70989a9fa5597f1862\SdkWarningControl.vcxproj" on node 1 (default targets).
+     1>PrepareForBuild:
+         Creating directory "E:\DxUi.Perf\dxui-sdk-f423a293a53e4a70989a9fa5597f1862\warning-obj\".
+         Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+         Creating directory "E:\DxUi.Perf\dxui-sdk-f423a293a53e4a70989a9fa5597f1862\warning-bin\".
+         Creating directory "E:\DxUi.Perf\dxui-sdk-f423a293a53e4a70989a9fa5597f1862\warning-obj\SdkWarni.8082EFD1.tlog\".
+       InitializeBuildStatus:
+         Creating "E:\DxUi.Perf\dxui-sdk-f423a293a53e4a70989a9fa5597f1862\warning-obj\SdkWarni.8082EFD1.tlog\unsuccessfulbuild" because "AlwaysCreate" was specified.
+         Touching "E:\DxUi.Perf\dxui-sdk-f423a293a53e4a70989a9fa5597f1862\warning-obj\SdkWarni.8082EFD1.tlog\unsuccessfulbuild".
+       ComputeStdModulesCompileInputs:
+         Reading library manifest file 'C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.52.37025\modules\modules.json' which provides data for library 'microsoft/STL'.
+         Adding module source 'C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.52.37025\modules\std.ixx' from library 'microsoft/STL' to be built with this project.
+         Adding module source 'C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.52.37025\modules\std.compat.ixx' from library 'microsoft/STL' to be built with this project.
+       MakeDirsForCl:
+         Creating directory "E:\DxUi.Perf\dxui-sdk-f423a293a53e4a70989a9fa5597f1862\warning-obj\microsoft\STL".
+       SetModuleDependencies:
+         Creating directory "E:\DxUi.Perf\dxui-sdk-f423a293a53e4a70989a9fa5597f1862\warning-obj\SdkWarni.8082EFD1_MD.tlog\".
+       ClCompile:
+         C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.52.37025\bin\HostX64\x64\CL.exe /c /I"E:\DxUi.Perf\dxui-sdk-f423a293a53e4a70989a9fa5597f1862\extracted SDK\include" /Zi /nologo /Wall /WX- /diagnostics:column /O2 /D UNICODE /D _UNICODE /D WIN32_LEAN_AND_MEAN /D NOMINMAX /D NDEBUG /Gm- /EHsc /MD /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /std:c++latest /Fo"E:\DxUi.Perf\dxui-sdk-f423a293a53e4a70989a9fa5597f1862\warning-obj\\" /Fd"E:\DxUi.Perf\dxui-sdk-f423a293a53e4a70989a9fa5597f1862\warning-obj\vc145.pdb" /external:env:EXTERNAL_INCLUDE /external:W0 /Gd /TP /wd4514 /wd4710 /wd4711 /wd4820 /wd5045 /FC /errorReport:queue /sourceDependencies "E:\DxUi.Perf\dxui-sdk-f423a293a53e4a70989a9fa5597f1862\source-dependencies.json" /utf-8 /Zc:preprocessor WarningControl.cpp
+         WarningControl.cpp
+     1>E:\DxUi.Perf\dxui-sdk-f423a293a53e4a70989a9fa5597f1862\WarningControl.cpp(1,18): warning C4189: 'unused': local variable is initialized but not referenced [E:\DxUi.Perf\dxui-sdk-f423a293a53e4a70989a9fa5597f1862\SdkWarningControl.vcxproj]
+       Link:
+         C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.52.37025\bin\HostX64\x64\link.exe /ERRORREPORT:QUEUE /OUT:"E:\DxUi.Perf\dxui-sdk-f423a293a53e4a70989a9fa5597f1862\warning-bin\SdkWarningControl.exe" /NOLOGO "E:\DxUi.Perf\dxui-sdk-f423a293a53e4a70989a9fa5597f1862\extracted SDK\lib\x64\Release\DxUi.lib" kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG:FULL /PDB:"E:\DxUi.Perf\dxui-sdk-f423a293a53e4a70989a9fa5597f1862\warning-bin\SdkWarningControl.pdb" /SUBSYSTEM:CONSOLE /OPT:ICF /LTCG /LTCGOUT:"E:\DxUi.Perf\dxui-sdk-f423a293a53e4a70989a9fa5597f1862\warning-obj\SdkWarningControl.iobj" /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"E:\DxUi.Perf\dxui-sdk-f423a293a53e4a70989a9fa5597f1862\warning-bin\SdkWarningControl.lib" /MACHINE:X64 "E:\DxUi.Perf\dxui-sdk-f423a293a53e4a70989a9fa5597f1862\warning-obj\WarningControl.obj"
+         LINK : /LTCG specified but no code generation required; remove /LTCG from the link command line to improve linker performance
+         SdkWarningControl.vcxproj -> E:\DxUi.Perf\dxui-sdk-f423a293a53e4a70989a9fa5597f1862\warning-bin\SdkWarningControl.exe
+       FinalizeBuildStatus:
+         Deleting file "E:\DxUi.Perf\dxui-sdk-f423a293a53e4a70989a9fa5597f1862\warning-obj\SdkWarni.8082EFD1.tlog\unsuccessfulbuild".
+         Touching "E:\DxUi.Perf\dxui-sdk-f423a293a53e4a70989a9fa5597f1862\warning-obj\SdkWarni.8082EFD1.tlog\SdkWarningControl.lastbuildstate".
+     1>Done Building Project "E:\DxUi.Perf\dxui-sdk-f423a293a53e4a70989a9fa5597f1862\SdkWarningControl.vcxproj" (default targets).
+
+Build succeeded.
+
+       "E:\DxUi.Perf\dxui-sdk-f423a293a53e4a70989a9fa5597f1862\SdkWarningControl.vcxproj" (default target) (1) ->
+       (ClCompile target) -> 
+         E:\DxUi.Perf\dxui-sdk-f423a293a53e4a70989a9fa5597f1862\WarningControl.cpp(1,18): warning C4189: 'unused': local variable is initialized but not referenced [E:\DxUi.Perf\dxui-sdk-f423a293a53e4a70989a9fa5597f1862\SdkWarningControl.vcxproj]
+
+    1 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:00.76

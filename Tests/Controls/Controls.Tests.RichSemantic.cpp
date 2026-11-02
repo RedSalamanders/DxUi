@@ -23,7 +23,25 @@ void TestRichSemanticTransactionRejections()
 void TestRichSemanticNativeRetainedTransactions()
 {
     AttachedHostWindow window;
-    RichSemanticTests::Run([&] {
+    RichSemanticTests::Run([&]
+    {
+        RichSemanticEditorTests::SemanticGeometryReuse(window.Host(), [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare semantic reuse"); });
+        RichSemanticEditorTests::SourceWindowUnicodeParity();
+        RichSemanticEditorTests::RichSourceWindowParity();
+        RichSemanticEditorTests::PendingSourceWindowTransport(window.Host());
+        RichSemanticEditorTests::PendingRichSourceWindowTransport(window.Host());
+        RichSemanticEditorTests::UrlOnSelectionPaste(window.Host(), [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare URL paste"); });
+        RichSemanticEditorTests::SemanticWords(window.Host(), [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare semantic word viewport"); });
+        RichSemanticEditorTests::SemanticDirection(window.Host(), [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare paragraph direction"); });
+        RichSemanticEditorTests::InlineExtensions(window.Host(),
+                                                  [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare inline extension styles"); });
+        RichSemanticEditorTests::WikiTargets(window.Host(), [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare wiki targets"); });
+        RichSemanticEditorTests::InlineScriptFallback(window.Host(),
+                                                      [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare inline script fallback"); });
+        RichSemanticEditorTests::SourceHorizontalAndGuides(window.Host(),
+                                                           [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare source guides"); });
+        RichSemanticEditorTests::RichTableHorizontalOverflow(window.Host(),
+                                                             [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare table overflow"); });
         RichSemanticEditorTests::Transactions(window.Host(),
                                               [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare native source transaction"); });
     });
@@ -39,6 +57,7 @@ void TestRichMarkdownStructuralInlineTasksLinks()
 void TestRichMarkdownStructuralTables()
 {
     RichSemanticTests::Run(RichCommandTests::Tables);
+    RichSemanticTests::Run(RichCommandTests::MoveLinesAndItems);
 }
 void TestRichMarkdownStructuralGuardsAndDeletion()
 {

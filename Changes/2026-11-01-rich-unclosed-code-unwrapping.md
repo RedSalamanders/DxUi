@@ -1,0 +1,1 @@
+- Unwrap unclosed Markdown fences while preserving representable quote and list containers.

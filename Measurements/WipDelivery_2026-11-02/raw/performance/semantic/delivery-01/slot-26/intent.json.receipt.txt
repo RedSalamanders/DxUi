@@ -1,0 +1,40 @@
+{
+  "slot": {
+    "slot": 26,
+    "block": 7,
+    "scenario": "character",
+    "scenarioBlock": 4,
+    "pattern": "BAAB",
+    "withinBlock": 2,
+    "side": "A"
+  },
+  "command": "\"Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\semantic-owner-final\\baseline-attempt-03\\character\\out\\RichOwnerProbe.exe\"",
+  "workingDirectory": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\semantic-owner-final\\baseline-attempt-03\\character\\out",
+  "exe": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\semantic-owner-final\\baseline-attempt-03\\character\\out\\RichOwnerProbe.exe",
+  "exeSha256": "D31E8916B47FA9EFFEBCFF3F7E82E2DF87766925A8B1F63AA6C3572BDE80E8B7",
+  "pdb": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\semantic-owner-final\\baseline-attempt-03\\character\\out\\RichOwnerProbe.pdb",
+  "pdbSha256": "507DEA59F51AE7657E2B0308C8CFE0DBEAEE5B71D15BBE58807DE0A678CFDDC6",
+  "certificate": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\semantic-owner-final\\baseline-attempt-03\\validated-input-closure\\validated-build-provenance.json",
+  "certificateSha256": "86F78716A93428AB1286265DC71124ED8997A3D9B57A80EB79938BD0E6269A87",
+  "sourceCommit": "4423074dee2410acb28e62b41072e6c561a79eb8",
+  "sourceArchive": {
+    "path": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\semantic-owner-final\\source-provenance\\baseline-442-source.tar",
+    "sha256": "33EEF22A11D573266195924F74C1C2E311252C658123965C7C810207D18CDD82"
+  },
+  "v2Certificate": {
+    "path": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\semantic-owner-final\\source-provenance\\baseline-442-v2-build.json",
+    "sha256": "13EF094A4D1D6008FA2DD325A99D08472EDACC0C3C475902382FA35B3C808561"
+  },
+  "verification": {
+    "path": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\semantic-owner-final\\source-provenance\\baseline-442-verified.json",
+    "sha256": "9EA1298C4AF3B098391E8B94E301D849E1972162326BF3FE0C3751D22815B6E9"
+  },
+  "tlogSha256": {
+    "link.read.1.tlog": "4C41338B078359055CA2A4177E67E2AF255F9916D631A2461E5B6855080FA087",
+    "link.command.1.tlog": "59BAD67DF03CB7B6493368E84073C24FBFABCEF9ADF705DD9615E6FC94F5CE0F",
+    "CL.command.1.tlog": "D1489CE1A0C95CAB3F83629A6A9EE0846CF568409AA5AD2585EBED3D6B5EF9C4",
+    "CL.read.1.tlog": "1D803A812E9D0269FF653FA6F835E9A356B8F7B7F1AA7BDB76B84CA898BEDE85"
+  },
+  "timeoutSeconds": 120,
+  "submittedUtc": "2026-11-02T08:48:45.0957901Z"
+}

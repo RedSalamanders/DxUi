@@ -1,0 +1,1 @@
+- Add opt-in heading, strikethrough, inline-code and link-edit shortcuts while preserving AltGr and zoom reset; native qualification remains pending.

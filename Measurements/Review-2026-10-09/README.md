@@ -5,7 +5,7 @@ and historical paired packets, the current activation-blocker/lease qualificatio
 foreground confirmation. These receipts remain bound to their stated sources and scopes.
 
 This directory retains evidence for the accepted Q1-Q31 follow-through in the
-[active plan](../../Specs/Plans/WIP/ProductionReview_2026-10-05.md). It is separate from the immutable
+[active plan](../../Specs/Plans/Done/ProductionReview_2026-10-05.md). It is separate from the immutable
 [8 October packet](../Review-2026-10-08/README.md); those receipts qualify their archived source only.
 
 `AccessibilitySchedulingBefore` preserves an exploratory pre-batching native fixture, its source inputs, raw output,

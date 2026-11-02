@@ -1,3 +1,4 @@
+#include "DxUi.RichLayoutOptions.h"
 #include <DxUi/RichTextLayout.h>
 #include <algorithm>
 #include <cmath>
@@ -24,21 +25,45 @@ float AddCoordinate(float left, float right) noexcept
     return result;
 }
 #pragma warning(pop)
-bool SameStyles(const Projection& left, const Projection& right) noexcept
+bool SameStyles(const std::vector<ProjectionBlock>& blocks, const Projection& right) noexcept
 {
-    return left.text == right.text && left.runs.size() == right.runs.size() &&
-           std::equal(left.runs.begin(), left.runs.end(), right.runs.begin(), [](const StyleRun& a, const StyleRun& b) {
-        return a.start == b.start && a.length == b.length && a.flags == b.flags && a.heading == b.heading;
-    });
+    // Compare the exact joined display/runs without materializing source, maps
+    // or a whole Projection merely to reject a compatibility-cache candidate.
+    std::size_t displayStart = 0u, runIndex = 0u;
+    std::optional<StyleRun> joined;
+    const auto flush = [&]() noexcept
+    {
+        if (! joined)
+            return true;
+        if (runIndex == right.runs.size())
+            return false;
+        const auto& expected = right.runs[runIndex++];
+        return joined->start == expected.start && joined->length == expected.length && joined->flags == expected.flags && joined->heading == expected.heading;
+    };
+    for (const auto& item : blocks)
+    {
+        const auto& block = *item.content;
+        if (block.text.size() > right.text.size() - displayStart || std::wstring_view(right.text).substr(displayStart, block.text.size()) != block.text)
+            return false;
+        for (const auto& run : block.runs)
+        {
+            const StyleRun next{displayStart + run.start, run.length, run.flags, run.heading};
+            if (joined && joined->start + joined->length == next.start && joined->flags == next.flags && joined->heading == next.heading)
+                joined->length += next.length;
+            else
+            {
+                if (! flush())
+                    return false;
+                joined = next;
+            }
+        }
+        displayStart += block.text.size();
+    }
+    return displayStart == right.text.size() && flush() && runIndex == right.runs.size();
 }
 bool SameOptions(const LayoutOptions& left, const LayoutOptions& right) noexcept
 {
-    return left.widthDip == right.widthDip && left.fontSizeDip == right.fontSizeDip && left.codeFontSizeDip == right.codeFontSizeDip &&
-           left.lineHeightMultiplier == right.lineHeightMultiplier && left.headingScaleStep == right.headingScaleStep && left.fontFamily == right.fontFamily &&
-           left.headingFontSizeDip == right.headingFontSizeDip && left.headingLineHeightMultiplier == right.headingLineHeightMultiplier &&
-           left.paragraphSpacingAfterLines == right.paragraphSpacingAfterLines && left.listItemSpacingDip == right.listItemSpacingDip &&
-           left.semanticSpacing == right.semanticSpacing && left.codeFontFamily == right.codeFontFamily && left.locale == right.locale &&
-           left.readingDirection == right.readingDirection && left.textAlignment == right.textAlignment;
+    return Detail::SameLayoutOptions(left, right, Detail::LayoutOptionsUse::Text);
 }
 void JoinBlocks(Projection& result, const std::vector<ProjectionBlock>& blocks, std::size_t first, std::size_t end, ViewMode mode)
 {
@@ -96,10 +121,10 @@ struct PreparedDocumentLayout::State
     LayoutOptions options;
     wil::com_ptr<IDWriteFactory> factory;
     std::vector<ChunkPlacement> chunks;
-    mutable std::shared_ptr<const PreparedLayout> reference;
+    std::shared_ptr<const PreparedLayout> reference;
     bool referenceForGeometry{};
-    float height{};
-    mutable LayoutPreparation last;
+    float height{}, width{};
+    LayoutPreparation last;
 };
 #pragma warning(pop)
 // Existing identity/RAII/reference traits intentionally delete these implicit operations.
@@ -160,6 +185,7 @@ struct PreparedDocumentLayout::Preparation
         const auto& blocks = next->projection.Blocks();
         const auto& block  = blocks[begin];
         const auto bottom  = limit == blocks.size() ? geometry->layout.Height() : geometry->continuationBottom;
+        next->width        = std::max(next->width, geometry->layout.HorizontalTextBounds().second);
         next->chunks.push_back({block.sourceStart, block.displayStart, begin, limit - begin, next->height, bottom - next->height, std::move(geometry)});
         next->height = bottom;
         if (! std::isfinite(bottom))
@@ -182,6 +208,10 @@ bool PreparedDocumentLayout::Ready() const noexcept
 float PreparedDocumentLayout::Height() const noexcept
 {
     return Ready() ? state_->height : 0.0f;
+}
+float PreparedDocumentLayout::Width() const noexcept
+{
+    return Ready() ? state_->width : 0.0f;
 }
 std::uint64_t PreparedDocumentLayout::Generation() const noexcept
 {
@@ -274,7 +304,14 @@ LayoutPreparationStatus PreparedDocumentLayout::BeginPreparation(
     next.factory        = factory;
     request->compatible = compatible;
     request->change     = change;
-    if (compatible && change.kind != SourceChangeKind::FullReplacement && ! state_->chunks.empty())
+    if (options.lineHeightMultiplier > 0.0f)
+    {
+        // A private origin line cannot have one height while a uniform SDK layout has another.
+        // Select canonical geometry directly instead of preparing then discarding incompatible chunks.
+        request->exactPlacement = false;
+        request->phase          = Preparation::Phase::Reference;
+    }
+    else if (compatible && change.kind != SourceChangeKind::FullReplacement && ! state_->chunks.empty())
     {
         request->reusable.resize(next.projection.Blocks().size(), nullptr);
         request->phase = Preparation::Phase::Reuse;
@@ -427,18 +464,21 @@ LayoutAdvance PreparedDocumentLayout::AdvancePreparation(const LayoutWorkBudget&
                     if (result.layoutsPrepared == budget.maximumLayouts || result.blockSteps == budget.maximumBlockSteps)
                         return leave(LayoutPreparationStatus::Pending);
                     ++result.blockSteps;
-                    // One explicit compatibility work unit; joining a whole
-                    // projection/SDK layout is not a hard CPU-time guarantee.
-                    Projection joined{
-                        std::wstring(0u, L'\0'), std::wstring(0u, L'\0'), std::vector<std::size_t>(0u), std::vector<SourceUnit>(0u), std::vector<StyleRun>(0u)};
-                    JoinBlocks(joined, blocks, 0u, blocks.size(), next.projection.Mode());
-                    if (request.compatible && state_->reference && SameStyles(joined, state_->reference->Content()))
+                    // One explicit compatibility work unit, not a hard CPU-time
+                    // guarantee. Joining is needed only for a new whole layout.
+                    if (request.compatible && state_->reference && SameStyles(blocks, state_->reference->Content()))
                     {
                         next.reference = state_->reference;
                         ++next.last.wholeLayoutsReused;
                     }
                     else if (! request.exactPlacement)
                     {
+                        Projection joined{std::wstring(0u, L'\0'),
+                                          std::wstring(0u, L'\0'),
+                                          std::vector<std::size_t>(0u),
+                                          std::vector<SourceUnit>(0u),
+                                          std::vector<StyleRun>(0u)};
+                        JoinBlocks(joined, blocks, 0u, blocks.size(), next.projection.Mode());
                         auto reference = std::make_shared<PreparedLayout>();
                         reference->PrepareOwned(next.factory.get(), joined, next.options);
                         next.reference = std::move(reference);
@@ -451,6 +491,7 @@ LayoutAdvance PreparedDocumentLayout::AdvancePreparation(const LayoutWorkBudget&
                 {
                     next.referenceForGeometry = true;
                     next.height               = next.reference->Height();
+                    next.width                = next.reference->HorizontalTextBounds().second;
                     next.chunks.clear();
                 }
                 request.phase = Preparation::Phase::Publish;
@@ -653,21 +694,11 @@ void PreparedDocumentLayout::Draw(ID2D1RenderTarget* target, ID2D1Brush* brush, 
     // Public DirectWrite overhang metrics include glyph ink, but not hinting or
     // strikethrough. Union with logical metrics, allow two target pixels plus
     // float cancellation, and draw all bounded chunks for non-axis transforms.
-    const auto padding         = canCull ? 2.0f / scale + 0.125f : 0.0f;
-    const bool referenceRaster = state.referenceForGeometry || static_cast<bool>(state.reference);
-    if (referenceRaster)
+    const auto padding = canCull ? 2.0f / scale + 0.125f : 0.0f;
+    // Reference geometry is prepared before publication. Rasterization never
+    // constructs layouts, joins projections or changes preparation statistics.
+    if (state.reference)
     {
-        if (! state.reference)
-        {
-            Projection joined{
-                std::wstring(0u, L'\0'), std::wstring(0u, L'\0'), std::vector<std::size_t>(0u), std::vector<SourceUnit>(0u), std::vector<StyleRun>(0u)};
-            JoinBlocks(joined, state.projection.Blocks(), 0u, state.projection.Blocks().size(), state.projection.Mode());
-            auto reference = std::make_shared<PreparedLayout>();
-            reference->PrepareOwned(state.factory.get(), joined, state.options);
-            state.reference = std::move(reference);
-            ++state.last.wholeLayoutsPrepared;
-            state.last.wholeLayoutSourceUnits = state.projection.SourceLength();
-        }
         state.reference->Draw(target, brush, origin, links);
         return;
     }

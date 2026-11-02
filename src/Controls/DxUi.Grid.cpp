@@ -1069,6 +1069,42 @@ void GridSelectionModel::SetRange(const std::vector<uint64_t>& orderedRowIds, ui
     _anchorRowId = anchorRowId;
 }
 
+void GridSelectionModel::AssignInOrder(std::span<const uint64_t> visibleRowIds, std::span<const uint64_t> requestedRowIds, std::optional<uint64_t> anchor)
+{
+    // Stage both membership representations before publication. Hash membership and fixed-width radix sorting avoid
+    // inserting each requested ID into the middle of the sorted vector on a large reverse-order selection.
+    std::unordered_set<uint64_t> requested(requestedRowIds.begin(), requestedRowIds.end());
+    std::vector<uint64_t> ordered;
+    ordered.reserve((std::min)(visibleRowIds.size(), requestedRowIds.size()));
+    for (const uint64_t id : visibleRowIds)
+        if (requested.erase(id) != 0u)
+            ordered.push_back(id);
+    std::vector<uint64_t> sorted(ordered);
+    if (! std::ranges::is_sorted(sorted))
+    {
+        std::vector<uint64_t> scratch(sorted.size());
+        for (unsigned shift = 0u; shift < 64u; shift += 8u)
+        {
+            std::array<size_t, 256u> offsets{};
+            for (const uint64_t id : sorted)
+                ++offsets[static_cast<unsigned>((id >> shift) & 0xffu)];
+            size_t position{};
+            for (auto& count : offsets)
+            {
+                const size_t next = position + count;
+                count             = position;
+                position          = next;
+            }
+            for (const uint64_t id : sorted)
+                scratch[offsets[static_cast<unsigned>((id >> shift) & 0xffu)]++] = id;
+            sorted.swap(scratch);
+        }
+    }
+    _selectedRowIds.swap(ordered);
+    _sortedRowIds.swap(sorted);
+    _anchorRowId = anchor;
+}
+
 void GridSelectionModel::PreserveOrdered(const std::vector<uint64_t>& orderedRowIds)
 {
     if (_selectedRowIds.empty())
@@ -1168,26 +1204,46 @@ void Grid::SetModel(IGridModel* model) noexcept
         ++_modelAssignment;
     // Non-owning pointer assignment. Caller responsible for model lifetime.
     ++_modelRevision;
+    // The assignment is unconditional: the caller may retire the previous borrowed model as soon as this returns.
+    _model                            = model;
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
-    std::vector<uint64_t> previousSelection;
+    std::optional<std::vector<uint64_t>> previousSelection;
+    bool selectionSnapshotAvailable = true;
     try
     {
-        previousSelection.assign(_selectionModel.GetOrderedSelection().begin(), _selectionModel.GetOrderedSelection().end());
+        previousSelection.emplace(_selectionModel.GetOrderedSelection().begin(), _selectionModel.GetOrderedSelection().end());
     }
     catch (const std::bad_alloc&)
     {
-        return;
+        selectionSnapshotAvailable = false;
+        _selectionModel.Clear();
+        _currentRowId.reset();
+        _focusedRowIndex.reset();
     }
     catch (const std::exception&)
     {
-        return;
+        selectionSnapshotAvailable = false;
+        _selectionModel.Clear();
+        _currentRowId.reset();
+        _focusedRowIndex.reset();
     }
     const std::optional<uint64_t> previousFocus = _currentRowId;
     ReleaseCellTextResources(); // Also returns tables the old model grew.
-    _model = model;
     GridModelQueryGuard guard(*this, lifetime, model);
+    const auto clearFailedModelView = [&]() noexcept
+    {
+        if (! guard.IsCurrent())
+            return;
+        _selectionModel.Clear();
+        _currentRowId.reset();
+        _focusedRowIndex.reset();
+        _verticalScrollDip   = 0.0f;
+        _horizontalScrollDip = 0.0f;
+        RefreshAccessibilitySnapshot();
+    };
     _lastPaintHadAnimatedVisibleCells = false;
     _animatedVisibleCellStateValid    = false;
+    _columnIds.clear();
     _columnWidths.clear();
     _columnDisplayOrder.clear();
     _columnDisplayIndexByModel.clear();
@@ -1229,12 +1285,14 @@ void Grid::SetModel(IGridModel* model) noexcept
     }
     catch (const std::bad_alloc&)
     {
-        // Model snapshot allocation failure leaves the newly assigned model installed with cleared view state.
+        // Preserve a nested replacement; only this assignment owns its failed reconciliation state.
+        clearFailedModelView();
         return;
     }
     catch (const std::exception&)
     {
         // A model getter failure aborts this update without crossing the noexcept public boundary.
+        clearFailedModelView();
         return;
     }
     try
@@ -1253,7 +1311,7 @@ void Grid::SetModel(IGridModel* model) noexcept
     {
         return;
     }
-    if (! NotifySelectionAndFocusChanges(previousSelection, previousFocus) || ! guard.ResumeAfterCallback())
+    if (selectionSnapshotAvailable && (! NotifySelectionAndFocusChanges(previousSelection.value(), previousFocus) || ! guard.ResumeAfterCallback()))
     {
         return;
     }
@@ -1296,13 +1354,15 @@ void Grid::SetDelegate(IGridDelegate* delegate) noexcept
 
 void Grid::SetSelectionMode(GridSelectionMode mode) noexcept
 {
+    if (_selectionMode == mode)
+        return;
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     IGridModel* const model           = _model;
     GridModelQueryGuard guard(*this, lifetime, model);
-    std::vector<uint64_t> previousSelection;
+    std::optional<std::vector<uint64_t>> previousSelection;
     try
     {
-        previousSelection.assign(_selectionModel.GetOrderedSelection().begin(), _selectionModel.GetOrderedSelection().end());
+        previousSelection.emplace(_selectionModel.GetOrderedSelection().begin(), _selectionModel.GetOrderedSelection().end());
     }
     catch (const std::bad_alloc&)
     {
@@ -1326,11 +1386,13 @@ void Grid::SetSelectionMode(GridSelectionMode mode) noexcept
         }
     }
     // Collapsing a multi-selection keeps the focused row when it was selected, else moves the focus to the kept row.
-    if (! NotifySelectionAndFocusChanges(previousSelection, previousFocus) || ! guard.ResumeAfterCallback())
+    if (! NotifySelectionAndFocusChanges(previousSelection.value(), previousFocus) || ! guard.ResumeAfterCallback())
     {
         return;
     }
-    RefreshAccessibilitySnapshot();
+    RequestInvalidate();
+    if (! lifetime.expired() && guard.IsCurrent())
+        RefreshAccessibilitySnapshot();
 }
 
 void Grid::SetVisualMode(GridVisualMode mode) noexcept
@@ -1433,12 +1495,18 @@ std::wstring_view Grid::GetEmptyStateText() const noexcept
 
 void Grid::SetHeaderBusy(bool busy) noexcept
 {
+    if (_headerBusy == busy)
+        return;
     _headerBusy = busy;
+    RequestInvalidate();
 }
 
 void Grid::SetHeaderBusyColumn(std::optional<size_t> columnIndex) noexcept
 {
+    if (_headerBusyColumn == columnIndex)
+        return;
     _headerBusyColumn = columnIndex;
+    RequestInvalidate();
 }
 
 void Grid::SetSortSpec(const GridSortSpec& sortSpec) noexcept
@@ -1468,6 +1536,7 @@ void Grid::SetSortSpec(const GridSortSpec& sortSpec) noexcept
     _sortGlyphTransition.to          = sortSpec;
     _sortGlyphTransition.startTickMs = host->GetAnimationTickMs();
     _sortGlyphTransition.active      = true;
+    RequestInvalidate();
 }
 
 GridSortSpec Grid::GetSortSpec() const noexcept
@@ -1801,6 +1870,29 @@ void Grid::NotifyDataChanged()
         if (! guard.IsCurrent())
         {
             return;
+        }
+        if (model && ! _columnIds.empty())
+        {
+            const size_t count = model->GetColumnCount();
+            if (! guard.IsCurrent())
+                return;
+            bool changed = count != _columnIds.size();
+            for (size_t index = 0u; ! changed && index < count; ++index)
+            {
+                const auto column = model->GetColumn(index);
+                if (! guard.IsCurrent())
+                    return;
+                changed = column.id != _columnIds[index];
+            }
+            if (changed)
+            {
+                // Stored widths/order/current-cell indexes belong to the old IDs.
+                _columnIds.clear();
+                _columnWidths.clear();
+                _columnDisplayOrder.clear();
+                _columnDisplayIndexByModel.clear();
+                _activeColumn.reset();
+            }
         }
         if (model && _activeColumn)
         {
@@ -5759,6 +5851,22 @@ bool Grid::OnMouseWheel(ControlHost& host, D2D1_POINT_2F /*point*/, float wheelD
 
 bool Grid::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
 {
+    const bool command = ModifiersContainCtrl(modifiers) && ! ModifiersContainAlt(modifiers) && (virtualKey == 'A' || virtualKey == 'C');
+    if (! command)
+        switch (virtualKey)
+        {
+            case VK_UP:
+            case VK_DOWN:
+            case VK_LEFT:
+            case VK_RIGHT:
+            case VK_HOME:
+            case VK_END:
+            case VK_PRIOR:
+            case VK_NEXT:
+            case VK_RETURN:
+            case VK_SPACE: break;
+            default: return false;
+        }
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     const IGridModel* const model     = _model;
     GridModelQueryGuard guard(*this, lifetime, model);
@@ -5768,6 +5876,8 @@ bool Grid::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
         return false;
     }
 
+    if (command)
+        return virtualKey == 'A' ? OnSelectAll(host) : OnCopy(host);
     std::vector<GridGroupDesc> groups;
     if (! TryControlCallback([&] { groups = CollectOrderedGroups(model, &guard); }) || ! guard.IsCurrent())
     {
@@ -5974,14 +6084,40 @@ bool Grid::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
     const auto currentVisibleIt      = std::ranges::find(visibleRows, currentRow);
     const size_t currentVisibleIndex = currentVisibleIt == visibleRows.end() ? 0u : static_cast<size_t>(std::distance(visibleRows.begin(), currentVisibleIt));
     size_t nextVisibleIndex          = currentVisibleIndex;
+    if (virtualKey == VK_PRIOR || virtualKey == VK_NEXT)
+    {
+        const auto viewport = GetContentRect(groups);
+        if (! guard.IsCurrent())
+            return true;
+        const float page       = std::max(_rowHeightDip, viewport.bottom - viewport.top);
+        const float currentTop = GetRowTopDip(groups, currentRow);
+        if (virtualKey == VK_PRIOR)
+        {
+            const float target = currentTop - page;
+            const auto found =
+                std::lower_bound(visibleRows.begin(), visibleRows.end(), target, [&](size_t row, float y) { return GetRowTopDip(groups, row) < y; });
+            nextVisibleIndex = static_cast<size_t>(found - visibleRows.begin());
+            if (nextVisibleIndex >= currentVisibleIndex && currentVisibleIndex)
+                nextVisibleIndex = currentVisibleIndex - 1u;
+        }
+        else
+        {
+            const float target = currentTop + page;
+            const auto found =
+                std::upper_bound(visibleRows.begin(), visibleRows.end(), target, [&](float y, size_t row) { return y < GetRowTopDip(groups, row); });
+            nextVisibleIndex = found == visibleRows.begin() ? 0u : static_cast<size_t>(found - visibleRows.begin() - 1);
+            if (nextVisibleIndex <= currentVisibleIndex && currentVisibleIndex + 1u < visibleRows.size())
+                nextVisibleIndex = currentVisibleIndex + 1u;
+        }
+    }
     switch (virtualKey)
     {
         case VK_UP: nextVisibleIndex = currentVisibleIndex == 0u ? 0u : currentVisibleIndex - 1u; break;
         case VK_DOWN: nextVisibleIndex = std::min(currentVisibleIndex + 1u, visibleRows.size() - 1u); break;
         case VK_HOME: nextVisibleIndex = 0u; break;
         case VK_END: nextVisibleIndex = visibleRows.size() - 1u; break;
-        case VK_PRIOR: nextVisibleIndex = currentVisibleIndex > 10u ? currentVisibleIndex - 10u : 0u; break;
-        case VK_NEXT: nextVisibleIndex = std::min(currentVisibleIndex + 10u, visibleRows.size() - 1u); break;
+        case VK_PRIOR:
+        case VK_NEXT: break;
         case VK_RETURN:
             if (_delegate)
             {
@@ -6351,6 +6487,12 @@ bool Grid::IsSameHitTarget(const HitInfo& before, const HitInfo& after) noexcept
            before.rectDip.top == after.rectDip.top && before.rectDip.right == after.rectDip.right && before.rectDip.bottom == after.rectDip.bottom;
 }
 
+void Grid::OnBoundsChanged() noexcept
+{
+    const auto invalidateGeometry = ControlModelQueryAccess::InvalidateGeometry(*this);
+    ClampScrollOffsets();
+}
+
 void Grid::ClampScrollOffsets(const bool normalizeVertical) noexcept
 {
     try
@@ -6427,6 +6569,7 @@ void Grid::EnsureColumnWidths() const
         const IGridModel* const model = _model;
         if (! model)
         {
+            _columnIds.clear();
             _columnWidths.clear();
             _columnDisplayOrder.clear();
             _columnDisplayIndexByModel.clear();
@@ -6442,7 +6585,9 @@ void Grid::EnsureColumnWidths() const
             return;
         }
 
+        std::vector<std::wstring> columnIds;
         std::vector<float> columnWidths;
+        columnIds.reserve(columnCount);
         columnWidths.reserve(columnCount);
         for (size_t columnIndex = 0; columnIndex < columnCount; ++columnIndex)
         {
@@ -6451,6 +6596,7 @@ void Grid::EnsureColumnWidths() const
             {
                 return;
             }
+            columnIds.push_back(column.id);
             columnWidths.push_back(std::max(column.minWidthDip, column.widthDip));
         }
 
@@ -6463,6 +6609,7 @@ void Grid::EnsureColumnWidths() const
         {
             columnDisplayOrder[displayIndex] = displayIndex;
         }
+        _columnIds.swap(columnIds);
         _columnWidths       = std::move(columnWidths);
         _columnDisplayOrder = std::move(columnDisplayOrder);
         _columnDisplayIndexByModel.clear();
@@ -6810,16 +6957,7 @@ try
             return;
         if (_selectionMode != GridSelectionMode::Single)
         {
-            for (const uint64_t rowId : rowIds)
-            {
-                if (rowId != *last && visible.contains(rowId) && ! nextSelection.IsSelected(rowId))
-                {
-                    nextSelection.Toggle(rowId);
-                    if (! nextSelection.IsSelected(rowId))
-                        return;
-                }
-            }
-            nextSelection.PreserveOrdered(visibleRowIds);
+            nextSelection.AssignInOrder(visibleRowIds, rowIds, last);
         }
         nextSelection.SetAnchor(last);
     }

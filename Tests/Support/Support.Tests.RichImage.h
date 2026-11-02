@@ -210,6 +210,46 @@ template <typename Check> inline void Core(Check&& check)
     });
     wil::com_ptr<IWICImagingFactory> factory;
     THROW_IF_FAILED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(factory.put())));
+    constexpr std::string_view svg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'><rect width='10' height='10' fill='#f00'/></svg>";
+    std::shared_ptr<const RichImage> vectorImage;
+    check(SUCCEEDED(RichImage::CreateSvg(10u, 10u, std::as_bytes(std::span(svg)), vectorImage)) && vectorImage &&
+              vectorImage->SvgBytes().size() == svg.size() && vectorImage->Pixels().empty(),
+          "bounded SVG publishes immutable bytes without raster decoding");
+    const auto retained = vectorImage;
+    for (const std::string_view invalid : {"<!DOCTYPE svg [<!ENTITY x SYSTEM 'file:///x'>]><svg xmlns='http://www.w3.org/2000/svg'>&x;</svg>",
+                                           "<svg xmlns='http://www.w3.org/2000/svg'><use href='#x'/></svg>",
+                                           "<svg xmlns='http://www.w3.org/2000/svg'><image href='file:///x'/></svg>",
+                                           "<svg xmlns='http://www.w3.org/2000/svg'><path fill='url(https://example.invalid/x)'/></svg>",
+                                           "<svg xmlns='http://www.w3.org/2000/svg'><style>rect{fill:red}</style></svg>",
+                                           "<svg xmlns='http://www.w3.org/2000/svg'><animate attributeName='x'/></svg>"})
+        check(FAILED(RichImage::CreateSvg(10u, 10u, std::as_bytes(std::span(invalid)), vectorImage)) && vectorImage == retained,
+              "unsafe SVG constructs are rejected without replacing the prior resource");
+    std::atomic_bool svgCancelled{true};
+    check(RichImage::CreateSvg(10u, 10u, std::as_bytes(std::span(svg)), vectorImage, &svgCancelled) == HRESULT_FROM_WIN32(ERROR_CANCELLED) &&
+              vectorImage == retained,
+          "cancellation retains the previous immutable image");
+    std::string oversizedSvg(RichImage::MaximumSvgBytes + 1u, 'x');
+    check(FAILED(RichImage::CreateSvg(10u, 10u, std::as_bytes(std::span(oversizedSvg)), vectorImage)) && vectorImage == retained,
+          "SVG encoded bytes are bounded before parsing");
+    std::string deepSvg("<svg xmlns='http://www.w3.org/2000/svg'>");
+    for (unsigned index = 0u; index < RichImage::MaximumSvgDepth; ++index)
+        deepSvg += "<g>";
+    for (unsigned index = 0u; index < RichImage::MaximumSvgDepth; ++index)
+        deepSvg += "</g>";
+    deepSvg += "</svg>";
+    check(FAILED(RichImage::CreateSvg(10u, 10u, std::as_bytes(std::span(deepSvg)), vectorImage)) && vectorImage == retained,
+          "SVG nesting has a finite admission ceiling");
+    std::string pathSvg("<svg xmlns='http://www.w3.org/2000/svg'><path d='");
+    pathSvg.append(RichImage::MaximumSvgPathUnits + 1u, '0');
+    pathSvg += "'/></svg>";
+    check(FAILED(RichImage::CreateSvg(10u, 10u, std::as_bytes(std::span(pathSvg)), vectorImage)) && vectorImage == retained,
+          "aggregate SVG path data has a finite admission ceiling");
+    std::string manySvg("<svg xmlns='http://www.w3.org/2000/svg'>");
+    for (unsigned index = 0u; index < RichImage::MaximumSvgElements; ++index)
+        manySvg += "<rect/>";
+    manySvg += "</svg>";
+    check(FAILED(RichImage::CreateSvg(10u, 10u, std::as_bytes(std::span(manySvg)), vectorImage)) && vectorImage == retained,
+          "SVG element count has a finite admission ceiling");
     std::array<BYTE, 24u> source{};
     for (unsigned i = 0u; i < 6u; ++i)
     {
@@ -241,6 +281,79 @@ template <typename Check> inline void Core(Check&& check)
         for (unsigned i = 0u; i < 6u; ++i)
             check(std::to_integer<unsigned>(output->Pixels()[i * 4u]) == expected[orientation - 1u][i] * 30u,
                   "TIFF EXIF metadata matches independent orientation pixels");
+    }
+    {
+        auto jpeg = Encode(factory.get(), GUID_ContainerFormatJpeg, source, 2u, 3u);
+        check(jpeg.size() > 2u && jpeg[0u] == 0xffu && jpeg[1u] == 0xd8u, "WIC encodes a real JPEG fixture");
+        std::shared_ptr<const RichImage> unrotated;
+        THROW_IF_FAILED(Decode(factory.get(), jpeg, unrotated));
+        constexpr std::array<BYTE, 36u> exif{0xffu, 0xe1u, 0u,    0x22u, 'E', 'x', 'i', 'f', 0u, 0u, 'I', 'I', 0x2au, 0u, 8u, 0u, 0u, 0u,
+                                             1u,    0u,    0x12u, 1u,    3u,  0u,  1u,  0u,  0u, 0u, 6u,  0u,  0u,    0u, 0u, 0u, 0u, 0u};
+        jpeg.insert(jpeg.begin() + 2, exif.begin(), exif.end());
+        wil::com_ptr<IWICStream> stream;
+        THROW_IF_FAILED(factory->CreateStream(stream.put()));
+        THROW_IF_FAILED(stream->InitializeFromMemory(jpeg.data(), static_cast<DWORD>(jpeg.size())));
+        wil::com_ptr<IWICBitmapDecoder> decoder;
+        THROW_IF_FAILED(factory->CreateDecoderFromStream(stream.get(), nullptr, WICDecodeMetadataCacheOnLoad, decoder.put()));
+        wil::com_ptr<IWICBitmapFrameDecode> frame;
+        THROW_IF_FAILED(decoder->GetFrame(0u, frame.put()));
+        wil::com_ptr<IWICMetadataQueryReader> metadata;
+        THROW_IF_FAILED(frame->GetMetadataQueryReader(metadata.put()));
+        wil::unique_prop_variant value;
+        THROW_IF_FAILED(metadata->GetMetadataByName(L"/app1/ifd/{ushort=274}", &value));
+        check(value.vt == VT_UI2 && value.uiVal == 6u, "WIC reads the actual JPEG APP1 orientation tag");
+        THROW_IF_FAILED(Decode(factory.get(), jpeg, output));
+        check(unrotated->Width() == 2u && unrotated->Height() == 3u && output->Width() == 3u && output->Height() == 2u,
+              "JPEG orientation six rotates the decoded dimensions");
+        for (unsigned y = 0u; y < 2u; ++y)
+            for (unsigned x = 0u; x < 3u; ++x)
+                for (unsigned channel = 0u; channel < 4u; ++channel)
+                {
+                    const auto actual          = std::to_integer<int>(output->Pixels()[(y * 3u + x) * 4u + channel]);
+                    const auto baselineChannel = std::to_integer<int>(unrotated->Pixels()[((2u - x) * 2u + y) * 4u + channel]);
+                    check(std::abs(actual - baselineChannel) <= 2, "rotated JPEG pixels match the independently decoded unoriented baseline");
+                }
+    }
+    {
+        auto encoded = Encode(factory.get(), GUID_ContainerFormatTiff, source, 2u, 3u, 6u);
+        check(encoded.size() >= 8u && encoded[0] == 'I' && encoded[1] == 'I', "metadata fixture uses little-endian TIFF");
+        const auto read16 = [&](std::size_t at) { return unsigned(encoded[at]) | (unsigned(encoded[at + 1u]) << 8u); };
+        const auto read32 = [&](std::size_t at) { return read16(at) | (read16(at + 2u) << 16u); };
+        const auto ifd    = static_cast<std::size_t>(read32(4u));
+        check(ifd + 2u <= encoded.size(), "metadata fixture has a bounded IFD");
+        const auto count = read16(ifd);
+        check(count <= (encoded.size() - ifd - 2u) / 12u, "metadata fixture entries fit within the encoded TIFF");
+        bool changed{};
+        for (std::size_t index = 0u; index < count; ++index)
+        {
+            const auto entry = ifd + 2u + index * 12u;
+            if (read16(entry) == 274u)
+            {
+                check(read16(entry + 2u) == 3u && read32(entry + 4u) == 1u, "orientation starts as one unsigned SHORT");
+                encoded[entry + 2u] = 8u; // TIFF SSHORT, not the EXIF unsigned SHORT.
+                encoded[entry + 3u] = 0u;
+                changed             = true;
+                break;
+            }
+        }
+        check(changed, "actual WIC-encoded TIFF contains an orientation entry");
+        wil::com_ptr<IWICStream> stream;
+        THROW_IF_FAILED(factory->CreateStream(stream.put()));
+        THROW_IF_FAILED(stream->InitializeFromMemory(encoded.data(), static_cast<DWORD>(encoded.size())));
+        wil::com_ptr<IWICBitmapDecoder> decoder;
+        THROW_IF_FAILED(factory->CreateDecoderFromStream(stream.get(), nullptr, WICDecodeMetadataCacheOnLoad, decoder.put()));
+        wil::com_ptr<IWICBitmapFrameDecode> frame;
+        THROW_IF_FAILED(decoder->GetFrame(0u, frame.put()));
+        wil::com_ptr<IWICMetadataQueryReader> metadata;
+        THROW_IF_FAILED(frame->GetMetadataQueryReader(metadata.put()));
+        wil::unique_prop_variant value;
+        const HRESULT metadataResult = metadata->GetMetadataByName(L"/ifd/{ushort=274}", &value);
+        check(FAILED(metadataResult) || (value.vt != VT_UI1 && value.vt != VT_UI2 && value.vt != VT_UI4 && value.vt != VT_BOOL),
+              "actual WIC metadata returns an unsupported orientation type or metadata error");
+        THROW_IF_FAILED(Decode(factory.get(), encoded, output));
+        check(output->Width() == 2u && output->Height() == 3u && std::to_integer<unsigned>(output->Pixels()[0u]) == 30u &&
+                  std::to_integer<unsigned>(output->Pixels()[20u]) == 180u,
+              "invalid optional orientation preserves decodable unrotated TIFF pixels");
     }
     std::array<BYTE, 256u> solid{};
     for (unsigned i = 0u; i < 64u; ++i)

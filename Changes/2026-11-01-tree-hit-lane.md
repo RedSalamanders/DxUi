@@ -1,0 +1,1 @@
+- Avoid badge text shaping during Tree expander hit testing while retaining shared lane geometry for right-to-left and reserved spacing. The new pointer regression and paired resource qualification remain to run on the integrated candidate.

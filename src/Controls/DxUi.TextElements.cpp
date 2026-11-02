@@ -5,6 +5,9 @@
 
 namespace DxUi
 {
+#if DXUI_ENABLE_DIAGNOSTICS
+thread_local std::size_t testTextElementPropertyLookups{};
+#endif
 bool IsUtf16LeadSurrogate(wchar_t value) noexcept
 {
     return value >= 0xd800 && value <= 0xdbff;
@@ -73,6 +76,9 @@ enum class IndicClass : std::uint8_t
 };
 std::uint8_t Properties(std::uint32_t codePoint) noexcept
 {
+#if DXUI_ENABLE_DIAGNOSTICS
+    ++testTextElementPropertyLookups;
+#endif
     if (codePoint >= 0xac00u && codePoint <= 0xd7a3u)
         return static_cast<std::uint8_t>((codePoint - 0xac00u) % 28u ? BreakClass::LVT : BreakClass::LV);
     const auto& ranges = UnicodeGraphemeData::kProperties;
@@ -146,6 +152,38 @@ std::size_t FindNextTextElementBoundary(std::wstring_view text, std::size_t elem
     }
     return text.size();
 }
+std::size_t FindPreviousTextElementBoundary(std::wstring_view text, std::size_t position) noexcept
+{
+    const auto caret = std::min(position, text.size());
+    if (! caret)
+        return 0u;
+    auto start = StepToPreviousCodePoint(text, caret);
+    while (start)
+    {
+        const auto left            = StepToPreviousCodePoint(text, start);
+        const auto leftProperties  = Properties(ReadCodePointAt(text, left).value);
+        const auto rightProperties = Properties(ReadCodePointAt(text, start).value);
+        const auto leftClass       = static_cast<BreakClass>(leftProperties & 15u);
+        const auto rightClass      = static_cast<BreakClass>(rightProperties & 15u);
+        // These pairs establish a boundary independently of all preceding
+        // context. Other pairs retain the canonical forward scan's RI parity,
+        // Indic linker and pictographic-ZWJ state without an arbitrary cutoff.
+        const bool hard = (HardBoundary(leftClass) || HardBoundary(rightClass)) && ! (leftClass == BreakClass::CR && rightClass == BreakClass::LF);
+        const bool ordinary =
+            leftClass == BreakClass::Other && rightClass == BreakClass::Other && ((leftProperties >> 5u) & 3u) == 0u && ((rightProperties >> 5u) & 3u) == 0u;
+        if (hard || ordinary)
+            break;
+        start = left;
+    }
+    for (auto cursor = start; cursor < text.size();)
+    {
+        const auto next = FindNextTextElementBoundary(text, cursor);
+        if (next >= caret)
+            return cursor;
+        cursor = next;
+    }
+    return start;
+}
 TextElementRange GetTextElementDeletionRange(std::wstring_view text,
                                              std::size_t position,
                                              bool backwards,
@@ -164,15 +202,21 @@ TextElementRange GetTextElementDeletionRange(std::wstring_view text,
             return backwards ? TextElementRange{*std::prev(next), caret} : TextElementRange{caret, *std::next(next)};
         return {*std::prev(next), *next};
     }
-    for (std::size_t first = 0u; first < text.size();)
+    // ASCII neighbors establish boundaries without scanning from document start;
+    // keep CRLF and non-ASCII context on the full Unicode path.
+    const auto asciiBoundary = [&](std::size_t at) noexcept
+    { return at == 0u || at == text.size() || (text[at - 1u] <= 0x7fu && text[at] <= 0x7fu && ! (text[at - 1u] == L'\r' && text[at] == L'\n')); };
+    if (asciiBoundary(caret))
     {
-        const auto last = FindNextTextElementBoundary(text, first);
-        if (caret < last)
-            return {first, last};
-        if (caret == last)
-            return backwards ? TextElementRange{first, last} : TextElementRange{last, FindNextTextElementBoundary(text, last)};
-        first = last;
+        if (backwards && text[caret - 1u] <= 0x7fu && asciiBoundary(caret - 1u))
+            return {caret - 1u, caret};
+        if (! backwards && text[caret] <= 0x7fu)
+            return {caret, FindNextTextElementBoundary(text, caret)};
     }
-    return {caret, caret};
+    const auto first = FindPreviousTextElementBoundary(text, caret);
+    const auto last  = FindNextTextElementBoundary(text, first);
+    if (backwards || caret < last)
+        return {first, last};
+    return {last, FindNextTextElementBoundary(text, last)};
 }
 } // namespace DxUi

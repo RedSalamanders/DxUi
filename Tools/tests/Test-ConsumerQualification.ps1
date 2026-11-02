@@ -19,6 +19,21 @@ function Read-ConsumerProgressSnapshot([string] $Path) {
     try { return Read-ConsumerProgressFromHeldStream $stream } finally { $stream.Dispose() }
 }
 
+Invoke-FixtureCase 'native module counts require one complete successful driver record' {
+    param($fixture)
+    $p=New-ConsumerQualificationProgress (Join-Path $fixture 'progress.json') @{commit='a'*40}
+    Assert-Throws { Set-ConsumerNativeModuleResult $p @() 0 } 'missing record fails'
+    Assert-Throws { Set-ConsumerNativeModuleResult $p @('DXUI_NATIVE_MODULE_PROBES executed=12 passed=12','DXUI_NATIVE_MODULE_PROBES executed=12 passed=12') 0 } 'duplicate records fail'
+    Assert-Throws { Set-ConsumerNativeModuleResult $p @('DXUI_NATIVE_MODULE_PROBES executed=12 passed=12 extra') 0 } 'malformed record fails'
+    Assert-Throws { Set-ConsumerNativeModuleResult $p @('DXUI_NATIVE_MODULE_PROBES executed=11 passed=11') 0 } 'short successful record fails'
+    Assert-Throws { Set-ConsumerNativeModuleResult $p @('DXUI_NATIVE_MODULE_PROBES executed=12 passed=11') 0 } 'failed probe fails'
+    Assert-Throws { Set-ConsumerNativeModuleResult $p @('DXUI_NATIVE_MODULE_PROBES executed=12 passed=12') 7 } 'nonzero process cannot spoof success'
+    Assert-Equal 0 $p.Record.nativeModuleExecuted 'refusals do not mutate observed counts'
+    $result=Set-ConsumerNativeModuleResult $p @('other diagnostic','DXUI_NATIVE_MODULE_PROBES executed=12 passed=12') 0
+    Assert-Equal 12 $result.Executed 'actual executed probes recorded'
+    Assert-Equal 12 $result.Passed 'actual successes recorded'
+    Assert-Throws { Set-ConsumerNativeModuleResult $p @('DXUI_NATIVE_MODULE_PROBES executed=12 passed=12') 0 } 'result cannot be counted twice'
+}
 Invoke-FixtureCase 'pending case, measured completion and final receipt are distinct' {
     param($fixture)
     $path=Join-Path $fixture 'progress.json'
@@ -36,8 +51,15 @@ Invoke-FixtureCase 'pending case, measured completion and final receipt are dist
     Assert-Equal 10 ([int]$record.negativeChecks) 'all ten actual cases were counted'
     Assert-Throws {Invoke-ConsumerQualificationPhase $p 'negative-1' {} -NegativeCheck} 'duplicate cases cannot inflate completion'
     Assert-Throws {Complete-ConsumerQualificationProgress $p (Join-Path $fixture 'missing.json')} 'missing final receipt cannot complete progress'
+    [void](Set-ConsumerNativeModuleResult $p @('DXUI_NATIVE_MODULE_PROBES executed=12 passed=12') 0)
     $receipt=Join-Path $fixture 'ExternalConsumer.json'
-    @{suite='ExternalConsumer';exitCode=0;negativeChecks=10;nativeModuleChecks=12;commit='a'*40}|ConvertTo-Json|Set-Content $receipt
+    @{suite='ExternalConsumer';exitCode=0;negativeChecks=9;nativeModuleExecuted=12;nativeModuleChecks=12;commit='a'*40}|ConvertTo-Json|Set-Content $receipt
+    Assert-Throws {Complete-ConsumerQualificationProgress $p $receipt} 'receipt cannot invent the negative count'
+    @{suite='ExternalConsumer';exitCode=0;negativeChecks=10;nativeModuleExecuted=11;nativeModuleChecks=12;commit='a'*40}|ConvertTo-Json|Set-Content $receipt
+    Assert-Throws {Complete-ConsumerQualificationProgress $p $receipt} 'receipt cannot invent the native executed count'
+    @{suite='ExternalConsumer';exitCode=0;negativeChecks=10;nativeModuleExecuted=12;nativeModuleChecks=11;commit='a'*40}|ConvertTo-Json|Set-Content $receipt
+    Assert-Throws {Complete-ConsumerQualificationProgress $p $receipt} 'receipt cannot invent the native passed count'
+    @{suite='ExternalConsumer';exitCode=0;negativeChecks=10;nativeModuleExecuted=12;nativeModuleChecks=12;commit='a'*40}|ConvertTo-Json|Set-Content $receipt
     Complete-ConsumerQualificationProgress $p $receipt
     Assert-Equal 'completed' ((Get-Content $path -Raw|ConvertFrom-Json).status) 'only matching final receipt completes progress'
     Assert-Throws {Invoke-ConsumerQualificationPhase $p 'late' {}} 'a completed progress record is immutable'
@@ -57,7 +79,7 @@ Invoke-FixtureCase 'missing conformance cases and another source cannot complete
     param($fixture)
     $p=New-ConsumerQualificationProgress (Join-Path $fixture 'progress.json') @{commit='c'*40}
     $receipt=Join-Path $fixture 'ExternalConsumer.json'
-    @{suite='ExternalConsumer';exitCode=0;negativeChecks=10;nativeModuleChecks=12;commit='d'*40}|ConvertTo-Json|Set-Content $receipt
+    @{suite='ExternalConsumer';exitCode=0;negativeChecks=10;nativeModuleExecuted=12;nativeModuleChecks=12;commit='d'*40}|ConvertTo-Json|Set-Content $receipt
     Assert-Throws {Complete-ConsumerQualificationProgress $p $receipt} 'missing cases cannot be hidden by a final-looking file'
     foreach($case in 1..10){Invoke-ConsumerQualificationPhase $p "negative-$case" {} -NegativeCheck}
     Assert-Throws {Complete-ConsumerQualificationProgress $p $receipt} 'receipt must bind the current source'
@@ -423,7 +445,7 @@ if($IsWindows){Invoke-OwnedProcessFixtureCase 'failed active publication cannot 
     param($fixture,$lifecycle)
     $childScript=Join-Path $fixture 'Child.ps1'
     [IO.File]::WriteAllText($childScript,@'
-param($Module,$Output,$Ready,$PendingReady)
+param($Module,$Output,$Ready,$PendingReady,$FailureLog)
 $ErrorActionPreference='Stop'
 Import-Module -Name $Module -Force -ErrorAction Stop
 $p=New-ConsumerQualificationProgress $Output @{commit='i'*40}
@@ -436,20 +458,24 @@ try{
             [Threading.Thread]::Sleep(60000)
         } -NegativeCheck
     }catch{
-        $exception=$_.Exception.GetBaseException();$unsigned=[BitConverter]::ToUInt32([BitConverter]::GetBytes([int]$exception.HResult),0);$hrHex=[Convert]::ToString($unsigned,16).PadLeft(8,'0')
-        [Console]::Error.WriteLine("CHILD_PHASE_FAILURE: type=$($exception.GetType().FullName) HResult=0x$hrHex")
-        [Console]::Error.WriteLine($_.Exception.ToString())
-        throw
+        $originalFailure=$_
+        $exception=$originalFailure.Exception.GetBaseException();$unsigned=[BitConverter]::ToUInt32([BitConverter]::GetBytes([int]$exception.HResult),0);$hrHex=[Convert]::ToString($unsigned,16).PadLeft(8,'0')
+        $detail="CHILD_PHASE_FAILURE: type=$($exception.GetType().FullName) HResult=0x$hrHex`n$($originalFailure.Exception.ToString())"
+        try{[IO.File]::WriteAllText($FailureLog,$detail,[Text.UTF8Encoding]::new($false))}
+        catch{[Console]::Error.WriteLine("CHILD_FAILURE_LOG_WRITE_FAILED: $($_.Exception.Message)")}
+        [Console]::Error.WriteLine($detail)
+        throw $originalFailure
     }
 }finally{$held.Dispose()}
 '@)
     $path=Join-Path $fixture 'progress.json'
     $readyPath=Join-Path $fixture 'phase-body-ready.marker'
     $pendingPath=Join-Path $fixture 'phase-body-ready.pending'
+    $failurePath=Join-Path $fixture 'child-phase-failure.log'
     $start=[Diagnostics.ProcessStartInfo]::new('pwsh')
     $start.UseShellExecute=$false;$start.CreateNoWindow=$true
     $start.RedirectStandardOutput=$true;$start.RedirectStandardError=$true
-    foreach($arg in @('-NoProfile','-File',$childScript,'-Module',(Join-Path $PSScriptRoot '../ConsumerQualification.psm1'),'-Output',$path,'-Ready',$readyPath,'-PendingReady',$pendingPath)){$start.ArgumentList.Add($arg)}
+    foreach($arg in @('-NoProfile','-File',$childScript,'-Module',(Join-Path $PSScriptRoot '../ConsumerQualification.psm1'),'-Output',$path,'-Ready',$readyPath,'-PendingReady',$pendingPath,'-FailureLog',$failurePath)){$start.ArgumentList.Add($arg)}
     $child=$null;$stdoutTask=$null;$stderrTask=$null;$waitAttempted=$false;$terminated=$false
     try{
         $child=[Diagnostics.Process]::Start($start)
@@ -464,10 +490,17 @@ try{
         $earlyExit=$child.HasExited
         if(-not $earlyExit){$child.Kill()}
         $waitAttempted=$true
+        $closureTimer=[Diagnostics.Stopwatch]::StartNew()
         $terminated=$child.WaitForExit(3000)
+        $closureTimer.Stop()
+        $exitedAfterWait=$child.HasExited
         $stdout=try{if($terminated -and $stdoutTask.Wait(500)){$stdoutTask.GetAwaiter().GetResult()}else{'<stdout drain exceeded 500 ms after exit>'}}catch{"<stdout drain failed: $($_.Exception.GetBaseException().Message)>"}
         $stderr=try{if($terminated -and $stderrTask.Wait(500)){$stderrTask.GetAwaiter().GetResult()}else{'<stderr drain exceeded 500 ms after exit>'}}catch{"<stderr drain failed: $($_.Exception.GetBaseException().Message)>"}
-        Assert-True $terminated "failed-publication helper exited within the unchanged termination bound; exitCode=$(if($child.HasExited){$child.ExitCode}else{'unknown'}); stdout=$stdout; stderr=$stderr"
+        $diagnostic=@{pid=$child.Id;earlyExit=$earlyExit;terminatedWithinBound=$terminated;exitedAfterWait=$exitedAfterWait;
+                      closureElapsedMs=$closureTimer.Elapsed.TotalMilliseconds;readinessElapsedMs=$readinessTimer.Elapsed.TotalMilliseconds;
+                      ready=$ready;exitCode=if($child.HasExited){$child.ExitCode}else{$null};stdout=$stdout;stderr=$stderr;failureLog=$failurePath}
+        [IO.File]::WriteAllText((Join-Path $fixture 'child-observation.json'),($diagnostic|ConvertTo-Json),[Text.UTF8Encoding]::new($false))
+        Assert-True $terminated "failed-publication helper exited within the unchanged termination bound; earlyExit=$earlyExit; exitedAfterWait=$exitedAfterWait; closureElapsedMs=$([int]$closureTimer.Elapsed.TotalMilliseconds); exitCode=$(if($child.HasExited){$child.ExitCode}else{'unknown'}); failureLog=$failurePath; stdout=$stdout; stderr=$stderr"
         $r=Read-ConsumerProgressSnapshot $path # Read only after child closure, never between path check and replacement.
         $failureDetails="earlyExit=$earlyExit; readinessMarker=$ready; exitCode=$($child.ExitCode); status=$($r.status); activePhase=$($r.activePhase); negativeChecks=$($r.negativeChecks); phases=$(@($r.phases).Count); stdout=$stdout; stderr=$stderr"
         Write-Host "PERSISTENT_DENIED_DIAGNOSTIC: $failureDetails"
@@ -476,6 +509,9 @@ try{
         Assert-True (-not $ready) "failed active publication never creates the body-readiness marker; $failureDetails"
         Assert-True ($stderr -match 'CHILD_PHASE_FAILURE:') "publisher failure remains visible in child stderr; $failureDetails"
         Assert-True ($stderr -match 'HResult=0x80070020|HResult=0x80070497') "persistent lock retains its original numeric sharing error; $failureDetails"
+        Assert-True (Test-Path -LiteralPath $failurePath -PathType Leaf) 'child preserves its failure before writing redirected stderr'
+        $savedFailure=[IO.File]::ReadAllText($failurePath)
+        Assert-True ($savedFailure -match 'CHILD_PHASE_FAILURE:' -and $savedFailure -match 'HResult=0x80070020|HResult=0x80070497') 'fixture-owned failure log retains the exact sharing HRESULT independently of pipe drain'
         Assert-True ($readinessTimer.Elapsed -lt [TimeSpan]::FromSeconds(10)) "persistent publication denial fails within the unchanged readiness bound; $failureDetails"
         Assert-Equal 'incomplete' $r.status "failed publication cannot change journal status; $failureDetails"
         Assert-Equal $null $r.activePhase "failed publication cannot claim an active phase; $failureDetails"

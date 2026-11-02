@@ -1,0 +1,86 @@
+[
+  {
+    "exitCode": 0,
+    "completedUtc": "2026-11-02T10:44:30.0175128Z",
+    "configuration": "Debug",
+    "source": "a5b3ac81dedc39eaf1a8d131c497e59644ea794b",
+    "receipts": [
+      {
+        "suite": "Foundation",
+        "sha256": "3699657D9C582B8B6354F5BC35B28DCFE0DC64A83E10808450EFD0949A9F408E"
+      },
+      {
+        "suite": "Embedded",
+        "sha256": "AAC3FAA9134115DA58A8170D06260EA62BF2E8CA2A2E60B3F125F48D7AE2A338"
+      },
+      {
+        "suite": "Control",
+        "sha256": "A27E221546C85001895093B6074AA2453C018587A5F5A8F5B57AF055C5B1EB75"
+      },
+      {
+        "suite": "Accessibility",
+        "sha256": "89E9EC46F9FFEA6F5FC2F737E5A703D3F54566FAD847057B18EE6C992BBCF1DA"
+      },
+      {
+        "suite": "MenuExitLifetime",
+        "sha256": "F13D498A7EC8AFD59B10E4EFA3834400082A8FD3EE4B1487B85453B6C26ED5A7"
+      }
+    ]
+  },
+  {
+    "exitCode": 0,
+    "completedUtc": "2026-11-02T10:45:20.6607693Z",
+    "configuration": "Release",
+    "source": "a5b3ac81dedc39eaf1a8d131c497e59644ea794b",
+    "receipts": [
+      {
+        "suite": "Foundation",
+        "sha256": "44D26D4C2444380E118438B1F765C492ABE047842FC7E41B6AC89782518A2D95"
+      },
+      {
+        "suite": "Embedded",
+        "sha256": "1A5FF1B3848918B600C5C568578774CE64C9B7C4347AC07F185737D08B7BA368"
+      },
+      {
+        "suite": "Control",
+        "sha256": "5513382AB4338D803F365ABD54CF8D4236E9EBDC2E70071C3811DC3EF31CAD7C"
+      },
+      {
+        "suite": "Accessibility",
+        "sha256": "57A6820981642EE5A0733DC87A9396E967F7CFCF6E48B03BC465D78165900992"
+      },
+      {
+        "suite": "MenuExitLifetime",
+        "sha256": "05C4FC441FEEDDF12F0DDED10E5B87042529F7156A91D222CB0406A18E83F443"
+      }
+    ]
+  },
+  {
+    "exitCode": 0,
+    "completedUtc": "2026-11-02T10:46:32.9100027Z",
+    "configuration": "ASan Debug",
+    "source": "a5b3ac81dedc39eaf1a8d131c497e59644ea794b",
+    "receipts": [
+      {
+        "suite": "Foundation",
+        "sha256": "85BBDAB3B78FA1B586494DA130364E0A4C48653544E56E5E28F5B6706D83E450"
+      },
+      {
+        "suite": "Embedded",
+        "sha256": "9D6092F013C8E6503671D8164A373683AF67F00AFCC747E60C1273F809D5C5F5"
+      },
+      {
+        "suite": "Control",
+        "sha256": "5968DC0403DCA0465AB020170F6A722B1B00E416172FF26D37899E88222A2492"
+      },
+      {
+        "suite": "Accessibility",
+        "sha256": "60997115890B25E259430F22DE1075AF0C073E60764D32413CC0D82A2C6ADBD0"
+      },
+      {
+        "suite": "MenuExitLifetime",
+        "sha256": "2DA692BEDF1A8FFF65E1F1AF0D56297FE11F514F5FC1F5153A7894D82A877C8B"
+      }
+    ]
+  }
+]

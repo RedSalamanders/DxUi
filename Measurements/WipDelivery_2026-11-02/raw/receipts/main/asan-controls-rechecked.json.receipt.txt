@@ -1,0 +1,25 @@
+{
+  "source": "9909da1065e297247cb490b970b2265a0e4d8b9e",
+  "reviewedUtc": "2026-11-02T10:03:17.9676425Z",
+  "expectedFailureControls": [
+    {
+      "path": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\evidence\\test-runs\\20261102T070635293Z-84300-7de20fc4001347399c2dd6e36ea0c8c1\\payload\\AddressSanitizer-x64.json",
+      "receiptSha256": "F5A34436D6EFCC8C9AFADD8A74A032DDF777879EB7A3EBDFFB4D09EBE901653F",
+      "exitCode": 1,
+      "detected": true,
+      "executableSha256": "1BC0282CE76F0504C0F8A95D3BCAD102E4D5B655041D9574AC722FA75F5DD991",
+      "log": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\evidence\\test-runs\\20261102T070635293Z-84300-7de20fc4001347399c2dd6e36ea0c8c1\\payload\\logs\\test-AddressSanitizer-x64.log",
+      "logSha256": "BE1AE465D384956CE07E04C0BB1C252156F406220830924687091921A789F880"
+    },
+    {
+      "path": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\evidence\\test-runs\\20261102T073228666Z-60928-4e90cd44006d49f3a9a8e1527e3a2127\\payload\\AddressSanitizer-x64.json",
+      "receiptSha256": "585DF17997D4449D90A68BE8042A3332860E993310C1F0B0CA6C6294B1AF5543",
+      "exitCode": 1,
+      "detected": true,
+      "executableSha256": "1BC0282CE76F0504C0F8A95D3BCAD102E4D5B655041D9574AC722FA75F5DD991",
+      "log": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\evidence\\test-runs\\20261102T073228666Z-60928-4e90cd44006d49f3a9a8e1527e3a2127\\payload\\logs\\test-AddressSanitizer-x64.log",
+      "logSha256": "32ADE03C69AC23C729ADB44DB066A0A6081492FB598D75D8793DC9A448AD3020"
+    }
+  ],
+  "interpretation": "Deliberate isolated use-after-free controls; detected=true and nonzero expected process exit; not functional-suite failures"
+}

@@ -1,0 +1,1 @@
+- Size native math from its enclosing code or heading run and keep formula-edge carets aligned across DPI changes.

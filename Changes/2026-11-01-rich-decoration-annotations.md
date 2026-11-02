@@ -1,0 +1,1 @@
+- Add optional source-backed UI Automation annotations to rich source decorations, with localized generic/highlight/spelling/grammar kinds, TextPattern2 annotation ranges and bounded prepared type coverage. Keep private overlays and unchanged source/selection/history intact; retire replaced exposed peers. Integrated delivery qualification remains required.

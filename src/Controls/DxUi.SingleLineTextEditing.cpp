@@ -16,6 +16,9 @@
 
 namespace DxUi
 {
+#if DXUI_ENABLE_DIAGNOSTICS
+thread_local uint64_t testSingleLineMeasureLayoutCreations{};
+#endif
 constexpr float kSingleLineMeasureWidthDip = 32768.0f;
 
 [[nodiscard]] bool HasCharTypeFlag(wchar_t ch, WORD mask) noexcept
@@ -48,19 +51,11 @@ constexpr float kSingleLineMeasureWidthDip = 32768.0f;
         return finish(0u);
     }
 
-    size_t cursor = 0u;
-    while (cursor < text.size())
-    {
-        const size_t nextBoundary = FindNextTextElementBoundary(text, cursor);
-        if (nextBoundary >= caret)
-        {
-            return finish(cursor);
-        }
-
-        cursor = nextBoundary;
-    }
-
-    return finish(0u);
+    // Adjacent ASCII units establish a boundary without any RI/emoji/Indic
+    // history; CRLF is the one ASCII pair that remains a single element.
+    if (text[caret - 1u] <= 0x7fu && (caret == 1u || (text[caret - 2u] <= 0x7fu && ! (text[caret - 2u] == L'\r' && text[caret - 1u] == L'\n'))))
+        return finish(caret - 1u);
+    return finish(FindPreviousTextElementBoundary(text, caret));
 }
 
 [[nodiscard]] size_t StepToNextTextElement(std::wstring_view text, size_t caretIndex) noexcept
@@ -82,6 +77,10 @@ constexpr float kSingleLineMeasureWidthDip = 32768.0f;
         return finish(text.size());
     }
 
+    // A known ASCII-to-ASCII boundary can start the existing full Unicode
+    // cluster scan locally, including combining marks after the ASCII unit.
+    if (text[caret] <= 0x7fu && (! caret || (text[caret - 1u] <= 0x7fu && ! (text[caret - 1u] == L'\r' && text[caret] == L'\n'))))
+        return finish(FindNextTextElementBoundary(text, caret));
     size_t cursor = 0u;
     while (cursor < text.size())
     {
@@ -361,6 +360,9 @@ constexpr float kSingleLineMeasureWidthDip = 32768.0f;
         if (factory && format)
         {
             wil::com_ptr<IDWriteTextLayout> layout;
+#if DXUI_ENABLE_DIAGNOSTICS
+            ++testSingleLineMeasureLayoutCreations;
+#endif
             if (SUCCEEDED(factory->CreateTextLayout(
                     text.data(), static_cast<UINT32>(text.size()), format, kSingleLineMeasureWidthDip, heightDip, layout.addressof())) &&
                 layout)

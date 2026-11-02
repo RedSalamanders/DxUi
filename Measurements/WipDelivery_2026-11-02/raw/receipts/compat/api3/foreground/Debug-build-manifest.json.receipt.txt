@@ -1,0 +1,72 @@
+{
+  "configuration": "Debug",
+  "files": [
+    {
+      "sha256": "73D9233E9CD00E584F50EFFD5D1CCCFA81886ABEBEF5D431C61989D472D922BF",
+      "name": "DxUi.ControlTests.exe",
+      "bytes": 14272000
+    },
+    {
+      "sha256": "70F30718B98752669EB92357549B6F148EFDCE9FB1AEEB669CFBA91C20C49390",
+      "name": "DxUi.ControlTests.pdb",
+      "bytes": 61935616
+    },
+    {
+      "sha256": "0211FC331EC604EC7B10DDAE7F0D4231E46F79740B6430BB72C74E6054147B54",
+      "name": "DxUi.EmbeddedControls.exe",
+      "bytes": 6579712
+    },
+    {
+      "sha256": "38EAB90CD06CA871CD9A7667E4E9D2600EB6CA9AF4671FBA543F42A08121F90A",
+      "name": "DxUi.EmbeddedControls.pdb",
+      "bytes": 28184576
+    },
+    {
+      "sha256": "353F3BDCA54AEFC474DB579F725649679723435E7870AEC9D2E4E1EC359A762A",
+      "name": "DxUi.EmbeddedTests.exe",
+      "bytes": 7181824
+    },
+    {
+      "sha256": "1AB3F92D1B4C247805C0819A1DF9FB75E6833C7E7C82E9B3CA1C85E29B0A5E48",
+      "name": "DxUi.EmbeddedTests.pdb",
+      "bytes": 30912512
+    },
+    {
+      "sha256": "30502C49DBA337FAE57F86E83D4A756718A14029C988036D7D85D309B561FFD0",
+      "name": "DxUi.FoundationTests.exe",
+      "bytes": 6427648
+    },
+    {
+      "sha256": "192F64DB0EEED0B72C1CC52ADD799B1D4F9222CE1798C837F9F4204D03544770",
+      "name": "DxUi.FoundationTests.pdb",
+      "bytes": 27504640
+    },
+    {
+      "sha256": "9E9CB39773EC2F5BD1B6C7E176D6CDF642E1BF1214108AA2CCD6DFFBEDFAD198",
+      "name": "DxUi.lib",
+      "bytes": 74530634
+    },
+    {
+      "sha256": "3B9AB6DC2A981200CF518A42ECDBD98791366DC38E1F56DB9273395B0C2FD5A2",
+      "name": "DxUi.pdb",
+      "bytes": 7122944
+    }
+  ],
+  "receipts": [
+    {
+      "present": false,
+      "name": "v2-build.json"
+    },
+    {
+      "present": false,
+      "name": "incremental-build.json"
+    },
+    {
+      "present": false,
+      "name": "scoped-build.json"
+    }
+  ],
+  "platform": "x64",
+  "frozenUtc": "2026-11-02T10:43:28.8215645Z",
+  "source": "a5b3ac81dedc39eaf1a8d131c497e59644ea794b"
+}

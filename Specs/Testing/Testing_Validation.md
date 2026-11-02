@@ -12,6 +12,14 @@ Diagnostics are bounded scalar records after each observed boundary; retain cook
 geometry and focus state without publishing desktop identities. These tests do not qualify native ARM64, real IME,
 physical input or performance acceptance.
 
+Source-guide, code-language and code-line labels prepare their staged v0
+projections through the canonical reference-taking layout access seam. An
+internal by-value transfer must not invoke the aggregate's implicit noexcept
+move: MSVC Debug container-proxy allocation can fail during that move and
+terminate before the owning fault boundary can preserve its prior publication.
+The source-guide allocation sweep exercises every observed preparation failure
+and verifies unchanged published numbers/marks before recovery.
+
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
 
@@ -40,6 +48,23 @@ Both retained hosts run the directed grammar fixtures and reference edit/history
 tests. Expanded fault probes must inject every observed admission/inline/extension
 allocation, including MSVC Debug proxies. Qualification still requires the normal
 native/build/tooling matrix; a focused diagnostic is not full qualification.
+
+The Mermaid parser corpus executes all 342 original fences in the pinned 11.4.1
+collection, retaining document and one-based fence identity and the entire body
+(including local YAML). It checks finite cooperative completion, exact source,
+bounded model endpoints and diagnostic ranges, and absence of partial graphs on
+decline. It reports observed outcome counts without promoting those observations
+to independent conformance expectations. The separately reviewed 105 flowchart
+and 20 family vectors continue to assert their independent semantic outcomes.
+
+The math corpus executes all 1,135 rows of the pinned KaTeX 0.16.11 support
+table. It uses each row's original rendered math sample when present (995 rows)
+and otherwise its unescaped command label (140 rows, explicitly marked as
+command-only and potentially missing arguments). These are exhaustive safety
+probes for bounded parsing, diagnostic-only rejection and finite preparation of
+admitted expressions. Observed counts are reported, never used as independent
+support expectations. Directed syntax, atom, SDK metric and raster oracles remain
+the evidence for the bounded native profile's actual semantics.
 
 Intrinsic measurement, opt-in Flex and reusable forms run in the nonactivating Controls suite. The form fixtures
 cover localized labels at multiple DPI/density/flow/column/placement/width combinations; finite bounds and overflow;
@@ -225,7 +250,7 @@ architecture, configuration, time and executable path under `.build/reports`. Fa
 Callers MUST judge a PowerShell runner through a fresh process's exit code or invocation success (`$?`)
 captured immediately after the script call. Ambient `$LASTEXITCODE` is not a general script-completion status.
 `test.ps1` additionally clears it to zero only after all requested suites pass and successful evidence finalization
-returns. Suite failures and evidence-finalization exceptions never reach that reset. Historical in-process calls
+returns. Suite failures and evidence-finalization exceptions never reach that reset. If evidence finalization also fails while a suite or runner exception is already propagating, the runner reports the finalization error and preserves the original exception; a finalization-only failure remains fatal. Historical in-process calls
 can retain the intentional native ASan probe's nonzero result despite successful sealed suite/lease outcomes.
 Preserve wrapper failures separately from sealed native outcomes. A reporting-error disposition requires
 independent source/invocation proof and exact owner, source, artifact and sealed-payload binding; it MUST
@@ -233,6 +258,17 @@ NOT rewrite failed records, hide a real suite/lease failure or claim aggregate w
 Every invocation also runs the populated complex-UI benchmark through `performance.ps1` and includes FPS/memory
 scenarios and the performance receipt path in each suite receipt. `-PerformanceBaseline` requires a matched
 comparison and fails for a suspected regression or invalid evidence; no baseline is explicitly `unpaired`.
+The opt-in `-ParallelSuites` value is 1–8, defaulting to serial execution. The
+canonical runner holds its existing native-artifact lock and before/after captures,
+runs build, filter/watchdog checks and performance serially, and then schedules only
+non-foreground suite children concurrently. Each has independent raw stdout/stderr,
+a combined UTF-8 log and its own receipt; a nonzero child, skip policy violation or
+output-drain failure remains a failure. Stream logs retain their original bytes;
+the combined log places stdout before stderr and uses UTF-8 or Windows OEM decoding.
+Duplicate suite names are refused in parallel mode. Owned children are terminated on
+runner failure; foreground suites remain serial under their one restoring lease and
+do not overlap the ordinary batch. Specifying this option selects the lower-level
+suite runner; `-Full -ParallelSuites 4` explicitly requests the full normal set.
 `-Interactive` selects the control suites that need the real desktop and runs them under the desktop lease after all of this
 (see Interactive tests below); no other option or run reaches the lease.
 Use the [performance contract](../Core/Core_PerformanceAndResources.md) for before/after acceptance and regression advice.
@@ -334,6 +370,9 @@ bounded closure wait; if it remains live, its owned fixture is preserved and rep
 Both controls retain bounded stdout/stderr and early-exit diagnostics. The observed original assertion was a
 missing progress path at the read site; `TestSupport` removed the fixture on unwind, so the original failure's
 initiating cause remains unassigned.
+The failed-publication control additionally writes its caught child exception and HRESULT directly into its
+owned fixture before redirected stderr, and records early-exit, timed closure and stream-drain observations.
+A timeout still fails at the original bounds; the extra evidence does not convert a later exit into success.
 PR #99's retained x64 Release Full step exhausted its combined 35-minute window after 16 ordinary suite receipts;
 Accessibility was still in progress and had emitted no native timeout or failure. The observed 18-minute gap
 before the MSBuild banner has no measured subphase attribution. Bounded top-level build/gate BEGIN/END/FAIL records
@@ -757,7 +796,7 @@ action replace it, after which the retained element invokes nothing and a fresh 
 `TestNativeAccessibilityFocusCallbackReplacementStopsOriginalAction` rebuilds the controls from the focus-changed callback that an
 element's `SetFocus` or `Invoke` runs: the element reports itself gone, its button's action does not run, and the callback's
 focus choice stands. These tests come from the `codex/fileops-ui-qualified` branch; all but the queued `Select` failed against
-the library before its port ([plan](../Plans/WIP/CodexBranchReview_2026-10-02.md)), as did the Embedded suite's
+the library before its port ([plan](../Plans/Done/CodexBranchReview_2026-10-02.md)), as did the Embedded suite's
 `TestMultilineCaretViewport`, which renders a multiline field's caret on a WARP surface at 96, 144 and 192 DPI, editable and
 read-only, and requires no caret pixel outside the text viewport: on a partly visible bottom line, scrolled above and below the
 viewport, and restored.
@@ -1155,3 +1194,9 @@ setting does not alter the library, benchmark or consumer linker policies.
 The modal timer-ID collision fixture establishes on-screen owner geometry and verified foreground activation before starting either timer. It requires observed popup entry before dispatch assertions. Its independent popup-relative fallback and existing dispatch/dismissal assertions remain mandatory; setup failure is a failure, not a capability skip.
 
 Sent-cancellation menu fixtures pump activation delivery and discard preceding queued mouse input before each popup, then require the owner to remain foreground and focused. Missing popups remain failures, with terminal owner diagnostics; the four sent messages and their existing bounds are unchanged.
+
+PrePush validates changelog state for the candidate commit. Uncommitted, staged or untracked `CHANGELOG.md` or `Changes/` inputs are refused until committed or restored; other dirty source inputs retain their local testing obligations. Explain remains read-only and does not claim a passed gate.
+
+The tooling roster runs each script in a bounded isolated PowerShell child with a fresh native exit status, retains its output, reports both nonzero status and thrown failures, and still runs its remaining scripts. A changelog fold reports each skipped duplicate fragment name while retaining retry idempotence.
+
+The relocated native-module consumer driver emits one machine-readable record of the probes it actually executed and passed. Its owner accepts exactly one well-formed record only with process exit zero and the complete expected twelve successes; missing, duplicated, malformed, partial or inconsistent counts fail. The final consumer receipt copies those observed counts and the completed negative-check count from its progress ledger; completion validates their agreement. A driver success or a hard-coded expected cardinality alone is not an observed-count receipt.

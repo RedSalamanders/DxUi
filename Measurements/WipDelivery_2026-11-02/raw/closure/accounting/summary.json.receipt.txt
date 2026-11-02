@@ -1,0 +1,62 @@
+{
+  "source": "be06f052178cb6ad3ebf42551df51d44b34087f6",
+  "base": "4423074dee2410acb28e62b41072e6c561a79eb8",
+  "profiles": [
+    {
+      "profile": "x64-Debug",
+      "source": "be06f052178cb6ad3ebf42551df51d44b34087f6",
+      "explainExit": 0,
+      "creationUtc": "2026-11-02T11:23:32.7080768Z",
+      "log": ".build\\review-delivery\\final-validation-20261102\\accounting\\x64-Debug.log",
+      "scope": "Planning/accounting only; not an executed test pass",
+      "nativeExecution": "R27 ordinary+foreground source cohort recorded separately"
+    },
+    {
+      "profile": "x64-Release",
+      "source": "be06f052178cb6ad3ebf42551df51d44b34087f6",
+      "explainExit": 0,
+      "creationUtc": "2026-11-02T11:23:33.5432564Z",
+      "log": ".build\\review-delivery\\final-validation-20261102\\accounting\\x64-Release.log",
+      "scope": "Planning/accounting only; not an executed test pass",
+      "nativeExecution": "R27 ordinary+foreground source cohort recorded separately"
+    },
+    {
+      "profile": "x64-ASanDebug",
+      "source": "be06f052178cb6ad3ebf42551df51d44b34087f6",
+      "explainExit": 0,
+      "creationUtc": "2026-11-02T11:23:34.4143374Z",
+      "log": ".build\\review-delivery\\final-validation-20261102\\accounting\\x64-ASanDebug.log",
+      "scope": "Planning/accounting only; not an executed test pass",
+      "nativeExecution": "R27 ordinary+foreground source cohort recorded separately"
+    },
+    {
+      "profile": "ARM64-Debug",
+      "source": "be06f052178cb6ad3ebf42551df51d44b34087f6",
+      "explainExit": 0,
+      "creationUtc": "2026-11-02T11:23:35.2439711Z",
+      "log": ".build\\review-delivery\\final-validation-20261102\\accounting\\ARM64-Debug.log",
+      "scope": "Planning/accounting only; not an executed test pass",
+      "nativeExecution": "User deferred native runtime; cross-build receipt exists"
+    },
+    {
+      "profile": "ARM64-Release",
+      "source": "be06f052178cb6ad3ebf42551df51d44b34087f6",
+      "explainExit": 0,
+      "creationUtc": "2026-11-02T11:23:36.1586281Z",
+      "log": ".build\\review-delivery\\final-validation-20261102\\accounting\\ARM64-Release.log",
+      "scope": "Planning/accounting only; not an executed test pass",
+      "nativeExecution": "User deferred native runtime; cross-build receipt exists"
+    },
+    {
+      "profile": "ARM64-ASanDebug",
+      "source": "be06f052178cb6ad3ebf42551df51d44b34087f6",
+      "explainExit": 0,
+      "creationUtc": "2026-11-02T11:23:36.9545200Z",
+      "log": ".build\\review-delivery\\final-validation-20261102\\accounting\\ARM64-ASanDebug.log",
+      "scope": "Planning/accounting only; not an executed test pass",
+      "nativeExecution": "User deferred native runtime; cross-build receipt exists"
+    }
+  ],
+  "currentTooling": "Separate current-tree validate.ps1 execution",
+  "notQualification": true
+}

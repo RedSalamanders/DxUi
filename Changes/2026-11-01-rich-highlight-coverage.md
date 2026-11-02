@@ -1,0 +1,1 @@
+- Normalized overlapping source highlights before geometry preparation and indexed visible rectangles, preventing repeated whole-document mapping and offscreen highlight draw work.

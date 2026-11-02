@@ -14,7 +14,7 @@ rendering compatibility. Unsupported families and constructs remain exact
 editable source with explicit diagnostics.
 
 `dxui-flowchart-expectations.json` independently classifies all 105 original
-flowchart fences: 16 admitted graphs and 89 unsupported definitions, including
+flowchart fences with reviewed reasons, exact issue codes and UTF-16 diagnostic offsets: 30 admitted graphs and 75 unsupported definitions, including
 the supported legacy stadium form. The local flowchart subset also expands
 bounded `&` endpoint groups as a stable Cartesian product, including chained
 groups; class and state grammar remain isolated. `dxui-family-matrix.json` accounts for the 22
@@ -32,11 +32,11 @@ The generated tests verify every family fixture's exact expected outcome and
 diagnostic instead of treating the whole state/class family as unsupported.
 Neither accepted CPU graphs nor unsupported results establish native rendering.
 
-`katex-0.16.11` retains only original command documentation and the MIT notice
+`katex-0.16.11` retains original command documentation, symbol source and the MIT notice
 from commit `fbbea3573439d51e6568356f5886053b111b1f88`; `collection.json` records
 URLs, Git blobs and exact SHA-256 values. These pin the math command reference.
 No KaTeX implementation, JavaScript runtime, browser or external helper is built
-or deployed. The owned native math parser/layout remains M5 work.
+or deployed. The owned native math parser/layout implements the bounded profile documented in the rich-text contract; full language and final-source qualification remain separate.
 
 The parser implementation is owned Unicode C++ in `src/Controls/DxUi.MarkdownSyntax.cpp`.
 MD4C, Discount and cmark-gfm inform API boundaries; none is linked or used as the
@@ -101,3 +101,5 @@ characters, restricts task whitespace and does not fold VT/FF labels or filter V
 tag boundaries as the adjacent specification prose describes. The strict owned grammar keeps the
 pinned specification's explicit domain/whitespace rules; these differences must
 remain recorded instead of silently broadening or excluding conformance cases.
+
+The pinned KaTeX `symbols.js.txt` supplies explicit Unicode and atom-class records to `Tools/Generate-NativeMathSymbols.ps1`; native parsing stays bounded and executes no JavaScript. The generated subset and four vertical-delimiter exceptions are documented in the rich-text contract.

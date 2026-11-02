@@ -1,0 +1,1 @@
+- Preserve each reference definition and following paragraph's physical container prefix when splitting Markdown source blocks.

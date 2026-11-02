@@ -10,8 +10,8 @@ $ErrorActionPreference='Stop'
 $pins=@{
     'collection.json'='157DEAF02EC36597EB5012AF8CE1EDF3CA710281CFC6E3E65493BD74A540799A'
     'syntax-inventory.json'='5CBAD5692330F513128C4D6CAF59A6ACE18A530073DEC9098208FC559FE48231'
-    'dxui-flowchart-expectations.json'='2BB253E39A1F4EE201A04D95BB02971A1D3DD4226AEFB076ACB522AA651FFE85'
-    'dxui-family-matrix.json'='5A49B46D69193C2D0D911DEC1A0BC79210164F4F75C175E9F89589823475C3B5'
+    'dxui-flowchart-expectations.json'='17F24BAED9C74798D966BBA0897481144FBC4F9F5CB7296E0557C0B7F53E26FF'
+    'dxui-family-matrix.json'='EA1488D636A8E0D71BEE75DFC2EC22C20DFFCAB77CAA73566D5CFAE906825D26'
 }
 foreach($name in $pins.Keys){
     if((Get-FileHash -LiteralPath (Join-Path $InputDirectory $name)).Hash -cne $pins[$name]){throw "Pinned native flowchart input differs: $name"}
@@ -26,14 +26,16 @@ $examples=[regex]::Matches([IO.File]::ReadAllText((Join-Path $InputDirectory 'fl
 $expectations=@(Get-Content -LiteralPath (Join-Path $InputDirectory 'dxui-flowchart-expectations.json') -Raw | ConvertFrom-Json)
 $families=@(Get-Content -LiteralPath (Join-Path $InputDirectory 'dxui-family-matrix.json') -Raw | ConvertFrom-Json)
 if($collection.Count -ne 24 -or $examples.Count -ne 105 -or $expectations.Count -ne 105 -or $families.Count -ne 22){throw 'Incomplete native Mermaid corpus inventory'}
-$familyExamples=@($families | Where-Object { $_.support -in @('unsupported-family','limited-state','limited-class') })
-if($familyExamples.Count -ne 20 -or @($families | Where-Object support -eq 'unsupported-family').Count -ne 18 -or
-   @($families | Where-Object support -eq 'limited-state').Count -ne 1 -or @($families | Where-Object support -eq 'limited-class').Count -ne 1){
+$familyExamples=@($families | Where-Object { $_.support -in @('unsupported-family','limited-state','limited-class','limited-sequence','limited-pie','limited-er','limited-gantt','limited-mindmap') })
+if($familyExamples.Count -ne 20 -or @($families | Where-Object support -eq 'unsupported-family').Count -ne 13 -or
+   @($families | Where-Object support -eq 'limited-state').Count -ne 1 -or @($families | Where-Object support -eq 'limited-class').Count -ne 1 -or
+   @($families | Where-Object support -eq 'limited-sequence').Count -ne 1 -or @($families | Where-Object support -eq 'limited-pie').Count -ne 1 -or
+   @($families | Where-Object support -eq 'limited-er').Count -ne 1 -or @($families | Where-Object support -eq 'limited-gantt').Count -ne 1 -or @($families | Where-Object support -eq 'limited-mindmap').Count -ne 1){
     throw 'Invalid native Mermaid family support matrix'
 }
 foreach($family in $families){
-    if($family.support -notin @('unsupported-family','limited-flowchart','limited-state','limited-class','example-collection')){throw "Unknown Mermaid support value: $($family.support)"}
-    if($family.support -in @('unsupported-family','limited-state','limited-class')){
+    if($family.support -notin @('unsupported-family','limited-flowchart','limited-state','limited-class','limited-sequence','limited-pie','limited-er','limited-gantt','limited-mindmap','example-collection')){throw "Unknown Mermaid support value: $($family.support)"}
+    if($family.support -in @('unsupported-family','limited-state','limited-class','limited-sequence','limited-pie','limited-er','limited-gantt','limited-mindmap')){
         $expected=$family.firstExample
         if(!$expected -or $expected.outcome -notin @('Prepared','Unsupported') -or
            $expected.issue -notin @('None','UnsupportedFamily','UnsupportedStatement','UnsupportedEdge') -or
@@ -61,14 +63,18 @@ namespace NativeFlowchartCorpus
 {
 // clang-format off
 using namespace DxUi::RichText::Detail;
-struct Example { std::size_t number; std::wstring_view source; FlowchartOutcome outcome; std::size_t nodes, edges; FlowchartDirection direction; };
+struct Example { std::size_t number; std::wstring_view source; FlowchartOutcome outcome; FlowchartIssue issue; std::size_t nodes, edges; FlowchartDirection direction; std::wstring_view reason; std::size_t diagnosticFirst, diagnosticLast; };
 inline constexpr Example flowcharts[] = {
 '@)
 for($i=0;$i -lt $examples.Count;$i++){
     $expected=$expectations[$i]
     if($expected.id -ne ($i+1) -or $expected.outcome -notin @('Prepared','Unsupported')){throw 'Invalid independent flowchart expectation'}
     $source=$examples[$i].Groups[1].Value.Replace("`r`n","`n")
-    [void]$output.AppendLine(('    {{{0}u, {1}, FlowchartOutcome::{2}, {3}u, {4}u, FlowchartDirection::{5}}},' -f $expected.id,(Literal $source),$expected.outcome,$expected.nodes,$expected.edges,$expected.direction))
+    if($expected.issue -notin @('None','UnsupportedFamily','UnsupportedConfiguration','UnsupportedStatement','UnsupportedShape','UnsupportedEdge','UnsupportedLabelMarkup') -or
+       !$expected.reason -or $expected.diagnosticFirst -lt 0 -or $expected.diagnosticLast -lt $expected.diagnosticFirst -or
+       $expected.diagnosticLast -gt $source.Length -or ($expected.outcome -eq 'Prepared' -and ($expected.issue -ne 'None' -or $expected.diagnosticFirst -ne 0 -or $expected.diagnosticLast -ne 0)) -or
+       ($expected.outcome -eq 'Unsupported' -and $expected.issue -eq 'None')){throw "Invalid diagnostic expectation: $($expected.id)"}
+    [void]$output.AppendLine(('    {{{0}u, {1}, FlowchartOutcome::{2}, FlowchartIssue::{3}, {4}u, {5}u, FlowchartDirection::{6}, {7}, {8}u, {9}u}},' -f $expected.id,(Literal $source),$expected.outcome,$expected.issue,$expected.nodes,$expected.edges,$expected.direction,(Literal $expected.reason),$expected.diagnosticFirst,$expected.diagnosticLast))
 }
 [void]$output.AppendLine('};')
 [void]$output.AppendLine('struct Family { std::wstring_view document, source; FlowchartOutcome outcome; FlowchartIssue issue; std::size_t nodes, edges; FlowchartDirection direction; std::wstring_view reason; };')
@@ -85,6 +91,22 @@ foreach($family in $familyExamples){
     [void]$output.AppendLine(('    {{{0}, {1}, FlowchartOutcome::{2}, FlowchartIssue::{3}, {4}u, {5}u, FlowchartDirection::{6}, {7}}},' -f `
         (Literal $family.document),(Literal $source),$expected.outcome,$expected.issue,$expected.nodes,$expected.edges,$expected.direction,(Literal $expected.reason)))
 }
+[void]$output.AppendLine('};')
+[void]$output.AppendLine('// Exhaustive parser safety coverage. Independent subset oracles remain above.')
+[void]$output.AppendLine('struct Fence { std::wstring_view document; std::size_t number; std::wstring_view source; };')
+[void]$output.AppendLine('inline constexpr Fence allFences[] = {')
+$fenceCount=0
+foreach($entry in $collection){
+    $fences=[regex]::Matches([IO.File]::ReadAllText((Join-Path $InputDirectory $entry.file)),$pattern)
+    for($index=0;$index -lt $fences.Count;$index++){
+        # No YAML removal or family-dependent preprocessing: every pinned body
+        # reaches the parser byte-for-byte apart from the documented LF EOLs.
+        $source=$fences[$index].Groups[1].Value.Replace("`r`n","`n")
+        [void]$output.AppendLine(('    {{{0}, {1}u, {2}}},' -f (Literal $entry.file),($index+1),(Literal $source)))
+        $fenceCount++
+    }
+}
+if($fenceCount -ne 342){throw 'Incomplete pinned Mermaid fence inventory'}
 [void]$output.AppendLine(@'
 };
 // clang-format on
@@ -94,4 +116,6 @@ $expected=$output.ToString().Replace("`r`n","`n").Replace("`n","`r`n")
 if($Check){
     if(-not(Test-Path -LiteralPath $OutputPath) -or [IO.File]::ReadAllText($OutputPath) -cne $expected){throw 'Native flowchart corpus output is missing or stale'}
 }else{[IO.File]::WriteAllText($OutputPath,$expected,[Text.UTF8Encoding]::new($false))}
-Write-Host 'Native flowchart vectors: 105 original examples, 16 admitted graphs, 89 unsupported; 20 original family examples (2 limited profiles, 18 unsupported families).'
+$preparedCount = @($expectations | Where-Object outcome -eq 'Prepared').Count
+$unsupportedCount = @($expectations | Where-Object outcome -eq 'Unsupported').Count
+Write-Host "Native flowchart vectors: $($expectations.Count) independent original examples, $preparedCount admitted graphs, $unsupportedCount unsupported; $($familyExamples.Count) independent family examples; all $fenceCount pinned Mermaid fences for parser safety."

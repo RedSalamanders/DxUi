@@ -1,0 +1,1 @@
+- Add source-exact top-level thematic-break insertion with line-ending preservation; nested container and native qualification remain pending.

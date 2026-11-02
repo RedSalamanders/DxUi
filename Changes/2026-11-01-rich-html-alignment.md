@@ -1,0 +1,1 @@
+- Render supported quoted `align` values on balanced HTML paragraph and div blocks with physical left, center and right placement in either reading direction, preserving exact source and source-based caret geometry. Preserve eligible image requests when a soft-break presentation change rebuilds semantic identity.

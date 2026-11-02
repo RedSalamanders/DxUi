@@ -1,0 +1,16 @@
+{
+  "source": "a5b3ac81dedc39eaf1a8d131c497e59644ea794b",
+  "pid": 26264,
+  "createdUtc": "2026-11-02T10:43:02.2483757Z",
+  "arguments": [
+    "-NoProfile",
+    "-File",
+    "\"Z:\\src\\DxUi-worktrees\\wip-compat-redprism-menu-20261101\\build.ps1\"",
+    "-Platform",
+    "ARM64",
+    "-Configuration",
+    "\"ASan Debug\""
+  ],
+  "platform": "ARM64",
+  "configuration": "ASan Debug"
+}

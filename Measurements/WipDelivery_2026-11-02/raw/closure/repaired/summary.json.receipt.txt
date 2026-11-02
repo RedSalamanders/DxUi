@@ -1,0 +1,54 @@
+{
+  "source": "1043b532b9f6f9f37b799e5342bcf868113cf710",
+  "sourceUnchangedAndClean": true,
+  "results": [
+    {
+      "source": "1043b532b9f6f9f37b799e5342bcf868113cf710",
+      "entry": "validate-skills.ps1",
+      "exitCode": 0,
+      "pid": 104584,
+      "creationUtc": "2026-11-02T11:32:51.9251842Z",
+      "completedUtc": "2026-11-02T11:32:52.4613064Z"
+    },
+    {
+      "source": "1043b532b9f6f9f37b799e5342bcf868113cf710",
+      "entry": "validate-specs.ps1",
+      "exitCode": 0,
+      "pid": 105316,
+      "creationUtc": "2026-11-02T11:32:51.9463323Z",
+      "completedUtc": "2026-11-02T11:32:56.8883508Z"
+    },
+    {
+      "source": "1043b532b9f6f9f37b799e5342bcf868113cf710",
+      "entry": "validate-dependencies.ps1",
+      "exitCode": 0,
+      "pid": 58188,
+      "creationUtc": "2026-11-02T11:32:51.9573578Z",
+      "completedUtc": "2026-11-02T11:32:56.8925265Z"
+    },
+    {
+      "source": "1043b532b9f6f9f37b799e5342bcf868113cf710",
+      "entry": "validate-test-port.ps1",
+      "exitCode": 0,
+      "pid": 44072,
+      "creationUtc": "2026-11-02T11:32:51.9666593Z",
+      "completedUtc": "2026-11-02T11:33:02.1631001Z"
+    },
+    {
+      "source": "1043b532b9f6f9f37b799e5342bcf868113cf710",
+      "entry": "validate-build-matrix.ps1",
+      "exitCode": 0,
+      "pid": 110304,
+      "creationUtc": "2026-11-02T11:32:51.9827334Z",
+      "completedUtc": "2026-11-02T11:33:02.1681742Z"
+    },
+    {
+      "source": "1043b532b9f6f9f37b799e5342bcf868113cf710",
+      "entry": "Tools/Test-Changelog.ps1",
+      "exitCode": 0,
+      "pid": 89400,
+      "creationUtc": "2026-11-02T11:32:52.0114400Z",
+      "completedUtc": "2026-11-02T11:33:02.1708329Z"
+    }
+  ]
+}

@@ -1,0 +1,1 @@
+- Allow bounded mathematical alphabet expansion to produce surrogate-pair text without rejecting an otherwise admissible source.

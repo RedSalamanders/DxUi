@@ -603,6 +603,96 @@ void TestScrollPanelThumbGutterDragThroughWindowHost()
     Require(handled, "scroll panel handles captured thumb gutter mouse-up");
 }
 
+void TestSliderReleasePreservesCaptureTransferredByPreview()
+{
+    using namespace DxUi;
+    WindowHost host;
+    auto root         = std::make_unique<Panel>();
+    auto* slider      = root->AddChild<Slider>();
+    auto* replacement = root->AddChild<Button>(L"replacement");
+    slider->SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 40.0f));
+    slider->SetValue(50.0);
+    host.SetRoot(std::move(root));
+    bool armed      = false;
+    size_t previews = 0u, cancellations = 0u, commits = 0u;
+    slider->SetOnChange([&](SliderChange change)
+    {
+        if (change.phase == SliderChangePhase::Preview && armed)
+        {
+            ++previews;
+            armed = false;
+            host.CaptureMouse(replacement);
+        }
+        else if (change.phase == SliderChangePhase::Cancel)
+            ++cancellations;
+        else if (change.phase == SliderChangePhase::Commit)
+            ++commits;
+    });
+    Require(slider->OnMouseDown(host, D2D1::Point2F(120.0f, 20.0f), false, 0u), "slider starts the original captured drag");
+    armed = true;
+    Require(slider->OnMouseUp(host, D2D1::Point2F(200.0f, 20.0f), false, 0u), "old release is consumed after preview transfer");
+    Require(previews == 1u && cancellations == 1u && commits == 0u && host.GetCapturedControl() == replacement && slider->GetValue() == 50.0,
+            "preview capture transfer cancels the old draft without releasing or committing the new gesture");
+}
+void TestSliderOldReleaseCannotFinishRestartedDrag()
+{
+    using namespace DxUi;
+    WindowHost host;
+    auto root    = std::make_unique<Panel>();
+    auto* slider = root->AddChild<Slider>();
+    slider->SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 40.0f));
+    slider->SetValue(50.0);
+    host.SetRoot(std::move(root));
+    bool restart         = false;
+    size_t cancellations = 0u, commits = 0u;
+    slider->SetOnChange([&](SliderChange change)
+    {
+        if (change.phase == SliderChangePhase::Preview && restart)
+        {
+            restart = false;
+            slider->OnCaptureLost(host);
+            static_cast<void>(slider->OnMouseDown(host, D2D1::Point2F(120.0f, 20.0f), false, 0u));
+        }
+        else if (change.phase == SliderChangePhase::Cancel)
+            ++cancellations;
+        else if (change.phase == SliderChangePhase::Commit)
+            ++commits;
+    });
+    Require(slider->OnMouseDown(host, D2D1::Point2F(120.0f, 20.0f), false, 0u), "original slider drag starts");
+    restart = true;
+    Require(slider->OnMouseUp(host, D2D1::Point2F(200.0f, 20.0f), false, 0u), "original release triggers cancellation and restart");
+    Require(cancellations == 1u && commits == 0u && host.GetCapturedControl() == slider,
+            "the reentrant replacement drag retains capture without an old commit");
+    Require(slider->OnMouseUp(host, D2D1::Point2F(120.0f, 20.0f), false, 0u) && commits == 1u && ! host.GetCapturedControl(),
+            "the replacement drag receives its own release and commit");
+}
+void TestScrollPanelThrowingScrollCallbackIsContained()
+{
+    using namespace DxUi;
+    WindowHost host;
+    auto root    = std::make_unique<Panel>();
+    auto* scroll = root->AddChild<ScrollPanel>();
+    scroll->SetBounds(D2D1::RectF(0.0f, 0.0f, 120.0f, 100.0f));
+    scroll->SetContentHeight(500.0f);
+    host.SetRoot(std::move(root));
+    size_t calls = 0u;
+    scroll->SetOnScrollChanged([&](float value)
+    {
+        ++calls;
+        Require(value == 32.0f, "callback observes the committed scroll offset");
+        throw std::runtime_error("synthetic scroll observer failure");
+    });
+    scroll->SetScrollOffset(32.0f);
+    Require(calls == 1u && scroll->GetScrollOffset() == 32.0f, "throwing callback leaves its committed scroll offset intact");
+    scroll->SetOnScrollChanged([&](float)
+    {
+        ++calls;
+        host.SetRoot({});
+        throw std::runtime_error("synthetic retired observer failure");
+    });
+    scroll->SetScrollOffset(48.0f);
+    Require(calls == 2u && ! host.GetRoot(), "a callback may retire its owner and throw without a stale continuation");
+}
 void TestScrollPanelScrollCallbackCanReplaceItsOwnCallable()
 {
     using namespace DxUi;
@@ -1366,6 +1456,20 @@ void TestTagPickerWrapsBadgesInsideInputFrame()
     Require(inputRect.top > tagPicker->DebugGetDisplayTagRect(0u).top, "tag picker wraps the embedded input to a later row when badges need width");
 }
 
+void TestTagPickerClearChildrenCompactsDerivedSlots()
+{
+    using namespace DxUi;
+    TagPicker picker;
+    const auto initial = picker.GetChildren().size();
+    Require(initial == 1u, "picker begins with its owned combo");
+    for (unsigned cycle = 0u; cycle < 8u; ++cycle)
+    {
+        picker.AddChild<Button>(L"Extra");
+        picker.ClearChildren();
+        Require(picker.GetChildren().size() == initial && picker.GetChildren().front(), "derived children leave no null or growing slots");
+    }
+}
+
 void TestTagPickerSuggestionsTrackSelectedBadges()
 {
     using namespace DxUi;
@@ -2036,6 +2140,7 @@ struct ScrollPanelDetachProbeState
     size_t captureLostCount = 0u;
     // Runs last in OnCaptureLost, so it may destroy the probe.
     std::function<void()> onCaptureLost;
+    std::function<void()> onHoverLeave;
 };
 
 // Existing identity/RAII/reference traits intentionally delete these implicit operations.
@@ -2085,6 +2190,11 @@ protected:
             ++_state->hoverLeaveCount;
         }
         Control::OnHoverChanged(host, hovered);
+        if (! hovered)
+        {
+            if (ScrollPanelDetachProbeState* const state = _state; state->onHoverLeave)
+                state->onHoverLeave();
+        }
     }
 
     void OnCaptureLost(DxUi::ControlHost& host) override
@@ -2100,6 +2210,119 @@ private:
 };
 #pragma warning(pop)
 
+void TestPanelLegacyDetachNotificationCall()
+{
+    using namespace DxUi;
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
+    class DerivedPanel final : public Panel
+    {
+    public:
+        void Notify(Control& child) noexcept
+        {
+            NotifyContainersOfDetaching(child);
+        }
+        unsigned calls = 0u;
+
+    protected:
+        void OnDescendantDetaching(Control& /*child*/) noexcept override
+        {
+            ++calls;
+        }
+    };
+#pragma warning(pop)
+    DerivedPanel panel;
+    auto* child = panel.AddChild<Button>(L"Child");
+    panel.Notify(*child);
+    Require(panel.calls == 1u, "the existing one-argument protected notification retains its attached precommit phase");
+}
+void TestScrollPanelPreservesHoverWhenNestedExtractionIsRefused()
+{
+    using namespace DxUi;
+    WindowHost host;
+    auto root    = std::make_unique<Panel>();
+    auto* scroll = root->AddChild<ScrollPanel>();
+    scroll->SetBounds(D2D1::RectF(0, 0, 300, 200));
+    scroll->SetContentHeight(200);
+    auto* list = scroll->AddChild<Panel>();
+    list->SetBounds(D2D1::RectF(0, 0, 300, 100));
+    ScrollPanelDetachProbeState state;
+    auto* row = list->AddChild<ScrollPanelDetachProbe>(state);
+    row->SetBounds(D2D1::RectF(0, 0, 200, 40));
+    row->SetFocusable(true);
+    host.SetRoot(std::move(root));
+    host.GetRoot()->SetBounds(D2D1::RectF(0, 0, 320, 240));
+    bool handled = false;
+    static_cast<void>(host.HandleMessage(nullptr, WM_MOUSEMOVE, 0, MAKELPARAM(50, 20), handled));
+    Require(row->IsHovered(), "the nested row is hovered before extraction");
+    host.SetFocusControl(row, false);
+    bool restored = false;
+    host.SetOnFocusChanged([&](Control* focused)
+    {
+        if (! restored && focused != row)
+        {
+            restored = true;
+            host.SetFocusControl(row, false);
+        }
+    });
+    auto refused = list->TakeChild(0u);
+    Require(restored && ! refused && host.GetFocusControl() == row && row->IsHovered(),
+            "refused extraction preserves callback-restored focus and the existing hover");
+    Require(state.hoverLeaveCount == 0u && state.mouseLeaveCount == 0u, "refused extraction sends no spurious hover departure");
+    host.SetOnFocusChanged({});
+    auto taken = list->TakeChild(0u);
+    Require(taken.get() == row && ! row->IsHovered() && state.hoverLeaveCount == 1u && state.mouseLeaveCount == 1u,
+            "successful extraction ends the hover exactly once");
+}
+void TestScrollPanelCommittedHoverCallbackCanRetireHostRoot()
+{
+    using namespace DxUi;
+    WindowHost host;
+    auto root    = std::make_unique<Panel>();
+    auto* scroll = root->AddChild<ScrollPanel>();
+    scroll->SetBounds(D2D1::RectF(0, 0, 300, 200));
+    scroll->SetContentHeight(200);
+    auto* list = scroll->AddChild<Panel>();
+    list->SetBounds(D2D1::RectF(0, 0, 300, 100));
+    ScrollPanelDetachProbeState state;
+    auto* row = list->AddChild<ScrollPanelDetachProbe>(state);
+    row->SetBounds(D2D1::RectF(0, 0, 200, 40));
+    host.SetRoot(std::move(root));
+    host.GetRoot()->SetBounds(D2D1::RectF(0, 0, 320, 240));
+    bool handled = false;
+    static_cast<void>(host.HandleMessage(nullptr, WM_MOUSEMOVE, 0, MAKELPARAM(50, 20), handled));
+    Require(row->IsHovered(), "the row is hovered before its committed removal");
+    state.onHoverLeave = [&] { host.SetRoot({}); };
+    auto taken         = list->TakeChild(0u);
+    Require(taken.get() == row && host.GetRoot() == nullptr && state.hoverLeaveCount == 1u,
+            "committed hover callback may retire the host root while the detached child survives");
+}
+void TestScrollPanelHoverDepartureStopsAfterHostRebinding()
+{
+    using namespace DxUi;
+    WindowHost host;
+    WindowHost destination;
+    auto root       = std::make_unique<Panel>();
+    auto* rootPanel = root.get();
+    auto* scroll    = root->AddChild<ScrollPanel>();
+    scroll->SetBounds(D2D1::RectF(0, 0, 300, 200));
+    scroll->SetContentHeight(200);
+    auto* list = scroll->AddChild<Panel>();
+    list->SetBounds(D2D1::RectF(0, 0, 300, 100));
+    ScrollPanelDetachProbeState state;
+    auto* row = list->AddChild<ScrollPanelDetachProbe>(state);
+    row->SetBounds(D2D1::RectF(0, 0, 200, 40));
+    host.SetRoot(std::move(root));
+    rootPanel->SetBounds(D2D1::RectF(0, 0, 320, 240));
+    bool handled = false;
+    static_cast<void>(host.HandleMessage(nullptr, WM_MOUSEMOVE, 0, MAKELPARAM(50, 20), handled));
+    Require(row->IsHovered(), "the row is hovered before its removal");
+    state.onHoverLeave = [&] { destination.SetRoot(rootPanel->TakeChild(0u)); };
+    auto taken         = list->TakeChild(0u);
+    Require(taken.get() == row && destination.GetRoot() == scroll && state.hoverLeaveCount == 1u,
+            "the hover callback can move its enclosing panel to another host");
+    Require(state.mouseLeaveCount == 0u, "the old host sends no remaining leave callback after the panel changes hosts");
+}
 void TestScrollPanelEndsHoverOfARowTakenFromIt()
 {
     using namespace DxUi;
@@ -3550,6 +3773,10 @@ void RunControlTests()
     DXUI_RUN_TEST(TestScrollPanelOverlayDismissalCanRetireItsOwner);
     DXUI_RUN_TEST(TestMeasuredActionsFailureAndDirectionContracts);
     DXUI_RUN_TEST(TestScrollPanelChildCallbacksCanClearChildrenSafely);
+    DXUI_RUN_TEST(TestPanelLegacyDetachNotificationCall);
+    DXUI_RUN_TEST(TestScrollPanelPreservesHoverWhenNestedExtractionIsRefused);
+    DXUI_RUN_TEST(TestScrollPanelCommittedHoverCallbackCanRetireHostRoot);
+    DXUI_RUN_TEST(TestScrollPanelHoverDepartureStopsAfterHostRebinding);
     DXUI_RUN_TEST(TestScrollPanelEndsHoverOfARowTakenFromIt);
     DXUI_RUN_TEST(TestScrollPanelEndsTheGestureOfAPressedRowTakenFromIt);
     DXUI_RUN_TEST(TestScrollPanelEndsTheGestureOfANestedRowItsPanelTakes);
@@ -3575,6 +3802,9 @@ void RunControlTests()
     DXUI_RUN_TEST(TestToggleStateLabelsFollowCheckedState);
     DXUI_RUN_TEST(TestFocusRingPaintPathsHandleMissingDeviceContext);
     DXUI_RUN_TEST(TestScrollPanelThumbGutterDragThroughWindowHost);
+    DXUI_RUN_TEST(TestSliderOldReleaseCannotFinishRestartedDrag);
+    DXUI_RUN_TEST(TestSliderReleasePreservesCaptureTransferredByPreview);
+    DXUI_RUN_TEST(TestScrollPanelThrowingScrollCallbackIsContained);
     DXUI_RUN_TEST(TestScrollPanelScrollCallbackCanReplaceItsOwnCallable);
     DXUI_RUN_TEST(TestScrollPanelScrollDispatchDoesNotCopyCallbackTargets);
     DXUI_RUN_TEST(TestScrollPanelScrollbarTrackCallbackCanDestroyItsOwner);
@@ -3593,6 +3823,7 @@ void RunControlTests()
     DXUI_RUN_TEST(TestColorSwatchStoresConfiguredArgbAndEmptyState);
     DXUI_RUN_TEST(TestTagPickerWrapsBadgesInsideInputFrame);
     DXUI_RUN_TEST(TestTagPickerSuggestionsTrackSelectedBadges);
+    DXUI_RUN_TEST(TestTagPickerClearChildrenCompactsDerivedSlots);
     DXUI_RUN_TEST(TestTagPickerKeyboardNavigationCommitsFilteredSuggestionOnEnter);
     DXUI_RUN_TEST(TestToggleRightClickInvokesContextMenuWithoutChangingState);
     DXUI_RUN_TEST(TestCheckboxRightClickInvokesContextMenuWithoutChangingState);

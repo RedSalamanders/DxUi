@@ -1,0 +1,40 @@
+{
+  "slot": {
+    "slot": 55,
+    "block": 14,
+    "scenario": "original",
+    "scenarioBlock": 1,
+    "pattern": "BAAB",
+    "withinBlock": 3,
+    "side": "A"
+  },
+  "command": "\"Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\semantic-owner-final\\baseline-attempt-03\\original\\out\\RichOwnerProbe.exe\"",
+  "workingDirectory": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\semantic-owner-final\\baseline-attempt-03\\original\\out",
+  "exe": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\semantic-owner-final\\baseline-attempt-03\\original\\out\\RichOwnerProbe.exe",
+  "exeSha256": "8381261F861E50B04A030911B1B1F1F6A952CC14ED34BAD58F47F3173CA30C34",
+  "pdb": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\semantic-owner-final\\baseline-attempt-03\\original\\out\\RichOwnerProbe.pdb",
+  "pdbSha256": "B015972A68E17F3BEA3BC6262A5D5A77EFEC421681BAF546701EDB0B21E04C23",
+  "certificate": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\semantic-owner-final\\baseline-attempt-03\\validated-input-closure\\validated-build-provenance.json",
+  "certificateSha256": "86F78716A93428AB1286265DC71124ED8997A3D9B57A80EB79938BD0E6269A87",
+  "sourceCommit": "4423074dee2410acb28e62b41072e6c561a79eb8",
+  "sourceArchive": {
+    "path": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\semantic-owner-final\\source-provenance\\baseline-442-source.tar",
+    "sha256": "33EEF22A11D573266195924F74C1C2E311252C658123965C7C810207D18CDD82"
+  },
+  "v2Certificate": {
+    "path": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\semantic-owner-final\\source-provenance\\baseline-442-v2-build.json",
+    "sha256": "13EF094A4D1D6008FA2DD325A99D08472EDACC0C3C475902382FA35B3C808561"
+  },
+  "verification": {
+    "path": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\semantic-owner-final\\source-provenance\\baseline-442-verified.json",
+    "sha256": "9EA1298C4AF3B098391E8B94E301D849E1972162326BF3FE0C3751D22815B6E9"
+  },
+  "tlogSha256": {
+    "link.read.1.tlog": "4C1B81345A986CEC0318E7369722A1FC5A0C9D382185E664A3E2A151BD200F2B",
+    "link.command.1.tlog": "23D9E483E8E4F8D1415C8DEF5133C8E78038A35FD9EDBC35653859E270B7FCE8",
+    "CL.command.1.tlog": "0A972667AE91852F6A48AAE631EFD4A6C7B537CD8A635F00CEBAB9EE187BD3E3",
+    "CL.read.1.tlog": "07927F2D6E6ECA5B10D7EF19532DB6D747BD2E9B34340357D7C5B81D72CFEDB5"
+  },
+  "timeoutSeconds": 120,
+  "submittedUtc": "2026-11-02T08:49:16.2087948Z"
+}

@@ -3,23 +3,59 @@
 #include <DxUi/Configuration.h>
 #include <DxUi/RichSemanticDocument.h>
 #include <DxUi/RichTextLayout.h>
+#include <span>
 #include <stdexcept>
+#include <vector>
 
 namespace DxUi::RichText::Detail
 {
+// The visual and input routes share this hit rectangle. Narrow code frames
+// omit the action so it never covers editable text.
+inline std::optional<D2D1_RECT_F> CodeCopyBounds(D2D1_RECT_F frame, bool rtl) noexcept
+{
+    if (frame.right - frame.left < 96.0f || frame.bottom - frame.top < 20.0f)
+        return std::nullopt;
+    const auto left = rtl ? frame.left + 4.0f : frame.right - 22.0f;
+    return D2D1_RECT_F{left, frame.top + 3.0f, left + 18.0f, frame.top + 21.0f};
+}
 struct RichImageResourceSet;
 // Dormant owner-thread seam for observing real uploads and injecting driver
 // HRESULT failures. It is never consulted during painting/composition.
 struct RichImageRasterCalls
 {
     HRESULT (*createBitmap)(ID2D1RenderTarget*, D2D1_SIZE_U, const void*, UINT32, const D2D1_BITMAP_PROPERTIES&, ID2D1Bitmap**) noexcept {};
+    HRESULT (*copyBitmap)(ID2D1Bitmap*, const D2D1_RECT_U&, const void*, UINT32) noexcept {};
 };
 #if DXUI_ENABLE_DIAGNOSTICS
 extern thread_local const RichImageRasterCalls* testRichImageRasterCalls;
+extern thread_local bool testRichSvgTargetUnsupported;
+extern thread_local std::size_t testRichSvgRasterizations;
 // Private owner-thread seams for proving that native preparation errors retain
 // their HRESULT and that the editor can substitute an instrumented factory.
 extern thread_local IDWriteFactory* testRichSemanticWriteFactory;
+// 1: semantic staging, 2: native geometry; persistent until the test clears it.
+extern thread_local bool testRichScriptTargetUnsupported;
+extern thread_local unsigned testRichPreparationFailure;
+extern thread_local std::size_t testRichPreparationFailureAttempts;
 #endif
+class NativeObjectsRejected final : public std::exception
+{
+public:
+    explicit NativeObjectsRejected(const std::vector<std::size_t>& elements) : elements_(elements)
+    {
+    }
+    std::span<const std::size_t> Elements() const noexcept
+    {
+        return elements_;
+    }
+    const char* what() const noexcept override
+    {
+        return "Native object geometry rejected";
+    }
+
+private:
+    std::vector<std::size_t> elements_;
+};
 class NativeObjectCapacity final : public std::length_error
 {
 public:
@@ -85,7 +121,10 @@ public:
     std::uint64_t Generation() const noexcept;
     std::uint64_t Revision() const noexcept;
     float Height() const noexcept;
+    float Width() const noexcept;
+    bool HasMarkedText() const noexcept;
     std::size_t BoxCount() const noexcept;
+    std::size_t ReusedBoxCount() const noexcept;
     bool HasNativeObjects() const noexcept;
     const SemanticDocument& Document() const;
     Hit HitTest(float x, float y) const;
@@ -119,10 +158,13 @@ public:
               D2D1_POINT_2F origin,
               float top,
               float bottom,
-              ID2D1Brush* fill         = nullptr,
-              float imageOpacity       = 1.0f,
-              const LinkDrawing* links = nullptr,
-              ID2D1Brush* quoteFill    = nullptr) const;
+              ID2D1Brush* fill                         = nullptr,
+              float imageOpacity                       = 1.0f,
+              const LinkDrawing* links                 = nullptr,
+              ID2D1Brush* quoteFill                    = nullptr,
+              const DiagramColorContext* diagramColors = nullptr,
+              ID2D1Brush* calloutAccent                = nullptr,
+              ID2D1Brush* propertiesInk                = nullptr) const;
 
 private:
     struct State;

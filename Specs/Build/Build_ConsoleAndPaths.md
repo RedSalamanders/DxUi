@@ -37,6 +37,7 @@ dependency fingerprints; an old archive cannot reuse the changed policy's output
 Build/BuildConsole.psm1 implements the common result/diagnostic/link contract.
 A native success summary is green only after native exit success, zero logged
 warnings/errors and the entrypoint's existing provenance/attestation checks.
+The MSBuild file log must contain an ordered completed success footer with explicit zero warning and error counts and elapsed time; diagnostic matching is bounded. Consumer qualification scans the logs of its initial library/consumer compile and subsequent module builds. Non-default and production-only outputs rebuild because no matching complete native receipt protects incremental reuse.
 Failed builds remain failures. Clean/package-only operations preserve their
 existing meaning and do not pretend to be native compilation.
 

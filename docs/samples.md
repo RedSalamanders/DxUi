@@ -21,8 +21,7 @@ progress bars, plus a Grid and Tree. Dragging a slider updates its corresponding
 locally; the example performs no system configuration or device operations.
 
 The [sample host](../Samples/EmbeddedControls/Main.cpp) owns its WARP device, fixed-size window and swap chain.
-It blocks on messages while idle. These examples demonstrate embedding at 96 DPI; full IME/UIA bridging, adaptive
-layout, hardware presentation pacing and physical touch validation remain separate integration work.
+It blocks on messages while idle. Headless captures use fixed 96-DPI canvases; the live window follows per-monitor DPI and resizes its target. Full IME/UIA qualification, adaptive layout, hardware presentation pacing and physical touch validation remain separate integration work.
 
 The `--rich-text` mode uses a 980x720 canvas and the sample's text-service bridge.
 Its headings/styles, tables, quotes, tasks, code and image alternatives use the
@@ -31,16 +30,17 @@ and empty/padded cells retain native caret sites without changing raw source.
 The scene also shows measured 9./10. hanging list columns, underlined inert links,
 the validated native HTML text subset and whole-leaf literal CSS fallback.
 HTML tags and original mixed EOLs remain raw editable source.
-Table materialization, structural commands and semantic style UIA remain in the
-active plan. Add `--output image.png` for a deterministic headless capture.
+Table materialization, structural commands and semantic style UIA are implemented;
+their remaining platform and consumer qualification is tracked separately. Add `--output image.png` for a deterministic headless capture.
 
 For file-reference paste, add `--document-path 'C:\notes\note.md'` to `--rich-text`.
 This sets location metadata; it does not load or save the file. Copy files in
 Explorer and press Ctrl+V: recognized images become displayed image references
 when serviced by the sample worker; other files become inert full-filename links.
 Destinations are relative to that document folder, or absolute file URIs when no
-compatible base exists. The [drag-and-drop spec and test plan](../Specs/Plans/WIP/RichTextFileDrop_2026-10-20.md)
-is pending implementation; dropping files into this sample is not yet supported.
+compatible base exists. The sample registers its own OLE drop target and routes bounded file drops through
+the library adapter to the prepared rich editor. The [drag-and-drop plan](../Specs/Plans/Done/RichTextFileDrop_2026-10-20.md)
+tracks its remaining qualification.
 
 The [benchmark](../Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h) uses that exact complex scene, with deterministic clean/dirty
 updates and GPU completion measurement. Run [performance.ps1](../performance.ps1) for FPS and memory receipts;

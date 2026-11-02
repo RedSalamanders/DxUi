@@ -26,6 +26,14 @@ struct Scenario
     std::wstring_view name, source, common, gfm, rich;
 };
 inline constexpr Scenario scenarios[] = {
+    {L"math value is escaped in test HTML", L"$a&b\"c$\n", L"<p>$a&amp;b&quot;c$</p>\n", {}, L"<p><span class=\"math\">a&amp;b&quot;c</span></p>\n"},
+    {L"math comparison is escaped", L"$x < y$\n", L"<p>$x &lt; y$</p>\n", {}, L"<p><span class=\"math\">x &lt; y</span></p>\n"},
+    {L"explicit inline math delimiter", L"\\(x+1\\)\n", L"<p>(x+1)</p>\n", {}, L"<p><span class=\"math\">x+1</span></p>\n"},
+    {L"math cannot start with whitespace", L"$ x$\n", L"<p>$ x$</p>\n", {}, {}},
+    {L"inline double dollars stay literal", L"$$x$$\n", L"<p>$$x$$</p>\n", {}, {}},
+    {L"math adjacent to emphasis", L"*$x$*\n", L"<p><em>$x$</em></p>\n", {}, L"<p><em><span class=\"math\">x</span></em></p>\n"},
+    {L"math in image alternative text", L"![$x$](img)\n", L"<p><img src=\"img\" alt=\"$x$\" /></p>\n", {}, L"<p><img src=\"img\" alt=\"x\" /></p>\n"},
+    {L"footnote source remains visible in test HTML", L"see [^n]\n", L"<p>see [^n]</p>\n", {}, {}},
     {L"reference-only paragraph cannot become a table header", L"[r]: /url\n| - |\n", L"<p>| - |</p>\n", {}, {}},
     {L"reference extraction before a real table header",
      L"[r]: /url\nheader\n| --- |\n[r]\n",
@@ -92,6 +100,7 @@ inline constexpr Scenario scenarios[] = {
     {L"Unicode punctuation and intraword underscore", L"foo_bar_baz «*café*»\n", L"<p>foo_bar_baz «<em>café</em>»</p>\n", {}, {}},
     {L"supplementary symbol flanking dialect", L"a*\U0001f600*b\n", L"<p>a*\U0001f600*b</p>\n", L"<p>a<em>\U0001f600</em>b</p>\n", L"<p>a*\U0001f600*b</p>\n"},
     {L"nested delimiters", L"***both*** and **bold *em***\n", L"<p><em><strong>both</strong></em> and <strong>bold <em>em</em></strong></p>\n", {}, {}},
+    {L"original delimiter lengths after partial consumption", L"a****b***c\n", L"<p>a*<em><strong>b</strong></em>c</p>\n", {}, {}},
     {L"GFM printed redundant strong convention",
      L"****bold****\n",
      L"<p><strong><strong>bold</strong></strong></p>\n",
@@ -130,7 +139,7 @@ inline constexpr Scenario scenarios[] = {
      L"~~a **b**~~ ~c~ ~~~d~~~\n",
      L"<p>~~a <strong>b</strong>~~ ~c~ ~~~d~~~</p>\n",
      L"<p><del>a <strong>b</strong></del> ~c~ ~~~d~~~</p>\n",
-     {}},
+     L"<p><del>a <strong>b</strong></del> <sub>c</sub> ~~~d~~~</p>\n"},
     {L"GFM task and ordinary list items",
      L"- [x] yes\n- [ ] no\n- [x]word\n",
      L"<ul>\n<li>[x] yes</li>\n<li>[ ] no</li>\n<li>[x]word</li>\n</ul>\n",

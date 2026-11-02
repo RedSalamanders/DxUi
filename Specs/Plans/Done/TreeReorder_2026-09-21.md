@@ -4,7 +4,7 @@
   regenerated from `448e924` with the `Tree / Multi-select` tile and the design system republished as version 17 with
   the Tree guideline, preview and styles; RedPrism's pin bump remains, since its adoption pin `271bd54` predates #35)
 - **Owner**: DxUi `Tree` (`include/DxUi/DxUi.h`, `src/Controls`). Remaining RedPrism exact-pin adoption and product
-  verification are consumer-owned and tracked in [the API revision 4 handoff register](../WIP/ProductionReview_2026-10-05/api4-consumer-handoffs.md).
+  verification are consumer-owned and tracked in [the API revision 4 handoff register](ProductionReview_2026-10-05/api4-consumer-handoffs.md).
   RedPrism must not grow a second tree widget.
 - **Qualification owner**: later/current-source platform, performance and physical-input/IME/AT acceptance remains
   in the [shared qualification ledger](../WIP/ConsumerUiQualification_2026-10-11.md#shared-qualification-ownership-16-october-2026).

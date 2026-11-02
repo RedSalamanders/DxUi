@@ -1,0 +1,1 @@
+- Expand bounded native math notation with hash-pinned Unicode symbols and TeX atom classes.

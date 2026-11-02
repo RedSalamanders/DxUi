@@ -261,6 +261,16 @@ function Complete-TestRunEvidence {
     }
 }
 
+# Preserve an in-flight runner failure while still reporting evidence finalization errors.
+function Complete-TestRunEvidenceAfterFailure {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)] $Run, [Parameter(Mandatory)][bool] $Passed, [System.Management.Automation.ErrorRecord] $PrimaryFailure)
+    try { Complete-TestRunEvidence -Run $Run -Passed $Passed }
+    catch {
+        if ($null -eq $PrimaryFailure) { throw }
+        Write-Warning -WarningAction Continue "Test run evidence finalization also failed: $($_.Exception.Message)"
+    }
+}
 function Publish-TestRunEvidenceReceipt {
     [CmdletBinding()]
     param([Parameter(Mandatory)] $Run, [Parameter(Mandatory)][string] $Name, [Parameter(Mandatory)] $Receipt)
@@ -292,4 +302,4 @@ function Publish-TestRunEvidenceReceipt {
     } finally { if ($publication) { $publication.Dispose() }; $pin.Dispose() }
 }
 
-Export-ModuleMember -Function Start-TestRunEvidence, Complete-TestRunEvidence, Publish-TestRunEvidenceReceipt
+Export-ModuleMember -Function Start-TestRunEvidence, Complete-TestRunEvidence, Complete-TestRunEvidenceAfterFailure, Publish-TestRunEvidenceReceipt

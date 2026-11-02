@@ -1,0 +1,40 @@
+{
+  "slot": {
+    "slot": 11,
+    "block": 3,
+    "scenario": "inflight",
+    "scenarioBlock": 2,
+    "pattern": "BAAB",
+    "withinBlock": 3,
+    "side": "A"
+  },
+  "command": "\"Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\semantic-owner-final\\baseline-attempt-03\\inflight\\out\\RichOwnerProbe.exe\"",
+  "workingDirectory": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\semantic-owner-final\\baseline-attempt-03\\inflight\\out",
+  "exe": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\semantic-owner-final\\baseline-attempt-03\\inflight\\out\\RichOwnerProbe.exe",
+  "exeSha256": "CCF36BB82BC9BC28FF7D931470273E2955CE83C548087746609C19780EF810A2",
+  "pdb": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\semantic-owner-final\\baseline-attempt-03\\inflight\\out\\RichOwnerProbe.pdb",
+  "pdbSha256": "6C8F449690D1AB8DA6AA084485F6C54E4ED67B248A8798F077A72A2E64716273",
+  "certificate": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\semantic-owner-final\\baseline-attempt-03\\validated-input-closure\\validated-build-provenance.json",
+  "certificateSha256": "86F78716A93428AB1286265DC71124ED8997A3D9B57A80EB79938BD0E6269A87",
+  "sourceCommit": "4423074dee2410acb28e62b41072e6c561a79eb8",
+  "sourceArchive": {
+    "path": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\semantic-owner-final\\source-provenance\\baseline-442-source.tar",
+    "sha256": "33EEF22A11D573266195924F74C1C2E311252C658123965C7C810207D18CDD82"
+  },
+  "v2Certificate": {
+    "path": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\semantic-owner-final\\source-provenance\\baseline-442-v2-build.json",
+    "sha256": "13EF094A4D1D6008FA2DD325A99D08472EDACC0C3C475902382FA35B3C808561"
+  },
+  "verification": {
+    "path": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\review-delivery\\semantic-owner-final\\source-provenance\\baseline-442-verified.json",
+    "sha256": "9EA1298C4AF3B098391E8B94E301D849E1972162326BF3FE0C3751D22815B6E9"
+  },
+  "tlogSha256": {
+    "link.read.1.tlog": "E012EAE0E95CC1134C4CCE1A0A4B147216AB5B08A381451E8F275BC00180DDA5",
+    "link.command.1.tlog": "9CF0FF8E26D71C18D07AF5CB12D25361078F983EF399865B7087BC13D85D7B22",
+    "CL.command.1.tlog": "9C25AB86B3E3D27D41354D4EECC29E1F4AD0E99EF14D47B7271686AF2D3F5959",
+    "CL.read.1.tlog": "6B7433A16BFC1FFF65381985CFCBD355EE7C56DE56E542430D6CB58434BCA8C5"
+  },
+  "timeoutSeconds": 120,
+  "submittedUtc": "2026-11-02T08:48:28.7614078Z"
+}

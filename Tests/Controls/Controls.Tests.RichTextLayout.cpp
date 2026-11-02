@@ -368,6 +368,9 @@ void TestRichTextLayoutOptionsFailureAtomicityAndRetirement()
     invalid                    = options;
     invalid.listItemSpacingDip = 257.0f;
     Reject([&] { layout.Prepare(factory.get(), projection, invalid); }, "out-of-range semantic list spacing rejected at public layout admission");
+    invalid     = options;
+    invalid.dpi = 0.f;
+    Reject([&] { layout.Prepare(factory.get(), projection, invalid); }, "invalid device DPI rejected at public layout admission");
     auto malformed                = projection;
     malformed.runs.front().length = projection.text.size() + 1;
     Reject([&] { layout.Prepare(factory.get(), malformed, options); }, "out-of-range public style rejected");
@@ -387,7 +390,7 @@ void TestRichTextLayoutOptionsFailureAtomicityAndRetirement()
     malformed.units.clear();
     Reject([&] { layout.Prepare(factory.get(), malformed, options); }, "missing display mapping rejected");
     malformed                    = projection;
-    malformed.runs.front().flags = 0x80;
+    malformed.runs.front().flags = 0x200;
     Reject([&] { layout.Prepare(factory.get(), malformed, options); }, "unknown style bits rejected");
     malformed                     = projection;
     malformed.runs.front().start  = projection.text.size() - 1;
@@ -503,6 +506,8 @@ void TestRichTextSourceInkRendererMatchesCanonicalRaster()
 
     const std::array ink{TextInkRange{{0u, 5u}, TextInkRole::Accent}, TextInkRange{{6u, 14u}, TextInkRole::Link}};
     LinkDrawing drawing;
+    Require(! drawing.directSourceInkPreview, "direct source renderer is disabled by default independently of source colors");
+    drawing.directSourceInkPreview                               = true;
     drawing.brush                                                = red.get(); // RTE supplies its accent brush even when Source has no link runs.
     drawing.inkRanges                                            = ink;
     drawing.inkBrushes[static_cast<size_t>(TextInkRole::Accent)] = red.get();
@@ -1023,7 +1028,6 @@ void TestRichTextSourceInkRendererMatchesCanonicalRaster()
     THROW_IF_FAILED(context->EndDraw());
     const bool observedColorFont = std::ranges::any_of(colorDiagnostic->Runs(), [](const SourceInkRunDiagnostic& run) { return run.colorFont; });
     Require(observedColorFont, "emoji fixture is shaped by an actual DirectWrite color font");
-
     wil::com_ptr<ID2D1DeviceContext7> colorContext;
     const HRESULT colorContextQuery = context->QueryInterface(IID_PPV_ARGS(colorContext.put()));
     std::cerr << std::format("[SOURCE INK COLOR FIXTURE] colorFont={} deviceContext7={}\n", observedColorFont, SUCCEEDED(colorContextQuery));
@@ -1389,6 +1393,17 @@ void TestRichTextSourceInkRendererMatchesCanonicalRaster()
         {
             options.readingDirection = direction;
             layout.Prepare(factory.get(), projection, options);
+#if DXUI_ENABLE_DIAGNOSTICS
+            auto canonicalDefault                   = drawing;
+            canonicalDefault.directSourceInkPreview = false;
+            const auto attemptsBefore               = Detail::testSourceInkRendererAttempts;
+            const auto canonicalDefaultPixels       = render(layout, canonicalDefault, D2D1::Point2F(8.375f, 8.625f));
+            Require(Detail::testSourceInkRendererAttempts == attemptsBefore, "default source coloring avoids direct-renderer preflight");
+            const auto attemptsBeforePreview = Detail::testSourceInkRendererAttempts;
+            const auto previewPixels         = render(layout, drawing, D2D1::Point2F(8.375f, 8.625f));
+            Require(Detail::testSourceInkRendererAttempts > attemptsBeforePreview && previewPixels == canonicalDefaultPixels,
+                    "explicit preview exercises the direct renderer while retaining canonical colored pixels");
+#endif
             shared = layout;
             for (const FLOAT dpi : {96.0f, 120.0f, 144.0f, 192.0f})
             {
@@ -1589,6 +1604,22 @@ void TestPreparedFlowchartBorrowedWarpTargets()
 void TestPreparedFlowchartEdgeLabelsCannotBeObscured()
 {
     PreparedFlowchartTests::EdgeLabelRasterOracle(Require);
+    PreparedFlowchartTests::LineStyleRasterOracle(Require);
+    PreparedFlowchartTests::CardinalityRaster(Require);
+    PreparedFlowchartTests::GroupRaster(Require);
+    PreparedFlowchartTests::SequenceRaster(Require);
+    PreparedFlowchartTests::PieRaster(Require);
+    PreparedFlowchartTests::ErRaster(Require);
+    PreparedFlowchartTests::GanttRaster(Require);
+    PreparedFlowchartTests::MindmapRaster(Require);
+    PreparedFlowchartTests::NodeStrokeRaster(Require);
+    PreparedFlowchartTests::ExpandedShapeRaster(Require);
+    PreparedFlowchartTests::LegacyPolygonRaster(Require);
+    PreparedFlowchartTests::StyledLabelRaster(Require);
+    PreparedFlowchartTests::ThemeStyleRaster(Require);
+    PreparedFlowchartTests::PaletteRaster(Require);
+    PreparedFlowchartTests::ConfiguredLabelWidth(Require);
+    PreparedFlowchartTests::StateNoteRaster(Require);
 }
 void TestRichTextLayoutTransientLinkInkAndUnderlineRestoreSharedState()
 {
@@ -1723,10 +1754,10 @@ void TestRichTextLayoutTransientLinkInkAndUnderlineRestoreSharedState()
 }
 void TestRichTextSourceInkPreparationRolesAndCapacity()
 {
-    const auto parse = [](std::wstring_view source)
+    const auto parse = [](std::wstring_view source, MarkdownProfile profile = MarkdownProfile::Gfm029)
     {
         MarkdownParser parser;
-        parser.Begin(source, 1u, MarkdownProfile::Gfm029);
+        parser.Begin(source, 1u, profile);
         for (size_t turn = 0u; turn < 100000u; ++turn)
             if (parser.Advance().status == MarkdownPreparationStatus::Complete)
                 return parser.Published();
@@ -1763,7 +1794,34 @@ void TestRichTextSourceInkPreparationRolesAndCapacity()
                 "published source ink is bounded, sorted and disjoint");
         previous = range.display.last;
     }
+    const std::wstring nativeSyntax = L"www.example.com user@example.com \\(x\\)\n\n\\[\ny\n\\]\n";
+    const auto nativeInkSyntax      = parse(nativeSyntax, MarkdownProfile::RichMarkdown);
+    while (! ink.Advance(nativeInkSyntax, [](size_t value) { return value; }))
+        Require(ink.LastWork() <= Detail::RichSourceInk::WorkPerTurn, "native source ink remains cooperatively prepared");
+    for (const auto text : {std::wstring_view(L"www.example.com"), std::wstring_view(L"user@example.com")})
+    {
+        const auto first = nativeSyntax.find(text);
+        Require(roleAt(first) == TextInkRole::Link && roleAt(first + text.size() - 1u) == TextInkRole::Link,
+                "bare URL and email source receive link ink at both exact boundaries");
+    }
+    for (const auto marker : {L"\\(", L"\\)", L"\\[", L"\\]"})
+    {
+        const auto first = nativeSyntax.find(marker);
+        Require(roleAt(first) == TextInkRole::Subtle && roleAt(first + 1u) == TextInkRole::Subtle,
+                "escaped math source delimiters receive two-unit subtle ink");
+    }
+    Require(! roleAt(nativeSyntax.find(L"x\\)")) && ! roleAt(nativeSyntax.find(L"y\n\\]")),
+            "ordinary mathematical source retains its normal ink between delimiter pairs");
 
+    // Bracketed display delimiters embedded in a paragraph are ordinary source, not a math object.
+    const std::wstring literalBrackets = L"prose \\[y\\] remains literal\n";
+    const auto literalSyntax           = parse(literalBrackets, MarkdownProfile::RichMarkdown);
+    while (! ink.Advance(literalSyntax, [](size_t value) { return value; }))
+        Require(ink.LastWork() <= Detail::RichSourceInk::WorkPerTurn, "literal bracket source ink remains cooperatively prepared");
+    const auto literalFirst = literalBrackets.find(L"\\[");
+    const auto literalLast  = literalBrackets.find(L"\\]");
+    Require(! roleAt(literalFirst) && ! roleAt(literalFirst + 1u) && ! roleAt(literalLast) && ! roleAt(literalLast + 1u),
+            "inline bracket escapes remain literal instead of receiving display math ink");
     const std::wstring listFixture = L"- outer\n  - nested\n-\t- tab nested\n12. ordered\n> - quoted\n- [x] task\n";
     const auto listSyntax          = parse(listFixture);
     const std::array<std::wstring_view, 7> markers{L"-", L"-", L"-", L"-", L"12.", L"-", L"-"};
@@ -1872,6 +1930,72 @@ void TestRichTextSourceInkPreparationRolesAndCapacity()
     ink.Clear();
     Require(! ink.Pending() && ink.Ranges().empty(), "source retirement cancels staged and published ink");
 }
+void TestRichTextDocumentLinePitchMatchesCanonicalAcrossChunks()
+{
+    const auto factory = CreateRichTextTestFactory();
+    std::wstring source;
+    for (unsigned line = 0u; line < 180u; ++line)
+        source.append(L"0123456789 abcdefghijklmnopqrstuvwxyz\n");
+    Document document(source);
+    const auto projection = Project(document.Snapshot(), document.Revision(), ViewMode::Source);
+    LayoutOptions options;
+    options.widthDip             = 280.0f;
+    options.fontSizeDip          = 16.0f;
+    options.lineHeightMultiplier = 1.65f;
+    PreparedLayout canonical;
+    canonical.Prepare(factory.get(), projection, options);
+    PreparedDocumentLayout retained;
+    retained.Prepare(factory.get(), document.Snapshot(), document.Revision(), ViewMode::Source, options);
+    Require(retained.UsesWholeGeometry() && retained.UsesWholeRaster() && retained.LastPreparation().wholeLayoutsPrepared == 1u &&
+                retained.LastPreparation().preparedChunks == 0u && retained.Height() == canonical.Height(),
+            "explicit line pitch chooses one canonical layout without preparing incompatible origin chunks");
+    for (const size_t position : {size_t{0u}, size_t{1024u}, size_t{2048u}, size_t{4096u}, source.size()})
+    {
+        const auto expected = canonical.Caret(position), actual = retained.Caret(position);
+        Require(expected.x == actual.x && expected.y == actual.y && expected.height == actual.height,
+                "line pitch and caret geometry stay canonical across all three chunk boundaries");
+    }
+    GraphicsFixture graphics;
+    THROW_IF_FAILED(graphics.Create());
+    wil::com_ptr<ID2D1Factory1> d2dFactory;
+    THROW_IF_FAILED(D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, IID_PPV_ARGS(d2dFactory.put())));
+    wil::com_ptr<IDXGIDevice> dxgi;
+    THROW_IF_FAILED(graphics.device.query_to(dxgi.put()));
+    wil::com_ptr<ID2D1Device> device;
+    THROW_IF_FAILED(d2dFactory->CreateDevice(dxgi.get(), device.put()));
+    wil::com_ptr<ID2D1DeviceContext> context;
+    THROW_IF_FAILED(device->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE, context.put()));
+    wil::com_ptr<IDXGISurface> surface;
+    THROW_IF_FAILED(graphics.target.query_to(surface.put()));
+    const auto properties = D2D1::BitmapProperties1(D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW,
+                                                    D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
+    wil::com_ptr<ID2D1Bitmap1> bitmap;
+    THROW_IF_FAILED(context->CreateBitmapFromDxgiSurface(surface.get(), &properties, bitmap.put()));
+    context->SetTarget(bitmap.get());
+    wil::com_ptr<ID2D1SolidColorBrush> brush;
+    THROW_IF_FAILED(context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White), brush.put()));
+    for (const float dpi : {96.0f, 144.0f})
+        for (const size_t position : {size_t{0u}, size_t{2048u}, size_t{4096u}})
+        {
+            context->SetDpi(dpi, dpi);
+            const auto top    = canonical.Caret(position).y;
+            const auto origin = D2D1::Point2F(4.0f, 4.0f - top);
+            context->BeginDraw();
+            context->Clear(D2D1::ColorF(0u, 0.0f));
+            canonical.Draw(context.get(), brush.get(), origin);
+            THROW_IF_FAILED(context->EndDraw());
+            std::vector<uint8_t> expected;
+            THROW_IF_FAILED(graphics.Read(expected));
+            context->BeginDraw();
+            context->Clear(D2D1::ColorF(0u, 0.0f));
+            retained.Draw(context.get(), brush.get(), origin, top, top + 300.0f);
+            THROW_IF_FAILED(context->EndDraw());
+            std::vector<uint8_t> actual;
+            THROW_IF_FAILED(graphics.Read(actual));
+            Require(expected == actual, "explicit-pitch retained drawing matches canonical WARP pixels at 96 and 144 DPI");
+        }
+}
+
 void TestRichTextLayoutExplicitTypographyAndInvalidOptions()
 {
     const auto factory = CreateRichTextTestFactory();
@@ -1902,6 +2026,7 @@ void RunRichTextLayoutTests()
 {
     DXUI_RUN_TEST(TestRichTextLayoutTransientLinkInkAndUnderlineRestoreSharedState);
     DXUI_RUN_TEST(TestRichTextLayoutExplicitTypographyAndInvalidOptions);
+    DXUI_RUN_TEST(TestRichTextDocumentLinePitchMatchesCanonicalAcrossChunks);
     DXUI_RUN_TEST(TestRichTextSourceInkPreparationRolesAndCapacity);
     DXUI_RUN_TEST(TestPreparedFlowchartSdkBudgetAndLifetime);
     DXUI_RUN_TEST(TestPreparedFlowchartIndependentSdkRasterOracle);

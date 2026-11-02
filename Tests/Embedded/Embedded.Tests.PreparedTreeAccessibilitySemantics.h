@@ -2,6 +2,122 @@
 
 #include "Support.Tests.PreparedTreeSemanticFixture.h"
 
+#if DXUI_ENABLE_DIAGNOSTICS
+static void TestPreparedTreeUnfocusedExpansionAction(GraphicsFixture& gpu)
+{
+    using namespace DxUi;
+    using namespace DxUi::Tests;
+    auto witness = std::make_shared<PreparedTreeSourceWitness>();
+    const ThreePreparedTreeRows::Names names{L"Alpha", L"Beta", L"Omega"};
+    ThreePreparedTreeModel model(std::make_shared<ThreePreparedTreeRows>(names, witness, true, false));
+    EmbeddedScene scene;
+    Hr(scene.Initialize(gpu.device.get()), "unfocused prepared tree scene");
+    auto& view    = scene.view;
+    auto controls = std::make_unique<Panel>();
+    auto* tree    = controls->AddChild<Tree>();
+    tree->SetBounds(D2D1::RectF(0.f, 0.f, 300.f, 120.f));
+    tree->SetModel(&model);
+    tree->SetFocusedItemId(709u);
+    class Delegate final : public ITreeDelegate
+    {
+    public:
+        std::function<void(uint64_t, bool)> toggle;
+        void OnTreeToggleExpanded(uint64_t id, bool expanded) override
+        {
+            toggle(id, expanded);
+        }
+    } delegate;
+    delegate.toggle = [&](uint64_t id, bool expanded)
+    {
+        Check(id == 101u, "embedded action addresses the unfocused prepared row");
+        model.Replace(std::make_shared<ThreePreparedTreeRows>(names, witness, true, expanded));
+        tree->NotifyDataChanged();
+    };
+    tree->SetDelegate(&delegate);
+    view.Controls().SetRoot(std::move(controls));
+    Hr(view.Prepare(320u, 180u, 96.f), "prepare unfocused tree");
+    auto site = std::make_shared<TestEmbeddedAccessibilitySite>();
+    EmbeddedAccessibilityPlacement placement{{0, 0, 320, 180}, true};
+    Hr(view.AttachAccessibility(site, 0x5052455041524545ull, placement), "attach unfocused tree accessibility");
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> root;
+    Hr(view.GetAccessibilityProvider(root.put()), "unfocused tree root");
+    site->root = root.get();
+    wil::com_ptr_nothrow<IRawElementProviderFragment> rootFragment, treeProvider, item;
+    Hr(root.query_to(rootFragment.put()), "unfocused tree root fragment");
+    Hr(rootFragment->Navigate(NavigateDirection_FirstChild, treeProvider.put()), "unfocused tree control");
+    Hr(treeProvider->Navigate(NavigateDirection_FirstChild, item.put()), "unfocused first item");
+    wil::com_ptr_nothrow<IExpandCollapseProvider> expand;
+    Hr(item.query_to(expand.put()), "unfocused first item expansion pattern");
+    size_t changes = 0u;
+    DebugSetAccessibilityPropertyEventHookForTest(
+        [](long property, void* context) noexcept
+    {
+        if (property == UIA_ExpandCollapseExpandCollapseStatePropertyId)
+            ++*static_cast<size_t*>(context);
+    },
+        &changes);
+    const auto clearHook = wil::scope_exit([]() noexcept { DebugSetAccessibilityPropertyEventHookForTest(nullptr, nullptr); });
+    Hr(expand->Expand(), "expand an unfocused embedded prepared item");
+    Hr(expand->Expand(), "repeat expansion before embedded publication");
+    Check(changes == 0u, "embedded state event waits for coherent publication");
+    Hr(view.Prepare(320u, 180u, 96.f), "prepare expanded embedded tree");
+    Hr(view.UpdateAccessibility(placement), "publish expanded embedded tree");
+    ExpandCollapseState state{};
+    Hr(expand->get_ExpandCollapseState(&state), "read expanded embedded item");
+    Check(changes == 1u && state == ExpandCollapseState_Expanded && tree->GetFocusedItemId() == 709u,
+          "unfocused embedded action publishes exactly one current state event without moving focus");
+    changes = 0u;
+    Hr(expand->Collapse(), "collapse an unfocused embedded prepared item");
+    Hr(expand->Collapse(), "repeat collapse before embedded publication");
+    Hr(view.Prepare(320u, 180u, 96.f), "prepare repeated collapse");
+    Hr(view.UpdateAccessibility(placement), "publish repeated collapse");
+    Hr(expand->get_ExpandCollapseState(&state), "read collapsed embedded item");
+    Check(changes == 1u && state == ExpandCollapseState_Collapsed, "repeated collapse retains exactly one pending state event");
+    Hr(expand->Expand(), "restore expanded state before delayed collapse");
+    Hr(view.Prepare(320u, 180u, 96.f), "prepare restored expansion");
+    Hr(view.UpdateAccessibility(placement), "publish restored expansion");
+    changes         = 0u;
+    delegate.toggle = [](uint64_t, bool) {};
+    Hr(expand->Collapse(), "accept a delayed collapse");
+    Hr(expand->Expand(), "a no-op does not cancel the accepted delayed collapse");
+    model.Replace(std::make_shared<ThreePreparedTreeRows>(names, witness, true, false));
+    tree->NotifyDataChanged();
+    Hr(view.Prepare(320u, 180u, 96.f), "prepare delayed collapse");
+    Hr(view.UpdateAccessibility(placement), "publish delayed collapse");
+    Check(changes == 1u, "an opposite no-op preserves the accepted delayed state event");
+    delegate.toggle = [&](uint64_t id, bool expanded)
+    {
+        Check(id == 101u, "restored action addresses the current item");
+        model.Replace(std::make_shared<ThreePreparedTreeRows>(names, witness, true, expanded));
+        tree->NotifyDataChanged();
+    };
+    Hr(expand->Expand(), "restore state for model replacement");
+    Hr(view.Prepare(320u, 180u, 96.f), "prepare expansion before replacement");
+    Hr(view.UpdateAccessibility(placement), "publish expansion before replacement");
+    changes         = 0u;
+    delegate.toggle = [](uint64_t, bool) {};
+    Hr(expand->Collapse(), "accept a delayed collapse before model replacement");
+    ThreePreparedTreeModel replacement(std::make_shared<ThreePreparedTreeRows>(names, witness, true, false));
+    tree->SetModel(&replacement);
+    Hr(view.Prepare(320u, 180u, 96.f), "prepare replacement tree model");
+    Hr(view.UpdateAccessibility(placement), "publish replacement tree model");
+    Check(changes == 0u, "an old pending action cannot report a replacement model's state as its own event");
+    delegate.toggle = [&](uint64_t id, bool expanded)
+    {
+        Check(id == 101u, "replacement action addresses the current item");
+        replacement.Replace(std::make_shared<ThreePreparedTreeRows>(names, witness, true, expanded));
+        tree->NotifyDataChanged();
+    };
+    Hr(expand->Expand(), "replacement model can retry after old hints retire");
+    Hr(view.Prepare(320u, 180u, 96.f), "prepare replacement action");
+    Hr(view.UpdateAccessibility(placement), "publish replacement action");
+    Check(changes == 1u, "the new model publishes its own unfocused action once");
+    tree->SetDelegate(nullptr);
+    view.Detach();
+    Check(expand->get_ExpandCollapseState(&state) == UIA_E_ELEMENTNOTAVAILABLE, "retained item retires with the embedded owner");
+}
+#endif
+
 static std::wstring ReadPreparedTreeName(const wil::com_ptr_nothrow<IRawElementProviderFragment>& provider, const char* context)
 {
     wil::com_ptr_nothrow<IRawElementProviderSimple> simple;

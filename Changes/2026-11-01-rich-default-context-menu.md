@@ -1,0 +1,1 @@
+- Add an optional localized rich editing context menu with lifetime-guarded asynchronous command dispatch; embedded HWND-less and native qualification remain pending.

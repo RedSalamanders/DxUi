@@ -1,0 +1,1 @@
+- Preserve Tree scroll position on refresh, stabilize incremental typeahead, report initial keyboard selection, and route modified clicks and boundary wheel input correctly. Native qualification remains pending.

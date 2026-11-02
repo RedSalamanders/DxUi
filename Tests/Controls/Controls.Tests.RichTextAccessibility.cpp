@@ -1,5 +1,6 @@
 #include "Controls.Tests.RichTextAccessibility.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
+#include "Controls/DxUi.RichSemanticGeometry.h"
 #include "Embedded.Tests.EmbeddedUiaBridge.h"
 #include "GraphicsFixture.h"
 #include "Support.Tests.RichImageResources.h"
@@ -40,7 +41,9 @@ public:
 #pragma warning(disable : 4625 4626)
 struct RichAccessibilityFixture
 {
-    explicit RichAccessibilityFixture(bool embedded, bool markdownAnalysis = false, bool semanticRendering = false) : embedded(embedded)
+    explicit RichAccessibilityFixture(bool embedded, bool markdownAnalysis = false, bool semanticRendering = false, UINT inputWidth = 480u)
+        : embedded(embedded),
+          viewportWidth(inputWidth)
     {
         if (embedded)
         {
@@ -52,7 +55,10 @@ struct RichAccessibilityFixture
         }
         else
         {
-            window   = std::make_unique<AttachedHostWindow>();
+            window = std::make_unique<AttachedHostWindow>();
+            if (viewportWidth > 480)
+                Require(SetWindowPos(window->Hwnd(), nullptr, 0, 0, static_cast<int>(viewportWidth), 240, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE) != FALSE,
+                        "size offscreen rich accessibility fixture without activation");
             controls = &window->Host();
         }
         auto root = std::make_unique<RichAccessibilityEditor>(L"**alpha**\r\nbeta");
@@ -66,8 +72,8 @@ struct RichAccessibilityFixture
         controls->SetRoot(std::move(root));
         if (embedded)
         {
-            RequireSucceeded(PrepareEmbeddedContentForTests(view, 480, 240), "prepare rich UIA view");
-            bridge = std::make_unique<EmbeddedUiaTest::Bridge>(view, 480, 240);
+            RequireSucceeded(PrepareEmbeddedContentForTests(view, viewportWidth, 240), "prepare rich UIA view");
+            bridge = std::make_unique<EmbeddedUiaTest::Bridge>(view, viewportWidth, 240);
             RequireSucceeded(bridge->Attach(false, 0x524943480001ull), "attach rich application accessibility bridge");
             RequireSucceeded(view.GetAccessibilityProvider(provider.put()), "embedded rich root provider");
         }
@@ -89,7 +95,7 @@ struct RichAccessibilityFixture
     {
         if (embedded)
         {
-            RequireSucceeded(PrepareEmbeddedContentForTests(view, 480, 240), "prepare rich source publication");
+            RequireSucceeded(PrepareEmbeddedContentForTests(view, viewportWidth, 240), "prepare rich source publication");
             RequireSucceeded(bridge->Update(), "publish rich embedded semantics");
         }
         else
@@ -143,12 +149,13 @@ struct RichAccessibilityFixture
         return simple;
     }
     bool embedded;
+    UINT viewportWidth;
     GraphicsFixture gpu;
     EmbeddedHost view;
     std::unique_ptr<AttachedHostWindow> window;
     std::unique_ptr<EmbeddedUiaTest::Bridge> bridge;
-    ControlHost* controls  = nullptr;
-    RichTextEditor* editor = nullptr;
+    ControlHost* controls           = nullptr;
+    RichAccessibilityEditor* editor = nullptr;
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> provider;
 };
 #pragma warning(pop)
@@ -505,9 +512,6 @@ void ScrollingCommands(bool embedded)
         source += L"**line" + std::to_wstring(index) + L"** alpha beta gamma delta\r\n";
     fixture.editor->SetText(source);
     fixture.Publish();
-    const auto prepared = fixture.editor->DebugGetState();
-    Require(prepared.retainedGeometryChunks > 1u && ! prepared.wholeGeometryFallback && ! prepared.wholeRasterFallback && prepared.wholeLayoutsPrepared == 0u,
-            "native and embedded UIA scrolling fixtures actually use default-font positioned chunks");
     auto text = TextProvider(fixture);
     wil::com_ptr_nothrow<ITextRangeProvider> document;
     RequireSucceeded(text->get_DocumentRange(document.put()), "scroll document");
@@ -558,6 +562,21 @@ void ScrollingCommands(bool embedded)
             "scrolling changes neither source nor selection nor history");
     Require(! fixture.editor->ScrollSourceRangeIntoView(*fixture.controls, source.size() + 1, source.size() + 1, true),
             "public scroll rejects invalid source bounds");
+    RichText::Document primary(source);
+    Require(fixture.editor->SynchronizeReadOnlySourceSnapshot(primary.Snapshot(), {0u, 0u}), "seed source mirror from primary");
+    fixture.Publish();
+    const auto middle = source.find(L"line40");
+    Require(fixture.editor->ScrollSourceRangeIntoView(*fixture.controls, middle, middle, true), "scroll source mirror independently");
+    fixture.Publish();
+    const auto mirrorOffset = fixture.editor->DebugGetState().scrollOffsetDip;
+    Require(mirrorOffset > 0.0f, "source mirror has a nonzero independent scroll offset");
+    primary.SetSelection({primary.Length(), primary.Length()});
+    Require(primary.ReplaceSelection(L"tail"), "edit primary outside the mirror viewport");
+    Require(fixture.editor->SynchronizeReadOnlySourceSnapshot(primary.Snapshot(), {0u, 0u}), "synchronize changed primary snapshot");
+    fixture.Publish();
+    const auto mirrorState = fixture.editor->DebugGetState();
+    Require(mirrorState.scrollOffsetDip == mirrorOffset && mirrorState.reusedGeometryChunks > 0u,
+            "source synchronization preserves independent scroll and reuses unchanged positioned chunks");
     fixture.editor->SetText(L"");
     fixture.Publish();
     RequireSucceeded(text->get_DocumentRange(document.put()), "empty source range");
@@ -675,6 +694,48 @@ void TestRichTextAccessibilityWindowSourceAndRanges()
 {
     SourceAndRanges(false);
 }
+#if DXUI_ENABLE_DIAGNOSTICS
+void RichAccessibilityFontFailure(bool embedded)
+{
+    RichAccessibilityFixture fixture(embedded, true, true);
+    auto simple             = fixture.Simple();
+    const auto oldName      = ReadProviderStringProperty(*simple.get(), UIA_NamePropertyId, "read the published rich accessible name");
+    const auto oldText      = fixture.editor->GetText();
+    const auto oldSelection = fixture.editor->GetSelection();
+    const auto oldRevision  = fixture.editor->Revision();
+    DebugSetRichAccessibilityFontFailureForTest(E_FAIL);
+    const auto restore = wil::scope_exit([] { DebugSetRichAccessibilityFontFailureForTest(S_OK); });
+    fixture.editor->SetAccessibleName(L"Changed rich name");
+    if (embedded)
+    {
+        RequireSucceeded(PrepareEmbeddedContentForTests(fixture.view, fixture.viewportWidth, 240), "prepare embedded rich name change");
+        Require(fixture.bridge->Update() == E_FAIL, "embedded snapshot boundary reports a font SDK failure");
+    }
+    else
+        fixture.controls->RefreshAccessibilitySnapshot();
+    const auto during =
+        ReadProviderStringProperty(*simple.get(), UIA_NamePropertyId, "held provider retains its previous coherent snapshot after font failure");
+    Require(during == oldName && DebugGetRichAccessibilityFontFailureCountForTest() > 0u, "actual font-query failure leaves the old accessible name published");
+    Require(fixture.editor->GetText() == oldText && fixture.editor->GetSelection() == oldSelection && fixture.editor->Revision() == oldRevision &&
+                ! fixture.editor->CanUndo(),
+            "failed accessibility publication leaves source, selection and history unchanged");
+    DebugSetRichAccessibilityFontFailureForTest(S_OK);
+    if (embedded)
+        Require(fixture.bridge->Update() == S_OK, "embedded snapshot publication retries after font recovery");
+    else
+        fixture.controls->RefreshAccessibilitySnapshot();
+    const auto after = ReadProviderStringProperty(*simple.get(), UIA_NamePropertyId, "read the recovered rich accessible name");
+    Require(after == L"Changed rich name", "font recovery publishes the current snapshot");
+}
+void TestRichTextAccessibilityWindowFontFailure()
+{
+    RichAccessibilityFontFailure(false);
+}
+void TestRichTextAccessibilityEmbeddedFontFailure()
+{
+    EmbeddedCase([](bool embedded) { RichAccessibilityFontFailure(embedded); });
+}
+#endif
 void TestRichTextAccessibilityEmbeddedSourceAndRanges()
 {
     EmbeddedCase([](bool embedded) { SourceAndRanges(embedded); });
@@ -868,6 +929,42 @@ void NativeHtmlAndMarkersClient(bool embedded)
     Require(client.DocumentText(editor) == empty && client.TextCaretPosition(editor) == 6u &&
                 client.TextPositionFromPoint(editor, toScreen(emptyPoint)) == 6u && client.TextSelectionText(editor).empty() && ! fixture.editor->CanUndo(),
             "real native/embedded client observes the interior empty HTML insertion with no invented source/history");
+    std::array<float, 3u> caretX{};
+    const std::array<std::wstring, 3u> aligned = {L"<p align=\"left\">word</p>\n", L"<div align=\"center\">word</div>\n", L"<p align=\"right\">word</p>\n"};
+    for (std::size_t index = 0u; index < aligned.size(); ++index)
+    {
+        fixture.editor->SetText(aligned[index]);
+        fixture.Publish();
+        const auto word = aligned[index].find(L"word");
+        fixture.editor->SetSelection({word, word + 4u});
+        fixture.Publish();
+        const auto position = fixture.editor->TryGetTextInputCaretRect(*fixture.controls, word);
+        Require(position && client.DocumentText(editor) == aligned[index] && client.TextSelectionText(editor) == L"word",
+                "native and embedded clients retain the aligned wrapper and selected exact source");
+        caretX[index] = position->left;
+    }
+    Require(caretX[0u] + 40.f < caretX[1u] && caretX[1u] + 40.f < caretX[2u],
+            "native and embedded aligned HTML caret geometry follows physical left, center and right placement");
+    const std::wstring scripts = L"<p>x<sup>hello</sup> y<sub>world</sub></p>\n";
+    fixture.editor->SetText(scripts);
+    fixture.Publish();
+    const auto superInfo = client.InspectTextRange(editor, L"hello", {UIA_IsSuperscriptAttributeId, UIA_IsSubscriptAttributeId, UIA_FontSizeAttributeId});
+    const auto subInfo   = client.InspectTextRange(editor, L"world", {UIA_IsSuperscriptAttributeId, UIA_IsSubscriptAttributeId, UIA_FontSizeAttributeId});
+    const auto bodyInfo  = client.InspectTextRange(editor, L"x", {UIA_FontSizeAttributeId});
+    Require(superInfo.attributes[0].type == VT_BOOL && superInfo.attributes[0].number == 1.0 && superInfo.attributes[1].number == 0.0 &&
+                subInfo.attributes[0].number == 0.0 && subInfo.attributes[1].type == VT_BOOL && subInfo.attributes[1].number == 1.0 &&
+                std::abs(superInfo.attributes[2].number / bodyInfo.attributes[0].number - .75) < .001 &&
+                std::abs(subInfo.attributes[2].number / bodyInfo.attributes[0].number - .75) < .001,
+            "actual UIA clients receive script flags and the scaled font size from exact source ranges");
+    const auto word = scripts.find(L"hello");
+    fixture.editor->SetSelection({word, word + 5u});
+    fixture.Publish();
+    Require(client.DocumentText(editor) == scripts && client.TextSelectionText(editor) == L"hello",
+            "native and embedded clients expose exact authored script source and selection");
+    Require(fixture.editor->ReplaceSelection(L"globe") && fixture.editor->GetText() == L"<p>x<sup>globe</sup> y<sub>world</sub></p>\n" &&
+                fixture.editor->Undo() && fixture.editor->GetText() == scripts,
+            "script text edits and undo preserve exact HTML delimiters and source");
+    fixture.Publish();
 }
 void TestRichTextAccessibilityWindowNativeHtmlAndMarkersClient()
 {
@@ -1123,6 +1220,64 @@ void TestRichTextAccessibilityEmbeddedPendingPreparationGeometry()
 {
     EmbeddedCase([](bool embedded) { PendingPreparationGeometry(embedded); });
 }
+void CountedNulSource(bool embedded)
+{
+    using namespace RichText;
+    RichAccessibilityFixture fixture(embedded, true);
+    const std::wstring source(L"A\0B", 3u);
+    fixture.editor->SetText(source);
+    fixture.editor->SetViewMode(ViewMode::Source);
+    fixture.Publish();
+    auto text = TextProvider(fixture);
+    wil::com_ptr_nothrow<ITextRangeProvider> document;
+    RequireSucceeded(text->get_DocumentRange(document.put()), "counted-NUL UIA document");
+    Require(ReadTextRangeText(*document.get(), -1, "counted-NUL UIA text") == source, "UIA returns the complete counted source including and after NUL");
+    const auto findCounted = [&](std::wstring_view expected, BOOL backwards, BOOL ignoreCase)
+    {
+        wil::unique_bstr needle(SysAllocStringLen(expected.data(), static_cast<UINT>(expected.size())));
+        Require(bool(needle), "counted-NUL UIA search needle allocation");
+        wil::com_ptr_nothrow<ITextRangeProvider> found;
+        RequireSucceeded(document->FindText(needle.get(), backwards, ignoreCase, found.put()), "counted-NUL UIA FindText result");
+        Require(bool(found), "UIA FindText returns the counted-NUL match");
+        const auto result = ReadTextRangeText(*found.get(), -1, "counted-NUL search result");
+        Require(result.size() == expected.size() &&
+                    CompareStringOrdinal(result.data(), static_cast<int>(result.size()), expected.data(), static_cast<int>(expected.size()), ignoreCase) ==
+                        CSTR_EQUAL,
+                "UIA FindText uses the complete counted BSTR needle");
+    };
+    findCounted(source, FALSE, FALSE);
+    findCounted(std::wstring_view(L"\0B", 2u), TRUE, FALSE);
+    findCounted(std::wstring_view(L"a\0b", 3u), FALSE, TRUE);
+    fixture.editor->SetViewMode(ViewMode::Rich);
+    fixture.Publish();
+    RequireSucceeded(text->get_DocumentRange(document.put()), "counted-NUL v0 UIA document");
+    findCounted(source, FALSE, FALSE);
+    TextInputState state;
+    Require(fixture.editor->ExportTextInputState(state) && state.text == source, "text services export counted NUL without truncation");
+    state.text       = std::wstring(L"x\0yz", 4u);
+    state.caretIndex = 4u;
+    Require(fixture.editor->ImportTextInputState(*fixture.controls, state, true) && fixture.editor->GetText() == state.text && fixture.editor->Undo() &&
+                fixture.editor->GetText() == source,
+            "counted text-service edits preserve the NUL and remain reversible");
+    fixture.Publish();
+    fixture.editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    fixture.editor->SetViewMode(ViewMode::Rich);
+    fixture.editor->SetMarkdownRenderingEnabled(true);
+    fixture.Publish();
+    Require(fixture.editor->GetText() == source && fixture.editor->GetMarkdownSyntax() && fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls),
+            "Rich projection accepts counted raw source while retaining its exact spelling");
+    RequireSucceeded(text->get_DocumentRange(document.put()), "counted-NUL semantic UIA document");
+    findCounted(source, TRUE, FALSE);
+}
+void TestRichTextAccessibilityWindowCountedNul()
+{
+    CountedNulSource(false);
+}
+void TestRichTextAccessibilityEmbeddedCountedNul()
+{
+    EmbeddedCase([](bool embedded) { CountedNulSource(embedded); });
+}
+
 void ReadOnlySourceSnapshotSynchronization(bool embedded)
 {
     using namespace RichText;
@@ -1302,6 +1457,8 @@ void ReadOnlyParsedSnapshotAdoption(bool embedded)
     appearance.colorizeMarkdownSource = true;
     mirror->SetAppearance(appearance);
     Require(mirror->SynchronizeReadOnlySourceSnapshot(source, selection), "target holds the exact source snapshot before parse reuse");
+    fixture.Publish();
+    Require(mirror->SetScrollOffsetDip(120.0f), "scroll the prepared source view before syntax adoption");
     fixture.Publish();
     const auto independent = mirror->GetMarkdownSyntax();
     const auto lines       = mirror->GetSourceVisualLineRanges(*fixture.controls);
@@ -1846,7 +2003,10 @@ void SemanticFrontMatterDiagnostics(bool embedded)
         Require(retired(*metadata.get()), "same-host rebinding cannot resurrect an older semantic epoch");
     }
 }
-wil::com_ptr_nothrow<IRawElementProviderSimple> FindNamedSemanticPart(IRawElementProviderSimple& root, std::wstring_view name, unsigned depth = 0u)
+wil::com_ptr_nothrow<IRawElementProviderSimple> FindNamedSemanticPart(IRawElementProviderSimple& root,
+                                                                      std::wstring_view name,
+                                                                      unsigned depth     = 0u,
+                                                                      CONTROLTYPEID type = 0)
 {
     Require(depth < 24u, "named semantic provider walk is bounded");
     wil::com_ptr_nothrow<IRawElementProviderFragment> fragment, child;
@@ -1856,9 +2016,10 @@ wil::com_ptr_nothrow<IRawElementProviderSimple> FindNamedSemanticPart(IRawElemen
     {
         wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
         RequireSucceeded(child.query_to(simple.put()), "named child simple");
-        if (ReadProviderStringProperty(*simple.get(), UIA_NamePropertyId, "named semantic part") == name)
+        if (ReadProviderStringProperty(*simple.get(), UIA_NamePropertyId, "named semantic part") == name &&
+            (! type || ReadProviderLongProperty(*simple.get(), UIA_ControlTypePropertyId, "named semantic part type") == type))
             return simple;
-        auto nested = FindNamedSemanticPart(*simple.get(), name, depth + 1u);
+        auto nested = FindNamedSemanticPart(*simple.get(), name, depth + 1u, type);
         if (nested)
             return nested;
         wil::com_ptr_nothrow<IRawElementProviderFragment> next;
@@ -1870,7 +2031,8 @@ wil::com_ptr_nothrow<IRawElementProviderSimple> FindNamedSemanticPart(IRawElemen
 void SemanticDiagramAlternatives(bool embedded)
 {
     using namespace RichText;
-    RichAccessibilityFixture fixture(embedded, true, true);
+    // The fixed-axis Gantt fixture requires more than the ordinary 320/480 DIP test view.
+    RichAccessibilityFixture fixture(embedded, true, true, 800);
     fixture.editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
     const std::wstring source = L"```mermaid\ngraph TD;A[\"Unicode \u03b2\"]-->B\n```\n";
     fixture.editor->SetText(source);
@@ -1906,23 +2068,130 @@ void SemanticDiagramAlternatives(bool embedded)
     fixture.Publish();
     Require(image->GetPropertyValue(UIA_NamePropertyId, &retired) == UIA_E_ELEMENTNOTAVAILABLE,
             "restoring presentation cannot resurrect an old graphic provider");
+    const std::wstring sequence = L"```mermaid\nsequenceDiagram\nparticipant A as Alpha\nparticipant B as Beta\nA->>B: hello\nB-->>A: reply\n```\n";
+    fixture.editor->SetText(sequence);
+    fixture.Publish();
+    const auto sequenceImage = FindSemanticPart(*simple.get(), UIA_ImageControlTypeId);
+    Require(sequenceImage != nullptr, "sequence is exposed as an acknowledged native image provider");
+    const auto sequenceName = ReadProviderStringProperty(*sequenceImage.get(), UIA_NamePropertyId, "sequence alternative");
+    Require(sequenceName.starts_with(L"Sequence diagram") && sequenceName.find(L"Alpha") != std::wstring::npos &&
+                sequenceName.find(L"Beta") != std::wstring::npos && sequenceName.find(L"hello") != std::wstring::npos &&
+                sequenceName.find(L"reply") != std::wstring::npos && sequenceName.find(L"reply") > sequenceName.find(L"hello"),
+            "sequence provider exposes participants and message order");
+    wil::com_ptr_nothrow<ITextRangeProvider> sequenceRange;
+    RequireSucceeded(text->RangeFromChild(sequenceImage.get(), sequenceRange.put()), "sequence source range");
+    Require(ReadTextRangeText(*sequenceRange.get(), -1, "sequence exact raw fence") == sequence, "sequence UIA range owns the original fence");
+    const std::wstring pie = L"```mermaid\npie title Inventory\n\"One\": 25\n\"Three\": 75\n```\n";
+    fixture.editor->SetText(pie);
+    fixture.Publish();
+    const auto pieImage = FindSemanticPart(*simple.get(), UIA_ImageControlTypeId);
+    Require(pieImage != nullptr, "pie is exposed as an acknowledged native image provider");
+    const auto pieName = ReadProviderStringProperty(*pieImage.get(), UIA_NamePropertyId, "pie alternative");
+    Require(pieName.starts_with(L"Pie chart: Inventory") && pieName.find(L"One: 25") != std::wstring::npos && pieName.find(L"Three: 75") != std::wstring::npos,
+            "pie provider exposes the title and source values");
+    wil::com_ptr_nothrow<ITextRangeProvider> pieRange;
+    RequireSucceeded(text->RangeFromChild(pieImage.get(), pieRange.put()), "pie source range");
+    Require(ReadTextRangeText(*pieRange.get(), -1, "pie exact raw fence") == pie, "pie UIA range owns the original fence");
+    const std::wstring er = L"```mermaid\nerDiagram\nCUSTOMER ||--o{ ORDER : places\n```\n";
+    fixture.editor->SetText(er);
+    fixture.Publish();
+    const auto erImage = FindSemanticPart(*simple.get(), UIA_ImageControlTypeId);
+    Require(erImage != nullptr, "ER diagram is exposed as an acknowledged native image provider");
+    const auto erName = ReadProviderStringProperty(*erImage.get(), UIA_NamePropertyId, "ER alternative");
+    Require(erName.starts_with(L"Entity relationship diagram") && erName.find(L"CUSTOMER [1]") != std::wstring::npos &&
+                erName.find(L"ORDER [0..*]") != std::wstring::npos,
+            "ER provider exposes entity multiplicities");
+    wil::com_ptr_nothrow<ITextRangeProvider> erRange;
+    RequireSucceeded(text->RangeFromChild(erImage.get(), erRange.put()), "ER source range");
+    Require(ReadTextRangeText(*erRange.get(), -1, "ER exact raw fence") == er, "ER UIA range owns the original fence");
+    const std::wstring gantt = L"```mermaid\ngantt\ntitle Release\nsection Build\nCompile : 2024-02-27, 3d\n```\n";
+    fixture.editor->SetText(gantt);
+    fixture.Publish();
+    const auto ganttImage = FindSemanticPart(*simple.get(), UIA_ImageControlTypeId);
+    Require(ganttImage != nullptr, "Gantt chart is exposed as an acknowledged native image provider");
+    const auto ganttName = ReadProviderStringProperty(*ganttImage.get(), UIA_NamePropertyId, "Gantt alternative");
+    Require(ganttName.starts_with(L"Gantt chart: Release") && ganttName.find(L"Build / Compile: 2024-02-27, 3d") != std::wstring::npos,
+            "Gantt provider exposes section and source dates");
+    wil::com_ptr_nothrow<ITextRangeProvider> ganttRange;
+    RequireSucceeded(text->RangeFromChild(ganttImage.get(), ganttRange.put()), "Gantt source range");
+    Require(ReadTextRangeText(*ganttRange.get(), -1, "Gantt exact raw fence") == gantt, "Gantt UIA range owns the original fence");
+    const std::wstring mind = L"```mermaid\nmindmap\n  root((Central))\n    First\n      Leaf\n    Second\n```\n";
+    fixture.editor->SetText(mind);
+    fixture.Publish();
+    const auto mindImage = FindSemanticPart(*simple.get(), UIA_ImageControlTypeId);
+    Require(mindImage != nullptr, "Mind map is exposed as an acknowledged native image provider");
+    const auto mindName = ReadProviderStringProperty(*mindImage.get(), UIA_NamePropertyId, "Mind map alternative");
+    Require(mindName.starts_with(L"Mind map. Nodes: ") && mindName.find(L"Central") != std::wstring::npos && mindName.find(L"Leaf") != std::wstring::npos &&
+                mindName.find(L"Second") != std::wstring::npos,
+            "Mind map provider exposes hierarchy labels");
+    wil::com_ptr_nothrow<ITextRangeProvider> mindRange;
+    RequireSucceeded(text->RangeFromChild(mindImage.get(), mindRange.put()), "Mind map source range");
+    Require(ReadTextRangeText(*mindRange.get(), -1, "Mind map exact raw fence") == mind, "Mind map UIA range owns the original fence");
+    const std::wstring mathFence = L"```math\n\\frac{1}{2}\n```\n";
+    fixture.editor->SetText(mathFence);
+    fixture.Publish();
+    const auto mathImage = FindSemanticPart(*simple.get(), UIA_ImageControlTypeId);
+    Require(mathImage != nullptr, "display math fence exposes its native image provider");
+    const auto mathName = ReadProviderStringProperty(*mathImage.get(), UIA_NamePropertyId, "display math alternative");
+    Require(mathName.find(L"\\frac{1}{2}") != std::wstring::npos, "display math alternative retains authored TeX");
+    wil::com_ptr_nothrow<ITextRangeProvider> mathRange;
+    RequireSucceeded(text->RangeFromChild(mathImage.get(), mathRange.put()), "display math fence source range");
+    Require(ReadTextRangeText(*mathRange.get(), -1, "display math fence exact source") == mathFence, "display math UIA range owns the complete original fence");
+
+    // A timeline that does not fit is source-owned; an independent small graph
+    // in the same document must still retain its native provider.
+    RichAccessibilityFixture narrow(embedded, true, true, 320);
+    narrow.editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    const std::wstring compactSource = L"```mermaid\ngraph TD;A\n```\n";
+    const std::wstring combined      = compactSource + L"\n" + gantt;
+    narrow.editor->SetText(combined);
+    narrow.Publish();
+    const auto narrowRoot = narrow.Simple();
+    const auto smallImage = FindSemanticPart(*narrowRoot.get(), UIA_ImageControlTypeId);
+    Require(smallImage && ReadProviderStringProperty(*smallImage.get(), UIA_NamePropertyId, "narrow graph alternative").starts_with(L"Flowchart,"),
+            "a fitting graph remains native when the adjacent Gantt cannot fit");
+    const auto narrowText = TextProvider(narrow);
+    wil::com_ptr_nothrow<ITextRangeProvider> smallRange, fullRange;
+    RequireSucceeded(narrowText->RangeFromChild(smallImage.get(), smallRange.put()), "narrow fitting graph source");
+    Require(ReadTextRangeText(*smallRange.get(), -1, "narrow fitting graph source") == compactSource, "the retained graphic owns its exact source fence");
+    RequireSucceeded(narrowText->get_DocumentRange(fullRange.put()), "narrow complete source");
+    Require(ReadTextRangeText(*fullRange.get(), -1, "narrow complete source") == combined && narrow.editor->GetText() == combined,
+            "width fallback preserves the complete Gantt fence and the surrounding source exactly");
+    const auto narrowDocument = narrow.editor->GetAcknowledgedSemanticDocument(*narrow.controls);
+    Require(narrowDocument && std::ranges::count_if(narrowDocument->Elements(), [](const auto& element) { return element.role == SemanticRole::Diagram; }) == 1,
+            "the oversized Gantt falls back locally without suppressing the fitting diagram");
 }
 void SemanticMathLiteralFallback(bool embedded)
 {
     using namespace RichText;
     RichAccessibilityFixture fixture(embedded, true, true);
     fixture.editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
-    const auto verify = [&](const std::wstring& source, std::wstring_view expression, std::wstring_view helpText, std::wstring_view linkTitle)
+    const auto verify =
+        [&](const std::wstring& source, std::wstring_view expression, std::wstring_view helpText, std::wstring_view linkTitle, bool unsupportedSyntax)
     {
         fixture.editor->SetText(source);
         fixture.Publish();
         auto simple = fixture.Simple();
         auto math   = FindSemanticPart(*simple.get(), UIA_ImageControlTypeId);
-        Require(math != nullptr &&
-                    ReadProviderLongProperty(*math.get(), UIA_ControlTypePropertyId, "literal math UIA control type") == UIA_ImageControlTypeId &&
-                    ReadProviderStringProperty(*math.get(), UIA_NamePropertyId, "literal math UIA name") == expression &&
-                    ReadProviderStringProperty(*math.get(), UIA_HelpTextPropertyId, "literal math UIA help") == helpText,
-                "literal math retains its logical Image role, TeX interior name and failure-specific help text");
+        Require(math != nullptr, "literal math has an Image child");
+        const auto actualType = ReadProviderLongProperty(*math.get(), UIA_ControlTypePropertyId, "literal math UIA control type");
+        const auto actualName = ReadProviderStringProperty(*math.get(), UIA_NamePropertyId, "literal math UIA name");
+        const auto actualHelp = ReadProviderStringProperty(*math.get(), UIA_HelpTextPropertyId, "literal math UIA help");
+        if (actualType != UIA_ImageControlTypeId || actualName != expression || actualHelp != helpText)
+        {
+            std::wcerr << L"literal math provider actual type=";
+            std::wcerr << actualType;
+            std::wcerr << L" name=";
+            std::wcerr << std::wstring_view(actualName).substr(0u, 120u);
+            std::wcerr << L" help=";
+            std::wcerr << actualHelp;
+            std::wcerr << L" expected help=";
+            std::wcerr << helpText;
+            std::wcerr << L'\n';
+        }
+        Require(actualType == UIA_ImageControlTypeId, "literal math retains its Image role");
+        Require(actualName == expression, "literal math retains its TeX interior name");
+        Require(actualHelp == helpText, "literal math retains failure-specific help text");
         const auto delimiter = source.find(expression);
         Require(delimiter != std::wstring::npos, "literal math source has the expected TeX interior");
         const auto delimiterUnits = delimiter >= 2u && source[delimiter - 1u] == L'$' && source[delimiter - 2u] == L'$' ? 4u : 2u;
@@ -1934,6 +2203,10 @@ void SemanticMathLiteralFallback(bool embedded)
                    element.source.last - element.source.first == expression.size() + delimiterUnits;
         }),
                 "literal math remains a semantic Math element over its complete source envelope");
+        if (unsupportedSyntax)
+            Require(
+                std::ranges::any_of(semantic->Diagnostics(), [](const auto& diagnostic) { return diagnostic.kind == SemanticDiagnosticKind::UnsupportedMath; }),
+                "unknown math command has an independent unsupported-syntax diagnostic");
         auto text = TextProvider(fixture);
         wil::com_ptr_nothrow<ITextRangeProvider> raw;
         RequireSucceeded(text->RangeFromChild(math.get(), raw.put()), "literal math exact raw source range");
@@ -1950,14 +2223,91 @@ void SemanticMathLiteralFallback(bool embedded)
 
     const std::wstring unsupportedExpression = L"\\unknown{x}";
     const std::wstring unsupportedSource     = L"before $" + unsupportedExpression + L"$ and [link](https://example.test \"original title\") after\r\n";
-    verify(unsupportedSource, unsupportedExpression, L"Unsupported or oversized native equation. Exact source is preserved.", L"original title");
+    verify(unsupportedSource, unsupportedExpression, L"Unsupported native equation. Exact source is preserved.", L"original title", true);
 
     const std::wstring capacityExpression = L"\\text{" + std::wstring(1400u, L'm') + L"}";
-    const std::wstring capacitySource     = L"before $$" + capacityExpression + L"$$ after [link](https://example.test \"capacity title\")\r\n";
+    const std::wstring capacitySource     = L"before $" + capacityExpression + L"$ after [link](https://example.test \"capacity title\")\r\n";
     auto appearance                       = fixture.editor->GetAppearance();
     appearance.bodyFontSizeDip            = 96.f;
     fixture.editor->SetAppearance(appearance);
-    verify(capacitySource, capacityExpression, L"Equation cannot be prepared natively for this view. Exact source is preserved.", L"capacity title");
+    verify(capacitySource, capacityExpression, L"Equation cannot be prepared natively for this view. Exact source is preserved.", L"capacity title", false);
+}
+void SemanticAccessibilityLabels(bool embedded)
+{
+    using namespace RichText;
+    RichAccessibilityFixture fixture(embedded, true, true);
+    fixture.editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    const std::wstring source = L"before $\\unknown{x}$ and [link](https://example.test \"Authored title\") after\r\n";
+    fixture.editor->SetText(source);
+    Require(fixture.editor->ReplaceSelection(L"x") && fixture.editor->Undo(), "localized UIA fixture retains redo history");
+    fixture.editor->SetSelection({5u, 2u});
+    fixture.Publish();
+    auto simple   = fixture.Simple();
+    auto original = FindSemanticPart(*simple.get(), UIA_ImageControlTypeId);
+    Require(original != nullptr, "localized UIA fixture has a source-bearing math child");
+    const auto held      = fixture.editor->GetSemanticDocument();
+    const auto revision  = fixture.editor->Revision();
+    const auto selection = fixture.editor->GetSelection();
+    const auto focus     = fixture.controls->GetFocusControl();
+    unsigned changes{};
+    fixture.editor->SetOnTextChanged([&] { ++changes; });
+    const std::array entries{AccessibilityTextOverride{AccessibilityTextId::UnsupportedEquation, L"Équation non prise en charge; source conservée."},
+                             AccessibilityTextOverride{AccessibilityTextId::ExitSource, L"Quitter la source exacte avec Échap."}};
+    const auto labels = std::make_shared<const AccessibilityLabels>(entries);
+    if (embedded)
+        Require(! fixture.view.NeedsPreparation(), "localized embedded view is settled before changing labels");
+    fixture.editor->SetAccessibilityLabels(labels);
+    if (embedded)
+        Require(fixture.view.NeedsPreparation(), "changing labels schedules embedded semantic preparation");
+    wil::unique_variant retired;
+    Require(original->GetPropertyValue(UIA_NamePropertyId, &retired) == UIA_E_ELEMENTNOTAVAILABLE,
+            "changing labels immediately withdraws an older semantic provider");
+    Require(fixture.editor->GetAccessibilityLabels() == labels && fixture.editor->GetText() == source && fixture.editor->Revision() == revision &&
+                fixture.editor->GetSelection() == selection && fixture.editor->CanRedo() && ! fixture.editor->CanUndo() && changes == 0u &&
+                fixture.controls->GetFocusControl() == focus,
+            "localization preserves exact source, directional selection, redo, notifications and focus");
+    fixture.Publish();
+    auto math = FindSemanticPart(*simple.get(), UIA_ImageControlTypeId);
+    Require(math && ReadProviderStringProperty(*math.get(), UIA_NamePropertyId, "localized math name") == L"\\unknown{x}" &&
+                ReadProviderStringProperty(*math.get(), UIA_HelpTextPropertyId, "localized math help") == entries[0u].text,
+            "UIA uses localized library help while the authored equation name remains exact");
+    auto link = FindSemanticPart(*simple.get(), UIA_HyperlinkControlTypeId);
+    Require(link && ReadProviderStringProperty(*link.get(), UIA_HelpTextPropertyId, "authored link help") == L"Authored title",
+            "localization cannot replace an authored link title");
+    const auto localized = fixture.editor->GetSemanticDocument();
+    if (embedded)
+        Require(! fixture.view.NeedsPreparation(), "localized embedded view is settled after publication");
+    fixture.editor->SetAccessibilityLabels(labels);
+    if (embedded)
+        Require(! fixture.view.NeedsPreparation(), "reusing the same label identity does not reschedule preparation");
+    Require(fixture.editor->GetSemanticDocument() == localized &&
+                ReadProviderStringProperty(*math.get(), UIA_HelpTextPropertyId, "unchanged dictionary help") == entries[0u].text,
+            "setting the same immutable dictionary keeps the current semantic identity");
+    wil::com_ptr_nothrow<IUnknown> pattern;
+    RequireSucceeded(math->GetPatternProvider(UIA_InvokePatternId, pattern.put()), "localized source-entry pattern");
+    wil::com_ptr_nothrow<IInvokeProvider> invoke;
+    Require(pattern && SUCCEEDED(pattern.query_to(invoke.put())), "localized math offers source entry");
+    RequireSucceeded(invoke->Invoke(), "enter localized equation source");
+    fixture.Publish();
+    auto raw = FindNamedSemanticPart(*simple.get(), L"$\\unknown{x}$");
+    Require(raw && ReadProviderStringProperty(*raw.get(), UIA_HelpTextPropertyId, "localized source-exit help") == entries[1u].text,
+            "the source-exit hint uses the immutable document dictionary");
+    const auto region = fixture.editor->GetSemanticSourceRegion();
+    fixture.editor->SetAccessibilityLabels(nullptr);
+    Require(raw->GetPropertyValue(UIA_NamePropertyId, &retired) == UIA_E_ELEMENTNOTAVAILABLE && fixture.editor->GetSemanticSourceRegion() == region &&
+                fixture.editor->GetText() == source && fixture.editor->Revision() == revision && fixture.editor->CanRedo() && changes == 0u,
+            "restoring default labels retires old UIA while preserving source editing and history");
+    fixture.Publish();
+    raw = FindNamedSemanticPart(*simple.get(), L"$\\unknown{x}$");
+    Require(raw &&
+                ReadProviderStringProperty(*raw.get(), UIA_HelpTextPropertyId, "default source-exit help") ==
+                    AccessibilityLabels::Default(AccessibilityTextId::ExitSource) &&
+                held && ! held->AccessibilityLabelSet() && localized->AccessibilityLabelSet() == labels,
+            "default hints are restored and held publications retain their own label lifetime");
+    auto text = TextProvider(fixture);
+    wil::com_ptr_nothrow<ITextRangeProvider> whole;
+    RequireSucceeded(text->get_DocumentRange(whole.put()), "localized full source range");
+    Require(ReadTextRangeText(*whole.get(), -1, "localized document text") == source, "UIA text retains exact source independently of help localization");
 }
 void SemanticDecodedImages(bool embedded)
 {
@@ -2090,6 +2440,611 @@ void SemanticObjectSourceEditing(bool embedded)
     fixture.Publish();
     Require(raw->GetPropertyValue(UIA_NamePropertyId, &retired) == UIA_E_ELEMENTNOTAVAILABLE, "rebinding cannot resurrect old source presentation providers");
 }
+void SemanticInlineMathSourceEditing(bool embedded)
+{
+    using namespace RichText;
+    RichAccessibilityFixture fixture(embedded, true, true);
+    fixture.editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    fixture.editor->SetText(L"before **bold $x$ after** end");
+    fixture.Publish();
+    auto simple = fixture.Simple();
+    auto math   = FindNamedSemanticPart(*simple.get(), L"x");
+    Require(math != nullptr, "inline math exposes a semantic provider");
+    wil::com_ptr_nothrow<IUnknown> pattern;
+    RequireSucceeded(math->GetPatternProvider(UIA_InvokePatternId, pattern.put()), "inline math source Invoke pattern");
+    wil::com_ptr_nothrow<IInvokeProvider> invoke;
+    Require(pattern && SUCCEEDED(pattern.query_to(invoke.put())), "inline math has an invoke action");
+    const auto revision = fixture.editor->Revision();
+    RequireSucceeded(invoke->Invoke(), "UIA enters inline math source");
+    wil::unique_variant retired;
+    Require(math->GetPropertyValue(UIA_NamePropertyId, &retired) == UIA_E_ELEMENTNOTAVAILABLE, "inline source entry retires the original provider");
+    fixture.Publish();
+    auto raw = FindNamedSemanticPart(*simple.get(), L"$x$");
+    Require(raw != nullptr && fixture.editor->GetSemanticSourceRegion()->kind == MarkdownSourceRegionKind::Inline,
+            "UIA source editor exposes the exact inline envelope");
+    pattern.reset();
+    RequireSucceeded(raw->GetPatternProvider(UIA_InvokePatternId, pattern.put()), "inline source exit pattern");
+    invoke.reset();
+    Require(pattern && SUCCEEDED(pattern.query_to(invoke.put())), "inline source offers a reverse action");
+    fixture.editor->SetReadOnly(true);
+    fixture.Publish();
+    Require(! fixture.editor->ReplaceSelection(L"x"), "read-only inline inspection cannot edit source");
+    RequireSucceeded(invoke->Invoke(), "read-only inline source inspection can exit");
+    Require(! fixture.editor->GetSemanticSourceRegion() && fixture.editor->Revision() == revision && ! fixture.editor->CanUndo(),
+            "UIA entry and exit do not edit source or history");
+    fixture.Publish();
+    math = FindNamedSemanticPart(*simple.get(), L"x");
+    pattern.reset();
+    RequireSucceeded(math->GetPatternProvider(UIA_InvokePatternId, pattern.put()), "read-only math source pattern");
+    invoke.reset();
+    Require(pattern && SUCCEEDED(pattern.query_to(invoke.put())), "read-only math source action");
+    RequireSucceeded(invoke->Invoke(), "read-only math permits source inspection");
+    fixture.Publish();
+    raw = FindNamedSemanticPart(*simple.get(), L"$x$");
+    Require(raw != nullptr, "read-only inline source is published");
+    auto* adapter = static_cast<RichAccessibilityEditor*>(fixture.editor);
+    adapter->RebindForTest(nullptr);
+    Require(raw->GetPropertyValue(UIA_NamePropertyId, &retired) == UIA_E_ELEMENTNOTAVAILABLE, "detaching retires the active inline source provider");
+    adapter->RebindForTest(fixture.controls);
+}
+void SemanticInlineLinkImageSourceEditing(bool embedded)
+{
+    using namespace RichText;
+    RichAccessibilityFixture fixture(embedded, true, true);
+    fixture.editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    unsigned activations = 0u;
+    fixture.editor->SetOnLinkActivated([&](const RichTextLinkActivation&) { ++activations; });
+    for (const auto& example : {std::pair{std::wstring_view(L"[label](https://example.invalid)"), MarkdownInlineSourceKind::Link},
+                                std::pair{std::wstring_view(L"![alt](picture.png)"), MarkdownInlineSourceKind::Image}})
+    {
+        std::wstring source(L"before **left ");
+        source.append(example.first);
+        source += L" right** after";
+        fixture.editor->SetText(source);
+        fixture.Publish();
+        auto simple = fixture.Simple();
+        auto part   = FindNamedSemanticPart(*simple.get(), example.second == MarkdownInlineSourceKind::Link ? L"label" : L"alt");
+        Require(part != nullptr, "inline link or image has a semantic provider");
+        wil::com_ptr_nothrow<IUnknown> pattern;
+        if (example.second == MarkdownInlineSourceKind::Link)
+        {
+            RequireSucceeded(part->GetPatternProvider(UIA_InvokePatternId, pattern.put()), "link activation Invoke pattern");
+            wil::com_ptr_nothrow<IInvokeProvider> invoke;
+            Require(pattern && SUCCEEDED(pattern.query_to(invoke.put())), "registered link retains Invoke");
+            RequireSucceeded(invoke->Invoke(), "Invoke activates the link");
+            Require(activations == 1u && ! fixture.editor->GetSemanticSourceRegion(), "link Invoke never changes into source editing");
+        }
+        else
+        {
+            RequireSucceeded(part->GetPatternProvider(UIA_InvokePatternId, pattern.put()), "image Invoke query");
+            Require(! pattern, "image source editing does not manufacture an Invoke action");
+        }
+        pattern.reset();
+        RequireSucceeded(part->GetPatternProvider(UIA_ExpandCollapsePatternId, pattern.put()), "inline source expansion pattern");
+        wil::com_ptr_nothrow<IExpandCollapseProvider> expansion;
+        Require(pattern && SUCCEEDED(pattern.query_to(expansion.put())), "inline object offers source expansion");
+        ExpandCollapseState state{};
+        RequireSucceeded(expansion->get_ExpandCollapseState(&state), "read collapsed inline source state");
+        Require(state == ExpandCollapseState_Collapsed, "ordinary inline object starts collapsed");
+        const auto revision    = fixture.editor->Revision();
+        std::atomic<bool> done = false;
+        HRESULT dispatched     = E_FAIL;
+        std::jthread worker([&]
+        {
+            dispatched = expansion->Expand();
+            done.store(true, std::memory_order_release);
+        });
+        const auto deadline = GetTickCount64() + 12000u;
+        while (! done.load(std::memory_order_acquire) && GetTickCount64() < deadline)
+        {
+            fixture.Pump();
+            Sleep(1u);
+        }
+        Require(done.load(std::memory_order_acquire), "inline source expansion owner dispatch completes");
+        worker.join();
+        Require(dispatched == (embedded ? RPC_E_WRONG_THREAD : S_OK), "native expansion dispatches and embedded expansion rejects a foreign thread");
+        if (embedded)
+            RequireSucceeded(expansion->Expand(), "owner-thread embedded inline source expansion");
+        wil::unique_variant retired;
+        Require(part->GetPropertyValue(UIA_NamePropertyId, &retired) == UIA_E_ELEMENTNOTAVAILABLE,
+                "inline source expansion retires the previous semantic provider");
+        fixture.Publish();
+        auto raw          = FindNamedSemanticPart(*simple.get(), example.first);
+        const auto region = fixture.editor->GetSemanticSourceRegion();
+        Require(raw && region && region->kind == MarkdownSourceRegionKind::Inline && region->inlineKind == example.second,
+                "UIA source expansion exposes the exact inline owner");
+        pattern.reset();
+        RequireSucceeded(raw->GetPatternProvider(UIA_ExpandCollapsePatternId, pattern.put()), "inline source collapse pattern");
+        expansion.reset();
+        Require(pattern && SUCCEEDED(pattern.query_to(expansion.put())), "inline source offers a separate collapse action");
+        RequireSucceeded(expansion->get_ExpandCollapseState(&state), "read expanded inline source state");
+        Require(state == ExpandCollapseState_Expanded, "inline source reports expanded state");
+        wil::unique_variant help;
+        RequireSucceeded(raw->GetPropertyValue(UIA_HelpTextPropertyId, &help), "read inline source exit help");
+        Require(help.vt == VT_BSTR && std::wstring_view(help.bstrVal).find(L"Invoke") == std::wstring_view::npos &&
+                    std::wstring_view(help.bstrVal).find(L"Esc") != std::wstring_view::npos,
+                "inline source exit help does not suggest an unavailable Invoke action");
+        fixture.editor->SetReadOnly(true);
+        fixture.Publish();
+        Require(! fixture.editor->ReplaceSelection(L"x"), "read-only object source cannot mutate");
+        RequireSucceeded(expansion->Collapse(), "read-only object source can collapse");
+        Require(! fixture.editor->GetSemanticSourceRegion() && fixture.editor->Revision() == revision && ! fixture.editor->CanUndo(),
+                "UIA inline source inspection preserves source and history");
+        fixture.editor->SetReadOnly(false);
+    }
+}
+void SemanticWikiActivation(bool embedded)
+{
+    using namespace RichText;
+    RichAccessibilityFixture fixture(embedded, true, true);
+    fixture.editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    fixture.editor->SetMarkdownRenderingEnabled(true);
+    const std::wstring source = L"[[#application|wiki label]]";
+    fixture.editor->SetText(source);
+    fixture.Publish();
+    auto simple                  = fixture.Simple();
+    const auto sameNameParagraph = FindNamedSemanticPart(*simple.get(), L"wiki label");
+    Require(sameNameParagraph &&
+                ReadProviderLongProperty(*sameNameParagraph.get(), UIA_ControlTypePropertyId, "same-name paragraph type") == UIA_TextControlTypeId,
+            "the same-name paragraph precedes the nested wiki hyperlink");
+    auto link = FindNamedSemanticPart(*simple.get(), L"wiki label", 0u, UIA_HyperlinkControlTypeId);
+    wil::com_ptr_nothrow<IUnknown> pattern;
+    Require(link && SUCCEEDED(link->GetPatternProvider(UIA_InvokePatternId, pattern.put())) && ! pattern,
+            "unresolved wiki fragment has no implicit heading Invoke");
+    const auto revision  = fixture.editor->Revision();
+    const auto selection = fixture.editor->GetSelection();
+    unsigned calls{};
+    fixture.editor->SetOnLinkActivated([&](const RichTextLinkActivation& value)
+    {
+        Require(value.wiki && value.destination == L"#application" && value.label == L"wiki label", "wiki UIA intent preserves target and label");
+        ++calls;
+    });
+    fixture.Publish();
+    link = FindNamedSemanticPart(*simple.get(), L"wiki label", 0u, UIA_HyperlinkControlTypeId);
+    Require(link != nullptr, "the current application-resolved wiki hyperlink is present");
+    RequireSucceeded(link->GetPatternProvider(UIA_InvokePatternId, pattern.put()), "application-resolved wiki Invoke pattern");
+    wil::com_ptr_nothrow<IInvokeProvider> invoke;
+    Require(pattern && SUCCEEDED(pattern.query_to(invoke.put())) && SUCCEEDED(invoke->Invoke()) && calls == 1u,
+            "wiki UIA activation delegates exactly once to the application");
+    Require(fixture.editor->GetText() == source && fixture.editor->Revision() == revision && fixture.editor->GetSelection() == selection &&
+                ! fixture.editor->CanUndo(),
+            "wiki UIA activation preserves source, selection, revision and history");
+}
+void SemanticDisclosure(bool embedded)
+{
+    using namespace RichText;
+    RichAccessibilityFixture fixture(embedded, true, true);
+    fixture.editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    const std::wstring source = L"<details>\n<summary>More</summary>\nBody text\n</details>\n";
+    fixture.editor->SetText(source);
+    fixture.editor->SetSelection({3u, 3u});
+    fixture.Publish();
+    auto root = fixture.Simple();
+    auto part = FindNamedSemanticPart(*root.get(), L"More");
+    Require(part != nullptr, "native/embedded collapsed disclosure exposes its authored summary");
+    wil::unique_variant role;
+    RequireSucceeded(part->GetPropertyValue(UIA_ControlTypePropertyId, &role), "read disclosure control type");
+    Require(role.vt == VT_I4 && role.lVal == UIA_ButtonControlTypeId, "disclosure summary is an actionable button");
+    wil::com_ptr_nothrow<IUnknown> pattern;
+    RequireSucceeded(part->GetPatternProvider(UIA_ExpandCollapsePatternId, pattern.put()), "get disclosure expand pattern");
+    wil::com_ptr_nothrow<IExpandCollapseProvider> expansion;
+    Require(pattern && SUCCEEDED(pattern.query_to(expansion.put())), "summary exposes ExpandCollapse");
+    ExpandCollapseState state{};
+    RequireSucceeded(expansion->get_ExpandCollapseState(&state), "read collapsed disclosure");
+    Require(state == ExpandCollapseState_Collapsed &&
+                fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls)->Map().Display().find(L"Body text") == std::wstring::npos,
+            "collapsed disclosure omits only its body from presentation");
+    const auto revision = fixture.editor->Revision();
+    RequireSucceeded(expansion->Expand(), "expand disclosure");
+    fixture.Publish();
+    auto opened = fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls);
+    Require(opened && opened->Map().Display().find(L"Body text") != std::wstring::npos && fixture.editor->GetText() == source &&
+                fixture.editor->Revision() == revision && fixture.editor->GetSelection() == Selection{3u, 3u} && ! fixture.editor->CanUndo(),
+            "expansion reveals body without changing source, selection, revision or history");
+    part = FindNamedSemanticPart(*root.get(), L"More");
+    pattern.reset();
+    expansion.reset();
+    Require(part && SUCCEEDED(part->GetPatternProvider(UIA_ExpandCollapsePatternId, pattern.put())) && pattern && SUCCEEDED(pattern.query_to(expansion.put())),
+            "expanded disclosure has a fresh action provider");
+    RequireSucceeded(expansion->get_ExpandCollapseState(&state), "read expanded disclosure");
+    Require(state == ExpandCollapseState_Expanded, "expanded state is acknowledged");
+    RequireSucceeded(expansion->Collapse(), "collapse disclosure");
+    fixture.Publish();
+    Require(fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls)->Map().Display().find(L"Body text") == std::wstring::npos,
+            "collapse hides the body again");
+    Require(fixture.editor->OnKeyDown(*fixture.controls, VK_TAB, MK_CONTROL) && fixture.editor->OnKeyDown(*fixture.controls, VK_SPACE, 0u),
+            "keyboard navigation and Space expand the summary without foreground input");
+    fixture.Publish();
+    Require(fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls)->Map().Display().find(L"Body text") != std::wstring::npos &&
+                fixture.editor->GetText() == source && ! fixture.editor->CanUndo(),
+            "keyboard disclosure remains a view-only transition");
+    opened             = fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls);
+    const auto summary = std::ranges::find(opened->Elements(), SemanticRole::Disclosure, &SemanticElement::role);
+    Require(summary != opened->Elements().end(), "expanded summary owns mouse target");
+    const auto index  = static_cast<std::size_t>(summary - opened->Elements().begin());
+    const auto bounds = fixture.editor->GetSemanticElementBounds(*fixture.controls, index);
+    Require(bounds && fixture.editor->OnMouseDown(*fixture.controls, {(bounds->left + bounds->right) * .5f, (bounds->top + bounds->bottom) * .5f}, false, 0u),
+            "mouse hit on authored summary activates disclosure");
+    fixture.Publish();
+    Require(fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls)->Map().Display().find(L"Body text") == std::wstring::npos &&
+                fixture.editor->GetText() == source && fixture.editor->Revision() == revision && ! fixture.editor->CanUndo(),
+            "mouse collapse preserves source and history");
+    const std::wstring replacement = L"<details open>\n<summary>More</summary>\nReplacement body\n</details>\n";
+    fixture.editor->SetText(replacement);
+    fixture.Publish();
+    const auto replaced = fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls);
+    Require(replaced && replaced->Map().Display().find(L"Replacement body") != std::wstring::npos && fixture.editor->GetText() == replacement &&
+                ! fixture.editor->CanUndo(),
+            "a full source replacement retires old disclosure view state and honors the new open attribute");
+    part = FindNamedSemanticPart(*root.get(), L"More");
+    pattern.reset();
+    expansion.reset();
+    Require(part && SUCCEEDED(part->GetPatternProvider(UIA_ExpandCollapsePatternId, pattern.put())) && pattern && SUCCEEDED(pattern.query_to(expansion.put())),
+            "replacement summary exposes disclosure action");
+    RequireSucceeded(expansion->Collapse(), "collapse replacement before independent edit");
+    fixture.Publish();
+    fixture.editor->SetSelection({replacement.size(), replacement.size()});
+    Require(fixture.editor->ReplaceSelection(L"\nTail"), "append an independent source edit");
+    fixture.Publish();
+    const auto edited = fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls);
+    Require(edited && edited->Map().Display().find(L"Replacement body") == std::wstring::npos && fixture.editor->CanUndo(),
+            "an independent source edit keeps surviving disclosure presentation and ordinary history");
+}
+void SemanticOptionalDefinitionsAndAbbreviations(bool embedded)
+{
+    using namespace RichText;
+    RichAccessibilityFixture fixture(embedded, true, true);
+    fixture.editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    const auto extensions = MarkdownExtensions::RichAll | MarkdownExtensions::DefinitionLists | MarkdownExtensions::Abbreviations;
+    fixture.editor->SetMarkdownAnalysisExtensions(extensions);
+    const std::wstring source = L"HTML document\n\n*[HTML]: Hyper Text Markup Language\n\nTerm\n: description\n";
+    fixture.editor->SetText(source);
+    fixture.Publish();
+    const auto document = fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls);
+    Require(document && document->Map().Source() == source && document->Map().Display().find(L"*[HTML]:") == std::wstring::npos,
+            "optional semantic extensions retain the exact source while hiding the abbreviation declaration");
+    auto root         = fixture.Simple();
+    auto abbreviation = FindNamedSemanticPart(*root.get(), L"HTML");
+    Require(abbreviation && ReadProviderStringProperty(*abbreviation.get(), UIA_HelpTextPropertyId, "abbreviation expansion") == L"Hyper Text Markup Language",
+            "native and embedded UIA expose authored abbreviation expansion as help");
+    Require(FindSemanticPart(*root.get(), UIA_ListControlTypeId) != nullptr && FindNamedSemanticPart(*root.get(), L"Term") != nullptr,
+            "definition list and term are exposed as semantic structure");
+    const auto definitionStart = source.find(L"*[HTML]:");
+    fixture.editor->SetSelection({definitionStart + 2u, definitionStart + 2u});
+    Require(fixture.editor->OnKeyDown(*fixture.controls, VK_F2, 0u), "F2 opens the hidden abbreviation declaration");
+    fixture.Publish();
+    const auto region = fixture.editor->GetSemanticSourceRegion();
+    Require(region && region->source.first == definitionStart && fixture.editor->GetText() == source && ! fixture.editor->CanUndo(),
+            "hidden declaration F2 exposes its exact source without changing history");
+    const auto colon = source.find(L':', definitionStart);
+    fixture.editor->SetSelection({colon, colon + 1u});
+    Require(fixture.editor->ReplaceSelection(L""), "declaration can be edited into an invalid form");
+    Require(fixture.editor->OnKeyDown(*fixture.controls, VK_ESCAPE, 0u), "Escape exits abbreviation source editing");
+    fixture.Publish();
+    const auto invalidDefinition = fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls);
+    Require(invalidDefinition && invalidDefinition->Map().Display().find(L"*[HTML] Hyper") != std::wstring::npos &&
+                std::ranges::none_of(invalidDefinition->Elements(), [](const auto& element) { return element.role == SemanticRole::Abbreviation; }),
+            "invalid declaration is visible and no stale abbreviation survives");
+    Require(fixture.editor->Undo() && fixture.editor->GetText() == source, "one Undo restores the original declaration");
+    fixture.Publish();
+    const auto restored = fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls);
+    Require(restored && std::ranges::any_of(restored->Elements(), [](const auto& element) { return element.role == SemanticRole::Abbreviation; }),
+            "undo restores abbreviation semantics");
+    const auto revision = fixture.editor->Revision();
+    fixture.editor->SetMarkdownAnalysisExtensions(std::nullopt);
+    fixture.Publish();
+    const auto ordinary = fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls);
+    Require(ordinary && ordinary->Map().Source() == source && ordinary->Map().Display().find(L"*[HTML]:") != std::wstring::npos &&
+                fixture.editor->Revision() == revision && ! fixture.editor->CanUndo(),
+            "disabling the optional extensions restores ordinary presentation without changing source or history");
+    wil::unique_variant retired;
+    Require(abbreviation->GetPropertyValue(UIA_HelpTextPropertyId, &retired) == UIA_E_ELEMENTNOTAVAILABLE,
+            "extension configuration change retires the previous abbreviation provider");
+    fixture.editor->SetMarkdownAnalysisProfile(MarkdownProfile::Gfm029);
+    Require(! fixture.editor->GetMarkdownAnalysisExtensions(), "changing profiles resets the explicit extension mask");
+    bool invalid = false;
+    try
+    {
+        fixture.editor->SetMarkdownAnalysisExtensions(MarkdownExtensions::Abbreviations);
+    }
+    catch (const std::invalid_argument&)
+    {
+        invalid = true;
+    }
+    Require(invalid && fixture.editor->GetMarkdownAnalysisProfile() == MarkdownProfile::Gfm029 && ! fixture.editor->GetMarkdownAnalysisExtensions(),
+            "non-RichMarkdown profiles refuse rich-only extension bits atomically");
+}
+void SemanticProperties(bool embedded)
+{
+    using namespace RichText;
+    RichAccessibilityFixture fixture(embedded, true, true);
+    fixture.editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    for (const std::wstring source : {L"---\nname: \u03b2\ncount: 2\n---\n\nAfter\n", L"+++\nname = \"\u03b2\"\ncount = 2\n+++\n\nAfter\n"})
+    {
+        fixture.editor->SetText(source);
+        fixture.editor->SetSelection({2u, 2u});
+        fixture.Publish();
+        auto root   = fixture.Simple();
+        auto header = FindNamedSemanticPart(*root.get(), L"Properties");
+        wil::com_ptr_nothrow<IUnknown> pattern;
+        Require(header && SUCCEEDED(header->GetPatternProvider(UIA_ExpandCollapsePatternId, pattern.put())) && pattern,
+                "validated metadata has a Properties disclosure action");
+        wil::com_ptr_nothrow<IExpandCollapseProvider> expansion;
+        Require(SUCCEEDED(pattern.query_to(expansion.put())), "properties action exposes ExpandCollapse");
+        ExpandCollapseState state{};
+        RequireSucceeded(expansion->get_ExpandCollapseState(&state), "read properties state");
+        const auto original = fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls);
+        Require(state == ExpandCollapseState_Collapsed && original && original->Map().Display().find(L"name") == std::wstring::npos &&
+                    original->Map().Display().ends_with(L"After\n"),
+                "validated properties start collapsed without hiding adjacent content");
+        const auto revision = fixture.editor->Revision();
+        RequireSucceeded(expansion->Expand(), "expand validated properties");
+        fixture.Publish();
+        const auto expanded = fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls);
+        Require(expanded && expanded->Map().Display().find(L"name") != std::wstring::npos && fixture.editor->GetText() == source &&
+                    fixture.editor->Revision() == revision && fixture.editor->GetSelection() == Selection{2u, 2u} && ! fixture.editor->CanUndo(),
+                "properties expansion is presentation-only and preserves exact source, selection and history");
+        fixture.editor->SetSelection({source.find(L'\u03b2'), source.find(L'\u03b2')});
+        Require(fixture.editor->OnKeyDown(*fixture.controls, VK_F2, 0u), "F2 enters exact front-matter source");
+        fixture.Publish();
+        Require(fixture.editor->GetSemanticSourceRegion().has_value() && fixture.editor->GetText() == source && ! fixture.editor->CanUndo(),
+                "front-matter source entry retains the exact envelope and history");
+        Require(fixture.editor->OnKeyDown(*fixture.controls, VK_ESCAPE, 0u), "Escape exits front-matter source");
+        fixture.Publish();
+        Require(! fixture.editor->GetSemanticSourceRegion() && fixture.editor->GetText() == source && ! fixture.editor->CanUndo(),
+                "source inspection never rewrites properties");
+    }
+}
+void SemanticCallouts(bool embedded)
+{
+    using namespace RichText;
+    RichAccessibilityFixture fixture(embedded, true, true);
+    fixture.editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    const std::wstring source = L"> [!tip]- Closed title\n> hidden **body**\n";
+    fixture.editor->SetText(source);
+    fixture.editor->SetSelection({2u, 2u});
+    fixture.Publish();
+    auto root  = fixture.Simple();
+    auto group = FindNamedSemanticPart(*root.get(), L"Closed title");
+    wil::unique_variant role;
+    Require(group && SUCCEEDED(group->GetPropertyValue(UIA_ControlTypePropertyId, &role)) && role.vt == VT_I4 && role.lVal == UIA_GroupControlTypeId,
+            "callout is a named semantic group");
+    auto summary = FindNamedSemanticPart(*group.get(), L"Closed title");
+    wil::com_ptr_nothrow<IUnknown> pattern;
+    Require(summary && SUCCEEDED(summary->GetPatternProvider(UIA_ExpandCollapsePatternId, pattern.put())) && pattern,
+            "foldable callout has a distinct summary action");
+    wil::com_ptr_nothrow<IExpandCollapseProvider> expansion;
+    Require(SUCCEEDED(pattern.query_to(expansion.put())), "callout summary offers ExpandCollapse");
+    ExpandCollapseState state{};
+    RequireSucceeded(expansion->get_ExpandCollapseState(&state), "read callout state");
+    Require(state == ExpandCollapseState_Collapsed &&
+                fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls)->Map().Display().find(L"hidden") == std::wstring::npos,
+            "minus callout starts collapsed");
+    const auto revision = fixture.editor->Revision();
+    RequireSucceeded(expansion->Expand(), "expand callout");
+    fixture.Publish();
+    const auto opened = fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls);
+    Require(opened && opened->Map().Display().find(L"hidden body") != std::wstring::npos && fixture.editor->GetText() == source &&
+                fixture.editor->Revision() == revision && fixture.editor->GetSelection() == Selection{2u, 2u} && ! fixture.editor->CanUndo(),
+            "callout expansion reveals rich content without changing source or history");
+    group   = FindNamedSemanticPart(*root.get(), L"Closed title");
+    summary = FindNamedSemanticPart(*group.get(), L"Closed title");
+    pattern.reset();
+    expansion.reset();
+    Require(summary && SUCCEEDED(summary->GetPatternProvider(UIA_ExpandCollapsePatternId, pattern.put())) && pattern &&
+                SUCCEEDED(pattern.query_to(expansion.put())),
+            "expanded callout exposes a fresh summary provider");
+    RequireSucceeded(expansion->Collapse(), "collapse callout");
+    fixture.Publish();
+    Require(fixture.editor->OnKeyDown(*fixture.controls, VK_TAB, MK_CONTROL) && fixture.editor->OnKeyDown(*fixture.controls, VK_SPACE, 0u),
+            "callout supports keyboard navigation and expansion");
+    fixture.Publish();
+    Require(fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls)->Map().Display().find(L"hidden body") != std::wstring::npos &&
+                fixture.editor->GetText() == source && ! fixture.editor->CanUndo(),
+            "keyboard callout action retains source and history");
+}
+#if DXUI_ENABLE_DIAGNOSTICS
+void SemanticHtmlScriptFallback(bool embedded)
+{
+    using namespace RichText;
+    RichAccessibilityFixture fixture(embedded, true, true);
+    fixture.editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    const std::wstring source = L"# Before\n\n<p>x<sup>emoji</sup></p>\n\n**After**\n";
+    fixture.editor->SetText(source);
+    fixture.editor->SetSelection({2u, 2u});
+    const auto previous                               = RichText::Detail::testRichScriptTargetUnsupported;
+    const auto restore                                = wil::scope_exit([=]() noexcept { RichText::Detail::testRichScriptTargetUnsupported = previous; });
+    RichText::Detail::testRichScriptTargetUnsupported = true;
+    fixture.Publish();
+    const auto fallback = fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls);
+    Require(fallback && fallback->Map().Source() == source && fallback->Map().Display().find(L"<p>x<sup>emoji</sup></p>") != std::wstring::npos &&
+                fallback->Map().Display().ends_with(L"After\n") && fallback->Diagnostics().empty(),
+            "native and embedded unsupported targets retain only the exact HTML leaf as source");
+    const auto advances = fixture.editor->DebugGetState().preparationAdvances;
+    fixture.Publish();
+    Require(fixture.editor->DebugGetState().preparationAdvances == advances && fixture.editor->GetSelection() == Selection{2u, 2u} &&
+                ! fixture.editor->CanUndo(),
+            "unsupported HTML fallback is idle and preserves selection/history");
+    RichText::Detail::testRichScriptTargetUnsupported = false;
+    auto appearance                                   = fixture.editor->GetAppearance();
+    appearance.bodyFontSizeDip += 1.f;
+    fixture.editor->SetAppearance(appearance);
+    fixture.Publish();
+    const auto recovered = fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls);
+    Require(recovered && recovered != fallback && recovered->Map().Display().find(L"xemoji") != std::wstring::npos && fixture.editor->GetText() == source &&
+                fixture.editor->GetSelection() == Selection{2u, 2u} && ! fixture.editor->CanUndo(),
+            "typography-key change retries and restores native HTML scripts");
+}
+#endif
+void SemanticDiagnosticSelection(bool embedded)
+{
+    using namespace RichText;
+    RichAccessibilityFixture fixture(embedded, true, true);
+    fixture.editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    fixture.editor->SetText(L"first[^missing] and second[^other]\n");
+    fixture.Publish();
+    const auto syntax = fixture.editor->GetMarkdownSyntax();
+    Require(syntax && syntax->Diagnostics().size() == 2u, "diagnostic traversal fixture has two source diagnostics");
+    const auto first    = syntax->Diagnostics()[0].source;
+    const auto second   = syntax->Diagnostics()[1].source;
+    const auto revision = fixture.editor->Revision();
+    const auto focus    = fixture.controls->GetFocusControl();
+    Require(fixture.editor->OnKeyDown(*fixture.controls, VK_F8, 0u) && fixture.editor->GetSelection() == Selection{first.first, first.last},
+            "F8 selects the first exact source diagnostic");
+    Require(fixture.editor->OnKeyDown(*fixture.controls, VK_F8, 0u) && fixture.editor->GetSelection() == Selection{second.first, second.last},
+            "F8 selects the next source diagnostic");
+    Require(fixture.editor->OnKeyDown(*fixture.controls, VK_F8, MK_SHIFT) && fixture.editor->GetSelection() == Selection{first.first, first.last},
+            "Shift+F8 selects the previous diagnostic");
+    Require(fixture.editor->Revision() == revision && ! fixture.editor->CanUndo() && fixture.controls->GetFocusControl() == focus,
+            "diagnostic navigation changes neither source, history nor focus");
+    fixture.editor->SetText(L"changed");
+    Require(! fixture.editor->SelectMarkdownDiagnostic(*fixture.controls), "stale diagnostic publication cannot act after source replacement");
+}
+void TestRichTextAccessibilityWindowDiagnosticSelection()
+{
+    SemanticDiagnosticSelection(false);
+}
+void TestRichTextAccessibilityEmbeddedDiagnosticSelection()
+{
+    EmbeddedCase([](bool embedded) { SemanticDiagnosticSelection(embedded); });
+}
+
+void SemanticLinkActivation(bool embedded)
+{
+    using namespace RichText;
+    RichAccessibilityFixture fixture(embedded, true, true);
+    const std::wstring source = L"[outside](https://example.invalid/docs \"Reference\") [first](#hello-world) [second](#hello-world-1) [bad](#%GG)\n\n"
+                                L"# Hello, World\n\nbody\n\n# Hello, World\n";
+    fixture.editor->SetText(source);
+    fixture.editor->SetReadOnly(true);
+    fixture.Publish();
+    const auto document = fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls);
+    Require(document != nullptr, "link activation has acknowledged semantic geometry");
+    const auto revision = fixture.editor->Revision();
+    const auto focus    = fixture.controls->GetFocusControl();
+    auto initialRoot    = fixture.Simple();
+    auto initialOutside = FindNamedSemanticPart(*initialRoot.get(), L"outside");
+    auto initialLocal   = FindNamedSemanticPart(*initialRoot.get(), L"first");
+    wil::com_ptr_nothrow<IUnknown> initialPattern;
+    Require(initialOutside && initialLocal, "external and local links are discoverable before registration");
+    RequireSucceeded(initialOutside->GetPatternProvider(UIA_InvokePatternId, initialPattern.put()), "unregistered external link pattern");
+    Require(! initialPattern, "external link is inert until a handler is registered");
+    RequireSucceeded(initialLocal->GetPatternProvider(UIA_InvokePatternId, initialPattern.put()), "local fragment pattern");
+    Require(bool(initialPattern), "local fragment remains invokable without an external handler");
+    size_t calls{};
+    fixture.editor->SetOnLinkActivated([&](const RichTextLinkActivation& activation)
+    {
+        Require(activation.destination == L"https://example.invalid/docs" && activation.title == L"Reference" &&
+                    source.substr(activation.source.first, activation.source.last - activation.source.first).starts_with(L"[outside]"),
+                "consumer receives the exact immutable destination, title and source ownership");
+        ++calls;
+    });
+    fixture.Publish();
+    initialPattern.reset();
+    Require(initialOutside->GetPatternProvider(UIA_InvokePatternId, initialPattern.put()) == UIA_E_ELEMENTNOTAVAILABLE,
+            "registration retires the previous immutable UIA publication");
+    auto simple  = fixture.Simple();
+    auto outside = FindNamedSemanticPart(*simple.get(), L"outside");
+    Require(outside != nullptr, "external link has a real semantic provider");
+    wil::com_ptr_nothrow<IUnknown> pattern;
+    RequireSucceeded(outside->GetPatternProvider(UIA_InvokePatternId, pattern.put()), "external hyperlink Invoke discovery");
+    wil::com_ptr_nothrow<IInvokeProvider> invoke;
+    RequireSucceeded(pattern.query_to(invoke.put()), "external hyperlink Invoke interface");
+    const auto selection = fixture.editor->GetSelection();
+    RequireSucceeded(invoke->Invoke(), "read-only link delegates an activation intent");
+    Require(calls == 1u && fixture.editor->GetSelection() == selection && fixture.controls->GetFocusControl() == focus,
+            "external link activation neither edits source selection nor acquires focus");
+    for (const auto name : {L"first", L"second"})
+    {
+        const auto link = std::ranges::find(document->Elements(), name, &SemanticElement::name);
+        Require(link != document->Elements().end(), "local fragment link exists");
+        const auto index = static_cast<size_t>(link - document->Elements().begin());
+        Require(fixture.editor->NavigateSemanticElement(*fixture.controls, document, index), "local heading fragment is navigable while read-only");
+        const auto heading = name == std::wstring_view(L"first") ? source.find(L"Hello, World") : source.rfind(L"Hello, World");
+        Require(fixture.editor->GetSelection() == Selection{heading, heading + 12u}, "duplicate heading fragments have deterministic distinct targets");
+    }
+    const auto bad       = std::ranges::find(document->Elements(), L"bad", &SemanticElement::name);
+    const auto beforeBad = fixture.editor->GetSelection();
+    Require(bad != document->Elements().end() &&
+                ! fixture.editor->NavigateSemanticElement(*fixture.controls, document, static_cast<size_t>(bad - document->Elements().begin())) &&
+                fixture.editor->GetSelection() == beforeBad && calls == 1u && fixture.editor->GetText() == source && fixture.editor->Revision() == revision &&
+                ! fixture.editor->CanUndo(),
+            "malformed fragments refuse atomically and every navigation preserves source, history and external callback count");
+    fixture.editor->SetOnLinkActivated({});
+    Require(invoke->Invoke() == UIA_E_ELEMENTNOTAVAILABLE, "removing the handler retires the old action provider");
+    fixture.Publish();
+    simple  = fixture.Simple();
+    outside = FindNamedSemanticPart(*simple.get(), L"outside");
+    pattern.reset();
+    RequireSucceeded(outside->GetPatternProvider(UIA_InvokePatternId, pattern.put()), "removed external handler query");
+    Require(! pattern, "external link returns to inert UIA semantics");
+    fixture.editor->SetOnLinkActivated([&](const RichTextLinkActivation&) { fixture.controls->SetRoot({}); });
+    fixture.Publish();
+    simple  = fixture.Simple();
+    outside = FindNamedSemanticPart(*simple.get(), L"outside");
+    RequireSucceeded(outside->GetPatternProvider(UIA_InvokePatternId, pattern.put()), "restored external handler query");
+    invoke.reset();
+    RequireSucceeded(pattern.query_to(invoke.put()), "restored external handler interface");
+    const auto lifetime = GetControlLifetimeToken(*fixture.editor);
+    RequireSucceeded(invoke->Invoke(), "a delegated link stays handled when the callback retires its editor");
+    Require(lifetime.expired(), "link callback actually retired the owner");
+    Require(invoke->Invoke() == UIA_E_ELEMENTNOTAVAILABLE, "retained link providers cannot invoke a replacement document");
+}
+void TestRichTextAccessibilityWindowLinkActivation()
+{
+    SemanticLinkActivation(false);
+}
+void TestRichTextAccessibilityEmbeddedLinkActivation()
+{
+    EmbeddedCase([](bool embedded) { SemanticLinkActivation(embedded); });
+}
+void SemanticCodeCopyAction(bool embedded)
+{
+    RichAccessibilityFixture fixture(embedded, true, true);
+    auto appearance                 = fixture.editor->GetAppearance();
+    appearance.markdownPresentation = RichText::MarkdownPresentationStyle::Subtle;
+    fixture.editor->SetAppearance(appearance);
+    const std::wstring source = L"```cpp\nint x;\n```\n";
+    fixture.editor->SetText(source);
+    fixture.editor->SetSelection({9u, 9u});
+    std::wstring copied;
+    unsigned calls{};
+    fixture.editor->SetOnCodeCopyRequested(
+        [&](std::wstring_view code)
+    {
+        copied.assign(code);
+        ++calls;
+    },
+        L"Copy example code");
+    fixture.Publish();
+    auto root = fixture.Simple();
+    auto copy = FindNamedSemanticPart(*root.get(), L"Copy example code");
+    Require(copy && ReadProviderLongProperty(*copy.get(), UIA_ControlTypePropertyId, "copy button role") == UIA_ButtonControlTypeId,
+            "native and embedded code copy is exposed as a named button");
+    wil::com_ptr_nothrow<IUnknown> pattern;
+    RequireSucceeded(copy->GetPatternProvider(UIA_InvokePatternId, pattern.put()), "code copy Invoke availability");
+    wil::com_ptr_nothrow<IInvokeProvider> invoke;
+    RequireSucceeded(pattern.query_to(invoke.put()), "code copy Invoke interface");
+    const auto selection = fixture.editor->GetSelection();
+    const auto revision  = fixture.editor->Revision();
+    RequireSucceeded(invoke->Invoke(), "invoke code copy intent");
+    Require(calls == 1u && copied == L"int x;\n" && fixture.editor->GetSelection() == selection && fixture.editor->Revision() == revision &&
+                fixture.editor->GetText() == source && ! fixture.editor->CanUndo(),
+            "copy action sends rendered code without source, selection or history changes");
+    fixture.editor->SetOnCodeCopyRequested({});
+    Require(invoke->Invoke() == UIA_E_ELEMENTNOTAVAILABLE, "removed callback immediately retires old copy peer");
+    fixture.Publish();
+    root = fixture.Simple();
+    Require(! FindNamedSemanticPart(*root.get(), L"Copy example code"), "unregistered code copy action is absent from accessibility tree");
+}
+void TestRichTextAccessibilityWindowCodeCopy()
+{
+    SemanticCodeCopyAction(false);
+}
+void TestRichTextAccessibilityEmbeddedCodeCopy()
+{
+    EmbeddedCase([](bool embedded) { SemanticCodeCopyAction(embedded); });
+}
 void SemanticFootnoteNavigation(bool embedded)
 {
     using namespace RichText;
@@ -2124,6 +3079,15 @@ void SemanticFootnoteNavigation(bool embedded)
     const auto focus    = fixture.controls->GetFocusControl();
     const auto body     = source.find(L"**body**");
     const auto first = source.find(L"[^n]", source.find(L"main")), second = source.find(L"[^n]", first + 1u);
+    const auto beforeKeyboard = fixture.editor->GetSelection();
+    Require(fixture.editor->OnKeyDown(*fixture.controls, VK_TAB, MK_CONTROL) && fixture.editor->OnKeyDown(*fixture.controls, VK_TAB, MK_CONTROL) &&
+                fixture.editor->GetSelection() == beforeKeyboard,
+            "Ctrl+Tab traverses distinct generated backlinks without editing or inventing a source selection");
+    Require(fixture.editor->OnKeyDown(*fixture.controls, VK_RETURN, MK_CONTROL) && fixture.editor->GetSelection() == Selection{second, second + 4u},
+            "Ctrl+Enter activates the focused second generated backlink");
+    Require(fixture.editor->OnKeyDown(*fixture.controls, VK_TAB, MK_CONTROL | MK_SHIFT) &&
+                fixture.editor->OnKeyDown(*fixture.controls, VK_RETURN, MK_CONTROL) && fixture.editor->GetSelection() == Selection{second, second + 4u},
+            "reverse traversal wraps to the last generated backlink after navigation");
     RequireSucceeded(forward->Invoke(), "forward internal navigation");
     Require(fixture.editor->GetSelection() == Selection{body, body}, "forward navigation enters the exact definition content source");
     RequireSucceeded(back1->Invoke(), "first repeated backlink");
@@ -2237,11 +3201,51 @@ void SemanticFootnoteNavigation(bool embedded)
     const auto marker = overlapping.find(L"[^n]");
     Require(fixture.editor->GetSelection() == Selection{marker, marker + 4u}, "literal fallback navigation still selects the exact original raw marker");
 }
+void TestRichSemanticStaleCellCreation()
+{
+#if DXUI_ENABLE_DIAGNOSTICS
+    RichAccessibilityFixture fixture(false, true, true);
+    fixture.editor->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::Gfm029);
+    fixture.editor->SetText(L"| a | b |\n| - | - |\n| x | y |\n");
+    fixture.Publish();
+    auto simple = fixture.Simple();
+    auto table  = FindSemanticPart(*simple.get(), UIA_TableControlTypeId);
+    Require(table != nullptr, "semantic table exists for the peer creation race");
+    wil::com_ptr_nothrow<IGridProvider> grid;
+    RequireSucceeded(table.query_to(grid.put()), "semantic table exposes GridPattern");
+    wil::unique_event entered(CreateEventW(nullptr, TRUE, FALSE, nullptr)), release(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    Require(entered && release, "create semantic peer race events");
+    DebugSetAccessibilityPeerCreationGateForTest(fixture.Hwnd(), entered.get(), release.get());
+    std::atomic<HRESULT> result{E_PENDING};
+    wil::com_ptr_nothrow<IRawElementProviderSimple> cell;
+    std::jthread worker;
+    bool armed         = true;
+    const auto cleanup = wil::scope_exit([&]() noexcept
+    {
+        static_cast<void>(SetEvent(release.get()));
+        if (worker.joinable())
+            worker.join();
+        if (armed)
+            DebugSetAccessibilityPeerCreationGateForTest(nullptr, nullptr, nullptr);
+    });
+    worker             = std::jthread([&]() noexcept { result.store(grid->GetItem(0, 0, cell.put()), std::memory_order_release); });
+    Require(WaitForSingleObject(entered.get(), 5000u) == WAIT_OBJECT_0, "pause semantic cell creation before its epoch check");
+    fixture.editor->SetText(L"replacement");
+    fixture.Publish();
+    Require(SetEvent(release.get()) != FALSE, "resume retired semantic cell creation");
+    worker.join();
+    DebugSetAccessibilityPeerCreationGateForTest(nullptr, nullptr, nullptr);
+    armed = false;
+    Require(result.load(std::memory_order_acquire) == UIA_E_ELEMENTNOTAVAILABLE && ! cell,
+            "a retired semantic cell reports unavailable instead of allocation failure");
+#endif
+}
 void SemanticStructureAndTasks(bool embedded)
 {
     RichAccessibilityFixture fixture(embedded, true, true);
     fixture.editor->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::Gfm029);
-    const std::wstring source = L"# Head\n\n[label](#local) ![image alt](image)\n\n- [ ] task\n\n| A | B | C |\n| --- | --- | --- |\n| value |\n";
+    const std::wstring source =
+        L"# Head\n\n[label](https://example.invalid) ![image alt](image)\n\n- [ ] task\n\n| A | B | C |\n| --- | --- | --- |\n| value |\n";
     fixture.editor->SetText(source);
     fixture.editor->SetSelection({5u, 2u});
     fixture.Publish();
@@ -2254,7 +3258,7 @@ void SemanticStructureAndTasks(bool embedded)
     wil::com_ptr_nothrow<IUnknown> invocation;
     RequireSucceeded(link->GetPatternProvider(UIA_InvokePatternId, invocation.put()), "inert link pattern query");
     Require(! invocation && ReadProviderStringProperty(*image.get(), UIA_NamePropertyId, "image alternative") == L"image alt",
-            "link destinations stay inert and images expose their native alternatives");
+            "unhandled external links stay inert and images expose their native alternatives");
     wil::com_ptr_nothrow<ITextProvider> text;
     RequireSucceeded(simple.query_to(text.put()), "structured source pattern");
     wil::com_ptr_nothrow<ITextRangeProvider> taskRange, paddedRange;
@@ -2345,7 +3349,21 @@ void SemanticStructureAndTasks(bool embedded)
     fixture.editor->SetReadOnly(true);
     fixture.Publish();
     Require(toggle->Toggle() == UIA_E_INVALIDOPERATION, "read-only task action is rejected before mutation");
+    fixture.editor->SetTaskTogglePolicy(RichTextTaskTogglePolicy::AlwaysInteractive);
+    Require(toggle->Toggle() == UIA_E_ELEMENTNOTAVAILABLE, "changing task policy retires old task peers");
+    fixture.Publish();
+    task = FindSemanticPart(*simple.get(), UIA_CheckBoxControlTypeId);
+    toggle.reset();
+    RequireSucceeded(task.query_to(toggle.put()), "interactive read-only task toggle pattern");
+    RequireSucceeded(toggle->Toggle(), "opt-in read-only task toggles through UIA");
+    Require(fixture.editor->GetText() != source && fixture.editor->IsReadOnly(), "task policy changes only the marker while remaining read-only");
     fixture.editor->SetReadOnly(false);
+    Require(fixture.editor->Undo() && fixture.editor->GetText() == source, "opt-in read-only task toggle records one undo transaction");
+    fixture.editor->SetTaskTogglePolicy(RichTextTaskTogglePolicy::EditableOnly);
+    fixture.Publish();
+    task = FindSemanticPart(*simple.get(), UIA_CheckBoxControlTypeId);
+    toggle.reset();
+    RequireSucceeded(task.query_to(toggle.put()), "task peer after restoring default policy");
     fixture.editor->SetEnabled(false);
     fixture.Publish();
     Require(toggle->Toggle() == UIA_E_ELEMENTNOTENABLED && fixture.editor->GetText() == source, "disabled task action preserves exact source");
@@ -2438,7 +3456,7 @@ void SemanticActionComposition(bool nativeAdapter, bool footnote = false)
     fixture.Publish();
     Require(fixture.editor->GetText() == source && ! fixture.editor->CanUndo(), "composition cancellation restores exact CRLF task source");
 }
-void SemanticSourceActionComposition(bool nativeAdapter)
+void SemanticSourceActionComposition(bool nativeAdapter, bool inlineMath = false)
 {
     using namespace RichText;
     for (const bool alreadyEditing : {false, true})
@@ -2452,7 +3470,7 @@ void SemanticSourceActionComposition(bool nativeAdapter)
             fixture.controls->SetFocusControl(fixture.editor, false);
         }
         fixture.editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
-        const std::wstring source = L"```mermaid\r\ngraph TD;A-->B\r\n```\r\n";
+        const std::wstring source = inlineMath ? L"before $A$ after" : L"```mermaid\r\ngraph TD;A-->B\r\n```\r\n";
         const auto insertion      = source.find(L'A');
         fixture.editor->SetText(source);
         fixture.editor->SetSelection({insertion, insertion});
@@ -2493,7 +3511,7 @@ void SemanticSourceActionComposition(bool nativeAdapter)
         auto simple = fixture.Simple();
         wil::com_ptr_nothrow<IRawElementProviderSimple> object;
         for (std::size_t i = 0u; i < semantic->Elements().size(); ++i)
-            if (semantic->SourceEditingNode(i))
+            if (semantic->SourceEditingRange(i))
             {
                 object = FindNamedSemanticPart(*simple.get(), semantic->Elements()[i].name);
                 break;
@@ -2591,6 +3609,34 @@ void TestRichTextAccessibilityEmbeddedSemanticStructureAndTasks()
 {
     EmbeddedCase(SemanticStructureAndTasks);
 }
+void SemanticTomlValidationDiagnostic(bool embedded)
+{
+    RichAccessibilityFixture fixture(embedded, true, true);
+    fixture.editor->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::RichMarkdown);
+    fixture.editor->SetText(L"+++\nkey = 1\nkey = 2\n+++\n");
+    fixture.Publish();
+    auto simple   = fixture.Simple();
+    auto metadata = FindSemanticPart(*simple.get(), UIA_GroupControlTypeId);
+    Require(metadata && ReadProviderStringProperty(*metadata.get(), UIA_HelpTextPropertyId, "invalid TOML help") == L"Invalid TOML front matter.",
+            "window and embedded metadata expose the validation diagnostic");
+    fixture.editor->SetText(L"+++\nkey = 1\n+++\n");
+    fixture.Publish();
+    metadata = FindSemanticPart(*simple.get(), UIA_GroupControlTypeId);
+    Require(metadata &&
+                ReadProviderStringProperty(*metadata.get(), UIA_HelpTextPropertyId, "repaired TOML help") == L"Invoke or press F2 to edit exact source.",
+            "a valid replacement retires the invalid-content explanation");
+    fixture.editor->SetText(L"---\nkey: *missing\n---\n");
+    fixture.Publish();
+    metadata = FindSemanticPart(*simple.get(), UIA_GroupControlTypeId);
+    Require(metadata &&
+                ReadProviderStringProperty(*metadata.get(), UIA_HelpTextPropertyId, "YAML alias help") == L"YAML front matter contains an unresolved alias.",
+            "window and embedded metadata explain an unresolved YAML alias");
+}
+void TestRichTextAccessibilityTomlValidationDiagnostic()
+{
+    SemanticTomlValidationDiagnostic(false);
+    EmbeddedCase(SemanticTomlValidationDiagnostic);
+}
 void TestRichTextAccessibilityWindowSemanticFrontMatterDiagnostics()
 {
     SemanticFrontMatterDiagnostics(false);
@@ -2611,6 +3657,14 @@ void TestRichTextAccessibilityEmbeddedMathLiteralFallback()
 {
     EmbeddedCase(SemanticMathLiteralFallback);
 }
+void TestRichTextAccessibilityWindowLocalizedLabels()
+{
+    SemanticAccessibilityLabels(false);
+}
+void TestRichTextAccessibilityEmbeddedLocalizedLabels()
+{
+    EmbeddedCase(SemanticAccessibilityLabels);
+}
 void TestRichTextAccessibilityWindowDecodedImages()
 {
     SemanticDecodedImages(false);
@@ -2626,18 +3680,46 @@ void TestRichTextAccessibilityEmbeddedDiagramAlternatives()
 void TestRichTextAccessibilityWindowObjectSourceEditing()
 {
     SemanticObjectSourceEditing(false);
+    SemanticInlineMathSourceEditing(false);
+    SemanticInlineLinkImageSourceEditing(false);
+    SemanticWikiActivation(false);
+    SemanticDisclosure(false);
+    SemanticCallouts(false);
+    SemanticProperties(false);
+    SemanticOptionalDefinitionsAndAbbreviations(false);
+#if DXUI_ENABLE_DIAGNOSTICS
+    SemanticHtmlScriptFallback(false);
+#endif
 }
 void TestRichTextAccessibilityEmbeddedObjectSourceEditing()
 {
     EmbeddedCase(SemanticObjectSourceEditing);
+    EmbeddedCase(SemanticInlineMathSourceEditing);
+    EmbeddedCase(SemanticInlineLinkImageSourceEditing);
+    EmbeddedCase(SemanticWikiActivation);
+    EmbeddedCase(SemanticDisclosure);
+    EmbeddedCase(SemanticCallouts);
+    EmbeddedCase(SemanticProperties);
+    EmbeddedCase(SemanticOptionalDefinitionsAndAbbreviations);
+#if DXUI_ENABLE_DIAGNOSTICS
+    EmbeddedCase(SemanticHtmlScriptFallback);
+#endif
 }
 void TestRichTextAccessibilityWindowSourceEditingComposition()
 {
-    EmbeddedCase([](bool) { SemanticSourceActionComposition(true); });
+    EmbeddedCase([](bool)
+    {
+        SemanticSourceActionComposition(true);
+        SemanticSourceActionComposition(true, true);
+    });
 }
 void TestRichTextAccessibilityEmbeddedSourceEditingComposition()
 {
-    EmbeddedCase([](bool) { SemanticSourceActionComposition(false); });
+    EmbeddedCase([](bool)
+    {
+        SemanticSourceActionComposition(false);
+        SemanticSourceActionComposition(false, true);
+    });
 }
 void TestRichTextAccessibilityWindowFootnoteNavigation()
 {
@@ -2647,11 +3729,138 @@ void TestRichTextAccessibilityEmbeddedFootnoteNavigation()
 {
     EmbeddedCase(SemanticFootnoteNavigation);
 }
+void DecorationAnnotations(bool embedded)
+{
+    RichAccessibilityFixture fixture(embedded, true, true);
+    fixture.editor->SetText(L"alpha beta **gamma** [target](https://example.invalid)");
+    fixture.editor->SetSelection({10u, 6u});
+    const std::array overrides{RichText::AccessibilityTextOverride{RichText::AccessibilityTextId::SpellingAnnotation, L"Orthographe"},
+                               RichText::AccessibilityTextOverride{RichText::AccessibilityTextId::Annotation, L"Note locale"}};
+    fixture.editor->SetAccessibilityLabels(std::make_shared<const RichText::AccessibilityLabels>(overrides));
+    fixture.Publish();
+    UiaTest::Client client(fixture.Hwnd(), {}, [&] { fixture.Pump(); });
+    const auto editor = FindEditor(client, client.Root());
+    Require(editor != 0u, "annotation client reaches its editor through application parents");
+    const auto source    = fixture.editor->Snapshot();
+    const auto selection = fixture.editor->GetSelection();
+    auto retainedLink    = FindSemanticPart(*fixture.Simple().get(), UIA_HyperlinkControlTypeId);
+    Require(retainedLink != nullptr, "annotation fixture retains an unrelated semantic link peer");
+    std::array decorations{RichTextDecoration{6u, 4u, RichTextDecorationKind::Squiggle, RichTextDecorationRole::Error},
+                           RichTextDecoration{6u, 4u, RichTextDecorationKind::Background, RichTextDecorationRole::Accent},
+                           RichTextDecoration{13u, 5u, RichTextDecorationKind::Underline, RichTextDecorationRole::Warning}};
+    fixture.editor->SetDecorations(source, decorations);
+    fixture.Publish();
+    const auto privateDecoration = client.InspectAnnotations(editor, L"beta");
+    Require(privateDecoration.types.empty() && privateDecoration.objects.empty() && ! privateDecoration.mixedTypes,
+            "decorations expose no annotation unless explicitly opted in");
+    wil::unique_variant linkName;
+    RequireSucceeded(retainedLink->GetPropertyValue(UIA_NamePropertyId, &linkName), "private decoration preserves existing semantic link peer");
+    Require(linkName.vt == VT_BSTR && std::wstring_view(linkName.bstrVal, SysStringLen(linkName.bstrVal)) == L"target",
+            "paint-only decoration changes retain unrelated semantic identities");
+    decorations[0].annotation = RichTextAnnotationKind::SpellingError;
+    decorations[1].annotation = RichTextAnnotationKind::Highlight;
+    decorations[2].annotation = RichTextAnnotationKind::Generic;
+    fixture.editor->SetDecorations(source, decorations);
+    fixture.Publish();
+    const auto beta = client.InspectAnnotations(editor, L"beta");
+    Require(beta.types == std::vector<LONG>{AnnotationType_SpellingError, AnnotationType_Highlighted} && beta.objects.size() == 2u && ! beta.mixedTypes &&
+                ! beta.mixedObjects,
+            "actual native/embedded clients receive distinct annotation types and objects");
+    for (const auto& annotation : beta.objects)
+        Require(annotation.targetIsEditor && annotation.parentIsEditor && annotation.source == L"beta",
+                "annotation target, raw parent and RangeFromAnnotation share the exact source owner");
+    Require(beta.objects[0].name == L"Orthographe" && beta.objects[0].type == AnnotationType_SpellingError,
+            "annotation type names use the immutable localization dictionary");
+    const auto gamma = client.InspectAnnotations(editor, L"gamma");
+    Require(gamma.types == std::vector<LONG>{AnnotationType_Unknown} && gamma.objects.size() == 1u && gamma.objects[0].name == L"Note locale" &&
+                gamma.objects[0].source == L"gamma",
+            "generic annotations have a real localized type name and preserve hidden Markdown source ACPs");
+    const auto mixed = client.InspectAnnotations(editor, {});
+    Require(mixed.mixedTypes && mixed.mixedObjects, "ranges crossing annotation boundaries report mixed types and objects");
+    const auto format = client.InspectTextRange(editor, L"et", {}, true);
+    Require(format.text == L"beta", "format navigation stops at annotation boundaries within a plain source style run");
+    auto text = TextProvider(fixture);
+    wil::com_ptr_nothrow<ITextProvider2> text2;
+    RequireSucceeded(text.query_to(text2.put()), "annotation provider Text2");
+    wil::com_ptr_nothrow<ITextRangeProvider> document, range;
+    RequireSucceeded(text->get_DocumentRange(document.put()), "annotation exact document range");
+    wil::unique_bstr needle(SysAllocString(L"beta"));
+    RequireSucceeded(document->FindText(needle.get(), FALSE, FALSE, range.put()), "annotation beta source range");
+    wil::unique_variant objects, types;
+    RequireSucceeded(range->GetAttributeValue(UIA_AnnotationObjectsAttributeId, &objects), "provider annotation object transport");
+    Require(objects.vt == (VT_ARRAY | VT_UNKNOWN) && objects.parray, "provider returns owned annotation SAFEARRAY");
+    LONG first{};
+    wil::com_ptr_nothrow<IUnknown> object;
+    RequireSucceeded(SafeArrayGetElement(objects.parray, &first, object.put()), "retain annotation peer");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> peer;
+    wil::com_ptr_nothrow<IAnnotationProvider> pattern;
+    RequireSucceeded(object.query_to(peer.put()), "annotation simple peer");
+    RequireSucceeded(object.query_to(pattern.put()), "annotation pattern peer");
+    RequireSucceeded(range->GetAttributeValue(UIA_AnnotationTypesAttributeId, &types), "provider annotation types");
+    wil::com_ptr_nothrow<ITextRangeProvider> found;
+    RequireSucceeded(document->FindAttribute(UIA_AnnotationTypesAttributeId, types, FALSE, found.put()), "find annotated type run");
+    Require(found && ReadTextRangeText(*found.get(), -1, "found annotation source") == L"beta", "annotation type search returns the complete exact run");
+    Require(fixture.editor->Snapshot().IsSameRevision(source) && fixture.editor->GetSelection() == selection && ! fixture.editor->CanUndo(),
+            "annotation publication and client queries preserve source, backward selection and history");
+    auto invalid          = decorations;
+    invalid[0].annotation = static_cast<RichTextAnnotationKind>(99);
+    bool rejected{};
+    try
+    {
+        fixture.editor->SetDecorations(source, invalid);
+    }
+    catch (const std::invalid_argument&)
+    {
+        rejected = true;
+    }
+    int type{};
+    Require(rejected && SUCCEEDED(pattern->get_AnnotationTypeId(&type)) && type == AnnotationType_SpellingError,
+            "invalid annotation metadata leaves the prior immutable publication alive");
+    decorations[0].annotation = RichTextAnnotationKind::GrammarError;
+    fixture.editor->SetDecorations(source, decorations);
+    fixture.Publish();
+    Require(pattern->get_AnnotationTypeId(&type) == UIA_E_ELEMENTNOTAVAILABLE, "same-source replacement cannot retarget an old annotation provider");
+    for (const bool overlapping : {false, true})
+    {
+        const std::array sameType{
+            RichTextDecoration{
+                6u, overlapping ? 3u : 2u, RichTextDecorationKind::Squiggle, RichTextDecorationRole::Error, RichTextAnnotationKind::SpellingError},
+            RichTextDecoration{overlapping ? 7u : 8u,
+                               overlapping ? 3u : 2u,
+                               RichTextDecorationKind::Underline,
+                               RichTextDecorationRole::Warning,
+                               RichTextAnnotationKind::SpellingError}};
+        fixture.editor->SetDecorations(source, sameType);
+        fixture.Publish();
+        const auto constantTypes = client.InspectAnnotations(editor, L"beta");
+        Require(constantTypes.types == std::vector<LONG>{AnnotationType_SpellingError} && ! constantTypes.mixedTypes && constantTypes.mixedObjects,
+                "adjacent and overlapping same-kind annotations retain constant Types while Objects vary");
+    }
+    fixture.editor->SetDecorations(source, {});
+    fixture.Publish();
+    fixture.editor->SetDecorations(source, decorations);
+    fixture.Publish();
+    Require(pattern->get_AnnotationTypeId(&type) == UIA_E_ELEMENTNOTAVAILABLE, "removal and re-addition cannot resurrect a retired annotation peer");
+    fixture.editor->SetText(L"replacement");
+    fixture.Publish();
+    const auto retired = client.InspectAnnotations(editor, L"replacement");
+    Require(retired.types.empty() && retired.objects.empty(), "source edits retire annotations in either host");
+}
+void TestRichTextAccessibilityWindowDecorationAnnotations()
+{
+    DecorationAnnotations(false);
+}
+void TestRichTextAccessibilityEmbeddedDecorationAnnotations()
+{
+    EmbeddedCase(DecorationAnnotations);
+}
 } // namespace
 
 void RunRichTextAccessibilityTests()
 {
     ScopedNonActivatingTestWindows nonActivating;
+    DXUI_RUN_TEST(TestRichTextAccessibilityWindowDecorationAnnotations);
+    DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedDecorationAnnotations);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowPresentationAndLinkCues);
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedPresentationAndLinkCues);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowSelectionNotifications);
@@ -2663,13 +3872,21 @@ void RunRichTextAccessibilityTests()
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedSemanticCompositionBindingAndRetirement);
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedSemanticAttributesAndFormats);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowSemanticStructureAndTasks);
+    DXUI_RUN_TEST(TestRichSemanticStaleCellCreation);
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedSemanticStructureAndTasks);
+    DXUI_RUN_TEST(TestRichTextAccessibilityTomlValidationDiagnostic);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowSemanticFrontMatterDiagnostics);
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedSemanticFrontMatterDiagnostics);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowFootnoteNavigation);
+    DXUI_RUN_TEST(TestRichTextAccessibilityWindowCodeCopy);
+    DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedCodeCopy);
+    DXUI_RUN_TEST(TestRichTextAccessibilityWindowLinkActivation);
+    DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedLinkActivation);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowDiagramAlternatives);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowMathLiteralFallback);
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedMathLiteralFallback);
+    DXUI_RUN_TEST(TestRichTextAccessibilityWindowLocalizedLabels);
+    DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedLocalizedLabels);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowDecodedImages);
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedDecodedImages);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowObjectSourceEditing);
@@ -2679,6 +3896,10 @@ void RunRichTextAccessibilityTests()
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedDiagramAlternatives);
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedFootnoteNavigation);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowSourceAndRanges);
+#if DXUI_ENABLE_DIAGNOSTICS
+    DXUI_RUN_TEST(TestRichTextAccessibilityWindowFontFailure);
+    DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedFontFailure);
+#endif
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedSourceAndRanges);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowClientNavigationAndEvents);
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedClientNavigationAndEvents);
@@ -2710,6 +3931,10 @@ void RunRichTextAccessibilityTests()
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedPendingPreparationGeometry);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowMarkdownSourceAndRanges);
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedMarkdownSourceAndRanges);
+    DXUI_RUN_TEST(TestRichTextAccessibilityWindowCountedNul);
+    DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedCountedNul);
+    DXUI_RUN_TEST(TestRichTextAccessibilityWindowDiagnosticSelection);
+    DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedDiagnosticSelection);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowReadOnlySnapshotSynchronization);
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedReadOnlySnapshotSynchronization);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowReadOnlyParsedSnapshotAdoption);

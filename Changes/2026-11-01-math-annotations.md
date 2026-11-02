@@ -1,0 +1,1 @@
+- Add bounded boxed, cancel, backward cancel, crossed cancel, horizontal strike, phasor and actuarial annotations to native mathematical previews, preparing their strokes while authored source remains unchanged.

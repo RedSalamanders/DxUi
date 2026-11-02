@@ -111,6 +111,10 @@ inline std::wstring Inline(const MarkdownSyntax& syntax, std::size_t first, bool
                     tag = L"strong";
                 break;
             case MarkdownInlineKind::Strikethrough: tag = L"del"; break;
+            case MarkdownInlineKind::Highlight: tag = L"mark"; break;
+            case MarkdownInlineKind::Superscript: tag = L"sup"; break;
+            case MarkdownInlineKind::Subscript: tag = L"sub"; break;
+            case MarkdownInlineKind::Inserted: tag = L"ins"; break;
             case MarkdownInlineKind::Link: tag = L"a"; break;
             case ::DxUi::RichText::MarkdownInlineKind::Code:
             case ::DxUi::RichText::MarkdownInlineKind::FootnoteReference:
@@ -118,6 +122,7 @@ inline std::wstring Inline(const MarkdownSyntax& syntax, std::size_t first, bool
             case ::DxUi::RichText::MarkdownInlineKind::Html:
             case ::DxUi::RichText::MarkdownInlineKind::Image:
             case ::DxUi::RichText::MarkdownInlineKind::Math:
+            case ::DxUi::RichText::MarkdownInlineKind::SourceEditor:
             case ::DxUi::RichText::MarkdownInlineKind::SoftBreak:
             case ::DxUi::RichText::MarkdownInlineKind::Text:
             default: break;
@@ -132,6 +137,11 @@ inline std::wstring Inline(const MarkdownSyntax& syntax, std::size_t first, bool
             result += visit.plain ? node.value : Escape(node.value);
         else if (node.kind == MarkdownInlineKind::Code)
             result += visit.plain ? node.value : L"<code>" + Escape(node.value) + L"</code>";
+        // These are test conventions, not the application's HTML rendering contract.
+        else if (node.kind == MarkdownInlineKind::Math)
+            result += visit.plain ? node.value : L"<span class=\"math\">" + Escape(node.value) + L"</span>";
+        else if (node.kind == MarkdownInlineKind::FootnoteReference)
+            result += visit.plain ? node.value : Escape(node.value);
         else if (node.kind == MarkdownInlineKind::SoftBreak)
             result += L'\n';
         else if (node.kind == MarkdownInlineKind::HardBreak)

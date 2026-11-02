@@ -4,7 +4,7 @@ Validates the shared Changes workflow without writing files.
 .DESCRIPTION
 Reports fragment filename/content and changelog-heading problems; valid pending fragments are expected.
 Base also compares the checkout with its merge base: fragments may be added, and CHANGELOG.md may
-change only by folding fragments that base already holds (the fold on the default branch).
+change only by an exact fold of fragments already on the base or an exact generated release transition after folding. A pending fragment may be withdrawn without editing the generated changelog.
 RequireFolded rejects any pending fragment, for checking a finished fold.
 .PARAMETER Root
 Repository root; defaults to the repository containing this command.

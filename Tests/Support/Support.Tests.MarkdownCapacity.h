@@ -1,4 +1,5 @@
 #pragma once
+#include "Controls/DxUi.MarkdownBlocks.h"
 #include <DxUi/MarkdownSyntax.h>
 #include <stdexcept>
 
@@ -51,7 +52,12 @@ template <typename Check> inline void ParserBounds(Check&& check)
         dense.append(L"*x* ");
     auto html = Table(1u, 10920u);
     html.append(L"\n<hr>\n\n<hr>\n");
-    const std::wstring rejected[] = {Table(100u, 400u), Table(1u, 10922u), global, dense, html};
+    std::wstring references(0u, L' ');
+    for (std::size_t i = 0u; i < 10921u; ++i)
+        references.append(L"- -\n");
+    for (std::size_t i = 0u; i < 3641u; ++i)
+        references.append(L"[a]:b\n");
+    const std::wstring rejected[] = {Table(100u, 400u), Table(1u, 10922u), global, dense, html, references};
     for (const auto& source : rejected)
     {
         check(source.size() <= Document::MaximumUnits, "amplification fixtures fit source admission before exercising the independent node limit");
@@ -74,14 +80,63 @@ template <typename Check> inline void ParserBounds(Check&& check)
         check(Complete(parser, check)->Source() == L"retry", "a parser can explicitly retry after every capacity failure");
     }
     const auto pending = Table(1000u, 1u);
+    std::vector<MarkdownNode> stagedNodes(0u);
+    std::vector<MarkdownEmptyLine> stagedEmptyLines(0u);
+    Detail::MarkdownBlocks blocks(pending, MarkdownProfile::Gfm029, stagedNodes, stagedEmptyLines, MarkdownExtensions::All);
+    const auto headerEnd = pending.find(L'\n');
+    const auto ruleEnd   = pending.find(L'\n', headerEnd + 1u);
+    blocks.Line(0u, headerEnd, headerEnd + 1u);
+    blocks.Line(headerEnd + 1u, ruleEnd, ruleEnd + 1u);
+    for (std::size_t cell = 0u; cell < 128u; ++cell)
+    {
+        const auto before = stagedNodes.size();
+        check(blocks.AdvanceTableCell() && stagedNodes.size() == before + 1u && stagedNodes.back().block.kind == MarkdownBlockKind::TableCell,
+              "a pending header produces exactly one table cell per block work unit");
+    }
     parser.Begin(pending, 5u, MarkdownProfile::Gfm029);
-    // The two header lines contain exactly 6,002 raw units. The following
-    // 128 one-event turns are inside generation of the 1,000 header cells.
-    for (std::size_t step = 0u; step < 6130u; ++step)
+    for (std::size_t step = 0u; step < 128u; ++step)
         check(parser.Advance(1u).workUnits == 1u && parser.Published()->Source() == L"retry",
-              "table-cell preparation yields without exposing its incomplete row");
+              "parser preparation yields without exposing its incomplete candidate");
     parser.Cancel();
     check(parser.Published()->Source() == L"retry" && ! parser.HasPendingPreparation(), "capacity candidates remain cancellable before rejection");
+
+    std::wstring emails(0u, L' '), invalidHosts(0u, L' '), links(0u, L' ');
+    for (std::size_t index = 0u; index < 10000u; ++index)
+        emails.append(L"a@");
+    emails.append(L"a.com");
+    for (std::size_t index = 0u; index < 2500u; ++index)
+        invalidHosts.append(L"_www.bad_.invalid");
+    for (std::size_t index = 0u; index < 2000u; ++index)
+        links.append(L"www.example.com ");
+    const std::wstring autolinks[]    = {emails, invalidHosts, links};
+    const std::size_t expectedLinks[] = {1u, 0u, 2000u};
+    for (std::size_t index = 0u; index < std::size(autolinks); ++index)
+    {
+        parser.Begin(autolinks[index], 10u + index, MarkdownProfile::Gfm029);
+        const auto before = parser.Published();
+        for (std::size_t turn = 0u; turn < 64u; ++turn)
+            check(parser.Advance(1u).workUnits == 1u && parser.Published() == before,
+                  "long autolink candidates remain cooperative and keep their prior immutable publication");
+        const auto syntax     = Complete(parser, check);
+        const auto statistics = syntax->InlineStatistics();
+        check(statistics.autolinkInspectionUnits <= autolinks[index].size() * 8u && statistics.autolinkDecodedUnits <= autolinks[index].size(),
+              "host/email indexing and final suffix decoding grow linearly for hostile candidates and many accepted links");
+        check(static_cast<std::size_t>(std::ranges::count(syntax->Inlines(), MarkdownInlineKind::Link, &MarkdownInline::kind)) == expectedLinks[index],
+              "bounded autolink preparation preserves the independently specified rejected-host and final-email results");
+    }
+    std::wstring angles(L"x ");
+    for (std::size_t index = 0u; index < 16000u; ++index)
+        angles.append(L"<a ");
+    angles.append(L"<https://example.invalid>");
+    for (const auto profile : {MarkdownProfile::CommonMark0312, MarkdownProfile::Gfm029, MarkdownProfile::RichMarkdown})
+    {
+        parser.Begin(angles, 20u, profile);
+        const auto syntax = Complete(parser, check);
+        check(syntax->InlineStatistics().autolinkInspectionUnits >= 32000u && syntax->InlineStatistics().autolinkInspectionUnits <= angles.size() * 8u,
+              "rejected angle autolinks inspect only their own invalid prefix");
+        check(std::ranges::count(syntax->Inlines(), MarkdownInlineKind::Link, &MarkdownInline::kind) == 1,
+              "bounded angle search still recognizes a following valid autolink");
+    }
 }
 template <typename Editor, typename Host, typename Prepare, typename Check>
 inline void EditorFallback(Editor& editor, Host& host, Prepare&& prepare, Check&& check)

@@ -208,7 +208,11 @@ void TestApplicationTextStoreFailuresAndGeometry()
     sink.onLockGranted = [&](DWORD) noexcept
     {
         TS_TEXTCHANGE change{};
-        Require(store->SetText(0, 0, 2, L"bad", 3, &change) == E_ACCESSDENIED, "read-only application text rejects mutation");
+        Require(store->SetText(0, 0, 2, L"bad", 3, &change) == TS_E_READONLY, "read-only application text rejects mutation with the TSF result");
+        LONG insertedFirst = -1, insertedLast = -1;
+        Require(store->InsertTextAtSelection(0u, L"bad", 3u, &insertedFirst, &insertedLast, &change) == TS_E_READONLY && insertedFirst == 0 &&
+                    insertedLast == 0 && client->snapshot.state.text == L"ab",
+                "read-only insertion rejects atomically through the same TSF contract");
         const TS_SELECTION_ACP selection{0, 2, {TS_AE_START, FALSE}};
         RETURN_IF_FAILED(store->SetSelection(1, &selection));
         RECT rect{};

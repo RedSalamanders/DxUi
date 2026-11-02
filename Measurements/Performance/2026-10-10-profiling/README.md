@@ -2,7 +2,7 @@
 
 This descriptive investigation follows the unstable guarded A/A study. It does not qualify the policy, approve
 the original Grid flags or change any acceptance threshold. The accepted execution is recorded in the
-[production-review plan](../../../Specs/Plans/WIP/ProductionReview_2026-10-05.md).
+[production-review plan](../../../Specs/Plans/Done/ProductionReview_2026-10-05.md).
 
 ## Frozen baseline
 

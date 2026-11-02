@@ -1,0 +1,1 @@
+- Prepared a union selection mask and reused viewport layer so multiline rich-text selections redraw selected text once per frame, with draw-work coverage.

@@ -9,7 +9,7 @@ $root = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
 # The owners a rule may name, and the tracked paths that must have one of them: CI, every script that decides what CI
 # runs, measures or passes, and the agent instructions (Q12 of the 10 October code review).
 $allowedOwners = @('@eric-jesover')
-$protectedPath = '^(?:\.github/.+|Tools/.+|performance[^/]*\.ps1|\.agents/.+|AGENTS\.md)$'
+$protectedPath = '^(?:\.github/.+|\.ci/.+|Tools/.+|Tests/.+|[^/]+\.ps1|Build/.+|Directory\.Build\.[^/]+|Tests/test-scopes\.json|\.agents/.+|AGENTS\.md)$'
 
 # A rule's pattern as a regular expression over repository-relative paths. Only the forms this repository uses are
 # accepted: a path anchored at the root with a leading slash, a trailing slash for a directory and everything under it,

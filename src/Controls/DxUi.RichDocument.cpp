@@ -7,6 +7,7 @@
 #include <optional>
 #include <span>
 #include <stdexcept>
+#include <type_traits>
 #include <variant>
 #include <windows.h>
 
@@ -22,11 +23,11 @@ void Validate(std::wstring_view text)
 {
     if (text.size() > Document::MaximumUnits)
         throw std::length_error("Rich-text v0 source exceeds 64 Ki UTF-16 units");
-    if (! IsValidUtf16(text))
+    if (! IsValidSourceUtf16(text))
         throw std::invalid_argument("Invalid UTF-16 source");
 }
 } // namespace
-bool IsValidUtf16(std::wstring_view text) noexcept
+bool IsValidSourceUtf16(std::wstring_view text) noexcept
 {
     for (std::size_t i = 0; i < text.size(); ++i)
     {
@@ -35,10 +36,14 @@ bool IsValidUtf16(std::wstring_view text) noexcept
             if (++i == text.size() || ! IsUtf16TrailSurrogate(text[i]))
                 return false;
         }
-        else if (IsUtf16TrailSurrogate(text[i]) || text[i] == L'\0')
+        else if (IsUtf16TrailSurrogate(text[i]))
             return false;
     }
     return true;
+}
+bool IsValidUtf16(std::wstring_view text) noexcept
+{
+    return text.find(L'\0') == text.npos && IsValidSourceUtf16(text);
 }
 bool IsEditBoundary(std::wstring_view text, std::size_t offset) noexcept
 {
@@ -51,7 +56,7 @@ bool IsEditBoundary(std::wstring_view text, std::size_t offset) noexcept
 std::wstring DecodeUtf8(std::string_view bytes)
 {
     if (bytes.empty())
-        return {};
+        return std::wstring(0u, L'\0');
     if (bytes.size() > Document::MaximumUnits * 3u || bytes.size() > static_cast<std::size_t>(std::numeric_limits<int>::max()))
         throw std::length_error("UTF-8 input too large");
     const int length = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, bytes.data(), static_cast<int>(bytes.size()), nullptr, 0);
@@ -65,20 +70,22 @@ std::wstring DecodeUtf8(std::string_view bytes)
     if (MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, bytes.data(), static_cast<int>(bytes.size()), text.data(), length) != length)
         throw std::runtime_error("UTF-8 conversion failed");
     Validate(text);
-    return text;
+    // A Debug STL move may allocate its iterator proxy inside a noexcept move.
+    // Construct the returned value through the fallible copy constructor.
+    return std::wstring(text);
 }
 std::string EncodeUtf8(std::wstring_view text)
 {
     Validate(text);
     if (text.empty())
-        return {};
+        return std::string(0u, '\0');
     const auto length = WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, text.data(), static_cast<int>(text.size()), nullptr, 0, nullptr, nullptr);
     if (! length)
         throw std::invalid_argument("Invalid UTF-16 input");
     std::string bytes(static_cast<std::size_t>(length), '\0');
     if (WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, text.data(), static_cast<int>(text.size()), bytes.data(), length, nullptr, nullptr) != length)
         throw std::runtime_error("UTF-16 conversion failed");
-    return bytes;
+    return std::string(bytes);
 }
 struct SourceSnapshot::PieceTreeNode
 {
@@ -428,7 +435,7 @@ struct SourceSnapshot::Revision
     }
 };
 
-SourceSnapshot::SourceSnapshot() = default;
+SourceSnapshot::SourceSnapshot() noexcept = default;
 const SourceSnapshot::PieceTreeNode* SourceSnapshot::RootNode() const noexcept
 {
     return state_ ? state_->root.get() : nullptr;
@@ -480,6 +487,38 @@ bool SourceSnapshot::IsBoundary(std::size_t offset) const noexcept
     if (! offset || offset == Length())
         return true;
     return IsEditJoinAllowed(CharacterAt(offset - 1u), CharacterAt(offset));
+}
+std::optional<SourceLocation> SourceSnapshot::LocationAt(std::size_t offset) const noexcept
+{
+    if (! state_ || ! IsBoundary(offset))
+        return std::nullopt;
+    SourceLocation location;
+    bool previousCr = false;
+    PieceTreeNode::VisitRange(RootNode(),
+                              0u,
+                              offset,
+                              [&](std::wstring_view fragment) noexcept
+    {
+        for (const wchar_t c : fragment)
+        {
+            if (c == L'\r')
+            {
+                ++location.line;
+                location.column = 0u;
+            }
+            else if (c == L'\n')
+            {
+                if (! previousCr)
+                    ++location.line;
+                location.column = 0u;
+            }
+            else
+                ++location.column;
+            previousCr = c == L'\r';
+        }
+        return true;
+    });
+    return location;
 }
 std::wstring SourceSnapshot::Slice(std::size_t first, std::size_t last) const
 {
@@ -597,6 +636,8 @@ bool Document::AdoptReadOnlySourceSnapshot(const SourceSnapshot& source, Selecti
         return false;
     if (source_.IsSameRevision(source))
     {
+        if (selection_ != selection)
+            ++selectionEpoch_;
         selection_ = selection; // Same-text selection updates match SetSelection and preserve local revision/history.
         return true;
     }
@@ -604,8 +645,9 @@ bool Document::AdoptReadOnlySourceSnapshot(const SourceSnapshot& source, Selecti
         return false;
     source_    = source;
     selection_ = selection;
-    undo_.clear();
-    redo_.clear();
+    transientEntry_.reset();
+    undo_.Clear();
+    redo_.Clear();
     ++revision_; // Local Document revisions remain independent of the source Document.
     return true;
 }
@@ -622,8 +664,9 @@ void Document::Reset(std::wstring_view text)
     SourceSnapshot next(std::make_shared<const SourceSnapshot::Revision>(std::move(root), nullptr, 0u, 0u, 0u));
     source_    = std::move(next);
     selection_ = {};
-    undo_.clear();
-    redo_.clear();
+    transientEntry_.reset();
+    undo_.Clear();
+    redo_.Clear();
     ++revision_;
 }
 void Document::SetSelection(Selection selection)
@@ -631,14 +674,55 @@ void Document::SetSelection(Selection selection)
     if (! source_.IsBoundary(selection.anchor) || ! source_.IsBoundary(selection.caret))
         throw std::out_of_range("Selection splits a Unicode scalar or CRLF");
     selection_ = selection;
+    ++selectionEpoch_;
 }
-void Document::Push(std::vector<History>& history, History entry)
+Document::HistoryRing::HistoryRing(HistoryRing&& other) : entries(0u)
 {
-    // Immutable snapshots preserve each public edit as one undo transaction.
-    // Evict the oldest entry before appending to keep retention bounded.
-    if (history.size() == MaximumHistory)
-        history.erase(history.begin());
-    history.push_back(std::move(entry));
+    entries.swap(other.entries);
+    first = std::exchange(other.first, size_t{});
+    count = std::exchange(other.count, size_t{});
+}
+Document::HistoryRing& Document::HistoryRing::operator=(HistoryRing&& other) noexcept
+{
+    if (this != &other)
+    {
+        Clear();
+        entries.swap(other.entries);
+        first = std::exchange(other.first, size_t{});
+        count = std::exchange(other.count, size_t{});
+    }
+    return *this;
+}
+void Document::HistoryRing::PreparePush()
+{
+    if (entries.empty())
+        entries.resize(MaximumHistory);
+}
+void Document::HistoryRing::Push(History entry) noexcept
+{
+    static_assert(std::is_nothrow_move_assignable_v<History>);
+    static_assert(std::is_nothrow_move_constructible_v<History>);
+    static_assert(std::is_nothrow_copy_constructible_v<History>);
+    const auto index = (first + count) % MaximumHistory;
+    entries[index]   = std::move(entry);
+    if (count == MaximumHistory)
+        first = (first + 1u) % MaximumHistory;
+    else
+        ++count;
+}
+Document::History Document::HistoryRing::TakeBack() noexcept
+{
+    const auto index = (first + count - 1u) % MaximumHistory;
+    auto result      = std::move(entries[index]);
+    entries[index]   = History{};
+    if (! --count)
+        first = 0u;
+    return result;
+}
+void Document::HistoryRing::Clear() noexcept
+{
+    while (count)
+        static_cast<void>(TakeBack());
 }
 bool Document::Replace(std::size_t begin, std::size_t end, std::wstring_view text, Selection after)
 {
@@ -646,7 +730,14 @@ bool Document::Replace(std::size_t begin, std::size_t end, std::wstring_view tex
 }
 bool Document::ReplaceTransient(std::wstring_view text, Selection selection)
 {
-    return ReplaceWholeTextImpl(text, selection, false);
+    const auto entry         = transientEntry_ ? *transientEntry_ : History{source_, selection_};
+    const bool restoresEntry = entry.source.MatchesText(text);
+    const bool changed       = ReplaceWholeTextImpl(text, selection, false);
+    if (restoresEntry)
+        transientEntry_.reset();
+    else if (changed && ! transientEntry_)
+        transientEntry_.emplace(entry);
+    return changed;
 }
 bool Document::ReplaceWholeText(std::wstring_view text, Selection selection)
 {
@@ -701,7 +792,7 @@ bool Document::ReplaceWholeTextImpl(std::wstring_view text, Selection selection,
     return ReplaceImpl(prefix, length - suffix, text.substr(prefix, text.size() - prefix - suffix), selection, recordHistory);
 }
 
-bool Document::ReplaceImpl(std::size_t begin, std::size_t end, std::wstring_view text, Selection after, bool recordHistory)
+bool Document::ReplaceImpl(std::size_t begin, std::size_t end, std::wstring_view text, Selection after, bool recordHistory, bool coalesceHistory)
 {
     Validate(text);
     const auto length = source_.Length();
@@ -743,6 +834,8 @@ bool Document::ReplaceImpl(std::size_t begin, std::size_t end, std::wstring_view
         });
     if (equal)
     {
+        if (selection_ != after)
+            ++selectionEpoch_;
         selection_ = after;
         return false;
     }
@@ -755,20 +848,15 @@ bool Document::ReplaceImpl(std::size_t begin, std::size_t end, std::wstring_view
     const auto root = source_.state_ ? source_.state_->root : nullptr;
     auto nextRoot   = SourceSnapshot::PieceTreeNode::ReplaceRange(root, begin, end, insertion);
     SourceSnapshot candidate(std::make_shared<const SourceSnapshot::Revision>(std::move(nextRoot), source_.state_.get(), begin, end, insertedEnd));
-    // Construct history only for a recorded edit. Copy construction can report
-    // allocation failure; an unused default Debug STL container would also
-    // allocate an iterator proxy inside its noexcept constructor.
-    std::optional<std::vector<History>> nextUndo;
-    if (recordHistory)
-    {
-        nextUndo.emplace(undo_);
-        Push(*nextUndo, {source_, selection_});
-    }
+    if (recordHistory && (! coalesceHistory || transientEntry_))
+        undo_.PreparePush(); // Fallible allocation precedes the source commit.
+    if (recordHistory && (! coalesceHistory || transientEntry_))
+        undo_.Push(transientEntry_ ? *transientEntry_ : History{source_, selection_});
     source_ = std::move(candidate);
     if (recordHistory)
     {
-        undo_.swap(*nextUndo);
-        redo_.clear();
+        redo_.Clear();
+        transientEntry_.reset();
     }
     selection_ = after;
     ++revision_;
@@ -781,29 +869,25 @@ bool Document::ReplaceSelection(std::wstring_view text)
 }
 bool Document::Undo()
 {
-    if (undo_.empty())
+    if (transientEntry_ || undo_.Empty())
         return false;
-    auto nextRedo = redo_;
-    Push(nextRedo, {source_, selection_});
-    auto old   = undo_.back();
-    source_    = old.source;
+    redo_.PreparePush();
+    auto old = undo_.TakeBack();
+    redo_.Push({source_, selection_});
+    source_    = std::move(old.source);
     selection_ = old.selection;
-    undo_.pop_back();
-    redo_.swap(nextRedo);
     ++revision_;
     return true;
 }
 bool Document::Redo()
 {
-    if (redo_.empty())
+    if (transientEntry_ || redo_.Empty())
         return false;
-    auto nextUndo = undo_;
-    Push(nextUndo, {source_, selection_});
-    auto next  = redo_.back();
-    source_    = next.source;
+    undo_.PreparePush();
+    auto next = redo_.TakeBack();
+    undo_.Push({source_, selection_});
+    source_    = std::move(next.source);
     selection_ = next.selection;
-    redo_.pop_back();
-    undo_.swap(nextUndo);
     ++revision_;
     return true;
 }

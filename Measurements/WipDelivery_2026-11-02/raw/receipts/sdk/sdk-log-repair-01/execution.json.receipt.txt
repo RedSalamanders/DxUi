@@ -1,0 +1,59 @@
+{
+  "source": "68f6b15e342f0c19f791347d45878225c22bb5ea",
+  "root": "Z:/src/DxUi-worktrees/wip-delivery-sdk-20261102",
+  "pid": 101848,
+  "processStartUtc": "2026-11-02T07:30:22.7962828Z",
+  "processPath": "C:\\Program Files\\WindowsApps\\OpenAI.CodexPrimaryRuntime.v26-1017-2736-0_26.1017.2736.0_x64__3k8sg7r9htsxt\\dependencies\\native\\powershell\\pwsh.exe",
+  "startedUtc": "2026-11-02T07:30:23.1057569Z",
+  "buildCommand": "./build.ps1 -Configuration Release -Platform x64 -ProductionOnly -Rebuild",
+  "packageCommand": "./Tools/New-SdkPackage.ps1 -Platform x64 -Version 0.1.2026110201 -SmokeRoot E:/DxUi.Perf",
+  "buildStartedUtc": "2026-11-02T07:30:23.1296166Z",
+  "buildExit": 0,
+  "buildFinishedUtc": "2026-11-02T07:32:13.8674258Z",
+  "library": {
+    "length": 236102058,
+    "modifiedUtc": "2026-11-02T07:32:13.5577876Z",
+    "path": "Z:\\src\\DxUi-worktrees\\wip-delivery-sdk-20261102\\.build\\x64\\Release\\DxUi.lib",
+    "sha256": "66bfca61c6b698140b1b5e8674a4cda426447fc12c8525027d5c5719a0a50d30"
+  },
+  "pdb": {
+    "length": 15454208,
+    "modifiedUtc": "2026-11-02T07:32:12.2370033Z",
+    "path": "Z:\\src\\DxUi-worktrees\\wip-delivery-sdk-20261102\\.build\\x64\\Release\\DxUi.pdb",
+    "sha256": "587d7a26324b22b1094dd3aa33a1cd7554900442c335decc3c73b290ed0127bf"
+  },
+  "packageStartedUtc": "2026-11-02T07:32:14.0667264Z",
+  "packageExit": 0,
+  "packageFinishedUtc": "2026-11-02T07:32:34.1379687Z",
+  "archive": {
+    "length": 54924363,
+    "modifiedUtc": "2026-11-02T07:32:18.2826209Z",
+    "path": "Z:\\src\\DxUi-worktrees\\wip-delivery-sdk-20261102\\.build\\sdk\\DxUi-SDK-0.1.2026110201-x64.zip",
+    "sha256": "b511518ba342fb4d67a747feb13a98ce211a6b9ea96380197c296d330f24585e"
+  },
+  "receipt": {
+    "length": 1589,
+    "modifiedUtc": "2026-11-02T07:32:34.1364959Z",
+    "path": "Z:\\src\\DxUi-worktrees\\wip-delivery-sdk-20261102\\.build\\sdk\\DxUi-SDK-0.1.2026110201-x64.zip.receipt.json",
+    "sha256": "c7285f87aaf739234380f42183d6c9fa7ad4c9f4a5bef98fa05da0b57a40cc3a"
+  },
+  "consumerLog": {
+    "length": 4228,
+    "modifiedUtc": "2026-11-02T07:32:32.4569866Z",
+    "path": "Z:\\src\\DxUi-worktrees\\wip-delivery-sdk-20261102\\.build\\logs\\sdk-consumer-0.1.2026110201-x64.log",
+    "sha256": "e0e27c577dcc21fd562213c061ccb34392b2751f6b2c28aa4acca60fe069fa9c"
+  },
+  "warningLog": {
+    "length": 5248,
+    "modifiedUtc": "2026-11-02T07:32:34.0359268Z",
+    "path": "Z:\\src\\DxUi-worktrees\\wip-delivery-sdk-20261102\\.build\\logs\\sdk-warning-control-0.1.2026110201-x64.log",
+    "sha256": "81c8f9f9308d65f3820b6fe597d6951b3a0623888437a6bcbc2a4fdd900978d1"
+  },
+  "headerClosure": {
+    "length": 43254,
+    "modifiedUtc": "2026-11-02T07:32:21.6114916Z",
+    "path": "Z:\\src\\DxUi-worktrees\\wip-delivery-sdk-20261102\\.build\\logs\\sdk-headers-0.1.2026110201-x64.json",
+    "sha256": "e0d2b6f59aca26554ddb97e7b9d07fe91aa58382101190abfa04fc7f57cd4b20"
+  },
+  "finishedUtc": "2026-11-02T07:32:34.1835818Z"
+}

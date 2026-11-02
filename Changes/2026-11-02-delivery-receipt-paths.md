@@ -1,0 +1,1 @@
+- Keep archived delivery evidence within the 150-character checkout limit while preserving every original receipt byte, hash and source-path record.

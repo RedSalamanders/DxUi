@@ -1,0 +1,1 @@
+- Add keyboard traversal and activation of generated RichText footnote backlinks.

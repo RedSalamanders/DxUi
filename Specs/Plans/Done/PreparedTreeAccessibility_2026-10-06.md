@@ -27,11 +27,11 @@ retains source/product identities, failures, raw reports and the independent aud
 
 Remaining qualification is transferred explicitly, rather than reported as passed: ARM64 Menu and NativeTextInput
 each refused the hosted foreground lease in all three profiles (six unexecuted suites); Q22 in
-[ProductionReview](../WIP/ProductionReview_2026-10-05.md) owns formal performance-policy acceptance. Two fresh
+[ProductionReview](ProductionReview_2026-10-05.md) owns formal performance-policy acceptance. Two fresh
 12-block, three-scenario paired studies retain 288 reports with zero regression flags under either method and
 unchanged exact budgets, but both formal verdicts remain `inconclusive`: the base policy is unqualified and controls
 are frequently unstable. RedPrism adoption, charged-source ownership and product activation remain **HOLD** in
-the [API-4 consumer register](../WIP/ProductionReview_2026-10-05/api4-consumer-handoffs.md). No consumer migration is closed.
+the [API-4 consumer register](ProductionReview_2026-10-05/api4-consumer-handoffs.md). No consumer migration is closed.
 
 Documentation/gallery review: the source API, owner-thread pumping and notification ownership are documented.
 No paint/blend/theme/gallery fixture changes are introduced; accessibility rows/transport and input acknowledgement

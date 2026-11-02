@@ -1,0 +1,23 @@
+state: completed
+exit: 0
+confirmation: autostarted
+confirmation.autoStart: 1
+confirmation.seconds: 30
+foreground.saved: class 'Chrome_WidgetWin_1' of ChatGPT.exe (process 24992)
+focus.capture.reason: recorded
+focus.capture.error: 0
+restoration.foreground: unchanged
+restoration.focus: unchanged
+restoration.cursor: restored
+cursor.saved: 3005,1687
+cursor.atExit: 3005,1688
+restoration.runMovedSomething: 1
+child: RedXe-API4-Debug-Menu launched=1 exit=0 seconds=66.3 timedout=0 interrupted=0
+child: RedXe-API4-Debug-MenuResources launched=1 exit=0 seconds=5.9 timedout=0 interrupted=0
+child: RedXe-API4-Debug-MenuResourceScaling launched=1 exit=0 seconds=14.4 timedout=0 interrupted=0
+child: RedXe-API4-Release-Menu launched=1 exit=0 seconds=65.2 timedout=0 interrupted=0
+child: RedXe-API4-Release-MenuResources launched=1 exit=0 seconds=5.5 timedout=0 interrupted=0
+child: RedXe-API4-Release-MenuResourceScaling launched=1 exit=0 seconds=13.6 timedout=0 interrupted=0
+child: RedXe-API4-ASanDebug-Menu launched=1 exit=0 seconds=92.4 timedout=0 interrupted=0
+child: RedXe-API4-ASanDebug-MenuResources launched=1 exit=0 seconds=9.6 timedout=0 interrupted=0
+child: RedXe-API4-ASanDebug-MenuResourceScaling launched=1 exit=0 seconds=20.7 timedout=0 interrupted=0

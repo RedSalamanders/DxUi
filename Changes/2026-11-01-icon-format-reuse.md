@@ -1,0 +1,1 @@
+- Retain prepared IconOnly layouts while the effective format identity remains current, and reprepare after format-cache eviction. The WARP regression and paired resource qualification require execution on the integrated candidate.

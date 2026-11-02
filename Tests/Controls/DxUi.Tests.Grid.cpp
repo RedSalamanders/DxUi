@@ -237,8 +237,15 @@ void TestGridNoexceptGeometryContainsThrowingGroupGetter()
 
     Grid grid;
     grid.SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 120.0f));
+    MutableTextGridModel oldModel({{99u, {L"old"}}});
+    grid.SetModel(&oldModel);
+    const std::array<uint64_t, 1u> oldSelection{99u};
+    grid.SetSelectedRowIds(oldSelection);
+    Require(grid.GetSelectionModel().GetCount() == 1u, "old model has a selection before replacement failure");
     grid.SetModel(&model);
 
+    Require(grid.GetModel() == &model && grid.GetSelectionModel().GetCount() == 0u,
+            "failed new-model reconciliation still installs the borrowed model and clears old-model selection");
     Require(grid.GetVisibleColumnCount() == 0u, "Grid noexcept geometry returns empty visibility when collecting a throwing borrowed group snapshot");
 }
 
@@ -463,6 +470,27 @@ void TestSelectionModel()
     const auto preserved = selection.GetOrderedSelection();
     Require(preserved.size() == 3u, "selection preserve size");
     Require(preserved[0] == 9u && preserved[1] == 7u && preserved[2] == 6u, "selection preserve order");
+    std::vector<uint64_t> manyVisible;
+    std::vector<uint64_t> manyRequested;
+    for (uint64_t id = 20000u; id > 0u; --id)
+    {
+        manyVisible.push_back(id);
+        if ((id % 2u) == 0u)
+            manyRequested.push_back(id);
+    }
+    manyRequested.push_back(20000u);
+    manyRequested.push_back(999999u);
+    selection.AssignInOrder(manyVisible, manyRequested, 20000u);
+    Require(selection.GetCount() == 10000u && selection.GetAnchor() == 20000u && selection.IsSelected(20000u) && selection.IsSelected(2u) &&
+                ! selection.IsSelected(19999u) && ! selection.IsSelected(999999u),
+            "bulk assignment filters duplicates and missing ids and retains its anchor");
+    Require(selection.GetOrderedSelection().front() == 20000u && selection.GetOrderedSelection().back() == 2u,
+            "bulk assignment retains visible order independently of membership order");
+    const std::array<uint64_t, 5u> repeatedVisible{4u, 2u, 4u, 3u, 2u};
+    const std::array<uint64_t, 4u> repeatedRequested{2u, 4u, 2u, 99u};
+    selection.AssignInOrder(repeatedVisible, repeatedRequested, 2u);
+    Require(selection.GetOrderedSelection().size() == 2u && selection.GetOrderedSelection()[0] == 4u && selection.GetOrderedSelection()[1] == 2u,
+            "bulk assignment keeps each selected ID once in its first visible position");
 }
 
 // The exception contract of the selection model is unchanged by its ascending copy: the mutators that set one id or flip one stay
@@ -5145,6 +5173,33 @@ void TestGridApplyGroupLayoutRestoresEveryGroupWhenTheDelegatePublishes()
             "a saved layout collapses every group although the delegate publishes each toggle");
 }
 
+void TestGridKeyboardViewportAndColumnIdentity()
+{
+    using namespace DxUi;
+    MutableTextGridModel model({{10u, {L"first"}}}, {{L"old", L"Old", 100.0f}});
+    ToolbarGridFixture fixture(model);
+    bool queried        = false;
+    model.onGetRowCount = [&] { queried = true; };
+    Require(! fixture.grid->OnKeyDown(fixture.host, 'Q', 0u) && ! queried, "unhandled keys leave the model and row enumeration untouched");
+    model.onGetRowCount  = {};
+    const auto oldHeader = fixture.grid->GetVisibleColumnHeaderRect(0u);
+    Require(oldHeader.has_value(), "initial column width is prepared");
+    model.SetColumns({{L"new", L"New", 160.0f}});
+    fixture.grid->NotifyDataChanged();
+    const auto newHeader = fixture.grid->GetVisibleColumnHeaderRect(0u);
+    Require(newHeader && newHeader->right - newHeader->left > oldHeader->right - oldHeader->left + 30.0f,
+            "same-count column replacement discards stale width and order");
+
+    MultiRowGridModel many(100u);
+    ToolbarGridFixture tall(many);
+    tall.grid->SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 300.0f));
+    Require(tall.grid->RequestSelectRow(0u, 0u) && tall.grid->OnKeyDown(tall.host, VK_NEXT, 0u), "page down moves in a tall viewport");
+    const auto tallRow = tall.grid->GetFocusedRowId();
+    tall.grid->SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 140.0f));
+    Require(tall.grid->RequestSelectRow(0u, 0u) && tall.grid->OnKeyDown(tall.host, VK_NEXT, 0u), "page down moves in a short viewport");
+    const auto shortRow = tall.grid->GetFocusedRowId();
+    Require(tallRow && shortRow && *tallRow > *shortRow && *shortRow > 0u, "page distance follows actual viewport height");
+}
 } // namespace
 
 void RunGridTests()
@@ -5156,6 +5211,7 @@ void RunGridTests()
     DXUI_RUN_TEST(TestGridKeysStartFromAPublishedSelection);
     DXUI_RUN_TEST(TestGridModelAssignmentGenerationIgnoresDelegateChanges);
     DXUI_RUN_TEST(TestGridFocusedRowIsDrawnAndCtrlKeysMoveOnlyTheFocus);
+    DXUI_RUN_TEST(TestGridKeyboardViewportAndColumnIdentity);
     DXUI_RUN_TEST(TestGridCtrlLeftAndRightChooseTheCurrentColumn);
     DXUI_RUN_TEST(TestGridSetModelStopsAfterAGroupGetterReplacesItsRoot);
     DXUI_RUN_TEST(TestGridKeyboardCheckboxQueryStopsAfterGetterRetiresTheGrid);

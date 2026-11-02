@@ -1,0 +1,3282 @@
+{
+  "items": [
+    {
+      "outcome": "fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "DeleteTableColumn reads slots[column - 1] out of bounds for a one-cell body row",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichTextCommands.cpp",
+        "Tests/Support/Support.Tests.RichSemantic.h"
+      ],
+      "reason": "One-cell padded body column deletion has a directed exact-source oracle, protecting the former index underflow.",
+      "id": "commands-01",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Prefix() takes the first text leaf's content line as the item content start, deleting nested heading/quote/list markers",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichTextCommands.cpp",
+        "Tests/Support/Support.Tests.RichSemantic.h"
+      ],
+      "reason": "Nested heading, list and quote markers are preserved by prefix planning; task cases are refused.",
+      "id": "commands-02",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Header-row deletion drops the header EOL when the promoted row is the last line without a trailing EOL",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichTextCommands.cpp",
+        "Tests/Support/Support.Tests.RichSemantic.h"
+      ],
+      "reason": "Header promotion retains the physical header EOL when the promoted final row lacks a terminator.",
+      "id": "commands-03",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "InsertTableColumn at column 0 breaks rows that have no leading pipe",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichTextCommands.cpp",
+        "Tests/Support/Support.Tests.RichSemantic.h"
+      ],
+      "reason": "Column-zero insertion in a row without a leading pipe has an exact-source oracle.",
+      "id": "commands-04",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "ToggleStyle/SetLink wrap path accepts selections that partially overlap an existing emphasis/strong/strike/link node",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichTextCommands.cpp",
+        "Tests/Support/Support.Tests.RichSemantic.h"
+      ],
+      "reason": "Partial overlap with emphasis or links is rejected instead of wrapping only part of an owned node.",
+      "id": "commands-05",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "CodeValue silently drops Math and FootnoteReference inlines (and link destinations) when converting a selection to code",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichTextCommands.cpp",
+        "Tests/Support/Support.Tests.RichSemantic.h"
+      ],
+      "reason": "Conversion to code refuses math, footnotes and destination-owning links rather than losing content.",
+      "id": "commands-06",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "OutdentList removes exactly parent.contentIndent columns, so an over-indented child (4-space nesting) stays nested",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichTextCommands.cpp",
+        "Tests/Support/Support.Tests.RichSemantic.h"
+      ],
+      "reason": "Over-indented nested child outdents one structural level, covered by a directed exact result.",
+      "id": "commands-07",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Unwrapping strong/emphasis/strike escapes every ASCII punctuation character in the body, not only context-sensitive ones",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichTextCommands.cpp",
+        "Tests/Support/Support.Tests.RichSemantic.h"
+      ],
+      "reason": "Context-aware NeedsUnwrapEscape limits punctuation escaping, with unwrap and rewrap oracles.",
+      "id": "commands-08",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "InsertParagraph on a non-leaf block inside a block quote deletes the quote marker instead of inserting a line",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichTextCommands.cpp",
+        "Tests/Support/Support.Tests.RichSemantic.h"
+      ],
+      "reason": "Quoted thematic-break Enter retains the quote and inserts the intended source.",
+      "id": "commands-09",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "SetList paragraph path lacks the nine-digit ordered-marker overflow guard",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichTextCommands.cpp",
+        "Tests/Support/Support.Tests.RichSemantic.h"
+      ],
+      "reason": "Ordered list conversion rejects nine-digit marker overflow.",
+      "id": "commands-10",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "IndentList appends trailing spaces to blank lines inside a loose item",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichTextCommands.cpp",
+        "Tests/Support/Support.Tests.RichSemantic.h"
+      ],
+      "reason": "Nested loose-list indentation retains interior blank-line source without adding spaces.",
+      "id": "commands-11",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Indent/Outdent/SetList(None) of a nested loose item with an empty interior line is rejected",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichTextCommands.cpp",
+        "Tests/Support/Support.Tests.RichSemantic.h"
+      ],
+      "reason": "Nested loose-list indent, outdent and unlist accept an empty interior line, with exact source and selection cases.",
+      "id": "commands-12",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "invalid",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Table capacity boundaries signal inconsistently: one-off limits throw while larger ones return Unavailable",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichTextCommands.cpp",
+        "Tests/Support/Support.Tests.RichSemantic.h"
+      ],
+      "reason": "The independent original verifier refuted the claimed inconsistent capacity failure; it was not scheduled.",
+      "id": "commands-13",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Removing an HTML anchor title leaves the attribute's leading whitespace",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichTextCommands.cpp",
+        "Tests/Support/Support.Tests.RichSemantic.h"
+      ],
+      "reason": "Removing an HTML anchor title removes its preceding attribute whitespace.",
+      "id": "commands-14",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Header promotion caret `content.first + 2` can land inside a surrogate pair and abort the command",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichTextCommands.cpp",
+        "Tests/Support/Support.Tests.RichSemantic.h"
+      ],
+      "reason": "Header promotion has a supplementary-scalar and valid caret-boundary case.",
+      "id": "commands-15",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Every plan, including per-keystroke deletion, performs several full-document passes and allocations",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichTextCommands.cpp",
+        "Tests/Support/Support.Tests.RichSemantic.h"
+      ],
+      "reason": "Multiple full edit-validation passes remain; a shorter planner is an unmeasured optimization and must preserve transaction atomicity and snapshots.",
+      "id": "commands-16",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Duplicated helpers: tab-stop arithmetic, Space/Digit, ASCII punctuation set, code pad rule, code-fence stripping, physical line scanner",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichTextCommands.cpp",
+        "Tests/Support/Support.Tests.RichSemantic.h"
+      ],
+      "reason": "Utility and scanner deduplication is not complete; one shared EOL policy conflicts with the distinct raw and structural contracts. The separately discovered code-span deletion behavior is fixed by 3d365075/e149f04f, not evidence that all listed helpers were unified.",
+      "id": "commands-17",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Table(), Link(), Style() and Continue() are oversized and Link() embeds a second HTML attribute parser",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichTextCommands.cpp",
+        "Tests/Support/Support.Tests.RichSemantic.h"
+      ],
+      "reason": "Splitting planner methods and replacing the HTML attribute parser is optional architecture; source ranges, ownership and guards must remain intact.",
+      "id": "commands-18",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Footnote guard and leaf lookups repeat linear NodeAt scans",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichTextCommands.cpp",
+        "Tests/Support/Support.Tests.RichSemantic.h"
+      ],
+      "reason": "Consolidating repeated leaf and footnote lookups is an optional unmeasured traversal optimization.",
+      "id": "commands-19",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Reference-definition extraction bypasses the 32,768 node admission limit and can publish an over-capacity tree",
+      "sourceAndTests": [
+        "src/Controls/DxUi.MarkdownBlocks.h",
+        "src/Controls/DxUi.MarkdownSyntax.cpp",
+        "Tests/Support/Support.Tests.MarkdownCapacity.h"
+      ],
+      "reason": "Reference extraction participates in bounded admission; accepted/rejected outputs and atomic retention/retry are covered by capacity fixtures.",
+      "id": "blocks-01",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Trailing blank lines of an indented code block lose their caret sites: popped from lines, never recorded in EmptyLines, and the EOF trailing line is suppressed",
+      "sourceAndTests": [
+        "src/Controls/DxUi.MarkdownBlocks.h",
+        "src/Controls/DxUi.MarkdownSyntax.cpp",
+        "Tests/Support/Support.Tests.SemanticSourceBlock.h"
+      ],
+      "reason": "Trailing indented-code blank lines retain empty caret sites, including EOF; directed source-block tests cover them.",
+      "id": "blocks-02",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "SourceEditor region is attached to open\\_.back() without container matching, nesting a top-level block inside a still-open list item or footnote",
+      "sourceAndTests": [
+        "src/Controls/DxUi.MarkdownBlocks.h",
+        "src/Controls/DxUi.MarkdownSyntax.cpp",
+        "Tests/Support/Support.Tests.SemanticSourceBlock.h"
+      ],
+      "reason": "Unmatched containers close before source-region creation and orphan shells are removed; the parent assertion is in the source-block test.",
+      "id": "blocks-03",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Lazy-continuation decision ignores the 'last matched container' rule used by cmark/commonmark.js for list markers, empty items and type-7 HTML",
+      "sourceAndTests": [
+        "src/Controls/DxUi.MarkdownBlocks.h",
+        "src/Controls/DxUi.MarkdownSyntax.cpp",
+        "Tests/Support/Support.Tests.MarkdownBlocks.h"
+      ],
+      "reason": "Profile-specific lazy continuation after unmatched containers is integrated as 2193fc35, with pinned GFM/CommonMark grammar cases.",
+      "id": "blocks-04",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "A multi-line paragraph followed by a delimiter row never becomes a table (GFM reference splits the paragraph and uses its last line as header)",
+      "sourceAndTests": [
+        "src/Controls/DxUi.MarkdownBlocks.h",
+        "src/Controls/DxUi.MarkdownSyntax.cpp",
+        "Tests/Support/Support.Tests.MarkdownBlocks.h"
+      ],
+      "reason": "GFM table promotion splits preceding paragraph content from the final header line; integrated 29b94fce includes source-partition cases.",
+      "id": "blocks-05",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "HTML block type 4 accepts a lowercase letter after `<!` under Gfm029, where the pinned GFM 0.29 spec requires uppercase",
+      "sourceAndTests": [
+        "src/Controls/DxUi.MarkdownBlocks.h",
+        "src/Controls/DxUi.MarkdownSyntax.cpp",
+        "Tests/Support/Support.Tests.MarkdownBlocks.h"
+      ],
+      "reason": "Gfm029 declaration blocks require uppercase after <! while other profiles retain their specified behavior; integrated 3fce5260.",
+      "id": "blocks-06",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "acceptedEnd\\_/Extend() is a redundant deferred boundary: it always equals lineFirst\\_ at every PopContainer and source\\_.size() in Finish",
+      "sourceAndTests": [
+        "src/Controls/DxUi.MarkdownBlocks.h",
+        "src/Controls/DxUi.MarkdownSyntax.cpp",
+        "Tests/Support/Support.Tests.MarkdownBlocks.h"
+      ],
+      "reason": "acceptedEnd_ participates in partial and closed container finalization; removing it as redundant requires an invariant proof.",
+      "id": "blocks-07",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "MarkdownBlocks::Line() is a 360-line function mixing five phases and re-running the same lookahead helpers",
+      "sourceAndTests": [
+        "src/Controls/DxUi.MarkdownBlocks.h",
+        "src/Controls/DxUi.MarkdownSyntax.cpp",
+        "Tests/Support/Support.Tests.MarkdownBlocks.h"
+      ],
+      "reason": "Line remains a resumable multi-phase parser; its length alone does not establish a correctness defect.",
+      "id": "blocks-08",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Duplicated ASCII/UTF-16 helpers and label scanners across the Markdown units",
+      "sourceAndTests": [
+        "src/Controls/DxUi.MarkdownBlocks.h",
+        "src/Controls/DxUi.MarkdownSyntax.cpp",
+        "Tests/Support/Support.Tests.MarkdownBlocks.h"
+      ],
+      "reason": "Character/label helper duplication remains; scanner unification is optional and must preserve distinct source and label semantics.",
+      "id": "blocks-09",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Block scanning spends one Advance work unit per UTF-16 unit just to find line ends",
+      "sourceAndTests": [
+        "src/Controls/DxUi.MarkdownBlocks.h",
+        "src/Controls/DxUi.MarkdownSyntax.cpp",
+        "Tests/Support/Support.Tests.MarkdownBlocks.h"
+      ],
+      "reason": "One work unit per UTF-16 scan remains; a chunked scan is an unmeasured optimization that must preserve cooperative budgets.",
+      "id": "blocks-10",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Finish() compaction and TableRow copy node/cell vectors instead of moving them",
+      "sourceAndTests": [
+        "src/Controls/DxUi.MarkdownBlocks.h",
+        "src/Controls/DxUi.MarkdownSyntax.cpp",
+        "Tests/Support/Support.Tests.MarkdownBlocks.h"
+      ],
+      "reason": "Staging-vector copies remain; replacing them must preserve fallible MSVC Debug moves and publication ownership.",
+      "id": "blocks-11",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Dead or redundant checks: parent re-verification inside the identity lookup, unreachable blank-line guards in ReferenceAt, redundant Empty() after Space(Peek())",
+      "sourceAndTests": [
+        "src/Controls/DxUi.MarkdownBlocks.h",
+        "src/Controls/DxUi.MarkdownSyntax.cpp",
+        "Tests/Support/Support.Tests.MarkdownBlocks.h"
+      ],
+      "reason": "Defensive identity/reference checks remain; removing them is optional without a proof covering partial staging and trusted callers.",
+      "id": "blocks-12",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "After partial reference extraction the surviving paragraph starts at its content offset (no line prefix) and the preceding definition absorbs the next line's prefix",
+      "sourceAndTests": [
+        "src/Controls/DxUi.MarkdownBlocks.h",
+        "src/Controls/DxUi.MarkdownSyntax.cpp",
+        "Tests/Support/Support.Tests.MarkdownBlocks.h"
+      ],
+      "reason": "Definition and surviving paragraph preserve their physical line prefixes; integrated 0af69bf7 has LF, CRLF and consecutive-reference fixtures.",
+      "id": "blocks-13",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Generated (padded) table cells are anchored at the row's lineEnd\\_, i.e. after the EOL, forcing downstream special-casing",
+      "sourceAndTests": [
+        "src/Controls/DxUi.MarkdownBlocks.h",
+        "src/Controls/DxUi.MarkdownSyntax.cpp",
+        "Tests/Support/Support.Tests.RichSemanticGeometry.h"
+      ],
+      "reason": "Parser still anchors padded cell nodes at row content.last, potentially after the EOL; geometry maps to the correct insertion site and tests cover CRLF/CR and EOF. Moving the parser anchor and removing downstream handling is an unimplemented architecture proposal.",
+      "id": "blocks-14",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Snapshot Begin materialises the full source twice and scans it three times before any parsing",
+      "sourceAndTests": [
+        "src/Controls/DxUi.MarkdownBlocks.h",
+        "src/Controls/DxUi.MarkdownSyntax.cpp",
+        "Tests/Support/Support.Tests.MarkdownBlocks.h"
+      ],
+      "reason": "Snapshot Begin still flattens and validates source; eliminating copies is an unmeasured proposal constrained by immutable parser publication.",
+      "id": "blocks-15",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Extended-autolink pass resolves a whole text region in one work unit with O(n^2) adversarial scans",
+      "sourceAndTests": [
+        "src/Controls/DxUi.MarkdownInlines.h",
+        "Tests/Support/Support.Tests.MarkdownCapacity.h"
+      ],
+      "reason": "Extended-autolink scanning is staged and work-counted; capacity fixtures exercise accepted and rejected output under bounded work.",
+      "id": "inlines-01",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "AutolinkSplice re-decodes and double-copies the entire remaining node after every spliced link",
+      "sourceAndTests": [
+        "src/Controls/DxUi.MarkdownInlines.h",
+        "Tests/Support/Support.Tests.MarkdownCapacity.h"
+      ],
+      "reason": "Incremental autolink processing avoids the historical repeated whole-remainder decode/copy; bounded-work tests cover splicing.",
+      "id": "inlines-02",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Rule-of-3 and opener floors use consumed delimiter lengths instead of original run lengths",
+      "sourceAndTests": [
+        "src/Controls/DxUi.MarkdownInlines.h",
+        "Tests/Support/Support.Tests.MarkdownInlines.h"
+      ],
+      "reason": "Delimiter processing retains original run lengths for rule-of-three behavior; directed grammar case covers the original example.",
+      "id": "inlines-03",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Emphasis wrappers and autolink child nodes bypass the 32,768-record staging budget",
+      "sourceAndTests": [
+        "src/Controls/DxUi.MarkdownInlines.h",
+        "Tests/Support/Support.Tests.MarkdownCapacity.h"
+      ],
+      "reason": "Emphasis wrappers and autolink children use the shared staging admission limit; capacity tests cover atomic refusal and retry.",
+      "id": "inlines-04",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Autolink walk descent into Emphasis/Strong/Strikethrough and the `parent` plumbing are unreachable",
+      "sourceAndTests": [
+        "src/Controls/DxUi.MarkdownInlines.h",
+        "Tests/Support/Support.Tests.MarkdownInlines.h"
+      ],
+      "reason": "Descent and parent plumbing remain; deletion is optional because wrapper ordering and splice ownership must be preserved.",
+      "id": "inlines-05",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Unused AppendScalar, triplicated scalar encode/decode helpers and a redundant decoder function pointer",
+      "sourceAndTests": [
+        "src/Controls/DxUi.MarkdownInlines.h",
+        "Tests/Support/Support.Tests.MarkdownInlines.h"
+      ],
+      "reason": "Scalar and decoder helper copies remain; consolidation must preserve differing source, label and escape semantics.",
+      "id": "inlines-06",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Scan() is 157 lines; Step() and Emphasis() duplicate leaf-finish and cleanup blocks; Lookup runs twice for shortcut refs",
+      "sourceAndTests": [
+        "src/Controls/DxUi.MarkdownInlines.h",
+        "Tests/Support/Support.Tests.MarkdownInlines.h"
+      ],
+      "reason": "Dispatcher, finish and lookup consolidation remains optional maintenance, not an established parsing failure.",
+      "id": "inlines-07",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "StartLeaf allocates a fresh backtick index scratch vector for every leaf",
+      "sourceAndTests": [
+        "src/Controls/DxUi.MarkdownInlines.h",
+        "Tests/Support/Support.Tests.MarkdownInlines.h"
+      ],
+      "reason": "Per-leaf backtick scratch allocation remains; reusable storage is an optional measured optimization.",
+      "id": "inlines-08",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "AngleAutolink searches for '>' to the end of the leaf regardless of whitespace",
+      "sourceAndTests": [
+        "src/Controls/DxUi.MarkdownInlines.h",
+        "Tests/Support/Support.Tests.MarkdownCapacity.h"
+      ],
+      "reason": "Angle-autolink scanning stops on invalid URI/email characters and records inspection units; 32c11296 adds a long-prefix linear-work oracle.",
+      "id": "inlines-09",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "\\\\(...\\\\) inherits the single-dollar nonspace-edge and trailing-digit rules but docs state them only for \\$...\\$",
+      "sourceAndTests": [
+        "src/Controls/DxUi.MarkdownInlines.h",
+        "Tests/Support/Support.Tests.RichSemantic.h"
+      ],
+      "reason": "Dollar-only nonspace/currency guards no longer improperly apply to backslash-delimited formulas; explicit-delimiter tests cover the distinction.",
+      "id": "inlines-10",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Escaped table-cell pipe leaves a one-unit source hole and splits otherwise contiguous Text nodes",
+      "sourceAndTests": [
+        "src/Controls/DxUi.MarkdownInlines.h",
+        "Tests/Controls/Controls.Tests.RichMarkdown.cpp"
+      ],
+      "reason": "Escaped pipe text owns both source units inside a table; integrated 8fffb932 adds ordinary and code-cell source-range cases.",
+      "id": "inlines-11",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Draw contains an unreachable lazy whole-layout preparation path that would do layout/heap work during raster drawing",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichDocumentLayout.cpp",
+        "Tests/Controls/Controls.Tests.RichDocumentLayout.cpp"
+      ],
+      "reason": "Draw consumes published reference or prepared chunks only; it does not lazily prepare layouts while rasterizing.",
+      "id": "document-01",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "BeginPreparation clones the whole published projection and then Prepare rebuilds a second full block index from the clone",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichDocumentLayout.cpp",
+        "Tests/Controls/Controls.Tests.RichDocumentLayout.cpp"
+      ],
+      "reason": "The old projection is still cloned and v0 rebuilds its index; less-copying preparation remains an unmeasured bounded-memory optimization.",
+      "id": "document-02",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Every recorded edit, undo and redo copies the entire 128-entry history vector for exception safety",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichDocument.cpp",
+        "Tests/Support/Support.Tests.RichTextStateReplacement.h"
+      ],
+      "reason": "HistoryRing push and take-back avoid cloning all 128 entries; wrapped-history behavior has a directed test.",
+      "id": "document-03",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "VisibleRange issues one DirectWrite HitTestTextPosition per line (including a phantom terminal entry) although line heights are already retained",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichTextLayout.cpp",
+        "Tests/Controls/Controls.Tests.RichDocumentLayout.cpp"
+      ],
+      "reason": "VisibleRange still uses caret hit tests; retaining extra metrics is optional unmeasured performance work.",
+      "id": "document-04",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Undo/Redo during a transient (IME preview) revision records the uncommitted preview text as a redo/undo entry",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichDocument.cpp",
+        "Tests/Support/Support.Tests.RichTextStateReplacement.h"
+      ],
+      "reason": "f15c01c6 preserves the entry marker for transient preview history so undo/redo cannot record preview text as a committed history entry.",
+      "id": "document-05",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "PrepareOwned and AdvancePreparation are ~185-line functions mixing validation, SDK calls, state machine and statistics",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichTextLayout.cpp",
+        "Tests/Controls/Controls.Tests.RichDocumentLayout.cpp"
+      ],
+      "reason": "Splitting PrepareOwned and AdvancePreparation by line count is optional and must retain validation, SDK and state-machine behavior.",
+      "id": "document-06",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "The fallibly constructed empty Projection literal is duplicated five times although a helper already exists",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichDocumentLayout.cpp",
+        "Tests/Controls/Controls.Tests.RichDocumentLayout.cpp"
+      ],
+      "reason": "Fallible empty projection construction remains; refactoring must preserve MSVC Debug proxy allocation exception behavior.",
+      "id": "document-07",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Preparation::reusable is sized per physical line (up to 64K pointers) although at most 127 entries can be non-null",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichDocumentLayout.cpp",
+        "Tests/Controls/Controls.Tests.RichDocumentLayout.cpp"
+      ],
+      "reason": "The physical-block-sized reusable pointer vector remains; a sparse representation needs retained-storage and lookup measurements.",
+      "id": "document-08",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "The reuse scan compares full line strings per block instead of first checking shared payload identity",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichDocumentLayout.cpp",
+        "Tests/Controls/Controls.Tests.RichDocumentLayout.cpp"
+      ],
+      "reason": "Reuse still compares line contents; payload identity short-circuiting needs exact change/snapshot proof and measurement.",
+      "id": "document-09",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "A stale whole-layout reference is kept for raster even when chunk placement is exact, forcing an O(n) join per preparation and a full-document DrawTextLayout per paint",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichDocumentLayout.cpp",
+        "Tests/Controls/Controls.Tests.RichDocumentLayout.cpp"
+      ],
+      "reason": "A whole reference can remain for raster despite exact chunk placement; this real remaining work is an unimplemented performance proposal, not a claimed optimization. Pixel parity and matched measurement are required before changing it.",
+      "id": "document-10",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Two complete rendering pipelines (v0 projection/chunk layout and semantic map/geometry) remain live with no retirement gate, and the editor still materialises whole-document v0 projections per keystroke",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichEditorLayout.h",
+        "Tests/Support/Support.Tests.RichSemanticEditor.h"
+      ],
+      "reason": "The v0 and semantic pipelines deliberately remain for separate compatibility contracts; universal zero-copy for v0 was rejected by the owner and bounded linear materialization remains.",
+      "id": "document-11",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "ChangedRangeFrom's common-ancestor search is O(128^2) over two zero-initialised 5 KiB stack arrays although identities are monotone along a lineage",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichDocument.cpp",
+        "Tests/Support/Support.Tests.RichTextStateReplacement.h"
+      ],
+      "reason": "Bounded common-ancestor lineage scans remain; a monotone shortcut is optional CPU/stack optimization.",
+      "id": "document-12",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "invalid",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "After Invalidate(), ChunkCount/UsesWholeGeometry/UsesWholeRaster still report the retained graph while Height/Revision/LastPreparation report empty and Generation does not change",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichDocumentLayout.cpp",
+        "Tests/Controls/Controls.Tests.RichDocumentLayout.cpp"
+      ],
+      "reason": "Invalidation deliberately retains chunks while publishable height/readiness is unavailable; retained-resource diagnostics are not a readiness claim.",
+      "id": "document-13",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "invalid",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Sizing calls to GetLineMetrics and HitTestTextRange ignore their HRESULT, silently producing zero lines / empty selection on unexpected failure",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichTextLayout.cpp",
+        "Tests/Controls/Controls.Tests.RichDocumentLayout.cpp"
+      ],
+      "reason": "Original verifier refuted the alleged sizing-call HRESULT failure; the two-pass pattern remains and no new unexpected SDK failure is demonstrated.",
+      "id": "document-14",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Each insertion allocates its own immutable buffer, so sequential typing never coalesces and one piece plus ~1 KiB leaf node is retained per keystroke",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichDocument.cpp",
+        "Tests/Support/Support.Tests.RichTextStateReplacement.h"
+      ],
+      "reason": "Immutable insertion buffers remain; compaction needs snapshot/history ownership proof and paired retained-memory evidence.",
+      "id": "document-15",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "The Placement phase's VerticalOrigin check is tautological and the Reuse-phase Unchanged guards are unreachable",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichDocumentLayout.cpp",
+        "Tests/Controls/Controls.Tests.RichDocumentLayout.cpp"
+      ],
+      "reason": "VerticalOrigin compares real prepared placement and is no longer a tautology; positioned-reference tests protect the guard.",
+      "id": "document-16",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "AllocateIdentity uses a CAS loop with an unreachable 2^64 exhaustion exception",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichDocument.cpp",
+        "Tests/Support/Support.Tests.RichTextStateReplacement.h"
+      ],
+      "reason": "Bounded identity exhaustion guard remains defensive; removing it does not establish a correctness improvement.",
+      "id": "document-17",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Builder::Inline searches for the closing marker past the end of the current line",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichMarkdownProjection.cpp",
+        "Tests/Controls/Controls.Tests.RichDocumentLayout.cpp"
+      ],
+      "reason": "The marker scan can extend past the line but does not accept a cross-line match; bounded search is optional optimization.",
+      "id": "document-18",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Keyboard caret movement never exits an F2 source-editing envelope",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichTextEditor.cpp",
+        "Tests/Support/Support.Tests.SemanticSourceBlock.h"
+      ],
+      "reason": "Keyboard source-envelope exit and subsequent Enter are covered by the integrated directed keyboard fixture 6b421e71.",
+      "id": "editor-01",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Typing into an empty/padded cell silently drops characters when the table exceeds planner caps",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichTextEditor.cpp",
+        "Tests/Support/Support.Tests.RichSemanticEditor.h",
+        "Tests/Controls/Controls.Tests.RichSemanticGeometry.cpp",
+        "Tests/Embedded/Embedded.Tests.Embedded.cpp"
+      ],
+      "reason": "Planner refusal falls back to raw insertion; 258-row padded-cell typing and undo are covered by df0c4573.",
+      "id": "editor-02",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "IME preview imports discard the whole retained layout graph instead of invalidating it",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichTextEditor.cpp",
+        "Tests/Support/Support.Tests.RichSemanticEditor.h",
+        "Tests/Controls/Controls.Tests.RichSemanticGeometry.cpp",
+        "Tests/Embedded/Embedded.Tests.Embedded.cpp"
+      ],
+      "reason": "4bee3b86 retains reusable geometry for transient previews, with changed-preview and cancellation cases.",
+      "id": "editor-03",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Each image completion retires and fully rebuilds the semantic geometry",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichTextEditor.cpp",
+        "Tests/Support/Support.Tests.RichSemanticEditor.h",
+        "Tests/Controls/Controls.Tests.RichTextEditor.cpp"
+      ],
+      "reason": "Image completions coalesce retirement before publication; separated completions can still cause later work, so no universal coalescing claim.",
+      "id": "editor-04",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Hot input paths repeatedly materialize the whole source/display text",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichTextEditor.cpp",
+        "Tests/Support/Support.Tests.RichSemanticEditor.h",
+        "Tests/Controls/Controls.Tests.RichTextEditor.cpp"
+      ],
+      "reason": "Owner rejects universal zero-copy for prepared v0 and visual/source fallback; raw/pending windows are addressed and affected fallback actions retain bounded linear materialization.",
+      "id": "editor-05",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Paint computes the full selection geometry and re-walks all elements per visible selection line",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichTextEditor.cpp",
+        "Tests/Support/Support.Tests.RichSemanticEditor.h",
+        "Tests/Controls/Controls.Tests.RichTextEditor.cpp"
+      ],
+      "reason": "Selection geometry and union mask are prepared before Paint; no-mask fallback deliberately draws clipped per rectangle.",
+      "id": "editor-06",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "The 'active composition blocks this action' guard is copy-pasted five times",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichTextEditor.cpp",
+        "Tests/Support/Support.Tests.RichSemanticEditor.h",
+        "Tests/Controls/Controls.Tests.RichTextEditor.cpp"
+      ],
+      "reason": "A shared MarkdownCommandInputBlocked guard checks host composition without copying the full text.",
+      "id": "editor-07",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Layout request/publication key is scattered across eleven loose State scalars",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichTextEditor.cpp",
+        "Tests/Support/Support.Tests.RichSemanticEditor.h",
+        "Tests/Controls/Controls.Tests.RichTextEditor.cpp"
+      ],
+      "reason": "Named LayoutKey exists, but request, publication and rejection identities intentionally differ; one identical key is not required.",
+      "id": "editor-08",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Nine divergent 'reset the preparation pipeline' sequences",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichTextEditor.cpp",
+        "Tests/Support/Support.Tests.RichSemanticEditor.h",
+        "Tests/Controls/Controls.Tests.RichTextEditor.cpp"
+      ],
+      "reason": "RetireLayout centralizes common retirement while hidden, rejected and preview paths preserve different ownership; a universal reset abstraction is not implemented.",
+      "id": "editor-09",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "PrepareContent, OnKeyDown and Erase are oversized multi-strategy functions",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichTextEditor.cpp",
+        "Tests/Support/Support.Tests.RichSemanticEditor.h",
+        "Tests/Controls/Controls.Tests.RichTextEditor.cpp"
+      ],
+      "reason": "Splitting long methods is optional maintenance; size alone does not demonstrate broken behavior.",
+      "id": "editor-10",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "invalid",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Const members mutate editor state through \\_state; hit testing silently rewrites caret affinity",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichTextEditor.cpp",
+        "Tests/Support/Support.Tests.RichSemanticEditor.h",
+        "Tests/Controls/Controls.Tests.RichTextEditor.cpp"
+      ],
+      "reason": "Original finding was refuted; source caret affinity is a meaningful distinct state and prepared hit behavior must preserve it.",
+      "id": "editor-11",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Enter inserts CRLF in Source/raw contexts but the document's local EOL in semantic commands",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichTextEditor.cpp",
+        "Tests/Support/Support.Tests.RichSemanticEditor.h",
+        "Tests/Controls/Controls.Tests.RichTextEditor.cpp"
+      ],
+      "reason": "Raw Enter uses first document EOL; structural commands use local physical EOL with fallback. A universal selection policy conflicts with the documented mixed-EOL contracts.",
+      "id": "editor-12",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "TryPrepareClipboardPaste throws where its contract promises false, and validates files twice",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichTextEditor.cpp",
+        "Tests/Support/Support.Tests.RichImagePaths.h",
+        "Tests/Controls/Controls.Tests.RichTextInput.cpp"
+      ],
+      "reason": "TryPrepareClipboardPaste catches named input errors and uses one file-validation loop; deep unrepresentable paths additionally use bounded literal fallback.",
+      "id": "editor-13",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "invalid",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "GetMarkdownRenderingStatus reports Semantic for a ready-but-stale layout",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichTextEditor.cpp",
+        "Tests/Support/Support.Tests.RichSemanticEditor.h",
+        "Tests/Controls/Controls.Tests.RichTextEditor.cpp"
+      ],
+      "reason": "Original verifier refuted a reachable ready-but-stale state; a current-layout check and retirement test were nevertheless added. The directed test does not independently reproduce the historical claim.",
+      "id": "editor-14",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Inconsistent failure bookkeeping and misleading debug counters in PrepareContent",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichTextEditor.cpp",
+        "Tests/Support/Support.Tests.RichImageResources.h",
+        "Tests/Support/Support.Tests.RichSemanticEditor.h"
+      ],
+      "reason": "Terminal length-error retirement clears request state; 124b8d67 separately measures actual image preparation work rather than mislabeling it as block work.",
+      "id": "editor-15",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "RichEditorLayout facade is bypassed for semantic-only operations",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichTextEditor.cpp",
+        "Tests/Support/Support.Tests.RichSemanticEditor.h",
+        "Tests/Controls/Controls.Tests.RichTextEditor.cpp"
+      ],
+      "reason": "Semantic operations and the v0 facade support different source and compatibility contracts; a universal facade is optional architecture.",
+      "id": "editor-16",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "No coverage for keyboard envelope exit, over-cap table typing, or IME preview chunk reuse",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichTextEditor.cpp",
+        "Tests/Support/Support.Tests.SemanticSourceBlock.h",
+        "Tests/Support/Support.Tests.RichSemanticEditor.h",
+        "Tests/Embedded/Embedded.Tests.Embedded.cpp"
+      ],
+      "reason": "Integrated keyboard envelope exit, over-capacity padded table typing and multi-chunk preview reuse cases cover the three named gaps.",
+      "id": "editor-17",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "OnMouseDown takes focus before it knows the press can be honoured",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichTextEditor.cpp",
+        "Tests/Controls/Controls.Tests.RichTextInput.cpp",
+        "Tests/Support/Support.Tests.RichSemanticEditor.h",
+        "Tests/Embedded/Embedded.Tests.Embedded.cpp"
+      ],
+      "reason": "Input preflights current layout before focus; task-plan failures and reentrant focus/lifetime paths have directed tests.",
+      "id": "editor-18",
+      "reviewInput": "current-disposition-commands-blocks-inlines-document-editor.json"
+    },
+    {
+      "outcome": "invalid",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Data-dependent builder invariant failures are rethrown as logic\\_error/invalid\\_argument, which the retained editor treats as transient: endless rebuild-and-fail loop",
+      "sourceAndTests": "src/Controls/DxUi.RichSemanticDocument.cpp; Tests/Support/Support.Tests.RichSemantic.h",
+      "reason": "Original invariant retry allegation refuted; no demonstrated endless failure.",
+      "id": "semantic-01",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "accepted fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Native object budget is enforced inconsistently across math, diagrams and images, so a document can be published that geometry must reject wholesale",
+      "sourceAndTests": "src/Controls/DxUi.RichSemanticDocument.cpp; Tests/Support/Support.Tests.RichSemantic.h",
+      "reason": "Combined admitted math, diagram and Markdown/HTML image ceiling; Support.Tests.SemanticDiagrams.h covers combined budget.",
+      "id": "semantic-02",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "accepted fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Rejected inline math overwrites the parent element's title, clobbering Markdown link titles exposed as UIA HelpText",
+      "sourceAndTests": "src/Controls/DxUi.RichSemanticDocument.cpp; Tests/Support/Support.Tests.RichSemantic.h",
+      "reason": "Rejected formula owns its diagnostic, preserving parent link title; Controls.Tests.RichSemanticDocument.cpp covers local rejection.",
+      "id": "semantic-03",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "accepted fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "A leaf whose display already ends with a transformed LF (\\<br>) skips the generated cell/paragraph separator",
+      "sourceAndTests": "src/Controls/DxUi.RichSemanticDocument.cpp; Tests/Support/Support.Tests.RichSemantic.h",
+      "reason": "Nonfinal cell emits tab after transformed HTML break; matched before/after fixture.",
+      "id": "semantic-04",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "invalid",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "ApplySourceEdits rejects an insertion followed by a replacement at the same offset, beyond the documented 'two insertions' rule",
+      "sourceAndTests": "src/Controls/DxUi.RichSemanticDocument.cpp; Tests/Support/Support.Tests.RichSemantic.h",
+      "reason": "Same-start edits are prohibited by the owning contract, including insertion plus replacement.",
+      "id": "semantic-05",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "invalid",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Repeated (non-primary) display spans are a dead feature: no production path can emit them",
+      "sourceAndTests": "src/Controls/DxUi.RichSemanticDocument.cpp; Tests/Support/Support.Tests.RichSemantic.h",
+      "reason": "SemanticBuilder does not emit nonprimary spans, but SourceDisplayMap and DisplaySpan are public standalone primitives; dead-feature conclusion is refuted.",
+      "id": "semantic-06",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "SemanticElement::name duplicates the display text of every paragraph, heading, code block, cell and link although the UIA consumer already falls back to the display slice",
+      "sourceAndTests": "src/Controls/DxUi.RichSemanticDocument.cpp; Tests/Support/Support.Tests.RichSemantic.h",
+      "reason": "Removing duplicate names is unmeasured and must preserve accessibility ownership.",
+      "id": "semantic-07",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Unreachable Html-inline branches in ResolveSemanticValue and Inline()",
+      "sourceAndTests": "src/Controls/DxUi.RichSemanticDocument.cpp; Tests/Support/Support.Tests.RichSemantic.h",
+      "reason": "Alleged unreachable HTML branches are optional cleanup, without demonstrated behavior failure.",
+      "id": "semantic-08",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Three duplicated helpers: diagram body-to-source mapping, integer formatting, and per-unit span-kind emission",
+      "sourceAndTests": "src/Controls/DxUi.RichSemanticDocument.cpp; Tests/Support/Support.Tests.RichSemantic.h",
+      "reason": "Helper consolidation is optional and must preserve source mapping and ownership semantics.",
+      "id": "semantic-09",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "invalid",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Redundant admission in SemanticBuilder::Begin: UTF-16 revalidation and node/inline caps that the parser already guarantees",
+      "sourceAndTests": "src/Controls/DxUi.RichSemanticDocument.cpp; Tests/Support/Support.Tests.RichSemantic.h",
+      "reason": "Original verifier found node-count checks reachable because parser caps do not cover all paths; independent admission is intentional.",
+      "id": "semantic-10",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "SourceDisplayMap rebuilds dense per-unit anchor tables and copies source/display/spans on every publication; fragment queries and the editor's atomic-span scan are linear in span count",
+      "sourceAndTests": "src/Controls/DxUi.RichSemanticDocument.cpp; Tests/Support/Support.Tests.RichSemantic.h",
+      "reason": "Dense maps and linear scans are an unmeasured storage optimization, not a proven current defect.",
+      "id": "semantic-11",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Inline math parses the full expression before any admission check, re-walks the tree to count records, and its diagnostics bypass the capacity guard used for diagrams",
+      "sourceAndTests": "src/Controls/DxUi.RichSemanticDocument.cpp; Tests/Support/Support.Tests.RichSemantic.h",
+      "reason": "ParseMath still precedes admission and math diagnostics use separate paths; original verifier established bounded wasted work with correct output. Earlier admission and helper consolidation are unimplemented optional optimization.",
+      "id": "semantic-12",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "HTML comments and declarations turn the entire enclosing leaf into literal code ink",
+      "sourceAndTests": "src/Controls/DxUi.RichSemanticDocument.cpp; Tests/Support/Support.Tests.RichSemantic.h",
+      "reason": "Literal unsupported HTML fallback preserves source under the bounded profile.",
+      "id": "semantic-13",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "SemanticBuilder::Preparation is one ~1000-line struct that interleaves tree traversal, native HTML, diagram staging, footnote footers and source-format derivation",
+      "sourceAndTests": "src/Controls/DxUi.RichSemanticDocument.cpp; Tests/Support/Support.Tests.RichSemantic.h",
+      "reason": "Splitting preparation is an optional architecture proposal; size alone does not show incorrect output.",
+      "id": "semantic-14",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "invalid",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Native anchor title attribute is decoded but not filtered, so control characters reach UIA HelpText",
+      "sourceAndTests": "src/Controls/DxUi.RichSemanticDocument.cpp; Tests/Support/Support.Tests.RichSemantic.h",
+      "reason": "Original control-character HelpText claim was refuted.",
+      "id": "semantic-15",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "accepted fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "StepSource walks boxes in display order, so reordered footnote bodies are unreachable by Left/Right and Right dead-ends before a visible footer",
+      "sourceAndTests": "src/Controls/DxUi.RichSemanticGeometry.cpp; Tests/Support/Support.Tests.RichSemanticGeometry.h",
+      "reason": "StepSource handles reordered footers; Support.Tests.RichSemanticGeometry.h exercises traversal.",
+      "id": "geometry-01",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "accepted fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Draw walks every element and every box per call and re-submits whole paragraph layouts per band; per-selection-line calls make this quadratic",
+      "sourceAndTests": "src/Controls/DxUi.RichSemanticGeometry.cpp; Tests/Support/Support.Tests.RichSemanticGeometry.h",
+      "reason": "PaintIndex culls boxes and elements; directed order and edge raster fixtures exist; performance proof remains separate.",
+      "id": "geometry-02",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "accepted fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "A single diagram wider than the view rejects native geometry for the whole document (source fallback) instead of a per-object literal fallback",
+      "sourceAndTests": "src/Controls/DxUi.RichSemanticGeometry.cpp; Tests/Support/Support.Tests.RichSemanticGeometry.h",
+      "reason": "Oversized objects retry locally while neighboring content remains; Support.Tests.RichSemanticEditor.h covers narrow retry.",
+      "id": "geometry-03",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "accepted fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Draw culls boxes by logical frame and ignores glyph overhang; DrawingVerticalBounds is never consulted by the semantic path",
+      "sourceAndTests": "src/Controls/DxUi.RichSemanticGeometry.cpp; Tests/Support/Support.Tests.RichSemanticGeometry.h",
+      "reason": "DrawingVerticalBounds participates in PaintIndex; independent DirectWrite overhang and WIC fixture cover ink beyond frames.",
+      "id": "geometry-04",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Math placements are forced through NativeImageGeometry, coupling DWrite-only formulas to a D2D render target identity",
+      "sourceAndTests": "src/Controls/DxUi.RichSemanticGeometry.cpp; Tests/Support/Support.Tests.RichSemanticGeometry.h",
+      "reason": "Generic math/image extraction is unimplemented and unmeasured; CPU shaping and raster ownership differ.",
+      "id": "geometry-05",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "LayoutOne (~290 lines) and Advance (~360 lines, 15 inline phases) exceed the split threshold and share a bag of reused cursors",
+      "sourceAndTests": "src/Controls/DxUi.RichSemanticGeometry.cpp; Tests/Support/Support.Tests.RichSemanticGeometry.h",
+      "reason": "Phase splitting remains optional; function size alone is not a correctness defect.",
+      "id": "geometry-06",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "The paragraph/empty-line merge decision is duplicated between CountSites preflight and LayoutOne",
+      "sourceAndTests": "src/Controls/DxUi.RichSemanticGeometry.cpp; Tests/Support/Support.Tests.RichSemanticGeometry.h",
+      "reason": "Preflight/layout merge consolidation is optional and must preserve admission and geometry parity.",
+      "id": "geometry-07",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "PlaceRowOne recomputes indent, gutter and cell width instead of reusing what LayoutOne already derived",
+      "sourceAndTests": "src/Controls/DxUi.RichSemanticGeometry.cpp; Tests/Support/Support.Tests.RichSemanticGeometry.h",
+      "reason": "Sharing placement arithmetic is unmeasured and must preserve staged budget behavior.",
+      "id": "geometry-08",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Two merge orders (source-order when no footers, display-order via caretSites otherwise) double the caret-site code paths",
+      "sourceAndTests": "src/Controls/DxUi.RichSemanticGeometry.cpp; Tests/Support/Support.Tests.RichSemanticGeometry.h",
+      "reason": "Footers reorder visual and source order; merging paths requires explicit mapping.",
+      "id": "geometry-09",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "SourceBox recovers a box index by pointer scan after BoxAt already located it",
+      "sourceAndTests": "src/Controls/DxUi.RichSemanticGeometry.cpp; Tests/Support/Support.Tests.RichSemanticGeometry.h",
+      "reason": "Removing pointer scan is an unmeasured optimization rather than a demonstrated defect.",
+      "id": "geometry-10",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Every empty, trailing or container-only source line consumes one DirectWrite layout and one admission slot",
+      "sourceAndTests": "src/Controls/DxUi.RichSemanticGeometry.cpp; Tests/Support/Support.Tests.RichSemanticGeometry.h",
+      "reason": "Empty physical lines retain distinct caret/source identity; removing owners risks keyboard semantics.",
+      "id": "geometry-11",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Display-offset entry points (Caret, HitTest, LineBoundary, VisibleRange, public Range) are unreachable from the control in semantic mode",
+      "sourceAndTests": "src/Controls/DxUi.RichSemanticGeometry.cpp; Tests/Support/Support.Tests.RichSemanticGeometry.h",
+      "reason": "Display-coordinate geometry APIs are public; editor-only call reachability cannot justify removal.",
+      "id": "geometry-12",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "accepted fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Equal-width cells have no minimum width: narrow views wrap every glyph and push cell text outside its clipped frame",
+      "sourceAndTests": "src/Controls/DxUi.RichSemanticGeometry.cpp; Tests/Support/Support.Tests.RichSemanticGeometry.h",
+      "reason": "Opt-in intrinsic table minima and RTL overflow have geometry fixtures; legacy default is not claimed changed.",
+      "id": "geometry-13",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "invalid",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Hit testing and visible-range queries scan all boxes linearly although boxes are laid out in nondecreasing y",
+      "sourceAndTests": "src/Controls/DxUi.RichSemanticGeometry.cpp; Tests/Support/Support.Tests.RichSemanticGeometry.h",
+      "reason": "The blanket monotonic ordering premise was refuted; overlap and ordering complicate binary search.",
+      "id": "geometry-14",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "accepted fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "VisibleRange/VisibleSourceRange extend the result to a box start even when none of its lines is visible",
+      "sourceAndTests": "src/Controls/DxUi.RichSemanticGeometry.cpp; Tests/Support/Support.Tests.RichSemanticGeometry.h",
+      "reason": "Actual visible lines govern range; matched old/new fixture covers padding-only, cells and math.",
+      "id": "geometry-15",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "accepted fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Parser accepts text leaves DirectWrite cannot lay out on one line; the resulting std::length\\_error rejects the whole document's semantic preview",
+      "sourceAndTests": "src/Controls/DxUi.NativeMath.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "reason": "Text group normalization and formula-local fallback avoid whole-document failure; Controls.Tests.RichSemanticDocument.cpp.",
+      "id": "math-parser-01",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "accepted fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "\\\\(...\\\\) inline math wrongly inherits the single-dollar currency heuristics, so '\\\\( x+1 \\\\)' is silently reduced to escaped text",
+      "sourceAndTests": "src/Controls/DxUi.NativeMath.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "reason": "Currency guards apply to dollar syntax; explicit delimiters have separate Support.Tests.RichSemantic.h cases.",
+      "id": "math-parser-02",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "accepted fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Closer search is a raw scan that does not respect code spans or raw HTML between the opener and closer",
+      "sourceAndTests": "src/Controls/DxUi.NativeMath.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "reason": "Closer scanning yields to code and HTML; directed inline cases cover both.",
+      "id": "math-parser-03",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "accepted fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Trailing '\\\\\\\\' before \\\\end is rejected for multi-column environments but silently adds a phantom row for single-column ones",
+      "sourceAndTests": "src/Controls/DxUi.NativeMath.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "reason": "Trailing matrix row behavior has a directed Support.Tests.MathCorpus.h case.",
+      "id": "math-parser-04",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "accepted fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "A rejected inline formula overwrites its parent element's title, clobbering the UIA HelpText of an enclosing link",
+      "sourceAndTests": "src/Controls/DxUi.NativeMath.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "reason": "Rejected math retains local diagnostic and does not overwrite enclosing title.",
+      "id": "math-parser-05",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "accepted fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "MathNode/MathExpression declare copy operations and no move operations, so every std::move in the parser deep-copies subtrees",
+      "sourceAndTests": "src/Controls/DxUi.NativeMath.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "reason": "MathNode and MathExpression define move constructors; no universal allocation-free claim.",
+      "id": "math-parser-06",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "accepted fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "DxUiMath1-target.json and the WIP plan contradict the implemented parser (status, admission limits, envelopes, command lists, diagnostics)",
+      "sourceAndTests": "src/Controls/DxUi.NativeMath.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "reason": "Target profile documents bounded support and fallback; final matching corpus remains pending.",
+      "id": "math-parser-07",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "accepted fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "\\\\limits and \\\\nolimits silently become an empty Space node that then serves as the base of the following scripts",
+      "sourceAndTests": "src/Controls/DxUi.NativeMath.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "reason": "Limit modifier AST cases are directed in Controls.Tests.RichSemanticDocument.cpp.",
+      "id": "math-parser-08",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "accepted fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "\\\\sqrt[...] index is cut at the first ']' and parsed by a fresh recursive ParseMath with its own node/depth budget",
+      "sourceAndTests": "src/Controls/DxUi.NativeMath.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "reason": "Indexed root parsing shares the node/depth budget and has directed boundary tests.",
+      "id": "math-parser-09",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Node-count and depth limits are enforced three times with different semantics (Make counter, ParseMath post-walk, semantic builder re-walk)",
+      "sourceAndTests": "src/Controls/DxUi.NativeMath.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "reason": "Post-parse recount remains optional; public direct-AST admission needs independent validation.",
+      "id": "math-parser-10",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "accepted fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Matrix row/column/cell caps are checked after the cell has been parsed and pushed",
+      "sourceAndTests": "src/Controls/DxUi.NativeMath.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "reason": "Exact row, column and cell boundaries are tested in Support.Tests.MathCorpus.h.",
+      "id": "math-parser-11",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "invalid",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "'\\\\\\\\\\\\\\\\' outside an environment is silently accepted as a literal backslash instead of being rejected",
+      "sourceAndTests": "src/Controls/DxUi.NativeMath.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "reason": "Blanket rejection of double backslash conflicts with a supported distinct escape; ampersand rejection is tested separately.",
+      "id": "math-parser-12",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "accepted fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Adjacent Text atoms are merged into one run, fusing function names and symbols with their operands",
+      "sourceAndTests": "src/Controls/DxUi.NativeMath.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "reason": "Named operators and atom spacing have directed AST and layout fixtures.",
+      "id": "math-parser-13",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "invalid",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Space() uses locale-dependent iswspace, so parse results can vary with the process locale",
+      "sourceAndTests": "src/Controls/DxUi.NativeMath.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "reason": "Original UCRT iswspace locale dependence allegation was refuted; alternative policy not implemented.",
+      "id": "math-parser-14",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Atom() is ~194 lines with an inline 106-entry linear symbol table, and Delimiter() duplicates part of that table",
+      "sourceAndTests": "src/Controls/DxUi.NativeMath.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "reason": "Symbol table and dispatcher consolidation remains unimplemented optional cleanup.",
+      "id": "math-parser-15",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "accepted fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "PreparedMath re-measures subtrees repeatedly with a linear leaf lookup instead of caching extents",
+      "sourceAndTests": "src/Controls/DxUi.NativeMath.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "reason": "PreparedMath caches indexed extents rather than repeatedly performing linear leaf lookup.",
+      "id": "math-parser-16",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "accepted fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "An unclosed '\\$\\$' is handled inconsistently: silent literal text in short paragraphs, whole-paragraph source takeover with a diagnostic in long ones",
+      "sourceAndTests": "src/Controls/DxUi.NativeMath.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "reason": "Inline double dollars are literal independent of paragraph length; display fences are separate.",
+      "id": "math-parser-17",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "accepted fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "No test pins ParseMath or the inline recognizer against the target corpus or the edge rules",
+      "sourceAndTests": "src/Controls/DxUi.NativeMath.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "reason": "Pinned corpus and explicit delimiter and edge tests exist; runtime remains pending.",
+      "id": "math-parser-18",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "accepted fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "A newline inside \\\\text{} or an over-wide leaf drops the whole document to source view instead of a per-formula fallback",
+      "sourceAndTests": "src/Controls/DxUi.PreparedMath.h; Tests/Controls/Controls.Tests.RichSemanticDocument.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "reason": "Text normalization and local formula rejection preserve the document; host retry remains to qualify.",
+      "id": "math-layout-01",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "accepted fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Variables are never set in math italic; every identifier renders upright",
+      "sourceAndTests": "src/Controls/DxUi.PreparedMath.h; Tests/Controls/Controls.Tests.RichSemanticDocument.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "reason": "Math italic and explicit styles have directed fixtures.",
+      "id": "math-layout-02",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "accepted fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "No atom-class spacing: adjacent atoms are merged into one DWrite run, so bin/rel/op spacing and function-name spacing are lost",
+      "sourceAndTests": "src/Controls/DxUi.PreparedMath.h; Tests/Controls/Controls.Tests.RichSemanticDocument.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "reason": "Atom classes and operator spacing have same-glyph directed fixtures.",
+      "id": "math-layout-03",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "accepted fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Large operators and \\\\lim never take limits above/below; \\\\limits and \\\\nolimits are silently discarded",
+      "sourceAndTests": "src/Controls/DxUi.PreparedMath.h; Tests/Controls/Controls.Tests.RichSemanticDocument.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "reason": "Limit modes and display style have explicit AST/layout coverage.",
+      "id": "math-layout-04",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "accepted fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Superscript/subscript shifts are fixed fractions of the font size and ignore the base's height/depth",
+      "sourceAndTests": "src/Controls/DxUi.PreparedMath.h; Tests/Controls/Controls.Tests.RichSemanticDocument.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "reason": "Script shifts use staged ink and SDK MATH metrics with independent gap oracles.",
+      "id": "math-layout-05",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "accepted fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Vertical metrics come from DWrite line boxes, not glyph ink or MATH constants; fractions are ~3 em tall and dfrac/tfrac/display are identical",
+      "sourceAndTests": "src/Controls/DxUi.PreparedMath.h; Tests/Controls/Controls.Tests.RichSemanticDocument.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "reason": "Ink extents and MATH constants inform fraction geometry; SDK-derived gap fixtures exist.",
+      "id": "math-layout-06",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "accepted fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Stretchy delimiters are drawn as straight-line polylines; \\\\big-family is ignored, \\\\left. reserves full width and \\| fences are asymmetric",
+      "sourceAndTests": "src/Controls/DxUi.PreparedMath.h; Tests/Controls/Controls.Tests.RichSemanticDocument.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "reason": "Bounded vertical variants and assemblies plus deterministic fallback have SDK and fallback fixtures.",
+      "id": "math-layout-07",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "accepted fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Display math (\\$\\$…\\$\\$, \\\\[…\\\\]) is laid out exactly like inline math: no display style and no centering",
+      "sourceAndTests": "src/Controls/DxUi.PreparedMath.h; Tests/Controls/Controls.Tests.RichSemanticDocument.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "reason": "Display style and large operator behavior have directed fixtures.",
+      "id": "math-layout-08",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "accepted fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Math is always prepared at body font x 1.15, so formulas in headings are far smaller than the heading text",
+      "sourceAndTests": "src/Controls/DxUi.PreparedMath.h; Tests/Controls/Controls.Tests.RichSemanticDocument.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "reason": "Formula sizing derives from enclosing run; heading fixture checks proportional size.",
+      "id": "math-layout-09",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "accepted fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "\\\\epsilon/\\\\varepsilon and \\\\phi/\\\\varphi are swapped; \\\\cdot maps to MIDDLE DOT",
+      "sourceAndTests": "src/Controls/DxUi.PreparedMath.h; Tests/Controls/Controls.Tests.RichSemanticDocument.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "reason": "Epsilon, phi and cdot identity checks are explicit.",
+      "id": "math-layout-10",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "accepted fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "ASCII '-', '\\*', \"'\", '%' and '~' are rendered literally instead of as minus, asterisk operator, prime, comment and nbsp",
+      "sourceAndTests": "src/Controls/DxUi.PreparedMath.h; Tests/Controls/Controls.Tests.RichSemanticDocument.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "reason": "ASCII operator and prime AST cases are present under bounded profile.",
+      "id": "math-layout-11",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "accepted fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Script and fraction sizes are fixed ratios that compound without a scriptscript floor",
+      "sourceAndTests": "src/Controls/DxUi.PreparedMath.h; Tests/Controls/Controls.Tests.RichSemanticDocument.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "reason": "Script sizing and floor have bounded style fixtures.",
+      "id": "math-layout-12",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "accepted fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Spacing commands have wrong widths: \\\\, \\\\: \\\\; are equal, \\\\! is zero, \\\\quad/\\\\qquad are half size",
+      "sourceAndTests": "src/Controls/DxUi.PreparedMath.h; Tests/Controls/Controls.Tests.RichSemanticDocument.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "reason": "Spacing command widths have directed corpus cases.",
+      "id": "math-layout-13",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "accepted fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Accents are full-width strokes with fixed DIP constants and no skew/centering; \\\\hat and \\\\widehat are identical",
+      "sourceAndTests": "src/Controls/DxUi.PreparedMath.h; Tests/Controls/Controls.Tests.RichSemanticDocument.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "reason": "Horizontal variants and accent positioning have SDK and fallback cases.",
+      "id": "math-layout-14",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "accepted fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "One fixed column/row gap for every environment: aligned gets a gap before '=', cases/matrix gaps differ from TeX, smallmatrix is full size",
+      "sourceAndTests": "src/Controls/DxUi.PreparedMath.h; Tests/Controls/Controls.Tests.RichSemanticDocument.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "reason": "Named matrix/array placement fixtures cover bounded environments, not full TeX spacing.",
+      "id": "math-layout-15",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "accepted fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "All rules share one stroke width and are not pixel-aligned; radical/fraction insets are DIP constants",
+      "sourceAndTests": "src/Controls/DxUi.PreparedMath.h; Tests/Controls/Controls.Tests.RichSemanticDocument.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "reason": "Fractional-origin and DPI formula raster fixtures compare actual pixels with Direct2D; no universal snapping claim.",
+      "id": "math-layout-16",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "accepted fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Font is hard-coded to Cambria Math / en-US with no fallback detection; \\\\text uses the math font and \\\\mathbf/\\\\mathit rely on DWrite simulations",
+      "sourceAndTests": "src/Controls/DxUi.PreparedMath.h; Tests/Controls/Controls.Tests.RichSemanticDocument.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "reason": "Configurable family/locale and unsupported-font fallback have SDK/fallback fixtures.",
+      "id": "math-layout-17",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "accepted fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Math target profile, plan checkbox and docs disagree about what is implemented and the limits",
+      "sourceAndTests": "src/Controls/DxUi.PreparedMath.h; Tests/Controls/Controls.Tests.RichSemanticDocument.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "reason": "Profile and documentation describe bounded native math and exact-source fallback.",
+      "id": "math-layout-18",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "accepted fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "No tests for baseline alignment, script/fraction/radical placement, delimiter extents, heading size, hit testing or Draw allocation",
+      "sourceAndTests": "src/Controls/DxUi.PreparedMath.h; Tests/Controls/Controls.Tests.RichSemanticDocument.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "reason": "SDK, geometry, baseline and heading fixtures now cover named gaps; host/runtime remains separate.",
+      "id": "math-layout-19",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "accepted fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Measure is recomputed inside Place (twice per matrix cell) and Leaf() is a linear search; node-count lambdas are triplicated",
+      "sourceAndTests": "src/Controls/DxUi.PreparedMath.h; Tests/Controls/Controls.Tests.RichSemanticDocument.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "reason": "Indexed cached extents avoid repeated subtree measurement; independent admission remains.",
+      "id": "math-layout-20",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Math placements are smuggled through NativeImageGeometry and inherit image-only invariants (raster target identity, pixel dedup, diagram brushes)",
+      "sourceAndTests": "src/Controls/DxUi.PreparedMath.h; Tests/Controls/Controls.Tests.RichSemanticDocument.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "reason": "Generic image/math owner extraction is unimplemented; CPU and raster lifetimes differ.",
+      "id": "math-layout-21",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "accepted fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Caret beside a tall math object is anchored to the object's bottom, not the text baseline",
+      "sourceAndTests": "src/Controls/DxUi.PreparedMath.h; Tests/Controls/Controls.Tests.RichSemanticDocument.cpp; Tests/Support/Support.Tests.MathCorpus.h",
+      "reason": "Adjacent caret uses text baseline with multiple-DPI fixture.",
+      "id": "math-layout-22",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "accepted fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "State/class descriptions, transition labels and aliases bypass Label() validation and silently render unsupported markup",
+      "sourceAndTests": "src/Controls/DxUi.NativeFlowchart.cpp; src/Controls/DxUi.NativeFlowchartLayout.cpp; Tests/Support/Support.Tests.MarkdownBlocks.h",
+      "reason": "State/class label policy and unsupported diagnostics have independent grammar fixtures.",
+      "id": "mermaid-01",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "accepted fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Every width-only reflow throws away all diagram label layouts and path geometries; PreparedFlowchart's width-independent coalescing is unreachable in production",
+      "sourceAndTests": "src/Controls/DxUi.NativeFlowchart.cpp; src/Controls/DxUi.NativeFlowchartLayout.cpp; Tests/Support/Support.Tests.MarkdownBlocks.h",
+      "reason": "Width-only reflow retains labels and geometry; editor and prepared-flowchart fixtures cover reuse.",
+      "id": "mermaid-02",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "accepted fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Router gives every edge its own exterior lane and per-rank corridor row, so ordinary diagrams become comb-shaped and overflow the view width",
+      "sourceAndTests": "src/Controls/DxUi.NativeFlowchart.cpp; src/Controls/DxUi.NativeFlowchartLayout.cpp; Tests/Support/Support.Tests.MarkdownBlocks.h",
+      "reason": "Disjoint ranks reuse lanes; direct and reusable layout fixtures exist; router remains bounded.",
+      "id": "mermaid-03",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "accepted fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Spec still normatively says native painting/source editing/UIA 'remain M5 work' and that a prepared graph MUST NOT be reported as rendered",
+      "sourceAndTests": "src/Controls/DxUi.NativeFlowchart.cpp; src/Controls/DxUi.NativeFlowchartLayout.cpp; Tests/Support/Support.Tests.MarkdownBlocks.h",
+      "reason": "Normative native rendering status corrected in UI_ControlsAndLayout.md.",
+      "id": "mermaid-04",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "accepted fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Family matrix, ThirdParty README, generator and corpus test still classify stateDiagram/classDiagram as unsupported families; the class example passes only because of `note`",
+      "sourceAndTests": "src/Controls/DxUi.NativeFlowchart.cpp; src/Controls/DxUi.NativeFlowchartLayout.cpp; Tests/Support/Support.Tests.MarkdownBlocks.h",
+      "reason": "Family matrix and generator describe bounded state/class support; final corpus execution remains pending.",
+      "id": "mermaid-05",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "accepted fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "State/class profiles have only two smoke checks; no directed scenario table covers their grammar, rejection or layout",
+      "sourceAndTests": "src/Controls/DxUi.NativeFlowchart.cpp; src/Controls/DxUi.NativeFlowchartLayout.cpp; Tests/Support/Support.Tests.MarkdownBlocks.h",
+      "reason": "Directed grammar, rejection and diagnostic cases replace family smoke-only tests.",
+      "id": "mermaid-06",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "accepted fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Flowchart node shapes and `|label|` edge text are accepted inside state and class bodies, turning invalid Mermaid into a rendered graph",
+      "sourceAndTests": "src/Controls/DxUi.NativeFlowchart.cpp; src/Controls/DxUi.NativeFlowchartLayout.cpp; Tests/Support/Support.Tests.MarkdownBlocks.h",
+      "reason": "Family-specific grammar rejects unsupported flowchart node and edge syntax.",
+      "id": "mermaid-07",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "accepted fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "One wide edge label widens every lane: laneWidth is a single global maximum",
+      "sourceAndTests": "src/Controls/DxUi.NativeFlowchart.cpp; src/Controls/DxUi.NativeFlowchartLayout.cpp; Tests/Support/Support.Tests.MarkdownBlocks.h",
+      "reason": "Per-lane widths have wide/narrow label oracle in Support.Tests.FlowchartLayout.h.",
+      "id": "mermaid-08",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "accepted fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Inheritance is encoded as a magic synthesized edge label 'inherits' rather than an edge kind; painted as text and indistinguishable from a user label",
+      "sourceAndTests": "src/Controls/DxUi.NativeFlowchart.cpp; src/Controls/DxUi.NativeFlowchartLayout.cpp; Tests/Support/Support.Tests.MarkdownBlocks.h",
+      "reason": "Inheritance and realization use typed relation kinds with parser/layout cases.",
+      "id": "mermaid-09",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "accepted fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "docs/rich-text.md introduction contradicts its own RedTilde section on state/class support",
+      "sourceAndTests": "src/Controls/DxUi.NativeFlowchart.cpp; src/Controls/DxUi.NativeFlowchartLayout.cpp; Tests/Support/Support.Tests.MarkdownBlocks.h",
+      "reason": "Rich-text documentation and family matrix describe bounded state/class support consistently.",
+      "id": "mermaid-10",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Statement() is a 165-line multiplexed function with duplicated direction parsing and an `at -= 1; at += 3` edge hack",
+      "sourceAndTests": "src/Controls/DxUi.NativeFlowchart.cpp; src/Controls/DxUi.NativeFlowchartLayout.cpp; Tests/Support/Support.Tests.MarkdownBlocks.h",
+      "reason": "Statement dispatcher cleanup is unimplemented and optional; size alone is not a behavioral defect.",
+      "id": "mermaid-11",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "The same model invariants are validated three times and PreparedFlowchart::Begin prefers a pending mismatched request over an already-complete matching state",
+      "sourceAndTests": "src/Controls/DxUi.NativeFlowchart.cpp; src/Controls/DxUi.NativeFlowchartLayout.cpp; Tests/Support/Support.Tests.MarkdownBlocks.h",
+      "reason": "Avoidable restaging is unimplemented; pending-request publication policy and independent public model validation remain intentional.",
+      "id": "mermaid-12",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "accepted fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Backslash escapes are applied to unquoted labels although the spec limits them to quoted labels",
+      "sourceAndTests": "src/Controls/DxUi.NativeFlowchart.cpp; src/Controls/DxUi.NativeFlowchartLayout.cpp; Tests/Support/Support.Tests.MarkdownBlocks.h",
+      "reason": "Quoted/unquoted labels and malformed syntax have bounded family grammar cases.",
+      "id": "mermaid-13",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "accepted fix",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Valid Mermaid (direction-less header, digit-leading ids, flowchart-elk) is reported as Malformed instead of Unsupported",
+      "sourceAndTests": "src/Controls/DxUi.NativeFlowchart.cpp; src/Controls/DxUi.NativeFlowchartLayout.cpp; Tests/Support/Support.Tests.MarkdownBlocks.h",
+      "reason": "Recognized unsupported constructs have directed outcome and diagnostic examples.",
+      "id": "mermaid-14",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Layout state machine mixes three dispatch styles: Rank() multiplexes three stages and two stages are inlined in Step()",
+      "sourceAndTests": "src/Controls/DxUi.NativeFlowchart.cpp; src/Controls/DxUi.NativeFlowchartLayout.cpp; Tests/Support/Support.Tests.MarkdownBlocks.h",
+      "reason": "Unifying stage dispatch is optional and unimplemented; differing stage styles do not prove incorrect output.",
+      "id": "mermaid-15",
+      "reviewInput": "render-current-disposition.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Scheme-relative Markdown destination //host/share/x.png becomes a UNC file request",
+      "sourceAndTests": [
+        "Samples/EmbeddedControls/RichImageLoader.h",
+        "Tests/Controls/Controls.Tests.RichTextInput.cpp"
+      ],
+      "reason": "Refuted as library-wide prohibition: UNC is caller policy; `RichImageLoader.h:30,235` defaults off, `Controls.Tests.RichTextInput.cpp:606–654` checks rejection before I/O.",
+      "id": "images-clipboard-01",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "docs/rich-text.md intro still says images show only alt text and display is future M5g work",
+      "sourceAndTests": [
+        "docs/rich-text.md",
+        "src/Controls/DxUi.RichImage.cpp",
+        "Tests/Support/Support.Tests.RichImage.h"
+      ],
+      "reason": "Inert export and native image presentation are separate contracts; `docs/rich-text.md` native-image section describes the latter. 64736fec updates stale M5 introduction.",
+      "id": "images-clipboard-02",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "RichImageResources::Take has a dead guard and a redundant clear/swap pattern",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichImageResources.h",
+        "src/Controls/DxUi.RichImage.cpp",
+        "Tests/Support/Support.Tests.RichImage.h",
+        "Tests/Support/Support.Tests.RichImageResources.h"
+      ],
+      "reason": "Dead nested guard and clear/swap duplication in `RichImageResources.h:283–301` remain cleanup; any rewrite must preserve atomic publication/cancel ownership. No observed functional error.",
+      "id": "images-clipboard-03",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Per-file clipboard validation and Markdown label-escape predicate are duplicated",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichTextEditor.cpp",
+        "src/Controls/DxUi.RichImage.cpp",
+        "Tests/Support/Support.Tests.RichImage.h",
+        "Tests/Support/Support.Tests.RichImagePaths.h"
+      ],
+      "reason": "Duplicate validation and escaping in `RichTextEditor.cpp` remain factoring; no demonstrated divergent input behavior.",
+      "id": "images-clipboard-04",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "A clipboard path with 512+ components throws past the documented quoted-literal fallback; native paste is silently dropped",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichImagePaths.h",
+        "src/Controls/DxUi.RichImage.cpp",
+        "Tests/Support/Support.Tests.RichImage.h",
+        "Tests/Support/Support.Tests.RichImagePaths.h"
+      ],
+      "reason": "Bounded deep-path fallback is integrated; final integrated runtime qualification is separate.",
+      "id": "images-clipboard-05",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "ClipboardCalls() references the diagnostics-only seam without the DXUI\\_ENABLE\\_DIAGNOSTICS guard",
+      "sourceAndTests": [
+        "src/Controls/TextClipboard.cpp",
+        "src/Controls/DxUi.RichImage.cpp",
+        "Tests/Support/Support.Tests.RichImage.h",
+        "src/Controls/DxUi.RichImageResources.h"
+      ],
+      "reason": "The diagnostics seam is defined by the supported build profile; forcing an unsupported macro-off configuration does not establish a supported-build defect.",
+      "id": "images-clipboard-06",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "JPEG EXIF orientation query path (/app1/ifd/{ushort=274}) is never exercised by tests",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichImage.cpp",
+        "Tests/Support/Support.Tests.RichImage.h"
+      ],
+      "reason": "Actual JPEG APP1 orientation six fixture reads the WIC metadata tag and checks rotated dimensions and pixels against independently decoded unoriented JPEG baseline; TIFF covers eight orientations.",
+      "id": "images-clipboard-07",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "RichImageLoader duplicates the results compaction/accounting block in DiscardCancelled and Drain",
+      "sourceAndTests": [
+        "Samples/EmbeddedControls/RichImageLoader.h",
+        "src/Controls/DxUi.RichImage.cpp",
+        "Tests/Support/Support.Tests.RichImage.h",
+        "src/Controls/DxUi.RichImageResources.h",
+        "Tests/Support/Support.Tests.RichImageResources.h"
+      ],
+      "reason": "`DiscardCancelled`/`Drain` compaction duplication is optional cleanup, not proof of incorrect accounting; preserve queue lock and ownership.",
+      "id": "images-clipboard-08",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Decode pipeline makes up to four 16 MiB transient copies per image (owned stream copy, unconditional Orient copy)",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichImage.cpp",
+        "Tests/Support/Support.Tests.RichImage.h"
+      ],
+      "reason": "Identity EXIF avoids second pixel buffer; paired evidence records 9 to 7 allocations and 2.1 MB to 1.05 MB with identical pixels.",
+      "id": "images-clipboard-09",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "GPU image bitmaps are re-uploaded on every width/typography geometry rebuild although target and pixels are unchanged",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichSemanticGeometry.cpp",
+        "Tests/Embedded/Embedded.Tests.RichImageFailures.h"
+      ],
+      "reason": "Width reflow reuses completed raster bitmaps when image identity and target/epoch match. Embedded fixture checks no upload or tile copy and compares reflow pixels with independent fresh geometry.",
+      "id": "images-clipboard-10",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "ResolveLocalImagePath re-normalises the already-canonical document base for every relative image candidate",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichImagePaths.h",
+        "src/Controls/DxUi.RichImage.cpp",
+        "Tests/Support/Support.Tests.RichImage.h"
+      ],
+      "reason": "Relative candidate normalizes canonical document base repeatedly in `RichImagePaths.h:352`; bounded optimization proposal, with no measured benefit or cache invalidation proof.",
+      "id": "images-clipboard-11",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "ComposeGifCanvas refills an already zero-initialised canvas and can use a single pattern fill",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichImage.cpp",
+        "Tests/Support/Support.Tests.RichImage.h"
+      ],
+      "reason": "GIF canvas is zero-initialized then filled (`RichImage.cpp:149–151`); preserve nonzero background behavior; optimization proposal without measured benefit.",
+      "id": "images-clipboard-12",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "A NativeObjectCapacity rejection clears all retained decoded images, forcing full re-decode on retry",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichTextEditor.cpp",
+        "src/Controls/DxUi.RichSemanticGeometry.cpp",
+        "Tests/Support/Support.Tests.SemanticDiagrams.h",
+        "Tests/Support/Support.Tests.RichImageResources.h",
+        "Tests/Embedded/Embedded.Tests.RichImageFailures.h",
+        "Tests/Controls/Controls.Tests.RichTextEditor.cpp",
+        "Tests/Embedded/Embedded.Tests.RichTextResources.h"
+      ],
+      "reason": "Editor routes native object rejections through rejectNativeObjects for local math/diagram fallback; the shared native and embedded diagram-width case checks exact source, history and recovery. Mixed 128-object admission and geometry fixture admits two formulas, one diagram and 125 image placements, preserves the excess image alternative, and reflows without a new image request. This tests supported bounded admission; it does not force malformed over-capacity resource snapshots.",
+      "id": "images-clipboard-13",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Statistics() reports cancelled in-flight sources as failedSources",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichImageResources.h",
+        "src/Controls/DxUi.RichImage.cpp",
+        "Tests/Support/Support.Tests.RichImage.h",
+        "Tests/Support/Support.Tests.RichImageResources.h"
+      ],
+      "reason": "Fixed f595acd3: explicit failed bit distinguishes cancel/suspend; shared pending, failure and editor stats tests; matched R23 producer-TU embedded test passed. Final integrated run remains.",
+      "id": "images-clipboard-14",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Unexpected EXIF Orientation VARIANT type or metadata read error rejects an otherwise decodable JPEG/TIFF",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichImage.cpp",
+        "Tests/Support/Support.Tests.RichImage.h"
+      ],
+      "reason": "Fixed 7397f30c: malformed orientation metadata ignored except OOM; real WIC TIFF before/after case passed. Exact WIC OOM injection not run.",
+      "id": "images-clipboard-15",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Sample loader's default 'declines UNC access' policy is purely lexical and the guide does not say so",
+      "sourceAndTests": [
+        "Samples/EmbeddedControls/RichImageLoader.h",
+        "src/Controls/DxUi.RichImage.cpp",
+        "Tests/Support/Support.Tests.RichImage.h",
+        "docs/rich-text.md"
+      ],
+      "reason": "64736fec documents default sample UNC refusal as lexical application policy, not network security boundary.",
+      "id": "images-clipboard-16",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Failed sources are not remembered across semantic documents, so every edit re-issues the failing file request",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichImageResources.h",
+        "src/Controls/DxUi.RichImage.cpp",
+        "Tests/Support/Support.Tests.RichImage.h",
+        "Tests/Support/Support.Tests.RichImageResources.h"
+      ],
+      "reason": "Negative cache across unrelated edits tested `Support.Tests.RichImageResources.h:455–460`; final run remains.",
+      "id": "images-clipboard-17",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "noexcept TextRange COM methods call allocating helpers without a handler (terminate on bad\\_alloc)",
+      "sourceAndTests": [
+        "src/Controls/DxUi.Accessibility.cpp",
+        "Tests/Embedded/Embedded.Tests.RichTextResources.h",
+        "src/Controls/DxUi.RichAccessibility.h",
+        "Tests/Controls/Controls.Tests.RichTextAccessibility.cpp"
+      ],
+      "reason": "Range methods have named bad_alloc boundaries and TextPattern allocation failure schedule",
+      "id": "accessibility-01",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Every range navigation/compare copies the full source (128 KiB per call at the cap)",
+      "sourceAndTests": [
+        "src/Controls/DxUi.Accessibility.cpp",
+        "Tests/Embedded/Embedded.Tests.RichTextResources.h",
+        "src/Controls/DxUi.RichAccessibility.h",
+        "Tests/Controls/Controls.Tests.RichTextAccessibility.cpp"
+      ],
+      "reason": "Compare is metadata-only; ResolveText still copies on navigation. Universal zero-copy is unimplemented and needs measured justification preserving snapshot ownership",
+      "id": "accessibility-02",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "GetAttributeValue/FindAttribute scan SourceRuns from index 0 despite an existing lower\\_bound helper",
+      "sourceAndTests": [
+        "src/Controls/DxUi.Accessibility.cpp",
+        "Tests/Embedded/Embedded.Tests.RichTextResources.h",
+        "src/Controls/DxUi.RichAccessibility.h",
+        "Tests/Controls/Controls.Tests.RichTextAccessibility.cpp"
+      ],
+      "reason": "Source-run lookups use lower_bound; not every annotation query is claimed indexed",
+      "id": "accessibility-03",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Stale-publication null from RichSemanticElementProvider::Create is reported as E\\_OUTOFMEMORY",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichAccessibility.h",
+        "src/Controls/DxUi.Accessibility.cpp",
+        "Tests/Embedded/Embedded.Tests.RichTextResources.h",
+        "Tests/Controls/Controls.Tests.RichTextAccessibility.cpp"
+      ],
+      "reason": "Retired UIA child and allocation failures now return different HRESULTs; race test source added",
+      "id": "accessibility-04",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "RichSemanticElementProvider repeats the same capture/record/role prologue in 15 methods",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichAccessibility.h",
+        "src/Controls/DxUi.Accessibility.cpp",
+        "Tests/Embedded/Embedded.Tests.RichTextResources.h",
+        "Tests/Controls/Controls.Tests.RichTextAccessibility.cpp"
+      ],
+      "reason": "Provider prologue factoring optional given lifetime contract",
+      "id": "accessibility-05",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Triplicated foreign-thread Line dispatch blocks and helper trios in AccessibilityTextRangeProvider",
+      "sourceAndTests": [
+        "src/Controls/DxUi.Accessibility.cpp",
+        "Tests/Embedded/Embedded.Tests.RichTextResources.h",
+        "src/Controls/DxUi.RichAccessibility.h",
+        "Tests/Controls/Controls.Tests.RichTextAccessibility.cpp"
+      ],
+      "reason": "Dispatch factoring optional: native owner dispatch and embedded wrong-thread semantics differ",
+      "id": "accessibility-06",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Duplicate ResolveControl/ResolveMutableControl, forwarding header, and bare runtime-id literal",
+      "sourceAndTests": [
+        "src/Controls/DxUi.Accessibility.cpp",
+        "Tests/Embedded/Embedded.Tests.RichTextResources.h",
+        "src/Controls/DxUi.RichAccessibility.h",
+        "Tests/Controls/Controls.Tests.RichTextAccessibility.cpp"
+      ],
+      "reason": "Forwarder and naming cleanup optional",
+      "id": "accessibility-07",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "invalid",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Rich font-family read throws wil::ResultException inside a publish path whose embedded caller catches only bad\\_alloc",
+      "sourceAndTests": [
+        "src/Controls/DxUi.Accessibility.cpp",
+        "Tests/Embedded/Embedded.Tests.RichTextResources.h",
+        "src/Controls/DxUi.RichAccessibility.h",
+        "Tests/Controls/Controls.Tests.RichTextAccessibility.cpp"
+      ],
+      "reason": "Original missing exception boundary refuted; SDK HRESULT injection covers publication failure and recovery",
+      "id": "accessibility-08",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Snapshot build re-validates acknowledgment per semantic element when collecting bounds",
+      "sourceAndTests": [
+        "src/Controls/DxUi.Accessibility.cpp",
+        "Tests/Embedded/Embedded.Tests.RichTextResources.h",
+        "src/Controls/DxUi.RichAccessibility.h",
+        "Tests/Controls/Controls.Tests.RichTextAccessibility.cpp"
+      ],
+      "reason": "Rich owner captured once per snapshot rather than per element",
+      "id": "accessibility-09",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "No allocation-failure sweep covers TextPattern range commands",
+      "sourceAndTests": [
+        "src/Controls/DxUi.Accessibility.cpp",
+        "Tests/Embedded/Embedded.Tests.RichTextResources.h",
+        "src/Controls/DxUi.RichAccessibility.h",
+        "Tests/Controls/Controls.Tests.RichTextAccessibility.cpp"
+      ],
+      "reason": "Direct observed-allocation TextPattern schedule added",
+      "id": "accessibility-10",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Embedded clipboard paste rewrites CRLF to LF for RichTextEditor while the native host inserts exact clipboard bytes",
+      "sourceAndTests": [
+        "src/Controls/TextInputServices.cpp",
+        "Tests/Controls/Controls.Tests.RichTextInput.cpp"
+      ],
+      "reason": "Embedded text clipboard adapter preserves mixed CRLF, CR and LF spelling and undo selection; a directed test drives the real adapter. Native clipboard and OLE transport fixtures are separate; integrated runtime remains pending.",
+      "id": "host-integration-01",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Hiding, zero-sizing or replacing the device on an EmbeddedHost drops logical keyboard focus; the native host keeps it",
+      "sourceAndTests": [
+        "src/Rendering/Embedded.cpp",
+        "Tests/Embedded/Embedded.Tests.Embedded.cpp",
+        "include/DxUi/Embedded.h"
+      ],
+      "reason": "Fixed 1130fc7b/45e5d680/c49291bb: suspend surface input without losing logical focus; fresh guarded session on restore; public Cancel still clears focus. Matched R23 no-activate embedded hide/zero/device/stale-receipt test passed; final native/embedded integrated run remains.",
+      "id": "host-integration-02",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Sample refreshes the TSF client on every message, re-copying the whole document ~30 times per WM\\_MOUSEMOVE",
+      "sourceAndTests": [
+        "Samples/EmbeddedControls/Main.cpp",
+        "src/Rendering/Embedded.cpp",
+        "Tests/Embedded/Embedded.Tests.Embedded.cpp",
+        "include/DxUi/Embedded.h"
+      ],
+      "reason": "Sample 9ad92f45 removes unconditional message/pump refresh; source-frozen sample no-activate capture passed.",
+      "id": "host-integration-03",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Content-preparation failures and benign incomplete layouts both surface as E\\_ABORT with no wakeup, and the sample treats E\\_ABORT as fatal",
+      "sourceAndTests": [
+        "src/Rendering/Embedded.cpp",
+        "Tests/Embedded/Embedded.Tests.Embedded.cpp",
+        "include/DxUi/Embedded.h"
+      ],
+      "reason": "`Embedded.cpp` distinguishes pending S_FALSE and failures; public `Embedded.h` documents pending; sample handles superseded E_ABORT. Final run remains.",
+      "id": "host-integration-04",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "EmbeddedHost::ReadTextInput performs a full side-effecting session sync on every read, including TSF geometry queries",
+      "sourceAndTests": [
+        "src/Rendering/Embedded.cpp",
+        "Tests/Embedded/Embedded.Tests.Embedded.cpp",
+        "include/DxUi/Embedded.h"
+      ],
+      "reason": "ReadTextInput still performs session synchronization on each read; revision caching is an unmeasured proposal that must account for independently changed control state and notification order.",
+      "id": "host-integration-05",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "TextClipboardPasteTransform is discovered by dynamic\\_cast on the TextInputClient, which no header or doc states",
+      "sourceAndTests": [
+        "src/Controls/TextInputServices.cpp",
+        "src/Rendering/Embedded.cpp",
+        "Tests/Embedded/Embedded.Tests.Embedded.cpp",
+        "include/DxUi/Embedded.h"
+      ],
+      "reason": "64736fec states optional transform must be mixed into the same client object as SetClient; matches dynamic_cast in TextInputServices.",
+      "id": "host-integration-06",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Prepare unbinds the application's render targets and PS shader resource slot 0 on the immediate context, undocumented",
+      "sourceAndTests": [
+        "src/Rendering/Embedded.cpp",
+        "Tests/Embedded/Embedded.Tests.Embedded.cpp",
+        "include/DxUi/Embedded.h"
+      ],
+      "reason": "Current embedded Prepare contract documents immediate context mutation.",
+      "id": "host-integration-07",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Public Prepare/docs list S\\_FALSE meanings without the cooperative 'content pending' case",
+      "sourceAndTests": [
+        "include/DxUi/Embedded.h",
+        "src/Rendering/Embedded.cpp",
+        "Tests/Embedded/Embedded.Tests.Embedded.cpp"
+      ],
+      "reason": "Cooperative pending S_FALSE is documented in `Embedded.h:146` and handled in sample; final host run remains.",
+      "id": "host-integration-08",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Hide handling is split between Control::OnHidden (embedded) and ControlHost::CancelPreparedContent (native), duplicating RichTextEditor logic",
+      "sourceAndTests": [
+        "src/Rendering/Embedded.cpp",
+        "Tests/Embedded/Embedded.Tests.Embedded.cpp",
+        "include/DxUi/Embedded.h"
+      ],
+      "reason": "Native/embedded lifecycle factoring is optional; focus and cancellation ownership differ. No claim one generic helper exists.",
+      "id": "host-integration-09",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Duplicated text-state validators and 65,536 literals across EmbeddedHost and TextInputServices",
+      "sourceAndTests": [
+        "src/Rendering/Embedded.cpp",
+        "Tests/Embedded/Embedded.Tests.Embedded.cpp",
+        "include/DxUi/Embedded.h"
+      ],
+      "reason": "Duplicate validators remain optional cross-layer factoring; preserve independent ABI/lifetime validation.",
+      "id": "host-integration-10",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Sample never dispatches PointerAction::Leave, so hover state sticks when the mouse leaves the window",
+      "sourceAndTests": [
+        "Samples/EmbeddedControls/Main.cpp",
+        "src/Rendering/Embedded.cpp",
+        "Tests/Embedded/Embedded.Tests.Embedded.cpp",
+        "include/DxUi/Embedded.h"
+      ],
+      "reason": "Sample 9ad92f45 tracks and dispatches owned mouse leave; source-frozen no-activate capture passed; hidden proof is not live pointer-leave qualification.",
+      "id": "host-integration-11",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Sample publishes TSF layout only after a successful Prepare, never when the window moves on screen",
+      "sourceAndTests": [
+        "Samples/EmbeddedControls/Main.cpp",
+        "src/Rendering/Embedded.cpp",
+        "Tests/Embedded/Embedded.Tests.Embedded.cpp",
+        "include/DxUi/Embedded.h"
+      ],
+      "reason": "Sample 9ad92f45 publishes layout on window position changes; hidden proof checks routing, not an actual live TSF sink callback.",
+      "id": "host-integration-12",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "EmbeddedControls README claims fixed 96-DPI canvases while the text/rich modes use per-monitor DPI",
+      "sourceAndTests": [
+        "Samples/EmbeddedControls/README.md",
+        "src/Rendering/Embedded.cpp",
+        "Tests/Embedded/Embedded.Tests.Embedded.cpp",
+        "include/DxUi/Embedded.h"
+      ],
+      "reason": "64736fec limits 96-DPI assertion to deterministic captures; live sample uses per-monitor DPI.",
+      "id": "host-integration-13",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "RichImageLoader::Drain(std::vector&) is an unused allocating overload",
+      "sourceAndTests": [
+        "Samples/EmbeddedControls/RichImageLoader.h",
+        "src/Rendering/Embedded.cpp",
+        "Tests/Embedded/Embedded.Tests.Embedded.cpp",
+        "include/DxUi/Embedded.h"
+      ],
+      "reason": "Vector Drain overload is used by tests; removing it as unused is unsupported.",
+      "id": "host-integration-14",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Sample hard-codes reducedMotion and never services NeedsAnimation/AdvanceAnimation, so the rich caret never blinks and NeedsAnimation stays latched",
+      "sourceAndTests": [
+        "Samples/EmbeddedControls/EmbeddedScene.h",
+        "src/Rendering/Embedded.cpp",
+        "Tests/Embedded/Embedded.Tests.Embedded.cpp",
+        "include/DxUi/Embedded.h",
+        "Samples/SdkSmoke/Main.cpp",
+        "Samples/EmbeddedControls/Main.cpp"
+      ],
+      "reason": "Sample `Main.cpp:287–299` services NeedsAnimation/AdvanceAnimation; fixed reduced motion is an intentional deterministic sample setting. Embedded animation lifecycle cases in `Embedded.Tests.Embedded.cpp:505–534,2312–2326`.",
+      "id": "host-integration-15",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "docs/rich-text.md and the plan still say images show only alt text while native image rendering is implemented and documented later in the same file",
+      "sourceAndTests": [
+        "docs/rich-text.md",
+        "include/DxUi/RichMath.h",
+        "Specs/UI/UI_ControlsAndLayout.md"
+      ],
+      "reason": "Native image docs and inert-export behavior are separate; stale introduction corrected by 64736fec.",
+      "id": "status-truth-02",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "dxui-family-matrix.json pins stateDiagram/classDiagram as unsupported-family while the parser, tests, spec and docs treat them as bounded supported profiles",
+      "sourceAndTests": [
+        "ThirdParty/Markdown/mermaid-11.4.1/dxui-family-matrix.json",
+        "docs/rich-text.md",
+        "include/DxUi/RichMath.h",
+        "Specs/UI/UI_ControlsAndLayout.md"
+      ],
+      "reason": "State/class entries identify the bounded implemented profile; generator and corpus expectations accompany the profile rather than implying universal Mermaid support.",
+      "id": "status-truth-03",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "\\\\epsilon/\\\\varepsilon and \\\\phi/\\\\varphi map to the swapped Unicode glyphs",
+      "sourceAndTests": [
+        "src/Controls/DxUi.NativeMath.cpp",
+        "docs/rich-text.md",
+        "include/DxUi/RichMath.h",
+        "Specs/UI/UI_ControlsAndLayout.md"
+      ],
+      "reason": "Epsilon/phi mappings and distinct variants covered in MathCorpus; no general swap remains.",
+      "id": "status-truth-06",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Normative flowchart contract still says the native diagram layers are unqualified and MUST NOT be reported as rendered",
+      "sourceAndTests": [
+        "Specs/UI/UI_ControlsAndLayout.md",
+        "docs/rich-text.md",
+        "include/DxUi/RichMath.h"
+      ],
+      "reason": "Normative controls spec describes bounded native profile, not full browser or Mermaid parity.",
+      "id": "status-truth-07",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "README.md says structural/style UIA is pending although M4f is closed and listed as a supported capability",
+      "sourceAndTests": [
+        "README.md",
+        "docs/rich-text.md",
+        "include/DxUi/RichMath.h",
+        "Specs/UI/UI_ControlsAndLayout.md"
+      ],
+      "reason": "README structural/style UIA text updated; current source is not final physical AT qualification.",
+      "id": "status-truth-08",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "docs/rich-text.md contradicts itself on Mermaid families and describes a gallery tile that no longer exists",
+      "sourceAndTests": [
+        "docs/rich-text.md",
+        "include/DxUi/RichMath.h",
+        "Specs/UI/UI_ControlsAndLayout.md"
+      ],
+      "reason": "64736fec corrects family/gallery prose.",
+      "id": "status-truth-09",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Plan checkboxes M5c and M5a.3 are open while capabilities.json, docs and the gallery present native math as supported",
+      "sourceAndTests": [
+        "Specs/Plans/WIP/RichTextEditor_2026-10-17.md",
+        "docs/rich-text.md",
+        "include/DxUi/RichMath.h",
+        "Specs/UI/UI_ControlsAndLayout.md"
+      ],
+      "reason": "Open plan gates legitimately include broader target and final qualification; capability means bounded implemented subset, not all plan acceptance.",
+      "id": "status-truth-12",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "DxUiMath1-target.json declares math parser/rendering not implemented and pins limits that contradict the shipped code",
+      "sourceAndTests": [
+        "ThirdParty/Markdown/profiles/DxUiMath1-target.json",
+        "docs/rich-text.md",
+        "include/DxUi/RichMath.h",
+        "Specs/UI/UI_ControlsAndLayout.md"
+      ],
+      "reason": "Current RichMath.h gives bounded profile limits; broader target is a separate goal.",
+      "id": "status-truth-01",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Commands the pinned math target lists as required are rejected by ParseMath, and \\\\limits/\\\\nolimits are silently discarded",
+      "sourceAndTests": [
+        "ThirdParty/Markdown/profiles/DxUiMath1-target.json",
+        "docs/rich-text.md",
+        "include/DxUi/RichMath.h",
+        "Specs/UI/UI_ControlsAndLayout.md",
+        "Tests/Support/Support.Tests.MathCorpus.h"
+      ],
+      "reason": "MathLimits is represented in `RichMath.h:81`; `Support.Tests.MathCorpus.h:74,85,93,113–115` tests admitted and invalid modifier forms. Exact pinned-target command coverage and final run remain.",
+      "id": "status-truth-04",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Pinned math envelope rules (own-line display math, '''math/latex fences) do not match the implemented inline recognizer",
+      "sourceAndTests": [
+        "ThirdParty/Markdown/profiles/DxUiMath1-target.json",
+        "docs/rich-text.md",
+        "include/DxUi/RichMath.h",
+        "Specs/UI/UI_ControlsAndLayout.md"
+      ],
+      "reason": "Own-line and fenced math source ownership implemented in shared semantic tests; final native/embedded run remains.",
+      "id": "status-truth-05",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "ThirdParty/Markdown/README.md says the flowchart profile and the native math parser/layout \"remain M5 work\"",
+      "sourceAndTests": [
+        "ThirdParty/Markdown/README.md",
+        "docs/rich-text.md",
+        "include/DxUi/RichMath.h",
+        "Specs/UI/UI_ControlsAndLayout.md"
+      ],
+      "reason": "64736fec corrects ThirdParty/Markdown README M5 future tense.",
+      "id": "status-truth-10",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Design-system guideline promises F2 source access for native mathematics, but the editor only enters code/HTML/metadata/footnote blocks",
+      "sourceAndTests": [
+        "Specs/DesignSystem/components/RichTextEditor/README.md",
+        "docs/rich-text.md",
+        "include/DxUi/RichMath.h",
+        "Specs/UI/UI_ControlsAndLayout.md",
+        "Tests/Support/Support.Tests.RichSemanticEditor.h"
+      ],
+      "reason": "Math F2 owner and source editing tests in `Support.Tests.RichSemanticEditor.h`; physical/consumer qualification separate.",
+      "id": "status-truth-11",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Spec footnote and M3 sections still say footer rendering/navigation and all RichMarkdown extensions are future gates",
+      "sourceAndTests": [
+        "Specs/UI/UI_ControlsAndLayout.md",
+        "docs/rich-text.md",
+        "include/DxUi/RichMath.h"
+      ],
+      "reason": "64736fec reconciles M3 and footnote prose.",
+      "id": "status-truth-13",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Input/accessibility contract still says semantic UIA children and format attributes remain open in M4",
+      "sourceAndTests": [
+        "Specs/UI/UI_InputAndAccessibility.md",
+        "docs/rich-text.md",
+        "include/DxUi/RichMath.h",
+        "Specs/UI/UI_ControlsAndLayout.md"
+      ],
+      "reason": "64736fec corrects semantic UIA and format attribute stale sentence.",
+      "id": "status-truth-14",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "RichMath.h limit comment (16x16 cells, 24 nesting levels) does not match the enforced 128-cell cap and tree-depth check",
+      "sourceAndTests": [
+        "docs/rich-text.md",
+        "include/DxUi/RichMath.h",
+        "Specs/UI/UI_ControlsAndLayout.md"
+      ],
+      "reason": "`RichMath.h:10–18` declares current 64 group depth, 1024 matrix cells and independent node-depth cap.",
+      "id": "status-truth-15",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "NativeFlowchartParser::Preparation::Statement is 165 lines with the direction parser duplicated",
+      "sourceAndTests": [
+        "src/Controls/DxUi.NativeFlowchart.cpp",
+        "docs/rich-text.md",
+        "include/DxUi/RichMath.h",
+        "Specs/UI/UI_ControlsAndLayout.md"
+      ],
+      "reason": "Splitting/deduplicating NativeFlowchartParser Statement is optional factoring, not a demonstrated diagnostic defect.",
+      "id": "status-truth-16",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "State alias and class relation errors are classified with the wrong diagnostic/outcome",
+      "sourceAndTests": [
+        "src/Controls/DxUi.NativeFlowchart.cpp",
+        "docs/rich-text.md",
+        "include/DxUi/RichMath.h",
+        "Specs/UI/UI_ControlsAndLayout.md",
+        "Tests/Support/Support.Tests.MarkdownBlocks.h"
+      ],
+      "reason": "`Support.Tests.MarkdownBlocks.h:600,742–765` pins state/class independent outcomes and source ranges; final corpus remains.",
+      "id": "status-truth-17",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "The math/diagram section is pasted verbatim into the normative spec, including usage-guide prose",
+      "sourceAndTests": [
+        "Specs/UI/UI_ControlsAndLayout.md",
+        "docs/rich-text.md",
+        "include/DxUi/RichMath.h"
+      ],
+      "reason": "Duplicate usage-style material is editorial; authority and consistent bounded contract matter, but removing one copy alone is not an implementation.",
+      "id": "status-truth-18",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "capabilities.json advertises the state/class Mermaid preview but has no entry for the earlier native flowchart preview",
+      "sourceAndTests": [
+        "capabilities.json",
+        "docs/rich-text.md",
+        "include/DxUi/RichMath.h",
+        "Specs/UI/UI_ControlsAndLayout.md"
+      ],
+      "reason": "Existing stable `bounded-native-mermaid-state-class-preview` capability describes flowchart and other families; separate flowchart alias is absent. Adding a stable public ID is a compatibility decision, not implemented.",
+      "id": "status-truth-19",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "MathNode/MathExpression and FlowchartNode/FlowchartEdge suppress implicit moves by defaulting the copy operations, forcing deep copies in the parsers",
+      "sourceAndTests": [
+        "docs/rich-text.md",
+        "include/DxUi/RichMath.h",
+        "Specs/UI/UI_ControlsAndLayout.md"
+      ],
+      "reason": "Explicit move constructors now exist for MathExpression (`RichMath.h:133`); fallible Debug proxy allocation and ownership must be preserved. No blanket claim all diagram copies eliminated.",
+      "id": "status-truth-20",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "id": "status-truth-21",
+      "title": "Published gallery provenance records a dirty worktree, so the math/diagram sheets cannot be reproduced from the recorded commit",
+      "sourceAndTests": [
+        "docs/gallery/generation.json",
+        "docs/gallery/README.md",
+        "Tests/Controls/DxUi.Tests.Gallery.cpp",
+        "gallery.ps1"
+      ],
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "reason": "All six actual native harness images were regenerated from clean compiled source9909da10, sourceDirtyfalse, visually reviewed byroot, and committed with per-image hashes in docs/gallery/generation.json. Synthetic fixture data is retained; older dirty galleries remain historical.",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "ParseMath is only smoke-tested as a bool; no test asserts the MathNode tree",
+      "sourceAndTests": [
+        "Tests/Support/Support.Tests.MathCorpus.h",
+        "Tests/Support/Support.Tests.MarkdownBlocks.h"
+      ],
+      "reason": "AST identity/classes/scripts directly asserted",
+      "id": "tests-engine-01",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Most DxUiMath1-target.json case ids are never exercised and the corpus is not pinned or generated",
+      "sourceAndTests": [
+        "ThirdParty/Markdown/profiles/DxUiMath1-target.json",
+        "Tests/Support/Support.Tests.MathCorpus.h",
+        "Tests/Support/Support.Tests.MarkdownBlocks.h"
+      ],
+      "reason": "Pinned corpus enumerates 1,135 prepared-or-declined cases, not universal support",
+      "id": "tests-engine-02",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "State/class diagram grammar has two happy-path bodies with `>=` count oracles and no negative cases",
+      "sourceAndTests": [
+        "Tests/Support/Support.Tests.MathCorpus.h",
+        "Tests/Support/Support.Tests.MarkdownBlocks.h"
+      ],
+      "reason": "State/class typed, malformed and range cases exist",
+      "id": "tests-engine-03",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "PreparedMath layout/paint has one geometry test; fraction, root, scripts, accents, delimiters, styles, Draw and capacity are untested",
+      "sourceAndTests": [
+        "Tests/Support/Support.Tests.MathCorpus.h",
+        "Tests/Support/Support.Tests.MarkdownBlocks.h",
+        "Tests/Controls/Controls.Tests.RichSemanticDocument.cpp"
+      ],
+      "reason": "Math shape, geometry, fallback and raster fixtures exist",
+      "id": "tests-engine-05",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "id": "tests-engine-06",
+      "title": "Inline math delimiter grammar is largely untested and the HTML test serializer silently drops Math inlines",
+      "sourceAndTests": [
+        "Tests/Support/Support.Tests.MarkdownHtml.h",
+        "Tests/Support/Support.Tests.MarkdownInlines.h",
+        "Tests/Controls/Controls.Tests.RichMarkdown.cpp",
+        "Tests/Controls/Controls.Tests.RichTextEditor.cpp",
+        "Tests/Embedded/Embedded.Tests.RichTextResources.h"
+      ],
+      "outcome": "fixed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "reason": "Test-only HTML serialization now emits escaped math values and visible footnote references, including math in image alternative text. Eight new independent three-profile scenarios join the existing delimiter/container/escape/capacity grammar checks. The focused probe passed153 profile/scenario executions; final canonical runs are recorded separately.",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "92 unsupported flowchart corpus examples only check `issue != None`; the JSON `reason` is discarded by the generator",
+      "sourceAndTests": [
+        "Tests/Support/Support.Tests.MathCorpus.h",
+        "Tests/Support/Support.Tests.MarkdownBlocks.h"
+      ],
+      "reason": "Tests assert exact reason, issue and diagnostic",
+      "id": "tests-engine-07",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "No UIA or text-service test for SemanticRole::Math objects",
+      "sourceAndTests": [
+        "Tests/Support/Support.Tests.MathCorpus.h",
+        "Tests/Support/Support.Tests.MarkdownBlocks.h",
+        "Tests/Support/Support.Tests.RichSemanticEditor.h",
+        "Tests/Controls/Controls.Tests.RichTextAccessibility.cpp"
+      ],
+      "reason": "Actual UIA math name/source/range and editor F2, DPI and bounds cases exist",
+      "id": "tests-engine-08",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Math capability status is contradictory across the target profile, ThirdParty README, docs and the WIP plan",
+      "sourceAndTests": [
+        "ThirdParty/Markdown/profiles/DxUiMath1-target.json",
+        "Tests/Support/Support.Tests.MathCorpus.h",
+        "Tests/Support/Support.Tests.MarkdownBlocks.h",
+        "docs/rich-text.md"
+      ],
+      "reason": "Current docs distinguish bounded profile and broader target",
+      "id": "tests-engine-09",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "No edit/identity/cancellation/capacity-cap tests per math feature; 4096-record and shared 128-object caps untested for math",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichSemanticDocument.cpp",
+        "Tests/Support/Support.Tests.MathCorpus.h",
+        "Tests/Support/Support.Tests.MarkdownBlocks.h",
+        "Tests/Support/Support.Tests.SemanticDiagrams.h"
+      ],
+      "reason": "Math and shared object capacity tests exist",
+      "id": "tests-engine-10",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "dxui-family-matrix.json still marks stateDiagram/classDiagram as unsupported families; test hard-codes the exception",
+      "sourceAndTests": [
+        "ThirdParty/Markdown/mermaid-11.4.1/dxui-family-matrix.json",
+        "Tests/Support/Support.Tests.MathCorpus.h",
+        "Tests/Support/Support.Tests.MarkdownBlocks.h"
+      ],
+      "reason": "Current family matrix records bounded profile",
+      "id": "tests-engine-04",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Twelve near-identical 'advance until complete' helpers, several without a turn bound",
+      "sourceAndTests": [
+        "Tests/Support/Support.Tests.MathCorpus.h",
+        "Tests/Support/Support.Tests.MarkdownBlocks.h"
+      ],
+      "reason": "Advance helper merger optional given distinct budgets",
+      "id": "tests-engine-11",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "DWrite/D2D/WIC raster fixture code duplicated across four Support headers",
+      "sourceAndTests": [
+        "Tests/Support/Support.Tests.MathCorpus.h",
+        "Tests/Support/Support.Tests.MarkdownBlocks.h"
+      ],
+      "reason": "Raster fixture merger optional given different resource contexts",
+      "id": "tests-engine-12",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Boundary/LCG/Reject helpers re-implemented per file instead of shared",
+      "sourceAndTests": [
+        "Tests/Support/Support.Tests.MathCorpus.h",
+        "Tests/Support/Support.Tests.MarkdownBlocks.h"
+      ],
+      "reason": "Boundary helper merger optional",
+      "id": "tests-engine-13",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "CR/CRLF normalization and entity unescape duplicated inside the block-corpus test instead of using MarkdownHtmlTests::Lines/Escape",
+      "sourceAndTests": [
+        "Tests/Support/Support.Tests.MathCorpus.h",
+        "Tests/Support/Support.Tests.MarkdownBlocks.h"
+      ],
+      "reason": "Normalization helper merger optional absent proven equivalence",
+      "id": "tests-engine-14",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Loose or count-only oracles: `checked > 560u`, `!name.empty()`, `height > 20`, hard-coded 13/92",
+      "sourceAndTests": [
+        "Tests/Support/Support.Tests.MathCorpus.h",
+        "Tests/Support/Support.Tests.MarkdownBlocks.h"
+      ],
+      "reason": "Independent atom, geometry, typed/range and endpoint assertions exist; count-only checks are limited",
+      "id": "tests-engine-15",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Three Support test functions exceed 150 lines and bundle unrelated fixtures",
+      "sourceAndTests": [
+        "Tests/Support/Support.Tests.MathCorpus.h",
+        "Tests/Support/Support.Tests.MarkdownBlocks.h"
+      ],
+      "reason": "Splitting long test bodies is optional",
+      "id": "tests-engine-16",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Stray external-linkage test functions outside the anonymous namespace and literal revisions",
+      "sourceAndTests": [
+        "Tests/Support/Support.Tests.MathCorpus.h",
+        "Tests/Support/Support.Tests.MarkdownBlocks.h"
+      ],
+      "reason": "Scope and literal revision hygiene optional",
+      "id": "tests-engine-17",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Flowchart layout tests never assert edge endpoints attach to their from/to node boundaries",
+      "sourceAndTests": [
+        "Tests/Support/Support.Tests.MathCorpus.h",
+        "Tests/Support/Support.Tests.MarkdownBlocks.h",
+        "Tests/Support/Support.Tests.FlowchartLayout.h"
+      ],
+      "reason": "Hand-calculated endpoint and boundary cases exist",
+      "id": "tests-engine-18",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "invalid",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Generator summary counts are hard-coded strings and never cross-checked with the data",
+      "sourceAndTests": [
+        "Tools/Generate-MarkdownTestData.ps1",
+        "Tests/Support/Support.Tests.MathCorpus.h",
+        "Tests/Support/Support.Tests.MarkdownBlocks.h",
+        "Tools/tests/Test-MarkdownData.ps1"
+      ],
+      "reason": "Original verifier refuted hard-coded generator counter claim",
+      "id": "tests-engine-19",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "invalid",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Semantic test Check() calls std::exit(1), bypassing the runner's per-test reporting",
+      "sourceAndTests": [
+        "Tests/Support/Support.Tests.MathCorpus.h",
+        "Tests/Support/Support.Tests.MarkdownBlocks.h",
+        "Tests/Support/Support.Tests.RichSemantic.h"
+      ],
+      "reason": "Original verifier refuted runner-reporting claim",
+      "id": "tests-engine-20",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Table-cell staging test depends on a magic 6130-turn constant",
+      "sourceAndTests": [
+        "Tests/Support/Support.Tests.MathCorpus.h",
+        "Tests/Support/Support.Tests.MarkdownBlocks.h",
+        "Tests/Support/Support.Tests.MarkdownCapacity.h"
+      ],
+      "reason": "Direct per-cell staging replaces magic turn count, with cancellation and publication case",
+      "id": "tests-engine-21",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Concurrent snapshot tests do not guarantee reader/owner overlap",
+      "sourceAndTests": [
+        "Tests/Support/Support.Tests.MathCorpus.h",
+        "Tests/Support/Support.Tests.MarkdownBlocks.h",
+        "Tests/Controls/Controls.Tests.RichDocument.cpp"
+      ],
+      "reason": "Release/acquire rendezvous coordinates 256 revisions and reads, not proof of simultaneous execution",
+      "id": "tests-engine-22",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Generator error branches (counts, expectation ids, YAML strip) are untested by Test-MarkdownData.ps1",
+      "sourceAndTests": [
+        "Tools/tests/Test-MarkdownData.ps1",
+        "Tests/Support/Support.Tests.MathCorpus.h",
+        "Tests/Support/Support.Tests.MarkdownBlocks.h",
+        "Tools/Generate-MarkdownTestData.ps1"
+      ],
+      "reason": "Generator fixture tests bad counts, duplicate IDs and outcomes; YAML byte regeneration separately covers strip",
+      "id": "tests-engine-23",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Flowchart paint raster oracles cover only rectangle nodes and edge-label interiors",
+      "sourceAndTests": [
+        "Tests/Support/Support.Tests.MathCorpus.h",
+        "Tests/Support/Support.Tests.MarkdownBlocks.h",
+        "Tests/Support/Support.Tests.PreparedFlowchart.h"
+      ],
+      "reason": "Nonrectangular and relationship raster fixtures exist; final fractional DPI/palette qualification separate",
+      "id": "tests-engine-24",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Math objects have no retained-editor, UIA, F2/Esc, clipboard, hit-test or DPI coverage",
+      "sourceAndTests": [
+        "Tests/Controls/Controls.Tests.RichTextEditor.cpp",
+        "Tests/Embedded/Embedded.Tests.RichTextResources.h",
+        "Tests/Support/Support.Tests.RichSemanticEditor.h",
+        "Tests/Controls/Controls.Tests.RichTextAccessibility.cpp"
+      ],
+      "reason": "Shared math bounds, DPI, F2/Escape and UIA source cases exist; physical AT separate",
+      "id": "tests-host-01",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Native and embedded editor scenario bodies are duplicated instead of shared (editor, host, prepare, check) templates",
+      "sourceAndTests": [
+        "Tests/Controls/Controls.Tests.RichTextEditor.cpp",
+        "Tests/Embedded/Embedded.Tests.RichTextResources.h"
+      ],
+      "reason": "Shared host-independent bodies exist; additional factoring optional",
+      "id": "tests-host-02",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Allocation-sweep boilerplate repeated ~35 times across seven embedded headers with inconsistent restore semantics",
+      "sourceAndTests": [
+        "Tests/Controls/Controls.Tests.RichTextEditor.cpp",
+        "Tests/Embedded/Embedded.Tests.RichTextResources.h"
+      ],
+      "reason": "Allocation injection remains duplicated; scope restoration and scheduling must be preserved",
+      "id": "tests-host-03",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "test-consumer.ps1 independent-header compilation omits RichMath.h while Tests/README.md claims all eight public rich-text headers",
+      "sourceAndTests": [
+        "Tests/README.md",
+        "Tests/Controls/Controls.Tests.RichTextEditor.cpp",
+        "Tests/Embedded/Embedded.Tests.RichTextResources.h",
+        "test-consumer.ps1",
+        "include/DxUi/RichMath.h"
+      ],
+      "reason": "RichMath.h first-include public consumer fixture exists",
+      "id": "tests-host-04",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "TestRichTextEditorNativeCompatibilityWorkIsReported never checks the reporting it is named for: its fallback branch is unreachable",
+      "sourceAndTests": [
+        "Tests/Controls/Controls.Tests.RichTextEditor.cpp",
+        "Tests/Embedded/Embedded.Tests.RichTextResources.h"
+      ],
+      "reason": "Reachability corrected; native whole-fallback counter test added",
+      "id": "tests-host-05",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "DebugGetState chunk counters are the sole oracle for native/embedded geometry reuse; UIA tests are coupled to them",
+      "sourceAndTests": [
+        "Tests/Controls/Controls.Tests.RichTextEditor.cpp",
+        "Tests/Embedded/Embedded.Tests.RichTextResources.h",
+        "Tests/Support/Support.Tests.RichSemanticEditor.h",
+        "Tests/Embedded/Embedded.Tests.Embedded.cpp"
+      ],
+      "reason": "Fresh whole-layout geometry parity independently tests host publication",
+      "id": "tests-host-06",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Negative 'no repaint loop' assertion relies on a 40 ms wall-clock window; polling waits are re-implemented in eight places",
+      "sourceAndTests": [
+        "Tests/Controls/Controls.Tests.RichTextEditor.cpp",
+        "Tests/Embedded/Embedded.Tests.RichTextResources.h"
+      ],
+      "reason": "Original delayed polling claim refuted; deterministic no-tick assertion remains an improvement",
+      "id": "tests-host-07",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "invalid",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Exhaustive geometry/raster oracles dominate EditorControls time and write 216 PNG files on every passing run",
+      "sourceAndTests": [
+        "Tests/Controls/Controls.Tests.RichTextEditor.cpp",
+        "Tests/Embedded/Embedded.Tests.RichTextResources.h",
+        "Tests/Controls/Controls.Tests.RichDocumentLayout.cpp"
+      ],
+      "reason": "Original performance claim refuted; failure/comparison images remain meaningful",
+      "id": "tests-host-08",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "RunRawLineOrigins is a 228-line diagnostic with one trivial assertion living in the test binary",
+      "sourceAndTests": [
+        "Tests/Controls/Controls.Tests.RichTextEditor.cpp",
+        "Tests/Embedded/Embedded.Tests.RichTextResources.h",
+        "Tests/Controls/Controls.Tests.RichDocumentLayout.cpp"
+      ],
+      "reason": "Diagnostic extraction is optional",
+      "id": "tests-host-09",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Duplicated UIA tree walkers, screen-point lambdas and foreign-thread dispatch blocks in the accessibility suite",
+      "sourceAndTests": [
+        "Tests/Controls/Controls.Tests.RichTextEditor.cpp",
+        "Tests/Embedded/Embedded.Tests.RichTextResources.h"
+      ],
+      "reason": "UIA walker consolidation optional across different lifetimes",
+      "id": "tests-host-10",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Three ad-hoc TextClipboard test doubles instead of one fixture in Scope.Tests.ClipboardFixture.h",
+      "sourceAndTests": [
+        "Tests/Controls/Controls.Tests.RichTextEditor.cpp",
+        "Tests/Embedded/Embedded.Tests.RichTextResources.h"
+      ],
+      "reason": "Distinct legacy, structured and reentrant clipboard doubles; consolidation optional",
+      "id": "tests-host-11",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Hidden test nesting: native dispatch sweep runs inside an embedded test; unrelated sweeps and a pure Document test are embedded in other fixtures",
+      "sourceAndTests": [
+        "Tests/Controls/Controls.Tests.RichTextEditor.cpp",
+        "Tests/Embedded/Embedded.Tests.RichTextResources.h"
+      ],
+      "reason": "Nesting alone does not establish skipped execution",
+      "id": "tests-host-12",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Several 150-200 line multi-concern test functions block sharing and triage",
+      "sourceAndTests": [
+        "Tests/Controls/Controls.Tests.RichTextEditor.cpp",
+        "Tests/Embedded/Embedded.Tests.RichTextResources.h"
+      ],
+      "reason": "Long test split optional; shared host templates exist",
+      "id": "tests-host-13",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Test functions defined after the anonymous namespace closes have external linkage; a store-test declaration lives in the wrong header",
+      "sourceAndTests": [
+        "Tests/Controls/Controls.Tests.RichTextEditor.cpp",
+        "Tests/Embedded/Embedded.Tests.RichTextResources.h"
+      ],
+      "reason": "Linkage cleanup optional with no demonstrated runtime defect",
+      "id": "tests-host-14",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "docs/rich-text.md names only three rich test files and never mentions the retained-editor, input, accessibility or embedded resource suites",
+      "sourceAndTests": [
+        "docs/rich-text.md",
+        "Tests/Controls/Controls.Tests.RichTextEditor.cpp",
+        "Tests/Embedded/Embedded.Tests.RichTextResources.h"
+      ],
+      "reason": "Documentation lists editor, input, accessibility and embedded test owners",
+      "id": "tests-host-15",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Ordinary Embedded run order-couples every rich test to an absolute allocation counter checked later",
+      "sourceAndTests": [
+        "Tests/Controls/Controls.Tests.RichTextEditor.cpp",
+        "Tests/Embedded/Embedded.Tests.RichTextResources.h",
+        "Tests/Embedded/Embedded.Tests.Embedded.cpp"
+      ],
+      "reason": "Warm-composite allocation comparison uses local baseline",
+      "id": "tests-host-16",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Native host has no post-device-loss pixel/geometry recovery check, unlike the embedded suite",
+      "sourceAndTests": [
+        "Tests/Controls/Controls.Tests.RichTextEditor.cpp",
+        "Tests/Embedded/Embedded.Tests.RichTextResources.h"
+      ],
+      "reason": "Native bitmap and diagram device-loss pixel recovery test added",
+      "id": "tests-host-17",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "invalid",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Native flowchart corpus fixture sizes its window in physical pixels without DPI scaling, unlike sibling fixtures",
+      "sourceAndTests": [
+        "Tests/Controls/Controls.Tests.RichTextEditor.cpp",
+        "Tests/Embedded/Embedded.Tests.RichTextResources.h"
+      ],
+      "reason": "Original mismatch refuted for DPI-unaware test process; no physical DPI qualification follows",
+      "id": "tests-host-18",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Four copies of the cooperative 'prepare until settled' loop across both binaries",
+      "sourceAndTests": [
+        "Tests/Controls/Controls.Tests.RichTextEditor.cpp",
+        "Tests/Embedded/Embedded.Tests.RichTextResources.h"
+      ],
+      "reason": "Prepare loop merger optional because budget and host HRESULT differ",
+      "id": "tests-host-19",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "challenged",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Pure helper suites executed twice in different binaries",
+      "sourceAndTests": [
+        "Tests/Controls/Controls.Tests.RichTextEditor.cpp",
+        "Tests/Embedded/Embedded.Tests.RichTextResources.h"
+      ],
+      "reason": "Repeated pure helper runs are optional cleanup; keep host-specific bodies",
+      "id": "tests-host-20",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Multi-file reference paste inserts bare blank-line separators, breaking the enclosing table, list or block quote",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichTextEditor.cpp",
+        "Tests/Support/Support.Tests.RichSemanticEditor.h",
+        "Tests/Support/Support.Tests.RichImagePaths.h"
+      ],
+      "reason": "Multi-file reference insertion preserves enclosing list, quote and table prefixes; actual OLE/file list fixtures added",
+      "id": "critic-01",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Paste (and TSF/IME import) at an empty or padded table cell inserts at the shared row-end ACP instead of materializing the focused cell",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichTextEditor.cpp",
+        "Tests/Support/Support.Tests.RichSemanticEditor.h",
+        "Tests/Controls/Controls.Tests.RichTextInput.cpp"
+      ],
+      "reason": "Padded and empty table paste/IME materializes focused cell with undo",
+      "id": "critic-02",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Ctrl+X of a content-only formatted selection leaves a visible empty delimiter pair that Delete would remove",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichTextEditor.cpp",
+        "src/Controls/TextInputServices.cpp",
+        "Tests/Controls/Controls.Tests.RichTextInput.cpp"
+      ],
+      "reason": "Native and embedded cut perform guarded semantic deletion with reentrant selection and focus checks",
+      "id": "critic-03",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Scoped test rules for src/include Rich\\* omit the Accessibility suite that runs the rich UIA provider tests",
+      "sourceAndTests": [
+        "Tests/test-scopes.json",
+        "src/Controls/DxUi.RichTextEditor.cpp",
+        "Tests/Support/Support.Tests.RichSemanticEditor.h"
+      ],
+      "reason": "Rich include/source and shared test scope includes Accessibility",
+      "id": "critic-04",
+      "reviewInput": "host-current-disposition.json"
+    },
+    {
+      "outcome": "fixed/source addressed",
+      "qualification": "Source disposition; source-bound local evidence and shared qualification limits are in delivery-manifest.json.",
+      "title": "Rich UIA names, help texts and diagnostics are hard-coded English with no consumer override",
+      "sourceAndTests": [
+        "src/Controls/DxUi.RichSemanticDocument.cpp",
+        "src/Controls/DxUi.RichTextEditor.cpp",
+        "Tests/Support/Support.Tests.RichSemanticEditor.h",
+        "include/DxUi/DxUi.h",
+        "Tests/Controls/Controls.Tests.RichTextAccessibility.cpp"
+      ],
+      "reason": "Consumer label override permits localized names with lifecycle tests",
+      "id": "critic-05",
+      "reviewInput": "host-current-disposition.json"
+    }
+  ],
+  "qualificationPending": true,
+  "compiledSource": "9909da1065e297247cb490b970b2265a0e4d8b9e",
+  "reviewedSource": "1fea2221e3dc3f94223b382dc1b08f6efdbe6a12",
+  "approvedForCloseout": true,
+  "delta": "Only test fixtures, test-only Markdown serialization and a change fragment changed between reviewed and final compiled source.",
+  "qualificationBinding": {
+    "nativeSource": "9909da1065e297247cb490b970b2265a0e4d8b9e",
+    "mainSource": "21a74896bdc05524ccca106fdfaabe0e96b6477c",
+    "localNative": "six builds; 63 ordinary and 12 foreground suites passed; source equivalence recorded",
+    "sdkSource": "68f6b15e342f0c19f791347d45878225c22bb5ea",
+    "gallery": "R27 six-image reviewed capture; dfaa49bc",
+    "paired": "candidate 21a; within-noise classifications, unstable controls, policy unqualified",
+    "sharedQualification": "open",
+    "note": "Local source-bound native, compatibility, SDK, gallery and collected measurements are recorded; shared performance policy, native ARM runtime, physical, hosted and consumer adoption qualification remain open."
+  },
+  "localQualificationPending": false,
+  "approvalScope": "Local source disposition and requested implementation, with named source-bound native evidence; shared performance-policy, physical/platform and real-consumer acceptance remain open."
+}

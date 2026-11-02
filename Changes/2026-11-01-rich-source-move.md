@@ -1,0 +1,1 @@
+- Add a guarded, one-undo transaction for moving an editor's selected source. OLE text-drag routing and full runtime qualification remain pending.

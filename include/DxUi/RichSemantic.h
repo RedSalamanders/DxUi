@@ -65,6 +65,15 @@ struct SourceEdit
     MarkdownRange source;
     std::wstring_view replacement; // Borrowed for this synchronous transaction.
 };
+struct SourceSearchOptions
+{
+    bool matchCase = false;
+    bool wholeWord = false;
+};
+// Non-overlapping exact-source matches, ordered by ACP. Case-insensitive
+// matching uses Windows ordinal Unicode comparison, independent of locale.
+// Empty queries return no matches; malformed UTF-16 is rejected.
+std::vector<MarkdownRange> FindInSource(const SourceSnapshot& source, std::wstring_view query, SourceSearchOptions options = {});
 // All ranges refer to expectedSource, in ascending disjoint order. Touching
 // edits are legal; two insertions at the same boundary are ambiguous and rejected.
 // A foreign/equal-number snapshot is stale even if its spelling happens to match.

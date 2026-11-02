@@ -1,0 +1,1 @@
+- Reduced pending rich-text source navigation and erase work with Unicode-safe local source windows.

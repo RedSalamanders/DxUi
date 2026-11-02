@@ -3,6 +3,9 @@
 
 namespace DxUi::RichText::Detail
 {
+#if DXUI_ENABLE_DIAGNOSTICS
+inline thread_local std::size_t testRichLayoutDrawCalls{};
+#endif
 // The retained control keeps its v0 behavior until semantic rendering is
 // explicitly enabled. Each target stages its complete graph before switching;
 // a new source request cannot mix one map with the other engine's geometry.
@@ -81,6 +84,10 @@ public:
     {
         return activeSemantic_ ? semantic_.Height() : v0_.Height();
     }
+    float Width() const noexcept
+    {
+        return activeSemantic_ ? semantic_.Width() : v0_.Width();
+    }
     std::size_t SourceLength() const
     {
         return activeSemantic_ ? semantic_.Document().Map().Source().size() : v0_.SourceLength();
@@ -120,7 +127,9 @@ public:
     }
     LayoutPreparation LastPreparation() const noexcept
     {
-        return activeSemantic_ && semantic_.Ready() ? LayoutPreparation{semantic_.BoxCount(), 0u, SourceLength(), 0u, 0u, 0u} : v0_.LastPreparation();
+        return activeSemantic_ && semantic_.Ready()
+                   ? LayoutPreparation{semantic_.BoxCount() - semantic_.ReusedBoxCount(), semantic_.ReusedBoxCount(), SourceLength(), 0u, 0u, 0u}
+                   : v0_.LastPreparation();
     }
     bool UsesWholeGeometry() const noexcept
     {
@@ -190,13 +199,19 @@ public:
               D2D1_POINT_2F origin,
               float top,
               float bottom,
-              ID2D1Brush* fill         = nullptr,
-              float imageOpacity       = 1.0f,
-              const LinkDrawing* links = nullptr,
-              ID2D1Brush* quoteFill    = nullptr) const
+              ID2D1Brush* fill                         = nullptr,
+              float imageOpacity                       = 1.0f,
+              const LinkDrawing* links                 = nullptr,
+              ID2D1Brush* quoteFill                    = nullptr,
+              const DiagramColorContext* diagramColors = nullptr,
+              ID2D1Brush* calloutAccent                = nullptr,
+              ID2D1Brush* propertiesInk                = nullptr) const
     {
+#if DXUI_ENABLE_DIAGNOSTICS
+        ++testRichLayoutDrawCalls;
+#endif
         if (activeSemantic_)
-            semantic_.Draw(target, brush, decoration, origin, top, bottom, fill, imageOpacity, links, quoteFill);
+            semantic_.Draw(target, brush, decoration, origin, top, bottom, fill, imageOpacity, links, quoteFill, diagramColors, calloutAccent, propertiesInk);
         else
             v0_.Draw(target, brush, origin, top, bottom, links);
     }

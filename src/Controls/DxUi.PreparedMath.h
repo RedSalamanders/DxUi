@@ -1,4 +1,8 @@
 #pragma once
+#include "DxUi.MathFontTable.h"
+#include "DxUi.NativeColor.h"
+#include "DxUi.NativeColorPalette.h"
+#include "DxUi.NativeMathDimension.h"
 #include <DxUi/Configuration.h>
 #include <DxUi/RichDocument.h>
 #include <DxUi/RichMath.h>
@@ -7,24 +11,377 @@
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <cstring>
+#include <dwrite_3.h>
 #include <limits>
 #include <numeric>
 #include <stdexcept>
+#include <string>
+#include <string_view>
 #include <wil/com.h>
 #include <wil/resource.h>
 #include <wil/result.h>
+#pragma warning(push)
+#pragma warning(disable : 4746)
+#include <wrl/implements.h>
+#pragma warning(pop)
 
 namespace DxUi::RichText::Detail
 {
+struct MathColorContext
+{
+    D2D1_COLOR_F text{}, fill{};
+};
 #if DXUI_ENABLE_DIAGNOSTICS
+extern thread_local std::uintptr_t testRichMathLowestStackAddress;
 // Private test seam for preserving HRESULT classification from GetLineMetrics.
 extern thread_local HRESULT testRichMathLineMetricsFailure;
+extern thread_local HRESULT testRichMathGlyphMetricsFailure;
+extern thread_local HRESULT testRichMathGlyphIndexFailure;
+extern thread_local std::size_t testRichMathConstantReads;
+extern thread_local std::size_t testRichMathPreparations;
+extern thread_local std::size_t testRichMathTextFormats;
+extern thread_local std::span<const std::uint8_t> testRichMathTableOverride;
 #endif
+// Shared only by one owner-thread staging generation. Published formula glyphs
+// do not query or mutate this cache during paint. Fonts/formats survive through
+// the formula's lifetime; no process-global cache or factory identity is used.
+enum class MathTextFamily
+{
+    Math,
+    Sans,
+    Monospace,
+    Script
+};
+class MathTextFormats final
+{
+public:
+    explicit MathTextFormats(IDWriteFactory* factory,
+                             std::wstring_view family       = L"Cambria Math",
+                             std::wstring_view locale       = L"en-us",
+                             std::wstring_view sansFamily   = L"Segoe UI",
+                             std::wstring_view monoFamily   = L"Consolas",
+                             std::wstring_view scriptFamily = L"Segoe Script")
+        : factory_(factory),
+          family_(ValidateName(family, false)),
+          locale_(ValidateName(locale, true)),
+          sansFamily_(ValidateName(sansFamily, false)),
+          monoFamily_(ValidateName(monoFamily, false)),
+          scriptFamily_(ValidateName(scriptFamily, false)),
+          formats_(0u)
+    {
+        if (! factory)
+            throw std::invalid_argument("Mathematical text formats need a factory");
+    }
+    IDWriteFactory* Factory() const noexcept
+    {
+        return factory_.get();
+    }
+    const std::wstring& Family() const noexcept
+    {
+        return family_;
+    }
+    const std::wstring& Locale() const noexcept
+    {
+        return locale_;
+    }
+    std::size_t Size() const noexcept
+    {
+        return formats_.size();
+    }
+    IDWriteTextFormat* Get(float size, bool bold, bool italic, MathTextFamily textFamily = MathTextFamily::Math)
+    {
+        if (! std::isfinite(size) || size <= 0.f || size > 4096.f)
+            throw std::invalid_argument("Invalid mathematical format size");
+        for (const auto& entry : formats_)
+            if (entry.size == size && entry.bold == bold && entry.italic == italic && entry.family == textFamily)
+                return entry.format.get();
+        if (formats_.size() == 4096u)
+            throw std::length_error("Mathematical text format capacity exceeded");
+        if (textFamily == MathTextFamily::Script && ! scriptVerified_)
+        {
+            wil::com_ptr<IDWriteFontCollection> collection;
+            THROW_IF_FAILED(factory_->GetSystemFontCollection(collection.put()));
+            UINT32 index{};
+            BOOL exists{};
+            THROW_IF_FAILED(collection->FindFamilyName(scriptFamily_.c_str(), &index, &exists));
+            if (! exists)
+                THROW_HR(DWRITE_E_UNSUPPORTEDOPERATION);
+            wil::com_ptr<IDWriteFontFamily> family;
+            wil::com_ptr<IDWriteFont> font;
+            wil::com_ptr<IDWriteFontFace> face;
+            THROW_IF_FAILED(collection->GetFontFamily(index, family.put()));
+            THROW_IF_FAILED(family->GetFirstMatchingFont(DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL, font.put()));
+            THROW_IF_FAILED(font->CreateFontFace(face.put()));
+            std::array<UINT32, 26u> scalars{};
+            std::array<UINT16, 26u> glyphs{};
+            for (std::size_t i = 0u; i < scalars.size(); ++i)
+                scalars[i] = static_cast<UINT32>(L'A') + static_cast<UINT32>(i);
+            THROW_IF_FAILED(face->GetGlyphIndices(scalars.data(), static_cast<UINT32>(scalars.size()), glyphs.data()));
+            if (std::ranges::find(glyphs, 0u) != glyphs.end())
+                THROW_HR(DWRITE_E_UNSUPPORTEDOPERATION);
+            scriptVerified_ = true;
+        }
+        wil::com_ptr<IDWriteTextFormat> format;
+        THROW_IF_FAILED(factory_->CreateTextFormat(textFamily == MathTextFamily::Sans        ? sansFamily_.c_str()
+                                                   : textFamily == MathTextFamily::Monospace ? monoFamily_.c_str()
+                                                   : textFamily == MathTextFamily::Script    ? scriptFamily_.c_str()
+                                                                                             : family_.c_str(),
+                                                   nullptr,
+                                                   bold ? DWRITE_FONT_WEIGHT_BOLD : DWRITE_FONT_WEIGHT_NORMAL,
+                                                   italic ? DWRITE_FONT_STYLE_ITALIC : DWRITE_FONT_STYLE_NORMAL,
+                                                   DWRITE_FONT_STRETCH_NORMAL,
+                                                   size,
+                                                   locale_.c_str(),
+                                                   format.put()));
+#if DXUI_ENABLE_DIAGNOSTICS
+        ++testRichMathTextFormats;
+#endif
+        formats_.push_back({size, bold, italic, textFamily, std::move(format)});
+        return formats_.back().format.get();
+    }
+
+private:
+    static std::wstring_view ValidateName(std::wstring_view value, bool emptyAllowed)
+    {
+        if ((! emptyAllowed && value.empty()) || value.size() > 255u || ! IsValidUtf16(value))
+            throw std::invalid_argument("Invalid mathematical family or locale");
+        return value;
+    }
+    struct Entry
+    {
+        float size;
+        bool bold, italic;
+        MathTextFamily family;
+        wil::com_ptr<IDWriteTextFormat> format;
+    };
+    wil::com_ptr<IDWriteFactory> factory_;
+    std::wstring family_, locale_, sansFamily_, monoFamily_, scriptFamily_;
+    std::vector<Entry> formats_;
+    bool scriptVerified_{};
+};
+// DWrite supplies the actual shaped face and glyph. Source-codepoint lookup is
+// not sufficient for font fallback, substitutions or surrogate-pair shaping.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
+class MathGlyphProbe final : public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>, IDWriteTextRenderer>
+{
+public:
+    HRESULT STDMETHODCALLTYPE IsPixelSnappingDisabled(void*, BOOL* result) noexcept override
+    {
+        if (! result)
+            return E_POINTER;
+        *result = TRUE;
+        return S_OK;
+    }
+    HRESULT STDMETHODCALLTYPE GetCurrentTransform(void*, DWRITE_MATRIX* result) noexcept override
+    {
+        if (! result)
+            return E_POINTER;
+        *result = {1, 0, 0, 1, 0, 0};
+        return S_OK;
+    }
+    HRESULT STDMETHODCALLTYPE GetPixelsPerDip(void*, FLOAT* result) noexcept override
+    {
+        if (! result)
+            return E_POINTER;
+        *result = 1.f;
+        return S_OK;
+    }
+    HRESULT STDMETHODCALLTYPE
+    DrawGlyphRun(void*, FLOAT, FLOAT, DWRITE_MEASURING_MODE, const DWRITE_GLYPH_RUN* run, const DWRITE_GLYPH_RUN_DESCRIPTION*, IUnknown*) noexcept override
+    {
+        ++runs;
+        if (run && run->glyphCount == 1u && run->glyphIndices && run->fontFace && ! run->isSideways)
+        {
+            face  = run->fontFace;
+            glyph = run->glyphIndices[0];
+        }
+        return S_OK;
+    }
+    HRESULT STDMETHODCALLTYPE DrawUnderline(void*, FLOAT, FLOAT, const DWRITE_UNDERLINE*, IUnknown*) noexcept override
+    {
+        return S_OK;
+    }
+    HRESULT STDMETHODCALLTYPE DrawStrikethrough(void*, FLOAT, FLOAT, const DWRITE_STRIKETHROUGH*, IUnknown*) noexcept override
+    {
+        return S_OK;
+    }
+    HRESULT STDMETHODCALLTYPE DrawInlineObject(void*, FLOAT, FLOAT, IDWriteInlineObject*, BOOL, BOOL, IUnknown*) noexcept override
+    {
+        ++runs;
+        return S_OK;
+    }
+    wil::com_ptr<IDWriteFontFace> face;
+    UINT16 glyph{};
+    unsigned runs{};
+};
+#pragma warning(pop)
+inline bool OptionalMathFontOperation(HRESULT result)
+{
+    if (result == DWRITE_E_UNSUPPORTEDOPERATION)
+        return false;
+    THROW_IF_FAILED(result);
+    return true;
+}
+inline bool SameMathFontFile(IDWriteFontFace* left, IDWriteFontFace* right)
+{
+    if (! left || ! right || left->GetType() != right->GetType() || left->GetIndex() != right->GetIndex() || left->GetSimulations() != right->GetSimulations())
+        return false;
+    // The same file and face index can still be different variable-font instances.
+    // If instance identity cannot be inspected, decline optional kerning safely.
+    wil::com_ptr<IDWriteFontFace5> left5, right5;
+    const auto leftQuery = left->QueryInterface(IID_PPV_ARGS(left5.put()));
+    if (leftQuery == E_NOINTERFACE || ! OptionalMathFontOperation(leftQuery))
+        return false;
+    const auto rightQuery = right->QueryInterface(IID_PPV_ARGS(right5.put()));
+    if (rightQuery == E_NOINTERFACE || ! OptionalMathFontOperation(rightQuery))
+        return false;
+    constexpr UINT32 maximumAxes = 64u;
+    const auto axisCount         = left5->GetFontAxisValueCount();
+    if (axisCount != right5->GetFontAxisValueCount() || axisCount > maximumAxes)
+        return false;
+    std::array<DWRITE_FONT_AXIS_VALUE, maximumAxes> leftAxes{}, rightAxes{};
+    if (axisCount && (! OptionalMathFontOperation(left5->GetFontAxisValues(leftAxes.data(), axisCount)) ||
+                      ! OptionalMathFontOperation(right5->GetFontAxisValues(rightAxes.data(), axisCount))))
+        return false;
+    for (UINT32 i = 0; i < axisCount; ++i)
+        if (leftAxes[i].axisTag != rightAxes[i].axisTag || leftAxes[i].value != rightAxes[i].value)
+            return false;
+    UINT32 leftCount{}, rightCount{};
+    if (! OptionalMathFontOperation(left->GetFiles(&leftCount, nullptr)))
+        return false;
+    if (! OptionalMathFontOperation(right->GetFiles(&rightCount, nullptr)))
+        return false;
+    if (leftCount != 1u || rightCount != 1u)
+        return false;
+    wil::com_ptr<IDWriteFontFile> a, b;
+    if (! OptionalMathFontOperation(left->GetFiles(&leftCount, a.put())))
+        return false;
+    if (! OptionalMathFontOperation(right->GetFiles(&rightCount, b.put())))
+        return false;
+    wil::com_ptr<IDWriteFontFileLoader> aLoader, bLoader;
+    if (! OptionalMathFontOperation(a->GetLoader(aLoader.put())))
+        return false;
+    if (! OptionalMathFontOperation(b->GetLoader(bLoader.put())))
+        return false;
+    if (aLoader.get() != bLoader.get())
+        return false;
+    const void *aKey{}, *bKey{};
+    UINT32 aSize{}, bSize{};
+    if (! OptionalMathFontOperation(a->GetReferenceKey(&aKey, &aSize)))
+        return false;
+    if (! OptionalMathFontOperation(b->GetReferenceKey(&bKey, &bSize)))
+        return false;
+    return aSize == bSize && (! aSize || (aKey && bKey && std::memcmp(aKey, bKey, aSize) == 0));
+}
 // PreparedMath owns all shaping and geometry. The syntax tree is admitted and
 // indexed once; Advance shapes one text leaf per call and finalizes from cached
 // child boxes. Draw is read-only and performs no layout or allocation.
 class PreparedMath final
 {
+    static constexpr std::uint32_t NoColor = 0xffffffffu;
+    static std::wstring_view MatrixCore(std::wstring_view name) noexcept
+    {
+        const auto marker = name.find(L";gaps:");
+        return marker == name.npos ? name : name.substr(0u, marker);
+    }
+    static std::wstring_view MatrixBase(std::wstring_view name) noexcept
+    {
+        name = MatrixCore(name);
+        if (! name.starts_with(L"array:") && ! name.starts_with(L"darray:") && name.size() > 2u && name[name.size() - 2u] == L':' &&
+            (name.back() == L'l' || name.back() == L'c' || name.back() == L'r'))
+            return name.substr(0u, name.size() - 2u);
+        return name;
+    }
+    static bool MatrixName(std::wstring_view name, unsigned columns, std::size_t rows) noexcept
+    {
+        const auto core = MatrixCore(name);
+        if (core.size() != name.size())
+        {
+            auto gaps = name.substr(core.size() + 6u);
+            for (std::size_t row = 0u; row < rows; ++row)
+            {
+                const auto comma = gaps.find(L',');
+                const auto value = gaps.substr(0u, comma);
+                if (value != L"." && ! ParseMathDimension(value))
+                    return false;
+                if (row + 1u == rows)
+                {
+                    if (comma != gaps.npos)
+                        return false;
+                }
+                else
+                {
+                    if (comma == gaps.npos)
+                        return false;
+                    gaps.remove_prefix(comma + 1u);
+                }
+            }
+        }
+        name = core;
+        if (name.starts_with(L"subarray:"))
+            return columns == 1u && (name == L"subarray:l" || name == L"subarray:c");
+        if (name.starts_with(L"darray:"))
+            name.remove_prefix(1u);
+        if (name.starts_with(L"array:"))
+        {
+            const auto plainSize = 6u + columns, verticalEnd = plainSize + columns + 2u;
+            if (name.size() != plainSize && name.size() != verticalEnd && name.size() != verticalEnd + rows + 2u)
+                return false;
+            if (! std::ranges::all_of(name.substr(6u, columns), [](wchar_t c) { return c == L'l' || c == L'c' || c == L'r'; }))
+                return false;
+            if (name.size() == plainSize)
+                return true;
+            if (name[plainSize] != L':' ||
+                ! std::ranges::all_of(name.substr(plainSize + 1u, columns + 1u), [](wchar_t c) { return c == L'.' || c == L'|' || c == L':'; }))
+                return false;
+            return name.size() == verticalEnd || (name[verticalEnd] == L':' && std::ranges::all_of(name.substr(verticalEnd + 1u), [](wchar_t c) {
+                return c == L'.' || c == L'-' || c == L'=';
+            }));
+        }
+        const auto base   = MatrixBase(name);
+        const bool suffix = base.size() != name.size();
+        if (suffix && base != L"matrix" && base != L"pmatrix" && base != L"bmatrix" && base != L"Bmatrix" && base != L"vmatrix" && base != L"Vmatrix")
+            return false;
+        return base == L"matrix" || base == L"smallmatrix" || base == L"pmatrix" || base == L"bmatrix" || base == L"Bmatrix" || base == L"vmatrix" ||
+               base == L"Vmatrix" || base == L"cases" || base == L"rcases" || base == L"dcases" || base == L"drcases" || base == L"aligned" ||
+               base == L"gathered" || base == L"alignat";
+    }
+    static bool ExtensibleArrow(std::wstring_view name) noexcept
+    {
+        return name == L"xrightarrow" || name == L"xleftarrow" || name == L"xleftrightarrow" || name == L"xRightarrow" || name == L"xLeftarrow" ||
+               name == L"xLeftrightarrow" || name == L"xmapsto" || name == L"xlongequal" || name == L"xhookleftarrow" || name == L"xhookrightarrow" ||
+               name == L"xleftharpoonup" || name == L"xleftharpoondown" || name == L"xrightharpoonup" || name == L"xrightharpoondown" ||
+               name == L"xleftrightharpoons" || name == L"xrightleftharpoons" || name == L"xtwoheadleftarrow" || name == L"xtwoheadrightarrow" ||
+               name == L"xtofrom";
+    }
+    static bool ArrowAccent(std::wstring_view name) noexcept
+    {
+        return name == L"overleftarrow" || name == L"overrightarrow" || name == L"overleftrightarrow" || name == L"Overrightarrow" ||
+               name == L"underleftarrow" || name == L"underrightarrow" || name == L"underleftrightarrow" || name == L"overleftharpoon" ||
+               name == L"overrightharpoon" || name == L"overlinesegment" || name == L"underlinesegment";
+    }
+    static bool RowTagLabel(const MathNode& label) noexcept
+    {
+        if (label.kind == MathKind::Text)
+            return label.children.empty();
+        return label.kind == MathKind::Row && label.children.size() == 3u && label.children[0u].kind == MathKind::Text && label.children[0u].text == L"(" &&
+               label.children[0u].children.empty() && label.children[1u].kind == MathKind::Text && label.children[1u].children.empty() &&
+               label.children[2u].kind == MathKind::Text && label.children[2u].text == L")" && label.children[2u].children.empty();
+    }
+    static std::optional<std::uint32_t> ColorArgument(std::wstring_view text, std::wstring_view prefix) noexcept
+    {
+        if (! text.starts_with(prefix) || text.size() != prefix.size() + 6u)
+            return std::nullopt;
+        return ParseNativeColor(text.substr(prefix.size()));
+    }
+    static bool ColorBox(std::wstring_view text) noexcept
+    {
+        return ColorArgument(text, L"colorbox:").has_value() ||
+               (text.starts_with(L"fcolorbox:") && text.size() == 23u && text[16u] == L':' && ParseNativeColor(text.substr(10u, 6u)).has_value() &&
+                ParseNativeColor(text.substr(17u, 6u)).has_value());
+    }
     struct Extent
     {
         float width{}, above{}, below{};
@@ -36,35 +393,139 @@ class PreparedMath final
         float font{};
         bool bold{};
         bool italic{};
+        MathTextFamily textFamily = MathTextFamily::Math;
+        bool pseudoBold{};
         wil::com_ptr<IDWriteTextLayout> layout;
         Extent extent;
         D2D1_POINT_2F origin{};
         float italicCorrection{};
         float leftOverhang{}, topOverhang{}, rightOverhang{}, bottomOverhang{};
+        UINT16 mathGlyph{};
+        float inkAbove{}, inkBelow{};
+        float visualAbove{}, visualBelow{};
+        bool hasVisualInk{};
+        bool needsKern{};
+    };
+    struct MathFontData
+    {
+        static constexpr std::int32_t MissingCorrection = (std::numeric_limits<std::int32_t>::max)();
+        MathFontData(IDWriteFontFace* source, std::span<const std::uint8_t> bytes, std::uint16_t units)
+            : face(source),
+              table(bytes.begin(), bytes.end()),
+              corrections(source->GetGlyphCount(), MissingCorrection),
+              correctionDevices(source->GetGlyphCount(), 0u),
+              constructions(source->GetGlyphCount(), 0u),
+              horizontalConstructions(source->GetGlyphCount(), 0u),
+              designUnits(units)
+        {
+            DWRITE_FONT_METRICS metrics{};
+            source->GetMetrics(&metrics);
+            if (metrics.designUnitsPerEm && metrics.xHeight)
+                xHeightEm = static_cast<float>(metrics.xHeight) / static_cast<float>(metrics.designUnitsPerEm);
+            const MathFontTable parsed(table);
+            for (std::size_t offset = 8u; offset <= 152u; offset += 4u)
+            {
+                const auto value = parsed.MathConstant(offset);
+                if (value)
+                {
+                    constants[offset / 4u]       = value.value();
+                    constantPresent[offset / 4u] = true;
+                }
+            }
+            for (std::size_t index = 0u; index < corrections.size(); ++index)
+            {
+                const auto glyph      = static_cast<std::uint16_t>(index);
+                const auto correction = parsed.ItalicCorrectionRecord(glyph);
+                if (correction)
+                {
+                    corrections[index]       = correction->value;
+                    correctionDevices[index] = static_cast<std::uint32_t>(correction->device);
+                }
+                const auto construction = parsed.VerticalConstruction(glyph);
+                if (construction)
+                    constructions[index] = static_cast<std::uint32_t>(construction.value());
+                const auto horizontal = parsed.HorizontalConstruction(glyph);
+                if (horizontal)
+                    horizontalConstructions[index] = static_cast<std::uint32_t>(horizontal.value());
+            }
+        }
+        wil::com_ptr<IDWriteFontFace> face;
+        std::vector<std::uint8_t> table;
+        std::vector<std::int32_t> corrections;
+        std::vector<std::uint32_t> correctionDevices;
+        std::vector<std::uint32_t> constructions;
+        std::vector<std::uint32_t> horizontalConstructions;
+        std::array<MathFontTable::ValueRecord, 39u> constants{};
+        std::array<bool, 39u> constantPresent{};
+        std::uint16_t designUnits{};
+        float xHeightEm{.45f};
+    };
+    struct VariantGlyph
+    {
+        std::uint16_t glyph{};
+        float x{}, baseline{}, fontSize{}, scaleX{}, left{}, top{}, width{}, height{};
     };
     struct Line
     {
         D2D1_POINT_2F first, last;
         float thickness{};
+        bool dot{};
     };
     struct Box
     {
         const MathNode* node{};
         std::size_t firstChild{}, endChild{}, glyph{};
         Extent extent;
+        Extent ink;
         float leftOffset{};
         MathAtomClass atomClass{MathAtomClass::Ordinary};
         float size{};
         unsigned scriptLevel{};
         bool display{};
+        float subKern{}, superKern{}, scriptLeftPad{};
+        float upperShift{}, lowerShift{};
+        std::uint32_t color{NoColor};
+        std::size_t rowTag{std::numeric_limits<std::size_t>::max()};
+    };
+    struct RowTagPlacement
+    {
+        const MathNode* label{};
+        float baseline{};
+    };
+    enum class PaintKind
+    {
+        Glyph,
+        Line,
+        Variant,
+        Background
+    };
+    struct PaintOperation
+    {
+        PaintKind kind{};
+        std::size_t index{}, background{std::numeric_limits<std::size_t>::max()};
+        std::uint32_t color{NoColor};
+        D2D1_RECT_F rectangle{};
+        std::uint32_t foreground{NoColor};
+        std::size_t nextInBackground{std::numeric_limits<std::size_t>::max()};
     };
     std::shared_ptr<const MathExpression> expression;
     wil::com_ptr<IDWriteFactory> factory;
+    std::shared_ptr<MathTextFormats> textFormats;
+    std::shared_ptr<const MathFontData> mathData;
     std::vector<Glyph> glyphs;
     std::vector<Box> boxes;
+    std::optional<std::vector<RowTagPlacement>> rowTags;
     std::vector<Line> lines;
+    std::vector<VariantGlyph> variants;
+    std::vector<PaintOperation> paintOperations;
+    std::vector<std::uint32_t> colors;
+    std::vector<std::size_t> backgroundHeads;
+    std::uint32_t activeColor{NoColor};
+    std::size_t activeBackground{std::numeric_limits<std::size_t>::max()};
+    std::size_t backgroundCount{};
+    bool colored{};
     std::size_t cursor{};
-    float font{}, axis{};
+    float font{}, axis{}, dpi{96.f}, absoluteUnitScale{1.f};
     float scriptScale{.7f}, scriptScriptScale{.5f};
     float delimitedMinimum{1.5f}, displayOperatorMinimum{1.4f};
     float subscriptShift{.35f}, superscriptShift{.55f}, scriptGapMinimum{.18f};
@@ -77,6 +538,34 @@ class PreparedMath final
     static std::int16_t Signed16(const BYTE* bytes) noexcept
     {
         return static_cast<std::int16_t>((static_cast<unsigned>(bytes[0]) << 8u) | bytes[1]);
+    }
+    static bool OptionalFontOperation(HRESULT result)
+    {
+        return OptionalMathFontOperation(result);
+    }
+    HRESULT GlyphMetrics(UINT16 glyph, DWRITE_GLYPH_METRICS& metrics) const noexcept
+    {
+#if DXUI_ENABLE_DIAGNOSTICS
+        if (FAILED(testRichMathGlyphMetricsFailure))
+        {
+            const auto result               = testRichMathGlyphMetricsFailure;
+            testRichMathGlyphMetricsFailure = S_OK;
+            return result;
+        }
+#endif
+        return mathData->face->GetDesignGlyphMetrics(&glyph, 1u, &metrics, FALSE);
+    }
+    HRESULT GlyphIndex(std::uint32_t scalar, UINT16& glyph) const noexcept
+    {
+#if DXUI_ENABLE_DIAGNOSTICS
+        if (FAILED(testRichMathGlyphIndexFailure))
+        {
+            const auto result             = testRichMathGlyphIndexFailure;
+            testRichMathGlyphIndexFailure = S_OK;
+            return result;
+        }
+#endif
+        return mathData->face->GetGlyphIndices(&scalar, 1u, &glyph);
     }
     void InitializeFallbackConstants() noexcept
     {
@@ -95,69 +584,94 @@ class PreparedMath final
         upperLimitGap *= font;
         lowerLimitGap *= font;
     }
-    void ReadMathConstants(IDWriteFactory* write) noexcept
+    void ReadMathConstants(IDWriteFactory* write)
     {
+#if DXUI_ENABLE_DIAGNOSTICS
+        ++testRichMathConstantReads;
+#endif
         // A missing, truncated, or implausible MATH table uses deterministic
-        // em-relative constants. Only the bounded header/constants prefix is read.
+        // em-relative constants. A valid table up to four MiB is copied and parsed once per geometry generation.
         wil::com_ptr<IDWriteFontCollection> collection;
-        if (FAILED(write->GetSystemFontCollection(collection.put(), FALSE)))
+        if (! OptionalFontOperation(write->GetSystemFontCollection(collection.put(), FALSE)))
             return;
         UINT32 familyIndex{};
         BOOL exists{};
-        if (FAILED(collection->FindFamilyName(L"Cambria Math", &familyIndex, &exists)) || ! exists)
+        if (! OptionalFontOperation(collection->FindFamilyName(textFormats->Family().c_str(), &familyIndex, &exists)) || ! exists)
             return;
         wil::com_ptr<IDWriteFontFamily> family;
-        if (FAILED(collection->GetFontFamily(familyIndex, family.put())))
+        if (! OptionalFontOperation(collection->GetFontFamily(familyIndex, family.put())))
             return;
         wil::com_ptr<IDWriteFont> fontObject;
-        if (FAILED(family->GetFirstMatchingFont(DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL, fontObject.put())))
+        if (! OptionalFontOperation(
+                family->GetFirstMatchingFont(DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL, fontObject.put())))
             return;
         wil::com_ptr<IDWriteFontFace> face;
-        if (FAILED(fontObject->CreateFontFace(face.put())))
+        if (! OptionalFontOperation(fontObject->CreateFontFace(face.put())))
             return;
         const void* table{};
         UINT32 size{};
         void* context{};
         BOOL existsTable{};
-        if (FAILED(face->TryGetFontTable(DWRITE_MAKE_OPENTYPE_TAG('M', 'A', 'T', 'H'), &table, &size, &context, &existsTable)) || ! existsTable)
+        if (! OptionalFontOperation(face->TryGetFontTable(DWRITE_MAKE_OPENTYPE_TAG('M', 'A', 'T', 'H'), &table, &size, &context, &existsTable)) ||
+            ! existsTable)
             return;
         auto release      = wil::scope_exit([&] { face->ReleaseFontTable(context); });
         const auto* bytes = static_cast<const BYTE*>(table);
+#if DXUI_ENABLE_DIAGNOSTICS
+        if (! testRichMathTableOverride.empty())
+        {
+            if (testRichMathTableOverride.size() > 4u * 1024u * 1024u)
+                return;
+            bytes = testRichMathTableOverride.data();
+            size  = static_cast<UINT32>(testRichMathTableOverride.size());
+        }
+#endif
         if (! bytes || size < 26 || bytes[0] != 0 || bytes[1] != 1)
             return;
         const auto offset = static_cast<unsigned>((bytes[4] << 8u) | bytes[5]);
         if (offset == 0 || offset > size || size - offset < 16u)
             return;
+        DWRITE_FONT_METRICS metrics{};
+        face->GetMetrics(&metrics);
+        if (metrics.designUnitsPerEm == 0u || size > 4u * 1024u * 1024u)
+            return;
+        mathData = std::make_shared<MathFontData>(face.get(), std::span(bytes, static_cast<std::size_t>(size)), metrics.designUnitsPerEm);
+        ApplyMathConstants();
+    }
+    void ApplyMathConstants() noexcept
+    {
+        if (! mathData || mathData->table.size() < 16u || mathData->designUnits == 0u)
+            return;
+        const auto* bytes = mathData->table.data();
+        const auto size   = mathData->table.size();
+        const auto offset = static_cast<unsigned>((bytes[4] << 8u) | bytes[5]);
+        if (offset == 0u || offset > size || size - offset < 16u)
+            return;
         // MathConstants starts with the two percentage scales, two unsigned
         // heights, then MathValueRecords. AxisHeight follows MathLeading.
         const auto* constants     = bytes + offset;
-        const auto constantsSize  = size - offset;
         const auto first          = Signed16(constants);
         const auto second         = Signed16(constants + 2);
         const auto delimitedUnits = static_cast<unsigned>((constants[4] << 8u) | constants[5]);
         const auto operatorUnits  = static_cast<unsigned>((constants[6] << 8u) | constants[7]);
-        const auto axisUnits      = Signed16(constants + 12);
-        DWRITE_FONT_METRICS metrics{};
-        face->GetMetrics(&metrics);
-        if (metrics.designUnitsPerEm == 0)
-            return;
         if (first >= 30 && first <= 100)
             scriptScale = static_cast<float>(first) / 100.f;
         if (second >= 20 && second <= 100)
             scriptScriptScale = static_cast<float>(second) / 100.f;
-        const auto delimitedScale = static_cast<float>(delimitedUnits) / static_cast<float>(metrics.designUnitsPerEm);
-        const auto operatorScale  = static_cast<float>(operatorUnits) / static_cast<float>(metrics.designUnitsPerEm);
+        const auto delimitedScale = static_cast<float>(delimitedUnits) / static_cast<float>(mathData->designUnits);
+        const auto operatorScale  = static_cast<float>(operatorUnits) / static_cast<float>(mathData->designUnits);
         if (std::isfinite(delimitedScale) && delimitedScale >= 1.f && delimitedScale <= 4.f)
             delimitedMinimum = delimitedScale;
         if (std::isfinite(operatorScale) && operatorScale >= 1.f && operatorScale <= 4.f)
             displayOperatorMinimum = operatorScale;
+        const MathFontTable table(mathData->table);
         const auto readDesignValue = [&](unsigned valueOffset, float fallback)
         {
-            if (valueOffset + 2u > constantsSize)
+            const auto index = valueOffset / 4u;
+            if (index >= mathData->constants.size() || ! mathData->constantPresent[index])
                 return fallback;
-            const auto value  = Signed16(constants + valueOffset);
-            const auto scaled = font * static_cast<float>(value) / static_cast<float>(metrics.designUnitsPerEm);
-            return std::isfinite(scaled) && scaled >= 0.f && scaled <= font * 2.f ? scaled : fallback;
+            const auto scaled = table.AdjustedValue(mathData->constants[index], font, dpi, mathData->designUnits);
+            return scaled && scaled.value() >= 0.f && scaled.value() <= font * 2.f ? scaled.value() : fallback;
         };
         subscriptShift                  = readDesignValue(24u, subscriptShift);
         superscriptShift                = readDesignValue(36u, superscriptShift);
@@ -173,26 +687,42 @@ class PreparedMath final
         fractionRuleThickness           = readDesignValue(144u, fractionRuleThickness);
         fractionDenominatorGap          = readDesignValue(148u, fractionDenominatorGap);
         fractionDenominatorDisplayGap   = readDesignValue(152u, fractionDenominatorDisplayGap);
-        const auto candidateAxis        = font * static_cast<float>(axisUnits) / static_cast<float>(metrics.designUnitsPerEm);
+        const auto candidateAxis        = readDesignValue(12u, axis);
         if (std::isfinite(candidateAxis) && candidateAxis > 0 && candidateAxis < font)
             axis = candidateAxis;
     }
-    static std::size_t CountAndValidate(const MathNode& root)
+    // Share owned font bytes, but recalculate ppem-specific values for this formula's size and DPI.
+    void CopyMathConstants(const PreparedMath& source) noexcept
+    {
+        mathData = source.mathData;
+        ApplyMathConstants();
+    }
+    [[nodiscard]] float MathConstantAt(unsigned valueOffset, float size, float rootValue) const noexcept
+    {
+        const auto fallback = rootValue * size / font;
+        const auto index    = valueOffset / 4u;
+        if (! mathData || size == font || index >= mathData->constants.size() || ! mathData->constantPresent[index] || ! mathData->constants[index].device)
+            return fallback;
+        const auto adjusted = MathFontTable(mathData->table).AdjustedValue(mathData->constants[index], size, dpi, mathData->designUnits);
+        return adjusted && adjusted.value() >= 0.f && adjusted.value() <= size * 2.f ? adjusted.value() : fallback;
+    }
+    static std::size_t CountAndValidate(const MathNode& root, bool display)
     {
         struct Pending
         {
             const MathNode* node;
             unsigned depth;
+            bool rowCell;
         };
-        std::array<Pending, 512u> pending{};
+        std::array<Pending, MathMaximumNodes> pending{};
         std::size_t top{}, count{};
-        pending[top++] = {&root, 0u};
+        pending[top++] = {&root, 0u, false};
         while (top != 0u)
         {
             const auto current = pending[--top];
             const auto& node   = *current.node;
-            if (++count > 512u || current.depth > 24u || node.children.size() > 512u - top || node.text.size() > MathMaximumSourceUnits ||
-                ! IsValidUtf16(node.text))
+            if (++count > MathMaximumNodes || current.depth > MathMaximumNodeDepth || node.children.size() > MathMaximumNodes - top ||
+                node.text.size() > (node.kind == MathKind::Text ? 2u * MathMaximumSourceUnits : MathMaximumSourceUnits) || ! IsValidUtf16(node.text))
                 throw std::length_error("Mathematical syntax capacity exceeded");
             switch (node.kind)
             {
@@ -207,7 +737,8 @@ class PreparedMath final
                         throw std::length_error("Invalid mathematical space node");
                     break;
                 case MathKind::Fraction:
-                    if (node.text != L"frac" && node.text != L"dfrac" && node.text != L"tfrac")
+                    if (node.text != L"frac" && node.text != L"dfrac" && node.text != L"tfrac" && node.text != L"atop" && node.text != L"cfrac" &&
+                        ! (node.text.starts_with(L"rule:") && ParseMathDimension(std::wstring_view(node.text).substr(5u))))
                         throw std::length_error("Invalid mathematical fraction style");
                     if (node.children.size() != 2u)
                         throw std::length_error("Invalid mathematical pair node");
@@ -221,40 +752,59 @@ class PreparedMath final
                         throw std::length_error("Invalid mathematical scripts node");
                     break;
                 case MathKind::Matrix:
-                    if (node.columns == 0u || node.columns > 16u || node.children.empty() || node.children.size() > 128u ||
-                        node.children.size() % node.columns != 0u || node.children.size() / node.columns > 16u ||
-                        (node.text != L"matrix" && node.text != L"smallmatrix" && node.text != L"pmatrix" && node.text != L"bmatrix" &&
-                         node.text != L"Bmatrix" && node.text != L"vmatrix" && node.text != L"Vmatrix" && node.text != L"cases" && node.text != L"aligned" &&
-                         node.text != L"gathered"))
+                    if (node.columns == 0u || node.columns > MathMaximumColumns || node.children.empty() || node.children.size() > MathMaximumMatrixCells ||
+                        node.children.size() % node.columns != 0u || node.children.size() / node.columns > MathMaximumRows ||
+                        (MatrixCore(node.text) == L"alignat" && node.columns % 2u != 0u) ||
+                        ((MatrixCore(node.text) == L"cases" || MatrixCore(node.text) == L"rcases" || MatrixCore(node.text) == L"dcases" ||
+                          MatrixCore(node.text) == L"drcases") &&
+                         node.columns > 2u) ||
+                        ! MatrixName(node.text, node.columns, node.children.size() / node.columns))
                         throw std::length_error("Mathematical matrix capacity exceeded");
                     break;
                 case MathKind::Accent:
                     if (node.text != L"overline" && node.text != L"underline" && node.text != L"bar" && node.text != L"hat" && node.text != L"widehat" &&
-                        node.text != L"tilde" && node.text != L"widetilde" && node.text != L"vec" && node.text != L"dot" && node.text != L"ddot")
+                        node.text != L"tilde" && node.text != L"widetilde" && node.text != L"vec" && node.text != L"dot" && node.text != L"ddot" &&
+                        node.text != L"check" && node.text != L"widecheck" && node.text != L"breve" && node.text != L"acute" && node.text != L"grave" &&
+                        node.text != L"mathring" && node.text != L"underbar" && node.text != L"utilde" && node.text != L"overbrace" &&
+                        node.text != L"underbrace" && node.text != L"overgroup" && node.text != L"undergroup" && node.text != L"boxed" &&
+                        node.text != L"cancel" && node.text != L"bcancel" && node.text != L"xcancel" && node.text != L"sout" && node.text != L"phase" &&
+                        node.text != L"angl" && ! ColorBox(node.text) && ! ExtensibleArrow(node.text) && ! ArrowAccent(node.text))
                         throw std::length_error("Invalid mathematical accent");
-                    if (node.children.size() != 1u)
-                        throw std::length_error("Invalid mathematical unary node");
+                    if (node.children.size() != (ExtensibleArrow(node.text) ? 2u : 1u))
+                        throw std::length_error("Invalid mathematical accent arguments");
                     break;
                 case MathKind::Style:
-                    if (node.text != L"mathrm" && node.text != L"mathbf" && node.text != L"mathit" && node.text != L"mathbb" && node.text != L"mathcal" &&
-                        node.text != L"mathord" && node.text != L"mathop" && node.text != L"mathbin" && node.text != L"mathrel" && node.text != L"mathopen" &&
-                        node.text != L"mathclose" && node.text != L"mathpunct" && node.text != L"mathinner" && node.text != L"displaystyle" &&
-                        node.text != L"textstyle" && node.text != L"scriptstyle" && node.text != L"scriptscriptstyle")
+                    if (node.text == L"rowtag")
+                    {
+                        if (! display || ! current.rowCell || node.children.size() != 2u || ! RowTagLabel(node.children[1u]))
+                            throw std::length_error("Row tags require a display matrix row");
+                        break;
+                    }
+                    if (node.text != L"mathrm" && node.text != L"mathbf" && node.text != L"mathit" && node.text != L"mathnormal" &&
+                        node.text != L"boldsymbol" && node.text != L"bm" && node.text != L"mathbb" && node.text != L"mathcal" && node.text != L"mathscr" &&
+                        node.text != L"mathfrak" && node.text != L"mathsf" && node.text != L"mathtt" && node.text != L"mathord" && node.text != L"mathop" &&
+                        node.text != L"mathbin" && node.text != L"mathrel" && node.text != L"mathopen" && node.text != L"mathclose" &&
+                        node.text != L"mathpunct" && node.text != L"mathinner" && node.text != L"textsf" && node.text != L"texttt" && node.text != L"textrm" &&
+                        node.text != L"textnormal" && node.text != L"textmd" && node.text != L"emph" && node.text != L"pmb" && node.text != L"displaystyle" &&
+                        node.text != L"textstyle" && node.text != L"scriptstyle" && node.text != L"scriptscriptstyle" && node.text != L"tiny" &&
+                        node.text != L"sixptsize" && node.text != L"scriptsize" && node.text != L"footnotesize" && node.text != L"small" &&
+                        node.text != L"normalsize" && node.text != L"large" && node.text != L"Large" && node.text != L"LARGE" && node.text != L"huge" &&
+                        node.text != L"Huge" && ! ColorArgument(node.text, L"textcolor:"))
                         throw std::length_error("Invalid mathematical style");
                     if (node.children.size() != 1u)
                         throw std::length_error("Invalid mathematical unary node");
                     break;
                 case MathKind::Delimited:
                     if (node.kind == MathKind::Delimited &&
-                        (node.text.size() != 2u || std::wstring_view(L"()[]{}|.⟨⟩‖⌊⌋⌈⌉").find(node.text[0]) == std::wstring_view::npos ||
-                         std::wstring_view(L"()[]{}|.⟨⟩‖⌊⌋⌈⌉").find(node.text[1]) == std::wstring_view::npos))
+                        (node.text.size() != 2u || std::wstring_view(L"()[]{}|.⟨⟩‖⌊⌋⌈⌉/<>\\↑↓↕⇑⇓⇕").find(node.text[0]) == std::wstring_view::npos ||
+                         std::wstring_view(L"()[]{}|.⟨⟩‖⌊⌋⌈⌉/<>\\↑↓↕⇑⇓⇕").find(node.text[1]) == std::wstring_view::npos))
                         throw std::length_error("Invalid mathematical fence pair");
                     if (node.children.size() != 1u)
                         throw std::length_error("Invalid mathematical unary node");
                     break;
                 case MathKind::Delimiter:
                     if (! node.children.empty() || node.text.size() != 1u ||
-                        std::wstring_view(L"()[]{}|.⟨⟩‖⌊⌋⌈⌉").find(node.text[0]) == std::wstring_view::npos || node.delimiterSize < 1u ||
+                        std::wstring_view(L"()[]{}|.⟨⟩‖⌊⌋⌈⌉/<>\\↑↓↕⇑⇓⇕").find(node.text[0]) == std::wstring_view::npos || node.delimiterSize < 1u ||
                         node.delimiterSize > 4u)
                         throw std::length_error("Invalid sized mathematical delimiter");
                     break;
@@ -274,8 +824,14 @@ class PreparedMath final
             }
             if (node.limits != MathLimits::Automatic && node.limits != MathLimits::AboveBelow && node.limits != MathLimits::Side)
                 throw std::length_error("Unknown mathematical limits mode");
-            for (const auto& child : node.children)
-                pending[top++] = {&child, current.depth + 1u};
+            for (std::size_t i = 0u; i < node.children.size(); ++i)
+            {
+                const auto matrixName = MatrixBase(node.text);
+                const bool rootMatrix = current.depth == 0u || (current.depth == 1u && root.kind == MathKind::Row);
+                const bool rowCell    = rootMatrix && node.kind == MathKind::Matrix && node.columns && i % node.columns == 0u &&
+                                        (matrixName == L"aligned" || matrixName == L"alignat" || matrixName == L"gathered");
+                pending[top++]        = {&node.children[i], current.depth + 1u, rowCell};
+            }
         }
         return count;
     }
@@ -289,107 +845,260 @@ class PreparedMath final
     {
         return shape != L'.';
     }
-    std::size_t Flatten(const MathNode& node, float size, bool bold, bool italic, bool forceItalic, bool display, unsigned scriptLevel)
+    std::size_t Flatten(const MathNode& rootNode,
+                        float rootSize,
+                        bool rootBold,
+                        bool rootItalic,
+                        bool rootForceItalic,
+                        bool rootDisplay,
+                        unsigned rootScriptLevel,
+                        int rootNamedSize            = -1,
+                        std::uint32_t rootForeground = NoColor,
+                        MathTextFamily rootFamily    = MathTextFamily::Math,
+                        bool rootPseudoBold          = false)
     {
-        const auto index = boxes.size();
-        boxes.push_back({&node, 0u, 0u, std::numeric_limits<std::size_t>::max(), {}, 0.f, node.atomClass, size, scriptLevel, display});
-        if (node.kind == MathKind::Text)
+        struct Frame
         {
-            if (node.text.empty())
+            const MathNode* node;
+            float size;
+            bool bold, italic, forceItalic, display;
+            unsigned scriptLevel;
+            int namedSizeIndex;
+            std::uint32_t foreground;
+            MathTextFamily textFamily;
+            bool pseudoBold;
+            std::size_t index{}, nextChild{};
+            bool opened{};
+        };
+        std::vector<Frame> stack(0u);
+        stack.reserve(MathMaximumNodeDepth + 1u);
+        stack.push_back({&rootNode,
+                         rootSize,
+                         rootBold,
+                         rootItalic,
+                         rootForceItalic,
+                         rootDisplay,
+                         rootScriptLevel,
+                         rootNamedSize,
+                         rootForeground,
+                         rootFamily,
+                         rootPseudoBold});
+        const auto rootIndex = boxes.size();
+        while (! stack.empty())
+        {
+            auto& frame      = stack.back();
+            const auto& node = *frame.node;
+            auto size        = frame.size;
+            const bool bold = frame.bold, italic = frame.italic, forceItalic = frame.forceItalic, display = frame.display;
+            const auto scriptLevel    = frame.scriptLevel;
+            const auto namedSizeIndex = frame.namedSizeIndex;
+            auto foreground           = frame.foreground;
+            const auto textFamily     = frame.textFamily;
+            const bool pseudoBold     = frame.pseudoBold;
+            if (! frame.opened)
+            {
+                frame.index      = boxes.size();
+                const auto index = frame.index;
+                boxes.push_back({&node, 0u, 0u, std::numeric_limits<std::size_t>::max(), {}, {}, 0.f, node.atomClass, size, scriptLevel, display});
+                boxes[index].color = foreground;
+                if (node.kind == MathKind::Style && node.text == L"rowtag")
+                {
+                    if (! rowTags)
+                        rowTags.emplace(0u);
+                    if (rowTags->size() == MathMaximumNodes)
+                        throw std::length_error("Too many mathematical row tags");
+                    boxes[index].rowTag = rowTags->size();
+                    rowTags->push_back({&node.children[1u], 0.f});
+                }
+                if (const auto color = node.kind == MathKind::Style ? ColorArgument(node.text, L"textcolor:") : std::nullopt)
+                {
+                    colored    = true;
+                    foreground = color.value();
+                    colors.push_back(foreground);
+                }
+                if (node.kind == MathKind::Accent && ColorBox(node.text))
+                {
+                    colored = true;
+                    if (node.text.starts_with(L"colorbox:"))
+                        colors.push_back(ParseNativeColor(std::wstring_view(node.text).substr(9u)).value());
+                    else
+                    {
+                        colors.push_back(ParseNativeColor(std::wstring_view(node.text).substr(10u, 6u)).value());
+                        colors.push_back(ParseNativeColor(std::wstring_view(node.text).substr(17u, 6u)).value());
+                    }
+                }
+                if (node.kind == MathKind::Text)
+                {
+                    if (textFamily == MathTextFamily::Script && ! std::ranges::all_of(node.text, [](wchar_t ch) { return ch >= L'A' && ch <= L'Z'; }))
+                        throw std::length_error("Unsupported mathematical script alphabet");
+                    if (node.text.empty())
+                    {
+                        boxes[index].endChild = boxes.size();
+                        stack.pop_back();
+                        continue;
+                    }
+                    if (node.largeOperator && display)
+                        size = std::max(size, font * displayOperatorMinimum);
+                    const auto glyphIndex = glyphs.size();
+                    glyphs.push_back({&node, index, size, bold, forceItalic ? italic : italic || node.italic, textFamily, pseudoBold, {}, {}, {}});
+                    boxes[index].glyph    = glyphIndex;
+                    boxes[index].endChild = boxes.size();
+                    stack.pop_back();
+                    continue;
+                }
+                boxes[index].firstChild = boxes.size();
+                frame.foreground        = foreground;
+                frame.opened            = true;
+            }
+            const auto index      = frame.index;
+            const auto nextLevel  = scriptLevel < 2u ? scriptLevel + 1u : 2u;
+            const auto childCount = node.kind == MathKind::Style && node.text == L"rowtag" ? 1u : node.children.size();
+            if (frame.nextChild == childCount)
             {
                 boxes[index].endChild = boxes.size();
-                return index;
+                stack.pop_back();
+                continue;
             }
-            if (node.largeOperator && display)
-                size = std::max(size, font * displayOperatorMinimum);
-            const auto glyphIndex = glyphs.size();
-            glyphs.push_back({&node, index, size, bold, forceItalic ? italic : italic || node.italic, {}, {}, {}});
-            boxes[index].glyph    = glyphIndex;
-            boxes[index].endChild = boxes.size();
-            return index;
+            const auto childIndex = frame.nextChild++;
+            {
+                const auto& child = node.children[childIndex];
+                float childSize   = size;
+                bool childBold = bold, childItalic = italic, childDisplay = display;
+                bool childForceItalic = forceItalic;
+                auto childLevel       = scriptLevel;
+                auto childNamedSize   = namedSizeIndex;
+                auto childFamily      = textFamily;
+                bool childPseudoBold  = pseudoBold;
+                constexpr std::array<float, 11u> namedScales{.5f, .6f, .7f, .8f, .9f, 1.f, 1.2f, 1.44f, 1.728f, 2.074f, 2.488f};
+                constexpr std::array<std::array<unsigned, 3u>, 11u> sizeStyle{
+                    {{0, 0, 0}, {1, 0, 0}, {2, 0, 0}, {3, 1, 0}, {4, 1, 0}, {5, 2, 0}, {6, 3, 1}, {7, 5, 2}, {8, 6, 5}, {9, 7, 6}, {10, 9, 8}}};
+                const auto scaledSize = [&](unsigned level)
+                {
+                    return childNamedSize < 0 ? font * StyleScale(level)
+                                              : font * namedScales[sizeStyle[static_cast<std::size_t>(childNamedSize)][std::min(level, 2u)]];
+                };
+                if (node.kind == MathKind::Style)
+                {
+                    if (node.text == L"pmb")
+                        childPseudoBold = true;
+                    if (node.text == L"textsf")
+                        childFamily = MathTextFamily::Sans;
+                    else if (node.text == L"texttt")
+                        childFamily = MathTextFamily::Monospace;
+                    else if (node.text == L"mathscr")
+                        childFamily = MathTextFamily::Script;
+                    else if (node.text == L"textrm" || node.text == L"textnormal")
+                        childFamily = MathTextFamily::Math;
+                    if (node.text == L"mathbf")
+                    {
+                        childBold        = true;
+                        childItalic      = false;
+                        childForceItalic = true;
+                    }
+                    else if (node.text == L"boldsymbol" || node.text == L"bm")
+                        childBold = true;
+                    else if (node.text == L"textmd")
+                        childBold = false;
+                    else if (node.text == L"mathnormal" || node.text == L"textnormal")
+                    {
+                        childBold        = false;
+                        childItalic      = false;
+                        childForceItalic = false;
+                    }
+                    if (node.text == L"mathrm" || node.text == L"mathbb" || node.text == L"mathcal" || node.text == L"mathscr" || node.text == L"mathfrak" ||
+                        node.text == L"mathsf" || node.text == L"mathtt")
+                    {
+                        childItalic      = false;
+                        childForceItalic = true;
+                    }
+                    else if (node.text == L"emph")
+                    {
+                        childItalic      = ! italic;
+                        childForceItalic = true;
+                    }
+                    else if (node.text == L"mathit")
+                    {
+                        childItalic      = true;
+                        childForceItalic = true;
+                    }
+                    constexpr std::array<std::wstring_view, 11u> sizes{
+                        L"tiny", L"sixptsize", L"scriptsize", L"footnotesize", L"small", L"normalsize", L"large", L"Large", L"LARGE", L"huge", L"Huge"};
+                    const auto namedSize = std::ranges::find(sizes, node.text);
+                    if (namedSize != sizes.end())
+                    {
+                        childNamedSize = static_cast<int>(namedSize - sizes.begin());
+                        childSize      = scaledSize(0u);
+                        childLevel     = 0u;
+                    }
+                    if (node.text == L"displaystyle" || node.text == L"textstyle" || node.text == L"scriptstyle" || node.text == L"scriptscriptstyle")
+                    {
+                        const unsigned level = node.text == L"displaystyle" || node.text == L"textstyle" ? 0u : node.text == L"scriptstyle" ? 1u : 2u;
+                        childSize            = scaledSize(level);
+                        childLevel           = level;
+                        childDisplay         = node.text == L"displaystyle";
+                    }
+                }
+                else if (node.kind == MathKind::Fraction)
+                {
+                    auto fractionDisplay = display;
+                    if (node.text == L"dfrac" || node.text == L"cfrac")
+                        fractionDisplay = true;
+                    else if (node.text == L"tfrac")
+                        fractionDisplay = false;
+                    boxes[index].display = fractionDisplay;
+                    childDisplay         = false; // Fraction contents use text or script style, not display style.
+                    childLevel           = fractionDisplay ? 0u : nextLevel;
+                    childSize            = scaledSize(childLevel);
+                }
+                else if (node.kind == MathKind::Scripts && childIndex != 0u)
+                {
+                    childLevel   = nextLevel;
+                    childSize    = scaledSize(childLevel);
+                    childDisplay = false;
+                }
+                else if (node.kind == MathKind::Root)
+                {
+                    if (childIndex == 1u)
+                    {
+                        childLevel = 2u;
+                        childSize  = scaledSize(childLevel);
+                    }
+                }
+                else if (node.kind == MathKind::Accent && ExtensibleArrow(node.text))
+                {
+                    childLevel   = nextLevel;
+                    childSize    = scaledSize(childLevel);
+                    childDisplay = false;
+                }
+                else if (node.kind == MathKind::Matrix)
+                {
+                    childDisplay = MatrixCore(node.text) == L"dcases" || MatrixCore(node.text) == L"drcases" || MatrixCore(node.text).starts_with(L"darray:");
+                    boxes[index].display = childDisplay;
+                    if (MatrixCore(node.text) == L"smallmatrix" || MatrixBase(node.text) == L"subarray")
+                    {
+                        childLevel               = std::max(1u, scriptLevel);
+                        childSize                = scaledSize(childLevel);
+                        boxes[index].size        = childSize;
+                        boxes[index].scriptLevel = childLevel;
+                        boxes[index].display     = false;
+                    }
+                }
+                else if (node.kind == MathKind::Delimiter)
+                    childSize = size;
+                stack.push_back({&child,
+                                 childSize,
+                                 childBold,
+                                 childItalic,
+                                 childForceItalic,
+                                 childDisplay,
+                                 childLevel,
+                                 childNamedSize,
+                                 foreground,
+                                 childFamily,
+                                 childPseudoBold});
+            }
         }
-        boxes[index].firstChild = boxes.size();
-        const auto firstChild   = boxes[index].firstChild;
-        const auto nextLevel    = scriptLevel < 2u ? scriptLevel + 1u : 2u;
-        for (std::size_t childIndex = 0; childIndex < node.children.size(); ++childIndex)
-        {
-            const auto& child = node.children[childIndex];
-            float childSize   = size;
-            bool childBold = bold, childItalic = italic, childDisplay = display;
-            bool childForceItalic = forceItalic;
-            auto childLevel       = scriptLevel;
-            if (node.kind == MathKind::Style)
-            {
-                if (node.text == L"mathbf")
-                {
-                    childBold        = true;
-                    childItalic      = false;
-                    childForceItalic = true;
-                }
-                if (node.text == L"mathrm" || node.text == L"mathbb" || node.text == L"mathcal")
-                {
-                    childItalic      = false;
-                    childForceItalic = true;
-                }
-                else if (node.text == L"mathit")
-                {
-                    childItalic      = true;
-                    childForceItalic = true;
-                }
-                if (node.text == L"displaystyle" || node.text == L"textstyle" || node.text == L"scriptstyle" || node.text == L"scriptscriptstyle")
-                {
-                    const unsigned level = node.text == L"displaystyle" || node.text == L"textstyle" ? 0u : node.text == L"scriptstyle" ? 1u : 2u;
-                    childSize            = font * StyleScale(level);
-                    childLevel           = level;
-                    childDisplay         = node.text == L"displaystyle";
-                }
-            }
-            else if (node.kind == MathKind::Fraction)
-            {
-                auto fractionDisplay = display;
-                if (node.text == L"dfrac")
-                    fractionDisplay = true;
-                else if (node.text == L"tfrac")
-                    fractionDisplay = false;
-                boxes[index].display = fractionDisplay;
-                childDisplay         = false; // Fraction contents use text or script style, not display style.
-                childLevel           = fractionDisplay ? 0u : nextLevel;
-                childSize            = font * StyleScale(childLevel);
-            }
-            else if (node.kind == MathKind::Scripts && childIndex != 0u)
-            {
-                childLevel   = nextLevel;
-                childSize    = font * StyleScale(childLevel);
-                childDisplay = false;
-            }
-            else if (node.kind == MathKind::Root)
-            {
-                if (childIndex == 1u)
-                {
-                    childLevel = 2u;
-                    childSize  = font * StyleScale(childLevel);
-                }
-            }
-            else if (node.kind == MathKind::Matrix)
-            {
-                childDisplay         = false;
-                boxes[index].display = false;
-                if (node.text == L"smallmatrix")
-                {
-                    childLevel               = std::max(1u, scriptLevel);
-                    childSize                = font * StyleScale(childLevel);
-                    boxes[index].size        = childSize;
-                    boxes[index].scriptLevel = childLevel;
-                    boxes[index].display     = false;
-                }
-            }
-            else if (node.kind == MathKind::Delimiter)
-                childSize = size;
-            Flatten(child, childSize, childBold, childItalic, childForceItalic, childDisplay, childLevel);
-        }
-        boxes[index].firstChild = firstChild;
-        boxes[index].endChild   = boxes.size();
-        return index;
+        return rootIndex;
     }
     std::size_t NextSibling(std::size_t index) const noexcept
     {
@@ -420,6 +1129,52 @@ class PreparedMath final
             return size * 5.f / 18.f;
         return size / 3.f;
     }
+    [[nodiscard]] std::optional<float> FontItalicCorrection(std::wstring_view text, float size) const
+    {
+        if (! mathData || text.empty())
+            return std::nullopt;
+        std::uint32_t scalar = static_cast<std::uint16_t>(text.back());
+        if (scalar >= 0xdc00u && scalar <= 0xdfffu && text.size() >= 2u)
+        {
+            const auto lead = static_cast<std::uint16_t>(text[text.size() - 2u]);
+            if (lead < 0xd800u || lead > 0xdbffu)
+                return std::nullopt;
+            scalar = 0x10000u + ((lead - 0xd800u) << 10u) + (scalar - 0xdc00u);
+        }
+        UINT16 glyph{};
+        if (! OptionalFontOperation(GlyphIndex(scalar, glyph)) || glyph == 0u || glyph >= mathData->corrections.size())
+            return std::nullopt;
+        const auto correction = mathData->corrections[glyph];
+        if (correction == MathFontData::MissingCorrection)
+            return std::nullopt;
+        const MathFontTable::ValueRecord record{static_cast<std::int16_t>(correction), mathData->correctionDevices[glyph]};
+        const auto scaled = MathFontTable(mathData->table).AdjustedValue(record, size, dpi, mathData->designUnits);
+        return scaled && std::abs(scaled.value()) <= size * 2.f ? scaled : std::nullopt;
+    }
+    float ScriptKern(std::size_t baseIndex, std::size_t scriptIndex, float shift, bool superscript) const noexcept
+    {
+        if (! mathData || boxes[baseIndex].glyph == std::numeric_limits<std::size_t>::max() ||
+            boxes[scriptIndex].glyph == std::numeric_limits<std::size_t>::max())
+            return 0.f;
+        const auto& base   = glyphs[boxes[baseIndex].glyph];
+        const auto& script = glyphs[boxes[scriptIndex].glyph];
+        if (! base.mathGlyph || ! script.mathGlyph)
+            return 0.f;
+        const MathFontTable table(mathData->table);
+        using Corner            = MathFontTable::KernCorner;
+        const auto baseCorner   = superscript ? Corner::TopRight : Corner::BottomRight;
+        const auto scriptCorner = superscript ? Corner::BottomLeft : Corner::TopLeft;
+        const auto value        = [&](const Glyph& glyph, Corner corner, float height)
+        { return table.MathKern(glyph.mathGlyph, corner, height, glyph.font, dpi, mathData->designUnits).value_or(0.f); };
+        const float baseHeight1   = superscript ? shift - script.inkBelow : script.inkAbove - shift;
+        const float scriptHeight1 = superscript ? -script.inkBelow : script.inkAbove;
+        const float baseHeight2   = superscript ? base.inkAbove : -base.inkBelow;
+        const float scriptHeight2 = superscript ? base.inkAbove - shift : shift - base.inkBelow;
+        const float first         = value(base, baseCorner, baseHeight1) + value(script, scriptCorner, scriptHeight1);
+        const float second        = value(base, baseCorner, baseHeight2) + value(script, scriptCorner, scriptHeight2);
+        const float result        = std::min(first, second);
+        return std::isfinite(result) && std::abs(result) <= base.font * 2.f ? result : 0.f;
+    }
     float ItalicCorrection(std::size_t index) const noexcept
     {
         const auto& box = boxes[index];
@@ -448,6 +1203,66 @@ class PreparedMath final
     float ScriptAnchor(std::size_t index) const noexcept
     {
         return ScriptBaseAdvance(index) + ItalicCorrection(index);
+    }
+    // Ink is calculated once per box in bottom-up order during preparation.
+    // Decorated constructions use their conservative retained box.
+    Extent InkExtent(std::size_t index) const noexcept
+    {
+        return boxes[index].ink;
+    }
+    void StageInk(std::size_t index) noexcept
+    {
+        auto& box        = boxes[index];
+        const auto& node = *box.node;
+        box.ink          = box.extent;
+        if (node.kind == MathKind::Space)
+        {
+            box.ink.above = box.ink.below = 0.f;
+            return;
+        }
+        if (node.kind == MathKind::Text && ! node.text.empty())
+        {
+            const auto& glyph = glyphs[box.glyph];
+            if (glyph.hasVisualInk)
+            {
+                box.ink.above = glyph.visualAbove;
+                box.ink.below = glyph.visualBelow + (glyph.pseudoBold ? glyph.font * .01f : 0.f);
+            }
+            return;
+        }
+        const auto include = [&](std::size_t child, float offset) noexcept
+        {
+            const auto ink = boxes[child].ink;
+            box.ink.above  = std::max(box.ink.above, ink.above - offset);
+            box.ink.below  = std::max(box.ink.below, ink.below + offset);
+        };
+        if (node.kind == MathKind::Row || (node.kind == MathKind::Style && node.children.size() == 1u && ! ColorBox(node.text)))
+        {
+            box.ink.above = box.ink.below = 0.f;
+            for (auto child = box.firstChild; child < box.endChild; child = NextSibling(child))
+                include(child, 0.f);
+        }
+        else if (node.kind == MathKind::Fraction && node.children.size() == 2u)
+        {
+            const float axisAtSize = MathConstantAt(12u, box.size, axis);
+            const float thickness  = FractionRule(node.text, box.size);
+            box.ink.above          = thickness > 0.f ? std::max(0.f, axisAtSize + thickness * .5f) : 0.f;
+            box.ink.below          = thickness > 0.f ? std::max(0.f, thickness * .5f - axisAtSize) : 0.f;
+            include(ChildAt(index, 0u), -box.upperShift);
+            include(ChildAt(index, 1u), box.lowerShift);
+        }
+        else if (node.kind == MathKind::Scripts && node.children.size() == 3u)
+        {
+            const auto& base = node.children[0u];
+            if (base.limits == MathLimits::AboveBelow || (base.limits == MathLimits::Automatic && base.displayLimits && box.display))
+                return;
+            box.ink.above = box.ink.below = 0.f;
+            include(ChildAt(index, 0u), 0.f);
+            if (boxes[ChildAt(index, 1u)].extent.width > 0.f)
+                include(ChildAt(index, 1u), box.lowerShift);
+            if (boxes[ChildAt(index, 2u)].extent.width > 0.f)
+                include(ChildAt(index, 2u), -box.upperShift);
+        }
     }
     float AtomSpace(MathAtomClass left, MathAtomClass right, float size, unsigned styleLevel) const noexcept
     {
@@ -485,9 +1300,9 @@ class PreparedMath final
     }
     void NormalizeRows() noexcept
     {
-        std::array<std::size_t, 512u> children{};
-        std::array<MathAtomClass, 512u> original{}, next{};
-        std::array<bool, 512u> hasNext{};
+        std::array<std::size_t, MathMaximumNodes> children{};
+        std::array<MathAtomClass, MathMaximumNodes> original{}, next{};
+        std::array<bool, MathMaximumNodes> hasNext{};
         for (std::size_t rowIndex = 0u; rowIndex < boxes.size(); ++rowIndex)
         {
             const auto& row = boxes[rowIndex];
@@ -536,9 +1351,10 @@ class PreparedMath final
         NormalizeRows();
         for (std::size_t reverse = boxes.size(); reverse-- > 0u;)
         {
-            auto& box        = boxes[reverse];
-            box.extent       = {};
-            const auto& node = *box.node;
+            auto& box           = boxes[reverse];
+            box.extent          = {};
+            const auto stageInk = wil::scope_exit([&]() noexcept { StageInk(reverse); });
+            const auto& node    = *box.node;
             using enum MathKind;
             if (node.kind == Text)
             {
@@ -549,9 +1365,9 @@ class PreparedMath final
                 }
                 const auto& glyph = glyphs[box.glyph];
                 box.extent        = glyph.extent;
-                box.extent.width += box.leftOffset + glyph.rightOverhang;
+                box.extent.width += box.leftOffset + glyph.rightOverhang + (glyph.pseudoBold ? glyph.font * .02f : 0.f);
                 box.extent.above += glyph.topOverhang;
-                box.extent.below += glyph.bottomOverhang;
+                box.extent.below += glyph.bottomOverhang + (glyph.pseudoBold ? glyph.font * .01f : 0.f);
                 continue;
             }
             if (node.kind == Space)
@@ -562,16 +1378,27 @@ class PreparedMath final
             const auto child = [&](std::size_t offset) { return boxes[ChildAt(reverse, offset)].extent; };
             if (node.kind == Fraction && node.children.size() == 2u)
             {
-                const auto top = child(0u), bottom = child(1u);
-                const float scale     = box.size / font;
-                const float rule      = std::max(1.f, fractionRuleThickness * scale);
-                const float topGap    = (box.display ? fractionNumeratorDisplayGap : fractionNumeratorGap) * scale;
-                const float bottomGap = (box.display ? fractionDenominatorDisplayGap : fractionDenominatorGap) * scale;
+                auto top          = child(0u);
+                const auto bottom = child(1u);
+                if (node.text == L"cfrac")
+                {
+                    top.above = std::max(top.above, box.size * .85f);
+                    top.below = std::max(top.below, box.size * .35f);
+                }
+                const float axisAtSize = MathConstantAt(12u, box.size, axis);
+                const float rule       = FractionRule(node.text, box.size);
+                const float topGap     = MathConstantAt(box.display ? 140u : 136u, box.size, box.display ? fractionNumeratorDisplayGap : fractionNumeratorGap);
+                const float bottomGap =
+                    MathConstantAt(box.display ? 152u : 148u, box.size, box.display ? fractionDenominatorDisplayGap : fractionDenominatorGap);
                 const float topShift =
-                    std::max((box.display ? fractionNumeratorDisplayShift : fractionNumeratorShift) * scale, axis * scale + top.below + topGap + rule * .5f);
-                const float bottomShift = std::max((box.display ? fractionDenominatorDisplayShift : fractionDenominatorShift) * scale,
-                                                   bottom.above + bottomGap + rule * .5f - axis * scale);
-                box.extent              = {std::max(top.width, bottom.width) + box.size * .4f, topShift + top.above, bottomShift + bottom.below};
+                    std::max(MathConstantAt(box.display ? 124u : 120u, box.size, box.display ? fractionNumeratorDisplayShift : fractionNumeratorShift),
+                             axisAtSize + (node.text == L"cfrac" ? top.below : InkExtent(ChildAt(reverse, 0u)).below) + topGap + rule * .5f);
+                const float bottomShift =
+                    std::max(MathConstantAt(box.display ? 132u : 128u, box.size, box.display ? fractionDenominatorDisplayShift : fractionDenominatorShift),
+                             InkExtent(ChildAt(reverse, 1u)).above + bottomGap + rule * .5f - axisAtSize);
+                box.upperShift = topShift;
+                box.lowerShift = bottomShift;
+                box.extent     = {std::max(top.width, bottom.width) + box.size * .4f, topShift + top.above, bottomShift + bottom.below};
                 continue;
             }
             if (node.kind == Root && node.children.size() == 2u)
@@ -588,60 +1415,105 @@ class PreparedMath final
                 const auto& baseNode = node.children[0u];
                 const bool limitsAboveBelow =
                     (baseNode.limits == MathLimits::AboveBelow) || (baseNode.limits == MathLimits::Automatic && baseNode.displayLimits && box.display);
-                if (limitsAboveBelow && baseNode.atomClass == MathAtomClass::Operator)
+                if (limitsAboveBelow)
                 {
-                    const float scale = box.size / font;
-                    box.extent        = {std::max({base.width, sub.width, super.width}) + box.size * .1f,
-                                         base.above + (super.width > 0.f ? super.below + super.above + upperLimitGap * scale : 0.f),
-                                         base.below + (sub.width > 0.f ? sub.above + sub.below + lowerLimitGap * scale : 0.f)};
+                    box.extent = {std::max({base.width, sub.width, super.width}) + box.size * .1f,
+                                  base.above + (super.width > 0.f ? super.below + super.above + MathConstantAt(64u, box.size, upperLimitGap) : 0.f),
+                                  base.below + (sub.width > 0.f ? sub.above + sub.below + MathConstantAt(72u, box.size, lowerLimitGap) : 0.f)};
                     continue;
                 }
-                const float scale        = box.size / font;
-                const float scriptGap    = scriptGapMinimum * scale;
-                const float subShift     = std::max(subscriptShift * scale, base.below + box.size * .12f);
-                const float superShift   = std::max(superscriptShift * scale, base.above - box.size * .08f);
-                const float availableGap = superShift + subShift - super.below - sub.above;
-                const float extra        = std::max(0.f, (scriptGap - availableGap) / 2.f);
-                const auto baseIndex     = ChildAt(reverse, 0u);
-                const auto scriptAnchor  = ScriptAnchor(baseIndex);
-                box.extent               = {std::max({base.width, ScriptBaseAdvance(baseIndex) + sub.width, scriptAnchor + super.width}),
-                                            std::max(base.above, super.above + superShift + extra),
-                                            std::max(base.below, sub.below + subShift + extra)};
+                const float scriptGap = MathConstantAt(52u, box.size, scriptGapMinimum);
+                const auto baseIndex  = ChildAt(reverse, 0u);
+                const auto subIndex = ChildAt(reverse, 1u), superIndex = ChildAt(reverse, 2u);
+                const auto baseInk       = InkExtent(baseIndex);
+                const float subShift     = std::max(MathConstantAt(24u, box.size, subscriptShift), baseInk.below + box.size * .12f);
+                const float superShift   = std::max(MathConstantAt(36u, box.size, superscriptShift), baseInk.above - box.size * .08f);
+                const float availableGap = superShift + subShift - InkExtent(superIndex).below - InkExtent(subIndex).above;
+                const float extra        = sub.width > 0.f && super.width > 0.f ? std::max(0.f, (scriptGap - availableGap) / 2.f) : 0.f;
+                box.lowerShift           = subShift + extra;
+                box.upperShift           = superShift + extra;
+                box.subKern              = sub.width > 0.f ? ScriptKern(baseIndex, subIndex, subShift + extra, false) : 0.f;
+                box.superKern            = super.width > 0.f ? ScriptKern(baseIndex, superIndex, superShift + extra, true) : 0.f;
+                const float subX         = ScriptBaseAdvance(baseIndex) + box.subKern;
+                const float superX       = ScriptAnchor(baseIndex) + box.superKern;
+                const float left         = std::min({0.f, sub.width > 0.f ? subX : 0.f, super.width > 0.f ? superX : 0.f});
+                box.scriptLeftPad        = -left;
+                box.extent = {std::max({base.width, sub.width > 0.f ? subX + sub.width : 0.f, super.width > 0.f ? superX + super.width : 0.f}) - left,
+                              std::max(base.above, super.above + superShift + extra),
+                              std::max(base.below, sub.below + subShift + extra)};
                 continue;
             }
             if (node.kind == Matrix && node.columns > 0u)
             {
-                std::array<float, 16u> widths{};
+                std::array<float, MathMaximumColumns> widths{};
                 float totalHeight{};
                 std::size_t ci{};
                 for (auto cellIndex = box.firstChild; cellIndex < box.endChild; cellIndex = NextSibling(cellIndex), ++ci)
                     widths[ci % node.columns] = std::max(widths[ci % node.columns], boxes[cellIndex].extent.width);
+                auto rowCell = box.firstChild;
                 for (std::size_t row = 0u; row < node.children.size(); row += node.columns)
                 {
                     float above{}, below{};
                     for (unsigned col = 0u; col < node.columns; ++col)
                     {
-                        const auto cell = child(row + col);
+                        const auto cell = boxes[rowCell].extent;
                         above           = std::max(above, cell.above);
                         below           = std::max(below, cell.below);
+                        rowCell         = NextSibling(rowCell);
                     }
-                    totalHeight += std::max(box.size, above + below) + box.size * .3f;
+                    totalHeight += std::max(box.size, above + below) + box.size * .3f + MatrixGap(node.text, row / node.columns, box.size);
                 }
-                const bool fenced        = node.text != L"matrix" && node.text != L"smallmatrix" && node.text != L"aligned" && node.text != L"gathered";
-                const float leftPadding  = fenced ? box.size * .4f : 0.f;
-                const float rightPadding = fenced && node.text != L"cases" ? box.size * .4f : 0.f;
+                auto matrixName = MatrixBase(node.text);
+                if (matrixName.starts_with(L"darray:"))
+                    matrixName.remove_prefix(1u);
+                const bool fenced        = matrixName != L"matrix" && matrixName != L"smallmatrix" && matrixName != L"subarray" && matrixName != L"aligned" &&
+                                           matrixName != L"gathered" && matrixName != L"alignat" && ! matrixName.starts_with(L"array:");
+                const bool rightCases    = MatrixCore(node.text) == L"rcases" || MatrixCore(node.text) == L"drcases";
+                const bool leftCases     = MatrixCore(node.text) == L"cases" || MatrixCore(node.text) == L"dcases";
+                const float leftPadding  = fenced && ! rightCases ? box.size * .4f : 0.f;
+                const float rightPadding = fenced && ! leftCases ? box.size * .4f : 0.f;
                 const auto width         = std::accumulate(widths.begin(), widths.begin() + node.columns, 0.f) +
-                                           box.size * .65f * static_cast<float>(node.columns - 1u) + leftPadding + rightPadding;
+                                           box.size * .65f * static_cast<float>(MatrixCore(node.text) == L"alignat" ? 0u : node.columns - 1u) + leftPadding +
+                                           rightPadding;
                 box.extent               = {width, totalHeight * .5f + box.size * .25f, std::max(0.f, totalHeight * .5f - box.size * .25f)};
+                continue;
+            }
+            if (node.kind == Accent && ExtensibleArrow(node.text) && node.children.size() == 2u)
+            {
+                const auto upper = child(0u), lower = child(1u);
+                const float gap =
+                    box.size * ((node.text == L"xleftrightharpoons" || node.text == L"xrightleftharpoons" || node.text == L"xtofrom") ? .35f : .2f);
+                const float axisAtSize = MathConstantAt(12u, box.size, axis);
+                box.extent.width       = std::max(box.size, std::max(upper.width, lower.width) + box.size * .8f);
+                box.extent.above       = axisAtSize + gap + upper.above + upper.below;
+                box.extent.below       = std::max(0.f, gap + lower.above + lower.below - axisAtSize);
                 continue;
             }
             if (node.kind == Accent && node.children.size() == 1u)
             {
                 box.extent = child(0u);
-                if (node.text == L"underline")
+                if (node.text == L"phase" || node.text == L"angl")
+                {
+                    const float pad = std::max(1.f, box.size * .12f);
+                    box.extent.above += pad;
+                    box.extent.below += pad;
+                    box.extent.width += node.text == L"phase" ? (box.extent.above + box.extent.below) * .5f + pad : pad;
+                    continue;
+                }
+                if (node.text == L"boxed" || node.text == L"cancel" || node.text == L"bcancel" || node.text == L"xcancel" || node.text == L"sout" ||
+                    ColorBox(node.text))
+                {
+                    const float pad = std::max(1.f, box.size * .12f);
+                    box.extent.width += 2.f * pad;
+                    box.extent.above += pad;
+                    box.extent.below += pad;
+                    continue;
+                }
+                if (node.text == L"underline" || node.text == L"underbar" || node.text == L"utilde" || node.text == L"underbrace" ||
+                    node.text == L"undergroup" || (ArrowAccent(node.text) && node.text.starts_with(L"under")))
                     box.extent.below += box.size * .2f;
                 else
-                    box.extent.above += box.size * .3f;
+                    box.extent.above += box.size * .3f + (node.text == L"mathring" ? std::max(.5f, box.size / 20.f) : 0.f);
                 continue;
             }
             if (node.kind == Delimited && node.children.size() == 1u)
@@ -652,7 +1524,7 @@ class PreparedMath final
                 if (leftVisible || rightVisible)
                 {
                     const float minimumHeight = box.size * delimitedMinimum;
-                    const float axisOffset    = axis * box.size / font;
+                    const float axisOffset    = MathConstantAt(12u, box.size, axis);
                     box.extent.above          = std::max(box.extent.above, minimumHeight * .5f + axisOffset);
                     box.extent.below          = std::max(box.extent.below, std::max(0.f, minimumHeight * .5f - axisOffset));
                 }
@@ -666,7 +1538,7 @@ class PreparedMath final
                     continue;
                 }
                 const float height     = box.size * (0.9f + 0.3f * static_cast<float>(node.delimiterSize));
-                const float axisOffset = axis * box.size / font;
+                const float axisOffset = MathConstantAt(12u, box.size, axis);
                 box.extent             = {box.size * (node.delimiterSize == 1u   ? .45f
                                                       : node.delimiterSize == 2u ? .65f
                                                       : node.delimiterSize == 3u ? .8f
@@ -704,23 +1576,300 @@ class PreparedMath final
                 box.extent.above = std::max(box.extent.above, childExtent.above);
                 box.extent.below = std::max(box.extent.below, childExtent.below);
             }
-            if (node.kind == Style && node.children.size() == 1u)
+            if (node.kind == Style && (node.children.size() == 1u || node.text == L"rowtag"))
                 box.extent = child(0u);
         }
+    }
+    float DimensionDip(const MathDimension& dimension, float size) const noexcept
+    {
+        if (dimension.unit == MathDimensionUnit::Point)
+            return dimension.value * (4.f / 3.f) * absoluteUnitScale;
+        if (dimension.unit == MathDimensionUnit::Ex)
+            return dimension.value * size * (mathData ? mathData->xHeightEm : .45f);
+        return dimension.value * size;
+    }
+    float MatrixGap(std::wstring_view name, std::size_t row, float size) const noexcept
+    {
+        const auto marker = name.find(L";gaps:");
+        if (marker == name.npos)
+            return 0.f;
+        auto gaps = name.substr(marker + 6u);
+        while (row--)
+        {
+            const auto comma = gaps.find(L',');
+            if (comma == gaps.npos)
+                return 0.f; // Immutable node admission proves the row count.
+            gaps.remove_prefix(comma + 1u);
+        }
+        const auto value     = gaps.substr(0u, gaps.find(L','));
+        const auto dimension = ParseMathDimension(value);
+        return dimension ? DimensionDip(dimension.value(), size) : 0.f;
+    }
+    float FractionRule(std::wstring_view name, float size) const noexcept
+    {
+        if (name == L"atop")
+            return 0.f;
+        if (! name.starts_with(L"rule:"))
+            return std::max(1.f, MathConstantAt(144u, size, fractionRuleThickness));
+        const auto dimension = ParseMathDimension(name.substr(5u));
+        if (! dimension)
+            return 0.f; // Admission validates the immutable node before preparation.
+        if (dimension->unit == MathDimensionUnit::Point)
+            return dimension->value * (4.f / 3.f) * absoluteUnitScale;
+        if (dimension->unit == MathDimensionUnit::Ex)
+            return dimension->value * size * (mathData ? mathData->xHeightEm : .45f);
+        return dimension->value * size;
     }
     void Stroke(float x1, float y1, float x2, float y2, float thickness)
     {
         lines.push_back({{x1, y1}, {x2, y2}, thickness});
+        if (colored)
+            paintOperations.push_back({PaintKind::Line, lines.size() - 1u, activeBackground, activeColor, {}});
     }
-    void Fence(wchar_t shape, float x, float top, float bottom, float width, float thickness)
+    void Dot(float x, float y, float radius)
+    {
+        lines.push_back({{x, y}, {x, y}, radius * 2.f, true});
+        if (colored)
+            paintOperations.push_back({PaintKind::Line, lines.size() - 1u, activeBackground, activeColor, {}});
+    }
+    void DashedLine(float x1, float y1, float x2, float y2, float thickness)
+    {
+        const float length = std::hypot(x2 - x1, y2 - y1);
+        if (length <= 0.f)
+            return;
+        const auto count                           = static_cast<unsigned>(std::clamp(std::ceil(length / 8.f), 1.f, 128.f));
+        constexpr std::size_t MaximumPreparedLines = 32768u;
+        if (lines.size() > MaximumPreparedLines || count > MaximumPreparedLines - lines.size())
+            throw std::length_error("Dashed mathematical rule capacity exceeded");
+        for (unsigned i = 0u; i < count; ++i)
+        {
+            const float first = static_cast<float>(2u * i) / static_cast<float>(2u * count);
+            const float last  = static_cast<float>(2u * i + 1u) / static_cast<float>(2u * count);
+            Stroke(x1 + (x2 - x1) * first, y1 + (y2 - y1) * first, x1 + (x2 - x1) * last, y1 + (y2 - y1) * last, thickness);
+        }
+    }
+    bool AddVerticalAssembly(
+        const MathFontTable& table, std::size_t construction, std::uint32_t minimum, float x, float top, float bottom, float width, float size)
+    {
+        const auto plan                                      = table.VerticalAssemblyAt(construction, minimum);
+        constexpr std::size_t MaximumAssemblyPartsPerFormula = 512u;
+        if (! plan || plan->count == 0u || variants.size() >= MaximumAssemblyPartsPerFormula || plan->count > MaximumAssemblyPartsPerFormula - variants.size())
+            return false;
+        const float units = size / static_cast<float>(mathData->designUnits);
+        std::array<DWRITE_GLYPH_METRICS, 64u> metrics{};
+        float left = (std::numeric_limits<float>::max)(), right = -(std::numeric_limits<float>::max)();
+        for (std::size_t index = 0u; index < plan->count; ++index)
+        {
+            const auto glyph = plan->placements[index].part.glyph;
+            if (glyph >= mathData->face->GetGlyphCount())
+                return false;
+            std::size_t previous{};
+            while (previous < index && plan->placements[previous].part.glyph != glyph)
+                ++previous;
+            if (previous < index)
+                metrics[index] = metrics[previous];
+            else if (! OptionalFontOperation(GlyphMetrics(glyph, metrics[index])))
+                return false;
+            left  = std::min(left, static_cast<float>(metrics[index].leftSideBearing) * units);
+            right = std::max(right, (static_cast<float>(metrics[index].advanceWidth) - static_cast<float>(metrics[index].rightSideBearing)) * units);
+        }
+        const auto inkWidth = right - left;
+        if (! std::isfinite(inkWidth) || inkWidth <= 0.f)
+            return false;
+        const auto scaleX         = (std::min)(1.f, width / inkWidth);
+        const auto originX        = x + (width - inkWidth * scaleX) / 2.f - left * scaleX;
+        const auto assemblyHeight = static_cast<float>(plan->advance) * units;
+        const auto assemblyBottom = (top + bottom + assemblyHeight) / 2.f;
+        std::array<VariantGlyph, 64u> staged{};
+        for (std::size_t index = 0u; index < plan->count; ++index)
+        {
+            const auto& part    = plan->placements[index];
+            const auto& metric  = metrics[index];
+            const auto inkUnits = static_cast<std::int64_t>(metric.advanceHeight) - metric.topSideBearing - metric.bottomSideBearing;
+            if (std::abs(inkUnits - static_cast<std::int64_t>(part.part.advance)) > 2)
+                return false; // Unknown part origin convention: retain the vector fallback.
+            const auto partTop = assemblyBottom - static_cast<float>(part.offset + part.part.advance) * units;
+            // For the admitted ink-aligned subset, MATH fullAdvance covers
+            // the part ink; DirectWrite's vertical origin includes its top bearing.
+            const auto baseline = partTop + (static_cast<float>(metric.verticalOriginY) - static_cast<float>(metric.topSideBearing)) * units;
+            const auto inkLeft  = originX + static_cast<float>(metric.leftSideBearing) * units * scaleX;
+            const auto partWidth =
+                (static_cast<float>(metric.advanceWidth) - static_cast<float>(metric.leftSideBearing) - static_cast<float>(metric.rightSideBearing)) * units *
+                scaleX;
+            const auto inkTop = baseline + (static_cast<float>(metric.topSideBearing) - static_cast<float>(metric.verticalOriginY)) * units;
+            const auto inkHeight =
+                (static_cast<float>(metric.advanceHeight) - static_cast<float>(metric.topSideBearing) - static_cast<float>(metric.bottomSideBearing)) * units;
+            if (! std::isfinite(originX + baseline + inkLeft + partWidth + inkTop + inkHeight) || partWidth < 0.f || inkHeight < 0.f || inkHeight > 65536.f)
+                return false;
+            staged[index] = {part.part.glyph, originX, baseline, size, scaleX, inkLeft, inkTop, partWidth, inkHeight};
+        }
+        const auto first = variants.size();
+        variants.insert(variants.end(), staged.begin(), staged.begin() + static_cast<std::ptrdiff_t>(plan->count));
+        if (colored)
+            for (auto index = first; index < variants.size(); ++index)
+                paintOperations.push_back({PaintKind::Variant, index, activeBackground, activeColor, {}});
+        return true;
+    }
+    bool AddVerticalVariant(wchar_t shape, float x, float top, float bottom, float width, float size)
+    {
+        if (! mathData || width <= 0.f || size <= 0.f || bottom <= top)
+            return false;
+        const auto required = (bottom - top) * static_cast<float>(mathData->designUnits) / size;
+        if (! std::isfinite(required) || required <= 0.f || required > static_cast<float>((std::numeric_limits<std::uint32_t>::max)() / 2u))
+            return false;
+        const std::uint32_t scalar = static_cast<std::uint16_t>(shape);
+        UINT16 baseGlyph{};
+        if (! OptionalFontOperation(GlyphIndex(scalar, baseGlyph)) || baseGlyph == 0u)
+            return false;
+        if (baseGlyph >= mathData->constructions.size() || mathData->constructions[baseGlyph] == 0u)
+            return false;
+        const MathFontTable table(mathData->table);
+        const auto minimum = static_cast<std::uint32_t>(std::ceil(required));
+        const auto choice = minimum <= 65535u ? table.VerticalVariantAt(mathData->constructions[baseGlyph], static_cast<std::uint16_t>(minimum)) : std::nullopt;
+        if (! choice)
+            return AddVerticalAssembly(table, mathData->constructions[baseGlyph], minimum, x, top, bottom, width, size);
+        const auto glyph = choice.value().glyph;
+        if (glyph >= mathData->face->GetGlyphCount())
+            return false;
+        DWRITE_GLYPH_METRICS metrics{};
+        if (! OptionalFontOperation(GlyphMetrics(glyph, metrics)))
+            return false;
+        const float units = size / static_cast<float>(mathData->designUnits);
+        const float inkWidth =
+            (static_cast<float>(metrics.advanceWidth) - static_cast<float>(metrics.leftSideBearing) - static_cast<float>(metrics.rightSideBearing)) * units;
+        const float inkAbove = (static_cast<float>(metrics.verticalOriginY) - static_cast<float>(metrics.topSideBearing)) * units;
+        const float inkBelow =
+            (static_cast<float>(metrics.advanceHeight) - static_cast<float>(metrics.verticalOriginY) - static_cast<float>(metrics.bottomSideBearing)) * units;
+        const float height = inkAbove + inkBelow;
+        if (! std::isfinite(inkWidth + height + inkAbove) || inkWidth <= 0.f || height < bottom - top || height > 65536.f)
+            return false;
+        const float scaleX   = (std::min)(1.f, width / inkWidth);
+        const float left     = x + (width - inkWidth * scaleX) / 2.f;
+        const float baseline = (top + bottom - height) / 2.f + inkAbove;
+        const float originX  = left - static_cast<float>(metrics.leftSideBearing) * units * scaleX;
+        variants.push_back({glyph, originX, baseline, size, scaleX, left, baseline - inkAbove, inkWidth * scaleX, height});
+        if (colored)
+            paintOperations.push_back({PaintKind::Variant, variants.size() - 1u, activeBackground, activeColor, {}});
+        return true;
+    }
+    bool AddHorizontalAccent(wchar_t shape, float x, float top, float bottom, float width, float size)
+    {
+        if (! mathData || width <= 0.f || size <= 0.f || bottom <= top)
+            return false;
+        const auto required = width * static_cast<float>(mathData->designUnits) / size;
+        if (! std::isfinite(required) || required <= 0.f || required > static_cast<float>((std::numeric_limits<std::uint32_t>::max)() / 2u))
+            return false;
+        const std::uint32_t scalar = static_cast<std::uint16_t>(shape);
+        UINT16 baseGlyph{};
+        if (! OptionalFontOperation(GlyphIndex(scalar, baseGlyph)) || baseGlyph == 0u || baseGlyph >= mathData->horizontalConstructions.size())
+            return false;
+        const auto construction = mathData->horizontalConstructions[baseGlyph];
+        if (! construction)
+            return false;
+        const MathFontTable table(mathData->table);
+        const auto minimum = static_cast<std::uint32_t>(std::ceil(required));
+        const auto choice  = minimum <= 65535u ? table.HorizontalVariantAt(construction, static_cast<std::uint16_t>(minimum)) : std::nullopt;
+        const auto plan    = choice ? std::optional<MathFontTable::AssemblyPlan>{} : table.HorizontalAssemblyAt(construction, minimum);
+        const auto count   = choice ? 1u : plan ? plan->count : 0u;
+        constexpr std::size_t MaximumAssemblyPartsPerFormula = 512u;
+        if (! count || variants.size() >= MaximumAssemblyPartsPerFormula || count > MaximumAssemblyPartsPerFormula - variants.size())
+            return false;
+        const auto totalAdvance = choice ? static_cast<std::uint32_t>(choice->advance) : plan->advance;
+        const float units       = size / static_cast<float>(mathData->designUnits);
+        const float span        = static_cast<float>(totalAdvance) * units;
+        if (! std::isfinite(span) || span <= 0.f)
+            return false;
+        const float scaleX = (std::min)(1.f, width / span);
+        const float start  = x + (width - span * scaleX) / 2.f;
+        std::array<DWRITE_GLYPH_METRICS, 64u> metrics{};
+        float inkTop = (std::numeric_limits<float>::max)(), inkBottom = -(std::numeric_limits<float>::max)();
+        for (std::size_t index = 0u; index < count; ++index)
+        {
+            const auto glyph = choice ? choice->glyph : plan->placements[index].part.glyph;
+            if (glyph >= mathData->face->GetGlyphCount())
+                return false;
+            std::size_t previous{};
+            while (previous < index && plan->placements[previous].part.glyph != glyph)
+                ++previous;
+            if (previous < index)
+                metrics[index] = metrics[previous];
+            else if (! OptionalFontOperation(GlyphMetrics(glyph, metrics[index])))
+                return false;
+            if (! choice &&
+                std::abs(static_cast<std::int64_t>(metrics[index].advanceWidth) - static_cast<std::int64_t>(plan->placements[index].part.advance)) > 2)
+                return false;
+            inkTop    = std::min(inkTop, (static_cast<float>(metrics[index].topSideBearing) - static_cast<float>(metrics[index].verticalOriginY)) * units);
+            inkBottom = std::max(inkBottom,
+                                 (static_cast<float>(metrics[index].advanceHeight) - static_cast<float>(metrics[index].verticalOriginY) -
+                                  static_cast<float>(metrics[index].bottomSideBearing)) *
+                                     units);
+        }
+        const auto height = inkBottom - inkTop;
+        if (! std::isfinite(height) || height < 0.f || height > bottom - top)
+            return false;
+        const auto baseline = (top + bottom - height) / 2.f - inkTop;
+        std::array<VariantGlyph, 64u> staged{};
+        for (std::size_t index = 0u; index < count; ++index)
+        {
+            const auto glyph   = choice ? choice->glyph : plan->placements[index].part.glyph;
+            const auto offset  = choice ? 0u : plan->placements[index].offset;
+            const auto origin  = start + static_cast<float>(offset) * units * scaleX;
+            const auto& metric = metrics[index];
+            const auto left    = origin + static_cast<float>(metric.leftSideBearing) * units * scaleX;
+            const auto partWidth =
+                (static_cast<float>(metric.advanceWidth) - static_cast<float>(metric.leftSideBearing) - static_cast<float>(metric.rightSideBearing)) * units *
+                scaleX;
+            const auto partTop = baseline + (static_cast<float>(metric.topSideBearing) - static_cast<float>(metric.verticalOriginY)) * units;
+            const auto partHeight =
+                (static_cast<float>(metric.advanceHeight) - static_cast<float>(metric.topSideBearing) - static_cast<float>(metric.bottomSideBearing)) * units;
+            if (! std::isfinite(origin + left + partWidth + partTop + partHeight) || partWidth < 0.f || partHeight < 0.f || left < x - .01f ||
+                left + partWidth > x + width + .01f)
+                return false;
+            staged[index] = {glyph, origin, baseline, size, scaleX, left, partTop, partWidth, partHeight};
+        }
+        const auto first = variants.size();
+        variants.insert(variants.end(), staged.begin(), staged.begin() + static_cast<std::ptrdiff_t>(count));
+        if (colored)
+            for (auto index = first; index < variants.size(); ++index)
+                paintOperations.push_back({PaintKind::Variant, index, activeBackground, activeColor, {}});
+        return true;
+    }
+    void Fence(wchar_t shape, float x, float top, float bottom, float width, float thickness, float size)
     {
         if (shape == L'.')
             return;
-        const bool right  = shape == L')' || shape == L']' || shape == L'}' || shape == L'⟩' || shape == L'⌋' || shape == L'⌉';
+        if (AddVerticalVariant(shape, x, top, bottom, width, size))
+            return;
+        const bool right  = shape == L')' || shape == L']' || shape == L'}' || shape == L'⟩' || shape == L'⌋' || shape == L'⌉' || shape == L'>';
         const auto outer  = right ? x + width : x;
         const auto inner  = right ? x : x + width;
         const auto middle = (top + bottom) / 2.f;
-        if (shape == L'(' || shape == L')')
+        if (shape == L'↑' || shape == L'↓' || shape == L'↕' || shape == L'⇑' || shape == L'⇓' || shape == L'⇕')
+        {
+            const bool doubled = shape == L'⇑' || shape == L'⇓' || shape == L'⇕';
+            const bool up      = shape == L'↑' || shape == L'↕' || shape == L'⇑' || shape == L'⇕';
+            const bool down    = shape == L'↓' || shape == L'↕' || shape == L'⇓' || shape == L'⇕';
+            const float center = x + width * .5f;
+            const float head   = std::min((bottom - top) * .25f, width * .7f);
+            if (doubled)
+            {
+                Stroke(x + width / 3.f, top + (up ? head * .35f : 0.f), x + width / 3.f, bottom - (down ? head * .35f : 0.f), thickness);
+                Stroke(x + 2.f * width / 3.f, top + (up ? head * .35f : 0.f), x + 2.f * width / 3.f, bottom - (down ? head * .35f : 0.f), thickness);
+            }
+            else
+                Stroke(center, top, center, bottom, thickness);
+            if (up)
+            {
+                Stroke(x, top + head, center, top, thickness);
+                Stroke(center, top, x + width, top + head, thickness);
+            }
+            if (down)
+            {
+                Stroke(x, bottom - head, center, bottom, thickness);
+                Stroke(center, bottom, x + width, bottom - head, thickness);
+            }
+        }
+        else if (shape == L'(' || shape == L')')
         {
             Stroke(inner, top, outer, top + (bottom - top) * .2f, thickness);
             Stroke(outer, top + (bottom - top) * .2f, outer, bottom - (bottom - top) * .2f, thickness);
@@ -735,11 +1884,13 @@ class PreparedMath final
             Stroke(outer, middle, outer, bottom - (bottom - top) * .15f, thickness);
             Stroke(outer, bottom - (bottom - top) * .15f, inner, bottom, thickness);
         }
-        else if (shape == L'⟨' || shape == L'⟩')
+        else if (shape == L'⟨' || shape == L'⟩' || shape == L'<' || shape == L'>')
         {
             Stroke(inner, top, outer, middle, thickness);
             Stroke(outer, middle, inner, bottom, thickness);
         }
+        else if (shape == L'/' || shape == L'\\')
+            Stroke(shape == L'/' ? x + width : x, top, shape == L'/' ? x : x + width, bottom, thickness);
         else if (shape == L'⌊' || shape == L'⌋' || shape == L'⌈' || shape == L'⌉')
         {
             Stroke(outer, top, outer, bottom, thickness);
@@ -760,10 +1911,551 @@ class PreparedMath final
             }
         }
     }
-    void Place(std::size_t index, float x, float baseline)
+    void PlaceUnaryAccent(std::size_t index, float x, float baseline)
+    {
+        const auto& box    = boxes[index];
+        const auto& node   = *box.node;
+        const float stroke = std::max(.5f, box.size / 20.f);
+        if (ColorBox(node.text))
+        {
+            const float pad       = std::max(1.f, box.size * .12f);
+            const bool framed     = node.text.starts_with(L"fcolorbox:");
+            const auto background = ParseNativeColor(std::wstring_view(node.text).substr(framed ? 17u : 9u, 6u)).value();
+            const auto fillIndex  = backgroundCount++;
+            paintOperations.push_back({PaintKind::Background,
+                                       fillIndex,
+                                       activeBackground,
+                                       background,
+                                       D2D1::RectF(x, baseline - box.extent.above, x + box.extent.width, baseline + box.extent.below),
+                                       activeColor});
+            const auto previousBackground = activeBackground;
+            activeBackground              = fillIndex;
+            Place(ChildAt(index, 0u), x + pad, baseline);
+            if (framed)
+            {
+                activeColor      = ParseNativeColor(std::wstring_view(node.text).substr(10u, 6u)).value();
+                const float left = x + stroke * .5f, right = x + box.extent.width - stroke * .5f;
+                const float top = baseline - box.extent.above + stroke * .5f, bottom = baseline + box.extent.below - stroke * .5f;
+                Stroke(left, top, right, top, stroke);
+                Stroke(right, top, right, bottom, stroke);
+                Stroke(right, bottom, left, bottom, stroke);
+                Stroke(left, bottom, left, top, stroke);
+            }
+            activeBackground = previousBackground;
+            return;
+        }
+        if (node.text == L"phase" || node.text == L"angl")
+        {
+            const float pad  = std::max(1.f, box.size * .12f);
+            const float left = x + stroke * .5f, right = x + box.extent.width - stroke * .5f;
+            const float top = baseline - box.extent.above + stroke * .5f, bottom = baseline + box.extent.below - stroke * .5f;
+            if (node.text == L"phase")
+            {
+                const float corner = x + (box.extent.above + box.extent.below) * .5f;
+                Place(ChildAt(index, 0u), corner + pad, baseline);
+                Stroke(left, bottom, corner, top, stroke);
+                Stroke(left, bottom, right, bottom, stroke);
+            }
+            else
+            {
+                Place(ChildAt(index, 0u), x, baseline);
+                Stroke(left, top, right, top, stroke);
+                Stroke(right, top, right, bottom, stroke);
+            }
+            return;
+        }
+        if (node.text == L"boxed" || node.text == L"cancel" || node.text == L"bcancel" || node.text == L"xcancel" || node.text == L"sout")
+        {
+            const float pad  = std::max(1.f, box.size * .12f);
+            const float left = x + stroke * .5f, right = x + box.extent.width - stroke * .5f;
+            const float top = baseline - box.extent.above + stroke * .5f, bottom = baseline + box.extent.below - stroke * .5f;
+            Place(ChildAt(index, 0u), x + pad, baseline);
+            if (node.text == L"boxed")
+            {
+                Stroke(left, top, right, top, stroke);
+                Stroke(right, top, right, bottom, stroke);
+                Stroke(right, bottom, left, bottom, stroke);
+                Stroke(left, bottom, left, top, stroke);
+            }
+            else if (node.text == L"sout")
+            {
+                const float xHeight = mathData ? mathData->xHeightEm : .45f;
+                const float y       = std::clamp(baseline - box.size * xHeight * .5f, top, bottom);
+                Stroke(left, y, right, y, stroke);
+            }
+            else
+            {
+                if (node.text != L"bcancel")
+                    Stroke(left, bottom, right, top, stroke);
+                if (node.text != L"cancel")
+                    Stroke(left, top, right, bottom, stroke);
+            }
+            return;
+        }
+        const bool below  = node.text == L"underline" || node.text == L"underbar" || node.text == L"utilde" || node.text == L"underbrace" ||
+                            node.text == L"undergroup" || (ArrowAccent(node.text) && node.text.starts_with(L"under"));
+        const bool skewed = node.text == L"bar" || node.text == L"hat" || node.text == L"widehat" || node.text == L"check" || node.text == L"widecheck" ||
+                            node.text == L"breve" || node.text == L"acute" || node.text == L"grave" || node.text == L"mathring" || node.text == L"dot" ||
+                            node.text == L"ddot" || node.text == L"tilde" || node.text == L"widetilde" || node.text == L"vec";
+        if (skewed)
+        {
+            const auto child   = ChildAt(index, 0u);
+            std::size_t single = (std::numeric_limits<std::size_t>::max)();
+            for (auto i = child; i < boxes[child].endChild; ++i)
+                if (boxes[i].glyph != (std::numeric_limits<std::size_t>::max)())
+                {
+                    if (single != (std::numeric_limits<std::size_t>::max)())
+                    {
+                        single = (std::numeric_limits<std::size_t>::max)();
+                        break;
+                    }
+                    single = boxes[i].glyph;
+                }
+            if (single != (std::numeric_limits<std::size_t>::max)() && glyphs[single].italic)
+            {
+                const auto& glyph = glyphs[single];
+                x = glyph.origin.x + glyph.extent.width * .5f - box.extent.width * .5f + std::clamp(glyph.italicCorrection * .5f, 0.f, box.size * .25f);
+            }
+        }
+        const float y    = below ? baseline + box.extent.below - (node.text == L"underline" ? 2.f : box.size * .1f)
+                                 : baseline - box.extent.above + (node.text == L"mathring" ? box.size * .14f + stroke * .5f : box.size * .1f);
+        const auto shape = node.text == L"widehat" ? L'\u0302' : node.text == L"widetilde" ? L'\u0303' : node.text == L"vec" ? L'\u20d7' : L'\0';
+        if (shape && AddHorizontalAccent(shape, x, baseline - box.extent.above, baseline - box.extent.above + box.size * .3f, box.extent.width, box.size))
+            return;
+        if (ArrowAccent(node.text))
+        {
+            const float left = x + stroke * .5f, right = std::max(left, x + box.extent.width - stroke * .5f);
+            const float head      = std::min(box.size * .08f, (right - left) * .25f);
+            const bool leftArrow  = node.text.find(L"leftarrow") != std::wstring::npos || node.text.find(L"leftrightarrow") != std::wstring::npos ||
+                                    node.text == L"overleftharpoon";
+            const bool rightArrow = node.text.find(L"rightarrow") != std::wstring::npos || node.text == L"Overrightarrow" || node.text == L"overrightharpoon";
+            Stroke(left, y, right, y, stroke);
+            if (leftArrow)
+            {
+                Stroke(left + head, y - head, left, y, stroke);
+                if (node.text != L"overleftharpoon")
+                    Stroke(left, y, left + head, y + head, stroke);
+            }
+            if (rightArrow)
+            {
+                Stroke(right - head, y - head, right, y, stroke);
+                if (node.text != L"overrightharpoon")
+                    Stroke(right, y, right - head, y + head, stroke);
+            }
+            if (node.text == L"Overrightarrow")
+                Stroke(left, y + head, right, y + head, stroke);
+            if (node.text.ends_with(L"linesegment"))
+            {
+                Stroke(left, y - head, left, y + head, stroke);
+                Stroke(right, y - head, right, y + head, stroke);
+            }
+        }
+        else if (node.text == L"overbrace" || node.text == L"underbrace" || node.text == L"overgroup" || node.text == L"undergroup")
+        {
+            const bool group      = node.text == L"overgroup" || node.text == L"undergroup";
+            const float direction = below ? -1.f : 1.f;
+            const float height    = box.size * .15f * direction;
+            const float width     = box.extent.width;
+            if (group)
+            {
+                Stroke(x, y + height, x + width * .12f, y + height * .45f, stroke);
+                Stroke(x + width * .12f, y + height * .45f, x + width * .3f, y + height * .1f, stroke);
+                Stroke(x + width * .3f, y + height * .1f, x + width * .5f, y, stroke);
+                Stroke(x + width * .5f, y, x + width * .7f, y + height * .1f, stroke);
+                Stroke(x + width * .7f, y + height * .1f, x + width * .88f, y + height * .45f, stroke);
+                Stroke(x + width * .88f, y + height * .45f, x + width, y + height, stroke);
+            }
+            else
+            {
+                Stroke(x, y + height, x + width * .12f, y + height * .25f, stroke);
+                Stroke(x + width * .12f, y + height * .25f, x + width * .38f, y + height * .25f, stroke);
+                Stroke(x + width * .38f, y + height * .25f, x + width * .5f, y, stroke);
+                Stroke(x + width * .5f, y, x + width * .62f, y + height * .25f, stroke);
+                Stroke(x + width * .62f, y + height * .25f, x + width * .88f, y + height * .25f, stroke);
+                Stroke(x + width * .88f, y + height * .25f, x + width, y + height, stroke);
+            }
+        }
+        else if (node.text == L"hat" || node.text == L"widehat")
+        {
+            Stroke(x, y + box.size * .15f, x + box.extent.width / 2.f, y, stroke);
+            Stroke(x + box.extent.width / 2.f, y, x + box.extent.width, y + box.size * .15f, stroke);
+        }
+        else if (node.text == L"check" || node.text == L"widecheck")
+        {
+            Stroke(x, y, x + box.extent.width / 2.f, y + box.size * .15f, stroke);
+            Stroke(x + box.extent.width / 2.f, y + box.size * .15f, x + box.extent.width, y, stroke);
+        }
+        else if (node.text == L"acute" || node.text == L"grave")
+        {
+            const float center = x + box.extent.width / 2.f;
+            const float half   = std::min(box.extent.width * .35f, box.size * .1f);
+            Stroke(
+                center - half, y + (node.text == L"acute" ? box.size * .12f : 0.f), center + half, y + (node.text == L"grave" ? box.size * .12f : 0.f), stroke);
+        }
+        else if (node.text == L"breve" || node.text == L"mathring")
+        {
+            const float left = x + box.extent.width * .25f, right = x + box.extent.width * .75f;
+            const float width = right - left, height = box.size * .14f;
+            Stroke(left, y, left + width * .2f, y + height * .7f, stroke);
+            Stroke(left + width * .2f, y + height * .7f, left + width * .5f, y + height, stroke);
+            Stroke(left + width * .5f, y + height, left + width * .8f, y + height * .7f, stroke);
+            Stroke(left + width * .8f, y + height * .7f, right, y, stroke);
+            if (node.text == L"mathring")
+            {
+                Stroke(right, y, left + width * .8f, y - height * .7f, stroke);
+                Stroke(left + width * .8f, y - height * .7f, left + width * .5f, y - height, stroke);
+                Stroke(left + width * .5f, y - height, left + width * .2f, y - height * .7f, stroke);
+                Stroke(left + width * .2f, y - height * .7f, left, y, stroke);
+            }
+        }
+        else if (node.text == L"tilde" || node.text == L"widetilde" || node.text == L"utilde")
+        {
+            constexpr unsigned segments = 6u;
+            const float amplitude       = box.size * .055f;
+            auto previousX              = x;
+            auto previousY              = y + amplitude;
+            for (unsigned segment = 1u; segment <= segments; ++segment)
+            {
+                const float nextX = x + box.extent.width * static_cast<float>(segment) / static_cast<float>(segments);
+                const float nextY = y + ((segment & 1u) ? -amplitude : amplitude);
+                Stroke(previousX, previousY, nextX, nextY, stroke);
+                previousX = nextX;
+                previousY = nextY;
+            }
+        }
+        else if (node.text == L"dot" || node.text == L"ddot")
+        {
+            const float radius = std::max(stroke * .5f, box.size * .035f);
+            const float center = x + box.extent.width / 2.f;
+            if (node.text == L"ddot")
+            {
+                Dot(center - box.size * .14f, y, radius);
+                Dot(center + box.size * .14f, y, radius);
+            }
+            else
+                Dot(center, y, radius);
+        }
+        else
+        {
+            Stroke(x, y, x + box.extent.width, y, stroke);
+            if (node.text == L"vec")
+            {
+                Stroke(x + box.extent.width - 4.f, y - 3.f, x + box.extent.width, y, stroke);
+                Stroke(x + box.extent.width - 4.f, y + 3.f, x + box.extent.width, y, stroke);
+            }
+        }
+        return;
+    }
+    static bool MatrixHasFences(std::wstring_view name) noexcept
+    {
+        return name != L"matrix" && name != L"smallmatrix" && name != L"subarray" && name != L"aligned" && name != L"gathered" && name != L"alignat" &&
+               ! name.starts_with(L"array:");
+    }
+    static float MatrixCellOffset(std::wstring_view core, std::wstring_view name, unsigned col, float remaining) noexcept
+    {
+        const auto alignment = core.starts_with(L"array:") ? core[6u + col] : (name.size() != core.size() ? core.back() : L'c');
+        if (core == L"aligned" || core == L"alignat")
+            return col % 2u == 0u ? remaining : 0.f;
+        if (core == L"cases" || core == L"rcases" || core == L"dcases" || core == L"drcases" || alignment == L'l')
+            return 0.f;
+        return alignment == L'r' ? remaining : remaining * .5f;
+    }
+    void PlaceMatrixDecorations(std::size_t index, float x, float baseline, float y, const std::array<float, MathMaximumColumns>& widths)
+    {
+        const auto& box    = boxes[index];
+        const auto& node   = *box.node;
+        const float stroke = std::max(.5f, box.size / 20.f);
+        auto matrixCore    = MatrixCore(node.text);
+        if (matrixCore.starts_with(L"darray:"))
+            matrixCore.remove_prefix(1u);
+        const auto rows = static_cast<unsigned>(node.children.size() / node.columns);
+        const float top = baseline - box.extent.above, bottom = baseline + box.extent.below;
+        const auto horizontalStart = static_cast<std::size_t>(9u + 2u * node.columns);
+        const auto horizontal = matrixCore.starts_with(L"array:") && matrixCore.size() > horizontalStart ? std::wstring_view(matrixCore).substr(horizontalStart)
+                                                                                                         : std::wstring_view{};
+        if (! horizontal.empty() && horizontal[rows] != L'.')
+        {
+            if (horizontal[rows] == L'=')
+                DashedLine(x, y - box.size * .15f, x + box.extent.width, y - box.size * .15f, stroke);
+            else
+                Stroke(x, y - box.size * .15f, x + box.extent.width, y - box.size * .15f, stroke);
+        }
+        if (matrixCore.starts_with(L"array:") && matrixCore.size() > 6u + node.columns)
+        {
+            const auto rules = std::wstring_view(matrixCore).substr(7u + node.columns);
+            float boundary   = x;
+            for (unsigned col = 0u; col <= node.columns; ++col)
+            {
+                if (rules[col] == L'|' || rules[col] == L':')
+                {
+                    const float ruleX = std::clamp(boundary - (col > 0u && col < node.columns ? box.size * .325f : 0.f), x, x + box.extent.width);
+                    if (rules[col] == L':')
+                        DashedLine(ruleX, top, ruleX, bottom, stroke);
+                    else
+                        Stroke(ruleX, top, ruleX, bottom, stroke);
+                }
+                if (col < node.columns)
+                    boundary += widths[col] + (col + 1u < node.columns ? box.size * .65f : 0.f);
+            }
+        }
+        const auto matrixName = MatrixBase(matrixCore);
+        if (matrixName != L"matrix" && matrixName != L"smallmatrix" && matrixName != L"subarray" && matrixName != L"aligned" && matrixName != L"gathered" &&
+            matrixName != L"alignat" && ! matrixName.starts_with(L"array:"))
+        {
+            const auto left =
+                matrixName == L"pmatrix"                                                                                                               ? L'('
+                : matrixName == L"Bmatrix" || matrixCore == L"cases" || matrixCore == L"rcases" || matrixCore == L"dcases" || matrixCore == L"drcases" ? L'{'
+                : matrixName == L"vmatrix"                                                                                                             ? L'|'
+                : matrixName == L"Vmatrix"                                                                                                             ? L'‖'
+                                                                                                                                                       : L'[';
+            const auto right = left == L'(' ? L')' : left == L'{' ? L'}' : left == L'[' ? L']' : left;
+            if (matrixCore != L"rcases" && matrixCore != L"drcases")
+                Fence(left, x + 2.f, top, bottom, box.size * .2f, stroke, box.size);
+            if (matrixCore != L"cases" && matrixCore != L"dcases")
+                Fence(right, x + box.extent.width - box.size * .2f - 2.f, top, bottom, box.size * .2f, stroke, box.size);
+        }
+    }
+    void PlaceMatrix(std::size_t index, float x, float baseline)
+    {
+        const auto& box    = boxes[index];
+        const auto& node   = *box.node;
+        const float stroke = std::max(.5f, box.size / 20.f);
+        auto matrixCore    = MatrixCore(node.text);
+        if (matrixCore.starts_with(L"darray:"))
+            matrixCore.remove_prefix(1u);
+        std::array<float, MathMaximumColumns> widths{};
+        unsigned childColumn{};
+        for (auto child = box.firstChild; child < box.endChild; child = NextSibling(child))
+        {
+            widths[childColumn % node.columns] = std::max(widths[childColumn % node.columns], boxes[child].extent.width);
+            ++childColumn;
+        }
+        const auto rows            = static_cast<unsigned>(node.children.size() / node.columns);
+        const float top            = baseline - box.extent.above;
+        float y                    = top + box.size * .15f;
+        auto rowFirst              = box.firstChild;
+        const auto horizontalStart = static_cast<std::size_t>(9u + 2u * node.columns);
+        const auto horizontal = matrixCore.starts_with(L"array:") && matrixCore.size() > horizontalStart ? std::wstring_view(matrixCore).substr(horizontalStart)
+                                                                                                         : std::wstring_view{};
+        for (unsigned row = 0; row < rows; ++row)
+        {
+            if (! horizontal.empty() && horizontal[row] != L'.')
+            {
+                if (horizontal[row] == L'=')
+                    DashedLine(x, y - box.size * .15f, x + box.extent.width, y - box.size * .15f, stroke);
+                else
+                    Stroke(x, y - box.size * .15f, x + box.extent.width, y - box.size * .15f, stroke);
+            }
+            float above{}, below{};
+            auto cell = rowFirst;
+            for (unsigned col = 0; col < node.columns; ++col)
+            {
+                above = std::max(above, boxes[cell].extent.above);
+                below = std::max(below, boxes[cell].extent.below);
+                cell  = NextSibling(cell);
+            }
+            above                 = std::max(above, box.size * .8f);
+            const auto matrixName = MatrixBase(matrixCore);
+            const bool fenced     = MatrixHasFences(matrixName);
+            float cellX           = x + (fenced && matrixCore != L"rcases" && matrixCore != L"drcases" ? box.size * .4f : 0.f);
+            cell                  = rowFirst;
+            for (unsigned col = 0; col < node.columns; ++col)
+            {
+                const float remaining = widths[col] - boxes[cell].extent.width;
+                const float offset    = MatrixCellOffset(matrixCore, matrixName, col, remaining);
+                Place(cell, cellX + offset, y + above);
+                cellX += widths[col] + (matrixCore == L"alignat" ? 0.f : box.size * .65f);
+                cell = NextSibling(cell);
+            }
+            y += std::max(box.size, above + below) + box.size * .3f + MatrixGap(node.text, row, box.size);
+            rowFirst = cell;
+        }
+        PlaceMatrixDecorations(index, x, baseline, y, widths);
+        return;
+    }
+    void PlaceFraction(std::size_t index, float x, float baseline)
     {
         const auto& box  = boxes[index];
         const auto& node = *box.node;
+
+        auto top          = boxes[ChildAt(index, 0u)].extent;
+        const auto bottom = boxes[ChildAt(index, 1u)].extent;
+        if (node.text == L"cfrac")
+        {
+            top.above = std::max(top.above, box.size * .85f);
+            top.below = std::max(top.below, box.size * .35f);
+        }
+        const float axisAtSize = MathConstantAt(12u, box.size, axis);
+        const float scaledRule = FractionRule(node.text, box.size);
+        const float ruleY      = baseline - axisAtSize;
+        Place(ChildAt(index, 0u), x + (box.extent.width - top.width) / 2.f, baseline - box.upperShift);
+        Place(ChildAt(index, 1u), x + (box.extent.width - bottom.width) / 2.f, baseline + box.lowerShift);
+        if (scaledRule > 0.f)
+            Stroke(x + 2.f, ruleY, x + box.extent.width - 2.f, ruleY, scaledRule);
+        return;
+    }
+    void PlaceRoot(std::size_t index, float x, float baseline)
+    {
+        const auto& box    = boxes[index];
+        const float stroke = std::max(.5f, box.size / 20.f);
+
+        const auto indexBox = ChildAt(index, 1u);
+        const auto lead     = x + boxes[indexBox].extent.width;
+        Place(ChildAt(index, 0u), lead + box.size * .7f, baseline);
+        Place(indexBox, x, baseline - box.size * .5f);
+        const auto top = baseline - box.extent.above + 2.f;
+        Stroke(lead, baseline - box.size * .2f, lead + box.size * .18f, baseline - box.size * .3f, stroke);
+        Stroke(lead + box.size * .18f, baseline - box.size * .3f, lead + box.size * .35f, baseline + box.extent.below, stroke);
+        Stroke(lead + box.size * .35f, baseline + box.extent.below, lead + box.size * .62f, top, stroke);
+        Stroke(lead + box.size * .62f, top, x + box.extent.width, top, stroke);
+        return;
+    }
+    void PlaceScripts(std::size_t index, float x, float baseline)
+    {
+        const auto& box  = boxes[index];
+        const auto& node = *box.node;
+
+        const auto baseIndex = ChildAt(index, 0u), sub = ChildAt(index, 1u), super = ChildAt(index, 2u);
+        const auto base      = boxes[baseIndex].extent;
+        const auto& baseNode = node.children[0u];
+        const bool limitsAboveBelow =
+            (baseNode.limits == MathLimits::AboveBelow) || (baseNode.limits == MathLimits::Automatic && baseNode.displayLimits && box.display);
+        if (limitsAboveBelow)
+        {
+            const float center           = x + box.extent.width / 2.f;
+            const float baseX            = center - base.width / 2.f;
+            const float baseAboveShift   = base.above + MathConstantAt(64u, box.size, upperLimitGap);
+            const float baseBelowShift   = base.below + MathConstantAt(72u, box.size, lowerLimitGap);
+            const float italicCorrection = ItalicCorrection(baseIndex) * .75f;
+            Place(baseIndex, baseX, baseline);
+            if (boxes[super].extent.width > 0.f)
+                Place(super, center - boxes[super].extent.width / 2.f + italicCorrection / 2.f, baseline - baseAboveShift - boxes[super].extent.below);
+            if (boxes[sub].extent.width > 0.f)
+                Place(sub, center - boxes[sub].extent.width / 2.f - italicCorrection / 2.f, baseline + baseBelowShift + boxes[sub].extent.above);
+            return;
+        }
+        const auto baseX = x + box.scriptLeftPad;
+        Place(baseIndex, baseX, baseline);
+        Place(sub, baseX + ScriptBaseAdvance(baseIndex) + box.subKern, baseline + box.lowerShift);
+        Place(super, baseX + ScriptAnchor(baseIndex) + box.superKern, baseline - box.upperShift);
+        return;
+    }
+    void PlaceExtensibleArrow(std::size_t index, float x, float baseline)
+    {
+        const auto& box    = boxes[index];
+        const auto& node   = *box.node;
+        const float stroke = std::max(.5f, box.size / 20.f);
+
+        const auto upper = ChildAt(index, 0u), lower = ChildAt(index, 1u);
+        const auto center = x + box.extent.width * .5f;
+        const auto y      = baseline - MathConstantAt(12u, box.size, axis);
+        const auto gap    = box.size * ((node.text == L"xleftrightharpoons" || node.text == L"xrightleftharpoons" || node.text == L"xtofrom") ? .35f : .2f);
+        Place(upper, center - boxes[upper].extent.width * .5f, y - gap - boxes[upper].extent.below);
+        Place(lower, center - boxes[lower].extent.width * .5f, y + gap + boxes[lower].extent.above);
+        const float left = x + stroke, right = x + box.extent.width - stroke;
+        const float head    = std::min(box.size * .2f, box.extent.width * .2f);
+        const bool hookLeft = node.text == L"xhookleftarrow", hookRight = node.text == L"xhookrightarrow";
+        const bool leftUp = node.text == L"xleftharpoonup", leftDown = node.text == L"xleftharpoondown";
+        const bool rightUp = node.text == L"xrightharpoonup", rightDown = node.text == L"xrightharpoondown";
+        const bool leftRight = node.text == L"xleftrightharpoons", rightLeft = node.text == L"xrightleftharpoons";
+        const bool twoLeft = node.text == L"xtwoheadleftarrow", twoRight = node.text == L"xtwoheadrightarrow";
+        const bool toFrom = node.text == L"xtofrom";
+        if (hookLeft || hookRight || leftUp || leftDown || rightUp || rightDown || leftRight || rightLeft || twoLeft || twoRight || toFrom)
+        {
+            const auto leftHead  = [&](float shaft, bool upper) { Stroke(left + head, shaft + (upper ? -head : head), left, shaft, stroke); };
+            const auto rightHead = [&](float shaft, bool upper) { Stroke(right - head, shaft + (upper ? -head : head), right, shaft, stroke); };
+            if (leftRight || rightLeft || toFrom)
+            {
+                const float separation = std::max(stroke, box.size * .08f);
+                Stroke(left, y - separation, right, y - separation, stroke);
+                Stroke(left, y + separation, right, y + separation, stroke);
+                if (leftRight)
+                {
+                    leftHead(y - separation, true);
+                    rightHead(y + separation, false);
+                }
+                else
+                {
+                    rightHead(y - separation, true);
+                    leftHead(y + separation, false);
+                }
+                if (toFrom)
+                {
+                    rightHead(y - separation, false);
+                    leftHead(y + separation, true);
+                }
+            }
+            else
+            {
+                Stroke(left, y, right, y, stroke);
+                if (hookLeft || leftUp || leftDown || twoLeft)
+                    leftHead(y, ! leftDown);
+                if (hookRight || rightUp || rightDown || twoRight)
+                    rightHead(y, ! rightDown);
+                if (hookLeft)
+                {
+                    leftHead(y, false);
+                    Stroke(right, y, right, y - head, stroke);
+                }
+                if (hookRight)
+                {
+                    rightHead(y, false);
+                    Stroke(left, y, left, y - head, stroke);
+                }
+                if (twoLeft)
+                {
+                    leftHead(y, false);
+                    Stroke(left + 2.f * head, y - head, left + head, y, stroke);
+                    Stroke(left + head, y, left + 2.f * head, y + head, stroke);
+                }
+                if (twoRight)
+                {
+                    rightHead(y, false);
+                    Stroke(right - 2.f * head, y - head, right - head, y, stroke);
+                    Stroke(right - head, y, right - 2.f * head, y + head, stroke);
+                }
+            }
+            return;
+        }
+        const bool leftArrow  = node.text == L"xleftarrow" || node.text == L"xleftrightarrow" || node.text == L"xLeftarrow" || node.text == L"xLeftrightarrow";
+        const bool rightArrow = node.text != L"xleftarrow" && node.text != L"xLeftarrow" && node.text != L"xlongequal";
+        const bool doubled    = node.text == L"xRightarrow" || node.text == L"xLeftarrow" || node.text == L"xLeftrightarrow" || node.text == L"xlongequal";
+        if (doubled)
+        {
+            const float separation = std::max(stroke, box.size * .05f);
+            Stroke(left, y - separation, right, y - separation, stroke);
+            Stroke(left, y + separation, right, y + separation, stroke);
+        }
+        else
+            Stroke(left, y, right, y, stroke);
+        if (leftArrow)
+        {
+            Stroke(left + head, y - head, left, y, stroke);
+            Stroke(left, y, left + head, y + head, stroke);
+        }
+        if (rightArrow)
+        {
+            Stroke(right - head, y - head, right, y, stroke);
+            Stroke(right, y, right - head, y + head, stroke);
+        }
+        if (node.text == L"xmapsto")
+            Stroke(left, y - head, left, y + head, stroke);
+        return;
+    }
+    void Place(std::size_t index, float x, float baseline)
+    {
+#if DXUI_ENABLE_DIAGNOSTICS
+        if (testRichMathLowestStackAddress)
+        {
+            const char marker{};
+            testRichMathLowestStackAddress = std::min(testRichMathLowestStackAddress, reinterpret_cast<std::uintptr_t>(&marker));
+        }
+#endif
+        const auto& box          = boxes[index];
+        const auto& node         = *box.node;
+        const auto previousColor = activeColor;
+        activeColor              = box.color;
+        const auto restoreColor  = wil::scope_exit([&]() noexcept { activeColor = previousColor; });
         x += box.leftOffset;
         const float stroke = std::max(.5f, box.size / 20.f);
         using enum MathKind;
@@ -773,70 +2465,31 @@ class PreparedMath final
                 return;
             auto& glyph  = glyphs[box.glyph];
             glyph.origin = {x, baseline - glyph.extent.above};
+            if (colored)
+                paintOperations.push_back({PaintKind::Glyph, box.glyph, activeBackground, activeColor, {}});
             return;
         }
         if (node.kind == Space)
             return;
+        if (node.kind == Style && node.text == L"rowtag")
+        {
+            rowTags.value()[box.rowTag].baseline = baseline;
+            Place(ChildAt(index, 0u), x, baseline);
+            return;
+        }
         if (node.kind == Fraction && node.children.size() == 2u)
         {
-            const auto top = boxes[ChildAt(index, 0u)].extent, bottom = boxes[ChildAt(index, 1u)].extent;
-            const float scale      = box.size / font;
-            const float scaledRule = std::max(1.f, fractionRuleThickness * scale);
-            const float topGap     = (box.display ? fractionNumeratorDisplayGap : fractionNumeratorGap) * scale;
-            const float bottomGap  = (box.display ? fractionDenominatorDisplayGap : fractionDenominatorGap) * scale;
-            const float topShift =
-                std::max((box.display ? fractionNumeratorDisplayShift : fractionNumeratorShift) * scale, axis * scale + top.below + topGap + scaledRule * .5f);
-            const float bottomShift = std::max((box.display ? fractionDenominatorDisplayShift : fractionDenominatorShift) * scale,
-                                               bottom.above + bottomGap + scaledRule * .5f - axis * scale);
-            const float ruleY       = baseline - axis * scale;
-            Place(ChildAt(index, 0u), x + (box.extent.width - top.width) / 2.f, baseline - topShift);
-            Place(ChildAt(index, 1u), x + (box.extent.width - bottom.width) / 2.f, baseline + bottomShift);
-            Stroke(x + 2.f, ruleY, x + box.extent.width - 2.f, ruleY, scaledRule);
+            PlaceFraction(index, x, baseline);
             return;
         }
         if (node.kind == Root && node.children.size() == 2u)
         {
-            const auto indexBox = ChildAt(index, 1u);
-            const auto lead     = x + boxes[indexBox].extent.width;
-            Place(ChildAt(index, 0u), lead + box.size * .7f, baseline);
-            Place(indexBox, x, baseline - box.size * .5f);
-            const auto top = baseline - box.extent.above + 2.f;
-            Stroke(lead, baseline - box.size * .2f, lead + box.size * .18f, baseline - box.size * .3f, stroke);
-            Stroke(lead + box.size * .18f, baseline - box.size * .3f, lead + box.size * .35f, baseline + box.extent.below, stroke);
-            Stroke(lead + box.size * .35f, baseline + box.extent.below, lead + box.size * .62f, top, stroke);
-            Stroke(lead + box.size * .62f, top, x + box.extent.width, top, stroke);
+            PlaceRoot(index, x, baseline);
             return;
         }
         if (node.kind == Scripts && node.children.size() == 3u)
         {
-            const auto baseIndex = ChildAt(index, 0u), sub = ChildAt(index, 1u), super = ChildAt(index, 2u);
-            const auto base      = boxes[baseIndex].extent;
-            const auto& baseNode = node.children[0u];
-            const bool limitsAboveBelow =
-                (baseNode.limits == MathLimits::AboveBelow) || (baseNode.limits == MathLimits::Automatic && baseNode.displayLimits && box.display);
-            if (limitsAboveBelow && baseNode.atomClass == MathAtomClass::Operator)
-            {
-                const float center           = x + box.extent.width / 2.f;
-                const float baseX            = center - base.width / 2.f;
-                const float scale            = box.size / font;
-                const float baseAboveShift   = base.above + upperLimitGap * scale;
-                const float baseBelowShift   = base.below + lowerLimitGap * scale;
-                const float italicCorrection = ItalicCorrection(baseIndex) * .75f;
-                Place(baseIndex, baseX, baseline);
-                if (boxes[super].extent.width > 0.f)
-                    Place(super, center - boxes[super].extent.width / 2.f + italicCorrection / 2.f, baseline - baseAboveShift - boxes[super].extent.below);
-                if (boxes[sub].extent.width > 0.f)
-                    Place(sub, center - boxes[sub].extent.width / 2.f - italicCorrection / 2.f, baseline + baseBelowShift + boxes[sub].extent.above);
-                return;
-            }
-            const float scale      = box.size / font;
-            const float subShift   = std::max(subscriptShift * scale, base.below + box.size * .12f);
-            const float superShift = std::max(superscriptShift * scale, base.above - box.size * .08f);
-            const float gapNeed    = scriptGapMinimum * scale - (superShift + subShift - boxes[super].extent.below - boxes[sub].extent.above);
-            const float correction = std::max(0.f, gapNeed / 2.f);
-            Place(baseIndex, x, baseline);
-            Place(sub, x + ScriptBaseAdvance(baseIndex), baseline + subShift + correction);
-            Place(super, x + ScriptAnchor(baseIndex), baseline - superShift - correction);
+            PlaceScripts(index, x, baseline);
             return;
         }
         if (node.kind == Delimited && node.children.size() == 1u)
@@ -848,114 +2501,33 @@ class PreparedMath final
             const float top = baseline - box.extent.above, bottom = baseline + box.extent.below;
             Place(ChildAt(index, 0u), x + leftAdvance, baseline);
             if (leftVisible)
-                Fence(node.text[0u], x, top, bottom, width, stroke);
+                Fence(node.text[0u], x, top, bottom, width, stroke, box.size);
             if (rightVisible)
-                Fence(node.text[1u], x + box.extent.width - rightAdvance, top, bottom, width, stroke);
+                Fence(node.text[1u], x + box.extent.width - rightAdvance, top, bottom, width, stroke, box.size);
             return;
         }
         if (node.kind == Delimiter)
         {
             const auto width = box.extent.width;
-            Fence(node.text.empty() ? L'.' : node.text[0], x, baseline - box.extent.above, baseline + box.extent.below, width, stroke);
+            Fence(node.text.empty() ? L'.' : node.text[0], x, baseline - box.extent.above, baseline + box.extent.below, width, stroke, box.size);
+            return;
+        }
+        if (node.kind == Accent && ExtensibleArrow(node.text) && node.children.size() == 2u)
+        {
+            PlaceExtensibleArrow(index, x, baseline);
             return;
         }
         if (node.kind == Accent && node.children.size() == 1u)
         {
-            Place(ChildAt(index, 0u), x, baseline);
-            const float y = node.text == L"underline" ? baseline + box.extent.below - 2.f : baseline - box.extent.above + box.size * .1f;
-            if (node.text == L"hat" || node.text == L"widehat")
-            {
-                Stroke(x, y + box.size * .15f, x + box.extent.width / 2.f, y, stroke);
-                Stroke(x + box.extent.width / 2.f, y, x + box.extent.width, y + box.size * .15f, stroke);
-            }
-            else if (node.text == L"tilde" || node.text == L"widetilde")
-            {
-                constexpr unsigned segments = 6u;
-                const float amplitude       = box.size * .055f;
-                auto previousX              = x;
-                auto previousY              = y + amplitude;
-                for (unsigned segment = 1u; segment <= segments; ++segment)
-                {
-                    const float nextX = x + box.extent.width * static_cast<float>(segment) / static_cast<float>(segments);
-                    const float nextY = y + ((segment & 1u) ? -amplitude : amplitude);
-                    Stroke(previousX, previousY, nextX, nextY, stroke);
-                    previousX = nextX;
-                    previousY = nextY;
-                }
-            }
-            else if (node.text == L"dot" || node.text == L"ddot")
-            {
-                const float radius = std::max(stroke * .5f, box.size * .035f);
-                const float center = x + box.extent.width / 2.f;
-                if (node.text == L"ddot")
-                {
-                    Stroke(center - box.size * .14f - radius, y, center - box.size * .14f + radius, y, stroke);
-                    Stroke(center + box.size * .14f - radius, y, center + box.size * .14f + radius, y, stroke);
-                }
-                else
-                    Stroke(center - radius, y, center + radius, y, stroke);
-            }
-            else
-            {
-                Stroke(x, y, x + box.extent.width, y, stroke);
-                if (node.text == L"vec")
-                {
-                    Stroke(x + box.extent.width - 4.f, y - 3.f, x + box.extent.width, y, stroke);
-                    Stroke(x + box.extent.width - 4.f, y + 3.f, x + box.extent.width, y, stroke);
-                }
-            }
+            if (! ColorBox(node.text) && node.text != L"phase" && node.text != L"angl" && node.text != L"boxed" && node.text != L"cancel" &&
+                node.text != L"bcancel" && node.text != L"xcancel" && node.text != L"sout")
+                Place(ChildAt(index, 0u), x, baseline);
+            PlaceUnaryAccent(index, x, baseline);
             return;
         }
         if (node.kind == Matrix && node.columns > 0u)
         {
-            std::array<float, 16u> widths{};
-            unsigned childColumn{};
-            for (auto child = box.firstChild; child < box.endChild; child = NextSibling(child))
-            {
-                widths[childColumn % node.columns] = std::max(widths[childColumn % node.columns], boxes[child].extent.width);
-                ++childColumn;
-            }
-            const auto rows = static_cast<unsigned>(node.children.size() / node.columns);
-            const float top = baseline - box.extent.above, bottom = baseline + box.extent.below;
-            float y       = top + box.size * .15f;
-            auto rowFirst = box.firstChild;
-            for (unsigned row = 0; row < rows; ++row)
-            {
-                float above{}, below{};
-                auto cell = rowFirst;
-                for (unsigned col = 0; col < node.columns; ++col)
-                {
-                    above = std::max(above, boxes[cell].extent.above);
-                    below = std::max(below, boxes[cell].extent.below);
-                    cell  = NextSibling(cell);
-                }
-                above             = std::max(above, box.size * .8f);
-                const bool fenced = node.text != L"matrix" && node.text != L"smallmatrix" && node.text != L"aligned" && node.text != L"gathered";
-                float cellX       = x + (fenced ? box.size * .4f : 0.f);
-                cell              = rowFirst;
-                for (unsigned col = 0; col < node.columns; ++col)
-                {
-                    const float remaining = widths[col] - boxes[cell].extent.width;
-                    const float offset    = node.text == L"aligned" ? (col % 2u == 0u ? remaining : 0.f) : node.text == L"cases" ? 0.f : remaining / 2.f;
-                    Place(cell, cellX + offset, y + above);
-                    cellX += widths[col] + box.size * .65f;
-                    cell = NextSibling(cell);
-                }
-                y += std::max(box.size, above + below) + box.size * .3f;
-                rowFirst = cell;
-            }
-            if (node.text != L"matrix" && node.text != L"smallmatrix" && node.text != L"aligned" && node.text != L"gathered")
-            {
-                const auto left  = node.text == L"pmatrix"                            ? L'('
-                                   : node.text == L"Bmatrix" || node.text == L"cases" ? L'{'
-                                   : node.text == L"vmatrix"                          ? L'|'
-                                   : node.text == L"Vmatrix"                          ? L'‖'
-                                                                                      : L'[';
-                const auto right = left == L'(' ? L')' : left == L'{' ? L'}' : left == L'[' ? L']' : left;
-                Fence(left, x + 2.f, top, bottom, box.size * .2f, stroke);
-                if (node.text != L"cases")
-                    Fence(right, x + box.extent.width - box.size * .2f - 2.f, top, bottom, box.size * .2f, stroke);
-            }
+            PlaceMatrix(index, x, baseline);
             return;
         }
         if (node.kind == Row)
@@ -986,19 +2558,44 @@ class PreparedMath final
     void Finalize()
     {
         lines.clear();
+        paintOperations.clear();
+        activeColor      = NoColor;
+        activeBackground = std::numeric_limits<std::size_t>::max();
+        backgroundCount  = 0u;
         MeasureBoxes();
         extent = boxes.empty() ? Extent{} : boxes[0u].extent;
         if (extent.width > 65536.f || extent.above + extent.below > 65536.f || ! std::isfinite(extent.width + extent.above + extent.below))
             throw std::length_error("Mathematical geometry capacity exceeded");
         lines.reserve(boxes.size() * 6u);
+        variants.reserve(boxes.size() * 2u);
         Place(0u, 0.f, extent.above);
+        if (paintOperations.size() > 32768u)
+            throw std::length_error("Mathematical paint capacity exceeded");
+        backgroundHeads.assign(backgroundCount, std::numeric_limits<std::size_t>::max());
+        for (std::size_t index = paintOperations.size(); index-- > 0u;)
+        {
+            auto& operation = paintOperations[index];
+            if (operation.background < backgroundHeads.size())
+            {
+                operation.nextInBackground            = backgroundHeads[operation.background];
+                backgroundHeads[operation.background] = index;
+            }
+        }
         float left{}, right = extent.width, top{}, bottom = extent.above + extent.below;
         for (const auto& glyph : glyphs)
         {
             left   = std::min(left, glyph.origin.x - glyph.leftOverhang);
-            right  = std::max(right, glyph.origin.x + glyph.extent.width + glyph.rightOverhang);
+            right  = std::max(right, glyph.origin.x + glyph.extent.width + glyph.rightOverhang + (glyph.pseudoBold ? glyph.font * .02f : 0.f));
             top    = std::min(top, glyph.origin.y - glyph.topOverhang);
-            bottom = std::max(bottom, glyph.origin.y + glyph.extent.above + glyph.extent.below + glyph.bottomOverhang);
+            bottom = std::max(bottom,
+                              glyph.origin.y + glyph.extent.above + glyph.extent.below + glyph.bottomOverhang + (glyph.pseudoBold ? glyph.font * .01f : 0.f));
+        }
+        for (const auto& variant : variants)
+        {
+            left   = std::min(left, variant.left);
+            right  = std::max(right, variant.left + variant.width);
+            top    = std::min(top, variant.top);
+            bottom = std::max(bottom, variant.top + variant.height);
         }
         for (const auto& line : lines)
         {
@@ -1017,6 +2614,16 @@ class PreparedMath final
             glyph.origin.x += shiftX;
             glyph.origin.y += shiftY;
         }
+        if (rowTags)
+            for (auto& tag : rowTags.value())
+                tag.baseline += shiftY;
+        for (auto& variant : variants)
+        {
+            variant.x += shiftX;
+            variant.baseline += shiftY;
+            variant.left += shiftX;
+            variant.top += shiftY;
+        }
         for (auto& line : lines)
         {
             line.first.x += shiftX;
@@ -1024,29 +2631,72 @@ class PreparedMath final
             line.last.x += shiftX;
             line.last.y += shiftY;
         }
+        for (auto& operation : paintOperations)
+            if (operation.kind == PaintKind::Background)
+            {
+                operation.rectangle.left += shiftX;
+                operation.rectangle.right += shiftX;
+                operation.rectangle.top += shiftY;
+                operation.rectangle.bottom += shiftY;
+            }
         extent    = {width, above, below};
         finalized = true;
     }
 
 public:
-    PreparedMath(IDWriteFactory* write, std::shared_ptr<const MathExpression> value, float size, bool display = false)
+    PreparedMath(IDWriteFactory* write,
+                 std::shared_ptr<const MathExpression> value,
+                 float size,
+                 bool display                             = false,
+                 const PreparedMath* constants            = nullptr,
+                 float deviceDpi                          = 96.f,
+                 std::shared_ptr<MathTextFormats> formats = {},
+                 float unitScale                          = 1.f)
         : expression(std::move(value)),
           factory(write),
+          textFormats(std::move(formats)),
           glyphs(0u),
           boxes(0u),
           lines(0u),
+          variants(0u),
+          paintOperations(0u),
+          colors(0u),
+          backgroundHeads(0u),
           font(size),
+          dpi(deviceDpi),
+          absoluteUnitScale(unitScale),
           displayStyle(display)
     {
-        if (! expression || ! *expression || ! std::isfinite(size) || size <= 0.f || size > 4096.f || ! write)
+        if (! expression || ! *expression || ! std::isfinite(size) || size <= 0.f || size > 4096.f || ! std::isfinite(deviceDpi) || deviceDpi <= 0.f ||
+            deviceDpi > 4096.f || ! std::isfinite(unitScale) || unitScale <= 0.f || unitScale > 16.f || ! write)
             throw std::invalid_argument("Invalid mathematical preparation request");
-        const auto count = CountAndValidate(expression->root);
+#if DXUI_ENABLE_DIAGNOSTICS
+        ++testRichMathPreparations;
+#endif
+        const auto count = CountAndValidate(expression->root, displayStyle);
+        if (! textFormats)
+            textFormats = std::make_shared<MathTextFormats>(write);
+        if (textFormats->Factory() != write)
+            throw std::invalid_argument("Mathematical formats belong to another factory");
         boxes.reserve(count);
         glyphs.reserve(count);
         axis = font * .25f;
         InitializeFallbackConstants();
-        ReadMathConstants(write);
+        if (constants && constants->factory.get() == write && constants->textFormats->Family() == textFormats->Family())
+            CopyMathConstants(*constants);
+        else
+            ReadMathConstants(write);
         Flatten(expression->root, font, false, false, false, displayStyle, 0u);
+        // Only direct single-glyph script operands can use MATH corner data.
+        // Compound boxes use the OpenType zero-kern fallback.
+        for (std::size_t i = 0u; i < boxes.size(); ++i)
+            if (boxes[i].node->kind == MathKind::Scripts && boxes[i].node->children.size() == 3u)
+                for (std::size_t child = 0u; child < 3u; ++child)
+                {
+                    const auto index = ChildAt(i, child);
+                    if (boxes[index].glyph != std::numeric_limits<std::size_t>::max())
+                        glyphs[boxes[index].glyph].needsKern = true;
+                }
     }
     bool Advance()
     {
@@ -1054,19 +2704,11 @@ public:
             return true;
         if (cursor < glyphs.size())
         {
-            auto& leaf = glyphs[cursor];
-            wil::com_ptr<IDWriteTextFormat> format;
-            THROW_IF_FAILED(factory->CreateTextFormat(L"Cambria Math",
-                                                      nullptr,
-                                                      leaf.bold ? DWRITE_FONT_WEIGHT_BOLD : DWRITE_FONT_WEIGHT_NORMAL,
-                                                      leaf.italic ? DWRITE_FONT_STYLE_ITALIC : DWRITE_FONT_STYLE_NORMAL,
-                                                      DWRITE_FONT_STRETCH_NORMAL,
-                                                      leaf.font,
-                                                      L"en-US",
-                                                      format.put()));
+            auto& leaf   = glyphs[cursor];
+            auto* format = textFormats->Get(leaf.font, leaf.bold, leaf.italic, leaf.textFamily);
             wil::com_ptr<IDWriteTextLayout> layout;
             THROW_IF_FAILED(
-                factory->CreateTextLayout(leaf.node->text.data(), static_cast<UINT32>(leaf.node->text.size()), format.get(), 65536.f, 65536.f, layout.put()));
+                factory->CreateTextLayout(leaf.node->text.data(), static_cast<UINT32>(leaf.node->text.size()), format, 65536.f, 65536.f, layout.put()));
             DWRITE_TEXT_METRICS metrics{};
             THROW_IF_FAILED(layout->GetMetrics(&metrics));
             DWRITE_LINE_METRICS line{};
@@ -1097,10 +2739,36 @@ public:
             THROW_IF_FAILED(layout->SetMaxHeight(std::max(1.f, layoutHeight)));
             DWRITE_OVERHANG_METRICS overhang{};
             THROW_IF_FAILED(layout->GetOverhangMetrics(&overhang));
+            if (std::isfinite(overhang.top) && std::isfinite(overhang.bottom))
+            {
+                leaf.visualAbove  = std::max(0.f, line.baseline + overhang.top);
+                leaf.visualBelow  = std::max(0.f, layoutHeight + overhang.bottom - line.baseline);
+                leaf.hasVisualInk = std::isfinite(leaf.visualAbove + leaf.visualBelow) && leaf.visualAbove + leaf.visualBelow > 0.f;
+            }
             const float leftInk = std::isfinite(overhang.left) ? std::max(0.f, overhang.left) : 0.f;
             const float rightOverhang =
                 std::isfinite(overhang.right) ? std::max(0.f, layoutWidth + overhang.right - metrics.widthIncludingTrailingWhitespace) : 0.f;
-            const float italicCorrection = leaf.italic ? rightOverhang : 0.f;
+            const float italicCorrection = leaf.italic ? FontItalicCorrection(leaf.node->text, leaf.font).value_or(rightOverhang) : 0.f;
+            if (leaf.needsKern && mathData)
+            {
+                auto probe = Microsoft::WRL::Make<MathGlyphProbe>();
+                if (! probe)
+                    throw std::bad_alloc();
+                THROW_IF_FAILED(layout->Draw(nullptr, probe.Get(), 0.f, 0.f));
+                if (probe->runs == 1u && probe->glyph && SameMathFontFile(probe->face.get(), mathData->face.get()))
+                {
+                    DWRITE_GLYPH_METRICS ink{};
+                    if (OptionalFontOperation(probe->face->GetDesignGlyphMetrics(&probe->glyph, 1u, &ink, FALSE)))
+                    {
+                        const float scale = leaf.font / static_cast<float>(mathData->designUnits);
+                        leaf.mathGlyph    = probe->glyph;
+                        leaf.inkAbove     = static_cast<float>(static_cast<std::int32_t>(ink.verticalOriginY) - ink.topSideBearing) * scale;
+                        leaf.inkBelow     = static_cast<float>(static_cast<std::int32_t>(ink.advanceHeight) - static_cast<std::int32_t>(ink.verticalOriginY) -
+                                                               ink.bottomSideBearing) *
+                                            scale;
+                    }
+                }
+            }
             const Extent shapedExtent{metrics.widthIncludingTrailingWhitespace, line.baseline, metrics.height - line.baseline};
             leaf.layout                       = std::move(layout);
             leaf.extent                       = shapedExtent;
@@ -1127,23 +2795,187 @@ public:
     {
         return extent.above;
     }
+    std::span<const RowTagPlacement> RowTags() const noexcept
+    {
+        return rowTags ? std::span<const RowTagPlacement>(rowTags.value()) : std::span<const RowTagPlacement>{};
+    }
+    std::shared_ptr<PreparedMath> PrepareRowTag(std::size_t index) const
+    {
+        if (! rowTags || index >= rowTags->size())
+            throw std::out_of_range("Mathematical row tag index");
+        const std::wstring empty(0u, L' ');
+        const auto label = std::make_shared<const MathExpression>(*rowTags.value()[index].label, empty);
+        return std::make_shared<PreparedMath>(factory.get(), label, font, false, this, dpi, textFormats, absoluteUnitScale);
+    }
     const auto& GlyphLayouts() const noexcept
     {
         return glyphs;
+    }
+    const auto& VariantLayouts() const noexcept
+    {
+        return variants;
     }
     const auto& StrokeLayouts() const noexcept
     {
         return lines;
     }
-    void Draw(ID2D1RenderTarget* target, ID2D1Brush* brush, D2D1_POINT_2F origin, float scale) const noexcept
+    std::span<const std::uint32_t> Colors() const noexcept
+    {
+        return colors;
+    }
+    __declspec(noinline) void DrawColored(ID2D1RenderTarget* target,
+                                          ID2D1Brush* brush,
+                                          const NativeColorPalette* palette,
+                                          const MathColorContext* context) const noexcept
+    {
+        const auto drawVariant = [&](const VariantGlyph& variant, ID2D1Brush* selected)
+        {
+            D2D1_MATRIX_3X2_F current;
+            target->GetTransform(&current);
+            target->SetTransform(D2D1::Matrix3x2F::Scale(variant.scaleX, 1.f, D2D1::Point2F(variant.x, variant.baseline)) * current);
+            const DWRITE_GLYPH_RUN run{mathData->face.get(), variant.fontSize, 1u, &variant.glyph, nullptr, nullptr, FALSE, 0u};
+            target->DrawGlyphRun(D2D1::Point2F(variant.x, variant.baseline), &run, selected, DWRITE_MEASURING_MODE_NATURAL);
+            target->SetTransform(current);
+        };
+        struct Resolved
+        {
+            std::uint32_t background{NoColor}, foreground{NoColor};
+        };
+        std::array<Resolved, MathMaximumNodes> backgrounds{};
+        const bool enabled = context && context->fill.a >= 1.f && palette && palette->Ready() && palette->Matches(target);
+        const auto rgb     = [](std::uint32_t value) noexcept
+        {
+            return D2D1::ColorF(
+                static_cast<float>((value >> 16u) & 255u) / 255.f, static_cast<float>((value >> 8u) & 255u) / 255.f, static_cast<float>(value & 255u) / 255.f);
+        };
+        const auto contrast = [](D2D1_COLOR_F a, D2D1_COLOR_F b) noexcept
+        {
+            const auto luminosity = [](D2D1_COLOR_F value)
+            {
+                const auto channel = [](double unit) { return unit <= .04045 ? unit / 12.92 : std::pow((unit + .055) / 1.055, 2.4); };
+                return .2126 * channel(value.r) + .7152 * channel(value.g) + .0722 * channel(value.b);
+            };
+            const auto left = luminosity(a), right = luminosity(b);
+            return (std::max(left, right) + .05) / (std::min(left, right) + .05);
+        };
+        const auto backgroundColor = [&](const Resolved& value) { return value.background == NoColor ? context->fill : rgb(value.background); };
+        const auto foregroundColor = [&](const Resolved& value, D2D1_COLOR_F background)
+        {
+            auto text        = value.foreground == NoColor ? context->text : rgb(value.foreground);
+            const auto alpha = std::clamp(text.a, 0.f, 1.f);
+            return D2D1::ColorF(
+                text.r * alpha + background.r * (1.f - alpha), text.g * alpha + background.g * (1.f - alpha), text.b * alpha + background.b * (1.f - alpha));
+        };
+        for (const auto& operation : paintOperations)
+        {
+            Resolved state{};
+            if (enabled && operation.background < backgroundCount)
+                state = backgrounds[operation.background];
+            auto* selected = brush;
+            if (enabled)
+            {
+                const auto background = backgroundColor(state);
+                auto foreground       = state.foreground;
+                if (operation.kind == PaintKind::Background)
+                {
+                    Resolved candidateState = state;
+                    if (operation.foreground != NoColor)
+                        candidateState.foreground = operation.foreground;
+                    const auto candidate = rgb(operation.color);
+                    auto safeForeground  = [&](std::uint32_t foreground)
+                    {
+                        const Resolved value{operation.color, foreground};
+                        return contrast(foregroundColor(value, candidate), candidate) >= 4.5;
+                    };
+                    bool safe = safeForeground(candidateState.foreground);
+                    if (! safe && safeForeground(NoColor))
+                    {
+                        candidateState.foreground = NoColor;
+                        safe                      = true;
+                    }
+                    if (! safe)
+                        for (auto child = backgroundHeads[operation.index]; child < paintOperations.size(); child = paintOperations[child].nextInBackground)
+                        {
+                            const auto& item = paintOperations[child];
+                            if (item.kind != PaintKind::Background && item.color != NoColor && safeForeground(item.color))
+                            {
+                                candidateState.foreground = item.color;
+                                safe                      = true;
+                                break;
+                            }
+                        }
+                    if (safe)
+                    {
+                        state.foreground = candidateState.foreground;
+                        state.background = operation.color;
+                        if (auto* authored = palette->Brush(operation.color))
+                            target->FillRectangle(operation.rectangle, authored);
+                    }
+                    backgrounds[operation.index] = state;
+                    continue;
+                }
+                if (operation.color != NoColor && contrast(rgb(operation.color), background) >= 4.5)
+                    foreground = operation.color;
+                if (foreground != NoColor)
+                    if (auto* authored = palette->Brush(foreground))
+                        selected = authored;
+            }
+            switch (operation.kind)
+            {
+                case PaintKind::Glyph: DrawGlyph(target, glyphs[operation.index], selected); break;
+                case PaintKind::Line:
+                {
+                    const auto& line = lines[operation.index];
+                    if (line.dot)
+                        target->FillEllipse(D2D1::Ellipse(line.first, line.thickness * .5f, line.thickness * .5f), selected);
+                    else
+                        target->DrawLine(line.first, line.last, selected, line.thickness);
+                    break;
+                }
+                case PaintKind::Variant: drawVariant(variants[operation.index], selected); break;
+                case PaintKind::Background: break;
+            }
+        }
+    }
+    static void DrawGlyph(ID2D1RenderTarget* target, const Glyph& glyph, ID2D1Brush* brush) noexcept
+    {
+        target->DrawTextLayout(glyph.origin, glyph.layout.get(), brush);
+        if (glyph.pseudoBold)
+            target->DrawTextLayout(D2D1::Point2F(glyph.origin.x + glyph.font * .02f, glyph.origin.y + glyph.font * .01f), glyph.layout.get(), brush);
+    }
+    void Draw(ID2D1RenderTarget* target,
+              ID2D1Brush* brush,
+              D2D1_POINT_2F origin,
+              float scale,
+              const NativeColorPalette* palette = nullptr,
+              const MathColorContext* context   = nullptr) const noexcept
     {
         D2D1_MATRIX_3X2_F previous;
         target->GetTransform(&previous);
         target->SetTransform(D2D1::Matrix3x2F::Scale(scale, scale) * D2D1::Matrix3x2F::Translation(origin.x, origin.y) * previous);
-        for (const auto& glyph : glyphs)
-            target->DrawTextLayout(glyph.origin, glyph.layout.get(), brush);
-        for (const auto& line : lines)
-            target->DrawLine(line.first, line.last, brush, line.thickness);
+        const auto drawVariant = [&](const VariantGlyph& variant, ID2D1Brush* selected)
+        {
+            D2D1_MATRIX_3X2_F current;
+            target->GetTransform(&current);
+            target->SetTransform(D2D1::Matrix3x2F::Scale(variant.scaleX, 1.f, D2D1::Point2F(variant.x, variant.baseline)) * current);
+            const DWRITE_GLYPH_RUN run{mathData->face.get(), variant.fontSize, 1u, &variant.glyph, nullptr, nullptr, FALSE, 0u};
+            target->DrawGlyphRun(D2D1::Point2F(variant.x, variant.baseline), &run, selected, DWRITE_MEASURING_MODE_NATURAL);
+            target->SetTransform(current);
+        };
+        if (! colored)
+        {
+            for (const auto& glyph : glyphs)
+                DrawGlyph(target, glyph, brush);
+            for (const auto& line : lines)
+                if (line.dot)
+                    target->FillEllipse(D2D1::Ellipse(line.first, line.thickness * .5f, line.thickness * .5f), brush);
+                else
+                    target->DrawLine(line.first, line.last, brush, line.thickness);
+            for (const auto& variant : variants)
+                drawVariant(variant, brush);
+        }
+        else
+            DrawColored(target, brush, palette, context);
         target->SetTransform(previous);
     }
 };

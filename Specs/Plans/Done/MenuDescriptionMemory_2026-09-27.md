@@ -100,7 +100,7 @@ removed from the performance contract. On 2 October the one-layout-per-row chang
 - [x] Close out. When repeated paired runs are within the bands, remove the waiver. If the difference
   proves to be measurement variation, present that evidence for a developer decision; never change
   a threshold or baseline instead. Update the contract, the
-  [described-menu plan](../WIP/MenuDescriptions_2026-09-21.md) and `docs/performance.md`, then move this
+  [described-menu plan](MenuDescriptions_2026-09-21.md) and `docs/performance.md`, then move this
   plan to Done.
   Outcome: the hosted and local paired sets are within the bands, so on 30 September the waiver left the
   [performance contract](../../Core/Core_PerformanceAndResources.md), the described-menu plan and `docs/performance.md`,

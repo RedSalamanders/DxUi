@@ -6,7 +6,7 @@ Owning contracts: [controls](../../UI/UI_ControlsAndLayout.md), [theme and motio
 the design-system [ProgressBar](../../DesignSystem/components/ProgressBar/README.md) and
 [Grid](../../DesignSystem/components/Grid/README.md) guidelines and the [theming guide](../../DesignSystem/Theming.md).
 
-The 27 September gallery review in the [grid plan](../WIP/GridTextOverflow_2026-09-21.md) left two defects that
+The 27 September gallery review in the [grid plan](GridTextOverflow_2026-09-21.md) left two defects that
 predate that work. Both change gallery pixels, so they shared one regeneration and one design-system republish.
 
 ## Indeterminate progress under reduced motion

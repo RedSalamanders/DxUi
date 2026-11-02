@@ -1,0 +1,1 @@
+- Exclude table frame padding without visible text or caret lines from rich visible-range queries while preserving visible atomic-object source ownership.

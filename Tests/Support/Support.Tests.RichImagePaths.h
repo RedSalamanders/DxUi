@@ -1,4 +1,5 @@
 #pragma once
+#include "Controls/DxUi.RichFileReferenceContext.h"
 #include "Controls/DxUi.RichImagePaths.h"
 #include "Controls/TextClipboard.h"
 #include <DxUi/DxUi.h>
@@ -9,6 +10,11 @@ namespace RichImagePathTests
 template <typename Check> inline void Paths(Check&& check)
 {
     using namespace DxUi::RichText::Detail;
+    const auto data = ResolveDataImageSource(L"DATA:image/png;base64,AA%2fA");
+    check(data && *data == L"DATA:image/png;base64,AA%2fA", "data admission retains the exact opaque URI");
+    for (const auto* invalid : {L"data:image/png", L"data:,bad%2", L"data:,bad%xx", L"data:,a b", L"data:,a\\b"})
+        check(! ResolveDataImageSource(invalid), "malformed data destinations are refused before requesting consumer work");
+    check(! ResolveDataImageSource(std::wstring(DxUi::RichText::Document::MaximumUnits + 1u, L'x')), "oversized data destinations are refused");
     struct Case
     {
         const wchar_t* document;
@@ -79,6 +85,24 @@ template <typename Check> inline void Paths(Check&& check)
               ! SameLocalImagePath(L"C:\\Docs\\a.png", L"C:\\docs\\a.png"),
           "resource keys coalesce Windows roots while preserving case-sensitive file/directory spelling");
     check(NormalizeDocumentFilePath(L"C:/docs/../note.md") == L"C:\\note.md", "document metadata uses a lexical canonical absolute spelling");
+    const auto contextAt = [](std::wstring text, std::wstring_view needle)
+    {
+        DxUi::RichText::Document document(text);
+        DxUi::RichText::MarkdownParser parser;
+        parser.Begin(document.Snapshot(), document.Revision(), DxUi::RichText::MarkdownProfile::RichMarkdown);
+        while (parser.HasPendingPreparation())
+            parser.Advance(256u);
+        const auto at = text.rfind(needle) + needle.size();
+        return FileReferenceInsertionContext(document.Snapshot(), document.Revision(), parser.Published(), {at, at});
+    };
+    const auto cellEnd = contextAt(L"| a | b |\n| - | - |\n| c | d |\n", L"d");
+    check(cellEnd && cellEnd->table, "unique nonempty cell endpoint retains table context");
+    const auto lastColumn = contextAt(L"a | b\n- | -\nx | y\n", L"y");
+    check(lastColumn && lastColumn->table, "complete table row admits its final cell endpoint");
+    const auto uniqueBeforePadding = contextAt(L"a | b | c\n- | - | -\n| x\n", L"x");
+    check(uniqueBeforePadding && uniqueBeforePadding->table, "nonempty cell end before padded row boundary is unique");
+    const auto paddedEnd = contextAt(L"a | b | c\n- | - | -\n| x\n", L"\n");
+    check(! paddedEnd, "shared row-end ACP refuses table insertion without a geometry site");
     try
     {
         static_cast<void>(BuildMarkdownFileReference(L"", L"C:\\" + std::wstring(22000u, L'\u6771') + L".png"));
@@ -170,19 +194,81 @@ template <typename Prepare, typename Check> inline void RetainedFileReferences(D
     prepare();
     content.filePaths.push_back(L"relative.txt");
     check(editor.TryPrepareClipboardPaste(content, replacement) &&
-              replacement == L"\"C:\\docs\\media\\a.png\"\r\n\"C:\\docs\\files\\report.pdf\"\r\n\"D:\\other.txt\"\r\n\"relative.txt\"",
-          "an unrepresentable structured path preserves the entire original list as literal text");
-    replacement = L"sentinel";
+              replacement ==
+                  L"\"C\\:\\\\docs\\\\media\\\\a\\.png\"\r\n\"C\\:\\\\docs\\\\files\\\\report\\.pdf\"\r\n\"D\\:\\\\other\\.txt\"\r\n\"relative\\.txt\"",
+          "an unrepresentable structured path preserves the entire displayed list as escaped literal text");
+    std::wstring deepPath    = L"C:";
+    std::wstring deepLiteral = L"\"C\\:";
+    for (std::size_t i = 0u; i < 512u; ++i)
+    {
+        deepPath.append(L"\\a");
+        deepLiteral.append(L"\\\\a");
+    }
+    check(DxUi::RichText::Detail::BuildMarkdownFileReference(L"C:\\docs\\note.md", deepPath).has_value(), "512-component file reference remains representable");
+    deepPath.append(L"\\file.png");
+    deepLiteral.append(L"\\\\file\\.png\"");
+    check(! DxUi::RichText::Detail::BuildMarkdownFileReference(L"C:\\docs\\note.md", deepPath), "over-deep file reference is unrepresentable");
+    content.filePaths        = {L"C:\\docs\\a.png", deepPath};
+    replacement              = L"sentinel";
+    const auto deepRevision  = editor.Revision();
+    const auto deepSelection = editor.GetSelection();
+    check(editor.TryPrepareClipboardPaste(content, replacement) && replacement == L"\"C\\:\\\\docs\\\\a\\.png\"\r\n" + deepLiteral &&
+              editor.GetText() == L"ok" && editor.Revision() == deepRevision && editor.GetSelection() == deepSelection && ! editor.CanUndo(),
+          "an over-deep structured path preserves every path literally without changing source or history");
+    check(editor.ReplaceSelection(replacement) && editor.CanUndo() && editor.Undo() && editor.GetText() == L"ok",
+          "the literal deep-path list commits as one undoable edit");
+    editor.SetText(L"ok");
+    editor.SetSelection({2u, 2u});
+    prepare();
+    content.filePaths = {deepPath + L"\"bad"};
+    replacement       = L"sentinel";
+    check(! editor.TryPrepareClipboardPaste(content, replacement) && replacement == L"sentinel" && editor.GetText() == L"ok" && ! editor.CanUndo(),
+          "invalid over-deep paths still decline atomically");
+    content.filePaths = {L"\\\\?\\C:\\docs\\a.png"};
+    check(editor.TryPrepareClipboardPaste(content, replacement) && replacement == L"![a](a.png)",
+          "structured paste preserves supported extended-length Windows paths");
+    content.filePaths = {L"C:\\docs\\a.png", L"relative.txt"};
+    replacement       = L"sentinel";
     content.filePaths.back().assign(1u, wchar_t(0xd800));
-    try
+    check(! editor.TryPrepareClipboardPaste(content, replacement) && replacement == L"sentinel" && editor.GetText() == L"ok" && ! editor.CanUndo(),
+          "malformed list declines before partial output or history");
+    content.filePaths = {L"relative*[x].txt"};
+    check(editor.TryPrepareClipboardPaste(content, replacement) && replacement == L"\"relative\\*\\[x\\]\\.txt\"",
+          "unrepresentable rich-mode paths remain inert literal source");
+    content.filePaths = {L"\\\\?\\C:\\docs\\a.png"};
+    check(editor.TryPrepareClipboardPaste(content, replacement) && replacement == L"![a](a.png)",
+          "valid extended-length paths remain admissible file references");
+    for (const auto* invalid : {L"C:\\docs\\a\"b.png", L"C:\\docs\\a\nb.png", L"C:\\docs\\a\rb.png"})
     {
-        static_cast<void>(editor.TryPrepareClipboardPaste(content, replacement));
-        check(false, "malformed file references must fail");
+        content.filePaths = {invalid};
+        replacement       = L"sentinel";
+        check(! editor.TryPrepareClipboardPaste(content, replacement) && replacement == L"sentinel", "quote and line-break paths decline atomically");
     }
-    catch (const std::invalid_argument&)
+    content.filePaths = {L"C:\\docs\\report.pdf"};
+    for (const auto invalid : {L"C:\\docs\\bad\"![image](x).png", L"C:\\docs\\line\n![image](x).png", L"C:\\docs\\line\rbreak.pdf"})
     {
-        check(replacement == L"sentinel" && editor.GetText() == L"ok" && ! editor.CanUndo(), "malformed list fails before partial output or history");
+        content.filePaths          = {L"C:\\docs\\a.png", invalid};
+        replacement                = L"sentinel";
+        const auto beforeRevision  = editor.Revision();
+        const auto beforeSelection = editor.GetSelection();
+        check(! editor.TryPrepareClipboardPaste(content, replacement) && replacement == L"sentinel" && editor.GetText() == L"ok" &&
+                  editor.Revision() == beforeRevision && editor.GetSelection() == beforeSelection && ! editor.CanUndo(),
+              "invalid file paths decline without publishing a prefix, selection or history");
     }
+    content.filePaths = {L"C:\\docs\\report.pdf"};
+    content.filePaths.assign(TextClipboardContent::MaximumFiles + 1u, L"C:\\docs\\a.png");
+    replacement = L"sentinel";
+    check(! editor.TryPrepareClipboardPaste(content, replacement) && replacement == L"sentinel" && editor.GetText() == L"ok" && ! editor.CanUndo(),
+          "over-count file paste declines atomically without throwing");
+    content.filePaths = {std::wstring(TextClipboardContent::MaximumFileUnits + 1u, L'x')};
+    check(! editor.TryPrepareClipboardPaste(content, replacement) && replacement == L"sentinel" && editor.GetText() == L"ok" && ! editor.CanUndo(),
+          "overlong file paste declines atomically without throwing");
+    auto countedPath = std::wstring(L"C:\\docs\\a");
+    countedPath.push_back(L'\0');
+    countedPath += L".png";
+    content.filePaths = {countedPath};
+    check(! editor.TryPrepareClipboardPaste(content, replacement) && replacement == L"sentinel" && editor.GetText() == L"ok" && ! editor.CanUndo(),
+          "counted NUL in a file path is refused without truncation or source mutation");
     content.filePaths = {L"C:\\docs\\report.pdf"};
     editor.SetViewMode(ViewMode::Source);
     check(editor.TryPrepareClipboardPaste(content, replacement) && replacement == L"\"C:\\docs\\report.pdf\"", "source mode keeps structured paths literal");
@@ -204,6 +290,54 @@ template <typename Prepare, typename Check> inline void RetainedFileReferences(D
     }
     editor.SetText(L"ok");
     editor.SetSelection({2u, 2u});
+    prepare();
+    content.filePaths = {L"C:\\docs\\a.png", L"C:\\docs\\b.pdf"};
+    struct ContainerCase
+    {
+        std::wstring_view source, needle, separator;
+        MarkdownBlockKind kind;
+    };
+    for (const auto& item : {ContainerCase{L"- item\n- next\n", L"item", L"\n  \n  ", MarkdownBlockKind::ListItem},
+                             ContainerCase{L"> item\n> next\n", L"item", L"\n> \n> ", MarkdownBlockKind::BlockQuote},
+                             ContainerCase{L"> - item\n> - next\n", L"item", L"\n>   \n>   ", MarkdownBlockKind::ListItem},
+                             ContainerCase{L"- - item\n", L"item", L"\n    \n    ", MarkdownBlockKind::ListItem},
+                             ContainerCase{L"> \n", L"> ", L"\n> \n> ", MarkdownBlockKind::BlockQuote},
+                             ContainerCase{L"- \n", L"- ", L"\n  \n  ", MarkdownBlockKind::ListItem},
+                             ContainerCase{L"ref[^n]\n\n[^n]: item\n", L"item", L"\n    \n    ", MarkdownBlockKind::FootnoteDefinition},
+                             ContainerCase{L"ref[^n]\n\n[^n]: - item\n", L"item", L"\n      \n      ", MarkdownBlockKind::ListItem},
+                             ContainerCase{L"ref[^n]\n\n[^n]: > item\n", L"item", L"\n    > \n    > ", MarkdownBlockKind::BlockQuote},
+                             ContainerCase{L"| a | b |\n| - | - |\n| c | d |\n", L"d", L" ", MarkdownBlockKind::Table}})
+    {
+        editor.SetText(std::wstring(item.source));
+        const auto at = item.source.find(item.needle) + item.needle.size();
+        editor.SetSelection({at, at});
+        prepare();
+        std::wstring staged(0u, L' ');
+        check(editor.TryPrepareClipboardPaste(content, staged) && staged == std::wstring(L"![a](a.png)") + std::wstring(item.separator) + L"[b\\.pdf](b.pdf)",
+              "multi-file staging preserves its enclosing Markdown container");
+        check(editor.ReplaceSelection(staged), "container references commit as one source transaction");
+        prepare();
+        const auto syntax = editor.GetMarkdownSyntax();
+        check(syntax && std::ranges::any_of(syntax->Nodes(), [&](const auto& node) { return node.block.kind == item.kind; }),
+              "multi-file insertion retains the enclosing list, quote or table");
+        check(editor.Undo() && editor.GetText() == item.source, "container reference undo restores exact source");
+    }
+    for (const auto& item : {ContainerCase{L"> ```\n> code\n> ```\n", L"code", L"\n> ", MarkdownBlockKind::FencedCode},
+                             ContainerCase{L"- ```\n  code\n  ```\n", L"code", L"\n  ", MarkdownBlockKind::FencedCode},
+                             ContainerCase{L"`inline code`", L"code", L" ", MarkdownBlockKind::Paragraph}})
+    {
+        editor.SetText(std::wstring(item.source));
+        const auto at = item.source.find(item.needle) + item.needle.size();
+        editor.SetSelection({at, at});
+        prepare();
+        std::wstring staged(0u, L' ');
+        check(editor.TryPrepareClipboardPaste(content, staged) &&
+                  staged == std::wstring(L"\"C:\\docs\\a.png\"") + std::wstring(item.separator) + L"\"C:\\docs\\b.pdf\"",
+              "multiple literal paths retain opaque container context and original spelling");
+    }
+    editor.SetText(L"ok");
+    editor.SetSelection({2u, 2u});
+    content.filePaths.clear();
     prepare();
     editor.SetReadOnly(true);
     check(! editor.TryPrepareClipboardPaste(content, replacement), "read-only rejects file-link paste");

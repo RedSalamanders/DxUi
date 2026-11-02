@@ -299,7 +299,7 @@ of Debug, Release and ASan Debug, with zero native skips and verified restoratio
 bytes. Actual confirmations were clicked Start; private confirmation tests separately verify no-click countdown
 expiry. This later evidence supersedes older open local-focus obligations for its exact source/artifact identity.
 Original UIA extra-event and native-input setup cause questions remain in
-[ProductionReview](../WIP/ProductionReview_2026-10-05.md); a passing fresh run is not a proved cause or fix attribution.
+[ProductionReview](ProductionReview_2026-10-05.md); a passing fresh run is not a proved cause or fix attribution.
 
 Local synthetic WARP preparation/composition, graphics-generation replacement and clean/dirty/hidden lifetime
 checks do not qualify physical hardware/device removal. ARM64 cross-builds do not qualify native runtime. Synthetic

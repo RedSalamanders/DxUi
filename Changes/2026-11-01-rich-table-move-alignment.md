@@ -1,0 +1,1 @@
+- Add source-exact Markdown table alignment and adjacent row/column moves, preserving directional selection and undo; native qualification remains in progress.

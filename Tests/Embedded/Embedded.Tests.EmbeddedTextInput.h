@@ -94,6 +94,78 @@ static void TestMultilineCaretViewport(GraphicsFixture& gpu)
 }
 
 // Application-side composition transport; no HWND, TSF context or real IME is created by this fixture.
+static void TestEmbeddedInputCallbackAllocationBoundary(GraphicsFixture& gpu)
+{
+    using namespace DxUi;
+    struct ThrowingField final : TextField
+    {
+        ThrowingField() : TextField(L"initial")
+        {
+        }
+        ThrowingField(const ThrowingField&)            = delete;
+        ThrowingField& operator=(const ThrowingField&) = delete;
+        ThrowingField(ThrowingField&&)                 = delete;
+        ThrowingField& operator=(ThrowingField&&)      = delete;
+        bool failKey{}, failCharacter{}, commitFirst{};
+        bool OnKeyDown(ControlHost& host, UINT key, UINT modifiers) override
+        {
+            if (! failKey)
+                return TextField::OnKeyDown(host, key, modifiers);
+            if (commitFirst)
+                SetText(L"committed key");
+            throw std::bad_alloc();
+        }
+        bool OnChar(ControlHost& host, wchar_t character, UINT modifiers) override
+        {
+            if (! failCharacter)
+                return TextField::OnChar(host, character, modifiers);
+            if (commitFirst)
+                SetText(L"committed character");
+            throw std::bad_alloc();
+        }
+    };
+    std::shared_ptr<GraphicsDevice> graphics;
+    Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "create embedded input failure graphics");
+    EmbeddedHost view;
+    Hr(view.Attach(graphics), "attach embedded input failure host");
+    auto root   = std::make_unique<Panel>();
+    auto* field = root->AddChild<ThrowingField>();
+    field->SetBounds(D2D1::RectF(0, 0, 240, 40));
+    view.Controls().SetRoot(std::move(root));
+    Hr(PrepareRichEmbeddedContent(view, 320, 160), "prepare embedded input failure fixture");
+    view.Controls().SetFocusControl(field);
+    for (const bool committed : {false, true})
+    {
+        field->SetText(L"initial");
+        field->commitFirst = committed;
+        field->failKey     = true;
+        Hr(PrepareRichEmbeddedContent(view, 320, 160), "prepare key failure fixture");
+        EmbeddedKeyDispatchReceipt receipt;
+        Check(view.DispatchKey(VK_SPACE, true, 0u, receipt), "an unknown key callback allocation failure consumes the key");
+        Check(field->GetText() == (committed ? L"committed key" : L"initial") && ! view.ShouldTranslateCharacter(receipt),
+              "key allocation failure preserves actual callback state and withholds translated character");
+        Check(view.DispatchCharacter(L' ', 0u, receipt) && ! view.DispatchCharacter(L' ', 0u, receipt),
+              "failed key's matching receipt is consumed once without a character callback");
+        field->failKey = false;
+        field->SetText(L"initial");
+        Hr(PrepareRichEmbeddedContent(view, 320, 160), "prepare bare character failure fixture");
+        field->failCharacter = true;
+        Check(view.DispatchCharacter(L'x', 0u) && field->GetText() == (committed ? L"committed character" : L"initial"),
+              "bare character allocation failure retains actual callback state and is consumed");
+        field->failCharacter = false;
+        field->SetText(L"initial");
+        Hr(PrepareRichEmbeddedContent(view, 320, 160), "prepare character failure fixture");
+        EmbeddedKeyDispatchReceipt characterReceipt;
+        Check(! view.DispatchKey(VK_SPACE, true, 0u, characterReceipt) && view.ShouldTranslateCharacter(characterReceipt),
+              "unhandled Space issues a matching text receipt");
+        field->failCharacter = true;
+        Check(view.DispatchCharacter(L' ', 0u, characterReceipt), "a throwing correlated character remains consumed");
+        Check(field->GetText() == (committed ? L"committed character" : L"initial") && ! view.DispatchCharacter(L' ', 0u, characterReceipt),
+              "character callback's actual state remains intact and its receipt cannot be replayed");
+        field->failCharacter = false;
+    }
+}
+
 static void TestEmbeddedTextInput(GraphicsFixture& gpu)
 {
     using Action = DxUi::EmbeddedTextInputAction;
@@ -323,30 +395,57 @@ static void TestEmbeddedTextInput(GraphicsFixture& gpu)
     preview(L"temporary");
     field->SetText(L"External update");
     view.SetVisible(false);
-    Check(field->GetText() == L"External update" && notifications == 0, "external value survives composition cancellation");
+    Check(field->GetText() == L"External update" && notifications == 0 && view.Controls().GetFocusControl() == field,
+          "external value and logical focus survive surface suspension");
     Check(view.ReadTextInput(snapshot) == S_FALSE && snapshot.state.text.empty(), "hidden text snapshot clears old data");
     view.SetVisible(true);
     Hr(view.Prepare(480, 240), "reshow text");
-    view.Controls().SetFocusControl(field);
+    DxUi::EmbeddedKeyDispatchReceipt staleReceipt;
+    Check(! view.DispatchKey(VK_SPACE, true, 0u, staleReceipt) && view.ShouldTranslateCharacter(staleReceipt),
+          "a text key issues a translatable receipt before suspension");
     preview(L"hidden draft");
+    state              = read();
+    auto staleRevision = snapshot.revision;
+    auto oldFocusId    = snapshot.focusId;
     view.SetVisible(false);
-    Check(field->GetText() == L"External update" && notifications == 0, "hide rolls back preview");
+    Check(field->GetText() == L"External update" && notifications == 0 && view.Controls().GetFocusControl() == field,
+          "hide rolls back preview while retaining its logical owner");
     view.SetVisible(true);
     Hr(view.Prepare(480, 240), "prepare text again");
-    view.Controls().SetFocusControl(field);
+    state = read();
+    Check(snapshot.focusId != oldFocusId && ! state.compositionStartIndex && state.text == L"External update" &&
+              view.ApplyTextInput(staleRevision, {}, Action::Cancel) == HRESULT_FROM_WIN32(ERROR_REVISION_MISMATCH),
+          "reshow creates a fresh session and rejects the stale composition revision");
+    Check(! view.ShouldTranslateCharacter(staleReceipt) && view.DispatchCharacter(L' ', 0u, staleReceipt) && field->GetText() == L"External update",
+          "a pre-suspension character receipt is consumed without retargeting or editing");
     preview(L"focus draft");
     view.CancelTextInput();
-    Check(field->GetText() == L"External update" && view.ReadTextInput(snapshot) == S_FALSE, "OS focus loss cancels text session");
+    Check(field->GetText() == L"External update" && view.ReadTextInput(snapshot) == S_FALSE && ! view.Controls().GetFocusControl(),
+          "explicit OS focus loss cancels text session and clears logical focus");
     view.Controls().SetFocusControl(field);
     preview(L"zero draft");
-    Check(view.Prepare(0, 240) == S_FALSE && field->GetText() == L"External update", "zero-size suspension rolls back preview");
+    state         = read();
+    staleRevision = snapshot.revision;
+    oldFocusId    = snapshot.focusId;
+    Check(view.Prepare(0, 240) == S_FALSE && field->GetText() == L"External update" && view.Controls().GetFocusControl() == field,
+          "zero-size suspension rolls back preview and retains logical focus");
     Hr(view.Prepare(480, 240), "resume nonzero text");
-    view.Controls().SetFocusControl(field);
+    state = read();
+    Check(snapshot.focusId != oldFocusId && ! state.compositionStartIndex &&
+              view.ApplyTextInput(staleRevision, {}, Action::Cancel) == HRESULT_FROM_WIN32(ERROR_REVISION_MISMATCH),
+          "sized recovery creates a fresh session and rejects the stale revision");
     preview(L"device draft");
+    state         = read();
+    staleRevision = snapshot.revision;
+    oldFocusId    = snapshot.focusId;
     Hr(view.ReplaceDevice(pool), "text device replacement");
-    Check(field->GetText() == L"External update" && view.ReadTextInput(snapshot) == S_FALSE, "device replacement cancels input before reprepare");
+    Check(field->GetText() == L"External update" && view.ReadTextInput(snapshot) == S_FALSE && view.Controls().GetFocusControl() == field,
+          "device replacement retires the text session but retains logical focus");
     Hr(view.Prepare(480, 240), "reprepare text device");
-    view.Controls().SetFocusControl(field);
+    state = read();
+    Check(snapshot.focusId != oldFocusId && ! state.compositionStartIndex &&
+              view.ApplyTextInput(staleRevision, {}, Action::Cancel) == HRESULT_FROM_WIN32(ERROR_REVISION_MISMATCH),
+          "device recovery creates a fresh session and rejects the stale revision");
     state                   = read();
     const auto beforeDetach = snapshot.revision;
     view.Detach();

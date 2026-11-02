@@ -1,0 +1,1 @@
+- Preserve math values and footnote references in test-only Markdown serialization, with independent profile and escaping expectations.

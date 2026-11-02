@@ -21,6 +21,7 @@ Import-Module (Join-Path $PSScriptRoot 'Tools/VisualStudio.psm1') -Force
 $installation=Get-DxUiVisualStudioInstallation
 $msbuild=Join-Path $installation 'MSBuild/Current/Bin/MSBuild.exe'
 Import-Module (Join-Path $checkout 'Tools/ConsumerBuild.psm1') -Force
+Import-Module (Join-Path $checkout 'Build/BuildConsole.psm1') -Force
 $buildIdentity=Get-DxUiConsumerBuildIdentity -DxUiRoot $checkout -MSBuildPath $msbuild -Platform $Platform -DisableStlAnnotations:$DisableStlAnnotations
 $otherIdentity=Get-DxUiConsumerBuildIdentity -DxUiRoot $checkout -MSBuildPath $msbuild -Platform $Platform -DisableStlAnnotations:(-not $DisableStlAnnotations)
 if ($buildIdentity.Fingerprint -eq $otherIdentity.Fingerprint) { throw 'STL annotation policy did not isolate the dependency output fingerprint.' }
@@ -69,7 +70,7 @@ $project=@"
 "@
 # Compile every supported helper header as the first and only include in its own translation unit.
 $headerUnits = foreach ($header in @('DxUi','Typography','FocusRestore','PointerInput','AccessibilityTextUnits','NativeMenuInterop',
-    'RichDocument','RichMarkdown','RichTextLayout','MarkdownSyntax','RichSemantic','RichSemanticDocument','RichTextCommands','RichImage')) {
+    'FileDrop','RichDocument','RichMarkdown','RichTextLayout','MarkdownSyntax','RichSemantic','RichSemanticDocument','RichTextCommands','RichImage','RichMath','RichTextExport')) {
     "#include <DxUi/$header.h>" | Set-Content -LiteralPath (Join-Path $consumer "$header.cpp") -Encoding utf8
     '<ClCompile Include="' + $header + '.cpp" />'
 }
@@ -78,8 +79,10 @@ Add-Content -LiteralPath (Join-Path $consumer 'DxUi.cpp') -Encoding utf8 -Value 
 $project = $project.Replace('<ClCompile Include="Samples/EmbeddedControls/Main.cpp" />', '<ClCompile Include="Samples/EmbeddedControls/Main.cpp" /><ClCompile Include="ConsumerApi.Tests.Revision4.cpp" />' + ($headerUnits -join ''))
 $projectPath=Join-Path $consumer 'ExternalConsumer.vcxproj'
 $project | Set-Content -LiteralPath $projectPath -Encoding utf8
-& $msbuild $projectPath /nologo /m /verbosity:minimal "/p:Configuration=$Configuration" "/p:Platform=$Platform"
+$consumerBuildLog=Join-Path $consumer 'ExternalConsumer.build.log'
+& $msbuild $projectPath /nologo /m /verbosity:minimal "/p:Configuration=$Configuration" "/p:Platform=$Platform" "/flp:logfile=$consumerBuildLog;verbosity=normal;encoding=UTF-8"
 if ($LASTEXITCODE -ne 0) { throw 'The external public consumer failed to build.' }
+Assert-NativeBuildDiagnostics -LogPath $consumerBuildLog
 & (Join-Path $consumer 'bin/ExternalConsumer.exe') --output (Join-Path $consumer 'public-consumer.png')
 if ($LASTEXITCODE -ne 0) { throw 'The relocated public consumer failed to render.' }
 & (Join-Path $consumer 'bin/ExternalConsumer.exe') --complex-ui --output (Join-Path $consumer 'complex-consumer.png')
@@ -110,11 +113,15 @@ foreach ($moduleName in @('NativeModuleA','NativeModuleB','NativeModuleDriver'))
     }
     $modulePath = Join-Path $consumer "$moduleName.vcxproj"
     $moduleProject.Save($modulePath)
-    & $msbuild $modulePath /nologo /m /verbosity:minimal "/p:Configuration=$Configuration" "/p:Platform=$Platform"
+    $moduleBuildLog=Join-Path $consumer "$moduleName.build.log"
+    & $msbuild $modulePath /nologo /m /verbosity:minimal "/p:Configuration=$Configuration" "/p:Platform=$Platform" "/flp:logfile=$moduleBuildLog;verbosity=normal;encoding=UTF-8"
     if ($LASTEXITCODE -ne 0) { throw "The native module consumer $moduleName failed to build." }
+    Assert-NativeBuildDiagnostics -LogPath $moduleBuildLog
 }
-& (Join-Path $consumer 'bin/NativeModuleDriver.exe')
-if ($LASTEXITCODE -ne 0) { throw 'Native DxUi dispatch or animation crossed static module ownership.' }
+$moduleOutput = @(& (Join-Path $consumer 'bin/NativeModuleDriver.exe'))
+$moduleExit = $LASTEXITCODE
+$moduleOutput | ForEach-Object { Write-Host $_ }
+$moduleResult = Set-ConsumerNativeModuleResult -Progress $progress -Lines $moduleOutput -ExitCode $moduleExit
 if (-not (Test-Path (Join-Path $output "$Platform/$Configuration/DxUi.lib")) -or (Test-Path (Join-Path $checkout ".build/$Platform/$Configuration/DxUi.lib"))) { throw 'Consumer outputs are not isolated.' }
 $validator=Join-Path $checkout 'Tools/validate_consumer.ps1'
 function Require-Rejection([string] $scenario) {
@@ -145,8 +152,8 @@ $reports=Join-Path $PSScriptRoot '.build/reports';New-Item -ItemType Directory -
 Assert-ConsumerQualificationChecks -Progress $progress
 @{suite='ExternalConsumer';commit=$revision;configuration=$Configuration;platform=$Platform;
     nativeArchitecture=[System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString();
-    disableStlAnnotations=$DisableStlAnnotations.IsPresent;buildIdentity=$buildIdentity;exitCode=0;fixture=$root;negativeChecks=10;
-    nativeModuleChecks=12;executableSha256=(Get-FileHash (Join-Path $consumer 'bin/ExternalConsumer.exe')).Hash;
+    disableStlAnnotations=$DisableStlAnnotations.IsPresent;buildIdentity=$buildIdentity;exitCode=0;fixture=$root;negativeChecks=$progress.Record.negativeChecks;
+    nativeModuleExecuted=$moduleResult.Executed;nativeModuleChecks=$moduleResult.Passed;executableSha256=(Get-FileHash (Join-Path $consumer 'bin/ExternalConsumer.exe')).Hash;
     richTextCaptureSha256=(Get-FileHash (Join-Path $consumer 'rich-text-consumer.png')).Hash;
     librarySha256=(Get-FileHash (Join-Path $output "$Platform/$Configuration/DxUi.lib")).Hash;
     completedUtc=[DateTime]::UtcNow.ToString('o')} | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $reports "ExternalConsumer-$Platform-$Configuration-annotationsDisabled$annotationsXml.json") -Encoding utf8

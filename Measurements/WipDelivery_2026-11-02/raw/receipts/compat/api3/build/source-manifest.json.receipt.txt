@@ -1,0 +1,8 @@
+{
+  "sourceArchive": "source.zip",
+  "source": "a5b3ac81dedc39eaf1a8d131c497e59644ea794b",
+  "tree": "988b3287456baae66934766ce02915044af8a6ab",
+  "sha256": "A89D6D71CE28005CE7EC1993EB4FA0583537D26D080BC8E9D0F1264456E0C899",
+  "note": "Tracked source archive; build artifacts and dependency inputs have separate receipts.",
+  "capturedUtc": "2026-11-02T10:42:51.1075279Z"
+}

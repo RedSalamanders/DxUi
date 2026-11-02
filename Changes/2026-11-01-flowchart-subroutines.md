@@ -1,0 +1,1 @@
+- Render bounded Mermaid subroutine nodes with inset rules.

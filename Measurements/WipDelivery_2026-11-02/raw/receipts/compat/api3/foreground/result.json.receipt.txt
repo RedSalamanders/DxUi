@@ -1,0 +1,103 @@
+{
+  "source": "a5b3ac81dedc39eaf1a8d131c497e59644ea794b",
+  "completedUtc": "2026-11-02T10:53:37.3421811Z",
+  "lease": {
+    "State": "completed",
+    "Exit": 0,
+    "Reason": "",
+    "Confirmation": "autostarted",
+    "AutoStart": true,
+    "ConfirmationSeconds": 30,
+    "ConfirmationDuplicates": [],
+    "SavedForeground": "class 'ZPPTMainFrmWndClassEx' of Zoom.exe (process 47948)",
+    "Foreground": "unchanged",
+    "Focus": "unchanged",
+    "FocusCapture": {
+      "Reason": "recorded",
+      "QueryError": 0
+    },
+    "FocusCaptureProblems": [],
+    "Cursor": "unchanged",
+    "CursorSaved": "3488,776",
+    "CursorAtExit": "3488,776",
+    "CursorDiagnostics": null,
+    "RunMovedSomething": false,
+    "Children": [
+      {
+        "Name": "API3-Debug-Menu",
+        "Launched": true,
+        "ExitCode": 0,
+        "Seconds": 49.8,
+        "TimedOut": false,
+        "Interrupted": false
+      },
+      {
+        "Name": "API3-Debug-MenuResources",
+        "Launched": true,
+        "ExitCode": 0,
+        "Seconds": 6.5,
+        "TimedOut": false,
+        "Interrupted": false
+      },
+      {
+        "Name": "API3-Debug-MenuResourceScaling",
+        "Launched": true,
+        "ExitCode": 0,
+        "Seconds": 12.2,
+        "TimedOut": false,
+        "Interrupted": false
+      },
+      {
+        "Name": "API3-Release-Menu",
+        "Launched": true,
+        "ExitCode": 0,
+        "Seconds": 49.5,
+        "TimedOut": false,
+        "Interrupted": false
+      },
+      {
+        "Name": "API3-Release-MenuResources",
+        "Launched": true,
+        "ExitCode": 0,
+        "Seconds": 6.2,
+        "TimedOut": false,
+        "Interrupted": false
+      },
+      {
+        "Name": "API3-Release-MenuResourceScaling",
+        "Launched": true,
+        "ExitCode": 0,
+        "Seconds": 11.5,
+        "TimedOut": false,
+        "Interrupted": false
+      },
+      {
+        "Name": "API3-ASanDebug-Menu",
+        "Launched": true,
+        "ExitCode": 0,
+        "Seconds": 70.3,
+        "TimedOut": false,
+        "Interrupted": false
+      },
+      {
+        "Name": "API3-ASanDebug-MenuResources",
+        "Launched": true,
+        "ExitCode": 0,
+        "Seconds": 10.6,
+        "TimedOut": false,
+        "Interrupted": false
+      },
+      {
+        "Name": "API3-ASanDebug-MenuResourceScaling",
+        "Launched": true,
+        "ExitCode": 0,
+        "Seconds": 17.8,
+        "TimedOut": false,
+        "Interrupted": false
+      }
+    ],
+    "ReceiptProblems": []
+  },
+  "problems": [],
+  "exitCode": 0
+}

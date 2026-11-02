@@ -51,7 +51,14 @@ supplementary letter ranges. Data is independent of Windows locale/version.
 ./Tools/tests/Test-MarkdownData.ps1
 ```
 
-Generation verifies both original data pins and the license. Tooling fixtures
+First-strong paragraph direction also uses the original Unicode 17
+`extracted/DerivedBidiClass.txt`, recorded in the same receipt. The generator
+applies the file's ordered `@missing` defaults and then its explicit classes:
+unassigned RTL-script ranges can be R/AL, ordinary unassigned scalars default
+to L, and explicit BN/noncharacter and ET currency exceptions remain neutral.
+This is distinct from UnicodeData's assigned-character field 4.
+
+Generation verifies all three original data pins and the license. Tooling fixtures
 check byte reproduction, read-only checks, stale/missing output and every changed
 or missing data/license input. Directed parser and native/embedded cases cover
 multi-character folding, supplementary labels, normalization differences,

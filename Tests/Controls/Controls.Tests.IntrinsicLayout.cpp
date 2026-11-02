@@ -1,6 +1,7 @@
 #include "Controls.Tests.IntrinsicLayout.h"
 
 #include "Controls.Tests.DxUiTestHelpers.h"
+#include "Controls/DxUi.Internal.h"
 #include "GraphicsFixture.h"
 
 #include <DxUi/Typography.h>
@@ -325,6 +326,14 @@ void TestLabelZeroSpacingOverrideMatchesDefaultLayout()
             RequireSucceeded(measuredOverride.Measure({host}, measureBounds, overrideSize), "measure the exact-default RTL override");
             Require(Close(defaultSize.sizeDip.width, overrideSize.sizeDip.width) && Close(defaultSize.sizeDip.height, overrideSize.sizeDip.height),
                     "skipping an explicit zero-spacing mutation preserves default wrapped RTL metrics");
+            Require(defaultSize.baselineDip && overrideSize.baselineDip && Close(defaultSize.baselineDip.value(), overrideSize.baselineDip.value()),
+                    "explicit default typography retains the shaped first-line baseline");
+            measuredDefault.SetText(L"one two three four     ");
+            measuredOverride.SetText(L"one two three four     ");
+            RequireSucceeded(measuredDefault.Measure({host}, measureBounds, defaultSize), "measure wrapped default trailing whitespace");
+            RequireSucceeded(measuredOverride.Measure({host}, measureBounds, overrideSize), "measure wrapped override trailing whitespace");
+            Require(Close(defaultSize.sizeDip.width, overrideSize.sizeDip.width) && defaultSize.overflow == overrideSize.overflow,
+                    "wrapped typography overrides measure ink rather than hanging trailing spaces");
 
             auto root   = std::make_unique<Panel>();
             auto* label = root->AddChild<Label>();
@@ -361,6 +370,59 @@ void TestLabelZeroSpacingOverrideMatchesDefaultLayout()
             static_cast<void>(requireDefaultParity(L"Default caption 123", false, FlowDirection::LeftToRight, L'\0'));
             static_cast<void>(requireDefaultParity(L"RTL wrapped caption with synthetic text שלום", true, FlowDirection::RightToLeft, L'\0'));
             const auto zeroMnemonic = requireDefaultParity(L"Save &As", false, FlowDirection::LeftToRight, L'A');
+            label->SetText(L"Alpha Beta");
+            Require(label->SetTypographyOverride(exactDefault) == S_OK, "enable one unchanged typography override for mnemonic transitions");
+            label->SetMnemonic(L'A');
+            const auto mnemonicA           = capture();
+            const auto preparedLayoutCount = testMnemonicLayoutCreations;
+            static_cast<void>(capture());
+            Require(testMnemonicLayoutCreations == preparedLayoutCount, "warm override label paint creates no mnemonic layout");
+            label->SetMnemonic(L'B');
+            const auto mnemonicB     = capture();
+            const auto invalidations = host.DebugGetInvalidateCount();
+            label->SetMnemonic(L'b');
+            Require(host.DebugGetInvalidateCount() == invalidations, "an equivalent normalized mnemonic is a no-op");
+            label->SetMnemonic(L'\0');
+            const auto mnemonicNone = capture();
+            Require(mnemonicA.bgraPixels != mnemonicB.bgraPixels && mnemonicA.bgraPixels != mnemonicNone.bgraPixels &&
+                        mnemonicB.bgraPixels != mnemonicNone.bgraPixels,
+                    "one typography override refreshes the actual underline for A, B and no mnemonic");
+            auto* referenceFormat = host.GetTextFormat(
+                FontRole::Body, DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, false, DWRITE_READING_DIRECTION_LEFT_TO_RIGHT);
+            wil::com_ptr<IDWriteTextLayout> reference;
+            Require(referenceFormat && host.GetWriteFactory(), "mnemonic pixel oracle has a DirectWrite format and factory");
+            RequireSucceeded(host.GetWriteFactory()->CreateTextLayout(L"Alpha Beta", 10u, referenceFormat, 260.f, 112.f, reference.put()),
+                             "create independent mnemonic hit-test geometry");
+            const auto changedAtGlyph = [&](const WindowHostBitmapCapture& underlined, UINT32 index)
+            {
+                FLOAT localX{}, localY{};
+                DWRITE_HIT_TEST_METRICS hit{};
+                RequireSucceeded(reference->HitTestTextPosition(index, FALSE, &localX, &localY, &hit), "resolve independent mnemonic glyph bounds");
+                const auto left  = static_cast<UINT>(std::max(0.f, host.DipsToPixels(24.f + hit.left - 2.f)));
+                const auto right = std::min(underlined.widthPx, static_cast<UINT>(host.DipsToPixels(24.f + hit.left + hit.width + 2.f)));
+                for (UINT y = 0u; y < underlined.heightPx; ++y)
+                    for (UINT x = left; x < right; ++x)
+                    {
+                        const auto offset = (static_cast<size_t>(y) * underlined.widthPx + x) * 4u;
+                        if (! std::equal(
+                                underlined.bgraPixels.data() + offset, underlined.bgraPixels.data() + offset + 4u, mnemonicNone.bgraPixels.data() + offset))
+                            return true;
+                    }
+                return false;
+            };
+            Require(changedAtGlyph(mnemonicA, 0u) && changedAtGlyph(mnemonicB, 6u),
+                    "A and B underlines change pixels in their independently hit-tested glyph columns");
+            Require(label->SetTypographyOverride(std::nullopt) == S_OK, "compare mnemonic transitions with the role-default oracle");
+            label->SetMnemonic(L'A');
+            requireSamePixels(mnemonicA, capture(), "prepared override A matches role-default text rendering");
+            const auto defaultLayoutCount = testMnemonicLayoutCreations;
+            static_cast<void>(capture());
+            Require(testMnemonicLayoutCreations == defaultLayoutCount, "warm default label mnemonic paint creates no layout");
+            label->SetMnemonic(L'B');
+            requireSamePixels(mnemonicB, capture(), "prepared override B matches role-default text rendering");
+            label->SetMnemonic(L'\0');
+            requireSamePixels(mnemonicNone, capture(), "prepared override with no mnemonic matches the default renderer");
+            label->SetText(L"Save &As");
             label->SetMnemonic(L'\0');
             Require(label->SetTypographyOverride(exactDefault) == S_OK, "zero-spacing baseline is restored");
             const auto zeroSpacing      = capture();
@@ -622,12 +684,15 @@ void TestButtonPreparedIconTextLayoutMatchesDrawTextW()
                         std::equal(left.bgraPixels.begin(), left.bgraPixels.end(), right.bgraPixels.begin()),
                     reason);
         };
-        const auto requireFallbackParity = [&]
+        const auto requireFallbackParity = [&](const char* stage = "glyph or visual-state change")
         {
             const uint64_t paintsBefore        = button->DebugGetPreparedIconTextLayoutPaintCount();
             const auto prepared                = capture();
             const uint64_t builds              = button->DebugGetPreparedIconTextLayoutBuildCount();
             const uint64_t paintsAfterPrepared = button->DebugGetPreparedIconTextLayoutPaintCount();
+            if (paintsAfterPrepared <= paintsBefore)
+                std::cerr << "prepared icon draw missing at " << stage << ": paints before=" << paintsBefore << " after=" << paintsAfterPrepared
+                          << " builds=" << builds << " factory lookups=" << button->DebugGetPreparedIconTextLayoutFactoryLookupCount() << '\n';
             Require(paintsAfterPrepared > paintsBefore, "the prepared capture actually draws its retained DirectWrite layout");
             button->DebugSetPreparedIconTextLayoutDisabledForTest(true);
             const auto fallback = capture();
@@ -647,13 +712,12 @@ void TestButtonPreparedIconTextLayoutMatchesDrawTextW()
         Require(radio->DebugGetPreparedIconTextLayoutBuildCount() == 0u, "a RadioButton with its distinct Paint path does not retain an unused Button layout");
         const uint64_t factoryLookupsBeforeSizeChange = button->DebugGetPreparedIconTextLayoutFactoryLookupCount();
         RequireSucceeded(button->SetContentFontSizeDip(18.0f), "use the same explicit content size as the app's icon buttons");
-        requireFallbackParity();
+        requireFallbackParity("18-DIP content-size change");
         Require(button->DebugGetPreparedIconTextLayoutBuildCount() == 2u, "changing from 12 to 18 DIP prepares the new layout once");
         Require(button->DebugGetPreparedIconTextLayoutFactoryLookupCount() == factoryLookupsBeforeSizeChange + 1u,
                 "a changed content-size key takes the DirectWrite factory path once");
 
-        // Clearing the bounded format map produces a new exact format identity. The retained layout must rebuild
-        // once for that identity, then the verified warm key must avoid another factory lookup.
+        // Eviction can replace a mutable host format with a distinct identity; preparation must rebind once.
         for (int role = 0;
              role <= static_cast<int>(FontRole::Small) && host.DebugGetConfiguredTextFormatCount() <= ControlHost::kConfiguredTextFormatCacheLimit;
              ++role)
@@ -674,7 +738,7 @@ void TestButtonPreparedIconTextLayoutMatchesDrawTextW()
                 "distinct host text-format configurations overflow the bounded cache before the next paint");
         const uint64_t buildsBeforeFormatTrim         = button->DebugGetPreparedIconTextLayoutBuildCount();
         const uint64_t factoryLookupsBeforeFormatTrim = button->DebugGetPreparedIconTextLayoutFactoryLookupCount();
-        requireFallbackParity();
+        requireFallbackParity("configured-format cache eviction");
         Require(host.DebugGetConfiguredTextFormatCount() <= ControlHost::kConfiguredTextFormatCacheLimit,
                 "the next paint trims the configured-format cache to its bound");
         Require(button->DebugGetPreparedIconTextLayoutBuildCount() == buildsBeforeFormatTrim + 1u,
@@ -827,6 +891,58 @@ void TestButtonPreparedIconTextLayoutMatchesDrawTextW()
         requireFallbackParity();
         Require(host.GetResourceGeneration() != resourcesBeforeLoss && button->DebugGetPreparedIconTextLayoutBuildCount() == buildsBeforeLoss + 1u,
                 "device-resource cancellation retires and rebuilds the device-independent layout through owner preparation");
+        button->SetVariant(ButtonVariant::Standard);
+        button->SetShortcutText(L"Ctrl+Shift+F");
+        static_cast<void>(capture());
+        const auto measured = button->DebugGetShortcutMeasureCount();
+        Require(measured != 0u, "shortcut text is measured during visual preparation");
+        static_cast<void>(capture());
+        Require(button->DebugGetShortcutMeasureCount() == measured, "repeated paints do not measure the shortcut again");
+        button->SetShortcutText(L"F2");
+        static_cast<void>(capture());
+        Require(button->DebugGetShortcutMeasureCount() == measured + 1u, "changing the shortcut prepares its new width once");
+        button->SetShortcutText(L"");
+        button->SetVariant(ButtonVariant::Hyperlink);
+        button->SetText(L"Prepared hyperlink");
+        button->SetBounds(D2D1::RectF(12.f, 12.f, 112.f, 40.f));
+        const auto bounds = button->GetBounds();
+        const auto x      = static_cast<SHORT>(host.DipsToPixels((bounds.left + bounds.right) * .5f));
+        const auto y      = static_cast<SHORT>(host.DipsToPixels((bounds.top + bounds.bottom) * .5f));
+        bool handled      = false;
+        static_cast<void>(host.HandleMessage(window.Hwnd(), WM_MOUSEMOVE, 0u, MAKELPARAM(0, 0), handled));
+        const auto idleHyperlink = capture();
+        static_cast<void>(host.HandleMessage(window.Hwnd(), WM_MOUSEMOVE, 0u, MAKELPARAM(x, y), handled));
+        const auto hoveredHyperlink = capture();
+        Require(handled && button->IsHovered() && button->DebugGetPreparedHyperlinkWidthDip() > 0.f && button->DebugGetHyperlinkMeasureCount() > 0u,
+                "first hovered hyperlink frame uses a prepared nonempty underline");
+        const auto lineY           = static_cast<UINT>(host.DipsToPixels(bounds.bottom - 3.f));
+        bool underlinePixelChanged = false;
+        for (UINT row = lineY > 1u ? lineY - 1u : 0u; row <= lineY + 1u && row < hoveredHyperlink.heightPx; ++row)
+            for (UINT column = static_cast<UINT>(x) - 1u; column <= static_cast<UINT>(x) + 1u && column < hoveredHyperlink.widthPx; ++column)
+            {
+                const auto offset     = (static_cast<size_t>(row) * hoveredHyperlink.widthPx + column) * 4u;
+                underlinePixelChanged = underlinePixelChanged || ! std::equal(hoveredHyperlink.bgraPixels.data() + offset,
+                                                                              hoveredHyperlink.bgraPixels.data() + offset + 4u,
+                                                                              idleHyperlink.bgraPixels.data() + offset);
+            }
+        Require(underlinePixelChanged, "the first hovered capture contains the underline pixels");
+        const auto layouts  = testSingleLineMeasureLayoutCreations;
+        const auto measures = button->DebugGetHyperlinkMeasureCount();
+        for (unsigned repeat = 0u; repeat < 8u; ++repeat)
+            static_cast<void>(capture());
+        Require(testSingleLineMeasureLayoutCreations == layouts && button->DebugGetHyperlinkMeasureCount() == measures,
+                "repeated hovered hyperlink paints create no single-line measuring layouts");
+        button->SetText(L"New link");
+        static_cast<void>(capture());
+        Require(button->DebugGetHyperlinkMeasureCount() == measures + 1u, "changing hyperlink text prepares a new underline width");
+        const auto textMeasures = button->DebugGetHyperlinkMeasureCount();
+        button->SetBounds(D2D1::RectF(12.f, 12.f, 95.f, 45.f));
+        static_cast<void>(capture());
+        Require(button->DebugGetHyperlinkMeasureCount() == textMeasures + 1u, "changing hyperlink bounds prepares a current underline width");
+        const auto boundsMeasures = button->DebugGetHyperlinkMeasureCount();
+        button->SetFlowDirection(FlowDirection::RightToLeft);
+        static_cast<void>(capture());
+        Require(button->DebugGetHyperlinkMeasureCount() == boundsMeasures + 1u, "changing reading direction prepares a current underline width");
     });
     Require(WaitForDxUiEventWithSentMessagesUntil(fixture.native_handle(), GetTickCount64() + 30000u) == WAIT_OBJECT_0,
             "the isolated prepared-layout fixture finishes without desktop activation");
@@ -1160,6 +1276,9 @@ void TestLabelAndSeparatorTypographySurviveEmbeddedMeasureAndRetirementCallbacks
     runRetiringSetter("Label multiline", [](FlexPanel& root) -> Control* { return root.AddChild<Label>(L"Section heading"); }, [](Control* control) {
         static_cast<Label*>(control)->SetMultiline(true);
     });
+    runRetiringSetter("Label mnemonic", [](FlexPanel& root) -> Control* { return root.AddChild<Label>(L"Section heading"); }, [](Control* control) {
+        control->SetMnemonic(L'S');
+    });
     runRetiringSetter("Label typography override",
                       [](FlexPanel& root) -> Control* { return root.AddChild<Label>(L"Section heading"); },
                       [](Control* control)
@@ -1177,6 +1296,66 @@ void TestLabelAndSeparatorTypographySurviveEmbeddedMeasureAndRetirementCallbacks
         return separator;
     },
                       [](Control* control) { static_cast<Separator*>(control)->SetOrientation(SeparatorOrientation::Horizontal); });
+    const auto addProgress = [](FlexPanel& root) -> Control* { return root.AddChild<ProgressBar>(); };
+    runRetiringSetter("progress minimum", addProgress, [](Control* control) { static_cast<ProgressBar*>(control)->SetMinimum(-1.0); });
+    runRetiringSetter("progress maximum", addProgress, [](Control* control) { static_cast<ProgressBar*>(control)->SetMaximum(200.0); });
+    runRetiringSetter("progress value", addProgress, [](Control* control) { static_cast<ProgressBar*>(control)->SetValue(3.0); });
+    runRetiringSetter("progress animation", addProgress, [](Control* control) { static_cast<ProgressBar*>(control)->SetIndeterminate(true); });
+    runRetiringSetter("accessible name", addProgress, [](Control* control) { control->SetAccessibleName(L"updated"); });
+    runRetiringSetter("accessible help", addProgress, [](Control* control) { control->SetAccessibleHelpText(L"updated"); });
+    runRetiringSetter("accessible form", addProgress, [](Control* control) {
+        Require(control->SetAccessibleFormProperties(nullptr, true, true) == S_OK, "form metadata is committed before retirement");
+    });
+    runRetiringSetter("accessible role", addProgress, [](Control* control) { control->SetAccessibilityRole(AccessibilityRole::Status); });
+    runRetiringSetter("flow direction", addProgress, [](Control* control) { control->SetFlowDirection(FlowDirection::RightToLeft); });
+    runRetiringSetter("density", addProgress, [](Control* control) { control->SetDensity(Density::Compact); });
+    runRetiringSetter("toggle labels", [](FlexPanel& root) -> Control* { return root.AddChild<Toggle>(); }, [](Control* control) {
+        static_cast<Toggle*>(control)->SetStateLabels(L"off", L"on");
+    });
+    runRetiringSetter("splitter position",
+                      [](FlexPanel& root) -> Control*
+    {
+        auto* splitter = root.AddChild<Splitter>();
+        RequireSucceeded(root.SetChildOptions(splitter, Fixed(200.0f, 80.0f)), "give the splitter a usable explicit extent");
+        return splitter;
+    },
+                      [](Control* control)
+    {
+        auto* splitter    = static_cast<Splitter*>(control);
+        const auto bounds = splitter->GetBounds();
+        const auto extent = bounds.right - bounds.left;
+        Require(splitter->GetOrientation() == SplitterOrientation::Vertical && splitter->GetPosition() != 64.0f && 64.0f >= splitter->GetMinimumFirstPane() &&
+                    64.0f <= extent - splitter->GetThickness() - splitter->GetMinimumSecondPane(),
+                "splitter retirement fixture requests a distinct position inside both pane limits");
+        splitter->SetPosition(64.0f);
+    });
+    runRetiringSetter("button multiline", [](FlexPanel& root) -> Control* { return root.AddChild<Button>(L"button"); }, [](Control* control) {
+        static_cast<Button*>(control)->SetMultiline(true);
+    });
+    runRetiringSetter("button disclosure", [](FlexPanel& root) -> Control* { return root.AddChild<Button>(L"button"); }, [](Control* control) {
+        static_cast<Button*>(control)->SetDisclosureExpanded(true);
+    });
+    runRetiringSetter("combo chrome", [](FlexPanel& root) -> Control* { return root.AddChild<ComboBox>(); }, [](Control* control) {
+        static_cast<ComboBox*>(control)->SetChromeVisible(false);
+    });
+    runRetiringSetter("numeric label", [](FlexPanel& root) -> Control* { return root.AddChild<NumericStepper>(); }, [](Control* control) {
+        static_cast<NumericStepper*>(control)->SetLabel(L"count", 40.0f);
+    });
+    runRetiringSetter("numeric unit", [](FlexPanel& root) -> Control* { return root.AddChild<NumericStepper>(); }, [](Control* control) {
+        static_cast<NumericStepper*>(control)->SetUnit(L"px", 20.0f);
+    });
+    runRetiringSetter("text field multiline", [](FlexPanel& root) -> Control* { return root.AddChild<TextField>(L"text"); }, [](Control* control) {
+        static_cast<TextField*>(control)->SetMultiline(true);
+    });
+    runRetiringSetter("text field masking", [](FlexPanel& root) -> Control* { return root.AddChild<TextField>(L"text"); }, [](Control* control) {
+        static_cast<TextField*>(control)->SetMasked(true);
+    });
+    runRetiringSetter("text field change", [](FlexPanel& root) -> Control* { return root.AddChild<TextField>(L"text"); }, [](Control* control) {
+        static_cast<TextField*>(control)->SetTextAndNotify(L"changed");
+    });
+    runRetiringSetter("slider value", [](FlexPanel& root) -> Control* { return root.AddChild<Slider>(); }, [](Control* control) {
+        static_cast<Slider*>(control)->SetValue(0.5);
+    });
 }
 
 void TestFlexFlowWrapGrowthRtlAndOverflow()
@@ -1855,6 +2034,68 @@ void TestRadioButtonMeasuresTheChromeItPaints()
 
 // A layout that fails (here an unsupported child without an explicit size) keeps its previous geometry and the frame
 // still paints; the layout applies once the content is fixed.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
+class AllocationRetryLayout final : public Control
+{
+public:
+    AllocationRetryLayout()
+    {
+        EnableIntrinsicLayout();
+    }
+    unsigned failures = 0u;
+    unsigned attempts = 0u;
+    void RetryNewRequest()
+    {
+        RequestIntrinsicLayout();
+    }
+    void Paint(ControlHost&) const override
+    {
+    }
+
+protected:
+    HRESULT PrepareIntrinsicLayout(const MeasureContext&) noexcept override
+    {
+        ++attempts;
+        if (failures != 0u)
+        {
+            --failures;
+            return E_OUTOFMEMORY;
+        }
+        return S_OK;
+    }
+};
+#pragma warning(pop)
+
+void TestIntrinsicLayoutAllocationRetryIsBounded()
+{
+    GraphicsFixture graphics;
+    RequireSucceeded(graphics.Create(), "allocation retry WARP fixture");
+    std::shared_ptr<GraphicsDevice> device;
+    RequireSucceeded(GraphicsDevice::Create(graphics.device.get(), device), "allocation retry graphics");
+    EmbeddedHost view;
+    RequireSucceeded(view.Attach(device), "allocation retry attach");
+    auto owned       = std::make_unique<AllocationRetryLayout>();
+    auto* layout     = owned.get();
+    layout->failures = 1u;
+    view.Controls().SetRoot(std::move(owned));
+    Require(view.Prepare(240u, 200u, 96.0f) == S_FALSE && layout->attempts == 1u, "first allocation failure requests one cooperative retry");
+    RequireSucceeded(view.Prepare(240u, 200u, 96.0f), "transient allocation retry succeeds");
+    Require(layout->attempts == 2u && ! view.NeedsPreparation(), "successful retry settles without an idle loop");
+    const auto previousBounds = layout->GetBounds();
+    layout->failures          = 4u;
+    layout->RetryNewRequest();
+    Require(view.Prepare(240u, 200u, 96.0f) == S_FALSE, "new request gets a fresh retry allowance");
+    RequireSucceeded(view.Prepare(240u, 200u, 96.0f), "persistent failure retains previous geometry and paints");
+    Require(layout->attempts == 4u && ! view.NeedsPreparation() && SameBounds(layout->GetBounds(), previousBounds),
+            "persistent allocation failure stops after two attempts and keeps geometry");
+    RequireSucceeded(view.Prepare(240u, 200u, 96.0f), "idle preparation remains safe");
+    Require(layout->attempts == 4u, "idle frames do not retry persistent allocation failure");
+    layout->failures = 0u;
+    layout->RetryNewRequest();
+    RequireSucceeded(view.Prepare(240u, 200u, 96.0f), "later explicit request can recover");
+    Require(layout->attempts == 5u, "later request performs a new layout");
+}
 void TestIntrinsicLayoutFailureKeepsPaintingThePreviousGeometry()
 {
     GraphicsFixture graphics;
@@ -2080,6 +2321,7 @@ void RunIntrinsicLayoutTests()
     DXUI_RUN_TEST(TestIntrinsicReflowPreservesTextDraftAndCancelsMovedPress);
     DXUI_RUN_TEST(TestFlexFixedExtentsArrangeAtInexactOrigins);
     DXUI_RUN_TEST(TestRadioButtonMeasuresTheChromeItPaints);
+    DXUI_RUN_TEST(TestIntrinsicLayoutAllocationRetryIsBounded);
     DXUI_RUN_TEST(TestIntrinsicLayoutFailureKeepsPaintingThePreviousGeometry);
     DXUI_RUN_TEST(TestIntrinsicLayoutReachesOwnersUnderAShownContainer);
     DXUI_RUN_TEST(TestWrappedTextIgnoresTheSpaceThatEndsEachLine);

@@ -1,0 +1,1 @@
+- Prepare deeply nested mathematical layouts with a bounded explicit traversal stack, retaining source order and formatting while avoiding recursive flattening overflow.

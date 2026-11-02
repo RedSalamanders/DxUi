@@ -1,5 +1,6 @@
 #pragma once
 #include "Controls/DxUi.RichImageResources.h"
+#include "Controls/DxUi.RichSemanticGeometry.h"
 #include "Support.Tests.RichImage.h"
 #include <DxUi/DxUi.h>
 #include <cmath>
@@ -17,6 +18,13 @@ inline std::shared_ptr<const DxUi::RichText::SemanticDocument> Semantic(std::wst
     while (builder.HasPendingPreparation())
         builder.Advance(17u);
     return builder.Published();
+}
+inline std::wstring MixedCapacitySource()
+{
+    std::wstring source(L"$x$ $y$\n\n```mermaid\ngraph TD;A-->B\n```\n\n");
+    for (unsigned index = 0u; index < 126u; ++index)
+        source.append(L"![image](mixed.png)\n\n");
+    return source;
 }
 inline std::shared_ptr<const DxUi::RichText::RichImage> Picture(unsigned width = 96u, unsigned height = 64u)
 {
@@ -60,6 +68,47 @@ template <typename Check> inline void Admission(Check&& check)
         }
         throw std::runtime_error("image resource preparation did not settle");
     };
+    {
+        RichImageResources staged;
+        const auto document = Semantic(L"![a](a.png) ![b](b.png) ![c](c.png) ![d](d.png) ![e](e.png)");
+        check(! staged.Begin(document, L"C:\\docs\\note.md", 1u, 1u), "five image candidates require staged preparation");
+        std::size_t work = 99u;
+        check(! staged.Advance(&work) && work == 4u, "image preparation reports four actual candidate visits");
+        check(staged.Advance(&work) && work == 1u, "the final image preparation turn reports its one remaining candidate");
+        check(staged.Advance(&work) && work == 0u, "idle image preparation reports no work");
+    }
+    {
+        constexpr std::wstring_view sourceText = L"![a](a.png) ![b](b.png)";
+        Document text(sourceText);
+        const auto original = text.Snapshot();
+        RichImageResources pending;
+        pending.Begin(Semantic(sourceText), L"C:\\docs\\note.md", 1u, 1u);
+        finish(pending);
+        std::vector<RichImageRequest> jobs(0u);
+        pending.Take(jobs);
+        check(jobs.size() == 2u && pending.Statistics().pendingSources == 2u && pending.Statistics().failedSources == 0u,
+              "two dispatched sources begin pending without failures");
+        text.Replace(5u, 6u, L"x", {});
+        pending.SuspendForEdit(text.Snapshot(), original);
+        const auto suspended = pending.Statistics();
+        check(jobs[0].Cancelled() && ! jobs[1].Cancelled() && suspended.requestedSources == 2u && suspended.pendingSources == 1u &&
+                  suspended.failedSources == 0u && ! pending.Complete(jobs[0], Picture()),
+              "an affected source edit cancels only that request without reporting a failed decode");
+        check(pending.Complete(jobs[1], {}) && pending.Statistics().failedSources == 1u && pending.Statistics().pendingSources == 0u,
+              "an actual failed completion remains distinguishable from cancelled work");
+        RichImageResources cancelled;
+        cancelled.Begin(Semantic(sourceText), L"C:\\docs\\note.md", 1u, 1u);
+        finish(cancelled);
+        std::vector<RichImageRequest> cancelledJobs(0u);
+        cancelled.Take(cancelledJobs);
+        cancelled.Cancel();
+        check(cancelledJobs.size() == 2u && cancelledJobs[0].Cancelled() && cancelledJobs[1].Cancelled() && cancelled.Statistics().pendingSources == 0u &&
+                  cancelled.Statistics().failedSources == 0u,
+              "cancelling all in-flight jobs does not report failed sources");
+        pending.Cancel();
+        check(pending.Statistics().failedSources == 1u && pending.Statistics().pendingSources == 0u && jobs[0].Cancelled(),
+              "cancelling retained work never invents another failed source");
+    }
     std::wstring source(0u, L' ');
     for (unsigned i = 0u; i < 129u; ++i)
         source.append(L"![image](same.png) ");
@@ -72,8 +121,56 @@ template <typename Check> inline void Admission(Check&& check)
     check(requests.size() == 1u && resources.Statistics().imageElements == 128u,
           "native image placement ceiling retains excess alternatives while coalescing duplicate files");
     const auto picture = Picture();
-    check(resources.Complete(requests[0], picture) && resources.Snapshot()->placements.size() == 128u,
-          "one immutable image supplies every admitted duplicate placement");
+    check(resources.Complete(requests[0], picture) && resources.HasUnpublished(), "completion stages an unpublished resource snapshot");
+    resources.Publish();
+    check(resources.Snapshot()->placements.size() == 128u, "one immutable image supplies every admitted duplicate placement");
+    const auto mixed = Semantic(MixedCapacitySource());
+    check(SemanticExtensionAccess::Maths(*mixed).size() == 2u && SemanticExtensionAccess::Diagrams(*mixed).size() == 1u &&
+              SemanticExtensionAccess::Images(*mixed).size() == 125u,
+          "math, diagrams, and images share the 128-object semantic admission ceiling");
+    resources.Begin(mixed, L"C:\\docs\\note.md", 2u, 1u);
+    finish(resources);
+    resources.Take(requests);
+    check(requests.size() == 1u && resources.Complete(requests[0], picture), "mixed admitted objects dispatch one shared image request");
+    resources.Publish();
+    check(resources.Snapshot()->placements.size() == 125u && resources.Statistics().decodedBytes == picture->RetainedBytes(),
+          "mixed objects publish every admitted image placement and retain shared pixels once");
+    resources.Begin(Semantic(L"![a](a.png) ![b](b.png)"), L"C:\\docs\\note.md", 1u, 1u);
+    finish(resources);
+    resources.Take(requests);
+    const auto oldSnapshot = resources.Snapshot();
+    check(requests.size() == 2u && resources.Complete(requests[0], picture) && resources.Complete(requests[1], picture) && resources.HasUnpublished() &&
+              resources.Snapshot() == oldSnapshot,
+          "an image burst stages all completions without replacing the immutable publication");
+    resources.Publish();
+    check(! resources.HasUnpublished() && resources.Snapshot()->placements.size() == 2u, "one owner publication exposes both completed sources");
+    check(requests[0].Cancelled() && ! resources.ReplaceFrame(requests[0], nullptr),
+          "completed tokens remain valid frame identities while null frames are refused");
+    auto frame = Picture(2u, 2u);
+    check(resources.ReplaceFrame(requests[0], frame) && resources.HasUnpublished() &&
+              resources.Statistics().decodedBytes == picture->Pixels().size() + frame->Pixels().size(),
+          "a replacement counts distinct pixel storage once while the other source retains its shared image");
+    resources.Publish();
+    std::weak_ptr<const RichImage> retiredFrame = frame;
+    frame.reset();
+    for (unsigned step = 0u; step < 16u; ++step)
+    {
+        auto previousFrame = resources.Snapshot();
+        auto nextFrame     = Picture(2u, 2u);
+        check(resources.ReplaceFrame(requests[0], nextFrame) && resources.Snapshot() == previousFrame && resources.HasUnpublished(),
+              "accepted frames stage without mutating the previous immutable publication");
+        resources.Publish();
+        check(resources.Snapshot() != previousFrame && ! retiredFrame.expired() &&
+                  resources.Statistics().decodedBytes == picture->Pixels().size() + nextFrame->Pixels().size(),
+              "one new frame publishes while a caller-held old snapshot keeps its pixels alive");
+        previousFrame.reset();
+        check(retiredFrame.expired(), "retired frame pixels are released after the last previous snapshot is dropped");
+        retiredFrame = nextFrame;
+    }
+    check(resources.ReplaceFrame(requests[0], picture) && resources.Statistics().decodedBytes == picture->Pixels().size(),
+          "replacement with another source's pixels collapses accounting to one shared allocation");
+    resources.Publish();
+    check(retiredFrame.expired(), "the last animated frame retires once replaced by shared pixels");
     source.clear();
     for (unsigned i = 0u; i < 33u; ++i)
         source.append(L"![image](source").append(std::to_wstring(i)).append(L".png) ");
@@ -88,7 +185,8 @@ template <typename Check> inline void Admission(Check&& check)
     source.clear();
     for (unsigned i = 0u; i < 5u; ++i)
         source.append(L"![image](capacity").append(std::to_wstring(i)).append(L".png) ");
-    resources.Begin(Semantic(source), L"C:\\docs\\note.md", 1u, 1u);
+    const auto saturatedDocument = Semantic(source);
+    resources.Begin(saturatedDocument, L"C:\\docs\\note.md", 1u, 1u);
     finish(resources);
     resources.Take(requests);
     std::array<std::shared_ptr<const RichImage>, 4u> large{};
@@ -101,6 +199,12 @@ template <typename Check> inline void Admission(Check&& check)
     check(resources.Complete(requests[4u], Picture(1u, 1u)) && resources.Statistics().readySources == 4u && resources.Statistics().failedSources == 1u &&
               resources.Statistics().decodedBytes == RichImageResources::MaximumDecodedBytes,
           "over-capacity completion keeps an alternative without growing retained bytes");
+    resources.Publish();
+    const auto saturatedSnapshot = resources.Snapshot();
+    check(resources.Begin(saturatedDocument, L"C:\\docs\\note.md", 1u, 1u), "unchanged saturated resources remain current");
+    resources.Take(requests);
+    check(requests.empty() && resources.Snapshot() == saturatedSnapshot && resources.Statistics().decodedBytes == RichImageResources::MaximumDecodedBytes,
+          "revisiting unchanged saturated resources keeps the immutable snapshot and never requests ready images again");
     resources.Clear();
     check(resources.Statistics().decodedBytes == 0u && ! resources.Snapshot(), "explicit resource reset releases retained cache ownership");
     RichImageRequest retired;
@@ -194,6 +298,130 @@ template <typename Prepare, typename Check> inline void Retained(DxUi::RichTextE
     editor.SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
     editor.SetMarkdownRenderingEnabled(true);
     editor.SetDocumentFilePath(L"C:\\docs\\note.md");
+    {
+        constexpr std::string_view svg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'><rect width='10' height='10' fill='red'/></svg>";
+        std::shared_ptr<const RichImage> vectorImage;
+        check(SUCCEEDED(RichImage::CreateSvg(10u, 10u, std::as_bytes(std::span(svg)), vectorImage)), "SVG fixture passes bounded admission");
+        editor.SetText(L"![vector](shape.svg)\n");
+        prepare();
+        std::vector<RichImageRequest> jobs(0u);
+        editor.TakePendingImageRequests(jobs);
+        check(jobs.size() == 1u && ! editor.SvgImagesEnabled() && ! editor.CompleteImageRequest(jobs.front(), vectorImage) && ! jobs.front().Cancelled(),
+              "SVG resources are refused by default without cancelling the caller request");
+        editor.SetSvgImagesEnabled(true);
+        prepare();
+#if DXUI_ENABLE_DIAGNOSTICS
+        const auto previousUnsupported = DxUi::RichText::Detail::testRichSvgTargetUnsupported;
+        const auto restoreUnsupported  = wil::scope_exit([&] noexcept { DxUi::RichText::Detail::testRichSvgTargetUnsupported = previousUnsupported; });
+        DxUi::RichText::Detail::testRichSvgTargetUnsupported = true;
+#endif
+        check(editor.CompleteImageRequest(jobs.front(), vectorImage), "explicit SVG policy accepts the current immutable resource");
+        prepare();
+        check(editor.GetImageResourceStatistics().readySources == 1u && editor.GetImageResourceStatistics().decodedBytes == svg.size(),
+              "SVG retained bytes share the existing resource budget");
+#if DXUI_ENABLE_DIAGNOSTICS
+        const auto fallback = editor.GetAcknowledgedSemanticDocument(host);
+        check(fallback && fallback->Map().Display().find(L"[image: vector]") != std::wstring_view::npos && editor.GetText() == L"![vector](shape.svg)\n",
+              "unsupported SVG target keeps the exact source and image alternative");
+        DxUi::RichText::Detail::testRichSvgTargetUnsupported = false;
+#endif
+        editor.SetSvgImagesEnabled(false);
+        prepare();
+        check(editor.GetImageResourceStatistics().readySources == 0u, "disabling SVG evicts its ready resource");
+    }
+    {
+        const std::wstring htmlSource = L"<img src='html.png' alt='A &amp; B' title='Hint'>\n";
+        editor.SetText(htmlSource);
+        prepare();
+        std::vector<RichImageRequest> htmlRequests(0u);
+        editor.TakePendingImageRequests(htmlRequests);
+        check(htmlRequests.size() == 1u && htmlRequests.front().FilePath() == L"C:\\docs\\html.png",
+              "HTML image uses the existing explicit-base caller-owned resource request");
+        check(editor.CompleteImageRequest(htmlRequests.front(), Picture()), "HTML image accepts a current owner completion");
+        prepare();
+        const auto htmlDocument = editor.GetAcknowledgedSemanticDocument(host);
+        check(static_cast<bool>(htmlDocument), "HTML image publishes current semantic geometry");
+        const auto htmlImage = std::ranges::find(htmlDocument->Elements(), SemanticRole::Image, &SemanticElement::role);
+        check(htmlImage != htmlDocument->Elements().end() && htmlImage->name == L"A & B" && htmlImage->nativeHtml,
+              "loaded HTML image keeps its decoded accessible alternative");
+        const auto htmlBounds = editor.GetSemanticElementBounds(host, static_cast<std::size_t>(htmlImage - htmlDocument->Elements().begin()));
+        check(htmlBounds && std::abs(htmlBounds->right - htmlBounds->left - 96.f) < .02f && std::abs(htmlBounds->bottom - htmlBounds->top - 64.f) < .02f &&
+                  editor.GetText() == htmlSource && ! editor.CanUndo(),
+              "HTML pixels share intrinsic image geometry without modifying source or history");
+        const std::wstring sizedSource = L"<img src='html.png' alt='A' width='48' height='40' align='right' data-caption='Overview'>\n";
+        editor.SetText(sizedSource);
+        prepare();
+        htmlRequests.clear();
+        editor.TakePendingImageRequests(htmlRequests);
+        check(htmlRequests.size() <= 1u, "sized image owns at most one current request");
+        if (! htmlRequests.empty())
+        {
+            check(editor.CompleteImageRequest(htmlRequests.front(), Picture()), "sized image accepts its current resource");
+            prepare();
+        }
+        const auto sizedDocument = editor.GetAcknowledgedSemanticDocument(host);
+        check(static_cast<bool>(sizedDocument), "authored HTML image publishes current semantic geometry");
+        const auto sizedImage = std::ranges::find(sizedDocument->Elements(), SemanticRole::Image, &SemanticElement::role);
+        check(sizedImage != sizedDocument->Elements().end() && sizedImage->imageWidth == 48u && sizedImage->imageHeight == 40u &&
+                  sizedDocument->Map().Display().find(L"Overview") != std::wstring::npos &&
+                  sizedDocument->Paragraphs().front().alignment == MarkdownAlignment::Right,
+              "HTML image retains bounded authored width and height in the semantic publication");
+        const auto sizedBounds = editor.GetSemanticElementBounds(host, static_cast<std::size_t>(sizedImage - sizedDocument->Elements().begin()));
+        check(sizedBounds && std::abs(sizedBounds->right - sizedBounds->left - 48.f) < .02f && std::abs(sizedBounds->bottom - sizedBounds->top - 40.f) < .02f &&
+                  editor.GetText() == sizedSource,
+              "authored HTML dimensions determine image geometry while source remains exact");
+        editor.SetText(L"<img src='https://example.invalid/image.png' alt='remote'>\n");
+        prepare();
+        editor.TakePendingImageRequests(htmlRequests);
+        check(htmlRequests.empty(), "HTML remote images keep the default opt-in boundary");
+        editor.SetRemoteImagesEnabled(true);
+        prepare();
+        editor.TakePendingImageRequests(htmlRequests);
+        check(htmlRequests.size() == 1u && htmlRequests.front().SourceKind() == RichImageSourceKind::RemoteHttp,
+              "explicit remote opt-in exposes only an immutable caller-owned HTML request");
+        editor.SetRemoteImagesEnabled(false);
+    }
+    {
+        editor.SetText(L"<img src='data:image/png;base64,AAAA' alt='data'>\n");
+        prepare();
+        std::vector<RichImageRequest> htmlData(0u);
+        editor.TakePendingImageRequests(htmlData);
+        check(htmlData.empty(), "HTML data images retain the default opt-in boundary");
+        editor.SetDataImagesEnabled(true);
+        prepare();
+        editor.TakePendingImageRequests(htmlData);
+        check(htmlData.size() == 1u && htmlData.front().SourceKind() == RichImageSourceKind::Data && htmlData.front().Source() == L"data:image/png;base64,AAAA",
+              "HTML data images use the same bounded caller-owned admission as Markdown images");
+        editor.SetDataImagesEnabled(false);
+        check(htmlData.front().Cancelled(), "disabling data images cancels a pending HTML data request");
+    }
+    {
+        const std::wstring source = L"![data](data:image/png;base64,AAAA)\n\n![remote](https://example.invalid/a.png)\n";
+        editor.SetText(source);
+        prepare();
+        std::vector<RichImageRequest> jobs(0u);
+        editor.TakePendingImageRequests(jobs);
+        check(jobs.empty() && ! editor.DataImagesEnabled(), "data and remote images are independently disabled by default");
+        editor.SetDataImagesEnabled(true);
+        prepare();
+        editor.TakePendingImageRequests(jobs);
+        check(jobs.size() == 1u && jobs.front().SourceKind() == RichImageSourceKind::Data && jobs.front().Source() == L"data:image/png;base64,AAAA" &&
+                  jobs.front().FilePath().empty(),
+              "data opt-in exposes the exact opaque source without enabling remote transport");
+        const auto dataJob = jobs.front();
+        editor.SetRemoteImagesEnabled(true);
+        prepare();
+        editor.TakePendingImageRequests(jobs);
+        check(jobs.size() == 1u && jobs.front().SourceKind() == RichImageSourceKind::RemoteHttp && ! dataJob.Cancelled(),
+              "remote policy changes preserve a pending data request");
+        const auto remoteJob = jobs.front();
+        editor.SetDataImagesEnabled(false);
+        check(dataJob.Cancelled() && ! remoteJob.Cancelled() && ! editor.CompleteImageRequest(dataJob, Picture()),
+              "disabling data cancels only its own requests and rejects stale completions");
+        editor.SetRemoteImagesEnabled(false);
+        check(remoteJob.Cancelled() && editor.GetText() == source && ! editor.CanUndo(),
+              "policy changes preserve source and history while cancelling the corresponding request");
+    }
     const std::wstring source = L"before ![sample](image.png) after\n\n![same](image.png)\n";
     editor.SetText(source);
     editor.SetSelection({4u, 2u});
@@ -209,7 +437,8 @@ template <typename Prepare, typename Check> inline void Retained(DxUi::RichTextE
     const auto selection = editor.GetSelection();
     std::size_t notices{};
     editor.SetOnTextChanged([&] { ++notices; });
-    const auto picture = Picture();
+    const auto picture          = Picture();
+    const auto completedRequest = requests[0];
     check(editor.CompleteImageRequest(requests[0], picture) && requests[0].Cancelled() && ! editor.CompleteImageRequest(requests[0], picture),
           "current completion publishes once and retires its job token");
     prepare();
@@ -217,6 +446,10 @@ template <typename Prepare, typename Check> inline void Retained(DxUi::RichTextE
           "image publication preserves source, backward selection, history and text notifications");
     const auto document = editor.GetAcknowledgedSemanticDocument(host);
     check(static_cast<bool>(document), "image geometry has an acknowledged source document");
+    check(editor.ReplaceImageFrame(host, document, requests[0], Picture()), "caller can replace a completed image with a new immutable frame");
+    prepare();
+    check(editor.GetText() == source && editor.Revision() == revision && editor.GetSelection() == selection && ! editor.CanUndo() && ! notices,
+          "frame replacement preserves source, selection, history and notifications");
     unsigned images{};
     for (std::size_t index = 0u; index < document->Elements().size(); ++index)
         if (document->Elements()[index].role == SemanticRole::Image)
@@ -249,6 +482,7 @@ template <typename Prepare, typename Check> inline void Retained(DxUi::RichTextE
     check(requests.size() == 1u && requests[0].FilePath() == L"D:\\other\\image.png", "new image request uses only the new explicit base");
     const auto changedSource = requests[0];
     editor.SetText(L"![other](b.png)");
+    check(! editor.ReplaceImageFrame(host, document, completedRequest, Picture()), "a frame from a replaced source publication is refused");
     check(changedSource.Cancelled() && ! editor.CompleteImageRequest(changedSource, picture),
           "source replacement rejects a prior image completion immediately");
     prepare();
@@ -285,5 +519,104 @@ template <typename Prepare, typename Check> inline void Retained(DxUi::RichTextE
     check(editor.CompleteImageRequest(requests[0], {}), "missing/unsupported decode is an accepted fallback result");
     editor.TakePendingImageRequests(requests);
     check(requests.empty() && editor.GetImageResourceStatistics().failedSources == 1u, "failed image keeps its alternative without an idle retry loop");
+    editor.SetSelection({0u, 0u});
+    check(editor.ReplaceSelection(L"unrelated "), "unrelated edit commits with failed image retained");
+    prepare();
+    editor.TakePendingImageRequests(requests);
+    check(requests.empty() && editor.GetImageResourceStatistics().failedSources == 1u, "failed image is not requested again after unrelated source edits");
+    editor.ReloadImages();
+    prepare();
+    editor.TakePendingImageRequests(requests);
+    check(requests.size() == 1u && editor.CompleteImageRequest(requests[0], {}), "explicit reload retries a failed image");
+    editor.SetRemoteImagesEnabled(! editor.RemoteImagesEnabled());
+    prepare();
+    editor.TakePendingImageRequests(requests);
+    check(requests.size() == 1u, "policy changes retry retained failed sources");
+
+    editor.SetText(L"prefix ![pending](pending.png) suffix");
+    prepare();
+    editor.TakePendingImageRequests(requests);
+    check(requests.size() == 1u, "tracked-edit fixture dispatches a pending image");
+    const auto retained = requests[0];
+    editor.SetSelection({0u, 0u});
+    check(editor.ReplaceSelection(L"new ") && ! retained.Cancelled(), "unrelated tracked edit retains the in-flight request");
+    check(editor.CompleteImageRequest(retained, picture), "retained completion is accepted while semantics are pending");
+    check(! editor.GetAcknowledgedSemanticDocument(host), "old image completion is not exposed as current semantics");
+    prepare();
+    editor.TakePendingImageRequests(requests);
+    check(requests.empty() && editor.GetImageResourceStatistics().readySources == 1u, "new semantics adopts the completed image without a second request");
+    editor.ReloadImages();
+    prepare();
+    editor.TakePendingImageRequests(requests);
+    check(requests.size() == 1u, "affected-edit fixture dispatches a fresh request");
+    const auto affected    = requests[0];
+    const auto destination = editor.GetText().find(L"pending.png");
+    check(destination != std::wstring::npos, "affected-edit destination exists");
+    editor.SetSelection({destination, destination + 1u});
+    check(editor.ReplaceSelection(L"x") && affected.Cancelled() && ! editor.CompleteImageRequest(affected, picture),
+          "editing the image source cancels and rejects the old request");
+    check(editor.GetImageResourceStatistics().pendingSources == 0u && editor.GetImageResourceStatistics().failedSources == 0u,
+          "an affected source edit immediately cancels the job without reporting decode failure");
+    const auto imageSourceBeforeLabels = editor.GetText();
+    const std::wstring labelSource     = L"![first](first.png) and ![second](second.png)";
+    editor.SetText(labelSource);
+    editor.SetSelection({2u, 2u});
+    prepare();
+    editor.TakePendingImageRequests(requests);
+    check(requests.size() == 2u, "label-change fixture dispatches two image requests");
+    const auto labelRevision   = editor.Revision();
+    const auto sourceSelection = editor.GetSelection();
+    check(editor.CompleteImageRequest(requests[0], picture), "first completion stages pixels before labels change");
+    const auto beforeLabels = editor.DebugGetState();
+    editor.SetAccessibilityLabels(std::make_shared<const AccessibilityLabels>());
+    check(! requests[1].Cancelled() && ! editor.GetSemanticDocument() && editor.CompleteImageRequest(requests[1], picture),
+          "metadata-only label replacement retains and accepts an in-flight image while semantics rebuilds");
+    const auto duringLabels = editor.DebugGetState();
+    check(duringLabels.preparationAdvances == beforeLabels.preparationAdvances && editor.Revision() == labelRevision &&
+              editor.GetSelection() == sourceSelection && editor.GetText() == labelSource && ! editor.CanUndo(),
+          "label replacement and both image completions preserve source, selection and history without synchronous preparation");
+    prepare();
+    editor.TakePendingImageRequests(requests);
+    check(requests.empty() && editor.GetImageResourceStatistics().readySources == 2u && editor.GetAcknowledgedSemanticDocument(host),
+          "new semantic publication adopts both previously staged and newly completed image sources without redispatch");
+    editor.ReloadImages();
+    prepare();
+    editor.TakePendingImageRequests(requests);
+    check(requests.size() == 2u, "extension-change fixture dispatches two image requests");
+    check(editor.CompleteImageRequest(requests[0], picture), "first image stages before extension change");
+    editor.SetMarkdownAnalysisExtensions(MarkdownExtensions::RichAll | MarkdownExtensions::Abbreviations);
+    check(! requests[1].Cancelled() && ! editor.GetSemanticDocument() && editor.CompleteImageRequest(requests[1], picture),
+          "same-source extension change retains and accepts the in-flight image request");
+    prepare();
+    editor.TakePendingImageRequests(requests);
+    check(requests.empty() && editor.GetImageResourceStatistics().readySources == 2u && editor.GetText() == labelSource && editor.Revision() == labelRevision &&
+              editor.GetSelection() == sourceSelection && ! editor.CanUndo(),
+          "extension rebind adopts both completed image sources without redispatch or source/history changes");
+    editor.SetMarkdownAnalysisExtensions(std::nullopt);
+    prepare();
+    editor.ReloadImages();
+    prepare();
+    editor.TakePendingImageRequests(requests);
+    check(requests.size() == 2u, "soft-break policy fixture dispatches two image requests");
+    check(editor.CompleteImageRequest(requests[0], picture), "first image completes before soft-break policy change");
+    const auto beforePolicy    = editor.DebugGetState();
+    auto appearance            = editor.GetAppearance();
+    appearance.softBreakPolicy = SoftBreakPolicy::LineBreak;
+    editor.SetAppearance(appearance);
+    check(! requests[1].Cancelled() && ! editor.GetSemanticDocument() && editor.CompleteImageRequest(requests[1], picture),
+          "soft-break policy change retains and accepts a pending image request");
+    const auto duringPolicy = editor.DebugGetState();
+    check(duringPolicy.preparationAdvances == beforePolicy.preparationAdvances && editor.Revision() == labelRevision &&
+              editor.GetSelection() == sourceSelection && editor.GetText() == labelSource && ! editor.CanUndo(),
+          "soft-break policy change preserves source, selection and history without synchronous preparation");
+    prepare();
+    editor.TakePendingImageRequests(requests);
+    check(requests.empty() && editor.GetImageResourceStatistics().readySources == 2u && editor.GetAcknowledgedSemanticDocument(host),
+          "new soft-break semantics rebind both images without duplicate requests");
+    appearance.softBreakPolicy = SoftBreakPolicy::Space;
+    editor.SetAppearance(appearance);
+    editor.SetAccessibilityLabels(nullptr);
+    editor.SetText(imageSourceBeforeLabels);
+    prepare();
 }
 } // namespace RichImageResourceTests

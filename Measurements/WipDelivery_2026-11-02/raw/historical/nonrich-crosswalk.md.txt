@@ -1,0 +1,176 @@
+# Current non-Rich review crosswalk — 5f400530, 2026-11-02
+
+Evidence is source/test inspection, not a final run. `historical-review-5fe2/inventory.md` supplies original descriptions; `wip-review-disposition-20261101/.build/review-disposition/{historical-per-id-baseline,current-delta}.md` and `review-disposition-9aa/non-rich-disposition.md` contain historical anchors, with deltas below replacing stale baseline claims. Rich-specific R28 subclaims are explicitly delegated to the matching Rich register; no claim of unlimited support or final runtime. Root independently integrates current candidates.
+
+## Concrete outstanding items
+
+- CR18: current uncached embedded Grid.GetItem can publish during dirty/unprepared geometry. Fix/test 4c00afc1 is staged; combined-source runtime and callback lifetime review required. It checks coherence before model access and after callbacks; cached snapshot access stays intact.
+- CR27: baseline deliberately documents null RadioButtons selection container and focused-only prepared Tree item expansion events (`UI_InputAndAccessibility.md:665–671`; Accessibility.cpp:10652,13088). Root authorized expanding these; controls agent owns source and direct tests. Do not misstate the old limited contract as already implementing that expansion.
+- CR21 opening key's translated WM_CHAR remains deferred, without a reproducible input sequence; no silent assertion it is repaired. A filter without a reproducer can discard an actual first keystroke.
+- CR34 accepted archive relocation/history rewrite remains a distinct deferred administrative operation, with original Q4/Q11/Q18–20 constraints and evidence ownership. Existing run and local source do not demonstrate archive removal, remote-history rewrite or redaction. No ref or hosted changes performed here.
+- Popup historical healthy-probe cause is unknowable from its retained observation; root has chosen to challenge retrospective attribution, retaining unknown original and current diagnostics. New pass is not cause proof.
+
+## R28 register (each ID)
+
+| ID | Current disposition / source and test owner |
+|---|---|
+| 01 | Grid/Tree bounds change clamp (`DxUi.Grid.cpp`/`DxUi.Tree.cpp` OnBoundsChanged); directed resize cases in Grid/Tree suites. |
+| 02 | Pending preparation cancels only the affected capture owner (`DxUi.Controls.cpp` preparation traversal); WindowHost capture cancellation fixtures. |
+| 03 | Explicit line height uses correct reference fallback; `Controls.Tests.RichDocumentLayout.cpp` CompareDocumentGeometry and explicit pitch cases. |
+| 04 | RTL table coordinates use left+width and `Support.Tests.RichSemanticGeometry.h` intrinsic/RTL table geometry and DPI raster fixtures. |
+| 05 | Native ACP size limit and write-lock test `DxUi.TextStoreACP.cpp`, `DxUi.Tests.NativeTextInput.cpp`; real IME remains separate. |
+| 06 | Native text-store read-only/multiline status and notifications, same test owner. |
+| 07 | Outside-matrix row separator source-preserving rejection `Support.Tests.MathCorpus.h:96`; Rich plan owns final corpus. |
+| 08 | Double-bar math glyph cases `Support.Tests.MathCorpus.h:774`; Rich plan owns final corpus. |
+| 09 | Bounded state/class metadata and `:::` parsing, `DxUi.NativeFlowchart.cpp`, `Support.Tests.MarkdownBlocks.h` family cases; accepted native subsets and fallback, not upstream parity. |
+| 10 | Source-ink URL/email and math delimiter endpoint tests `Controls.Tests.RichTextLayout.cpp`. |
+| 11 | UIA rich ScrollIntoView republish `DxUi.Accessibility.cpp` and `Controls.Tests.RichTextAccessibility.cpp`, including current snapshot tests. |
+| 12 | Grid busy/sort and Tree selection setters invalidate, `DxUi.Grid.cpp`, `DxUi.Tree.cpp`; attached/reentry suites cover paths. |
+| 13 | Tree typeahead starts and refresh semantics `DxUi.Tree.cpp`; `DxUi.Tests.Tree.cpp` growing prefix/refresh tests. |
+| 14 | Setter continuation guarded after callbacks, e.g. Panel and `Controls.Tests.IntrinsicLayout.cpp`; CB09 enumerates wider audited paths rather than guaranteeing arbitrary future callbacks. |
+| 15 | Embedded correlated key/character receipt catches allocation with pre/post-entering-control semantics; Rich editor commit-aware boundary; `Embedded.Tests.EmbeddedTextInput.h`, `Embedded.Tests.RichTextResources.h`; native/API activation and cache OOM repair 42590730/dbabc047 added after 5f. |
+| 16 | Text-range geometry fallible staging and explicit E_OUTOFMEMORY retry (`DxUi.Accessibility.cpp`, `Embedded.Tests.RichTextResources.h`); final host run required. |
+| 17 | Deterministic failure and retry latch versus pending content distinguished in `Embedded.cpp` and tests; persistent failure does not busy-loop. |
+| 18 | Capped item-status events and bounded embedded queue, `DxUi.Accessibility.cpp`, `Embedded.Tests.EmbeddedUia.h`. |
+| 19 | Event peer created without pinning old prepared rows, `Embedded.Tests.PreparedTreeEvents.h`. |
+| 20 | AssignInOrder linearized selection `DxUi.Grid.cpp`/`DxUi.Tree.cpp`; 20,000 ID test `DxUi.Tests.Grid.cpp`. Paired performance is separate. |
+| 21 | Reduced-motion and large-row cutoff avoid unbounded animated expansion, `DxUi.Tree.cpp` and `DxUi.Tests.Tree.cpp`; no claim original viewport-index proposal exists. |
+| 22 | Shared MATH formats and width reuse, `DxUi.RichSemanticGeometry.cpp`, `Support.Tests.MathCorpus.h`, `Support.Tests.RichSemanticGeometry.h`. |
+| 23 | Per-object rejection keys and batching, `DxUi.RichTextEditor.cpp` and `Support.Tests.RichSemanticEditor.h` unchanged failures/multiple formula cases; aggregate image cap fixture 72b19cf3. |
+| 24 | Read-only source snapshot avoids relayout/reposition, `DxUi.RichTextEditor.cpp` synchronization and `Controls.Tests.RichTextAccessibility.cpp`. |
+| 25 | Direct source ink is explicit default-off preview; unsupported claim of qualified default rejected, `UI_ControlsAndLayout.md` and RichTextLayout. |
+| 26 | Button shortcut/hyperlink metrics and Tab prepared paths staged; `DxUi.Controls.cpp`, intrinsic/tab paint fixtures. No claim every other control has zero SDK work solely from this row. |
+| 27 | Negative image resource cache, `DxUi.RichImageResources.h`, `Support.Tests.RichImageResources.h:454–463`. |
+| 28 | Separator ordinal rollback not implemented; DX11 permits keeping API4 current ordinals and matched headers/library. Avoid incompatible renumber without consumer evidence. |
+| 29 | Callback replacement independently retained and hide/disable drag publishes synchronously (3e33b41e), editor and WindowHost fixtures. |
+| 30 | Hover link reset on source changes, `DxUi.RichTextEditor.cpp`; shared hover/edit tests. |
+| 31 | Same-ID Tree rename and bounded Name changes, native/embedded UIA fixtures; native text-event path indexed; rendered underline deliberately reflects hover/caret; nested embedded dead branch is dead cleanup, not functional defect. |
+| 32 | One bounded transient intrinsic OOM retry (`DxUi.Controls.cpp:2409`, `Controls.Tests.IntrinsicLayout.cpp:2070`); Label mnemonic invalidation/metrics test; Separator fallible factory sweep; TagPicker compaction; selector deliberately ignores icon/shortcut in documented balanced-lane contract `UI_ControlsAndLayout.md:405`. Panel observer before possible refusal is guarded and self-healing, not a proof of atomic detachment notification. |
+| 33 | Tree ctrl/shift invocation and wheel propagation (`DxUi.Tree.cpp`); real refresh/removal pointer test 50062ee5; Grid ignored-key early return, viewport Page and same-count column IDs (`DxUi.Grid.cpp:5850,6084,1874`, `DxUi.Tests.Grid.cpp:5176`); Tree reentrant reorder guard. |
+| 34 | Selection union mask, heading margin and table intrinsic/RTL fixtures in Rich semantic geometry; retained hidden object keys are bounded by source/geometry generation. Rich plan owns remaining detailed content fidelity. |
+| 35 | Math target symbols, source cap and separate expanded text bound, italic/atom corrections and C1–C8 pinned corpus owned by Rich audit; current JSON describes target vs bounded implemented subset. No generic KaTeX claim. |
+| 36 | Surrogate buffered, reverse grapheme checkpoint c3136260, native layout change and nested association 1091ddf8 plus native tests. Several full state copies remain intentional correctness path; a performance claim requires measured equivalent caching. |
+| 37 | CODEOWNERS covers effective CI root/Build/Tools and test, `Tools/tests/Test-CodeOwners.ps1`; enforcement is hosted ruleset state. |
+| 38 | Full tracked execution closure `Tools/ScopedTesting.psm1`, `Tests/test-scopes.json`, `Test-ScopedTesting.ps1`; actual hosted role remains separate. |
+| 39 | Installer bounded owned process; evidence finalizer preserves both errors 814b82d4; tooling runner per-child nonzero/throw test; identical fragment warnings `Test-Docs.ps1:329–342`; native consumer observed 12 completed calls in `ConsumerQualification.psm1:103–148` with malformed/short fixtures. SDK pin and environment-based hosted detection are explicit policies, not hardware attestation. |
+| 40 | Read-only key routing uses AcceptsTypedText in WindowHost/RichTextEditor; native key suite. |
+| 41 | Stage-4 actual ResizeBuffers device-removal fault and recreation `Controls.Tests.NativeDevicePolicy.h:79–95`. |
+| 42 | Explicit application-supplied native presentation visibility in WindowHost; `DxUi.Tests.WindowHost.cpp:6141–6187`, performance norm :881–887. Not automatic detection of arbitrary covered flip-model window. |
+| 43 | Mouse leave contained; batchInitialRootChildren documented in docs/hosting and capabilities. SetVisible flag coalescing optimization not measured; retaining correct invalidation is preferable to unsafe generic deletion. |
+| 44 | Grid installs new borrowed model before throwing work, with reentry/selection failure containment (`DxUi.Grid.cpp`, `DxUi.Tests.Grid.cpp`). |
+| 45 | Timer cancellation on actual keyboard/UIA ownership, inert unmatched input preserved; `DxUi.Tests.Menu.cpp:5672–5958`. |
+| 46 | Menu pending-open/close, UIA/inert input and bounded foreground fixtures; preserve original intermittent failures and restoration results, do not infer historical cause. |
+| 47 | Attachment identity includes WARP/batching; mismatch refusal is documented and `DxUi.Tests.WindowHost.cpp:2163` tests. Original unconditional same-HWND idempotence recommendation conflicts with option identity. |
+| 48 | Repeated membership walk fixed by staged revision/lifetime guards; eviction-stable format-key proposal remains optional and unimplemented pending font/fallback/DPI identity proof and paired measurement. |
+| 49 | `DxUi.Tree.cpp:2610` ExpanderLane separates hit testing; mirrored reserved RTL expander tests `DxUi.Tests.Tree.cpp:2633–2644`. |
+| 50 | Same-owner/source-revision early return before MatchesText at `DxUi.MarkdownSyntax.cpp:889–902`; snapshot tests. |
+| 51 | Complete anchored summary and bounded scan `Build/BuildConsole.psm1`; consumer logs scanned; build.ps1 rebuild/receipt invalidation and `Test-BuildConsole`/`Test-PerformancePolicy` fixtures. Empty output and warning rejection are not a compiler pass. |
+| 52 | Remote PR origin/SHA/parent/fold verification in `Tools/Submit-ChangelogFold.ps1` and `Test-ChangelogWorkflow.ps1`; no external operation here. |
+| 53 | Base fragments, withdrawals, generated release and Git errors validated; same-change add+fold prohibited by `Changes/README.md` and dirty PrePush refused. Historic broader acceptance proposal conflicts with current explicit separate-fold contract. |
+
+## DX and CB
+
+DX1–11 each traced in `review-disposition-9aa/non-rich-disposition.md`; DX1 exact three-flags retained/removal regression added 50062ee5, DX5 allocation factory sweep exists, DX7 standard-exception receipt was expressly unscheduled, DX11 ordinal change optional. Source-view Enter has EOL-specific tests. CB01–08 historical source/test evidence is in `historical-review-5fe2/inventory.md` lines 145–153, including six provider lifetime tests and the accepted historical menu sizing packet. CB09 continuation audit is path-bounded and later Tree/ScrollPanel/Slider/ComboBox repairs are integrated; CB10 consumer pin and branch preservation must not be treated as completed or deleted. No blanket proof of future delegate code.
+
+## CodeReview 10 October CR1–37
+
+Source-specific 24 October fixes and original repro receipts stay in the plan; current tests below identify the maintained oracles, not a fresh pass.
+
+- CR1: failed first UIA flush/null root is contained; `DxUi.Tests.Accessibility.cpp` provider lifetime and flush tests.
+- CR2: removed remembered grid row is pruned rather than aborting publication; grid UIA stale-row tests.
+- CR3: capture/hover callback lifetime guarded; `DxUi.Tests.WindowHost.cpp` retired-control capture cases.
+- CR4: ScrollPanel detachment observer and reentry guards; `DxUi.Controls.cpp:1320` and scroll/capture tests; refusal preserves hover (9fd341a8).
+- CR5: per-owner/model callback guards resume on compatible changes; Grid and Tree refresh/reentry tests and DX1.
+- CR6: PageHost logical content participates in input, Tab and UIA; `DxUi.Tests.WindowHost.cpp:7135`, `DxUi.Tests.Accessibility.cpp:11384`.
+- CR7/8: independent Grid focus paint and keyboard focus start; `DxUi.Tests.Grid.cpp:1793,5041`.
+- CR9: Grid touch double-tap activation `DxUi.Tests.Grid.cpp:1924` (synthetic only).
+- CR10: Ctrl+navigation preserves selection and viewport Page semantics `DxUi.Tests.Grid.cpp:5041,5176`.
+- CR11: focused-cell inspection command and quoted copy contract in `UI_ControlsAndLayout.md`; Grid focused-cell tests.
+- CR12: UIA keyboard toggle event `DxUi.Tests.Accessibility.cpp:11341`.
+- CR13: AltGr modifier/text input native tests and window routing; real keyboard-layout acceptance separate.
+- CR14: nonfocusable Tab/page take and focus reentry guarded in TabControl, `DxUi.Tests.NewControls.cpp` and accessibility tests.
+- CR15: permanent-red historical claim stale; readiness and current hosted gate separate; no present hosted pass inferred.
+- CR16: Embedded Prepare supersession requests wake and returns retryable E_ABORT; Embedded tests and hosting norm.
+- CR17: embedded model exception containment and retained snapshot in Accessibility.cpp and Embedded accessibility fixture.
+- CR18: eventBaseline fixed; dirty-surface uncached GetItem local defect staged 4c00afc1, exact runtime pending.
+- CR19: grid offscreen provider, scroll/focus and displayed columns `Controls.Tests.GridUiaPattern.cpp`, accessibility suite registrations :11569–11581.
+- CR20: raw HMENU mnemonic conversion preserved `DxUi.Tests.WindowHost.cpp:6075`; final interactive Menu run is separate.
+- CR21: RTL/slider/AltGr/idle Menu tests present; opening-key character deliberately unreproduced and still deferred, not silently called fixed.
+- CR22: Alt routing, large native text-store edit and AdviseSink test cases in `DxUi.Tests.NativeTextInput.cpp`; physical TIP qualification separate.
+- CR23: focus request and resize lifecycle guards, WindowHost tests and device policy; later zero/visibility recovery separately tested.
+- CR24: named exception containment and bounded UIA value actions; native/embedded exception tests. Non-standard catch policy is current contract, not old blanket containment.
+- CR25: trace and UIA listener checks fixed, per-move traversal costs and Tree snapshot architecture require measured proof for any further optimization; no unsupported claim all tree walks disappeared.
+- CR26: tab reorder midpoint, reduced motion, StackPanel lifetime and Grid generation/copy tests; root-bounds behavior explicitly documented.
+- CR27: radio/Tree UIA existing bounded semantics, with authorized enhancement now owned by controls agent; other Tab/Radio/PageIndicator tests in Accessibility suite.
+- CR28: registered-message nonce, registry and payload ownership tests in WindowHost/Accessibility; no process trust relaxation.
+- CR29: former trusted paired PR workflow superseded in scope by unified compiler-free PR plus separate native/manual paired policy. Event identity and actual hosted engine binding remain hosted evidence, not an invented equivalent.
+- CR30: judge disagreement/UTF8/scope fixes and fixtures retained; manual format workflow and same-repository source policy replace old automatic workflow. Hosted enforcement is separate.
+- CR31: allocation instrumentation included in overlay; attached lease and scoped CI closure implemented. A physical Ctrl+C restoration claim needs actual console/lease evidence.
+- CR32: fixed test diagnostics and bounded UIA delivery; bbab3f47 isolates successive Rich selection transitions, but original historic late event remains unattributed and other event streams are not assumed identical.
+- CR33: repro paths made asserting tests in owning suites; full current run remains.
+- CR34: archive migration/history rewrite not performed and still explicitly administratively deferred; see outstanding list above.
+- CR35: revision4 consumer fixture and migration guide; current SDK/consumer receipts remain source-specific.
+- CR36: current control documentation corrected incl Tree row b31d7595 and menu Name/HelpText contract.
+- CR37: diagnostics public API remains in revision4 by accepted defer-to-next-revision decision; not falsely represented as removed.
+
+## ProductionReview Q1–31
+
+The detailed current source/test disposition and precise contract alternatives are recorded in `review-disposition-9aa/non-rich-disposition.md` Production Q section; per-question mapping follows. Runtime evidence and real devices are distinct from implementation.
+
+- Q1: owned Panel/Tab extraction plus root/tree lifetime guards; no guarantee arbitrary raw-slot mutation.
+- Q2: commit/lifetime/reentry guards and bounded delegate audit; no universal rollback of arbitrary application callbacks.
+- Q3: reentrant UIA tests and independent snapshot/event boundaries; physical out-of-process AT remains separate.
+- Q4: dirty/lazy publication and listener checks; do not claim all publication costs eliminated.
+- Q5: application actions execute without retaining snapshot mutex; dispatch and stale identity tests.
+- Q6: explicit idempotent host/menu shutdown paths; no assertion arbitrary provider survives unloaded module.
+- Q7: synchronous cancellation on deactivation/sent WM_CANCELMODE, Menu tests.
+- Q8: Unicode active-layout character mnemonics and native ampersand conversion; physical keyboard layouts separately tested.
+- Q9: described rows retain bounded content size/fallback and UIA name/help contract; no invented row cap.
+- Q10: named RTL contracts and tests per control; do not claim universal mirroring.
+- Q11: high contrast uses system foreground/background pairs and documented overrides; physical themes remain separate.
+- Q12: Grid focused-row and independent selection, Grid tests :5041 onward.
+- Q13: anchor semantics of Ctrl/Shift selection in Grid/Tree tests and InputAndAccessibility norm.
+- Q14: UIA selection additive/idempotent/removal semantics in native/embedded suites.
+- Q15: canonical attachment root identity, provider lifetime tests; CR18 patch outstanding.
+- Q16: DxUi item focus events versus host-site HWND reporting explicitly separate.
+- Q17: committed composition/emoji undo, password disclosure and bounded text input; real IME/TIP remains external.
+- Q18: untrusted registered messages and bounded token transport, CR28 tests.
+- Q19: Unicode quoted TSV and full-value grid inspection, Grid/copy tests.
+- Q20: ordinary vs interactive lease and explicit skip obligations, Testing specs/test runners; focus success is not physical touch.
+- Q21: current unified CI supersedes older per-PR native recommendation; ruleset/hosted state not proven by local source.
+- Q22: paired assignment/median/peak provenance implemented; unstable A/A and qualified=false remain no accepted performance verdict.
+- Q23: documented PowerShell entrypoint compatibility and consumer scripts; actual consumer environment remains separate.
+- Q24: revision3 notes/revision4 named fixture and matched headers/static library; consumer exact pins not assumed.
+- Q25: WIP/capability source reconciliation only after local features and evidence; shared ledger owns true common holds.
+- Q26: actual synthetic halo bounds, neighbor hit and overlay test `DxUi.Tests.Animation.cpp:502`; physical touch remains separate.
+- Q27: Affected default and NO_WORK honesty, scoped-testing owners; no result equated to Full.
+- Q28: PrePush accounting across native profiles/CI delegation; no unrun suite presented passed.
+- Q29: scope dependency/test mapping in `Tests/test-scopes.json` and `Test-ScopedTesting.ps1`.
+- Q30: skip-bearing results do not qualify; exact source/artifact receipts and output behavior in Testing validation specs.
+- Q31: compiler-free PR and quiet native main roles in `Build_UnifiedCI.md`; actual hosted source/engine and required rules verified separately.
+
+## Explicit DX1–11 and CB1–10 follow-up
+
+- DX1 — Tree stable-id release revalidation and multi-select/reorder/single-click callback retained-versus-deleted oracle: `DxUi.Tree.cpp` release path and `DxUi.Tests.Tree.cpp` test introduced 50062ee5; focused matching historical producer passed, final source remains.
+- DX2 — Menu timer and keyboard/UIA ownership: `DxUi.Menu.cpp` TakeKeyboardOwnership, `DxUi.Tests.Menu.cpp` pending open/close and inert input; focus suite under approved lease.
+- DX3 — Source-safe quoted path fallback: `DxUi.RichTextEditor.cpp` file reference path and `Support.Tests.RichImagePaths.h`; long path bounded fallback c85a3ddb.
+- DX4 — Rich native ACP 65,536 capacity and last valid composition: `DxUi.TextStoreACP.cpp`, `DxUi.Tests.NativeTextInput.cpp` write-lock fixture.
+- DX5 — Separator allocating Control constructor not noexcept; `Embedded.Tests.Embedded.cpp:834–859` allocation schedule checks E_OUTOFMEMORY/output retention.
+- DX6 — `TagPicker::ClearChildren` compaction in `DxUi.Controls.cpp` and `DxUi.Tests.Controls.cpp:1459`.
+- DX7 — Standard-exception receipt policy was explicitly not scheduled; bad_alloc handled-after-entry contract and receipt tests exist. Do not represent the proposed standard-exception change as landed.
+- DX8 — inactive Tree selection theme text and high-contrast tests in Tree source and suite.
+- DX9 — wrapped Label override baseline/width and drawing oracle in `Controls.Tests.IntrinsicLayout.cpp:335–380`.
+- DX10 — OnChar commit-aware exception/consumed receipt behavior `DxUi.RichTextEditor.cpp`, `Embedded.Tests.EmbeddedTextInput.h`; not a broad guarantee to roll back arbitrary user callbacks.
+- DX11 — historical optional enum ordinal reversion unimplemented; existing API4 ordinals and matched header/library contract retained; do not silently claim historic ordinal equivalence.
+- CB1 — single-control collapsed native root identity: `DxUi.Accessibility.cpp` and collapsed-root provider tests `DxUi.Tests.Accessibility.cpp:3888–3958`.
+- CB2 — Button invocation returns if focus callback retires control; same provider tests, lifetime guard in Button.
+- CB3 — dead control runtime ID returns UIA_E_ELEMENTNOTAVAILABLE, provider lifetime tests.
+- CB4 — TextField multiline caret clipped to viewport, `Embedded.Tests.EmbeddedTextInput.h` caret tests.
+- CB5 — native lifetime and embedded caret regression set maintained in suites, prior ten mutation results remain historical.
+- CB6 — ordinary menu rows and accepted resource budget in `UI_InputAndAccessibility.md`, `Core_PerformanceAndResources.md`, `Measurements/PlainMenuUia/2026-10-02/README.md`; old paired result is not current-source performance.
+- CB7 — 4,096-row pre-sizing optimization accepted by historical paired packet; preserve exact original evidence and current source owner.
+- CB8 — 25 focus-and-continue paths reviewed with `FocusControlAndSurvive`, native/embedded replacement tests.
+- CB9 — 3257 appendix lists bounded Grid group/checkbox, Tree, Button, Toggle, RadioButtons, PageIndicator, TagPicker, MenuBar, TabControl, ColorSwatch, ScrollPanel, Slider and ComboBox callback continuation; later Tree reorder wake guard tests integrated. No blanket claim for unrelated future callbacks.
+- CB10 — retain historical 19ca44d recovery tag/branch until exact RedSalamander adoption is established; local archive tag is not proof of remote consumer pin or authority for deletion.
+
+CR34 disposition: accepted eventual archive/raw evidence migration and single history rewrite remain explicitly deferred administration, not implemented and not inferred waived. Current task authorizes no destructive ref/history operation; retain historical hashes and the original Q4/Q11 safeguards. Original plan itself additionally records Q18–20 as preceding decisions on asset visibility, older raw packets and curated personal-path handling; no outcome is invented. A plan cannot truthfully state this is complete merely because present code/tests are ready.

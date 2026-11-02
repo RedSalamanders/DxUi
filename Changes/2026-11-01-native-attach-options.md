@@ -1,0 +1,1 @@
+- Clarify native Attach idempotence and incompatibility rules for presentation, initial batching and explicit WARP options; existing attachment tests remain the behavior oracle.

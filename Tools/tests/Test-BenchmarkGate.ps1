@@ -34,6 +34,7 @@ function Add-FixtureCommit([string] $Root, [string] $Message, [hashtable] $Files
 Invoke-TestCase 'every library, build, benchmark and measurement path is measured, with the reason that says why' {
     $cases = [ordered]@{
         'src/Controls/DxUi.Grid.cpp' = 'library input'; 'include/DxUi/DxUi.h' = 'library input'; 'Build/DxUi.Consumer.props' = 'library input'
+        'ThirdParty/tomlplusplus/3.4.0/toml.hpp' = 'library input'; 'ThirdParty/rapidyaml/0.16.0/rapidyaml.hpp' = 'library input'
         'Directory.Build.props' = 'library input'; 'Directory.Build.targets' = 'library input'; 'vcpkg.json' = 'library input'; 'vcpkg-tool.json' = 'library input'
         'performance.ps1' = 'benchmark harness'; 'performance-paired.ps1' = 'benchmark harness'; 'Tools/Compare-Performance.ps1' = 'benchmark harness'; 'Tools/PerformanceComparison.psm1' = 'benchmark harness'
         'Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h' = 'benchmark harness'; 'Samples/ComplexUi/ComplexUiScene.h' = 'benchmark harness'
@@ -53,6 +54,22 @@ Invoke-TestCase 'every library, build, benchmark and measurement path is measure
         Assert-Equal $cases[$path] $scope.Matches[0].Reason "why $path is measured"
         Assert-Equal $path $scope.Matches[0].Path "the matched path of $path"
     }
+}
+
+Invoke-FixtureCase 'a private parser header changes the library fingerprint' {
+    param($root)
+    Invoke-FixtureGit $root @('init', '-q')
+    Set-FixtureFile $root 'src/fixture.cpp' 'source'
+    $before = Get-SourceFingerprint -Root $root
+    Set-FixtureFile $root 'ThirdParty/tomlplusplus/3.4.0/toml.hpp' 'version one'
+    $first = Get-SourceFingerprint -Root $root
+    Assert-True ($before -cne $first) 'adding the private parser header changes the input fingerprint'
+    Set-FixtureFile $root 'ThirdParty/tomlplusplus/3.4.0/toml.hpp' 'version two'
+    $second = Get-SourceFingerprint -Root $root
+    Assert-True ($first -cne $second) 'editing the private parser header invalidates prior evidence'
+    Set-FixtureFile $root 'ThirdParty/rapidyaml/0.16.0/rapidyaml.hpp' 'yaml parser'
+    $third = Get-SourceFingerprint -Root $root
+    Assert-True ($second -cne $third) 'adding the private YAML parser changes the input fingerprint'
 }
 
 Invoke-TestCase 'documentation, specifications, measurements, other tests and other tools are not measured' {

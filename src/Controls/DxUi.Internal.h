@@ -29,6 +29,38 @@ inline constexpr float kToggleTrackTrailingPaddingDip = 4.0f;
 
 [[nodiscard]] std::weak_ptr<int> GetControlLifetimeToken(const Control& control) noexcept;
 
+struct ControlCaptureAccess
+{
+    [[nodiscard]] static Control* GestureOwner(const ControlHost& host) noexcept
+    {
+        Control* owner = host.GetCapturedControl();
+        while (const auto* panel = dynamic_cast<const ScrollPanel*>(owner))
+        {
+            Control* const child = panel->LiveInnerCaptured();
+            if (! child || child == owner)
+                break;
+            owner = child;
+        }
+        return owner;
+    }
+};
+
+// A cancellation callback can replace the tree or capture another control. Release only the cancelling control's
+// unchanged gesture, including nested ScrollPanel forwarding. Weak tokens reject address reuse after destruction.
+[[nodiscard]] inline auto ReleaseUnchangedCaptureOnExit(ControlHost& host, Control& cancelling) noexcept
+{
+    Control* const gesture     = &cancelling;
+    Control* const captured    = ControlCaptureAccess::GestureOwner(host) == gesture ? host.GetCapturedControl() : nullptr;
+    const auto lifetime        = captured ? GetControlLifetimeToken(*captured) : std::weak_ptr<int>{};
+    const auto gestureLifetime = GetControlLifetimeToken(cancelling);
+    return wil::scope_exit([&host, captured, gesture, lifetime, gestureLifetime]() noexcept
+    {
+        if (captured && ! lifetime.expired() && ! gestureLifetime.expired() && host.GetCapturedControl() == captured &&
+            ControlCaptureAccess::GestureOwner(host) == gesture)
+            host.ReleaseMouseCapture();
+    });
+}
+
 struct ControlModelQueryAccess
 {
     template <typename Owner> [[nodiscard]] static auto InvalidateGeometry(Owner& owner) noexcept
@@ -513,6 +545,9 @@ void DrawCenteredText(ControlHost& host,
                       bool wrap                                     = false,
                       FlowDirection flowDirection                   = FlowDirection::LeftToRight,
                       IDWriteTextFormat* configuredFormat           = nullptr);
+#if DXUI_ENABLE_DIAGNOSTICS
+extern thread_local uint64_t testMnemonicLayoutCreations;
+#endif
 void DrawTextWithMnemonic(ControlHost& host,
                           std::wstring_view text,
                           const D2D1_RECT_F& rect,
@@ -624,6 +659,9 @@ void DebugSetAccessibilityOffscreenSelectedRowMaterializationLimitForTest(size_t
 // largest uint64_t when the window has no registered host.
 [[nodiscard]] uint64_t DebugGetAccessibilityFocusResolutionCountForTest(HWND hwnd) noexcept;
 [[nodiscard]] uint64_t DebugGetAccessibilitySnapshotBuildCountForTest() noexcept;
+// Owner-thread-only deterministic failure at the rich snapshot font query.
+void DebugSetRichAccessibilityFontFailureForTest(HRESULT failure) noexcept;
+[[nodiscard]] size_t DebugGetRichAccessibilityFontFailureCountForTest() noexcept;
 // Owner-thread-only mutation-interest override for this exact HWND attachment. Nullopt restores automatic interest;
 // null HWND with nullopt clears the calling thread's override. Other hosts, queries and UIA listeners are unchanged.
 [[nodiscard]] bool DebugSetAccessibilityMutationInterestForTest(HWND hwnd, std::optional<bool> interested) noexcept;
@@ -635,6 +673,7 @@ void DebugSetAccessibilityPeerCreationGateForTest(HWND hwnd, HANDLE enteredEvent
 // Holds one embedded property batch after extraction, outside the slot mutex and before UIA delivery, for at most
 // twenty seconds. Clearing waits for its holder to leave before the test closes the events.
 void DebugSetAccessibilityPropertyDeliveryGateForTest(ControlHost* host, HANDLE enteredEvent, HANDLE releaseEvent) noexcept;
+[[nodiscard]] size_t DebugCountPendingTreeItemPropertiesForTest(ControlHost& host, int property) noexcept;
 // Runs `hook` with `context` on the raising thread after each UI Automation selection event a host raises (an item's IsSelected
 // change or selection event, or the invalidation of a tree's or grid's selection), since something else can run while they are
 // raised (an outgoing call of UI Automation's in a single-threaded apartment dispatches messages): a test hides, removes or
@@ -727,6 +766,9 @@ constexpr uint64_t kTypeaheadResetMs = 1000u;
 [[nodiscard]] bool ShouldEmitSingleLineBiDiTextMetric(std::wstring_view text, DWRITE_READING_DIRECTION readingDirection) noexcept;
 
 void ClearSingleLineTextLayoutCache(SingleLineTextLayoutCache& cache, bool secureText = false) noexcept;
+#if DXUI_ENABLE_DIAGNOSTICS
+extern thread_local uint64_t testSingleLineMeasureLayoutCreations;
+#endif
 
 [[nodiscard]] float MeasureSingleLineTextWidthDip(const ControlHost* host,
                                                   std::wstring_view text,

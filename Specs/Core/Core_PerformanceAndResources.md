@@ -1,5 +1,18 @@
 # Performance and resources
 
+Bulk Grid and Tree selection builds a staged visible-order list with hash membership and a fixed-width radix-sorted
+membership copy. Its expected work is linear in visible and requested IDs, including reverse-ordered IDs; allocation
+failure preserves the previously published selection. Repeated IDs occur only once in first-visible order; the final
+requested visible ID remains focus and anchor. Hash membership is expected linear, not an adversarial worst-case bound.
+Tree pointer hit testing computes the expander lane without shaping badge text or changing the badge measurement cache;
+paint and input share the same lane geometry, including reserved-space and right-to-left layouts.
+Repeated hover on the same unchanged Tree row reuses its tooltip geometry; explicit tooltip text bypasses badge and
+overflow measurement. Model presentation, host, typography, resource or interaction changes invalidate that reuse.
+Icon-only button preparation validates tree membership at entry. Later reentrant boundaries check the owner and root
+lifetimes, host, root identity and interaction revision before accessing or publishing control state.
+Button shortcut width is prepared and cached by host, typography, resources and reading direction; painting uses the
+prepared scalar and performs no shortcut measurement. A text change invalidates it, and detachment retires its host key.
+
 Semantic spacing overrides are prepared geometry policy. Both absent retain
 legacy placement and allocate no new spacing metadata. An opted-in list minimum
 may stage one nearest-ListItem index per bounded syntax node in the existing
@@ -18,6 +31,16 @@ the existing source hit/caret mapping, preserving preferred x and site affinity
 across large gaps without allocation or layout. Ordinary wrapped movement and
 the default fixed-spacing fallback remain unchanged.
 
+TOML front matter validation stages bounded UTF-8 converted from the admitted UTF-16 source and parses it without reserialization. Its 128-level value and dotted-key nesting ceilings and 1,024 total key-segment ceiling are reported as capacity, not invalid TOML. Parsing one bounded content envelope is indivisible and allocation failures preserve the prior publication; input queries, composition painting and idle frames do not parse. The native resource and timing gates still require measured qualification.
+
+YAML front matter event parsing and key/alias validation stage owned temporary
+buffers only. Admission limits are 128 tag directives, 4,096 graph nodes, 128
+graph levels, 256 digits per numeric key, 100,000 canonical graph visits,
+8 MiB cumulative canonical bytes, a 512 KiB event arena and 4 MiB parser callback
+allocations. Exhaustion is a capacity diagnostic, not an invalid syntax report.
+The event buffer itself is capped at 262,144 words. Validation is an indivisible
+bounded preparation operation; native timing and resource qualification remains open.
+
 The lossless Markdown analysis preview retains bounded source (65,536 UTF-16
 units), one staged result and one published result per parser. Advance has an
 operation budget; source validation/copy/comparison and allocator work are not
@@ -35,7 +58,15 @@ independently check 128/512/4096 nested list levels
 and a 2048-level quote with 512 lazy lines. Required indentation lookahead is
 capped, thematic suffix rejection uses one line metadata pass, and containers
 finalize once rather than extending every ancestor per lazy line. BlockStatistics
-exposes those deterministic counts; it is not a total CPU/time counter. The maximum
+exposes those deterministic counts; it is not a total CPU/time counter.
+Autolink preparation separately indexes host/email suffix facts and resumes one
+region edge or source candidate per parser operation. Failed overlapping host
+and email candidates do not rescan their complete suffix. Successful splices
+decode only final text prefixes and the final remaining suffix, once each.
+`InlineStatistics()` exposes indexing/candidate visits and decoded suffix units;
+these counters do not include allocator work or claim a wall-clock deadline.
+The index is bounded by the admitted source length and is retired with staging.
+The maximum
 all-newline source exercises maximum root-trivia and lexical partition counts; owned
 C++ retained storage must stay within 24 MiB and release completely. Replacing
 that maximum result while retaining its previous publication is bounded to
@@ -47,6 +78,10 @@ retry. No parser result changes the existing frame performance HOLD.
 MSVC Debug iterator proxies allocate even in default/noexcept STL container
 constructors. Parser staging and node values use explicit fallible zero-size
 construction and copies rather than noexcept allocator-backed container moves.
+RichText appearance font overrides and the editor's empty default argument use
+the same explicit fallible construction. A public aggregate's implicit exception
+specification does not protect against an allocating STL constructor declared
+`noexcept`; fault coverage must reach each owned override, not only the first one.
 The allocation sweep must cover admission, growth, reference extraction, nested
 inline values/links, tables/tasks/tagfilter and compaction. Literal text coalesces
 into runs rather than retaining one string per scalar. An 8,193-unit emphasis
@@ -294,6 +329,21 @@ qualification replays them exactly. Repetitions inside a block are not treated a
 - Default-output incremental `Build` additionally requires a separate receipt binding every intermediate path and byte
   in the supported platform/configuration profile, including objects, tracking logs and generated shaders for all solution
   projects. Missing or changed cache forces `Rebuild`; final-only `SkipBuild` does not depend on disposable intermediates.
+  An empty `unsuccessfulbuild` marker is recognized only in the evaluated
+  `TLogLocation`, a non-reparse direct `.tlog` child of that project's profile
+  intermediate directory. This includes MSBuild's shortened directory names.
+  Populated, misplaced or nested lookalikes remain unsupported ignored inputs.
+  A failed attempt revokes reuse; recognizing its status marker permits a fresh
+  `Rebuild` and supplies no passing build or runtime evidence.
+
+RichTextEditor prepares selection ranges and an optional union mask before
+composition. Multiline selection redraws selected text once through that mask,
+rather than repainting a document for every line. One retained layer is bounded
+by the control viewport, reused within its resource generation, and released on
+layout retirement/hide/detachment. Mask creation and layer allocation occur only
+in preparation; single-rectangle selections retain the direct clip route.
+Actual draw-call counts, exact raster parity and paired/resource evidence are
+separate required checks for this rendering change.
   Both receipts are revoked before build and on failed publication. Resolved C++/HLSL source bytes and the owned native
   include closure belong to each side's build identity, never the shared compiler comparison. Arbitrary external or
   ignored native inputs, response/path-bearing option overrides, custom outputs, precompiled headers and modules are
@@ -833,6 +883,12 @@ with no embedded timer/worker/polling loop. Share immutable resources per device
 caches, textures, replacement peaks and concurrent instances. Checked arithmetic/capacity failures must fail cleanly,
 release ownership and retain coherent visual/input state. Destroy device-generation resources together on recovery.
 
+Native occlusion is an application visibility signal through
+`SetNativePresentationVisible`: the application supplies known occlusion,
+suspension or display availability changes. Native flip-model hosts do not infer
+arbitrary coverage by other windows and add no polling or global tracking hook.
+Embedded visibility remains application-owned through `EmbeddedHost::SetVisible`.
+
 ## Independent measurement ownership
 
 DxUi owns its samples, synthetic data, benchmark workloads and baseline receipts. They MUST build and run using
@@ -920,7 +976,13 @@ private invisible origin lines. Reuse additionally requires an identical documen
 origin; height-changing edits may rebuild the entire suffix and must report every
 prepared source unit. Inexact origins and empty displayed suffixes fall back
 explicitly; count whole-layout work separately from chunk reuse. Owner preparation may construct that cache; cached
-embedded composition must allocate and prepare nothing. No per-control worker or
+embedded composition must allocate and prepare nothing. `PreparedDocumentLayout::Draw`
+uses only published reference/chunk layouts and never creates a compatibility layout,
+joins a projection or changes preparation statistics. Reference-cache comparison walks
+prepared blocks and coalesced style runs without materializing a whole projection; only
+a required replacement layout joins it. Semantic geometry obtains a missing diagram
+factory from its supplied raster target, keeping extension inspection inside that service.
+No per-control worker or
 periodic timer follows from reference DLL recalculation code.
 
 The 1,024-line/512-edit source/history/geometry fixture is bounded by 8 MiB retained
@@ -1003,3 +1065,9 @@ admitted style runs. This optimization retains no additional layout or brush;
 pixel/geometry/copy regressions and measured CPU/memory evidence remain separate.
 
 A paused ProgressBar contributes no animation continuation and keeps its current indeterminate phase. Pausing and resuming use one retained boolean and reset the tick seed; elapsed paused time is not replayed as catch-up work. A host may continue animation for other controls. Regression coverage must observe idle pause, active-to-paused phase preservation and resume without a phase jump, with enabled/indeterminate state unchanged.
+
+Native swap-chain creation, resizing, back-buffer retrieval, and target-bitmap creation route device-loss HRESULTs through the same shared-generation retirement and full-repaint recovery as presentation failures. The native WARP fixture injects each failure stage, including ResizeBuffers on an existing swap chain, and checks a recovered resized frame. Unrelated preparation failures preserve their existing retry policy.
+
+Single-line reverse grapheme movement and unindexed deletion search backwards to a boundary proved by the shared Unicode 17 properties, then use the canonical forward walker from that boundary. Adjacent ordinary non-Indic characters, including ordinary CJK, require constant local property work per movement. Regional-indicator runs, combining sequences, Indic linkers and pictographic ZWJ context may require scanning an entire contextual run; no arbitrary cutoff changes their boundaries. CRLF remains one element. Native text-input synchronization transfers the exported text buffer into its snapshot instead of copying it again; this does not change ownership, notifications, or secure cache retirement.
+
+Prepared math shares a generation-scoped immutable OpenType MATH snapshot, capped at 4 MiB, and bounded glyph-indexed correction and variant-offset arrays across formula preparations and width reflows. Preparation may query glyph metrics; painting performs no table parsing, allocations or font discovery. Malformed or unavailable data uses deterministic fallback and does not suppress the rest of the document.

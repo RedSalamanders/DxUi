@@ -1,0 +1,1 @@
+- Avoid repeated failed math-opener scans using the shared eligible-closer index while preserving opaque capacity fallback.

@@ -9,8 +9,14 @@ $generators=@(
     @{script='Tools/Generate-MarkdownTestData.ps1';inputs='ThirdParty/Markdown';output='Tests/Controls/Controls.Tests.MarkdownCorpus.h';
       pins=@('corpora/CommonMark-0.31.2-spec.json','corpora/CommonMark-0.31.2-LICENSE.txt','corpora/GFM-0.29.0.gfm.13-spec.txt',
              'corpora/GFM-0.29.0.gfm.13-COPYING.txt','whatwg-2026-10-18/entities.json','whatwg-2026-10-18/LICENSE.txt')},
+    @{script='Tools/Generate-MetadataCorpus.ps1';inputs='ThirdParty/Markdown/corpora';output='Tests/Controls/Controls.Tests.MetadataCorpus.h';
+      pins=@('toml-test-96fd088/source.tar','yaml-test-suite-6ad3d2c/source.tar')},
+    @{script='Tools/Generate-NativeMathSymbols.ps1';inputs='ThirdParty/Markdown/katex-0.16.11';output='src/Controls/DxUi.NativeMathSymbols.h';
+      pins=@('symbols.js.txt','LICENSE.txt')},
+    @{script='Tools/Generate-NativeMathTestData.ps1';inputs='ThirdParty/Markdown/katex-0.16.11';output='Tests/Support/Support.Tests.NativeMathSupportRows.h';
+      pins=@('collection.json','support_table.md.txt','LICENSE.txt')},
     @{script='Tools/Generate-MarkdownUnicodeData.ps1';inputs='ThirdParty/Unicode/17.0.0';output='src/Controls/DxUi.MarkdownUnicodeData.h';
-      pins=@('CaseFolding.txt','UnicodeData.txt','LICENSE.txt')},
+      pins=@('CaseFolding.txt','UnicodeData.txt','DerivedBidiClass.txt','LICENSE.txt')},
     @{script='Tools/Generate-NativeFlowchartTestData.ps1';inputs='ThirdParty/Markdown/mermaid-11.4.1';output='Tests/Support/Support.Tests.NativeFlowchartCorpus.h';
       pins=@('collection.json','syntax-inventory.json','dxui-flowchart-expectations.json','dxui-family-matrix.json')+
         @((Get-Content -LiteralPath (Join-Path $repository 'ThirdParty/Markdown/mermaid-11.4.1/collection.json') -Raw | ConvertFrom-Json).file)}
@@ -56,5 +62,108 @@ foreach($item in $generators){
             Assert-True (-not(Test-Path -LiteralPath $output)) 'missing input writes no output'
         }
     }
+}
+function Write-TestRepinnedGenerator([string]$OriginalScript,[string]$FixtureScript,[hashtable]$PinChanges){
+    # This fixture-only copy keeps the production generator and its immutable pins unchanged.
+    $scriptText=[IO.File]::ReadAllText($OriginalScript)
+    foreach($oldHash in $PinChanges.Keys){
+        Assert-True ($scriptText.Contains($oldHash)) "fixture locates the original $oldHash pin"
+        $scriptText=$scriptText.Replace($oldHash,$PinChanges[$oldHash])
+    }
+    [IO.File]::WriteAllText($FixtureScript,$scriptText,[Text.UTF8Encoding]::new($false))
+}
+function Assert-GeneratorFailure([string]$Script,[string]$Inputs,[string]$Output,[string]$Expected){
+    $message=''
+    try { & $Script -InputDirectory $Inputs -OutputPath $Output }
+    catch { $message=$_.Exception.Message }
+    Assert-Equal $Expected $message 'generator reaches the intended malformed-data guard'
+    Assert-True (-not(Test-Path -LiteralPath $Output)) 'malformed repinned input does not publish output'
+}
+Invoke-FixtureCase 'repinned Markdown corpus rejects incomplete inventory' {
+    param($root)
+    $original=Join-Path $repository 'ThirdParty/Markdown'
+    $inputs=Join-Path $root 'inputs'
+    Copy-Item -LiteralPath $original -Destination $inputs -Recurse
+    $relative='corpora/CommonMark-0.31.2-spec.json'
+    $file=Join-Path $inputs $relative
+    $oldHash=(Get-FileHash -LiteralPath (Join-Path $original $relative)).Hash
+    $examples=@(Get-Content -LiteralPath $file -Raw | ConvertFrom-Json)
+    [IO.File]::WriteAllText($file,(ConvertTo-Json -InputObject $examples[1..($examples.Count-1)] -Depth 20),[Text.UTF8Encoding]::new($false))
+    $script=Join-Path $root 'generator.ps1'
+    Write-TestRepinnedGenerator (Join-Path $repository 'Tools/Generate-MarkdownTestData.ps1') $script @{$oldHash=(Get-FileHash -LiteralPath $file).Hash}
+    Assert-GeneratorFailure $script $inputs (Join-Path $root 'output.h') 'Incomplete original Markdown corpus.'
+}
+Invoke-FixtureCase 'repinned Mermaid expectations reject duplicate ids, invalid outcomes and missing rows' {
+    param($root)
+    $original=Join-Path $repository 'ThirdParty/Markdown/mermaid-11.4.1'
+    $inputs=Join-Path $root 'inputs'
+    Copy-Item -LiteralPath $original -Destination $inputs -Recurse
+    $file=Join-Path $inputs 'dxui-flowchart-expectations.json'
+    $oldHash=(Get-FileHash -LiteralPath (Join-Path $original 'dxui-flowchart-expectations.json')).Hash
+    foreach($variant in @('duplicate','invalid-outcome','missing-row')){
+        $examples=@(Get-Content -LiteralPath (Join-Path $original 'dxui-flowchart-expectations.json') -Raw | ConvertFrom-Json)
+        if($variant -eq 'duplicate'){$examples[1].id=$examples[0].id}
+        elseif($variant -eq 'invalid-outcome'){$examples[1].outcome='Other'}
+        else{$examples=$examples[1..($examples.Count-1)]}
+        [IO.File]::WriteAllText($file,(ConvertTo-Json -InputObject $examples -Depth 20),[Text.UTF8Encoding]::new($false))
+        $script=Join-Path $root "generator-$variant.ps1"
+        Write-TestRepinnedGenerator (Join-Path $repository 'Tools/Generate-NativeFlowchartTestData.ps1') $script @{$oldHash=(Get-FileHash -LiteralPath $file).Hash}
+        $expected=if($variant -eq 'missing-row'){'Incomplete native Mermaid corpus inventory'}else{'Invalid independent flowchart expectation'}
+        Assert-GeneratorFailure $script $inputs (Join-Path $root "output-$variant.h") $expected
+    }
+}
+Invoke-FixtureCase 'repinned Mermaid family rejects a missing source example' {
+    param($root)
+    $original=Join-Path $repository 'ThirdParty/Markdown/mermaid-11.4.1'
+    $inputs=Join-Path $root 'inputs'
+    Copy-Item -LiteralPath $original -Destination $inputs -Recurse
+    $file=Join-Path $inputs 'architecture.md.txt'
+    [IO.File]::WriteAllText($file,'No Mermaid examples remain.',[Text.UTF8Encoding]::new($false))
+    $collectionFile=Join-Path $inputs 'collection.json'
+    $oldHash=(Get-FileHash -LiteralPath (Join-Path $original 'collection.json')).Hash
+    $collection=@(Get-Content -LiteralPath $collectionFile -Raw | ConvertFrom-Json)
+    $entry=@($collection | Where-Object file -eq 'architecture.md.txt')
+    Assert-Equal 1 $entry.Count 'the fixture updates exactly one family source pin'
+    $entry[0].sha256=(Get-FileHash -LiteralPath $file).Hash
+    [IO.File]::WriteAllText($collectionFile,(ConvertTo-Json -InputObject $collection -Depth 20),[Text.UTF8Encoding]::new($false))
+    $script=Join-Path $root 'generator.ps1'
+    Write-TestRepinnedGenerator (Join-Path $repository 'Tools/Generate-NativeFlowchartTestData.ps1') $script @{$oldHash=(Get-FileHash -LiteralPath $collectionFile).Hash}
+    Assert-GeneratorFailure $script $inputs (Join-Path $root 'output.h') 'Declared diagram family has no original example: architecture.md'
+}
+Invoke-FixtureCase 'Unicode 17 first-strong tables include defaults and explicit neutral exceptions' {
+    param($root)
+    $expected=[byte[]]::new(0x110000)
+    $lines=[IO.File]::ReadAllLines((Join-Path $repository 'ThirdParty/Unicode/17.0.0/DerivedBidiClass.txt'))
+    foreach($line in $lines){
+        if($line -match '^# @missing:\s*([0-9A-F]+)\.\.([0-9A-F]+);\s*(\w+)'){
+            $first=[Convert]::ToInt32($Matches[1],16);$last=[Convert]::ToInt32($Matches[2],16)
+            $class=switch($Matches[3]){'Left_To_Right'{1}'Right_To_Left'{2}'Arabic_Letter'{2}'European_Terminator'{0}default{throw 'Unexpected bidi default'}}
+            [Array]::Fill($expected,[byte]$class,$first,$last-$first+1)
+        }
+    }
+    foreach($line in $lines){
+        if($line -match '^([0-9A-F]+)(?:\.\.([0-9A-F]+))?\s*;\s*([A-Z]+)\s*#'){
+            $first=[Convert]::ToInt32($Matches[1],16);$last=if($Matches[2]){[Convert]::ToInt32($Matches[2],16)}else{$first}
+            $class=if($Matches[3] -eq 'L'){1}elseif($Matches[3] -in @('R','AL')){2}else{0}
+            [Array]::Fill($expected,[byte]$class,$first,$last-$first+1)
+        }
+    }
+    $actual=[byte[]]::new($expected.Length);$class=0
+    foreach($line in [IO.File]::ReadLines((Join-Path $repository 'src/Controls/DxUi.MarkdownUnicodeData.h'))){
+        if($line -eq 'inline constexpr Range kBidiL[] = {'){$class=1;continue}
+        if($line -eq 'inline constexpr Range kBidiR[] = {'){$class=2;continue}
+        if($class -and $line -eq '};'){$class=0;continue}
+        if($class -and $line -match '^\{0x([0-9A-F]+)u,0x([0-9A-F]+)u\},$'){
+            $first=[Convert]::ToInt32($Matches[1],16);$last=[Convert]::ToInt32($Matches[2],16)
+            [Array]::Fill($actual,[byte]$class,$first,$last-$first+1)
+        }
+    }
+    for($index=0;$index -lt $expected.Length;++$index){
+        if($actual[$index] -ne $expected[$index]){throw ('Bidi class differs at U+{0:X}' -f $index)}
+    }
+    Assert-Equal ([byte]1) $actual[0x0378] 'unassigned ordinary scalar defaults L'
+    Assert-Equal ([byte]2) $actual[0x0590] 'unassigned Hebrew scalar defaults R'
+    Assert-Equal ([byte]0) $actual[0x20c2] 'unassigned currency scalar defaults ET'
+    Assert-Equal ([byte]0) $actual[0xfdd0] 'explicit BN noncharacter overrides L default'
 }
 Complete-TestRun 'Markdown data generation'

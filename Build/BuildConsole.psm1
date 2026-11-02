@@ -1,4 +1,4 @@
-# Shared build-console contract, version 1. Kept identical in the five independent repositories.
+# Shared build-console formatting contract, version 1; DxUi additionally requires completed MSBuild summaries.
 Set-StrictMode -Version Latest
 
 function Get-NativeBuildDiagnostics {
@@ -7,16 +7,38 @@ function Get-NativeBuildDiagnostics {
     $full=[IO.Path]::GetFullPath($LogPath)
     if(-not(Test-Path -LiteralPath $full -PathType Leaf)){throw "Build diagnostics log is missing: $full"}
     $warnings=0;$errors=0
+    $succeeded=$false;$warningSummary=$null;$errorSummary=$null;$summaryStage=0
+    # Use linear matching when available; older supported runtimes fail closed at the fixed timeout.
+    $options=[Text.RegularExpressions.RegexOptions]::IgnoreCase -bor [Text.RegularExpressions.RegexOptions]::CultureInvariant
+    if ([Enum]::IsDefined([Text.RegularExpressions.RegexOptions], 'NonBacktracking')) {
+        $options = $options -bor [Enum]::Parse([Text.RegularExpressions.RegexOptions], 'NonBacktracking')
+    }
+    $diagnostic=[regex]::new('^\s*(?:\d+>)?\s*(?:(?:[a-z]:)?[^:\r\n]*:\s*)??(?:[^:\r\n]*?\s+)??(?<kind>warning|error)(?:\s+[^:\s]+)?\s*:',
+        $options, [TimeSpan]::FromMilliseconds(500))
     foreach($line in [IO.File]::ReadLines($full)){
-        # Same canonical MSBuild header grammar as RedSalamander's MSBuildInvocation.
-        # Diagnostic-looking text in a message is not a second diagnostic.
-        $match=[regex]::Match($line,'^\s*(?:\d+>)?\s*(?:(?:[a-z]:)?[^:\r\n]*:\s*)??(?:[^:\r\n]*?\s+)??(?<kind>warning|error)(?:\s+[^:\s]+)?\s*:',
-            [Text.RegularExpressions.RegexOptions]::IgnoreCase -bor [Text.RegularExpressions.RegexOptions]::CultureInvariant)
+        if($line -match '^\s*Build succeeded\.\s*$'){
+            $summaryStage=1;$succeeded=$false;$warningSummary=$null;$errorSummary=$null
+        }elseif($line -match '^\s*Build FAILED\.\s*$'){
+            $summaryStage=0;$succeeded=$false;$warningSummary=$null;$errorSummary=$null
+        }elseif($succeeded -and $line -notmatch '^\s*$'){
+            $succeeded=$false;$warningSummary=$null;$errorSummary=$null
+        }elseif($summaryStage -gt 0 -and $line -notmatch '^\s*$'){
+            if($summaryStage -eq 1 -and $line -match '^\s*0+ Warning\(s\)\s*$'){
+                $warningSummary=0;$summaryStage=2
+            }elseif($summaryStage -eq 2 -and $line -match '^\s*0+ Error\(s\)\s*$'){
+                $errorSummary=0;$summaryStage=3
+            }elseif($summaryStage -eq 3 -and $line -match '^\s*Time Elapsed \d{2,}:\d{2}:\d{2}\.\d{2,7}\s*$'){
+                $succeeded=$true;$summaryStage=0
+            }else{
+                $summaryStage=0;$succeeded=$false;$warningSummary=$null;$errorSummary=$null
+            }
+        }
+        $match=$diagnostic.Match($line)
         if($match.Success){
             if($match.Groups['kind'].Value -ieq 'warning'){++$warnings}else{++$errors}
         }
     }
-    return [pscustomobject]@{LogPath=$full;WarningCount=$warnings;ErrorCount=$errors}
+    return [pscustomobject]@{LogPath=$full;WarningCount=$warnings;ErrorCount=$errors;BuildSucceeded=$succeeded;WarningSummary=$warningSummary;ErrorSummary=$errorSummary}
 }
 
 function Assert-NativeBuildDiagnostics {
@@ -25,6 +47,10 @@ function Assert-NativeBuildDiagnostics {
     $result=Get-NativeBuildDiagnostics -LogPath $LogPath
     if($result.WarningCount -ne 0 -or $result.ErrorCount -ne 0){
         throw "Zero-warning build validation failed: $($result.WarningCount) warning(s), $($result.ErrorCount) error(s). Log: $($result.LogPath)"
+    }
+    if(-not $result.BuildSucceeded -or $null -eq $result.WarningSummary -or $null -eq $result.ErrorSummary -or
+       $result.WarningSummary -ne 0 -or $result.ErrorSummary -ne 0){
+        throw "Zero-warning build validation failed: a completed successful MSBuild log with explicit zero warning/error summaries is required. Log: $($result.LogPath)"
     }
 }
 

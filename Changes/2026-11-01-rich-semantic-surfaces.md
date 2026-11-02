@@ -1,0 +1,1 @@
+- Give Subtle Markdown table headers and inline code a theme-resolved surface, with retained bounded chip rectangles and independent raster coverage.

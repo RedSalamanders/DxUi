@@ -20,7 +20,9 @@ inline std::shared_ptr<const SemanticDocument> Complete(SemanticBuilder& builder
     const bool nativeCandidates = syntax.Profile() == MarkdownProfile::RichMarkdown && std::ranges::any_of(syntax.Nodes(), [&](const auto& node) {
         return node.block.kind == MarkdownBlockKind::FencedCode && syntax.Slice(node.block.info).starts_with(L"mermaid");
     });
-    const auto bound            = 4u * (syntax.Nodes().size() + syntax.Inlines().size()) + 1u + (nativeCandidates ? 8u * syntax.Source().size() + 32u : 0u);
+    const auto bound =
+        4u * (syntax.Nodes().size() + syntax.Inlines().size()) + 1u + (nativeCandidates ? 8u * syntax.Source().size() + 32u : 0u) +
+        (HasMarkdownExtension(syntax.Extensions(), MarkdownExtensions::Abbreviations) ? syntax.Nodes().size() + syntax.Source().size() / 128u + 32u : 0u);
     while (builder.HasPendingPreparation())
     {
         const auto step = builder.Advance(7u);
@@ -77,7 +79,7 @@ inline void CheckGraph(const SemanticDocument& document)
     for (const auto& run : document.Runs())
     {
         Check(styled <= map.Display().size() && run.start == styled && run.length > 0u && run.length <= map.Display().size() - styled &&
-                  ! (run.flags & ~(Bold | Italic | Code | Strike | Underline | Link)) && run.heading <= 6u,
+                  ! (run.flags & ~(Bold | Italic | Code | Strike | Underline | Link | Marked)) && run.heading <= 6u,
               "semantic styles partition the complete display");
         styled += run.length;
     }
@@ -158,6 +160,228 @@ inline void DirectedValues()
         std::find_if(links->Elements().begin(), links->Elements().end(), [](const auto& element) { return element.role == SemanticRole::Image; });
     Check(image != links->Elements().end() && image->name == L"a b" && image->destination == L"local" && image->title == L"pic",
           "atomic image alternative retains editable source, accessible name and inert destination/title");
+    const auto breakSyntax = Parse(L"one\r\ntwo\n");
+    SemanticBuilder breakBuilder;
+    breakBuilder.Begin(breakSyntax);
+    const auto ordinaryBreak = Complete(breakBuilder, *breakSyntax);
+    Check(ordinaryBreak->Map().Display() == L"one two\n", "default soft break remains a space");
+    breakBuilder.SetSoftBreakPolicy(SoftBreakPolicy::LineBreak);
+    Check(! breakBuilder.Published(), "changing soft-break policy retires the builder publication");
+    breakBuilder.Begin(breakSyntax);
+    const auto visibleBreak = Complete(breakBuilder, *breakSyntax);
+    Check(visibleBreak->Map().Source() == L"one\r\ntwo\n" && visibleBreak->Map().Display() == L"one\ntwo\n" && ordinaryBreak->Map().Display() == L"one two\n",
+          "line-break policy changes only presentation and retains the previous immutable document");
+    RichSemanticTests::CheckRanges(visibleBreak->Map().SourceRanges({3u, 4u}), {{3u, 5u}}, "displayed soft break maps to its full source CRLF");
+    RichSemanticTests::Reject<std::invalid_argument>([&] { breakBuilder.SetSoftBreakPolicy(static_cast<SoftBreakPolicy>(99)); },
+                                                     "invalid soft-break policy is rejected");
+    Check(breakBuilder.Published() == visibleBreak, "invalid soft-break policy leaves the current publication intact");
+}
+static_assert(static_cast<unsigned>(MarkdownExtensions::WikiLinks) == 512u);
+static_assert(static_cast<unsigned>(MarkdownExtensions::RichAll) == 1023u);
+static_assert(static_cast<unsigned>(MarkdownExtensions::DefinitionLists) == 1024u);
+static_assert(static_cast<unsigned>(MarkdownExtensions::Abbreviations) == 2048u);
+static_assert(static_cast<unsigned>(MarkdownExtensions::RichOptionalMask) == 4095u);
+inline void HeadingOutlineAndFragments()
+{
+    const std::wstring source = L"# Hello *world*\n\n## Hello world\n\n# Hello world-1\n\n# Hello world\n\n# Caf\u00e9\n\n# A &amp; B\n";
+    const auto document       = Build(source, MarkdownProfile::RichMarkdown);
+    const auto headings       = document->Headings();
+    Check(headings.size() == 6u && headings[0].level == 1u && headings[1].level == 2u && headings[0].name == L"Hello world" &&
+              headings[0].slug == L"hello-world" && headings[1].slug == L"hello-world-1" && headings[2].slug == L"hello-world-1-1" &&
+              headings[3].slug == L"hello-world-2" && headings[4].slug == L"caf\u00e9" && headings[5].name == L"A & B",
+          "outline retains heading order, levels, formatted names and collision-safe fragment ids");
+    Check(headings[0].source.first == 0u && headings[0].target.first == 2u && document->ResolveHeadingFragment(L"#hello-world-2") == headings[3].target &&
+              document->ResolveHeadingFragment(L"#caf%C3%A9") == headings[4].target && ! document->ResolveHeadingFragment(L"#caf%ZZ") &&
+              ! document->ResolveHeadingFragment(L"https://example.test"),
+          "fragment resolution shares exact source targets and rejects malformed external references");
+    const auto toc = BuildHeadingTableOfContents(*document);
+    Check(toc == L"- [Hello world](#hello-world)\n  - [Hello world](#hello-world-1)\n- [Hello world\\-1](#hello-world-1-1)\n- [Hello world](#hello-world-2)\n- "
+                 L"[Caf\u00e9](#caf%C3%A9)\n- [A &amp; B](#a--b)\n",
+          "generated Markdown outline escapes and percent-encodes stable heading references");
+    const auto parsedToc = Build(toc, MarkdownProfile::RichMarkdown);
+    Check(parsedToc->Map().Display().find(L"Hello world-1") != std::wstring_view::npos && std::ranges::any_of(parsedToc->Elements(),
+                                                                                                              [](const auto& item)
+    { return item.role == SemanticRole::Link && item.name == L"Hello world-1" && item.destination == L"#hello-world-1-1"; }),
+          "escaped outline label and fragment round-trip through the Markdown semantic parser");
+    Check(document->Map().Source() == source, "outline generation leaves source intact");
+}
+inline void OptionalDefinitionsAndAbbreviations()
+{
+    const std::wstring source =
+        L"HTML and HTML5 and html. `HTML`\n\n*[HTML]: Hyper Text Markup Language\n\nTerm\n: first **description**\n: second description\n\nAfter\n";
+    const auto defaults = Build(source, MarkdownProfile::RichMarkdown);
+    Check(std::ranges::none_of(defaults->Elements(),
+                               [](const auto& element) { return element.role == SemanticRole::DefinitionList || element.role == SemanticRole::Abbreviation; }),
+          "definition and abbreviation extensions are off by default");
+    MarkdownParser parser;
+    const auto extensions = MarkdownExtensions::RichAll | MarkdownExtensions::DefinitionLists | MarkdownExtensions::Abbreviations;
+    parser.Begin(source, 1u, MarkdownProfile::RichMarkdown, extensions);
+    while (parser.HasPendingPreparation())
+        parser.Advance(7u);
+    const auto syntax = parser.Published();
+    SemanticBuilder builder;
+    builder.Begin(syntax);
+    const auto document = Complete(builder, *syntax);
+    CheckGraph(*document);
+    Check(document->Map().Source() == source && document->Map().Display().find(L"*[HTML]:") == std::wstring::npos &&
+              document->Map().Display().find(L"HTML and HTML5 and html.") != std::wstring::npos && document->Map().Display().ends_with(L"After\n"),
+          "opt-in definitions hide only the recognized declaration while preserving the exact raw source and surrounding text");
+    const auto abbreviation = std::ranges::find(document->Elements(), SemanticRole::Abbreviation, &SemanticElement::role);
+    Check(abbreviation != document->Elements().end() && abbreviation->name == L"HTML" && abbreviation->title == L"Hyper Text Markup Language" &&
+              std::ranges::count(document->Elements(), SemanticRole::Abbreviation, &SemanticElement::role) == 1u,
+          "only the exact case-sensitive standalone word has the authored expansion; code and longer words stay ordinary");
+    const auto list = std::ranges::find(document->Elements(), SemanticRole::DefinitionList, &SemanticElement::role);
+    Check(list != document->Elements().end() && std::ranges::count(document->Elements(), SemanticRole::DefinitionTerm, &SemanticElement::role) == 1u &&
+              std::ranges::count(document->Elements(), SemanticRole::DefinitionDescription, &SemanticElement::role) == 2u,
+          "one term and two descriptions receive distinct source-owned list roles");
+    const auto strongOffset = document->Map().Display().find(L"description");
+    Check(strongOffset != std::wstring::npos &&
+              std::ranges::any_of(document->Runs(),
+                                  [&](const auto& run) { return run.start <= strongOffset && strongOffset < run.start + run.length && (run.flags & Bold); }),
+          "Markdown inline emphasis inside a description retains native semantic styling");
+    for (const auto profile : {MarkdownProfile::CommonMark0312, MarkdownProfile::Gfm029})
+    {
+        RichSemanticTests::Reject<std::invalid_argument>([&] { parser.Begin(source, 2u, profile, extensions); },
+                                                         "opt-in rich extensions are unavailable to standard profiles");
+        Check(parser.Published() == syntax && ! parser.HasPendingPreparation(), "invalid profile options leave the prior parser publication intact");
+    }
+    const std::wstring malformed = L"*[X]: First\n\n*[X]: Second\n\nBad term\n: <formatted>\n\nX Xray\n";
+    parser.Begin(malformed, 3u, MarkdownProfile::RichMarkdown, extensions);
+    while (parser.HasPendingPreparation())
+        parser.Advance(7u);
+    const auto malformedSyntax = parser.Published();
+    builder.Begin(malformedSyntax);
+    const auto rejected = Complete(builder, *malformedSyntax);
+    Check(rejected->Map().Source() == malformed && rejected->Map().Display().find(L"Second") != std::wstring::npos &&
+              std::ranges::none_of(rejected->Elements(), [](const auto& element) { return element.role == SemanticRole::DefinitionList; }) &&
+              std::ranges::count(rejected->Elements(), SemanticRole::Abbreviation, &SemanticElement::role) == 1u,
+          "duplicate definitions and unsupported HTML lists stay ordinary, and longer words do not gain a tooltip");
+    std::wstring capped(L"K0 K128\n\n");
+    for (unsigned index = 0u; index < 129u; ++index)
+        capped.append(L"*[K").append(std::to_wstring(index)).append(L"]: expansion\n\n");
+    parser.Begin(capped, 4u, MarkdownProfile::RichMarkdown, extensions);
+    while (parser.HasPendingPreparation())
+        parser.Advance(7u);
+    const auto cappedSyntax = parser.Published();
+    builder.Begin(cappedSyntax);
+    const auto cappedDocument = Complete(builder, *cappedSyntax);
+    Check(cappedDocument->Map().Source() == capped && cappedDocument->Map().Display().find(L"*[K128]: expansion") != std::wstring::npos &&
+              std::ranges::count(cappedDocument->Elements(), SemanticRole::Abbreviation, &SemanticElement::role) == 1u,
+          "the 129th declaration stays ordinary while the first 128 remain bounded and source-exact");
+    std::wstring manyLists(0u, L' ');
+    for (unsigned index = 0u; index < 242u; ++index)
+    {
+        manyLists.append(L"term-").append(std::to_wstring(index)).append(L"\n");
+        for (unsigned line = 0u; line < 16u; ++line)
+            manyLists.append(L": line-").append(std::to_wstring(line)).append(L"\n");
+        manyLists.append(L"\n");
+    }
+    parser.Begin(manyLists, 5u, MarkdownProfile::RichMarkdown, extensions);
+    while (parser.HasPendingPreparation())
+        parser.Advance(7u);
+    const auto manySyntax = parser.Published();
+    builder.Begin(manySyntax);
+    const auto many  = Complete(builder, *manySyntax);
+    const auto lists = std::ranges::count(many->Elements(), SemanticRole::DefinitionList, &SemanticElement::role);
+    Check(many->Map().Source() == manyLists && many->Paragraphs().size() <= SemanticDocument::MaximumParagraphs && lists > 0 && lists < 242 &&
+              many->Map().Display().find(L"term-241") != std::wstring::npos,
+          "aggregate paragraph admission preserves late ordinary content instead of failing the whole document");
+    std::wstring lengthy(L"HTML ");
+    lengthy.append(8192u, L'a');
+    lengthy.append(L"\n\n*[HTML]: Hyper Text\n");
+    parser.Begin(lengthy, 6u, MarkdownProfile::RichMarkdown, extensions);
+    while (parser.HasPendingPreparation())
+        parser.Advance(7u);
+    const auto lengthySyntax = parser.Published();
+    builder.Begin(lengthySyntax);
+    const auto first = builder.Advance(1u);
+    Check(first.workUnits == 1u && builder.HasPendingPreparation() && builder.Published() == many,
+          "abbreviation collection yields and retains the previous publication");
+    builder.Cancel();
+    Check(! builder.HasPendingPreparation() && builder.Published() == many, "cancelling abbreviation staging leaves published semantics intact");
+    builder.Begin(lengthySyntax);
+    std::size_t turns{};
+    while (builder.HasPendingPreparation())
+    {
+        const auto step = builder.Advance(1u);
+        Check(step.workUnits == 1u, "abbreviation source scan respects each one-unit owner turn");
+        ++turns;
+    }
+    Check(turns > 32u && builder.Published()->Map().Source() == lengthy &&
+              std::ranges::count(builder.Published()->Elements(), SemanticRole::Abbreviation, &SemanticElement::role) == 1u,
+          "long text is processed cooperatively without matching a suffix of an oversized word");
+}
+inline void AuthoredImagePresentation()
+{
+    const std::wstring source = L"![map](map.png){width=48 height=40 align=center caption=\"Map overview\"}\n";
+    const auto syntax         = Parse(source, MarkdownProfile::RichMarkdown);
+    Check(std::ranges::count_if(syntax->Inlines(), [](const auto& node) { return node.kind == MarkdownInlineKind::Text && node.source.first >= 15u; }) > 1,
+          "valid image attributes exercise multiple contiguous inline text siblings");
+    const auto document = Build(source, MarkdownProfile::RichMarkdown);
+    CheckGraph(*document);
+    const auto image = std::ranges::find(document->Elements(), SemanticRole::Image, &SemanticElement::role);
+    Check(image != document->Elements().end() && image->imageWidth == 48u && image->imageHeight == 40u && image->name == L"map" && image->source.first == 0u &&
+              image->source.last == source.size() - 1u && document->Map().Source() == source,
+          "standalone Markdown image retains exact complete source ownership and authored size");
+    Check(document->Map().Display().find(L"Map overview") != std::wstring::npos && document->Map().Display().find(L"width=") == std::wstring::npos &&
+              document->Paragraphs().front().alignment == MarkdownAlignment::Center,
+          "caption is explicitly authored and the standalone paragraph is centered");
+    const auto captionAt  = document->Map().Display().find(L"Map overview");
+    const auto imageIndex = static_cast<std::size_t>(image - document->Elements().begin());
+    Check(document->Map().ToSource(captionAt) == source.find(L"Map overview") && document->SourceEditingRange(imageIndex) == std::optional(image->source),
+          "generated caption maps to its authored anchor and F2 owns the complete image syntax");
+    const std::wstring htmlSource = L"<img src='map.png' alt='map' width='48' height='40' align='right' data-caption='Map overview'>\n";
+    const auto html               = Build(htmlSource, MarkdownProfile::RichMarkdown);
+    CheckGraph(*html);
+    const auto htmlImage = std::ranges::find(html->Elements(), SemanticRole::Image, &SemanticElement::role);
+    Check(htmlImage != html->Elements().end() && htmlImage->imageWidth == 48u && htmlImage->imageHeight == 40u && htmlImage->title.empty() &&
+              html->Map().Display().find(L"Map overview") != std::wstring::npos && html->Paragraphs().front().alignment == MarkdownAlignment::Right &&
+              html->Map().Source() == htmlSource,
+          "standalone HTML image accepts explicit caption and alignment without treating title as caption");
+    for (const auto invalid : {L"![map](map.png){width=0}\n",
+                               L"![map](map.png){width=12 width=24}\n",
+                               L"prefix ![map](map.png){align=center}\n",
+                               L"![map](map.png){caption=\"A *cross} brace*\"}\n",
+                               L"![map](map.png){caption=\"A\x7f B\"}\n"})
+    {
+        const auto rejected = Build(invalid, MarkdownProfile::RichMarkdown);
+        Check(rejected->Map().Display().find(L"![map](map.png){") != std::wstring::npos && rejected->Map().Source() == invalid &&
+                  std::ranges::none_of(rejected->Elements(), [](const auto& item) { return item.role == SemanticRole::Image; }),
+              "invalid and non-standalone Markdown presentation attributes remain literal");
+    }
+    for (const auto caption : {L"A *styled* text", L"[see](url)"})
+    {
+        const std::wstring input    = L"![map](map.png){caption=\"" + std::wstring(caption) + L"\"}\n";
+        const auto literalCaption   = Build(input, MarkdownProfile::RichMarkdown);
+        const auto literalCaptionAt = literalCaption->Map().Display().find(caption);
+        CheckGraph(*literalCaption);
+        Check(literalCaptionAt != std::wstring_view::npos && literalCaption->Map().ToSource(literalCaptionAt) == input.find(caption) &&
+                  std::ranges::count(literalCaption->Elements(), SemanticRole::Image, &SemanticElement::role) == 1u &&
+                  std::ranges::none_of(literalCaption->Elements(), [](const auto& item) { return item.role == SemanticRole::Link; }),
+              "quoted caption punctuation remains literal and maps to its original source");
+    }
+    for (const auto input :
+         {L"![map](map.png){width=2\n\nordinary } text\n", L"![map](map.png){width=2\nordinary } text\n", L"![map](map.png){width=2 *bad*}\n\nnext } text\n"})
+    {
+        const auto rejected = Build(input, MarkdownProfile::RichMarkdown);
+        CheckGraph(*rejected);
+        const auto display = rejected->Map().Display();
+        const auto marker  = display.find(L"ordinary } text");
+        const auto tail    = display.find(L"next } text");
+        Check(rejected->Map().Source() == input && display.find(L"![map](map.png){width=2") != display.npos &&
+                  std::ranges::none_of(rejected->Elements(), [](const auto& item) { return item.role == SemanticRole::Image; }) &&
+                  ((marker != display.npos && display.find(L"ordinary } text", marker + 1u) == display.npos) ||
+                   (tail != display.npos && display.find(L"next } text", tail + 1u) == display.npos && display.find(L"*bad*}") != display.npos)),
+              "malformed image suffix stays in its leaf and line without duplicating later content or split inline owners");
+    }
+    const auto standard = Build(source, MarkdownProfile::Gfm029);
+    Check(standard->Map().Display().find(L"{width=") != std::wstring::npos, "the ordinary GFM profile does not consume RichMarkdown image presentation syntax");
+    const auto invalidHtml = Build(L"<img src='map.png' width='0' data-caption='bad'>\n", MarkdownProfile::RichMarkdown);
+    Check(invalidHtml->Map().Display().find(L"<img") != std::wstring::npos &&
+              std::ranges::none_of(invalidHtml->Elements(), [](const auto& item) { return item.role == SemanticRole::Image; }),
+          "invalid HTML presentation preserves the complete source leaf");
+    const auto htmlMixed = Build(L"text <img src='map.png' align='center'>\n", MarkdownProfile::RichMarkdown);
+    Check(htmlMixed->Map().Display().find(L"<img") != std::wstring::npos, "non-standalone HTML alignment preserves the complete literal leaf");
 }
 inline void NativeHtmlAndLinkPresentation()
 {
@@ -192,6 +416,50 @@ inline void NativeHtmlAndLinkPresentation()
     }
     for (const auto breakTag : {L"<br>", L"<br/>", L"<br />", L"<BR />"})
         Check(Build(std::wstring(L"one") + breakTag + L"two\n")->Map().Display() == L"one\ntwo\n", "all declared void-break spellings have one native LF");
+    for (const auto profile : {MarkdownProfile::Gfm029, MarkdownProfile::RichMarkdown})
+    {
+        constexpr std::wstring_view source = L"| a<br> | b |\n| --- | --- |\n";
+        const auto table                   = Build(source, profile);
+        Check(table->Map().Source() == source && table->Map().Display() == L"a\n\tb\n",
+              "a cell ending in an HTML break retains its following generated column separator");
+        const auto tab = std::ranges::find_if(table->Map().Spans(), [](const auto& span) {
+            return span.kind == DisplaySpanKind::Generated && span.display.first == 2u && span.display.last == 3u;
+        });
+        Check(tab != table->Map().Spans().end() && tab->source.first == tab->source.last, "the column separator is generated at an empty source boundary");
+        Check(Build(L"one<br>\n", profile)->Map().Display() == L"one\n", "a trailing HTML break still ends an ordinary paragraph without an extra line");
+    }
+    for (const auto ruleSource : {L"<hr>\n", L"<HR />\r\n", L"  <hr/>\n"})
+    {
+        const auto ruleDocument = Build(ruleSource);
+        const auto ruleElement  = std::ranges::find(ruleDocument->Elements(), SemanticRole::Rule, &SemanticElement::role);
+        Check(ruleElement != ruleDocument->Elements().end() && ruleElement->nativeHtml && ruleDocument->Map().Display() == L"\ufffc\n" &&
+                  ruleDocument->Map().Source() == ruleSource,
+              "a standalone attribute-free HTML rule uses native thematic geometry and exact source");
+        CheckGraph(*ruleDocument);
+    }
+    for (const auto invalidRule : {L"one <hr> two\n", L"<hr class='x'>\n", L"</hr>\n"})
+        Check(Build(invalidRule)->Map().Display() == invalidRule, "inline or attributed HTML rules remain a literal complete leaf");
+    for (const auto profile : {MarkdownProfile::CommonMark0312, MarkdownProfile::Gfm029, MarkdownProfile::RichMarkdown})
+    {
+        const std::wstring imageSource = L"one <IMG alt='A &amp; B' SRC='pictures/item.png' title='hint' /> end\n";
+        const auto imageDocument       = Build(imageSource, profile);
+        Check(imageDocument->Map().Display() == L"one [image: A & B] end\n", "HTML images share the atomic Markdown image alternative");
+        const auto imageElement = std::ranges::find(imageDocument->Elements(), SemanticRole::Image, &SemanticElement::role);
+        Check(imageElement != imageDocument->Elements().end() && imageElement->nativeHtml && imageElement->name == L"A & B" &&
+                  imageElement->destination == L"pictures/item.png" && imageElement->title == L"hint" &&
+                  imageDocument->Syntax()->Slice(imageElement->source) == L"<IMG alt='A &amp; B' SRC='pictures/item.png' title='hint' />",
+              "HTML image metadata decodes once and retains the exact whole-tag source owner");
+        RichSemanticTests::CheckRanges(
+            imageDocument->Map().SourceRanges(imageElement->display), {imageElement->source}, "HTML image alternative maps atomically to its original tag");
+        CheckGraph(*imageDocument);
+        for (const auto invalidImage : {L"one <img alt='x'> end\n",
+                                        L"one <img src='x' src='y'> end\n",
+                                        L"one <img src=x> end\n",
+                                        L"one <img src='javascript:bad'> end\n",
+                                        L"one <img src='x' onerror='bad'> end\n",
+                                        L"one </img> end\n"})
+            Check(Build(invalidImage, profile)->Map().Display() == invalidImage, "unsupported image attributes or schemes preserve the complete leaf");
+    }
     Check(Build(L"<div>text</div>\n")->Map().Display() == L"text\n", "a single div wrapper uses native paragraph content");
     Check(Build(L"one <A HREF='#x' TITLE='hint'>label</A>\n")->Map().Display() == L"one label\n",
           "native HTML tag/attribute names use ASCII case-insensitive matching");
@@ -259,10 +527,40 @@ inline void NativeHtmlAndLinkPresentation()
                                L"one <a href='x' href='y'>x</a>\n",
                                L"one <a href=x>x</a>\n",
                                L"one <b>x\n",
-                               L"one <!-- c -->x\n",
                                L"one <a href='x'>[nested](y)</a>\n",
                                L"[<a href='x'>nested</a>](y)\n"})
         Check(Build(invalid)->Map().Display() == invalid, "malformed/active/nested-anchor HTML is literal atomically");
+    for (const auto profile : {MarkdownProfile::CommonMark0312, MarkdownProfile::Gfm029, MarkdownProfile::RichMarkdown})
+    {
+        const auto comments = Build(L"one <!-- <b>inert &amp; comment</b> -->x\n", profile);
+        Check(comments->Map().Display() == L"one x\n" && comments->Map().DisplayRanges({4u, comments->Map().Source().find(L"-->") + 3u}).empty(),
+              "HTML comment contents are hidden without interpreting nested tags or entities");
+        const auto aliases = Build(L"one <kbd>x</kbd> <ins>y</ins>\n", profile);
+        Check(aliases->Map().Display() == L"one x y\n", "keyboard and inserted-text aliases render their source text");
+        const auto flags = [&](size_t at)
+        {
+            for (const auto& run : aliases->Runs())
+                if (run.start <= at && at < run.start + run.length)
+                    return run.flags;
+            return 0u;
+        };
+        Check(flags(4u) == Code && flags(6u) == Underline, "keyboard and inserted aliases retain monospace and underline styles");
+        const auto marked = Build(L"one <mark>x <b>y</b></mark> z\n", profile);
+        Check(marked->Map().Display() == L"one x y z\n", "marked HTML text retains its exact nested label and source");
+        bool plainMarked = false, strongMarked = false, followingPlain = false;
+        for (const auto& run : marked->Runs())
+        {
+            plainMarked    = plainMarked || (run.start <= 4u && 4u < run.start + run.length && run.flags == Marked);
+            strongMarked   = strongMarked || (run.start <= 6u && 6u < run.start + run.length && run.flags == (Marked | Bold));
+            followingPlain = followingPlain || (run.start <= 8u && 8u < run.start + run.length && run.flags == Regular);
+        }
+        Check(plainMarked && strongMarked && followingPlain, "marked style combines with nested emphasis and ends at its matching close");
+        Check(Build(L"one <mark onclick='x'>bad</mark>\n", profile)->Map().Display() == L"one <mark onclick='x'>bad</mark>\n",
+              "marked text never admits active or unknown attributes");
+        CheckGraph(*marked);
+        CheckGraph(*comments);
+        CheckGraph(*aliases);
+    }
     std::wstring deep = L"one ";
     for (unsigned i = 0u; i < 33u; ++i)
         deep += L"<b>";
@@ -332,7 +630,26 @@ inline void SchedulingAndAdmission()
     Check(! builder.Published() && ! builder.HasPendingPreparation() && current->Map().Source() == newSyntax->Source(),
           "semantic retirement releases ownership without invalidating held documents");
     const auto nul = Parse(std::wstring_view(L"a\0b", 3u));
-    RichSemanticTests::Reject<std::invalid_argument>([&] { builder.Begin(nul); }, "semantic builder preserves Document NUL admission");
+    builder.Begin(nul);
+    const auto countedNul = Complete(builder, *nul);
+    Check(countedNul->Map().Source() == std::wstring_view(L"a\0b", 3u) && countedNul->Map().Display() == L"a\ufffdb\n" &&
+              countedNul->Map().ToDisplay(1u) == 1u && countedNul->Map().ToSource(1u) == 1u,
+          "semantic publication retains source NUL and presents its replacement character at the same coordinate");
+    for (const auto& source : {std::wstring(L"`a\0b`", 5u),
+                               std::wstring(L"```\na\0b\n```\n", 12u),
+                               std::wstring(L"<span>a\0b</span>", 16u),
+                               std::wstring(L"[a\0b](https://example.test)", 27u)})
+    {
+        const auto result     = Build(source);
+        const auto sourceNul  = source.find(L'\0');
+        const auto displayNul = result->Map().ToDisplay(sourceNul);
+        Check(result->Map().Source() == source && displayNul < result->Map().Display().size() && result->Map().Display()[displayNul] == L'\ufffd' &&
+                  result->Map().Display().find(L'\0') == std::wstring_view::npos && result->Map().ToSource(displayNul) == sourceNul,
+              "inline code, fenced code, HTML and link text normalize NUL while retaining its exact source mapping");
+    }
+    const wchar_t unpaired = static_cast<wchar_t>(0xd800u);
+    RichSemanticTests::Reject<std::invalid_argument>([&] { Parse(std::wstring_view(&unpaired, 1u)); },
+                                                     "raw Markdown parser rejects an unpaired source surrogate");
     std::wstring many;
     for (std::size_t i = 0u; i <= SemanticDocument::MaximumParagraphs; ++i)
         many.append(L"a\n\n");
@@ -353,6 +670,168 @@ inline void SchedulingAndAdmission()
         table.append(L"| |\n");
     RichSemanticTests::Reject<std::length_error>([&] { Parse(table); }, "sparse table amplification is rejected before allocating an excessive parser graph");
     Check(builder.Published()->Syntax() == oldSyntax && ! builder.HasPendingPreparation(), "failed semantic admission preserves its previous request state");
+}
+inline void LocalizedAccessibilityLabels()
+{
+    using LabelId             = AccessibilityTextId;
+    const std::wstring source = L"Text[^n] $x$.\n\n[^n]: body\n\n```mermaid\nflowchart LR\nA[User Nodes: literal]-->B[Finish]\n```\n";
+    const auto original       = Build(source, MarkdownProfile::RichMarkdown);
+    std::wstring borrowed(L"Note {0}");
+    const std::array entries{AccessibilityTextOverride{LabelId::FootnoteName, borrowed},
+                             AccessibilityTextOverride{LabelId::GoToFootnote, L"Aller à la note {0}."},
+                             AccessibilityTextOverride{LabelId::ReturnToReference, L"Note {1}, référence {0}"},
+                             AccessibilityTextOverride{LabelId::ReturnToReferenceHelp, L"Retour {0}, note {1}."},
+                             AccessibilityTextOverride{LabelId::Equation, L"Expression mathématique; source exacte disponible."},
+                             AccessibilityTextOverride{LabelId::FlowchartHeader, L"Diagramme, "},
+                             AccessibilityTextOverride{LabelId::DirectionLeftRight, L"vers la droite"},
+                             AccessibilityTextOverride{LabelId::DiagramNodes, L". Sommets: "},
+                             AccessibilityTextOverride{LabelId::DiagramConnections, L" Liens: "},
+                             AccessibilityTextOverride{LabelId::SequenceDiagramHeader, L"Séquence, "},
+                             AccessibilityTextOverride{LabelId::SequenceSends, L" envoie "},
+                             AccessibilityTextOverride{LabelId::SequenceAsyncSends, L" envoie plus tard "},
+                             AccessibilityTextOverride{LabelId::SequenceTo, L" vers "},
+                             AccessibilityTextOverride{LabelId::SequenceDottedEnd, L" (pointillé); "},
+                             AccessibilityTextOverride{LabelId::StandaloneDiagramNote, L"Remarque: "},
+                             AccessibilityTextOverride{LabelId::PieHeader, L"Répartition : "},
+                             AccessibilityTextOverride{LabelId::PieSlices, L". Parts : "},
+                             AccessibilityTextOverride{LabelId::PieHelp, L"Source de la répartition disponible."},
+                             AccessibilityTextOverride{LabelId::EntityRelationshipHeader, L"Relations, "},
+                             AccessibilityTextOverride{LabelId::EntityRelationshipHelp, L"Source des relations disponible."},
+                             AccessibilityTextOverride{LabelId::IdentifyingRelationship, L"] identifie "},
+                             AccessibilityTextOverride{LabelId::NonIdentifyingRelationship, L"] associe "},
+                             AccessibilityTextOverride{LabelId::GanttHeader, L"Calendrier : "},
+                             AccessibilityTextOverride{LabelId::GanttTasks, L". Tâches : "},
+                             AccessibilityTextOverride{LabelId::GanttHelp, L"Source du calendrier disponible."},
+                             AccessibilityTextOverride{LabelId::MindmapHeader, L"Carte. Sujets : "},
+                             AccessibilityTextOverride{LabelId::MindmapHelp, L"Source de la carte disponible."},
+                             AccessibilityTextOverride{LabelId::UnclosedDisplayMath, L"Délimiteur mathématique manquant."},
+                             AccessibilityTextOverride{LabelId::UnclosedMathFence, L"Clôture mathématique manquante."}};
+    const auto labels = std::make_shared<const AccessibilityLabels>(entries);
+    borrowed.assign(L"caller storage changed");
+    SemanticBuilder builder;
+    builder.Begin(original->Syntax());
+    const auto previous = Complete(builder, *original->Syntax());
+    builder.SetAccessibilityLabels(labels);
+    Check(! builder.Published() && ! builder.HasPendingPreparation(), "changed labels withdraw builder staging and publication");
+    builder.Begin(original->Syntax());
+    const auto localized = Complete(builder, *original->Syntax());
+    Check(localized->AccessibilityLabelSet() == labels && localized->Map().Source() == original->Map().Source() &&
+              localized->Map().Display() == original->Map().Display() && localized->Elements().size() == original->Elements().size(),
+          "localized semantic metadata preserves source, visible text and element structure");
+    for (std::size_t index = 0u; index < localized->Elements().size(); ++index)
+    {
+        const auto& element = localized->Elements()[index];
+        Check(element.source == original->Elements()[index].source && element.display == original->Elements()[index].display,
+              "localized names never change source or display ownership");
+        if (element.role == SemanticRole::FootnoteReference || element.role == SemanticRole::Footnote)
+            Check(element.name == L"Note 1", "numbered footnote name uses owned localized configuration");
+        if (element.role == SemanticRole::FootnoteBacklink)
+            Check(element.name == L"Note 1, référence 1" && element.title == L"Retour 1, note 1.", "two numbered label arguments may reorder");
+        if (element.role == SemanticRole::Math)
+            Check(element.title == L"Expression mathématique; source exacte disponible.", "math help is localized independently of its exact source name");
+        if (element.role == SemanticRole::Diagram)
+            Check(element.name.starts_with(L"Diagramme, vers la droite. Sommets: ") && element.name.find(L"User Nodes: literal") != element.name.npos &&
+                      element.name.find(L" Liens: ") != element.name.npos,
+                  "diagram vocabulary is localized while authored labels remain exact");
+    }
+    Check(std::ranges::any_of(previous->Elements(), [](const auto& element) { return element.name == L"Footnote 1"; }),
+          "a held earlier document retains its original English labels");
+    const auto sequence =
+        Build(L"```mermaid\nsequenceDiagram\nparticipant A as Authored sends alias\nA->>B: first\nB--)A: second\n```\n", MarkdownProfile::RichMarkdown);
+    builder.Begin(sequence->Syntax());
+    const auto translatedSequence = Complete(builder, *sequence->Syntax());
+    Check(translatedSequence->Map().Display() == sequence->Map().Display() && std::ranges::any_of(translatedSequence->Elements(),
+                                                                                                  [](const auto& element)
+    {
+        return element.role == SemanticRole::Diagram && element.name.starts_with(L"Séquence, ") &&
+               element.name.find(L"Authored sends alias") != element.name.npos && element.name.find(L"A envoie first vers B;") != element.name.npos &&
+               element.name.find(L"B envoie plus tard second vers A (pointillé);") != element.name.npos;
+    }),
+          "sequence message vocabulary localizes without rewriting aliases, message text or display");
+    const auto notes = Build(L"```mermaid\nclassDiagram\nclass A\nnote \"Authored Note: body\"\n```\n", MarkdownProfile::RichMarkdown);
+    builder.Begin(notes->Syntax());
+    const auto translatedNotes = Complete(builder, *notes->Syntax());
+    Check(std::ranges::any_of(translatedNotes->Elements(),
+                              [](const auto& element)
+    { return element.role == SemanticRole::Diagram && element.name.find(L"Remarque: Authored Note: body;") != element.name.npos; }),
+          "standalone class-note vocabulary localizes while authored note text remains literal");
+    struct FamilyLabelCase
+    {
+        std::wstring_view source, prefix, help, authored;
+    };
+    for (const auto& fixture : std::array{FamilyLabelCase{L"```mermaid\npie\ntitle Authored title\n\"Authored slice\": 1\n```\n",
+                                                          L"Répartition : Authored title. Parts : ",
+                                                          L"Source de la répartition disponible.",
+                                                          L"Authored slice: 1; "},
+                                          FamilyLabelCase{L"```mermaid\nerDiagram\nA ||--o{ B : Authored relation\n```\n",
+                                                          L"Relations, ",
+                                                          L"Source des relations disponible.",
+                                                          L"A [1] identifie Authored relation B [0..*]"},
+                                          FamilyLabelCase{L"```mermaid\nerDiagram\nA ||..o{ B : Authored relation\n```\n",
+                                                          L"Relations, ",
+                                                          L"Source des relations disponible.",
+                                                          L"A [1] associe Authored relation B [0..*]"},
+                                          FamilyLabelCase{L"```mermaid\ngantt\ntitle Authored title\nAuthored task : 2026-11-01, 2d\n```\n",
+                                                          L"Calendrier : Authored title. Tâches : ",
+                                                          L"Source du calendrier disponible.",
+                                                          L"Authored task: 2026-11-01, 2d; "},
+                                          FamilyLabelCase{L"```mermaid\nmindmap\nAuthored root\n  Authored child\n```\n",
+                                                          L"Carte. Sujets : ",
+                                                          L"Source de la carte disponible.",
+                                                          L"Authored root; Authored child; "}})
+    {
+        const auto english = Build(fixture.source, MarkdownProfile::RichMarkdown);
+        builder.Begin(english->Syntax());
+        const auto translated = Complete(builder, *english->Syntax());
+        const auto element    = std::ranges::find(translated->Elements(), SemanticRole::Diagram, &SemanticElement::role);
+        Check(element != translated->Elements().end() && translated->Diagnostics().empty() && element->name.starts_with(fixture.prefix) &&
+                  element->name.find(fixture.authored) != element->name.npos && element->title == fixture.help &&
+                  translated->Map().Display() == english->Map().Display() && translated->Map().Source() == fixture.source,
+              "new native diagram families localize generated vocabulary and preserve authored content and geometry input");
+    }
+    for (const auto& fixture : std::array{FamilyLabelCase{L"$$\nx\n", {}, L"Délimiteur mathématique manquant.", {}},
+                                          FamilyLabelCase{L"```math\nx\n", {}, L"Clôture mathématique manquante.", {}},
+                                          FamilyLabelCase{L"```math\nx\n```\n", {}, L"Expression mathématique; source exacte disponible.", {}}})
+    {
+        const auto english = Build(fixture.source, MarkdownProfile::RichMarkdown);
+        builder.Begin(english->Syntax());
+        const auto translated = Complete(builder, *english->Syntax());
+        const auto math       = std::ranges::find(translated->Elements(), SemanticRole::Math, &SemanticElement::role);
+        Check(math != translated->Elements().end() && math->title == fixture.help && translated->Map().Source() == fixture.source &&
+                  translated->Map().Display() == english->Map().Display(),
+              "display and fenced equation help localizes without changing source or fallback display");
+    }
+    for (const auto pattern : {L"missing", L"{0}{0}", L"{1}", L"{0:02}", L"}{0}"})
+    {
+        const std::array invalid{AccessibilityTextOverride{LabelId::FootnoteName, pattern}};
+        RichSemanticTests::Reject<std::invalid_argument>([&] { AccessibilityLabels value(invalid); }, "invalid numbered label is rejected before ownership");
+    }
+    const std::array duplicate{AccessibilityTextOverride{LabelId::Equation, L"first"}, AccessibilityTextOverride{LabelId::Equation, L"second"}};
+    RichSemanticTests::Reject<std::invalid_argument>([&] { AccessibilityLabels value(duplicate); }, "duplicate label identity is rejected");
+    const std::wstring nul(L"a\0b", 3u);
+    const std::array invalidUnicode{AccessibilityTextOverride{LabelId::Equation, nul}};
+    RichSemanticTests::Reject<std::invalid_argument>([&] { AccessibilityLabels value(invalidUnicode); }, "label transport rejects embedded NUL");
+    const std::wstring surrogate(1u, static_cast<wchar_t>(0xd800u));
+    const std::array invalidSurrogate{AccessibilityTextOverride{LabelId::Equation, surrogate}};
+    RichSemanticTests::Reject<std::invalid_argument>([&] { AccessibilityLabels value(invalidSurrogate); }, "label transport rejects malformed UTF-16");
+    const std::array invalidId{AccessibilityTextOverride{LabelId::Count, L"invalid"}};
+    RichSemanticTests::Reject<std::invalid_argument>([&] { AccessibilityLabels value(invalidId); }, "label transport rejects unknown identities");
+    const std::array empty{AccessibilityTextOverride{LabelId::Equation, L""}};
+    RichSemanticTests::Reject<std::invalid_argument>([&] { AccessibilityLabels value(empty); }, "empty override cannot erase required accessibility help");
+    const std::wstring maximum(AccessibilityLabels::MaximumTextUnits, L'a');
+    const std::array atLimit{AccessibilityTextOverride{LabelId::Equation, maximum}};
+    const AccessibilityLabels maximumLabels(atLimit);
+    Check(maximumLabels.Get(LabelId::Equation) == maximum, "label admission accepts its exact per-entry bound");
+    const std::wstring tooLong(AccessibilityLabels::MaximumTextUnits + 1u, L'a');
+    const std::array overLimit{AccessibilityTextOverride{LabelId::Equation, tooLong}};
+    RichSemanticTests::Reject<std::invalid_argument>([&] { AccessibilityLabels value(overLimit); }, "label transport rejects its first excess code unit");
+    Check(AccessibilityLabels::Text(nullptr, LabelId::Equation) == L"Mathematical expression. Exact TeX source is available as document text.",
+          "default label lookup remains byte-identical without allocating a dictionary");
+    builder.SetAccessibilityLabels(nullptr);
+    builder.Begin(original->Syntax());
+    const auto restored = Complete(builder, *original->Syntax());
+    Check(! restored->AccessibilityLabelSet() && std::ranges::any_of(restored->Elements(), [](const auto& element) { return element.name == L"Footnote 1"; }),
+          "null label configuration restores English on the same immutable syntax");
 }
 } // namespace RichSemanticDocumentTests
 

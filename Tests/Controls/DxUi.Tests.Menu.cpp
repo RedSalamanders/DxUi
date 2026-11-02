@@ -1311,6 +1311,21 @@ public:
                 if (message.find(marker) != std::wstring_view::npos)
                 {
                     _active->Ui(phase);
+                    if (std::wstring_view(marker) == L"menu.dismiss-cause-activation" && _active->_owner)
+                    {
+                        const HWND foreground = GetForegroundWindow();
+                        DWORD foregroundProcess{};
+                        const DWORD foregroundThread = foreground ? GetWindowThreadProcessId(foreground, &foregroundProcess) : 0u;
+                        const HWND active            = GetActiveWindow();
+                        const size_t flags = (foreground ? 1u : 0u) | (foreground == _active->_owner ? 2u : 0u) |
+                                             (foregroundProcess == GetCurrentProcessId() ? 4u : 0u) | (foregroundThread == GetCurrentThreadId() ? 8u : 0u) |
+                                             (active == _active->_owner ? 16u : 0u) | (active && GetWindow(active, GW_OWNER) == _active->_owner ? 32u : 0u);
+                        const size_t kind  = message.find(L"msg=WM_ACTIVATEAPP") != std::wstring_view::npos  ? WM_ACTIVATEAPP
+                                             : message.find(L"msg=WM_NCACTIVATE") != std::wstring_view::npos ? WM_NCACTIVATE
+                                             : message.find(L"msg=WM_ACTIVATE") != std::wstring_view::npos   ? WM_ACTIVATE
+                                                                                                             : 0u;
+                        _active->Ui("dismiss.activation-context", flags, kind);
+                    }
                     if (std::wstring_view(marker) == L"menu.dismiss-cause-cancel" && _active->_owner)
                     {
                         // Observe before Dismiss changes the chain. Bits describe the
@@ -2921,7 +2936,7 @@ void RunStationaryMenuCaptureKeyboardSelection(bool submenu, bool postedMove)
         return request;
     };
     const ThemePalette theme = MakeAnimatedTestThemePalette(true);
-    auto trace               = std::make_unique<MenuHoverTraceForTest>(true);
+    auto trace               = std::make_unique<MenuHoverTraceForTest>(true, false, ownerWindow.Hwnd());
     POINT stationaryPoint{};
 
     const auto runPhase = [&](bool measure)
@@ -3050,6 +3065,21 @@ void RunStationaryMenuCaptureKeyboardSelection(bool submenu, bool postedMove)
         failure = runPhase(true);
         if (! failure.empty())
             return;
+        // The probe is a complete, separately activated menu session. Drain its
+        // teardown messages and establish the owner again before the measured
+        // session, rather than racing the previous popup's activation handoff.
+        ownerWindow.PumpMessages();
+        if (! TryActivateDxUiTestWindow(ownerWindow.Hwnd()))
+        {
+            failure = "stationary-capture owner reactivates after the geometry probe";
+            return;
+        }
+        ownerWindow.PumpMessages();
+        if (GetForegroundWindow() != ownerWindow.Hwnd())
+        {
+            failure = "stationary-capture measured session starts with its owner in the foreground";
+            return;
+        }
         ScopedMenuPointerFixture parkedPointer(ownerWindow.Hwnd());
         Require(parkedPointer.AlignCursor(stationaryPoint), "park the physical pointer before opening the initial menu");
         DrainPendingMouseMessagesForMenuSuite();
@@ -3214,6 +3244,17 @@ void TestMenuKeyboardRightArrowMatchesWindowsMenuLoop()
                     return;
                 }
             }
+            const HWND priorSubmenu = FindOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"B11");
+            if (priorSubmenu && (! PostMessageW(priorSubmenu, WM_KEYDOWN, VK_LEFT, 0) || ! WaitForWindowDestroyed(priorSubmenu) ||
+                                 ! WaitForContextMenuPopupState(bPopupHwnd, [](const ContextMenuPopupDebugState& state) noexcept {
+                return state.keyboardIndex.has_value() && state.keyboardIndex.value() == 0u;
+            }, popupState)))
+            {
+                driverFailure = std::format("could not restore B1 before Right; prior B11 HWND={:#x} valid={}",
+                                            reinterpret_cast<uintptr_t>(priorSubmenu),
+                                            IsWindow(priorSubmenu) != FALSE);
+                return;
+            }
             if (PostMessageW(bPopupHwnd, WM_KEYDOWN, VK_RIGHT, 0) == FALSE)
             {
                 driverFailure = "Right key posts to B1 before opening its submenu";
@@ -3231,7 +3272,12 @@ void TestMenuKeyboardRightArrowMatchesWindowsMenuLoop()
                     return state.keyboardIndex.has_value() && state.keyboardIndex.value() == 0u;
                 }, popupState))
                 {
-                    driverFailure = "Right arrow on B1 focuses B11 in the submenu";
+                    driverFailure = std::format("Right arrow on B1 focuses B11 in the submenu; prior={:#x} current={:#x} valid={} keyboard={} hovered={}",
+                                                reinterpret_cast<uintptr_t>(priorSubmenu),
+                                                reinterpret_cast<uintptr_t>(bSubmenuHwnd),
+                                                IsWindow(bSubmenuHwnd) != FALSE,
+                                                popupState.keyboardIndex ? std::to_string(popupState.keyboardIndex.value()) : "none",
+                                                popupState.hoveredIndex ? std::to_string(popupState.hoveredIndex.value()) : "none");
                     return;
                 }
             }
@@ -5652,8 +5698,15 @@ void TestMenuKeyboardInputCancelsPendingSubmenuHoverTimers()
         bool geometryReady                               = false;
         bool openMovesSucceeded                          = false;
         bool openPendingBeforeKeyboard                   = false;
+        bool unmatchedCharactersPreservedOpen            = false;
+        bool accessibilityCanceledOpen                   = false;
+        bool accessibilitySurvivedOpenTimer              = false;
+        bool unmatchedCharactersPreservedClose           = false;
+        bool accessibilityCanceledClose                  = false;
+        bool accessibilitySurvivedCloseTimer             = false;
         bool openTimerCanceledImmediatelyAfterHome       = false;
         bool keyboardChildOpened                         = false;
+        bool stationaryParentPreservedKeyboardChild      = false;
         bool keyboardChildSurvivedStaleOpenTimer         = false;
         int keyboardChildIndexAfterOpenTimer             = -1;
         bool previousChildClosed                         = false;
@@ -5752,6 +5805,22 @@ void TestMenuKeyboardInputCancelsPendingSubmenuHoverTimers()
             };
             const auto child              = [&]() noexcept { return FindOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"B11"); };
             const auto rootStateAvailable = [&]() noexcept { return DebugGetContextMenuPopupState(root, rootState); };
+            const auto focusAccessibleRow = [](HWND popup, size_t index) noexcept
+            {
+                wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> provider;
+                provider.attach(CreateWindowHostAccessibilityProvider(popup));
+                wil::com_ptr_nothrow<IRawElementProviderFragment> fragment, row;
+                if (! provider || FAILED(provider.query_to(fragment.put())) || FAILED(fragment->Navigate(NavigateDirection_FirstChild, row.put())))
+                    return false;
+                for (size_t item = 0u; row && item < index; ++item)
+                {
+                    wil::com_ptr_nothrow<IRawElementProviderFragment> next;
+                    if (FAILED(row->Navigate(NavigateDirection_NextSibling, next.put())))
+                        return false;
+                    row.swap(next);
+                }
+                return row && SUCCEEDED(row->SetFocus());
+            };
 
             // OPEN: create a pending B1 open, then Home cancels it before Right opens B11.
             observed.openMovesSucceeded = moveToRow(b2) && moveToRow(b1);
@@ -5763,6 +5832,15 @@ void TestMenuKeyboardInputCancelsPendingSubmenuHoverTimers()
             {
                 observed.openPendingBeforeKeyboard =
                     rootState.hoverTimerActive && rootState.hoverTimerPendingOpen && rootState.hoverTimerItemIndex == std::optional<size_t>{0u};
+                static_cast<void>(SendMessageW(root, WM_CHAR, L'z', 0));
+                static_cast<void>(SendMessageW(root, WM_CHAR, L'\b', 0));
+                observed.unmatchedCharactersPreservedOpen = rootStateAvailable() && rootState.hoverTimerActive && rootState.hoverTimerPendingOpen;
+                observed.accessibilityCanceledOpen        = focusAccessibleRow(root, 1u) && rootStateAvailable() &&
+                                                            rootState.keyboardIndex == std::optional<size_t>{1u} && ! rootState.hoverTimerActive;
+                static_cast<void>(SendMessageW(root, WM_TIMER, 1u, 0));
+                observed.accessibilitySurvivedOpenTimer = ! child() && rootStateAvailable() && rootState.keyboardIndex == std::optional<size_t>{1u};
+                observed.openMovesSucceeded             = observed.openMovesSucceeded && moveToRow(b2) && moveToRow(b1) && rootStateAvailable() &&
+                                                          rootState.hoverTimerActive && rootState.hoverTimerPendingOpen;
                 static_cast<void>(SendMessageW(root, WM_KEYDOWN, VK_HOME, 0));
                 observed.openTimerCanceledImmediatelyAfterHome = rootStateAvailable() && ! rootState.hoverTimerActive;
                 static_cast<void>(SendMessageW(root, WM_KEYDOWN, VK_RIGHT, 0));
@@ -5770,6 +5848,10 @@ void TestMenuKeyboardInputCancelsPendingSubmenuHoverTimers()
                 ContextMenuPopupDebugState childState{};
                 observed.keyboardChildOpened =
                     submenu && DebugGetContextMenuPopupState(submenu, childState) && childState.keyboardIndex == std::optional<size_t>{0u};
+                childState                                      = {};
+                observed.stationaryParentPreservedKeyboardChild = submenu && moveToRow(b1) && DebugGetContextMenuPopupState(submenu, childState) &&
+                                                                  childState.keyboardIndex == std::optional<size_t>{0u} && rootStateAvailable() &&
+                                                                  ! rootState.hoverTimerActive;
 
                 // Direct synchronous WM_TIMER delivery intentionally models a stale already-queued
                 // native timer. DebugFireContextMenuPopupHoverTimer posts and would run after this sequence.
@@ -5801,6 +5883,14 @@ void TestMenuKeyboardInputCancelsPendingSubmenuHoverTimers()
                     if (submenu && moveToRow(b2))
                     {
                         observed.closePendingBeforeKeyboard = rootStateAvailable() && rootState.hoverTimerActive && rootState.hoverTimerPendingClose;
+                        static_cast<void>(SendMessageW(submenu, WM_CHAR, L'z', 0));
+                        static_cast<void>(SendMessageW(submenu, WM_CHAR, L'\b', 0));
+                        observed.unmatchedCharactersPreservedClose = rootStateAvailable() && rootState.hoverTimerActive && rootState.hoverTimerPendingClose;
+                        observed.accessibilityCanceledClose        = focusAccessibleRow(submenu, 1u) && rootStateAvailable() && ! rootState.hoverTimerActive;
+                        static_cast<void>(SendMessageW(root, WM_TIMER, 1u, 0));
+                        childState = {};
+                        observed.accessibilitySurvivedCloseTimer =
+                            child() == submenu && DebugGetContextMenuPopupState(submenu, childState) && childState.keyboardIndex == std::optional<size_t>{1u};
                         static_cast<void>(SendMessageW(submenu, WM_KEYDOWN, VK_DOWN, 0));
                         observed.closeTimerCanceledImmediatelyAfterFirstDown = rootStateAvailable() && ! rootState.hoverTimerActive;
                         static_cast<void>(SendMessageW(submenu, WM_KEYDOWN, VK_DOWN, 0));
@@ -5874,8 +5964,14 @@ void TestMenuKeyboardInputCancelsPendingSubmenuHoverTimers()
     Require(observed.handlerRan && observed.popupIdentityValid, "the one-shot owner callback receives its owned root popup");
     Require(observed.geometryReady, "the callback calibrates both menu rows from live popup geometry and DPI");
     Require(observed.openMovesSucceeded && observed.openPendingBeforeKeyboard, "pointer B2-to-B1 arms the B1 pending-open timer");
+    Require(observed.unmatchedCharactersPreservedOpen && observed.unmatchedCharactersPreservedClose,
+            "unmatched characters and Backspace preserve stationary pointer open and close timers");
+    Require(observed.accessibilityCanceledOpen && observed.accessibilitySurvivedOpenTimer && observed.accessibilityCanceledClose &&
+                observed.accessibilitySurvivedCloseTimer,
+            "UIA focus cancels the entire cascade synchronously and survives stale native open/close WM_TIMER delivery");
     Require(observed.openTimerCanceledImmediatelyAfterHome, "Home cancels the root pending-open timer before Right opens a child");
     Require(observed.keyboardChildOpened, "Right opens B11 with keyboard focus");
+    Require(observed.stationaryParentPreservedKeyboardChild, "stationary parent hover preserves keyboard child focus and does not arm a timer");
     Require(observed.keyboardChildSurvivedStaleOpenTimer && observed.keyboardChildIndexAfterOpenTimer == 0,
             "stale root open-timer delivery preserves keyboard-focused B11");
     Require(observed.previousChildClosed, "Left closes B11 before the pointer-open close-timer phase");
@@ -5946,6 +6042,22 @@ void TestMenuKeyboardLeftArrowMatchesWindowsMenuLoop()
         const auto dismissPopup = wil::scope_exit([&]() noexcept { DismissOwnedContextMenuPopupChain(ownerWindow.Hwnd()); });
 
         ContextMenuPopupDebugState popupState{};
+        D2D1_RECT_F b1{};
+        if (! DebugGetContextMenuPopupState(bPopupHwnd, popupState) || popupState.dpi == 0u || ! DebugGetContextMenuPopupItemRect(bPopupHwnd, 0u, b1))
+        {
+            driverFailure = "obtain B1 geometry for the stationary pointer oracle";
+            return;
+        }
+        const LONG pointerX = static_cast<LONG>(std::lround((b1.left + b1.right) * 0.5f * static_cast<float>(popupState.dpi) / 96.f));
+        const LONG pointerY = static_cast<LONG>(std::lround((b1.top + b1.bottom) * 0.5f * static_cast<float>(popupState.dpi) / 96.f));
+        ScopedMenuPointerFixture pointerFixture(bPopupHwnd);
+        RECT popupRect{};
+        if (! GetWindowRect(bPopupHwnd, &popupRect) || ! pointerFixture.AlignCursor(POINT{popupRect.left + pointerX, popupRect.top + pointerY}) ||
+            ! SendClientMouseMoveForMenuSuite(bPopupHwnd, pointerX, pointerY))
+        {
+            driverFailure = "align and deliver initial B1 pointer position";
+            return;
+        }
         PostMessageW(bPopupHwnd, WM_KEYDOWN, VK_HOME, 0);
         if (! WaitForContextMenuPopupState(bPopupHwnd, [](const ContextMenuPopupDebugState& state) noexcept {
             return state.keyboardIndex.has_value() && state.keyboardIndex.value() == 0u;
@@ -5955,7 +6067,21 @@ void TestMenuKeyboardLeftArrowMatchesWindowsMenuLoop()
             return;
         }
 
-        PostMessageW(bPopupHwnd, WM_KEYDOWN, VK_RIGHT, 0);
+        const HWND priorSubmenu = FindOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"B11");
+        if (priorSubmenu && (! PostMessageW(priorSubmenu, WM_KEYDOWN, VK_LEFT, 0) || ! WaitForWindowDestroyed(priorSubmenu) ||
+                             ! WaitForContextMenuPopupState(bPopupHwnd, [](const ContextMenuPopupDebugState& state) noexcept {
+            return state.keyboardIndex.has_value() && state.keyboardIndex.value() == 0u;
+        }, popupState)))
+        {
+            driverFailure = std::format(
+                "could not restore B1 before Right; prior B11 HWND={:#x} valid={}", reinterpret_cast<uintptr_t>(priorSubmenu), IsWindow(priorSubmenu) != FALSE);
+            return;
+        }
+        if (! PostMessageW(bPopupHwnd, WM_KEYDOWN, VK_RIGHT, 0))
+        {
+            driverFailure = "post Right arrow to B1";
+            return;
+        }
         const HWND bSubmenuHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"B11");
         if (! bSubmenuHwnd)
         {
@@ -5963,14 +6089,23 @@ void TestMenuKeyboardLeftArrowMatchesWindowsMenuLoop()
             return;
         }
 
+        ContextMenuPopupStateWaitDiagnostics childStateWait{};
         if (! WaitForContextMenuPopupState(bSubmenuHwnd, [](const ContextMenuPopupDebugState& state) noexcept {
             return state.keyboardIndex.has_value() && state.keyboardIndex.value() == 0u;
-        }, popupState))
+        }, popupState, std::chrono::milliseconds(800), &childStateWait))
         {
-            driverFailure = "Right arrow on B1 focuses B11 before left-arrow validation";
+            driverFailure = std::format("Right arrow on B1 focuses B11 before left-arrow validation; prior={:#x}; {}",
+                                        reinterpret_cast<uintptr_t>(priorSubmenu),
+                                        DescribeContextMenuPopupStateWaitFailure(bSubmenuHwnd, ownerWindow.Hwnd(), childStateWait));
             return;
         }
 
+        if (! SendClientMouseMoveForMenuSuite(bPopupHwnd, pointerX, pointerY) || ! DebugGetContextMenuPopupState(bSubmenuHwnd, popupState) ||
+            ! popupState.keyboardIndex || popupState.keyboardIndex.value() != 0u)
+        {
+            driverFailure = "stationary parent pointer move preserves keyboard focus on B11";
+            return;
+        }
         PostMessageW(bSubmenuHwnd, WM_KEYDOWN, VK_LEFT, 0);
         if (! WaitForWindowDestroyed(bSubmenuHwnd))
         {
@@ -8483,6 +8618,36 @@ void TestMenuAcrylicBackdropScenarioEmitsMetrics()
                             static_cast<uint64_t>(popupCapture.widthPx),
                             static_cast<uint64_t>(popupCapture.heightPx),
                             S_OK);
+}
+
+void TestRichEditorDefaultContextMenuDispatch()
+{
+    using namespace DxUi;
+    AttachedHostWindow owner;
+    SetWindowPos(owner.Hwnd(), nullptr, 160, 160, 420, 300, SWP_NOZORDER | SWP_NOACTIVATE);
+    auto editor  = std::make_unique<RichTextEditor>(L"word");
+    auto* target = editor.get();
+    editor->SetBounds(D2D1::RectF(8, 8, 320, 160));
+    const RichTextContextMenuLabels labels{L"Undo", L"Redo", L"Cut", L"Copy", L"Paste", L"Select all", L"Bold", L"Italic"};
+    editor->SetDefaultContextMenuLabels(&labels);
+    owner.Host().SetRoot(std::move(editor));
+    ShowWindow(owner.Hwnd(), SW_SHOWNOACTIVATE);
+    owner.PumpMessages();
+    owner.Host().SetFocusControl(target, false);
+    Require(target->OnContextMenu(owner.Host(), true, D2D1::Point2F(8, 8)), "rich default context menu opens");
+    const auto dismiss = wil::scope_exit([&]() noexcept { DismissOwnedContextMenuPopupChain(owner.Hwnd()); });
+    const HWND popup   = WaitForOwnedContextMenuPopupWindowByFirstItemText(owner.Hwnd(), L"Undo");
+    Require(popup != nullptr, "rich default menu popup appears");
+    D2D1_RECT_F item{};
+    Require(WaitForContextMenuPopupItemRect(popup, 5u, item), "rich Select all menu row has geometry");
+    const float dpi = static_cast<float>(GetDpiForWindow(popup));
+    POINT center{static_cast<LONG>(std::lround((item.left + item.right) * 0.5f * dpi / USER_DEFAULT_SCREEN_DPI)),
+                 static_cast<LONG>(std::lround((item.top + item.bottom) * 0.5f * dpi / USER_DEFAULT_SCREEN_DPI))};
+    Require(ClientToScreen(popup, &center) != FALSE, "rich context action maps to screen coordinates");
+    static_cast<void>(SendCapturedMouseMessageForMenuSuite(popup, WM_LBUTTONDOWN, MK_LBUTTON, center));
+    static_cast<void>(SendCapturedMouseMessageForMenuSuite(popup, WM_LBUTTONUP, 0, center));
+    owner.PumpMessages();
+    Require(target->GetSelection() == RichText::Selection{0u, 4u} && WaitForWindowDestroyed(popup), "rich menu dispatch selects text and closes");
 }
 
 void TestContextMenuShowAsyncKeepsOwnerPaintableWhileOpen()
@@ -12486,6 +12651,7 @@ void RunMenuTests()
         DxUi::Ui::AnimationDispatcher::GetInstance().Shutdown();
     runTest("TestContextMenuDebugCaptureBoundsWedgedWindowThread", TestContextMenuDebugCaptureBoundsWedgedWindowThread);
     runTest("TestContextMenuShowAsyncKeepsOwnerPaintableWhileOpen", TestContextMenuShowAsyncKeepsOwnerPaintableWhileOpen);
+    runTest("TestRichEditorDefaultContextMenuDispatch", TestRichEditorDefaultContextMenuDispatch);
     runTest("TestContextMenuRootMinimumWidthUsesAnchorAndAllowsContentExpansion", TestContextMenuRootMinimumWidthUsesAnchorAndAllowsContentExpansion);
     runTest("TestLargeMenuPaintsOnlyVisibleRowsWithCachedOffsets", TestLargeMenuPaintsOnlyVisibleRowsWithCachedOffsets);
     runTest("TestContextMenuShowAsyncSubmenuCloseKeepsSessionAlive", TestContextMenuShowAsyncSubmenuCloseKeepsSessionAlive);

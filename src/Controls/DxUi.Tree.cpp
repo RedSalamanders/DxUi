@@ -80,7 +80,7 @@ struct TreeResolvedRowVisuals final
     else if (selected)
     {
         visuals.fill = focused ? theme.selectionFill : theme.selectionInactiveFill;
-        visuals.text = focused ? theme.selectionText : ResolveInactiveSelectionTextColor(theme, theme.selectionText, theme.surfaceBackground);
+        visuals.text = focused ? theme.selectionText : ResolveInactiveSelectionTextColor(theme, theme.text, theme.surfaceBackground);
     }
     else if (hovered)
     {
@@ -116,17 +116,10 @@ struct TreeResolvedRowVisuals final
     return result;
 }
 
-[[nodiscard]] std::optional<size_t> FindVisibleItemIndexById(const std::vector<TreeItemData>& items, uint64_t itemId) noexcept
+[[nodiscard]] std::optional<size_t> FindIndexedItem(std::span<const std::pair<uint64_t, size_t>> index, uint64_t id) noexcept
 {
-    for (size_t index = 0u; index < items.size(); ++index)
-    {
-        if (items[index].id == itemId)
-        {
-            return index;
-        }
-    }
-
-    return std::nullopt;
+    const auto found = std::lower_bound(index.begin(), index.end(), id, [](const auto& entry, uint64_t value) { return entry.first < value; });
+    return found != index.end() && found->first == id ? std::optional(found->second) : std::nullopt;
 }
 
 [[nodiscard]] size_t CountDescendants(const std::vector<TreeItemData>& items, size_t parentIndex) noexcept
@@ -529,6 +522,13 @@ void Tree::InvalidateTreeTextMeasurementCaches() const noexcept
     _tooltipOverflowCache.resolvedTooltipText.clear();
 }
 
+void Tree::PropagateHost(ControlHost* host) noexcept
+{
+    if (GetHost() != host)
+        InvalidateTreeTextMeasurementCaches();
+    Control::PropagateHost(host);
+}
+
 void Tree::SetEmptyStateText(std::wstring text)
 {
     if (_emptyStateText == text)
@@ -708,12 +708,6 @@ void Tree::NotifyDataChanged()
         _dragVerticalThumb        = false;
         _dragThumbOffsetDip       = 0.0f;
     }
-    if (const std::optional<size_t> selectedIndex = FindFocusedVisibleIndex())
-    {
-        if (! modelGuard.IsCurrent())
-            return;
-        EnsureVisibleIndex(selectedIndex.value());
-    }
 
     if (! modelGuard.IsCurrent())
         return;
@@ -841,6 +835,7 @@ void Tree::SetMultiSelectEnabled(bool enabled) noexcept
 
 void Tree::SetSelectedItemId(std::optional<uint64_t> itemId) noexcept
 {
+    const auto lifetime = GetLifetimeToken();
     const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     std::optional<size_t> selectedIndex;
     if (_model && itemId)
@@ -869,6 +864,8 @@ void Tree::SetSelectedItemId(std::optional<uint64_t> itemId) noexcept
     if (! guard.IsCurrent())
         return;
     RefreshAccessibilitySnapshot();
+    if (! lifetime.expired())
+        RequestInvalidate();
 }
 
 std::optional<uint64_t> Tree::GetSelectedItemId() const noexcept
@@ -957,16 +954,7 @@ try
             nextSelection.SetSingle(last.value());
             if (! nextSelection.IsSelected(*last))
                 return;
-            for (const uint64_t itemId : itemIds)
-            {
-                if (itemId != last.value() && visible.contains(itemId) && ! nextSelection.IsSelected(itemId))
-                {
-                    nextSelection.Toggle(itemId);
-                    if (! nextSelection.IsSelected(itemId))
-                        return;
-                }
-            }
-            nextSelection.PreserveOrdered(visibleIds);
+            nextSelection.AssignInOrder(visibleIds, itemIds, last);
             nextSelection.SetAnchor(last);
         }
         _selection = std::move(nextSelection);
@@ -980,7 +968,10 @@ try
     }
     if (! guard.IsCurrent())
         return;
+    const auto lifetime = GetLifetimeToken();
     RefreshAccessibilitySnapshot();
+    if (! lifetime.expired())
+        RequestInvalidate();
 }
 catch (const std::exception&)
 {
@@ -1076,9 +1067,25 @@ try
     if (! guard.IsCurrent() || visibleIndex >= count)
         return false;
 
-    std::vector<TreeItemData> beforeItems;
-    if (! TryControlCallback([&] { beforeItems = CaptureVisibleItems(); }) || ! guard.IsCurrent())
-        return false;
+    constexpr size_t maximumAnimatedRows = 4096u;
+    ControlHost* const animationHost     = GetHost();
+    bool animate                         = animationHost && ! animationHost->GetTheme().reducedMotion && count <= maximumAnimatedRows;
+    std::optional<std::vector<TreeItemData>> beforeItems;
+    if (animate)
+    {
+        try
+        {
+            beforeItems.emplace(0u);
+            animate = CaptureVisibleItems(beforeItems.value());
+        }
+        catch (const std::bad_alloc&)
+        {
+            animate = false;
+        }
+        if (! guard.IsCurrent())
+            return false;
+        animate = animate && beforeItems && beforeItems->size() == count;
+    }
     TreeItemData item;
     if (! TryControlCallback([&] { model->GetVisibleItem(visibleIndex, item); }) || ! guard.IsCurrent())
         return false;
@@ -1092,31 +1099,66 @@ try
         return true;
     }
 
-    StartExpanderAnimation(item.id, item.expanded, expanded);
     const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
-    ITreeDelegate* const delegate         = _delegate;
-    const uint64_t revisionBeforeToggle   = _modelRevision;
+    if (animate)
+        StartExpanderAnimation(item.id, item.expanded, expanded);
+    else
+    {
+        ClearTreeExpansionAnimation();
+        std::erase_if(_expanderAnimations, [&](const ExpanderAnimationState& animation) { return animation.itemId == item.id; });
+    }
+    if (selfLifetime.expired() || ! guard.IsCurrent())
+        return false;
+    ITreeDelegate* const delegate       = _delegate;
+    const uint64_t revisionBeforeToggle = _modelRevision;
     if (! TryControlCallback([&] { delegate->OnTreeToggleExpanded(item.id, expanded); }) || selfLifetime.expired() || ! guard.ResumeAfterCallback())
     {
         return false;
     }
     // A delegate usually publishes its edit with NotifyDataChanged before it returns: the rows then slide from the order
     // captured before the callback to the order after it. A delegate that applies the edit later animates nothing.
-    std::vector<TreeItemData> afterItems;
-    if (! TryControlCallback([&] { afterItems = CaptureVisibleItems(); }) || ! guard.IsCurrent())
-        return false;
     if (_modelRevision != revisionBeforeToggle)
     {
         // A published answer is the result: the request succeeded only when the item now has the requested state. A
         // refused toggle leaves its chevron where the model put it.
-        const auto current = std::ranges::find(afterItems, item.id, &TreeItemData::id);
-        if (current == afterItems.end() || ! current->hasChildren || current->expanded != expanded)
+        const auto currentIndex = model->FindVisibleItemById(item.id);
+        TreeItemData current;
+        if (! guard.IsCurrent() || ! currentIndex || ! TryControlCallback([&] { model->GetVisibleItem(*currentIndex, current); }) || ! guard.IsCurrent())
+            return false;
+        if (current.id != item.id || ! current.hasChildren || current.expanded != expanded)
         {
             std::erase_if(_expanderAnimations, [&](const ExpanderAnimationState& animation) { return animation.itemId == item.id; });
             return false;
         }
     }
-    BeginTreeExpansionAnimation(item.id, expanded, std::move(beforeItems), std::move(afterItems));
+    const size_t afterCount = model->GetVisibleItemCount();
+    if (! guard.IsCurrent())
+        return false;
+    std::optional<std::vector<TreeItemData>> afterItems;
+    if (animate && afterCount <= maximumAnimatedRows)
+    {
+        try
+        {
+            afterItems.emplace(0u);
+            animate = CaptureVisibleItems(afterItems.value());
+        }
+        catch (const std::bad_alloc&)
+        {
+            animate = false;
+        }
+        if (! guard.IsCurrent())
+            return false;
+        animate = animate && afterItems && afterItems->size() == afterCount;
+    }
+    else
+        animate = false;
+    if (animate)
+        BeginTreeExpansionAnimation(item.id, expanded, std::move(beforeItems.value()), std::move(afterItems.value()));
+    else
+    {
+        ClearTreeExpansionAnimation();
+        std::erase_if(_expanderAnimations, [&](const ExpanderAnimationState& animation) { return animation.itemId == item.id; });
+    }
     RefreshAccessibilitySnapshot();
     return ! selfLifetime.expired() && guard.ResumeAfterCallback();
 }
@@ -1321,9 +1363,9 @@ void Tree::Paint(ControlHost& host) const
         {
             const auto& animation        = _treeExpansionAnimation.value();
             const float progress         = GetTreeExpansionProgress(nowTickMs);
-            const auto beforeIndex       = FindVisibleItemIndexById(animation.beforeItems, item.id);
-            const auto afterParentIndex  = FindVisibleItemIndexById(animation.afterItems, animation.itemId);
-            const auto beforeParentIndex = FindVisibleItemIndexById(animation.beforeItems, animation.itemId);
+            const auto beforeIndex       = FindIndexedItem(animation.beforeIndex, item.id);
+            const auto afterParentIndex  = animation.afterParent;
+            const auto beforeParentIndex = animation.beforeParent;
             if (beforeIndex.has_value())
             {
                 const float beforeTopDip = contentRect.top + (static_cast<float>(beforeIndex.value()) * _rowHeightDip) - _verticalScrollDip;
@@ -1373,24 +1415,26 @@ void Tree::Paint(ControlHost& host) const
     if (animateTreeExpansion && _treeExpansionAnimation.has_value() && ! _treeExpansionAnimation->toExpanded)
     {
         const auto& animation        = _treeExpansionAnimation.value();
-        const auto beforeParentIndex = FindVisibleItemIndexById(animation.beforeItems, animation.itemId);
-        const auto afterParentIndex  = FindVisibleItemIndexById(animation.afterItems, animation.itemId);
+        const auto beforeParentIndex = animation.beforeParent;
+        const auto afterParentIndex  = animation.afterParent;
         if (beforeParentIndex.has_value() && afterParentIndex.has_value())
         {
             const float progress             = GetTreeExpansionProgress(nowTickMs);
-            const size_t descendantCount     = CountDescendants(animation.beforeItems, beforeParentIndex.value());
+            const size_t descendantCount     = animation.beforeDescendants;
             const float collapseTargetTopDip = contentRect.top + (static_cast<float>(afterParentIndex.value() + 1u) * _rowHeightDip) - _verticalScrollDip;
             for (size_t offset = 0u; offset < descendantCount; ++offset)
             {
                 const size_t beforeIndex        = beforeParentIndex.value() + 1u + offset;
                 const TreeItemData& removedItem = animation.beforeItems[beforeIndex];
-                if (FindVisibleItemIndexById(animation.afterItems, removedItem.id).has_value())
+                if (FindIndexedItem(animation.afterIndex, removedItem.id).has_value())
                 {
                     continue;
                 }
 
-                const float beforeTopDip           = contentRect.top + (static_cast<float>(beforeIndex) * _rowHeightDip) - _verticalScrollDip;
-                const float rowTopDip              = Lerp(beforeTopDip, collapseTargetTopDip, progress);
+                const float beforeTopDip = contentRect.top + (static_cast<float>(beforeIndex) * _rowHeightDip) - _verticalScrollDip;
+                const float rowTopDip    = Lerp(beforeTopDip, collapseTargetTopDip, progress);
+                if (rowTopDip + _rowHeightDip <= contentRect.top || rowTopDip >= contentRect.bottom)
+                    continue;
                 const TreeItemLayoutMetrics layout = ComputeItemLayoutMetrics(host, rowTopDip, removedItem);
                 if (layout.rowRect.bottom <= contentRect.top || layout.rowRect.top >= contentRect.bottom)
                 {
@@ -1548,6 +1592,8 @@ bool Tree::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modifiers*
         }
         UpdateScrollbarHotState(HitInfo{.zone = HitZone::VerticalScrollbar, .onScrollbarThumb = true});
         host.ClearTooltip();
+        if (! guard.IsCurrent())
+            return true;
         Invalidate(host);
         return true;
     }
@@ -1560,6 +1606,8 @@ bool Tree::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modifiers*
         {
             _reorderDragging = true;
             host.ClearTooltip();
+            if (! guard.IsCurrent())
+                return true;
         }
         if (_reorderDragging)
         {
@@ -1576,6 +1624,8 @@ bool Tree::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modifiers*
     const ScrollbarHotPart previousHotPart           = _verticalScrollbarHotPart;
     UpdateScrollbarHotState(hit);
     SyncScrollbarAnimation(host);
+    if (! guard.IsCurrent())
+        return true;
     const std::optional<size_t> hoveredIndex =
         (hit.zone == HitZone::Item || hit.zone == HitZone::Expander) ? std::optional<size_t>(hit.visibleIndex) : std::optional<size_t>();
     _hoveredVisibleIndex = hoveredIndex;
@@ -1588,16 +1638,34 @@ bool Tree::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modifiers*
             return false;
         if (! TryControlCallback([&] { model->GetVisibleItem(_hoveredVisibleIndex.value(), item); }) || ! guard.IsCurrent())
             return false;
-        const TreeItemLayoutMetrics layout = ComputeItemLayoutMetrics(host, _hoveredVisibleIndex.value(), item);
-        if (! guard.IsCurrent())
-            return false;
-        std::wstring tooltipText = ResolveCachedTreeTooltipText(host, _hoveredVisibleIndex.value(), item, layout);
-        tooltipChanged           = tooltipText.empty() ? host.BeginTooltipHideDelay() : host.SetTooltip(std::move(tooltipText), point);
+        std::wstring tooltipText;
+        if (! item.tooltipText.empty())
+            tooltipText = item.tooltipText;
+        else if (const auto& cache = _tooltipOverflowCache;
+                 cache.valid && cache.host == &host && cache.interactionRevision == host.GetInteractionRevision() &&
+                 cache.typographyRevision == host.GetTypographyRevision() && cache.resourceGeneration == host.GetResourceGeneration() &&
+                 cache.visibleIndex == _hoveredVisibleIndex.value() && cache.itemId == item.id && cache.text == item.text && cache.tooltipText.empty())
+            tooltipText = cache.resolvedTooltipText;
+        else
+        {
+#if DXUI_ENABLE_DIAGNOSTICS
+            ++_debugTooltipGeometryCount;
+#endif
+            const TreeItemLayoutMetrics layout = ComputeItemLayoutMetrics(host, _hoveredVisibleIndex.value(), item);
+            if (! guard.IsCurrent())
+                return false;
+            tooltipText = ResolveCachedTreeTooltipText(host, _hoveredVisibleIndex.value(), item, layout);
+            if (! guard.IsCurrent())
+                return false;
+        }
+        tooltipChanged = tooltipText.empty() ? host.BeginTooltipHideDelay() : host.SetTooltip(std::move(tooltipText), point);
     }
     else
     {
         tooltipChanged = host.BeginTooltipHideDelay();
     }
+    if (! guard.IsCurrent())
+        return true;
 
     if (previousHoveredIndex != _hoveredVisibleIndex || previousHotPart != _verticalScrollbarHotPart || tooltipChanged)
     {
@@ -1608,6 +1676,8 @@ bool Tree::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modifiers*
 
 bool Tree::OnMouseLeave(ControlHost& host)
 {
+    const auto lifetime        = GetLifetimeToken();
+    const auto* originalHost   = GetHost();
     const bool hadHover        = _hoveredVisibleIndex.has_value();
     const bool hadHotScrollbar = _verticalScrollbarHotPart != ScrollbarHotPart::None;
     const bool hadTooltip      = host.HasTooltip();
@@ -1619,7 +1689,11 @@ bool Tree::OnMouseLeave(ControlHost& host)
     _hoveredVisibleIndex.reset();
     UpdateScrollbarHotState(HitInfo{});
     SyncScrollbarAnimation(host);
+    if (lifetime.expired() || GetHost() != originalHost)
+        return true;
     const bool tooltipChanged = host.BeginTooltipHideDelay();
+    if (lifetime.expired() || GetHost() != originalHost)
+        return true;
     if (hadHover || hadHotScrollbar || _dragVerticalThumb || tooltipChanged)
     {
         Invalidate(host);
@@ -1661,6 +1735,8 @@ bool Tree::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
         return true;
     UpdateScrollbarHotState(hit);
     SyncScrollbarAnimation(host);
+    if (! guard.IsCurrent())
+        return true;
     if (rightButton)
     {
         if (_singleClickCaptureArmed)
@@ -1679,7 +1755,11 @@ bool Tree::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
             // A second button cancels the row drag: its release would otherwise drop the capture without a cancel.
             ClearReorderDrag();
             host.ReleaseMouseCapture();
+            if (! guard.IsCurrent())
+                return true;
             Invalidate(host);
+            if (! guard.IsCurrent())
+                return true;
         }
         return OnContextMenu(host, false, point);
     }
@@ -1712,6 +1792,8 @@ bool Tree::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
             ClampScrollOffset();
             SyncScrollbarAnimation(host);
         }
+        if (! guard.IsCurrent())
+            return true;
         Invalidate(host);
         return true;
     }
@@ -1765,9 +1847,13 @@ bool Tree::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
         {
             return true;
         }
+        if (! guard.ResumeAfterCallback())
+            return true;
         if (! host.GetTheme().reducedMotion)
         {
             host.RequestAnimation();
+            if (! guard.IsCurrent())
+                return true;
         }
     }
     else if (_reorderEnabled && hit.zone == HitZone::Item && ! selectionGesture)
@@ -1791,7 +1877,8 @@ bool Tree::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
             ClearReorderDrag();
         }
     }
-    if (_invokeOnSingleClick && hit.zone == HitZone::Item && guard.IsCurrent())
+    if (_invokeOnSingleClick && hit.zone == HitZone::Item && ! selectionGesture && ! ModifiersContainCtrl(modifiers) && ! ModifiersContainShift(modifiers) &&
+        guard.IsCurrent())
     {
         _singleClickInvokeItemId = hitItem.id;
         _singleClickCaptureArmed = true;
@@ -1867,14 +1954,20 @@ bool Tree::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool right
         {
             return true;
         }
+        if (! guard.ResumeAfterCallback())
+            return true;
         if (! host.GetTheme().reducedMotion)
         {
             host.RequestAnimation();
+            if (! guard.IsCurrent())
+                return true;
         }
     }
     else if (_delegate && ! _invokeOnSingleClick)
     {
         Invalidate(host);
+        if (! guard.IsCurrent())
+            return true; // Scheduling may have retired or rebound the Tree.
         _delegate->OnTreeItemInvoked(currentItem.id);
         return true;
     }
@@ -1884,7 +1977,7 @@ bool Tree::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool right
 
 bool Tree::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT /*modifiers*/)
 {
-    const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     if (rightButton)
     {
         _singleClickInvokeItemId.reset();
@@ -1921,17 +2014,19 @@ bool Tree::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, U
         if (collapse)
         {
             const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
-            if (! CollapseSelectionToItem(collapseId) || selfLifetime.expired())
+            if (! CollapseSelectionToItem(collapseId) || selfLifetime.expired() || ! guard.ResumeAfterCallback())
             {
                 return false;
             }
         }
         Invalidate(host);
+        if (! guard.IsCurrent())
+            return dragged; // Embedded scheduling may retire or rebind the owner.
         if (commit)
         {
             _delegate->OnTreeReorder(drop);
         }
-        if (invokeId.has_value() && ! guard.IsCurrent())
+        if (invokeId.has_value() && ! guard.ResumeAfterCallback())
             return dragged;
         if (invokeId.has_value() && _delegate)
         {
@@ -1958,9 +2053,13 @@ bool Tree::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, U
     if (! guard.IsCurrent())
         return wasDragging;
     SyncScrollbarAnimation(host);
+    if (! guard.IsCurrent())
+        return wasDragging;
     if (wasDragging)
     {
         Invalidate(host);
+        if (! guard.IsCurrent())
+            return true;
     }
     const std::optional<uint64_t> invokeId = std::exchange(_singleClickInvokeItemId, std::nullopt);
     const bool releaseSingleClickCapture   = std::exchange(_singleClickCaptureArmed, false);
@@ -1990,10 +2089,14 @@ bool Tree::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, U
 
 void Tree::OnCaptureLost(ControlHost& host)
 {
+    const auto lifetime      = GetLifetimeToken();
+    const auto* originalHost = GetHost();
     if (_reorderArmed)
     {
         ClearReorderDrag();
         Invalidate(host);
+        if (lifetime.expired() || GetHost() != originalHost)
+            return;
     }
     _singleClickInvokeItemId.reset();
     _singleClickCaptureArmed = false;
@@ -2003,6 +2106,8 @@ void Tree::OnCaptureLost(ControlHost& host)
         _dragThumbOffsetDip = 0.0f;
         UpdateScrollbarHotState(HitInfo{});
         SyncScrollbarAnimation(host);
+        if (lifetime.expired() || GetHost() != originalHost)
+            return;
         Invalidate(host);
     }
 }
@@ -2018,6 +2123,11 @@ bool Tree::OnMouseWheel(ControlHost& host, D2D1_POINT_2F point, float wheelDelta
     if (! guard.IsCurrent() || extent <= 0.0f)
         return false;
 
+    if ((wheelDelta > 0.0f && _verticalScrollDip <= 0.0f) || (wheelDelta < 0.0f && _verticalScrollDip >= extent))
+    {
+        _wheelDeltaRemainder = 0.0f;
+        return false;
+    }
     _wheelDeltaRemainder += wheelDelta;
     const int wheelStepCount = static_cast<int>(_wheelDeltaRemainder / static_cast<float>(WHEEL_DELTA));
     if (wheelStepCount == 0)
@@ -2034,6 +2144,8 @@ bool Tree::OnMouseWheel(ControlHost& host, D2D1_POINT_2F point, float wheelDelta
     {
         // Scrolling moves rows under a still pointer: the drop follows the row now beneath it.
         UpdateReorderDrop(host, point);
+        if (! guard.IsCurrent())
+            return true;
     }
     Invalidate(host);
     return true;
@@ -2043,10 +2155,14 @@ bool Tree::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
 {
     if (_reorderArmed && virtualKey == VK_ESCAPE)
     {
+        const auto lifetime      = GetLifetimeToken();
+        const auto* originalHost = GetHost();
         _singleClickInvokeItemId.reset();
         _singleClickCaptureArmed = false;
         ClearReorderDrag();
         host.ReleaseMouseCapture();
+        if (lifetime.expired() || GetHost() != originalHost)
+            return true;
         Invalidate(host);
         return true;
     }
@@ -2129,8 +2245,10 @@ bool Tree::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
     {
         // The first key starts from the first row. With multi-select it only takes the focus there, so that the key's
         // own gesture (Ctrl+Space, Shift+Down) decides what is selected.
-        currentIndex = 0u;
-        if (! SelectVisibleIndex(currentIndex.value(), _multiSelect ? SelectMode::FocusOnly : SelectMode::Replace, false))
+        currentIndex        = 0u;
+        const bool willMove = virtualKey == VK_DOWN || virtualKey == VK_HOME || virtualKey == VK_END || virtualKey == VK_PRIOR || virtualKey == VK_NEXT;
+        const SelectMode initialMode = _multiSelect || willMove ? SelectMode::FocusOnly : SelectMode::Replace;
+        if (! SelectVisibleIndex(currentIndex.value(), initialMode, initialMode == SelectMode::Replace))
         {
             return true;
         }
@@ -2167,9 +2285,13 @@ bool Tree::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
                 {
                     return true;
                 }
+                if (! guard.ResumeAfterCallback())
+                    return true;
                 if (! host.GetTheme().reducedMotion)
                 {
                     host.RequestAnimation();
+                    if (! guard.IsCurrent())
+                        return true;
                 }
                 Invalidate(host);
                 return true;
@@ -2193,9 +2315,13 @@ bool Tree::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
                 {
                     return true;
                 }
+                if (! guard.ResumeAfterCallback())
+                    return true;
                 if (! host.GetTheme().reducedMotion)
                 {
                     host.RequestAnimation();
+                    if (! guard.IsCurrent())
+                        return true;
                 }
                 Invalidate(host);
                 return true;
@@ -2305,6 +2431,8 @@ bool Tree::OnContextMenu(ControlHost& host, bool keyboardInvocation, D2D1_POINT_
         if (_verticalScrollDip != previousScrollDip)
         {
             Invalidate(host);
+            if (! guard.IsCurrent())
+                return true;
         }
 
         const D2D1_RECT_F contentRect = GetContentRect();
@@ -2411,6 +2539,10 @@ std::wstring Tree::ResolveCachedTreeTooltipText(const ControlHost& host,
     if (cache.valid && cache.visibleIndex == visibleIndex && cache.itemId == item.id && cache.text == item.text && cache.tooltipText == item.tooltipText &&
         cache.textFormat == textFormat && cache.availableWidthDip == availableWidthDip)
     {
+        cache.host                = &host;
+        cache.interactionRevision = host.GetInteractionRevision();
+        cache.typographyRevision  = host.GetTypographyRevision();
+        cache.resourceGeneration  = host.GetResourceGeneration();
         return cache.resolvedTooltipText;
     }
 
@@ -2459,6 +2591,10 @@ std::wstring Tree::ResolveCachedTreeTooltipText(const ControlHost& host,
     cache.textFormat          = textFormat;
     cache.availableWidthDip   = availableWidthDip;
     cache.resolvedTooltipText = resolvedTooltipText;
+    cache.host                = &host;
+    cache.interactionRevision = host.GetInteractionRevision();
+    cache.typographyRevision  = host.GetTypographyRevision();
+    cache.resourceGeneration  = host.GetResourceGeneration();
     return cache.resolvedTooltipText;
 }
 
@@ -2468,6 +2604,22 @@ TreeItemLayoutMetrics Tree::ComputeItemLayoutMetrics(const ControlHost& host, si
     const float rowTop = GetBounds().top + kTreeContentInsetDip + static_cast<float>(visibleIndex) * _rowHeightDip - _verticalScrollDip;
     return ComputeItemLayoutMetrics(host, rowTop, item);
 }
+
+namespace
+{
+[[nodiscard]] D2D1_RECT_F ExpanderLane(D2D1_RECT_F content, float rowTop, float rowHeight, float indent, uint32_t depth, bool reserve, bool rtl) noexcept
+{
+    const float left  = content.left + 8.0f + static_cast<float>(depth) * indent;
+    const float width = reserve ? 16.0f : 12.0f;
+    D2D1_RECT_F rect  = D2D1::RectF(left, rowTop + 6.0f, left + width, rowTop + rowHeight - 6.0f);
+    if (rtl)
+    {
+        rect.left  = content.left + content.right - (left + width);
+        rect.right = rect.left + width;
+    }
+    return rect;
+}
+} // namespace
 
 TreeItemLayoutMetrics Tree::ComputeItemLayoutMetrics(const ControlHost& host, float rowTopDip, const TreeItemData& item) const noexcept
 {
@@ -2487,8 +2639,7 @@ TreeItemLayoutMetrics Tree::ComputeItemLayoutMetrics(const ControlHost& host, fl
     float contentLeft = contentRect.left + 8.0f + (static_cast<float>(item.depth) * _indentDip);
     if (metrics.hasExpander || _appearance.reserveExpanderSpace)
     {
-        const float width    = _appearance.reserveExpanderSpace ? 16.f : 12.f;
-        metrics.expanderRect = D2D1::RectF(contentLeft, metrics.rowRect.top + 6.0f, contentLeft + width, metrics.rowRect.bottom - 6.0f);
+        metrics.expanderRect = ExpanderLane(contentRect, rowTopDip, _rowHeightDip, _indentDip, item.depth, _appearance.reserveExpanderSpace, false);
         contentLeft          = metrics.expanderRect.right + (_appearance.reserveExpanderSpace ? 6.f : 4.f);
     }
 
@@ -2535,7 +2686,7 @@ TreeItemLayoutMetrics Tree::ComputeItemLayoutMetrics(const ControlHost& host, fl
     return metrics;
 }
 
-Tree::HitInfo Tree::HitTestPoint(const ControlHost& host, PointDip pointDip) const noexcept
+Tree::HitInfo Tree::HitTestPoint(const ControlHost& /*host*/, PointDip pointDip) const noexcept
 {
     const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const ITreeModel* const model = _model;
@@ -2597,10 +2748,8 @@ Tree::HitInfo Tree::HitTestPoint(const ControlHost& host, PointDip pointDip) con
     hit.visibleIndex = visibleIndex;
     hit.rectDip      = D2D1::RectF(contentRect.left, rowTop, contentRect.right, rowTop + _rowHeightDip);
 
-    const auto layout = ComputeItemLayoutMetrics(host, rowTop, item);
-    if (! guard.IsCurrent())
-        return {};
-    if (layout.hasExpander && PointInRect(layout.expanderRect, point))
+    if (item.hasChildren && _appearance.showExpanders &&
+        PointInRect(ExpanderLane(contentRect, rowTop, _rowHeightDip, _indentDip, item.depth, _appearance.reserveExpanderSpace, IsRightToLeft()), point))
     {
         hit.zone = HitZone::Expander;
     }
@@ -2807,6 +2956,12 @@ D2D1_RECT_F Tree::GetVerticalThumbHitRect() const noexcept
     const float extent         = GetVerticalScrollableExtent();
     return guard.IsCurrent() ? ComputeScrollbarThumbHitRect(track, ScrollbarOrientation::Vertical, viewportHeight, totalHeight, _verticalScrollDip, extent)
                              : D2D1::RectF();
+}
+
+void Tree::OnBoundsChanged() noexcept
+{
+    const auto invalidateGeometry = ControlModelQueryAccess::InvalidateGeometry(*this);
+    ClampScrollOffset();
 }
 
 void Tree::ClampScrollOffset() noexcept
@@ -3029,6 +3184,7 @@ void Tree::ReconcileSelectionWithModel()
 
 bool Tree::NotifySelectionSetChanged(const std::vector<uint64_t>& previous)
 {
+    const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
     TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const std::vector<uint64_t> current = GetSelectedItemIds();
     if (! _delegate || SameSelectedItems(previous, current))
@@ -3038,8 +3194,9 @@ bool Tree::NotifySelectionSetChanged(const std::vector<uint64_t>& previous)
 
     // The delegate gets its own copy: it may change the selection, or destroy the tree, from inside the call.
     const std::vector<uint64_t> selectedItemIds(current);
-    const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
-    ITreeDelegate* const delegate         = _delegate;
+    if (selfLifetime.expired() || ! guard.IsCurrent())
+        return false;
+    ITreeDelegate* const delegate = _delegate;
     return TryControlCallback([&] { delegate->OnTreeSelectionSetChanged(selectedItemIds); }) && ! selfLifetime.expired() && guard.ResumeAfterCallback();
 }
 
@@ -3347,13 +3504,20 @@ void Tree::StartExpanderAnimation(uint64_t itemId, bool fromExpanded, bool toExp
     }
 
     const float targetProgress = toExpanded ? 1.0f : 0.0f;
-    _expanderAnimations.push_back(ExpanderAnimationState{.itemId       = itemId,
-                                                         .fromExpanded = fromExpanded,
-                                                         .toExpanded   = toExpanded,
-                                                         .fromProgress = currentProgress,
-                                                         .toProgress   = targetProgress,
-                                                         .startTickMs  = nowTickMs,
-                                                         .active       = true});
+    try
+    {
+        _expanderAnimations.push_back(ExpanderAnimationState{.itemId       = itemId,
+                                                             .fromExpanded = fromExpanded,
+                                                             .toExpanded   = toExpanded,
+                                                             .fromProgress = currentProgress,
+                                                             .toProgress   = targetProgress,
+                                                             .startTickMs  = nowTickMs,
+                                                             .active       = true});
+    }
+    catch (const std::bad_alloc&)
+    {
+        return; // Expansion still commits; this optional chevron animation is omitted.
+    }
     // Every path that turns a chevron asks for ticks, a UI Automation Expand included.
     host->RequestAnimation();
 }
@@ -3363,36 +3527,40 @@ float Tree::GetExpanderProgress(uint64_t itemId, bool expanded, uint64_t nowTick
     return ComputeExpanderProgress(itemId, expanded, nowTickMs);
 }
 
-std::vector<TreeItemData> Tree::CaptureVisibleItems() const
+bool Tree::CaptureVisibleItems(std::vector<TreeItemData>& items) const
 {
+#if DXUI_ENABLE_DIAGNOSTICS
+    ++_debugExpansionCaptureCount;
+#endif
     const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const ITreeModel* const model = _model;
-    std::vector<TreeItemData> items;
+    items.clear();
     if (! model)
     {
-        return items;
+        return true;
     }
 
     const size_t itemCount = model->GetVisibleItemCount();
     if (! guard.IsCurrent())
-        return {};
+        return false;
     items.reserve(itemCount);
     TreeItemData item;
     for (size_t visibleIndex = 0u; visibleIndex < itemCount; ++visibleIndex)
     {
         item = {};
         if (! TryControlCallback([&] { model->GetVisibleItem(visibleIndex, item); }) || ! guard.IsCurrent())
-            return {};
-        items.push_back(std::move(item));
+            return false;
+        items.push_back(item);
     }
 
-    return items;
+    return true;
 }
 
 void Tree::BeginTreeExpansionAnimation(uint64_t itemId,
                                        bool toExpanded,
                                        std::vector<TreeItemData>&& beforeItems,
                                        std::vector<TreeItemData>&& afterItems) noexcept
+try
 {
     ControlHost* const host = GetHost();
     if (beforeItems.empty() || afterItems.empty() || ! host || host->GetTheme().reducedMotion)
@@ -3420,15 +3588,35 @@ void Tree::BeginTreeExpansionAnimation(uint64_t itemId,
     }
 
     TreeExpansionAnimationState animation{};
-    animation.itemId        = itemId;
-    animation.toExpanded    = toExpanded;
-    animation.active        = true;
-    animation.startTickMs   = host->GetAnimationTickMs();
-    animation.beforeItems   = std::move(beforeItems);
-    animation.afterItems    = std::move(afterItems);
-    _treeExpansionAnimation = std::move(animation);
+    animation.itemId      = itemId;
+    animation.toExpanded  = toExpanded;
+    animation.active      = true;
+    animation.startTickMs = host->GetAnimationTickMs();
+    animation.beforeItems.swap(beforeItems);
+    animation.afterItems.swap(afterItems);
+    animation.beforeIndex.reserve(animation.beforeItems.size());
+    animation.afterIndex.reserve(animation.afterItems.size());
+    for (size_t index = 0u; index < animation.beforeItems.size(); ++index)
+        animation.beforeIndex.emplace_back(animation.beforeItems[index].id, index);
+    for (size_t index = 0u; index < animation.afterItems.size(); ++index)
+        animation.afterIndex.emplace_back(animation.afterItems[index].id, index);
+    std::ranges::sort(animation.beforeIndex);
+    std::ranges::sort(animation.afterIndex);
+    animation.beforeParent = FindIndexedItem(animation.beforeIndex, itemId);
+    animation.afterParent  = FindIndexedItem(animation.afterIndex, itemId);
+    if (animation.beforeParent)
+        animation.beforeDescendants = CountDescendants(animation.beforeItems, animation.beforeParent.value());
+    // Copy construction is fallible in MSVC Debug; its vector move/default
+    // constructors allocate iterator proxies inside noexcept functions.
+    _treeExpansionAnimation.emplace(animation);
     // Every path that slides the rows asks for ticks, a UI Automation Expand included.
     host->RequestAnimation();
+}
+catch (const std::bad_alloc&)
+{
+    // Optional motion is discarded on allocation failure; the model's accepted expansion remains committed.
+    ClearTreeExpansionAnimation();
+    std::erase_if(_expanderAnimations, [itemId](const ExpanderAnimationState& animation) { return animation.itemId == itemId; });
 }
 
 void Tree::ClearTreeExpansionAnimation() noexcept
@@ -3473,7 +3661,7 @@ std::optional<size_t> Tree::FindNextTypeaheadMatch(std::wstring_view prefix) con
     const std::optional<size_t> currentIndex = FindFocusedVisibleIndex();
     if (! guard.IsCurrent())
         return std::nullopt;
-    const size_t startIndex = currentIndex ? ((currentIndex.value() + 1u) % itemCount) : 0u;
+    const size_t startIndex = currentIndex ? ((currentIndex.value() + (prefix.size() == 1u ? 1u : 0u)) % itemCount) : 0u;
     TreeItemData item;
     for (size_t offset = 0u; offset < itemCount; ++offset)
     {

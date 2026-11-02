@@ -1,0 +1,1 @@
+- Add bounded TeX text accents for ordinary and colored mathematical text.

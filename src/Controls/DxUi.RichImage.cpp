@@ -3,9 +3,13 @@
 #include <DxUi/RichImage.h>
 #include <array>
 #include <cstring>
+#include <shlwapi.h>
 #include <wil/com.h>
 #include <wil/resource.h>
 #include <wincodec.h>
+#include <xmllite.h>
+#pragma comment(lib, "shlwapi.lib")
+#pragma comment(lib, "xmllite.lib")
 
 namespace DxUi::RichText
 {
@@ -34,7 +38,14 @@ const std::atomic_bool* RichImageRequest::Cancellation() const noexcept
     static const std::atomic_bool empty{true};
     return state_ ? &state_->cancelled : &empty;
 }
-RichImage::RichImage(unsigned width, unsigned height) : width_(width), height_(height), pixels_(static_cast<std::size_t>(width) * height * 4u)
+RichImage::RichImage(unsigned width, unsigned height) : width_(width), height_(height), pixels_(static_cast<std::size_t>(width) * height * 4u), svg_(0u)
+{
+}
+RichImage::RichImage(unsigned width, unsigned height, std::span<const std::byte> svg)
+    : width_(width),
+      height_(height),
+      pixels_(0u),
+      svg_(svg.begin(), svg.end())
 {
 }
 namespace Detail
@@ -260,9 +271,13 @@ public:
                 return reader;
             if (SUCCEEDED(reader))
             {
-                RETURN_IF_FAILED(
-                    MetadataUnsigned(metadata.get(), *clsid == CLSID_WICJpegDecoder ? L"/app1/ifd/{ushort=274}" : L"/ifd/{ushort=274}", orientation));
-                if (orientation < 1u || orientation > 8u)
+                const auto orientationResult =
+                    MetadataUnsigned(metadata.get(), *clsid == CLSID_WICJpegDecoder ? L"/app1/ifd/{ushort=274}" : L"/ifd/{ushort=274}", orientation);
+                if (orientationResult == E_OUTOFMEMORY)
+                    return orientationResult;
+                // Orientation is optional. A corrupt or unsupported metadata
+                // value does not invalidate otherwise decodable image pixels.
+                if (FAILED(orientationResult) || orientation < 1u || orientation > 8u)
                     orientation = 1u;
             }
         }
@@ -271,16 +286,149 @@ public:
         wil::com_ptr_nothrow<IWICFormatConverter> converter;
         RETURN_IF_FAILED(factory->CreateFormatConverter(converter.put()));
         RETURN_IF_FAILED(converter->Initialize(frame.get(), GUID_WICPixelFormat32bppPBGRA, WICBitmapDitherTypeNone, nullptr, 0.0, WICBitmapPaletteTypeCustom));
-        std::vector<std::byte> pixels(static_cast<std::size_t>(width) * height * 4u);
-        RETURN_IF_FAILED(converter->CopyPixels(nullptr, width * 4u, static_cast<UINT>(pixels.size()), reinterpret_cast<BYTE*>(pixels.data())));
+        auto staged = std::shared_ptr<RichImage>(new RichImage(width, height));
+        RETURN_IF_FAILED(
+            converter->CopyPixels(nullptr, width * 4u, static_cast<UINT>(staged->pixels_.size()), reinterpret_cast<BYTE*>(staged->pixels_.data())));
         if (Cancelled(cancellation))
             return HRESULT_FROM_WIN32(ERROR_CANCELLED);
         if (*clsid == CLSID_WICGifDecoder)
-            RETURN_IF_FAILED(ComposeGifCanvas(factory, decoder.get(), frame.get(), pixels, width, height, cancellation));
-        return Orient(pixels, width, height, orientation, output, cancellation);
+            RETURN_IF_FAILED(ComposeGifCanvas(factory, decoder.get(), frame.get(), staged->pixels_, width, height, cancellation));
+        if (orientation != 1u)
+            return Orient(staged->pixels_, width, height, orientation, output, cancellation);
+        if (Cancelled(cancellation))
+            return HRESULT_FROM_WIN32(ERROR_CANCELLED);
+        staged->width_  = width;
+        staged->height_ = height;
+        output          = std::move(staged);
+        return S_OK;
     }
 };
 } // namespace Detail
+HRESULT RichImage::CreateSvg(unsigned width,
+                             unsigned height,
+                             std::span<const std::byte> encoded,
+                             std::shared_ptr<const RichImage>& output,
+                             const std::atomic_bool* cancellation) noexcept
+try
+{
+    if (! Detail::DimensionsAllowed(width, height) || encoded.empty() || encoded.size() > MaximumSvgBytes)
+        return E_INVALIDARG;
+    if (Detail::Cancelled(cancellation))
+        return HRESULT_FROM_WIN32(ERROR_CANCELLED);
+    // The conservative profile does not admit entity references, external
+    // resources, CSS, recursive use, embedded images, scripts or animation.
+    if (std::ranges::any_of(encoded,
+                            [](std::byte unit)
+    {
+        const auto value = std::to_integer<unsigned>(unit);
+        return value == '&' || value >= 0x80u || (value < 0x20u && value != '\t' && value != '\r' && value != '\n');
+    }))
+        return E_INVALIDARG;
+    wil::com_ptr<IStream> stream;
+    stream.attach(SHCreateMemStream(reinterpret_cast<const BYTE*>(encoded.data()), static_cast<UINT>(encoded.size())));
+    if (! stream)
+        return E_OUTOFMEMORY;
+    wil::com_ptr<IXmlReader> reader;
+    RETURN_IF_FAILED(CreateXmlReader(__uuidof(IXmlReader), reinterpret_cast<void**>(reader.put()), nullptr));
+    RETURN_IF_FAILED(reader->SetProperty(XmlReaderProperty_DtdProcessing, DtdProcessing_Prohibit));
+    RETURN_IF_FAILED(reader->SetInput(stream.get()));
+    constexpr std::wstring_view svgNamespace = L"http://www.w3.org/2000/svg";
+    constexpr std::wstring_view elements[]   = {L"svg", L"g", L"path", L"rect", L"circle", L"ellipse", L"line", L"polyline", L"polygon"};
+    constexpr std::wstring_view attributes[] = {L"viewBox",
+                                                L"width",
+                                                L"height",
+                                                L"x",
+                                                L"y",
+                                                L"cx",
+                                                L"cy",
+                                                L"r",
+                                                L"rx",
+                                                L"ry",
+                                                L"x1",
+                                                L"x2",
+                                                L"y1",
+                                                L"y2",
+                                                L"d",
+                                                L"points",
+                                                L"fill",
+                                                L"stroke",
+                                                L"stroke-width",
+                                                L"opacity",
+                                                L"fill-opacity",
+                                                L"stroke-opacity",
+                                                L"stroke-linecap",
+                                                L"stroke-linejoin",
+                                                L"fill-rule",
+                                                L"transform"};
+    std::size_t count{}, pathUnits{};
+    bool root{};
+    XmlNodeType node{};
+    HRESULT result{};
+    while ((result = reader->Read(&node)) == S_OK)
+    {
+        if (Detail::Cancelled(cancellation))
+            return HRESULT_FROM_WIN32(ERROR_CANCELLED);
+        if (node == XmlNodeType_Element)
+        {
+            UINT depth{}, length{};
+            const wchar_t *name{}, *space{};
+            RETURN_IF_FAILED(reader->GetDepth(&depth));
+            RETURN_IF_FAILED(reader->GetLocalName(&name, &length));
+            const std::wstring_view element(name, length);
+            RETURN_IF_FAILED(reader->GetNamespaceUri(&space, &length));
+            if (std::wstring_view(space, length) != svgNamespace || ++count > MaximumSvgElements || depth >= MaximumSvgDepth ||
+                std::ranges::find(elements, element) == std::end(elements) || (! root && (depth != 0u || element != L"svg")) || (root && element == L"svg"))
+                return E_INVALIDARG;
+            root = true;
+            while ((result = reader->MoveToNextAttribute()) == S_OK)
+            {
+                RETURN_IF_FAILED(reader->GetLocalName(&name, &length));
+                const std::wstring_view attribute(name, length);
+                RETURN_IF_FAILED(reader->GetNamespaceUri(&space, &length));
+                const std::wstring_view attributeNamespace(space, length);
+                const wchar_t* value{};
+                RETURN_IF_FAILED(reader->GetValue(&value, &length));
+                const std::wstring_view contents(value, length);
+                if (attributeNamespace == L"http://www.w3.org/2000/xmlns/")
+                {
+                    if (depth || attribute != L"xmlns" || contents != svgNamespace)
+                        return E_INVALIDARG;
+                    continue;
+                }
+                if (! attributeNamespace.empty() || std::ranges::find(attributes, attribute) == std::end(attributes))
+                    return E_INVALIDARG;
+                if (attribute == L"d" || attribute == L"points")
+                {
+                    if (contents.size() > MaximumSvgPathUnits - pathUnits)
+                        return E_INVALIDARG;
+                    pathUnits += contents.size();
+                }
+                for (std::size_t index = 0u; index < contents.size(); ++index)
+                    if (contents[index] == L'\\' || contents[index] == L'&' ||
+                        (index + 3u <= contents.size() && _wcsnicmp(contents.data() + index, L"url", 3u) == 0))
+                        return E_INVALIDARG;
+            }
+            if (FAILED(result))
+                return result;
+            RETURN_IF_FAILED(reader->MoveToElement());
+        }
+        else if (node != XmlNodeType_EndElement && node != XmlNodeType_Whitespace && node != XmlNodeType_XmlDeclaration && node != XmlNodeType_Comment)
+            return E_INVALIDARG;
+    }
+    if (FAILED(result) || ! root)
+        return FAILED(result) ? result : E_INVALIDARG;
+    if (Detail::Cancelled(cancellation))
+        return HRESULT_FROM_WIN32(ERROR_CANCELLED);
+    auto staged = std::shared_ptr<const RichImage>(new RichImage(width, height, encoded));
+    if (Detail::Cancelled(cancellation))
+        return HRESULT_FROM_WIN32(ERROR_CANCELLED);
+    output.swap(staged);
+    return S_OK;
+}
+catch (const std::bad_alloc&)
+{
+    return E_OUTOFMEMORY;
+}
 HRESULT RichImage::CreatePbgra(
     unsigned width, unsigned height, std::span<const std::byte> pixels, std::shared_ptr<const RichImage>& output, const std::atomic_bool* cancellation) noexcept
 try

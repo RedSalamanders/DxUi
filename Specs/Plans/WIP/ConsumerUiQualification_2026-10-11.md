@@ -18,6 +18,35 @@ historical; this relocation closes no acceptance gate below.
 - **Ownership**: DxUi retains library measurements/platform qualification; consumer product behavior and adoption
   measurements remain in each application repository. No consumer is changed implicitly.
 
+## Delivery checkpoint — 2 November 2026
+
+The [source-bound delivery packet](../../../Measurements/WipDelivery_2026-11-02/README.md)
+owns this task's reviewed findings, actual receipts and retained limitations. R27
+`9909da1065e297247cb490b970b2265a0e4d8b9e` passes six x64/ARM64 builds with zero warnings/errors,
+63 ordinary and 12 foreground x64 suite executions with zero skips, two deliberate
+ASan detection controls, and four relocated standalone consumer profiles. The
+separately identified production SDK passes extracted smoke, 391-file header closure
+and the real warning-control rejection; six harness gallery captures were reviewed.
+API3 `a5b3ac81` and API4 `a8cb8e1d` each pass six builds, 15 ordinary and nine
+foreground suite runs. The final API3 lease verifies all desktop states unchanged.
+These are source-specific library/fixture results, not product pin adoption.
+
+The complete local paired collection uses baseline `4423074d` and candidate/harness
+`21a74896`, twelve independent blocks per scenario, and retains all 144 receipts.
+Both judges report within-noise-budget, with no regressed rows; 71/72 controls are
+unstable, and 549/1,872 control observations cross bands. The base policy remains
+unqualified. Coordinated holds and preflight/mid-run observations do not prove
+whole-interval quiet: no continuous host observer covered this local campaign.
+The separate 64-slot semantic experiment is descriptive and retains its increased
+initial owner turns and adverse in-flight tail. Neither collection establishes
+accepted non-regression, a leak finding, a causal explanation or policy approval.
+
+Native ARM64 execution is deferred by the user's explicit decision. Physical
+IME/assistive technology/touch, hosted qualification, each real consumer's exact
+pin, complete rebuild, adoption and rollback, independent performance-policy
+qualification and CR34 history-purge administration remain open here with their
+existing owners. Current local implementation and testing are not deferred into
+this ledger. S3–S7 and FrameUpdate remain outside the requested implementation.
 ## Shared qualification ownership (16 October 2026)
 
 This is the single execution ledger for cross-plan qualification. Feature/remediation plans own implementation,
@@ -29,7 +58,7 @@ copying its procedures or independently closing the same gate. Domain contracts 
 | Paired policy and non-regression | This plan: stable matched controls, independent seed-policy review, a trusted measured base and candidate-specific paired/hosted results under the owning performance contract. Policy remains unqualified. |
 | Native ARM64 and opt-in resources | This plan: exact-source native profiles and separate MenuResources/MenuResourceScaling evidence; cross-builds or ordinary hosted foreground passes do not substitute. |
 | Physical input, real IME and assistive technology | This plan tracks unresolved library scenarios and environment admission; each application owns its product/device/service execution and acceptance. Synthetic UIA/input is a separate fact. |
-| Consumer publication, pins and rollback | The [API-4 handoff register](ProductionReview_2026-10-05/api4-consumer-handoffs.md) owns consumer actions. This plan references their evidence without changing pins or declaring product acceptance. |
+| Consumer publication, pins and rollback | The [API-4 handoff register](../Done/ProductionReview_2026-10-05/api4-consumer-handoffs.md) owns consumer actions. This plan references their evidence without changing pins or declaring product acceptance. |
 
 Keep receipt identities separate for each candidate. Existing S0-S2 and ProductionReview receipts cannot qualify
 the later [host/control fixes](../Done/HostControlReviewFixes_2026-10-16.md) merely because a shared gate has one owner.
@@ -65,7 +94,7 @@ Historical failures and approved tradeoffs retain their original scope; no thres
   a library-wide epoch-independent clock contract. The reviewed host/control fix explicitly qualifies only the
   requested PageHost/Slider transition starts. These additional source leads have not been runtime-falsified or
   silently recorded as corrected.
-  - **Done (18 October 2026, Q14 of the [10 October review](CodeReview_2026-10-10.md)).** Every control stamps the host's
+  - **Done (18 October 2026, Q14 of the [10 October review](../Done/CodeReview_2026-10-10.md)).** Every control stamps the host's
     one animation clock, `ControlHost::GetAnimationTickMs`: the dispatcher timeline natively, and embedded a timeline that
     the application's ticks advance by their differences. [Scope.Tests.AnimationClock](../../../Tests/Controls/Controls.Tests.AnimationClock.cpp)
     exercises each listed control at seven application epochs, from zero to near the top of the range, against a view
@@ -87,7 +116,7 @@ retain exact local source/build/suite identities. Six builds, 57 noninteractive 
 the latter frozen source pass with zero native skips and verified restoration. Cross-builds remain separate from
 native ARM64 runtime; synthetic UIA, Unicode/reflow and WARP do not qualify real IME, screen readers, touch or hardware.
 Original UIA extra-event and native-input setup cause investigations remain in
-[ProductionReview](ProductionReview_2026-10-05.md), rather than being recorded as proved fixes here.
+[ProductionReview](../Done/ProductionReview_2026-10-05.md), rather than being recorded as proved fixes here.
 
 ## 2. Paired performance and policy acceptance
 
@@ -361,7 +390,7 @@ scope exits pass, but both children of the failed shared lease remain unqualifie
 (124 qualified scopes). Eight consumer variants, both Release resource fixtures
 and the four support jobs pass separately. Six gallery PNGs match the previous
 run byte-for-byte. The owner requested a saved checkpoint before another C++
-change; the [editor resume checkpoint](RichTextEditor_2026-10-17.md) records the
+change; the [editor resume checkpoint](../Done/RichTextEditor_2026-10-17.md) records the
 exact failure, evidence readers, unproved pointer/foreground hypotheses and next
 counterfactual tests. No new fix is implemented or attributed. The paired study
 is still running at this checkpoint; preserve it before another push. PR #89
@@ -433,7 +462,7 @@ documentation-only follow-up changes no runtime, tooling, public usage or visual
 ### Bounded timing and memory attribution pilot (17 October 2026)
 
 PR #82's post-merge native run fails x64 Debug's first Menu case. The source-specific
-[popup-readiness repair](PopupReadiness_2026-10-17.md) owns its diagnosis, implementation and functional evidence;
+[popup-readiness repair](../Done/PopupReadiness_2026-10-17.md) owns its diagnosis, implementation and functional evidence;
 this ledger retains all existing shared qualification obligations and thresholds unchanged.
 Its final local repair passes 57 fresh noninteractive x64 suite executions and all three ARM64 cross-builds.
 Full Menu passes 109/109 cases in each of x64 Debug, Release and ASan Debug, with zero skips and verified
@@ -1115,7 +1144,7 @@ explicit-hover root-switch assertion. The other five native profiles, all six Na
 with zero capability skips; the aggregate correctly fails. Push skips paired measurement. Keep this failed
 receipt separately from the earlier successful PR #83 observation and any later repaired-source result.
 
-The [popup-readiness plan](PopupReadiness_2026-10-17.md) owns this source-specific diagnosis and repair. Its bounded
+The [popup-readiness plan](../Done/PopupReadiness_2026-10-17.md) owns this source-specific diagnosis and repair. Its bounded
 controlled Release test reproduces the exact assertion with the unchanged library: hover posting succeeds,
 the trace records 136 paint injections and the hover callback never enters; the old visible popup continues answering text
 queries, longest 9 ms. Registered hover input was fetched only through the general queue after popup paint.

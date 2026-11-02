@@ -1,0 +1,69 @@
+{
+  "acceptedBuild": true,
+  "frozenUtc": "2026-11-02T06:56:37.1096555Z",
+  "source": "9909da1065e297247cb490b970b2265a0e4d8b9e",
+  "files": [
+    {
+      "sha256": "43B070A9467FBC08216B2620CA7C8D337482E19A555276095ECC49D222CC185C",
+      "name": "DxUi.ControlTests.exe",
+      "bytes": 60093952
+    },
+    {
+      "sha256": "C5E6FF58A3F8905D0FF762BD6AC602670E09BF39E9DDCC9E397CC3A396AF7FE9",
+      "name": "DxUi.ControlTests.pdb",
+      "bytes": 125759488
+    },
+    {
+      "sha256": "133235ACFD9BE6B9D4FF7ED10B9F4EBFB1E360CE1D3EF86BEE7D6DD1CFCD489A",
+      "name": "DxUi.EmbeddedControls.exe",
+      "bytes": 24971264
+    },
+    {
+      "sha256": "242CC5FC3A39AF6D18BE0A95D0A7C7F46D890443B09B4D410AC412213FAFD795",
+      "name": "DxUi.EmbeddedControls.pdb",
+      "bytes": 56496128
+    },
+    {
+      "sha256": "15405D12CBF1ACC3BB31E77B11C139F51E1BEF3D2D8839C17D8BB316933349C6",
+      "name": "DxUi.EmbeddedTests.exe",
+      "bytes": 34818048
+    },
+    {
+      "sha256": "9F4A2A80DFB757717C56668550482484CCC82C2BF380E2719F72102FF8E48930",
+      "name": "DxUi.EmbeddedTests.pdb",
+      "bytes": 73191424
+    },
+    {
+      "sha256": "69AC9800E97830B63E6330A5BE20DCB6DDDE7F9ACD1C29EBE4F17BA3D257F203",
+      "name": "DxUi.FoundationTests.exe",
+      "bytes": 24447488
+    },
+    {
+      "sha256": "B8418BFC45045F67BD34B878A1E794B881AD64F537BAF1FFCCA4A9620D4FD514",
+      "name": "DxUi.FoundationTests.pdb",
+      "bytes": 55349248
+    },
+    {
+      "sha256": "42DE72C45F922F1CCDEE381A2D65438D95FC2127B4D92F39D5593055AA4C70DF",
+      "name": "DxUi.InteractiveLease.exe",
+      "bytes": 2690560
+    },
+    {
+      "sha256": "E471CF1802A7D6ECEE4AD08CEC265875E4B2E4C19D57DD2805F24D179E05F4CB",
+      "name": "DxUi.InteractiveLease.pdb",
+      "bytes": 7237632
+    },
+    {
+      "sha256": "24ADC64EA61AFDE9AC9BBC6900711164A9EA905CE84470CCA7C3DD752FD9D1AC",
+      "name": "DxUi.lib",
+      "bytes": 201890436
+    },
+    {
+      "sha256": "5ADF068270F36887A501DF871ECC15E0EB2821A060FB9D877FA68C5D6B387E2B",
+      "name": "DxUi.pdb",
+      "bytes": 15814656
+    }
+  ],
+  "platform": "ARM64",
+  "configuration": "Debug"
+}

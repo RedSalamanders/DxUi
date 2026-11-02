@@ -1,0 +1,1 @@
+- Support independently positioned display-math row tags with bounded preparation, source-preserving refusal and width-only reuse.

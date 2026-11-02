@@ -26,7 +26,7 @@ private:
 struct EmbeddedCallbacks
 {
     void* context = nullptr;
-    // Borrowed until detach; invoked synchronously on the UI thread and must not re-enter the host.
+    // Borrowed until detach; invoked synchronously on the UI thread. It may retire or replace retained controls.
     void (*requestPreparation)(void* context) noexcept = nullptr;
 };
 enum class PointerAction : uint8_t
@@ -36,7 +36,9 @@ enum class PointerAction : uint8_t
     Up,
     Wheel,
     Leave,
-    Cancel
+    Cancel,
+    MiddleDown,
+    MiddleUp
 };
 struct PointerEvent
 {
@@ -132,6 +134,8 @@ public:
     {
         return _host;
     }
+    // Hide, zero-size and device loss cancel composition and retire input tokens, while retaining a still-owned logical focus.
+    // The next successful visible, sized Prepare creates a fresh text session for that focus.
     void SetVisible(bool visible) noexcept;
     void MarkDirty() noexcept;
     [[nodiscard]] bool NeedsPreparation() const noexcept;
@@ -141,9 +145,12 @@ public:
     // a new attachment) only sets the baseline, and a tick that goes back adds nothing. Call only while NeedsAnimation().
     bool AdvanceAnimation(uint64_t nowTickMs) noexcept;
     // Physical pixel size and DPI. Text shaping and raster work happen only here, never in Composite.
+    // Updating a surface mutates the borrowed immediate-context state, including PS SRV slot 0 and OM render targets.
+    // Rebind application state after Prepare and before subsequent drawing; Prepare does not preserve those bindings.
     // S_FALSE means hidden, zero-sized, already prepared, or cooperative content preparation remains pending;
     // in the last case NeedsPreparation() stays true and the caller should prepare on a later owner turn, not spin.
-    // A failed HRESULT disables interaction until preparation succeeds.
+    // A failed HRESULT disables interaction until preparation succeeds. A content failure preserves its HRESULT
+    // (an unchanged content E_ABORT is reported as E_FAIL); it schedules no automatic retry.
     // E_ABORT means a callback superseded the frame (root or tree changed mid-pass). The view already requested
     // another preparation; prepare again when asked instead of presenting the retired frame.
     HRESULT Prepare(UINT widthPixels, UINT heightPixels, float dpi = 96.0f) noexcept;
@@ -158,6 +165,12 @@ public:
     // Prepare, or arrange and PrepareInteraction, before a gesture after interaction geometry changes. Captured continuation remains live
     // until geometry/tree/availability changes, which cancels capture and requires preparation.
     bool DispatchPointer(const PointerEvent& event) noexcept;
+    // Application-converted view-local DIPs. No HWND or focus is acquired.
+    [[nodiscard]] bool PreviewFileDrop(D2D1_POINT_2F point) noexcept;
+    [[nodiscard]] bool CommitFileDrop(D2D1_POINT_2F point,
+                                      IDataObject& dataObject,
+                                      bool (*validate)(void*) noexcept = nullptr,
+                                      void* context                    = nullptr) noexcept;
     bool DispatchKey(UINT virtualKey, bool down, UINT modifiers = 0) noexcept;
     bool DispatchCharacter(wchar_t character, UINT modifiers = 0) noexcept;
     // Correlate a Return/Space keydown with its exact translated character. Keep a separate receipt for each keydown
@@ -174,6 +187,9 @@ public:
     // Optional application-side clipboard transform. Checks the current focus
     // session/revision; prepares source only and never commits or takes focus.
     HRESULT TransformClipboardPaste(uint64_t revision, uint64_t focusId, const TextClipboardContent& content, std::wstring& replacement) noexcept;
+    HRESULT ApplyClipboardFilePaste(uint64_t revision, uint64_t focusId, const TextClipboardContent& content) noexcept;
+    HRESULT ApplyClipboardCut(const EmbeddedTextInputSnapshot& snapshot) noexcept;
+    HRESULT ApplyClipboardBitmapPaste(uint64_t revision, uint64_t focusId, const TextClipboardContent& content) noexcept;
     // Read a fresh snapshot after every accepted change. A stale revision returns ERROR_REVISION_MISMATCH.
     // Preview changes displayed text/composition without notifying the model. Commit notifies once relative
     // to the pre-composition text. Cancel restores that text without notification and ignores the supplied state.
@@ -195,6 +211,7 @@ public:
     [[nodiscard]] EmbeddedStatistics GetStatistics() const noexcept;
 
 private:
+    friend struct EmbeddedAccessibilityAccess;
     struct State;
     std::unique_ptr<State> _state;
     ControlHost _host;

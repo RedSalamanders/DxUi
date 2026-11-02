@@ -2,6 +2,7 @@
 #include "Support/Diagnostics.h"
 #include <DxUi/Embedded.h>
 #include <DxUi/FrameRuntime.h>
+#include <DxUi/TextInputServices.h>
 #include <DxUiCompositePS.h>
 #include <DxUiCompositeVS.h>
 #include <algorithm>
@@ -293,7 +294,10 @@ void EmbeddedHost::ReleaseSurface() noexcept
     CancelPointer();
     if (! operationIsCurrent())
         return;
-    CancelTextInput();
+    // Surface loss retires composition and all issued input receipts, but the
+    // still-owned logical focus is restored when a visible surface is prepared.
+    ++_textInputRevision;
+    _host.DeactivateTextInput();
     if (! operationIsCurrent())
         return;
     auto& s = *attachedState;
@@ -557,9 +561,9 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
                 requestAfterPreparation = true;
                 return S_FALSE;
             }
-            // The finish guard schedules a changed revision after callbacks unwind.
-            // A failure of unchanged content stays dirty without an automatic retry.
-            return E_ABORT;
+            // Supersession is handled above. An unchanged deterministic content
+            // failure is reported distinctly and stays dirty without a retry loop.
+            return FAILED(_host._contentPreparationFailure) ? _host._contentPreparationFailure : E_ABORT;
         }
         ID3D11ShaderResourceView* empty = nullptr;
         _host._d3dContext->PSSetShaderResources(0, 1, &empty);
@@ -608,6 +612,12 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
         s.dirty                       = s.revision != revision;
         ++s.stats.preparations;
         _host.PublishPreparedContent();
+        if (auto* focused = _host.GetFocusControl(); focused && focused != _host._nativeTextInputControl)
+        {
+            _host.ActivateTextInput(focused, false);
+            if (! preparationIsCurrent())
+                return E_ABORT;
+        }
         if (! preparationIsCurrent())
             return E_ABORT;
         s.coherent              = s.coherent && interactionRevision == _host._interactionRevision;
@@ -770,6 +780,31 @@ bool EmbeddedHost::InputIsCoherent(bool allowDirty) noexcept
     // allowDirty=false so they do not publish a stale surface.
     return allowDirty || ! _state->dirty;
 }
+bool EmbeddedHost::PreviewFileDrop(D2D1_POINT_2F point) noexcept
+{
+    return _state && _host._attachmentOwnerThreadId == GetCurrentThreadId() && ! _state->zeroSized && ! _state->contentPending &&
+           ! _host.GetCapturedControl() && InputIsCoherent(true) && _host.PreviewFileDrop(point);
+}
+bool EmbeddedHost::CommitFileDrop(D2D1_POINT_2F point, IDataObject& dataObject, bool (*validate)(void*) noexcept, void* context) noexcept
+{
+    if (! PreviewFileDrop(point))
+        return false;
+    struct Validation
+    {
+        EmbeddedHost* host;
+        D2D1_POINT_2F point;
+        bool (*validate)(void*) noexcept;
+        void* context;
+    } validation{this, point, validate, context};
+    return _host.CommitFileDropCore(point,
+                                    dataObject,
+                                    [](void* context) noexcept
+    {
+        const auto& current = *static_cast<Validation*>(context);
+        return (! current.validate || current.validate(current.context)) && current.host->PreviewFileDrop(current.point);
+    },
+                                    &validation);
+}
 bool EmbeddedHost::TextInputIsAvailable() noexcept
 {
     if (InputIsCoherent(true))
@@ -802,7 +837,7 @@ bool EmbeddedHost::DispatchPointer(const PointerEvent& event) noexcept
         if (! InputIsCoherent(true))
             return false;
         if (event.action == PointerAction::Down || event.action == PointerAction::Move || event.action == PointerAction::Up ||
-            event.action == PointerAction::Wheel)
+            event.action == PointerAction::Wheel || event.action == PointerAction::MiddleDown || event.action == PointerAction::MiddleUp)
         {
             _host.SetInputModality(InputModality::Pointer);
             _host.SetPointerDevice(event.device);
@@ -816,6 +851,8 @@ bool EmbeddedHost::DispatchPointer(const PointerEvent& event) noexcept
                 case PointerAction::Up: inspectionMessage = WM_LBUTTONUP; break;
                 case PointerAction::Wheel: inspectionMessage = WM_MOUSEWHEEL; break;
                 case PointerAction::Cancel: inspectionMessage = WM_CAPTURECHANGED; break;
+                case PointerAction::MiddleDown: inspectionMessage = WM_MBUTTONDOWN; break;
+                case PointerAction::MiddleUp: inspectionMessage = WM_MBUTTONUP; break;
                 case PointerAction::Leave: inspectionMessage = WM_MOUSELEAVE; break;
                 case ::DxUi::PointerAction::Move:
                 default: break;
@@ -848,28 +885,34 @@ bool EmbeddedHost::DispatchPointer(const PointerEvent& event) noexcept
             return false;
         switch (event.action)
         {
+            case PointerAction::MiddleDown: return target->OnMouseMiddleDown(_host, point, event.modifiers);
+            case PointerAction::MiddleUp: return _host.GetCapturedControl() != nullptr;
             case PointerAction::Down:
             {
-                const auto lifetime    = target->GetLifetimeToken();
-                const bool doubleClick = _host.ShouldTreatPointerDownAsDoubleClick(target, point);
-                const bool handled =
-                    doubleClick ? target->OnMouseDoubleClick(_host, point, false, event.modifiers) : target->OnMouseDown(_host, point, false, event.modifiers);
-                Control* const live = (! lifetime.expired() && target->GetHost() == &_host) ? target : nullptr;
+                const auto lifetime          = target->GetLifetimeToken();
+                const bool sameClickSequence = _host.ShouldTreatPointerDownAsDoubleClick(target, point);
+                const bool tripleClick       = sameClickSequence && _host._pendingPointerDoubleClick.doubleClick;
+                const bool doubleClick       = sameClickSequence && ! tripleClick;
+                const bool handled           = tripleClick   ? target->OnMouseTripleClick(_host, point, false, event.modifiers)
+                                               : doubleClick ? target->OnMouseDoubleClick(_host, point, false, event.modifiers)
+                                                             : target->OnMouseDown(_host, point, false, event.modifiers);
+                Control* const live          = (! lifetime.expired() && target->GetHost() == &_host) ? target : nullptr;
                 // Like the native host, capture a handled press after the callback; the callback may remove its control.
                 if (handled && live && ! _host.IsTooltipInspectionActive())
                 {
                     _host.CaptureMouse(live);
-                    if (doubleClick)
+                    if (tripleClick)
                     {
                         _host.ClearPendingPointerDoubleClick();
                     }
                     else
                     {
                         _host.RememberPointerDownDip(live, point);
+                        _host._pendingPointerDoubleClick.doubleClick = doubleClick;
                     }
                     _host.PruneStaleInteractionState();
                 }
-                else if (doubleClick)
+                else if (doubleClick || tripleClick)
                 {
                     _host.ClearPendingPointerDoubleClick();
                 }
@@ -941,8 +984,15 @@ bool EmbeddedHost::DispatchKeyImpl(UINT key, bool down, UINT modifiers, Embedded
         receipt->_valid                  = true;
     }
 
+    if ((key == VK_CONTROL || key == VK_LCONTROL || key == VK_RCONTROL) && _host._hoveredControl)
+    {
+        _host._supplementalTooltipModifiers    = down ? modifiers | MK_CONTROL : modifiers & ~MK_CONTROL;
+        _host._supplementalTooltipNeedsResolve = true;
+        _host.RequestAnimation();
+    }
     if (! KeyboardInputIsAvailable())
         return false;
+    bool enteredControlCallback = false;
     try
     {
         _host.PruneStaleInteractionState();
@@ -963,8 +1013,12 @@ bool EmbeddedHost::DispatchKeyImpl(UINT key, bool down, UINT modifiers, Embedded
             // retire/rebind its owner: never traverse a successor in that frame.
             auto* tabTarget     = _host.GetFocusControl();
             const auto lifetime = tabTarget ? tabTarget->GetLifetimeToken() : std::weak_ptr<int>{};
-            if (tabTarget && tabTarget->OnKeyDown(_host, key, modifiers))
-                return true;
+            if (tabTarget)
+            {
+                enteredControlCallback = true;
+                if (tabTarget->OnKeyDown(_host, key, modifiers))
+                    return true;
+            }
             if (tabTarget && (lifetime.expired() || _host.GetFocusControl() != tabTarget || tabTarget->GetHost() != &_host || ! tabTarget->IsEnabled() ||
                               ! tabTarget->IsVisible()))
                 return true;
@@ -974,7 +1028,8 @@ bool EmbeddedHost::DispatchKeyImpl(UINT key, bool down, UINT modifiers, Embedded
         if (! target)
             return false;
 
-        const bool handled = down ? target->OnKeyDown(_host, key, modifiers) : target->OnKeyUp(_host, key, modifiers);
+        enteredControlCallback = true;
+        const bool handled     = down ? target->OnKeyDown(_host, key, modifiers) : target->OnKeyUp(_host, key, modifiers);
         if (receipt && issuedReceiptSequence != 0u && receipt->_valid && receipt->_embeddedHost == this && receipt->_controlHost == &_host &&
             receipt->_sequence == issuedReceiptSequence)
         {
@@ -987,7 +1042,13 @@ bool EmbeddedHost::DispatchKeyImpl(UINT key, bool down, UINT modifiers, Embedded
     }
     catch (const std::bad_alloc&)
     {
-        std::terminate();
+        if (receipt && issuedReceiptSequence != 0u && receipt->_valid && receipt->_embeddedHost == this && receipt->_controlHost == &_host &&
+            receipt->_sequence == issuedReceiptSequence)
+            receipt->_allowCharacter = false;
+        Debug::Warning(L"DxUi::EmbeddedHost: key dispatch allocation failed; translated character permission withheld.");
+        // An arbitrary control may have committed before throwing. Do not
+        // retarget that key or authorize a translated character on uncertainty.
+        return enteredControlCallback;
     }
     catch (const std::exception&)
     {
@@ -1003,13 +1064,22 @@ bool EmbeddedHost::DispatchCharacter(wchar_t character, UINT modifiers) noexcept
 {
     if (! KeyboardInputIsAvailable())
         return false;
+    bool enteredControlCallback = false;
     try
     {
         _host.PruneStaleInteractionState();
         if (! KeyboardInputIsAvailable())
             return false;
         auto* target = _host.GetFocusControl();
-        return target && target->OnChar(_host, character, modifiers);
+        if (! target)
+            return false;
+        enteredControlCallback = true;
+        return target->OnChar(_host, character, modifiers);
+    }
+    catch (const std::bad_alloc&)
+    {
+        Debug::Warning(L"DxUi::EmbeddedHost: character dispatch allocation failed.");
+        return enteredControlCallback; // An unknown callback may already have committed.
     }
     catch (const std::exception&)
     {
@@ -1085,7 +1155,10 @@ bool EmbeddedHost::DispatchCharacter(wchar_t character, UINT modifiers, Embedded
     }
     catch (const std::bad_alloc&)
     {
-        std::terminate();
+        // The matching receipt was consumed before dispatch. The control may
+        // have committed before throwing, so never retarget the character.
+        Debug::Warning(L"DxUi::EmbeddedHost: correlated character dispatch allocation failed; receipt consumed.");
+        return true;
     }
     catch (const std::exception&)
     {
@@ -1169,6 +1242,87 @@ HRESULT EmbeddedHost::ReadTextInput(EmbeddedTextInputSnapshot& snapshot) noexcep
         return E_OUTOFMEMORY;
     }
 }
+HRESULT EmbeddedHost::ApplyClipboardCut(const EmbeddedTextInputSnapshot& snapshot) noexcept
+try
+{
+    EmbeddedTextInputSnapshot current;
+    const HRESULT result = ReadTextInput(current);
+    if (result != S_OK)
+        return result;
+    if (current.revision != snapshot.revision || current.focusId != snapshot.focusId || current.state.text != snapshot.state.text ||
+        current.state.caretIndex != snapshot.state.caretIndex || current.state.selectionAnchorIndex != snapshot.state.selectionAnchorIndex)
+        return HRESULT_FROM_WIN32(ERROR_REVISION_MISMATCH);
+    if (current.state.readOnly)
+        return E_ACCESSDENIED;
+    if (current.state.compositionStartIndex || current.state.compositionEndIndex)
+        return S_FALSE;
+    auto* editor = dynamic_cast<RichTextEditor*>(_host.GetFocusControl());
+    return editor ? (editor->Erase(_host, false, false) ? S_OK : S_FALSE) : E_NOTIMPL;
+}
+catch (const std::bad_alloc&)
+{
+    return E_OUTOFMEMORY;
+}
+catch (const std::exception&)
+{
+    return E_FAIL;
+}
+HRESULT EmbeddedHost::ApplyClipboardFilePaste(uint64_t revision, uint64_t focusId, const TextClipboardContent& content) noexcept
+try
+{
+    EmbeddedTextInputSnapshot current;
+    const auto result = ReadTextInput(current);
+    if (result != S_OK)
+        return result;
+    if (current.revision != revision || current.focusId != focusId)
+        return HRESULT_FROM_WIN32(ERROR_REVISION_MISMATCH);
+    if (current.state.readOnly)
+        return E_ACCESSDENIED;
+    if (current.state.compositionStartIndex || current.state.compositionEndIndex)
+        return S_FALSE;
+    auto* editor = dynamic_cast<RichTextEditor*>(_host.GetFocusControl());
+    return editor && editor->ApplyClipboardFilePaste(content) ? S_OK : S_FALSE;
+}
+catch (const std::bad_alloc&)
+{
+    return E_OUTOFMEMORY;
+}
+catch (const std::length_error&)
+{
+    return HRESULT_FROM_WIN32(ERROR_BUFFER_OVERFLOW);
+}
+catch (const std::exception&)
+{
+    return E_INVALIDARG;
+}
+HRESULT EmbeddedHost::ApplyClipboardBitmapPaste(uint64_t revision, uint64_t focusId, const TextClipboardContent& content) noexcept
+try
+{
+    EmbeddedTextInputSnapshot current;
+    const auto result = ReadTextInput(current);
+    if (result != S_OK)
+        return result;
+    if (current.revision != revision || current.focusId != focusId)
+        return HRESULT_FROM_WIN32(ERROR_REVISION_MISMATCH);
+    if (current.state.readOnly)
+        return E_ACCESSDENIED;
+    if (current.state.compositionStartIndex || current.state.compositionEndIndex)
+        return S_FALSE;
+    auto* editor = dynamic_cast<RichTextEditor*>(_host.GetFocusControl());
+    return editor && editor->ApplyClipboardBitmapPaste(content) ? S_OK : S_FALSE;
+}
+catch (const std::bad_alloc&)
+{
+    return E_OUTOFMEMORY;
+}
+catch (const std::length_error&)
+{
+    return HRESULT_FROM_WIN32(ERROR_BUFFER_OVERFLOW);
+}
+catch (const std::exception&)
+{
+    return E_INVALIDARG;
+}
 HRESULT EmbeddedHost::TransformClipboardPaste(uint64_t revision, uint64_t focusId, const TextClipboardContent& content, std::wstring& replacement) noexcept
 try
 {
@@ -1185,7 +1339,16 @@ try
     auto* editor = dynamic_cast<RichTextEditor*>(_host.GetFocusControl());
     if (! editor)
         return E_NOTIMPL;
-    return editor->TryPrepareClipboardPaste(content, replacement) ? S_OK : S_FALSE;
+    bool stale = false;
+    if (editor->TryPrepareClipboardPaste(content, replacement, &stale))
+        return S_OK;
+    if (stale)
+        return E_ABORT;
+    if (! content.filePaths.empty() || (content.hasHtmlFragment && content.text.empty()))
+        return S_FALSE;
+    // Rich source paste preserves CR/LF spelling. Ordinary TextField clients retain service normalization.
+    replacement = content.text;
+    return S_OK;
 }
 catch (const std::bad_alloc&)
 {

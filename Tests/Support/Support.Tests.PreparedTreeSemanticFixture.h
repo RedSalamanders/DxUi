@@ -30,7 +30,11 @@ public:
     using Names = std::array<std::wstring, 3u>;
     static constexpr std::array<uint64_t, 3u> Ids{101u, 709u, 9001u};
 
-    ThreePreparedTreeRows(Names names, std::shared_ptr<PreparedTreeSourceWitness> witness) : _names(std::move(names)), _witness(std::move(witness))
+    ThreePreparedTreeRows(Names names, std::shared_ptr<PreparedTreeSourceWitness> witness, bool expandable = false, bool expanded = false)
+        : _names(std::move(names)),
+          _witness(std::move(witness)),
+          _expandable(expandable),
+          _expanded(expanded)
     {
     }
     ~ThreePreparedTreeRows() override
@@ -45,7 +49,8 @@ public:
     {
         if (visibleIndex >= Ids.size())
             return std::nullopt;
-        return TreeAccessibilityItemView{visibleIndex, Ids[visibleIndex], _names[visibleIndex], 0u, false, false};
+        return TreeAccessibilityItemView{
+            visibleIndex, Ids[visibleIndex], _names[visibleIndex], 0u, visibleIndex == 0u && _expandable, visibleIndex == 0u && _expanded};
     }
     [[nodiscard]] std::optional<TreeAccessibilityItemView> FindItem(uint64_t itemId) const noexcept override
     {
@@ -58,6 +63,8 @@ public:
 private:
     const Names _names;
     const std::shared_ptr<PreparedTreeSourceWitness> _witness;
+    const bool _expandable;
+    const bool _expanded;
 };
 #pragma warning(pop)
 

@@ -34,31 +34,42 @@ struct FlowchartPlacedNode
     FlowchartShape shape{};
     std::size_t rank{};
     FlowchartRect bounds, label;
+    double pieStart{}, pieEnd{};
 };
 struct FlowchartPlacedEdge
 {
     FlowchartRoute route{};
     FlowchartRelation relation{};
+    FlowchartLineStyle style{};
+    ErMultiplicity erFrom{}, erTo{};
     // Six orthogonal vertices include the exact shape attachment points.
     // Crossings are allowed; routing does not promise crossing minimization.
     std::array<FlowchartPoint, 6u> path{};
     std::array<FlowchartPoint, 3u> arrow{};
+    std::array<FlowchartPoint, 4u> diamond{};
     FlowchartRect label;
-    bool hasArrow{}, hasLabel{};
+    FlowchartRect fromCardinality, toCardinality;
+    bool hasArrow{}, hasLabel{}, openArrow{};
+};
+struct FlowchartPlacedGroup
+{
+    FlowchartRect bounds, label;
 };
 struct FlowchartLayoutPlan
 {
-    FlowchartLayoutPlan() : nodes(0u), edges(0u)
+    FlowchartLayoutPlan() : nodes(0u), edges(0u), groups(0u)
     {
     }
     FlowchartLayoutIssue issue{};
     FlowchartSize extent;
+    FlowchartRect pieCircle, pieTitle, ganttTitle, ganttAxis;
     // Source-independent geometry: no source strings, graph ownership, device,
     // SDK layout, host, theme brush or raster resource is retained here.
     // Stable vector positions identify the corresponding model label slots.
     // A capacity result publishes no partially placed nodes or edges.
     std::vector<FlowchartPlacedNode> nodes;
     std::vector<FlowchartPlacedEdge> edges;
+    std::vector<FlowchartPlacedGroup> groups;
 };
 class NativeFlowchartLayout
 {
@@ -72,7 +83,12 @@ public:
     // creates no SDK layouts and cannot hide label shaping inside one work unit.
     // Invalid graph/metric input or failed admission preserves pending work.
     // Successful Begin replaces pending work; the old publication stays valid.
-    void Begin(std::shared_ptr<const FlowchartModel> graph, std::span<const FlowchartSize> nodeLabels, std::span<const FlowchartSize> edgeLabels);
+    void Begin(std::shared_ptr<const FlowchartModel> graph,
+               std::span<const FlowchartSize> nodeLabels,
+               std::span<const FlowchartSize> edgeLabels,
+               std::span<const FlowchartSize> fromCardinalities = {},
+               std::span<const FlowchartSize> toCardinalities   = {},
+               std::span<const FlowchartSize> groupLabels       = {});
     // An event handles one node, edge, DFS transition or rank. A stable Kahn
     // choice scans at most 256 nodes. Units are not elapsed-time guarantees.
     // Begin copies at most 768 measurements into fixed bounded staging arrays.

@@ -4,8 +4,6 @@
 
 Generated from compiled DxUi controls using the explicit local gallery.ps1 -PublishDocs command. Generated documentation is reviewed and committed through an ordinary pull request; DxUi has no hosted publication workflow. The five theme sheets cover all 35 public controls and populated interaction variants; the sixth image is the supplied-device example. Click a sheet to inspect it at full resolution. Rendering may vary with Windows fonts/DPI. These are documentation snapshots, not replacements for the original test baselines.
 
-Review boundary: Native diagram content is populated in all five fresh theme sheets, including Dark, High Contrast and Rainbow Light. The historical blank-tile observation is not reproduced at this source. Broader RichText visual, manual and platform qualification remains open. These snapshots do not establish full RichText visual, platform or physical-device acceptance.
-
 ## embedded-controls
 
 ![embedded-controls control gallery](embedded-controls.png)

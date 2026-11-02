@@ -1,0 +1,1 @@
+- Add exact inline source editing for Markdown links and images while preserving link navigation and neighboring formatting; guard empty inline source during reference scanning. Focused x64 Debug native UIA and embedded WARP fixtures passed; integrated qualification remains pending.

@@ -278,7 +278,18 @@ HRESULT Label::MeasureOverride(const MeasureContext& context, const LayoutConstr
         hr = layout->GetMetrics(&metrics);
         if (FAILED(hr))
             return hr;
-        result.sizeDip = D2D1::SizeF((_text.empty() ? 0.0f : metrics.widthIncludingTrailingWhitespace), metrics.height);
+        UINT32 lineCount{};
+        hr = layout->GetLineMetrics(nullptr, 0u, &lineCount);
+        if (FAILED(hr) && hr != E_NOT_SUFFICIENT_BUFFER)
+            return hr;
+        if (! lineCount || lineCount > kMaxIntrinsicTextUnits + 1u)
+            return E_FAIL;
+        std::vector<DWRITE_LINE_METRICS> lines(lineCount);
+        hr = layout->GetLineMetrics(lines.data(), lineCount, &lineCount);
+        if (FAILED(hr))
+            return hr;
+        result.sizeDip     = D2D1::SizeF((_text.empty() ? 0.0f : (_multiline ? metrics.width : metrics.widthIncludingTrailingWhitespace)), metrics.height);
+        result.baselineDip = lines.front().baseline;
         ApplyMinimum(constraints, result);
         return S_OK;
     }

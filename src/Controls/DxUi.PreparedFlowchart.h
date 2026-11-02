@@ -1,6 +1,8 @@
 #pragma once
+#include "DxUi.NativeColorPalette.h"
 #include "DxUi.NativeFlowchartLayout.h"
 #include <DxUi/RichTextLayout.h>
+#include <memory>
 
 namespace DxUi::RichText::Detail
 {
@@ -8,6 +10,36 @@ struct FlowchartResourceEpoch
 {
     std::uint64_t typography{}, resources{};
     bool operator==(const FlowchartResourceEpoch&) const = default;
+};
+struct DiagramColorContext
+{
+    D2D1_COLOR_F text{}, stroke{}, fill{};
+};
+// Target-bound resources are staged independently from the reusable paths and
+// layouts. A palette is published only after every requested brush is ready.
+struct DiagramPalette
+{
+    DiagramPalette(std::shared_ptr<const FlowchartModel> graph, ID2D1RenderTarget* target);
+    DiagramPalette(const DiagramPalette&)                = delete;
+    DiagramPalette& operator=(const DiagramPalette&)     = delete;
+    DiagramPalette(DiagramPalette&&) noexcept            = default;
+    DiagramPalette& operator=(DiagramPalette&&) noexcept = default;
+    bool Advance();
+    bool Ready() const noexcept
+    {
+        return ready;
+    }
+    bool Matches(const FlowchartModel* value, ID2D1RenderTarget* raster) const noexcept
+    {
+        return graph.get() == value && target.get() == raster;
+    }
+    static bool Needed(const FlowchartModel& graph) noexcept;
+    std::shared_ptr<const FlowchartModel> graph;
+    wil::com_ptr<ID2D1RenderTarget> target;
+    std::vector<wil::com_ptr<ID2D1SolidColorBrush>> fills, strokes, texts, edgeStrokes;
+    std::unique_ptr<NativeColorPalette> palette;
+    std::size_t cursor{};
+    bool ready{};
 };
 // Owner-serialized native diagram preparation. Factories are borrowed at Begin
 // and retained by COM ownership; no target, host, device, HWND or worker is owned.
@@ -43,7 +75,13 @@ public:
     // brushes; fill must be opaque for node and edge-label backgrounds.
     // Submission restores the caller's transform and creates no C++/SDK
     // resources. A true result still requires the caller's successful EndDraw.
-    bool Draw(ID2D1RenderTarget* target, ID2D1Brush* text, ID2D1Brush* stroke, ID2D1Brush* fill, D2D1_POINT_2F origin) const noexcept;
+    bool Draw(ID2D1RenderTarget* target,
+              ID2D1Brush* text,
+              ID2D1Brush* stroke,
+              ID2D1Brush* fill,
+              D2D1_POINT_2F origin,
+              const DiagramPalette* palette     = nullptr,
+              const DiagramColorContext* colors = nullptr) const noexcept;
 
 private:
     struct State;

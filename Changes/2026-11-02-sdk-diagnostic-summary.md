@@ -1,0 +1,1 @@
+- Retain complete SDK consumer and warning-control build summaries so the strict zero-warning gate can validate real compiler output.

@@ -1,0 +1,63 @@
+{
+  "status": "Four canonical exact-pin relocated consumer profiles passed",
+  "profiles": [
+    {
+      "receiptSha256": "060901F233139B3D98929E9D01E6FC315E5CA4A9CB6DCB32E85D203A975D3347",
+      "compiler": "14.52.37025",
+      "sourceArchive": ".build/review-delivery/candidate-r27/source.zip",
+      "profile": "ASanDebug-annotationsDisabledfalse",
+      "nativeModuleExecuted": 12,
+      "negativeChecks": 10,
+      "nativeModulePassed": 12,
+      "librarySha256": "73A6C9485F79BF64388FC59FB4A526550D6DA1C82DD102FDA06F56932CB3E147",
+      "source": "9909da1065e297247cb490b970b2265a0e4d8b9e",
+      "fixture": "E:\\DxUi.Perf\\delivery-consumers-20261102\\c59bf95a9007",
+      "apiRevision": 4,
+      "executableSha256": "7A41466B209ADA7B3FCF6083E7373337B61FBFD83DFE62F0EF13FF1FF78814DE"
+    },
+    {
+      "receiptSha256": "305394CBEED244EC39FB1FED305A72B2C0BD0F927F09CE0AAEF1994F95030CAF",
+      "compiler": "14.52.37025",
+      "sourceArchive": ".build/review-delivery/candidate-r27/source.zip",
+      "profile": "ASanDebug-annotationsDisabledtrue",
+      "nativeModuleExecuted": 12,
+      "negativeChecks": 10,
+      "nativeModulePassed": 12,
+      "librarySha256": "5E7FF0065A34786717E5E2B75FF2AA71D98735B0E28F27C9421FEDF82509782D",
+      "source": "9909da1065e297247cb490b970b2265a0e4d8b9e",
+      "fixture": "E:\\DxUi.Perf\\delivery-consumers-20261102\\7d1aba2ecaca",
+      "apiRevision": 4,
+      "executableSha256": "5D93E2534B0EACAA9E9A66BB79FA4A0C328DC82A68AEAFD998251E6DC53498D2"
+    },
+    {
+      "receiptSha256": "FEE748E66E072495B0D266D33A25E24B11F3BF85D407A108D619D23A47AB3CD3",
+      "compiler": "14.52.37025",
+      "sourceArchive": ".build/review-delivery/candidate-r27/source.zip",
+      "profile": "Debug-annotationsDisabledfalse",
+      "nativeModuleExecuted": 12,
+      "negativeChecks": 10,
+      "nativeModulePassed": 12,
+      "librarySha256": "9838235451443A0BADB6F2425A432D64884B25B5E2CE5285E92DDFB7F890CEED",
+      "source": "9909da1065e297247cb490b970b2265a0e4d8b9e",
+      "fixture": "E:\\DxUi.Perf\\delivery-consumers-20261102\\6a5b0400de05",
+      "apiRevision": 4,
+      "executableSha256": "D4287E0D1171B0375C739B9E78AEBD80F035DB905B8DC79E69CFE4A9F3181EE5"
+    },
+    {
+      "receiptSha256": "4773624AED561AE41954C7BB9EA99D1AD26FB727C7C2C889295D7FAF2E8646FC",
+      "compiler": "14.52.37025",
+      "sourceArchive": ".build/review-delivery/candidate-r27/source.zip",
+      "profile": "Release-annotationsDisabledfalse",
+      "nativeModuleExecuted": 12,
+      "negativeChecks": 10,
+      "nativeModulePassed": 12,
+      "librarySha256": "B12EAC0C486B46AC26B9E4835C736B4B489A1B16F683EE0E9E4AABEC5D092D29",
+      "source": "9909da1065e297247cb490b970b2265a0e4d8b9e",
+      "fixture": "E:\\DxUi.Perf\\delivery-consumers-20261102\\c39468db5676",
+      "apiRevision": 4,
+      "executableSha256": "332B5AD02016B21247C5AA4911B69EA67D3E3C3499E6E368943C0C625E13A3EB"
+    }
+  ],
+  "source": "9909da1065e297247cb490b970b2265a0e4d8b9e",
+  "validatedUtc": "2026-11-02T07:07:52.0219487Z"
+}

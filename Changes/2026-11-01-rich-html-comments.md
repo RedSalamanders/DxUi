@@ -1,0 +1,1 @@
+- Rendered inert HTML comments without their contents and added keyboard/inserted-text style aliases, preserving exact source offsets and whole-leaf fallback for unsupported HTML.

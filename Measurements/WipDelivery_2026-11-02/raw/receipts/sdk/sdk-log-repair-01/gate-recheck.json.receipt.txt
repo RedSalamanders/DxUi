@@ -1,0 +1,12 @@
+{
+  "positive": {
+    "LogPath": "Z:\\src\\DxUi-worktrees\\wip-delivery-sdk-20261102\\.build\\logs\\sdk-consumer-0.1.2026110201-x64.log",
+    "WarningCount": 0,
+    "ErrorCount": 0,
+    "BuildSucceeded": true,
+    "WarningSummary": 0,
+    "ErrorSummary": 0
+  },
+  "warningControlRefused": true,
+  "warningControlMessage": "Zero-warning build validation failed: 2 warning(s), 0 error(s). Log: Z:\\src\\DxUi-worktrees\\wip-delivery-sdk-20261102\\.build\\logs\\sdk-warning-control-0.1.2026110201-x64.log"
+}

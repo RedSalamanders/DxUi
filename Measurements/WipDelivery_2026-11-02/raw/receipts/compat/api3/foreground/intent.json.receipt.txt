@@ -1,0 +1,107 @@
+{
+  "priorFailures": "Historical bca5 and edce foreground packets remain preserved; this lease qualifies only a5b3.",
+  "helper": "Z:\\src\\DxUi-worktrees\\wip-menu-hover-fixture-20261102\\.build\\menu-fixture-probe-20261102\\lease\\DxUi.InteractiveLease.exe",
+  "authorization": "User-approved restoring desktop lease with visible 30-second automatic start",
+  "source": "a5b3ac81dedc39eaf1a8d131c497e59644ea794b",
+  "helperSha256": "4E7485CF3BD78627BFB3593FD6FBAE7760D5A6A5BB4C2634037ED55BA6EDE0A9",
+  "runs": [
+    {
+      "Name": "API3-Debug-Menu",
+      "Log": "Z:\\src\\DxUi-worktrees\\wip-compat-redprism-menu-20261101\\.build\\focus-qualified-foreground-20261102\\API3-Debug-Menu.log",
+      "CommandLine": "\"Z:\\src\\DxUi-worktrees\\wip-compat-redprism-menu-20261101\\.build\\x64\\Debug\\DxUi.ControlTests.exe\" --suite=Menu"
+    },
+    {
+      "Name": "API3-Debug-MenuResources",
+      "Log": "Z:\\src\\DxUi-worktrees\\wip-compat-redprism-menu-20261101\\.build\\focus-qualified-foreground-20261102\\API3-Debug-MenuResources.log",
+      "CommandLine": "\"Z:\\src\\DxUi-worktrees\\wip-compat-redprism-menu-20261101\\.build\\x64\\Debug\\DxUi.ControlTests.exe\" --suite=MenuResources"
+    },
+    {
+      "Name": "API3-Debug-MenuResourceScaling",
+      "Log": "Z:\\src\\DxUi-worktrees\\wip-compat-redprism-menu-20261101\\.build\\focus-qualified-foreground-20261102\\API3-Debug-MenuResourceScaling.log",
+      "CommandLine": "\"Z:\\src\\DxUi-worktrees\\wip-compat-redprism-menu-20261101\\.build\\x64\\Debug\\DxUi.ControlTests.exe\" --suite=MenuResourceScaling"
+    },
+    {
+      "Name": "API3-Release-Menu",
+      "Log": "Z:\\src\\DxUi-worktrees\\wip-compat-redprism-menu-20261101\\.build\\focus-qualified-foreground-20261102\\API3-Release-Menu.log",
+      "CommandLine": "\"Z:\\src\\DxUi-worktrees\\wip-compat-redprism-menu-20261101\\.build\\x64\\Release\\DxUi.ControlTests.exe\" --suite=Menu"
+    },
+    {
+      "Name": "API3-Release-MenuResources",
+      "Log": "Z:\\src\\DxUi-worktrees\\wip-compat-redprism-menu-20261101\\.build\\focus-qualified-foreground-20261102\\API3-Release-MenuResources.log",
+      "CommandLine": "\"Z:\\src\\DxUi-worktrees\\wip-compat-redprism-menu-20261101\\.build\\x64\\Release\\DxUi.ControlTests.exe\" --suite=MenuResources"
+    },
+    {
+      "Name": "API3-Release-MenuResourceScaling",
+      "Log": "Z:\\src\\DxUi-worktrees\\wip-compat-redprism-menu-20261101\\.build\\focus-qualified-foreground-20261102\\API3-Release-MenuResourceScaling.log",
+      "CommandLine": "\"Z:\\src\\DxUi-worktrees\\wip-compat-redprism-menu-20261101\\.build\\x64\\Release\\DxUi.ControlTests.exe\" --suite=MenuResourceScaling"
+    },
+    {
+      "Name": "API3-ASanDebug-Menu",
+      "Log": "Z:\\src\\DxUi-worktrees\\wip-compat-redprism-menu-20261101\\.build\\focus-qualified-foreground-20261102\\API3-ASanDebug-Menu.log",
+      "CommandLine": "\"Z:\\src\\DxUi-worktrees\\wip-compat-redprism-menu-20261101\\.build\\x64\\ASan Debug\\DxUi.ControlTests.exe\" --suite=Menu"
+    },
+    {
+      "Name": "API3-ASanDebug-MenuResources",
+      "Log": "Z:\\src\\DxUi-worktrees\\wip-compat-redprism-menu-20261101\\.build\\focus-qualified-foreground-20261102\\API3-ASanDebug-MenuResources.log",
+      "CommandLine": "\"Z:\\src\\DxUi-worktrees\\wip-compat-redprism-menu-20261101\\.build\\x64\\ASan Debug\\DxUi.ControlTests.exe\" --suite=MenuResources"
+    },
+    {
+      "Name": "API3-ASanDebug-MenuResourceScaling",
+      "Log": "Z:\\src\\DxUi-worktrees\\wip-compat-redprism-menu-20261101\\.build\\focus-qualified-foreground-20261102\\API3-ASanDebug-MenuResourceScaling.log",
+      "CommandLine": "\"Z:\\src\\DxUi-worktrees\\wip-compat-redprism-menu-20261101\\.build\\x64\\ASan Debug\\DxUi.ControlTests.exe\" --suite=MenuResourceScaling"
+    }
+  ],
+  "files": [
+    {
+      "preserved": "Z:\\src\\DxUi-worktrees\\wip-compat-redprism-menu-20261101\\.build\\focus-qualified-foreground-20261102\\Debug-DxUi.ControlTests.exe",
+      "path": "Z:\\src\\DxUi-worktrees\\wip-compat-redprism-menu-20261101\\.build\\x64\\Debug\\DxUi.ControlTests.exe",
+      "sha256": "73D9233E9CD00E584F50EFFD5D1CCCFA81886ABEBEF5D431C61989D472D922BF"
+    },
+    {
+      "preserved": "Z:\\src\\DxUi-worktrees\\wip-compat-redprism-menu-20261101\\.build\\focus-qualified-foreground-20261102\\Debug-DxUi.ControlTests.pdb",
+      "path": "Z:\\src\\DxUi-worktrees\\wip-compat-redprism-menu-20261101\\.build\\x64\\Debug\\DxUi.ControlTests.pdb",
+      "sha256": "70F30718B98752669EB92357549B6F148EFDCE9FB1AEEB669CFBA91C20C49390"
+    },
+    {
+      "preserved": "Z:\\src\\DxUi-worktrees\\wip-compat-redprism-menu-20261101\\.build\\focus-qualified-foreground-20261102\\Debug-DxUi.lib",
+      "path": "Z:\\src\\DxUi-worktrees\\wip-compat-redprism-menu-20261101\\.build\\x64\\Debug\\DxUi.lib",
+      "sha256": "9E9CB39773EC2F5BD1B6C7E176D6CDF642E1BF1214108AA2CCD6DFFBEDFAD198"
+    },
+    {
+      "preserved": "Z:\\src\\DxUi-worktrees\\wip-compat-redprism-menu-20261101\\.build\\focus-qualified-foreground-20261102\\Release-DxUi.ControlTests.exe",
+      "path": "Z:\\src\\DxUi-worktrees\\wip-compat-redprism-menu-20261101\\.build\\x64\\Release\\DxUi.ControlTests.exe",
+      "sha256": "796C960848985875AF7F21262A64FC9CEC25E328D092ECB4E688F292E68DCFF4"
+    },
+    {
+      "preserved": "Z:\\src\\DxUi-worktrees\\wip-compat-redprism-menu-20261101\\.build\\focus-qualified-foreground-20261102\\Release-DxUi.ControlTests.pdb",
+      "path": "Z:\\src\\DxUi-worktrees\\wip-compat-redprism-menu-20261101\\.build\\x64\\Release\\DxUi.ControlTests.pdb",
+      "sha256": "96E1E328623A0718D509B071D23300EA2C8BA6ED9A00CD66C01B1DAD6BD0E4D4"
+    },
+    {
+      "preserved": "Z:\\src\\DxUi-worktrees\\wip-compat-redprism-menu-20261101\\.build\\focus-qualified-foreground-20261102\\Release-DxUi.lib",
+      "path": "Z:\\src\\DxUi-worktrees\\wip-compat-redprism-menu-20261101\\.build\\x64\\Release\\DxUi.lib",
+      "sha256": "27AE118E288110D224D5F7C2F1085AAC2B17262228D40AB92BCED17B03B978C0"
+    },
+    {
+      "preserved": "Z:\\src\\DxUi-worktrees\\wip-compat-redprism-menu-20261101\\.build\\focus-qualified-foreground-20261102\\ASanDebug-clang_rt.asan_dynamic-x86_64.dll",
+      "path": "Z:\\src\\DxUi-worktrees\\wip-compat-redprism-menu-20261101\\.build\\x64\\ASan Debug\\clang_rt.asan_dynamic-x86_64.dll",
+      "sha256": "2B952AA118F22FA330069C27CA42C79D94B654F369787B89BF3A495774D66DAC"
+    },
+    {
+      "preserved": "Z:\\src\\DxUi-worktrees\\wip-compat-redprism-menu-20261101\\.build\\focus-qualified-foreground-20261102\\ASanDebug-DxUi.ControlTests.exe",
+      "path": "Z:\\src\\DxUi-worktrees\\wip-compat-redprism-menu-20261101\\.build\\x64\\ASan Debug\\DxUi.ControlTests.exe",
+      "sha256": "E32874A22478EA58C0276B280D4E87830087956199FEA1DA4DD8455B118ED07A"
+    },
+    {
+      "preserved": "Z:\\src\\DxUi-worktrees\\wip-compat-redprism-menu-20261101\\.build\\focus-qualified-foreground-20261102\\ASanDebug-DxUi.ControlTests.pdb",
+      "path": "Z:\\src\\DxUi-worktrees\\wip-compat-redprism-menu-20261101\\.build\\x64\\ASan Debug\\DxUi.ControlTests.pdb",
+      "sha256": "3124A43209C889171BEA7EE33AAA8DD9840AA739593DAFB75115B3B13FAA53EC"
+    },
+    {
+      "preserved": "Z:\\src\\DxUi-worktrees\\wip-compat-redprism-menu-20261101\\.build\\focus-qualified-foreground-20261102\\ASanDebug-DxUi.lib",
+      "path": "Z:\\src\\DxUi-worktrees\\wip-compat-redprism-menu-20261101\\.build\\x64\\ASan Debug\\DxUi.lib",
+      "sha256": "394195590DC70899E94B7B843E3DEE3914865132FADE35B6C9B82BFDBF3C1230"
+    }
+  ],
+  "moduleSha256": "6B83EAC689886928B94F4DDACD5A39AF4A7BA86418E61F53EE0D4AE05EA5EF14"
+}

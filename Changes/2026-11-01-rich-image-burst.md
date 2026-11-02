@@ -1,0 +1,1 @@
+- Coalesce RichText image completions into one retryable owner-turn resource publication.

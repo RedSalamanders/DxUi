@@ -2,7 +2,9 @@
 #include "Controls.Tests.TextStoreComposition.h"
 #include "Controls/DxUi.Internal.h"
 #include "Controls/TextStoreTarget.h"
+#include "GraphicsFixture.h"
 #include "Support/WindowMessages.h"
+#include <DxUi/Embedded.h>
 #include <thread>
 
 #include <array>
@@ -83,6 +85,8 @@ public:
     uint32_t textChangeCount           = 0u;
     uint32_t selectionChangeCount      = 0u;
     uint32_t layoutChangeCount         = 0u;
+    uint32_t statusChangeCount         = 0u;
+    DWORD lastStatusFlags              = 0u;
     uint32_t editTransactionStartCount = 0u;
     uint32_t editTransactionEndCount   = 0u;
     uint32_t editTransactionDepth      = 0u;
@@ -138,8 +142,10 @@ public:
         return onLayoutChange ? onLayoutChange(lcode, vcView) : S_OK;
     }
 
-    HRESULT STDMETHODCALLTYPE OnStatusChange(DWORD /*dwFlags*/) noexcept override
+    HRESULT STDMETHODCALLTYPE OnStatusChange(DWORD dwFlags) noexcept override
     {
+        ++statusChangeCount;
+        lastStatusFlags = dwFlags;
         return S_OK;
     }
 
@@ -986,6 +992,8 @@ void VerifyNativeTextInputTsfCallbacksPreserveReentrantSameControlSession(Native
     ReentrantNativeTextInputThreadMgrSink sink;
     bool pushCallbackRan                     = false;
     bool pushedSessionStayedActive           = false;
+    bool setFocusReentered                   = false;
+    bool retiredStagedAssociationAbsent      = false;
     bool popCallbackRan                      = false;
     bool poppedSessionStayedActive           = false;
     bool initialSessionActive                = false;
@@ -1057,6 +1065,42 @@ void VerifyNativeTextInputTsfCallbacksPreserveReentrantSameControlSession(Native
                                     window.Host().DebugHasActiveNativeTextInputTsfDocument() &&
                                     afterOuterActivation.tsfActivationSuccessCount == beforeOuterActivation.tsfActivationSuccessCount + 1u &&
                                     afterOuterActivation.tsfActivationFailureCount == beforeOuterActivation.tsfActivationFailureCount + 1u;
+
+        // Reenter from SetFocus, after the outer document was associated. The
+        // successor must not restore that abandoned staged document on retirement.
+        sink.pushCallbackEnabled = false;
+        window.Host().SetFocusControl(nullptr);
+        wil::com_ptr_nothrow<IUnknown> sentinelUnknown;
+        RequireSucceeded(window.Host().DebugCreateFocusedNativeTextInputDocumentForTest(sentinelUnknown.put()), "create an external association sentinel");
+        wil::com_ptr_nothrow<ITfDocumentMgr> sentinel;
+        RequireSucceeded(sentinelUnknown.query_to(sentinel.put()), "query the external association sentinel");
+        wil::com_ptr_nothrow<ITfDocumentMgr> oldAssociation;
+        RequireSucceeded(window.Host().DebugSwapNativeTextInputAssociationForTest(sentinel.get(), oldAssociation.put()),
+                         "install the external association sentinel");
+        wil::com_ptr_nothrow<IUnknown> stagedDocument;
+        setFocusReentered = false;
+        sink.onSetFocus   = [&]
+        {
+            if (setFocusReentered || window.Host().GetFocusControl() != requested)
+                return;
+            wil::com_ptr_nothrow<IUnknown> focused;
+            if (window.Host().DebugGetFocusedNativeTextInputDocumentForTest(focused.put()) != S_OK || ! focused || focused.get() == sentinelUnknown.get())
+                return;
+            setFocusReentered = true;
+            stagedDocument    = focused;
+            window.Host().SetFocusControl(requested);
+        };
+        window.Host().SetFocusControl(requested);
+        sink.onSetFocus = {};
+        window.Host().DebugDeactivateNativeTextInputTsfForTest();
+        wil::com_ptr_nothrow<ITfDocumentMgr> afterNestedRetirement;
+        RequireSucceeded(window.Host().DebugSwapNativeTextInputAssociationForTest(sentinel.get(), afterNestedRetirement.put()),
+                         "observe the association restored after nested retirement");
+        retiredStagedAssociationAbsent = setFocusReentered && stagedDocument && afterNestedRetirement.get() == sentinel.get();
+        wil::com_ptr_nothrow<ITfDocumentMgr> replacedSentinel;
+        RequireSucceeded(window.Host().DebugSwapNativeTextInputAssociationForTest(oldAssociation.get(), replacedSentinel.put()),
+                         "restore the original test-window association");
+        window.Host().SetFocusControl(requested);
 
         popCallbackRan           = false;
         sink.pushCallbackEnabled = false;
@@ -1238,6 +1282,7 @@ void VerifyNativeTextInputTsfCallbacksPreserveReentrantSameControlSession(Native
     Require(initialSessionActive, "initial field has an active TSF document before the sink is advised");
     Require(pushCallbackRan, "pushing a TSF context synchronously raises OnPushContext");
     Require(pushedSessionStayedActive, "a same-control nested activation wins over the outer staged TSF context");
+    Require(retiredStagedAssociationAbsent, "nested SetFocus retirement never restores the abandoned staged TSF document");
     Require(popCallbackRan, "popping the active TSF document synchronously raises OnPopContext");
     Require(poppedSessionStayedActive, "deactivation preserves the same-control TSF session installed by OnPopContext");
     Require(parentSetterPreservedCallbackEditor, "a parent focus setter cannot overwrite the different editor selected by its TSF Pop callback");
@@ -7333,6 +7378,47 @@ void TestNativeTextInputBackendClearWithoutSelectionLeavesTextAndClipboardUnchan
     Require(unchanged, "native wm_clear without selection leaves text and clipboard unchanged");
 }
 
+void TestNativeRichTextStoreCountedNul()
+{
+    using namespace DxUi;
+    AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
+    Require(IsWindowVisible(window.Hwnd()) != FALSE, "counted-NUL fixture has a visible owned host before native text activation");
+    window.Host().SetTextInputBackend(TextInputBackend::Native);
+    auto root    = std::make_unique<Panel>();
+    auto* editor = root->AddChild<RichTextEditor>(std::wstring(L"A\0B", 3u));
+    editor->SetBounds(D2D1::RectF(12.0f, 16.0f, 260.0f, 80.0f));
+    window.Host().SetRoot(std::move(root));
+    window.Host().SetFocusControl(editor);
+    window.Host().SyncTextInput(editor);
+    NativeTextStoreTestSink sink;
+    wil::com_ptr_nothrow<ITextStoreACP> store;
+    store.attach(window.Host().DebugCreateNativeTextInputTextStoreForTest());
+    Require(store != nullptr, "counted-NUL RichText store exists");
+    RequireSucceeded(store->AdviseSink(__uuidof(ITextStoreACPSink), &sink, TS_AS_TEXT_CHANGE | TS_AS_SEL_CHANGE), "attach counted-NUL sink");
+    std::wstring observed;
+    sink.onLockGranted = [&](DWORD) noexcept
+    {
+        wchar_t buffer[8]{};
+        ULONG count{}, runs{};
+        LONG next{};
+        HRESULT result = store->GetText(0, -1, buffer, 8u, &count, nullptr, 0u, &runs, &next);
+        if (FAILED(result))
+            return result;
+        observed.assign(buffer, count);
+        const wchar_t replacement[] = {L'x', L'\0', L'y'};
+        TS_TEXTCHANGE change{};
+        return store->SetText(0u, 0, -1, replacement, 3u, &change);
+    };
+    HRESULT session = E_FAIL;
+    RequireSucceeded(store->RequestLock(TS_LF_READWRITE | TS_LF_SYNC, &session), "counted-NUL TSF lock request");
+    RequireSucceeded(session, "counted-NUL TSF read and write succeed");
+    Require(observed == std::wstring(L"A\0B", 3u) && editor->GetText() == std::wstring(L"x\0y", 3u) && editor->Undo() &&
+                editor->GetText() == std::wstring(L"A\0B", 3u),
+            "TSF uses explicit counts for read, write, and undo across NUL");
+    RequireSucceeded(store->UnadviseSink(&sink), "detach counted-NUL sink");
+}
+
 void TestNativeTextInputTextStoreRequiresLockAndExposesTextSelectionGeometry()
 {
     using namespace DxUi;
@@ -9094,6 +9180,18 @@ void TestNativeTextInputTextStoreExternalRetainedChangesNotifySink()
                 sink.layoutChangeCount == layoutChangesAfterSelection + 1u,
             "native text store notifies only the layout sink after external retained layout change");
 
+    window.Host().DebugSetTextStoreLayoutObserverForTest(store.get());
+    auto layoutBefore = sink.layoutChangeCount;
+    field->SetBounds(D2D1::RectF(9.0f, 5.0f, 282.0f, 46.0f));
+    Require(sink.layoutChangeCount > layoutBefore, "retained bounds changes notify the active text store layout sink");
+    layoutBefore = sink.layoutChangeCount;
+    field->SetFontRole(FontRole::Title);
+    Require(sink.layoutChangeCount > layoutBefore, "text typography changes notify the active text store layout sink");
+    layoutBefore = sink.layoutChangeCount;
+    bool handled = false;
+    window.Host().HandleMessage(window.Hwnd(), WM_MOVE, 0u, 0, handled);
+    Require(sink.layoutChangeCount > layoutBefore, "window moves notify the active text store layout sink");
+    window.Host().DebugSetTextStoreLayoutObserverForTest(nullptr);
     HRESULT layoutUnadviseResult = E_UNEXPECTED;
     bool layoutCallbackCompleted = false;
     sink.onLayoutChange          = [&](TsLayoutCode, TsViewCookie) noexcept
@@ -9647,6 +9745,65 @@ void TestNativeTextInputBackendKeyToPaintMetricScenario()
 
 } // namespace
 
+void TestRichCommandStateDuringNativeComposition()
+{
+    using namespace DxUi;
+    using namespace DxUi::RichText;
+    GraphicsFixture graphics;
+    RequireSucceeded(graphics.Create(), "native composition fixture WARP device");
+    std::shared_ptr<GraphicsDevice> pool;
+    RequireSucceeded(GraphicsDevice::Create(graphics.device.get(), pool), "native composition fixture graphics pool");
+    EmbeddedHost view;
+    RequireSucceeded(view.Attach(pool), "native composition fixture headless host");
+    auto& host  = view.Controls();
+    auto editor = std::make_unique<RichTextEditor>(L"**a**");
+    auto* raw   = editor.get();
+    raw->SetMarkdownAnalysisProfile(MarkdownProfile::Gfm029);
+    raw->SetMarkdownRenderingEnabled(true);
+    host.SetRoot(std::move(editor));
+    host.SetFocusControl(raw, false);
+    raw->SetSelection({3u, 3u});
+    RequireSucceeded(PrepareEmbeddedContentForTests(view, 480u, 240u), "prepare semantic command state for native composition");
+    NativeTextStoreTestSink sink;
+    wil::com_ptr_nothrow<ITextStoreACP> store;
+    store.attach(host.DebugCreateNativeTextInputTextStoreForTest());
+    Require(store != nullptr, "rich command state has a native ACP store");
+    RequireSucceeded(store->AdviseSink(__uuidof(ITextStoreACPSink), &sink, TS_AS_TEXT_CHANGE | TS_AS_SEL_CHANGE), "advise composition state sink");
+    wil::com_ptr_nothrow<ITfContextOwnerCompositionSink> compositions;
+    RequireSucceeded(store.query_to(compositions.put()), "query composition state sink");
+    MarkdownCommandRequest request;
+    request.command = MarkdownCommand::ToggleStyle;
+    request.style   = MarkdownTextStyle::Strong;
+    Require(raw->PrepareMarkdownCommandState(request), "prepare command state before native composition");
+    const auto originalRevision     = raw->Revision();
+    const auto originalSelection    = raw->GetSelection();
+    unsigned selectionNotifications = 0u;
+    raw->SetOnSelectionChanged([&] { ++selectionNotifications; });
+    const auto beforeComposition = raw->QueryMarkdownCommandState(request);
+    Require(beforeComposition && beforeComposition->available == std::optional<bool>{true}, "prepared command is initially available");
+    ClientComposition composition;
+    composition.range.start  = 3;
+    composition.range.length = 0;
+    BOOL accepted            = FALSE;
+    sink.onLockGranted       = [&](DWORD) noexcept { return compositions->OnStartComposition(&composition, &accepted); };
+    HRESULT session          = E_UNEXPECTED;
+    RequireSucceeded(store->RequestLock(TS_LF_READWRITE | TS_LF_SYNC, &session), "start composition state lock");
+    RequireSucceeded(session, "start composition state session");
+    Require(accepted != FALSE, "native composition started");
+    const auto state = raw->QueryMarkdownCommandState(request);
+    Require(state && state->active && state->available == std::optional<bool>{false} &&
+                raw->ExecuteMarkdownCommand(request) == MarkdownCommandStatus::Unavailable && raw->GetText() == L"**a**",
+            "active native composition blocks unresolved commands while retaining style state");
+    sink.onLockGranted = [&](DWORD) noexcept { return compositions->OnEndComposition(&composition); };
+    RequireSucceeded(store->RequestLock(TS_LF_READWRITE | TS_LF_SYNC, &session), "end composition state lock");
+    RequireSucceeded(session, "end composition state session");
+    const auto afterComposition = raw->QueryMarkdownCommandState(request);
+    Require(afterComposition && afterComposition->available == std::optional<bool>{true} && raw->Revision() == originalRevision &&
+                raw->GetSelection() == originalSelection && ! raw->CanUndo() && selectionNotifications == 0u,
+            "unchanged source, selection and policy restore the prepared result after composition ends");
+    RequireSucceeded(store->UnadviseSink(&sink), "unadvise composition state sink");
+}
+
 void TestRichTextNativeTsfCompositionAndDisconnection()
 {
     using namespace DxUi;
@@ -9662,7 +9819,7 @@ void TestRichTextNativeTsfCompositionAndDisconnection()
     wil::com_ptr_nothrow<ITextStoreACP> store;
     store.attach(host.DebugCreateNativeTextInputTextStoreForTest());
     Require(store != nullptr, "rich editor creates the shared native ACP store");
-    RequireSucceeded(store->AdviseSink(__uuidof(ITextStoreACPSink), &sink, TS_AS_TEXT_CHANGE | TS_AS_SEL_CHANGE), "advise rich ACP sink");
+    RequireSucceeded(store->AdviseSink(__uuidof(ITextStoreACPSink), &sink, TS_AS_TEXT_CHANGE | TS_AS_SEL_CHANGE | TS_AS_STATUS_CHANGE), "advise rich ACP sink");
     wil::com_ptr_nothrow<ITfContextOwnerCompositionSink> compositions;
     RequireSucceeded(store.query_to(compositions.put()), "rich ACP store composition sink");
     ClientComposition composition;
@@ -9688,6 +9845,40 @@ void TestRichTextNativeTsfCompositionAndDisconnection()
     RequireSucceeded(store->RequestLock(TS_LF_READWRITE | TS_LF_SYNC, &session), "rich ACP commit lock");
     RequireSucceeded(session, "rich ACP composition commit");
     Require(notices == 1 && raw->Undo() && raw->GetText() == L"**a**" && ! raw->CanUndo(), "TSF composition creates exactly one undo entry");
+    TS_STATUS status{};
+    RequireSucceeded(store->GetStatus(&status), "rich ACP exposes current status");
+    Require((status.dwStaticFlags & TS_SS_MULTILINE) != 0u && (status.dwDynamicFlags & TS_SD_READONLY) == 0u, "rich ACP is multiline and editable");
+    raw->SetReadOnly(true);
+    NotifyTextStoreChanged(store.get());
+    RequireSucceeded(store->GetStatus(&status), "read-only ACP status remains available");
+    Require((status.dwDynamicFlags & TS_SD_READONLY) != 0u && sink.statusChangeCount == 1u && sink.lastStatusFlags == TS_SD_READONLY,
+            "read-only transition reports dynamic status and a status-only notification");
+    LONG rejectedFirst{}, rejectedLast{};
+    Require(store->QueryInsert(0, 0, 1u, &rejectedFirst, &rejectedLast) == TS_E_READONLY, "read-only insert admission uses the TSF read-only result");
+    raw->SetReadOnly(false);
+    NotifyTextStoreChanged(store.get());
+    RequireSucceeded(store->GetStatus(&status), "editable ACP status is restored");
+    Require((status.dwDynamicFlags & TS_SD_READONLY) == 0u && sink.statusChangeCount == 2u && sink.lastStatusFlags == 0u,
+            "returning to editable publishes the complete cleared dynamic status");
+    raw->SetText(std::wstring(RichText::Document::MaximumUnits - 1u, L'x'));
+    const auto end = raw->Snapshot().Length();
+    raw->SetSelection({end, end});
+    Require(store->QueryInsert(static_cast<LONG>(end), static_cast<LONG>(end), 2u, &rejectedFirst, &rejectedLast) == HRESULT_FROM_WIN32(ERROR_BUFFER_OVERFLOW),
+            "native TSF rejects a replacement beyond the rich document ceiling before staging");
+    HRESULT oversizedResult = E_UNEXPECTED, exactResult = E_UNEXPECTED;
+    sink.onLockGranted = [&](DWORD) noexcept
+    {
+        TS_TEXTCHANGE change{};
+        LONG first{}, last{};
+        oversizedResult = store->InsertTextAtSelection(0u, L"yz", 2u, &first, &last, &change);
+        exactResult     = store->InsertTextAtSelection(0u, L"z", 1u, &first, &last, &change);
+        return exactResult;
+    };
+    RequireSucceeded(store->RequestLock(TS_LF_READWRITE | TS_LF_SYNC, &session), "capacity-bound rich ACP lock");
+    RequireSucceeded(session, "the exact-boundary replacement remains committable after an oversized refusal");
+    Require(oversizedResult == HRESULT_FROM_WIN32(ERROR_BUFFER_OVERFLOW) && exactResult == S_OK &&
+                raw->Snapshot().Length() == RichText::Document::MaximumUnits && raw->GetText().back() == L'z',
+            "capacity refusal preserves staged content and accepts exactly one remaining UTF16 unit");
     RequireSucceeded(store->UnadviseSink(&sink), "unadvise retained rich ACP sink");
     host.SetRoot(std::make_unique<Label>(L"replacement"));
     LONG first = 0, last = 0;
@@ -9699,6 +9890,7 @@ void TestRichTextNativeTsfCompositionAndDisconnection()
 
 void RunRichTextStoreTests()
 {
+    DXUI_RUN_TEST(TestRichCommandStateDuringNativeComposition);
     DXUI_RUN_TEST(TestRichTextNativeTsfCompositionAndDisconnection);
 }
 
@@ -9758,6 +9950,7 @@ void RunNativeTextInputTests()
     DXUI_RUN_TEST(TestNativeTextInputBackendEditableComboExactMatchCommandsSyncSelection);
     DXUI_RUN_TEST(TestNativeTextInputBackendEditableComboDeleteKeysAndPathWordDeleteSyncState);
     DXUI_RUN_TEST(TestNativeTextInputBackendLeavesASystemCharacterToTheSystem);
+    DXUI_RUN_TEST(TestNativeRichTextStoreCountedNul);
     DXUI_RUN_TEST(TestNativeTextInputTextStoreRequiresLockAndExposesTextSelectionGeometry);
     DXUI_RUN_TEST(TestNativeTextInputTextStoreRejectsDestroyedControlDuringTeardown);
     DXUI_RUN_TEST(TestNativeTextInputTextStoreExposesOwnerCompositionSink);

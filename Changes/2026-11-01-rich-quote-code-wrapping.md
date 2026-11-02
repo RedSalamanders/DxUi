@@ -1,0 +1,1 @@
+- Wrap quote-contained Markdown paragraphs in fences while preserving their physical container prefixes.

@@ -1,7 +1,9 @@
 #include "TextClipboard.h"
+#include <charconv>
 #include <cstring>
 #include <cwchar>
 #include <limits>
+#include <ole2.h>
 #include <shlobj.h>
 
 namespace DxUi
@@ -31,7 +33,11 @@ HRESULT ReadUnicodeClipboardData(HANDLE data, std::wstring& text) noexcept
     const auto unlock = wil::scope_exit([&]() noexcept { GlobalUnlock(data); });
     return DecodeClipboardText(std::span(value, bytes / sizeof(wchar_t)), text);
 }
-class WindowsTextClipboard final : public TextClipboard, public StructuredTextClipboard
+class WindowsTextClipboard final : public TextClipboard,
+                                   public StructuredTextClipboard,
+                                   public SelectiveStructuredTextClipboard,
+                                   public BitmapStructuredTextClipboard,
+                                   public HtmlTextClipboardWriter
 {
 public:
     HRESULT Read(HWND owner, std::wstring& text) noexcept override
@@ -46,6 +52,14 @@ public:
         return ReadUnicodeClipboardData(calls.getData(CF_UNICODETEXT), text);
     }
     HRESULT ReadContent(HWND owner, TextClipboardContent& content) noexcept override
+    {
+        return ReadSelectedContent(owner, content, true, false);
+    }
+    HRESULT ReadSelectedContent(HWND owner, TextClipboardContent& content, bool includeFiles, bool includeHtml) noexcept override
+    {
+        return ReadSelectedBitmapContent(owner, content, includeFiles, includeHtml, false);
+    }
+    HRESULT ReadSelectedBitmapContent(HWND owner, TextClipboardContent& content, bool includeFiles, bool includeHtml, bool includeBitmap) noexcept override
     try
     {
         if (! owner)
@@ -55,25 +69,73 @@ public:
         if (! calls.open(owner))
             return LastClipboardError();
         const auto close = wil::scope_exit([&calls]() noexcept { calls.close(); });
-        if (const auto data = calls.getData(CF_HDROP))
-        {
-            const auto bytes   = GlobalSize(data);
-            const auto* buffer = static_cast<const std::byte*>(GlobalLock(data));
-            if (! buffer)
-                return LastClipboardError();
-            const auto unlock = wil::scope_exit([&]() noexcept { GlobalUnlock(data); });
-            const auto result = DecodeClipboardFilePaths(std::span(buffer, bytes), staged);
-            if (result == S_OK)
+        if (includeFiles)
+            if (const auto data = calls.getData(CF_HDROP))
             {
-                content.Swap(staged);
-                return S_OK;
+                const auto bytes   = GlobalSize(data);
+                const auto* buffer = static_cast<const std::byte*>(GlobalLock(data));
+                if (! buffer)
+                    return LastClipboardError();
+                const auto unlock = wil::scope_exit([&]() noexcept { GlobalUnlock(data); });
+                const auto result = DecodeClipboardFilePaths(std::span(buffer, bytes), staged);
+                if (result == S_OK)
+                {
+                    content.Swap(staged);
+                    return S_OK;
+                }
+                if (FAILED(result))
+                    return result;
             }
-            if (FAILED(result))
-                return result;
-        }
+        if (includeBitmap)
+            for (const auto format : {UINT{CF_DIBV5}, UINT{CF_DIB}})
+                if (const auto data = calls.getData(format))
+                {
+                    const auto bytes = GlobalSize(data);
+                    if (bytes > TextClipboardContent::MaximumBitmapBytes)
+                        continue;
+                    const auto* buffer = static_cast<const std::byte*>(GlobalLock(data));
+                    if (! buffer)
+                        continue;
+                    const auto unlock = wil::scope_exit([&]() noexcept { GlobalUnlock(data); });
+                    const auto bitmap = DecodeClipboardBitmap(std::span(buffer, bytes), format == CF_DIBV5, staged);
+                    if (bitmap == E_OUTOFMEMORY)
+                        return bitmap;
+                    if (bitmap == S_OK)
+                    {
+                        content.Swap(staged);
+                        return S_OK;
+                    }
+                }
         const auto result = ReadUnicodeClipboardData(calls.getData(CF_UNICODETEXT), staged.text);
-        if (result == S_OK)
+        if (FAILED(result))
+            return result;
+        const auto htmlFormat = includeHtml ? RegisterClipboardFormatW(L"HTML Format") : 0u;
+        if (htmlFormat)
+            if (const auto data = calls.getData(htmlFormat))
+            {
+                const auto bytes   = GlobalSize(data);
+                const auto* buffer = static_cast<const std::byte*>(GlobalLock(data));
+                if (buffer)
+                {
+                    const auto unlock = wil::scope_exit([&]() noexcept { GlobalUnlock(data); });
+                    // MSVC Debug's empty size constructor reports proxy OOM to
+                    // this HRESULT boundary; its default constructor is noexcept.
+                    std::wstring fragment(0u, L' ');
+                    const auto htmlResult = DecodeClipboardHtml(std::span(buffer, bytes), fragment);
+                    if (htmlResult == E_OUTOFMEMORY)
+                        return htmlResult;
+                    if (htmlResult == S_OK)
+                    {
+                        staged.htmlFragment.swap(fragment);
+                        staged.hasHtmlFragment = true;
+                    }
+                }
+            }
+        if (result == S_OK || staged.hasHtmlFragment)
+        {
             content.Swap(staged);
+            return S_OK;
+        }
         return result;
     }
     catch (const std::bad_alloc&)
@@ -109,12 +171,165 @@ public:
         static_cast<void>(memory.release());
         return S_OK;
     }
+    HRESULT WriteExport(HWND owner, const RichText::ExportContent& content) noexcept override
+    try
+    {
+        if (! owner || content.Text().find(L'\0') != std::wstring_view::npos)
+            return E_INVALIDARG;
+        std::string html(0u, '\0');
+        RETURN_IF_FAILED(EncodeClipboardHtml(content.HtmlFragment(), html));
+        size_t textBytes{};
+        RETURN_IF_FAILED(ClipboardAllocationSize(content.Text().size(), textBytes));
+        const auto format = RegisterClipboardFormatW(L"HTML Format");
+        if (! format)
+            return LastClipboardError();
+        const auto& calls = ClipboardCalls();
+        wil::unique_hglobal textMemory(calls.allocate(GMEM_MOVEABLE, textBytes));
+        wil::unique_hglobal htmlMemory(calls.allocate(GMEM_MOVEABLE, html.size() + 1u));
+        if (! textMemory || ! htmlMemory)
+            return E_OUTOFMEMORY;
+        auto* textValue = static_cast<wchar_t*>(GlobalLock(textMemory.get()));
+        if (! textValue)
+            return LastClipboardError();
+        {
+            const auto unlock = wil::scope_exit([&]() noexcept { GlobalUnlock(textMemory.get()); });
+            std::memcpy(textValue, content.Text().data(), content.Text().size() * sizeof(wchar_t));
+            textValue[content.Text().size()] = L'\0';
+        }
+        auto* htmlValue = static_cast<char*>(GlobalLock(htmlMemory.get()));
+        if (! htmlValue)
+            return LastClipboardError();
+        {
+            const auto unlock = wil::scope_exit([&]() noexcept { GlobalUnlock(htmlMemory.get()); });
+            std::memcpy(htmlValue, html.data(), html.size());
+            htmlValue[html.size()] = '\0';
+        }
+        if (! calls.open(owner))
+            return LastClipboardError();
+        const auto close = wil::scope_exit([&calls]() noexcept { calls.close(); });
+        if (! calls.empty() || ! calls.setData(CF_UNICODETEXT, textMemory.get()))
+            return LastClipboardError();
+        static_cast<void>(textMemory.release());
+        if (! calls.setData(format, htmlMemory.get()))
+            return LastClipboardError();
+        static_cast<void>(htmlMemory.release());
+        return S_OK;
+    }
+    catch (const std::bad_alloc&)
+    {
+        // Clipboard allocation failures are explicit and never delete source.
+        return E_OUTOFMEMORY;
+    }
 };
 } // namespace
 #if DXUI_ENABLE_DIAGNOSTICS
 thread_local TextClipboard* testTextClipboard                     = nullptr;
 thread_local const ClipboardSystemCalls* testClipboardSystemCalls = nullptr;
 #endif
+HRESULT EncodeClipboardHtml(std::wstring_view fragment, std::string& bytes) noexcept
+try
+{
+    if (fragment.size() > RichText::ExportContent::MaximumUnits || fragment.find(L'\0') != fragment.npos)
+        return E_INVALIDARG;
+    // RichDocument::EncodeUtf8 enforces the 64 Ki source-document ceiling.
+    // Export markup has a separate 4 Mi-unit bound; use the same strict Windows
+    // UTF-16 conversion here without admitting an oversized source document.
+    const auto count =
+        fragment.empty() ? 0
+                         : WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, fragment.data(), static_cast<int>(fragment.size()), nullptr, 0, nullptr, nullptr);
+    if (! fragment.empty() && ! count)
+        return E_INVALIDARG;
+    constexpr std::string_view header = "Version:1.0\r\nStartHTML:0000000000\r\nEndHTML:0000000000\r\nStartFragment:0000000000\r\nEndFragment:0000000000\r\n";
+    constexpr std::string_view prefix = "<html><body><!--StartFragment-->", suffix = "<!--EndFragment--></body></html>";
+    std::string staged(header);
+    staged.append(prefix);
+    const auto first = staged.size();
+    staged.resize(first + static_cast<size_t>(count));
+    if (count &&
+        WideCharToMultiByte(
+            CP_UTF8, WC_ERR_INVALID_CHARS, fragment.data(), static_cast<int>(fragment.size()), staged.data() + first, count, nullptr, nullptr) != count)
+        return HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
+    const auto last = staged.size();
+    staged.append(suffix);
+    const auto writeOffset = [&](std::string_view name, size_t offset)
+    {
+        const auto at = header.find(name) + name.size();
+        std::array<char, 20u> digits{};
+        const auto result = std::to_chars(digits.data(), digits.data() + digits.size(), offset);
+        const auto length = static_cast<size_t>(result.ptr - digits.data());
+        if (result.ec != std::errc{} || length > 10u)
+            throw std::length_error("Clipboard HTML offset capacity exceeded");
+        std::memcpy(staged.data() + at + 10u - length, digits.data(), length);
+    };
+    writeOffset("StartHTML:", header.size());
+    writeOffset("EndHTML:", staged.size());
+    writeOffset("StartFragment:", first);
+    writeOffset("EndFragment:", last);
+    bytes.swap(staged);
+    return S_OK;
+}
+catch (const std::bad_alloc&)
+{
+    return E_OUTOFMEMORY;
+}
+catch (const std::length_error&)
+{
+    return HRESULT_FROM_WIN32(ERROR_BUFFER_OVERFLOW);
+}
+HRESULT DecodeClipboardHtml(std::span<const std::byte> buffer, std::wstring& fragment) noexcept
+try
+{
+    constexpr size_t maximumBytes = 4u * 65536u + 4096u;
+    if (buffer.empty() || buffer.size() > maximumBytes)
+        return HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
+    const auto bytes      = std::string_view(reinterpret_cast<const char*>(buffer.data()), buffer.size());
+    const auto readOffset = [&](std::string_view key, size_t& result) noexcept
+    {
+        const auto header = bytes.substr(0u, (std::min)(bytes.size(), size_t{4096u}));
+        auto at           = header.find(key);
+        if (at == header.npos || (at && header[at - 1u] != '\n'))
+            return false;
+        at += key.size();
+        auto end = at;
+        while (end < header.size() && header[end] >= '0' && header[end] <= '9')
+            ++end;
+        if (end == at || end == header.size() || (header[end] != '\r' && header[end] != '\n'))
+            return false;
+        const auto parsed = std::from_chars(header.data() + at, header.data() + end, result);
+        return parsed.ec == std::errc{} && parsed.ptr == header.data() + end;
+    };
+    size_t htmlFirst{}, htmlLast{}, first{}, last{};
+    if (! readOffset("StartHTML:", htmlFirst) || ! readOffset("EndHTML:", htmlLast) || ! readOffset("StartFragment:", first) ||
+        ! readOffset("EndFragment:", last) || htmlFirst > first || first > last || last > htmlLast || htmlLast > bytes.size())
+        return HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
+    const auto header = bytes.substr(0u, htmlFirst);
+    for (const auto key : {std::string_view{"StartHTML:"}, std::string_view{"EndHTML:"}, std::string_view{"StartFragment:"}, std::string_view{"EndFragment:"}})
+    {
+        const auto at = header.find(key);
+        if (at == header.npos || header.find(key, at + key.size()) != header.npos)
+            return HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
+    }
+    const auto html = bytes.substr(first, last - first);
+    if (html.find('\0') != html.npos || html.size() > static_cast<size_t>((std::numeric_limits<int>::max)()))
+        return HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
+    if (html.empty())
+    {
+        fragment.clear();
+        return S_OK;
+    }
+    const auto length = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, html.data(), static_cast<int>(html.size()), nullptr, 0);
+    if (! length || length > 65536)
+        return HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
+    std::wstring staged(static_cast<size_t>(length), L'\0');
+    if (MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, html.data(), static_cast<int>(html.size()), staged.data(), length) != length)
+        return HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
+    fragment.swap(staged);
+    return S_OK;
+}
+catch (const std::bad_alloc&)
+{
+    return E_OUTOFMEMORY;
+}
 HRESULT ClipboardAllocationSize(size_t textUnits, size_t& bytes) noexcept
 {
     bytes = 0;
@@ -164,6 +379,63 @@ HRESULT DecodeClipboardText(std::span<const wchar_t> buffer, std::wstring& text)
         return E_OUTOFMEMORY;
     }
 }
+HRESULT DecodeClipboardBitmap(std::span<const std::byte> buffer, bool v5, TextClipboardContent& content) noexcept
+try
+{
+    if (buffer.size() < sizeof(BITMAPINFOHEADER) || buffer.size() > TextClipboardContent::MaximumBitmapBytes)
+        return HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
+    BITMAPINFOHEADER header{};
+    std::memcpy(&header, buffer.data(), sizeof(header));
+    if ((header.biSize != sizeof(BITMAPINFOHEADER) && header.biSize != sizeof(BITMAPV4HEADER) && header.biSize != sizeof(BITMAPV5HEADER)) ||
+        (v5 && header.biSize != sizeof(BITMAPV5HEADER)) || header.biSize > buffer.size() || header.biWidth <= 0 || header.biWidth > 8192 ||
+        header.biHeight == 0 || header.biHeight < -8192 || header.biHeight > 8192 || header.biPlanes != 1u || header.biClrUsed != 0u ||
+        (header.biBitCount != 24u && header.biBitCount != 32u) ||
+        (header.biCompression != BI_RGB && (header.biCompression != BI_BITFIELDS || header.biBitCount != 32u)))
+        return HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
+    if (header.biSize == sizeof(BITMAPV5HEADER))
+    {
+        BITMAPV5HEADER extended{};
+        std::memcpy(&extended, buffer.data(), sizeof(extended));
+        if (extended.bV5ProfileData || extended.bV5ProfileSize)
+            return HRESULT_FROM_WIN32(ERROR_NOT_SUPPORTED);
+    }
+    std::size_t offset = header.biSize;
+    if (header.biCompression == BI_BITFIELDS && header.biSize == sizeof(BITMAPINFOHEADER))
+        offset += 3u * sizeof(DWORD);
+    if (offset > buffer.size())
+        return HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
+    if (header.biCompression == BI_BITFIELDS)
+    {
+        DWORD masks[3]{};
+        const auto maskOffset = header.biSize == sizeof(BITMAPINFOHEADER) ? sizeof(BITMAPINFOHEADER) : offsetof(BITMAPV4HEADER, bV4RedMask);
+        std::memcpy(masks, buffer.data() + maskOffset, sizeof(masks));
+        if (! masks[0] || ! masks[1] || ! masks[2] || (masks[0] & masks[1]) || (masks[0] & masks[2]) || (masks[1] & masks[2]))
+            return HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
+        if (header.biSize >= sizeof(BITMAPV4HEADER))
+        {
+            DWORD alpha{};
+            std::memcpy(&alpha, buffer.data() + offsetof(BITMAPV4HEADER, bV4AlphaMask), sizeof(alpha));
+            if (alpha & (masks[0] | masks[1] | masks[2]))
+                return HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
+        }
+    }
+    const auto height = static_cast<std::size_t>(header.biHeight < 0 ? -header.biHeight : header.biHeight);
+    const auto stride = ((static_cast<std::size_t>(header.biWidth) * header.biBitCount + 31u) / 32u) * 4u;
+    if (height > (TextClipboardContent::MaximumBitmapBytes - offset) / stride)
+        return HRESULT_FROM_WIN32(ERROR_BUFFER_OVERFLOW);
+    const auto pixels = stride * height;
+    if (pixels > buffer.size() - offset || (header.biSizeImage && header.biSizeImage != pixels))
+        return HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
+    std::vector<std::byte> staged(0u);
+    staged.assign(buffer.begin(), buffer.begin() + static_cast<std::ptrdiff_t>(offset + pixels));
+    content.bitmapDib.swap(staged);
+    content.bitmapV5 = v5;
+    return S_OK;
+}
+catch (const std::bad_alloc&)
+{
+    return E_OUTOFMEMORY;
+}
 HRESULT DecodeClipboardFilePaths(std::span<const std::byte> buffer, TextClipboardContent& content) noexcept
 try
 {
@@ -209,12 +481,77 @@ catch (const std::bad_alloc&)
 {
     return E_OUTOFMEMORY;
 }
-HRESULT ReadTextClipboardContent(TextClipboard& clipboard, HWND owner, TextClipboardContent& content, bool includeFiles) noexcept
+HRESULT ReadDataObjectFilePaths(IDataObject* dataObject, TextClipboardContent& content) noexcept
 try
 {
-    if (includeFiles)
+    if (! dataObject)
+        return E_INVALIDARG;
+    FORMATETC format{CF_HDROP, nullptr, DVASPECT_CONTENT, -1, TYMED_HGLOBAL};
+    STGMEDIUM medium{};
+    const HRESULT hr = dataObject->GetData(&format, &medium);
+    if (FAILED(hr))
+        return hr;
+    const auto release = wil::scope_exit([&] noexcept { ReleaseStgMedium(&medium); });
+    if (medium.tymed != TYMED_HGLOBAL || ! medium.hGlobal)
+        return DV_E_TYMED;
+    constexpr SIZE_T maximumBytes = 256u * 1024u;
+    const auto bytes              = GlobalSize(medium.hGlobal);
+    if (bytes > maximumBytes)
+        return HRESULT_FROM_WIN32(ERROR_BUFFER_OVERFLOW);
+    if (bytes < sizeof(DROPFILES))
+        return HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
+    const auto* data = static_cast<const std::byte*>(GlobalLock(medium.hGlobal));
+    if (! data)
+    {
+        const auto error = GetLastError();
+        return HRESULT_FROM_WIN32(error ? error : ERROR_INVALID_DATA);
+    }
+    const auto unlock = wil::scope_exit([&] noexcept { static_cast<void>(GlobalUnlock(medium.hGlobal)); });
+    return DecodeClipboardFilePaths(std::span(data, bytes), content);
+}
+catch (const std::bad_alloc&)
+{
+    return E_OUTOFMEMORY;
+}
+catch (const std::exception&)
+{
+    // A foreign IDataObject must not propagate an exception across OLE.
+    return E_FAIL;
+}
+HRESULT ReadTextClipboardContent(TextClipboard& clipboard, HWND owner, TextClipboardContent& content, bool includeFiles) noexcept
+{
+    return ReadTextClipboardContent(clipboard, owner, content, includeFiles, false);
+}
+HRESULT ReadTextClipboardContent(TextClipboard& clipboard, HWND owner, TextClipboardContent& content, bool includeFiles, bool includeHtml) noexcept
+{
+    return ReadTextClipboardContent(clipboard, owner, content, includeFiles, includeHtml, false);
+}
+HRESULT ReadTextClipboardContent(
+    TextClipboard& clipboard, HWND owner, TextClipboardContent& content, bool includeFiles, bool includeHtml, bool includeBitmap) noexcept
+try
+{
+    if (includeBitmap)
+        if (auto* bitmap = dynamic_cast<BitmapStructuredTextClipboard*>(&clipboard))
+            return bitmap->ReadSelectedBitmapContent(owner, content, includeFiles, includeHtml, true);
+    if (includeFiles || includeHtml)
+    {
+        if (auto* selective = dynamic_cast<SelectiveStructuredTextClipboard*>(&clipboard))
+            return selective->ReadSelectedContent(owner, content, includeFiles, includeHtml);
         if (auto* structured = dynamic_cast<StructuredTextClipboard*>(&clipboard))
-            return structured->ReadContent(owner, content);
+        {
+            if (includeFiles && ! includeHtml)
+                return structured->ReadContent(owner, content);
+            TextClipboardContent staged;
+            const auto result = structured->ReadContent(owner, staged);
+            if (result != S_OK)
+                return result;
+            if (! includeFiles && ! staged.filePaths.empty())
+                return S_FALSE; // A legacy transport cannot re-read another format within the same ownership attempt.
+
+            content.Swap(staged);
+            return S_OK;
+        }
+    }
     TextClipboardContent staged;
     const auto result = clipboard.Read(owner, staged.text);
     if (result == S_OK)
@@ -237,5 +574,12 @@ TextClipboard& ActiveTextClipboard() noexcept
         return *testTextClipboard;
 #endif
     return SystemTextClipboard();
+}
+HRESULT CopyExportToClipboard(HWND owner, const RichText::ExportContent& content, TextClipboard* clipboard) noexcept
+{
+    auto& target = clipboard ? *clipboard : ActiveTextClipboard();
+    if (auto* html = dynamic_cast<HtmlTextClipboardWriter*>(&target))
+        return html->WriteExport(owner, content);
+    return target.Write(owner, content.Text());
 }
 } // namespace DxUi

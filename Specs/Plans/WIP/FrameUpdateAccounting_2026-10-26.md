@@ -24,3 +24,7 @@ The outer frame timer already records pending work. Its nested Update timer was 
 Use canonical `build.ps1`, `test.ps1`, `Test-Changes.ps1 -Explain` and PrePush accounting. The focused case is `TestAttachedHostUpdateMetricsIncludePendingPreparation` in the Rendering suite. Its one-millisecond fixture delay establishes only a nonzero counter interval; it is not a performance threshold or product timing assertion. Keep source/binary/compiler bindings and all failed runs. No consumer pin moves implicitly; RedTilde's earlier diagnostics remain bound to SDK4077 and retain the incomplete stage-field boundary.
 
 Durable semantics belong in [Core_PerformanceAndResources](../../Core/Core_PerformanceAndResources.md). The aggregate redesign and original-UI performance follow-up remains owned by RedTilde's `RedesignCompletionAndRendering_2026-10-24` plan.
+
+## Current-source disposition — 1 November 2026
+
+The recorded hosted matrix is historical implementation evidence, not the current candidate. Source-matched performance acceptance remains open under the shared policy and ConsumerUiQualification; preserve the earlier Menu failure without assigning it a cause from a later pass.

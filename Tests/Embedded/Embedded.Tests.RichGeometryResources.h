@@ -1,10 +1,108 @@
+#include "Controls/TextClipboard.h"
+#include "Support.Tests.ClipboardFixture.h"
 #pragma once
+#include "Controls/DxUi.PaintIndex.h"
+#include "Controls/DxUi.PreparedMath.h"
+#include "Controls/DxUi.RichSourceGuides.h"
 #include <DxUi/RichTextLayout.h>
+static void TestPaintIndexTransactionalBuild()
+{
+    using DxUi::RichText::Detail::PaintIndex;
+    const std::array<D2D1_RECT_F, 2u> original{{{0.f, 0.f, 10.f, 10.f}, {0.f, 50.f, 10.f, 60.f}}};
+    const std::array<D2D1_RECT_F, 1u> replacement{{{0.f, 100.f, 10.f, 110.f}}};
+    PaintIndex index;
+    index.Build(original.size(), [&](size_t i) { return original[i]; });
+    const auto count = [&](float top, float bottom)
+    {
+        size_t result{};
+        index.ForEach(top, bottom, [&](size_t) { ++result; });
+        return result;
+    };
+    Check(count(0.f, 5.f) == 1u && count(10.f, 11.f) == 1u, "paint index includes exact-boundary stroke ink");
+    bool failed{};
+    {
+        const auto oldFailure = failAllocationAfter;
+        const auto restore    = wil::scope_exit([=]() noexcept { failAllocationAfter = oldFailure; });
+        failAllocationAfter   = 0u;
+        try
+        {
+            index.Build(replacement.size(), [&](size_t i) { return replacement[i]; });
+        }
+        catch (const std::bad_alloc&)
+        {
+            failed = true;
+        }
+    }
+    Check(failed && count(0.f, 5.f) == 1u && count(100.f, 105.f) == 0u, "failed index rebuild retains the old immutable tree");
+    index.Build(replacement.size(), [&](size_t i) { return replacement[i]; });
+    Check(count(0.f, 5.f) == 0u && count(100.f, 105.f) == 1u, "a second index build replaces the prior tree");
+    index.Build(0u, [&](size_t i) { return replacement[i]; });
+    Check(count(100.f, 105.f) == 0u, "empty index rebuild clears the prior tree");
+}
 static wil::com_ptr<IDWriteFactory> RichGeometryFactory()
 {
     wil::com_ptr<IDWriteFactory> factory;
     Hr(DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), reinterpret_cast<IUnknown**>(factory.put())), "rich resource DWrite factory");
     return factory;
+}
+static void TestMathPreparationAllocationFailures(const wchar_t* source)
+{
+    using namespace DxUi::RichText;
+    const auto factory    = RichGeometryFactory();
+    const auto expression = std::make_shared<const MathExpression>(ParseMath(source));
+    Check(static_cast<bool>(*expression), "math allocation fixture has an admitted formula");
+    const auto prepare = [&]
+    {
+        auto result = std::make_unique<Detail::PreparedMath>(factory.get(), expression, 24.f);
+        while (! result->Advance())
+        {
+        }
+        return result;
+    };
+    const auto retained = prepare();
+    const auto original = retained->Size();
+    std::size_t points{};
+    {
+        const auto oldCounting = countAllocations;
+        const auto oldCalls = allocations, oldBytes = allocationBytes;
+        const auto restore = wil::scope_exit([=]() noexcept
+        {
+            countAllocations = oldCounting;
+            allocations      = oldCalls;
+            allocationBytes  = oldBytes;
+        });
+        allocations = allocationBytes = 0u;
+        countAllocations              = true;
+        const auto measured           = prepare();
+        points                        = allocations;
+    }
+    Check(points > 0u && points < 4096u, "math preparation has a bounded observed allocation schedule");
+    for (size_t point = 0u; point < points; ++point)
+    {
+        bool failed{};
+        {
+            const auto previous = failAllocationAfter;
+            const auto restore  = wil::scope_exit([=]() noexcept { failAllocationAfter = previous; });
+            failAllocationAfter = point;
+            try
+            {
+                static_cast<void>(prepare());
+            }
+            catch (const std::bad_alloc&)
+            {
+                failed = true;
+            }
+        }
+        Check(failed && retained->Size().width == original.width && retained->Size().height == original.height,
+              "math preparation allocation failure preserves the prior complete formula");
+        const auto retried = prepare();
+        Check(retried->Size().width == original.width && retried->Size().height == original.height, "math preparation retries after each allocation failure");
+    }
+}
+static void TestMathKernPreparationAllocationFailures()
+{
+    TestMathPreparationAllocationFailures(L"1_1^1");
+    TestMathPreparationAllocationFailures(L"\\textcolor{white}{\\fcolorbox{blue}{black}{hello}}+\\color{blue}x^2");
 }
 static void TestRichPreparedLayoutClearAllocationBudget(bool trace = false)
 {
@@ -286,6 +384,471 @@ static void TestRichDocumentGeometryMaximumStorageBudget()
     }
     // DirectWrite's own private heaps are outside this executable's C++ hooks;
     // the COM graph count is bounded independently, not reported as heap bytes.
+}
+static void TestEmbeddedSemanticReusePixels(GraphicsFixture& gpu)
+{
+    using namespace DxUi;
+    std::wstring source = L"- one\n- two\n\n| a | b |\n| --- | --- |\n| c | d |\n\n"
+                          L"A formula $x^2$ and ![image](example.png).\n\n"
+                          L"```mermaid\ngraph LR;A[Draft]-->B[Ready]\n```\n\n```cpp\nint value = 42;\n```\n\n";
+    for (unsigned i = 0u; i < 100u; ++i)
+        source += L"**Styled** paragraph and Unicode \u03b2.\n\n";
+    std::shared_ptr<GraphicsDevice> graphics;
+    Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "semantic reuse pixel graphics");
+    EmbeddedHost reused, fresh;
+    Hr(reused.Attach(graphics), "attach reused pixel view");
+    Hr(fresh.Attach(graphics), "attach fresh pixel view");
+    auto first         = std::make_unique<RichTextEditor>(source);
+    auto second        = std::make_unique<RichTextEditor>(source);
+    auto* firstEditor  = first.get();
+    auto* secondEditor = second.get();
+    for (auto* editor : {firstEditor, secondEditor})
+    {
+        editor->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::RichMarkdown);
+        editor->SetMarkdownRenderingEnabled(true);
+        auto appearance                 = editor->GetAppearance();
+        appearance.markdownPresentation = RichText::MarkdownPresentationStyle::Subtle;
+        editor->SetAppearance(appearance);
+    }
+    reused.Controls().SetRoot(std::move(first));
+    fresh.Controls().SetRoot(std::move(second));
+    Hr(PrepareRichEmbeddedContent(reused, 480u, 240u), "prepare initial semantic pixels");
+    firstEditor->SetSelection({3u, 3u});
+    Check(firstEditor->ReplaceSelection(L"x"), "edit semantic pixel source");
+    secondEditor->SetText(firstEditor->GetText());
+    Hr(PrepareRichEmbeddedContent(reused, 480u, 240u), "prepare reused semantic pixels");
+    Hr(PrepareRichEmbeddedContent(fresh, 480u, 240u), "prepare fresh semantic pixels");
+    Check(firstEditor->DebugGetState().reusedGeometryChunks > 0u, "pixel comparison exercises actual semantic layout reuse");
+    Hr(gpu.Resize(480u, 240u), "resize semantic pixel fixture");
+    std::vector<uint8_t> reusedPixels, freshPixels;
+    gpu.Bind();
+    Hr(reused.Composite(gpu.context.get(), gpu.Viewport()), "composite reused semantic pixels");
+    Hr(gpu.Read(reusedPixels), "read reused semantic pixels");
+    gpu.Bind();
+    Hr(fresh.Composite(gpu.context.get(), gpu.Viewport()), "composite fresh semantic pixels");
+    Hr(gpu.Read(freshPixels), "read fresh semantic pixels");
+    Check(reusedPixels == freshPixels, "reused semantic layouts match a fresh WARP render byte for byte");
+}
+
+static void TestHtmlClipboardFragment()
+{
+    using namespace DxUi;
+    BITMAPINFOHEADER dibHeader{};
+    dibHeader.biSize      = sizeof(dibHeader);
+    dibHeader.biWidth     = 2;
+    dibHeader.biHeight    = 2;
+    dibHeader.biPlanes    = 1u;
+    dibHeader.biBitCount  = 32u;
+    dibHeader.biSizeImage = 16u;
+    std::vector<std::byte> dib(sizeof(dibHeader) + 16u);
+    std::memcpy(dib.data(), &dibHeader, sizeof(dibHeader));
+    TextClipboardContent decodedBitmap;
+    Check(DecodeClipboardBitmap(dib, false, decodedBitmap) == S_OK && decodedBitmap.bitmapDib == dib && ! decodedBitmap.bitmapV5,
+          "packed DIB decoder copies a bounded independent bitmap");
+    std::size_t bitmapAllocations{};
+    {
+        const auto oldCounting = countAllocations;
+        const auto oldCalls = allocations, oldBytes = allocationBytes;
+        const auto restore = wil::scope_exit([=]() noexcept
+        {
+            countAllocations = oldCounting;
+            allocations      = oldCalls;
+            allocationBytes  = oldBytes;
+        });
+        allocations = allocationBytes = 0u;
+        countAllocations              = true;
+        Check(DecodeClipboardBitmap(dib, false, decodedBitmap) == S_OK, "measure bitmap copy allocation points");
+        countAllocations  = false;
+        bitmapAllocations = allocations;
+    }
+    Check(bitmapAllocations > 0u && bitmapAllocations < 32u, "bitmap copy has a bounded allocation schedule");
+    for (std::size_t point = 0u; point < bitmapAllocations; ++point)
+    {
+        TextClipboardContent output;
+        output.text           = L"sentinel";
+        const auto oldFailure = failAllocationAfter;
+        failAllocationAfter   = point;
+        const auto result     = DecodeClipboardBitmap(dib, false, output);
+        failAllocationAfter   = oldFailure;
+        Check(result == E_OUTOFMEMORY && output.text == L"sentinel" && output.bitmapDib.empty(), "bitmap allocation failure publishes no partial content");
+    }
+    const auto retainedBitmap = decodedBitmap.bitmapDib;
+    Check(FAILED(DecodeClipboardBitmap(std::span(dib).first(dib.size() - 1u), false, decodedBitmap)) && decodedBitmap.bitmapDib == retainedBitmap,
+          "truncated bitmap rejection preserves the prior output");
+    dibHeader.biWidth = 8193;
+    std::memcpy(dib.data(), &dibHeader, sizeof(dibHeader));
+    Check(FAILED(DecodeClipboardBitmap(dib, false, decodedBitmap)) && decodedBitmap.bitmapDib == retainedBitmap,
+          "oversized bitmap dimensions are rejected without publication");
+    const std::string body = "<b>hello</b>";
+    const auto header = std::format("Version:1.0\r\nStartHTML:{:010}\r\nEndHTML:{:010}\r\nStartFragment:{:010}\r\nEndFragment:{:010}\r\n", 105, 117, 105, 117);
+    Check(header.size() == 105u, "CF_HTML test header has stable byte offsets");
+    const auto bytes      = header + body;
+    std::wstring fragment = L"sentinel";
+    Check(DecodeClipboardHtml(std::as_bytes(std::span(bytes.data(), bytes.size())), fragment) == S_OK && fragment == L"<b>hello</b>",
+          "CF_HTML decoder honors byte offsets and UTF-8");
+    std::string utf8Body = "<b>";
+    utf8Body.push_back(static_cast<char>(0xe6));
+    utf8Body.push_back(static_cast<char>(0x9d));
+    utf8Body.push_back(static_cast<char>(0xb1));
+    utf8Body += "</b>";
+    const auto utf8End = 105u + utf8Body.size();
+    const auto utf8Header =
+        std::format("Version:1.0\r\nStartHTML:{:010}\r\nEndHTML:{:010}\r\nStartFragment:{:010}\r\nEndFragment:{:010}\r\n", 105u, utf8End, 105u, utf8End);
+    const auto utf8Bytes = utf8Header + utf8Body;
+    Check(DecodeClipboardHtml(std::as_bytes(std::span(utf8Bytes.data(), utf8Bytes.size())), fragment) == S_OK && fragment == L"<b>\u6771</b>",
+          "CF_HTML byte offsets preserve a multibyte UTF-8 fragment");
+    auto invalid                 = bytes;
+    invalid[invalid.size() - 1u] = static_cast<char>(0xff);
+    fragment                     = L"sentinel";
+    Check(FAILED(DecodeClipboardHtml(std::as_bytes(std::span(invalid.data(), invalid.size())), fragment)) && fragment == L"sentinel",
+          "invalid UTF-8 does not publish a fragment");
+    fragment              = L"sentinel";
+    const auto oldFailure = failAllocationAfter;
+    failAllocationAfter   = 0u;
+    const auto failed     = DecodeClipboardHtml(std::as_bytes(std::span(bytes.data(), bytes.size())), fragment);
+    failAllocationAfter   = oldFailure;
+    Check(failed == E_OUTOFMEMORY && fragment == L"sentinel", "HTML allocation failure preserves the prior output");
+    auto owner = reinterpret_cast<HWND>(1);
+    ClipboardTransportFixture transport(owner, Check);
+    transport.htmlData.reset(GlobalAlloc(GMEM_MOVEABLE, bytes.size()));
+    Check(bool(transport.htmlData), "allocate private HTML clipboard medium");
+    auto* memory = GlobalLock(transport.htmlData.get());
+    Check(memory != nullptr, "lock private HTML clipboard medium");
+    {
+        const auto unlock = wil::scope_exit([&]() noexcept { GlobalUnlock(transport.htmlData.get()); });
+        std::memcpy(memory, bytes.data(), bytes.size());
+    }
+    TextClipboardContent content;
+    Check(ReadTextClipboardContent(SystemTextClipboard(), owner, content, true, true) == S_OK && content.hasHtmlFragment &&
+              content.htmlFragment == L"<b>hello</b>" && transport.opens == 1u && transport.closes == 1u,
+          "structured clipboard reads HTML through one private ownership attempt");
+    transport.fileData.reset(GlobalAlloc(GMEM_MOVEABLE, 1u));
+    Check(bool(transport.fileData), "allocate irrelevant private file medium");
+    TextClipboardContent htmlOnly;
+    Check(ReadTextClipboardContent(SystemTextClipboard(), owner, htmlOnly, false, true) == S_OK && htmlOnly.filePaths.empty() && htmlOnly.hasHtmlFragment &&
+              htmlOnly.htmlFragment == L"<b>hello</b>",
+          "HTML-only read ignores file media in the same ownership attempt");
+    TextClipboardContent oldRead;
+    Check(FAILED(ReadTextClipboardContent(SystemTextClipboard(), owner, oldRead, true)) && ! oldRead.hasHtmlFragment,
+          "legacy structured read retains file-first failure without requesting HTML");
+    invalid = bytes;
+    invalid.replace(invalid.find("StartFragment:") + 14u, 10u, "9999999999");
+    Check(FAILED(DecodeClipboardHtml(std::as_bytes(std::span(invalid.data(), invalid.size())), fragment)) && fragment == L"sentinel",
+          "out-of-range CF_HTML offsets do not publish a fragment");
+}
+static void TestSourceGuideAllocationAtomicity()
+{
+    using namespace DxUi::RichText;
+    using namespace DxUi::RichText::Detail;
+    const auto factory = RichGeometryFactory();
+    Document source{L"one two\tthree\r\nnext line\n"};
+    LayoutOptions options;
+    options.widthDip = 240.0f;
+    RichEditorLayout geometry;
+    geometry.BeginPreparation(factory.get(), source.Snapshot(), source.Revision(), ViewMode::Source, options);
+    while (geometry.HasPendingPreparation())
+        static_cast<void>(geometry.AdvancePreparation());
+    const auto finish = [&](RichSourceGuides& guides)
+    {
+        while (! guides.Advance(factory.get(), geometry))
+        {
+        }
+    };
+    const auto seed = [&]
+    {
+        auto guides = std::make_unique<RichSourceGuides>();
+        guides->Begin(source.Snapshot(), 1u, geometry.Generation(), true, true, options, 44.0f);
+        finish(*guides);
+        return guides;
+    };
+    const auto stage = [&](RichSourceGuides& guides)
+    {
+        guides.Begin(source.Snapshot(), 2u, geometry.Generation(), true, true, options, 44.0f);
+        finish(guides);
+    };
+    auto measured          = seed();
+    const auto oldCounting = countAllocations;
+    const auto oldCalls = allocations, oldBytes = allocationBytes;
+    allocations = allocationBytes = 0u;
+    countAllocations              = true;
+    stage(*measured);
+    countAllocations = oldCounting;
+    const auto count = allocations;
+    allocations      = oldCalls;
+    allocationBytes  = oldBytes;
+    Check(count > 0u && count < 512u, "source guide preparation has bounded observed allocations");
+    for (std::size_t point = 0u; point < count; ++point)
+    {
+        auto guides            = seed();
+        const auto numberCount = guides->Numbers().size(), markCount = guides->Marks().size();
+        const auto oldFailure = failAllocationAfter;
+        bool failed           = false;
+        failAllocationAfter   = point;
+        try
+        {
+            stage(*guides);
+        }
+        catch (const std::bad_alloc&)
+        {
+            failed = true;
+        }
+        failAllocationAfter = oldFailure;
+        Check(failed && guides->Numbers().size() == numberCount && guides->Marks().size() == markCount,
+              "guide allocation failure preserves the preceding immutable publication");
+        stage(*guides);
+        Check(guides->Current(2u, geometry.Generation(), true, true) && guides->Numbers().size() == numberCount && guides->Marks().size() == markCount,
+              "guide allocation retry completes without skipped or duplicated source units");
+    }
+}
+static void TestEmbeddedSourceGuidesPixels(GraphicsFixture& gpu)
+{
+    using namespace DxUi;
+    const std::wstring source = L"alpha  beta\tend\r\nsecond line\n";
+    std::shared_ptr<GraphicsDevice> graphics;
+    Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "source guide graphics");
+    EmbeddedHost view;
+    Hr(view.Attach(graphics), "source guide view");
+    auto owned   = std::make_unique<RichTextEditor>(source);
+    auto* editor = owned.get();
+    editor->SetViewMode(RichText::ViewMode::Source);
+    auto appearance              = editor->GetAppearance();
+    appearance.sourceMonospace   = true;
+    appearance.sourceLineNumbers = true;
+    editor->SetAppearance(appearance);
+    view.Controls().SetRoot(std::move(owned));
+    Hr(gpu.Resize(480u, 240u), "source guide raster size");
+    const auto capture = [&]
+    {
+        Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "prepare source guide pixels");
+        gpu.Bind();
+        Hr(view.Composite(gpu.context.get(), gpu.Viewport()), "source guide composite");
+        std::vector<std::uint8_t> pixels(0u);
+        Hr(gpu.Read(pixels), "source guide readback");
+        return pixels;
+    };
+    const auto plain                 = capture();
+    appearance.sourceWhitespaceMarks = true;
+    editor->SetAppearance(appearance);
+    const auto marked = capture();
+    Check(plain != marked && editor->GetText() == source && ! editor->CanUndo(),
+          "whitespace marks alter rendered pixels without changing counted source or history");
+    appearance.sourceLineNumbers = false;
+    editor->SetAppearance(appearance);
+    const auto noNumbers = capture();
+    Check(noNumbers != marked && editor->GetText() == source, "physical line gutter changes rendered pixels without changing source");
+    appearance.sourceLineNumbers = true;
+    editor->SetAppearance(appearance);
+    std::wstring longSource;
+    for (unsigned line = 0u; line < 600u; ++line)
+        longSource += L"pending \tline\n";
+    editor->SetText(longSource);
+    Hr(view.Prepare(480u, 240u, 96.0f), "begin long source guide preparation");
+    Check(view.NeedsPreparation(), "large guide preparation yields before publication");
+    editor->SetText(source);
+    Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "replace pending source guides");
+    Check(editor->GetText() == source && ! view.NeedsPreparation(), "new source supersedes pending guides without stale publication");
+}
+static void TestEmbeddedCodeLineNumberPixels(GraphicsFixture& gpu)
+{
+    using namespace DxUi;
+    std::wstring source = L"```cpp\nfirst line with many words to force wrapping in the available code width across visual lines\nsecond line\n";
+    for (unsigned line = 0u; line < 30u; ++line)
+        source += L"remaining line\n";
+    source += L"```\n";
+    std::shared_ptr<GraphicsDevice> graphics;
+    Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "code gutter graphics");
+    EmbeddedHost view;
+    Hr(view.Attach(graphics), "code gutter view");
+    auto owned   = std::make_unique<RichTextEditor>(source);
+    auto* editor = owned.get();
+    editor->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::RichMarkdown);
+    editor->SetMarkdownRenderingEnabled(true);
+    auto appearance                 = editor->GetAppearance();
+    appearance.markdownPresentation = RichText::MarkdownPresentationStyle::Subtle;
+    editor->SetAppearance(appearance);
+    std::wstring copied;
+    unsigned copyCalls{};
+    editor->SetOnCodeCopyRequested(
+        [&](std::wstring_view text)
+    {
+        copied.assign(text);
+        ++copyCalls;
+    },
+        L"Kopieren");
+    view.Controls().SetRoot(std::move(owned));
+    view.Controls().SetFocusControl(editor);
+    auto site = std::make_shared<TestEmbeddedAccessibilitySite>();
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> uiaRoot;
+    wil::com_ptr_nothrow<IInvokeProvider> staleCopy;
+    Hr(gpu.Resize(480u, 240u), "code gutter raster size");
+    for (const auto direction : {FlowDirection::LeftToRight, FlowDirection::RightToLeft})
+    {
+        editor->SetFlowDirection(direction);
+        Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "prepare code gutter");
+        if (! uiaRoot)
+        {
+            Check(view.AttachAccessibility(site, 0x434f5059u, {{0, 0, 480, 240}, true}) == S_OK, "attach prepared code copy accessibility");
+            Check(view.GetAccessibilityProvider(uiaRoot.put()) == S_OK && bool(uiaRoot), "prepared code copy accessibility root");
+            site->root = uiaRoot.get();
+        }
+        else
+            Check(view.UpdateAccessibility({{0, 0, 480, 240}, true}) == S_OK, "publish directional code accessibility");
+        const auto document = editor->GetAcknowledgedSemanticDocument(view.Controls());
+        Check(static_cast<bool>(document), "code gutter has current semantics");
+        const auto element = std::ranges::find(document->Elements(), RichText::SemanticRole::Code, &RichText::SemanticElement::role);
+        Check(element != document->Elements().end(), "code gutter owns a code block");
+        const auto frame       = editor->GetSemanticElementBounds(view.Controls(), static_cast<std::size_t>(element - document->Elements().begin()));
+        const auto caret       = editor->TryGetTextInputCaretRect(view.Controls(), source.find(L"first line"));
+        const auto secondCaret = editor->TryGetTextInputCaretRect(view.Controls(), source.find(L"second line"));
+        Check(frame && caret && secondCaret && secondCaret->top > caret->bottom + 1.0f,
+              "wrapped first physical line and second source line have distinct positions");
+        gpu.Bind();
+        Hr(view.Composite(gpu.context.get(), gpu.Viewport()), "code gutter composite");
+        std::vector<std::uint8_t> pixels(0u);
+        Hr(gpu.Read(pixels), "code gutter pixels");
+        const auto sample = [&](unsigned x, unsigned y)
+        {
+            const auto at = (static_cast<std::size_t>(y) * gpu.width + x) * 4u;
+            return std::array{pixels[at], pixels[at + 1u], pixels[at + 2u]};
+        };
+        const auto left       = direction == FlowDirection::LeftToRight ? frame->left + 6.0f : frame->right - 46.0f;
+        const auto top        = static_cast<unsigned>(std::max(0.0f, caret->top));
+        const auto bottom     = static_cast<unsigned>(std::min(static_cast<float>(gpu.height), caret->bottom));
+        const auto firstX     = static_cast<unsigned>(std::max(0.0f, left + 2.0f));
+        const auto lastX      = static_cast<unsigned>(std::min(static_cast<float>(gpu.width), left + 36.0f));
+        const auto background = sample(firstX, top + 1u);
+        unsigned differing{};
+        for (auto y = top; y < bottom; ++y)
+            for (auto x = firstX; x < lastX; ++x)
+                differing += sample(x, y) != background ? 1u : 0u;
+        Check(differing > 4u, "prepared physical line number paints in the correct directional gutter");
+        const auto secondTop        = static_cast<unsigned>(std::max(0.0f, secondCaret->top));
+        const auto secondBottom     = static_cast<unsigned>(std::min(static_cast<float>(gpu.height), secondCaret->bottom));
+        const auto secondBackground = sample(firstX, secondTop + 1u);
+        unsigned secondDiffering{};
+        for (auto y = secondTop; y < secondBottom; ++y)
+            for (auto x = firstX; x < lastX; ++x)
+                secondDiffering += sample(x, y) != secondBackground ? 1u : 0u;
+        Check(secondDiffering > 4u, "second physical line number aligns after wrapped visual lines");
+        const auto icon = RichText::Detail::CodeCopyBounds(*frame, direction == FlowDirection::RightToLeft);
+        Check(icon.has_value(), "copy action has a hit target in the prepared header");
+        const auto point = D2D1::Point2F((icon->left + icon->right) * 0.5f, (icon->top + icon->bottom) * 0.5f);
+        wil::com_ptr_nothrow<IRawElementProviderFragment> peer;
+        Hr(uiaRoot->ElementProviderFromPoint(point.x, point.y, peer.put()), "hit code copy UIA child");
+        wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
+        Hr(peer.query_to(simple.put()), "code copy simple provider");
+        VARIANT name{};
+        Hr(simple->GetPropertyValue(UIA_NamePropertyId, &name), "code copy localized name");
+        Check(name.vt == VT_BSTR && std::wstring_view(name.bstrVal, SysStringLen(name.bstrVal)) == L"Kopieren",
+              "copy action exposes the consumer-localized name");
+        VariantClear(&name);
+        wil::com_ptr_nothrow<IUnknown> pattern;
+        Hr(simple->GetPatternProvider(UIA_InvokePatternId, pattern.put()), "code copy Invoke pattern");
+        Check(bool(pattern), "copy child advertises Invoke");
+        wil::com_ptr_nothrow<IInvokeProvider> invoke;
+        Hr(pattern.query_to(invoke.put()), "code copy Invoke interface");
+        const auto beforeInvoke = copyCalls;
+        Hr(invoke->Invoke(), "invoke code copy through UIA");
+        Check(copyCalls == beforeInvoke + 1u && copied == element->name, "UIA copy passes counted rendered code to the application");
+        wil::com_ptr_nothrow<IRawElementProviderFragment> parent;
+        Hr(peer->Navigate(NavigateDirection_Parent, parent.put()), "code copy parent");
+        wil::com_ptr_nothrow<IRawElementProviderSimple> parentSimple;
+        Hr(parent.query_to(parentSimple.put()), "code semantic parent");
+        pattern.reset();
+        Hr(parentSimple->GetPatternProvider(UIA_InvokePatternId, pattern.put()), "code source edit remains invokable");
+        Check(bool(pattern), "copy child does not replace the source-edit action");
+        staleCopy                = invoke;
+        const auto before        = editor->GetSelection();
+        const auto revision      = editor->Revision();
+        const auto previousCalls = copyCalls;
+        Check(editor->OnMouseDown(view.Controls(), point, false, 0u) && editor->OnMouseUp(view.Controls(), point, false, 0u),
+              "code copy handles a complete pointer gesture");
+        Check(copyCalls == previousCalls + 1u && copied == element->name && editor->GetSelection() == before && editor->Revision() == revision,
+              "copy intent borrows the rendered code without changing source or selection");
+        Check(editor->OnMouseDown(view.Controls(), point, false, 0u), "start cancelable copy gesture");
+        editor->OnMouseMove(view.Controls(), D2D1::Point2F(point.x, frame->bottom + 10.0f), 0u);
+        editor->OnMouseUp(view.Controls(), point, false, 0u);
+        Check(copyCalls == previousCalls + 1u, "leaving the copy target cancels the pointer gesture");
+        editor->SetSelection({source.find(L"first line"), source.find(L"first line")});
+        Check(editor->OnKeyDown(view.Controls(), 'C', MK_CONTROL | MK_SHIFT) && copyCalls == previousCalls + 2u,
+              "Ctrl+Shift+C requests the current code block from the keyboard");
+    }
+    Check(editor->OnMouseWheel(view.Controls(), {}, -WHEEL_DELTA, 0u), "scroll code copy action offscreen");
+    Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "prepare scrolled code accessibility");
+    Check(view.UpdateAccessibility({{0, 0, 480, 240}, true}) == S_OK, "publish scrolled code accessibility");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> offscreen;
+    Hr(staleCopy.query_to(offscreen.put()), "offscreen copy simple provider");
+    VARIANT offscreenValue{};
+    Hr(offscreen->GetPropertyValue(UIA_IsOffscreenPropertyId, &offscreenValue), "offscreen copy property");
+    Check(offscreenValue.vt == VT_BOOL && offscreenValue.boolVal == VARIANT_TRUE, "copy child remains discoverable and reports offscreen");
+    VariantClear(&offscreenValue);
+    Hr(staleCopy->Invoke(), "offscreen copy remains invokable");
+    editor->SetOnCodeCopyRequested({});
+    Check(staleCopy->Invoke() == UIA_E_ELEMENTNOTAVAILABLE, "retired copy peer cannot invoke after callback removal");
+    editor->SetOnCodeCopyRequested(
+        [&](std::wstring_view text)
+    {
+        copied.assign(text);
+        ++copyCalls;
+    },
+        L"Kopieren");
+    for (const auto& [prefix, suffix] : {
+             std::pair<std::wstring_view, std::wstring_view>{L"```\r\na", L"b\r\n```\r\n"},
+             {L"> ```\r\n> a", L"b\r\n> ```\r\n"},
+             {L"- item\r\n\r\n  ```\r\n  a", L"b\r\n  ```\r\n"},
+             {L"    a", L"b\r\n"},
+         })
+    {
+        std::wstring counted(prefix);
+        const auto caret = counted.size();
+        counted.push_back(L'\0');
+        counted.append(suffix);
+        editor->SetText(counted);
+        Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "counted code copy preparation");
+        editor->SetSelection({caret, caret});
+        Check(editor->OnKeyDown(view.Controls(), 'C', MK_CONTROL | MK_SHIFT) && copied == std::wstring_view(L"a\0b\n", 4u),
+              "code copy preserves counted NUL and normalizes CRLF inside fenced, quoted, list and indented blocks");
+    }
+    unsigned delivered = 0u;
+    editor->SetOnCodeCopyRequested([&](std::wstring_view) { ++delivered; }, L"Kopieren");
+    Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "prepare code copy allocation sweep");
+    const auto beforeRevision  = editor->Revision();
+    const auto beforeSelection = editor->GetSelection();
+    size_t copyAllocations     = 0u;
+    {
+        const auto oldCounting = countAllocations;
+        const auto oldCalls = allocations, oldBytes = allocationBytes;
+        const auto restore = wil::scope_exit([=]() noexcept
+        {
+            countAllocations = oldCounting;
+            allocations      = oldCalls;
+            allocationBytes  = oldBytes;
+        });
+        allocations = allocationBytes = 0u;
+        countAllocations              = true;
+        Check(editor->OnKeyDown(view.Controls(), 'C', MK_CONTROL | MK_SHIFT), "measure code copy allocations");
+        copyAllocations = allocations;
+    }
+    Check(copyAllocations > 0u && delivered == 1u, "code copy allocation sweep observes a successful callback");
+    for (size_t failure = 0u; failure < copyAllocations; ++failure)
+    {
+        bool handled = false;
+        {
+            const auto oldFailure = failAllocationAfter;
+            const auto restore    = wil::scope_exit([=]() noexcept { failAllocationAfter = oldFailure; });
+            failAllocationAfter   = failure;
+            handled               = editor->OnKeyDown(view.Controls(), 'C', MK_CONTROL | MK_SHIFT);
+        }
+        Check(! handled && delivered == 1u && editor->Revision() == beforeRevision && editor->GetSelection() == beforeSelection,
+              "code copy allocation failure preserves the document and does not invoke the callback");
+    }
+    editor->SetOnCodeCopyRequested([&](std::wstring_view text) { copied.assign(text); }, L"Kopieren");
+    editor->SetText(L"```\n```\n");
+    Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "empty code copy preparation");
+    editor->SetSelection({1u, 1u});
+    copied = L"sentinel";
+    Check(editor->OnKeyDown(view.Controls(), 'C', MK_CONTROL | MK_SHIFT) && copied.empty(), "empty code copy omits the synthetic caret placeholder");
+    site->root = nullptr;
 }
 static void TestEmbeddedRichGeometryReuseAndRetirement(GraphicsFixture& gpu)
 {

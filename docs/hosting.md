@@ -6,6 +6,11 @@ forced request returns false with `ERROR_INVALID_STATE` and preserves existing a
 attachment before selecting another pool policy. Device replacement preserves WARP. The default option retains
 hardware creation with its existing WARP fallback. This option does not create an embedded device or scheduler.
 
+`AttachOptions::batchInitialRootChildren` is an opt-in native swap-chain policy (default false).
+During an initial full draw after creation or resize, it may flush between visible direct children
+of a root `Panel`, up to eight intermediate flushes. Nested panels and embedded hosts do not
+use this policy. Remaining children and overlays retain their order. A failed flush suppresses
+presentation and remains pending for recovery; see the [native host contract](../Specs/Rendering/Rendering_Win32Host.md).
 PageHost's current page participates in Tab traversal and UI Automation, including child patterns, labels and
 point hits. Outgoing transition pages are visual-only. Unhandled native keys continue to the application's window
 procedure; host animation ticks request further scheduling independently of repainting changed control pixels.
@@ -31,9 +36,10 @@ device; the application owns immediate-context scheduling and presentation.
 1. Build the tree and apply `view.Controls().SetTheme(...)`. `MakeDefaultThemePalette(true)` selects a dark palette;
    use `false` for light. Apply the application's reduced-motion and high-contrast policy explicitly.
 2. Model, input, theme or geometry changes mark the view dirty. A borrowed `requestPreparation` callback requests
-   host work; it is synchronous, coalesced, must not re-enter the view, and its context must outlive attachment.
+   host work; it is synchronous and coalesced, may retire or replace retained controls, and its context must outlive attachment.
 3. Before scene drawing, call `view.Prepare(widthPixels, heightPixels, dpi)`. It performs changed layout and raster
-   work. S_FALSE means already clean, hidden, zero-sized, or that cooperative content preparation remains pending. When NeedsPreparation() is true, honor the next owner-turn request and call Prepare again; do not spin. A failed HRESULT suppresses input/composition until preparation succeeds; handle the failure instead of repeatedly retrying in a tight loop. E_ABORT is the exception: a callback superseded the frame (it replaced the root or changed the tree mid-pass), and the view has already requested another preparation, so skip this frame composition and prepare again on that request.
+   work. S_FALSE means already clean, hidden, zero-sized, or that cooperative content preparation remains pending. When NeedsPreparation() is true, honor the next owner-turn request and call Prepare again; do not spin. A failed HRESULT suppresses input/composition until preparation succeeds; handle the failure instead of repeatedly retrying in a tight loop. E_ABORT is the exception: a callback superseded the frame (it replaced the root or changed the tree mid-pass), and the view has already requested another preparation, so skip this frame composition and prepare again on that request. A deterministic content failure returns its failure HRESULT (E_ABORT from content is reported as E_FAIL), stays dirty, and does not schedule an automatic retry; an owner may retry with bounded backoff.
+   A surface update also changes the borrowed immediate context, including unbinding PS shader-resource slot 0 and output-merger render targets. Rebind application state after preparation; pipeline mutation is not limited to Composite.
    Optional control visual preparation is separate from content preparation: it may retain bounded visual resources, but it does not mark content geometry changed, publish text-input/UIA geometry, or hold input readiness pending.
 4. Bind the application's render target, then call `view.Composite(context, viewport)`. It binds its required
    pipeline state and draws the prepared texture. It changes D3D state: rebind your state for subsequent drawing.
@@ -44,6 +50,11 @@ is 64 MiB, and because a resize allocates the replacement before releasing the o
 at most 128 MiB (`GetStatistics().replacementPeakBytes`). A hidden or zero-sized view holds no surface. Check summed
 memory before creating many views. If two simultaneous layouts need distinct hit rectangles or sizes, create two
 views sharing the pool and bind both to the same model.
+
+The sample refreshes its text client after accepted input, focus changes and completed preparation, rather than
+after every window message. It owns mouse-leave tracking and forwards Leave, and it notifies text services when
+its window moves without copying the text again. Its native mouse capture follows the current logical capture,
+including capture established by a release callback.
 
 ## Input, DPI and animation
 
@@ -82,7 +93,10 @@ If a transport can retain the exact key/character association itself, pass that 
 `DispatchCharacter` overload instead. Keep a separate receipt per keydown (including repeats) and retain it across
 key-up. The correlated overload consumes a matching stale character without retargeting; a foreign or mismatched
 attempt is rejected and leaves the receipt available for its correct view/character. Do not retry a rejected
-correlated character through the bare overload. The bare overload remains independent committed text input and is
+correlated character through the bare overload. A false return does not prove a matching receipt remains
+unconsumed: the receipt is reset before `OnChar`, which may return false or throw a non-allocation exception.
+Before a transport begins passing correlated receipts, repair and test those post-consumption outcomes so they
+report the character handled and cannot cause a fallback or duplicate delivery. The bare overload remains independent committed text input and is
 appropriate for standalone characters, including Unicode and IME paths that are not translated from Return or Space.
 An explicitly accepted editor Return and an unhandled text-input key can still insert once into the same focused owner.
 Nested key dispatches must use distinct receipt objects. Reusing one object for overlapping calls invalidates its
@@ -254,7 +268,7 @@ The public [EmbeddedTextClient example](../Samples/EmbeddedControls/EmbeddedText
 EmbeddedHost to the application's TextInputServices using an immutable focusId. Run the independent
 EmbeddedControls executable with --text-input to edit a profile name alongside the toggle and slider.
 The application supplies the device, HWND, presentation, physical screen origin and DPI conversion.
-The sample forwards deferred messages and TSF keys, cancels on focus/DPI loss, and detaches before destruction.
+The sample forwards deferred messages and TSF keys, cancels on focus/DPI loss, and detaches before destruction. To opt into source-paste transformation, implement `TextClipboardPasteTransform` on the same object supplied to `TextInputServices::SetClient`; the service discovers it by cross-casting that client.
 Deferred TSF lock notifications consumed by a nested message loop wait for the active lock to unwind; they do not
 repost into that loop. Pending flags remain coalesced if posting fails and retry on the next real lock request.
 The native host leaves `WM_GETTEXT`, `WM_GETTEXTLENGTH` and `WM_SETTEXT` to its window caption. Read or change an

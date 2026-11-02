@@ -50,7 +50,15 @@ void TestRichDocumentPrototypeContracts()
     const std::string utf8 = "\xef\xbb\xbf# caf\xc3\xa9\r\n\xf0\x9f\x98\x80";
     Require(EncodeUtf8(DecodeUtf8(utf8)) == utf8, "UTF-8 BOM line endings byte identity");
     Reject([] { DecodeUtf8("\xc0\x80"); }, "overlong UTF-8 rejected");
-    Reject([] { DecodeUtf8(std::string(1, '\0')); }, "embedded NUL rejected");
+    const std::string countedUtf8("a\0b\0", 4u);
+    const auto countedUtf16 = DecodeUtf8(countedUtf8);
+    Require(countedUtf16 == std::wstring(L"a\0b\0", 4u) && EncodeUtf8(countedUtf16) == countedUtf8,
+            "source codecs preserve counted NUL and all following bytes");
+    Require(IsValidSourceUtf16(countedUtf16) && ! IsValidUtf16(countedUtf16), "source admission is independent of strict Win32 string validation");
+    Document countedDocument(countedUtf16);
+    countedDocument.SetSelection({2u, 2u});
+    Require(countedDocument.Length() == 4u && countedDocument.ReplaceSelection(L"X") && countedDocument.Undo() && countedDocument.Text() == countedUtf16,
+            "counted source edits and undo retain the entire NUL-containing document");
     Document full(std::wstring(Document::MaximumUnits, L'x'));
     Reject([&] { full.ReplaceSelection(L"x"); }, "prototype size limit");
     Require(full.Length() == Document::MaximumUnits, "limit atomic");
@@ -159,13 +167,24 @@ void TestRichDocumentUnicodeCodecRejections()
     Require(EncodeUtf8(L"").empty() && DecodeUtf8("").empty(), "empty Unicode codec identity");
     for (const std::string bytes : {"\xc0\x80", "\xe2\x82", "\xed\xa0\x80", "\xf4\x90\x80\x80"})
         Reject([&] { DecodeUtf8(bytes); }, "overlong truncated surrogate and out-of-range UTF-8 rejected");
-    for (const auto& text : {std::wstring(1, 0xd800), std::wstring(1, 0xdc00), std::wstring(L"a\0b", 3)})
+    for (const auto& text : {std::wstring(1, 0xd800), std::wstring(1, 0xdc00)})
     {
         Require(! IsValidUtf16(text), "invalid UTF-16 detected without conversion");
         Reject([&] { EncodeUtf8(text); }, "invalid UTF-16 encoding rejected");
     }
     Reject([] { EncodeUtf8(std::wstring(Document::MaximumUnits + 1, L'x')); }, "UTF-16 codec bound enforced");
     Reject([] { DecodeUtf8(std::string(Document::MaximumUnits + 1, 'x')); }, "UTF-8 decoded bound enforced");
+    const std::wstring counted(L"a\0b", 3u);
+    Require(IsValidSourceUtf16(counted) && ! IsValidUtf16(counted) && DecodeUtf8(EncodeUtf8(counted)) == counted,
+            "counted NUL round trips through explicit-length UTF-8 codecs");
+    std::wstring maximum(Document::MaximumUnits, L'x');
+    maximum.back() = L'\0';
+    Require(DecodeUtf8(EncodeUtf8(maximum)) == maximum && Document(maximum).Length() == Document::MaximumUnits,
+            "counted NUL remains valid at the unchanged 65,536-unit source limit");
+    Document nulDocument(counted);
+    nulDocument.SetSelection({1u, 2u});
+    Require(nulDocument.ReplaceSelection(L"z") && nulDocument.Undo() && nulDocument.Text() == counted && nulDocument.Redo() && nulDocument.Text() == L"azb",
+            "counted NUL remains an exact reversible source unit");
     const std::wstring source = L"\ufeff\u03b2\U0001f600\r\nx\ry\n";
     Require(DecodeUtf8(EncodeUtf8(source)) == source, "BOM supplementary scalar and mixed-newline codec identity");
 }
@@ -239,19 +258,28 @@ void TestRichDocumentConcurrentSnapshotReads()
     const auto snapshot = document.Snapshot();
     const auto expected = snapshot.Text();
     std::atomic<bool> valid{true};
-    std::thread reader([snapshot, &valid, &expected]
+    std::atomic<unsigned> publishedRound{0u}, observedRound{0u};
+    std::thread reader([snapshot, &valid, &expected, &publishedRound, &observedRound]
     {
-        for (std::size_t round = 0u; round < 512u; ++round)
+        for (unsigned round = 1u; round <= 256u; ++round)
+        {
+            while (publishedRound.load(std::memory_order_acquire) < round)
+                std::this_thread::yield();
             if (snapshot.Slice(1u, 3u) != L"\r\n" || snapshot.Slice(4u, snapshot.Length()) != std::wstring_view(expected).substr(4u) ||
                 snapshot.IsBoundary(2u) || snapshot.IsBoundary(5u))
                 valid.store(false, std::memory_order_relaxed);
+            observedRound.store(round, std::memory_order_release);
+        }
     });
-    for (std::size_t round = 0u; round < 256u; ++round)
+    for (unsigned round = 1u; round <= 256u; ++round)
     {
         document.Reset(L"new revision");
         document.ReplaceSelection(L"x");
         document.Undo();
         document.Redo();
+        publishedRound.store(round, std::memory_order_release);
+        while (observedRound.load(std::memory_order_acquire) < round)
+            std::this_thread::yield();
     }
     reader.join();
     Require(valid.load(std::memory_order_relaxed) && snapshot.Text() == expected,
@@ -448,13 +476,25 @@ void TestRichDocumentBorrowedInputLifetime()
     Require(document.Text() == L"\U0001f469\u200d\U0001f4bb", "selection replacement outlives a temporary owning argument");
     document.Undo();
     const bool undo = document.CanUndo(), redo = document.CanRedo();
+    const auto entryText      = document.Text();
+    const auto entrySelection = document.GetSelection();
     {
         std::wstring preview = L"transient\r\n\U0001f600";
         document.ReplaceTransient(std::wstring_view(preview), {0u, 0u});
         preview.clear();
     }
-    Require(document.Text() == L"transient\r\n\U0001f600" && document.CanUndo() == undo && document.CanRedo() == redo,
-            "transient replacement owns its borrowed source and preserves both histories");
+    Require(document.Text() == L"transient\r\n\U0001f600" && ! document.CanUndo() && ! document.CanRedo() && ! document.Undo() && ! document.Redo(),
+            "transient replacement owns its source and declines history commands while preview is active");
+    document.ReplaceTransient(entryText, entrySelection);
+    Require(document.Text() == entryText && document.CanUndo() == undo && document.CanRedo() == redo,
+            "restoring transient entry re-enables the unchanged history");
+    Document superseded;
+    superseded.ReplaceSelection(L"base");
+    superseded.ReplaceTransient(L"base\u4eee", {5u, 5u});
+    Require(! superseded.Undo() && ! superseded.Redo() && superseded.Text() == L"base\u4eee",
+            "undo and redo cannot publish an uncommitted composition preview");
+    Require(superseded.ReplaceSelection(L"!") && superseded.Undo() && superseded.Text() == L"base" && superseded.Redo() && superseded.Text() == L"base\u4eee!",
+            "an explicit recorded edit supersedes the preview and undoes to its entry source");
     {
         std::wstring reset = L"reset\r\n\U0001f600";
         document.Reset(std::wstring_view(reset));
