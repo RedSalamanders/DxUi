@@ -1,0 +1,1 @@
+- Stabilize checked-menu indicator coverage by establishing distinct routed pointer positions and reporting popup state on failure.

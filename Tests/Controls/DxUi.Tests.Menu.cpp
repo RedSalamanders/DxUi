@@ -5430,19 +5430,53 @@ void TestMenuCheckedRowsDoNotPaintLeadingCheckedBox()
                 return;
             }
 
-            const LONG hoverX = static_cast<LONG>(std::lround((hoverRowRectDip.left + hoverRowRectDip.right) * 0.5f));
-            const LONG hoverY = static_cast<LONG>(std::lround((hoverRowRectDip.top + hoverRowRectDip.bottom) * 0.5f));
-            if (! SendSettledClientMouseMoveForMenuSuite(popupHwnd, hoverX, hoverY))
+            ScopedMenuPointerFixture pointerFixture(popupHwnd);
+            ContextMenuPopupDebugState initialState{};
+            if (! pointerFixture.WaitForCapture() || ! DebugGetContextMenuPopupState(popupHwnd, initialState))
             {
-                failure = "moving the pointer away from the checked row before checked-indicator capture succeeds";
+                failure = "checked-indicator popup obtains capture and exposes its initial state";
                 return;
             }
 
-            if (! WaitForContextMenuPopupState(popupHwnd, [](const ContextMenuPopupDebugState& state) noexcept {
-                return state.hoveredIndex.has_value() && state.hoveredIndex.value() == 1u;
+            const auto toPixel  = [&](float dip) noexcept { return static_cast<LONG>(DipToPixelForPopup(dip, initialState.dpi)); };
+            const LONG checkedX = toPixel((firstLayout.itemRectDip.left + firstLayout.itemRectDip.right) * 0.5f);
+            const LONG checkedY = toPixel((firstLayout.itemRectDip.top + firstLayout.itemRectDip.bottom) * 0.5f);
+            const LONG hoverX   = toPixel((hoverRowRectDip.left + hoverRowRectDip.right) * 0.5f);
+            const LONG hoverY   = toPixel((hoverRowRectDip.top + hoverRowRectDip.bottom) * 0.5f);
+
+            // Two distinct routed points establish pointer ownership even when the
+            // physical cursor initially coincides with the requested row.
+            if (! SendSettledClientMouseMoveForMenuSuite(popupHwnd, checkedX, checkedY) ||
+                ! SendSettledClientMouseMoveForMenuSuite(popupHwnd, checkedX + 1, checkedY) ||
+                ! WaitForContextMenuPopupState(popupHwnd, [](const ContextMenuPopupDebugState& state) noexcept {
+                return state.hoveredIndex == 0u && ! state.keyboardIndex.has_value();
             }, popupState))
             {
-                failure = "moving the pointer away from the checked row transfers popup hover to the plain row";
+                failure =
+                    std::format("checked-row pointer precondition failed: initial hover={} keyboard={}, final hover={} keyboard={}, dpi={}, point=({}, {})",
+                                initialState.hoveredIndex.has_value() ? static_cast<long long>(initialState.hoveredIndex.value()) : -1ll,
+                                initialState.keyboardIndex.has_value() ? static_cast<long long>(initialState.keyboardIndex.value()) : -1ll,
+                                popupState.hoveredIndex.has_value() ? static_cast<long long>(popupState.hoveredIndex.value()) : -1ll,
+                                popupState.keyboardIndex.has_value() ? static_cast<long long>(popupState.keyboardIndex.value()) : -1ll,
+                                initialState.dpi,
+                                checkedX,
+                                checkedY);
+                return;
+            }
+
+            if (! SendSettledClientMouseMoveForMenuSuite(popupHwnd, hoverX, hoverY) ||
+                ! WaitForContextMenuPopupState(popupHwnd, [](const ContextMenuPopupDebugState& state) noexcept {
+                return state.hoveredIndex == 1u && ! state.keyboardIndex.has_value();
+            }, popupState))
+            {
+                failure = std::format("moving away from checked row did not transfer hover: hover={} keyboard={}, dpi={}, checked=({}, {}), target=({}, {})",
+                                      popupState.hoveredIndex.has_value() ? static_cast<long long>(popupState.hoveredIndex.value()) : -1ll,
+                                      popupState.keyboardIndex.has_value() ? static_cast<long long>(popupState.keyboardIndex.value()) : -1ll,
+                                      initialState.dpi,
+                                      checkedX + 1,
+                                      checkedY,
+                                      hoverX,
+                                      hoverY);
                 return;
             }
 
