@@ -1,0 +1,1 @@
+- Strengthen focus-event fixture preconditions and diagnostics for foreground and background transitions.
