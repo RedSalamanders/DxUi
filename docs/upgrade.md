@@ -2,11 +2,16 @@
 
 This guide covers the **2 November 2026 delivery**, merged in
 [PR #159](https://github.com/RedSalamanders/DxUi/pull/159), and the application work needed to adopt it.
-The exact source pin is:
+Its original runtime delivery commit is:
 
 ```text
 6df17007875ae731a3808b475b10bd056328bbdf
 ```
+
+For first consumer adoption, select the final reviewed main commit **including this guide**, and record its
+complete 40-character SHA in the lock. A documentation-only descendant can advance the consumer pin while
+retaining the delivered native inputs. The original SHA above identifies the implementation/evidence cohort;
+it does not require a new consumer to remain on the pre-guide commit. Review any intervening code changes.
 
 The library still declares **API revision 4** and one static target, **DxUi**. C++ object layouts have changed:
 rebuild every module that uses DxUi with matching headers, archive, compiler, configuration and CRT.
@@ -30,7 +35,8 @@ or another application's successful build do not identify or qualify this applic
    [getting started](getting-started.md#consume-the-library) and the
    [consumption contract](../Specs/Build/Build_ToolchainAndConsumption.md).
 2. Use the consumer's existing update workflow, or edit its exact lock in that reviewed change. Preserve any
-   additional consumer-owned fields. The minimal implemented lock is:
+   additional consumer-owned fields. This minimal implemented lock illustrates the original runtime delivery;
+   replace `commit` with the final reviewed main SHA selected for adoption, including this guide:
 
    ```json
    {
