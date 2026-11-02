@@ -386,8 +386,71 @@ static void TestEmbeddedAccessibilityContainsAThrowingModelGetter(GraphicsFixtur
     view.Detach();
 }
 
+static void TestEmbeddedRadioGroupAccessibility(GraphicsFixture& gpu)
+{
+    using namespace DxUi;
+    EmbeddedScene scene;
+    Hr(scene.Initialize(gpu.device.get()), "embedded radio group scene");
+    auto& view    = scene.view;
+    auto controls = std::make_unique<Panel>();
+    auto* group   = controls->AddChild<RadioButtons>();
+    group->SetBounds(D2D1::RectF(0.f, 0.f, 280.f, 100.f));
+    auto* first  = group->AddItem(L"First");
+    auto* second = group->AddItem(L"Second");
+    first->SetBounds(D2D1::RectF(0.f, 0.f, 280.f, 40.f));
+    second->SetBounds(D2D1::RectF(0.f, 40.f, 280.f, 80.f));
+    group->SetSelectedIndex(0);
+    view.Controls().SetRoot(std::move(controls));
+    Hr(view.Prepare(320u, 180u), "prepare embedded radio group");
+    auto site = std::make_shared<TestEmbeddedAccessibilitySite>();
+    EmbeddedAccessibilityPlacement placement{{0, 0, 320, 180}, true};
+    Hr(view.AttachAccessibility(site, 0x524144494f475250ull, placement), "attach embedded radio group");
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> root;
+    Hr(view.GetAccessibilityProvider(root.put()), "embedded radio group root");
+    site->root = root.get();
+    wil::com_ptr_nothrow<IRawElementProviderFragment> rootFragment, groupFragment, choice, last, parent;
+    Hr(root.query_to(rootFragment.put()), "embedded radio root fragment");
+    Hr(rootFragment->Navigate(NavigateDirection_FirstChild, groupFragment.put()), "embedded radio group child");
+    Hr(groupFragment->Navigate(NavigateDirection_FirstChild, choice.put()), "embedded first radio choice");
+    Hr(groupFragment->Navigate(NavigateDirection_LastChild, last.put()), "embedded last radio choice");
+    Hr(last->Navigate(NavigateDirection_Parent, parent.put()), "embedded radio choice parent");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> groupSimple, parentSimple;
+    Hr(groupFragment.query_to(groupSimple.put()), "embedded group properties");
+    Hr(parent.query_to(parentSimple.put()), "embedded group parent properties");
+    wil::unique_variant type;
+    Hr(parentSimple->GetPropertyValue(UIA_ControlTypePropertyId, &type), "embedded radio parent type");
+    Check(type.vt == VT_I4 && type.lVal == UIA_GroupControlTypeId, "embedded choices are children of a Group");
+    wil::com_ptr_nothrow<ISelectionItemProvider> item;
+    Hr(last.query_to(item.put()), "embedded radio selection item");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> container;
+    Hr(item->get_SelectionContainer(container.put()), "embedded radio selection container");
+    Check(bool(container), "embedded radio exposes its group container");
+    wil::com_ptr_nothrow<IUnknown> unknown;
+    Hr(container->GetPatternProvider(UIA_SelectionPatternId, unknown.put()), "embedded group selection pattern");
+    wil::com_ptr_nothrow<ISelectionProvider> selection;
+    Hr(unknown.query_to(selection.put()), "embedded group selection interface");
+    Hr(item->Select(), "select embedded second radio");
+    Hr(view.Prepare(320u, 180u), "prepare embedded radio selection");
+    Hr(view.UpdateAccessibility(placement), "publish embedded radio selection");
+    SAFEARRAY* values = nullptr;
+    Hr(selection->GetSelection(&values), "embedded group selected item");
+    const auto releaseValues = wil::scope_exit([&] { SafeArrayDestroy(values); });
+    LONG index = 0, upper = -1;
+    Check(values && SUCCEEDED(SafeArrayGetUBound(values, 1u, &upper)) && upper == 0, "embedded group has one selected choice");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> selected;
+    Hr(SafeArrayGetElement(values, &index, selected.put()), "embedded selected radio provider");
+    wil::unique_variant name;
+    Hr(selected->GetPropertyValue(UIA_NamePropertyId, &name), "embedded selected radio name");
+    Check(name.vt == VT_BSTR && name.bstrVal && std::wstring_view(name.bstrVal, SysStringLen(name.bstrVal)) == L"Second",
+          "embedded group selection follows the chosen radio");
+    view.Detach();
+    container.reset();
+    Check(item->get_SelectionContainer(container.put()) == UIA_E_ELEMENTNOTAVAILABLE && ! container, "embedded retained choice cannot expose a retired group");
+}
+
 static void TestEmbeddedAccessibility(GraphicsFixture& gpu)
 {
+    TestEmbeddedRadioGroupAccessibility(gpu);
     TestEmbeddedDisclosureAccessibility(gpu);
     TestEmbeddedGridOffscreenGetItem(gpu);
     TestEmbeddedTreeMultiSelect(gpu);

@@ -664,14 +664,17 @@ for all six x64/ARM64 configurations. ARM64 Menu foreground capability skips rem
 
 A RadioButton is a RadioButton element with SelectionItem, selected while it is checked, and no Invoke. Select chooses
 it as its mnemonic does, focus included. RemoveFromSelection of the chosen one, and AddToSelection while its group holds
-another choice, return `UIA_E_INVALIDOPERATION`; its SelectionContainer is null, because its group is no element,
-so a choice in a group reports its place among the group's present choices as PositionInSet and SizeOfSet. A
+another choice, return `UIA_E_INVALIDOPERATION`. A RadioButtons group is a Group element with single,
+optional Selection; each grouped choice returns it as SelectionContainer and reports its position and size.
+The group owns its choices as UI Automation fragment children; unrelated controls retain their flat navigation order. A standalone radio
+without a logical group has no SelectionContainer. A
 change of choice raises ElementSelected from the chosen radio button and IsSelected changes from both, whether a click,
 a key, UI Automation or the application made it. A Tree item that expands or collapses raises its ExpandCollapseState
 change, and the rows that appear or leave invalidate the structure. A tree with prepared accessibility rows raises that
-change for its focused item before or after the change (the item a key, an expander click or the focused row's
-ExpandCollapse acts on), read from both sources, which are never traversed; another item's expansion raises the
-structure change only.
+change for its focused item before or after the change, read from both sources without traversing them. An explicit
+UI Automation Expand or Collapse action on an unfocused item also reports that known item's changed state. For an
+application-driven source replacement that supplies no changed item IDs, an unfocused item's expansion raises the
+structure change only; finding arbitrary changes would require a separate model-delta contract.
 
 A TabControl is a Tab element whose children are its visible tabs, TabItem elements named by their titles and
 identified by stable tab ids through reordering. Its page follows it as a sibling in the flat tree of semantic controls,

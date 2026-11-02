@@ -1561,7 +1561,11 @@ __declspec(noinline) static int RunFunctionalTests()
 #if DXUI_TEST_HAS_PREPARED_TREE_ROWS
         GraphicsFixture gpu;
         Hr(gpu.Create(), "prepared Tree semantics WARP device");
+        TestEmbeddedRadioGroupAccessibility(gpu);
         TestPreparedTreeAccessibilitySemantics(gpu);
+#if DXUI_ENABLE_DIAGNOSTICS
+        TestPreparedTreeUnfocusedExpansionAction(gpu);
+#endif
         TestPreparedTreeRootDoesNotRetainSupersededSource(gpu);
         return 0;
 #else
@@ -1777,6 +1781,9 @@ __declspec(noinline) static int RunFunctionalTests()
     TestEmbeddedTranslatedCharacterOwnership(gpu);
     TestEmbeddedAccessibility(gpu);
     TestPreparedTreeAccessibilitySemantics(gpu);
+#if DXUI_ENABLE_DIAGNOSTICS
+    TestPreparedTreeUnfocusedExpansionAction(gpu);
+#endif
     TestPreparedTreeRootDoesNotRetainSupersededSource(gpu);
     TestInteractionLayoutWithoutPaint(gpu);
     TestEmbeddedUiaEventHarness(gpu);
