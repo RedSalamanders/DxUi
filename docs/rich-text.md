@@ -558,11 +558,15 @@ Text file links use the existing inert underlined link presentation; paste does
 not open a file or add navigation. File type classification is lexical and does
 not check existence. Drag-and-drop and copying assets into the document folder
 are outside this paste feature.
-The [file drag-and-drop specification and native/embedded test plan](../Specs/Plans/Done/RichTextFileDrop_2026-10-20.md)
-owns the in-progress drop-at-caret implementation. `DxUi/FileDrop.h` provides an
-application-owned revocable OLE adapter; the application owns registration and
-routes view-local DIPs to the native or embedded host. Final validation and
-performance qualification remain pending.
+Drop-at-caret is implemented through the optional application-owned revocable OLE
+adapter in `DxUi/FileDrop.h`. The application owns OLE initialization on its UI thread, registration,
+receiver lifetime and screen-to-view DIP routing, then uses the native or embedded
+host's guarded preview/commit path. See the [consumer upgrade guide](upgrade.md#optional-host-features)
+and [compiled application example](../Samples/EmbeddedControls/Main.cpp).
+The [completed file-drop plan](../Specs/Plans/Done/RichTextFileDrop_2026-10-20.md) and
+[delivery evidence](../Measurements/WipDelivery_2026-11-02/README.md) record local implementation
+and checks; consumer integration, physical/native-platform and performance qualification
+remain separately owned in the [shared ledger](../Specs/Plans/WIP/ConsumerUiQualification_2026-10-11.md).
 The [file-reference qualification packet](../Measurements/RichText/README.md)
 records all six builds and 57 ordinary x64 scope passes for image/link and mixed
 paste, including native/embedded transport, semantic roles, history and fault

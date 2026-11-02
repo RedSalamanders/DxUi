@@ -123,6 +123,16 @@ call `Attach(hwnd)` and check its boolean result, then install the tree and them
 messages through `HandleMessage(hwnd, message, wParam, lParam, handled)`; return that result when handled and
 otherwise continue normal window dispatch. This mode owns native graphics, text/accessibility and presentation
 services. The application still owns the top-level window and event-blocked message loop.
+
+An application that knows native presentation is unavailable can call
+`SetNativePresentationVisible(false)` on the attachment owner thread, then restore `true`
+when needed. The default is true per attachment. The signal suppresses native drawing and
+animation while preserving logical tree/input/accessibility state; resuming requests a full
+frame without activation. Check the HRESULT; an unchanged signal returns `S_FALSE`.
+DxUi does not detect covering windows. Embedded views continue to use `SetVisible`.
+See the [native visibility contract](../Specs/Rendering/Rendering_Win32Host.md) and
+[upgrade guide](upgrade.md#optional-host-features).
+
 After application accelerators and TSF pretranslation, pass each message to
 `host.DispatchKeyboardMessage(message)` before calling `TranslateMessage`. When
 it returns true, continue the loop: it already dispatched that exact attached

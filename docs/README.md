@@ -8,6 +8,7 @@ DxUi is a Windows C++ retained-control library delivered as one static archive, 
 The API uses namespace `DxUi`. It supports a supplied-device embedded view and an HWND-based native host.
 
 - [Getting started](getting-started.md): prerequisites, builds, exact-pin consumption and a minimal control tree.
+- [Upgrade a consumer](upgrade.md): the 2 November delivery pin, API 3/4 migration, client changes, rebuild, validation and rollback.
 - [Unicode rich text](rich-text.md): bounded source transactions, projections, Unicode 17 logical graphemes, retained editor and native/embedded source TSF/IME/UIA adapters.
 - [Hosting and lifetime](hosting.md): graphics, input, DPI, animation, native windows and recovery.
 - [Control guide](controls.md): all 35 controls, configuration, events and model ownership.
