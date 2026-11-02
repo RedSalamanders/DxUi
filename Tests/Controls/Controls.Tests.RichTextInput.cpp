@@ -257,7 +257,8 @@ void TestRichTextOleAdapterRevocation()
 
 void TestRichTextOleAdapterFromMta()
 {
-    RunFileDropApartmentFixture(COINIT_MULTITHREADED, []
+    RunFileDropApartmentFixture(COINIT_MULTITHREADED,
+                                []
     {
         RunFileDropAdapterOnSta(RichTextOleSourceMoveOnSta);
         RunFileDropAdapterOnSta(RichTextOleAdapterRevocationOnSta);
