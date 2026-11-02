@@ -22,6 +22,9 @@ Use `-Platform ARM64` to cross-build on x64; execute those binaries on a native 
 
 ## Consume the library
 
+For an existing application, follow [Upgrade a consumer](upgrade.md) for the delivery pin, code/behavior changes,
+complete rebuild, product validation and rollback. The example below establishes a new integration.
+
 Pin a tested full Git commit, API revision **4** and target `["DxUi"]` in the consumer's
 `Dependencies/DxUi.lock.json`. Follow the exact schema and fingerprint validation in
 [the consumption contract](../Specs/Build/Build_ToolchainAndConsumption.md) and

@@ -1,14 +1,19 @@
 # API revision 4 consumer handoff register
 
-Status: **OPEN**. This record tracks work owned by consumers after the DxUi API revision 4 candidate is independently
-reviewed and an exact library commit is available. It does not update consumer pins, publish a library revision, or
+Status: **OPEN** for consumer-owned adoption and qualification. The reviewed delivery merged into library main
+on 2 November 2026 as `6df17007875ae731a3808b475b10bd056328bbdf` through
+[PR #159](https://github.com/RedSalamanders/DxUi/pull/159), retaining API revision 4.
+The [consumer upgrade guide](../../../../docs/upgrade.md) gives the pin, required rebuild/code review,
+optional integration, product validation and rollback steps. This register does not update consumer pins or
 qualify any consumer product.
 
 The candidate's public compile/import contract is frozen in
 [`Tools/ConsumerApi/ConsumerApi.Tests.Revision4.cpp`](../../../../Tools/ConsumerApi/ConsumerApi.Tests.Revision4.cpp) and is compiled by the exact-pin
 consumer gate. Passing that fixture establishes the library's declared revision-4 source contract only. Each consumer
-must adopt its own exact pin and run its product tests against the published candidate. The current library candidate
-is still in review; this register intentionally names no candidate commit.
+must adopt its own exact pin and run its product tests against the selected candidate. The merged library pin above
+is available for adoption; the [delivery report](../../../../Measurements/WipDelivery_2026-11-02/README.md)
+preserves its exact evidence cohorts and the qualification limits. The historical consumer pins below are not a
+live inventory of application branches.
 
 | Consumer | Consumer-owned handoff | Evidence still required | Status |
 | --- | --- | --- | --- |

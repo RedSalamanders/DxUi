@@ -217,6 +217,11 @@ do not replace the required native sanitizer detection probe and regression suit
 
 ## Compatibility and the consumer interface
 
+The user-facing [consumer upgrade guide](../../docs/upgrade.md) collects the 2 November 2026 delivery pin,
+API 4 rebuild requirements, earlier API 3 migration, optional adapter adoption, validation and rollback.
+This contract remains the authority for exact source/toolchain identity and compatibility; library acceptance
+does not qualify a consumer product.
+
 `apiRevision` in `capabilities.json` is the compatibility number a consumer lock pins, and `validate_consumer.ps1`
 rejects a lock that names another, so a consumer adopts a new revision in the reviewed change that moves its pin.
 

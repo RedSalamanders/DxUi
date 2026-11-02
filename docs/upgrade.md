@@ -1,0 +1,176 @@
+# Upgrade a DxUi consumer
+
+This guide covers the **2 November 2026 delivery**, merged in
+[PR #159](https://github.com/RedSalamanders/DxUi/pull/159), and the application work needed to adopt it.
+The exact source pin is:
+
+```text
+6df17007875ae731a3808b475b10bd056328bbdf
+```
+
+The library still declares **API revision 4** and one static target, **DxUi**. C++ object layouts have changed:
+rebuild every module that uses DxUi with matching headers, archive, compiler, configuration and CRT.
+An unchanged API revision does not establish binary compatibility.
+
+## Choose the right migration
+
+| Current consumer | Work to do |
+| --- | --- |
+| Already on API 4 | Update the exact pin, review the delivery changes below, restore isolated dependencies and rebuild the full dependent closure. Existing supported consumer imports remain available. |
+| Still on API 3 | Also port the revision-4 Grid/Tree focus and selection, child/tab transfer and menu contracts below. Update the consumer's expected-revision guard together with its adapters and lock. |
+| API 2 or older | First apply the earlier interface/script renames in the [compatibility contract](../Specs/Build/Build_ToolchainAndConsumption.md#compatibility-and-the-consumer-interface), then the revision-4 migration. |
+
+Read the actual `Dependencies/DxUi.lock.json` in the application branch being upgraded. Historical pins in plans
+or another application's successful build do not identify or qualify this application's starting point.
+
+## Upgrade in the consumer repository
+
+1. Create a consumer change and retain its preceding lock and adapter commit for rollback. Record the target
+   platform/configuration and selected toolchain. Prerequisites and the supported MSBuild imports are in
+   [getting started](getting-started.md#consume-the-library) and the
+   [consumption contract](../Specs/Build/Build_ToolchainAndConsumption.md).
+2. Use the consumer's existing update workflow, or edit its exact lock in that reviewed change. Preserve any
+   additional consumer-owned fields. The minimal implemented lock is:
+
+   ```json
+   {
+     "repository": "https://github.com/RedSalamanders/DxUi",
+     "commit": "6df17007875ae731a3808b475b10bd056328bbdf",
+     "apiRevision": 4,
+     "targets": ["DxUi"]
+   }
+   ```
+
+   A consumer that explicitly expects API 3 must port its adapters and advance that guard as part of the same
+   change. Changing the lock alone will correctly fail restore. Pin the complete commit, rather than `main`.
+3. Run the consumer's restore entrypoint for each target architecture. It resolves a clean, isolated source
+   checkout and fingerprinted outputs; it must leave any developer sibling checkout alone. Its resolved
+   `DxUiRoot`, lock and output root must agree. The public
+   [pin validator](../Tools/validate_consumer.ps1) checks the canonical repository, exact clean checkout,
+   API revision and single target. A pin validation pass does not build or test the application.
+4. Restore dependencies using the same selected toolchain and output identity that the build will use. Keep
+   MSVC 14.52.x/v145 and the exact selected version consistent across all LTCG objects. Use `/MDd` for Debug and
+   `/MD` for Release, with matching architecture/configuration and ASan annotation policy. Existing
+   [Consumer props/targets](../Build/DxUi.Consumer.targets) forward the producer settings. Retain one
+   `src/DxUi.vcxproj` reference; newly owned parser/rendering sources are built by DxUi, without adding them
+   individually to application projects.
+5. Rebuild the complete application dependency closure, including EXEs, DLLs, adapters and custom controls that
+   include DxUi headers. Use the consumer's supported clean/rebuild operation and the newly fingerprinted output
+   root. A new `DxUi.lib` linked with old consumer objects is not a valid migration. Keep the build's zero-warning,
+   zero-error result and source/dependency/toolchain identity.
+6. Run the consumer checks below, record outcomes and remaining gates, then publish/merge the consumer change
+   through its own workflow. Library PR #159 does not change an application lock or complete product adoption.
+
+### Existing consumer entrypoints
+
+The application owns these commands and their help. Check its current checkout before running them; these are
+entrypoint examples, not a guarantee that every consumer branch has already been ported to API 4.
+
+| Consumer | Update and restore workflow |
+| --- | --- |
+| RedSalamander | `Get-Help .\Tools\Update-DxUi.ps1 -Full`; preview with `.\Tools\Update-DxUi.ps1 -WhatIf`. Normal execution selects the current successfully validated main and then runs the product Full gate. Restore uses `.\Tools\Restore-DxUi.ps1 -Platform x64 -Configuration Debug`. |
+| RedXe | `Get-Help .\Update-DxUi.ps1 -Full`; preview with `.\Update-DxUi.ps1 -WhatIf`. Normal execution selects the current successfully validated main and then runs `test.ps1 -Full`. Restore uses `.\restore-dxui.ps1 -Platform x64`. |
+| RedPrism / RedTilde | Adopt the exact lock through the application's reviewed pin/adapter change, then use `.\restore-dxui.ps1 -Platform x64`; repeat for ARM64 when required. An old revision guard is part of the application port. |
+
+The automatic updaters select **current main**, not an arbitrary historical commit, and can refuse while their
+required CI result is pending. Verify the selected lock still names the candidate you intended to adopt.
+`-UpdateOnly` skips product validation; it does not establish that the product passes. RedXe's
+`-AllowApiRevisionChange` records another API revision for a deliberate port; it does not implement the adapter
+or restore-guard changes. A successful coordinator/PR check also does not replace the separate
+[main native qualification](../Specs/Build/Build_UnifiedCI.md).
+
+## What changed in this delivery
+
+This comparison is against pre-delivery main `4423074dee2410acb28e62b41072e6c561a79eb8`. A consumer pinned further
+back must review the intervening changes too. See the [source-bound delivery report](../Measurements/WipDelivery_2026-11-02/README.md)
+for implementation dispositions and executed evidence.
+
+| Area | Change and application action |
+| --- | --- |
+| C++ compatibility | Public retained/host/document/clipboard types gained state. Recompile the full closure. Review aggregate initialization and exhaustive enum switches against the new headers; avoid positional field assumptions or persisted enum ordinals. |
+| Rich editor appearance | `RichTextEditorAppearance` inserts fields before `maximumTextWidthDip`, including source presentation and the default-off `directSourceInkPreview`. Replace positional initialization with member assignment or designated members; keep the application's intended defaults. |
+| Custom code | `Separator()` is no longer `noexcept`. Review any construction traits or exception-boundary assumptions that depend on its old declaration. New `PointerAction`, `WindowHostCursorKind`, Markdown diagnostic and semantic entries need appropriate handling in application switches. |
+| Embedded rendering | `Prepare` can change PS shader-resource slot 0 and output-merger targets. Rebind application graphics state after preparation. Handle failed preparation without a tight retry loop; a superseded-frame `E_ABORT` requests another owner turn. See [hosting](hosting.md#embedded-view). |
+| Native visibility | Optional `ControlHost::SetNativePresentationVisible(false)` suppresses native drawing and animation for application-known occlusion. Restore `true` when presentation is needed. It defaults to visible, requires the attached owner thread, and does not discover covering windows. Embedded hosting continues to use `SetVisible`. |
+| Exact source and metadata | Counted RichText source preserves BOM, embedded NUL and mixed CR/LF/CRLF. Keep length/revision-aware mirrors and UTF-16 offsets. RichMarkdown closed front matter now has bounded YAML/TOML validation; handle syntax, duplicate-key, alias and capacity diagnostics separately. Application schemas and structured property editing remain application-owned. |
+| File and clipboard transport | Optional STA OLE adapters support guarded drop-at-caret and source moves. Additive clipboard extensions cover structured file/HTML/bitmap and rendered-copy routes. Existing plain-text adapters need not implement those interfaces. See the integration notes below. |
+| Rich presentation and images | Expanded bounded math/Mermaid, metadata, footnotes, tables, source-region editing, image and export mechanisms remain explicit profiles/opt-ins. Image authorization, workers, completion delivery and any network transport remain application-owned. Unsupported notation retains source fallback. See [current capabilities](rich-text.md#current-capabilities). |
+| Input, accessibility and recovery | Lifetime/re-entry, prepared geometry, focus, image cancellation and resource failure handling were repaired and tested in library fixtures. Recheck the application's actual keyboard, pointer, TSF/UIA, teardown and device-recovery paths; physical AT/IME/touch acceptance is separate. |
+| Build and distribution | Strict diagnostic acceptance requires complete successful zero-warning/error evidence. The production SDK is a separate compiler/CRT/source-bound artifact with an extracted-consumer smoke; a source-pin migration does not select an old SDK archive. Carry the updated [third-party notices](../THIRD-PARTY-NOTICES.md) through the application's packaging workflow. |
+
+For example, preserve the appearance defaults and name only the application override:
+
+```cpp
+DxUi::RichTextEditorAppearance appearance{};
+appearance.maximumTextWidthDip = 960.0f;
+```
+
+### Optional host features
+
+For native visibility, check the returned `HRESULT`; `S_FALSE` means the value was unchanged, while unattached/
+embedded and wrong-thread calls fail. Resume explicitly after a false signal. It preserves logical input/tree/
+accessibility state and does not activate the window. The
+[native host contract](../Specs/Rendering/Rendering_Win32Host.md) defines the exact behavior.
+
+For OLE drop, use [`DxUi/FileDrop.h`](../include/DxUi/FileDrop.h) and the
+[compiled application example](../Samples/EmbeddedControls/Main.cpp). Initialize OLE on the receiving UI thread
+(for example, `OleInitialize` with `OleUninitialize` owned by `wil::scope_exit`, as in the sample); COM STA initialization alone is insufficient for
+`RegisterDragDrop`. The application owns the HWND/router and OLE registration, retains a receiver, attaches the revocable adapter, and maps screen
+coordinates to the target view's local DIPs. Route preview/commit through the native or embedded host after
+coherent preparation. Revalidate the target and `RichFileDropGuard` after external `IDataObject` calls; a receiver
+reports success only after one source transaction commits. Revoke registration before HWND/adapter destruction;
+`Detach` makes retained target references inert. Source MOVE uses the captured source move/revision checks,
+rather than deleting text just because another target advertised a move. Dropping a reference does not copy an
+asset or start an image worker. The bounded drop profile is 16 files and a 256-KiB medium.
+
+For rich clipboard transport, optional interfaces in
+[`TextInputServices.h`](../include/DxUi/TextInputServices.h) extend discovery without replacing the existing
+clipboard vtables. Review the concrete application adapter if HTML/bitmap/file paste, semantic cut or rendered
+copy is wanted. Keep ordinary source copy and original EOL spelling intact. Image display still requires the
+application's request/worker/completion service. Remote/data/SVG admission and direct source-ink rendering are
+independent opt-ins; pinning this delivery alone does not enable them.
+
+## Additional changes for API 3 consumers
+
+These are the earlier revision-4 contract changes, not a new API bump in this delivery:
+
+- Check the result of `Panel::AddChild` / `TabControl::AddTab` before dereferencing: callback-driven retirement can
+  make insertion return null.
+- Check `TakeChild` / `TakeTab` before transferring ownership. `Panel::TakeChild` leaves an empty slot;
+  `TabControl::TakeChild` / `TakeTab` remove a tab. A focus/capture callback may prevent extraction. Passing an
+  empty result to `SetRoot` or `PageHost::SetPage` must not accidentally destroy the still-owning tree.
+- Treat Tree/Grid focus separately from selection membership. Wire `OnTreeFocusedItemChanged` and
+  `OnGridFocusedRowChanged` where the application needs focus notifications, and review quoted TSV extraction.
+- A described menu's accessible name is its label/explicit name, with secondary text in HelpText. Remove any
+  application accessible-name duplication of that secondary text.
+- Initialize `ContextMenuSessionCallbacks` by member: `flowDirection` precedes `minRootWidthDip`.
+
+Use the [full compatibility contract](../Specs/Build/Build_ToolchainAndConsumption.md#compatibility-and-the-consumer-interface)
+and [revision-4 compile fixture](../Tools/ConsumerApi/ConsumerApi.Tests.Revision4.cpp) when porting models/delegates.
+The fixture is library source-contract evidence; application behavior still needs product tests.
+
+## Validate and roll back
+
+Use the consumer's affected-testing explanation to identify the relevant product coverage. Cover x64 Debug,
+Release and ASan as required by that product, and its ARM64 build/runtime obligations. Native ARM64 execution
+requires an ARM64 host. Retain missing native-platform or physical-input results as **NOT RUN**, rather than
+counting a cross-build or a library suite as a product pass.
+
+Exercise the application paths it actually uses: keyboard/Tab/Enter/Escape and focus return; Grid/Tree selection;
+exact source, paste/cut and undo/redo; drop/image transport if enabled; metadata diagnostics; DPI/resize;
+hidden/show and device replacement; cancellation and closing while callbacks or image completions are pending.
+Verify every selected profile's zero-warning build, matching source/artifact identity and actual product execution.
+Use the existing harness/desktop lease for foreground assertions and deterministic synthetic data for captures.
+
+Record the old/new full pins, API revision, adapter changes, selected toolchain/CRT/configurations, build/test
+receipts, remaining gates and rollback in the **consumer's** reviewed change. Its normal Full/pre-push and release
+requirements continue to apply. The [shared qualification ledger](../Specs/Plans/WIP/ConsumerUiQualification_2026-10-11.md)
+remains open for the separately owned platform, physical-input, adoption and performance obligations.
+
+The delivery's paired performance study remains unqualified because its controls were unstable. The same-toolset
+library archive grew 24.42%, and the EmbeddedControls sample grew 77.54%; these are library/sample observations,
+not an application size or speed prediction. Measure the consumer's relevant workloads and packaged output.
+
+For rollback, restore the preceding consumer commit containing its lock **and** related adapter/toolchain changes,
+run its normal exact-pin restore, and rebuild the full dependent closure against that pin. Retain the failed new-pin
+receipts for diagnosis. Do not mix the old archive with new-pin headers or objects.
