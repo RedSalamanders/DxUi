@@ -1,4 +1,11 @@
+#if defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable : 4464) /* Private vendor configuration, exact relative include. */
+#endif
 #include "../../dxui_private.h"
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#endif
 #if defined(_MSC_VER)
 #pragma warning(push, 0) /* Pinned upstream vendor body; DxUi adapter remains /Wall. */
 #endif

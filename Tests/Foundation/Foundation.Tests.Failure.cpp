@@ -395,10 +395,19 @@ bool CheckEvidence(const std::wstring& prefix, std::wstring_view name)
     if (! ParseNumber(Field(record, "thread="), thread, 10) || ! thread || ! ParseNumber(Field(record, "flags="), flags, 16) ||
         ! ParseNumber(Field(record, "context_ip="), ip, 16) || ! ip || ! ParseNumber(Field(record, "dump_result="), dumpResult, 16) || dumpResult != 0)
         return false;
-    const bool firstChance = name == L"unknown" || name == L"bad_alloc" || name == L"standard" || name == L"worker" ||
-                             name.starts_with(L"accessible-invoke-") || name.starts_with(L"rich-") || name == L"context-menu-callback" || FindAdditional(name);
+    const auto* registered = FindAdditional(name);
+    const bool firstChance = (! registered || registered->faultClass != FatalFaultClass::ContractViolation) &&
+                             (name == L"unknown" || name == L"bad_alloc" || name == L"standard" || name == L"worker" ||
+                              name.starts_with(L"accessible-invoke-") || name.starts_with(L"rich-") || name == L"context-menu-callback" || registered);
     if (firstChance && ! (flags & DxUi::Failure::FirstChanceContext))
         return false;
+    if (registered && registered->faultClass == FatalFaultClass::ContractViolation)
+    {
+        std::uint64_t kind{}, result{};
+        if (! ParseNumber(Field(record, "kind="), kind, 10) || kind != static_cast<std::uint64_t>(DxUi::Failure::Kind::ContractViolation) ||
+            ! ParseNumber(Field(record, "result="), result, 16) || result != registered->expectedResult || (flags & DxUi::Failure::FirstChanceContext) != 0u)
+            return false;
+    }
     if (name == L"stale-caught" &&
         ((flags & DxUi::Failure::FirstChanceContext) || Field(record, "function=").find("StaleCaughtOrigin") == std::string_view::npos))
         return false;
@@ -837,6 +846,9 @@ bool ExpectFatalChild(const wchar_t* caseName)
         }
         return true;
     }
+    if (const auto* additional = FindAdditional(name);
+        additional && additional->faultClass == FatalFaultClass::ContractViolation && exitCode != ExpectedFatalExitCode)
+        return false;
     if (const auto* additional = FindAdditional(name))
         if ((bits & WitnessTriggerReached) == 0L || (additional->faultClass == FatalFaultClass::InjectedAllocation && (bits & WitnessInjectedAllocation) == 0L))
             return false;

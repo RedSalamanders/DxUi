@@ -1,10 +1,9 @@
 # Unicode rich text
 
-The [failure policy](../Specs/Core/Core_FailureHandling.md) now requires checked nonthrowing refusal or host
-fatal diagnostics for unexpected C++ exceptions. Published source `5fc4d4c` still has throwing public C++ APIs,
-parser syntax exceptions and allocation/callback recovery. The current-API descriptions below record that
-legacy implementation; the [open migration](../Specs/Plans/WIP/FailurePolicy_2026-11-02.md) must convert it before
-claiming conformance. Historical sweeps and capability support do not prove the new fatal-stack/dump contract.
+API 5 uses checked nonthrowing refusal or host fatal diagnostics for unexpected C++ exceptions, as described by
+the [failure policy](../Specs/Core/Core_FailureHandling.md) and [upgrade guide](upgrade.md#port-checked-operations).
+The [migration](../Specs/Plans/WIP/FailurePolicy_2026-11-02.md) and its qualification remain open; historical
+source `5fc4d4c` used exception recovery and does not qualify the current fatal-stack/dump contract.
 
 ## Current capabilities
 
@@ -14,7 +13,7 @@ partial language profile. Neither status supplies current-source build, runtime,
 performance, physical-input or consumer acceptance. Those results retain their
 own source identities in [the evidence archive](../Measurements/RichText/README.md).
 `capabilities.json` owns the table; `validate-specs.ps1` rejects a changed, missing
-or contradictory row. API revision remains 4; pair headers with the exact library.
+or contradictory row. API revision is 5 and remains unqualified; pair headers with the exact library.
 The added control triple-click virtual has an ordinary-press default for existing
 source consumers; rebuild control subclasses with their pinned headers and library.
 The file-drop receiver's additive text-move hooks default to declining text;
@@ -248,7 +247,7 @@ The feature is disabled by default. `QueryMarkdownCommandState` returns current
 style/heading/list presentation without allocation. Applicability is unknown
 when neither an immediate proof nor an exact prepared result is available.
 For an arbitrary request, call `PrepareMarkdownCommandState(request)` on the
-owner thread, then query the same request. Preparation can allocate or throw;
+owner thread, then query the same request. Preparation can allocate; unexpected exceptions are fatal through the host.
 it runs the execution planner without editing or notifying, and retains one owned
 request/result. A false return means the current owner state cannot be prepared.
 Changing source, selection, presentation, binding or policy retires the result;
@@ -493,8 +492,8 @@ host.SetRoot(std::move(root)); // ControlHost, or embedded.Controls()
 ```
 
 All mutable operations belong to the host/UI owner thread. Source UTF-16
-anchor/caret offsets include Markdown delimiters; invalid scalar/CRLF boundaries
-throw without mutation. `SetText` resets history without invoking the committed-
+anchor/caret offsets include Markdown delimiters; checked setters reject invalid scalar/CRLF boundaries
+without mutation. `SetText` resets history without invoking the committed-
 text callback. `SetSelection` and `SetViewMode(Source/Rich)` preserve source bytes
 and do not invoke that text callback; installed selection observers follow the
 source-revision, selection and gesture publication contract above.
@@ -502,9 +501,8 @@ source-revision, selection and gesture publication contract above.
 once per actual committed source change. The four supported v0 formatting markers
 are described below. Read-only/disabled controls reject source commands; read-only
 allows selection and copy. `SetOnTextChanged` runs after publication and may replace
-or destroy the sender. The target failure policy makes all unexpected callback exceptions fatal through the host
-diagnostic path. The published legacy implementation treats bad_alloc as fatal but contains other standard
-exceptions after commitment; this still needs migration. A scheduling callback that
+or destroy the sender. Unexpected callback exceptions are fatal through the host diagnostic path, including
+after commitment; use the callback's documented result for expected refusal. A scheduling callback that
 retires, rebinds or supersedes the editor stops the old notification.
 
 The preview implements pointer selection/word selection, Shift extension, host
@@ -811,9 +809,9 @@ headers and DxUi.lib. This does not provide compatibility with an older archive.
 The core creates no worker, queue, HWND, graphics device, swap chain, timer or file. The
 caller owns cancellation, request/revision keys, scheduling, stale publication
 checks and view lifetime. `PreparedLayout` is also owner-thread mutable; do not
-prepare or query it concurrently. Public operations can throw standard argument,
-range, length/allocation exceptions, or WIL HRESULT exceptions for DirectWrite
-failures. Catch at the caller's Windows/COM/callback boundary.
+prepare or query it concurrently. Use checked `Try...` forms for external arguments, ranges and native
+DirectWrite failures, and inspect their `SourceResult` or `HRESULT`. Legacy convenience entrypoints take the
+fatal contract route on invalid input; unexpected C++ exceptions are fatal through the host.
 
 `Selection` stores anchor/caret UTF-16 offsets and preserves backwards direction.
 Replacements are one source/selection transaction. Undo/redo restores snapshots
@@ -894,7 +892,7 @@ The standalone prototype still owns those demonstration-host responsibilities.
 stops to return a display interval. Both deletion directions enclose a complete
 grapheme when an explicit ACP lies inside it. Exact-boundary deletion keeps the
 usual preceding/following behavior; empty edges yield empty intervals. Invalid
-positions or retired layout throw. Rich keyboard deletion maps this interval
+positions or retired layout are reported by `TryDeletionRange`. Rich keyboard deletion maps this interval
 back to source. Explicit noncollapsed source selections retain their exact
 scalar/CRLF meaning, and undo restores the original source and caret ACP.
 
@@ -910,8 +908,8 @@ invalid projection retirement and actual drawing on two separate WARP devices.
 This does not replace native/embedded retained-editor, IME, AT or large-file tests.
 
 The migration is source-coordinated within one module; no C++ ownership crosses
-plugin ABIs. It adds headers/functions without changing existing declarations,
-so API revision stays 4. Consume an exact clean pin via the normal
+plugin ABIs. The earlier source-coordinated addition was API 4; the current failure-policy migration is API 5
+and remains unqualified. Consume a qualified exact clean pin via the normal
 [props/targets](../Build/DxUi.Consumer.targets); no sibling cpp enumeration.
 
 Historical source-bound runs are retained in [the qualification history](../Measurements/RichText/2026-11-01-usage-history.md). They do not qualify a later source revision.
@@ -1477,7 +1475,8 @@ For example, override `FootnoteName` with `L"Note {0}"`, `GoToFootnote` with
 `L"Aller à la note {0}."`, or `ReturnToReference` with
 `L"Note {1}, référence {0}"`. Numbered templates require each specified token once
 and allow reordering. Entries must be nonempty valid UTF-16 without NUL, at most
-1,024 units; invalid identities, duplicates or templates throw at construction.
+1,024 units; `AccessibilityLabels::TryCreate` reports invalid identities, duplicates or templates without
+replacing its output. The convenience constructor treats invalid input as a contract failure.
 Static help entries use literal text. Pie, ER, Gantt and mind-map headers and
 help, ER relationship vocabulary and missing display-math delimiters use the
 same dictionary. Authored diagram labels, chart dates and values, TeX source,
@@ -1930,8 +1929,8 @@ font size and DPI.
 
 A published SemanticDocument provides Headings() for source-ordered outline entries
 and ResolveHeadingFragment() for the same fragment targets used by the editor.
-BuildHeadingTableOfContents() returns Markdown links without changing the document;
-its output is bounded by the display-unit limit and throws length_error on overflow.
+`TryBuildHeadingTableOfContents()` returns Markdown links without changing the document and reports capacity
+refusal at the display-unit limit without replacing its output.
 
 ## Mirrored read-only preview and scroll synchronization
 
@@ -1971,10 +1970,10 @@ table and opt into expansion at insertion time. It captures the editor's
 `Snapshot()`, `Revision()` and `GetSelection()` on the owner thread, checks its
 own focus, read-only and composition policy, and resolves only an admitted
 shortcode to valid UTF-16. Before committing it rechecks control lifetime,
-focus and selection, then calls `ApplySourceEdits` with that exact snapshot and
+focus and selection, then calls `TryApplySourceEdits` with that exact snapshot and
 revision, one source-range replacement and the desired post-edit selection.
 The edit ranges must be valid source boundaries and the replacement storage must
-remain alive through the synchronous call. `ApplySourceEdits` throws `std::invalid_argument` for a stale snapshot or revision; applications must separately guard selection and their
+remain alive through the synchronous call. `TryApplySourceEdits` returns `SourceResult::Stale` for a stale snapshot or revision; applications must separately guard selection and their
 own asynchronous lookup/ownership state. A changed or invalid context is
 left untouched. The resulting source contains the chosen Unicode text, and the
 existing edit transaction owns undo; no parser-level shortcode table or display

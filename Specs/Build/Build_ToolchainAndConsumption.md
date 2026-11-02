@@ -235,7 +235,12 @@ Install process hooks on the application owner thread, register the host service
 linked module outside loader callbacks, stop work and detach those modules before uninstalling on the same thread.
 Direct stack or smart-pointer control construction requires an active failure scope; checked factory callers handle
 its returned refusal. `MarkdownParser::Advance` can return `Failed` with `CapacityExceeded`; consumers preserve the
-previous publication and handle that result. The frozen revision 4 and [revision 5](../../Tools/ConsumerApi/ConsumerApi.Tests.Revision5.cpp)
+previous publication and handle that result. Consumers use the checked `Try...` forms for externally supplied
+source, ranges, configuration, command, export and native layout/query inputs; invalid convenience calls can be
+contract-fatal. `SemanticBuilder::Advance` and `PreparedDocumentLayout` also expose failed staging results with
+their documented publication and HRESULT semantics. Callbacks and model/delegate methods must return expected
+refusals through their documented results; an unexpected C++ exception is fatal. The [upgrade guide](../../docs/upgrade.md#port-checked-operations)
+maps the changed operations. The frozen revision 4 and [revision 5](../../Tools/ConsumerApi/ConsumerApi.Tests.Revision5.cpp)
 fixtures compile for every exact-pin consumer profile. The sample host is an application example, not a consumer
 crash-infrastructure qualification. The implementation and consumer adoption gates remain open until their native,
 dump-context and product-specific checks pass.

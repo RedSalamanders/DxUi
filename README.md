@@ -52,7 +52,8 @@ their explicit bounds. Applications own values, validation decisions, scrolling 
 
 Consumers import [Build/DxUi.Consumer.props](Build/DxUi.Consumer.props) and
 [Build/DxUi.Consumer.targets](Build/DxUi.Consumer.targets), pin an exact commit/API revision 5 with target `["DxUi"]`,
-and use an isolated restore/build output root. See [the consumption contract](Specs/Build/Build_ToolchainAndConsumption.md).
+and use an isolated restore/build output root. API 5 is still unqualified; no API 5 consumer pin is published.
+See [the consumption contract](Specs/Build/Build_ToolchainAndConsumption.md).
 Existing applications can follow [the consumer upgrade guide](docs/upgrade.md) for the delivery pin, client changes,
 complete rebuild, validation and rollback.
 No DxUi DLL or copied/enumerated library sources are required.

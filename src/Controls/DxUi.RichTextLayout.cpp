@@ -410,8 +410,10 @@ HRESULT Detail::PreparedLayoutAccess::Prepare(PreparedLayout& owner,
     std::vector<std::size_t> clusters{0};
     while (clusters.back() < projection.text.size())
         clusters.push_back(::DxUi::FindNextTextElementBoundary(projection.text, clusters.back()));
-    UINT32 count = 0;
-    layout->GetLineMetrics(nullptr, 0, &count);
+    UINT32 count                 = 0;
+    const auto lineMetricsResult = layout->GetLineMetrics(nullptr, 0, &count);
+    if (lineMetricsResult != E_NOT_SUFFICIENT_BUFFER)
+        RETURN_IF_FAILED(lineMetricsResult);
     std::vector<DWRITE_LINE_METRICS> lineMetrics(count);
     if (count)
         RETURN_IF_FAILED(layout->GetLineMetrics(lineMetrics.data(), count, &count));
@@ -773,18 +775,24 @@ HRESULT PreparedLayout::TryDraw(ID2D1RenderTarget* target, ID2D1Brush* brush, D2
     }
     // SDK drawing attributes are borrowed for this synchronous owner-thread
     // raster call. Copies may share the layout; restore its canonical style
-    // even when setting a later range fails. No brush survives this call.
+    // even when setting a later range fails. No brush survives a returning call.
     // Arm rollback before each fallible effect setter, including a failed one.
     bool drawingEffectAttempted = false;
     const auto restore          = wil::scope_exit([&]() noexcept
     {
         if (drawingEffectAttempted)
-            static_cast<void>(state_->layout->SetDrawingEffect(nullptr, {state_->textOffset, static_cast<UINT32>(projection_.text.size())}));
+        {
+            const auto hr = state_->layout->SetDrawingEffect(nullptr, {state_->textOffset, static_cast<UINT32>(projection_.text.size())});
+            if (FAILED(hr))
+                Failure::FailContract(hr); // Shared retained layout cannot safely keep a borrowed raster effect.
+        }
         for (const auto& run : projection_.runs)
             if (run.flags & Link)
             {
                 const DWRITE_TEXT_RANGE range{static_cast<UINT32>(run.start) + state_->textOffset, static_cast<UINT32>(run.length)};
-                static_cast<void>(state_->layout->SetUnderline(TRUE, range));
+                const auto hr = state_->layout->SetUnderline(TRUE, range);
+                if (FAILED(hr))
+                    Failure::FailContract(hr); // Every sharing owner requires the canonical underline state.
             }
     });
     const auto intersects       = [](const std::optional<MarkdownRange>& active, std::size_t first, std::size_t last) noexcept

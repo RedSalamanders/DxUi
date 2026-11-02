@@ -24,6 +24,8 @@ public:
     {
     }
     wil::com_ptr<IDWriteFactory> real;
+    HRESULT (*wrapLayout)(void*, IDWriteTextLayout*, IDWriteTextLayout**) noexcept = nullptr;
+    void* wrapContext                                                              = nullptr;
     std::size_t layouts{}, formats{}, matchingLayouts{}, failedLayouts{}, failLayoutAt{std::numeric_limits<std::size_t>::max()}, failMatchingLayoutCount{};
     HRESULT formatFailure{S_OK};
     HRESULT layoutFailure{E_OUTOFMEMORY};
@@ -137,7 +139,16 @@ public:
                 *textLayout = nullptr;
             return layoutFailure;
         }
-        return real->CreateTextLayout(string, stringLength, textFormat, maxWidth, maxHeight, textLayout);
+        if (! wrapLayout)
+            return real->CreateTextLayout(string, stringLength, textFormat, maxWidth, maxHeight, textLayout);
+        if (! textLayout)
+            return E_INVALIDARG;
+        *textLayout = nullptr;
+        wil::com_ptr<IDWriteTextLayout> created;
+        const auto result = real->CreateTextLayout(string, stringLength, textFormat, maxWidth, maxHeight, created.put());
+        if (FAILED(result))
+            return result;
+        return wrapLayout(wrapContext, created.get(), textLayout);
     }
     HRESULT STDMETHODCALLTYPE CreateGdiCompatibleTextLayout(WCHAR const* string,
                                                             UINT32 stringLength,

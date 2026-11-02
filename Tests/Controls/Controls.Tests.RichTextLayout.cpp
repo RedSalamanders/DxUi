@@ -4,6 +4,8 @@
 #include "Controls/DxUi.RichSourceInk.h"
 #include "Controls/DxUi.RichTextSourceInkRenderer.h"
 #include "GraphicsFixture.h"
+#include "Support.Tests.FatalChildren.h"
+#include "Support.Tests.LayoutFaultScenarios.h"
 #include "Support.Tests.PreparedFlowchart.h"
 #include <DxUi/RichTextLayout.h>
 #include <cmath>
@@ -2139,8 +2141,32 @@ void TestRichTextInlineMetricsFailurePreservesPreparedLayout()
                 "failed inline preparation retains the previous source and hit geometry");
     }
 }
+namespace
+{
+[[maybe_unused]] const bool registeredLayoutRollbackChildren = DxUiFailureTests::RegisterFatalChildCase({L"layout-effect-rollback",
+                                                                                                         "LayoutRollbackFailureOrigin",
+                                                                                                         RichLayoutFaultTests::RollbackFailureChild<true>,
+                                                                                                         DxUiFailureTests::FatalFaultClass::ContractViolation,
+                                                                                                         true,
+                                                                                                         static_cast<std::uint32_t>(E_ACCESSDENIED)}) &&
+                                                               DxUiFailureTests::RegisterFatalChildCase({L"layout-underline-rollback",
+                                                                                                         "LayoutRollbackFailureOrigin",
+                                                                                                         RichLayoutFaultTests::RollbackFailureChild<false>,
+                                                                                                         DxUiFailureTests::FatalFaultClass::ContractViolation,
+                                                                                                         true,
+                                                                                                         static_cast<std::uint32_t>(E_ACCESSDENIED)});
+}
+void TestRichTextLayoutNativeFailureTransactions()
+{
+    Require(RichLayoutFaultTests::PreparationPreservesPublishedState(), "line metric native refusal preserves published layout and exact HRESULT");
+    Require(RichLayoutFaultTests::SetterFailureRestores(true), "effect setter refusal restores its mutation and returns its HRESULT");
+    Require(RichLayoutFaultTests::SetterFailureRestores(false), "underline setter refusal restores its mutation and returns its HRESULT");
+    Require(DxUiFailureTests::ExpectFatalChild(L"layout-effect-rollback"), "failed effect rollback is fatal");
+    Require(DxUiFailureTests::ExpectFatalChild(L"layout-underline-rollback"), "failed underline rollback is fatal");
+}
 void RunRichTextLayoutTests()
 {
+    DXUI_RUN_TEST(TestRichTextLayoutNativeFailureTransactions);
     DXUI_RUN_TEST(TestRichTextInlineMetricsFailurePreservesPreparedLayout);
     DXUI_RUN_TEST(TestRichTextLayoutTransientLinkInkAndUnderlineRestoreSharedState);
     DXUI_RUN_TEST(TestRichTextLayoutExplicitTypographyAndInvalidOptions);

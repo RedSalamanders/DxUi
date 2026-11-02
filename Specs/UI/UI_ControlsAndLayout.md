@@ -5,6 +5,16 @@ Allocation/refusal contracts below refer to explicit checked nonthrowing results
 fatal diagnostics. The published implementation and old throwing-fault sweeps still need the recorded migration;
 they are not evidence of this new policy's acceptance.
 
+Checked prepared-text layout creation must propagate every failed native metrics
+query before replacing the published source, generation or hit/caret geometry.
+The count-only `GetLineMetrics` probe may report `E_NOT_SUFFICIENT_BUFFER` as its
+normal size result; other failures remain their exact HRESULT. Synchronous drawing
+temporarily changes retained DirectWrite effects and link underlines, then restores
+their canonical state even after a setter fails. If that restoration fails, the
+shared layout can no longer satisfy its state/lifetime guarantee: enter the host
+fatal contract path with the restoration HRESULT instead of returning success or
+continuing with retained raster attributes.
+
 RichTextEditor `RichTextEditorAppearance::colorizeMarkdownSource` is opt-in and
 uses the configured lossless Markdown analysis profile. Source glyph geometry
 MUST stay identical: syntax delimiters receive subdued ink, heading/list markers

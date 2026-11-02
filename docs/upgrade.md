@@ -27,6 +27,42 @@ Handle checked native preparation HRESULTs in the application, including device 
 do not rely on catching a C++ exception as the native error channel. Legacy convenience entrypoints that cannot
 report invalid input use the host contract-failure route.
 
+Audit application callbacks, model/delegate methods and custom controls as part of the port. An unexpected C++
+exception escaping a callback invoked by DxUi is fatal through the host, including after an editor change was
+committed. Return expected refusal through that callback's documented status or value; do not depend on an
+exception being caught and execution continuing. This also applies across Win32, COM and module boundaries.
+
+### Port checked operations
+
+Use the checked form whenever data, ranges, identities or configuration can come from the application or a user.
+Legacy convenience forms that cannot report a refusal take the fatal contract path on invalid input. The table
+is a migration map, not a substitute for each declaration's bounds and ownership contract.
+
+| Earlier operation | API 5 checked operation and result |
+| --- | --- |
+| Editor `SetText`, `SetSelection`, `SetDocumentFilePath`, `SetViewMode`, `SetAppearance`, `SetZoom`, search/highlight, labels and Markdown configuration | Corresponding `TrySet...` returns `RichText::SourceResult`; `TrySetDecorations` returns `HRESULT`. Check the declaration for its exact parameters. |
+| `Document::Reset`, `SetSelection`, `Replace`, `ReplaceWholeText`, `ReplaceTransient`, `ReplaceSelection` | Corresponding `Try...` returns `SourceResult`; replacements also write `changed`, distinguishing a successful no-op from a changed document. |
+| `DecodeUtf8`, `EncodeUtf8`, snapshot/syntax slices and lexeme queries | Use `TryDecodeUtf8`, `TryEncodeUtf8`, `TrySlice` and `TryLexeme...`, with their checked output parameters. |
+| Projection, source/display mapping and source search | Use `TryProject`, `TryPrepare`, checked `TryToSource`/`TryToDisplay` and range mapping, or `TryFindInSource`; inspect `SourceResult`. |
+| Markdown command planning or application and source edits | Use `TryBuildMarkdownCommand`/`TryBuildMarkdownDeletion`, `TryApplyMarkdownCommand` and `TryApplySourceEdits`. Check `SourceResult` and the returned plan or `changed`; a successful inapplicable plan is not a failure. |
+| Semantic construction and export | Use `SemanticBuilder::TrySetSoftBreakPolicy`/`TryBegin`, `TryExportSemanticDocument`/`TryExportMarkdownSyntax`, and checked word/heading helpers. |
+| Prepared text/document layout and queries | Use `TryPrepare`, `TryHitTest`, `TryCaret`, `TryRange`, `TryDraw` and other matching `Try...` mapping/navigation queries; inspect the exact `HRESULT`. |
+
+`SourceResult` distinguishes success from invalid source, capacity, invalid range, stale identity and invalid
+argument. Checked refusals preserve the documented output or transaction state; replacement `changed` is false
+on refusal. Do not read an output as a new result until its status succeeds. Unexpected C++ allocation failures
+remain fatal rather than becoming a `SourceResult`; a returned native allocation or device HRESULT remains an
+explicit error channel.
+
+For incremental work, inspect `MarkdownParser::Advance` and `SemanticBuilder::Advance` for
+`MarkdownPreparationStatus::Failed` and their `MarkdownAdvance::result`; do not treat it as `Pending`.
+An advance capacity failure discards staged work and preserves the last publication. Admission refusal preserves
+existing pending/published work; the semantic builder's zero-budget rejection also preserves staging.
+`PreparedDocumentLayout::BeginPreparation` can return `LayoutPreparationStatus::Failed` and exposes `Result()`;
+`AdvancePreparation` can return `Failed` with its exact `LayoutAdvance::result`, discarding staging while retaining
+the published layout. Handle the returned status and native HRESULT before deciding whether to retry or fall back;
+do not spin on a permanent failure.
+
 **Historical failure-policy review, 2 November 2026:** the [target allocation/exception policy](../Specs/Core/Core_FailureHandling.md)
 requires checked nonthrowing refusal or host fatal diagnostics with useful originating context and dump. Published
 source `5fc4d4c383bfa4891ee57a138924107bbbf11a2e` still uses exception recovery and is not qualified against that

@@ -104,31 +104,30 @@ reopening their historical checklists or relabeling old allocation sweeps as fat
 
 ### Working-tree progress, not acceptance
 
-- API 5 introduces the explicit host/module handoff, scoped fatal routing, checked control-object allocation in
-  `CreateControl`, and an application-owned sample dump writer. A concurrent-failure completion handshake and
-  owned fatal-child probes have been written. Their builds, dumps, matching symbols, thread/context assertions,
-  cross-module behavior and failure-to-write behavior remain unrun and must not be reported as passes.
-- TOML uses its pinned status interface; YAML uses a private bounded libfyaml event backend and retains graph-level
-  key/alias checks. Markdown, native math, source/document and several geometry paths now have checked results.
-  The entire existing metadata and 1,135-row math corpora, exact limits and source preservation remain open gates.
-- Checked factory allocation covers outer control storage, not arbitrary STL/shared-owner/debug-proxy construction.
-  The sample host is not a qualified consumer crash writer. Actual application adoption, native ARM64 and interactive
-  qualification remain separately owned. Retain historical evidence under its original identity.
-- Source review found remaining expected-error/recovery paths that cannot be silently covered by a broad
-  first-chance scope: `src/Controls/TextClipboard.cpp` HTML-offset capacity; `DxUi.Grid.cpp` selection reserve
-  `length_error` catches; `DxUi.RichImage.cpp` decode length/argument catches; `DxUi.RichImageResources.h` path
-  rejection and preparation rethrow; `DxUi.RichSemanticGeometry.cpp` formula/native-result and geometry admission
-  throws; `DxUi.RichDocumentLayout.cpp` geometry/admission/query throws; `DxUi.RichSemantic.cpp` legacy query
-  throws; and `DxUi.RichTextEditor.cpp` profile/query preconditions and diagnostics-only staging injections.
-  The rich accessibility and script-renderer catches identified during review are being migrated; verify current
-  source before claiming closure. Treat unexpected C++ failures as fatal, expose expected refusal as checked status,
-  and isolate deliberate test injections. Keep S0/S3/S4 open until the complete call graph is classified.
-- The 2 November static inventory also found terminal named catches throughout `DxUi.Accessibility.cpp`,
-  `DxUi.Controls.cpp`, `DxUi.cpp`, `DxUi.EditorControls.cpp`, `DxUi.FileDrop.cpp`, `DxUi.Forms.cpp`,
-  `DxUi.Grid.cpp`, `DxUi.Layout.cpp`, `DxUi.Menu.cpp`, `DxUi.NativeTextInput.cpp`, `DxUi.RichTextEditor.cpp`,
-  `DxUi.TextStoreACP.cpp`, `DxUi.Tree.cpp`, `DxUi.WindowHost.cpp`, `TextClipboard.cpp`, `TextInputServices.cpp`,
-  `src/Foundation/ControlAllocation.cpp`, and `src/Rendering/Embedded.cpp`. Their presence alone proves neither
-  originating-site context nor coverage of foreign exception types; verify reachable scopes and child evidence.
+- The API 5 implementation includes explicit host/module registration, scoped fatal routing, checked outer
+  control storage, transactional expected-error results, and an application-owned bounded dump writer.
+  First-party unexpected exceptions are fatal; deliberate fault injections run only in owned children.
+- The x64 Release Foundation diagnostic at `e2fc2350` passed lifecycle checks, 15 built-in fatal children and
+  12 controlled TSF-association cases. The children include real checked native-null seams for control and YAML
+  storage, unknown/standard exceptions, new-handler, worker, concurrent, missing/returning/recursive handlers,
+  dump refusal and no-activation. Writable dump cases verify their saved context and named originating frame.
+  This is diagnostic evidence, not a complete current-source build/runtime receipt.
+- The current C-only YAML event interface passes the diagnostic corpus: 382 YAML and 717 TOML cases, two
+  duplicate cases and 20 documented multi-document exclusions. Low-budget refusal/retry, directive/depth limits,
+  public source limit and the formerly crashing long-tag input pass; 100 low-budget and three long-tag retry
+  pairs retained the same process handle count. The private backend uses a live C-only refusal fence, a poisoned
+  arena and native-null fatal routing; no jump crosses C++ objects or callbacks.
+- All six `e2fc2350` builds compiled and linked without errors but emitted 26 vendor relative-include diagnostics
+  per profile (duplicated in MSBuild's log summary). They are rejected under the zero-warning policy. A narrowly
+  scoped include diagnostic has been added; the next frozen cohort must pass all six builds.
+- Final source review found and repaired two native layout-result gaps: an ignored line-metrics probe and ignored
+  drawing-state rollback failure. A real COM forwarder verifies E_FAIL/E_OUTOFMEMORY preserve the old publication
+  and a healthy retry, and that failed setters restore actual effects/underlines. The prior library fails the
+  preparation oracle; the corrected explicit object passes. Two fatal rollback children await canonical execution.
+- The expanded public API 5 fixture compiles at /W4 /WX for x64 Debug/Release and ARM64 Release. True clean-pin
+  multi-module consumer, complete x64 runtime/foreground/ASan, production SDK, current validator and matched
+  resource/performance gates remain open. Actual application adoption is separately owned; native ARM64 runtime
+  is explicitly deferred by the owner and must not be described as cross-build execution.
 
 - [x] Review the published baseline, owner requirement, representative production paths and conflicting normative clauses.
 - [x] Record the central target policy, current implementation gap and this indexed migration scope.

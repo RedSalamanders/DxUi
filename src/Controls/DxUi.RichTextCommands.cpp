@@ -3595,7 +3595,7 @@ void MarkdownCommandPlanner::Table(const MarkdownCommandRequest& request)
                     }
                 result += L" |";
             }
-            return std::wstring(result); // Keep allocation failure catchable when NRVO is disabled.
+            return std::wstring(result); // Keep allocation on the live scoped preparation path when NRVO is disabled.
         };
         std::wstring value = rowSource(0u);
         value += Eol(line);

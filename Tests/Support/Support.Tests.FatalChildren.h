@@ -1,4 +1,5 @@
 #pragma once
+#include <cstdint>
 #include <string_view>
 
 namespace DxUiFailureTests
@@ -7,14 +8,16 @@ enum class FatalFaultClass
 {
     CppException,
     InjectedAllocation,
+    ContractViolation,
 };
 struct FatalChildCase
 {
     const wchar_t* name;
     const char* expectedOriginSymbol;
     void (*trigger)();
-    FatalFaultClass faultClass = FatalFaultClass::CppException;
-    bool scopeTrigger          = true;
+    FatalFaultClass faultClass   = FatalFaultClass::CppException;
+    bool scopeTrigger            = true;
+    std::uint32_t expectedResult = 0u;
 };
 // The name and symbol must be process-lifetime literals; register before child
 // dispatch in both parent and child. The registry is bounded and allocation-free.
