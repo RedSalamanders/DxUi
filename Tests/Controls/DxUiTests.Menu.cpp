@@ -7378,10 +7378,35 @@ void TestWindowHostTabRaisesAutomationFocusChanges()
             "the client hears the first button again");
     client.Settle(); // UI Automation may deliver an earlier window event a second time; count only what follows.
     const size_t windowHeard = client.Count(L"Essai de focus");
+    const uint64_t announcementsBeforeRemoval = window.Host().DebugGetFocusAnnouncementCount();
+    const uint64_t systemMovesBeforeRemoval = window.Host().DebugGetFocusMovesLeftToSystemCount();
+    const uint64_t reactivationsBeforeRemoval = window.Host().DebugGetReactivationAnnouncementCount();
+    const bool logicalFirstBeforeRemoval = window.Host().GetFocusControl() == first;
+    const bool gainTurnBeforeRemoval = window.Host().DebugIsInFocusGainTurn();
+    const HWND foregroundBeforeRemoval = GetForegroundWindow();
+    const HWND threadFocusBeforeRemoval = GetFocus();
     rootPanel->ClearChildren();
     Require(PostMessageW(window.Hwnd(), WM_NULL, 0, 0) != FALSE, "queue a message for the host");
-    Require(client.WaitUntil(FocusEventClient::kNotificationDeadlineMs, [&] { return client.Count(L"Essai de focus") > windowHeard; }),
-            "a UIA client hears the window once the focused control is removed");
+    const bool heardRemoval = client.WaitUntil(FocusEventClient::kNotificationDeadlineMs, [&] { return client.Count(L"Essai de focus") > windowHeard; });
+    if (! heardRemoval)
+    {
+        const HWND foreground = GetForegroundWindow();
+        DWORD foregroundPid = 0u;
+        const DWORD foregroundTid = foreground ? GetWindowThreadProcessId(foreground, &foregroundPid) : 0u;
+        GUITHREADINFO gui{sizeof(GUITHREADINFO)};
+        const bool haveGui = GetGUIThreadInfo(0u, &gui) != FALSE;
+        std::cerr << std::format("    [UIA-REMOVAL] owner={:#x} valid={} foregroundBefore={:#x} focusBefore={:#x} foreground={:#x} pid={} tid={} threadFocus={:#x} guiValid={} guiFocus={:#x} logicalFirstBefore={} logicalFocus={:#x} gainTurn={}->{} announcements={}->{} systemMoves={}->{} reactivations={}->{} windowEvents={}->{} listening={}\n",
+                                 reinterpret_cast<uintptr_t>(window.Hwnd()), IsWindow(window.Hwnd()) != FALSE,
+                                 reinterpret_cast<uintptr_t>(foregroundBeforeRemoval), reinterpret_cast<uintptr_t>(threadFocusBeforeRemoval),
+                                 reinterpret_cast<uintptr_t>(foreground), foregroundPid, foregroundTid, reinterpret_cast<uintptr_t>(GetFocus()),
+                                 haveGui, reinterpret_cast<uintptr_t>(gui.hwndFocus), logicalFirstBeforeRemoval, reinterpret_cast<uintptr_t>(window.Host().GetFocusControl()),
+                                 gainTurnBeforeRemoval, window.Host().DebugIsInFocusGainTurn(), announcementsBeforeRemoval, window.Host().DebugGetFocusAnnouncementCount(),
+                                 systemMovesBeforeRemoval, window.Host().DebugGetFocusMovesLeftToSystemCount(), reactivationsBeforeRemoval,
+                                 window.Host().DebugGetReactivationAnnouncementCount(), windowHeard,
+                                 client.Count(L"Essai de focus"), UiaClientsAreListening() != FALSE);
+        client.PrintNames();
+    }
+    Require(heardRemoval, "a UIA client hears the window once the focused control is removed");
     Require(window.Host().GetFocusControl() == nullptr, "the removed control no longer has focus");
 }
 

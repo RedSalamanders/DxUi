@@ -18,16 +18,41 @@ class FocusNameRecorder final : public Microsoft::WRL::RuntimeClass<Microsoft::W
 public:
     HRESULT STDMETHODCALLTYPE HandleFocusChangedEvent(IUIAutomationElement* sender) noexcept override
     {
+        if (! sender)
+            return S_OK;
         int processId = 0;
-        if (! sender || FAILED(sender->get_CachedProcessId(&processId)) || static_cast<DWORD>(processId) != GetCurrentProcessId())
-            return S_OK;
-        // The name is cached with the event, so the handler never calls back into the provider's thread.
+        const HRESULT processResult = sender->get_CachedProcessId(&processId);
+        // Both properties are cached; querying them here does not call into the provider thread.
         wil::unique_bstr name;
-        if (FAILED(sender->get_CachedName(name.put())) || ! name)
-            return S_OK;
+        const HRESULT nameResult = sender->get_CachedName(name.put());
+        const bool acceptedProcess = SUCCEEDED(processResult) && static_cast<DWORD>(processId) == GetCurrentProcessId();
         try
         {
             const std::scoped_lock lock(_mutex);
+            if (SUCCEEDED(nameResult) && name)
+            {
+                const std::wstring_view observed(name.get(), SysStringLen(name.get()));
+                // Capture only invented fixture names; never retain arbitrary external-window names.
+                if (observed == L"Essai de focus" || observed == L"Premier bouton" || observed == L"Second bouton")
+                {
+                    if (_observationCount < _observations.size())
+                    {
+                        const int kind = observed == L"Essai de focus" ? 0 : observed == L"Premier bouton" ? 1 : 2;
+                        _observations[_observationCount++] = {kind, nameResult, processResult, processId, acceptedProcess};
+                    }
+                    else
+                    {
+                        ++_omittedObservations;
+                    }
+                }
+            }
+            else
+            {
+                ++_unreadableNames;
+                _lastNameFailure = nameResult;
+            }
+            if (! acceptedProcess || FAILED(nameResult) || ! name)
+                return S_OK;
             _names.emplace_back(name.get(), SysStringLen(name.get()));
         }
         catch (const std::bad_alloc&)
@@ -55,9 +80,34 @@ public:
         return _names;
     }
 
+    void PrintCachedIdentityDiagnostics() const
+    {
+        const std::scoped_lock lock(_mutex);
+        std::cerr << "    [UIA-CACHED-IDENTITY] expectedProcessId=" << GetCurrentProcessId() << " unreadableNames=" << _unreadableNames << " lastNameHr=" << static_cast<uint32_t>(_lastNameFailure) << " observations=" << _observationCount << " omitted=" << _omittedObservations << '\n';
+        for (size_t i = 0; i < _observationCount; ++i)
+        {
+            const auto& event = _observations[i];
+            std::cerr << "    [UIA-CACHED-IDENTITY] kind=" << event.kind << " nameHr=" << static_cast<uint32_t>(event.nameResult) << " processHr=" << static_cast<uint32_t>(event.processResult)
+                      << " processId=" << event.processId << " accepted=" << event.acceptedProcess << '\n';
+        }
+    }
+
 private:
+    struct CachedIdentityObservation
+    {
+        int kind = 0; // 0 window, 1 first button, 2 second button.
+        HRESULT nameResult = E_FAIL;
+        HRESULT processResult = E_FAIL;
+        int processId = 0;
+        bool acceptedProcess = false;
+    };
     mutable std::mutex _mutex;
     std::vector<std::wstring> _names;
+    std::array<CachedIdentityObservation, 64> _observations{};
+    size_t _observationCount = 0u;
+    size_t _omittedObservations = 0u;
+    size_t _unreadableNames = 0u;
+    HRESULT _lastNameFailure = S_OK;
 };
 
 // An in-process UIA client on its own MTA thread, as a screen reader is another process: it records the names of
@@ -127,6 +177,7 @@ public:
             std::cerr << "'";
         }
         std::cerr << '\n';
+        _recorder->PrintCachedIdentityDiagnostics();
     }
 
     // IUIAutomationElement::SetFocus on the target window's element with this name.
