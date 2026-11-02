@@ -1,6 +1,6 @@
 # Recent-merge production review evidence
 
-This packet supports the [active review and remediation plan](../../Specs/Plans/WIP/ProductionReview_2026-10-05.md).
+This packet supports the [active review and remediation plan](../../Specs/Plans/Done/ProductionReview_2026-10-05.md).
 It covers 28 September through 8 October 2026: 41 first-parent landings, pull requests #28 through #68, from
 `6b344566c8104dea11d3564b5b89b550db7a3f19` to `bea676a1f8418141f61cab9326b9b910e89a14b4`.
 The candidate is the uncommitted library-only branch `codex/production-review-remediation-2026-10-08`.

@@ -1,6 +1,11 @@
 # WIP folder quality, 31 October 2026
 
-Status: ACTIVE. The folder review, authoritative status definitions and pin-gate clarification are recorded.
+Status: DONE — local implementation and source-bound review closed; shared acceptance remains separately owned
+
+Closeout evidence: The 19 remaining requested plans and three companion trees are archived with link-aware migration and preserved historical statuses; CiRunScope and ScopedTesting were already Done. Durable contracts are merged into domain specs, per-ID decisions and byte-exact receipts are retained, and only the shared qualification, S3-S7 and FrameUpdate plans remain outside this archival scope. See the [delivery packet](../../../Measurements/WipDelivery_2026-11-02/README.md) and [shared qualification ledger](../WIP/ConsumerUiQualification_2026-10-11.md).
+
+
+Historical pre-closeout Status: ACTIVE. The folder review, authoritative status definitions and pin-gate clarification are recorded.
 The remaining folder repairs stay on the checklist below.
 No library, test or tooling code has changed for it.
 Date: 2026-10-31.
@@ -86,7 +91,7 @@ device-loss on resize, and the other confirmed P1s in the tree that would be pin
 5. Keep file drag-and-drop, S3-S7, API revision 5, and the rest of the 241-finding rich-text audit
    out of this pin. `commands-01` on the cited delete-column path is already guarded
    (`DxUi.RichTextCommands.cpp` 2096-2099). Do not schedule that path again.
-6. Qualification stays in [ConsumerUiQualification_2026-10-11](ConsumerUiQualification_2026-10-11.md).
+6. Qualification stays in [ConsumerUiQualification_2026-10-11](../WIP/ConsumerUiQualification_2026-10-11.md).
    Record the pin as a correctness pin with performance unqualified.
 
 `apiRevision` stays 4.
@@ -174,11 +179,11 @@ outside the pin. `apiRevision` stays 4.
 | RichTextAudit_2026-10-21 | SPEC READY | Body says IMPLEMENTING. Continuation records merged math/Mermaid corrections. Waves are still mostly open. `commands-01` cited path is guarded. | Index becomes ACTIVE. Drop "no library code has changed". |
 | PopupReadiness_2026-10-17 | ACTIVE | Six profiles pass at SDK `7020121d` (lines 37-40). Open: four modal fixture reruns (343-345) and unattributed historical failures. | Index must match the later pass. Keep the fixture row. |
 | ProductionReview_2026-10-05 | ACTIVE | Unstable controls, policy, native ARM64, physical input and consumer qualification are open. | Evidence appendix of the qualification ledger. Not a sequencer. |
-| [CiRunScope_2026-10-04](../Done/CiRunScope_2026-10-04.md) | DONE | Implementation recorded; the old native-PR hosted observation is superseded, not passed. | Archived under the unified CI contract. |
+| [CiRunScope_2026-10-04](CiRunScope_2026-10-04.md) | DONE | Implementation recorded; the old native-PR hosted observation is superseded, not passed. | Archived under the unified CI contract. |
 | ConsumerUiQualification_2026-10-11 | ACTIVE | The shared HOLD ledger. All 20 HOLDs stay. | Keep. The only qualification owner. |
 | CodeReview_2026-10-28 | SPEC READY | P1s still match source. Repair sequencing moved to the 15-day review. | Historical register. Remove from the active queue. |
 | CodeReview_2026-10-10 | ACTIVE | Window #87-#96 local matrix is recorded done. ARM64, manual, performance and admin rows are open. | Historical register plus pointers into the qualification ledger. |
-| [ScopedTesting_2026-10-05](../Done/ScopedTesting_2026-10-05.md) | DONE | Implementation and source-specific evidence recorded; shared foreground, ARM64 and consumer gates remain separate. | Durable rule is in the validation contract; archived without qualifying later source. |
+| [ScopedTesting_2026-10-05](ScopedTesting_2026-10-05.md) | DONE | Implementation and source-specific evidence recorded; shared foreground, ARM64 and consumer gates remain separate. | Durable rule is in the validation contract; archived without qualifying later source. |
 | SliderTouchHalo_2026-10-04 | ACTIVE | Library feature merged in #62. Physical touch and Q26 clipping are open. | Split the merge from the open rows. |
 | GridTextOverflow_2026-09-21 | ACTIVE | Merged in #22. `grid-multiline-text` is supported. Native AT and consumer adoption are open. | Split. |
 | MenuDescriptions_2026-09-21 | ACTIVE | Library merged. Plan-specific foreground and resource rows are still open. | Reconcile those rows with the qualification ledger before closing. |

@@ -1,5 +1,10 @@
 # Subtle Markdown presentation and caption input
 
+Status: DONE — local implementation and source-bound review closed; shared acceptance remains separately owned
+
+Closeout evidence: Bounded heading, quote, table, code and centered display presentation is implemented with geometry/pixel/source tests and reviewed gallery. Current source-specific native and complete paired collection evidence is recorded; unsupported content remains source preserving and performance-policy acceptance is not inferred. See the [delivery packet](../../../Measurements/WipDelivery_2026-11-02/README.md) and [shared qualification ledger](../WIP/ConsumerUiQualification_2026-10-11.md).
+
+
 > **Resumed 28 October 2026:** the user requests remaining tests/coding, remote-main integration and obsolete branch/worktree cleanup. Earlier pause statements below describe the prior checkpoint. The live integration checklist is in RedTilde's indexed `RedesignCompletionAndRendering_2026-10-24.md`; preserve original queue/proof bytes and all open CI/performance/platform distinctions.
 
 - [x] Confirm the first supplied image as the requested Markdown style.

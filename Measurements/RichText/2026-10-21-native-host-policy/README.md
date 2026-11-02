@@ -27,4 +27,4 @@ preserved; library integration changes no consumer pin implicitly. Unpaired
 rounds establish no non-regression. Physical device loss/occlusion, GPU lifetime,
 native ARM64 runtime, physical IME/AT, agreed-time focus checks, independent
 performance policy and D4c remain open in the
-[active plan](../../../Specs/Plans/WIP/RichTextEditor_2026-10-17.md).
+[active plan](../../../Specs/Plans/Done/RichTextEditor_2026-10-17.md).

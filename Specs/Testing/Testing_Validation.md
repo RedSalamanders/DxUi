@@ -796,7 +796,7 @@ action replace it, after which the retained element invokes nothing and a fresh 
 `TestNativeAccessibilityFocusCallbackReplacementStopsOriginalAction` rebuilds the controls from the focus-changed callback that an
 element's `SetFocus` or `Invoke` runs: the element reports itself gone, its button's action does not run, and the callback's
 focus choice stands. These tests come from the `codex/fileops-ui-qualified` branch; all but the queued `Select` failed against
-the library before its port ([plan](../Plans/WIP/CodexBranchReview_2026-10-02.md)), as did the Embedded suite's
+the library before its port ([plan](../Plans/Done/CodexBranchReview_2026-10-02.md)), as did the Embedded suite's
 `TestMultilineCaretViewport`, which renders a multiline field's caret on a WARP surface at 96, 144 and 192 DPI, editable and
 read-only, and requires no caret pixel outside the text viewport: on a partly visible bottom line, scrolled above and below the
 viewport, and restored.

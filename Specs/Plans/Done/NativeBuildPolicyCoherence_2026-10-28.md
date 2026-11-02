@@ -1,6 +1,11 @@
 # Native build policy, terminal results and short DxUi paths
 
-Status: ACTIVE
+Status: DONE — local implementation and source-bound review closed; shared acceptance remains separately owned
+
+Closeout evidence: The common /Wall, zero-warning admission, Debug/ASan symbol and Release ICF contracts are implemented with their documented consumer exceptions and short-path identities. Current six-profile builds and production SDK warning-negative/header-closure checks pass. Size growth and complete paired collection are reviewed without claiming policy acceptance. See the [delivery packet](../../../Measurements/WipDelivery_2026-11-02/README.md) and [shared qualification ledger](../WIP/ConsumerUiQualification_2026-10-11.md).
+
+
+Historical pre-closeout Status: ACTIVE
 Date: 2026-10-28
 Owner: build maintainers
 
@@ -22,7 +27,7 @@ Five repositories implement the same policy without implicitly advancing DxUi pi
 - [x] Execute affected tests, evaluated profiles, required native builds and applicable local x64 runtime qualification; retain every failed result and distinguish ARM64 cross-builds from runtime tests.
 - [ ] Freeze matching Release artifacts, report before/after image sizes and complete quiet paired performance measurements.
 - [ ] Validate formatting, specs and tooling for closeout; retain a Changes fragment for any new change. Changelog folding is a separate post-merge pull request under the current Changes contract.
-- [ ] Close only after the size and quiet paired measurements are reviewed. Shared manual, native-runtime and consumer gates remain in [ConsumerUiQualification](ConsumerUiQualification_2026-10-11.md).
+- [ ] Close only after the size and quiet paired measurements are reviewed. Shared manual, native-runtime and consumer gates remain in [ConsumerUiQualification](../WIP/ConsumerUiQualification_2026-10-11.md).
 
 The 29 October source-specific matrix below does not qualify later changes. The shared performance-policy and control-stability holds remain open in the qualification ledger; a quiet measurement alone is not a policy verdict.
 

@@ -1,5 +1,10 @@
 # Production review and remediation of the recent merges
 
+Status: DONE — local implementation and source-bound review closed; shared acceptance remains separately owned
+
+Closeout evidence: Q1-31 and supporting leads are reconciled to bounded source/test outcomes and accepted alternatives. Current source passes native, relocated-consumer and actual production SDK checks. Compiler-free PR/native-main policy supersedes older workflow recommendations; real consumer adoption and independent policy/manual gates remain separately owned. See the [delivery packet](../../../Measurements/WipDelivery_2026-11-02/README.md) and [shared qualification ledger](../WIP/ConsumerUiQualification_2026-10-11.md).
+
+
 - **Status**: ACTIVE (8 October corrections archived; accepted 9 October implementation and qualification in progress)
 - **Date**: 2026-10-05
 - **Requested window**: 28 September through 8 October 2026, from first-parent base `6b344566` to `bea676a`:
@@ -20,7 +25,7 @@
   parentheses below (for example `host-core-1`) are its entries, each with the failure scenario, a fix and a failing test.
 
 Shared performance-policy, native ARM64/resource, physical-input/IME/AT and consumer acceptance execution has one
-owner: [Library qualification and consumer adoption](ConsumerUiQualification_2026-10-11.md#shared-qualification-ownership-16-october-2026).
+owner: [Library qualification and consumer adoption](../WIP/ConsumerUiQualification_2026-10-11.md#shared-qualification-ownership-16-october-2026).
 This remediation plan owns code/tooling corrections and attribution. Historical procedures and checkboxes below
 remain source-specific records, not a second current qualification queue.
 
@@ -195,13 +200,13 @@ establish no product-wide production approval; the approved accessibility schedu
 - [ ] Q20/Q21/Q23/Q24/Q27-Q31: required aggregate workflow, explicit skips/interactive obligations, six-profile
   PrePush accounting, consumer signature/version fixtures and instrumentation identity.
 - [ ] Q22 implementation/attribution: benchmark provenance, assignment and median/peak corrections. Calibration,
-  seed-policy approval and acceptance execute only in the [shared qualification ledger](ConsumerUiQualification_2026-10-11.md#shared-qualification-ownership-16-october-2026).
+  seed-policy approval and acceptance execute only in the [shared qualification ledger](../WIP/ConsumerUiQualification_2026-10-11.md#shared-qualification-ownership-16-october-2026).
 - [ ] Q25/Q26: reconcile plans/capabilities, actual touch provenance, bounded feedback overlap and adoption trackers.
 - [ ] Qualify the final source with relevant native x64 Debug/Release/ASan, all ARM64 builds, consumer fixture,
   WARP/device-loss/resource evidence, gallery, validators/format and an exact-source CI candidate.
 - [ ] Apply the approved required CI rule only after its workflow and concrete candidate are verified.
 - Shared desktop/IME/AT/touch/native-ARM64 and publication/adoption obligations are tracked in the
-  [qualification ledger](ConsumerUiQualification_2026-10-11.md#shared-qualification-ownership-16-october-2026), not closed by this checklist.
+  [qualification ledger](../WIP/ConsumerUiQualification_2026-10-11.md#shared-qualification-ownership-16-october-2026), not closed by this checklist.
 
 ### Current iteration evidence (9 October)
 
@@ -612,7 +617,7 @@ simplifications got a batch verifier per area. Of 274 reported findings, 7 were 
 plausible (real code path, but depending on an unestablished condition). After merging duplicates, about 150 distinct
 items remain. The lead reviewer re-read the code for every item marked **[lead]**.
 
-The previous review ([ReviewFixes](../Done/ReviewFixes_2026-09-29.md)) covered 14 to 28 September. Items it deliberately
+The previous review ([ReviewFixes](ReviewFixes_2026-09-29.md)) covered 14 to 28 September. Items it deliberately
 declined were not reported again. Items marked *pre-existing* predate the window but sit in code the window changed or
 depends on.
 
@@ -1172,9 +1177,9 @@ Tooling:
 
 - [ ] **Stale WIP plans and indexes**:
   - [SliderTouchHalo](SliderTouchHalo_2026-10-04.md) still lists the merge as open.
-  - [TreeReorder](../Done/TreeReorder_2026-09-21.md) historically retained a row-straddle limit #38 removed; its current archival note identifies the correction.
+  - [TreeReorder](TreeReorder_2026-09-21.md) historically retained a row-straddle limit #38 removed; its current archival note identifies the correction.
   - [GridTextOverflow](GridTextOverflow_2026-09-21.md) describes the replaced V11 cache.
-  - [CiRunScope](../Done/CiRunScope_2026-10-04.md)'s validation figure does not reproduce.
+  - [CiRunScope](CiRunScope_2026-10-04.md)'s validation figure does not reproduce.
   - The Done index omits three plans.
 
   (`process-docs-specs-5`, `-6`, `tree-13`, `grid-multiline-10`, `process-docs-specs-7`, `-4`, Q25)

@@ -1,6 +1,11 @@
 # Delivery review 2026-10-31
 
-Status: ACTIVE. The 1 November worktree implements and tests the current-source DX repairs under
+Status: DONE — local implementation and source-bound review closed; shared acceptance remains separately owned
+
+Closeout evidence: Chosen DX repairs and Enter/source contracts are implemented. Actual API3 and API4 compatibility branches each pass six builds, 15 ordinary and nine foreground suites. DX7 remains the expressly unscheduled pre-adoption receipt repair/test condition in authoritative input/hosting documentation; DX11 ordinal restoration remains optional. See the [delivery packet](../../../Measurements/WipDelivery_2026-11-02/README.md) and [shared qualification ledger](../WIP/ConsumerUiQualification_2026-10-11.md).
+
+
+Historical pre-closeout Status: ACTIVE. The 1 November worktree implements and tests the current-source DX repairs under
 [the delivery sequencer](CodeReview_2026-10-31.md). Individual acceptance rows remain open until their tests execute.
 Date: 2026-10-31.
 Historical review source (31 October): `include/` and `src/` were byte-identical among this worktree `d98d7605` (`ej/code-review-20261030`), the delivery tip `f2940cc265db79458b6615492779b839c5c1b94a` (31 Oct 2026, merge of #152), and then-current `origin/main` `07ff5741cc0cbcd10f7aa5e9e120d0c4b0c16d92` (merge of #154). The commits after the delivery tip are CI evidence roots and a changelog fold. Line numbers below are that shared source.
@@ -152,5 +157,5 @@ compatibility-branch ports; exact consumer adoption remains consumer-owned.
 The current r17 failures and subsequent candidate repairs are retained in that
 sequencer, not treated as a passing final run. Shared platform, physical-input,
 performance-policy and consumer qualification remains in
-[ConsumerUiQualification](ConsumerUiQualification_2026-10-11.md). No API
+[ConsumerUiQualification](../WIP/ConsumerUiQualification_2026-10-11.md). No API
 revision change or historical failure erasure is implied.

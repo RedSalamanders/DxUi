@@ -71,7 +71,7 @@ remain separate. See [the adoption record](Specs/Plans/Done/RedSalamanderMigrati
 [Capabilities](capabilities.json) lists supported library mechanisms separately from those pending integrations.
 It distinguishes implemented behavior from open physical-touch, native-platform, interactive-suite and API-revision-4
 consumer qualification; the consumer-owned pin, adapter, publication and product-test actions are tracked in the
-[API revision 4 handoff register](Specs/Plans/WIP/ProductionReview_2026-10-05/api4-consumer-handoffs.md).
+[API revision 4 handoff register](Specs/Plans/Done/ProductionReview_2026-10-05/api4-consumer-handoffs.md).
 
 Start with [AGENTS.md](AGENTS.md), [spec authority](Specs/README.md), and [active plans](Specs/Plans/WIP/README.md).
 Every repository tool is a PowerShell 7 script: build, test, formatting, the validators and the tooling tests.

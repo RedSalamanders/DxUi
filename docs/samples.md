@@ -39,7 +39,7 @@ Explorer and press Ctrl+V: recognized images become displayed image references
 when serviced by the sample worker; other files become inert full-filename links.
 Destinations are relative to that document folder, or absolute file URIs when no
 compatible base exists. The sample registers its own OLE drop target and routes bounded file drops through
-the library adapter to the prepared rich editor. The [drag-and-drop plan](../Specs/Plans/WIP/RichTextFileDrop_2026-10-20.md)
+the library adapter to the prepared rich editor. The [drag-and-drop plan](../Specs/Plans/Done/RichTextFileDrop_2026-10-20.md)
 tracks its remaining qualification.
 
 The [benchmark](../Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h) uses that exact complex scene, with deterministic clean/dirty

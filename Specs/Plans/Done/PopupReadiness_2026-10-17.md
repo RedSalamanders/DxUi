@@ -1,7 +1,12 @@
 # Menu fixture popup readiness
 
-Status: ACTIVE. Source-specific repair requested 17 October 2026; shared acceptance remains owned by
-[ConsumerUiQualification](ConsumerUiQualification_2026-10-11.md).
+Status: DONE — local implementation and source-bound review closed; shared acceptance remains separately owned
+
+Closeout evidence: Current preparation, hover/dispatch and menu diagnostics have maintained cases and passing R27 ordinary/foreground coverage. The original healthy-state probe lacks retained timing/lifecycle facts, so its cause remains unknown; retrospective attribution is rejected. See the [delivery packet](../../../Measurements/WipDelivery_2026-11-02/README.md) and [shared qualification ledger](../WIP/ConsumerUiQualification_2026-10-11.md).
+
+
+Historical pre-closeout Status: ACTIVE. Source-specific repair requested 17 October 2026; shared acceptance remains owned by
+[ConsumerUiQualification](../WIP/ConsumerUiQualification_2026-10-11.md).
 
 PR #82's main run [39043832683](https://github.com/RedSalamanders/DxUi/actions/runs/39043832683), at `1c1eb10b`,
 fails x64 Debug's first Menu case, `TestContextMenuPopupScrollsOversizedContent`. Its discovered HWND is hidden;

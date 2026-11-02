@@ -1,6 +1,11 @@
 # RichText audit: defects, simplification and Markdown/math/Mermaid completion
 
-Status: ACTIVE. Historical SDK qualification evidence is recorded in the linked 24 October continuation; it does not close the current RichText implementation audit, D4c performance HOLD, physical IME/AT, or product acceptance. The continuation records the 2fed local and hosted native evidence, the final inconclusive paired result under an unqualified base policy, and the still-unexplained earlier ARM64 Debug Menu failure. The original audit and planning baseline is retained below. The bounded math, flowchart,
+Status: DONE — local implementation and source-bound review closed; shared acceptance remains separately owned
+
+Closeout evidence: All 278 original RichText IDs retain their title, source/test owners and reviewed disposition: 167 addressed including gallery, 93 challenged and 18 refuted. Accepted repairs and bounded language/rendering/resource contracts pass current native coverage. Generic lifecycle/field rewrites and unmeasured zero-copy/storage proposals are explicitly challenged, not described as implemented. See the [delivery packet](../../../Measurements/WipDelivery_2026-11-02/README.md) and [shared qualification ledger](../WIP/ConsumerUiQualification_2026-10-11.md).
+
+
+Historical pre-closeout Status: ACTIVE. Historical SDK qualification evidence is recorded in the linked 24 October continuation; it does not close the current RichText implementation audit, D4c performance HOLD, physical IME/AT, or product acceptance. The continuation records the 2fed local and hosted native evidence, the final inconclusive paired result under an unqualified base policy, and the still-unexplained earlier ARM64 Debug Menu failure. The original audit and planning baseline is retained below. The bounded math, flowchart,
 state and class corrections are implemented in the [24 October continuation](RichTextAudit_2026-10-21/RedTildeCompletion_2026-10-24.md).
 Their final-source qualification, performance and consumer handoff remain open; the full language roadmap is separate.
 Owner request (2026-10-21): review all RichText code in DxUi for bugs and architectural simplification, use
@@ -8,7 +13,7 @@ cheaper agents where that helps to establish what a complete Markdown, Mermaid a
 and record a detailed specification plan of everything to fix or improve.
 Starting revision: `fa5821c8`. No RichText source, test, plan or pinned data changed up to `b69f452f`, so every
 location below applies to both. Main then merged the completed
-[rich editor presentation plan](../Done/RichEditorPresentation_2026-10-22.md) and related work (through
+[rich editor presentation plan](RichEditorPresentation_2026-10-22.md) and related work (through
 `bba8da23`). That work changed files cited by 123 findings, including `DxUi.RichTextEditor.cpp`,
 `DxUi.RichSemanticGeometry.cpp`, `DxUi.MarkdownBlocks.h` and `docs/rich-text.md`. Locations therefore refer to
 `fa5821c8`; W0.3 revalidates them before any fix starts.

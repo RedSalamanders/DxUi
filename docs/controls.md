@@ -36,7 +36,7 @@ Remote HTTP(S) requests require explicit `SetRemoteImagesEnabled(true)`; the
 caller owns network transport, and disabling immediately retires remote pixels
 while retaining local image work. See [image resources](rich-text.md).
 File drag-and-drop uses an application-owned, revocable STA adapter and guarded prepared caret hit testing; its
-[plan](../Specs/Plans/WIP/RichTextFileDrop_2026-10-20.md) retains the remaining qualification obligations.
+[plan](../Specs/Plans/Done/RichTextFileDrop_2026-10-20.md) retains the remaining qualification obligations.
 
 ScrollPanel forwards secondary clicks to content children at their scrolled coordinates; scrollbar interaction
 uses the primary button. A double-click reaches the child under the pointer as that child's double-click and the
@@ -122,7 +122,7 @@ failure handling, accessibility and a compilable construction example.
 ## Described native menu entries
 
 Described menus support `MenuFlyoutItem::secondaryText` for Standard, Toggle, Radio and Info entries.
-The [menu description plan](../Specs/Plans/WIP/MenuDescriptions_2026-09-21.md) keeps consumer qualification open.
+The [menu description plan](../Specs/Plans/Done/MenuDescriptions_2026-09-21.md) keeps consumer qualification open.
 The primary label and secondary field wrap independently at the available width; the row grows,
 and a constrained menu scrolls. Secondary text is literal Unicode. Primary text keeps existing
 mnemonic rules: double an ampersand to display it literally. Do not use the shortcut column for

@@ -39,7 +39,7 @@ A review of the last 200 workflow runs (30 September to 4 October) found:
 
 `validate.ps1` (the validators and the tooling tests, `Test-NativeScope.ps1` and the unchanged workflow checks of
 `Test-BenchmarkGate.ps1` included) and `format.ps1 -Check` pass. The original retrospective claimed five of 40 PRs would skip native jobs. The later
-[production review](../WIP/ProductionReview_2026-10-05.md) found that its inclusion of #34 did not reproduce;
+[production review](ProductionReview_2026-10-05.md) found that its inclusion of #34 did not reproduce;
 treat that count as disputed historical analysis, not verified evidence.
 
 ## Not in this plan

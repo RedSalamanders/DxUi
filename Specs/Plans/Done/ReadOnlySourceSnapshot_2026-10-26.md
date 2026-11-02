@@ -1,5 +1,10 @@
 # Read-only Source snapshot synchronization
 
+Status: DONE — local implementation and source-bound review closed; shared acceptance remains separately owned
+
+Closeout evidence: API4 source/selection ownership and snapshot synchronization are implemented with exact-source and lifecycle tests. Source-specific runtime, size and complete paired collection evidence is retained; source sharing does not imply universal zero-copy or an accepted performance verdict. See the [delivery packet](../../../Measurements/WipDelivery_2026-11-02/README.md) and [shared qualification ledger](../WIP/ConsumerUiQualification_2026-10-11.md).
+
+
 ## Checklist
 - [x] P18 review correction: the retained native parser probe at `282da2b1` returns exit 1: reasserting the current adopted snapshot leaves a superseded request pending. The repair cancels that staging without allocating or replacing the immutable wrapper; a regression now asserts both conditions. This was outside the ordinary mirror path. The earlier Release/input results remain named `282da2b1` checkpoints; final qualification must use the repaired revision.
 - [x] P18 preserve the source47a9 qualification and merge receipts; the parsed-data extension has its own exact API-4 evidence below.

@@ -243,7 +243,7 @@ uses right-to-left text shaping, and opens submenus toward the left before flipp
 the work area requires it. It does not reverse the characters in any menu string. The popup's hit
 geometry and keyboard navigation follow the same flow direction.
 
-The [described-menu plan](../Plans/WIP/MenuDescriptions_2026-09-21.md) extends native command
+The [described-menu plan](../Plans/Done/MenuDescriptions_2026-09-21.md) extends native command
 rows with opt-in literal secondary text. Standard/Toggle/Radio/Info rows must measure both fields
 at the final monitor-constrained width, including the scrollbar lane, then publish matching
 paint/hit geometry. The lane decision uses the viewport the popup will actually have: the requested
@@ -809,7 +809,7 @@ process-global language. Each product/module provides its current translated str
 
 ## Intended rich-text editor contract
 
-The [owned Unicode rich-text editor plan](../Plans/WIP/RichTextEditor_2026-10-17.md)
+The [owned Unicode rich-text editor plan](../Plans/Done/RichTextEditor_2026-10-17.md)
 tracks the retained RichTextEditor v0 preview now implemented in the library and
 catalog. It is bounded to the existing 64 Ki UTF-16/128-history model, with D2d
 shared native/embedded source TSF/IME/UIA adapters. Full rich-text/Markdown and
@@ -1081,7 +1081,7 @@ produce one atomic insertion whose undo restores that selection. Native and
 embedded transports MUST share path/context rules and the application-owned image
 pipeline. Native and embedded applications own OLE registration and routing;
 the library provides the bounded adapter and guarded insertion services. The
-[file-drop plan](../Plans/WIP/RichTextFileDrop_2026-10-20.md) retains current-source
+[file-drop plan](../Plans/Done/RichTextFileDrop_2026-10-20.md) retains current-source
 qualification and consumer adoption separately from implementation.
 
 Pure structural command/deletion planning MUST reject syntax carrying a
@@ -2543,7 +2543,7 @@ presentation. Its theme-resolved neutral fill keeps ordinary text ink; high
 contrast outlines the marked range instead. The selected-text pass uses the
 resolved selection surface. No source markup is rewritten.
 The new style's runtime and consumer qualification is tracked in the
-[active plan](../Plans/WIP/SubtleMarkdownPresentation_2026-10-27.md); this contract
+[active plan](../Plans/Done/SubtleMarkdownPresentation_2026-10-27.md); this contract
 does not establish completed platform or performance qualification.
 
 ## Native in-document mathematics and broader diagrams (RedTilde continuation)

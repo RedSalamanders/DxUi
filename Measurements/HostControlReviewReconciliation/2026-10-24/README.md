@@ -4,7 +4,7 @@ Source: `da335d360f7ccccab0e7e627366114f82162f29a`, including main
 `ceffe76a429d15039ceff1f7dfae7e1d7126323e`. This is independent DxUi evidence on an x64 Windows host,
 using WARP and library-owned synthetic fixtures. Documentation and gallery publication are descendants of
 that source; they do not replace the original native or consumer pins. The
-[active review plan](../../../Specs/Plans/WIP/CodeReview_2026-10-10.md) owns the remaining acceptance work.
+[active review plan](../../../Specs/Plans/Done/CodeReview_2026-10-10.md) owns the remaining acceptance work.
 
 ## Local qualification at the frozen source
 
@@ -18,7 +18,7 @@ that source; they do not replace the original native or consumer pins. The
 | Repository checks | All five validators, the complete PowerShell tooling roster, all 12 CMake triplet read-back cases, and pinned clang-format 22.1.3 passed. |
 | Gallery | All six no-activation harness captures were regenerated from the qualified Release artifacts and visually inspected. Native diagram content is visible in all five theme sheets; broader visual qualification remains separate. |
 
-The [curated receipt inventory](../../../Specs/Plans/WIP/CodeReview_2026-10-10/qualification-20261024.json)
+The [curated receipt inventory](../../../Specs/Plans/Done/CodeReview_2026-10-10/qualification-20261024.json)
 binds six build profiles, six native runs, 69 zero-skip suite receipts, two ASan probes and three consumer
 annotations. Selection uses each final runner's PID and creation time, the exact profile and interval, sealed
 receipt/log bytes, and current attested executable hashes. It excludes earlier failed or filtered attempts

@@ -1,8 +1,13 @@
 # Code review of the ten-day merge window (#29-#71)
 
+Status: DONE — local implementation and source-bound review closed; shared acceptance remains separately owned
+
+Closeout evidence: CR1-37 are reconciled to source and current native coverage. CR21 opening-character loss remains unreproduced and the blind filter is rejected; CR34 history administration remains explicitly unperformed, with shared ownership preserved. See the [delivery packet](../../../Measurements/WipDelivery_2026-11-02/README.md) and [shared qualification ledger](../WIP/ConsumerUiQualification_2026-10-11.md).
+
+
 ## Current integration qualification — 24 October 2026
 
-Status: ACTIVE. [PR #96](https://github.com/RedSalamanders/DxUi/pull/96) integrates main
+Historical pre-closeout Status: ACTIVE. [PR #96](https://github.com/RedSalamanders/DxUi/pull/96) integrates main
 `ceffe76a429d15039ceff1f7dfae7e1d7126323e` while retaining its newer RichText, semantic UIA,
 preparation, presentation and keyboard ownership contracts. Frozen native source
 `da335d360f7ccccab0e7e627366114f82162f29a` passed the complete local matrix in the
@@ -909,7 +914,7 @@ has a test that fails against the code before it, unless the entry says the fail
 - [x] **N-14 P1 Embedded legacy clocks** (#80): the Grid sort glyph, Tree expansion, the first tooltip deadline, caret
   phases and Button transitions stamp `GetTickCount64()` while an embedded application supplies its own epoch, so with a
   clock below system uptime the sort glyph animates forever and the Tree expansion freezes. Already the "Remaining legacy
-  clock audit" item of [ConsumerUiQualification](ConsumerUiQualification_2026-10-11.md); not duplicated here. See Q14.
+  clock audit" item of [ConsumerUiQualification](../WIP/ConsumerUiQualification_2026-10-11.md); not duplicated here. See Q14.
 - [x] **N-15 P2 Native start stamps use system uptime while ticks follow the dispatcher timeline** (#80; PageHost, Slider,
   Tree, Grid). The dispatcher loses every stall over 50 ms, so a page transition can stay at progress 0 and input-dead for
   that lag. Same ledger and question.

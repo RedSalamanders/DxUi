@@ -1,6 +1,11 @@
 # RichTextEditor file drag-and-drop
 
-Status: ACTIVE; implementation and focused tests exist; final-source builds, runtime tests, captures and performance qualification remain pending.
+Status: DONE — local implementation and source-bound review closed; shared acceptance remains separately owned
+
+Closeout evidence: Bounded OLE file lists, source MOVE, insertion/undo, cancellation and lifecycle behavior are implemented. Dedicated STA fixtures and their MTA-caller regression pass the R27 cohort. Physical interoperability and product adoption remain separate; exact plain-Unicode RichText paste EOL preservation is normative. See the [delivery packet](../../../Measurements/WipDelivery_2026-11-02/README.md) and [shared qualification ledger](../WIP/ConsumerUiQualification_2026-10-11.md).
+
+
+Historical pre-closeout Status: ACTIVE; implementation and focused tests exist; final-source builds, runtime tests, captures and performance qualification remain pending.
 Owner decision (2026-11-01): implement the remaining feature in the isolated delivery worktree; the historical PR-only restriction below does not apply to this effort.
 Owner decision (2026-10-20): prepare this spec and test plan; submit the existing
 RichTextEditor work as a PR. Do not implement drag-and-drop in that PR.

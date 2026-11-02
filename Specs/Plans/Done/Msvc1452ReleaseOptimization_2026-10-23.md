@@ -1,6 +1,11 @@
 # MSVC 14.52 and Release optimization
 
-Status: ACTIVE qualification; hosted native cohort verified; paired, performance/manual and release holds remain
+Status: DONE — local implementation and source-bound review closed; shared acceptance remains separately owned
+
+Closeout evidence: MSVC/profile and five-repository policy ownership are reconciled with the historical audit and current read-only policy identities. R27 six builds, matched same-toolset size reporting and the complete 144-measurement paired study are recorded. The feature batch is not a compiler-only experiment; unqualified policy, noisy controls and product/native-platform acceptance remain shared holds. See the [delivery packet](../../../Measurements/WipDelivery_2026-11-02/README.md) and [shared qualification ledger](../WIP/ConsumerUiQualification_2026-10-11.md).
+
+
+Historical pre-closeout Status: ACTIVE qualification; hosted native cohort verified; paired, performance/manual and release holds remain
 Date: 2026-10-23
 
 ## Current source qualification — 28 October 2026
@@ -134,7 +139,7 @@ Repair [PR #119](https://github.com/RedSalamanders/DxUi/pull/119), initial run [
 - [ ] Measure frozen baseline/candidate executable and DLL sizes, archive sizes, build duration and counterbalanced runtime/resource samples on unchanged fixtures. Preserve every failed/noisy attempt; do not silently rebaseline.
 - [ ] Publish reviewed local evidence and a five-repository settings-difference report. Application measurements stay in their owning repository.
 - [ ] Validate formatting, specs and tooling for closeout. Keep any new Changes fragment in its change; folding is a separate post-merge pull request under the current Changes contract.
-- [ ] Reconcile the five-repository report and exact consumer repair/adoption evidence; retain unresolved shared platform, manual and performance-policy gates in [ConsumerUiQualification](ConsumerUiQualification_2026-10-11.md). Close only once the plan-specific evidence above is complete.
+- [ ] Reconcile the five-repository report and exact consumer repair/adoption evidence; retain unresolved shared platform, manual and performance-policy gates in [ConsumerUiQualification](../WIP/ConsumerUiQualification_2026-10-11.md). Close only once the plan-specific evidence above is complete.
 
 ## Scope and decisions
 

@@ -1,5 +1,10 @@
 # Fixes kept from the codex branches
 
+Status: DONE — local implementation and source-bound review closed; shared acceptance remains separately owned
+
+Closeout evidence: CB1-10 retain bounded lifetime, collapsed-root, callback and sizing evidence plus current regressions. Recovery refs and consumer pins remain preserved; a local archive is not product adoption or deletion authority. See the [delivery packet](../../../Measurements/WipDelivery_2026-11-02/README.md) and [shared qualification ledger](../WIP/ConsumerUiQualification_2026-10-11.md).
+
+
 - **Status**: ACTIVE (review done; the provider-lifetime and caret fixes are in main with their tests (#55), and so is
   the focus-callback audit (#57); per-entry elements for ordinary menus and the snapshot pre-sizing are in #56, whose
   measured cost the developer accepted; the wider delegate audit remains)
@@ -72,7 +77,7 @@ The oracles of `49c963f`, run against main: a queued `Select` of a stale text ra
 - [ ] An application delegate that destroys its control in the middle of an input handler is a wider class than the
   focus callbacks, and only partly covered. Grid's selection delegate is now checked wherever the grid goes on after
   it, and Tree's selection callbacks already were
-  ([selection publish lifetime](../Done/SelectionPublishLifetime_2026-10-03.md)). Grid's group toggles (a press or a
+  ([selection publish lifetime](SelectionPublishLifetime_2026-10-03.md)). Grid's group toggles (a press or a
   key on a group, `ApplyGroupLayout`) and checkbox toggles are still followed by uses of the grid; its row-activation,
   sort and context-menu calls end their handlers, and `docs/controls.md` still tells applications to post a rebuild
   from all of them. Audit those and the other controls' delegate and callback call sites that keep running after

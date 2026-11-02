@@ -153,7 +153,7 @@ providers disconnect on owner replacement. Rendered-only TextPattern text and
 annotations remain future scope; semantic structure/style is specified below. Synthetic OS protocol,
 real in-process UIA client and WARP tests do not close real IME/Narrator/NVDA,
 physical/focus-taking or native ARM64 qualification. See the
-[guide](../../docs/rich-text.md) and [plan](../Plans/WIP/RichTextEditor_2026-10-17.md).
+[guide](../../docs/rich-text.md) and [plan](../Plans/Done/RichTextEditor_2026-10-17.md).
 
 Rich caret/visible/composition/conversion ranges retain bounded metadata rather
 than another full source string. The warm caret plus visible-range C++ allocation
@@ -482,7 +482,7 @@ and BoundingRectangle match the scrolled rows. A row the viewport scrolls away s
 reports `IsOffscreen` and no rectangle, and its UIA focus scrolls it into view. Posted UIA
 actions carry popup-instance identity so HWND reuse cannot dispatch an old action into a new menu;
 retained providers disconnect on teardown. Implementation and validation are tracked in the
-[menu description plan](../Plans/WIP/MenuDescriptions_2026-09-21.md).
+[menu description plan](../Plans/Done/MenuDescriptions_2026-09-21.md).
 
 The modal menu loop prioritizes registered menu-bar hover handoffs with mouse and keyboard input, before
 draining popup paints or unrelated owner traffic. A continuously dirty popup must not starve a queued root
@@ -976,7 +976,7 @@ directional selection in undo. Native and embedded routes MUST reject stale
 ownership/geometry/source/base, composition, unavailable targets and malformed
 data before mutation. The adapter MUST reuse the paste image/link policy
 without clipboard access or synchronous file I/O. The
-[file-drop plan](../Plans/WIP/RichTextFileDrop_2026-10-20.md) retains
+[file-drop plan](../Plans/Done/RichTextFileDrop_2026-10-20.md) retains
 current-source testing and consumer qualification obligations.
 
 This implements a TSF/clipboard service, not a real IME/AT product pass. The generic consumer connection, full

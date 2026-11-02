@@ -1,6 +1,11 @@
 # Code review of the ten-day merge window (#87-#137)
 
-Status: ACTIVE. The 30 October review baseline is historical; 1 November repairs and qualification are in progress under the 31 October sequencer. The original review reported that remediation awaited the
+Status: DONE — local implementation and source-bound review closed; shared acceptance remains separately owned
+
+Closeout evidence: R28-01 through R28-53 and their subclaims are dispositioned; accepted callback, resource, input, geometry and renderer repairs are integrated and covered by the six-build/75-suite R27 cohort. Optional cache/architecture proposals are not claimed implemented. See the [delivery packet](../../../Measurements/WipDelivery_2026-11-02/README.md) and [shared qualification ledger](../WIP/ConsumerUiQualification_2026-10-11.md).
+
+
+Historical pre-closeout Status: ACTIVE. The 30 October review baseline is historical; 1 November repairs and qualification are in progress under the 31 October sequencer. The original review reported that remediation awaited the
 [questions](#questions-for-the-developer) that decide its scope.
 Date: 2026-10-28, refreshed 2026-10-30 (see [30 October refresh](#30-october-refresh)).
 Window: first-parent `51ef9f29` (main on 2026-10-18) to `881e5d5f` (main on 2026-10-28): 28 merges, #87 to #121.

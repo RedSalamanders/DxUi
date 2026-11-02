@@ -12,7 +12,7 @@ Status values: *missing* (absent), *partial* (exists with material gaps), *wrong
 misbehaves), *stale-doc* (status text disagrees with code). Priority reflects how common the construct is in
 ordinary technical Markdown. Effort is a rough small/medium/large estimate. IDs are stable references for the plan.
 
-After this inventory, main merged the completed [rich editor presentation plan](../../Done/RichEditorPresentation_2026-10-22.md),
+After this inventory, main merged the completed [rich editor presentation plan](../RichEditorPresentation_2026-10-22.md),
 which implements parts of MD-01, MD-02, MD-05, MD-06, MD-11, MD-16, MD-21 and MD-31 (search highlights, link
 underlines, the selection-changed event, spacing, Source syntax ink and opt-in remote image requests). The
 "Supported today" lists below describe `fa5821c8`; plan item W0.3 rechecks those entries.

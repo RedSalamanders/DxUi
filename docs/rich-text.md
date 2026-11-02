@@ -343,7 +343,7 @@ The additive v0 API lives in `DxUi::RichText` and links through the single
 `DxUi::RichTextEditor` preview described below. Its bounded source TSF/IME and
 UIA adapters are implemented in both hosts. Real IME/assistive-technology
 qualification, complete semantic Markdown editing and accepted extensions remain
-separate gates in the [active plan](../Specs/Plans/WIP/RichTextEditor_2026-10-17.md).
+separate gates in the [active plan](../Specs/Plans/Done/RichTextEditor_2026-10-17.md).
 The explicit bounded semantic rendering preview is available under M4d below.
 Decoded local images use caller-owned image services and bounded native raster
 publication. Alt text remains the source and accessibility alternative, including
@@ -558,7 +558,7 @@ Text file links use the existing inert underlined link presentation; paste does
 not open a file or add navigation. File type classification is lexical and does
 not check existence. Drag-and-drop and copying assets into the document folder
 are outside this paste feature.
-The [file drag-and-drop specification and native/embedded test plan](../Specs/Plans/WIP/RichTextFileDrop_2026-10-20.md)
+The [file drag-and-drop specification and native/embedded test plan](../Specs/Plans/Done/RichTextFileDrop_2026-10-20.md)
 owns the in-progress drop-at-caret implementation. `DxUi/FileDrop.h` provides an
 application-owned revocable OLE adapter; the application owns registration and
 routes view-local DIPs to the native or embedded host. Final validation and
@@ -766,7 +766,7 @@ The non-activating native IMM/TSF protocol tests, embedded preview/revision test
 actual application-bridged UIA client navigation/event tests and WARP captures
 qualify these bounded adapters. They do not substitute for real input languages,
 Narrator/NVDA or native ARM64 execution. See the [input contract](../Specs/UI/UI_InputAndAccessibility.md)
-and [active qualification plan](../Specs/Plans/WIP/RichTextEditor_2026-10-17.md).
+and [active qualification plan](../Specs/Plans/Done/RichTextEditor_2026-10-17.md).
 
 ## Reusable preparation core
 

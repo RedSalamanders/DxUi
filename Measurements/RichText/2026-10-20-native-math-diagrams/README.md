@@ -26,5 +26,5 @@ RichTextEditor base. Earlier source-specific passes do not qualify that combined
 source. Integration CI and affected tests are separate evidence. Unpaired timings
 establish no non-regression. Full language compatibility, physical IME/AT, native
 ARM64 execution, WARP/device lifecycle/resource acceptance, independent performance
-policy and D4c remain open in the [active plan](../../../Specs/Plans/WIP/RichTextEditor_2026-10-17.md).
+policy and D4c remain open in the [active plan](../../../Specs/Plans/Done/RichTextEditor_2026-10-17.md).
 Consumer evidence remains in its own repository.
