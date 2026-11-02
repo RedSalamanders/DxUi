@@ -10,7 +10,9 @@
 #include "Support.Tests.RichTextStateReplacement.h"
 #include <DxUi/Embedded.h>
 #include <DxUi/FileDrop.h>
+#include <exception>
 #include <imm.h>
+#include <stdexcept>
 
 namespace
 {
@@ -24,24 +26,43 @@ using ServiceRichEditor = RichTextStateReplacementTests::ServiceEditor;
 
 // The suite's WIC helper may retain an MTA on the caller. Run STA-only adapter
 // fixtures on their own thread without changing that caller's apartment.
-void RunFileDropAdapterOnSta(void (*test)())
+void RunFileDropApartmentFixture(DWORD model, void (*test)())
 {
     APTTYPE before{};
     APTTYPEQUALIFIER beforeQualifier{};
     const HRESULT beforeResult = CoGetApartmentType(&before, &beforeQualifier);
-    std::thread sta([test]
+    std::exception_ptr failure;
+    std::thread worker([&]
     {
-        const HRESULT initialized = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
-        RequireSucceeded(initialized, "initialize isolated file-drop STA");
-        const auto apartment = wil::scope_exit([] { CoUninitialize(); });
-        test();
+        try
+        {
+            const HRESULT initialized = CoInitializeEx(nullptr, model);
+            RequireSucceeded(initialized, "initialize isolated file-drop apartment");
+            const auto apartment = wil::scope_exit([] { CoUninitialize(); });
+            test();
+        }
+        catch (const std::bad_alloc&)
+        {
+            std::terminate(); // The test runner treats allocation failure as fatal.
+        }
+        catch (const std::exception&)
+        {
+            failure = std::current_exception(); // Report test failures on the caller thread.
+        }
     });
-    sta.join();
+    worker.join();
     APTTYPE after{};
     APTTYPEQUALIFIER afterQualifier{};
     const HRESULT afterResult = CoGetApartmentType(&after, &afterQualifier);
     Require(afterResult == beforeResult && (FAILED(beforeResult) || (before == after && beforeQualifier == afterQualifier)),
-            "file-drop STA fixture preserves its caller's COM apartment");
+            "file-drop worker fixture preserves its caller's COM apartment");
+    if (failure)
+        std::rethrow_exception(failure);
+}
+
+void RunFileDropAdapterOnSta(void (*test)())
+{
+    RunFileDropApartmentFixture(COINIT_APARTMENTTHREADED, test);
 }
 
 void RichTextOleSourceMoveOnSta()
@@ -236,15 +257,28 @@ void TestRichTextOleAdapterRevocation()
 
 void TestRichTextOleAdapterFromMta()
 {
-    std::thread mta([]
+    RunFileDropApartmentFixture(COINIT_MULTITHREADED, []
     {
-        const HRESULT initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
-        RequireSucceeded(initialized, "initialize caller MTA");
-        const auto apartment = wil::scope_exit([] { CoUninitialize(); });
         RunFileDropAdapterOnSta(RichTextOleSourceMoveOnSta);
         RunFileDropAdapterOnSta(RichTextOleAdapterRevocationOnSta);
     });
-    mta.join();
+}
+
+void TestRichTextOleAdapterWorkerException()
+{
+    for (const DWORD model : {COINIT_APARTMENTTHREADED, COINIT_MULTITHREADED})
+    {
+        bool propagated = false;
+        try
+        {
+            RunFileDropApartmentFixture(model, [] { throw std::logic_error("worker failure"); });
+        }
+        catch (const std::logic_error& error)
+        {
+            propagated = std::string_view(error.what()) == "worker failure";
+        }
+        Require(propagated, "worker exception is propagated after its apartment is released");
+    }
 }
 
 template <typename Prepare, typename Preview, typename Commit>
@@ -1449,6 +1483,7 @@ void RunRichTextInputTests()
     DXUI_RUN_TEST(TestRichTextOleFileListOwnership);
     DXUI_RUN_TEST(TestRichTextOleAdapterRevocation);
     DXUI_RUN_TEST(TestRichTextOleAdapterFromMta);
+    DXUI_RUN_TEST(TestRichTextOleAdapterWorkerException);
     DXUI_RUN_TEST(TestRichTextEmbeddedFileDropInsertion);
     DXUI_RUN_TEST(TestRichTextNativeFileDropInsertion);
     DXUI_RUN_TEST(TestRichTextEmbeddedFileDropCoordinates);
