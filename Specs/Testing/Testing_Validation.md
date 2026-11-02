@@ -370,6 +370,9 @@ bounded closure wait; if it remains live, its owned fixture is preserved and rep
 Both controls retain bounded stdout/stderr and early-exit diagnostics. The observed original assertion was a
 missing progress path at the read site; `TestSupport` removed the fixture on unwind, so the original failure's
 initiating cause remains unassigned.
+The failed-publication control additionally writes its caught child exception and HRESULT directly into its
+owned fixture before redirected stderr, and records early-exit, timed closure and stream-drain observations.
+A timeout still fails at the original bounds; the extra evidence does not convert a later exit into success.
 PR #99's retained x64 Release Full step exhausted its combined 35-minute window after 16 ordinary suite receipts;
 Accessibility was still in progress and had emitted no native timeout or failure. The observed 18-minute gap
 before the MSBuild banner has no measured subphase attribution. Bounded top-level build/gate BEGIN/END/FAIL records

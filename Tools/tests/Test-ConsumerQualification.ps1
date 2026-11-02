@@ -445,7 +445,7 @@ if($IsWindows){Invoke-OwnedProcessFixtureCase 'failed active publication cannot 
     param($fixture,$lifecycle)
     $childScript=Join-Path $fixture 'Child.ps1'
     [IO.File]::WriteAllText($childScript,@'
-param($Module,$Output,$Ready,$PendingReady)
+param($Module,$Output,$Ready,$PendingReady,$FailureLog)
 $ErrorActionPreference='Stop'
 Import-Module -Name $Module -Force -ErrorAction Stop
 $p=New-ConsumerQualificationProgress $Output @{commit='i'*40}
@@ -459,8 +459,10 @@ try{
         } -NegativeCheck
     }catch{
         $exception=$_.Exception.GetBaseException();$unsigned=[BitConverter]::ToUInt32([BitConverter]::GetBytes([int]$exception.HResult),0);$hrHex=[Convert]::ToString($unsigned,16).PadLeft(8,'0')
-        [Console]::Error.WriteLine("CHILD_PHASE_FAILURE: type=$($exception.GetType().FullName) HResult=0x$hrHex")
-        [Console]::Error.WriteLine($_.Exception.ToString())
+        $detail="CHILD_PHASE_FAILURE: type=$($exception.GetType().FullName) HResult=0x$hrHex`n$($_.Exception.ToString())"
+        try{[IO.File]::WriteAllText($FailureLog,$detail,[Text.UTF8Encoding]::new($false))}
+        catch{[Console]::Error.WriteLine("CHILD_FAILURE_LOG_WRITE_FAILED: $($_.Exception.Message)")}
+        [Console]::Error.WriteLine($detail)
         throw
     }
 }finally{$held.Dispose()}
@@ -468,10 +470,11 @@ try{
     $path=Join-Path $fixture 'progress.json'
     $readyPath=Join-Path $fixture 'phase-body-ready.marker'
     $pendingPath=Join-Path $fixture 'phase-body-ready.pending'
+    $failurePath=Join-Path $fixture 'child-phase-failure.log'
     $start=[Diagnostics.ProcessStartInfo]::new('pwsh')
     $start.UseShellExecute=$false;$start.CreateNoWindow=$true
     $start.RedirectStandardOutput=$true;$start.RedirectStandardError=$true
-    foreach($arg in @('-NoProfile','-File',$childScript,'-Module',(Join-Path $PSScriptRoot '../ConsumerQualification.psm1'),'-Output',$path,'-Ready',$readyPath,'-PendingReady',$pendingPath)){$start.ArgumentList.Add($arg)}
+    foreach($arg in @('-NoProfile','-File',$childScript,'-Module',(Join-Path $PSScriptRoot '../ConsumerQualification.psm1'),'-Output',$path,'-Ready',$readyPath,'-PendingReady',$pendingPath,'-FailureLog',$failurePath)){$start.ArgumentList.Add($arg)}
     $child=$null;$stdoutTask=$null;$stderrTask=$null;$waitAttempted=$false;$terminated=$false
     try{
         $child=[Diagnostics.Process]::Start($start)
@@ -486,10 +489,17 @@ try{
         $earlyExit=$child.HasExited
         if(-not $earlyExit){$child.Kill()}
         $waitAttempted=$true
+        $closureTimer=[Diagnostics.Stopwatch]::StartNew()
         $terminated=$child.WaitForExit(3000)
+        $closureTimer.Stop()
+        $exitedAfterWait=$child.HasExited
         $stdout=try{if($terminated -and $stdoutTask.Wait(500)){$stdoutTask.GetAwaiter().GetResult()}else{'<stdout drain exceeded 500 ms after exit>'}}catch{"<stdout drain failed: $($_.Exception.GetBaseException().Message)>"}
         $stderr=try{if($terminated -and $stderrTask.Wait(500)){$stderrTask.GetAwaiter().GetResult()}else{'<stderr drain exceeded 500 ms after exit>'}}catch{"<stderr drain failed: $($_.Exception.GetBaseException().Message)>"}
-        Assert-True $terminated "failed-publication helper exited within the unchanged termination bound; exitCode=$(if($child.HasExited){$child.ExitCode}else{'unknown'}); stdout=$stdout; stderr=$stderr"
+        $diagnostic=@{pid=$child.Id;earlyExit=$earlyExit;terminatedWithinBound=$terminated;exitedAfterWait=$exitedAfterWait;
+                      closureElapsedMs=$closureTimer.Elapsed.TotalMilliseconds;readinessElapsedMs=$readinessTimer.Elapsed.TotalMilliseconds;
+                      ready=$ready;exitCode=if($child.HasExited){$child.ExitCode}else{$null};stdout=$stdout;stderr=$stderr;failureLog=$failurePath}
+        [IO.File]::WriteAllText((Join-Path $fixture 'child-observation.json'),($diagnostic|ConvertTo-Json),[Text.UTF8Encoding]::new($false))
+        Assert-True $terminated "failed-publication helper exited within the unchanged termination bound; earlyExit=$earlyExit; exitedAfterWait=$exitedAfterWait; closureElapsedMs=$([int]$closureTimer.Elapsed.TotalMilliseconds); exitCode=$(if($child.HasExited){$child.ExitCode}else{'unknown'}); failureLog=$failurePath; stdout=$stdout; stderr=$stderr"
         $r=Read-ConsumerProgressSnapshot $path # Read only after child closure, never between path check and replacement.
         $failureDetails="earlyExit=$earlyExit; readinessMarker=$ready; exitCode=$($child.ExitCode); status=$($r.status); activePhase=$($r.activePhase); negativeChecks=$($r.negativeChecks); phases=$(@($r.phases).Count); stdout=$stdout; stderr=$stderr"
         Write-Host "PERSISTENT_DENIED_DIAGNOSTIC: $failureDetails"
@@ -498,6 +508,9 @@ try{
         Assert-True (-not $ready) "failed active publication never creates the body-readiness marker; $failureDetails"
         Assert-True ($stderr -match 'CHILD_PHASE_FAILURE:') "publisher failure remains visible in child stderr; $failureDetails"
         Assert-True ($stderr -match 'HResult=0x80070020|HResult=0x80070497') "persistent lock retains its original numeric sharing error; $failureDetails"
+        Assert-True (Test-Path -LiteralPath $failurePath -PathType Leaf) 'child preserves its failure before writing redirected stderr'
+        $savedFailure=[IO.File]::ReadAllText($failurePath)
+        Assert-True ($savedFailure -match 'CHILD_PHASE_FAILURE:' -and $savedFailure -match 'HResult=0x80070020|HResult=0x80070497') 'fixture-owned failure log retains the exact sharing HRESULT independently of pipe drain'
         Assert-True ($readinessTimer.Elapsed -lt [TimeSpan]::FromSeconds(10)) "persistent publication denial fails within the unchanged readiness bound; $failureDetails"
         Assert-Equal 'incomplete' $r.status "failed publication cannot change journal status; $failureDetails"
         Assert-Equal $null $r.activePhase "failed publication cannot claim an active phase; $failureDetails"
