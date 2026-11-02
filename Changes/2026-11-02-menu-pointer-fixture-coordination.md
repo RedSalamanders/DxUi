@@ -1,0 +1,1 @@
+- Coordinate owned pointer positions and popup readiness in menu hover, keyboard, and cursor regression fixtures.
