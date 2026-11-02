@@ -7421,7 +7421,7 @@ void TestWindowHostTreeArrowAnnouncesTheFocusedItem()
 // activation does; this provider call is what follows it, or what runs when that window focus did not happen.)
 // On a failed focus assertion capture the owner, current foreground, queue focus,
 // producer decisions and client observations before teardown changes them.
-void ReportFocusSequenceState(
+[[nodiscard]] std::string DescribeFocusSequenceState(
     const char* stage, AttachedHostWindow& window, HWND witness, DxUi::Control* first, DxUi::Control* second, FocusEventClient& client)
 {
     const HWND owner             = window.Hwnd();
@@ -7430,29 +7430,35 @@ void ReportFocusSequenceState(
     const DWORD foregroundThread = foreground ? GetWindowThreadProcessId(foreground, &foregroundProcess) : 0u;
     GUITHREADINFO gui{sizeof(GUITHREADINFO)};
     const bool guiAvailable = GetGUIThreadInfo(0u, &gui) != FALSE;
-    std::cerr << std::format("    [FOCUS-STATE] stage={} owner={:#x} ownerValid={} witness={:#x} witnessValid={} foreground={:#x} foregroundPid={} "
-                             "foregroundTid={} threadFocus={:#x} guiAvailable={} foregroundFocus={:#x} logicalFirst={} logicalSecond={} gainTurn={} "
-                             "announcements={} systemMoves={} reactivations={} firstEvents={} secondEvents={} listening={}\n",
-                             stage,
-                             reinterpret_cast<uintptr_t>(owner),
-                             IsWindow(owner) != FALSE,
-                             reinterpret_cast<uintptr_t>(witness),
-                             IsWindow(witness) != FALSE,
-                             reinterpret_cast<uintptr_t>(foreground),
-                             foregroundProcess,
-                             foregroundThread,
-                             reinterpret_cast<uintptr_t>(GetFocus()),
-                             guiAvailable,
-                             reinterpret_cast<uintptr_t>(gui.hwndFocus),
-                             window.Host().GetFocusControl() == first,
-                             window.Host().GetFocusControl() == second,
-                             window.Host().DebugIsInFocusGainTurn(),
-                             window.Host().DebugGetFocusAnnouncementCount(),
-                             window.Host().DebugGetFocusMovesLeftToSystemCount(),
-                             window.Host().DebugGetReactivationAnnouncementCount(),
-                             client.Count(L"Premier bouton"),
-                             client.Count(L"Second bouton"),
-                             UiaClientsAreListening() != FALSE);
+    return std::format("    [FOCUS-STATE] stage={} owner={:#x} ownerValid={} witness={:#x} witnessValid={} foreground={:#x} foregroundPid={} "
+                       "foregroundTid={} threadFocus={:#x} guiAvailable={} foregroundFocus={:#x} logicalFirst={} logicalSecond={} gainTurn={} "
+                       "announcements={} systemMoves={} reactivations={} firstEvents={} secondEvents={} listening={}\n",
+                       stage,
+                       reinterpret_cast<uintptr_t>(owner),
+                       IsWindow(owner) != FALSE,
+                       reinterpret_cast<uintptr_t>(witness),
+                       IsWindow(witness) != FALSE,
+                       reinterpret_cast<uintptr_t>(foreground),
+                       foregroundProcess,
+                       foregroundThread,
+                       reinterpret_cast<uintptr_t>(GetFocus()),
+                       guiAvailable,
+                       reinterpret_cast<uintptr_t>(gui.hwndFocus),
+                       window.Host().GetFocusControl() == first,
+                       window.Host().GetFocusControl() == second,
+                       window.Host().DebugIsInFocusGainTurn(),
+                       window.Host().DebugGetFocusAnnouncementCount(),
+                       window.Host().DebugGetFocusMovesLeftToSystemCount(),
+                       window.Host().DebugGetReactivationAnnouncementCount(),
+                       client.Count(L"Premier bouton"),
+                       client.Count(L"Second bouton"),
+                       UiaClientsAreListening() != FALSE);
+}
+
+void ReportFocusSequenceState(
+    const char* stage, AttachedHostWindow& window, HWND witness, DxUi::Control* first, DxUi::Control* second, FocusEventClient& client)
+{
+    std::cerr << DescribeFocusSequenceState(stage, window, witness, first, second, client);
     client.PrintNames();
 }
 
@@ -7470,10 +7476,20 @@ void TestWindowHostElementSetFocusAnnouncesOnlyThatElement()
     elsewhere.Host().SetRoot(std::make_unique<Button>(L"Ailleurs"));
     // Subscribe before the final owned-window activation sequence.
     FocusEventClient client(window, window.Hwnd());
+    std::string beforeActivation = DescribeFocusSequenceState("before-initial-activation", window, elsewhere.Hwnd(), first, second, client);
+    std::string beforeDirect     = "    [FOCUS-STATE] before-direct-focus not captured\n";
+    std::string beforeUia        = "    [FOCUS-STATE] before-uia-focus not captured\n";
+    std::optional<size_t> firstDirectBaseline, secondDirectBaseline, secondUiaBaseline;
     const auto expect = [&](bool condition, const char* message)
     {
         if (! condition)
+        {
+            std::cerr << beforeActivation << beforeDirect << beforeUia
+                      << std::format("    [FOCUS-BASELINES] firstDirect={}/{} secondDirect={}/{} secondUia={}/{}\n",
+                                     firstDirectBaseline.has_value(), firstDirectBaseline.value_or(0u), secondDirectBaseline.has_value(),
+                                     secondDirectBaseline.value_or(0u), secondUiaBaseline.has_value(), secondUiaBaseline.value_or(0u));
             ReportFocusSequenceState(message, window, elsewhere.Hwnd(), first, second, client);
+        }
         Require(condition, message);
     };
     if (! TryActivateDxUiTestWindow(window.Hwnd()) || ! TryActivateDxUiTestWindow(elsewhere.Hwnd()))
@@ -7499,8 +7515,11 @@ void TestWindowHostElementSetFocusAnnouncesOnlyThatElement()
 
     client.Settle();
     expect(GetForegroundWindow() == elsewhere.Hwnd() && GetFocus() == elsewhere.Hwnd(), "the prepared other window remains foreground before element focus");
+    beforeDirect                   = DescribeFocusSequenceState("before-direct-focus", window, elsewhere.Hwnd(), first, second, client);
     const size_t firstBeforeDirect = client.Count(L"Premier bouton");
     const size_t directBefore      = client.Count(L"Second bouton");
+    firstDirectBaseline = firstBeforeDirect;
+    secondDirectBaseline = directBefore;
     RequireSucceeded(secondElement->SetFocus(), "the second button's element takes focus");
     Require(window.Host().GetFocusControl() == second && GetFocus() == window.Hwnd(), "the second button has focus in the now focused window");
     expect(client.WaitUntil(FocusEventClient::kNotificationDeadlineMs, [&] { return client.Count(L"Second bouton") > directBefore; }),
@@ -7512,7 +7531,9 @@ void TestWindowHostElementSetFocusAnnouncesOnlyThatElement()
     // focus on the way, but the element it asked for is the one it hears last.
     expect(TryActivateDxUiTestWindow(elsewhere.Hwnd()), "the other window is active again");
     window.Host().SetFocusControl(nullptr);
+    beforeUia                = DescribeFocusSequenceState("before-uia-focus", window, elsewhere.Hwnd(), first, second, client);
     const size_t heardBefore = client.Count(L"Second bouton");
+    secondUiaBaseline = heardBefore;
     RequireSucceeded(client.FocusElementNamed(L"Second bouton"), "a UIA client focuses the second button");
     Require(window.Host().GetFocusControl() == second, "the second button has focus again");
     expect(client.WaitUntil(FocusEventClient::kNotificationDeadlineMs, [&] { return client.Count(L"Second bouton") > heardBefore; }),
@@ -7921,10 +7942,21 @@ void TestWindowHostThatLostTheForegroundAnnouncesNoFocusChange()
     const auto stopForeground = wil::scope_exit([&]() noexcept { SetEvent(foregroundStop.get()); });
     Require(WaitForSingleObject(foregroundReady.get(), 5000u) == WAIT_OBJECT_0 && foreground.load() != nullptr, "create a window on another thread");
 
+    std::string beforeActivation     = DescribeFocusSequenceState("before-prepared-activation", window, foreground.load(), first, second, client);
+    std::string beforeBackgroundMove = "    [FOCUS-STATE] before-background-move not captured\n";
+    std::string beforePositiveMove   = "    [FOCUS-STATE] before-positive-move not captured\n";
+    std::optional<size_t> secondEventBaseline, firstEventBaseline;
+    std::optional<uint64_t> announcementBaseline;
     const auto expect = [&](bool condition, const char* message)
     {
         if (! condition)
+        {
+            std::cerr << beforeActivation << beforeBackgroundMove << beforePositiveMove
+                      << std::format("    [FOCUS-BASELINES] secondEvents={}/{} announcements={}/{} firstEvents={}/{}\n",
+                                     secondEventBaseline.has_value(), secondEventBaseline.value_or(0u), announcementBaseline.has_value(),
+                                     announcementBaseline.value_or(0u), firstEventBaseline.has_value(), firstEventBaseline.value_or(0u));
             ReportFocusSequenceState(message, window, foreground.load(), first, second, client);
+        }
         Require(condition, message);
     };
     // The client and witness may pump during setup; reacquire after both are ready.
@@ -7944,8 +7976,11 @@ void TestWindowHostThatLostTheForegroundAnnouncesNoFocusChange()
         return;
     }
 
+    beforeBackgroundMove           = DescribeFocusSequenceState("before-background-move", window, foreground.load(), first, second, client);
     const size_t secondBefore      = client.Count(L"Second bouton");
     const uint64_t announcedBefore = window.Host().DebugGetFocusAnnouncementCount();
+    secondEventBaseline = secondBefore;
+    announcementBaseline = announcedBefore;
     window.Host().SetFocusControl(second);
     expect(window.Host().GetFocusControl() == second, "focus moves to the second button after the window lost the foreground");
     client.Settle();
@@ -7957,7 +7992,9 @@ void TestWindowHostThatLostTheForegroundAnnouncesNoFocusChange()
     expect(GetForegroundWindow() == window.Hwnd() && GetFocus() == window.Hwnd(), "the owner retains actual foreground and thread focus");
     // Do not normalize this state: retaining the background-selected control is a separate contract.
     expect(window.Host().GetFocusControl() == second, "the background-selected second control remains focused on reactivation");
+    beforePositiveMove       = DescribeFocusSequenceState("before-positive-move", window, foreground.load(), first, second, client);
     const size_t firstBefore = client.Count(L"Premier bouton");
+    firstEventBaseline = firstBefore;
     window.Host().SetFocusControl(first);
     expect(window.Host().GetFocusControl() == first, "the foreground move selects the first control");
     expect(client.WaitUntil(FocusEventClient::kNotificationDeadlineMs, [&] { return client.Count(L"Premier bouton") > firstBefore; }),
