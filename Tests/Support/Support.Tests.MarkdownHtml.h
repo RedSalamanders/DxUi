@@ -137,6 +137,11 @@ inline std::wstring Inline(const MarkdownSyntax& syntax, std::size_t first, bool
             result += visit.plain ? node.value : Escape(node.value);
         else if (node.kind == MarkdownInlineKind::Code)
             result += visit.plain ? node.value : L"<code>" + Escape(node.value) + L"</code>";
+        // These are test conventions, not the application's HTML rendering contract.
+        else if (node.kind == MarkdownInlineKind::Math)
+            result += visit.plain ? node.value : L"<span class=\"math\">" + Escape(node.value) + L"</span>";
+        else if (node.kind == MarkdownInlineKind::FootnoteReference)
+            result += visit.plain ? node.value : Escape(node.value);
         else if (node.kind == MarkdownInlineKind::SoftBreak)
             result += L'\n';
         else if (node.kind == MarkdownInlineKind::HardBreak)

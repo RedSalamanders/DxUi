@@ -26,6 +26,14 @@ struct Scenario
     std::wstring_view name, source, common, gfm, rich;
 };
 inline constexpr Scenario scenarios[] = {
+    {L"math value is escaped in test HTML", L"$a&b\"c$\n", L"<p>$a&amp;b&quot;c$</p>\n", {}, L"<p><span class=\"math\">a&amp;b&quot;c</span></p>\n"},
+    {L"math comparison is escaped", L"$x < y$\n", L"<p>$x &lt; y$</p>\n", {}, L"<p><span class=\"math\">x &lt; y</span></p>\n"},
+    {L"explicit inline math delimiter", L"\\(x+1\\)\n", L"<p>(x+1)</p>\n", {}, L"<p><span class=\"math\">x+1</span></p>\n"},
+    {L"math cannot start with whitespace", L"$ x$\n", L"<p>$ x$</p>\n", {}, {}},
+    {L"inline double dollars stay literal", L"$$x$$\n", L"<p>$$x$$</p>\n", {}, {}},
+    {L"math adjacent to emphasis", L"*$x$*\n", L"<p><em>$x$</em></p>\n", {}, L"<p><em><span class=\"math\">x</span></em></p>\n"},
+    {L"math in image alternative text", L"![$x$](img)\n", L"<p><img src=\"img\" alt=\"$x$\" /></p>\n", {}, L"<p><img src=\"img\" alt=\"x\" /></p>\n"},
+    {L"footnote source remains visible in test HTML", L"see [^n]\n", L"<p>see [^n]</p>\n", {}, {}},
     {L"reference-only paragraph cannot become a table header", L"[r]: /url\n| - |\n", L"<p>| - |</p>\n", {}, {}},
     {L"reference extraction before a real table header",
      L"[r]: /url\nheader\n| --- |\n[r]\n",
