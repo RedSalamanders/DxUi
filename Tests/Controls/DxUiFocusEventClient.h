@@ -20,11 +20,11 @@ public:
     {
         if (! sender)
             return S_OK;
-        int processId = 0;
+        int processId               = 0;
         const HRESULT processResult = sender->get_CachedProcessId(&processId);
         // Both properties are cached; querying them here does not call into the provider thread.
         wil::unique_bstr name;
-        const HRESULT nameResult = sender->get_CachedName(name.put());
+        const HRESULT nameResult   = sender->get_CachedName(name.put());
         const bool acceptedProcess = SUCCEEDED(processResult) && static_cast<DWORD>(processId) == GetCurrentProcessId();
         try
         {
@@ -37,7 +37,7 @@ public:
                 {
                     if (_observationCount < _observations.size())
                     {
-                        const int kind = observed == L"Essai de focus" ? 0 : observed == L"Premier bouton" ? 1 : 2;
+                        const int kind                     = observed == L"Essai de focus" ? 0 : observed == L"Premier bouton" ? 1 : 2;
                         _observations[_observationCount++] = {kind, nameResult, processResult, processId, acceptedProcess};
                     }
                     else
@@ -83,31 +83,34 @@ public:
     void PrintCachedIdentityDiagnostics() const
     {
         const std::scoped_lock lock(_mutex);
-        std::cerr << "    [UIA-CACHED-IDENTITY] expectedProcessId=" << GetCurrentProcessId() << " unreadableNames=" << _unreadableNames << " lastNameHr=" << static_cast<uint32_t>(_lastNameFailure) << " observations=" << _observationCount << " omitted=" << _omittedObservations << '\n';
+        std::cerr << "    [UIA-CACHED-IDENTITY] expectedProcessId=" << GetCurrentProcessId() << " unreadableNames=" << _unreadableNames
+                  << " lastNameHr=" << static_cast<uint32_t>(_lastNameFailure) << " observations=" << _observationCount << " omitted=" << _omittedObservations
+                  << '\n';
         for (size_t i = 0; i < _observationCount; ++i)
         {
             const auto& event = _observations[i];
-            std::cerr << "    [UIA-CACHED-IDENTITY] kind=" << event.kind << " nameHr=" << static_cast<uint32_t>(event.nameResult) << " processHr=" << static_cast<uint32_t>(event.processResult)
-                      << " processId=" << event.processId << " accepted=" << event.acceptedProcess << '\n';
+            std::cerr << "    [UIA-CACHED-IDENTITY] kind=" << event.kind << " nameHr=" << static_cast<uint32_t>(event.nameResult)
+                      << " processHr=" << static_cast<uint32_t>(event.processResult) << " processId=" << event.processId
+                      << " accepted=" << event.acceptedProcess << '\n';
         }
     }
 
 private:
     struct CachedIdentityObservation
     {
-        int kind = 0; // 0 window, 1 first button, 2 second button.
-        HRESULT nameResult = E_FAIL;
+        int kind              = 0; // 0 window, 1 first button, 2 second button.
+        HRESULT nameResult    = E_FAIL;
         HRESULT processResult = E_FAIL;
-        int processId = 0;
-        bool acceptedProcess = false;
+        int processId         = 0;
+        bool acceptedProcess  = false;
     };
     mutable std::mutex _mutex;
     std::vector<std::wstring> _names;
     std::array<CachedIdentityObservation, 64> _observations{};
-    size_t _observationCount = 0u;
+    size_t _observationCount    = 0u;
     size_t _omittedObservations = 0u;
-    size_t _unreadableNames = 0u;
-    HRESULT _lastNameFailure = S_OK;
+    size_t _unreadableNames     = 0u;
+    HRESULT _lastNameFailure    = S_OK;
 };
 
 // An in-process UIA client on its own MTA thread, as a screen reader is another process: it records the names of
