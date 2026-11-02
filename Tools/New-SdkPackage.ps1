@@ -20,6 +20,7 @@ Copies public headers, restored dependencies, licenses, Release library, integra
 and the unchanged reviewed native build policy. SDK headers are external dependencies of
 the extracted consumer; its own translation units retain /Wall and zero-warning validation.
 The smoke compiles its own consumer against extracted files only; it never rebuilds DxUi.
+Normal-verbosity build logs retain the completed diagnostics summaries required by the zero-warning gate.
 .EXAMPLE
 ./Tools/New-SdkPackage.ps1 -Platform x64 -Version 0.1.1234 -SmokeRoot Z:/RedSalamander.Perf
 #>
@@ -143,7 +144,7 @@ $before=(Get-FileHash -LiteralPath (Join-Path $extracted "lib/$Platform/Release/
 $logs=Join-Path $root '.build/logs'
 [void][IO.Directory]::CreateDirectory($logs)
 $smokeLog=Join-Path $logs "sdk-consumer-$Version-$Platform.log"
-& $msbuild $projectPath /nologo /m /v:minimal /p:Configuration=Release "/p:Platform=$Platform" "/p:VCToolsVersion=$($identity.Identity.vcToolsVersion)" 2>&1 | Tee-Object -FilePath $smokeLog | ForEach-Object {Write-Host $_}
+& $msbuild $projectPath /nologo /m /v:normal /p:Configuration=Release "/p:Platform=$Platform" "/p:VCToolsVersion=$($identity.Identity.vcToolsVersion)" 2>&1 | Tee-Object -FilePath $smokeLog | ForEach-Object {Write-Host $_}
 if($LASTEXITCODE -ne 0){throw 'Extracted SDK-only consumer failed to compile/link.'}
 Assert-NativeBuildDiagnostics -LogPath $smokeLog
 $propertiesJson=& $msbuild $projectPath /nologo /p:Configuration=Release "/p:Platform=$Platform" "/p:VCToolsVersion=$($identity.Identity.vcToolsVersion)" -getProperty:WindowsSdkDir,VCToolsInstallDir
@@ -168,7 +169,7 @@ $warningSource=Join-Path $smoke 'WarningControl.cpp'
 [IO.File]::WriteAllText($warningSource,'int main() { int unused = 1; return 0; }')
 [IO.File]::WriteAllText($warningProject,$project.Replace('Include="Main.cpp"','Include="WarningControl.cpp"'))
 $warningLog=Join-Path $logs "sdk-warning-control-$Version-$Platform.log"
-$warningArguments=@($warningProject,'/nologo','/m','/v:minimal','/p:Configuration=Release',
+$warningArguments=@($warningProject,'/nologo','/m','/v:normal','/p:Configuration=Release',
     ("/p:Platform=$Platform"),("/p:VCToolsVersion=$($identity.Identity.vcToolsVersion)"),
     ('/p:IntDir='+(Join-Path $smoke 'warning-obj')+'\'),('/p:OutDir='+(Join-Path $smoke 'warning-bin')+'\'))
 & $msbuild @warningArguments 2>&1 | Tee-Object -FilePath $warningLog | ForEach-Object {Write-Host $_}
