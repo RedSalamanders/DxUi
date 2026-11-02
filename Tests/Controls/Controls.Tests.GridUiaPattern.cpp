@@ -11,16 +11,21 @@
 
 namespace
 {
+// Keep fatal callback symbols distinct under Release ICF and LTCG.
+static std::atomic<unsigned> controlFatalOriginMarker{};
 [[noreturn]] __declspec(noinline) void GridUiaReadThrowOrigin(const std::runtime_error& error)
 {
+    controlFatalOriginMarker.store(201u, std::memory_order_relaxed);
     throw error;
 }
 [[noreturn]] __declspec(noinline) void GridUiaAllocationThrowOrigin()
 {
+    controlFatalOriginMarker.store(202u, std::memory_order_relaxed);
     throw std::bad_alloc();
 }
 [[noreturn]] __declspec(noinline) void GridUiaRowThrowOrigin(const std::runtime_error& error)
 {
+    controlFatalOriginMarker.store(203u, std::memory_order_relaxed);
     throw error;
 }
 

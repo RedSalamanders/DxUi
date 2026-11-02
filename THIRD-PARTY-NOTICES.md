@@ -13,7 +13,7 @@ DxUi uses [toml++ 3.4.0](https://github.com/marzer/tomlplusplus/tree/v3.4.0), Ma
 
 DxUi derives its bounded native math symbol table from [KaTeX 0.16.11](https://github.com/KaTeX/KaTeX/tree/v0.16.11), Khan Academy and contributors, MIT. The full [notice](docs/licenses/katex.txt) accompanies redistributions; source provenance is in the [pinned inventory](ThirdParty/Markdown/katex-0.16.11/collection.json).
 
-DxUi uses [libyaml 0.2.5](https://github.com/yaml/libyaml/tree/2c891fc7a770e8ba2fec34fc6b545c672beb37e6) as a private YAML event parser. Its [MIT license](ThirdParty/libyaml/0.2.5/LICENSE) accompanies redistributions. [Source provenance and local patches](ThirdParty/libyaml/0.2.5/README.md) are retained.
+DxUi uses [libfyaml 0.9.4](https://github.com/pantoniou/libfyaml/tree/cd5f869cb937d0e9db11073d64e8758a7a7c978a) as a private YAML event parser. Its [MIT license](ThirdParty/libfyaml/0.9.4/LICENSE) and the bundled [xxHash BSD-2-Clause license](ThirdParty/libfyaml/0.9.4/LICENSE-xxHash.txt) accompany redistributions. [Source provenance and local patches](ThirdParty/libfyaml/0.9.4/README.dxui.md) are retained.
 
 DxUi also links Windows SDK/system libraries, using the consumer's matching MSVC runtime. Those components are
 supplied under their respective Microsoft terms, not relicensed by this project's MIT license. System fonts are

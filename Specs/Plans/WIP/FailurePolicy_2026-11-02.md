@@ -108,7 +108,7 @@ reopening their historical checklists or relabeling old allocation sweeps as fat
   `CreateControl`, and an application-owned sample dump writer. A concurrent-failure completion handshake and
   owned fatal-child probes have been written. Their builds, dumps, matching symbols, thread/context assertions,
   cross-module behavior and failure-to-write behavior remain unrun and must not be reported as passes.
-- TOML uses its pinned status interface; YAML uses a private bounded libyaml event backend and retains graph-level
+- TOML uses its pinned status interface; YAML uses a private bounded libfyaml event backend and retains graph-level
   key/alias checks. Markdown, native math, source/document and several geometry paths now have checked results.
   The entire existing metadata and 1,135-row math corpora, exact limits and source preservation remain open gates.
 - Checked factory allocation covers outer control storage, not arbitrary STL/shared-owner/debug-proxy construction.

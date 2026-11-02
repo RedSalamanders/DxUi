@@ -70,7 +70,8 @@ Copy-Item -LiteralPath (Join-Path $root 'docs/licenses/katex.txt') -Destination 
 Copy-Item -LiteralPath (Join-Path $root 'docs/licenses/tomlplusplus.txt') -Destination (Join-Path $stage 'licenses/tomlplusplus-LICENSE.txt')
 Copy-Item -LiteralPath (Join-Path $root 'docs/licenses/rapidyaml.txt') -Destination (Join-Path $stage 'licenses/rapidyaml-LICENSE.txt')
 Copy-Item -LiteralPath (Join-Path $root 'docs/licenses/rapidyaml-bundled.txt') -Destination (Join-Path $stage 'licenses/rapidyaml-bundled-NOTICES.txt')
-Copy-Item -LiteralPath (Join-Path $root 'ThirdParty/libyaml/0.2.5/LICENSE') -Destination (Join-Path $stage 'licenses/libyaml-LICENSE.txt')
+Copy-Item -LiteralPath (Join-Path $root 'ThirdParty/libfyaml/0.9.4/LICENSE') -Destination (Join-Path $stage 'licenses/libfyaml-LICENSE.txt')
+Copy-Item -LiteralPath (Join-Path $root 'ThirdParty/libfyaml/0.9.4/LICENSE-xxHash.txt') -Destination (Join-Path $stage 'licenses/libfyaml-xxHash-LICENSE.txt')
 $props=@'
 <Project>
   <PropertyGroup>

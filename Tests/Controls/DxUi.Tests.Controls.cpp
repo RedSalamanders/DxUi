@@ -6,6 +6,7 @@
 #include "Controls.Tests.MenuPopupReadiness.h"
 #include "Support.Tests.FatalChildren.h"
 
+#include <atomic>
 #include <cctype>
 #include <fstream>
 #include <functional>
@@ -667,8 +668,11 @@ void TestSliderOldReleaseCannotFinishRestartedDrag()
     Require(slider->OnMouseUp(host, D2D1::Point2F(120.0f, 20.0f), false, 0u) && commits == 1u && ! host.GetCapturedControl(),
             "the replacement drag receives its own release and commit");
 }
+// Keep fatal callback symbols distinct under Release ICF and LTCG.
+static std::atomic<unsigned> controlFatalOriginMarker{};
 [[noreturn]] __declspec(noinline) void ScrollCallbackThrowOrigin(const std::runtime_error& error)
 {
+    controlFatalOriginMarker.store(206u, std::memory_order_relaxed);
     throw error;
 }
 void ScrollCallbackFailureFixture(unsigned fatalScenario)
@@ -1151,6 +1155,7 @@ void TestTabControlLayoutRevalidatesPagesAfterCallbacks()
 
 [[noreturn]] __declspec(noinline) void TabCallbackThrowOrigin(const std::runtime_error& error)
 {
+    controlFatalOriginMarker.store(207u, std::memory_order_relaxed);
     throw error;
 }
 void TabCallbackFailureFixture(unsigned fatalScenario)

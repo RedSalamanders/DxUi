@@ -4236,6 +4236,7 @@ static void TestRetainedRichTextSchedulingCanRetireOwner(GraphicsFixture& gpu)
 
 [[noreturn]] __declspec(noinline) static void EmbeddedRichPaintThrowOrigin(const std::runtime_error& error)
 {
+    embeddedCallbackOriginMarker.store(6u, std::memory_order_relaxed);
     throw error;
 }
 static void TestRetainedRichTextFailedPreparation(GraphicsFixture& gpu, bool fatalChild = false)

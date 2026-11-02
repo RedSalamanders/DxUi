@@ -348,6 +348,7 @@ static void TestEmbeddedTreeMultiSelect(GraphicsFixture& gpu)
 
 [[noreturn]] __declspec(noinline) static void EmbeddedTreeModelThrowOrigin(const std::runtime_error& error)
 {
+    embeddedCallbackOriginMarker.store(2u, std::memory_order_relaxed);
     throw error;
 }
 static void TestEmbeddedAccessibilityContainsAThrowingModelGetter(GraphicsFixture& gpu, bool fatalChild = false)

@@ -96,10 +96,12 @@ static void TestMultilineCaretViewport(GraphicsFixture& gpu)
 // Application-side composition transport; no HWND, TSF context or real IME is created by this fixture.
 [[noreturn]] __declspec(noinline) static void EmbeddedInputAllocationThrowOrigin()
 {
+    embeddedCallbackOriginMarker.store(3u, std::memory_order_relaxed);
     throw std::bad_alloc();
 }
 [[noreturn]] __declspec(noinline) static void EmbeddedNestedKeyThrowOrigin(const std::runtime_error& error)
 {
+    embeddedCallbackOriginMarker.store(4u, std::memory_order_relaxed);
     throw error;
 }
 static void TestEmbeddedInputCallbackAllocationBoundary(GraphicsFixture& gpu, unsigned fatalScenario = 0u)
@@ -181,6 +183,7 @@ static void TestEmbeddedInputCallbackAllocationBoundary(GraphicsFixture& gpu, un
 
 [[noreturn]] __declspec(noinline) static void EmbeddedTextChangeThrowOrigin(const std::runtime_error& error)
 {
+    embeddedCallbackOriginMarker.store(5u, std::memory_order_relaxed);
     throw error;
 }
 static void TestEmbeddedTextInput(GraphicsFixture& gpu, bool fatalChild = false)

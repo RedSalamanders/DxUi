@@ -48,22 +48,25 @@ struct Site
 // the synchronous fatal/report call; an asynchronous dumper must copy it first.
 struct Record
 {
-    uint32_t size         = sizeof(Record);
-    uint32_t version      = ProtocolVersion;
-    Kind kind             = Kind::UnexpectedException;
-    uint32_t flags        = 0;
+    uint32_t size    = sizeof(Record);
+    uint32_t version = ProtocolVersion;
+    Kind kind        = Kind::UnexpectedException;
+    uint32_t flags   = 0;
+    // The Windows context follows the fixed protocol prefix at its natural
+    // alignment on both supported architectures, without implicit ABI padding.
+    CONTEXT context{};
+    EXCEPTION_RECORD exception{};
+    void* frames[MaximumFrames]{};
+    size_t requestedBytes = 0;
     HRESULT result        = E_FAIL;
     HRESULT dumpResult    = E_PENDING;
-    size_t requestedBytes = 0;
     DWORD threadId        = 0;
     uint32_t line         = 0;
     uint32_t column       = 0;
+    uint32_t frameCount   = 0;
     char file[192]{};
     char function[192]{};
-    EXCEPTION_RECORD exception{};
-    CONTEXT context{};
-    uint32_t frameCount = 0;
-    void* frames[MaximumFrames]{};
+    uint32_t reserved[2]{};
 };
 
 using Reporter = HRESULT (*)(void* context, const Record& record) noexcept;
@@ -83,6 +86,8 @@ struct HostServices
     void (*fatal)(void*, const Record&) noexcept = nullptr;
 };
 static_assert(std::is_trivially_copyable_v<Record> && std::is_standard_layout_v<Record>);
+static_assert(offsetof(Record, size) == 0u && offsetof(Record, version) == sizeof(uint32_t));
+static_assert(offsetof(Record, context) == 16u && alignof(Record) == alignof(CONTEXT));
 static_assert(std::is_trivially_copyable_v<HostServices> && std::is_standard_layout_v<HostServices>);
 
 [[nodiscard]] HRESULT RegisterModule(const HostServices& services) noexcept;

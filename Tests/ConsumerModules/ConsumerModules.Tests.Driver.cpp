@@ -130,9 +130,10 @@ bool FatalModuleChild(int kind)
         return false;
     const std::string_view content(text.data(), read);
     const auto moduleName = kind <= 2 ? "NativeModuleA.dll" : "NativeModuleB.dll";
-    if (content.find("exception_code=e06d7363") == std::string_view::npos || content.find("flags=6\r\n") == std::string_view::npos ||
-        content.find(moduleName) == std::string_view::npos || content.find("context_ip=") == std::string_view::npos ||
-        content.find("context_ip=0\r\n") != std::string_view::npos)
+    std::uint64_t flags{};
+    if (! ReadNumber(content, "flags=", 10, flags) || (flags & DxUi::Failure::FirstChanceContext) == 0 || (flags & DxUi::Failure::LiveFailureContext) != 0 ||
+        content.find("exception_code=e06d7363") == std::string_view::npos || content.find(moduleName) == std::string_view::npos ||
+        content.find("context_ip=") == std::string_view::npos || content.find("context_ip=0\r\n") != std::string_view::npos)
         return false;
     std::uint64_t threadId{}, ip{};
     if (! ReadNumber(content, "thread=", 10, threadId) || ! ReadNumber(content, "context_ip=", 16, ip) || ! threadId || ! ip ||

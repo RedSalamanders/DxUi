@@ -9,13 +9,26 @@
 #include <vector>
 #pragma warning(push)
 #pragma warning(disable : 4464)
-#include "../../ThirdParty/libyaml/0.2.5/yaml.h"
+#include "../../ThirdParty/libfyaml/0.9.4/dxui_allocator.h"
+#include "../../ThirdParty/libfyaml/0.9.4/dxui_parser.h"
 #pragma warning(pop)
 
-extern "C" void dxui_yaml_fatal_allocation(std::size_t bytes)
+extern "C" __declspec(noreturn) void dxui_fy_fatal_allocation(std::size_t bytes)
 {
     DxUi::Failure::FailAllocation(bytes);
 }
+extern "C" __declspec(noreturn) void dxui_fy_fatal_contract(void)
+{
+    DxUi::Failure::FailContract(E_UNEXPECTED);
+}
+
+namespace DxUi::Failure::Detail
+{
+void SetYamlNativeAllocationFailureForTest(std::size_t successfulAllocations) noexcept
+{
+    dxui_fy_fail_native_after_for_test(successfulAllocations);
+}
+} // namespace DxUi::Failure::Detail
 
 namespace DxUi::RichText::Detail
 {
@@ -78,143 +91,211 @@ struct YamlGraph
     }
 };
 
-struct YamlBudgetScope
+struct FyBudgetScope
 {
-    dxui_yaml_budget_t budget{};
-    YamlBudgetScope()
+    dxui_fy_budget budget{};
+    explicit FyBudgetScope(std::size_t limit)
     {
-        dxui_yaml_budget_begin(&budget, 4u * 1024u * 1024u);
+        dxui_fy_budget_begin(&budget, limit);
     }
-    ~YamlBudgetScope()
+    ~FyBudgetScope()
     {
-        dxui_yaml_budget_end(&budget);
-    }
-    MetadataIssue Failure() const
-    {
-        return MetadataIssue::Capacity;
+        dxui_fy_budget_end(&budget);
     }
 };
-struct YamlParserScope
+struct FyParserScope
 {
-    dxui_yaml_parser_t parser{};
-    bool initialized{};
-    ~YamlParserScope()
+    fy_parser* parser{};
+    void Close()
     {
-        if (initialized)
-            dxui_yaml_parser_delete(&parser);
+        if (parser)
+            dxui_fy_guard_destroy(parser);
+        parser = nullptr;
+    }
+    ~FyParserScope()
+    {
+        Close();
     }
 };
-struct YamlEventScope
+struct FyEventScope
 {
-    dxui_yaml_event_t event{};
-    bool initialized{};
-    ~YamlEventScope()
+    fy_parser* parser{};
+    fy_event* event{};
+    ~FyEventScope()
     {
-        if (initialized)
-            dxui_yaml_event_delete(&event);
+        if (event)
+            dxui_fy_guard_event_free(parser, event);
     }
 };
-std::string_view YamlText(const dxui_yaml_char_t* value)
+bool FyText(fy_token* token, std::string_view& result)
 {
-    return value ? std::string_view(reinterpret_cast<const char*>(value)) : std::string_view{};
+    if (! token)
+    {
+        result = {};
+        return true;
+    }
+    std::size_t size{};
+    const char* text = dxui_fy_guard_token_text(token, &size);
+    if (! text)
+        return false;
+    result = std::string_view(text, size);
+    return true;
 }
-MetadataIssue MakeYamlGraph(std::wstring_view text, YamlGraph& graph)
+MetadataIssue MakeYamlGraph(std::wstring_view text, YamlGraph& graph, std::size_t backendBudget)
 {
     std::string source;
     if (! MetadataUtf8(text, source))
         return MetadataIssue::Invalid;
-    YamlBudgetScope budget;
-    YamlParserScope parser;
-    if (! dxui_yaml_parser_initialize(&parser.parser))
-        return budget.Failure();
-    parser.initialized = true;
-    dxui_yaml_parser_set_input_string(&parser.parser, reinterpret_cast<const unsigned char*>(source.data()), source.size());
-    std::size_t documents = 0u, eventWords = 0u, arenaBytes = 0u;
-    MetadataIssue graphIssue = MetadataIssue::None;
-    for (;;)
+
+    // Every vendor entry goes through the C-only status fence. A refused entry
+    // poisons the parser, and its arena then frees storage without inspecting it.
+    FyBudgetScope budget{backendBudget};
+    FyParserScope owner{dxui_fy_guard_create()};
+    if (! owner.parser)
     {
-        YamlEventScope current;
-        if (! dxui_yaml_parser_parse(&parser.parser, &current.event))
-            return parser.parser.error == YAML_MEMORY_ERROR ? budget.Failure() : MetadataIssue::Invalid;
-        current.initialized = true;
-        const auto& event   = current.event;
-        if (++eventWords > 256u * 1024u)
+        if (budget.budget.exceeded)
             return MetadataIssue::Capacity;
-        if (event.type == YAML_STREAM_END_EVENT)
-            break;
-        if (event.type == YAML_DOCUMENT_START_EVENT)
-        {
-            if (++documents > 1u)
-                return MetadataIssue::Invalid;
-            const auto* first = event.data.document_start.tag_directives.start;
-            const auto* last  = event.data.document_start.tag_directives.end;
-            if (first && last - first > 128)
-                return MetadataIssue::Capacity;
-            continue;
-        }
-        // Syntax was validated for the entire stream before graph construction
-        // in the previous backend. Continue parsing after a graph refusal so a
-        // later syntax error retains that precedence.
-        if (graphIssue != MetadataIssue::None)
-            continue;
-        if (event.type == YAML_ALIAS_EVENT)
-        {
-            eventWords += 2u;
-            const auto name = YamlText(event.data.alias.anchor);
-            auto found      = graph.anchors.rend();
-            for (auto it = graph.anchors.rbegin(); it != graph.anchors.rend(); ++it)
-                if ((*it)->name == name)
-                {
-                    found = it;
-                    break;
-                }
-            if (found == graph.anchors.rend())
-            {
-                graphIssue = MetadataIssue::UnresolvedAlias;
-                continue;
-            }
-            const auto issue = graph.Add(false, false, false, {}, (*found)->node);
-            if (issue != MetadataIssue::None)
-                graphIssue = issue;
-            continue;
-        }
-        if (event.type == YAML_MAPPING_END_EVENT || event.type == YAML_SEQUENCE_END_EVENT)
-        {
-            if (graph.stack.empty())
-            {
-                graphIssue = MetadataIssue::Invalid;
-                continue;
-            }
-            graph.stack.pop_back();
-            continue;
-        }
-        const bool scalar   = event.type == YAML_SCALAR_EVENT;
-        const bool map      = event.type == YAML_MAPPING_START_EVENT;
-        const bool sequence = event.type == YAML_SEQUENCE_START_EVENT;
-        if (! scalar && ! map && ! sequence)
-            continue;
-        const auto anchor = scalar ? event.data.scalar.anchor : map ? event.data.mapping_start.anchor : event.data.sequence_start.anchor;
-        const auto tag    = scalar ? event.data.scalar.tag : map ? event.data.mapping_start.tag : event.data.sequence_start.tag;
-        const auto value  = scalar ? std::string_view(reinterpret_cast<const char*>(event.data.scalar.value), event.data.scalar.length) : std::string_view{};
-        const auto anchorText = YamlText(anchor), tagText = YamlText(tag);
-        eventWords += 2u + (anchor ? 3u : 0u) + (tag ? 3u : 0u);
-        if (eventWords > 256u * 1024u)
-            return MetadataIssue::Capacity;
-        // Plain scalar bytes are sourced directly from the input in the prior
-        // event representation; quoted scalars require decoded staging.
-        const auto addition = scalar && event.data.scalar.style != YAML_PLAIN_SCALAR_STYLE ? value.size() : 0u;
-        if (addition > 512u * 1024u - arenaBytes)
-            return MetadataIssue::Capacity;
-        arenaBytes += addition;
-        graph.pendingAnchor.assign(anchorText);
-        graph.pendingTag.assign(tagText);
-        const auto issue = graph.Add(map, sequence, scalar && event.data.scalar.style == YAML_PLAIN_SCALAR_STYLE, value);
-        if (issue != MetadataIssue::None)
-            graphIssue = issue;
+        DxUi::Failure::FailUnexpected();
     }
-    if (graphIssue != MetadataIssue::None)
-        return graphIssue;
-    return graph.stack.empty() && graph.rootCount <= 1u ? MetadataIssue::None : MetadataIssue::Invalid;
+    if (dxui_fy_guard_set_string(owner.parser, source.data(), source.size()) != 0)
+    {
+        if (budget.budget.exceeded)
+            return MetadataIssue::Capacity;
+        DxUi::Failure::FailUnexpected();
+    }
+    const auto parseEvents = [&]() -> MetadataIssue
+    {
+        std::size_t documents{}, eventWords{}, arenaBytes{}, eventDepth{};
+        MetadataIssue graphIssue = MetadataIssue::None;
+        for (;;)
+        {
+            FyEventScope current{owner.parser, dxui_fy_guard_parse(owner.parser)};
+            if (budget.budget.exceeded)
+                return MetadataIssue::Capacity;
+            if (! current.event)
+                return MetadataIssue::Invalid;
+            const auto& event = *current.event;
+            if (++eventWords > 256u * 1024u)
+                return MetadataIssue::Capacity;
+            if (event.type == FYET_STREAM_END)
+                break;
+            if (event.type == FYET_DOCUMENT_START)
+            {
+                if (++documents > 1u)
+                    return MetadataIssue::Invalid;
+                void* previous{};
+                std::size_t directives{};
+                while (const auto* tag = dxui_fy_guard_tag_next(event.document_start.document_state, &previous))
+                {
+                    const bool isDefault = dxui_fy_guard_tag_is_default(event.document_start.document_state, tag) != 0;
+                    if (budget.budget.exceeded)
+                        return MetadataIssue::Capacity;
+                    if (! isDefault && ++directives > 128u)
+                        return MetadataIssue::Capacity;
+                }
+                if (budget.budget.exceeded)
+                    return MetadataIssue::Capacity;
+                continue;
+            }
+            // Enforce depth even after an unresolved alias stopped graph creation.
+            if (event.type == FYET_MAPPING_START || event.type == FYET_SEQUENCE_START)
+            {
+                if (++eventDepth > 128u)
+                    return MetadataIssue::Capacity;
+            }
+            else if (event.type == FYET_MAPPING_END || event.type == FYET_SEQUENCE_END)
+            {
+                if (! eventDepth)
+                    return MetadataIssue::Invalid;
+                --eventDepth;
+            }
+            // Keep scanning after graph refusal: a later syntax error has precedence.
+            if (graphIssue != MetadataIssue::None)
+                continue;
+            if (event.type == FYET_ALIAS)
+            {
+                eventWords += 2u;
+                std::string_view name;
+                const bool haveName = FyText(event.alias.anchor, name);
+                if (budget.budget.exceeded)
+                    return MetadataIssue::Capacity;
+                if (! haveName)
+                    return MetadataIssue::Invalid;
+                auto found = graph.anchors.rend();
+                for (auto it = graph.anchors.rbegin(); it != graph.anchors.rend(); ++it)
+                    if ((*it)->name == name)
+                    {
+                        found = it;
+                        break;
+                    }
+                if (found == graph.anchors.rend())
+                {
+                    graphIssue = MetadataIssue::UnresolvedAlias;
+                    continue;
+                }
+                graphIssue = graph.Add(false, false, false, {}, (*found)->node);
+                continue;
+            }
+            if (event.type == FYET_MAPPING_END || event.type == FYET_SEQUENCE_END)
+            {
+                if (graph.stack.empty())
+                {
+                    graphIssue = MetadataIssue::Invalid;
+                    continue;
+                }
+                graph.stack.pop_back();
+                continue;
+            }
+            const bool scalar   = event.type == FYET_SCALAR;
+            const bool map      = event.type == FYET_MAPPING_START;
+            const bool sequence = event.type == FYET_SEQUENCE_START;
+            if (! scalar && ! map && ! sequence)
+                continue;
+            auto* anchor = scalar ? event.scalar.anchor : map ? event.mapping_start.anchor : event.sequence_start.anchor;
+            auto* tag    = scalar ? event.scalar.tag : map ? event.mapping_start.tag : event.sequence_start.tag;
+            std::string_view value;
+            const bool haveValue = ! scalar || FyText(event.scalar.value, value);
+            if (budget.budget.exceeded)
+                return MetadataIssue::Capacity;
+            if (! haveValue)
+                return MetadataIssue::Invalid;
+            eventWords += 2u + (anchor ? 3u : 0u) + (tag ? 3u : 0u);
+            if (eventWords > 256u * 1024u)
+                return MetadataIssue::Capacity;
+            const bool plain    = scalar && dxui_fy_guard_scalar_style(event.scalar.value) == FYSS_PLAIN;
+            const auto addition = scalar && ! plain ? value.size() : 0u;
+            if (addition > 512u * 1024u - arenaBytes)
+                return MetadataIssue::Capacity;
+            arenaBytes += addition;
+            std::string_view anchorText;
+            const bool haveAnchor = FyText(anchor, anchorText);
+            if (budget.budget.exceeded)
+                return MetadataIssue::Capacity;
+            if (! haveAnchor)
+                return MetadataIssue::Invalid;
+            graph.pendingAnchor.assign(anchorText);
+            graph.pendingTag.clear();
+            if (tag)
+            {
+                std::string_view tagText;
+                const bool haveTag = FyText(tag, tagText); // Full resolved and decoded tag URI.
+                if (budget.budget.exceeded)
+                    return MetadataIssue::Capacity;
+                if (! haveTag)
+                    return MetadataIssue::Invalid;
+                graph.pendingTag.assign(tagText);
+            }
+            graphIssue = graph.Add(map, sequence, plain, value);
+        }
+        if (graphIssue != MetadataIssue::None)
+            return graphIssue;
+        return graph.stack.empty() && graph.rootCount <= 1u ? MetadataIssue::None : MetadataIssue::Invalid;
+    };
+    const auto issue = parseEvents();
+    // Cleanup can allocate inside the backend. Complete it before choosing the
+    // final status, so a refused cleanup cannot accidentally publish success.
+    owner.Close();
+    return budget.budget.exceeded ? MetadataIssue::Capacity : issue;
 }
 
 bool YamlInteger(std::string_view input, std::string& out, MetadataIssue& issue)
@@ -555,8 +636,9 @@ MetadataIssue CheckYamlKeys(const YamlGraph& graph)
 }
 } // namespace
 
-MetadataIssue ValidateYamlMetadata(std::wstring_view text)
+MetadataIssue ValidateYamlMetadata(std::wstring_view text, std::size_t backendBudget)
 {
+    const DxUi::Failure::Scope scope;
     // YAML 1.2.2 c-printable excludes raw control characters even inside
     // comments or quoted scalars. Markdown admission already checks pairs.
     for (const auto unit : text)
@@ -568,7 +650,7 @@ MetadataIssue ValidateYamlMetadata(std::wstring_view text)
         return MetadataIssue::Invalid;
     }
     YamlGraph graph;
-    const auto graphIssue = MakeYamlGraph(text, graph);
+    const auto graphIssue = MakeYamlGraph(text, graph, backendBudget);
     return graphIssue == MetadataIssue::None ? CheckYamlKeys(graph) : graphIssue;
 }
 } // namespace DxUi::RichText::Detail

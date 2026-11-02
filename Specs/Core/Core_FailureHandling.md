@@ -71,6 +71,17 @@ exceptions internally. Select and validate a nonthrowing error-result interface,
 turn malformed YAML/TOML into a host crash, quietly retain exception-based syntax control flow, or use an unsafe
 `longjmp` across C++ objects to escape parsing.
 
+The private YAML backend admits only borrowed-memory event parsing. Its C adapter
+owns the live `setjmp` frame for each vendor entry, including text/tag access and
+cleanup. A documented memory-budget refusal jumps only through C vendor frames,
+poisons that parser, and returns `Capacity` to the C++ caller; no C++ owner or
+callback is crossed. The arena then frees all remaining vendor storage without
+running vendor destructors on partial state. This interface must not accept
+streams, emitters, caller diagnostics, callbacks, locks or external resources.
+Physical native allocation failure bypasses this refusal mechanism and enters
+the host fatal path. The adapter enforces its event-depth bound independently of
+graph admission, and completes cleanup before selecting the final result.
+
 ## Unexpected exceptions and noexcept
 
 No C++ exception may unwind through Win32, COM, callback or module ABI boundaries. A mandatory compatibility

@@ -763,16 +763,21 @@ void TestAccessibilityToggleCallbacksDoNotBlockSnapshotQueries()
     Require(completedInsideCallback, "application callbacks run without the global accessibility snapshot mutex");
 }
 
+// Keep fatal callback symbols distinct under Release ICF and LTCG.
+static std::atomic<unsigned> controlFatalOriginMarker{};
 [[noreturn]] __declspec(noinline) void AccessibilityToggleRuntimeOrigin(const std::runtime_error& error)
 {
+    controlFatalOriginMarker.store(208u, std::memory_order_relaxed);
     throw error;
 }
 [[noreturn]] __declspec(noinline) void AccessibilityToggleArgumentOrigin(const std::invalid_argument& error)
 {
+    controlFatalOriginMarker.store(209u, std::memory_order_relaxed);
     throw error;
 }
 __declspec(noinline) void AccessibilityToggleAllocationOrigin()
 {
+    controlFatalOriginMarker.store(210u, std::memory_order_relaxed);
     throw std::bad_alloc();
 }
 void AccessibilityToggleCallbackFixture(unsigned fatalScenario)

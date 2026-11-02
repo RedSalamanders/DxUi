@@ -997,7 +997,7 @@ void TestYamlFrontMatterValidationAndSourcePreservation()
 void TestMetadataIndependentValidityCorpora()
 {
     using DxUi::RichText::Detail::MetadataIssue;
-    std::size_t tomlCount = 0u, yamlCount = 0u, skipped = 0u;
+    std::size_t tomlCount = 0u, yamlCount = 0u, skipped = 0u, failures = 0u;
     const auto check = [&](const MetadataCorpus::Case& item, bool yaml)
     {
         if (item.expected == MetadataCorpus::Expected::MultiDocument)
@@ -1018,8 +1018,10 @@ void TestMetadataIndependentValidityCorpora()
                              : item.expected == MetadataCorpus::Expected::Duplicate ? actual == MetadataIssue::DuplicateKey
                                                                                     : actual != MetadataIssue::None && actual != MetadataIssue::Capacity;
         if (! correct)
+        {
             std::cerr << "Metadata corpus failure " << item.name << " actual=" << static_cast<int>(actual) << '\n';
-        Require(correct, "independent metadata validity expectation");
+            ++failures;
+        }
         if (yaml)
             ++yamlCount;
         else
@@ -1030,6 +1032,79 @@ void TestMetadataIndependentValidityCorpora()
     for (const auto& item : MetadataCorpus::Yaml)
         check(item, true);
     Require(tomlCount == 717u && yamlCount == 382u && skipped == 20u, "all pinned single-document metadata cases were exercised");
+    Require(failures == 0u, "independent metadata validity expectations");
+    std::wstring blankLines = L"value: |-\n";
+    for (std::size_t i = 0; i < 20000u; ++i)
+        blankLines += L" \n";
+    blankLines += L" x\n";
+    Require(DxUi::RichText::Detail::ValidateYamlMetadata(blankLines) == MetadataIssue::None, "long block-scalar trailing-break staging stays bounded");
+}
+
+void TestYamlMetadataBoundaries()
+{
+    using DxUi::RichText::Detail::MetadataIssue;
+    using DxUi::RichText::Detail::ValidateYamlMetadata;
+
+    Require(ValidateYamlMetadata(L": a\r\n: b\r\n") == MetadataIssue::DuplicateKey, "empty mapping keys are compared after parsing CRLF input");
+    Require(ValidateYamlMetadata(L"!!int 11: a\n!<tag:yaml.org,2002:int> 0xB: b\n") == MetadataIssue::DuplicateKey,
+            "shorthand and verbatim tags resolve to the same typed key");
+    Require(ValidateYamlMetadata(L"%TAG !e! tag:example.com,2026:\n---\n!e!int 11: a\n11: b\n") == MetadataIssue::None,
+            "a custom tag prefix remains distinct from the YAML core schema");
+    Require(ValidateYamlMetadata(L"a: *missing\nb: [unterminated\n") == MetadataIssue::Invalid,
+            "a later malformed event takes precedence over an unresolved alias");
+
+    std::wstring deepAfterAlias = L"a: *missing\nb: ";
+    deepAfterAlias.append(130u, L'[');
+    deepAfterAlias += L"value";
+    deepAfterAlias.append(130u, L']');
+    deepAfterAlias += L"\n";
+    Require(ValidateYamlMetadata(deepAfterAlias) == MetadataIssue::Capacity, "nesting capacity is enforced even after an unresolved alias");
+
+    const auto makeDirectives = [](std::size_t count)
+    {
+        std::wstring source;
+        for (std::size_t i = 0; i < count; ++i)
+            source += L"%TAG !h" + std::to_wstring(i) + L"! tag:example.com,2026:\n";
+        source += L"---\nvalue: ok\n";
+        return source;
+    };
+    Require(ValidateYamlMetadata(makeDirectives(128u)) == MetadataIssue::None, "128 tag directives are admitted");
+    Require(ValidateYamlMetadata(makeDirectives(129u)) == MetadataIssue::Capacity, "129 tag directives report capacity");
+
+    std::wstring budgetSource = L"values: [";
+    for (std::size_t i = 0; i < 64u; ++i)
+        budgetSource += i ? L", item" : L"item";
+    budgetSource += L"]\ntext: \"";
+    for (std::size_t i = 0; i < 18000u; ++i)
+        budgetSource += L"\\n";
+    budgetSource += L"\"\n";
+    for (const std::size_t budget : {0u, 1u, 4096u, 8192u, 16384u})
+    {
+        Require(ValidateYamlMetadata(budgetSource, budget) == MetadataIssue::Capacity, "backend allocation budgets refuse with a capacity result");
+        Require(ValidateYamlMetadata(L"value: [\n") == MetadataIssue::Invalid, "a malformed request remains invalid after backend refusal");
+        Require(ValidateYamlMetadata(budgetSource) == MetadataIssue::None, "a valid retry succeeds after backend refusal");
+    }
+
+    std::wstring oversizedTags;
+    for (std::size_t i = 0; i < 128u; ++i)
+    {
+        oversizedTags += L"%TAG !h" + std::to_wstring(i) + L"! tag:example.com,";
+        oversizedTags.append(40000u, L'x');
+        oversizedTags += L":\n";
+    }
+    oversizedTags += L"---\nvalue: ok\n";
+    Require(ValidateYamlMetadata(oversizedTags) == MetadataIssue::Capacity, "backend allocation refusal for long tag prefixes is capacity");
+    Require(ValidateYamlMetadata(L"value: ok\n") == MetadataIssue::None, "a valid request succeeds after long-tag refusal");
+
+    const std::wstring_view prefix = L"---\nvalue: \"";
+    const std::wstring_view suffix = L"\"\n---\n";
+    std::wstring boundary(prefix);
+    boundary.append(Document::MaximumUnits - prefix.size() - suffix.size(), L'a');
+    boundary.append(suffix);
+    MarkdownParser parser;
+    Require(parser.TryBegin(boundary, 1u, MarkdownProfile::RichMarkdown) == MarkdownResult::Success, "front matter at the public source limit is admitted");
+    const auto syntax = CompleteMarkdown(parser);
+    Require(syntax->Source() == boundary && syntax->Diagnostics().empty(), "limit-sized valid YAML preserves its exact source and has no diagnostic");
 }
 
 void TestTomlFrontMatterValidationAndSourcePreservation()
@@ -1560,6 +1635,7 @@ void RunRichMarkdownTests()
     DXUI_RUN_TEST(TestMarkdownParserAdoptsExactParsedSnapshot);
     DXUI_RUN_TEST(TestLosslessMarkdownFrontMatterFencesAndProfileIsolation);
     DXUI_RUN_TEST(TestYamlFrontMatterValidationAndSourcePreservation);
+    DXUI_RUN_TEST(TestYamlMetadataBoundaries);
     DXUI_RUN_TEST(TestTomlFrontMatterValidationAndSourcePreservation);
     DXUI_RUN_TEST(TestMetadataIndependentValidityCorpora);
     DXUI_RUN_TEST(TestNativeFlowchartGrammarAndGraphValues);

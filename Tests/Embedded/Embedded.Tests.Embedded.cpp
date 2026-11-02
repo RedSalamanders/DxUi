@@ -32,6 +32,8 @@
 
 #define DXUI_ENABLE_FATAL_INJECTION_WITNESS 1
 #include "Embedded.Tests.BenchmarkInstrument.h"
+// Distinct stores keep callback origins identifiable under Release ICF/LTCG.
+static std::atomic<unsigned> embeddedCallbackOriginMarker{};
 static size_t checks = 0;
 static void Check(bool value, const char* text)
 {
@@ -861,6 +863,7 @@ static void TestSeparatorCatalogAllocationFailures()
 // Keep unrelated functional-test locals out of the benchmark entry stack, even under LTCG.
 [[noreturn]] __declspec(noinline) static void EmbeddedPaintFailureOrigin(const std::runtime_error& error)
 {
+    embeddedCallbackOriginMarker.store(1u, std::memory_order_relaxed);
     throw error;
 }
 __declspec(noinline) static void TestPreparationCallbacksCanRetireRoot(GraphicsFixture& gpu, bool fatalChild = false)

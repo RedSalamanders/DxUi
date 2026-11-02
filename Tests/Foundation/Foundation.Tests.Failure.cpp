@@ -1,3 +1,4 @@
+#include "Controls/DxUi.MarkdownMetadata.h"
 #include "FailureHost.h"
 #include "Support.Tests.DumpReader.h"
 #include "Support.Tests.FatalChildren.h"
@@ -31,7 +32,7 @@ namespace
 {
 std::wstring evidenceRoot;
 std::atomic<unsigned> sequence{};
-void* volatile allocationSink{};
+std::atomic<void*> allocationSink{};
 constexpr DWORD TimeoutMs = 30000u;
 std::array<FatalChildCase, 192u> additionalCases{};
 std::size_t additionalCount{};
@@ -44,6 +45,7 @@ constexpr LONG WitnessInjectedAllocation = 1L;
 constexpr LONG WitnessTriggerReached     = 2L;
 constexpr LONG WitnessReporterReached    = 4L;
 constexpr LONG WitnessReporterReturned   = 8L;
+constexpr LONG WitnessTriggerReturned    = 16L;
 constexpr DWORD WitnessBytes             = 3u * static_cast<DWORD>(sizeof(LONG));
 constexpr DWORD ExpectedFatalExitCode    = 0xe0445855u;
 void MarkWitness(LONG bits) noexcept
@@ -81,7 +83,16 @@ __declspec(noinline) void ControlAllocationOrigin()
     DxUi::Detail::ControlAllocationFailureScope failure(0u);
     MarkWitness(WitnessTriggerReached);
     const auto control = std::make_unique<DxUi::Separator>();
-    allocationSink     = control.get();
+    allocationSink.store(control.get(), std::memory_order_relaxed);
+}
+std::atomic<unsigned> yamlAllocationOriginMarker{};
+__declspec(noinline) void YamlAllocationOrigin()
+{
+    yamlAllocationOriginMarker.store(301u, std::memory_order_relaxed);
+    DxUi::Failure::Detail::SetYamlNativeAllocationFailureForTest(0u);
+    MarkWitness(WitnessTriggerReached);
+    (void)DxUi::RichText::Detail::ValidateYamlMetadata(L"key: value\n");
+    MarkWitness(WitnessTriggerReturned);
 }
 bool VerifyChildActivationGuard(DxUi::TestSupport::ScopedWindowActivationBlocker& blocker)
 {
@@ -99,7 +110,7 @@ __declspec(noinline) void ConcurrentPrimaryOrigin()
 {
     DxUi::Failure::FailAllocation(777u);
 }
-__declspec(noinline) void UnknownOrigin()
+[[noreturn]] __declspec(noinline) void UnknownOrigin()
 {
     DxUi::Failure::Scope scope;
     throw 37;
@@ -128,9 +139,11 @@ __declspec(noinline) void StaleCaughtOrigin()
 __declspec(noinline) void NewHandlerOrigin()
 {
     DxUi::Failure::Scope scope;
-    volatile auto bytes = (std::numeric_limits<std::size_t>::max)() / 2u;
-    auto* allocation    = ::operator new(bytes);
-    allocationSink      = allocation;
+    const auto bytes = (std::numeric_limits<std::size_t>::max)() / 2u;
+    auto* allocation = ::operator new(bytes);
+    // Preserve an observable allocation in optimized probes without volatile
+    // target semantics or using the pointer to access allocated storage.
+    allocationSink.store(allocation, std::memory_order_relaxed);
     ::operator delete(allocation);
 }
 // Distinct observable literals keep these origin probes separate under /OPT:ICF
@@ -404,6 +417,13 @@ bool CheckEvidence(const std::wstring& prefix, std::wstring_view name)
             (flags & DxUi::Failure::FirstChanceContext) != 0u)
             return false;
     }
+    if (name == L"yaml-allocation")
+    {
+        std::uint64_t kind{}, requested{};
+        if (! ParseNumber(Field(record, "kind="), kind, 10) || kind != static_cast<std::uint64_t>(DxUi::Failure::Kind::Allocation) ||
+            ! ParseNumber(Field(record, "allocation_bytes="), requested, 10) || requested == 0u || (flags & DxUi::Failure::FirstChanceContext) != 0u)
+            return false;
+    }
     if (name == L"allocation" && Field(record, "function=").find("AllocationOrigin") == std::string_view::npos)
         return false;
     if (name == L"concurrent" &&
@@ -561,6 +581,11 @@ int RunFailureChild(int argc, char** argv)
         const DxUi::Failure::Scope scope;
         ControlAllocationOrigin();
     }
+    if (std::strcmp(kind, "yaml-allocation") == 0)
+    {
+        const DxUi::Failure::Scope scope;
+        YamlAllocationOrigin();
+    }
     if (std::strcmp(kind, "unknown") == 0)
         UnknownOrigin();
     if (std::strcmp(kind, "bad_alloc") == 0)
@@ -674,6 +699,7 @@ bool CheckOriginSymbols(HANDLE child, const std::wstring& exe, std::string_view 
                                 : name == L"accessible-invoke-runtime"                 ? "AccessibleRuntimeCallbackOrigin"
                                 : name == L"allocation" || name == L"activation-guard" ? "AllocationOrigin"
                                 : name == L"control-allocation"                        ? "ControlAllocationOrigin"
+                                : name == L"yaml-allocation"                           ? "YamlAllocationOrigin"
                                 : name == L"bad_alloc"                                 ? "BadAllocOrigin"
                                 : name == L"standard"                                  ? "StandardOrigin"
                                 : name == L"unknown" || name == L"worker"              ? "UnknownOrigin"
@@ -789,7 +815,9 @@ bool ExpectFatalChild(const wchar_t* caseName)
         return exitCode == ExpectedFatalExitCode && bits == WitnessTriggerReached &&
                GetFileAttributesW((prefix + L".record").c_str()) == INVALID_FILE_ATTRIBUTES &&
                GetFileAttributesW((prefix + L".dmp").c_str()) == INVALID_FILE_ATTRIBUTES;
-    if (name == L"control-allocation" && (bits & WitnessTriggerReached) == 0L)
+    if ((name == L"control-allocation" || name == L"yaml-allocation") && (bits & WitnessTriggerReached) == 0L)
+        return false;
+    if (name == L"yaml-allocation" && (bits & WitnessTriggerReturned) != 0L)
         return false;
     if (name == L"returning" || name == L"recursive" || failurePath)
     {
@@ -866,6 +894,7 @@ bool TestFailurePolicy()
     for (const auto* name : {L"allocation",
                              L"missing-host",
                              L"control-allocation",
+                             L"yaml-allocation",
                              L"activation-guard",
                              L"unknown",
                              L"bad_alloc",

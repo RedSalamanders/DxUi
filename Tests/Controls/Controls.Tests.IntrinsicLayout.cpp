@@ -7,6 +7,7 @@
 
 #include <DxUi/Failure.h>
 #include <DxUi/Typography.h>
+#include <atomic>
 #include <dwrite_1.h>
 #include <exception>
 #include <iostream>
@@ -65,12 +66,16 @@ protected:
 };
 #pragma warning(pop)
 
+// Keep fatal callback symbols distinct under Release ICF and LTCG.
+static std::atomic<unsigned> controlFatalOriginMarker{};
 __declspec(noinline) void IntrinsicAllocationThrowOrigin()
 {
+    controlFatalOriginMarker.store(204u, std::memory_order_relaxed);
     throw std::bad_alloc();
 }
 [[noreturn]] __declspec(noinline) void IntrinsicCallbackThrowOrigin(const std::runtime_error& error)
 {
+    controlFatalOriginMarker.store(205u, std::memory_order_relaxed);
     throw error;
 }
 template <bool Allocation> void IntrinsicMeasureFailureChild()

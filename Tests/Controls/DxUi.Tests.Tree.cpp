@@ -1,6 +1,7 @@
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "Support.Tests.FatalChildren.h"
 
+#include <atomic>
 #include <clocale>
 #include <cmath>
 #include <fstream>
@@ -459,8 +460,11 @@ void TestTreeSelectionDelegateReplacingModelStopsOuterNotifications()
             "no outer stale set or focus notification follows the delegate's model replacement");
 }
 
+// Keep fatal callback symbols distinct under Release ICF and LTCG.
+static std::atomic<unsigned> controlFatalOriginMarker{};
 [[noreturn]] __declspec(noinline) void TreeSelectionGetterThrowOrigin(const std::runtime_error& error)
 {
+    controlFatalOriginMarker.store(213u, std::memory_order_relaxed);
     throw error;
 }
 void TreeSelectionGetterFixture(unsigned fatalScenario)
@@ -3531,6 +3535,7 @@ void TestTreeClickSurvivesAFocusHandlerThatChangesAnotherControl()
 
 [[noreturn]] __declspec(noinline) void TreeFocusDelegateThrowOrigin(const std::runtime_error& error)
 {
+    controlFatalOriginMarker.store(214u, std::memory_order_relaxed);
     throw error;
 }
 void TreeFocusDelegateFixture(bool fatalChild)

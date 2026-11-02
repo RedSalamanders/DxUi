@@ -2,6 +2,7 @@
 #include "Controls.Tests.GridMultilineFixtures.h"
 #include "Support.Tests.FatalChildren.h"
 
+#include <atomic>
 #include <cmath>
 #include <fstream>
 #include <functional>
@@ -14,12 +15,16 @@
 
 namespace
 {
+// Keep fatal callback symbols distinct under Release ICF and LTCG.
+static std::atomic<unsigned> controlFatalOriginMarker{};
 [[noreturn]] __declspec(noinline) void GridCellThrowOrigin(const std::runtime_error& error)
 {
+    controlFatalOriginMarker.store(211u, std::memory_order_relaxed);
     throw error;
 }
 [[noreturn]] __declspec(noinline) void GridGroupThrowOrigin(const std::runtime_error& error)
 {
+    controlFatalOriginMarker.store(212u, std::memory_order_relaxed);
     throw error;
 }
 

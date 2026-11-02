@@ -119,7 +119,7 @@ try {
             Assert-Scope ((Test-Path -LiteralPath $fixture5) -and [IO.File]::ReadAllText($consumer).Contains('Tools/ConsumerApi/ConsumerApi.Tests.Revision5.cpp') -and [IO.File]::ReadAllText($consumer).Contains('ConsumerApi.Tests.Revision5.cpp') -and [IO.File]::ReadAllText($consumer).Contains('Samples/Shared/FailureHost.cpp')) 'Revision-5 fixture and application-owned host are not compiled by the consumer gate'
             Assert-Scope ([IO.File]::ReadAllText($consumer).Contains('DXUI_NATIVE_MODULE_FATAL executed=4 passed=4')) 'Consumer gate must require all independent module fatal child probes'
             $sdk=[IO.File]::ReadAllText((Join-Path $repository 'Tools/New-SdkPackage.ps1'))
-            foreach($required in @('ThirdParty/libyaml/0.2.5/LICENSE','samples/Shared','FailureHost.cpp','DbgHelp.lib',"@('Main','FailureHost')")) {
+            foreach($required in @('ThirdParty/libfyaml/0.9.4/LICENSE','ThirdParty/libfyaml/0.9.4/LICENSE-xxHash.txt','samples/Shared','FailureHost.cpp','DbgHelp.lib',"@('Main','FailureHost')")) {
                 Assert-Scope ($sdk.Contains($required)) "SDK package or independent source dependency check is missing $required"
             }
             $headerLoop=[regex]::Match([IO.File]::ReadAllText($consumer),'(?s)\$headerUnits\s*=\s*foreach\s*\(.*?\)\s*\{')

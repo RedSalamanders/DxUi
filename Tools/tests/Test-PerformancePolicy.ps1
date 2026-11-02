@@ -857,6 +857,13 @@ Invoke-FixtureCase 'vendored parser input is owned and participates in native cl
     Set-FixtureFile $root 'ThirdParty/rapidyaml/0.16.0/rapidyaml.hpp' $yamlHeader
     $third = Get-FixtureNativeClosure $fixture
     Assert-True ((ConvertTo-Json $second -Depth 20 -Compress) -cne (ConvertTo-Json $third -Depth 20 -Compress)) 'the actual vendored YAML header participates in native input closure'
+    $eventSource = 'ThirdParty/libfyaml/0.9.4/src/lib/fy-parse.c'
+    Set-FixtureFile $root $eventSource '// event parser fixture'
+    $fourth = Get-FixtureNativeClosure $fixture
+    Set-FixtureFile $root $eventSource '// changed event parser fixture'
+    $fifth = Get-FixtureNativeClosure $fixture
+    Assert-True ((ConvertTo-Json $third -Depth 20 -Compress) -cne (ConvertTo-Json $fourth -Depth 20 -Compress) -and
+                 (ConvertTo-Json $fourth -Depth 20 -Compress) -cne (ConvertTo-Json $fifth -Depth 20 -Compress)) 'libfyaml source addition and changes bind the native input closure'
     Set-FixtureFile $root $vendor '#include UNKNOWN_HEADER'
     Assert-Throws { Get-FixtureNativeClosure $fixture } 'vendored macro-selected external includes must be rejected'
     Set-FixtureFile $root $vendor '#include <vector>'

@@ -47,7 +47,7 @@ void RunFileDropApartmentFixture(DWORD model, void (*test)())
         }
         catch (const std::bad_alloc&)
         {
-            std::terminate(); // The test runner treats allocation failure as fatal.
+            Failure::FailAllocation();
         }
         catch (const std::exception&)
         {
@@ -104,7 +104,7 @@ void RichTextOleSourceMoveOnSta()
             }
             catch (const std::bad_alloc&)
             {
-                std::terminate(); // Application receiver exceptions cannot cross the OLE callback boundary.
+                Failure::FailAllocation();
             }
             catch (const std::exception&)
             {
@@ -293,9 +293,12 @@ void TestRichTextOleAdapterWorkerException()
 }
 
 thread_local bool dropNotificationFatalChild = false;
-__declspec(noinline) void RichDropNotificationOrigin()
+// Keep fatal callback symbols distinct under Release ICF and LTCG.
+static std::atomic<unsigned> controlFatalOriginMarker{};
+__declspec(noinline) void RichDropNotificationOrigin(const std::runtime_error& error)
 {
-    throw std::runtime_error("drop notification test");
+    controlFatalOriginMarker.store(215u, std::memory_order_relaxed);
+    throw error;
 }
 template <typename Prepare, typename Preview, typename Commit>
 void CheckFileDropInsertion(ControlHost& host, RichTextEditor& editor, Prepare&& prepare, Preview&& preview, Commit&& commit, const wchar_t* fatalCase)
@@ -391,7 +394,11 @@ void CheckFileDropInsertion(ControlHost& host, RichTextEditor& editor, Prepare&&
     const auto notifyPoint = D2D1::Point2F(notifyCaret->left + .01f, (notifyCaret->top + notifyCaret->bottom) * .5f);
     if (dropNotificationFatalChild)
     {
-        editor.SetOnTextChanged(RichDropNotificationOrigin);
+        editor.SetOnTextChanged([]
+        {
+            const std::runtime_error error("drop notification test");
+            RichDropNotificationOrigin(error);
+        });
         static_cast<void>(commit(notifyPoint, *data.Get()));
         Require(false, "drop notification child must terminate");
     }
