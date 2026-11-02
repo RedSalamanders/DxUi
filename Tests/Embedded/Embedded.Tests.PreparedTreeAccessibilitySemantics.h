@@ -58,6 +58,7 @@ static void TestPreparedTreeUnfocusedExpansionAction(GraphicsFixture& gpu)
         &changes);
     const auto clearHook = wil::scope_exit([]() noexcept { DebugSetAccessibilityPropertyEventHookForTest(nullptr, nullptr); });
     Hr(expand->Expand(), "expand an unfocused embedded prepared item");
+    Hr(expand->Expand(), "repeat expansion before embedded publication");
     Check(changes == 0u, "embedded state event waits for coherent publication");
     Hr(view.Prepare(320u, 180u, 96.f), "prepare expanded embedded tree");
     Hr(view.UpdateAccessibility(placement), "publish expanded embedded tree");
@@ -65,6 +66,34 @@ static void TestPreparedTreeUnfocusedExpansionAction(GraphicsFixture& gpu)
     Hr(expand->get_ExpandCollapseState(&state), "read expanded embedded item");
     Check(changes == 1u && state == ExpandCollapseState_Expanded && tree->GetFocusedItemId() == 709u,
           "unfocused embedded action publishes exactly one current state event without moving focus");
+    changes = 0u;
+    Hr(expand->Collapse(), "collapse an unfocused embedded prepared item");
+    Hr(expand->Collapse(), "repeat collapse before embedded publication");
+    Hr(view.Prepare(320u, 180u, 96.f), "prepare repeated collapse");
+    Hr(view.UpdateAccessibility(placement), "publish repeated collapse");
+    Hr(expand->get_ExpandCollapseState(&state), "read collapsed embedded item");
+    Check(changes == 1u && state == ExpandCollapseState_Collapsed, "repeated collapse retains exactly one pending state event");
+    Hr(expand->Expand(), "restore expanded state before delayed collapse");
+    Hr(view.Prepare(320u, 180u, 96.f), "prepare restored expansion");
+    Hr(view.UpdateAccessibility(placement), "publish restored expansion");
+    changes         = 0u;
+    delegate.toggle = [](uint64_t, bool) {};
+    Hr(expand->Collapse(), "accept a delayed collapse");
+    Hr(expand->Expand(), "a no-op does not cancel the accepted delayed collapse");
+    model.Replace(std::make_shared<ThreePreparedTreeRows>(names, witness, true, false));
+    tree->NotifyDataChanged();
+    Hr(view.Prepare(320u, 180u, 96.f), "prepare delayed collapse");
+    Hr(view.UpdateAccessibility(placement), "publish delayed collapse");
+    Check(changes == 1u, "an opposite no-op preserves the accepted delayed state event");
+    delegate.toggle = [&](uint64_t id, bool expanded)
+    {
+        Check(id == 101u, "restored action addresses the current item");
+        model.Replace(std::make_shared<ThreePreparedTreeRows>(names, witness, true, expanded));
+        tree->NotifyDataChanged();
+    };
+    Hr(expand->Expand(), "restore state for model replacement");
+    Hr(view.Prepare(320u, 180u, 96.f), "prepare expansion before replacement");
+    Hr(view.UpdateAccessibility(placement), "publish expansion before replacement");
     changes         = 0u;
     delegate.toggle = [](uint64_t, bool) {};
     Hr(expand->Collapse(), "accept a delayed collapse before model replacement");

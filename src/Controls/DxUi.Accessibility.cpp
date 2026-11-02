@@ -637,6 +637,11 @@ struct AccessibilityRichTextSnapshot
         return epoch && semanticRevision == epoch->revision.load(std::memory_order_acquire);
     }
 };
+struct RadioGroupSnapshot
+{
+    std::vector<ControlPath> childPaths    = std::vector<ControlPath>(0u);
+    std::vector<ControlPath> selectedPaths = std::vector<ControlPath>(0u);
+};
 struct AccessibilityControlNavigationSnapshot
 {
     ControlPath path{};
@@ -666,13 +671,11 @@ struct AccessibilityControlNavigationSnapshot
     bool controlSupportsSelection  = false;
     bool controlSupportsTable      = false;
     // A radio button: an item of its group's single selection, selected while it is checked.
-    bool controlSupportsSelectionItem           = false;
-    bool controlSelectionItemSelected           = false;
-    bool isRadioGroup                           = false;
-    std::vector<ControlPath> radioChildPaths    = std::vector<ControlPath>(0u);
-    std::vector<ControlPath> selectedRadioPaths = std::vector<ControlPath>(0u);
+    bool controlSupportsSelectionItem = false;
+    bool controlSelectionItemSelected = false;
+    std::shared_ptr<const RadioGroupSnapshot> radioGroup;
     // A choice's place among its group's present choices (1-based) and their count; 0 when it belongs to no group. The
-    // flat tree puts every choice under the root, so a screen reader reads its "2 of 3" from these.
+    // group exposes these values directly so a screen reader can report "2 of 3".
     size_t controlPositionInSet    = 0u;
     size_t controlSizeOfSet        = 0u;
     bool controlValueReadOnly      = true;
@@ -2256,18 +2259,19 @@ bool AppendAccessibilitySnapshotNavigation(ControlHost& host,
         record.controlSupportsToggle = SupportsTogglePattern(current);
         if (const auto* group = dynamic_cast<const RadioButtons*>(current))
         {
-            record.isRadioGroup = true;
+            auto radioGroup = std::make_shared<RadioGroupSnapshot>();
             for (size_t index = 0u; index < group->GetLogicalChildCount(); ++index)
             {
                 const auto* choice = dynamic_cast<const RadioButton*>(group->GetLogicalChild(index));
                 ControlPath childPath{};
                 if (choice && choice->IsVisible() && TryAppendPathIndex(basePath, index, childPath))
                 {
-                    record.radioChildPaths.push_back(childPath);
+                    radioGroup->childPaths.push_back(childPath);
                     if (choice->IsChecked())
-                        record.selectedRadioPaths.push_back(childPath);
+                        radioGroup->selectedPaths.push_back(childPath);
                 }
             }
+            record.radioGroup = std::move(radioGroup);
         }
         if (const auto* radio = dynamic_cast<const RadioButton*>(current))
         {
@@ -2809,7 +2813,7 @@ bool AppendAccessibilitySnapshotNavigation(ControlHost& host,
                     record.selectedTabId = items[index].id;
             }
         }
-        record.controlSupportsSelection = record.isTree || record.isGrid || record.isTabControl || record.isRadioGroup;
+        record.controlSupportsSelection = record.isTree || record.isGrid || record.isTabControl || static_cast<bool>(record.radioGroup);
         record.controlSupportsTable     = record.isGrid && record.gridColumnCount > 0u;
     }
 
@@ -3273,7 +3277,7 @@ bool SnapshotContainsTreeItem(const AccessibilityControlNavigationSnapshot& reco
 
 bool SnapshotSupportsSelectionProvider(const AccessibilityControlNavigationSnapshot& record) noexcept
 {
-    return record.isTree || record.isGrid || record.isTabControl || record.isRadioGroup;
+    return record.isTree || record.isGrid || record.isTabControl || static_cast<bool>(record.radioGroup);
 }
 
 // Focus is independent from membership in both single- and multiple-selection trees.
@@ -3663,8 +3667,8 @@ AccessibilityNavigationTarget MakeNavigationTarget(
 // grid's headers and then its rows, a text field's reveal button. A control with none has no children of its own.
 std::optional<AccessibilityNavigationTarget> FirstControlFragmentTarget(const AccessibilityControlNavigationSnapshot& controlRecord) noexcept
 {
-    if (! controlRecord.radioChildPaths.empty())
-        return MakeControlNavigationTarget(controlRecord.radioChildPaths.front());
+    if (controlRecord.radioGroup && ! controlRecord.radioGroup->childPaths.empty())
+        return MakeControlNavigationTarget(controlRecord.radioGroup->childPaths.front());
     if (! controlRecord.tabItems.empty())
     {
         return MakeNavigationTarget(AccessibilityFragmentKind::TabItem, controlRecord.path, 0u, controlRecord.tabItems.front().tabId);
@@ -3692,8 +3696,8 @@ std::optional<AccessibilityNavigationTarget> FirstControlFragmentTarget(const Ac
 
 std::optional<AccessibilityNavigationTarget> LastControlFragmentTarget(const AccessibilityControlNavigationSnapshot& controlRecord) noexcept
 {
-    if (! controlRecord.radioChildPaths.empty())
-        return MakeControlNavigationTarget(controlRecord.radioChildPaths.back());
+    if (controlRecord.radioGroup && ! controlRecord.radioGroup->childPaths.empty())
+        return MakeControlNavigationTarget(controlRecord.radioGroup->childPaths.back());
     if (! controlRecord.tabItems.empty())
     {
         return MakeNavigationTarget(AccessibilityFragmentKind::TabItem, controlRecord.path, 0u, controlRecord.tabItems.back().tabId);
@@ -3728,17 +3732,24 @@ std::optional<AccessibilityNavigationTarget> ResolveSnapshotNavigationTarget(con
                                                                              NavigateDirection direction) noexcept
 {
     const AccessibilityControlNavigationSnapshot* controlRecord = FindControlNavigationRecord(snapshot, path);
-    const auto radioParent                                      = [&](const ControlPath& candidate) noexcept -> const AccessibilityControlNavigationSnapshot*
+    const auto findRadioChild                                   = [](const RadioGroupSnapshot& group, const ControlPath& candidate) noexcept
+    {
+        const auto index = candidate.indices[candidate.depth - 1u];
+        return std::lower_bound(group.childPaths.begin(), group.childPaths.end(), index, [](const ControlPath& child, uint16_t value) {
+            return child.indices[child.depth - 1u] < value;
+        });
+    };
+    const auto radioParent = [&](const ControlPath& candidate) noexcept -> const AccessibilityControlNavigationSnapshot*
     {
         if (candidate.depth == 0u)
             return nullptr;
         auto parent = candidate;
         --parent.depth;
         const auto* group = FindControlNavigationRecord(snapshot, parent);
-        if (! group || ! group->isRadioGroup)
+        if (! group || ! static_cast<bool>(group->radioGroup))
             return nullptr;
-        const auto found = std::ranges::find_if(group->radioChildPaths, [&](const ControlPath& child) { return AreControlPathsEqual(child, candidate); });
-        return found != group->radioChildPaths.end() ? group : nullptr;
+        const auto found = findRadioChild(*group->radioGroup, candidate);
+        return found != group->radioGroup->childPaths.end() && AreControlPathsEqual(*found, candidate) ? group : nullptr;
     };
     const auto treeItem = kind == AccessibilityFragmentKind::TreeItem && controlRecord ? FindSnapshotTreeItemRecord(*controlRecord, treeItemId) : std::nullopt;
     switch (direction)
@@ -3846,9 +3857,8 @@ std::optional<AccessibilityNavigationTarget> ResolveSnapshotNavigationTarget(con
                 const auto* group                   = radioParent(path);
                 if (group)
                 {
-                    const auto found =
-                        std::ranges::find_if(group->radioChildPaths, [&](const ControlPath& child) { return AreControlPathsEqual(child, path); });
-                    if (found != group->radioChildPaths.end() && std::next(found) != group->radioChildPaths.end())
+                    const auto found = findRadioChild(*group->radioGroup, path);
+                    if (found != group->radioGroup->childPaths.end() && std::next(found) != group->radioGroup->childPaths.end())
                         return MakeControlNavigationTarget(*std::next(found));
                 }
                 else if (ordinal)
@@ -3912,9 +3922,8 @@ std::optional<AccessibilityNavigationTarget> ResolveSnapshotNavigationTarget(con
                 const auto* group                   = radioParent(path);
                 if (group)
                 {
-                    const auto found =
-                        std::ranges::find_if(group->radioChildPaths, [&](const ControlPath& child) { return AreControlPathsEqual(child, path); });
-                    if (found != group->radioChildPaths.end() && found != group->radioChildPaths.begin())
+                    const auto found = findRadioChild(*group->radioGroup, path);
+                    if (found != group->radioGroup->childPaths.end() && found != group->radioGroup->childPaths.begin())
                         return MakeControlNavigationTarget(*std::prev(found));
                 }
                 else if (ordinal)
@@ -10400,10 +10409,10 @@ try
             }
             selectionProviders.push_back(std::move(simple));
         }
-        else if (record->isRadioGroup)
+        else if (static_cast<bool>(record->radioGroup))
         {
-            selectionProviders.reserve(record->selectedRadioPaths.size());
-            for (const auto& path : record->selectedRadioPaths)
+            selectionProviders.reserve(record->radioGroup->selectedPaths.size());
+            for (const auto& path : record->radioGroup->selectedPaths)
             {
                 const auto* choice = FindControlNavigationRecord(*snapshot, path);
                 if (! choice || ! choice->controlSupportsSelectionItem || ! choice->controlSelectionItemSelected)
@@ -10489,7 +10498,7 @@ HRESULT AccessibilityProvider::get_CanSelectMultiple(BOOL* outCanSelectMultiple)
         *outCanSelectMultiple = record->gridCanSelectMultiple ? TRUE : FALSE;
         return S_OK;
     }
-    if (record->isTabControl || record->isRadioGroup)
+    if (record->isTabControl || static_cast<bool>(record->radioGroup))
     {
         *outCanSelectMultiple = FALSE;
         return S_OK;
@@ -10760,7 +10769,7 @@ HRESULT AccessibilityProvider::get_SelectionContainer(IRawElementProviderSimple*
         auto parentPath = control->path;
         --parentPath.depth;
         const auto* group = FindControlNavigationRecord(*snapshot, parentPath);
-        if (! group || ! group->isRadioGroup)
+        if (! group || ! static_cast<bool>(group->radioGroup))
             return S_OK;
         auto container = CreateControlElement(_target, _hwnd, group->path, CaptureControlIdentity(*group));
         if (! container)
@@ -12548,9 +12557,8 @@ HRESULT AccessibilityProvider::ExecuteExpandOnWindowThread(bool expanded)
                                                                   _target->pendingTreeExpansions[index].binding != record->treeBindingRevision ||
                                                                   _target->pendingTreeExpansions[index].itemId != _treeItemId))
                 ++index;
-            if (! stateChanged && index < _target->pendingTreeExpansionCount)
-                _target->pendingTreeExpansions[index] = _target->pendingTreeExpansions[--_target->pendingTreeExpansionCount];
-            else if (stateChanged && index < _target->pendingTreeExpansionCount)
+            // A no-op cannot cancel an earlier accepted asynchronous request.
+            if (stateChanged && index < _target->pendingTreeExpansionCount)
             {
                 if (_target->pendingTreeExpansions[index].expanded != expanded)
                     return HRESULT_FROM_WIN32(ERROR_BUSY);

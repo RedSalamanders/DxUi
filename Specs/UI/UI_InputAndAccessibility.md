@@ -675,6 +675,9 @@ change for its focused item before or after the change, read from both sources w
 UI Automation Expand or Collapse action on an unfocused item also reports that known item's changed state. For an
 application-driven source replacement that supplies no changed item IDs, an unfocused item's expansion raises the
 structure change only; finding arbitrary changes would require a separate model-delta contract.
+Embedded actions retain at most 128 known-item hints until the requested state is published or its model or owner
+retires. A full hint buffer or a conflicting outstanding action is refused with `ERROR_BUSY` before model mutation;
+repeated no-op actions do not cancel an earlier accepted request.
 
 A TabControl is a Tab element whose children are its visible tabs, TabItem elements named by their titles and
 identified by stable tab ids through reordering. Its page follows it as a sibling in the flat tree of semantic controls,
