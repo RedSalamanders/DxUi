@@ -1907,11 +1907,12 @@ void TestMenuKeyboardRightArrowMatchesWindowsMenuLoop()
         {
             if (! PostMessageW(priorSubmenu, WM_KEYDOWN, VK_LEFT, 0) || ! WaitForWindowDestroyed(priorSubmenu) ||
                 ! WaitForContextMenuPopupState(bPopupHwnd, [](const ContextMenuPopupDebugState& state) noexcept {
-                    return state.keyboardIndex.has_value() && state.keyboardIndex.value() == 0u;
-                }, popupState))
+                return state.keyboardIndex.has_value() && state.keyboardIndex.value() == 0u;
+            }, popupState))
             {
                 driverFailure = std::format("could not restore B1 before Right; prior B11 HWND={:#x} valid={}",
-                                            reinterpret_cast<uintptr_t>(priorSubmenu), IsWindow(priorSubmenu) != FALSE);
+                                            reinterpret_cast<uintptr_t>(priorSubmenu),
+                                            IsWindow(priorSubmenu) != FALSE);
                 return;
             }
         }
@@ -1932,8 +1933,10 @@ void TestMenuKeyboardRightArrowMatchesWindowsMenuLoop()
         }, popupState))
         {
             driverFailure = std::format("Right arrow on B1 focuses B11 in the submenu; prior={:#x} current={:#x} valid={} keyboard={} hovered={}",
-                                        reinterpret_cast<uintptr_t>(priorSubmenu), reinterpret_cast<uintptr_t>(bSubmenuHwnd),
-                                        IsWindow(bSubmenuHwnd) != FALSE, popupState.keyboardIndex ? std::to_string(popupState.keyboardIndex.value()) : "none",
+                                        reinterpret_cast<uintptr_t>(priorSubmenu),
+                                        reinterpret_cast<uintptr_t>(bSubmenuHwnd),
+                                        IsWindow(bSubmenuHwnd) != FALSE,
+                                        popupState.keyboardIndex ? std::to_string(popupState.keyboardIndex.value()) : "none",
                                         popupState.hoveredIndex ? std::to_string(popupState.hoveredIndex.value()) : "none");
             return;
         }
@@ -3584,7 +3587,7 @@ void TestMenuKeyboardInputCancelsPendingSubmenuHoverTimers()
         bool openMovesSucceeded                          = false;
         bool openPendingBeforeKeyboard                   = false;
         bool unmatchedCharactersPreservedOpen            = false;
-        bool altGrPreservedOpen                         = false;
+        bool altGrPreservedOpen                          = false;
         bool accessibilityCanceledOpen                   = false;
         bool accessibilitySurvivedOpenTimer              = false;
         bool unmatchedCharactersPreservedClose           = false;
@@ -3646,7 +3649,7 @@ void TestMenuKeyboardInputCancelsPendingSubmenuHoverTimers()
         sequenceFinished.reset(CreateEventW(nullptr, TRUE, FALSE, nullptr));
         Require(sequenceFinished != nullptr, "keyboard-hover cancellation creates its ordered-sequence event");
 
-        bool sequenceHandled         = false; // UI-thread-only one-shot guard.
+        bool sequenceHandled = false; // UI-thread-only one-shot guard.
         ownerWindow.SetApplicationMessageHandler([&](UINT message, WPARAM wParam, LPARAM, LRESULT& result) noexcept
         {
             if (message != kRunOrderedSequenceMessage)
@@ -3733,8 +3736,8 @@ void TestMenuKeyboardInputCancelsPendingSubmenuHoverTimers()
                         static_cast<void>(SetKeyboardState(keyboardState.data()));
                     }
                 }
-                observed.accessibilityCanceledOpen        = focusAccessibleRow(root, 1u) && rootStateAvailable() &&
-                                                            rootState.keyboardIndex == std::optional<size_t>{1u} && ! rootState.hoverTimerActive;
+                observed.accessibilityCanceledOpen = focusAccessibleRow(root, 1u) && rootStateAvailable() &&
+                                                     rootState.keyboardIndex == std::optional<size_t>{1u} && ! rootState.hoverTimerActive;
                 static_cast<void>(SendMessageW(root, WM_TIMER, 1u, 0));
                 observed.accessibilitySurvivedOpenTimer = ! child() && rootStateAvailable() && rootState.keyboardIndex == std::optional<size_t>{1u};
                 observed.openMovesSucceeded             = observed.openMovesSucceeded && moveToRow(b2) && moveToRow(b1) && rootStateAvailable() &&
@@ -3746,8 +3749,7 @@ void TestMenuKeyboardInputCancelsPendingSubmenuHoverTimers()
                 ContextMenuPopupDebugState childState{};
                 observed.keyboardChildOpened =
                     submenu && DebugGetContextMenuPopupState(submenu, childState) && childState.keyboardIndex == std::optional<size_t>{0u};
-                childState                                      = {};
-
+                childState = {};
 
                 // Direct synchronous WM_TIMER delivery intentionally models a stale already-queued
                 // native timer. DebugFireContextMenuPopupHoverTimer posts and would run after this sequence.
@@ -3824,8 +3826,8 @@ void TestMenuKeyboardInputCancelsPendingSubmenuHoverTimers()
             }
             ContextMenuPopupDebugState ready{};
             if (! WaitForContextMenuPopupState(root, [](const ContextMenuPopupDebugState& state) noexcept {
-                    return state.visibleWidthDip > 0.0f && state.visibleHeightDip > 0.0f;
-                }, ready))
+                return state.visibleWidthDip > 0.0f && state.visibleHeightDip > 0.0f;
+            }, ready))
             {
                 failure = "the root popup exposes live geometry before the ordered sequence";
                 return;
@@ -3954,11 +3956,12 @@ void TestMenuKeyboardLeftArrowMatchesWindowsMenuLoop()
         {
             if (! PostMessageW(priorSubmenu, WM_KEYDOWN, VK_LEFT, 0) || ! WaitForWindowDestroyed(priorSubmenu) ||
                 ! WaitForContextMenuPopupState(bPopupHwnd, [](const ContextMenuPopupDebugState& state) noexcept {
-                    return state.keyboardIndex.has_value() && state.keyboardIndex.value() == 0u;
-                }, popupState))
+                return state.keyboardIndex.has_value() && state.keyboardIndex.value() == 0u;
+            }, popupState))
             {
                 driverFailure = std::format("could not restore B1 before Right; prior B11 HWND={:#x} valid={}",
-                                            reinterpret_cast<uintptr_t>(priorSubmenu), IsWindow(priorSubmenu) != FALSE);
+                                            reinterpret_cast<uintptr_t>(priorSubmenu),
+                                            IsWindow(priorSubmenu) != FALSE);
                 return;
             }
         }
@@ -3979,8 +3982,10 @@ void TestMenuKeyboardLeftArrowMatchesWindowsMenuLoop()
         }, popupState))
         {
             driverFailure = std::format("Right arrow on B1 focuses B11 before left-arrow validation; prior={:#x} current={:#x} valid={} keyboard={} hovered={}",
-                                        reinterpret_cast<uintptr_t>(priorSubmenu), reinterpret_cast<uintptr_t>(bSubmenuHwnd),
-                                        IsWindow(bSubmenuHwnd) != FALSE, popupState.keyboardIndex ? std::to_string(popupState.keyboardIndex.value()) : "none",
+                                        reinterpret_cast<uintptr_t>(priorSubmenu),
+                                        reinterpret_cast<uintptr_t>(bSubmenuHwnd),
+                                        IsWindow(bSubmenuHwnd) != FALSE,
+                                        popupState.keyboardIndex ? std::to_string(popupState.keyboardIndex.value()) : "none",
                                         popupState.hoveredIndex ? std::to_string(popupState.hoveredIndex.value()) : "none");
             return;
         }
