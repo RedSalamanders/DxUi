@@ -5472,7 +5472,7 @@ void TestMenuCheckedRowsDoNotPaintLeadingCheckedBox()
 
             ScopedMenuPointerFixture pointerFixture(popupHwnd);
             ContextMenuPopupDebugState initialState{};
-            if (! pointerFixture.WaitForCapture() || ! DebugGetContextMenuPopupState(popupHwnd, initialState))
+            if (! pointerFixture.WaitForCapture() || ! DebugGetContextMenuPopupState(popupHwnd, initialState) || initialState.dpi == 0u)
             {
                 failure = "checked-indicator popup obtains capture and exposes its initial state";
                 return;
