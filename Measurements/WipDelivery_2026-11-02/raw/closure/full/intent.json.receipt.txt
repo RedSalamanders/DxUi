@@ -1,0 +1,11 @@
+{
+  "source": "be06f052178cb6ad3ebf42551df51d44b34087f6",
+  "kind": "validation",
+  "entry": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\validate.ps1",
+  "arguments": [
+    "-NoProfile",
+    "-File",
+    "\"Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\validate.ps1\""
+  ],
+  "startedUtc": "2026-11-02T11:21:57.3356073Z"
+}

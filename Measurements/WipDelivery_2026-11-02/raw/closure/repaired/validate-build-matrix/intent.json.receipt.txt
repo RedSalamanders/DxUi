@@ -1,0 +1,10 @@
+{
+  "source": "1043b532b9f6f9f37b799e5342bcf868113cf710",
+  "entry": "validate-build-matrix.ps1",
+  "arguments": [
+    "-NoProfile",
+    "-File",
+    "\"Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\validate-build-matrix.ps1\""
+  ],
+  "startedUtc": "2026-11-02T11:32:51.9750625Z"
+}

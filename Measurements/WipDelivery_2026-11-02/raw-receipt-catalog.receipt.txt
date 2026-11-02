@@ -6876,6 +6876,348 @@
       "original": "Z:/src/DxUi-worktrees/wip-r25-ole-fixture-20261102/.build/Measurements/WipDelivery_2026-11-02/README.md",
       "sha256": "f6addf514747e788ec628104a54fdac500893bce0e8dd7a86d1a9f14506947f0",
       "bytes": 7195
+    },
+    {
+      "path": "raw/closure/full/intent.json.receipt.txt",
+      "original": "Z:/src/DxUi-worktrees/wip-delivery-20261101/.build/review-delivery/final-validation-20261102/validation/intent.json",
+      "sha256": "afe709e0e83bbbe796717e23737b3300ff1df2971dd43e0611eda63678761e4b",
+      "bytes": 341
+    },
+    {
+      "path": "raw/closure/full/process.json.receipt.txt",
+      "original": "Z:/src/DxUi-worktrees/wip-delivery-20261101/.build/review-delivery/final-validation-20261102/validation/process.json",
+      "sha256": "bae14ef10801f05bbfd46c65ca68243fa7196e312776c291484c98ee7b3da47b",
+      "bytes": 72
+    },
+    {
+      "path": "raw/closure/full/result.json.receipt.txt",
+      "original": "Z:/src/DxUi-worktrees/wip-delivery-20261101/.build/review-delivery/final-validation-20261102/validation/result.json",
+      "sha256": "08d7bed1e5d7b352e9a1579790747f7ea0860b2ca7664f20b632bef11b386d28",
+      "bytes": 251
+    },
+    {
+      "path": "raw/closure/full/stderr.log",
+      "original": "Z:/src/DxUi-worktrees/wip-delivery-20261101/.build/review-delivery/final-validation-20261102/validation/stderr.log",
+      "sha256": "610442d3c7f48c576aa7cf6bc31736b27e9b83e7d958843b01eb0d6c29dae75c",
+      "bytes": 59795
+    },
+    {
+      "path": "raw/closure/full/stdout.log",
+      "original": "Z:/src/DxUi-worktrees/wip-delivery-20261101/.build/review-delivery/final-validation-20261102/validation/stdout.log",
+      "sha256": "0e5fc3a0086d01855996fc955ff4ec4977cd2ce1d5ada75970817568191ca5de",
+      "bytes": 77540
+    },
+    {
+      "path": "raw/closure/format/intent.json.receipt.txt",
+      "original": "Z:/src/DxUi-worktrees/wip-delivery-20261101/.build/review-delivery/final-validation-20261102/format/intent.json",
+      "sha256": "194d956997166be5e1b947755891c400b4f8162c107daeeb526f6530ea75d7ec",
+      "bytes": 348
+    },
+    {
+      "path": "raw/closure/format/process.json.receipt.txt",
+      "original": "Z:/src/DxUi-worktrees/wip-delivery-20261101/.build/review-delivery/final-validation-20261102/format/process.json",
+      "sha256": "88b87b370e2b9adf3371dd80e0a1a27d3f5799e14869f80ba1989265299ddb8a",
+      "bytes": 72
+    },
+    {
+      "path": "raw/closure/format/result.json.receipt.txt",
+      "original": "Z:/src/DxUi-worktrees/wip-delivery-20261101/.build/review-delivery/final-validation-20261102/format/result.json",
+      "sha256": "9f0a2ef26d59bf727071eff7e96fbd16e09a282fd0a267189a7d072bd6d7679f",
+      "bytes": 247
+    },
+    {
+      "path": "raw/closure/format/stderr.log",
+      "original": "Z:/src/DxUi-worktrees/wip-delivery-20261101/.build/review-delivery/final-validation-20261102/format/stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "raw/closure/format/stdout.log",
+      "original": "Z:/src/DxUi-worktrees/wip-delivery-20261101/.build/review-delivery/final-validation-20261102/format/stdout.log",
+      "sha256": "40069ebd779c805d65fdf916fab097a9fab55ee711591d431e8b440454609812",
+      "bytes": 40
+    },
+    {
+      "path": "raw/closure/repaired/Test-Changelog/intent.json.receipt.txt",
+      "original": "Z:/src/DxUi-worktrees/wip-delivery-20261101/.build/review-delivery/final-validation-20261102/repaired-validators/Test-Changelog/intent.json",
+      "sha256": "0cf0f86954133baae31746ce6b64e3c606600f524ba85a52ff8eb5d77f885bda",
+      "bytes": 327
+    },
+    {
+      "path": "raw/closure/repaired/Test-Changelog/process.json.receipt.txt",
+      "original": "Z:/src/DxUi-worktrees/wip-delivery-20261101/.build/review-delivery/final-validation-20261102/repaired-validators/Test-Changelog/process.json",
+      "sha256": "eca3bb7680ef7480c6782819890d05f741538bd7aa3d86775ff715f10d1eb5e0",
+      "bytes": 72
+    },
+    {
+      "path": "raw/closure/repaired/Test-Changelog/result.json.receipt.txt",
+      "original": "Z:/src/DxUi-worktrees/wip-delivery-20261101/.build/review-delivery/final-validation-20261102/repaired-validators/Test-Changelog/result.json",
+      "sha256": "1dbf97d3469582e60e5e7f21e911659c16f369dcf2acf32fe07e039300288f52",
+      "bytes": 238
+    },
+    {
+      "path": "raw/closure/repaired/Test-Changelog/stderr.log",
+      "original": "Z:/src/DxUi-worktrees/wip-delivery-20261101/.build/review-delivery/final-validation-20261102/repaired-validators/Test-Changelog/stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "raw/closure/repaired/Test-Changelog/stdout.log",
+      "original": "Z:/src/DxUi-worktrees/wip-delivery-20261101/.build/review-delivery/final-validation-20261102/repaired-validators/Test-Changelog/stdout.log",
+      "sha256": "49f5ef0f826b255df5454d76187c4365a3882d83ea7b0dc91c65f3db6689bf2a",
+      "bytes": 99
+    },
+    {
+      "path": "raw/closure/repaired/summary.json.receipt.txt",
+      "original": "Z:/src/DxUi-worktrees/wip-delivery-20261101/.build/review-delivery/final-validation-20261102/repaired-validators/summary.json",
+      "sha256": "64e6af557916f53fc61cd89318bcd144447d402cc679e39309d4599b18148913",
+      "bytes": 1737
+    },
+    {
+      "path": "raw/closure/repaired/validate-build-matrix/intent.json.receipt.txt",
+      "original": "Z:/src/DxUi-worktrees/wip-delivery-20261101/.build/review-delivery/final-validation-20261102/repaired-validators/validate-build-matrix/intent.json",
+      "sha256": "98de4aacfd9e9d47ba715f06d7e194519fdf9627c62570e758fd345df4471d7a",
+      "bytes": 294
+    },
+    {
+      "path": "raw/closure/repaired/validate-build-matrix/process.json.receipt.txt",
+      "original": "Z:/src/DxUi-worktrees/wip-delivery-20261101/.build/review-delivery/final-validation-20261102/repaired-validators/validate-build-matrix/process.json",
+      "sha256": "0366a2e0533ab42e8174db32670790b65c085f6b4ffd6a80fa83d34d2eec1525",
+      "bytes": 73
+    },
+    {
+      "path": "raw/closure/repaired/validate-build-matrix/result.json.receipt.txt",
+      "original": "Z:/src/DxUi-worktrees/wip-delivery-20261101/.build/review-delivery/final-validation-20261102/repaired-validators/validate-build-matrix/result.json",
+      "sha256": "bdb4e2bedb9dea89b53238e928370d01910b3f1fd643144f01b6714d8e9080de",
+      "bytes": 240
+    },
+    {
+      "path": "raw/closure/repaired/validate-build-matrix/stderr.log",
+      "original": "Z:/src/DxUi-worktrees/wip-delivery-20261101/.build/review-delivery/final-validation-20261102/repaired-validators/validate-build-matrix/stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "raw/closure/repaired/validate-build-matrix/stdout.log",
+      "original": "Z:/src/DxUi-worktrees/wip-delivery-20261101/.build/review-delivery/final-validation-20261102/repaired-validators/validate-build-matrix/stdout.log",
+      "sha256": "be00560f7ace6cd65c1bfd2fc535bb4fcf09d618aa3ce027121ae38fe2b229ce",
+      "bytes": 154
+    },
+    {
+      "path": "raw/closure/repaired/validate-dependencies/intent.json.receipt.txt",
+      "original": "Z:/src/DxUi-worktrees/wip-delivery-20261101/.build/review-delivery/final-validation-20261102/repaired-validators/validate-dependencies/intent.json",
+      "sha256": "264a69a0026adde3f407bbf3d3d0ada20a98c29713d7cb78ab696f387c3b5650",
+      "bytes": 294
+    },
+    {
+      "path": "raw/closure/repaired/validate-dependencies/process.json.receipt.txt",
+      "original": "Z:/src/DxUi-worktrees/wip-delivery-20261101/.build/review-delivery/final-validation-20261102/repaired-validators/validate-dependencies/process.json",
+      "sha256": "d366fb78c20cbdaba968c693ac0139aa5bc07eedc60664e6baecc7ee02fa2c86",
+      "bytes": 72
+    },
+    {
+      "path": "raw/closure/repaired/validate-dependencies/result.json.receipt.txt",
+      "original": "Z:/src/DxUi-worktrees/wip-delivery-20261101/.build/review-delivery/final-validation-20261102/repaired-validators/validate-dependencies/result.json",
+      "sha256": "bace6dd4bf221fbaa96b40b85923618bad84b7d36d971512620b5d5a4334aee5",
+      "bytes": 239
+    },
+    {
+      "path": "raw/closure/repaired/validate-dependencies/stderr.log",
+      "original": "Z:/src/DxUi-worktrees/wip-delivery-20261101/.build/review-delivery/final-validation-20261102/repaired-validators/validate-dependencies/stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "raw/closure/repaired/validate-dependencies/stdout.log",
+      "original": "Z:/src/DxUi-worktrees/wip-delivery-20261101/.build/review-delivery/final-validation-20261102/repaired-validators/validate-dependencies/stdout.log",
+      "sha256": "911bf26313b0ed5e247e7a7ce6faee864c7aefa799f13be84bf9eb962c8c1972",
+      "bytes": 197
+    },
+    {
+      "path": "raw/closure/repaired/validate-skills/intent.json.receipt.txt",
+      "original": "Z:/src/DxUi-worktrees/wip-delivery-20261101/.build/review-delivery/final-validation-20261102/repaired-validators/validate-skills/intent.json",
+      "sha256": "02cb694ffffa0e00992f6c6caea2c04bd0da3ed6c393ef64a1edf7779c965eb3",
+      "bytes": 282
+    },
+    {
+      "path": "raw/closure/repaired/validate-skills/process.json.receipt.txt",
+      "original": "Z:/src/DxUi-worktrees/wip-delivery-20261101/.build/review-delivery/final-validation-20261102/repaired-validators/validate-skills/process.json",
+      "sha256": "5c6b96f8bf28eea74f1adb1bfbb22af060b10b1dd24f602bf1bc07d3b1c943ec",
+      "bytes": 73
+    },
+    {
+      "path": "raw/closure/repaired/validate-skills/result.json.receipt.txt",
+      "original": "Z:/src/DxUi-worktrees/wip-delivery-20261101/.build/review-delivery/final-validation-20261102/repaired-validators/validate-skills/result.json",
+      "sha256": "5617c63715cfc82da45e7d2645fe4e5d84237395fa6f91dbcbd444dcf34d4861",
+      "bytes": 234
+    },
+    {
+      "path": "raw/closure/repaired/validate-skills/stderr.log",
+      "original": "Z:/src/DxUi-worktrees/wip-delivery-20261101/.build/review-delivery/final-validation-20261102/repaired-validators/validate-skills/stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "raw/closure/repaired/validate-skills/stdout.log",
+      "original": "Z:/src/DxUi-worktrees/wip-delivery-20261101/.build/review-delivery/final-validation-20261102/repaired-validators/validate-skills/stdout.log",
+      "sha256": "5b3f8f0d19ac78d111973206d219668da634ef8e7e9c4703a89f21c2aa31cc0b",
+      "bytes": 252
+    },
+    {
+      "path": "raw/closure/repaired/validate-specs/intent.json.receipt.txt",
+      "original": "Z:/src/DxUi-worktrees/wip-delivery-20261101/.build/review-delivery/final-validation-20261102/repaired-validators/validate-specs/intent.json",
+      "sha256": "0ee1aafadeb14c4dd5625583a0c744bc4f7819a0073d2ca838aadc366d4e1aaf",
+      "bytes": 280
+    },
+    {
+      "path": "raw/closure/repaired/validate-specs/process.json.receipt.txt",
+      "original": "Z:/src/DxUi-worktrees/wip-delivery-20261101/.build/review-delivery/final-validation-20261102/repaired-validators/validate-specs/process.json",
+      "sha256": "acf78bc779f6544fc4c402737f9bd4479697dfda7856b6ed6754903d0c6b9213",
+      "bytes": 73
+    },
+    {
+      "path": "raw/closure/repaired/validate-specs/result.json.receipt.txt",
+      "original": "Z:/src/DxUi-worktrees/wip-delivery-20261101/.build/review-delivery/final-validation-20261102/repaired-validators/validate-specs/result.json",
+      "sha256": "4ef771099e8c1a915b8f0e0c5e2f42c5bed620467f986731df54ec7a7ebd2e25",
+      "bytes": 233
+    },
+    {
+      "path": "raw/closure/repaired/validate-specs/stderr.log",
+      "original": "Z:/src/DxUi-worktrees/wip-delivery-20261101/.build/review-delivery/final-validation-20261102/repaired-validators/validate-specs/stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "raw/closure/repaired/validate-specs/stdout.log",
+      "original": "Z:/src/DxUi-worktrees/wip-delivery-20261101/.build/review-delivery/final-validation-20261102/repaired-validators/validate-specs/stdout.log",
+      "sha256": "30ff545d1a77a29d8af045bf989671b33f6988164900e8cfa3a8fae5fa28f612",
+      "bytes": 69
+    },
+    {
+      "path": "raw/closure/repaired/validate-test-port/intent.json.receipt.txt",
+      "original": "Z:/src/DxUi-worktrees/wip-delivery-20261101/.build/review-delivery/final-validation-20261102/repaired-validators/validate-test-port/intent.json",
+      "sha256": "792fd7ba98ff0df9d925937253cfa29bf188636b762efd3af931a80571d32879",
+      "bytes": 288
+    },
+    {
+      "path": "raw/closure/repaired/validate-test-port/process.json.receipt.txt",
+      "original": "Z:/src/DxUi-worktrees/wip-delivery-20261101/.build/review-delivery/final-validation-20261102/repaired-validators/validate-test-port/process.json",
+      "sha256": "3e44c13989395b9b51449075db9b15591b91f73c394a9f990c53b4e272243bc7",
+      "bytes": 72
+    },
+    {
+      "path": "raw/closure/repaired/validate-test-port/result.json.receipt.txt",
+      "original": "Z:/src/DxUi-worktrees/wip-delivery-20261101/.build/review-delivery/final-validation-20261102/repaired-validators/validate-test-port/result.json",
+      "sha256": "fcd4a4d84ce4daa63900bb1227eb52b28d76a22719776c4cdfce1246fa4f4f41",
+      "bytes": 236
+    },
+    {
+      "path": "raw/closure/repaired/validate-test-port/stderr.log",
+      "original": "Z:/src/DxUi-worktrees/wip-delivery-20261101/.build/review-delivery/final-validation-20261102/repaired-validators/validate-test-port/stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "raw/closure/repaired/validate-test-port/stdout.log",
+      "original": "Z:/src/DxUi-worktrees/wip-delivery-20261101/.build/review-delivery/final-validation-20261102/repaired-validators/validate-test-port/stdout.log",
+      "sha256": "839d7ca683f62d1e5739a5e873a9617f07a9ded6c07e768ffd1ee83abd8ab59b",
+      "bytes": 75
+    },
+    {
+      "path": "raw/closure/accounting/ARM64-ASanDebug.log",
+      "original": "Z:/src/DxUi-worktrees/wip-delivery-20261101/.build/review-delivery/final-validation-20261102/accounting/ARM64-ASanDebug.log",
+      "sha256": "38c1133920697e908fa097099d02adc4364314bbcb35800d3227c61d4477f7e1",
+      "bytes": 938
+    },
+    {
+      "path": "raw/closure/accounting/ARM64-ASanDebug.log.stderr",
+      "original": "Z:/src/DxUi-worktrees/wip-delivery-20261101/.build/review-delivery/final-validation-20261102/accounting/ARM64-ASanDebug.log.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "raw/closure/accounting/ARM64-Debug.log",
+      "original": "Z:/src/DxUi-worktrees/wip-delivery-20261101/.build/review-delivery/final-validation-20261102/accounting/ARM64-Debug.log",
+      "sha256": "78e91c77a4f1978256ffa5dbda54dae79382269edbd8b12fd434f17c23f442c1",
+      "bytes": 933
+    },
+    {
+      "path": "raw/closure/accounting/ARM64-Debug.log.stderr",
+      "original": "Z:/src/DxUi-worktrees/wip-delivery-20261101/.build/review-delivery/final-validation-20261102/accounting/ARM64-Debug.log.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "raw/closure/accounting/ARM64-Release.log",
+      "original": "Z:/src/DxUi-worktrees/wip-delivery-20261101/.build/review-delivery/final-validation-20261102/accounting/ARM64-Release.log",
+      "sha256": "705d23044b05d3f0aab1fd79c113eb58652cb757ead5e3bbeebbf5c470b3b747",
+      "bytes": 935
+    },
+    {
+      "path": "raw/closure/accounting/ARM64-Release.log.stderr",
+      "original": "Z:/src/DxUi-worktrees/wip-delivery-20261101/.build/review-delivery/final-validation-20261102/accounting/ARM64-Release.log.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "raw/closure/accounting/summary.json.receipt.txt",
+      "original": "Z:/src/DxUi-worktrees/wip-delivery-20261101/.build/review-delivery/final-validation-20261102/accounting/summary.json",
+      "sha256": "f604090eab0dd81df0e5c219d24fc15b372da6fdafc2970271b5c834115a40b5",
+      "bytes": 2898
+    },
+    {
+      "path": "raw/closure/accounting/x64-ASanDebug.log",
+      "original": "Z:/src/DxUi-worktrees/wip-delivery-20261101/.build/review-delivery/final-validation-20261102/accounting/x64-ASanDebug.log",
+      "sha256": "baff296c00b68cdf64e2d3fc3c6b2d2c337118c637db6146979f6f37818106a9",
+      "bytes": 936
+    },
+    {
+      "path": "raw/closure/accounting/x64-ASanDebug.log.stderr",
+      "original": "Z:/src/DxUi-worktrees/wip-delivery-20261101/.build/review-delivery/final-validation-20261102/accounting/x64-ASanDebug.log.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "raw/closure/accounting/x64-Debug.log",
+      "original": "Z:/src/DxUi-worktrees/wip-delivery-20261101/.build/review-delivery/final-validation-20261102/accounting/x64-Debug.log",
+      "sha256": "a7456684b60dece1788ef46fd93a28e93f4e85abdce3b1ac3dab0e46fd3a000c",
+      "bytes": 931
+    },
+    {
+      "path": "raw/closure/accounting/x64-Debug.log.stderr",
+      "original": "Z:/src/DxUi-worktrees/wip-delivery-20261101/.build/review-delivery/final-validation-20261102/accounting/x64-Debug.log.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "raw/closure/accounting/x64-Release.log",
+      "original": "Z:/src/DxUi-worktrees/wip-delivery-20261101/.build/review-delivery/final-validation-20261102/accounting/x64-Release.log",
+      "sha256": "d9497c5ec30526e4ff8748a59ad5bb3b0cfd6024fa54b22040ad05ad0f00b086",
+      "bytes": 933
+    },
+    {
+      "path": "raw/closure/accounting/x64-Release.log.stderr",
+      "original": "Z:/src/DxUi-worktrees/wip-delivery-20261101/.build/review-delivery/final-validation-20261102/accounting/x64-Release.log.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "raw/closure/summary.json.receipt.txt",
+      "original": "Z:/src/DxUi-worktrees/wip-delivery-20261101/.build/review-delivery/final-validation-20261102/closure-summary.json",
+      "sha256": "b5dbd1511a36e62b0f5fb624823ebb10f31df0dfc8d2e2d8aeeac8eb46af5442",
+      "bytes": 2703
+    },
+    {
+      "path": "raw/closure/path-shortening.json.receipt.txt",
+      "original": "Z:/src/DxUi-worktrees/wip-delivery-20261101/.build/review-delivery/final-validation-20261102/path-shortening.json",
+      "sha256": "a548f3de1129725650289d8a5131a42d5663bbbba07271476acb021ac97c4313",
+      "bytes": 153935
+    },
+    {
+      "path": "raw/closure/plan-migration-audit.json.receipt.txt",
+      "original": "Z:/src/DxUi-worktrees/wip-delivery-20261101/.build/closeout-migration-review-4ccc6804134dd951b447fb786e26e7f4e8390ab9.json",
+      "sha256": "3d040033c9ff9552e4adcc789ab9ca4b5a066d904521d045e71851397fe173e0",
+      "bytes": 15838
     }
   ]
 }

@@ -1,0 +1,437 @@
+{
+  "sourceCommit": "4ccc6804134dd951b447fb786e26e7f4e8390ab9",
+  "evidenceManifest": "Z:\\src\\DxUi-worktrees\\wip-delivery-20261101\\.build\\closeout-draft\\reviewed-migration-manifest.json",
+  "plans": [
+    "CodeReview_2026-10-10.md",
+    "CodeReview_2026-10-28.md",
+    "CodeReview_2026-10-31.md",
+    "CodexBranchReview_2026-10-02.md",
+    "DeliveryReview_2026-10-31.md",
+    "GridTextOverflow_2026-09-21.md",
+    "MenuDescriptions_2026-09-21.md",
+    "Msvc1452ReleaseOptimization_2026-10-23.md",
+    "NativeBuildPolicyCoherence_2026-10-28.md",
+    "PopupReadiness_2026-10-17.md",
+    "ProductionReview_2026-10-05.md",
+    "ReadOnlySourceSnapshot_2026-10-26.md",
+    "RichTextAudit_2026-10-21.md",
+    "RichTextEditor_2026-10-17.md",
+    "RichTextFileDrop_2026-10-20.md",
+    "SliderTouchHalo_2026-10-04.md",
+    "SourceInkRendererQualification_2026-10-27.md",
+    "SubtleMarkdownPresentation_2026-10-27.md",
+    "WipFolderQuality_2026-10-31.md"
+  ],
+  "moves": [
+    [
+      "Specs/Plans/WIP/CodeReview_2026-10-10.md",
+      "Specs/Plans/Done/CodeReview_2026-10-10.md"
+    ],
+    [
+      "Specs/Plans/WIP/CodeReview_2026-10-10/benchmark-instrument-equivalence-20261021.json",
+      "Specs/Plans/Done/CodeReview_2026-10-10/benchmark-instrument-equivalence-20261021.json"
+    ],
+    [
+      "Specs/Plans/WIP/CodeReview_2026-10-10/native-test-renames-20261021.json",
+      "Specs/Plans/Done/CodeReview_2026-10-10/native-test-renames-20261021.json"
+    ],
+    [
+      "Specs/Plans/WIP/CodeReview_2026-10-10/qualification-20261021.json",
+      "Specs/Plans/Done/CodeReview_2026-10-10/qualification-20261021.json"
+    ],
+    [
+      "Specs/Plans/WIP/CodeReview_2026-10-10/qualification-20261024.json",
+      "Specs/Plans/Done/CodeReview_2026-10-10/qualification-20261024.json"
+    ],
+    [
+      "Specs/Plans/WIP/CodeReview_2026-10-10/review-repro-tests.patch",
+      "Specs/Plans/Done/CodeReview_2026-10-10/review-repro-tests.patch"
+    ],
+    [
+      "Specs/Plans/WIP/CodeReview_2026-10-10/validation-log-hashes-20261021.json",
+      "Specs/Plans/Done/CodeReview_2026-10-10/validation-log-hashes-20261021.json"
+    ],
+    [
+      "Specs/Plans/WIP/CodeReview_2026-10-28.md",
+      "Specs/Plans/Done/CodeReview_2026-10-28.md"
+    ],
+    [
+      "Specs/Plans/WIP/CodeReview_2026-10-31.md",
+      "Specs/Plans/Done/CodeReview_2026-10-31.md"
+    ],
+    [
+      "Specs/Plans/WIP/CodexBranchReview_2026-10-02.md",
+      "Specs/Plans/Done/CodexBranchReview_2026-10-02.md"
+    ],
+    [
+      "Specs/Plans/WIP/DeliveryReview_2026-10-31.md",
+      "Specs/Plans/Done/DeliveryReview_2026-10-31.md"
+    ],
+    [
+      "Specs/Plans/WIP/GridTextOverflow_2026-09-21.md",
+      "Specs/Plans/Done/GridTextOverflow_2026-09-21.md"
+    ],
+    [
+      "Specs/Plans/WIP/MenuDescriptions_2026-09-21.md",
+      "Specs/Plans/Done/MenuDescriptions_2026-09-21.md"
+    ],
+    [
+      "Specs/Plans/WIP/Msvc1452ReleaseOptimization_2026-10-23.md",
+      "Specs/Plans/Done/Msvc1452ReleaseOptimization_2026-10-23.md"
+    ],
+    [
+      "Specs/Plans/WIP/NativeBuildPolicyCoherence_2026-10-28.md",
+      "Specs/Plans/Done/NativeBuildPolicyCoherence_2026-10-28.md"
+    ],
+    [
+      "Specs/Plans/WIP/PopupReadiness_2026-10-17.md",
+      "Specs/Plans/Done/PopupReadiness_2026-10-17.md"
+    ],
+    [
+      "Specs/Plans/WIP/ProductionReview_2026-10-05.md",
+      "Specs/Plans/Done/ProductionReview_2026-10-05.md"
+    ],
+    [
+      "Specs/Plans/WIP/ProductionReview_2026-10-05/api4-consumer-handoffs.md",
+      "Specs/Plans/Done/ProductionReview_2026-10-05/api4-consumer-handoffs.md"
+    ],
+    [
+      "Specs/Plans/WIP/ProductionReview_2026-10-05/findings.md",
+      "Specs/Plans/Done/ProductionReview_2026-10-05/findings.md"
+    ],
+    [
+      "Specs/Plans/WIP/ReadOnlySourceSnapshot_2026-10-26.md",
+      "Specs/Plans/Done/ReadOnlySourceSnapshot_2026-10-26.md"
+    ],
+    [
+      "Specs/Plans/WIP/RichTextAudit_2026-10-21.md",
+      "Specs/Plans/Done/RichTextAudit_2026-10-21.md"
+    ],
+    [
+      "Specs/Plans/WIP/RichTextAudit_2026-10-21/MathFindingsDisposition_2026-10-24.md",
+      "Specs/Plans/Done/RichTextAudit_2026-10-21/MathFindingsDisposition_2026-10-24.md"
+    ],
+    [
+      "Specs/Plans/WIP/RichTextAudit_2026-10-21/MermaidRevalidation_2026-10-24.md",
+      "Specs/Plans/Done/RichTextAudit_2026-10-21/MermaidRevalidation_2026-10-24.md"
+    ],
+    [
+      "Specs/Plans/WIP/RichTextAudit_2026-10-21/RedTildeCompletion_2026-10-24.md",
+      "Specs/Plans/Done/RichTextAudit_2026-10-21/RedTildeCompletion_2026-10-24.md"
+    ],
+    [
+      "Specs/Plans/WIP/RichTextAudit_2026-10-21/completeness.md",
+      "Specs/Plans/Done/RichTextAudit_2026-10-21/completeness.md"
+    ],
+    [
+      "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+      "Specs/Plans/Done/RichTextAudit_2026-10-21/findings.md"
+    ],
+    [
+      "Specs/Plans/WIP/RichTextEditor_2026-10-17.md",
+      "Specs/Plans/Done/RichTextEditor_2026-10-17.md"
+    ],
+    [
+      "Specs/Plans/WIP/RichTextFileDrop_2026-10-20.md",
+      "Specs/Plans/Done/RichTextFileDrop_2026-10-20.md"
+    ],
+    [
+      "Specs/Plans/WIP/SliderTouchHalo_2026-10-04.md",
+      "Specs/Plans/Done/SliderTouchHalo_2026-10-04.md"
+    ],
+    [
+      "Specs/Plans/WIP/SourceInkRendererQualification_2026-10-27.md",
+      "Specs/Plans/Done/SourceInkRendererQualification_2026-10-27.md"
+    ],
+    [
+      "Specs/Plans/WIP/SubtleMarkdownPresentation_2026-10-27.md",
+      "Specs/Plans/Done/SubtleMarkdownPresentation_2026-10-27.md"
+    ],
+    [
+      "Specs/Plans/WIP/WipFolderQuality_2026-10-31.md",
+      "Specs/Plans/Done/WipFolderQuality_2026-10-31.md"
+    ]
+  ],
+  "markdownEdits": [
+    {
+      "source": "Measurements/GridTextOverflow/2026-09-30/verification/README.md",
+      "destination": "Measurements/GridTextOverflow/2026-09-30/verification/README.md",
+      "contentChanged": true
+    },
+    {
+      "source": "Measurements/HostControlReviewReconciliation/2026-10-21/README.md",
+      "destination": "Measurements/HostControlReviewReconciliation/2026-10-21/README.md",
+      "contentChanged": true
+    },
+    {
+      "source": "Measurements/HostControlReviewReconciliation/2026-10-24/README.md",
+      "destination": "Measurements/HostControlReviewReconciliation/2026-10-24/README.md",
+      "contentChanged": true
+    },
+    {
+      "source": "Measurements/MenuDescriptions/2026-09-30/directed-input/README.md",
+      "destination": "Measurements/MenuDescriptions/2026-09-30/directed-input/README.md",
+      "contentChanged": true
+    },
+    {
+      "source": "Measurements/Performance/2026-10-10-profiling/README.md",
+      "destination": "Measurements/Performance/2026-10-10-profiling/README.md",
+      "contentChanged": true
+    },
+    {
+      "source": "Measurements/Review-2026-10-08/README.md",
+      "destination": "Measurements/Review-2026-10-08/README.md",
+      "contentChanged": true
+    },
+    {
+      "source": "Measurements/Review-2026-10-09/README.md",
+      "destination": "Measurements/Review-2026-10-09/README.md",
+      "contentChanged": true
+    },
+    {
+      "source": "Measurements/RichText/2026-10-20-native-math-diagrams/README.md",
+      "destination": "Measurements/RichText/2026-10-20-native-math-diagrams/README.md",
+      "contentChanged": true
+    },
+    {
+      "source": "Measurements/RichText/2026-10-21-native-host-policy/README.md",
+      "destination": "Measurements/RichText/2026-10-21-native-host-policy/README.md",
+      "contentChanged": true
+    },
+    {
+      "source": "Measurements/RichText/README.md",
+      "destination": "Measurements/RichText/README.md",
+      "contentChanged": true
+    },
+    {
+      "source": "README.md",
+      "destination": "README.md",
+      "contentChanged": true
+    },
+    {
+      "source": "Specs/DesignSystem/components/RichTextEditor/README.md",
+      "destination": "Specs/DesignSystem/components/RichTextEditor/README.md",
+      "contentChanged": true
+    },
+    {
+      "source": "Specs/Plans/Done/CiRunScope_2026-10-04.md",
+      "destination": "Specs/Plans/Done/CiRunScope_2026-10-04.md",
+      "contentChanged": true
+    },
+    {
+      "source": "Specs/Plans/Done/ConsumerUiImprovements_S0_S2_2026-10-04.md",
+      "destination": "Specs/Plans/Done/ConsumerUiImprovements_S0_S2_2026-10-04.md",
+      "contentChanged": true
+    },
+    {
+      "source": "Specs/Plans/Done/GalleryFollowUps_2026-09-28.md",
+      "destination": "Specs/Plans/Done/GalleryFollowUps_2026-09-28.md",
+      "contentChanged": true
+    },
+    {
+      "source": "Specs/Plans/Done/MenuDescriptionMemory_2026-09-27.md",
+      "destination": "Specs/Plans/Done/MenuDescriptionMemory_2026-09-27.md",
+      "contentChanged": true
+    },
+    {
+      "source": "Specs/Plans/Done/PreparedTreeAccessibility_2026-10-06.md",
+      "destination": "Specs/Plans/Done/PreparedTreeAccessibility_2026-10-06.md",
+      "contentChanged": true
+    },
+    {
+      "source": "Specs/Plans/Done/README.md",
+      "destination": "Specs/Plans/Done/README.md",
+      "contentChanged": true
+    },
+    {
+      "source": "Specs/Plans/Done/RichEditorPresentation_2026-10-22.md",
+      "destination": "Specs/Plans/Done/RichEditorPresentation_2026-10-22.md",
+      "contentChanged": true
+    },
+    {
+      "source": "Specs/Plans/Done/TreeReorder_2026-09-21.md",
+      "destination": "Specs/Plans/Done/TreeReorder_2026-09-21.md",
+      "contentChanged": true
+    },
+    {
+      "source": "Specs/Plans/WIP/CodeReview_2026-10-10.md",
+      "destination": "Specs/Plans/Done/CodeReview_2026-10-10.md",
+      "contentChanged": true
+    },
+    {
+      "source": "Specs/Plans/WIP/CodeReview_2026-10-28.md",
+      "destination": "Specs/Plans/Done/CodeReview_2026-10-28.md",
+      "contentChanged": true
+    },
+    {
+      "source": "Specs/Plans/WIP/CodeReview_2026-10-31.md",
+      "destination": "Specs/Plans/Done/CodeReview_2026-10-31.md",
+      "contentChanged": true
+    },
+    {
+      "source": "Specs/Plans/WIP/CodexBranchReview_2026-10-02.md",
+      "destination": "Specs/Plans/Done/CodexBranchReview_2026-10-02.md",
+      "contentChanged": true
+    },
+    {
+      "source": "Specs/Plans/WIP/ConsumerUiQualification_2026-10-11.md",
+      "destination": "Specs/Plans/WIP/ConsumerUiQualification_2026-10-11.md",
+      "contentChanged": true
+    },
+    {
+      "source": "Specs/Plans/WIP/DeliveryReview_2026-10-31.md",
+      "destination": "Specs/Plans/Done/DeliveryReview_2026-10-31.md",
+      "contentChanged": true
+    },
+    {
+      "source": "Specs/Plans/WIP/GridTextOverflow_2026-09-21.md",
+      "destination": "Specs/Plans/Done/GridTextOverflow_2026-09-21.md",
+      "contentChanged": true
+    },
+    {
+      "source": "Specs/Plans/WIP/MenuDescriptions_2026-09-21.md",
+      "destination": "Specs/Plans/Done/MenuDescriptions_2026-09-21.md",
+      "contentChanged": true
+    },
+    {
+      "source": "Specs/Plans/WIP/Msvc1452ReleaseOptimization_2026-10-23.md",
+      "destination": "Specs/Plans/Done/Msvc1452ReleaseOptimization_2026-10-23.md",
+      "contentChanged": true
+    },
+    {
+      "source": "Specs/Plans/WIP/NativeBuildPolicyCoherence_2026-10-28.md",
+      "destination": "Specs/Plans/Done/NativeBuildPolicyCoherence_2026-10-28.md",
+      "contentChanged": true
+    },
+    {
+      "source": "Specs/Plans/WIP/PopupReadiness_2026-10-17.md",
+      "destination": "Specs/Plans/Done/PopupReadiness_2026-10-17.md",
+      "contentChanged": true
+    },
+    {
+      "source": "Specs/Plans/WIP/ProductionReview_2026-10-05.md",
+      "destination": "Specs/Plans/Done/ProductionReview_2026-10-05.md",
+      "contentChanged": true
+    },
+    {
+      "source": "Specs/Plans/WIP/ProductionReview_2026-10-05/api4-consumer-handoffs.md",
+      "destination": "Specs/Plans/Done/ProductionReview_2026-10-05/api4-consumer-handoffs.md",
+      "contentChanged": false
+    },
+    {
+      "source": "Specs/Plans/WIP/ProductionReview_2026-10-05/findings.md",
+      "destination": "Specs/Plans/Done/ProductionReview_2026-10-05/findings.md",
+      "contentChanged": false
+    },
+    {
+      "source": "Specs/Plans/WIP/README.md",
+      "destination": "Specs/Plans/WIP/README.md",
+      "contentChanged": true
+    },
+    {
+      "source": "Specs/Plans/WIP/ReadOnlySourceSnapshot_2026-10-26.md",
+      "destination": "Specs/Plans/Done/ReadOnlySourceSnapshot_2026-10-26.md",
+      "contentChanged": true
+    },
+    {
+      "source": "Specs/Plans/WIP/RichTextAudit_2026-10-21.md",
+      "destination": "Specs/Plans/Done/RichTextAudit_2026-10-21.md",
+      "contentChanged": true
+    },
+    {
+      "source": "Specs/Plans/WIP/RichTextAudit_2026-10-21/MathFindingsDisposition_2026-10-24.md",
+      "destination": "Specs/Plans/Done/RichTextAudit_2026-10-21/MathFindingsDisposition_2026-10-24.md",
+      "contentChanged": false
+    },
+    {
+      "source": "Specs/Plans/WIP/RichTextAudit_2026-10-21/MermaidRevalidation_2026-10-24.md",
+      "destination": "Specs/Plans/Done/RichTextAudit_2026-10-21/MermaidRevalidation_2026-10-24.md",
+      "contentChanged": false
+    },
+    {
+      "source": "Specs/Plans/WIP/RichTextAudit_2026-10-21/RedTildeCompletion_2026-10-24.md",
+      "destination": "Specs/Plans/Done/RichTextAudit_2026-10-21/RedTildeCompletion_2026-10-24.md",
+      "contentChanged": false
+    },
+    {
+      "source": "Specs/Plans/WIP/RichTextAudit_2026-10-21/completeness.md",
+      "destination": "Specs/Plans/Done/RichTextAudit_2026-10-21/completeness.md",
+      "contentChanged": true
+    },
+    {
+      "source": "Specs/Plans/WIP/RichTextAudit_2026-10-21/findings.md",
+      "destination": "Specs/Plans/Done/RichTextAudit_2026-10-21/findings.md",
+      "contentChanged": false
+    },
+    {
+      "source": "Specs/Plans/WIP/RichTextEditor_2026-10-17.md",
+      "destination": "Specs/Plans/Done/RichTextEditor_2026-10-17.md",
+      "contentChanged": true
+    },
+    {
+      "source": "Specs/Plans/WIP/RichTextFileDrop_2026-10-20.md",
+      "destination": "Specs/Plans/Done/RichTextFileDrop_2026-10-20.md",
+      "contentChanged": true
+    },
+    {
+      "source": "Specs/Plans/WIP/SliderTouchHalo_2026-10-04.md",
+      "destination": "Specs/Plans/Done/SliderTouchHalo_2026-10-04.md",
+      "contentChanged": true
+    },
+    {
+      "source": "Specs/Plans/WIP/SourceInkRendererQualification_2026-10-27.md",
+      "destination": "Specs/Plans/Done/SourceInkRendererQualification_2026-10-27.md",
+      "contentChanged": true
+    },
+    {
+      "source": "Specs/Plans/WIP/SubtleMarkdownPresentation_2026-10-27.md",
+      "destination": "Specs/Plans/Done/SubtleMarkdownPresentation_2026-10-27.md",
+      "contentChanged": true
+    },
+    {
+      "source": "Specs/Plans/WIP/WipFolderQuality_2026-10-31.md",
+      "destination": "Specs/Plans/Done/WipFolderQuality_2026-10-31.md",
+      "contentChanged": true
+    },
+    {
+      "source": "Specs/Testing/Testing_Validation.md",
+      "destination": "Specs/Testing/Testing_Validation.md",
+      "contentChanged": true
+    },
+    {
+      "source": "Specs/UI/UI_ControlsAndLayout.md",
+      "destination": "Specs/UI/UI_ControlsAndLayout.md",
+      "contentChanged": true
+    },
+    {
+      "source": "Specs/UI/UI_InputAndAccessibility.md",
+      "destination": "Specs/UI/UI_InputAndAccessibility.md",
+      "contentChanged": true
+    },
+    {
+      "source": "Tools/tests/fixtures/HostedPairedGate-2026-10-01/README.md",
+      "destination": "Tools/tests/fixtures/HostedPairedGate-2026-10-01/README.md",
+      "contentChanged": true
+    },
+    {
+      "source": "docs/controls.md",
+      "destination": "docs/controls.md",
+      "contentChanged": true
+    },
+    {
+      "source": "docs/rich-text.md",
+      "destination": "docs/rich-text.md",
+      "contentChanged": true
+    },
+    {
+      "source": "docs/samples.md",
+      "destination": "docs/samples.md",
+      "contentChanged": true
+    }
+  ],
+  "excluded": [
+    "ConsumerUiQualification_2026-10-11.md",
+    "ConsumerUiImprovements_S3_S7_2026-10-11.md",
+    "FrameUpdateAccounting_2026-10-26.md"
+  ]
+}
