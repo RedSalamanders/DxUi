@@ -1,1 +1,1 @@
-- Preserve math values and footnote references in test-only Markdown serialization, with independent profile and escaping expectations; final host runtime qualification remains pending.
+- Preserve math values and footnote references in test-only Markdown serialization, with independent profile and escaping expectations.
