@@ -1,0 +1,1 @@
+- Keep embedded Grid accessibility available through paint-only changes while refusing unprepared geometry before and after model callbacks.

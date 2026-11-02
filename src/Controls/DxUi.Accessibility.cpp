@@ -53,7 +53,9 @@ struct EmbeddedAccessibilityAccess
     }
     [[nodiscard]] static bool Coherent(EmbeddedHost& host) noexcept
     {
-        return host.InputIsCoherent(false);
+        // Grid materialization reads prepared geometry, not cached surface pixels.
+        // A paint-only selection change must not hide its still-coherent geometry.
+        return host.InputIsCoherent(true);
     }
 
     // Who reports the focus move a window host just published; focusResolutions is how many calls of the fragment

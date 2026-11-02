@@ -107,7 +107,7 @@ public:
 class EmbeddedGridGetItemModel final : public DxUi::IGridModel
 {
 public:
-    mutable DxUi::EmbeddedHost* invalidateOnRowId{};
+    mutable DxUi::Grid* invalidateOnRowId{};
     [[nodiscard]] size_t GetRowCount() const noexcept override
     {
         return 2000u;
@@ -126,8 +126,12 @@ public:
     }
     [[nodiscard]] uint64_t GetStableRowId(size_t rowIndex) const noexcept override
     {
-        if (auto* view = std::exchange(invalidateOnRowId, nullptr))
-            view->MarkDirty();
+        if (auto* grid = std::exchange(invalidateOnRowId, nullptr))
+        {
+            auto bounds = grid->GetBounds();
+            bounds.right += 1.f;
+            grid->SetBounds(bounds);
+        }
         return static_cast<uint64_t>(rowIndex) + 1u;
     }
     [[nodiscard]] std::optional<size_t> FindRowByStableId(uint64_t rowId) const noexcept override
@@ -184,23 +188,29 @@ static void TestEmbeddedGridOffscreenGetItem(GraphicsFixture& gpu)
     Hr(gridItem->get_Column(&column), "embedded GridItem column");
     Check(row == 1500 && column == 1, "embedded GridItem coordinates match GetItem");
 
-    // A cache miss must not publish live Grid geometry while the embedded surface is dirty.
+    // Paint-only dirtiness preserves prepared geometry and the separate event baseline.
     view.MarkDirty();
     wil::com_ptr_nothrow<IRawElementProviderSimple> pendingCell;
     Hr(gridPattern->GetItem(1500, 1, pendingCell.put()), "cached Grid.GetItem remains snapshot-backed while the surface is dirty");
     Check(bool(pendingCell), "dirty surface retains the previously published cell");
     pendingCell.reset();
-    Check(gridPattern->GetItem(1502, 0, pendingCell.put()) == UIA_E_ELEMENTNOTAVAILABLE && ! pendingCell,
-          "dirty embedded geometry refuses uncached Grid.GetItem publication");
+    Hr(gridPattern->GetItem(1502, 0, pendingCell.put()), "paint-only dirty geometry permits uncached Grid.GetItem");
+    Check(bool(pendingCell), "paint-only dirtiness retains coherent geometry");
+    pendingCell.reset();
+    auto changedBounds = grid->GetBounds();
+    changedBounds.right += 1.f;
+    grid->SetBounds(changedBounds);
+    Check(gridPattern->GetItem(1503, 0, pendingCell.put()) == UIA_E_ELEMENTNOTAVAILABLE && ! pendingCell,
+          "unprepared embedded geometry refuses uncached Grid.GetItem publication");
     Hr(view.Prepare(720, 510, 96), "reprepare embedded grid after invalidation");
-    Hr(gridPattern->GetItem(1502, 0, pendingCell.put()), "coherent embedded grid permits the same uncached request");
+    Hr(gridPattern->GetItem(1503, 0, pendingCell.put()), "coherent embedded grid permits the same uncached request");
     Check(bool(pendingCell), "successful retry publishes the requested cell");
     pendingCell.reset();
-    model.invalidateOnRowId = &view;
-    Check(gridPattern->GetItem(1503, 0, pendingCell.put()) == UIA_E_ELEMENTNOTAVAILABLE && ! pendingCell,
+    model.invalidateOnRowId = grid;
+    Check(gridPattern->GetItem(1504, 0, pendingCell.put()) == UIA_E_ELEMENTNOTAVAILABLE && ! pendingCell,
           "model callback invalidation aborts an in-flight uncached Grid.GetItem before publication");
     Hr(view.Prepare(720, 510, 96), "reprepare after model callback invalidation");
-    Hr(gridPattern->GetItem(1503, 0, pendingCell.put()), "retry callback-invalidated cell after preparation");
+    Hr(gridPattern->GetItem(1504, 0, pendingCell.put()), "retry callback-invalidated cell after preparation");
     Check(bool(pendingCell), "callback-invalidated cell can be materialized after coherent preparation");
 
     // This intentionally calls the provider pointer directly from another initialized thread: it is an implementation
