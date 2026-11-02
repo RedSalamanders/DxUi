@@ -2141,7 +2141,26 @@ void TestMenuKeyboardRightArrowMatchesWindowsMenuLoop()
             return;
         }
 
-        PostMessageW(bPopupHwnd, WM_KEYDOWN, VK_RIGHT, 0);
+        // Pointer hover may have opened B11 already. Restore the actual B1-with-no-child
+        // precondition before asking Right to open and focus that child.
+        const HWND priorSubmenu = FindOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"B11");
+        if (priorSubmenu)
+        {
+            if (! PostMessageW(priorSubmenu, WM_KEYDOWN, VK_LEFT, 0) || ! WaitForWindowDestroyed(priorSubmenu) ||
+                ! WaitForContextMenuPopupState(bPopupHwnd, [](const ContextMenuPopupDebugState& state) noexcept {
+                    return state.keyboardIndex.has_value() && state.keyboardIndex.value() == 0u;
+                }, popupState))
+            {
+                driverFailure = std::format("could not restore B1 before Right; prior B11 HWND={:#x} valid={}",
+                                            reinterpret_cast<uintptr_t>(priorSubmenu), IsWindow(priorSubmenu) != FALSE);
+                return;
+            }
+        }
+        if (! PostMessageW(bPopupHwnd, WM_KEYDOWN, VK_RIGHT, 0))
+        {
+            driverFailure = "post Right arrow to B1";
+            return;
+        }
         const HWND bSubmenuHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"B11");
         if (! bSubmenuHwnd)
         {
@@ -2153,7 +2172,10 @@ void TestMenuKeyboardRightArrowMatchesWindowsMenuLoop()
             return state.keyboardIndex.has_value() && state.keyboardIndex.value() == 0u;
         }, popupState))
         {
-            driverFailure = "Right arrow on B1 focuses B11 in the submenu";
+            driverFailure = std::format("Right arrow on B1 focuses B11 in the submenu; prior={:#x} current={:#x} valid={} keyboard={} hovered={}",
+                                        reinterpret_cast<uintptr_t>(priorSubmenu), reinterpret_cast<uintptr_t>(bSubmenuHwnd),
+                                        IsWindow(bSubmenuHwnd) != FALSE, popupState.keyboardIndex ? std::to_string(popupState.keyboardIndex.value()) : "none",
+                                        popupState.hoveredIndex ? std::to_string(popupState.hoveredIndex.value()) : "none");
             return;
         }
 
@@ -4213,7 +4235,26 @@ void TestMenuKeyboardLeftArrowMatchesWindowsMenuLoop()
             return;
         }
 
-        PostMessageW(bPopupHwnd, WM_KEYDOWN, VK_RIGHT, 0);
+        // Pointer hover may have opened B11 already. Restore the actual B1-with-no-child
+        // precondition before asking Right to open and focus that child.
+        const HWND priorSubmenu = FindOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"B11");
+        if (priorSubmenu)
+        {
+            if (! PostMessageW(priorSubmenu, WM_KEYDOWN, VK_LEFT, 0) || ! WaitForWindowDestroyed(priorSubmenu) ||
+                ! WaitForContextMenuPopupState(bPopupHwnd, [](const ContextMenuPopupDebugState& state) noexcept {
+                    return state.keyboardIndex.has_value() && state.keyboardIndex.value() == 0u;
+                }, popupState))
+            {
+                driverFailure = std::format("could not restore B1 before Right; prior B11 HWND={:#x} valid={}",
+                                            reinterpret_cast<uintptr_t>(priorSubmenu), IsWindow(priorSubmenu) != FALSE);
+                return;
+            }
+        }
+        if (! PostMessageW(bPopupHwnd, WM_KEYDOWN, VK_RIGHT, 0))
+        {
+            driverFailure = "post Right arrow to B1";
+            return;
+        }
         const HWND bSubmenuHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"B11");
         if (! bSubmenuHwnd)
         {
@@ -4225,7 +4266,10 @@ void TestMenuKeyboardLeftArrowMatchesWindowsMenuLoop()
             return state.keyboardIndex.has_value() && state.keyboardIndex.value() == 0u;
         }, popupState))
         {
-            driverFailure = "Right arrow on B1 focuses B11 before left-arrow validation";
+            driverFailure = std::format("Right arrow on B1 focuses B11 before left-arrow validation; prior={:#x} current={:#x} valid={} keyboard={} hovered={}",
+                                        reinterpret_cast<uintptr_t>(priorSubmenu), reinterpret_cast<uintptr_t>(bSubmenuHwnd),
+                                        IsWindow(bSubmenuHwnd) != FALSE, popupState.keyboardIndex ? std::to_string(popupState.keyboardIndex.value()) : "none",
+                                        popupState.hoveredIndex ? std::to_string(popupState.hoveredIndex.value()) : "none");
             return;
         }
 
