@@ -3727,8 +3727,9 @@ void TestMenuKeyboardInputCancelsPendingSubmenuHoverTimers()
             {
                 const LONG x = static_cast<LONG>(std::lround((row.left + row.right) * 0.5f * static_cast<float>(rootState.dpi) / 96.0f));
                 const LONG y = static_cast<LONG>(std::lround((row.top + row.bottom) * 0.5f * static_cast<float>(rootState.dpi) / 96.0f));
-                if (! pointerFixture.AlignCursor(POINT{popupRect.left + x, popupRect.top + y}))
-                    return false;
+                // This whole sequence runs synchronously on the menu thread. Keep the
+                // owned physical cursor parked outside while delivering the exact
+                // client-space moves whose timer ordering this test exercises.
                 DrainPendingMouseMessagesForMenuSuite();
                 return SendClientMouseMoveForMenuSuite(root, x, y);
             };

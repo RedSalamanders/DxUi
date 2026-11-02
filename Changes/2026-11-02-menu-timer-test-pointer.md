@@ -1,0 +1,1 @@
+- Keep the pointer parked while exercising ordered synthetic menu timer and keyboard events.
