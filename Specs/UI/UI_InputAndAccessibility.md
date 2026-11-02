@@ -1,5 +1,9 @@
 # Input and accessibility
 
+The [failure policy](../Core/Core_FailureHandling.md) governs C++ callbacks, allocation and ABI containment.
+Expected refusals use explicit nonthrowing results. Unexpected exceptions require host fatal diagnostics and
+termination; the current published implementation still needs the linked migration and is not qualified for it.
+
 RichTextEditor local-fragment links expose Invoke and support Ctrl+click or Ctrl+Enter at the
 source caret. External links expose Invoke only while an activation handler is registered. A current, enabled, non-composing semantic publication is required;
 read-only editors permit navigation. External destinations invoke
@@ -132,8 +136,9 @@ path as ReplaceSelection. All replacements publish before one source notificatio
 source ACPs, backward selection and UIA TextPattern2 caret retain their exact
 meaning. Read-only/disabled plans do nothing. Rejected plans preserve both histories
 and selection. Unchanged spelling may update selection silently without rebuilding
-syntax/geometry. A callback may undo the whole plan, replace source, throw a standard
-exception or destroy its editor; no subsequent stale access/notification is allowed.
+syntax/geometry. A callback that returns normally may have undone the whole plan, replaced source or destroyed
+its editor; no subsequent stale access/notification is allowed. An unexpected callback exception instead follows
+the host fatal diagnostic contract.
 Native and application-bridged embedded client tests must observe complete source,
 selection/caret and TextChanged after owner publication, plus one undo for the plan.
 
@@ -345,10 +350,10 @@ Each accepted explicit logical focus request supersedes an older request. A reje
 ineligible target MUST NOT advance the focus-request revision or disturb healthy current focus; a rejected request
 for the current owner MUST still prune stale retained focus and native text-input state before returning.
 After application or TSF callbacks, an older
-setter stops before assigning, clearing or publishing focus belonging to the newer request. Standard exceptions
-from focus callbacks are contained at the host boundary. A live control whose override fails before acknowledging
-the transition receives the base focus-state acknowledgement, unless a newer request has superseded that transition.
-A failed old blur still clears the old control's acknowledged focus when a different control wins. Reset snapshots
+setter stops before assigning, clearing or publishing focus belonging to the newer request. Unexpected exceptions
+from focus callbacks enter the host fatal diagnostic path. For callbacks that return normally, the host ensures
+the base focus-state acknowledgement unless a newer request has superseded the transition. An old blur still
+clears the old control's acknowledged focus when a different control wins. Reset snapshots
 and clears interaction observers before invoking callbacks, preserves explicit callback-selected focus, and suppresses
 automatic focus restoration during the reset. Root replacement retires any focus chosen in the old tree while that
 tree remains owned; callback-selected focus in the installed new tree survives. A root replacement cannot borrow a
@@ -356,7 +361,8 @@ rootless focus target from the tree it is retiring.
 Retiring a native text-input cache never transfers keyboard focus. Reset and root replacement on an inactive
 host preserve the other window's keyboard focus; text-service retirement has no focus-restoration option.
 If a host focus notification removes its newly focused editor, the setter retires its native session, TSF document
-and cached text before returning, even if the notification throws. A returned live child acknowledges lost focus.
+and cached text before returning normally. An unexpected notification exception is fatal; the API must not promise
+repair followed by continuation from that throw. A returned live child acknowledges lost focus.
 Restoring a retiring TSF document's HWND association preserves a different document that already owns TSF focus.
 If a nested activation captures an outer staged document as its previous association, unwinding the outer activation
 removes that staged link so retiring the successor restores the earlier association rather than the popped document.
@@ -454,15 +460,16 @@ for each intermediate input while retaining complete per-entry semantics
 Tree and Grid model getters may reenter application code. Snapshot construction revalidates the control lifetime,
 its path and borrowed model after each getter and aborts the entire unpublished snapshot if they change. Navigation,
 point geometry and focused-item lookup follow the same rule. Native publication permits two attempts per flush;
-a later query or queued flush handles any further mutation. A flush that cannot finish (a getter that throws,
-allocation failure, or state that changes during both attempts) keeps the last complete snapshot published, and
+a later query or queued flush handles any further mutation. A flush that cannot finish because of an explicit
+checked allocation refusal or state changes during both attempts keeps the last complete snapshot published, and
 `WM_GETOBJECT` and root acquisition still return the canonical root, which answers from that snapshot. Before the
 first complete publication the root has no snapshot and answers `UIA_E_ELEMENTNOTAVAILABLE`, as a retired element
 does, until a later query or flush publishes one. Clients reacquire a collapsed semantic root after its
 control is replaced; retained elements never bind to a replacement at the same path. Grid row, header and cell
 properties return `UIA_E_ELEMENTNOTAVAILABLE` when their record is no longer materialized in the current snapshot.
 Rich semantic child creation reports `UIA_E_ELEMENTNOTAVAILABLE` when its source publication retires during creation;
-an actual peer allocation failure reports `E_OUTOFMEMORY`.
+an explicit nonthrowing peer allocation refusal reports `E_OUTOFMEMORY`. An unexpected getter/allocation
+exception instead enters host fatal diagnostics; it must not be swallowed to keep serving the old snapshot.
 These rules do not extend borrowed model lifetime or qualify destruction of the entire host from a callback.
 
 Modal and asynchronous menu tracking both activate the root popup
@@ -813,17 +820,17 @@ This API does not by itself attach an OS text store. `TextInputServices` is the 
 adapter in the same archive. Real IME/touch/screen-reader acceptance and RedXe plugin transport remain consumer
 gates. Native and embedded controls share the existing text model and rendering.
 
-Application code that DxUi calls (control overrides, callbacks, delegates and model getters) throws only `std::exception`
-types. One escaping it is contained where the host dispatches: a window message, an embedded input entry point, an
-animation tick or a UI Automation action ends that dispatch, a key, character or mnemonic counting as taken, and the host
-stays usable; a failed UI Automation action also republishes. The boundary catches named standard exceptions only,
-mapping allocation failure to `E_OUTOFMEMORY`. Translate another type, such as C++/WinRT `hresult_error`, inside
-the callback; unsupported exceptions can terminate the process.
+Application code that DxUi calls (control overrides, callbacks, delegates and model getters) reports expected
+refusal through its documented nonthrowing result. Any escaping C++ exception, including bad_alloc and standard
+or application-specific exception types, is unexpected. A mandatory ABI containment boundary routes it to host
+fatal diagnostics and termination; it does not keep the host usable by marking the dispatch taken or converting
+the throw to `E_OUTOFMEMORY`. Preserve original failure-site context. The implementation plan must prove the
+containment route rather than add a broad catch-and-continue wrapper.
 
 Native text-store notification callbacks may destroy or replace their control, change focus, or replace text.
 The store revalidates control lifetime, focus and text before applying selection or notifying TSF. Callback
-exceptions return failure across the COM boundary; they never unwind through it. A failed continuation preserves
-the callback's newer state and balances the sink edit transaction. Editable ComboBox callbacks receive an owned
+exceptions never unwind through COM and must enter host fatal diagnostics. An explicit checked failed continuation
+preserves the callback's newer state and balances the sink edit transaction. Editable ComboBox callbacks receive an owned
 text snapshot so their argument and callable survive destruction of the control.
 
 The native WindowHost text store stages edits for each TSF lock. One TSF edit inserts at most 65,536 UTF-16 units, while the
@@ -1358,8 +1365,8 @@ hosts without one use the consumer context-menu callback together with the
 public default-menu model and command dispatch APIs.
 Default-menu item staging uses fallible empty-container construction and an
 atomic output swap, so an allocation failure leaves the supplied model intact.
-Consumer context-menu observer allocation failure is fatal; a delivered observer
-exception never triggers a second fallback menu.
+Consumer context-menu observer unexpected exceptions, including bad_alloc, require host fatal diagnostics;
+a delivered observer must never trigger a second fallback menu.
 Ctrl+Backspace and Ctrl+Delete erase to the preceding or following word boundary;
 rich-view deletion maps visible fragments through the structural source planner.
 An active source-edit session bounds word deletion to its own interval.
@@ -1532,21 +1539,22 @@ duplicated full-document intervals must not multiply retained rectangles. The
 prepared top-order/prefix-bottom index selects visible highlights without mapping
 source or allocating during painting. Source changes retire highlights as before.
 
-RichTextEditor native input boundaries decline precommit allocation failure
+RichTextEditor native input boundaries decline explicit nonthrowing precommit allocation refusal
 without changing document source, revision, selection or undo history. A failed
 trail-surrogate insertion retains the pending lead for a retry. Once source or
 selection publication, capture, or a binding change has occurred, the owned input
 remains handled and must not fall through to an unrelated application command.
 Lifetime tokens guard the failure continuation itself. Allocation failure in
 application observer callbacks retains the explicit fatal observer policy;
-ordinary observer exceptions are contained after the committed change.
-Embedded key and character dispatch declines allocation failure before entering
+all other unexpected observer exceptions require the same fatal outcome, not continuation after the committed change.
+Embedded key and character dispatch declines checked nonthrowing allocation refusal before entering
 an application control callback. Once an arbitrary control callback has begun,
-the host cannot infer whether it committed; an allocation failure is consumed
-and cannot authorize a translated character or retarget input. A matching
-character receipt is consumed once before the callback. The current correlated
-character overload can still return false after consuming a matching receipt
-when `OnChar` returns false or throws a non-allocation standard exception. A
+the host cannot infer whether it committed. An unexpected exception requires fatal diagnostics; it must not be
+treated as an ordinary consumed failure followed by continued input. A matching character receipt is consumed
+once before the callback. Published source `5fc4d4c` still has legacy recovery: its correlated character overload
+can return false after consuming a matching receipt when `OnChar` returns false or a non-allocation standard
+exception is swallowed. The latter violates the new failure policy; the false-callback case retains its separate
+correlated-transport adoption condition. A
 false return MUST NOT authorize retry or retargeting. Before a transport adopts
 correlated receipts, those post-consumption results MUST be repaired and tested
 to report the character handled; this retained adoption condition is not an
@@ -1575,9 +1583,9 @@ admitted replacement. The synchronous edit requires valid source boundaries and
 borrows replacement text only for the call; stale or invalid work MUST NOT
 change source or history.
 
-ScrollPanel commits its offset before notifying the scroll observer. A standard
-exception from that callback is contained at its noexcept boundary and stops the
-older continuation; the committed offset remains. The callback may replace its
+ScrollPanel commits its offset before notifying the scroll observer. An unexpected
+exception from that callback requires host fatal diagnostics, not continued scrolling
+after suppression. A normally returning callback may replace its
 subscription or retire the panel without invalidating the retained call storage.
 
 A ComboBox popup, selection or submit callback may transfer a surviving control to a

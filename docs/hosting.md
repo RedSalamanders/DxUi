@@ -1,5 +1,10 @@
 # Hosting, input and lifetime
 
+The [allocation/exception policy](../Specs/Core/Core_FailureHandling.md) requires explicit checked refusal or
+host fatal diagnostics for unexpected C++ exceptions. Its runtime/consumer integration is still unimplemented;
+current source and earlier exception-recovery receipts do not establish the new fatal-stack/dump behavior.
+Returned HRESULT recovery described below applies to checked/native failures, not catch-and-continue on a throw.
+
 For a deterministic native software-rendering host, call `Attach(hwnd, {.forceWarp = true})` before creating
 other native graphics on that UI thread. Default peers inherit the thread pool's selection. An incompatible
 forced request returns false with `ERROR_INVALID_STATE` and preserves existing attachments; detach the last
@@ -169,11 +174,10 @@ before dispatch has no reliable character provenance and must adopt this hook
 to obtain the activation ownership guarantee. DxUi's modal loop adopts it.
 
 An explicit focus request made from a control or host callback supersedes its outer request. Focus callbacks
-should complete without throwing and overrides must call their base handler; standard exceptions are contained
-with a safe base-state fallback. Code that DxUi calls (overrides, callbacks, delegates and model getters) may throw only
-standard exceptions, `std::exception` or a type derived from it: the host contains them where it dispatches the message,
-input, tick or UI Automation action. Translate another type, such as C++/WinRT `hresult_error`, inside the callback; it
-can terminate the process. Reset and root replacement retire the old interaction state without taking HWND
+complete without throwing and overrides call their base handler. Expected refusal uses the documented explicit
+result; unexpected exceptions require the host fatal diagnostic path. Published source `5fc4d4c` still contains
+standard exceptions with a base-state/dispatch fallback; that is legacy behavior awaiting the failure-policy
+migration, not a guarantee of the new contract. Reset and root replacement retire the old interaction state without taking HWND
 keyboard focus from another window, and a callback may choose a successor in the newly installed tree.
 Removing an editor from its host focus notification immediately retires its native text session and cache.
 While the window holds the foreground's keyboard focus, moving focus between its controls (or a tree's items and a

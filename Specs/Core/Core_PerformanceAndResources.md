@@ -1,5 +1,10 @@
 # Performance and resources
 
+Allocation failure and retry below mean explicit checked nonthrowing refusal under
+[Failure handling and allocation](Core_FailureHandling.md), not an escaped C++ exception. Unexpected bad_alloc
+and callback exceptions require host fatal diagnostics. The published implementation and historical throwing
+fault sweeps have not yet completed that policy's migration; resource measurements do not qualify it.
+
 Bulk Grid and Tree selection builds a staged visible-order list with hash membership and a fixed-width radix-sorted
 membership copy. Its expected work is linear in visible and requested IDs, including reverse-ordered IDs; allocation
 failure preserves the previously published selection. Repeated IDs occur only once in first-visible order; the final
@@ -73,15 +78,14 @@ that maximum result while retaining its previous publication is bounded to
 32 MiB peak C++ storage. This is not
 a process/SDK/GPU or large-document capacity claim. Same completed requests,
 read-only publication access and retirement allocate no C++ storage. Parser
-allocation-failure sweeps must retain the previous publication and allow explicit
-retry. No parser result changes the existing frame performance HOLD.
-MSVC Debug iterator proxies allocate even in default/noexcept STL container
-constructors. Parser staging and node values use explicit fallible zero-size
-construction and copies rather than noexcept allocator-backed container moves.
-RichText appearance font overrides and the editor's empty default argument use
-the same explicit fallible construction. A public aggregate's implicit exception
-specification does not protect against an allocating STL constructor declared
-`noexcept`; fault coverage must reach each owned override, not only the first one.
+checked-allocation-failure sweeps must retain the previous publication and allow explicit
+retry under the owning status contract. No parser result changes the existing frame performance HOLD.
+MSVC Debug iterator proxies allocate even in default/noexcept STL container constructors. The checked/fatal
+allocation closure must cover staging, node values, appearance font overrides, default arguments and nested
+proxy/control-block construction. The published explicit zero-size construction/copy pattern was designed to
+permit throwing failure instead of accidental noexcept termination; it is legacy behavior, not the new checked
+failure contract. A public aggregate's exception specification alone cannot satisfy the allocation/diagnostic
+policy. Fault coverage must reach each owned override, not only the first one.
 The allocation sweep must cover admission, growth, reference extraction, nested
 inline values/links, tables/tasks/tagfilter and compaction. Literal text coalesces
 into runs rather than retaining one string per scalar. An 8,193-unit emphasis
@@ -95,8 +99,9 @@ termination; ordinary suites and canonical benchmarks keep their normal path.
 Semantic source-format indexing is prepared once with the immutable semantic
 document, sharing its 65,536-unit admission. UIA collection queries do not parse,
 create layouts or mutate the document. Every observed C++ allocation in semantic
-child/header collection construction must return E_OUTOFMEMORY safely and allow
-retry. Child providers hold weak semantic graph identity; optional rich snapshot
+child/header collection construction must either use a checked nonthrowing refusal returning E_OUTOFMEMORY
+with its documented retry/state guarantee, or enter the host fatal path. A caught bad_alloc is not a checked
+refusal. Child providers hold weak semantic graph identity; optional rich snapshot
 payloads keep bounds/font strings out of unrelated control records. Preparing
 snapshot rectangles is separate from allocation-free composition and from the
 existing warm caret/visible-range query budget.
@@ -955,19 +960,20 @@ and data changes, keep both copies equal at O(n log n) at most: a `SetRange` ove
 them (1.0 ms for 20,000 ids, 10.9 ms for 200,000; a radix sort of them takes about a seventh of that and is not done);
 `PreserveOrdered` asks about every row of the model, and a table of bits rules out most rows before the search answers the
 rest, so 200,000 rows with 3 to 5,000 ids selected take 0.2 to 1.1 ms (a hash set took 1.2 to 2.8) with 2 or 3 heap
-calls; and `SetRange` and `PreserveOrdered`, the two that may throw, leave the selection as it was when an allocation
-fails. A selection structure that costs a node per row, a membership test that scans more than 1,024 ids or that searches a
+calls in the recorded implementation. Under the current failure policy, checked allocation refusal in `SetRange`
+and `PreserveOrdered` must preserve the previous selection; an unexpected throw requires host fatal diagnostics.
+Historical timings do not qualify that failure-policy migration. A selection structure that costs a node per row, a membership test that scans more than 1,024 ids or that searches a
 smaller selection more slowly than the scan would, a model that keeps the room of a selection it no longer holds, a
 `PreserveOrdered` that costs more than reading its list, or a paint that allocates for the selection regresses this
 budget. The
 [paired record](../../Measurements/GridSelection/2026-10-01/README.md) holds the measurements.
 
-Rich snapshot slicing must propagate allocation failure rather than terminate in
-Debug STL proxy construction. Sweep every observed long-slice allocation and
-preserve the captured source, document revision and histories. The isolated
-allocation diagnostics install a terminate handler only in their explicit child;
-normal suites and canonical benchmark dispatch never install it. Retain the
-original failure separately from successful final sweeps and build qualification.
+Rich snapshot slicing must return a checked nonthrowing allocation refusal or enter allocation-site fatal
+diagnostics, including Debug STL proxy construction. Checked-refusal sweeps preserve the captured source,
+document revision and histories. Unexpected throws run in isolated fatal probes with original-site context and
+dump verification; a returning terminate-handler stack is not that oracle. Test-only handler installation stays
+inside the owned child, not ordinary suite or canonical benchmark dispatch. Retain historical throwing-recovery
+receipts separately; they are not acceptance of this failure policy.
 
 Guarded rich document geometry retains at most 127 chunk layouts plus one optional
 whole-layout compatibility resource, with old/staged replacement bounded together.

@@ -38,7 +38,11 @@ The repository is public and its default branch is `main`. Use focused feature b
   hard-code a developer installation. Keep x64/ARM64 Debug/Release/ASan Debug buildable.
 - Use WIL for owned COM/Windows resources when those targets are extracted. Borrow synchronously and retain only
   with explicit ownership. No manual Release/Destroy of an owned resource. No exceptions through Windows/COM or
-  callback boundaries; catch named exceptions only when needed, with a documented fallback.
+  callback boundaries. Follow [the failure policy](Specs/Core/Core_FailureHandling.md): expected refusal uses checked
+  nonthrowing results; any unexpected C++ exception, including `std::bad_alloc`, requires host-owned fatal diagnostics
+  and termination, not catch-and-continue or ordinary OOM recovery. Capture useful failure-site context and attempt
+  the configured dump. A null check after throwing STL allocation, a bare `terminate`, or changing `noexcept` alone
+  is insufficient. The policy's runtime/test migration is explicitly open; do not claim existing receipts qualify it.
 - Hot-path resources and queues are bounded and reused. Composition does no heap work, layout, rasterization,
   I/O or blocking waits. Idle/hidden work blocks on events; never busy poll. Measure resource regressions.
 - Measure a retained baseline before implementation and compare the candidate on the same fixture. Every test.ps1

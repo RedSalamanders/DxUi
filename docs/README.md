@@ -18,6 +18,7 @@ The API uses namespace `DxUi`. It supports a supplied-device embedded view and a
   usage rules and a guideline and preview for every control. Rendered captures are in the [gallery](gallery/README.md).
 - [Standalone samples](samples.md): minimal playground and the shared complex-UI benchmark scene.
 - [Performance and testing](performance.md): complex-UI FPS, memory, comparisons and ARM64 evidence.
+- [Failure and allocation policy](../Specs/Core/Core_FailureHandling.md): checked refusals, unexpected exceptions and the host fatal/dump contract; implementation migration is still open.
 
 The [public example](../Samples/EmbeddedControls/EmbeddedScene.h) and its
 [application host](../Samples/EmbeddedControls/Main.cpp) are compilable references.

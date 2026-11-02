@@ -1,5 +1,11 @@
 # Upgrade a DxUi consumer
 
+**Failure-policy review, 2 November 2026:** the [target allocation/exception policy](../Specs/Core/Core_FailureHandling.md)
+requires checked nonthrowing refusal or host fatal diagnostics with useful originating context and dump. Published
+source `5fc4d4c383bfa4891ee57a138924107bbbf11a2e` still uses exception recovery and is not qualified against that
+new requirement. Follow the [open migration plan](../Specs/Plans/WIP/FailurePolicy_2026-11-02.md); this guide's
+description of current constructor/API behavior is not an endorsement of exception propagation as normal error handling.
+
 This guide covers the **2 November 2026 delivery**, merged in
 [PR #159](https://github.com/RedSalamanders/DxUi/pull/159), and the application work needed to adopt it.
 Its original runtime delivery commit is:

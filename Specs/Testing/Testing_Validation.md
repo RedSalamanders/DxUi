@@ -3,6 +3,26 @@
 Status: normative intended contract
 Last reviewed: 2026-10-25
 
+## Allocation and unexpected exception coverage
+
+The [failure policy](../Core/Core_FailureHandling.md) separates explicit nonthrowing refusal from unexpected
+C++ exceptions, including bad_alloc. This is a target contract whose runtime migration remains open. Existing
+throwing-allocation recovery sweeps and callback catch-and-continue passes are historical evidence only.
+
+Recovery tests must inject null/native status at a real checked seam, assert the error and unchanged state,
+and exercise only the retry permitted by that status contract. Nested construction, shared owners and Debug
+STL proxies are part of the tested allocation closure; nothrow object storage alone does not cover constructors.
+Unexpected exceptions and unreportable allocation failure require owned child probes asserting nonzero exit,
+no continuation, bounded handling, valid dump and the original named failure frame/thread with matching symbols.
+Also test missing/returning handlers, recursion, dump-write refusal and concurrent failures. Never trigger real
+machine OOM or an interactive consumer crash. Reuse governed roots and the canonical child/evidence runner;
+test-only fatal hooks must not leak into ordinary suites, benchmarks or unrelated processes.
+
+These are runtime acceptance requirements, not claims that the new probes already exist or have executed.
+Native ARM64 and consumer-owned crash integration retain their independent execution/acceptance obligations.
+
+## Existing scenario contracts
+
 Native staged-TSF reconciliation tests count the current generation-tagged production dispatch separately from
 the rest of the HWND queue. A general pump can also deliver an independent geometry change, whose layout
 notification is valid and does not belong to the activation batch. Retain the exact one-text/one-layout assertion
@@ -15,10 +35,10 @@ physical input or performance acceptance.
 Source-guide, code-language and code-line labels prepare their staged v0
 projections through the canonical reference-taking layout access seam. An
 internal by-value transfer must not invoke the aggregate's implicit noexcept
-move: MSVC Debug container-proxy allocation can fail during that move and
-terminate before the owning fault boundary can preserve its prior publication.
-The source-guide allocation sweep exercises every observed preparation failure
-and verifies unchanged published numbers/marks before recovery.
+move: MSVC Debug container-proxy allocation can fail during that move and terminate before useful failure-site
+diagnostics. Source-guide checked-refusal sweeps must exercise the actual nonthrowing seams and verify unchanged
+published numbers/marks before permitted recovery. Unexpected thrown failure instead belongs to the isolated
+fatal-context/dump oracle above; earlier throw-and-retry sweeps do not satisfy that oracle.
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.

@@ -3,6 +3,8 @@
 One entry per plan, separated by a blank line, so that changes to different plans merge without conflicts.
 Status labels and current plan status lines follow [the specification authority](../../README.md#specification-authority).
 
+- **SPEC READY**: [Explicit failure results and host fatal diagnostics](FailurePolicy_2026-11-02.md). The owner requires checked nonthrowing allocation/status failures or a host fatal path with original callstack and dump. The normative review is complete; runtime conversion, child fault tests and consumer crash integration remain unimplemented.
+
 - **ACTIVE**: [Complete Update-stage metric accounting](FrameUpdateAccounting_2026-10-26.md). PR #112 and combined SDK702 pass all six hosted native profiles; FrameUpdate source/tests remain byte-identical to the AEB checkpoint. The earlier PR109 Release Menu-fixture failure remains historical and unattributed. Performance acceptance remains open; earlier SDK407 diagnostics retain their incomplete Update-field boundary.
 
 - **ACTIVE**: [Library qualification and consumer adoption](ConsumerUiQualification_2026-10-11.md). The current delivery packet records source-specific native, SDK, compatibility and measurement results. Native ARM64 execution is user-deferred; independent performance-policy, physical input, hosted and real-consumer acceptance remain open in this ledger.

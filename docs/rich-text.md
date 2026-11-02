@@ -1,5 +1,11 @@
 # Unicode rich text
 
+The [failure policy](../Specs/Core/Core_FailureHandling.md) now requires checked nonthrowing refusal or host
+fatal diagnostics for unexpected C++ exceptions. Published source `5fc4d4c` still has throwing public C++ APIs,
+parser syntax exceptions and allocation/callback recovery. The current-API descriptions below record that
+legacy implementation; the [open migration](../Specs/Plans/WIP/FailurePolicy_2026-11-02.md) must convert it before
+claiming conformance. Historical sweeps and capability support do not prove the new fatal-stack/dump contract.
+
 ## Current capabilities
 
 This table describes the available library mechanisms and their limits. Supported
@@ -496,8 +502,9 @@ source-revision, selection and gesture publication contract above.
 once per actual committed source change. The four supported v0 formatting markers
 are described below. Read-only/disabled controls reject source commands; read-only
 allows selection and copy. `SetOnTextChanged` runs after publication and may replace
-or destroy the sender. `std::bad_alloc` is fatal; other standard exceptions are
-contained and do not roll back the committed edit. A scheduling callback that
+or destroy the sender. The target failure policy makes all unexpected callback exceptions fatal through the host
+diagnostic path. The published legacy implementation treats bad_alloc as fatal but contains other standard
+exceptions after commitment; this still needs migration. A scheduling callback that
 retires, rebinds or supersedes the editor stops the old notification.
 
 The preview implements pointer selection/word selection, Shift extension, host
@@ -1526,8 +1533,10 @@ distinguishes invalid syntax, duplicate mapping
 keys, unresolved aliases and explicit capacity limits. The pinned native validity
 corpus covers 717 TOML and 382 single-document YAML cases; 20 multi-document YAML
 streams are explicitly excluded, and two duplicate-key cases have specific
-diagnostics. Observed allocation-failure sweeps preserve the previous publication
-and permit retry; capacity refusal remains distinct from invalid input. See the
+diagnostics. Historical throwing-allocation sweeps preserve the previous publication and permit retry under the
+earlier implementation. They do not qualify the new [failure policy](../Specs/Core/Core_FailureHandling.md):
+recovery requires checked nonthrowing refusal, while unexpected exceptions require host fatal diagnostics.
+Capacity refusal remains distinct from invalid input. See the
 [TOML pin](../ThirdParty/Markdown/corpora/toml-test-96fd088/README.md),
 [YAML pin](../ThirdParty/Markdown/corpora/yaml-test-suite-6ad3d2c/README.md),
 [native corpus test](../Tests/Controls/Controls.Tests.RichMarkdown.cpp) and

@@ -1,5 +1,10 @@
 # Controls and layout
 
+Allocation/refusal contracts below refer to explicit checked nonthrowing results under the
+[failure policy](../Core/Core_FailureHandling.md). Unexpected C++ exceptions, including bad_alloc, require host
+fatal diagnostics. The published implementation and old throwing-fault sweeps still need the recorded migration;
+they are not evidence of this new policy's acceptance.
+
 RichTextEditor `RichTextEditorAppearance::colorizeMarkdownSource` is opt-in and
 uses the configured lossless Markdown analysis profile. Source glyph geometry
 MUST stay identical: syntax delimiters receive subdued ink, heading/list markers
@@ -1488,8 +1493,8 @@ for the synchronous call. Validate ranges, replacement Unicode and resulting
 capacity, stage one replacement envelope preserving all untouched gaps, then
 delegate future-selection/join validation and publication to Document.Replace.
 A source change records one revision/history entry; unchanged spelling only
-updates a valid selection. Exceptions preserve source, selection, revision and
-both histories. This helper does not bypass a retained control's editable,
+updates a valid selection. Explicit checked refusal preserves source, selection, revision and both histories;
+an unexpected exception instead follows host fatal diagnostics. This helper does not bypass a retained control's editable,
 notification or lifecycle guards. RichTextEditor exposes its own ApplySourceEdits
 adapter through the existing Changed/SelectionChanged path, enforcing those
 guards and invalidating stale parser/geometry access before notification. It
@@ -1507,9 +1512,9 @@ prefix checks can also be proved without constructing edits. Consumers needing
 exact availability for an arbitrary command and its payload may call
 `PrepareMarkdownCommandState` on the owner thread, then read the same request
 with `QueryMarkdownCommandState`. Preparation uses the actual command planner,
-owns the request payload and keeps at most one result; it may allocate or throw,
-does not commit an edit or notify consumers, and preserves the previous prepared
-result on failure. A false preparation result means the owner or semantic input
+owns the request payload and keeps at most one result. Allocation follows the checked/fatal failure contract.
+It does not commit an edit or notify consumers, and preserves the previous prepared result on explicit checked
+refusal. An unexpected exception must not become a recoverable preparation result. A false preparation result means the owner or semantic input
 is currently unavailable. Query remains allocation-free: an unprepared request
 has unknown availability unless a cheap proof applies, while a matching prepared
 result reports the planner's exact availability. The key includes source and
@@ -1604,7 +1609,8 @@ Footnote name/help templates contain `{0}` exactly once. Return-reference
 name/help templates contain `{0}` (reference ordinal) and `{1}` (footnote ordinal)
 exactly once each, in any order; no other braces or format directives are accepted
 in numbered templates. Other entries are literal text. Invalid configuration
-throws before it can be installed; construction and preparation remain fallible.
+must be refused explicitly before installation. Construction and preparation follow the checked/fatal allocation
+contract; a constructor throw is not the validation protocol.
 Each native diagram family exposes its own header and help, including pie slice
 and Gantt task vocabulary, identifying/non-identifying ER relationships and empty
 family diagnostics. Display and fenced math closing-delimiter diagnostics use
@@ -1852,7 +1858,7 @@ selection, undo and redo. Identical edits and cell navigation add no history.
 
 The retained Execute/ApplyMarkdownCommand API requires editable semantic Rich
 view and current analysis; composition/pending analysis/incompatible targets
-return Unavailable. Stale plans throw before mutation. No command synchronously
+return Unavailable. Stale plans return an explicit refusal before mutation. No command synchronously
 reparses or prepares native geometry. Changes publish through existing host text
 services and may reenter/retire their owner; no continuation may touch a retired
 owner. Pure command plans carry no host binding.
@@ -2346,7 +2352,7 @@ count until their compaction pass completes. A table row MUST admit its row plus
 all header-width real/padded cells against the remaining global node budget
 before allocating that row; separate tables cannot reset the budget. Inline
 append and opaque HTML roots share the remaining combined budget. Overflow
-throws `length_error`, retires staging and preserves the previous publication.
+returns an explicit capacity refusal, retires staging and preserves the previous publication.
 No excessive/partial tree may be published for later semantic admission to reject.
 
 Each generated table cell MUST consume a separate resumable parser event. No
@@ -2360,8 +2366,9 @@ revision and analysis profile. It prepares usable source geometry while preservi
 the requested view, text, directional selection and undo/redo. Current rejection
 permits source-layout acknowledgement without an unavailable syntax tree; idle,
 flow/typography or resource preparation MUST NOT repeatedly parse that same request.
-Edits/reset/undo/redo/profile changes re-evaluate their own request. Transient
-`bad_alloc` remains retryable `E_OUTOFMEMORY` and MUST NOT latch capacity fallback.
+Edits/reset/undo/redo/profile changes re-evaluate their own request. An explicit nonthrowing allocation refusal
+may return `E_OUTOFMEMORY` under its bounded retry contract and MUST NOT latch capacity fallback. A thrown
+`bad_alloc` is unexpected and MUST enter host fatal diagnostics, not this retry path.
 These limits do not establish larger-document or worst-case latency qualification;
 final capacity/performance profiles remain separate M6 work; counted raw NUL
 admission follows the exact source contract above.
@@ -2839,7 +2846,7 @@ SemanticDocument exposes its source-ordered heading index with level, display na
 collision-resolved fragment slug and exact source/navigation ranges. Fragment resolution
 uses the same index as editor navigation. BuildHeadingTableOfContents generates bounded
 Markdown links with escaped labels and percent-encoded UTF-8 fragments without editing
-the document; a result exceeding the display-unit limit throws length_error.
+the document; a result exceeding the display-unit limit must return an explicit capacity refusal without publication.
 
 RichMarkdown admits a bounded presentation suffix immediately after a standalone
 image: `{width=48 height=40 align=center caption="Map overview"}`. Fields are
