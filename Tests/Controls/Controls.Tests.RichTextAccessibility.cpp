@@ -3209,7 +3209,7 @@ void TestRichSemanticStaleCellCreation()
     fixture.editor->SetText(L"| a | b |\n| - | - |\n| x | y |\n");
     fixture.Publish();
     auto simple = fixture.Simple();
-    auto table = FindSemanticPart(*simple.get(), UIA_TableControlTypeId);
+    auto table  = FindSemanticPart(*simple.get(), UIA_TableControlTypeId);
     Require(table != nullptr, "semantic table exists for the peer creation race");
     wil::com_ptr_nothrow<IGridProvider> grid;
     RequireSucceeded(table.query_to(grid.put()), "semantic table exposes GridPattern");
@@ -3219,15 +3219,16 @@ void TestRichSemanticStaleCellCreation()
     std::atomic<HRESULT> result{E_PENDING};
     wil::com_ptr_nothrow<IRawElementProviderSimple> cell;
     std::jthread worker;
-    bool armed = true;
-    const auto cleanup = wil::scope_exit([&]() noexcept {
+    bool armed         = true;
+    const auto cleanup = wil::scope_exit([&]() noexcept
+    {
         static_cast<void>(SetEvent(release.get()));
         if (worker.joinable())
             worker.join();
         if (armed)
             DebugSetAccessibilityPeerCreationGateForTest(nullptr, nullptr, nullptr);
     });
-    worker = std::jthread([&]() noexcept { result.store(grid->GetItem(0, 0, cell.put()), std::memory_order_release); });
+    worker             = std::jthread([&]() noexcept { result.store(grid->GetItem(0, 0, cell.put()), std::memory_order_release); });
     Require(WaitForSingleObject(entered.get(), 5000u) == WAIT_OBJECT_0, "pause semantic cell creation before its epoch check");
     fixture.editor->SetText(L"replacement");
     fixture.Publish();

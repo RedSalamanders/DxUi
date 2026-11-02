@@ -1775,8 +1775,7 @@ template <typename Prepare> void MathRunFontSize(ControlHost& host, Prepare&& pr
         host.SetRoot(std::move(root));
         prepare();
         const auto scroll = editor->GetScrollInfo();
-        Check(scroll && scroll->contentHeightDip <= scroll->viewportHeightDip,
-              "styled math height oracle sees the entire document without viewport clipping");
+        Check(scroll && scroll->contentHeightDip <= scroll->viewportHeightDip, "styled math height oracle sees the entire document without viewport clipping");
         const auto semantic = editor->GetAcknowledgedSemanticDocument(host);
         Check(semantic != nullptr, "mixed-style math geometry is acknowledged");
         std::array<std::size_t, 4u> maths{};

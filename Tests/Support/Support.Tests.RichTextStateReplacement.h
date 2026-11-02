@@ -177,8 +177,7 @@ template <typename Check> inline void Service(ServiceEditor& editor, ControlHost
     editor.SetText(L"");
     check(editor.ReplaceSelection(L"base"), "record a source edit before a service preview");
     TextInputState preview{.text = L"base\u4eee", .caretIndex = 5u, .multiline = true};
-    check(editor.ImportTextInputState(host, preview, false) && ! editor.CanUndo() && ! editor.Undo() && ! editor.Redo() &&
-              editor.GetText() == L"base\u4eee",
+    check(editor.ImportTextInputState(host, preview, false) && ! editor.CanUndo() && ! editor.Undo() && ! editor.Redo() && editor.GetText() == L"base\u4eee",
           "native/embedded service preview cannot enter undo or redo history");
     preview.text       = L"base";
     preview.caretIndex = 4u;

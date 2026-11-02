@@ -730,9 +730,9 @@ bool Document::Replace(std::size_t begin, std::size_t end, std::wstring_view tex
 }
 bool Document::ReplaceTransient(std::wstring_view text, Selection selection)
 {
-    const auto entry = transientEntry_ ? *transientEntry_ : History{source_, selection_};
+    const auto entry         = transientEntry_ ? *transientEntry_ : History{source_, selection_};
     const bool restoresEntry = entry.source.MatchesText(text);
-    const bool changed = ReplaceWholeTextImpl(text, selection, false);
+    const bool changed       = ReplaceWholeTextImpl(text, selection, false);
     if (restoresEntry)
         transientEntry_.reset();
     else if (changed && ! transientEntry_)

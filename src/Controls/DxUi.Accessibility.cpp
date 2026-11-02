@@ -1375,8 +1375,7 @@ WindowHostSnapshotChanges PublishWindowHostAccessibilitySnapshot(WindowHostAcces
     {
         ControlPath collapsedRootPath{};
         const bool explicitStatusRoot      = root->GetAccessibilityRole() == AccessibilityRole::Status;
-        snapshot->hasCollapsedSemanticRoot = TryResolveSingleSemanticRootControlPath(root, collapsedRootPath) &&
-                                             ! snapshot->semanticControlOrder.empty() &&
+        snapshot->hasCollapsedSemanticRoot = TryResolveSingleSemanticRootControlPath(root, collapsedRootPath) && ! snapshot->semanticControlOrder.empty() &&
                                              (snapshot->semanticControlOrder.size() == 1u || explicitStatusRoot ||
                                               (! snapshot->controlNavigationRecords.empty() && snapshot->controlNavigationRecords.front().radioGroup)) &&
                                              AreControlPathsEqual(snapshot->semanticControlOrder.front(), collapsedRootPath);
@@ -1599,9 +1598,9 @@ template <typename TControl> [[nodiscard]] TControl* ResolveControlAtPath(TContr
 {
     return Detail::RichEditorAccessibilityAccess::As(control) != nullptr || (control && control->GetAccessibilityRole() != AccessibilityRole::Default) ||
            dynamic_cast<const Label*>(control) != nullptr || dynamic_cast<const Button*>(control) != nullptr ||
-           dynamic_cast<const RadioButtons*>(control) != nullptr ||
-           dynamic_cast<const TextField*>(control) != nullptr || dynamic_cast<const ComboBox*>(control) != nullptr ||
-           dynamic_cast<const Tree*>(control) != nullptr || dynamic_cast<const Grid*>(control) != nullptr || dynamic_cast<const Slider*>(control) != nullptr ||
+           dynamic_cast<const RadioButtons*>(control) != nullptr || dynamic_cast<const TextField*>(control) != nullptr ||
+           dynamic_cast<const ComboBox*>(control) != nullptr || dynamic_cast<const Tree*>(control) != nullptr ||
+           dynamic_cast<const Grid*>(control) != nullptr || dynamic_cast<const Slider*>(control) != nullptr ||
            dynamic_cast<const ProgressBar*>(control) != nullptr || dynamic_cast<const ThroughputGraph*>(control) != nullptr ||
            dynamic_cast<const ColorSwatch*>(control) != nullptr || dynamic_cast<const Splitter*>(control) != nullptr ||
            dynamic_cast<const TabControl*>(control) != nullptr || IsPagedPageIndicator(control);

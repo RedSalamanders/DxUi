@@ -115,9 +115,12 @@ public:
     {
         static_cast<void>(target_->AddRef());
     }
-    static wil::com_ptr_nothrow<IRawElementProviderSimple> Create(
-        WindowHostAccessibilityTarget* target, HWND hwnd, const AccessibilityControlNavigationSnapshot& record, size_t element, bool codeCopy = false,
-        HRESULT* failure = nullptr) noexcept
+    static wil::com_ptr_nothrow<IRawElementProviderSimple> Create(WindowHostAccessibilityTarget* target,
+                                                                  HWND hwnd,
+                                                                  const AccessibilityControlNavigationSnapshot& record,
+                                                                  size_t element,
+                                                                  bool codeCopy    = false,
+                                                                  HRESULT* failure = nullptr) noexcept
     {
         wil::com_ptr_nothrow<IRawElementProviderSimple> result;
         if (failure)

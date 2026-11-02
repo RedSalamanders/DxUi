@@ -10135,7 +10135,6 @@ void TestTreeExpansionReachesAClientSubscribedToTheWindow()
     };
     hear(true);
     hear(false);
-
 }
 
 // A tree whose rows come from a prepared source says the same when its focused item expands or collapses. The diff never

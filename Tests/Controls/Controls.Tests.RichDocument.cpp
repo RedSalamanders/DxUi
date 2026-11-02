@@ -476,7 +476,7 @@ void TestRichDocumentBorrowedInputLifetime()
     Require(document.Text() == L"\U0001f469\u200d\U0001f4bb", "selection replacement outlives a temporary owning argument");
     document.Undo();
     const bool undo = document.CanUndo(), redo = document.CanRedo();
-    const auto entryText = document.Text();
+    const auto entryText      = document.Text();
     const auto entrySelection = document.GetSelection();
     {
         std::wstring preview = L"transient\r\n\U0001f600";
@@ -493,8 +493,7 @@ void TestRichDocumentBorrowedInputLifetime()
     superseded.ReplaceTransient(L"base\u4eee", {5u, 5u});
     Require(! superseded.Undo() && ! superseded.Redo() && superseded.Text() == L"base\u4eee",
             "undo and redo cannot publish an uncommitted composition preview");
-    Require(superseded.ReplaceSelection(L"!") && superseded.Undo() && superseded.Text() == L"base" && superseded.Redo() &&
-                superseded.Text() == L"base\u4eee!",
+    Require(superseded.ReplaceSelection(L"!") && superseded.Undo() && superseded.Text() == L"base" && superseded.Redo() && superseded.Text() == L"base\u4eee!",
             "an explicit recorded edit supersedes the preview and undoes to its entry source");
     {
         std::wstring reset = L"reset\r\n\U0001f600";
