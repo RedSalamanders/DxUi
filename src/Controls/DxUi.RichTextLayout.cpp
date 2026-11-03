@@ -5,6 +5,7 @@
 #include <DxUi/RichTextLayout.h>
 #include <algorithm>
 #include <cmath>
+#include <dwrite_1.h>
 #include <new>
 #include <optional>
 #include <stdexcept>
@@ -172,7 +173,7 @@ void Detail::PreparedLayoutAccess::PrepareSemantic(PreparedLayout& owner,
     projection.text.swap(input.text);
     projection.runs.swap(input.runs);
     projection.revision = input.revision;
-    Prepare(owner, factory, projection, options, 0.0f, true, marker, object, objectOffset, objects);
+    Prepare(owner, factory, projection, options, 0.0f, true, marker, object, objectOffset, objects, input.padInlineCode);
 }
 void Detail::PreparedLayoutAccess::Prepare(PreparedLayout& owner,
                                            IDWriteFactory* factory,
@@ -183,7 +184,8 @@ void Detail::PreparedLayoutAccess::Prepare(PreparedLayout& owner,
                                            bool marker,
                                            IDWriteInlineObject* object,
                                            UINT32 objectOffset,
-                                           std::span<const InlineObject> objects)
+                                           std::span<const InlineObject> objects,
+                                           bool padInlineCode)
 {
     const auto width = options.widthDip, fontSize = options.fontSizeDip;
     const auto validName          = [](const std::wstring& name) { return ! name.empty() && name.size() <= 255 && IsValidUtf16(name); };
@@ -318,6 +320,23 @@ void Detail::PreparedLayoutAccess::Prepare(PreparedLayout& owner,
             Check(layout->SetFontFamilyName(options.codeFontFamily.c_str(), range), "SetFontFamilyName");
             if (options.codeFontSizeDip > 0.0f)
                 Check(layout->SetFontSize(options.codeFontSizeDip, range), "Set code font size");
+            if (padInlineCode && run.length)
+            {
+                // Character spacing contributes to native metrics, wrapping,
+                // hit testing and carets. Painting a wider chip alone would
+                // cover neighboring text. Only the two scalar endpoints get
+                // an inset; fenced-code contents retain their original metrics.
+                const auto text1       = layout.query<IDWriteTextLayout1>();
+                const auto firstEnd    = StepToNextCodePoint(projection.text, run.start);
+                const auto lastStart   = StepToPreviousCodePoint(projection.text, run.start + run.length);
+                const auto firstLength = static_cast<UINT32>(firstEnd - run.start);
+                Check(text1->SetCharacterSpacing(3.0f, firstEnd == run.start + run.length ? 3.0f : 0.0f, 0.0f, {range.startPosition, firstLength}),
+                      "Set inline code leading inset");
+                if (firstEnd != run.start + run.length)
+                    Check(text1->SetCharacterSpacing(
+                              0.0f, 3.0f, 0.0f, {static_cast<UINT32>(lastStart) + textOffset, static_cast<UINT32>(run.start + run.length - lastStart)}),
+                          "Set inline code trailing inset");
+            }
         }
         if (run.heading)
         {

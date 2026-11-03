@@ -2555,6 +2555,24 @@ as quotes and code blocks. Inline chips retain source-derived rectangles during
 preparation; painting adds no layout or range mapping. At more than 16,384 chip
 rectangles, the generation omits all cosmetic chips while retaining code font,
 source, selection and accessible content. Header fill is independent of body rows.
+Subtle table columns include ten-DIP horizontal cell insets (clamped to preserve a positive text width in
+exceptionally narrow cells). Inline-code spans reserve three DIP at both scalar endpoints using native character
+spacing, so wrapping, carets, hit testing and chip backgrounds share the same width. These endpoint insets do not
+apply to fenced/indented code contents or literal source mode.
+
+Task markers use the prepared semantic accent brush in the editor; high contrast and dimmed/selected passes
+retain the appropriate foreground ink. Ordered task numbers keep ordinary ink. `strikeCompletedTasks` on the
+editor appearance and semantic layout options defaults to false. When enabled, the nearest checked list item's
+body runs receive presentation-only strikethrough. Nested ordinary or unchecked items keep their own state.
+Explicit source strikethrough remains independent. This option invalidates semantic geometry without changing
+source, selection, revision, command history or accessibility text. Marker metrics and task interaction remain exact.
+
+Adjacent labeled flowchart/ER/class ranks without groups, notes or parallel links reserve measured label and
+cardinality space along the graph's major axis, plus measured cross-axis clearance between sibling boxes so
+branch labels have separate room. Their orthogonal routes use the inter-rank corridor instead of
+an exterior detour. Wider labels expand LR/RL separation; taller labels expand TB/BT separation. More complex
+routes retain bounded exterior lanes and existing exact-source capacity fallback. Preparation reserves one bounded
+rank-gap array; painting retains no graph model and creates no layouts or brushes.
 HTML `mark` shares the bounded retained inline-surface geometry in either Markdown
 presentation. Its theme-resolved neutral fill keeps ordinary text ink; high
 contrast outlines the marked range instead. The selected-text pass uses the

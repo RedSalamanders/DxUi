@@ -250,6 +250,141 @@ void TestRichSemanticGeometryMarkdownSubtlePresentation()
     RichSemanticTests::Run(RichSemanticGeometryTests::MarkdownSubtlePresentation);
     RichSemanticTests::Run(RichSemanticGeometryTests::PaddedCodePresentation);
 }
+void TestRichSemanticInsetsAndCompletedTasks()
+{
+    using namespace DxUi::RichText;
+    using namespace DxUi::RichText::Detail;
+    const auto imaging     = CreateWicFactoryForTest();
+    const auto drawing     = PreparedFlowchartTests::DrawingFactory();
+    const auto nativeWrite = RichSemanticGeometryTests::Factory();
+    const auto write       = Microsoft::WRL::Make<NativeTextTests::CountingWriteFactory>(nativeWrite.get());
+    if (! write)
+        throw std::bad_alloc();
+    const std::wstring source = L"| Field | Value |\n| --- | --- |\n| `title` | Lantern |\n| `draft` | true |\n| `session.samples` | 12 |\n\n"
+                                L"- [ ] Open **work**\n- [x] Completed **work**\n  - [ ] Nested work\n\n"
+                                L"1. [x] Ordered `code` and 😀\n\nOutside `x` and `😀` neighbors.\n";
+    const auto document       = RichSemanticDocumentTests::Build(source);
+    for (const bool rtl : {false, true})
+    {
+        LayoutOptions options;
+        options.widthDip    = 420.0f;
+        options.fontSizeDip = options.codeFontSizeDip = 18.0f;
+        options.markdownPresentation                  = MarkdownPresentationStyle::Subtle;
+        options.readingDirection                      = rtl ? DWRITE_READING_DIRECTION_RIGHT_TO_LEFT : DWRITE_READING_DIRECTION_LEFT_TO_RIGHT;
+        PreparedSemanticGeometry ordinary, completed;
+        const auto firstLayouts = write->layouts;
+        ordinary.Begin(write.Get(), document, options);
+        RichSemanticGeometryTests::Complete(ordinary);
+        const auto ordinaryLayouts   = write->layouts - firstLayouts;
+        options.strikeCompletedTasks = true;
+        completed.Begin(write.Get(), document, options);
+        RichSemanticGeometryTests::Complete(completed);
+        Require(std::abs(ordinary.Height() - completed.Height()) < .01f && ordinary.Document().Map().Source() == source &&
+                    completed.Document().Map().Source() == source,
+                "completion presentation keeps source and native line geometry exact");
+        Require(write->layouts - firstLayouts == ordinaryLayouts * 2u, "completion styling adds no extra SDK layouts");
+        const auto range = [&](std::wstring_view text)
+        {
+            const auto first      = source.find(text);
+            const auto rectangles = ordinary.SourceRange({first, first + text.size()});
+            Require(rectangles.size() == 1u, "inset/task oracle owns one actual glyph rectangle");
+            return rectangles.front();
+        };
+        for (const auto word : {L"title", L"draft", L"session.samples"})
+        {
+            const auto cell = std::ranges::find_if(document->Elements(), [&](const auto& element) {
+                return element.role == SemanticRole::Cell && document->Syntax()->Slice(element.source).find(word) != std::wstring_view::npos;
+            });
+            Require(cell != document->Elements().end(), "code word belongs to a source-backed table cell");
+            const auto frame = ordinary.ElementBounds(static_cast<std::size_t>(cell - document->Elements().begin())).value();
+            const auto text  = range(word);
+            Require(text.left >= frame.left + 9.9f && text.right <= frame.right - 9.9f, "table text clears both cell borders in either reading direction");
+            wil::com_ptr<IDWriteTextFormat> format;
+            THROW_IF_FAILED(write->CreateTextFormat(
+                L"Consolas", nullptr, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, 18.0f, L"en-us", format.put()));
+            wil::com_ptr<IDWriteTextLayout> plain;
+            THROW_IF_FAILED(write->CreateTextLayout(word, static_cast<UINT32>(std::wstring_view(word).size()), format.get(), 1000.0f, 1000.0f, plain.put()));
+            DWRITE_TEXT_METRICS metrics{};
+            THROW_IF_FAILED(plain->GetMetrics(&metrics));
+            Require(text.right - text.left >= metrics.widthIncludingTrailingWhitespace + 5.9f,
+                    "inline-code native metrics reserve three DIP on both sides of the independently shaped word");
+        }
+        constexpr UINT width = 440u, height = 520u, stride = width * 4u;
+        for (unsigned theme = 0u; theme < 3u; ++theme)
+        {
+            const bool dark = theme != 0u;
+            wil::com_ptr<IWICBitmap> bitmap;
+            THROW_IF_FAILED(imaging->CreateBitmap(width, height, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnLoad, bitmap.put()));
+            wil::com_ptr<ID2D1RenderTarget> target;
+            THROW_IF_FAILED(drawing->CreateWicBitmapRenderTarget(
+                bitmap.get(),
+                D2D1::RenderTargetProperties(
+                    D2D1_RENDER_TARGET_TYPE_SOFTWARE, D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED), 96.0f, 96.0f),
+                target.put()));
+            target->SetTextAntialiasMode(D2D1_TEXT_ANTIALIAS_MODE_GRAYSCALE);
+            wil::com_ptr<ID2D1SolidColorBrush> text, accent, chip;
+            THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(dark ? D2D1::ColorF::White : D2D1::ColorF::Black), text.put()));
+            THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(.85f, .15f, .25f), accent.put()));
+            THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(dark ? .2f : .9f, dark ? .2f : .9f, dark ? .2f : .9f), chip.put()));
+            const auto raster = [&](const PreparedSemanticGeometry& geometry)
+            {
+                target->BeginDraw();
+                target->Clear(D2D1::ColorF(dark ? D2D1::ColorF::Black : D2D1::ColorF::White));
+                geometry.Draw(target.get(),
+                              text.get(),
+                              text.get(),
+                              {0.0f, 0.0f},
+                              0.0f,
+                              static_cast<float>(height),
+                              nullptr,
+                              1.0f,
+                              nullptr,
+                              chip.get(),
+                              nullptr,
+                              theme == 2u ? text.get() : accent.get());
+                THROW_IF_FAILED(target->EndDraw());
+                std::vector<BYTE> pixels(stride * height);
+                THROW_IF_FAILED(bitmap->CopyPixels(nullptr, stride, static_cast<UINT>(pixels.size()), pixels.data()));
+                return pixels;
+            };
+            const auto before = raster(ordinary), after = raster(completed);
+            const auto differences = [&](D2D1_RECT_F region)
+            {
+                std::size_t count{};
+                for (UINT y = 0u; y < height; ++y)
+                    for (UINT x = 0u; x < width; ++x)
+                        if (static_cast<float>(x) >= region.left && static_cast<float>(x) < region.right && static_cast<float>(y) >= region.top &&
+                            static_cast<float>(y) < region.bottom)
+                            count += before[y * stride + x * 4u] != after[y * stride + x * 4u];
+                return count;
+            };
+            Require(differences(range(L"Completed")) > 0u && differences(range(L"Ordered")) > 0u && differences(range(L"Open")) == 0u &&
+                        differences(range(L"Nested")) == 0u,
+                    "real strike-through pixels affect checked bodies, including ordered tasks, while unchecked and nested tasks stay exact");
+            for (const auto& element : document->Elements())
+                if (element.role == SemanticRole::Task)
+                {
+                    const auto rectangles = ordinary.SourceRange(element.taskMarker);
+                    Require(rectangles.size() == 1u && differences(rectangles.front()) == 0u,
+                            "completed-task strike-through never changes checkbox metrics or pixels");
+                    std::size_t colored{};
+                    for (UINT y = 0u; y < height; ++y)
+                        for (UINT x = 0u; x < width; ++x)
+                            if (static_cast<float>(x) >= rectangles.front().left && static_cast<float>(x) < rectangles.front().right &&
+                                static_cast<float>(y) >= rectangles.front().top && static_cast<float>(y) < rectangles.front().bottom)
+                            {
+                                const auto offset = y * stride + x * 4u;
+                                colored += before[offset + 2u] > before[offset + 1u] + 40u;
+                            }
+                    Require(theme == 2u ? colored == 0u : colored > 0u, "both task states use accent ink and preserve explicit high-contrast foreground");
+                }
+            const auto generation  = ordinary.Generation();
+            const auto warmLayouts = write->layouts;
+            Require(before == raster(ordinary) && ordinary.Generation() == generation && ! ordinary.Pending() && write->layouts == warmLayouts,
+                    "warm task/code drawing is deterministic and does no preparation");
+        }
+    }
+}
 void TestRichSemanticCodeChromeUsesReadableTextInk()
 {
     using namespace DxUi::RichText;
@@ -522,6 +657,7 @@ void RunRichSemanticGeometryTests()
     DXUI_RUN_TEST(TestRichSemanticNativeMathAndBroaderDiagrams);
     DXUI_RUN_TEST(TestRichSemanticGeometryParagraphsTablesAndSourceRanges);
     DXUI_RUN_TEST(TestRichSemanticGeometryMarkdownSubtlePresentation);
+    DXUI_RUN_TEST(TestRichSemanticInsetsAndCompletedTasks);
     DXUI_RUN_TEST(TestRichSemanticCodeChromeUsesReadableTextInk);
     DXUI_RUN_TEST(TestNativeSequenceExtensionsRasterAndResources);
     DXUI_RUN_TEST(TestRichSemanticDocumentHeadingMarginsAndIndentation);

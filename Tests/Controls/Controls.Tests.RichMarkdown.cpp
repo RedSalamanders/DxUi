@@ -1248,6 +1248,81 @@ void TestNativeRelationshipFanPortsAndCardinalities()
             }
     }
 }
+void TestNativeLabeledRankCorridors()
+{
+    using namespace DxUi::RichText::Detail;
+    const auto overlaps = [](const FlowchartRect& a, const FlowchartRect& b)
+    { return a.width > 0.0 && b.width > 0.0 && a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height; };
+    for (const std::wstring_view direction : {L"LR", L"RL", L"TB", L"BT"})
+    {
+        const auto graph =
+            FlowchartLayoutTests::Graph(std::wstring(L"flowchart ") + std::wstring(direction) + L"\nA[<b>Warning: </b>] -->|<i>continue </i>| B[Continue]\n");
+        Require(graph && graph->outcome == FlowchartOutcome::Prepared, "styled corridor fixture parses in each direction");
+        const std::array<FlowchartSize, 2> nodes{{{68.0, 20.0}, {72.0, 20.0}}};
+        const bool horizontal = direction == L"LR" || direction == L"RL";
+        double smallGap{};
+        for (const auto label : {FlowchartSize{20.0, 12.0}, FlowchartSize{180.0, 52.0}})
+        {
+            const std::array labels{label};
+            NativeFlowchartLayout layout;
+            layout.Begin(graph, nodes, labels);
+            const auto plan = FlowchartLayoutTests::Complete(layout, Require, 1u);
+            Require(plan && plan->issue == FlowchartLayoutIssue::None, "measured label corridor publishes under a one-unit budget");
+            FlowchartLayoutTests::Invariants(*plan, Require);
+            const auto& a = plan->nodes[0u].bounds;
+            const auto& b = plan->nodes[1u].bounds;
+            const auto gap =
+                horizontal ? std::max(a.x, b.x) - std::min(a.x + a.width, b.x + b.width) : std::max(a.y, b.y) - std::min(a.y + a.height, b.y + b.height);
+            const auto& edge = plan->edges[0u];
+            Require(gap >= (horizontal ? label.width : label.height) + 16.0 && ! overlaps(edge.label, a) && ! overlaps(edge.label, b),
+                    "inter-box space contains the full measured label and a visible inset on both sides");
+            for (const auto point : edge.path)
+                Require(horizontal ? point.y >= a.y && point.y <= a.y + a.height : point.x >= a.x && point.x <= a.x + a.width,
+                        "a simple labeled link follows the shared centerline instead of an exterior detour");
+            if (label.width == 20.0)
+                smallGap = gap;
+            else
+                Require(gap > smallGap, "a wider or taller label increases separation along the actual graph direction");
+        }
+    }
+    for (const std::wstring_view direction : {L"LR", L"RL", L"TB", L"BT"})
+    {
+        const auto fan = FlowchartLayoutTests::Graph(std::wstring(L"flowchart ") + std::wstring(direction) +
+                                                     L"\nA -->|a long relationship label| B\nA -->|another long relationship label| C\n");
+        const std::array<FlowchartSize, 3> nodes{{{68.0, 20.0}, {72.0, 20.0}, {72.0, 20.0}}};
+        const std::array<FlowchartSize, 2> labels{{{180.0, 52.0}, {180.0, 52.0}}};
+        NativeFlowchartLayout layout;
+        layout.Begin(fan, nodes, labels);
+        const auto plan = FlowchartLayoutTests::Complete(layout, Require);
+        Require(plan && plan->issue == FlowchartLayoutIssue::None && ! overlaps(plan->edges[0u].label, plan->edges[1u].label),
+                "branching arrows reserve cross-axis room for adjacent long labels in each direction");
+    }
+    const auto graph =
+        FlowchartLayoutTests::Graph(L"erDiagram\nCUSTOMER ||--o{ ORDER : places\nORDER ||--|{ LINE-ITEM : contains\nCUSTOMER }|..|{ DELIVERY-ADDRESS : uses\n");
+    std::vector<FlowchartSize> nodes;
+    for (const auto& node : graph->nodes)
+        nodes.push_back({static_cast<double>(node.label.size()) * 8.0, 20.0});
+    const std::array<FlowchartSize, 3> labels{{{48.0, 20.0}, {64.0, 20.0}, {32.0, 20.0}}};
+    const std::array<FlowchartSize, 3> cardinalities{{{24.0, 16.0}, {24.0, 16.0}, {24.0, 16.0}}};
+    NativeFlowchartLayout layout;
+    layout.Begin(graph, nodes, labels, cardinalities, cardinalities);
+    const auto plan = FlowchartLayoutTests::Complete(layout, Require);
+    Require(plan && plan->issue == FlowchartLayoutIssue::None, "the supplied ER fan remains a native diagram");
+    FlowchartLayoutTests::Invariants(*plan, Require);
+    for (std::size_t i = 0u; i < plan->edges.size(); ++i)
+    {
+        const auto& edge = plan->edges[i];
+        for (const auto& node : plan->nodes)
+            Require(! overlaps(edge.label, node.bounds), "ER relationship text clears every entity");
+        for (std::size_t j = 0u; j < plan->edges.size(); ++j)
+        {
+            const auto& other = plan->edges[j];
+            Require((i == j || ! overlaps(edge.label, other.label)) && ! overlaps(edge.label, other.fromCardinality) &&
+                        ! overlaps(edge.label, other.toCardinality),
+                    "relationship labels and endpoint cardinalities have separate rectangles");
+        }
+    }
+}
 void TestNativeFlowchartLayoutIndependentCorpusAndRouting()
 {
     FlowchartLayoutTests::Corpus(Require);
@@ -1697,6 +1772,7 @@ void RunRichMarkdownTests()
     DXUI_RUN_TEST(TestNativeFlowchartDeterministicGeometry);
     DXUI_RUN_TEST(TestNativeFlowchartTrimmedStyledLabelsRemainAdmissible);
     DXUI_RUN_TEST(TestNativeRelationshipFanPortsAndCardinalities);
+    DXUI_RUN_TEST(TestNativeLabeledRankCorridors);
     DXUI_RUN_TEST(TestNativeSequenceActorsNotesNumbersAndDefaultDirection);
     DXUI_RUN_TEST(TestNativeFlowchartLayoutIndependentCorpusAndRouting);
     DXUI_RUN_TEST(TestNativeFlowchartLayoutAdmissionAndCancellation);

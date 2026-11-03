@@ -1131,6 +1131,9 @@ void AddComboItems(ComboBox& combo)
             L"- [x] Checked task\n- [ ] Unchecked task\n\n> Source-preserving semantic preview");
         editor->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::Gfm029);
         editor->SetMarkdownRenderingEnabled(true);
+        auto taskAppearance                 = editor->GetAppearance();
+        taskAppearance.strikeCompletedTasks = true;
+        editor->SetAppearance(taskAppearance);
         editor->SetBounds(tile.content);
     }
     {

@@ -1,5 +1,8 @@
 # Independent DxUi measurements
 
+- [Diagram spacing, text insets and task presentation](DiagramSpacing_2026-11-03/README.md): retained detour reproduction,
+  measured rank corridors, native text insets and accent/optional-strike task regressions. Consumer and broader qualification are separate.
+
 - [Native Mermaid syntax expansion, 3 November](MermaidSyntax_2026-11-03/README.md): preserved fixed baseline, five fail-before syntax forms, bounded actor/note/number geometry and raster/resource regressions; consumer adoption and broader qualification retain separate evidence.
 
 - [Mermaid and Markdown display corrections, 3 November](MermaidDisplay_2026-11-03/README.md): retained fail-before CPU/app reproductions, zero-warning x64 Release build, four native suites with zero capability skips and refreshed themed gallery; broader qualification remains open.

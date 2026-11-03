@@ -1592,6 +1592,16 @@ fan-out relationships reserve separate endpoint slots and measured cardinality s
 over-capacity geometry still retains exact source. Task checkboxes replace unordered bullets, while ordered
 task numbering stays visible. Subtle code language badges and line numbers use foreground text ink in all themes.
 
+Adjacent labeled links reserve measured text space between boxes and use that corridor directly in LR/RL/TB/BT
+diagrams. Branching links also reserve cross-axis room between sibling boxes. More complex routes retain their bounded exterior lanes. Subtle table cells have ten-DIP side insets
+when space permits; inline-code chips add three DIP at each text endpoint in native layout metrics.
+
+Task markers use the current theme accent, with foreground ink in high contrast. Set
+`RichTextEditorAppearance::strikeCompletedTasks` (or `RichText::LayoutOptions::strikeCompletedTasks`) to opt into
+completed-task body strikethrough. It defaults to false, leaves nested unchecked items unchanged, and never rewrites
+Markdown or changes selection, revision, history or accessibility text. Explicit `~~text~~` remains independent.
+This additive API remains revision 4; rebuild the library and consumers with exact matching headers and native tools.
+
 RichMarkdown recognizes `$...$` and `\(...\)` inside ordinary
 inline leaves. Single-dollar math is single-line and requires nonspace content edges;
 a closing dollar followed by a digit is currency text. Explicit `\(...\)` delimiters

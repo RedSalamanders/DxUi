@@ -661,7 +661,7 @@ struct SemanticBox
     float x{}, y{}, width{}, height{}, codeGutter{};
     D2D1_RECT_F frame{};
     std::optional<MarkdownEmptyLine> sourceCaret;
-    bool caretOnly{}, markerOnly{}, markerLayout{}, rtl{};
+    bool caretOnly{}, markerOnly{}, markerLayout{}, rtl{}, taskMarker{};
     bool authoredColorSurfaceKnown = true;
     const NativeDiagramPlacement* native{};
     const NativeImageGeometry* images{};
@@ -1265,6 +1265,25 @@ struct PreparedSemanticGeometry::Preparation
             throw std::overflow_error("Nonfinite semantic marker gutter");
         return result;
     }
+    void PrepareBodyInput(const SemanticParagraph& content, PreparedLayoutAccess::SemanticInput& projection) const
+    {
+        SemanticDisplayInput(*state->document, content.display, projection);
+        projection.padInlineCode =
+            state->options.markdownPresentation == MarkdownPresentationStyle::Subtle && state->document->Elements()[content.element].role != SemanticRole::Code;
+        if (! state->options.strikeCompletedTasks)
+            return;
+        const auto& nodes = state->document->Syntax()->Nodes();
+        for (auto node = content.syntaxNode; node != MarkdownNoNode; node = nodes[node].parent)
+            if (nodes[node].block.kind == MarkdownBlockKind::ListItem)
+            {
+                // The nearest item owns completion. Nested unchecked/ordinary
+                // items never inherit a parent's checked presentation.
+                if (nodes[node].task == MarkdownTask::Checked)
+                    for (auto& run : projection.runs)
+                        run.flags |= Strike;
+                return;
+            }
+    }
     bool MeasureMarkerOne()
     {
         const auto paragraphs = state->document->Paragraphs();
@@ -1299,6 +1318,11 @@ struct PreparedSemanticGeometry::Preparation
         options.textAlignment = DWRITE_TEXT_ALIGNMENT_LEADING;
         PreparedLayoutAccess::SemanticInput projection;
         SemanticDisplayInput(*state->document, box->paragraph.display, projection);
+        // SemanticBuilder emits the owned checkbox followed by one generated
+        // space, after any ordered-list number. Authored body glyphs never
+        // enter this marker-only input.
+        box->taskMarker  = projection.text.size() >= 2u &&
+                           (projection.text[projection.text.size() - 2u] == L'\u2610' || projection.text[projection.text.size() - 2u] == L'\u2611');
         bool reused      = false;
         const auto& node = state->document->Syntax()->Nodes()[content.syntaxNode];
         if (previousState && node.identity != 0u)
@@ -1397,7 +1421,7 @@ struct PreparedSemanticGeometry::Preparation
         options.widthDip         = std::max(state->options.widthDip, 1048576.0f);
         options.textAlignment    = DWRITE_TEXT_ALIGNMENT_LEADING;
         PreparedLayoutAccess::SemanticInput projection;
-        SemanticDisplayInput(*state->document, content.display, projection);
+        PrepareBodyInput(content, projection);
         PreparedLayout measured;
         PreparedLayoutAccess::PrepareSemantic(measured, state->factory.get(), projection, options, true);
         const auto textBounds         = PreparedLayoutAccess::HorizontalTextBounds(measured);
@@ -1422,8 +1446,8 @@ struct PreparedSemanticGeometry::Preparation
             const auto extent = diagram->paint->Geometry()->extent;
             includeObjectWidth(state->document->Elements()[diagram->element].display, static_cast<float>(extent.width));
         }
-        const auto minimum = minimumWidth + 12.0f;
-        const auto width   = std::max(textWidth + 12.0f, minimum);
+        const auto minimum = minimumWidth + 20.0f;
+        const auto width   = std::max(textWidth + 20.0f, minimum);
         if (! std::isfinite(width) || ! std::isfinite(minimum) || width <= 0.0f)
             throw std::overflow_error("Nonfinite intrinsic table column width");
         const auto previous               = sizing->preferred[content.column];
@@ -1662,9 +1686,11 @@ struct PreparedSemanticGeometry::Preparation
             }
             else
                 box->x += cellWidth * static_cast<float>(column);
-            box->x += 6.0f;
+            const auto inset =
+                std::min(next.options.markdownPresentation == MarkdownPresentationStyle::Subtle ? 10.0f : 6.0f, std::max(0.0f, (cellWidth - 1.0f) * .5f));
+            box->x += inset;
             box->y += 6.0f;
-            box->width = std::max(1.0f, cellWidth - 12.0f);
+            box->width = std::max(1.0f, cellWidth - 2.0f * inset);
         }
         else if (next.options.markdownPresentation == MarkdownPresentationStyle::Subtle)
         {
@@ -1730,7 +1756,7 @@ struct PreparedSemanticGeometry::Preparation
         if (! box->layout.Ready())
         {
             PreparedLayoutAccess::SemanticInput projection;
-            SemanticDisplayInput(*next.document, content.display, projection);
+            PrepareBodyInput(content, projection);
             wil::com_ptr<IDWriteInlineObject> placeholder;
             if (native)
             {
@@ -2101,7 +2127,9 @@ struct PreparedSemanticGeometry::Preparation
                     throw std::logic_error("Missing intrinsic semantic table row widths");
                 cellWidth = sizing->widths[box.paragraph.column];
             }
-            const auto left                    = box.x - 6.0f;
+            const auto inset =
+                std::min(next.options.markdownPresentation == MarkdownPresentationStyle::Subtle ? 10.0f : 6.0f, std::max(0.0f, (cellWidth - 1.0f) * .5f));
+            const auto left                    = box.x - inset;
             rowLeft                            = std::min(rowLeft, left);
             rowRight                           = std::max(rowRight, left + cellWidth);
             box.frame                          = D2D1::RectF(left, y, left + cellWidth, y + rowHeight + 12.0f);
@@ -3414,7 +3442,17 @@ void PreparedSemanticGeometry::Draw(ID2D1RenderTarget* target,
                 }
             auto localLinks = links ? *links : LinkDrawing{};
             localLinks.displayOrigin += box->paragraph.display.first;
-            box->layout.Draw(target, boxText, D2D1::Point2F(origin.x + box->x, origin.y + box->y), links ? &localLinks : nullptr);
+            const auto taskEnd = box->paragraph.display.last - (box->taskMarker ? 1u : 0u);
+            const TextInkRange taskInk{{taskEnd - (box->taskMarker ? 1u : 0u), taskEnd}, TextInkRole::Accent};
+            if (box->taskMarker && calloutAccent)
+            {
+                // The owned marker alone receives accent ink. Its native
+                // metrics, hit target, source mapping and selected-text pass
+                // stay unchanged; high contrast supplies foreground ink.
+                localLinks.inkRanges                                                 = std::span<const TextInkRange>(&taskInk, 1u);
+                localLinks.inkBrushes[static_cast<std::size_t>(TextInkRole::Accent)] = calloutAccent;
+            }
+            box->layout.Draw(target, boxText, D2D1::Point2F(origin.x + box->x, origin.y + box->y), links || box->taskMarker ? &localLinks : nullptr);
             if (box->native &&
                 ! box->native->paint->Draw(target,
                                            boxText,
