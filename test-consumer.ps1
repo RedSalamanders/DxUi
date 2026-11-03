@@ -101,7 +101,8 @@ Copy-Item -LiteralPath (Join-Path $checkout 'Tests/ConsumerModules/ConsumerModul
 Copy-Item -LiteralPath (Join-Path $checkout 'Tests/ConsumerModules/ConsumerModules.Tests.Driver.cpp') -Destination $consumer
 Copy-Item -LiteralPath (Join-Path $checkout 'Tests/Support/Support.Tests.DumpReader.h') -Destination $consumer
 Copy-Item -LiteralPath (Join-Path $checkout 'Tests/Support/Support.Tests.FailureReports.h') -Destination $consumer
-Copy-Item -LiteralPath (Join-Path $checkout 'src/Support/Failure.Tests.Hooks.h') -Destination $consumer
+New-Item -ItemType Directory -Path (Join-Path $consumer 'Support') -Force | Out-Null
+Copy-Item -LiteralPath (Join-Path $checkout 'src/Support/Failure.Tests.Hooks.h') -Destination (Join-Path $consumer 'Support')
 Copy-Item -LiteralPath (Join-Path $checkout 'Tests/Support/Support.Tests.UiaTestClient.h') -Destination $consumer
 foreach ($moduleName in @('NativeModuleA','NativeModuleB','NativeModuleDriver')) {
     $moduleProject = [xml]$project

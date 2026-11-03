@@ -104,6 +104,11 @@ reopening their historical checklists or relabeling old allocation sweeps as fat
 
 ### Working-tree progress, not acceptance
 
+- The `fe34d0bf` cohort passes all six zero-warning builds, all four clean-pin consumer configurations and the
+  extracted production SDK's producer-PDB isolation and both negative controls. The ASan annotations-disabled
+  consumer passes all 16 fatal origin/dump/exit probes; the earlier timeout remains unassigned and preserved.
+  PR 162's dependency validator finds a copied private-header path mismatch in the new driver. The fixture now
+  preserves its canonical `Support/` include layout; all five source validators pass before the next freeze.
 - All six `b2880fca` builds pass with zero warnings/errors, and Debug/Release/ASan annotated clean-pin consumers
   pass. The annotations-disabled ASan consumer times out at fatal scenario 9 after writing a successful record/dump
   for PID 108248. That child did not pass exit/origin verification; no cause is assigned. The driver now uses the

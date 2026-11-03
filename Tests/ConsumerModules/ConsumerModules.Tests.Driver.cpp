@@ -1,7 +1,7 @@
-#include "Failure.Tests.Hooks.h"
 #include "FailureHost.h"
 #include "Support.Tests.DumpReader.h"
 #include "Support.Tests.FailureReports.h"
+#include "Support/Failure.Tests.Hooks.h"
 #include <objbase.h>
 
 // UI Automation needs COM declarations even with lean Windows headers.
