@@ -2,8 +2,9 @@
 
 Allocation/refusal contracts below refer to explicit checked nonthrowing results under the
 [failure policy](../Core/Core_FailureHandling.md). Unexpected C++ exceptions, including bad_alloc, require host
-fatal diagnostics. The published implementation and old throwing-fault sweeps still need the recorded migration;
-they are not evidence of this new policy's acceptance.
+fatal diagnostics. API 5 implements this routing; its final qualification is tracked by the
+[migration plan](../Plans/WIP/FailurePolicy_2026-11-02.md). Historical throwing-fault recovery sweeps do not
+establish this policy's acceptance.
 
 Checked prepared-text layout creation must propagate every failed native metrics
 query before replacing the published source, generation or hit/caret geometry.
@@ -1047,8 +1048,9 @@ Callers must revalidate their owner/control/source identities after callbacks be
 `TryAdoptReadOnlyMarkdownSyntax(snapshot, syntax)` optionally reuses a completed canonical parse after source
 synchronization. It requires the exact current immutable snapshot, read-only Source mode and matching configured
 profile/extensions. Region-scoped syntax is refused even when its resolved region is empty. A mismatch returns
-`S_FALSE` without changing pending or published work. Allocation failure returns `E_OUTOFMEMORY` with the prior
-publication intact. Ordinary independent parsing remains available whenever reuse is unavailable.
+`S_FALSE` without changing pending or published work. Unexpected C++ allocation failure uses the host fatal
+diagnostic path; this adoption operation has no checked allocation-refusal result. Ordinary independent parsing
+remains available whenever reuse is refused.
 
 Successful adoption shares only immutable source/AST collections through one flattened canonical owner. Its
 wrapper publishes the target's revision and a fresh document identity; node identities are meaningful only with

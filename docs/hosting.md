@@ -1,8 +1,9 @@
 # Hosting, input and lifetime
 
 The [allocation/exception policy](../Specs/Core/Core_FailureHandling.md) requires explicit checked refusal or
-host fatal diagnostics for unexpected C++ exceptions. Its runtime/consumer integration is still unimplemented;
-current source and earlier exception-recovery receipts do not establish the new fatal-stack/dump behavior.
+host fatal diagnostics for unexpected C++ exceptions. API 5 implements the runtime and example host; library
+qualification remains in progress, and each application owns its product integration. Earlier exception-recovery
+receipts do not establish the new fatal-stack/dump behavior.
 Returned HRESULT recovery described below applies to checked/native failures, not catch-and-continue on a throw.
 
 For a deterministic native software-rendering host, call `Attach(hwnd, {.forceWarp = true})` before creating
@@ -99,9 +100,10 @@ If a transport can retain the exact key/character association itself, pass that 
 key-up. The correlated overload consumes a matching stale character without retargeting; a foreign or mismatched
 attempt is rejected and leaves the receipt available for its correct view/character. Do not retry a rejected
 correlated character through the bare overload. A false return does not prove a matching receipt remains
-unconsumed: the receipt is reset before `OnChar`, which may return false or throw a non-allocation exception.
-Before a transport begins passing correlated receipts, repair and test those post-consumption outcomes so they
-report the character handled and cannot cause a fallback or duplicate delivery. The bare overload remains independent committed text input and is
+unconsumed: the receipt is reset before `OnChar`, which may return false. Before a transport begins passing
+correlated receipts, repair and test that post-consumption outcome so it reports the character handled and cannot
+cause a fallback or duplicate delivery. An unexpected exception from `OnChar` takes the host fatal diagnostic path;
+it cannot be repaired or retried by the transport. The bare overload remains independent committed text input and is
 appropriate for standalone characters, including Unicode and IME paths that are not translated from Return or Space.
 An explicitly accepted editor Return and an unhandled text-input key can still insert once into the same focused owner.
 Nested key dispatches must use distinct receipt objects. Reusing one object for overlapping calls invalidates its

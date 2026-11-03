@@ -2,7 +2,7 @@
 
 The [failure policy](../Core/Core_FailureHandling.md) governs C++ callbacks, allocation and ABI containment.
 Expected refusals use explicit nonthrowing results. Unexpected exceptions require host fatal diagnostics and
-termination; the current published implementation still needs the linked migration and is not qualified for it.
+termination. API 5 implements this routing; final qualification remains tracked in the linked migration plan.
 
 RichTextEditor local-fragment links expose Invoke and support Ctrl+click or Ctrl+Enter at the
 source caret. External links expose Invoke only while an activation handler is registered. A current, enabled, non-composing semantic publication is required;

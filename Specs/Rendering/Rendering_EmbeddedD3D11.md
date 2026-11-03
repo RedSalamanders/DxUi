@@ -1,8 +1,9 @@
 # Embedded D3D11 hosting
 
 The [C++ failure policy](../Core/Core_FailureHandling.md) distinguishes explicit HRESULT/null refusal from
-unexpected exceptions. Its host fatal/context/dump implementation remains pending; existing exception-recovery
-receipts are historical evidence and do not establish conformance to that policy.
+unexpected exceptions. API 5 implements the host fatal/context handoff and example dump owner; final
+qualification is tracked by the linked failure contract. Existing exception-recovery receipts are historical
+evidence and do not establish conformance to that policy.
 
 Opt-in RichTextEditor Markdown analysis uses this host's existing preparation
 traversal and continuation coalescing. Pending parsing returns S_FALSE before

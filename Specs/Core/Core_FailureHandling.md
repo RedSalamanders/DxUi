@@ -7,13 +7,13 @@ This contract owns C++ failure handling in DxUi, including application callbacks
 requires explicit checked failures or a fatal host diagnostic path. `std::bad_alloc` is unexpected, like any other
 escaping C++ exception; catching it and continuing is not the ordinary allocation-failure protocol.
 
-**Implementation status:** published source `5fc4d4c383bfa4891ee57a138924107bbbf11a2e` does not conform.
-The active worktree introduces a versioned `Failure::HostServices` handoff, explicit module registration and
-`Failure::Scope`, an application-owned sample reporter, checked control factory storage, and checked results in
-several document and parser paths. These are implementation in progress, not qualified behavior: remaining
-exception sites and the unrun native, corpus, fatal-child, dump-context, performance and consumer gates are tracked
-in the [migration plan](../Plans/WIP/FailurePolicy_2026-11-02.md). Historical functional receipts establish their
-original behavior only. No dump guarantee or product adoption is claimed.
+**Implementation status:** API 5 implements the versioned `Failure::HostServices` handoff, explicit module
+registration and `Failure::Scope`, an application-owned sample reporter, checked control factory storage, and
+checked document/parser results. The static exception inventory is complete; current-source native, corpus,
+fatal-child, dump-context, performance and isolated-consumer qualification is tracked in the
+[migration plan](../Plans/WIP/FailurePolicy_2026-11-02.md) and remains open until its recorded gates pass.
+Historical source `5fc4d4c383bfa4891ee57a138924107bbbf11a2e` used exception recovery and does not conform;
+its functional receipts establish that original behavior only. No dump guarantee or product adoption is claimed.
 
 ## Failure classification
 

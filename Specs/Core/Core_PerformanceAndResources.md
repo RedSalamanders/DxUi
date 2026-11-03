@@ -2,8 +2,9 @@
 
 Allocation failure and retry below mean explicit checked nonthrowing refusal under
 [Failure handling and allocation](Core_FailureHandling.md), not an escaped C++ exception. Unexpected bad_alloc
-and callback exceptions require host fatal diagnostics. The published implementation and historical throwing
-fault sweeps have not yet completed that policy's migration; resource measurements do not qualify it.
+and callback exceptions require host fatal diagnostics, implemented by API 5. Its final qualification remains
+tracked in the failure migration plan; historical throwing-fault recovery sweeps and resource measurements
+alone do not qualify it.
 
 Bulk Grid and Tree selection builds a staged visible-order list with hash membership and a fixed-width radix-sorted
 membership copy. Its expected work is linear in visible and requested IDs, including reverse-ordered IDs; allocation
