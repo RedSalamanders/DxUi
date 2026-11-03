@@ -1186,6 +1186,68 @@ void TestNativeFlowchartDeterministicGeometry()
 {
     FlowchartLayoutTests::Geometry(Require);
 }
+void TestNativeFlowchartTrimmedStyledLabelsRemainAdmissible()
+{
+    using namespace DxUi::RichText::Detail;
+    for (const std::wstring_view source : {L"flowchart LR\nA[<b>Warning: </b>] --> B\n",
+                                           L"flowchart TD\nA -- <b>yes </b> --> B\n",
+                                           L"flowchart TD\nA -->|<i>maybe </i>| B\n",
+                                           L"flowchart TD\nA[<b>x<br></b>]\n",
+                                           L"flowchart TD\nA[a<b> </b>]\n",
+                                           L"flowchart TD\nA>text <b>x </b>]\n",
+                                           L"flowchart TD\r\nA[😀<b>x </b>] --> B\r\n"})
+    {
+        const auto graph = FlowchartLayoutTests::Graph(source);
+        Require(graph && graph->outcome == FlowchartOutcome::Prepared && graph->source == source,
+                "styled labels with trailing whitespace retain their exact diagram source");
+        for (const auto& node : graph->nodes)
+            Require(ValidLabelStyles(node.styles, node.label.size(), true), "node styles stay within the final decoded label");
+        for (const auto& edge : graph->edges)
+            Require(ValidLabelStyles(edge.styles, edge.label.size(), true), "edge styles stay within the final decoded label");
+        const auto plan = FlowchartLayoutTests::Place(graph, Require);
+        Require(plan && plan->issue == FlowchartLayoutIssue::None, "published styled-label models are accepted by native layout");
+    }
+}
+void TestNativeRelationshipFanPortsAndCardinalities()
+{
+    using namespace DxUi::RichText::Detail;
+    for (const std::wstring_view source :
+         {L"erDiagram\nCUSTOMER ||--o{ ORDER : places\nORDER ||--|{ LINE-ITEM : contains\nCUSTOMER }|..|{ DELIVERY-ADDRESS : uses\n",
+          L"erDiagram\nA ||--o{ B : first\nA ||--o{ C : second\n",
+          L"erDiagram\nA ||--o{ C : first\nB ||--o{ C : second\n",
+          L"classDiagram\nA \"1\" --> \"*\" B\nA \"1\" --> \"*\" C\n",
+          L"classDiagram\ndirection LR\nA \"1\" --> \"*\" B\nA \"1\" --> \"*\" C\n",
+          L"classDiagram\ndirection BT\nA \"1\" --> \"*\" B\nA \"1\" --> \"*\" C\n",
+          L"classDiagram\ndirection RL\nA \"1\" --> \"*\" B\nA \"1\" --> \"*\" C\n"})
+    {
+        const auto graph = FlowchartLayoutTests::Graph(source);
+        Require(graph && graph->outcome == FlowchartOutcome::Prepared, "ordinary relationship fans are admitted by the bounded grammar");
+        const auto plan = FlowchartLayoutTests::Place(graph, Require);
+        Require(plan && plan->issue == FlowchartLayoutIssue::None, "ordinary ER and class fans remain rendered instead of falling back to source");
+        FlowchartLayoutTests::Invariants(*plan, Require);
+        const auto overlap = [](const FlowchartRect& a, const FlowchartRect& b)
+        {
+            return a.width > 0.0 && a.height > 0.0 && b.width > 0.0 && b.height > 0.0 && a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height &&
+                   b.y < a.y + a.height;
+        };
+        for (std::size_t first = 0u; first < plan->edges.size(); ++first)
+            for (std::size_t second = first + 1u; second < plan->edges.size(); ++second)
+            {
+                const auto& a = plan->edges[first];
+                const auto& b = plan->edges[second];
+                for (const auto& firstLabel : {a.fromCardinality, a.toCardinality})
+                    for (const auto& secondLabel : {b.fromCardinality, b.toCardinality})
+                        Require(! overlap(firstLabel, secondLabel), "relationship endpoint labels have independently disjoint rectangles");
+                if (graph->edges[first].from == graph->edges[second].from && a.route == b.route)
+                    Require(! FlowchartLayoutTests::Near(a.path.front().x, b.path.front().x) ||
+                                ! FlowchartLayoutTests::Near(a.path.front().y, b.path.front().y),
+                            "same-side fan-out relationships have distinct actual shape attachments");
+                if (graph->edges[first].to == graph->edges[second].to && a.route == b.route)
+                    Require(! FlowchartLayoutTests::Near(a.path.back().x, b.path.back().x) || ! FlowchartLayoutTests::Near(a.path.back().y, b.path.back().y),
+                            "same-side fan-in relationships have distinct actual shape attachments");
+            }
+    }
+}
 void TestNativeFlowchartLayoutIndependentCorpusAndRouting()
 {
     FlowchartLayoutTests::Corpus(Require);
@@ -1548,6 +1610,8 @@ void RunRichMarkdownTests()
     DXUI_RUN_TEST(TestMetadataIndependentValidityCorpora);
     DXUI_RUN_TEST(TestNativeFlowchartGrammarAndGraphValues);
     DXUI_RUN_TEST(TestNativeFlowchartDeterministicGeometry);
+    DXUI_RUN_TEST(TestNativeFlowchartTrimmedStyledLabelsRemainAdmissible);
+    DXUI_RUN_TEST(TestNativeRelationshipFanPortsAndCardinalities);
     DXUI_RUN_TEST(TestNativeFlowchartLayoutIndependentCorpusAndRouting);
     DXUI_RUN_TEST(TestNativeFlowchartLayoutAdmissionAndCancellation);
     DXUI_RUN_TEST(TestLosslessMarkdownFootnoteBlockGrammarAndProfileIsolation);

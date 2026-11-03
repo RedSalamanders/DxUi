@@ -118,7 +118,7 @@ inline void DirectedValues()
                                     {L"> one\r\n> \x0060two\r\n> three\x0060\n", L"one two three\n"},
                                     {L"\x0060 a\r\nb \x0060\n", L"a b\n"},
                                     {L"one  \r\ntwo\\\nthree\n", L"one\ntwo\nthree\n"},
-                                    {L"- [x] done\n- [ ] todo\n", L"\u2022 \u2611 done\n\u2022 \u2610 todo\n"},
+                                    {L"- [x] done\n- [ ] todo\n", L"\u2611 done\n\u2610 todo\n"},
                                     {L"3) one\n4) two\n   - child\n", L"3) one\n4) two\n\u2022 child\n"},
                                     {L"| h | j |\n| :--- | ---: |\n| x |\n", L"h\tj\nx\t \n"},
                                     {L"[go](https://example.invalid \"hint\") ![a *b*](local \"pic\")\n", L"go [image: a b]\n"},

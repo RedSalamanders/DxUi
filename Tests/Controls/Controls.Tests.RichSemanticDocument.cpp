@@ -961,6 +961,21 @@ void TestRichSemanticDocumentStructuralStyleValues()
 {
     RichSemanticTests::Run(RichSemanticDocumentTests::StructuralStyleValues);
 }
+void TestRichSemanticUnorderedTasksUseOneVisibleMarker()
+{
+    using namespace DxUi::RichText;
+    const std::wstring source = L"- [x] done\n- [ ] todo\n- plain\n\n1. [x] numbered\n";
+    const auto document       = RichSemanticDocumentTests::Build(source);
+    const auto display        = document->Map().Display();
+    Require(document->Map().Source() == source && display.starts_with(L"\u2611 done\n\u2610 todo\n\u2022 plain\n") &&
+                display.find(L"1. \u2611 numbered") != std::wstring_view::npos,
+            "unordered tasks use their checkbox alone while ordinary bullets and ordered task numbering remain visible");
+    for (const auto& element : document->Elements())
+        if (element.role == SemanticRole::Task)
+            Require(document->Map().Source().substr(element.taskMarker.first, element.taskMarker.last - element.taskMarker.first) ==
+                        (element.task == MarkdownTask::Checked ? L"[x]" : L"[ ]"),
+                    "task accessibility and interactions retain the exact original checkbox source token");
+}
 void TestRichSemanticDocumentSourceFormatOwnership()
 {
     RichSemanticTests::Run(RichSemanticDocumentTests::SourceFormatOwnership);
@@ -1124,6 +1139,7 @@ void RunRichSemanticDocumentTests()
     DXUI_RUN_TEST(TestRichSemanticDiagramSdkGeometryAndSourceCarets);
     DXUI_RUN_TEST(TestRichSemanticDiagramPositionedRaster);
     DXUI_RUN_TEST(TestRichSemanticDocumentStructuralStyleValues);
+    DXUI_RUN_TEST(TestRichSemanticUnorderedTasksUseOneVisibleMarker);
     DXUI_RUN_TEST(TestRichSemanticDocumentSourceFormatOwnership);
     DXUI_RUN_TEST(TestRichSemanticDocumentDirectedValues);
     DXUI_RUN_TEST(TestRichSemanticDocumentNativeHtmlAndLinkPresentation);

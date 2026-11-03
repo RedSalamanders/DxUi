@@ -1,0 +1,49 @@
+{
+  "recordKind": "validation-summary; not a benchmark measurement receipt",
+  "status": "NATIVE_RELEASE_PASSED_SCOPE_PREREQUISITE_REPAIRED",
+  "qualification": false,
+  "baselineCommit": "f2e328a0",
+  "nativeRun": ".build/evidence/test-runs/20261103T115558395Z-53040-5976af9da9594a079a53bf08b152ab38",
+  "suites": [
+    "EditorControls",
+    "Embedded",
+    "Accessibility",
+    "Rendering"
+  ],
+  "capabilitySkips": 0,
+  "performance": "unpaired; no acceptance",
+  "rawDirectory": ".build/mermaid-display-20261103",
+  "compiledSourceIdentity": "6091e2f904388b10fee8d286e8a0705a613f639eab3115868aa34d85da941100",
+  "nativeControlExecutableSha256": "A02925897FD2EF4615DB018552E648CEE542EAF8D67C4140A1FDC5FBE26593DA",
+  "librarySha256": "CC6CCBB727C5A52003FE9B7E32E46A59CB60D150F160BEE8878A1252B722195A",
+  "nativeRunCompletionSha256": "A068EE8DBF58CD78BA5A8880103004B11501AD3700545A73C7D89FBAE72ED660",
+  "gallery": [
+    {
+      "sha256": "86D2FE80791134ABFF1B352051CF471AEC0F88ADAADB6B1BC743EAC0373B1240",
+      "file": "embedded-controls.png"
+    },
+    {
+      "sha256": "29A4DCB077BBEDDA482183E5B0619D617A2AF010B011526907265DE4BA583B32",
+      "file": "theme-controls-dark.png"
+    },
+    {
+      "sha256": "0C64F2E20964BE1186C6A556E57F50B0EE65CA767A583446D32639B53CE1A412",
+      "file": "theme-controls-high-contrast.png"
+    },
+    {
+      "sha256": "3A2A9B284C21051EA17A86A542C12CB1304710540C3C17BB9AE3B5E0885322FD",
+      "file": "theme-controls-light.png"
+    },
+    {
+      "sha256": "85213C9F1D00223322712BBA657E237594B0543894E96723E9A8A2A6AE7C23AB",
+      "file": "theme-controls-rainbow-dark.png"
+    },
+    {
+      "sha256": "2B3796C7DC93D08B14DF883D3A4C9700084E6B094DDEA76FA377DD93A549FEBA",
+      "file": "theme-controls-rainbow-light.png"
+    }
+  ],
+  "originalToolingFailure": "Test-NativeScope.ps1: missing exact .ci-engine/Tools/Modules/Ci.Policy.psm1; full validator failed",
+  "repairedEngine": "e32cf9f9b29f4e817decb09e1be44be7fc1a94de",
+  "repairedNativeScopeTests": "12/12 passed"
+}

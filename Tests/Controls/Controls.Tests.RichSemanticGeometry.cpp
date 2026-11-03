@@ -1,6 +1,7 @@
 #include "Controls.Tests.RichSemanticGeometry.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "Controls/DxUi.SemanticExtensions.h"
+#include "Support.Tests.PreparedFlowchart.h"
 #include "Support.Tests.RichSemanticEditor.h"
 #include "Support.Tests.RichSemanticGeometry.h"
 namespace
@@ -249,6 +250,64 @@ void TestRichSemanticGeometryMarkdownSubtlePresentation()
     RichSemanticTests::Run(RichSemanticGeometryTests::MarkdownSubtlePresentation);
     RichSemanticTests::Run(RichSemanticGeometryTests::PaddedCodePresentation);
 }
+void TestRichSemanticCodeChromeUsesReadableTextInk()
+{
+    using namespace DxUi::RichText;
+    using namespace DxUi::RichText::Detail;
+    const auto imaging        = CreateWicFactoryForTest();
+    const auto drawing        = PreparedFlowchartTests::DrawingFactory();
+    const auto write          = RichSemanticGeometryTests::Factory();
+    const std::wstring source = L"```cpp\nint value = 1;\n```\n";
+    const auto document       = RichSemanticDocumentTests::Build(source);
+    const auto code           = std::ranges::find(document->Elements(), SemanticRole::Code, &SemanticElement::role);
+    Require(code != document->Elements().end(), "code chrome regression has one real fenced code element");
+    PreparedSemanticGeometry geometry;
+    LayoutOptions options;
+    options.widthDip             = 220.0f;
+    options.markdownPresentation = MarkdownPresentationStyle::Subtle;
+    geometry.Begin(write.get(), document, options);
+    RichSemanticGeometryTests::Complete(geometry);
+    const auto frame     = geometry.ElementBounds(static_cast<std::size_t>(code - document->Elements().begin())).value();
+    const auto caret     = geometry.SourceCaret(source.find(L"int"));
+    constexpr UINT width = 240u, height = 128u, stride = width * 4u;
+    for (const bool dark : {false, true})
+    {
+        wil::com_ptr<IWICBitmap> bitmap;
+        THROW_IF_FAILED(imaging->CreateBitmap(width, height, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnLoad, bitmap.put()));
+        wil::com_ptr<ID2D1RenderTarget> target;
+        const auto properties = D2D1::RenderTargetProperties(
+            D2D1_RENDER_TARGET_TYPE_SOFTWARE, D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED), 96.0f, 96.0f);
+        THROW_IF_FAILED(drawing->CreateWicBitmapRenderTarget(bitmap.get(), properties, target.put()));
+        target->SetTextAntialiasMode(D2D1_TEXT_ANTIALIAS_MODE_GRAYSCALE);
+        wil::com_ptr<ID2D1SolidColorBrush> text, border;
+        THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(dark ? D2D1::ColorF::White : D2D1::ColorF::Black), text.put()));
+        const float muted = dark ? .25f : .75f;
+        THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(muted, muted, muted), border.put()));
+        target->BeginDraw();
+        target->Clear(D2D1::ColorF(dark ? D2D1::ColorF::Black : D2D1::ColorF::White));
+        geometry.Draw(target.get(), text.get(), border.get(), {0.0f, 0.0f}, 0.0f, static_cast<float>(height));
+        THROW_IF_FAILED(target->EndDraw());
+        std::vector<BYTE> pixels(stride * height);
+        THROW_IF_FAILED(bitmap->CopyPixels(nullptr, stride, static_cast<UINT>(pixels.size()), pixels.data()));
+        const auto readablePixels = [&](D2D1_RECT_F region)
+        {
+            std::size_t count{};
+            for (UINT y = 0u; y < height; ++y)
+                for (UINT x = 0u; x < width; ++x)
+                    if (static_cast<float>(x) >= region.left && static_cast<float>(x) < region.right && static_cast<float>(y) >= region.top &&
+                        static_cast<float>(y) < region.bottom)
+                    {
+                        const auto ink = pixels[y * stride + x * 4u];
+                        count += dark ? ink > 128u : ink < 128u;
+                    }
+            return count;
+        };
+        Require(readablePixels({frame.left + 2.0f, frame.top + 2.0f, frame.right - 2.0f, caret.y - 1.0f}) > 0u,
+                "language badge uses foreground ink independently of the faint decorative border");
+        Require(readablePixels({frame.left + 2.0f, caret.y, caret.x - 2.0f, frame.bottom - 2.0f}) > 0u,
+                "physical line numbers use readable foreground ink in both light and dark presentation");
+    }
+}
 void TestRichSemanticDocumentHeadingMarginsAndIndentation()
 {
     RichSemanticTests::Run(RichSemanticGeometryTests::DocumentHeadingMarginsAndIndentation);
@@ -350,6 +409,7 @@ void RunRichSemanticGeometryTests()
     DXUI_RUN_TEST(TestRichSemanticNativeMathAndBroaderDiagrams);
     DXUI_RUN_TEST(TestRichSemanticGeometryParagraphsTablesAndSourceRanges);
     DXUI_RUN_TEST(TestRichSemanticGeometryMarkdownSubtlePresentation);
+    DXUI_RUN_TEST(TestRichSemanticCodeChromeUsesReadableTextInk);
     DXUI_RUN_TEST(TestRichSemanticDocumentHeadingMarginsAndIndentation);
     DXUI_RUN_TEST(TestRichSemanticGeometryAtomicNavigationAndCancellation);
     DXUI_RUN_TEST(TestRichSemanticGeometrySourceCaretSites);

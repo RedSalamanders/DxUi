@@ -465,4 +465,63 @@ private:
     std::unique_ptr<Preparation> preparation_;
     std::shared_ptr<const FlowchartModel> published_;
 };
+// Parser publication and both layout/paint services share model-only admission.
+// Typography, factories and measurements remain service-specific view contracts.
+inline bool ValidFlowchartModel(const FlowchartModel& graph) noexcept
+{
+    if (graph.outcome != FlowchartOutcome::Prepared || graph.source.size() > NativeFlowchartParser::MaximumSourceUnits ||
+        graph.nodes.size() > NativeFlowchartParser::MaximumNodes || graph.edges.size() > NativeFlowchartParser::MaximumEdges || graph.groups.size() > 16u ||
+        graph.family < NativeDiagramFamily::Flowchart || graph.family > NativeDiagramFamily::Mindmap || graph.direction < FlowchartDirection::TopBottom ||
+        graph.direction > FlowchartDirection::RightLeft || ! ValidSequenceModel(graph) || ! ValidPieModel(graph) || ! ValidErModel(graph) ||
+        ! ValidGanttModel(graph) || ! ValidMindmapModel(graph))
+        return false;
+    if (! graph.groups.empty() && graph.family != NativeDiagramFamily::Flowchart && graph.family != NativeDiagramFamily::State &&
+        graph.family != NativeDiagramFamily::Class)
+        return false;
+    for (std::size_t index = 0u; index < graph.groups.size(); ++index)
+        if (graph.groups[index].title.empty() || graph.groups[index].title.size() > NativeFlowchartParser::MaximumLabelUnits ||
+            graph.groups[index].parentMask >= (1u << index))
+            return false;
+    for (const auto& node : graph.nodes)
+    {
+        if (node.strokeWidth < 1u || node.strokeWidth > 3u || ! ValidDiagramColor(node.fillColor) || ! ValidDiagramColor(node.strokeColor) ||
+            ! ValidDiagramColor(node.textColor) || ! ValidLabelStyles(node.styles, node.label.size(), graph.family == NativeDiagramFamily::Flowchart) ||
+            (graph.family != NativeDiagramFamily::Flowchart && (node.strokeWidth != 1u || node.borderDashed || node.fillColor != NoDiagramColor ||
+                                                                node.strokeColor != NoDiagramColor || node.textColor != NoDiagramColor)) ||
+            node.label.size() > NativeFlowchartParser::MaximumLabelUnits || node.shape < FlowchartShape::Rectangle || node.shape > FlowchartShape::Note ||
+            ((node.shape >= FlowchartShape::DoubleCircle && node.shape <= FlowchartShape::Ellipse) && graph.family != NativeDiagramFamily::Flowchart) ||
+            node.groupMask >= (1u << graph.groups.size()) || node.compartmentCount > node.compartmentStarts.size() ||
+            (node.compartmentCount && graph.family != NativeDiagramFamily::Class && graph.family != NativeDiagramFamily::EntityRelationship))
+            return false;
+        if (node.shape == FlowchartShape::Note &&
+            ((graph.family != NativeDiagramFamily::State && graph.family != NativeDiagramFamily::Class) ||
+             (node.noteTarget == MarkdownNoNode ? graph.family != NativeDiagramFamily::Class
+                                                : node.noteTarget >= graph.nodes.size() || graph.nodes[node.noteTarget].shape == FlowchartShape::Note)))
+            return false;
+        for (std::size_t group = 0u; group < graph.groups.size(); ++group)
+            if ((node.groupMask & (1u << group)) && (node.groupMask & graph.groups[group].parentMask) != graph.groups[group].parentMask)
+                return false;
+        for (std::size_t index = 0u; index < node.compartmentCount; ++index)
+            if (! node.compartmentStarts[index] || node.compartmentStarts[index] >= node.label.size() ||
+                node.label[node.compartmentStarts[index] - 1u] != L'\n' || (index && node.compartmentStarts[index] <= node.compartmentStarts[index - 1u]))
+                return false;
+    }
+    for (const auto& edge : graph.edges)
+        if (edge.from >= graph.nodes.size() || edge.to >= graph.nodes.size() || edge.label.size() > NativeFlowchartParser::MaximumLabelUnits ||
+            edge.fromCardinality.size() > 32u || edge.toCardinality.size() > 32u ||
+            ((! edge.fromCardinality.empty() || ! edge.toCardinality.empty()) && graph.family != NativeDiagramFamily::Class &&
+             graph.family != NativeDiagramFamily::EntityRelationship) ||
+            ! ValidLabelStyles(edge.styles, edge.label.size(), graph.family == NativeDiagramFamily::Flowchart) || edge.strokeWidth > 3u ||
+            ! ValidDiagramColor(edge.strokeColor) ||
+            (graph.family != NativeDiagramFamily::Flowchart && (edge.strokeWidth || edge.dashed || edge.dashSpecified || edge.strokeColor != NoDiagramColor)) ||
+            (edge.dashed && ! edge.dashSpecified) || edge.minimumRanks == 0u || edge.minimumRanks > NativeFlowchartParser::MaximumLinkRanks ||
+            edge.relation < FlowchartRelation::Line || edge.relation > FlowchartRelation::Composition || edge.style < FlowchartLineStyle::Solid ||
+            edge.style > FlowchartLineStyle::Invisible || (edge.openArrow && (graph.family != NativeDiagramFamily::Sequence || ! edge.arrow)) ||
+            (graph.family != NativeDiagramFamily::EntityRelationship && (edge.erFrom != ErMultiplicity::None || edge.erTo != ErMultiplicity::None)) ||
+            (edge.style == FlowchartLineStyle::Invisible && (edge.arrow || ! edge.label.empty())) ||
+            edge.arrow != (edge.relation != FlowchartRelation::Line && edge.relation != FlowchartRelation::Note) ||
+            (edge.relation == FlowchartRelation::Note && (graph.nodes[edge.to].shape != FlowchartShape::Note || graph.nodes[edge.to].noteTarget != edge.from)))
+            return false;
+    return true;
+}
 } // namespace DxUi::RichText::Detail

@@ -2039,6 +2039,17 @@ does not validate the YAML/TOML payload.
 
 ### Native Mermaid flowchart profile
 
+Decoded label trimming MUST clamp style spans to the final UTF-16 label and discard empty spans, including the
+implicit-close edge-label path. Parser publication, CPU layout and native painting share model-only admission.
+An inadmissible parsed model retains that fence as source; factory/typography/measurement errors retain their
+own service-level admission behavior. Do not turn unrelated view-option errors into per-diagram fallback.
+
+ER/class endpoints with cardinalities use distinct attachment slots on each node side, in stable relationship
+declaration order. Node cross extents reserve sufficient space for the slots and measured endpoint labels before
+rank placement. Paths, arrow/diamond endpoints, cardinalities and any original-order route comparison use the
+same attachment coordinates. Collision/extent checks remain fail-closed; supported ordinary fan-in/fan-out must
+not fall back merely because every relationship previously used one centre anchor.
+
 The owner's extension engine choice is C++ only. `DxUiNativeFlowchart1` is the
 named limited grammar below. Its bounded CPU parser, geometric layout, native
 painting, F2 source-object editing and semantic UIA diagram publication are
@@ -2503,6 +2514,12 @@ must prevent duplicate native/client dispatch, retain resizing/dragging, and can
 a pressed gesture on capture loss.
 
 ## Optional subtle Markdown presentation
+
+Unordered task rows use the checkbox as their sole visible marker; ordinary bullet rows keep their bullet, and
+ordered tasks retain their source numbering. Checkbox source ranges, editing, native hit testing and accessibility
+remain source-owned. Code language badges and physical line numbers use the caller's foreground text brush,
+including high contrast, rather than the low-contrast decorative border brush. This changes ink only and adds no
+brush creation or layout work during drawing.
 
 `RichText::MarkdownPresentationStyle::Subtle` on `LayoutOptions` and
 `RichTextEditorAppearance` selects document decoration independently of parsing.

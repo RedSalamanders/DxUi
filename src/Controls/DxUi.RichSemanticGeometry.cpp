@@ -3312,7 +3312,7 @@ void PreparedSemanticGeometry::Draw(ID2D1RenderTarget* target,
             }
             target->PushAxisAlignedClip(clip, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
             const auto restore = wil::scope_exit([&]() noexcept { target->PopAxisAlignedClip(); });
-            (*state.codeLabels)[i]->Draw(target, decoration, D2D1::Point2F(clip.left + 6.0f, clip.top + 3.0f));
+            (*state.codeLabels)[i]->Draw(target, text, D2D1::Point2F(clip.left + 6.0f, clip.top + 3.0f));
         }
         if (copy)
         {
@@ -3344,7 +3344,7 @@ void PreparedSemanticGeometry::Draw(ID2D1RenderTarget* target,
         const auto clip    = D2D1::RectF(number.clip.left + origin.x, number.clip.top + origin.y, number.clip.right + origin.x, number.clip.bottom + origin.y);
         target->PushAxisAlignedClip(clip, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
         const auto restore = wil::scope_exit([&]() noexcept { target->PopAxisAlignedClip(); });
-        number.layout->Draw(target, decoration, D2D1::Point2F(number.origin.x + origin.x, number.origin.y + origin.y));
+        number.layout->Draw(target, text, D2D1::Point2F(number.origin.x + origin.x, number.origin.y + origin.y));
     });
     if (const auto* decorations = state.decorations.get())
     {

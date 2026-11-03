@@ -13,6 +13,22 @@ bool Space(wchar_t c) noexcept
 {
     return c == L' ' || c == L'\t';
 }
+void TrimLabel(std::wstring& value, FlowchartLabelStyles* styles) noexcept
+{
+    while (! value.empty() && Space(value.back()))
+        value.pop_back();
+    if (! styles)
+        return;
+    std::size_t kept{};
+    for (std::size_t index = 0u; index < styles->count; ++index)
+    {
+        auto span = styles->spans[index];
+        span.last = std::min(span.last, value.size());
+        if (span.first < span.last)
+            styles->spans[kept++] = span;
+    }
+    styles->count = kept;
+}
 bool Letter(wchar_t c) noexcept
 {
     return (c >= L'A' && c <= L'Z') || (c >= L'a' && c <= L'z') || c == L'_';
@@ -508,8 +524,7 @@ struct NativeFlowchartParser::Preparation
                     Skip(at, end);
                 }
                 else
-                    while (! value.empty() && Space(value.back()))
-                        value.pop_back();
+                    TrimLabel(value, styles);
                 if (at == end || Text()[at] != close)
                     return Error(FlowchartIssue::MissingLabelClose, start, at);
                 ++at;
@@ -607,8 +622,7 @@ struct NativeFlowchartParser::Preparation
         }
         if (implicitClose && ! quoted && ! openCount)
         {
-            while (! value.empty() && Space(value.back()))
-                value.pop_back();
+            TrimLabel(value, styles);
             return true;
         }
         return Error(openCount ? FlowchartIssue::UnsupportedLabelMarkup : FlowchartIssue::MissingLabelClose,
@@ -2141,6 +2155,11 @@ struct NativeFlowchartParser::Preparation
                     if ((defaultEdgeStyle.mask & 32u) && ! (directEdgeStyle[i] & 32u))
                         edge.strokeColor = defaultEdgeStyle.stroke;
                 }
+            if (! ValidFlowchartModel(*model))
+            {
+                Error(FlowchartIssue::UnsupportedStatement, 0u, text.size(), FlowchartOutcome::Unsupported);
+                return;
+            }
             done = true;
             return;
         }

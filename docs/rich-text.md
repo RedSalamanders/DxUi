@@ -1587,6 +1587,11 @@ backlinks. Keyboard traversal and guarded note-aware structural planning are imp
 
 ## Native in-document mathematics and broader diagrams
 
+Styled Mermaid labels retain valid style ranges after unquoted trailing-space trimming. ER/class fan-in and
+fan-out relationships reserve separate endpoint slots and measured cardinality space; unsupported or genuinely
+over-capacity geometry still retains exact source. Task checkboxes replace unordered bullets, while ordered
+task numbering stays visible. Subtle code language badges and line numbers use foreground text ink in all themes.
+
 RichMarkdown recognizes `$...$` and `\(...\)` inside ordinary
 inline leaves. Single-dollar math is single-line and requires nonspace content edges;
 a closing dollar followed by a digit is currency text. Explicit `\(...\)` delimiters

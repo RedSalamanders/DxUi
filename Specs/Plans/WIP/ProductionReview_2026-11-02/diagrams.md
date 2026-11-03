@@ -3,6 +3,10 @@
 Appendix to [the review plan](../ProductionReview_2026-11-02.md). Scope: `NativeFlowchart` (parser), `NativeFlowchartLayout`,
 `PreparedFlowchart` (shaping, palette, paint), `NativeColor`, and their callers' preparation-failure and accessibility
 paths for the flowchart, state, class, ER, pie, Gantt, sequence and mind map profiles.
+
+Implementation follow-up, 3 November: FLOW-01 and FLOW-02 have canonical fixes and focused x64 Release evidence
+in [the display-correction packet](../../../../Measurements/MermaidDisplay_2026-11-03/README.md). The historical
+review and its original severities below are retained. Other findings and broader qualification remain open.
 Reviewed read-only at `6df17007` (window `a0f67fd3..6df17007`); nothing was built or executed. Each finding was
 challenged by an independent red-team verifier; severity below is the verified severity. Geometry and timing figures are
 derived from the code (test-harness stub label sizes where stated), not measured.
