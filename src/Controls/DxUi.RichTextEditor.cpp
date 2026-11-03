@@ -1394,7 +1394,8 @@ void RichTextEditor::SetAppearance(const RichTextEditorAppearance& appearance)
         previous.bodyFontFamily != next.bodyFontFamily || previous.codeFontFamily != next.codeFontFamily || previous.mathFontFamily != next.mathFontFamily ||
         previous.headingFontSizeDip != next.headingFontSizeDip || previous.headingLineHeightMultiplier != next.headingLineHeightMultiplier ||
         previous.paragraphSpacingAfterLines != next.paragraphSpacingAfterLines || previous.listItemSpacingDip != next.listItemSpacingDip ||
-        previous.semanticSpacing != next.semanticSpacing || previous.markdownPresentation != next.markdownPresentation;
+        previous.semanticSpacing != next.semanticSpacing || previous.markdownPresentation != next.markdownPresentation ||
+        previous.strikeCompletedTasks != next.strikeCompletedTasks;
     const bool sourceInkChanged      = previous.colorizeMarkdownSource != next.colorizeMarkdownSource;
     const bool semanticPolicyChanged = previous.softBreakPolicy != next.softBreakPolicy;
     const bool enterPolicyChanged    = previous.enterPolicy != next.enterPolicy;
@@ -1415,6 +1416,7 @@ void RichTextEditor::SetAppearance(const RichTextEditorAppearance& appearance)
     value.sourceLineNumbers         = next.sourceLineNumbers;
     value.sourceWhitespaceMarks     = next.sourceWhitespaceMarks;
     value.autoParagraphDirection    = next.autoParagraphDirection;
+    value.strikeCompletedTasks      = next.strikeCompletedTasks;
     value.pasteUrlOnSelection       = next.pasteUrlOnSelection;
     value.softBreakPolicy           = next.softBreakPolicy;
     value.enterPolicy               = next.enterPolicy;
@@ -3612,7 +3614,8 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
                 resources = host.GetResourceGeneration();
                 binding   = state.bindingRevision;
             };
-            if (document->HasCallouts())
+            if (document->HasCallouts() ||
+                std::ranges::any_of(document->Elements(), [](const auto& element) { return element.role == RichText::SemanticRole::Task; }))
                 prepare(host.GetTheme().accent, state.calloutAccent, state.calloutAccentColor, state.calloutAccentResources, state.calloutAccentBinding);
             if (document->HasPropertiesBody())
                 prepare(host.GetTheme().subduedText, state.propertiesInk, state.propertiesInkColor, state.propertiesInkResources, state.propertiesInkBinding);
@@ -3950,6 +3953,7 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
             options.listItemSpacingDip          = appearance.listItemSpacingDip;
             options.semanticSpacing             = appearance.semanticSpacing;
             options.markdownPresentation        = appearance.markdownPresentation;
+            options.strikeCompletedTasks        = appearance.strikeCompletedTasks;
             options.codeCopyAction              = bool(state.onCodeCopyRequested);
             options.wrap                        = effectiveMode != RichText::ViewMode::Source || appearance.sourceWrap;
 
@@ -4740,7 +4744,7 @@ void RichTextEditor::Paint(ControlHost& host) const
         }
         const bool decorated =
             links.markedTextFill || ! links.inkRanges.empty() || dimmed || (state.mode == RichText::ViewMode::Rich && (links.brush || ! links.underline));
-        const RichText::Detail::DiagramColorContext diagramColors{style.text, subtleMarkdown ? host.GetTheme().borderDefault : style.caret, style.fill};
+        const RichText::Detail::DiagramColorContext diagramColors{style.text, style.text, style.fill};
         state.layout.Draw(context,
                           subdued,
                           dimmed ? subdued : semanticDecoration,
@@ -4763,7 +4767,8 @@ void RichTextEditor::Paint(ControlHost& host) const
                                   state.propertiesInkColor.g == host.GetTheme().subduedText.g && state.propertiesInkColor.b == host.GetTheme().subduedText.b &&
                                   state.propertiesInkColor.a == host.GetTheme().subduedText.a
                               ? state.propertiesInk.get()
-                              : nullptr);
+                              : nullptr,
+                          true);
         if (! state.overlayHighlightsDirty)
             state.decorationPaintIndex.ForEach(state.scrollDip,
                                                visibleBottom,

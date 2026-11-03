@@ -20,6 +20,7 @@ inline bool SameLayoutOptions(const LayoutOptions& a, const LayoutOptions& b, La
            a.readingDirection == b.readingDirection && a.textAlignment == b.textAlignment && a.wrap == b.wrap &&
            (use == LayoutOptionsUse::Text ||
             (a.autoParagraphDirection == b.autoParagraphDirection && a.markdownPresentation == b.markdownPresentation && a.codeCopyAction == b.codeCopyAction &&
-             a.mathFontFamily == b.mathFontFamily && a.diagramLabelWidthDip == b.diagramLabelWidthDip && a.mathAbsoluteUnitScale == b.mathAbsoluteUnitScale));
+             a.mathFontFamily == b.mathFontFamily && a.diagramLabelWidthDip == b.diagramLabelWidthDip && a.mathAbsoluteUnitScale == b.mathAbsoluteUnitScale &&
+             a.strikeCompletedTasks == b.strikeCompletedTasks));
 }
 } // namespace DxUi::RichText::Detail

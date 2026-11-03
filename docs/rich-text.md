@@ -37,7 +37,7 @@ receivers and the library must likewise be rebuilt from the same exact pin.
 | Semantic accessibility | Limited | Source ranges, typed structure and actions; physical AT qualification separate | [Details](#semantic-accessibility-m4f) |
 | Text services | Limited | Native and embedded TSF/IME and UIA adapters; physical IME qualification separate | [Details](#source-text-services-and-accessibility-d2d) |
 | Native mathematics | Limited | Named DxUiMath1 subset; source-preserving per-object fallback | [Details](#native-in-document-mathematics-and-broader-diagrams) |
-| Native Mermaid | Limited | Bounded flowchart, state, class, sequence, pie, ER, Gantt and mind map profiles; unsupported syntax remains source | [Details](#native-in-document-mathematics-and-broader-diagrams) |
+| Native Mermaid | Limited | Bounded flowchart, state, class, sequence, pie, ER, Gantt and mind map profiles; sequence actors, plain notes, bare autonumber and unheaded messages; unsupported syntax remains source | [Details](#native-in-document-mathematics-and-broader-diagrams) |
 | Complete extension conformance | Not supported | Full-language parity is not established by bounded feature or corpus results | [Details](#current-capabilities) |
 <!-- rich-text-capabilities:end -->
 
@@ -1587,6 +1587,22 @@ backlinks. Keyboard traversal and guarded note-aware structural planning are imp
 
 ## Native in-document mathematics and broader diagrams
 
+Styled Mermaid labels retain valid style ranges after unquoted trailing-space trimming. ER/class fan-in and
+fan-out relationships reserve separate endpoint slots and measured cardinality space; unsupported or genuinely
+over-capacity geometry still retains exact source. Task checkboxes replace unordered bullets, while ordered
+task numbering stays visible. Subtle code language badges and line numbers use foreground text ink in all themes.
+
+Adjacent labeled links reserve measured text space between boxes and use that corridor directly in LR/RL/TB/BT
+diagrams. Branching links also reserve cross-axis room between sibling boxes. Dense joins that mix fan-in and
+fan-out retain distinct exterior label lanes, as do other complex routes. Subtle table cells have ten-DIP side insets
+when space permits; inline-code chips add three DIP at each text endpoint in native layout metrics.
+
+Task markers use the current theme accent, with foreground ink in high contrast. Set
+`RichTextEditorAppearance::strikeCompletedTasks` (or `RichText::LayoutOptions::strikeCompletedTasks`) to opt into
+completed-task body strikethrough. It defaults to false, leaves nested unchecked items unchanged, and never rewrites
+Markdown or changes selection, revision, history or accessibility text. Explicit `~~text~~` remains independent.
+This additive API remains revision 4; rebuild the library and consumers with exact matching headers and native tools.
+
 RichMarkdown recognizes `$...$` and `\(...\)` inside ordinary
 inline leaves. Single-dollar math is single-line and requires nonspace content edges;
 a closing dollar followed by a digit is currency text. Explicit `\(...\)` delimiters
@@ -1822,12 +1838,32 @@ digits and two fractional digits and require a positive total. Sectors follow
 source order clockwise; an ordered legend matches the theme-derived shades. Invalid
 or unsupported forms retain exact source with a diagnostic.
 
-The bounded `sequenceDiagram` profile supports ordered implicit or explicitly
-declared participants, plain aliases, directed `->>` / `-->>` messages,
-open-head `-)` / `--)` messages and self-message loops. Measured headers,
-dashed lifelines and chronological messages are drawn natively; accessibility
-retains participant/message order and the exact fence. Notes, actors, activations,
-loops, directives and other syntax retain the full source with a diagnostic.
+The bounded `sequenceDiagram` profile supports ordered implicit participants,
+`participant` and stick-figure `actor` declarations with plain `as` aliases,
+filled-head `->>` / `-->>`, open-head `-)` / `--)`, unheaded `->` / `-->`
+and self-message loops. Plain `Note left of A: text`, `Note right of A: text`
+and `Note over A,B: text` frames retain timeline order. Bare `autonumber` starts
+at one and counts messages, excluding notes. Accessibility includes aliases,
+notes and numbers; the complete authored fence remains exact and editable.
+Custom number arguments, activations, loops, creation/destruction, directives
+and other excluded forms retain the full source with a diagnostic.
+Directionless `flowchart` and `graph` headers default to top-to-bottom layout.
+
+Default diagram connections, arrowheads, lifelines and outlines use readable
+foreground ink, including in Subtle and high contrast. Decorative Markdown borders
+remain separate; supported authored colors retain their contrast checks.
+
+```mermaid
+sequenceDiagram
+actor Writer as Notebook author
+participant App as Draft editor
+autonumber
+Note left of Writer: Draft ready
+Writer->App: Save draft
+Note over Writer,App: One exact document
+App-->Writer: Saved
+Note right of App: Keep revision
+```
 
 The bounded `mindmap` profile draws one root and up to 127 descendants with
 space-indented levels through depth eight. Plain, rectangular, rounded and

@@ -43,13 +43,15 @@ struct FlowchartPlacedEdge
     FlowchartLineStyle style{};
     ErMultiplicity erFrom{}, erTo{};
     // Six orthogonal vertices include the exact shape attachment points.
+    // A sequence note stores its rectangle's top-left/bottom-right in the first
+    // two slots instead; it has no connecting route or arrow.
     // Crossings are allowed; routing does not promise crossing minimization.
     std::array<FlowchartPoint, 6u> path{};
     std::array<FlowchartPoint, 3u> arrow{};
     std::array<FlowchartPoint, 4u> diamond{};
     FlowchartRect label;
     FlowchartRect fromCardinality, toCardinality;
-    bool hasArrow{}, hasLabel{}, openArrow{};
+    bool hasArrow{}, hasLabel{}, openArrow{}, sequenceNote{};
 };
 struct FlowchartPlacedGroup
 {
@@ -74,7 +76,8 @@ struct FlowchartLayoutPlan
 class NativeFlowchartLayout
 {
 public:
-    static constexpr double MaximumExtent = 65536.0;
+    static constexpr double MaximumExtent       = 65536.0;
+    static constexpr double SequenceActorHeight = 40.0;
     NativeFlowchartLayout() noexcept;
     ~NativeFlowchartLayout() noexcept;
     NativeFlowchartLayout(const NativeFlowchartLayout&)            = delete;

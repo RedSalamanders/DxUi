@@ -80,7 +80,7 @@ template <typename Check> inline void Geometry(Check&& check)
               timeline->edges[2u].openArrow && timeline->edges[0u].arrow[1u].x > timeline->edges[0u].arrow[0u].x &&
               timeline->edges[1u].arrow[1u].x < timeline->edges[1u].arrow[0u].x,
           "sequence layout uses ordered lifelines, correctly directed messages and a self-message loop");
-    for (const auto invalid : {L"sequenceDiagram\nAlice->>Bob: x\nloop later\n", L"sequenceDiagram\nAlice->>Bob\n", L"sequenceDiagram\nactor Alice\n"})
+    for (const auto invalid : {L"sequenceDiagram\nAlice->>Bob: x\nloop later\n", L"sequenceDiagram\nAlice->>Bob\n", L"sequenceDiagram\ncreate actor Alice\n"})
     {
         const auto rejected = Graph(invalid);
         check(rejected->outcome != FlowchartOutcome::Prepared && rejected->source == invalid && rejected->nodes.empty() && rejected->edges.empty(),
@@ -187,8 +187,13 @@ template <typename Check> inline void Geometry(Check&& check)
                       "independent routes occupy distinct columns while preserving edge identity");
     }
     const auto labeledPairs = Place(Graph(L"graph TD;A;B;D;C;A-->|label|C;B-->D"), check);
-    check(labeledPairs->edges[0].hasLabel && ! Near(labeledPairs->edges[0].path[1].x, labeledPairs->edges[0].path[2].x),
-          "labeled pairs retain the exterior label lane");
+    const auto& labeled     = labeledPairs->edges[0];
+    const auto& from        = labeledPairs->nodes[0].bounds;
+    const auto& to          = labeledPairs->nodes[3].bounds;
+    check(labeled.hasLabel && Near(labeled.path[1].x, labeled.path[2].x) && Near(labeled.path[3].x, labeled.path[4].x) &&
+              labeled.label.y >= from.y + from.height + 8.0 && labeled.label.y + labeled.label.height <= to.y - 8.0 &&
+              Near(labeled.label.x + labeled.label.width / 2.0, (labeled.path.front().x + labeled.path.back().x) / 2.0),
+          "labeled independent pairs use the inter-rank corridor with measured clearance and centered text");
     for (const auto& [direction, horizontal] : {std::pair{L"TB", false}, std::pair{L"BT", false}, std::pair{L"LR", true}, std::pair{L"RL", true}})
     {
         const auto forkGraph = Graph(L"stateDiagram-v2\ndirection " + std::wstring(direction) + L"\nstate F <<fork>>\nA --> F\nF --> B\n");
@@ -311,7 +316,9 @@ template <typename Check> inline void Geometry(Check&& check)
               cycles->edges[2u].route == FlowchartRoute::Self && cycles->edges[3u].route == FlowchartRoute::Forward &&
               cycles->edges[0u].path[2u].x != cycles->edges[3u].path[2u].x,
           "stable DFS distinguishes cycles and self loops while parallel edges own separate lanes");
-    const auto lanesGraph = Graph(L"graph TD;A-->|wide|B;A-->|n|C;A-->|m|D;B-->|back|A;C-->A");
+    // Skipping the intermediate rank keeps the forward labels on exterior
+    // lanes. Adjacent labeled links now have their own corridor regressions.
+    const auto lanesGraph = Graph(L"graph TD;A-->|wide|B;A-->|n|C;A-->|m|D;B-->|back|A;C-->A;A-->M;M-->B;M-->C;M-->D");
     const std::vector<FlowchartSize> laneNodes(lanesGraph->nodes.size(), {16.0, 12.0});
     std::vector<FlowchartSize> laneLabels(lanesGraph->edges.size(), FlowchartSize{});
     laneLabels[0u] = {100.0, 12.0};
@@ -320,7 +327,7 @@ template <typename Check> inline void Geometry(Check&& check)
     NativeFlowchartLayout laneLayout;
     laneLayout.Begin(lanesGraph, laneNodes, laneLabels);
     const auto variableLanes = Complete(laneLayout, check);
-    check(variableLanes->issue == FlowchartLayoutIssue::None && variableLanes->edges.size() == 5u &&
+    check(variableLanes->issue == FlowchartLayoutIssue::None && variableLanes->edges.size() == 9u &&
               Near(variableLanes->edges[1u].path[2u].x - variableLanes->edges[0u].path[2u].x, 108.0) &&
               Near(variableLanes->edges[2u].path[2u].x - variableLanes->edges[1u].path[2u].x, 16.0) &&
               variableLanes->edges[0u].label.x + variableLanes->edges[0u].label.width < variableLanes->edges[1u].path[2u].x &&

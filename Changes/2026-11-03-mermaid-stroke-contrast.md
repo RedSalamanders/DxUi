@@ -1,0 +1,1 @@
+- Use effective foreground ink for default native diagram connections, arrowheads, lifelines and outlines, including Subtle and high contrast; retain separate decorative Markdown borders, authored palettes and explicit export stroke behavior. Add an offscreen editor pixel regression for Light, Dark, high contrast and warm resource reuse.

@@ -3225,6 +3225,7 @@ struct RichTextEditorAppearance
     RichText::SoftBreakPolicy softBreakPolicy                = RichText::SoftBreakPolicy::Space;
     RichText::MarkdownEnterPolicy enterPolicy                = RichText::MarkdownEnterPolicy::RawNewline;
     bool autoParagraphDirection                              = false; // Opt in to first-strong semantic paragraphs.
+    bool strikeCompletedTasks                                = false; // Presentation only; never inserts source strikethrough syntax.
 };
 struct RichTextSourceHighlight
 {

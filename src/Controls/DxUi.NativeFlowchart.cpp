@@ -13,6 +13,22 @@ bool Space(wchar_t c) noexcept
 {
     return c == L' ' || c == L'\t';
 }
+void TrimLabel(std::wstring& value, FlowchartLabelStyles* styles) noexcept
+{
+    while (! value.empty() && Space(value.back()))
+        value.pop_back();
+    if (! styles)
+        return;
+    std::size_t kept{};
+    for (std::size_t index = 0u; index < styles->count; ++index)
+    {
+        auto span = styles->spans[index];
+        span.last = std::min(span.last, value.size());
+        if (span.first < span.last)
+            styles->spans[kept++] = span;
+    }
+    styles->count = kept;
+}
 bool Letter(wchar_t c) noexcept
 {
     return (c >= L'A' && c <= L'Z') || (c >= L'a' && c <= L'z') || c == L'_';
@@ -508,8 +524,7 @@ struct NativeFlowchartParser::Preparation
                     Skip(at, end);
                 }
                 else
-                    while (! value.empty() && Space(value.back()))
-                        value.pop_back();
+                    TrimLabel(value, styles);
                 if (at == end || Text()[at] != close)
                     return Error(FlowchartIssue::MissingLabelClose, start, at);
                 ++at;
@@ -607,8 +622,7 @@ struct NativeFlowchartParser::Preparation
         }
         if (implicitClose && ! quoted && ! openCount)
         {
-            while (! value.empty() && Space(value.back()))
-                value.pop_back();
+            TrimLabel(value, styles);
             return true;
         }
         return Error(openCount ? FlowchartIssue::UnsupportedLabelMarkup : FlowchartIssue::MissingLabelClose,
@@ -937,11 +951,11 @@ struct NativeFlowchartParser::Preparation
             const auto word = Text().substr(start, at - start);
             if (word != L"flowchart" && word != L"graph")
                 return Error(FlowchartIssue::UnsupportedFamily, start, at, FlowchartOutcome::Unsupported);
-            if (at == end || ! Space(Text()[at]))
+            if (at < end && ! Space(Text()[at]))
                 return Error(FlowchartIssue::InvalidDirection, at, end);
             Skip(at, end);
             const auto direction = Text().substr(at, end - at);
-            if (direction == L"TB" || direction == L"TD")
+            if (direction.empty() || direction == L"TB" || direction == L"TD")
                 model->direction = FlowchartDirection::TopBottom;
             else if (direction == L"BT")
                 model->direction = FlowchartDirection::BottomTop;
@@ -1317,18 +1331,25 @@ struct NativeFlowchartParser::Preparation
         if (model->family == NativeDiagramFamily::Sequence)
         {
             const auto start = at;
-            if (statement.starts_with(L"participant "))
+            if (statement == L"autonumber")
             {
-                at += 12u;
+                model->sequenceAutonumber = true;
+                return true;
+            }
+            const bool actor = statement.starts_with(L"actor") && statement.size() > 5u && Space(statement[5u]);
+            if (actor || (statement.starts_with(L"participant") && statement.size() > 11u && Space(statement[11u])))
+            {
+                at += actor ? 6u : 12u;
                 std::size_t participant{};
                 if (! Node(at, end, participant))
                     return false;
+                model->nodes[participant].sequenceActor = actor;
                 Skip(at, end);
                 if (at == end)
                     return true;
-                if (Text().substr(at, 3u) != L"as ")
+                if (Text().substr(at, 2u) != L"as" || at + 2u == end || ! Space(Text()[at + 2u]))
                     return Error(FlowchartIssue::UnsupportedStatement, start, end, FlowchartOutcome::Unsupported);
-                at += 3u;
+                at += 2u;
                 Skip(at, end);
                 std::wstring label(0u, L' ');
                 if (at == end)
@@ -1338,12 +1359,63 @@ struct NativeFlowchartParser::Preparation
                 model->nodes[participant].label.swap(label);
                 return true;
             }
+            if ((statement.starts_with(L"Note") || statement.starts_with(L"note")) && statement.size() > 4u && Space(statement[4u]))
+            {
+                at += 4u;
+                Skip(at, end);
+                SequenceNotePlacement placement{};
+                const auto sideStart = at;
+                while (at < end && Letter(Text()[at]))
+                    ++at;
+                const auto side = Text().substr(sideStart, at - sideStart);
+                if (at == end || ! Space(Text()[at]))
+                    return Error(FlowchartIssue::UnsupportedStatement, start, end, FlowchartOutcome::Unsupported);
+                Skip(at, end);
+                if (side == L"left" || side == L"right")
+                {
+                    placement = side == L"left" ? SequenceNotePlacement::Left : SequenceNotePlacement::Right;
+                    if (Text().substr(at, 2u) != L"of" || at + 2u == end || ! Space(Text()[at + 2u]))
+                        return Error(FlowchartIssue::UnsupportedStatement, start, end, FlowchartOutcome::Unsupported);
+                    at += 2u;
+                    Skip(at, end);
+                }
+                else if (side == L"over")
+                    placement = SequenceNotePlacement::Over;
+                else
+                    return Error(FlowchartIssue::UnsupportedStatement, start, end, FlowchartOutcome::Unsupported);
+                FlowchartEdge note;
+                note.sequenceNote = placement;
+                note.source       = {start, end};
+                if (! Node(at, end, note.from, true))
+                    return false;
+                note.to = note.from;
+                Skip(at, end);
+                if (placement == SequenceNotePlacement::Over && at < end && Text()[at] == L',')
+                {
+                    ++at;
+                    if (! Node(at, end, note.to, true))
+                        return false;
+                    Skip(at, end);
+                }
+                if (at == end || Text()[at++] != L':')
+                    return Error(FlowchartIssue::UnsupportedStatement, start, end, FlowchartOutcome::Unsupported);
+                Skip(at, end);
+                if (at == end)
+                    return Error(FlowchartIssue::UnsupportedStatement, start, end, FlowchartOutcome::Unsupported);
+                if (model->edges.size() == MaximumEdges)
+                    return Error(FlowchartIssue::EdgeCapacity, start, end, FlowchartOutcome::Capacity);
+                if (! PlainText(at, end, note.label))
+                    return false;
+                model->edges.push_back(note);
+                return true;
+            }
             std::size_t from{}, to{};
             if (! Node(at, end, from))
                 return false;
             Skip(at, end);
-            const bool dotted    = Text().substr(at, 4u) == L"-->>" || Text().substr(at, 3u) == L"--)";
+            const bool dotted    = Text().substr(at, 3u) == L"-->" || Text().substr(at, 3u) == L"--)";
             const bool openArrow = Text().substr(at, 3u) == L"--)" || Text().substr(at, 2u) == L"-)";
+            bool arrow           = true;
             if (Text().substr(at, 4u) == L"-->>")
                 at += 4u;
             else if (Text().substr(at, 3u) == L"--)")
@@ -1352,6 +1424,16 @@ struct NativeFlowchartParser::Preparation
                 at += 2u;
             else if (Text().substr(at, 3u) == L"->>")
                 at += 3u;
+            else if (Text().substr(at, 3u) == L"-->")
+            {
+                at += 3u;
+                arrow = false;
+            }
+            else if (Text().substr(at, 2u) == L"->")
+            {
+                at += 2u;
+                arrow = false;
+            }
             else
                 return Error(FlowchartIssue::UnsupportedStatement, start, end, FlowchartOutcome::Unsupported);
             if (! Node(at, end, to, true))
@@ -1368,9 +1450,9 @@ struct NativeFlowchartParser::Preparation
             message.from      = from;
             message.to        = to;
             message.source    = {start, end};
-            message.arrow     = true;
+            message.arrow     = arrow;
             message.openArrow = openArrow;
-            message.relation  = FlowchartRelation::Arrow;
+            message.relation  = arrow ? FlowchartRelation::Arrow : FlowchartRelation::Line;
             message.style     = dotted ? FlowchartLineStyle::Dotted : FlowchartLineStyle::Solid;
             if (! PlainText(at, end, message.label))
                 return false;
@@ -2141,6 +2223,18 @@ struct NativeFlowchartParser::Preparation
                     if ((defaultEdgeStyle.mask & 32u) && ! (directEdgeStyle[i] & 32u))
                         edge.strokeColor = defaultEdgeStyle.stroke;
                 }
+            if (model->family == NativeDiagramFamily::Sequence && model->sequenceAutonumber)
+            {
+                std::uint16_t number{};
+                for (auto& edge : model->edges)
+                    if (edge.sequenceNote == SequenceNotePlacement::None)
+                        edge.sequenceNumber = ++number;
+            }
+            if (! ValidFlowchartModel(*model))
+            {
+                Error(FlowchartIssue::UnsupportedStatement, 0u, text.size(), FlowchartOutcome::Unsupported);
+                return;
+            }
             done = true;
             return;
         }

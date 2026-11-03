@@ -1,0 +1,208 @@
+{
+  "status": "SELECTED_PASSED",
+  "repositoryQualification": "NOT_EVALUATED",
+  "qualification": false,
+  "implementationRevision": "2e775e8d81ff415587a4d885366566ed89df655f",
+  "platform": "x64",
+  "configuration": "Release",
+  "buildWarnings": 0,
+  "buildErrors": 0,
+  "buildLog": ".build/mermaid-syntax-expansion-20261103/contrast-final-build.log",
+  "buildLogSha256": "D74B4BEA6972DB32F2BDCCAD35DE13B24D0EC32EB71BA25509DD4984608E758D",
+  "librarySha256": "E6D0C821B3B71850BA2603D9D0C83ED4EE71CC0A94B2A01538DCFEB915D7373B",
+  "controlTestsSha256": "CB5F807B8729F78E62DE1A012A5036BE3CEB76FF140143201AA42976C3E85EE0",
+  "canonicalLog": ".build/mermaid-syntax-expansion-20261103/contrast-final-native-scopes.log",
+  "canonicalLogSha256": "3B81AC2EEDAAC198BFCC46EE9A4A433D3B44FF423B98BC9BC4D0B81ED48EBC98",
+  "nativeReports": [
+    {
+      "suite": "Accessibility",
+      "file": ".build/evidence/test-runs/20261103T145540184Z-28304-d380b77d9a094d9faebf840071bc11d8/payload/Accessibility-x64-Release.json",
+      "sha256": "C94E89A59F8AD4F25BF75889038B0E1F0A56346E23EED1467D8750C7AB3D4E89",
+      "executableSha256": "CB5F807B8729F78E62DE1A012A5036BE3CEB76FF140143201AA42976C3E85EE0",
+      "exitCode": 0,
+      "skips": 0
+    },
+    {
+      "suite": "Animation",
+      "file": ".build/evidence/test-runs/20261103T145540184Z-28304-d380b77d9a094d9faebf840071bc11d8/payload/Animation-x64-Release.json",
+      "sha256": "50C322E5E04D2C7DA17CBE469AA9EA9BB76011D75031BD606DD1F4DE2FE58790",
+      "executableSha256": "CB5F807B8729F78E62DE1A012A5036BE3CEB76FF140143201AA42976C3E85EE0",
+      "exitCode": 0,
+      "skips": 0
+    },
+    {
+      "suite": "ComboBox",
+      "file": ".build/evidence/test-runs/20261103T145540184Z-28304-d380b77d9a094d9faebf840071bc11d8/payload/ComboBox-x64-Release.json",
+      "sha256": "4459E6AED6549701D63CA93523FCEFE51F03C9BC625176E1B8D8DFCA2D7CE577",
+      "executableSha256": "CB5F807B8729F78E62DE1A012A5036BE3CEB76FF140143201AA42976C3E85EE0",
+      "exitCode": 0,
+      "skips": 0
+    },
+    {
+      "suite": "Control",
+      "file": ".build/evidence/test-runs/20261103T145540184Z-28304-d380b77d9a094d9faebf840071bc11d8/payload/Control-x64-Release.json",
+      "sha256": "13F9511148DCC3111D6B51BC06CCAA03CFE419408E3D43818BAFCA8796E766B1",
+      "executableSha256": "CB5F807B8729F78E62DE1A012A5036BE3CEB76FF140143201AA42976C3E85EE0",
+      "exitCode": 0,
+      "skips": 0
+    },
+    {
+      "suite": "EditorControls",
+      "file": ".build/evidence/test-runs/20261103T145540184Z-28304-d380b77d9a094d9faebf840071bc11d8/payload/EditorControls-x64-Release.json",
+      "sha256": "2FFEFE980B669F0BE6FB1B95988D7CAFB264FD4D0C816AAF90593115857B2285",
+      "executableSha256": "CB5F807B8729F78E62DE1A012A5036BE3CEB76FF140143201AA42976C3E85EE0",
+      "exitCode": 0,
+      "skips": 0
+    },
+    {
+      "suite": "Embedded",
+      "file": ".build/evidence/test-runs/20261103T145540184Z-28304-d380b77d9a094d9faebf840071bc11d8/payload/Embedded-x64-Release.json",
+      "sha256": "E6EFDD5C28084A555B120FA6218B697DCBCA9CDFB25C5CD6FD9A7AD969F62768",
+      "executableSha256": "681A3021C6D837FE41D8BE372DD3B388DA8DDA14A3FA6B00A3C16C4340CBF200",
+      "exitCode": 0,
+      "skips": 0
+    },
+    {
+      "suite": "Foundation",
+      "file": ".build/evidence/test-runs/20261103T145540184Z-28304-d380b77d9a094d9faebf840071bc11d8/payload/Foundation-x64-Release.json",
+      "sha256": "554A870CB035C1F4BA48008382959605D61EAA0472AD0ED9C7191E0A4894285B",
+      "executableSha256": "04E10C86C1ABA2C7D6B4C7BDB49ACE7BE77B63B5957A1D73C40901903764EF9F",
+      "exitCode": 0,
+      "skips": 0
+    },
+    {
+      "suite": "Grid",
+      "file": ".build/evidence/test-runs/20261103T145540184Z-28304-d380b77d9a094d9faebf840071bc11d8/payload/Grid-x64-Release.json",
+      "sha256": "D99567FF10C52E89797CB0F76F8048FC68CCDC66C7E752EC409C2B4B38571EE7",
+      "executableSha256": "CB5F807B8729F78E62DE1A012A5036BE3CEB76FF140143201AA42976C3E85EE0",
+      "exitCode": 0,
+      "skips": 0
+    },
+    {
+      "suite": "InteractiveLease",
+      "file": ".build/evidence/test-runs/20261103T145540184Z-28304-d380b77d9a094d9faebf840071bc11d8/payload/InteractiveLease-x64-Release.json",
+      "sha256": "9F0B455688F1D406754F116AAC28A5156F90AF594DD3A6BA0E9A75C3E115DFA1",
+      "executableSha256": "CB5F807B8729F78E62DE1A012A5036BE3CEB76FF140143201AA42976C3E85EE0",
+      "exitCode": 0,
+      "skips": 0
+    },
+    {
+      "suite": "MenuExitLifetime",
+      "file": ".build/evidence/test-runs/20261103T145540184Z-28304-d380b77d9a094d9faebf840071bc11d8/payload/MenuExitLifetime-x64-Release.json",
+      "sha256": "A075A6DEDB86FCE2A72067080CE4DAB87BCD9AD2B209D2FC68E05C3001EB1D6B",
+      "executableSha256": "CB5F807B8729F78E62DE1A012A5036BE3CEB76FF140143201AA42976C3E85EE0",
+      "exitCode": 0,
+      "skips": 0
+    },
+    {
+      "suite": "MultilineText",
+      "file": ".build/evidence/test-runs/20261103T145540184Z-28304-d380b77d9a094d9faebf840071bc11d8/payload/MultilineText-x64-Release.json",
+      "sha256": "9F98F29C8FD075DF9102375E03FFC229F4195F15CAC6A3836E56C7129B3B8746",
+      "executableSha256": "CB5F807B8729F78E62DE1A012A5036BE3CEB76FF140143201AA42976C3E85EE0",
+      "exitCode": 0,
+      "skips": 0
+    },
+    {
+      "suite": "NewControls",
+      "file": ".build/evidence/test-runs/20261103T145540184Z-28304-d380b77d9a094d9faebf840071bc11d8/payload/NewControls-x64-Release.json",
+      "sha256": "41A069A60500CB0E21F96492B35FEA6F70976A0C0613E6C0EC2E83AD335C3EAD",
+      "executableSha256": "CB5F807B8729F78E62DE1A012A5036BE3CEB76FF140143201AA42976C3E85EE0",
+      "exitCode": 0,
+      "skips": 0
+    },
+    {
+      "suite": "ReadOnly",
+      "file": ".build/evidence/test-runs/20261103T145540184Z-28304-d380b77d9a094d9faebf840071bc11d8/payload/ReadOnly-x64-Release.json",
+      "sha256": "1145EE8B6345602E6D0E1F66EB38D7C246EF092C858AA6E3B4A1CFDA9435F6BA",
+      "executableSha256": "CB5F807B8729F78E62DE1A012A5036BE3CEB76FF140143201AA42976C3E85EE0",
+      "exitCode": 0,
+      "skips": 0
+    },
+    {
+      "suite": "Rendering",
+      "file": ".build/evidence/test-runs/20261103T145540184Z-28304-d380b77d9a094d9faebf840071bc11d8/payload/Rendering-x64-Release.json",
+      "sha256": "C3C7EA90B370834820DAA33B27545E44271991DF395B14B679A925CA20DF03CC",
+      "executableSha256": "CB5F807B8729F78E62DE1A012A5036BE3CEB76FF140143201AA42976C3E85EE0",
+      "exitCode": 0,
+      "skips": 0
+    },
+    {
+      "suite": "TextField",
+      "file": ".build/evidence/test-runs/20261103T145540184Z-28304-d380b77d9a094d9faebf840071bc11d8/payload/TextField-x64-Release.json",
+      "sha256": "E9464801A52D25BAAB882AB0119527F7B1A78903A3902778BFCF39670D1D5763",
+      "executableSha256": "CB5F807B8729F78E62DE1A012A5036BE3CEB76FF140143201AA42976C3E85EE0",
+      "exitCode": 0,
+      "skips": 0
+    },
+    {
+      "suite": "Theme",
+      "file": ".build/evidence/test-runs/20261103T145540184Z-28304-d380b77d9a094d9faebf840071bc11d8/payload/Theme-x64-Release.json",
+      "sha256": "00DC9371590CE282CF5EF227D57126C072A63843F0099C92F21E223EC2043707",
+      "executableSha256": "CB5F807B8729F78E62DE1A012A5036BE3CEB76FF140143201AA42976C3E85EE0",
+      "exitCode": 0,
+      "skips": 0
+    },
+    {
+      "suite": "Tooltip",
+      "file": ".build/evidence/test-runs/20261103T145540184Z-28304-d380b77d9a094d9faebf840071bc11d8/payload/Tooltip-x64-Release.json",
+      "sha256": "F956852F6449EB092F2BB34A5CFD88D0810610BB4CC53A7EE062D8859D22A3DD",
+      "executableSha256": "CB5F807B8729F78E62DE1A012A5036BE3CEB76FF140143201AA42976C3E85EE0",
+      "exitCode": 0,
+      "skips": 0
+    },
+    {
+      "suite": "Tree",
+      "file": ".build/evidence/test-runs/20261103T145540184Z-28304-d380b77d9a094d9faebf840071bc11d8/payload/Tree-x64-Release.json",
+      "sha256": "8C6BDCFE0A3483C61861DFC64533BF4C7C25E109B270CF77E42C98CD4B6DCDA4",
+      "executableSha256": "CB5F807B8729F78E62DE1A012A5036BE3CEB76FF140143201AA42976C3E85EE0",
+      "exitCode": 0,
+      "skips": 0
+    },
+    {
+      "suite": "WindowHost",
+      "file": ".build/evidence/test-runs/20261103T145540184Z-28304-d380b77d9a094d9faebf840071bc11d8/payload/WindowHost-x64-Release.json",
+      "sha256": "19CB45BA39E4133A99AF364683238C0C5046215F13A33EA316DD240A1E4AAF3E",
+      "executableSha256": "CB5F807B8729F78E62DE1A012A5036BE3CEB76FF140143201AA42976C3E85EE0",
+      "exitCode": 0,
+      "skips": 0
+    }
+  ],
+  "galleryReceipt": "docs/gallery/generation.json",
+  "galleryReceiptSha256": "8339A281510E30353CC1429FD66732AB57AFC45F5C671A4FA68B6B6072C77A73",
+  "consumer": {
+    "sourceIdentity": "557a5bd3fde410e7f7fddbd977e149ad6e39f0c571ae6c1ee0a57b268e462ad8",
+    "binarySha256": "A522DA81F960299A044C4DBDE7ECE1924195AE0D13C5AC912156CD5D4CF6FFF0",
+    "nativeCases": 73,
+    "standardCaptures": 32,
+    "finalCustomCaptures": 18,
+    "publicPacket": "RedTilde/Measurements/MermaidSyntax_2026-11-03/evidence.json"
+  },
+  "retainedDiagnostics": [
+    "probe-before/results.json",
+    "raster-focused.log",
+    "raster-oracle-correction.json",
+    "raster-focused-corrected.log",
+    "actor-oracle-correction.json",
+    "contrast-probe-before/result.log",
+    "contrast-probe-after/result.log",
+    "precommit-validation.log",
+    "corrected-spec-validation.log"
+  ],
+  "diagnosticRoot": ".build/mermaid-syntax-expansion-20261103/",
+  "strokePixelDistances": {
+    "beforeLight": 16,
+    "afterLight": 184,
+    "afterDark": 157,
+    "afterHighContrast": 170,
+    "unit": "channel intensity distance; not contrast ratio"
+  },
+  "performanceVerdict": "NOT_EVALUATED",
+  "remainingGates": [
+    "Broader build/runtime profiles",
+    "Native ARM64",
+    "Physical IME/AT and authorized foreground",
+    "Qualified quiet-host paired performance policy",
+    "Remote publication and release"
+  ],
+  "commitsPublished": false
+}

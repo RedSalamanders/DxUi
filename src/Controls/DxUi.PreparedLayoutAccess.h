@@ -17,6 +17,7 @@ struct PreparedLayoutAccess
         std::wstring text;
         std::vector<StyleRun> runs;
         std::uint64_t revision{};
+        bool padInlineCode{};
     };
     static std::span<const DWRITE_LINE_METRICS> LineMetrics(const PreparedLayout& owner)
     {
@@ -49,6 +50,7 @@ struct PreparedLayoutAccess
                         bool marker                           = false,
                         IDWriteInlineObject* object           = nullptr,
                         UINT32 objectOffset                   = 0u,
-                        std::span<const InlineObject> objects = {});
+                        std::span<const InlineObject> objects = {},
+                        bool padInlineCode                    = false);
 };
 } // namespace DxUi::RichText::Detail

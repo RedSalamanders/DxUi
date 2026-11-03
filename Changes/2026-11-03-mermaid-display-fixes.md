@@ -1,0 +1,1 @@
+- Keep styled Mermaid labels within their decoded text, separate ER/class relationship ports and cardinalities, remove duplicate unordered-task bullets, and use foreground ink for code language badges and line numbers; retain exact source and bounded native preparation.

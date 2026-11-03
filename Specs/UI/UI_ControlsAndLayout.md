@@ -2039,6 +2039,17 @@ does not validate the YAML/TOML payload.
 
 ### Native Mermaid flowchart profile
 
+Decoded label trimming MUST clamp style spans to the final UTF-16 label and discard empty spans, including the
+implicit-close edge-label path. Parser publication, CPU layout and native painting share model-only admission.
+An inadmissible parsed model retains that fence as source; factory/typography/measurement errors retain their
+own service-level admission behavior. Do not turn unrelated view-option errors into per-diagram fallback.
+
+ER/class endpoints with cardinalities use distinct attachment slots on each node side, in stable relationship
+declaration order. Node cross extents reserve sufficient space for the slots and measured endpoint labels before
+rank placement. Paths, arrow/diamond endpoints, cardinalities and any original-order route comparison use the
+same attachment coordinates. Collision/extent checks remain fail-closed; supported ordinary fan-in/fan-out must
+not fall back merely because every relationship previously used one centre anchor.
+
 The owner's extension engine choice is C++ only. `DxUiNativeFlowchart1` is the
 named limited grammar below. Its bounded CPU parser, geometric layout, native
 painting, F2 source-object editing and semantic UIA diagram publication are
@@ -2504,6 +2515,12 @@ a pressed gesture on capture loss.
 
 ## Optional subtle Markdown presentation
 
+Unordered task rows use the checkbox as their sole visible marker; ordinary bullet rows keep their bullet, and
+ordered tasks retain their source numbering. Checkbox source ranges, editing, native hit testing and accessibility
+remain source-owned. Code language badges and physical line numbers use the caller's foreground text brush,
+including high contrast, rather than the low-contrast decorative border brush. This changes ink only and adds no
+brush creation or layout work during drawing.
+
 `RichText::MarkdownPresentationStyle::Subtle` on `LayoutOptions` and
 `RichTextEditorAppearance` selects document decoration independently of parsing.
 The default remains `Default`. Changing the style retires prepared geometry and
@@ -2538,6 +2555,25 @@ as quotes and code blocks. Inline chips retain source-derived rectangles during
 preparation; painting adds no layout or range mapping. At more than 16,384 chip
 rectangles, the generation omits all cosmetic chips while retaining code font,
 source, selection and accessible content. Header fill is independent of body rows.
+Subtle table columns include ten-DIP horizontal cell insets (clamped to preserve a positive text width in
+exceptionally narrow cells). Inline-code spans reserve three DIP at both scalar endpoints using native character
+spacing, so wrapping, carets, hit testing and chip backgrounds share the same width. These endpoint insets do not
+apply to fenced/indented code contents or literal source mode.
+
+Task markers use the prepared semantic accent brush in the editor; high contrast and dimmed/selected passes
+retain the appropriate foreground ink. Ordered task numbers keep ordinary ink. `strikeCompletedTasks` on the
+editor appearance and semantic layout options defaults to false. When enabled, the nearest checked list item's
+body runs receive presentation-only strikethrough. Nested ordinary or unchecked items keep their own state.
+Explicit source strikethrough remains independent. This option invalidates semantic geometry without changing
+source, selection, revision, command history or accessibility text. Marker metrics and task interaction remain exact.
+
+Adjacent labeled flowchart/ER/class ranks without groups, notes or parallel links reserve measured label and
+cardinality space along the graph's major axis, plus measured cross-axis clearance between sibling boxes so
+branch labels have separate room. Bands that mix fan-in and fan-out retain separate exterior label lanes to
+avoid coincident midpoints in dense joins. Other simple orthogonal routes use the inter-rank corridor instead of
+an exterior detour. Wider labels expand LR/RL separation; taller labels expand TB/BT separation. More complex
+routes retain bounded exterior lanes and existing exact-source capacity fallback. Preparation reserves one bounded
+rank-gap array and bounded rank-classification flags; painting retains no graph model and creates no layouts or brushes.
 HTML `mark` shares the bounded retained inline-surface geometry in either Markdown
 presentation. Its theme-resolved neutral fill keeps ordinary text ink; high
 contrast outlines the marked range instead. The selected-text pass uses the
@@ -2686,14 +2722,23 @@ Aligned rows alternate right-aligned left operands and left-aligned right operan
 Over-capacity notation conservatively retains the remaining physical inline line (display notation: logical leaf) as literal source with a diagnostic. This prevents nested Markdown interpretation and bounds repeated failed delimiter scans. The consumer inspector uses MathMaximumSourceUnits and clears rather than accepting an oversized value.
 
 The bounded `sequenceDiagram` profile retains participants in first-appearance
-order, with optional plain `participant ID as label` declarations. Ordered solid
-`->>` and dotted `-->>` messages use filled heads; solid `-)` and dotted `--)`
-messages use open heads. Self messages use a loop. Each participant has a
-measured header and a dashed lifeline; measured messages appear in source order.
-The diagram alternative exposes participants, messages and their order, and its
-text range owns the exact source fence. Notes, activations, actors, loops,
-grouping, directives and other syntax retain the entire source with a diagnostic.
-The shared diagram source, node, edge, label and extent budgets apply.
+order, with plain `participant ID [as label]` and `actor ID [as label]` declarations.
+Actors draw a foreground stick figure above their measured alias; participant boxes
+and actor labels align above dashed lifelines. Ordered solid `->>` and dotted `-->>`
+messages use filled heads; `-)` / `--)` use open heads; `->` / `-->` have no head.
+Self messages use a loop. Plain `Note left of ID: text`, `Note right of ID: text`,
+and `Note over ID[,ID]: text` frames appear in source order among messages and
+cover their referenced lifeline(s). Lowercase `note` is also accepted. Bare
+`autonumber` numbers messages from one, excluding notes, without changing authored
+labels or source. Custom numbering arguments, activations, loops, grouping,
+creation/destruction, directives and other excluded forms retain the entire fence
+with a diagnostic. The alternative exposes aliases, note text, derived numbers
+and chronological order; its text range owns the exact source fence. Notes share
+the existing edge/event budget and staged label resources; drawing allocates no
+labels or paths. The shared source, node, edge, label and extent budgets apply.
+
+Directionless `flowchart` and `graph` headers use top-to-bottom placement, matching
+the pinned Mermaid 11.4.1 grammar. Explicit TB/TD, BT, LR and RL remain supported.
 
 The bounded `pie` profile accepts an optional plain title and `showData`, followed
 by up to 16 unique quoted plain labels and nonnegative decimal values with at most 15
@@ -2751,6 +2796,14 @@ shaded quote, table header or marked paragraph also uses theme brushes when the
 actual backdrop cannot be established by the prepared color context.
 Painting creates no palette resources and does
 not change borrowed brush attributes.
+
+The retained editor uses each diagram's effective foreground ink for default
+connections, arrowheads, lifelines and shape/note outlines in every presentation
+style, including Subtle and high contrast. These are document content rather than
+decorative rules; the surrounding heading, table and code chrome keeps its separate
+decoration brush. Authored colors still use the bounded palette and contrast rules
+above. Explicit snapshot/export drawing keeps its caller-supplied stroke contract.
+This brush choice performs no new layout, allocation or resource creation during paint.
 
 Flowchart, state, class, sequence, pie, ER, Gantt and mind map diagrams accept one `accTitle: text` and one
 `accDescr: text` or multiline `accDescr {` / `accDescr{` block closed by a

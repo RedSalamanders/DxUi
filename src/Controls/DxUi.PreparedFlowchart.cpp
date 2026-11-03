@@ -360,73 +360,8 @@ LayoutPreparationStatus PreparedFlowchart::Begin(IDWriteFactory* write,
         typography.fontFamily.size() > 1024u || typography.locale.size() > 1024u ||
         (typography.readingDirection != DWRITE_READING_DIRECTION_LEFT_TO_RIGHT && typography.readingDirection != DWRITE_READING_DIRECTION_RIGHT_TO_LEFT))
         throw std::invalid_argument("Invalid native flowchart preparation admission");
-    if (graph->direction < FlowchartDirection::TopBottom || graph->direction > FlowchartDirection::RightLeft)
-        throw std::invalid_argument("Invalid native flowchart direction");
-    if (! ValidSequenceModel(*graph))
-        throw std::invalid_argument("Invalid sequence timeline model");
-    if (! ValidPieModel(*graph))
-        throw std::invalid_argument("Invalid native pie topology");
-    if (! ValidErModel(*graph))
-        throw std::invalid_argument("Invalid native entity relationship model");
-    if (! ValidGanttModel(*graph))
-        throw std::invalid_argument("Invalid native Gantt timeline model");
-    if (! ValidMindmapModel(*graph))
-        throw std::invalid_argument("Invalid native mindmap hierarchy model");
-    for (const auto& node : graph->nodes)
-        if (node.strokeWidth < 1u || node.strokeWidth > 3u || ! ValidDiagramColor(node.fillColor) || ! ValidDiagramColor(node.strokeColor) ||
-            ! ValidDiagramColor(node.textColor) ||
-            (graph->family != NativeDiagramFamily::Flowchart && (node.strokeWidth != 1u || node.borderDashed || node.fillColor != NoDiagramColor ||
-                                                                 node.strokeColor != NoDiagramColor || node.textColor != NoDiagramColor)) ||
-            ! ValidLabelStyles(node.styles, node.label.size(), graph->family == NativeDiagramFamily::Flowchart))
-            throw std::invalid_argument("Invalid native node stroke width");
-    for (const auto& edge : graph->edges)
-        if (! ValidLabelStyles(edge.styles, edge.label.size(), graph->family == NativeDiagramFamily::Flowchart) || edge.strokeWidth > 3u ||
-            ! ValidDiagramColor(edge.strokeColor) ||
-            (graph->family != NativeDiagramFamily::Flowchart &&
-             (edge.strokeWidth || edge.dashed || edge.dashSpecified || edge.strokeColor != NoDiagramColor)) ||
-            (edge.dashed && ! edge.dashSpecified))
-            throw std::invalid_argument("Invalid native edge label styles");
-    if (! graph->groups.empty() && graph->family != NativeDiagramFamily::Flowchart && graph->family != NativeDiagramFamily::State &&
-        graph->family != NativeDiagramFamily::Class)
-        throw std::invalid_argument("Groups require a supported diagram profile");
-    for (std::size_t index = 0u; index < graph->groups.size(); ++index)
-        if (graph->groups[index].title.empty() || graph->groups[index].title.size() > NativeFlowchartParser::MaximumLabelUnits ||
-            graph->groups[index].parentMask >= (1u << index))
-            throw std::invalid_argument("Invalid flowchart group");
-    for (const auto& node : graph->nodes)
-    {
-        if (node.label.size() > NativeFlowchartParser::MaximumLabelUnits || node.shape < FlowchartShape::Rectangle || node.shape > FlowchartShape::Note ||
-            ((node.shape >= FlowchartShape::DoubleCircle && node.shape <= FlowchartShape::Ellipse) && graph->family != NativeDiagramFamily::Flowchart) ||
-            node.groupMask >= (1u << graph->groups.size()) ||
-            (node.shape == FlowchartShape::Note &&
-             ((graph->family != NativeDiagramFamily::State && graph->family != NativeDiagramFamily::Class) ||
-              (node.noteTarget == MarkdownNoNode ? graph->family != NativeDiagramFamily::Class
-                                                 : node.noteTarget >= graph->nodes.size() || graph->nodes[node.noteTarget].shape == FlowchartShape::Note))))
-            throw std::invalid_argument("Invalid flowchart node label/shape");
-        if (node.compartmentCount > node.compartmentStarts.size() ||
-            (node.compartmentCount && graph->family != NativeDiagramFamily::Class && graph->family != NativeDiagramFamily::EntityRelationship))
-            throw std::invalid_argument("Invalid class compartment count");
-        for (std::size_t group = 0u; group < graph->groups.size(); ++group)
-            if ((node.groupMask & (1u << group)) && (node.groupMask & graph->groups[group].parentMask) != graph->groups[group].parentMask)
-                throw std::invalid_argument("Invalid nested group membership");
-        for (std::size_t index = 0u; index < node.compartmentCount; ++index)
-            if (! node.compartmentStarts[index] || node.compartmentStarts[index] >= node.label.size() ||
-                node.label[node.compartmentStarts[index] - 1u] != L'\n' || (index && node.compartmentStarts[index] <= node.compartmentStarts[index - 1u]))
-                throw std::invalid_argument("Invalid class compartment offset");
-    }
-    for (const auto& edge : graph->edges)
-        if (edge.label.size() > NativeFlowchartParser::MaximumLabelUnits || edge.fromCardinality.size() > 32u || edge.toCardinality.size() > 32u ||
-            ((! edge.fromCardinality.empty() || ! edge.toCardinality.empty()) && graph->family != NativeDiagramFamily::Class &&
-             graph->family != NativeDiagramFamily::EntityRelationship) ||
-            edge.from >= graph->nodes.size() || edge.to >= graph->nodes.size() ||
-            (edge.openArrow && (graph->family != NativeDiagramFamily::Sequence || ! edge.arrow)) ||
-            (graph->family != NativeDiagramFamily::EntityRelationship && (edge.erFrom != ErMultiplicity::None || edge.erTo != ErMultiplicity::None)) ||
-            edge.minimumRanks == 0u || edge.minimumRanks > NativeFlowchartParser::MaximumLinkRanks || edge.relation < FlowchartRelation::Line ||
-            edge.relation > FlowchartRelation::Composition ||
-            edge.arrow != (edge.relation != FlowchartRelation::Line && edge.relation != FlowchartRelation::Note) ||
-            (edge.relation == FlowchartRelation::Note &&
-             (graph->nodes[edge.to].shape != FlowchartShape::Note || graph->nodes[edge.to].noteTarget != edge.from)))
-            throw std::invalid_argument("Invalid native flowchart edge");
+    if (! ValidFlowchartModel(*graph))
+        throw std::invalid_argument("Invalid native flowchart model");
     if (next_ && next_->state->Matches(write, drawing, graph, typography, resourceEpoch))
         return LayoutPreparationStatus::Pending;
     if (! next_ && valid_ && state_ && state_->Matches(write, drawing, graph, typography, resourceEpoch))
@@ -508,6 +443,8 @@ LayoutAdvance PreparedFlowchart::Advance(LayoutWorkBudget budget)
                             legend.append(label).append(L": ").append(std::wstring_view(state.graph->source).substr(source.first, source.last - source.first));
                             state.Label(legend, preparedLabel, measuredSize);
                         }
+                        else if (! node && group == 0u && edge->sequenceNumber)
+                            state.Label(SequenceMessageText(*edge), preparedLabel, measuredSize);
                         else
                             state.Label(label,
                                         preparedLabel,
@@ -790,6 +727,14 @@ bool PreparedFlowchart::Draw(ID2D1RenderTarget* target,
     for (std::size_t index = 0u; index < plan.edges.size(); ++index)
     {
         const auto& edge = plan.edges[index];
+        if (edge.sequenceNote)
+        {
+            const auto first = Point(edge.path[0u]), last = Point(edge.path[1u]);
+            const auto bounds = D2D1::RectF(first.x, first.y, last.x, last.y);
+            target->FillRectangle(bounds, fill);
+            target->DrawRectangle(bounds, stroke);
+            continue;
+        }
         if (edge.style == FlowchartLineStyle::Invisible)
             continue;
         const auto& authored = state.graph->edges[index];
@@ -897,7 +842,18 @@ bool PreparedFlowchart::Draw(ID2D1RenderTarget* target,
         const auto bounds          = Rect(node.bounds);
         const auto nodeStrokeWidth = static_cast<float>(state.graph->nodes[index].strokeWidth);
         auto* nodeStrokeStyle      = state.graph->nodes[index].borderDashed ? state.dashedStyle.get() : nullptr;
-        if (node.shape == FlowchartShape::Bar)
+        if (state.graph->nodes[index].sequenceActor)
+        {
+            const float x = (bounds.left + bounds.right) / 2.f, y = bounds.top + 4.f;
+            const auto head = D2D1::Ellipse(D2D1::Point2F(x, y + 6.f), 6.f, 6.f);
+            target->FillEllipse(head, nodeFill);
+            target->DrawEllipse(head, nodeText);
+            target->DrawLine(D2D1::Point2F(x, y + 12.f), D2D1::Point2F(x, y + 25.f), nodeText);
+            target->DrawLine(D2D1::Point2F(x - 11.f, y + 17.f), D2D1::Point2F(x + 11.f, y + 17.f), nodeText);
+            target->DrawLine(D2D1::Point2F(x, y + 25.f), D2D1::Point2F(x - 10.f, y + 34.f), nodeText);
+            target->DrawLine(D2D1::Point2F(x, y + 25.f), D2D1::Point2F(x + 10.f, y + 34.f), nodeText);
+        }
+        else if (node.shape == FlowchartShape::Bar)
         {
             target->FillRectangle(bounds, nodeStroke);
         }

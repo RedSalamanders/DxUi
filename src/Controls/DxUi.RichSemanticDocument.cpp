@@ -1574,8 +1574,11 @@ struct SemanticBuilder::Preparation
                 break;
             const auto& leaf  = nodes[visit.node];
             const auto anchor = leaf.firstInline == MarkdownNoNode ? leaf.block.content.last : document->syntax_->Inlines()[leaf.firstInline].source.first;
-            Marker(parent, anchor, visit.flags, visit.heading);
-            if (owner.task != MarkdownTask::None && normalized.units.size() >= 3u)
+            const bool hasTaskMarker = owner.task != MarkdownTask::None && normalized.units.size() >= 3u;
+            const auto markerKind    = nodes[owner.parent].listMarker;
+            if (! hasTaskMarker || markerKind == L'.' || markerKind == L')')
+                Marker(parent, anchor, visit.flags, visit.heading);
+            if (hasTaskMarker)
             {
                 const MarkdownRange marker{normalized.units[0u].source.first, normalized.units[2u].source.last};
                 const auto task   = Element(SemanticRole::Task, marker, element, owner.identity);
@@ -1828,9 +1831,22 @@ struct SemanticBuilder::Preparation
             }
             if (graph.family == Detail::NativeDiagramFamily::Sequence)
             {
+                if (edge.sequenceNote != Detail::SequenceNotePlacement::None)
+                {
+                    DiagramAlternative({id(edge.from),
+                                        Label(AccessibilityTextId::DiagramNote),
+                                        edge.label,
+                                        edge.from == edge.to ? L"; " : Label(AccessibilityTextId::SequenceTo),
+                                        edge.from == edge.to ? std::wstring_view{} : id(edge.to),
+                                        edge.from == edge.to ? std::wstring_view{} : L"; "});
+                    return;
+                }
+                std::wstring numbered;
+                if (edge.sequenceNumber)
+                    numbered = Detail::SequenceMessageText(edge);
                 DiagramAlternative({id(edge.from),
                                     edge.openArrow ? Label(AccessibilityTextId::SequenceAsyncSends) : Label(AccessibilityTextId::SequenceSends),
-                                    edge.label,
+                                    edge.sequenceNumber ? std::wstring_view(numbered) : std::wstring_view(edge.label),
                                     Label(AccessibilityTextId::SequenceTo),
                                     id(edge.to),
                                     edge.style == Detail::FlowchartLineStyle::Dotted ? Label(AccessibilityTextId::SequenceDottedEnd) : L"; "});

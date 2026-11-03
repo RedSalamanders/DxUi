@@ -1,5 +1,12 @@
 # Performance and resources
 
+Mermaid label-style clipping and shared model validation run during bounded preparation and allocate no extra
+label storage. Model validation is an indivisible bounded check, not a wall-clock guarantee. Relationship layouts
+allocate one bounded endpoint-slot state only when cardinalities are present (256 nodes, two sides and 512
+edges); it is retired with preparation and never retained by the published plan. Ordinary flowcharts avoid that
+allocation. Slot admission and row sizing remain bounded by existing node/edge/extent limits. Clean/hidden
+frames, warm drawing and code-chrome foreground selection add no workers, timers, allocation or measurement.
+
 Bulk Grid and Tree selection builds a staged visible-order list with hash membership and a fixed-width radix-sorted
 membership copy. Its expected work is linear in visible and requested IDs, including reverse-ordered IDs; allocation
 failure preserves the previously published selection. Repeated IDs occur only once in first-visible order; the final

@@ -1186,10 +1186,236 @@ void TestNativeFlowchartDeterministicGeometry()
 {
     FlowchartLayoutTests::Geometry(Require);
 }
+void TestNativeFlowchartTrimmedStyledLabelsRemainAdmissible()
+{
+    using namespace DxUi::RichText::Detail;
+    for (const std::wstring_view source : {L"flowchart LR\nA[<b>Warning: </b>] --> B\n",
+                                           L"flowchart TD\nA -- <b>yes </b> --> B\n",
+                                           L"flowchart TD\nA -->|<i>maybe </i>| B\n",
+                                           L"flowchart TD\nA[<b>x<br></b>]\n",
+                                           L"flowchart TD\nA[a<b> </b>]\n",
+                                           L"flowchart TD\nA>text <b>x </b>]\n",
+                                           L"flowchart TD\r\nA[😀<b>x </b>] --> B\r\n"})
+    {
+        const auto graph = FlowchartLayoutTests::Graph(source);
+        Require(graph && graph->outcome == FlowchartOutcome::Prepared && graph->source == source,
+                "styled labels with trailing whitespace retain their exact diagram source");
+        for (const auto& node : graph->nodes)
+            Require(ValidLabelStyles(node.styles, node.label.size(), true), "node styles stay within the final decoded label");
+        for (const auto& edge : graph->edges)
+            Require(ValidLabelStyles(edge.styles, edge.label.size(), true), "edge styles stay within the final decoded label");
+        const auto plan = FlowchartLayoutTests::Place(graph, Require);
+        Require(plan && plan->issue == FlowchartLayoutIssue::None, "published styled-label models are accepted by native layout");
+    }
+}
+void TestNativeRelationshipFanPortsAndCardinalities()
+{
+    using namespace DxUi::RichText::Detail;
+    for (const std::wstring_view source :
+         {L"erDiagram\nCUSTOMER ||--o{ ORDER : places\nORDER ||--|{ LINE-ITEM : contains\nCUSTOMER }|..|{ DELIVERY-ADDRESS : uses\n",
+          L"erDiagram\nA ||--o{ B : first\nA ||--o{ C : second\n",
+          L"erDiagram\nA ||--o{ C : first\nB ||--o{ C : second\n",
+          L"classDiagram\nA \"1\" --> \"*\" B\nA \"1\" --> \"*\" C\n",
+          L"classDiagram\ndirection LR\nA \"1\" --> \"*\" B\nA \"1\" --> \"*\" C\n",
+          L"classDiagram\ndirection BT\nA \"1\" --> \"*\" B\nA \"1\" --> \"*\" C\n",
+          L"classDiagram\ndirection RL\nA \"1\" --> \"*\" B\nA \"1\" --> \"*\" C\n"})
+    {
+        const auto graph = FlowchartLayoutTests::Graph(source);
+        Require(graph && graph->outcome == FlowchartOutcome::Prepared, "ordinary relationship fans are admitted by the bounded grammar");
+        const auto plan = FlowchartLayoutTests::Place(graph, Require);
+        Require(plan && plan->issue == FlowchartLayoutIssue::None, "ordinary ER and class fans remain rendered instead of falling back to source");
+        FlowchartLayoutTests::Invariants(*plan, Require);
+        const auto overlap = [](const FlowchartRect& a, const FlowchartRect& b)
+        {
+            return a.width > 0.0 && a.height > 0.0 && b.width > 0.0 && b.height > 0.0 && a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height &&
+                   b.y < a.y + a.height;
+        };
+        for (std::size_t first = 0u; first < plan->edges.size(); ++first)
+            for (std::size_t second = first + 1u; second < plan->edges.size(); ++second)
+            {
+                const auto& a = plan->edges[first];
+                const auto& b = plan->edges[second];
+                for (const auto& firstLabel : {a.fromCardinality, a.toCardinality})
+                    for (const auto& secondLabel : {b.fromCardinality, b.toCardinality})
+                        Require(! overlap(firstLabel, secondLabel), "relationship endpoint labels have independently disjoint rectangles");
+                if (graph->edges[first].from == graph->edges[second].from && a.route == b.route)
+                    Require(! FlowchartLayoutTests::Near(a.path.front().x, b.path.front().x) ||
+                                ! FlowchartLayoutTests::Near(a.path.front().y, b.path.front().y),
+                            "same-side fan-out relationships have distinct actual shape attachments");
+                if (graph->edges[first].to == graph->edges[second].to && a.route == b.route)
+                    Require(! FlowchartLayoutTests::Near(a.path.back().x, b.path.back().x) || ! FlowchartLayoutTests::Near(a.path.back().y, b.path.back().y),
+                            "same-side fan-in relationships have distinct actual shape attachments");
+            }
+    }
+}
+void TestNativeLabeledRankCorridors()
+{
+    using namespace DxUi::RichText::Detail;
+    const auto overlaps = [](const FlowchartRect& a, const FlowchartRect& b)
+    { return a.width > 0.0 && b.width > 0.0 && a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height; };
+    for (const std::wstring_view direction : {L"LR", L"RL", L"TB", L"BT"})
+    {
+        const auto graph =
+            FlowchartLayoutTests::Graph(std::wstring(L"flowchart ") + std::wstring(direction) + L"\nA[<b>Warning: </b>] -->|<i>continue </i>| B[Continue]\n");
+        Require(graph && graph->outcome == FlowchartOutcome::Prepared, "styled corridor fixture parses in each direction");
+        const std::array<FlowchartSize, 2> nodes{{{68.0, 20.0}, {72.0, 20.0}}};
+        const bool horizontal = direction == L"LR" || direction == L"RL";
+        double smallGap{};
+        for (const auto label : {FlowchartSize{20.0, 12.0}, FlowchartSize{180.0, 52.0}})
+        {
+            const std::array labels{label};
+            NativeFlowchartLayout layout;
+            layout.Begin(graph, nodes, labels);
+            const auto plan = FlowchartLayoutTests::Complete(layout, Require, 1u);
+            Require(plan && plan->issue == FlowchartLayoutIssue::None, "measured label corridor publishes under a one-unit budget");
+            FlowchartLayoutTests::Invariants(*plan, Require);
+            const auto& a = plan->nodes[0u].bounds;
+            const auto& b = plan->nodes[1u].bounds;
+            const auto gap =
+                horizontal ? std::max(a.x, b.x) - std::min(a.x + a.width, b.x + b.width) : std::max(a.y, b.y) - std::min(a.y + a.height, b.y + b.height);
+            const auto& edge = plan->edges[0u];
+            Require(gap >= (horizontal ? label.width : label.height) + 16.0 && ! overlaps(edge.label, a) && ! overlaps(edge.label, b),
+                    "inter-box space contains the full measured label and a visible inset on both sides");
+            for (const auto point : edge.path)
+                Require(horizontal ? point.y >= a.y && point.y <= a.y + a.height : point.x >= a.x && point.x <= a.x + a.width,
+                        "a simple labeled link follows the shared centerline instead of an exterior detour");
+            if (label.width == 20.0)
+                smallGap = gap;
+            else
+                Require(gap > smallGap, "a wider or taller label increases separation along the actual graph direction");
+        }
+    }
+    for (const std::wstring_view direction : {L"LR", L"RL", L"TB", L"BT"})
+    {
+        const auto fan = FlowchartLayoutTests::Graph(std::wstring(L"flowchart ") + std::wstring(direction) +
+                                                     L"\nA -->|a long relationship label| B\nA -->|another long relationship label| C\n");
+        const std::array<FlowchartSize, 3> nodes{{{68.0, 20.0}, {72.0, 20.0}, {72.0, 20.0}}};
+        const std::array<FlowchartSize, 2> labels{{{180.0, 52.0}, {180.0, 52.0}}};
+        NativeFlowchartLayout layout;
+        layout.Begin(fan, nodes, labels);
+        const auto plan = FlowchartLayoutTests::Complete(layout, Require);
+        Require(plan && plan->issue == FlowchartLayoutIssue::None && ! overlaps(plan->edges[0u].label, plan->edges[1u].label),
+                "branching arrows reserve cross-axis room for adjacent long labels in each direction");
+    }
+    const auto dense =
+        FlowchartLayoutTests::Place(FlowchartLayoutTests::Graph(L"flowchart TD\nA -->|one| C\nB -->|two| D\nA -->|three| D\nB -->|four| C\n"), Require);
+    Require(dense && dense->issue == FlowchartLayoutIssue::None, "a dense labeled rank remains native");
+    FlowchartLayoutTests::Invariants(*dense, Require);
+    const auto graph =
+        FlowchartLayoutTests::Graph(L"erDiagram\nCUSTOMER ||--o{ ORDER : places\nORDER ||--|{ LINE-ITEM : contains\nCUSTOMER }|..|{ DELIVERY-ADDRESS : uses\n");
+    std::vector<FlowchartSize> nodes;
+    for (const auto& node : graph->nodes)
+        nodes.push_back({static_cast<double>(node.label.size()) * 8.0, 20.0});
+    const std::array<FlowchartSize, 3> labels{{{48.0, 20.0}, {64.0, 20.0}, {32.0, 20.0}}};
+    const std::array<FlowchartSize, 3> cardinalities{{{24.0, 16.0}, {24.0, 16.0}, {24.0, 16.0}}};
+    NativeFlowchartLayout layout;
+    layout.Begin(graph, nodes, labels, cardinalities, cardinalities);
+    const auto plan = FlowchartLayoutTests::Complete(layout, Require);
+    Require(plan && plan->issue == FlowchartLayoutIssue::None, "the supplied ER fan remains a native diagram");
+    FlowchartLayoutTests::Invariants(*plan, Require);
+    for (std::size_t i = 0u; i < plan->edges.size(); ++i)
+    {
+        const auto& edge = plan->edges[i];
+        for (const auto& node : plan->nodes)
+            Require(! overlaps(edge.label, node.bounds), "ER relationship text clears every entity");
+        for (std::size_t j = 0u; j < plan->edges.size(); ++j)
+        {
+            const auto& other = plan->edges[j];
+            Require((i == j || ! overlaps(edge.label, other.label)) && ! overlaps(edge.label, other.fromCardinality) &&
+                        ! overlaps(edge.label, other.toCardinality),
+                    "relationship labels and endpoint cardinalities have separate rectangles");
+        }
+    }
+}
 void TestNativeFlowchartLayoutIndependentCorpusAndRouting()
 {
     FlowchartLayoutTests::Corpus(Require);
     FlowchartLayoutTests::CrossingReduction(Require);
+}
+void TestNativeSequenceActorsNotesNumbersAndDefaultDirection()
+{
+    using namespace DxUi::RichText::Detail;
+    const std::wstring source = L"sequenceDiagram\r\nactor\tWriter\tas\tNotebook author\r\nparticipant App as Draft editor\r\n"
+                                L"autonumber\r\nNote left of Writer: Draft ready\r\nWriter->App: Save draft\r\n"
+                                L"Note over App, Writer: One exact document\r\nApp-->Writer: Saved\r\n"
+                                L"note right of App: Keep revision\r\nWriter-)Writer: Continue\r\n";
+    const auto graph          = FlowchartLayoutTests::Graph(source);
+    Require(graph && graph->outcome == FlowchartOutcome::Prepared && graph->source == source && ValidFlowchartModel(*graph),
+            "extended sequence syntax publishes one admissible model with exact CRLF source");
+    Require(graph->nodes.size() == 2u && graph->nodes[0u].sequenceActor && ! graph->nodes[1u].sequenceActor && graph->nodes[0u].label == L"Notebook author" &&
+                graph->nodes[1u].label == L"Draft editor" && graph->edges.size() == 6u,
+            "actor kind, aliases and chronological note/message records survive later endpoint lookups");
+    Require(graph->edges[0u].sequenceNote == SequenceNotePlacement::Left && graph->edges[2u].sequenceNote == SequenceNotePlacement::Over &&
+                graph->edges[4u].sequenceNote == SequenceNotePlacement::Right && graph->edges[2u].from == 1u && graph->edges[2u].to == 0u &&
+                ! graph->edges[1u].arrow && ! graph->edges[3u].arrow && graph->edges[3u].style == FlowchartLineStyle::Dotted && graph->edges[5u].openArrow,
+            "notes keep authored associations and unheaded/dotted/asynchronous messages stay distinct");
+    Require(graph->sequenceAutonumber && graph->edges[1u].sequenceNumber == 1u && graph->edges[3u].sequenceNumber == 2u &&
+                graph->edges[5u].sequenceNumber == 3u && graph->edges[0u].sequenceNumber == 0u && graph->edges[1u].label == L"Save draft" &&
+                SequenceMessageText(graph->edges[1u]) == L"1. Save draft",
+            "numbering counts messages rather than notes and never rewrites the authored label");
+    const auto plan = FlowchartLayoutTests::Place(graph, Require);
+    Require(plan && plan->issue == FlowchartLayoutIssue::None && plan->nodes.size() == 2u && plan->edges.size() == 6u,
+            "extended sequence events have a complete bounded CPU layout");
+    const auto center = [](const FlowchartRect& bounds) { return bounds.x + bounds.width / 2.0; };
+    double previousBottom{};
+    for (std::size_t index = 0u; index < graph->edges.size(); ++index)
+    {
+        const auto& placed = plan->edges[index];
+        Require(placed.label.y >= previousBottom && placed.label.x >= 0.0 && placed.label.x + placed.label.width <= plan->extent.width &&
+                    placed.label.y + placed.label.height <= plan->extent.height,
+                "timeline labels remain chronological, finite and inside the published extent");
+        if (graph->edges[index].sequenceNote != SequenceNotePlacement::None)
+        {
+            Require(placed.sequenceNote && ! placed.hasArrow && placed.path[0u].x < placed.label.x && placed.path[0u].y < placed.label.y &&
+                        placed.path[1u].x > placed.label.x + placed.label.width && placed.path[1u].y > placed.label.y + placed.label.height,
+                    "a note is a padded frame enclosing its actual text, without a connecting route");
+            previousBottom = placed.path[1u].y;
+        }
+        else
+        {
+            Require(! placed.sequenceNote && placed.hasArrow == graph->edges[index].arrow, "message geometry preserves the authored arrowhead kind");
+            previousBottom = placed.path.back().y;
+        }
+    }
+    Require(plan->edges[0u].path[1u].x < center(plan->nodes[0u].bounds) && plan->edges[4u].path[0u].x > center(plan->nodes[1u].bounds) &&
+                plan->edges[2u].path[0u].x < center(plan->nodes[0u].bounds) && plan->edges[2u].path[1u].x > center(plan->nodes[1u].bounds) &&
+                plan->nodes[0u].label.y >= plan->nodes[0u].bounds.y + NativeFlowchartLayout::SequenceActorHeight,
+            "left/right/spanning notes and actor text use independent placement oracles");
+    for (const std::wstring_view header : {L"flowchart", L"graph", L"flowchart\t"})
+    {
+        const auto body   = std::wstring(header) + L"\nFirst --> Second\n";
+        const auto flow   = FlowchartLayoutTests::Graph(body);
+        const auto layout = FlowchartLayoutTests::Place(flow, Require);
+        Require(flow->outcome == FlowchartOutcome::Prepared && flow->direction == FlowchartDirection::TopBottom && flow->source == body && layout &&
+                    layout->issue == FlowchartLayoutIssue::None && layout->nodes[0u].bounds.y < layout->nodes[1u].bounds.y,
+                "directionless flowchart headers follow the pinned grammar's top-to-bottom default");
+    }
+    for (const auto invalid : {L"sequenceDiagram\nautonumber 10 5\nA->>B: x\n",
+                               L"sequenceDiagram\nNote beside A: x\n",
+                               L"sequenceDiagram\nNote left of A,B: x\n",
+                               L"sequenceDiagram\nNote over A,B: \n",
+                               L"sequenceDiagram\nactivate A\nA->>B: x\n",
+                               L"sequenceDiagram\nloop test\nA->>B: x\nend\n"})
+    {
+        const auto rejected = FlowchartLayoutTests::Graph(invalid);
+        Require(rejected->outcome != FlowchartOutcome::Prepared && rejected->source == invalid && rejected->nodes.empty() && rejected->edges.empty(),
+                "excluded and malformed extensions keep exact source without exposing partial timeline records");
+    }
+    for (unsigned variant = 0u; variant < 5u; ++variant)
+    {
+        auto invalid = std::make_shared<FlowchartModel>(*graph);
+        if (variant == 0u)
+            invalid->edges[0u].sequenceNote = static_cast<SequenceNotePlacement>(255u);
+        else if (variant == 1u)
+            invalid->edges[0u].sequenceNumber = 1u;
+        else if (variant == 2u)
+            invalid->edges[1u].sequenceNumber = 3u;
+        else if (variant == 3u)
+            invalid->edges[1u].openArrow = true;
+        else
+            invalid->family = NativeDiagramFamily::Flowchart;
+        Require(! ValidFlowchartModel(*invalid), "shared model admission rejects forged note, numbering, arrow and cross-family state");
+    }
 }
 void TestNativeFlowchartLayoutAdmissionAndCancellation()
 {
@@ -1548,6 +1774,10 @@ void RunRichMarkdownTests()
     DXUI_RUN_TEST(TestMetadataIndependentValidityCorpora);
     DXUI_RUN_TEST(TestNativeFlowchartGrammarAndGraphValues);
     DXUI_RUN_TEST(TestNativeFlowchartDeterministicGeometry);
+    DXUI_RUN_TEST(TestNativeFlowchartTrimmedStyledLabelsRemainAdmissible);
+    DXUI_RUN_TEST(TestNativeRelationshipFanPortsAndCardinalities);
+    DXUI_RUN_TEST(TestNativeLabeledRankCorridors);
+    DXUI_RUN_TEST(TestNativeSequenceActorsNotesNumbersAndDefaultDirection);
     DXUI_RUN_TEST(TestNativeFlowchartLayoutIndependentCorpusAndRouting);
     DXUI_RUN_TEST(TestNativeFlowchartLayoutAdmissionAndCancellation);
     DXUI_RUN_TEST(TestLosslessMarkdownFootnoteBlockGrammarAndProfileIsolation);

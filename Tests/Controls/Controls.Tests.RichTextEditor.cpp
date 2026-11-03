@@ -1577,6 +1577,70 @@ void TestRichTextEditorNativeDiagramViewCapacityRecovery()
     RenderEditor(window);
     Require(editor->GetMarkdownRenderingStatus() == MarkdownRenderingStatus::Semantic, "undo of source cut restores the native graphic");
 }
+void TestRichTextEditorDiagramStructureUsesContentInk()
+{
+    for (unsigned variant = 0u; variant < 3u; ++variant)
+    {
+        AttachedHostWindow window;
+        auto theme          = MakeDefaultThemePalette(variant != 0u);
+        theme.highContrast  = variant == 2u;
+        theme.borderDefault = D2D1::ColorF(variant == 0u ? .85f : .25f, variant == 0u ? .85f : .25f, variant == 0u ? .85f : .25f);
+        window.Host().SetTheme(theme);
+        auto owned   = std::make_unique<RichTextEditor>(L"```mermaid\nflowchart LR\nA --> B\n```\n");
+        auto* editor = owned.get();
+        editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+        editor->SetMarkdownRenderingEnabled(true);
+        auto appearance                 = editor->GetAppearance();
+        appearance.markdownPresentation = MarkdownPresentationStyle::Subtle;
+        appearance.drawBorder           = false;
+        appearance.drawFocusIndicator   = false;
+        editor->SetAppearance(appearance);
+        window.Host().SetRoot(std::move(owned));
+        const auto scale = window.Host().GetDpi() / 96.f;
+        Require(
+            SetWindowPos(
+                window.Hwnd(), nullptr, 0, 0, static_cast<int>(640.f * scale), static_cast<int>(320.f * scale), SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE) !=
+                FALSE,
+            "diagram contrast has a stable owned viewport");
+        ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+        RenderEditor(window);
+        const auto document = editor->GetAcknowledgedSemanticDocument(window.Host());
+        Require(document != nullptr, "diagram contrast has acknowledged native content");
+        const auto diagram = std::ranges::find(document->Elements(), SemanticRole::Diagram, &SemanticElement::role);
+        Require(diagram != document->Elements().end(), "contrast fixture remains a diagram rather than source code");
+        const auto bounds = editor->GetSemanticElementBounds(window.Host(), static_cast<std::size_t>(diagram - document->Elements().begin()));
+        Require(bounds.has_value(), "native diagram exposes its actual source-backed bounds");
+        WindowHostBitmapCapture capture;
+        Require(window.Host().DebugCaptureBitmap(capture), "capture diagram structure without desktop activation");
+        const auto x     = static_cast<int>((bounds->left + bounds->right) * .5f * scale);
+        const auto y     = static_cast<int>((bounds->top + bounds->bottom) * .5f * scale);
+        const auto below = y + static_cast<int>(8.f * scale);
+        Require(x > 12 && y > 6 && x + 12 < static_cast<int>(capture.widthPx) && below < static_cast<int>(capture.heightPx),
+                "independent central-connection samples remain within the owned raster");
+        const auto background = (static_cast<std::size_t>(below) * capture.widthPx + static_cast<std::size_t>(x)) * 4u;
+        unsigned contrast{};
+        // Equal minimum-size endpoints place the unlabelled horizontal connection
+        // across the native object's center, away from text and node borders.
+        for (int dy = -4; dy <= 4; ++dy)
+            for (int dx = -10; dx <= 10; ++dx)
+            {
+                const auto pixel = (static_cast<std::size_t>(y + dy) * capture.widthPx + static_cast<std::size_t>(x + dx)) * 4u;
+                for (std::size_t channel = 0u; channel < 3u; ++channel)
+                    contrast = std::max(contrast,
+                                        static_cast<unsigned>(std::abs(static_cast<int>(capture.bgraPixels[pixel + channel]) -
+                                                                       static_cast<int>(capture.bgraPixels[background + channel]))));
+            }
+        std::cerr << "    [DIAGRAM_CONTRAST] variant=" << variant << " centralStrokeDistance=" << contrast << '\n';
+        Require(contrast >= 80u, "meaningful diagram connections use readable content ink independently of faint decorative borders");
+        const auto generation = editor->DebugGetState().layoutGeneration;
+        const auto brushes    = window.Host().DebugGetBrushCacheSize();
+        const auto source     = editor->Snapshot();
+        RenderEditor(window);
+        Require(editor->DebugGetState().layoutGeneration == generation && window.Host().DebugGetBrushCacheSize() == brushes &&
+                    editor->Snapshot().IsSameRevision(source) && ! editor->CanUndo(),
+                "content stroke selection changes no source or warm geometry/brush ownership");
+    }
+}
 void TestRichTextEditorNativeDiagramSelectionRaster()
 {
     AttachedHostWindow window;
@@ -2083,6 +2147,7 @@ void RunRichTextEditorTests()
     DXUI_RUN_TEST(TestRichTextEditorNativeFlowchartRenderingAndFallbacks);
     DXUI_RUN_TEST(TestRichTextEditorNativeDiagramViewCapacityRecovery);
     DXUI_RUN_TEST(TestRichTextEditorNativeDiagramSelectionRaster);
+    DXUI_RUN_TEST(TestRichTextEditorDiagramStructureUsesContentInk);
     DXUI_RUN_TEST(TestRichTextEditorNativeFootnoteBlockSourceEdits);
     DXUI_RUN_TEST(TestRichTextEditorNativeFootnoteResolutionAndSourceEdits);
     DXUI_RUN_TEST(TestRichTextEditorNativeParserCapacitySourceFallback);
