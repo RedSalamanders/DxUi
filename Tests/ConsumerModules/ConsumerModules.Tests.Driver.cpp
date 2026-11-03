@@ -1,4 +1,5 @@
 #include "FailureHost.h"
+#include "Support.Tests.ChildCrashCapture.h"
 #include "Support.Tests.DumpReader.h"
 #include "Support.Tests.FailureReports.h"
 #include "Support/Failure.Tests.Hooks.h"
@@ -12,7 +13,6 @@
 
 #include <DbgHelp.h>
 #include <array>
-#include <atomic>
 #include <bit>
 #include <charconv>
 #include <cstdio>
@@ -29,44 +29,6 @@ extern "C" int DxUiModuleProbe() noexcept;
 
 namespace
 {
-struct HangDumpContext
-{
-    HangDumpContext(HANDLE child, HANDLE file, DWORD id) noexcept : process(child), output(file), processId(id)
-    {
-    }
-    HangDumpContext(const HangDumpContext&)            = delete;
-    HangDumpContext& operator=(const HangDumpContext&) = delete;
-    HangDumpContext(HangDumpContext&&)                 = delete;
-    HangDumpContext& operator=(HangDumpContext&&)      = delete;
-    // Borrowed until the parent observes worker completion or terminates fatally.
-    HANDLE process;
-    HANDLE output;
-    DWORD processId;
-    std::atomic<HRESULT> result{E_PENDING};
-};
-
-DWORD WINAPI WriteHangDump(void* parameter) noexcept
-{
-    auto& context  = *static_cast<HangDumpContext*>(parameter);
-    HRESULT result = HRESULT_FROM_WIN32(ERROR_BUSY);
-    if (TryAcquireSRWLockExclusive(&DxUiSample::FailureHost::dbgHelpGate))
-    {
-        const auto unlock = wil::scope_exit([] { ReleaseSRWLockExclusive(&DxUiSample::FailureHost::dbgHelpGate); });
-        result            = DxUi::Failure::InvokeNative(MiniDumpWriteDump,
-                                                        context.process,
-                                                        context.processId,
-                                                        context.output,
-                                                        static_cast<MINIDUMP_TYPE>(MiniDumpWithThreadInfo | MiniDumpWithUnloadedModules),
-                                                        nullptr,
-                                                        nullptr,
-                                                        nullptr)
-                                ? S_OK
-                                : HRESULT_FROM_WIN32(GetLastError());
-    }
-    context.result.store(result, std::memory_order_release);
-    return 0;
-}
-
 bool ReadNumber(std::string_view content, std::string_view key, int base, std::uint64_t& value)
 {
     const auto position = content.find(key);
@@ -158,11 +120,29 @@ bool FatalModuleChild(int kind)
     limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
     if (! job || ! SetInformationJobObject(job.get(), JobObjectExtendedLimitInformation, &limits, sizeof(limits)))
         return fail("job-setup", GetLastError());
-    STARTUPINFOW startup{};
-    startup.cb = sizeof(startup);
+    std::wstring outputPrefix(executable.data(), length);
+    const auto outputSlash = outputPrefix.find_last_of(L"\\/");
+    if (outputSlash == std::wstring::npos)
+        return fail("output-directory");
+    outputPrefix.resize(outputSlash);
+    outputPrefix += L"\\FailureEvidence\\" + std::to_wstring(GetCurrentProcessId()) + L"\\child-" + std::to_wstring(kind) + L"-" + std::to_wstring(started);
+    DxUiFailureTests::ChildOutputCapture output;
+    const HRESULT captureResult = output.Initialize(outputPrefix + L".stdout", outputPrefix + L".stderr");
+    if (FAILED(captureResult))
+        return fail("output-setup", static_cast<DWORD>(captureResult));
     PROCESS_INFORMATION info{};
-    if (! CreateProcessW(executable.data(), command.data(), nullptr, nullptr, FALSE, CREATE_SUSPENDED | CREATE_NO_WINDOW, nullptr, nullptr, &startup, &info))
+    if (! CreateProcessW(executable.data(),
+                         command.data(),
+                         nullptr,
+                         nullptr,
+                         TRUE,
+                         CREATE_SUSPENDED | CREATE_NO_WINDOW | output.CreationFlags(),
+                         nullptr,
+                         nullptr,
+                         &output.Startup()->StartupInfo,
+                         &info))
         return fail("create-process", GetLastError());
+    output.CloseParentHandles();
     childPid = info.dwProcessId;
     wil::unique_handle process(info.hProcess), thread(info.hThread);
     if (! AssignProcessToJobObject(job.get(), process.get()))
@@ -200,33 +180,7 @@ bool FatalModuleChild(int kind)
                 path.resize(slash);
                 path += L"\\FailureEvidence\\" + std::to_wstring(GetCurrentProcessId()) + L"\\timeout-" + std::to_wstring(kind) + L"-" +
                         std::to_wstring(childPid) + L"-" + std::to_wstring(waitedAt) + L".dmp";
-                wil::unique_hfile dump(CreateFileW(path.c_str(), GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr));
-                if (! dump)
-                    dumpResult = HRESULT_FROM_WIN32(GetLastError());
-                else
-                {
-                    HangDumpContext context{process.get(), dump.get(), childPid};
-                    wil::unique_handle worker(CreateThread(nullptr, 0, WriteHangDump, &context, 0, nullptr));
-                    if (! worker)
-                        dumpResult = HRESULT_FROM_WIN32(GetLastError());
-                    else
-                    {
-                        const DWORD completed = WaitForSingleObject(worker.get(), 5000u);
-                        if (completed != WAIT_OBJECT_0)
-                        {
-                            const HRESULT error = completed == WAIT_TIMEOUT ? HRESULT_FROM_WIN32(ERROR_TIMEOUT) : HRESULT_FROM_WIN32(GetLastError());
-                            std::printf("DXUI_NATIVE_MODULE_HANG_DUMP_WORKER_FAILURE scenario=%d pid=%lu result=%08lx path=%ls\n",
-                                        kind,
-                                        childPid,
-                                        static_cast<unsigned long>(error),
-                                        path.c_str());
-                            std::fflush(stdout);
-                            // Keep borrowed handles and the stack context alive until fatal process termination.
-                            DxUi::Failure::FailContract(error);
-                        }
-                        dumpResult = context.result.load(std::memory_order_acquire);
-                    }
-                }
+                dumpResult = DxUiFailureTests::CaptureLiveHangDump(process.get(), childPid, path);
             }
             std::printf("DXUI_NATIVE_MODULE_HANG_DUMP scenario=%d pid=%lu result=%08lx diagnostic_ms=%llu path=%ls\n",
                         kind,

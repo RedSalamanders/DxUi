@@ -15,6 +15,14 @@ fatal-child, dump-context, performance and isolated-consumer qualification is tr
 Historical source `5fc4d4c383bfa4891ee57a138924107bbbf11a2e` used exception recovery and does not conform;
 its functional receipts establish that original behavior only. No dump guarantee or product adoption is claimed.
 
+ASan diagnostic builds retain the sanitizer's existing fatal-report owner. The MSVC sanitizer can terminate a
+throwing allocation inside its runtime before the C++ new-handler runs. Such a result must be classified as a
+sanitizer allocator fatal, with its own original-stack/dump evidence; it is not a new-handler or DxUi reporter
+proof. Application owners enable the existing `ASAN_SAVE_DUMPS` facility in an owned output location when they
+need these diagnostics. Do not replace VCAsan's report callback: that would displace Visual Studio integration.
+Ordinary Debug/Release still qualify the actual new-handler path, and unexpected C++ throw probes retain the
+DxUi host contract in every profile. See [Microsoft's VCAsan contract](https://learn.microsoft.com/en-us/cpp/sanitizers/asan-debugger-integration?view=msvc-170).
+
 ## Failure classification
 
 | Event | Required result |

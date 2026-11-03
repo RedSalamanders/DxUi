@@ -104,6 +104,26 @@ reopening their historical checklists or relabeling old allocation sweeps as fat
 
 ### Working-tree progress, not acceptance
 
+- Incremental ASan repair diagnostics pass Foundation (`20261103T050843427Z-108132-cf82204ad36f435f84d5a7d413db71ba`)
+  and the focused rollback/native-paint cases (`20261103T050249663Z-120424-04ef048d62034e58916221bc833322f8`).
+  The preceding Foundation diagnostic rejects VCAsan's truncated absolute dump filename; using a short name in
+  the owned child working directory passes the exact dump/thread/stack oracle. The synthetic reader fixture
+  uses an explicit thread-list header/entry layout because the Windows SDK exposes a zero-length array member.
+  These are diagnostic builds, not final profile receipts. Static test-injection review maps 83 throw sites and
+  all 58 allocation-countdown activations: 44 belong to registered fatal children and 14 are allocation-free
+  negative guards. The callback no-copy negative guard executes no throw on its healthy path.
+- The `6ebc4534` cohort passes all six zero-warning builds, all four clean-pin consumers and the production SDK.
+  Its prose-only successor `d10aea19` has the identical compiled input digest. The complete validator/tooling run
+  and all 22 ordinary Debug and Release suites pass with zero skips. ASan run
+  `20261103T034748712Z-28744-2c4d212e43a444ff99c8167d167848cd` fails Foundation, EditorControls and Rendering;
+  all matching binaries, original logs and failed/empty dumps are preserved under private `failed-asan-9` evidence.
+  The real throwing-new child reproducibly aborts inside ASan before the C++ handler. Existing VCAsan dump output
+  preserves its original allocation stack; a canonical reader bug treating zero stack RVA as file-header bytes is
+  corrected with synthetic fallback/refusal coverage. Its ASan oracle is explicitly sanitizer-owned, not host or
+  new-handler proof. The unchanged rollback child and complete Rendering suite pass focused replays; these do
+  not establish the original failures' cause. Shared child capture now retains output and bounded timeout evidence,
+  and the batch fixture explicitly covers preparation-only paints before judging one admitted failure frame.
+  These source changes still require fresh compilation and runtime qualification; no failed receipt is retagged.
 - The `fe34d0bf` cohort passes all six zero-warning builds, all four clean-pin consumer configurations and the
   extracted production SDK's producer-PDB isolation and both negative controls. The ASan annotations-disabled
   consumer passes all 16 fatal origin/dump/exit probes; the earlier timeout remains unassigned and preserved.

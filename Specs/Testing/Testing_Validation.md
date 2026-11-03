@@ -1238,3 +1238,26 @@ diagnostic never overwrites the original exception dump or turns a timed-out pro
 capture time and result are recorded separately. Capture runs on an owned worker with a five-second bound;
 failure to finish terminates the parent with its diagnostic context and borrowed handles still alive, rather than
 returning while the worker can use them.
+
+`Support.Tests.ChildCrashCapture.h` owns the shared child-output and live-hang capture. Parent drivers use
+`STARTUPINFOEX` with an explicit allowlist containing only their owned stdin/stdout/stderr handles. Output files
+use `CREATE_NEW`. Generic fatal-child diagnostics retain the child PID, wait, exit, elapsed time, witness values
+and output paths, and attempt a separate bounded hang dump before closing a timed-out child's owned job.
+
+The actual impossible throwing-new request proves the C++ new-handler route in ordinary Debug/Release. MSVC
+ASan instead owns an allocator-fatal report for that request. Its child receives a short `ASAN_SAVE_DUMPS`
+filename in its unique owned working directory and owned fallback temp paths, without changing the parent
+environment or replacing sanitizer callbacks. The exact expected file must be verified; a runtime-truncated
+absolute name or another emitted path is not a qualifying dump.
+Acceptance requires the real trigger/thread witness, terminal exit, sanitizer out-of-memory output, exact saved
+dump, its native exception/thread context and matching-image/PDB unwind to `NewHandlerOrigin`. It must not produce
+or claim a DxUi host failure record. This is a separate profile result, never a simulated new-handler call.
+
+Dump reading rejects a zero data RVA before adding an address offset. A thread-stack descriptor without file data
+falls through to the valid Memory64 stream; a zero Memory64 base cannot become a plausible offset after earlier
+ranges. A synthetic fixture covers the positive fallback, nonzero in-range offsets, a zero base and missing data.
+
+The native root-child batch failure fixture explicitly includes a pending CPU-preparation turn. That turn consumes
+neither the injected flush failure nor a presentation. A bounded sequence of directed native paints stops at the
+first admitted batch before checking its exact flush/presentation counters, so a failed frame's later retry cannot
+hide the failure. The subsequent retry and EndDraw-failure checks retain their original exact counter assertions.

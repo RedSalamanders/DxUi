@@ -106,6 +106,10 @@ public:
         {
             if (memory->NumberOfMemoryRanges > (bytes - offsetof(MINIDUMP_MEMORY64_LIST, MemoryRanges)) / sizeof(MINIDUMP_MEMORY_DESCRIPTOR64))
                 return false;
+            // Zero is not a file-backed range. In particular, never turn a
+            // zero BaseRva into a plausible offset by adding earlier ranges.
+            if (! memory->BaseRva)
+                return false;
             uint64_t offset = memory->BaseRva;
             for (uint64_t index = 0; index < memory->NumberOfMemoryRanges; ++index)
             {
@@ -177,7 +181,8 @@ private:
     }
     bool Copy(uint64_t start, uint64_t bytes, uint64_t rva, uint64_t address, void* output, DWORD count) const noexcept
     {
-        if (address < start || address - start > bytes || count > bytes - (address - start) || rva > (std::numeric_limits<uint64_t>::max)() - (address - start))
+        if (! rva || address < start || address - start > bytes || count > bytes - (address - start) ||
+            rva > (std::numeric_limits<uint64_t>::max)() - (address - start))
             return false;
         const auto* input = At<std::byte>(rva + address - start, count);
         if (! input)

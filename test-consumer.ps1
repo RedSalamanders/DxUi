@@ -100,6 +100,7 @@ if ($LASTEXITCODE -ne 0) { throw 'The relocated rich-text consumer failed to ren
 Copy-Item -LiteralPath (Join-Path $checkout 'Tests/ConsumerModules/ConsumerModules.Tests.NativeModule.cpp') -Destination $consumer
 Copy-Item -LiteralPath (Join-Path $checkout 'Tests/ConsumerModules/ConsumerModules.Tests.Driver.cpp') -Destination $consumer
 Copy-Item -LiteralPath (Join-Path $checkout 'Tests/Support/Support.Tests.DumpReader.h') -Destination $consumer
+Copy-Item -LiteralPath (Join-Path $checkout 'Tests/Support/Support.Tests.ChildCrashCapture.h') -Destination $consumer
 Copy-Item -LiteralPath (Join-Path $checkout 'Tests/Support/Support.Tests.FailureReports.h') -Destination $consumer
 New-Item -ItemType Directory -Path (Join-Path $consumer 'Support') -Force | Out-Null
 Copy-Item -LiteralPath (Join-Path $checkout 'src/Support/Failure.Tests.Hooks.h') -Destination (Join-Path $consumer 'Support')

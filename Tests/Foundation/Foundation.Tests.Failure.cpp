@@ -1,5 +1,6 @@
 #include "Controls/DxUi.MarkdownMetadata.h"
 #include "FailureHost.h"
+#include "Support.Tests.ChildCrashCapture.h"
 #include "Support.Tests.DumpReader.h"
 #include "Support.Tests.FatalChildren.h"
 #include "Support.Tests.TestWindowActivationGuard.h"
@@ -14,6 +15,7 @@
 #include <array>
 #include <atomic>
 #include <charconv>
+#include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
@@ -330,6 +332,9 @@ __declspec(noinline) void StaleCaughtOrigin()
 __declspec(noinline) void NewHandlerOrigin()
 {
     DxUi::Failure::Scope scope;
+    MarkWitness(WitnessTriggerReached);
+    if (childWitness)
+        (void)InterlockedExchange(&childWitness[2], static_cast<LONG>(GetCurrentThreadId()));
     const auto bytes = (std::numeric_limits<std::size_t>::max)() / 2u;
     auto* allocation = ::operator new(bytes);
     // Preserve an observable allocation in optimized probes without volatile
@@ -963,9 +968,10 @@ int RunFailureChild(int argc, wchar_t** argv)
 namespace
 {
 #if defined(__SANITIZE_ADDRESS__)
-// ASan otherwise aborts on the impossible request before the real C++ new
-// handler can run. Override only this child, retaining every parent option.
-bool NewHandlerEnvironment(std::vector<wchar_t>& output)
+// ASan owns the fatal throwing-new report before the C++ new-handler path.
+// Configure its existing dump owner for this child, retaining parent options
+// and keeping runtime fallback paths inside the owned case directory.
+bool NewHandlerEnvironment(std::vector<wchar_t>& output, const std::wstring& directory)
 {
     wchar_t* const environment = GetEnvironmentStringsW();
     if (! environment)
@@ -976,6 +982,10 @@ bool NewHandlerEnvironment(std::vector<wchar_t>& output)
     for (const wchar_t* item = environment; *item; item += std::wcslen(item) + 1u)
     {
         std::wstring value(item);
+        if (_wcsnicmp(value.c_str(), L"ASAN_SAVE_DUMPS=", 16u) == 0 || _wcsnicmp(value.c_str(), L"TMP=", 4u) == 0 ||
+            _wcsnicmp(value.c_str(), L"TEMP=", 5u) == 0 || _wcsnicmp(value.c_str(), L"LOCALAPPDATA=", 13u) == 0 ||
+            _wcsnicmp(value.c_str(), L"APPLOCAL=", 9u) == 0)
+            continue;
         if (_wcsnicmp(value.c_str(), L"ASAN_OPTIONS=", 13u) == 0)
         {
             if (value.size() > 13u)
@@ -987,6 +997,12 @@ bool NewHandlerEnvironment(std::vector<wchar_t>& output)
     }
     if (! found)
         entries.emplace_back(L"ASAN_OPTIONS=allocator_may_return_null=1");
+    // Keep the runtime's dump name short; it truncates a long absolute name.
+    entries.emplace_back(L"ASAN_SAVE_DUMPS=asan.dmp");
+    entries.emplace_back(L"TMP=" + directory);
+    entries.emplace_back(L"TEMP=" + directory);
+    entries.emplace_back(L"LOCALAPPDATA=" + directory);
+    entries.emplace_back(L"APPLOCAL=" + directory);
     std::sort(entries.begin(), entries.end(), [](const auto& left, const auto& right) { return _wcsicmp(left.c_str(), right.c_str()) < 0; });
     for (const auto& value : entries)
     {
@@ -1082,23 +1098,38 @@ bool ExpectFatalChild(const wchar_t* caseName)
     limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
     if (! SetInformationJobObject(job.get(), JobObjectExtendedLimitInformation, &limits, sizeof(limits)))
         return false;
-    STARTUPINFOW startup{};
-    startup.cb = sizeof(startup);
+    const auto stdoutPath = directory + L"\\child.stdout";
+    const auto stderrPath = directory + L"\\child.stderr";
+    ChildOutputCapture output;
+    const HRESULT captureResult = output.Initialize(stdoutPath, stderrPath);
+    if (FAILED(captureResult))
+    {
+        std::fwprintf(stderr, L"Fatal child %ls capture setup failed: 0x%08lX\n", caseName, static_cast<unsigned long>(captureResult));
+        return false;
+    }
     PROCESS_INFORMATION information{};
-    DWORD creationFlags = CREATE_SUSPENDED | CREATE_NO_WINDOW;
-    void* environment   = nullptr;
+    DWORD creationFlags             = CREATE_SUSPENDED | CREATE_NO_WINDOW | output.CreationFlags();
+    void* environment               = nullptr;
+    const wchar_t* workingDirectory = nullptr;
 #if defined(__SANITIZE_ADDRESS__)
     std::vector<wchar_t> childEnvironment;
     if (std::wstring_view(caseName) == L"new_handler")
     {
-        if (! NewHandlerEnvironment(childEnvironment))
+        if (! NewHandlerEnvironment(childEnvironment, directory))
             return false;
         creationFlags |= CREATE_UNICODE_ENVIRONMENT;
-        environment = childEnvironment.data();
+        environment      = childEnvironment.data();
+        workingDirectory = directory.c_str();
     }
 #endif
-    if (! CreateProcessW(exe.c_str(), command.data(), nullptr, nullptr, FALSE, creationFlags, environment, nullptr, &startup, &information))
+    const auto started = GetTickCount64();
+    if (! CreateProcessW(
+            exe.c_str(), command.data(), nullptr, nullptr, TRUE, creationFlags, environment, workingDirectory, &output.Startup()->StartupInfo, &information))
+    {
+        std::fwprintf(stderr, L"Fatal child %ls CreateProcess failed: %lu\n", caseName, GetLastError());
         return false;
+    }
+    output.CloseParentHandles();
     wil::unique_handle process(information.hProcess), thread(information.hThread);
     if (! AssignProcessToJobObject(job.get(), process.get()))
     {
@@ -1112,8 +1143,19 @@ bool ExpectFatalChild(const wchar_t* caseName)
         (void)WaitForSingleObject(process.get(), TimeoutMs);
         return false;
     }
-    if (WaitForSingleObject(process.get(), TimeoutMs) != WAIT_OBJECT_0)
+    const DWORD waitResult = WaitForSingleObject(process.get(), TimeoutMs);
+    if (waitResult != WAIT_OBJECT_0)
     {
+        const HRESULT dumpResult = CaptureLiveHangDump(process.get(), information.dwProcessId, directory + L"\\hang.dmp");
+        std::fwprintf(stderr,
+                      L"Fatal child %ls pid=%lu wait=%lu elapsed=%llu ms hang=0x%08lX stdout=%ls stderr=%ls\n",
+                      caseName,
+                      information.dwProcessId,
+                      waitResult,
+                      GetTickCount64() - started,
+                      static_cast<unsigned long>(dumpResult),
+                      stdoutPath.c_str(),
+                      stderrPath.c_str());
         job.reset();
         (void)WaitForSingleObject(process.get(), TimeoutMs);
         return false;
@@ -1121,6 +1163,55 @@ bool ExpectFatalChild(const wchar_t* caseName)
     DWORD exitCode{};
     if (! GetExitCodeProcess(process.get(), &exitCode))
         return false;
+    const auto bits = InterlockedCompareExchange(&witness[0], 0L, 0L);
+    std::fwprintf(stderr,
+                  L"Fatal child %ls pid=%lu wait=%lu elapsed=%llu ms exit=%lu witness=%ld detail=%ld thread=%ld stdout=%ls stderr=%ls\n",
+                  caseName,
+                  information.dwProcessId,
+                  waitResult,
+                  GetTickCount64() - started,
+                  exitCode,
+                  bits,
+                  InterlockedCompareExchange(&witness[1], 0L, 0L),
+                  InterlockedCompareExchange(&witness[2], 0L, 0L),
+                  stdoutPath.c_str(),
+                  stderrPath.c_str());
+#if defined(__SANITIZE_ADDRESS__)
+    if (std::wstring_view(caseName) == L"new_handler")
+    {
+        const DWORD expectedThread = static_cast<DWORD>(InterlockedCompareExchange(&witness[2], 0L, 0L));
+        std::string error;
+        if (exitCode != 1u || ! expectedThread || (bits & WitnessTriggerReached) == 0L || (bits & WitnessTriggerReturned) != 0L ||
+            ! ReadRecord(stderrPath, error) || error.find("ERROR: AddressSanitizer: out of memory") == std::string::npos ||
+            GetFileAttributesW((prefix + L".record").c_str()) != INVALID_FILE_ATTRIBUTES)
+            return false;
+        AcquireSRWLockExclusive(&DxUiSample::FailureHost::dbgHelpGate);
+        const auto unlock = wil::scope_exit([] { ReleaseSRWLockExclusive(&DxUiSample::FailureHost::dbgHelpGate); });
+        DumpReader::View dump;
+        ULONG bytes{};
+        const auto asanDump = directory + L"\\asan.dmp";
+        if (! dump.Open(asanDump))
+            return false;
+        const auto* exception = dump.Stream<MINIDUMP_EXCEPTION_STREAM>(ExceptionStream, bytes);
+        if (! exception || exception->ThreadId != expectedThread || exception->ExceptionRecord.ExceptionCode != 0xe073616eu || ! exception->ThreadContext.Rva ||
+            exception->ThreadContext.DataSize < sizeof(CONTEXT))
+            return false;
+        const auto* context = dump.At<CONTEXT>(exception->ThreadContext.Rva);
+        if (! context || (context->ContextFlags & (CONTEXT_CONTROL | CONTEXT_INTEGER)) != (CONTEXT_CONTROL | CONTEXT_INTEGER))
+            return false;
+#if defined(_M_X64)
+        const auto ip = context->Rip;
+#elif defined(_M_ARM64)
+        const auto ip = context->Pc;
+#else
+        const std::uint64_t ip = 0;
+#endif
+        const bool verified = DumpReader::Verify(asanDump, process.get(), expectedThread, ip, exe, "NewHandlerOrigin");
+        if (verified)
+            std::fputs("ASan allocator-fatal dump verified; this is not a std::new_handler dispatch result.\n", stderr);
+        return verified;
+    }
+#endif
     if (exitCode == 89u)
     {
         std::fwprintf(stderr, L"Fatal child %ls was refused by the desktop activation guard or requires a verified foreground lease.\n", caseName);
@@ -1137,7 +1228,6 @@ bool ExpectFatalChild(const wchar_t* caseName)
         return false;
     }
     const std::wstring_view name(caseName);
-    const auto bits = InterlockedCompareExchange(&witness[0], 0L, 0L);
     if (name == L"missing-host")
         return exitCode == ExpectedFatalExitCode && bits == WitnessTriggerReached &&
                GetFileAttributesW((prefix + L".record").c_str()) == INVALID_FILE_ATTRIBUTES &&
@@ -1187,6 +1277,67 @@ bool ExpectFatalChild(const wchar_t* caseName)
     return CheckOriginSymbols(process.get(), exe, record, name, prefix);
 }
 
+bool TestZeroRvaDumpFallback()
+{
+    // The thread stack descriptor has no file data; only Memory64 can supply
+    // these bytes. A zero Memory64 base must not become valid after an offset.
+    std::array<std::byte, 1024> data{};
+    MINIDUMP_HEADER header{};
+    header.Signature          = MINIDUMP_SIGNATURE;
+    header.Version            = MINIDUMP_VERSION;
+    header.NumberOfStreams    = 2;
+    header.StreamDirectoryRva = sizeof(header);
+    struct ThreadList
+    {
+        ULONG32 count;
+        MINIDUMP_THREAD thread;
+    } threads{1, {}};
+    static_assert(offsetof(ThreadList, thread) == offsetof(MINIDUMP_THREAD_LIST, Threads));
+    std::array<MINIDUMP_DIRECTORY, 2> directories{};
+    directories[0].StreamType = ThreadListStream;
+    directories[0].Location   = {sizeof(threads), 64};
+    directories[1].StreamType = Memory64ListStream;
+    struct MemoryRanges
+    {
+        ULONG64 count;
+        ULONG64 base;
+        std::array<MINIDUMP_MEMORY_DESCRIPTOR64, 2> ranges;
+    } memory{2, 512, {{{0x1000, 8}, {0x2000, 8}}}};
+    directories[1].Location                 = {sizeof(memory), 256};
+    threads.thread.Stack.StartOfMemoryRange = 0x1000;
+    threads.thread.Stack.Memory             = {8, 0};
+    std::memcpy(data.data(), &header, sizeof(header));
+    std::memcpy(data.data() + sizeof(header), directories.data(), sizeof(directories));
+    std::memcpy(data.data() + 64, &threads, sizeof(threads));
+    data[515]        = std::byte{0xa3};
+    data[522]        = std::byte{0xb2};
+    const auto check = [&](const wchar_t* name, bool expected)
+    {
+        const auto path = evidenceRoot + L"\\" + name;
+        std::memcpy(data.data() + 256, &memory, sizeof(memory));
+        wil::unique_hfile file(CreateFileW(path.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr));
+        DWORD written{};
+        if (! file || ! WriteFile(file.get(), data.data(), static_cast<DWORD>(data.size()), &written, nullptr) || written != data.size())
+            return false;
+        file.reset();
+        DumpReader::View dump;
+        std::byte first{}, second{};
+        if (! dump.Open(path))
+            return false;
+        const bool readFirst  = dump.Read(0x1003, &first, 1);
+        const bool readSecond = dump.Read(0x2002, &second, 1);
+        return expected ? readFirst && readSecond && first == std::byte{0xa3} && second == std::byte{0xb2} : ! readFirst && ! readSecond;
+    };
+    if (! check(L"valid-memory64.dmp", true))
+        return false;
+    memory.base = 0;
+    if (! check(L"zero-memory64.dmp", false))
+        return false;
+    header.NumberOfStreams = 1;
+    std::memcpy(data.data(), &header, sizeof(header));
+    return check(L"missing-memory64.dmp", false);
+}
+
 bool TestFailurePolicy()
 {
     if (evidenceRoot.empty())
@@ -1206,6 +1357,8 @@ bool TestFailurePolicy()
         return false;
     {
         DxUi::Failure::Scope active;
+        if (! TestZeroRvaDumpFallback())
+            return false;
         if (host.Uninstall() != HRESULT_FROM_WIN32(ERROR_BUSY))
             return false;
         const DxUi::Failure::Scope nestedOptional(std::nothrow);

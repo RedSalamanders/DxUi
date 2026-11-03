@@ -22,6 +22,12 @@ SDK ZIP users keep the matching `DxUi.pdb` beside `DxUi.lib` when linking, and r
 PDBs for dump analysis. The SDK manifest binds both producer files; copying the library alone can lose library
 debug information. A source-pin build produces its matching compiler PDB in its isolated output automatically.
 
+For ASan diagnostic applications, configure the existing `ASAN_SAVE_DUMPS` facility to an application-owned
+location before startup and verify the actual written path; use a short name/path supported by the runtime.
+MSVC's sanitizer can abort an allocation before the C++ new-handler; its saved dump is
+sanitizer-owned evidence. Preserve Visual Studio's sanitizer callback rather than installing a competing one.
+Ordinary Debug/Release and escaping C++ exceptions retain the failure-host contract described here.
+
 Use failure host **protocol 2** consistently in every EXE and DLL. It adds native-call
 entry/exit handling so Windows can handle its own internal exceptions while reentrant
 DxUi callbacks remain protected. Prefer the provided `ProcessHooks` table; a custom
