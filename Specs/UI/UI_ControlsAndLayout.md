@@ -2703,14 +2703,23 @@ Aligned rows alternate right-aligned left operands and left-aligned right operan
 Over-capacity notation conservatively retains the remaining physical inline line (display notation: logical leaf) as literal source with a diagnostic. This prevents nested Markdown interpretation and bounds repeated failed delimiter scans. The consumer inspector uses MathMaximumSourceUnits and clears rather than accepting an oversized value.
 
 The bounded `sequenceDiagram` profile retains participants in first-appearance
-order, with optional plain `participant ID as label` declarations. Ordered solid
-`->>` and dotted `-->>` messages use filled heads; solid `-)` and dotted `--)`
-messages use open heads. Self messages use a loop. Each participant has a
-measured header and a dashed lifeline; measured messages appear in source order.
-The diagram alternative exposes participants, messages and their order, and its
-text range owns the exact source fence. Notes, activations, actors, loops,
-grouping, directives and other syntax retain the entire source with a diagnostic.
-The shared diagram source, node, edge, label and extent budgets apply.
+order, with plain `participant ID [as label]` and `actor ID [as label]` declarations.
+Actors draw a foreground stick figure above their measured alias; participant boxes
+and actor labels align above dashed lifelines. Ordered solid `->>` and dotted `-->>`
+messages use filled heads; `-)` / `--)` use open heads; `->` / `-->` have no head.
+Self messages use a loop. Plain `Note left of ID: text`, `Note right of ID: text`,
+and `Note over ID[,ID]: text` frames appear in source order among messages and
+cover their referenced lifeline(s). Lowercase `note` is also accepted. Bare
+`autonumber` numbers messages from one, excluding notes, without changing authored
+labels or source. Custom numbering arguments, activations, loops, grouping,
+creation/destruction, directives and other excluded forms retain the entire fence
+with a diagnostic. The alternative exposes aliases, note text, derived numbers
+and chronological order; its text range owns the exact source fence. Notes share
+the existing edge/event budget and staged label resources; drawing allocates no
+labels or paths. The shared source, node, edge, label and extent budgets apply.
+
+Directionless `flowchart` and `graph` headers use top-to-bottom placement, matching
+the pinned Mermaid 11.4.1 grammar. Explicit TB/TD, BT, LR and RL remain supported.
 
 The bounded `pie` profile accepts an optional plain title and `showData`, followed
 by up to 16 unique quoted plain labels and nonnegative decimal values with at most 15

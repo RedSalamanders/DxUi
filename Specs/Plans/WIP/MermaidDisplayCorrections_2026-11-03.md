@@ -5,7 +5,30 @@ Status: ACTIVE
 Owner steering, 3 November 2026: shared Mermaid and display defects must be fixed in canonical DxUi, rather than
 only recorded in the RedTilde app review. Scope: FLOW-01 styled-label publication, FLOW-02 relationship fan ports,
 duplicate unordered-task bullets and code-chrome ink. Correct RedTilde's stale three-family documentation and
-samples, then adopt an exact immutable tested library commit. This is a defect pass, not open-ended Mermaid syntax expansion.
+samples, then adopt an exact immutable tested library commit.
+
+Owner clarification on 3 November: fix defects **and expand Mermaid syntax**. The validated defect checkpoint
+is `33ce97ce2b29aed4eadb9270bf66e7080d56b9fc`; RedTilde's exact-pin Release run passes 73 native cases and
+32 standard hidden captures, with 20 additional Light/Dark/DPI captures. Keep that checkpoint separate from
+the new syntax implementation and its eventual consumer pin.
+
+## Bounded syntax expansion
+
+Extend the existing native pipeline with sequence actors and plain aliases; left/right/over notes in source
+order; bare `autonumber` with notes excluded from the count; solid/dotted messages without arrowheads; and
+directionless `flowchart`/`graph` headers defaulting to top-to-bottom. Verify the pinned Mermaid 11.4.1
+reference and current official documentation; custom start/increment numbering belongs to a newer syntax
+profile and is not implied. Keep activations, control fragments, interaction/configuration and other excluded
+forms as exact fenced source with diagnostics.
+
+- [ ] Define bounded private model admission and explicit timeline-note geometry without adding a note vector or draw allocations.
+- [ ] Add parser, independent geometry, actor/note/number raster, source/history/accessibility and cancellation/resource regressions.
+- [ ] Update owning contracts, capability descriptions, public examples and gallery; preserve negative examples for unsupported forms.
+- [ ] Validate and commit the library, then adopt an independently built immutable pin and fresh app evidence.
+
+Private fixed-baseline location and hashes are recorded under `.build/mermaid-syntax-expansion-20261103/`.
+The baseline includes the clean library commit, its source archive, all native output bytes and the consumer's
+dirty source overlay; nothing in the earlier folder-navigation work is discarded.
 
 ## Evidence and execution
 
@@ -19,8 +42,8 @@ samples, then adopt an exact immutable tested library commit. This is a defect p
 - [x] Validate x64 Release changed paths: EditorControls, Embedded, Accessibility and Rendering pass without skips;
   WARP/device-loss/clean-hidden assertions stay enabled, and all six regenerated gallery images were reviewed.
 - [ ] Complete broader profile, native platform, physical/foreground and performance qualification with their existing owners.
-- [ ] Commit the immutable library change, update RedTilde's exact pin and validate consumer behavior/captures.
-- [ ] Correct the prior sample/support claims and route remaining qualification with exact identities.
+- [x] Commit the immutable defect fix, update RedTilde's exact pin and validate consumer behavior/captures.
+- [x] Correct the prior sample/support claims and route remaining qualification with exact identities.
 
 Local raw baseline: `.build/mermaid-display-20261103/`. `baseline-reproduction.json` records the original CPU
 results, `probe/` owns its source/project/executable and `baseline-performance.json` retains native round data.

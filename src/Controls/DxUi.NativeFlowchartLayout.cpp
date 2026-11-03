@@ -120,6 +120,7 @@ struct NativeFlowchartLayout::Preparation
     double bandWidth{}, bandLeft{}, rowY{Margin}, leftWidth{}, rightWidth{};
     double minX{}, minY{}, maxX{}, maxY{};
     double sequenceX{Margin}, sequenceY{}, sequenceWidth{}, sequenceHeader{}, sequenceGap{};
+    bool sequenceActors{};
     double pieTotal{}, pieAngle{}, pieLegendY{}, pieWidth{}, pieDiameter{};
     double ganttY{}, ganttLabelWidth{}, ganttScale{};
     std::int64_t ganttMinimum{}, ganttMaximum{};
@@ -290,7 +291,13 @@ struct NativeFlowchartLayout::Preparation
             {
                 sequenceGap = 48.0;
                 for (std::size_t edge = 0u; edge < graph->edges.size(); ++edge)
-                    sequenceGap = std::max(sequenceGap, edgeLabels[edge].width + 24.0);
+                {
+                    const auto placement = graph->edges[edge].sequenceNote;
+                    sequenceGap          = std::max(sequenceGap, edgeLabels[edge].width + (placement == SequenceNotePlacement::None ? 24.0 : 48.0));
+                    if (placement == SequenceNotePlacement::Left || placement == SequenceNotePlacement::Over)
+                        sequenceX = std::max(sequenceX, Margin + edgeLabels[edge].width + 32.0);
+                }
+                sequenceActors = std::ranges::any_of(graph->nodes, [](const auto& node) { return node.sequenceActor; });
                 for (const auto& node : plan->nodes)
                     sequenceHeader = std::max(sequenceHeader, node.bounds.height);
                 Then(Stage::SequenceNodes);
@@ -334,6 +341,8 @@ struct NativeFlowchartLayout::Preparation
             // Keep the entire centered label rectangle inside the capsule's
             // straight middle band, independent of its measured text height.
             width = std::max(width, nodeLabels[index].width + height + 8.0);
+        if (graph->nodes[index].sequenceActor)
+            height += SequenceActorHeight;
         if (width > MaximumExtent || height > MaximumExtent)
         {
             Fail(FlowchartLayoutIssue::NodeExtent);
@@ -448,14 +457,15 @@ struct NativeFlowchartLayout::Preparation
             Then(Stage::SequenceEdges);
             return;
         }
-        const auto index = cursor++;
-        auto& node       = plan->nodes[index];
-        node.bounds.x    = sequenceX;
-        node.bounds.y    = Margin + (sequenceHeader - node.bounds.height) / 2.0;
-        node.label       = {node.bounds.x + (node.bounds.width - nodeLabels[index].width) / 2.0,
-                            node.bounds.y + (node.bounds.height - nodeLabels[index].height) / 2.0,
-                            nodeLabels[index].width,
-                            nodeLabels[index].height};
+        const auto index    = cursor++;
+        auto& node          = plan->nodes[index];
+        node.bounds.x       = sequenceX;
+        node.bounds.y       = Margin + (sequenceHeader - node.bounds.height) / (sequenceActors ? 1.0 : 2.0);
+        const double symbol = graph->nodes[index].sequenceActor ? SequenceActorHeight : 0.0;
+        node.label          = {node.bounds.x + (node.bounds.width - nodeLabels[index].width) / 2.0,
+                               node.bounds.y + symbol + (node.bounds.height - symbol - nodeLabels[index].height) / 2.0,
+                               nodeLabels[index].width,
+                               nodeLabels[index].height};
         sequenceX += node.bounds.width + sequenceGap;
         if (sequenceX > MaximumExtent)
             Fail(FlowchartLayoutIssue::DiagramExtent);
@@ -478,14 +488,36 @@ struct NativeFlowchartLayout::Preparation
         const auto& from   = plan->nodes[edge.from].bounds;
         const auto& to     = plan->nodes[edge.to].bounds;
         const double fromX = from.x + from.width / 2.0, toX = to.x + to.width / 2.0;
-        const auto label   = edgeLabels[index];
+        const auto label = edgeLabels[index];
+        if (edge.sequenceNote != SequenceNotePlacement::None)
+        {
+            const double width  = std::max(label.width + 16.0, edge.sequenceNote == SequenceNotePlacement::Over ? std::abs(toX - fromX) + 24.0 : 0.0);
+            const double x      = edge.sequenceNote == SequenceNotePlacement::Left    ? fromX - 16.0 - width
+                                  : edge.sequenceNote == SequenceNotePlacement::Right ? fromX + 16.0
+                                                                                      : (fromX + toX - width) / 2.0;
+            const double bottom = sequenceY + label.height + 16.0;
+            if (x < Margin || x + width + Margin > MaximumExtent || bottom + Margin > MaximumExtent)
+            {
+                Fail(FlowchartLayoutIssue::DiagramExtent);
+                return;
+            }
+            FlowchartPlacedEdge placed;
+            placed.sequenceNote = true;
+            placed.hasLabel     = true;
+            placed.path         = {{{x, sequenceY}, {x + width, bottom}, {x + width, bottom}, {x + width, bottom}, {x + width, bottom}, {x + width, bottom}}};
+            placed.label        = {x + (width - label.width) / 2.0, sequenceY + 8.0, label.width, label.height};
+            sequenceWidth       = std::max(sequenceWidth, x + width);
+            sequenceY           = bottom + 24.0;
+            plan->edges.push_back(placed);
+            return;
+        }
         const double lineY = sequenceY + label.height + 6.0;
         const bool self    = edge.from == edge.to;
         FlowchartPlacedEdge placed;
         placed.route      = self ? FlowchartRoute::Self : FlowchartRoute::Forward;
         placed.relation   = edge.relation;
         placed.style      = edge.style;
-        placed.hasArrow   = true;
+        placed.hasArrow   = edge.arrow;
         placed.hasLabel   = true;
         placed.openArrow  = edge.openArrow;
         const double endY = self ? lineY + 20.0 : lineY;

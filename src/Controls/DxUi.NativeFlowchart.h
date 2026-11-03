@@ -5,6 +5,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstdint>
+#include <format>
 
 namespace DxUi::RichText::Detail
 {
@@ -143,6 +144,13 @@ struct FlowchartDiagnostic
     FlowchartIssue issue{};
     MarkdownRange source;
 };
+enum class SequenceNotePlacement : std::uint8_t
+{
+    None,
+    Left,
+    Right,
+    Over
+};
 struct FlowchartNode
 {
     FlowchartNode() : label(0u, L' '), key(0u, L' '), ganttSection(0u, L' ')
@@ -169,6 +177,7 @@ struct FlowchartNode
     std::uint16_t groupMask{};
     std::size_t noteTarget{};
     bool noteLeft{};
+    bool sequenceActor{};
     unsigned strokeWidth{1u};
     bool borderDashed{};
     std::uint32_t fillColor{NoDiagramColor}, strokeColor{NoDiagramColor}, textColor{NoDiagramColor};
@@ -199,13 +208,20 @@ struct FlowchartEdge
     FlowchartLineStyle style{};
     std::size_t minimumRanks{1u};
     bool arrow{};
-    bool openArrow{};       // Sequence asynchronous messages use an open arrowhead.
+    bool openArrow{}; // Sequence asynchronous messages use an open arrowhead.
+    SequenceNotePlacement sequenceNote{};
+    std::uint16_t sequenceNumber{};
     unsigned strokeWidth{}; // Zero preserves the edge syntax's normal/thick width.
     bool dashed{};
     bool dashSpecified{};
     std::uint32_t strokeColor{NoDiagramColor};
     ErMultiplicity erFrom{}, erTo{};
 };
+// Preparation-only derived text; the authored label and complete body remain unchanged.
+inline std::wstring SequenceMessageText(const FlowchartEdge& edge)
+{
+    return edge.sequenceNumber ? std::format(L"{0}. {1}", edge.sequenceNumber, edge.label) : edge.label;
+}
 struct FlowchartModel
 {
     explicit FlowchartModel(std::wstring_view text, std::uint64_t value)
@@ -230,6 +246,7 @@ struct FlowchartModel
     FlowchartOutcome outcome{};
     FlowchartDiagnostic diagnostic;
     bool pieShowData{};
+    bool sequenceAutonumber{};
     // A rejected result exposes no partial graph. The exact body remains owned.
     std::vector<FlowchartNode> nodes;
     std::vector<FlowchartEdge> edges;
@@ -245,12 +262,25 @@ inline bool ValidSequenceModel(const FlowchartModel& graph) noexcept
         if (node.shape != FlowchartShape::Rectangle || node.groupMask || node.compartmentCount || node.label.empty() ||
             node.identifier.first >= node.identifier.last || node.identifier.last > graph.source.size())
             return false;
+    std::uint16_t messageNumber{};
     for (const auto& edge : graph.edges)
-        if (edge.from >= graph.nodes.size() || edge.to >= graph.nodes.size() || edge.relation != FlowchartRelation::Arrow || ! edge.arrow ||
+    {
+        if (edge.from >= graph.nodes.size() || edge.to >= graph.nodes.size() ||
+            edge.relation != (edge.arrow ? FlowchartRelation::Arrow : FlowchartRelation::Line) ||
             (edge.style != FlowchartLineStyle::Solid && edge.style != FlowchartLineStyle::Dotted) || edge.minimumRanks != 1u || edge.label.empty() ||
             ! edge.fromCardinality.empty() || ! edge.toCardinality.empty() || edge.erFrom != ErMultiplicity::None || edge.erTo != ErMultiplicity::None ||
-            edge.source.first >= edge.source.last || edge.source.last > graph.source.size())
+            edge.source.first >= edge.source.last || edge.source.last > graph.source.size() || edge.sequenceNote > SequenceNotePlacement::Over ||
+            (edge.openArrow && ! edge.arrow))
             return false;
+        if (edge.sequenceNote != SequenceNotePlacement::None)
+        {
+            if (edge.arrow || edge.openArrow || edge.sequenceNumber || edge.style != FlowchartLineStyle::Solid ||
+                (edge.sequenceNote != SequenceNotePlacement::Over && edge.from != edge.to))
+                return false;
+        }
+        else if (edge.sequenceNumber != (graph.sequenceAutonumber ? ++messageNumber : 0u))
+            return false;
+    }
     return true;
 }
 inline bool ValidPieModel(const FlowchartModel& graph) noexcept
@@ -473,7 +503,7 @@ inline bool ValidFlowchartModel(const FlowchartModel& graph) noexcept
         graph.nodes.size() > NativeFlowchartParser::MaximumNodes || graph.edges.size() > NativeFlowchartParser::MaximumEdges || graph.groups.size() > 16u ||
         graph.family < NativeDiagramFamily::Flowchart || graph.family > NativeDiagramFamily::Mindmap || graph.direction < FlowchartDirection::TopBottom ||
         graph.direction > FlowchartDirection::RightLeft || ! ValidSequenceModel(graph) || ! ValidPieModel(graph) || ! ValidErModel(graph) ||
-        ! ValidGanttModel(graph) || ! ValidMindmapModel(graph))
+        ! ValidGanttModel(graph) || ! ValidMindmapModel(graph) || (graph.family != NativeDiagramFamily::Sequence && graph.sequenceAutonumber))
         return false;
     if (! graph.groups.empty() && graph.family != NativeDiagramFamily::Flowchart && graph.family != NativeDiagramFamily::State &&
         graph.family != NativeDiagramFamily::Class)
@@ -484,8 +514,9 @@ inline bool ValidFlowchartModel(const FlowchartModel& graph) noexcept
             return false;
     for (const auto& node : graph.nodes)
     {
-        if (node.strokeWidth < 1u || node.strokeWidth > 3u || ! ValidDiagramColor(node.fillColor) || ! ValidDiagramColor(node.strokeColor) ||
-            ! ValidDiagramColor(node.textColor) || ! ValidLabelStyles(node.styles, node.label.size(), graph.family == NativeDiagramFamily::Flowchart) ||
+        if ((graph.family != NativeDiagramFamily::Sequence && node.sequenceActor) || node.strokeWidth < 1u || node.strokeWidth > 3u ||
+            ! ValidDiagramColor(node.fillColor) || ! ValidDiagramColor(node.strokeColor) || ! ValidDiagramColor(node.textColor) ||
+            ! ValidLabelStyles(node.styles, node.label.size(), graph.family == NativeDiagramFamily::Flowchart) ||
             (graph.family != NativeDiagramFamily::Flowchart && (node.strokeWidth != 1u || node.borderDashed || node.fillColor != NoDiagramColor ||
                                                                 node.strokeColor != NoDiagramColor || node.textColor != NoDiagramColor)) ||
             node.label.size() > NativeFlowchartParser::MaximumLabelUnits || node.shape < FlowchartShape::Rectangle || node.shape > FlowchartShape::Note ||
@@ -507,7 +538,8 @@ inline bool ValidFlowchartModel(const FlowchartModel& graph) noexcept
                 return false;
     }
     for (const auto& edge : graph.edges)
-        if (edge.from >= graph.nodes.size() || edge.to >= graph.nodes.size() || edge.label.size() > NativeFlowchartParser::MaximumLabelUnits ||
+        if ((graph.family != NativeDiagramFamily::Sequence && (edge.sequenceNote != SequenceNotePlacement::None || edge.sequenceNumber)) ||
+            edge.from >= graph.nodes.size() || edge.to >= graph.nodes.size() || edge.label.size() > NativeFlowchartParser::MaximumLabelUnits ||
             edge.fromCardinality.size() > 32u || edge.toCardinality.size() > 32u ||
             ((! edge.fromCardinality.empty() || ! edge.toCardinality.empty()) && graph.family != NativeDiagramFamily::Class &&
              graph.family != NativeDiagramFamily::EntityRelationship) ||

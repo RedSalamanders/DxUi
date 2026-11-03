@@ -1,5 +1,7 @@
 # Independent DxUi measurements
 
+- [Native Mermaid syntax expansion, 3 November](MermaidSyntax_2026-11-03/README.md): preserved fixed baseline, five fail-before syntax forms, bounded actor/note/number geometry and raster/resource regressions; consumer adoption and broader qualification retain separate evidence.
+
 - [Mermaid and Markdown display corrections, 3 November](MermaidDisplay_2026-11-03/README.md): retained fail-before CPU/app reproductions, zero-warning x64 Release build, four native suites with zero capability skips and refreshed themed gallery; broader qualification remains open.
 
 - [Final PR134 paired comparison, 29 October](RedTildeCompletion_2026-10-24/pr134-paired-20261029/README.md): all 144 receipts and 78 rows replay; five raw flags, zero Holm regressions and no exact-budget rises coexist with 71/72 unstable controls and an inconclusive unqualified-policy verdict.

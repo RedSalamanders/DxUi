@@ -80,7 +80,7 @@ template <typename Check> inline void Geometry(Check&& check)
               timeline->edges[2u].openArrow && timeline->edges[0u].arrow[1u].x > timeline->edges[0u].arrow[0u].x &&
               timeline->edges[1u].arrow[1u].x < timeline->edges[1u].arrow[0u].x,
           "sequence layout uses ordered lifelines, correctly directed messages and a self-message loop");
-    for (const auto invalid : {L"sequenceDiagram\nAlice->>Bob: x\nloop later\n", L"sequenceDiagram\nAlice->>Bob\n", L"sequenceDiagram\nactor Alice\n"})
+    for (const auto invalid : {L"sequenceDiagram\nAlice->>Bob: x\nloop later\n", L"sequenceDiagram\nAlice->>Bob\n", L"sequenceDiagram\ncreate actor Alice\n"})
     {
         const auto rejected = Graph(invalid);
         check(rejected->outcome != FlowchartOutcome::Prepared && rejected->source == invalid && rejected->nodes.empty() && rejected->edges.empty(),

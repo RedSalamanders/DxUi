@@ -1211,6 +1211,14 @@ void AddComboItems(ComboBox& combo)
         editor->SetBounds(tile.content);
     }
     {
+        const Tile sequenceTile = flow.Next(*scene.root, L"RichTextEditor / actors, notes and message numbers", 2u, 360.0f);
+        auto* sequence          = scene.root->AddChild<RichTextEditor>(L"```mermaid\nsequenceDiagram\nactor Writer\nparticipant App\nautonumber\n"
+                                                                       L"Note over Writer,App: Exact source\nWriter->App: Save\nApp-->>Writer: Saved\n```\n");
+        sequence->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::RichMarkdown);
+        sequence->SetMarkdownRenderingEnabled(true);
+        sequence->SetBounds(sequenceTile.content);
+    }
+    {
         const Tile tile = flow.Next(*scene.root, L"ComboBox / Window");
         auto* combo     = scene.root->AddChild<ComboBox>();
         AddComboItems(*combo);

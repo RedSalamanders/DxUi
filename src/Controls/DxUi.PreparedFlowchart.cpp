@@ -443,6 +443,8 @@ LayoutAdvance PreparedFlowchart::Advance(LayoutWorkBudget budget)
                             legend.append(label).append(L": ").append(std::wstring_view(state.graph->source).substr(source.first, source.last - source.first));
                             state.Label(legend, preparedLabel, measuredSize);
                         }
+                        else if (! node && group == 0u && edge->sequenceNumber)
+                            state.Label(SequenceMessageText(*edge), preparedLabel, measuredSize);
                         else
                             state.Label(label,
                                         preparedLabel,
@@ -725,6 +727,14 @@ bool PreparedFlowchart::Draw(ID2D1RenderTarget* target,
     for (std::size_t index = 0u; index < plan.edges.size(); ++index)
     {
         const auto& edge = plan.edges[index];
+        if (edge.sequenceNote)
+        {
+            const auto first = Point(edge.path[0u]), last = Point(edge.path[1u]);
+            const auto bounds = D2D1::RectF(first.x, first.y, last.x, last.y);
+            target->FillRectangle(bounds, fill);
+            target->DrawRectangle(bounds, stroke);
+            continue;
+        }
         if (edge.style == FlowchartLineStyle::Invisible)
             continue;
         const auto& authored = state.graph->edges[index];
@@ -832,7 +842,18 @@ bool PreparedFlowchart::Draw(ID2D1RenderTarget* target,
         const auto bounds          = Rect(node.bounds);
         const auto nodeStrokeWidth = static_cast<float>(state.graph->nodes[index].strokeWidth);
         auto* nodeStrokeStyle      = state.graph->nodes[index].borderDashed ? state.dashedStyle.get() : nullptr;
-        if (node.shape == FlowchartShape::Bar)
+        if (state.graph->nodes[index].sequenceActor)
+        {
+            const float x = (bounds.left + bounds.right) / 2.f, y = bounds.top + 4.f;
+            const auto head = D2D1::Ellipse(D2D1::Point2F(x, y + 6.f), 6.f, 6.f);
+            target->FillEllipse(head, nodeFill);
+            target->DrawEllipse(head, nodeText);
+            target->DrawLine(D2D1::Point2F(x, y + 12.f), D2D1::Point2F(x, y + 25.f), nodeText);
+            target->DrawLine(D2D1::Point2F(x - 11.f, y + 17.f), D2D1::Point2F(x + 11.f, y + 17.f), nodeText);
+            target->DrawLine(D2D1::Point2F(x, y + 25.f), D2D1::Point2F(x - 10.f, y + 34.f), nodeText);
+            target->DrawLine(D2D1::Point2F(x, y + 25.f), D2D1::Point2F(x + 10.f, y + 34.f), nodeText);
+        }
+        else if (node.shape == FlowchartShape::Bar)
         {
             target->FillRectangle(bounds, nodeStroke);
         }

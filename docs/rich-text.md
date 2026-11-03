@@ -37,7 +37,7 @@ receivers and the library must likewise be rebuilt from the same exact pin.
 | Semantic accessibility | Limited | Source ranges, typed structure and actions; physical AT qualification separate | [Details](#semantic-accessibility-m4f) |
 | Text services | Limited | Native and embedded TSF/IME and UIA adapters; physical IME qualification separate | [Details](#source-text-services-and-accessibility-d2d) |
 | Native mathematics | Limited | Named DxUiMath1 subset; source-preserving per-object fallback | [Details](#native-in-document-mathematics-and-broader-diagrams) |
-| Native Mermaid | Limited | Bounded flowchart, state, class, sequence, pie, ER, Gantt and mind map profiles; unsupported syntax remains source | [Details](#native-in-document-mathematics-and-broader-diagrams) |
+| Native Mermaid | Limited | Bounded flowchart, state, class, sequence, pie, ER, Gantt and mind map profiles; sequence actors, plain notes, bare autonumber and unheaded messages; unsupported syntax remains source | [Details](#native-in-document-mathematics-and-broader-diagrams) |
 | Complete extension conformance | Not supported | Full-language parity is not established by bounded feature or corpus results | [Details](#current-capabilities) |
 <!-- rich-text-capabilities:end -->
 
@@ -1827,12 +1827,28 @@ digits and two fractional digits and require a positive total. Sectors follow
 source order clockwise; an ordered legend matches the theme-derived shades. Invalid
 or unsupported forms retain exact source with a diagnostic.
 
-The bounded `sequenceDiagram` profile supports ordered implicit or explicitly
-declared participants, plain aliases, directed `->>` / `-->>` messages,
-open-head `-)` / `--)` messages and self-message loops. Measured headers,
-dashed lifelines and chronological messages are drawn natively; accessibility
-retains participant/message order and the exact fence. Notes, actors, activations,
-loops, directives and other syntax retain the full source with a diagnostic.
+The bounded `sequenceDiagram` profile supports ordered implicit participants,
+`participant` and stick-figure `actor` declarations with plain `as` aliases,
+filled-head `->>` / `-->>`, open-head `-)` / `--)`, unheaded `->` / `-->`
+and self-message loops. Plain `Note left of A: text`, `Note right of A: text`
+and `Note over A,B: text` frames retain timeline order. Bare `autonumber` starts
+at one and counts messages, excluding notes. Accessibility includes aliases,
+notes and numbers; the complete authored fence remains exact and editable.
+Custom number arguments, activations, loops, creation/destruction, directives
+and other excluded forms retain the full source with a diagnostic.
+Directionless `flowchart` and `graph` headers default to top-to-bottom layout.
+
+```mermaid
+sequenceDiagram
+actor Writer as Notebook author
+participant App as Draft editor
+autonumber
+Note left of Writer: Draft ready
+Writer->App: Save draft
+Note over Writer,App: One exact document
+App-->Writer: Saved
+Note right of App: Keep revision
+```
 
 The bounded `mindmap` profile draws one root and up to 127 descendants with
 space-indented levels through depth eight. Plain, rectangular, rounded and

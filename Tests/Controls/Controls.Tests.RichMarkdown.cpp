@@ -1253,6 +1253,91 @@ void TestNativeFlowchartLayoutIndependentCorpusAndRouting()
     FlowchartLayoutTests::Corpus(Require);
     FlowchartLayoutTests::CrossingReduction(Require);
 }
+void TestNativeSequenceActorsNotesNumbersAndDefaultDirection()
+{
+    using namespace DxUi::RichText::Detail;
+    const std::wstring source = L"sequenceDiagram\r\nactor\tWriter\tas\tNotebook author\r\nparticipant App as Draft editor\r\n"
+                                L"autonumber\r\nNote left of Writer: Draft ready\r\nWriter->App: Save draft\r\n"
+                                L"Note over App, Writer: One exact document\r\nApp-->Writer: Saved\r\n"
+                                L"note right of App: Keep revision\r\nWriter-)Writer: Continue\r\n";
+    const auto graph          = FlowchartLayoutTests::Graph(source);
+    Require(graph && graph->outcome == FlowchartOutcome::Prepared && graph->source == source && ValidFlowchartModel(*graph),
+            "extended sequence syntax publishes one admissible model with exact CRLF source");
+    Require(graph->nodes.size() == 2u && graph->nodes[0u].sequenceActor && ! graph->nodes[1u].sequenceActor && graph->nodes[0u].label == L"Notebook author" &&
+                graph->nodes[1u].label == L"Draft editor" && graph->edges.size() == 6u,
+            "actor kind, aliases and chronological note/message records survive later endpoint lookups");
+    Require(graph->edges[0u].sequenceNote == SequenceNotePlacement::Left && graph->edges[2u].sequenceNote == SequenceNotePlacement::Over &&
+                graph->edges[4u].sequenceNote == SequenceNotePlacement::Right && graph->edges[2u].from == 1u && graph->edges[2u].to == 0u &&
+                ! graph->edges[1u].arrow && ! graph->edges[3u].arrow && graph->edges[3u].style == FlowchartLineStyle::Dotted && graph->edges[5u].openArrow,
+            "notes keep authored associations and unheaded/dotted/asynchronous messages stay distinct");
+    Require(graph->sequenceAutonumber && graph->edges[1u].sequenceNumber == 1u && graph->edges[3u].sequenceNumber == 2u &&
+                graph->edges[5u].sequenceNumber == 3u && graph->edges[0u].sequenceNumber == 0u && graph->edges[1u].label == L"Save draft" &&
+                SequenceMessageText(graph->edges[1u]) == L"1. Save draft",
+            "numbering counts messages rather than notes and never rewrites the authored label");
+    const auto plan = FlowchartLayoutTests::Place(graph, Require);
+    Require(plan && plan->issue == FlowchartLayoutIssue::None && plan->nodes.size() == 2u && plan->edges.size() == 6u,
+            "extended sequence events have a complete bounded CPU layout");
+    const auto center = [](const FlowchartRect& bounds) { return bounds.x + bounds.width / 2.0; };
+    double previousBottom{};
+    for (std::size_t index = 0u; index < graph->edges.size(); ++index)
+    {
+        const auto& placed = plan->edges[index];
+        Require(placed.label.y >= previousBottom && placed.label.x >= 0.0 && placed.label.x + placed.label.width <= plan->extent.width &&
+                    placed.label.y + placed.label.height <= plan->extent.height,
+                "timeline labels remain chronological, finite and inside the published extent");
+        if (graph->edges[index].sequenceNote != SequenceNotePlacement::None)
+        {
+            Require(placed.sequenceNote && ! placed.hasArrow && placed.path[0u].x < placed.label.x && placed.path[0u].y < placed.label.y &&
+                        placed.path[1u].x > placed.label.x + placed.label.width && placed.path[1u].y > placed.label.y + placed.label.height,
+                    "a note is a padded frame enclosing its actual text, without a connecting route");
+            previousBottom = placed.path[1u].y;
+        }
+        else
+        {
+            Require(! placed.sequenceNote && placed.hasArrow == graph->edges[index].arrow, "message geometry preserves the authored arrowhead kind");
+            previousBottom = placed.path.back().y;
+        }
+    }
+    Require(plan->edges[0u].path[1u].x < center(plan->nodes[0u].bounds) && plan->edges[4u].path[0u].x > center(plan->nodes[1u].bounds) &&
+                plan->edges[2u].path[0u].x < center(plan->nodes[0u].bounds) && plan->edges[2u].path[1u].x > center(plan->nodes[1u].bounds) &&
+                plan->nodes[0u].label.y >= plan->nodes[0u].bounds.y + NativeFlowchartLayout::SequenceActorHeight,
+            "left/right/spanning notes and actor text use independent placement oracles");
+    for (const std::wstring_view header : {L"flowchart", L"graph", L"flowchart\t"})
+    {
+        const auto body   = std::wstring(header) + L"\nFirst --> Second\n";
+        const auto flow   = FlowchartLayoutTests::Graph(body);
+        const auto layout = FlowchartLayoutTests::Place(flow, Require);
+        Require(flow->outcome == FlowchartOutcome::Prepared && flow->direction == FlowchartDirection::TopBottom && flow->source == body && layout &&
+                    layout->issue == FlowchartLayoutIssue::None && layout->nodes[0u].bounds.y < layout->nodes[1u].bounds.y,
+                "directionless flowchart headers follow the pinned grammar's top-to-bottom default");
+    }
+    for (const auto invalid : {L"sequenceDiagram\nautonumber 10 5\nA->>B: x\n",
+                               L"sequenceDiagram\nNote beside A: x\n",
+                               L"sequenceDiagram\nNote left of A,B: x\n",
+                               L"sequenceDiagram\nNote over A,B: \n",
+                               L"sequenceDiagram\nactivate A\nA->>B: x\n",
+                               L"sequenceDiagram\nloop test\nA->>B: x\nend\n"})
+    {
+        const auto rejected = FlowchartLayoutTests::Graph(invalid);
+        Require(rejected->outcome != FlowchartOutcome::Prepared && rejected->source == invalid && rejected->nodes.empty() && rejected->edges.empty(),
+                "excluded and malformed extensions keep exact source without exposing partial timeline records");
+    }
+    for (unsigned variant = 0u; variant < 5u; ++variant)
+    {
+        auto invalid = std::make_shared<FlowchartModel>(*graph);
+        if (variant == 0u)
+            invalid->edges[0u].sequenceNote = static_cast<SequenceNotePlacement>(255u);
+        else if (variant == 1u)
+            invalid->edges[0u].sequenceNumber = 1u;
+        else if (variant == 2u)
+            invalid->edges[1u].sequenceNumber = 3u;
+        else if (variant == 3u)
+            invalid->edges[1u].openArrow = true;
+        else
+            invalid->family = NativeDiagramFamily::Flowchart;
+        Require(! ValidFlowchartModel(*invalid), "shared model admission rejects forged note, numbering, arrow and cross-family state");
+    }
+}
 void TestNativeFlowchartLayoutAdmissionAndCancellation()
 {
     FlowchartLayoutTests::Admission(Require);
@@ -1612,6 +1697,7 @@ void RunRichMarkdownTests()
     DXUI_RUN_TEST(TestNativeFlowchartDeterministicGeometry);
     DXUI_RUN_TEST(TestNativeFlowchartTrimmedStyledLabelsRemainAdmissible);
     DXUI_RUN_TEST(TestNativeRelationshipFanPortsAndCardinalities);
+    DXUI_RUN_TEST(TestNativeSequenceActorsNotesNumbersAndDefaultDirection);
     DXUI_RUN_TEST(TestNativeFlowchartLayoutIndependentCorpusAndRouting);
     DXUI_RUN_TEST(TestNativeFlowchartLayoutAdmissionAndCancellation);
     DXUI_RUN_TEST(TestLosslessMarkdownFootnoteBlockGrammarAndProfileIsolation);

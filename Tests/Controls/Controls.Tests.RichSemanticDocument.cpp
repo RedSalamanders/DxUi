@@ -854,14 +854,23 @@ void TestRichSemanticNativeMathematicsAndBroaderMermaid()
     Require(genericDocument->Map().Source() == genericSource && genericDiagram != genericDocument->Elements().end() &&
                 genericDiagram->name.find(L"List<int>") != std::wstring::npos,
             "class generic semantic alternative exposes the displayed type and preserves exact source");
-    const std::wstring sequenceSource = L"```mermaid\nsequenceDiagram\nparticipant A as Alpha\nparticipant B as Beta\nA->>B: hello\nB-->>A: reply\n```\n";
+    const std::wstring sequenceSource = L"**Before**\r\n\r\n```mermaid\r\nsequenceDiagram\r\nactor A as Alpha\r\nparticipant B as Beta\r\nautonumber\r\n"
+                                        L"Note left of A: first note\r\nA->B: hello\r\nNote over B,A: shared note\r\nB-->A: reply\r\n"
+                                        L"Note right of B: final note\r\n```\r\n\r\n*After*\r\n";
     const auto sequenceDocument       = RichSemanticDocumentTests::Build(sequenceSource, MarkdownProfile::RichMarkdown);
     const auto sequenceDiagram        = std::ranges::find(sequenceDocument->Elements(), SemanticRole::Diagram, &SemanticElement::role);
     Require(sequenceDocument->Map().Source() == sequenceSource && sequenceDiagram != sequenceDocument->Elements().end() &&
                 sequenceDiagram->name.starts_with(L"Sequence diagram") && sequenceDiagram->name.find(L"Alpha") != std::wstring::npos &&
                 sequenceDiagram->name.find(L"Beta") != std::wstring::npos && sequenceDiagram->name.find(L"hello") != std::wstring::npos &&
-                sequenceDiagram->name.find(L"reply") > sequenceDiagram->name.find(L"hello"),
-            "sequence semantic alternative retains participants and chronological messages with exact source");
+                sequenceDiagram->name.find(L"1. hello") != std::wstring::npos && sequenceDiagram->name.find(L"2. reply") != std::wstring::npos &&
+                sequenceDiagram->name.find(L"first note") < sequenceDiagram->name.find(L"1. hello") &&
+                sequenceDiagram->name.find(L"1. hello") < sequenceDiagram->name.find(L"shared note") &&
+                sequenceDiagram->name.find(L"shared note") < sequenceDiagram->name.find(L"2. reply") &&
+                sequenceDiagram->name.find(L"2. reply") < sequenceDiagram->name.find(L"final note") &&
+                std::ranges::count(sequenceDocument->Elements(), SemanticRole::Diagram, &SemanticElement::role) == 1 &&
+                sequenceDocument->Map().Display().find(L"Before") != std::wstring::npos &&
+                sequenceDocument->Map().Display().find(L"After") != std::wstring::npos && sequenceDocument->Diagnostics().empty(),
+            "extended sequence alternative retains aliases, notes and numbered message order with exact source and rich neighbors");
     const std::wstring pieSource = L"```mermaid\npie showData title Inventory\n\"One\": 25\n\"Three\": 75\n```\n";
     const auto pieDocument       = RichSemanticDocumentTests::Build(pieSource, MarkdownProfile::RichMarkdown);
     const auto pieDiagram        = std::ranges::find(pieDocument->Elements(), SemanticRole::Diagram, &SemanticElement::role);

@@ -1831,9 +1831,22 @@ struct SemanticBuilder::Preparation
             }
             if (graph.family == Detail::NativeDiagramFamily::Sequence)
             {
+                if (edge.sequenceNote != Detail::SequenceNotePlacement::None)
+                {
+                    DiagramAlternative({id(edge.from),
+                                        Label(AccessibilityTextId::DiagramNote),
+                                        edge.label,
+                                        edge.from == edge.to ? L"; " : Label(AccessibilityTextId::SequenceTo),
+                                        edge.from == edge.to ? std::wstring_view{} : id(edge.to),
+                                        edge.from == edge.to ? std::wstring_view{} : L"; "});
+                    return;
+                }
+                std::wstring numbered;
+                if (edge.sequenceNumber)
+                    numbered = Detail::SequenceMessageText(edge);
                 DiagramAlternative({id(edge.from),
                                     edge.openArrow ? Label(AccessibilityTextId::SequenceAsyncSends) : Label(AccessibilityTextId::SequenceSends),
-                                    edge.label,
+                                    edge.sequenceNumber ? std::wstring_view(numbered) : std::wstring_view(edge.label),
                                     Label(AccessibilityTextId::SequenceTo),
                                     id(edge.to),
                                     edge.style == Detail::FlowchartLineStyle::Dotted ? Label(AccessibilityTextId::SequenceDottedEnd) : L"; "});
