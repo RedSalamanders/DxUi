@@ -2569,10 +2569,11 @@ source, selection, revision, command history or accessibility text. Marker metri
 
 Adjacent labeled flowchart/ER/class ranks without groups, notes or parallel links reserve measured label and
 cardinality space along the graph's major axis, plus measured cross-axis clearance between sibling boxes so
-branch labels have separate room. Their orthogonal routes use the inter-rank corridor instead of
+branch labels have separate room. Bands that mix fan-in and fan-out retain separate exterior label lanes to
+avoid coincident midpoints in dense joins. Other simple orthogonal routes use the inter-rank corridor instead of
 an exterior detour. Wider labels expand LR/RL separation; taller labels expand TB/BT separation. More complex
 routes retain bounded exterior lanes and existing exact-source capacity fallback. Preparation reserves one bounded
-rank-gap array; painting retains no graph model and creates no layouts or brushes.
+rank-gap array and bounded rank-classification flags; painting retains no graph model and creates no layouts or brushes.
 HTML `mark` shares the bounded retained inline-surface geometry in either Markdown
 presentation. Its theme-resolved neutral fill keeps ordinary text ink; high
 contrast outlines the marked range instead. The selected-text pass uses the

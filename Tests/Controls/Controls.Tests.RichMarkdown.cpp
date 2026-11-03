@@ -1297,6 +1297,10 @@ void TestNativeLabeledRankCorridors()
         Require(plan && plan->issue == FlowchartLayoutIssue::None && ! overlaps(plan->edges[0u].label, plan->edges[1u].label),
                 "branching arrows reserve cross-axis room for adjacent long labels in each direction");
     }
+    const auto dense =
+        FlowchartLayoutTests::Place(FlowchartLayoutTests::Graph(L"flowchart TD\nA -->|one| C\nB -->|two| D\nA -->|three| D\nB -->|four| C\n"), Require);
+    Require(dense && dense->issue == FlowchartLayoutIssue::None, "a dense labeled rank remains native");
+    FlowchartLayoutTests::Invariants(*dense, Require);
     const auto graph =
         FlowchartLayoutTests::Graph(L"erDiagram\nCUSTOMER ||--o{ ORDER : places\nORDER ||--|{ LINE-ITEM : contains\nCUSTOMER }|..|{ DELIVERY-ADDRESS : uses\n");
     std::vector<FlowchartSize> nodes;

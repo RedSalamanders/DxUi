@@ -1593,7 +1593,8 @@ over-capacity geometry still retains exact source. Task checkboxes replace unord
 task numbering stays visible. Subtle code language badges and line numbers use foreground text ink in all themes.
 
 Adjacent labeled links reserve measured text space between boxes and use that corridor directly in LR/RL/TB/BT
-diagrams. Branching links also reserve cross-axis room between sibling boxes. More complex routes retain their bounded exterior lanes. Subtle table cells have ten-DIP side insets
+diagrams. Branching links also reserve cross-axis room between sibling boxes. Dense joins that mix fan-in and
+fan-out retain distinct exterior label lanes, as do other complex routes. Subtle table cells have ten-DIP side insets
 when space permits; inline-code chips add three DIP at each text endpoint in native layout metrics.
 
 Task markers use the current theme accent, with foreground ink in high contrast. Set

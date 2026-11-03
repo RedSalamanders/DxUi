@@ -316,7 +316,9 @@ template <typename Check> inline void Geometry(Check&& check)
               cycles->edges[2u].route == FlowchartRoute::Self && cycles->edges[3u].route == FlowchartRoute::Forward &&
               cycles->edges[0u].path[2u].x != cycles->edges[3u].path[2u].x,
           "stable DFS distinguishes cycles and self loops while parallel edges own separate lanes");
-    const auto lanesGraph = Graph(L"graph TD;A-->|wide|B;A-->|n|C;A-->|m|D;B-->|back|A;C-->A");
+    // Skipping the intermediate rank keeps the forward labels on exterior
+    // lanes. Adjacent labeled links now have their own corridor regressions.
+    const auto lanesGraph = Graph(L"graph TD;A-->|wide|B;A-->|n|C;A-->|m|D;B-->|back|A;C-->A;A-->M;M-->B;M-->C;M-->D");
     const std::vector<FlowchartSize> laneNodes(lanesGraph->nodes.size(), {16.0, 12.0});
     std::vector<FlowchartSize> laneLabels(lanesGraph->edges.size(), FlowchartSize{});
     laneLabels[0u] = {100.0, 12.0};
@@ -325,7 +327,7 @@ template <typename Check> inline void Geometry(Check&& check)
     NativeFlowchartLayout laneLayout;
     laneLayout.Begin(lanesGraph, laneNodes, laneLabels);
     const auto variableLanes = Complete(laneLayout, check);
-    check(variableLanes->issue == FlowchartLayoutIssue::None && variableLanes->edges.size() == 5u &&
+    check(variableLanes->issue == FlowchartLayoutIssue::None && variableLanes->edges.size() == 9u &&
               Near(variableLanes->edges[1u].path[2u].x - variableLanes->edges[0u].path[2u].x, 108.0) &&
               Near(variableLanes->edges[2u].path[2u].x - variableLanes->edges[1u].path[2u].x, 16.0) &&
               variableLanes->edges[0u].label.x + variableLanes->edges[0u].label.width < variableLanes->edges[1u].path[2u].x &&

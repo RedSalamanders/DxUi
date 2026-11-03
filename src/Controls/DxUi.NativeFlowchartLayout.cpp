@@ -52,6 +52,7 @@ struct NativeFlowchartLayout::Preparation
         OrderSort,
         OrderPosition,
         OrderCompare,
+        Corridors,
         Ports,
         Rows,
         RowPositions,
@@ -95,6 +96,7 @@ struct NativeFlowchartLayout::Preparation
     std::array<int, Nodes> mindSide{};
     std::array<double, 16u> groupColumnWidth{};
     std::array<bool, Nodes> ranked{};
+    std::array<bool, Nodes> denseRanks{};
     std::array<std::size_t, Edges> next{}, startPort{}, endPort{};
     struct AttachmentSide
     {
@@ -660,7 +662,7 @@ struct NativeFlowchartLayout::Preparation
                 if (graph->family == NativeDiagramFamily::Flowchart && graph->groups.empty() && ! hasNotes && ! alignedPairs && graph->edges.size() > 1u)
                     Then(Stage::OrderInitialize);
                 else
-                    Then(Stage::Ports);
+                    Then(Stage::Corridors);
                 return;
             }
             for (std::size_t index = 0u; index < graph->nodes.size(); ++index)
@@ -780,7 +782,7 @@ struct NativeFlowchartLayout::Preparation
         if (cursor == graph->edges.size())
         {
             useOrdering = candidateCrossings < originalCrossings;
-            Then(Stage::Ports);
+            Then(Stage::Corridors);
             return;
         }
         const auto index = cursor++;
@@ -798,6 +800,23 @@ struct NativeFlowchartLayout::Preparation
             originalCrossings += crossed(originalPosition);
             candidateCrossings += crossed(orderPosition);
         }
+    }
+    void Corridors()
+    {
+        if (cursor == graph->edges.size())
+        {
+            Then(Stage::Ports);
+            return;
+        }
+        const auto index = cursor++;
+        const auto& edge = graph->edges[index];
+        // A rank mixing fan-out and fan-in can put distinct edge midpoints
+        // at the same position (for example a complete two-by-two join).
+        // Classify one edge per event and retain separate exterior label lanes
+        // for that band; unlabeled paths keep their existing direct routing.
+        if (edge.relation != FlowchartRelation::Note && plan->edges[index].route == FlowchartRoute::Forward && rank[edge.to] == rank[edge.from] + 1u &&
+            outgoing[edge.from] > 1u && incoming[edge.to] > 1u)
+            denseRanks[rank[edge.from]] = true;
     }
     void Ports()
     {
@@ -830,7 +849,7 @@ struct NativeFlowchartLayout::Preparation
         endPort[index]      = back ? ++after[rank[edge.to]] : ++before[rank[edge.to]];
         const auto parallel = std::ranges::count_if(graph->edges, [&](const auto& other) { return other.from == edge.from && other.to == edge.to; }) > 1;
         direct[index]       = alignedPairs || (! parallel && graph->groups.empty() && ! hasNotes && plan->edges[index].route == FlowchartRoute::Forward &&
-                                               rank[edge.to] == rank[edge.from] + 1u);
+                                               rank[edge.to] == rank[edge.from] + 1u && (edge.label.empty() || ! denseRanks[rank[edge.from]]));
         if (direct[index] && ! edge.label.empty())
         {
             // Work in the major axis: LR/RL labels need their measured width,
@@ -1406,6 +1425,7 @@ struct NativeFlowchartLayout::Preparation
             case Stage::OrderSort:
             case Stage::OrderPosition:
             case Stage::OrderCompare: Order(); break;
+            case Stage::Corridors: Corridors(); break;
             case Stage::Ports: Ports(); break;
             case Stage::Rows: Rows(); break;
             case Stage::RowPositions: RowPositions(); break;
