@@ -14,6 +14,7 @@
 
 #include <DxUi/Failure.h>
 #include <Windows.h>
+#include <objbase.h>
 
 #include <UIAutomation.h>
 #include <wil/com.h>

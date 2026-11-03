@@ -104,6 +104,16 @@ reopening their historical checklists or relabeling old allocation sweeps as fat
 
 ### Working-tree progress, not acceptance
 
+- The `6d24acf1` cohort passes all six warning-free native builds, SDK extraction, all validators/tooling and the
+  affected Debug NewControls/EditorControls/Accessibility suites (`20261103T020826374Z-83400-ac928626b12e4f71ba84042d2e1afb8f`).
+  Clean-pin consumers exposed missing COM include prerequisites and two const WIL guards in the new unload
+  fixture. The isolated corrected fixture passes 12 healthy, two native, sixteen fatal and two unload probes;
+  actual native publication requires its public `RefreshAccessibilitySnapshot` call. These test-only corrections
+  are applied before a fresh exact-source cohort. Original failed build/runtime receipts remain preserved.
+- Both first paired builds attested individually, but strict cross-side preflight rejected the historical baseline's
+  missing `Samples/Shared` include path. No measurement slots were consumed. A reviewed study-only common build
+  policy overlay aligns that include closure, preserves each side's library/project and retains the original refusal;
+  both sides require fresh attestation. The unqualified acceptance policy/judge is unchanged.
 - Final independent review found and repaired property-event admission after reentrant value/sender registration.
   Admission now checks the current attachment, original control identity and tree-item membership after each
   reentrant seam; a held-batch regression covers same-path replacement at all three stages and real-client values.

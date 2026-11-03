@@ -1,7 +1,9 @@
 #include "FailureHost.h"
 #include "Support.Tests.DumpReader.h"
-#include <UIAutomation.h>
 #include <objbase.h>
+
+// UI Automation needs COM declarations even with lean Windows headers.
+#include <UIAutomation.h>
 #include <wil/com.h>
 #include <wil/resource.h>
 #include <windows.h>

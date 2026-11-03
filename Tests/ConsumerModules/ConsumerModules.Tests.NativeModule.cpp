@@ -165,12 +165,12 @@ extern "C" __declspec(dllexport) int DxUiModulePrepareNotificationEpilogue(HANDL
     windowClass.lpszClassName = className.c_str();
     if (! RegisterClassW(&windowClass))
         return 1;
-    const auto unregister = wil::scope_exit([&]() noexcept { UnregisterClassW(className.c_str(), instance); });
+    auto unregister = wil::scope_exit([&]() noexcept { UnregisterClassW(className.c_str(), instance); });
     wil::unique_hwnd window(CreateWindowExW(
         WS_EX_NOACTIVATE, className.c_str(), L"Module UIA fixture", WS_OVERLAPPED, -32000, -32000, 320, 160, nullptr, nullptr, instance, host.get()));
     if (! window || ! host->Attach(window.get(), DxUi::ControlHost::AttachOptions{.forceWarp = true}))
         return 2;
-    const auto detach = wil::scope_exit([&]() noexcept { host->Detach(); });
+    auto detach = wil::scope_exit([&]() noexcept { host->Detach(); });
     DxUi::Panel* panel{};
     {
         const DxUi::Failure::Scope construction;
@@ -203,6 +203,7 @@ extern "C" __declspec(dllexport) int DxUiModulePrepareNotificationEpilogue(HANDL
             label->SetBounds(D2D1::RectF(0.f, 40.f, 250.f, 70.f));
         }
         host->Invalidate();
+        host->RefreshAccessibilitySnapshot();
         if (! client.WaitForEvent([](const UiaTest::HeardEvent& event) { return event.kind == UiaTest::EventKind::Structure; }, 10000u))
             return 3;
         if (! client.WaitUntil(10000u, [&] { return WaitForSingleObject(entered, 0u) == WAIT_OBJECT_0; }))

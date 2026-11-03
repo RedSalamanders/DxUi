@@ -162,6 +162,14 @@ can leave the library's newest-project/import selection different for identical 
 The staging manifest records the role, physical path, original UTC stamp and staged UTC
 stamp for every selected root/project. Partial staging failure restores all acquired stamps.
 
+The failure-policy study also shares the reviewed native build-policy include closure. Its historical baseline
+lacks the `Samples/Shared` include directory needed by the common failure-host harness. Strict preflight must
+reject that difference before measurement. An explicit study-only overlay of `Build/NativeBuildPolicy.targets`
+may align that one include path after retaining the original policy and checking header-resolution collisions;
+library sources and project files remain each side's own. Retain both overlays and fresh build attestations,
+and restage the complete project catalog after the overlay. This does not qualify or change the acceptance
+policy/judge and cannot convert a refused study into a pass.
+
 The current build driver's transitive console module is part of the shared overlay and
 full harness identity. Older baseline trees must import that staged module before building;
 staging preserves their library sources and compiler/linker project rather than replacing
