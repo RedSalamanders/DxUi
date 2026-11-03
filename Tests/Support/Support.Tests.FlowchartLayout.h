@@ -187,8 +187,13 @@ template <typename Check> inline void Geometry(Check&& check)
                       "independent routes occupy distinct columns while preserving edge identity");
     }
     const auto labeledPairs = Place(Graph(L"graph TD;A;B;D;C;A-->|label|C;B-->D"), check);
-    check(labeledPairs->edges[0].hasLabel && ! Near(labeledPairs->edges[0].path[1].x, labeledPairs->edges[0].path[2].x),
-          "labeled pairs retain the exterior label lane");
+    const auto& labeled     = labeledPairs->edges[0];
+    const auto& from        = labeledPairs->nodes[0].bounds;
+    const auto& to          = labeledPairs->nodes[3].bounds;
+    check(labeled.hasLabel && Near(labeled.path[1].x, labeled.path[2].x) && Near(labeled.path[3].x, labeled.path[4].x) &&
+              labeled.label.y >= from.y + from.height + 8.0 && labeled.label.y + labeled.label.height <= to.y - 8.0 &&
+              Near(labeled.label.x + labeled.label.width / 2.0, (labeled.path.front().x + labeled.path.back().x) / 2.0),
+          "labeled independent pairs use the inter-rank corridor with measured clearance and centered text");
     for (const auto& [direction, horizontal] : {std::pair{L"TB", false}, std::pair{L"BT", false}, std::pair{L"LR", true}, std::pair{L"RL", true}})
     {
         const auto forkGraph = Graph(L"stateDiagram-v2\ndirection " + std::wstring(direction) + L"\nstate F <<fork>>\nA --> F\nF --> B\n");
