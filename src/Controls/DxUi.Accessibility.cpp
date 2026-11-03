@@ -32,6 +32,7 @@
 
 #include <UIAutomation.h>
 #include <oleauto.h>
+#include <wil/win32_helpers.h>
 
 #pragma comment(lib, "uiautomationcore.lib")
 
@@ -317,11 +318,31 @@ std::atomic<HANDLE> g_accessibilityPropertyDeliveryGateEnteredEvent{nullptr};
 std::atomic<HANDLE> g_accessibilityPropertyDeliveryGateReleaseEvent{nullptr};
 std::atomic<uint32_t> g_accessibilityPropertyDeliveryGateHolders{0u};
 std::atomic<bool> g_accessibilityPropertyDeliveryGateArmed{false};
+std::atomic<bool> g_accessibilityPropertyDeliveryGateAfterScope{false};
+struct AccessibilityPropertyRegistrationHookState final
+{
+    ControlHost* host                                 = nullptr;
+    unsigned stage                                    = 0;
+    AccessibilityPropertyRegistrationHookForTest hook = nullptr;
+    void* context                                     = nullptr;
+};
+thread_local AccessibilityPropertyRegistrationHookState g_accessibilityPropertyRegistrationHook;
 constexpr DWORD kAccessibilityFocusResolutionGateTimeoutMs = 5000u;
 
-void HoldAccessibilityPropertyDeliveryForTest(ControlHost* host) noexcept
+void NotifyAccessibilityPropertyRegistrationForTest(ControlHost* host, unsigned stage) noexcept
 {
-    if (! host || g_accessibilityPropertyDeliveryGateHost.load(std::memory_order_seq_cst) != host ||
+    const auto state = g_accessibilityPropertyRegistrationHook;
+    if (state.hook && state.host == host && state.stage == stage)
+    {
+        g_accessibilityPropertyRegistrationHook = {};
+        state.hook(state.context);
+    }
+}
+
+void HoldAccessibilityPropertyDeliveryForTest(ControlHost* host, bool afterScope = false) noexcept
+{
+    if (! host || g_accessibilityPropertyDeliveryGateAfterScope.load(std::memory_order_acquire) != afterScope ||
+        g_accessibilityPropertyDeliveryGateHost.load(std::memory_order_seq_cst) != host ||
         ! g_accessibilityPropertyDeliveryGateArmed.load(std::memory_order_acquire))
         return;
     g_accessibilityPropertyDeliveryGateHolders.fetch_add(1u, std::memory_order_seq_cst);
@@ -333,7 +354,13 @@ void HoldAccessibilityPropertyDeliveryForTest(ControlHost* host) noexcept
     if (g_accessibilityPropertyDeliveryGateHost.load(std::memory_order_seq_cst) != host ||
         ! g_accessibilityPropertyDeliveryGateArmed.exchange(false, std::memory_order_acq_rel))
         return;
-    if (const HANDLE enteredEvent = g_accessibilityPropertyDeliveryGateEnteredEvent.load(std::memory_order_acquire))
+    const HANDLE enteredEvent = g_accessibilityPropertyDeliveryGateEnteredEvent.load(std::memory_order_acquire);
+    const auto resetWitness   = wil::scope_exit([enteredEvent, afterScope]() noexcept
+    {
+        if (afterScope && enteredEvent)
+            static_cast<void>(ResetEvent(enteredEvent));
+    });
+    if (enteredEvent)
         static_cast<void>(::SetEvent(enteredEvent));
     if (const HANDLE releaseEvent = g_accessibilityPropertyDeliveryGateReleaseEvent.load(std::memory_order_acquire))
         static_cast<void>(::WaitForSingleObject(releaseEvent, 20000u));
@@ -479,7 +506,10 @@ constexpr void NotifyPropertyEventRaisedForTest(PROPERTYID) noexcept
 {
 }
 
-constexpr void HoldAccessibilityPropertyDeliveryForTest(ControlHost*) noexcept
+constexpr void HoldAccessibilityPropertyDeliveryForTest(ControlHost*, bool = false) noexcept
+{
+}
+constexpr void NotifyAccessibilityPropertyRegistrationForTest(ControlHost*, unsigned) noexcept
 {
 }
 #endif
@@ -998,11 +1028,10 @@ struct AccessibilityPropertyRegistration final
         {
             const HRESULT revoked = Failure::InvokeNative(
                 +[](IGlobalInterfaceTable* table, DWORD registration) -> HRESULT { return table->RevokeInterfaceFromGlobal(registration); }, git.get(), cookie);
-            // The final lease cannot report an error or abandon a live COM
-            // registration. A failed retirement must retain diagnostic context.
-            // Apartment shutdown may already have invalidated this cookie. The
-            // documented invalid-cookie result leaves no table entry to revoke.
-            if (FAILED(revoked) && revoked != E_INVALIDARG)
+            // This sole final lease owns a valid cookie until revocation. Even
+            // an invalid-cookie result violates that retirement invariant; do
+            // not conceal premature apartment teardown or a second revoke.
+            if (FAILED(revoked))
                 Failure::FailContract(revoked);
         }
     }
@@ -13965,8 +13994,22 @@ namespace
 {
 void CALLBACK DeliverAccessibilityNotifications(PTP_CALLBACK_INSTANCE instance, void* context, PTP_WORK) noexcept
 {
+    auto* target                      = static_cast<WindowHostAccessibilityTarget*>(context);
+    ControlHost* const diagnosticHost = target->host.load(std::memory_order_acquire);
+    // Test-only epilogue seam: a module consumer can prove the DLL stays mapped
+    // after all admission pins drain, through the actual callback return.
+    const auto returning = wil::scope_exit([diagnosticHost]() noexcept { HoldAccessibilityPropertyDeliveryForTest(diagnosticHost, true); });
     const Failure::Scope outerFailureScope;
-    auto* target                 = static_cast<WindowHostAccessibilityTarget*>(context);
+    // The target keeps admission open until entry, but its final release and
+    // Scope teardown precede the callback epilogue. In a DLL the thread pool
+    // must release the physical module pin only after returning to Windows.
+    if (wil::GetModuleInstanceHandle() != GetModuleHandleW(nullptr))
+    {
+        wil::unique_hmodule module;
+        if (! GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, reinterpret_cast<LPCWSTR>(&DeliverAccessibilityNotifications), module.put()))
+            Failure::FailContract(HRESULT_FROM_WIN32(GetLastError()));
+        FreeLibraryWhenCallbackReturns(instance, module.release());
+    }
     constexpr auto releaseTarget = [](WindowHostAccessibilityTarget* value) noexcept { static_cast<void>(value->Release()); };
     wil::unique_any<WindowHostAccessibilityTarget*, decltype(releaseTarget), releaseTarget> retained(target);
     static_cast<void>(CallbackMayRunLong(instance));
@@ -14132,21 +14175,47 @@ void QueueEmbeddedPropertyChange(WindowHostAccessibilityTarget& target,
                                  const VARIANT& current,
                                  std::optional<uint64_t> treeItemId) noexcept
 {
+    const Failure::Scope failureScope;
     try
     {
+        ControlHost* const owner = target.host.load(std::memory_order_acquire);
+        // Every COM capture/registration may reenter the owner. A replacement at
+        // the same path must never admit the predecessor's event after pruning.
+        const auto connected = [&]() noexcept
+        {
+            const auto snapshot = target.snapshot.load(std::memory_order_acquire);
+            if (! owner || target.host.load(std::memory_order_acquire) != owner || ! snapshot || ! snapshot->alive || target.rootLifetime.expired() ||
+                record.controlLifetime.expired())
+                return false;
+            const auto* live = FindControlNavigationRecord(*snapshot, record.path);
+            return live && live->controlIdentity == record.controlIdentity && ! live->controlLifetime.expired() &&
+                   (! treeItemId || (live->isTree && FindSnapshotTreeItemRecord(*live, treeItemId.value())));
+        };
+        if (! connected())
+            return;
         AccessibilityPendingProperty property;
         property.path            = record.path;
         property.controlIdentity = record.controlIdentity;
         property.treeItemId      = treeItemId;
         property.propertyId      = id;
-        if (FAILED(CaptureAccessibilityPropertyValue(previous, property.previous, property.previousInterface)) ||
-            FAILED(CaptureAccessibilityPropertyValue(current, property.current, property.currentInterface)))
+        if (FAILED(CaptureAccessibilityPropertyValue(previous, property.previous, property.previousInterface)))
         {
             Debug::Error(L"DxUi: embedded property notification value capture failed");
             return;
         }
+        NotifyAccessibilityPropertyRegistrationForTest(owner, 1u);
+        if (! connected())
+            return;
+        if (FAILED(CaptureAccessibilityPropertyValue(current, property.current, property.currentInterface)))
+        {
+            Debug::Error(L"DxUi: embedded property notification value capture failed");
+            return;
+        }
+        NotifyAccessibilityPropertyRegistrationForTest(owner, 2u);
         {
             const std::scoped_lock lock(target.structureNotificationMutex);
+            if (! connected())
+                return;
             for (auto& pending : target.pendingProperties)
             {
                 if (pending.controlIdentity == property.controlIdentity && pending.treeItemId == property.treeItemId && pending.propertyId == id &&
@@ -14170,9 +14239,12 @@ void QueueEmbeddedPropertyChange(WindowHostAccessibilityTarget& target,
             return;
         }
         property.registration = std::move(registration);
+        NotifyAccessibilityPropertyRegistrationForTest(owner, 3u);
         bool overflow{};
         {
             const std::scoped_lock lock(target.structureNotificationMutex);
+            if (! connected())
+                return;
             // Registration can reenter the owner. Recheck the key after it returns so a newer publication cannot
             // leave duplicate pending entries. The discarded COM registration is released after the lock.
             for (auto& pending : target.pendingProperties)
@@ -14939,10 +15011,11 @@ void DebugSetAccessibilityPeerCreationGateForTest(HWND hwnd, HANDLE enteredEvent
     g_accessibilityPeerCreationGateReleaseEvent.store(nullptr, std::memory_order_release);
 }
 
-void DebugSetAccessibilityPropertyDeliveryGateForTest(ControlHost* host, HANDLE enteredEvent, HANDLE releaseEvent) noexcept
+void DebugSetAccessibilityPropertyDeliveryGateForTest(ControlHost* host, HANDLE enteredEvent, HANDLE releaseEvent, bool afterScope) noexcept
 {
     if (host && enteredEvent && releaseEvent)
     {
+        g_accessibilityPropertyDeliveryGateAfterScope.store(afterScope, std::memory_order_release);
         g_accessibilityPropertyDeliveryGateEnteredEvent.store(enteredEvent, std::memory_order_release);
         g_accessibilityPropertyDeliveryGateReleaseEvent.store(releaseEvent, std::memory_order_release);
         g_accessibilityPropertyDeliveryGateArmed.store(true, std::memory_order_release);
@@ -14956,6 +15029,14 @@ void DebugSetAccessibilityPropertyDeliveryGateForTest(ControlHost* host, HANDLE 
         g_accessibilityPropertyDeliveryGateHolders.wait(holders);
     g_accessibilityPropertyDeliveryGateEnteredEvent.store(nullptr, std::memory_order_release);
     g_accessibilityPropertyDeliveryGateReleaseEvent.store(nullptr, std::memory_order_release);
+}
+
+void DebugSetAccessibilityPropertyRegistrationHookForTest(ControlHost* host,
+                                                          unsigned stage,
+                                                          AccessibilityPropertyRegistrationHookForTest hook,
+                                                          void* context) noexcept
+{
+    g_accessibilityPropertyRegistrationHook = {host, stage, hook, context};
 }
 
 size_t DebugCountPendingTreeItemPropertiesForTest(ControlHost& host, int property) noexcept

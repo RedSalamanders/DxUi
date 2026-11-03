@@ -32,6 +32,10 @@ where they can allocate; a callee's scope starts after its arguments are evaluat
 Keep application scopes around direct work and construction, and outside the native message pump and COM
 initialization/cleanup. At final process shutdown, retire views/clients and invoke `UiaDisconnectAllProviders`
 while COM and the reporter are still alive; a component DLL must not perform that process-wide operation.
+Keep each STA that registered an asynchronous accessibility interface COM-initialized and pumping until its
+GIT registrations have been revoked; disconnecting a view alone does not establish that an in-flight delivery
+has finished. There is no per-view drain notification, so retain the registering STA through the process-owned
+UIA and failure-host drain unless the application independently establishes completion.
 The example's explicit `Host::UninstallWhenIdle` then retries `BUSY` with owner-message dispatch and a five-second
 cooperative deadline. Stop new work first: a blocked application window procedure cannot be interrupted by that
 deadline. Timeout remains a failed shutdown. Retired UIA providers keep readable immutable runtime IDs and null

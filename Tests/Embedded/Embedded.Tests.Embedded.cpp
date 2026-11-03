@@ -1597,6 +1597,15 @@ __declspec(noinline) static int RunFunctionalTests()
         GridSelectionBenchmark::Run(__wargv[2], __argc == 4 ? std::wstring_view(__wargv[3]) : std::wstring_view());
         return 0;
     }
+#if DXUI_ENABLE_DIAGNOSTICS
+    if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-property-registration-retirement")
+    {
+        GraphicsFixture gpu;
+        Hr(gpu.Create(), "property registration retirement WARP device");
+        TestEmbeddedPropertyRegistrationRejectsRetiredControl(gpu);
+        return 0;
+    }
+#endif
     if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-prepared-tree-events")
     {
         GraphicsFixture gpu;

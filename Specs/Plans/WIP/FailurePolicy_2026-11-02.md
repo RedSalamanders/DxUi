@@ -104,6 +104,25 @@ reopening their historical checklists or relabeling old allocation sweeps as fat
 
 ### Working-tree progress, not acceptance
 
+- Final independent review found and repaired property-event admission after reentrant value/sender registration.
+  Admission now checks the current attachment, original control identity and tree-item membership after each
+  reentrant seam; a held-batch regression covers same-path replacement at all three stages and real-client values.
+  Dedicated control-test STAs now remain initialized and pumping until process-owned UIA/GIT retirement succeeds.
+  These repairs require fresh native/profile receipts; the preceding `1f69bbf` cohort remains historical.
+- The same review traced a DLL callback-epilogue unload gap after the last admission scope releases. UIA delivery
+  now transfers an owned DLL module reference to `FreeLibraryWhenCallbackReturns`; pending target ownership
+  protects entry and Windows protects the eventual return. Executable callbacks skip the unnecessary unload pin.
+  Two independently linked consumer DLLs exercise real queued UIA delivery, registration detach and physical
+  unload while an active post-scope gate rules out an expired wait. This new fixture still requires execution.
+- The focused property-registration regression passes at diagnostic run
+  `20261103T015058979Z-87360-37680621d82c496da35928ad13ad78c9`, covering all three replacement stages.
+  Diagnostic build 36 retained a test-helper compile failure caused by WIL's overloaded address operator; the
+  helper now uses `std::addressof`. The library and Embedded executable built without warnings; these remain
+  incremental diagnostic observations, not final canonical build qualification.
+- The `1f69bbf` six-profile build cohort passed with zero warnings/errors. Its SDK extraction and three clean
+  client configurations passed; Debug's cross-module fatal scenario 9 produced no record, while 15/16 did.
+  The failed receipt is retained. Per-child stage/PID/exit diagnostics are added before a fresh run; an early
+  launch/bootstrap refusal remains unproven and is not relabeled a dump-context failure or a pass.
 - Final affected diagnostic run `20261103T005139880Z-92016-8864633cfa944074b594a331f0385c2c` passes
   Foundation, Embedded and Accessibility; EditorControls passed the preceding repeated diagnostic runs.
   These incremental Debug receipts do not qualify the final source or replace canonical/profile/consumer gates.

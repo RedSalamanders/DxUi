@@ -1096,6 +1096,10 @@ failure is logged; no retry timer or polling is introduced. Disconnected targets
 surviving providers still enforce their ordinary stale-target guards. Teardown does not wait for a UIA client:
 each submitted callback retains its target until return, and closing the work object defers its reclamation until
 outstanding callbacks finish.
+When linked into a DLL, delivery also acquires a physical module reference at entry and transfers it to
+`FreeLibraryWhenCallbackReturns`. Object/failure-scope release alone cannot protect the callback epilogue after
+the admission count reaches zero. The executable case needs no unload pin. Application-initiated provider calls
+still require the application's module-lifetime/quiet-point contract.
 
 Embedded structure invalidation uses the same bounded, coalesced delivery protocol. The canonical provider stays
 in its supplied STA/site apartment. The owner registers that provider in the COM Global Interface Table once;
@@ -1105,6 +1109,14 @@ provider reads resolve the current coherent epoch. Disconnect clears pending wor
 registration lease before releasing the canonical provider. An in-flight delivery retains the same lease until
 its resolved proxy is released; the final lease revokes the registration in its initialized apartment. The
 registration is never copied as an independently owned cookie or revoked while delivery still borrows it.
+The apartment that registered a GIT interface MUST stay COM-initialized and pumping until that registration's
+final lease has revoked it, including after the view disconnects. Destroying the view or receiving an
+invalid-cookie result is not proof that the registering apartment may already have ended. There is no public
+per-view GIT-drain notification; an application that cannot otherwise establish completion must retain that
+STA through its process-owned provider/failure-host drain. The standalone Controls test runner retains each
+embedded case's separate registering STA after its views and clients have gone, then stops and joins those STAs
+only after the process-owned UIA and failure-host drain succeeds. A failed drain takes the fatal path while the
+STAs remain alive; it must not uninitialize them to conceal outstanding leases.
 Already resolved proxies enforce the disconnected target
 guards, and teardown never joins client delivery. Registration/work creation failure logs the failed delivery and
 allows a later explicit semantic publication to retry; there is no synchronous delivery fallback. Selection, text and
@@ -1113,9 +1125,14 @@ focus events retain their separate event contracts; embedded control-property tr
 Registration may reenter the owner. Queueing retains its canonical provider across that call and rechecks the live
 attachment under the notification lock before publishing the lease or work. Canonical-root acquisition checks
 retirement while holding the provider cache lock; an earlier snapshot cannot reopen a cache after detach.
-Disconnect also releases event/diff baselines. Final registration cleanup treats a documented invalid-cookie
-result as already unavailable; another cleanup failure takes the host fatal path because a destructor cannot
-return an error or abandon a live registration. No native call or final registration release runs under a slot lock.
+Property queueing revalidates the attachment, original control identity and tree-item membership after each
+value capture and sender registration, before coalescing or admission. A reentrant replacement at the same path
+cannot reinsert its predecessor's event after pruning. Retired local values and registrations release outside
+the notification lock. A deterministic registration hook and held delivery batch exercise all three admission
+stages; the real client must see the replacement's current status and no stale predecessor value.
+Disconnect also releases event/diff baselines. The sole final registration lease must still own a valid cookie:
+any failed revoke, including an invalid-cookie result, takes the host fatal path because a destructor cannot
+return an error or conceal a retirement invariant violation. No native call or final registration release runs under a slot lock.
 
 The canonical root resolves the current published snapshot and does not retain its creation snapshot. Retained
 non-root providers keep their creation snapshot for control-lifetime validation and borrowed-source ownership;

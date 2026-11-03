@@ -100,6 +100,7 @@ if ($LASTEXITCODE -ne 0) { throw 'The relocated rich-text consumer failed to ren
 Copy-Item -LiteralPath (Join-Path $checkout 'Tests/ConsumerModules/ConsumerModules.Tests.NativeModule.cpp') -Destination $consumer
 Copy-Item -LiteralPath (Join-Path $checkout 'Tests/ConsumerModules/ConsumerModules.Tests.Driver.cpp') -Destination $consumer
 Copy-Item -LiteralPath (Join-Path $checkout 'Tests/Support/Support.Tests.DumpReader.h') -Destination $consumer
+Copy-Item -LiteralPath (Join-Path $checkout 'Tests/Support/Support.Tests.UiaTestClient.h') -Destination $consumer
 foreach ($moduleName in @('NativeModuleA','NativeModuleB','NativeModuleDriver')) {
     $moduleProject = [xml]$project
     $ns = [Xml.XmlNamespaceManager]::new($moduleProject.NameTable)
@@ -123,11 +124,19 @@ foreach ($moduleName in @('NativeModuleA','NativeModuleB','NativeModuleDriver'))
     if ($LASTEXITCODE -ne 0) { throw "The native module consumer $moduleName failed to build." }
     Assert-NativeBuildDiagnostics -LogPath $moduleBuildLog
 }
-$moduleOutput = @(& (Join-Path $consumer 'bin/NativeModuleDriver.exe'))
-$moduleExit = $LASTEXITCODE
+$savedErrorPreference = $ErrorActionPreference
+try {
+    # Preserve child diagnostics even when the native driver fails or writes stderr.
+    $ErrorActionPreference = 'Continue'
+    $moduleOutput = @(& (Join-Path $consumer 'bin/NativeModuleDriver.exe') 2>&1)
+    $moduleExit = $LASTEXITCODE
+} finally {
+    $ErrorActionPreference = $savedErrorPreference
+}
 $moduleOutput | ForEach-Object { Write-Host $_ }
 if (@($moduleOutput | Where-Object { $_ -ceq 'DXUI_NATIVE_MODULE_NATIVE_ALLOWED executed=2 passed=2' }).Count -ne 1) { throw 'Native module caught-exception probes did not both pass.' }
 if (@($moduleOutput | Where-Object { $_ -ceq 'DXUI_NATIVE_MODULE_FATAL executed=16 passed=16' }).Count -ne 1) { throw 'Native module fatal children did not all prove their dump context and symbols.' }
+if (@($moduleOutput | Where-Object { $_ -ceq 'DXUI_NATIVE_MODULE_EPILOGUE executed=2 passed=2' }).Count -ne 1) { throw 'Native module notification callback epilogue pin checks did not both pass.' }
 $moduleResult = Set-ConsumerNativeModuleResult -Progress $progress -Lines $moduleOutput -ExitCode $moduleExit
 if (-not (Test-Path (Join-Path $output "$Platform/$Configuration/DxUi.lib")) -or (Test-Path (Join-Path $checkout ".build/$Platform/$Configuration/DxUi.lib"))) { throw 'Consumer outputs are not isolated.' }
 $validator=Join-Path $checkout 'Tools/validate_consumer.ps1'

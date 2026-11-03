@@ -132,10 +132,12 @@ retries only `BUSY`, preserves `WM_QUIT` and reports timeout. It cannot interrup
 procedure. Stop new work, application callbacks and registered modules first; neither this helper nor a view's
 destruction permits removing a live provider pin. Component/DLL uninstall remains nonblocking.
 
-Shared COM registration leases extend through every asynchronous use and the resolved proxy's release. Final
-cleanup must check the native revocation result; it cannot discard a failed live registration. The documented
-invalid-cookie result is an already-unavailable entry, while other unreportable cleanup errors enter fatal
-diagnostics. Retirement cannot publish a new canonical root or COM registration after its target closes.
+Shared COM registration leases extend through every asynchronous use and the resolved proxy's release. The
+registering apartment must remain COM-initialized until GIT revocation; a retained module pin or a disconnected
+view alone does not keep that apartment alive. Final cleanup must check the native revocation result; it cannot
+discard a failed live registration. The sole final lease must own a valid cookie until revocation; any failed
+revocation, including an invalid-cookie result, violates that invariant and enters fatal diagnostics. Retirement
+cannot publish a new canonical root or COM registration after its target closes.
 
 `noexcept` is a verified contract, not allocation error handling. Adding it to a throwing construction path can
 terminate before useful fault-site diagnostics; removing it merely exposes the throw. Neither change alone

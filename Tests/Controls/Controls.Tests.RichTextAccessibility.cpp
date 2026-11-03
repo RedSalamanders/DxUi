@@ -3,6 +3,7 @@
 #include "Controls/DxUi.RichSemanticGeometry.h"
 #include "Embedded.Tests.EmbeddedUiaBridge.h"
 #include "GraphicsFixture.h"
+#include "Support.Tests.FailureHost.h"
 #include "Support.Tests.RichImageResources.h"
 #include "Support.Tests.UiaTestClient.h"
 #include <cmath>
@@ -681,14 +682,14 @@ void ThreadedRangeCommands(bool embedded)
 
 void EmbeddedCase(void (*test)(bool))
 {
-    std::jthread owner([test]
+    RequireSucceeded(DxUiFailureTests::RunRetainedAccessibilitySta(
+                         [test]
     {
-        RequireSucceeded(CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED), "rich embedded application STA");
-        const auto apartment = wil::scope_exit([] { CoUninitialize(); });
         TestSupport::ScopedWindowActivationBlocker activation;
         Require(activation.Start(), "rich embedded tests refuse desktop activation");
         test(true);
-    });
+    }),
+                     "run rich embedded accessibility in a retained application STA");
 }
 void TestRichTextAccessibilityWindowSourceAndRanges()
 {

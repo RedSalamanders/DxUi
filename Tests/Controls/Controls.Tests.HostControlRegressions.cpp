@@ -3,6 +3,7 @@
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "Embedded.Tests.EmbeddedUiaBridge.h"
 #include "GraphicsFixture.h"
+#include "Support.Tests.FailureHost.h"
 #include "Support.Tests.UiaTestClient.h"
 
 #include <thread>
@@ -154,14 +155,14 @@ void TestPageHostWindowUiaTraversesInvokesAndRetiresPageChildren()
 
 void TestPageHostEmbeddedUiaTraversesInvokesAndRetiresPageChildren()
 {
-    std::jthread owner([]
+    RequireSucceeded(DxUiFailureTests::RunRetainedAccessibilitySta(
+                         []
     {
-        RequireSucceeded(CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED), "initialize paged application STA");
-        const auto apartment = wil::scope_exit([] { CoUninitialize(); });
         DxUi::TestSupport::ScopedWindowActivationBlocker activation;
         Require(activation.Start(), "paged application refuses activation");
         CheckPagedUia(true);
-    });
+    }),
+                     "run paged embedded accessibility in a retained application STA");
 }
 
 void TestPageHostTabTraversalUsesCurrentLogicalChildren()

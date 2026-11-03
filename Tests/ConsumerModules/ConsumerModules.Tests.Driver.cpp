@@ -1,5 +1,6 @@
 #include "FailureHost.h"
 #include "Support.Tests.DumpReader.h"
+#include <UIAutomation.h>
 #include <objbase.h>
 #include <wil/com.h>
 #include <wil/resource.h>
@@ -91,37 +92,49 @@ bool HasModuleOrigin(HANDLE process, std::string_view record, std::string_view m
 }
 bool FatalModuleChild(int kind)
 {
+    DWORD childPid = 0, childExit = 0;
+    const auto fail = [&](const char* stage, DWORD detail = 0u) noexcept
+    {
+        std::printf("DXUI_NATIVE_MODULE_FATAL_FAILURE scenario=%d stage=%s pid=%lu exit=%08lx detail=%08lx\n", kind, stage, childPid, childExit, detail);
+        return false;
+    };
     std::array<wchar_t, 32768> executable{};
     const auto length = GetModuleFileNameW(nullptr, executable.data(), static_cast<DWORD>(executable.size()));
     if (! length || length >= executable.size())
-        return false;
+        return fail("executable-path", GetLastError());
     std::wstring command = L"\"" + std::wstring(executable.data(), length) + L"\" --module-fatal=" + std::to_wstring(kind);
     wil::unique_handle job(CreateJobObjectW(nullptr, nullptr));
     JOBOBJECT_EXTENDED_LIMIT_INFORMATION limits{};
     limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
     if (! job || ! SetInformationJobObject(job.get(), JobObjectExtendedLimitInformation, &limits, sizeof(limits)))
-        return false;
+        return fail("job-setup", GetLastError());
     STARTUPINFOW startup{};
     startup.cb = sizeof(startup);
     PROCESS_INFORMATION info{};
     if (! CreateProcessW(executable.data(), command.data(), nullptr, nullptr, FALSE, CREATE_SUSPENDED | CREATE_NO_WINDOW, nullptr, nullptr, &startup, &info))
-        return false;
+        return fail("create-process", GetLastError());
+    childPid = info.dwProcessId;
     wil::unique_handle process(info.hProcess), thread(info.hThread);
     if (! AssignProcessToJobObject(job.get(), process.get()))
     {
+        const DWORD error = GetLastError();
         TerminateProcess(process.get(), ERROR_CANCELLED);
         WaitForSingleObject(process.get(), 30000u);
-        return false;
+        return fail("assign-job", error);
     }
-    if (ResumeThread(thread.get()) == static_cast<DWORD>(-1) || WaitForSingleObject(process.get(), 30000u) != WAIT_OBJECT_0)
-        return false;
-    DWORD code{};
-    if (! GetExitCodeProcess(process.get(), &code) || ! (code & 0x80000000u))
-        return false;
+    if (ResumeThread(thread.get()) == static_cast<DWORD>(-1))
+        return fail("resume", GetLastError());
+    const DWORD waited = WaitForSingleObject(process.get(), 30000u);
+    if (waited != WAIT_OBJECT_0)
+        return fail("wait", waited == WAIT_FAILED ? GetLastError() : waited);
+    if (! GetExitCodeProcess(process.get(), &childExit))
+        return fail("exit-query", GetLastError());
+    if (! (childExit & 0x80000000u))
+        return fail("child-exit", childExit);
     std::wstring directory(executable.data(), length);
     const auto slash = directory.find_last_of(L"\\/");
     if (slash == std::wstring::npos)
-        return false;
+        return fail("executable-directory");
     directory.resize(slash);
     const bool originInA  = kind <= 2 || (kind >= 5 && kind <= 6) || (kind >= 11 && kind <= 14);
     const auto modulePath = directory + (originInA ? L"\\NativeModuleA.dll" : L"\\NativeModuleB.dll");
@@ -129,11 +142,11 @@ bool FatalModuleChild(int kind)
     wil::unique_hfile record(
         CreateFileW((directory + L".record").c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr));
     if (! record)
-        return false;
+        return fail("record-open", GetLastError());
     std::array<char, 8192> text{};
     DWORD read{};
     if (! ReadFile(record.get(), text.data(), static_cast<DWORD>(text.size()), &read, nullptr) || ! read)
-        return false;
+        return fail("record-read", GetLastError());
     const std::string_view content(text.data(), read);
     const auto moduleName = originInA ? "NativeModuleA.dll" : "NativeModuleB.dll";
     const auto origin     = kind <= 4 ? "DxUiModuleFatalWorker" : kind <= 12 ? "DxUiModuleReentrantOrigin" : "DxUiModuleEscapingNativeOrigin";
@@ -141,35 +154,35 @@ bool FatalModuleChild(int kind)
     if (! ReadNumber(content, "flags=", 10, flags) || (flags & DxUi::Failure::FirstChanceContext) == 0 || (flags & DxUi::Failure::LiveFailureContext) != 0 ||
         content.find("exception_code=e06d7363") == std::string_view::npos || content.find(moduleName) == std::string_view::npos ||
         content.find("context_ip=") == std::string_view::npos || content.find("context_ip=0\r\n") != std::string_view::npos)
-        return false;
+        return fail("record-content");
     std::uint64_t threadId{}, ip{};
     if (! ReadNumber(content, "thread=", 10, threadId) || ! ReadNumber(content, "context_ip=", 16, ip) || ! threadId || ! ip ||
         threadId > (std::numeric_limits<DWORD>::max)())
-        return false;
+        return fail("record-context");
     AcquireSRWLockExclusive(&DxUiSample::FailureHost::dbgHelpGate);
     const auto unlock = wil::scope_exit([] { ReleaseSRWLockExclusive(&DxUiSample::FailureHost::dbgHelpGate); });
     if (! HasModuleOrigin(process.get(), content, moduleName, origin))
-        return false;
+        return fail("record-symbol");
     wil::unique_hfile dump(CreateFileW((directory + L".dmp").c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr));
     if (! dump)
-        return false;
+        return fail("dump-open", GetLastError());
     wil::unique_handle mapping(CreateFileMappingW(dump.get(), nullptr, PAGE_READONLY, 0, 0, nullptr));
     if (! mapping)
-        return false;
+        return fail("dump-mapping", GetLastError());
     wil::unique_mapview_ptr<> view(MapViewOfFile(mapping.get(), FILE_MAP_READ, 0, 0, 0));
     if (! view)
-        return false;
+        return fail("dump-view", GetLastError());
     PMINIDUMP_DIRECTORY streamDirectory{};
     void* stream{};
     ULONG size{};
     if (! MiniDumpReadDumpStream(view.get(), ExceptionStream, &streamDirectory, &stream, &size) || size < sizeof(MINIDUMP_EXCEPTION_STREAM))
-        return false;
+        return fail("dump-stream", GetLastError());
     const auto& exception = *static_cast<const MINIDUMP_EXCEPTION_STREAM*>(stream);
     LARGE_INTEGER fileSize{};
     if (exception.ThreadId != threadId || exception.ThreadContext.DataSize < sizeof(CONTEXT) || ! GetFileSizeEx(dump.get(), &fileSize) ||
         fileSize.QuadPart < 0 || exception.ThreadContext.Rva > static_cast<std::uint64_t>(fileSize.QuadPart) ||
         exception.ThreadContext.DataSize > static_cast<std::uint64_t>(fileSize.QuadPart) - exception.ThreadContext.Rva)
-        return false;
+        return fail("dump-context");
     CONTEXT context{};
     std::memcpy(&context, static_cast<const std::byte*>(view.get()) + exception.ThreadContext.Rva, sizeof(context));
 #if defined(_M_X64)
@@ -177,17 +190,25 @@ bool FatalModuleChild(int kind)
 #elif defined(_M_ARM64)
     const bool contextMatches = context.Pc == ip;
 #else
-    return false;
+    return fail("unsupported-architecture");
 #endif
-    return contextMatches && DxUiFailureTests::DumpReader::Verify(directory + L".dmp", process.get(), static_cast<DWORD>(threadId), ip, modulePath, origin);
+    if (! contextMatches)
+        return fail("dump-context-mismatch");
+    if (! DxUiFailureTests::DumpReader::Verify(directory + L".dmp", process.get(), static_cast<DWORD>(threadId), ip, modulePath, origin))
+        return fail("dump-unwind-or-symbol");
+    return true;
 }
 } // namespace
 
 int wmain(int argc, wchar_t** argv)
 {
     DxUiSample::FailureHost::Host failureHost;
-    if (FAILED(failureHost.StartBesideExecutable()))
+    const HRESULT hostStart = failureHost.StartBesideExecutable();
+    if (FAILED(hostStart))
+    {
+        std::printf("DXUI_NATIVE_MODULE_HOST_FAILURE pid=%lu result=%08lx\n", GetCurrentProcessId(), static_cast<unsigned long>(hostStart));
         return 9;
+    }
     wil::unique_hmodule first(LoadLibraryW(L"NativeModuleA.dll"));
     wil::unique_hmodule second(LoadLibraryW(L"NativeModuleB.dll"));
     if (! first || ! second)
@@ -205,10 +226,20 @@ int wmain(int argc, wchar_t** argv)
         return 11;
     if (FAILED(firstAttach(failureHost.Services())))
         return 13;
-    const auto detachFirst = wil::scope_exit([&]() noexcept { static_cast<void>(firstDetach()); });
+    bool firstRegistered   = true;
+    const auto detachFirst = wil::scope_exit([&]() noexcept
+    {
+        if (firstRegistered)
+            static_cast<void>(firstDetach());
+    });
     if (FAILED(secondAttach(failureHost.Services())))
         return 14;
-    const auto detachSecond = wil::scope_exit([&]() noexcept { static_cast<void>(secondDetach()); });
+    bool secondRegistered   = true;
+    const auto detachSecond = wil::scope_exit([&]() noexcept
+    {
+        if (secondRegistered)
+            static_cast<void>(secondDetach());
+    });
     if (failureHost.Uninstall() != HRESULT_FROM_WIN32(ERROR_BUSY))
         return 15;
     if (argc == 2 && std::wstring_view(argv[1]).starts_with(L"--module-fatal="))
@@ -282,5 +313,130 @@ int wmain(int argc, wchar_t** argv)
         if (FatalModuleChild(scenario))
             ++fatalPassed;
     std::printf("DXUI_NATIVE_MODULE_FATAL executed=16 passed=%d\n", fatalPassed);
-    return executed == 12 && passed == executed && nativePassed == 2 && fatalPassed == 16 ? 0 : 12;
+    using PrepareEpilogue = int (*)(HANDLE, HANDLE) noexcept;
+    using ClearEpilogue   = void (*)() noexcept;
+    const auto epilogue   = [&](wil::unique_hmodule& module, Detach detach, bool& registered, const wchar_t* name)
+    {
+        wil::unique_handle entered(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+        wil::unique_handle release(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+        if (! entered || ! release)
+            return false;
+        const auto prepare = std::bit_cast<PrepareEpilogue>(GetProcAddress(module.get(), "DxUiModulePrepareNotificationEpilogue"));
+        const auto clear   = std::bit_cast<ClearEpilogue>(GetProcAddress(module.get(), "DxUiModuleClearNotificationEpilogue"));
+        if (! prepare || ! clear)
+            return false;
+        wil::unique_hmodule verificationPin;
+        bool gateCleared       = false;
+        const auto clearWorker = [&]() noexcept
+        {
+            if (gateCleared)
+                return;
+            SetEvent(release.get());
+            if (module || verificationPin)
+            {
+                wil::unique_handle done(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+                if (! done)
+                    DxUi::Failure::FailContract(HRESULT_FROM_WIN32(GetLastError()));
+                std::jthread clearer([&]() noexcept
+                {
+                    clear();
+                    SetEvent(done.get());
+                });
+                const DWORD wait = WaitForSingleObject(done.get(), 30000u);
+                if (wait != WAIT_OBJECT_0)
+                    DxUi::Failure::FailContract(wait == WAIT_FAILED ? HRESULT_FROM_WIN32(GetLastError()) : HRESULT_FROM_WIN32(ERROR_TIMEOUT));
+                clearer.join();
+            }
+            gateCleared = true;
+        };
+        const auto releaseWorker = wil::scope_exit([&]() noexcept { clearWorker(); });
+        int result               = -1;
+        HRESULT cleanupResult    = E_UNEXPECTED;
+        HRESULT detachResult     = E_UNEXPECTED;
+        std::jthread ui([&]
+        {
+            const HRESULT apartment = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+            if (SUCCEEDED(apartment))
+            {
+                const auto uninitialize = wil::scope_exit([]() noexcept { CoUninitialize(); });
+                result                  = prepare(entered.get(), release.get());
+                if (result == 0)
+                {
+                    // Process owner retires UIA registrations on the owner STA,
+                    // without wrapping its message pump in a failure scope.
+                    cleanupResult = DxUi::Failure::InvokeNative(UiaDisconnectAllProviders);
+                    if (SUCCEEDED(cleanupResult))
+                    {
+                        const ULONGLONG deadline = GetTickCount64() + 10000u;
+                        do
+                        {
+                            detachResult = detach();
+                            if (detachResult != HRESULT_FROM_WIN32(ERROR_BUSY))
+                                break;
+                            MSG message{};
+                            while (PeekMessageW(&message, nullptr, 0, 0, PM_REMOVE))
+                            {
+                                TranslateMessage(&message);
+                                DispatchMessageW(&message);
+                            }
+                            MsgWaitForMultipleObjectsEx(0u, nullptr, 20u, QS_ALLINPUT, MWMO_INPUTAVAILABLE);
+                        } while (GetTickCount64() < deadline);
+                    }
+                }
+            }
+        });
+        ui.join();
+        if (result != 0 || WaitForSingleObject(entered.get(), 0u) != WAIT_OBJECT_0)
+        {
+            std::printf("DXUI_NATIVE_MODULE_EPILOGUE_FAILURE module=%ls pid=%lu stage=fixture result=%d\n", name, GetCurrentProcessId(), result);
+            std::fflush(stdout);
+            DxUi::Failure::FailContract(E_FAIL);
+        }
+        if (FAILED(cleanupResult) || FAILED(detachResult))
+        {
+            std::printf("DXUI_NATIVE_MODULE_EPILOGUE_FAILURE module=%ls pid=%lu stage=cleanup-or-detach cleanup=%08lx detach=%08lx\n",
+                        name,
+                        GetCurrentProcessId(),
+                        static_cast<unsigned long>(cleanupResult),
+                        static_cast<unsigned long>(detachResult));
+            std::fflush(stdout);
+            DxUi::Failure::FailContract(FAILED(cleanupResult) ? cleanupResult : detachResult);
+        }
+        registered = false;
+        module.reset();
+        HMODULE retainedModule{};
+        if (! GetModuleHandleExW(0u, name, &retainedModule))
+        {
+            std::printf("DXUI_NATIVE_MODULE_EPILOGUE_FAILURE module=%ls pid=%lu stage=unmapped-before-release error=%lu\n",
+                        name,
+                        GetCurrentProcessId(),
+                        GetLastError());
+            std::fflush(stdout);
+            DxUi::Failure::FailContract(E_UNEXPECTED);
+        }
+        verificationPin.reset(retainedModule);
+        if (WaitForSingleObject(entered.get(), 0u) != WAIT_OBJECT_0)
+        {
+            std::printf("DXUI_NATIVE_MODULE_EPILOGUE_FAILURE module=%ls pid=%lu stage=gate-expired\n", name, GetCurrentProcessId());
+            std::fflush(stdout);
+            DxUi::Failure::FailContract(HRESULT_FROM_WIN32(ERROR_TIMEOUT));
+        }
+        clearWorker();
+        verificationPin.reset();
+        const ULONGLONG deadline = GetTickCount64() + 10000u;
+        while (GetModuleHandleW(name) && GetTickCount64() < deadline)
+            Sleep(10u);
+        if (GetModuleHandleW(name))
+        {
+            std::printf("DXUI_NATIVE_MODULE_EPILOGUE_FAILURE module=%ls pid=%lu stage=still-mapped\n", name, GetCurrentProcessId());
+            std::fflush(stdout);
+            DxUi::Failure::FailContract(E_UNEXPECTED);
+        }
+        return true;
+    };
+    int epiloguePassed = 0;
+    epiloguePassed += epilogue(first, firstDetach, firstRegistered, L"NativeModuleA.dll") ? 1 : 0;
+    epiloguePassed += epilogue(second, secondDetach, secondRegistered, L"NativeModuleB.dll") ? 1 : 0;
+    std::printf("DXUI_NATIVE_MODULE_EPILOGUE executed=2 passed=%d\n", epiloguePassed);
+    return executed == 12 && passed == executed && nativePassed == 2 && fatalPassed == 16 && epiloguePassed == 2 ? 0 : 12;
 }

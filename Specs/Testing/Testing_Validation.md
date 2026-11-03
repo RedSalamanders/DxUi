@@ -1220,3 +1220,12 @@ PrePush validates changelog state for the candidate commit. Uncommitted, staged 
 The tooling roster runs each script in a bounded isolated PowerShell child with a fresh native exit status, retains its output, reports both nonzero status and thrown failures, and still runs its remaining scripts. A changelog fold reports each skipped duplicate fragment name while retaining retry idempotence.
 
 The relocated native-module consumer driver emits one machine-readable record of the probes it actually executed and passed. Its owner accepts exactly one well-formed record only with process exit zero and the complete expected twelve successes; missing, duplicated, malformed, partial or inconsistent counts fail. The final consumer receipt copies those observed counts and the completed negative-check count from its progress ledger; completion validates their agreement. A driver success or a hard-coded expected cardinality alone is not an observed-count receipt.
+
+Failure-policy consumer qualification additionally requires the two internally handled native calls, all sixteen
+fatal original-context/dump probes and two DLL callback-epilogue checks. The latter subscribe through the canonical
+real UIA client to an owned non-activating native host, trigger actual queued structure delivery and park that worker
+after its target/failure scope releases. The process owner drains UIA and detaches registration while its STA remains
+alive. Dropping the owner's DLL reference must leave the image mapped while the gate is still active; releasing the
+gate and verification reference must permit actual unload. The active witness resets on worker exit, so an expired
+twenty-second gate cannot establish the pin proof. Gate handles outlive every holder, and uncertain retirement
+fails through the live process reporter. These diagnostic hooks are internal fixture seams, not new consumer APIs.
