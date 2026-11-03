@@ -2,6 +2,7 @@
 
 #include "Controls/DxUi.Internal.h"
 #include "Support/Diagnostics.h"
+#include "Support/NativeRendering.h"
 #include <DxUi/Embedded.h>
 #include <DxUi/FrameRuntime.h>
 #include <DxUi/TextInputServices.h>
@@ -583,7 +584,7 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
             return E_UNEXPECTED;
         FrameStageScope renderStage(preparationStage, FrameStage::Render);
         dc->BeginDraw();
-        auto finish = wil::scope_exit([&] { dc->EndDraw(); });
+        auto finish = wil::scope_exit([&] { (void)Detail::EndDrawNative(dc); });
         dc->SetTransform(D2D1::Matrix3x2F::Identity());
         dc->Clear(D2D1::ColorF(0, 0, 0, 0));
         Control* const paintRoot    = _host._root.get();
@@ -609,7 +610,7 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
                 return E_ABORT;
         }
         finish.release();
-        RETURN_IF_FAILED(dc->EndDraw());
+        RETURN_IF_FAILED(Detail::EndDrawNative(dc));
         if (! preparationIsCurrent())
             return E_ABORT;
         s.preparedInteractionRevision = interactionRevision;

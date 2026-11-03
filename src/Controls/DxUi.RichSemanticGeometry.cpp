@@ -7,6 +7,7 @@
 #include "DxUi.RichLayoutOptions.h"
 #include "DxUi.SemanticExtensions.h"
 #include "Support/Diagnostics.h"
+#include "Support/NativeRendering.h"
 #include <array>
 #include <cmath>
 #include <d2d1_3.h>
@@ -510,7 +511,7 @@ struct NativeImageGeometry
                                                           static_cast<float>(placement.svgHeight) / static_cast<float>(height)));
             context->DrawSvgDocument(placement.svgDocument.get());
             context->PopAxisAlignedClip();
-            const HRESULT endDrawResult = context->EndDraw();
+            const HRESULT endDrawResult = DxUi::Detail::EndDrawNative(context);
             if (FAILED(endDrawResult))
                 return {false, true, false, 0u, endDrawResult};
 #if DXUI_ENABLE_DIAGNOSTICS

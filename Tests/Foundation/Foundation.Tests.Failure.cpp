@@ -9,6 +9,7 @@
 #include <DxUi/DxUi.h>
 #include <DxUi/Failure.h>
 #include <DxUi/RichSemantic.h>
+#include <UIAutomation.h>
 #include <algorithm>
 #include <array>
 #include <atomic>
@@ -29,6 +30,10 @@
 
 namespace DxUiFailureTests
 {
+HRESULT DisconnectTestProcessUiAutomation() noexcept
+{
+    return DxUi::Failure::InvokeNative(UiaDisconnectAllProviders);
+}
 namespace
 {
 std::wstring evidenceRoot;
@@ -102,10 +107,30 @@ bool VerifyChildActivationGuard(DxUi::TestSupport::ScopedWindowActivationBlocker
         CreateWindowExW(0, L"STATIC", L"DxUi fatal child guard", WS_OVERLAPPED, -32000, -32000, 64, 64, nullptr, nullptr, GetModuleHandleW(nullptr), nullptr));
     if (! window || ! blocker.IsActive() || blocker.ProtectedTopLevelWindowCount() == 0u ||
         (GetWindowLongPtrW(window.get(), GWL_EXSTYLE) & WS_EX_NOACTIVATE) == 0)
+    {
+        if (childWitness)
+        {
+            InterlockedExchange(&childWitness[1], 1L);
+            InterlockedExchange(&childWitness[2], static_cast<LONG>(blocker.ProtectedTopLevelWindowCount()));
+        }
         return false;
-    (void)SetForegroundWindow(window.get());
+    }
+    // Exercise this thread's activation hook without requesting a cross-process
+    // foreground switch. Real foreground requests require the interactive lease.
+    (void)SetActiveWindow(window.get());
     (void)SetFocus(window.get());
-    return GetForegroundWindow() == foreground && GetFocus() != window.get();
+    const HWND after = GetForegroundWindow();
+    const HWND focus = GetFocus();
+    if (after != foreground || focus == window.get() || GetActiveWindow() == window.get() || blocker.BlockedActivationCount() == 0u)
+    {
+        if (childWitness)
+        {
+            InterlockedExchange(&childWitness[1], focus == window.get() ? 3L : 2L);
+            InterlockedExchange(&childWitness[2], static_cast<LONG>(blocker.BlockedFocusCount()));
+        }
+    }
+    return after == foreground && focus != window.get() && GetActiveWindow() != window.get() && blocker.BlockedActivationCount() != 0u &&
+           blocker.BlockedFocusCount() != 0u;
 }
 __declspec(noinline) void ConcurrentPrimaryOrigin()
 {
@@ -385,16 +410,19 @@ __declspec(noinline) void RichNotifyOrigin(bool selection)
 }
 __declspec(noinline) void RichContextMenuOrigin()
 {
-    DxUi::WindowHost host;
-    auto editor   = std::make_unique<DxUi::RichTextEditor>(L"word");
-    auto* control = editor.get();
-    host.SetRoot(std::move(editor));
-    control->SetOnContextMenu([](POINT, bool)
+    std::optional<DxUi::WindowHost> host;
+    DxUi::RichTextEditor* control{};
+    std::optional<std::runtime_error> error;
     {
-        const std::runtime_error error("child context menu callback");
-        RichContextMenuCallbackOrigin(error);
-    });
-    static_cast<void>(control->OnContextMenu(host, true, D2D1::Point2F(0.0f, 0.0f)));
+        const DxUi::Failure::Scope setupScope;
+        host.emplace();
+        error.emplace("child context menu callback");
+        auto editor = std::make_unique<DxUi::RichTextEditor>(L"word");
+        control     = editor.get();
+        host.value().SetRoot(std::move(editor));
+        control->SetOnContextMenu([&](POINT, bool) { RichContextMenuCallbackOrigin(error.value()); });
+    }
+    static_cast<void>(control->OnContextMenu(host.value(), true, D2D1::Point2F(0.0f, 0.0f)));
 }
 __declspec(noinline) void RichPlanNotifyOrigin()
 {
@@ -1099,7 +1127,15 @@ bool ExpectFatalChild(const wchar_t* caseName)
         return false;
     }
     if (! (exitCode & 0x80000000u))
+    {
+        std::fprintf(stderr,
+                     "Fatal child %ls exit=%lu detail=%ld auxiliary=%ld\n",
+                     caseName,
+                     exitCode,
+                     InterlockedCompareExchange(&witness[1], 0L, 0L),
+                     InterlockedCompareExchange(&witness[2], 0L, 0L));
         return false;
+    }
     const std::wstring_view name(caseName);
     const auto bits = InterlockedCompareExchange(&witness[0], 0L, 0L);
     if (name == L"missing-host")
@@ -1214,6 +1250,16 @@ bool TestFailurePolicy()
     // An already-retired object may outlive every thread Scope and be released
     // by a different thread. Its pin alone must keep the registration alive.
     auto retiredObject = std::make_unique<DxUi::Failure::ObjectLifetime>();
+    if (host.UninstallWhenIdle(INFINITE) != E_INVALIDARG || host.UninstallWhenIdle(0u) != HRESULT_FROM_WIN32(ERROR_TIMEOUT))
+        return false;
+    // A persistent owned pin must time out rather than being discarded. The
+    // shutdown pump also preserves the owner's quit result for its outer loop.
+    PostQuitMessage(47);
+    const HRESULT pinnedShutdown = host.UninstallWhenIdle(20u);
+    MSG quit{};
+    const bool hadQuit = PeekMessageW(&quit, nullptr, WM_QUIT, WM_QUIT, PM_REMOVE) != FALSE;
+    if (pinnedShutdown != HRESULT_FROM_WIN32(ERROR_TIMEOUT) || ! hadQuit || quit.wParam != 47u || ! host.Services())
+        return false;
     wil::unique_handle raceStarted(CreateEventW(nullptr, TRUE, FALSE, nullptr));
     if (! raceStarted)
         return false;
@@ -1251,7 +1297,9 @@ bool TestFailurePolicy()
     SetEvent(pinRelease.get());
     if (WaitForSingleObject(pinFinished.get(), TimeoutMs) != WAIT_OBJECT_0 || WaitForSingleObject(pinWorker.get(), TimeoutMs) != WAIT_OBJECT_0 || retiredObject)
         return false;
-    if (FAILED(host.Uninstall()) || FAILED(host.Install()))
+    const HRESULT pinUninstall = host.Uninstall();
+    const HRESULT pinReinstall = FAILED(pinUninstall) ? pinUninstall : host.Install();
+    if (FAILED(pinUninstall) || FAILED(pinReinstall))
         return false;
     wil::unique_handle optionalEntered(CreateEventW(nullptr, TRUE, FALSE, nullptr));
     wil::unique_handle optionalRelease(CreateEventW(nullptr, TRUE, FALSE, nullptr));
@@ -1273,7 +1321,9 @@ bool TestFailurePolicy()
     if (WaitForSingleObject(optionalEntered.get(), TimeoutMs) != WAIT_OBJECT_0 || ! optional.active || host.Uninstall() != HRESULT_FROM_WIN32(ERROR_BUSY))
         return false;
     SetEvent(optionalRelease.get());
-    if (WaitForSingleObject(optionalReleased.get(), TimeoutMs) != WAIT_OBJECT_0 || FAILED(host.Uninstall()))
+    const DWORD optionalWait        = WaitForSingleObject(optionalReleased.get(), TimeoutMs);
+    const HRESULT optionalUninstall = optionalWait == WAIT_OBJECT_0 ? host.Uninstall() : E_PENDING;
+    if (optionalWait != WAIT_OBJECT_0 || FAILED(optionalUninstall))
         return false;
     SetEvent(optionalClosed.get());
     if (WaitForSingleObject(optionalFinished.get(), TimeoutMs) != WAIT_OBJECT_0 || ! optional.inactiveAfterClose ||
@@ -1314,7 +1364,10 @@ bool TestFailurePolicy()
                              L"recursive",
                              L"dump_failure"})
         if (! ExpectFatalChild(name))
+        {
+            std::fprintf(stderr, "Fatal child failed: %ls\n", name);
             return false;
+        }
     return true;
 }
 } // namespace DxUiFailureTests

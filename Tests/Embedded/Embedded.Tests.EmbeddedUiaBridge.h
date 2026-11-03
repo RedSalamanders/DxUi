@@ -317,6 +317,17 @@ public:
         return _view.UpdateAccessibility(_placement);
     }
 
+    // Bind a view that was attached through a fixture-specific forwarding site.
+    void BindViewRoot(IRawElementProviderFragmentRoot* root) noexcept
+    {
+        if (_application)
+            _application->SetViewRoot(root);
+    }
+
+    [[nodiscard]] IRawElementProviderFragmentRoot* ApplicationRoot() const noexcept
+    {
+        return _application.get();
+    }
     [[nodiscard]] HWND Hwnd() const noexcept
     {
         return _hwnd.get();

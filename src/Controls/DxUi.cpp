@@ -560,6 +560,7 @@ bool Control::Tick(ControlHost& /*host*/, uint64_t /*nowTickMs*/)
 
 bool Control::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modifiers*/)
 {
+    const Failure::Scope entryFailureScope;
     if (! _tooltipText.empty() && PointInRect(GetHitBounds(), point))
     {
         static_cast<void>(host.SetTooltipDelayed(_tooltipText, point));
@@ -580,11 +581,13 @@ bool Control::OnMouseDown(ControlHost& /*host*/, D2D1_POINT_2F /*point*/, bool /
 
 bool Control::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)
 {
+    const Failure::Scope entryFailureScope;
     return OnMouseDown(host, point, rightButton, modifiers);
 }
 
 bool Control::OnMouseTripleClick(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)
 {
+    const Failure::Scope entryFailureScope;
     return OnMouseDown(host, point, rightButton, modifiers);
 }
 
@@ -620,6 +623,7 @@ bool Control::OnChar(ControlHost& /*host*/, wchar_t /*ch*/, UINT /*modifiers*/)
 
 bool Control::OnContextMenu(ControlHost& host, bool keyboardInvocation, D2D1_POINT_2F pointDip)
 {
+    const Failure::Scope entryFailureScope;
     if (! IsEnabled() || ! IsVisible() || ! _onContextMenu)
     {
         return false;

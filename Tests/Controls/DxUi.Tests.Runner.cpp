@@ -129,7 +129,12 @@ int wmain(int argc, wchar_t** argv)
 
     if (FAILED(DxUiFailureTests::ConfigureFailureEvidence()) || FAILED(DxUiFailureTests::InstallFailureHost()))
         return 1;
-    const auto failureHost = wil::scope_exit([] { static_cast<void>(DxUiFailureTests::UninstallFailureHost()); });
+    const auto failureHost = wil::scope_exit([]() noexcept
+    {
+        const HRESULT result = DxUiFailureTests::UninstallFailureHost();
+        if (FAILED(result))
+            DxUi::Failure::FailContract(result);
+    });
 
     class TestClipboard final : public DxUi::TextClipboard
     {

@@ -25,6 +25,20 @@ table must implement and qualify the complete protocol. Keep the reporter and mo
 registration alive until outstanding UI Automation peers, retained snapshots and
 queued notifications are released. `Uninstall`/`Detach` returns `BUSY` while these
 objects still pin the host; closing a view alone does not prove their completion.
+Public input and callback-dispatch methods enter their own failure scopes even
+when called directly. Keep your own construction and argument preparation scoped
+where they can allocate; a callee's scope starts after its arguments are evaluated.
+
+Keep application scopes around direct work and construction, and outside the native message pump and COM
+initialization/cleanup. At final process shutdown, retire views/clients and invoke `UiaDisconnectAllProviders`
+while COM and the reporter are still alive; a component DLL must not perform that process-wide operation.
+The example's explicit `Host::UninstallWhenIdle` then retries `BUSY` with owner-message dispatch and a five-second
+cooperative deadline. Stop new work first: a blocked application window procedure cannot be interrupted by that
+deadline. Timeout remains a failed shutdown. Retired UIA providers keep readable immutable runtime IDs and null
+windowless/non-root HWND-host answers so native cleanup can complete; their state, navigation and actions stay unavailable.
+Asynchronous UIA delivery now owns a shared registration lease until its proxy is released. Closing a view
+retires its cache and baselines, and a late query cannot recreate the old canonical root. Keep the failure host
+installed until those leases and retained providers finish; do not discard `BUSY` or force an unowned COM release.
 
 For editor configuration, handle `TrySetDefaultContextMenuLabels`, `TrySetMarkdownAnalysisProfile`,
 `TrySetMarkdownAnalysisExtensions`, `TrySetMarkdownRenderingEnabled` and `TrySetOnCodeCopyRequested` results.

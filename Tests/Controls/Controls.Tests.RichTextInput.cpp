@@ -17,6 +17,7 @@
 #include <imm.h>
 #include <optional>
 #include <stdexcept>
+#include <thread>
 
 namespace
 {
@@ -792,8 +793,56 @@ void TestRichTextApplicationImageLoaderLifecycle()
     Require(! loader.HasResults(), "cancelled queued/completing requests are pruned without an owner callback");
     loader.Shutdown();
     loader.Drain(results);
-    Require(results.empty() && ! loader.HasResults() && loader.Submit(firstJobs) == E_UNEXPECTED,
-            "closure retires queues and rejects new work without joining the decoder");
+    Require(results.empty() && ! loader.HasResults() && loader.Submit(firstJobs) == HRESULT_FROM_WIN32(ERROR_CANCELLED),
+            "closure retires queues and rejects new work as cancelled");
+#if DXUI_ENABLE_DIAGNOSTICS
+    // Events are owned outside the loader's lifetime; every path releases the
+    // worker before loader teardown, including setup and assertion failures.
+    wil::unique_handle entered(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    wil::unique_handle release(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    wil::unique_handle shutdownReturned(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    Require(entered && release && shutdownReturned, "create owned decoder gate events");
+    RichImageResources gatedResources;
+    gatedResources.Begin(RichImageResourceTests::Semantic(L"![local](file:///C:/dxui-test-missing-gated-image.png)\n"), {}, 1u, 1u);
+    while (! gatedResources.Advance())
+    {
+    }
+    std::vector<RichImageRequest> gatedJobs;
+    gatedResources.Take(gatedJobs);
+    Require(gatedJobs.size() == 1u, "gated lifecycle fixture has one local decode request");
+    HRESULT initializeResult{}, submitResult{}, closedResult{};
+    DWORD enteredWait{}, releaseBeforeReturn{}, controllerWait{};
+    bool cleared{};
+    {
+        RichImageLoader gatedLoader;
+        const auto releaseOnExit = wil::scope_exit([&] noexcept { SetEvent(release.get()); });
+        initializeResult         = gatedLoader.Initialize(window.Hwnd(), message, cookie);
+        if (SUCCEEDED(initializeResult))
+        {
+            gatedLoader.SetDecoderGateForTests(entered.get(), release.get());
+            submitResult = gatedLoader.Submit(gatedJobs);
+            if (SUCCEEDED(submitResult))
+            {
+                enteredWait = WaitForSingleObject(entered.get(), 5000u);
+                std::thread controller([&] noexcept
+                {
+                    controllerWait = WaitForSingleObject(shutdownReturned.get(), 5000u);
+                    SetEvent(release.get());
+                });
+                gatedLoader.Shutdown();
+                releaseBeforeReturn = WaitForSingleObject(release.get(), 0u);
+                closedResult        = gatedLoader.Submit(gatedJobs);
+                std::array<RichImageLoader::Result, 1u> remaining{};
+                cleared = gatedLoader.Drain(remaining) == 0u && ! gatedLoader.HasResults();
+                SetEvent(shutdownReturned.get());
+                controller.join();
+            }
+        }
+    }
+    Require(SUCCEEDED(initializeResult) && SUCCEEDED(submitResult) && enteredWait == WAIT_OBJECT_0, "submitted local image reaches the gated decoder worker");
+    Require(controllerWait == WAIT_OBJECT_0 && releaseBeforeReturn == WAIT_TIMEOUT && closedResult == HRESULT_FROM_WIN32(ERROR_CANCELLED) && cleared,
+            "shutdown returns and retires its queues while a decoder is still gated");
+#endif
     window.SetApplicationMessageHandler({});
 }
 

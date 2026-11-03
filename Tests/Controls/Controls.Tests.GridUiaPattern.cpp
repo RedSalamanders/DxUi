@@ -2,6 +2,7 @@
 
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "Support.Tests.FatalChildren.h"
+#include "Support.Tests.UiaTestClient.h"
 
 #include <atomic>
 #include <stdexcept>
@@ -828,13 +829,11 @@ void TestGridUiaPatternInvalidatesProvidersAfterSameAddressModelAssignment()
     const HRESULT staleResult = previousCell->GetPropertyValue(UIA_NamePropertyId, &staleName);
     VariantClear(&staleName);
     Require(staleResult == UIA_E_ELEMENTNOTAVAILABLE, "a retained cell provider is invalid after the same model address is assigned as a new model revision");
-    SAFEARRAY* staleRowRuntimeId = nullptr;
-    const HRESULT staleRowResult = previousRow->GetRuntimeId(&staleRowRuntimeId);
-    if (staleRowRuntimeId)
-    {
-        SafeArrayDestroy(staleRowRuntimeId);
-    }
-    Require(staleRowResult == UIA_E_ELEMENTNOTAVAILABLE, "a retained row provider is invalid after the same model address is assigned as a new model revision");
+    Require(ReadProviderRuntimeId(*previousRow) == previousRowRuntimeId,
+            "retired row identity remains readable for native cleanup after same-address model reassignment");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> retiredChild;
+    Require(previousRow->Navigate(NavigateDirection_FirstChild, retiredChild.put()) == UIA_E_ELEMENTNOTAVAILABLE && ! retiredChild,
+            "a retained row cannot navigate after the same model address is assigned as a new model revision");
 
     wil::com_ptr_nothrow<IRawElementProviderSimple> currentCell;
     RequireSucceeded(pattern->GetItem(static_cast<int>(kRow), 0, currentCell.put()), "new assignment rematerializes its offscreen cell");
@@ -950,9 +949,10 @@ void TestGridUiaPatternWindowAnswersAfterRequestedRowsAreDeleted()
     model.SetRowCount(100u);
     grid->NotifyDataChanged();
 
-    // The window procedure answers WM_GETOBJECT with the root (a null root was dereferenced here before the fix).
-    const LRESULT answer = SendMessageW(window.Hwnd(), WM_GETOBJECT, 0, static_cast<LPARAM>(UiaRootObjectId));
-    Require(answer != 0, "WM_GETOBJECT returns the window root after the remembered rows were deleted");
+    // A real UIA client sends and consumes WM_GETOBJECT (a null root was dereferenced here before the fix).
+    UiaTest::Client client(window.Hwnd(), {}, [&window] { window.PumpMessages(); });
+    Require(client.Dump(client.Root()).find(L"Virtual results") != std::wstring::npos,
+            "UIA finds the grid through the window after remembered rows were deleted");
 }
 
 static void TestGridUiaPatternWindowAnswersWhenTheFirstPublicationFailsImpl(bool fatalChild = false)
@@ -972,8 +972,9 @@ static void TestGridUiaPatternWindowAnswersWhenTheFirstPublicationFailsImpl(bool
         return;
     }
     Require(DxUiFailureTests::ExpectFatalChild(L"grid-uia-first-publication-throw"), "first publication model exception terminates its owned child");
-    const LRESULT answer = SendMessageW(window.Hwnd(), WM_GETOBJECT, 0, static_cast<LPARAM>(UiaRootObjectId));
-    Require(answer != 0, "WM_GETOBJECT returns the window root even when the first publication fails");
+    UiaTest::Client client(window.Hwnd(), {}, [&window] { window.PumpMessages(); });
+    Require(client.Dump(client.Root()).find(L"Virtual results") != std::wstring::npos,
+            "UIA finds the healthy window root after the isolated first-publication failure");
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> failingRoot;
     failingRoot.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
     Require(failingRoot != nullptr, "a client obtains the window root while publication keeps failing");

@@ -3,10 +3,12 @@
 #include "FailureHost.h"
 #include "Support.Tests.FatalChildren.h"
 #include <array>
+#include <cstdio>
 #include <string>
 
 namespace DxUiFailureTests
 {
+[[nodiscard]] HRESULT DisconnectTestProcessUiAutomation() noexcept;
 namespace Detail
 {
 inline std::wstring evidenceDirectory;
@@ -35,9 +37,14 @@ inline bool ordinaryInstalled{};
     const auto attributes = GetFileAttributesW(root.c_str());
     if (attributes == INVALID_FILE_ATTRIBUTES || ! (attributes & FILE_ATTRIBUTE_DIRECTORY))
         return HRESULT_FROM_WIN32(ERROR_DIRECTORY);
-    root += L"\\" + std::to_wstring(GetCurrentProcessId());
+    // Preserve earlier evidence when Windows reuses a PID during repeated runs.
+    root += L"\\" + std::to_wstring(GetCurrentProcessId()) + L"-" + std::to_wstring(GetTickCount64());
     if (! CreateDirectoryW(root.c_str(), nullptr))
-        return HRESULT_FROM_WIN32(GetLastError());
+    {
+        const DWORD error = GetLastError();
+        std::fprintf(stderr, "Cannot create failure evidence for process %lu: Win32 %lu\n", GetCurrentProcessId(), error);
+        return HRESULT_FROM_WIN32(error);
+    }
     if (! ConfigureFailureChildren(root))
         return E_FAIL;
     Detail::evidenceDirectory = std::move(root);
@@ -65,7 +72,13 @@ inline bool ordinaryInstalled{};
 {
     if (! Detail::ordinaryInstalled)
         return S_FALSE;
-    const auto result = Detail::ordinaryHost.Uninstall();
+    // This test executable owns the process. Release Windows' retained provider
+    // resources after its views/clients stop, while the failure host is still live.
+    // A library or a single plugin must never perform this process-wide cleanup.
+    const auto disconnected = DisconnectTestProcessUiAutomation();
+    if (FAILED(disconnected))
+        return disconnected;
+    const auto result = Detail::ordinaryHost.UninstallWhenIdle(5000u, DisconnectTestProcessUiAutomation);
     if (SUCCEEDED(result))
         Detail::ordinaryInstalled = false;
     return result;

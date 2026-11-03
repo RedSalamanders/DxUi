@@ -104,6 +104,53 @@ reopening their historical checklists or relabeling old allocation sweeps as fat
 
 ### Working-tree progress, not acceptance
 
+- Final affected diagnostic run `20261103T005139880Z-92016-8864633cfa944074b594a331f0385c2c` passes
+  Foundation, Embedded and Accessibility; EditorControls passed the preceding repeated diagnostic runs.
+  These incremental Debug receipts do not qualify the final source or replace canonical/profile/consumer gates.
+  Temporary native ref/lifetime tracing, selectors and lifecycle prints are removed for the next source freeze.
+- Actual retained-root traces found two independent races: a notification worker could reopen a canonical root
+  after detach, and owner disconnect discarded failed GIT revocation while delivery still borrowed its cookie.
+  Acquisition now checks closure under the cache lock. Structure delivery shares the existing registration
+  owner, releases its proxy before the lease, and queueing revalidates attachment after reentrant COM registration.
+  Embedded disconnect drops stale event/diff baselines. The gated detach race and retained-source/identity
+  assertions pass without clearing pins or forcing remote COM disconnection. Failed dumps/receipts remain retained.
+- The no-activation fatal child now tests same-thread activation/focus hooks, keeping its foreground-preservation
+  assertions, rather than issuing an unleased cross-process foreground request. Foundation lifecycle, original-frame
+  fatal dumps and shutdown timeout/quit preservation pass. Test evidence prefixes include PID plus uptime to
+  preserve old runs when Windows reuses a process ID; bootstrap errors report their captured Win32 status.
+- Post-`7d1c627e` diagnostic runs pass EditorControls and Accessibility before the new retirement regression was added.
+  Embedded's original fatal callback, stale typing/profile/HRESULT fixtures, SourceAnalyzer non-progress loop and
+  image-loader cancellation expectation are repaired. A gated decoder test proves shutdown returns while decode
+  is held and retirement releases it without exposing a late result. All failed runs remain retained.
+- The actual Embedded DirectWrite exception was handled inside deferred `EndDraw`; every production `EndDraw`
+  now uses the narrow native trampoline. Sample construction remains scoped, while OLE/COM lifetime and the
+  message pump do not sit inside a blanket failure scope. Direct callback probes still require original-frame dumps.
+- The final UIA shutdown diagnosis found an event sender retained after its local owner and client released it.
+  Immutable runtime-ID and null HWND-host queries now work after retirement, allowing native cleanup while state
+  and actions remain unavailable. The process-owned example performs final UIA cleanup before COM teardown,
+  then explicitly retries host `BUSY` during cooperative bounded owner-message dispatch. It preserves quit status
+  and cannot discard a pin or claim a hard deadline for arbitrary window procedures. The immediate focused
+  scenario passes this path; new native/embedded retained-identity cases and all final profiles still need execution.
+  Temporary refcount/lifetime instrumentation and the old diagnostic terminate override have been removed.
+- Diagnostic run `20261102T235047537Z-6668-4e94c8393f4b4986a0162a5f02f94549` passes EditorControls; its new
+  Embedded regression incorrectly navigated an old root after reattachment, and the native replacement oracle
+  still rejected immutable IDs. Both test errors are corrected for the next build. This failed receipt remains historical.
+- The protocol-2 `7d1c627e` cohort passed six warning-free builds, four clean-pin consumers (12 healthy,
+  two internally handled native calls and 16 dump-unwound fatal cases each), the extracted SDK smoke, and all
+  compiler-free validators/tooling. Its full Debug run failed Embedded, EditorControls and Accessibility;
+  all failed logs, dumps and matching Debug binaries remain preserved. These results do not qualify later edits.
+- The EditorControls child exposed a real unscoped direct context-menu callback: the fatal catch ran only after
+  its original frame unwound. Entry scopes now cover this path and validated sibling dispatch/input entries.
+  Five direct-entry children end their construction scope before calling the API; diagnostic execution verifies
+  their original callback frames, and the original RichText context-menu child now passes without weakening it.
+- The Accessibility dump proves the client was waiting inside `RemoveAllEventHandlers`; it does not establish
+  the reason. The fixture now reuses the canonical bounded UIA client, checks stop/removal results and publishes
+  completion after COM teardown, retaining its 20-second owner pump. Both targeted selection scenarios pass.
+- A delayed public-API probe reproduced the Embedded typing failure: child startup/dump work split a one-second
+  fence-trigger sequence. The child check now follows the healthy transaction. Another ported capacity fixture
+  omitted its previous GFM profile; it now explicitly enables tables and checks preservation of prior publication.
+  Further full runtime execution remains required. The common benchmark instrument now includes its own native
+  allocation declaration so formatter include ordering cannot invalidate the paired candidate build.
 - The `87820968` cohort passed all six warning-free builds, four clean-pin consumer configurations, the extracted
   production SDK smoke, and compiler-free validation. These receipts remain historical: subsequent runtime
   failures required source changes, so they do not qualify the current cohort.

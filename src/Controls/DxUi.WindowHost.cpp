@@ -35,6 +35,7 @@
 #include "DxUi/FrameRuntime.h"
 #include "Support/AnimationDispatcher.h"
 #include "Support/Diagnostics.h"
+#include "Support/NativeRendering.h"
 #include "Support/WindowMessages.h"
 
 #pragma comment(lib, "d2d1.lib")
@@ -4685,7 +4686,7 @@ try
             {
                 _d2dContext->PopAxisAlignedClip();
             }
-            _d2dContext->EndDraw(nullptr, nullptr);
+            (void)Detail::EndDrawNative(_d2dContext.get());
         });
         _d2dContext->SetTransform(D2D1::Matrix3x2F::Identity());
 
@@ -4761,7 +4762,7 @@ try
         }
 
         endDrawGuard.release();
-        const HRESULT actualEndDrawResult = _d2dContext->EndDraw();
+        const HRESULT actualEndDrawResult = Detail::EndDrawNative(_d2dContext.get());
         hrDraw                            = actualEndDrawResult;
 #if DXUI_ENABLE_DIAGNOSTICS
         if (const HRESULT injectedEndDrawResult = std::exchange(_debugNextInitialRootChildBatchEndDrawResult, S_OK);
@@ -4995,7 +4996,7 @@ try
             {
                 _d2dContext->PopAxisAlignedClip();
             }
-            _d2dContext->EndDraw(nullptr, nullptr);
+            (void)Detail::EndDrawNative(_d2dContext.get());
         });
         _d2dContext->SetTransform(D2D1::Matrix3x2F::Identity());
 
@@ -5071,7 +5072,7 @@ try
         }
 
         endDrawGuard.release();
-        const HRESULT actualEndDrawResult = _d2dContext->EndDraw();
+        const HRESULT actualEndDrawResult = Detail::EndDrawNative(_d2dContext.get());
         hrDraw                            = actualEndDrawResult;
 #if DXUI_ENABLE_DIAGNOSTICS
         if (const HRESULT injectedEndDrawResult = std::exchange(_debugNextInitialRootChildBatchEndDrawResult, S_OK);

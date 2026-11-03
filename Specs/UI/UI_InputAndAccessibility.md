@@ -601,9 +601,11 @@ window. Replacing the whole tree (`SetRoot`) is compared with the tree before it
 in during the swap.
 
 A window-host element keeps the identity of the control it was created for, as an embedded element does. Once that
-control is removed, or another control takes its tree path (a rebuilt list or tree), every call on the old element,
-including a tree item's or grid row's, its runtime id and an action already queued for the window's thread, returns
-`UIA_E_ELEMENTNOTAVAILABLE` and never reaches the new control, and the new control's elements (its items and rows too)
+control is removed, or another control takes its tree path (a rebuilt list or tree), state, navigation and actions on the old element,
+including a tree item's or grid row's and an action already queued for the window's thread, return
+`UIA_E_ELEMENTNOTAVAILABLE` and never reach the new control. Immutable runtime identity remains readable for UIA retirement;
+a non-root or windowless provider's HWND-host query still returns `S_OK` with null. Neither query reads current control state.
+The new control's non-root elements (its items and rows too)
 have different runtime ids: they carry a per-process serial the control receives when first published, which no later
 control reuses. The window's element is bound the same way while a collapsed semantic root (below) makes it a
 control's element: once that control is replaced, or stops being the only one, a client's window element is gone like
@@ -1099,11 +1101,21 @@ Embedded structure invalidation uses the same bounded, coalesced delivery protoc
 in its supplied STA/site apartment. The owner registers that provider in the COM Global Interface Table once;
 delivery resolves a marshalled proxy in its MTA before calling UIA. No raw embedded provider crosses apartments.
 This invalidation carries no historical property values, so the slot and held delivery retain no row snapshot;
-provider reads resolve the current coherent epoch. Disconnect clears pending work and revokes the registration on
-the owner before releasing the canonical provider. Already resolved proxies enforce the disconnected target
+provider reads resolve the current coherent epoch. Disconnect clears pending work and releases the owner's
+registration lease before releasing the canonical provider. An in-flight delivery retains the same lease until
+its resolved proxy is released; the final lease revokes the registration in its initialized apartment. The
+registration is never copied as an independently owned cookie or revoked while delivery still borrows it.
+Already resolved proxies enforce the disconnected target
 guards, and teardown never joins client delivery. Registration/work creation failure logs the failed delivery and
 allows a later explicit semantic publication to retry; there is no synchronous delivery fallback. Selection, text and
 focus events retain their separate event contracts; embedded control-property transport is described below. See the [COM apartment interface contract](https://learn.microsoft.com/en-us/windows/win32/com/accessing-interfaces-across-apartments).
+
+Registration may reenter the owner. Queueing retains its canonical provider across that call and rechecks the live
+attachment under the notification lock before publishing the lease or work. Canonical-root acquisition checks
+retirement while holding the provider cache lock; an earlier snapshot cannot reopen a cache after detach.
+Disconnect also releases event/diff baselines. Final registration cleanup treats a documented invalid-cookie
+result as already unavailable; another cleanup failure takes the host fatal path because a destructor cannot
+return an error or abandon a live registration. No native call or final registration release runs under a slot lock.
 
 The canonical root resolves the current published snapshot and does not retain its creation snapshot. Retained
 non-root providers keep their creation snapshot for control-lifetime validation and borrowed-source ownership;
@@ -1141,14 +1153,25 @@ Internal embedded property-event providers retain the target and the published c
 then resolve properties against the current coherent snapshot. UIA can retain these event providers after delivery;
 they must not pin complete creation snapshots or prepared row epochs. Replacing the control invalidates them even
 when its path is reused. Public row providers and text ranges keep their existing creation-snapshot ownership.
-Runtime IDs use that retained control identity after checking the current snapshot; an event sender need not hold
-a creation snapshot to expose the same runtime ID as its public control element.
+Runtime IDs use that retained control identity without needing a live snapshot; an event sender need not hold
+a creation snapshot to expose the same runtime ID as its public control element. Retired providers retain that
+identity for native cleanup while their state and actions remain unavailable. A native top-level root keeps its
+HWND-based identity; replacing its collapsed control retires the old COM peer and canonical UIA map rather than
+assigning the window a different runtime ID.
 
 Hide, zero-size suspension, device replacement and detach disconnect the target before destroying controls. Old
 provider actions return UIA_E_ELEMENTNOTAVAILABLE after disconnect/root replacement, and a reattachment has a new
 identity. A surviving reference never accesses a replaced control by path. The application is responsible for
 keeping the module containing provider code mapped until surviving references can no longer call it; releasing the
 control tree is not permission to unload code still referenced by COM.
+
+At process shutdown, the application owner releases UIA clients, retires views and invokes
+[`UiaDisconnectAllProviders`](https://learn.microsoft.com/en-us/windows/win32/api/uiautomationcoreapi/nf-uiautomationcoreapi-uiadisconnectallproviders)
+while COM and its failure host remain alive. Library/plugin detachment never performs that process-wide action.
+Native cleanup may finish asynchronously. The example host's explicit `UninstallWhenIdle` retries only `BUSY`
+while pumping owner messages, with a five-second cooperative deadline and preserved `WM_QUIT`. It is a shutdown
+helper after new work and application callbacks have quiesced, not a hard interruption of an arbitrary window
+procedure. A timeout remains a failed retirement; it never removes a live module pin or releases an unowned reference.
 
 Slider::RequestValue is the user-action counterpart to silent model SetValue. It validates range, enabled state and
 the absence of an active drag, then reports one Commit through the same callback used by keyboard input. UIA uses

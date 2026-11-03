@@ -2102,7 +2102,7 @@ void TestRichTextInlineMetricsFailurePreservesPreparedLayout()
 {
     const auto factory = CreateRichTextTestFactory();
     Document original(L"retained source geometry");
-    Document candidate(L"replacement inline object");
+    Document candidate(L"\ufffc replacement inline object");
     PreparedLayout layout;
     LayoutOptions options;
     options.widthDip             = 320.f;
@@ -2125,7 +2125,7 @@ void TestRichTextInlineMetricsFailurePreservesPreparedLayout()
                                                                      projection,
                                                                      options,
                                                                      0.f,
-                                                                     false,
+                                                                     true,
                                                                      false,
                                                                      useSpan ? nullptr : object.Get(),
                                                                      0u,

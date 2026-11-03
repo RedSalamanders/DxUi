@@ -5,6 +5,7 @@
 #include "RichImageLoader.h"
 #include <DxUi/Failure.h>
 #include <DxUi/FileDrop.h>
+#include <UIAutomation.h>
 #include <exception>
 #include <iostream>
 #include <new>
@@ -101,6 +102,7 @@ struct App
             if (! textClient || textClient->FocusId() != snapshot.focusId)
             {
                 ClearText();
+                const DxUi::Failure::Scope construction;
                 textClient = std::make_shared<EmbeddedTextClient>(View(), window.get(), snapshot.focusId, dpi);
             }
             textClient->SetDpi(dpi);
@@ -455,15 +457,23 @@ struct App
         private:
             PointerState* _observed;
         };
-        App sample;
+        auto sampleOwner = []
+        {
+            const DxUi::Failure::Scope construction;
+            return std::make_unique<App>();
+        }();
+        App& sample          = *sampleOwner;
         sample.quitOnDestroy = false; // This hidden proof owns no GetMessage loop or WM_QUIT.
         std::shared_ptr<DxUi::GraphicsDevice> graphics;
         RETURN_IF_FAILED(DxUi::GraphicsDevice::Create(device, graphics));
         RETURN_IF_FAILED(sample.View().Attach(std::move(graphics)));
-        auto root     = std::make_unique<DxUi::Panel>();
-        auto* pointer = root->AddChild<PointerProbe>(state);
-        pointer->SetBounds(D2D1::RectF(0.f, 0.f, 240.f, 180.f));
-        sample.View().Controls().SetRoot(std::move(root));
+        {
+            const DxUi::Failure::Scope construction;
+            auto root     = std::make_unique<DxUi::Panel>();
+            auto* pointer = root->AddChild<PointerProbe>(state);
+            pointer->SetBounds(D2D1::RectF(0.f, 0.f, 240.f, 180.f));
+            sample.View().Controls().SetRoot(std::move(root));
+        }
         RETURN_IF_FAILED(sample.View().Prepare(240u, 180u));
         RETURN_IF_FAILED(sample.CreateHostWindow()); // Hidden; never activates or acquires capture.
         const auto refreshBefore = sample.textRefreshCalls;
@@ -621,7 +631,10 @@ struct App
             private:
                 App* app; // Borrowed; the application retires the adapter before destroying its window or view.
             };
-            dropReceiver = std::make_shared<Receiver>(*this);
+            {
+                const DxUi::Failure::Scope construction;
+                dropReceiver = std::make_shared<Receiver>(*this);
+            }
             RETURN_IF_FAILED(dropAdapter.Attach(dropReceiver));
             RETURN_IF_FAILED(RegisterDragDrop(window.get(), dropAdapter.Target()));
             dropRegistration.reset(window.get());
@@ -642,7 +655,7 @@ struct App
                 textDragData  = data;
                 textDragMoved = false;
                 DWORD effect{};
-                const HRESULT result = DoDragDrop(data.get(), source.get(), DROPEFFECT_MOVE, &effect);
+                const HRESULT result = DxUi::Failure::InvokeNative(DoDragDrop, data.get(), source.get(), DWORD{DROPEFFECT_MOVE}, &effect);
                 const bool movedHere = textDragMoved;
                 textDragData.reset();
                 textDragMove.reset();
@@ -707,11 +720,21 @@ int wmain(int argc, wchar_t** argv)
     DxUiSample::FailureHost::Host failureHost;
     if (FAILED(failureHost.StartBesideExecutable()))
         return 1;
-    const DxUi::Failure::Scope failureScope;
     const auto hr = OleInitialize(nullptr);
     if (FAILED(hr))
         return 1;
     const auto com = wil::scope_exit([] { OleUninitialize(); });
+    // Application-owned final cleanup, after views and clients retire and before
+    // COM and the failure host. Component DLLs must not disconnect other providers.
+    const auto automation = wil::scope_exit([&]() noexcept
+    {
+        const auto result = DxUi::Failure::InvokeNative(UiaDisconnectAllProviders);
+        if (FAILED(result))
+            DxUi::Failure::FailContract(result);
+        const HRESULT retired = failureHost.UninstallWhenIdle(5000u, +[]() noexcept { return DxUi::Failure::InvokeNative(UiaDisconnectAllProviders); });
+        if (FAILED(retired))
+            DxUi::Failure::FailContract(retired);
+    });
     try
     {
         bool complex                = false;
@@ -741,7 +764,12 @@ int wmain(int argc, wchar_t** argv)
             return 2;
         if (documentPath && ! richText)
             return 2;
-        App app;
+        auto appOwner = []
+        {
+            const DxUi::Failure::Scope construction;
+            return std::make_unique<App>();
+        }();
+        App& app      = *appOwner;
         app.textInput = textInput || richText;
         app.richText  = richText;
         if (richText)
@@ -753,6 +781,7 @@ int wmain(int argc, wchar_t** argv)
             app.gpu.height = 340;
         if (complex)
         {
+            const DxUi::Failure::Scope construction;
             app.complex    = std::make_unique<ComplexUiScene>();
             app.gpu.width  = 1280;
             app.gpu.height = 720;
@@ -760,9 +789,12 @@ int wmain(int argc, wchar_t** argv)
         if (FAILED(app.gpu.Create()))
             return 1;
         const DxUi::EmbeddedCallbacks callbacks{&app, [](void* context) noexcept { static_cast<App*>(context)->Request(); }};
-        if (FAILED(complex ? app.complex->Initialize(app.gpu.device.get(), callbacks)
-                           : app.scene.Initialize(app.gpu.device.get(), callbacks, textInput, richText)))
-            return 1;
+        {
+            const DxUi::Failure::Scope construction;
+            if (FAILED(complex ? app.complex->Initialize(app.gpu.device.get(), callbacks)
+                               : app.scene.Initialize(app.gpu.device.get(), callbacks, textInput, richText)))
+                return 1;
+        }
         // Location metadata only: the sample never opens/saves the Markdown
         // document or derives a base from the process working directory.
         if (documentPath)
@@ -794,7 +826,11 @@ int wmain(int argc, wchar_t** argv)
                 DxUi::EmbeddedTextInputSnapshot state;
                 if (app.View().ReadTextInput(state) != S_OK)
                     return 1;
-                auto client = std::make_shared<EmbeddedTextClient>(app.View(), hidden.get(), state.focusId, 96.0f);
+                auto client = [&]
+                {
+                    const DxUi::Failure::Scope construction;
+                    return std::make_shared<EmbeddedTextClient>(app.View(), hidden.get(), state.focusId, 96.0f);
+                }();
                 DxUi::TextInputServices service;
                 const auto detach = wil::scope_exit([&]
                 {
@@ -811,6 +847,7 @@ int wmain(int argc, wchar_t** argv)
                 {
                     HRESULT Read(HWND, std::wstring& text) noexcept override
                     {
+                        const DxUi::Failure::Scope callbackScope;
                         try
                         {
                             text = L" \u6771\u4eac";

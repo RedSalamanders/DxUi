@@ -681,12 +681,19 @@ inline void SchedulingAndAdmission()
     for (unsigned row = 0u; row < 300u; ++row)
         table.append(L"| |\n");
     MarkdownParser oversizedTable;
-    oversizedTable.Begin(table, 1u);
+    oversizedTable.Begin(L"prior publication", 1u, MarkdownProfile::Gfm029);
+    while (oversizedTable.HasPendingPreparation())
+        oversizedTable.Advance();
+    const auto beforeTable = oversizedTable.Published();
+    Check(oversizedTable.TryBegin(table, 2u, MarkdownProfile::Gfm029) == MarkdownResult::Success,
+          "table source admission accepts bounded source before graph preparation");
     MarkdownAdvance tableResult{};
     while (oversizedTable.HasPendingPreparation())
         tableResult = oversizedTable.Advance();
     Check(tableResult.status == MarkdownPreparationStatus::Failed && tableResult.result == MarkdownResult::CapacityExceeded,
           "sparse table amplification is rejected before allocating an excessive parser graph");
+    Check(oversizedTable.Published() == beforeTable && ! oversizedTable.HasPendingPreparation(),
+          "table graph capacity refusal preserves the prior parser publication");
     Check(builder.Published()->Syntax() == oldSyntax && ! builder.HasPendingPreparation(), "failed semantic admission preserves its previous request state");
 }
 inline void LocalizedAccessibilityLabels()

@@ -1815,6 +1815,7 @@ void RichTextEditor::BuildDefaultContextMenuItems(std::vector<MenuFlyoutItem>& o
 }
 bool RichTextEditor::InvokeDefaultContextMenuCommand(ControlHost& host, int commandId) noexcept
 {
+    const Failure::Scope entryFailureScope;
     if (GetHost() != &host || ! IsEnabled())
         return false;
     switch (commandId)
@@ -2174,6 +2175,7 @@ bool RichTextEditor::SelectMarkdownDiagnostic(ControlHost& host, bool backwards)
 }
 bool RichTextEditor::NavigateSemanticElement(ControlHost& host, const std::shared_ptr<const RichText::SemanticDocument>& expected, size_t element)
 {
+    const Failure::Scope entryFailureScope;
     const auto document = expected; // The callback may reset the caller's shared_ptr.
     if (! document || element >= document->Elements().size() || GetHost() != &host || ! IsEnabled() || ! IsVisible() ||
         GetAcknowledgedSemanticDocument(host) != document)
@@ -2251,6 +2253,7 @@ void RichTextEditor::SetOnImageActivated(std::function<void(const RichTextImageA
 }
 bool RichTextEditor::ActivateSemanticImage(ControlHost& host, const std::shared_ptr<const RichText::SemanticDocument>& expected, size_t element)
 {
+    const Failure::Scope entryFailureScope;
     const auto document = expected;
     if (! document || element >= document->Elements().size() || GetHost() != &host || ! IsEnabled() || ! IsVisible() ||
         GetAcknowledgedSemanticDocument(host) != document || document->Elements()[element].role != RichText::SemanticRole::Image)
@@ -3034,6 +3037,7 @@ std::optional<D2D1_RECT_F> RichTextEditor::GetSemanticCodeCopyBounds(const Contr
 }
 HRESULT RichTextEditor::InvokeSemanticCodeCopy(ControlHost& host, const std::shared_ptr<const RichText::SemanticDocument>& document, size_t element) noexcept
 {
+    const Failure::Scope entryFailureScope;
     try
     {
         if (! IsEnabled() || ! IsVisible() || ! _state->onCodeCopyRequested ||
@@ -5463,6 +5467,7 @@ bool RichTextEditor::Erase(ControlHost& host, bool backwards, bool byWord, bool 
 }
 bool RichTextEditor::OnChar(ControlHost& host, wchar_t character, UINT modifiers) noexcept
 {
+    const Failure::Scope entryFailureScope;
     try
     {
         const bool taskSpace = std::exchange(_state->suppressTaskSpace, false);
@@ -5828,6 +5833,7 @@ bool RichTextEditor::OnChar(ControlHost& host, wchar_t character, UINT modifiers
 }
 bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noexcept
 {
+    const Failure::Scope entryFailureScope;
     try
     {
         if (! IsEnabled())
@@ -6497,6 +6503,7 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
 }
 bool RichTextEditor::OnContextMenu(ControlHost& host, bool keyboardInvocation, D2D1_POINT_2F point) noexcept
 {
+    const Failure::Scope entryFailureScope;
     try
     {
         if (! IsEnabled() || ! IsVisible())
@@ -6571,6 +6578,7 @@ bool RichTextEditor::OnContextMenu(ControlHost& host, bool keyboardInvocation, D
 }
 bool RichTextEditor::OnCopy(ControlHost& host) noexcept
 {
+    const Failure::Scope entryFailureScope;
     try
     {
         if (! IsEnabled())
@@ -6589,6 +6597,7 @@ bool RichTextEditor::OnCopy(ControlHost& host) noexcept
 }
 bool RichTextEditor::OnSelectAll(ControlHost&) noexcept
 {
+    const Failure::Scope entryFailureScope;
     try
     {
         if (! IsEnabled())
@@ -6603,6 +6612,7 @@ bool RichTextEditor::OnSelectAll(ControlHost&) noexcept
 }
 bool RichTextEditor::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers) noexcept
 {
+    const Failure::Scope entryFailureScope;
     try
     {
         if (_state->middleAutoScroll)
@@ -6771,6 +6781,7 @@ WindowHostCursorKind RichTextEditor::ResolveCursorKind(ControlHost&, D2D1_POINT_
 
 bool RichTextEditor::OnMouseMiddleDown(ControlHost& host, D2D1_POINT_2F point, UINT) noexcept
 {
+    const Failure::Scope entryFailureScope;
     if (_state->middleAutoScroll)
     {
         _state->middleAutoScroll = false;
@@ -6804,6 +6815,7 @@ bool RichTextEditor::OnMouseMiddleDown(ControlHost& host, D2D1_POINT_2F point, U
 
 bool RichTextEditor::OnMouseTripleClick(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT) noexcept
 {
+    const Failure::Scope entryFailureScope;
     try
     {
         if (! IsEnabled() || rightButton || ! LayoutIsCurrent(host))
@@ -6849,6 +6861,7 @@ bool RichTextEditor::OnMouseTripleClick(ControlHost& host, D2D1_POINT_2F point, 
 
 bool RichTextEditor::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT) noexcept
 {
+    const Failure::Scope entryFailureScope;
     try
     {
         if (! IsEnabled() || rightButton || ! LayoutIsCurrent(host))
@@ -7098,6 +7111,7 @@ std::optional<RichText::MarkdownRange> RichTextEditor::ActiveParagraphDisplayRan
 }
 bool RichTextEditor::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT) noexcept
 {
+    const Failure::Scope entryFailureScope;
     try
     {
         if (_state->middleAutoScroll)
@@ -7229,6 +7243,7 @@ bool RichTextEditor::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT) n
 }
 bool RichTextEditor::OnMouseLeave(ControlHost&) noexcept
 {
+    const Failure::Scope entryFailureScope;
     if (! _state->hoveredLink)
         return false;
     _state->hoveredLink.reset();
@@ -7237,6 +7252,7 @@ bool RichTextEditor::OnMouseLeave(ControlHost&) noexcept
 }
 bool RichTextEditor::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT) noexcept
 {
+    const Failure::Scope entryFailureScope;
     if (! rightButton && _state->scrollbarDragging)
     {
         const auto release        = ReleaseUnchangedCaptureOnExit(host, *this);
@@ -7329,6 +7345,7 @@ bool RichTextEditor::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool righ
 }
 bool RichTextEditor::OnMouseWheel(ControlHost& host, D2D1_POINT_2F, float delta, UINT modifiers) noexcept
 {
+    const Failure::Scope entryFailureScope;
     try
     {
         if (! IsEnabled() || ! std::isfinite(delta))
@@ -7459,6 +7476,7 @@ void RichTextEditor::OnHidden() noexcept
 }
 void RichTextEditor::OnFocusChanged(ControlHost& host, bool focused)
 {
+    const Failure::Scope entryFailureScope;
     Control::OnFocusChanged(host, focused);
     if (! focused && _state->middleAutoScroll)
     {
@@ -7483,6 +7501,7 @@ void RichTextEditor::OnFocusChanged(ControlHost& host, bool focused)
 }
 void RichTextEditor::OnCaptureLost(ControlHost&)
 {
+    const Failure::Scope entryFailureScope;
     ++_state->sourceMoveEpoch;
     _state->sourceMovePress  = false;
     _state->middleAutoScroll = false;

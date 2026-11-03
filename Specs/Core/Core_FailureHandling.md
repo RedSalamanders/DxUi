@@ -95,7 +95,7 @@ gate open if no supported mechanism meets both the catch restriction and the con
 
 Windows ABI implementations may raise and handle C++ exceptions internally before
 returning an HRESULT. Such an internal event is not evidence that an exception
-escaped into DxUi. Audited UI Automation calls use `Failure::InvokeNative` with
+escaped into DxUi. Audited UI Automation calls and deferred Direct2D `EndDraw` work use `Failure::InvokeNative` with
 pre-evaluated POD arguments. Its native allowance masks only the synchronous
 foreign implementation; every nested DxUi scope reactivates observation for
 reentrant providers and application callbacks. Never apply this allowance to an
@@ -112,6 +112,30 @@ including on another thread after control retirement. Host/module uninstall retu
 retained interfaces and finish those callbacks before removing their host/module.
 An atomic optional scope supports final retirement without a check-then-enter race;
 an inactive optional scope permits only allocation-free, callback-free cleanup.
+
+Public input and callback-dispatch entrypoints open their own failure scope before
+staging work or invoking application code, including direct calls outside a window
+message dispatch. Shared callback helpers also protect reentrant entry. A caller's
+setup scope must not be the only protection: fatal-child tests finish construction
+inside a setup scope, end it, and then call the public entrypoint directly. Argument
+evaluation remains the caller's work; direct control construction requires its
+documented enclosing host-owned scope.
+
+Keep such application scopes limited to direct construction and application work. Do not put one around
+`GetMessage`/`DispatchMessage`, COM apartment initialization/cleanup or an entire native message pump: that would
+observe foreign exceptions outside the library's failure domain. Audited native calls inside scoped work use
+the narrow allowance; the sample's OLE drag loop follows that contract.
+
+The process owner shuts down UIA while COM and the reporter remain alive. Its explicit example
+`Host::UninstallWhenIdle` gives asynchronous provider releases a cooperative five-second message-pump deadline,
+retries only `BUSY`, preserves `WM_QUIT` and reports timeout. It cannot interrupt a blocking application window
+procedure. Stop new work, application callbacks and registered modules first; neither this helper nor a view's
+destruction permits removing a live provider pin. Component/DLL uninstall remains nonblocking.
+
+Shared COM registration leases extend through every asynchronous use and the resolved proxy's release. Final
+cleanup must check the native revocation result; it cannot discard a failed live registration. The documented
+invalid-cookie result is an already-unavailable entry, while other unreportable cleanup errors enter fatal
+diagnostics. Retirement cannot publish a new canonical root or COM registration after its target closes.
 
 `noexcept` is a verified contract, not allocation error handling. Adding it to a throwing construction path can
 terminate before useful fault-site diagnostics; removing it merely exposes the throw. Neither change alone

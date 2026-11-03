@@ -1,12 +1,14 @@
+#include "Embedded.Tests.EmbeddedUiaBridge.h"
 #include <UIAutomation.h>
 #include <thread>
 
 struct TestEmbeddedAccessibilitySite final : DxUi::EmbeddedAccessibilitySite
 {
-    IRawElementProviderFragmentRoot* root = nullptr; // Borrowed fixture reference; cleared before teardown.
-    size_t focusRequests                  = 0;
-    size_t parentRequests                 = 0;
-    size_t completions                    = 0;
+    IRawElementProviderFragmentRoot* root         = nullptr; // Borrowed fixture reference; cleared before teardown.
+    EmbeddedUiaTest::ApplicationSite* application = nullptr; // Bridge outlives this attachment.
+    size_t focusRequests                          = 0;
+    size_t parentRequests                         = 0;
+    size_t completions                            = 0;
     void ActionCompleted() noexcept override
     {
         ++completions;
@@ -16,10 +18,12 @@ struct TestEmbeddedAccessibilitySite final : DxUi::EmbeddedAccessibilitySite
         *result = nullptr;
         if (direction == NavigateDirection_Parent)
             ++parentRequests;
-        return S_OK;
+        return application ? application->Navigate(direction, result) : S_OK;
     }
     HRESULT FragmentRoot(IRawElementProviderFragmentRoot** result) noexcept override
     {
+        if (application)
+            return application->FragmentRoot(result);
         *result = root;
         if (root)
             root->AddRef();
@@ -56,12 +60,16 @@ static void TestEmbeddedDisclosureAccessibility(GraphicsFixture& gpu)
     });
     view.Controls().SetRoot(std::move(controls));
     Hr(view.Prepare(720, 510, 144), "prepare disclosure");
-    auto site = std::make_shared<TestEmbeddedAccessibilitySite>();
+    EmbeddedUiaTest::Bridge bridge(view, 720u, 510u);
+    Check(bridge.valid, "disclosure application bridge");
+    auto site         = std::make_shared<TestEmbeddedAccessibilitySite>();
+    site->application = &bridge.Site();
     DxUi::EmbeddedAccessibilityPlacement placement{{0, 0, 720, 510}, true};
     Hr(view.AttachAccessibility(site, 0x2222, placement), "attach disclosure accessibility");
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> root;
     Hr(view.GetAccessibilityProvider(root.put()), "disclosure provider root");
     site->root = root.get();
+    bridge.BindViewRoot(root.get());
     wil::com_ptr_nothrow<IRawElementProviderFragment> headerProvider;
     Hr(root->ElementProviderFromPoint(36, 36, headerProvider.put()), "hit disclosure");
     Check(bool(headerProvider), "disclosure header is present");
@@ -83,6 +91,8 @@ static void TestEmbeddedDisclosureAccessibility(GraphicsFixture& gpu)
     Hr(view.UpdateAccessibility(placement), "publish collapsed disclosure");
     Hr(pattern->get_ExpandCollapseState(&state), "read published collapsed state");
     Check(state == ExpandCollapseState_Collapsed, "embedded collapsed state agrees");
+    bridge.BindViewRoot(nullptr);
+    site->root = nullptr;
     view.Detach();
     Check(pattern->Expand() == UIA_E_ELEMENTNOTAVAILABLE, "retained disclosure provider disconnects on detach");
 }
@@ -468,7 +478,10 @@ static void TestEmbeddedAccessibility(GraphicsFixture& gpu)
     EmbeddedScene scene;
     Hr(scene.Initialize(gpu.device.get(), {}, true), "UIA supplied-device scene");
     auto& view = scene.view;
-    auto site  = std::make_shared<TestEmbeddedAccessibilitySite>();
+    EmbeddedUiaTest::Bridge bridge(view, 720u, 510u);
+    Check(bridge.valid, "UIA application bridge");
+    auto site         = std::make_shared<TestEmbeddedAccessibilitySite>();
+    site->application = &bridge.Site();
     DxUi::EmbeddedAccessibilityPlacement placement{{-600, 150, 720, 510}, true};
     Check(view.AttachAccessibility(site, 1, placement) == S_FALSE, "UIA attachment waits for preparation");
     Hr(view.Prepare(720, 510, 144), "UIA 144-DPI preparation");
@@ -476,7 +489,8 @@ static void TestEmbeddedAccessibility(GraphicsFixture& gpu)
     Hr(view.AttachAccessibility(site, 0x1234567800000001ull, placement), "UIA virtual subtree attachment");
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> root;
     Hr(view.GetAccessibilityProvider(root.put()), "UIA canonical root");
-    site->root                   = root.get();
+    site->root = root.get();
+    bridge.BindViewRoot(root.get());
     const auto allocationsBefore = allocations;
     countAllocations             = true;
     bool clean                   = true;
@@ -510,11 +524,12 @@ static void TestEmbeddedAccessibility(GraphicsFixture& gpu)
     Check(! outside, "UIA point outside tile cannot hit a control");
     wil::com_ptr_nothrow<IRawElementProviderFragment> rootFragment, parent;
     Hr(root.query_to(rootFragment.put()), "UIA root fragment");
+    const auto parentRequestsBefore = site->parentRequests;
     Hr(rootFragment->Navigate(NavigateDirection_Parent, parent.put()), "UIA app parent navigation");
-    Check(site->parentRequests == 1, "UIA parent navigation uses application adapter");
+    Check(parent && site->parentRequests == parentRequestsBefore + 1u, "UIA parent navigation uses application adapter");
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> fragmentRoot;
     Hr(toggle->get_FragmentRoot(fragmentRoot.put()), "UIA application fragment root");
-    Check(fragmentRoot.get() == root.get(), "UIA fragment root preserves application identity");
+    Check(fragmentRoot.get() == bridge.ApplicationRoot(), "UIA fragment root preserves application identity");
     wil::com_ptr_nothrow<IToggleProvider> toggler;
     Hr(toggle.query_to(toggler.put()), "UIA Toggle pattern");
     ToggleState checked{};
@@ -618,6 +633,7 @@ static void TestEmbeddedAccessibility(GraphicsFixture& gpu)
     wil::com_ptr_nothrow<IRawElementProviderFragment> focused;
     Hr(root->GetFocus(focused.put()), "UIA focus after OS loss");
     Check(! focused, "logical field focus does not claim OS focus");
+    bridge.BindViewRoot(nullptr);
     site->root = nullptr;
     view.SetVisible(false);
     Check(toggler->Toggle() == UIA_E_ELEMENTNOTAVAILABLE && range->SetValue(20) == UIA_E_ELEMENTNOTAVAILABLE &&
@@ -630,6 +646,8 @@ static void TestEmbeddedAccessibility(GraphicsFixture& gpu)
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> nextRoot;
     Hr(view.GetAccessibilityProvider(nextRoot.put()), "UIA next root");
     Check(nextRoot.get() != root.get(), "reattachment uses a new canonical provider");
+    site->root = nextRoot.get();
+    bridge.BindViewRoot(nextRoot.get());
 
     wil::com_ptr_nothrow<IRawElementProviderFragment> oldControl;
     Hr(nextRoot->ElementProviderFromPoint(-240, 270, oldControl.put()), "UIA control before same-path replacement");
@@ -670,6 +688,8 @@ static void TestEmbeddedAccessibility(GraphicsFixture& gpu)
     replacement->SetVisible(false);
     Check(replacementToggle->Toggle() == UIA_E_ELEMENTNOTAVAILABLE && replacementCommands == 1,
           "hidden control is unavailable for activation from its old snapshot");
+    bridge.BindViewRoot(nullptr);
+    site->root = nullptr;
     view.Controls().SetRoot(std::make_unique<DxUi::Panel>());
     Check(nextRoot->GetFocus(focused.put()) == UIA_E_ELEMENTNOTAVAILABLE, "root replacement invalidates providers immediately");
     view.Detach();

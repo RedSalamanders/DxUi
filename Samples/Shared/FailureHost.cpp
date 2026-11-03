@@ -118,6 +118,59 @@ HRESULT Host::Uninstall() noexcept
 {
     return hooks_.Uninstall();
 }
+HRESULT Host::UninstallWhenIdle(DWORD timeoutMs, HRESULT (*cleanup)() noexcept) noexcept
+{
+    if (timeoutMs == INFINITE)
+        return E_INVALIDARG;
+    bool sawQuit            = false;
+    int quitCode            = 0;
+    const auto restoreQuit  = wil::scope_exit([&]() noexcept
+    {
+        if (sawQuit)
+            PostQuitMessage(quitCode);
+    });
+    const ULONGLONG started = GetTickCount64();
+    for (;;)
+    {
+        const HRESULT result = Uninstall();
+        if (result != HRESULT_FROM_WIN32(ERROR_BUSY))
+            return result;
+        const ULONGLONG elapsed = GetTickCount64() - started;
+        if (elapsed >= timeoutMs)
+            return HRESULT_FROM_WIN32(ERROR_TIMEOUT);
+        if (cleanup)
+        {
+            const HRESULT cleaned = cleanup();
+            if (FAILED(cleaned))
+                return cleaned;
+        }
+        // Shutdown only: give COM/UIA a bounded opportunity to complete its
+        // asynchronous releases. Never put a Failure::Scope around a message pump.
+        const ULONGLONG afterCleanup = GetTickCount64() - started;
+        if (afterCleanup >= timeoutMs)
+            return HRESULT_FROM_WIN32(ERROR_TIMEOUT);
+        const DWORD wait   = static_cast<DWORD>((std::min)(ULONGLONG{50u}, static_cast<ULONGLONG>(timeoutMs) - afterCleanup));
+        const DWORD waited = MsgWaitForMultipleObjectsEx(0u, nullptr, wait, QS_ALLINPUT, MWMO_INPUTAVAILABLE);
+        if (waited == WAIT_FAILED)
+            return LastError();
+        if (waited == WAIT_OBJECT_0)
+        {
+            MSG message{};
+            for (size_t count = 0u; count < 64u && PeekMessageW(&message, nullptr, 0u, 0u, PM_REMOVE); ++count)
+            {
+                if (message.message == WM_QUIT)
+                {
+                    if (! sawQuit)
+                        quitCode = static_cast<int>(message.wParam);
+                    sawQuit = true;
+                    continue;
+                }
+                TranslateMessage(&message);
+                DispatchMessageW(&message);
+            }
+        }
+    }
+}
 const DxUi::Failure::HostServices* Host::Services() const noexcept
 {
     return hooks_.Services();

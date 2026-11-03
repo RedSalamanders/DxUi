@@ -6,9 +6,20 @@ int wmain(int argc, wchar_t** argv)
         return child;
     if (FAILED(DxUiFailureTests::ConfigureFailureEvidence()) || FAILED(DxUiFailureTests::InstallFailureHost()))
         return 1;
-    const auto failureHost = wil::scope_exit([] { static_cast<void>(DxUiFailureTests::UninstallFailureHost()); });
     Hr(CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED), "COM apartment");
-    const auto com = wil::scope_exit([] { CoUninitialize(); });
+    const auto com         = wil::scope_exit([] { CoUninitialize(); });
+    const auto failureHost = wil::scope_exit([]
+    {
+        const HRESULT result = DxUiFailureTests::UninstallFailureHost();
+        if (FAILED(result))
+        {
+#if defined(DXUI_HAS_FAILURE_POLICY)
+            DxUi::Failure::FailContract(result);
+#else
+            Check(false, "retire the process-owned failure host");
+#endif
+        }
+    });
     if (argc == 3 && std::wstring_view(argv[1]) == L"--benchmark")
     {
 #if defined(DXUI_HAS_FAILURE_POLICY)

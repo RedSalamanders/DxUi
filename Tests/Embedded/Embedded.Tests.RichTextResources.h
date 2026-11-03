@@ -1276,11 +1276,12 @@ static void TestReadOnlyParsedSnapshotAllocationFailures(unsigned fatalScenario 
                     }
                     constexpr const wchar_t* children[] = {
                         L"embedded-typing-pair-allocation", L"embedded-typing-typography-allocation", L"embedded-typing-fence-allocation"};
-                    Check(DxUiFailureTests::ExpectFatalChild(children[policyScenario - 3u]), "typing policy allocation terminates in its owned child");
                     const auto expected = policy == TypingPolicy::Pair ? L"()" : policy == TypingPolicy::Typography ? L"\u2026" : L"```\r\n\r\n```";
                     const auto restored = policy == TypingPolicy::Typography ? L".." : L"";
                     Check(act() && editor->GetText() == expected && editor->Undo() && editor->GetText() == restored,
                           "typing-policy transaction commits and undoes atomically");
+                    // Child startup and dump verification must not split a timed typing sequence.
+                    Check(DxUiFailureTests::ExpectFatalChild(children[policyScenario - 3u]), "typing policy allocation terminates in its owned child");
                 }
             }
         }

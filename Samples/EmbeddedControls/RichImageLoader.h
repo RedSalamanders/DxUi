@@ -76,6 +76,15 @@ public:
         // cancellation and cannot call the view/editor or post after closure.
         // Closing the UI never joins a decoder or waits for a filesystem call.
     }
+#if DXUI_ENABLE_DIAGNOSTICS
+    // Borrowed handles must remain valid through final worker retirement.
+    void SetDecoderGateForTests(HANDLE entered, HANDLE release) noexcept
+    {
+        std::lock_guard lock(state_->mutex);
+        state_->decoderEntered = entered;
+        state_->decoderRelease = release;
+    }
+#endif
     HRESULT Submit(std::span<const DxUi::RichText::RichImageRequest> requests) noexcept
     {
         if (! state_)
@@ -188,6 +197,9 @@ private:
         std::size_t callbacks{};
         std::atomic_bool hasResults{false};
         bool active{}, closing{}, allowNetworkFiles{};
+#if DXUI_ENABLE_DIAGNOSTICS
+        HANDLE decoderEntered{}, decoderRelease{};
+#endif
         HWND window{};
         UINT message{};
         WPARAM cookie{};
@@ -231,6 +243,9 @@ private:
             for (;;)
             {
                 DxUi::RichText::RichImageRequest request;
+#if DXUI_ENABLE_DIAGNOSTICS
+                HANDLE decoderEntered{}, decoderRelease{};
+#endif
                 {
                     std::lock_guard lock(state.mutex);
                     if (state.closing || ! state.jobCount || state.resultCount == MaximumJobs || state.resultBytes > MaximumResultBytes - MaximumImageBytes)
@@ -239,6 +254,10 @@ private:
                         state.callbackLifetime.reset();
                         return;
                     }
+#if DXUI_ENABLE_DIAGNOSTICS
+                    decoderEntered = state.decoderEntered;
+                    decoderRelease = state.decoderRelease;
+#endif
                     request       = state.jobs[0u];
                     state.current = request;
                     for (std::size_t index = 1u; index < state.jobCount; ++index)
@@ -251,6 +270,17 @@ private:
                     state.current = {};
                     continue;
                 }
+#if DXUI_ENABLE_DIAGNOSTICS
+                // Test gate is outside the queue mutex, directly before real decode.
+                if (decoderEntered && decoderRelease && SUCCEEDED(factoryResult) && (state.allowNetworkFiles || ! request.FilePath().starts_with(L"\\\\")))
+                {
+                    if (! SetEvent(decoderEntered))
+                        DxUi::Failure::FailContract(HRESULT_FROM_WIN32(GetLastError()));
+                    const auto wait = WaitForSingleObject(decoderRelease, INFINITE);
+                    if (wait != WAIT_OBJECT_0)
+                        DxUi::Failure::FailContract(wait == WAIT_FAILED ? HRESULT_FROM_WIN32(GetLastError()) : E_UNEXPECTED);
+                }
+#endif
                 std::shared_ptr<const DxUi::RichText::RichImage> image;
                 const auto status = ! state.allowNetworkFiles && request.FilePath().starts_with(L"\\\\") ? E_ACCESSDENIED
                                     : SUCCEEDED(factoryResult)

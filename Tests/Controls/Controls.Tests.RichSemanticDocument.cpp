@@ -346,18 +346,11 @@ void TestRichMathPreparedStyleSpacingScriptsAndLimits()
         auto expression = std::make_shared<const MathExpression>(ParseMath(L"\\Big("));
         DxUi::RichText::Detail::PreparedMath failedMetrics(factory.get(), expression, 24.f);
         DxUi::RichText::Detail::testRichMathGlyphMetricsFailure = E_OUTOFMEMORY;
-        HRESULT failureCode                                     = S_OK;
-        try
-        {
-            while (! failedMetrics.Advance())
-            {
-            }
-        }
-        catch (const wil::ResultException& failure)
-        {
-            failureCode = failure.GetErrorCode();
-        }
-        Require(failureCode == E_OUTOFMEMORY && DxUi::RichText::Detail::testRichMathGlyphMetricsFailure == S_OK,
+        auto metricsResult                                      = failedMetrics.TryAdvance();
+        while (metricsResult == DxUi::RichText::Detail::PreparedMath::AdvanceResult::Pending)
+            metricsResult = failedMetrics.TryAdvance();
+        Require(metricsResult == DxUi::RichText::Detail::PreparedMath::AdvanceResult::Failed && failedMetrics.Result() == E_OUTOFMEMORY &&
+                    DxUi::RichText::Detail::testRichMathGlyphMetricsFailure == S_OK,
                 "font glyph metrics preserve transient allocation HRESULT instead of publishing fallback geometry");
         DxUi::RichText::Detail::PreparedMath recoveredMetrics(factory.get(), expression, 24.f);
         while (! recoveredMetrics.Advance())
@@ -379,18 +372,11 @@ void TestRichMathPreparedStyleSpacingScriptsAndLimits()
             auto indexExpression = std::make_shared<const MathExpression>(ParseMath(source));
             DxUi::RichText::Detail::PreparedMath failedIndex(factory.get(), indexExpression, 24.f);
             DxUi::RichText::Detail::testRichMathGlyphIndexFailure = E_OUTOFMEMORY;
-            HRESULT indexFailure                                  = S_OK;
-            try
-            {
-                while (! failedIndex.Advance())
-                {
-                }
-            }
-            catch (const wil::ResultException& failure)
-            {
-                indexFailure = failure.GetErrorCode();
-            }
-            Require(indexFailure == E_OUTOFMEMORY && DxUi::RichText::Detail::testRichMathGlyphIndexFailure == S_OK,
+            auto indexResult                                      = failedIndex.TryAdvance();
+            while (indexResult == DxUi::RichText::Detail::PreparedMath::AdvanceResult::Pending)
+                indexResult = failedIndex.TryAdvance();
+            Require(indexResult == DxUi::RichText::Detail::PreparedMath::AdvanceResult::Failed && failedIndex.Result() == E_OUTOFMEMORY &&
+                        DxUi::RichText::Detail::testRichMathGlyphIndexFailure == S_OK,
                     "italic correction and delimiter glyph-index failures preserve the transient HRESULT");
         }
 #endif
@@ -438,18 +424,11 @@ void TestRichMathPreparedStyleSpacingScriptsAndLimits()
                 DxUi::RichText::Detail::testRichMathGlyphMetricsFailure = E_OUTOFMEMORY;
             else
                 DxUi::RichText::Detail::testRichMathGlyphIndexFailure = E_OUTOFMEMORY;
-            HRESULT failureCode = S_OK;
-            try
-            {
-                while (! interrupted.Advance())
-                {
-                }
-            }
-            catch (const wil::ResultException& failure)
-            {
-                failureCode = failure.GetErrorCode();
-            }
-            Require(failureCode == E_OUTOFMEMORY, "horizontal font lookup preserves transient glyph failure for owner retry");
+            auto interruptedResult = interrupted.TryAdvance();
+            while (interruptedResult == DxUi::RichText::Detail::PreparedMath::AdvanceResult::Pending)
+                interruptedResult = interrupted.TryAdvance();
+            Require(interruptedResult == DxUi::RichText::Detail::PreparedMath::AdvanceResult::Failed && interrupted.Result() == E_OUTOFMEMORY,
+                    "horizontal font lookup preserves transient glyph failure for owner retry");
             DxUi::RichText::Detail::PreparedMath retry(factory.get(), accentExpression, 24.f);
             while (! retry.Advance())
             {

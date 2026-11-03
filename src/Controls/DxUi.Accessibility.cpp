@@ -985,12 +985,26 @@ constexpr size_t kAccessibilityRequestedGridRowLimit = 16u;
 
 struct AccessibilityPropertyRegistration final
 {
+    AccessibilityPropertyRegistration() noexcept                                           = default;
+    AccessibilityPropertyRegistration(const AccessibilityPropertyRegistration&)            = delete;
+    AccessibilityPropertyRegistration& operator=(const AccessibilityPropertyRegistration&) = delete;
+    AccessibilityPropertyRegistration(AccessibilityPropertyRegistration&&)                 = delete;
+    AccessibilityPropertyRegistration& operator=(AccessibilityPropertyRegistration&&)      = delete;
     wil::com_ptr_nothrow<IGlobalInterfaceTable> git;
     DWORD cookie = 0;
     ~AccessibilityPropertyRegistration() noexcept
     {
         if (git && cookie != 0)
-            static_cast<void>(git->RevokeInterfaceFromGlobal(cookie));
+        {
+            const HRESULT revoked = Failure::InvokeNative(
+                +[](IGlobalInterfaceTable* table, DWORD registration) -> HRESULT { return table->RevokeInterfaceFromGlobal(registration); }, git.get(), cookie);
+            // The final lease cannot report an error or abandon a live COM
+            // registration. A failed retirement must retain diagnostic context.
+            // Apartment shutdown may already have invalidated this cookie. The
+            // documented invalid-cookie result leaves no table entry to revoke.
+            if (FAILED(revoked) && revoked != E_INVALIDARG)
+                Failure::FailContract(revoked);
+        }
     }
 };
 
@@ -1182,8 +1196,7 @@ struct WindowHostAccessibilityTarget final
     wil::com_ptr_nothrow<IRawElementProviderSimple> structureNotificationProvider;
     // Embedded public providers belong to the owner's STA. Resolve a COM-marshalled proxy in the delivery
     // apartment; never pass the raw provider to a worker. The owner revokes the registration on disconnect.
-    wil::com_ptr_nothrow<IGlobalInterfaceTable> structureNotificationGit;
-    DWORD structureNotificationCookie = 0;
+    std::shared_ptr<AccessibilityPropertyRegistration> structureNotificationRegistration;
     std::shared_ptr<const AccessibilitySnapshot> structureNotificationSnapshot;
     wil::unique_threadpool_work_nowait structureNotificationWork;
 };
@@ -6311,6 +6324,11 @@ private:
     }
     const bool cachedGone = cached && ! target->embedded && static_cast<AccessibilityProvider*>(cached.get())->IsElementGone();
     const std::scoped_lock accessibilityLock(target->providerMutex);
+    // Retirement clears host before taking this cache lock. A query that held
+    // an earlier live snapshot must not recreate a target/root ownership cycle
+    // after the owner moved the canonical provider out for disconnection.
+    if (! target->host.load(std::memory_order_acquire) || (target->embedded && target->rootLifetime.expired()))
+        return root;
     // A cached root that stood for a control no longer collapsed into the window is gone for the clients that hold it; a
     // newly acquiring client gets a fresh root, which stands for what the window shows now.
     if (cachedGone && target->rootProvider.get() == cached.get())
@@ -9172,8 +9190,6 @@ HRESULT AccessibilityProvider::get_HostRawElementProvider(IRawElementProviderSim
     if (outProvider)
         *outProvider = nullptr;
 
-    if (! CaptureSnapshot())
-        return UIA_E_ELEMENTNOTAVAILABLE;
     if (! outProvider)
     {
         return E_POINTER;
@@ -9186,6 +9202,8 @@ HRESULT AccessibilityProvider::get_HostRawElementProvider(IRawElementProviderSim
     }
     if (_target && _target->embedded)
         return S_OK;
+    if (! CaptureSnapshot())
+        return UIA_E_ELEMENTNOTAVAILABLE;
     return InvokeNativeUia(UiaHostProviderFromHwnd, _hwnd, outProvider);
 }
 
@@ -9273,10 +9291,7 @@ HRESULT AccessibilityProvider::GetRuntimeId(SAFEARRAY** outRuntimeId) noexcept
     {
         if (! outRuntimeId)
             return E_POINTER;
-        *outRuntimeId       = nullptr;
-        const auto snapshot = CaptureSnapshot();
-        if (! snapshot)
-            return UIA_E_ELEMENTNOTAVAILABLE;
+        *outRuntimeId = nullptr;
         RuntimeIdValueBuffer values{};
         size_t count = 0;
         if (! (AppendRuntimeIdValue(values, count, UiaAppendRuntimeId) && AppendRuntimeIdValue(values, count, static_cast<LONG>(_target->runtimeId)) &&
@@ -9295,21 +9310,16 @@ HRESULT AccessibilityProvider::GetRuntimeId(SAFEARRAY** outRuntimeId) noexcept
         }
         if (_kind != AccessibilityFragmentKind::Root)
         {
-            // Event senders retain a weak control identity, without a complete creation snapshot.
-            // CaptureSnapshot already checked that this is still the same published control.
+            // Identity outlives the element. UIA still queries it while releasing
+            // a retired event sender; no current snapshot or control is needed.
             if (_identity.value == 0u || ! AppendRuntimeIdValue(values, count, static_cast<LONG>(_identity.value)) ||
                 ! AppendRuntimeIdValue(values, count, static_cast<LONG>(_identity.value >> 32)))
                 return E_INVALIDARG;
         }
         return BuildRuntimeId(outRuntimeId, std::span<const LONG>(values.data(), count));
     }
-    // An element whose control is gone has no runtime id either, as it answers nothing else.
-    if (_target && ! CaptureSnapshot())
-    {
-        if (outRuntimeId)
-            *outRuntimeId = nullptr;
-        return UIA_E_ELEMENTNOTAVAILABLE;
-    }
+    // Immutable identity remains available for UIA's provider retirement. State,
+    // navigation and actions still refuse a retired element through CaptureSnapshot.
     if (_kind == AccessibilityFragmentKind::Root)
     {
         return SetRuntimeId(outRuntimeId, _hwnd, nullptr);
@@ -13967,8 +13977,7 @@ void CALLBACK DeliverAccessibilityNotifications(PTP_CALLBACK_INSTANCE instance, 
             CoUninitialize();
     });
     wil::com_ptr_nothrow<IRawElementProviderSimple> root;
-    wil::com_ptr_nothrow<IGlobalInterfaceTable> git;
-    DWORD cookie = 0;
+    std::shared_ptr<AccessibilityPropertyRegistration> structureRegistration;
     std::shared_ptr<const AccessibilitySnapshot> snapshot;
     std::vector<AccessibilityPendingProperty> properties;
     bool invalidateStructure = false;
@@ -13977,8 +13986,7 @@ void CALLBACK DeliverAccessibilityNotifications(PTP_CALLBACK_INSTANCE instance, 
         target->structureNotificationPending = false;
         root                                 = std::move(target->structureNotificationProvider);
         snapshot                             = std::move(target->structureNotificationSnapshot);
-        git                                  = target->structureNotificationGit;
-        cookie                               = target->structureNotificationCookie;
+        structureRegistration                = target->structureNotificationRegistration;
         properties                           = std::move(target->pendingProperties);
         invalidateStructure                  = std::exchange(target->structureInvalidationPending, false);
     }
@@ -13986,8 +13994,8 @@ void CALLBACK DeliverAccessibilityNotifications(PTP_CALLBACK_INSTANCE instance, 
     {
         if (target->embedded && ! properties.empty())
             HoldAccessibilityPropertyDeliveryForTest(target->host.load(std::memory_order_acquire));
-        if (git && cookie != 0)
-            static_cast<void>(git->GetInterfaceFromGlobal(cookie, IID_PPV_ARGS(root.put())));
+        if (structureRegistration && target->host.load(std::memory_order_acquire))
+            static_cast<void>(structureRegistration->git->GetInterfaceFromGlobal(structureRegistration->cookie, IID_PPV_ARGS(root.put())));
         bool alive = false;
         {
             const auto current = target->snapshot.load(std::memory_order_acquire);
@@ -14031,7 +14039,9 @@ void CALLBACK DeliverAccessibilityNotifications(PTP_CALLBACK_INSTANCE instance, 
     {
         Debug::Error(L"DxUi: structure notification COM initialization failed ({:08X})", initialized);
     }
-    // Revoke completed registrations outside the slot lock, while this delivery apartment is initialized.
+    // Release proxies before their registrations, while the delivery apartment is initialized.
+    root.reset();
+    structureRegistration.reset();
     properties.clear();
     {
         const std::scoped_lock lock(target->structureNotificationMutex);
@@ -14053,26 +14063,33 @@ void CALLBACK DeliverAccessibilityNotifications(PTP_CALLBACK_INSTANCE instance, 
 
 void QueueStructureInvalidation(WindowHostAccessibilityTarget& target) noexcept
 {
-    // Registration occurs on the provider's STA. The GIT is itself agile; delivery resolves a valid proxy on
-    // its MTA. Neither provider calls nor UIA/client delivery occur while the notification slot is locked.
-    wil::com_ptr_nothrow<IGlobalInterfaceTable> git;
-    DWORD cookie = 0;
-    if (target.embedded && ! target.structureNotificationGit)
+    const Failure::Scope failureScope;
+    // Registration can reenter and disconnect. Keep the canonical root alive
+    // across COM calls, then validate the attachment under the slot lock.
+    std::shared_ptr<AccessibilityPropertyRegistration> registration;
+    if (target.embedded)
     {
-        HRESULT result = CoCreateInstance(CLSID_StdGlobalInterfaceTable, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(git.put()));
-        if (SUCCEEDED(result))
-            result = git->RegisterInterfaceInGlobal(target.rootProvider.get(), __uuidof(IRawElementProviderSimple), &cookie);
-        if (FAILED(result))
         {
-            Debug::Error(L"DxUi: embedded structure notification marshalling failed ({:08X})", result);
-            return; // No synchronous fallback. A later explicit semantic publication may retry.
+            const std::scoped_lock lock(target.structureNotificationMutex);
+            registration = target.structureNotificationRegistration;
+        }
+        if (! registration)
+        {
+            const auto root = AcquireCanonicalRootProvider(&target);
+            wil::com_ptr_nothrow<IRawElementProviderSimple> strongRoot;
+            if (! root || FAILED(root.query_to(strongRoot.put())))
+                return;
+            registration   = std::make_shared<AccessibilityPropertyRegistration>();
+            HRESULT result = CoCreateInstance(CLSID_StdGlobalInterfaceTable, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(registration->git.put()));
+            if (SUCCEEDED(result))
+                result = registration->git->RegisterInterfaceInGlobal(strongRoot.get(), __uuidof(IRawElementProviderSimple), &registration->cookie);
+            if (FAILED(result))
+            {
+                Debug::Error(L"DxUi: embedded structure notification marshalling failed ({:08X})", result);
+                return;
+            }
         }
     }
-    const auto revokeUnused = wil::scope_exit([&]() noexcept
-    {
-        if (cookie != 0)
-            static_cast<void>(git->RevokeInterfaceFromGlobal(cookie));
-    });
     wil::com_ptr_nothrow<IRawElementProviderSimple> nativeRoot;
     if (! target.embedded)
     {
@@ -14081,6 +14098,9 @@ void QueueStructureInvalidation(WindowHostAccessibilityTarget& target) noexcept
             return;
     }
     const std::scoped_lock lock(target.structureNotificationMutex);
+    const auto current = target.snapshot.load(std::memory_order_acquire);
+    if (! target.host.load(std::memory_order_acquire) || ! current || ! current->alive || (target.embedded && target.rootLifetime.expired()))
+        return;
     if (! target.structureNotificationWork)
     {
         target.structureNotificationWork.reset(CreateThreadpoolWork(DeliverAccessibilityNotifications, &target, nullptr));
@@ -14090,14 +14110,11 @@ void QueueStructureInvalidation(WindowHostAccessibilityTarget& target) noexcept
             return;
         }
     }
-    if (git)
-    {
-        target.structureNotificationGit    = std::move(git);
-        target.structureNotificationCookie = std::exchange(cookie, 0);
-    }
+    if (target.embedded && ! target.structureNotificationRegistration)
+        target.structureNotificationRegistration = registration;
     if (! target.embedded)
         target.structureNotificationProvider = std::move(nativeRoot);
-    target.structureNotificationSnapshot = target.embedded ? nullptr : target.snapshot.load(std::memory_order_acquire);
+    target.structureNotificationSnapshot = target.embedded ? nullptr : current;
     target.structureInvalidationPending  = true;
     target.structureNotificationPending  = true;
     if (! target.structureNotificationScheduled)
@@ -14107,7 +14124,6 @@ void QueueStructureInvalidation(WindowHostAccessibilityTarget& target) noexcept
         SubmitThreadpoolWork(target.structureNotificationWork.get());
     }
 }
-
 void QueueEmbeddedPropertyChange(WindowHostAccessibilityTarget& target,
                                  const AccessibilityControlNavigationSnapshot& record,
                                  IRawElementProviderSimple* provider,
@@ -14680,13 +14696,15 @@ void EmbeddedHost::DisconnectAccessibility() noexcept
     auto* target = static_cast<WindowHostAccessibilityTarget*>(EmbeddedAccessibilityAccess::Target(_host));
     if (! target || target->threadId != GetCurrentThreadId())
         return;
+    const Failure::Scope failureScope;
     EmbeddedAccessibilityAccess::Target(_host) = nullptr;
     target->embeddedOwner                      = nullptr;
     target->host.store(nullptr, std::memory_order_release);
     target->snapshot.store(nullptr, std::memory_order_release);
+    target->eventBaseline.reset();
+    target->diffBaseline.reset();
     target->site.reset();
-    wil::com_ptr_nothrow<IGlobalInterfaceTable> git;
-    DWORD cookie = 0;
+    std::shared_ptr<AccessibilityPropertyRegistration> structureRegistration;
     std::vector<AccessibilityPendingProperty> properties;
     {
         const std::scoped_lock lock(target->structureNotificationMutex);
@@ -14694,11 +14712,9 @@ void EmbeddedHost::DisconnectAccessibility() noexcept
         target->structureInvalidationPending = false;
         properties                           = std::move(target->pendingProperties);
         target->structureNotificationSnapshot.reset();
-        git    = std::move(target->structureNotificationGit);
-        cookie = std::exchange(target->structureNotificationCookie, 0);
+        structureRegistration = std::move(target->structureNotificationRegistration);
     }
-    if (git && cookie != 0)
-        static_cast<void>(git->RevokeInterfaceFromGlobal(cookie));
+    structureRegistration.reset(); // In-flight delivery retains its own registration lease.
     wil::com_ptr_nothrow<IRawElementProviderSimple> provider;
     {
         const std::scoped_lock cacheLock(target->providerMutex);

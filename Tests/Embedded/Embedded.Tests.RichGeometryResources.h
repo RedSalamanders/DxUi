@@ -534,9 +534,10 @@ __declspec(noinline) static void RichSourceGuideFaultOrigin(DxUi::RichText::Deta
     DxUi::Failure::Scope scope;
     failAllocationAfter = 0u;
     guides.Begin(source.Snapshot(), 2u, geometry.Generation(), true, true, options, 44.0f);
-    while (! guides.Advance(factory, geometry))
-    {
-    }
+    HRESULT result = guides.Advance(factory, geometry);
+    while (result == S_FALSE)
+        result = guides.Advance(factory, geometry);
+    Check(result == S_OK, "source guide fatal fixture completes checked native preparation");
 }
 static void TestSourceGuideAllocationAtomicity(bool fatalChild = false)
 {
@@ -552,9 +553,14 @@ static void TestSourceGuideAllocationAtomicity(bool fatalChild = false)
         static_cast<void>(geometry.AdvancePreparation());
     const auto finish = [&](RichSourceGuides& guides)
     {
-        while (! guides.Advance(factory.get(), geometry))
+        HRESULT result = guides.Advance(factory.get(), geometry);
+        unsigned turns{};
+        while (result == S_FALSE)
         {
+            Check(++turns <= 128u, "source guides finish within the bounded fixture work budget");
+            result = guides.Advance(factory.get(), geometry);
         }
+        Check(result == S_OK, "source guides complete checked native preparation");
     };
     const auto seed = [&]
     {

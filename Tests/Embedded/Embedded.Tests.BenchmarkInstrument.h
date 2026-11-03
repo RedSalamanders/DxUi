@@ -29,6 +29,7 @@ static thread_local ptrdiff_t liveBytes    = 0;
 // for canonical benchmarks and all earlier live-storage measurements.
 static thread_local ptrdiff_t* liveBytesPeak = nullptr;
 #if defined(DXUI_HAS_CHECKED_CONTROL_ALLOCATION)
+#include "Support/Diagnostics.h"
 // API 5 puts control-object storage on a checked native heap. Include that same
 // allocation domain so a move away from operator new cannot hide bytes or calls.
 static void ObserveNativeControlAllocation(const DxUi::Diagnostics::NativeAllocationRecord& record) noexcept

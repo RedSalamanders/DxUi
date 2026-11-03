@@ -26,13 +26,13 @@ __declspec(noinline) void RetiredProjectionTextOrigin()
                                               RetiredProjectionBlocksOrigin,
                                               DxUiFailureTests::FatalFaultClass::ContractViolation,
                                               true,
-                                              static_cast<std::uint32_t>(E_INVALIDARG)}) &&
+                                              static_cast<std::uint32_t>(E_UNEXPECTED)}) &&
     DxUiFailureTests::RegisterFatalChildCase({L"projection-retired-text",
                                               "RetiredProjectionTextOrigin",
                                               RetiredProjectionTextOrigin,
                                               DxUiFailureTests::FatalFaultClass::ContractViolation,
                                               true,
-                                              static_cast<std::uint32_t>(E_INVALIDARG)});
+                                              static_cast<std::uint32_t>(E_UNEXPECTED)});
 void CheckPreparedProjection(const DxUi::RichText::Document& document, const DxUi::RichText::PreparedProjection& prepared, DxUi::RichText::ViewMode mode)
 {
     using namespace DxUi::RichText;

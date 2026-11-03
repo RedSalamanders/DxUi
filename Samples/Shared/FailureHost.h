@@ -24,6 +24,10 @@ public:
     [[nodiscard]] HRESULT StartBesideExecutable() noexcept;
     [[nodiscard]] HRESULT Install() noexcept;
     [[nodiscard]] HRESULT Uninstall() noexcept;
+    // Application shutdown only, after stopping new work and retiring every view,
+    // client, worker and DLL. May dispatch owner messages while UIA releases peers.
+    // Optional process-owner cleanup may repeat while native releases are in flight.
+    [[nodiscard]] HRESULT UninstallWhenIdle(DWORD timeoutMs = 5000u, HRESULT (*cleanup)() noexcept = nullptr) noexcept;
     [[nodiscard]] const DxUi::Failure::HostServices* Services() const noexcept;
     // Reuse this prestarted writer behind an application-provided reporter.
     [[nodiscard]] HRESULT ReportRecord(const DxUi::Failure::Record& record) noexcept;

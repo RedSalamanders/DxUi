@@ -159,6 +159,120 @@ void AnimationTickFailureChild()
 }
 [[maybe_unused]] const bool animationFailureChildRegistered = DxUiFailureTests::RegisterFatalChildCase(
     {L"animation-tick-callback", "AnimationTickFailureOrigin", AnimationTickFailureChild, DxUiFailureTests::FatalFaultClass::CppException, false});
+std::atomic<unsigned> directCallbackMarker{};
+[[noreturn]] __declspec(noinline) void DirectButtonCallbackOrigin(const std::runtime_error& error)
+{
+    directCallbackMarker.store(41u, std::memory_order_relaxed);
+    throw error;
+}
+[[noreturn]] __declspec(noinline) void DirectComboCallbackOrigin(const std::runtime_error& error)
+{
+    directCallbackMarker.store(42u, std::memory_order_relaxed);
+    throw error;
+}
+[[noreturn]] __declspec(noinline) void DirectBaseContextOrigin(const std::runtime_error& error)
+{
+    directCallbackMarker.store(43u, std::memory_order_relaxed);
+    throw error;
+}
+[[noreturn]] __declspec(noinline) void DirectForwardedMouseOrigin(const std::runtime_error& error)
+{
+    directCallbackMarker.store(44u, std::memory_order_relaxed);
+    throw error;
+}
+class DirectMouseControl final : public DxUi::Button
+{
+public:
+    explicit DirectMouseControl(const std::runtime_error& error) : _error(error)
+    {
+    }
+    DirectMouseControl(const DirectMouseControl&)            = delete;
+    DirectMouseControl& operator=(const DirectMouseControl&) = delete;
+    bool OnMouseDown(DxUi::ControlHost&, D2D1_POINT_2F, bool, UINT) override
+    {
+        DirectForwardedMouseOrigin(_error);
+    }
+
+private:
+    const std::runtime_error& _error;
+};
+void DirectButtonCallbackChild()
+{
+    std::optional<std::runtime_error> error;
+    std::optional<DxUi::ControlHost> host;
+    std::optional<DxUi::Button> button;
+    {
+        const DxUi::Failure::Scope setupScope;
+        error.emplace("direct button callback");
+        host.emplace();
+        button.emplace(L"direct");
+        button.value().SetOnClick([&] { DirectButtonCallbackOrigin(error.value()); });
+    }
+    static_cast<void>(button.value().Invoke(host.value(), false));
+}
+void DirectComboCallbackChild()
+{
+    std::optional<std::runtime_error> error;
+    std::optional<DxUi::ComboBox> combo;
+    std::wstring text;
+    {
+        const DxUi::Failure::Scope setupScope;
+        error.emplace("direct combo callback");
+        combo.emplace();
+        combo.value().SetOnTextChanged([&](std::wstring_view) { DirectComboCallbackOrigin(error.value()); });
+        text.assign(L"direct callback");
+    }
+    combo.value().SetTextAndNotify(std::move(text));
+}
+void DirectBaseContextChild()
+{
+    std::optional<std::runtime_error> error;
+    std::optional<DxUi::ControlHost> host;
+    std::optional<DxUi::Button> button;
+    {
+        const DxUi::Failure::Scope setupScope;
+        error.emplace("direct base context");
+        host.emplace();
+        button.emplace(L"direct");
+        button.value().SetOnContextMenu([&](POINT, bool) { DirectBaseContextOrigin(error.value()); });
+    }
+    static_cast<void>(button.value().DxUi::Control::OnContextMenu(host.value(), true, D2D1::Point2F()));
+}
+void DirectMouseChild(bool triple)
+{
+    std::optional<std::runtime_error> error;
+    std::optional<DxUi::ControlHost> host;
+    std::optional<DirectMouseControl> button;
+    {
+        const DxUi::Failure::Scope setupScope;
+        error.emplace("direct forwarded mouse");
+        host.emplace();
+        button.emplace(error.value());
+    }
+    if (triple)
+        static_cast<void>(button.value().DxUi::Control::OnMouseTripleClick(host.value(), D2D1::Point2F(), false, 0));
+    else
+        static_cast<void>(button.value().DxUi::Control::OnMouseDoubleClick(host.value(), D2D1::Point2F(), false, 0));
+}
+void DirectDoubleClickChild()
+{
+    DirectMouseChild(false);
+}
+void DirectTripleClickChild()
+{
+    DirectMouseChild(true);
+}
+[[maybe_unused]] const bool directCallbackChildrenRegistered =
+    DxUiFailureTests::RegisterFatalChildCase(
+        {L"direct-button-callback", "DirectButtonCallbackOrigin", DirectButtonCallbackChild, DxUiFailureTests::FatalFaultClass::CppException, false}) &&
+    DxUiFailureTests::RegisterFatalChildCase(
+        {L"direct-combo-callback", "DirectComboCallbackOrigin", DirectComboCallbackChild, DxUiFailureTests::FatalFaultClass::CppException, false}) &&
+    DxUiFailureTests::RegisterFatalChildCase(
+        {L"direct-base-context", "DirectBaseContextOrigin", DirectBaseContextChild, DxUiFailureTests::FatalFaultClass::CppException, false}) &&
+    DxUiFailureTests::RegisterFatalChildCase(
+        {L"direct-double-click", "DirectForwardedMouseOrigin", DirectDoubleClickChild, DxUiFailureTests::FatalFaultClass::CppException, false}) &&
+    DxUiFailureTests::RegisterFatalChildCase(
+        {L"direct-triple-click", "DirectForwardedMouseOrigin", DirectTripleClickChild, DxUiFailureTests::FatalFaultClass::CppException, false});
 } // namespace
 
 // N-14 and Q14 of the 10 October review: a Button's hover stamped system uptime while an embedded view's ticks carried the
@@ -488,6 +602,11 @@ void TestEmbeddedAnimationClockContinuesAcrossAttachments()
 void TestNativeAnimationClockIsTheDispatcherTimeline()
 {
     Require(DxUiFailureTests::ExpectFatalChild(L"animation-tick-callback"), "animation callback fails at its origin");
+    Require(DxUiFailureTests::ExpectFatalChild(L"direct-button-callback"), "direct button callback fails at its origin");
+    Require(DxUiFailureTests::ExpectFatalChild(L"direct-combo-callback"), "direct combo callback fails at its origin");
+    Require(DxUiFailureTests::ExpectFatalChild(L"direct-base-context"), "base context callback fails at its origin");
+    Require(DxUiFailureTests::ExpectFatalChild(L"direct-double-click"), "double-click forwarding fails at its origin");
+    Require(DxUiFailureTests::ExpectFatalChild(L"direct-triple-click"), "triple-click forwarding fails at its origin");
     using namespace DxUi;
     auto& dispatcher = Ui::AnimationDispatcher::GetInstance();
     WindowHost host;

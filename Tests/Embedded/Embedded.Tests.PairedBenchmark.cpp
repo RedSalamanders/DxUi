@@ -8,6 +8,7 @@
 #include "Embedded.Tests.BenchmarkInstrument.h"
 #include "Support/Diagnostics.h"
 #include <DxUi/Embedded.h>
+#include <UIAutomation.h>
 #include <cstdio>
 #include <cstdlib>
 #include <iostream>
@@ -53,7 +54,11 @@ inline HRESULT InstallFailureHost() noexcept
 }
 inline HRESULT UninstallFailureHost() noexcept
 {
-    return host.Uninstall();
+    // This benchmark owns its process; all measured views have already retired.
+    const auto disconnected = DxUi::Failure::InvokeNative(UiaDisconnectAllProviders);
+    if (FAILED(disconnected))
+        return disconnected;
+    return host.UninstallWhenIdle(5000u, +[]() noexcept { return DxUi::Failure::InvokeNative(UiaDisconnectAllProviders); });
 }
 } // namespace DxUiFailureTests
 #else
