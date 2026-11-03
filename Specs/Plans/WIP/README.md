@@ -3,8 +3,6 @@
 One entry per plan, separated by a blank line, so that changes to different plans merge without conflicts.
 Status labels and current plan status lines follow [the specification authority](../../README.md#specification-authority).
 
-- **ACTIVE**: [Diagram spacing and task presentation](DiagramSpacingAndTaskPresentation_2026-11-03.md). Correct label-aware arrow corridors and text insets; theme task markers and adopt an optional completed-task strike-through setting in RedTilde.
-
 - **ACTIVE**: [Complete Update-stage metric accounting](FrameUpdateAccounting_2026-10-26.md). PR #112 and combined SDK702 pass all six hosted native profiles; FrameUpdate source/tests remain byte-identical to the AEB checkpoint. The earlier PR109 Release Menu-fixture failure remains historical and unattributed. Performance acceptance remains open; earlier SDK407 diagnostics retain their incomplete Update-field boundary.
 
 - **ACTIVE**: [Library qualification and consumer adoption](ConsumerUiQualification_2026-10-11.md). The current delivery packet records source-specific native, SDK, compatibility and measurement results. Native ARM64 execution is user-deferred; independent performance-policy, physical input, hosted and real-consumer acceptance remain open in this ledger.

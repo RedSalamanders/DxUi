@@ -1,5 +1,7 @@
 # Completed plans
 
+- [Diagram spacing and task presentation](DiagramSpacingAndTaskPresentation_2026-11-03.md) — measured label corridors, table/code insets, theme task markers and optional completed-task strike-through. Exact-pin x64 Release library/consumer checks and hidden capture review are complete; broader qualification and publication retain their owners.
+
 - [Mermaid and shared Markdown display corrections](MermaidDisplayCorrections_2026-11-03.md) — styled labels, relationship fans, task/code ink, bounded sequence expansion and readable default diagram structure. Exact-pin Release library/consumer validation and hidden capture review are closed; broader platform, physical/foreground, performance and publication gates retain their owners.
 
 - [CI run scope](CiRunScope_2026-10-04.md) — archived historical implementation; the former hosted native-PR observation is superseded by unified CI, not claimed as passed.

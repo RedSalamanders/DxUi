@@ -1,5 +1,300 @@
 {
-  "status": "IN_PROGRESS",
+  "status": "SCOPED_IMPLEMENTATION_AND_CONSUMER_VALIDATION_PASSED",
+  "artifacts": [
+    {
+      "file": "DxUi.lib",
+      "sha256": "7B7829B11B6D4E77A752B3E16126DAAC3690F965820CF0B188E516BDC54AE3E2"
+    },
+    {
+      "file": "DxUi.ControlTests.exe",
+      "sha256": "A0667D9B1E5111425299C5F7B1D4E85340C9B659417838EC8D5E50B9A9094A2D"
+    },
+    {
+      "file": "DxUi.EmbeddedTests.exe",
+      "sha256": "1348CC62CA1531EA2D75050D30B7D0845FC291E2926BF8E451AA8C12FC7DCB48"
+    }
+  ],
+  "nativeBuild": {
+    "buildLogSha256": "5D1BC7DB63E25CACBCB0A78E50ABDB093DB4E4FAA09141E3A03B7D38828729DB",
+    "platform": "x64",
+    "configuration": "Release",
+    "warnings": 0,
+    "qualificationLocation": "Clean independent checkout in the approved C workspace",
+    "errors": 0,
+    "canonicalDProfile": "D checkout Release outputs were retired after the preserved failed link. Accepted native artifacts are retained in the clean independent C checkout; no runnable D checkout profile is claimed."
+  },
   "beforeCommit": "2e775e8d81ff415587a4d885366566ed89df655f",
-  "qualification": "Focused implementation validation pending; broader qualification remains separate."
+  "implementationCommit": "703a96c788a79c1e7b28097226a2ca0a735f11bc",
+  "apiRevision": 4,
+  "nativeRun": {
+    "passed": 19,
+    "id": "20261103T170321618Z-7736-f4ea1e89ad6049ccbcca71e41c662b8c",
+    "capabilitySkips": 0,
+    "reports": [
+      {
+        "report": "Accessibility-x64-Release.json",
+        "suite": "Accessibility",
+        "sha256": "CCD62C98F17F6F2C685D3EF83EF57CB9C6DDFF9DB15B37288D9BB8E996E16B84"
+      },
+      {
+        "report": "Animation-x64-Release.json",
+        "suite": "Animation",
+        "sha256": "2D828D820537C6EECE8ABCDD9B0E150EA238E99C8AB92AD284C7319A8BC2B65C"
+      },
+      {
+        "report": "ComboBox-x64-Release.json",
+        "suite": "ComboBox",
+        "sha256": "39FC6A8FFA6D74D8F96B2D6F82048C2BFC8DE9704D45317987D1D17830545230"
+      },
+      {
+        "report": "Control-x64-Release.json",
+        "suite": "Control",
+        "sha256": "50833CBBC4D7B82F239D8F6EC88CCF1C0F0F420EC0FE69362812F8361DC674CB"
+      },
+      {
+        "report": "EditorControls-x64-Release.json",
+        "suite": "EditorControls",
+        "sha256": "46D7A402EE6FA0ED1765950B7EA015BFF8A11976CA01C370FF328118B0C2725A"
+      },
+      {
+        "report": "Embedded-x64-Release.json",
+        "suite": "Embedded",
+        "sha256": "750F0A1E7BE05781441C0E369866610ADF31C3DB60908110B44E502EE6B05951"
+      },
+      {
+        "report": "Foundation-x64-Release.json",
+        "suite": "Foundation",
+        "sha256": "012189254875876AFCEFA7E2CFA50425F90ABF68BF21D8AD0AD0ED3346FB84FC"
+      },
+      {
+        "report": "Grid-x64-Release.json",
+        "suite": "Grid",
+        "sha256": "D9A58B8B76E0254255FAA0790456ABAB880F22CACAE27B8D1CE3F66CEE65E844"
+      },
+      {
+        "report": "InteractiveLease-x64-Release.json",
+        "suite": "InteractiveLease",
+        "sha256": "6BE7B9F7D2C979DA5A9C6A69F8971A0CB3610F14F39E2C70D8A8EDE73600E0D2"
+      },
+      {
+        "report": "MenuExitLifetime-x64-Release.json",
+        "suite": "MenuExitLifetime",
+        "sha256": "1F6B35CDF0BB071F08302162BC7EA385B392A5063A5E4D07F921AC338A4A9549"
+      },
+      {
+        "report": "MultilineText-x64-Release.json",
+        "suite": "MultilineText",
+        "sha256": "E830C570AB51B1EA43F72C7B54886B81B7633DF78914EC0E52B24C635053ADD0"
+      },
+      {
+        "report": "NewControls-x64-Release.json",
+        "suite": "NewControls",
+        "sha256": "9BD5E61857629AD5788464E2F8F45F5A92F7269784D20C027722C5E577A24A95"
+      },
+      {
+        "report": "ReadOnly-x64-Release.json",
+        "suite": "ReadOnly",
+        "sha256": "7674424DF9BE7B908F01D9F8CD741C28128333FA2DF241CAFDD3E4C03C707123"
+      },
+      {
+        "report": "Rendering-x64-Release.json",
+        "suite": "Rendering",
+        "sha256": "F713BF03CB707C2929D1B127D48F94FAD05529851F24B1ABC317AB13D3ED93B4"
+      },
+      {
+        "report": "TextField-x64-Release.json",
+        "suite": "TextField",
+        "sha256": "960FAEA22A3C1A58724E398DB2072BC755D904A949C81ADC159C7AFAB697E909"
+      },
+      {
+        "report": "Theme-x64-Release.json",
+        "suite": "Theme",
+        "sha256": "7FE1E7D17852EC7A3FB90BC357A72EA9F03151E835C812A41304AC2A5BF13BBE"
+      },
+      {
+        "report": "Tooltip-x64-Release.json",
+        "suite": "Tooltip",
+        "sha256": "300753F99F4B6505890876DBEFD7C0FB7CD5AA05FDF632C4A47D005B7B862586"
+      },
+      {
+        "report": "Tree-x64-Release.json",
+        "suite": "Tree",
+        "sha256": "BA5C82D2FE0187A73FD066AB19966826CA8B69F0B8090A2C8D87D972D1640DE0"
+      },
+      {
+        "report": "WindowHost-x64-Release.json",
+        "suite": "WindowHost",
+        "sha256": "44863F14A94320A677B91576507E0A6B4F5C25ADB49C31445AA1AF782097BB57"
+      }
+    ]
+  },
+  "performance": {
+    "comparison": "unpaired",
+    "accepted": false,
+    "boundary": "Functional geometry/raster and resource checks do not establish total-cost or matched-performance acceptance."
+  },
+  "firstFailures": {
+    "retained": true,
+    "failedSuites": [
+      "Embedded",
+      "EditorControls"
+    ],
+    "buildEnvironment": "D volume exhaustion during compiler/linker output; raw logs, native outputs and intermediates retained with hashes",
+    "toolingEnvironment": "Preserved concurrent-build helper deadline and D-space failures. The isolated full C run passed 24 tooling scripts and five validators; six follow-ups required shorter paths and the pinned CI engine. A restricted canonical run then refused fixture junctions/Git shell namespaces. Final focused passes use the short canonical path, the complete engine, and explicit local filesystem-fixture permissions; Docs also passed 34/34 in the short independent checkout. No failed full-run receipt is relabeled.",
+    "sameObsoleteOracle": "labeled pairs retain the exterior label lane",
+    "productionPreflightRegression": "Dense two-by-two joins require separate exterior label lanes",
+    "nativeRun": "20261103T160259676Z-58956-652643a18f154160a1a5ef3d72853ca8"
+  },
+  "toolingValidation": {
+    "recoveries": [
+      {
+        "sha256": "D530160638993BDBF20C4EFD6FF0C6AD6CC8B9B37F51773354B19618D5E05331",
+        "log": ".build/layout-padding-tasks-20261103/final-short-root-tooling.log",
+        "location": "canonical short repository path",
+        "scripts": [
+          "Test-PairedProjectProfiles.ps1",
+          "Test-MsvcSetupEntrypoints.ps1",
+          "Test-NativeScope.ps1",
+          "Test-ScopedTesting.ps1"
+        ]
+      },
+      {
+        "sha256": "6CA33966B84A61FEDA1C4B23345EC07FDED874D5622BFAB28A0C5FD8817D096F",
+        "log": ".build/qualification/repaired-path-tooling.log",
+        "location": "short clean independent checkout q",
+        "scripts": [
+          "Test-Docs.ps1"
+        ]
+      },
+      {
+        "sha256": "A26DE7C4605CF2B825D261A1A0842722FEF0259CF5E87582B7D88793FCEB11C9",
+        "log": ".build/layout-padding-tasks-20261103/final-evidence-permissions.log",
+        "location": "canonical repository; filesystem fixture permissions",
+        "scripts": [
+          "Test-RunEvidence.ps1"
+        ]
+      }
+    ],
+    "singleFullRerunClaimed": false,
+    "status": "PASSED_WITH_FOCUSED_RECOVERY",
+    "scriptCount": 30,
+    "firstCompleteAttempt": {
+      "passedTooling": 24,
+      "failedTooling": 6,
+      "staticValidators": 5,
+      "logSha256": "5BE10142900393DF6512E7C1B21B3D4CD13CC08F3F8CE913DA3EE729273FB13B",
+      "location": "clean independent C checkout"
+    },
+    "implementation": "703a96c788a79c1e7b28097226a2ca0a735f11bc",
+    "scripts": [
+      "Test-PairedProjectProfiles.ps1",
+      "Test-ConsumerQualification.ps1",
+      "Test-ToolingTestRunner.ps1",
+      "Test-BuildConsole.ps1",
+      "Test-MsvcSetupEntrypoints.ps1",
+      "Test-ReleaseBuildPolicy.ps1",
+      "Test-RunEvidence.ps1",
+      "Test-Validation.ps1",
+      "Test-Docs.ps1",
+      "Test-TestPort.ps1",
+      "Test-BuildMatrix.ps1",
+      "Test-PerformanceComparison.ps1",
+      "Test-PairedRun.ps1",
+      "Test-PerformancePolicy.ps1",
+      "Test-PerformanceForms.ps1",
+      "Test-PerformanceProfiling.ps1",
+      "Test-BenchmarkGate.ps1",
+      "Test-BenchmarkHost.ps1",
+      "Test-CiGate.ps1",
+      "Test-CapabilitySkipPolicy.ps1",
+      "Test-NativeScope.ps1",
+      "Test-SuiteFailure.ps1",
+      "Test-ParallelSuites.ps1",
+      "Test-VcpkgTriplet.ps1",
+      "Test-InteractiveMode.ps1",
+      "Test-ConsumerUpdate.ps1",
+      "Test-ScopedTesting.ps1",
+      "Test-UnicodeGraphemeData.ps1",
+      "Test-MarkdownData.ps1",
+      "Test-CodeOwners.ps1"
+    ],
+    "finalDocs": "Test-Docs.ps1 also passes in the final canonical documentation tree, with explicit local filesystem-fixture permissions."
+  },
+  "consumer": {
+    "receiptSha256": "C9E3897D91BAB01966B83D7FA40C43B0BB5041906F4C7C4DDD7324830279F759",
+    "focusedCaptures": 30,
+    "broaderQualificationAccepted": false,
+    "nativeCases": 73,
+    "beforeCaptures": 6,
+    "dependency": "703a96c788a79c1e7b28097226a2ca0a735f11bc",
+    "project": "RedTilde",
+    "published": false,
+    "sourceIdentity": "e57d6a29f1b7343f0de22990e49aabe2ff4da4d170c825a87dc2ddf5ce1dbfc4",
+    "compiledSourceIdentity": "c07175b34e334c81e2a1b99e100ffaf351d22eb0a358cdf65b43f647f6598f03",
+    "platform": "x64",
+    "binarySha256": "86AA6DC3D55A85AA526B051754B8DD2E4B27ACF17894496C689F66B8E26C90F0",
+    "status": "FULL_NONINTERACTIVE_PASSED",
+    "errors": 0,
+    "warnings": 0,
+    "standardCaptures": 32,
+    "configuration": "Release"
+  },
+  "gallery": {
+    "reviewed": true,
+    "sourceCommit": "703a96c788a79c1e7b28097226a2ca0a735f11bc",
+    "themeSheets": 5,
+    "embeddedCaptures": 1,
+    "generationReceiptSha256": "F64FA6C58A183589C51E2C656CCF6C7DFD1E693E74152E882313651544D84B46",
+    "sourceDirty": false
+  },
+  "finalCloseoutChecks": [
+    {
+      "exitCode": 0,
+      "sha256": "5B3F8F0D19AC78D111973206D219668DA634EF8E7E9C4703A89F21C2AA31CC0B",
+      "step": "validate-skills.ps1",
+      "log": ".build\\layout-padding-tasks-20261103\\closeout-validate-skills.log"
+    },
+    {
+      "exitCode": 0,
+      "sha256": "BE8DDE648A9B8C7A3154CC059BA04B47C8CF58376D4D62B8CEF4F8A0BFECA951",
+      "step": "validate-specs.ps1",
+      "log": ".build\\layout-padding-tasks-20261103\\closeout-validate-specs.log"
+    },
+    {
+      "exitCode": 0,
+      "sha256": "DA50BB46C5717C7052C21F13270120ED0AE66BFD1E969DB57720B93981627A57",
+      "step": "validate-dependencies.ps1",
+      "log": ".build\\layout-padding-tasks-20261103\\closeout-validate-dependencies.log"
+    },
+    {
+      "exitCode": 0,
+      "sha256": "839D7CA683F62D1E5739A5E873A9617F07A9DED6C07E768FFD1EE83ABD8AB59B",
+      "step": "validate-test-port.ps1",
+      "log": ".build\\layout-padding-tasks-20261103\\closeout-validate-test-port.log"
+    },
+    {
+      "exitCode": 0,
+      "sha256": "BE00560F7ACE6CD65C1BFD2FC535BB4FCF09D618AA3CE027121AE38FE2B229CE",
+      "step": "validate-build-matrix.ps1",
+      "log": ".build\\layout-padding-tasks-20261103\\closeout-validate-build-matrix.log"
+    },
+    {
+      "exitCode": 0,
+      "sha256": "5C1D736BF99BA5D183F35F9C28F9EB48B57F36F598F5125534C7016A4AD48E19",
+      "step": "Tools/Test-Changelog.ps1",
+      "log": ".build\\layout-padding-tasks-20261103\\closeout-Test-Changelog.log"
+    },
+    {
+      "exitCode": 0,
+      "sha256": "40069EBD779C805D65FDF916FAB097A9FAB55EE711591D431E8B440454609812",
+      "step": "format.ps1",
+      "log": ".build\\layout-padding-tasks-20261103\\closeout-format.log"
+    },
+    {
+      "exitCode": 0,
+      "sha256": "F0F861EA038224A40FE2BB5393BF45C1B8CEE6C3812E23AD74556F2134032932",
+      "step": "Tools/tests/Test-Docs.ps1",
+      "log": ".build\\layout-padding-tasks-20261103\\closeout-Test-Docs.log"
+    }
+  ]
 }
