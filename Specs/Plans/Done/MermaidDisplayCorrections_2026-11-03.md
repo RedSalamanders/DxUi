@@ -8,7 +8,7 @@ gallery's five themes and embedded example were regenerated and reviewed. RedTil
 and passes 73 native cases, 32 standard captures and 18 final Light/Dark/96/144/192-DPI sample captures, including
 Source/Split/Compose/F2, note edits and undo/redo. Exact bytes, retained failures and scope limits are in the
 [syntax evidence packet](../../../Measurements/MermaidSyntax_2026-11-03/README.md) and RedTilde's corresponding packet.
-The implementation commits are local and unpublished; no remote CI or release result is implied.
+At this validation checkpoint the implementation commits were local and unpublished; no remote CI or release result is implied.
 
 Owner steering, 3 November 2026: shared Mermaid and display defects must be fixed in canonical DxUi, rather than
 only recorded in the RedTilde app review. Scope: FLOW-01 styled-label publication, FLOW-02 relationship fan ports,

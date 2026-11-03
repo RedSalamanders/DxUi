@@ -29,7 +29,8 @@ packet. Source, selection, history, persistence and Compose/Split behavior also 
 
 The [shared receipt](../../../Measurements/DiagramSpacing_2026-11-03/README.md) and RedTilde's
 `Measurements/DiagramSpacing_2026-11-03` packet retain source/artifact identities, first failures, capture
-provenance and unpaired diagnostic limits. Implementation commits remain local and unpublished.
+provenance and unpaired diagnostic limits. At validation time the implementation commits were local and
+unpublished; publishing or merging them does not supply additional qualification.
 
 ## Evidence boundary
 

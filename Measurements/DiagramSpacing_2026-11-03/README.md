@@ -14,8 +14,8 @@ The clean x64 Release library build passes with zero warnings/errors; all 19 sel
 suites pass with zero capability skips. The five static validators and all 30 tooling scripts pass across the
 recorded full attempt and focused environment recoveries. RedTilde's independent exact-pin Release build also
 has zero warnings/errors, passes 73 distinct native cases and its final affected run, and supplies 32 standard
-plus 30 focused hidden captures. Six before captures remain available for comparison. Commits are local and
-unpublished; these scoped checks do not establish broader release qualification.
+plus 30 focused hidden captures. Six before captures remain available for comparison. The commits were local
+and unpublished when these results were recorded; source publication does not establish broader release qualification.
 
 [Evidence receipt](evidence.json.template) records exact source/binary identities, diagnostic and native results,
 resource checks and all first failures. The first candidate build exhausted D: while writing compiler output;
