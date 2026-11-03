@@ -168,6 +168,12 @@ proof of the original failure callstack. Microsoft recommends a separate dumper 
 dedicated thread, and supplying the previously captured thread state; DbgHelp access must be serialized.
 [MiniDumpWriteDump documentation](https://learn.microsoft.com/en-us/windows/win32/api/minidumpapiset/nf-minidumpapiset-minidumpwritedump).
 
+Static SDK distribution also retains the matching compiler PDB beside `DxUi.lib`, and binds both hashes in its
+manifest/receipt. A successful link on the producer machine can silently borrow its original PDB path; header
+dependency closure alone does not prove portable symbol closure. Qualification must link the extracted pair
+without access to that producer PDB and retain the zero-warning result. Consumers keep their resulting executable
+and DLL PDBs with the corresponding binaries for later dump analysis.
+
 After the diagnostic attempt, terminate the host; the fatal handler must not resume normal execution. A missing,
 returning, recursively failing or unavailable host handler requires a bounded platform fail-fast fallback carrying
 the available failure record. `RaiseFailFastException` bypasses ordinary exception handlers and WER depends on

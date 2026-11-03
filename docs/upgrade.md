@@ -18,6 +18,10 @@ returning `Failed` without replacing its prior publication. Audit custom allocat
 Rebuild every EXE and DLL with the exact matching headers, archive, compiler, platform, configuration and CRT; API 5
 changes both source contracts and object layout. Changing a lock alone neither ports nor qualifies an application.
 
+SDK ZIP users keep the matching `DxUi.pdb` beside `DxUi.lib` when linking, and retain the resulting application/DLL
+PDBs for dump analysis. The SDK manifest binds both producer files; copying the library alone can lose library
+debug information. A source-pin build produces its matching compiler PDB in its isolated output automatically.
+
 Use failure host **protocol 2** consistently in every EXE and DLL. It adds native-call
 entry/exit handling so Windows can handle its own internal exceptions while reentrant
 DxUi callbacks remain protected. Prefer the provided `ProcessHooks` table; a custom

@@ -1229,3 +1229,12 @@ alive. Dropping the owner's DLL reference must leave the image mapped while the 
 gate and verification reference must permit actual unload. The active witness resets on worker exit, so an expired
 twenty-second gate cannot establish the pin proof. Gate handles outlive every holder, and uncertain retirement
 fails through the live process reporter. These diagnostic hooks are internal fixture seams, not new consumer APIs.
+
+The owned native-module driver configures the canonical no-dialog failure routing before installing its host.
+Each fatal child signals a borrowed diagnostic event immediately before fail-fast; the parent records that witness
+and monotonic setup/wait durations. The witness proves reaching that call site, not OS completion. A thirty-second
+timeout remains a failed probe and attempts a separate live-child hang dump before closing its owned job. This
+diagnostic never overwrites the original exception dump or turns a timed-out process into a pass. Its additional
+capture time and result are recorded separately. Capture runs on an owned worker with a five-second bound;
+failure to finish terminates the parent with its diagnostic context and borrowed handles still alive, rather than
+returning while the worker can use them.

@@ -17,6 +17,9 @@ namespace
 constexpr uint64_t Closed          = uint64_t{1} << 63;
 constexpr DWORD CppExceptionCode   = 0xe06d7363u;
 constexpr DWORD FatalExceptionCode = 0xe0445855u;
+#if DXUI_ENABLE_DIAGNOSTICS
+std::atomic<HANDLE> fatalExitEvent{nullptr};
+#endif
 std::atomic<const HostServices*> moduleServices{nullptr};
 std::atomic<uint64_t> moduleGate{Closed};
 std::atomic_flag moduleUpdate = ATOMIC_FLAG_INIT;
@@ -76,6 +79,10 @@ void Capture(Record& record, Kind kind, HRESULT result, size_t bytes, Site site,
     exception.ExceptionFlags |= EXCEPTION_NONCONTINUABLE;
     if (! exception.ExceptionAddress)
         exception.ExceptionAddress = InstructionPointer(context);
+#if DXUI_ENABLE_DIAGNOSTICS
+    if (const auto event = fatalExitEvent.load(std::memory_order_acquire))
+        static_cast<void>(SetEvent(event));
+#endif
     RaiseFailFastException(&exception, &context, 0);
     // No application continuation is possible even if an instrumented platform
     // unexpectedly returns from its documented non-returning fail-fast API.
@@ -123,6 +130,10 @@ namespace Detail
 {
 #if DXUI_ENABLE_DIAGNOSTICS
 std::atomic<HANDLE> fatalContenderEvent{nullptr};
+void SetFatalExitEventForTest(HANDLE event) noexcept
+{
+    fatalExitEvent.store(event, std::memory_order_release);
+}
 void SetFatalContenderEventForTest(HANDLE event) noexcept
 {
     fatalContenderEvent.store(event, std::memory_order_release);

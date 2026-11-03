@@ -104,6 +104,17 @@ reopening their historical checklists or relabeling old allocation sweeps as fat
 
 ### Working-tree progress, not acceptance
 
+- All six `b2880fca` builds pass with zero warnings/errors, and Debug/Release/ASan annotated clean-pin consumers
+  pass. The annotations-disabled ASan consumer times out at fatal scenario 9 after writing a successful record/dump
+  for PID 108248. That child did not pass exit/origin verification; no cause is assigned. The driver now uses the
+  canonical no-dialog setup, a pre-fail-fast event and separate live-child timeout capture while preserving 30 seconds.
+- Independent extracted-SDK linking with the producer PDB unavailable exposes 70 LNK4099 warnings in the earlier
+  `b2880fca` package. Its normal on-machine smoke receipt remains historical, not standalone symbol qualification.
+  Adding the matching compiler PDB beside the extracted library passes the controlled link with zero warnings.
+  Packaging now carries and hashes that pair; final isolated symbol qualification remains required.
+- The two timing-sensitive tooling failures in `validate-complete-7.log` pass on individual repeats after native
+  compilation drains: ConsumerQualification 13/13 and ToolingTestRunner 4/4. Original failures remain preserved;
+  these repeats do not replace final complete validation after the remaining packaging/diagnostic change.
 - The `6d24acf1` cohort passes all six warning-free native builds, SDK extraction, all validators/tooling and the
   affected Debug NewControls/EditorControls/Accessibility suites (`20261103T020826374Z-83400-ac928626b12e4f71ba84042d2e1afb8f`).
   Clean-pin consumers exposed missing COM include prerequisites and two const WIL guards in the new unload

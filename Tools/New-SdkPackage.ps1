@@ -16,11 +16,13 @@ Hosted runs default to RUNNER_TEMP; local invocation requires an explicit root.
 .build/sdk/DxUi-SDK-<version>-<platform>.zip and source/compiler/archive identity receipt.
 .NOTES
 Requires a completed production-only Release build, PowerShell 7.4 and the selected MSVC 14.52 toolchain.
-Copies public headers, restored dependencies, licenses, Release library, integration props
+Copies public headers, restored dependencies, licenses, Release library and matching compiler PDB, integration props
 and the unchanged reviewed native build policy. SDK headers are external dependencies of
 the extracted consumer; its own translation units retain /Wall and zero-warning validation.
 The smoke compiles its own consumer against extracted files only; it never rebuilds DxUi.
 Normal-verbosity build logs retain the completed diagnostics summaries required by the zero-warning gate.
+The producer PDB is opened exclusively during the extracted link and a separate missing-PDB negative control;
+an active user of the producer PDB makes qualification fail rather than weakening isolation.
 .EXAMPLE
 ./Tools/New-SdkPackage.ps1 -Platform x64 -Version 0.1.1234 -SmokeRoot Z:/RedSalamander.Perf
 #>
@@ -50,7 +52,12 @@ $msbuild=Join-Path $installation "MSBuild/Current/Bin/$hostArchitecture/MSBuild.
 if(-not(Test-Path -LiteralPath $msbuild)){throw 'Native MSBuild is missing from the selected installation.'}
 $identity=Get-DxUiConsumerBuildIdentity -DxUiRoot $root -MSBuildPath $msbuild -Platform $Platform
 $library=Join-Path $root ".build/$Platform/Release/DxUi.lib"
-if(-not(Test-Path -LiteralPath $library -PathType Leaf)){throw 'Build the production Release library before packaging.'}
+$libraryPdb=Join-Path $root ".build/$Platform/Release/DxUi.pdb"
+if(-not(Test-Path -LiteralPath $library -PathType Leaf) -or -not(Test-Path -LiteralPath $libraryPdb -PathType Leaf)){
+    throw 'Build the production Release library and its compiler PDB before packaging.'
+}
+$libraryHash=(Get-FileHash -LiteralPath $library -Algorithm SHA256).Hash.ToLowerInvariant()
+$libraryPdbHash=(Get-FileHash -LiteralPath $libraryPdb -Algorithm SHA256).Hash.ToLowerInvariant()
 $native=if($Platform -eq 'ARM64'){'Arm64'}else{'X64'}
 if([Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString() -cne $native){throw 'SDK smoke must execute on its native architecture.'}
 $directory=Join-Path $root '.build/sdk'
@@ -61,6 +68,11 @@ $triplet=if($Platform -eq 'ARM64'){'arm64-windows'}else{'x64-windows'}
 $installed=Join-Path $root ".build/vcpkg_installed/$Platform/$triplet"
 Copy-Item -Path (Join-Path $installed 'include/*') -Destination (Join-Path $stage 'include') -Recurse
 Copy-Item -LiteralPath $library -Destination (Join-Path $stage "lib/$Platform/Release/DxUi.lib")
+Copy-Item -LiteralPath $libraryPdb -Destination (Join-Path $stage "lib/$Platform/Release/DxUi.pdb")
+if((Get-FileHash -LiteralPath (Join-Path $stage "lib/$Platform/Release/DxUi.lib") -Algorithm SHA256).Hash.ToLowerInvariant() -cne $libraryHash -or
+   (Get-FileHash -LiteralPath (Join-Path $stage "lib/$Platform/Release/DxUi.pdb") -Algorithm SHA256).Hash.ToLowerInvariant() -cne $libraryPdbHash){
+    throw 'The staged library or compiler PDB changed during packaging.'
+}
 New-Item -ItemType Directory -Path (Join-Path $stage 'build') | Out-Null
 Copy-Item -LiteralPath (Join-Path $root 'Build/NativeBuildPolicy.targets') -Destination (Join-Path $stage 'build/NativeBuildPolicy.targets')
 New-Item -ItemType Directory -Path (Join-Path $stage 'licenses') | Out-Null
@@ -100,13 +112,14 @@ $props=$props.Replace('@PLATFORM@',$Platform).Replace('@COMPILER@',$identity.Ide
 @'
 Import DxUi.Sdk.props after Microsoft.Cpp.props in a Release project for the archive's architecture.
 Use the exact MSVC compiler version in sdk-manifest.json; the library contains LTCG objects and uses /MD.
+Keep DxUi.pdb beside DxUi.lib so the linker can include the library's debug information.
 This archive contains no producer source, producer test binaries, SDK-private test headers or Debug/ASan archive.
 Public source-pin consumers retain the separate Build/DxUi.Consumer.props contract in the source repository.
 The included native policy preserves /Wall for your sources and the producer's reviewed diagnostic exceptions.
 '@ | Set-Content -LiteralPath (Join-Path $stage 'README.txt') -Encoding utf8
 $manifest=[ordered]@{schemaVersion=1;version=$Version;platform=$Platform;configuration='Release';kind='sdk';
     source=(& git -C $root rev-parse HEAD).Trim();apiRevision=$identity.Identity.apiRevision;compiler=$identity.Identity;
-    librarySha256=(Get-FileHash -LiteralPath $library).Hash.ToLowerInvariant();runtime='MD';testsIncluded=$false}
+    librarySha256=$libraryHash;libraryPdbSha256=$libraryPdbHash;runtime='MD';testsIncluded=$false}
 $manifest|ConvertTo-Json -Depth 12|Set-Content -LiteralPath (Join-Path $stage 'sdk-manifest.json') -Encoding utf8
 New-Item -ItemType Directory -Path (Join-Path $stage 'samples/Smoke') -Force | Out-Null
 Copy-Item -LiteralPath (Join-Path $root 'Samples/SdkSmoke/Main.cpp') -Destination (Join-Path $stage 'samples/Smoke/Main.cpp')
@@ -143,13 +156,48 @@ $project=@'
 $project=$project.Replace('@PLATFORM@',$Platform).Replace('@SDK@',$identity.Identity.windowsSdkVersion)
 $projectPath=Join-Path $smoke 'SdkSmoke.vcxproj'
 [IO.File]::WriteAllText($projectPath,$project,[Text.UTF8Encoding]::new($false))
-$before=(Get-FileHash -LiteralPath (Join-Path $extracted "lib/$Platform/Release/DxUi.lib")).Hash
+$extractedLibrary=Join-Path $extracted "lib/$Platform/Release/DxUi.lib"
+$extractedPdb=Join-Path $extracted "lib/$Platform/Release/DxUi.pdb"
+if((Get-FileHash -LiteralPath $extractedLibrary -Algorithm SHA256).Hash.ToLowerInvariant() -cne $libraryHash -or
+   (Get-FileHash -LiteralPath $extractedPdb -Algorithm SHA256).Hash.ToLowerInvariant() -cne $libraryPdbHash){
+    throw 'The extracted library or compiler PDB does not match the packaged inputs.'
+}
 $logs=Join-Path $root '.build/logs'
 [void][IO.Directory]::CreateDirectory($logs)
 $smokeLog=Join-Path $logs "sdk-consumer-$Version-$Platform.log"
-& $msbuild $projectPath /nologo /m /v:normal /p:Configuration=Release "/p:Platform=$Platform" "/p:VCToolsVersion=$($identity.Identity.vcToolsVersion)" 2>&1 | Tee-Object -FilePath $smokeLog | ForEach-Object {Write-Host $_}
-if($LASTEXITCODE -ne 0){throw 'Extracted SDK-only consumer failed to compile/link.'}
-Assert-NativeBuildDiagnostics -LogPath $smokeLog
+# The linker must use the packaged PDB, not an absolute path in the producer.
+# Deny all other access without moving or modifying the producer artifact.
+$producerPdbGuard=$null
+try {
+    $producerPdbGuard=[IO.File]::Open($libraryPdb,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::None)
+    & $msbuild $projectPath /nologo /m /v:normal /p:Configuration=Release "/p:Platform=$Platform" "/p:VCToolsVersion=$($identity.Identity.vcToolsVersion)" 2>&1 | Tee-Object -FilePath $smokeLog | ForEach-Object {Write-Host $_}
+    if($LASTEXITCODE -ne 0){throw 'Extracted SDK-only consumer failed to compile/link.'}
+    Assert-NativeBuildDiagnostics -LogPath $smokeLog
+
+    # The same consumer must expose LNK4099 when the packaged PDB is absent.
+    # Only this fresh extracted copy moves, and its positive outputs stay intact.
+    $heldPdb=Join-Path (Split-Path -Parent $extractedPdb) 'DxUi.pdb.missing-control'
+    if(Test-Path -LiteralPath $heldPdb){throw 'SDK missing-PDB control path is already occupied.'}
+    $missingLog=Join-Path $logs "sdk-missing-pdb-control-$Version-$Platform.log"
+    Move-Item -LiteralPath $extractedPdb -Destination $heldPdb
+    try {
+        $missingArguments=@($projectPath,'/nologo','/m','/v:normal','/t:Rebuild','/p:Configuration=Release',
+            ("/p:Platform=$Platform"),("/p:VCToolsVersion=$($identity.Identity.vcToolsVersion)"),
+            ('/p:IntDir='+(Join-Path $smoke 'missing-pdb-obj')+'\'),('/p:OutDir='+(Join-Path $smoke 'missing-pdb-bin')+'\'))
+        & $msbuild @missingArguments 2>&1 | Tee-Object -FilePath $missingLog | ForEach-Object {Write-Host $_}
+        if($LASTEXITCODE -ne 0){throw 'SDK missing-PDB control must link successfully.'}
+        $missingDiagnostics=Get-NativeBuildDiagnostics -LogPath $missingLog
+        if($missingDiagnostics.WarningCount -lt 1 -or $missingDiagnostics.ErrorCount -ne 0 -or
+            [IO.File]::ReadAllText($missingLog) -notmatch '\bLNK4099\b'){throw 'SDK missing-PDB control did not expose the missing debug database.'}
+        $missingRefused=$false
+        try { Assert-NativeBuildDiagnostics -LogPath $missingLog } catch { $missingRefused=$_.Exception.Message -like 'Zero-warning build validation failed:*' }
+        if(-not $missingRefused){throw 'SDK missing-PDB control did not fail zero-warning validation.'}
+    } finally {
+        Move-Item -LiteralPath $heldPdb -Destination $extractedPdb
+    }
+} finally {
+    if($producerPdbGuard){$producerPdbGuard.Dispose()}
+}
 $propertiesJson=& $msbuild $projectPath /nologo /p:Configuration=Release "/p:Platform=$Platform" "/p:VCToolsVersion=$($identity.Identity.vcToolsVersion)" -getProperty:WindowsSdkDir,VCToolsInstallDir
 if($LASTEXITCODE -ne 0){throw 'Cannot evaluate the extracted consumer toolchain roots.'}
 $properties=($propertiesJson -join [Environment]::NewLine|ConvertFrom-Json).Properties
@@ -166,7 +214,10 @@ foreach($unit in @('Main','FailureHost')){
 }
 & (Join-Path $smoke 'bin/SdkSmoke.exe')
 if($LASTEXITCODE -ne 0){throw 'Extracted SDK-only consumer failed at runtime.'}
-if((Get-FileHash -LiteralPath (Join-Path $extracted "lib/$Platform/Release/DxUi.lib")).Hash -cne $before){throw 'Consumer build changed the SDK archive library.'}
+if((Get-FileHash -LiteralPath $extractedLibrary -Algorithm SHA256).Hash.ToLowerInvariant() -cne $libraryHash -or
+   (Get-FileHash -LiteralPath $extractedPdb -Algorithm SHA256).Hash.ToLowerInvariant() -cne $libraryPdbHash){
+    throw 'Consumer build changed the SDK library or compiler PDB.'
+}
 # A real first-party warning must still be rejected after SDK headers become external.
 # Keep separate outputs so this negative control cannot replace the positive consumer.
 $warningProject=Join-Path $smoke 'SdkWarningControl.vcxproj'
@@ -186,7 +237,15 @@ if($diagnostics.WarningCount -lt 1 -or $diagnostics.ErrorCount -ne 0 -or
 $refused=$false
 try { Assert-NativeBuildDiagnostics -LogPath $warningLog } catch { $refused=$_.Exception.Message -like 'Zero-warning build validation failed:*' }
 if(-not $refused){throw 'SDK first-party warning did not fail zero-warning validation.'}
+# A concurrent producer replacement cannot be certified as the staged library/PDB pair.
+foreach($entry in @(@($library,$libraryHash),@($libraryPdb,$libraryPdbHash),@($extractedLibrary,$libraryHash),@($extractedPdb,$libraryPdbHash))){
+    if((Get-FileHash -LiteralPath $entry[0] -Algorithm SHA256).Hash.ToLowerInvariant() -cne $entry[1]){
+        throw "SDK library or compiler PDB changed during qualification: $($entry[0])"
+    }
+}
 $manifest['smokePassed']=$true
+$manifest['producerPdbIsolationPassed']=$true
+$manifest['missingPackagedPdbControlPassed']=$true
 $manifest['firstPartyWarningControlPassed']=$true
 $manifest['headerClosurePassed']=$true
 $manifest['headerCount']=@($dependencies.Data.Includes).Count

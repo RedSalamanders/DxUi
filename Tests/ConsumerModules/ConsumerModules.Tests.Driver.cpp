@@ -1,5 +1,7 @@
+#include "Failure.Tests.Hooks.h"
 #include "FailureHost.h"
 #include "Support.Tests.DumpReader.h"
+#include "Support.Tests.FailureReports.h"
 #include <objbase.h>
 
 // UI Automation needs COM declarations even with lean Windows headers.
@@ -10,6 +12,7 @@
 
 #include <DbgHelp.h>
 #include <array>
+#include <atomic>
 #include <bit>
 #include <charconv>
 #include <cstdio>
@@ -26,6 +29,44 @@ extern "C" int DxUiModuleProbe() noexcept;
 
 namespace
 {
+struct HangDumpContext
+{
+    HangDumpContext(HANDLE child, HANDLE file, DWORD id) noexcept : process(child), output(file), processId(id)
+    {
+    }
+    HangDumpContext(const HangDumpContext&)            = delete;
+    HangDumpContext& operator=(const HangDumpContext&) = delete;
+    HangDumpContext(HangDumpContext&&)                 = delete;
+    HangDumpContext& operator=(HangDumpContext&&)      = delete;
+    // Borrowed until the parent observes worker completion or terminates fatally.
+    HANDLE process;
+    HANDLE output;
+    DWORD processId;
+    std::atomic<HRESULT> result{E_PENDING};
+};
+
+DWORD WINAPI WriteHangDump(void* parameter) noexcept
+{
+    auto& context  = *static_cast<HangDumpContext*>(parameter);
+    HRESULT result = HRESULT_FROM_WIN32(ERROR_BUSY);
+    if (TryAcquireSRWLockExclusive(&DxUiSample::FailureHost::dbgHelpGate))
+    {
+        const auto unlock = wil::scope_exit([] { ReleaseSRWLockExclusive(&DxUiSample::FailureHost::dbgHelpGate); });
+        result            = DxUi::Failure::InvokeNative(MiniDumpWriteDump,
+                                                        context.process,
+                                                        context.processId,
+                                                        context.output,
+                                                        static_cast<MINIDUMP_TYPE>(MiniDumpWithThreadInfo | MiniDumpWithUnloadedModules),
+                                                        nullptr,
+                                                        nullptr,
+                                                        nullptr)
+                                ? S_OK
+                                : HRESULT_FROM_WIN32(GetLastError());
+    }
+    context.result.store(result, std::memory_order_release);
+    return 0;
+}
+
 bool ReadNumber(std::string_view content, std::string_view key, int base, std::uint64_t& value)
 {
     const auto position = content.find(key);
@@ -104,7 +145,14 @@ bool FatalModuleChild(int kind)
     const auto length = GetModuleFileNameW(nullptr, executable.data(), static_cast<DWORD>(executable.size()));
     if (! length || length >= executable.size())
         return fail("executable-path", GetLastError());
-    std::wstring command = L"\"" + std::wstring(executable.data(), length) + L"\" --module-fatal=" + std::to_wstring(kind);
+    const ULONGLONG started = GetTickCount64();
+    const std::wstring eventName =
+        L"Local\\DxUiFatalExit-" + std::to_wstring(GetCurrentProcessId()) + L"-" + std::to_wstring(started) + L"-" + std::to_wstring(kind);
+    SetLastError(ERROR_SUCCESS);
+    wil::unique_handle marker(CreateEventW(nullptr, TRUE, FALSE, eventName.c_str()));
+    if (! marker || GetLastError() == ERROR_ALREADY_EXISTS)
+        return fail("marker-create", GetLastError());
+    std::wstring command = L"\"" + std::wstring(executable.data(), length) + L"\" --module-fatal=" + std::to_wstring(kind) + L" \"" + eventName + L"\"";
     wil::unique_handle job(CreateJobObjectW(nullptr, nullptr));
     JOBOBJECT_EXTENDED_LIMIT_INFORMATION limits{};
     limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
@@ -124,15 +172,77 @@ bool FatalModuleChild(int kind)
         WaitForSingleObject(process.get(), 30000u);
         return fail("assign-job", error);
     }
+    const ULONGLONG resumedAt = GetTickCount64();
     if (ResumeThread(thread.get()) == static_cast<DWORD>(-1))
         return fail("resume", GetLastError());
-    const DWORD waited = WaitForSingleObject(process.get(), 30000u);
+    const DWORD waited       = WaitForSingleObject(process.get(), 30000u);
+    const DWORD waitError    = waited == WAIT_FAILED ? GetLastError() : ERROR_SUCCESS;
+    const ULONGLONG waitedAt = GetTickCount64();
+    const DWORD markerState  = WaitForSingleObject(marker.get(), 0u);
+    std::printf("DXUI_NATIVE_MODULE_FATAL_TIMING scenario=%d pid=%lu start_ms=%llu setup_ms=%llu wait_ms=%llu elapsed_ms=%llu marker=%08lx wait=%08lx\n",
+                kind,
+                childPid,
+                started,
+                resumedAt - started,
+                waitedAt - resumedAt,
+                waitedAt - started,
+                markerState,
+                waited);
     if (waited != WAIT_OBJECT_0)
-        return fail("wait", waited == WAIT_FAILED ? GetLastError() : waited);
+    {
+        if (waited == WAIT_TIMEOUT)
+        {
+            std::wstring path(executable.data(), length);
+            const auto slash   = path.find_last_of(L"\\/");
+            HRESULT dumpResult = E_FAIL;
+            if (slash != std::wstring::npos)
+            {
+                path.resize(slash);
+                path += L"\\FailureEvidence\\" + std::to_wstring(GetCurrentProcessId()) + L"\\timeout-" + std::to_wstring(kind) + L"-" +
+                        std::to_wstring(childPid) + L"-" + std::to_wstring(waitedAt) + L".dmp";
+                wil::unique_hfile dump(CreateFileW(path.c_str(), GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr));
+                if (! dump)
+                    dumpResult = HRESULT_FROM_WIN32(GetLastError());
+                else
+                {
+                    HangDumpContext context{process.get(), dump.get(), childPid};
+                    wil::unique_handle worker(CreateThread(nullptr, 0, WriteHangDump, &context, 0, nullptr));
+                    if (! worker)
+                        dumpResult = HRESULT_FROM_WIN32(GetLastError());
+                    else
+                    {
+                        const DWORD completed = WaitForSingleObject(worker.get(), 5000u);
+                        if (completed != WAIT_OBJECT_0)
+                        {
+                            const HRESULT error = completed == WAIT_TIMEOUT ? HRESULT_FROM_WIN32(ERROR_TIMEOUT) : HRESULT_FROM_WIN32(GetLastError());
+                            std::printf("DXUI_NATIVE_MODULE_HANG_DUMP_WORKER_FAILURE scenario=%d pid=%lu result=%08lx path=%ls\n",
+                                        kind,
+                                        childPid,
+                                        static_cast<unsigned long>(error),
+                                        path.c_str());
+                            std::fflush(stdout);
+                            // Keep borrowed handles and the stack context alive until fatal process termination.
+                            DxUi::Failure::FailContract(error);
+                        }
+                        dumpResult = context.result.load(std::memory_order_acquire);
+                    }
+                }
+            }
+            std::printf("DXUI_NATIVE_MODULE_HANG_DUMP scenario=%d pid=%lu result=%08lx diagnostic_ms=%llu path=%ls\n",
+                        kind,
+                        childPid,
+                        static_cast<unsigned long>(dumpResult),
+                        GetTickCount64() - waitedAt,
+                        path.c_str());
+        }
+        return fail("wait", waited == WAIT_FAILED ? waitError : waited);
+    }
     if (! GetExitCodeProcess(process.get(), &childExit))
         return fail("exit-query", GetLastError());
     if (! (childExit & 0x80000000u))
         return fail("child-exit", childExit);
+    if (markerState != WAIT_OBJECT_0)
+        return fail("fatal-exit-marker", markerState);
     std::wstring directory(executable.data(), length);
     const auto slash = directory.find_last_of(L"\\/");
     if (slash == std::wstring::npos)
@@ -204,6 +314,16 @@ bool FatalModuleChild(int kind)
 
 int wmain(int argc, wchar_t** argv)
 {
+    DxUiTestFailureReports::RouteAwayFromDialogs();
+    wil::unique_handle fatalExitMarker;
+    const auto clearMarker = wil::scope_exit([]() noexcept { DxUi::Failure::Detail::SetFatalExitEventForTest(nullptr); });
+    if (argc == 3 && std::wstring_view(argv[1]).starts_with(L"--module-fatal="))
+    {
+        fatalExitMarker.reset(OpenEventW(EVENT_MODIFY_STATE, FALSE, argv[2]));
+        if (! fatalExitMarker)
+            return 16;
+        DxUi::Failure::Detail::SetFatalExitEventForTest(fatalExitMarker.get());
+    }
     DxUiSample::FailureHost::Host failureHost;
     const HRESULT hostStart = failureHost.StartBesideExecutable();
     if (FAILED(hostStart))
@@ -244,7 +364,7 @@ int wmain(int argc, wchar_t** argv)
     });
     if (failureHost.Uninstall() != HRESULT_FROM_WIN32(ERROR_BUSY))
         return 15;
-    if (argc == 2 && std::wstring_view(argv[1]).starts_with(L"--module-fatal="))
+    if (argc == 3 && std::wstring_view(argv[1]).starts_with(L"--module-fatal="))
     {
         wchar_t* end{};
         const long scenario = std::wcstol(argv[1] + 15, &end, 10);

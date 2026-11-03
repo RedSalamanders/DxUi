@@ -5,5 +5,7 @@ namespace DxUi::Failure::Detail
 {
 // Private deterministic child-test seam; event remains borrowed until process exit.
 void SetFatalContenderEventForTest(HANDLE event) noexcept;
+// Borrowed event signaled immediately before the process owner invokes fail-fast.
+void SetFatalExitEventForTest(HANDLE event) noexcept;
 void SetYamlNativeAllocationFailureForTest(std::size_t count) noexcept;
 } // namespace DxUi::Failure::Detail
