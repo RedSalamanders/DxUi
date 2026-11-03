@@ -1,35 +1,35 @@
 {
   "command": "gallery.ps1 -PublishDocs",
-  "sourceCommit": "33ce97ce2b29aed4eadb9270bf66e7080d56b9fc",
-  "sourceDirty": true,
+  "sourceCommit": "2e775e8d81ff415587a4d885366566ed89df655f",
+  "sourceDirty": false,
   "configuration": "Release",
   "platform": "x64",
   "nativeArchitecture": "X64",
   "controlCount": 35,
   "images": [
     {
-      "file": "embedded-controls.png",
-      "sha256": "86D2FE80791134ABFF1B352051CF471AEC0F88ADAADB6B1BC743EAC0373B1240"
+      "sha256": "86D2FE80791134ABFF1B352051CF471AEC0F88ADAADB6B1BC743EAC0373B1240",
+      "file": "embedded-controls.png"
     },
     {
-      "file": "theme-controls-dark.png",
-      "sha256": "E733A85300F369B0AC83FC98E749A5E3020A77E67A238545173C64DC0D5C970C"
+      "sha256": "26F0420070300AA23EC3CB38F7ED0C706BEC2FE5C9DAA01C68E9454B9C1C5C59",
+      "file": "theme-controls-dark.png"
     },
     {
-      "file": "theme-controls-high-contrast.png",
-      "sha256": "3F9C57A6A3925FDD003B77AAD28F6296CF4C43B863DE7A87A3C599A349BA610F"
+      "sha256": "751EBFD08BC1B81C97526F1A77D0EBD833C87B33EFEE4B56B8E27B9697EB1718",
+      "file": "theme-controls-high-contrast.png"
     },
     {
-      "file": "theme-controls-light.png",
-      "sha256": "060B4977CACF027B14F9D864C069F0E84A0AA70A398131E4E5A4208A9EBF1202"
+      "sha256": "A8A5F8389892C66EE4AB5F26D04B6616716D310EC34594A4798DAB8B35270C2A",
+      "file": "theme-controls-light.png"
     },
     {
-      "file": "theme-controls-rainbow-dark.png",
-      "sha256": "3662555968F8A693EF1BC5699BBAF7C779B41EE419325D30238D09EA5156A108"
+      "sha256": "8D30D288DE1CC5629E384E9D04EB2F5D7BF3FAF2A8EB14A987CD124831B48099",
+      "file": "theme-controls-rainbow-dark.png"
     },
     {
-      "file": "theme-controls-rainbow-light.png",
-      "sha256": "F8463B50474E3DCEB7BC4033900620D0105AC63909197C695E75B442B558D796"
+      "sha256": "A780014BAE8EC64871C01BD3D0087834287FEB1837C582D9FF0F5C6191C2A5C3",
+      "file": "theme-controls-rainbow-light.png"
     }
   ]
 }

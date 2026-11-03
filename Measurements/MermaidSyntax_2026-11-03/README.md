@@ -35,6 +35,13 @@ The production library builds with zero warnings/errors. Before/after probe sour
 failures and pixel logs remain under `contrast-probe-before/` and `contrast-probe-after/` in the private packet.
 Final canonical native and consumer evidence belongs to the subsequent exact implementation revision.
 
+Final implementation `2e775e8d81ff415587a4d885366566ed89df655f` passes all 19 selected x64 Release native suites
+with zero capability skips after a complete zero-warning/error build. All six current gallery images were
+regenerated and reviewed. RedTilde independently builds this exact pin and passes 73 native cases, 32 standard
+captures and 18 final custom theme/DPI captures. The [source-bound result](evidence.json.template) retains exact
+artifact/report hashes and the distinction between selected functional checks and broader qualification.
+The default benchmark under concurrent work is unpaired and does not establish performance acceptance.
+
 References: pinned Mermaid 11.4.1 sequence documentation and `flow.jison` default direction,
 plus the official [sequence](https://mermaid.js.org/syntax/sequenceDiagram.html) and
 [flowchart](https://mermaid.js.org/syntax/flowchart.html) guides. Newer custom numbering arguments

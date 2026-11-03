@@ -1,6 +1,14 @@
 # Mermaid and shared Markdown display corrections
 
-Status: ACTIVE
+Status: DONE — scoped implementation and exact-pin consumer validation closed; broader acceptance remains separately owned
+
+Final implementation: `2e775e8d81ff415587a4d885366566ed89df655f` (API 4). The complete x64 Release build has
+zero warnings/errors; all 19 selected noninteractive native suites pass with zero capability skips. The corrected
+gallery's five themes and embedded example were regenerated and reviewed. RedTilde independently builds this pin
+and passes 73 native cases, 32 standard captures and 18 final Light/Dark/96/144/192-DPI sample captures, including
+Source/Split/Compose/F2, note edits and undo/redo. Exact bytes, retained failures and scope limits are in the
+[syntax evidence packet](../../../Measurements/MermaidSyntax_2026-11-03/README.md) and RedTilde's corresponding packet.
+The implementation commits are local and unpublished; no remote CI or release result is implied.
 
 Owner steering, 3 November 2026: shared Mermaid and display defects must be fixed in canonical DxUi, rather than
 only recorded in the RedTilde app review. Scope: FLOW-01 styled-label publication, FLOW-02 relationship fan ports,
@@ -16,8 +24,8 @@ The expanded `9ed15504` checkpoint passes all 19 noninteractive Release library 
 73 native cases/32 standard captures, plus 18 Light/Dark/DPI sample captures. Actual capture review exposed
 a further display defect: default diagram connections and frames inherited faint decorative border ink.
 An offscreen editor regression measures central connection distance 16 from its background before the fix.
-Correct the retained editor's content-stroke choice, preserve explicit export drawing and authored palettes,
-then validate and adopt a fresh exact pin. The verified syntax checkpoint remains independently preserved.
+The final pin corrects the retained editor's content-stroke choice and preserves explicit export drawing and
+authored palettes. The verified syntax checkpoint remains independently preserved.
 
 ## Bounded syntax expansion
 
@@ -28,10 +36,10 @@ reference and current official documentation; custom start/increment numbering b
 profile and is not implied. Keep activations, control fragments, interaction/configuration and other excluded
 forms as exact fenced source with diagnostics.
 
-- [ ] Define bounded private model admission and explicit timeline-note geometry without adding a note vector or draw allocations.
-- [ ] Add parser, independent geometry, actor/note/number raster, source/history/accessibility and cancellation/resource regressions.
-- [ ] Update owning contracts, capability descriptions, public examples and gallery; preserve negative examples for unsupported forms.
-- [ ] Validate and commit the library, then adopt an independently built immutable pin and fresh app evidence.
+- [x] Define bounded private model admission and explicit timeline-note geometry without adding a note vector or draw allocations.
+- [x] Add parser, independent geometry, actor/note/number raster, source/history/accessibility and cancellation/resource regressions.
+- [x] Update owning contracts, capability descriptions, public examples and gallery; preserve negative examples for unsupported forms.
+- [x] Validate and commit the library, then adopt an independently built immutable pin and fresh app evidence.
 
 Private fixed-baseline location and hashes are recorded under `.build/mermaid-syntax-expansion-20261103/`.
 The baseline includes the clean library commit, its source archive, all native output bytes and the consumer's
@@ -48,7 +56,7 @@ dirty source overlay; nothing in the earlier folder-navigation work is discarded
 - [x] Add regressions for source ranges, actual attachments/cardinality separation and light/dark code-chrome pixels.
 - [x] Validate x64 Release changed paths: EditorControls, Embedded, Accessibility and Rendering pass without skips;
   WARP/device-loss/clean-hidden assertions stay enabled, and all six regenerated gallery images were reviewed.
-- [ ] Complete broader profile, native platform, physical/foreground and performance qualification with their existing owners.
+- [x] Route broader profile, native platform, physical/foreground and performance qualification to the [shared active ledger](../WIP/ConsumerUiQualification_2026-10-11.md); those gates remain open.
 - [x] Commit the immutable defect fix, update RedTilde's exact pin and validate consumer behavior/captures.
 - [x] Correct the prior sample/support claims and route remaining qualification with exact identities.
 
@@ -56,12 +64,12 @@ Local raw baseline: `.build/mermaid-display-20261103/`. `baseline-reproduction.j
 results, `probe/` owns its source/project/executable and `baseline-performance.json` retains native round data.
 Build log: `baseline-build.log`. No user app or desktop input was taken over.
 
-The candidate complete x64 Release build has zero warnings/errors. All four new native regressions pass;
+The original defect checkpoint's complete x64 Release build has zero warnings/errors. Its four native regressions pass;
 the source-bound evidence and the retained first build/tooling refusals are indexed in
 [the measurement packet](../../../Measurements/MermaidDisplay_2026-11-03/README.md).
 
-The current pin already supports bounded flowchart, state, class, sequence, pie, ER, Gantt and mind-map profiles.
+The earlier pin already supported bounded flowchart, state, class, sequence, pie, ER, Gantt and mind-map profiles.
 The earlier RedTilde rendering review incorrectly treated the latter five as unavailable; its documentation,
-public examples and capability descriptions need correction. Advanced constructs outside each named grammar
+public examples and capability descriptions are corrected. Advanced constructs outside each named grammar
 remain exact editable source. This work does not close quiet-host/performance-policy, native ARM64, physical
 IME/AT, authorized interactive or release gates. The production review's other findings remain with their owners.
