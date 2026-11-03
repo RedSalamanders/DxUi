@@ -3269,7 +3269,8 @@ void PreparedSemanticGeometry::Draw(ID2D1RenderTarget* target,
                                     ID2D1Brush* quoteFill,
                                     const DiagramColorContext* diagramColors,
                                     ID2D1Brush* calloutAccent,
-                                    ID2D1Brush* propertiesInk) const
+                                    ID2D1Brush* propertiesInk,
+                                    bool diagramContentInk) const
 {
     const auto& state = Current();
     if (! target || ! text || ! decoration || ! std::isfinite(top) || ! std::isfinite(bottom) || top > bottom || ! std::isfinite(imageOpacity) ||
@@ -3417,7 +3418,7 @@ void PreparedSemanticGeometry::Draw(ID2D1RenderTarget* target,
             if (box->native &&
                 ! box->native->paint->Draw(target,
                                            boxText,
-                                           decoration,
+                                           diagramContentInk ? boxText : decoration,
                                            fill,
                                            D2D1::Point2F(origin.x + box->x + box->native->bounds.left, origin.y + box->y + box->native->bounds.top),
                                            box->native->palette.get(),

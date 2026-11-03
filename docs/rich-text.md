@@ -1838,6 +1838,10 @@ Custom number arguments, activations, loops, creation/destruction, directives
 and other excluded forms retain the full source with a diagnostic.
 Directionless `flowchart` and `graph` headers default to top-to-bottom layout.
 
+Default diagram connections, arrowheads, lifelines and outlines use readable
+foreground ink, including in Subtle and high contrast. Decorative Markdown borders
+remain separate; supported authored colors retain their contrast checks.
+
 ```mermaid
 sequenceDiagram
 actor Writer as Notebook author

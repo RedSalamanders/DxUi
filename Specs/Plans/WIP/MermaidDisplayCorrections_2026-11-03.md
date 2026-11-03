@@ -12,6 +12,13 @@ is `33ce97ce2b29aed4eadb9270bf66e7080d56b9fc`; RedTilde's exact-pin Release run 
 32 standard hidden captures, with 20 additional Light/Dark/DPI captures. Keep that checkpoint separate from
 the new syntax implementation and its eventual consumer pin.
 
+The expanded `9ed15504` checkpoint passes all 19 noninteractive Release library suites and the consumer's
+73 native cases/32 standard captures, plus 18 Light/Dark/DPI sample captures. Actual capture review exposed
+a further display defect: default diagram connections and frames inherited faint decorative border ink.
+An offscreen editor regression measures central connection distance 16 from its background before the fix.
+Correct the retained editor's content-stroke choice, preserve explicit export drawing and authored palettes,
+then validate and adopt a fresh exact pin. The verified syntax checkpoint remains independently preserved.
+
 ## Bounded syntax expansion
 
 Extend the existing native pipeline with sequence actors and plain aliases; left/right/over notes in source

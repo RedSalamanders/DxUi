@@ -2778,6 +2778,14 @@ actual backdrop cannot be established by the prepared color context.
 Painting creates no palette resources and does
 not change borrowed brush attributes.
 
+The retained editor uses each diagram's effective foreground ink for default
+connections, arrowheads, lifelines and shape/note outlines in every presentation
+style, including Subtle and high contrast. These are document content rather than
+decorative rules; the surrounding heading, table and code chrome keeps its separate
+decoration brush. Authored colors still use the bounded palette and contrast rules
+above. Explicit snapshot/export drawing keeps its caller-supplied stroke contract.
+This brush choice performs no new layout, allocation or resource creation during paint.
+
 Flowchart, state, class, sequence, pie, ER, Gantt and mind map diagrams accept one `accTitle: text` and one
 `accDescr: text` or multiline `accDescr {` / `accDescr{` block closed by a
 standalone `}`. Values are plain text, each bounded to 1024 UTF-16 units;
