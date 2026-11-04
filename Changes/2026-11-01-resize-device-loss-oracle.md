@@ -1,1 +1,0 @@
-- Exercise device removal during ResizeBuffers on an existing native WARP swap chain, including shared-generation retirement and a recovered resized frame; compile-only verification passed and integrated runtime remains pending.

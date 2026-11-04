@@ -1,1 +1,0 @@
-- Prepare semantic text layouts from display text and runs without allocating artificial source identity maps, preserving ordinary projection validation and transactional staging.

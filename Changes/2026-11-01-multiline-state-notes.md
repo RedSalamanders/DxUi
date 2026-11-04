@@ -1,1 +1,0 @@
-- Render bounded multiline Mermaid state notes with exact source fallback.

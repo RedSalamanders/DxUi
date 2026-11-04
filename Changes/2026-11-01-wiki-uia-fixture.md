@@ -1,1 +1,0 @@
-- Select the wiki hyperlink by its UI Automation role when testing link activation, including a same-named parent paragraph.

@@ -1,1 +1,0 @@
-- Add an opt-in interactive read-only task policy for pointer, keyboard and UIA, with exact undo and stale-peer retirement; focused x64 Debug native/embedded checks passed, with integrated qualification pending.

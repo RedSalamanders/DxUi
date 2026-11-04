@@ -1,1 +1,0 @@
-- Correct the supplied-device sample's text-service and pointer routing: avoid unrelated-message and pending-turn source refreshes, forward owned mouse leave, notify moved geometry, preserve replacement capture, and prove routing on a hidden window without focus changes; document that surface preparation also mutates the borrowed D3D pipeline.

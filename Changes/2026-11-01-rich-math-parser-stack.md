@@ -1,1 +1,0 @@
-- Keep recursive math-parser frames small by separating structured, style and terminal command handling; verify the 64-level target on the ordinary Debug thread stack without increasing its stack reservation.

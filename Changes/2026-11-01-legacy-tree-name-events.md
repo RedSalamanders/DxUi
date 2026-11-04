@@ -1,1 +1,0 @@
-- Raise bounded TreeItem Name property notifications for same-identity legacy row renames, coalescing with status budgets and promoting large bursts to children invalidation; native and embedded directed coverage compiles, runtime pending.

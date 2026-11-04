@@ -1,1 +1,0 @@
-- Preserve ordinary hash, comparison, and icon-like text in Mermaid labels.

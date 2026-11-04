@@ -1,1 +1,0 @@
-- Draw bounded Mermaid class member compartments using measured text layout.

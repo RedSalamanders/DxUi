@@ -1,1 +1,0 @@
-- Expose exact source editing for hidden Markdown reference definitions by F2 or revision-checked syntax node; focused x64 Debug embedded source-session coverage passed, with integrated qualification pending.

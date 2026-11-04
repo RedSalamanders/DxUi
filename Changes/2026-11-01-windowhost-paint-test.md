@@ -1,1 +1,0 @@
-- Strengthen the native child-tree mutation regression by isolating host repaint requests from device-loss and unrelated window invalidations; native qualification remains pending.

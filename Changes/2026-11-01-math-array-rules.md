@@ -1,1 +1,0 @@
-- Prepare bounded vertical column rules in native math arrays.

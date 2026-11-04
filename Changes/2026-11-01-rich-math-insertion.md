@@ -1,1 +1,0 @@
-- Add inline and display math source insertion commands with bounded delimiter-safe envelopes; native qualification remains pending.

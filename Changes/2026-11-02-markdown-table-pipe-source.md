@@ -1,1 +1,0 @@
-- Preserve both source units of an escaped table-cell pipe in inline ranges, including code spans, so source ownership and adjacent text remain continuous.

@@ -1,1 +1,0 @@
-- Bound Tree item accessibility status bursts and pending item-property notifications, and use weak-identity event senders for Tree selection, expansion and status events. Embedded client and held-delivery regressions require execution on the integrated candidate; platform and performance qualification remain open.

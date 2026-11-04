@@ -1,1 +1,0 @@
-- Add Alt+Up/Down movement for paragraph lines, sibling list items and raw source lines, retaining selection and undo; focused x64 Debug planner and embedded editor checks passed, with integrated qualification pending.

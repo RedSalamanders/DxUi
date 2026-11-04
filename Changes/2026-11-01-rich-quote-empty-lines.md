@@ -1,1 +1,0 @@
-- Preserve selected parsed empty lines when applying source-exact quote commands; native qualification remains pending.

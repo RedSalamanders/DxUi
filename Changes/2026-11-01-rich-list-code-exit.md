@@ -1,1 +1,0 @@
-- Preserve representable list continuation prefixes when exiting fenced Markdown code blocks.

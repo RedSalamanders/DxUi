@@ -1,1 +1,0 @@
-- Reuse completed raster image bitmaps during width-only rich text reflow on the same target and resource generation, while rebuilding them after target or epoch changes.

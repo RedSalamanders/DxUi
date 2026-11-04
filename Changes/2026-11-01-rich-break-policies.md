@@ -1,1 +1,0 @@
-- Add opt-in RichMarkdown soft-break and paragraph Enter policies while retaining source, undo, and existing default behavior; native qualification remains in progress.

@@ -1,1 +1,0 @@
-- Let an explicit rich-editor table command convert bounded quoted TSV or CSV into an undoable Markdown table; focused x64 Debug planner and embedded editor probes passed, with integrated qualification pending.

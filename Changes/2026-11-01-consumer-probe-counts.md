@@ -1,1 +1,0 @@
-- Record the relocated consumer's observed native-module probe totals and completed negative checks, rejecting missing or inconsistent evidence.

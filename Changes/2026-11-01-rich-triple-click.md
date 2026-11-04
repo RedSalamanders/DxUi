@@ -1,1 +1,0 @@
-- Select a rich-editor paragraph with a third consecutive click in native and embedded hosts, including through a scrolling panel. Focused embedded coverage is included; complete native qualification remains pending.

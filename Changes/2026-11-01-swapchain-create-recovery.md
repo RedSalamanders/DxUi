@@ -1,1 +1,0 @@
-- Recover native shared graphics after device loss during swap-chain, back-buffer or target-bitmap creation, with injected WARP regression coverage. Native qualification remains pending.

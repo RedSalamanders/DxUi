@@ -1,1 +1,0 @@
-- Render bounded extensible math arrows and equality with optional lower labels.

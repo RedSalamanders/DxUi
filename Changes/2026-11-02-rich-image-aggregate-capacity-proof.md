@@ -1,1 +1,0 @@
-- Cover the shared native-object and decoded-image limits with mixed math, diagram, and image admission and width-reflow lifecycle checks.

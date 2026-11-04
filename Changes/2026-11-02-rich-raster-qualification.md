@@ -1,1 +1,0 @@
-- Extend rich-text raster qualification with math and diagram DPI, direction, and palette pixel oracles.

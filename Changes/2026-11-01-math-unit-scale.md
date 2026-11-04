@@ -1,1 +1,0 @@
-- Scale explicit point-based math rules with editor zoom and retire stale prepared math on scale changes.

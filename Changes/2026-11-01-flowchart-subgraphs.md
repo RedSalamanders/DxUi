@@ -1,1 +1,0 @@
-- Render bounded nested Mermaid flowchart subgraphs and expose group membership to accessibility.

@@ -1,1 +1,0 @@
-- Support scoped bold-symbol and normal-math styles in native notation.

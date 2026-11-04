@@ -1,1 +1,0 @@
-- Render standalone attribute-free HTML horizontal rules through native thematic-break geometry while retaining exact source, with an independent pixel oracle.

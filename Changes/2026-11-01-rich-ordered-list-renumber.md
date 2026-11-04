@@ -1,1 +1,0 @@
-- Add explicit ordered-list renumbering with continuation indentation, overflow guards and atomic undo; focused x64 Debug planner and embedded editor checks passed, with integrated qualification pending.

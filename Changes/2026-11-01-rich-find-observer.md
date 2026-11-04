@@ -1,1 +1,0 @@
-- Guard find-request observer lifetime and preserve the fatal observer-allocation policy across input failure handling; native qualification remains pending.

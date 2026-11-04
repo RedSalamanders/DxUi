@@ -1,1 +1,0 @@
-- Report actual image preparation candidate visits separately from geometry block work.

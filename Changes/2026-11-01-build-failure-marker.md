@@ -1,1 +1,0 @@
-- Allowed guarded native build retries after MSBuild creates a shortened tracking directory, binding its exact evaluated path and refusing populated or misplaced failure markers.

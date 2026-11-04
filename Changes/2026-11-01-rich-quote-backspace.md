@@ -1,1 +1,0 @@
-- Outdent a complete quote through backward join at its first paragraph, preserving later lines and one-step undo; native qualification remains pending.

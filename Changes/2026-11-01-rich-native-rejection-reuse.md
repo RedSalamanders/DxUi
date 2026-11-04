@@ -1,1 +1,0 @@
-- Retain unchanged native-object source fallbacks across unrelated edits when their view and container geometry remain compatible.

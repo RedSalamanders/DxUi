@@ -1,1 +1,0 @@
-- Support bounded multiline top-level display-math insertion without splitting its Markdown source envelope; native qualification remains pending.

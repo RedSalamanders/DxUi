@@ -1,1 +1,0 @@
-- Add an owner-thread native presentation visibility signal that suppresses painting and animation subscriptions while an application reports occlusion, then resumes with a full frame; retain the separate embedded visibility API and default behavior.

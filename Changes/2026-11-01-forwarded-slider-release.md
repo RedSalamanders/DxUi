@@ -1,1 +1,0 @@
-- Preserve forwarded drag ownership through slider release and retain replacement capture chosen by a release callback.

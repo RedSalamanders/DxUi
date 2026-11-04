@@ -1,1 +1,0 @@
-- Support bounded math text weight, upright and normal style resets.

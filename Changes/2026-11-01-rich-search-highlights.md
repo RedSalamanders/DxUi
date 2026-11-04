@@ -1,1 +1,0 @@
-- Connect revision-guarded search results and active-match state to rich source highlights; native qualification remains pending.

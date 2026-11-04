@@ -1,1 +1,0 @@
-- Compile RichMath independently in the exact-pin consumer fixture and guard the public-header list against regression.

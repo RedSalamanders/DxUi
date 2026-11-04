@@ -1,1 +1,0 @@
-- Make the concurrent rich-document snapshot test rendezvous on each owner revision so reader observations occur between actual edit and history operations.

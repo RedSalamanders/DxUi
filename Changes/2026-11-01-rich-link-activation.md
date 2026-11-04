@@ -1,1 +1,0 @@
-- Added guarded RichTextEditor link activation through Ctrl+click, Ctrl+Enter and UIA, with caller-owned external navigation and exact-source local heading fragments.

@@ -1,1 +1,0 @@
-- Make menu direction tests establish their keyboard submenu precondition and retain popup-state failure diagnostics.

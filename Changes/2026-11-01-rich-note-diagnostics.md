@@ -1,1 +1,0 @@
-- Add note-aware structural editing, source diagnostic navigation, and a richer embedded example.

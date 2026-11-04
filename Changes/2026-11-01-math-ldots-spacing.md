@@ -1,1 +1,0 @@
-- Preserve the pinned math spacing class for `\ldots` while leaving a literal ellipsis ordinary; the shared math corpus checks the resulting geometry.

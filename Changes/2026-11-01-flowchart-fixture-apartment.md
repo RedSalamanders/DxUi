@@ -1,1 +1,0 @@
-- Initialize the COM apartment for the shared flowchart line-style raster fixture.

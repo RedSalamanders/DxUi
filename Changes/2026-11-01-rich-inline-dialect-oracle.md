@@ -1,1 +1,0 @@
-- Distinguish Rich Markdown's optional single-tilde subscript from the unchanged CommonMark and GFM strikethrough expectations in the shared parser fixture.

@@ -1,1 +1,0 @@
-- Validate complete native build logs and test-source receipts before reusing artifacts, and bind CI ownership to its reviewed inputs.

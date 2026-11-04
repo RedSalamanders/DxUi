@@ -1,1 +1,0 @@
-- Bound malformed image presentation suffix fallback to its current leaf and line, preserve crossed inline owners, and reject DEL in captions; shared semantic regressions compile and integrated runtime qualification remains pending.

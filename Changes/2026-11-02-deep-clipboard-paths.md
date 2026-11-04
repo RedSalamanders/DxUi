@@ -1,1 +1,0 @@
-- Preserve structured clipboard file lists as quoted literal source when a path exceeds the reference parser's component budget.

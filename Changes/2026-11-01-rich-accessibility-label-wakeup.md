@@ -1,1 +1,0 @@
-- Schedule embedded preparation when the rich editor accessibility-label dictionary changes, so newly localized semantic providers are published; native qualification remains pending.

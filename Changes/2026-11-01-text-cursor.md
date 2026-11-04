@@ -1,1 +1,0 @@
-- Show an I-beam over enabled text-field and rich-editor content, including read-only content; text-field buttons retain their normal cursor. Focused cursor coverage is included; complete native qualification remains pending.

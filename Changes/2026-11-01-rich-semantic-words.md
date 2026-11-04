@@ -1,1 +1,0 @@
-- Expose semantic prose word enumeration, visible display bounds and word counts for consumer spelling and statistics integrations; focused x64 Debug embedded checks passed, with integrated qualification and performance measurement pending.

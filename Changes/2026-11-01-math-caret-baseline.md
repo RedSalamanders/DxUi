@@ -1,1 +1,0 @@
-- Align inline math edge carets to the enclosing text baseline, including isolated formulas, while retaining wrapped-line affinity.

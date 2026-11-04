@@ -1,1 +1,0 @@
-- Preserve an interior caret when paired typing materializes an empty Markdown table cell.

@@ -1,1 +1,0 @@
-- Share dialect-extension admission between structural command planning and state queries; remaining site predicates and native qualification remain pending.

@@ -1,1 +1,0 @@
-- Guard consumer context-menu observer failure so a delivered request never triggers a second menu; native allocation-injection qualification remains pending.

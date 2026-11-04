@@ -1,1 +1,0 @@
-- Declare all supported build profiles for the standalone RichText preparation probe.

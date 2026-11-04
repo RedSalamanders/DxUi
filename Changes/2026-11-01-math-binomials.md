@@ -1,1 +1,0 @@
-- Render bounded native binomial notation with explicit display and text styles.

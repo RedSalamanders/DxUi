@@ -1,1 +1,0 @@
-- Bind rendered export directly to the current semantic roles and document partial list-prefix selection behavior; export requires the exact matching SDK headers and library.

@@ -1,1 +1,0 @@
-- Render bounded nested Mermaid state composites with locally scoped terminal states.
