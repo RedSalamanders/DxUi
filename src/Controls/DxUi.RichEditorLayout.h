@@ -206,7 +206,8 @@ public:
               const DiagramColorContext* diagramColors = nullptr,
               ID2D1Brush* calloutAccent                = nullptr,
               ID2D1Brush* propertiesInk                = nullptr,
-              bool diagramContentInk                   = false) const
+              bool diagramContentInk                   = false,
+              ID2D1Brush* diagramLabelFill             = nullptr) const
     {
 #if DXUI_ENABLE_DIAGNOSTICS
         ++testRichLayoutDrawCalls;
@@ -225,7 +226,8 @@ public:
                            diagramColors,
                            calloutAccent,
                            propertiesInk,
-                           diagramContentInk);
+                           diagramContentInk,
+                           diagramLabelFill);
         else
             v0_.Draw(target, brush, origin, top, bottom, links);
     }

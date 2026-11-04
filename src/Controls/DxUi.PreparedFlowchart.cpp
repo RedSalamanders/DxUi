@@ -1,6 +1,8 @@
 #include "DxUi.PreparedFlowchart.h"
+#include "Support/Utilities.h"
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <stdexcept>
 #include <wil/resource.h>
 #include <wil/result.h>
@@ -16,13 +18,8 @@ D2D1_COLOR_F DiagramColor(std::uint32_t color) noexcept
 }
 double Contrast(D2D1_COLOR_F a, D2D1_COLOR_F b) noexcept
 {
-    const auto luminance = [](D2D1_COLOR_F c) noexcept
-    {
-        const auto channel = [](double value) noexcept { return value <= .04045 ? value / 12.92 : std::pow((value + .055) / 1.055, 2.4); };
-        return .2126 * channel(c.r) + .7152 * channel(c.g) + .0722 * channel(c.b);
-    };
-    const auto left = luminance(a), right = luminance(b);
-    return (std::max(left, right) + .05) / (std::min(left, right) + .05);
+    return DxUi::Detail::ContrastRatioFromRelativeLuminance(DxUi::Detail::RelativeLuminanceFromSrgb(a.r, a.g, a.b),
+                                                            DxUi::Detail::RelativeLuminanceFromSrgb(b.r, b.g, b.b));
 }
 D2D1_COLOR_F Composite(D2D1_COLOR_F foreground, D2D1_COLOR_F background) noexcept
 {
@@ -37,6 +34,7 @@ struct FlowchartLabel
     D2D1_POINT_2F origin{};
     std::array<float, 16u> compartmentY{};
     std::size_t compartmentCount{};
+    bool onNodeSurface{};
 };
 bool SameTypography(const LayoutOptions& a, const LayoutOptions& b) noexcept
 {
@@ -108,6 +106,50 @@ wil::com_ptr<ID2D1PathGeometry> PiePath(ID2D1Factory* factory, FlowchartRect cir
     return path;
 }
 } // namespace
+D2D1_COLOR_F ResolveDiagramLabelBackground(D2D1_COLOR_F ink, D2D1_COLOR_F surface) noexcept
+{
+    surface.a           = 1.f;
+    const auto readable = [&](D2D1_COLOR_F background) noexcept { return Contrast(Composite(ink, background), background); };
+    if (readable(surface) >= 4.5)
+        return surface;
+    const auto black = D2D1::ColorF(D2D1::ColorF::Black), white = D2D1::ColorF(D2D1::ColorF::White);
+    // Some translucent custom ink cannot reach 4.5:1 on any neutral surface.
+    // Preserve that caller's ink and choose its strongest available contrast.
+    if (readable(black) < 4.5 && readable(white) < 4.5)
+        return readable(black) >= readable(white) ? black : white;
+    auto result   = surface;
+    float closest = std::numeric_limits<float>::max();
+    for (const auto endpoint : {black, white})
+    {
+        if (readable(endpoint) < 4.5)
+            continue;
+        const auto blend = [&](float amount) noexcept
+        {
+            return D2D1::ColorF(surface.r + (endpoint.r - surface.r) * amount,
+                                surface.g + (endpoint.g - surface.g) * amount,
+                                surface.b + (endpoint.b - surface.b) * amount,
+                                1.f);
+        };
+        float low = 0.f, high = 1.f;
+        for (unsigned step = 0u; step < 16u; ++step)
+        {
+            const auto middle = (low + high) * .5f;
+            if (readable(blend(middle)) >= 4.5)
+                high = middle;
+            else
+                low = middle;
+        }
+        const auto candidate = blend(high);
+        const float r = candidate.r - surface.r, g = candidate.g - surface.g, b = candidate.b - surface.b;
+        const float distance = r * r + g * g + b * b;
+        if (distance < closest)
+        {
+            result  = candidate;
+            closest = distance;
+        }
+    }
+    return result;
+}
 DiagramPalette::DiagramPalette(std::shared_ptr<const FlowchartModel> input, ID2D1RenderTarget* raster)
     : graph(std::move(input)),
       target(raster),
@@ -587,6 +629,23 @@ LayoutAdvance PreparedFlowchart::Advance(LayoutWorkBudget budget)
                         else
                             state.arrowPaths[work.cursor] = Path(state.drawing.get(), edge.arrow);
                     }
+                    {
+                        const auto& edge        = state.geometry->edges[work.cursor];
+                        const auto groupSurface = [&](FlowchartLabel& label, FlowchartRect bounds)
+                        {
+                            const auto x = bounds.x + bounds.width * .5, y = bounds.y + bounds.height * .5;
+                            label.onNodeSurface = edge.sequenceNote || std::ranges::any_of(state.geometry->groups, [&](const auto& group) {
+                                return x >= group.bounds.x && x <= group.bounds.x + group.bounds.width && y >= group.bounds.y &&
+                                       y <= group.bounds.y + group.bounds.height;
+                            });
+                        };
+                        groupSurface(state.edgeLabels[work.cursor], edge.label);
+                        if (state.hasCardinality)
+                        {
+                            groupSurface(state.fromCardinalities[work.cursor], edge.fromCardinality);
+                            groupSurface(state.toCardinalities[work.cursor], edge.toCardinality);
+                        }
+                    }
                     ++work.cursor;
                     break;
                 case Preparation::Stage::Publish:
@@ -648,7 +707,8 @@ bool PreparedFlowchart::Draw(ID2D1RenderTarget* target,
                              ID2D1Brush* fill,
                              D2D1_POINT_2F origin,
                              const DiagramPalette* palette,
-                             const DiagramColorContext* colors) const noexcept
+                             const DiagramColorContext* colors,
+                             ID2D1Brush* labelFill) const noexcept
 {
     if (! Ready() || ! target || ! text || ! stroke || ! fill || ! std::isfinite(origin.x) || ! std::isfinite(origin.y))
         return false;
@@ -931,7 +991,7 @@ bool PreparedFlowchart::Draw(ID2D1RenderTarget* target,
         {
             if (! prepared.layout)
                 return;
-            target->FillRectangle(Rect(bounds), fill);
+            target->FillRectangle(Rect(bounds), labelFill && ! prepared.onNodeSurface ? labelFill : fill);
             label(prepared, bounds);
         };
         if (state.hasCardinality)
@@ -946,7 +1006,7 @@ bool PreparedFlowchart::Draw(ID2D1RenderTarget* target,
             background.top -= 2.0f;
             background.right += 2.0f;
             background.bottom += 2.0f;
-            target->FillRectangle(background, fill);
+            target->FillRectangle(background, labelFill && ! state.edgeLabels[index].onNodeSurface ? labelFill : fill);
             label(state.edgeLabels[index], plan.edges[index].label);
         }
     }

@@ -75,3 +75,8 @@ the first implementation. This spec-only change leaves gallery pixels unchanged.
 The preview is a static HTML rendition using `bundle.css`; the populated harness gallery is the authoritative Direct2D capture.
 
 The continuation adds native in-document math and state/class diagrams. Use single atomic source owners, clear literal fallback with diagnostics, inherited text/selection colors, and F2 source access. Fractions and matrices reserve full line height; inline equations share the text baseline. The gallery now includes dedicated native mathematics and diagram tiles. Final physical/platform/performance qualification remains open.
+
+Arrow-label backing blends into the actual diagram surface when text reaches 4.5:1 contrast. A minimal
+neutral light/dark adjustment supports low-contrast custom palettes. Keep note/group surfaces and selected
+theme pairs distinct. Stage contrast decisions and brushes before drawing; crossing lines remain masked by
+opaque backing without adding a visible badge in ordinary readable themes.

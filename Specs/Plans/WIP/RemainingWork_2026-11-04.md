@@ -98,6 +98,8 @@ any *different* remaining failure-channel problem belong to D-A1.
 <a id="d-r1"></a>
 ### D-R1 — semantic resources, rendering and accessibility
 
+- [ ] Match native arrow-label/cardinality backgrounds to the diagram canvas, with prepared contrast fallback,
+  preserved notes/groups/selection, native raster/resource checks and exact-pin RedTilde capture verification.
 - [x] Correct quote/callout inner margins in shared geometry, including nested containers, lists, tables,
   RTL, narrow widths and source ACP hit testing; verify the consumer's themed-scrollbar adoption with an exact
   API-4 pin. The [scoped closeout](../Done/QuoteMarginsAndSequenceAllocation_2026-11-04.md) records all three x64

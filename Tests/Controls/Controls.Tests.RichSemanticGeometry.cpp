@@ -4,6 +4,7 @@
 #include "Support.Tests.PreparedFlowchart.h"
 #include "Support.Tests.RichSemanticEditor.h"
 #include "Support.Tests.RichSemanticGeometry.h"
+#include "Support/Utilities.h"
 namespace
 {
 void TestRichSemanticNativeObjectFailureContainment()
@@ -507,6 +508,152 @@ void TestRichSemanticDocumentHeadingMarginsAndIndentation()
 {
     RichSemanticTests::Run(RichSemanticGeometryTests::DocumentHeadingMarginsAndIndentation);
 }
+void TestNativeDiagramLabelBackdrops()
+{
+    using namespace DxUi::RichText;
+    using namespace DxUi::RichText::Detail;
+    const auto imaging = CreateWicFactoryForTest();
+    const auto drawing = PreparedFlowchartTests::DrawingFactory();
+    const auto write   = PreparedFlowchartTests::WriteFactory();
+    const auto calls   = Microsoft::WRL::Make<NativeTextTests::CountingWriteFactory>(write.get());
+    if (! calls)
+        throw std::bad_alloc();
+    struct Fixture
+    {
+        std::wstring_view source;
+        bool contained{};
+    };
+    const Fixture fixtures[]{
+        {L"stateDiagram-v2\n[*] --> Draft\nDraft --> Reviewed: Review\nReviewed --> Saved: Save\n"},
+        {L"flowchart LR\nA[Draft]-->|Review|B[Reviewed]\n"},
+        {L"sequenceDiagram\nparticipant A\nparticipant B\nA->>B: Review\n"},
+        {L"classDiagram\nDraft \"1\" --> \"*\" Review : reviews\n"},
+        {L"erDiagram\nDRAFT ||--o{ REVIEW : contains\n"},
+        {L"flowchart LR\nsubgraph Team\nA[Draft]-->|Review|B[Reviewed]\nend\n"},
+        {L"flowchart TD\nsubgraph Team\nA[Draft]-->|Review|B[Reviewed]\nend\n"},
+        {L"flowchart TD\nsubgraph Team[Notebook review team with a long summary]\nA[Draft]-->|Review|B[Reviewed]\nend\n", true},
+        {L"sequenceDiagram\nparticipant A\nNote right of A: Review\n", true},
+    };
+    struct Colors
+    {
+        D2D1_COLOR_F ink, surface, node;
+        bool adjusted{};
+    };
+    const Colors themes[]{
+        {D2D1::ColorF(0.f, 0.f, 0.f), D2D1::ColorF(.92f, .92f, .92f), D2D1::ColorF(1.f, 1.f, 1.f)},
+        {D2D1::ColorF(1.f, 1.f, 1.f), D2D1::ColorF(.20f, .20f, .20f), D2D1::ColorF(.10f, .10f, .10f)},
+        {D2D1::ColorF(.55f, .55f, .55f), D2D1::ColorF(.55f, .55f, .55f), D2D1::ColorF(.05f, .05f, .05f), true},
+        {D2D1::ColorF(.30f, .30f, .30f), D2D1::ColorF(.30f, .30f, .30f), D2D1::ColorF(.98f, .98f, .98f), true},
+    };
+    const auto luminance = [](D2D1_COLOR_F color) { return DxUi::Detail::RelativeLuminanceFromSrgb(color.r, color.g, color.b); };
+    const auto equal     = [](D2D1_COLOR_F a, D2D1_COLOR_F b) { return a.r == b.r && a.g == b.g && a.b == b.b && a.a == b.a; };
+    const auto nearDark  = ResolveDiagramLabelBackground(D2D1::ColorF(.46f, .46f, .46f), D2D1::ColorF(.05f, .05f, .05f));
+    Require(nearDark.r < .05f && nearDark.r > 0.f, "when both neutral extremes are readable, a slight darkening wins over an almost white badge");
+    for (const auto& fixture : fixtures)
+    {
+        const auto graph = FlowchartLayoutTests::Graph(fixture.source);
+        Require(graph->outcome == FlowchartOutcome::Prepared, "each arrow-label fixture uses an admitted native family");
+        PreparedFlowchart prepared;
+        prepared.Begin(calls.Get(), drawing.get(), graph, {}, {1u, 1u});
+        PreparedFlowchartTests::Complete(prepared, Require, calls.Get());
+        const auto plan = prepared.Geometry();
+        Require(prepared.Ready() && plan && plan->issue == FlowchartLayoutIssue::None, "label fixture prepares bounded native geometry");
+        const auto generation = prepared.Generation();
+        const auto layouts    = calls->layouts;
+        for (const UINT dpi : {96u, 192u})
+            for (const auto& theme : themes)
+                for (const bool overrideFill : {false, true})
+                {
+                    const auto labelColor = ResolveDiagramLabelBackground(theme.ink, theme.surface);
+                    Require(labelColor.a == 1.f && (theme.adjusted ? ! equal(labelColor, theme.surface) : equal(labelColor, theme.surface)),
+                            "readable text keeps the exact graph surface; insufficient contrast alone introduces a background adjustment");
+                    Require(DxUi::Detail::ContrastRatioFromRelativeLuminance(luminance(theme.ink), luminance(labelColor)) >= 4.5,
+                            "opaque label ink reaches the independent 4.5 contrast threshold");
+                    if (theme.adjusted)
+                    {
+                        Require(labelColor.r > .01f && labelColor.r < .99f && labelColor.r == labelColor.g && labelColor.g == labelColor.b,
+                                "low-contrast fallback is a subtle neutral adjustment rather than an extreme black/white badge");
+                        const auto closer = D2D1::ColorF(labelColor.r + (theme.surface.r - labelColor.r) * .01f,
+                                                         labelColor.g + (theme.surface.g - labelColor.g) * .01f,
+                                                         labelColor.b + (theme.surface.b - labelColor.b) * .01f);
+                        Require(DxUi::Detail::ContrastRatioFromRelativeLuminance(luminance(theme.ink), luminance(closer)) < 4.5,
+                                "a weaker adjustment would fail the contrast requirement");
+                    }
+                    const float scale = static_cast<float>(dpi) / 96.f;
+                    const auto width  = static_cast<UINT>(std::ceil(plan->extent.width * scale + 4.f));
+                    const auto height = static_cast<UINT>(std::ceil(plan->extent.height * scale + 4.f));
+                    const auto stride = width * 4u;
+                    wil::com_ptr<IWICBitmap> bitmap;
+                    THROW_IF_FAILED(imaging->CreateBitmap(width, height, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnLoad, bitmap.put()));
+                    wil::com_ptr<ID2D1RenderTarget> target;
+                    THROW_IF_FAILED(drawing->CreateWicBitmapRenderTarget(
+                        bitmap.get(),
+                        D2D1::RenderTargetProperties(D2D1_RENDER_TARGET_TYPE_SOFTWARE,
+                                                     D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED),
+                                                     static_cast<float>(dpi),
+                                                     static_cast<float>(dpi)),
+                        target.put()));
+                    wil::com_ptr<ID2D1SolidColorBrush> ink, node, backing;
+                    THROW_IF_FAILED(target->CreateSolidColorBrush(theme.ink, ink.put()));
+                    THROW_IF_FAILED(target->CreateSolidColorBrush(theme.node, node.put()));
+                    THROW_IF_FAILED(target->CreateSolidColorBrush(labelColor, backing.put()));
+                    target->BeginDraw();
+                    target->Clear(theme.surface);
+                    Require(prepared.Draw(target.get(), ink.get(), ink.get(), node.get(), {}, nullptr, nullptr, overrideFill ? backing.get() : nullptr),
+                            "native arrow labels draw with the supplied prepared surface");
+                    THROW_IF_FAILED(target->EndDraw());
+                    std::vector<BYTE> pixels(stride * height);
+                    THROW_IF_FAILED(bitmap->CopyPixels(nullptr, stride, static_cast<UINT>(pixels.size()), pixels.data()));
+                    unsigned labels{};
+                    for (const auto& edge : plan->edges)
+                        if (edge.hasLabel)
+                        {
+                            ++labels;
+                            const auto x = static_cast<UINT>(std::floor((edge.label.x - 1.f) * scale));
+                            const auto y = static_cast<UINT>(std::floor((edge.label.y - 1.f) * scale));
+                            Require(x < width && y < height, "label-backing sample is inside its real raster");
+                            const auto expected = ! overrideFill || fixture.contained ? theme.node : labelColor;
+                            const auto offset   = y * stride + x * 4u;
+                            Require(std::abs(static_cast<int>(pixels[offset]) - static_cast<int>(std::lround(expected.b * 255.f))) <= 2 &&
+                                        std::abs(static_cast<int>(pixels[offset + 1u]) - static_cast<int>(std::lround(expected.g * 255.f))) <= 2 &&
+                                        std::abs(static_cast<int>(pixels[offset + 2u]) - static_cast<int>(std::lround(expected.r * 255.f))) <= 2,
+                                    std::format("label backing family {}, DPI {}, contained {} at {},{}: actual BGR {},{},{}; expected {},{},{}",
+                                                static_cast<unsigned>(graph->family),
+                                                dpi,
+                                                fixture.contained,
+                                                x,
+                                                y,
+                                                pixels[offset],
+                                                pixels[offset + 1u],
+                                                pixels[offset + 2u],
+                                                std::lround(expected.b * 255.f),
+                                                std::lround(expected.g * 255.f),
+                                                std::lround(expected.r * 255.f))
+                                        .c_str());
+                        }
+                    Require(labels > 0u && calls->layouts == layouts && prepared.Generation() == generation && ! prepared.Pending(),
+                            "theme/DPI painting retains prepared geometry and creates no native text layouts");
+                    for (std::size_t index = 0u; index < plan->edges.size(); ++index)
+                        for (const bool from : {false, true})
+                        {
+                            const auto& source = from ? graph->edges[index].fromCardinality : graph->edges[index].toCardinality;
+                            if (source.empty())
+                                continue;
+                            const auto bounds = from ? plan->edges[index].fromCardinality : plan->edges[index].toCardinality;
+                            const auto x      = static_cast<UINT>(std::floor((bounds.x + .5f) * scale));
+                            const auto y      = static_cast<UINT>(std::floor((bounds.y + .5f) * scale));
+                            Require(x < width && y < height, "cardinality sample lies inside its native bitmap");
+                            const auto expected = overrideFill ? labelColor : theme.node;
+                            const auto offset   = y * stride + x * 4u;
+                            Require(std::abs(static_cast<int>(pixels[offset]) - static_cast<int>(std::lround(expected.b * 255.f))) <= 2 &&
+                                        std::abs(static_cast<int>(pixels[offset + 1u]) - static_cast<int>(std::lround(expected.g * 255.f))) <= 2 &&
+                                        std::abs(static_cast<int>(pixels[offset + 2u]) - static_cast<int>(std::lround(expected.r * 255.f))) <= 2,
+                                    "class/ER endpoint labels share the graph backing; an explicit caller fill remains authoritative");
+                        }
+                    Require(equal(backing->GetColor(), labelColor) && backing->GetOpacity() == 1.f, "drawing preserves the caller's brush color and opacity");
+                }
+    }
+}
 void TestNativeSequenceExtensionsRasterAndResources()
 {
     using namespace DxUi::RichText;
@@ -721,6 +868,7 @@ void RunRichSemanticGeometryTests()
     DXUI_RUN_TEST(TestRichSemanticInsetsAndCompletedTasks);
     DXUI_RUN_TEST(TestRichSemanticCodeChromeUsesReadableTextInk);
     DXUI_RUN_TEST(TestNativeSequenceExtensionsRasterAndResources);
+    DXUI_RUN_TEST(TestNativeDiagramLabelBackdrops);
     DXUI_RUN_TEST(TestRichSemanticDocumentHeadingMarginsAndIndentation);
     DXUI_RUN_TEST(TestRichSemanticGeometryAtomicNavigationAndCancellation);
     DXUI_RUN_TEST(TestRichSemanticGeometrySourceCaretSites);

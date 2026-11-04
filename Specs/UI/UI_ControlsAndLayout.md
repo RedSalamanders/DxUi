@@ -2810,6 +2810,16 @@ decoration brush. Authored colors still use the bounded palette and contrast rul
 above. Explicit snapshot/export drawing keeps its caller-supplied stroke contract.
 This brush choice performs no new layout, allocation or resource creation during paint.
 
+In the retained editor, arrow-label and relationship-cardinality backing matches the actual diagram canvas
+when the effective foreground reaches 4.5:1 contrast there. Subtle presentation uses its shaded code/diagram
+surface rather than the node fill. If contrast is insufficient, preparation chooses the smallest neutral
+light/dark adjustment that reaches 4.5:1; custom translucent ink that cannot reach that ratio retains its ink
+and uses the strongest available neutral backing. The backing remains opaque so crossing routes never show
+through label ink. Notes and labels inside filled groups keep their own container fill. Selection, dimmed,
+high-contrast and explicit export/overlay passes retain their caller-resolved surfaces. Contrast decisions,
+group membership and brush staging occur during bounded preparation; paint does not reshape, allocate,
+create resources or change borrowed brush attributes.
+
 Flowchart, state, class, sequence, pie, ER, Gantt and mind map diagrams accept one `accTitle: text` and one
 `accDescr: text` or multiline `accDescr {` / `accDescr{` block closed by a
 standalone `}`. Values are plain text, each bounded to 1024 UTF-16 units;
