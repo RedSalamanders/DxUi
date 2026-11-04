@@ -1,1 +1,0 @@
-- Retain unchanged in-flight and staged image results across accessibility-label changes until rebuilt semantics rebinds them.

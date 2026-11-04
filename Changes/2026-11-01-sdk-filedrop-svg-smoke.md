@@ -1,1 +1,0 @@
-- Exercise public file-drop and bounded SVG APIs in the extracted SDK smoke and compile FileDrop independently in the source-pin consumer.

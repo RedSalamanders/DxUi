@@ -1,1 +1,0 @@
-- Add independent opt-in caller-resolved data image requests, with bounded exact URI admission and cancellation isolated from remote and local image work.

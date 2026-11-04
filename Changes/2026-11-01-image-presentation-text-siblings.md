@@ -1,1 +1,0 @@
-- Admit standalone image presentation attributes split across contiguous inline nodes, preserving literal caption punctuation and refusing malformed or cross-boundary suffixes.

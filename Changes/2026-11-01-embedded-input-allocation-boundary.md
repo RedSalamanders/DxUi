@@ -1,1 +1,0 @@
-- Contain allocation failure at embedded input boundaries, conservatively consume callbacks that may already have committed, and suppress stale translated characters; directed pre/post callback tests compile, integrated runtime remains pending.

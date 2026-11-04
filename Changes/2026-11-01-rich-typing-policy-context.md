@@ -1,1 +1,0 @@
-- Retire pending typing-policy context when Markdown profile or editor presentation changes.

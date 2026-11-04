@@ -1,1 +1,0 @@
-- Coalesce adjacent plain semantic deletion transactions while preserving separate structural markup cleanup undo.

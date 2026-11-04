@@ -1,1 +1,0 @@
-- Add a source-pinned consumer upgrade guide covering delivery changes, API 3/4 migration, rebuild and validation, optional host features and rollback; refresh stale file-drop and handoff descriptions. Documentation only; native code and gallery pixels are unchanged.

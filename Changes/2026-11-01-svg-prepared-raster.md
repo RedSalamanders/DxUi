@@ -1,1 +1,0 @@
-- Prepare bounded, DPI-aware SVG image bitmaps in tiles so ordinary drawing uses retained resources, including authored-size and device-recovery coverage.

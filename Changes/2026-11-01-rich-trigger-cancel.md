@@ -1,1 +1,0 @@
-- End pending Markdown typing triggers on Escape and navigation commands.

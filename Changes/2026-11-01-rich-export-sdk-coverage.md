@@ -1,1 +1,0 @@
-- Verify the public rich-text export header independently in relocated consumers and exercise rendered heading and emphasis export in the extracted SDK smoke; keep semantic-extension assertions unconditional for the current library.

@@ -1,1 +1,0 @@
-- Report every structural command unavailable during an active native composition while retaining current presentation state; native qualification remains pending.

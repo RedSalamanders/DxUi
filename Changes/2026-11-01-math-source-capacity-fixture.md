@@ -1,1 +1,0 @@
-- Keep the over-capacity mathematics fallback fixture aligned with the public source-unit limit.

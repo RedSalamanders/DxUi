@@ -1,1 +1,0 @@
-- Add editor-level source replace-all as one composition-safe undo transaction; native qualification remains pending.

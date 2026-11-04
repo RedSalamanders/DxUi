@@ -1,1 +1,0 @@
-- Render bounded unnumbered align, gather, split, and equation environments inside mathematical notation.

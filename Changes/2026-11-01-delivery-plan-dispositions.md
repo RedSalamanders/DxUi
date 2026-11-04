@@ -1,1 +1,0 @@
-- Reconcile the listed delivery plans with the current candidate and document application-owned shortcode insertion without changing historical evidence or qualification gates.

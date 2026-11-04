@@ -1,1 +1,0 @@
-- Made RichTextEditor input allocation failures decline before commit and remain handled after publication, preserving pending surrogate pairs for retry and keeping observer failure policy explicit.

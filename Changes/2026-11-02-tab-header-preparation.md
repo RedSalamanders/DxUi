@@ -1,1 +1,0 @@
-- Prepare tab title measurements and header geometry before drawing, including after host transfer and overflow scrolling.

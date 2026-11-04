@@ -1,1 +1,0 @@
-- Resolve supplemental tooltip targets again after clearing visible content, so an embedded callback that replaces a document cannot publish its retired title; cover generic-to-rich transitions and nested source setters.

@@ -1,1 +1,0 @@
-- Keep otherwise decodable JPEG and TIFF pixels when optional EXIF orientation metadata is malformed, while preserving out-of-memory failures.

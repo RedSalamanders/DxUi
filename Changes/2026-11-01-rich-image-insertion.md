@@ -1,1 +1,0 @@
-- Add inert Markdown image insertion with escaped metadata and shared document-relative file path conversion; native qualification remains pending.

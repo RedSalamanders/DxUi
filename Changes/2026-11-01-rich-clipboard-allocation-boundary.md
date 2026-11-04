@@ -1,1 +1,0 @@
-- Keep empty HTML clipboard strings fallibly constructed so Debug iterator-proxy allocation failures reach the existing HRESULT recovery boundary. Retain owned, atomic clipboard staging and the existing allocation-failure suites.

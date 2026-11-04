@@ -1,1 +1,0 @@
-- Prevent middle-button auto-scroll from overlapping an active pointer gesture; primary takeover and capture cancellation preserve source and stop scrolling.

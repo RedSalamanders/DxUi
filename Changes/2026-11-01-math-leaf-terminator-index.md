@@ -1,1 +1,0 @@
-- Share a bounded leaf-local terminator index across math openers and clear it on replacement or cancellation.

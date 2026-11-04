@@ -1,1 +1,0 @@
-- Share nonallocating math-insertion admission between the command planner and state query; other command applicability and native qualification remain pending.

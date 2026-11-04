@@ -1,1 +1,0 @@
-- Reasserting an already adopted immutable Markdown snapshot now cancels superseded work without rescanning unchanged source. Native and performance qualification remain pending.

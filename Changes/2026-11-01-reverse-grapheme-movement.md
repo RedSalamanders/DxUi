@@ -1,1 +1,0 @@
-- Avoid repeated full-prefix scans for reverse movement and backspace across ordinary Unicode text while retaining Unicode grapheme context.

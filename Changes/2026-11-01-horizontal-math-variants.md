@@ -1,1 +1,0 @@
-- Render compatible horizontal OpenType MATH accent variants and bounded assemblies with vector fallback.

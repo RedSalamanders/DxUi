@@ -1,1 +1,0 @@
-- Add single-line source-exact insertion of escaped literal Markdown text; native qualification remains pending.

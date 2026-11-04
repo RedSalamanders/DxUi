@@ -1,1 +1,0 @@
-- Add RichMarkdown highlight, inserted, superscript and subscript delimiter extensions with exact source mapping and script fallback; focused parser/semantic checks passed, with integrated native and performance qualification pending.

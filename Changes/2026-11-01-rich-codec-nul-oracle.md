@@ -1,1 +1,0 @@
-- Updated the retained source-codec regression to verify complete counted-NUL round trips and undo while preserving strict Win32-string validation.

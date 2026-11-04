@@ -1,1 +1,0 @@
-- Notify native text services when text layout or window position changes, transfer exported text buffers into snapshots, and avoid full-prefix scans at established ASCII grapheme boundaries. Native and performance qualification remain pending.

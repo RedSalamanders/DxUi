@@ -1,1 +1,0 @@
-- Check table-cell staging at its actual block-recognizer boundary rather than relying on a fixed parser turn count.

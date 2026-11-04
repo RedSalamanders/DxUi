@@ -1,1 +1,0 @@
-- Clear complete Markdown autolinks to escaped literal text that does not relink when reparsed.

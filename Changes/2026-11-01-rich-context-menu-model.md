@@ -1,1 +1,0 @@
-- Expose the localized rich default-menu model and action dispatch for HWND-less embedded hosts; native popup qualification remains pending.

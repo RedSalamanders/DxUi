@@ -1,1 +1,0 @@
-- Cover repeated immutable image frames, unique decoded-byte accounting, allocation and raster failures, and the embedded host retry boundary; runtime qualification remains pending integration.

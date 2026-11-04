@@ -1,1 +1,0 @@
-- Add opt-in, bounded DIB clipboard paste through application-owned asset storage, preserving one undo and stale-input guards; focused x64 Debug fake-clipboard and embedded WARP probes passed, with integrated qualification pending.

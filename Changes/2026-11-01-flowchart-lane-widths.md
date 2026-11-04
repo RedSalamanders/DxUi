@@ -1,1 +1,0 @@
-- Size each Mermaid graph routing lane for its own label instead of the widest label.

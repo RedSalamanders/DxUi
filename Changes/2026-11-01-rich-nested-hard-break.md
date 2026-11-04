@@ -1,1 +1,0 @@
-- Preserve nested list and quote container prefixes when inserting representable Markdown hard breaks.

@@ -1,1 +1,0 @@
-- Preserve the preceding HWND TSF association when a focus callback activates a successor while an outer document is still staged.

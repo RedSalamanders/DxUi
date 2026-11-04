@@ -1,1 +1,0 @@
-- Extend clear-formatting to fully selected source links while preserving their text and undo behavior; native qualification remains pending.

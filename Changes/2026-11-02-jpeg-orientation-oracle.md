@@ -1,1 +1,0 @@
-- Cover JPEG EXIF rotation with a real WIC APP1 query and a pixel oracle derived from the same unoriented JPEG.

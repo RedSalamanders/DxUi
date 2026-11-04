@@ -1,1 +1,0 @@
-- Corrected the read-only source snapshot adoption test to establish its scrolled state explicitly.

@@ -1,1 +1,0 @@
-- Render bounded Mermaid state choice pseudostates as native diamonds while preserving unsupported source.

@@ -1,1 +1,0 @@
-- Retain glyph overhang in semantic paint culling so ink remains visible at viewport boundaries without changing logical hit or source ranges.

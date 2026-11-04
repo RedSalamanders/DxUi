@@ -1,1 +1,0 @@
-- Run independent non-foreground test suites concurrently when explicitly requested.

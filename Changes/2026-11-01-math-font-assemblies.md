@@ -1,1 +1,0 @@
-- Assemble bounded OpenType MATH delimiter parts for tall native formulas.

@@ -1,1 +1,0 @@
-- Render bounded Mermaid class member blocks and preserve unsupported or incomplete source exactly.

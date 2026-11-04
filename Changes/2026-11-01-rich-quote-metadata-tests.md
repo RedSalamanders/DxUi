@@ -1,1 +1,0 @@
-- Correct the thematic-break quote fixture for RichMarkdown metadata ownership and verify metadata refusal and other block-owner quoting; native qualification remains pending.

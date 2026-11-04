@@ -1,1 +1,0 @@
-- Coalesce bounded same-direction source deletion runs into one undo group; native qualification remains pending.

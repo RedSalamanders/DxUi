@@ -1,1 +1,0 @@
-- Expose allocation-free current Markdown style, heading and list state with explicit unknown command applicability; native qualification and complete applicability queries remain pending.

@@ -1,1 +1,0 @@
-- Expose radio groups as UI Automation selection containers and report unfocused prepared-tree expansion actions from their own items.

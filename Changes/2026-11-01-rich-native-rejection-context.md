@@ -1,1 +1,0 @@
-- Retry rejected native formulas when surrounding heading or container styling changes.

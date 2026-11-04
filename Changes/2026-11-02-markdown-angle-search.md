@@ -1,1 +1,0 @@
-- Bound angle-autolink recognition at the first invalid character and cover repeated rejected prefixes with a linear-work oracle.

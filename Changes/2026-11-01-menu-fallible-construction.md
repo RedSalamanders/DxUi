@@ -1,1 +1,0 @@
-- Make default-menu and host empty-container construction fallible in MSVC Debug and add a model allocation-failure sweep; native qualification remains pending.

@@ -1,1 +1,0 @@
-- Report a retired RichText semantic child as unavailable when its publication changes during provider creation; reserve out-of-memory for allocation failure.

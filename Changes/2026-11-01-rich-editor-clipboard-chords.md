@@ -1,1 +1,0 @@
-- Add standard legacy clipboard chords and literal Ctrl+Shift+V paste to the rich editor; focused x64 Debug clipboard regression passed, with integrated qualification pending.

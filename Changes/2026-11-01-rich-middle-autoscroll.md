@@ -1,1 +1,0 @@
-- Add middle-button rich-editor auto-scroll using host animation ticks, including embedded pointer and sample scheduling support. Focused embedded coverage is included; native and embedded runtime qualification remains pending.

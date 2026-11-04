@@ -1,1 +1,0 @@
-- Add opt-in source line numbers, whitespace guides and unwrapped horizontal scrolling, including source input geometry and intrinsic table overflow. Focused x64 Release native/embedded checks and WARP pixels cover the new behavior; complete six-profile, allocation and performance qualification remain open.

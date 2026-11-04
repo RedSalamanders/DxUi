@@ -1,1 +1,0 @@
-- Preserve retryable DirectWrite font and glyph failures during native math preparation.

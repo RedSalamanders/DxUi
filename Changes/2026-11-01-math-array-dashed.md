@@ -1,1 +1,0 @@
-- Stage bounded dashed rules in native math arrays.

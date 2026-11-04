@@ -1,1 +1,0 @@
-- Guard control setters against synchronous embedded preparation callbacks that retire their control or replace its tree, and clarify the supported callback boundary. Native qualification remains pending.

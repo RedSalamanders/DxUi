@@ -1,1 +1,0 @@
-- Cache mathematical text formats per preparation generation, honor configurable math font and host locale, stage large image uploads within a pixel-byte budget, and expose pending ink/guide stages accurately. Share layout-option compatibility without changing v0's semantic-only omissions; integrated native, failure, pixel and paired performance validation remains pending.

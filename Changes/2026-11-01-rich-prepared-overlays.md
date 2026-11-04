@@ -1,1 +1,0 @@
-- Stage rich selection, highlight and native composition rectangles during content preparation instead of constructing them during Paint; native qualification remains pending.

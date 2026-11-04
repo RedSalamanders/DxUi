@@ -1,1 +1,0 @@
-- Add bounded inert semantic HTML and rendered-text export, explicit Unicode/CF_HTML copy, and clipped prepared-page drawing. Focused fake-clipboard, allocation-failure and supplied-device raster probes passed before heading-index integration; integrated native and print-device qualification remains pending.

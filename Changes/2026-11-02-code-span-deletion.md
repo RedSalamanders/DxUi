@@ -1,1 +1,0 @@
-- Remove a code-span wrapper when visual deletion covers its complete normalized body, including newline padding and nested container prefixes, while preserving exact undo source.

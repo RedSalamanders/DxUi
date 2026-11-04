@@ -1,1 +1,0 @@
-- Made text-store read-only insertion return the TSF-specific result consistently and corrected the historical application-store assertion to the same contract.

@@ -1,1 +1,0 @@
-- Wrap long Mermaid labels within bounded native text geometry.

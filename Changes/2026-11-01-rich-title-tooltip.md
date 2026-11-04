@@ -1,1 +1,0 @@
-- Show authored Rich text link and image titles through the host's delayed tooltip, with editable Ctrl gating and lifecycle cleanup.

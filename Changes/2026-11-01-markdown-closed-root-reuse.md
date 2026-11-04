@@ -1,1 +1,0 @@
-- Reuse proven unchanged Markdown root subtrees during tracked edits, retaining full-parse fallback for ambiguous closures and rebuilding source-correlated results before publication.

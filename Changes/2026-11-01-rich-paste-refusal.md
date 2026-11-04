@@ -1,1 +1,0 @@
-- Made malformed and over-budget rich file-paste preparation fail atomically without throwing content errors.

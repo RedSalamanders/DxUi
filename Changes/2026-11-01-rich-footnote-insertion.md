@@ -1,1 +1,0 @@
-- Add a source-exact RichMarkdown footnote insertion command with normalized identity collision checks and atomic undo; native qualification remains in progress.

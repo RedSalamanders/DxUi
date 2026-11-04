@@ -1,1 +1,0 @@
-- Honor bounded Mermaid minimum link lengths in graph ranks.

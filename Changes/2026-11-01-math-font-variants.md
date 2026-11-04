@@ -1,1 +1,0 @@
-- Use bounded OpenType math italic corrections and scalable delimiter variants with deterministic fallback.

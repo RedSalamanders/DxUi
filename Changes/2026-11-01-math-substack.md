@@ -1,1 +1,0 @@
-- Render bounded centered substack rows inside native mathematical notation.

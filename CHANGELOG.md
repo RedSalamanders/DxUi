@@ -4,6 +4,443 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Add shared quote/callout inner margins and source-aware native coverage, make Mermaid sequence-label staging recover from injected Debug allocation failure, and consolidate historical planning into one remaining-work owner with preserved evidence and qualification gates.
+- Use effective foreground ink for default native diagram connections, arrowheads, lifelines and outlines, including Subtle and high contrast; retain separate decorative Markdown borders, authored palettes and explicit export stroke behavior. Add an offscreen editor pixel regression for Light, Dark, high contrast and warm resource reuse.
+- Expand native Mermaid sequence diagrams with actor figures and plain aliases, chronological left/right/over notes, bare message numbering and solid/dotted messages without arrowheads; directionless flowchart headers default to top-to-bottom. Preserve exact source, bounded preparation and allocation-free drawing. Add parser, geometry, raster, semantic-order and resource regressions plus a gallery sample. Broader platform, physical input and performance-policy qualification remain separate.
+- Keep styled Mermaid labels within their decoded text, separate ER/class relationship ports and cardinalities, remove duplicate unordered-task bullets, and use foreground ink for code language badges and line numbers; retain exact source and bounded native preparation.
+- Reserve label-aware inter-rank space and route adjacent labeled Mermaid links through it, including ER cardinalities. Add horizontal table-cell and inline-code text insets, theme accent ink for task markers, and optional source-preserving `strikeCompletedTasks` presentation. Keep native glyph metrics, source mapping, history, high contrast and bounded warm drawing intact; add geometry/raster and consumer regressions.
+- Complete the DxUi WIP delivery review, bind source-specific native, SDK and compatibility evidence, archive the reviewed plans, and preserve shared qualification limits.
+- Correct the Tree control guide's single-click invocation and icon-text formatting, and remove a repeated accessibility sentence.
+- Stage tab header path and palette resources before painting and reuse them across unchanged frames.
+- Prepare tab title measurements and header geometry before drawing, including after host transfer and overflow scrolling.
+- Retain complete SDK consumer and warning-control build summaries so the strict zero-warning gate can validate real compiler output.
+- Exclude table frame padding without visible text or caret lines from rich visible-range queries while preserving visible atomic-object source ownership.
+- Report a retired RichText semantic child as unavailable when its publication changes during provider creation; reserve out-of-memory for allocation failure.
+- Exercise native and embedded rich accessibility snapshot recovery after an injected font-family SDK HRESULT failure.
+- Keep uncommitted rich-text composition previews out of undo and redo history, restoring entry history on cancellation and on superseding edits.
+- Preserve the generated column separator after a table cell ending in a native HTML line break, while retaining ordinary paragraph break behavior.
+- Clarify implemented rich-text status, sample DPI behavior, lexical network-path policy and same-client paste-transform discovery.
+- Make the concurrent rich-document snapshot test rendezvous on each owner revision so reader observations occur between actual edit and history operations.
+- Reuse completed raster image bitmaps during width-only rich text reflow on the same target and resource generation, while rebuilding them after target or epoch changes.
+- Extend rich-text raster qualification with math and diagram DPI, direction, and palette pixel oracles.
+- Preserve rich heading preparation and UIA line/rectangle queries under injected allocation failure in MSVC Debug; correct composition, range-query, math-limit, accent, heading-outline, diagram-capacity and cooperative device-recovery test oracles while retaining exact source, undo, placement, retry and rendered-frame assertions.
+- Retain glyph overhang in semantic paint culling so ink remains visible at viewport boundaries without changing logical hit or source ranges.
+- Size native and embedded styled-math test viewports in DIPs so their unclipped height and caret oracles remain valid at each DPI.
+- Avoid a second full decoded pixel copy for identity-oriented rich text images while preserving atomic publication and cancellation.
+- Cover the shared native-object and decoded-image limits with mixed math, diagram, and image admission and width-reflow lifecycle checks.
+- Preserve each reference definition and following paragraph's physical container prefix when splitting Markdown source blocks.
+- Expose radio groups as UI Automation selection containers and report unfocused prepared-tree expansion actions from their own items.
+- Record the 2 November production review of the five-day delivery (`a0f67fd3..6df17007`, PR #159) in
+  `Specs/Plans/Done/ProductionReview_2026-11-02.md` with per-area verified findings, red-team verdicts, corrected fixes
+  and regression tests, and the developer's Wave 0 decisions: deferred embedded wakes (D0), cosmetic preparation that
+  never gates a frame (D1), per-element failure fallback (D2), redaction plus a coordinated history rewrite (D9) and
+  publication of the API3/API4/SDK qualification branches (D10, done). Review only; no library, test or tooling
+  behavior changes. The embedded TextField use-after-free (P0), the release-blocking P1 items, the history rewrite and
+  the earlier-review closure gaps remain open in that plan.
+- Preserve keyboard focus in an open submenu when Windows delivers a stationary pointer move to an ancestor; genuine pointer movement continues to transfer hover ownership.
+- Make menu direction tests establish their keyboard submenu precondition and retain popup-state failure diagnostics.
+- Preserve math values and footnote references in test-only Markdown serialization, with independent profile and escaping expectations.
+- Check table-cell staging at its actual block-recognizer boundary rather than relying on a fixed parser turn count.
+- Preserve both source units of an escaped table-cell pipe in inline ranges, including code spans, so source ownership and adjacent text remain continuous.
+- Exercise Markdown and Mermaid generator inventory and expectation guards with isolated malformed inputs and fixture-only updated hashes.
+- Bound angle-autolink recognition at the first invalid character and cover repeated rejected prefixes with a linear-work oracle.
+- Match pinned CommonMark and GFM behavior when a lazy paragraph encounters an unmatched quote and a list or HTML opener.
+- Cover JPEG EXIF rotation with a real WIC APP1 query and a pixel oracle derived from the same unoriented JPEG.
+- Verify that short and over-capacity inline double-dollar openers both retain literal source without becoming inline math.
+- Keep cancelled or suspended image requests out of the failed-source count while preserving real decode failures and pending request ownership.
+- Report actual image preparation candidate visits separately from geometry block work.
+- Keep embedded Grid accessibility available through paint-only changes while refusing unprepared geometry before and after model callbacks.
+- Match the pinned GFM table parser when a delimiter follows a multi-line paragraph, preserving the preceding paragraph and original container prefixes and line endings.
+- Match the pinned GFM 0.29 uppercase declaration-block rule while retaining later CommonMark and RichMarkdown behavior.
+- Keep otherwise decodable JPEG and TIFF pixels when optional EXIF orientation metadata is malformed, while preserving out-of-memory failures.
+- Preserve embedded logical text focus through hide, zero-size and device recovery while retiring prior composition and input tokens.
+- Correct the supplied-device sample's text-service and pointer routing: avoid unrelated-message and pending-turn source refreshes, forward owned mouse leave, notify moved geometry, preserve replacement capture, and prove routing on a hidden window without focus changes; document that surface preparation also mutates the borrowed D3D pipeline.
+- Cover exact mixed line endings and undo through the embedded RichText application clipboard adapter.
+- Reject uncached embedded Grid accessibility materialization while its prepared surface is incoherent, preserving the last published snapshot until preparation succeeds.
+- Preserve reusable geometry during transient input previews and align rich clipboard Cut with semantic deletion while keeping exact copied source.
+- Keep archived delivery evidence within the 150-character checkout limit while preserving every original receipt byte, hash and source-path record.
+- Preserve structured clipboard file lists as quoted literal source when a path exceeds the reference parser's component budget.
+- Add a source-pinned consumer upgrade guide covering delivery changes, API 3/4 migration, rebuild and validation, optional host features and rollback; refresh stale file-drop and handoff descriptions. Documentation only; native code and gallery pixels are unchanged.
+- Compile RichMath independently in the exact-pin consumer fixture and guard the public-header list against regression.
+- Preserve the child publication exception and process wait observations when the consumer qualification negative fixture fails its existing closure bound.
+- Remove a code-span wrapper when visual deletion covers its complete normalized body, including newline padding and nested container prefixes, while preserving exact undo source.
+- Clarify that Waves 0-2 own the consumer pin prerequisites and DX-1 remains a
+  follow-up, reconcile the rich-text audit citation counts, and define active plan
+  status labels in `Specs/README.md` with the WIP index linked to that authority.
+  Documentation changes only; remaining folder repairs and native, performance
+  and consumer qualification stay open.
+- Reconcile the DxUi WIP reviews against current source and repair menu focus/timer ownership, rich-text source insertion and TSF limits/status, Grid/Tree model and geometry updates, capture cancellation, layout metrics, parser admission and native device-loss recovery; retain source-bound validation and unfinished feature/qualification gates in the delivery plans.
+- Strengthen the native child-tree mutation regression by isolating host repaint requests from device-loss and unrelated window invalidations; native qualification remains pending.
+- Select the wiki hyperlink by its UI Automation role when testing link activation, including a same-named parent paragraph.
+- Propagate UTF-8 codec allocation failures, including empty results and heading-fragment decoding, without Debug STL move termination; focused Debug fault probes passed and the shared host sweep awaits integrated qualification.
+- Validate ordinary text-event owners using the existing published accessibility index with live-path fallback, avoiding wide-tree searches while preserving stale-owner refusal; directed resolution-count coverage compiles, runtime pending.
+- Preserve the preceding HWND TSF association when a focus callback activates a successor while an outer document is still staged.
+- Reuse Tree tooltip geometry on repeated unchanged hover and bypass measurement for explicit tooltip text, with host and geometry invalidation. Native regression and paired performance qualification remain pending.
+- Revalidate Tree input after synchronous embedded invalidation and contain native mouse-leave callback failures while preserving replacement tooltips; focused test translation units compile, integrated runtime pending.
+- Revalidate Tree input after invalidation, tooltip and animation wake callbacks before continuing against an owner that may have retired or rebound; embedded cancellation-retirement fixtures compile and integrated runtime remains pending.
+- Preserve Tree scroll position on refresh, stabilize incremental typeahead, report initial keyboard selection, and route modified clicks and boundary wheel input correctly. Native qualification remains pending.
+- Avoid badge text shaping during Tree expander hit testing while retaining shared lane geometry for right-to-left and reserved spacing. The new pointer regression and paired resource qualification remain to run on the integrated candidate.
+- Bound Tree expansion animation preparation and reuse stable-ID indexes during painting; large trees apply expansion immediately. Native and performance qualification remain pending.
+- Bound Tree item accessibility status bursts and pending item-property notifications, and use weak-identity event senders for Tree selection, expansion and status events. Embedded client and held-delivery regressions require execution on the integrated candidate; platform and performance qualification remain open.
+- Resolve supplemental tooltip targets again after clearing visible content, so an embedded callback that replaces a document cannot publish its retired title; cover generic-to-rich transitions and nested source setters.
+- Report nonzero tooling test exits and skipped duplicate changelog fragment names while continuing the remaining tests and preserving retry idempotence.
+- Validate closed RichMarkdown YAML and TOML metadata without changing source, with distinct invalid, duplicate, unresolved-alias and capacity diagnostics; complete conformance and qualification remain in progress.
+- Made text-store read-only insertion return the TSF-specific result consistently and corrected the historical application-store assertion to the same contract.
+- Notify native text services when text layout or window position changes, transfer exported text buffers into snapshots, and avoid full-prefix scans at established ASCII grapheme boundaries. Native and performance qualification remain pending.
+- Buffer TextField UTF-16 surrogate pairs until complete and cancel pending input on context changes, so callbacks and accessibility never observe a half character. Native qualification remains pending.
+- Guard TextField mutations and Slider visual transitions when synchronous embedded invalidation retires their controls. Native qualification remains pending.
+- Show an I-beam over enabled text-field and rich-editor content, including read-only content; text-field buttons retain their normal cursor. Focused cursor coverage is included; complete native qualification remains pending.
+- Remove shadowed local names from the image-caption and mathematical ink test oracles to keep every native profile warning-free.
+- Recover native shared graphics after device loss during swap-chain, back-buffer or target-bitmap creation, with injected WARP regression coverage. Native qualification remains pending.
+- Make SVG stream dependencies self-contained for static-library consumers and include the diagnostic declaration directly in the shared SVG test fixture.
+- Prepare bounded, DPI-aware SVG image bitmaps in tiles so ordinary drawing uses retained resources, including authored-size and device-recovery coverage.
+- Render bounded one-line Mermaid state notes on their requested side with accessible descriptions.
+- Render bounded Mermaid state fork and join pseudostates as direction-aware native bars.
+- Render bounded nested Mermaid state composites with locally scoped terminal states.
+- Render bounded Mermaid state choice pseudostates as native diamonds while preserving unsupported source.
+- Corrected the read-only source snapshot adoption test to establish its scrolled state explicitly.
+- Gate the experimental direct source-ink renderer behind an independent default-off preview switch while preserving canonical Markdown source coloring. Paired performance qualification remains pending.
+- Test source ink against supported inline and display math delimiters and literal inline bracket escapes.
+- Cover Separator catalog allocation failures and document the optional native initial-child batching policy.
+- Prepare semantic text layouts from display text and runs without allocating artificial source identity maps, preserving ordinary projection validation and transactional staging.
+- Render counted NUL as the replacement character while preserving exact RichText source and undoable edits.
+- Exercise public file-drop and bounded SVG APIs in the extracted SDK smoke and compile FileDrop independently in the source-pin consumer.
+- Add word-wise keyboard deletion to rich and source editing, preserving structural source mapping and source-session bounds; native qualification remains pending.
+- Add bounded RichMarkdown wiki links and image embeds with application-owned target resolution, exact source mapping and linear lookahead; focused x64 Debug parser and embedded WARP checks passed, with integrated qualification pending.
+- Reduced pending v0 rich navigation work while preserving full-projection source mapping.
+- Added opt-in source-aware URL-on-selection paste for rich text editors.
+- Preserve supplementary scalars and combining text elements when coalescing rich editor typing and source deletion undo groups.
+- Unwrap unclosed Markdown fences while preserving representable quote and list containers.
+- Coalesce adjacent direct word typing into bounded undo groups while retaining composition and explicit edit transactions; native qualification remains pending.
+- Retire pending typing-policy context when Markdown profile or editor presentation changes.
+- Select a rich-editor paragraph with a third consecutive click in native and embedded hosts, including through a scrolling panel. Focused embedded coverage is included; complete native qualification remains pending.
+- End pending Markdown typing triggers on Escape and navigation commands.
+- Show authored Rich text link and image titles through the host's delayed tooltip, with editable Ctrl gating and lifecycle cleanup.
+- Preserve newer editor state when clearing an authored-title tooltip reenters a setter, and keep inline source help separate from authored titles.
+- Add opt-in horizontal table overflow that preserves minimum word widths and reports the full retained content extent in either reading direction.
+- Add source-exact Markdown table alignment and adjacent row/column moves, preserving directional selection and undo; native qualification remains in progress.
+- Rich Markdown tables preserve each column's minimum word width before distributing remaining wrapping space, including right-to-left layout.
+- Preserve an interior caret when paired typing materializes an empty Markdown table cell.
+- Add opt-in bounded SVG image resources with caller-owned admission and device-generation preparation, retaining alternatives on unsupported targets.
+- Reduced pending rich-text source navigation and erase work with Unicode-safe local source windows.
+- Added RichTextEditor font zoom, explicit tab stops and opt-in monospace Source view, preserving source, selection, history and focus.
+- Add optional source and code-block Tab indentation with atomic multiline undo and host focus escape; native qualification remains pending.
+- Add bounded ordinal source search with case and whole-word options, suitable for existing highlights and atomic source replacement; native qualification remains pending.
+- Add a guarded, one-undo transaction for moving an editor's selected source. OLE text-drag routing and full runtime qualification remain pending.
+- Preserve read-only Source mirror scroll and reusable geometry across synchronization, clear stale link hover, and retain failed image results until explicit refresh or policy changes.
+- Add opt-in source line numbers, whitespace guides and unwrapped horizontal scrolling, including source input geometry and intrinsic table overflow. Focused x64 Release native/embedded checks and WARP pixels cover the new behavior; complete six-profile, allocation and performance qualification remain open.
+- Add an opt-in selected-source drag gesture with system thresholds and a guarded callback for application transport. Full OLE routing and runtime qualification remain pending.
+- Coalesce bounded same-direction source deletion runs into one undo group; native qualification remains pending.
+- Expose allocation-free logical source caret line and UTF-16 column queries, with mixed-line-ending and immutable-snapshot coverage; native qualification remains pending.
+- Offer default-off smart punctuation replacements with atomic undo and code/composition safeguards.
+- Share the bounded owner-turn work budget between Markdown parsing and semantic preparation.
+- Expose semantic prose word enumeration, visible display bounds and word counts for consumer spelling and statistics integrations; focused x64 Debug embedded checks passed, with integrated qualification and performance measurement pending.
+- Give Subtle Markdown table headers and inline code a theme-resolved surface, with retained bounded chip rectangles and independent raster coverage.
+- Coalesce adjacent plain semantic deletion transactions while preserving separate structural markup cleanup undo.
+- Prepared a union selection mask and reused viewport layer so multiline rich-text selections redraw selected text once per frame, with draw-work coverage.
+- Publish the end of a rich editor selection gesture synchronously when the editor is hidden or disabled.
+- Add wraparound next and previous source-match selection to the rich editor; native qualification remains pending.
+- Connect revision-guarded search results and active-match state to rich source highlights; native qualification remains pending.
+- Added prepared RichTextEditor scroll geometry, guarded scroll notifications and an optional RTL-aware vertical scrollbar; geometry queries and painting no longer reveal the caret or mutate scroll.
+- Record the current shared-turn, image-completion and width-reflow implementation and distinguish optional consolidation from existing lifecycle contracts.
+- Add source-exact top-level thematic-break insertion with line-ending preservation; nested container and native qualification remain pending.
+- Share nonallocating thematic-break admission between the command planner and state query; remaining command applicability and native qualification are pending.
+- Add source-exact replace-current-match with native composition and undo guards; native qualification remains pending.
+- Add editor-level source replace-all as one composition-safe undo transaction; native qualification remains pending.
+- Add an opt-in interactive read-only task policy for pointer, keyboard and UIA, with exact undo and stale-peer retirement; focused x64 Debug native/embedded checks passed, with integrated qualification pending.
+- Quote whole tables, HTML, code, rules, and reference definitions with their source lines intact.
+- Correct the thematic-break quote fixture for RichMarkdown metadata ownership and verify metadata refusal and other block-owner quoting; native qualification remains pending.
+- Preserve selected parsed empty lines when applying source-exact quote commands; native qualification remains pending.
+- Add a bounded source-exact quote toggle and indent/outdent command for supported text lines; native qualification and remaining nested-container behavior are pending.
+- Wrap quote-contained Markdown paragraphs in fences while preserving their physical container prefixes.
+- Unwrap closed Markdown code fences inside quote containers while retaining quote prefixes.
+- Preserve quote container prefixes when exiting closed or unclosed fenced Markdown code blocks.
+- Quote or unquote fenced Markdown code blocks as whole source structures.
+- Outdent a complete quote through backward join at its first paragraph, preserving later lines and one-step undo; native qualification remains pending.
+- Avoid native text-cache copies when checking code-exit command availability or structural composition ownership; native qualification remains pending.
+- Stage rich selection, highlight and native composition rectangles during content preparation instead of constructing them during Paint; native qualification remains pending.
+- Add explicit, fallible preparation of one exact Markdown command request for allocation-free availability queries during composition, and retain source and command state after preparation failures. Correct display-tag fixtures, preserve escaped dollar signs in equation labels, and use theme colors for diagrams on translucent surfaces. Native matrix and delivery qualification remain required.
+- Expose prepared caret-word source ranges with Unicode grapheme boundaries, exact transformed owners and disjoint hidden-markup mapping; native and performance qualification remain pending.
+- Cache mathematical text formats per preparation generation, honor configurable math font and host locale, stage large image uploads within a pixel-byte budget, and expose pending ink/guide stages accurately. Share layout-option compatibility without changing v0's semantic-only omissions; integrated native, failure, pixel and paired performance validation remains pending.
+- Keep whole-reference layouts immutable during drawing, compare prepared text/style blocks without a redundant whole projection, and derive native diagram factories inside semantic geometry from the supplied raster target. Add independent-source reuse/style-change and derived-factory identity checks; final native and performance qualification remains required.
+- Consolidate pending rich layout identity and accessibility editor access while preserving stale-owner and image-completion guards.
+- Prevent middle-button auto-scroll from overlapping an active pointer gesture; primary takeover and capture cancellation preserve source and stop scrolling.
+- Made malformed and over-budget rich file-paste preparation fail atomically without throwing content errors.
+- Add opt-in Unicode first-strong direction per semantic paragraph and table cell, preserving host table order and image ownership; focused x64 Debug embedded WARP and Unicode generator checks passed, with native and integrated qualification pending.
+- Cull offscreen rich geometry and decorations through cooperatively prepared, order-preserving paint indexes while retaining selection and resource-failure behavior.
+- Preserve viewport-edge stroke pixels and prior paint indexes on allocation failure when rebuilding the shared culling index.
+- Add explicit ordered-list renumbering with continuation indentation, overflow guards and atomic undo; focused x64 Debug planner and embedded editor checks passed, with integrated qualification pending.
+- Route opt-in Unicode text MOVE gestures through the application-owned OLE adapter, with same-document token checks, one-undo movement, and a guarded external completion path. A focused no-activation COM transport probe passed; whole-source runtime qualification remains pending.
+- Add note-aware structural editing, source diagnostic navigation, and a richer embedded example.
+- Extend source-exact quote commands to representable list and nested-quote prefixes; native qualification remains pending.
+- Preserve nested list and quote container prefixes when inserting representable Markdown hard breaks.
+- Generate closed fenced-code triggers inside parser-proven empty quote and list containers.
+- Allow source-exact language updates on fenced code blocks inside Markdown containers.
+- Recognize direct Markdown marker triggers in parser-proven empty quote and list containers.
+- Retain unchanged native-object source fallbacks across unrelated edits when their view and container geometry remain compatible.
+- Retry rejected native formulas when surrounding heading or container styling changes.
+- Batch native formula and diagram geometry refusals into one source-preserving semantic rebuild.
+- Extend bounded native class diagrams with notes, namespaces and simple member generics, add chronological sequence diagrams and vertical math arrow delimiters, and share explicit image/math/diagram admission. Contain deterministic rich-preparation failures at the exact view key and preserve fallible geometry reuse construction; integrated platform, resource and paired performance qualification remains pending.
+- Extend immutable RichText accessibility labels to native chart families, ER relationship vocabulary and display/fenced equation diagnostics, preserving authored text and the shared native-object admission bound.
+- Support bounded multiline top-level display-math insertion without splitting its Markdown source envelope; native qualification remains pending.
+- Allow mixed quote toggles to quote previously unquoted selected lines without deepening existing quotes; native qualification remains pending.
+- Add middle-button rich-editor auto-scroll using host animation ticks, including embedded pointer and sample scheduling support. Focused embedded coverage is included; native and embedded runtime qualification remains pending.
+- Guard consumer context-menu observer failure so a delivered request never triggers a second menu; native allocation-injection qualification remains pending.
+- Admit the named math target's 16,384 source units, 4,096 syntax nodes, 64 nesting and row/column limits and 1,024 matrix cells; share 32,768 source-ordered records across native objects and measure matrix cells in one traversal.
+- Keep recursive math-parser frames small by separating structured, style and terminal command handling; verify the 64-level target on the ordinary Debug thread stack without increasing its stack reservation.
+- Add inline and display math source insertion commands with bounded delimiter-safe envelopes; native qualification remains pending.
+- Correct native math operator glyphs, prime scripts and heading/caret geometry, and preserve literal backslashes in unquoted Mermaid labels. Shared native/embedded regressions require execution on the integrated candidate; full math/source-editing and resource qualification remain open.
+- Share nonallocating math-insertion admission between the command planner and state query; other command applicability and native qualification remain pending.
+- Offer default-off Markdown marker and fenced-code auto-format triggers with atomic undo.
+- Report literal Markdown insertion availability from the same bounded source predicate used by its planner, including opaque inline and payload capacity checks.
+- Report mixed list command state across interior and nested source intervals without heap allocation; native and performance qualification remain pending.
+- Wrap representable list-contained paragraphs in fenced Markdown code while retaining list ownership.
+- Preserve list markers when unwrapping nonempty fenced Markdown code blocks inside list containers.
+- Preserve representable list continuation prefixes when exiting fenced Markdown code blocks.
+- Added guarded RichTextEditor link activation through Ctrl+click, Ctrl+Enter and UIA, with caller-owned external navigation and exact-source local heading fragments.
+- Share physical-line selection admission for paragraph and hard-break commands with state queries; remaining site predicates and native qualification remain pending.
+- Keep source-guide and code-label allocation failures inside fallible preparation by transferring staged projections through the canonical layout seam.
+- Report structural joins unavailable for noncollapsed selections, unsupported leaves and non-edge carets using the planner's shared admission checks; full container applicability and native qualification remain pending.
+- Made RichTextEditor input allocation failures decline before commit and remain handled after publication, preserving pending surrogate pairs for retry and keeping observer failure policy explicit.
+- Add RichMarkdown highlight, inserted, superscript and subscript delimiter extensions with exact source mapping and script fallback; focused parser/semantic checks passed, with integrated native and performance qualification pending.
+- Distinguish Rich Markdown's optional single-tilde subscript from the unchanged CommonMark and GFM strikethrough expectations in the shared parser fixture.
+- Bound malformed image presentation suffix fallback to its current leaf and line, preserve crossed inline owners, and reject DEL in captions; shared semantic regressions compile and integrated runtime qualification remains pending.
+- Add inert Markdown image insertion with escaped metadata and shared document-relative file path conversion; native qualification remains pending.
+- Allow applications to replace a completed rich image with bounded immutable frames while retaining source and publication guards.
+- Cover repeated immutable image frames, unique decoded-byte accounting, allocation and raster failures, and the embedded host retry boundary; runtime qualification remains pending integration.
+- Preserve surrounding Markdown style wrappers when inserting an image inside their source body; native qualification remains pending.
+- Coalesce RichText image completions into one retryable owner-turn resource publication.
+- Add guarded application-owned rich image activation intents without changing source, history or existing link navigation.
+- Added bounded CF_HTML fragment transport and an opt-in application Markdown paste converter.
+- Rendered inert HTML comments without their contents and added keyboard/inserted-text style aliases, preserving exact source offsets and whole-leaf fallback for unsupported HTML.
+- Render supported quoted `align` values on balanced HTML paragraph and div blocks with physical left, center and right placement in either reading direction, preserving exact source and source-based caret geometry. Preserve eligible image requests when a soft-break presentation change rebuilds semantic identity.
+- Use bounded snapshot rings for undo and redo, retaining atomic failure behavior and held revisions.
+- Verify prepared undo/redo rings run without allocations while first-use redo-ring allocation failures preserve the complete source and history; native qualification remains pending.
+- Normalized overlapping source highlights before geometry preparation and indexed visible rectangles, preventing repeated whole-document mapping and offscreen highlight draw work.
+- Let the structural backward-join command remove a heading marker at the start of its visible text, retaining source and undo behavior; native qualification remains pending.
+- Add semantic Shift+Enter hard-break insertion for supported paragraphs, quote prefixes and list items; native qualification and deeply nested container continuation remain pending.
+- Extend semantic hard-break insertion to supported single-line selections; native qualification remains pending.
+- Navigate reordered rich-text footnotes in visual order while preserving ownership of source caret sites.
+- Add keyboard traversal and activation of generated RichText footnote backlinks.
+- Add a source-exact RichMarkdown footnote insertion command with normalized identity collision checks and atomic undo; native qualification remains in progress.
+- Allow guarded inline formatting, links, and task actions inside resolved RichText footnote bodies.
+- Add opt-in find-request and next/previous source-search shortcuts; native qualification remains pending.
+- Guard find-request observer lifetime and preserve the fatal observer-allocation policy across input failure handling; native qualification remains pending.
+- Add application-owned RichText file-drop routing and context-aware multi-file paste, preserving prepared caret sites and source history; native ARM64 runtime and final performance qualification remain pending.
+- Fixed file-reference paste at uniquely owned table cell ends while preserving padded-cell ambiguity checks.
+- Make RichText appearance font overrides and the editor's empty default argument fallible under MSVC Debug allocation failure; a native constructor probe changes from termination to caught allocation failure, with persistent construction sweeps added. Correct the math-format fixture to compare DirectWrite's canonicalized locale case-insensitively; integrated profile validation remains pending.
+- Add bounded inert semantic HTML and rendered-text export, explicit Unicode/CF_HTML copy, and clipped prepared-page drawing. Focused fake-clipboard, allocation-failure and supplied-device raster probes passed before heading-index integration; integrated native and print-device qualification remains pending.
+- Verify the public rich-text export header independently in relocated consumers and exercise rendered heading and emphasis export in the extracted SDK smoke; keep semantic-extension assertions unconditional for the current library.
+- Add single-line source-exact insertion of escaped literal Markdown text; native qualification remains pending.
+- Retain an empty list item when unwrapping its empty Markdown code fence.
+- Add Alt+Up/Down movement for paragraph lines, sibling list items and raw source lines, retaining selection and undo; focused x64 Debug planner and embedded editor checks passed, with integrated qualification pending.
+- Add standard legacy clipboard chords and literal Ctrl+Shift+V paste to the rich editor; focused x64 Debug clipboard regression passed, with integrated qualification pending.
+- Add opt-in heading, strikethrough, inline-code and link-edit shortcuts while preserving AltGr and zoom reset; native qualification remains pending.
+- Let an explicit rich-editor table command convert bounded quoted TSV or CSV into an undoable Markdown table; focused x64 Debug planner and embedded editor probes passed, with integrated qualification pending.
+- Add an optional localized rich editing context menu with lifetime-guarded asynchronous command dispatch; embedded HWND-less and native qualification remain pending.
+- Add revision-guarded rich source background, underline, squiggle and foreground decorations with prepared geometry and theme roles; native and performance qualification remain pending.
+- Reject oversized decoration replacements atomically and report reflow capacity separately without withholding the document frame; native qualification remains pending.
+- Add optional source-backed UI Automation annotations to rich source decorations, with localized generic/highlight/spelling/grammar kinds, TextPattern2 annotation ranges and bounded prepared type coverage. Keep private overlays and unchanged source/selection/history intact; retire replaced exposed peers. Integrated delivery qualification remains required.
+- Add independent opt-in caller-resolved data image requests, with bounded exact URI admission and cancellation isolated from remote and local image work.
+- Admit counted RichText UIA search in Source, v0 and semantic views using the retained source capability rather than optional semantic geometry; cover embedded NUL needles, reverse and case-insensitive search while retaining ordinary-control Unicode validation.
+- Kept counted NUL queries searchable across the complete rich-text source instead of treating them as malformed text.
+- Preserve counted NUL in RichText source, UTF-8 codecs, text services, and accessibility while refusing nonrepresentable Unicode clipboard copies.
+- Expose the localized rich default-menu model and action dispatch for HWND-less embedded hosts; native popup qualification remains pending.
+- Preserve or place the rich editor selection appropriately before invoking a consumer context menu, with guarded callback reentry; native qualification remains pending.
+- Report every structural command unavailable during an active native composition while retaining current presentation state; native qualification remains pending.
+- Expose allocation-free current Markdown style, heading and list state with explicit unknown command applicability; native qualification and complete applicability queries remain pending.
+- Share dialect-extension admission between structural command planning and state queries; remaining site predicates and native qualification remain pending.
+- Updated the retained source-codec regression to verify complete counted-NUL round trips and undo while preserving strict Win32-string validation.
+- Add bounded pluggable code token coloring, Subtle code frames, language badges, line numbers and a localized accessible copy-intent action. Focused x64 Release coverage passes; full platform, allocation and performance qualification remain open.
+- Share nonallocating code-language admission between the command planner and state query; remaining command applicability and native qualification are pending.
+- Add Ctrl+Enter source-exact exit from top-level fenced code, including closing an unclosed fence; nested container and native qualification remain pending.
+- Share a nonallocating code-exit admission predicate between the editor query and structural planner; remaining command applicability and native qualification are pending.
+- Add source-exact top-level fenced-code wrapping, unwrapping and language commands with collision-safe delimiters; nested containers and native qualification remain pending.
+- Keep empty HTML clipboard strings fallibly constructed so Debug iterator-proxy allocation failures reach the existing HRESULT recovery boundary. Retain owned, atomic clipboard staging and the existing allocation-failure suites.
+- Extend clear-formatting to single-style partial selections and inline code through the source-exact style splitter; native qualification remains pending.
+- Extend clear-formatting to fully selected source links while preserving their text and undo behavior; native qualification remains pending.
+- Add source-exact clearing of fully selected Markdown emphasis, strong and strike wrappers; partial ranges and native qualification remain pending.
+- Clear complete Markdown autolinks to escaped literal text that does not relink when reparsed.
+- Reconcile RichText capability descriptions, keep an exact validated capability table in the usage guide, and move earlier qualification prose to its source-bound measurement archive. Add negative documentation fixtures for status drift, omitted rows, invented capabilities, missing bounds and duplicate identities; full native, physical and performance acceptance retain their own evidence.
+- Add opt-in RichMarkdown soft-break and paragraph Enter policies while retaining source, undo, and existing default behavior; native qualification remains in progress.
+- Add opt-in, bounded DIB clipboard paste through application-owned asset storage, preserving one undo and stale-input guards; focused x64 Debug fake-clipboard and embedded WARP probes passed, with integrated qualification pending.
+- Declare all supported build profiles for the standalone RichText preparation probe.
+- Offer default-off paired delimiter typing with atomic undo and selection wrapping.
+- Accept revision-guarded rich text annotations before layout and publish their eventual geometry admission through the existing status.
+- Add immutable consumer overrides for generated RichText accessibility text with unchanged English defaults, owned bounded strings and reorderable footnote templates; source, authored metadata and undo history are preserved. Native and embedded lifecycle qualification is pending.
+- Schedule embedded preparation when the rich editor accessibility-label dictionary changes, so newly localized semantic providers are published; native qualification remains pending.
+- Avoid repeated full-prefix scans for reverse movement and backspace across ordinary Unicode text while retaining Unicode grapheme context.
+- Guard control setters against synchronous embedded preparation callbacks that retire their control or replace its tree, and clarify the supported callback boundary. Native qualification remains pending.
+- Exercise device removal during ResizeBuffers on an existing native WARP swap chain, including shared-generation retirement and a recovered resized frame; compile-only verification passed and integrated runtime remains pending.
+- Generate and validate explicit release-note cuts while preserving previously published history.
+- Expose exact source editing for hidden Markdown reference definitions by F2 or revision-checked syntax node; focused x64 Debug embedded source-session coverage passed, with integrated qualification pending.
+- Bind inline parser diagnostics to the canonical configuration header and retain owned paired table text until its source transaction finishes.
+- Run independent non-foreground test suites concurrently when explicitly requested.
+- Preserve nested ScrollPanel hover when a child extraction is refused by a reentrant focus decision.
+- Add an owner-thread native presentation visibility signal that suppresses painting and animation subscriptions while an application reports occlusion, then resumes with a full frame; retain the separate embedded visibility API and default behavior.
+- Exercise math, diagrams and decoded images through the same native and embedded source, geometry, mode-switch and undo contract.
+- Let native character input decline an allocation failure atomically instead of terminating inside MSVC Debug's noexcept empty-string constructor.
+- Render standalone attribute-free HTML horizontal rules through native thematic-break geometry while retaining exact source, with an independent pixel oracle.
+- Render bounded attribute-free HTML mark ranges with retained theme surfaces, high-contrast outlines and exact nested source/style ownership.
+- Route bounded native HTML images through the shared image alternative, resource request and completion pipeline, preserving source and remote opt-in behavior.
+- Wait for bounded native content preparation before checking the recovered WARP frame after device loss.
+- Clarify native Attach idempotence and incompatibility rules for presentation, initial batching and explicit WARP options; existing attachment tests remain the behavior oracle.
+- Render bounded multiline Mermaid state notes with exact source fallback.
+- Bound hosted MSVC bootstrapper download and installer waits, retain failure logs, and terminate only the timed-out owned installer tree.
+- Run every pinned Mermaid fence through the bounded parser and preserve independent semantic expectations, source identity and fallback diagnostics.
+- Preserve keyboard-focused submenu state when a stationary ancestor pointer message arrives; foreground qualification remains pending.
+- Make default-menu and host empty-container construction fallible in MSVC Debug and add a model allocation-failure sweep; native qualification remains pending.
+- Scale explicit point-based math rules with editor zoom and retire stale prepared math on scale changes.
+- Support bounded math text weight, upright and normal style resets.
+- Verify normalized mathematical text across nested text-mode groups while preserving exact whitespace and symbol assertions.
+- Shape mathematical text-sans and text-monospace using the configured body and code font families.
+- Add bounded TeX text accents for ordinary and colored mathematical text.
+- Give named native math failures typed diagnostics and add ordered AST expectations for the 20 pinned target formulas; source-preserving fallback text is unchanged. Native qualification remains pending.
+- Add bounded display equation tags with separately prepared centered body and trailing label, preserving authored source and retaining both shaped layouts across width changes.
+- Expand bounded native math notation with hash-pinned Unicode symbols and TeX atom classes.
+- Render bounded centered substack rows inside native mathematical notation.
+- The bounded math profile supports display-style darray cells and single-column left or centered script-style subarrays. Existing array bounds, source refusal and staged geometry rules apply.
+- Add aligned starred matrix forms and retain the 64-level parser stack bound.
+- Render bounded over- and under-annotations on native math expressions while retaining their spacing classes.
+- Keep the over-capacity mathematics fallback fixture aligned with the public source-unit limit.
+- Add scoped native mathematical size declarations with bounded prepared text sizes and pinned script-size mapping.
+- Mathscr uses a distinct verified system script face for uppercase Latin letters. Missing face or glyph coverage retains the exact formula source, and a later preparation generation may retry. The native face is an approximation of KaTeX script metrics.
+- Render bounded explicit mathematical fraction rules in pt, em and ex units.
+- Support independently positioned display-math row tags with bounded preparation, source-preserving refusal and width-only reuse.
+- Matrix and substack double-backslash row separators accept bounded nonnegative point, em and ex spacing. Preparation places each following row using the authored spacing, with point values following the editor zoom; invalid dimensions retain the complete formula source.
+- Reuse generation-owned math font constants and finalized formula geometry across width-only rich text reflow; changed resource or font identity rebuilds them. Native and performance qualification remain pending.
+- Native math parsing and prepared geometry use smaller recursive frames for admitted deep expressions, including nested matrices and fractions. The ordinary-stack corpus covers both parsing and geometry at the existing depth boundary.
+- Initialize the math raster fixture through the shared WIC factory so isolated and full runs establish the required COM apartment.
+- Render short mathematical matrix rows with bounded implicit empty cells.
+- Add bounded poor-man-bold overprinting to native mathematical text.
+- Reduce bounded math parser recursion frames and reject unsupported explicit row spacing without misrendering it.
+- The bounded mathematical parser consumes nonumber and notag without adding geometry; the profile does not synthesize automatic equation numbers. Explicit tags retain their separate behavior.
+- Render escaped mathematical norm bars as double vertical bars in ordinary, sized, and scalable forms.
+- Text family, weight and shape groups may be nested in mathematical text. Parsing reuses the bounded text-body policy, preserves the existing ordinary-text dollar and whitespace behavior, and stages combined DirectWrite properties.
+- Render supported negated mathematical relations as their Unicode relation glyphs.
+- Overline and underline segment accents stage a bounded line with both end bars, matching the pinned KaTeX segment shape.
+- Share a bounded leaf-local terminator index across math openers and clear it on replacement or cancellation.
+- Preserve the pinned math spacing class for `\ldots` while leaving a literal ellipsis ordinary; the shared math corpus checks the resulting geometry.
+- Apply bounded OpenType mathematical script kerning to verified single-glyph operands with exact source and safe fallback for unsupported font data.
+- For a single italic glyph, accent positioning uses the shaped glyph center and a bounded half italic correction instead of counting the font overhang twice. Compound bases retain their existing centered placement.
+- Keep inline code and HTML tokens from being consumed by an earlier unmatched math delimiter.
+- Preserve angle-autolink ownership when an earlier unmatched math opener scans for a closer.
+- Render bounded infix fractions and fenced binomial forms while preserving source on ambiguous operators.
+- Admit the five previously missing Greek symbols in the bounded native math target and verify their Unicode identities. Native qualification remains pending.
+- Use staged glyph ink for mathematical script and fraction spacing, with conservative bounds for compound operands and shared measured and painted shifts.
+- Add bounded general fractions with independent fences, zero/default rules and style selection.
+- Accept bounded unbraced general-fraction delimiters and braced above dimensions.
+- Use bounded OpenType math italic corrections and scalable delimiter variants with deterministic fallback.
+- Add bounded scoped legacy math font switches with explicit nested override handling.
+- Preserve retryable DirectWrite font and glyph failures during native math preparation.
+- Assemble bounded OpenType MATH delimiter parts for tall native formulas.
+- Prepare deeply nested mathematical layouts with a bounded explicit traversal stack, retaining source order and formatting while avoiding recursive flattening overflow.
+- Dot and double-dot accents stage filled circles, retaining their bounds and selected or author-color paint behavior.
+- Avoid repeated failed math-opener scans using the shared eligible-closer index while preserving opaque capacity fallback.
+- Render parenthesis aliases, relation-shaped fences, and slash delimiters in native math.
+- The bounded native mathematical profile stages directed hook arrows and single or paired harpoons with independent upper and optional lower labels.
+- Render bounded extensible math arrows and equality with optional lower labels.
+- Allow bounded mathematical alphabet expansion to produce surrogate-pair text without rejecting an otherwise admissible source.
+- Render bounded unnumbered align, gather, split, and equation environments inside mathematical notation.
+- Support scoped emphasis in mathematical text, including colored text.
+- The bounded native mathematical profile stages double-headed left/right arrows and opposing arrows, including upper and optional lower labels.
+- Apply bounded OpenType MATH device corrections at the actual host DPI and invalidate geometry when DPI changes.
+- Accept the bounded TeX cr row separator in native math matrices and substacks.
+- Retain staged ink unions for mathematical rows and nested fractions and scripts so compound operands use accurate gap constraints.
+- Exercise every pinned KaTeX support-table row through native math admission and bounded preparation, with explicit provenance for samples and command-only probes.
+- Add scoped native math color, text color, colorbox and framed colorbox presentation with source-preserving refusal, incremental target-bound shared brushes, and contrast-aware theme fallback.
+- Size native math from its enclosing code or heading run and keep formula-edge carets aligned across DPI changes.
+- Add display-style continued fractions with numerator strut geometry.
+- Support right-braced and display-style native math cases within the existing matrix bounds.
+- Align inline math edge carets to the enclosing text baseline, including isolated formulas, while retaining wrapped-line affinity.
+- Prepare native over/underbrace and over/undergroup outlines with above/below annotations.
+- Support scoped bold-symbol and normal-math styles in native notation.
+- Render bounded native binomial notation with explicit display and text styles.
+- The bounded mathematical profile stages over/under arrow accents and over-harpoons. Parser and preparation dispatch isolate unary work to preserve the ordinary-thread stack at the admitted nesting boundary.
+- Add bounded native math arrays with source-preserving column alignment and refusal of unsupported rules.
+- Prepare bounded vertical column rules in native math arrays.
+- Prepare bounded native math array horizontal rules at row boundaries.
+- Stage bounded dashed rules in native math arrays.
+- Add bounded boxed, cancel, backward cancel, crossed cancel, horizontal strike, phasor and actuarial annotations to native mathematical previews, preparing their strokes while authored source remains unchanged.
+- Bound repeated math opaque-token lookahead by reusing angle and HTML terminator searches.
+- The bounded math profile accepts alignedat with the same explicit pair count and no-gap cell positioning as alignat.
+- Add bounded alignat environments with explicitly paired, gap-free columns.
+- Add bounded native check, breve, acute, grave, ring and under-accent geometry.
+- Restore native triangular hat fallback and retain prepared ink bounds for small math accents.
+- Fixed cooperative Markdown autolink preparation, original delimiter-run matching, combined native-object admission and exact source ink for bare links and escaped math delimiters.
+- Reuse proven unchanged Markdown root subtrees during tracked edits, retaining full-parse fallback for ambiguous closures and rebuilding source-correlated results before publication.
+- Reasserting an already adopted immutable Markdown snapshot now cancels superseded work without rescanning unchanged source. Native and performance qualification remain pending.
+- Raise bounded TreeItem Name property notifications for same-identity legacy row renames, coalescing with status budgets and promoting large bursts to children invalidation; native and embedded directed coverage compiles, runtime pending.
+- Keep layout style validation coverage using an actually unsupported style bit.
+- Refresh label mnemonic underlines on changes and prepare mnemonic and typography layouts before paint.
+- Retry a transient intrinsic-layout allocation failure once while retaining the last geometry and stopping after a repeated failure.
+- Keep display-math, source-title hover and stale-drag fixtures aligned with their own-line, source-character and captured-press contracts, and fix canonical clipboard/test ownership warnings without suppressing diagnostics.
+- Preserve embedded assertion diagnostics after injected iostream failures and expose the existing input allocation sweep as a focused diagnostic mode.
+- Add exact inline math source editing through F2 and UI Automation while preserving surrounding Markdown formatting and normal source history; native qualification remains pending.
+- Add exact inline source editing for Markdown links and images while preserving link navigation and neighboring formatting; guard empty inline source during reference scanning. Focused x64 Debug native UIA and embedded WARP fixtures passed; integrated qualification remains pending.
+- Preserve unsupported Mermaid inline edge markup as source with a diagnostic.
+- Add bounded authored image sizing, standalone alignment and explicit captions while retaining source ownership and staged image geometry.
+- Admit standalone image presentation attributes split across contiguous inline nodes, preserving literal caption punctuation and refusing malformed or cross-boundary suffixes.
+- Retain unchanged in-flight and staged image results across accessibility-label changes until rebuilt semantics rebinds them.
+- Retain prepared IconOnly layouts while the effective format identity remains current, and reprepare after format-cache eviction. The WARP regression and paired resource qualification require execution on the integrated candidate.
+- Render compatible horizontal OpenType MATH accent variants and bounded assemblies with vector fallback.
+- Use the Grid viewport for page navigation, skip model walks for unhandled keys, and retire stale column state when IDs change. Native qualification remains pending.
+- Preserve forwarded drag ownership through slider release and retain replacement capture chosen by a release callback.
+- Verify reused changelog fold branches and allow withdrawal of pending notes while preserving exact generated changelog checks.
+- Render bounded Mermaid subroutine nodes with inset rules.
+- Render bounded nested Mermaid flowchart subgraphs and expose group membership to accessibility.
+- Reuse exterior graph lanes for disjoint unlabeled edge intervals.
+- Honor bounded Mermaid minimum link lengths in graph ranks.
+- Size each Mermaid graph routing lane for its own label instead of the widest label.
+- Wrap long Mermaid labels within bounded native text geometry.
+- Preserve ordinary hash, comparison, and icon-like text in Mermaid labels.
+- Render bounded plain inline Mermaid edge text with solid, dotted, and thick links.
+- Render bounded Mermaid hexagon nodes with shape-aware layout.
+- Initialize the COM apartment for the shared flowchart line-style raster fixture.
+- Record independent exact issue codes, UTF-16 diagnostic ranges and reasons for all 105 original Mermaid flowchart examples; native corpus verification remains pending.
+- Render bounded Mermaid label entities and explicit line breaks.
+- Render bounded dotted, thick and invisible Mermaid flowchart edges with their layout and source semantics intact.
+- Route unambiguous adjacent Mermaid graph nodes directly.
+- Reconcile file-drop, bounded SVG, math tags, and retained editor documentation with their implemented paths while retaining qualification gates.
+- Bind rendered export directly to the current semantic roles and document partial list-prefix selection behavior; export requires the exact matching SDK headers and library.
+- Preserve partial generated list-marker selections once in whitespace-preserving HTML export; shared unordered and ordered marker range coverage accompanies the change and integrated host qualification remains pending.
+- Preserve the original test-runner failure when evidence finalization also fails, report the secondary failure separately and continue to fail when finalization is the only error.
+- Contain allocation failure at embedded input boundaries, conservatively consume callbacks that may already have committed, and suppress stale translated characters; directed pre/post callback tests compile, integrated runtime remains pending.
+- Preserve deterministic embedded content-preparation failure HRESULTs separately from superseded-frame E_ABORT and leave retry under the owner bounded policy. Native qualification remains pending.
+- Expose bounded Mermaid accessibility titles and descriptions through diagram UI Automation semantics.
+- Reconcile the listed delivery plans with the current candidate and document application-owned shortcode insertion without changing historical evidence or qualification gates.
+- Establish the required visible-host state before testing counted-NUL TSF reads, writes and undo; hidden hosts correctly keep native text services inactive.
+- Preserve embedded NUL in stored source-search queries and verify shortcut navigation and atomic replacements against exact counted UTF-16 source.
+- Record the relocated consumer's observed native-module probe totals and completed negative checks, rejecting missing or inconsistent evidence.
+- Preserve prepared rich-text command state across an unchanged text-service composition while keeping changed imports invalidating it.
+- Stop editable ComboBox submission continuation when its callback transfers the control to another host.
+- Stop stale ComboBox popup and selection continuations when application callbacks transfer the control to another host.
+- Preserve counted NUL and normalized line endings in code-copy callbacks while continuing to render NUL as a replacement character.
+- Render bounded Mermaid class realization relationships with dotted lines and hollow triangle endpoints.
+- Describe class realization as implementation in the accessible graph alternative.
+- Render bounded Mermaid class dotted associations.
+- Render bounded Mermaid class composition and aggregation with accurate diamond endpoints and accessibility.
+- Draw bounded Mermaid class member compartments using measured text layout.
+- Render bounded Mermaid class relationship cardinalities and expose them to accessibility.
+- Render bounded Mermaid class member blocks and preserve unsupported or incomplete source exactly.
+- Render bounded Mermaid class annotations above their class names.
+- Preserve newer slider capture and drag gestures across reentrant preview callbacks, and contain throwing scroll observers after committing their offsets.
+- Prepare Button shortcut widths outside painting and avoid repeated whole-tree walks during icon preparation. The retained visual and reentrancy regressions require integrated native execution and paired performance evidence.
+- Prepare hyperlink-button underline width before paint so repeated hover frames do not create DirectWrite measuring layouts.
+- Bound Grid and Tree bulk selection work by staging visible-order IDs and radix-sorting the membership copy, preserving selection on allocation failure. The large reverse-order regression requires execution on the integrated candidate and paired performance qualification remains open.
+- Validate complete native build logs and test-source receipts before reusing artifacts, and bind CI ownership to its reviewed inputs.
+- Allowed guarded native build retries after MSBuild creates a shortened tracking directory, binding its exact evaluated path and refusing populated or misplaced failure markers.
+- Restore the document location before checking relative bitmap paste in the embedded text-service fixture.
+- Correct first-strong paragraph direction for unassigned Unicode 17 scalars and explicit noncharacter/default-ignorable exceptions using the pinned DerivedBidiClass data. A focused pure bidi probe passed; complete native host qualification remains pending.
+- Record the 31 October WIP-folder quality review in
+  `Specs/Plans/WIP/WipFolderQuality_2026-10-31.md`, including the citation check
+  of the delivery plans, the 28 October P1 anchors, and the rich-text audit line
+  numbers against `fa5821c8`. Review only; no library, test or tooling behavior
+  changes.
+- Record the 31 October 15-day delivery red-team in
+  `Specs/Plans/WIP/CodeReview_2026-10-31.md`. Independent confirmation of the open
+  P1s, the DeliveryReview under-scope, consumer lock gaps and the sequenced Wave
+  0-7 work. Review only; no library, test or tooling behavior changes.
 - Adopt shared CI v1.0.7 with separate sandbox and workspace evidence uploads. Preserve paired native regression, production and archive validation; no product publication is performed.
 - Remove hosted SDK and gallery publication workflows; keep native SDK ZIP/extracted-consumer qualification and local documentation generation. Shared CI refuses SDK publication routes. No public API, renderer or gallery pixels change. Correct compiler-free dependency validation to check the already independent tool and ports revisions without changing either pin.
 - Refresh the production review of the ten-day merge window through #137 at `09f6d96a`. Every earlier P1 still

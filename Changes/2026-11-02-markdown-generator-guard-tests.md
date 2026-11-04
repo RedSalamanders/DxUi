@@ -1,1 +1,0 @@
-- Exercise Markdown and Mermaid generator inventory and expectation guards with isolated malformed inputs and fixture-only updated hashes.

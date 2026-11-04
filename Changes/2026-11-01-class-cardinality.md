@@ -1,1 +1,0 @@
-- Render bounded Mermaid class relationship cardinalities and expose them to accessibility.

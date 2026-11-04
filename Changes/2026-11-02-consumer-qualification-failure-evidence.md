@@ -1,1 +1,0 @@
-- Preserve the child publication exception and process wait observations when the consumer qualification negative fixture fails its existing closure bound.
