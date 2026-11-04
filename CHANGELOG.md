@@ -4,6 +4,7 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Blend diagram arrow-label backgrounds into their canvas when contrast permits, stage minimal neutral contrast fallbacks, and preserve note/group/selection surfaces without paint-time layout or resource creation; retire retained label brushes with their layout before a later source revision.
 - Add shared quote/callout inner margins and source-aware native coverage, make Mermaid sequence-label staging recover from injected Debug allocation failure, and consolidate historical planning into one remaining-work owner with preserved evidence and qualification gates.
 - Use effective foreground ink for default native diagram connections, arrowheads, lifelines and outlines, including Subtle and high contrast; retain separate decorative Markdown borders, authored palettes and explicit export stroke behavior. Add an offscreen editor pixel regression for Light, Dark, high contrast and warm resource reuse.
 - Expand native Mermaid sequence diagrams with actor figures and plain aliases, chronological left/right/over notes, bare message numbering and solid/dotted messages without arrowheads; directionless flowchart headers default to top-to-bottom. Preserve exact source, bounded preparation and allocation-free drawing. Add parser, geometry, raster, semantic-order and resource regressions plus a gallery sample. Broader platform, physical input and performance-policy qualification remain separate.
