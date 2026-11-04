@@ -1,1 +1,0 @@
-- Blend diagram arrow-label backgrounds into their canvas when contrast permits, stage minimal neutral contrast fallbacks, and preserve note/group/selection surfaces without paint-time layout or resource creation; retire retained label brushes with their layout before a later source revision.
