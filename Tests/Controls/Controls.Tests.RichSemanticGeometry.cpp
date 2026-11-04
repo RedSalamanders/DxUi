@@ -508,6 +508,50 @@ void TestRichSemanticDocumentHeadingMarginsAndIndentation()
 {
     RichSemanticTests::Run(RichSemanticGeometryTests::DocumentHeadingMarginsAndIndentation);
 }
+void TestNativeDiagramLabelBrushRetirement()
+{
+    using namespace DxUi;
+    using namespace DxUi::RichText;
+    AttachedHostWindow window;
+    auto& host                = window.Host();
+    const auto foreground     = GetForegroundWindow();
+    const std::wstring source = L"```mermaid\nstateDiagram-v2\ndirection LR\nDraft --> Reviewed: Review\n```\n";
+    auto root                 = std::make_unique<RichTextEditor>(source);
+    auto* editor              = root.get();
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    editor->SetMarkdownRenderingEnabled(true);
+    auto appearance                      = editor->GetAppearance();
+    appearance.blendWithWindowBackground = true;
+    appearance.markdownPresentation      = MarkdownPresentationStyle::Default;
+    editor->SetAppearance(appearance);
+    host.SetRoot(std::move(root));
+    Require(PrepareNativeContentForTests(host), "prepare real diagram editor before brush retirement");
+    const auto semantic = editor->GetAcknowledgedSemanticDocument(host);
+    Require(semantic && RichText::Detail::SemanticExtensionAccess::Diagrams(*semantic).size() == 1u && ! host.GetTheme().highContrast,
+            "retirement fixture admits one native diagram with its ordinary label surface");
+    const auto style = ResolveTextFieldVisualStyle(host.GetTheme(), editor->IsEnabled(), editor->IsHovered(), editor->HasFocus(), false);
+    auto surface     = host.GetTheme().windowBackground;
+    surface.a        = 1.f;
+    const auto color = RichText::Detail::ResolveDiagramLabelBackground(style.text, surface);
+    wil::com_ptr<ID2D1SolidColorBrush> retired = host.GetSolidBrush(color);
+    Require(retired != nullptr, "retain the old target brush independently of its host cache");
+    const auto generation = host.GetResourceGeneration();
+    for (std::size_t index = 0u; index <= ControlHost::kSolidBrushCacheLimit; ++index)
+        Require(host.GetSolidBrush(D2D1::ColorF(static_cast<float>(index % 256u) / 255.f, static_cast<float>(index / 256u) / 255.f, .25f)) != nullptr,
+                "overfill the bounded brush cache before the next preparation boundary");
+    editor->SetText(source + L"\n");
+    retired->SetColor(D2D1::ColorF(D2D1::ColorF::Magenta));
+    Require(PrepareNativeContentForTests(host), "replacement source completes after retiring its prior diagram layout");
+    WindowHostBitmapCapture capture;
+    Require(host.DebugCaptureBitmap(capture, true) && ! capture.bgraPixels.empty(), "capture the owned hidden editor after cache eviction");
+    Require(host.GetResourceGeneration() == generation && host.GetSolidBrush(color) != retired.get(),
+            "cache eviction replaces the poisoned brush without a device-generation change");
+    std::size_t poisonPixels{};
+    for (std::size_t index = 0u; index + 3u < capture.bgraPixels.size(); index += 4u)
+        poisonPixels += capture.bgraPixels[index] > 240u && capture.bgraPixels[index + 1u] < 16u && capture.bgraPixels[index + 2u] > 240u;
+    Require(poisonPixels == 0u, "retired diagram brushes cannot paint a later source revision after host-cache eviction");
+    Require(editor->GetText() == source + L"\n" && GetForegroundWindow() == foreground, "brush retirement preserves the latest source and desktop foreground");
+}
 void TestNativeDiagramLabelBackdrops()
 {
     using namespace DxUi::RichText;
@@ -868,6 +912,7 @@ void RunRichSemanticGeometryTests()
     DXUI_RUN_TEST(TestRichSemanticInsetsAndCompletedTasks);
     DXUI_RUN_TEST(TestRichSemanticCodeChromeUsesReadableTextInk);
     DXUI_RUN_TEST(TestNativeSequenceExtensionsRasterAndResources);
+    DXUI_RUN_TEST(TestNativeDiagramLabelBrushRetirement);
     DXUI_RUN_TEST(TestNativeDiagramLabelBackdrops);
     DXUI_RUN_TEST(TestRichSemanticDocumentHeadingMarginsAndIndentation);
     DXUI_RUN_TEST(TestRichSemanticGeometryAtomicNavigationAndCancellation);

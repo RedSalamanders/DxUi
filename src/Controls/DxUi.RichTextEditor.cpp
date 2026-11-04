@@ -3286,6 +3286,7 @@ void RichTextEditor::RetireLayout(bool retainGeometry) const noexcept
 {
     _state->calloutAccent.reset();
     _state->propertiesInk.reset();
+    _state->diagramLabelFill.reset();
     _state->preparedCommand.reset();
     _state->selectionMask.reset();
     _state->selectionLayer.reset();
@@ -3631,15 +3632,15 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
                 auto style = ResolveTextFieldVisualStyle(host.GetTheme(), IsEnabled(), IsHovered(), HasFocus(), HasFocus() && host.IsKeyboardFocusVisible());
                 if (state.appearance.blendWithWindowBackground)
                     style.fill = host.GetTheme().windowBackground;
-                auto surface = state.appearance.markdownPresentation == RichText::MarkdownPresentationStyle::Subtle
-                                   ? ResolveMarkdownQuoteFill(host.GetTheme(), style)
-                                   : style.fill;
-                surface.a    = 1.f;
+                auto surface          = state.appearance.markdownPresentation == RichText::MarkdownPresentationStyle::Subtle
+                                            ? ResolveMarkdownQuoteFill(host.GetTheme(), style)
+                                            : style.fill;
+                surface.a             = 1.f;
+                const bool sameColors = State::SameColor(state.diagramLabelInk, style.text) && State::SameColor(state.diagramLabelSurface, surface);
                 if (! state.diagramLabelFill || state.diagramLabelResources != host.GetResourceGeneration() ||
-                    state.diagramLabelBinding != state.bindingRevision || ! State::SameColor(state.diagramLabelInk, style.text) ||
-                    ! State::SameColor(state.diagramLabelSurface, surface))
+                    state.diagramLabelBinding != state.bindingRevision || ! sameColors)
                 {
-                    const auto color = RichText::Detail::ResolveDiagramLabelBackground(style.text, surface);
+                    const auto color = sameColors ? state.diagramLabelColor : RichText::Detail::ResolveDiagramLabelBackground(style.text, surface);
                     prepare(color, state.diagramLabelFill, state.diagramLabelColor, state.diagramLabelResources, state.diagramLabelBinding);
                     state.diagramLabelInk     = style.text;
                     state.diagramLabelSurface = surface;

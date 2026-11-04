@@ -5,6 +5,9 @@ binding, outside composition. A retained target-bound brush is reused on unchang
 16-step neutral searches handle insufficient contrast; group/note surface membership is cached with
 prepared labels. Composition selects borrowed brushes without contrast scans, layout, allocation or new
 device resources. This functional/resource contract does not establish paired performance acceptance.
+Layout retirement releases the target-bound label brush alongside the other semantic brushes. Its pure
+color result remains reusable while foreground and surface stay unchanged; resource or host replacement
+reacquires the brush without retaining the old target resource.
 
 Mermaid label-style clipping and shared model validation run during bounded preparation and allocate no extra
 label storage. Model validation is an indivisible bounded check, not a wall-clock guarantee. Relationship layouts
