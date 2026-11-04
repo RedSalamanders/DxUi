@@ -7,7 +7,7 @@
   verification are consumer-owned and tracked in [the API revision 4 handoff register](ProductionReview_2026-10-05/api4-consumer-handoffs.md).
   RedPrism must not grow a second tree widget.
 - **Qualification owner**: later/current-source platform, performance and physical-input/IME/AT acceptance remains
-  in the [shared qualification ledger](../WIP/ConsumerUiQualification_2026-10-11.md#shared-qualification-ownership-16-october-2026).
+  in the [shared qualification ledger](ConsumerUiQualification_2026-10-11.md#shared-qualification-ownership-16-october-2026).
   This archival move changes no receipt, approved cost, consumer pin or pending gate. All feature implementation
   checklist items are complete; the historical evidence below retains its original scope and limitations.
 - **Why**: RedPrism's layers panel is a `Tree`. `ITreeDelegate` could select, invoke, expand, and show a context

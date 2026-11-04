@@ -1,5 +1,18 @@
 # Library qualification and consumer adoption
 
+Status: SUPERSEDED — sequencing consolidated; unfinished product work remains open under the new owner.
+Archived: 4 November 2026
+Current work: [the single remaining-work plan](../WIP/RemainingWork_2026-11-04.md).
+Original: `Specs/Plans/WIP/ConsumerUiQualification_2026-10-11.md` at `7257f3e31e575c633e8cbbbf3a74f3115f2eeb73`; SHA-256 `0E7F6FB74CE9F426A62610507E604452E9E2CA422CB39DEAEA9391F0CE76319C`.
+[Original committed record](https://github.com/RedSalamanders/DxUi/blob/7257f3e31e575c633e8cbbbf3a74f3115f2eeb73/Specs/Plans/WIP/ConsumerUiQualification_2026-10-11.md).
+
+The dated record below preserves decisions, source-specific evidence, failures and rejected hypotheses.
+Transferred items are not completed features. Old pins, billing blocks, draft/merge claims and historical
+queues describe their recorded checkpoints; the new plan owns current status. This archive does not
+waive performance, consumer, native-platform, physical-input or release gates.
+
+## Historical record
+
 Private evidence relocation, 2026-10-21: historical `Z:/DxUiFocus`, `Z:/DxUiInput`, `Z:/DxUiSetup`
 and related packet names in this ledger now live under `Z:/src/DxUi-maintenance/retained-20261021/`
 with the same leaf name. The former `S:/DxUi-evidence` tree now lives under
@@ -8,7 +21,7 @@ with the same leaf name. The former `S:/DxUi-evidence` tree now lives under
 and the private relocation map. Original receipts, failures, identities and qualification verdicts remain
 historical; this relocation closes no acceptance gate below.
 
-- **Status**: ACTIVE; unfinished acceptance split from the original 4 October plan on 11 October 2026.
+- **Historical status**: ACTIVE; unfinished acceptance split from the original 4 October plan on 11 October 2026.
 - **Scope**: shared library performance/policy, native-platform and physical-input qualification execution, including
   ProductionReview and accepted S0-S2 candidates, plus separately owned
   consumer pilots and pins. S0-S2 library implementation and recorded local x64 validation are complete in
@@ -81,7 +94,7 @@ Historical failures and approved tradeoffs retain their original scope; no thres
   assertion and cannot launch the resource child; its desktop states are restored or unchanged. All three private
   failures/refusals remain retained. The later ASan passes at identical compiled inputs do not establish their causes.
 
-- [ ] Resolve the host/control candidate's diagnostic memory uncertainty through stable controls and exact-source
+- **Transferred to [D-P1](../WIP/RemainingWork_2026-11-04.md#d-p1).** Resolve the host/control candidate's diagnostic memory uncertainty through stable controls and exact-source
   paired qualification. Its first MultilineGrid comparison flags clean private/peak and dirty peak by about
   1.28/1.31/1.54 MiB; the unchanged candidate's repeat is within budget. Keep the first flag and both receipts:
   a passing repeat is not attribution, and none of these ordinary comparisons qualify the trusted policy.
@@ -175,7 +188,7 @@ results and clear/readback investigation.
 - [x] Download/seal the original A/A artifact, replay both frozen judges and all
   controls from identical bytes, inspect continuous load and every metric, and
   record the exact source, run and closure limitations here.
-- [ ] Obtain independent review of the following proposal before any separate
+- **Transferred to [D-P1](../WIP/RemainingWork_2026-11-04.md#d-p1).** Obtain independent review of the following proposal before any separate
   trusted-policy change in main. PR #89 remains draft until its required gates
   are satisfied; an A/A diagnostic green check cannot qualify a regression gate.
 
@@ -307,10 +320,10 @@ restoration limitations. Three earlier passing isolated repeats did not attribut
 or erase the complete-suite failures. Keep further local restoration diagnosis
 separate from the policy review and preserve its strict assertion.
 
-- [ ] Establish accepted paired non-regression and a qualified trusted policy for the S0-S2 candidate.
-- [ ] Attribute or resolve the retained timing/memory excursions and timing/FPS flags using matched fixtures and
+- **Transferred to [D-P1](../WIP/RemainingWork_2026-11-04.md#d-p1).** Establish accepted paired non-regression and a qualified trusted policy for the S0-S2 candidate.
+- **Transferred to [D-P1](../WIP/RemainingWork_2026-11-04.md#d-p1).** Attribute or resolve the retained timing/memory excursions and timing/FPS flags using matched fixtures and
   stable controls; retain measured developer advice where degradation is confirmed.
-- [ ] Complete the required hosted paired gate when the PR changes what its benchmark measures. An enabled pending
+- **Transferred to [D-P1](../WIP/RemainingWork_2026-11-04.md#d-p1).** Complete the required hosted paired gate when the PR changes what its benchmark measures. An enabled pending
   gate remains pending until its actual result is successful; a candidate-only diagnostic cannot qualify it.
 - [x] Harden the production paired gate's role-specific summary/raw provenance binding and absolute whole-frame
   allocation checks before policy qualification; independent integration review checks both on the retained raw reports.
@@ -431,25 +444,25 @@ original `verdictAgreement=false`. Matching overall set labels cannot waive the 
 This plan owns the following execution sequence; the benchmark/tooling owner supplies the diagnostics, and the
 developer/independent reviewer owns policy approval. No other feature plan co-owns or closes these gates.
 
-- [ ] Keep the current raw reports/seals privately and arrange independently rehashable retention before the next
+- **Transferred to [D-P1](../WIP/RemainingWork_2026-11-04.md#d-p1).** Keep the current raw reports/seals privately and arrange independently rehashable retention before the next
   fresh calibration/paired run: exact executables/library/symbols, build attestations and compiler/SDK/dependency
   closure. Publish only the sanitized summary. Missing original binaries cannot be recovered from this upload;
   a rebuild does not repair that original-evidence gap and must be recorded as a new build/run.
-- [ ] Diagnose timing on one frozen executable with bounded, separately labeled probes: empty clock-pair/loop
+- **Transferred to [D-P1](../WIP/RemainingWork_2026-11-04.md#d-p1).** Diagnose timing on one frozen executable with bounded, separately labeled probes: empty clock-pair/loop
   overhead and 1/64/256-call clean-Prepare batches, plus a trace covering model update, Prepare, Composite,
   target binding and blocking completion. Correlate long frames with CPU scheduling, WARP/completion and
   process-memory observations. Retain trace overhead and environment admission; elapsed remainder is not GPU time.
   Preserve canonical 20-frame warm-up, capture, 40-frame rounds and every original outlier. A changed diagnostic
   harness needs its own identity and cannot replace or pass the canonical acceptance workload.
-- [ ] Localize the memory-only witness with matched stage/heap/native-resource snapshots around scene creation,
+- **Transferred to [D-P1](../WIP/RemainingWork_2026-11-04.md#d-p1).** Localize the memory-only witness with matched stage/heap/native-resource snapshots around scene creation,
   warm-up, capture, dirty rounds, hidden state and teardown. Any capture/warm-up/sampling isolation is a separate
   diagnostic fixture with original receipts retained. Establish allocator/component or lifetime attribution
   before claiming a leak, dismissing variability or resolving the original local memory gate.
-- [ ] Run a fresh canonical same-binary A/A calibration after the bounded attribution pilot, with predeclared
+- **Transferred to [D-P1](../WIP/RemainingWork_2026-11-04.md#d-p1).** Run a fresh canonical same-binary A/A calibration after the bounded attribution pilot, with predeclared
   independent orders, at least twelve blocks, all three scenarios, complete provenance and continuous host-load
   evidence. Retain failures and all per-metric controls; do not select a passing seed/repeat or invent an A/A
   numeric pass threshold. Independent review must assess the resulting controls under the owning contract.
-- [ ] Review the migration disagreement using the retained 24-run pooled calculation and twelve-block/4,096-order
+- **Transferred to [D-P1](../WIP/RemainingWork_2026-11-04.md#d-p1).** Review the migration disagreement using the retained 24-run pooled calculation and twelve-block/4,096-order
   calculation, all 26 Holm slots and the full-label equivalence refusal. Record the independent decision before
   qualifying a versioned policy in the measured base. Keep original decisions unchanged; any approved future
   judge/fixture change requires its own frozen identities, calibration and candidate-specific paired study.
@@ -589,10 +602,10 @@ from different runtimes/hardware/scenes must not become a performance target or 
   ASan Debug at the PR #78 candidate and merged `main` identities, with zero skips and a successful aggregate gate.
 - [x] Complete the separately approved local x64 Debug, Release and ASan Debug MenuResources and
   MenuResourceScaling suites at clean merged-main `e0260dde`, with zero skips and verified desktop restoration.
-- [ ] Complete native ARM64 MenuResources and MenuResourceScaling fixture execution. The hosted Full runs
+- **Transferred to [D-Q1](../WIP/RemainingWork_2026-11-04.md#d-q1).** Complete native ARM64 MenuResources and MenuResourceScaling fixture execution. The hosted Full runs
   cover Menu and NativeTextInput, not these opt-in resource fixtures.
-- [ ] Establish physical hardware/device-removal acceptance separately from synthetic WARP/device-generation tests.
-- [ ] Qualify real IME through form reflow, assistive-technology navigation/announcements and physical touch on relevant
+- **Transferred to [D-Q1](../WIP/RemainingWork_2026-11-04.md#d-q1).** Establish physical hardware/device-removal acceptance separately from synthetic WARP/device-generation tests.
+- **Transferred to [D-Q1](../WIP/RemainingWork_2026-11-04.md#d-q1).** Qualify real IME through form reflow, assistive-technology navigation/announcements and physical touch on relevant
   hosts/scenarios. Synthetic assertions and x64 focus suites do not pass those physical/product gates.
 
 Local x64 functional/resource/focus work is completed at its recorded identities, including the later approved
@@ -1231,10 +1244,10 @@ visual regeneration is required.
 
 ## 4. Consumer adoption gates
 
-- [ ] A5: adopt one RedSalamander General section and one RedPrism size card in separate consumer changes.
-- [ ] A6: consider the RedSalamander speed-limit prompt and RedXe profile editor after those pilots pass.
-- [ ] Establish consumer pilot value criteria and leave optional product additions deferred if no need is shown.
-- [ ] Record explicit consumer pins/adapters and independent adoption outcomes; retain deferred product gates.
+- **Transferred to [D-C1](../WIP/RemainingWork_2026-11-04.md#d-c1).** A5: adopt one RedSalamander General section and one RedPrism size card in separate consumer changes.
+- **Transferred to [D-C1](../WIP/RemainingWork_2026-11-04.md#d-c1).** A6: consider the RedSalamander speed-limit prompt and RedXe profile editor after those pilots pass.
+- **Transferred to [D-C1](../WIP/RemainingWork_2026-11-04.md#d-c1).** Establish consumer pilot value criteria and leave optional product additions deferred if no need is shown.
+- **Transferred to [D-C1](../WIP/RemainingWork_2026-11-04.md#d-c1).** Record explicit consumer pins/adapters and independent adoption outcomes; retain deferred product gates.
 
 Acceptance: long labels and error messages at 96/144/192 DPI, narrow/wide widths, standard/compact density and both
 flow directions remain readable; tab order and IME survive reflow; fixed actions remain available; unchanged forms
@@ -1264,9 +1277,9 @@ an additive change does not increment the API revision.
 
 ## 5. Qualification closeout
 
-- [ ] Complete the performance/policy, native-runtime and physical-input gates above at the exact accepted candidate.
-- [ ] Qualify chosen consumer pilots/pins in their own repositories, retaining independent deferred/HOLD gates.
-- [ ] Reconcile enduring conclusions in the owning domain contracts, retain reviewed receipts and update capability
+- **Transferred to [D-Q1](../WIP/RemainingWork_2026-11-04.md#d-q1).** Complete the performance/policy, native-runtime and physical-input gates above at the exact accepted candidate.
+- **Transferred to [D-C1](../WIP/RemainingWork_2026-11-04.md#d-c1).** Qualify chosen consumer pilots/pins in their own repositories, retaining independent deferred/HOLD gates.
+- **Transferred to [D-G1](../WIP/RemainingWork_2026-11-04.md#d-g1).** Reconcile enduring conclusions in the owning domain contracts, retain reviewed receipts and update capability
   limits truthfully; close only completed acceptance scope and update its index.
 
 This record does not close existing menu, Grid, Tree, slider, production-review, consumer or platform plans. The

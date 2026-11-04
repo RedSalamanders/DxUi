@@ -2,7 +2,7 @@
 
 Status: diagnostic pilot complete; every remaining qualification gate stays **OPEN/HOLD**. Reviewed 17 October 2026.
 This follows the [71/72-control investigation](../2026-10-17-pr80-controls/README.md), not a new calibration or
-accepted non-regression study. The [qualification ledger](../../../Specs/Plans/WIP/ConsumerUiQualification_2026-10-11.md#bounded-timing-and-memory-attribution-pilot-17-october-2026)
+accepted non-regression study. The [qualification ledger](../../../Specs/Plans/Done/ConsumerUiQualification_2026-10-11.md#bounded-timing-and-memory-attribution-pilot-17-october-2026)
 owns the next steps; the [performance contract](../../../Specs/Core/Core_PerformanceAndResources.md) owns acceptance.
 
 ## Identity, schedule and validation

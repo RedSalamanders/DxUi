@@ -2,7 +2,7 @@
 
 This DxUi-owned packet follows the two failed local NativeTextInput executions in the
 [capture-reason packet](../../InteractiveLease/2026-10-18-capture-reasons/README.md).
-The [qualification ledger](../../../Specs/Plans/WIP/ConsumerUiQualification_2026-10-11.md#native-input-fixture-readiness-follow-through-18-october-2026)
+The [qualification ledger](../../../Specs/Plans/Done/ConsumerUiQualification_2026-10-11.md#native-input-fixture-readiness-follow-through-18-october-2026)
 owns acceptance and the remaining gates. [evidence.json](evidence.json) binds the source, images and receipts.
 The fixture repairs and controlled regressions pass; full ASan foreground qualification remains open.
 

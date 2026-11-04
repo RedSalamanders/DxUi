@@ -1,6 +1,6 @@
 # Performance control diagnostics
 
-Status: COMPLETE for the diagnostic implementation, qualification and bounded interpretation. Independent policy/control acceptance remains open in the [shared qualification plan](../WIP/ConsumerUiQualification_2026-10-11.md). No production cause or performance acceptance is established.
+Status: COMPLETE for the diagnostic implementation, qualification and bounded interpretation. Independent policy/control acceptance remains open in the [shared qualification plan](ConsumerUiQualification_2026-10-11.md). No production cause or performance acceptance is established.
 Owner: [performance and resources](../../Core/Core_PerformanceAndResources.md).
 
 The immutable SDK086 paired study has 69/72 unstable same-side controls, with the largest distinct-grid candidate

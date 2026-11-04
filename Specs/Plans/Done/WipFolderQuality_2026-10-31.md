@@ -2,7 +2,7 @@
 
 Status: DONE — local implementation and source-bound review closed; shared acceptance remains separately owned
 
-Closeout evidence: The 19 remaining requested plans and three companion trees are archived with link-aware migration and preserved historical statuses; CiRunScope and ScopedTesting were already Done. Durable contracts are merged into domain specs, per-ID decisions and byte-exact receipts are retained, and only the shared qualification, S3-S7 and FrameUpdate plans remain outside this archival scope. See the [delivery packet](../../../Measurements/WipDelivery_2026-11-02/README.md) and [shared qualification ledger](../WIP/ConsumerUiQualification_2026-10-11.md).
+Closeout evidence: The 19 remaining requested plans and three companion trees are archived with link-aware migration and preserved historical statuses; CiRunScope and ScopedTesting were already Done. Durable contracts are merged into domain specs, per-ID decisions and byte-exact receipts are retained, and only the shared qualification, S3-S7 and FrameUpdate plans remain outside this archival scope. See the [delivery packet](../../../Measurements/WipDelivery_2026-11-02/README.md) and [shared qualification ledger](ConsumerUiQualification_2026-10-11.md).
 
 
 Historical pre-closeout Status: ACTIVE. The folder review, authoritative status definitions and pin-gate clarification are recorded.
@@ -91,7 +91,7 @@ device-loss on resize, and the other confirmed P1s in the tree that would be pin
 5. Keep file drag-and-drop, S3-S7, API revision 5, and the rest of the 241-finding rich-text audit
    out of this pin. `commands-01` on the cited delete-column path is already guarded
    (`DxUi.RichTextCommands.cpp` 2096-2099). Do not schedule that path again.
-6. Qualification stays in [ConsumerUiQualification_2026-10-11](../WIP/ConsumerUiQualification_2026-10-11.md).
+6. Qualification stays in [ConsumerUiQualification_2026-10-11](ConsumerUiQualification_2026-10-11.md).
    Record the pin as a correctness pin with performance unqualified.
 
 `apiRevision` stays 4.

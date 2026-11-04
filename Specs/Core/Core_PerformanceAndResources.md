@@ -505,7 +505,7 @@ before/after performance acceptance.
 - **S0-S2 implementation integration, 11 October 2026.** The developer's
   [implementation-only decision](../Testing/Testing_Validation.md#scoped-iteration-and-pr-coverage) establishes no accepted
   performance envelope, policy trust, non-regression or production qualification. Retained timing/memory flags remain
-  unresolved in [the qualification WIP](../Plans/WIP/ConsumerUiQualification_2026-10-11.md); bands, deterministic budgets
+  unresolved in [the qualification WIP](../Plans/Done/ConsumerUiQualification_2026-10-11.md); bands, deterministic budgets
   and the measured-advice rule are unchanged.
 - **A manual run** reports the same verdict in its job summary and stays green for a finding, as it always did: only a pull
   request is gated. Hosted runs are serial on one machine but not on a controlled quiet desktop, and their evidence says so.

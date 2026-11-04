@@ -194,7 +194,7 @@ application repository.
 ## Separate parent holds
 
 The parent [owned rich-text editor](RichTextEditor_2026-10-17.md) and
-[library/consumer qualification](../WIP/ConsumerUiQualification_2026-10-11.md) remain WIP.
+[library/consumer qualification](ConsumerUiQualification_2026-10-11.md) remain WIP.
 Physical IME/AT/touch, native ARM64 execution/restoration, exact consumer adoption,
 hosted CI, release acceptance and accepted paired performance remain separate gates.
 ARM64 evidence comprises three cross-builds within each six-profile matrix;

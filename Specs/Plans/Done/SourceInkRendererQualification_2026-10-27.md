@@ -2,7 +2,7 @@
 
 Status: DONE — local implementation and source-bound review closed; shared acceptance remains separately owned
 
-Closeout evidence: Bounded source-ink drawing and canonical fallback remain implemented with exact pixel, font, transform, device and current native coverage; preview remains default off. Both actual targets expose Context7, while forced refusal covers fallback without inventing a real QI-miss observation. Consumer and independently qualified performance acceptance remain in the shared ledger. See the [delivery packet](../../../Measurements/WipDelivery_2026-11-02/README.md) and [shared qualification ledger](../WIP/ConsumerUiQualification_2026-10-11.md).
+Closeout evidence: Bounded source-ink drawing and canonical fallback remain implemented with exact pixel, font, transform, device and current native coverage; preview remains default off. Both actual targets expose Context7, while forced refusal covers fallback without inventing a real QI-miss observation. Consumer and independently qualified performance acceptance remain in the shared ledger. See the [delivery packet](../../../Measurements/WipDelivery_2026-11-02/README.md) and [shared qualification ledger](ConsumerUiQualification_2026-10-11.md).
 
 
 ## Remote-main integration — 27 October 2026

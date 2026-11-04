@@ -56,7 +56,7 @@ dirty source overlay; nothing in the earlier folder-navigation work is discarded
 - [x] Add regressions for source ranges, actual attachments/cardinality separation and light/dark code-chrome pixels.
 - [x] Validate x64 Release changed paths: EditorControls, Embedded, Accessibility and Rendering pass without skips;
   WARP/device-loss/clean-hidden assertions stay enabled, and all six regenerated gallery images were reviewed.
-- [x] Route broader profile, native platform, physical/foreground and performance qualification to the [shared active ledger](../WIP/ConsumerUiQualification_2026-10-11.md); those gates remain open.
+- [x] Route broader profile, native platform, physical/foreground and performance qualification to the [shared active ledger](ConsumerUiQualification_2026-10-11.md); those gates remain open.
 - [x] Commit the immutable defect fix, update RedTilde's exact pin and validate consumer behavior/captures.
 - [x] Correct the prior sample/support claims and route remaining qualification with exact identities.
 

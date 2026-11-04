@@ -11,7 +11,7 @@ Status: scoped implementation, native tests and gallery complete. The owner requ
 - [x] Commit the exact SDK revision for isolated consumer restore and verify actual RedTilde captures in its own repository.
 
 The originally planned paired performance acceptance is not completed by these unpaired diagnostics. It remains
-under [library qualification](../WIP/ConsumerUiQualification_2026-10-11.md). Both comparisons are advice-required:
+under [library qualification](ConsumerUiQualification_2026-10-11.md). Both comparisons are advice-required:
 the first dirty private-memory peak flag (26,439,680 to 26,992,640 bytes) did not repeat; the repeat flagged timing
 differences instead. Preserve both records, the original baseline and the existing thresholds. No cause, accepted
 degradation or trusted non-regression verdict is inferred.

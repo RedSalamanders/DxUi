@@ -9,6 +9,10 @@ This visual-only option preserves prepared geometry and source/history; high con
 caret lines, which remain independently navigable; omit redundant blank lines in a compact document fixture.
 The default is absent and preserves existing layout. Values and cache identity are shared by native/embedded layout.
 
+Quote and callout surfaces have six-DIP horizontal inner margins. Content, markers and nested containers share
+the same prepared inset in either reading direction; narrow frames retain at least one DIP of text width.
+`showVerticalScrollbar=true` reserves the native themed lane and paints its thumb only for actual overflow.
+
 - **Consumer supplies**: initial Markdown, a bounded rectangle, view/read-only policy and an optional text-change callback. Persistence belongs to the application.
 - **Metrics**: 8 DIP inset on each side, 6 when compact; 4 DIP corners; 1 DIP caret; 500 ms blink phase using the host clock. Wheel scrolling moves 48 DIP per detent.
 - **Document surface**: `SetAppearance` can remove the input border, blend with the window background, center a bounded text column and override body/code families, sizes, font-relative line height and heading scale or explicit per-level heading values. Defaults preserve the metrics above. Geometry, caret and accessible font attributes follow the same prepared options. Borderless keyboard focus retains a visible outline; focused high contrast retains it persistently.

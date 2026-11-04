@@ -1,10 +1,23 @@
 # Complete Update-stage metric accounting
 
+Status: DONE — scoped implementation/review record; outstanding acceptance is transferred.
+Archived: 4 November 2026
+Current work: [the single remaining-work plan](../WIP/RemainingWork_2026-11-04.md).
+Original: `Specs/Plans/WIP/FrameUpdateAccounting_2026-10-26.md` at `7257f3e31e575c633e8cbbbf3a74f3115f2eeb73`; SHA-256 `CA1001F7276FAB1BD9B0178574A2C43E30649DD1CCBCDF3BDC440E90EB2E6A6D`.
+[Original committed record](https://github.com/RedSalamanders/DxUi/blob/7257f3e31e575c633e8cbbbf3a74f3115f2eeb73/Specs/Plans/WIP/FrameUpdateAccounting_2026-10-26.md).
+
+The dated record below preserves decisions, source-specific evidence, failures and rejected hypotheses.
+Transferred items are not completed features. Old pins, billing blocks, draft/merge claims and historical
+queues describe their recorded checkpoints; the new plan owns current status. This archive does not
+waive performance, consumer, native-platform, physical-input or release gates.
+
+## Historical record
+
 ## Current evidence checkpoint — 27 October 2026
 
 - [x] PR #112 hosted CI passes all six native profiles at source `8199566d635751a20a6e916e73410fb6cad317cc` and merge commit `47fe389680a6c224ce2b76cc1e5c0af0c414a11f`; the independent root review completed 1,293 checks. The WindowHost FrameUpdate implementation and tests match the reviewed Main checkpoint `aebeb73cd448fbb00e1439d1a3c1baf4af1c82e9` byte-for-byte.
 - [x] Current-source native qualification also passes all six profiles at combined head `7020121d` / Actions merge `2b57c31a`, with the exact tree merged as `6382b306`. The WindowHost and Rendering-test files remain byte-identical to the AEB checkpoint. See the [source-bound SDK packet](../../../Measurements/RedesignCompletion_2026-10-27/sdk-7020121d/README.md); this is hosted execution, not a claim that every profile was rerun locally.
-- [ ] Performance acceptance remains open. Preserve the earlier PR109 Release Menu-fixture failure as historical evidence; the newer six-profile CI result does not establish its cause or erase it. Parent policy and consumer performance holds remain separate.
+- **Transferred to [D-P1](../WIP/RemainingWork_2026-11-04.md#d-p1).** Performance acceptance remains open. Preserve the earlier PR109 Release Menu-fixture failure as historical evidence; the newer six-profile CI result does not establish its cause or erase it. Parent policy and consumer performance holds remain separate.
 
 ## Progress checklist
 
@@ -12,8 +25,8 @@
 - [x] Record elapsed Update duration through scope exit on success, resource failure, deferred preparation and exception unwind. Preserve preparation, scheduling and rendering behavior.
 - [x] Add a pending-then-completed native regression through ordinary dirty rendering and bitmap capture. Check incomplete Update is measured and Render/Present remain zero. Update the authoritative performance contract.
 - [x] Run the native regression, Rendering/control/embedded coverage and all six hosted native profiles in PR #112 at source `8199566d635751a20a6e916e73410fb6cad317cc` / merge `47fe389680a6c224ce2b76cc1e5c0af0c414a11f`; all six profiles pass and the independent root review completed 1,293 checks. This includes hosted ARM64 execution.
-- [ ] Keep performance acceptance separate: the metric correction is not a product CPU improvement or policy waiver, and the paired base-policy gate remains unqualified.
-- [ ] Fold changelog, publish source/test evidence, verify the remote merge and move this plan to Done when its required gates close.
+- **Transferred to [D-P1](../WIP/RemainingWork_2026-11-04.md#d-p1).** Keep performance acceptance separate: the metric correction is not a product CPU improvement or policy waiver, and the paired base-policy gate remains unqualified.
+- **Transferred to [D-G1](../WIP/RemainingWork_2026-11-04.md#d-g1).** Fold changelog, publish source/test evidence, verify the remote merge and move this plan to Done when its required gates close.
 
 ## Scope and evidence
 

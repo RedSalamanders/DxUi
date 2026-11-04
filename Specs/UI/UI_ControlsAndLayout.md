@@ -2030,7 +2030,7 @@ Source ACPs/history remain authoritative. Markdown structural style,
 heading, list, quote and table commands MUST reject metadata targets atomically; ordinary
 source replacement/undo/redo and source-view selection remain available.
 Envelope recognition alone MUST NOT be presented as YAML/TOML validity or full
-extension conformance. Closed TOML content is checked against TOML 1.0.0 without changing source; invalid content and nesting beyond 128 values or dotted-key segments, or more than 1,024 total key segments, have distinct source-owned diagnostics. Missing fences take precedence. Closed YAML content is checked using the YAML 1.2.2 core schema; syntax, duplicate mapping keys, unresolved aliases and resource-capacity refusals are distinct diagnostics. The pinned [TOML](../../ThirdParty/Markdown/corpora/toml-test-96fd088/README.md) and [YAML](../../ThirdParty/Markdown/corpora/yaml-test-suite-6ad3d2c/README.md) validity corpora and [native test](../../Tests/Controls/Controls.Tests.RichMarkdown.cpp) exercise 717 TOML and 382 single-document YAML cases, with 20 multi-document YAML streams explicitly excluded and two duplicate-key outcomes checked as diagnostics. The [allocation-failure sweeps](../../Tests/Embedded/Embedded.Tests.RichTextResources.h) cover observed staging failure and retry; capacity refusals remain distinct from invalid syntax. These cases validate source admission and diagnostics, not decoded values or complete YAML/TOML value conformance. See the [source-bound evidence report](../../Measurements/WipDelivery_2026-11-02/README.md) and [shared qualification ledger](../Plans/WIP/ConsumerUiQualification_2026-10-11.md) for execution and remaining platform status.
+extension conformance. Closed TOML content is checked against TOML 1.0.0 without changing source; invalid content and nesting beyond 128 values or dotted-key segments, or more than 1,024 total key segments, have distinct source-owned diagnostics. Missing fences take precedence. Closed YAML content is checked using the YAML 1.2.2 core schema; syntax, duplicate mapping keys, unresolved aliases and resource-capacity refusals are distinct diagnostics. The pinned [TOML](../../ThirdParty/Markdown/corpora/toml-test-96fd088/README.md) and [YAML](../../ThirdParty/Markdown/corpora/yaml-test-suite-6ad3d2c/README.md) validity corpora and [native test](../../Tests/Controls/Controls.Tests.RichMarkdown.cpp) exercise 717 TOML and 382 single-document YAML cases, with 20 multi-document YAML streams explicitly excluded and two duplicate-key outcomes checked as diagnostics. The [allocation-failure sweeps](../../Tests/Embedded/Embedded.Tests.RichTextResources.h) cover observed staging failure and retry; capacity refusals remain distinct from invalid syntax. These cases validate source admission and diagnostics, not decoded values or complete YAML/TOML value conformance. See the [source-bound evidence report](../../Measurements/WipDelivery_2026-11-02/README.md) and [shared qualification ledger](../Plans/Done/ConsumerUiQualification_2026-10-11.md) for execution and remaining platform status.
 An unclosed envelope MUST publish an `UnclosedFrontMatter` diagnostic with the
 exact opening marker range and revision-local owner node. Semantic UIA HelpText
 MUST explain the missing closing fence. Source edits retire that provider; a
@@ -2529,7 +2529,7 @@ Source text, selection, undo history, source view and semantic roles do not chan
 
 Subtle H1/H2 headings have a one-DIP separator below the text, included in element
 bounds and backed by at least fourteen DIP of following space. Tables use bounded
-natural and minimum nonbreaking column measurements plus twelve DIP of cell padding.
+natural and minimum nonbreaking column measurements plus twenty DIP of horizontal cell padding.
 When natural widths exceed the viewport, columns first retain their widest word or
 native object's minimum and share remaining width according to their wrappable
 content. Only when the summed minima exceed the viewport are those minima reduced
@@ -2550,6 +2550,11 @@ The editor resolves neutral decoration from `borderDefault` and shades quotes wi
 an eight-percent blend of ordinary text ink over the document fill during preparation.
 This remains visible when input/card roles coincide. High contrast uses resolved text/surface
 colors. Caller-provided drawing brushes remain supported by prepared layouts.
+Quote and callout frames reserve six DIP of inner space on both horizontal sides in either presentation style.
+All descendants, including list markers, nested containers and tables, use that reduced content width before
+native layout. Each container's prepared frame encloses its children with the same inset; narrow viewports
+clamp the reservation to retain at least one DIP of text width. Drawing, source carets, selection and hit testing
+use these prepared coordinates. Literal Source presentation receives no synthetic quote padding.
 Subtle table headers and inline code use the same theme-resolved neutral surface
 as quotes and code blocks. Inline chips retain source-derived rectangles during
 preparation; painting adds no layout or range mapping. At more than 16,384 chip

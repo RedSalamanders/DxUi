@@ -158,7 +158,7 @@ retained. This analysis repair changes no native timing or acceptance policy.
 Independent policy review in `main`, matched candidate evidence and required
 acceptance remain open under the
 [performance contract](../../Specs/Core/Core_PerformanceAndResources.md) and
-[shared qualification ledger](../../Specs/Plans/WIP/ConsumerUiQualification_2026-10-11.md).
+[shared qualification ledger](../../Specs/Plans/Done/ConsumerUiQualification_2026-10-11.md).
 No baseline, judge, threshold or exact budget is relaxed. Compiler/SDK/dependency
 byte retention is not complete independent evidence closure.
 The owner explicitly chose to keep PR #89 draft for independent review on

@@ -2,7 +2,7 @@
 
 Status: DONE — local implementation and source-bound review closed; shared acceptance remains separately owned
 
-Closeout evidence: Requested bounded Markdown, native math/Mermaid, images, metadata, footnotes, editing, source/selection, accessibility and export features are implemented with preserved unsupported-source fallback. Pinned metadata validity, allocation/capacity, native profiles and reviewed gallery are recorded; full browser/TeX/Mermaid or decoded-value conformance is not promised. Physical/platform/product and policy acceptance remain shared obligations. See the [delivery packet](../../../Measurements/WipDelivery_2026-11-02/README.md) and [shared qualification ledger](../WIP/ConsumerUiQualification_2026-10-11.md).
+Closeout evidence: Requested bounded Markdown, native math/Mermaid, images, metadata, footnotes, editing, source/selection, accessibility and export features are implemented with preserved unsupported-source fallback. Pinned metadata validity, allocation/capacity, native profiles and reviewed gallery are recorded; full browser/TeX/Mermaid or decoded-value conformance is not promised. Physical/platform/product and policy acceptance remain shared obligations. See the [delivery packet](../../../Measurements/WipDelivery_2026-11-02/README.md) and [shared qualification ledger](ConsumerUiQualification_2026-10-11.md).
 
 
 Historical pre-closeout Status: ACTIVE — bounded retained preview, source TSF/UIA, Unicode 17 segmentation, persistent storage, source-change/projection services, guarded retained geometry and cooperative preparation are functionally qualified. Owned lossless Unicode block/inline grammar, specified GFM metadata and document-scoped node reconciliation are qualified as opt-in bounded analysis against all 1,324 pinned semantic expectations. Clear/readback profiling locates a blocking-Map boundary; external state queries are too coarse and Windows policy refuses scheduler tracing. Performance acceptance stays on HOLD. The complete engine and physical/platform gates remain open.
@@ -296,7 +296,7 @@ PR #89 readiness, 2026-10-21:
   requirement. Do not self-approve the policy, relax budgets or suppress checks.
   The owner also authorized fresh A/A evidence and a policy-review proposal;
   execution and the independent decision stay in the
-  [shared qualification ledger](../WIP/ConsumerUiQualification_2026-10-11.md#pr-89-calibration-contribution-and-policy-review-proposal-20-october-2026).
+  [shared qualification ledger](ConsumerUiQualification_2026-10-11.md#pr-89-calibration-contribution-and-policy-review-proposal-20-october-2026).
 - [ ] Fix reproduced failures, update contracts/docs/results and push changes.
   Keep PR #89 draft for independent performance-policy review, as explicitly
   chosen by the owner on 21 October. Readiness requires all required merge gates;

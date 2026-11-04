@@ -37,4 +37,4 @@ unpublished; publishing or merging them does not supply additional qualification
 The before state is implementation `2e775e8d81ff415587a4d885366566ed89df655f`, with documentation at `ebb79b2e`.
 Private, hash-verified native artifacts are retained before changes. This work does not close the existing
 platform, real-input, assistive-technology or matched-performance acceptance gates in
-[the qualification ledger](../WIP/ConsumerUiQualification_2026-10-11.md).
+[the qualification ledger](ConsumerUiQualification_2026-10-11.md).

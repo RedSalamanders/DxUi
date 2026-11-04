@@ -1160,7 +1160,7 @@ after current-source functional, build, tooling and synthetic-consumer results a
 performance-policy findings and verified ARM64 foreground refusals before input remain failed/incomplete qualification,
 never `ci-gate` success. This decision does not accept measured degradation or authorize other failed correctness,
 sanitizer, provenance or deterministic-resource checks. Performance/policy, native ARM64 foreground, physical device/input
-and consumer adoption stay open in [the qualification plan](../Plans/WIP/ConsumerUiQualification_2026-10-11.md).
+and consumer adoption stay open in [the qualification plan](../Plans/Done/ConsumerUiQualification_2026-10-11.md).
 Ordinary qualification and main/release acceptance requirements remain unchanged.
 
 `Test-Changes.ps1` prints `INTERACTIVE_NOT_RUN` for the menu, native text-input and menu-resource suites affected by changed sources. Full/PrePush accounting lists those separate suites as well. Run them only through `test.ps1 -Interactive` after the person at the desktop agrees to the time; a noninteractive result or capability allowance does not close that gate.

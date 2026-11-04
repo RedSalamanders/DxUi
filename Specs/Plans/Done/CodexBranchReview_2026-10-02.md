@@ -2,7 +2,7 @@
 
 Status: DONE — local implementation and source-bound review closed; shared acceptance remains separately owned
 
-Closeout evidence: CB1-10 retain bounded lifetime, collapsed-root, callback and sizing evidence plus current regressions. Recovery refs and consumer pins remain preserved; a local archive is not product adoption or deletion authority. See the [delivery packet](../../../Measurements/WipDelivery_2026-11-02/README.md) and [shared qualification ledger](../WIP/ConsumerUiQualification_2026-10-11.md).
+Closeout evidence: CB1-10 retain bounded lifetime, collapsed-root, callback and sizing evidence plus current regressions. Recovery refs and consumer pins remain preserved; a local archive is not product adoption or deletion authority. See the [delivery packet](../../../Measurements/WipDelivery_2026-11-02/README.md) and [shared qualification ledger](ConsumerUiQualification_2026-10-11.md).
 
 
 - **Status**: ACTIVE (review done; the provider-lifetime and caret fixes are in main with their tests (#55), and so is

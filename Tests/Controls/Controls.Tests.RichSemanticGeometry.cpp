@@ -250,6 +250,66 @@ void TestRichSemanticGeometryMarkdownSubtlePresentation()
     RichSemanticTests::Run(RichSemanticGeometryTests::MarkdownSubtlePresentation);
     RichSemanticTests::Run(RichSemanticGeometryTests::PaddedCodePresentation);
 }
+void TestRichSemanticQuoteInsets()
+{
+    using namespace DxUi::RichText;
+    using namespace DxUi::RichText::Detail;
+    const auto nativeWrite = RichSemanticGeometryTests::Factory();
+    const auto write       = Microsoft::WRL::Make<NativeTextTests::CountingWriteFactory>(nativeWrite.get());
+    if (! write)
+        throw std::bad_alloc();
+    const std::wstring source = L"> A useful notebook keeps the observation beside its explanation.\n>\n"
+                                L"> Keep one thought per paragraph, and leave room for the next question.\n\n"
+                                L"> [!NOTE]\n> Callout body\n\n> - List body\n>   - Child body\n\n"
+                                L"> Outer body\n>\n> > Nested body\n\n"
+                                L"> | Field | Value |\n> | --- | --- |\n> | Name | Lantern |\n";
+    const auto document       = RichSemanticDocumentTests::Build(source);
+    for (const auto style : {MarkdownPresentationStyle::Default, MarkdownPresentationStyle::Subtle})
+        for (const bool rtl : {false, true})
+        {
+            LayoutOptions options;
+            options.widthDip             = 420.0f;
+            options.fontSizeDip          = 16.0f;
+            options.markdownPresentation = style;
+            options.readingDirection     = rtl ? DWRITE_READING_DIRECTION_RIGHT_TO_LEFT : DWRITE_READING_DIRECTION_LEFT_TO_RIGHT;
+            PreparedSemanticGeometry geometry;
+            geometry.Begin(write.Get(), document, options);
+            RichSemanticGeometryTests::Complete(geometry);
+            std::size_t containers{};
+            for (std::size_t index = 0u; index < document->Elements().size(); ++index)
+            {
+                const auto& element = document->Elements()[index];
+                if (element.role != SemanticRole::Quote && element.role != SemanticRole::Callout)
+                    continue;
+                ++containers;
+                const auto frame = geometry.ElementBounds(index);
+                Require(frame.has_value(), "quote has a prepared shaded frame");
+                for (std::size_t child = index + 1u; child < document->Elements().size(); ++child)
+                    if (document->Elements()[child].parent == index)
+                        if (const auto bounds = geometry.ElementBounds(child))
+                            Require(bounds->left >= frame->left + 5.9f && bounds->right <= frame->right - 5.9f,
+                                    "quote and callout frames leave six DIP around paragraphs, lists, tables and nested containers");
+            }
+            Require(containers >= 5u, "fixture exercises ordinary, callout, list, nested and table containers");
+            for (const auto word : {L"A useful", L"Keep one", L"Callout body", L"List body", L"Child body", L"Outer body", L"Nested body", L"Lantern"})
+            {
+                const auto first = source.find(word);
+                const auto caret = geometry.SourceCaret(first);
+                Require(geometry.HitTestSource(caret.x, caret.y + caret.height * .5f).position == first,
+                        "quote insets preserve source ACP hit testing at actual glyph origins");
+            }
+            const auto layouts = write->layouts;
+            geometry.Begin(write.Get(), document, options);
+            Require(geometry.Ready() && write->layouts == layouts, "unchanged quote geometry reuses prepared native layouts");
+            options.widthDip = 20.0f;
+            geometry.Begin(write.Get(), document, options);
+            RichSemanticGeometryTests::Complete(geometry);
+            const auto narrow = geometry.SourceCaret(source.find(L"A useful"));
+            Require(geometry.Height() > 0.0f && std::isfinite(narrow.x) && std::isfinite(narrow.y) && narrow.height > 0.0f &&
+                        geometry.Document().Map().Source() == source,
+                    "narrow quote padding retains finite positive text geometry and exact source");
+        }
+}
 void TestRichSemanticInsetsAndCompletedTasks()
 {
     using namespace DxUi::RichText;
@@ -657,6 +717,7 @@ void RunRichSemanticGeometryTests()
     DXUI_RUN_TEST(TestRichSemanticNativeMathAndBroaderDiagrams);
     DXUI_RUN_TEST(TestRichSemanticGeometryParagraphsTablesAndSourceRanges);
     DXUI_RUN_TEST(TestRichSemanticGeometryMarkdownSubtlePresentation);
+    DXUI_RUN_TEST(TestRichSemanticQuoteInsets);
     DXUI_RUN_TEST(TestRichSemanticInsetsAndCompletedTasks);
     DXUI_RUN_TEST(TestRichSemanticCodeChromeUsesReadableTextInk);
     DXUI_RUN_TEST(TestNativeSequenceExtensionsRasterAndResources);

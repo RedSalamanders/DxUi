@@ -19,7 +19,7 @@ physical-input/IME/AT and consumer acceptance remain open with their owning ledg
   the reviewed workflow digest used by PrePush accounting.
 - [x] Add behavior regressions, run affected tests, and complete x64 Debug/Release/ASan and ARM64 build coverage.
 - [x] Receive this candidate's foreground acceptance from the
-  [shared execution owner](../WIP/ConsumerUiQualification_2026-10-11.md#hostcontrol-candidate-acceptance).
+  [shared execution owner](ConsumerUiQualification_2026-10-11.md#hostcontrol-candidate-acceptance).
   This is a closeout dependency; native ARM64, physical-input/IME/AT and trusted policy gates remain separate.
 - [x] Update owning contracts, usage documentation, changelog, gallery assessment and required validators/format.
 - [x] Restore the seven missing Done-index entries; audit individual plan closure; assign shared qualification
@@ -37,7 +37,7 @@ application pipeline state across replacement/detach. Existing WARP/device-loss/
 New native files use `Scope.Tests.*` names and the active inventory. No consumer pin is changed.
 
 Shared policy qualification, native ARM64 execution, physical input/IME/AT and consumer adoption are owned by
-[ConsumerUiQualification](../WIP/ConsumerUiQualification_2026-10-11.md), with source-specific receipts required there.
+[ConsumerUiQualification](ConsumerUiQualification_2026-10-11.md), with source-specific receipts required there.
 No diagnostic comparison qualifies the currently unqualified performance policy. Focus-taking suites require
 agreement to the time through the existing interactive lease; noninteractive passes cannot close that obligation.
 

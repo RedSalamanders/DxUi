@@ -1,0 +1,1 @@
+- Add shared quote/callout inner margins with source-aware native regression coverage; consolidate historical planning into one remaining-work owner while preserving decisions, failures and qualification gates.
