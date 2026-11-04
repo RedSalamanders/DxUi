@@ -2,6 +2,8 @@
 
 ## Consolidated records — 4 November 2026
 
+- [Quote inner margins and recoverable sequence-label allocation](QuoteMarginsAndSequenceAllocation_2026-11-04.md) — shared geometry, native source-mapping regressions, exact Debug failure diagnosis and explicit consumer adoption; broader qualification stays in WIP.
+
 - [WIP consolidation and complete transfer ledger](WipConsolidation_2026-11-04.md) — one current owner, explicit dispositions and preserved original source identities.
 
 - [ConsumerUiImprovements_S3_S7_2026-10-11](ConsumerUiImprovements_S3_S7_2026-10-11.md) — superseded planning reference; unfinished scope transferred.

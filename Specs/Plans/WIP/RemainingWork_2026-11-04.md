@@ -12,7 +12,8 @@ specifications and `capabilities.json` remain authoritative.
 ## Verified starting point
 
 Reviewed main: `7257f3e31e575c633e8cbbbf3a74f3115f2eeb73` ([PR163](https://github.com/RedSalamanders/DxUi/pull/163)).
-RedTilde independently consumes API 4 at `703a96c788a79c1e7b28097226a2ca0a735f11bc`; publishing or merging
+RedTilde's starting point consumes API 4 at `703a96c788a79c1e7b28097226a2ca0a735f11bc`. Its explicit quote-margin
+follow-up adopts `8c6c2818` in [PR45](https://github.com/RedSalamanders/RedTilde/pull/45); publishing or merging
 the library never advances another consumer's lock.
 
 | Completed scope | Evidence and limit |
@@ -97,9 +98,10 @@ any *different* remaining failure-channel problem belong to D-A1.
 <a id="d-r1"></a>
 ### D-R1 — semantic resources, rendering and accessibility
 
-- [ ] Correct quote/callout inner margins in shared geometry, including nested containers, lists, tables,
+- [x] Correct quote/callout inner margins in shared geometry, including nested containers, lists, tables,
   RTL, narrow widths and source ACP hit testing; verify the consumer's themed-scrollbar adoption with an exact
-  API-4 pin. Record the scoped closeout after native tests, documentation and hidden captures pass.
+  API-4 pin. The [scoped closeout](../Done/QuoteMarginsAndSequenceAllocation_2026-11-04.md) records all three x64
+  affected-suite passes, the Debug allocation repair, native gallery review and consumer verification.
 - [ ] Compute color-glyph capability once per preparation and preserve the intended script/emoji fallback
   (SEM-01/RENDER-05; D6 pending), with actual target tests.
 - [ ] Resolve image-completion/animation re-preparation, placeholder direction, lost list markers and
@@ -121,6 +123,9 @@ omitting an ID from this summary does not dispose of it.
   lack it (PRIOR-08); replace self-referential crossing, CF_HTML and font-truncation oracles.
 - [ ] Add deterministic pathological-input/fuzz/cancellation coverage for Markdown, diagrams and math;
   retain exact seeds, budgets, raw failures and source/artifact identities.
+- [ ] Derive the semantic diagram allocation diagnostic's scenario count from its actual source array. Its
+  existing summary label is stale; the expanded sweep executes 20 sources. Retain the original logs and use
+  actual per-request traces and source inventory when interpreting current evidence.
 - [ ] Update relevant catalog/factory, usage, gallery and design-system entries for actual control changes.
   Product screenshots come from owned harness scenarios with invented content and build/DPI provenance.
 
