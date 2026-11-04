@@ -3,7 +3,7 @@
 Status: diagnostic evidence; performance/policy qualification remains **HOLD**. Reviewed 17 October 2026.
 This follow-up replays retained bytes and inspects the frozen source; it executes no new native benchmark.
 
-The [qualification ledger](../../../Specs/Plans/WIP/ConsumerUiQualification_2026-10-11.md#pr-80-paired-control-investigation-17-october-2026)
+The [qualification ledger](../../../Specs/Plans/Done/ConsumerUiQualification_2026-10-11.md#pr-80-paired-control-investigation-17-october-2026)
 owns concrete next steps and every remaining gate. The [performance contract](../../../Specs/Core/Core_PerformanceAndResources.md)
 owns thresholds and acceptance. No threshold, baseline, original receipt or policy decision is changed here.
 

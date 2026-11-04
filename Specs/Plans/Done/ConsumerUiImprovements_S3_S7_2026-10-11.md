@@ -1,6 +1,19 @@
 # Deferred S3-S7 UI composition proposals
 
-- **Status**: HOLD; unimplemented proposals split from the original 4 October plan on 11 October 2026.
+Status: SUPERSEDED — sequencing consolidated; unfinished product work remains open under the new owner.
+Archived: 4 November 2026
+Current work: [the single remaining-work plan](../WIP/RemainingWork_2026-11-04.md).
+Original: `Specs/Plans/WIP/ConsumerUiImprovements_S3_S7_2026-10-11.md` at `7257f3e31e575c633e8cbbbf3a74f3115f2eeb73`; SHA-256 `62AA656C9733359D1036F06766D061B3F0F5B5CA3611131D416CF9E6A9D5A085`.
+[Original committed record](https://github.com/RedSalamanders/DxUi/blob/7257f3e31e575c633e8cbbbf3a74f3115f2eeb73/Specs/Plans/WIP/ConsumerUiImprovements_S3_S7_2026-10-11.md).
+
+The dated record below preserves decisions, source-specific evidence, failures and rejected hypotheses.
+Transferred items are not completed features. Old pins, billing blocks, draft/merge claims and historical
+queues describe their recorded checkpoints; the new plan owns current status. This archive does not
+waive performance, consumer, native-platform, physical-input or release gates.
+
+## Historical record
+
+- **Historical status**: HOLD; unimplemented proposals split from the original 4 October plan on 11 October 2026.
 - **Scope**: overlay sessions (S3), variable-height lists (S4), read-only Markdown help (S5), reusable motion (S6)
   and theme metadata/authoring diagnostics (S7). No API in this file is supported merely because it is proposed here.
 - **Library owner**: DxUi. Product behavior, data, persistence, scheduling and adoption remain in each consumer.
@@ -226,12 +239,12 @@ budgets are unchanged.
 
 ### 5.5 Implementation and evidence
 
-- [ ] B1: stable-key/revision contract and synthetic variable-height size index, with insertion/removal tests.
-- [ ] B2: row realization/recycling, anchoring, bounded diagnostics and focus/capture pinning.
-- [ ] B3: scrolling, keyboard, UIA lookup/realization and editor cancellation coverage in both hosts.
-- [ ] B4: catalog, docs, gallery and a synthetic log/card sample; publish measured scaling receipts.
-- [ ] B5: qualify the RedSalamander task-card pilot, or defer adoption if its workload does not benefit.
-- [ ] B6: evaluate a RedPrism history/activity view only in a separately accepted product plan.
+- **Transferred to [D-H1](../WIP/RemainingWork_2026-11-04.md#d-h1).** B1: stable-key/revision contract and synthetic variable-height size index, with insertion/removal tests.
+- **Transferred to [D-H1](../WIP/RemainingWork_2026-11-04.md#d-h1).** B2: row realization/recycling, anchoring, bounded diagnostics and focus/capture pinning.
+- **Transferred to [D-H1](../WIP/RemainingWork_2026-11-04.md#d-h1).** B3: scrolling, keyboard, UIA lookup/realization and editor cancellation coverage in both hosts.
+- **Transferred to [D-H1](../WIP/RemainingWork_2026-11-04.md#d-h1).** B4: catalog, docs, gallery and a synthetic log/card sample; publish measured scaling receipts.
+- **Transferred to [D-H1](../WIP/RemainingWork_2026-11-04.md#d-h1).** B5: qualify the RedSalamander task-card pilot, or defer adoption if its workload does not benefit.
+- **Transferred to [D-H1](../WIP/RemainingWork_2026-11-04.md#d-h1).** B6: evaluate a RedPrism history/activity view only in a separately accepted product plan.
 
 Acceptance fixture sizes: 0, 1, 100, 1,000, 10,000 and 100,000 items; uniform and mixed estimated/measured heights;
 append bursts; removals before/inside/after the viewport; filtering/reordering; long localized text; focus, capture
@@ -306,11 +319,11 @@ merely because separate code currently performs similar bookkeeping.
 
 ### 6.4 Implementation and evidence
 
-- [ ] C1: map existing overlay traversal, native popup priority and focus-token lifetime; settle policies.
-- [ ] C2: implement session handles, logical ordering, dismissal reasons and transactional teardown.
-- [ ] C3: implement opt-in containment and validated return tokens for retained and external targets.
-- [ ] C4: qualify a RedPrism adapter against the current card contract before removing app bookkeeping.
-- [ ] C5: qualify RedSalamander path-detail/background and alert adapter scenarios in its own harness.
+- **Transferred to [D-H1](../WIP/RemainingWork_2026-11-04.md#d-h1).** C1: map existing overlay traversal, native popup priority and focus-token lifetime; settle policies.
+- **Transferred to [D-H1](../WIP/RemainingWork_2026-11-04.md#d-h1).** C2: implement session handles, logical ordering, dismissal reasons and transactional teardown.
+- **Transferred to [D-H1](../WIP/RemainingWork_2026-11-04.md#d-h1).** C3: implement opt-in containment and validated return tokens for retained and external targets.
+- **Transferred to [D-H1](../WIP/RemainingWork_2026-11-04.md#d-h1).** C4: qualify a RedPrism adapter against the current card contract before removing app bookkeeping.
+- **Transferred to [D-H1](../WIP/RemainingWork_2026-11-04.md#d-h1).** C5: qualify RedSalamander path-detail/background and alert adapter scenarios in its own harness.
 
 Acceptance matrix includes nested modal scopes, multiple modeless cards, reopen/reorder, outside clicks, child popup
 Escape, IME cancellation, removed return targets, focus moved to canvas/external HWND, inactive background popup,
@@ -371,11 +384,11 @@ grammar using ad hoc regular expressions. This stage adds no dependency until th
 
 ### 7.3 Implementation and evidence
 
-- [ ] D1: inventory real help text and localization, choose the declared subset and parser dependency strategy.
-- [ ] D2: implement immutable document preparation, typography, wrapping and bounded failure behavior.
-- [ ] D3: add selection, copy, keyboard links, UIA and nested scroll behavior.
-- [ ] D4: add a synthetic help sample, usage guidance, gallery and committed design-system files.
-- [ ] D5: compare a RedXe camera-guide pilot with the current label presentation; retain the simpler form if rich
+- **Transferred to [D-H1](../WIP/RemainingWork_2026-11-04.md#d-h1).** D1: inventory real help text and localization, choose the declared subset and parser dependency strategy.
+- **Transferred to [D-H1](../WIP/RemainingWork_2026-11-04.md#d-h1).** D2: implement immutable document preparation, typography, wrapping and bounded failure behavior.
+- **Transferred to [D-H1](../WIP/RemainingWork_2026-11-04.md#d-h1).** D3: add selection, copy, keyboard links, UIA and nested scroll behavior.
+- **Transferred to [D-H1](../WIP/RemainingWork_2026-11-04.md#d-h1).** D4: add a synthetic help sample, usage guidance, gallery and committed design-system files.
+- **Transferred to [D-H1](../WIP/RemainingWork_2026-11-04.md#d-h1).** D5: compare a RedXe camera-guide pilot with the current label presentation; retain the simpler form if rich
   text does not improve readability or navigation.
 
 Acceptance: subset parser examples, malformed/unsupported constructs, embedded markup in filenames, CRLF/LF,
@@ -413,10 +426,10 @@ decorative guide transition cannot enable animations on its mute/volume/camera c
 overlay is a possible application pilot; preserve its existing timing and dismissal contract. RedPrism remains
 driven by its application loop, without a new chrome timer or implicit new user setting.
 
-- [ ] E1: inventory easing/transition implementations and extract the smallest reusable sampler.
-- [ ] E2: migrate one existing control without a visual/timing change, then test retargeting and reduced motion.
-- [ ] E3: add presence integration only after overlay teardown semantics pass.
-- [ ] E4: evaluate a spring only with a demonstrated need; keep it deferred otherwise.
+- **Transferred to [D-H1](../WIP/RemainingWork_2026-11-04.md#d-h1).** E1: inventory easing/transition implementations and extract the smallest reusable sampler.
+- **Transferred to [D-H1](../WIP/RemainingWork_2026-11-04.md#d-h1).** E2: migrate one existing control without a visual/timing change, then test retargeting and reduced motion.
+- **Transferred to [D-H1](../WIP/RemainingWork_2026-11-04.md#d-h1).** E3: add presence integration only after overlay teardown semantics pass.
+- **Transferred to [D-H1](../WIP/RemainingWork_2026-11-04.md#d-h1).** E4: evaluate a spring only with a demonstrated need; keep it deferred otherwise.
 
 Acceptance: deterministic supplied clock, retarget/reverse, zero duration, hitch clamp, invalid inputs, settled
 state, policy change mid-flight, hide/detach, reappearance and many repeated transitions. Record wake-up counts and
@@ -453,10 +466,10 @@ RedSalamander resolves theme v2 expressions and owns temporary preview/Apply/Can
 resolved appearance through its existing plugin boundary. RedPrism owns system/light/dark settings and canvas
 colors. They can all use role metadata without changing those contracts.
 
-- [ ] E5: audit palette fields, token documentation and consumer adapters; settle metadata ownership.
-- [ ] E6: add typed descriptors and override diagnostics with default-palette parity tests.
-- [ ] E7: add role previews and updated authoring/adapter documentation; commit the design-system changes.
-- [ ] E8: integrate metadata into RedSalamander's existing theme workbench in a separate product change.
+- **Transferred to [D-H1](../WIP/RemainingWork_2026-11-04.md#d-h1).** E5: audit palette fields, token documentation and consumer adapters; settle metadata ownership.
+- **Transferred to [D-H1](../WIP/RemainingWork_2026-11-04.md#d-h1).** E6: add typed descriptors and override diagnostics with default-palette parity tests.
+- **Transferred to [D-H1](../WIP/RemainingWork_2026-11-04.md#d-h1).** E7: add role previews and updated authoring/adapter documentation; commit the design-system changes.
+- **Transferred to [D-H1](../WIP/RemainingWork_2026-11-04.md#d-h1).** E8: integrate metadata into RedSalamander's existing theme workbench in a separate product change.
 
 Acceptance: metadata coverage of public roles, exact unchanged default palettes, partial override diagnostics,
 invalid/unknown input, transparent alert pairs, accent refresh, stable hue seeds, live apply/cancel and system
@@ -486,10 +499,10 @@ spring motion is not on the critical path. S4/S5 do not require general editor s
 S0's chosen measurement hook, cache ownership, stable fields/UIA relationships and API compatibility decisions are
 recorded in Done. The original unfinished later-stage choices remain:
 
-- [ ] Settle list model revisions, batch mutation semantics, key reuse rules and concrete finite budgets.
-- [ ] Define external focus return callbacks and teardown/dismissal reentrancy rules.
-- [ ] Choose the Markdown parser and explicit subset after checking real localized documents and dependency policy.
-- [ ] Choose one theme metadata source of truth and decide whether deterministic generation is necessary.
+- **Transferred to [D-H1](../WIP/RemainingWork_2026-11-04.md#d-h1).** Settle list model revisions, batch mutation semantics, key reuse rules and concrete finite budgets.
+- **Transferred to [D-H1](../WIP/RemainingWork_2026-11-04.md#d-h1).** Define external focus return callbacks and teardown/dismissal reentrancy rules.
+- **Transferred to [D-H1](../WIP/RemainingWork_2026-11-04.md#d-h1).** Choose the Markdown parser and explicit subset after checking real localized documents and dependency policy.
+- **Transferred to [D-H1](../WIP/RemainingWork_2026-11-04.md#d-h1).** Choose one theme metadata source of truth and decide whether deterministic generation is necessary.
 
 First S0-S2 consumer value/pilot criteria remain in the qualification WIP. B5/B6, C4/C5, D5 and E8 keep later product
 value decisions in their own consumer changes; do not add optional product UI merely because the library can support it.
@@ -531,16 +544,16 @@ from different runtimes/hardware/scenes must not become a performance target or 
 
 These gates apply when a deferred stage is accepted and implemented. Existing S0-S2 passes cannot qualify new code.
 
-- [ ] Run `validate.ps1` and `format.ps1 -Check` on each accepted stage's candidate.
-- [ ] Run required x64 Debug, Release and ASan Debug suites and record exact sources, artifacts, scope and skips.
-- [ ] Build all three ARM64 configurations and obtain native ARM64 runtime evidence separately.
-- [ ] Record relevant WARP/device-generation and clean/dirty/hidden resources; keep physical device removal separate.
-- [ ] Exercise DPI, density, themes/high contrast, RTL/LTR and Unicode where relevant.
-- [ ] Verify actual UIA-client navigation/events and detach; keep real IME/AT/touch qualification explicit.
-- [ ] Run affected focus-taking suites through `test.ps1 -Interactive` only at the agreed time with the restoring lease.
-- [ ] Establish accepted paired resource evidence on fixture-matched, qualified controls; seek developer advice for
+- **Transferred to [D-H1](../WIP/RemainingWork_2026-11-04.md#d-h1).** Run `validate.ps1` and `format.ps1 -Check` on each accepted stage's candidate.
+- **Transferred to [D-H1](../WIP/RemainingWork_2026-11-04.md#d-h1).** Run required x64 Debug, Release and ASan Debug suites and record exact sources, artifacts, scope and skips.
+- **Transferred to [D-H1](../WIP/RemainingWork_2026-11-04.md#d-h1).** Build all three ARM64 configurations and obtain native ARM64 runtime evidence separately.
+- **Transferred to [D-H1](../WIP/RemainingWork_2026-11-04.md#d-h1).** Record relevant WARP/device-generation and clean/dirty/hidden resources; keep physical device removal separate.
+- **Transferred to [D-H1](../WIP/RemainingWork_2026-11-04.md#d-h1).** Exercise DPI, density, themes/high contrast, RTL/LTR and Unicode where relevant.
+- **Transferred to [D-H1](../WIP/RemainingWork_2026-11-04.md#d-h1).** Verify actual UIA-client navigation/events and detach; keep real IME/AT/touch qualification explicit.
+- **Transferred to [D-H1](../WIP/RemainingWork_2026-11-04.md#d-h1).** Run affected focus-taking suites through `test.ps1 -Interactive` only at the agreed time with the restoring lease.
+- **Transferred to [D-H1](../WIP/RemainingWork_2026-11-04.md#d-h1).** Establish accepted paired resource evidence on fixture-matched, qualified controls; seek developer advice for
   confirmed degradation without silent rebaselining.
-- [ ] Qualify each chosen consumer pilot through its own deterministic harness, exact pin and adoption plan.
+- **Transferred to [D-H1](../WIP/RemainingWork_2026-11-04.md#d-h1).** Qualify each chosen consumer pilot through its own deterministic harness, exact pin and adoption plan.
 
 Consumer-specific contracts, captured before/after provenance and existing platform/HOLD boundaries are preserved
 in [the qualification plan](ConsumerUiQualification_2026-10-11.md#4-consumer-adoption-gates). Later-stage adapters must
@@ -549,14 +562,14 @@ also meet those boundaries; a library test cannot qualify an application change.
 ## 11. Deferred implementation and publication checklist
 
 - [x] Retain the original consumer inventory, five workstreams, proposed APIs, sequencing and ownership boundaries.
-- [ ] Accept each later stage's scope and update its owning domain before changing behavior.
-- [ ] Implement accepted later library stages with their behavior/resource tests and required qualification.
-- [ ] For each new control, add catalog/factory support, a populated gallery tile, interaction tests, usage guidance
+- **Transferred to [D-H1](../WIP/RemainingWork_2026-11-04.md#d-h1).** Accept each later stage's scope and update its owning domain before changing behavior.
+- **Transferred to [D-H1](../WIP/RemainingWork_2026-11-04.md#d-h1).** Implement accepted later library stages with their behavior/resource tests and required qualification.
+- **Transferred to [D-H1](../WIP/RemainingWork_2026-11-04.md#d-h1).** For each new control, add catalog/factory support, a populated gallery tile, interaction tests, usage guidance
   and committed design-system guideline/preview; publish through `gallery.ps1 -PublishDocs`.
-- [ ] Update affected usage/hosting/performance documentation and retain reviewed library-only receipts under Measurements.
-- [ ] Advertise only implemented support in `capabilities.json`, retaining consumer/native-platform/physical limits.
-- [ ] Record separately owned consumer pins/adapters and adoption outcomes; retain deferred product gates.
-- [ ] Reconcile final normative requirements and move only each completed accepted scope to Done with honest remaining gates.
+- **Transferred to [D-H1](../WIP/RemainingWork_2026-11-04.md#d-h1).** Update affected usage/hosting/performance documentation and retain reviewed library-only receipts under Measurements.
+- **Transferred to [D-H1](../WIP/RemainingWork_2026-11-04.md#d-h1).** Advertise only implemented support in `capabilities.json`, retaining consumer/native-platform/physical limits.
+- **Transferred to [D-H1](../WIP/RemainingWork_2026-11-04.md#d-h1).** Record separately owned consumer pins/adapters and adoption outcomes; retain deferred product gates.
+- **Transferred to [D-H1](../WIP/RemainingWork_2026-11-04.md#d-h1).** Reconcile final normative requirements and move only each completed accepted scope to Done with honest remaining gates.
 
 This WIP does not reopen S0-S2 implementation or close existing menu, Grid, Tree, slider, production-review,
 consumer or platform plans.

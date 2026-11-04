@@ -2,12 +2,12 @@
 
 Status: DONE — local implementation and source-bound review closed; shared acceptance remains separately owned
 
-Closeout evidence: Described Unicode rows, accessibility name/help, keyboard/UIA ownership, timer and resource lifetime contracts are integrated and tested. Both actual compatibility matrices complete, including final nine-child restoring leases; all earlier desktop/fixture failures remain historical and are not causally explained by later passes. See the [delivery packet](../../../Measurements/WipDelivery_2026-11-02/README.md) and [shared qualification ledger](../WIP/ConsumerUiQualification_2026-10-11.md).
+Closeout evidence: Described Unicode rows, accessibility name/help, keyboard/UIA ownership, timer and resource lifetime contracts are integrated and tested. Both actual compatibility matrices complete, including final nine-child restoring leases; all earlier desktop/fixture failures remain historical and are not causally explained by later passes. See the [delivery packet](../../../Measurements/WipDelivery_2026-11-02/README.md) and [shared qualification ledger](ConsumerUiQualification_2026-10-11.md).
 
 
 Historical pre-closeout Status: **ACTIVE**. Library scope supporting independently qualified consumer adoption.
 
-Shared qualification execution is owned by [Library qualification and consumer adoption](../WIP/ConsumerUiQualification_2026-10-11.md#shared-qualification-ownership-16-october-2026).
+Shared qualification execution is owned by [Library qualification and consumer adoption](ConsumerUiQualification_2026-10-11.md#shared-qualification-ownership-16-october-2026).
 This plan retains menu-specific correction/resource attribution and the historical receipts below; its final
 directed/resource/paired obligations must be reconciled there before closure. Consumer actions stay in the API-4 register.
 Baseline: `78b3de389a189c7f86f611787e0489fb6d474218`.

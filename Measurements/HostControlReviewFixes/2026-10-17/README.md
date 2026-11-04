@@ -154,7 +154,7 @@ consumer pins and current-source qualification remain separate. MenuDescriptions
 their actual outstanding acceptance work in WIP. CiRunScope still needs hosted observation.
 The WIP index places review, CI observation and the shared qualification owner before the deferred S3-S7 proposals.
 
-The [shared qualification ledger](../../../Specs/Plans/WIP/ConsumerUiQualification_2026-10-11.md#shared-qualification-ownership-16-october-2026)
+The [shared qualification ledger](../../../Specs/Plans/Done/ConsumerUiQualification_2026-10-11.md#shared-qualification-ownership-16-october-2026)
 is the single execution owner for policy/performance, native-platform and physical-input/IME/AT qualification,
 while each candidate retains its own identities. It also explicitly records the unverified wider clock audit;
 the repaired PageHost/Slider cases do not establish a library-wide epoch-independent contract.

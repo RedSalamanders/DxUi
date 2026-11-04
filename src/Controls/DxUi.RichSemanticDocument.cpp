@@ -1841,7 +1841,9 @@ struct SemanticBuilder::Preparation
                                         edge.from == edge.to ? std::wstring_view{} : L"; "});
                     return;
                 }
-                std::wstring numbered;
+                // MSVC Debug's noexcept default string constructor allocates an
+                // iterator proxy. Keep that failure inside staged preparation.
+                std::wstring numbered(0u, L' ');
                 if (edge.sequenceNumber)
                     numbered = Detail::SequenceMessageText(edge);
                 DiagramAlternative({id(edge.from),

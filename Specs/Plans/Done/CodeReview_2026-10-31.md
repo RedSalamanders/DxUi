@@ -2,7 +2,7 @@
 
 Status: DONE — local implementation and source-bound review closed; shared acceptance remains separately owned
 
-Closeout evidence: The R28/DX sequencer and accepted RichText/file-drop features are implemented and reviewed against their source-specific tests. Complete local native, SDK, compatibility, gallery and measurement collection evidence is retained; source/policy/platform acceptance boundaries remain explicit. See the [delivery packet](../../../Measurements/WipDelivery_2026-11-02/README.md) and [shared qualification ledger](../WIP/ConsumerUiQualification_2026-10-11.md).
+Closeout evidence: The R28/DX sequencer and accepted RichText/file-drop features are implemented and reviewed against their source-specific tests. Complete local native, SDK, compatibility, gallery and measurement collection evidence is retained; source/policy/platform acceptance boundaries remain explicit. See the [delivery packet](../../../Measurements/WipDelivery_2026-11-02/README.md) and [shared qualification ledger](ConsumerUiQualification_2026-10-11.md).
 
 
 Historical pre-closeout Status: ACTIVE. The 1 November implementation revalidates this historical review against

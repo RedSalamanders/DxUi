@@ -1,6 +1,19 @@
 # Production review of the five-day delivery, 2 November 2026
 
-Status: SPEC READY — review recorded; the developer took Wave 0 decisions D0, D1, D2, D9 and D10 on 2 November and the
+Status: SUPERSEDED — sequencing consolidated; unfinished product work remains open under the new owner.
+Archived: 4 November 2026
+Current work: [the single remaining-work plan](../WIP/RemainingWork_2026-11-04.md).
+Original: `Specs/Plans/WIP/ProductionReview_2026-11-02.md` at `7257f3e31e575c633e8cbbbf3a74f3115f2eeb73`; SHA-256 `F02671B387F40820FB9BE52914D60498C002D985487B54203482E3BF5F1B1253`.
+[Original committed record](https://github.com/RedSalamanders/DxUi/blob/7257f3e31e575c633e8cbbbf3a74f3115f2eeb73/Specs/Plans/WIP/ProductionReview_2026-11-02.md).
+
+The dated record below preserves decisions, source-specific evidence, failures and rejected hypotheses.
+Transferred items are not completed features. Old pins, billing blocks, draft/merge claims and historical
+queues describe their recorded checkpoints; the new plan owns current status. This archive does not
+waive performance, consumer, native-platform, physical-input or release gates.
+
+## Historical record
+
+Historical status: SPEC READY — review recorded; the developer took Wave 0 decisions D0, D1, D2, D9 and D10 on 2 November and the
 D10 publication is done. Code implementation has not started and no library, test or tooling behavior has changed for it.
 
 - **Date**: 2026-11-02.
@@ -226,15 +239,15 @@ the developer's answer of 2 November 2026; open items keep the lead's recommenda
   diagnostic; only per-view option errors fall back for the whole view; the cause is logged with `what()` at Error level;
   no Debug fail-fast while tests inject plain `logic_error` on purpose. Parsers must never publish a model their preparer
   rejects (FLOW-01).
-- [ ] **D3. Source-region containment applies to every edit, not only Tab** (EDIT Q3). Recommended: yes.
-- [ ] **D4. Clipboard bitmap versus text priority** (CMD Q1, CTRL Q1). Recommended: prefer text when the clipboard
+- **Transferred to [D-DECISIONS](../WIP/RemainingWork_2026-11-04.md#d-decisions).** **D3. Source-region containment applies to every edit, not only Tab** (EDIT Q3). Recommended: yes.
+- **Transferred to [D-DECISIONS](../WIP/RemainingWork_2026-11-04.md#d-decisions).** **D4. Clipboard bitmap versus text priority** (CMD Q1, CTRL Q1). Recommended: prefer text when the clipboard
   also offers Unicode text unless the application opts into image-first, and declare a decline path for bitmap paste.
-- [ ] **D5. Scheme-relative `//host/...` and `file://host/...` image destinations** (CMD Q4, RENDER Q5). Recommended:
+- **Transferred to [D-DECISIONS](../WIP/RemainingWork_2026-11-04.md#d-decisions).** **D5. Scheme-relative `//host/...` and `file://host/...` image destinations** (CMD Q4, RENDER Q5). Recommended:
   classify as network, gated by the remote-image policy, never as `LocalFile`.
-- [ ] **D6. Windows 10 colour glyphs beside scripts** (RENDER Q3). Recommended: keep the documented paragraph fallback
+- **Transferred to [D-DECISIONS](../WIP/RemainingWork_2026-11-04.md#d-decisions).** **D6. Windows 10 colour glyphs beside scripts** (RENDER Q3). Recommended: keep the documented paragraph fallback
   where `ID2D1DeviceContext7` is absent, but compute support once per preparation (SEM-01 fix) and document it.
-- [ ] **D7. KaTeX display-style parity for aligned/gathered/equation cells** (MATH Q1). Recommended: yes.
-- [ ] **D8. Public `Debug*` declarations** (ARCH Q3). Recommended: document them as unsupported and outside the
+- **Transferred to [D-DECISIONS](../WIP/RemainingWork_2026-11-04.md#d-decisions).** **D7. KaTeX display-style parity for aligned/gathered/equation cells** (MATH Q1). Recommended: yes.
+- **Transferred to [D-DECISIONS](../WIP/RemainingWork_2026-11-04.md#d-decisions).** **D8. Public `Debug*` declarations** (ARCH Q3). Recommended: document them as unsupported and outside the
   revision-4 contract now; consolidate after production.
 - [x] **D9. Evidence storage and workstation identity** (DOCS Q5, DOCS-12, DOCS-14). **Decided 2 November: redact and
   rewrite history.** The lead had recommended redacting forward only; the developer chose to also remove the existing
@@ -249,68 +262,68 @@ the developer's answer of 2 November 2026; open items keep the lead's recommenda
   The pushed commits add no workstation identity; no workflow runs on pushes to these branches. The `wall-compat`
   branches were left unchanged: whether RedPrism and RedXe pin the new branches or those branches are fast-forwarded is
   the consumers' change, tracked by PRIOR-02. If D9's rewrite runs later, these SHAs change too.
-- [ ] **D11. Done plans with unchecked boxes** (DOCS Q4). Recommended: mechanically convert each unchecked box in Done
+- **Transferred to [D-DECISIONS](../WIP/RemainingWork_2026-11-04.md#d-decisions).** **D11. Done plans with unchecked boxes** (DOCS Q4). Recommended: mechanically convert each unchecked box in Done
   plans to an explicit disposition (done with commit, moved to a named owner, or dropped) rather than leaving them.
-- [ ] **D12. Change-fragment consolidation** (DOCS Q9). Recommended: fold the 413 fragments now, consolidating the 364
+- **Transferred to [D-DECISIONS](../WIP/RemainingWork_2026-11-04.md#d-decisions).** **D12. Change-fragment consolidation** (DOCS Q9). Recommended: fold the 413 fragments now, consolidating the 364
   same-day fragments into one per capability in a fold pull request of their own.
-- [ ] **D13. Consumer-callback `bad_alloc` policy** (EDIT Q5, ARCH Q1). Recommended: keep the accepted fatal-observer
+- **Transferred to [D-DECISIONS](../WIP/RemainingWork_2026-11-04.md#d-decisions).** **D13. Consumer-callback `bad_alloc` policy** (EDIT Q5, ARCH Q1). Recommended: keep the accepted fatal-observer
   policy, but publish one per-control table and make `TryControlCallback` the single implementation.
 
 ### Wave 1 — stop-ship and release blockers
 
-- [ ] PRIOR-03 first: implement the D0 decision (defer the embedded wake while an input entry point is on the stack),
+- **Transferred to [D-L1](../WIP/RemainingWork_2026-11-04.md#d-l1).** PRIOR-03 first: implement the D0 decision (defer the embedded wake while an input entry point is on the stack),
   add lifetime guards at every listed `TextField` site, and add the ASan regression tests from the appendix (Commit,
   Ctrl+Z and Ctrl+Y with a retiring callback, plus a counter that no callback is delivered while dispatch depth is
   non-zero). Audit every other control whose setters call `InvalidateMeasure()` or `Invalidate()` before touching
   members, since `d04ab124` guarded only some.
-- [ ] EDIT-01 with RENDER-01/14, EDIT-02 and EDIT-04: move cosmetic stages to visual preparation, scope guides to the
+- **Transferred to [D-E1](../WIP/RemainingWork_2026-11-04.md#d-e1).** EDIT-01 with RENDER-01/14, EDIT-02 and EDIT-04: move cosmetic stages to visual preparation, scope guides to the
   viewport or the changed lines, keep the previous gutter until the new one is ready, skip a tokenizer block on
   `bad_alloc`; update the editor contract. Measure a retained Source-mode baseline before the change.
-- [ ] EDIT-11: clamp Backspace/Delete to the active source-region interval for every edit kind; tests for both fence
+- **Transferred to [D-E1](../WIP/RemainingWork_2026-11-04.md#d-e1).** EDIT-11: clamp Backspace/Delete to the active source-region interval for every edit kind; tests for both fence
   traces in the appendix.
-- [ ] CTRL-01: keep the pending lead across `VK_PACKET` key-down/up and bare modifiers in both editors and both
+- **Transferred to [D-I1](../WIP/RemainingWork_2026-11-04.md#d-i1).** CTRL-01: keep the pending lead across `VK_PACKET` key-down/up and bare modifiers in both editors and both
   hosts; replay the real message sequence in tests; correct `TestTextFieldBuffersSurrogatesBeforePublishing`.
-- [ ] SEM-01: compute the colour-glyph capability once in the `Preparation` constructor; stop relying on the retained
+- **Transferred to [D-R1](../WIP/RemainingWork_2026-11-04.md#d-r1).** SEM-01: compute the colour-glyph capability once in the `Preparation` constructor; stop relying on the retained
   target; test `x^2^` beside an emoji with a real target.
-- [ ] MD-01, MD-02, MD-04: decode the deferred autolink suffix in every sibling path; forbid closed-root reuse across
+- **Transferred to [D-M1](../WIP/RemainingWork_2026-11-04.md#d-m1).** MD-01, MD-02, MD-04: decode the deferred autolink suffix in every sibling path; forbid closed-root reuse across
   offset 0 when front matter is possible and extend the incremental-versus-fresh differential to front matter; normalise
   CR/CRLF before YAML staging and install private global rapidyaml callbacks; run the YAML corpus in LF, CR and CRLF in
   Debug and ASan Debug.
-- [ ] FLOW-01 and the shared channel: trim before recording style spans; add a parser-side admission check so the
+- **Transferred to [D-A1](../WIP/RemainingWork_2026-11-04.md#d-a1).** FLOW-01 and the shared channel: trim before recording style spans; add a parser-side admission check so the
   parser never publishes a model preparation rejects; per-element reject helper at the three geometry sites (also
   covers MATH-02); Error-level logging (ARCH-03 part 1); property test "every published model is accepted".
-- [ ] FLOW-02: distinct cardinality anchors per edge end; corpus test with entities that have two relationships.
-- [ ] DOCS-07: add the Unicode License V3 and WHATWG notices to `THIRD-PARTY-NOTICES.md`, fix the dead
+- [x] FLOW-02: distinct cardinality anchors per edge end; corpus test with entities that have two relationships. _Closed at consolidation: Published FLOW-02 fix: implementation 703a96c7, PR163._
+- **Transferred to [D-G1](../WIP/RemainingWork_2026-11-04.md#d-g1).** DOCS-07: add the Unicode License V3 and WHATWG notices to `THIRD-PARTY-NOTICES.md`, fix the dead
   `docs/licenses/` links in the shipped copy, and add a packaging test that pins the SDK licence set.
 - [x] PRIOR-02 publication: done under D10 (branches and SHAs recorded there).
-- [ ] PRIOR-02 adoption: RedPrism and RedXe pin the published compatibility branches (or the owner fast-forwards the
+- **Transferred to [D-C1](../WIP/RemainingWork_2026-11-04.md#d-c1).** PRIOR-02 adoption: RedPrism and RedXe pin the published compatibility branches (or the owner fast-forwards the
   `wall-compat` branches to them); record the remote commit each consumer pins.
 
 ### Wave 2 — before-production P2 and cheap risk removal
 
-- [ ] Every row of [the P2 table](#before-production-p2-set), each with its appendix fix and regression test.
-- [ ] The cheap P3 items listed under that table (ARCH-18, ARCH-02, ARCH-04/05, HOST-02, CMD-07, RENDER-03/04,
+- **Transferred to [D-G1](../WIP/RemainingWork_2026-11-04.md#d-g1).** Every row of [the P2 table](#before-production-p2-set), each with its appendix fix and regression test.
+- **Transferred to [D-G1](../WIP/RemainingWork_2026-11-04.md#d-g1).** The cheap P3 items listed under that table (ARCH-18, ARCH-02, ARCH-04/05, HOST-02, CMD-07, RENDER-03/04,
   TOOL-21, HOST-04).
-- [ ] Performance-affecting fixes (EDIT-01, RENDER-02, SEM-02, EDIT-06, MD-05/06/07) each carry a retained baseline
+- **Transferred to [D-P1](../WIP/RemainingWork_2026-11-04.md#d-p1).** Performance-affecting fixes (EDIT-01, RENDER-02, SEM-02, EDIT-06, MD-05/06/07) each carry a retained baseline
   and a same-fixture candidate measurement; a confirmed degradation goes back to the developer with options, never a
   silent rebaseline.
 
 ### Wave 3 — test honesty
 
-- [ ] Add a failing-then-passing regression test for each P1 fix of the earlier reviews that has none (listed in
+- **Transferred to [D-T1](../WIP/RemainingWork_2026-11-04.md#d-t1).** Add a failing-then-passing regression test for each P1 fix of the earlier reviews that has none (listed in
   [prior-closure.md](ProductionReview_2026-11-02/prior-closure.md)), and rewrite the tests that synthesise their own
   trigger or recovery.
-- [ ] Add pathological-input tests with explicit step budgets for MD-05/06/07, FLOW-05 and the math parser; add a
+- **Transferred to [D-T1](../WIP/RemainingWork_2026-11-04.md#d-t1).** Add pathological-input tests with explicit step budgets for MD-05/06/07, FLOW-05 and the math parser; add a
   fuzz harness (corpus-driven, deterministic seeds) for the Markdown parser, the YAML/TOML stage, the TeX parser, the
   MATH table reader and the Mermaid parser, run in ASan Debug.
-- [ ] Replace self-referential oracles named in the appendices (CF_HTML real-world samples, independent crossing
+- **Transferred to [D-T1](../WIP/RemainingWork_2026-11-04.md#d-t1).** Replace self-referential oracles named in the appendices (CF_HTML real-world samples, independent crossing
   count, real font-table truncation instead of sub-spans).
 
 ### Wave 4 — documentation, process and hygiene
 
-- [ ] The remaining DOCS, TOOL and HOST-04 items, the Wave 0 decisions D8-D12 and the stale CI and capability text
+- **Transferred to [D-G1](../WIP/RemainingWork_2026-11-04.md#d-g1).** The remaining DOCS, TOOL and HOST-04 items, the Wave 0 decisions D8-D12 and the stale CI and capability text
   (DOCS-02, DOCS-06, TOOL-12).
-- [ ] Restructure `Specs/UI/UI_ControlsAndLayout.md` and `docs/rich-text.md` so normative requirements are separate
+- **Transferred to [D-G1](../WIP/RemainingWork_2026-11-04.md#d-g1).** Restructure `Specs/UI/UI_ControlsAndLayout.md` and `docs/rich-text.md` so normative requirements are separate
   from history (DOCS-15, DOCS-19).
 
 ### History rewrite (D9)
@@ -321,38 +334,38 @@ its own freeze, executed once and not mixed with code changes. Never write the a
 personal value into this repository, its issues or its commit messages while doing it; keep the replacement list
 outside the repository.
 
-- [ ] **Forward redaction first.** Change the receipt writers so new evidence carries stable aliases instead of the
+- **Transferred to [D-G1](../WIP/RemainingWork_2026-11-04.md#d-g1).** **Forward redaction first.** Change the receipt writers so new evidence carries stable aliases instead of the
   account and host names (receipt schema bump, because the host field is a comparison key), stops writing whole-machine
   process snapshots, and keeps user-profile paths relative. Add a validator that fails on the replacement list's
   patterns in any tracked file. Land this before the rewrite so the rewrite does not need repeating.
-- [ ] **Inventory.** List every tracked path and every commit message that contains the account name, the host name,
+- **Transferred to [D-G1](../WIP/RemainingWork_2026-11-04.md#d-g1).** **Inventory.** List every tracked path and every commit message that contains the account name, the host name,
   user-profile paths or the process snapshot (DOCS-12 counts about 1,150 files for the host and about 960 for the
   account across `Measurements/`, mostly older than this window, plus one process snapshot). Include all branches and
   tags that will be kept, including the three branches pushed under D10.
-- [ ] **Freeze and timing.** Merge or close open pull requests and park active worktrees (about 120 locally) first.
+- **Transferred to [D-G1](../WIP/RemainingWork_2026-11-04.md#d-g1).** **Freeze and timing.** Merge or close open pull requests and park active worktrees (about 120 locally) first.
   Prefer running the rewrite immediately before the Wave 1 consumer pin, so the four consumers re-pin once, not twice.
-- [ ] **Rewrite.** Use `git filter-repo` on a fresh mirror clone with a `--replace-text` expressions file kept outside
+- **Transferred to [D-G1](../WIP/RemainingWork_2026-11-04.md#d-g1).** **Rewrite.** Use `git filter-repo` on a fresh mirror clone with a `--replace-text` expressions file kept outside
   the repository (and `--replace-message` for commit messages), plus path removal for raw process snapshots. Keep the
   generated `commit-map` as the old-to-new SHA record.
-- [ ] **Verify before publishing.** On the rewritten mirror: zero matches for the replacement list across all refs;
+- **Transferred to [D-G1](../WIP/RemainingWork_2026-11-04.md#d-g1).** **Verify before publishing.** On the rewritten mirror: zero matches for the replacement list across all refs;
   `validate.ps1` passes; tree contents other than the replaced strings are byte-identical (compare `git diff` per
   rewritten commit pair from the map); receipt hash manifests are regenerated or explicitly re-attested, because
   replacing text inside receipts changes their hashes.
-- [ ] **Publish.** Temporarily allow a force push on the protected branches, force-push all kept branches and tags,
+- **Transferred to [D-G1](../WIP/RemainingWork_2026-11-04.md#d-g1).** **Publish.** Temporarily allow a force push on the protected branches, force-push all kept branches and tags,
   restore protection immediately, and record the new `main` SHA in this plan.
-- [ ] **Purge cached copies.** GitHub keeps `refs/pull/*` and cached commit views reachable by old SHA, and forks or
+- **Transferred to [D-G1](../WIP/RemainingWork_2026-11-04.md#d-g1).** **Purge cached copies.** GitHub keeps `refs/pull/*` and cached commit views reachable by old SHA, and forks or
   clones keep their own copies; ask GitHub Support to remove cached views and pull-request references for the affected
   commits. Treat anything already cloned as published; no secrets were found, so no credential rotation is needed.
-- [ ] **Repair SHA references.** Every SHA cited in `Specs/`, `Measurements/`, `docs/`, `Changes/` and this review
+- **Transferred to [D-G1](../WIP/RemainingWork_2026-11-04.md#d-g1).** **Repair SHA references.** Every SHA cited in `Specs/`, `Measurements/`, `docs/`, `Changes/` and this review
   (including `a0f67fd3`, `6df17007` and the D10 commits) becomes dangling. Rewrite them from the commit map in one
   mechanical commit, and keep the map in `Measurements/` so historical receipts stay attributable.
-- [ ] **Consumers.** RedXe, RedSalamander, RedTilde and RedPrism pin DxUi by SHA in `Dependencies/DxUi.lock.json`; each
+- **Transferred to [D-G1](../WIP/RemainingWork_2026-11-04.md#d-g1).** **Consumers.** RedXe, RedSalamander, RedTilde and RedPrism pin DxUi by SHA in `Dependencies/DxUi.lock.json`; each
   must re-pin to the rewritten commit (old SHAs will no longer be on any branch). Notify the consumer owners before the
   force push and verify each re-pin after it.
 
 ### Wave 5 — after production
 
-- [ ] Architecture proposals ARCH-06 to ARCH-20 in the order recommended by
+- **Transferred to [D-G1](../WIP/RemainingWork_2026-11-04.md#d-g1).** Architecture proposals ARCH-06 to ARCH-20 in the order recommended by
   [architecture.md](ProductionReview_2026-11-02/architecture.md): monolith splits behind existing seams, one Unicode
   service, header-only implementation by evidence, build throughput measured with vcperf first.
 

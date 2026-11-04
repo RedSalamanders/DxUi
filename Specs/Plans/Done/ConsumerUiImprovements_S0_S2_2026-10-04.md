@@ -6,11 +6,11 @@
   below records current-source implementation integration.
 - **Scope**: accepted measurement/ownership decisions, intrinsic measurement, opt-in Flex layout and stable forms.
 - **Library owner**: DxUi. No consumer pin, adapter or product behavior was changed by this library work.
-- **Remaining acceptance**: [UI composition qualification](../WIP/ConsumerUiQualification_2026-10-11.md) owns
+- **Remaining acceptance**: [UI composition qualification](ConsumerUiQualification_2026-10-11.md) owns
   paired-performance/policy acceptance, native ARM64 foreground/resource acceptance, physical device/input qualification
   and consumer pilots.
   Those gates remain open; moving this implementation record to Done neither passes nor waives them.
-- **Deferred implementation**: [S3-S7 proposals](../WIP/ConsumerUiImprovements_S3_S7_2026-10-11.md) retain overlay
+- **Deferred implementation**: [S3-S7 proposals](ConsumerUiImprovements_S3_S7_2026-10-11.md) retain overlay
   sessions, variable-height lists, read-only Markdown help, motion and theme authoring. They are unimplemented.
 
 ## 1. Completion scope and authority

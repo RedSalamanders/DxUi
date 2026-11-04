@@ -39,7 +39,7 @@ location.
 | DOCS-17 | P3 | Plausible | `capabilities.json` has a stale identifier and lacks two pending ids | `capabilities.json:116` | S |
 | DOCS-18 | P3 | Plausible | Design-system RichTextEditor guideline and `docs/images` captures lag the window | `Specs/DesignSystem/components/RichTextEditor/README.md:73` | M |
 | DOCS-19 | P3 | Confirmed | `docs/rich-text.md` is a reference, not a usage guide | `docs/rich-text.md:1635` | L |
-| DOCS-20 | P3 | Confirmed | `FrameUpdateAccounting` plan has no status line and a stale open item | `Specs/Plans/WIP/FrameUpdateAccounting_2026-10-26.md:16` | S |
+| DOCS-20 | P3 | Confirmed | `FrameUpdateAccounting` plan has no status line and a stale open item | `Specs/Plans/Done/FrameUpdateAccounting_2026-10-26.md:16` | S |
 | DOCS-21 | P3 | Plausible | Closeout says repairs are "covered" where the packet's own draft says the test is not located | `Specs/Plans/Done/README.md:74` | M |
 | DOCS-22 | P3 | Plausible | ARM64 status is described four different ways | `Specs/Build/Build_UnifiedCI.md:29` | S |
 | DOCS-23 | P3 | Plausible (one sub-claim refuted) | Small documentation defects | `Specs/Core/Core_Documentation.md:40` | S |
@@ -117,7 +117,7 @@ location.
 - **Severity** P2 (reviewer P2, verifier P2; escalate to P1 if RedPrism or RedXe are to adopt on this evidence) ·
   **Category** claim · **Verdict** Confirmed · **Confidence** high · **Effort** S
 - **Location**: `Measurements/WipDelivery_2026-11-02/README.md:9-10`;
-  `Specs/Plans/WIP/ConsumerUiQualification_2026-10-11.md:30-31`; `Specs/Plans/Done/DeliveryReview_2026-10-31.md:5`;
+  `Specs/Plans/Done/ConsumerUiQualification_2026-10-11.md:30-31`; `Specs/Plans/Done/DeliveryReview_2026-10-31.md:5`;
   `Specs/Plans/Done/README.md:80`
 - **What**: The packet states that API3 compatibility source `a5b3ac81` and API4 source `a8cb8e1d` each "passed six
   builds, 15 ordinary and nine foreground executions", and that production SDK source `68f6b15e` passed extracted
@@ -230,7 +230,7 @@ location.
   and reopens fixed code; or concludes M5c/M5d are not implemented.
 - **Fix**: One mechanical pass that converts every box in a Done plan to `[x]` (done), `[-]` (rejected, with the
   packet id) or `[>]` (handed to
-  `Specs/Plans/WIP/ConsumerUiQualification_2026-10-11.md#shared-qualification-ownership-16-october-2026`), generated
+  `Specs/Plans/Done/ConsumerUiQualification_2026-10-11.md#shared-qualification-ownership-16-october-2026`), generated
   from the existing per-ID tables; document the three marks in `Specs/README.md`. Delete the contradicting sentence at
   `ProductionReview_2026-10-05.md:163-164`. Add a `Test-DxUiSpecs` rule (`Tools/Validation.psm1:329`, using
   `Get-MarkdownProse`): a file under `Specs/Plans/Done/` may contain no `- [ ]`. Apply the rule in the same change as
@@ -386,11 +386,11 @@ location.
   `docs/samples.md:42` (targeting `Specs/Plans/Done/RichTextFileDrop_2026-10-20.md`)
 - **What**: `Specs/README.md:7-8` says WIP plans sequence unfinished work and Done plans are historical. The window
   moved the plans and updated their paths but left the "active" labels and the ownership phrasing. The only active
-  qualification owner is `Specs/Plans/WIP/ConsumerUiQualification_2026-10-11.md`.
+  qualification owner is `Specs/Plans/Done/ConsumerUiQualification_2026-10-11.md`.
 - **Failure scenario**: a reader looking for the remaining gates of rich text follows "active plan" into a closed
   plan.
 - **Fix**: Point "remaining gates" prose at
-  `Specs/Plans/WIP/ConsumerUiQualification_2026-10-11.md#shared-qualification-ownership-16-october-2026`; keep Done
+  `Specs/Plans/Done/ConsumerUiQualification_2026-10-11.md#shared-qualification-ownership-16-october-2026`; keep Done
   links only as history ("recorded in"). The doc-lint of DOCS-02 already covers the phrase.
 - **Regression test**: same fixture as DOCS-02 plus a rule that a link whose text contains "active" must target
   `Specs/Plans/WIP/`; fails for the five locations.
@@ -603,7 +603,7 @@ location.
 
 - **Severity** P3 (reviewer P3, verifier P3) · **Category** process · **Verdict** Confirmed · **Confidence** high ·
   **Effort** S
-- **Location**: `Specs/Plans/WIP/FrameUpdateAccounting_2026-10-26.md:1-16`; `Specs/Plans/WIP/README.md:6`;
+- **Location**: `Specs/Plans/Done/FrameUpdateAccounting_2026-10-26.md:1-16`; `Specs/Plans/WIP/README.md:6`;
   `Specs/README.md:18-23`
 - **What**: `Specs/README.md` says current plan status lines use the labels ACTIVE, SPEC READY and HOLD. The plan
   starts at "Current evidence checkpoint" with no status line (only the WIP index row carries **ACTIVE**). Line 16 is
@@ -643,9 +643,9 @@ location.
 - **Severity** P3 (reviewer P3, verifier P3) · **Category** contract · **Verdict** Plausible · **Confidence** medium ·
   **Effort** S
 - **Location**: `Measurements/WipDelivery_2026-11-02/README.md:29` and
-  `Specs/Plans/WIP/ConsumerUiQualification_2026-10-11.md:44` ("Native ARM64 execution is explicitly deferred by the
+  `Specs/Plans/Done/ConsumerUiQualification_2026-10-11.md:44` ("Native ARM64 execution is explicitly deferred by the
   user"); `Specs/Build/Build_UnifiedCI.md:29` ("Both native x64 and native ARM64 execute"); `capabilities.json`
-  pending `native-arm64-runtime-qualification`; `Specs/Plans/WIP/FrameUpdateAccounting_2026-10-26.md:11`;
+  pending `native-arm64-runtime-qualification`; `Specs/Plans/Done/FrameUpdateAccounting_2026-10-26.md:11`;
   `docs/getting-started.md:21`
 - **What**: A consumer cannot tell whether native ARM64 runtime is unqualified (capabilities), deferred (WIP) or
   executed on every main push (CI contract). The statements are reconcilable (local delivery run versus hosted run

@@ -1,35 +1,35 @@
 {
+  "command": "gallery.ps1 -PublishDocs",
+  "sourceCommit": "7257f3e31e575c633e8cbbbf3a74f3115f2eeb73",
+  "sourceDirty": true,
+  "configuration": "Release",
   "platform": "x64",
-  "command": "gallery.ps1 -Configuration Release -SkipBuild; hash-verified publication from isolated checkout",
+  "nativeArchitecture": "X64",
   "controlCount": 35,
-  "sourceCommit": "703a96c788a79c1e7b28097226a2ca0a735f11bc",
   "images": [
     {
-      "sha256": "86D2FE80791134ABFF1B352051CF471AEC0F88ADAADB6B1BC743EAC0373B1240",
-      "file": "embedded-controls.png"
+      "file": "embedded-controls.png",
+      "sha256": "86D2FE80791134ABFF1B352051CF471AEC0F88ADAADB6B1BC743EAC0373B1240"
     },
     {
-      "sha256": "D05AE77032BA93216B2747305AB13290C9D55D74708F0BE69ADD7BC7441C4014",
-      "file": "theme-controls-dark.png"
+      "file": "theme-controls-dark.png",
+      "sha256": "DB674677CA95D8187034C90CE544B28327BB74801885200AF92EEB9C33EC2540"
     },
     {
-      "sha256": "AF003ED632D1F25525135E95E38BDEE13F02F716A4D125F12B2C2C630C6E30CB",
-      "file": "theme-controls-high-contrast.png"
+      "file": "theme-controls-high-contrast.png",
+      "sha256": "ED1AE994C624736B3CF289892FC48C440BFF7E5D91CF1D1309B5B1F03E7CB6AC"
     },
     {
-      "sha256": "CC2125CAE32AEA036A8733B9268CDA099ED1391D16533DEFA3EE8EB7A29F11D2",
-      "file": "theme-controls-light.png"
+      "file": "theme-controls-light.png",
+      "sha256": "367403E5DFB5986ECDD2D7ED737DF707134A0CE614CABBB8CB143E3A76FA8657"
     },
     {
-      "sha256": "F6766C550258DDF4591D04AB38564AFC79F54908F226B8E92BBFF3DCA4169AFA",
-      "file": "theme-controls-rainbow-dark.png"
+      "file": "theme-controls-rainbow-dark.png",
+      "sha256": "0B3E4AF6A6A3E2C260990524A1250B5DF9365CCA7F202AE2E015D1D38A01FDC4"
     },
     {
-      "sha256": "C5BA8DBB13E1ABCE544E516832F9793D0775E4158B9101451FFD3F0E82185DC1",
-      "file": "theme-controls-rainbow-light.png"
+      "file": "theme-controls-rainbow-light.png",
+      "sha256": "5C14777FEB99050362AAD8BD8B75EB5566AFA6D45D6B35D2DBDCEC322D11E70E"
     }
-  ],
-  "sourceDirty": false,
-  "nativeArchitecture": "X64",
-  "configuration": "Release"
+  ]
 }

@@ -170,7 +170,7 @@ Use the existing harness/desktop lease for foreground assertions and determinist
 
 Record the old/new full pins, API revision, adapter changes, selected toolchain/CRT/configurations, build/test
 receipts, remaining gates and rollback in the **consumer's** reviewed change. Its normal Full/pre-push and release
-requirements continue to apply. The [shared qualification ledger](../Specs/Plans/WIP/ConsumerUiQualification_2026-10-11.md)
+requirements continue to apply. The [shared qualification ledger](../Specs/Plans/Done/ConsumerUiQualification_2026-10-11.md)
 remains open for the separately owned platform, physical-input, adoption and performance obligations.
 
 The delivery's paired performance study remains unqualified because its controls were unstable. The same-toolset

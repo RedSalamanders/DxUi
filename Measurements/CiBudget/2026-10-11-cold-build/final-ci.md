@@ -9,8 +9,8 @@ retains the server response, Git object, branch identity and exact-head review b
 
 This closes implementation integration under the dated [validation decision](../../../Specs/Testing/Testing_Validation.md#scoped-iteration-and-pr-coverage).
 It does not establish CI or performance acceptance. [S0-S2 is Done](../../../Specs/Plans/Done/ConsumerUiImprovements_S0_S2_2026-10-04.md);
-[qualification](../../../Specs/Plans/WIP/ConsumerUiQualification_2026-10-11.md) and
-[S3-S7 proposals](../../../Specs/Plans/WIP/ConsumerUiImprovements_S3_S7_2026-10-11.md) remain WIP. Consumer pins are unchanged.
+[qualification](../../../Specs/Plans/Done/ConsumerUiQualification_2026-10-11.md) and
+[S3-S7 proposals](../../../Specs/Plans/Done/ConsumerUiImprovements_S3_S7_2026-10-11.md) remain WIP. Consumer pins are unchanged.
 
 ## Current-source CI and root review
 

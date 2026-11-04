@@ -32,7 +32,7 @@ This section records the workflow at the time of the review; the current CI reco
 - [x] Prove unchanged reuse, source/binary/configuration/environment invalidation, failures and post-run mutations.
 - [x] Align CI commands and pre-push delegation without weakening existing main/release gates.
 - [x] Run focused tooling/scenario checks, applicable builds and noninteractive native tests for the recorded implementation; preserve the source-specific receipts and unavailable/manual gates below.
-- [x] Persist durable requirements in [Testing_Validation](../../Testing/Testing_Validation.md) and agent guidance. Shared platform, manual and consumer acceptance remains in [ConsumerUiQualification](../WIP/ConsumerUiQualification_2026-10-11.md), and does not become a pass by archiving this implementation record.
+- [x] Persist durable requirements in [Testing_Validation](../../Testing/Testing_Validation.md) and agent guidance. Shared platform, manual and consumer acceptance remains in [ConsumerUiQualification](ConsumerUiQualification_2026-10-11.md), and does not become a pass by archiving this implementation record.
 
 ## Qualification constraints
 

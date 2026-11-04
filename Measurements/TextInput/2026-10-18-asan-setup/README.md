@@ -1,7 +1,7 @@
 # ASan foreground setup diagnostics and repair
 
 Status: setup repairs and requested local native checks complete. Qualification remains HOLD. The
-[qualification ledger](../../../Specs/Plans/WIP/ConsumerUiQualification_2026-10-11.md#asan-foreground-setup-follow-through-18-october-2026)
+[qualification ledger](../../../Specs/Plans/Done/ConsumerUiQualification_2026-10-11.md#asan-foreground-setup-follow-through-18-october-2026)
 remains the single owner of acceptance and next steps. [Sanitized evidence](evidence.json) binds runtime inputs,
 artifacts, receipts, diagnostic attempts and the performance comparison. Raw desktop records stay private.
 

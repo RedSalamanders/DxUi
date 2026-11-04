@@ -2,7 +2,7 @@
 
 Status: DONE — local implementation and source-bound review closed; shared acceptance remains separately owned
 
-Closeout evidence: Touch-halo painting, clipping, overlap and hit geometry are implemented and have deterministic source/pixel/interaction tests in current native coverage and reviewed gallery. Synthetic input does not qualify physical touch hardware. See the [delivery packet](../../../Measurements/WipDelivery_2026-11-02/README.md) and [shared qualification ledger](../WIP/ConsumerUiQualification_2026-10-11.md).
+Closeout evidence: Touch-halo painting, clipping, overlap and hit geometry are implemented and have deterministic source/pixel/interaction tests in current native coverage and reviewed gallery. Synthetic input does not qualify physical touch hardware. See the [delivery packet](../../../Measurements/WipDelivery_2026-11-02/README.md) and [shared qualification ledger](ConsumerUiQualification_2026-10-11.md).
 
 
 - **Status**: ACTIVE (9 October 2026). The library implementation merged in #62 and the hosted paired comparison passed
@@ -10,7 +10,7 @@ Closeout evidence: Touch-halo painting, clipping, overlap and hit geometry are i
   consumer API-revision-4 pin and `PointerEvent::device` adoption are tracked separately in
   [the handoff register](ProductionReview_2026-10-05/api4-consumer-handoffs.md).
 - **Owner**: Slider, input hosting, gallery and design system.
-- **Shared qualification execution**: [Library qualification and consumer adoption](../WIP/ConsumerUiQualification_2026-10-11.md#shared-qualification-ownership-16-october-2026) owns the physical/native-platform/performance acceptance queue. This plan owns Slider implementation and source-specific clipping/overlap evidence; the API-4 register owns consumer actions.
+- **Shared qualification execution**: [Library qualification and consumer adoption](ConsumerUiQualification_2026-10-11.md#shared-qualification-ownership-16-october-2026) owns the physical/native-platform/performance acceptance queue. This plan owns Slider implementation and source-specific clipping/overlap evidence; the API-4 register owns consumer actions.
 - **Scope**: Adopt the thumb geometry of `codex/slider-touch-review` (`2b4f7bf`) on current main, whose behavior fixes
   #25 already ported, and add touch feedback: a translucent halo of the 48 DIP grab area while a touch contact drags
   the slider. The library learns which device a pointer event came from, in the window host and in embedded hosts.

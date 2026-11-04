@@ -23,6 +23,10 @@ Every direct WIP plan is indexed once. Before completion, persist enduring disco
 complete implementation and validation, then move the plan to Done and remove its active row. A separate HOLD
 consumer migration does not prevent completing an independently scoped extraction plan.
 
+[Remaining work — 4 November 2026](Plans/WIP/RemainingWork_2026-11-04.md) is the single current execution plan.
+Superseded planning records in Done retain their evidence and route unfinished items to that owner. An archived
+SUPERSEDED record does not claim implementation or qualification; the consolidation ledger records every transfer.
+
 The WIP index and current plan status lines use these labels:
 
 - **SPEC READY**: the sequence is written and implementation has not started.

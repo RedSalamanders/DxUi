@@ -182,7 +182,7 @@ The [S0-S2 final PR review](../Measurements/CiBudget/2026-10-11-cold-build/final
 methods and all controls from 144 exact raw reports. All three original method-agreement flags remain false and
 69/72 controls are unstable; publication/aggregate remain failed and policy qualification stays open. The recorded
 implementation-only merge supplies no speedup or accepted non-regression. Raw composition and private-memory shifts
-remain investigation targets in the [qualification WIP](../Specs/Plans/WIP/ConsumerUiQualification_2026-10-11.md).
+remain investigation targets in the [qualification WIP](../Specs/Plans/Done/ConsumerUiQualification_2026-10-11.md).
 
 To measure work that is not a commit, name the tree instead: `-BaselinePath` and `-CandidatePath` take the top of an
 existing DxUi working tree with its dependencies restored (`vcpkg-install.ps1`), such as one feature worktree against
@@ -419,7 +419,7 @@ Native ARM64 runs are configured in [CI](../.github/workflows/ci.yml) on `window
 and ASan Debug.
 That label identifies [GitHub's native ARM64 runner](https://docs.github.com/en/actions/reference/runners/github-hosted-runners).
 Only an actual successful job and its receipts establish a runtime pass; configuration and cross-builds do not.
-The [current qualification record](../Specs/Plans/WIP/ConsumerUiQualification_2026-10-11.md) retains PR #77's failed
+The [current qualification record](../Specs/Plans/Done/ConsumerUiQualification_2026-10-11.md) retains PR #77's failed
 post-merge `main` run separately from the green PR #78 candidate and its successful fresh merged-`main` six-profile
 run. The latter closes hosted ARM64 Menu and NativeTextInput foreground functional execution at that identity;
 opt-in menu resource fixtures, separately agreed manual focus work and physical-input gates remain open.
@@ -540,7 +540,7 @@ CPU and process CPU/memory observations before the study starts through its end.
 Inspect gaps, observer collection cost and inaccessible processes; this is not
 a scheduler trace or a dedicated-host claim. Download artifacts before their
 14-day expiry. Compiler/SDK hashes do not by themselves retain those original
-bytes. The [shared policy-review proposal](../Specs/Plans/WIP/ConsumerUiQualification_2026-10-11.md#pr-89-calibration-contribution-and-policy-review-proposal-20-october-2026)
+bytes. The [shared policy-review proposal](../Specs/Plans/Done/ConsumerUiQualification_2026-10-11.md#pr-89-calibration-contribution-and-policy-review-proposal-20-october-2026)
 keeps that closure limit and independent approval explicit.
 
 Use `gallery.ps1 -PublishDocs` after visual/control changes and review every generated sheet. Native x64 Release

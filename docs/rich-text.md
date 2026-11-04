@@ -88,8 +88,10 @@ For a quieter Markdown document, set `markdownPresentation` to
 `RichText::MarkdownPresentationStyle::Subtle` on the editor appearance or layout
 options. H1/H2 gain subtle separators, tables fit their contents with horizontal
 rules, standalone display equations/diagrams center, and quotes use a shaded
-surface. `Default` preserves the existing presentation. This setting does not
+surface. `Default` retains the ordinary presentation. This setting does not
 rewrite Markdown or affect Source-view styling, selection or undo history.
+Quotes and callouts leave six DIP of inner space on each side, including nested lists and tables. Narrow
+containers reduce the inset to keep a positive text width; selection and source hit testing follow the same layout.
 Table columns measure both natural and minimum nonbreaking widths. A wrapping
 column yields space to an unbreakable word before emergency character breaks
 are needed; right-to-left cells use the same widths and source geometry.
@@ -566,7 +568,7 @@ and [compiled application example](../Samples/EmbeddedControls/Main.cpp).
 The [completed file-drop plan](../Specs/Plans/Done/RichTextFileDrop_2026-10-20.md) and
 [delivery evidence](../Measurements/WipDelivery_2026-11-02/README.md) record local implementation
 and checks; consumer integration, physical/native-platform and performance qualification
-remain separately owned in the [shared ledger](../Specs/Plans/WIP/ConsumerUiQualification_2026-10-11.md).
+remain separately owned in the [shared ledger](../Specs/Plans/Done/ConsumerUiQualification_2026-10-11.md).
 The [file-reference qualification packet](../Measurements/RichText/README.md)
 records all six builds and 57 ordinary x64 scope passes for image/link and mixed
 paste, including native/embedded transport, semantic roles, history and fault
@@ -1534,7 +1536,7 @@ and permit retry; capacity refusal remains distinct from invalid input. See the
 [allocation-failure sweep](../Tests/Embedded/Embedded.Tests.RichTextResources.h).
 These checks do not validate decoded values or establish full YAML/TOML value
 conformance. See the [source-bound evidence report](../Measurements/WipDelivery_2026-11-02/README.md)
-and [shared qualification ledger](../Specs/Plans/WIP/ConsumerUiQualification_2026-10-11.md)
+and [shared qualification ledger](../Specs/Plans/Done/ConsumerUiQualification_2026-10-11.md)
 for execution and remaining platform status.
 
 ## Footnote rendering and navigation (M5b preview)

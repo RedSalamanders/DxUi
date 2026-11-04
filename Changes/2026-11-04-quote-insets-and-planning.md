@@ -1,0 +1,1 @@
+- Add shared quote/callout inner margins and source-aware native coverage, make Mermaid sequence-label staging recover from injected Debug allocation failure, and consolidate historical planning into one remaining-work owner with preserved evidence and qualification gates.

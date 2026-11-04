@@ -1265,6 +1265,18 @@ struct PreparedSemanticGeometry::Preparation
             throw std::overflow_error("Nonfinite semantic marker gutter");
         return result;
     }
+    float QuoteInset(const SemanticParagraph& content, float available) const noexcept
+    {
+        unsigned quotes{};
+        const auto elements = state->document->Elements();
+        auto owner          = content.element;
+        for (unsigned depth = 0u; owner != MarkdownNoNode && depth < 64u; ++depth, owner = elements[owner].parent)
+            if (elements[owner].role == SemanticRole::Quote || elements[owner].role == SemanticRole::Callout)
+                ++quotes;
+        // The frame expansion in ParentBounds mirrors this content reservation.
+        // Keep one DIP of text even inside deeply nested, narrow containers.
+        return std::min(6.0f * static_cast<float>(quotes), std::max(0.0f, (available - 1.0f) * 0.5f));
+    }
     void PrepareBodyInput(const SemanticParagraph& content, PreparedLayoutAccess::SemanticInput& projection) const
     {
         SemanticDisplayInput(*state->document, content.display, projection);
@@ -1487,7 +1499,8 @@ struct PreparedSemanticGeometry::Preparation
             const auto baseIndent = static_cast<float>(std::min(sizing.firstContent.indent, 64u)) *
                                     (state->options.semanticSpacing ? state->options.semanticSpacing->containerIndentDip : 16.0f);
             sizing.indent         = std::min(state->options.widthDip - 1.0f, baseIndent + Gutter(sizing.firstContent));
-            const auto available  = std::max(1.0f, state->options.widthDip - sizing.indent);
+            const auto outerWidth = state->options.widthDip - sizing.indent;
+            const auto available  = std::max(1.0f, outerWidth - 2.0f * QuoteInset(sizing.firstContent, outerWidth));
             if (! std::isfinite(sizing.preferredTotal) || sizing.preferredTotal <= 0.0f || ! std::isfinite(sizing.minimumTotal) || sizing.minimumTotal <= 0.0f)
                 throw std::overflow_error("Nonfinite intrinsic semantic table width");
             // First preserve each column's widest nonbreaking word/object.
@@ -1644,9 +1657,10 @@ struct PreparedSemanticGeometry::Preparation
         const float baseIndent =
             static_cast<float>(std::min(content.indent, 64u)) * (next.options.semanticSpacing ? next.options.semanticSpacing->containerIndentDip : 16.0f);
         const float indent       = std::min(next.options.widthDip - 1.0f, baseIndent + Gutter(content));
-        box->x                   = rtl ? 0.0f : indent;
+        const float quoteInset   = QuoteInset(content, next.options.widthDip - indent);
+        box->x                   = (rtl ? 0.0f : indent) + quoteInset;
         box->y                   = y;
-        box->width               = next.options.widthDip - indent;
+        box->width               = next.options.widthDip - indent - 2.0f * quoteInset;
         LayoutOptions options    = next.options;
         options.readingDirection = paragraphDirection;
         if (table)
@@ -2038,7 +2052,7 @@ struct PreparedSemanticGeometry::Preparation
         if (content.markerOwner != MarkdownNoNode && ! split && consumeParagraph)
         {
             const auto [left, width] = PreparedLayoutAccess::HorizontalTextBounds(box->layout);
-            const auto actualLeft    = rtl ? next.options.widthDip - indent : indent - width;
+            const auto actualLeft    = rtl ? next.options.widthDip - indent - quoteInset : indent + quoteInset - width;
             box->x                   = actualLeft - left;
             box->width               = width;
             box->frame               = D2D1::RectF(actualLeft, box->y, actualLeft + width, box->y + box->height);
@@ -2058,7 +2072,7 @@ struct PreparedSemanticGeometry::Preparation
             box->y                     = y + baseline - bodyBaseline;
             box->frame.top             = box->y;
             box->frame.bottom          = box->y + box->height;
-            const auto actualLeft      = rtl ? next.options.widthDip - indent : indent - width;
+            const auto actualLeft      = rtl ? next.options.widthDip - indent - quoteInset : indent + quoteInset - width;
             marker->x                  = actualLeft - left;
             marker->width              = width;
             marker->frame              = D2D1::RectF(actualLeft, marker->y, actualLeft + width, marker->y + marker->height);
@@ -2114,12 +2128,12 @@ struct PreparedSemanticGeometry::Preparation
         if (rowPlacement < next.boxes.size())
         {
             auto& box = *next.boxes[rowPlacement++];
-            float cellWidth =
-                (next.options.widthDip - std::min(next.options.widthDip - 1.0f,
-                                                  static_cast<float>(std::min(box.paragraph.indent, 64u)) *
-                                                          (next.options.semanticSpacing ? next.options.semanticSpacing->containerIndentDip : 16.0f) +
-                                                      Gutter(box.paragraph))) /
-                static_cast<float>(box.paragraph.columns);
+            const float outerWidth =
+                next.options.widthDip - std::min(next.options.widthDip - 1.0f,
+                                                 static_cast<float>(std::min(box.paragraph.indent, 64u)) *
+                                                         (next.options.semanticSpacing ? next.options.semanticSpacing->containerIndentDip : 16.0f) +
+                                                     Gutter(box.paragraph));
+            float cellWidth = (outerWidth - 2.0f * QuoteInset(box.paragraph, outerWidth)) / static_cast<float>(box.paragraph.columns);
             if (next.options.markdownPresentation == MarkdownPresentationStyle::Subtle)
             {
                 const auto* sizing = FindTableSizing(box.paragraph.table);
@@ -2765,8 +2779,15 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                     work.phase = Preparation::Phase::PaintIndex;
                     continue;
                 }
-                const auto index  = --work.boundsIndex;
-                const auto parent = work.state->document->Elements()[index].parent;
+                const auto index    = --work.boundsIndex;
+                const auto& element = work.state->document->Elements()[index];
+                const auto parent   = element.parent;
+                if ((element.role == SemanticRole::Quote || element.role == SemanticRole::Callout) && work.state->bounds[index])
+                {
+                    auto& frame = work.state->bounds[index].value();
+                    frame.left -= std::min(6.0f, std::max(0.0f, frame.left));
+                    frame.right += std::min(6.0f, std::max(0.0f, work.state->options.widthDip - frame.right));
+                }
                 if (parent != MarkdownNoNode && work.state->bounds[index])
                     Union(work.state->bounds[parent], *work.state->bounds[index]);
             }
