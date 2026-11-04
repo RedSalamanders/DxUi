@@ -220,7 +220,13 @@ struct FlowchartEdge
 // Preparation-only derived text; the authored label and complete body remain unchanged.
 inline std::wstring SequenceMessageText(const FlowchartEdge& edge)
 {
-    return edge.sequenceNumber ? std::format(L"{0}. {1}", edge.sequenceNumber, edge.label) : edge.label;
+    if (! edge.sequenceNumber)
+        return std::wstring(edge.label);
+    // MSVC Debug's format result uses a noexcept default string constructor.
+    // Decimal conversion and the explicit return copy keep allocation fallible.
+    auto text = std::to_wstring(edge.sequenceNumber);
+    text.append(L". ").append(edge.label);
+    return std::wstring(text);
 }
 struct FlowchartModel
 {
