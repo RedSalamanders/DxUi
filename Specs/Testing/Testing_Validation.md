@@ -30,6 +30,15 @@ geometry publication. It preserves every preceding assertion; consumer pin adopt
 
 Every supported capability has executable evidence and a truthful status in `capabilities.json`.
 
+Prepared diagram-label backgrounds have two independent native EditorControls regressions.
+`TestNativeDiagramLabelBackdrops` compares actual raster pixels and contrast with independently derived
+expectations across diagram families, group/note containment, custom themes and DPI. It also checks that
+repeated paint creates no text layouts or semantic preparations. `TestNativeDiagramLabelBrushRetirement`
+retains and poisons an old brush after bounded host-cache eviction and a source revision, then requires a
+fresh brush and no poisoned pixels without changing the host generation. Keep its unchanged-library
+counterfactual failure separately from the corrected pass. Consumer claims require the application's own
+exact-pin hidden captures; SDK gallery pixels alone cannot establish consumer rendering.
+
 Documentation gallery fixtures install synthetic tooltip content after queued window messages and cooperative
 preparation have settled, then verify the exact visible tooltip text immediately before synchronous capture.
 The owned-window leave interleaving must clear the preceding tooltip without activating or moving the desktop.

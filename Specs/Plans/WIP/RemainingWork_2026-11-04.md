@@ -16,6 +16,11 @@ RedTilde's starting point consumes API 4 at `703a96c788a79c1e7b28097226a2ca0a735
 follow-up adopts `8c6c2818` in [PR45](https://github.com/RedSalamanders/RedTilde/pull/45); publishing or merging
 the library never advances another consumer's lock.
 
+The later diagram-label correction uses API-4 implementation `2a7e7c28` in
+[PR166](https://github.com/RedSalamanders/DxUi/pull/166). Its
+[scoped closeout](../Done/DiagramLabelBackgrounds_2026-11-04.md) records six builds, all three x64 affected
+profiles, the real ASan probe, the 19-suite Release union and RedTilde's original exact-pin comparisons.
+
 | Completed scope | Evidence and limit |
 | --- | --- |
 | Styled Mermaid spans and ER/class shared attachment defects (FLOW-01/02), bounded sequence syntax expansion and readable default strokes | [Display closeout](../Done/MermaidDisplayCorrections_2026-11-03.md), exact implementation `703a96c7`. The broader per-element failure channel remains D-A1. |
@@ -98,8 +103,10 @@ any *different* remaining failure-channel problem belong to D-A1.
 <a id="d-r1"></a>
 ### D-R1 — semantic resources, rendering and accessibility
 
-- [ ] Match native arrow-label/cardinality backgrounds to the diagram canvas, with prepared contrast fallback,
+- [x] Match native arrow-label/cardinality backgrounds to the diagram canvas, with prepared contrast fallback,
   preserved notes/groups/selection, native raster/resource checks and exact-pin RedTilde capture verification.
+  [Scoped closeout](../Done/DiagramLabelBackgrounds_2026-11-04.md) includes the cache-eviction brush-retirement
+  counterfactual and source-bound final native matrix.
 - [x] Correct quote/callout inner margins in shared geometry, including nested containers, lists, tables,
   RTL, narrow widths and source ACP hit testing; verify the consumer's themed-scrollbar adoption with an exact
   API-4 pin. The [scoped closeout](../Done/QuoteMarginsAndSequenceAllocation_2026-11-04.md) records all three x64
@@ -128,6 +135,10 @@ omitting an ID from this summary does not dispose of it.
 - [ ] Derive the semantic diagram allocation diagnostic's scenario count from its actual source array. Its
   existing summary label is stale; the expanded sweep executes 20 sources. Retain the original logs and use
   actual per-request traces and source inventory when interpreting current evidence.
+- [ ] Diagnose long-checkout tooling portability: hosted-MSVC fake executable launches fail at observed
+  272-character fixture paths and one NTFS hardlink fixture fails at 261 characters. Canonical short-path
+  validation and all 41 unchanged NTFS run-evidence checks with a supported short scratch root pass. Preserve
+  both boundaries and the original failures; do not report the failed long-root aggregate as green.
 - [ ] Update relevant catalog/factory, usage, gallery and design-system entries for actual control changes.
   Product screenshots come from owned harness scenarios with invented content and build/DPI provenance.
 
@@ -147,8 +158,10 @@ omitting an ID from this summary does not dispose of it.
 <a id="d-q1"></a>
 ## D-Q1 — remaining platform, input and consumer acceptance
 
-- [ ] Reconcile current-candidate Debug/ASan, real ASan detection, resource/WARP and any required six-profile
-  obligations with their exact evidence. The successful main Release run closes only its declared roles.
+- [x] Reconcile the selected API-4 diagram candidate `2a7e7c28`: all six builds, eight affected suites in each
+  x64 profile, the real ASan detector and all 19 noninteractive Release suites pass with zero warnings/errors
+  and zero capability skips. [Exact evidence](../../../Measurements/DiagramLabelBackgrounds_2026-11-04/qualification.json)
+  includes rendering/WARP/resource coverage. API-5 qualification remains D-A1; cross-builds do not establish native ARM64 runtime.
 - [ ] Complete or retain the explicit owner deferral for native ARM64 opt-in MenuResources/MenuResourceScaling
   and candidate-specific foreground coverage. Native cross-builds and ordinary hosted suites do not close them.
 - [ ] Qualify physical device removal/occlusion, real IME during reflow, assistive technology and touch on named
@@ -210,5 +223,7 @@ proposals likewise require a selected scope after the correctness work.
 Close a required row only with an actual source-bound implementation/regression, authoritative contract/capability
 update and applicable native/resource evidence or explicit permitted owner disposition. Track unexpected failures,
 source drift and blocking external state honestly; never convert a filtered/failed run to success. Use affected and
-PrePush accounting without repeating identical obligations. No native build, foreground input, experimental collection,
-consumer migration, history rewrite or publication is part of this documentation-only cleanup.
+PrePush accounting without repeating identical obligations. This is now the execution plan for the user's
+implementation request. Each selected slice includes code, meaningful regressions, domain documentation and
+applicable native builds. Foreground input still requires agreement to the time; consumer migration, coordinated
+history rewriting and release acceptance keep their separate explicit boundaries.

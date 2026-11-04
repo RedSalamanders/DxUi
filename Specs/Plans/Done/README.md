@@ -2,6 +2,8 @@
 
 ## Consolidated records — 4 November 2026
 
+- [Diagram label backgrounds and brush retirement](DiagramLabelBackgrounds_2026-11-04.md) — prepared canvas/contrast policy, native raster and retirement counterfactuals, six builds, three x64 profiles and original exact-pin consumer captures; broader acceptance remains in WIP.
+
 - [Quote inner margins and recoverable sequence-label allocation](QuoteMarginsAndSequenceAllocation_2026-11-04.md) — shared geometry, native source-mapping regressions, exact Debug failure diagnosis and explicit consumer adoption; broader qualification stays in WIP.
 
 - [WIP consolidation and complete transfer ledger](WipConsolidation_2026-11-04.md) — one current owner, explicit dispositions and preserved original source identities.

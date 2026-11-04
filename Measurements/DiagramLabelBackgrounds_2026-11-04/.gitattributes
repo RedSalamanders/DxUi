@@ -1,0 +1,4 @@
+# Preserve evidence projection bytes; prose uses ordinary text handling.
+* -text whitespace=trailing-space,space-before-tab,cr-at-eol
+README.md text
+.gitattributes text eol=lf
