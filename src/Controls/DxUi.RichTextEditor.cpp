@@ -424,6 +424,13 @@ struct RichTextEditor::State
     RichText::SemanticBuilder semantic;
     std::vector<RichText::Detail::DisclosureOverride> disclosureStates{0u};
     wil::com_ptr<ID2D1SolidColorBrush> calloutAccent, propertiesInk;
+    wil::com_ptr<ID2D1SolidColorBrush> diagramLabelFill;
+    D2D1_COLOR_F diagramLabelColor{}, diagramLabelInk{}, diagramLabelSurface{};
+    uint64_t diagramLabelResources{}, diagramLabelBinding{};
+    static bool SameColor(D2D1_COLOR_F a, D2D1_COLOR_F b) noexcept
+    {
+        return a.r == b.r && a.g == b.g && a.b == b.b && a.a == b.a;
+    }
     D2D1_COLOR_F calloutAccentColor{}, propertiesInkColor{};
     uint64_t calloutAccentResources{}, calloutAccentBinding{}, propertiesInkResources{}, propertiesInkBinding{};
     std::shared_ptr<const RichText::MarkdownSyntax> disclosureSyntax;
@@ -3279,6 +3286,7 @@ void RichTextEditor::RetireLayout(bool retainGeometry) const noexcept
 {
     _state->calloutAccent.reset();
     _state->propertiesInk.reset();
+    _state->diagramLabelFill.reset();
     _state->preparedCommand.reset();
     _state->selectionMask.reset();
     _state->selectionLayer.reset();
@@ -3599,7 +3607,7 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
             const auto prepare =
                 [&](const D2D1_COLOR_F color, wil::com_ptr<ID2D1SolidColorBrush>& saved, D2D1_COLOR_F& prior, uint64_t& resources, uint64_t& binding)
             {
-                const bool same = prior.r == color.r && prior.g == color.g && prior.b == color.b && prior.a == color.a;
+                const bool same = State::SameColor(prior, color);
                 if (saved && same && resources == host.GetResourceGeneration() && binding == state.bindingRevision)
                     return;
                 auto* brush = host.GetSolidBrush(color);
@@ -3619,6 +3627,25 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
                 prepare(host.GetTheme().accent, state.calloutAccent, state.calloutAccentColor, state.calloutAccentResources, state.calloutAccentBinding);
             if (document->HasPropertiesBody())
                 prepare(host.GetTheme().subduedText, state.propertiesInk, state.propertiesInkColor, state.propertiesInkResources, state.propertiesInkBinding);
+            if (! RichText::Detail::SemanticExtensionAccess::Diagrams(*document).empty())
+            {
+                auto style = ResolveTextFieldVisualStyle(host.GetTheme(), IsEnabled(), IsHovered(), HasFocus(), HasFocus() && host.IsKeyboardFocusVisible());
+                if (state.appearance.blendWithWindowBackground)
+                    style.fill = host.GetTheme().windowBackground;
+                auto surface          = state.appearance.markdownPresentation == RichText::MarkdownPresentationStyle::Subtle
+                                            ? ResolveMarkdownQuoteFill(host.GetTheme(), style)
+                                            : style.fill;
+                surface.a             = 1.f;
+                const bool sameColors = State::SameColor(state.diagramLabelInk, style.text) && State::SameColor(state.diagramLabelSurface, surface);
+                if (! state.diagramLabelFill || state.diagramLabelResources != host.GetResourceGeneration() ||
+                    state.diagramLabelBinding != state.bindingRevision || ! sameColors)
+                {
+                    const auto color = sameColors ? state.diagramLabelColor : RichText::Detail::ResolveDiagramLabelBackground(style.text, surface);
+                    prepare(color, state.diagramLabelFill, state.diagramLabelColor, state.diagramLabelResources, state.diagramLabelBinding);
+                    state.diagramLabelInk     = style.text;
+                    state.diagramLabelSurface = surface;
+                }
+            }
         };
         const auto viewport = TextViewport();
         if (GetHost() != &host || ! IsVisible() || viewport.right <= viewport.left || viewport.bottom <= viewport.top)
@@ -4745,6 +4772,15 @@ void RichTextEditor::Paint(ControlHost& host) const
         const bool decorated =
             links.markedTextFill || ! links.inkRanges.empty() || dimmed || (state.mode == RichText::ViewMode::Rich && (links.brush || ! links.underline));
         const RichText::Detail::DiagramColorContext diagramColors{style.text, style.text, style.fill};
+        auto diagramSurface = subtleMarkdown ? ResolveMarkdownQuoteFill(host.GetTheme(), style) : style.fill;
+        diagramSurface.a    = 1.f;
+        // Contrast and brush creation run in preparation. Selected, dimmed and
+        // stale-color passes retain their caller-resolved opaque surface.
+        auto* labelFill = ! host.GetTheme().highContrast && ! dimmed && state.diagramLabelFill && state.diagramLabelResources == host.GetResourceGeneration() &&
+                                  state.diagramLabelBinding == state.bindingRevision && State::SameColor(state.diagramLabelInk, style.text) &&
+                                  State::SameColor(state.diagramLabelSurface, diagramSurface)
+                              ? state.diagramLabelFill.get()
+                              : nullptr;
         state.layout.Draw(context,
                           subdued,
                           dimmed ? subdued : semanticDecoration,
@@ -4768,7 +4804,8 @@ void RichTextEditor::Paint(ControlHost& host) const
                                   state.propertiesInkColor.a == host.GetTheme().subduedText.a
                               ? state.propertiesInk.get()
                               : nullptr,
-                          true);
+                          true,
+                          labelFill);
         if (! state.overlayHighlightsDirty)
             state.decorationPaintIndex.ForEach(state.scrollDip,
                                                visibleBottom,

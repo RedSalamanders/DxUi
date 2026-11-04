@@ -1,5 +1,10 @@
 # Unicode rich text
 
+Native diagram arrow labels blend into the diagram background when text contrast is sufficient. Otherwise
+the editor adds a subtle light or dark backing for readability. Label backgrounds stay opaque to mask
+crossing lines; labels within notes or filled groups retain that container's surface. This presentation
+does not alter Mermaid source, diagram placement, selection or history.
+
 ## Current capabilities
 
 This table describes the available library mechanisms and their limits. Supported

@@ -167,7 +167,8 @@ public:
               const DiagramColorContext* diagramColors = nullptr,
               ID2D1Brush* calloutAccent                = nullptr,
               ID2D1Brush* propertiesInk                = nullptr,
-              bool diagramContentInk                   = false) const;
+              bool diagramContentInk                   = false,
+              ID2D1Brush* diagramLabelFill             = nullptr) const;
 
 private:
     struct State;

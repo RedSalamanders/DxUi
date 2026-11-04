@@ -3319,7 +3319,8 @@ void PreparedSemanticGeometry::Draw(ID2D1RenderTarget* target,
                                     const DiagramColorContext* diagramColors,
                                     ID2D1Brush* calloutAccent,
                                     ID2D1Brush* propertiesInk,
-                                    bool diagramContentInk) const
+                                    bool diagramContentInk,
+                                    ID2D1Brush* diagramLabelFill) const
 {
     const auto& state = Current();
     if (! target || ! text || ! decoration || ! std::isfinite(top) || ! std::isfinite(bottom) || top > bottom || ! std::isfinite(imageOpacity) ||
@@ -3481,7 +3482,8 @@ void PreparedSemanticGeometry::Draw(ID2D1RenderTarget* target,
                                            fill,
                                            D2D1::Point2F(origin.x + box->x + box->native->bounds.left, origin.y + box->y + box->native->bounds.top),
                                            box->native->palette.get(),
-                                           boxColors))
+                                           boxColors,
+                                           emphasized ? nullptr : diagramLabelFill))
                 throw std::logic_error("Native diagram target/resources are incompatible");
             if (box->images)
                 for (const auto& image : box->images->placements)
