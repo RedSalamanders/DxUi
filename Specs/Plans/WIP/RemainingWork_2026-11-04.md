@@ -26,7 +26,7 @@ profiles, the real ASan probe, the 19-suite Release union and RedTilde's origina
 | Styled Mermaid spans and ER/class shared attachment defects (FLOW-01/02), bounded sequence syntax expansion and readable default strokes | [Display closeout](../Done/MermaidDisplayCorrections_2026-11-03.md), exact implementation `703a96c7`. The broader per-element failure channel remains D-A1. |
 | Label-aware corridors, table/code insets, accent task markers and optional completed-task strike-through | [Spacing/task closeout](../Done/DiagramSpacingAndTaskPresentation_2026-11-03.md), [packet](../../../Measurements/DiagramSpacing_2026-11-03/README.md). |
 | Source-specific x64 Release library/consumer checks | 19 noninteractive SDK suites with zero capability skips; independent RedTilde 73-case checks and hidden captures. Other scope retains its own owner. |
-| Latest main Release qualification | [Run 41715666957](https://github.com/RedSalamanders/DxUi/actions/runs/41715666957) passed native x64 and ARM64 regression, test-gate, production and completion jobs at `7257f3e3`. It does not supply opt-in ARM64 resource/focus fixtures, Debug/ASan or physical-device acceptance. |
+| Latest main Release qualification | [Run 41849905967](https://github.com/RedSalamanders/DxUi/actions/runs/41849905967) passed native x64 (23 suites) and ARM64 (21 suites), both assertion probes, test-gate, both production SDK roles and completion at `ab850a40`. [Receipt and archive identities](../../../Measurements/DiagramLabelBackgrounds_2026-11-04/README.md#hosted-release-follow-up) keep this separate from opt-in ARM64 resource fixtures, Debug/ASan, physical-device and paired-performance acceptance. |
 | Pending-Update timing accounting | Instrumentation and source-specific six-profile evidence are archived in [FrameUpdateAccounting](../Done/FrameUpdateAccounting_2026-10-26.md). This is accurate accounting, not a CPU improvement or performance-policy acceptance. |
 | Compatibility branch publication D10 | Recorded published branches/SHAs remain in the [review decisions](../Done/ProductionReview_2026-11-02.md#wave-0--decisions-that-unblock-implementation); consumer adoption is D-C1. |
 
@@ -162,6 +162,9 @@ omitting an ID from this summary does not dispose of it.
   x64 profile, the real ASan detector and all 19 noninteractive Release suites pass with zero warnings/errors
   and zero capability skips. [Exact evidence](../../../Measurements/DiagramLabelBackgrounds_2026-11-04/qualification.json)
   includes rendering/WARP/resource coverage. API-5 qualification remains D-A1; cross-builds do not establish native ARM64 runtime.
+- [x] Verify native Release main `ab850a40` in hosted run 41849905967: all 23 x64 suites and 21 ARM64 suites
+  execute with zero skips, both assertion probes pass, and both production SDK ZIPs pass extracted-consumer
+  smoke. This supplies current API-4 native Release coverage without accepting the remaining profiles or fixtures.
 - [ ] Complete or retain the explicit owner deferral for native ARM64 opt-in MenuResources/MenuResourceScaling
   and candidate-specific foreground coverage. Native cross-builds and ordinary hosted suites do not close them.
 - [ ] Qualify physical device removal/occlusion, real IME during reflow, assistive technology and touch on named
@@ -176,8 +179,10 @@ omitting an ID from this summary does not dispose of it.
 - [ ] Qualify each chosen General/card/prompt/profile pilot and exact pin through the consumer's own harness;
   leave optional additions deferred if the pilot has no demonstrated value.
 - [ ] Coordinate the
-  [single RedTilde plan](https://github.com/RedSalamanders/RedTilde/blob/main/Specs/Plans/WIP/RemainingWork_2026-11-04.md), preserving its API 4
-  development pin and failed current main qualification until separately repaired. SDK success is not app acceptance.
+  [single RedTilde plan](https://github.com/RedSalamanders/RedTilde/blob/main/Specs/Plans/WIP/RemainingWork_2026-11-04.md), preserving its explicit API-4 pin
+  `2a7e7c28`. Its repaired main qualification passes at `1c600d60` in
+  [run 41853861400](https://github.com/RedSalamanders/RedTilde/actions/runs/41853861400): both native 75-case
+  Release roles and production ZIPs pass. Later app candidates, physical input and R10 retain their own acceptance.
 
 <a id="d-g1"></a>
 ## D-G1 — SDK notices, evidence and process
