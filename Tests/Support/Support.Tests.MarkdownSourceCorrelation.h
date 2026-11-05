@@ -296,6 +296,45 @@ template <typename Check> inline void ClosedRootDifferential(Check&& check)
                       a.FootnoteReferences()[i].occurrence == b.FootnoteReferences()[i].occurrence,
                   "incremental footnote references match fresh parse");
     };
+    // Front matter is position-sensitive in both directions. Compare against a
+    // brand-new parser, then make an unrelated edit to detect persistent stale roots.
+    struct StartEdit
+    {
+        std::wstring_view source;
+        std::size_t erase;
+        std::wstring_view insert;
+        bool frontMatter;
+    };
+    constexpr StartEdit startEdits[] = {
+        {L"---\ntitle: a\n---\n\nBody\n", 0u, L"Intro\n\n", false},
+        {L"---\ntitle: a\n---\n\nBody\n", 0u, L"\n", false},
+        {L"Intro\n\n---\ntitle: a\n---\n\nBody\n", 7u, L"", true},
+        {L"\n---\ntitle: a\n---\n\nBody\n", 1u, L"", true},
+        {L"\ufeff---\r\ntitle: a\r\n---\r\n\r\nBody\r\n", 0u, L"\r\n", false},
+    };
+    for (const auto& item : startEdits)
+    {
+        Document document(item.source);
+        MarkdownParser tracked;
+        tracked.Begin(document.Snapshot(), document.Revision(), MarkdownProfile::RichMarkdown);
+        static_cast<void>(Complete(tracked, check));
+        document.Replace(0u, item.erase, item.insert, {item.insert.size(), item.insert.size()});
+        for (unsigned step = 0u; step < 2u; ++step)
+        {
+            tracked.Begin(document.Snapshot(), document.Revision(), MarkdownProfile::RichMarkdown);
+            MarkdownParser fresh;
+            fresh.Begin(document.Text(), document.Revision(), MarkdownProfile::RichMarkdown);
+            const auto changed  = Complete(tracked, check);
+            const auto expected = Complete(fresh, check);
+            equal(*changed, *expected);
+            check(std::ranges::any_of(changed->Nodes(),
+                                      [](const auto& node)
+            { return node.parent == 0u && node.block.kind == MarkdownBlockKind::FrontMatter && node.block.source.first == 0u; }) == item.frontMatter,
+                  "only a document-start envelope becomes front matter after tracked edits");
+            const auto at = document.Text().find(L"Body");
+            document.Replace(at, at + 4u, L"Body!", {at + 5u, at + 5u});
+        }
+    }
     for (const auto& item : cases)
         for (const bool suffix : {false, true})
         {

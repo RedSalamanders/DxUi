@@ -3200,6 +3200,7 @@ static void TestEmbeddedParserCapacitySourceFallback(GraphicsFixture& gpu)
     using namespace DxUi;
     using namespace DxUi::RichText;
     MarkdownCapacityTests::ParserBounds(Check);
+    MarkdownCapacityTests::AutolinkSuffixes(Check);
     std::shared_ptr<GraphicsDevice> graphics;
     Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "capacity fallback borrowed device");
     EmbeddedHost view;
