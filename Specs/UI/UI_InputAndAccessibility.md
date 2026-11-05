@@ -1395,7 +1395,8 @@ Consumer context-menu observer allocation failure is fatal; a delivered observer
 exception never triggers a second fallback menu.
 Ctrl+Backspace and Ctrl+Delete erase to the preceding or following word boundary;
 rich-view deletion maps visible fragments through the structural source planner.
-An active source-edit session bounds word deletion to its own interval.
+Word and grapheme deletion may cross the active source-edit interval. Crossing or leaving that interval
+retires its source presentation and resumes ordinary rich navigation at the resulting caret.
 Adjacent direct letter, digit, underscore, supplementary scalar, joiner and combining-mark typing is one undo group for at most 64 UTF-16
 units and one second between input events. A selection move, command, punctuation,
 whitespace, or source revision change ends the group. IME transactions retain

@@ -4122,6 +4122,7 @@ private:
     std::shared_ptr<const std::function<void(size_t)>> _onSelectionChanged;
     std::shared_ptr<const std::function<void()>> _onSubmitted;
     std::shared_ptr<const std::function<bool()>> _onPopupRequested;
+    // Editable mode retains one pending UTF-16 lead here; selection-only mode uses the lookup prefix.
     std::wstring _typeaheadBuffer;
     std::vector<EditHistoryState> _undoHistory;
     std::vector<EditHistoryState> _redoHistory;

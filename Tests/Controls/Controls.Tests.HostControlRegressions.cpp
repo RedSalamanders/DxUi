@@ -649,6 +649,7 @@ void TestPacketSurrogatesThroughNativeAndEmbeddedHosts()
                     Require(host->RenderInitialFrameForShow(), "prepare the owned native packet-input window without activating it");
             };
             prepare();
+            Require(editor->GetText() == L"A" && notifications.empty(), "packet fixture starts from its initialized value without edit notifications");
             const auto key = [&](UINT value, bool down)
             {
                 if (embedded)

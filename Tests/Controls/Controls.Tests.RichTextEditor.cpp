@@ -2214,12 +2214,6 @@ namespace
 {
 void TestRichTextEditorNetworkFileImagePolicy()
 {
-    AttachedHostWindow window;
-    auto owned   = std::make_unique<RichTextEditor>();
-    auto* editor = owned.get();
-    editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
-    editor->SetMarkdownRenderingEnabled(true);
-    window.Host().SetRoot(std::move(owned));
     struct Scenario
     {
         std::wstring_view base, destination, resolved;
@@ -2233,6 +2227,12 @@ void TestRichTextEditorNetworkFileImagePolicy()
     RequireSucceeded(RichImage::CreatePbgra(1, 1, pixel, pixels), "synthetic network image pixels require no network or filesystem I/O");
     for (const auto& scenario : scenarios)
     {
+        AttachedHostWindow window;
+        auto owned   = std::make_unique<RichTextEditor>();
+        auto* editor = owned.get();
+        editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+        editor->SetMarkdownRenderingEnabled(true);
+        window.Host().SetRoot(std::move(owned));
         editor->SetRemoteImagesEnabled(false);
         editor->SetDocumentFilePath(std::wstring(scenario.base));
         const auto source = std::wstring(L"![local](file:///D:/Writing/local.bmp)\n\n![network](") + std::wstring(scenario.destination) + L")\n";
@@ -2244,13 +2244,14 @@ void TestRichTextEditorNetworkFileImagePolicy()
                 "disabled remote permission admits only the absolute local drive image for every network spelling/base");
         const auto local = requests[0u];
         Require(editor->CompleteImageRequest(local, pixels), "publish the explicit local request through the synthetic provider");
+        Require(local.Cancelled(), "completed transport tokens retire while their decoded pixels remain cached");
         const auto revision  = editor->Snapshot();
         const auto selection = editor->GetSelection();
         editor->SetRemoteImagesEnabled(true);
         RenderEditor(window);
         editor->TakePendingImageRequests(requests);
         Require(requests.size() == 1u && requests[0u].SourceKind() == RichImageSourceKind::NetworkFile && requests[0u].Source() == scenario.resolved &&
-                    requests[0u].FilePath().empty() && ! local.Cancelled(),
+                    requests[0u].FilePath().empty() && editor->GetImageResourceStatistics().readySources == 1u,
                 "explicit permission classifies authority/UNC/relative-UNC requests separately without exposing an ungated local path");
         const auto network = requests[0u];
         Require(editor->CompleteImageRequest(network, pixels), "an opted-in network request accepts its matching synthetic completion");
@@ -2258,7 +2259,7 @@ void TestRichTextEditorNetworkFileImagePolicy()
         Require(editor->GetImageResourceStatistics().readySources == 2u, "local and network sources retain separate owned identities");
         editor->SetRemoteImagesEnabled(false);
         Require(network.Cancelled() && editor->GetImageResourceStatistics().readySources == 1u && ! editor->CompleteImageRequest(network, pixels) &&
-                    ! local.Cancelled(),
+                    local.Cancelled(),
                 "revoking permission immediately evicts network pixels and refuses late completion while preserving local pixels");
         RenderEditor(window);
         editor->TakePendingImageRequests(requests);
