@@ -810,10 +810,10 @@ template <typename Check> inline void CheckFamilyGrammar(Check&& check)
           "excess class compartments preserve source and discard staged graph");
     parser.Begin(L"classDiagram\nInterface \"1\" <|.. \"0..*\" Implementation : uses\n", 1u);
     const auto multiplicities = Complete(parser);
-    check(multiplicities->outcome == FlowchartOutcome::Prepared && multiplicities->edges.size() == 1u && multiplicities->edges[0].from == 1u &&
-              multiplicities->edges[0].to == 0u && multiplicities->edges[0].fromCardinality == L"0..*" && multiplicities->edges[0].toCardinality == L"1" &&
-              multiplicities->edges[0].label == L"uses",
-          "class cardinalities follow their original endpoints when relations reverse");
+    check(multiplicities->outcome == FlowchartOutcome::Prepared && multiplicities->edges.size() == 1u && multiplicities->edges[0].from == 0u &&
+              multiplicities->edges[0].to == 1u && multiplicities->edges[0].fromCardinality == L"1" && multiplicities->edges[0].toCardinality == L"0..*" &&
+              multiplicities->edges[0].markerAtStart && multiplicities->edges[0].label == L"uses",
+          "class cardinalities stay on their authored endpoints independently of the realization marker");
     parser.Begin(L"classDiagram\nA \"invalid!\" --> B\n", 1u);
     const auto invalidMultiplicity = Complete(parser);
     check(invalidMultiplicity->outcome == FlowchartOutcome::Unsupported && invalidMultiplicity->nodes.empty(),
