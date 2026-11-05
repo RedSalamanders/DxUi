@@ -2766,8 +2766,8 @@ place Document on the left, Markdown on the right and the hollow triangle at Doc
 separation in TB/BT/RL, realization, aggregation and composition. Cardinalities stay at their authored
 endpoints. Connector paint shortens only the marked end to the hollow triangle/diamond base; a leading marker
 MUST leave the opposite node's stem connected. Actual native rasters cover both marker spellings and all four
-directions, independently of CPU path/arrow geometry. Cardinalities stay at their authored
-endpoints; the accessible alternative continues to describe the directed relationship, such as Markdown
+directions, independently of CPU path/arrow geometry. The accessible alternative continues to describe the
+directed relationship, such as Markdown
 inheriting Document. The bounded compartment, multiplicity, style and composite contracts below define
 admitted extensions. Unsupported nested class generics, directives and diagram families retain exact source.
 
