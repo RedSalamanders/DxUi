@@ -90,8 +90,9 @@ static void TestEmbeddedPreparationWakeWaitsForInput(GraphicsFixture& gpu)
         view.Controls().SetRoot(std::move(field));
         Hr(view.Prepare(320, 160), "prepare input wake fixture");
         view.Controls().SetFocusControl(probe);
-        view.Controls().SetInputModality(InputModality::Keyboard);
         Hr(view.Prepare(320, 160), "consume focus wake before input");
+        static_cast<void>(view.DispatchKey(VK_SHIFT, true));
+        Hr(view.Prepare(320, 160), "settle keyboard modality before arming retirement");
         if (route == 4u)
             state.duringKey = [&]
             {
