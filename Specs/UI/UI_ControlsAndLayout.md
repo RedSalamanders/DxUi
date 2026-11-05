@@ -1137,12 +1137,19 @@ require separate measurement.
 
 Local destination resolution MUST use explicit document metadata, strict UTF-8
 URI decoding and bounded lexical Windows paths. Encoded separators/NUL, device
-names, ambiguous extended/trailing-component spellings and malformed/remote URI
-schemes MUST NOT become file requests. Drive/server root case is insensitive;
+names, ambiguous extended/trailing-component spellings and malformed/unrecognized URI
+schemes MUST NOT become local-file requests. Drive/server root case is insensitive;
 directory/share/file component spelling remains exact. Relative paths require
 a saved base; the control MUST NOT query CWD or perform file/network I/O.
 
 Remote image admission MUST be disabled by default. Explicit
+network-file destinations include UNC paths, `//host/...`, file URLs with any authority (including localhost),
+and relative paths resolved beside a UNC document. They MUST NOT become `LocalFile` requests. When remote
+permission is enabled they produce `RichImageSourceKind::NetworkFile`, with a canonical path in `Source()` and
+an empty `FilePath()`. Applications MUST branch explicitly on this kind before transport I/O and may decline it;
+the SDK does not grant credentials, access a share or imply supported SMB/WSL/cloud locations. Revoking remote
+permission cancels/evicts both HTTP and network-file jobs/pixels while retaining local drive files.
+Explicit
 `SetRemoteImagesEnabled(true)` MAY expose absolute HTTP(S) destinations as
 `RichImageSourceKind::RemoteHttp` requests. `Source()` retains the URL's exact
 path/query while normalizing ASCII scheme/host case; `FilePath()` MUST be empty
@@ -2359,6 +2366,12 @@ continue through the one authoritative Document and full source text store.
 Tracked interior changes rebase the editing envelope before callbacks. For block scopes, EOL joins
 expand to complete physical lines on preparation. Outside changes or selection,
 SetText and explicit mode/profile/rendering replacement retire the local scope.
+The interval never contains input: ordinary and word Backspace/Delete can cross its former edges as source
+transactions. Crossing retires the stale presentation, and caret movement outside it resumes ordinary rich
+navigation/commands at the current selection. Tab/Shift+Tab in a rendered nested code block uses each parser
+content-line start, preserving quote/list prefixes and partially consumed container tabs. Explicit F2 raw
+source still exposes its complete envelope for ordinary source edits. Each multiline indent/outdent is one
+transaction with original terminators and selection direction retained.
 Raw source input MUST bypass rich list/table/atomic-object deletion commands;
 ordinary source grapheme/range deletion and literal CRLF insertion apply.
 Leaving presentation MUST preserve committed edits and redo; Esc is not a

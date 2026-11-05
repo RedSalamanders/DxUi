@@ -2212,6 +2212,61 @@ void TestRichTextEditorNativeLosslessMarkdownPreparation()
 
 namespace
 {
+void TestRichTextEditorNetworkFileImagePolicy()
+{
+    AttachedHostWindow window;
+    auto owned   = std::make_unique<RichTextEditor>();
+    auto* editor = owned.get();
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    editor->SetMarkdownRenderingEnabled(true);
+    window.Host().SetRoot(std::move(owned));
+    struct Scenario
+    {
+        std::wstring_view base, destination, resolved;
+    };
+    constexpr Scenario scenarios[] = {{L"D:\\Writing\\Notes.md", L"//files.example.test/share/cover.bmp", L"\\\\files.example.test\\share\\cover.bmp"},
+                                      {L"D:\\Writing\\Notes.md", L"file://files.example.test/share/cover.bmp", L"\\\\files.example.test\\share\\cover.bmp"},
+                                      {L"D:\\Writing\\Notes.md", L"FILE://localhost/D:/Writing/cover.bmp", L"D:\\Writing\\cover.bmp"},
+                                      {L"\\\\files.example.test\\share\\Notes.md", L"cover.bmp", L"\\\\files.example.test\\share\\cover.bmp"}};
+    constexpr std::array<std::byte, 4> pixel{std::byte{0}, std::byte{0}, std::byte{255}, std::byte{255}};
+    std::shared_ptr<const RichImage> pixels;
+    RequireSucceeded(RichImage::CreatePbgra(1, 1, pixel, pixels), "synthetic network image pixels require no network or filesystem I/O");
+    for (const auto& scenario : scenarios)
+    {
+        editor->SetRemoteImagesEnabled(false);
+        editor->SetDocumentFilePath(std::wstring(scenario.base));
+        const auto source = std::wstring(L"![local](file:///D:/Writing/local.bmp)\n\n![network](") + std::wstring(scenario.destination) + L")\n";
+        editor->SetText(source);
+        RenderEditor(window);
+        std::vector<RichImageRequest> requests(0u);
+        editor->TakePendingImageRequests(requests);
+        Require(requests.size() == 1u && requests[0u].SourceKind() == RichImageSourceKind::LocalFile && requests[0u].FilePath() == L"D:\\Writing\\local.bmp",
+                "disabled remote permission admits only the absolute local drive image for every network spelling/base");
+        const auto local = requests[0u];
+        Require(editor->CompleteImageRequest(local, pixels), "publish the explicit local request through the synthetic provider");
+        const auto revision  = editor->Snapshot();
+        const auto selection = editor->GetSelection();
+        editor->SetRemoteImagesEnabled(true);
+        RenderEditor(window);
+        editor->TakePendingImageRequests(requests);
+        Require(requests.size() == 1u && requests[0u].SourceKind() == RichImageSourceKind::NetworkFile && requests[0u].Source() == scenario.resolved &&
+                    requests[0u].FilePath().empty() && ! local.Cancelled(),
+                "explicit permission classifies authority/UNC/relative-UNC requests separately without exposing an ungated local path");
+        const auto network = requests[0u];
+        Require(editor->CompleteImageRequest(network, pixels), "an opted-in network request accepts its matching synthetic completion");
+        RenderEditor(window);
+        Require(editor->GetImageResourceStatistics().readySources == 2u, "local and network sources retain separate owned identities");
+        editor->SetRemoteImagesEnabled(false);
+        Require(network.Cancelled() && editor->GetImageResourceStatistics().readySources == 1u && ! editor->CompleteImageRequest(network, pixels) &&
+                    ! local.Cancelled(),
+                "revoking permission immediately evicts network pixels and refuses late completion while preserving local pixels");
+        RenderEditor(window);
+        editor->TakePendingImageRequests(requests);
+        Require(requests.empty() && editor->GetText() == source && editor->Snapshot().IsSameRevision(revision) && editor->GetSelection() == selection &&
+                    ! editor->CanUndo() && ! editor->CanRedo(),
+                "blocked network paths cause no retries, source changes, selection moves or history entries");
+    }
+}
 void TestRichTextEditorRemoteImagePolicy()
 {
     AttachedHostWindow window;
@@ -2335,5 +2390,6 @@ void RunRichTextEditorTests()
     DXUI_RUN_TEST(TestRichTextNativeImageDecoder);
     DXUI_RUN_TEST(TestRichTextEditorNativeImageResources);
     DXUI_RUN_TEST(TestRichTextEditorRemoteImagePolicy);
+    DXUI_RUN_TEST(TestRichTextEditorNetworkFileImagePolicy);
     DXUI_RUN_TEST(TestRichTextEditorNativeImagePixels);
 }

@@ -434,6 +434,11 @@ The authoritative Document, source ACPs, history and Unicode text store stay the
 same. Other paragraphs remain rendered. Empty scopes have real caret geometry;
 ordinary parsing removes the hint. `GetSemanticSourceRegion()` reports the active
 envelope/session. Moving selection outside the envelope finishes its presentation.
+Grapheme and word Backspace/Delete may cross that former boundary as ordinary source transactions; no
+clamp traps the caret. Crossing retires the stale scope, and ordinary rich navigation/commands resume at
+the current selection. Multiline Tab/Shift+Tab in rendered nested code edits after each quote/list prefix,
+preserving those prefixes, original line endings, selection direction and one-step Undo. F2 raw source
+continues to expose its complete envelope for literal edits.
 Read-only inspection is allowed; active native/embedded composition blocks entry
 and exit. UIA source actions preserve dispatch, lifetime and stale-provider guards
 and do not acquire OS focus. Inline math F2/Invoke uses an exact raw interval within its existing paragraph, preserving neighboring formatting while source is incomplete or spans lines. F2 also edits an exact Markdown link or image envelope; UIA ExpandCollapse enters or exits that source presentation while link Invoke continues to navigate. Native HTML links and images do not expose this inline source action.
@@ -638,7 +643,13 @@ Valid EXIF orientation is applied to the pixels; missing or malformed optional
 orientation leaves otherwise decodable pixels unrotated. Remote images are disabled by default;
 call `SetRemoteImagesEnabled(true)` only after the application authorizes network
 loading. Absolute HTTP(S) destinations then produce `RemoteHttp` requests with
-the URL in `Source()` and an empty `FilePath()`. The application fetches bounded
+the URL in `Source()` and an empty `FilePath()`. UNC paths, `//host/...`, file URLs with an authority (even
+localhost), and relative images beside a UNC document use the same permission and produce `NetworkFile`
+requests with a canonical path in `Source()` and an empty `FilePath()`. Branch on `SourceKind()` before I/O;
+the application may decline an unsupported transport. Permission never grants credentials or loads a share
+through the ordinary local-file decoder. Opt-out immediately cancels and evicts both network kinds.
+HTTP requests retain
+their URL spelling. The application fetches bounded
 encoded bytes on its worker and calls the existing `RichImage::Decode`; DxUi
 does no HTTP, DNS, proxy lookup, authentication, cookie storage or cache I/O.
 URLs are bounded to 8,192 UTF-16 units and accept ASCII DNS/punycode or bracketed
@@ -652,7 +663,7 @@ consumer must provide its own explicit remote transport and failure policy.
 `SetDataImagesEnabled(true)` independently admits bounded `data:` destinations.
 The caller receives their exact source as a `Data` request, validates and decodes
 it using its own media policy, and completes the existing bounded image request.
-Turning either remote or data admission off cancels only that kind of work.
+Turning remote admission off cancels HTTP/network-file work; data admission has its independent policy.
 An optional `SetOnImageActivated` callback receives a current image's source
 range, destination, title and alternative for Ctrl+click or Ctrl+Enter. The
 application owns any resulting action; an enclosing link takes precedence.
