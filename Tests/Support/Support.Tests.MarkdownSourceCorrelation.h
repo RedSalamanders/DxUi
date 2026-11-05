@@ -236,7 +236,7 @@ template <typename Check> inline void ClosedRootDifferential(Check&& check)
         {L"[key]: /target \"title\"\n", MarkdownBlockKind::ReferenceDefinition, true, false},
         {L"---\nname: value\n---\n", MarkdownBlockKind::FrontMatter, false, true},
     };
-    const auto equal = [&](const MarkdownSyntax& a, const MarkdownSyntax& b)
+    const auto equal = [&](const MarkdownSyntax& a, const MarkdownSyntax& b, bool compareIdentity = true)
     {
         check(a.Source() == b.Source() && a.Nodes().size() == b.Nodes().size() && a.Blocks().size() == b.Blocks().size() &&
                   a.EmptyLines().size() == b.EmptyLines().size() && a.Inlines().size() == b.Inlines().size() && a.Lexemes().size() == b.Lexemes().size() &&
@@ -254,7 +254,7 @@ template <typename Check> inline void ClosedRootDifferential(Check&& check)
         {
             const auto& x = a.Nodes()[i];
             const auto& y = b.Nodes()[i];
-            check(equalBlock(x.block, y.block) && x.identity == y.identity && x.parent == y.parent && x.firstChild == y.firstChild &&
+            check(equalBlock(x.block, y.block) && (! compareIdentity || x.identity == y.identity) && x.parent == y.parent && x.firstChild == y.firstChild &&
                       x.nextSibling == y.nextSibling && x.firstInline == y.firstInline && x.label == y.label && x.destination == y.destination &&
                       x.title == y.title && x.listStart == y.listStart && x.contentIndent == y.contentIndent && x.htmlType == y.htmlType &&
                       x.listMarker == y.listMarker && x.tight == y.tight && x.alignment == y.alignment && x.task == y.task && x.tableHeader == y.tableHeader &&
@@ -326,7 +326,10 @@ template <typename Check> inline void ClosedRootDifferential(Check&& check)
             fresh.Begin(document.Text(), document.Revision(), MarkdownProfile::RichMarkdown);
             const auto changed  = Complete(tracked, check);
             const auto expected = Complete(fresh, check);
-            equal(*changed, *expected);
+            // A new parser has no previous identity lineage. Its full grammar,
+            // ranges and ownership are the oracle; older same-lineage cases
+            // below continue to require every reconciled identity too.
+            equal(*changed, *expected, false);
             check(std::ranges::any_of(changed->Nodes(),
                                       [](const auto& node)
             { return node.parent == 0u && node.block.kind == MarkdownBlockKind::FrontMatter && node.block.source.first == 0u; }) == item.frontMatter,
