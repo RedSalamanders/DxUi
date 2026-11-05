@@ -73,8 +73,10 @@ This coordinates the active API work; it does not adopt API 5 in any application
   and decline atomically for composition, read-only and capacity. The
   [source-bound closeout](../Done/SelectionBlocksAndInputLifetime_2026-11-05.md) records exact-output/history
   regressions and all three x64 profiles.
-- [ ] Verify RedTilde's real Insert commands against the exact published pin; no sample text may replace a
-  nonempty selection. Its app-side tests, documentation and native acceptance remain in the consumer plan.
+- [x] Verify RedTilde's real Insert commands against published API-4 `f765aeca`: [app PR58](https://github.com/RedSalamanders/RedTilde/pull/58)
+  passes six builds, all 83 cases and 36 captures per x64 profile, actual Compose/Source/Split command dispatch,
+  history/focus and refusals. [Consumer closeout](https://github.com/RedSalamanders/RedTilde/blob/main/Specs/Plans/Done/SelectedBlockInsertions_2026-11-05.md)
+  preserves the original content-loss failure and broader acceptance boundaries.
 - [ ] Implement D1: cosmetic code ink/line numbers/whitespace never withhold content, cancel a gesture or
   refuse input; do bounded viewport/change work and show the previous cosmetic state while preparing
   (EDIT-01/02/04, RENDER-01/14).
@@ -161,6 +163,11 @@ omitting an ID from this summary does not dispose of it.
 
 <a id="d-p1"></a>
 ## D-P1 — performance policy and resource acceptance
+
+The fresh source-paired [run 42106904205](https://github.com/RedSalamanders/DxUi/actions/runs/42106904205)
+stopped at benchmark attestation before measurement: a module-name lookup saw two checkout modules.
+The [scoped tooling closeout](../Done/PairedAttestationModuleOwnership_2026-11-05.md) preserves the exact
+failure and independent repair. No performance verdict exists for that run; the repaired harness needs a fresh run.
 
 - [ ] Qualify the trusted measurement policy and controls independently. Preserve timing/memory witnesses,
   exact raw reports/seals, missing-context/refusal history and unstable-control verdicts.

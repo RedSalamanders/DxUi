@@ -379,6 +379,9 @@ separate required checks for this rendering change.
   unsupported. Intermediate include directories accept only the exact two derived composite-shader headers plus
   supported native object/tracking/output files, preventing extensionless or alternate header shadowing. The selected
   MSVC/ATL, SDK/UCRT/WinRT/C++/WinRT, auxiliary VS and NETFX input roots bind all file bytes and optional-root absence.
+  Native Git input discovery uses the exact scoped-testing module imported by that performance-policy
+  instance. Paired baseline/candidate/harness checkouts may load identically named modules together;
+  process-wide name lookup must neither select another checkout nor turn multiple instances into a command string.
 - A policy binds the approved judge version and normalized source SHA-256. The candidate judge must match both values from
   the measured-base policy to be eligible for qualification; agreement of verdict labels alone does not approve changed
   judge code. It also binds the assignment protocol and normalized `Tools/PairedRun.psm1` source SHA-256; both the immutable

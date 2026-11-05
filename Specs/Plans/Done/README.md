@@ -2,6 +2,8 @@
 
 ## Completed scopes — 5 November 2026
 
+- [Paired attestation module ownership](PairedAttestationModuleOwnership_2026-11-05.md) — exact hosted/local module-collision failure, retained imported dependency, independent hostile-module closure check and complete tooling validation; paired acceptance remains in WIP.
+
 - [Selected blocks and embedded input lifetime](SelectionBlocksAndInputLifetime_2026-11-05.md) — shared selection transformation, deferred input wakes and direct-control retirement guards; six builds, 57 suite executions and original sanitizer counterexamples. Consumer/physical acceptance retains its own scope.
 
 - [SDK data notices and license closure](SdkDataNotices_2026-11-05.md) — full Unicode/WHATWG notices, usable packaged links, independent byte/set/extraction guards, CI dependency closure and actual x64 production/extracted-consumer qualification; broader acceptance remains in WIP.
