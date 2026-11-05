@@ -1,1 +1,0 @@
-- Record successful native x64/ARM64 Release qualification, assertion probes and byte-verified SDK ZIP smoke at main `ab850a40`; reconcile RedTilde's repaired main gate while retaining physical, other-profile, performance, licensing and consumer-migration work.

@@ -4,6 +4,7 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Record successful native x64/ARM64 Release qualification, assertion probes and byte-verified SDK ZIP smoke at main `ab850a40`; reconcile RedTilde's repaired main gate while retaining physical, other-profile, performance, licensing and consumer-migration work.
 - Blend diagram arrow-label backgrounds into their canvas when contrast permits, stage minimal neutral contrast fallbacks, and preserve note/group/selection surfaces without paint-time layout or resource creation; retire retained label brushes with their layout before a later source revision.
 - Add shared quote/callout inner margins and source-aware native coverage, make Mermaid sequence-label staging recover from injected Debug allocation failure, and consolidate historical planning into one remaining-work owner with preserved evidence and qualification gates.
 - Use effective foreground ink for default native diagram connections, arrowheads, lifelines and outlines, including Subtle and high contrast; retain separate decorative Markdown borders, authored palettes and explicit export stroke behavior. Add an offscreen editor pixel regression for Light, Dark, high contrast and warm resource reuse.
