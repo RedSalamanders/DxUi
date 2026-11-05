@@ -1,1 +1,0 @@
-- Bind paired benchmark input discovery to its exact imported scoped-testing module instead of an ambiguous process-wide module name. Retain the hosted pre-measurement failure and add a failing-then-passing two-checkout module-collision regression; no performance verdict is inferred from a build refusal.

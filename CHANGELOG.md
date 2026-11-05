@@ -4,6 +4,7 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Bind paired benchmark input discovery to its exact imported scoped-testing module instead of an ambiguous process-wide module name. Retain the hosted pre-measurement failure and add a failing-then-passing two-checkout module-collision regression; no performance verdict is inferred from a build refusal.
 - Add shared selection-to-quote/code-block insertion with exact source, EOL, direction and undo/redo preservation; keep selected text intact on refusal. Defer embedded preparation wakes until input completes and guard TextField, ComboBox and FormField continuations after retirement. Six zero-warning builds, 57 noninteractive suite executions and real ASan detection pass; original sanitizer failures are retained and consumer adoption remains separate.
 - Record the selected natural source navigation, text-first paste with application image priority, and network-gated image URL policies; implementation remains tracked in the active plan.
 - Include the full Unicode and WHATWG data notices in SDK ZIPs, fix packaged license links, and verify the exact license set and file hashes before and after extraction.
