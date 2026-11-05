@@ -5300,11 +5300,9 @@ bool RichTextEditor::Erase(ControlHost& host, bool backwards, bool byWord, bool 
             {
                 first = backwards ? FindPreviousWordBoundary(text, selection.caret) : selection.caret;
                 last  = backwards ? selection.caret : FindNextWordBoundary(text, selection.caret);
-                if (_state->sourceEditing)
-                {
-                    first = std::max(first, _state->sourceEditing->region.source.first);
-                    last  = std::min(last, _state->sourceEditing->region.source.last);
-                }
+                // The source interval is presentation ownership, not an edit
+                // cage. Word deletion crosses it just like grapheme deletion;
+                // change tracking then retires/reconciles the former scope.
             }
             else
             {
@@ -5853,7 +5851,8 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
     {
         if (! IsEnabled())
             return false;
-        _state->pendingLeadSurrogate = 0;
+        if (! KeyKeepsPendingSurrogate(key))
+            _state->pendingLeadSurrogate = 0;
         const bool control = ModifiersContainCtrl(modifiers), shift = ModifiersContainShift(modifiers);
         _state->suppressTaskSpace = false;
         if (_state->taskFocusIntent)
@@ -6334,7 +6333,9 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
                     const auto snapshot  = Snapshot();
                     const auto text      = snapshot.Text();
                     RichText::MarkdownRange scope{0u, text.size()};
-                    bool eligible = _state->mode == RichText::ViewMode::Source;
+                    std::shared_ptr<const RichText::MarkdownSyntax> codeSyntax;
+                    const RichText::MarkdownNode* codeNode = nullptr;
+                    bool eligible                          = _state->mode == RichText::ViewMode::Source;
                     if (_state->sourceEditing)
                     {
                         scope    = _state->sourceEditing->region.source;
@@ -6342,13 +6343,15 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
                     }
                     else if (! eligible && _state->markdownRendering)
                     {
-                        if (const auto syntax = GetMarkdownSyntax())
-                            for (const auto& node : syntax->Nodes())
+                        codeSyntax = GetMarkdownSyntax();
+                        if (codeSyntax)
+                            for (const auto& node : codeSyntax->Nodes())
                                 if ((node.block.kind == RichText::MarkdownBlockKind::FencedCode ||
                                      node.block.kind == RichText::MarkdownBlockKind::IndentedCode) &&
                                     selection.Start() >= node.block.content.first && selection.End() <= node.block.content.last)
                                 {
                                     scope    = node.block.content;
+                                    codeNode = &node;
                                     eligible = true;
                                     break;
                                 }
@@ -6376,25 +6379,49 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
                         while (line > scope.first && text[line - 1u] != L'\n' && text[line - 1u] != L'\r')
                             --line;
                         std::vector<RichText::SourceEdit> edits(0u);
+                        std::size_t contentLine{};
                         while (line <= selection.End() && line < scope.last)
                         {
                             if (line == selection.End() && selection.Start() != selection.End())
                                 break;
-                            size_t remove = 0u;
-                            if (shift)
+                            auto lineEnd = line;
+                            while (lineEnd < scope.last && text[lineEnd] != L'\r' && text[lineEnd] != L'\n')
+                                ++lineEnd;
+                            auto insertion  = line;
+                            auto contentEnd = lineEnd;
+                            if (codeNode)
                             {
-                                if (text[line] == L'\t')
-                                    remove = 1u;
+                                while (contentLine < codeNode->lines.size() && codeNode->lines[contentLine].source.first < line)
+                                    ++contentLine;
+                                // The parser already removed quote/list prefixes.
+                                // A partially consumed tab still belongs to its
+                                // container: edit only concrete content after it.
+                                if (contentLine < codeNode->lines.size() && codeNode->lines[contentLine].source.first <= lineEnd)
+                                {
+                                    insertion  = codeNode->lines[contentLine].source.first;
+                                    contentEnd = std::min(contentEnd, codeNode->lines[contentLine].source.last);
+                                }
                                 else
-                                    while (remove < _state->appearance.sourceTabSpaces && line + remove < scope.last && text[line + remove] == L' ')
-                                        ++remove;
-                                if (remove != 0u)
-                                    edits.push_back({{line, line + remove}, {}});
+                                    insertion = scope.last;
                             }
-                            else
-                                edits.push_back({{line, line}, indent});
-                            while (line < scope.last && text[line] != L'\r' && text[line] != L'\n')
-                                ++line;
+                            if (insertion < scope.last)
+                            {
+                                size_t remove = 0u;
+                                if (shift)
+                                {
+                                    if (insertion < contentEnd && text[insertion] == L'\t')
+                                        remove = 1u;
+                                    else
+                                        while (remove < _state->appearance.sourceTabSpaces && insertion + remove < contentEnd &&
+                                               text[insertion + remove] == L' ')
+                                            ++remove;
+                                    if (remove != 0u)
+                                        edits.push_back({{insertion, insertion + remove}, {}});
+                                }
+                                else
+                                    edits.push_back({{insertion, insertion}, indent});
+                            }
+                            line = lineEnd;
                             if (line == scope.last)
                                 break;
                             if (text[line++] == L'\r' && line < scope.last && text[line] == L'\n')

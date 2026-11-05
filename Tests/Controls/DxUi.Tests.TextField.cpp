@@ -2335,6 +2335,21 @@ void TestTextFieldBuffersSurrogatesBeforePublishing()
     field.SetReadOnly(true);
     field.SetReadOnly(false);
     Require(field.OnChar(host, trail, 0u) && field.GetText() == L"A", "read-only transition cancels pending input");
+    constexpr UINT preservingKeys[]{
+        VK_PACKET, VK_SHIFT, VK_LSHIFT, VK_RSHIFT, VK_CONTROL, VK_LCONTROL, VK_RCONTROL, VK_MENU, VK_LMENU, VK_RMENU, VK_LWIN, VK_RWIN};
+    for (const auto key : preservingKeys)
+    {
+        TextField packet(L"A");
+        std::vector<std::wstring> values;
+        packet.SetOnTextChanged([&](std::wstring_view value) { values.emplace_back(value); });
+        Require(packet.OnChar(host, lead, 0u), "buffer the scalar before a packet/modifier transition");
+        static_cast<void>(packet.OnKeyDown(host, key, 0u));
+        static_cast<void>(packet.OnKeyUp(host, key, 0u));
+        Require(packet.OnChar(host, trail, 0u) && packet.GetText() == std::wstring{L'A', lead, trail} && values.size() == 1u &&
+                    values.front() == packet.GetText(),
+                "packet and every bare modifier preserve the pending scalar without publishing its lead alone");
+        Require(packet.OnKeyDown(host, 'Z', MK_CONTROL) && packet.GetText() == L"A", "the scalar remains one transaction across every preserving key");
+    }
 }
 } // namespace
 

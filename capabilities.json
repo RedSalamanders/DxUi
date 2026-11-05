@@ -99,6 +99,7 @@
     "bounded-source-exact-markdown-commands-preview",
     "bounded-semantic-style-structure-uia-preview",
     "default-disabled-http-image-request-opt-in",
+    "permission-gated-network-file-image-requests",
     "bounded-native-inline-display-math-preview",
     "bounded-native-rich-images",
     "bounded-footnotes-preview",

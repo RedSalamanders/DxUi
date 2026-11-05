@@ -361,6 +361,16 @@ inline std::optional<std::wstring> ResolveLocalImagePath(std::wstring_view docum
     const auto canonical = CanonicalLocalFilePath(relative);
     return std::optional<std::wstring>(std::in_place, canonical);
 }
+// Resolution is syntax-only. Classify the resolved base too: a relative image
+// beside a UNC document must not bypass network permission as a local file.
+inline bool IsNetworkImagePath(std::wstring_view destination, std::wstring_view resolved) noexcept
+{
+    if (resolved.starts_with(L"\\\\"))
+        return true;
+    if (destination.size() >= 8u && EqualWindowsPathInsensitive(destination.substr(0u, 7u), L"file://"))
+        return destination[7u] != L'/'; // Any authority, including localhost.
+    return false;
+}
 inline bool HasImageFileExtension(const ParsedLocalFilePath& path)
 {
     const auto name = path.Slice(path.parts.back());

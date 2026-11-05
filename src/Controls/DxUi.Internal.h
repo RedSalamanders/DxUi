@@ -29,6 +29,29 @@ inline constexpr float kToggleTrackTrailingPaddingDip = 4.0f;
 
 [[nodiscard]] std::weak_ptr<int> GetControlLifetimeToken(const Control& control) noexcept;
 
+// Win32 key-transition policy shared by both editors. Pure Unicode/grapheme
+// services stay in TextElements; packet and bare modifier keys do not replace
+// an unfinished UTF-16 scalar. Editing/navigation keys still cancel it.
+[[nodiscard]] constexpr bool KeyKeepsPendingSurrogate(UINT key) noexcept
+{
+    switch (key)
+    {
+        case VK_PACKET:
+        case VK_SHIFT:
+        case VK_LSHIFT:
+        case VK_RSHIFT:
+        case VK_CONTROL:
+        case VK_LCONTROL:
+        case VK_RCONTROL:
+        case VK_MENU:
+        case VK_LMENU:
+        case VK_RMENU:
+        case VK_LWIN:
+        case VK_RWIN: return true;
+        default: return false;
+    }
+}
+
 struct ControlCaptureAccess
 {
     [[nodiscard]] static Control* GestureOwner(const ControlHost& host) noexcept

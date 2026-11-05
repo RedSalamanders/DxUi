@@ -85,8 +85,11 @@ Captured drag continuation may update a draft between paints. Moving, removing, 
 control or its ancestors cancels capture; arranging only a sibling preserves it when its bounds and availability
 are unchanged. A view resize or DPI change still requires full preparation and cancels capture.
 
-Use `DispatchKey` and `DispatchCharacter` for basic keyboard/character input. For a raw Win32 pump, dispatch a
-Return/Space keydown once with an `EmbeddedKeyDispatchReceipt`, then call `ShouldTranslateCharacter(receipt)` before
+Use `DispatchKey` and `DispatchCharacter` for basic keyboard/character input. Forward
+`VK_PACKET` key-down/key-up and each translated UTF-16 `WM_CHAR` unit unchanged and in order; a supplementary
+scalar can have a separate packet transition for each unit. Editors buffer the lead privately across packet and
+bare modifier keys, then publish one complete scalar. Navigation/editing commands still cancel a pending lead.
+For a raw Win32 pump, dispatch a Return/Space keydown once with an `EmbeddedKeyDispatchReceipt`, then call `ShouldTranslateCharacter(receipt)` before
 `TranslateMessage`. Translate only when it returns true; send the resulting `WM_CHAR` through the bare
 `DispatchCharacter` overload. This preserves the OS keyboard layout and prevents a handled command from producing an
 editor character. The query is non-consuming and validates the original view, root, focus owner and permission at the
