@@ -1774,6 +1774,8 @@ __declspec(noinline) static int RunFunctionalTests()
         Check(view.Controls().GetRoot() == nullptr, "tokenizer may retire its owner without use after free");
         return 0;
     }
+    TestEmbeddedPreparationWakeWaitsForInput(gpu);
+    TestTextFieldDirectPreparationRetirement(gpu);
     TestMultilineCaretViewport(gpu);
     TestEmbeddedTextInput(gpu);
     TestEmbeddedTabHeaderPreparationAvoidsPaintWork(gpu);
