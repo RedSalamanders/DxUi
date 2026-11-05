@@ -761,13 +761,14 @@ template <typename Check> inline void CheckFamilyGrammar(Check&& check)
         check(rejected->outcome != FlowchartOutcome::Prepared && rejected->source == source && rejected->nodes.empty() && rejected->groups.empty(),
               "unclosed, empty and conflicting groups preserve exact source without a partial graph");
     }
-    for (const auto& [source, from, to] :
-         {std::tuple{L"classDiagram\nInterface <|.. Implementation\n", 1u, 0u}, std::tuple{L"classDiagram\nImplementation ..|> Interface\n", 0u, 1u}})
+    for (const auto& [source, markerAtStart] :
+         {std::pair{L"classDiagram\nInterface <|.. Implementation\n", true}, std::pair{L"classDiagram\nImplementation ..|> Interface\n", false}})
     {
         parser.Begin(source, 1u);
         const auto model = Complete(parser);
-        check(model->outcome == FlowchartOutcome::Prepared && model->edges.size() == 1u && model->edges[0].from == from && model->edges[0].to == to &&
-                  model->edges[0].relation == FlowchartRelation::Realization && model->edges[0].style == FlowchartLineStyle::Dotted,
+        check(model->outcome == FlowchartOutcome::Prepared && model->edges.size() == 1u && model->edges[0].from == 0u && model->edges[0].to == 1u &&
+                  model->edges[0].markerAtStart == markerAtStart && model->edges[0].relation == FlowchartRelation::Realization &&
+                  model->edges[0].style == FlowchartLineStyle::Dotted,
               "class realization uses a dotted line and hollow inheritance endpoint in either spelling");
     }
     parser.Begin(L"classDiagram\nClient .. Service\n", 1u);

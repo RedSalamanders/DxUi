@@ -257,6 +257,9 @@ template <typename Check> void AccentAndGatheredGeometry(IDWriteFactory* factory
                     }
                     const bool below = std::wstring_view(source).starts_with(L"\\underline");
                     const auto gap   = below ? markTop - textBottom : textTop - markBottom;
+                    if (! std::isfinite(gap) || gap < font * .025f || gap > font * .18f)
+                        std::wcerr << L"Accent geometry: " << source << L" family=" << family << L" font=" << font << L" dpi=" << dpi << L" textTop=" << textTop
+                                   << L" textBottom=" << textBottom << L" markTop=" << markTop << L" markBottom=" << markBottom << L" gap=" << gap << L'\n';
                     check(std::isfinite(gap) && gap >= font * .025f && gap <= font * .18f,
                           "accent ink stays close to the actual letters with a remaining non-touching gap");
                     if (std::wstring_view(source).starts_with(L"\\widetilde") && math.VariantLayouts().empty())

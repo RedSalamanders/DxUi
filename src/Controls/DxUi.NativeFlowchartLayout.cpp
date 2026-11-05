@@ -659,7 +659,10 @@ struct NativeFlowchartLayout::Preparation
                     Then(Stage::BalanceChoose);
                     return;
                 }
-                compactRouting = ranksBalanced && std::ranges::all_of(graph->edges, [](const auto& edge) { return edge.label.empty(); });
+                compactRouting = ranksBalanced && std::ranges::all_of(graph->edges, [](const auto& edge) { return edge.label.empty(); }) &&
+                                 std::ranges::any_of(rankOrder.begin(), rankOrder.begin() + graph->nodes.size(), [&](const auto node) {
+                    return incoming[node] > 1u || outgoing[node] > 1u;
+                });
                 for (std::size_t node = 0u; compactRouting && node < graph->nodes.size(); ++node)
                     if ((incoming[node] > 1u || outgoing[node] > 1u) && ! FlatAttachmentSide(graph->nodes[node].shape))
                         compactRouting = false;
