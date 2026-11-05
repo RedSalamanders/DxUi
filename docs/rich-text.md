@@ -1635,7 +1635,8 @@ backlinks. Keyboard traversal and guarded note-aware structural planning are imp
 
 Class-diagram direction follows the written relationship order. For `classDiagram`, `direction LR`,
 `Document <|-- Markdown`, Document is left of Markdown and the hollow triangle points at Document.
-The marker does not reverse the diagram. Pipeline flowcharts align independent inputs near their shared
+The marker does not reverse the diagram. A leading triangle or diamond shortens its own connector end and
+keeps the opposite node connected. Pipeline flowcharts align independent inputs near their shared
 successor, give plain fan-in separate box attachments, and keep long links on the nearer outer side.
 Dense joins and labeled routes retain their own clearance.
 
