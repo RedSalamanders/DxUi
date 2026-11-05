@@ -67,6 +67,10 @@ This coordinates the active API work; it does not adopt API 5 in any application
 <a id="d-e1"></a>
 ### D-E1 — source guides and editor behavior
 
+- [ ] Complete the 5 November chat request: Insert Quote and Code Block wrap the selected source through
+  shared DxUi logic in Rich and Source modes, preserve outside text/EOLs/direction and one-step undo/redo,
+  and decline atomically for composition, read-only and capacity. Verify RedTilde's real Insert commands
+  against the exact published pin; no sample text may replace a nonempty selection.
 - [ ] Implement D1: cosmetic code ink/line numbers/whitespace never withhold content, cancel a gesture or
   refuse input; do bounded viewport/change work and show the previous cosmetic state while preparing
   (EDIT-01/02/04, RENDER-01/14).
@@ -95,6 +99,10 @@ This coordinates the active API work; it does not adopt API 5 in any application
 <a id="d-m1"></a>
 ### D-M1 — Markdown, math and diagram correctness
 
+- [ ] Reproduce and fix the 5 November examples: `graph BT` pipeline ranks/compact fan-in routing,
+  class `direction LR` with `Document <|-- Markdown`, wide accents/dot weight/vector clearance,
+  and gathered matrices/angle delimiters with non-overlapping row spacing. Preserve source and use
+  deterministic native captures with source/DPI provenance for the Mermaid/LaTeX reference comparisons.
 - [ ] Correct deferred autolink suffix loss, front-matter incremental root reuse and CR-only YAML handling
   (MD-01/02/04). Expected malformed input must stay bounded and editable rather than aborting a process.
 - [ ] Resolve display-block interruption and pathological scan budgets (MD-03/05/06/07), with deterministic

@@ -1,5 +1,15 @@
 # Performance and resources
 
+Embedded input wake deferral uses an intrusive UI-thread stack with borrowed hosts and one pending bit per
+attachment. Entry, nesting and completion add no heap allocation, worker, timer or retained queue. Scope exit
+visits current synchronous nesting only; detached requests disappear with their attachment. Direct mutations
+on another host remain independent. Composition and clean/hidden preparation retain their existing contracts.
+
+Selection-to-block insertion scans bounded source/selection text and stages one replacement. It preserves
+existing counted UTF-16 and EOL spellings, and refuses a result beyond document capacity before publication.
+It performs no layout, device work or clipboard access. Its staged data is retired when the one source
+transaction completes or declines; this functional bound is not paired-performance acceptance.
+
 Arrow-label background contrast is resolved once for each changed effective foreground/surface or resource
 binding, outside composition. A retained target-bound brush is reused on unchanged frames. Two bounded
 16-step neutral searches handle insufficient contrast; group/note surface membership is cached with

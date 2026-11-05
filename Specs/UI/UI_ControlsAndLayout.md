@@ -1,5 +1,25 @@
 # Controls and layout
 
+`RichTextEditor::WrapSelectionInMarkdownBlock` transforms a nonempty source selection into a block quote
+or fenced code block in Rich or Source presentation. It retains every selected and unselected source unit;
+quote markers are inserted per selected physical line, and code content remains literal. Inserted blank
+separators isolate the block from adjacent prose without deleting either partial-line fragment. Existing
+selected CRLF/LF/CR spellings remain exact; added separators use the document's first line ending, or CRLF
+when none exists. A code fence exceeds every selected backtick run. A selected document terminator remains
+a terminator after wrapping. The transformed body stays selected in its original direction, and one undo
+or redo restores the complete source/selection transaction.
+
+Empty selections, unsupported block kinds, invalid code-language text, disabled/read-only controls, active
+composition/text-service previews and capacity overflow decline without changing source, history or text
+notifications. Applications own their empty-selection templates. Code-language text is valid UTF-16, at most
+255 units, and excludes NUL, CR, LF and backticks. This source operation needs no prepared semantic geometry.
+
+Control continuations after synchronous preparation, text notification or accessibility publication must
+recheck their weak lifetime before member access. TextField imports/history/clear/caret paths and ComboBox
+variant/text/import paths complete safely when scheduling retires their tree. FormField's late measure
+invalidation must likewise revalidate before accessibility synchronization. Existing native/embedded
+ownership and callback exception contracts continue to apply.
+
 RichTextEditor `RichTextEditorAppearance::colorizeMarkdownSource` is opt-in and
 uses the configured lossless Markdown analysis profile. Source glyph geometry
 MUST stay identical: syntax delimiters receive subdued ink, heading/list markers

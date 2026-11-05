@@ -2351,6 +2351,114 @@ bool RichTextEditor::ToggleFormatting(std::wstring_view marker)
     Changed(changed);
     return changed;
 }
+bool RichTextEditor::WrapSelectionInMarkdownBlock(RichText::MarkdownBlockKind kind, std::wstring_view codeLanguage)
+{
+    using RichText::MarkdownBlockKind;
+    const bool quote = kind == MarkdownBlockKind::BlockQuote;
+    if ((! quote && kind != MarkdownBlockKind::FencedCode) || ! Editable() || _state->hasTextPreview || MarkdownCommandInputBlocked(GetHost(), this) ||
+        codeLanguage.size() > 255u || ! RichText::IsValidUtf16(codeLanguage) || codeLanguage.find_first_of(L"\r\n`") != codeLanguage.npos ||
+        codeLanguage.find(L'\0') != codeLanguage.npos || (quote && ! codeLanguage.empty()))
+        return false;
+    const auto before = GetSelection();
+    if (before.Start() == before.End())
+        return false;
+    const auto source           = Snapshot();
+    const auto revision         = Revision();
+    const auto text             = source.Text();
+    const auto selected         = text.substr(before.Start(), before.End() - before.Start());
+    const auto newline          = text.find_first_of(L"\r\n");
+    const std::wstring_view eol = newline == text.npos
+                                      ? std::wstring_view(L"\r\n")
+                                      : text.substr(newline, text[newline] == L'\r' && newline + 1u < text.size() && text[newline + 1u] == L'\n' ? 2u : 1u);
+    const auto trailingBreaks   = [](std::wstring_view value) noexcept
+    {
+        size_t at = value.size(), count = 0u;
+        while (at && count < 2u)
+        {
+            if (value[at - 1u] == L'\n')
+            {
+                --at;
+                if (at && value[at - 1u] == L'\r')
+                    --at;
+            }
+            else if (value[at - 1u] == L'\r')
+                --at;
+            else
+                break;
+            ++count;
+        }
+        return count;
+    };
+    const auto leadingBreaks = [](std::wstring_view value) noexcept
+    {
+        size_t at = 0u, count = 0u;
+        while (at < value.size() && count < 2u)
+        {
+            if (value[at] == L'\r')
+            {
+                ++at;
+                if (at < value.size() && value[at] == L'\n')
+                    ++at;
+            }
+            else if (value[at] == L'\n')
+                ++at;
+            else
+                break;
+            ++count;
+        }
+        return count;
+    };
+    std::wstring replacement;
+    if (before.Start())
+        for (auto count = trailingBreaks(text.substr(0u, before.Start())); count < 2u; ++count)
+            replacement += eol;
+    const auto blockStart = before.Start() + replacement.size();
+    size_t bodyStart{}, bodyEnd{};
+    if (quote)
+    {
+        replacement += L"> ";
+        bodyStart = blockStart + 2u;
+        for (size_t index = 0u; index < selected.size(); ++index)
+        {
+            const auto ch = selected[index];
+            replacement += ch;
+            if (ch == L'\r' && index + 1u < selected.size() && selected[index + 1u] == L'\n')
+                replacement += selected[++index];
+            if ((ch == L'\r' || ch == L'\n') && index + 1u < selected.size())
+                replacement += L"> ";
+        }
+        bodyEnd = before.Start() + replacement.size();
+    }
+    else
+    {
+        size_t longest = 0u, run = 0u;
+        for (const auto ch : selected)
+        {
+            run     = ch == L'`' ? run + 1u : 0u;
+            longest = (std::max)(longest, run);
+        }
+        const std::wstring fence((std::max)(size_t{3u}, longest + 1u), L'`');
+        replacement += fence;
+        replacement += codeLanguage;
+        replacement += eol;
+        bodyStart = before.Start() + replacement.size();
+        replacement += selected;
+        bodyEnd = before.Start() + replacement.size();
+        if (! trailingBreaks(selected))
+            replacement += eol;
+        replacement += fence;
+        if (before.End() == text.size() && trailingBreaks(selected))
+            replacement += eol;
+    }
+    if (before.End() < text.size())
+        for (auto count = trailingBreaks(replacement) + leadingBreaks(text.substr(before.End())); count < 2u; ++count)
+            replacement += eol;
+    if (replacement.size() > RichText::Document::MaximumUnits - (text.size() - selected.size()))
+        return false;
+    const RichText::SourceEdit edit{{before.Start(), before.End()}, replacement};
+    const RichText::Selection after = before.anchor <= before.caret ? RichText::Selection{bodyStart, bodyEnd} : RichText::Selection{bodyEnd, bodyStart};
+    return ApplySourceEdits(source, revision, std::span(&edit, 1u), after);
+}
 bool RichTextEditor::ApplySourceEdits(const RichText::SourceSnapshot& expectedSource,
                                       uint64_t expectedRevision,
                                       std::span<const RichText::SourceEdit> edits,

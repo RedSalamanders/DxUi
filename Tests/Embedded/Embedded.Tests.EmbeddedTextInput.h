@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <functional>
 #include <stdexcept>
 #include <thread>
 #include <utility>
@@ -14,6 +15,10 @@ static void TestEmbeddedPreparationWakeWaitsForInput(GraphicsFixture& gpu)
         ControlHost* controls{};
         bool armed{}, inside{}, wokeInside{};
         unsigned wakes{}, characters{};
+        std::function<void()> duringKey;
+        ControlHost* otherControls{};
+        unsigned otherWakes{};
+        bool otherWokeInside{};
     };
     struct Probe final : TextField
     {
@@ -32,6 +37,8 @@ static void TestEmbeddedPreparationWakeWaitsForInput(GraphicsFixture& gpu)
             auto& input  = state;
             input.inside = true;
             Invalidate(host);
+            if (input.duringKey)
+                input.duringKey();
             // A nested input call must not flush the outer call's wake.
             static_cast<void>(input.view->DispatchCharacter(L'x'));
             input.inside = false;
@@ -59,10 +66,11 @@ static void TestEmbeddedPreparationWakeWaitsForInput(GraphicsFixture& gpu)
     };
     std::shared_ptr<GraphicsDevice> graphics;
     Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "input wake graphics");
-    for (unsigned route = 0u; route < 4u; ++route)
+    for (unsigned route = 0u; route < 6u; ++route)
     {
         InputState state;
         EmbeddedHost view;
+        EmbeddedHost otherView;
         state.view     = &view;
         state.controls = &view.Controls();
         const EmbeddedCallbacks callbacks{.context            = &state,
@@ -83,10 +91,44 @@ static void TestEmbeddedPreparationWakeWaitsForInput(GraphicsFixture& gpu)
         Hr(view.Prepare(320, 160), "prepare input wake fixture");
         view.Controls().SetFocusControl(probe);
         Hr(view.Prepare(320, 160), "consume focus wake before input");
+        if (route == 4u)
+            state.duringKey = [&]
+            {
+                view.Detach();
+                Hr(view.Attach(graphics, callbacks), "reattach during an outer input callback");
+                auto replacement = std::make_unique<Probe>(state);
+                auto* successor  = replacement.get();
+                successor->SetBounds(D2D1::RectF(0, 0, 240, 100));
+                view.Controls().SetRoot(std::move(replacement));
+                Hr(view.Prepare(320, 160), "prepare replacement attachment during input");
+                view.Controls().SetFocusControl(successor);
+                Hr(view.Prepare(320, 160), "prepare replacement logical focus");
+            };
+        else if (route == 5u)
+        {
+            state.otherControls = &otherView.Controls();
+            Hr(otherView.Attach(graphics,
+                                {.context = &state,
+                                 .requestPreparation =
+                                     [](void* context) noexcept
+            {
+                auto& input = *static_cast<InputState*>(context);
+                ++input.otherWakes;
+                input.otherWokeInside = input.inside;
+                input.otherControls->SetRoot(nullptr);
+            }}),
+               "attach independently scheduled view");
+            auto otherField = std::make_unique<TextField>(L"Other notebook");
+            auto* other     = otherField.get();
+            other->SetBounds(D2D1::RectF(0, 0, 240, 100));
+            otherView.Controls().SetRoot(std::move(otherField));
+            Hr(otherView.Prepare(320, 160), "prepare independently scheduled view");
+            state.duringKey = [other] { other->SetTextAndNotify(L"Another view's edit"); };
+        }
         state.armed = true;
         if (route == 0u)
             Check(view.DispatchCharacter(L'x'), "dispatch independent character");
-        else if (route == 1u)
+        else if (route == 1u || route == 4u || route == 5u)
             Check(view.DispatchKey('A', true), "dispatch key containing nested character input");
         else if (route == 2u)
         {
@@ -101,6 +143,9 @@ static void TestEmbeddedPreparationWakeWaitsForInput(GraphicsFixture& gpu)
         Check(state.wakes == 1u && ! state.wokeInside && ! view.Controls().GetRoot(),
               "one preparation wake retires the tree only after the outer input callback finishes");
         Check(state.characters == (route == 3u ? 0u : 1u), "nested and receipt character input executes once");
+        if (route == 5u)
+            Check(state.otherWakes == 1u && state.otherWokeInside && ! otherView.Controls().GetRoot(),
+                  "input on one view never defers another view's direct-setter wake");
     }
 }
 

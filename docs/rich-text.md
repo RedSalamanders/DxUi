@@ -5,6 +5,20 @@ the editor adds a subtle light or dark backing for readability. Label background
 crossing lines; labels within notes or filled groups retain that container's surface. This presentation
 does not alter Mermaid source, diagram placement, selection or history.
 
+## Selection-to-block insertion
+
+Use `RichTextEditor::WrapSelectionInMarkdownBlock` for an Insert action applied to selected text. Pass
+`MarkdownBlockKind::BlockQuote`, or `MarkdownBlockKind::FencedCode` with an optional language such as `L"text"`.
+The operation works in Rich and Source views without waiting for semantic geometry. It wraps the exact selected
+source, including Unicode, original line endings and Markdown delimiters; code fences grow past embedded
+backtick runs. Blank separators keep adjacent prose outside the new block. The body remains selected in the
+same direction, with one text notification and one undo/redo transaction.
+
+An empty selection returns false so the application can choose its insertion template. Read-only, disabled,
+composition/preview, invalid language and capacity refusal leave source and history intact. A failed operation
+on a nonempty selection must retain that selection. Code language is at most 255 valid UTF-16 units and cannot
+contain NUL, line endings or backticks. Existing structural Markdown commands retain their semantics.
+
 ## Current capabilities
 
 This table describes the available library mechanisms and their limits. Supported

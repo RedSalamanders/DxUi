@@ -15,6 +15,7 @@
 #include "Support.Tests.SemanticSourceBlock.h"
 #include <DxUi/ControlCatalog.h>
 #include <DxUi/RichSemanticDocument.h>
+#include <array>
 #include <chrono>
 #include <iostream>
 #include <stdexcept>
@@ -121,6 +122,118 @@ void TestRichTextEditorTransactionsAndValidation()
     editor.SetEnabled(true);
     editor.SetText(L"new");
     Require(! editor.CanUndo() && ! editor.CanRedo() && changes == 3, "SetText resets history without application notification");
+}
+
+void TestRichTextEditorBlockInsertWrapsExactSelection()
+{
+    struct Fixture
+    {
+        std::wstring_view source;
+        Selection selection;
+        std::wstring_view quote, code;
+    };
+    constexpr std::array fixtures{
+        Fixture{L"before selected after", {7u, 15u}, L"before \r\n\r\n> selected\r\n\r\n after", L"before \r\n\r\n```text\r\nselected\r\n```\r\n\r\n after"},
+        Fixture{L"one\n\nthree\n", {0u, 11u}, L"> one\n> \n> three\n", L"```text\none\n\nthree\n```\n"},
+        Fixture{L"α 😀\r\nβ", {0u, 7u}, L"> α 😀\r\n> β", L"```text\r\nα 😀\r\nβ\r\n```"},
+        Fixture{L"a\rb\r", {0u, 4u}, L"> a\r> b\r", L"```text\ra\rb\r```\r"},
+        Fixture{L"head\n\none\r\ntwo\rtail\n\nend", {6u, 19u}, L"head\n\n> one\r\n> two\r> tail\n\nend", L"head\n\n```text\none\r\ntwo\rtail\n```\n\nend"},
+        Fixture{L"```\ncode\n```", {0u, 12u}, L"> ```\n> code\n> ```", L"````text\n```\ncode\n```\n````"}};
+    for (const auto mode : {ViewMode::Rich, ViewMode::Source})
+        for (const auto& fixture : fixtures)
+            for (const bool quote : {false, true})
+                for (const bool backwards : {false, true})
+                {
+                    RichTextEditor editor{std::wstring(fixture.source)};
+                    editor.SetViewMode(mode);
+                    const Selection before = backwards ? Selection{fixture.selection.caret, fixture.selection.anchor} : fixture.selection;
+                    editor.SetSelection(before);
+                    const auto snapshot = editor.Snapshot();
+                    size_t changes      = 0u;
+                    editor.SetOnTextChanged([&] { ++changes; });
+                    Require(editor.WrapSelectionInMarkdownBlock(quote ? MarkdownBlockKind::BlockQuote : MarkdownBlockKind::FencedCode,
+                                                                quote ? std::wstring_view{} : std::wstring_view(L"text")),
+                            "Insert transforms selected source in either presentation mode");
+                    Require(editor.GetText() == (quote ? fixture.quote : fixture.code) && changes == 1u && editor.CanUndo(),
+                            "block insertion preserves exact selected and outside spelling with one notification");
+                    const auto after = editor.GetSelection();
+                    Require((after.anchor > after.caret) == backwards, "block insertion retains selection direction");
+                    if (! quote)
+                        Require(editor.GetText().substr(after.Start(), after.End() - after.Start()) ==
+                                    fixture.source.substr(before.Start(), before.End() - before.Start()),
+                                "fenced code keeps the exact original payload selected");
+                    const auto transformed = editor.Snapshot();
+                    Require(editor.Undo() && editor.Snapshot().IsSameRevision(snapshot) && editor.GetSelection() == before && changes == 2u &&
+                                ! editor.CanUndo(),
+                            "one undo restores exact source, direction and prior history");
+                    Require(editor.Redo() && editor.Snapshot().IsSameRevision(transformed) && editor.GetSelection() == after && changes == 3u &&
+                                ! editor.CanRedo(),
+                            "one redo restores the entire block transformation and selection");
+                }
+}
+
+void TestRichTextEditorBlockInsertDeclinesAtomically()
+{
+    RichTextEditor editor(L"retain this source");
+    editor.SetSelection({0u, 6u});
+    const auto original = editor.Snapshot();
+    const auto before   = editor.GetSelection();
+    size_t changes      = 0u;
+    editor.SetOnTextChanged([&] { ++changes; });
+    const auto unchanged = [&]
+    {
+        Require(editor.Snapshot().IsSameRevision(original) && editor.GetSelection() == before && ! editor.CanUndo() && ! editor.CanRedo() && changes == 0u,
+                "declined block insertion preserves exact source, selection, history and notifications");
+    };
+    editor.SetReadOnly(true);
+    Require(! editor.WrapSelectionInMarkdownBlock(MarkdownBlockKind::BlockQuote), "read-only refuses block insertion");
+    unchanged();
+    editor.SetReadOnly(false);
+    editor.SetEnabled(false);
+    Require(! editor.WrapSelectionInMarkdownBlock(MarkdownBlockKind::FencedCode), "disabled refuses block insertion");
+    unchanged();
+    editor.SetEnabled(true);
+    Require(! editor.WrapSelectionInMarkdownBlock(MarkdownBlockKind::Paragraph), "unsupported block kind is checked");
+    unchanged();
+    for (const auto language : {std::wstring_view(L"bad\ninfo"), std::wstring_view(L"bad`info"), std::wstring_view(L"a\0b", 3u)})
+    {
+        Require(! editor.WrapSelectionInMarkdownBlock(MarkdownBlockKind::FencedCode, language), "invalid code language is checked before editing");
+        unchanged();
+    }
+    editor.SetSelection({3u, 3u});
+    Require(! editor.WrapSelectionInMarkdownBlock(MarkdownBlockKind::BlockQuote) && editor.Snapshot().IsSameRevision(original) && ! editor.CanUndo(),
+            "an empty selection is left to the application's insertion policy");
+    editor.SetText(std::wstring(Document::MaximumUnits, L'x'));
+    editor.SetSelection({4u, 8u});
+    const auto full = editor.Snapshot();
+    Require(! editor.WrapSelectionInMarkdownBlock(MarkdownBlockKind::BlockQuote) && editor.Snapshot().IsSameRevision(full) &&
+                editor.GetSelection() == Selection{4u, 8u} && ! editor.CanUndo() && changes == 0u,
+            "capacity refusal never partially replaces selected text");
+    class PreviewEditor final : public RichTextEditor
+    {
+    public:
+        using RichTextEditor::ExportTextInputState;
+        using RichTextEditor::ImportTextInputState;
+        using RichTextEditor::RichTextEditor;
+        PreviewEditor(const PreviewEditor&)            = delete;
+        PreviewEditor& operator=(const PreviewEditor&) = delete;
+        PreviewEditor(PreviewEditor&&)                 = delete;
+        PreviewEditor& operator=(PreviewEditor&&)      = delete;
+    };
+    ControlHost host;
+    auto owned    = std::make_unique<PreviewEditor>(L"saved");
+    auto* preview = owned.get();
+    host.SetRoot(std::move(owned));
+    TextInputState state;
+    Require(preview->ExportTextInputState(state), "export text-service baseline");
+    state.text                 = L"preview";
+    state.selectionAnchorIndex = 0u;
+    state.caretIndex           = state.text.size();
+    Require(preview->ImportTextInputState(host, state, false), "admit an uncommitted text-service preview");
+    const auto previewSource = preview->Snapshot();
+    Require(! preview->WrapSelectionInMarkdownBlock(MarkdownBlockKind::FencedCode) && preview->Snapshot().IsSameRevision(previewSource) &&
+                preview->GetSelection() == Selection{0u, 7u} && ! preview->CanUndo(),
+            "an uncommitted text-service preview is never consumed by block insertion");
 }
 
 void TestRichTextEditorUnicodeCharacterTransactions()
@@ -2112,6 +2225,8 @@ void RunRichTextEditorTests()
 {
     ScopedNonActivatingTestWindows nonActivating;
     DXUI_RUN_TEST(TestRichTextEditorTransactionsAndValidation);
+    DXUI_RUN_TEST(TestRichTextEditorBlockInsertWrapsExactSelection);
+    DXUI_RUN_TEST(TestRichTextEditorBlockInsertDeclinesAtomically);
     DXUI_RUN_TEST(TestRichTextEditorUnicodeCharacterTransactions);
     DXUI_RUN_TEST(TestRichTextEditorEnterPreservesDocumentLineEndings);
     DXUI_RUN_TEST(TestRichTextEditorFormattingAndModePreserveSource);
