@@ -1618,6 +1618,8 @@ Math accents sit close to the visible letters with a remaining gap; dots stay vi
 fallback uses a smooth wave. Nested matrices and paired delimiters use visible ink for spacing, including
 gathered vector/inner-product examples. Aligned/gathered/alignat cells use display style in both inline and
 display formulas. `\substack` remains a centered script-style subarray; explicit style commands still work.
+Small `\left`/`\right` delimiters stay proportional to their contents; a font's subformula threshold does
+not enlarge ordinary inner-product brackets. Tall matrices still request the taller native fence variants.
 
 Styled Mermaid labels retain valid style ranges after unquoted trailing-space trimming. ER/class fan-in and
 fan-out relationships reserve separate endpoint slots and measured cardinality space; unsupported or genuinely

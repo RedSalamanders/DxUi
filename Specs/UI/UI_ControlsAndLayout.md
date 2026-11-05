@@ -2635,6 +2635,9 @@ MATH variants fit the reserved accent band and retain the gap. Matrix measuremen
 same row-ink metrics and minimum strut, including nested matrices in gathered rows. A following row must
 clear the actual matrix/delimiter ink; paired delimiters size to visible content rather than unused font
 ascent/descent. Retain authored row spacing, original TeX, source editing, selection and history.
+For `left`/`right`, use the child's visible ink plus a small gap and a 0.9-em ordinary strut.
+OpenType's `delimitedSubFormulaMinHeight` is a subformula classification threshold, not a minimum height
+for every delimiter glyph. Small inner-product angle brackets must remain proportional to their letters.
 
 Aligned, gathered and alignat cells use display style independently of the enclosing inline/display mode.
 Their admitted environment aliases follow the same rule. Explicit cell style declarations still take

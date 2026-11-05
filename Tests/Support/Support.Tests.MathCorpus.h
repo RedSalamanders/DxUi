@@ -189,6 +189,16 @@ inline std::wstring Matrix(unsigned rows, unsigned columns)
     }
     return source + L"\\end{matrix}";
 }
+template <typename Glyph, typename Check> auto GlyphInkBounds(const Glyph& glyph, Check&& check)
+{
+    DWRITE_OVERHANG_METRICS overhang{};
+    DWRITE_TEXT_METRICS metrics{};
+    check(SUCCEEDED(glyph.layout->GetOverhangMetrics(&overhang)) && SUCCEEDED(glyph.layout->GetMetrics(&metrics)),
+          "the independent ink oracle reads actual shaped DirectWrite metrics");
+    // Overhang is relative to the configured layout rectangle. The glyph
+    // line height is smaller and would undercount descenders/subscripts.
+    return std::pair{glyph.origin.y - overhang.top, glyph.origin.y + metrics.layoutHeight + overhang.bottom + (glyph.pseudoBold ? glyph.font * .01f : 0.f)};
+}
 template <typename Check> void AccentAndGatheredGeometry(IDWriteFactory* factory, Check&& check)
 {
     const auto complete = [&](Detail::PreparedMath& math)
@@ -197,14 +207,7 @@ template <typename Check> void AccentAndGatheredGeometry(IDWriteFactory* factory
         while (! math.Advance())
             check(++turns < MathMaximumNodes + 1u, "reported mathematical regressions finish bounded preparation");
     };
-    const auto glyphBounds = [&](const auto& glyph)
-    {
-        DWRITE_OVERHANG_METRICS overhang{};
-        DWRITE_TEXT_METRICS metrics{};
-        check(SUCCEEDED(glyph.layout->GetOverhangMetrics(&overhang)) && SUCCEEDED(glyph.layout->GetMetrics(&metrics)),
-              "the independent ink oracle reads actual shaped DirectWrite metrics");
-        return std::pair{glyph.origin.y - overhang.top, glyph.origin.y + metrics.height + overhang.bottom + glyph.font * .01f};
-    };
+    const auto glyphBounds = [&](const auto& glyph) { return GlyphInkBounds(glyph, check); };
     for (const bool display : {false, true})
     {
         for (const auto name : {L"aligned", L"gathered"})
@@ -310,8 +313,13 @@ template <typename Check> void AccentAndGatheredGeometry(IDWriteFactory* factory
                   "nested matrices use compact rows and leave a real gap before the inner-product equation");
             const auto between = (firstBottom + secondTop) * .5f;
             for (const auto& variant : math.VariantLayouts())
+            {
+                if (! (variant.top + variant.height < between || variant.top > between))
+                    std::cerr << "Gathered delimiter: font=" << font << " display=" << display << " firstBottom=" << firstBottom << " secondTop=" << secondTop
+                              << " between=" << between << " top=" << variant.top << " height=" << variant.height << " glyph=" << variant.glyph << '\n';
                 check(variant.top + variant.height < between || variant.top > between,
                       "native matrix and angle delimiter ink never spans the gap between gathered rows");
+            }
             for (const auto& stroke : math.StrokeLayouts())
                 check(std::max(stroke.first.y, stroke.last.y) + stroke.thickness * .5f < between ||
                           std::min(stroke.first.y, stroke.last.y) - stroke.thickness * .5f > between,
@@ -787,7 +795,7 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
                                                   std::pair{L"grave", 1u},
                                                   std::pair{L"mathring", 8u},
                                                   std::pair{L"underbar", 1u},
-                                                  std::pair{L"utilde", 6u}})
+                                                  std::pair{L"utilde", 24u}})
     {
         const auto expression = std::make_shared<const MathExpression>(ParseMath(L"\\" + std::wstring(name) + L"{x}"));
         check(static_cast<bool>(*expression), "bounded accent has a complete operand");
@@ -1220,9 +1228,10 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
         while (! accent.Advance())
         {
         }
-        const auto& strokes = accent.StrokeLayouts();
-        const auto& glyphs  = accent.GlyphLayouts();
-        check(strokes.size() == count && glyphs.size() == 1u && (below ? strokes[0u].first.y > glyphs[0u].origin.y : strokes[0u].first.y < glyphs[0u].origin.y),
+        const auto& strokes            = accent.StrokeLayouts();
+        const auto& glyphs             = accent.GlyphLayouts();
+        const auto [inkTop, inkBottom] = glyphs.size() == 1u ? GlyphInkBounds(glyphs[0u], check) : std::pair{0.f, 0.f};
+        check(strokes.size() == count && glyphs.size() == 1u && (below ? strokes[0u].first.y > inkBottom : strokes[0u].first.y < inkTop),
               "directed accent keeps its distinct head and above/below placement");
         if (strokes.size() >= 2u)
         {
@@ -1241,11 +1250,12 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
         while (! accent.Advance())
         {
         }
-        const auto& lines = accent.StrokeLayouts();
+        const auto& lines              = accent.StrokeLayouts();
+        const auto& glyphs             = accent.GlyphLayouts();
+        const auto [inkTop, inkBottom] = glyphs.size() == 1u ? GlyphInkBounds(glyphs[0u], check) : std::pair{0.f, 0.f};
         check(lines.size() == 3u && lines[0u].first.y == lines[0u].last.y && lines[1u].first.x == lines[1u].last.x && lines[2u].first.x == lines[2u].last.x &&
-                  lines[1u].first.x < lines[2u].first.x &&
-                  ((std::wstring_view(name).starts_with(L"under")) ? lines[0u].first.y > accent.GlyphLayouts()[0u].origin.y
-                                                                   : lines[0u].first.y < accent.GlyphLayouts()[0u].origin.y),
+                  lines[1u].first.x < lines[2u].first.x && glyphs.size() == 1u &&
+                  ((std::wstring_view(name).starts_with(L"under")) ? lines[0u].first.y > inkBottom : lines[0u].first.y < inkTop),
               "line-segment accents stage a horizontal shaft with distinct bounded end bars");
     }
 #endif

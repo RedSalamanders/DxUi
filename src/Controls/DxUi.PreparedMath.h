@@ -527,7 +527,7 @@ class PreparedMath final
     std::size_t cursor{};
     float font{}, axis{}, dpi{96.f}, absoluteUnitScale{1.f};
     float scriptScale{.7f}, scriptScriptScale{.5f};
-    float delimitedMinimum{1.5f}, displayOperatorMinimum{1.4f};
+    float displayOperatorMinimum{1.4f};
     float subscriptShift{.35f}, superscriptShift{.55f}, scriptGapMinimum{.18f};
     float fractionNumeratorShift{.45f}, fractionDenominatorShift{.45f}, fractionNumeratorGap{.12f}, fractionDenominatorGap{.12f};
     float fractionNumeratorDisplayShift{.6f}, fractionDenominatorDisplayShift{.6f}, fractionNumeratorDisplayGap{.2f}, fractionDenominatorDisplayGap{.2f};
@@ -649,19 +649,15 @@ class PreparedMath final
             return;
         // MathConstants starts with the two percentage scales, two unsigned
         // heights, then MathValueRecords. AxisHeight follows MathLeading.
-        const auto* constants     = bytes + offset;
-        const auto first          = Signed16(constants);
-        const auto second         = Signed16(constants + 2);
-        const auto delimitedUnits = static_cast<unsigned>((constants[4] << 8u) | constants[5]);
-        const auto operatorUnits  = static_cast<unsigned>((constants[6] << 8u) | constants[7]);
+        const auto* constants    = bytes + offset;
+        const auto first         = Signed16(constants);
+        const auto second        = Signed16(constants + 2);
+        const auto operatorUnits = static_cast<unsigned>((constants[6] << 8u) | constants[7]);
         if (first >= 30 && first <= 100)
             scriptScale = static_cast<float>(first) / 100.f;
         if (second >= 20 && second <= 100)
             scriptScriptScale = static_cast<float>(second) / 100.f;
-        const auto delimitedScale = static_cast<float>(delimitedUnits) / static_cast<float>(mathData->designUnits);
-        const auto operatorScale  = static_cast<float>(operatorUnits) / static_cast<float>(mathData->designUnits);
-        if (std::isfinite(delimitedScale) && delimitedScale >= 1.f && delimitedScale <= 4.f)
-            delimitedMinimum = delimitedScale;
+        const auto operatorScale = static_cast<float>(operatorUnits) / static_cast<float>(mathData->designUnits);
         if (std::isfinite(operatorScale) && operatorScale >= 1.f && operatorScale <= 4.f)
             displayOperatorMinimum = operatorScale;
         const MathFontTable table(mathData->table);
@@ -1567,7 +1563,10 @@ class PreparedMath final
                 box.extent.width += box.size * .4f * static_cast<float>(leftVisible + rightVisible);
                 if (leftVisible || rightVisible)
                 {
-                    const float minimumHeight = box.size * delimitedMinimum;
+                    // OpenType's DelimitedSubFormulaMinHeight classifies a
+                    // subformula; it is not a floor for every \left/\right
+                    // glyph. Small inner products keep ordinary-size fences.
+                    const float minimumHeight = box.size * .9f;
                     const float axisOffset    = MathConstantAt(12u, box.size, axis);
                     const auto ink            = InkExtent(ChildAt(reverse, 0u));
                     box.upperShift            = std::max(ink.above + box.size * .05f, minimumHeight * .5f + axisOffset);
