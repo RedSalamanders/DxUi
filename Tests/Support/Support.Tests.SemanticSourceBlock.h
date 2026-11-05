@@ -483,12 +483,12 @@ template <typename Prepare, typename Check> inline void Retained(SourceEditingEd
             const auto scope  = enter(source);
             const auto caret  = backwards ? scope.first : scope.last;
             editor.SetSelection({caret, caret});
-            const auto expected = backwards ? word ? std::wstring(cases[0u]) : std::wstring(L"before") + std::wstring(cases[0u])
-                                  : word    ? std::wstring(cases[0u])
-                                            : std::wstring(cases[0u]) + L"fter";
-            const auto before   = notifications;
+            const auto expected       = backwards ? word ? std::wstring(cases[0u]) : std::wstring(L"before") + std::wstring(cases[0u])
+                                        : word    ? std::wstring(cases[0u])
+                                                  : std::wstring(cases[0u]) + L"fter";
+            const auto beforeDeletion = notifications;
             check(editor.OnKeyDown(host, backwards ? VK_BACK : VK_DELETE, word ? MK_CONTROL : 0u) && editor.GetText() == expected &&
-                      ! editor.GetSemanticSourceRegion() && notifications == before + 1u,
+                      ! editor.GetSemanticSourceRegion() && notifications == beforeDeletion + 1u,
                   "grapheme and word deletion cross the former source boundary naturally and retire its presentation in one edit");
             check(editor.Undo() && editor.GetText() == source && editor.Redo() && editor.GetText() == expected,
                   "cross-boundary source deletion retains exact Undo/Redo without containing or extending the old interval");
