@@ -90,6 +90,7 @@ static void TestEmbeddedPreparationWakeWaitsForInput(GraphicsFixture& gpu)
         view.Controls().SetRoot(std::move(field));
         Hr(view.Prepare(320, 160), "prepare input wake fixture");
         view.Controls().SetFocusControl(probe);
+        view.Controls().SetInputModality(InputModality::Keyboard);
         Hr(view.Prepare(320, 160), "consume focus wake before input");
         if (route == 4u)
             state.duringKey = [&]

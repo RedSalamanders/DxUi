@@ -2362,9 +2362,10 @@ bool RichTextEditor::WrapSelectionInMarkdownBlock(RichText::MarkdownBlockKind ki
     const auto before = GetSelection();
     if (before.Start() == before.End())
         return false;
-    const auto source           = Snapshot();
-    const auto revision         = Revision();
-    const auto text             = source.Text();
+    const auto source     = Snapshot();
+    const auto revision   = Revision();
+    const auto sourceText = source.Text();
+    const std::wstring_view text(sourceText);
     const auto selected         = text.substr(before.Start(), before.End() - before.Start());
     const auto newline          = text.find_first_of(L"\r\n");
     const std::wstring_view eol = newline == text.npos
