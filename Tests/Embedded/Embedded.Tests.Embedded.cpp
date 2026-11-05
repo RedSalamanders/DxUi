@@ -1336,7 +1336,7 @@ __declspec(noinline) static int RunFunctionalTests()
 {
     if (__argc == 2 &&
         (std::wstring_view(__wargv[1]) == L"--test-embedded-input-wake" || std::wstring_view(__wargv[1]) == L"--test-direct-textfield-retirement" ||
-         std::wstring_view(__wargv[1]) == L"--test-direct-combobox-retirement"))
+         std::wstring_view(__wargv[1]) == L"--test-direct-combobox-retirement" || std::wstring_view(__wargv[1]) == L"--test-form-clear-retirement"))
     {
         GraphicsFixture gpu;
         Hr(gpu.Create(), "isolated input retirement WARP fixture");
@@ -1344,8 +1344,10 @@ __declspec(noinline) static int RunFunctionalTests()
             TestEmbeddedPreparationWakeWaitsForInput(gpu);
         else if (std::wstring_view(__wargv[1]) == L"--test-direct-textfield-retirement")
             TestTextFieldDirectPreparationRetirement(gpu);
-        else
+        else if (std::wstring_view(__wargv[1]) == L"--test-direct-combobox-retirement")
             TestComboBoxDirectPreparationRetirement(gpu);
+        else
+            TestFormClearPreparationRetirement(gpu);
         return 0;
     }
     if (__argc == 4 && std::wstring_view(__wargv[1]) == L"--capture-rich-images")
@@ -1791,6 +1793,7 @@ __declspec(noinline) static int RunFunctionalTests()
     TestEmbeddedPreparationWakeWaitsForInput(gpu);
     TestTextFieldDirectPreparationRetirement(gpu);
     TestComboBoxDirectPreparationRetirement(gpu);
+    TestFormClearPreparationRetirement(gpu);
     TestMultilineCaretViewport(gpu);
     TestEmbeddedTextInput(gpu);
     TestEmbeddedTabHeaderPreparationAvoidsPaintWork(gpu);

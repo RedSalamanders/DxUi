@@ -21,6 +21,10 @@ static void TestEmbeddedPreparationWakeWaitsForInput(GraphicsFixture& gpu)
         explicit Probe(InputState& input) : TextField(L"Notebook"), state(input)
         {
         }
+        Probe(const Probe&)            = delete;
+        Probe& operator=(const Probe&) = delete;
+        Probe(Probe&&)                 = delete;
+        Probe& operator=(Probe&&)      = delete;
         bool OnKeyDown(ControlHost& host, UINT key, UINT) override
         {
             if (key != 'A')
@@ -103,6 +107,17 @@ static void TestEmbeddedPreparationWakeWaitsForInput(GraphicsFixture& gpu)
 static void TestTextFieldDirectPreparationRetirement(GraphicsFixture& gpu)
 {
     using namespace DxUi;
+    // Expose the protected host hooks only in this headless regression adapter.
+    struct Field final : TextField
+    {
+        using TextField::ExportTextInputState;
+        using TextField::ImportTextInputState;
+        using TextField::TextField;
+        Field(const Field&)            = delete;
+        Field& operator=(const Field&) = delete;
+        Field(Field&&)                 = delete;
+        Field& operator=(Field&&)      = delete;
+    };
     std::shared_ptr<GraphicsDevice> graphics;
     Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "direct TextField retirement graphics");
     for (const bool dispatched : {false, true})
@@ -131,7 +146,7 @@ static void TestTextFieldDirectPreparationRetirement(GraphicsFixture& gpu)
                 }};
                 Hr(view.Attach(graphics, callbacks), "attach direct TextField retirement fixture");
                 auto root   = std::make_unique<FlexPanel>();
-                auto* field = root->AddChild<TextField>(L"Notebook");
+                auto* field = root->AddChild<Field>(L"Notebook");
                 field->SetMultiline(action != 4u);
                 field->SetClearButtonEnabled(true);
                 Hr(root->SetChildOptions(field, {.constraints = {.minimumDip = {240.f, 100.f}, .maximumWidthDip = 240.f, .maximumHeightDip = 100.f}}),
@@ -146,7 +161,7 @@ static void TestTextFieldDirectPreparationRetirement(GraphicsFixture& gpu)
                         Check(field->OnKeyDown(view.Controls(), 'Z', MK_CONTROL), "seed direct redo history");
                 }
                 Hr(view.Prepare(320, 160), "consume setup wakes before direct mutation");
-                const auto lifetime = field->GetLifetimeToken();
+                const auto lifetime = GetControlLifetimeToken(*field);
                 if (action < 2u)
                 {
                     if (dispatched)
@@ -175,7 +190,7 @@ static void TestTextFieldDirectPreparationRetirement(GraphicsFixture& gpu)
                 else if (action == 2u || action == 3u)
                 {
                     wake.armed     = true;
-                    const auto key = action == 2u ? 'Z' : 'Y';
+                    const UINT key = action == 2u ? UINT{'Z'} : UINT{'Y'};
                     Check(dispatched ? view.DispatchKey(key, true, MK_CONTROL) : field->OnKeyDown(view.Controls(), key, MK_CONTROL),
                           "history mutation is consumed");
                 }
@@ -213,6 +228,16 @@ static void TestTextFieldDirectPreparationRetirement(GraphicsFixture& gpu)
 static void TestComboBoxDirectPreparationRetirement(GraphicsFixture& gpu)
 {
     using namespace DxUi;
+    struct Combo final : ComboBox
+    {
+        Combo() = default;
+        using ComboBox::ImportTextInputState;
+        using ComboBox::SupportsTextInput;
+        Combo(const Combo&)            = delete;
+        Combo& operator=(const Combo&) = delete;
+        Combo(Combo&&)                 = delete;
+        Combo& operator=(Combo&&)      = delete;
+    };
     std::shared_ptr<GraphicsDevice> graphics;
     Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "direct ComboBox retirement graphics");
     for (const bool retire : {false, true})
@@ -242,13 +267,13 @@ static void TestComboBoxDirectPreparationRetirement(GraphicsFixture& gpu)
             }}),
                "attach ComboBox retirement fixture");
             auto root   = std::make_unique<FlexPanel>();
-            auto* combo = root->AddChild<ComboBox>();
+            auto* combo = root->AddChild<Combo>();
             if (action != 0u)
                 combo->SetVariant(ComboBoxVariant::Edit);
             combo->SetText(L"Notebook");
             view.Controls().SetRoot(std::move(root));
             Hr(view.Prepare(320, 160), "prepare unfocused ComboBox before mutation");
-            const auto lifetime = combo->GetLifetimeToken();
+            const auto lifetime = GetControlLifetimeToken(*combo);
             wake.armed          = true;
             if (action == 0u)
                 combo->SetVariant(ComboBoxVariant::Edit);
@@ -263,6 +288,51 @@ static void TestComboBoxDirectPreparationRetirement(GraphicsFixture& gpu)
                 Check(combo->SupportsTextInput() && combo->GetText() == (action == 0u ? L"Notebook" : L"Changed notebook"),
                       "live ComboBox mutation retains editable policy and exact source");
         }
+}
+
+static void TestFormClearPreparationRetirement(GraphicsFixture& gpu)
+{
+    using namespace DxUi;
+    std::shared_ptr<GraphicsDevice> graphics;
+    Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "form clear retirement graphics");
+    for (const bool retire : {false, true})
+    {
+        struct Wake
+        {
+            ControlHost* controls{};
+            bool armed{}, retire{};
+            unsigned calls{};
+        } wake;
+        EmbeddedHost view;
+        wake.controls = &view.Controls();
+        wake.retire   = retire;
+        Hr(view.Attach(graphics,
+                       {.context = &wake,
+                        .requestPreparation =
+                            [](void* context) noexcept
+        {
+            auto& current = *static_cast<Wake*>(context);
+            if (std::exchange(current.armed, false))
+            {
+                ++current.calls;
+                if (current.retire)
+                    current.controls->SetRoot(nullptr);
+            }
+        }}),
+           "attach form clear retirement fixture");
+        auto root   = std::make_unique<FlexPanel>();
+        auto* field = root->AddChild<FormField>(L"Title");
+        view.Controls().SetRoot(std::move(root));
+        Hr(view.Prepare(320, 160), "prepare form without an editor");
+        const auto lifetime = GetControlLifetimeToken(*field);
+        wake.armed          = true;
+        field->ClearChildren();
+        Check(wake.calls == 1u && lifetime.expired() == retire && (view.Controls().GetRoot() == nullptr) == retire,
+              "form clear stops before accessibility synchronization after its measure wake retires it");
+        if (! retire)
+            Check(! field->GetEditor() && field->GetLabelControl() && field->GetLabelControl()->GetText() == L"Title",
+                  "live form clear preserves its built-in label part");
+    }
 }
 
 // Exercise real caret pixels on a supplied WARP surface, without an HWND or OS focus.
