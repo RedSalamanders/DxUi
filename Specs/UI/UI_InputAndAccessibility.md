@@ -17,6 +17,8 @@ are unchanged until the corresponding implementation and source-bound regression
   permission. Their spelling must not bypass that policy through a local-file classification. Applications
   continue to own fetching and permission; this policy grants no automatic network access.
 
+## Current input contract
+
 RichTextEditor local-fragment links expose Invoke and support Ctrl+click or Ctrl+Enter at the
 source caret. External links expose Invoke only while an activation handler is registered. A current, enabled, non-composing semantic publication is required;
 read-only editors permit navigation. External destinations invoke
