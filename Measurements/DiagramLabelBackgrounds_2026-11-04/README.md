@@ -47,6 +47,29 @@ compare the same synthetic state diagram at Light/Dark and 96/192 DPI. All eight
 background samples exactly equal their unchanged neighboring canvas. The old API-4 `8c6c2818` executable
 differs in all eight samples. Consumer acceptance does not advance any other application's pin.
 
+## Hosted Release follow-up
+
+[Main qualification 41849905967](https://github.com/RedSalamanders/DxUi/actions/runs/41849905967) passes at
+`ab850a40e1026cdbbf62153db9a0a55156d2775c`, retaining the API-4 implementation above. Native x64 executes
+all 23 selected suites: the 21-suite ordinary union plus `MenuResourceScaling` and `MenuTextLayoutResources`.
+Native ARM64 executes all 21 ordinary suites. Both roles report zero failures/skips and successful Release
+assertion probes. Downloaded original canonical receipts match every hash in the hosted regression metadata.
+
+The combined test gate, both production SDK roles and workflow completion pass. Each SDK archive reports
+test mode disabled and a successful extracted-consumer smoke. The downloaded ZIPs match their receipt sizes
+and SHA-256 values:
+
+| Archive | SHA-256 |
+| --- | --- |
+| `DxUi-SDK-0.1.1546-x64.zip` | `0C573CA05BCA86D2A300DE002F9F1FDB44D56D74AF38F1FFFE7234E47CB226FE` |
+| `DxUi-SDK-0.1.1546-ARM64.zip` | `E990D47185D55126C33B4872A4FD3C7A6C90F52B502804E8B71EA815B9681AE2` |
+
+Original regression metadata, canonical receipts and SDK ZIPs remain in the approved private evidence workspace.
+This later hosted record supplies native ARM64 Release execution; it does not retag the earlier local cross-build
+matrix. Optional ARM64 menu-resource fixtures, other runtime profiles, physical input/device behavior, paired
+performance, notice reconciliation and consumer migrations retain their existing owners. The SDKs are internal
+qualification artifacts; this record does not publish a release or adopt API 5.
+
 ## Retained failures and limits
 
 The first two raster attempts had incorrect group-containment expectations. Independent native geometry
@@ -65,5 +88,5 @@ path-dependent observations; the failed long-root aggregate is not reported as a
 
 Raw runs, logs, binaries/symbols and verified preservation manifests remain private. Functional raster/resource
 checks and ordinary unpaired FPS/memory observations do not establish paired performance, physical input,
-native ARM64 runtime or product-wide release acceptance. These gates stay with the
+additional native runtime profiles or product-wide release acceptance. These gates stay with the
 [single active plan](../../Specs/Plans/WIP/RemainingWork_2026-11-04.md).
