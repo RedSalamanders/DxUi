@@ -5,24 +5,33 @@ views. It declines during active composition or an uncommitted text-service prev
 disabled state, without consuming the preview or adding history. A successful explicit Insert action applies
 one source transaction and one text notification; menu/toolbar transport retains selection and focus ownership.
 
-## Selected policies awaiting implementation
+## Selected paste policy awaiting implementation
 
 Owner decisions of 5 November 2026 define the intended remaining behavior below. Current capability claims
 are unchanged until the corresponding implementation and source-bound regressions close in
 [the active plan](../Plans/WIP/RemainingWork_2026-11-04.md).
 
-- Source-region editing permits natural navigation and edits across a previous active interval. Backspace,
-  Delete, Tab and other source commands must not trap the caret at an old region boundary. Reconcile the
-  editing scope from the current caret/selection while preserving source ACP, Unicode, undo, composition and
-  read-only rules. The older proposal to contain every edit inside one region is superseded.
 - When both Unicode text and a bitmap are available, default paste prefers text. Applications may explicitly
   opt into image-first priority. Declined image handling preserves source and selection; current clipboard
   ownership, stale-request and one-transaction rules continue to apply.
-- Image destinations `//host/...` and `file://host/...` are network requests subject to remote-image
-  permission. Their spelling must not bypass that policy through a local-file classification. Applications
-  continue to own fetching and permission; this policy grants no automatic network access.
 
 ## Current input contract
+
+Source-region editing permits natural navigation and edits across a previous active interval. Grapheme and
+word Backspace/Delete may cross its edges in one source transaction. The former presentation retires on a
+crossing edit or outside selection; ordinary rich navigation resumes at the current caret. Multiline code
+indentation uses parser-owned content starts and preserves quote/list prefixes, Unicode, terminators, oriented
+selection and history. The older proposal to contain every edit inside one region is superseded.
+
+Network image permission also covers UNC paths, `//host/...`, authority-bearing file URLs and relative images
+under a UNC base. They produce separately classified `NetworkFile` requests only after opt-in, with an empty
+local-only `FilePath()` accessor. Revocation cancels their jobs and pixels immediately. Applications own any
+transport, permission and unsupported-location refusal; lexical classification grants no network access.
+
+TextField, editable ComboBox and RichTextEditor preserve a buffered UTF-16 lead across `VK_PACKET` and bare
+modifier transitions. They publish the matched scalar once and retain one-step Undo/Redo. Editing/navigation,
+focus loss, text replacement, read-only transitions and non-trail character input keep cancelling a pending lead.
+Native key/character messages and supplied-device dispatch obey the same rule without taking desktop focus.
 
 RichTextEditor local-fragment links expose Invoke and support Ctrl+click or Ctrl+Enter at the
 source caret. External links expose Invoke only while an activation handler is registered. A current, enabled, non-composing semantic publication is required;

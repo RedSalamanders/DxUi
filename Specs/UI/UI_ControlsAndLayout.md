@@ -669,6 +669,10 @@ Tree expansion and collapse retain their model, selection, focus, delegate and a
 ### TextField supplementary character input
 
 Character input buffers a UTF-16 lead surrogate privately until its matching trail arrives, then inserts and publishes the complete pair as one edit. An orphan trail is consumed without changing text. Caret or selection commands, pointer input, focus changes, text replacement, text-store imports and read-only transitions cancel a pending lead; no change callback or accessibility publication exposes it alone.
+`VK_PACKET` key-down/key-up and bare Shift/Ctrl/Alt/Windows modifier transitions preserve that pending lead in
+TextField, editable ComboBox and RichTextEditor. Each Unicode unit's packet transition is transport rather than
+an editing command. Native message and embedded dispatch preserve the same order and commit one whole scalar;
+navigation/erase/undo/paste/Enter and non-trail characters retain their cancellation rules.
 ### Grid keyboard paging and column identity
 
 Page Up and Page Down use the body viewport height and prepared row/group geometry, with at least one-row progress where possible. Unhandled keys return before querying the model or enumerating rows. A model refresh compares the cached column IDs; when those identities change, widths, display order and current-cell index are rebuilt for the new columns rather than retained by position.

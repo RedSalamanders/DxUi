@@ -5848,7 +5848,8 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
     {
         if (! IsEnabled())
             return false;
-        _state->pendingLeadSurrogate = 0;
+        if (! KeyKeepsPendingSurrogate(key))
+            _state->pendingLeadSurrogate = 0;
         const bool control = ModifiersContainCtrl(modifiers), shift = ModifiersContainShift(modifiers);
         _state->suppressTaskSpace = false;
         if (_state->taskFocusIntent)
