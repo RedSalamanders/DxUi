@@ -788,9 +788,8 @@ template <typename Check> inline void CheckFamilyGrammar(Check&& check)
         const auto source = std::wstring(L"classDiagram\nA ") + op + L" B\n";
         parser.Begin(source, 1u);
         const auto result = Complete(parser);
-        check(result->outcome == FlowchartOutcome::Prepared && result->edges.size() == 1u && result->edges[0].from == 0u &&
-                  result->edges[0].to == 1u && result->edges[0].markerAtStart == reverse && result->edges[0].relation == relation &&
-                  result->edges[0].style == style,
+        check(result->outcome == FlowchartOutcome::Prepared && result->edges.size() == 1u && result->edges[0].from == 0u && result->edges[0].to == 1u &&
+                  result->edges[0].markerAtStart == reverse && result->edges[0].relation == relation && result->edges[0].style == style,
               "composition and aggregation preserve authored node order, their diamond endpoint and line style independently");
     }
     parser.Begin(L"classDiagram\nA : +size: int\nA : +draw()\nA : +other: int\n<<interface>> A\n", 1u);
