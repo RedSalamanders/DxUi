@@ -20,8 +20,10 @@ the binding change is not an edit and emits no committed text notification. Reta
 and callbacks, publish the incoming selection, and invalidate outgoing semantic/layout/image work even
 when the two documents have equal numeric revisions. Disabled/read-only input, active native composition
 or a transient preview in either document refuses atomically. Clear source-region presentation on exchange.
-Applications own file metadata, document limits, derived views and persistence. A selection notification
-may retire the control after the exchange commits; do not read it afterward.
+Applications own file metadata, document limits, derived views and persistence. Publish the incoming selection
+even when its ACP endpoints, gesture state and numeric revision equal those of the outgoing document;
+selection publication identity includes the document binding. A selection notification may retire the
+control after the exchange commits; do not read it afterward.
 
 Control continuations after synchronous preparation, text notification or accessibility publication must
 recheck their weak lifetime before member access. TextField imports/history/clear/caret paths and ComboBox

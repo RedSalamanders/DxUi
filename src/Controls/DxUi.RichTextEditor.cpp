@@ -551,6 +551,7 @@ struct RichTextEditor::State
     RichText::Selection publishedSelection{};
     bool publishedSelectionGesture      = false;
     uint64_t publishedSelectionRevision = 0u;
+    uint64_t publishedSelectionBinding  = 0u;
     uint64_t typographyRevision         = 0;
     uint64_t appearanceRevision         = 0;
     uint64_t bindingRevision            = 0;
@@ -3231,13 +3232,15 @@ void RichTextEditor::PublishSelectionChanged() noexcept
     const auto selection = GetSelection();
     const bool gesture   = _state->dragging;
     const auto revision  = Revision();
-    if (_state->publishedSelection == selection && _state->publishedSelectionGesture == gesture && _state->publishedSelectionRevision == revision)
+    if (_state->publishedSelection == selection && _state->publishedSelectionGesture == gesture && _state->publishedSelectionRevision == revision &&
+        _state->publishedSelectionBinding == _state->bindingRevision)
         return;
     // Publish before invoking user code: nested selection changes must see their
     // actual predecessor, and self-replacement cannot invalidate this delegate.
     _state->publishedSelection         = selection;
     _state->publishedSelectionGesture  = gesture;
     _state->publishedSelectionRevision = revision;
+    _state->publishedSelectionBinding  = _state->bindingRevision;
     const auto callback                = _state->onSelectionChanged;
     if (! callback)
         return;

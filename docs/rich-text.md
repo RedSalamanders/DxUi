@@ -24,7 +24,8 @@ contain NUL, line endings or backticks. Existing structural Markdown commands re
 Use `RichTextEditor::ExchangeDocumentState` with an application-owned `RichText::Document` to switch the
 active document without clearing Undo/Redo. The exchange retains both exact immutable sources, oriented
 selections and complete history branches. It creates no source edit or committed text callback; selection
-publication follows the new binding. The application retains each file's path, encoding, saved baseline and
+publication follows the new binding, including when both documents have identical selection endpoints and
+numeric revisions. The application retains each file's path, encoding, saved baseline and
 recovery identity separately, and refreshes its derived views after a successful exchange.
 
 Only call on the owner thread. Disabled/read-only input or a transient text-service preview in either
