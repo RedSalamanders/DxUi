@@ -190,7 +190,7 @@ static void TestTextFieldDirectPreparationRetirement(GraphicsFixture& gpu)
                 else if (action == 2u || action == 3u)
                 {
                     wake.armed     = true;
-                    const UINT key = action == 2u ? UINT{'Z'} : UINT{'Y'};
+                    const UINT key = static_cast<UINT>(action == 2u ? 'Z' : 'Y');
                     Check(dispatched ? view.DispatchKey(key, true, MK_CONTROL) : field->OnKeyDown(view.Controls(), key, MK_CONTROL),
                           "history mutation is consumed");
                 }
@@ -321,7 +321,7 @@ static void TestFormClearPreparationRetirement(GraphicsFixture& gpu)
         }}),
            "attach form clear retirement fixture");
         auto root   = std::make_unique<FlexPanel>();
-        auto* field = root->AddChild<FormField>(L"Title");
+        auto* field = root->AddChild<FormField>(L"title", L"Title");
         view.Controls().SetRoot(std::move(root));
         Hr(view.Prepare(320, 160), "prepare form without an editor");
         const auto lifetime = GetControlLifetimeToken(*field);
