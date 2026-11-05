@@ -210,6 +210,61 @@ static void TestTextFieldDirectPreparationRetirement(GraphicsFixture& gpu)
             }
 }
 
+static void TestComboBoxDirectPreparationRetirement(GraphicsFixture& gpu)
+{
+    using namespace DxUi;
+    std::shared_ptr<GraphicsDevice> graphics;
+    Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "direct ComboBox retirement graphics");
+    for (const bool retire : {false, true})
+        for (unsigned action = 0u; action < 3u; ++action)
+        {
+            struct Wake
+            {
+                ControlHost* controls{};
+                bool armed{}, retire{};
+                unsigned calls{};
+            } wake;
+            EmbeddedHost view;
+            wake.controls = &view.Controls();
+            wake.retire   = retire;
+            Hr(view.Attach(graphics,
+                           {.context = &wake,
+                            .requestPreparation =
+                                [](void* context) noexcept
+            {
+                auto& current = *static_cast<Wake*>(context);
+                if (std::exchange(current.armed, false))
+                {
+                    ++current.calls;
+                    if (current.retire)
+                        current.controls->SetRoot(nullptr);
+                }
+            }}),
+               "attach ComboBox retirement fixture");
+            auto root   = std::make_unique<FlexPanel>();
+            auto* combo = root->AddChild<ComboBox>();
+            if (action != 0u)
+                combo->SetVariant(ComboBoxVariant::Edit);
+            combo->SetText(L"Notebook");
+            view.Controls().SetRoot(std::move(root));
+            Hr(view.Prepare(320, 160), "prepare unfocused ComboBox before mutation");
+            const auto lifetime = combo->GetLifetimeToken();
+            wake.armed          = true;
+            if (action == 0u)
+                combo->SetVariant(ComboBoxVariant::Edit);
+            else if (action == 1u)
+                Check(combo->ImportTextInputState(view.Controls(), {.text = L"Changed notebook", .caretIndex = 16u}, true) == ! retire,
+                      "ComboBox import reports retirement without accessing the removed control");
+            else
+                combo->SetTextAndNotify(L"Changed notebook");
+            Check(wake.calls == 1u && lifetime.expired() == retire && (view.Controls().GetRoot() == nullptr) == retire,
+                  "ComboBox setters and imports safely stop after synchronous retirement");
+            if (! retire)
+                Check(combo->SupportsTextInput() && combo->GetText() == (action == 0u ? L"Notebook" : L"Changed notebook"),
+                      "live ComboBox mutation retains editable policy and exact source");
+        }
+}
+
 // Exercise real caret pixels on a supplied WARP surface, without an HWND or OS focus.
 static void TestMultilineCaretViewport(GraphicsFixture& gpu)
 {
