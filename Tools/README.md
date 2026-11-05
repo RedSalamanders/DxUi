@@ -17,6 +17,11 @@ status. Callers still use fresh-process completion or immediate invocation succe
 is one. Build, performance and native preflights precede the batch. Foreground suites keep their serial lease.
 Each child has its own raw stdout/stderr and combined suite log, and normal suite receipts and artifact ownership
 still apply. Passing `-ParallelSuites` directly selects the lower-level suite runner; use `-Full` to make full scope explicit.
+Benchmark native-input discovery retains the exact `ScopedTesting.psm1` instance imported beside its own
+`PerformancePolicy.psm1`. A paired process may load another checkout's module with the same name; that
+module cannot redirect discovery or turn a module-name lookup into an ambiguous command. The regression
+loads a second, hostile module and compares the complete native closure with its independent pre-import result.
+
 Canonical benchmark output retains its logical evidence path; only the native Windows argv uses
 an idempotent extended-length drive/UNC spelling, including long Unicode paths. The v2 gates and failures remain unchanged.
 The independent Windows tooling job allows 20 minutes for compiler preparation, all tooling (including real paired-project
