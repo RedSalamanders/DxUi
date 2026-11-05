@@ -10,6 +10,7 @@
 #include <iostream>
 #include <limits>
 #include <tuple>
+#include <utility>
 
 #if DXUI_ENABLE_DIAGNOSTICS
 namespace DxUi::RichText::Detail
@@ -188,8 +189,135 @@ inline std::wstring Matrix(unsigned rows, unsigned columns)
     }
     return source + L"\\end{matrix}";
 }
+template <typename Check> void AccentAndGatheredGeometry(IDWriteFactory* factory, Check&& check)
+{
+    const auto complete = [&](Detail::PreparedMath& math)
+    {
+        std::size_t turns{};
+        while (! math.Advance())
+            check(++turns < MathMaximumNodes + 1u, "reported mathematical regressions finish bounded preparation");
+    };
+    const auto glyphBounds = [&](const auto& glyph)
+    {
+        DWRITE_OVERHANG_METRICS overhang{};
+        DWRITE_TEXT_METRICS metrics{};
+        check(SUCCEEDED(glyph.layout->GetOverhangMetrics(&overhang)) && SUCCEEDED(glyph.layout->GetMetrics(&metrics)),
+              "the independent ink oracle reads actual shaped DirectWrite metrics");
+        return std::pair{glyph.origin.y - overhang.top, glyph.origin.y + metrics.height + overhang.bottom + glyph.font * .01f};
+    };
+    for (const bool display : {false, true})
+    {
+        for (const auto name : {L"aligned", L"gathered"})
+        {
+            const auto source = std::wstring(L"\\begin{") + name + L"}\\frac{a}{b}\\end{" + name + L"}";
+            Detail::PreparedMath math(factory, std::make_shared<const MathExpression>(ParseMath(source)), 24.f, display);
+            complete(math);
+            check(math.GlyphLayouts().size() == 2u &&
+                      std::ranges::all_of(math.GlyphLayouts(), [](const auto& glyph) { return std::abs(glyph.font - 24.f) < .001f; }),
+                  "aligned and gathered fractions use display-style cells independently of the surrounding style");
+        }
+        Detail::PreparedMath stacked(factory, std::make_shared<const MathExpression>(ParseMath(L"\\substack{a\\\\b}")), 24.f, display);
+        Detail::PreparedMath script(factory, std::make_shared<const MathExpression>(ParseMath(L"\\scriptstyle a")), 24.f, display);
+        complete(stacked);
+        complete(script);
+        check(stacked.GlyphLayouts().size() == 2u && script.GlyphLayouts().size() == 1u &&
+                  std::ranges::all_of(stacked.GlyphLayouts(), [&](const auto& glyph) { return std::abs(glyph.font - script.GlyphLayouts()[0u].font) < .001f; }),
+              "substack stays a centered script-style subarray when gathered cells gain display style");
+    }
+    for (const auto family : {L"Cambria Math", L"Segoe UI"})
+        for (const float font : {16.f, 24.f, 48.f})
+            for (const float dpi : {96.f, 144.f, 192.f})
+                for (const auto source :
+                     {L"\\widehat{ABC}", L"\\widetilde{XYZ}", L"\\overline{a+b}", L"\\underline{x_i}", L"\\vec{v}", L"\\dot{x}", L"\\ddot{x}"})
+                {
+                    const auto expression = std::make_shared<const MathExpression>(ParseMath(source));
+                    check(static_cast<bool>(*expression), "the reported accent sources are admitted exactly");
+                    auto formats = std::make_shared<Detail::MathTextFormats>(factory, family);
+                    Detail::PreparedMath math(factory, expression, font, false, nullptr, dpi, std::move(formats));
+                    complete(math);
+                    float textTop = std::numeric_limits<float>::max(), textBottom = -textTop;
+                    for (const auto& glyph : math.GlyphLayouts())
+                    {
+                        const auto [top, bottom] = glyphBounds(glyph);
+                        textTop                  = std::min(textTop, top);
+                        textBottom               = std::max(textBottom, bottom);
+                    }
+                    float markTop = std::numeric_limits<float>::max(), markBottom = -markTop;
+                    for (const auto& line : math.StrokeLayouts())
+                    {
+                        markTop    = std::min(markTop, std::min(line.first.y, line.last.y) - line.thickness * .5f);
+                        markBottom = std::max(markBottom, std::max(line.first.y, line.last.y) + line.thickness * .5f);
+                        if (line.dot)
+                            check(line.thickness >= std::max(1.4f, font * .10f), "math dots retain a visible filled diameter at every size and DPI");
+                    }
+                    for (const auto& variant : math.VariantLayouts())
+                    {
+                        markTop    = std::min(markTop, variant.top);
+                        markBottom = std::max(markBottom, variant.top + variant.height);
+                    }
+                    const bool below = std::wstring_view(source).starts_with(L"\\underline");
+                    const auto gap   = below ? markTop - textBottom : textTop - markBottom;
+                    check(std::isfinite(gap) && gap >= font * .025f && gap <= font * .18f,
+                          "accent ink stays close to the actual letters with a remaining non-touching gap");
+                    if (std::wstring_view(source).starts_with(L"\\widetilde") && math.VariantLayouts().empty())
+                    {
+                        unsigned turns{};
+                        int previous{};
+                        for (const auto& line : math.StrokeLayouts())
+                        {
+                            const auto delta = line.last.y - line.first.y;
+                            if (std::abs(delta) <= font * .0001f)
+                                continue;
+                            const int direction = delta > 0.f ? 1 : -1;
+                            turns += previous && previous != direction;
+                            previous = direction;
+                        }
+                        check(turns == 2u, "a fallback wide tilde has one smooth crest and trough rather than a repeated zigzag");
+                    }
+                }
+    constexpr auto gathered = L"\\begin{gathered}\\mathbf{u}=\\begin{pmatrix}u_1\\\\u_2\\end{pmatrix},\\quad"
+                              L"\\mathbf{v}=\\begin{pmatrix}v_1\\\\v_2\\end{pmatrix}\\\\"
+                              L"\\left\\langle\\mathbf{u},\\mathbf{v}\\right\\rangle=u_1v_1+u_2v_2\\end{gathered}";
+    for (const bool display : {false, true})
+        for (const float font : {16.f, 24.f, 48.f})
+        {
+            const auto expression = std::make_shared<const MathExpression>(ParseMath(gathered));
+            check(*expression && expression->root.children.size() == 1u && expression->root.children[0u].kind == MathKind::Matrix &&
+                      expression->root.children[0u].children.size() == 2u,
+                  "the reported gathered vectors retain two exact source-owned rows");
+            const auto& rows    = expression->root.children[0u].children;
+            const auto contains = [](const auto& self, const MathNode& node, const MathNode* target) -> bool
+            {
+                if (&node == target)
+                    return true;
+                return std::ranges::any_of(node.children, [&](const auto& child) { return self(self, child, target); });
+            };
+            Detail::PreparedMath math(factory, expression, font, display);
+            complete(math);
+            float firstBottom = -std::numeric_limits<float>::max(), secondTop = -firstBottom;
+            for (const auto& glyph : math.GlyphLayouts())
+            {
+                const auto [top, bottom] = glyphBounds(glyph);
+                if (contains(contains, rows[0u], glyph.node))
+                    firstBottom = std::max(firstBottom, bottom);
+                else if (contains(contains, rows[1u], glyph.node))
+                    secondTop = std::min(secondTop, top);
+            }
+            check(secondTop - firstBottom >= font * .12f && math.Size().height < font * 6.f,
+                  "nested matrices use compact rows and leave a real gap before the inner-product equation");
+            const auto between = (firstBottom + secondTop) * .5f;
+            for (const auto& variant : math.VariantLayouts())
+                check(variant.top + variant.height < between || variant.top > between,
+                      "native matrix and angle delimiter ink never spans the gap between gathered rows");
+            for (const auto& stroke : math.StrokeLayouts())
+                check(std::max(stroke.first.y, stroke.last.y) + stroke.thickness * .5f < between ||
+                          std::min(stroke.first.y, stroke.last.y) - stroke.thickness * .5f > between,
+                      "fallback delimiter strokes never cross the gathered-row gap");
+        }
+}
 template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
 {
+    AccentAndGatheredGeometry(factory, check);
     PinnedSupportRows(factory, check);
     MathFontTableTests::Run(check);
     {
@@ -2015,7 +2143,7 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
     {
         const auto stacked = ParseMath(source);
         check(stacked && stacked.root.children.size() == 1u && stacked.root.children[0u].kind == MathKind::Matrix &&
-                  stacked.root.children[0u].text == L"gathered" && stacked.root.children[0u].columns == 1u && stacked.root.children[0u].children.size() == 2u,
+                  stacked.root.children[0u].text == L"subarray:c" && stacked.root.children[0u].columns == 1u && stacked.root.children[0u].children.size() == 2u,
               "substack lays out centered one-column rows and tolerates a trailing row separator");
     }
     check(static_cast<bool>(ParseMath(L"\\sum_{\\substack{i=0\\\\j=1}}")) && ! ParseMath(L"\\substack{a&b}") && ! ParseMath(L"\\substack{a\\\\b"),

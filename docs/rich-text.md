@@ -1608,6 +1608,17 @@ backlinks. Keyboard traversal and guarded note-aware structural planning are imp
 
 ## Native in-document mathematics and broader diagrams
 
+Class-diagram direction follows the written relationship order. For `classDiagram`, `direction LR`,
+`Document <|-- Markdown`, Document is left of Markdown and the hollow triangle points at Document.
+The marker does not reverse the diagram. Pipeline flowcharts align independent inputs near their shared
+successor, give plain fan-in separate box attachments, and keep long links on the nearer outer side.
+Dense joins and labeled routes retain their own clearance.
+
+Math accents sit close to the visible letters with a remaining gap; dots stay visible and a wide-tilde
+fallback uses a smooth wave. Nested matrices and paired delimiters use visible ink for spacing, including
+gathered vector/inner-product examples. Aligned/gathered/alignat cells use display style in both inline and
+display formulas. `\substack` remains a centered script-style subarray; explicit style commands still work.
+
 Styled Mermaid labels retain valid style ranges after unquoted trailing-space trimming. ER/class fan-in and
 fan-out relationships reserve separate endpoint slots and measured cardinality space; unsupported or genuinely
 over-capacity geometry still retains exact source. Task checkboxes replace unordered bullets, while ordered

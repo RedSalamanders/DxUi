@@ -2628,6 +2628,19 @@ Original source, delimiters, CRLF,
 selection and history remain authoritative; one successful formula owns one atomic
 native display position and a `SemanticRole::Math` child named with its TeX notation.
 
+Math decorations use the shaped child's visible ink, leaving a small gap instead of positioning against the
+font's full line box. This applies to over/under bars, hats, tildes, vectors and dots. Dots are filled and keep
+a visible diameter across font sizes and DPI; wide-tilde fallback is one smooth wave. Compatible horizontal
+MATH variants fit the reserved accent band and retain the gap. Matrix measurement and placement share the
+same row-ink metrics and minimum strut, including nested matrices in gathered rows. A following row must
+clear the actual matrix/delimiter ink; paired delimiters size to visible content rather than unused font
+ascent/descent. Retain authored row spacing, original TeX, source editing, selection and history.
+
+Aligned, gathered and alignat cells use display style independently of the enclosing inline/display mode.
+Their admitted environment aliases follow the same rule. Explicit cell style declarations still take
+precedence. Ordinary matrix/array/cases cells retain text style; smallmatrix and subarray retain script
+style. `\substack` uses a centered script-style subarray and is distinct from gathered.
+
 `RichMath.h` exposes the data-only `ParseMath` model. Supported notation includes
 fractions (`frac`, `dfrac`, `tfrac`), indexed roots, simultaneous scripts, Greek and
 operator symbols, named functions, text/operator names (including bold and italic
@@ -2735,11 +2748,21 @@ use a dotted connection and expose their target and text in the graph alternativ
 Simple `namespace Name { ... }` groups, nested at most four levels, use the
 shared bounded group layout; identifiers remain globally unique, and group
 overlap or unsupported namespace syntax retains source with a diagnostic.
-State/class layouts use the deterministic native graph router; members are plain
-multiline node labels. Inheritance uses the native triangle arrow. This is not
-Mermaid coordinate compatibility. Advanced composite-state syntax, nested class generics,
-class compartments, relationship multiplicities, other stereotypes, styling,
-interaction directives and other diagram families remain exact fenced source.
+State/class layouts use the deterministic native graph router. Class direction applies to authored
+relationship order independently of the marker endpoint: `direction LR` and `Document <|-- Markdown`
+place Document on the left, Markdown on the right and the hollow triangle at Document. Apply the same
+separation in TB/BT/RL, realization, aggregation and composition. Cardinalities stay at their authored
+endpoints; the accessible alternative continues to describe the directed relationship, such as Markdown
+inheriting Document. The bounded compartment, multiplicity, style and composite contracts below define
+admitted extensions. Unsupported nested class generics, directives and diagram families retain exact source.
+
+Ungrouped acyclic flowcharts may move a node into its latest feasible rank while retaining every minimum
+link length and authored node identity. This aligns independent pipeline inputs beside their common
+successor. Plain joins/forks use distinct ordered slots on flat-sided boxes and shared empty rank
+corridors. Long dependencies choose the outer side nearest their endpoints. Dense many-to-many joins,
+labels, groups, curved/sloping shared boundaries and cycles retain their bounded separate-lane routes;
+compaction must not merge unrelated lines or shrink measured label clearance. Cooperative work budgets
+and deterministic results across chunk sizes remain mandatory.
 Invisible edge labels remain unsupported. Other flowchart grammar and source-provenance rules remain unchanged.
 
 Aligned rows alternate right-aligned left operands and left-aligned right operands at each ampersand pair. Cases use left-aligned expression/condition columns (at most two); ordinary matrices center their columns. Gathered rows have one column. Geometry tests compare the actual cached glyph positions consumed by drawing.

@@ -627,8 +627,10 @@ inline std::wstring ModelSignature(const FlowchartModel& model)
     result.push_back(L'|');
     for (const auto& edge : model.edges)
     {
-        result.append(std::to_wstring(edge.from)).push_back(L'>');
-        result.append(std::to_wstring(edge.to)).push_back(L':');
+        // This independent corpus describes directed relationships. Authored
+        // layout order is checked separately by the native geometry fixtures.
+        result.append(std::to_wstring(edge.markerAtStart ? edge.to : edge.from)).push_back(L'>');
+        result.append(std::to_wstring(edge.markerAtStart ? edge.from : edge.to)).push_back(L':');
         result.push_back(edge.relation == FlowchartRelation::Inheritance   ? L'I'
                          : edge.relation == FlowchartRelation::Aggregation ? L'G'
                          : edge.relation == FlowchartRelation::Composition ? L'C'
