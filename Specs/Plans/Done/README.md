@@ -2,6 +2,8 @@
 
 ## Completed scopes — 5 November 2026
 
+- [Selected blocks and embedded input lifetime](SelectionBlocksAndInputLifetime_2026-11-05.md) — shared selection transformation, deferred input wakes and direct-control retirement guards; six builds, 57 suite executions and original sanitizer counterexamples. Consumer/physical acceptance retains its own scope.
+
 - [SDK data notices and license closure](SdkDataNotices_2026-11-05.md) — full Unicode/WHATWG notices, usable packaged links, independent byte/set/extraction guards, CI dependency closure and actual x64 production/extracted-consumer qualification; broader acceptance remains in WIP.
 
 ## Consolidated records — 4 November 2026
