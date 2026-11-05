@@ -1,1 +1,0 @@
-- Record the selected natural source navigation, text-first paste with application image priority, and network-gated image URL policies; implementation remains tracked in the active plan.

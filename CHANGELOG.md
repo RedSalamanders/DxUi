@@ -4,6 +4,7 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Record the selected natural source navigation, text-first paste with application image priority, and network-gated image URL policies; implementation remains tracked in the active plan.
 - Include the full Unicode and WHATWG data notices in SDK ZIPs, fix packaged license links, and verify the exact license set and file hashes before and after extraction.
 - Record successful native x64/ARM64 Release qualification, assertion probes and byte-verified SDK ZIP smoke at main `ab850a40`; reconcile RedTilde's repaired main gate while retaining physical, other-profile, performance, licensing and consumer-migration work.
 - Blend diagram arrow-label backgrounds into their canvas when contrast permits, stage minimal neutral contrast fallbacks, and preserve note/group/selection surfaces without paint-time layout or resource creation; retire retained label brushes with their layout before a later source revision.
