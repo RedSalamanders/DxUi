@@ -3549,6 +3549,10 @@ public:
     // Programmatic edit commands obey read-only/disabled state. Only successful
     // source changes notify; selection, mode and SetText updates are silent.
     bool ReplaceSelection(std::wstring text);
+    // Wrap the exact nonempty source selection as a quote or fenced code block.
+    // Other block kinds, invalid language, capacity, read-only and composition
+    // refuse without changing source/history. Available in Rich and Source modes.
+    bool WrapSelectionInMarkdownBlock(RichText::MarkdownBlockKind kind, std::wstring_view codeLanguage = {});
     // Revision/snapshot-guarded source plan, committed as one undoable edit.
     // The same editable, cancellation, text-store and notification guards as
     // ReplaceSelection apply. No-op plans may silently update selection.

@@ -1,7 +1,397 @@
 #include <algorithm>
+#include <format>
+#include <functional>
 #include <stdexcept>
 #include <thread>
 #include <utility>
+
+// The scheduling callback may retire the tree, but must observe the completed
+// outer input transaction rather than destroy a control halfway through it.
+static void TestEmbeddedPreparationWakeWaitsForInput(GraphicsFixture& gpu)
+{
+    using namespace DxUi;
+    struct InputState
+    {
+        EmbeddedHost* view{};
+        ControlHost* controls{};
+        bool armed{}, inside{}, wokeInside{};
+        unsigned wakes{}, characters{};
+        std::function<void()> duringKey;
+        ControlHost* otherControls{};
+        unsigned otherWakes{};
+        bool otherWokeInside{};
+    };
+    struct Probe final : TextField
+    {
+        InputState& state;
+        explicit Probe(InputState& input) : TextField(L"Notebook"), state(input)
+        {
+        }
+        Probe(const Probe&)            = delete;
+        Probe& operator=(const Probe&) = delete;
+        Probe(Probe&&)                 = delete;
+        Probe& operator=(Probe&&)      = delete;
+        bool OnKeyDown(ControlHost& host, UINT key, UINT) override
+        {
+            if (key != 'A')
+                return false;
+            auto& input  = state;
+            input.inside = true;
+            Invalidate(host);
+            if (input.duringKey)
+                input.duringKey();
+            // A nested input call must not flush the outer call's wake.
+            static_cast<void>(input.view->DispatchCharacter(L'x'));
+            input.inside = false;
+            return true;
+        }
+        bool OnChar(ControlHost& host, wchar_t, UINT) override
+        {
+            auto& input      = state;
+            const bool outer = std::exchange(input.inside, true);
+            ++input.characters;
+            Invalidate(host);
+            host.RequestAnimation();
+            input.inside = outer;
+            return true;
+        }
+        bool OnMouseDown(ControlHost& host, D2D1_POINT_2F, bool, UINT) override
+        {
+            auto& input  = state;
+            input.inside = true;
+            Invalidate(host);
+            host.RequestAnimation();
+            input.inside = false;
+            return true;
+        }
+    };
+    std::shared_ptr<GraphicsDevice> graphics;
+    Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "input wake graphics");
+    for (unsigned route = 0u; route < 6u; ++route)
+    {
+        InputState state;
+        EmbeddedHost view;
+        EmbeddedHost otherView;
+        state.view     = &view;
+        state.controls = &view.Controls();
+        const EmbeddedCallbacks callbacks{.context            = &state,
+                                          .requestPreparation = [](void* context) noexcept
+        {
+            auto& input = *static_cast<InputState*>(context);
+            if (! std::exchange(input.armed, false))
+                return;
+            ++input.wakes;
+            input.wokeInside = input.inside;
+            input.controls->SetRoot(nullptr);
+        }};
+        Hr(view.Attach(graphics, callbacks), "attach input wake fixture");
+        auto field        = std::make_unique<Probe>(state);
+        auto* const probe = field.get();
+        probe->SetBounds(D2D1::RectF(0, 0, 240, 100));
+        view.Controls().SetRoot(std::move(field));
+        Hr(view.Prepare(320, 160), "prepare input wake fixture");
+        view.Controls().SetFocusControl(probe);
+        Hr(view.Prepare(320, 160), "consume focus wake before input");
+        static_cast<void>(view.DispatchKey(VK_SHIFT, true));
+        Hr(view.Prepare(320, 160), "settle keyboard modality before arming retirement");
+        if (route == 4u)
+            state.duringKey = [&]
+            {
+                view.Detach();
+                Hr(view.Attach(graphics, callbacks), "reattach during an outer input callback");
+                auto replacement = std::make_unique<Probe>(state);
+                auto* successor  = replacement.get();
+                successor->SetBounds(D2D1::RectF(0, 0, 240, 100));
+                view.Controls().SetRoot(std::move(replacement));
+                Hr(view.Prepare(320, 160), "prepare replacement attachment during input");
+                view.Controls().SetFocusControl(successor);
+                Hr(view.Prepare(320, 160), "prepare replacement logical focus");
+            };
+        else if (route == 5u)
+        {
+            state.otherControls = &otherView.Controls();
+            Hr(otherView.Attach(graphics,
+                                {.context = &state,
+                                 .requestPreparation =
+                                     [](void* context) noexcept
+            {
+                auto& input = *static_cast<InputState*>(context);
+                ++input.otherWakes;
+                input.otherWokeInside = input.inside;
+                input.otherControls->SetRoot(nullptr);
+            }}),
+               "attach independently scheduled view");
+            auto otherField = std::make_unique<TextField>(L"Other notebook");
+            auto* other     = otherField.get();
+            other->SetBounds(D2D1::RectF(0, 0, 240, 100));
+            otherView.Controls().SetRoot(std::move(otherField));
+            Hr(otherView.Prepare(320, 160), "prepare independently scheduled view");
+            state.duringKey = [other] { other->SetTextAndNotify(L"Another view's edit"); };
+        }
+        state.armed = true;
+        if (route == 0u)
+            Check(view.DispatchCharacter(L'x'), "dispatch independent character");
+        else if (route == 1u || route == 4u || route == 5u)
+            Check(view.DispatchKey('A', true), "dispatch key containing nested character input");
+        else if (route == 2u)
+        {
+            EmbeddedKeyDispatchReceipt receipt;
+            Check(! view.DispatchKey(VK_RETURN, true, 0u, receipt) && view.ShouldTranslateCharacter(receipt),
+                  "unhandled Return grants a character receipt to the original owner");
+            Check(view.DispatchCharacter(L'\r', 0u, receipt), "dispatch receipt character");
+            Check(! view.ShouldTranslateCharacter(receipt), "retirement leaves no translated-character permission");
+        }
+        else
+            Check(view.DispatchPointer({PointerAction::Down, 30, 30}), "dispatch pointer press");
+        Check(state.wakes == 1u && ! state.wokeInside && ! view.Controls().GetRoot(),
+              "one preparation wake retires the tree only after the outer input callback finishes");
+        Check(state.characters == (route == 3u ? 0u : 1u), "nested and receipt character input executes once");
+        if (route == 5u)
+            Check(state.otherWakes == 1u && state.otherWokeInside && ! otherView.Controls().GetRoot(),
+                  "input on one view never defers another view's direct-setter wake");
+    }
+}
+
+static void TestTextFieldDirectPreparationRetirement(GraphicsFixture& gpu)
+{
+    using namespace DxUi;
+    // Expose the protected host hooks only in this headless regression adapter.
+    struct Field final : TextField
+    {
+        using TextField::ExportTextInputState;
+        using TextField::ImportTextInputState;
+        using TextField::TextField;
+        Field(const Field&)            = delete;
+        Field& operator=(const Field&) = delete;
+        Field(Field&&)                 = delete;
+        Field& operator=(Field&&)      = delete;
+    };
+    std::shared_ptr<GraphicsDevice> graphics;
+    Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "direct TextField retirement graphics");
+    for (const bool dispatched : {false, true})
+        for (const bool retire : {false, true})
+            for (unsigned action = 0u; action < 6u; ++action)
+            {
+                struct Wake
+                {
+                    ControlHost* controls{};
+                    bool armed{}, retire{};
+                    unsigned calls{};
+                } wake;
+                EmbeddedHost view;
+                wake.controls = &view.Controls();
+                wake.retire   = retire;
+                const EmbeddedCallbacks callbacks{.context            = &wake,
+                                                  .requestPreparation = [](void* context) noexcept
+                {
+                    auto& current = *static_cast<Wake*>(context);
+                    if (std::exchange(current.armed, false))
+                    {
+                        ++current.calls;
+                        if (current.retire)
+                            current.controls->SetRoot(nullptr);
+                    }
+                }};
+                Hr(view.Attach(graphics, callbacks), "attach direct TextField retirement fixture");
+                auto root   = std::make_unique<FlexPanel>();
+                auto* field = root->AddChild<Field>(L"Notebook");
+                field->SetMultiline(action != 4u);
+                field->SetClearButtonEnabled(true);
+                Hr(root->SetChildOptions(field, {.constraints = {.minimumDip = {240.f, 100.f}, .maximumWidthDip = 240.f, .maximumHeightDip = 100.f}}),
+                   "direct TextField extent");
+                view.Controls().SetRoot(std::move(root));
+                Hr(view.Prepare(320, 160), "prepare direct TextField fixture");
+                view.Controls().SetFocusControl(field);
+                if (action == 2u || action == 3u)
+                {
+                    Check(field->OnChar(view.Controls(), L'q', 0u), "seed direct undo history");
+                    if (action == 3u)
+                        Check(field->OnKeyDown(view.Controls(), 'Z', MK_CONTROL), "seed direct redo history");
+                }
+                Hr(view.Prepare(320, 160), "consume setup wakes before direct mutation");
+                const auto lifetime = GetControlLifetimeToken(*field);
+                if (action < 2u)
+                {
+                    if (dispatched)
+                    {
+                        EmbeddedTextInputSnapshot snapshot;
+                        Check(view.ReadTextInput(snapshot) == S_OK, "read original embedded text owner");
+                        snapshot.state.text       = L"Changed notebook";
+                        snapshot.state.caretIndex = snapshot.state.text.size();
+                        snapshot.state.selectionAnchorIndex.reset();
+                        if (action == 0u)
+                        {
+                            snapshot.state.compositionStartIndex  = 0u;
+                            snapshot.state.compositionEndIndex    = snapshot.state.text.size();
+                            snapshot.state.compositionCursorIndex = snapshot.state.caretIndex;
+                        }
+                        wake.armed         = true;
+                        const auto applied = view.ApplyTextInput(
+                            snapshot.revision, snapshot.state, action == 0u ? EmbeddedTextInputAction::Preview : EmbeddedTextInputAction::Commit);
+                        const auto diagnostic = std::format("embedded text input completes before retirement: action={} retire={} HRESULT={:08X}",
+                                                            action,
+                                                            retire,
+                                                            static_cast<std::uint32_t>(applied));
+                        Check(applied == S_OK, diagnostic.c_str());
+                    }
+                    else
+                    {
+                        TextInputState state;
+                        Check(field->ExportTextInputState(state), "export direct import fixture");
+                        state.text       = L"Changed notebook";
+                        state.caretIndex = state.text.size();
+                        wake.armed       = true;
+                        Check(field->ImportTextInputState(view.Controls(), state, action == 1u) == ! retire,
+                              "direct import reports retirement without accessing the removed TextField");
+                    }
+                }
+                else if (action == 2u || action == 3u)
+                {
+                    wake.armed     = true;
+                    const UINT key = static_cast<UINT>(action == 2u ? 'Z' : 'Y');
+                    Check(dispatched ? view.DispatchKey(key, true, MK_CONTROL) : field->OnKeyDown(view.Controls(), key, MK_CONTROL),
+                          "history mutation is consumed");
+                }
+                else if (action == 4u)
+                {
+                    const auto bounds = field->GetBounds();
+                    const auto point  = D2D1::Point2F(bounds.right - 12.f, (bounds.top + bounds.bottom) * .5f);
+                    wake.armed        = true;
+                    Check(dispatched ? view.DispatchPointer({PointerAction::Down, point.x, point.y}) : field->OnMouseDown(view.Controls(), point, false, 0u),
+                          "clear-button press is consumed");
+                }
+                else
+                {
+                    wake.armed = true;
+                    Check(dispatched ? view.DispatchCharacter(L'z') : field->OnChar(view.Controls(), L'z', 0u), "notifying edit is consumed");
+                }
+                Check(wake.calls == 1u && lifetime.expired() == retire && (view.Controls().GetRoot() == nullptr) == retire,
+                      "direct mutations retain synchronous scheduling and safely stop after retirement");
+                if (! retire)
+                {
+                    if (action < 2u)
+                        Check(field->GetText() == L"Changed notebook", "live direct import commits exact source");
+                    else if (action == 2u)
+                        Check(field->GetText() == L"Notebook", "live undo restores the source");
+                    else if (action == 3u)
+                        Check(field->GetText() == L"Notebookq", "live redo restores the edit");
+                    else if (action == 4u)
+                        Check(field->GetText().empty(), "live clear button clears the source");
+                    else
+                        Check(field->GetText() == L"Notebookz", "live notifying edit preserves source");
+                }
+            }
+}
+
+static void TestComboBoxDirectPreparationRetirement(GraphicsFixture& gpu)
+{
+    using namespace DxUi;
+    struct Combo final : ComboBox
+    {
+        Combo() = default;
+        using ComboBox::ImportTextInputState;
+        using ComboBox::SupportsTextInput;
+        Combo(const Combo&)            = delete;
+        Combo& operator=(const Combo&) = delete;
+        Combo(Combo&&)                 = delete;
+        Combo& operator=(Combo&&)      = delete;
+    };
+    std::shared_ptr<GraphicsDevice> graphics;
+    Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "direct ComboBox retirement graphics");
+    for (const bool retire : {false, true})
+        for (unsigned action = 0u; action < 3u; ++action)
+        {
+            struct Wake
+            {
+                ControlHost* controls{};
+                bool armed{}, retire{};
+                unsigned calls{};
+            } wake;
+            EmbeddedHost view;
+            wake.controls = &view.Controls();
+            wake.retire   = retire;
+            Hr(view.Attach(graphics,
+                           {.context = &wake,
+                            .requestPreparation =
+                                [](void* context) noexcept
+            {
+                auto& current = *static_cast<Wake*>(context);
+                if (std::exchange(current.armed, false))
+                {
+                    ++current.calls;
+                    if (current.retire)
+                        current.controls->SetRoot(nullptr);
+                }
+            }}),
+               "attach ComboBox retirement fixture");
+            auto root   = std::make_unique<FlexPanel>();
+            auto* combo = root->AddChild<Combo>();
+            if (action != 0u)
+                combo->SetVariant(ComboBoxVariant::Edit);
+            combo->SetText(L"Notebook");
+            view.Controls().SetRoot(std::move(root));
+            Hr(view.Prepare(320, 160), "prepare unfocused ComboBox before mutation");
+            const auto lifetime = GetControlLifetimeToken(*combo);
+            wake.armed          = true;
+            if (action == 0u)
+                combo->SetVariant(ComboBoxVariant::Edit);
+            else if (action == 1u)
+                Check(combo->ImportTextInputState(view.Controls(), {.text = L"Changed notebook", .caretIndex = 16u}, true) == ! retire,
+                      "ComboBox import reports retirement without accessing the removed control");
+            else
+                combo->SetTextAndNotify(L"Changed notebook");
+            Check(wake.calls == 1u && lifetime.expired() == retire && (view.Controls().GetRoot() == nullptr) == retire,
+                  "ComboBox setters and imports safely stop after synchronous retirement");
+            if (! retire)
+                Check(combo->SupportsTextInput() && combo->GetText() == (action == 0u ? L"Notebook" : L"Changed notebook"),
+                      "live ComboBox mutation retains editable policy and exact source");
+        }
+}
+
+static void TestFormClearPreparationRetirement(GraphicsFixture& gpu)
+{
+    using namespace DxUi;
+    std::shared_ptr<GraphicsDevice> graphics;
+    Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "form clear retirement graphics");
+    for (const bool retire : {false, true})
+    {
+        struct Wake
+        {
+            ControlHost* controls{};
+            bool armed{}, retire{};
+            unsigned calls{};
+        } wake;
+        EmbeddedHost view;
+        wake.controls = &view.Controls();
+        wake.retire   = retire;
+        Hr(view.Attach(graphics,
+                       {.context = &wake,
+                        .requestPreparation =
+                            [](void* context) noexcept
+        {
+            auto& current = *static_cast<Wake*>(context);
+            if (std::exchange(current.armed, false))
+            {
+                ++current.calls;
+                if (current.retire)
+                    current.controls->SetRoot(nullptr);
+            }
+        }}),
+           "attach form clear retirement fixture");
+        auto root   = std::make_unique<FlexPanel>();
+        auto* field = root->AddChild<FormField>(L"title", L"Title");
+        view.Controls().SetRoot(std::move(root));
+        Hr(view.Prepare(320, 160), "prepare form without an editor");
+        const auto lifetime = GetControlLifetimeToken(*field);
+        wake.armed          = true;
+        field->ClearChildren();
+        Check(wake.calls == 1u && lifetime.expired() == retire && (view.Controls().GetRoot() == nullptr) == retire,
+              "form clear stops before accessibility synchronization after its measure wake retires it");
+        if (! retire)
+            Check(! field->GetEditor() && field->GetLabelControl() && field->GetLabelControl()->GetText() == L"Title",
+                  "live form clear preserves its built-in label part");
+    }
+}
 
 // Exercise real caret pixels on a supplied WARP surface, without an HWND or OS focus.
 static void TestMultilineCaretViewport(GraphicsFixture& gpu)

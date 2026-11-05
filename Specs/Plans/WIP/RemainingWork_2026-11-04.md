@@ -40,12 +40,13 @@ candidate, not main's contract or an accepted consumer migration.
 <a id="d-l1"></a>
 ### D-L1 — embedded control lifetime
 
-- [ ] Implement the approved D0 deferral of embedded preparation wakes while input entry points are on the
+- [x] Implement the approved D0 deferral of embedded preparation wakes while input entry points are on the
   stack; deliver the wake once after target revalidation. Guard direct TextField setters/history/clear paths
   that can invalidate and then continue using a retired control (PRIOR-03).
-- [ ] Retain retiring-target and reentrant-positive fixtures in window/embedded hosts, update hosting contracts
-  and run appropriate native teardown/resource coverage. Main's TextField/Embedded files did not change in
-  the Mermaid follow-up; this P0 is not closed by that work.
+- [x] Retain retiring-target and reentrant-positive fixtures, update hosting contracts and complete native
+  teardown/resource coverage at `f765aeca`: six zero-warning builds, all 19 noninteractive suites in each
+  x64 profile and the real ASan detector. [Scoped closeout](../Done/SelectionBlocksAndInputLifetime_2026-11-05.md)
+  retains the original three sanitizer counterexamples and working-input/native archives.
 
 Owner: `src/Rendering/Embedded.cpp`, `src/Controls/DxUi.TextInput.cpp`, input dispatch and `docs/hosting.md`.
 
@@ -67,6 +68,13 @@ This coordinates the active API work; it does not adopt API 5 in any application
 <a id="d-e1"></a>
 ### D-E1 — source guides and editor behavior
 
+- [x] Complete the SDK portion of the 5 November chat request: Insert Quote and Code Block wrap selected source through
+  shared DxUi logic in Rich and Source modes, preserve outside text/EOLs/direction and one-step undo/redo,
+  and decline atomically for composition, read-only and capacity. The
+  [source-bound closeout](../Done/SelectionBlocksAndInputLifetime_2026-11-05.md) records exact-output/history
+  regressions and all three x64 profiles.
+- [ ] Verify RedTilde's real Insert commands against the exact published pin; no sample text may replace a
+  nonempty selection. Its app-side tests, documentation and native acceptance remain in the consumer plan.
 - [ ] Implement D1: cosmetic code ink/line numbers/whitespace never withhold content, cancel a gesture or
   refuse input; do bounded viewport/change work and show the previous cosmetic state while preparing
   (EDIT-01/02/04, RENDER-01/14).
@@ -95,6 +103,10 @@ This coordinates the active API work; it does not adopt API 5 in any application
 <a id="d-m1"></a>
 ### D-M1 — Markdown, math and diagram correctness
 
+- [ ] Reproduce and fix the 5 November examples: `graph BT` pipeline ranks/compact fan-in routing,
+  class `direction LR` with `Document <|-- Markdown`, wide accents/dot weight/vector clearance,
+  and gathered matrices/angle delimiters with non-overlapping row spacing. Preserve source and use
+  deterministic native captures with source/DPI provenance for the Mermaid/LaTeX reference comparisons.
 - [ ] Correct deferred autolink suffix loss, front-matter incremental root reuse and CR-only YAML handling
   (MD-01/02/04). Expected malformed input must stay bounded and editable rather than aborting a process.
 - [ ] Resolve display-block interruption and pathological scan budgets (MD-03/05/06/07), with deterministic

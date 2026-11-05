@@ -1,5 +1,10 @@
 # Input and accessibility
 
+Selection-to-block insertion preserves source ACP boundaries and selection direction in Rich and Source
+views. It declines during active composition or an uncommitted text-service preview, and in read-only or
+disabled state, without consuming the preview or adding history. A successful explicit Insert action applies
+one source transaction and one text notification; menu/toolbar transport retains selection and focus ownership.
+
 ## Selected policies awaiting implementation
 
 Owner decisions of 5 November 2026 define the intended remaining behavior below. Current capability claims

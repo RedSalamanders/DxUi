@@ -1334,6 +1334,22 @@ __declspec(noinline) static void TestTreeDelegateMutationDuringItemPaintAbortsPr
 // Keep unrelated functional-test locals out of the benchmark entry stack, even under LTCG.
 __declspec(noinline) static int RunFunctionalTests()
 {
+    if (__argc == 2 &&
+        (std::wstring_view(__wargv[1]) == L"--test-embedded-input-wake" || std::wstring_view(__wargv[1]) == L"--test-direct-textfield-retirement" ||
+         std::wstring_view(__wargv[1]) == L"--test-direct-combobox-retirement" || std::wstring_view(__wargv[1]) == L"--test-form-clear-retirement"))
+    {
+        GraphicsFixture gpu;
+        Hr(gpu.Create(), "isolated input retirement WARP fixture");
+        if (std::wstring_view(__wargv[1]) == L"--test-embedded-input-wake")
+            TestEmbeddedPreparationWakeWaitsForInput(gpu);
+        else if (std::wstring_view(__wargv[1]) == L"--test-direct-textfield-retirement")
+            TestTextFieldDirectPreparationRetirement(gpu);
+        else if (std::wstring_view(__wargv[1]) == L"--test-direct-combobox-retirement")
+            TestComboBoxDirectPreparationRetirement(gpu);
+        else
+            TestFormClearPreparationRetirement(gpu);
+        return 0;
+    }
     if (__argc == 4 && std::wstring_view(__wargv[1]) == L"--capture-rich-images")
     {
         const std::wstring_view theme(__wargv[3]);
@@ -1774,6 +1790,10 @@ __declspec(noinline) static int RunFunctionalTests()
         Check(view.Controls().GetRoot() == nullptr, "tokenizer may retire its owner without use after free");
         return 0;
     }
+    TestEmbeddedPreparationWakeWaitsForInput(gpu);
+    TestTextFieldDirectPreparationRetirement(gpu);
+    TestComboBoxDirectPreparationRetirement(gpu);
+    TestFormClearPreparationRetirement(gpu);
     TestMultilineCaretViewport(gpu);
     TestEmbeddedTextInput(gpu);
     TestEmbeddedTabHeaderPreparationAvoidsPaintWork(gpu);

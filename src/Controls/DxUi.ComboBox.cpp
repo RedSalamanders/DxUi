@@ -453,10 +453,8 @@ ComboBox::ComboBox()
 
 void ComboBox::SetVariant(ComboBoxVariant variant) noexcept
 {
-    const bool changed = _variant != variant;
-    _variant           = variant;
-    if (changed)
-        InvalidateMeasure();
+    const bool changed  = _variant != variant;
+    _variant            = variant;
     const bool editable = variant == ComboBoxVariant::Edit;
     _editable           = editable;
     if (_editable)
@@ -474,6 +472,8 @@ void ComboBox::SetVariant(ComboBoxVariant variant) noexcept
     }
     InvalidateSingleLineLayoutCache();
     RebuildPopupItems();
+    if (changed)
+        InvalidateMeasure();
 }
 
 ComboBoxVariant ComboBox::GetVariant() const noexcept
@@ -659,8 +659,9 @@ std::wstring_view ComboBox::GetDisplayedText() const noexcept
 
 void ComboBox::SetText(std::wstring text)
 {
-    _text       = std::move(text);
-    _caretIndex = _text.size();
+    const auto lifetime = GetLifetimeToken();
+    _text               = std::move(text);
+    _caretIndex         = _text.size();
     _selectionAnchorIndex.reset();
     _undoHistory.clear();
     _redoHistory.clear();
@@ -681,15 +682,22 @@ void ComboBox::SetText(std::wstring text)
         if (auto* host = GetHost(); host && host->GetFocusControl() == this)
         {
             host->SyncTextInput(this);
+            if (lifetime.expired())
+                return;
         }
     }
     RefreshAccessibilitySnapshot();
+    if (lifetime.expired())
+        return;
     RequestInvalidate();
 }
 
 void ComboBox::SetTextAndNotify(std::wstring text)
 {
+    const auto lifetime = GetLifetimeToken();
     SetText(std::move(text));
+    if (lifetime.expired())
+        return;
     // The callback may destroy this control; both the callable and its argument must survive that callback.
     const auto callback = _onTextChanged;
     if (callback)
@@ -2039,6 +2047,7 @@ bool ComboBox::ExportTextInputState(TextInputState& outState) const
 
 bool ComboBox::ImportTextInputState(ControlHost& host, const TextInputState& state, bool notifyChange)
 {
+    const auto lifetime = GetLifetimeToken();
     if (! SupportsTextInput())
     {
         return false;
@@ -2071,6 +2080,8 @@ bool ComboBox::ImportTextInputState(ControlHost& host, const TextInputState& sta
     RebuildPopupItems(&host);
     EnsurePopupSelectionVisible(&host);
     ResetEditableCaretBlink(host);
+    if (lifetime.expired())
+        return false;
     EnsureEditableCaretVisible(&host, std::max(1.0f, GetEditableTextRect().right - GetEditableTextRect().left));
     if (notifyChange && previousText != _text)
     {
@@ -2080,7 +2091,7 @@ bool ComboBox::ImportTextInputState(ControlHost& host, const TextInputState& sta
         }
     }
     Invalidate(host);
-    return true;
+    return ! lifetime.expired();
 }
 
 ComboBox::EditHistoryState ComboBox::CaptureEditHistoryState() const
