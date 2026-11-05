@@ -581,9 +581,12 @@ void TestRichMathPreparedStyleSpacingScriptsAndLimits()
             "bold symbols preserve ordinary math italics while mathnormal restores scoped default weight and slant");
     const auto radical = prepare(L"\\sqrt{x}"), accented = prepare(L"\\hat{x}"), plain = prepare(L"x"), fenced = prepare(L"\\left(x\\right)"),
                sizedFence = prepare(L"\\Big(");
-    Require(radical->Size().width > plain->Size().width && radical->Size().height > plain->Size().height && accented->Size().height > plain->Size().height &&
-                fenced->Size().height > plain->Size().height && sizedFence->Size().height > plain->Size().height,
-            "radical, accent and fixed or dynamic delimiters contribute their own measured geometry");
+    // A close accent or ordinary delimiter can fit the existing font strut.
+    // Requiring a larger line box here pinned the excessive gaps this fixes.
+    Require(radical->Size().width > plain->Size().width && radical->Size().height > plain->Size().height &&
+                (! accented->StrokeLayouts().empty() || ! accented->VariantLayouts().empty()) && fenced->Size().width > plain->Size().width &&
+                (! fenced->StrokeLayouts().empty() || ! fenced->VariantLayouts().empty()) && sizedFence->Size().height > plain->Size().height,
+            "radicals and explicit large delimiters reserve size while close accents and ordinary fences retain real measured decoration");
 
     const auto inlineSum = prepare(L"\\sum_{i}^{n}"), displaySum = prepare(L"\\sum_{i}^{n}", true), forcedLimits = prepare(L"\\sum\\limits_{i}^{n}");
     const auto& inlineGlyphs  = inlineSum->GlyphLayouts();

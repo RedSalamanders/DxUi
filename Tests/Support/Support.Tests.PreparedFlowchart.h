@@ -1618,8 +1618,95 @@ template <typename Check> inline void GanttRaster(Check&& check)
               "direct invalid Gantt models fail both services without replacing the prior publication");
     }
 }
+template <typename Check> inline void ClassRelationEndpointRaster(Check&& check)
+{
+    const auto initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+    if (FAILED(initialized) && initialized != RPC_E_CHANGED_MODE)
+        THROW_IF_FAILED(initialized);
+    const auto apartment = wil::scope_exit([&]() noexcept
+    {
+        if (SUCCEEDED(initialized))
+            CoUninitialize();
+    });
+    const auto write     = WriteFactory();
+    const auto drawing   = DrawingFactory();
+    wil::com_ptr<IWICImagingFactory> imaging;
+    THROW_IF_FAILED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(imaging.put())));
+    constexpr UINT width = 640u, height = 640u, stride = width * 4u;
+    for (const auto direction : {L"LR", L"RL", L"TB", L"BT"})
+        for (const auto operation : {L"<|--", L"--|>", L"<|..", L"..|>", L"*--", L"--*", L"o--", L"--o"})
+        {
+            const auto source = std::wstring(L"classDiagram\ndirection ") + direction + L"\nA " + operation + L" B\n";
+            const auto graph  = FlowchartLayoutTests::Graph(source);
+            PreparedFlowchart prepared;
+            prepared.Begin(write.get(), drawing.get(), graph, {}, {1u, 1u});
+            Complete(prepared, check);
+            const auto geometry = prepared.Geometry();
+            check(prepared.Ready() && geometry && geometry->edges.size() == 1u && geometry->extent.width < width && geometry->extent.height < height,
+                  "class endpoint raster uses a bounded prepared two-node fixture");
+            if (! prepared.Ready() || ! geometry || geometry->edges.size() != 1u)
+                return;
+            wil::com_ptr<IWICBitmap> bitmap;
+            THROW_IF_FAILED(imaging->CreateBitmap(width, height, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnLoad, bitmap.put()));
+            wil::com_ptr<ID2D1RenderTarget> target;
+            const auto properties =
+                D2D1::RenderTargetProperties(D2D1_RENDER_TARGET_TYPE_SOFTWARE, D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
+            THROW_IF_FAILED(drawing->CreateWicBitmapRenderTarget(bitmap.get(), properties, target.put()));
+            wil::com_ptr<ID2D1SolidColorBrush> text, stroke, fill;
+            THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black), text.put()));
+            THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Blue), stroke.put()));
+            THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White), fill.put()));
+            target->BeginDraw();
+            target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+            check(prepared.Draw(target.get(), text.get(), stroke.get(), fill.get(), {}), "class relation paints its actual native connector");
+            THROW_IF_FAILED(target->EndDraw());
+            std::vector<BYTE> pixels(stride * height);
+            THROW_IF_FAILED(bitmap->CopyPixels(nullptr, stride, static_cast<UINT>(pixels.size()), pixels.data()));
+            const auto& edge    = geometry->edges.front();
+            const bool atStart  = graph->edges.front().markerAtStart;
+            const auto endpoint = atStart ? edge.path.back() : edge.path.front();
+            auto neighbour      = endpoint;
+            for (std::size_t step = 1u; step < edge.path.size(); ++step)
+            {
+                neighbour = atStart ? edge.path[edge.path.size() - 1u - step] : edge.path[step];
+                if (neighbour.x != endpoint.x || neighbour.y != endpoint.y)
+                    break;
+            }
+            const auto distance = std::hypot(neighbour.x - endpoint.x, neighbour.y - endpoint.y);
+            check(distance > 8.0, "the independently sampled attachment has room outside the unmarked node");
+            if (distance <= 8.0)
+                return;
+            const auto sampleX = endpoint.x + 6.0 * (neighbour.x - endpoint.x) / distance;
+            const auto sampleY = endpoint.y + 6.0 * (neighbour.y - endpoint.y) / distance;
+            bool connected{};
+            for (int dy = -2; dy <= 2; ++dy)
+                for (int dx = -2; dx <= 2; ++dx)
+                {
+                    const int x = static_cast<int>(std::lround(sampleX)) + dx, y = static_cast<int>(std::lround(sampleY)) + dy;
+                    if (x < 0 || y < 0 || x >= static_cast<int>(width) || y >= static_cast<int>(height))
+                        continue;
+                    const auto offset = static_cast<std::size_t>(y) * stride + static_cast<std::size_t>(x) * 4u;
+                    connected         = connected || (pixels[offset] > 160u && pixels[offset + 1u] < 200u && pixels[offset + 2u] < 200u);
+                }
+            if (! connected)
+            {
+                std::wcerr << L"Disconnected class endpoint: " << operation << L" direction=" << direction << L'\n';
+                std::wcerr << L" markerAtStart=" << atStart << L" sample=" << sampleX << L"," << sampleY << L" path:";
+                for (const auto& point : edge.path)
+                    std::wcerr << L" " << point.x << L"," << point.y;
+                std::wcerr << L'\n';
+                for (const auto& node : geometry->nodes)
+                    std::wcerr << L" node=" << node.bounds.x << L"," << node.bounds.y << L"," << node.bounds.width << L"," << node.bounds.height << L'\n';
+                float dpiX{}, dpiY{};
+                target->GetDpi(&dpiX, &dpiY);
+                std::wcerr << L" dpi=" << dpiX << L"," << dpiY << L'\n';
+            }
+            check(connected, "reversed and trailing class markers keep visible line ink beside the unmarked node in every direction");
+        }
+}
 template <typename Check> inline void ErRaster(Check&& check)
 {
+    ClassRelationEndpointRaster(check);
     const auto initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
     if (FAILED(initialized) && initialized != RPC_E_CHANGED_MODE)
         THROW_IF_FAILED(initialized);
