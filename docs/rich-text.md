@@ -19,6 +19,20 @@ composition/preview, invalid language and capacity refusal leave source and hist
 on a nonempty selection must retain that selection. Code language is at most 255 valid UTF-16 units and cannot
 contain NUL, line endings or backticks. Existing structural Markdown commands retain their semantics.
 
+## Application document workspaces
+
+Use `RichTextEditor::ExchangeDocumentState` with an application-owned `RichText::Document` to switch the
+active document without clearing Undo/Redo. The exchange retains both exact immutable sources, oriented
+selections and complete history branches. It creates no source edit or committed text callback; selection
+publication follows the new binding. The application retains each file's path, encoding, saved baseline and
+recovery identity separately, and refreshes its derived views after a successful exchange.
+
+Only call on the owner thread. Disabled/read-only input or a transient text-service preview in either
+document refuses without changing either side. Native composition also refuses. Switching retires old
+geometry, image requests and source-region presentation; an equal revision number in the incoming document
+cannot reuse the outgoing document's syntax or native callbacks. The control keeps its appearance and
+callbacks. This mechanism does not open, save or recover files and does not create a document limit in the SDK.
+
 ## Current capabilities
 
 This table describes the available library mechanisms and their limits. Supported

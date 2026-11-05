@@ -124,6 +124,68 @@ void TestRichTextEditorTransactionsAndValidation()
     Require(! editor.CanUndo() && ! editor.CanRedo() && changes == 3, "SetText resets history without application notification");
 }
 
+void TestRichTextEditorDocumentExchangeRetainsIndependentHistory()
+{
+    RichTextEditor editor(L"alpha\r\n");
+    editor.SetSelection({5, 0});
+    Require(editor.ReplaceSelection(L"first") && editor.ReplaceSelection(L"!") && editor.Undo(), "seed the first Undo and Redo histories");
+    const auto first          = editor.Snapshot();
+    const auto firstSelection = editor.GetSelection();
+    Document other(L"beta\U0001f600\n");
+    other.SetSelection({4, 0});
+    Require(other.ReplaceSelection(L"second"), "seed the second independent history");
+    const auto second          = other.Snapshot();
+    const auto secondSelection = other.GetSelection();
+    unsigned edits{}, selections{};
+    editor.SetOnTextChanged([&] { ++edits; });
+    editor.SetOnSelectionChanged([&] { ++selections; });
+    for (unsigned turn = 0; turn < 3; ++turn)
+    {
+        Require(editor.ExchangeDocumentState(other) && editor.Snapshot().IsSameRevision(second) && editor.GetSelection() == secondSelection &&
+                    other.Snapshot().IsSameRevision(first) && other.GetSelection() == firstSelection && edits == turn * 4u,
+                "document exchange retains exact immutable source and oriented selection without a text-edit callback");
+        Require(editor.Undo() && editor.GetText() == L"beta\U0001f600\n" && editor.Redo() && editor.GetText() == second.Text(),
+                "second document Undo and Redo stay independent");
+        Require(editor.ExchangeDocumentState(other) && editor.Snapshot().IsSameRevision(first) && editor.GetSelection() == firstSelection && editor.CanUndo() &&
+                    editor.CanRedo(),
+                "returning to the first document retains both history branches");
+        Require(editor.Redo() && editor.GetText() == L"first!\r\n" && editor.Undo() && editor.GetText() == first.Text(),
+                "the original Redo branch survives repeated document switches");
+    }
+    Require(selections >= 6u, "each accepted binding exchange publishes its source selection");
+    editor.SetReadOnly(true);
+    Require(! editor.ExchangeDocumentState(other) && editor.Snapshot().IsSameRevision(first) && other.Snapshot().IsSameRevision(second),
+            "read-only refusal retains both complete documents");
+    editor.SetReadOnly(false);
+    editor.SetEnabled(false);
+    Require(! editor.ExchangeDocumentState(other), "disabled document exchange is atomic");
+    editor.SetEnabled(true);
+    Require(other.ReplaceTransient(L"preview", {0, 0}) && ! editor.ExchangeDocumentState(other) && editor.Snapshot().IsSameRevision(first),
+            "an incoming transient text-service preview cannot be detached from its owner");
+    std::unique_ptr<RichTextEditor> retiring = std::make_unique<RichTextEditor>(L"owned");
+    Document replacement(L"replacement");
+    retiring->SetOnSelectionChanged([&] { retiring.reset(); });
+    Require(retiring->ExchangeDocumentState(replacement) && ! retiring && replacement.Text() == L"owned",
+            "a binding selection callback may retire its editor after the exchange commits");
+    AttachedHostWindow window;
+    auto owned   = std::make_unique<RichTextEditor>(L"# Alpha");
+    auto* native = owned.get();
+    native->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    native->SetMarkdownRenderingEnabled(true);
+    window.Host().SetRoot(std::move(owned));
+    ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+    RenderEditor(window);
+    Require(static_cast<bool>(native->GetSemanticDocument()), "first binding publishes native Markdown");
+    Document equalRevision(L"# Beta");
+    Require(native->Revision() == equalRevision.Revision() && native->ExchangeDocumentState(equalRevision) && ! native->GetMarkdownSyntax() &&
+                ! native->GetSemanticDocument(),
+            "equal numeric revisions in another document cannot expose old syntax or semantic objects");
+    RenderEditor(window);
+    Require(native->GetSemanticDocument() && native->GetSemanticDocument()->Map().Source() == L"# Beta" && equalRevision.Text() == L"# Alpha" &&
+                ! native->CanUndo(),
+            "replacement binding prepares its own source without adding an Undo entry");
+}
+
 void TestRichTextEditorBlockInsertWrapsExactSelection()
 {
     struct Fixture
@@ -2225,6 +2287,7 @@ void RunRichTextEditorTests()
 {
     ScopedNonActivatingTestWindows nonActivating;
     DXUI_RUN_TEST(TestRichTextEditorTransactionsAndValidation);
+    DXUI_RUN_TEST(TestRichTextEditorDocumentExchangeRetainsIndependentHistory);
     DXUI_RUN_TEST(TestRichTextEditorBlockInsertWrapsExactSelection);
     DXUI_RUN_TEST(TestRichTextEditorBlockInsertDeclinesAtomically);
     DXUI_RUN_TEST(TestRichTextEditorUnicodeCharacterTransactions);

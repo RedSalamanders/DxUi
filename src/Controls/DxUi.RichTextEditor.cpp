@@ -614,6 +614,47 @@ RichTextEditor::~RichTextEditor() noexcept
 void RichTextEditor::SetText(std::wstring text)
 {
     _state->document.Reset(std::move(text));
+    ResetDocumentBinding();
+}
+bool RichTextEditor::ExchangeDocumentState(RichText::Document& document)
+{
+    if (! Editable() || _state->document.transientEntry_ || document.transientEntry_ || MarkdownCommandInputBlocked(GetHost(), this))
+        return false;
+    auto& current = _state->document;
+    using std::swap;
+    swap(current.source_, document.source_);
+    swap(current.selection_, document.selection_);
+    swap(current.revision_, document.revision_);
+    swap(current.selectionEpoch_, document.selectionEpoch_);
+    const auto history = [&](auto& left, auto& right)
+    {
+        left.entries.swap(right.entries);
+        swap(left.first, right.first);
+        swap(left.count, right.count);
+    };
+    history(current.undo_, document.undo_);
+    history(current.redo_, document.redo_);
+    // Equal numeric revisions in different documents must never admit a late
+    // native/semantic callback belonging to the preceding document binding.
+    ++_state->bindingRevision;
+    _state->autoFormatRun.reset();
+    _state->smartTypingSite.reset();
+    _state->markdown.Clear();
+    _state->semantic.Clear();
+    _state->semanticRejected.reset();
+    _state->preparationRejected.reset();
+    _state->nativeObjectRejections.reset();
+    _state->sourceInk.Clear();
+    _state->sourceGuides.Clear();
+    _state->codeInkDocument.reset();
+    _state->codeInk.clear();
+    _state->codeInkStaged.clear();
+    _state->codeInkComplete = false;
+    ResetDocumentBinding(); // The final notification may retire this control.
+    return true;
+}
+void RichTextEditor::ResetDocumentBinding()
+{
     _state->highlights.clear();
     _state->decorations.clear();
     _state->decorationStatus = RichTextDecorationStatus::None;
@@ -636,6 +677,8 @@ void RichTextEditor::SetText(std::wstring text)
     if (tooltipLifetime.expired() || GetHost() != tooltipHost || Revision() != tooltipRevision || _state->bindingRevision != tooltipBinding)
         return;
     RetireLayout();
+    if (tooltipLifetime.expired() || GetHost() != tooltipHost || Revision() != tooltipRevision || _state->bindingRevision != tooltipBinding)
+        return;
     SelectionChanged();
 }
 std::wstring RichTextEditor::GetText() const
