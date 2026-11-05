@@ -1,1 +1,0 @@
-- Include the full Unicode and WHATWG data notices in SDK ZIPs, fix packaged license links, and verify the exact license set and file hashes before and after extraction.
