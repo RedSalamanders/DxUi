@@ -105,83 +105,109 @@ static void TestTextFieldDirectPreparationRetirement(GraphicsFixture& gpu)
     using namespace DxUi;
     std::shared_ptr<GraphicsDevice> graphics;
     Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "direct TextField retirement graphics");
-    for (const bool retire : {false, true})
-        for (unsigned action = 0u; action < 6u; ++action)
-        {
-            struct Wake
+    for (const bool dispatched : {false, true})
+        for (const bool retire : {false, true})
+            for (unsigned action = 0u; action < 6u; ++action)
             {
-                ControlHost* controls{};
-                bool armed{}, retire{};
-                unsigned calls{};
-            } wake;
-            EmbeddedHost view;
-            wake.controls = &view.Controls();
-            wake.retire   = retire;
-            const EmbeddedCallbacks callbacks{.context            = &wake,
-                                              .requestPreparation = [](void* context) noexcept
-            {
-                auto& current = *static_cast<Wake*>(context);
-                if (std::exchange(current.armed, false))
+                struct Wake
                 {
-                    ++current.calls;
-                    if (current.retire)
-                        current.controls->SetRoot(nullptr);
+                    ControlHost* controls{};
+                    bool armed{}, retire{};
+                    unsigned calls{};
+                } wake;
+                EmbeddedHost view;
+                wake.controls = &view.Controls();
+                wake.retire   = retire;
+                const EmbeddedCallbacks callbacks{.context            = &wake,
+                                                  .requestPreparation = [](void* context) noexcept
+                {
+                    auto& current = *static_cast<Wake*>(context);
+                    if (std::exchange(current.armed, false))
+                    {
+                        ++current.calls;
+                        if (current.retire)
+                            current.controls->SetRoot(nullptr);
+                    }
+                }};
+                Hr(view.Attach(graphics, callbacks), "attach direct TextField retirement fixture");
+                auto root   = std::make_unique<FlexPanel>();
+                auto* field = root->AddChild<TextField>(L"Notebook");
+                field->SetMultiline(action != 4u);
+                field->SetClearButtonEnabled(true);
+                Hr(root->SetChildOptions(field, {.constraints = {.minimumDip = {240.f, 100.f}, .maximumWidthDip = 240.f, .maximumHeightDip = 100.f}}),
+                   "direct TextField extent");
+                view.Controls().SetRoot(std::move(root));
+                Hr(view.Prepare(320, 160), "prepare direct TextField fixture");
+                view.Controls().SetFocusControl(field);
+                if (action == 2u || action == 3u)
+                {
+                    Check(field->OnChar(view.Controls(), L'q', 0u), "seed direct undo history");
+                    if (action == 3u)
+                        Check(field->OnKeyDown(view.Controls(), 'Z', MK_CONTROL), "seed direct redo history");
                 }
-            }};
-            Hr(view.Attach(graphics, callbacks), "attach direct TextField retirement fixture");
-            auto root   = std::make_unique<FlexPanel>();
-            auto* field = root->AddChild<TextField>(L"Notebook");
-            field->SetMultiline(action != 4u);
-            field->SetClearButtonEnabled(true);
-            Hr(root->SetChildOptions(field, {.constraints = {.minimumDip = {240.f, 100.f}, .maximumWidthDip = 240.f, .maximumHeightDip = 100.f}}),
-               "direct TextField extent");
-            view.Controls().SetRoot(std::move(root));
-            Hr(view.Prepare(320, 160), "prepare direct TextField fixture");
-            view.Controls().SetFocusControl(field);
-            if (action == 2u || action == 3u)
-            {
-                Check(field->OnChar(view.Controls(), L'q', 0u), "seed direct undo history");
-                if (action == 3u)
-                    Check(field->OnKeyDown(view.Controls(), 'Z', MK_CONTROL), "seed direct redo history");
-            }
-            Hr(view.Prepare(320, 160), "consume setup wakes before direct mutation");
-            const auto lifetime = field->GetLifetimeToken();
-            wake.armed          = true;
-            if (action < 2u)
-            {
-                TextInputState state;
-                Check(field->ExportTextInputState(state), "export direct import fixture");
-                state.text       = L"Changed notebook";
-                state.caretIndex = state.text.size();
-                Check(field->ImportTextInputState(view.Controls(), state, action == 1u) == ! retire,
-                      "direct import reports retirement without accessing the removed TextField");
-            }
-            else if (action == 2u || action == 3u)
-                Check(field->OnKeyDown(view.Controls(), action == 2u ? 'Z' : 'Y', MK_CONTROL), "direct history mutation is consumed");
-            else if (action == 4u)
-            {
-                const auto bounds = field->GetBounds();
-                Check(field->OnMouseDown(view.Controls(), {bounds.right - 12.f, (bounds.top + bounds.bottom) * .5f}, false, 0u),
-                      "direct clear-button press is consumed");
-            }
-            else
-                Check(field->OnChar(view.Controls(), L'z', 0u), "direct notifying edit is consumed");
-            Check(wake.calls == 1u && lifetime.expired() == retire && (view.Controls().GetRoot() == nullptr) == retire,
-                  "direct mutations retain synchronous scheduling and safely stop after retirement");
-            if (! retire)
-            {
+                Hr(view.Prepare(320, 160), "consume setup wakes before direct mutation");
+                const auto lifetime = field->GetLifetimeToken();
                 if (action < 2u)
-                    Check(field->GetText() == L"Changed notebook", "live direct import commits exact source");
-                else if (action == 2u)
-                    Check(field->GetText() == L"Notebook", "live undo restores the source");
-                else if (action == 3u)
-                    Check(field->GetText() == L"Notebookq", "live redo restores the edit");
+                {
+                    if (dispatched)
+                    {
+                        EmbeddedTextInputSnapshot snapshot;
+                        Check(view.ReadTextInput(snapshot) == S_OK, "read original embedded text owner");
+                        snapshot.state.text       = L"Changed notebook";
+                        snapshot.state.caretIndex = snapshot.state.text.size();
+                        snapshot.state.selectionAnchorIndex.reset();
+                        wake.armed = true;
+                        Check(view.ApplyTextInput(
+                                  snapshot.revision, snapshot.state, action == 0u ? EmbeddedTextInputAction::Preview : EmbeddedTextInputAction::Commit) == S_OK,
+                              "embedded text input completes before a preparation callback retires its owner");
+                    }
+                    else
+                    {
+                        TextInputState state;
+                        Check(field->ExportTextInputState(state), "export direct import fixture");
+                        state.text       = L"Changed notebook";
+                        state.caretIndex = state.text.size();
+                        wake.armed       = true;
+                        Check(field->ImportTextInputState(view.Controls(), state, action == 1u) == ! retire,
+                              "direct import reports retirement without accessing the removed TextField");
+                    }
+                }
+                else if (action == 2u || action == 3u)
+                {
+                    wake.armed     = true;
+                    const auto key = action == 2u ? 'Z' : 'Y';
+                    Check(dispatched ? view.DispatchKey(key, true, MK_CONTROL) : field->OnKeyDown(view.Controls(), key, MK_CONTROL),
+                          "history mutation is consumed");
+                }
                 else if (action == 4u)
-                    Check(field->GetText().empty(), "live clear button clears the source");
+                {
+                    const auto bounds = field->GetBounds();
+                    const auto point  = D2D1::Point2F(bounds.right - 12.f, (bounds.top + bounds.bottom) * .5f);
+                    wake.armed        = true;
+                    Check(dispatched ? view.DispatchPointer({PointerAction::Down, point.x, point.y}) : field->OnMouseDown(view.Controls(), point, false, 0u),
+                          "clear-button press is consumed");
+                }
                 else
-                    Check(field->GetText() == L"Notebookz", "live notifying edit preserves source");
+                {
+                    wake.armed = true;
+                    Check(dispatched ? view.DispatchCharacter(L'z') : field->OnChar(view.Controls(), L'z', 0u), "notifying edit is consumed");
+                }
+                Check(wake.calls == 1u && lifetime.expired() == retire && (view.Controls().GetRoot() == nullptr) == retire,
+                      "direct mutations retain synchronous scheduling and safely stop after retirement");
+                if (! retire)
+                {
+                    if (action < 2u)
+                        Check(field->GetText() == L"Changed notebook", "live direct import commits exact source");
+                    else if (action == 2u)
+                        Check(field->GetText() == L"Notebook", "live undo restores the source");
+                    else if (action == 3u)
+                        Check(field->GetText() == L"Notebookq", "live redo restores the edit");
+                    else if (action == 4u)
+                        Check(field->GetText().empty(), "live clear button clears the source");
+                    else
+                        Check(field->GetText() == L"Notebookz", "live notifying edit preserves source");
+                }
             }
-        }
 }
 
 // Exercise real caret pixels on a supplied WARP surface, without an HWND or OS focus.
