@@ -70,8 +70,9 @@ This coordinates the active API work; it does not adopt API 5 in any application
 - [ ] Implement D1: cosmetic code ink/line numbers/whitespace never withhold content, cancel a gesture or
   refuse input; do bounded viewport/change work and show the previous cosmetic state while preparing
   (EDIT-01/02/04, RENDER-01/14).
-- [ ] Apply the selected source-region policy to Backspace/Delete/Tab and nested fences without editing
-  outside the active interval (EDIT-07/11; D3 is still an owner decision).
+- [ ] Implement D3's 5 November decision: permit natural source navigation/editing across the former active
+  interval, including Backspace/Delete/Tab and nested fences. Update the source-editing scope from the current
+  caret/selection instead of trapping input at an old boundary (EDIT-07/11).
 - [ ] Resolve remaining editor/command correctness: IME underline staleness, disclosure/zoom geometry loss,
   auto-pairing within words, read-only chord handling, wrong task-command byte ranges and parent-marker
   movement (EDIT-03/06/09/10, CMD-01/02).
@@ -83,6 +84,10 @@ This coordinates the active API work; it does not adopt API 5 in any application
   (CTRL-01), with real-message replay and no weakened assertions.
 - [ ] Reconcile the native IME capacity and quoted-file-paste fixes required by RedTilde DX-4/DX-3 against the
   exact candidate; keep source, selection, history, decline paths and callback ownership intact.
+- [ ] Implement D4's selected text-first default when Unicode and bitmap formats coexist, with an explicit
+  application image-first option and source-preserving decline behavior.
+- [ ] Implement D5: classify `//host/...` and `file://host/...` image destinations as network requests and
+  apply remote-image permission; never route them through an ungated local-file path.
 - [ ] Qualify remaining focus/TSF/menu closure and mask/IME findings from the
   [prior-review register](../Done/ProductionReview_2026-11-02/prior-closure.md). Preserve unexplained historical
   failures; do not infer their causes from later green results.
@@ -206,11 +211,19 @@ Approved D0/D1/D2 remain the lifetime, cosmetic-preparation and per-element poli
 privacy operation is approved but unexecuted here; D10 publication is completed. Details and all prior answers remain
 in [the archived decision register](../Done/ProductionReview_2026-11-02.md#wave-0--decisions-that-unblock-implementation).
 
+Owner choices received on **5 November 2026** are requirements for the remaining implementation, not evidence
+that the current library already satisfies them:
+
+- **D3 — natural source editing/navigation.** Do not contain edits inside the old active region. Allow the
+  source-editing scope to follow natural caret/selection movement. This replaces the archived containment recommendation.
+- **D4 — text-first paste.** Prefer available Unicode text over a bitmap by default; applications may opt into image-first.
+- **D5 — network image destinations.** Treat both `//host/...` and `file://host/...` as network and apply remote-image permission.
+
+The [input contract](../../UI/UI_InputAndAccessibility.md#selected-policies-awaiting-implementation) owns these
+intended behaviors. Their code/regression/capability closeout remains unchecked in D-E1/D-I1 above.
+
 | Still open | Required owner choice |
 | --- | --- |
-| D3 | Containment for every source-region edit. |
-| D4 | Text versus bitmap clipboard priority and decline contract. |
-| D5 | Network classification/policy for scheme-relative and file-host image URLs. |
 | D6 | Platform-specific color-glyph/script fallback. |
 | D7 | Display-style parity of aligned/gathered/equation cells. |
 | D8 | Public Debug declarations and supported API boundary. |
