@@ -1323,13 +1323,30 @@ class MarkdownInlines
             }
         }
     }
+    void DecodeAutolinkSuffix()
+    {
+        auto& deferred = autolinkRegion_->deferred;
+        if (deferred == MarkdownNoNode)
+            return;
+        auto& node       = nodes_[deferred];
+        const auto first = NormalizedOffset(node.source.first), last = NormalizedOffset(node.source.last);
+        node.value = Decode(std::wstring_view(text_).substr(first, last - first));
+        autolinkDecodedUnits_ += last - first;
+        deferred = MarkdownNoNode;
+    }
     void AutolinkSplice(std::size_t link, std::size_t first, std::size_t last, std::size_t& current, std::size_t parent)
     {
         const auto range = nodes_[link].source;
+        if (autolinkRegion_->deferred != MarkdownNoNode && nodes_[autolinkRegion_->deferred].source.last <= range.first)
+            DecodeAutolinkSuffix();
         while (nodes_[current].source.last <= range.first)
             current = nodes_[current].nextSibling;
         const auto beginNode = current;
-        auto endNode         = current;
+        // A deferred node containing this URL is about to become a final prefix
+        // or be unlinked. It must not be decoded again at region completion.
+        if (autolinkRegion_->deferred == beginNode)
+            autolinkRegion_->deferred = MarkdownNoNode;
+        auto endNode = current;
         while (nodes_[endNode].source.last < range.last)
             endNode = nodes_[endNode].nextSibling;
         const auto oldFirst = nodes_[beginNode].source.first, oldLast = nodes_[endNode].source.last;
@@ -1470,13 +1487,7 @@ class MarkdownInlines
                                                   std::wstring_view(L".-_+").find(static_cast<wchar_t>(previous)) == std::wstring_view::npos);
             return std::nullopt;
         }
-        if (region.deferred != MarkdownNoNode && region.current == region.deferred)
-        {
-            auto& node       = nodes_[region.deferred];
-            const auto first = NormalizedOffset(node.source.first), last = NormalizedOffset(node.source.last);
-            node.value = Decode(std::wstring_view(text_).substr(first, last - first));
-            autolinkDecodedUnits_ += last - first;
-        }
+        DecodeAutolinkSuffix();
         const auto next = region.next;
         autolinkRegion_.reset();
         return next;
