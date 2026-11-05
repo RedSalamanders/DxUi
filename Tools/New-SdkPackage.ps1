@@ -5,6 +5,8 @@ Packages the exact Release archive as a relocatable DxUi SDK ZIP and runs an ext
 Copies only distributable SDK inputs, then builds/runs the consumer outside any
 producer checkout. The compiler's header dependency report must contain only the
 extracted SDK and selected Visual Studio/Windows SDK. Keeps failed evidence.
+Verifies the complete license set and original notice bytes before archiving and
+after extraction; SDK-local notice links work without the producer checkout.
 .PARAMETER Platform
 Matching native x64 or ARM64 host and library.
 .PARAMETER Version
@@ -14,6 +16,7 @@ Existing approved workspace outside a Git checkout for SDK consumer scratch.
 Hosted runs default to RUNNER_TEMP; local invocation requires an explicit root.
 .OUTPUTS
 .build/sdk/DxUi-SDK-<version>-<platform>.zip and source/compiler/archive identity receipt.
+The manifest and receipt include every shipped license path and SHA-256.
 .NOTES
 Requires a completed production-only Release build, PowerShell 7.4 and the selected MSVC 14.52 toolchain.
 Copies public headers, restored dependencies, licenses, Release library, integration props
@@ -44,6 +47,8 @@ if($LASTEXITCODE -eq 0){throw 'SDK SmokeRoot must be outside all producer Git ch
 Import-Module (Join-Path $root 'Tools/VisualStudio.psm1') -Force
 Import-Module (Join-Path $root 'Tools/ConsumerBuild.psm1') -Force
 Import-Module (Join-Path $root 'Build/BuildConsole.psm1') -Force
+Import-Module (Join-Path $root 'Tools/SdkNotices.psm1') -Force
+$sourceCommit=(& git -C $root rev-parse HEAD).Trim()
 $installation=Get-DxUiVisualStudioInstallation
 $hostArchitecture=if([Runtime.InteropServices.RuntimeInformation]::OSArchitecture -eq 'Arm64'){'arm64'}else{'amd64'}
 $msbuild=Join-Path $installation "MSBuild/Current/Bin/$hostArchitecture/MSBuild.exe"
@@ -63,13 +68,8 @@ Copy-Item -Path (Join-Path $installed 'include/*') -Destination (Join-Path $stag
 Copy-Item -LiteralPath $library -Destination (Join-Path $stage "lib/$Platform/Release/DxUi.lib")
 New-Item -ItemType Directory -Path (Join-Path $stage 'build') | Out-Null
 Copy-Item -LiteralPath (Join-Path $root 'Build/NativeBuildPolicy.targets') -Destination (Join-Path $stage 'build/NativeBuildPolicy.targets')
-New-Item -ItemType Directory -Path (Join-Path $stage 'licenses') | Out-Null
-foreach($name in @('LICENSE.txt','THIRD-PARTY-NOTICES.md')){Copy-Item -LiteralPath (Join-Path $root $name) -Destination (Join-Path $stage 'licenses')}
-Copy-Item -LiteralPath (Join-Path $installed 'share/wil/copyright') -Destination (Join-Path $stage 'licenses/WIL-LICENSE.txt')
-Copy-Item -LiteralPath (Join-Path $root 'docs/licenses/katex.txt') -Destination (Join-Path $stage 'licenses/katex-LICENSE.txt')
-Copy-Item -LiteralPath (Join-Path $root 'docs/licenses/tomlplusplus.txt') -Destination (Join-Path $stage 'licenses/tomlplusplus-LICENSE.txt')
-Copy-Item -LiteralPath (Join-Path $root 'docs/licenses/rapidyaml.txt') -Destination (Join-Path $stage 'licenses/rapidyaml-LICENSE.txt')
-Copy-Item -LiteralPath (Join-Path $root 'docs/licenses/rapidyaml-bundled.txt') -Destination (Join-Path $stage 'licenses/rapidyaml-bundled-NOTICES.txt')
+Copy-DxUiSdkNotices -Root $root -InstalledRoot $installed -Stage $stage -SourceCommit $sourceCommit
+$licenseInventory=@(Assert-DxUiSdkNotices -Root $root -InstalledRoot $installed -Stage $stage -SourceCommit $sourceCommit)
 $props=@'
 <Project>
   <PropertyGroup>
@@ -103,7 +103,7 @@ Public source-pin consumers retain the separate Build/DxUi.Consumer.props contra
 The included native policy preserves /Wall for your sources and the producer's reviewed diagnostic exceptions.
 '@ | Set-Content -LiteralPath (Join-Path $stage 'README.txt') -Encoding utf8
 $manifest=[ordered]@{schemaVersion=1;version=$Version;platform=$Platform;configuration='Release';kind='sdk';
-    source=(& git -C $root rev-parse HEAD).Trim();apiRevision=$identity.Identity.apiRevision;compiler=$identity.Identity;
+    source=$sourceCommit;apiRevision=$identity.Identity.apiRevision;compiler=$identity.Identity;licenses=$licenseInventory;
     librarySha256=(Get-FileHash -LiteralPath $library).Hash.ToLowerInvariant();runtime='MD';testsIncluded=$false}
 $manifest|ConvertTo-Json -Depth 12|Set-Content -LiteralPath (Join-Path $stage 'sdk-manifest.json') -Encoding utf8
 New-Item -ItemType Directory -Path (Join-Path $stage 'samples/Smoke') -Force | Out-Null
@@ -115,6 +115,9 @@ $smoke=Join-Path $SmokeRoot ('dxui-sdk-'+[guid]::NewGuid().ToString('N'))
 if(Test-Path -LiteralPath $smoke){throw 'SDK consumer scratch identity is already occupied.'}
 $extracted=Join-Path $smoke 'extracted SDK'
 Expand-Archive -LiteralPath $archive -DestinationPath $extracted
+$extractedLicenses=@(Assert-DxUiSdkNotices -Root $root -InstalledRoot $installed -Stage $extracted -SourceCommit $sourceCommit)
+$extractedManifest=Get-Content -LiteralPath (Join-Path $extracted 'sdk-manifest.json') -Raw|ConvertFrom-Json
+if(@(Compare-Object @($extractedManifest.licenses|ForEach-Object {$_.path+':'+$_.sha256}) @($extractedLicenses|ForEach-Object {$_.path+':'+$_.sha256}) -CaseSensitive).Count){throw 'Extracted SDK license manifest differs from its files.'}
 Copy-Item -LiteralPath (Join-Path $extracted 'samples/Smoke/Main.cpp') -Destination (Join-Path $smoke 'Main.cpp')
 # Empty parent policy isolates the consumer from the source checkout's build imports.
 '<Project />'|Set-Content -LiteralPath (Join-Path $smoke 'Directory.Build.props')
@@ -181,6 +184,7 @@ $refused=$false
 try { Assert-NativeBuildDiagnostics -LogPath $warningLog } catch { $refused=$_.Exception.Message -like 'Zero-warning build validation failed:*' }
 if(-not $refused){throw 'SDK first-party warning did not fail zero-warning validation.'}
 $manifest['smokePassed']=$true
+$manifest['licenseClosurePassed']=$true
 $manifest['firstPartyWarningControlPassed']=$true
 $manifest['headerClosurePassed']=$true
 $manifest['headerCount']=@($dependencies.Data.Includes).Count

@@ -70,6 +70,17 @@ Local gallery generation remains available for reviewed documentation pull reque
 
 The SDK ZIP carries the unchanged reviewed NativeBuildPolicy.targets and imports it from DxUi.Sdk.props. Public SDK/WIL headers are external dependencies of the extracted consumer; consumer-owned translation units retain /Wall and the zero-warning gate. Packaging compiles/links/runs a consumer using only extracted files, verifies the library hash is unchanged, then compiles a separate C4189 control and requires diagnostic validation to reject it with /WX still disabled. Both builds retain complete MSBuild success and diagnostic summaries for the strict gate. The receipt records the policy hash and that negative control; no producer test or source tree is packaged.
 
+The SDK's `licenses/` contains the project MIT license, source notices, the actual restored WIL copyright,
+KaTeX, toml++, rapidyaml and its bundled notices, Unicode License V3 for embedded Unicode 17 data, and the
+full WHATWG notice for the embedded entity table. Preserve original license bytes. Source-notice license
+links resolve within that directory; repository-only provenance links name the exact public source commit.
+`SdkNotices.psm1` verifies the exact file set and byte identities before ZIP creation and after extraction.
+The extracted manifest's license inventory must match those files. The manifest/receipt record every path
+and SHA-256, and successful complete packaging records `licenseClosurePassed`. Independent tooling tests
+pin the required set, compare original upstream bytes, check offline links and ZIP extraction, and reject
+missing/mutated licenses, changed source notices and a moving source identity. These license checks do not
+replace the native extracted-consumer smoke or platform/runtime acceptance.
+
 The extracted SDK consumer runs outside all producer Git checkouts: hosted RUNNER_TEMP or an explicitly selected existing approved local SmokeRoot. It disables vcpkg/forced producer imports and validates the actual compiler header dependency report against only the extracted SDK, selected Visual Studio and Windows SDK. Unpackaged headers fail before the runtime smoke can qualify the archive. The header report is retained with build diagnostics.
 
 ## Emergency PR merge
