@@ -1545,12 +1545,18 @@ with an optional initial BOM. Fence lines must be exact, without spaces. YAML
 closes at `---` or `...`; TOML closes at `+++`. Later thematic breaks, indented
 or quoted markers and markers in code retain normal Markdown interpretation.
 CommonMark0312 and Gfm029 do not acquire metadata syntax.
+Tracked edits at document start recognize the envelope again, even when its bytes are unchanged. Inserting
+a prefix removes its metadata interpretation; deleting that prefix can make it metadata.
 
 `MarkdownBlockKind::FrontMatter` and `MarkdownNode::frontMatterKind` identify the
 source owner and language. `block.content` excludes fences; `block.source` retains
 the entire envelope, comments, order, spelling and original EOLs. An incomplete
 envelope extends through EOF with `block.closed == false`. No Markdown references,
 headings or inline styles are extracted from metadata.
+YAML accepts LF, CR and CRLF through private parser staging while retaining the exact original source and
+diagnostic ranges. TOML keeps its own line-ending rules. Internal parser checks and allocations use the
+same bounded callbacks in Release, Debug and ASan; allocation failure preserves the previous publication
+for retry.
 `Diagnostics()` carries a source-ranged `UnclosedFrontMatter` issue naming the
 opener and final syntax node. The semantic child exposes a missing-fence
 explanation through UIA HelpText; closing the envelope retires that diagnostic.

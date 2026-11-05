@@ -2050,6 +2050,9 @@ Only RichMarkdown MUST recognize an exact `---` (YAML 1.2.2) or `+++` (TOML
 1.0.0) first physical line, optionally preceded by one document BOM. No leading
 blank, indentation, trailing whitespace, container prefix or later thematic
 break qualifies. CommonMark0312/Gfm029 MUST retain their existing block grammar.
+Incremental reuse MUST preserve that absolute-start rule in both directions: inserting text before an
+envelope retires its front-matter interpretation, and removing a preceding prefix permits recognition at
+offset zero. Unchanged suffix bytes alone do not prove that the old block kind remains valid.
 YAML closes with an exact `---` or `...` line; TOML with an exact `+++` line.
 Fence recognition precedes parsing the metadata language, including invalid
 or incomplete quoted values. No JSON front matter is inferred.
@@ -2060,6 +2063,10 @@ the source through EOF and reports `block.closed == false`; it MUST NOT discard
 text or fabricate a close. Metadata content MUST NOT define Markdown references,
 headings, lists or inlines in the following document. Unknown fields, comments,
 spelling, order, BOM and original EOLs MUST survive every untouched source range.
+YAML validation MUST accept LF, CR and CRLF by normalizing only private UTF-8 staging; TOML retains its
+own line-ending grammar. Private rapidyaml error callbacks and tag-cache allocations MUST use the same
+bounded parse context in every configuration. Malformed input returns a source-owned diagnosis; allocation
+failure unwinds staging and leaves the previous publication available for an explicit retry.
 
 A closed metadata envelope with no validation diagnostic presents a collapsed,
 localized Properties disclosure by default. Expansion shows the source-owned

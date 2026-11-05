@@ -14,6 +14,9 @@
 #define RYML_SINGLE_HDR_DEFINE_NOW
 #define RYML_WITH_TAB_TOKENS
 #define RYML_MAX_TAG_DIRECTIVES 128
+// Checked private callbacks must remain throwable in Release too. In particular,
+// tag-cache growth must not terminate when its allocation is refused.
+#define RYML_USE_ASSERT 1
 #define c4 dxui_private_c4
 #pragma warning(push)
 #pragma warning(disable : 4464)
@@ -37,6 +40,21 @@ struct Budget
 {
     std::size_t bytes{};
     static constexpr std::size_t MaximumBytes = 4u * 1024u * 1024u;
+};
+thread_local Budget* activeYamlBudget{};
+struct ScopedYamlBudget
+{
+    explicit ScopedYamlBudget(Budget& budget) noexcept : previous(activeYamlBudget)
+    {
+        activeYamlBudget = &budget;
+    }
+    ~ScopedYamlBudget()
+    {
+        activeYamlBudget = previous;
+    }
+    ScopedYamlBudget(const ScopedYamlBudget&)            = delete;
+    ScopedYamlBudget& operator=(const ScopedYamlBudget&) = delete;
+    Budget* previous;
 };
 void* AllocateYaml(std::size_t length, void*, void* context)
 {
@@ -67,6 +85,36 @@ void FreeYaml(void* allocation, std::size_t length, void* context)
 {
     throw YamlSyntaxError{};
 }
+void* AllocateGlobalYaml(std::size_t length, void* hint, void*)
+{
+    if (! activeYamlBudget)
+        std::terminate();
+    return AllocateYaml(length, hint, activeYamlBudget);
+}
+void FreeGlobalYaml(void* allocation, std::size_t length, void*)
+{
+    if (! activeYamlBudget)
+        std::terminate();
+    FreeYaml(allocation, length, activeYamlBudget);
+}
+void ConfigurePrivateYamlCallbacks()
+{
+    // Function-static initialization serializes the only write to this private
+    // rapidyaml namespace. Global tag-cache callbacks borrow the parsing thread's
+    // budget; every parser/handler is destroyed before that scoped budget ends.
+    static const bool configured = []
+    {
+        yaml::Callbacks callbacks;
+        callbacks.m_allocate    = AllocateGlobalYaml;
+        callbacks.m_free        = FreeGlobalYaml;
+        callbacks.m_error_basic = YamlBasicError;
+        callbacks.m_error_parse = YamlParseError;
+        callbacks.m_error_visit = YamlVisitError;
+        yaml::set_callbacks(callbacks);
+        return true;
+    }();
+    static_cast<void>(configured);
+}
 struct EventStream
 {
     EventStream() : source(0u, '\0'), arena(0u, '\0'), words(0u)
@@ -80,6 +128,17 @@ MetadataIssue ParseYamlEvents(std::wstring_view text, EventStream& out)
 {
     if (! MetadataUtf8(text, out.source))
         return MetadataIssue::Invalid;
+    // YAML accepts CR, LF and CRLF. Normalize only its private UTF-8 staging:
+    // the source envelope, ACPs, diagnostics and TOML input remain byte-exact.
+    std::size_t normalized{};
+    for (std::size_t at = 0u; at < out.source.size(); ++at)
+    {
+        const char unit          = out.source[at];
+        out.source[normalized++] = unit == '\r' ? '\n' : unit;
+        if (unit == '\r' && at + 1u < out.source.size() && out.source[at + 1u] == '\n')
+            ++at;
+    }
+    out.source.resize(normalized);
     // The handler counts required output even when a bounded buffer fills.
     // Exhaustion is a capacity result, not a malformed-YAML diagnosis.
     constexpr std::size_t MaximumWords = 256u * 1024u;
@@ -87,6 +146,8 @@ MetadataIssue ParseYamlEvents(std::wstring_view text, EventStream& out)
     out.words.resize((std::min)(MaximumWords, out.source.size() * 8u + 64u));
     out.arena.resize((std::min)(MaximumArena, out.source.size() * 3u + 64u));
     Budget budget;
+    const ScopedYamlBudget scopedBudget(budget);
+    ConfigurePrivateYamlCallbacks();
     yaml::Callbacks callbacks;
     callbacks.m_user_data   = &budget;
     callbacks.m_allocate    = AllocateYaml;

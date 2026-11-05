@@ -2767,14 +2767,20 @@ static void TestRichFrontMatterAllocationFailureAtomicity(bool trace = false)
         editor.SetMarkdownRenderingEnabled(true);
         Check(editor.IsMarkdownRenderingEnabled() && editor.GetText() == L"previous", "semantic activation retries after each observed allocation failure");
     }
+    std::wstring tagged = L"---\n";
+    for (unsigned index = 0u; index < 20u; ++index)
+        tagged.append(std::format(L"key{0}: !kind{0} value\n", index));
+    tagged.append(L"---\n");
     for (const std::wstring_view source : {L"---\r\n# comment\r\nname: '\U0001f600'\r\n---\r\n# after\r\n",
+                                           L"---\rtitle: a\rtags: b\r---\r",
                                            L"+++\n# comment\nname = '\u03b2'\n+++\n",
                                            L"---\nkey: [\n",
                                            L"+++\nkey = [\n",
                                            L"+++\nx = 1\nx = 2\n+++\n",
                                            L"---\na: 1\na: 2\n---\n",
                                            L"+++\nnested = [{ x = [1, 2], text = \"long value\" }]\n+++\n",
-                                           L"---\na: &anchor [one, two]\nb: *anchor\n? {x: 1, y: 2}\n: value\n---\n"})
+                                           L"---\na: &anchor [one, two]\nb: *anchor\n? {x: 1, y: 2}\n: value\n---\n",
+                                           std::wstring_view(tagged)})
     {
         std::size_t requests{};
         {

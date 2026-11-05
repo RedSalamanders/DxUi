@@ -1008,6 +1008,30 @@ void TestMetadataIndependentValidityCorpora()
         if (! correct)
             std::cerr << "Metadata corpus failure " << item.name << " actual=" << static_cast<int>(actual) << '\n';
         Require(correct, "independent metadata validity expectation");
+        if (yaml && ! invalidEncoding)
+        {
+            // The same independently classified YAML stream in each permitted
+            // line-break spelling; TOML's stricter CR rule remains unchanged.
+            std::wstring lf;
+            for (std::size_t at = 0u; at < source.size(); ++at)
+            {
+                const auto unit = source[at];
+                lf.push_back(unit == L'\r' ? L'\n' : unit);
+                if (unit == L'\r' && at + 1u < source.size() && source[at + 1u] == L'\n')
+                    ++at;
+            }
+            for (const std::wstring_view eol : {L"\n", L"\r", L"\r\n"})
+            {
+                std::wstring variant;
+                for (const auto unit : lf)
+                    if (unit == L'\n')
+                        variant.append(eol);
+                    else
+                        variant.push_back(unit);
+                Require(DxUi::RichText::Detail::ValidateYamlMetadata(variant) == actual,
+                        "independent YAML validity outcomes are invariant under LF, CR and CRLF");
+            }
+        }
         if (yaml)
             ++yamlCount;
         else

@@ -704,9 +704,13 @@ struct MarkdownParser::Preparation
                             blanks.begin(), blanks.end(), old.block.source.last, [](const auto& line, auto position) { return line.source.first < position; });
                         const bool followingBlank = blank != blanks.end() && blank->owner == 0u && blank->source.first == old.block.source.last &&
                                                     blank->source.last > blank->source.first && (! prefix || blank->source.last <= commonFirst);
-                        // A suffix is unchanged through EOF, so its existing closure remains valid.
-                        // Prefix roots require an unchanged document-owned separator.
-                        if ((followingBlank || suffix) && old.block.closed && old.block.source.last > old.block.source.first)
+                        // Front matter depends on absolute document start. A
+                        // suffix crossing that boundary must be recognized again
+                        // in either direction, even when its bytes are unchanged.
+                        const bool sameStartContext = (cursor == 0u) == (oldPosition == 0u);
+                        // Other suffix closure remains valid through EOF; prefix
+                        // roots require an unchanged document-owned separator.
+                        if (sameStartContext && (followingBlank || suffix) && old.block.closed && old.block.source.last > old.block.source.first)
                         {
                             closedRoot.emplace();
                             closedRoot->root = closedRoot->scan = reusableRootIndex - 1u;
