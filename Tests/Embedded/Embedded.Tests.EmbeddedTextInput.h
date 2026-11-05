@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <format>
 #include <functional>
 #include <stdexcept>
 #include <thread>
@@ -90,8 +91,9 @@ static void TestEmbeddedPreparationWakeWaitsForInput(GraphicsFixture& gpu)
         view.Controls().SetRoot(std::move(field));
         Hr(view.Prepare(320, 160), "prepare input wake fixture");
         view.Controls().SetFocusControl(probe);
-        view.Controls().SetInputModality(InputModality::Keyboard);
         Hr(view.Prepare(320, 160), "consume focus wake before input");
+        static_cast<void>(view.DispatchKey(VK_SHIFT, true));
+        Hr(view.Prepare(320, 160), "settle keyboard modality before arming retirement");
         if (route == 4u)
             state.duringKey = [&]
             {
@@ -217,10 +219,20 @@ static void TestTextFieldDirectPreparationRetirement(GraphicsFixture& gpu)
                         snapshot.state.text       = L"Changed notebook";
                         snapshot.state.caretIndex = snapshot.state.text.size();
                         snapshot.state.selectionAnchorIndex.reset();
-                        wake.armed = true;
-                        Check(view.ApplyTextInput(
-                                  snapshot.revision, snapshot.state, action == 0u ? EmbeddedTextInputAction::Preview : EmbeddedTextInputAction::Commit) == S_OK,
-                              "embedded text input completes before a preparation callback retires its owner");
+                        if (action == 0u)
+                        {
+                            snapshot.state.compositionStartIndex  = 0u;
+                            snapshot.state.compositionEndIndex    = snapshot.state.text.size();
+                            snapshot.state.compositionCursorIndex = snapshot.state.caretIndex;
+                        }
+                        wake.armed         = true;
+                        const auto applied = view.ApplyTextInput(
+                            snapshot.revision, snapshot.state, action == 0u ? EmbeddedTextInputAction::Preview : EmbeddedTextInputAction::Commit);
+                        const auto diagnostic = std::format("embedded text input completes before retirement: action={} retire={} HRESULT={:08X}",
+                                                            action,
+                                                            retire,
+                                                            static_cast<std::uint32_t>(applied));
+                        Check(applied == S_OK, diagnostic.c_str());
                     }
                     else
                     {
