@@ -9,6 +9,9 @@
   "kind": "sdk",
   "adapter": "Tools/Invoke-ProjectCi.ps1",
   "include": [
+    "LICENSE.txt",
+    "THIRD-PARTY-NOTICES.md",
+    "docs/licenses/**",
     "Tests/Fixtures/**",
     "Tests/Data/**"
   ],

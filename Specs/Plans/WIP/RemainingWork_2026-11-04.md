@@ -1,7 +1,7 @@
 # DxUi remaining correctness and qualification
 
 Status: ACTIVE
-Updated: 4 November 2026
+Updated: 5 November 2026
 Owner: DxUi maintainers; consumer policy and adoption remain with each application.
 
 This is the **only active DxUi plan**. The [consolidation record](../Done/WipConsolidation_2026-11-04.md)
@@ -187,8 +187,10 @@ omitting an ID from this summary does not dispose of it.
 <a id="d-g1"></a>
 ## D-G1 — SDK notices, evidence and process
 
-- [ ] Reconcile Unicode/WHATWG notices, shipped license links and independent SDK package contents (DOCS-07)
-  against the current candidate; current ZIP success alone does not close every older license finding.
+- [x] Complete DOCS-07: preserve full Unicode/WHATWG notices, fix SDK-local links, verify the exact license
+  set/bytes before and after extraction, and include notice inputs in CI identity. Independent refusal tests,
+  complete tooling and a real x64 production/extracted-consumer smoke pass in the
+  [scoped closeout](../Done/SdkDataNotices_2026-11-05.md). Other governance and platform gates remain below.
 - [ ] Apply forward evidence aliases/schema changes, then execute approved D9 history redaction as a separate
   coordinated operation with private originals, all-ref inventory, reviewed mirror, commit map, validation,
   consumer repins and worktree repair. This consolidation does not rewrite history or change repository access.

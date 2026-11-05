@@ -1,5 +1,9 @@
 # Completed and archived plans
 
+## Completed scopes — 5 November 2026
+
+- [SDK data notices and license closure](SdkDataNotices_2026-11-05.md) — full Unicode/WHATWG notices, usable packaged links, independent byte/set/extraction guards, CI dependency closure and actual x64 production/extracted-consumer qualification; broader acceptance remains in WIP.
+
 ## Consolidated records — 4 November 2026
 
 - [Diagram label backgrounds and brush retirement](DiagramLabelBackgrounds_2026-11-04.md) — prepared canvas/contrast policy, native raster and retirement counterfactuals, six builds, three x64 profiles and original exact-pin consumer captures; broader acceptance remains in WIP.
