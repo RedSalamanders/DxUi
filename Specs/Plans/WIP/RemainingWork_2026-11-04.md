@@ -1,7 +1,7 @@
 # DxUi remaining correctness and qualification
 
 Status: ACTIVE
-Updated: 4 November 2026
+Updated: 5 November 2026
 Owner: DxUi maintainers; consumer policy and adoption remain with each application.
 
 This is the **only active DxUi plan**. The [consolidation record](../Done/WipConsolidation_2026-11-04.md)

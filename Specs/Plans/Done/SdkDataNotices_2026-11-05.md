@@ -25,7 +25,7 @@ remain unchanged, verified before reusing the qualified library for the final pa
 
 | Original retained evidence | Identity/result |
 | --- | --- |
-| SDK `0.1.1546` / `ab850a40e1026cdbbf62153db9a0a55156d2775c` | ZIP SHA-256 `0c573ca05bca86d2a300de002f9f1fdb44d56d74af38f1fffE7234e47cb226fe`; two missing notices and five dead `licenses/docs/licenses/...` links. |
+| SDK `0.1.1546` / `ab850a40e1026cdbbf62153db9a0a55156d2775c` | ZIP SHA-256 `0c573ca05bca86d2a300de002f9f1fdb44d56d74af38f1fffe7234e47cb226fe`; two missing notices and five dead `licenses/docs/licenses/...` links. |
 | Pinned CI engine `e32cf9f9b29f4e817decb09e1be44be7fc1a94de` | Previously excluded root source notices and both Unicode/WHATWG license inputs. Explicit project includes now override those exclusions. |
 
 | Qualified x64 SDK `0.1.1552` | SHA-256 |
