@@ -2355,9 +2355,9 @@ bool RichTextEditor::WrapSelectionInMarkdownBlock(RichText::MarkdownBlockKind ki
 {
     using RichText::MarkdownBlockKind;
     const bool quote = kind == MarkdownBlockKind::BlockQuote;
-    if ((! quote && kind != MarkdownBlockKind::FencedCode) || ! Editable() || _state->hasTextPreview || MarkdownCommandInputBlocked(GetHost(), this) ||
-        codeLanguage.size() > 255u || ! RichText::IsValidUtf16(codeLanguage) || codeLanguage.find_first_of(L"\r\n`") != codeLanguage.npos ||
-        codeLanguage.find(L'\0') != codeLanguage.npos || (quote && ! codeLanguage.empty()))
+    if ((! quote && kind != MarkdownBlockKind::FencedCode) || ! Editable() || _state->document.transientEntry_.has_value() ||
+        MarkdownCommandInputBlocked(GetHost(), this) || codeLanguage.size() > 255u || ! RichText::IsValidUtf16(codeLanguage) ||
+        codeLanguage.find_first_of(L"\r\n`") != codeLanguage.npos || codeLanguage.find(L'\0') != codeLanguage.npos || (quote && ! codeLanguage.empty()))
         return false;
     const auto before = GetSelection();
     if (before.Start() == before.End())
