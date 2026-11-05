@@ -80,6 +80,10 @@ and SHA-256, and successful complete packaging records `licenseClosurePassed`. I
 pin the required set, compare original upstream bytes, check offline links and ZIP extraction, and reject
 missing/mutated licenses, changed source notices and a moving source identity. These license checks do not
 replace the native extracted-consumer smoke or platform/runtime acceptance.
+The project manifest explicitly includes `LICENSE.txt`, `THIRD-PARTY-NOTICES.md` and `docs/licenses/**`
+in the native/packaging input closure, overriding the ordinary Markdown/documentation exclusions. A notice-only
+change must invalidate the packaging candidate. Tooling tests pin those declarations and check the real
+classifier when the pinned engine checkout is available; ordinary documentation retains its normal exclusion.
 
 The extracted SDK consumer runs outside all producer Git checkouts: hosted RUNNER_TEMP or an explicitly selected existing approved local SmokeRoot. It disables vcpkg/forced producer imports and validates the actual compiler header dependency report against only the extracted SDK, selected Visual Studio and Windows SDK. Unpackaged headers fail before the runtime smoke can qualify the archive. The header report is retained with build diagnostics.
 

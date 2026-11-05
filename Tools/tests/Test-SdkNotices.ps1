@@ -59,4 +59,18 @@ Refuses {Copy-DxUiSdkNotices -Root $root -InstalledRoot $installed -Stage (Join-
 $wrapper=[IO.File]::ReadAllText((Join-Path $root 'Tools/New-SdkPackage.ps1'))
 Require ($wrapper.Contains('Copy-DxUiSdkNotices -Root $root') -and [regex]::Matches($wrapper,'Assert-DxUiSdkNotices -Root \$root').Count -eq 2 -and
          $wrapper.Contains('licenses=$licenseInventory') -and $wrapper.Contains("`$manifest['licenseClosurePassed']=`$true")) 'Real SDK staging/extraction and receipt use the license guard'
+$project=Get-Content -LiteralPath (Join-Path $root '.ci/project.json') -Raw|ConvertFrom-Json
+foreach($inputPath in @('LICENSE.txt','THIRD-PARTY-NOTICES.md','docs/licenses/**')){
+    Require ($inputPath -cin $project.include) ('Explicit packaging input overrides documentation exclusions: '+$inputPath)
+}
+$policy=Join-Path $root '.ci-engine/Tools/Modules/Ci.Policy.psm1'
+if(Test-Path -LiteralPath $policy){
+    Import-Module $policy -Force
+    $configuration=Read-CiProject $root
+    foreach($inputPath in @('LICENSE.txt','THIRD-PARTY-NOTICES.md','docs/licenses/Unicode.txt','docs/licenses/WHATWG.txt','docs/licenses/future-component.txt','Tools/SdkNotices.psm1')){
+        Require (Get-CiPathDisposition -Path $inputPath -Project $configuration).native ('Pinned engine includes packaging dependency: '+$inputPath)
+    }
+    Require (-not (Get-CiPathDisposition -Path 'docs/README.md' -Project $configuration).native) 'Ordinary documentation remains outside native packaging inputs'
+    Write-Host 'Pinned CI engine classifies every SDK notice dependency as a packaging/native input.'
+}
 Write-Host 'SDK notices: exact set, original Unicode/WHATWG/WIL bytes, offline links, pinned provenance, extraction, missing/mutated/license-projection and bad-identity refusals passed.'
