@@ -1,5 +1,24 @@
 # Input and accessibility
 
+## Selected policies awaiting implementation
+
+Owner decisions of 5 November 2026 define the intended remaining behavior below. Current capability claims
+are unchanged until the corresponding implementation and source-bound regressions close in
+[the active plan](../Plans/WIP/RemainingWork_2026-11-04.md).
+
+- Source-region editing permits natural navigation and edits across a previous active interval. Backspace,
+  Delete, Tab and other source commands must not trap the caret at an old region boundary. Reconcile the
+  editing scope from the current caret/selection while preserving source ACP, Unicode, undo, composition and
+  read-only rules. The older proposal to contain every edit inside one region is superseded.
+- When both Unicode text and a bitmap are available, default paste prefers text. Applications may explicitly
+  opt into image-first priority. Declined image handling preserves source and selection; current clipboard
+  ownership, stale-request and one-transaction rules continue to apply.
+- Image destinations `//host/...` and `file://host/...` are network requests subject to remote-image
+  permission. Their spelling must not bypass that policy through a local-file classification. Applications
+  continue to own fetching and permission; this policy grants no automatic network access.
+
+## Current input contract
+
 RichTextEditor local-fragment links expose Invoke and support Ctrl+click or Ctrl+Enter at the
 source caret. External links expose Invoke only while an activation handler is registered. A current, enabled, non-composing semantic publication is required;
 read-only editors permit navigation. External destinations invoke
