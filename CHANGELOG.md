@@ -4,6 +4,9 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Preserve the visible source line when zooming and the viewport when toggling a disclosure, reuse unaffected disclosure geometry, and let explicit caret movement supersede pending view anchors. Offscreen WARP regressions cover both text views, source replacement, notifications and geometry reuse.
+- Refresh native composition overlays after metadata-only imports while retaining prepared commands and source geometry. Let hosts handle read-only editing chords and their Shift aliases. Make optional punctuation pairing respect Unicode word context and type over matching closers without a source/history edit; retain deliberate selection wrapping.
+- Resolve missing CIM process paths with direct inspection before judging build-output use. Ignore confirmed exited observations, preserve fail-closed live-process refusals with PID diagnostics, and keep unrelated configurations and worktrees independent without terminating applications. Include the helper in the paired benchmark's build-input scope and import-closure regression guard.
 - Label performance metrics as unassessed when policy admission withholds every verdict, preserving the inconclusive result and original refusal reasons instead of implying that no regressions were found.
 - Admit and verify the owned descendant before testing timeout and bounded pipe drains, cover delayed parent startup, and release the exact surviving holder cooperatively while preserving the production measurement and post-exit drain limits.
 - Make the tooling timeout fixture tolerate ordinary PowerShell startup under native build load while still timing out its real stalled child. Verify the exact failure, continuation and survival of an independent same-name process; keep production watchdog deadlines unchanged.
