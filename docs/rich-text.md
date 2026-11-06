@@ -1511,6 +1511,14 @@ In semantic Rich view, Enter continues a list or inserts a table row; Shift+Ente
 inserts a raw newline. Tab/Shift+Tab first navigate cells or indent/outdent an
 eligible list, otherwise the host retains ordinary focus traversal. Ctrl+B/I
 toggle styles, Ctrl+Enter toggles tasks, and Ctrl+Z/Y retain transaction history.
+Read-only editors leave editing chords and their Shift aliases unhandled for the
+host. Select-all, copy and acknowledged navigation still work. A native composition
+metadata update refreshes underlines even when its text and caret stay unchanged;
+it preserves prepared command state and creates no source or selection transaction.
+`SetAutoPairEnabled(true)` wraps a selection as one undo transaction. At a caret,
+it avoids doubling punctuation next to word content and advances over a matching
+closer without editing source. Brackets still pair after a word when the following
+position is empty. Unicode neighbors and reversed selection direction are retained.
 Typing a literal pipe/backslash in an empty/padded cell escapes it and uses the
 focused cell's real source insertion. Visual deletion removes empty owned
 Markdown/validated inline HTML wrappers only when their complete body is deleted;
@@ -1900,6 +1908,9 @@ to source start. Unresolved or malformed UTF-8 fragments leave selection unchang
 `GetScrollInfo` reports current prepared offset, viewport height and document
 height. `SetScrollOffsetDip` clamps a finite owner-thread request without changing
 source, selection, undo history or focus. Read-only views allow scrolling.
+Opening or closing a disclosure keeps its summary at the same viewport position
+and reuses compatible geometry outside the changed block. It does not move the
+caret or publish a selection-change event.
 `SetOnScrollChanged` observes committed offsets, including caret reveal during
 preparation; no-op offsets are silent. Observers may replace themselves, scroll
 again or retire the editor. `showVerticalScrollbar` reserves a theme-colored
@@ -1953,6 +1964,9 @@ Markdown thematic break. Inline, attributed and closing forms remain literal.
 `SetZoom` and `GetZoom` expose font scale in `.25..4`; Ctrl+wheel, Ctrl+Plus/Minus
 and Ctrl+zero use the same presentation setting. Effective font sizes remain
 within `1..512` DIP. Source, selection, history and focus are preserved.
+Zoom retains the first visible prepared source line, including across multiple
+zoom changes before preparation. Explicit caret navigation still reveals the new
+caret; a replacement document cannot inherit the previous document's scroll anchor.
 `sourceMonospace` selects the code family for Source view, and `tabStopDip`
 sets an explicit tab interval independently of typed indentation. Both remain
 optional; existing Source view typography is preserved by default.

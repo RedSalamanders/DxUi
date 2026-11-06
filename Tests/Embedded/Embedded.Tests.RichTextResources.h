@@ -85,6 +85,172 @@ static void TestRichExportAllocationFailures()
           "invalid export range preserves publication and does not publish partial output");
 }
 
+static void TestRichMetadataOnlyComposition(GraphicsFixture& gpu)
+{
+    using namespace DxUi;
+    std::shared_ptr<GraphicsDevice> graphics;
+    Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "metadata-only shared device");
+    for (const auto mode : {RichText::ViewMode::Rich, RichText::ViewMode::Source})
+    {
+        EmbeddedHost view;
+        Hr(view.Attach(graphics), "metadata-only embedded owner");
+        auto owned   = std::make_unique<RichTextEditor>(L"word");
+        auto* editor = owned.get();
+        editor->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::Gfm029);
+        editor->SetMarkdownRenderingEnabled(true);
+        editor->SetViewMode(mode);
+        editor->SetSelection({4u, 4u});
+        view.Controls().SetRoot(std::move(owned));
+        view.Controls().SetFocusControl(editor, false);
+        const auto pixels = [&]
+        {
+            Hr(PrepareRichEmbeddedContent(view, gpu.width, gpu.height), "prepare metadata-only overlays");
+            gpu.Bind();
+            Hr(view.Composite(gpu.context.get(), gpu.Viewport()), "compose metadata-only surface");
+            std::vector<uint8_t> result;
+            Hr(gpu.Read(result), "read metadata-only pixels");
+            return result;
+        };
+        const auto before      = pixels();
+        const auto source      = editor->Snapshot();
+        const auto revision    = editor->Revision();
+        const auto selection   = editor->GetSelection();
+        const auto generation  = editor->DebugGetState().layoutGeneration;
+        unsigned notifications = 0u;
+        editor->SetOnTextChanged([&] { ++notifications; });
+        editor->SetOnSelectionChanged([&] { ++notifications; });
+        EmbeddedTextInputSnapshot snapshot;
+        Hr(view.ReadTextInput(snapshot), "read metadata-only entry state");
+        auto composing                        = snapshot.state;
+        composing.compositionStartIndex       = 0u;
+        composing.compositionEndIndex         = 4u;
+        composing.compositionClauseBoundaries = {0u, 4u};
+        composing.conversionTargetStartIndex  = 1u;
+        composing.conversionTargetEndIndex    = 2u;
+        Hr(view.ApplyTextInput(snapshot.revision, composing, EmbeddedTextInputAction::Preview), "publish metadata without text or selection changes");
+        const auto marked = pixels();
+        Check(marked != before, "metadata-only composition paints its underline over unchanged text");
+        Hr(view.ReadTextInput(snapshot), "read conversion-only revision");
+        composing                            = snapshot.state;
+        composing.conversionTargetStartIndex = 2u;
+        composing.conversionTargetEndIndex   = 3u;
+        Hr(view.ApplyTextInput(snapshot.revision, composing, EmbeddedTextInputAction::Preview), "move only the conversion target");
+        Check(pixels() != marked, "conversion-target-only metadata moves the heavier underline");
+        Hr(view.ReadTextInput(snapshot), "read composition cancellation revision");
+        Hr(view.ApplyTextInput(snapshot.revision, {}, EmbeddedTextInputAction::Cancel), "cancel metadata-only composition");
+        Check(pixels() == before, "metadata cancellation retires underlines and restores the original surface");
+        Check(editor->Snapshot().IsSameRevision(source) && editor->Revision() == revision && editor->GetSelection() == selection && ! editor->CanUndo() &&
+                  notifications == 0u && ! view.Controls().GetHwnd(),
+              "metadata-only previews preserve source, history, notifications and the no-window host");
+        Check(editor->DebugGetState().layoutGeneration == generation, "metadata-only overlay rasterization reuses source geometry");
+        editor->SetOnTextChanged({});
+        editor->SetOnSelectionChanged({});
+    }
+}
+static void TestRichViewportPreservation(GraphicsFixture& gpu, bool disclosure)
+{
+    using namespace DxUi;
+    using namespace DxUi::RichText;
+    std::wstring source;
+    for (unsigned paragraph = 0u; paragraph < 200u; ++paragraph)
+    {
+        if (paragraph == 150u)
+            source += L"<details open>\n<summary>Observation details</summary>\nA retained explanation.\n</details>\n\n";
+        source += L"Paragraph " + std::to_wstring(paragraph) + L" keeps an observation beside its explanation.\n\n";
+    }
+    const auto anchor = source.find(disclosure ? L"Observation details" : L"Paragraph 140");
+    std::shared_ptr<GraphicsDevice> graphics;
+    Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "viewport shared WARP device");
+    for (const auto mode : {ViewMode::Rich, ViewMode::Source})
+    {
+        if (disclosure && mode == ViewMode::Source)
+            continue;
+        EmbeddedHost view;
+        Hr(view.Attach(graphics), "viewport embedded owner");
+        auto owned   = std::make_unique<RichTextEditor>(source);
+        auto* editor = owned.get();
+        editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+        editor->SetMarkdownRenderingEnabled(true);
+        editor->SetViewMode(mode);
+        editor->SetSelection({0u, 0u});
+        view.Controls().SetRoot(std::move(owned));
+        const auto prepare = [&]
+        {
+            Hr(PrepareRichEmbeddedContent(view, gpu.width, gpu.height), "prepare viewport fixture");
+            gpu.Bind();
+            Hr(view.Composite(gpu.context.get(), gpu.Viewport()), "compose viewport fixture");
+        };
+        prepare();
+        const auto viewport = editor->TryGetTextInputViewportRect();
+        const auto caret    = editor->TryGetTextInputCaretRect(view.Controls(), anchor);
+        Check(viewport && caret && caret->top > viewport->top + 1000.f, "viewport anchor starts well away from the caret");
+        const float inset = disclosure ? 24.f : 0.f;
+        Check(editor->SetScrollOffsetDip(caret->top - viewport->top - inset), "scroll to retained viewport anchor");
+        prepare();
+        const auto before    = editor->GetScrollInfo();
+        const auto held      = editor->Snapshot();
+        const auto revision  = editor->Revision();
+        const auto selection = editor->GetSelection();
+        unsigned notifications{};
+        editor->SetOnTextChanged([&] { ++notifications; });
+        editor->SetOnSelectionChanged([&] { ++notifications; });
+        if (disclosure)
+        {
+            for (const bool expanded : {false, true})
+            {
+                const auto semantic = editor->GetAcknowledgedSemanticDocument(view.Controls());
+                Check(semantic != nullptr, "disclosure has acknowledged semantics");
+                const auto& elements = semantic->Elements();
+                const auto found     = std::ranges::find_if(elements, [](const auto& value) { return value.role == SemanticRole::Disclosure; });
+                Check(found != elements.end(), "fixture contains a disclosure");
+                const auto element = static_cast<size_t>(found - elements.begin());
+                Check(editor->SetSemanticDisclosure(view.Controls(), semantic, element, expanded), "toggle an off-caret disclosure");
+                prepare();
+                const auto after = editor->GetScrollInfo();
+                std::cout << "viewport disclosure expanded=" << expanded << " before=" << (before ? before->offsetDip : -1.f)
+                          << " after=" << (after ? after->offsetDip : -1.f) << " reused=" << editor->DebugGetState().reusedGeometryChunks << '\n';
+                Check(before && after && std::abs(before->offsetDip - after->offsetDip) < 1.f,
+                      "disclosure preserves its viewport instead of revealing an offscreen caret");
+                Check(editor->DebugGetState().reusedGeometryChunks > 0u, "disclosure retains unrelated prepared geometry");
+            }
+        }
+        else
+        {
+            const auto oldCaret = editor->TryGetTextInputCaretRect(view.Controls(), anchor);
+            editor->SetZoom(1.25f); // A second change before preparation retains the original anchor.
+            for (const float zoom : {1.5f, .75f, 1.f})
+            {
+                editor->SetZoom(zoom);
+                prepare();
+                const auto newCaret = editor->TryGetTextInputCaretRect(view.Controls(), anchor);
+                const auto after    = editor->GetScrollInfo();
+                std::cout << "viewport zoom mode=" << static_cast<unsigned>(mode) << " zoom=" << zoom << " anchorY=" << (newCaret ? newCaret->top : -1.f)
+                          << " offset=" << (after ? after->offsetDip : -1.f) << '\n';
+                Check(oldCaret && newCaret && after && after->offsetDip > 1000.f && std::abs(oldCaret->top - newCaret->top) < 1.5f,
+                      "zoom retains the first visible source line instead of revealing the caret");
+            }
+        }
+        Check(editor->Snapshot().IsSameRevision(held) && editor->Revision() == revision && editor->GetSelection() == selection && ! editor->CanUndo() &&
+                  notifications == 0u && ! view.Controls().GetHwnd(),
+              "view changes preserve source, selection, history and notifications without a native window");
+        editor->SetOnTextChanged({});
+        editor->SetOnSelectionChanged({});
+        if (! disclosure)
+        {
+            editor->SetZoom(1.25f);
+            editor->SetSelection({1u, 1u});
+            prepare();
+            const auto revealed = editor->GetScrollInfo();
+            Check(revealed && revealed->offsetDip < 100.f, "an explicit selection supersedes a pending viewport anchor");
+            editor->SetZoom(1.5f);
+            editor->SetText(L"A replacement document.");
+            prepare();
+            const auto replacement = editor->GetScrollInfo();
+            Check(replacement && replacement->offsetDip == 0.f, "another source revision never inherits a stale viewport anchor");
+        }
+    }
+}
+
 static void TestRichPreparedPageRaster(GraphicsFixture& gpu)
 {
     using namespace DxUi;

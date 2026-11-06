@@ -20,6 +20,17 @@ source-bound acceptance remain owned by [the active plan](../Plans/WIP/Remaining
 
 ## Current input contract
 
+RichTextEditor layout retirement MUST NOT itself request a caret reveal. Explicit
+selection/edit/navigation transitions retain their reveal behavior. A disclosure
+change preserves the viewport and selection, emits no selection-change notification,
+and retains compatible geometry for unaffected blocks. View-only reflow, including
+zoom, preserves the first visible prepared source line and its relative vertical
+position when no caret reveal is pending. One bounded source-revision/binding anchor
+survives successive appearance changes until preparation; explicit scrolling or a
+new caret intent supersedes it, and a replacement source/binding cannot consume it.
+Without current prepared geometry, reflow retains the offset and clamps it to the
+new extent. Composition only consumes the prepared result and performs no anchoring.
+
 Source-region editing permits natural navigation and edits across a previous active interval. Grapheme and
 word Backspace/Delete may cross its edges in one source transaction. The former presentation retires on a
 crossing edit or outside selection; ordinary rich navigation resumes at the current caret. Multiline code
@@ -35,6 +46,17 @@ TextField, editable ComboBox and RichTextEditor preserve a buffered UTF-16 lead 
 modifier transitions. They publish the matched scalar once and retain one-step Undo/Redo. Editing/navigation,
 focus loss, text replacement, read-only transitions and non-trail character input keep cancelling a pending lead.
 Native key/character messages and supplied-device dispatch obey the same rule without taking desktop focus.
+
+Read-only RichTextEditor editing chords MUST remain unhandled so the host can route them: Ctrl+X/V/Z/Y/B/I,
+Ctrl+Shift+V/Z, Shift+Insert/Delete and the editing fallback of Ctrl+Enter. They change no source, selection,
+history or logical focus and emit no edit/selection notifications. Select-all, copy and navigation remain
+available, including acknowledged link/footnote activation and closing an in-place source view.
+
+Native imports whose source and selection are unchanged MUST still invalidate prepared composition and
+conversion overlay geometry. The host owns that metadata independently of document revisions. Schedule
+preparation and redraw while retaining prepared command availability, source/history and selection semantics;
+do not synthesize selection-change notifications for a metadata-only update.
+With unchanged source, extent, theme and device, an overlay-only refresh MUST reuse source-layout geometry.
 
 RichTextEditor local-fragment links expose Invoke and support Ctrl+click or Ctrl+Enter at the
 source caret. External links expose Invoke only while an activation handler is registered. A current, enabled, non-composing semantic publication is required;
@@ -1485,13 +1507,19 @@ coalesce in the same bounded way; direction or explicit word deletion ends a run
 The default-off direct-typing auto-pair policy inserts matching parentheses,
 brackets, braces, quotes, asterisks or underscores as one undo transaction,
 placing the caret between them or preserving the direction of a wrapped source
-selection. Native composition is never paired. Empty table-cell scaffolds use
+selection. For a collapsed caret, a following word element suppresses pairing;
+symmetric quotes/markers also stay literal after a word element. Neighbor checks
+reuse the undo word policy over bounded Unicode scalar/CRLF slices. Typing an
+existing matching closer advances the caret without changing source or history.
+Selection wrapping remains explicit regardless of neighboring word context.
+Native composition is never paired. Empty table-cell scaffolds use
 their structural cell-edit transaction and retain the interior caret.
 Default-off smart typography converts three periods to an ellipsis, two and
 three hyphens to en and em dashes, and direct straight quotes to contextual
 curly quotes. Each replacement is a single undo transaction. It declines code,
 opaque inline syntax, active source-region editing and native composition;
-pairing takes precedence when both policies are enabled.
+an admitted pair takes precedence when both policies are enabled. Suppressed
+in-word pairing leaves smart apostrophe handling available.
 Default-off Markdown auto-format recognizes empty-line heading, bullet,
 ordered-list, quote, thematic-rule and triple-backtick/tilde fence triggers at
 top level and in parser-proven empty quote/list containers.

@@ -41,7 +41,7 @@ Invoke-TestCase 'every library, build, benchmark and measurement path is measure
         'Tests/Embedded/Embedded.Tests.Embedded.cpp' = 'benchmark executable'; 'Tests/Embedded/DxUi.EmbeddedTests.vcxproj' = 'benchmark executable'; 'Tests/Support/Support.Tests.TestWatchdog.h' = 'benchmark executable'
         'Samples/EmbeddedControls/EmbeddedScene.h' = 'fixture or sample compiled into it'
         'DxUi.sln' = 'build or restore'; 'build.ps1' = 'build or restore'; 'vcpkg-install.ps1' = 'build or restore'; 'vcpkg-configuration.json' = 'build or restore'
-        'Tools/VisualStudio.psm1' = 'build or restore'; 'Tools/VcpkgTriplet.psm1' = 'build or restore'; 'Tools/ScopedTesting.psm1' = 'build or restore'
+        'Tools/VisualStudio.psm1' = 'build or restore'; 'Tools/VcpkgTriplet.psm1' = 'build or restore'; 'Tools/ScopedTesting.psm1' = 'build or restore'; 'Tools/ProcessInspection.psm1' = 'build or restore'
         'Tools/Validation.psm1' = 'build or restore'; 'Tools/Changelog.psm1' = 'build or restore'; 'Tools/Modules/Documentation/Changelog.psm1' = 'build or restore'
         'Tools/PairedRun.psm1' = 'benchmark harness'; 'Tools/BenchmarkGate.psm1' = 'benchmark harness'
         'Tools/PerformancePolicy.psm1' = 'benchmark harness'; 'Tools/PerformanceAcceptancePolicy.v1.json' = 'paired measurement or gate'
@@ -687,6 +687,25 @@ Invoke-FixtureCase 'the migrated gate independently rejects historic, candidate-
     Assert-Equal 'inconclusive' $untrusted.Conclusion 'candidate cannot self-assert policy trust'
     Assert-Equal 'policy-review-required' $untrusted.PolicyStatus 'current base has no qualified policy'
     Assert-True ($untrusted.Notes -join ' ').Contains('measured base') 'trust failure says the base is authoritative'
+}
+
+Invoke-FixtureCase 'policy admission refusals never claim unassessed metrics did not regress' {
+    param($root)
+    $summary = New-Summary @((New-Scenario -Directory $root -Controls @() -Metrics @((New-SetMetric 'clean' 'fps' 'regressed'))))
+    foreach ($migrated in @($false, $true)) {
+        if ($migrated) {
+            $summary.studyVersion = 3
+            $summary.studyPurpose = 'regression-qualification'
+            $summary.acceptancePolicy = [ordered]@{ trusted=$true; status='trusted'; policySha256='candidate-asserted' }
+        }
+        $conclusion = Get-BenchmarkConclusion -Summary $summary -ReportsDirectory $root -RequireQualifiedPolicy
+        Assert-Equal 'inconclusive' $conclusion.Conclusion 'the actual policy refusal remains inconclusive'
+        Assert-Equal 0 @($conclusion.Scenarios).Count 'admission withheld every scenario verdict'
+        $markdown = ConvertTo-BenchmarkMarkdown -Conclusion $conclusion -Summary $summary -Gate
+        Assert-True $markdown.Contains('Not assessed: no metric verdicts were admitted.') 'empty verdicts are labeled unassessed'
+        Assert-True (-not $markdown.Contains('None: no metric regressed or improved.')) 'an early refusal cannot publish a favorable absence of findings'
+        Assert-True $markdown.Contains('Policy review required:') 'the original policy-refusal reason stays visible'
+    }
 }
 
 Invoke-FixtureCase 'both judges are bound to the exact same retained receipt bytes' {

@@ -1,0 +1,20 @@
+{
+  "allNativeCodeHeadersAndProjectsUnchanged": true,
+  "nativeImplementation": "efef569e839c640415f142bc860607b38e3ef138",
+  "separateToolingMerge": "6cf8f8fad23e0671e88d239131ac4d97524c69c5",
+  "limit": "The frozen native source identity is retained; the integrated tooling has its own exact-head compiler-free validation",
+  "integratedAtCommit": "e463cb90f59461e819a339a4dd415da1bb5f3aa3",
+  "changedOriginalInputs": [
+    "Tools/BenchmarkGate.psm1",
+    "Tools/tests/Test-BenchmarkGate.ps1",
+    "Tools/tests/Test-PerformanceProfiling.ps1"
+  ],
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-editor-input-viewport-integration",
+  "inputHash": "1609ecdb2d97b2998471bfa5821a5fa5fa12539a25b36cd9aae7e14be0d01600",
+  "benchmarkInputs": {
+    "src/Controls/DxUi.RichTextEditor.cpp": "FE9CB4FA41F9157468C14BEBFAC3641CFD1F84DB26272DE3B7834B77BE9FF81F",
+    "Tests/Embedded/Embedded.Tests.RichTextResources.h": "C13D03BFBCB1872EF82CD884CF8A6DA0F85BA4097A90840A5780124DFB33973E",
+    "Tests/Support/Support.Tests.RichSemanticEditor.h": "0BB7D559D5D364234CE013D530BA300B66E1DD78C95F1D9B193D69EB170EAB61"
+  }
+}

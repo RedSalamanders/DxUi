@@ -37,7 +37,7 @@ function Get-BenchmarkScopeRules {
         [ordered]@{ Reason = 'benchmark harness'; Paths = @(Get-PairedHarness | Where-Object { $_ -cne 'Tools/PerformanceAcceptancePolicy.v1.json' }) }
         [ordered]@{ Reason = 'benchmark executable'; Paths = @('Tests/Embedded', 'Tests/Support') }
         [ordered]@{ Reason = 'fixture or sample compiled into it'; Paths = @('Samples') }
-        [ordered]@{ Reason = 'build or restore'; Paths = @('DxUi.sln', 'build.ps1', 'vcpkg-install.ps1', 'vcpkg-configuration.json', 'Tools/VisualStudio.psm1', 'Tools/VcpkgTriplet.psm1', 'Tools/ScopedTesting.psm1', 'Tools/Validation.psm1', 'Tools/Changelog.psm1','Tools/Modules/Documentation/Changelog.psm1') }
+        [ordered]@{ Reason = 'build or restore'; Paths = @('DxUi.sln', 'build.ps1', 'vcpkg-install.ps1', 'vcpkg-configuration.json', 'Tools/VisualStudio.psm1', 'Tools/VcpkgTriplet.psm1', 'Tools/ScopedTesting.psm1', 'Tools/ProcessInspection.psm1', 'Tools/Validation.psm1', 'Tools/Changelog.psm1','Tools/Modules/Documentation/Changelog.psm1') }
         [ordered]@{ Reason = 'paired measurement or gate'; Paths = @('performance-paired.ps1', 'Tools/PairedRun.psm1', 'Tools/BenchmarkGate.psm1', 'Tools/PerformancePolicy.psm1', 'Tools/PerformanceAcceptancePolicy.v1.json', 'Tools/Get-BenchmarkScope.ps1', 'Tools/Publish-BenchmarkVerdict.ps1') }
         [ordered]@{ Reason = 'hosted workflow'; Paths = @('.github/workflows/ci.yml') }
     )
@@ -929,7 +929,10 @@ function ConvertTo-BenchmarkMarkdown {
     $lines.Add('')
     $lines.Add('### Flagged metrics')
     $lines.Add('')
-    if ($flagged.Count -eq 0) { $lines.Add('None: no metric regressed or improved.') }
+    if ($flagged.Count -eq 0) {
+        $assessed = @($Conclusion['Scenarios'] | Where-Object { @($_['Metrics']).Count -gt 0 }).Count -gt 0
+        $lines.Add($(if ($assessed) { 'None: no metric regressed or improved.' } else { 'Not assessed: no metric verdicts were admitted.' }))
+    }
     else {
         $lines.Add('| Scenario | Phase | Metric | Baseline median | Candidate median | Change | Raw p | Holm-adjusted p | Band | Same-binary controls | Baseline raw max | Candidate raw max | Median budget | Peak budget | Outcome |')
         $lines.Add('|---|---|---|---:|---:|---:|---:|---:|---:|---|---:|---:|---|---|---|')

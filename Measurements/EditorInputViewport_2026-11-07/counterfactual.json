@@ -1,0 +1,254 @@
+{
+  "limits": [
+    "First malformed fixtures and the initial metadata test setup assertion remain retained separately",
+    "Focused probes supplement the frozen six-profile matrix; they are not complete SDK qualification",
+    "No physical input, native ARM64, consumer or paired-performance acceptance"
+  ],
+  "currentProbe": {
+    "sharedTestObject": true,
+    "files": [
+      {
+        "sha256": "E49320DA22B38483B15208F4C9C4761EF9181AA94CB1376652412042D595C31A",
+        "path": "viewport/ViewportBaseline.vcxproj",
+        "bytes": 4766
+      },
+      {
+        "sha256": "38A45EB8C9B141704936E8357E2534D8B5F693941E5B2DDE9273A175F9352DE9",
+        "path": "viewport/ViewportCandidate.vcxproj",
+        "bytes": 4863
+      },
+      {
+        "sha256": "583C2DA8DBC26708E3752BFF4EA52B78E48ED1906E43B90F9B87160B22D07531",
+        "path": "viewport/ViewportFixture.inc",
+        "bytes": 6127
+      },
+      {
+        "sha256": "F0FC7AA8DE70CCB572B426BA75C16E45FD7A70EDAD8336D58043FA2CB49599F7",
+        "path": "viewport/ViewportProbe.cpp",
+        "bytes": 1380
+      },
+      {
+        "sha256": "6B28379C72D0C34E193A41E64856C14CFDFF374192034C3F8FE071A2084E4756",
+        "path": "viewport/baseline/ViewportProbe.exe",
+        "bytes": 3775488
+      },
+      {
+        "sha256": "ED084CB74693BA3995686785C3AC7E097D3FFD1E5D3C60A4EB8A1CEB0F209A03",
+        "path": "viewport/baseline/ViewportProbe.pdb",
+        "bytes": 29511680
+      },
+      {
+        "sha256": "9B5CB1C97A5CEEE9ACD8A7D4DAE556AF61F0EF18D0A9AC49084801720F6E936E",
+        "path": "viewport/candidate/ViewportProbe.exe",
+        "bytes": 3778048
+      },
+      {
+        "sha256": "9B564D0B5391D29EB3D9C393D38C915F0AF8302AC86AC76401324E74766C4BAF",
+        "path": "viewport/candidate/ViewportProbe.pdb",
+        "bytes": 29503488
+      },
+      {
+        "sha256": "BE46739AB001D71CBDE819D325C4208D2CE9C391B6475C2A68389F154195E6CE",
+        "path": "viewport/shared-test.obj",
+        "bytes": 11705593
+      },
+      {
+        "sha256": "FE9CB4FA41F9157468C14BEBFAC3641CFD1F84DB26272DE3B7834B77BE9FF81F",
+        "path": "viewport/DxUi.RichTextEditor.cpp",
+        "bytes": 414809
+      },
+      {
+        "sha256": "BE3FB94FC77EE7BF77354C66549FCEFBFE1F62E8D3C069A6BB2F6A3AE55D1500",
+        "path": "input/EditorBaseline.vcxproj",
+        "bytes": 4752
+      },
+      {
+        "sha256": "68DC56B0E380000621AEA6F843FCE8EF2C119B415044B94C5300216D617AEC19",
+        "path": "input/EditorCandidate.vcxproj",
+        "bytes": 4845
+      },
+      {
+        "sha256": "0F116A7D03750B3434936B54182C49ACA44178DCEE9A5170C400490F3E330B37",
+        "path": "input/EditorProbe.cpp",
+        "bytes": 1828
+      },
+      {
+        "sha256": "38D2C2D09374347C5CA8B86F3F2BDD04FB6E6D4FCBA49F5126336322B0BF8D62",
+        "path": "input/MetadataFixture.inc",
+        "bytes": 3833
+      },
+      {
+        "sha256": "146ABB3B6E9733E9DCCD4130E42ED714BDC753FD72C19C94A209EDACF183FC8E",
+        "path": "input/retained-missing-clipboard-type.cpp",
+        "bytes": 424
+      },
+      {
+        "sha256": "E49D24CCB23DE8D6D2668C5990E6F66334E7FEC2527C821BA11419D668F8A263",
+        "path": "input/baseline/EditorProbe.exe",
+        "bytes": 3797504
+      },
+      {
+        "sha256": "D8E9FCD91AFE44CD2F60D2C04A36714F8288AB5273DC4D0F828FBFEE196C5E11",
+        "path": "input/baseline/EditorProbe.pdb",
+        "bytes": 29609984
+      },
+      {
+        "sha256": "2EBCDC2B9A4EEC58590B0B9A588B227B190BFA6022F6735D8EE59610C7CB7033",
+        "path": "input/candidate/EditorProbe.exe",
+        "bytes": 3798016
+      },
+      {
+        "sha256": "8345AFBAF8B327C956EB402A5AC689D2D35B0E97761DAACD405B7E57EC478EDF",
+        "path": "input/candidate/EditorProbe.pdb",
+        "bytes": 29650944
+      },
+      {
+        "sha256": "03155D2638D330C00CE85780908FD078A3900684798A0924024C7945FEB155A0",
+        "path": "input/shared-test.obj",
+        "bytes": 11778421
+      },
+      {
+        "sha256": "133831AE3E982B8487F5418581C415847A20A0EE17501339697B42870D517662",
+        "path": "input/DxUi.RichTextEditor.cpp",
+        "bytes": 413253
+      },
+      {
+        "sha256": "6D75E25C99B526BF6D7469AC0FBACDEE2DC8CFD197F58AC989554AEBADBE638A",
+        "path": "input/Support.Tests.RichSemanticEditor.h",
+        "bytes": 263870
+      },
+      {
+        "sha256": "C13D03BFBCB1872EF82CD884CF8A6DA0F85BA4097A90840A5780124DFB33973E",
+        "path": "viewport/Embedded.Tests.RichTextResources.h",
+        "bytes": 254047
+      },
+      {
+        "sha256": "5F601AA3BDFB2405DC1179CFFA3630DF15C166865D274464E7CBFD66D9DE1692",
+        "path": "runs/baseline-autopair.log",
+        "bytes": 94
+      },
+      {
+        "sha256": "935EDFCC2F592F8F579DD6DC98E0EAF13EC9D7DA8DF0BB528F9B4847C0B46A8B",
+        "path": "runs/baseline-disclosure.log",
+        "bytes": 158
+      },
+      {
+        "sha256": "F5E4DED9FD78A018C0D8DF2E73CC5D81A94C72CE516C14B93F21CF4081B19255",
+        "path": "runs/baseline-zoom.log",
+        "bytes": 151
+      },
+      {
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+        "path": "runs/candidate-autopair.log",
+        "bytes": 0
+      },
+      {
+        "sha256": "D717C5D71DA1877E7C8CCF537D178A7ECF17F1603DF3944E571C658D03B32773",
+        "path": "runs/candidate-disclosure.log",
+        "bytes": 140
+      },
+      {
+        "sha256": "D47FFF55699FBA70FE6AEFAEC9C5029AE877991450BA81D51F4C91D0CC7241AC",
+        "path": "runs/candidate-zoom.log",
+        "bytes": 334
+      }
+    ],
+    "archiveSha256": "BA248360742AC49DD623C994CDFF67BC5CAAD59E28DA20E7ED108AFFB88FF3C3",
+    "results": [
+      {
+        "kind": "baseline",
+        "logSha256": "5F601AA3BDFB2405DC1179CFFA3630DF15C166865D274464E7CBFD66D9DE1692",
+        "exitCode": 1,
+        "fixture": "autopair",
+        "exeSha256": "E49D24CCB23DE8D6D2668C5990E6F66334E7FEC2527C821BA11419D668F8A263"
+      },
+      {
+        "kind": "candidate",
+        "logSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+        "exitCode": 0,
+        "fixture": "autopair",
+        "exeSha256": "2EBCDC2B9A4EEC58590B0B9A588B227B190BFA6022F6735D8EE59610C7CB7033"
+      },
+      {
+        "kind": "baseline",
+        "logSha256": "935EDFCC2F592F8F579DD6DC98E0EAF13EC9D7DA8DF0BB528F9B4847C0B46A8B",
+        "exitCode": 1,
+        "fixture": "disclosure",
+        "exeSha256": "6B28379C72D0C34E193A41E64856C14CFDFF374192034C3F8FE071A2084E4756"
+      },
+      {
+        "kind": "candidate",
+        "logSha256": "D717C5D71DA1877E7C8CCF537D178A7ECF17F1603DF3944E571C658D03B32773",
+        "exitCode": 0,
+        "fixture": "disclosure",
+        "exeSha256": "9B5CB1C97A5CEEE9ACD8A7D4DAE556AF61F0EF18D0A9AC49084801720F6E936E"
+      },
+      {
+        "kind": "baseline",
+        "logSha256": "F5E4DED9FD78A018C0D8DF2E73CC5D81A94C72CE516C14B93F21CF4081B19255",
+        "exitCode": 1,
+        "fixture": "zoom",
+        "exeSha256": "6B28379C72D0C34E193A41E64856C14CFDFF374192034C3F8FE071A2084E4756"
+      },
+      {
+        "kind": "candidate",
+        "logSha256": "D47FFF55699FBA70FE6AEFAEC9C5029AE877991450BA81D51F4C91D0CC7241AC",
+        "exitCode": 0,
+        "fixture": "zoom",
+        "exeSha256": "9B5CB1C97A5CEEE9ACD8A7D4DAE556AF61F0EF18D0A9AC49084801720F6E936E"
+      }
+    ]
+  },
+  "baselineImplementation": "1352cc7fd244909e1c274b7d567485b9e98d7f1a",
+  "candidateImplementation": "efef569e839c640415f142bc860607b38e3ef138",
+  "schemaVersion": 1,
+  "originalInputProof": {
+    "allMembersVerified": true,
+    "archiveSha256": "94561CE7911D299B7CC37C1AC135F786FE526E606411AF79524807618AFFABC9",
+    "results": [
+      {
+        "kind": "baseline",
+        "group": "readonly",
+        "exitCode": 1,
+        "exeSha256": "F4EEFEE4E53EFBDFDD293DBE7F45EA81DB10006038049246E113973A72F48CBA",
+        "logSha256": "77C723E991C4F15D0E54ABFCBD4C01E86256E757B59D730111C63BCD37F5DC0D"
+      },
+      {
+        "kind": "baseline",
+        "group": "metadata",
+        "exitCode": 1,
+        "exeSha256": "F4EEFEE4E53EFBDFDD293DBE7F45EA81DB10006038049246E113973A72F48CBA",
+        "logSha256": "C93996974B215CB7DB36CAEF113398EDE581A9FF3939B46CD18D1D3EA3B959E8"
+      },
+      {
+        "kind": "candidate",
+        "group": "readonly",
+        "exitCode": 0,
+        "exeSha256": "35DC957612687BB96A878567D6FA680824952C28B2CEA13A3A2904F1CDC05D71",
+        "logSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "kind": "candidate",
+        "group": "metadata",
+        "exitCode": 0,
+        "exeSha256": "35DC957612687BB96A878567D6FA680824952C28B2CEA13A3A2904F1CDC05D71",
+        "logSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      }
+    ]
+  },
+  "observations": [
+    "Original readonly and metadata fixtures fail with the retained baseline and pass with the input patch",
+    "Unicode contextual pairing fails with the retained baseline and passes with the input patch",
+    "Disclosure retains offset 7563.3 and reuses 200 chunks; the baseline resets to zero",
+    "Zoom retains source-anchor Y=8 in Rich and Source; the baseline reveals an offscreen caret"
+  ],
+  "scope": "Focused patch-object comparisons, separate from complete SDK and performance qualification",
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-editor-input-viewport-counterfactual",
+  "inputHash": "1609ecdb2d97b2998471bfa5821a5fa5fa12539a25b36cd9aae7e14be0d01600",
+  "benchmarkInputs": {
+    "src/Controls/DxUi.RichTextEditor.cpp": "FE9CB4FA41F9157468C14BEBFAC3641CFD1F84DB26272DE3B7834B77BE9FF81F",
+    "Tests/Embedded/Embedded.Tests.RichTextResources.h": "C13D03BFBCB1872EF82CD884CF8A6DA0F85BA4097A90840A5780124DFB33973E",
+    "Tests/Support/Support.Tests.RichSemanticEditor.h": "0BB7D559D5D364234CE013D530BA300B66E1DD78C95F1D9B193D69EB170EAB61"
+  }
+}
