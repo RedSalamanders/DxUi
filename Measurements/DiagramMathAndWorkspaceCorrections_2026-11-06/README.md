@@ -66,5 +66,14 @@ This is evidence for the recorded `0acd5608` / `f765aeca` pair, not performance 
 The original pre-measurement failure and the first PR-shape replay refusal are also retained. Outer GitHub
 artifact wrapper digests are reported by GitHub, not independently verified downloaded ZIP digests.
 
+[Hosted main Release run 42146665655](https://github.com/RedSalamanders/DxUi/actions/runs/42146665655) passed all
+seven jobs at merge `460ddfa3`: x64 23 suites, ARM64 21 suites, both assertion probes, both production SDKs and
+completion. The [hosted record](hosted-qualification.json) independently verifies all fifteen raw GitHub artifact
+wrapper digests, every bound canonical receipt (including duplicate uploads), and both inner SDK ZIP hashes.
+The original admission batch remains its original `running` snapshot; completion comes from the seven finished
+jobs and their receipts. This is Release evidence for `8dc328de`, separate from later parser work and Debug/ASan,
+physical-input and paired-performance acceptance. The older paired-study wrapper limit above applies only to
+that study; it is not the verification status of this later Release packet.
+
 [The active plan](../../Specs/Plans/WIP/RemainingWork_2026-11-04.md) retains D1/D4, remaining parser/renderer
 findings, API 5, policy qualification, consumer migration and physical/platform gates.

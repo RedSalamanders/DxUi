@@ -2,6 +2,8 @@
 
 ## Completed scopes — 6 November 2026
 
+- [Markdown interruption and scan bounds](MarkdownScanBounds_2026-11-06.md) — MD-03/05/06/07, independent hostile-input work bounds, fourteen MSVC/41 NTFS tooling fixtures, six builds, 57 suite executions and retained original failures.
+
 - [Diagram, math, workspace and Unicode corrections](DiagramMathAndWorkspaceCorrections_2026-11-06.md) — authored class direction, compact BT ranks, ink-aware math, document exchange, D3/D5, packet scalars and MD-01/02/04; six builds and 57 noninteractive suite executions.
 
 ## Completed scopes — 5 November 2026

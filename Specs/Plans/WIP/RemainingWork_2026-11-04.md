@@ -26,7 +26,7 @@ profiles, the real ASan probe, the 19-suite Release union and RedTilde's origina
 | Styled Mermaid spans and ER/class shared attachment defects (FLOW-01/02), bounded sequence syntax expansion and readable default strokes | [Display closeout](../Done/MermaidDisplayCorrections_2026-11-03.md), exact implementation `703a96c7`. The broader per-element failure channel remains D-A1. |
 | Label-aware corridors, table/code insets, accent task markers and optional completed-task strike-through | [Spacing/task closeout](../Done/DiagramSpacingAndTaskPresentation_2026-11-03.md), [packet](../../../Measurements/DiagramSpacing_2026-11-03/README.md). |
 | Source-specific x64 Release library/consumer checks | 19 noninteractive SDK suites with zero capability skips; independent RedTilde 73-case checks and hidden captures. Other scope retains its own owner. |
-| Latest main Release qualification | [Run 41849905967](https://github.com/RedSalamanders/DxUi/actions/runs/41849905967) passed native x64 (23 suites) and ARM64 (21 suites), both assertion probes, test-gate, both production SDK roles and completion at `ab850a40`. [Receipt and archive identities](../../../Measurements/DiagramLabelBackgrounds_2026-11-04/README.md#hosted-release-follow-up) keep this separate from opt-in ARM64 resource fixtures, Debug/ASan, physical-device and paired-performance acceptance. |
+| Latest completed main Release qualification | [Run 42146665655](https://github.com/RedSalamanders/DxUi/actions/runs/42146665655) passed all seven jobs at `460ddfa3`: native x64 (23 suites), native ARM64 (21), both assertion probes, the test gate and both production SDK roles. [Verified original receipts, all fifteen artifact wrappers and inner package hashes](../../../Measurements/DiagramMathAndWorkspaceCorrections_2026-11-06/hosted-qualification.json) bind this to implementation `8dc328de`. This does not qualify the later parser candidate, Debug/ASan ARM64, physical devices or paired performance. |
 | Pending-Update timing accounting | Instrumentation and source-specific six-profile evidence are archived in [FrameUpdateAccounting](../Done/FrameUpdateAccounting_2026-10-26.md). This is accurate accounting, not a CPU improvement or performance-policy acceptance. |
 | Compatibility branch publication D10 | Recorded published branches/SHAs remain in the [review decisions](../Done/ProductionReview_2026-11-02.md#wave-0--decisions-that-unblock-implementation); consumer adoption is D-C1. |
 
@@ -37,6 +37,10 @@ candidate, not main's contract or an accepted consumer migration.
 
 
 Current diagram/math/document/input implementation: `8dc328de`, API 4. The [scoped closeout](../Done/DiagramMathAndWorkspaceCorrections_2026-11-06.md) records six zero-warning builds, all nineteen noninteractive suites in each x64 profile, real ASan detection, 593 actual compiled inputs, native raster/geometry regressions and refreshed gallery. It closes the supplied examples, D3/D5, CTRL-01, MD-01/02/04 and MATH-01; D4 and the remaining parsing, rendering, failure and qualification rows retain their owners.
+
+The parser follow-up is qualified locally at `0ffaa1a6`, API 4. Its [scoped closeout](../Done/MarkdownScanBounds_2026-11-06.md)
+closes MD-03/05/06/07 with all six zero-warning builds, 57 noninteractive suite executions, real ASan detection,
+594 actual compiled inputs, independent work bounds and refreshed native gallery. Remaining rows below keep their scope.
 
 ## Priority 0 — lifetime and failure boundaries
 
@@ -114,8 +118,8 @@ This coordinates the active API work; it does not adopt API 5 in any application
   deterministic native captures with source/DPI provenance for the Mermaid/LaTeX reference comparisons.
 - [x] Correct deferred autolink suffix loss, front-matter incremental root reuse and CR-only YAML handling
   (MD-01/02/04). Expected malformed input must stay bounded and editable rather than aborting a process.
-- [ ] Resolve display-block interruption and pathological scan budgets (MD-03/05/06/07), with deterministic
-  seeds, independent expected results and cancellation/step limits.
+- [x] Resolve display-block interruption and pathological scan budgets (MD-03/05/06/07), with deterministic
+  seeds, independent expected results and bounded logical work. [Source-bound closeout](../Done/MarkdownScanBounds_2026-11-06.md).
 - [x] Complete display-style aligned/gathered/alignat cells and centered script-style substack (MATH-01); preserve source and measured row/delimiter geometry in the [scoped closeout](../Done/DiagramMathAndWorkspaceCorrections_2026-11-06.md).
 - [ ] Complete outstanding diagram note/routing/budget issues (FLOW-03/05), preserving exact source, local editing, geometry, history, UIA and resource limits.
 
