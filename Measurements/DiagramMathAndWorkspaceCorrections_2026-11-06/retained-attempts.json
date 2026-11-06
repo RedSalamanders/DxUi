@@ -1,0 +1,212 @@
+{
+  "schemaVersion": 1,
+  "claim": "Private retained originals; hashes identify files without relabelling failed or diagnostic attempts as acceptance",
+  "attempts": [
+    {
+      "archiveSet": "document-exchange-9aa0c531-counterexample",
+      "source": "9aa0c531",
+      "disposition": "selection publication incorrectly deduplicated an incoming binding at equal numeric source revision",
+      "topLevelFiles": [
+        {
+          "name": "compiled-working-inputs.json",
+          "bytes": 109777,
+          "sha256": "5F753E7575066A1CE1DAC513A2AFCAD5C4D8BD3C0BE8C2536665FD3C8DC4A688"
+        },
+        {
+          "name": "compiled-working-inputs.zip",
+          "bytes": 5215194,
+          "sha256": "51149308B34C6D85CB16BF96321361DC47CA058AF4F05878374121FEE07AF78A"
+        },
+        {
+          "name": "native.json",
+          "bytes": 2366,
+          "sha256": "93C7F1FC8CB08C7FD6DF0A55EB29B38E5E41EED4FE6A27DB79A59B2DAF597541"
+        },
+        {
+          "name": "native.zip",
+          "bytes": 122365690,
+          "sha256": "3B5A2831A03326911C9FD7B8585F38438BF4AB401955D7FB12F5C1F27CAC3121"
+        },
+        {
+          "name": "run.json",
+          "bytes": 20128,
+          "sha256": "1A6451735BDF69DF26EC3255DD1751519AE83FAB4B921AE34AF1F87712427611"
+        },
+        {
+          "name": "run.zip",
+          "bytes": 390496,
+          "sha256": "CF891C85DFF5B8491F9D4D5BFC93FFFE88B6284F72E2C78CDC798C4654CFA79C"
+        },
+        {
+          "name": "source-git.zip",
+          "bytes": 156643884,
+          "sha256": "822A07836D9D8DD3465849DAB70C1D249746F19A5F661426E9C4BF7DD7D77380"
+        },
+        {
+          "name": "x64-Release-objects-retired.json",
+          "bytes": 32660,
+          "sha256": "3AF54302B1701A29D9747140CD24BAC7A7C837455D251EBCB4F6BA1482BC9BB0"
+        }
+      ]
+    },
+    {
+      "archiveSet": "source-navigation-3c9c39d6-warning-build",
+      "source": "3c9c39d6568a5bad1184f24d98d75df21487f80f",
+      "disposition": "unaccepted shadow-warning build and diagnostic packet/permission fixtures; outcomes retained separately",
+      "topLevelFiles": [
+        {
+          "name": "EditorControls-diagnostic.log",
+          "bytes": 42808,
+          "sha256": "AA40157E3668001F4D5BDA47015D7C02F7F3F805B32DB935D940264D2B8606E9"
+        },
+        {
+          "name": "Embedded-diagnostic.log",
+          "bytes": 13982,
+          "sha256": "7B9EF0F5FE4FFFE9B1D391D51656C9C27B31B8761C3475F27870361F2DF1A068"
+        },
+        {
+          "name": "native.json",
+          "bytes": 2365,
+          "sha256": "65904E453C374429998D39EDA757E9324076C92027AC50F80717B7BB679FE158"
+        },
+        {
+          "name": "native.zip",
+          "bytes": 122451339,
+          "sha256": "F6647B5D4F99CAE7B288DB516935CDEA62118400B2C2598808E95CCD43D4FF4E"
+        },
+        {
+          "name": "original-warning-build.log",
+          "bytes": 45760,
+          "sha256": "6525D4D63D2861A8548F9F958505F920FDAA21FBE6607DAE4FF1E0434DB40C4A"
+        },
+        {
+          "name": "TextField-diagnostic.log",
+          "bytes": 15109,
+          "sha256": "6764F09175CE888A604663776DFF67383ACCD009E45254849411232431E89B0D"
+        },
+        {
+          "name": "WindowHost-diagnostic.log",
+          "bytes": 6292,
+          "sha256": "E09A71A1F5D314304B626E8CC3856E289ED195533C612BB45533307BD52B31BD"
+        },
+        {
+          "name": "x64-Release-objects-retired.json",
+          "bytes": 32660,
+          "sha256": "AF08469395C03CE7F8B681DBF89FB7E97BD099A86E91EF5F7EB2914D7DEE697C"
+        }
+      ]
+    },
+    {
+      "archiveSet": "network-loader-d08d227b-counterexample",
+      "source": "d08d227b1e65bddc1735ff2c5a1d10a66829dd60",
+      "disposition": "missing explicit sample resource-admission opt-in after NetworkFile classification",
+      "topLevelFiles": [
+        {
+          "name": "compiled-working-inputs.json",
+          "bytes": 96070,
+          "sha256": "A6C0B1709621618DB55B0425C3107CE143DB413D76BC5A51A4F47AAD185ADB68"
+        },
+        {
+          "name": "compiled-working-inputs.zip",
+          "bytes": 5222201,
+          "sha256": "0234613932F918C47CC7280800A8D976BC2F3FDF2F3D9938D29574E6AEC663F6"
+        },
+        {
+          "name": "native.json",
+          "bytes": 2363,
+          "sha256": "CFC021A6BBB472510B7A342034BFE21213D4852B1B1C82B2EE21507AAB174892"
+        },
+        {
+          "name": "native.zip",
+          "bytes": 122731373,
+          "sha256": "C4379D4F69EB6E2AD53C9F83FBCA8CE8617877811961404B0E92E4652AC20485"
+        },
+        {
+          "name": "run.json",
+          "bytes": 27456,
+          "sha256": "B3A5FEC40ED328970B9AEB110425F1F0662F84AD9A21BBD3199C74EE4562080C"
+        },
+        {
+          "name": "run.zip",
+          "bytes": 455625,
+          "sha256": "2A53B6B70B192825F5CDA91B9207DFB1268BB9B77C2322FB3C152081524908DB"
+        }
+      ]
+    },
+    {
+      "archiveSet": "markdown-regressions-baseline-9aa-20261106",
+      "source": "9aa0c531 / diagnostic tests 9eb2c0d6",
+      "disposition": "original autolink suffix loss, front-matter root mismatch and CR-only YAML rejection",
+      "topLevelFiles": [
+        {
+          "name": "preservation.json",
+          "bytes": 5156,
+          "sha256": "038DD2105810DE23C7E10F67CDB25B689873F7A164572E7D6C9CD6FA09CB577F"
+        },
+        {
+          "name": "private-probe.zip",
+          "bytes": 70512318,
+          "sha256": "141DB77B9A606282271C332A6B0E34AD808B9F6035E56D54885357B3D138A327"
+        }
+      ]
+    },
+    {
+      "archiveSet": "class-endpoint-92880ec8-diagnostic",
+      "source": "92880ec8",
+      "disposition": "actual native connector stem gap; intermediate mutable-endpoint attempt did not fix it; no compiler-cause attribution",
+      "topLevelFiles": [
+        {
+          "name": "probe-native.json",
+          "bytes": 717,
+          "sha256": "3EF613CB1A82360A63BEE2F69BED5F937E887297567842464B26EFE7FE92A1DF"
+        },
+        {
+          "name": "probe-native.zip",
+          "bytes": 7524137,
+          "sha256": "55E63DE07D6515D17043D9F99B2D3E9FDDFB8FA8EDE54E4FEEDBE05A6B18671A"
+        },
+        {
+          "name": "provenance.json",
+          "bytes": 480,
+          "sha256": "4D060C5A0312F96C443A38CB17CC366C8B5078112B551BD08CF7BA4D7829FDE5"
+        }
+      ]
+    },
+    {
+      "archiveSet": "selection-input-paired-42115893044",
+      "source": "0acd5608 / f765aeca; harness 5ab45734",
+      "disposition": "measurement completed, inconclusive unqualified policy; 72/72 unstable controls and dual-judge disagreement",
+      "topLevelFiles": [
+        {
+          "name": "artifacts.json",
+          "bytes": 1520,
+          "sha256": "1E1A0C2CA4BE19FC6EE87E36B44AEA4945F5577ABFF1B663C5974F3AC827B08B"
+        },
+        {
+          "name": "failed.log",
+          "bytes": 2103,
+          "sha256": "511253FF8E9CD0F5255B44DB4E9B92329FC04DC126F30B34D04EE1D27760FC89"
+        },
+        {
+          "name": "run.json",
+          "bytes": 2209,
+          "sha256": "723E7090DCDFC4A97F6FBC496E55A98F2B092086BB28DCF613523068F2A01814"
+        }
+      ]
+    }
+  ],
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-retained-original-archive-inventory",
+  "benchmarkInputs": {
+    "document-exchange-9aa0c531-counterexample/compiled-working-inputs.zip": "51149308B34C6D85CB16BF96321361DC47CA058AF4F05878374121FEE07AF78A",
+    "document-exchange-9aa0c531-counterexample/native.zip": "3B5A2831A03326911C9FD7B8585F38438BF4AB401955D7FB12F5C1F27CAC3121",
+    "document-exchange-9aa0c531-counterexample/run.zip": "CF891C85DFF5B8491F9D4D5BFC93FFFE88B6284F72E2C78CDC798C4654CFA79C",
+    "document-exchange-9aa0c531-counterexample/source-git.zip": "822A07836D9D8DD3465849DAB70C1D249746F19A5F661426E9C4BF7DD7D77380",
+    "source-navigation-3c9c39d6-warning-build/native.zip": "F6647B5D4F99CAE7B288DB516935CDEA62118400B2C2598808E95CCD43D4FF4E",
+    "network-loader-d08d227b-counterexample/compiled-working-inputs.zip": "0234613932F918C47CC7280800A8D976BC2F3FDF2F3D9938D29574E6AEC663F6",
+    "network-loader-d08d227b-counterexample/native.zip": "C4379D4F69EB6E2AD53C9F83FBCA8CE8617877811961404B0E92E4652AC20485",
+    "network-loader-d08d227b-counterexample/run.zip": "2A53B6B70B192825F5CDA91B9207DFB1268BB9B77C2322FB3C152081524908DB",
+    "markdown-regressions-baseline-9aa-20261106/private-probe.zip": "141DB77B9A606282271C332A6B0E34AD808B9F6035E56D54885357B3D138A327",
+    "class-endpoint-92880ec8-diagnostic/probe-native.zip": "55E63DE07D6515D17043D9F99B2D3E9FDDFB8FA8EDE54E4FEEDBE05A6B18671A"
+  }
+}

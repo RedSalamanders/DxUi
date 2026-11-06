@@ -80,3 +80,17 @@ Arrow-label backing blends into the actual diagram surface when text reaches 4.5
 neutral light/dark adjustment supports low-contrast custom palettes. Keep note/group surfaces and selected
 theme pairs distinct. Stage contrast decisions and brushes before drawing; crossing lines remain masked by
 opaque backing without adding a visible badge in ordinary readable themes.
+
+Class direction follows authored endpoints independently of its marker: LR
+`Document <|-- Markdown` keeps Document left and Markdown right. The shared
+connector remains continuous at either marker spelling. Pipeline fan-in uses
+separate box attachments and compact feasible ranks. Math accents preserve a
+positive ink gap; gathered/matrix rows and small angle delimiters follow their
+visible contents. No theme token or body typography default changes.
+
+The current native previews are the regenerated
+[Light](../../../../docs/gallery/theme-controls-light.png),
+[Dark](../../../../docs/gallery/theme-controls-dark.png) and
+[High contrast](../../../../docs/gallery/theme-controls-high-contrast.png) sheets.
+Their mathematics and diagram tiles are actual independent SDK captures;
+[generation provenance](../../../../docs/gallery/generation.json) binds their source.
