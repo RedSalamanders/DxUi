@@ -645,10 +645,11 @@ static void TestEmbeddedCosmeticsDoNotWithholdContent(GraphicsFixture& gpu)
     auto* editor = owned.get();
     editor->SetViewMode(RichText::ViewMode::Source);
     editor->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::Gfm029);
-    auto appearance                  = editor->GetAppearance();
-    appearance.sourceMonospace       = true;
-    appearance.sourceLineNumbers     = true;
-    appearance.sourceWhitespaceMarks = true;
+    auto appearance                   = editor->GetAppearance();
+    appearance.sourceMonospace        = true;
+    appearance.sourceLineNumbers      = true;
+    appearance.sourceWhitespaceMarks  = true;
+    appearance.colorizeMarkdownSource = true;
     editor->SetAppearance(appearance);
     view.Controls().SetRoot(std::move(owned));
     Hr(gpu.Resize(480u, 240u), "cosmetic admission raster size");
