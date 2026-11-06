@@ -162,7 +162,9 @@ try {
 
 $volume = Get-Volume -DriveLetter ([IO.Path]::GetPathRoot($root).Substring(0,1))
 if ($volume.FileSystem -eq 'NTFS') {
-    $run = Start-TestRunEvidence $root @{scenario='shared-read-only-payload'}
+    # Shell hard-link creation has a legacy path bound. Use a compact owned
+    # root; the preceding dedicated case covers long Unicode payload paths.
+    $run = Start-TestRunEvidence (New-Fixture 'h') @{scenario='shared-read-only-payload'}
     try {
         $shared = Join-Path $outside 'shared.bin'
         [IO.File]::WriteAllText($shared, 'shared payload')
