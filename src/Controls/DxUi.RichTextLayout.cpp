@@ -334,7 +334,7 @@ HRESULT Detail::PreparedLayoutAccess::Prepare(PreparedLayout& owner,
                 // cover neighboring text. Only the two scalar endpoints get
                 // an inset; fenced-code contents retain their original metrics.
                 wil::com_ptr<IDWriteTextLayout1> text1;
-                RETURN_IF_FAILED(layout.query_to(text1.put()));
+                RETURN_IF_FAILED(wil::com_query_to_nothrow(layout.get(), text1.put()));
                 const auto firstEnd    = StepToNextCodePoint(projection.text, run.start);
                 const auto lastStart   = StepToPreviousCodePoint(projection.text, run.start + run.length);
                 const auto firstLength = static_cast<UINT32>(firstEnd - run.start);

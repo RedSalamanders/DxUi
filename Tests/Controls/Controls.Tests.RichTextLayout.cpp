@@ -2159,6 +2159,7 @@ namespace
 void TestRichTextLayoutNativeFailureTransactions()
 {
     Require(RichLayoutFaultTests::PreparationPreservesPublishedState(), "line metric native refusal preserves published layout and exact HRESULT");
+    Require(RichLayoutFaultTests::InlineCodeQueryPreservesPublishedState(), "inline code layout query refusal preserves publication and exact HRESULT");
     Require(RichLayoutFaultTests::SetterFailureRestores(true), "effect setter refusal restores its mutation and returns its HRESULT");
     Require(RichLayoutFaultTests::SetterFailureRestores(false), "underline setter refusal restores its mutation and returns its HRESULT");
     Require(DxUiFailureTests::ExpectFatalChild(L"layout-effect-rollback"), "failed effect rollback is fatal");

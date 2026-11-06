@@ -1,4 +1,5 @@
 #pragma once
+#include "Controls/DxUi.PreparedLayoutAccess.h"
 #include "Support.Tests.CountingWriteFactory.h"
 #include "Support.Tests.FaultTextLayout.h"
 #include <DxUi/RichTextLayout.h>
@@ -74,6 +75,46 @@ inline bool PreparationPreservesPublishedState()
     f.fault.failLineMetrics = false;
     return SUCCEEDED(f.layout.TryPrepare(f.factory.Get(), replacement, f.options)) && f.layout.Generation() == generation + 1u &&
            f.layout.Content().source == changed.Text();
+}
+inline bool InlineCodeQueryPreservesPublishedState()
+{
+    Fixture f;
+    if (! f.Initialize())
+        return false;
+    auto wrapper = Microsoft::WRL::Make<NativeTextTests::FaultTextLayout>(f.fault.lastLayout.get(), &f.fault);
+    wil::com_ptr<IDWriteTextLayout> base;
+    wil::com_ptr<IDWriteTextLayout1> version1;
+    wil::com_ptr<IUnknown> baseIdentity, version1Identity;
+    if (! wrapper || FAILED(wrapper.CopyTo(base.put())) || FAILED(wil::com_query_to_nothrow(base.get(), version1.put())) ||
+        FAILED(wil::com_query_to_nothrow(base.get(), baseIdentity.put())) || FAILED(wil::com_query_to_nothrow(version1.get(), version1Identity.put())) ||
+        baseIdentity.get() != version1Identity.get())
+        return false;
+    const auto generation = f.layout.Generation();
+    const auto original   = f.layout.Content().source;
+    const auto caret      = f.layout.Caret(4u);
+    const auto height     = f.layout.Height();
+    const auto prepare    = [&]()
+    {
+        Detail::PreparedLayoutAccess::SemanticInput input;
+        input.text = L"code fragment";
+        input.runs.push_back({0u, 4u, Code, 0u});
+        input.padInlineCode = true;
+        return Detail::PreparedLayoutAccess::PrepareSemantic(f.layout, f.factory.Get(), input, f.options);
+    };
+    f.fault.failLayout1Query = true;
+    for (const HRESULT failure : {E_NOINTERFACE, E_ACCESSDENIED})
+    {
+        f.fault.layout1Failure   = failure;
+        const auto beforeQueries = f.fault.layout1Queries;
+        const auto result        = prepare();
+        const auto after         = f.layout.Caret(4u);
+        if (result != failure || f.fault.layout1Queries != beforeQueries + 1u || ! f.layout.Ready() || f.layout.Generation() != generation ||
+            f.layout.Content().source != original || f.layout.Height() != height || after.x != caret.x || after.y != caret.y || after.height != caret.height)
+            return false;
+    }
+    f.fault.failLayout1Query = false;
+    const auto beforeQueries = f.fault.layout1Queries;
+    return SUCCEEDED(prepare()) && f.fault.layout1Queries == beforeQueries + 1u && f.layout.Ready() && f.layout.Generation() == generation + 1u;
 }
 inline bool SetterFailureRestores(bool effect)
 {

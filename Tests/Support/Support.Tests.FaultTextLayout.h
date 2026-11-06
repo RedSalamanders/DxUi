@@ -1,5 +1,6 @@
 #pragma once
 #include <dwrite.h>
+#include <dwrite_1.h>
 #include <limits>
 #include <wil/com.h>
 #pragma warning(push)
@@ -13,6 +14,9 @@ struct LayoutFaultState
     HRESULT failure{E_ACCESSDENIED};
     wil::com_ptr<IDWriteTextLayout> lastLayout;
     bool failLineMetrics{};
+    bool failLayout1Query{};
+    HRESULT layout1Failure{E_NOINTERFACE};
+    unsigned layout1Queries{};
     bool mutateBeforeFailure{true};
     unsigned lineFailures{};
     size_t effectCalls{}, underlineCalls{};
@@ -21,11 +25,66 @@ struct LayoutFaultState
 };
 #pragma warning(push)
 #pragma warning(disable : 4625 4626 5026 5027)
-class FaultTextLayout final : public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>, IDWriteTextLayout>
+class FaultTextLayout final : public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>, IDWriteTextLayout1>
 {
 public:
+    using Base = Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>, IDWriteTextLayout1>;
     FaultTextLayout(IDWriteTextLayout* real, LayoutFaultState* state) noexcept : real_(real), state_(state)
     {
+    }
+    HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void** result) noexcept override
+    {
+        if (riid == __uuidof(IDWriteTextLayout1))
+        {
+            ++state_->layout1Queries;
+            if (state_->failLayout1Query)
+            {
+                if (result)
+                    *result = nullptr;
+                return state_->layout1Failure;
+            }
+            wil::com_ptr<IDWriteTextLayout1> native;
+            const HRESULT hr = wil::com_query_to_nothrow(real_.get(), native.put());
+            if (FAILED(hr))
+            {
+                if (result)
+                    *result = nullptr;
+                return hr;
+            }
+        }
+        if (riid == __uuidof(IDWriteTextLayout))
+        {
+            if (! result)
+                return E_POINTER;
+            *result = static_cast<IDWriteTextLayout*>(static_cast<IDWriteTextLayout1*>(this));
+            AddRef();
+            return S_OK;
+        }
+        return Base::QueryInterface(riid, result);
+    }
+    HRESULT STDMETHODCALLTYPE SetPairKerning(BOOL enabled, DWRITE_TEXT_RANGE range) noexcept override
+    {
+        wil::com_ptr<IDWriteTextLayout1> native;
+        const HRESULT hr = wil::com_query_to_nothrow(real_.get(), native.put());
+        return FAILED(hr) ? hr : native->SetPairKerning(enabled, range);
+    }
+    HRESULT STDMETHODCALLTYPE GetPairKerning(UINT32 position, BOOL* enabled, DWRITE_TEXT_RANGE* range) noexcept override
+    {
+        wil::com_ptr<IDWriteTextLayout1> native;
+        const HRESULT hr = wil::com_query_to_nothrow(real_.get(), native.put());
+        return FAILED(hr) ? hr : native->GetPairKerning(position, enabled, range);
+    }
+    HRESULT STDMETHODCALLTYPE SetCharacterSpacing(FLOAT leading, FLOAT trailing, FLOAT minimum, DWRITE_TEXT_RANGE range) noexcept override
+    {
+        wil::com_ptr<IDWriteTextLayout1> native;
+        const HRESULT hr = wil::com_query_to_nothrow(real_.get(), native.put());
+        return FAILED(hr) ? hr : native->SetCharacterSpacing(leading, trailing, minimum, range);
+    }
+    HRESULT STDMETHODCALLTYPE GetCharacterSpacing(UINT32 position, FLOAT* leading, FLOAT* trailing, FLOAT* minimum, DWRITE_TEXT_RANGE* range) noexcept override
+    {
+        wil::com_ptr<IDWriteTextLayout1> native;
+        const HRESULT hr = wil::com_query_to_nothrow(real_.get(), native.put());
+        return FAILED(hr) ? hr : native->GetCharacterSpacing(position, leading, trailing, minimum, range);
     }
     HRESULT STDMETHODCALLTYPE SetTextAlignment(DWRITE_TEXT_ALIGNMENT textAlignment) noexcept override
     {

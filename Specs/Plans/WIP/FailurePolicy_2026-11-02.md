@@ -104,6 +104,12 @@ reopening their historical checklists or relabeling old allocation sweeps as fat
 
 ### Working-tree progress, not acceptance
 
+- Current main `86c62873` is integrated at `f6938257`, preserving the checked/fatal policy alongside its newer
+  input, editor, parser, image and diagram behavior. Five source validators and the SDK notice controls pass.
+  All six native builds and the production SDK build reject a merged inline-code spacing query that applied
+  HRESULT checking to WIL's void-returning throwing overload. The explicit nonthrowing query now preserves
+  the native status; fresh compilation/runtime qualification is required. Failed logs remain private build-11
+  evidence. No native test or performance measurement ran from that rejected cohort.
 - The `d0179db6` cohort passes all six zero-warning builds, four clean-pin consumers, isolated production SDK,
   complete validators/tooling and all 66 ordinary x64 suite executions with zero skips. Its first ASan foreground
   lease passes Menu and both resource suites, but NativeTextInput fails in the text-store callback child before
