@@ -1,5 +1,21 @@
 # Performance and resources
 
+Editor cosmetics use the existing owner-thread optional visual traversal, with
+no worker or periodic timer. Content readiness excludes code/source ink, source
+guides and Source-mode analysis used for colouring. Guide retention and copying
+are bounded by the visible source window plus overscan; each turn spends at most
+256 source/number steps and four number layouts. Source coordinate lookup uses
+immutable piece-tree summaries and per-buffer newline indexes; ordinary typed
+fragments without line breaks allocate no newline vector. Snapshots share these
+indexes and edits update only replacement buffers and tree paths. Code ink queries
+the semantic paint index and calls the consumer only for visible/overscan blocks,
+at most once per turn. Publications swap atomically; completed clean windows do
+not schedule another visual request. Host cancellation releases publications.
+Composition borrows prepared spans, labels and coordinates without heap work,
+parsing or measurement. Whole-document source-analysis admission and bounded
+cooperative syntax work remain separately accounted; logical work bounds do not
+establish elapsed-time or paired-performance acceptance.
+
 Embedded input wake deferral uses an intrusive UI-thread stack with borrowed hosts and one pending bit per
 attachment. Entry, nesting and completion add no heap allocation, worker, timer or retained queue. Scope exit
 visits current synchronous nesting only; detached requests disappear with their attachment. Direct mutations

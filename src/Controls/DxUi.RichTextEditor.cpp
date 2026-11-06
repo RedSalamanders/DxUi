@@ -651,12 +651,6 @@ bool RichTextEditor::ExchangeDocumentState(RichText::Document& document)
     _state->semanticRejected.reset();
     _state->preparationRejected.reset();
     _state->nativeObjectRejections.reset();
-    _state->sourceInk.Clear();
-    _state->sourceGuides.Clear();
-    _state->codeInkDocument.reset();
-    _state->codeInk.clear();
-    _state->codeInkStaged.clear();
-    _state->codeInkComplete = false;
     ResetDocumentBinding(); // The final notification may retire this control.
     return true;
 }
@@ -667,6 +661,7 @@ void RichTextEditor::ResetDocumentBinding()
     _state->codeInkDocument.reset();
     _state->codeInk.clear();
     _state->codeInkStaged.clear();
+    _state->codeInkElements.reset();
     _state->codeInkComplete = false;
     _state->highlights.clear();
     _state->decorations.clear();
@@ -3636,6 +3631,10 @@ void RichTextEditor::PrepareOverlayGeometry(ControlHost& host)
 void RichTextEditor::CancelContentPreparation() noexcept
 {
     _state->images.Cancel();
+    _state->sourceInk.Clear();
+    _state->sourceGuides.Clear();
+    _state->codeInk.clear();
+    _state->codeInkElements.reset();
     RetireLayout();
 }
 HRESULT RichTextEditor::PrepareMarkdownSyntax()
@@ -3694,12 +3693,8 @@ void RichTextEditor::PrepareVisualContent(ControlHost& host) noexcept
     };
     try
     {
-        if (_state->mode == RichText::ViewMode::Source && _state->appearance.colorizeMarkdownSource && PrepareMarkdownSyntax() == S_FALSE)
-        {
-            RequestVisualContentPreparation(false);
-            return;
-        }
-        const auto code = PrepareCodeInk(_state->mode == RichText::ViewMode::Rich && _state->layout.Semantic() ? GetSemanticDocument() : nullptr);
+        const bool syntaxReady = _state->mode != RichText::ViewMode::Source || PrepareMarkdownSyntax() != S_FALSE;
+        const auto code        = PrepareCodeInk(_state->mode == RichText::ViewMode::Rich && _state->layout.Semantic() ? GetSemanticDocument() : nullptr);
         // A borrowed tokenizer may replace the binding or retire the control.
         if (lifetime.expired() || GetHost() != &host || ! LayoutIsCurrent(host))
             return;
@@ -3708,7 +3703,7 @@ void RichTextEditor::PrepareVisualContent(ControlHost& host) noexcept
             report(code, L"Optional editor code ink could not be prepared.");
             return;
         }
-        const bool sourceReady = PrepareSourceInk();
+        const bool sourceReady = syntaxReady && PrepareSourceInk();
         const bool guidesReady = PrepareSourceGuides(host);
         if (code == S_FALSE || ! sourceReady || ! guidesReady)
             RequestVisualContentPreparation(false);
@@ -3739,6 +3734,7 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
         const auto document = state.mode == RichText::ViewMode::Rich && state.codeTokenizer ? GetSemanticDocument() : nullptr;
         const bool code     = document && (state.codeInkDocument != document || ! state.codeInkComplete || ! CodeInkCoversViewport());
         const auto syntax   = GetMarkdownSyntax();
+        const bool analysis = state.mode == RichText::ViewMode::Source && state.markdownProfile && ! syntax && ! state.HasCurrentMarkdownCapacityRejection();
         const bool source   = state.mode == RichText::ViewMode::Source && state.appearance.colorizeMarkdownSource &&
                               ((! syntax && state.markdownProfile && ! state.HasCurrentMarkdownCapacityRejection()) || ! state.sourceInk.Current(syntax));
         const bool numbers  = state.mode == RichText::ViewMode::Source && state.appearance.sourceLineNumbers;
@@ -3747,7 +3743,7 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
         const auto left = -HorizontalTranslation(), right = left + viewport.right - viewport.left;
         const bool guides = (numbers || marks) && (! state.sourceGuides.Current(Revision(), state.layout.Generation(), numbers, marks) ||
                                                    ! state.sourceGuides.Covers(state.scrollDip, state.scrollDip + viewport.bottom - viewport.top, left, right));
-        if (code || source || guides)
+        if (code || source || guides || analysis)
             RequestVisualContentPreparation(false);
     };
     state.lastAdvanceLayouts = state.lastAdvanceBlockSteps = 0u;

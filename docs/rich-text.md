@@ -355,6 +355,13 @@ and `SetOnHorizontalScrollChanged`; Shift+wheel scrolls overflowing content.
 Rich tables with `tableOverflow=true` use the same horizontal offset. Native
 input, hit testing and accessibility geometry follow the painted position.
 
+Source colouring, line numbers and whitespace marks prepare as optional visuals.
+They do not delay a usable text frame or block editing and selection. Source
+analysis for colouring can continue after raw Source text is ready. Guides cover
+the viewport plus overscan, with a stable five-digit gutter. While scrolling, the
+last complete decoration remains visible where its coordinates are still valid;
+unknown positions are omitted until a new complete publication is ready.
+
 For opt-in Subtle code blocks, applications can register `SetCodeTokenizer`
 and use `TokenizeBuiltinCode` for JSON, C-like languages, PowerShell or diff.
 Prepared bounded token spans change ink only. The Subtle frame shows a language
@@ -363,6 +370,10 @@ badge and physical line numbers within the documented bounds. Register
 keyboard and UIA copy intent; the callback receives counted rendered code and
 owns clipboard transport. All of these features still require the project's
 complete platform, allocation and performance qualification before plan closeout.
+The tokenizer runs for visible blocks plus one viewport of overscan, at most once
+per owner turn. Do not rely on callbacks for offscreen blocks or use them to
+perform document-wide side effects. A failed or declined block keeps ordinary ink;
+content remains usable while later visual requests prepare other visible blocks.
 List marker ink uses the parser's exact source token range, so nested, ordered,
 quoted and task-list prefixes stay aligned with their original UTF-16 offsets.
 Each owner preparation advance uses at most 256 work steps shared across block

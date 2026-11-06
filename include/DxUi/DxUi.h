@@ -3443,7 +3443,9 @@ public:
     [[nodiscard]] const RichTextEditorAppearance& GetAppearance() const noexcept;
     void SetZoom(float zoom);
     [[nodiscard]] float GetZoom() const noexcept;
-    // Optional owner-thread code coloring; an empty callback restores ordinary ink.
+    // Optional owner-thread visual preparation for visible code blocks plus
+    // bounded overscan. Never withholds usable content; one callback per turn.
+    // An empty callback restores ordinary ink.
     void SetCodeTokenizer(RichText::CodeTokenizer tokenizer);
     // Borrowed rendered code text is valid only during the owner-thread callback.
     void SetOnCodeCopyRequested(std::function<void(std::wstring_view)> callback, std::wstring accessibleName = L"Copy code");
