@@ -1,1 +1,0 @@
-- Verify the editor-cosmetic implementation's hosted native x64/ARM64 Release suites, assertion probes and production SDK packages against all original artifact and canonical receipt hashes; retain later clipboard, Debug/ASan, physical-input and performance gates separately.
