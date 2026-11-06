@@ -2,6 +2,8 @@
 
 ## Completed scopes — 6 November 2026
 
+- [ARM64 fatal-origin verification and preflight retention](Arm64FatalUnwind_2026-11-06.md) — PAC-aware saved-context verification, original failure-image retention, 58 evidence fixtures, six builds and 66 x64 suite executions; native ARM64 execution remains separately owned.
+
 - [Script/color preparation and native filter diagnostics](ScriptColorPreparation_2026-11-06.md) — SEM-01/RENDER-05, actual target capability and pixels, unchanged compiled counterexample, diagnostic counts, six builds, 66 suite executions and source-bound tooling replay.
 
 - [Text-first clipboard preference](ClipboardPreference_2026-11-06.md) — SDK D4, explicit native/embedded image-first application policy, private format/ownership and source/history oracles, six builds and 57 suite executions.

@@ -249,8 +249,11 @@ policy, erase its findings or close this section.
   [42266539593](https://github.com/RedSalamanders/DxUi/actions/runs/42266539593) and ASan run
   [42265980391](https://github.com/RedSalamanders/DxUi/actions/runs/42265980391) now retain an ARM64
   saved-context unwind failure at the named Grid callback, after the child correctly terminates. The legacy
-  walk returns an apparent PAC-signed return address; a PAC-aware verifier and complete failed-preflight
-  dump/image retention are under implementation. These original failed cohorts remain retained, and their
+  walk returns an apparent PAC-signed return address. The PAC-aware verifier and complete failed-preflight
+  dump/image retention are now implemented at `3a5ae6b0`, with six warning-free builds, 66 ordinary x64 suite
+  executions, actual ASan detection and 58 evidence fixtures in the
+  [scoped closeout](../Done/Arm64FatalUnwind_2026-11-06.md). Native ARM64 execution and the complete hosted
+  test-before-production gate remain required. These original failed cohorts remain retained, and their
   evidence does not retrospectively assign a cause to the earlier output-less failure.
 - [ ] Complete or retain the explicit owner deferral for native ARM64 opt-in MenuResources/MenuResourceScaling
   and candidate-specific foreground coverage. Native cross-builds and ordinary hosted suites do not close them.
