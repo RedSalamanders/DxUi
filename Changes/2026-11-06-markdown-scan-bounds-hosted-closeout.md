@@ -1,0 +1,1 @@
+- Record source-bound hosted Release acceptance for parser scan bounds: all seven jobs, 23 x64 and 21 ARM64 suites, assertion probes and both production SDK smoke checks; retain fifteen independently verified artifact wrapper digests and the exact implementation boundary.
