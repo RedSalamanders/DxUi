@@ -630,7 +630,11 @@ alternative. Source/base/binding/visibility changes cancel tokens and reject sta
 completion. Selection-only changes do not invalidate a file. `ReloadImages`
 explicitly refreshes the cache; failed completions stay cached across unrelated edits until reload, document location or remote-image policy changes. The control does not watch the filesystem.
 `Samples/EmbeddedControls/RichImageLoader.h` demonstrates one application-owned
-threadpool callback, fixed queues and owner messages. Its default policy rejects lexically UNC-prefixed file paths; an application can explicitly authorize network files. This lexical check is not a filesystem or network security boundary: mapped drives, reparse points and redirected paths may still reach remote storage. Neither the
+threadpool callback, fixed queues and owner messages. Its default policy rejects `NetworkFile` requests and
+lexically UNC-prefixed paths before filesystem I/O. An application can explicitly authorize network files;
+their canonical source path is used without treating them as ordinary local requests. This lexical check is
+not a filesystem or network security boundary: mapped drives, reparse points and redirected paths may still
+reach remote storage. Neither the
 control nor composition owns a loader, thread, device, HWND or timer. The worker
 uses only its owned request/pixels and posts a cookie-bearing owner message;
 closing retires queues without joining a filesystem or codec call.
