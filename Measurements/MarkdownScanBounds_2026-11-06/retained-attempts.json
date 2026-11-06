@@ -1,0 +1,178 @@
+{
+  "claim": "Private original diagnostic and failed artifacts; no failed attempt qualifies a native profile",
+  "schemaVersion": 1,
+  "attempts": [
+    {
+      "retentionId": "markdown-budget-instrumented-baseline-6ee366ee",
+      "disposition": "Independent instrumented parser baseline: 8 display-interruption, 33 inline scan-budget and 4 table-reference assertions failed; source and successful diagnostic archive retained. The separate empty first packaging attempt is not accepted evidence.",
+      "files": [
+        {
+          "file": "diagnostic-empty-first-attempt.zip",
+          "bytes": 22,
+          "sha256": "8739C76E681F900923B900C9DF0EF75CF421D39CABB54650C4B9AD19B6A76D85"
+        },
+        {
+          "file": "diagnostic.json",
+          "bytes": 1714,
+          "sha256": "6A5F7DD7CD9610535651FE0A01E6045B85EB2F64E44670BAE438B4199871923D"
+        },
+        {
+          "file": "diagnostic.zip",
+          "bytes": 2682012,
+          "sha256": "3EDE18DDB48848C917B590B4FE2552158AFA2E725D198FB878A3465728687A1C"
+        },
+        {
+          "file": "original-compiled-inputs.json",
+          "bytes": 109404,
+          "sha256": "96FC6A83168D8C919CA9DBDD004B71C77E0C265272663C3334124C9BCB1504B0"
+        },
+        {
+          "file": "original-compiled-inputs.zip",
+          "bytes": 5224674,
+          "sha256": "9B523CD6A5FEE4457DA8A1914CD054921A4CCF1C1759622B033E6185924F039F"
+        }
+      ]
+    },
+    {
+      "retentionId": "markdown-scan-bounds-0ffaa1a6-disk-failure",
+      "disposition": "Frozen candidate x64 Release PDB write exhausted storage; partial native outputs are not qualified.",
+      "files": [
+        {
+          "file": "first-build-failure.log",
+          "bytes": 8047,
+          "sha256": "846059D1DD066A3BF3FD28594DA8C0438AE3967E6FFE59E9E8575D88E4170DDE"
+        },
+        {
+          "file": "first-msbuild-failure.log",
+          "bytes": 43153,
+          "sha256": "9D471BC8AEFCA4416D8B12F2EC36D6735709D3AFB75A0E175F93C28D3421E657"
+        },
+        {
+          "file": "original-compiled-inputs.json",
+          "bytes": 109404,
+          "sha256": "CD47DAE24DBB6414EDBBBAC6B77B983BAB5AE096B35EFAC1C4AD4AEB2AAC1015"
+        },
+        {
+          "file": "original-compiled-inputs.zip",
+          "bytes": 5225114,
+          "sha256": "BE9D0099DC82BC43F968A3A604C7668AEF1D3B3F699DA84CE2D8C5873C7F0EF1"
+        },
+        {
+          "file": "partial-native-not-qualified.json",
+          "bytes": 2222,
+          "sha256": "FDF0BF08DDD24DEBF3CB89A845778A7E758BF81D2AFE9737A52F9301749AE3A8"
+        },
+        {
+          "file": "partial-native-not-qualified.zip",
+          "bytes": 109307445,
+          "sha256": "C682A9DE23EA57D550B52378E580AD2D1B225D71BC8E2D2D3721265C4DB3B82B"
+        }
+      ]
+    },
+    {
+      "retentionId": "markdown-scan-bounds-0ffaa1a6-debug-disk-failure",
+      "disposition": "Frozen candidate x64 Debug incremental-link file exhausted storage; partial native outputs are not qualified.",
+      "files": [
+        {
+          "file": "first-debug-build-failure.log",
+          "bytes": 7361,
+          "sha256": "BE8F805F69E0E861C2D9D1A8282D558AA1BE7F7672E1A6D34886FA7E0D7B5008"
+        },
+        {
+          "file": "first-debug-msbuild-failure.log",
+          "bytes": 41416,
+          "sha256": "8ABD307DB4B93B6A07E81BEDE1BB15BDFDE91D8FD17B2BF7ED02A847CC67BAE8"
+        },
+        {
+          "file": "partial-native-not-qualified.json",
+          "bytes": 2217,
+          "sha256": "5FB7076EDEF281E02A6C98D58B61F19A9F2B4EF79642611B4823E74169504E28"
+        },
+        {
+          "file": "partial-native-not-qualified.zip",
+          "bytes": 91898005,
+          "sha256": "01BCDCC0C14F62E087F898A34DF3C4B43D0849A1AE581D45030458EAED9FE5ED"
+        }
+      ]
+    },
+    {
+      "retentionId": "markdown-scan-bounds-0ffaa1a6-arm-debug-temp-failure",
+      "disposition": "Frozen candidate ARM64 Debug compiler temporary files exhausted C:; C1088 is retained separately from later linker failures.",
+      "files": [
+        {
+          "file": "first-arm-debug-msbuild-temp-failure.log",
+          "bytes": 43670,
+          "sha256": "0007AACC9E254302E2CC5FCF3B36D7D692362E0BD99DBBE24276088D581B442C"
+        },
+        {
+          "file": "first-arm-debug-temp-failure.log",
+          "bytes": 10604,
+          "sha256": "D027B26090D8E3164CCC1100B0CA3E2A040D93B3BFF76FF8BD58041A857A9312"
+        },
+        {
+          "file": "partial-native-not-qualified.json",
+          "bytes": 2223,
+          "sha256": "3FFED51DD9E17F13CF568760A66EA697B1B996E86D44DAEEB92AE9ADE9F51799"
+        },
+        {
+          "file": "partial-native-not-qualified.zip",
+          "bytes": 94947468,
+          "sha256": "49C9D40CCB328B50233A9D503E083F4AD74241ADEF71E01822DCB2F052EE86F0"
+        }
+      ]
+    },
+    {
+      "retentionId": "markdown-scan-bounds-0ffaa1a6-arm-debug-link-failure",
+      "disposition": "Frozen candidate ARM64 Debug PDB write exhausted D:; failed native bytes/logs retained before canonical cleanup and successful isolated-output builds.",
+      "files": [
+        {
+          "file": "first-arm-debug-link-failure.log",
+          "bytes": 7427,
+          "sha256": "8F26AC1B9B1E60F0F2145E3F3AF5EEEB0AA527F5DEA23B846375A14D6FED7557"
+        },
+        {
+          "file": "first-arm-debug-msbuild-link-failure.log",
+          "bytes": 40165,
+          "sha256": "4BECD72F72C731D5AD11377B291AC7225D4642B06C796DE1DB2E9CA47EFF7FB9"
+        },
+        {
+          "file": "partial-native-not-qualified.json",
+          "bytes": 2388,
+          "sha256": "20CA122618699E7C96ADEAEE90F52BCBB1BFD11D40EBDFA258F1FEA2A0799131"
+        },
+        {
+          "file": "partial-native-not-qualified.zip",
+          "bytes": 112486624,
+          "sha256": "F5605DCD0EB5874AC417D6445E09118A7EEF0340F7B99116D3E2904C479BDCBC"
+        }
+      ]
+    }
+  ],
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-retained-markdown-scan-bound-attempts",
+  "benchmarkInputs": {
+    "markdown-budget-instrumented-baseline-6ee366ee/diagnostic-empty-first-attempt.zip": "8739C76E681F900923B900C9DF0EF75CF421D39CABB54650C4B9AD19B6A76D85",
+    "markdown-budget-instrumented-baseline-6ee366ee/diagnostic.json": "6A5F7DD7CD9610535651FE0A01E6045B85EB2F64E44670BAE438B4199871923D",
+    "markdown-budget-instrumented-baseline-6ee366ee/diagnostic.zip": "3EDE18DDB48848C917B590B4FE2552158AFA2E725D198FB878A3465728687A1C",
+    "markdown-budget-instrumented-baseline-6ee366ee/original-compiled-inputs.json": "96FC6A83168D8C919CA9DBDD004B71C77E0C265272663C3334124C9BCB1504B0",
+    "markdown-budget-instrumented-baseline-6ee366ee/original-compiled-inputs.zip": "9B523CD6A5FEE4457DA8A1914CD054921A4CCF1C1759622B033E6185924F039F",
+    "markdown-scan-bounds-0ffaa1a6-disk-failure/first-build-failure.log": "846059D1DD066A3BF3FD28594DA8C0438AE3967E6FFE59E9E8575D88E4170DDE",
+    "markdown-scan-bounds-0ffaa1a6-disk-failure/first-msbuild-failure.log": "9D471BC8AEFCA4416D8B12F2EC36D6735709D3AFB75A0E175F93C28D3421E657",
+    "markdown-scan-bounds-0ffaa1a6-disk-failure/original-compiled-inputs.json": "CD47DAE24DBB6414EDBBBAC6B77B983BAB5AE096B35EFAC1C4AD4AEB2AAC1015",
+    "markdown-scan-bounds-0ffaa1a6-disk-failure/original-compiled-inputs.zip": "BE9D0099DC82BC43F968A3A604C7668AEF1D3B3F699DA84CE2D8C5873C7F0EF1",
+    "markdown-scan-bounds-0ffaa1a6-disk-failure/partial-native-not-qualified.json": "FDF0BF08DDD24DEBF3CB89A845778A7E758BF81D2AFE9737A52F9301749AE3A8",
+    "markdown-scan-bounds-0ffaa1a6-disk-failure/partial-native-not-qualified.zip": "C682A9DE23EA57D550B52378E580AD2D1B225D71BC8E2D2D3721265C4DB3B82B",
+    "markdown-scan-bounds-0ffaa1a6-debug-disk-failure/first-debug-build-failure.log": "BE8F805F69E0E861C2D9D1A8282D558AA1BE7F7672E1A6D34886FA7E0D7B5008",
+    "markdown-scan-bounds-0ffaa1a6-debug-disk-failure/first-debug-msbuild-failure.log": "8ABD307DB4B93B6A07E81BEDE1BB15BDFDE91D8FD17B2BF7ED02A847CC67BAE8",
+    "markdown-scan-bounds-0ffaa1a6-debug-disk-failure/partial-native-not-qualified.json": "5FB7076EDEF281E02A6C98D58B61F19A9F2B4EF79642611B4823E74169504E28",
+    "markdown-scan-bounds-0ffaa1a6-debug-disk-failure/partial-native-not-qualified.zip": "01BCDCC0C14F62E087F898A34DF3C4B43D0849A1AE581D45030458EAED9FE5ED",
+    "markdown-scan-bounds-0ffaa1a6-arm-debug-temp-failure/first-arm-debug-msbuild-temp-failure.log": "0007AACC9E254302E2CC5FCF3B36D7D692362E0BD99DBBE24276088D581B442C",
+    "markdown-scan-bounds-0ffaa1a6-arm-debug-temp-failure/first-arm-debug-temp-failure.log": "D027B26090D8E3164CCC1100B0CA3E2A040D93B3BFF76FF8BD58041A857A9312",
+    "markdown-scan-bounds-0ffaa1a6-arm-debug-temp-failure/partial-native-not-qualified.json": "3FFED51DD9E17F13CF568760A66EA697B1B996E86D44DAEEB92AE9ADE9F51799",
+    "markdown-scan-bounds-0ffaa1a6-arm-debug-temp-failure/partial-native-not-qualified.zip": "49C9D40CCB328B50233A9D503E083F4AD74241ADEF71E01822DCB2F052EE86F0",
+    "markdown-scan-bounds-0ffaa1a6-arm-debug-link-failure/first-arm-debug-link-failure.log": "8F26AC1B9B1E60F0F2145E3F3AF5EEEB0AA527F5DEA23B846375A14D6FED7557",
+    "markdown-scan-bounds-0ffaa1a6-arm-debug-link-failure/first-arm-debug-msbuild-link-failure.log": "4BECD72F72C731D5AD11377B291AC7225D4642B06C796DE1DB2E9CA47EFF7FB9",
+    "markdown-scan-bounds-0ffaa1a6-arm-debug-link-failure/partial-native-not-qualified.json": "20CA122618699E7C96ADEAEE90F52BCBB1BFD11D40EBDFA258F1FEA2A0799131",
+    "markdown-scan-bounds-0ffaa1a6-arm-debug-link-failure/partial-native-not-qualified.zip": "F5605DCD0EB5874AC417D6445E09118A7EEF0340F7B99116D3E2904C479BDCBC"
+  }
+}

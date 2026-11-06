@@ -137,7 +137,8 @@
     "application-text-services",
     "embedded-accessibility",
     "redxe-adapter",
-    "redsalamander-migration"
+    "redsalamander-migration",
+    "bounded-markdown-adversarial-scan-limits"
   ],
   "pending": [
     "described-native-menu-qualification",

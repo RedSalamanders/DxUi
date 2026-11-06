@@ -2655,6 +2655,11 @@ fence or unsupported expression preserves its exact source with a diagnostic.
 Paired `$$` or `\[` / `\]` delimiters on their own logical lines own display
 math across intervening blank lines. An unclosed opener preserves the complete
 owned source with a diagnostic. Double-dollar text within a sentence is literal.
+The same RichMarkdown-only opener predicate MUST interrupt lazy quote/list
+continuation and a GFM table body. An opener has at most three indentation
+columns, then exactly `$$` or `\[` followed only by spaces/tabs. Missing container
+prefixes therefore end the preceding container before the display owner starts;
+table rows cannot consume its delimiter or mathematical body.
 The syntax snapshot represents these display owners as fenced-code leaves with
 the `$` or `[` marker respectively; semantic publication recognizes them as
 Math, and source editing addresses the complete leaf. Container termination

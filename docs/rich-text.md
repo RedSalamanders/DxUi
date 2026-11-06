@@ -1064,6 +1064,13 @@ The [cooperative preparation record](../Measurements/RichText/README.md) retains
 
 ## Owned lossless Markdown preparation
 
+Malformed inline HTML and repeated failed table/link candidates have bounded
+scan work. Unterminated HTML uses four final-terminator facts per leaf; repeated
+invalid table delimiters do not re-flatten the growing paragraph. Bare link
+destinations support up to 32 balanced parenthesis levels; deeper destinations
+stay literal, preserving their complete source. Ordinary `foo(and(bar))` links
+remain supported. These are logical work/capacity bounds, not timing guarantees.
+
 `DxUi/MarkdownSyntax.h` starts the owned parser independently of the v0 renderer.
 It retains exact Unicode source, root block ranges, a container/leaf tree and an
 independent complete lexical partition. Block recognition covers nested/lazy

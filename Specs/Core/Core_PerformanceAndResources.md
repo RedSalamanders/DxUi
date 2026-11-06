@@ -92,6 +92,20 @@ decode only final text prefixes and the final remaining suffix, once each.
 `InlineStatistics()` exposes indexing/candidate visits and decoded suffix units;
 these counters do not include allocator work or claim a wall-clock deadline.
 The index is bounded by the admitted source length and is retired with staging.
+Inline raw-HTML terminator lookup MUST reject a missing or already-passed final
+terminator without scanning the remaining leaf again. Four leaf-local final
+offsets suffice for `-->`, `?>`, `]]>` and `>`; collect them in the existing
+backtick indexing pass without a per-unit HTML index in ordinary profiles.
+Successful HTML searches consume their complete emitted node. Non-angle inline
+link destinations admit at most 32 balanced parenthesis levels; exceeding that
+limit retains literal source. Table recognition MUST check pipe presence, cell
+counts and delimiter alignment before flattening a reference-like paragraph.
+Reference extraction runs only for a viable table or normal paragraph closure.
+Private opt-in owner-thread work probes count searched source spans, destination
+loop iterations and raw reference-flatten spans, rather than CPU loads or time.
+Required hostile doubling fixtures stay within 2.5 times their prior logical work
+and retain independently specified literal/block results. These counters add no
+public ABI fields and do not qualify timing, allocator work or paired performance.
 The maximum
 all-newline source exercises maximum root-trivia and lexical partition counts; owned
 C++ retained storage must stay within 24 MiB and release completely. Replacing
