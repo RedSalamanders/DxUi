@@ -662,8 +662,8 @@ IPv6 authorities; credentials, fragments, control characters and malformed
 percent escapes are refused. Path/query case remains exact. Toggling the policy
 off immediately cancels remote jobs and evicts their pixels while preserving
 local jobs, local completions, source, selection and history. A later opt-in
-creates new remote identities. The sample loader remains local-file-only; a
-consumer must provide its own explicit remote transport and failure policy.
+creates new remote identities. The sample file loader handles local files and explicitly authorized
+network-file paths; HTTP fetching requires the consumer's own transport and failure policy.
 
 `SetDataImagesEnabled(true)` independently admits bounded `data:` destinations.
 The caller receives their exact source as a `Data` request, validates and decodes
