@@ -1,0 +1,1 @@
+- Make the tooling timeout fixture tolerate ordinary PowerShell startup under native build load while still timing out its real stalled child. Verify the exact failure, continuation and survival of an independent same-name process; keep production watchdog deadlines unchanged.
