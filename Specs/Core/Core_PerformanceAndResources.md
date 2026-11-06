@@ -578,7 +578,9 @@ before/after performance acceptance.
   paired-block judge gives it no block effect.
 - **No verdict.** Invalid evidence, missing provenance, an unqualified policy, a missing/unreadable summary, a summary that
   lists no scenario or uses only an older six-run judge, and a run that did not finish fail with the reason in the job
-  summary. A pull request that changes the harness and library interfaces together, whose base cannot be
+  summary. When admission withholds every metric verdict, the flagged-metrics section MUST say that no metrics
+  were assessed. It MUST NOT infer no regressions or improvements from the empty verdict set. Admitted metric
+  rows and all original policy/identity refusal reasons remain visible. A pull request that changes the harness and library interfaces together, whose base cannot be
   built with the merge ref's harness. Its comparison is measured by hand, as before.
 - **Confirmed degradation** follows the advice rule above: stop, present the deltas and suspected cause, and never relax a
   band or replace a baseline to pass. The gate has no waiver list: a

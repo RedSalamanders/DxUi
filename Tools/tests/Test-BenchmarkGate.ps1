@@ -689,6 +689,25 @@ Invoke-FixtureCase 'the migrated gate independently rejects historic, candidate-
     Assert-True ($untrusted.Notes -join ' ').Contains('measured base') 'trust failure says the base is authoritative'
 }
 
+Invoke-FixtureCase 'policy admission refusals never claim unassessed metrics did not regress' {
+    param($root)
+    $summary = New-Summary @((New-Scenario -Directory $root -Controls @() -Metrics @((New-SetMetric 'clean' 'fps' 'regressed'))))
+    foreach ($migrated in @($false, $true)) {
+        if ($migrated) {
+            $summary.studyVersion = 3
+            $summary.studyPurpose = 'regression-qualification'
+            $summary.acceptancePolicy = [ordered]@{ trusted=$true; status='trusted'; policySha256='candidate-asserted' }
+        }
+        $conclusion = Get-BenchmarkConclusion -Summary $summary -ReportsDirectory $root -RequireQualifiedPolicy
+        Assert-Equal 'inconclusive' $conclusion.Conclusion 'the actual policy refusal remains inconclusive'
+        Assert-Equal 0 @($conclusion.Scenarios).Count 'admission withheld every scenario verdict'
+        $markdown = ConvertTo-BenchmarkMarkdown -Conclusion $conclusion -Summary $summary -Gate
+        Assert-True $markdown.Contains('Not assessed: no metric verdicts were admitted.') 'empty verdicts are labeled unassessed'
+        Assert-True (-not $markdown.Contains('None: no metric regressed or improved.')) 'an early refusal cannot publish a favorable absence of findings'
+        Assert-True $markdown.Contains('Policy review required:') 'the original policy-refusal reason stays visible'
+    }
+}
+
 Invoke-FixtureCase 'both judges are bound to the exact same retained receipt bytes' {
     param($root)
     $steps = @(); $hashes = @(); $receiptsByRun = @{}

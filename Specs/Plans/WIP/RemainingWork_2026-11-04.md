@@ -196,6 +196,9 @@ omitting an ID from this summary does not dispose of it.
   twenty semantic and five geometry scenarios. The [scoped closeout](../Done/ScriptColorPreparation_2026-11-06.md)
   retains original logs and source/per-request evidence; this corrects the label without changing the corpus or
   accepting an earlier paired verdict.
+- [x] Separate descendant-timeout fixture startup from pipe drainage; retain missing-admission diagnostics,
+  exact native process identity and cooperative release. [Scoped closeout](../Done/DescendantTimeoutFixture_2026-11-06.md)
+  records all 168 profiling cases and a deliberate old-budget counterexample, without accepting performance.
 - [ ] Diagnose long-checkout tooling portability: hosted-MSVC fake executable launches fail at observed
   272-character fixture paths and one NTFS hardlink fixture fails at 261 characters. Canonical short-path
   validation and all 41 unchanged NTFS run-evidence checks with a supported short scratch root pass. Preserve
@@ -220,6 +223,9 @@ these disagreements and [the retained triage](../../../Measurements/FailurePolic
 The owner accepted the separate construction study's measured safety overhead; this does not qualify the frame
 policy, erase its findings or close this section.
 
+- [x] Correct empty-verdict presentation: policy admission that withholds all metric verdicts is labeled
+  unassessed and retains its refusal reasons, without implying an absence of regressions. The legacy and
+  candidate-asserted-policy counterexamples are separate from policy qualification below.
 - [ ] Qualify the trusted measurement policy and controls independently. Preserve timing/memory witnesses,
   exact raw reports/seals, missing-context/refusal history and unstable-control verdicts.
 - [ ] Complete the bounded timing/heap/resource attribution pilot before a fresh canonical same-binary A/A;

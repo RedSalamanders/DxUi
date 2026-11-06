@@ -742,22 +742,36 @@ $child.Dispose()
 Invoke-FixtureCase 'timeout kills the original handle while a test-owned descendant survives and drains remain bounded' {
     param($root)
     Set-ProfilingFixtureIdentityHelper $root
-    Set-FixtureFile $root 'holder.ps1' 'Start-Sleep -Seconds 10'
+    Set-FixtureFile $root 'holder.ps1' @'
+param($Root)
+$clock=[Diagnostics.Stopwatch]::StartNew()
+while (-not [IO.File]::Exists((Join-Path $Root 'release-holder'))) {
+    if ($clock.Elapsed.TotalSeconds -ge 60) { exit 89 }
+    Start-Sleep -Milliseconds 25
+}
+'@
     Set-FixtureFile $root 'parent.ps1' @'
 param($Shell,$Root)
 . (Join-Path $Root 'process-identity.ps1')
+# Deliberately exceed the old two-second startup assumption before publishing
+# the holder. This is fixture admission, not the post-exit pipe drain interval.
+Start-Sleep -Milliseconds 3200
 $start=[Diagnostics.ProcessStartInfo]::new($Shell)
 $start.UseShellExecute=$false; $start.CreateNoWindow=$true
-foreach ($arg in @('-NoProfile','-File',(Join-Path $Root 'holder.ps1'))) { $start.ArgumentList.Add($arg) }
+foreach ($arg in @('-NoProfile','-File',(Join-Path $Root 'holder.ps1'),$Root)) { $start.ArgumentList.Add($arg) }
 $child=[Diagnostics.Process]::Start($start)
 [IO.File]::WriteAllText((Join-Path $Root 'holder.identity.json'),(ConvertTo-Json @{id=$child.Id; creationIdentity=(Get-ProfilingFixtureProcessIdentity $child)}))
 $child.Dispose()
-Start-Sleep -Seconds 10
+Start-Sleep -Seconds 60
 '@
     $holder=$null; $holderIsOwned=$false
     try {
-        $child=Invoke-OwnedProfilingProcess -Executable $shellPath -Arguments @('-NoProfile','-File',(Join-Path $root 'parent.ps1'),$shellPath,$root) -WorkingDirectory $root -TimeoutSeconds 2 -DrainTimeoutSeconds 0.2
+        $child=Invoke-OwnedProfilingProcess -Executable $shellPath -Arguments @('-NoProfile','-File',(Join-Path $root 'parent.ps1'),$shellPath,$root) -WorkingDirectory $root -TimeoutSeconds 12 -DrainTimeoutSeconds 0.2
         Assert-True $child.timedOut 'original child timeout observed'
+        if (-not [IO.File]::Exists((Join-Path $root 'holder.identity.json'))) {
+            Write-Host ('TIMEOUT_FIXTURE_ADMISSION_FAILURE ' + ($child | ConvertTo-Json -Depth 5 -Compress))
+            throw 'The owned parent did not publish its holder identity before the fixture deadline; descendant/drain assertions were not reached.'
+        }
         $identity=[IO.File]::ReadAllText((Join-Path $root 'holder.identity.json')) | ConvertFrom-Json -AsHashtable
         $holder=Get-Process -Id ([int]$identity.id) -ErrorAction SilentlyContinue
         Assert-True ($null -ne $holder) 'timeout never follows descendant parent IDs'
@@ -765,6 +779,10 @@ Start-Sleep -Seconds 10
         $holderIsOwned=Test-ProfilingFixtureProcessIdentity $holder $identity
         Assert-True $holderIsOwned 'surviving helper has the exact PID and native creation identity'
         Assert-True (-not [string]::IsNullOrEmpty($child.drainError)) 'descendant-held pipe is an explicit bounded failure'
+        Assert-True ($child.drainTimeoutSeconds -eq 0.2 -and $child.observedDrainElapsedMs -ge 0 -and $child.observedDrainElapsedMs -lt 3000) 'the original bounded post-exit drain is preserved'
+        [IO.File]::WriteAllText((Join-Path $root 'release-holder'),'release')
+        Assert-True $holder.WaitForExit(5000) 'the exact surviving holder exits cooperatively'
+        Assert-Equal 0 $holder.ExitCode 'holder release succeeds rather than reaching its failsafe'
     } finally {
         if ($holder) {
             try { if ($holderIsOwned -and -not $holder.HasExited) { $holder.Kill(); [void]$holder.WaitForExit(5000) } } finally { $holder.Dispose() }
