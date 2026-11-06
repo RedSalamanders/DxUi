@@ -39,5 +39,17 @@
     "reason": "Original producer PDB missing; linker warning attempt rejected before a complete-symbol zero-warning baseline",
     "originalLogSha256": "A715A56653AC977361D4DCD2CA13FC17799AD63AF533B20510E972E26005CC97",
     "qualified": false
+  },
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-script-color-retained-attempts",
+  "inputHash": "24037d919a29ce71f7adf2f0e663b42337884a6c49badcd4d4301d815bdb02bd",
+  "benchmarkInputs": {
+    "src/Controls/DxUi.RichSemanticGeometry.cpp": "9D894D1236F3B9B65905942E3CA6E6A970716DD32FFA4C8DD91B75298C96BBA2",
+    "src/Controls/DxUi.PreparedLayoutAccess.h": "E2702AADFB6FB08BB7F240BC8F59D63308B18F3F4288054CEDF1C2385FEF6EAC",
+    "src/Controls/DxUi.RichTextLayout.cpp": "2F50AFEC754A211210154EA3A95CF6E0E8D8E15B640DFDF6B895683F5180C0D7",
+    "Tests/Support/Support.Tests.RichSemanticGeometry.h": "B07CF847D877A687445ECC3C3D0420D963DBEFA134F06554029039683173FFC8",
+    "Tests/Controls/Controls.Tests.RichSemanticGeometry.cpp": "BAB855000B3B9B3CF90A58815C0475B3EEE5E87C2E395D7CE141C3C5B43AC644",
+    "Tests/Embedded/Embedded.Tests.Embedded.cpp": "DE1607AE799CBC1D157D8A7C803532F354DDF085AAA2DCFF9E7546E780876B4F",
+    "Tests/Embedded/Embedded.Tests.RichTextResources.h": "6682E4B699415202FD7451193FD899DC804BEA036A5C3B4807F93F447F3A4E19"
   }
 }
