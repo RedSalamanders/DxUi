@@ -119,8 +119,11 @@ The owner accepted the measured construction safety costs in the source-paired 1
 `1ea6d522` versus `d975aa7d`: +10.355 ns Separator, +2.4 ns Panel and +16.285 ns editor; allocations remain
 2/2/9, allocator peak rises by 39/39/103 bytes, editor requested bytes rise by 64 and live bytes return to zero.
 These are allocator/construction observations, not RSS, causal attribution or a formal performance-policy pass.
-The formal frame policy remains unqualified and hosted study `42201620823` remains pending under
-[D-P1](../WIP/RemainingWork_2026-11-04.md#d-p1). Product adoption remains [D-C1](../WIP/RemainingWork_2026-11-04.md#d-c1),
+Hosted study `42201620823` completed inconclusively: all 144 receipt hashes match, but 71/72 same-side controls
+are unstable and the unqualified policy refuses acceptance. Its retained preparation flags and legacy-only
+memory findings/judge disagreements are explicit in the [current triage](../../../Measurements/FailurePolicy_2026-11-06/current-hosted-triage.json).
+Formal frame qualification remains [D-P1](../WIP/RemainingWork_2026-11-04.md#d-p1); owner acceptance of the separate
+construction costs does not close it. Product adoption remains [D-C1](../WIP/RemainingWork_2026-11-04.md#d-c1),
 and broader per-element admission remains [D-A1](../WIP/RemainingWork_2026-11-04.md#d-a1).
 
 The bullets below preserve historical state as recorded at each checkpoint; later evidence above supersedes their

@@ -184,6 +184,15 @@ stopped at benchmark attestation before measurement: a module-name lookup saw tw
 The [scoped tooling closeout](../Done/PairedAttestationModuleOwnership_2026-11-05.md) preserves the exact
 failure and independent repair. No performance verdict exists for that original run. The repaired manual pair [42115893044](https://github.com/RedSalamanders/DxUi/actions/runs/42115893044) completed measurement but remains inconclusive: the base policy is unqualified, all 72 controls are unstable and dual-judge replay disagrees on Default dirty/frameP95Ms. All 144 raw receipt hashes/identities verify. This is the older 0acd5608/f765aeca pair, not acceptance for 8dc328de.
 
+API-5 hosted [run 42201620823](https://github.com/RedSalamanders/DxUi/actions/runs/42201620823) also completed
+inconclusively for `1ea6d522`/`a6ea0c15` with driver `44fdc9c1`: all 144 hashes verify, but 71/72 controls are
+unstable and the base policy remains unqualified. The migrated judge flags clean preparation in Default and
+MultilineGridDistinct (median 0.0003 to 0.0005 ms); the legacy judge additionally flags MultilineGrid preparation
+and Default dirty private/peak memory (+2.10%/+2.11%), which the migrated judge places within noise. Preserve
+these disagreements and [the retained triage](../../../Measurements/FailurePolicy_2026-11-06/current-hosted-triage.json).
+The owner accepted the separate construction study's measured safety overhead; this does not qualify the frame
+policy, erase its findings or close this section.
+
 - [ ] Qualify the trusted measurement policy and controls independently. Preserve timing/memory witnesses,
   exact raw reports/seals, missing-context/refusal history and unstable-control verdicts.
 - [ ] Complete the bounded timing/heap/resource attribution pilot before a fresh canonical same-binary A/A;

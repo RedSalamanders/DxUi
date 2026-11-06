@@ -53,10 +53,18 @@ source bytes; the policy remains explicitly unqualified.
 
 ## Open performance and platform ownership
 
-At this closeout snapshot, hosted pair [42201620823](https://github.com/RedSalamanders/DxUi/actions/runs/42201620823) is still
-collecting main `1ea6d522` against implementation `a6ea0c15`. Later library C++ is unchanged; raw receipts retain
-their original identities. No accepted verdict is claimed. Formal policy/control qualification remains
-[D-P1](../../Specs/Plans/WIP/RemainingWork_2026-11-04.md#d-p1).
+Hosted pair [42201620823](https://github.com/RedSalamanders/DxUi/actions/runs/42201620823) completed with an inconclusive,
+failing gate for main `1ea6d522` against implementation `a6ea0c15`, using driver `44fdc9c1`. Later library C++ is
+unchanged; the raw receipts retain their original identities. Independent review verifies all 144 receipt hashes,
+72 cross comparisons and 72 same-side controls. Controls are unstable in 23/24, 24/24 and 24/24 comparisons.
+
+The migrated judge flags clean preparation p95 in Default (+63.26%) and MultilineGridDistinct (+43.64%), each
+with median 0.0003 to 0.0005 ms. It has no set-level frame, memory or exact-budget flags. The legacy judge also
+flags MultilineGrid preparation and Default dirty private/peak bytes (+2.10%/+2.11%); the migrated judge marks
+those three findings within noise. These disagreements, control drift and the unqualified policy prevent an
+accepted performance verdict or causal attribution. The owner's construction-cost acceptance does not qualify
+this frame policy. See [the current triage](current-hosted-triage.json). Formal policy/control qualification remains
+[D-P1](../../Specs/Plans/WIP/RemainingWork_2026-11-04.md#d-p1); no thresholds or qualification flags were changed.
 
 The older [42192490717](https://github.com/RedSalamanders/DxUi/actions/runs/42192490717) is historical
 `86c62873`/`946d5a28`, before the D1 integration. All 144 receipt hashes verify, but control drift and the unqualified
