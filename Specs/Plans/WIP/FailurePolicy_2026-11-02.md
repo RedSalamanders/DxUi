@@ -104,6 +104,16 @@ reopening their historical checklists or relabeling old allocation sweeps as fat
 
 ### Working-tree progress, not acceptance
 
+- Main `1ea6d522` (editor cosmetic preparation) landed during the frozen `946d5a28` checks. Its seven
+  overlapping conflicts are reconciled without restoring exception recovery: Source-mode analysis and bounded
+  viewport cosmetics remain independent of content readiness, checked queries preserve outputs/publications,
+  and unexpected C++ failures remain fatal. Source ink now tracks committed identity separately from staging
+  without retaining an additional owning syntax tree. Invalid windows, checked endpoint failures and successful
+  retry have regression coverage in source; no new native execution is claimed before it runs.
+- The superseded `946d5a28` cohort passes all six zero-warning builds, four clean-pin consumers, complete
+  validation/tooling/formatting and isolated SDK `0.1.202611063`. Native ordinary/foreground profiles were not
+  started for that cohort after main advanced. Its passing receipts and the preceding PID-collision failure
+  remain bound to their actual source; they do not qualify the merged candidate.
 - The `af7783aa` source passes six zero-warning builds and three clean-pin consumers. Its annotation-enabled
   consumer passes fifteen of sixteen fatal probes; the remaining child exits during host startup with
   `ERROR_ALREADY_EXISTS`, before reaching its fault. The retained PID directory predates that child. The

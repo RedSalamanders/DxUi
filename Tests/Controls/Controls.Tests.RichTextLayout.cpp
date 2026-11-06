@@ -1842,12 +1842,17 @@ void TestRichTextSourceInkPreparationRolesAndCapacity()
     const std::wstring source = L"# Heading\r\n\r\n- **strong** [label](https://example.invalid/a\\(b\\))\r\n";
     const auto syntax         = parse(source);
     Detail::RichSourceInk ink;
+    std::vector<TextInkRange> previousInk(0u);
+    const auto rememberInk         = [&] { previousInk.assign(ink.Ranges().begin(), ink.Ranges().end()); };
+    const auto previousInkIsIntact = [&]
+    { return std::ranges::equal(previousInk, ink.Ranges(), [](const auto& a, const auto& b) { return a.display == b.display && a.role == b.role; }); };
     size_t turns = 0u;
+    rememberInk();
     while (! ink.Advance(syntax, [](size_t value) { return value; }))
     {
         Require(ink.LastWork() <= Detail::RichSourceInk::WorkPerTurn, "source ink shares one bounded preparation budget");
         ++turns;
-        Require(ink.Ranges().empty() && turns < 1000u, "staged source ink never publishes partial ranges");
+        Require(previousInkIsIntact() && turns < 1000u, "staged source ink never publishes partial ranges");
     }
     Require(ink.LastWork() <= Detail::RichSourceInk::WorkPerTurn, "final source ink turn stays within its work budget");
     const auto roleAt = [&](size_t offset) -> std::optional<TextInkRole>
@@ -1870,8 +1875,48 @@ void TestRichTextSourceInkPreparationRolesAndCapacity()
                 "published source ink is bounded, sorted and disjoint");
         previous = range.display.last;
     }
+    rememberInk();
+    bool complete       = true;
+    const auto identity = [](size_t value, size_t& mapped) -> HRESULT
+    {
+        mapped = value;
+        return S_OK;
+    };
+    Require(ink.TryAdvance(syntax, identity, complete, MarkdownRange{source.size(), 0u}) == E_INVALIDARG && complete && previousInkIsIntact() &&
+                ink.Current(syntax) && ink.Covers(0u, source.size()),
+            "invalid source ink window preserves the complete publication and output flag");
+    complete = true;
+    Require(ink.TryAdvance(syntax, identity, complete, MarkdownRange{0u, source.size() + 1u}) == E_INVALIDARG && complete && previousInkIsIntact() &&
+                ink.Current(syntax) && ink.Covers(0u, source.size()),
+            "out-of-range source ink window preserves the complete publication and output flag");
+    const auto replacementSyntax = parse(L"# replacement with **visible** ink\n");
+    size_t mapCalls              = 0u;
+    const auto refuseMapping     = [&](size_t, size_t&) -> HRESULT
+    {
+        ++mapCalls;
+        return E_ACCESSDENIED;
+    };
+    HRESULT result      = S_OK;
+    size_t refusalTurns = 0u;
+    do
+    {
+        complete = true;
+        result   = ink.TryAdvance(replacementSyntax, refuseMapping, complete);
+        Require(++refusalTurns < 1000u, "checked source ink mapping reaches its refusal");
+    } while (result == S_OK && ! complete);
+    Require(result == E_ACCESSDENIED && mapCalls > 0u && complete && previousInkIsIntact() && ink.Current(syntax) && ink.Covers(0u, source.size()),
+            "checked mapper refusal preserves the previous source ink publication and output flag");
+    turns = 0u;
+    do
+    {
+        Require(ink.TryAdvance(replacementSyntax, identity, complete) == S_OK, "checked source ink retry succeeds");
+        Require(++turns < 1000u, "checked source ink retry completes in bounded turns");
+    } while (! complete);
+    Require(ink.Current(replacementSyntax) && ink.Covers(0u, replacementSyntax->Source().size()) && ! ink.Ranges().empty(),
+            "healthy mapper retry publishes replacement source ink");
     const std::wstring nativeSyntax = L"www.example.com user@example.com \\(x\\)\n\n\\[\ny\n\\]\n";
     const auto nativeInkSyntax      = parse(nativeSyntax, MarkdownProfile::RichMarkdown);
+    rememberInk();
     while (! ink.Advance(nativeInkSyntax, [](size_t value) { return value; }))
         Require(ink.LastWork() <= Detail::RichSourceInk::WorkPerTurn, "native source ink remains cooperatively prepared");
     for (const auto text : {std::wstring_view(L"www.example.com"), std::wstring_view(L"user@example.com")})
@@ -1892,6 +1937,7 @@ void TestRichTextSourceInkPreparationRolesAndCapacity()
     // Bracketed display delimiters embedded in a paragraph are ordinary source, not a math object.
     const std::wstring literalBrackets = L"prose \\[y\\] remains literal\n";
     const auto literalSyntax           = parse(literalBrackets, MarkdownProfile::RichMarkdown);
+    rememberInk();
     while (! ink.Advance(literalSyntax, [](size_t value) { return value; }))
         Require(ink.LastWork() <= Detail::RichSourceInk::WorkPerTurn, "literal bracket source ink remains cooperatively prepared");
     const auto literalFirst = literalBrackets.find(L"\\[");
@@ -1921,10 +1967,11 @@ void TestRichTextSourceInkPreparationRolesAndCapacity()
         Require(found != listSyntax->Nodes().end(), "list parser publishes exact source ranges for nested, ordered, quote, tab and task markers");
     }
     turns = 0u;
+    rememberInk();
     while (! ink.Advance(listSyntax, [](size_t value) { return value; }))
     {
-        Require(ink.LastWork() <= Detail::RichSourceInk::WorkPerTurn && ink.Ranges().empty(),
-                "list marker preparation remains bounded and unpublished while pending");
+        Require(ink.LastWork() <= Detail::RichSourceInk::WorkPerTurn && previousInkIsIntact(),
+                "list marker preparation remains bounded and preserves the previous publication while pending");
         ++turns;
     }
     for (const auto offset : markerOffsets)
@@ -1939,9 +1986,10 @@ void TestRichTextSourceInkPreparationRolesAndCapacity()
     longCode.append(700u, L'`');
     const auto longCodeSyntax = parse(longCode);
     turns                     = 0u;
+    rememberInk();
     while (! ink.Advance(longCodeSyntax, [](size_t value) { return value; }))
     {
-        Require(ink.LastWork() <= Detail::RichSourceInk::WorkPerTurn && ink.Ranges().empty(),
+        Require(ink.LastWork() <= Detail::RichSourceInk::WorkPerTurn && previousInkIsIntact(),
                 "long inline delimiter scan yields without partial ranges or budget overflow");
         ++turns;
     }
@@ -1961,9 +2009,11 @@ void TestRichTextSourceInkPreparationRolesAndCapacity()
     manyChildren.append(L")");
     const auto manyChildrenSyntax = parse(manyChildren);
     turns                         = 0u;
+    rememberInk();
     while (! ink.Advance(manyChildrenSyntax, [](size_t value) { return value; }))
     {
-        Require(ink.LastWork() <= Detail::RichSourceInk::WorkPerTurn && ink.Ranges().empty(), "link label and destination scans share the bounded turn budget");
+        Require(ink.LastWork() <= Detail::RichSourceInk::WorkPerTurn && previousInkIsIntact(),
+                "link label and destination scans share the bounded turn budget");
         ++turns;
     }
     const auto linkedRoleAt = [&](size_t offset)
@@ -1980,14 +2030,42 @@ void TestRichTextSourceInkPreparationRolesAndCapacity()
         mergeFixture.append(L"```\nx\n```\n");
     const auto mergeSyntax = parse(mergeFixture);
     turns                  = 0u;
+    rememberInk();
     while (! ink.Advance(mergeSyntax, [](size_t value) { return value; }))
     {
-        Require(ink.LastWork() <= Detail::RichSourceInk::WorkPerTurn && ink.Ranges().empty(),
+        Require(ink.LastWork() <= Detail::RichSourceInk::WorkPerTurn && previousInkIsIntact(),
                 "incremental event merge does not publish partial ranges or exceed its per-turn budget");
         ++turns;
     }
     Require(turns > 200u && ink.LastWork() <= Detail::RichSourceInk::WorkPerTurn && ! ink.Ranges().empty(),
             "multiple merge passes complete incrementally for a dense admitted source");
+
+    const std::vector<TextInkRange> wholeInk(ink.Ranges().begin(), ink.Ranges().end());
+    Detail::RichSourceInk windowed;
+    for (const auto first : {std::size_t{0u}, std::size_t{30001u}, mergeFixture.size() - 40u})
+    {
+        const MarkdownRange window{first, first + 40u};
+        const std::vector<TextInkRange> previousWindow(windowed.Ranges().begin(), windowed.Ranges().end());
+        turns = 0u;
+        while (! windowed.Advance(mergeSyntax, [](size_t value) { return value; }, window))
+        {
+            Require(windowed.LastWork() <= Detail::RichSourceInk::WorkPerTurn && ++turns < 1000u,
+                    "windowed source ink shares its bounded metadata and scan budget");
+            Require(
+                std::ranges::equal(previousWindow, windowed.Ranges(), [](const auto& a, const auto& b) { return a.display == b.display && a.role == b.role; }),
+                "scrolling retains the preceding complete source ink publication");
+        }
+        std::vector<TextInkRange> expected(0u);
+        for (const auto& range : wholeInk)
+        {
+            const MarkdownRange clipped{(std::max)(window.first, range.display.first), (std::min)(window.last, range.display.last)};
+            if (clipped.first < clipped.last)
+                expected.push_back({clipped, range.role});
+        }
+        Require(! expected.empty() && expected.size() <= 10u && windowed.Covers(window.first, window.last) &&
+                    std::ranges::equal(expected, windowed.Ranges(), [](const auto& a, const auto& b) { return a.display == b.display && a.role == b.role; }),
+                "deep source windows publish exact independently clipped whole-source roles with bounded retained spans");
+    }
 
     std::wstring crowded;
     for (size_t i = 0u; i < 10000u; ++i)
@@ -1995,9 +2073,10 @@ void TestRichTextSourceInkPreparationRolesAndCapacity()
     Require(crowded.size() <= Document::MaximumUnits, "source ink overflow fixture stays within the admitted Markdown source limit");
     const auto crowdedSyntax = parse(crowded);
     turns                    = 0u;
+    rememberInk();
     while (! ink.Advance(crowdedSyntax, [](size_t value) { return value; }))
     {
-        Require(ink.LastWork() <= Detail::RichSourceInk::WorkPerTurn && ink.Ranges().empty(), "capacity-bound source ink yields without partial publication");
+        Require(ink.LastWork() <= Detail::RichSourceInk::WorkPerTurn && previousInkIsIntact(), "capacity-bound source ink yields without partial publication");
         Require(++turns < 10000u, "capacity fallback remains bounded");
     }
     Require(ink.LastWork() <= Detail::RichSourceInk::WorkPerTurn && ink.Ranges().empty() && ! ink.Pending(),

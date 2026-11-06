@@ -50,6 +50,9 @@ device; the application owns immediate-context scheduling and presentation.
    work. S_FALSE means already clean, hidden, zero-sized, or that cooperative content preparation remains pending. When NeedsPreparation() is true, honor the next owner-turn request and call Prepare again; do not spin. A failed HRESULT suppresses input/composition until preparation succeeds; handle the failure instead of repeatedly retrying in a tight loop. E_ABORT is the exception: a callback superseded the frame (it replaced the root or changed the tree mid-pass), and the view has already requested another preparation, so skip this frame composition and prepare again on that request. A deterministic content failure returns its failure HRESULT (E_ABORT from content is reported as E_FAIL), stays dirty, and does not schedule an automatic retry; an owner may retry with bounded backoff.
    A surface update also changes the borrowed immediate context, including unbinding PS shader-resource slot 0 and output-merger render targets. Rebind application state after preparation; pipeline mutation is not limited to Composite.
    Optional control visual preparation is separate from content preparation: it may retain bounded visual resources, but it does not mark content geometry changed, publish text-input/UIA geometry, or hold input readiness pending.
+   Unfinished optional visuals request another owner turn. `NeedsPreparation()` may
+   remain true while `Composite` can already use the current coherent surface;
+   native hosts likewise schedule the next visual turn after presenting that frame.
 4. Bind the application's render target, then call `view.Composite(context, viewport)`. It binds its required
    pipeline state and draws the prepared texture. It changes D3D state: rebind your state for subsequent drawing.
 5. Present through the application. DxUi embedded mode owns no HWND, swap chain, timer, worker or presentation loop.

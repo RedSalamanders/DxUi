@@ -9,6 +9,9 @@ validators and the tooling tests in turn and reports every failure before it fai
 `test.ps1` runs the tooling tests beside its native suites. CI gives `build.ps1` and the subsequent
 `test.ps1 -Full -SkipTooling -SkipBuild` separate finite windows; SkipBuild verifies both the canonical v2 and complete native test-source/artifact attestations
 before native probes or self-checks. Fixed top-level timing records diagnose orchestration and do not qualify native performance.
+The build-console checker also rejects structured nonzero child-tool exception
+dumps, even when MSBuild exits zero and writes a successful final footer. Its
+fixtures distinguish actual dump records from ordinary text mentioning a code.
 If evidence finalization fails during a runner exception, the runner reports the additional error and preserves the original exception; finalization failure alone is fatal.
 
 After successful suite and evidence completion, `test.ps1` clears an expected nested probe's stale native exit

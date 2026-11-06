@@ -1393,7 +1393,12 @@ void TestRichTextEditorNativeDenseSourceAndSplitScheduling()
         const auto start    = std::chrono::steady_clock::now();
         const auto deadline = GetTickCount64() + 12000u;
         ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
-        while (window.Host().HasPendingContentPreparation() && GetTickCount64() < deadline)
+        const auto pendingInk = [&]
+        {
+            const auto state = sourceView->DebugGetState();
+            return state.markdownPreparationPending || state.sourceInkPreparationPending || state.sourceInkRangeCount == 0u;
+        };
+        while ((window.Host().HasPendingContentPreparation() || pendingInk()) && GetTickCount64() < deadline)
         {
             window.PumpMessages(10u);
             Sleep(1u); // A failed/stalled request must not turn the test's independent deadline into a busy loop.
@@ -1404,7 +1409,8 @@ void TestRichTextEditorNativeDenseSourceAndSplitScheduling()
                   << " rich_turns=" << richView->calls << " source_max_us=" << sourceView->maximumAdvance.count()
                   << " rich_max_us=" << richView->maximumAdvance.count() << " ink_ranges=" << preparedSource.sourceInkRangeCount << '\n';
         Require(! window.Host().HasPendingContentPreparation() && preparedSource.layoutReady && preparedRich.layoutReady &&
-                    preparedSource.sourceInkRangeCount >= blockCount && ! preparedSource.sourceInkPreparationPending &&
+                    preparedSource.sourceInkRangeCount > 0u && preparedSource.sourceInkRangeCount < blockCount &&
+                    ! preparedSource.sourceInkPreparationPending &&
                     richView->GetMarkdownRenderingStatus() ==
                         (blockCount < SemanticDocument::MaximumParagraphs ? MarkdownRenderingStatus::Semantic : MarkdownRenderingStatus::SourceFallback),
                 "ordinary native messages finish dense Source ink and sibling Rich geometry within the independent deadline");

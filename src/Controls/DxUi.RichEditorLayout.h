@@ -122,6 +122,12 @@ public:
     {
         return activeSemantic_ ? semantic_.Document().Map().ToDisplay(source) : v0_.ToDisplay(source);
     }
+    [[nodiscard]] HRESULT TryToDisplay(std::size_t source, std::size_t& output) const
+    {
+        if (! activeSemantic_)
+            return v0_.TryToDisplay(source, output);
+        return semantic_.Document().Map().TryToDisplay(source, MappingAffinity::Leading, output) == SourceResult::Success ? S_OK : E_INVALIDARG;
+    }
     std::size_t ToSource(std::size_t display, bool trailing = false) const
     {
         return activeSemantic_ ? semantic_.Document().Map().ToSource(display, trailing ? MappingAffinity::Trailing : MappingAffinity::Leading)

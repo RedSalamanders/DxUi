@@ -1294,7 +1294,8 @@ void TestLabelAndSeparatorTypographySurviveEmbeddedMeasureAndRetirementCallbacks
         Require(control != nullptr, "create intrinsic child for retiring typography setter");
         view.Controls().SetRoot(std::move(root));
         const std::string prepareMessage = std::string("prepare ") + std::string(fixtureName) + " callback fixture before changing typography";
-        RequireSucceeded(view.Prepare(320u, 160u), prepareMessage.c_str());
+        RequireSucceeded(PrepareEmbeddedContentForTests(view, 320u, 160u), prepareMessage.c_str());
+        Require(! view.NeedsPreparation(), "consume the initial visual continuation before arming a distinct retirement wake");
         state.armed = true;
         changeTypography(control);
         const std::string retirementMessage = std::string(fixtureName) + " setter returns after embedded preparation retires its root";
