@@ -110,7 +110,7 @@ base has an independently qualified policy, a candidate policy remains
 later changes. The candidate's proposed source hashes are review targets; no workflow silently qualifies the first policy.
 
 `test-consumer.ps1` restores and builds a relocated exact-pin public consumer in an isolated output directory,
-compiles the frozen API revision-4 fixture and public helper headers, renders the supplied-device example, and rejects invalid-pin/dirty-source cases. `gallery.ps1` generates the
+compiles the frozen API revision-4 and revision-5 fixtures and public helper headers, renders the supplied-device example, and rejects invalid-pin/dirty-source cases. `gallery.ps1` generates the
 five-theme control catalog, supplied-device image and HTML index from compiled native code.
 CI runs the relocated consumer checks even after a native-suite failure unless the run is cancelled. They build
 their own clean pin, do not require foreground input, and cannot erase a failed native or aggregate result.
