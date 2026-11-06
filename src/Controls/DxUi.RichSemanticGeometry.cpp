@@ -3795,6 +3795,35 @@ HRESULT PreparedSemanticGeometry::TryPreviousCluster(std::size_t offset, std::si
     output = state.document->Map().SnapDisplayBoundary(previous, MappingAffinity::Leading);
     return S_OK;
 }
+std::vector<std::size_t> PreparedSemanticGeometry::VisibleCodeElements(float top, float bottom) const
+{
+    const Failure::Scope failureScope;
+    std::vector<std::size_t> result(0u);
+    const HRESULT hr = TryVisibleCodeElements(top, bottom, result);
+    if (FAILED(hr))
+        Failure::FailContract(hr);
+    return result;
+}
+HRESULT PreparedSemanticGeometry::TryVisibleCodeElements(float top, float bottom, std::vector<std::size_t>& output) const
+{
+    const Failure::Scope failureScope;
+    if (! Ready())
+        return E_UNEXPECTED;
+    if (! std::isfinite(top) || ! std::isfinite(bottom) || top > bottom)
+        return E_INVALIDARG;
+    const auto& state = *state_;
+    std::vector<std::size_t> result(0u);
+    const auto elements = state.document->Elements();
+    state.paintElements.ForEach(top,
+                                bottom,
+                                [&](std::size_t index)
+    {
+        if (elements[index].role == SemanticRole::Code)
+            result.push_back(index);
+    });
+    output.swap(result);
+    return S_OK;
+}
 std::size_t PreparedSemanticGeometry::PreviousCluster(std::size_t offset) const
 {
     std::size_t result{};

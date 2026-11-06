@@ -4846,7 +4846,11 @@ try
         Debug::Error(L"DxUi::ControlHost: Present failed: 0x{:08X}", hrPresent);
     }
     if (SUCCEEDED(hrDraw) && SUCCEEDED(hrBatchFlush) && SUCCEEDED(hrPresent))
+    {
+        if (_pendingVisualPreparation)
+            Invalidate(); // Another cosmetic turn does not withhold this completed frame.
         PublishPreparedContent();
+    }
 #endif
 }
 catch (const std::exception&)
@@ -5174,7 +5178,11 @@ try
         Debug::Error(L"DxUi::ControlHost: Present failed: 0x{:08X}", hrPresent);
     }
     if (SUCCEEDED(hrDraw) && SUCCEEDED(hrBatchFlush) && SUCCEEDED(hrPresent))
+    {
+        if (_pendingVisualPreparation)
+            Invalidate();
         PublishPreparedContent();
+    }
 }
 catch (const std::exception&)
 {

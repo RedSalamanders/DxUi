@@ -1,0 +1,1 @@
+- Integrate independent viewport cosmetic preparation with API 5 checked failures: retain usable content and prior ink on expected refusal, preserve checked mapping errors, and keep unexpected C++ exceptions on the host fatal path.

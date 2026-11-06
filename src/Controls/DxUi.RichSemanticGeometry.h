@@ -110,6 +110,8 @@ public:
     [[nodiscard]] HRESULT TrySourceRange(MarkdownRange source, std::vector<D2D1_RECT_F>& output) const;
     std::optional<D2D1_RECT_F> ElementBounds(std::size_t element) const;
     [[nodiscard]] HRESULT TryElementBounds(std::size_t element, std::optional<D2D1_RECT_F>& output) const;
+    std::vector<std::size_t> VisibleCodeElements(float top, float bottom) const;
+    [[nodiscard]] HRESULT TryVisibleCodeElements(float top, float bottom, std::vector<std::size_t>& output) const;
     std::span<const std::pair<std::size_t, std::size_t>> SourceLines() const;
     std::size_t PreviousCluster(std::size_t offset) const;
     [[nodiscard]] HRESULT TryPreviousCluster(std::size_t offset, std::size_t& output) const;

@@ -1,0 +1,316 @@
+{
+  "schemaVersion": 1,
+  "claim": "Retained original failures and isolated diagnostics; no failed, mutable or warning-bearing attempt qualifies a native profile",
+  "attempts": [
+    {
+      "retentionId": "editor-cosmetic-baseline-d1a9908a",
+      "disposition": "Independent frozen baseline: optional source guides still withheld content after geometry became ready.",
+      "files": [
+        {
+          "file": "diagnostic.json",
+          "bytes": 2518,
+          "sha256": "8087ACED315EFB4455691EEC9B0E1889B631D7C0A2BB7935474777B7F0AC212B"
+        },
+        {
+          "file": "diagnostic.zip",
+          "bytes": 10158802,
+          "sha256": "27AD2FCC8A0C3A9774BEAB4A81A90026E570A555A280505C95158DE364EC1F83"
+        },
+        {
+          "file": "original-compiled-inputs.json",
+          "bytes": 109404,
+          "sha256": "D0E5CE40003D62ED8DC10CC2202E5869DF8D5FFEC7BC54937557BC916AC46D4F"
+        },
+        {
+          "file": "original-compiled-inputs.zip",
+          "bytes": 5225114,
+          "sha256": "ADAE8E158D0A64C55E787F9FE4A65EA891F8753D92344FAA710D6F85A9E3FAD0"
+        }
+      ]
+    },
+    {
+      "retentionId": "editor-cosmetic-working-experiment-20261106",
+      "disposition": "Mutable-source working experiment; explicitly excluded from source-closed qualification.",
+      "files": [
+        {
+          "file": "diagnostic.json",
+          "bytes": 1792,
+          "sha256": "590C8562C0C3EB6E54148163F37D36FB390182F5A6527B8ADEBCE95ED07F91D0"
+        },
+        {
+          "file": "unqualified-experiment.zip",
+          "bytes": 10162929,
+          "sha256": "C53D34943A1AC4579B5D19E89074D1A651D8659AB554815B7F6DF1C8148EAB48"
+        }
+      ]
+    },
+    {
+      "retentionId": "editor-cosmetic-checkpoint-54e62a2f",
+      "disposition": "Frozen isolated editor/document functional checkpoint; not whole-library qualification.",
+      "files": [
+        {
+          "file": "frozen-isolated-probe.zip",
+          "bytes": 10201406,
+          "sha256": "47747B2EEE865181C4A946868A43947C97ACE0DE514904A30707798AA803DE70"
+        },
+        {
+          "file": "isolated-probe.json",
+          "bytes": 1705,
+          "sha256": "9FFEF13F5C4694895710237F8E0F150EBA1372E2D5AF1D8C80DDFC9BE339CEB1"
+        },
+        {
+          "file": "original-compiled-inputs.json",
+          "bytes": 109404,
+          "sha256": "6FEE442A9203FD42A791612E415113BC8757E435FE68C71F0DC943FB45B60717"
+        },
+        {
+          "file": "original-compiled-inputs.zip",
+          "bytes": 5227850,
+          "sha256": "51CAB96F20C69779436ED5EB73E41461C08FBAAB7851826922C752007B5D4C91"
+        }
+      ]
+    },
+    {
+      "retentionId": "editor-cosmetic-checkpoint-2b29250c",
+      "disposition": "Fixture expected colour work without enabling colour; preserved as a fixture failure.",
+      "files": [
+        {
+          "file": "isolated-probe-original-failure.json",
+          "bytes": 1870,
+          "sha256": "552EA6F61548A9ABE0AD1715A1CBF083157EADFA21F1E056E7F228601937A047"
+        },
+        {
+          "file": "isolated-probe-original-failure.zip",
+          "bytes": 10254244,
+          "sha256": "E7C6B0BB64FA36BCE3D393CCA2A946ED744F1AA905D3FF6A76BFD0EBD0701717"
+        },
+        {
+          "file": "original-compiled-inputs.json",
+          "bytes": 109493,
+          "sha256": "E8B435CBC8C5D84A73188104ED5EEA2A5E84B7518163D10796E03F522867968B"
+        },
+        {
+          "file": "original-compiled-inputs.zip",
+          "bytes": 5230901,
+          "sha256": "8EB028DA48A23845450B17475F81F2893213628A3BC73AF1536C22AA1CA9EDFB"
+        }
+      ]
+    },
+    {
+      "retentionId": "editor-cosmetic-checkpoint-a41b10f4",
+      "disposition": "Corrected explicit-colour fixture and isolated viewport checks; not whole-library qualification.",
+      "files": [
+        {
+          "file": "frozen-isolated-viewport.zip",
+          "bytes": 10247059,
+          "sha256": "65D28E04401D58D6F8118BD6C17A44E31DC5DA055BB9D7DB71998B001840FDB3"
+        },
+        {
+          "file": "isolated-viewport.json",
+          "bytes": 1977,
+          "sha256": "BE54449945A655C7C5AC54D7FB6B18CB21F26D6BF9891D22BD1A3AA7F67AAA14"
+        },
+        {
+          "file": "original-compiled-inputs.json",
+          "bytes": 109493,
+          "sha256": "D93A1BC3654375887D242B54EFE69D069495E9154F707A253F5A3787EA0337B7"
+        },
+        {
+          "file": "original-compiled-inputs.zip",
+          "bytes": 5230915,
+          "sha256": "775981F68A9036B1400D1BFC531FAC5E92BC424C22D3703F7614E91DA069DAD8"
+        }
+      ]
+    },
+    {
+      "retentionId": "editor-cosmetic-disk-fault-924218d6",
+      "disposition": "MSBuild printed a clean footer despite structured C0000006/C000007F native-tool failure. Rejected; retained original partial bytes and fixed diagnostic admission.",
+      "files": [
+        {
+          "file": "original-build.log",
+          "bytes": 9567,
+          "sha256": "E1F7629C7FCF91CA86382AD5350033D6091B624744C8C3D921AC7F2918BE544A"
+        },
+        {
+          "file": "original-compiler-cache.json",
+          "bytes": 30687,
+          "sha256": "9655880FF8BC83F29B065BFFD4791D1F597F0CDDF3B901EF32049B37E78D0D34"
+        },
+        {
+          "file": "original-msbuild.log",
+          "bytes": 61154,
+          "sha256": "336C1B2FE17AF30FBA831376CA6387A93746092F558F83DED017E0A8CFE6F837"
+        },
+        {
+          "file": "original-outcome.json",
+          "bytes": 464,
+          "sha256": "CA0EAEF651AEEB277FC9C403624FA7FC26C0E9D6619A2523D7EC4BE0FDC9E154"
+        },
+        {
+          "file": "x64-Release-original-native.json",
+          "bytes": 2455,
+          "sha256": "261D7B1575583D914241418EB782E8EE5A92765246383A9C6133BB75B2B0FAC3"
+        },
+        {
+          "file": "x64-Release-original-native.zip",
+          "bytes": 123046228,
+          "sha256": "8BCD9CA7188DECD506118B719599E510465B883DC5E9377D3236CD2A75072F1B"
+        }
+      ]
+    },
+    {
+      "retentionId": "editor-cosmetics-native-failure-9b713370",
+      "disposition": "First whole-library attempt: 17 suites passed; dense-editor and UIA colour expectations failed. Retained failure and independently reproduced missing host visual continuation.",
+      "files": [
+        {
+          "file": "original-build.log",
+          "bytes": 8736,
+          "sha256": "659BC124C8C8CA3194A4188F0B01AC04EBD5AD2B0A869EFAE42C8FA354BCB801"
+        },
+        {
+          "file": "original-compiler-cache.json",
+          "bytes": 30687,
+          "sha256": "1146339B590113508A87A3EF98AF79E84565B3612373427EEB64C3C94303EF36"
+        },
+        {
+          "file": "original-outcome.json",
+          "bytes": 766,
+          "sha256": "EC094B84197538C0AE34600E018E8C2C3790F2FD4F5858FDE880A0E8CB35221B"
+        },
+        {
+          "file": "original-tests.log",
+          "bytes": 6634,
+          "sha256": "23DFAFF4BA5D0A6F3A95ABB1B5B3597DAFB4E9A1611427C0158E0C1246C703F5"
+        },
+        {
+          "file": "x64-Release-original-native.json",
+          "bytes": 2460,
+          "sha256": "1742FF5CE718A14A5F2F638EB558C3E11E4A3EF206549F06AA14B1B1980621B9"
+        },
+        {
+          "file": "x64-Release-original-native.zip",
+          "bytes": 123036546,
+          "sha256": "EB289AF51F8050BF4F76E83EC242CE31E39BCC051699DBFBBA81622107FF63E0"
+        },
+        {
+          "file": "x64-Release-original-run.json",
+          "bytes": 23132,
+          "sha256": "DC907CF1699F543ABB716D2B011D0651E6475BF0073F68D7EB31AECAC9A54282"
+        },
+        {
+          "file": "x64-Release-original-run.zip",
+          "bytes": 318733,
+          "sha256": "6C80C5EC9BAAF1217A800510AE59A6A5783CA27074C1ACFEF183BE96719735F6"
+        }
+      ]
+    },
+    {
+      "retentionId": "editor-cosmetic-continuation-a33bb6f1",
+      "disposition": "Old-library continuation counterexample and functional candidate diagnostic. Missing companion PDB caused link warnings, so the candidate diagnostic is not an accepted native build.",
+      "files": [
+        {
+          "file": "functional-continuation-with-link-warnings.json",
+          "bytes": 1791,
+          "sha256": "C271AFA7AA62BF3BF7BC34E9BC2D415BD71B07BA0537E47C94A1FC4AAE44C246"
+        },
+        {
+          "file": "functional-continuation-with-link-warnings.zip",
+          "bytes": 5185123,
+          "sha256": "49553DEA6A178580BAD1394BDA3387ADD264C95828637A48ACEDC80375D01F62"
+        },
+        {
+          "file": "original-compiled-inputs.json",
+          "bytes": 109405,
+          "sha256": "A19201F8970D63CFE0F9BA273065067CBF8504E210AA0ACED5BFE950180DB094"
+        },
+        {
+          "file": "original-compiled-inputs.zip",
+          "bytes": 5231937,
+          "sha256": "1F1D3471DF14AA2D748CFA2CEDA673FE002C63B488AB30E0FB341F7E5E7E4B5A"
+        },
+        {
+          "file": "original-continuation-baseline-and-setup.json",
+          "bytes": 2216,
+          "sha256": "8E7FCD35856404F14150067D010B641D6B4869638BDABC762BC3ACD7C315465F"
+        },
+        {
+          "file": "original-continuation-baseline-and-setup.zip",
+          "bytes": 4779328,
+          "sha256": "6BACB7AE55FC668601383B2ADF62ADD3647AC658F4280F602826B78EE0D3F000"
+        }
+      ]
+    },
+    {
+      "retentionId": "editor-cosmetic-window-20abedb2",
+      "disposition": "Frozen isolated canonical viewport, dense-source and UIA cases passed with matching library/PDB and zero diagnostics; not whole-library qualification.",
+      "files": [
+        {
+          "file": "frozen-native-window-probe.json",
+          "bytes": 2195,
+          "sha256": "109F6ECE1CA070F1C3E8EA6D3F381D1B0A5528AA5698193FCCA24BFC40F35875"
+        },
+        {
+          "file": "frozen-native-window-probe.zip",
+          "bytes": 10789856,
+          "sha256": "05BE075417B71E6DB71EC117E9E9A5BB4D3D299A2543F5111EF8935BBC78F831"
+        },
+        {
+          "file": "original-compiled-inputs.json",
+          "bytes": 109405,
+          "sha256": "75A6FEE5652FE35D8146D37BC989B9F7B8EDF98E127AA3500003A858C0FC5707"
+        },
+        {
+          "file": "original-compiled-inputs.zip",
+          "bytes": 5232680,
+          "sha256": "B410CDA138C40103D98E1F602DDB86AE9B0BD037B224B75ED68BB7A943263CAB"
+        }
+      ]
+    },
+    {
+      "retentionId": "editor-cosmetics-native-failure-20abedb2",
+      "disposition": "Whole-library attempt: 16 suites passed; two scheduling fixtures armed before consuming an initial visual wake, and an AST/pixel fixture assumed content readiness implied cosmetic completion. Original failure retained; final fixtures preserve distinct readiness and idle assertions.",
+      "files": [
+        {
+          "file": "original-outcome.json",
+          "bytes": 397,
+          "sha256": "0AB6C146CA08A71628F23D02C5735302888162DCB2D506FAD8EE01C43129A79C"
+        },
+        {
+          "file": "qualified-20abedb2-x64-Release-build.log",
+          "bytes": 8737,
+          "sha256": "101EA3F7A2B27D24E3295EEC5950C8395A98806AD99D160FE253EC64D354B4A2"
+        },
+        {
+          "file": "qualified-20abedb2-x64-Release-tests.log",
+          "bytes": 7016,
+          "sha256": "F8A9E8BF11C80DD65258EB95903617C6317EBA5E5EBB02F5F43866202FD5B2B5"
+        },
+        {
+          "file": "x64-Release-original-native.json",
+          "bytes": 2460,
+          "sha256": "E2ABE52E0793E390FAA13DF1426F45BE397EA824DCEAA87EEAA8DEF32AEF3D31"
+        },
+        {
+          "file": "x64-Release-original-native.zip",
+          "bytes": 123058526,
+          "sha256": "BDDE14F2CCC9366D58856F6963BEA338B6113EE967264325EBBCCD5C11489A0E"
+        },
+        {
+          "file": "x64-Release-original-run.json",
+          "bytes": 20931,
+          "sha256": "8E30E5FAC0EF265D7C3BB6D0829D358674CE4317C7C5C6517C59BEB0DB0FE339"
+        },
+        {
+          "file": "x64-Release-original-run.zip",
+          "bytes": 336029,
+          "sha256": "0B7F76DE0FEFC8682BBC73DB532EA49179A9AD1F06B69E439956A4B05D83EC39"
+        }
+      ]
+    }
+  ],
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-editor-cosmetic-preparation-retained-attempts",
+  "benchmarkInputs": {
+    "Tests/Embedded/Embedded.Tests.RichGeometryResources.h": "70850E4B933E5453DD7D96A0E6AE27B1115A088CAC5B4346C01E7C1C5EB156FC"
+  }
+}

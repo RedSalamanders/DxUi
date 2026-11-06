@@ -2287,8 +2287,50 @@ layout budget and a block step; bitmap tiles consume a block step and their pixe
 byte budget. These counts bound work units, not elapsed time. `DebugGetState`
 reports the next pending stage across Markdown, semantics, image resources,
 geometry, code ink, source ink and source guides. `preparationPending` includes
-all these cooperative stages; cancellation retires them. Overlay fallback dirtiness
-remains separately reported and does not withhold an otherwise ready frame.
+content prerequisites only: rich-mode syntax, semantics, images and geometry.
+Code ink, source ink and guides use optional visual preparation and MUST NOT
+withhold a geometrically current frame, cancel a gesture or refuse input.
+Source-mode syntax used for colouring is optional visual work too; source
+geometry, hit testing, input and composition MUST become usable independently.
+Individual diagnostic pending fields may remain true after content is ready.
+Hosts MUST schedule unfinished optional visuals independently of content
+readiness. Embedded `NeedsPreparation()` includes that continuation while the
+current coherent surface remains compositable; native hosts request another
+paint after presenting the usable frame. Visual completion must eventually
+clear the request rather than leave idle polling work.
+Overlay fallback dirtiness remains separately reported and does not withhold a frame.
+
+Source guides stage only visible source rows and a bounded overscan window. Each
+advance consumes at most 256 source/number steps and four native number layouts;
+source slices contain at most 260 UTF-16 units and preserve scalar/CRLF boundaries.
+The gutter reserves five digits, covering all 65,537 physical rows at the current
+document bound without reflow when another digit becomes necessary. Numbering at
+deep source offsets uses immutable piece-tree line summaries and buffer indexes,
+never a whole-prefix scan. CRLF counts once, including across immutable pieces.
+The previous complete viewport publication remains available while its positions
+are known; a changed geometry omits old guides until their replacement publishes.
+Code-token callbacks use the existing semantic paint index to visit visible code
+blocks plus one viewport of vertical overscan, at most one callback per owner turn.
+Scrolling refreshes these windows. Ordinary or previously complete ink remains
+paintable while preparation continues; stale source/geometry coordinates are omitted.
+New document bindings and host cancellation retire the old publications. No
+partial decoration set publishes. A checked native/resource refusal preserves
+usable ordinary text without automatically retrying that failed visual request.
+Unexpected C++ exceptions, including `std::bad_alloc`, follow the host fatal
+contract in [Failure handling and allocation](../Core/Core_FailureHandling.md).
+Checked source-ink mapping failure discards only pending staging and retains
+the previous publication and its source/window identity; invalid admission also
+preserves the caller's completion output. Publication identity is non-owning so
+it does not retain an additional whole syntax/source tree.
+Source analysis retains its separately documented 65,536-unit admission and
+cooperative parser bounds; neither a work-step limit nor a borrowed tokenizer
+callback provides a hard elapsed-time guarantee.
+Source-colour events, ordering and published spans are likewise restricted to
+the visible source window plus overscan. Offscreen inline bodies and delimiters
+are skipped; classification of admitted syntax records still shares the existing
+256-step owner-turn budget. Scrolling refreshes the window even when numbers and
+whitespace marks are disabled. The complete-source private preparation route
+remains available for semantic/capacity regression oracles.
 `lastAdvanceUploadBytes` reports the last geometry advance's upload work.
 
 The pinned Mermaid 11.4.1 inventory and all 105 original flowchart examples MUST

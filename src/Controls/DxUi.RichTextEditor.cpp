@@ -454,6 +454,7 @@ struct RichTextEditor::State
     std::shared_ptr<const RichText::MarkdownSyntax> disclosureSyntax;
     std::optional<RichText::SourceSnapshot> disclosureSource;
     RichText::Detail::RichSourceInk sourceInk;
+    std::uint64_t sourceInkPublishedRevision{};
     RichText::Detail::RichSourceGuides sourceGuides;
     RichText::LayoutOptions sourceGuideOptions;
     std::shared_ptr<const RichText::CodeTokenizer> codeTokenizer;
@@ -464,7 +465,11 @@ struct RichTextEditor::State
     std::wstring codeCopyAccessibleName;
     std::shared_ptr<const RichText::SemanticDocument> codeInkDocument;
     std::vector<RichText::TextInkRange> codeInk, codeInkStaged;
+    std::unique_ptr<std::vector<size_t>> codeInkElements;
     size_t codeInkCursor{};
+    std::uint64_t codeInkGeneration{};
+    std::uint64_t codeInkPublishedGeneration{};
+    float codeInkTop{}, codeInkBottom{};
     bool codeInkComplete{}, codeCallbackActive{};
     struct SourceEditingSession
     {
@@ -625,6 +630,7 @@ RichTextEditor::RichTextEditor(std::wstring text) : _state(std::make_unique<Stat
 {
     SetFocusable(true);
     EnableContentPreparation();
+    EnableVisualContentPreparation();
 }
 RichTextEditor::~RichTextEditor() noexcept
 {
@@ -673,17 +679,18 @@ bool RichTextEditor::ExchangeDocumentState(RichText::Document& document)
     _state->semanticRejected.reset();
     _state->preparationRejected.reset();
     _state->nativeObjectRejections.reset();
-    _state->sourceInk.Clear();
-    _state->sourceGuides.Clear();
-    _state->codeInkDocument.reset();
-    _state->codeInk.clear();
-    _state->codeInkStaged.clear();
-    _state->codeInkComplete = false;
     ResetDocumentBinding(); // The final notification may retire this control.
     return true;
 }
 void RichTextEditor::ResetDocumentBinding()
 {
+    _state->sourceInk.Clear();
+    _state->sourceGuides.Clear();
+    _state->codeInkDocument.reset();
+    _state->codeInk.clear();
+    _state->codeInkStaged.clear();
+    _state->codeInkElements.reset();
+    _state->codeInkComplete = false;
     _state->highlights.clear();
     _state->decorations.clear();
     _state->decorationStatus = RichTextDecorationStatus::None;
@@ -3172,7 +3179,7 @@ void RichTextEditor::SetCodeTokenizer(RichText::CodeTokenizer tokenizer)
     _state->codeInkStaged.clear();
     _state->codeInkCursor   = 0u;
     _state->codeInkComplete = false;
-    RequestContentPreparation();
+    RequestVisualContentPreparation(false);
 }
 void RichTextEditor::SetHtmlPasteConverter(std::function<std::optional<std::wstring>(std::wstring_view)> converter)
 {
@@ -3354,6 +3361,10 @@ bool RichTextEditor::SetScrollOffsetDip(float offsetDip)
     host->RefreshAccessibilitySnapshot();
     if (lifetime.expired() || GetHost() != host || _state->bindingRevision != binding)
         return true;
+    if (_state->codeTokenizer ||
+        (_state->mode == RichText::ViewMode::Source &&
+         (_state->appearance.sourceLineNumbers || _state->appearance.sourceWhitespaceMarks || _state->appearance.colorizeMarkdownSource)))
+        RequestVisualContentPreparation(false);
     RequestInvalidate();
     if (! lifetime.expired() && GetHost() == host && _state->bindingRevision == binding)
         PublishScrollChanged();
@@ -3404,15 +3415,10 @@ float RichTextEditor::SourceGutterWidth() const noexcept
     auto size              = appearance.bodyFontSizeDip > 0.0f ? appearance.bodyFontSizeDip : 18.0f;
     if (appearance.sourceMonospace && appearance.codeFontSizeDip > 0.0f)
         size = appearance.codeFontSizeDip;
-    size            = std::clamp(size * appearance.zoom, 1.0f, 512.0f);
-    auto remaining  = Snapshot().Length() + 1u;
-    unsigned digits = 1u;
-    while (remaining >= 10u)
-    {
-        remaining /= 10u;
-        ++digits;
-    }
-    return std::max(44.0f, static_cast<float>(digits) * size * 0.75f + 12.0f);
+    size = std::clamp(size * appearance.zoom, 1.0f, 512.0f);
+    // At most 65,537 physical lines fit the source capacity. A stable five-digit
+    // lane avoids changing text geometry when a cosmetic label gains a digit.
+    return std::max(44.0f, 5.0f * size * 0.75f + 12.0f);
 }
 float RichTextEditor::HorizontalTranslation() const noexcept
 {
@@ -3443,6 +3449,9 @@ bool RichTextEditor::SetHorizontalScrollOffsetDip(float offsetDip)
     host->RefreshAccessibilitySnapshot();
     if (lifetime.expired() || GetHost() != host || _state->bindingRevision != binding || Revision() != revision)
         return true;
+    if (_state->mode == RichText::ViewMode::Source &&
+        (_state->appearance.sourceLineNumbers || _state->appearance.sourceWhitespaceMarks || _state->appearance.colorizeMarkdownSource))
+        RequestVisualContentPreparation(false);
     RequestInvalidate();
     if (! lifetime.expired() && GetHost() == host && _state->bindingRevision == binding && Revision() == revision)
         PublishHorizontalScrollChanged();
@@ -3498,7 +3507,7 @@ void RichTextEditor::Changed(bool sourceChanged, bool synchronizeTextInput)
             return;
     }
     if (sourceChanged)
-        _state->sourceInk.Clear();
+        _state->sourceInk.CancelPending();
     if (sourceChanged)
         _state->highlights.clear();
     if (sourceChanged)
@@ -3512,9 +3521,8 @@ void RichTextEditor::Changed(bool sourceChanged, bool synchronizeTextInput)
         else
             _state->images.Cancel();
         _state->hoveredLink.reset();
-        _state->sourceGuides.Clear();
+        _state->sourceGuides.CancelPending();
         _state->codeInkDocument.reset();
-        _state->codeInk.clear();
         _state->codeInkStaged.clear();
         _state->codeInkComplete = false;
         UpdateSemanticSourceRegion();
@@ -3673,10 +3681,9 @@ void RichTextEditor::RetireLayout(bool retainGeometry) const noexcept
     _state->overlaySelectionDirty = _state->overlayHighlightsDirty = true;
     if (! _state->decorations.empty())
         _state->decorationStatus = RichTextDecorationStatus::Pending;
-    _state->sourceInk.Clear();
-    _state->sourceGuides.Clear();
+    _state->sourceInk.CancelPending();
+    _state->sourceGuides.CancelPending();
     _state->codeInkDocument.reset();
-    _state->codeInk.clear();
     _state->codeInkStaged.clear();
     _state->codeInkComplete = false;
     _state->hoveredLink.reset();
@@ -3697,6 +3704,7 @@ void RichTextEditor::RetireLayout(bool retainGeometry) const noexcept
     _state->requestActive         = false;
     _state->revealCaret           = true;
     RequestContentPreparation(false);
+    RequestVisualContentPreparation(false);
 }
 bool RichTextEditor::LayoutIsCurrent(const ControlHost& host) const noexcept
 {
@@ -3705,7 +3713,7 @@ bool RichTextEditor::LayoutIsCurrent(const ControlHost& host) const noexcept
     return GetHost() == &host && state.layout.Ready() && state.layout.Revision() == state.document.Revision() &&
            state.layoutWidth == std::max(1.0f, viewport.right - viewport.left) && state.typographyRevision == host.GetTypographyRevision() &&
            state.resourceGeneration == host.GetResourceGeneration() &&
-           (! state.markdownProfile || GetMarkdownSyntax() || state.HasCurrentMarkdownCapacityRejection());
+           (state.mode == RichText::ViewMode::Source || ! state.markdownProfile || GetMarkdownSyntax() || state.HasCurrentMarkdownCapacityRejection());
 }
 bool RichTextEditor::AcceptsTextInputDuringPreparation() const noexcept
 {
@@ -3855,14 +3863,142 @@ HRESULT RichTextEditor::PrepareOverlayGeometry(ControlHost& host)
 void RichTextEditor::CancelContentPreparation() noexcept
 {
     _state->images.Cancel();
+    _state->sourceInk.Clear();
+    _state->sourceGuides.Clear();
+    _state->codeInk.clear();
+    _state->codeInkElements.reset();
     RetireLayout();
+}
+HRESULT RichTextEditor::PrepareMarkdownSyntax()
+{
+    const Failure::Scope failureScope;
+    auto& state = *_state;
+    if (! state.markdownProfile || GetMarkdownSyntax() || state.HasCurrentMarkdownCapacityRejection())
+        return S_OK;
+    const auto rejectCapacity = [&]()
+    {
+        state.markdown.Cancel();
+        state.markdownRequestActive = false;
+        state.semantic.Clear();
+        state.semanticRejected.reset();
+        state.nativeGeometryRejected.reset();
+        state.markdownCapacityRejected.emplace(Snapshot(), Revision(), state.markdownProfile.value());
+    };
+    if (! state.markdownRequestActive || state.markdownRequestRevision != Revision() || ! state.markdown.HasPendingPreparation())
+    {
+        // Source mode has usable geometry while this bounded analysis continues.
+        const auto admission = state.sourceEditing
+                                   ? state.markdown.TryBeginSourceRegion(
+                                         Snapshot(), Revision(), state.sourceEditing->region, state.markdownProfile.value(), state.markdownExtensions)
+                                   : state.markdown.TryBegin(Snapshot(), Revision(), state.markdownProfile.value(), state.markdownExtensions);
+        if (admission != RichText::MarkdownResult::Success)
+        {
+            state.markdown.Cancel();
+            state.markdownRequestActive = false;
+            if (admission == RichText::MarkdownResult::CapacityExceeded)
+            {
+                rejectCapacity();
+                return S_OK;
+            }
+            return E_INVALIDARG;
+        }
+        state.markdownRequestRevision = Revision();
+        state.markdownRequestActive   = true;
+    }
+    ++state.markdownAdvances;
+    const auto advance            = state.markdown.Advance();
+    state.lastAdvanceMarkdownWork = advance.workUnits;
+    if (advance.status == RichText::MarkdownPreparationStatus::Pending)
+        return S_FALSE;
+    state.markdownRequestActive = false;
+    if (advance.status == RichText::MarkdownPreparationStatus::Failed)
+    {
+        if (advance.result != RichText::MarkdownResult::CapacityExceeded)
+            return E_FAIL;
+        rejectCapacity();
+    }
+    if (state.sourceEditing)
+        if (const auto syntax = GetMarkdownSyntax(); syntax && syntax->SourceRegion())
+            state.sourceEditing->region = syntax->SourceRegion().value();
+    return S_OK;
+}
+void RichTextEditor::PrepareVisualContent(ControlHost& host) noexcept
+{
+    const Failure::Scope failureScope;
+    if (_state->codeCallbackActive || ! LayoutIsCurrent(host))
+        return;
+    const auto lifetime = GetLifetimeToken();
+    const auto report   = [](HRESULT error, std::wstring_view message) noexcept
+    {
+        Debug::Perf::Emit(L"RichTextEditor.Cosmetics", L"Optional decoration fallback", 0u, 0u, 0u, error);
+        // Expected native/status refusal keeps the already usable text surface.
+        if (Diagnostics::sink)
+            Diagnostics::sink(L"error", message);
+    };
+    try
+    {
+        const auto syntax = _state->mode == RichText::ViewMode::Source ? PrepareMarkdownSyntax() : S_OK;
+        if (FAILED(syntax))
+        {
+            report(syntax, L"Optional editor source analysis could not be prepared.");
+            return;
+        }
+        const auto code = PrepareCodeInk(_state->mode == RichText::ViewMode::Rich && _state->layout.Semantic() ? GetSemanticDocument() : nullptr);
+        // A borrowed tokenizer may replace the binding or retire the control.
+        if (lifetime.expired() || GetHost() != &host || ! LayoutIsCurrent(host))
+            return;
+        if (FAILED(code))
+        {
+            report(code, L"Optional editor code ink could not be prepared.");
+            return;
+        }
+        const auto source = syntax == S_FALSE ? S_FALSE : PrepareSourceInk();
+        if (FAILED(source))
+        {
+            report(source, L"Optional editor source ink could not be prepared.");
+            return;
+        }
+        const auto guides = PrepareSourceGuides(host);
+        if (FAILED(guides))
+        {
+            report(guides, L"Optional editor source guides could not be prepared.");
+            return;
+        }
+        if (code == S_FALSE || source == S_FALSE || guides == S_FALSE)
+            RequestVisualContentPreparation(false);
+    }
+    catch (const std::bad_alloc&)
+    {
+        Failure::FailAllocation();
+    }
+    catch (const std::exception&)
+    {
+        Failure::FailUnexpected();
+    }
 }
 HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
 {
     const Failure::Scope failureScope;
     auto& state = *_state;
     if (state.codeCallbackActive)
-        return S_FALSE;
+        return LayoutIsCurrent(host) ? S_OK : S_FALSE;
+    const auto requestCosmetics = [&]()
+    {
+        const auto document = state.mode == RichText::ViewMode::Rich && state.codeTokenizer ? GetSemanticDocument() : nullptr;
+        const bool code     = document && (state.codeInkDocument != document || ! state.codeInkComplete || ! CodeInkCoversViewport());
+        const auto syntax   = GetMarkdownSyntax();
+        const bool analysis = state.mode == RichText::ViewMode::Source && state.markdownProfile && ! syntax && ! state.HasCurrentMarkdownCapacityRejection();
+        const bool source   = state.mode == RichText::ViewMode::Source && state.appearance.colorizeMarkdownSource && syntax &&
+                              (! state.sourceInk.Current(syntax) || ! SourceInkCoversViewport());
+        const bool numbers  = state.mode == RichText::ViewMode::Source && state.appearance.sourceLineNumbers;
+        const bool marks    = state.mode == RichText::ViewMode::Source && state.appearance.sourceWhitespaceMarks;
+        const auto viewport = TextViewport();
+        const auto left = -HorizontalTranslation(), right = left + viewport.right - viewport.left;
+        const bool guides = (numbers || marks) && (! state.sourceGuides.Current(Revision(), state.layout.Generation(), numbers, marks) ||
+                                                   ! state.sourceGuides.Covers(state.scrollDip, state.scrollDip + viewport.bottom - viewport.top, left, right));
+        if (code || source || guides || analysis)
+            RequestVisualContentPreparation(false);
+    };
     state.lastAdvanceLayouts = state.lastAdvanceBlockSteps = 0u;
     state.lastAdvanceUploadBytes                           = 0u;
     state.lastAdvanceImageWork                             = 0u;
@@ -4077,71 +4213,21 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
             prepareSemanticBrushes();
             RETURN_IF_FAILED(UpdateCaretScroll());
             RETURN_IF_FAILED(PrepareOverlayGeometry(host));
-            const auto codeInk = PrepareCodeInk(state.mode == RichText::ViewMode::Rich && state.layout.Semantic() ? GetSemanticDocument() : nullptr);
-            if (codeInk != S_OK)
-                return codeInk;
-            const auto result = PrepareSourceInk() ? PrepareSourceGuides(host) : S_FALSE;
-            RETURN_IF_FAILED(result);
             const auto lifetime        = GetLifetimeToken();
             const auto callbackBinding = state.bindingRevision, callbackRevision = Revision();
+            requestCosmetics();
+            if (lifetime.expired() || GetHost() != &host || _state->bindingRevision != callbackBinding || Revision() != callbackRevision)
+                return S_OK;
             PublishHorizontalScrollChanged();
             if (! lifetime.expired() && GetHost() == &host && _state->bindingRevision == callbackBinding && Revision() == callbackRevision)
                 PublishScrollChanged();
-            return result;
+            return S_OK;
         }
-        if (! rejectedPreparation && state.markdownProfile && ! GetMarkdownSyntax() && ! state.HasCurrentMarkdownCapacityRejection())
+        if (! rejectedPreparation && state.mode == RichText::ViewMode::Rich)
         {
-            try
-            {
-                if (! state.markdownRequestActive || state.markdownRequestRevision != Revision() || ! state.markdown.HasPendingPreparation())
-                {
-                    // Exact bounded source admission/copy is still indivisible.
-                    // Parsing resumes its own cursors, without DirectWrite or a
-                    // per-control worker. Semantic preparation consumes only a
-                    // completed current tree within the remaining owner-turn budget.
-                    const auto admission = state.sourceEditing
-                                               ? state.markdown.TryBeginSourceRegion(
-                                                     Snapshot(), Revision(), state.sourceEditing->region, *state.markdownProfile, state.markdownExtensions)
-                                               : state.markdown.TryBegin(Snapshot(), Revision(), *state.markdownProfile, state.markdownExtensions);
-                    if (admission != RichText::MarkdownResult::Success)
-                    {
-                        state.markdown.Cancel();
-                        state.markdownRequestActive = false;
-                        if (admission == RichText::MarkdownResult::CapacityExceeded)
-                        {
-                            state.semantic.Clear();
-                            state.semanticRejected.reset();
-                            state.nativeGeometryRejected.reset();
-                            state.markdownCapacityRejected.emplace(Snapshot(), Revision(), *state.markdownProfile);
-                        }
-                        return S_FALSE;
-                    }
-                    state.markdownRequestRevision = Revision();
-                    state.markdownRequestActive   = true;
-                }
-                ++state.markdownAdvances;
-                const auto advance            = state.markdown.Advance();
-                state.lastAdvanceMarkdownWork = advance.workUnits;
-                if (advance.status == RichText::MarkdownPreparationStatus::Pending)
-                    return S_FALSE;
-                state.markdownRequestActive = false;
-                if (advance.status == RichText::MarkdownPreparationStatus::Failed)
-                {
-                    if (advance.result != RichText::MarkdownResult::CapacityExceeded)
-                        return E_FAIL;
-                    state.semantic.Clear();
-                    state.semanticRejected.reset();
-                    state.nativeGeometryRejected.reset();
-                    state.markdownCapacityRejected.emplace(Snapshot(), Revision(), *state.markdownProfile);
-                }
-                if (state.sourceEditing)
-                    if (const auto syntax = GetMarkdownSyntax())
-                        state.sourceEditing->region = *syntax->SourceRegion();
-            }
-            catch (const std::length_error&)
-            {
-                Failure::FailUnexpected();
-            }
+            const auto syntax = PrepareMarkdownSyntax();
+            if (syntax != S_OK)
+                return syntax;
         }
         const auto currentSyntax = GetMarkdownSyntax();
         if (currentSyntax && state.disclosureSyntax != currentSyntax)
@@ -4490,17 +4576,15 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
         RETURN_IF_FAILED(UpdateCaretScroll());
         UpdateCaretLinkDisplayRange();
         RETURN_IF_FAILED(PrepareOverlayGeometry(host));
-        const auto codeInk = PrepareCodeInk(semanticDocument);
-        if (codeInk != S_OK)
-            return codeInk;
-        const auto result = PrepareSourceInk() ? PrepareSourceGuides(host) : S_FALSE;
-        RETURN_IF_FAILED(result);
         const auto lifetime        = GetLifetimeToken();
         const auto callbackBinding = state.bindingRevision, callbackRevision = Revision();
+        requestCosmetics();
+        if (lifetime.expired() || GetHost() != &host || _state->bindingRevision != callbackBinding || Revision() != callbackRevision)
+            return S_OK;
         PublishHorizontalScrollChanged();
         if (! lifetime.expired() && GetHost() == &host && _state->bindingRevision == callbackBinding && Revision() == callbackRevision)
             PublishScrollChanged();
-        return result;
+        return S_OK;
     }
     catch (const std::length_error&)
     {
@@ -4575,7 +4659,8 @@ RichTextEditorDebugState RichTextEditor::DebugGetState() const noexcept
                                    _state->layout.UsesWholeRaster(),
                                    preparation.wholeLayoutsPrepared,
                                    preparation.wholeLayoutSourceUnits,
-                                   _state->layout.HasPendingPreparation() || _state->markdown.HasPendingPreparation() ||
+                                   _state->layout.HasPendingPreparation() ||
+                                       (_state->mode == RichText::ViewMode::Rich && _state->markdown.HasPendingPreparation()) ||
                                        _state->semantic.HasPendingPreparation() || _state->images.Pending(),
                                    _state->preparationAdvances,
                                    _state->cancelledPreparations,
@@ -4595,19 +4680,17 @@ RichTextEditorDebugState RichTextEditor::DebugGetState() const noexcept
                                    _state->overlaySelectionDirty || _state->overlayHighlightsDirty};
     value.codeInkPreparationPending      = _state->codeInkDocument && ! _state->codeInkComplete;
     value.sourceGuidesPreparationPending = _state->sourceGuides.Pending();
-    value.preparationPending =
-        value.preparationPending || value.sourceInkPreparationPending || value.codeInkPreparationPending || value.sourceGuidesPreparationPending;
-    value.activeStage            = value.markdownPreparationPending         ? RichTextPreparationStage::Markdown
-                                   : value.semanticPreparationPending       ? RichTextPreparationStage::Semantic
-                                   : _state->images.Pending()               ? RichTextPreparationStage::Images
-                                   : _state->layout.HasPendingPreparation() ? RichTextPreparationStage::Geometry
-                                   : value.codeInkPreparationPending        ? RichTextPreparationStage::CodeInk
-                                   : value.sourceInkPreparationPending      ? RichTextPreparationStage::SourceInk
-                                   : value.sourceGuidesPreparationPending   ? RichTextPreparationStage::SourceGuides
-                                   : value.layoutReady                      ? RichTextPreparationStage::Ready
-                                                                            : RichTextPreparationStage::Idle;
-    value.lastAdvanceUploadBytes = _state->lastAdvanceUploadBytes;
-    value.lastAdvanceImageWork   = _state->lastAdvanceImageWork;
+    value.activeStage                    = value.markdownPreparationPending         ? RichTextPreparationStage::Markdown
+                                           : value.semanticPreparationPending       ? RichTextPreparationStage::Semantic
+                                           : _state->images.Pending()               ? RichTextPreparationStage::Images
+                                           : _state->layout.HasPendingPreparation() ? RichTextPreparationStage::Geometry
+                                           : value.codeInkPreparationPending        ? RichTextPreparationStage::CodeInk
+                                           : value.sourceInkPreparationPending      ? RichTextPreparationStage::SourceInk
+                                           : value.sourceGuidesPreparationPending   ? RichTextPreparationStage::SourceGuides
+                                           : value.layoutReady                      ? RichTextPreparationStage::Ready
+                                                                                    : RichTextPreparationStage::Idle;
+    value.lastAdvanceUploadBytes         = _state->lastAdvanceUploadBytes;
+    value.lastAdvanceImageWork           = _state->lastAdvanceImageWork;
     return value;
 }
 size_t RichTextEditor::DebugGetListStateAncestorSteps() const noexcept
@@ -5090,7 +5173,8 @@ void RichTextEditor::Paint(ControlHost& host) const
         links.caret     = CaretLinkDisplayRange();
         if (state.mode == RichText::ViewMode::Source && appearance.colorizeMarkdownSource && ! host.GetTheme().highContrast)
         {
-            links.inkRanges              = state.sourceInk.Ranges();
+            if (state.sourceInkPublishedRevision == Revision())
+                links.inkRanges = state.sourceInk.Ranges();
             links.directSourceInkPreview = appearance.directSourceInkPreview;
             // Keep the ordinary first pass beneath true selection. Translucent
             // selection fill and antialiased selected glyph edges must never retain
@@ -5100,7 +5184,8 @@ void RichTextEditor::Paint(ControlHost& host) const
             links.inkBrushes = {
                 host.GetSolidBrush(host.GetTheme().subduedText), host.GetSolidBrush(host.GetTheme().accent), host.GetSolidBrush(host.GetTheme().accent)};
         }
-        if (state.mode == RichText::ViewMode::Rich && state.codeInkComplete && state.codeInkDocument == GetSemanticDocument() && ! host.GetTheme().highContrast)
+        if (state.mode == RichText::ViewMode::Rich && state.codeTokenizer && state.codeInkPublishedGeneration == state.layout.Generation() &&
+            ! state.codeInk.empty() && ! host.GetTheme().highContrast)
         {
             links.inkRanges = state.codeInk;
             if (selection.anchor != selection.caret)
@@ -5109,7 +5194,7 @@ void RichTextEditor::Paint(ControlHost& host) const
                 host.GetSolidBrush(host.GetTheme().subduedText), host.GetSolidBrush(host.GetTheme().accent), host.GetSolidBrush(host.GetTheme().accent)};
         }
         if (state.mode == RichText::ViewMode::Source && appearance.sourceWhitespaceMarks &&
-            state.sourceGuides.Current(Revision(), state.layout.Generation(), appearance.sourceLineNumbers, true))
+            state.sourceGuides.HasPublication(state.layout.Generation(), appearance.sourceLineNumbers, true))
         {
             auto* guideBrush = host.GetSolidBrush(host.GetTheme().highContrast ? style.text : host.GetTheme().subduedText);
             const auto marks = state.sourceGuides.Marks();
@@ -5289,7 +5374,7 @@ void RichTextEditor::Paint(ControlHost& host) const
         }
     }
     if (state.mode == RichText::ViewMode::Source && appearance.sourceLineNumbers &&
-        state.sourceGuides.Current(Revision(), state.layout.Generation(), true, appearance.sourceWhitespaceMarks))
+        state.sourceGuides.HasPublication(state.layout.Generation(), true, appearance.sourceWhitespaceMarks))
     {
         const auto outer       = GetBounds();
         const auto gutterWidth = std::min(SourceGutterWidth(), std::max(0.0f, viewport.right - viewport.left - 1.0f));
@@ -7223,6 +7308,12 @@ std::wstring_view RichTextEditor::HoveredTitle(ControlHost& host, D2D1_POINT_2F 
     }
     return best ? std::wstring_view(best->title) : std::wstring_view{};
 }
+bool RichTextEditor::CodeInkCoversViewport() const noexcept
+{
+    const auto viewport = TextViewport();
+    return _state->codeInkGeneration == _state->layout.Generation() && _state->codeInkTop <= _state->scrollDip &&
+           _state->codeInkBottom >= _state->scrollDip + viewport.bottom - viewport.top;
+}
 HRESULT RichTextEditor::PrepareCodeInk(const std::shared_ptr<const RichText::SemanticDocument>& document)
 {
     auto& state = *_state;
@@ -7231,13 +7322,25 @@ HRESULT RichTextEditor::PrepareCodeInk(const std::shared_ptr<const RichText::Sem
         state.codeInkDocument.reset();
         state.codeInk.clear();
         state.codeInkStaged.clear();
+        state.codeInkElements.reset();
         state.codeInkComplete = false;
         return S_OK;
     }
-    if (state.codeInkDocument != document)
+    if (state.codeInkDocument != document || ! CodeInkCoversViewport())
     {
-        state.codeInkDocument = document;
-        state.codeInk.clear();
+        const auto viewport = TextViewport();
+        const auto margin   = (std::max)(16.0f, viewport.bottom - viewport.top);
+        const auto top = (std::max)(0.0f, state.scrollDip - margin), bottom = state.scrollDip + viewport.bottom - viewport.top + margin;
+        const auto* geometry = state.layout.SemanticGeometry();
+        if (! geometry)
+            return S_OK;
+        auto visible = std::make_unique<std::vector<size_t>>();
+        RETURN_IF_FAILED(geometry->TryVisibleCodeElements(top, bottom, *visible));
+        state.codeInkElements.swap(visible);
+        state.codeInkTop        = top;
+        state.codeInkBottom     = bottom;
+        state.codeInkGeneration = state.layout.Generation();
+        state.codeInkDocument   = document;
         state.codeInkStaged.clear();
         state.codeInkCursor   = 0u;
         state.codeInkComplete = false;
@@ -7246,9 +7349,9 @@ HRESULT RichTextEditor::PrepareCodeInk(const std::shared_ptr<const RichText::Sem
         return S_OK;
     const auto elements = document->Elements();
     std::size_t work    = 0u;
-    while (state.codeInkCursor < elements.size() && work++ < 256u)
+    while (state.codeInkCursor < state.codeInkElements->size() && work++ < 256u)
     {
-        const auto index    = state.codeInkCursor;
+        const auto index    = (*state.codeInkElements)[state.codeInkCursor];
         const auto& element = elements[index];
         if (element.role != RichText::SemanticRole::Code || element.syntaxNode >= document->Syntax()->Nodes().size())
         {
@@ -7332,10 +7435,11 @@ HRESULT RichTextEditor::PrepareCodeInk(const std::shared_ptr<const RichText::Sem
         ++_state->codeInkCursor;
         return S_FALSE; // One potentially expensive borrowed-input callback per owner turn.
     }
-    if (state.codeInkCursor < elements.size())
+    if (state.codeInkCursor < state.codeInkElements->size())
         return S_FALSE;
     state.codeInk.swap(state.codeInkStaged);
-    state.codeInkComplete = true;
+    state.codeInkPublishedGeneration = state.layout.Generation();
+    state.codeInkComplete            = true;
     return S_OK;
 }
 HRESULT RichTextEditor::PrepareSourceGuides(ControlHost& host)
@@ -7349,22 +7453,50 @@ HRESULT RichTextEditor::PrepareSourceGuides(ControlHost& host)
         return S_OK;
     }
     const auto revision = Revision(), generation = state.layout.Generation();
-    if (state.sourceGuides.Current(revision, generation, numbers, marks))
+    const auto viewport = TextViewport();
+    const auto left = -HorizontalTranslation(), right = left + viewport.right - viewport.left;
+    if (state.sourceGuides.Current(revision, generation, numbers, marks) &&
+        state.sourceGuides.Covers(state.scrollDip, state.scrollDip + viewport.bottom - viewport.top, left, right))
         return S_OK;
-    const auto viewport    = TextViewport();
+    const auto margin = (std::max)(16.0f, state.sourceGuideOptions.fontSizeDip * 2.5f);
+    const auto top = (std::max)(0.0f, state.scrollDip - margin), bottom = state.scrollDip + viewport.bottom - viewport.top + margin;
+    std::pair<size_t, size_t> range{};
+    RETURN_IF_FAILED(state.layout.TryVisibleSourceRange(top, bottom, range));
+    const RichText::Detail::RichSourceGuides::Window window{range.first, range.second, top, bottom, left - 16.0f, right + 16.0f};
     const auto gutterWidth = numbers ? std::min(SourceGutterWidth(), std::max(0.0f, viewport.right - viewport.left - 1.0f)) : 0.0f;
-    state.sourceGuides.Begin(Snapshot(), revision, generation, numbers, marks, state.sourceGuideOptions, gutterWidth);
+    state.sourceGuides.Begin(Snapshot(), revision, generation, numbers, marks, state.sourceGuideOptions, gutterWidth, window);
     static_cast<void>(host.GetSolidBrush(host.GetTheme().subduedText));
     return state.sourceGuides.Advance(host.GetWriteFactory(), state.layout);
 }
-bool RichTextEditor::PrepareSourceInk()
+bool RichTextEditor::SourceInkCoversViewport() const
 {
-    if (! _state->appearance.colorizeMarkdownSource || _state->mode != RichText::ViewMode::Source)
+    const auto viewport = TextViewport();
+    std::pair<size_t, size_t> range{};
+    return SUCCEEDED(_state->layout.TryVisibleSourceRange(_state->scrollDip, _state->scrollDip + viewport.bottom - viewport.top, range)) &&
+           _state->sourceInk.Covers(range.first, range.second);
+}
+HRESULT RichTextEditor::PrepareSourceInk()
+{
+    const auto syntax = GetMarkdownSyntax();
+    if (! _state->appearance.colorizeMarkdownSource || _state->mode != RichText::ViewMode::Source || ! syntax)
     {
         _state->sourceInk.Clear();
-        return true;
+        return S_OK;
     }
-    return _state->sourceInk.Advance(GetMarkdownSyntax(), [this](size_t source) { return _state->layout.ToDisplay(source); });
+    if (_state->sourceInk.Current(syntax) && SourceInkCoversViewport())
+        return S_OK;
+    const auto viewport = TextViewport();
+    const auto margin   = (std::max)(16.0f, _state->sourceGuideOptions.fontSizeDip * 2.5f);
+    std::pair<size_t, size_t> range{};
+    RETURN_IF_FAILED(
+        _state->layout.TryVisibleSourceRange((std::max)(0.0f, _state->scrollDip - margin), _state->scrollDip + viewport.bottom - viewport.top + margin, range));
+    bool complete{};
+    RETURN_IF_FAILED(_state->sourceInk.TryAdvance(syntax, [this](size_t source, size_t& output) {
+        return _state->layout.TryToDisplay(source, output);
+    }, complete, RichText::MarkdownRange{range.first, range.second}));
+    if (complete)
+        _state->sourceInkPublishedRevision = Revision();
+    return complete ? S_OK : S_FALSE;
 }
 std::optional<RichText::MarkdownRange> RichTextEditor::ActiveParagraphDisplayRange() const
 {

@@ -3471,7 +3471,9 @@ public:
     [[nodiscard]] RichText::SourceResult TrySetZoom(float zoom);
     void SetZoom(float zoom);
     [[nodiscard]] float GetZoom() const noexcept;
-    // Optional owner-thread code coloring; an empty callback restores ordinary ink.
+    // Optional owner-thread visual preparation for visible code blocks plus
+    // bounded overscan. Never withholds usable content; one callback per turn.
+    // An empty callback restores ordinary ink.
     void SetCodeTokenizer(RichText::CodeTokenizer tokenizer);
     // Borrowed rendered code text is valid only during the owner-thread callback.
     void SetOnCodeCopyRequested(std::function<void(std::wstring_view)> callback, std::wstring accessibleName = L"Copy code");
@@ -3717,6 +3719,7 @@ public:
 
 protected:
     [[nodiscard]] HRESULT PrepareContent(ControlHost& host) noexcept override;
+    void PrepareVisualContent(ControlHost& host) noexcept override;
     void CancelContentPreparation() noexcept override;
     [[nodiscard]] bool AcceptsTextInputDuringPreparation() const noexcept override;
     [[nodiscard]] bool SupportsTextInput() const noexcept override;
@@ -3785,8 +3788,11 @@ private:
     [[nodiscard]] size_t HitSource(ControlHost& host, D2D1_POINT_2F point) const;
     [[nodiscard]] std::optional<RichText::MarkdownRange> CaretLinkDisplayRange() const noexcept;
     void UpdateCaretLinkDisplayRange() noexcept;
-    bool PrepareSourceInk();
+    HRESULT PrepareSourceInk();
+    [[nodiscard]] bool SourceInkCoversViewport() const;
     HRESULT PrepareSourceGuides(ControlHost& host);
+    HRESULT PrepareMarkdownSyntax();
+    [[nodiscard]] bool CodeInkCoversViewport() const noexcept;
     [[nodiscard]] float HorizontalTranslation() const noexcept;
     [[nodiscard]] float SourceGutterWidth() const noexcept;
     void PublishHorizontalScrollChanged() noexcept;
