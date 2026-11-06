@@ -172,6 +172,118 @@ template <typename Check> inline void ParserBounds(Check&& check)
               "bounded angle search still recognizes a following valid autolink");
     }
 }
+template <typename Check> inline void DisplayBlockInterruption(Check&& check)
+{
+    struct Case
+    {
+        std::wstring_view prefix;
+        MarkdownBlockKind first;
+    };
+    constexpr Case cases[]{
+        {L"> a\n", MarkdownBlockKind::BlockQuote}, {L"- a\n", MarkdownBlockKind::List}, {L"| a |\n| - |\n| 1 |\n", MarkdownBlockKind::Table}};
+    for (const auto& item : cases)
+        for (const auto opener : {std::wstring_view(L"$$"), std::wstring_view(L"\\[")})
+        {
+            const auto closer = opener == L"$$" ? L"$$" : L"\\]";
+            const auto source = std::wstring(item.prefix).append(opener).append(L"\nx\n").append(closer).append(L"\n");
+            MarkdownParser parser;
+            parser.Begin(source, 1u, MarkdownProfile::RichMarkdown);
+            const auto syntax = Complete(parser, check);
+            const auto& nodes = syntax->Nodes();
+            const auto first  = nodes[0u].firstChild;
+            const auto second = first == MarkdownNoNode ? MarkdownNoNode : nodes[first].nextSibling;
+            check(first != MarkdownNoNode && nodes[first].block.kind == item.first && second != MarkdownNoNode &&
+                      nodes[second].block.kind == MarkdownBlockKind::FencedCode && nodes[second].block.closed &&
+                      nodes[second].block.fenceMarker == (opener == L"$$" ? L'$' : L'[') && nodes[second].nextSibling == MarkdownNoNode,
+                  "display math independently interrupts unmatched quote/list continuation and a table body");
+            check(syntax->Source() == source, "display interruption preserves exact source");
+            if (item.first == MarkdownBlockKind::Table)
+                check(std::ranges::count(nodes, MarkdownBlockKind::TableRow, [](const auto& node) { return node.block.kind; }) == 2,
+                      "only the header and original body row remain in the interrupted table");
+        }
+}
+template <typename Check> inline void InlineScanBudgets(Check&& check)
+{
+    for (const auto profile : {MarkdownProfile::CommonMark0312, MarkdownProfile::Gfm029, MarkdownProfile::RichMarkdown})
+        for (const auto opener : {std::wstring_view(L"<?"), std::wstring_view(L"<!--"), std::wstring_view(L"<![CDATA["), std::wstring_view(L"<!A ")})
+        {
+            std::size_t previous{};
+            for (const std::size_t repeats : {2048u, 4096u})
+            {
+                // A paragraph prefix keeps these inline. At column zero some
+                // openers instead become one opaque block and miss the defect.
+                std::wstring source(L"prefix ");
+                for (std::size_t index = 0u; index < repeats; ++index)
+                    source.append(opener);
+                MarkdownParser parser;
+                Detail::MarkdownWorkCounts work;
+                const Detail::MarkdownWorkProbe probe(work);
+                parser.Begin(source, 1u, profile);
+                const auto syntax = Complete(parser, check);
+                const auto total  = work.htmlIndexUnits + work.htmlSearchedUnits;
+                check(total <= source.size() * 8u && (! previous || total <= previous * 5u / 2u),
+                      "unterminated HTML searched spans grow linearly when hostile inline input doubles");
+                check(syntax->Source() == source && std::ranges::count(syntax->Inlines(), MarkdownInlineKind::Html, &MarkdownInline::kind) == 0,
+                      "unterminated inline HTML remains complete literal source in every profile");
+                previous = total;
+            }
+        }
+    for (const auto profile : {MarkdownProfile::CommonMark0312, MarkdownProfile::Gfm029, MarkdownProfile::RichMarkdown})
+    {
+        std::size_t previous{};
+        for (const std::size_t repeats : {4000u, 8000u})
+        {
+            std::wstring source;
+            for (std::size_t index = 0u; index < repeats; ++index)
+                source.append(L"[x](");
+            MarkdownParser parser;
+            Detail::MarkdownWorkCounts work;
+            const Detail::MarkdownWorkProbe probe(work);
+            parser.Begin(source, 1u, profile);
+            const auto syntax = Complete(parser, check);
+            check(work.linkDestinationUnits <= source.size() * 140u && (! previous || work.linkDestinationUnits <= previous * 5u / 2u),
+                  "rejected link destinations have bounded nesting work and linear doubling");
+            check(syntax->Source() == source && std::ranges::count(syntax->Inlines(), MarkdownInlineKind::Link, &MarkdownInline::kind) == 0,
+                  "unbalanced destinations never manufacture a link or lose source");
+            previous = work.linkDestinationUnits;
+        }
+        for (const std::size_t depth : {2u, 32u, 33u})
+        {
+            const auto source = std::wstring(L"[link](foo").append(depth, L'(').append(L"bar").append(depth, L')').append(L")");
+            MarkdownParser parser;
+            parser.Begin(source, 1u, profile);
+            const auto syntax = Complete(parser, check);
+            check(std::ranges::count(syntax->Inlines(), MarkdownInlineKind::Link, &MarkdownInline::kind) == (depth <= 32u ? 1 : 0),
+                  "balanced destinations allow thirty-two nested parentheses and retain deeper spelling literally");
+        }
+    }
+}
+template <typename Check> inline void TableReferenceBudgets(Check&& check)
+{
+    for (const auto profile : {MarkdownProfile::Gfm029, MarkdownProfile::RichMarkdown})
+    {
+        std::size_t previous{};
+        for (const std::size_t lines : {4000u, 8000u})
+        {
+            std::wstring source(L"[x\n");
+            for (std::size_t index = 0u; index < lines; ++index)
+                source.append(index % 2u ? L"-|\n" : L"-|-\n");
+            MarkdownParser parser;
+            Detail::MarkdownWorkCounts work;
+            const Detail::MarkdownWorkProbe probe(work);
+            parser.Begin(source, 1u, profile);
+            const auto syntax = Complete(parser, check);
+            check(work.referenceFlattenUnits <= source.size() * 2u && (! previous || work.referenceFlattenUnits <= previous * 5u / 2u),
+                  "incompatible table delimiters do not repeatedly flatten a reference-like paragraph");
+            const auto& nodes = syntax->Nodes();
+            const auto first  = nodes[0u].firstChild;
+            check(first != MarkdownNoNode && nodes[first].block.kind == MarkdownBlockKind::Paragraph && nodes[first].nextSibling == MarkdownNoNode &&
+                      syntax->Source() == source && std::ranges::count(nodes, MarkdownBlockKind::Table, [](const auto& node) { return node.block.kind; }) == 0,
+                  "alternating incompatible cell counts remain one complete paragraph without a table");
+            previous = work.referenceFlattenUnits;
+        }
+    }
+}
 template <typename Editor, typename Host, typename Prepare, typename Check>
 inline void EditorFallback(Editor& editor, Host& host, Prepare&& prepare, Check&& check)
 {

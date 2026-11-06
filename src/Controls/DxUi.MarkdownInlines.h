@@ -1,6 +1,7 @@
 #pragma once
 #include "DxUi.MarkdownLabels.h"
 #include "DxUi.MarkdownUnicodeData.h"
+#include "DxUi.MarkdownWork.h"
 #include "DxUi.TextElements.h"
 #include <DxUi/Configuration.h>
 #include <DxUi/MarkdownSyntax.h>
@@ -765,6 +766,7 @@ class MarkdownInlines
             unsigned depth = 0;
             while (i < text_.size())
             {
+                AccountMarkdownWork(&MarkdownWorkCounts::linkDestinationUnits);
                 const auto c = text_[i];
                 if (c <= L' ' || c == 127)
                     break;
@@ -1041,6 +1043,15 @@ class MarkdownInlines
     {
         std::size_t angle{}, comment{}, processing{}, cdata{};
     };
+    static std::size_t FindHtmlTerminator(std::wstring_view input, std::wstring_view suffix, std::size_t first) noexcept
+    {
+        const auto end = input.find(suffix, first);
+        AccountMarkdownWork(&MarkdownWorkCounts::htmlSearchedUnits,
+                            first > input.size()             ? 0u
+                            : end == std::wstring_view::npos ? input.size() - first
+                                                             : end - first + suffix.size());
+        return end;
+    }
     std::size_t HtmlEnd(std::size_t start, const HtmlLookahead* lookahead = nullptr, std::size_t* work = nullptr) const noexcept
     {
         const auto input = std::wstring_view(text_).substr(start);
@@ -1069,7 +1080,7 @@ class MarkdownInlines
                     end = absolute - start;
             }
             else
-                end = input.find(suffix, prefix.size());
+                end = FindHtmlTerminator(input, suffix, prefix.size());
             return end == std::wstring_view::npos ? 0u : end + suffix.size();
         };
         if (input.starts_with(L"<!--"))
@@ -1087,7 +1098,8 @@ class MarkdownInlines
             return terminated(L"<![CDATA[", L"]]>");
         if (profile_ != MarkdownProfile::Gfm029 && input.size() > 2u && input[1] == L'!' && AsciiLetter(input[2]))
         {
-            const auto end = lookahead ? (lookahead->angle == std::wstring::npos ? std::wstring_view::npos : lookahead->angle - start) : input.find(L'>', 3u);
+            const auto end =
+                lookahead ? (lookahead->angle == std::wstring::npos ? std::wstring_view::npos : lookahead->angle - start) : FindHtmlTerminator(input, L">", 3u);
             return end == std::wstring_view::npos ? 0u : end + 1u;
         }
         if (input.size() > 2u && input[1] == L'!' && input[2] >= L'A' && input[2] <= L'Z')
@@ -1100,7 +1112,8 @@ class MarkdownInlines
             }
             if (i == input.size() || ! GrammarSpace(input[i]))
                 return 0u;
-            const auto end = lookahead ? (lookahead->angle == std::wstring::npos ? std::wstring_view::npos : lookahead->angle - start) : input.find(L'>', i);
+            const auto end =
+                lookahead ? (lookahead->angle == std::wstring::npos ? std::wstring_view::npos : lookahead->angle - start) : FindHtmlTerminator(input, L">", i);
             return end == std::wstring_view::npos ? 0u : end + 1u;
         }
         std::size_t i      = 1u;

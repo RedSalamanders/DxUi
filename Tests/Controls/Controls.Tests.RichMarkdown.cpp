@@ -1693,6 +1693,9 @@ void TestLosslessMarkdownGlobalNodeAdmissionAndCooperativePadding()
 {
     MarkdownCapacityTests::ParserBounds(Require);
     MarkdownCapacityTests::AutolinkSuffixes(Require);
+    MarkdownCapacityTests::DisplayBlockInterruption(Require);
+    MarkdownCapacityTests::InlineScanBudgets(Require);
+    MarkdownCapacityTests::TableReferenceBudgets(Require);
 }
 void TestRichMarkdownInlineExtensions()
 {

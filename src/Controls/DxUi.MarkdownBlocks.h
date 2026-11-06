@@ -1,6 +1,7 @@
 #pragma once
 #include "DxUi.MarkdownLabels.h"
 #include "DxUi.MarkdownTableCells.h"
+#include "DxUi.MarkdownWork.h"
 #include <DxUi/MarkdownSyntax.h>
 #include <cwctype>
 #include <optional>
@@ -835,6 +836,8 @@ class MarkdownBlocks
         std::wstring text(0u, L' ');
         std::vector<std::size_t> offsets(0u);
         for (const auto& line : original.lines)
+        {
+            AccountMarkdownWork(&MarkdownWorkCounts::referenceFlattenUnits, line.source.last - line.source.first);
             for (auto i = line.source.first; i < line.source.last; ++i)
             {
                 offsets.push_back(i);
@@ -847,6 +850,7 @@ class MarkdownBlocks
                 else
                     text.push_back(source_[i]);
             }
+        }
         offsets.push_back(original.block.source.last);
         const auto parent  = original.parent;
         std::size_t cursor = 0, previous = MarkdownNoNode, lineCursor = 0u;
