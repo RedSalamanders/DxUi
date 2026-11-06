@@ -323,11 +323,21 @@ template <typename Observe = std::nullptr_t> inline void ScriptColorTargetCapabi
     THROW_IF_FAILED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(imaging.put())));
     wil::com_ptr<IWICBitmap> bitmap;
     THROW_IF_FAILED(imaging->CreateBitmap(400u, 240u, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnLoad, bitmap.put()));
-    wil::com_ptr<ID2D1RenderTarget> legacy;
-    THROW_IF_FAILED(drawing->CreateWicBitmapRenderTarget(bitmap.get(), D2D1::RenderTargetProperties(), legacy.put()));
-    wil::com_ptr<ID2D1DeviceContext7> unavailable;
-    Check(legacy->QueryInterface(IID_PPV_ARGS(unavailable.put())) == E_NOINTERFACE, "the actual legacy WIC fixture has no color context interface");
-    for (ID2D1RenderTarget* unsupported : {legacy.get(), static_cast<ID2D1RenderTarget*>(nullptr)})
+    wil::com_ptr<ID2D1RenderTarget> wicTarget;
+    THROW_IF_FAILED(drawing->CreateWicBitmapRenderTarget(bitmap.get(), D2D1::RenderTargetProperties(), wicTarget.put()));
+    wil::com_ptr<ID2D1DeviceContext7> wicColor;
+    const auto wicCapability = wicTarget->QueryInterface(IID_PPV_ARGS(wicColor.put()));
+    Check(SUCCEEDED(wicCapability) || wicCapability == E_NOINTERFACE, "observe the actual WIC color capability without assuming a platform implementation");
+    PreparedSemanticGeometry wicGeometry;
+    wicGeometry.Begin(factory.get(), document, options, drawing.get(), {}, {}, wicTarget.get());
+    std::size_t wicTurns{};
+    while (wicGeometry.Pending())
+        Check(wicGeometry.Advance({1u, 3u}).status != LayoutPreparationStatus::Failed && ++wicTurns < 10000u,
+              "actual WIC target preparation finishes bounded work with its observed capability");
+    Check(SUCCEEDED(wicCapability) ? wicGeometry.Ready() && wicGeometry.RejectedNativeObjects().empty()
+                                   : ! wicGeometry.Ready() && wicGeometry.RejectedNativeObjects().size() == 3u,
+          "actual WIC target admission follows its observed interface support");
+    const auto requireFallback = [&](ID2D1RenderTarget* unsupported)
     {
         PreparedSemanticGeometry fallback;
         fallback.Begin(factory.get(), document, options, drawing.get(), {}, {}, unsupported);
@@ -337,7 +347,8 @@ template <typename Observe = std::nullptr_t> inline void ScriptColorTargetCapabi
             const auto step = fallback.Advance({1u, 3u});
             Check(step.status != LayoutPreparationStatus::Failed && ++turns < 10000u, "unsupported targets finish bounded checked preparation");
         }
-        Check(! fallback.Ready() && fallback.RejectedNativeObjects().size() == 3u, "legacy and absent targets reject only the three color/script paragraphs");
+        Check(! fallback.Ready() && fallback.RejectedNativeObjects().size() == 3u,
+              "unavailable and absent targets reject only the three color/script paragraphs");
         for (const auto rejected : fallback.RejectedNativeObjects())
         {
             Check(rejected < document->Elements().size(), "a color fallback names an admitted semantic element");
@@ -345,14 +356,27 @@ template <typename Observe = std::nullptr_t> inline void ScriptColorTargetCapabi
             Check(source.substr(range.first, range.last - range.first).find(L"\U0001f600") != std::wstring::npos,
                   "fallback ownership includes an original emoji paragraph rather than unrelated tail text");
         }
-    }
+    };
+#if DXUI_ENABLE_DIAGNOSTICS
+    Detail::testRichScriptColorTargetFailure = E_NOINTERFACE;
+    requireFallback(wicTarget.get());
+    Detail::testRichScriptColorTargetFailure = S_OK;
+#else
+    if (wicCapability == E_NOINTERFACE)
+        requireFallback(wicTarget.get());
+#endif
+    requireFallback(nullptr);
     const auto plainScripts = RichSemanticDocumentTests::Build(L"A^2^\n\nB~3~\n", MarkdownProfile::RichMarkdown);
     PreparedSemanticGeometry plain;
-    plain.Begin(factory.get(), plainScripts, options, drawing.get(), {}, {}, legacy.get());
+#if DXUI_ENABLE_DIAGNOSTICS
+    Detail::testRichScriptColorTargetFailure = E_NOINTERFACE;
+#endif
+    plain.Begin(factory.get(), plainScripts, options, drawing.get(), {}, {}, wicTarget.get());
     Complete(plain);
     Check(plain.RejectedNativeObjects().empty(), "legacy targets still admit ordinary noncolor superscripts and subscripts");
 #if DXUI_ENABLE_DIAGNOSTICS
-    const auto beforeOrdinary = Detail::testRichScriptColorTargetQueries;
+    Detail::testRichScriptColorTargetFailure = S_OK;
+    const auto beforeOrdinary                = Detail::testRichScriptColorTargetQueries;
 #endif
     const auto ordinaryDocument = RichSemanticDocumentTests::Build(L"ordinary \U0001f600 paragraph\n", MarkdownProfile::RichMarkdown);
     PreparedSemanticGeometry ordinary;
@@ -361,8 +385,8 @@ template <typename Observe = std::nullptr_t> inline void ScriptColorTargetCapabi
 #if DXUI_ENABLE_DIAGNOSTICS
     Check(Detail::testRichScriptColorTargetQueries == beforeOrdinary, "a paragraph without scripts does not query script color capability");
 #endif
-    std::cout << "script color capability actualTarget=1 legacyTarget=1 absentTarget=1 paragraphs=3 coloredPixels=" << colored
-              << " cancellationPreserved=1 checkedFailurePreserved=1\n";
+    std::cout << "script color capability actualTarget=1 wicTarget=1 wicColorTarget=" << SUCCEEDED(wicCapability)
+              << " unavailableCapability=1 absentTarget=1 paragraphs=3 coloredPixels=" << colored << " cancellationPreserved=1 checkedFailurePreserved=1\n";
 }
 template <typename Observe = std::nullptr_t> inline void HtmlScripts(Observe observe = nullptr)
 {

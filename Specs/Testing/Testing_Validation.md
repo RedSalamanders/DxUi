@@ -33,9 +33,11 @@ activation or foreground qualification.
 
 ## Script/color targets and diagnostic counts
 
-Script/color admission coverage must use an actual capable WARP target, a legacy WIC target that independently
-refuses the color interface, and an absent target. Check exact source, native admission, colored raster pixels,
-legacy paragraph-local rejection and noncolor script support. Count actual admission-query attempts across
+Script/color admission coverage must use an actual capable WARP target, an actual WIC target with independently
+observed interface support, controlled `E_NOINTERFACE`, and an absent target. WIC targets can expose newer
+interfaces; the fixture must not infer legacy capability from the factory method's name. Check exact source,
+native admission, colored raster pixels, capability-refused paragraph-local rejection and noncolor script
+support. Count actual admission-query attempts across
 multiple paragraphs, compatible reuse and a document without scripts. Cancellation and injected native failure
 must preserve the previous publication; a later valid request must succeed. Supplied-device coverage measures
 warm native drawing allocations separately from geometry preparation. These tests do not establish physical
