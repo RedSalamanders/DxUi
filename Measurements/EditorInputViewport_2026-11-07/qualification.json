@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "workloadOwner": "DxUi",
-  "fixture": "editor-input-and-view-only-viewport",
+  "fixture": "dxui-editor-input-and-view-only-viewport",
   "inputHash": "1609ecdb2d97b2998471bfa5821a5fa5fa12539a25b36cd9aae7e14be0d01600",
   "benchmarkInputs": {
     "src/Controls/DxUi.RichTextEditor.cpp": "FE9CB4FA41F9157468C14BEBFAC3641CFD1F84DB26272DE3B7834B77BE9FF81F",
