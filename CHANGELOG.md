@@ -4,6 +4,7 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Record source-bound hosted Release acceptance for parser scan bounds: all seven jobs, 23 x64 and 21 ARM64 suites, assertion probes and both production SDK smoke checks; retain fifteen independently verified artifact wrapper digests and the exact implementation boundary.
 - Keep fake MSVC negative cases and run-evidence hard-link setup within Windows path bounds in long checkouts, using compact owned fixture names. Preserve unique run isolation, paths-with-spaces coverage and all independent long-Unicode, identity, stream and read-only assertions.
 - Let standalone display math interrupt lazy quotes/lists and table rows consistently. Bound repeated malformed HTML, link-destination and table-reference scans with fixed leaf facts, a 32-level destination limit and cheap table admission; preserve literal source and add independent failing-then-passing block and logical-work regressions.
 - Preserve a pending UTF-16 lead across VK_PACKET and bare modifier transitions in TextField, editable ComboBox and RichTextEditor. Keep navigation/editing cancellation and publish a complete scalar as one undoable transaction. Add owned-window WM_KEYDOWN/WM_CHAR/WM_KEYUP and supplied-device dispatch replays, all modifier variants and notification/history checks without acquiring desktop focus or injecting OS input.
