@@ -1,1 +1,0 @@
-- Derive semantic diagram allocation scenario totals from the executed source array and use one shared bound for geometry execution and reporting. Preserve original stale-label logs as historical evidence rather than changing their recorded results.

@@ -4,6 +4,9 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Derive semantic diagram allocation scenario totals from the executed source array and use one shared bound for geometry execution and reporting. Preserve original stale-label logs as historical evidence rather than changing their recorded results.
+- Capture script/color target capability before semantic staging retires its raster, preserving native mixed script/emoji paragraphs on capable targets and the existing unsupported-target fallback. Verify actual WARP/WIC capability and pixels, bounded admission queries, cancellation, checked failures, warm drawing and an unchanged compiled counterexample with six zero-warning builds, 66 x64 suite executions, actual ASan and source-bound archive/gallery records; native ARM64, physical, consumer and formal performance gates remain separate.
+- Preserve native filter-preflight child output, arguments, exit and executable identity before wrapper assertions, with an owned-process regression; retain the original unexplained ARM64 Grid preflight failure separately from later qualification.
 - Prefer Unicode text when text and bitmap clipboard formats coexist, with an explicit image-first application policy, one ownership attempt, source-preserving refusal and native/embedded regression coverage.
 - Include libfyaml 0.9.4 in paired library source fingerprints so vendor-only changes distinguish named trees; add focused fingerprint coverage and bind the proposed review target to the current judge bytes. The policy stays unqualified and its numerical rules are unchanged. Final validation remains pending.
 - Exercise native text-store fatal callbacks through a headless logical target under the child activation guard, while retaining the attached-window reentry and foreground scenarios.
