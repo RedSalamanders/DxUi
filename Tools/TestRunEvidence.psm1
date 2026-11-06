@@ -235,24 +235,37 @@ function Save-TestRunNativeArtifacts($Run, [string] $Label) {
     if ($entry.profile -and $Label -ceq 'native-artifacts') {
         # Current failure dumps need their actual linked images and PDBs. Prior
         # dumps remain historical and are never paired with replacement binaries.
-        $images = Join-Path $Run.Path ($labelName+'-images')
-        [void][IO.Directory]::CreateDirectory($images)
+        $images = Join-Path $Run.Path ($labelName+'-images.zip')
         $bindings = @()
+        $imagePins = [Collections.Generic.List[IDisposable]]::new()
+        $archive = [IO.Compression.ZipFile]::Open($images,[IO.Compression.ZipArchiveMode]::Create)
+        try {
         foreach ($name in @('DxUi.ControlTests','DxUi.FoundationTests','DxUi.EmbeddedTests')) {
             foreach ($extension in @('.exe','.pdb')) {
                 $image = Join-Path ([IO.Path]::GetDirectoryName($source)) ($name+$extension)
                 if (-not (Test-Path -LiteralPath $image -PathType Leaf)) { continue }
-                $pin = [TestRunEvidenceV2.Native]::Pin($image,$false)
-                try {
-                    $sha = (Get-FileHash -LiteralPath $image -Algorithm SHA256).Hash
-                    $copy = Join-Path $images ($name+$extension)
-                    Copy-Item -LiteralPath $image -Destination $copy
-                    if ((Get-FileHash -LiteralPath $copy -Algorithm SHA256).Hash -cne $sha) { throw 'Failure image copy changed bytes.' }
-                    $bindings += @{file=($name+$extension);sha256=$sha;bytes=(Get-Item -LiteralPath $copy).Length}
-                } finally { $pin.Dispose() }
+                $imagePins.Add([TestRunEvidenceV2.Native]::Pin($image,$false))
+                $sha = (Get-FileHash -LiteralPath $image -Algorithm SHA256).Hash
+                # Stream directly: staging three full linked PDB copies can exhaust
+                # the volume before a failed run's evidence can be completed.
+                $zipEntry = [IO.Compression.ZipFileExtensions]::CreateEntryFromFile($archive,$image,($name+$extension),[IO.Compression.CompressionLevel]::Optimal)
+                $bindings += @{file=($name+$extension);sha256=$sha;bytes=([IO.FileInfo]::new($image)).Length}
             }
         }
-        Write-TestRunEvidenceRecord (Join-Path $images 'identity.json') @{files=$bindings}
+        $archive.Dispose();$archive=$null
+        $archive = [IO.Compression.ZipFile]::OpenRead($images)
+        foreach ($binding in $bindings) {
+            $zipEntry = $archive.GetEntry($binding.file)
+            if (-not $zipEntry -or $zipEntry.Length -ne $binding.bytes) { throw 'Failure image archive member length differs.' }
+            $stream = $zipEntry.Open()
+            try { $actual = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($stream)) } finally { $stream.Dispose() }
+            if ($actual -cne $binding.sha256) { throw 'Failure image archive changed bytes.' }
+        }
+        } finally {
+            if ($archive) { $archive.Dispose() }
+            for ($i=$imagePins.Count-1; $i -ge 0; $i--) { $imagePins[$i].Dispose() }
+        }
+        Write-TestRunEvidenceRecord (Join-Path $Run.Path ($labelName+'-images.identity.json')) @{archive=($labelName+'-images.zip');files=$bindings}
     }
     } finally { for ($i=$parentPins.Count-1; $i -ge 0; $i--) { $parentPins[$i].Dispose() } }
     }

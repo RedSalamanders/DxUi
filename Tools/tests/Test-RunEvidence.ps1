@@ -232,13 +232,20 @@ try {
     $saved = Join-Path $run.Path 'native-artifacts-failures/original.dmp'
     Assert-Evidence ([IO.File]::ReadAllText($saved) -ceq 'original dump bytes' -and
         [IO.File]::ReadAllText($saved+':scenario') -ceq 'original crash context') 'Original dump bytes or named context stream changed.'
-    $images = Join-Path $run.Path 'native-artifacts-failures-images'
-    $bindings = Get-Content (Join-Path $images 'identity.json') -Raw|ConvertFrom-Json
+    $bindings = Get-Content (Join-Path $run.Path 'native-artifacts-failures-images.identity.json') -Raw|ConvertFrom-Json
     Assert-Evidence ($bindings.files.Count -eq 2) 'Current executable and PDB union differs.'
+    $images = [IO.Compression.ZipFile]::OpenRead((Join-Path $run.Path $bindings.archive))
+    try {
     foreach ($binding in $bindings.files) {
-        Assert-Evidence ((Get-FileHash (Join-Path $images $binding.file)).Hash -ceq (Get-FileHash (Join-Path $profile $binding.file)).Hash -and
-            $binding.sha256 -ceq (Get-FileHash (Join-Path $profile $binding.file)).Hash) 'Current failure image or PDB bytes differ.'
+        $image = $images.GetEntry($binding.file)
+        Assert-Evidence ($image -and $image.Length -eq $binding.bytes) 'Current failure image archive member length differs.'
+        $stream = $image.Open()
+        try { $sha=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($stream)) } finally { $stream.Dispose() }
+        Assert-Evidence ($sha -ceq (Get-FileHash (Join-Path $profile $binding.file)).Hash -and
+            $binding.sha256 -ceq $sha) 'Current failure image or PDB archive bytes differ.'
     }
+    } finally { $images.Dispose() }
+    Assert-Evidence (-not (Test-Path (Join-Path $run.Path 'native-artifacts-failures-images'))) 'Native image evidence staged uncompressed PDB copies.'
     Assert-Evidence (-not (Test-Path (Join-Path $run.Path 'previous-native-artifacts-failures-images'))) 'Prior dumps were paired with replacement images.'
 } finally { if (-not $run.Closed) { Complete-TestRunEvidence $run $false } }
 Reject-Evidence { Start-TestRunEvidence $failureRoot @{platform='../outside';configuration='Debug'} -CaptureNativeArtifacts } 'An unowned native failure profile was accepted.'
