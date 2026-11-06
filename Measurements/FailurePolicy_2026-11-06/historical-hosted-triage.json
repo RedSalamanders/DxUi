@@ -16,11 +16,56 @@
   "judgeStatusAgreement": true,
   "judgeMetricVerdictDisagreements": 0,
   "scenarios": [
-    {"name":"Default","unstableControls":24,"controls":24,"cleanPrepareP95EffectPercent":58.9224967169207},
-    {"name":"MultilineGrid","unstableControls":24,"controls":24,"cleanPrepareP95EffectPercent":56.1646166064529},
-    {"name":"MultilineGridDistinct","unstableControls":20,"controls":24,"cleanPrepareP95EffectPercent":65.9318793233133}
+    {
+      "name": "Default",
+      "unstableControls": 24,
+      "controls": 24,
+      "cleanPrepareP95EffectPercent": 58.9224967169207
+    },
+    {
+      "name": "MultilineGrid",
+      "unstableControls": 24,
+      "controls": 24,
+      "cleanPrepareP95EffectPercent": 56.1646166064529
+    },
+    {
+      "name": "MultilineGridDistinct",
+      "unstableControls": 20,
+      "controls": 24,
+      "cleanPrepareP95EffectPercent": 65.9318793233133
+    }
   ],
   "flaggedMetric": "clean prepareP95Ms, set verdict regressed in each scenario; baseline median 0.0005 ms, candidate median 0.0008 ms, adjusted p 0.0126953125",
   "setLevelMemoryOrExactBudgetFlags": 0,
-  "interpretation": "Measured findings require investigation and owner advice; shared host, control drift and unqualified policy prevent qualification. No causal regression or non-regression pass is established."
+  "interpretation": "Measured findings require investigation and owner advice; shared host, control drift and unqualified policy prevent qualification. No causal regression or non-regression pass is established.",
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-api5-historical-paired-triage-v1",
+  "benchmarkInputs": {
+    "performance.ps1": "52C863186486B235914D5558A982DDBE9C1D72EFB29D41C68A474E604B19AB0F",
+    "performance-paired.ps1": "5F8D5A6468D09CC6C43BD0CE1B13E44434352BAE262C05C19884B814E41AD6CB",
+    "Tools/Compare-Performance.ps1": "A00BCEEF3722DEB15ACABC1F5FB2598DFA1CE662934BAADB16EEB3E741A07178",
+    "Tools/PerformanceComparison.psm1": "F6BC65BF2E72E0C483A8720EA8D473C14DFDD87264F3711C980165C1A8881396",
+    "Tools/PairedRun.psm1": "1078558C8898B428BEE9073F2F6100E4E6AE97EAF4D0FDECCBD7ED45D3058BD0",
+    "Tools/PerformancePolicy.psm1": "F2AD8EB4160B67C4CE86F0CB49E69589FBF46FABF8E5DA579BB0A55556EE3C3F",
+    "Tools/PerformanceAcceptancePolicy.v1.json": "F905AE17894FE67A2A1CAA5C05F8FA084D539863705D17428C6BB4AA509C5752",
+    "Tools/BenchmarkGate.psm1": "3FB19284BC1CD7F84BDD27368F58748007DCFE6FD04CE1A8A2DC49925DD8F915",
+    "Build/BuildConsole.psm1": "B7514C4563ABEF3AA2187AB6C5BFFB2B94F15B41A83A537314F0E584107CE938",
+    "Tests/Embedded/Embedded.Tests.BenchmarkMain.h": "6F8C697B654719E1E2C20B67F818CC46A8E64344E85158815CE5E9779DA9FED7",
+    "Tests/Embedded/Embedded.Tests.BenchmarkInstrument.h": "22AC34FCF88A81131D3E0F83FD5D9274F95FAD88978819102293A057C0CDE433",
+    "Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h": "AC0B742110C592CF09EFB8610EB20206DD619AFBF8080ACBF07B140CBBB84E2A",
+    "Tests/Support/Support.Tests.HeapDiagnostic.h": "C9C5E000FD2A5AB888EF730959D8E88FB166177A8667F077D1AE3E1D8D6AFA64",
+    "Samples/ComplexUi/ComplexUiScene.h": "CCF5DD667CDC92A4046B3B7FB88A1307F814AA92653D1BF7E8396B427A89F2E7",
+    "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D",
+    "Tests/Embedded/Embedded.Tests.PairedBenchmark.cpp": "4EA7875B773EAA6D8AB44D668B3C7E55F236D42DDA1EAF0A1D1917C962D04AC0",
+    "Samples/Shared/FailureHost.h": "06935AEDD0720CF74370CA7A45B971CDB716606ABBB6666B27206989728615FF",
+    "Samples/Shared/FailureHost.cpp": "9B481FA40AE809859BD6CA81C11EE3B7454EFB76106B2F79B0C0A9E86E7FFDE6",
+    "build.ps1": "5F158FA6DFA4D9117800E8852A4C025D9CDB5662B2E6F0A5D200F1D2AAA3131C",
+    "Tools/ScopedTesting.psm1": "862CD2B286AF0546FF17F8872544CD16042352139DE11E3C3065115699C02CAE",
+    "Tools/Validation.psm1": "27C64ED754DD0AF6E34CC41004B4501D558185735181570FF8AFB1F417A3D7EB",
+    "Tools/Changelog.psm1": "E962647601709787175DFE9651E5840C16CBBE0B241E1F8A39DD38DBE66755C3",
+    "Tools/Modules/Documentation/Changelog.psm1": "9AF327A880A8F37A582898E7BDAF6787C32D71520F6DD84C5A1340AAF3480EAD",
+    "Tests/Embedded/DxUi.EmbeddedTests.vcxproj": "8E67554292A71607A9F5606E75FDC6992945A99A82CB4CF8C98530FCB63524A2",
+    "Build/NativeBuildPolicy.targets": "04BC1CAA1E2635D7FF3975E4BBD7B823EF7EECD2D4844EC507BD3FDB9FBDB3AD"
+  },
+  "evidenceKind": "Summary of recorded library fixtures; original source/artifact identities remain in the result data."
 }

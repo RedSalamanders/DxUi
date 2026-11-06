@@ -1,58 +1,73 @@
-[
-  {
-    "source": "f6791b5070efd1fa8dc86601bc9422ae9a321d2e",
-    "configuration": "ASan Debug",
-    "disableStlAnnotations": false,
-    "fixture": "61bea14606eb",
-    "exitCode": 0,
-    "negativeChecks": 10,
-    "nativeModuleExecuted": 12,
-    "nativeModuleFatalChecks": 16,
-    "nativeModuleNativeAllowedChecks": 2,
-    "librarySha256": "10FF3EAE7E27A62DD48CA5C16351297E00CE076D1EE56FADEF193A5119F56E75",
-    "executableSha256": "D0C5A966734D5989F8D27B0CB68FAB86A229959204C0AA53B7A5D9AC1113B57D",
-    "receiptSha256": "CB72F502B1B994B140A79A125F21B17517863342F90BF93A86CBD7FB689BF956"
+{
+  "records": [
+    {
+      "source": "f6791b5070efd1fa8dc86601bc9422ae9a321d2e",
+      "configuration": "ASan Debug",
+      "disableStlAnnotations": false,
+      "fixture": "61bea14606eb",
+      "exitCode": 0,
+      "negativeChecks": 10,
+      "nativeModuleExecuted": 12,
+      "nativeModuleFatalChecks": 16,
+      "nativeModuleNativeAllowedChecks": 2,
+      "librarySha256": "10FF3EAE7E27A62DD48CA5C16351297E00CE076D1EE56FADEF193A5119F56E75",
+      "executableSha256": "D0C5A966734D5989F8D27B0CB68FAB86A229959204C0AA53B7A5D9AC1113B57D",
+      "receiptSha256": "CB72F502B1B994B140A79A125F21B17517863342F90BF93A86CBD7FB689BF956"
+    },
+    {
+      "source": "f6791b5070efd1fa8dc86601bc9422ae9a321d2e",
+      "configuration": "ASan Debug",
+      "disableStlAnnotations": true,
+      "fixture": "d818e314f334",
+      "exitCode": 0,
+      "negativeChecks": 10,
+      "nativeModuleExecuted": 12,
+      "nativeModuleFatalChecks": 16,
+      "nativeModuleNativeAllowedChecks": 2,
+      "librarySha256": "23658994B4B3894130A0ED61E8B3AB0EB9D572B5BBFD4E686BB2D69539BC9639",
+      "executableSha256": "F80F74A2110493721C32F74FC0EC642D907B5EA5B001877C987210E07DAF46E5",
+      "receiptSha256": "77AA96205E3589D3BC051B0F017C00DD61033BB65FC06F5D7745F2FB5A29169F"
+    },
+    {
+      "source": "f6791b5070efd1fa8dc86601bc9422ae9a321d2e",
+      "configuration": "Debug",
+      "disableStlAnnotations": false,
+      "fixture": "eb3cc0020e7b",
+      "exitCode": 0,
+      "negativeChecks": 10,
+      "nativeModuleExecuted": 12,
+      "nativeModuleFatalChecks": 16,
+      "nativeModuleNativeAllowedChecks": 2,
+      "librarySha256": "2F39443D96552CFB23CAF022F8AEBB5FDE597D33F60086394E7E81E3E26CB0F1",
+      "executableSha256": "CF0E4221007C646939368323D3632E4B27FC3911A9CF2230414D812829B76473",
+      "receiptSha256": "2CBDD7C13E4F8B572EF1771DB02DA7B46FB602F65D7BEA7A3AACC99823C47037"
+    },
+    {
+      "source": "f6791b5070efd1fa8dc86601bc9422ae9a321d2e",
+      "configuration": "Release",
+      "disableStlAnnotations": false,
+      "fixture": "cd715d2ddfd6",
+      "exitCode": 0,
+      "negativeChecks": 10,
+      "nativeModuleExecuted": 12,
+      "nativeModuleFatalChecks": 16,
+      "nativeModuleNativeAllowedChecks": 2,
+      "librarySha256": "19E35304BD5435E467D242C0E5F6A110358658DCCBBEF674F85D8CD7AE10A8F6",
+      "executableSha256": "C0B16E97EC8D5325623A84D9D2F7B5F04066A3A986C1184F26D37D0FE0EF226D",
+      "receiptSha256": "51DB2A84DBEA292B3765FE2E623A561D0C149888620955E43DBAB92263751B7C"
+    }
+  ],
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-api5-clean-pin-consumer-summary-v1",
+  "benchmarkInputs": {
+    "artifact/ASan Debug-annotationsDisabledFalse/consumer.exe": "D0C5A966734D5989F8D27B0CB68FAB86A229959204C0AA53B7A5D9AC1113B57D",
+    "artifact/ASan Debug-annotationsDisabledFalse/DxUi.lib": "10FF3EAE7E27A62DD48CA5C16351297E00CE076D1EE56FADEF193A5119F56E75",
+    "artifact/ASan Debug-annotationsDisabledTrue/consumer.exe": "F80F74A2110493721C32F74FC0EC642D907B5EA5B001877C987210E07DAF46E5",
+    "artifact/ASan Debug-annotationsDisabledTrue/DxUi.lib": "23658994B4B3894130A0ED61E8B3AB0EB9D572B5BBFD4E686BB2D69539BC9639",
+    "artifact/Debug-annotationsDisabledFalse/consumer.exe": "CF0E4221007C646939368323D3632E4B27FC3911A9CF2230414D812829B76473",
+    "artifact/Debug-annotationsDisabledFalse/DxUi.lib": "2F39443D96552CFB23CAF022F8AEBB5FDE597D33F60086394E7E81E3E26CB0F1",
+    "artifact/Release-annotationsDisabledFalse/consumer.exe": "C0B16E97EC8D5325623A84D9D2F7B5F04066A3A986C1184F26D37D0FE0EF226D",
+    "artifact/Release-annotationsDisabledFalse/DxUi.lib": "19E35304BD5435E467D242C0E5F6A110358658DCCBBEF674F85D8CD7AE10A8F6"
   },
-  {
-    "source": "f6791b5070efd1fa8dc86601bc9422ae9a321d2e",
-    "configuration": "ASan Debug",
-    "disableStlAnnotations": true,
-    "fixture": "d818e314f334",
-    "exitCode": 0,
-    "negativeChecks": 10,
-    "nativeModuleExecuted": 12,
-    "nativeModuleFatalChecks": 16,
-    "nativeModuleNativeAllowedChecks": 2,
-    "librarySha256": "23658994B4B3894130A0ED61E8B3AB0EB9D572B5BBFD4E686BB2D69539BC9639",
-    "executableSha256": "F80F74A2110493721C32F74FC0EC642D907B5EA5B001877C987210E07DAF46E5",
-    "receiptSha256": "77AA96205E3589D3BC051B0F017C00DD61033BB65FC06F5D7745F2FB5A29169F"
-  },
-  {
-    "source": "f6791b5070efd1fa8dc86601bc9422ae9a321d2e",
-    "configuration": "Debug",
-    "disableStlAnnotations": false,
-    "fixture": "eb3cc0020e7b",
-    "exitCode": 0,
-    "negativeChecks": 10,
-    "nativeModuleExecuted": 12,
-    "nativeModuleFatalChecks": 16,
-    "nativeModuleNativeAllowedChecks": 2,
-    "librarySha256": "2F39443D96552CFB23CAF022F8AEBB5FDE597D33F60086394E7E81E3E26CB0F1",
-    "executableSha256": "CF0E4221007C646939368323D3632E4B27FC3911A9CF2230414D812829B76473",
-    "receiptSha256": "2CBDD7C13E4F8B572EF1771DB02DA7B46FB602F65D7BEA7A3AACC99823C47037"
-  },
-  {
-    "source": "f6791b5070efd1fa8dc86601bc9422ae9a321d2e",
-    "configuration": "Release",
-    "disableStlAnnotations": false,
-    "fixture": "cd715d2ddfd6",
-    "exitCode": 0,
-    "negativeChecks": 10,
-    "nativeModuleExecuted": 12,
-    "nativeModuleFatalChecks": 16,
-    "nativeModuleNativeAllowedChecks": 2,
-    "librarySha256": "19E35304BD5435E467D242C0E5F6A110358658DCCBBEF674F85D8CD7AE10A8F6",
-    "executableSha256": "C0B16E97EC8D5325623A84D9D2F7B5F04066A3A986C1184F26D37D0FE0EF226D",
-    "receiptSha256": "51DB2A84DBEA292B3765FE2E623A561D0C149888620955E43DBAB92263751B7C"
-  }
-]
+  "evidenceKind": "Summary of recorded library fixtures; original source/artifact identities remain in the result data."
+}

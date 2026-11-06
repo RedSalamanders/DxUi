@@ -8,5 +8,14 @@
   "foreground": "restored",
   "focus": "unchanged",
   "cursor": "restored",
-  "retry": "Fresh attempt17 all12suite executions passed with zero skips; original failure retained"
+  "retry": "Fresh attempt17 all12suite executions passed with zero skips; original failure retained",
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-api5-retained-foreground-failure-v1",
+  "benchmarkInputs": {
+    "retained-artifact/DxUi.ControlTests.exe": "685BB13310C821CBFC205BB27B4A62A6167A50A134620999BEDEBED8FD587FB8",
+    "retained-artifact/DxUi.ControlTests.pdb": "7076A2BE675354FAE2570E5FB7B36BAE1D0A42F1DFC99699B016C2BEBB7258E0",
+    "retained-artifact/DxUi.lib": "F0B9808931A20616C85D83026FA2B1AC377EADBC2849AA3E531EC97657C4F394",
+    "retained-artifact/DxUi.pdb": "EEF6275F9992B2D361831C99C2090F7D16E40585AD32093C438E9C92D6905A5C"
+  },
+  "evidenceKind": "Summary of recorded library fixtures; original source/artifact identities remain in the result data."
 }

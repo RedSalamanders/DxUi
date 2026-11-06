@@ -23,6 +23,9 @@ The [matrix](native-matrix-independent-16.json), [ordinary](ordinary-profiles-16
 [ASan](control-asan.json), [tooling](tooling.json), [SDK](sdk-065.json) and
 [license](independent-sdk-license-f679.json) summaries retain actual source and artifact identities.
 Raw dumps, symbols, desktop identities and complete local receipts remain in the owned private evidence roots.
+Published JSON identifies DxUi ownership, its summary fixture and recorded input hashes. Array-shaped receipts
+are preserved under `records`; the metadata binds the captured binaries, source inputs or prior receipts consumed
+by each summary. It does not turn a summary into a new benchmark invocation or change any recorded result.
 
 ## Measured cost and owner decision
 

@@ -8,5 +8,13 @@
   "headerClosure": "Extracted SDK plus selected Visual Studio and Windows SDK only",
   "allReceiptFlagsVerified": true,
   "producerAndArchiveHashesIndependentlyVerified": true,
-  "privateTestEntriesAbsent": true
+  "privateTestEntriesAbsent": true,
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-api5-extracted-sdk-summary-v1",
+  "benchmarkInputs": {
+    "SDK.zip": "dd2bb86a81c3b3ac9add343f535cf6aee794a701471600ed5ec4c8a8a83d0191",
+    "DxUi.lib": "85fdb0197082fa3594aa095222a093303d8245c885e02bb55b86dc18177b9ee3",
+    "DxUi.pdb": "70d6357006034f7b5ec74c50afc17b7decc8597484e7ab94bd7c49c4a1ccf7de"
+  },
+  "evidenceKind": "Summary of recorded library fixtures; original source/artifact identities remain in the result data."
 }

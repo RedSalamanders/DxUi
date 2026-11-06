@@ -8,5 +8,12 @@
   "result": "passed",
   "fullValidatorLogSha256": "E29A45CE3858DE558F2FE3583262D29365E3D2CBFDA63261CAD47BE508DDCFE7",
   "formatLogSha256": "444BEC9F0DEA809335BE8497FBB7277928576B58E0EFD75F2958BA93537694D7",
-  "precedingFailedValidator": "d975 stale proposed judge review hash; preserved, then corrected with all numerical policy rules and unqualified status unchanged"
+  "precedingFailedValidator": "d975 stale proposed judge review hash; preserved, then corrected with all numerical policy rules and unqualified status unchanged",
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-api5-tooling-receipt-summary-v1",
+  "benchmarkInputs": {
+    "captured/complete-validator.log": "E29A45CE3858DE558F2FE3583262D29365E3D2CBFDA63261CAD47BE508DDCFE7",
+    "captured/clang-format-check.log": "444BEC9F0DEA809335BE8497FBB7277928576B58E0EFD75F2958BA93537694D7"
+  },
+  "evidenceKind": "Summary of recorded library fixtures; original source/artifact identities remain in the result data."
 }
