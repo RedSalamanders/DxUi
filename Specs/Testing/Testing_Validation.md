@@ -1284,6 +1284,12 @@ PrePush validates changelog state for the candidate commit. Uncommitted, staged 
 
 The tooling roster runs each script in a bounded isolated PowerShell child with a fresh native exit status, retains its output, reports both nonzero status and thrown failures, and still runs its remaining scripts. A changelog fold reports each skipped duplicate fragment name while retaining retry idempotence.
 
+Descendant timeout fixtures MUST admit the child/holder relationship before asserting descendant survival or
+pipe-drain behavior. Their startup allowance is separate from the unchanged post-exit drain budget. Cover a
+deliberately delayed parent, retain the original child diagnostics if holder identity is absent, verify the held
+PID and native creation identity, and release that exact holder cooperatively. Fixture startup allowances do
+not change the production measurement deadline or authorize terminating independent processes.
+
 The relocated native-module consumer driver emits one machine-readable record of the probes it actually executed and passed. Its owner accepts exactly one well-formed record only with process exit zero and the complete expected twelve successes; missing, duplicated, malformed, partial or inconsistent counts fail. The final consumer receipt copies those observed counts and the completed negative-check count from its progress ledger; completion validates their agreement. A driver success or a hard-coded expected cardinality alone is not an observed-count receipt.
 
 Failure-policy consumer qualification additionally requires the two internally handled native calls, all sixteen

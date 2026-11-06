@@ -2,7 +2,11 @@
 
 ## Completed scopes — 6 November 2026
 
+- [Unassessed performance verdicts](PerformanceVerdictPresentation_2026-11-06.md) — accurate empty-admission summaries, preserved refusal reasons and deterministic counterfactual coverage; no performance acceptance.
+
 - [Markdown command ownership](CommandOwnership_2026-11-06.md) — task paragraphs, shared markers, paragraph exchanges and footnote escapes; six zero-warning builds and 66 ordinary x64 suite executions.
+
+- [Descendant timeout fixture](DescendantTimeoutFixture_2026-11-06.md) — explicit startup admission, exact live-holder identity and bounded drain/release counterfactuals; production limits unchanged.
 
 - [ARM64 fatal-origin verification and preflight retention](Arm64FatalUnwind_2026-11-06.md) — PAC-aware saved-context verification, original failure-image retention, 58 evidence fixtures, six builds and 66 x64 suite executions; native ARM64 execution remains separately owned.
 

@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-unassessed-performance-verdict",
+  "inputHash": "0CCC6FB9B31D54A701F077AEECA29EAAE896E6FF3DE9868F6F66D07649E0B245",
+  "benchmarkInputs": {
+    "Tools/BenchmarkGate.psm1": "0CCC6FB9B31D54A701F077AEECA29EAAE896E6FF3DE9868F6F66D07649E0B245",
+    "Tools/tests/Test-BenchmarkGate.ps1": "461107FDDA468A5358C9CAB9E5A17E49957A2064D141FC372855361AD45BBCA9",
+    "Tools/PerformanceComparison.psm1": "0A4C6728C3A96B7A27F0B87BADD657E2C986B53E8A8C32CB06009D923B4F63D1"
+  },
+  "claim": "Presentation-only policy-refusal correction; no performance acceptance",
+  "baselineModuleSha256": "3FB19284BC1CD7F84BDD27368F58748007DCFE6FD04CE1A8A2DC49925DD8F915",
+  "baselineTestLogSha256": "50ED037B392727F96F80EB7C1CC3A4CB3CC14B86ED30D405DA1317D727967C08",
+  "baselinePassed": 56,
+  "baselineTotal": 57,
+  "baselineExpectedFailure": "policy admission refusals never claim unassessed metrics did not regress",
+  "candidateTestLogSha256": "323B2DABCCA7BEC3B062CC5BFBB969C7DB1D81422139F078BDE7A125DEF95ED3",
+  "candidatePassed": 57,
+  "candidateTotal": 57,
+  "unchangedInferenceCasesPassed": 34,
+  "inferenceTestLogSha256": "D100E511426B12A6D73AF1D40825C2E4C783DDEA17C167984C41B5181D95EA76",
+  "actualPolicyRefusals": [
+    {
+      "mode": "historic",
+      "conclusion": "inconclusive",
+      "scenarios": 0,
+      "notes": [
+        "Policy review required: Historic reports are retained for reading but cannot pass migrated qualification."
+      ],
+      "message": "Not assessed: no metric verdicts were admitted."
+    },
+    {
+      "mode": "candidate-asserted",
+      "conclusion": "inconclusive",
+      "scenarios": 0,
+      "notes": [
+        "Policy review required: The measured base does not contain the versioned acceptance policy; the candidate cannot introduce its own trust anchor."
+      ],
+      "message": "Not assessed: no metric verdicts were admitted."
+    }
+  ],
+  "limits": [
+    "No measurement, policy trust, controls, native platform or consumer acceptance is established",
+    "All prior unstable controls and judge disagreements remain unresolved",
+    "Admitted metrics, threshold arithmetic and inference are unchanged"
+  ]
+}
