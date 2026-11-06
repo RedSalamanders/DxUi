@@ -6,6 +6,13 @@ suites in each x64 configuration, real ASan detection and original native/run ar
 original compiled inputs match source identity `c827c50d2a0ae5226c63fed01b81c09f76517156bf4a9f69dea49e3ce9ae66db`.
 ARM64 entries are cross-builds; this packet does not establish native ARM64 execution.
 
+The same cosmetic implementation now passes all seven hosted main Release jobs at `14386f36` in
+[run 42193587525](https://github.com/RedSalamanders/DxUi/actions/runs/42193587525).
+The [verified hosted packet](hosted-qualification.json) checks all fifteen original wrapper digests, canonical
+receipt members in both evidence copies, 23 native x64/21 native ARM64 suites and both assertion probes,
+and the inner production SDK ZIP hashes for version `0.1.1635`. It closes this source's Release platform
+gate; it does not qualify later clipboard changes, Debug/ASan ARM64, physical input/AT or paired performance.
+
 Source/code colours, line numbers and whitespace now use the existing optional visual preparation traversal.
 They never withhold otherwise usable content, cancel selection or make input wait. Source analysis can finish
 after literal Source text becomes ready. Embedded hosts keep `NeedsPreparation()` true while another optional

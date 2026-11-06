@@ -2,6 +2,8 @@
 
 ## Completed scopes — 6 November 2026
 
+- [Text-first clipboard preference](ClipboardPreference_2026-11-06.md) — SDK D4, explicit native/embedded image-first application policy, private format/ownership and source/history oracles, six builds and 57 suite executions.
+
 - [Independent editor cosmetic preparation](EditorCosmeticPreparation_2026-11-06.md) — D1, bounded viewport colours/guides, immutable source coordinates, coherent-frame continuation, native-tool exception admission, six builds and 57 suite executions.
 
 - [Markdown interruption and scan bounds](MarkdownScanBounds_2026-11-06.md) — MD-03/05/06/07, independent hostile-input work bounds, fourteen MSVC/41 NTFS tooling fixtures, six builds, 57 suite executions and retained original failures.
