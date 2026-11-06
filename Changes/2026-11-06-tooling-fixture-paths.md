@@ -1,1 +1,0 @@
-- Keep fake MSVC negative cases and run-evidence hard-link setup within Windows path bounds in long checkouts, using compact owned fixture names. Preserve unique run isolation, paths-with-spaces coverage and all independent long-Unicode, identity, stream and read-only assertions.
