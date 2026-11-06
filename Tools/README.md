@@ -13,6 +13,9 @@ The build-console checker also rejects structured nonzero child-tool exception
 dumps, even when MSBuild exits zero and writes a successful final footer. Its
 fixtures distinguish actual dump records from ordinary text mentioning a code.
 If evidence finalization fails during a runner exception, the runner reports the additional error and preserves the original exception; finalization failure alone is fatal.
+Native evidence also preserves the exact profile's fatal-child dumps, records and stdout/stderr after a failed
+preflight. Previous failures remain separate; current failures include verified executable/PDB copies. Fixed
+profile paths and pinned non-reparse ancestors prevent collection from following a redirected output directory.
 
 After successful suite and evidence completion, `test.ps1` clears an expected nested probe's stale native exit
 status. Callers still use fresh-process completion or immediate invocation success; failures remain errors.

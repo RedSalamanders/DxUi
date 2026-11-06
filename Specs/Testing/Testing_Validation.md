@@ -24,6 +24,23 @@ These remain runtime acceptance requirements for future changes; the evidence re
 executed for the qualified x64 library scope and their limits.
 Native ARM64 and consumer-owned crash integration retain their independent execution/acceptance obligations.
 
+Native ARM64 saved-context verification must use PAC-aware `StackWalk2` and its target-attribute callback.
+The live-target PAC-mask sentinel is permitted only for the original native child from the verifier's own
+machine, checked against the dump architecture and process id while retaining the original process handle.
+Never guess a virtual-address mask, strip return-address bits manually, scan raw stack words for the expected
+symbol, or replace unwinding with a nonzero-exit assertion. Resolve the newer DbgHelp entry point dynamically;
+an unavailable verifier is a failed qualification with an explicit diagnostic, not a product OS-version change.
+The exact module/PDB identity, original exception thread/context and named originating frame remain required.
+See the [StackWalk2 contract](https://learn.microsoft.com/en-us/windows/win32/api/dbghelp/nf-dbghelp-stackwalk2)
+and [target attributes](https://learn.microsoft.com/en-us/windows/win32/api/dbghelp/nc-dbghelp-pget_target_attribute_value64).
+
+Canonical native evidence retains a profile's `FailureEvidence` even when a filter/watchdog preflight aborts
+before the ordinary suite receipt. Preserve prior evidence separately at run start and current evidence on
+completion, including failed completion, using verified same-volume directory renames. Current dumps retain
+byte-verified copies of their actual linked test executables/PDBs; never pair older dumps with replacement
+binaries. Profile names are an exact allowlist, parent/file reparse points are refused, and no independently
+running native executable is terminated or replaced for collection.
+
 Native text-store fatal callback probes retain the child's activation blocker and use a null-HWND host with
 logical focus. They validate the cached target and edit through the real `RequestLock`/`SetText`/notification
 path, then require the original callback frame in the fatal dump. An attached HWND requires actual native focus;

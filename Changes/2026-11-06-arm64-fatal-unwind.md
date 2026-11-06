@@ -1,0 +1,1 @@
+- Verify native ARM64 fatal-child dumps with PAC-aware DbgHelp unwinding while retaining original-thread, context and exact-PDB checks. Preserve profile failure evidence and matching executable/PDB bytes even when native preflight fails before ordinary suites run.

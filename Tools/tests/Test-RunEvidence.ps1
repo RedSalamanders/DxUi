@@ -212,6 +212,54 @@ try {
     Assert-Evidence ([IO.File]::ReadAllText((Join-Path $run.Path 'native-artifacts/new.png:scenario')) -ceq 'original native scenario') 'Native capture stream changed in rename.'
 } finally { if (-not $run.Closed) { Complete-TestRunEvidence $run $false } }
 
+$failureRoot = New-Fixture 'native-failures'
+$profile = Join-Path $failureRoot '.build/ARM64/ASan Debug'
+$failureOutput = Join-Path $profile 'FailureEvidence'
+[void][IO.Directory]::CreateDirectory($failureOutput)
+[IO.File]::WriteAllText((Join-Path $failureOutput 'old.record'),'prior failure')
+[IO.File]::WriteAllText((Join-Path $profile 'DxUi.ControlTests.exe'),'actual fixture image')
+[IO.File]::WriteAllText((Join-Path $profile 'DxUi.ControlTests.pdb'),'actual fixture symbols')
+$run = Start-TestRunEvidence $failureRoot @{platform='ARM64';configuration='ASan Debug';scenario='failed-native-preflight'} -CaptureNativeArtifacts
+try {
+    Assert-Evidence ((Test-Path (Join-Path $run.Path 'previous-native-artifacts-failures/old.record')) -and
+        -not (Test-Path $failureOutput)) 'Earlier profile failure evidence was lost or reused as current evidence.'
+    [void][IO.Directory]::CreateDirectory($failureOutput)
+    [IO.File]::WriteAllText((Join-Path $failureOutput 'original.dmp'),'original dump bytes')
+    [IO.File]::WriteAllText((Join-Path $failureOutput 'original.dmp:scenario'),'original crash context')
+    Complete-TestRunEvidence $run $false
+    $completed = Get-Content (Join-Path $run.Directory 'completed.json') -Raw|ConvertFrom-Json
+    Assert-Evidence ($completed.outcome -ceq 'failed-or-interrupted') 'A failed native preflight became a successful run.'
+    $saved = Join-Path $run.Path 'native-artifacts-failures/original.dmp'
+    Assert-Evidence ([IO.File]::ReadAllText($saved) -ceq 'original dump bytes' -and
+        [IO.File]::ReadAllText($saved+':scenario') -ceq 'original crash context') 'Original dump bytes or named context stream changed.'
+    $images = Join-Path $run.Path 'native-artifacts-failures-images'
+    $bindings = Get-Content (Join-Path $images 'identity.json') -Raw|ConvertFrom-Json
+    Assert-Evidence ($bindings.files.Count -eq 2) 'Current executable and PDB union differs.'
+    foreach ($binding in $bindings.files) {
+        Assert-Evidence ((Get-FileHash (Join-Path $images $binding.file)).Hash -ceq (Get-FileHash (Join-Path $profile $binding.file)).Hash -and
+            $binding.sha256 -ceq (Get-FileHash (Join-Path $profile $binding.file)).Hash) 'Current failure image or PDB bytes differ.'
+    }
+    Assert-Evidence (-not (Test-Path (Join-Path $run.Path 'previous-native-artifacts-failures-images'))) 'Prior dumps were paired with replacement images.'
+} finally { if (-not $run.Closed) { Complete-TestRunEvidence $run $false } }
+Reject-Evidence { Start-TestRunEvidence $failureRoot @{platform='../outside';configuration='Debug'} -CaptureNativeArtifacts } 'An unowned native failure profile was accepted.'
+$run = Start-TestRunEvidence $failureRoot @{platform='ARM64';configuration='ASan Debug'} -CaptureNativeArtifacts
+$run.FailureDirectory = Join-Path $ScratchRoot 'unowned-profile'
+Reject-Evidence { Complete-TestRunEvidence $run $false } 'A mutated profile escaped the exact native output path.'
+$reparseRoot = New-Fixture 'failure-profile-reparse'
+$reparseTarget = New-Fixture 'owned-reparse-target'
+[void][IO.Directory]::CreateDirectory((Join-Path $reparseTarget 'FailureEvidence'))
+[IO.File]::WriteAllText((Join-Path $reparseTarget 'FailureEvidence/original.record'),'original reparse target')
+$platformRoot = Join-Path $reparseRoot '.build/ARM64'
+[void][IO.Directory]::CreateDirectory($platformRoot)
+$junction = Join-Path $platformRoot 'Debug'
+try {
+    [void](New-Item -ItemType Junction -Path $junction -Target $reparseTarget)
+    Reject-Evidence { Start-TestRunEvidence $reparseRoot @{platform='ARM64';configuration='Debug'} -CaptureNativeArtifacts } 'A native profile reparse point was followed.'
+    Assert-Evidence ([IO.File]::ReadAllText((Join-Path $reparseTarget 'FailureEvidence/original.record')) -ceq 'original reparse target') 'Reparse refusal changed its target evidence.'
+} finally {
+    if (Test-Path -LiteralPath $junction) { [IO.Directory]::Delete($junction) }
+}
+
 # FindFirstFile metadata can be stale on a busy NTFS host. Keep the stale provider objects and reverse
 # their enumeration, while the actual files have newer metadata. A safe rename must still verify exactly.
 $cachedRoot = New-Fixture 'cached-native-metadata'

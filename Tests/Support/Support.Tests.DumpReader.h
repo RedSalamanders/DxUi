@@ -4,6 +4,7 @@
 #endif
 #include <DbgHelp.h>
 #include <array>
+#include <bit>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
@@ -197,6 +198,20 @@ private:
     std::vector<Image> images_;
 };
 inline thread_local const View* activeView{};
+#if defined(_M_ARM64)
+inline thread_local HANDLE activeNativeTarget{};
+inline thread_local unsigned pointerAuthenticationQueries{};
+inline BOOL CALLBACK TargetAttribute(HANDLE process, DWORD attribute, DWORD64, DWORD64* value) noexcept
+{
+    if (! activeView || ! activeNativeTarget || process != activeNativeTarget || attribute != TARGET_ATTRIBUTE_PACMASK || ! value)
+        return FALSE;
+    // Verify admits only the original native child from this machine. Ask the
+    // OS for its PAC mask; never guess address bits or strip a signed LR by hand.
+    *value = TARGET_ATTRIBUTE_PACMASK_LIVETARGET;
+    ++pointerAuthenticationQueries;
+    return TRUE;
+}
+#endif
 inline BOOL CALLBACK ReadMemory(HANDLE, DWORD64 address, PVOID output, DWORD bytes, LPDWORD read) noexcept
 {
     const auto success = activeView && (activeView->Read(address, output, bytes) || activeView->ReadImage(address, output, bytes));
@@ -279,7 +294,25 @@ inline bool Verify(
     constexpr DWORD requiredContext = CONTEXT_CONTROL | CONTEXT_INTEGER;
     if ((context.ContextFlags & requiredContext) != requiredContext)
         return false;
+#if defined(_M_ARM64)
+    const auto* system = dump.Stream<MINIDUMP_SYSTEM_INFO>(SystemInfoStream, bytes);
+    const auto* misc   = dump.Stream<MINIDUMP_MISC_INFO>(MiscInfoStream, bytes);
+    const DWORD child  = GetProcessId(symbolKey);
+    if (! system || system->ProcessorArchitecture != PROCESSOR_ARCHITECTURE_ARM64 || ! misc || ! (misc->Flags1 & MINIDUMP_MISC1_PROCESS_ID) || ! child ||
+        misc->ProcessId != child)
+        return false;
+    const auto dbgHelp = GetModuleHandleW(L"dbghelp.dll"); // Borrow the imported module for this synchronous walk.
+    const auto walk    = dbgHelp ? std::bit_cast<decltype(&StackWalk2)>(GetProcAddress(dbgHelp, "StackWalk2")) : nullptr;
+    if (! walk)
+    {
+        std::fputs("Native ARM64 dump verification requires PAC-aware DbgHelp StackWalk2.\n", stderr);
+        return false;
+    }
+    STACKFRAME_EX frame{};
+    frame.StackFrameSize = sizeof(frame);
+#else
     STACKFRAME64 frame{};
+#endif
     DWORD machine{};
 #if defined(_M_X64)
     machine                = IMAGE_FILE_MACHINE_AMD64;
@@ -306,7 +339,17 @@ inline bool Verify(
     const auto slash   = expectedModule.find_last_of(L"\\/");
     const auto search  = slash == std::wstring::npos ? std::wstring{} : expectedModule.substr(0, slash);
     activeView         = &dump;
-    const auto clear   = wil::scope_exit([] { activeView = nullptr; });
+#if defined(_M_ARM64)
+    activeNativeTarget           = symbolKey;
+    pointerAuthenticationQueries = 0u;
+#endif
+    const auto clear = wil::scope_exit([]
+    {
+        activeView = nullptr;
+#if defined(_M_ARM64)
+        activeNativeTarget = nullptr;
+#endif
+    });
     if (! SymInitializeW(symbolKey, search.c_str(), FALSE))
         return false;
     const auto cleanup = wil::scope_exit([&] { SymCleanup(symbolKey); });
@@ -373,13 +416,26 @@ inline bool Verify(
             {
                 IMAGEHLP_MODULEW64 details{};
                 details.SizeOfStruct = sizeof(details);
+#if defined(_M_ARM64)
+                std::fprintf(stderr,
+                             "Native ARM64 saved-context StackWalk2 origin=%.*s PAC-queries=%u\n",
+                             static_cast<int>(expectedOrigin.size()),
+                             expectedOrigin.data(),
+                             pointerAuthenticationQueries);
+#endif
                 return SymGetModuleInfoW64(symbolKey, targetBase, &details) && details.SymType == SymPdb && ! details.PdbUnmatched &&
                        details.LoadedPdbName[0] && ! std::memcmp(&targetSignature, &details.PdbSig70, sizeof(targetSignature)) && targetAge == details.PdbAge;
             }
         }
         const auto pc = frame.AddrPC.Offset, sp = frame.AddrStack.Offset;
-        if (! StackWalk64(machine, symbolKey, threadKey, &frame, &context, ReadMemory, FunctionTable, ModuleBase, nullptr) || ! frame.AddrPC.Offset ||
-            (step != 0u && frame.AddrPC.Offset == pc && frame.AddrStack.Offset == sp))
+#if defined(_M_ARM64)
+        const bool advanced =
+            walk(machine, symbolKey, threadKey, &frame, &context, ReadMemory, FunctionTable, ModuleBase, nullptr, TargetAttribute, SYM_STKWALK_DEFAULT) !=
+            FALSE;
+#else
+        const bool advanced = StackWalk64(machine, symbolKey, threadKey, &frame, &context, ReadMemory, FunctionTable, ModuleBase, nullptr) != FALSE;
+#endif
+        if (! advanced || ! frame.AddrPC.Offset || (step != 0u && frame.AddrPC.Offset == pc && frame.AddrStack.Offset == sp))
             break;
     }
     std::fprintf(stderr,
