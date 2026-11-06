@@ -1,0 +1,12 @@
+{
+  "allNativeCodeHeadersAndProjectsUnchanged": true,
+  "nativeImplementation": "efef569e839c640415f142bc860607b38e3ef138",
+  "separateToolingMerge": "6cf8f8fad23e0671e88d239131ac4d97524c69c5",
+  "limit": "The frozen native source identity is retained; the integrated tooling has its own exact-head compiler-free validation",
+  "integratedAtCommit": "e463cb90f59461e819a339a4dd415da1bb5f3aa3",
+  "changedOriginalInputs": [
+    "Tools/BenchmarkGate.psm1",
+    "Tools/tests/Test-BenchmarkGate.ps1",
+    "Tools/tests/Test-PerformanceProfiling.ps1"
+  ]
+}
