@@ -25,32 +25,13 @@ static void TestRichSnapshotSliceAllocationFailureAtomicity(bool trace = false)
         Check(slice == expected, "snapshot slice matches the independent long Unicode boundary oracle");
     }
     Check(requests > 0u && requests < 16u, "snapshot slice has a finite observed allocation schedule");
-    for (size_t failure = 0u; failure < requests; ++failure)
-    {
-        if (trace)
-        {
-            std::fprintf(stderr, "rich snapshot slice failure-point=%zu\n", failure);
-            std::fflush(stderr);
-        }
-        bool rejected = false;
-        {
-            const auto previous = failAllocationAfter;
-            const auto restore  = wil::scope_exit([=] noexcept { failAllocationAfter = previous; });
-            failAllocationAfter = failure;
-            try
-            {
-                static_cast<void>(snapshot.Slice(1u, 1025u));
-            }
-            catch (const std::bad_alloc&)
-            {
-                rejected = true;
-            }
-        }
-        Check(rejected && snapshot.Text() == original && document.Text() == original && document.Revision() == revision && ! document.CanUndo() &&
-                  ! document.CanRedo(),
-              "slice allocation failure propagates without terminating or mutating source/history");
-    }
-    std::cout << "rich snapshot slice allocation-failure sweptRequests=" << requests << '\n';
+    std::wstring output = L"unchanged";
+    Check(snapshot.TrySlice(0u, 1026u, output) == SourceResult::InvalidRange && output == L"unchanged" && snapshot.Text() == original &&
+              document.Text() == original && document.Revision() == revision && ! document.CanUndo() && ! document.CanRedo(),
+          "invalid slice preserves output and source/history");
+    if (trace)
+        std::fprintf(stderr, "snapshot slice measured %zu allocations; fatal allocations use isolated children\n", requests);
+    std::cout << "rich snapshot slice measuredRequests=" << requests << '\n';
 }
 
 static void TestRichProjectionMappingAndUnchangedAllocationBudget()
@@ -123,44 +104,20 @@ static void TestRichProjectionPreparationAllocationFailureAtomicity(bool trace =
         requests         = allocations;
     }
     Check(requests > 0u && requests < 256u, "changed projection has a finite observed allocation schedule");
-    for (size_t failure = 0u; failure < requests; ++failure)
-    {
-        if (trace)
-        {
-            std::fprintf(stderr, "rich projection failure-point=%zu\n", failure);
-            std::fflush(stderr);
-        }
-        PreparedProjection candidate;
-        candidate.Prepare(previous, previousRevision, ViewMode::Rich);
-        const auto text   = candidate.DisplayText();
-        const auto blocks = candidate.Blocks();
-        const auto stats  = candidate.LastPreparation();
-        bool rejected     = false;
-        {
-            const auto oldFailure = failAllocationAfter;
-            const auto restore    = wil::scope_exit([=] noexcept { failAllocationAfter = oldFailure; });
-            failAllocationAfter   = failure;
-            try
-            {
-                candidate.Prepare(document.Snapshot(), document.Revision(), ViewMode::Rich);
-            }
-            catch (const std::bad_alloc&)
-            {
-                rejected = true;
-            }
-        }
-        Check(rejected && candidate.Ready() && candidate.Revision() == previousRevision && candidate.DisplayText() == text &&
-                  candidate.SourceLength() == seed.size() && candidate.Blocks().size() == blocks.size() &&
-                  candidate.LastPreparation().rebuiltBlocks == stats.rebuiltBlocks && candidate.LastPreparation().reusedBlocks == stats.reusedBlocks &&
-                  candidate.LastPreparation().rebuiltSourceUnits == stats.rebuiltSourceUnits,
-              "failed preparation preserves the complete published projection and its identity");
-        for (size_t index = 0u; index < blocks.size(); ++index)
-            Check(candidate.Blocks()[index].content == blocks[index].content, "failed preparation retains every original immutable block identity");
-        candidate.Prepare(document.Snapshot(), document.Revision(), ViewMode::Rich);
-        Check(candidate.DisplayText() == Project(document.Snapshot(), document.Revision(), ViewMode::Rich).text,
-              "normal preparation recovers after every injected allocation failure");
-    }
-    std::cout << "rich projection allocation-failure sweptRequests=" << requests << '\n';
+    PreparedProjection candidate;
+    candidate.Prepare(previous, previousRevision, ViewMode::Rich);
+    const auto text   = candidate.DisplayText();
+    const auto blocks = candidate.Blocks();
+    Check(candidate.TryPrepare(document.Snapshot(), document.Revision(), static_cast<ViewMode>(99)) == SourceResult::InvalidSource && candidate.Ready() &&
+              candidate.Revision() == previousRevision && candidate.DisplayText() == text && candidate.Blocks().size() == blocks.size(),
+          "invalid preparation preserves its previous projection");
+    for (size_t index = 0u; index < blocks.size(); ++index)
+        Check(candidate.Blocks()[index].content == blocks[index].content, "refusal retains immutable block identities");
+    candidate.Prepare(document.Snapshot(), document.Revision(), ViewMode::Rich);
+    Check(candidate.DisplayText() == Project(document.Snapshot(), document.Revision(), ViewMode::Rich).text, "valid preparation publishes exact projection");
+    if (trace)
+        std::fprintf(stderr, "projection measured %zu allocations; fatal allocations use isolated children\n", requests);
+    std::cout << "rich projection measuredRequests=" << requests << '\n';
 }
 
 static void TestRichProjectionRetainedStorageBudget()
@@ -287,31 +244,11 @@ static void TestRichFlatProjectionFailureAtomicity(bool trace = false)
         Check(RichProjectionValuesEqual(observed, expected), "measured flat projection preserves all owned fields");
     }
     Check(requests > 0u && requests < 4096u, "flat projection has a finite observed C++ allocation schedule");
-    for (size_t failure = 0u; failure < requests; ++failure)
-    {
-        if (trace)
-        {
-            std::fprintf(stderr, "rich flat projection failure-point=%zu\n", failure);
-            std::fflush(stderr);
-        }
-        bool rejected = false, unexpectedlyCompleted = false;
-        {
-            const auto oldFailure = failAllocationAfter;
-            const auto restore    = wil::scope_exit([=] noexcept { failAllocationAfter = oldFailure; });
-            failAllocationAfter   = failure;
-            try
-            {
-                const auto observed   = Project(snapshot, revision, ViewMode::Rich);
-                unexpectedlyCompleted = RichProjectionValuesEqual(observed, expected);
-            }
-            catch (const std::bad_alloc&)
-            {
-                rejected = true;
-            }
-        }
-        Check(rejected && ! unexpectedlyCompleted && document.Revision() == revision && snapshot.Text() == seed && document.Text() == seed,
-              "flat projection allocation failure preserves its immutable source and document");
-        Check(RichProjectionValuesEqual(Project(snapshot, revision, ViewMode::Rich), expected), "flat projection retry reproduces the complete owned value");
-    }
-    std::cout << "rich flat projection allocation-failure sweptRequests=" << requests << '\n';
+    auto output = expected;
+    Check(TryProject(snapshot, revision, static_cast<ViewMode>(99), output) == SourceResult::InvalidSource && RichProjectionValuesEqual(output, expected) &&
+              document.Revision() == revision && snapshot.Text() == seed && document.Text() == seed,
+          "invalid flat projection preserves output and source");
+    if (trace)
+        std::fprintf(stderr, "flat projection measured %zu allocations; fatal allocations use isolated children\n", requests);
+    std::cout << "rich flat projection measuredRequests=" << requests << '\n';
 }

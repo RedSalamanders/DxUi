@@ -1,5 +1,6 @@
 #pragma once
 #include "Support/Diagnostics.h"
+#include <DxUi/Failure.h>
 #include <filesystem>
 #include <fstream>
 #include <stdexcept>
@@ -44,6 +45,10 @@ inline void Emit(const DxUi::Diagnostics::PerformanceRecord& r) noexcept
         output << ",\"durationUs\":" << r.durationUs << ",\"value0\":" << r.value0 << ",\"value1\":" << r.value1 << ",\"result\":" << r.result
                << ",\"value\":" << (r.durationUs ? r.durationUs : r.value0) << "}\n";
         output.flush();
+    }
+    catch (const std::bad_alloc&)
+    {
+        DxUi::Failure::FailAllocation();
     }
     catch (const std::exception&)
     {

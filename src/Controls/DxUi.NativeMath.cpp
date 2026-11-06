@@ -2,6 +2,7 @@
 #include "DxUi.NativeMathDimension.h"
 #include "DxUi.NativeMathSymbols.h"
 #include <DxUi/Configuration.h>
+#include <DxUi/Failure.h>
 #include <DxUi/RichDocument.h>
 #include <DxUi/RichMath.h>
 #include <algorithm>
@@ -9,7 +10,6 @@
 #include <cstdint>
 #include <cwctype>
 #include <optional>
-#include <stdexcept>
 
 namespace DxUi::RichText
 {
@@ -21,14 +21,18 @@ thread_local std::uintptr_t testRichMathLowestStackAddress{};
 #endif
 namespace
 {
-struct MathParseFailure
-{
-    MathIssue issue;
-};
 class Parser
 {
     std::wstring_view source;
     std::size_t at{}, nodes{};
+    MathIssue issue_{MathIssue::None};
+    struct Rejection
+    {
+        template <typename T> operator T() const
+        {
+            return T{};
+        }
+    };
     std::vector<unsigned> matrixRowWidths;
     struct RowGap
     {
@@ -105,9 +109,11 @@ class Parser
                 break;
         }
     }
-    [[noreturn]] static void Reject(MathIssue issue = MathIssue::UnsupportedOrMalformed)
+    Rejection Reject(MathIssue issue = MathIssue::UnsupportedOrMalformed) noexcept
     {
-        throw MathParseFailure{issue};
+        if (issue_ == MathIssue::None)
+            issue_ = issue;
+        return {};
     }
     static MathAtomClass Classify(std::wstring_view value) noexcept
     {
@@ -130,11 +136,13 @@ class Parser
                   std::vector<MathNode>&& children = std::vector<MathNode>(0u),
                   unsigned columns                 = 0)
     {
+        if (issue_ != MathIssue::None)
+            return {};
 #if DXUI_ENABLE_DIAGNOSTICS
         ObserveStack();
 #endif
         if (++nodes > MathMaximumNodes)
-            Reject(MathIssue::Capacity);
+            return Reject(MathIssue::Capacity);
         MathNode result{kind, std::move(text), std::move(children), columns};
         if (kind == MathKind::Text)
         {
@@ -241,28 +249,30 @@ class Parser
         if (grouped)
             ++at;
         if (at == source.size() || source[at] == L'{' || source[at] == L'}' || source[at] == L'\\' || iswspace(source[at]))
-            Reject(MathIssue::MissingRequiredArgument);
+            return Reject(MathIssue::MissingRequiredArgument);
         const wchar_t first = source[at++];
         text.push_back(first);
         if (first >= 0xd800u && first <= 0xdbffu)
         {
             if (at == source.size() || source[at] < 0xdc00u || source[at] > 0xdfffu)
-                Reject(MathIssue::InvalidSource);
+                return Reject(MathIssue::InvalidSource);
             text.push_back(source[at++]);
         }
         if (grouped && (at == source.size() || source[at++] != L'}'))
-            Reject(MathIssue::UnsupportedCommand);
+            return Reject(MathIssue::UnsupportedCommand);
         text.push_back(mark);
         return true;
     }
     std::wstring GroupText(bool textMode = false, bool rejectMathDelimiters = false)
     {
+        if (issue_ != MathIssue::None)
+            return {};
 #if DXUI_ENABLE_DIAGNOSTICS
         ObserveStack();
 #endif
         Space();
         if (at == source.size() || source[at++] != L'{')
-            Reject();
+            return Reject();
         std::wstring value(0u, L' ');
         unsigned depth = 1;
         while (at < source.size())
@@ -270,16 +280,21 @@ class Parser
             auto c = source[at++];
             if (c == L'\\')
             {
-                if (textMode && AppendTextAccent(value))
-                    continue;
+                if (textMode)
+                {
+                    if (AppendTextAccent(value))
+                        continue;
+                    if (issue_ != MathIssue::None)
+                        return {};
+                }
                 if (at == source.size() || std::wstring_view(L"{}%_$&#\\ ").find(source[at]) == source.npos)
-                    Reject();
+                    return Reject();
                 value += source[at++];
             }
             else if (c == L'{')
             {
                 if (++depth > MathMaximumGroupDepth)
-                    Reject(MathIssue::Capacity);
+                    return Reject(MathIssue::Capacity);
                 if (! textMode)
                     value += c;
             }
@@ -296,7 +311,7 @@ class Parser
                     ++at;
             }
             else if (rejectMathDelimiters && c == L'$')
-                Reject();
+                return Reject();
             else if (textMode && iswspace(c))
             {
                 // TeX source line endings/tabs are text-mode spaces, never
@@ -307,7 +322,7 @@ class Parser
             else
                 value += c;
         }
-        Reject();
+        return Reject();
     }
     static bool StarredMatrix(std::wstring_view environment) noexcept
     {
@@ -324,11 +339,11 @@ class Parser
         ++at;
         Space();
         if (at == source.size() || (source[at] != L'l' && source[at] != L'c' && source[at] != L'r'))
-            Reject(MathIssue::UnsupportedCommand);
+            return Reject(MathIssue::UnsupportedCommand);
         const auto alignment = source[at++];
         Space();
         if (at == source.size() || source[at++] != L']')
-            Reject(MathIssue::UnsupportedCommand);
+            return Reject(MathIssue::UnsupportedCommand);
         return alignment;
     }
     std::wstring ArraySpecification()
@@ -341,19 +356,21 @@ class Parser
             if (ch == L'|' || ch == L':')
             {
                 if (rules.back() != L'.')
-                    Reject(MathIssue::UnsupportedCommand);
+                    return Reject(MathIssue::UnsupportedCommand);
                 rules.back() = ch;
                 continue;
             }
             if (ch != L'l' && ch != L'c' && ch != L'r')
-                Reject(MathIssue::UnsupportedCommand);
+                return Reject(MathIssue::UnsupportedCommand);
             if (columns.size() == MathMaximumColumns)
-                Reject(MathIssue::Capacity);
+                return Reject(MathIssue::Capacity);
             columns.push_back(ch);
             rules.push_back(L'.');
         }
+        if (issue_ != MathIssue::None)
+            return {};
         if (columns.empty())
-            Reject(MathIssue::MissingRequiredArgument);
+            return Reject(MathIssue::MissingRequiredArgument);
         if (rules.find_first_of(L"|:") != std::wstring::npos)
         {
             columns.push_back(L':');
@@ -370,7 +387,7 @@ class Parser
         if (! solid && ! dashed)
             return false;
         if ((row & 0x300u) != 0u)
-            Reject(MathIssue::UnsupportedCommand);
+            return Reject(MathIssue::UnsupportedCommand);
         row |= solid ? 0x100u : 0x200u;
         at += solid ? 6u : 10u;
         return true;
@@ -381,12 +398,18 @@ class Parser
         if (at == source.size() || source[at] != L'[')
             return;
         if (separatorLength != 2u)
+        {
             Reject(MathIssue::UnsupportedCommand);
+            return;
+        }
         const auto first = ++at;
         while (at < source.size() && source[at] != L']')
             ++at;
         if (at == source.size() || ! Detail::ParseMathDimension(source.substr(first, at - first)))
+        {
             Reject(MathIssue::UnsupportedCommand);
+            return;
+        }
         if (! matrixRowGaps)
             matrixRowGaps.emplace((MathMaximumGroupDepth + 1u) * MathMaximumRows);
         (*matrixRowGaps)[static_cast<std::size_t>(depth) * MathMaximumRows + row] = {first, at - first};
@@ -440,48 +463,72 @@ class Parser
                                           L"gather",   L"gather*",   L"equation", L"equation*", L"array",    L"darray",   L"subarray",    L"alignat",
                                           L"alignat*", L"alignedat", L"matrix*",  L"pmatrix*",  L"bmatrix*", L"Bmatrix*", L"vmatrix*",    L"Vmatrix*"};
         if (std::ranges::find(names, environment) == names.end())
+        {
             Reject(MathIssue::UnsupportedEnvironment);
+            return;
+        }
         header.matrixAlignment = MatrixAlignment(environment);
-        auto& columnSpec       = header.columnSpec;
-        auto& declaredColumns  = header.declaredColumns;
+        if (issue_ != MathIssue::None)
+            return;
+        auto& columnSpec      = header.columnSpec;
+        auto& declaredColumns = header.declaredColumns;
         if (IsArrayEnvironment(environment))
         {
             columnSpec.assign(ArraySpecification());
+            if (issue_ != MathIssue::None)
+                return;
             const auto separator = columnSpec.find(L':');
             declaredColumns      = static_cast<unsigned>(separator == std::wstring::npos ? columnSpec.size() : separator);
         }
         else if (environment == L"subarray")
         {
             const auto alignment = GroupText();
+            if (issue_ != MathIssue::None)
+                return;
             if (alignment != L"l" && alignment != L"c")
+            {
                 Reject(MathIssue::UnsupportedCommand);
+                return;
+            }
             columnSpec      = alignment;
             declaredColumns = 1u;
         }
         else if (IsAlignatEnvironment(environment))
         {
             const auto argument = GroupText();
+            if (issue_ != MathIssue::None)
+                return;
             unsigned pairs{};
             for (const auto ch : argument)
             {
                 if (iswspace(ch))
                     continue;
                 if (ch < L'0' || ch > L'9' || pairs > MathMaximumColumns / 2u)
+                {
                     Reject(MathIssue::UnsupportedCommand);
+                    return;
+                }
                 pairs = pairs * 10u + static_cast<unsigned>(ch - L'0');
             }
             if (! pairs || pairs > MathMaximumColumns / 2u)
+            {
                 Reject(MathIssue::Capacity);
+                return;
+            }
             declaredColumns = 2u * pairs;
         }
     }
     bool ConsumeEnvironmentEnd(std::wstring_view environment)
     {
+        if (issue_ != MathIssue::None)
+            return false;
         if (source.substr(at, 5u) != L"\\end{")
             return false;
         at += 4u;
         if (GroupText() != environment)
-            Reject(MathIssue::MismatchedEnvironment);
+            return Reject(MathIssue::MismatchedEnvironment);
+        if (issue_ != MathIssue::None)
+            return false;
         return true;
     }
     void WrapRowTags(std::vector<MathNode>& cells, unsigned columns, RowTagContext& rowTags)
@@ -492,8 +539,13 @@ class Parser
         {
             const auto index = static_cast<std::size_t>(entry.row) * columns;
             if (index >= cells.size())
+            {
                 Reject(MathIssue::Capacity);
+                return;
+            }
             cells[index] = Make(MathKind::Style, L"rowtag", {std::move(cells[index]), std::move(entry.label)});
+            if (issue_ != MathIssue::None)
+                return;
         }
     }
     MathNode Matrix(std::wstring environment, unsigned depth)
@@ -511,6 +563,8 @@ class Parser
         RowTagScope tagScope(*this, rowTags);
         MatrixHeader header;
         InitializeMatrix(environment, header);
+        if (issue_ != MathIssue::None)
+            return {};
         const auto matrixAlignment = header.matrixAlignment;
         auto& columnSpec           = header.columnSpec;
         const auto declaredColumns = header.declaredColumns;
@@ -530,7 +584,7 @@ class Parser
                 columns = std::max(columns, rowColumns);
             }
             if (declaredColumns && columns > declaredColumns)
-                Reject(MathIssue::Capacity);
+                return Reject(MathIssue::Capacity);
             if (declaredColumns)
                 columns = declaredColumns;
             const bool gathered = environment == L"gathered" || environment == L"gather" || environment == L"gather*" || environment == L"equation" ||
@@ -538,9 +592,9 @@ class Parser
             const bool equation = environment == L"equation" || environment == L"equation*";
             if ((gathered && columns != 1u) || (equation && rows != 1u) ||
                 ((environment == L"cases" || environment == L"rcases" || environment == L"dcases" || environment == L"drcases") && columns > 2u))
-                Reject();
+                return Reject();
             if (static_cast<std::size_t>(rows) * columns > MathMaximumMatrixCells)
-                Reject(MathIssue::Capacity);
+                return Reject(MathIssue::Capacity);
             if (StarredMatrix(environment))
             {
                 environment.pop_back();
@@ -578,6 +632,8 @@ class Parser
             {
                 if (rowTags)
                     WrapRowTags(cells, columns, *rowTags);
+                if (issue_ != MathIssue::None)
+                    return {};
                 return Make(MathKind::Matrix, std::move(environment), std::move(cells), columns);
             }
             std::vector<MathNode> rectangular(0u);
@@ -588,55 +644,75 @@ class Parser
                 for (unsigned column = 0u; column < (rowWidths[row] & 0xffu); ++column)
                     rectangular.push_back(std::move(cells[index++]));
                 for (unsigned column = rowWidths[row] & 0xffu; column < columns; ++column)
+                {
                     rectangular.push_back(Make(MathKind::Row));
+                    if (issue_ != MathIssue::None)
+                        return {};
+                }
             }
             if (rowTags)
                 WrapRowTags(rectangular, columns, *rowTags);
+            if (issue_ != MathIssue::None)
+                return {};
             return Make(MathKind::Matrix, std::move(environment), std::move(rectangular), columns);
         };
         while (at < source.size())
         {
+            if (issue_ != MathIssue::None)
+                return {};
             Space();
             if ((IsArrayEnvironment(environment)) && ! rowColumns && ConsumeArrayRule(rowWidths[rows]))
                 continue;
+            if (issue_ != MathIssue::None)
+                return {};
             if (! rowColumns && ! cells.empty() && ConsumeEnvironmentEnd(environment))
                 return finish();
+            if (issue_ != MathIssue::None)
+                return {};
             if (! rowColumns && ++rows > MathMaximumRows)
-                Reject(MathIssue::Capacity);
+                return Reject(MathIssue::Capacity);
             if (rowColumns == MathMaximumColumns || cells.size() == MathMaximumMatrixCells)
-                Reject(MathIssue::Capacity);
+                return Reject(MathIssue::Capacity);
             if (rowTags)
                 rowTags->row = rows - 1u;
             cells.push_back(Row(depth + 1, false, true));
+            if (issue_ != MathIssue::None)
+                return {};
             ++rowColumns;
             if (ConsumeEnvironmentEnd(environment))
                 return finish();
+            if (issue_ != MathIssue::None)
+                return {};
             if (at < source.size() && source[at] == L'&')
             {
                 ++at;
                 continue;
             }
             if (! RowSeparatorLength())
-                Reject();
+                return Reject();
             const auto separatorLength = RowSeparatorLength();
             at += separatorLength;
             ConsumeRowSpacing(depth, rows - 1u, separatorLength);
+            if (issue_ != MathIssue::None)
+                return {};
             rowWidths[rows - 1u] |= rowColumns;
             columns    = std::max(columns, rowColumns);
             rowColumns = 0;
         }
-        Reject();
+        return Reject();
     }
     wchar_t Delimiter()
     {
+        if (issue_ != MathIssue::None)
+            return {};
         Space();
         if (at == source.size())
-            Reject();
+            return Reject();
         if (source[at] == L'\\')
         {
             ++at;
             if (at == source.size())
-                Reject();
+                return Reject();
             if (source[at] == L'|')
             {
                 ++at;
@@ -694,11 +770,11 @@ class Parser
                 return L'⇓';
             if (name == L"Updownarrow")
                 return L'⇕';
-            Reject();
+            return Reject();
         }
         const auto value = source[at++];
         if (std::wstring_view(L"()[]{}|.⌊⌋⌈⌉⟨⟩‖/<>↑↓↕⇑⇓⇕").find(value) == source.npos)
-            Reject();
+            return Reject();
         return value;
     }
     // Keep recursive parser frames small in unoptimized MSVC builds. Literal
@@ -710,13 +786,21 @@ class Parser
 #endif
         Space();
         auto lower = Make(MathKind::Row);
+        if (issue_ != MathIssue::None)
+            return {};
         if (at < source.size() && source[at] == L'[')
         {
             ++at;
             lower = Row(depth + 1u, false, false, false, true);
+            if (issue_ != MathIssue::None)
+                return {};
         }
-        auto upper      = Atom(depth + 1u);
-        auto arrow      = Make(MathKind::Accent, std::wstring(name), {std::move(upper), std::move(lower)});
+        auto upper = Atom(depth + 1u);
+        if (issue_ != MathIssue::None)
+            return {};
+        auto arrow = Make(MathKind::Accent, std::wstring(name), {std::move(upper), std::move(lower)});
+        if (issue_ != MathIssue::None)
+            return {};
         arrow.atomClass = MathAtomClass::Relation;
         return arrow;
     }
@@ -732,32 +816,54 @@ class Parser
 #if DXUI_ENABLE_DIAGNOSTICS
         ObserveStack();
 #endif
-        const auto left      = GeneralFractionDelimiter();
-        const auto right     = GeneralFractionDelimiter();
-        const auto rule      = GroupText();
-        const auto style     = GroupText();
-        const auto delimiter = [](std::wstring_view value) -> wchar_t
+        const auto left = GeneralFractionDelimiter();
+        if (issue_ != MathIssue::None)
+            return {};
+        const auto right = GeneralFractionDelimiter();
+        if (issue_ != MathIssue::None)
+            return {};
+        const auto rule = GroupText();
+        if (issue_ != MathIssue::None)
+            return {};
+        const auto style = GroupText();
+        if (issue_ != MathIssue::None)
+            return {};
+        const auto delimiter = [this](std::wstring_view value) -> wchar_t
         {
             if (value.empty() || value == L".")
                 return L'.';
             if (value.size() != 1u || std::wstring_view(L"()[]{}|⟨⟩‖⌊⌋⌈⌉/<>\\↑↓↕⇑⇓⇕").find(value[0u]) == std::wstring_view::npos)
-                Reject(MathIssue::UnsupportedCommand);
+                return Reject(MathIssue::UnsupportedCommand);
             return value[0u];
         };
         if (! rule.empty() && ! Detail::ParseMathDimension(rule))
-            Reject(MathIssue::UnsupportedCommand);
+            return Reject(MathIssue::UnsupportedCommand);
         if (! style.empty() && style != L"0" && style != L"1" && style != L"2" && style != L"3")
-            Reject(MathIssue::UnsupportedCommand);
+            return Reject(MathIssue::UnsupportedCommand);
         const auto leftGlyph = delimiter(left), rightGlyph = delimiter(right);
-        auto numerator   = Atom(depth + 1u);
+        if (issue_ != MathIssue::None)
+            return {};
+        auto numerator = Atom(depth + 1u);
+        if (issue_ != MathIssue::None)
+            return {};
         auto denominator = Atom(depth + 1u);
-        auto fraction    = Make(MathKind::Fraction, rule.empty() ? std::wstring(L"frac") : L"rule:" + rule, {std::move(numerator), std::move(denominator)});
+        if (issue_ != MathIssue::None)
+            return {};
+        auto fraction = Make(MathKind::Fraction, rule.empty() ? std::wstring(L"frac") : L"rule:" + rule, {std::move(numerator), std::move(denominator)});
+        if (issue_ != MathIssue::None)
+            return {};
         if (leftGlyph != L'.' || rightGlyph != L'.')
+        {
             fraction = Make(MathKind::Delimited, std::wstring{leftGlyph, rightGlyph}, {std::move(fraction)});
+            if (issue_ != MathIssue::None)
+                return {};
+        }
         if (! style.empty())
         {
             const auto name = style == L"0" ? L"displaystyle" : style == L"1" ? L"textstyle" : style == L"2" ? L"scriptstyle" : L"scriptscriptstyle";
             fraction        = Make(MathKind::Style, name, {std::move(fraction)});
+            if (issue_ != MathIssue::None)
+                return {};
         }
         return fraction;
     }
@@ -768,20 +874,24 @@ class Parser
 #endif
         Space();
         if (at == source.size() || source[at++] != L'{')
-            Reject(MathIssue::MissingRequiredArgument);
+            return Reject(MathIssue::MissingRequiredArgument);
         if (matrixRowGaps)
             std::fill_n(matrixRowGaps->data() + static_cast<std::size_t>(depth) * MathMaximumRows, MathMaximumRows, RowGap{});
         std::vector<MathNode> rows(0u);
         while (true)
         {
             if (rows.size() == MathMaximumRows)
-                Reject(MathIssue::Capacity);
+                return Reject(MathIssue::Capacity);
             rows.push_back(Row(depth + 1u, false, true, false, false, true));
+            if (issue_ != MathIssue::None)
+                return {};
             if (RowSeparatorLength())
             {
                 const auto separatorLength = RowSeparatorLength();
                 at += separatorLength;
                 ConsumeRowSpacing(depth, rows.size() - 1u, separatorLength);
+                if (issue_ != MathIssue::None)
+                    return {};
                 Space();
                 if (at < source.size() && source[at] == L'}')
                 {
@@ -795,7 +905,7 @@ class Parser
                 ++at;
                 break;
             }
-            Reject();
+            return Reject();
         }
         // TeX substack is a centered script-style subarray. Keep it distinct
         // from gathered, whose cells use display style even in inline math.
@@ -853,6 +963,8 @@ class Parser
         ObserveStack();
 #endif
         auto result = Make(MathKind::Accent, std::wstring(name), {Atom(depth + 1u)});
+        if (issue_ != MathIssue::None)
+            return {};
         if (name == L"overbrace" || name == L"underbrace" || name == L"overgroup" || name == L"undergroup")
         {
             result.atomClass = MathAtomClass::Operator;
@@ -871,6 +983,8 @@ class Parser
         {
             ++at;
             index = Row(depth + 1u, false, false, false, true);
+            if (issue_ != MathIssue::None)
+                return {};
         }
         return Make(MathKind::Root, L"", {Atom(depth + 1), std::move(index)});
     }
@@ -883,7 +997,7 @@ class Parser
         {
             Space();
             if (at < source.size() && source[at] == L'[')
-                Reject(MathIssue::UnsupportedCommand);
+                return Reject(MathIssue::UnsupportedCommand);
         }
         return Make(MathKind::Fraction, std::wstring(name), {Atom(depth + 1u), Atom(depth + 1u)});
     }
@@ -893,6 +1007,8 @@ class Parser
         ObserveStack();
 #endif
         auto binomial = Make(MathKind::Matrix, L"pmatrix", {Atom(depth + 1), Atom(depth + 1)}, 1u);
+        if (issue_ != MathIssue::None)
+            return {};
         if (name == L"binom")
             return binomial;
         return Make(MathKind::Style, name == L"dbinom" ? L"displaystyle" : L"textstyle", {std::move(binomial)});
@@ -903,7 +1019,11 @@ class Parser
         ObserveStack();
 #endif
         auto annotation = Atom(depth + 1);
-        auto base       = Atom(depth + 1);
+        if (issue_ != MathIssue::None)
+            return {};
+        auto base = Atom(depth + 1);
+        if (issue_ != MathIssue::None)
+            return {};
         if (base.kind == MathKind::Row && base.children.size() == 1u)
             base.atomClass = base.children[0u].atomClass;
         if (name == L"stackrel")
@@ -922,8 +1042,10 @@ class Parser
         ObserveStack();
 #endif
         auto operand = Atom(depth + 1u);
+        if (issue_ != MathIssue::None)
+            return {};
         if (operand.kind != MathKind::Text || operand.atomClass != MathAtomClass::Relation || operand.text.size() != 1u)
-            Reject(MathIssue::UnsupportedCommand);
+            return Reject(MathIssue::UnsupportedCommand);
         static constexpr std::array pairs{std::pair{L'=', L'≠'},
                                           std::pair{L'<', L'≮'},
                                           std::pair{L'>', L'≯'},
@@ -946,7 +1068,7 @@ class Parser
                 operand.text[0u] = negative;
                 return operand;
             }
-        Reject(MathIssue::UnsupportedCommand);
+        return Reject(MathIssue::UnsupportedCommand);
     }
     MathNode StructuredCommand(std::wstring_view name, unsigned depth)
     {
@@ -954,8 +1076,13 @@ class Parser
         ObserveStack();
 #endif
         if (name == L"begin")
-            return Matrix(GroupText(), depth);
-        Reject(MathIssue::UnsupportedCommand);
+        {
+            auto environment = GroupText();
+            if (issue_ != MathIssue::None)
+                return {};
+            return Matrix(std::move(environment), depth);
+        }
+        return Reject(MathIssue::UnsupportedCommand);
     }
     static bool MathStyleCommand(std::wstring_view name) noexcept
     {
@@ -987,10 +1114,12 @@ class Parser
         else if (name == L"Bbb")
             name = L"mathbb";
         if (name == L"mathscr" && ! ScriptAlphabet(body))
-            Reject(MathIssue::UnsupportedCommand);
+            return Reject(MathIssue::UnsupportedCommand);
         if (name == L"mathbb" || name == L"mathcal" || name == L"mathfrak" || name == L"mathsf" || name == L"mathtt")
             Alphabet(body, name);
         auto result = Make(MathKind::Style, std::wstring(name), {std::move(body)});
+        if (issue_ != MathIssue::None)
+            return {};
         if (name == L"mathord")
             result.atomClass = MathAtomClass::Ordinary;
         else if (name == L"mathop")
@@ -1018,6 +1147,8 @@ class Parser
         ObserveStack();
 #endif
         auto body = Atom(depth + 1u);
+        if (issue_ != MathIssue::None)
+            return {};
         return FinishMathStyle(name, std::move(body));
     }
     MathNode FinishDelimited(wchar_t left, wchar_t right, MathNode&& body)
@@ -1030,11 +1161,17 @@ class Parser
         ObserveStack();
 #endif
         const auto left = Delimiter();
-        auto body       = Row(depth + 1u, false, false, true);
+        if (issue_ != MathIssue::None)
+            return {};
+        auto body = Row(depth + 1u, false, false, true);
+        if (issue_ != MathIssue::None)
+            return {};
         if (source.substr(at, 6u) != L"\\right")
-            Reject(MathIssue::MissingRightDelimiter);
+            return Reject(MathIssue::MissingRightDelimiter);
         at += 6u;
         const auto right = Delimiter();
+        if (issue_ != MathIssue::None)
+            return {};
         return FinishDelimited(left, right, std::move(body));
     }
     MathNode StyledCommand(std::wstring_view name)
@@ -1054,7 +1191,9 @@ class Parser
             const bool starred = name == L"operatorname" && at < source.size() && source[at] == L'*';
             if (starred)
                 ++at;
-            auto result          = Make(MathKind::Text, GroupText(true));
+            auto result = Make(MathKind::Text, GroupText(true));
+            if (issue_ != MathIssue::None)
+                return {};
             result.italic        = false;
             result.atomClass     = name == L"operatorname" ? MathAtomClass::Operator : MathAtomClass::Ordinary;
             result.displayLimits = starred;
@@ -1065,7 +1204,7 @@ class Parser
                 return Make(MathKind::Style, name == L"textbf" ? L"mathbf" : L"mathit", {std::move(result)});
             return result;
         }
-        Reject(MathIssue::UnsupportedCommand);
+        return Reject(MathIssue::UnsupportedCommand);
     }
     MathNode SymbolCommand(std::wstring_view name)
     {
@@ -1078,7 +1217,11 @@ class Parser
         if (sizeName == L"big" || sizeName == L"Big" || sizeName == L"bigg" || sizeName == L"Bigg")
         {
             const auto delimiter = Delimiter();
-            auto result          = Make(MathKind::Delimiter, std::wstring(1, delimiter));
+            if (issue_ != MathIssue::None)
+                return {};
+            auto result = Make(MathKind::Delimiter, std::wstring(1, delimiter));
+            if (issue_ != MathIssue::None)
+                return {};
             result.delimiterSize = sizeName == L"big" ? 1u : sizeName == L"Big" ? 2u : sizeName == L"bigg" ? 3u : 4u;
             result.atomClass     = Classify(result.text);
             return result;
@@ -1091,7 +1234,9 @@ class Parser
                                              [](const Detail::NativeMathSymbol& entry, std::wstring_view key) { return entry.name < key; });
         if (symbol != std::end(Detail::NativeMathSymbols) && symbol->name == name)
         {
-            auto result      = Make(MathKind::Text, std::wstring(1u, symbol->glyph));
+            auto result = Make(MathKind::Text, std::wstring(1u, symbol->glyph));
+            if (issue_ != MathIssue::None)
+                return {};
             result.atomClass = symbol->atom;
             result.italic    = symbol->italic;
             return result;
@@ -1227,6 +1372,8 @@ class Parser
             if (key == name)
             {
                 auto result = Make(MathKind::Text, std::wstring(value));
+                if (issue_ != MathIssue::None)
+                    return {};
                 // KaTeX's math-mode ldots is an Inner atom; the same literal
                 // Unicode glyph remains ordinary when authored directly.
                 if (name == L"ldots")
@@ -1254,18 +1401,20 @@ class Parser
             if (std::wstring_view(L"{}%_$&#").find(escaped) != source.npos)
                 return Make(MathKind::Text, std::wstring(1, escaped));
         }
-        Reject(MathIssue::UnsupportedCommand);
+        return Reject(MathIssue::UnsupportedCommand);
     }
     MathNode TextColorBody(unsigned depth, bool allowDollar = false, bool* sharedSpace = nullptr)
     {
+        if (issue_ != MathIssue::None)
+            return {};
 #if DXUI_ENABLE_DIAGNOSTICS
         ObserveStack();
 #endif
         if (depth > MathMaximumGroupDepth)
-            Reject(MathIssue::Capacity);
+            return Reject(MathIssue::Capacity);
         Space();
         if (at == source.size() || source[at++] != L'{')
-            Reject(MathIssue::MissingRequiredArgument);
+            return Reject(MathIssue::MissingRequiredArgument);
         std::vector<MathNode> children(0u);
         std::wstring text(0u, L' ');
         std::wstring activeColor(0u, L' ');
@@ -1273,15 +1422,21 @@ class Parser
         bool& previousSpace = sharedSpace ? *sharedSpace : localSpace;
         const auto append   = [&](MathNode&& node)
         {
+            if (issue_ != MathIssue::None)
+                return;
             if (! activeColor.empty())
                 node = Make(MathKind::Style, std::wstring(activeColor), {std::move(node)});
+            if (issue_ != MathIssue::None)
+                return;
             children.push_back(std::move(node));
         };
         const auto flush = [&]
         {
-            if (text.empty())
+            if (issue_ != MathIssue::None || text.empty())
                 return;
-            auto leaf      = Make(MathKind::Text, std::move(text));
+            auto leaf = Make(MathKind::Text, std::move(text));
+            if (issue_ != MathIssue::None)
+                return;
             leaf.italic    = false;
             leaf.atomClass = MathAtomClass::Ordinary;
             append(std::move(leaf));
@@ -1289,21 +1444,29 @@ class Parser
         };
         while (at < source.size())
         {
+            if (issue_ != MathIssue::None)
+                return {};
             const auto unit = source[at++];
             if (unit == L'}')
             {
                 flush();
+                if (issue_ != MathIssue::None)
+                    return {};
                 if (children.size() == 1u)
                     return std::move(children[0u]);
                 return Make(MathKind::Row, L"", std::move(children));
             }
             if (unit == L'$' && ! allowDollar)
-                Reject(MathIssue::UnsupportedCommand);
+                return Reject(MathIssue::UnsupportedCommand);
             if (unit == L'{')
             {
                 --at;
                 flush();
+                if (issue_ != MathIssue::None)
+                    return {};
                 append(TextColorBody(depth + 1u, allowDollar, &previousSpace));
+                if (issue_ != MathIssue::None)
+                    return {};
                 continue;
             }
             if (unit == L'%')
@@ -1315,16 +1478,18 @@ class Parser
             if (unit == L'\\')
             {
                 if (at == source.size())
-                    Reject(MathIssue::MissingRequiredArgument);
+                    return Reject(MathIssue::MissingRequiredArgument);
                 if (AppendTextAccent(text))
                 {
                     previousSpace = false;
                     continue;
                 }
+                if (issue_ != MathIssue::None)
+                    return {};
                 if (! Letter(source[at]))
                 {
                     if (std::wstring_view(L"{}%_$&#\\ ").find(source[at]) == std::wstring_view::npos)
-                        Reject(MathIssue::UnsupportedCommand);
+                        return Reject(MathIssue::UnsupportedCommand);
                     const auto escaped = source[at++];
                     text.push_back(escaped);
                     previousSpace = escaped == L' ';
@@ -1335,11 +1500,15 @@ class Parser
                     ++at;
                 const auto name = source.substr(start, at - start);
                 flush();
+                if (issue_ != MathIssue::None)
+                    return {};
                 if (name == L"color")
                 {
                     const auto color = Detail::ParseNativeColor(GroupText());
+                    if (issue_ != MathIssue::None)
+                        return {};
                     if (! color)
-                        Reject(MathIssue::UnsupportedCommand);
+                        return Reject(MathIssue::UnsupportedCommand);
                     activeColor.assign(L"textcolor:");
                     activeColor.append(Detail::EncodeNativeColor(color.value()));
                 }
@@ -1347,6 +1516,8 @@ class Parser
                 {
                     const bool transparent = name == L"textcolor";
                     append(ColorCommand(name, depth, true, transparent ? &previousSpace : nullptr, allowDollar));
+                    if (issue_ != MathIssue::None)
+                        return {};
                     if (! transparent)
                         previousSpace = false;
                 }
@@ -1359,7 +1530,9 @@ class Parser
                                                     : std::wstring(name),
                                 {TextColorBody(depth + 1u, allowDollar, &previousSpace)}));
                 else
-                    Reject(MathIssue::UnsupportedCommand);
+                    return Reject(MathIssue::UnsupportedCommand);
+                if (issue_ != MathIssue::None)
+                    return {};
                 continue;
             }
             if (iswspace(unit))
@@ -1374,21 +1547,25 @@ class Parser
                 previousSpace = false;
             }
         }
-        Reject(MathIssue::MissingGroupClose);
+        return Reject(MathIssue::MissingGroupClose);
     }
     MathNode ColorCommand(std::wstring_view name, unsigned depth, bool textMode = false, bool* sharedSpace = nullptr, bool allowDollar = false)
     {
         const auto color = Detail::ParseNativeColor(GroupText());
+        if (issue_ != MathIssue::None)
+            return {};
         if (! color)
-            Reject(MathIssue::UnsupportedCommand);
+            return Reject(MathIssue::UnsupportedCommand);
         auto label = std::wstring(name);
         label += L':';
         label += Detail::EncodeNativeColor(color.value());
         if (name == L"fcolorbox")
         {
             const auto background = Detail::ParseNativeColor(GroupText());
+            if (issue_ != MathIssue::None)
+                return {};
             if (! background)
-                Reject(MathIssue::UnsupportedCommand);
+                return Reject(MathIssue::UnsupportedCommand);
             label += L':';
             label += Detail::EncodeNativeColor(background.value());
         }
@@ -1409,7 +1586,11 @@ class Parser
             if (space)
                 output.push_back(std::move(child));
             else
+            {
                 output.push_back(Make(MathKind::Style, std::wstring(label), {std::move(child)}));
+                if (issue_ != MathIssue::None)
+                    return;
+            }
         }
     }
     MathNode TextStyleCommand(std::wstring_view name, unsigned depth)
@@ -1418,6 +1599,8 @@ class Parser
         ObserveStack();
 #endif
         auto body = TextColorBody(depth + 1u, true);
+        if (issue_ != MathIssue::None)
+            return {};
         if (name == L"text")
             return body;
         const auto style = name == L"textbf"   ? std::wstring_view(L"mathbf")
@@ -1466,7 +1649,10 @@ class Parser
     }
     MathNode BeginCommand(unsigned depth)
     {
-        return Matrix(GroupText(), depth);
+        auto environment = GroupText();
+        if (issue_ != MathIssue::None)
+            return {};
+        return Matrix(std::move(environment), depth);
     }
     static bool IsBinomialCommand(std::wstring_view name) noexcept
     {
@@ -1533,14 +1719,16 @@ class Parser
     }
     MathNode Atom(unsigned depth)
     {
+        if (issue_ != MathIssue::None)
+            return {};
 #if DXUI_ENABLE_DIAGNOSTICS
         ObserveStack();
 #endif
         if (depth > MathMaximumGroupDepth)
-            Reject(MathIssue::Capacity);
+            return Reject(MathIssue::Capacity);
         Space();
         if (at == source.size())
-            Reject(MathIssue::MissingRequiredArgument);
+            return Reject(MathIssue::MissingRequiredArgument);
         const auto c = source[at++];
         if (c == L'{')
             return Row(depth + 1, true, false);
@@ -1557,9 +1745,9 @@ class Parser
             return Command(depth);
         }
         if (c == L'&')
-            Reject(MathIssue::CellSeparatorOutsideEnvironment);
+            return Reject(MathIssue::CellSeparatorOutsideEnvironment);
         if (std::wstring_view(L"}^_#$").find(c) != source.npos)
-            Reject();
+            return Reject();
         if (c == L'~')
             return Make(MathKind::Space, L" ");
         if (c == L'-' || c == L'*')
@@ -1571,6 +1759,8 @@ class Parser
     }
     bool ApplyScripts(MathNode& atom, unsigned depth)
     {
+        if (issue_ != MathIssue::None)
+            return false;
 #if DXUI_ENABLE_DIAGNOSTICS
         ObserveStack();
 #endif
@@ -1581,14 +1771,16 @@ class Parser
             if (source[at] == L'\'')
             {
                 if (hasSuper)
-                    Reject();
+                    return Reject();
                 std::wstring primes(0u, L' ');
                 while (at < source.size() && source[at] == L'\'')
                 {
                     primes.push_back(L'′');
                     ++at;
                 }
-                super    = Make(MathKind::Text, std::move(primes));
+                super = Make(MathKind::Text, std::move(primes));
+                if (issue_ != MathIssue::None)
+                    return false;
                 hasSuper = true;
                 Space();
                 continue;
@@ -1603,7 +1795,7 @@ class Parser
                 if (modifier == L"limits" || modifier == L"nolimits")
                 {
                     if (hasModifier || atom.atomClass != MathAtomClass::Operator)
-                        Reject();
+                        return Reject();
                     atom.limits = modifier == L"limits" ? MathLimits::AboveBelow : MathLimits::Side;
                     hasModifier = true;
                     at          = end;
@@ -1615,11 +1807,13 @@ class Parser
                 break;
             const bool upper = source[at++] == L'^';
             if ((upper && hasSuper) || (! upper && hasSub))
-                Reject(upper ? MathIssue::DuplicateSuperscript : MathIssue::DuplicateSubscript);
+                return Reject(upper ? MathIssue::DuplicateSuperscript : MathIssue::DuplicateSubscript);
             Space();
             if (at == source.size())
-                Reject(MathIssue::MissingScriptArgument);
+                return Reject(MathIssue::MissingScriptArgument);
             auto argument = Atom(depth + 1);
+            if (issue_ != MathIssue::None)
+                return false;
             if (upper)
             {
                 super    = std::move(argument);
@@ -1633,7 +1827,11 @@ class Parser
             Space();
         }
         if (hasSub || hasSuper)
+        {
             atom = Make(MathKind::Scripts, L"", {std::move(atom), std::move(sub), std::move(super)});
+            if (issue_ != MathIssue::None)
+                return false;
+        }
         return hasSub || hasSuper;
     }
     std::wstring RuleDimensionSource()
@@ -1642,8 +1840,10 @@ class Parser
         if (at < source.size() && source[at] == L'{')
         {
             const auto dimension = GroupText();
+            if (issue_ != MathIssue::None)
+                return {};
             if (! Detail::ParseMathDimension(dimension))
-                Reject(MathIssue::UnsupportedCommand);
+                return Reject(MathIssue::UnsupportedCommand);
             return std::wstring(dimension);
         }
         const auto first = at;
@@ -1653,7 +1853,7 @@ class Parser
             at += 2u;
         const auto dimension = source.substr(first, at - first);
         if (! Detail::ParseMathDimension(dimension))
-            Reject(MathIssue::UnsupportedCommand);
+            return Reject(MathIssue::UnsupportedCommand);
         return std::wstring(dimension);
     }
     MathNode FinishInfix(std::wstring_view declaration, const std::wstring& dimension, MathNode&& numerator, MathNode&& denominator)
@@ -1677,8 +1877,14 @@ class Parser
         ObserveStack();
 #endif
         const auto dimension = declaration == L"above" ? RuleDimensionSource() : std::wstring(0u, L' ');
-        auto numerator       = FinishRow(children);
-        auto denominator     = Row(depth, grouped, cell, right, indexClose, stopBrace, false);
+        if (issue_ != MathIssue::None)
+            return {};
+        auto numerator = FinishRow(children);
+        if (issue_ != MathIssue::None)
+            return {};
+        auto denominator = Row(depth, grouped, cell, right, indexClose, stopBrace, false);
+        if (issue_ != MathIssue::None)
+            return {};
         return FinishInfix(declaration, dimension, std::move(numerator), std::move(denominator));
     }
     MathNode DecorateTag(MathNode&& value, bool starred)
@@ -1686,17 +1892,23 @@ class Parser
         if (starred)
             return std::move(value);
         std::vector<MathNode> children(0u);
-        auto left   = Make(MathKind::Text, L"(");
+        auto left = Make(MathKind::Text, L"(");
+        if (issue_ != MathIssue::None)
+            return {};
         left.italic = false;
         children.push_back(std::move(left));
         children.push_back(std::move(value));
-        auto right   = Make(MathKind::Text, L")");
+        auto right = Make(MathKind::Text, L")");
+        if (issue_ != MathIssue::None)
+            return {};
         right.italic = false;
         children.push_back(std::move(right));
         return Make(MathKind::Row, L"", std::move(children));
     }
     void ParseTag(unsigned depth, bool cell)
     {
+        if (issue_ != MathIssue::None)
+            return;
 #if DXUI_ENABLE_DIAGNOSTICS
         ObserveStack();
 #endif
@@ -1704,32 +1916,49 @@ class Parser
         if ((! row && (depth != 0u || equationTag)) ||
             (row && activeRowTags->tags &&
              std::ranges::any_of(activeRowTags->tags.value(), [&](const RowTagEntry& entry) { return entry.row == activeRowTags->row; })))
+        {
             Reject();
+            return;
+        }
         const bool starred = at < source.size() && source[at] == L'*';
         if (starred)
             ++at;
         Space();
         if (at == source.size())
+        {
             Reject(MathIssue::MissingRequiredArgument);
+            return;
+        }
         MathNode label;
         if (source[at] == L'{')
         {
-            auto text    = GroupText(true, true);
-            label        = Make(MathKind::Text, std::move(text));
+            auto text = GroupText(true, true);
+            if (issue_ != MathIssue::None)
+                return;
+            label = Make(MathKind::Text, std::move(text));
+            if (issue_ != MathIssue::None)
+                return;
             label.italic = false;
         }
         else
         {
-            label        = Atom(depth + 1u);
+            label = Atom(depth + 1u);
+            if (issue_ != MathIssue::None)
+                return;
             label.italic = false;
         }
         if (row && label.kind != MathKind::Text)
+        {
             Reject(MathIssue::UnsupportedCommand);
+            return;
+        }
         if (row)
         {
             if (! activeRowTags->tags)
                 activeRowTags->tags.emplace(0u);
             activeRowTags->tags.value().push_back({activeRowTags->row, DecorateTag(std::move(label), starred)});
+            if (issue_ != MathIssue::None)
+                return;
             hasRowTags = true;
         }
         else
@@ -1744,13 +1973,20 @@ class Parser
         ObserveStack();
 #endif
         if (depth >= MathMaximumGroupDepth)
-            Reject(MathIssue::Capacity);
+            return Reject(MathIssue::Capacity);
         const auto color = Detail::ParseNativeColor(GroupText());
+        if (issue_ != MathIssue::None)
+            return {};
         if (! color)
-            Reject(MathIssue::UnsupportedCommand);
+            return Reject(MathIssue::UnsupportedCommand);
         auto label = std::wstring(L"textcolor:");
         label += Detail::EncodeNativeColor(color.value());
-        AppendColored(children, label, Row(depth + 1u, grouped, cell, right, indexClose, stopBrace, infixAllowed));
+        auto body = Row(depth + 1u, grouped, cell, right, indexClose, stopBrace, infixAllowed);
+        if (issue_ != MathIssue::None)
+            return {};
+        AppendColored(children, label, std::move(body));
+        if (issue_ != MathIssue::None)
+            return {};
         return Make(MathKind::Row, L"", std::move(children));
     }
     MathNode FontSwitchRow(std::vector<MathNode>& children,
@@ -1767,7 +2003,7 @@ class Parser
         ObserveStack();
 #endif
         if (depth >= MathMaximumGroupDepth)
-            Reject(MathIssue::Capacity);
+            return Reject(MathIssue::Capacity);
         const auto style = command == L"bf"   ? L"mathbf"
                            : command == L"it" ? L"mathit"
                            : command == L"rm" ? L"mathrm"
@@ -1777,11 +2013,15 @@ class Parser
 
         const auto first = at;
         auto body        = Row(depth + 1u, grouped, cell, right, indexClose, stopBrace, infixAllowed);
+        if (issue_ != MathIssue::None)
+            return {};
         if ((command == L"sf" || command == L"tt" || command == L"cal") && source.substr(first, at - first).find(L"\\text") != std::wstring_view::npos)
-            Reject(MathIssue::UnsupportedCommand);
+            return Reject(MathIssue::UnsupportedCommand);
         if (command == L"sf" || command == L"tt" || command == L"cal")
             Alphabet(body, style);
         children.push_back(Make(MathKind::Style, std::wstring(style), {std::move(body)}));
+        if (issue_ != MathIssue::None)
+            return {};
         return Make(MathKind::Row, L"", std::move(children));
     }
     MathNode StyleRow(std::vector<MathNode>& children,
@@ -1798,18 +2038,29 @@ class Parser
         ObserveStack();
 #endif
         if (depth >= MathMaximumGroupDepth)
-            Reject(MathIssue::Capacity);
-        children.push_back(Make(MathKind::Style, std::wstring(declaration), {Row(depth + 1u, grouped, cell, right, indexClose, stopBrace, infixAllowed)}));
+            return Reject(MathIssue::Capacity);
+        auto body = Row(depth + 1u, grouped, cell, right, indexClose, stopBrace, infixAllowed);
+        if (issue_ != MathIssue::None)
+            return {};
+        children.push_back(Make(MathKind::Style, std::wstring(declaration), {std::move(body)}));
+        if (issue_ != MathIssue::None)
+            return {};
         return Make(MathKind::Row, L"", std::move(children));
     }
     void AppendRowAtom(std::vector<MathNode>& children, unsigned depth)
     {
+        if (issue_ != MathIssue::None)
+            return;
 #if DXUI_ENABLE_DIAGNOSTICS
         ObserveStack();
 #endif
         auto atom = Atom(depth);
+        if (issue_ != MathIssue::None)
+            return;
         Space();
         const bool hasScripts = ApplyScripts(atom, depth);
+        if (issue_ != MathIssue::None)
+            return;
         if (! hasScripts && atom.kind == MathKind::Style && atom.text.starts_with(L"textcolor:") && atom.children.size() == 1u &&
             atom.children[0].kind == MathKind::Row)
         {
@@ -1873,12 +2124,16 @@ class Parser
     }
     MathNode Row(unsigned depth, bool grouped, bool cell, bool right = false, bool indexClose = false, bool stopBrace = false, bool infixAllowed = true)
     {
+        if (issue_ != MathIssue::None)
+            return {};
 #if DXUI_ENABLE_DIAGNOSTICS
         ObserveStack();
 #endif
         std::vector<MathNode> children(0u);
         while (at < source.size())
         {
+            if (issue_ != MathIssue::None)
+                return {};
             Space();
             if (at == source.size())
                 break;
@@ -1896,7 +2151,7 @@ class Parser
             if (source[at] == L'}')
             {
                 if (! grouped)
-                    Reject();
+                    return Reject();
                 ++at;
                 return FinishRow(children);
             }
@@ -1917,7 +2172,7 @@ class Parser
                 if (IsInfixDeclaration(declaration))
                 {
                     if (! infixAllowed)
-                        Reject(MathIssue::UnsupportedCommand);
+                        return Reject(MathIssue::UnsupportedCommand);
                     at = end;
                     return InfixRow(children, declaration, depth, grouped, cell, right, indexClose, stopBrace);
                 }
@@ -1925,6 +2180,8 @@ class Parser
                 {
                     at = end;
                     ParseTag(depth, cell);
+                    if (issue_ != MathIssue::None)
+                        return {};
                     continue;
                 }
                 if (declaration == L"color" || IsFontDeclaration(declaration) || IsSizeDeclaration(declaration))
@@ -1934,9 +2191,11 @@ class Parser
                 }
             }
             AppendRowAtom(children, depth);
+            if (issue_ != MathIssue::None)
+                return {};
         }
         if (grouped || indexClose)
-            Reject(indexClose ? MathIssue::MissingRootIndexClose : MathIssue::MissingGroupClose);
+            return Reject(indexClose ? MathIssue::MissingRootIndexClose : MathIssue::MissingGroupClose);
         return FinishRow(children);
     }
 
@@ -1944,13 +2203,19 @@ public:
     explicit Parser(std::wstring_view value) : source(value), matrixRowWidths(0u)
     {
     }
+    MathIssue Issue() const noexcept
+    {
+        return issue_;
+    }
     MathNode Parse()
     {
         auto body = Row(0, false, false);
+        if (issue_ != MathIssue::None)
+            return {};
         if (! equationTag)
             return body;
         if (hasRowTags)
-            Reject(MathIssue::UnsupportedCommand);
+            return Reject(MathIssue::UnsupportedCommand);
         auto tag = DecorateTag(std::move(equationTag.value()), starredTag);
         return Make(MathKind::Style, L"tag", {std::move(body), std::move(tag)});
     }
@@ -1958,34 +2223,29 @@ public:
 } // namespace
 MathExpression ParseMath(std::wstring_view source)
 {
+    Failure::Scope failureScope;
     if (source.size() > MathMaximumSourceUnits)
         return {{}, L"Equation source exceeds 16,384 UTF-16 units. Source is preserved.", MathIssue::Capacity};
     if (source.empty() || ! IsValidUtf16(source) ||
         std::ranges::any_of(source, [](wchar_t c) { return (c < L' ' && ! iswspace(c)) || (c >= 0x7f && c <= 0x9f); }))
         return {{}, L"Equation source is empty or invalid. Source is preserved.", MathIssue::InvalidSource};
-    try
+    Parser parser(source);
+    auto root = parser.Parse();
+    if (parser.Issue() != MathIssue::None)
+        return {{}, L"Unsupported or malformed native equation. Source is preserved.", parser.Issue()};
+    const auto count = [](auto&& self, const MathNode& node, unsigned depth, std::size_t& total) -> bool
     {
-        auto root        = Parser(source).Parse();
-        const auto count = [](auto&& self, const MathNode& node, unsigned depth) -> std::size_t
-        {
-            if (depth > MathMaximumNodeDepth)
-                throw std::invalid_argument("Equation nesting capacity");
-            std::size_t result = 1;
-            for (const auto& child : node.children)
-                result += self(self, child, depth + 1);
-            return result;
-        };
-        if (count(count, root, 0) > MathMaximumNodes)
-            throw std::invalid_argument("Equation node capacity");
-        return {std::move(root), L""};
-    }
-    catch (const MathParseFailure& failure)
-    {
-        return {{}, L"Unsupported or malformed native equation. Source is preserved.", failure.issue};
-    }
-    catch (const std::invalid_argument&)
-    {
+        if (depth > MathMaximumNodeDepth || total == MathMaximumNodes)
+            return false;
+        ++total;
+        for (const auto& child : node.children)
+            if (! self(self, child, depth + 1, total))
+                return false;
+        return true;
+    };
+    std::size_t total{};
+    if (! count(count, root, 0, total))
         return {{}, L"Unsupported or malformed native equation. Source is preserved.", MathIssue::Capacity};
-    }
+    return {std::move(root), L""};
 }
 } // namespace DxUi::RichText

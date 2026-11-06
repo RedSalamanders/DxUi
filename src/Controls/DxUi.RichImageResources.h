@@ -157,7 +157,7 @@ public:
     bool Begin(std::shared_ptr<const SemanticDocument> document, std::wstring_view base, std::uint64_t location, std::uint64_t binding)
     {
         if (! document)
-            throw std::invalid_argument("image preparation needs a current semantic document");
+            Failure::FailContract(E_INVALIDARG);
         if (Current(document, location, binding))
             return true;
         if (next_ && next_->document == document && next_->location == location && next_->binding == binding)
@@ -182,6 +182,7 @@ public:
     bool Advance(std::size_t* workUnits = nullptr)
     try
     {
+        Failure::Scope failureScope;
         if (workUnits)
             *workUnits = 0u;
         if (! next_)
@@ -201,41 +202,34 @@ public:
             RichImageSourceKind kind = RichImageSourceKind::LocalFile;
             const auto path          = [&]
             {
-                try
+                if (stage.document->Elements()[element].wiki)
                 {
-                    if (stage.document->Elements()[element].wiki)
-                    {
-                        kind = RichImageSourceKind::WikiTarget;
-                        return std::optional<std::wstring>(std::in_place, destination);
-                    }
-                    const auto local = ResolveLocalImagePath(stage.base, destination);
-                    // A direct fallible copy avoids Debug STL proxy allocation
-                    // inside optional<wstring>'s noexcept move constructor.
-                    if (local)
-                    {
-                        if (IsNetworkImagePath(destination, local.value()))
-                        {
-                            if (! stage.remoteEnabled)
-                                return std::optional<std::wstring>{};
-                            kind = RichImageSourceKind::NetworkFile;
-                        }
-                        return std::optional<std::wstring>(std::in_place, local.value());
-                    }
-                    if (stage.dataEnabled)
-                        if (const auto data = ResolveDataImageSource(destination))
-                        {
-                            kind = RichImageSourceKind::Data;
-                            return std::optional<std::wstring>(std::in_place, data.value());
-                        }
-                    if (! stage.remoteEnabled)
-                        return std::optional<std::wstring>{};
-                    kind = RichImageSourceKind::RemoteHttp;
-                    return ResolveRemoteImageSource(destination);
+                    kind = RichImageSourceKind::WikiTarget;
+                    return std::optional<std::wstring>(std::in_place, destination);
                 }
-                catch (const std::length_error&)
+                const auto local = ResolveLocalImagePath(stage.base, destination);
+                // A direct fallible copy avoids Debug STL proxy allocation
+                // inside optional<wstring>'s noexcept move constructor.
+                if (local)
                 {
+                    if (IsNetworkImagePath(destination, local.value()))
+                    {
+                        if (! stage.remoteEnabled)
+                            return std::optional<std::wstring>{};
+                        kind = RichImageSourceKind::NetworkFile;
+                    }
+                    return std::optional<std::wstring>(std::in_place, local.value());
+                }
+                if (stage.dataEnabled)
+                    if (const auto data = ResolveDataImageSource(destination))
+                    {
+                        kind = RichImageSourceKind::Data;
+                        return std::optional<std::wstring>(std::in_place, data.value());
+                    }
+                if (! stage.remoteEnabled)
                     return std::optional<std::wstring>{};
-                }
+                kind = RichImageSourceKind::RemoteHttp;
+                return ResolveRemoteImageSource(destination);
             }();
             if (! path)
                 continue;
@@ -262,7 +256,7 @@ public:
                 else
                 {
                     if (nextId_ == std::numeric_limits<std::uint64_t>::max())
-                        throw std::overflow_error("image request identity exhausted");
+                        Failure::FailContract(E_BOUNDS);
                     auto request = std::make_shared<RichImageRequestState>(*path, ++nextId_, kind);
                     stage.introduced.push_back(request);
                     stage.entries.push_back({std::move(request), {}, true, false, false});
@@ -289,10 +283,13 @@ public:
         next_.reset();
         return true;
     }
+    catch (const std::bad_alloc&)
+    {
+        Failure::FailAllocation();
+    }
     catch (const std::exception&)
     {
-        Cancel();
-        throw;
+        Failure::FailUnexpected();
     }
     void Take(std::vector<RichImageRequest>& requests)
     {

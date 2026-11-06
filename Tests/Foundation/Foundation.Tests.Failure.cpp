@@ -1,0 +1,1526 @@
+#include "Controls/DxUi.MarkdownMetadata.h"
+#include "FailureHost.h"
+#include "Support.Tests.ChildCrashCapture.h"
+#include "Support.Tests.DumpReader.h"
+#include "Support.Tests.FatalChildren.h"
+#include "Support.Tests.TestWindowActivationGuard.h"
+#include "Support/ControlAllocation.h"
+#include "Support/Failure.Tests.Hooks.h"
+#include <DbgHelp.h>
+#include <DxUi/DxUi.h>
+#include <DxUi/Failure.h>
+#include <DxUi/RichSemantic.h>
+#include <UIAutomation.h>
+#include <algorithm>
+#include <array>
+#include <atomic>
+#include <charconv>
+#include <cstddef>
+#include <cstdint>
+#include <cstdio>
+#include <cstring>
+#include <cwchar>
+#include <limits>
+#include <memory>
+#include <new>
+#include <optional>
+#include <stdexcept>
+#include <string>
+#include <string_view>
+#include <vector>
+#include <wil/resource.h>
+
+namespace DxUiFailureTests
+{
+HRESULT DisconnectTestProcessUiAutomation() noexcept
+{
+    return DxUi::Failure::InvokeNative(UiaDisconnectAllProviders);
+}
+namespace
+{
+std::wstring evidenceRoot;
+std::atomic<unsigned> sequence{};
+std::atomic<void*> allocationSink{};
+constexpr DWORD TimeoutMs = 30000u;
+std::array<FatalChildCase, 192u> additionalCases{};
+std::size_t additionalCount{};
+std::atomic<bool> registrationFailed{};
+// Three process-shared LONGs: witness bits, a reporter HRESULT and the
+// injecting thread ID, tying the allocation marker to the failure record.
+// Installed before any child trigger; it remains mapped until process exit.
+volatile LONG* childWitness{};
+constexpr LONG WitnessInjectedAllocation = 1L;
+constexpr LONG WitnessTriggerReached     = 2L;
+constexpr LONG WitnessReporterReached    = 4L;
+constexpr LONG WitnessReporterReturned   = 8L;
+constexpr LONG WitnessTriggerReturned    = 16L;
+constexpr DWORD WitnessBytes             = 3u * static_cast<DWORD>(sizeof(LONG));
+constexpr DWORD ExpectedFatalExitCode    = 0xe0445855u;
+void MarkWitness(LONG bits) noexcept
+{
+    if (childWitness)
+        (void)InterlockedOr(&childWitness[0], bits);
+}
+const FatalChildCase* FindAdditional(std::wstring_view name) noexcept
+{
+    for (std::size_t index = 0u; index < additionalCount; ++index)
+        if (name == additionalCases[index].name)
+            return &additionalCases[index];
+    return nullptr;
+}
+const FatalChildCase* FindAdditional(const char* name) noexcept
+{
+    for (std::size_t index = 0u; index < additionalCount; ++index)
+    {
+        const auto* wide   = additionalCases[index].name;
+        const auto* narrow = name;
+        while (*wide && *narrow && *wide == static_cast<unsigned char>(*narrow))
+            ++wide, ++narrow;
+        if (! *wide && ! *narrow)
+            return &additionalCases[index];
+    }
+    return nullptr;
+}
+
+__declspec(noinline) void AllocationOrigin()
+{
+    DxUi::Failure::FailAllocation(1234u);
+}
+__declspec(noinline) void ControlAllocationOrigin()
+{
+    DxUi::Detail::ControlAllocationFailureScope failure(0u);
+    MarkWitness(WitnessTriggerReached);
+    const auto control = std::make_unique<DxUi::Separator>();
+    allocationSink.store(control.get(), std::memory_order_relaxed);
+}
+std::atomic<unsigned> yamlAllocationOriginMarker{};
+__declspec(noinline) void YamlAllocationOrigin()
+{
+    yamlAllocationOriginMarker.store(301u, std::memory_order_relaxed);
+    DxUi::Failure::Detail::SetYamlNativeAllocationFailureForTest(0u);
+    MarkWitness(WitnessTriggerReached);
+    (void)DxUi::RichText::Detail::ValidateYamlMetadata(L"key: value\n");
+    MarkWitness(WitnessTriggerReturned);
+}
+bool VerifyChildActivationGuard(DxUi::TestSupport::ScopedWindowActivationBlocker& blocker)
+{
+    const HWND foreground = GetForegroundWindow();
+    wil::unique_hwnd window(
+        CreateWindowExW(0, L"STATIC", L"DxUi fatal child guard", WS_OVERLAPPED, -32000, -32000, 64, 64, nullptr, nullptr, GetModuleHandleW(nullptr), nullptr));
+    if (! window || ! blocker.IsActive() || blocker.ProtectedTopLevelWindowCount() == 0u ||
+        (GetWindowLongPtrW(window.get(), GWL_EXSTYLE) & WS_EX_NOACTIVATE) == 0)
+    {
+        if (childWitness)
+        {
+            InterlockedExchange(&childWitness[1], 1L);
+            InterlockedExchange(&childWitness[2], static_cast<LONG>(blocker.ProtectedTopLevelWindowCount()));
+        }
+        return false;
+    }
+    // Exercise this thread's activation hook without requesting a cross-process
+    // foreground switch. Real foreground requests require the interactive lease.
+    (void)SetActiveWindow(window.get());
+    (void)SetFocus(window.get());
+    const HWND after = GetForegroundWindow();
+    const HWND focus = GetFocus();
+    if (after != foreground || focus == window.get() || GetActiveWindow() == window.get() || blocker.BlockedActivationCount() == 0u)
+    {
+        if (childWitness)
+        {
+            InterlockedExchange(&childWitness[1], focus == window.get() ? 3L : 2L);
+            InterlockedExchange(&childWitness[2], static_cast<LONG>(blocker.BlockedFocusCount()));
+        }
+    }
+    return after == foreground && focus != window.get() && GetActiveWindow() != window.get() && blocker.BlockedActivationCount() != 0u &&
+           blocker.BlockedFocusCount() != 0u;
+}
+__declspec(noinline) void ConcurrentPrimaryOrigin()
+{
+    DxUi::Failure::FailAllocation(777u);
+}
+[[noreturn]] __declspec(noinline) void UnknownOrigin()
+{
+    DxUi::Failure::Scope scope;
+    throw 37;
+}
+__declspec(noinline) void BadAllocOrigin()
+{
+    DxUi::Failure::Scope scope;
+    throw std::bad_alloc{};
+}
+__declspec(noinline) void StandardOrigin()
+{
+    DxUi::Failure::Scope scope;
+    throw std::runtime_error("fatal test");
+}
+std::atomic<unsigned> nativeCallbackMarker{};
+[[noreturn]] __declspec(noinline) void NativeCallbackUnknownOrigin()
+{
+    nativeCallbackMarker.store(41u, std::memory_order_relaxed);
+    throw 42;
+}
+[[noreturn]] __declspec(noinline) void NativeCallbackStandardOrigin(const std::runtime_error& error)
+{
+    nativeCallbackMarker.store(42u, std::memory_order_relaxed);
+    throw error;
+}
+[[noreturn]] __declspec(noinline) void NativeCallbackAllocationOrigin()
+{
+    nativeCallbackMarker.store(43u, std::memory_order_relaxed);
+    throw std::bad_alloc{};
+}
+[[noreturn]] __declspec(noinline) void NativeAfterBoundaryOrigin(const std::runtime_error& error)
+{
+    nativeCallbackMarker.store(44u, std::memory_order_relaxed);
+    throw error;
+}
+void NativeCallbackFromAbi(unsigned kind, const std::runtime_error& error) noexcept
+{
+    const DxUi::Failure::Scope callback;
+    MarkWitness(WitnessTriggerReached);
+    if (kind == 0u)
+        NativeCallbackUnknownOrigin();
+    if (kind == 1u)
+        NativeCallbackStandardOrigin(error);
+    NativeCallbackAllocationOrigin();
+}
+extern "C" __declspec(noinline) void NativeAbiDispatch(void (*callback)(unsigned, const std::runtime_error&) noexcept,
+                                                       unsigned kind,
+                                                       const std::runtime_error& error) noexcept
+{
+    callback(kind, error);
+}
+void NativeCallbackFailure(unsigned kind)
+{
+    const std::runtime_error error("native reentrant callback");
+    const DxUi::Failure::Scope outer;
+    const DxUi::Failure::NativeCallScope native;
+    NativeAbiDispatch(NativeCallbackFromAbi, kind, error);
+}
+void NativeOptionalFromAbi(unsigned kind, const std::runtime_error&) noexcept
+{
+    const DxUi::Failure::Scope callback(std::nothrow);
+    if (! callback.IsActive())
+        return;
+    MarkWitness(WitnessTriggerReached);
+    if (kind == 0u)
+        NativeCallbackUnknownOrigin();
+    NativeCallbackAllocationOrigin();
+}
+void NativeOptionalFailure(unsigned kind)
+{
+    const std::runtime_error error("optional native callback");
+    const DxUi::Failure::Scope outer;
+    const DxUi::Failure::NativeCallScope native;
+    NativeAbiDispatch(NativeOptionalFromAbi, kind, error);
+}
+[[noreturn]] __declspec(noinline) void NativePinnedReleaseOrigin()
+{
+    nativeCallbackMarker.store(48u, std::memory_order_relaxed);
+    throw 48;
+}
+struct PinnedCallbackPayload
+{
+    ~PinnedCallbackPayload() noexcept
+    {
+        const DxUi::Failure::Scope scope(std::nothrow);
+        if (! scope.IsActive())
+            return;
+        MarkWitness(WitnessTriggerReached);
+        NativePinnedReleaseOrigin();
+    }
+};
+struct PinnedCallbackOwner
+{
+    PinnedCallbackOwner()                                      = default;
+    PinnedCallbackOwner(const PinnedCallbackOwner&)            = delete;
+    PinnedCallbackOwner& operator=(const PinnedCallbackOwner&) = delete;
+    PinnedCallbackOwner(PinnedCallbackOwner&&)                 = delete;
+    PinnedCallbackOwner& operator=(PinnedCallbackOwner&&)      = delete;
+    DxUi::Failure::ObjectLifetime lifetime;
+    PinnedCallbackPayload payload;
+};
+void NativePinnedReleaseFailure()
+{
+    const DxUi::Failure::Scope outer;
+    std::optional<PinnedCallbackOwner> owner(std::in_place);
+    const DxUi::Failure::NativeCallScope native;
+    owner.reset();
+}
+extern "C" __declspec(noinline) HRESULT NativeHandledFailure(bool allocation, const std::runtime_error& error) noexcept
+{
+    try
+    {
+        if (allocation)
+            throw std::bad_alloc{};
+        throw error;
+    }
+    catch (const std::bad_alloc&)
+    {
+        return E_OUTOFMEMORY;
+    }
+    catch (const std::runtime_error&)
+    {
+        return E_FAIL;
+    }
+}
+extern "C" __declspec(noinline) HRESULT NativeHandledAbi(unsigned kind, const std::runtime_error* error) noexcept
+{
+    return NativeHandledFailure(kind != 0u, *error);
+}
+__declspec(noinline) HRESULT NativeEscapingThrow(unsigned kind, const std::runtime_error* error)
+{
+    nativeCallbackMarker.store(51u + kind, std::memory_order_relaxed);
+    MarkWitness(WitnessTriggerReached);
+    if (kind == 0u)
+        throw 51;
+    if (kind == 1u)
+        throw *error;
+    throw std::bad_alloc{};
+}
+extern "C" __declspec(noinline) HRESULT NativeEscapingAbi(unsigned kind, const std::runtime_error* error)
+{
+    const HRESULT result = NativeEscapingThrow(kind, error);
+    nativeCallbackMarker.store(55u, std::memory_order_relaxed);
+    return result;
+}
+void NativeEscapingFailure(unsigned kind)
+{
+    const std::runtime_error error("escaping native exception");
+    static_cast<void>(DxUi::Failure::InvokeNative(&NativeEscapingAbi, kind, &error));
+    nativeCallbackMarker.store(54u, std::memory_order_relaxed);
+}
+void NativeAfterBoundaryFailure()
+{
+    const std::runtime_error error("after native ABI");
+    const DxUi::Failure::Scope outer;
+    {
+        const DxUi::Failure::NativeCallScope native;
+        static_cast<void>(NativeHandledFailure(false, error));
+    }
+    MarkWitness(WitnessTriggerReached);
+    NativeAfterBoundaryOrigin(error);
+}
+__declspec(noinline) void NativeBoundaryInvalidOrigin(bool closeScope)
+{
+    nativeCallbackMarker.store(closeScope ? 45u : 46u, std::memory_order_relaxed);
+    std::optional<DxUi::Failure::Scope> outer;
+    outer.emplace();
+    std::optional<DxUi::Failure::NativeCallScope> first;
+    first.emplace();
+    MarkWitness(WitnessTriggerReached);
+    if (closeScope)
+        outer.reset();
+    else
+    {
+        const DxUi::Failure::NativeCallScope second;
+        first.reset();
+    }
+    nativeCallbackMarker.store(47u, std::memory_order_relaxed);
+}
+__declspec(noinline) void StaleCaughtOrigin()
+{
+    try
+    {
+        throw std::runtime_error("caught outside DxUi");
+    }
+    catch (const std::runtime_error&)
+    {
+    }
+    DxUi::Failure::FailUnexpected();
+}
+__declspec(noinline) void NewHandlerOrigin()
+{
+    DxUi::Failure::Scope scope;
+    MarkWitness(WitnessTriggerReached);
+    if (childWitness)
+        (void)InterlockedExchange(&childWitness[2], static_cast<LONG>(GetCurrentThreadId()));
+    const auto bytes = (std::numeric_limits<std::size_t>::max)() / 2u;
+    auto* allocation = ::operator new(bytes);
+    // Preserve an observable allocation in optimized probes without volatile
+    // target semantics or using the pointer to access allocated storage.
+    allocationSink.store(allocation, std::memory_order_relaxed);
+    ::operator delete(allocation);
+}
+// Distinct observable literals keep these origin probes separate under /OPT:ICF
+// and LTCG. This diagnostic marker does not synchronize application state.
+std::atomic<unsigned> callbackOriginMarker{};
+[[noreturn]] __declspec(noinline) void AccessibleAllocationCallbackOrigin()
+{
+    callbackOriginMarker.store(1u, std::memory_order_relaxed);
+    throw std::bad_alloc{};
+}
+[[noreturn]] __declspec(noinline) void AccessibleRuntimeCallbackOrigin(const std::runtime_error& error)
+{
+    callbackOriginMarker.store(2u, std::memory_order_relaxed);
+    throw error;
+}
+[[noreturn]] __declspec(noinline) void RichTextCallbackOrigin(const std::runtime_error& error)
+{
+    callbackOriginMarker.store(3u, std::memory_order_relaxed);
+    throw error;
+}
+[[noreturn]] __declspec(noinline) void RichSelectionCallbackOrigin(const std::runtime_error& error)
+{
+    callbackOriginMarker.store(4u, std::memory_order_relaxed);
+    throw error;
+}
+[[noreturn]] __declspec(noinline) void RichContextMenuCallbackOrigin(const std::runtime_error& error)
+{
+    callbackOriginMarker.store(5u, std::memory_order_relaxed);
+    throw error;
+}
+[[noreturn]] __declspec(noinline) void RichPlanCallbackOrigin(const std::runtime_error& error)
+{
+    callbackOriginMarker.store(6u, std::memory_order_relaxed);
+    throw error;
+}
+__declspec(noinline) void AccessibleInvokeOrigin(bool allocation)
+{
+    DxUi::WindowHost host;
+    auto root    = std::make_unique<DxUi::Panel>();
+    auto* button = root->AddChild<DxUi::Button>(L"Invoke");
+    host.SetRoot(std::move(root));
+    if (allocation)
+        button->SetAccessibleInvokeResult([](DxUi::ControlHost&) -> HRESULT { AccessibleAllocationCallbackOrigin(); });
+    else
+        button->SetAccessibleInvokeResult([](DxUi::ControlHost&) -> HRESULT
+        {
+            const std::runtime_error error("child callback");
+            AccessibleRuntimeCallbackOrigin(error);
+        });
+    static_cast<void>(button->InvokeAccessibleResult(host));
+}
+__declspec(noinline) void RichNotifyOrigin(bool selection)
+{
+    DxUi::RichTextEditor editor(L"ab");
+    if (selection)
+    {
+        editor.SetOnSelectionChanged([]
+        {
+            const std::runtime_error error("child selection callback");
+            RichSelectionCallbackOrigin(error);
+        });
+        static_cast<void>(editor.SetSelection({1u, 1u}));
+    }
+    else
+    {
+        editor.SetOnTextChanged([]
+        {
+            const std::runtime_error error("child text callback");
+            RichTextCallbackOrigin(error);
+        });
+        static_cast<void>(editor.ReplaceSelection(L"x"));
+    }
+}
+__declspec(noinline) void RichContextMenuOrigin()
+{
+    std::optional<DxUi::WindowHost> host;
+    DxUi::RichTextEditor* control{};
+    std::optional<std::runtime_error> error;
+    {
+        const DxUi::Failure::Scope setupScope;
+        host.emplace();
+        error.emplace("child context menu callback");
+        auto editor = std::make_unique<DxUi::RichTextEditor>(L"word");
+        control     = editor.get();
+        host.value().SetRoot(std::move(editor));
+        control->SetOnContextMenu([&](POINT, bool) { RichContextMenuCallbackOrigin(error.value()); });
+    }
+    static_cast<void>(control->OnContextMenu(host.value(), true, D2D1::Point2F(0.0f, 0.0f)));
+}
+__declspec(noinline) void RichPlanNotifyOrigin()
+{
+    DxUi::RichTextEditor editor(L"abc");
+    const auto snapshot = editor.Snapshot();
+    const auto revision = editor.Revision();
+    const std::array edits{DxUi::RichText::SourceEdit{{1u, 2u}, L"X"}};
+    editor.SetOnTextChanged([]
+    {
+        const std::runtime_error error("child source-plan callback");
+        RichPlanCallbackOrigin(error);
+    });
+    static_cast<void>(editor.ApplySourceEdits(snapshot, revision, edits, {2u, 2u}));
+}
+[[noreturn]] DWORD WINAPI WorkerOrigin(void*) noexcept
+{
+    UnknownOrigin();
+}
+struct LifecycleProbe
+{
+    DxUiSample::FailureHost::Host* host{};
+    HANDLE entered{}, release{};
+    HRESULT wrongThread{E_PENDING};
+};
+struct OptionalLifecycleProbe
+{
+    HANDLE entered{}, release{}, released{}, closed{}, finished{};
+    bool active{}, inactiveAfterClose{};
+};
+struct ObjectLifetimeProbe
+{
+    HANDLE release{}, finished{};
+    std::unique_ptr<DxUi::Failure::ObjectLifetime>* owner{};
+};
+struct OptionalUnregisterProbe
+{
+    HANDLE started{};
+    bool sawInactive{};
+};
+DWORD WINAPI OptionalUnregisterWorker(void* context) noexcept
+{
+    auto& probe = *static_cast<OptionalUnregisterProbe*>(context);
+    SetEvent(probe.started);
+    for (unsigned index = 0; index < 50000u; ++index)
+    {
+        const DxUi::Failure::Scope scope(std::nothrow);
+        if (! scope.IsActive())
+        {
+            probe.sawInactive = true;
+            break;
+        }
+    }
+    return 0u;
+}
+DWORD WINAPI ObjectLifetimeWorker(void* context) noexcept
+{
+    auto& probe = *static_cast<ObjectLifetimeProbe*>(context);
+    if (WaitForSingleObject(probe.release, TimeoutMs) != WAIT_OBJECT_0)
+        return 1u;
+    probe.owner->reset();
+    SetEvent(probe.finished);
+    return 0u;
+}
+DWORD WINAPI OptionalLifecycleWorker(void* context) noexcept
+{
+    auto& probe = *static_cast<OptionalLifecycleProbe*>(context);
+    {
+        const DxUi::Failure::Scope lease(std::nothrow);
+        probe.active = lease.IsActive();
+        SetEvent(probe.entered);
+        if (WaitForSingleObject(probe.release, TimeoutMs) != WAIT_OBJECT_0)
+            return 1u;
+    }
+    SetEvent(probe.released);
+    if (WaitForSingleObject(probe.closed, TimeoutMs) != WAIT_OBJECT_0)
+        return 1u;
+    const DxUi::Failure::Scope late(std::nothrow);
+    probe.inactiveAfterClose = ! late.IsActive();
+    SetEvent(probe.finished);
+    return 0u;
+}
+DWORD WINAPI LifecycleWorker(void* context) noexcept
+{
+    auto& probe = *static_cast<LifecycleProbe*>(context);
+    DxUi::Failure::Scope scope;
+    probe.wrongThread = probe.host->Uninstall();
+    SetEvent(probe.entered);
+    return WaitForSingleObject(probe.release, TimeoutMs) == WAIT_OBJECT_0 ? 0u : 1u;
+}
+HRESULT RecursiveReporter(void*, const DxUi::Failure::Record&) noexcept
+{
+    MarkWitness(WitnessReporterReached);
+    DxUi::Failure::FailContract(E_FAIL);
+}
+HRESULT DumpFailureReporter(void* context, const DxUi::Failure::Record& record) noexcept
+{
+    MarkWitness(WitnessReporterReached);
+    const HRESULT result = static_cast<DxUiSample::FailureHost::Host*>(context)->ReportRecord(record);
+    if (childWitness)
+        (void)InterlockedExchange(&childWitness[1], static_cast<LONG>(result));
+    MarkWitness(WitnessReporterReturned);
+    return result;
+}
+struct ConcurrentProbe
+{
+    DxUiSample::FailureHost::Host* writer{};
+    HANDLE start{}, contender{};
+};
+DWORD WINAPI ConcurrentSecondary(void* context) noexcept
+{
+    const auto& probe = *static_cast<ConcurrentProbe*>(context);
+    if (WaitForSingleObject(probe.start, TimeoutMs) != WAIT_OBJECT_0)
+        return 1u;
+    DxUi::Failure::FailAllocation(888u);
+}
+HRESULT ConcurrentReporter(void* context, const DxUi::Failure::Record& record) noexcept
+{
+    auto& probe = *static_cast<ConcurrentProbe*>(context);
+    if (! SetEvent(probe.start) || WaitForSingleObject(probe.contender, 5000u) != WAIT_OBJECT_0)
+        return HRESULT_FROM_WIN32(ERROR_TIMEOUT);
+    return probe.writer->ReportRecord(record);
+}
+bool Retain(void*) noexcept
+{
+    return true;
+}
+void Release(void*) noexcept
+{
+}
+void Enter(void*, const DxUi::Failure::Site&) noexcept
+{
+}
+void Leave(void*) noexcept
+{
+}
+void BeginNative(void*, DxUi::Failure::NativeCallToken*) noexcept
+{
+}
+void EndNative(void*, DxUi::Failure::NativeCallToken*) noexcept
+{
+}
+void ReturningFatal(void*, const DxUi::Failure::Record&) noexcept
+{
+    MarkWitness(WitnessReporterReached | WitnessReporterReturned);
+}
+
+std::wstring Widen(const char* value)
+{
+    if (! value)
+        return {};
+    const auto count = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, value, -1, nullptr, 0);
+    if (count <= 1)
+        return {};
+    std::wstring result(static_cast<std::size_t>(count), L'\0');
+    if (! MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, value, -1, result.data(), count))
+        return {};
+    result.pop_back();
+    return result;
+}
+bool ParseNumber(std::string_view value, std::uint64_t& out, int base)
+{
+    const auto result = std::from_chars(value.data(), value.data() + value.size(), out, base);
+    return result.ec == std::errc{} && result.ptr == value.data() + value.size();
+}
+std::string_view Field(std::string_view text, std::string_view key)
+{
+    const auto at = text.find(key);
+    if (at == std::string_view::npos || (at && text[at - 1u] != '\n'))
+        return {};
+    const auto first = at + key.size();
+    const auto end   = text.find_first_of("\r\n", first);
+    return text.substr(first, end == std::string_view::npos ? text.size() - first : end - first);
+}
+bool ReadRecord(const std::wstring& path, std::string& contents)
+{
+    wil::unique_hfile file(CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr));
+    if (! file)
+        return false;
+    LARGE_INTEGER size{};
+    if (! GetFileSizeEx(file.get(), &size) || size.QuadPart <= 0 || size.QuadPart > 8192)
+        return false;
+    contents.resize(static_cast<std::size_t>(size.QuadPart));
+    DWORD read{};
+    return ReadFile(file.get(), contents.data(), static_cast<DWORD>(contents.size()), &read, nullptr) && read == contents.size();
+}
+bool CheckDump(const std::wstring& path, std::uint32_t thread, std::uint64_t contextIp)
+{
+    AcquireSRWLockExclusive(&DxUiSample::FailureHost::dbgHelpGate);
+    const auto unlock = wil::scope_exit([] { ReleaseSRWLockExclusive(&DxUiSample::FailureHost::dbgHelpGate); });
+    wil::unique_hfile file(CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr));
+    if (! file)
+        return false;
+    wil::unique_handle mapping(CreateFileMappingW(file.get(), nullptr, PAGE_READONLY, 0, 0, nullptr));
+    if (! mapping)
+        return false;
+    wil::unique_mapview_ptr<void> view(MapViewOfFile(mapping.get(), FILE_MAP_READ, 0, 0, 0));
+    if (! view)
+        return false;
+    PMINIDUMP_DIRECTORY directory{};
+    void* stream{};
+    ULONG size{};
+    if (! MiniDumpReadDumpStream(view.get(), ExceptionStream, &directory, &stream, &size) || size < sizeof(MINIDUMP_EXCEPTION_STREAM))
+        return false;
+    const auto& exception = *static_cast<const MINIDUMP_EXCEPTION_STREAM*>(stream);
+    if (exception.ThreadId != thread || exception.ThreadContext.DataSize < sizeof(CONTEXT))
+        return false;
+    LARGE_INTEGER total{};
+    if (! GetFileSizeEx(file.get(), &total) || total.QuadPart < 0 || exception.ThreadContext.Rva > static_cast<std::uint64_t>(total.QuadPart) ||
+        exception.ThreadContext.DataSize > static_cast<std::uint64_t>(total.QuadPart) - exception.ThreadContext.Rva)
+        return false;
+    CONTEXT context{};
+    std::memcpy(&context, static_cast<const std::byte*>(view.get()) + exception.ThreadContext.Rva, sizeof(context));
+#if defined(_M_X64)
+    return context.Rip != 0 && context.Rip == contextIp;
+#elif defined(_M_ARM64)
+    return context.Pc != 0 && context.Pc == contextIp;
+#else
+    return false;
+#endif
+}
+bool CheckEvidence(const std::wstring& prefix, std::wstring_view name)
+{
+    std::string record;
+    if (! ReadRecord(prefix + L".record", record))
+        return false;
+    std::uint64_t thread{}, flags{}, ip{}, dumpResult{};
+    if (! ParseNumber(Field(record, "thread="), thread, 10) || ! thread || ! ParseNumber(Field(record, "flags="), flags, 16) ||
+        ! ParseNumber(Field(record, "context_ip="), ip, 16) || ! ip || ! ParseNumber(Field(record, "dump_result="), dumpResult, 16) || dumpResult != 0)
+        return false;
+    const auto* registered = FindAdditional(name);
+    const bool firstChance = (! registered || registered->faultClass != FatalFaultClass::ContractViolation) &&
+                             (name == L"unknown" || name == L"bad_alloc" || name == L"standard" || name == L"worker" || name.starts_with(L"native-callback-") ||
+                              name.starts_with(L"native-optional-") || name.starts_with(L"native-escaping-") || name == L"native-pinned-release" ||
+                              name == L"native-after-boundary" || name.starts_with(L"accessible-invoke-") || name.starts_with(L"rich-") ||
+                              name == L"context-menu-callback" || registered);
+    if (firstChance && ! (flags & DxUi::Failure::FirstChanceContext))
+        return false;
+    if (registered && registered->faultClass == FatalFaultClass::ContractViolation)
+    {
+        std::uint64_t kind{}, result{};
+        if (! ParseNumber(Field(record, "kind="), kind, 10) || kind != static_cast<std::uint64_t>(DxUi::Failure::Kind::ContractViolation) ||
+            ! ParseNumber(Field(record, "result="), result, 16) || result != registered->expectedResult || (flags & DxUi::Failure::FirstChanceContext) != 0u)
+            return false;
+    }
+    if (name == L"stale-caught" &&
+        ((flags & DxUi::Failure::FirstChanceContext) || Field(record, "function=").find("StaleCaughtOrigin") == std::string_view::npos))
+        return false;
+    if (name == L"new_handler")
+    {
+        std::uint64_t kind{};
+        if (! ParseNumber(Field(record, "kind="), kind, 10) || kind != static_cast<std::uint64_t>(DxUi::Failure::Kind::Allocation) ||
+            (flags & DxUi::Failure::FirstChanceContext) != 0u)
+            return false;
+    }
+    if (name == L"control-allocation")
+    {
+        std::uint64_t kind{}, requested{};
+        if (! ParseNumber(Field(record, "kind="), kind, 10) || kind != static_cast<std::uint64_t>(DxUi::Failure::Kind::Allocation) ||
+            ! ParseNumber(Field(record, "allocation_bytes="), requested, 10) || requested != sizeof(DxUi::Separator) ||
+            (flags & DxUi::Failure::FirstChanceContext) != 0u)
+            return false;
+    }
+    if (name == L"yaml-allocation")
+    {
+        std::uint64_t kind{}, requested{};
+        if (! ParseNumber(Field(record, "kind="), kind, 10) || kind != static_cast<std::uint64_t>(DxUi::Failure::Kind::Allocation) ||
+            ! ParseNumber(Field(record, "allocation_bytes="), requested, 10) || requested == 0u || (flags & DxUi::Failure::FirstChanceContext) != 0u)
+            return false;
+    }
+    if (name.starts_with(L"native-callback-") && Field(record, "function=").find("NativeCallbackFromAbi") == std::string_view::npos)
+        return false;
+    if (name.starts_with(L"native-optional-") && Field(record, "function=").find("NativeOptionalFromAbi") == std::string_view::npos)
+        return false;
+    if (name == L"native-pinned-release" && Field(record, "function=").find("PinnedCallbackPayload") == std::string_view::npos)
+        return false;
+    if (name == L"native-after-boundary" && Field(record, "function=").find("NativeAfterBoundaryFailure") == std::string_view::npos)
+        return false;
+    if (name.starts_with(L"native-invalid-"))
+    {
+        std::uint64_t kind{}, result{};
+        if (! ParseNumber(Field(record, "kind="), kind, 10) || kind != static_cast<std::uint64_t>(DxUi::Failure::Kind::ContractViolation) ||
+            ! ParseNumber(Field(record, "result="), result, 16) || result != static_cast<std::uint32_t>(E_UNEXPECTED) ||
+            (flags & DxUi::Failure::FirstChanceContext) != 0u)
+            return false;
+    }
+    if (name == L"allocation" && Field(record, "function=").find("AllocationOrigin") == std::string_view::npos)
+        return false;
+    if (name == L"concurrent" &&
+        (Field(record, "function=").find("ConcurrentPrimaryOrigin") == std::string_view::npos || Field(record, "allocation_bytes=") != "777"))
+        return false;
+    return CheckDump(prefix + L".dmp", static_cast<std::uint32_t>(thread), ip);
+}
+} // namespace
+
+bool RegisterFatalChildCase(FatalChildCase entry) noexcept
+{
+    if (! entry.name || ! *entry.name || ! entry.expectedOriginSymbol || ! *entry.expectedOriginSymbol || ! entry.trigger ||
+        additionalCount == additionalCases.size() || FindAdditional(entry.name))
+    {
+        registrationFailed.store(true, std::memory_order_relaxed);
+        return false;
+    }
+    for (const auto* unit = entry.name; *unit; ++unit)
+        if (! ((*unit >= L'a' && *unit <= L'z') || (*unit >= L'0' && *unit <= L'9') || *unit == L'-'))
+        {
+            registrationFailed.store(true, std::memory_order_relaxed);
+            return false;
+        }
+    additionalCases[additionalCount++] = entry;
+    return true;
+}
+void MarkInjectedAllocation() noexcept
+{
+    if (childWitness)
+        (void)InterlockedExchange(&childWitness[2], static_cast<LONG>(GetCurrentThreadId()));
+    MarkWitness(WitnessInjectedAllocation);
+}
+bool ConfigureFailureChildren(std::wstring_view outputDirectory)
+{
+    if (registrationFailed.load(std::memory_order_relaxed) || outputDirectory.empty() || outputDirectory.find(L'\0') != std::wstring_view::npos)
+        return false;
+    evidenceRoot.assign(outputDirectory);
+    const auto attributes = GetFileAttributesW(evidenceRoot.c_str());
+    return attributes != INVALID_FILE_ATTRIBUTES && (attributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
+}
+int RunFailureChild(int argc, char** argv)
+{
+    const char* kind             = nullptr;
+    const char* prefix           = nullptr;
+    const char* parentActivation = nullptr;
+    const char* witnessName      = nullptr;
+    for (int i = 1; i < argc; ++i)
+    {
+        if (std::strncmp(argv[i], "--failure-child=", 16) == 0)
+            kind = argv[i] + 16;
+        else if (std::strncmp(argv[i], "--failure-prefix=", 17) == 0)
+            prefix = argv[i] + 17;
+        else if (std::strncmp(argv[i], "--failure-parent-activation=", 28) == 0)
+            parentActivation = argv[i] + 28;
+        else if (std::strncmp(argv[i], "--failure-witness=", 18) == 0)
+            witnessName = argv[i] + 18;
+    }
+    if (! kind)
+        return -1;
+    if (registrationFailed.load(std::memory_order_relaxed))
+        return 90;
+    if (parentActivation && std::strcmp(parentActivation, "blocked") != 0 && std::strcmp(parentActivation, "unverified") != 0)
+        return 89;
+    // Child dispatch precedes the ordinary runner and cannot inherit its
+    // thread-local CBT hook. Neither parent class proves an interactive lease.
+    DxUi::TestSupport::ScopedWindowActivationBlocker activationBlocker;
+    if (! activationBlocker.Start())
+    {
+        std::fputs("Fatal child refused: no-activation guard could not be installed.\n", stderr);
+        return 89;
+    }
+    // Native callback probes use logical focus and a null-HWND IME session.
+    // The guard remains active; real foreground assertions stay in their suite.
+    const auto witnessPath = Widen(witnessName);
+    if (witnessPath.empty())
+        return 91;
+    wil::unique_handle witnessMapping(OpenFileMappingW(FILE_MAP_WRITE, FALSE, witnessPath.c_str()));
+    if (! witnessMapping)
+        return 91;
+    wil::unique_mapview_ptr<void> witnessView(MapViewOfFile(witnessMapping.get(), FILE_MAP_WRITE, 0, 0, WitnessBytes));
+    if (! witnessView)
+        return 91;
+    childWitness    = static_cast<volatile LONG*>(witnessView.get());
+    const auto path = Widen(prefix);
+    if (path.empty())
+        return 91;
+    if (std::strcmp(kind, "missing-host") == 0)
+    {
+        MarkWitness(WitnessTriggerReached);
+        const DxUi::Failure::Scope scope;
+        return 96;
+    }
+    if (std::strcmp(kind, "returning") == 0)
+    {
+        int owner{};
+        DxUi::Failure::HostServices services;
+        services.context     = &owner;
+        services.retain      = Retain;
+        services.release     = Release;
+        services.enter       = Enter;
+        services.leave       = Leave;
+        services.beginNative = BeginNative;
+        services.endNative   = EndNative;
+        services.fatal       = ReturningFatal;
+        if (FAILED(DxUi::Failure::RegisterModule(services)))
+            return 92;
+        MarkWitness(WitnessTriggerReached);
+        AllocationOrigin();
+    }
+    if (std::strcmp(kind, "recursive") == 0)
+    {
+        DxUi::Failure::ProcessHooks hooks;
+        if (FAILED(hooks.Install(RecursiveReporter, nullptr)))
+            return 93;
+        MarkWitness(WitnessTriggerReached);
+        AllocationOrigin();
+    }
+    if (std::strcmp(kind, "concurrent") == 0)
+    {
+        DxUiSample::FailureHost::Host writer;
+        wil::unique_handle start(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+        wil::unique_handle contender(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+        if (! start || ! contender || FAILED(writer.Start(path)))
+            return 98;
+        ConcurrentProbe probe{&writer, start.get(), contender.get()};
+        DxUi::Failure::Detail::SetFatalContenderEventForTest(contender.get());
+        wil::unique_handle worker(CreateThread(nullptr, 0, ConcurrentSecondary, &probe, 0, nullptr));
+        if (! worker)
+            return 99;
+        DxUi::Failure::ProcessHooks hooks;
+        if (FAILED(hooks.Install(ConcurrentReporter, &probe)))
+            return 100;
+        ConcurrentPrimaryOrigin();
+    }
+    if (std::strcmp(kind, "dump_failure") == 0)
+    {
+        DxUiSample::FailureHost::Host writer;
+        DxUi::Failure::ProcessHooks hooks;
+        if (FAILED(writer.Start(path)) || FAILED(hooks.Install(DumpFailureReporter, &writer)))
+            return 94;
+        MarkWitness(WitnessTriggerReached);
+        AllocationOrigin();
+    }
+    DxUiSample::FailureHost::Host host;
+    if (FAILED(host.Start(path)) || FAILED(host.Install()))
+        return 94;
+    if (std::strcmp(kind, "activation-guard") == 0)
+    {
+        if (! VerifyChildActivationGuard(activationBlocker))
+            return 88;
+        AllocationOrigin();
+    }
+    if (std::strcmp(kind, "allocation") == 0)
+        AllocationOrigin();
+    if (std::strcmp(kind, "control-allocation") == 0)
+    {
+        const DxUi::Failure::Scope scope;
+        ControlAllocationOrigin();
+    }
+    if (std::strcmp(kind, "yaml-allocation") == 0)
+    {
+        const DxUi::Failure::Scope scope;
+        YamlAllocationOrigin();
+    }
+    if (std::strcmp(kind, "unknown") == 0)
+        UnknownOrigin();
+    if (std::strcmp(kind, "bad_alloc") == 0)
+        BadAllocOrigin();
+    if (std::strcmp(kind, "standard") == 0)
+        StandardOrigin();
+    if (std::strcmp(kind, "native-callback-unknown") == 0)
+        NativeCallbackFailure(0u);
+    if (std::strcmp(kind, "native-callback-standard") == 0)
+        NativeCallbackFailure(1u);
+    if (std::strcmp(kind, "native-callback-allocation") == 0)
+        NativeCallbackFailure(2u);
+    if (std::strcmp(kind, "native-optional-unknown") == 0)
+        NativeOptionalFailure(0u);
+    if (std::strcmp(kind, "native-optional-allocation") == 0)
+        NativeOptionalFailure(1u);
+    if (std::strcmp(kind, "native-pinned-release") == 0)
+        NativePinnedReleaseFailure();
+    if (std::strcmp(kind, "native-escaping-unknown") == 0)
+        NativeEscapingFailure(0u);
+    if (std::strcmp(kind, "native-escaping-standard") == 0)
+        NativeEscapingFailure(1u);
+    if (std::strcmp(kind, "native-escaping-allocation") == 0)
+        NativeEscapingFailure(2u);
+    if (std::strcmp(kind, "native-after-boundary") == 0)
+        NativeAfterBoundaryFailure();
+    if (std::strcmp(kind, "native-invalid-scope") == 0)
+        NativeBoundaryInvalidOrigin(true);
+    if (std::strcmp(kind, "native-invalid-order") == 0)
+        NativeBoundaryInvalidOrigin(false);
+    if (std::strcmp(kind, "stale-caught") == 0)
+        StaleCaughtOrigin();
+    if (std::strcmp(kind, "new_handler") == 0)
+        NewHandlerOrigin();
+    if (std::strcmp(kind, "accessible-invoke-runtime") == 0)
+        AccessibleInvokeOrigin(false);
+    if (std::strcmp(kind, "accessible-invoke-allocation") == 0)
+        AccessibleInvokeOrigin(true);
+    if (std::strcmp(kind, "rich-text-notify") == 0)
+        RichNotifyOrigin(false);
+    if (std::strcmp(kind, "rich-selection-notify") == 0)
+        RichNotifyOrigin(true);
+    if (std::strcmp(kind, "context-menu-callback") == 0)
+        RichContextMenuOrigin();
+    if (std::strcmp(kind, "rich-plan-notify") == 0)
+        RichPlanNotifyOrigin();
+    if (const auto* additional = FindAdditional(kind))
+    {
+        MarkWitness(WitnessTriggerReached);
+        if (additional->scopeTrigger)
+        {
+            const DxUi::Failure::Scope triggerScope;
+            additional->trigger();
+        }
+        else
+            additional->trigger();
+    }
+    if (std::strcmp(kind, "worker") == 0)
+    {
+        wil::unique_handle thread(CreateThread(nullptr, 0, WorkerOrigin, nullptr, 0, nullptr));
+        if (! thread || WaitForSingleObject(thread.get(), TimeoutMs) != WAIT_OBJECT_0)
+            return 95;
+    }
+    return 96; // A fatal case must never return here.
+}
+
+int RunFailureChild(int argc, wchar_t** argv)
+{
+    std::vector<std::string> utf8;
+    std::vector<char*> pointers;
+    utf8.reserve(static_cast<std::size_t>(argc));
+    pointers.reserve(static_cast<std::size_t>(argc));
+    for (int index = 0; index < argc; ++index)
+    {
+        const auto needed = WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, argv[index], -1, nullptr, 0, nullptr, nullptr);
+        if (needed <= 0)
+            return 97;
+        std::string value(static_cast<std::size_t>(needed), '\0');
+        if (! WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, argv[index], -1, value.data(), needed, nullptr, nullptr))
+            return 97;
+        value.pop_back();
+        utf8.push_back(std::move(value));
+    }
+    for (auto& value : utf8)
+        pointers.push_back(value.data());
+    return RunFailureChild(argc, pointers.data());
+}
+
+namespace
+{
+#if defined(__SANITIZE_ADDRESS__)
+// ASan owns the fatal throwing-new report before the C++ new-handler path.
+// Configure its existing dump owner for this child, retaining parent options
+// and keeping runtime fallback paths inside the owned case directory.
+bool NewHandlerEnvironment(std::vector<wchar_t>& output, const std::wstring& directory)
+{
+    wchar_t* const environment = GetEnvironmentStringsW();
+    if (! environment)
+        return false;
+    const auto release = wil::scope_exit([&] { FreeEnvironmentStringsW(environment); });
+    std::vector<std::wstring> entries;
+    bool found = false;
+    for (const wchar_t* item = environment; *item; item += std::wcslen(item) + 1u)
+    {
+        std::wstring value(item);
+        if (_wcsnicmp(value.c_str(), L"ASAN_SAVE_DUMPS=", 16u) == 0 || _wcsnicmp(value.c_str(), L"TMP=", 4u) == 0 ||
+            _wcsnicmp(value.c_str(), L"TEMP=", 5u) == 0 || _wcsnicmp(value.c_str(), L"LOCALAPPDATA=", 13u) == 0 ||
+            _wcsnicmp(value.c_str(), L"APPLOCAL=", 9u) == 0)
+            continue;
+        if (_wcsnicmp(value.c_str(), L"ASAN_OPTIONS=", 13u) == 0)
+        {
+            if (value.size() > 13u)
+                value.push_back(L':');
+            value += L"allocator_may_return_null=1";
+            found = true;
+        }
+        entries.push_back(std::move(value));
+    }
+    if (! found)
+        entries.emplace_back(L"ASAN_OPTIONS=allocator_may_return_null=1");
+    // Keep the runtime's dump name short; it truncates a long absolute name.
+    entries.emplace_back(L"ASAN_SAVE_DUMPS=asan.dmp");
+    entries.emplace_back(L"TMP=" + directory);
+    entries.emplace_back(L"TEMP=" + directory);
+    entries.emplace_back(L"LOCALAPPDATA=" + directory);
+    entries.emplace_back(L"APPLOCAL=" + directory);
+    std::sort(entries.begin(), entries.end(), [](const auto& left, const auto& right) { return _wcsicmp(left.c_str(), right.c_str()) < 0; });
+    for (const auto& value : entries)
+    {
+        output.insert(output.end(), value.begin(), value.end());
+        output.push_back(L'\0');
+    }
+    output.push_back(L'\0');
+    return true;
+}
+#endif
+bool CheckOriginSymbols(HANDLE child, const std::wstring& exe, std::string_view record, std::wstring_view name, const std::wstring& prefix)
+{
+    const auto* additional    = FindAdditional(name);
+    std::string_view expected = additional                                             ? additional->expectedOriginSymbol
+                                : name == L"context-menu-callback"                     ? "RichContextMenuCallbackOrigin"
+                                : name == L"rich-plan-notify"                          ? "RichPlanCallbackOrigin"
+                                : name == L"rich-text-notify"                          ? "RichTextCallbackOrigin"
+                                : name == L"rich-selection-notify"                     ? "RichSelectionCallbackOrigin"
+                                : name == L"accessible-invoke-allocation"              ? "AccessibleAllocationCallbackOrigin"
+                                : name == L"accessible-invoke-runtime"                 ? "AccessibleRuntimeCallbackOrigin"
+                                : name == L"allocation" || name == L"activation-guard" ? "AllocationOrigin"
+                                : name == L"control-allocation"                        ? "ControlAllocationOrigin"
+                                : name == L"yaml-allocation"                           ? "YamlAllocationOrigin"
+                                : name == L"bad_alloc"                                 ? "BadAllocOrigin"
+                                : name == L"standard"                                  ? "StandardOrigin"
+                                : name == L"native-callback-unknown"                   ? "NativeCallbackUnknownOrigin"
+                                : name == L"native-callback-standard"                  ? "NativeCallbackStandardOrigin"
+                                : name == L"native-callback-allocation"                ? "NativeCallbackAllocationOrigin"
+                                : name == L"native-optional-unknown"                   ? "NativeCallbackUnknownOrigin"
+                                : name == L"native-optional-allocation"                ? "NativeCallbackAllocationOrigin"
+                                : name == L"native-pinned-release"                     ? "NativePinnedReleaseOrigin"
+                                : name.starts_with(L"native-escaping-")                ? "NativeEscapingThrow"
+                                : name == L"native-after-boundary"                     ? "NativeAfterBoundaryOrigin"
+                                : name.starts_with(L"native-invalid-")                 ? "NativeBoundaryInvalidOrigin"
+                                : name == L"unknown" || name == L"worker"              ? "UnknownOrigin"
+                                : name == L"new_handler"                               ? "NewHandlerOrigin"
+                                : name == L"stale-caught"                              ? "StaleCaughtOrigin"
+                                : name == L"concurrent"                                ? "ConcurrentPrimaryOrigin"
+                                                                                       : "AccessibleInvokeOrigin";
+    std::uint64_t thread{}, ip{};
+    if (! ParseNumber(Field(record, "thread="), thread, 10) || ! ParseNumber(Field(record, "context_ip="), ip, 16))
+        return false;
+    AcquireSRWLockExclusive(&DxUiSample::FailureHost::dbgHelpGate);
+    const auto unlock = wil::scope_exit([] { ReleaseSRWLockExclusive(&DxUiSample::FailureHost::dbgHelpGate); });
+    if (! DumpReader::Verify(prefix + L".dmp", child, static_cast<DWORD>(thread), ip, exe, expected))
+        return false;
+    return ! additional || additional->faultClass != FatalFaultClass::InjectedAllocation ||
+           DumpReader::Verify(prefix + L".dmp", child, static_cast<DWORD>(thread), ip, exe, "ThrowInjectedAllocation");
+}
+} // namespace
+
+bool ExpectFatalChild(const wchar_t* caseName)
+{
+    if (evidenceRoot.empty() || ! caseName || ! *caseName)
+        return false;
+    for (const auto* c = caseName; *c; ++c)
+        if (! ((*c >= L'a' && *c <= L'z') || (*c >= L'0' && *c <= L'9') || *c == L'_' || *c == L'-'))
+            return false;
+    std::array<wchar_t, 32768> executable{};
+    const auto length = GetModuleFileNameW(nullptr, executable.data(), static_cast<DWORD>(executable.size()));
+    if (! length || length >= executable.size())
+        return false;
+    const std::wstring exe(executable.data(), length);
+    const auto serial    = sequence.fetch_add(1u, std::memory_order_relaxed);
+    const auto directory = evidenceRoot + L"\\" + std::to_wstring(GetCurrentProcessId()) + L"-" + caseName + L"-" + std::to_wstring(serial);
+    if (! CreateDirectoryW(directory.c_str(), nullptr))
+        return false;
+    const auto witnessName = L"Local\\DxUiFatalWitness-" + std::to_wstring(GetCurrentProcessId()) + L"-" + std::to_wstring(serial);
+    SetLastError(ERROR_SUCCESS);
+    wil::unique_handle witnessMapping(CreateFileMappingW(INVALID_HANDLE_VALUE, nullptr, PAGE_READWRITE, 0, WitnessBytes, witnessName.c_str()));
+    if (! witnessMapping || GetLastError() == ERROR_ALREADY_EXISTS)
+        return false;
+    wil::unique_mapview_ptr<void> witnessView(MapViewOfFile(witnessMapping.get(), FILE_MAP_ALL_ACCESS, 0, 0, WitnessBytes));
+    if (! witnessView)
+        return false;
+    auto* const witness = static_cast<volatile LONG*>(witnessView.get());
+    (void)InterlockedExchange(&witness[0], 0L);
+    (void)InterlockedExchange(&witness[1], 0L);
+    (void)InterlockedExchange(&witness[2], 0L);
+    const bool failurePath = std::wstring_view(caseName) == L"dump_failure";
+    const auto prefix      = directory + L"\\evidence";
+    // Make only the dump destination fail; the sibling record remains writable
+    // and reports the exact dump HRESULT for this deliberately failed write.
+    if (failurePath && ! CreateDirectoryW((prefix + L".dmp").c_str(), nullptr))
+        return false;
+    const wchar_t* parentActivation = DxUi::TestSupport::ScopedWindowActivationBlocker::IsActiveForCurrentThread() ? L"blocked" : L"unverified";
+    std::wstring command = L"\"" + exe + L"\" --failure-child=" + caseName + L" --failure-parent-activation=" + parentActivation + L" --failure-witness=" +
+                           witnessName + L" --failure-prefix=\"" + prefix + L"\"";
+    wil::unique_handle job(CreateJobObjectW(nullptr, nullptr));
+    if (! job)
+        return false;
+    JOBOBJECT_EXTENDED_LIMIT_INFORMATION limits{};
+    limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+    if (! SetInformationJobObject(job.get(), JobObjectExtendedLimitInformation, &limits, sizeof(limits)))
+        return false;
+    const auto stdoutPath = directory + L"\\child.stdout";
+    const auto stderrPath = directory + L"\\child.stderr";
+    ChildOutputCapture output;
+    const HRESULT captureResult = output.Initialize(stdoutPath, stderrPath);
+    if (FAILED(captureResult))
+    {
+        std::fwprintf(stderr, L"Fatal child %ls capture setup failed: 0x%08lX\n", caseName, static_cast<unsigned long>(captureResult));
+        return false;
+    }
+    PROCESS_INFORMATION information{};
+    DWORD creationFlags             = CREATE_SUSPENDED | CREATE_NO_WINDOW | output.CreationFlags();
+    void* environment               = nullptr;
+    const wchar_t* workingDirectory = nullptr;
+#if defined(__SANITIZE_ADDRESS__)
+    std::vector<wchar_t> childEnvironment;
+    if (std::wstring_view(caseName) == L"new_handler")
+    {
+        if (! NewHandlerEnvironment(childEnvironment, directory))
+            return false;
+        creationFlags |= CREATE_UNICODE_ENVIRONMENT;
+        environment      = childEnvironment.data();
+        workingDirectory = directory.c_str();
+    }
+#endif
+    const auto started = GetTickCount64();
+    if (! CreateProcessW(
+            exe.c_str(), command.data(), nullptr, nullptr, TRUE, creationFlags, environment, workingDirectory, &output.Startup()->StartupInfo, &information))
+    {
+        std::fwprintf(stderr, L"Fatal child %ls CreateProcess failed: %lu\n", caseName, GetLastError());
+        return false;
+    }
+    output.CloseParentHandles();
+    wil::unique_handle process(information.hProcess), thread(information.hThread);
+    if (! AssignProcessToJobObject(job.get(), process.get()))
+    {
+        TerminateProcess(process.get(), ERROR_CANCELLED);
+        WaitForSingleObject(process.get(), TimeoutMs);
+        return false;
+    }
+    if (ResumeThread(thread.get()) == static_cast<DWORD>(-1))
+    {
+        job.reset();
+        (void)WaitForSingleObject(process.get(), TimeoutMs);
+        return false;
+    }
+    const DWORD waitResult = WaitForSingleObject(process.get(), TimeoutMs);
+    if (waitResult != WAIT_OBJECT_0)
+    {
+        const HRESULT dumpResult = CaptureLiveHangDump(process.get(), information.dwProcessId, directory + L"\\hang.dmp");
+        std::fwprintf(stderr,
+                      L"Fatal child %ls pid=%lu wait=%lu elapsed=%llu ms hang=0x%08lX stdout=%ls stderr=%ls\n",
+                      caseName,
+                      information.dwProcessId,
+                      waitResult,
+                      GetTickCount64() - started,
+                      static_cast<unsigned long>(dumpResult),
+                      stdoutPath.c_str(),
+                      stderrPath.c_str());
+        job.reset();
+        (void)WaitForSingleObject(process.get(), TimeoutMs);
+        return false;
+    }
+    DWORD exitCode{};
+    if (! GetExitCodeProcess(process.get(), &exitCode))
+        return false;
+    const auto bits = InterlockedCompareExchange(&witness[0], 0L, 0L);
+    std::fwprintf(stderr,
+                  L"Fatal child %ls pid=%lu wait=%lu elapsed=%llu ms exit=%lu witness=%ld detail=%ld thread=%ld stdout=%ls stderr=%ls\n",
+                  caseName,
+                  information.dwProcessId,
+                  waitResult,
+                  GetTickCount64() - started,
+                  exitCode,
+                  bits,
+                  InterlockedCompareExchange(&witness[1], 0L, 0L),
+                  InterlockedCompareExchange(&witness[2], 0L, 0L),
+                  stdoutPath.c_str(),
+                  stderrPath.c_str());
+#if defined(__SANITIZE_ADDRESS__)
+    if (std::wstring_view(caseName) == L"new_handler")
+    {
+        const DWORD expectedThread = static_cast<DWORD>(InterlockedCompareExchange(&witness[2], 0L, 0L));
+        std::string error;
+        if (exitCode != 1u || ! expectedThread || (bits & WitnessTriggerReached) == 0L || (bits & WitnessTriggerReturned) != 0L ||
+            ! ReadRecord(stderrPath, error) || error.find("ERROR: AddressSanitizer: out of memory") == std::string::npos ||
+            GetFileAttributesW((prefix + L".record").c_str()) != INVALID_FILE_ATTRIBUTES)
+            return false;
+        AcquireSRWLockExclusive(&DxUiSample::FailureHost::dbgHelpGate);
+        const auto unlock = wil::scope_exit([] { ReleaseSRWLockExclusive(&DxUiSample::FailureHost::dbgHelpGate); });
+        DumpReader::View dump;
+        ULONG bytes{};
+        const auto asanDump = directory + L"\\asan.dmp";
+        if (! dump.Open(asanDump))
+            return false;
+        const auto* exception = dump.Stream<MINIDUMP_EXCEPTION_STREAM>(ExceptionStream, bytes);
+        if (! exception || exception->ThreadId != expectedThread || exception->ExceptionRecord.ExceptionCode != 0xe073616eu || ! exception->ThreadContext.Rva ||
+            exception->ThreadContext.DataSize < sizeof(CONTEXT))
+            return false;
+        const auto* context = dump.At<CONTEXT>(exception->ThreadContext.Rva);
+        if (! context || (context->ContextFlags & (CONTEXT_CONTROL | CONTEXT_INTEGER)) != (CONTEXT_CONTROL | CONTEXT_INTEGER))
+            return false;
+#if defined(_M_X64)
+        const auto ip = context->Rip;
+#elif defined(_M_ARM64)
+        const auto ip = context->Pc;
+#else
+        const std::uint64_t ip = 0;
+#endif
+        const bool verified = DumpReader::Verify(asanDump, process.get(), expectedThread, ip, exe, "NewHandlerOrigin");
+        if (verified)
+            std::fputs("ASan allocator-fatal dump verified; this is not a std::new_handler dispatch result.\n", stderr);
+        return verified;
+    }
+#endif
+    if (exitCode == 89u)
+    {
+        std::fwprintf(stderr, L"Fatal child %ls was refused by the desktop activation guard or requires a verified foreground lease.\n", caseName);
+        return false;
+    }
+    if (! (exitCode & 0x80000000u))
+    {
+        std::fprintf(stderr,
+                     "Fatal child %ls exit=%lu detail=%ld auxiliary=%ld\n",
+                     caseName,
+                     exitCode,
+                     InterlockedCompareExchange(&witness[1], 0L, 0L),
+                     InterlockedCompareExchange(&witness[2], 0L, 0L));
+        return false;
+    }
+    const std::wstring_view name(caseName);
+    if (name == L"missing-host")
+        return exitCode == ExpectedFatalExitCode && bits == WitnessTriggerReached &&
+               GetFileAttributesW((prefix + L".record").c_str()) == INVALID_FILE_ATTRIBUTES &&
+               GetFileAttributesW((prefix + L".dmp").c_str()) == INVALID_FILE_ATTRIBUTES;
+    if ((name == L"control-allocation" || name == L"yaml-allocation") && (bits & WitnessTriggerReached) == 0L)
+        return false;
+    if ((name.starts_with(L"native-callback-") || name.starts_with(L"native-optional-") || name.starts_with(L"native-invalid-") ||
+         name.starts_with(L"native-escaping-") || name == L"native-after-boundary" || name == L"native-pinned-release") &&
+        (bits & WitnessTriggerReached) == 0L)
+        return false;
+    if (name == L"yaml-allocation" && (bits & WitnessTriggerReturned) != 0L)
+        return false;
+    if (name == L"returning" || name == L"recursive" || failurePath)
+    {
+        if (exitCode != ExpectedFatalExitCode || (bits & (WitnessTriggerReached | WitnessReporterReached)) != (WitnessTriggerReached | WitnessReporterReached))
+            return false;
+        if (name == L"returning" && (bits & WitnessReporterReturned) == 0L)
+            return false;
+        if (failurePath)
+        {
+            const HRESULT reportResult = static_cast<HRESULT>(InterlockedCompareExchange(&witness[1], 0L, 0L));
+            std::fprintf(stderr, "Fatal dump failure reporter HRESULT: 0x%08lX\n", static_cast<unsigned long>(reportResult));
+            std::string record;
+            std::uint64_t dumpResult{};
+            if ((bits & WitnessReporterReturned) == 0L || ! FAILED(reportResult) || ! ReadRecord(prefix + L".record", record) ||
+                ! ParseNumber(Field(record, "dump_result="), dumpResult, 16) || dumpResult != static_cast<std::uint32_t>(reportResult))
+                return false;
+        }
+        return true;
+    }
+    if (const auto* additional = FindAdditional(name);
+        additional && additional->faultClass == FatalFaultClass::ContractViolation && exitCode != ExpectedFatalExitCode)
+        return false;
+    if (const auto* additional = FindAdditional(name))
+        if ((bits & WitnessTriggerReached) == 0L || (additional->faultClass == FatalFaultClass::InjectedAllocation && (bits & WitnessInjectedAllocation) == 0L))
+            return false;
+    std::string record;
+    if (! CheckEvidence(prefix, name) || ! ReadRecord(prefix + L".record", record))
+        return false;
+    if (const auto* additional = FindAdditional(name); additional && additional->faultClass == FatalFaultClass::InjectedAllocation)
+    {
+        std::uint64_t failureThread{};
+        const auto injectedThread = static_cast<std::uint32_t>(InterlockedCompareExchange(&witness[2], 0L, 0L));
+        if (! injectedThread || ! ParseNumber(Field(record, "thread="), failureThread, 10) || failureThread != injectedThread)
+            return false;
+    }
+    return CheckOriginSymbols(process.get(), exe, record, name, prefix);
+}
+
+bool TestZeroRvaDumpFallback()
+{
+    // The thread stack descriptor has no file data; only Memory64 can supply
+    // these bytes. A zero Memory64 base must not become valid after an offset.
+    std::array<std::byte, 1024> data{};
+    MINIDUMP_HEADER header{};
+    header.Signature          = MINIDUMP_SIGNATURE;
+    header.Version            = MINIDUMP_VERSION;
+    header.NumberOfStreams    = 2;
+    header.StreamDirectoryRva = sizeof(header);
+    struct ThreadList
+    {
+        ULONG32 count;
+        MINIDUMP_THREAD thread;
+    } threads{1, {}};
+    static_assert(offsetof(ThreadList, thread) == offsetof(MINIDUMP_THREAD_LIST, Threads));
+    std::array<MINIDUMP_DIRECTORY, 2> directories{};
+    directories[0].StreamType = ThreadListStream;
+    directories[0].Location   = {sizeof(threads), 64};
+    directories[1].StreamType = Memory64ListStream;
+    struct MemoryRanges
+    {
+        ULONG64 count;
+        ULONG64 base;
+        std::array<MINIDUMP_MEMORY_DESCRIPTOR64, 2> ranges;
+    } memory{2, 512, {{{0x1000, 8}, {0x2000, 8}}}};
+    directories[1].Location                 = {sizeof(memory), 256};
+    threads.thread.Stack.StartOfMemoryRange = 0x1000;
+    threads.thread.Stack.Memory             = {8, 0};
+    std::memcpy(data.data(), &header, sizeof(header));
+    std::memcpy(data.data() + sizeof(header), directories.data(), sizeof(directories));
+    std::memcpy(data.data() + 64, &threads, sizeof(threads));
+    data[515]        = std::byte{0xa3};
+    data[522]        = std::byte{0xb2};
+    const auto check = [&](const wchar_t* name, bool expected)
+    {
+        const auto path = evidenceRoot + L"\\" + name;
+        std::memcpy(data.data() + 256, &memory, sizeof(memory));
+        wil::unique_hfile file(CreateFileW(path.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr));
+        DWORD written{};
+        if (! file || ! WriteFile(file.get(), data.data(), static_cast<DWORD>(data.size()), &written, nullptr) || written != data.size())
+            return false;
+        file.reset();
+        DumpReader::View dump;
+        std::byte first{}, second{};
+        if (! dump.Open(path))
+            return false;
+        const bool readFirst  = dump.Read(0x1003, &first, 1);
+        const bool readSecond = dump.Read(0x2002, &second, 1);
+        return expected ? readFirst && readSecond && first == std::byte{0xa3} && second == std::byte{0xb2} : ! readFirst && ! readSecond;
+    };
+    if (! check(L"valid-memory64.dmp", true))
+        return false;
+    memory.base = 0;
+    if (! check(L"zero-memory64.dmp", false))
+        return false;
+    header.NumberOfStreams = 1;
+    std::memcpy(data.data(), &header, sizeof(header));
+    return check(L"missing-memory64.dmp", false);
+}
+
+bool TestFailurePolicy()
+{
+    if (evidenceRoot.empty())
+        return false;
+    {
+        const DxUi::Failure::Scope absent(std::nothrow);
+        if (absent.IsActive())
+            return false;
+    }
+    // This test is intentionally not run while another process owner is installed.
+    DxUiSample::FailureHost::Host host;
+    const auto prefix = evidenceRoot + L"\\healthy-" + std::to_wstring(GetCurrentProcessId());
+    if (FAILED(host.Start(prefix)) || FAILED(host.Install()) || host.Install() != S_FALSE || ! host.Services())
+        return false;
+    const auto* services = host.Services();
+    if (DxUi::Failure::RegisterModule(*services) != HRESULT_FROM_WIN32(ERROR_ALREADY_EXISTS))
+        return false;
+    {
+        DxUi::Failure::Scope active;
+        if (! TestZeroRvaDumpFallback())
+            return false;
+        if (host.Uninstall() != HRESULT_FROM_WIN32(ERROR_BUSY))
+            return false;
+        const DxUi::Failure::Scope nestedOptional(std::nothrow);
+        if (! nestedOptional.IsActive())
+            return false;
+        const std::runtime_error error("handled by native ABI");
+        if (DxUi::Failure::InvokeNative(&NativeHandledAbi, 0u, &error) != E_FAIL || DxUi::Failure::InvokeNative(&NativeHandledAbi, 1u, &error) != E_OUTOFMEMORY)
+            return false;
+        {
+            DxUi::Failure::NativeCallScope native;
+            if (host.Uninstall() != HRESULT_FROM_WIN32(ERROR_BUSY) || NativeHandledFailure(false, error) != E_FAIL ||
+                NativeHandledFailure(true, error) != E_OUTOFMEMORY)
+                return false;
+            {
+                DxUi::Failure::NativeCallScope nested;
+                if (NativeHandledFailure(false, error) != E_FAIL)
+                    return false;
+            }
+            if (NativeHandledFailure(true, error) != E_OUTOFMEMORY)
+                return false;
+        }
+    }
+    wil::unique_handle entered(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    wil::unique_handle release(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    if (! entered || ! release)
+        return false;
+    LifecycleProbe probe{&host, entered.get(), release.get()};
+    wil::unique_handle worker(CreateThread(nullptr, 0, LifecycleWorker, &probe, 0, nullptr));
+    if (! worker)
+        return false;
+    const auto finishWorker = wil::scope_exit([&]
+    {
+        SetEvent(release.get());
+        WaitForSingleObject(worker.get(), TimeoutMs);
+    });
+    if (WaitForSingleObject(entered.get(), TimeoutMs) != WAIT_OBJECT_0 || probe.wrongThread != HRESULT_FROM_WIN32(ERROR_INVALID_THREAD_ID) ||
+        host.Uninstall() != HRESULT_FROM_WIN32(ERROR_BUSY))
+        return false;
+    SetEvent(release.get());
+    if (WaitForSingleObject(worker.get(), TimeoutMs) != WAIT_OBJECT_0)
+        return false;
+    // An already-retired object may outlive every thread Scope and be released
+    // by a different thread. Its pin alone must keep the registration alive.
+    auto retiredObject = std::make_unique<DxUi::Failure::ObjectLifetime>();
+    if (host.UninstallWhenIdle(INFINITE) != E_INVALIDARG || host.UninstallWhenIdle(0u) != HRESULT_FROM_WIN32(ERROR_TIMEOUT))
+        return false;
+    // A persistent owned pin must time out rather than being discarded. The
+    // shutdown pump also preserves the owner's quit result for its outer loop.
+    PostQuitMessage(47);
+    const HRESULT pinnedShutdown = host.UninstallWhenIdle(20u);
+    MSG quit{};
+    const bool hadQuit = PeekMessageW(&quit, nullptr, WM_QUIT, WM_QUIT, PM_REMOVE) != FALSE;
+    if (pinnedShutdown != HRESULT_FROM_WIN32(ERROR_TIMEOUT) || ! hadQuit || quit.wParam != 47u || ! host.Services())
+        return false;
+    wil::unique_handle raceStarted(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    if (! raceStarted)
+        return false;
+    OptionalUnregisterProbe race{raceStarted.get()};
+    wil::unique_handle raceWorker(CreateThread(nullptr, 0, OptionalUnregisterWorker, &race, 0, nullptr));
+    if (! raceWorker)
+        return false;
+    const auto finishRace = wil::scope_exit([&]() noexcept
+    {
+        if (WaitForSingleObject(raceWorker.get(), TimeoutMs) != WAIT_OBJECT_0)
+            DxUi::Failure::FailContract(HRESULT_FROM_WIN32(ERROR_TIMEOUT));
+    });
+    if (WaitForSingleObject(raceStarted.get(), TimeoutMs) != WAIT_OBJECT_0)
+        return false;
+    for (unsigned index = 0; index < 50000u; ++index)
+        if (DxUi::Failure::UnregisterModule(*services) != HRESULT_FROM_WIN32(ERROR_BUSY))
+            return false;
+    if (WaitForSingleObject(raceWorker.get(), TimeoutMs) != WAIT_OBJECT_0 || race.sawInactive)
+        return false;
+    wil::unique_handle pinRelease(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    wil::unique_handle pinFinished(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    if (! pinRelease || ! pinFinished)
+        return false;
+    ObjectLifetimeProbe pinProbe{pinRelease.get(), pinFinished.get(), &retiredObject};
+    wil::unique_handle pinWorker(CreateThread(nullptr, 0, ObjectLifetimeWorker, &pinProbe, 0, nullptr));
+    if (! pinWorker)
+        return false;
+    const auto finishPin = wil::scope_exit([&]
+    {
+        SetEvent(pinRelease.get());
+        WaitForSingleObject(pinWorker.get(), TimeoutMs);
+    });
+    if (host.Uninstall() != HRESULT_FROM_WIN32(ERROR_BUSY))
+        return false;
+    SetEvent(pinRelease.get());
+    if (WaitForSingleObject(pinFinished.get(), TimeoutMs) != WAIT_OBJECT_0 || WaitForSingleObject(pinWorker.get(), TimeoutMs) != WAIT_OBJECT_0 || retiredObject)
+        return false;
+    const HRESULT pinUninstall = host.Uninstall();
+    const HRESULT pinReinstall = FAILED(pinUninstall) ? pinUninstall : host.Install();
+    if (FAILED(pinUninstall) || FAILED(pinReinstall))
+        return false;
+    wil::unique_handle optionalEntered(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    wil::unique_handle optionalRelease(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    wil::unique_handle optionalReleased(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    wil::unique_handle optionalClosed(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    wil::unique_handle optionalFinished(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    if (! optionalEntered || ! optionalRelease || ! optionalReleased || ! optionalClosed || ! optionalFinished)
+        return false;
+    OptionalLifecycleProbe optional{optionalEntered.get(), optionalRelease.get(), optionalReleased.get(), optionalClosed.get(), optionalFinished.get()};
+    wil::unique_handle optionalWorker(CreateThread(nullptr, 0, OptionalLifecycleWorker, &optional, 0, nullptr));
+    if (! optionalWorker)
+        return false;
+    const auto finishOptional = wil::scope_exit([&]
+    {
+        SetEvent(optionalRelease.get());
+        SetEvent(optionalClosed.get());
+        WaitForSingleObject(optionalWorker.get(), TimeoutMs);
+    });
+    if (WaitForSingleObject(optionalEntered.get(), TimeoutMs) != WAIT_OBJECT_0 || ! optional.active || host.Uninstall() != HRESULT_FROM_WIN32(ERROR_BUSY))
+        return false;
+    SetEvent(optionalRelease.get());
+    const DWORD optionalWait        = WaitForSingleObject(optionalReleased.get(), TimeoutMs);
+    const HRESULT optionalUninstall = optionalWait == WAIT_OBJECT_0 ? host.Uninstall() : E_PENDING;
+    if (optionalWait != WAIT_OBJECT_0 || FAILED(optionalUninstall))
+        return false;
+    SetEvent(optionalClosed.get());
+    if (WaitForSingleObject(optionalFinished.get(), TimeoutMs) != WAIT_OBJECT_0 || ! optional.inactiveAfterClose ||
+        WaitForSingleObject(optionalWorker.get(), TimeoutMs) != WAIT_OBJECT_0)
+        return false;
+    {
+        const DxUi::Failure::Scope retired(std::nothrow);
+        if (retired.IsActive())
+            return false;
+    }
+    if (host.Uninstall() != S_FALSE)
+        return false;
+    for (const auto* name : {L"allocation",
+                             L"missing-host",
+                             L"control-allocation",
+                             L"yaml-allocation",
+                             L"activation-guard",
+                             L"unknown",
+                             L"bad_alloc",
+                             L"standard",
+                             L"native-callback-unknown",
+                             L"native-callback-standard",
+                             L"native-callback-allocation",
+                             L"native-optional-unknown",
+                             L"native-optional-allocation",
+                             L"native-pinned-release",
+                             L"native-escaping-unknown",
+                             L"native-escaping-standard",
+                             L"native-escaping-allocation",
+                             L"native-after-boundary",
+                             L"native-invalid-scope",
+                             L"native-invalid-order",
+                             L"stale-caught",
+                             L"new_handler",
+                             L"worker",
+                             L"concurrent",
+                             L"returning",
+                             L"recursive",
+                             L"dump_failure"})
+        if (! ExpectFatalChild(name))
+        {
+            std::fprintf(stderr, "Fatal child failed: %ls\n", name);
+            return false;
+        }
+    return true;
+}
+} // namespace DxUiFailureTests

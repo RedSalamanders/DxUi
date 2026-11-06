@@ -1,4 +1,5 @@
 #include <DxUi/ControlCatalog.h>
+#include <DxUi/Failure.h>
 #include <array>
 #include <new>
 namespace DxUi
@@ -42,53 +43,64 @@ std::span<const ControlDescriptor> GetControlCatalog() noexcept
                                         ControlDescriptor{ControlKind::RichTextEditor, L"RichTextEditor"}};
     return entries;
 }
+namespace
+{
+template <class T> HRESULT ConstructControl(std::unique_ptr<Control>& result)
+{
+    std::unique_ptr<T> staged(new (std::nothrow) T);
+    if (! staged)
+        return E_OUTOFMEMORY;
+    result = std::move(staged);
+    return S_OK;
+}
+} // namespace
 HRESULT CreateControl(ControlKind kind, std::unique_ptr<Control>& result) noexcept
 {
-    try
+    if (static_cast<unsigned>(kind) > static_cast<unsigned>(ControlKind::RichTextEditor))
+        return E_INVALIDARG;
+    if (! Failure::IsConfigured())
+        return CO_E_NOTINITIALIZED;
+    const Failure::Scope failureScope;
     {
         switch (kind)
         {
-            case ControlKind::Panel: result = std::make_unique<Panel>(); return S_OK;
-            case ControlKind::PageHost: result = std::make_unique<PageHost>(); return S_OK;
-            case ControlKind::CardPanel: result = std::make_unique<CardPanel>(); return S_OK;
-            case ControlKind::Separator: result = std::make_unique<Separator>(); return S_OK;
-            case ControlKind::Label: result = std::make_unique<Label>(); return S_OK;
-            case ControlKind::Button: result = std::make_unique<Button>(); return S_OK;
-            case ControlKind::Toggle: result = std::make_unique<Toggle>(); return S_OK;
-            case ControlKind::Checkbox: result = std::make_unique<Checkbox>(); return S_OK;
-            case ControlKind::RadioButton: result = std::make_unique<RadioButton>(); return S_OK;
-            case ControlKind::RadioButtons: result = std::make_unique<RadioButtons>(); return S_OK;
-            case ControlKind::ProgressBar: result = std::make_unique<ProgressBar>(); return S_OK;
-            case ControlKind::ThroughputGraph: result = std::make_unique<ThroughputGraph>(); return S_OK;
-            case ControlKind::Slider: result = std::make_unique<Slider>(); return S_OK;
-            case ControlKind::Toolbar: result = std::make_unique<Toolbar>(); return S_OK;
-            case ControlKind::MenuBar: result = std::make_unique<MenuBar>(); return S_OK;
-            case ControlKind::TabControl: result = std::make_unique<TabControl>(); return S_OK;
-            case ControlKind::ColorSwatch: result = std::make_unique<ColorSwatch>(); return S_OK;
-            case ControlKind::TextField: result = std::make_unique<TextField>(); return S_OK;
-            case ControlKind::ComboBox: result = std::make_unique<ComboBox>(); return S_OK;
-            case ControlKind::TagPicker: result = std::make_unique<TagPicker>(); return S_OK;
-            case ControlKind::StatusStrip: result = std::make_unique<StatusStrip>(); return S_OK;
-            case ControlKind::PopupLayer: result = std::make_unique<PopupLayer>(); return S_OK;
-            case ControlKind::StackPanel: result = std::make_unique<StackPanel>(); return S_OK;
-            case ControlKind::ScrollPanel: result = std::make_unique<ScrollPanel>(); return S_OK;
-            case ControlKind::TooltipLayer: result = std::make_unique<TooltipLayer>(); return S_OK;
-            case ControlKind::Tree: result = std::make_unique<Tree>(); return S_OK;
-            case ControlKind::Grid: result = std::make_unique<Grid>(); return S_OK;
-            case ControlKind::PageIndicator: result = std::make_unique<PageIndicator>(); return S_OK;
-            case ControlKind::Splitter: result = std::make_unique<Splitter>(); return S_OK;
-            case ControlKind::NumericStepper: result = std::make_unique<NumericStepper>(); return S_OK;
-            case ControlKind::ColorPicker: result = std::make_unique<ColorPicker>(); return S_OK;
-            case ControlKind::FlexPanel: result = std::make_unique<FlexPanel>(); return S_OK;
-            case ControlKind::FormField: result = std::make_unique<FormField>(); return S_OK;
-            case ControlKind::FormPanel: result = std::make_unique<FormPanel>(); return S_OK;
-            case ControlKind::RichTextEditor: result = std::make_unique<RichTextEditor>(); return S_OK;
+            case ControlKind::Panel: return ConstructControl<Panel>(result);
+            case ControlKind::PageHost: return ConstructControl<PageHost>(result);
+            case ControlKind::CardPanel: return ConstructControl<CardPanel>(result);
+            case ControlKind::Separator: return ConstructControl<Separator>(result);
+            case ControlKind::Label: return ConstructControl<Label>(result);
+            case ControlKind::Button: return ConstructControl<Button>(result);
+            case ControlKind::Toggle: return ConstructControl<Toggle>(result);
+            case ControlKind::Checkbox: return ConstructControl<Checkbox>(result);
+            case ControlKind::RadioButton: return ConstructControl<RadioButton>(result);
+            case ControlKind::RadioButtons: return ConstructControl<RadioButtons>(result);
+            case ControlKind::ProgressBar: return ConstructControl<ProgressBar>(result);
+            case ControlKind::ThroughputGraph: return ConstructControl<ThroughputGraph>(result);
+            case ControlKind::Slider: return ConstructControl<Slider>(result);
+            case ControlKind::Toolbar: return ConstructControl<Toolbar>(result);
+            case ControlKind::MenuBar: return ConstructControl<MenuBar>(result);
+            case ControlKind::TabControl: return ConstructControl<TabControl>(result);
+            case ControlKind::ColorSwatch: return ConstructControl<ColorSwatch>(result);
+            case ControlKind::TextField: return ConstructControl<TextField>(result);
+            case ControlKind::ComboBox: return ConstructControl<ComboBox>(result);
+            case ControlKind::TagPicker: return ConstructControl<TagPicker>(result);
+            case ControlKind::StatusStrip: return ConstructControl<StatusStrip>(result);
+            case ControlKind::PopupLayer: return ConstructControl<PopupLayer>(result);
+            case ControlKind::StackPanel: return ConstructControl<StackPanel>(result);
+            case ControlKind::ScrollPanel: return ConstructControl<ScrollPanel>(result);
+            case ControlKind::TooltipLayer: return ConstructControl<TooltipLayer>(result);
+            case ControlKind::Tree: return ConstructControl<Tree>(result);
+            case ControlKind::Grid: return ConstructControl<Grid>(result);
+            case ControlKind::PageIndicator: return ConstructControl<PageIndicator>(result);
+            case ControlKind::Splitter: return ConstructControl<Splitter>(result);
+            case ControlKind::NumericStepper: return ConstructControl<NumericStepper>(result);
+            case ControlKind::ColorPicker: return ConstructControl<ColorPicker>(result);
+            case ControlKind::FlexPanel: return ConstructControl<FlexPanel>(result);
+            case ControlKind::FormField: return ConstructControl<FormField>(result);
+            case ControlKind::FormPanel: return ConstructControl<FormPanel>(result);
+            case ControlKind::RichTextEditor: return ConstructControl<RichTextEditor>(result);
             default: return E_INVALIDARG;
         }
-    }
-    catch (const std::bad_alloc&)
-    {
-        return E_OUTOFMEMORY;
     }
 }
 } // namespace DxUi

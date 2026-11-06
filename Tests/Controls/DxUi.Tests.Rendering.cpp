@@ -4,6 +4,7 @@
 
 #include <DxUi/FrameRuntime.h>
 #include <array>
+#include <cstdio>
 
 namespace
 {
@@ -2941,44 +2942,75 @@ void TestAttachedHostInitialRootChildBatchingUsesNativePaintAndExcludesNestedPan
         auto* const label = nested->AddChild<Label>(L"nested panels do not submit batches");
         label->SetBounds(D2D1::RectF(0.0f, static_cast<float>(index * 18u), 250.0f, static_cast<float>(index * 18u + 16u)));
     }
+    auto* const preparation = nested->AddChild<PendingPreparationProbe>();
+    preparation->SetBounds(D2D1::RectF(0.0f, 0.0f, 8.0f, 8.0f));
     window.Host().SetRoot(std::move(root));
+    const auto repaint = [&window]
+    {
+        Require(RedrawWindow(window.Hwnd(), nullptr, nullptr, RDW_INVALIDATE | RDW_ALLCHILDREN | RDW_UPDATENOW) != FALSE,
+                "owned non-activating repaint is dispatched synchronously");
+    };
+    const auto admitBatch = [&window, &repaint](uint64_t before)
+    {
+        // A native paint can advance cooperative preparation without starting
+        // a D2D frame. Stop at the first admitted batch so a failed frame's
+        // retry cannot hide its flush/presentation result.
+        for (unsigned turn = 0u; turn < 64u && window.Host().DebugGetInitialRootChildBatchFlushCount() == before; ++turn)
+            repaint();
+    };
     ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
-    RedrawWindow(window.Hwnd(), nullptr, nullptr, RDW_INVALIDATE | RDW_ALLCHILDREN | RDW_UPDATENOW);
+    admitBatch(0u);
     Require(window.Host().DebugGetInitialRootChildBatchFlushCount() == 1u,
             "native WM_PAINT submits once for the visible direct root child and never batches nested children");
     WindowHostBitmapCapture warmFrame;
     Require(window.Host().DebugCaptureBitmap(warmFrame), "a follow-up capture completes after the native first paint");
     Require(window.Host().DebugGetInitialRootChildBatchFlushCount() == 1u, "capture after native first paint adds no warm-frame batches");
 
-    const auto repaint = [&window]
-    {
-        Require(RedrawWindow(window.Hwnd(), nullptr, nullptr, RDW_INVALIDATE | RDW_ALLCHILDREN | RDW_UPDATENOW) != FALSE,
-                "owned non-activating repaint is dispatched synchronously");
-    };
     window.Host().DebugSimulateDeviceLoss();
+    preparation->ArmPendingCycle();
     const uint64_t beforeFlushFailure        = window.Host().DebugGetInitialRootChildBatchFlushCount();
     const uint64_t beforeFlushFailurePresent = window.Host().DebugGetFullPresentAttemptCount();
+    const uint64_t beforeFlushFailureRender  = window.Host().DebugGetRenderCount();
     window.Host().DebugSetNextInitialRootChildBatchFlushResultForTest(E_FAIL);
     repaint();
+    Require(window.Host().DebugGetInitialRootChildBatchFlushCount() == beforeFlushFailure &&
+                window.Host().DebugGetFullPresentAttemptCount() == beforeFlushFailurePresent &&
+                window.Host().DebugGetRenderCount() == beforeFlushFailureRender && window.Host().HasPendingContentPreparation(),
+            "a pending preparation turn does not consume the native flush failure or present a frame");
+    admitBatch(beforeFlushFailure);
+    if (window.Host().DebugGetInitialRootChildBatchFlushCount() != beforeFlushFailure + 1u)
+        std::fprintf(stderr,
+                     "BATCH_FAULT_DIAGNOSTIC flush_before=%llu flush_after=%llu render_before=%llu render_after=%llu present_before=%llu "
+                     "present_after=%llu pending=%d context=%d last_present=%08lx\n",
+                     beforeFlushFailure,
+                     window.Host().DebugGetInitialRootChildBatchFlushCount(),
+                     beforeFlushFailureRender,
+                     window.Host().DebugGetRenderCount(),
+                     beforeFlushFailurePresent,
+                     window.Host().DebugGetFullPresentAttemptCount(),
+                     window.Host().HasPendingContentPreparation() ? 1 : 0,
+                     window.Host().DebugHasD2DContext() ? 1 : 0,
+                     static_cast<unsigned long>(window.Host().DebugGetLastPresentResult()));
     Require(window.Host().DebugGetInitialRootChildBatchFlushCount() == beforeFlushFailure + 1u,
             "native WM_PAINT stops after its first failed root-child Flush");
     Require(window.Host().DebugGetFullPresentAttemptCount() == beforeFlushFailurePresent,
             "native WM_PAINT does not present a frame after a failed root-child Flush");
-    repaint();
+    admitBatch(beforeFlushFailure + 1u);
     Require(window.Host().DebugGetInitialRootChildBatchFlushCount() == beforeFlushFailure + 2u,
             "the next native invalidation retries the pending reset-frame Flush once");
     Require(window.Host().DebugGetFullPresentAttemptCount() == beforeFlushFailurePresent + 1u,
             "the next native invalidation presents the successfully retried full frame");
 
     window.Host().DebugSimulateDeviceLoss();
+    preparation->ArmPendingCycle();
     const uint64_t beforeEndDrawFailure        = window.Host().DebugGetInitialRootChildBatchFlushCount();
     const uint64_t beforeEndDrawFailurePresent = window.Host().DebugGetFullPresentAttemptCount();
     window.Host().DebugSetNextInitialRootChildBatchEndDrawResultForTest(E_FAIL);
-    repaint();
+    admitBatch(beforeEndDrawFailure);
     Require(window.Host().DebugGetInitialRootChildBatchFlushCount() == beforeEndDrawFailure + 1u,
             "native WM_PAINT flushes its root child before observing the injected EndDraw failure");
     Require(window.Host().DebugGetFullPresentAttemptCount() == beforeEndDrawFailurePresent, "native WM_PAINT does not present a frame after EndDraw fails");
-    repaint();
+    admitBatch(beforeEndDrawFailure + 1u);
     Require(window.Host().DebugGetInitialRootChildBatchFlushCount() == beforeEndDrawFailure + 2u,
             "the next native invalidation retries batching after EndDraw failure");
     Require(window.Host().DebugGetFullPresentAttemptCount() == beforeEndDrawFailurePresent + 1u,

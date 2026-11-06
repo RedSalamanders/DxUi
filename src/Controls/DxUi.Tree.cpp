@@ -1,3 +1,5 @@
+#include <DxUi/Failure.h>
+
 #include "DxUi.Internal.h"
 
 #include <algorithm>
@@ -353,6 +355,7 @@ void Tree::ClearReorderDrag() noexcept
 
 bool Tree::ResolveReorderSource() noexcept
 {
+    const Failure::Scope outerFailureScope;
     const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const ITreeModel* const model      = _model;
     const std::optional<size_t> source = model ? model->FindVisibleItemById(_reorderSourceId) : std::nullopt;
@@ -391,6 +394,7 @@ bool Tree::ResolveReorderSource() noexcept
 
 std::optional<TreeDrop> Tree::ResolveReorderDrop(D2D1_POINT_2F point, size_t& targetIndex) const noexcept
 {
+    const Failure::Scope outerFailureScope;
     const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const ITreeModel* const model = _model;
     if (! model || ! _reorderArmed)
@@ -477,6 +481,7 @@ std::optional<TreeDrop> Tree::ResolveReorderDrop(D2D1_POINT_2F point, size_t& ta
 
 void Tree::UpdateReorderDrop(ControlHost& host, D2D1_POINT_2F point) noexcept
 {
+    const Failure::Scope outerFailureScope;
     const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     size_t targetIndex                 = 0u;
     const std::optional<TreeDrop> drop = ResolveReorderDrop(point, targetIndex);
@@ -544,6 +549,7 @@ std::wstring_view Tree::GetEmptyStateText() const noexcept
 
 void Tree::SetModel(ITreeModel* model) noexcept
 {
+    const Failure::Scope outerFailureScope;
     const auto invalidateGeometry = ControlModelQueryAccess::InvalidateGeometry(*this);
     ++_modelBindingRevision;
     ++_modelRevision;
@@ -577,6 +583,7 @@ void Tree::SetModel(ITreeModel* model) noexcept
 
 void Tree::SetDelegate(ITreeDelegate* delegate) noexcept
 {
+    const Failure::Scope outerFailureScope;
     const auto invalidateGeometry = ControlModelQueryAccess::InvalidateGeometry(*this);
     ++_modelBindingRevision;
     ++_modelRevision;
@@ -634,6 +641,7 @@ void Tree::SetIndentDip(float indentDip) noexcept
 
 void Tree::NotifyDataChanged()
 {
+    const Failure::Scope outerFailureScope;
     const auto invalidateGeometry = ControlModelQueryAccess::InvalidateGeometry(*this);
     ++_modelRevision;
     TreeModelQueryGuard modelGuard(*this, GetLifetimeToken(), _model);
@@ -759,6 +767,7 @@ void Tree::NotifyDataChanged()
 
 bool Tree::NotifyItemPresentationChanged(uint64_t itemId) noexcept
 {
+    const Failure::Scope outerFailureScope;
     const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const ITreeModel* const model = _model;
     if (! model)
@@ -835,6 +844,7 @@ void Tree::SetMultiSelectEnabled(bool enabled) noexcept
 
 void Tree::SetSelectedItemId(std::optional<uint64_t> itemId) noexcept
 {
+    const Failure::Scope outerFailureScope;
     const auto lifetime = GetLifetimeToken();
     const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     std::optional<size_t> selectedIndex;
@@ -875,6 +885,7 @@ std::optional<uint64_t> Tree::GetSelectedItemId() const noexcept
 
 void Tree::SetFocusedItemId(std::optional<uint64_t> itemId) noexcept
 {
+    const Failure::Scope outerFailureScope;
     const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const ITreeModel* const model = _model;
     std::optional<size_t> focusedIndex;
@@ -931,6 +942,7 @@ bool Tree::IsItemSelected(uint64_t itemId) const noexcept
 void Tree::SetSelectedItemIds(std::span<const uint64_t> itemIds) noexcept
 try
 {
+    const Failure::Scope outerFailureScope;
     const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const std::vector<uint64_t> visibleIds = CollectVisibleItemIds();
     if (! guard.IsCurrent())
@@ -975,7 +987,7 @@ try
 }
 catch (const std::exception&)
 {
-    // A failed model collection or staged selection leaves the previously committed selection intact.
+    Failure::FailUnexpected();
 }
 
 void Tree::RefreshAccessibilitySnapshot() const noexcept
@@ -997,6 +1009,7 @@ void Tree::OnDensityChanged() noexcept
 bool Tree::RequestSelectVisibleItem(size_t visibleIndex) noexcept
 try
 {
+    const Failure::Scope outerFailureScope;
     const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const ITreeModel* const model = _model;
     if (! IsEnabled() || ! model)
@@ -1011,11 +1024,12 @@ try
 }
 catch (const std::exception&)
 {
-    return false;
+    Failure::FailUnexpected();
 }
 
 bool Tree::RequestFocusVisibleItem(size_t visibleIndex)
 {
+    const Failure::Scope outerFailureScope;
     TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const ITreeModel* const model = _model;
     if (! IsEnabled() || ! model)
@@ -1057,6 +1071,7 @@ bool Tree::RequestFocusVisibleItem(size_t visibleIndex)
 bool Tree::RequestExpandedState(size_t visibleIndex, bool expanded) noexcept
 try
 {
+    const Failure::Scope outerFailureScope;
     TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const ITreeModel* const model = _model;
     if (! IsEnabled() || ! model || ! _delegate)
@@ -1080,7 +1095,7 @@ try
         }
         catch (const std::bad_alloc&)
         {
-            animate = false;
+            Failure::FailAllocation();
         }
         if (! guard.IsCurrent())
             return false;
@@ -1144,7 +1159,7 @@ try
         }
         catch (const std::bad_alloc&)
         {
-            animate = false;
+            Failure::FailAllocation();
         }
         if (! guard.IsCurrent())
             return false;
@@ -1165,11 +1180,12 @@ try
 
 catch (const std::exception&)
 {
-    return false;
+    Failure::FailUnexpected();
 }
 
 TreeItemLayoutMetrics Tree::GetItemLayoutMetrics(const ControlHost& host, size_t visibleIndex) const
 {
+    const Failure::Scope outerFailureScope;
     TreeItemLayoutMetrics metrics{};
     const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const ITreeModel* const model = _model;
@@ -1224,6 +1240,7 @@ float Tree::DebugGetExpanderProgress(uint64_t itemId, bool expanded, uint64_t no
 
 bool Tree::DebugGetRowVisualState(const ThemePalette& theme, size_t visibleIndex, bool keyboardFocusVisible, TreeDebugRowVisualState& out) const noexcept
 {
+    const Failure::Scope outerFailureScope;
     out = {};
     const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const ITreeModel* const model = _model;
@@ -1281,6 +1298,7 @@ TreeScrollbarVisualState Tree::DebugGetScrollbarVisualState(const ThemePalette& 
 
 void Tree::Paint(ControlHost& host) const
 {
+    const Failure::Scope outerFailureScope;
     const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const ITreeModel* const model             = _model;
     const ThemePalette& theme                 = host.GetTheme();
@@ -1568,6 +1586,7 @@ bool Tree::Tick(ControlHost& host, uint64_t nowTickMs)
 
 bool Tree::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modifiers*/)
 {
+    const Failure::Scope outerFailureScope;
     const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     if (_dragVerticalThumb)
     {
@@ -1703,6 +1722,7 @@ bool Tree::OnMouseLeave(ControlHost& host)
 
 bool Tree::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)
 {
+    const Failure::Scope outerFailureScope;
     _singleClickInvokeItemId.reset();
     TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const ITreeModel* const model = _model;
@@ -1894,6 +1914,7 @@ bool Tree::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
 
 bool Tree::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)
 {
+    const Failure::Scope outerFailureScope;
     // Only a primary double-click on a row has a meaning of its own. A second right-click is another press (the menu
     // opens again), and a second click on a scrollbar pages or grabs again; dropping them lost every other click.
     if (rightButton)
@@ -1977,6 +1998,7 @@ bool Tree::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool right
 
 bool Tree::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT /*modifiers*/)
 {
+    const Failure::Scope outerFailureScope;
     TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     if (rightButton)
     {
@@ -2114,6 +2136,7 @@ void Tree::OnCaptureLost(ControlHost& host)
 
 bool Tree::OnMouseWheel(ControlHost& host, D2D1_POINT_2F point, float wheelDelta, UINT /*modifiers*/)
 {
+    const Failure::Scope outerFailureScope;
     const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     if (! PointInRect(GetHitBounds(), point))
     {
@@ -2153,6 +2176,7 @@ bool Tree::OnMouseWheel(ControlHost& host, D2D1_POINT_2F point, float wheelDelta
 
 bool Tree::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
 {
+    const Failure::Scope outerFailureScope;
     if (_reorderArmed && virtualKey == VK_ESCAPE)
     {
         const auto lifetime      = GetLifetimeToken();
@@ -2356,6 +2380,7 @@ bool Tree::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
 
 bool Tree::OnChar(ControlHost& host, wchar_t ch, UINT modifiers)
 {
+    const Failure::Scope outerFailureScope;
     const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const ITreeModel* const model = _model;
     if (! model || ch < 0x20)
@@ -2407,6 +2432,7 @@ bool Tree::OnChar(ControlHost& host, wchar_t ch, UINT modifiers)
 
 bool Tree::OnContextMenu(ControlHost& host, bool keyboardInvocation, D2D1_POINT_2F pointDip)
 {
+    const Failure::Scope outerFailureScope;
     TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const ITreeModel* const model = _model;
     if (! model || ! _delegate)
@@ -2623,6 +2649,7 @@ namespace
 
 TreeItemLayoutMetrics Tree::ComputeItemLayoutMetrics(const ControlHost& host, float rowTopDip, const TreeItemData& item) const noexcept
 {
+    const Failure::Scope outerFailureScope;
     const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     TreeItemLayoutMetrics metrics{};
     const D2D1_RECT_F contentRect = GetContentRect();
@@ -2688,6 +2715,7 @@ TreeItemLayoutMetrics Tree::ComputeItemLayoutMetrics(const ControlHost& host, fl
 
 Tree::HitInfo Tree::HitTestPoint(const ControlHost& /*host*/, PointDip pointDip) const noexcept
 {
+    const Failure::Scope outerFailureScope;
     const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const ITreeModel* const model = _model;
     const D2D1_POINT_2F point     = pointDip.AsD2D();
@@ -2766,6 +2794,7 @@ bool Tree::IsSameHitTarget(const HitInfo& before, const HitInfo& after) noexcept
 
 size_t Tree::GetFirstVisibleItemIndex() const noexcept
 {
+    const Failure::Scope outerFailureScope;
     const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const ITreeModel* const model = _model;
     if (! model)
@@ -2784,6 +2813,7 @@ size_t Tree::GetFirstVisibleItemIndex() const noexcept
 
 std::optional<D2D1_RECT_F> Tree::GetVisibleItemHitRect(size_t visibleIndex) const noexcept
 {
+    const Failure::Scope outerFailureScope;
     const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const ITreeModel* const model = _model;
     if (! model)
@@ -2810,6 +2840,7 @@ std::optional<D2D1_RECT_F> Tree::GetVisibleItemHitRect(size_t visibleIndex) cons
 
 std::optional<size_t> Tree::FindVisibleItemAtPoint(D2D1_POINT_2F pointDip) const noexcept
 {
+    const Failure::Scope outerFailureScope;
     const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const ITreeModel* const model = _model;
     if (! model)
@@ -2854,6 +2885,7 @@ std::optional<size_t> Tree::FindVisibleItemAtPoint(D2D1_POINT_2F pointDip) const
 
 float Tree::GetVerticalScrollableExtent() const noexcept
 {
+    const Failure::Scope outerFailureScope;
     const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const ITreeModel* const model = _model;
     if (! model)
@@ -2873,6 +2905,7 @@ float Tree::GetVerticalScrollableExtent() const noexcept
 
 D2D1_RECT_F Tree::GetContentRect() const noexcept
 {
+    const Failure::Scope outerFailureScope;
     const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     D2D1_RECT_F contentRect  = GetBounds();
     const float scrollExtent = GetVerticalScrollableExtent();
@@ -2896,6 +2929,7 @@ D2D1_RECT_F Tree::GetContentRect() const noexcept
 
 D2D1_RECT_F Tree::GetVerticalScrollbarRect() const noexcept
 {
+    const Failure::Scope outerFailureScope;
     const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const float scrollExtent = GetVerticalScrollableExtent();
     if (! guard.IsCurrent() || scrollExtent <= 0.0f)
@@ -2910,6 +2944,7 @@ D2D1_RECT_F Tree::GetVerticalScrollbarRect() const noexcept
 
 D2D1_RECT_F Tree::GetVerticalThumbRect() const noexcept
 {
+    const Failure::Scope outerFailureScope;
     const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const D2D1_RECT_F track = GetVerticalScrollbarRect();
     if (! guard.IsCurrent() || track.right <= track.left || track.bottom <= track.top || ! _model)
@@ -2935,6 +2970,7 @@ D2D1_RECT_F Tree::GetVerticalThumbRect() const noexcept
 
 D2D1_RECT_F Tree::GetVerticalThumbHitRect() const noexcept
 {
+    const Failure::Scope outerFailureScope;
     const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const D2D1_RECT_F track = GetVerticalScrollbarRect();
     if (! guard.IsCurrent() || track.right <= track.left || track.bottom <= track.top || ! _model)
@@ -2966,6 +3002,7 @@ void Tree::OnBoundsChanged() noexcept
 
 void Tree::ClampScrollOffset() noexcept
 {
+    const Failure::Scope outerFailureScope;
     const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const float extent = GetVerticalScrollableExtent();
     if (guard.IsCurrent())
@@ -2992,6 +3029,7 @@ void Tree::SyncScrollbarAnimation(ControlHost& host) noexcept
 
 std::optional<size_t> Tree::FindFocusedVisibleIndex() const noexcept
 {
+    const Failure::Scope outerFailureScope;
     const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const ITreeModel* const model      = _model;
     const std::optional<size_t> result = (model && _focusedItemId) ? model->FindVisibleItemById(_focusedItemId.value()) : std::nullopt;
@@ -3000,6 +3038,7 @@ std::optional<size_t> Tree::FindFocusedVisibleIndex() const noexcept
 
 void Tree::EnsureVisibleIndex(size_t visibleIndex) noexcept
 {
+    const Failure::Scope outerFailureScope;
     const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const D2D1_RECT_F contentRect = GetContentRect();
     if (! guard.IsCurrent())
@@ -3025,6 +3064,7 @@ bool Tree::SelectVisibleIndex(size_t visibleIndex, bool notifyDelegate)
 
 bool Tree::SelectVisibleIndex(size_t visibleIndex, SelectMode mode, bool notifyDelegate)
 {
+    const Failure::Scope outerFailureScope;
     TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const ITreeModel* const model = _model;
     if (! model)
@@ -3146,6 +3186,7 @@ bool Tree::SelectVisibleIndex(size_t visibleIndex, SelectMode mode, bool notifyD
 
 std::vector<uint64_t> Tree::CollectVisibleItemIds() const
 {
+    const Failure::Scope outerFailureScope;
     const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const ITreeModel* const model = _model;
     std::vector<uint64_t> itemIds;
@@ -3173,6 +3214,7 @@ std::vector<uint64_t> Tree::CollectVisibleItemIds() const
 
 void Tree::ReconcileSelectionWithModel()
 {
+    const Failure::Scope outerFailureScope;
     if (_multiSelect)
     {
         const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
@@ -3184,6 +3226,7 @@ void Tree::ReconcileSelectionWithModel()
 
 bool Tree::NotifySelectionSetChanged(const std::vector<uint64_t>& previous)
 {
+    const Failure::Scope outerFailureScope;
     const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
     TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const std::vector<uint64_t> current = GetSelectedItemIds();
@@ -3202,6 +3245,7 @@ bool Tree::NotifySelectionSetChanged(const std::vector<uint64_t>& previous)
 
 bool Tree::CollapseSelectionToItem(uint64_t itemId)
 {
+    const Failure::Scope outerFailureScope;
     TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     if (! _multiSelect)
     {
@@ -3232,6 +3276,7 @@ bool Tree::CollapseSelectionToItem(uint64_t itemId)
 bool Tree::RequestAddVisibleItemToSelection(size_t visibleIndex) noexcept
 try
 {
+    const Failure::Scope outerFailureScope;
     TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const ITreeModel* const model = _model;
     if (! IsEnabled() || ! model)
@@ -3300,12 +3345,13 @@ try
 
 catch (const std::exception&)
 {
-    return false;
+    Failure::FailUnexpected();
 }
 
 bool Tree::RequestRemoveVisibleItemFromSelection(size_t visibleIndex) noexcept
 try
 {
+    const Failure::Scope outerFailureScope;
     TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const ITreeModel* const model = _model;
     if (! IsEnabled() || ! model)
@@ -3365,11 +3411,12 @@ try
 
 catch (const std::exception&)
 {
-    return false;
+    Failure::FailUnexpected();
 }
 
 bool Tree::OnSelectAll(ControlHost& host)
 {
+    const Failure::Scope outerFailureScope;
     TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const ITreeModel* const model = _model;
     if (! _multiSelect || ! model)
@@ -3437,6 +3484,7 @@ bool Tree::OnSelectAll(ControlHost& host)
 
 bool Tree::ToggleExpanded(size_t visibleIndex)
 {
+    const Failure::Scope outerFailureScope;
     TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const ITreeModel* const model = _model;
     if (! model)
@@ -3516,7 +3564,7 @@ void Tree::StartExpanderAnimation(uint64_t itemId, bool fromExpanded, bool toExp
     }
     catch (const std::bad_alloc&)
     {
-        return; // Expansion still commits; this optional chevron animation is omitted.
+        Failure::FailAllocation();
     }
     // Every path that turns a chevron asks for ticks, a UI Automation Expand included.
     host->RequestAnimation();
@@ -3529,6 +3577,7 @@ float Tree::GetExpanderProgress(uint64_t itemId, bool expanded, uint64_t nowTick
 
 bool Tree::CaptureVisibleItems(std::vector<TreeItemData>& items) const
 {
+    const Failure::Scope outerFailureScope;
 #if DXUI_ENABLE_DIAGNOSTICS
     ++_debugExpansionCaptureCount;
 #endif
@@ -3614,9 +3663,7 @@ try
 }
 catch (const std::bad_alloc&)
 {
-    // Optional motion is discarded on allocation failure; the model's accepted expansion remains committed.
-    ClearTreeExpansionAnimation();
-    std::erase_if(_expanderAnimations, [itemId](const ExpanderAnimationState& animation) { return animation.itemId == itemId; });
+    Failure::FailAllocation();
 }
 
 void Tree::ClearTreeExpansionAnimation() noexcept
@@ -3643,6 +3690,7 @@ float Tree::GetTreeExpansionProgress(uint64_t nowTickMs) const noexcept
 
 std::optional<size_t> Tree::FindNextTypeaheadMatch(std::wstring_view prefix) const noexcept
 {
+    const Failure::Scope outerFailureScope;
     const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const ITreeModel* const model = _model;
     if (! model || prefix.empty())

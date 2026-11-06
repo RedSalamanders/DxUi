@@ -38,17 +38,15 @@ template <typename Check> inline void Reads(Check&& check)
                               SourceChangeRange{SourceChangeKind::TrackedEdits, 0u, 33u, 1u},
                               SourceChangeRange{SourceChangeKind::TrackedEdits, 0u, 1u, 33u}})
     {
-        bool rejected{};
-        try
-        {
-            static_cast<void>(Detail::CorrelateMarkdownSource(32u, 32u, change, forbidden, forbidden));
-        }
-        catch (const std::invalid_argument&)
-        {
-            rejected = true;
-        }
-        check(rejected && ! reads, "invalid trusted interval bounds reject before accessing either source");
+        const auto invalid = Detail::CorrelateMarkdownSource(32u, 32u, change, forbidden, forbidden);
+        check(invalid.discardPrevious && invalid.first == 0u && invalid.previousEnd == 32u && invalid.currentEnd == 32u && ! reads,
+              "invalid trusted interval bounds discard old identities without accessing either source");
     }
+    const auto invalidUnchanged = Detail::CorrelateMarkdownSource(32u, 33u, SourceChangeRange{SourceChangeKind::Unchanged}, forbidden, forbidden);
+    const auto unknownKind      = Detail::CorrelateMarkdownSource(32u, 33u, SourceChangeRange{static_cast<SourceChangeKind>(99)}, forbidden, forbidden);
+    check(invalidUnchanged.discardPrevious && unknownKind.discardPrevious && invalidUnchanged.previousEnd == 32u && invalidUnchanged.currentEnd == 33u &&
+              unknownKind.previousEnd == 32u && unknownKind.currentEnd == 33u && ! reads,
+          "invalid unchanged and unknown metadata discard old identities without source reads");
     struct Example
     {
         std::wstring_view previous, current;

@@ -33,6 +33,10 @@ class SourceDisplayMap
 public:
     static constexpr std::size_t MaximumDisplayUnits = Document::MaximumUnits * 2u;
     static constexpr std::size_t MaximumSpans        = Document::MaximumUnits;
+    [[nodiscard]] static SourceResult TryBuild(std::wstring_view source,
+                                               std::wstring_view display,
+                                               std::span<const DisplaySpan> spans,
+                                               std::shared_ptr<const SourceDisplayMap>& output);
     static std::shared_ptr<const SourceDisplayMap> Build(std::wstring_view source, std::wstring_view display, std::span<const DisplaySpan> spans);
     SourceDisplayMap(const SourceDisplayMap&)            = delete;
     SourceDisplayMap& operator=(const SourceDisplayMap&) = delete;
@@ -43,18 +47,24 @@ public:
     // primary span for Trailing. At the outside edges use display end/start.
     std::size_t ToDisplay(std::size_t sourceOffset, MappingAffinity affinity = MappingAffinity::Leading) const;
     std::size_t ToSource(std::size_t displayOffset, MappingAffinity affinity = MappingAffinity::Leading) const;
+    // Checked queries preserve output on an invalid coordinate, range or affinity.
+    [[nodiscard]] SourceResult TryToDisplay(std::size_t sourceOffset, MappingAffinity affinity, std::size_t& output) const noexcept;
+    [[nodiscard]] SourceResult TryToSource(std::size_t displayOffset, MappingAffinity affinity, std::size_t& output) const noexcept;
     // Fragment queries omit generated text, expand transformed/object spans
     // atomically, sort by the destination coordinate and merge touching ranges.
     // Repetition never creates duplicate source edits; reorder never selects
     // the unrelated source between two returned fragments. Empty ranges stay empty.
     std::vector<MarkdownRange> DisplayRanges(MarkdownRange source) const;
     std::vector<MarkdownRange> SourceRanges(MarkdownRange display) const;
+    [[nodiscard]] SourceResult TryDisplayRanges(MarkdownRange source, std::vector<MarkdownRange>& output) const;
+    [[nodiscard]] SourceResult TrySourceRanges(MarkdownRange display, std::vector<MarkdownRange>& output) const;
     // Snap an arbitrary bounded ACP out of an atomic span or a scalar/CRLF join.
     // Logical grapheme movement is the separate TextElements/layout contract.
     std::size_t SnapDisplayBoundary(std::size_t displayOffset, MappingAffinity affinity) const;
+    [[nodiscard]] SourceResult TrySnapDisplayBoundary(std::size_t displayOffset, MappingAffinity affinity, std::size_t& output) const noexcept;
 
 private:
-    SourceDisplayMap(std::wstring_view source, std::wstring_view display, std::span<const DisplaySpan> spans);
+    SourceDisplayMap(std::wstring_view source, std::wstring_view display, std::span<const DisplaySpan> spans, SourceResult& result);
     std::wstring source_, display_;
     std::vector<DisplaySpan> spans_;
     std::vector<std::size_t> sourceLeading_, sourceTrailing_;
@@ -73,13 +83,25 @@ struct SourceSearchOptions
 // Non-overlapping exact-source matches, ordered by ACP. Case-insensitive
 // matching uses Windows ordinal Unicode comparison, independent of locale.
 // Empty queries return no matches; malformed UTF-16 is rejected.
+// Checked search preserves output on malformed UTF-16.
+[[nodiscard]] SourceResult TryFindInSource(const SourceSnapshot& source,
+                                           std::wstring_view query,
+                                           std::vector<MarkdownRange>& output,
+                                           SourceSearchOptions options = {});
 std::vector<MarkdownRange> FindInSource(const SourceSnapshot& source, std::wstring_view query, SourceSearchOptions options = {});
 // All ranges refer to expectedSource, in ascending disjoint order. Touching
 // edits are legal; two insertions at the same boundary are ambiguous and rejected.
 // A foreign/equal-number snapshot is stale even if its spelling happens to match.
 // Stage one envelope, then delegate history/selection/publication to Document.
-// Returns false for unchanged spelling (selection may still change); exceptions
-// leave source, revision, selection and both histories untouched.
+// The checked result leaves source, revision, selection and histories unchanged
+// on refusal. A successful no-op sets changed false and may change selection.
+// The convenience wrapper treats refusal as a contract violation.
 bool ApplySourceEdits(
     Document& document, const SourceSnapshot& expectedSource, std::uint64_t expectedRevision, std::span<const SourceEdit> edits, Selection after);
+[[nodiscard]] SourceResult TryApplySourceEdits(Document& document,
+                                               const SourceSnapshot& expectedSource,
+                                               std::uint64_t expectedRevision,
+                                               std::span<const SourceEdit> edits,
+                                               Selection after,
+                                               bool& changed);
 } // namespace DxUi::RichText

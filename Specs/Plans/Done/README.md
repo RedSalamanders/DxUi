@@ -2,6 +2,8 @@
 
 ## Completed scopes — 6 November 2026
 
+- [Explicit failure results and host fatal diagnostics](FailurePolicy_2026-11-02.md) — API 5 and protocol 2, checked allocation/input refusals, original-context fatal diagnostics, six builds, 78 x64 suite executions, clean-pin consumers and SDK; measured safety costs accepted, with native ARM64, formal performance and product adoption separately owned.
+
 - [Independent editor cosmetic preparation](EditorCosmeticPreparation_2026-11-06.md) — D1, bounded viewport colours/guides, immutable source coordinates, coherent-frame continuation, native-tool exception admission, six builds and 57 suite executions.
 
 - [Markdown interruption and scan bounds](MarkdownScanBounds_2026-11-06.md) — MD-03/05/06/07, independent hostile-input work bounds, fourteen MSVC/41 NTFS tooling fixtures, six builds, 57 suite executions and retained original failures.

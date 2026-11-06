@@ -1,8 +1,16 @@
 #pragma once
 #include "Support.Tests.ClipboardFixture.h"
 #include "Support.Tests.RichSemanticDocument.h"
+#include <DxUi/Configuration.h>
 #include <DxUi/RichTextExport.h>
 #include <stdexcept>
+
+#if DXUI_ENABLE_DIAGNOSTICS
+namespace DxUi::RichText::Detail
+{
+extern thread_local std::size_t testRichExportUnitLimit;
+}
+#endif
 
 namespace RichTextExportTests
 {
@@ -38,18 +46,25 @@ template <typename Check> void Core(Check&& check)
     const auto document       = RichSemanticDocumentTests::Build(source, MarkdownProfile::RichMarkdown);
     const auto content        = ExportSemanticDocument(*document);
     const auto html = content.HtmlFragment(), text = content.Text();
+#if DXUI_ENABLE_DIAGNOSTICS
+    std::optional<ExportContent> retained = content;
+    const auto previousLimit              = DxUi::RichText::Detail::testRichExportUnitLimit;
+    check(! text.empty() && html.size() > text.size(), "export fixture distinguishes text and HTML capacity paths");
+    DxUi::RichText::Detail::testRichExportUnitLimit = 0u;
+    const auto textCapacity                         = TryExportSemanticDocument(*document, {0u, document->Map().Display().size()}, retained);
+    const bool textPreserved                        = retained && retained->Text() == text && retained->HtmlFragment() == html;
+    DxUi::RichText::Detail::testRichExportUnitLimit = text.size();
+    const auto htmlCapacity                         = TryExportSemanticDocument(*document, {0u, document->Map().Display().size()}, retained);
+    const bool htmlPreserved                        = retained && retained->Text() == text && retained->HtmlFragment() == html;
+    DxUi::RichText::Detail::testRichExportUnitLimit = previousLimit;
+    check(textCapacity == SourceResult::CapacityExceeded && textPreserved, "text capacity refusal preserves the previously published export");
+    check(htmlCapacity == SourceResult::CapacityExceeded && htmlPreserved, "HTML capacity refusal preserves the previously published export");
+#endif
     const auto syntaxExport = ExportMarkdownSyntax(document->Syntax());
     check(syntaxExport.Text() == text && syntaxExport.HtmlFragment() == html, "immutable syntax exports through the default semantic projection");
-    bool nullSyntaxRejected = false;
-    try
-    {
-        static_cast<void>(ExportMarkdownSyntax(nullptr));
-    }
-    catch (const std::invalid_argument&)
-    {
-        nullSyntaxRejected = true;
-    }
-    check(nullSyntaxRejected, "syntax export rejects an absent immutable publication");
+    std::optional<ExportContent> checked = content;
+    check(TryExportMarkdownSyntax(nullptr, checked) == SourceResult::InvalidSource && checked->Text() == text,
+          "syntax export rejects an absent immutable publication without replacing output");
     check(html.find(L"<h1 id=\"heading\">Heading</h1>") != html.npos && html.find(L"<strong>bold</strong>") != html.npos &&
               html.find(L"<em>native</em>") != html.npos && html.find(L"&amp;") != html.npos,
           "semantic export preserves independent heading, inline style and escaping expectations");
@@ -69,16 +84,9 @@ template <typename Check> void Core(Check&& check)
           "a bounded display selection preserves its text, style and containing paragraph without exporting neighbors");
     const auto empty = ExportSemanticDocument(*document, {bold, bold});
     check(empty.Text().empty() && empty.HtmlFragment().empty(), "an empty display range exports no content");
-    bool invalidRange = false;
-    try
-    {
-        static_cast<void>(ExportSemanticDocument(*document, {display.size(), display.size() + 1u}));
-    }
-    catch (const std::invalid_argument&)
-    {
-        invalidRange = true;
-    }
-    check(invalidRange && document->Syntax()->Source() == source, "out-of-range export fails without changing the source publication");
+    check(TryExportSemanticDocument(*document, {display.size(), display.size() + 1u}, checked) == SourceResult::InvalidRange && checked->Text() == text &&
+              document->Syntax()->Source() == source,
+          "out-of-range export preserves output and source publication");
     const auto second     = display.find(L"second");
     const auto secondItem = ExportSemanticDocument(*document, {second, second + 6u});
     check(secondItem.Text() == L"second" && secondItem.HtmlFragment().find(L"<ol start=\"6\">") != std::wstring_view::npos &&
@@ -158,16 +166,8 @@ template <typename Check> void Core(Check&& check)
     const auto unicode         = ExportSemanticDocument(*RichSemanticDocumentTests::Build(L"**\u6771\U0001f600** & text\n", MarkdownProfile::RichMarkdown));
     const auto unicodeDocument = RichSemanticDocumentTests::Build(L"**\u6771\U0001f600** & text\n", MarkdownProfile::RichMarkdown);
     const auto emoji           = unicodeDocument->Map().Display().find(L"\U0001f600");
-    bool rejectedBoundary      = false;
-    try
-    {
-        static_cast<void>(ExportSemanticDocument(*unicodeDocument, {emoji + 1u, emoji + 2u}));
-    }
-    catch (const std::invalid_argument&)
-    {
-        rejectedBoundary = true;
-    }
-    check(rejectedBoundary, "display selection cannot split a surrogate pair");
+    check(TryExportSemanticDocument(*unicodeDocument, {emoji + 1u, emoji + 2u}, checked) == SourceResult::InvalidRange,
+          "display selection cannot split a surrogate pair");
     std::string encoded(0u, '\0');
     check(EncodeClipboardHtml(unicode.HtmlFragment(), encoded) == S_OK, "Unicode CF_HTML encoding succeeds");
     std::wstring decoded(0u, L' ');
@@ -212,7 +212,7 @@ template <typename Check> void Core(Check&& check)
         }
         catch (const std::bad_alloc&)
         {
-            return E_OUTOFMEMORY;
+            DxUi::Failure::FailAllocation();
         }
     } legacy;
     check(CopyExportToClipboard(owner, content, &legacy) == S_OK && legacy.copiedText == content.Text(),

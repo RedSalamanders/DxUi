@@ -30,13 +30,13 @@ profiles, the real ASan probe, the 19-suite Release union and RedTilde's origina
 | Pending-Update timing accounting | Instrumentation and source-specific six-profile evidence are archived in [FrameUpdateAccounting](../Done/FrameUpdateAccounting_2026-10-26.md). This is accurate accounting, not a CPU improvement or performance-policy acceptance. |
 | Compatibility branch publication D10 | Recorded published branches/SHAs remain in the [review decisions](../Done/ProductionReview_2026-11-02.md#wave-0--decisions-that-unblock-implementation); consumer adoption is D-C1. |
 
-[API 5 PR162](https://github.com/RedSalamanders/DxUi/pull/162) is **open and not merge-ready** at
-`d0179db6751d8eb3d56019950a5920500c024594`. Its body records an earlier validation checkpoint and pending
-extended work. Treat checked failures, host-owned fatal protocol 2 and SDK/PDB changes as that in-progress
-candidate, not main's contract or an accepted consumer migration.
+[API 5 PR162](https://github.com/RedSalamanders/DxUi/pull/162) owns actual integration/merge status. The [failure-policy closeout](../Done/FailurePolicy_2026-11-02.md)
+records qualified library source `f6791b5070efd1fa8dc86601bc9422ae9a321d2e`, x64 results and the owner's acceptance
+of measured construction safety costs. It does not establish a merge, native ARM64 execution, formal frame-policy
+qualification or product adoption. Earlier `d0179db6` evidence remains bound to that checkpoint.
 
 
-Current diagram/math/document/input implementation: `8dc328de`, API 4. The [scoped closeout](../Done/DiagramMathAndWorkspaceCorrections_2026-11-06.md) records six zero-warning builds, all nineteen noninteractive suites in each x64 profile, real ASan detection, 593 actual compiled inputs, native raster/geometry regressions and refreshed gallery. It closes the supplied examples, D3/D5, CTRL-01, MD-01/02/04 and MATH-01; D4 and the remaining parsing, rendering, failure and qualification rows retain their owners.
+Historical API 4 diagram/math/document/input implementation: `8dc328de`. The [scoped closeout](../Done/DiagramMathAndWorkspaceCorrections_2026-11-06.md) records six zero-warning builds, all nineteen noninteractive suites in each x64 profile, real ASan detection, 593 actual compiled inputs, native raster/geometry regressions and refreshed gallery. It closes the supplied examples, D3/D5, CTRL-01, MD-01/02/04 and MATH-01; D4 and the remaining parsing, rendering, failure and qualification rows retain their owners.
 
 The parser follow-up is qualified locally at `0ffaa1a6`, API 4. Its [scoped closeout](../Done/MarkdownScanBounds_2026-11-06.md)
 closes MD-03/05/06/07 with all six zero-warning builds, 57 noninteractive suite executions, real ASan detection,
@@ -64,11 +64,12 @@ Owner: `src/Rendering/Embedded.cpp`, `src/Controls/DxUi.TextInput.cpp`, input di
 <a id="d-a1"></a>
 ### D-A1 — checked failures and per-element admission
 
-- [ ] Reconcile PR162 against main and D2/D13: expected input/resource failures stay checked, local element
+- [x] Reconcile PR162 against main and D2/D13: expected input/resource failures stay checked, local element
   refusal preserves editable source/diagnostics, and unexpected C++ failures follow the agreed app-owned fatal
   protocol. Resolve conflicting older exception-injection wording before changing the contract.
-- [ ] Complete the candidate's pending build/runtime/source-pin consumer, SDK/PDB negative controls and
-  source-matched performance/foreground obligations before review/merge. Keep native ARM64 deferral explicit.
+- [x] Complete the library candidate's build, x64 runtime/foreground, source-pin consumer and SDK/PDB checks,
+  and record the owner-accepted source-matched construction measurements. Native ARM64 is deferred; formal
+  frame-policy qualification remains D-P1.
 - [ ] Check parser/preparer admission and per-element failure isolation across diagrams/math/images, including
   PRIOR-07's host-wide preparation abort and error visibility. Preserve actual causes and regression evidence.
 
@@ -183,12 +184,25 @@ stopped at benchmark attestation before measurement: a module-name lookup saw tw
 The [scoped tooling closeout](../Done/PairedAttestationModuleOwnership_2026-11-05.md) preserves the exact
 failure and independent repair. No performance verdict exists for that original run. The repaired manual pair [42115893044](https://github.com/RedSalamanders/DxUi/actions/runs/42115893044) completed measurement but remains inconclusive: the base policy is unqualified, all 72 controls are unstable and dual-judge replay disagrees on Default dirty/frameP95Ms. All 144 raw receipt hashes/identities verify. This is the older 0acd5608/f765aeca pair, not acceptance for 8dc328de.
 
+API-5 hosted [run 42201620823](https://github.com/RedSalamanders/DxUi/actions/runs/42201620823) also completed
+inconclusively for `1ea6d522`/`a6ea0c15` with driver `44fdc9c1`: all 144 hashes verify, but 71/72 controls are
+unstable and the base policy remains unqualified. The migrated judge flags clean preparation in Default and
+MultilineGridDistinct (median 0.0003 to 0.0005 ms); the legacy judge additionally flags MultilineGrid preparation
+and Default dirty private/peak memory (+2.10%/+2.11%), which the migrated judge places within noise. Preserve
+these disagreements and [the retained triage](../../../Measurements/FailurePolicy_2026-11-06/current-hosted-triage.json).
+The owner accepted the separate construction study's measured safety overhead; this does not qualify the frame
+policy, erase its findings or close this section.
+
 - [ ] Qualify the trusted measurement policy and controls independently. Preserve timing/memory witnesses,
   exact raw reports/seals, missing-context/refusal history and unstable-control verdicts.
 - [ ] Complete the bounded timing/heap/resource attribution pilot before a fresh canonical same-binary A/A;
   retain independent orders, all scenarios, cache variants, public phase markers and the existing thresholds.
 - [ ] Reconcile the pooled/blockwise migration disagreement and Holm slots with independent replay; a pilot,
   exact budget maximum or candidate green result does not qualify the base policy.
+- [ ] Correct verdict presentation for early policy/evidence refusal: the gate fails closed as inconclusive before
+  judging scenarios, but its empty result currently renders “no metric regressed or improved.” Distinguish
+  unjudged results from a judged set with no flags; label any retained untrusted findings without bypassing policy
+  or replay. Historical hosted run 42192490717 recorded three clean preparation flags despite that wording.
 - [ ] Establish accepted paired evidence for the chosen candidate and affected consumer pilots; obtain measured
   advice for confirmed degradation without silently rebasing. Host/control, S0-S2 and FrameUpdate instrumentation
   acceptance feed this one owner; RedTilde R10 remains independently owned by the app.
@@ -199,7 +213,7 @@ failure and independent repair. No performance verdict exists for that original 
 - [x] Reconcile the selected API-4 diagram candidate `2a7e7c28`: all six builds, eight affected suites in each
   x64 profile, the real ASan detector and all 19 noninteractive Release suites pass with zero warnings/errors
   and zero capability skips. [Exact evidence](../../../Measurements/DiagramLabelBackgrounds_2026-11-04/qualification.json)
-  includes rendering/WARP/resource coverage. API-5 qualification remains D-A1; cross-builds do not establish native ARM64 runtime.
+  includes rendering/WARP/resource coverage. API-5 library x64 qualification is separately closed; cross-builds do not establish native ARM64 runtime.
 - [x] Verify native Release main `ab850a40` in hosted run 41849905967: all 23 x64 suites and 21 ARM64 suites
   execute with zero skips, both assertion probes pass, and both production SDK ZIPs pass extracted-consumer
   smoke. This supplies current API-4 native Release coverage without accepting the remaining profiles or fixtures.

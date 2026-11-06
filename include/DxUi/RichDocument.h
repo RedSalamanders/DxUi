@@ -16,6 +16,18 @@ class RichTextEditor;
 
 namespace DxUi::RichText
 {
+// Expected source admission refusals. Unexpected allocation failures are not
+// represented by this result.
+enum class SourceResult
+{
+    Success,
+    InvalidSource,
+    CapacityExceeded,
+    InvalidRange,
+    Stale,
+    InvalidArgument
+};
+
 struct Selection
 {
     std::size_t anchor{}, caret{};
@@ -43,6 +55,8 @@ bool IsValidSourceUtf16(std::wstring_view text) noexcept;
 bool IsEditBoundary(std::wstring_view text, std::size_t offset) noexcept;
 std::wstring DecodeUtf8(std::string_view bytes);
 std::string EncodeUtf8(std::wstring_view text);
+[[nodiscard]] SourceResult TryDecodeUtf8(std::string_view bytes, std::wstring& text);
+[[nodiscard]] SourceResult TryEncodeUtf8(std::wstring_view text, std::string& bytes);
 
 enum class SourceChangeKind
 {
@@ -55,6 +69,8 @@ struct SourceChangeRange
     SourceChangeKind kind = SourceChangeKind::FullReplacement;
     std::size_t begin{}, previousEnd{}, currentEnd{};
 };
+
+class Document;
 
 // A revision shares immutable buffers and balanced piece-tree paths with background
 // jobs. Editing never changes an earlier snapshot. No HWND, graphics or worker
@@ -83,6 +99,7 @@ public:
     // flattening, or scanning all preceding source units.
     std::optional<SourceLocation> LocationAt(std::size_t offset) const noexcept;
     std::wstring Slice(std::size_t first, std::size_t last) const;
+    [[nodiscard]] SourceResult TrySlice(std::size_t first, std::size_t last, std::wstring& result) const;
     // A conservative replacement interval, safe for Slice in both snapshots.
     // Tracked ranges may include unchanged text; missing bounded ancestry falls
     // back to the whole source. Queries allocate nothing and mutate no cache.
@@ -98,6 +115,8 @@ private:
     wchar_t CharacterAt(std::size_t offset) const noexcept;
     const PieceTreeNode* RootNode() const noexcept;
     friend class Document;
+    // Marker admission compares existing delimiters without allocating.
+    friend SourceResult TryToggleMarker(Document&, std::wstring_view, bool&);
 };
 
 class Document
@@ -130,6 +149,14 @@ public:
     {
         return selection_;
     }
+    // A refusal leaves the document, selection and history unchanged.
+    [[nodiscard]] SourceResult TryReset(std::wstring_view text);
+    [[nodiscard]] SourceResult TrySetSelection(Selection selection) noexcept;
+    // On refusal, changed is false and no document state is published.
+    [[nodiscard]] SourceResult TryReplace(std::size_t begin, std::size_t end, std::wstring_view text, Selection after, bool& changed);
+    [[nodiscard]] SourceResult TryReplaceWholeText(std::wstring_view text, Selection after, bool& changed);
+    [[nodiscard]] SourceResult TryReplaceTransient(std::wstring_view text, Selection selection, bool& changed);
+    [[nodiscard]] SourceResult TryReplaceSelection(std::wstring_view text, bool& changed);
     void SetSelection(Selection selection);
     void Reset(std::wstring_view text);
     bool Replace(std::size_t begin, std::size_t end, std::wstring_view text, Selection after);
@@ -190,5 +217,8 @@ private:
     HistoryRing undo_, redo_;
     bool ReplaceImpl(std::size_t begin, std::size_t end, std::wstring_view text, Selection after, bool recordHistory, bool coalesceHistory = false);
     bool ReplaceWholeTextImpl(std::wstring_view text, Selection after, bool recordHistory);
+    [[nodiscard]] SourceResult TryReplaceImpl(
+        std::size_t begin, std::size_t end, std::wstring_view text, Selection after, bool recordHistory, bool coalesceHistory, bool& changed);
+    [[nodiscard]] SourceResult TryReplaceWholeTextImpl(std::wstring_view text, Selection after, bool recordHistory, bool& changed);
 };
 } // namespace DxUi::RichText

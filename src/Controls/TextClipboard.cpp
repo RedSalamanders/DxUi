@@ -1,3 +1,5 @@
+#include <DxUi/Failure.h>
+
 #include "TextClipboard.h"
 #include <charconv>
 #include <cstring>
@@ -62,6 +64,7 @@ public:
     HRESULT ReadSelectedBitmapContent(HWND owner, TextClipboardContent& content, bool includeFiles, bool includeHtml, bool includeBitmap) noexcept override
     try
     {
+        Failure::Scope failureScope;
         if (! owner)
             return E_INVALIDARG;
         TextClipboardContent staged;
@@ -140,7 +143,7 @@ public:
     }
     catch (const std::bad_alloc&)
     {
-        return E_OUTOFMEMORY;
+        Failure::FailAllocation();
     }
     HRESULT Write(HWND owner, std::wstring_view text) noexcept override
     {
@@ -174,6 +177,7 @@ public:
     HRESULT WriteExport(HWND owner, const RichText::ExportContent& content) noexcept override
     try
     {
+        Failure::Scope failureScope;
         if (! owner || content.Text().find(L'\0') != std::wstring_view::npos)
             return E_INVALIDARG;
         std::string html(0u, '\0');
@@ -217,8 +221,7 @@ public:
     }
     catch (const std::bad_alloc&)
     {
-        // Clipboard allocation failures are explicit and never delete source.
-        return E_OUTOFMEMORY;
+        Failure::FailAllocation();
     }
 };
 } // namespace
@@ -229,6 +232,7 @@ thread_local const ClipboardSystemCalls* testClipboardSystemCalls = nullptr;
 HRESULT EncodeClipboardHtml(std::wstring_view fragment, std::string& bytes) noexcept
 try
 {
+    Failure::Scope failureScope;
     if (fragment.size() > RichText::ExportContent::MaximumUnits || fragment.find(L'\0') != fragment.npos)
         return E_INVALIDARG;
     // RichDocument::EncodeUtf8 enforces the 64 Ki source-document ceiling.
@@ -258,27 +262,28 @@ try
         const auto result = std::to_chars(digits.data(), digits.data() + digits.size(), offset);
         const auto length = static_cast<size_t>(result.ptr - digits.data());
         if (result.ec != std::errc{} || length > 10u)
-            throw std::length_error("Clipboard HTML offset capacity exceeded");
+            return false;
         std::memcpy(staged.data() + at + 10u - length, digits.data(), length);
+        return true;
     };
-    writeOffset("StartHTML:", header.size());
-    writeOffset("EndHTML:", staged.size());
-    writeOffset("StartFragment:", first);
-    writeOffset("EndFragment:", last);
+    if (! writeOffset("StartHTML:", header.size()) || ! writeOffset("EndHTML:", staged.size()) || ! writeOffset("StartFragment:", first) ||
+        ! writeOffset("EndFragment:", last))
+        return HRESULT_FROM_WIN32(ERROR_BUFFER_OVERFLOW);
     bytes.swap(staged);
     return S_OK;
 }
 catch (const std::bad_alloc&)
 {
-    return E_OUTOFMEMORY;
+    Failure::FailAllocation();
 }
-catch (const std::length_error&)
+catch (const std::exception&)
 {
-    return HRESULT_FROM_WIN32(ERROR_BUFFER_OVERFLOW);
+    Failure::FailUnexpected();
 }
 HRESULT DecodeClipboardHtml(std::span<const std::byte> buffer, std::wstring& fragment) noexcept
 try
 {
+    Failure::Scope failureScope;
     constexpr size_t maximumBytes = 4u * 65536u + 4096u;
     if (buffer.empty() || buffer.size() > maximumBytes)
         return HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
@@ -328,7 +333,7 @@ try
 }
 catch (const std::bad_alloc&)
 {
-    return E_OUTOFMEMORY;
+    Failure::FailAllocation();
 }
 HRESULT ClipboardAllocationSize(size_t textUnits, size_t& bytes) noexcept
 {
@@ -371,17 +376,19 @@ HRESULT DecodeClipboardText(std::span<const wchar_t> buffer, std::wstring& text)
         return HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
     try
     {
+        Failure::Scope failureScope;
         text.assign(buffer.data(), end);
         return S_OK;
     }
     catch (const std::bad_alloc&)
     {
-        return E_OUTOFMEMORY;
+        Failure::FailAllocation();
     }
 }
 HRESULT DecodeClipboardBitmap(std::span<const std::byte> buffer, bool v5, TextClipboardContent& content) noexcept
 try
 {
+    Failure::Scope failureScope;
     if (buffer.size() < sizeof(BITMAPINFOHEADER) || buffer.size() > TextClipboardContent::MaximumBitmapBytes)
         return HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
     BITMAPINFOHEADER header{};
@@ -434,11 +441,12 @@ try
 }
 catch (const std::bad_alloc&)
 {
-    return E_OUTOFMEMORY;
+    Failure::FailAllocation();
 }
 HRESULT DecodeClipboardFilePaths(std::span<const std::byte> buffer, TextClipboardContent& content) noexcept
 try
 {
+    Failure::Scope failureScope;
     if (buffer.size() < sizeof(DROPFILES))
         return HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
     DROPFILES header{};
@@ -479,11 +487,12 @@ try
 }
 catch (const std::bad_alloc&)
 {
-    return E_OUTOFMEMORY;
+    Failure::FailAllocation();
 }
 HRESULT ReadDataObjectFilePaths(IDataObject* dataObject, TextClipboardContent& content) noexcept
 try
 {
+    Failure::Scope failureScope;
     if (! dataObject)
         return E_INVALIDARG;
     FORMATETC format{CF_HDROP, nullptr, DVASPECT_CONTENT, -1, TYMED_HGLOBAL};
@@ -511,12 +520,11 @@ try
 }
 catch (const std::bad_alloc&)
 {
-    return E_OUTOFMEMORY;
+    Failure::FailAllocation();
 }
 catch (const std::exception&)
 {
-    // A foreign IDataObject must not propagate an exception across OLE.
-    return E_FAIL;
+    Failure::FailUnexpected();
 }
 HRESULT ReadTextClipboardContent(TextClipboard& clipboard, HWND owner, TextClipboardContent& content, bool includeFiles) noexcept
 {
@@ -530,6 +538,7 @@ HRESULT ReadTextClipboardContent(
     TextClipboard& clipboard, HWND owner, TextClipboardContent& content, bool includeFiles, bool includeHtml, bool includeBitmap) noexcept
 try
 {
+    Failure::Scope failureScope;
     if (includeBitmap)
         if (auto* bitmap = dynamic_cast<BitmapStructuredTextClipboard*>(&clipboard))
             return bitmap->ReadSelectedBitmapContent(owner, content, includeFiles, includeHtml, true);
@@ -560,7 +569,7 @@ try
 }
 catch (const std::bad_alloc&)
 {
-    return E_OUTOFMEMORY;
+    Failure::FailAllocation();
 }
 TextClipboard& SystemTextClipboard() noexcept
 {

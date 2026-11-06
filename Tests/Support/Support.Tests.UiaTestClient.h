@@ -9,10 +9,12 @@
 // it belongs to.
 //
 // The providers answer on the thread that owns them, so each wait of the owner pumps its messages (`pump`). The header needs no
-// DxUi header and no helper of either suite: a failure of the client itself (it did not start, an answer did not come) ends the
+// suite helper: a failure of the client itself (it did not start, an answer did not come) ends the
 // run with a message, as a failed check does, and what a test expects of the tree or of an event it asserts itself.
 
+#include <DxUi/Failure.h>
 #include <Windows.h>
+#include <objbase.h>
 
 #include <UIAutomation.h>
 #include <wil/com.h>
@@ -326,6 +328,7 @@ private:
         const ULONGLONG entered = _timeline ? GetTickCount64() : 0u;
         try
         {
+            const DxUi::Failure::Scope failureScope;
             HeardEvent heard;
             heard.kind = kind;
             heard.id   = id;
@@ -356,9 +359,7 @@ private:
         }
         catch (const std::bad_alloc&)
         {
-            if (_timeline)
-                _timeline->failed.fetch_add(1u, std::memory_order_relaxed);
-            // A dropped event fails the test's own wait for it; a client's callback never throws.
+            DxUi::Failure::FailAllocation();
         }
     }
 
@@ -1375,7 +1376,7 @@ private:
                 }
                 catch (const std::bad_alloc&)
                 {
-                    // The request answers as it left its answer: E_PENDING, which the asking thread reports.
+                    DxUi::Failure::FailAllocation();
                 }
                 _taskDone.store(true);
             }

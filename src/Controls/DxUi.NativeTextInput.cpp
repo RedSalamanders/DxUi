@@ -1,3 +1,5 @@
+#include <DxUi/Failure.h>
+
 #include "DxUi.Internal.h"
 #include "TextStoreTarget.h"
 #include "TsfFocus.h"
@@ -572,8 +574,7 @@ void ControlHost::ActivateNativeTextInputSession(Control* control, bool transfer
     }
     catch (const std::bad_alloc&)
     {
-        DeactivateNativeTextInputSession();
-        return;
+        Failure::FailAllocation();
     }
     auto& controlState = controlStateStorage.value();
     try
@@ -586,8 +587,7 @@ void ControlHost::ActivateNativeTextInputSession(Control* control, bool transfer
     }
     catch (const std::bad_alloc&)
     {
-        DeactivateNativeTextInputSession();
-        return;
+        Failure::FailAllocation();
     }
     if (controlLifetime.expired() || requestedSessionRevision != _nativeTextInputSessionRevision ||
         requestedTransitionRevision != _nativeTextInputTsfTransitionRevision || control != _focusedControl || ! IsControlInTree(_root.get(), control) ||
@@ -617,7 +617,7 @@ void ControlHost::ActivateNativeTextInputSession(Control* control, bool transfer
         }
         catch (const std::bad_alloc&)
         {
-            return;
+            Failure::FailAllocation();
         }
     }
     _nativeTextInputControl         = control;
@@ -630,8 +630,7 @@ void ControlHost::ActivateNativeTextInputSession(Control* control, bool transfer
     }
     catch (const std::bad_alloc&)
     {
-        SecureClearNativeTextInputStateCache();
-        return;
+        Failure::FailAllocation();
     }
     if (controlChanged)
     {
@@ -1049,8 +1048,7 @@ void ControlHost::SyncNativeTextInputSession(Control* control) noexcept
     }
     catch (const std::bad_alloc&)
     {
-        SecureClearNativeTextInputStateCache();
-        return;
+        Failure::FailAllocation();
     }
     auto& controlState = controlStateStorage.value();
     try
@@ -1060,8 +1058,7 @@ void ControlHost::SyncNativeTextInputSession(Control* control) noexcept
     }
     catch (const std::bad_alloc&)
     {
-        SecureClearNativeTextInputStateCache();
-        return;
+        Failure::FailAllocation();
     }
 
     if (! isCurrent())
@@ -1074,8 +1071,7 @@ void ControlHost::SyncNativeTextInputSession(Control* control) noexcept
     }
     catch (const std::bad_alloc&)
     {
-        SecureClearNativeTextInputStateCache();
-        return;
+        Failure::FailAllocation();
     }
 
     if (_nativeTextInputImeComposing &&
@@ -1091,7 +1087,7 @@ void ControlHost::SyncNativeTextInputSession(Control* control) noexcept
         }
         catch (const std::bad_alloc&)
         {
-            return;
+            Failure::FailAllocation();
         }
         if (! isCurrent())
             return;
@@ -1112,8 +1108,7 @@ void ControlHost::SyncNativeTextInputSession(Control* control) noexcept
     }
     catch (const std::bad_alloc&)
     {
-        SecureClearNativeTextInputStateCache();
-        return;
+        Failure::FailAllocation();
     }
     ++_nativeTextInputEventCounters.synchronizationCount;
     if (previousState.has_value())
@@ -1133,6 +1128,7 @@ void ControlHost::SyncNativeTextInputSession(Control* control) noexcept
 
 void ControlHost::NotifyTextInputLayoutChanged(Control* control) noexcept
 {
+    const Failure::Scope failureScope;
     if (! control || control != _nativeTextInputControl || _nativeTextInputControlLifetime.expired() || ! IsControlInTree(_root.get(), control))
         return;
     const auto lifetime = _nativeTextInputControlLifetime;
@@ -1253,6 +1249,7 @@ void ControlHost::RaiseNativeTextInputAccessibilityEvents(const NativeTextInputS
 
 void ControlHost::ApplyNativeTextInputCompositionStateToCache() noexcept
 {
+    const Failure::Scope failureScope;
     if (! _nativeTextInputStateCacheValid)
     {
         return;
@@ -1280,12 +1277,7 @@ void ControlHost::ApplyNativeTextInputCompositionStateToCache() noexcept
     }
     catch (const std::bad_alloc&)
     {
-        _nativeTextInputStateCache.compositionStartIndex.reset();
-        _nativeTextInputStateCache.compositionEndIndex.reset();
-        _nativeTextInputStateCache.conversionTargetStartIndex.reset();
-        _nativeTextInputStateCache.conversionTargetEndIndex.reset();
-        _nativeTextInputStateCache.compositionCursorIndex.reset();
-        _nativeTextInputStateCache.compositionClauseBoundaries.clear();
+        Failure::FailAllocation();
     }
 }
 
@@ -1294,6 +1286,7 @@ bool ControlHost::SetNativeTextInputCompositionRange(Control* control,
                                                      std::optional<size_t> end,
                                                      std::optional<size_t> cursor) noexcept
 {
+    const Failure::Scope failureScope;
     if (! control || control != _nativeTextInputControl || _nativeTextInputControlLifetime.expired() || ! IsControlInTree(_root.get(), control) ||
         ! _nativeTextInputStateCacheValid)
     {
@@ -1307,7 +1300,7 @@ bool ControlHost::SetNativeTextInputCompositionRange(Control* control,
     }
     catch (const std::bad_alloc&)
     {
-        return false;
+        Failure::FailAllocation();
     }
 
     _nativeTextInputTsfComposing           = start.has_value() && end.has_value();
@@ -1330,6 +1323,7 @@ bool ControlHost::SetNativeTextInputCompositionRange(Control* control,
 
 void ControlHost::CancelNativeTextInputImeComposition() noexcept
 {
+    const Failure::Scope failureScope;
     // END and queued payloads still belong to this retired IMM composition. A fresh START admits another one.
     _nativeTextInputImeCancelledUntilStart = true;
     Control* const control                 = _nativeTextInputControl;
@@ -1349,11 +1343,6 @@ void ControlHost::CancelNativeTextInputImeComposition() noexcept
         return ! lifetime.expired() && control == _nativeTextInputControl && sessionRevision == _nativeTextInputSessionRevision &&
                cancellationImeRevision == _nativeTextInputImeRevision && IsControlInTree(_root.get(), control);
     };
-    const auto clearCacheIfCancellationStillOwnsPreview = [this, &cancellationIsCurrent, &preview]() noexcept
-    {
-        if (cancellationIsCurrent() && _nativeTextInputStateCacheValid && _nativeTextInputStateCache.text == preview)
-            SecureClearNativeTextInputStateCache();
-    };
     try
     {
         TextInputState live;
@@ -1368,9 +1357,7 @@ void ControlHost::CancelNativeTextInputImeComposition() noexcept
     }
     catch (const std::exception&)
     {
-        // Allocation failure or a throwing control override leaves cancellation complete. Invalidate only the
-        // cache still owned by this operation; a reentrant successor must survive the window-message boundary.
-        clearCacheIfCancellationStillOwnsPreview();
+        Failure::FailUnexpected();
     }
 }
 
@@ -1395,6 +1382,7 @@ void ControlHost::ClearNativeTextInputCompositionState() noexcept
 
 NativeTextInputImePayload ControlHost::ReadNativeTextInputImePayload(LPARAM compositionFlags) noexcept
 {
+    const Failure::Scope failureScope;
     if (_debugNativeTextInputImePayload.has_value())
     {
         NativeTextInputImePayload payload = std::move(_debugNativeTextInputImePayload.value());
@@ -1453,13 +1441,14 @@ NativeTextInputImePayload ControlHost::ReadNativeTextInputImePayload(LPARAM comp
     }
     catch (const std::bad_alloc&)
     {
-        return NativeTextInputImePayload{};
+        Failure::FailAllocation();
     }
     return payload;
 }
 
 void ControlHost::UpdateNativeTextInputImeWindows() noexcept
 {
+    const Failure::Scope failureScope;
     const auto startedAt = std::chrono::steady_clock::now();
     if (! _hwnd || _textInputBackend != TextInputBackend::Native || ! _nativeTextInputControl || ! _nativeTextInputStateCacheValid)
     {
@@ -1504,6 +1493,7 @@ void ControlHost::UpdateNativeTextInputImeWindows() noexcept
 bool ControlHost::HandleNativeTextInputEditMessage(UINT msg, WPARAM wp, LPARAM lp, LRESULT& outResult) noexcept
 try
 {
+    const Failure::Scope failureScope;
     outResult = 0;
     // The host HWND is a presentation surface, not an edit control. Let the window procedure keep
     // ownership of its caption text even while a DxUi editor has logical focus.
@@ -1661,13 +1651,12 @@ try
 }
 catch (const std::bad_alloc&)
 {
-    // Allocation failure cannot unwind through the window-message boundary.
-    outResult = FALSE;
-    return true;
+    Failure::FailAllocation();
 }
 
 bool ControlHost::HandleNativeTextInputImeMessage(UINT msg, WPARAM wp, LPARAM lp) noexcept
 {
+    const Failure::Scope failureScope;
     static_cast<void>(wp);
     if (_textInputBackend != TextInputBackend::Native || ! _focusedControl || ! _focusedControl->SupportsTextInput())
     {
@@ -2064,12 +2053,7 @@ bool ControlHost::HandleNativeTextInputImeMessage(UINT msg, WPARAM wp, LPARAM lp
     }
     catch (const std::bad_alloc&)
     {
-        if (imeOperationIsCurrent())
-        {
-            CancelNativeTextInputImeComposition();
-            UpdateNativeTextInputCaret();
-        }
-        return true;
+        Failure::FailAllocation();
     }
 
     Debug::Perf::Emit(L"dxui.textinput.ime_update_us",
@@ -2089,6 +2073,7 @@ std::optional<bool> ControlHost::GetNativeTextCompositionActive(const Control* c
 }
 bool ControlHost::TryReadNativeTextInputState(const Control* control, NativeTextInputState& outState) const noexcept
 {
+    const Failure::Scope failureScope;
     if (! control || control != _nativeTextInputControl || ! _nativeTextInputStateCacheValid)
     {
         return false;
@@ -2101,15 +2086,13 @@ bool ControlHost::TryReadNativeTextInputState(const Control* control, NativeText
     }
     catch (const std::bad_alloc&)
     {
-        // As for an absent cache, false means the caller must ignore outState.
-        // An empty aggregate can allocate noexcept MSVC Debug iterator proxies
-        // while the allocator is exhausted. Do not construct one here.
-        return false;
+        Failure::FailAllocation();
     }
 }
 
 bool ControlHost::TryGetNativeTextInputCaretRects(D2D1_RECT_F& outRectDip, RECT& outClientRectPx, RECT& outScreenRectPx) const noexcept
 {
+    const Failure::Scope failureScope;
     if (! _hwnd || ! _nativeTextInputControl || ! _nativeTextInputStateCacheValid)
     {
         return false;
@@ -2134,6 +2117,7 @@ bool ControlHost::TryGetNativeTextInputCaretRects(D2D1_RECT_F& outRectDip, RECT&
 
 void ControlHost::UpdateNativeTextInputCaret() noexcept
 {
+    const Failure::Scope failureScope;
     D2D1_RECT_F caretRectDip{};
     RECT caretClientRectPx{};
     RECT caretScreenRectPx{};

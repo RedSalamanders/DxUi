@@ -1,5 +1,7 @@
-#include "DxUi.NativeFlowchart.h"
+#include <DxUi/Failure.h>
+
 #include "DxUi.MarkdownCharacterReference.h"
+#include "DxUi.NativeFlowchart.h"
 #include <algorithm>
 #include <array>
 #include <stdexcept>
@@ -2284,30 +2286,33 @@ struct NativeFlowchartParser::Preparation
 };
 NativeFlowchartParser::NativeFlowchartParser() noexcept  = default;
 NativeFlowchartParser::~NativeFlowchartParser() noexcept = default;
-void NativeFlowchartParser::Begin(std::wstring_view source, std::uint64_t revision)
+FlowchartAdmission NativeFlowchartParser::Begin(std::wstring_view source, std::uint64_t revision)
 {
+    const Failure::Scope failureScope;
     if (source.size() > Document::MaximumUnits)
-        throw std::length_error("Flowchart body exceeds Document admission");
+        return FlowchartAdmission::CapacityExceeded;
     for (std::size_t i = 0u; i < source.size(); ++i)
     {
         if (Lead(source[i]))
         {
             if (++i == source.size() || ! Trail(source[i]))
-                throw std::invalid_argument("Invalid flowchart UTF-16");
+                return FlowchartAdmission::InvalidSource;
         }
         else if (Trail(source[i]) || ! source[i])
-            throw std::invalid_argument("Invalid flowchart scalar");
+            return FlowchartAdmission::InvalidSource;
     }
     const auto same = [&](const auto& result) { return result && result->revision == revision && result->source == source; };
     if (preparation_ && same(preparation_->model))
-        return;
+        return FlowchartAdmission::Accepted;
     if (! preparation_ && same(published_))
-        return;
+        return FlowchartAdmission::Accepted;
     auto next    = std::make_unique<Preparation>(source, revision);
     preparation_ = std::move(next);
+    return FlowchartAdmission::Accepted;
 }
 MarkdownAdvance NativeFlowchartParser::Advance(std::size_t maximumWorkUnits)
 {
+    const Failure::Scope failureScope;
     if (! preparation_)
         return {MarkdownPreparationStatus::Idle, 0u};
     std::size_t work{};
@@ -2327,13 +2332,11 @@ MarkdownAdvance NativeFlowchartParser::Advance(std::size_t maximumWorkUnits)
     }
     catch (const std::bad_alloc&)
     {
-        preparation_.reset();
-        throw;
+        Failure::FailAllocation();
     }
-    catch (const std::length_error&)
+    catch (const std::exception&)
     {
-        preparation_.reset();
-        throw;
+        Failure::FailUnexpected();
     }
     return {MarkdownPreparationStatus::Pending, work};
 }

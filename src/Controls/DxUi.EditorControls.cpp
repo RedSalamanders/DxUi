@@ -1,3 +1,5 @@
+#include <DxUi/Failure.h>
+
 #include "DxUi.Internal.h"
 
 #include <algorithm>
@@ -402,6 +404,7 @@ float Splitter::ClampPosition(float positionDip) const noexcept
 
 void Splitter::SetPosition(float positionDip) noexcept
 {
+    const Failure::Scope outerFailureScope;
     const float clamped = ClampPosition(positionDip);
     if (clamped == _positionDip)
     {
@@ -726,6 +729,7 @@ WindowHostCursorKind Splitter::ResolveCursorKind(ControlHost& /*host*/, D2D1_POI
 
 void Splitter::NotifyChange(SplitterChangePhase phase) noexcept
 {
+    const Failure::Scope outerFailureScope;
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     try
     {
@@ -738,7 +742,7 @@ void Splitter::NotifyChange(SplitterChangePhase phase) noexcept
     }
     catch (const std::exception&)
     {
-        Debug::Warning(L"Splitter change callback failed");
+        Failure::FailUnexpected();
     }
     if (! lifetime.expired())
         if (ControlHost* const host = GetHost())
@@ -1158,6 +1162,7 @@ std::optional<double> NumericStepper::ParseValue(std::wstring_view text) noexcep
 
 void NumericStepper::SyncText()
 {
+    const Failure::Scope outerFailureScope;
     // SetText resets the caret and undo history and republishes the host's accessibility snapshot; an unchanged
     // text (the common case while a picker drag moves another channel) needs none of that.
     std::wstring text = FormatValue(_value);
@@ -1172,6 +1177,7 @@ void NumericStepper::SyncText()
 
 bool NumericStepper::CommitEdit(ControlHost* host) noexcept
 {
+    const Failure::Scope outerFailureScope;
     const std::optional<double> parsed = ParseValue(_field->GetText());
     if (! _editing)
     {
@@ -1237,6 +1243,7 @@ void NumericStepper::CancelEdit(ControlHost* host) noexcept
 
 void NumericStepper::NotifyChange(NumericStepperChangePhase phase) noexcept
 {
+    const Failure::Scope outerFailureScope;
     try
     {
         const auto changed = _onChange;
@@ -1248,7 +1255,7 @@ void NumericStepper::NotifyChange(NumericStepperChangePhase phase) noexcept
     }
     catch (const std::exception&)
     {
-        Debug::Warning(L"NumericStepper change callback failed");
+        Failure::FailUnexpected();
     }
 }
 
@@ -1290,6 +1297,7 @@ void NumericStepper::Arrange() noexcept
 
 void NumericStepper::Paint(ControlHost& host) const
 {
+    const Failure::Scope outerFailureScope;
     const ThemePalette& theme = host.GetTheme();
     const D2D1_RECT_F bounds  = GetBounds();
     const D2D1_COLOR_F text   = IsEnabled() ? theme.text : theme.disabledText;
@@ -1350,6 +1358,7 @@ void NumericStepper::OnFlowDirectionChanged() noexcept
 
 ColorPicker::ColorPicker()
 {
+    const Failure::Scope outerFailureScope;
     SetFocusable(true);
     _red    = AddChild<NumericStepper>();
     _green  = AddChild<NumericStepper>();
@@ -1648,6 +1657,7 @@ void ColorPicker::Arrange() noexcept
 
 void ColorPicker::SyncChildren(const Control* source) noexcept
 {
+    const Failure::Scope outerFailureScope;
     // Rewriting a field resets its caret, selection and undo history, so the one being edited is skipped.
     _syncing = true;
     if (source != _red)
@@ -1755,6 +1765,7 @@ void ColorPicker::UpdateFromPoint(ControlHost& host, D2D1_POINT_2F point) noexce
 
 void ColorPicker::EnsureBrushes(ControlHost& host) const noexcept
 {
+    const Failure::Scope outerFailureScope;
     auto* dc = host.GetDeviceContext();
     if (! dc)
     {
@@ -2016,6 +2027,7 @@ void ColorPicker::OnEnabledChanged(bool enabled) noexcept
 
 void ColorPicker::NotifyChange(ColorPickerChangePhase phase) noexcept
 {
+    const Failure::Scope outerFailureScope;
     try
     {
         const auto changed  = _onChange;
@@ -2027,7 +2039,7 @@ void ColorPicker::NotifyChange(ColorPickerChangePhase phase) noexcept
     }
     catch (const std::exception&)
     {
-        Debug::Warning(L"ColorPicker change callback failed");
+        Failure::FailUnexpected();
     }
 }
 } // namespace DxUi

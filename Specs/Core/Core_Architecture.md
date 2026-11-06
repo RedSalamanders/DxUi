@@ -1,5 +1,10 @@
 # Architecture and ownership
 
+C++ failure handling is owned by [Failure handling and allocation](Core_FailureHandling.md). Expected refusals
+use checked nonthrowing results; unexpected exceptions require host fatal diagnostics and termination.
+That policy records the current runtime gap and its implementation plan; source-coordinated linking alone
+does not provide the required crash/dump integration.
+
 Status: normative intended contract
 Last reviewed: 2026-10-18
 

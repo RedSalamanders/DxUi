@@ -1,5 +1,11 @@
 # Performance and resources
 
+Allocation failure and retry below mean explicit checked nonthrowing refusal under
+[Failure handling and allocation](Core_FailureHandling.md), not an escaped C++ exception. Unexpected bad_alloc
+and callback exceptions require host fatal diagnostics, implemented by API 5. Its final qualification remains
+tracked in the failure migration plan; historical throwing-fault recovery sweeps and resource measurements
+alone do not qualify it.
+
 Editor cosmetics use the existing owner-thread optional visual traversal, with
 no worker or periodic timer. Content readiness excludes code/source ink, source
 guides and Source-mode analysis used for colouring. Guide retention and copying
@@ -37,9 +43,11 @@ reacquires the brush without retaining the old target resource.
 
 Mermaid label-style clipping and shared model validation run during bounded preparation and allocate no extra
 label storage. Model validation is an indivisible bounded check, not a wall-clock guarantee. Relationship layouts
-allocate one bounded endpoint-slot state only when cardinalities are present (256 nodes, two sides and 512
-edges); it is retired with preparation and never retained by the published plan. Ordinary flowcharts avoid that
-allocation. Slot admission and row sizing remain bounded by existing node/edge/extent limits. Clean/hidden
+and compact fan-in/fan-out routing may stage one bounded endpoint-slot state (256 nodes, two sides and 512
+edges). Each endpoint may scan up to 512 edges; this is bounded preparation, not a linear-work or wall-clock
+guarantee. The temporary state retires with preparation and is never retained by the published plan. Diagrams
+that need neither relationship slots nor compact fan routing avoid that allocation. Slot admission and row
+sizing remain bounded by existing node/edge/extent limits. Clean/hidden
 frames, warm drawing and code-chrome foreground selection add no workers, timers, allocation or measurement.
 
 Bulk Grid and Tree selection builds a staged visible-order list with hash membership and a fixed-width radix-sorted
@@ -73,7 +81,7 @@ the existing source hit/caret mapping, preserving preferred x and site affinity
 across large gaps without allocation or layout. Ordinary wrapped movement and
 the default fixed-spacing fallback remain unchanged.
 
-TOML front matter validation stages bounded UTF-8 converted from the admitted UTF-16 source and parses it without reserialization. Its 128-level value and dotted-key nesting ceilings and 1,024 total key-segment ceiling are reported as capacity, not invalid TOML. Parsing one bounded content envelope is indivisible and allocation failures preserve the prior publication; input queries, composition painting and idle frames do not parse. The native resource and timing gates still require measured qualification.
+TOML front matter validation stages bounded UTF-8 converted from the admitted UTF-16 source and parses it without reserialization. Its 128-level value and dotted-key nesting ceilings and 1,024 total key-segment ceiling are reported as capacity, not invalid TOML. Parsing one bounded content envelope is indivisible; the prior syntax remains published while replacement stages. Unexpected C++ allocation failure is fatal through the host. Input queries, composition painting and idle frames do not parse. The native resource and timing gates still require measured qualification.
 
 YAML front matter event parsing and key/alias validation stage owned temporary
 buffers only. Admission limits are 128 tag directives, 4,096 graph nodes, 128
@@ -129,18 +137,15 @@ that maximum result while retaining its previous publication is bounded to
 32 MiB peak C++ storage. This is not
 a process/SDK/GPU or large-document capacity claim. Same completed requests,
 read-only publication access and retirement allocate no C++ storage. Parser
-allocation-failure sweeps must retain the previous publication and allow explicit
-retry. No parser result changes the existing frame performance HOLD.
-MSVC Debug iterator proxies allocate even in default/noexcept STL container
-constructors. Parser staging and node values use explicit fallible zero-size
-construction and copies rather than noexcept allocator-backed container moves.
-RichText appearance font overrides and the editor's empty default argument use
-the same explicit fallible construction. A public aggregate's implicit exception
-specification does not protect against an allocating STL constructor declared
-`noexcept`; fault coverage must reach each owned override, not only the first one.
-Mermaid sequence accessibility-label staging follows the same rule for empty derived labels. Allocation
-failure must preserve the published/pending semantic generation and permit explicit retry; numbered messages
-and notes are included in the semantic diagram fault sweep.
+checked-allocation-failure sweeps must retain the previous publication and allow explicit
+retry under the owning status contract. No parser result changes the existing frame performance HOLD.
+MSVC Debug iterator proxies allocate even in default/noexcept STL container constructors. The checked/fatal
+allocation closure must cover staging, node values, appearance font overrides, default arguments and nested
+proxy/control-block construction. The published explicit zero-size construction/copy pattern was designed to
+permit throwing failure instead of accidental noexcept termination; it is legacy behavior, not the new checked
+failure contract. A public aggregate's exception specification alone cannot satisfy the allocation/diagnostic
+policy. Fault coverage must reach each owned override, not only the first one.
+Mermaid sequence accessibility-label staging follows the same checked/fatal allocation rule for empty derived labels. A genuine checked refusal preserves the published/pending semantic generation and permits its documented retry; unexpected C++ allocation failures are fatal. Numbered messages, notes and compact endpoint-routing staging require their corresponding isolated fatal and checked native-result coverage.
 The allocation sweep must cover admission, growth, reference extraction, nested
 inline values/links, tables/tasks/tagfilter and compaction. Literal text coalesces
 into runs rather than retaining one string per scalar. An 8,193-unit emphasis
@@ -154,8 +159,9 @@ termination; ordinary suites and canonical benchmarks keep their normal path.
 Semantic source-format indexing is prepared once with the immutable semantic
 document, sharing its 65,536-unit admission. UIA collection queries do not parse,
 create layouts or mutate the document. Every observed C++ allocation in semantic
-child/header collection construction must return E_OUTOFMEMORY safely and allow
-retry. Child providers hold weak semantic graph identity; optional rich snapshot
+child/header collection construction must either use a checked nonthrowing refusal returning E_OUTOFMEMORY
+with its documented retry/state guarantee, or enter the host fatal path. A caught bad_alloc is not a checked
+refusal. Child providers hold weak semantic graph identity; optional rich snapshot
 payloads keep bounds/font strings out of unrelated control records. Preparing
 snapshot rectangles is separate from allocation-free composition and from the
 existing warm caret/visible-range query budget.
@@ -215,6 +221,14 @@ retain the refused states. No property, flag or threshold is ignored to get a ma
 can leave the library's newest-project/import selection different for identical bytes.
 The staging manifest records the role, physical path, original UTC stamp and staged UTC
 stamp for every selected root/project. Partial staging failure restores all acquired stamps.
+
+The failure-policy study also shares the reviewed native build-policy include closure. Its historical baseline
+lacks the `Samples/Shared` include directory needed by the common failure-host harness. Strict preflight must
+reject that difference before measurement. An explicit study-only overlay of `Build/NativeBuildPolicy.targets`
+may align that one include path after retaining the original policy and checking header-resolution collisions;
+library sources and project files remain each side's own. Retain both overlays and fresh build attestations,
+and restage the complete project catalog after the overlay. This does not qualify or change the acceptance
+policy/judge and cannot convert a refused study into a pass.
 
 The current build driver's transitive console module is part of the shared overlay and
 full harness identity. Older baseline trees must import that staged module before building;
@@ -322,8 +336,9 @@ harness against both implementations; `performance-paired.ps1` measures a baseli
 worktree, or an existing tree named as it is) and a candidate (this checkout, a revision or a named tree) with this
 checkout's harness inputs and runs the interleaved A/B/B/A pass serially, repeated as a [paired set](#paired-sets).
 It refuses a pair with nothing to compare: two revisions that name one commit, or, when a tree is named, two
-identical library source fingerprints; each side's revision or path, commit and fingerprint are recorded. A missing
-baseline is explicitly unpaired and cannot close an implementation performance gate. Documentation/tool-only changes
+identical library source fingerprints; each side's revision or path, commit and fingerprint are recorded. The library
+fingerprint includes the vendored libfyaml 0.9.4 tree; full native build attestation independently covers its compiled
+inputs. A missing baseline is explicitly unpaired and cannot close an implementation performance gate. Documentation/tool-only changes
 that leave compiled library inputs unchanged record that fact.
 
 DxUi MUST NOT accept a confirmed performance or memory regression silently. Compare FPS, frame/input percentiles,
@@ -383,7 +398,11 @@ qualification replays them exactly. Repetitions inside a block are not treated a
   expanded projects and resolved compile/shader inventory belong to its build-input identity. The comparison profile
   separately binds actual MSBuild, compiler/backend, shader compiler, linker/librarian and SDK bytes plus effective
   options and target evaluation context for both the library and benchmark. A changed source inventory alone is not a
-  toolchain mismatch. Missing metadata, mixed compiler profiles and unsupported build overrides are inconclusive;
+  toolchain mismatch. A library `.c` item may explicitly select `CompileAsC` alongside C++ items only when every
+  other effective compiler option matches the common C++ profile. Each source path retains its exact language and
+  compiler metadata in the build-input identities; opaque `/TC` or `/TP` option overrides, a C++ item compiled as C,
+  C-only option drift, a mixed benchmark
+  profile, missing metadata, other mixed compiler profiles and unsupported build overrides are inconclusive;
   historical attestations cannot be relabelled as v2 or reused without a fresh build.
 - Default-output incremental `Build` additionally requires a separate receipt binding every intermediate path and byte
   in the supported platform/configuration profile, including objects, tracking logs and generated shaders for all solution
@@ -872,8 +891,9 @@ is linear in bounded physical-line count. Four complete mapping sweeps over the
 The 1,024-line / 512-edit projection+source/history fixture retains at most 4 MiB;
 the 65,536-newline and 32,768-unique-line maximum-source fixtures each retain at
 most 16 MiB. Every fixture releases its tracked delta to zero. Share adjacent
-equal line payloads. Sweep each observed changed-preparation allocation failure
-and prove complete prior-state preservation and a successful retry. Measure
+equal line payloads. Exercise the changed preparation's genuine checked refusal
+seams and prove their documented prior-state preservation and permitted retry; exercise unexpected C++
+allocation failures in isolated fatal children. Measure
 initial and edit preparation separately, retain full-projection comparisons and
 original failures; these supporting-core checks do not qualify retained geometry,
 shared scheduling, composition or completed-frame performance acceptance.
@@ -964,6 +984,9 @@ Renamed benchmark headers MUST also overlay any existing legacy include paths in
 current payload. Those aliases exist only in the temporary overlay and are restored with it; recorded current inputs
 and the older entrypoint must reach the same fixture bytes. Every overlaid path MUST match its retained SHA-256
 after copying, before build/reuse, and before and after every measurement.
+The paired overlay builds its benchmark-only translation unit with `DxUiPairedBenchmark=true`, using the same
+scenario and instrumentation on both sides. Each side builds and links its own library project and runtime;
+the translation unit and sample failure-host source and header are part of the hashed, restored overlay inputs.
 Overlay rollback MUST retain and verify the original hash, refuse changed backups, preserve and report later edits
 to either replaced or overlay-created paths, and attempt the remaining restorations. It records the actual installed
 bytes immediately after copying so an owned partial copy can still be rolled back without treating later edits as its own,
@@ -1017,19 +1040,20 @@ and data changes, keep both copies equal at O(n log n) at most: a `SetRange` ove
 them (1.0 ms for 20,000 ids, 10.9 ms for 200,000; a radix sort of them takes about a seventh of that and is not done);
 `PreserveOrdered` asks about every row of the model, and a table of bits rules out most rows before the search answers the
 rest, so 200,000 rows with 3 to 5,000 ids selected take 0.2 to 1.1 ms (a hash set took 1.2 to 2.8) with 2 or 3 heap
-calls; and `SetRange` and `PreserveOrdered`, the two that may throw, leave the selection as it was when an allocation
-fails. A selection structure that costs a node per row, a membership test that scans more than 1,024 ids or that searches a
+calls in the recorded implementation. Under the current failure policy, checked allocation refusal in `SetRange`
+and `PreserveOrdered` must preserve the previous selection; an unexpected throw requires host fatal diagnostics.
+Historical timings do not qualify that failure-policy migration. A selection structure that costs a node per row, a membership test that scans more than 1,024 ids or that searches a
 smaller selection more slowly than the scan would, a model that keeps the room of a selection it no longer holds, a
 `PreserveOrdered` that costs more than reading its list, or a paint that allocates for the selection regresses this
 budget. The
 [paired record](../../Measurements/GridSelection/2026-10-01/README.md) holds the measurements.
 
-Rich snapshot slicing must propagate allocation failure rather than terminate in
-Debug STL proxy construction. Sweep every observed long-slice allocation and
-preserve the captured source, document revision and histories. The isolated
-allocation diagnostics install a terminate handler only in their explicit child;
-normal suites and canonical benchmark dispatch never install it. Retain the
-original failure separately from successful final sweeps and build qualification.
+Rich snapshot slicing must return a checked nonthrowing allocation refusal or enter allocation-site fatal
+diagnostics, including Debug STL proxy construction. Checked-refusal sweeps preserve the captured source,
+document revision and histories. Unexpected throws run in isolated fatal probes with original-site context and
+dump verification; a returning terminate-handler stack is not that oracle. Test-only handler installation stays
+inside the owned child, not ordinary suite or canonical benchmark dispatch. Retain historical throwing-recovery
+receipts separately; they are not acceptance of this failure policy.
 
 Guarded rich document geometry retains at most 127 chunk layouts plus one optional
 whole-layout compatibility resource, with old/staged replacement bounded together.

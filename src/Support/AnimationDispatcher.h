@@ -18,6 +18,7 @@
 #pragma warning(pop)
 
 #include "Diagnostics.h"
+#include <DxUi/Failure.h>
 #include <DxUi/FrameRuntime.h>
 
 #pragma warning(push)
@@ -80,6 +81,7 @@ public:
 
     [[nodiscard]] uint64_t Subscribe(TickCallback callback, void* context) noexcept
     {
+        const Failure::Scope failureScope;
         if (! callback)
         {
             return 0;
@@ -242,6 +244,7 @@ private:
 
     static LRESULT CALLBACK WndProcThunk(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) noexcept
     {
+        const Failure::Scope failureScope;
         if (msg == WM_NCCREATE)
         {
             const auto* cs = reinterpret_cast<const CREATESTRUCTW*>(lp);
@@ -398,6 +401,7 @@ private:
 
     void OnTimerTick() noexcept
     {
+        const Failure::Scope failureScope;
         if (_subscriptions.empty())
         {
             GarbageCollect();

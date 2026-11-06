@@ -1,5 +1,10 @@
 # Embedded D3D11 hosting
 
+The [C++ failure policy](../Core/Core_FailureHandling.md) distinguishes explicit HRESULT/null refusal from
+unexpected exceptions. API 5 implements the host fatal/context handoff and example dump owner; final
+qualification is tracked by the linked failure contract. Existing exception-recovery receipts are historical
+evidence and do not establish conformance to that policy.
+
 Opt-in RichTextEditor Markdown analysis uses this host's existing preparation
 traversal and continuation coalescing. Pending parsing returns S_FALSE before
 geometry/raster publication and never advances during Composite, source reads
@@ -171,8 +176,9 @@ suspends ticks under the existing retained-motion contract.
 
 Preparation rechecks the root after DPI notification and between paint and overlay calls. Root retirement or
 interaction-geometry replacement during painting returns `E_ABORT`, retains pending preparation and leaves the
-surface incoherent. A later explicit successful preparation restores composition. Standard paint exceptions restore
-draw state and return a failure without publishing the partial surface.
+surface incoherent. A later explicit successful preparation restores composition. Checked nonthrowing preparation
+failure leaves the partial surface unpublished. An unexpected paint exception enters host fatal diagnostics rather
+than returning an ordinary retryable failure; context capture must precede loss of the originating stack.
 Model notifications invalidate the interaction revision as well as pixels. A page installed during paint defers its
 bounds to the next explicit Prepare, including transition pages; no resize or animation tick is required. Preparation
 executes this layout before rendering, and a reentrant pending replacement keeps the frame unpublished.

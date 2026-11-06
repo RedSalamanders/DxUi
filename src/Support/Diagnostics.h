@@ -10,6 +10,7 @@
 #include <windows.h>
 
 #include <DxUi/Diagnostics.h>
+#include <DxUi/Failure.h>
 namespace DxUi::SecureWipe
 {
 inline void SecureClear(std::wstring& value) noexcept
@@ -25,14 +26,11 @@ template <class... Args> void Write(std::wstring_view level, std::wformat_string
 {
     if (! DxUi::Diagnostics::sink)
         return;
-    try
-    {
-        auto message = std::format(format, std::forward<Args>(args)...);
-        DxUi::Diagnostics::sink(level, message);
-    }
-    catch (const std::exception&)
-    {
-    }
+    // This ordinary logger is not the allocation-free fatal reporter. Its
+    // unexpected formatting/sink exception must retain the original throw.
+    const Failure::Scope failureScope;
+    auto message = std::format(format, std::forward<Args>(args)...);
+    DxUi::Diagnostics::sink(level, message);
 }
 template <class... Args> void Error(std::wformat_string<Args...> format, Args&&... args) noexcept
 {

@@ -13,6 +13,8 @@
 
 // Header capability: opt-in intrinsic measurement, flow layout and form presentation APIs are available.
 #define DXUI_HAS_INTRINSIC_LAYOUT 1
+#define DXUI_HAS_CHECKED_CONTROL_ALLOCATION 1
+#define DXUI_HAS_FAILURE_POLICY 1
 
 #include <array>
 #include <atomic>
@@ -22,6 +24,7 @@
 #include <functional>
 #include <limits>
 #include <memory>
+#include <new>
 #include <optional>
 #include <span>
 #include <string>
@@ -1627,7 +1630,26 @@ inline constexpr size_t kMaxIntrinsicTextUnits = 65'536u;
 class Control
 {
 public:
+    Control() noexcept;
     virtual ~Control() = default;
+    // Object storage is checked independently from member construction. The
+    // factory can report its null result; unreportable member failures are fatal.
+    [[nodiscard]] static void* operator new(size_t bytes);
+    [[nodiscard]] static void* operator new(size_t bytes, const std::nothrow_t&) noexcept;
+    [[nodiscard]] static void* operator new(size_t bytes, std::align_val_t alignment);
+    [[nodiscard]] static void* operator new(size_t bytes, std::align_val_t alignment, const std::nothrow_t&) noexcept;
+    // Placement construction borrows caller-owned, suitably aligned storage.
+    [[nodiscard]] static void* operator new(size_t, void* storage) noexcept
+    {
+        return storage;
+    }
+    static void operator delete(void* block) noexcept;
+    static void operator delete(void* block, const std::nothrow_t&) noexcept;
+    static void operator delete(void* block, std::align_val_t) noexcept;
+    static void operator delete(void* block, std::align_val_t, const std::nothrow_t&) noexcept;
+    static void operator delete(void*, void*) noexcept
+    {
+    }
 
     // Calls the optional hook outside rendering. Invalid input, hook failure or reentrant retirement leaves result unchanged.
     [[nodiscard]] HRESULT Measure(const MeasureContext& context, const LayoutConstraints& constraints, DesiredSize& result) const noexcept;
@@ -2108,7 +2130,7 @@ enum class SeparatorOrientation : uint8_t
 class Separator final : public Control
 {
 public:
-    Separator();
+    Separator() noexcept;
     void SetOrientation(SeparatorOrientation orientation) noexcept;
     [[nodiscard]] SeparatorOrientation GetOrientation() const noexcept;
     void Paint(ControlHost& host) const override;
@@ -3369,8 +3391,9 @@ public:
     using DefaultContextMenuLabels = RichTextContextMenuLabels;
     explicit RichTextEditor(std::wstring text = std::wstring(0u, L' '));
     ~RichTextEditor() noexcept override;
-    // Source UTF-16 offsets, including hidden Markdown delimiters. Invalid
-    // text/ranges throw without changing the document. SetText clears history.
+    // Source UTF-16 offsets, including hidden Markdown delimiters. Checked
+    // setters preserve document and selection on refusal. SetText clears history.
+    [[nodiscard]] RichText::SourceResult TrySetText(std::wstring_view text);
     void SetText(std::wstring text);
     [[nodiscard]] std::wstring GetText() const;
     [[nodiscard]] RichText::SourceSnapshot Snapshot() const noexcept;
@@ -3394,6 +3417,7 @@ public:
     // Absolute Unicode file location used only as explicit resource/paste base.
     // Empty denotes an unsaved document. No filesystem access or source/history
     // rewrite occurs; no process working directory is used for relative links.
+    [[nodiscard]] RichText::SourceResult TrySetDocumentFilePath(std::wstring_view path);
     void SetDocumentFilePath(std::wstring path);
     [[nodiscard]] std::wstring_view GetDocumentFilePath() const noexcept;
     // Disabled by default. Only absolute HTTP(S) image requests are exposed
@@ -3430,17 +3454,21 @@ public:
     bool TryPrepareClipboardPaste(const TextClipboardContent& content, std::wstring& replacement) const;
     bool TryPrepareClipboardPaste(const TextClipboardContent& content, std::wstring& replacement, bool* stale) const;
     [[nodiscard]] uint64_t Revision() const noexcept;
+    [[nodiscard]] RichText::SourceResult TrySetSelection(RichText::Selection selection);
     void SetSelection(RichText::Selection selection);
     [[nodiscard]] RichText::Selection GetSelection() const noexcept;
     // Logical source location, independent of visual line wrapping or footnote order.
     [[nodiscard]] std::optional<RichText::SourceLocation> GetSourceCaretLocation() const noexcept;
+    [[nodiscard]] RichText::SourceResult TrySetViewMode(RichText::ViewMode mode);
     void SetViewMode(RichText::ViewMode mode);
     [[nodiscard]] RichText::ViewMode GetViewMode() const noexcept;
     // Validated owner-thread presentation; never changes source/history.
     // Font sizes are 0 (inherit) or 1..512 DIP, line height 0 or 1..4,
     // heading step 0..1, inset -1 (density default) or 0..256 DIP.
+    [[nodiscard]] RichText::SourceResult TrySetAppearance(const RichTextEditorAppearance& appearance);
     void SetAppearance(const RichTextEditorAppearance& appearance);
     [[nodiscard]] const RichTextEditorAppearance& GetAppearance() const noexcept;
+    [[nodiscard]] RichText::SourceResult TrySetZoom(float zoom);
     void SetZoom(float zoom);
     [[nodiscard]] float GetZoom() const noexcept;
     // Optional owner-thread visual preparation for visible code blocks plus
@@ -3449,6 +3477,7 @@ public:
     void SetCodeTokenizer(RichText::CodeTokenizer tokenizer);
     // Borrowed rendered code text is valid only during the owner-thread callback.
     void SetOnCodeCopyRequested(std::function<void(std::wstring_view)> callback, std::wstring accessibleName = L"Copy code");
+    [[nodiscard]] RichText::SourceResult TrySetOnCodeCopyRequested(std::function<void(std::wstring_view)> callback, std::wstring accessibleName = L"Copy code");
     // Optional application converter: borrowed validated CF_HTML fragment to Markdown source.
     void SetHtmlPasteConverter(std::function<std::optional<std::wstring>(std::wstring_view)> converter);
     // Receives borrowed validated DIB bytes outside clipboard ownership; return
@@ -3460,12 +3489,17 @@ public:
     HRESULT InvokeSemanticCodeCopy(ControlHost& host, const std::shared_ptr<const RichText::SemanticDocument>& document, size_t element) noexcept;
     // Unclipped host-DIP bounds; may lie outside the viewport.
     [[nodiscard]] std::optional<D2D1_RECT_F> GetSemanticCodeCopyBounds(const ControlHost& host, size_t element) const noexcept;
+    [[nodiscard]] RichText::SourceResult TrySetLinkUnderlinePolicy(RichTextLinkUnderlinePolicy policy);
     void SetLinkUnderlinePolicy(RichTextLinkUnderlinePolicy policy);
     [[nodiscard]] RichTextLinkUnderlinePolicy GetLinkUnderlinePolicy() const noexcept;
     // Current semantic source style; source mode/pending geometry returns false.
     [[nodiscard]] bool IsLinkUnderlineVisible(size_t sourceOffset) const noexcept;
     // At most 4096 scalar/CRLF-safe source intervals; source edits clear them.
+    [[nodiscard]] RichText::SourceResult TrySetSourceHighlights(std::span<const RichTextSourceHighlight> highlights);
     void SetSourceHighlights(std::span<const RichTextSourceHighlight> highlights);
+    [[nodiscard]] RichText::SourceResult TrySetSearchMatches(const RichText::SourceSnapshot& expectedSource,
+                                                             std::span<const RichText::MarkdownRange> matches,
+                                                             std::optional<size_t> activeIndex = std::nullopt);
     void SetSearchMatches(const RichText::SourceSnapshot& expectedSource,
                           std::span<const RichText::MarkdownRange> matches,
                           std::optional<size_t> activeIndex = std::nullopt);
@@ -3473,6 +3507,9 @@ public:
     [[nodiscard]] std::span<const RichTextSourceHighlight> GetSourceHighlights() const noexcept;
     // Revision-guarded source annotations. Source changes retire them. Before
     // current layout they remain Pending; check status after preparation.
+    // Returns E_INVALIDARG for invalid ranges, E_BOUNDS for capacity, and
+    // ERROR_REVISION_MISMATCH for a stale source; native failures are preserved.
+    [[nodiscard]] HRESULT TrySetDecorations(const RichText::SourceSnapshot& expectedSource, std::span<const RichTextDecoration> decorations);
     void SetDecorations(const RichText::SourceSnapshot& expectedSource, std::span<const RichTextDecoration> decorations);
     [[nodiscard]] std::span<const RichTextDecoration> GetDecorations() const noexcept;
     [[nodiscard]] RichTextDecorationStatus GetDecorationStatus() const noexcept;
@@ -3481,6 +3518,7 @@ public:
 #endif
     // Supplying localized labels enables the built-in editing menu. Null disables it.
     void SetDefaultContextMenuLabels(const RichTextContextMenuLabels* labels);
+    [[nodiscard]] RichText::SourceResult TrySetDefaultContextMenuLabels(const RichTextContextMenuLabels* labels);
     void BuildDefaultContextMenuItems(std::vector<MenuFlyoutItem>& items) const;
     bool InvokeDefaultContextMenuCommand(ControlHost& host, int commandId) noexcept;
     void SetFocusModeEnabled(bool enabled) noexcept;
@@ -3489,10 +3527,12 @@ public:
     // This does not replace the v0 formatted renderer or text-store ACPs. Null
     // disables analysis; changing profile preserves source, history and selection.
     void SetMarkdownAnalysisProfile(std::optional<RichText::MarkdownProfile> profile);
+    [[nodiscard]] RichText::SourceResult TrySetMarkdownAnalysisProfile(std::optional<RichText::MarkdownProfile> profile);
     [[nodiscard]] std::optional<RichText::MarkdownProfile> GetMarkdownAnalysisProfile() const noexcept;
     // Optional explicit extension mask. New definition/abbreviation bits are
     // RichMarkdown-only and remain disabled in the default profile.
     void SetMarkdownAnalysisExtensions(std::optional<RichText::MarkdownExtensions> extensions);
+    [[nodiscard]] RichText::SourceResult TrySetMarkdownAnalysisExtensions(std::optional<RichText::MarkdownExtensions> extensions);
     [[nodiscard]] std::optional<RichText::MarkdownExtensions> GetMarkdownAnalysisExtensions() const noexcept;
     // Callback-free immutable localization of library-generated semantic/UIA text.
     // Null restores English; source, selection and undo history are preserved.
@@ -3508,6 +3548,7 @@ public:
     // Admission overflow displays SourceFallback without changing requested
     // view mode, text, selection or history. No getter drains preparation.
     void SetMarkdownRenderingEnabled(bool enabled);
+    [[nodiscard]] RichText::SourceResult TrySetMarkdownRenderingEnabled(bool enabled);
     [[nodiscard]] bool IsMarkdownRenderingEnabled() const noexcept;
     [[nodiscard]] MarkdownRenderingStatus GetMarkdownRenderingStatus() const noexcept;
     [[nodiscard]] std::shared_ptr<const RichText::SemanticDocument> GetSemanticDocument() const noexcept;
@@ -3519,6 +3560,7 @@ public:
     // Revision-local accessible task action. Preserves the source selection;
     // one exact state-character edit/undo, without acquiring keyboard focus.
     bool ToggleSemanticTask(ControlHost& host, const std::shared_ptr<const RichText::SemanticDocument>& expected, size_t element);
+    [[nodiscard]] RichText::SourceResult TrySetTaskTogglePolicy(RichTextTaskTogglePolicy policy);
     void SetTaskTogglePolicy(RichTextTaskTogglePolicy policy);
     [[nodiscard]] RichTextTaskTogglePolicy GetTaskTogglePolicy() const noexcept;
     // Revision-local footnote/reference navigation. Selects the exact source
@@ -3586,6 +3628,7 @@ public:
     bool ReplaceSelectedSourceMatch(std::wstring_view query, std::wstring_view replacement, RichText::SourceSearchOptions options = {});
     // Select the next/previous source match, wrapping once at the document edge.
     bool SelectSourceMatch(std::wstring_view query, bool backwards = false, RichText::SourceSearchOptions options = {});
+    [[nodiscard]] RichText::SourceResult TrySetSearchQuery(std::wstring_view query, RichText::SourceSearchOptions options = {});
     void SetSearchQuery(std::wstring_view query, RichText::SourceSearchOptions options = {});
     void SetSearchShortcutsEnabled(bool enabled) noexcept;
     void SetOnFindRequested(std::function<void()> callback);
@@ -3619,8 +3662,7 @@ public:
     // callback is registered, a notifying source edit invokes this callback before
     // publishing its corresponding selection notification. May replace/destroy
     // this control.
-    // Allocation failure is fatal; other standard exceptions are contained and
-    // leave the committed edit intact.
+    // Unexpected exceptions from the callback are fatal.
     void SetOnTextChanged(std::function<void()> callback);
     // Owner-thread notification after source selection/gesture publication,
     // including keyboard, text services, UIA and programmatic selection. Silent
@@ -3628,23 +3670,26 @@ public:
     // state are suppressed. During pointer selection, consumers can defer
     // expensive work until the final release/capture-loss notification observes
     // an inactive gesture. A callback may replace/destroy this control.
-    // Allocation failure is fatal; other standard exceptions are contained and
-    // leave the published selection intact.
+    // Unexpected exceptions from the callback are fatal.
     void SetOnSelectionChanged(std::function<void()> callback);
     [[nodiscard]] bool IsSelectionGestureActive() const noexcept;
     [[nodiscard]] RichTextEditorDebugState DebugGetState() const noexcept;
     [[nodiscard]] size_t DebugGetListStateAncestorSteps() const noexcept;
     // Accessible ranges use source offsets; geometry follows the current rich
-    // projection. Includes complete lines that are partially visible.
+    // projection. Includes complete lines that are partially visible. An
+    // unavailable layout or a native geometry failure returns nullopt.
     [[nodiscard]] std::optional<std::pair<size_t, size_t>> GetVisibleSourceRange(const ControlHost& host) const noexcept;
-    // Valid only for the currently acknowledged semantic document and layout.
+    // Valid only for the currently acknowledged semantic document and layout;
+    // a native geometry failure also returns nullopt.
     [[nodiscard]] std::optional<RichText::MarkdownRange> GetVisibleSemanticDisplayRange(const ControlHost& host) const noexcept;
     // Draw an explicit vertical document slice into an application-owned page
     // on this host's prepared device context. Destination width must match the
     // prepared text viewport; prepare a separate export editor for another page
     // width. Clips at page edges (including oversized native objects). No editor
     // chrome, caret, selection or transient decorations; no scroll/source/focus
-    // mutation, reflow, resource creation, worker or printer dialog.
+    // mutation, reflow, resource creation, worker or printer dialog. Returns
+    // false if the prepared layout cannot be drawn, including native failure.
+    [[nodiscard]] bool TryDrawPreparedPage(ControlHost& host, D2D1_RECT_F destination, float sourceTopDip, const RichText::ExportDrawing& drawing) const;
     void DrawPreparedPage(ControlHost& host, D2D1_RECT_F destination, float sourceTopDip, const RichText::ExportDrawing& drawing) const;
     // Display word containing the caret, mapped to exact source-owned ranges.
     // Generated display text may have no source; transformed objects retain
@@ -3697,6 +3742,7 @@ protected:
 
 private:
     friend struct EmbeddedAccessibilityAccess;
+    [[nodiscard]] HRESULT DrawPreparedPageResult(ControlHost& host, D2D1_RECT_F destination, float sourceTopDip, const RichText::ExportDrawing& drawing) const;
     [[nodiscard]] std::optional<std::vector<std::pair<size_t, size_t>>> SourceVisualLineRangesFallible(const ControlHost& host) const;
     friend class ControlHost;
     friend class EmbeddedHost;
@@ -3706,10 +3752,11 @@ private:
     std::unique_ptr<State> _state;
     [[nodiscard]] D2D1_RECT_F TextViewport() const noexcept;
     [[nodiscard]] bool LayoutIsCurrent(const ControlHost& host) const noexcept;
-    [[nodiscard]] RichText::MarkdownCommandPlan BuildCurrentMarkdownCommand(const RichText::MarkdownCommandRequest& request,
-                                                                            const std::shared_ptr<const RichText::MarkdownSyntax>& syntax) const;
+    [[nodiscard]] RichText::SourceResult TryBuildCurrentMarkdownCommand(const RichText::MarkdownCommandRequest& request,
+                                                                        const std::shared_ptr<const RichText::MarkdownSyntax>& syntax,
+                                                                        std::optional<RichText::MarkdownCommandPlan>& output) const;
     void RequireCurrentLayout(const ControlHost& host) const;
-    void UpdateCaretScroll() const;
+    HRESULT UpdateCaretScroll() const;
     void RetireLayout(bool retainGeometry = false) const noexcept;
     void ResetDocumentBinding();
     void UpdateSemanticSourceRegion() noexcept;
@@ -3731,9 +3778,8 @@ private:
     [[nodiscard]] uint64_t FileDropEpoch() const noexcept;
     bool CommitFileDrop(FileDropPosition position, const TextClipboardContent& content);
     void Changed(bool sourceChanged, bool synchronizeTextInput = true);
-    [[nodiscard]] bool InputFailureHandled(const std::weak_ptr<int>& lifetime, uint64_t revision, uint64_t epoch, RichText::Selection selection) const noexcept;
     void SelectionChanged(bool synchronizeTextInput = true, bool preservePreferredCaretX = false, bool publishSelection = true, bool revealCaret = true);
-    void PrepareOverlayGeometry(ControlHost& host);
+    HRESULT PrepareOverlayGeometry(ControlHost& host);
     [[nodiscard]] D2D1_RECT_F ScrollbarTrack() const noexcept;
     void PublishScrollChanged() noexcept;
     void PublishSelectionChanged() noexcept;
@@ -3742,9 +3788,9 @@ private:
     [[nodiscard]] size_t HitSource(ControlHost& host, D2D1_POINT_2F point) const;
     [[nodiscard]] std::optional<RichText::MarkdownRange> CaretLinkDisplayRange() const noexcept;
     void UpdateCaretLinkDisplayRange() noexcept;
-    bool PrepareSourceInk();
+    HRESULT PrepareSourceInk();
     [[nodiscard]] bool SourceInkCoversViewport() const;
-    bool PrepareSourceGuides(ControlHost& host);
+    HRESULT PrepareSourceGuides(ControlHost& host);
     HRESULT PrepareMarkdownSyntax();
     [[nodiscard]] bool CodeInkCoversViewport() const noexcept;
     [[nodiscard]] float HorizontalTranslation() const noexcept;

@@ -2,6 +2,7 @@
 
 #include "DxUi.TextElements.h"
 #include "DxUi.h"
+#include <DxUi/Failure.h>
 
 #include <algorithm>
 #include <bit>
@@ -226,34 +227,23 @@ private:
     uint64_t _geometryRevision;
 };
 
-// Application callbacks can throw standard exceptions. The caller supplies the failed-operation fallback and
-// revalidates borrowed lifetimes and operation generations after either outcome, before using retained state.
+// Callback refusal is an explicit result owned by the callback contract. Any C++
+// exception is unexpected; observe it before unwinding, including unknown types.
+// Callers still revalidate borrowed lifetimes after a normally returning callback.
 template <typename Callback> [[nodiscard]] bool TryControlCallback(Callback&& callback) noexcept
 {
-    try
-    {
-        std::forward<Callback>(callback)();
-        return true;
-    }
-    catch (const std::exception&)
-    {
-        return false;
-    }
+    const Failure::Scope failureScope;
+    std::forward<Callback>(callback)();
+    return true;
 }
 
 // Registration owns the callable; dispatch retains this storage without cloning mutable state or allocating.
 template <typename Signature>
 void ReplaceControlCallback(std::shared_ptr<const std::function<Signature>>& destination, std::function<Signature> callback) noexcept
 {
-    try
-    {
-        auto replacement = callback ? std::make_shared<const std::function<Signature>>(std::move(callback)) : nullptr;
-        destination      = std::move(replacement);
-    }
-    catch (const std::bad_alloc&)
-    {
-        // Preserve the previous subscription if storage for its replacement cannot be allocated.
-    }
+    const Failure::Scope failureScope;
+    auto replacement = callback ? std::make_shared<const std::function<Signature>>(std::move(callback)) : nullptr;
+    destination      = std::move(replacement);
 }
 
 // Retained text layouts (the Grid's multiline cells and their omitted tails) live in set-associative tables: a mixed
@@ -388,14 +378,8 @@ void EndTextLayoutPaint(std::vector<Entry>& table, uint64_t generation, size_t i
     }
     if (table.size() > initialEntries && used * 8u < table.size())
     {
-        try
-        {
-            ResizeTextLayoutTable(table, table.size() / 2u, generation);
-        }
-        catch (const std::bad_alloc&)
-        {
-            // Keeping the larger table is always correct; a later paint tries again.
-        }
+        const Failure::Scope failureScope;
+        ResizeTextLayoutTable(table, table.size() / 2u, generation);
     }
 }
 struct safearray_deleter
@@ -695,8 +679,17 @@ void DebugSetAccessibilityFocusResolutionGateForTest(HWND hwnd, HANDLE enteredEv
 void DebugSetAccessibilityPeerCreationGateForTest(HWND hwnd, HANDLE enteredEvent, HANDLE releaseEvent) noexcept;
 // Holds one embedded property batch after extraction, outside the slot mutex and before UIA delivery, for at most
 // twenty seconds. Clearing waits for its holder to leave before the test closes the events.
-void DebugSetAccessibilityPropertyDeliveryGateForTest(ControlHost* host, HANDLE enteredEvent, HANDLE releaseEvent) noexcept;
+// afterScope holds the actual worker after its target/failure admission releases, before returning to Windows.
+// In that mode enteredEvent is reset on exit, so it proves the worker remains parked when the consumer checks it.
+void DebugSetAccessibilityPropertyDeliveryGateForTest(ControlHost* host, HANDLE enteredEvent, HANDLE releaseEvent, bool afterScope = false) noexcept;
 [[nodiscard]] size_t DebugCountPendingTreeItemPropertiesForTest(ControlHost& host, int property) noexcept;
+// One owner-thread callback after the selected value capture (1/2) or sender registration (3), before queue admission.
+// Simulates COM reentry; consumed before invocation so a nested publication cannot invoke it again.
+using AccessibilityPropertyRegistrationHookForTest = void (*)(void* context) noexcept;
+void DebugSetAccessibilityPropertyRegistrationHookForTest(ControlHost* host,
+                                                          unsigned stage,
+                                                          AccessibilityPropertyRegistrationHookForTest hook,
+                                                          void* context) noexcept;
 // Runs `hook` with `context` on the raising thread after each UI Automation selection event a host raises (an item's IsSelected
 // change or selection event, or the invalidation of a tree's or grid's selection), since something else can run while they are
 // raised (an outgoing call of UI Automation's in a single-threaded apartment dispatches messages): a test hides, removes or

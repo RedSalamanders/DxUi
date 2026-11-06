@@ -1,4 +1,5 @@
 #include "DxUi.Internal.h"
+#include <DxUi/Failure.h>
 
 #include <algorithm>
 #include <chrono>
@@ -1086,6 +1087,7 @@ void TextField::SetSelectionRange(const size_t selectionStart, const size_t sele
 
 void TextField::ReplaceSelectionAndNotify(std::wstring_view replacement)
 {
+    const Failure::Scope failureScope;
     const auto lifetime   = GetLifetimeToken();
     const bool willMutate = HasSelection() || ! replacement.empty();
     if (! willMutate)
@@ -1121,6 +1123,7 @@ void TextField::ReplaceSelectionAndNotify(std::wstring_view replacement)
 
 void TextField::SetTextAndNotify(std::wstring text)
 {
+    const Failure::Scope failureScope;
     const auto lifetime = GetLifetimeToken();
     SetText(std::move(text));
     if (lifetime.expired())
@@ -1811,6 +1814,7 @@ bool TextField::Tick(ControlHost& host, uint64_t nowTickMs)
 
 void TextField::OnFocusChanged(ControlHost& host, bool focused)
 {
+    const Failure::Scope failureScope;
     _pendingLeadSurrogate = 0;
     Control::OnFocusChanged(host, focused);
     if (focused)
@@ -1874,6 +1878,7 @@ WindowHostCursorKind TextField::ResolveCursorKind(ControlHost&, D2D1_POINT_2F po
 
 bool TextField::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)
 {
+    const Failure::Scope failureScope;
     _pendingLeadSurrogate = 0;
     if (rightButton)
     {
@@ -2003,6 +2008,7 @@ bool TextField::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightBu
 
 bool TextField::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)
 {
+    const Failure::Scope failureScope;
     _pendingLeadSurrogate = 0;
     if (rightButton)
     {
@@ -2059,6 +2065,7 @@ bool TextField::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool 
 
 bool TextField::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modifiers*/)
 {
+    const Failure::Scope failureScope;
     const bool wasClearHovered   = _clearButtonHovered;
     const bool wasRevealHovered  = _passwordRevealButtonHovered;
     _clearButtonHovered          = IsClearButtonVisible() && PointInRect(GetClearButtonRect(), point);
@@ -2113,6 +2120,7 @@ bool TextField::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modif
 
 bool TextField::OnMouseUp(ControlHost& host, D2D1_POINT_2F /*point*/, bool rightButton, UINT /*modifiers*/)
 {
+    const Failure::Scope failureScope;
     if (rightButton)
     {
         return false;
@@ -2139,6 +2147,7 @@ bool TextField::OnMouseUp(ControlHost& host, D2D1_POINT_2F /*point*/, bool right
 
 void TextField::OnCaptureLost(ControlHost& host)
 {
+    const Failure::Scope failureScope;
     const bool hadRevealPress    = _passwordRevealButtonPressed;
     const bool wasDragging       = _dragSelecting;
     _dragSelecting               = false;
@@ -2159,6 +2168,7 @@ void TextField::OnCaptureLost(ControlHost& host)
 
 bool TextField::OnMouseWheel(ControlHost& host, D2D1_POINT_2F /*point*/, float wheelDelta, UINT /*modifiers*/)
 {
+    const Failure::Scope failureScope;
     if (! _multiline)
     {
         return false;
@@ -2224,6 +2234,7 @@ bool TextField::OnMouseWheel(ControlHost& host, D2D1_POINT_2F /*point*/, float w
 
 bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
 {
+    const Failure::Scope failureScope;
     const auto inputLifetime = GetLifetimeToken();
     if (! KeyKeepsPendingSurrogate(virtualKey))
         _pendingLeadSurrogate = 0;
@@ -2753,6 +2764,7 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
 
 bool TextField::OnKeyUp(ControlHost& host, UINT virtualKey, UINT modifiers)
 {
+    const Failure::Scope failureScope;
     if (! _passwordRevealKeyboardFocused || (virtualKey != VK_SPACE && virtualKey != VK_RETURN) || ModifiersContainAlt(modifiers) ||
         ModifiersContainCtrl(modifiers))
     {
@@ -2772,6 +2784,7 @@ bool TextField::OnKeyUp(ControlHost& host, UINT virtualKey, UINT modifiers)
 
 bool TextField::OnChar(ControlHost& host, wchar_t ch, UINT modifiers)
 {
+    const Failure::Scope failureScope;
     const auto inputLifetime = GetLifetimeToken();
     // A pair remains private until both UTF-16 units are available.
     // Alt alone makes the system's characters (menu access keys, Alt+Space); AltGr arrives as Ctrl+Alt and types.
@@ -2857,6 +2870,7 @@ bool TextField::OnChar(ControlHost& host, wchar_t ch, UINT modifiers)
 
 bool TextField::OnContextMenu(ControlHost& host, bool keyboardInvocation, D2D1_POINT_2F pointDip)
 {
+    const Failure::Scope failureScope;
     ResetSingleLineSelectionClickSequence(_selectionClickSequence);
     if (! FocusControlAndSurvive(host, *this))
     {
@@ -2870,6 +2884,7 @@ bool TextField::OnContextMenu(ControlHost& host, bool keyboardInvocation, D2D1_P
 
 bool TextField::OnCopy(ControlHost& host)
 {
+    const Failure::Scope failureScope;
     if (_masked && _passwordRevealMode != PasswordRevealMode::Visible && _passwordRevealState != PasswordRevealState::Visible)
     {
         return false;
@@ -2886,6 +2901,7 @@ bool TextField::OnCopy(ControlHost& host)
 
 bool TextField::OnSelectAll(ControlHost& host)
 {
+    const Failure::Scope failureScope;
     ResetSingleLineSelectionClickSequence(_selectionClickSequence);
     _preferredMultilineXOffsetDip.reset();
     SelectAllText();
@@ -3139,6 +3155,7 @@ bool TextField::ExportTextInputState(TextInputState& outState) const
 
 bool TextField::ImportTextInputState(ControlHost& host, const TextInputState& state, bool notifyChange)
 {
+    const Failure::Scope failureScope;
     const auto lifetime                   = GetLifetimeToken();
     _pendingLeadSurrogate                 = 0;
     const std::wstring previousText       = _text;
@@ -3715,6 +3732,7 @@ void TextField::ResetCaretBlink(ControlHost& host) noexcept
 
 bool TextField::NotifyChanged()
 {
+    const Failure::Scope failureScope;
     const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
     if (_multiline)
         InvalidateMeasure();

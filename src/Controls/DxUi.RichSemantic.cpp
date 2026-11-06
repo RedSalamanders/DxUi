@@ -1,20 +1,34 @@
+#include <DxUi/Failure.h>
 #include <DxUi/RichSemantic.h>
 #ifndef NOMINMAX
 #define NOMINMAX
 #endif
 #include <Windows.h>
+#include <algorithm>
+#include <iterator>
 #include <limits>
-#include <stdexcept>
 
 namespace DxUi::RichText
 {
 std::vector<MarkdownRange> FindInSource(const SourceSnapshot& snapshot, std::wstring_view query, SourceSearchOptions options)
 {
+    const Failure::Scope failureScope;
+    std::vector<MarkdownRange> result(0u);
+    if (TryFindInSource(snapshot, query, result, options) != SourceResult::Success)
+        Failure::FailContract(E_INVALIDARG);
+    return result;
+}
+SourceResult TryFindInSource(const SourceSnapshot& snapshot, std::wstring_view query, std::vector<MarkdownRange>& output, SourceSearchOptions options)
+{
+    const Failure::Scope failureScope;
     if (! IsValidSourceUtf16(query))
-        throw std::invalid_argument("Invalid search UTF-16");
+        return SourceResult::InvalidSource;
     std::vector<MarkdownRange> result(0u);
     if (query.empty() || query.size() > snapshot.Length())
-        return result;
+    {
+        output.swap(result);
+        return SourceResult::Success;
+    }
     const auto source = snapshot.Text();
     const auto word   = [](wchar_t ch) noexcept
     {
@@ -47,7 +61,8 @@ std::vector<MarkdownRange> FindInSource(const SourceSnapshot& snapshot, std::wst
         else
             cursor = first + 1u;
     }
-    return result;
+    output.swap(result);
+    return SourceResult::Success;
 }
 namespace
 {
@@ -56,15 +71,13 @@ bool Atomic(DisplaySpanKind kind) noexcept
 {
     return kind == DisplaySpanKind::Transformed || kind == DisplaySpanKind::Object;
 }
-void CheckRange(std::wstring_view text, MarkdownRange range)
+bool ValidRange(std::wstring_view text, MarkdownRange range) noexcept
 {
-    if (range.first > range.last || ! IsEditBoundary(text, range.first) || ! IsEditBoundary(text, range.last))
-        throw std::out_of_range("Invalid semantic coordinate range");
+    return range.first <= range.last && IsEditBoundary(text, range.first) && IsEditBoundary(text, range.last);
 }
-void CheckAffinity(MappingAffinity affinity)
+bool ValidAffinity(MappingAffinity affinity) noexcept
 {
-    if (affinity != MappingAffinity::Leading && affinity != MappingAffinity::Trailing)
-        throw std::invalid_argument("Invalid semantic mapping affinity");
+    return affinity == MappingAffinity::Leading || affinity == MappingAffinity::Trailing;
 }
 void AppendRange(std::vector<MarkdownRange>& result, MarkdownRange range)
 {
@@ -79,14 +92,58 @@ void AppendRange(std::vector<MarkdownRange>& result, MarkdownRange range)
 
 std::shared_ptr<const SourceDisplayMap> SourceDisplayMap::Build(std::wstring_view source, std::wstring_view display, std::span<const DisplaySpan> spans)
 {
-    // Admission precedes copies and indexes, including multiplication/amplification.
-    if (source.size() > Document::MaximumUnits || display.size() > MaximumDisplayUnits || spans.size() > MaximumSpans)
-        throw std::length_error("Semantic coordinate capacity exceeded");
-    if (! IsValidSourceUtf16(source) || ! IsValidSourceUtf16(display))
-        throw std::invalid_argument("Invalid semantic UTF-16");
-    return std::shared_ptr<const SourceDisplayMap>(new SourceDisplayMap(source, display, spans));
+    std::shared_ptr<const SourceDisplayMap> result;
+    if (TryBuild(source, display, spans, result) != SourceResult::Success)
+        Failure::FailContract(E_INVALIDARG);
+    return result;
 }
-SourceDisplayMap::SourceDisplayMap(std::wstring_view source, std::wstring_view display, std::span<const DisplaySpan> spans)
+SourceResult SourceDisplayMap::TryBuild(std::wstring_view source,
+                                        std::wstring_view display,
+                                        std::span<const DisplaySpan> spans,
+                                        std::shared_ptr<const SourceDisplayMap>& output)
+{
+    const Failure::Scope failureScope;
+    if (source.size() > Document::MaximumUnits || display.size() > MaximumDisplayUnits || spans.size() > MaximumSpans)
+        return SourceResult::CapacityExceeded;
+    if (! IsValidSourceUtf16(source) || ! IsValidSourceUtf16(display))
+        return SourceResult::InvalidSource;
+    // Reject malformed spans and display partitions before allocating the map.
+    std::size_t displayEnd{};
+    for (const auto& span : spans)
+    {
+        if (! ValidRange(source, span.source) || ! ValidRange(display, span.display) || span.display.first != displayEnd ||
+            span.display.first == span.display.last)
+            return SourceResult::InvalidRange;
+        displayEnd = span.display.last;
+        switch (span.kind)
+        {
+            case DisplaySpanKind::Generated:
+                if (span.primary || span.source.first != span.source.last)
+                    return SourceResult::InvalidRange;
+                break;
+            case DisplaySpanKind::Source:
+                if (source.substr(span.source.first, span.source.last - span.source.first) !=
+                    display.substr(span.display.first, span.display.last - span.display.first))
+                    return SourceResult::InvalidRange;
+                [[fallthrough]];
+            case DisplaySpanKind::Transformed:
+            case DisplaySpanKind::Object:
+                if (span.source.first == span.source.last)
+                    return SourceResult::InvalidRange;
+                break;
+            default: return SourceResult::InvalidRange;
+        }
+    }
+    if (displayEnd != display.size())
+        return SourceResult::InvalidRange;
+    SourceResult result = SourceResult::Success;
+    std::shared_ptr<const SourceDisplayMap> staged(new SourceDisplayMap(source, display, spans, result));
+    if (result != SourceResult::Success)
+        return result;
+    output.swap(staged);
+    return SourceResult::Success;
+}
+SourceDisplayMap::SourceDisplayMap(std::wstring_view source, std::wstring_view display, std::span<const DisplaySpan> spans, SourceResult& result)
     : source_(source),
       display_(display),
       spans_(spans.begin(), spans.end()),
@@ -95,45 +152,22 @@ SourceDisplayMap::SourceDisplayMap(std::wstring_view source, std::wstring_view d
 {
     std::vector<std::size_t> primary(0u);
     primary.reserve(spans.size());
-    std::size_t displayEnd = 0u;
     for (std::size_t i = 0u; i < spans_.size(); ++i)
     {
         const auto& span = spans_[i];
-        CheckRange(source, span.source);
-        CheckRange(display, span.display);
-        if (span.display.first != displayEnd || span.display.first == span.display.last)
-            throw std::invalid_argument("Semantic spans must partition display");
-        displayEnd = span.display.last;
-        switch (span.kind)
-        {
-            case DisplaySpanKind::Generated:
-                if (span.primary || span.source.first != span.source.last)
-                    throw std::invalid_argument("Generated text has no source ownership");
-                break;
-            case DisplaySpanKind::Source:
-                if (source.substr(span.source.first, span.source.last - span.source.first) !=
-                    display.substr(span.display.first, span.display.last - span.display.first))
-                    throw std::invalid_argument("Source-backed display spelling differs");
-                [[fallthrough]];
-            case DisplaySpanKind::Transformed:
-            case DisplaySpanKind::Object:
-                if (span.source.first == span.source.last)
-                    throw std::invalid_argument("Source-bearing display has empty ownership");
-                if (span.primary)
-                    primary.push_back(i);
-                break;
-            default: throw std::invalid_argument("Invalid semantic span kind");
-        }
+        if (span.primary)
+            primary.push_back(i);
     }
-    if (displayEnd != display.size())
-        throw std::invalid_argument("Semantic display coverage is incomplete");
     std::sort(primary.begin(), primary.end(), [&](auto a, auto b) { return spans_[a].source.first < spans_[b].source.first; });
     std::size_t sourceEnd = 0u;
     for (const auto index : primary)
     {
         const auto& span = spans_[index];
         if (span.source.first < sourceEnd)
-            throw std::invalid_argument("Primary semantic source ownership overlaps");
+        {
+            result = SourceResult::InvalidRange;
+            return;
+        }
         sourceEnd = span.source.last;
         for (auto position = span.source.first; position <= span.source.last; ++position)
         {
@@ -153,7 +187,10 @@ SourceDisplayMap::SourceDisplayMap(std::wstring_view source, std::wstring_view d
         const auto match =
             std::lower_bound(primary.begin(), primary.end(), span.source.first, [&](auto index, auto first) { return spans_[index].source.first < first; });
         if (match == primary.end() || spans_[*match].source != span.source || spans_[*match].kind != span.kind)
-            throw std::invalid_argument("Repeated semantic span needs an exact primary owner");
+        {
+            result = SourceResult::InvalidRange;
+            return;
+        }
     }
     auto next = display.size();
     for (auto position = source.size() + 1u; position > 0u;)
@@ -185,112 +222,153 @@ std::span<const DisplaySpan> SourceDisplayMap::Spans() const noexcept
 {
     return spans_;
 }
-std::size_t SourceDisplayMap::ToDisplay(std::size_t sourceOffset, MappingAffinity affinity) const
+SourceResult SourceDisplayMap::TryToDisplay(std::size_t offset, MappingAffinity affinity, std::size_t& output) const noexcept
 {
-    CheckAffinity(affinity);
-    CheckRange(source_, {sourceOffset, sourceOffset});
-    return (affinity == MappingAffinity::Leading ? sourceLeading_ : sourceTrailing_)[sourceOffset];
+    if (! ValidAffinity(affinity) || ! ValidRange(source_, {offset, offset}))
+        return SourceResult::InvalidRange;
+    output = (affinity == MappingAffinity::Leading ? sourceLeading_ : sourceTrailing_)[offset];
+    return SourceResult::Success;
 }
-std::size_t SourceDisplayMap::ToSource(std::size_t displayOffset, MappingAffinity affinity) const
+std::size_t SourceDisplayMap::ToDisplay(std::size_t offset, MappingAffinity affinity) const
 {
-    CheckAffinity(affinity);
-    CheckRange(display_, {displayOffset, displayOffset});
+    std::size_t output{};
+    if (TryToDisplay(offset, affinity, output) != SourceResult::Success)
+        Failure::FailContract(E_INVALIDARG);
+    return output;
+}
+SourceResult SourceDisplayMap::TryToSource(std::size_t offset, MappingAffinity affinity, std::size_t& output) const noexcept
+{
+    if (! ValidAffinity(affinity) || ! ValidRange(display_, {offset, offset}))
+        return SourceResult::InvalidRange;
     if (spans_.empty())
-        return affinity == MappingAffinity::Leading ? source_.size() : 0u;
-    auto found = std::upper_bound(spans_.begin(), spans_.end(), displayOffset, [](auto offset, const auto& span) { return offset < span.display.last; });
-    if (found == spans_.end())
-        found = std::prev(spans_.end());
-    else if (affinity == MappingAffinity::Trailing && displayOffset == found->display.first && found != spans_.begin())
-        --found;
-    if (found->kind == DisplaySpanKind::Generated)
-        return found->source.first;
-    if (Atomic(found->kind))
+        output = affinity == MappingAffinity::Leading ? source_.size() : 0u;
+    else
     {
-        if (displayOffset == found->display.first)
-            return found->source.first;
-        if (displayOffset == found->display.last)
-            return found->source.last;
-        return affinity == MappingAffinity::Leading ? found->source.first : found->source.last;
+        auto found = std::upper_bound(spans_.begin(), spans_.end(), offset, [](auto value, const auto& span) { return value < span.display.last; });
+        if (found == spans_.end())
+            found = std::prev(spans_.end());
+        else if (affinity == MappingAffinity::Trailing && offset == found->display.first && found != spans_.begin())
+            --found;
+        if (found->kind == DisplaySpanKind::Generated)
+            output = found->source.first;
+        else if (Atomic(found->kind))
+            output = offset == found->display.first         ? found->source.first
+                     : offset == found->display.last        ? found->source.last
+                     : affinity == MappingAffinity::Leading ? found->source.first
+                                                            : found->source.last;
+        else
+            output = found->source.first + offset - found->display.first;
     }
-    return found->source.first + displayOffset - found->display.first;
+    return SourceResult::Success;
+}
+std::size_t SourceDisplayMap::ToSource(std::size_t offset, MappingAffinity affinity) const
+{
+    std::size_t output{};
+    if (TryToSource(offset, affinity, output) != SourceResult::Success)
+        Failure::FailContract(E_INVALIDARG);
+    return output;
+}
+SourceResult SourceDisplayMap::TryDisplayRanges(MarkdownRange source, std::vector<MarkdownRange>& output) const
+{
+    const Failure::Scope failureScope;
+    if (! ValidRange(source_, source))
+        return SourceResult::InvalidRange;
+    std::vector<MarkdownRange> result(0u);
+    if (source.first != source.last)
+        for (const auto& span : spans_)
+        {
+            const auto first = std::max(source.first, span.source.first), last = std::min(source.last, span.source.last);
+            if (span.kind == DisplaySpanKind::Generated || first >= last)
+                continue;
+            AppendRange(result,
+                        Atomic(span.kind) ? span.display
+                                          : MarkdownRange{span.display.first + first - span.source.first, span.display.first + last - span.source.first});
+        }
+    output.swap(result);
+    return SourceResult::Success;
 }
 std::vector<MarkdownRange> SourceDisplayMap::DisplayRanges(MarkdownRange source) const
 {
-    CheckRange(source_, source);
-    std::vector<MarkdownRange> result(0u);
-    if (source.first == source.last)
-        return std::vector<MarkdownRange>(0u);
-    for (const auto& span : spans_)
-    {
-        const auto first = std::max(source.first, span.source.first), last = std::min(source.last, span.source.last);
-        if (span.kind == DisplaySpanKind::Generated || first >= last)
-            continue;
-        AppendRange(result,
-                    Atomic(span.kind) ? span.display
-                                      : MarkdownRange{span.display.first + first - span.source.first, span.display.first + last - span.source.first});
-    }
-    // Explicit fallible copy/prvalue elision avoids relying on NRVO: the MSVC
-    // Debug vector move is noexcept but can allocate an iterator proxy.
-    return std::vector<MarkdownRange>(result);
+    const Failure::Scope failureScope;
+    std::vector<MarkdownRange> output(0u);
+    if (TryDisplayRanges(source, output) != SourceResult::Success)
+        Failure::FailContract(E_INVALIDARG);
+    return std::vector<MarkdownRange>(output);
 }
-std::vector<MarkdownRange> SourceDisplayMap::SourceRanges(MarkdownRange display) const
+SourceResult SourceDisplayMap::TrySourceRanges(MarkdownRange display, std::vector<MarkdownRange>& output) const
 {
-    CheckRange(display_, display);
+    const Failure::Scope failureScope;
+    if (! ValidRange(display_, display))
+        return SourceResult::InvalidRange;
     std::vector<MarkdownRange> ranges(0u);
-    if (display.first == display.last)
-        return std::vector<MarkdownRange>(0u);
-    for (const auto& span : spans_)
-    {
-        const auto first = std::max(display.first, span.display.first), last = std::min(display.last, span.display.last);
-        if (span.kind == DisplaySpanKind::Generated || first >= last)
-            continue;
-        ranges.push_back(Atomic(span.kind) ? span.source
-                                           : MarkdownRange{span.source.first + first - span.display.first, span.source.first + last - span.display.first});
-    }
+    if (display.first != display.last)
+        for (const auto& span : spans_)
+        {
+            const auto first = std::max(display.first, span.display.first), last = std::min(display.last, span.display.last);
+            if (span.kind == DisplaySpanKind::Generated || first >= last)
+                continue;
+            ranges.push_back(Atomic(span.kind) ? span.source
+                                               : MarkdownRange{span.source.first + first - span.display.first, span.source.first + last - span.display.first});
+        }
     std::sort(ranges.begin(), ranges.end(), [](const auto& a, const auto& b) { return a.first < b.first; });
     std::vector<MarkdownRange> result(0u);
     result.reserve(ranges.size());
     for (const auto range : ranges)
         AppendRange(result, range);
-    return std::vector<MarkdownRange>(result);
+    output.swap(result);
+    return SourceResult::Success;
+}
+std::vector<MarkdownRange> SourceDisplayMap::SourceRanges(MarkdownRange display) const
+{
+    const Failure::Scope failureScope;
+    std::vector<MarkdownRange> output(0u);
+    if (TrySourceRanges(display, output) != SourceResult::Success)
+        Failure::FailContract(E_INVALIDARG);
+    return std::vector<MarkdownRange>(output);
+}
+SourceResult SourceDisplayMap::TrySnapDisplayBoundary(std::size_t offset, MappingAffinity affinity, std::size_t& output) const noexcept
+{
+    if (! ValidAffinity(affinity) || offset > display_.size())
+        return SourceResult::InvalidRange;
+    const auto found = std::upper_bound(spans_.begin(), spans_.end(), offset, [](auto position, const auto& span) { return position < span.display.last; });
+    if (found != spans_.end() && Atomic(found->kind) && offset > found->display.first)
+        output = affinity == MappingAffinity::Leading ? found->display.first : found->display.last;
+    else
+    {
+        while (! IsEditBoundary(display_, offset))
+            offset = affinity == MappingAffinity::Leading ? offset - 1u : offset + 1u;
+        output = offset;
+    }
+    return SourceResult::Success;
 }
 std::size_t SourceDisplayMap::SnapDisplayBoundary(std::size_t offset, MappingAffinity affinity) const
 {
-    CheckAffinity(affinity);
-    if (offset > display_.size())
-        throw std::out_of_range("Invalid display boundary");
-    const auto found = std::upper_bound(spans_.begin(), spans_.end(), offset, [](auto position, const auto& span) { return position < span.display.last; });
-    if (found != spans_.end() && Atomic(found->kind) && offset > found->display.first)
-        return affinity == MappingAffinity::Leading ? found->display.first : found->display.last;
-    while (! IsEditBoundary(display_, offset))
-    {
-        if (affinity == MappingAffinity::Leading)
-            --offset;
-        else
-            ++offset;
-    }
-    return offset;
+    std::size_t output{};
+    if (TrySnapDisplayBoundary(offset, affinity, output) != SourceResult::Success)
+        Failure::FailContract(E_INVALIDARG);
+    return output;
 }
 
-bool ApplySourceEdits(
-    Document& document, const SourceSnapshot& expectedSource, std::uint64_t expectedRevision, std::span<const SourceEdit> edits, Selection after)
+SourceResult TryApplySourceEdits(
+    Document& document, const SourceSnapshot& expectedSource, std::uint64_t expectedRevision, std::span<const SourceEdit> edits, Selection after, bool& changed)
 {
+    changed = false;
     if (document.Revision() != expectedRevision || ! document.Snapshot().IsSameRevision(expectedSource))
-        throw std::invalid_argument("Stale semantic source transaction");
+        return SourceResult::Stale;
     if (edits.size() > Document::MaximumUnits)
-        throw std::length_error("Too many semantic source edits");
+        return SourceResult::CapacityExceeded;
     std::size_t removed = 0u, inserted = 0u, previousEnd = 0u, previousStart = 0u;
     bool first = true;
     for (const auto& edit : edits)
     {
         if (edit.source.first > edit.source.last || ! expectedSource.IsBoundary(edit.source.first) || ! expectedSource.IsBoundary(edit.source.last))
-            throw std::out_of_range("Invalid semantic edit range");
+            return SourceResult::InvalidRange;
         if (! first && (edit.source.first < previousEnd || edit.source.first == previousStart))
-            throw std::invalid_argument("Semantic edits must be ordered and disjoint");
+            return SourceResult::InvalidRange;
         if (edit.replacement.size() > Document::MaximumUnits - inserted)
-            throw std::length_error("Semantic insertion capacity exceeded");
+            return SourceResult::CapacityExceeded;
         if (! IsValidSourceUtf16(edit.replacement))
-            throw std::invalid_argument("Invalid semantic replacement UTF-16");
+            return SourceResult::InvalidSource;
         inserted += edit.replacement.size();
         removed += edit.source.last - edit.source.first;
         previousStart = edit.source.first;
@@ -298,11 +376,13 @@ bool ApplySourceEdits(
         first         = false;
     }
     if (inserted > Document::MaximumUnits - (document.Length() - removed))
-        throw std::length_error("Semantic transaction source capacity exceeded");
+        return SourceResult::CapacityExceeded;
+    const auto resultLength = document.Length() - removed + inserted;
+    if (after.anchor > resultLength || after.caret > resultLength)
+        return SourceResult::InvalidRange;
     if (edits.empty())
     {
-        document.SetSelection(after);
-        return false;
+        return document.TrySetSelection(after);
     }
     const auto begin = edits.front().source.first, end = edits.back().source.last;
     std::wstring replacement(0u, L' ');
@@ -316,6 +396,14 @@ bool ApplySourceEdits(
     }
     // Replace validates the virtual prefix/envelope/suffix selection joins and
     // stages persistent pieces/history before its single nonthrow publication.
-    return document.Replace(begin, end, replacement, after);
+    return document.TryReplace(begin, end, replacement, after, changed);
+}
+bool ApplySourceEdits(
+    Document& document, const SourceSnapshot& expectedSource, std::uint64_t expectedRevision, std::span<const SourceEdit> edits, Selection after)
+{
+    bool changed = false;
+    if (TryApplySourceEdits(document, expectedSource, expectedRevision, edits, after, changed) != SourceResult::Success)
+        Failure::FailContract(E_INVALIDARG);
+    return changed;
 }
 } // namespace DxUi::RichText

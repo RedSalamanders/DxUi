@@ -1,6 +1,7 @@
 #pragma once
 #include "DxUi.MarkdownCharacterReference.h"
 #include "DxUi.RichSemanticValues.h"
+#include <DxUi/Failure.h>
 
 namespace DxUi::RichText::Detail
 {
@@ -540,7 +541,7 @@ struct NativeHtmlPlan
     {
         const auto found = std::lower_bound(tags.begin(), tags.end(), source.first, [](const auto& tag, auto first) { return tag.source.first < first; });
         if (found == tags.end() || found->source != source)
-            throw std::logic_error("Native HTML token ownership mismatch");
+            Failure::FailContract(E_UNEXPECTED);
         return *found;
     }
 };

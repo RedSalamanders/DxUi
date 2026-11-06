@@ -1,3 +1,5 @@
+#include <DxUi/Failure.h>
+
 #ifndef NOMINMAX
 #define NOMINMAX
 #endif
@@ -935,6 +937,7 @@ void GridSelectionModel::SetSingle(uint64_t rowId) noexcept
     std::vector<uint64_t> replacementSorted;
     try
     {
+        Failure::Scope failureScope;
         if (replaceBoth || _selectedRowIds.capacity() == 0u)
         {
             replacementSelected.reserve(1u);
@@ -948,11 +951,11 @@ void GridSelectionModel::SetSingle(uint64_t rowId) noexcept
     }
     catch (const std::bad_alloc&)
     {
-        return;
+        Failure::FailAllocation();
     }
     catch (const std::length_error&)
     {
-        return;
+        Failure::FailUnexpected();
     }
 
     if (replaceBoth || ! replacementSelected.empty())
@@ -1007,6 +1010,7 @@ void GridSelectionModel::Toggle(uint64_t rowId) noexcept
     };
     try
     {
+        Failure::Scope failureScope;
         // Acquire all required room before either membership copy or its anchor changes. If the second reserve fails, the first
         // may have acquired extra capacity, but the observable selection and gesture anchor remain unchanged.
         if (_selectedRowIds.capacity() < requiredSize)
@@ -1020,11 +1024,11 @@ void GridSelectionModel::Toggle(uint64_t rowId) noexcept
     }
     catch (const std::bad_alloc&)
     {
-        return;
+        Failure::FailAllocation();
     }
     catch (const std::length_error&)
     {
-        return;
+        Failure::FailUnexpected();
     }
 
     // reserve may invalidate sortedIt; reacquire it only after both buffers are ready.
@@ -1195,6 +1199,7 @@ Grid::Grid()
 
 void Grid::SetModel(IGridModel* model) noexcept
 {
+    const Failure::Scope outerFailureScope;
     const auto invalidateGeometry = ControlModelQueryAccess::InvalidateGeometry(*this);
     ++_modelBindingRevision;
     if (_modelBindingRevision == 0u)
@@ -1211,36 +1216,20 @@ void Grid::SetModel(IGridModel* model) noexcept
     bool selectionSnapshotAvailable = true;
     try
     {
+        Failure::Scope failureScope;
         previousSelection.emplace(_selectionModel.GetOrderedSelection().begin(), _selectionModel.GetOrderedSelection().end());
     }
     catch (const std::bad_alloc&)
     {
-        selectionSnapshotAvailable = false;
-        _selectionModel.Clear();
-        _currentRowId.reset();
-        _focusedRowIndex.reset();
+        Failure::FailAllocation();
     }
     catch (const std::exception&)
     {
-        selectionSnapshotAvailable = false;
-        _selectionModel.Clear();
-        _currentRowId.reset();
-        _focusedRowIndex.reset();
+        Failure::FailUnexpected();
     }
     const std::optional<uint64_t> previousFocus = _currentRowId;
     ReleaseCellTextResources(); // Also returns tables the old model grew.
     GridModelQueryGuard guard(*this, lifetime, model);
-    const auto clearFailedModelView = [&]() noexcept
-    {
-        if (! guard.IsCurrent())
-            return;
-        _selectionModel.Clear();
-        _currentRowId.reset();
-        _focusedRowIndex.reset();
-        _verticalScrollDip   = 0.0f;
-        _horizontalScrollDip = 0.0f;
-        RefreshAccessibilitySnapshot();
-    };
     _lastPaintHadAnimatedVisibleCells = false;
     _animatedVisibleCellStateValid    = false;
     _columnIds.clear();
@@ -1263,6 +1252,7 @@ void Grid::SetModel(IGridModel* model) noexcept
     _dragThumbOffsetDip         = 0.0f;
     try
     {
+        Failure::Scope failureScope;
         if (_model)
         {
             const std::vector<GridGroupDesc> groups = CollectOrderedGroups(model, &guard);
@@ -1285,27 +1275,24 @@ void Grid::SetModel(IGridModel* model) noexcept
     }
     catch (const std::bad_alloc&)
     {
-        // Preserve a nested replacement; only this assignment owns its failed reconciliation state.
-        clearFailedModelView();
-        return;
+        Failure::FailAllocation();
     }
     catch (const std::exception&)
     {
-        // A model getter failure aborts this update without crossing the noexcept public boundary.
-        clearFailedModelView();
-        return;
+        Failure::FailUnexpected();
     }
     try
     {
+        Failure::Scope failureScope;
         ClampScrollOffsets();
     }
     catch (const std::bad_alloc&)
     {
-        return;
+        Failure::FailAllocation();
     }
     catch (const std::exception&)
     {
-        return;
+        Failure::FailUnexpected();
     }
     if (! guard.IsCurrent())
     {
@@ -1346,6 +1333,7 @@ void Grid::OnHidden() noexcept
 
 void Grid::SetDelegate(IGridDelegate* delegate) noexcept
 {
+    const Failure::Scope outerFailureScope;
     const auto invalidateGeometry = ControlModelQueryAccess::InvalidateGeometry(*this);
     ++_modelBindingRevision;
     ++_modelRevision;
@@ -1354,6 +1342,7 @@ void Grid::SetDelegate(IGridDelegate* delegate) noexcept
 
 void Grid::SetSelectionMode(GridSelectionMode mode) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (_selectionMode == mode)
         return;
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
@@ -1362,11 +1351,12 @@ void Grid::SetSelectionMode(GridSelectionMode mode) noexcept
     std::optional<std::vector<uint64_t>> previousSelection;
     try
     {
+        Failure::Scope failureScope;
         previousSelection.emplace(_selectionModel.GetOrderedSelection().begin(), _selectionModel.GetOrderedSelection().end());
     }
     catch (const std::bad_alloc&)
     {
-        return;
+        Failure::FailAllocation();
     }
     const std::optional<uint64_t> previousFocus = _currentRowId;
     _selectionMode                              = mode;
@@ -1546,11 +1536,13 @@ GridSortSpec Grid::GetSortSpec() const noexcept
 
 void Grid::ApplyColumnLayout(std::span<const GridColumnLayoutEntry> layout) noexcept
 {
+    const Failure::Scope outerFailureScope;
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     IGridModel* const model           = _model;
     const GridModelQueryGuard guard(*this, lifetime, model);
     try
     {
+        Failure::Scope failureScope;
         EnsureColumnWidths();
         if (! guard.IsCurrent() || ! model)
         {
@@ -1641,16 +1633,17 @@ void Grid::ApplyColumnLayout(std::span<const GridColumnLayoutEntry> layout) noex
     }
     catch (const std::bad_alloc&)
     {
-        // Leave the last committed layout intact if model metadata or its replacement layout cannot be allocated.
+        Failure::FailAllocation();
     }
     catch (const std::exception&)
     {
-        // A throwing column getter aborts layout application without crossing this noexcept boundary.
+        Failure::FailUnexpected();
     }
 }
 
 std::vector<GridColumnLayoutEntry> Grid::CaptureColumnLayout() const
 {
+    const Failure::Scope outerFailureScope;
     const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const IGridModel* const model = _model;
     std::vector<GridColumnLayoutEntry> layout;
@@ -1684,11 +1677,13 @@ std::vector<GridColumnLayoutEntry> Grid::CaptureColumnLayout() const
 
 void Grid::ApplyGroupLayout(std::span<const GridGroupLayoutEntry> layout) noexcept
 {
+    const Failure::Scope outerFailureScope;
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     IGridModel* const model           = _model;
     GridModelQueryGuard guard(*this, lifetime, model);
     try
     {
+        Failure::Scope failureScope;
         if (! model || ! _delegate)
         {
             return;
@@ -1753,9 +1748,13 @@ void Grid::ApplyGroupLayout(std::span<const GridGroupLayoutEntry> layout) noexce
             {
                 delegateBeforeCallbacks->OnGridGroupToggled(*this, groupId, requested->second);
             }
+            catch (const std::bad_alloc&)
+            {
+                Failure::FailAllocation();
+            }
             catch (const std::exception&)
             {
-                return;
+                Failure::FailUnexpected();
             }
             // A delegate usually publishes each toggle with NotifyDataChanged, which also reports the selection it
             // changed. The next group is found again in the published model.
@@ -1801,16 +1800,17 @@ void Grid::ApplyGroupLayout(std::span<const GridGroupLayoutEntry> layout) noexce
     }
     catch (const std::bad_alloc&)
     {
-        // Preserve the last committed group/selection state on allocation failure.
+        Failure::FailAllocation();
     }
     catch (const std::exception&)
     {
-        // Model/delegate exceptions abort group-layout application at this noexcept boundary.
+        Failure::FailUnexpected();
     }
 }
 
 std::vector<GridGroupLayoutEntry> Grid::CaptureGroupLayout() const
 {
+    const Failure::Scope outerFailureScope;
     const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const IGridModel* const model = _model;
     std::vector<GridGroupLayoutEntry> layout;
@@ -1837,9 +1837,11 @@ std::vector<GridGroupLayoutEntry> Grid::CaptureGroupLayout() const
 
 void Grid::NotifyDataChanged()
 {
+    const Failure::Scope outerFailureScope;
     const auto invalidateGeometry = ControlModelQueryAccess::InvalidateGeometry(*this);
     try
     {
+        Failure::Scope failureScope;
         ++_modelRevision;
         const std::weak_ptr<int> lifetime = GetLifetimeToken();
         IGridModel* const model           = _model;
@@ -1923,11 +1925,11 @@ void Grid::NotifyDataChanged()
     }
     catch (const std::bad_alloc&)
     {
-        // Keep the last committed selection/focus when rebuilding the model snapshot runs out of memory.
+        Failure::FailAllocation();
     }
     catch (const std::exception&)
     {
-        // A model or delegate exception aborts this notification at the control boundary.
+        Failure::FailUnexpected();
     }
 }
 
@@ -1951,6 +1953,7 @@ void Grid::RefreshAccessibilitySnapshot() const noexcept
 
 GridVisibleWorkMetrics Grid::GetVisibleWorkMetrics() const
 {
+    const Failure::Scope outerFailureScope;
     const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const IGridModel* const model = _model;
     GridVisibleWorkMetrics metrics{};
@@ -2057,6 +2060,7 @@ GridVisibleWorkMetrics Grid::GetVisibleWorkMetrics() const
 
 GridCellLayoutMetrics Grid::GetCellLayoutMetrics(const ControlHost& host, size_t rowIndex, size_t columnIndex) const
 {
+    const Failure::Scope outerFailureScope;
     GridCellLayoutMetrics metrics{};
     const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const IGridModel* const model = _model;
@@ -2119,6 +2123,7 @@ GridCellLayoutMetrics Grid::GetCellLayoutMetrics(const ControlHost& host, size_t
 
 size_t Grid::GetVisibleRowCount() const
 {
+    const Failure::Scope outerFailureScope;
     const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const IGridModel* const model = _model;
     if (! model)
@@ -2154,6 +2159,7 @@ size_t Grid::GetVisibleRowCount() const
 
 std::optional<size_t> Grid::GetVisibleRowAt(size_t visibleRowIndex) const
 {
+    const Failure::Scope outerFailureScope;
     const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const IGridModel* const model = _model;
     if (! model)
@@ -2196,6 +2202,7 @@ std::optional<size_t> Grid::GetVisibleRowAt(size_t visibleRowIndex) const
 
 std::optional<size_t> Grid::FindVisibleRowOrdinal(size_t rowIndex) const
 {
+    const Failure::Scope outerFailureScope;
     const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const IGridModel* const model = _model;
     if (! model)
@@ -2254,8 +2261,10 @@ std::optional<size_t> Grid::FindVisibleRowOrdinal(size_t rowIndex) const
 
 void Grid::EnsureRowVisible(size_t rowIndex) noexcept
 {
+    const Failure::Scope outerFailureScope;
     try
     {
+        Failure::Scope failureScope;
         const std::weak_ptr<int> lifetime = GetLifetimeToken();
         const IGridModel* const model     = _model;
         const GridModelQueryGuard guard(*this, lifetime, model);
@@ -2296,16 +2305,17 @@ void Grid::EnsureRowVisible(size_t rowIndex) noexcept
     }
     catch (const std::bad_alloc&)
     {
-        // Keep the last stable scroll position when visibility geometry cannot be prepared.
+        Failure::FailAllocation();
     }
     catch (const std::exception&)
     {
-        // A failing borrowed-model query aborts this best-effort visibility request.
+        Failure::FailUnexpected();
     }
 }
 
 size_t Grid::GetVisibleColumnCount() const
 {
+    const Failure::Scope outerFailureScope;
     const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const IGridModel* const model = _model;
     if (! model)
@@ -2339,6 +2349,7 @@ size_t Grid::GetVisibleColumnCount() const
 
 std::optional<size_t> Grid::GetVisibleColumnAt(size_t visibleColumnIndex) const
 {
+    const Failure::Scope outerFailureScope;
     const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const IGridModel* const model = _model;
     if (! model)
@@ -2378,6 +2389,7 @@ std::optional<size_t> Grid::GetVisibleColumnAt(size_t visibleColumnIndex) const
 
 std::optional<size_t> Grid::FindVisibleColumnOrdinal(size_t columnIndex) const
 {
+    const Failure::Scope outerFailureScope;
     const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const IGridModel* const model = _model;
     if (! model)
@@ -2419,8 +2431,10 @@ std::optional<size_t> Grid::FindVisibleColumnOrdinal(size_t columnIndex) const
 
 std::optional<size_t> Grid::FindHeaderColumnAtPoint(PointDip pointDip) const noexcept
 {
+    const Failure::Scope outerFailureScope;
     try
     {
+        Failure::Scope failureScope;
         const std::weak_ptr<int> lifetime = GetLifetimeToken();
         const IGridModel* const model     = _model;
         const GridModelQueryGuard guard(*this, lifetime, model);
@@ -2473,16 +2487,17 @@ std::optional<size_t> Grid::FindHeaderColumnAtPoint(PointDip pointDip) const noe
     }
     catch (const std::bad_alloc&)
     {
-        return std::nullopt;
+        Failure::FailAllocation();
     }
     catch (const std::exception&)
     {
-        return std::nullopt;
+        Failure::FailUnexpected();
     }
 }
 
 std::optional<size_t> Grid::FindRowAtPoint(PointDip pointDip) const noexcept
 {
+    const Failure::Scope outerFailureScope;
     const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const IGridModel* const model = _model;
     if (! model)
@@ -2506,6 +2521,7 @@ std::optional<size_t> Grid::FindRowAtPoint(PointDip pointDip) const noexcept
 
 std::optional<std::pair<size_t, size_t>> Grid::FindCellAtPoint(PointDip pointDip) const noexcept
 {
+    const Failure::Scope outerFailureScope;
     const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const IGridModel* const model = _model;
     if (! model)
@@ -2534,6 +2550,7 @@ std::optional<std::pair<size_t, size_t>> Grid::FindCellAtPoint(PointDip pointDip
 
 std::optional<D2D1_RECT_F> Grid::GetVisibleColumnHeaderRect(size_t columnIndex) const
 {
+    const Failure::Scope outerFailureScope;
     const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const IGridModel* const model = _model;
     if (! model)
@@ -2585,6 +2602,7 @@ std::optional<D2D1_RECT_F> Grid::GetVisibleColumnHeaderRect(size_t columnIndex) 
 
 std::optional<D2D1_RECT_F> Grid::GetVisibleDisplayColumnHeaderRect(size_t displayIndex) const
 {
+    const Failure::Scope outerFailureScope;
     const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     EnsureColumnWidths();
     if (! guard.IsCurrent() || ! _model || displayIndex >= _columnDisplayOrder.size())
@@ -2598,6 +2616,7 @@ std::optional<D2D1_RECT_F> Grid::GetVisibleDisplayColumnHeaderRect(size_t displa
 
 std::optional<D2D1_RECT_F> Grid::GetVisibleRowRect(size_t rowIndex) const
 {
+    const Failure::Scope outerFailureScope;
     const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const IGridModel* const model = _model;
     if (! model)
@@ -2643,6 +2662,7 @@ std::optional<D2D1_RECT_F> Grid::GetVisibleRowRect(size_t rowIndex) const
 
 std::optional<D2D1_RECT_F> Grid::GetVisibleCellRect(size_t rowIndex, size_t columnIndex) const
 {
+    const Failure::Scope outerFailureScope;
     const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const IGridModel* const model = _model;
     if (! model)
@@ -2703,6 +2723,7 @@ std::optional<D2D1_RECT_F> Grid::GetVisibleCellRect(size_t rowIndex, size_t colu
 
 bool Grid::IsRowSelected(size_t rowIndex) const noexcept
 {
+    const Failure::Scope outerFailureScope;
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     const IGridModel* const model     = _model;
     const GridModelQueryGuard guard(*this, lifetime, model);
@@ -2717,6 +2738,7 @@ bool Grid::IsRowSelected(size_t rowIndex) const noexcept
 
 std::optional<size_t> Grid::GetPrimarySelectedRow() const noexcept
 {
+    const Failure::Scope outerFailureScope;
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     const IGridModel* const model     = _model;
     const GridModelQueryGuard guard(*this, lifetime, model);
@@ -2754,6 +2776,7 @@ std::optional<uint64_t> Grid::GetFocusedRowId() const noexcept
 
 void Grid::SetFocusedRowId(std::optional<uint64_t> rowId) noexcept
 {
+    const Failure::Scope outerFailureScope;
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     const IGridModel* const model     = _model;
     const GridModelQueryGuard guard(*this, lifetime, model);
@@ -2780,6 +2803,7 @@ void Grid::SetFocusedRowId(std::optional<uint64_t> rowId) noexcept
 #if DXUI_ENABLE_DIAGNOSTICS
 bool Grid::DebugHitTestPoint(PointDip pointDip, GridDebugHitInfo& out) const noexcept
 {
+    const Failure::Scope outerFailureScope;
     out = {};
     if (! _model)
     {
@@ -2828,6 +2852,7 @@ bool Grid::DebugGetRowVisualState(const ThemePalette& theme, size_t rowIndex, Gr
 
 bool Grid::DebugGetRowVisualState(const ThemePalette& theme, size_t rowIndex, bool keyboardFocusVisible, GridDebugRowVisualState& out) const noexcept
 {
+    const Failure::Scope outerFailureScope;
     out                               = {};
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     const IGridModel* const model     = _model;
@@ -2875,6 +2900,7 @@ bool Grid::DebugGetRowVisualState(const ThemePalette& theme, size_t rowIndex, bo
 
 bool Grid::DebugGetCellVisualState(const ThemePalette& theme, size_t rowIndex, size_t columnIndex, GridDebugCellVisualState& out) const noexcept
 {
+    const Failure::Scope outerFailureScope;
     out                               = {};
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     const IGridModel* const model     = _model;
@@ -2983,6 +3009,7 @@ GridScrollbarVisualState Grid::DebugGetScrollbarVisualState(const ThemePalette& 
 
 bool Grid::RequestSelectRow(size_t rowIndex, UINT modifiers)
 {
+    const Failure::Scope outerFailureScope;
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     IGridModel* const model           = _model;
     const GridModelQueryGuard guard(*this, lifetime, model);
@@ -3011,6 +3038,7 @@ bool Grid::RequestSelectRow(size_t rowIndex, UINT modifiers)
 
 bool Grid::RequestAddRowSelection(size_t rowIndex)
 {
+    const Failure::Scope outerFailureScope;
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     IGridModel* const model           = _model;
     GridModelQueryGuard guard(*this, lifetime, model);
@@ -3078,6 +3106,7 @@ bool Grid::RequestAddRowSelection(size_t rowIndex)
 
 bool Grid::RequestRemoveRowSelection(size_t rowIndex)
 {
+    const Failure::Scope outerFailureScope;
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     IGridModel* const model           = _model;
     GridModelQueryGuard guard(*this, lifetime, model);
@@ -3130,6 +3159,7 @@ bool Grid::RequestRemoveRowSelection(size_t rowIndex)
 
 bool Grid::RequestFocusRow(size_t rowIndex)
 {
+    const Failure::Scope outerFailureScope;
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     IGridModel* const model           = _model;
     GridModelQueryGuard guard(*this, lifetime, model);
@@ -3180,6 +3210,7 @@ bool Grid::RequestFocusRow(size_t rowIndex)
 
 bool Grid::RequestFocusCell(size_t rowIndex, size_t columnIndex)
 {
+    const Failure::Scope outerFailureScope;
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     IGridModel* const model           = _model;
     GridModelQueryGuard guard(*this, lifetime, model);
@@ -3262,6 +3293,7 @@ bool Grid::RequestFocusCell(size_t rowIndex, size_t columnIndex)
 
 bool Grid::RevealColumn(size_t columnIndex)
 {
+    const Failure::Scope outerFailureScope;
     const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     EnsureColumnWidths();
     if (! guard.IsCurrent())
@@ -3310,6 +3342,7 @@ bool Grid::RevealColumn(size_t columnIndex)
 
 std::optional<size_t> Grid::FindKeyboardStartRow(std::span<const size_t> visibleRows) const
 {
+    const Failure::Scope outerFailureScope;
     const IGridModel* const model = _model;
     const GridModelQueryGuard guard(*this, GetLifetimeToken(), model);
     if (! model)
@@ -3343,6 +3376,7 @@ std::optional<size_t> Grid::FindKeyboardStartRow(std::span<const size_t> visible
 
 std::optional<std::pair<size_t, size_t>> Grid::FindFocusedCell() const
 {
+    const Failure::Scope outerFailureScope;
     const IGridModel* const model = _model;
     const GridModelQueryGuard guard(*this, GetLifetimeToken(), model);
     if (! model || ! _currentRowId)
@@ -3372,6 +3406,7 @@ std::optional<std::pair<size_t, size_t>> Grid::FindFocusedCell() const
 bool Grid::InspectFocusedCell() noexcept
 try
 {
+    Failure::Scope failureScope;
     ControlHost* const host           = GetHost();
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     const IGridModel* const model     = _model;
@@ -3415,12 +3450,13 @@ try
 }
 catch (const std::exception&)
 {
-    return false;
+    Failure::FailUnexpected();
 }
 
 bool Grid::IsFocusedCellClipped() const noexcept
 try
 {
+    Failure::Scope failureScope;
     const ControlHost* const host = GetHost();
     const IGridModel* const model = _model;
     const GridModelQueryGuard guard(*this, GetLifetimeToken(), model);
@@ -3447,11 +3483,12 @@ try
 }
 catch (const std::exception&)
 {
-    return false;
+    Failure::FailUnexpected();
 }
 
 bool Grid::MoveCurrentColumn(ControlHost& host, bool forward)
 {
+    const Failure::Scope outerFailureScope;
     const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     EnsureColumnWidths();
     // With one column there is no current column to choose: the key stays the application's.
@@ -3476,6 +3513,7 @@ bool Grid::MoveCurrentColumn(ControlHost& host, bool forward)
 
 bool Grid::RequestToggleCheckboxCell(ControlHost& host, size_t rowIndex, size_t columnIndex)
 {
+    const Failure::Scope outerFailureScope;
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     const IGridModel* const model     = _model;
     const GridModelQueryGuard guard(*this, lifetime, model);
@@ -3957,8 +3995,10 @@ void Grid::DrawCellText(ControlHost& host, const GridCellData& cellData, const D
 
 void Grid::Paint(ControlHost& host) const
 {
+    const Failure::Scope outerFailureScope;
     try
     {
+        Failure::Scope failureScope;
         const std::weak_ptr<int> lifetime = GetLifetimeToken();
         IGridModel* const paintModel      = _model;
         const GridModelQueryGuard guard(*this, lifetime, paintModel);
@@ -4563,11 +4603,11 @@ void Grid::Paint(ControlHost& host) const
     }
     catch (const std::bad_alloc&)
     {
-        // An incomplete frame is safer than allowing model allocation failure across the renderer boundary.
+        Failure::FailAllocation();
     }
     catch (const std::exception&)
     {
-        // A throwing model/delegate query aborts the frame; the next invalidation may retry it.
+        Failure::FailUnexpected();
     }
 }
 
@@ -4623,6 +4663,7 @@ void Grid::DebugSetScrollOffsets(float verticalScrollDip, float horizontalScroll
 
 bool Grid::Tick(ControlHost& host, uint64_t nowTickMs)
 {
+    const Failure::Scope outerFailureScope;
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     const GridModelQueryGuard guard(*this, lifetime, _model);
     if (host.GetTheme().reducedMotion)
@@ -4662,8 +4703,10 @@ bool Grid::Tick(ControlHost& host, uint64_t nowTickMs)
 
 bool Grid::HasAnimatedVisibleCells() const
 {
+    const Failure::Scope outerFailureScope;
     try
     {
+        Failure::Scope failureScope;
         const std::weak_ptr<int> lifetime = GetLifetimeToken();
         const IGridModel* const model     = _model;
         const GridModelQueryGuard guard(*this, lifetime, model);
@@ -4733,11 +4776,11 @@ bool Grid::HasAnimatedVisibleCells() const
     }
     catch (const std::bad_alloc&)
     {
-        return false;
+        Failure::FailAllocation();
     }
     catch (const std::exception&)
     {
-        return false;
+        Failure::FailUnexpected();
     }
 }
 
@@ -4788,6 +4831,7 @@ GridSortGlyphVisualState Grid::ResolveSortGlyphVisualState(const ThemePalette& t
 
 std::optional<size_t> Grid::ResolveHeaderBusyColumn() const noexcept
 {
+    const Failure::Scope outerFailureScope;
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     const IGridModel* const model     = _model;
     const GridModelQueryGuard guard(*this, lifetime, model);
@@ -4962,6 +5006,7 @@ GridCellLayoutMetrics Grid::ComputeCellLayoutMetrics(const ControlHost& host,
 
 bool Grid::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modifiers*/)
 {
+    const Failure::Scope outerFailureScope;
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     const IGridModel* const model     = _model;
     const GridModelQueryGuard guard(*this, lifetime, model);
@@ -5199,6 +5244,7 @@ bool Grid::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modifiers*
 
 bool Grid::OnMouseLeave(ControlHost& host)
 {
+    const Failure::Scope outerFailureScope;
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     const GridModelQueryGuard guard(*this, lifetime, _model);
     const bool hadHoverOrHotState = _hoveredRow.has_value() || _hoveredColumn.has_value() || _verticalScrollbarHotPart != ScrollbarHotPart::None ||
@@ -5221,6 +5267,7 @@ bool Grid::OnMouseLeave(ControlHost& host)
 
 bool Grid::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)
 {
+    const Failure::Scope outerFailureScope;
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     const IGridModel* const model     = _model;
     GridModelQueryGuard guard(*this, lifetime, model);
@@ -5517,6 +5564,7 @@ void Grid::OnCaptureLost(ControlHost& host)
 
 bool Grid::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)
 {
+    const Failure::Scope outerFailureScope;
     // A second right-click within the double-click time is another press: the row's menu opens again.
     if (rightButton)
     {
@@ -5722,6 +5770,7 @@ bool Grid::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool right
 
 bool Grid::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT /*modifiers*/)
 {
+    const Failure::Scope outerFailureScope;
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     const IGridModel* const model     = _model;
     const GridModelQueryGuard guard(*this, lifetime, model);
@@ -5829,6 +5878,7 @@ bool Grid::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, U
 
 bool Grid::OnMouseWheel(ControlHost& host, D2D1_POINT_2F /*point*/, float wheelDelta, UINT /*modifiers*/)
 {
+    const Failure::Scope outerFailureScope;
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     const GridModelQueryGuard guard(*this, lifetime, _model);
     const float extent = GetVerticalScrollableExtent();
@@ -5851,6 +5901,7 @@ bool Grid::OnMouseWheel(ControlHost& host, D2D1_POINT_2F /*point*/, float wheelD
 
 bool Grid::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
 {
+    const Failure::Scope outerFailureScope;
     const bool command = ModifiersContainCtrl(modifiers) && ! ModifiersContainAlt(modifiers) && (virtualKey == 'A' || virtualKey == 'C');
     if (! command)
         switch (virtualKey)
@@ -6163,6 +6214,7 @@ bool Grid::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
 
 bool Grid::OnContextMenu(ControlHost& host, bool keyboardInvocation, D2D1_POINT_2F pointDip)
 {
+    const Failure::Scope outerFailureScope;
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     const IGridModel* const model     = _model;
     const GridModelQueryGuard guard(*this, lifetime, model);
@@ -6227,6 +6279,7 @@ bool Grid::OnContextMenu(ControlHost& host, bool keyboardInvocation, D2D1_POINT_
 
 bool Grid::OpenRowContextMenu(ControlHost& host, size_t rowIndex, D2D1_POINT_2F anchorDip)
 {
+    const Failure::Scope outerFailureScope;
     if (! _delegate)
     {
         return false;
@@ -6245,8 +6298,10 @@ bool Grid::OnCopy(ControlHost& host)
 
 bool Grid::OnSelectAll(ControlHost& host)
 {
+    const Failure::Scope outerFailureScope;
     try
     {
+        Failure::Scope failureScope;
         const std::weak_ptr<int> lifetime = GetLifetimeToken();
         IGridModel* const model           = _model;
         GridModelQueryGuard guard(*this, lifetime, model);
@@ -6291,11 +6346,11 @@ bool Grid::OnSelectAll(ControlHost& host)
     }
     catch (const std::bad_alloc&)
     {
-        return false;
+        Failure::FailAllocation();
     }
     catch (const std::exception&)
     {
-        return false;
+        Failure::FailUnexpected();
     }
 }
 
@@ -6316,8 +6371,10 @@ WindowHostCursorKind Grid::ResolveCursorKind(ControlHost& /*host*/, D2D1_POINT_2
 
 Grid::HitInfo Grid::HitTestPoint(PointDip pointDip) const noexcept
 {
+    const Failure::Scope outerFailureScope;
     try
     {
+        Failure::Scope failureScope;
         const std::weak_ptr<int> lifetime = GetLifetimeToken();
         const IGridModel* const model     = _model;
         const GridModelQueryGuard guard(*this, lifetime, model);
@@ -6470,11 +6527,11 @@ Grid::HitInfo Grid::HitTestPoint(PointDip pointDip) const noexcept
     }
     catch (const std::bad_alloc&)
     {
-        return {};
+        Failure::FailAllocation();
     }
     catch (const std::exception&)
     {
-        return {};
+        Failure::FailUnexpected();
     }
 }
 
@@ -6495,8 +6552,10 @@ void Grid::OnBoundsChanged() noexcept
 
 void Grid::ClampScrollOffsets(const bool normalizeVertical) noexcept
 {
+    const Failure::Scope outerFailureScope;
     try
     {
+        Failure::Scope failureScope;
         const std::weak_ptr<int> lifetime = GetLifetimeToken();
         IGridModel* const model           = _model;
         const GridModelQueryGuard guard(*this, lifetime, model);
@@ -6550,11 +6609,11 @@ void Grid::ClampScrollOffsets(const bool normalizeVertical) noexcept
     }
     catch (const std::bad_alloc&)
     {
-        // Keep the existing offsets when a model snapshot cannot be built.
+        Failure::FailAllocation();
     }
     catch (const std::exception&)
     {
-        // A failing model getter leaves the last committed offsets intact.
+        Failure::FailUnexpected();
     }
 }
 
@@ -6563,8 +6622,10 @@ void Grid::ClampScrollOffsets(const bool normalizeVertical) noexcept
 // occur on the same UI thread. The mutable qualifier allows lazy initialization during const Paint() calls.
 void Grid::EnsureColumnWidths() const
 {
+    const Failure::Scope outerFailureScope;
     try
     {
+        Failure::Scope failureScope;
         const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
         const IGridModel* const model = _model;
         if (! model)
@@ -6617,16 +6678,17 @@ void Grid::EnsureColumnWidths() const
     }
     catch (const std::bad_alloc&)
     {
-        // Keep the last committed width and display-order cache.
+        Failure::FailAllocation();
     }
     catch (const std::exception&)
     {
-        // A failing borrowed-model getter leaves the previous cache usable.
+        Failure::FailUnexpected();
     }
 }
 
 bool Grid::SelectRow(size_t rowIndex, UINT modifiers)
 {
+    const Failure::Scope outerFailureScope;
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     IGridModel* const model           = _model;
     const GridModelQueryGuard guard(*this, lifetime, model);
@@ -6705,6 +6767,7 @@ bool Grid::SelectRow(size_t rowIndex, UINT modifiers)
 
 bool Grid::NotifySelectionAndFocusChanges(std::span<const uint64_t> previousSelection, std::optional<uint64_t> previousFocus)
 {
+    const Failure::Scope outerFailureScope;
     // The delegate may rebuild the controls and destroy this grid, refresh the model or change other controls. Each report
     // reads the state current at that moment; only losing this grid, its model or its delegate ends the sequence.
     GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
@@ -6723,6 +6786,7 @@ bool Grid::NotifySelectionAndFocusChanges(std::span<const uint64_t> previousSele
 
 std::wstring Grid::BuildSelectionTsv() const
 {
+    const Failure::Scope outerFailureScope;
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     IGridModel* const model           = _model;
     const GridModelQueryGuard guard(*this, lifetime, model);
@@ -6807,6 +6871,7 @@ std::wstring Grid::BuildSelectionTsv() const
 
 std::optional<size_t> Grid::FindNearestVisibleRow(std::span<const GridGroupDesc> groups, size_t preferredRowIndex) const noexcept
 {
+    const Failure::Scope outerFailureScope;
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     IGridModel* const model           = _model;
     const GridModelQueryGuard guard(*this, lifetime, model);
@@ -6839,6 +6904,7 @@ std::optional<size_t> Grid::FindNearestVisibleRow(std::span<const GridGroupDesc>
 
 void Grid::ReconcileSelectionForVisibleRows(std::span<const GridGroupDesc> groups)
 {
+    const Failure::Scope outerFailureScope;
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     IGridModel* const model           = _model;
     const GridModelQueryGuard guard(*this, lifetime, model);
@@ -6921,6 +6987,7 @@ void Grid::ReconcileSelectionForVisibleRows(std::span<const GridGroupDesc> group
 void Grid::SetSelectedRowIds(std::span<const uint64_t> rowIds) noexcept
 try
 {
+    Failure::Scope failureScope;
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     IGridModel* const model           = _model;
     const GridModelQueryGuard guard(*this, lifetime, model);
@@ -6985,7 +7052,7 @@ try
 }
 catch (const std::exception&)
 {
-    // A failed model collection or staged selection leaves the previously committed selection intact.
+    Failure::FailUnexpected();
 }
 
 size_t Grid::CountGroupHeadersBeforeRow(std::span<const GridGroupDesc> groups, size_t rowIndex) const noexcept
@@ -7029,6 +7096,7 @@ float Grid::GetRowTopDip(std::span<const GridGroupDesc> groups, size_t rowIndex)
 
 float Grid::GetBodyContentHeight(std::span<const GridGroupDesc> groups) const noexcept
 {
+    const Failure::Scope outerFailureScope;
     const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const IGridModel* const model = _model;
     if (! model)
@@ -7055,8 +7123,10 @@ float Grid::GetBodyContentHeight(std::span<const GridGroupDesc> groups) const no
 
 float Grid::NormalizeVerticalScrollOffset(float offsetDip) const noexcept
 {
+    const Failure::Scope outerFailureScope;
     try
     {
+        Failure::Scope failureScope;
         const std::weak_ptr<int> lifetime = GetLifetimeToken();
         const IGridModel* const model     = _model;
         const GridModelQueryGuard guard(*this, lifetime, model);
@@ -7073,16 +7143,17 @@ float Grid::NormalizeVerticalScrollOffset(float offsetDip) const noexcept
     }
     catch (const std::bad_alloc&)
     {
-        return 0.0f;
+        Failure::FailAllocation();
     }
     catch (const std::exception&)
     {
-        return 0.0f;
+        Failure::FailUnexpected();
     }
 }
 
 float Grid::GetRawVerticalScrollableExtent(std::span<const GridGroupDesc> groups) const noexcept
 {
+    const Failure::Scope outerFailureScope;
     const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     if (! _model)
     {
@@ -7105,6 +7176,7 @@ float Grid::GetRawVerticalScrollableExtent(std::span<const GridGroupDesc> groups
 
 float Grid::AlignVerticalScrollExtentToVisibleItemBoundary(float rawExtentDip, std::span<const GridGroupDesc> groups) const noexcept
 {
+    const Failure::Scope outerFailureScope;
     const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     if (! _model || rawExtentDip <= 0.0f)
     {
@@ -7179,6 +7251,7 @@ float Grid::AlignVerticalScrollExtentToVisibleItemBoundary(float rawExtentDip, s
 
 float Grid::NormalizeVerticalScrollOffset(float offsetDip, std::span<const GridGroupDesc> groups) const noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (! _model)
     {
         return 0.0f;
@@ -7253,6 +7326,7 @@ float Grid::NormalizeVerticalScrollOffset(float offsetDip, std::span<const GridG
 
 std::vector<Grid::VisibleBodyItem> Grid::BuildVisibleBodyItems(std::span<const GridGroupDesc> groups) const
 {
+    const Failure::Scope outerFailureScope;
     const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const D2D1_RECT_F bodyRect = GetContentRect(groups);
     if (! guard.IsCurrent())
@@ -7264,6 +7338,7 @@ std::vector<Grid::VisibleBodyItem> Grid::BuildVisibleBodyItems(std::span<const G
 
 std::vector<Grid::VisibleBodyItem> Grid::BuildVisibleBodyItems(std::span<const GridGroupDesc> groups, const D2D1_RECT_F& bodyRect) const
 {
+    const Failure::Scope outerFailureScope;
     const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const IGridModel* const model = _model;
     std::vector<VisibleBodyItem> visibleItems;
@@ -7354,6 +7429,7 @@ std::vector<Grid::VisibleBodyItem> Grid::BuildVisibleBodyItems(std::span<const G
 
 float Grid::GetVerticalScrollableExtent() const
 {
+    const Failure::Scope outerFailureScope;
     const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const std::vector<GridGroupDesc> groups = CollectOrderedGroups(_model, &guard);
     if (! guard.IsCurrent())
@@ -7365,6 +7441,7 @@ float Grid::GetVerticalScrollableExtent() const
 
 float Grid::GetVerticalScrollableExtent(std::span<const GridGroupDesc> groups) const
 {
+    const Failure::Scope outerFailureScope;
     const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const float rawExtent = GetRawVerticalScrollableExtent(groups);
     if (! guard.IsCurrent())
@@ -7377,6 +7454,7 @@ float Grid::GetVerticalScrollableExtent(std::span<const GridGroupDesc> groups) c
 
 float Grid::GetHorizontalScrollableExtent() const noexcept
 {
+    const Failure::Scope outerFailureScope;
     const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     if (! _model)
     {
@@ -7403,8 +7481,10 @@ float Grid::GetHorizontalScrollableExtent() const noexcept
 
 D2D1_RECT_F Grid::GetContentRect() const noexcept
 {
+    const Failure::Scope outerFailureScope;
     try
     {
+        Failure::Scope failureScope;
         const std::weak_ptr<int> lifetime = GetLifetimeToken();
         const IGridModel* const model     = _model;
         const GridModelQueryGuard guard(*this, lifetime, model);
@@ -7422,20 +7502,20 @@ D2D1_RECT_F Grid::GetContentRect() const noexcept
     }
     catch (const std::bad_alloc&)
     {
-        // Geometry is unavailable when group snapshots cannot be allocated.
-        return D2D1_RECT_F{};
+        Failure::FailAllocation();
     }
     catch (const std::exception&)
     {
-        // A failing borrowed-model group query produces empty geometry at this noexcept boundary.
-        return D2D1_RECT_F{};
+        Failure::FailUnexpected();
     }
 }
 
 D2D1_RECT_F Grid::GetContentRect(std::span<const GridGroupDesc> groups) const noexcept
 {
+    const Failure::Scope outerFailureScope;
     try
     {
+        Failure::Scope failureScope;
         const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
         const D2D1_RECT_F bounds    = NormalizeFiniteRect(GetBounds());
         const float headerHeightDip = (std::isfinite(_headerHeightDip) && _headerHeightDip > 0.0f) ? _headerHeightDip : 0.0f;
@@ -7484,16 +7564,17 @@ D2D1_RECT_F Grid::GetContentRect(std::span<const GridGroupDesc> groups) const no
     }
     catch (const std::bad_alloc&)
     {
-        return D2D1_RECT_F{};
+        Failure::FailAllocation();
     }
     catch (const std::exception&)
     {
-        return D2D1_RECT_F{};
+        Failure::FailUnexpected();
     }
 }
 
 D2D1_RECT_F Grid::GetVerticalScrollbarRect() const noexcept
 {
+    const Failure::Scope outerFailureScope;
     const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const D2D1_RECT_F content = NormalizeFiniteRect(GetContentRect());
     if (! guard.IsCurrent())
@@ -7507,6 +7588,7 @@ D2D1_RECT_F Grid::GetVerticalScrollbarRect() const noexcept
 
 D2D1_RECT_F Grid::GetHorizontalScrollbarRect() const noexcept
 {
+    const Failure::Scope outerFailureScope;
     const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const D2D1_RECT_F content = NormalizeFiniteRect(GetContentRect());
     if (! guard.IsCurrent())
@@ -7519,6 +7601,7 @@ D2D1_RECT_F Grid::GetHorizontalScrollbarRect() const noexcept
 
 Grid::VisibleColumnSpan Grid::ComputeVisibleColumnSpan(float clipRightDip) const noexcept
 {
+    const Failure::Scope outerFailureScope;
     const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     VisibleColumnSpan span{};
     if (_columnDisplayOrder.empty() || clipRightDip <= GetBounds().left)
@@ -7607,8 +7690,10 @@ Grid::VisibleColumnSpan Grid::ComputeVisibleColumnSpan(float clipRightDip) const
 
 D2D1_RECT_F Grid::GetVerticalThumbRect() const noexcept
 {
+    const Failure::Scope outerFailureScope;
     try
     {
+        Failure::Scope failureScope;
         const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
         const D2D1_RECT_F track = NormalizeFiniteRect(GetVerticalScrollbarRect());
         if (! guard.IsCurrent())
@@ -7631,18 +7716,20 @@ D2D1_RECT_F Grid::GetVerticalThumbRect() const noexcept
     }
     catch (const std::bad_alloc&)
     {
-        return D2D1_RECT_F{};
+        Failure::FailAllocation();
     }
     catch (const std::exception&)
     {
-        return D2D1_RECT_F{};
+        Failure::FailUnexpected();
     }
 }
 
 D2D1_RECT_F Grid::GetHorizontalThumbRect() const noexcept
 {
+    const Failure::Scope outerFailureScope;
     try
     {
+        Failure::Scope failureScope;
         const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
         const D2D1_RECT_F track = NormalizeFiniteRect(GetHorizontalScrollbarRect());
         if (! guard.IsCurrent())
@@ -7666,18 +7753,20 @@ D2D1_RECT_F Grid::GetHorizontalThumbRect() const noexcept
     }
     catch (const std::bad_alloc&)
     {
-        return D2D1_RECT_F{};
+        Failure::FailAllocation();
     }
     catch (const std::exception&)
     {
-        return D2D1_RECT_F{};
+        Failure::FailUnexpected();
     }
 }
 
 D2D1_RECT_F Grid::GetVerticalThumbHitRect() const noexcept
 {
+    const Failure::Scope outerFailureScope;
     try
     {
+        Failure::Scope failureScope;
         const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
         const D2D1_RECT_F track = NormalizeFiniteRect(GetVerticalScrollbarRect());
         if (! guard.IsCurrent())
@@ -7700,18 +7789,20 @@ D2D1_RECT_F Grid::GetVerticalThumbHitRect() const noexcept
     }
     catch (const std::bad_alloc&)
     {
-        return D2D1_RECT_F{};
+        Failure::FailAllocation();
     }
     catch (const std::exception&)
     {
-        return D2D1_RECT_F{};
+        Failure::FailUnexpected();
     }
 }
 
 D2D1_RECT_F Grid::GetHorizontalThumbHitRect() const noexcept
 {
+    const Failure::Scope outerFailureScope;
     try
     {
+        Failure::Scope failureScope;
         const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
         const D2D1_RECT_F track = NormalizeFiniteRect(GetHorizontalScrollbarRect());
         if (! guard.IsCurrent())
@@ -7735,16 +7826,17 @@ D2D1_RECT_F Grid::GetHorizontalThumbHitRect() const noexcept
     }
     catch (const std::bad_alloc&)
     {
-        return D2D1_RECT_F{};
+        Failure::FailAllocation();
     }
     catch (const std::exception&)
     {
-        return D2D1_RECT_F{};
+        Failure::FailUnexpected();
     }
 }
 
 float Grid::GetColumnLeftDip(size_t columnIndex) const noexcept
 {
+    const Failure::Scope outerFailureScope;
     const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     if (columnIndex >= _columnDisplayIndexByModel.size())
     {
@@ -7887,6 +7979,7 @@ VisibleSpan ComputeVisibleSpan(uint64_t totalItems, float itemExtentDip, float s
 
 std::optional<size_t> Grid::ResolveCheckboxToggleColumn(size_t rowIndex) const
 {
+    const Failure::Scope outerFailureScope;
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     const IGridModel* const model     = _model;
     const GridModelQueryGuard guard(*this, lifetime, model);
@@ -7946,6 +8039,7 @@ std::optional<size_t> Grid::ResolveCheckboxToggleColumn(size_t rowIndex) const
 
 bool Grid::ToggleCheckboxCell(ControlHost& host, size_t rowIndex, size_t columnIndex)
 {
+    const Failure::Scope outerFailureScope;
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     const IGridModel* const model     = _model;
     const GridModelQueryGuard guard(*this, lifetime, model);

@@ -3,12 +3,15 @@
 #include "Controls/DxUi.Internal.h"
 #include "Controls/TextStoreTarget.h"
 #include "GraphicsFixture.h"
+#include "Support.Tests.FatalChildren.h"
 #include "Support/WindowMessages.h"
 #include <DxUi/Embedded.h>
+#include <DxUi/Failure.h>
 #include <thread>
 
 #include <array>
 #include <atomic>
+#include <cstdio>
 #include <fstream>
 #include <functional>
 #include <iterator>
@@ -24,6 +27,25 @@
 
 namespace
 {
+thread_local unsigned nativeTextFatalCase{};
+// Distinct observable code preserves each origin under identical-code folding;
+// this marker is evidence only and is not synchronization.
+std::atomic<unsigned> nativeTextOriginMarker{};
+[[noreturn]] __declspec(noinline) void NativeTextCallbackFailureOrigin(const std::runtime_error& error)
+{
+    nativeTextOriginMarker.store(102u, std::memory_order_relaxed);
+    throw error;
+}
+[[noreturn]] void RaiseNativeTextCallbackFailure()
+{
+    const std::runtime_error error("isolated native text callback failure");
+    NativeTextCallbackFailureOrigin(error);
+}
+[[noreturn]] __declspec(noinline) void NativeTextAllocationFailureOrigin()
+{
+    nativeTextOriginMarker.store(103u, std::memory_order_relaxed);
+    throw std::bad_alloc{};
+}
 
 // Existing identity/RAII/reference traits intentionally delete these implicit operations.
 // Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
@@ -234,12 +256,13 @@ public:
             return S_OK;
         try
         {
+            const DxUi::Failure::Scope failureScope;
             onSetFocus();
             return S_OK;
         }
         catch (const std::exception&)
         {
-            return E_FAIL;
+            DxUi::Failure::FailUnexpected();
         }
     }
 
@@ -249,12 +272,13 @@ public:
             return S_OK;
         try
         {
+            const DxUi::Failure::Scope failureScope;
             onPushContext();
             return S_OK;
         }
         catch (const std::exception&)
         {
-            return E_FAIL;
+            DxUi::Failure::FailUnexpected();
         }
     }
 
@@ -264,12 +288,13 @@ public:
             return S_OK;
         try
         {
+            const DxUi::Failure::Scope failureScope;
             onPopContext();
             return S_OK;
         }
         catch (const std::exception&)
         {
-            return E_FAIL;
+            DxUi::Failure::FailUnexpected();
         }
     }
 
@@ -900,9 +925,13 @@ void TestNativeTextInputNonTextFocusHiddenAndZeroSizePreservesForegroundOwner()
 void TestNativeTextInputFocusNotificationRemovalRetiresEditorImmediately()
 {
     using namespace DxUi;
+    if (! nativeTextFatalCase)
+    {
+        Require(DxUiFailureTests::ExpectFatalChild(L"native-focus-destroy-callback"), "destroying focus callback failure is fatal in its child");
+        Require(DxUiFailureTests::ExpectFatalChild(L"native-focus-retain-callback"), "retaining focus callback failure is fatal in its child");
+    }
     for (const bool keepRemovedChild : {false, true})
     {
-        for (const bool throwAfterRemoval : {false, true})
         {
             bool activatedWindow          = false;
             bool callbackRan              = false;
@@ -941,8 +970,6 @@ void TestNativeTextInputFocusNotificationRemovalRetiresEditorImmediately()
                         removedChild = panel->TakeChild(0u);
                     else
                         panel->ClearChildren();
-                    if (throwAfterRemoval)
-                        throw std::runtime_error("focus notification removed its editor");
                 });
                 window.Host().SetFocusControl(field);
                 // Assert the return state before pumping: a later prune must not repair a stale session for us.
@@ -958,7 +985,7 @@ void TestNativeTextInputFocusNotificationRemovalRetiresEditorImmediately()
                 return;
             Require(activatedWindow && callbackRan && editorWasActive, "removal notification starts with a focused native editor, TSF document and cache");
             Require(editorRetired, "removing the notified editor retires retained focus, native session, TSF document and cache before the setter returns");
-            Require(childBlurred, "a live returned editor acknowledges loss of focus even when its removal callback throws");
+            Require(childBlurred, "a live returned editor acknowledges loss of focus when removed by its callback");
         }
     }
 }
@@ -3706,6 +3733,9 @@ void TestNativeImeResultCallbacksPreserveNewerTextAndComposition()
 void TestNativeImeCancellationCallbacksPreserveNewerState()
 {
     using namespace DxUi;
+    if (! nativeTextFatalCase)
+        for (const auto* name : {L"native-ime-export-callback", L"native-ime-replace-callback", L"native-ime-replace-allocation"})
+            Require(DxUiFailureTests::ExpectFatalChild(name), "IME export callback failure is fatal in its owned child");
 
     AttachedHostWindow window;
     static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
@@ -3776,32 +3806,6 @@ void TestNativeImeCancellationCallbacksPreserveNewerState()
             "same-control successor composition retains its own active native state");
     static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_ENDCOMPOSITION, 0, 0));
     Require(field->GetText() == L"alphadraft", "the successor cancellation restores only its own entry state");
-
-    // A failed export with no successor retires the metadata and allows a later ordinary synchronization.
-    beginPreview();
-    field->onExport = [] { throw std::runtime_error("test owned cancellation export failure"); };
-    static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_ENDCOMPOSITION, 0, 0));
-    window.Host().SyncTextInput(field);
-    Require(window.Host().TryReadNativeTextInputState(field, state) && state.text == L"alphadraft" && ! state.compositionStartIndex &&
-                ! state.compositionEndIndex,
-            "a contained cancellation export failure leaves the live text intact and permits synchronization recovery");
-
-    // A new editor session installed by Export must keep its cache even when the old callback then throws.
-    for (const bool allocationFailure : {false, true})
-    {
-        beginPreview();
-        field->onExport = [&, allocationFailure]
-        {
-            window.Host().SetFocusControl(other);
-            if (allocationFailure)
-                throw std::bad_alloc{};
-            throw std::runtime_error("test export failure after focus replacement");
-        };
-        static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_ENDCOMPOSITION, 0, 0));
-        Require(window.Host().GetFocusControl() == other, "a throwing cancellation callback preserves its newer focused editor");
-        Require(window.Host().TryReadNativeTextInputState(other, state) && state.text == L"other",
-                "exception fallback does not clear the replacement editor's native cache");
-    }
 
     // The callback can replace the root and destroy the control whose virtual Export is still returning.
     window.Host().SetFocusControl(field);
@@ -9013,10 +9017,13 @@ void TestNativeTextInputTextStoreSetTextReplacesRangeWithoutEcho()
 void TestNativeTextInputTextStoreCallbackInvalidation()
 {
     using namespace DxUi;
+    Require(DxUiFailureTests::ExpectFatalChild(L"native-text-store-field-callback"), "text field callback failure is fatal in its child");
+    Require(DxUiFailureTests::ExpectFatalChild(L"native-text-store-combo-callback"), "combo callback failure is fatal in its child");
     for (const bool editableCombo : {false, true})
     {
-        // Destroy, change focus, replace text and throw after the text store has entered the callback.
-        for (unsigned scenario = 0; scenario != 4; ++scenario)
+        // Checked reentry: destroy, change focus or replace text during the callback.
+        // Unexpected throws use the separate no-activation child fixture below.
+        for (unsigned scenario = 0; scenario != 3; ++scenario)
         {
             AttachedHostWindow window;
             static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
@@ -9064,8 +9071,6 @@ void TestNativeTextInputTextStoreCallbackInvalidation()
                         field->SetSelectionRange(1, 3);
                     }
                 }
-                else
-                    throw std::runtime_error("synthetic text callback failure");
                 snapshotSurvived = text == L"after";
             };
             if (combo)
@@ -9082,7 +9087,7 @@ void TestNativeTextInputTextStoreCallbackInvalidation()
             HRESULT session = S_OK;
             RequireSucceeded(store->RequestLock(TS_LF_READWRITE, &session), "invalidated callback lock returns normally");
             Require(FAILED(session) && calls == 1, "invalidated callback rejects stale continuation without repeat notification");
-            Require(scenario == 3 || snapshotSurvived, "callback retains text argument even when control is destroyed or changed");
+            Require(snapshotSurvived, "callback retains text argument even when control is destroyed or changed");
             Require(sink.textChangeCount == 0 && sink.selectionChangeCount == 0 && sink.layoutChangeCount == 0,
                     "TSF-originated SetText does not echo notifications before the invalidated continuation is rejected");
             if (scenario == 2)
@@ -9743,6 +9748,136 @@ void TestNativeTextInputBackendKeyToPaintMetricScenario()
     Require(capture.widthPx > 0u && capture.heightPx > 0u && ! capture.bgraPixels.empty(), "native key-to-paint scenario has rendered pixels");
 }
 
+void NativeTextStoreCallbackFatalChild(bool editableCombo)
+{
+    using namespace DxUi;
+    // Fatal children cannot activate an HWND. A null-HWND host retains logical
+    // focus and exercises the real text-store mutation and notification path.
+    // The healthy reentry cases above retain their attached foreground window.
+    WindowHost host;
+    host.SetTextInputBackend(TextInputBackend::Native);
+    auto root        = std::make_unique<Panel>();
+    Control* control = nullptr;
+    TextField* field = nullptr;
+    ComboBox* combo  = nullptr;
+    if (editableCombo)
+    {
+        combo = root->AddChild<ComboBox>();
+        combo->SetEditable(true);
+        combo->SetText(L"before");
+        control = combo;
+    }
+    else
+        control = field = root->AddChild<TextField>(L"before");
+    control->SetBounds(D2D1::RectF(0, 0, 260, 48));
+    host.SetRoot(std::move(root));
+    host.SetFocusControl(control, false);
+    host.SyncTextInput(control);
+    NativeTextInputState initial;
+    Require(host.GetFocusControl() == control && host.TryReadNativeTextInputState(control, initial) && initial.text == L"before",
+            "headless fatal callback fixture has its logical native text target");
+    NativeTextStoreTestSink sink;
+    wil::com_ptr_nothrow<ITextStoreACP> store;
+    store.attach(host.DebugCreateNativeTextInputTextStoreForTest());
+    Require(store != nullptr, "headless fatal callback fixture creates its real text store");
+    unsigned calls{};
+    const auto changed = [&](std::wstring_view text)
+    {
+        ++calls;
+        Require(text == L"after", "fatal callback receives the real text-store edit");
+        std::fputs("Native text-store fatal callback entered.\n", stderr);
+        std::fflush(stderr);
+        RaiseNativeTextCallbackFailure();
+    };
+    if (combo)
+        combo->SetOnTextChanged(changed);
+    else
+        field->SetOnTextChanged(changed);
+    RequireSucceeded(store->AdviseSink(__uuidof(ITextStoreACPSink), &sink, TS_AS_TEXT_CHANGE | TS_AS_SEL_CHANGE | TS_AS_LAYOUT_CHANGE),
+                     "headless fatal callback fixture advises its sink");
+    HRESULT edit       = E_PENDING;
+    sink.onLockGranted = [&](DWORD) noexcept
+    {
+        TS_TEXTCHANGE change{};
+        edit = store->SetText(0, 0, 6, L"after", 5, &change);
+        return edit;
+    };
+    HRESULT session    = E_PENDING;
+    const HRESULT lock = store->RequestLock(TS_LF_READWRITE, &session);
+    std::fprintf(stderr,
+                 "Fatal text-store callback returned: lock=%08lx session=%08lx edit=%08lx calls=%u\n",
+                 static_cast<unsigned long>(lock),
+                 static_cast<unsigned long>(session),
+                 static_cast<unsigned long>(edit),
+                 calls);
+    std::fflush(stderr);
+    Require(false, "fatal text-store callback must terminate before returning");
+}
+
+template <unsigned Case> void NativeTextFatalChild()
+{
+    nativeTextFatalCase = Case;
+    if constexpr (Case <= 2u)
+    {
+        DxUi::WindowHost host;
+        host.SetTextInputBackend(DxUi::TextInputBackend::Native);
+        auto root   = std::make_unique<DxUi::Panel>();
+        auto* panel = root.get();
+        auto* field = root->AddChild<DxUi::TextField>(L"removed editor cache");
+        host.SetRoot(std::move(root));
+        [[maybe_unused]] std::unique_ptr<DxUi::Control> removed;
+        host.SetOnFocusChanged([&](DxUi::Control* notified)
+        {
+            if (notified != field)
+                return;
+            if constexpr (Case == 2u)
+                removed = panel->TakeChild(0u);
+            else
+                panel->ClearChildren();
+            RaiseNativeTextCallbackFailure();
+        });
+        host.SetFocusControl(field, false);
+    }
+    else if constexpr (Case <= 5u)
+    {
+        DxUi::WindowHost host;
+        host.SetTextInputBackend(DxUi::TextInputBackend::Native);
+        auto root                    = std::make_unique<DxUi::Panel>();
+        auto* field                  = root->AddChild<ReentrantExportTextField>(L"alpha");
+        [[maybe_unused]] auto* other = root->AddChild<DxUi::TextField>(L"other");
+        host.SetRoot(std::move(root));
+        host.SetFocusControl(field, false);
+        host.SyncTextInput(field);
+        bool handled{};
+        static_cast<void>(host.HandleMessage(nullptr, WM_IME_STARTCOMPOSITION, 0, 0, handled));
+        DxUi::NativeTextInputImePayload preview{};
+        preview.hasCompositionString = true;
+        preview.compositionString    = L"draft";
+        host.DebugSetNativeTextInputImePayloadForTest(std::move(preview));
+        static_cast<void>(host.HandleMessage(nullptr, WM_IME_COMPOSITION, 0, GCS_COMPSTR, handled));
+        Require(field->GetText() == L"alphadraft", "unattached native IME fixture starts from a composition preview");
+        field->onExport = [&]
+        {
+            if constexpr (Case != 3u)
+                host.SetFocusControl(other, false);
+            if constexpr (Case == 5u)
+                NativeTextAllocationFailureOrigin();
+            else
+                RaiseNativeTextCallbackFailure();
+        };
+        static_cast<void>(host.HandleMessage(nullptr, WM_IME_ENDCOMPOSITION, 0, 0, handled));
+    }
+    else
+        NativeTextStoreCallbackFatalChild(Case == 7u);
+}
+[[maybe_unused]] const bool registeredNativeTextFatalCases =
+    DxUiFailureTests::RegisterFatalChildCase({L"native-focus-destroy-callback", "NativeTextCallbackFailureOrigin", NativeTextFatalChild<1u>}) &&
+    DxUiFailureTests::RegisterFatalChildCase({L"native-focus-retain-callback", "NativeTextCallbackFailureOrigin", NativeTextFatalChild<2u>}) &&
+    DxUiFailureTests::RegisterFatalChildCase({L"native-ime-export-callback", "NativeTextCallbackFailureOrigin", NativeTextFatalChild<3u>}) &&
+    DxUiFailureTests::RegisterFatalChildCase({L"native-ime-replace-callback", "NativeTextCallbackFailureOrigin", NativeTextFatalChild<4u>}) &&
+    DxUiFailureTests::RegisterFatalChildCase({L"native-ime-replace-allocation", "NativeTextAllocationFailureOrigin", NativeTextFatalChild<5u>}) &&
+    DxUiFailureTests::RegisterFatalChildCase({L"native-text-store-field-callback", "NativeTextCallbackFailureOrigin", NativeTextFatalChild<6u>}) &&
+    DxUiFailureTests::RegisterFatalChildCase({L"native-text-store-combo-callback", "NativeTextCallbackFailureOrigin", NativeTextFatalChild<7u>});
 } // namespace
 
 void TestRichCommandStateDuringNativeComposition()

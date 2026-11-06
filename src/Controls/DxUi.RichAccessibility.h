@@ -100,6 +100,8 @@ class RichSemanticElementProvider final : public IRawElementProviderSimple,
                                           public IGridItemProvider,
                                           public ITableItemProvider
 {
+    Failure::ObjectLifetime failureLifetime_;
+
 public:
     RichSemanticElementProvider(
         WindowHostAccessibilityTarget* target, HWND hwnd, const AccessibilityControlNavigationSnapshot& record, size_t element, bool codeCopy) noexcept
@@ -122,6 +124,7 @@ public:
                                                                   bool codeCopy    = false,
                                                                   HRESULT* failure = nullptr) noexcept
     {
+        const Failure::Scope outerFailureScope;
         wil::com_ptr_nothrow<IRawElementProviderSimple> result;
         if (failure)
             *failure = UIA_E_ELEMENTNOTAVAILABLE;
@@ -148,6 +151,7 @@ public:
     }
     HRESULT STDMETHODCALLTYPE QueryInterface(REFIID id, void** result) noexcept override
     {
+        const Failure::Scope outerFailureScope;
         if (! result)
             return E_POINTER;
         *result = nullptr;
@@ -183,6 +187,7 @@ public:
         const auto remaining = references_.fetch_sub(1u, std::memory_order_acq_rel) - 1u;
         if (! remaining)
         {
+            const Failure::Scope retirementScope{std::nothrow};
             static_cast<void>(target_->Release());
             delete this;
         }
@@ -190,6 +195,7 @@ public:
     }
     HRESULT STDMETHODCALLTYPE get_ProviderOptions(ProviderOptions* result) noexcept override
     {
+        const Failure::Scope outerFailureScope;
         if (! result)
             return E_POINTER;
         *result =
@@ -200,6 +206,7 @@ public:
     }
     HRESULT STDMETHODCALLTYPE get_HostRawElementProvider(IRawElementProviderSimple** result) noexcept override
     {
+        const Failure::Scope outerFailureScope;
         if (! result)
             return E_POINTER;
         *result = nullptr;
@@ -207,6 +214,7 @@ public:
     }
     HRESULT STDMETHODCALLTYPE GetPatternProvider(PATTERNID id, IUnknown** result) noexcept override
     {
+        const Failure::Scope outerFailureScope;
         if (! result)
             return E_POINTER;
         *result             = nullptr;
@@ -241,6 +249,7 @@ public:
     }
     HRESULT STDMETHODCALLTYPE GetPropertyValue(PROPERTYID id, VARIANT* result) noexcept override
     {
+        const Failure::Scope outerFailureScope;
         if (! result)
             return E_POINTER;
         VariantInit(result);
@@ -330,6 +339,7 @@ public:
     }
     HRESULT STDMETHODCALLTYPE Navigate(NavigateDirection direction, IRawElementProviderFragment** result) noexcept override
     {
+        const Failure::Scope outerFailureScope;
         if (! result)
             return E_POINTER;
         *result             = nullptr;
@@ -403,6 +413,7 @@ public:
     }
     HRESULT STDMETHODCALLTYPE GetRuntimeId(SAFEARRAY** result) noexcept override
     {
+        const Failure::Scope outerFailureScope;
         if (! result)
             return E_POINTER;
         *result = nullptr;
@@ -427,6 +438,7 @@ public:
     }
     HRESULT STDMETHODCALLTYPE get_BoundingRectangle(UiaRect* result) noexcept override
     {
+        const Failure::Scope outerFailureScope;
         if (! result)
             return E_POINTER;
         *result             = {};
@@ -454,6 +466,7 @@ public:
     }
     HRESULT STDMETHODCALLTYPE GetEmbeddedFragmentRoots(SAFEARRAY** result) noexcept override
     {
+        const Failure::Scope outerFailureScope;
         if (! result)
             return E_POINTER;
         *result = nullptr;
@@ -461,6 +474,7 @@ public:
     }
     HRESULT STDMETHODCALLTYPE get_FragmentRoot(IRawElementProviderFragmentRoot** result) noexcept override
     {
+        const Failure::Scope outerFailureScope;
         if (! result)
             return E_POINTER;
         *result             = nullptr;
@@ -479,11 +493,13 @@ public:
     }
     HRESULT STDMETHODCALLTYPE SetFocus() noexcept override
     {
+        const Failure::Scope outerFailureScope;
         return CaptureSnapshot() ? static_cast<HRESULT>(UIA_E_NOTSUPPORTED) : static_cast<HRESULT>(UIA_E_ELEMENTNOTAVAILABLE);
     }
     HRESULT STDMETHODCALLTYPE Toggle() noexcept override
     try
     {
+        const Failure::Scope outerFailureScope;
         const auto snapshot = CaptureSnapshot();
         if (! snapshot)
             return UIA_E_ELEMENTNOTAVAILABLE;
@@ -517,15 +533,16 @@ public:
     }
     catch (const std::bad_alloc&)
     {
-        return E_OUTOFMEMORY;
+        Failure::FailAllocation();
     }
     catch (const std::exception&)
     {
-        return E_INVALIDARG;
+        Failure::FailUnexpected();
     }
     HRESULT STDMETHODCALLTYPE Invoke() noexcept override
     try
     {
+        const Failure::Scope outerFailureScope;
         const auto snapshot = CaptureSnapshot();
         if (! snapshot)
             return UIA_E_ELEMENTNOTAVAILABLE;
@@ -577,22 +594,25 @@ public:
     }
     catch (const std::bad_alloc&)
     {
-        return E_OUTOFMEMORY;
+        Failure::FailAllocation();
     }
     catch (const std::exception&)
     {
-        return E_INVALIDARG;
+        Failure::FailUnexpected();
     }
     HRESULT STDMETHODCALLTYPE Expand() noexcept override
     {
+        const Failure::Scope outerFailureScope;
         return ChangeInlineSource(true);
     }
     HRESULT STDMETHODCALLTYPE Collapse() noexcept override
     {
+        const Failure::Scope outerFailureScope;
         return ChangeInlineSource(false);
     }
     HRESULT STDMETHODCALLTYPE get_ExpandCollapseState(ExpandCollapseState* result) noexcept override
     {
+        const Failure::Scope outerFailureScope;
         if (! result)
             return E_POINTER;
         const auto snapshot = CaptureSnapshot();
@@ -611,6 +631,7 @@ public:
     }
     HRESULT STDMETHODCALLTYPE get_ToggleState(ToggleState* result) noexcept override
     {
+        const Failure::Scope outerFailureScope;
         if (! result)
             return E_POINTER;
         *result             = ToggleState_Off;
@@ -626,6 +647,7 @@ public:
     }
     HRESULT STDMETHODCALLTYPE GetItem(int row, int column, IRawElementProviderSimple** result) noexcept override
     {
+        const Failure::Scope outerFailureScope;
         if (! result)
             return E_POINTER;
         *result             = nullptr;
@@ -655,14 +677,17 @@ public:
     }
     HRESULT STDMETHODCALLTYPE get_RowCount(int* result) noexcept override
     {
+        const Failure::Scope outerFailureScope;
         return TableCount(true, result);
     }
     HRESULT STDMETHODCALLTYPE get_ColumnCount(int* result) noexcept override
     {
+        const Failure::Scope outerFailureScope;
         return TableCount(false, result);
     }
     HRESULT STDMETHODCALLTYPE GetRowHeaders(SAFEARRAY** result) noexcept override
     {
+        const Failure::Scope outerFailureScope;
         if (! result)
             return E_POINTER;
         *result             = nullptr;
@@ -676,10 +701,12 @@ public:
     }
     HRESULT STDMETHODCALLTYPE GetColumnHeaders(SAFEARRAY** result) noexcept override
     {
+        const Failure::Scope outerFailureScope;
         return Headers(false, result);
     }
     HRESULT STDMETHODCALLTYPE get_RowOrColumnMajor(RowOrColumnMajor* result) noexcept override
     {
+        const Failure::Scope outerFailureScope;
         if (! result)
             return E_POINTER;
         *result             = RowOrColumnMajor_RowMajor;
@@ -691,22 +718,27 @@ public:
     }
     HRESULT STDMETHODCALLTYPE get_Row(int* result) noexcept override
     {
+        const Failure::Scope outerFailureScope;
         return CellCoordinate(true, result);
     }
     HRESULT STDMETHODCALLTYPE get_Column(int* result) noexcept override
     {
+        const Failure::Scope outerFailureScope;
         return CellCoordinate(false, result);
     }
     HRESULT STDMETHODCALLTYPE get_RowSpan(int* result) noexcept override
     {
+        const Failure::Scope outerFailureScope;
         return CellSpan(result);
     }
     HRESULT STDMETHODCALLTYPE get_ColumnSpan(int* result) noexcept override
     {
+        const Failure::Scope outerFailureScope;
         return CellSpan(result);
     }
     HRESULT STDMETHODCALLTYPE get_ContainingGrid(IRawElementProviderSimple** result) noexcept override
     {
+        const Failure::Scope outerFailureScope;
         if (! result)
             return E_POINTER;
         *result             = nullptr;
@@ -728,6 +760,7 @@ public:
     }
     HRESULT STDMETHODCALLTYPE GetRowHeaderItems(SAFEARRAY** result) noexcept override
     {
+        const Failure::Scope outerFailureScope;
         if (! result)
             return E_POINTER;
         *result             = nullptr;
@@ -741,6 +774,7 @@ public:
     }
     HRESULT STDMETHODCALLTYPE GetColumnHeaderItems(SAFEARRAY** result) noexcept override
     {
+        const Failure::Scope outerFailureScope;
         return Headers(true, result);
     }
     [[nodiscard]] bool Matches(const AccessibilityControlNavigationSnapshot& record) const noexcept
@@ -758,6 +792,7 @@ private:
     HRESULT ChangeInlineSource(bool expand) noexcept
     try
     {
+        Failure::Scope failureScope;
         const auto snapshot = CaptureSnapshot();
         if (! snapshot)
             return UIA_E_ELEMENTNOTAVAILABLE;
@@ -798,11 +833,11 @@ private:
     }
     catch (const std::bad_alloc&)
     {
-        return E_OUTOFMEMORY;
+        Failure::FailAllocation();
     }
     catch (const std::exception&)
     {
-        return E_INVALIDARG;
+        Failure::FailUnexpected();
     }
     [[nodiscard]] std::optional<D2D1_RECT_F> CopyBounds(const AccessibilitySnapshot& snapshot,
                                                         const AccessibilityControlNavigationSnapshot& record) const noexcept
@@ -908,6 +943,7 @@ private:
         }
         try
         {
+            Failure::Scope failureScope;
             std::vector<wil::com_ptr_nothrow<IRawElementProviderSimple>> owners(0u);
             std::vector<IRawElementProviderSimple*> raw(0u);
             int ordinal = 0;
@@ -926,7 +962,7 @@ private:
         }
         catch (const std::bad_alloc&)
         {
-            return E_OUTOFMEMORY;
+            Failure::FailAllocation();
         }
     }
     std::atomic<ULONG> references_{1u};

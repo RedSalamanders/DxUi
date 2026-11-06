@@ -60,6 +60,9 @@ Invoke-TestCase 'real library and benchmark profiles expose the benchmark-only o
     $propsPath=Join-Path $roots[1] 'Directory.Build.props'
     $propsBytes=[IO.File]::ReadAllBytes($propsPath)
     $records=@()
+    $hadPaired = Test-Path Env:DxUiPairedBenchmark
+    $previousPaired = if ($hadPaired) { (Get-Item Env:DxUiPairedBenchmark).Value } else { $null }
+    $env:DxUiPairedBenchmark = 'true'
     try {
         # Reproduce the old operation exactly: only benchmark projects receive the common timestamp.
         foreach($root in $roots){[IO.File]::SetLastWriteTimeUtc((Join-Path $root 'Tests/Embedded/DxUi.EmbeddedTests.vcxproj'),$stamp)}
@@ -76,6 +79,25 @@ Invoke-TestCase 'real library and benchmark profiles expose the benchmark-only o
         $current=@{}
         foreach($side in 0,1){foreach($project in $projects){$current["$side-$($project.role)"]=Read-ActualProfile $roots[$side] $project "catalog-$side"}}
         foreach($project in $projects){Assert-Equal $current["0-$($project.role)"].profile.profileIdentity $current["1-$($project.role)"].profile.profileIdentity 'all complete profiles now match'}
+        $benchmarkItems=@($current['0-benchmark'].items.ClCompile)
+        Assert-Equal 1 $benchmarkItems.Count 'paired evaluation compiles only one benchmark translation unit'
+        Assert-True ([string]$benchmarkItems[0].Identity -match 'Embedded.Tests.PairedBenchmark.cpp$') 'evaluated benchmark uses the paired driver'
+        # Distinct runtime source inventories remain bound even with identical compiler settings.
+        $libraryProject=Join-Path $roots[1] 'src/DxUi.vcxproj'
+        $libraryBytes=[IO.File]::ReadAllBytes($libraryProject)
+        $libraryStamp=[IO.File]::GetLastWriteTimeUtc($libraryProject)
+        try {
+            $differentSources=[Text.Encoding]::UTF8.GetString($libraryBytes).Replace('<ClCompile Include="Controls\DxUi.YamlMetadata.cpp" />','<ClCompile Include="Controls\DxUi.YamlMetadata.cpp" /><ClCompile Include="Controls\HistoricalBaseline.cpp" />')
+            Assert-True ($differentSources.Contains('Controls\HistoricalBaseline.cpp')) 'the source registration negative control is installed'
+            [IO.File]::WriteAllText($libraryProject,$differentSources,[Text.UTF8Encoding]::new($false))
+            [IO.File]::SetLastWriteTimeUtc($libraryProject,$libraryStamp)
+            $historical=Read-ActualProfile $roots[1] $projects[0] 'historical-sources'
+            Assert-Equal $current['1-library'].profile.profileIdentity $historical.profile.profileIdentity 'a local source registration retains identical compiler settings'
+            Assert-True ($current['1-library'].profile.compileItemsIdentity -cne $historical.profile.compileItemsIdentity) 'the changed runtime source list is bound to its own build'
+        } finally {
+            [IO.File]::WriteAllBytes($libraryProject,$libraryBytes)
+            [IO.File]::SetLastWriteTimeUtc($libraryProject,$libraryStamp)
+        }
         # Keep timestamps fixed while changing a real compiler option: semantic differences still fail strict admission.
         $changed=[Text.Encoding]::UTF8.GetString($propsBytes).Replace('/utf-8 /Zc:preprocessor','/utf-8 /Zc:preprocessor /Ob0')
         Assert-True ($changed.Contains('/Ob0')) 'the negative control changes an effective compiler option'
@@ -87,6 +109,8 @@ Invoke-TestCase 'real library and benchmark profiles expose the benchmark-only o
         $right=[ordered]@{};foreach($name in $left.Keys){$right[$name]=$left[$name]};$right.toolchainIdentity=$negative.profile.profileIdentity
         Assert-Throws {Assert-PairedBuildCompatibility $left $right} 'the original strict preflight rejects changed compiler semantics'
     } finally {
+        if ($hadPaired) { Set-Item Env:DxUiPairedBenchmark -Value $previousPaired }
+        elseif (Test-Path Env:DxUiPairedBenchmark) { Remove-Item Env:DxUiPairedBenchmark -ErrorAction Stop }
         [IO.File]::WriteAllBytes($propsPath,$propsBytes)
         if($records.Count){Restore-PairedProjectStamps $records}
         foreach($record in $originals){[IO.File]::SetLastWriteTimeUtc($record.path,$record.originalUtc)}

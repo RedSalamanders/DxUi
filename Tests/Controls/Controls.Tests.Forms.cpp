@@ -3,6 +3,7 @@
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "GraphicsFixture.h"
 #include <DxUi/ControlCatalog.h>
+#include <DxUi/Failure.h>
 
 #include <limits>
 #include <new>
@@ -677,7 +678,7 @@ void TestFormsClearChildrenPreservesCallbackBoundReplacementEditor()
         }
         catch (const std::bad_alloc&)
         {
-            callbackResult = E_OUTOFMEMORY;
+            Failure::FailAllocation();
         }
     });
     Require(ControlModelQueryAccess::Host(*oldEditor) == &host, "detach callback begins from an attached editor");

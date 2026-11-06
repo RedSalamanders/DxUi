@@ -3,6 +3,9 @@
 Status: normative intended contract
 Last reviewed: 2026-10-23
 
+The [C++ failure policy](../Core/Core_FailureHandling.md) governs allocation, callback and paint failures.
+Its implementation is pending; earlier functional receipts do not prove the new host fatal/dump contract.
+
 The application may report known occlusion through
 `ControlHost::SetNativePresentationVisible(false)` on the attachment owner thread.
 The signal defaults to true for each attachment. False immediately releases the
@@ -41,10 +44,10 @@ invalidate visual changes, including completion; focused editors repaint when th
 
 Hit queries revalidate root lifetime and current ownership before dispatch. Root replacement or retirement during
 painting aborts that frame before capture or presentation; the next update applies the current root's bounds before
-painting it. Paint cleanup restores draw state when a standard exception occurs, skips the failed frame and waits
-for a later invalidation rather than scheduling a retry loop. A standard exception from an input callback is
-contained at `HandleMessage`, which consumes the partially processed message without replaying it. These boundaries
-do not qualify whole-host destruction inside a callback.
+painting it. Explicit checked preparation failures leave the frame unpublished and follow their bounded
+status/retry contract. An unexpected paint/input exception, including bad_alloc, requires the host fatal diagnostic
+path; it must not be turned into a skipped frame or a consumed message followed by continued operation.
+Failure-site context must survive the handoff. These boundaries do not qualify whole-host destruction inside a callback.
 After application/TSF pretranslation, native pumps call `DispatchKeyboardMessage` before Windows translation.
 Its exact attached-HWND Return/Space path dispatches once through the real window procedure, then translates only
 an explicitly permitted character still owned by the original live text control. Commands, failed callbacks and

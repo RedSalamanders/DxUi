@@ -8,19 +8,6 @@
 namespace
 {
 using namespace DxUi::RichText;
-template <typename F> void Reject(F&& operation, const char* description)
-{
-    bool rejected = false;
-    try
-    {
-        operation();
-    }
-    catch (const std::exception&)
-    {
-        rejected = true;
-    }
-    Require(rejected, description);
-}
 void TestRichDocumentPrototypeContracts()
 {
     Document document(L"A\U0001f600\r\n\u03b2");
@@ -41,15 +28,27 @@ void TestRichDocumentPrototypeContracts()
     Require(! document.CanRedo(), "new edit clears redo");
     const auto before         = document.Text();
     const auto beforeRevision = document.Revision();
-    Reject([&] { document.SetSelection({3, 3}); }, "surrogate selection rejected");
-    Reject([&] { document.Replace(3, 3, L"X", {0, 0}); }, "surrogate edit rejected");
-    Reject([&] { document.Replace(0, 0, std::wstring(1, 0xd800), {0, 0}); }, "invalid UTF-16 insertion rejected");
-    Reject([&] { document.Replace(0, 0, L"X", {999, 999}); }, "future selection validated");
+    bool changed              = true;
+    Require(document.TrySetSelection({3, 3}) == SourceResult::InvalidRange && document.TryReplace(3, 3, L"X", {0, 0}, changed) == SourceResult::InvalidRange &&
+                ! changed,
+            "checked admission rejects a split surrogate without a transaction");
+    Require(document.TryReplace(0, 0, std::wstring(1, 0xd800), {0, 0}, changed) == SourceResult::InvalidSource && ! changed &&
+                document.TryReplace(0, 0, L"X", {999, 999}, changed) == SourceResult::InvalidRange && ! changed,
+            "checked admission rejects invalid source and future selection");
+    Require(document.TryReset(std::wstring(Document::MaximumUnits + 1u, L'x')) == SourceResult::CapacityExceeded && document.Text() == before &&
+                document.Revision() == beforeRevision,
+            "checked reset refuses over-capacity source atomically");
+    const auto beforeSelection = document.GetSelection();
+    Require(document.TryReplaceWholeText(L"ok", {3u, 3u}, changed) == SourceResult::InvalidRange && ! changed &&
+                document.TryReplaceTransient(std::wstring(1u, 0xd800), {}, changed) == SourceResult::InvalidSource && ! changed && document.Text() == before &&
+                document.Revision() == beforeRevision && document.GetSelection() == beforeSelection,
+            "checked whole and transient refusals preserve the active document");
     Require(document.Text() == before && document.Revision() == beforeRevision, "rejected edits atomic");
-    Reject([&] { document.SetSelection({5, 5}); }, "CRLF split rejected");
+    Require(document.TrySetSelection({5, 5}) == SourceResult::InvalidRange, "CRLF split rejected");
     const std::string utf8 = "\xef\xbb\xbf# caf\xc3\xa9\r\n\xf0\x9f\x98\x80";
     Require(EncodeUtf8(DecodeUtf8(utf8)) == utf8, "UTF-8 BOM line endings byte identity");
-    Reject([] { DecodeUtf8("\xc0\x80"); }, "overlong UTF-8 rejected");
+    std::wstring decoded;
+    Require(TryDecodeUtf8("\xc0\x80", decoded) == SourceResult::InvalidSource, "overlong UTF-8 rejected");
     const std::string countedUtf8("a\0b\0", 4u);
     const auto countedUtf16 = DecodeUtf8(countedUtf8);
     Require(countedUtf16 == std::wstring(L"a\0b\0", 4u) && EncodeUtf8(countedUtf16) == countedUtf8,
@@ -60,9 +59,14 @@ void TestRichDocumentPrototypeContracts()
     Require(countedDocument.Length() == 4u && countedDocument.ReplaceSelection(L"X") && countedDocument.Undo() && countedDocument.Text() == countedUtf16,
             "counted source edits and undo retain the entire NUL-containing document");
     Document full(std::wstring(Document::MaximumUnits, L'x'));
-    Reject([&] { full.ReplaceSelection(L"x"); }, "prototype size limit");
+    Require(full.TryReplace(0u, 0u, L"x", {1u, 1u}, changed) == SourceResult::CapacityExceeded && ! changed && full.Length() == Document::MaximumUnits &&
+                ! full.CanUndo(),
+            "checked replacement refuses capacity without changing history");
+    Require(full.TryReplaceSelection(L"x", changed) == SourceResult::CapacityExceeded && ! changed, "prototype size limit");
     Require(full.Length() == Document::MaximumUnits, "limit atomic");
     Document random;
+    Require(random.TryReplace(0u, 0u, L"a", {1u, 1u}, changed) == SourceResult::Success && changed && random.Undo() && random.Text().empty(),
+            "checked replacement records the ordinary undo transaction");
     std::wstring oracle;
     std::mt19937 generator(47);
     for (unsigned i = 0; i < 1000; ++i)
@@ -92,12 +96,14 @@ void TestRichDocumentSlicesAndJoinedBoundaries()
     Require(! joined.IsBoundary(2) && ! joined.IsBoundary(5), "joined CRLF and scalar cannot be split");
     Require(joined.Slice(1, 3) == L"\r\n" && joined.Slice(4, 6) == L"\U0001f600", "slices span immutable pieces");
     Require(joined.Slice(0, 0).empty() && before.Text() == L"A\rB\U0001f600C", "empty range and earlier snapshot");
-    Reject([&] { joined.Slice(0, 2); }, "slice rejects CRLF split");
-    Reject([&] { joined.Slice(6, 5); }, "slice rejects reversed range");
-    Reject([&] { joined.Slice(0, 999); }, "slice rejects out of range");
+    std::wstring slice = L"unchanged";
+    Require(joined.TrySlice(0, 2, slice) == SourceResult::InvalidRange && joined.TrySlice(6, 5, slice) == SourceResult::InvalidRange &&
+                joined.TrySlice(0, 999, slice) == SourceResult::InvalidRange && slice == L"unchanged",
+            "invalid slices leave output unchanged");
     Require(! joined.IsBoundary(999), "snapshot boundary out of range is false");
     const auto revision = document.Revision();
-    Reject([&] { document.Replace(0, 0, L"", {2, 2}); }, "future no-op selection rejects CRLF split");
+    bool changed        = false;
+    Require(document.TryReplace(0, 0, L"", {2, 2}, changed) == SourceResult::InvalidRange && ! changed, "future no-op selection rejects CRLF split");
     Require(document.Revision() == revision && document.GetSelection() == Selection{3, 3}, "rejection preserves selection/revision");
     document.Undo();
     const auto undone = document.Revision();
@@ -108,7 +114,7 @@ void TestRichDocumentSlicesAndJoinedBoundaries()
     Require(document.GetSelection() == Selection{} && ! document.CanUndo() && ! document.CanRedo(), "reset clears history and selection");
     Require(joined.Text() == L"A\r\nB\U0001f600C", "snapshot survives reset and history retirement");
     Document cr(L"A\rB");
-    Reject([&] { cr.Replace(2, 2, L"\n", {2, 2}); }, "future selection rejected across a new piece join");
+    Require(cr.TryReplace(2, 2, L"\n", {2, 2}, changed) == SourceResult::InvalidRange && ! changed, "future selection rejected across a new piece join");
     Require(cr.Text() == L"A\rB" && ! cr.CanUndo(), "joined-boundary failure publishes nothing");
 }
 
@@ -165,15 +171,17 @@ void TestRichDocumentCrossPieceUnicodeOracle()
 void TestRichDocumentUnicodeCodecRejections()
 {
     Require(EncodeUtf8(L"").empty() && DecodeUtf8("").empty(), "empty Unicode codec identity");
+    std::wstring decoded = L"unchanged";
+    std::string encoded  = "unchanged";
     for (const std::string bytes : {"\xc0\x80", "\xe2\x82", "\xed\xa0\x80", "\xf4\x90\x80\x80"})
-        Reject([&] { DecodeUtf8(bytes); }, "overlong truncated surrogate and out-of-range UTF-8 rejected");
+        Require(TryDecodeUtf8(bytes, decoded) == SourceResult::InvalidSource && decoded == L"unchanged", "invalid UTF-8 rejected without output mutation");
     for (const auto& text : {std::wstring(1, 0xd800), std::wstring(1, 0xdc00)})
     {
         Require(! IsValidUtf16(text), "invalid UTF-16 detected without conversion");
-        Reject([&] { EncodeUtf8(text); }, "invalid UTF-16 encoding rejected");
+        Require(TryEncodeUtf8(text, encoded) == SourceResult::InvalidSource && encoded == "unchanged", "invalid UTF-16 encoding rejected");
     }
-    Reject([] { EncodeUtf8(std::wstring(Document::MaximumUnits + 1, L'x')); }, "UTF-16 codec bound enforced");
-    Reject([] { DecodeUtf8(std::string(Document::MaximumUnits + 1, 'x')); }, "UTF-8 decoded bound enforced");
+    Require(TryEncodeUtf8(std::wstring(Document::MaximumUnits + 1, L'x'), encoded) == SourceResult::CapacityExceeded, "UTF-16 codec bound enforced");
+    Require(TryDecodeUtf8(std::string(Document::MaximumUnits + 1, 'x'), decoded) == SourceResult::CapacityExceeded, "UTF-8 decoded bound enforced");
     const std::wstring counted(L"a\0b", 3u);
     Require(IsValidSourceUtf16(counted) && ! IsValidUtf16(counted) && DecodeUtf8(EncodeUtf8(counted)) == counted,
             "counted NUL round trips through explicit-length UTF-8 codecs");
@@ -297,16 +305,9 @@ void TestRichDocumentUtf8ExactAdmissionLimits()
     Require(DecodeUtf8(EncodeUtf8(supplementary)) == supplementary, "exact maximum supplementary UTF16 source is admitted");
     for (const auto bytes : {Document::MaximumUnits + 1u, Document::MaximumUnits * 3u + 1u})
     {
-        bool rejected = false;
-        try
-        {
-            static_cast<void>(DecodeUtf8(std::string(bytes, 'a')));
-        }
-        catch (const std::length_error&)
-        {
-            rejected = true;
-        }
-        Require(rejected, "both impossible byte size and excessive decoded size have explicit length errors");
+        std::wstring output;
+        Require(TryDecodeUtf8(std::string(bytes, 'a'), output) == SourceResult::CapacityExceeded,
+                "both impossible byte size and excessive decoded size have explicit capacity results");
     }
 }
 void TestRichDocumentFragmentedEditFixedTrials()
@@ -409,7 +410,9 @@ void TestRichDocumentEmptyMovedSnapshotsAndCrossNodeJoins()
     document.Replace(document.Length(), document.Length(), L"\n", {0u, 0u});
     const auto before   = document.Snapshot();
     const auto revision = document.Revision();
-    Reject([&] { document.Replace(1u, document.Length() - 1u, L"", {1u, 1u}); }, "cross-node deletion cannot leave selection inside newly joined CRLF");
+    bool changed        = false;
+    Require(document.TryReplace(1u, document.Length() - 1u, L"", {1u, 1u}, changed) == SourceResult::InvalidRange && ! changed,
+            "cross-node deletion cannot leave selection inside newly joined CRLF");
     Require(document.Snapshot().Text() == before.Text() && document.Revision() == revision, "invalid virtual future selection publishes no tree");
     document.Replace(1u, document.Length() - 1u, L"", {2u, 2u});
     Require(document.Text() == L"\r\n" && ! document.Snapshot().IsBoundary(1u), "cross-node deletion joins CRLF and retires removed subtrees");
@@ -441,7 +444,9 @@ void TestRichDocumentMaximumFragmentationAndRepeatedRootCollapse()
         const auto first = probe * 127u;
         Require(maximum.Slice(first, first + 128u) == expected.substr(first, 128u), "cross-node slices retain exact maximum-size source");
     }
-    Reject([&] { document.Replace(1u, 1u, L"!", {0u, 0u}); }, "full fragmented source still rejects capacity overflow atomically");
+    bool changed = false;
+    Require(document.TryReplace(1u, 1u, L"!", {0u, 0u}, changed) == SourceResult::CapacityExceeded && ! changed,
+            "full fragmented source still rejects capacity overflow atomically");
     Require(document.Text() == expected, "capacity rejection preserves the maximum tree");
     document.Replace(1u, document.Length() - 1u, L"", {0u, 0u});
     Require(document.Text() == L"aX", "a multi-level middle deletion keeps only its two boundary pieces");

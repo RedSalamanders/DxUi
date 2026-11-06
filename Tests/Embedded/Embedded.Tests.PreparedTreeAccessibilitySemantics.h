@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Support.Tests.PreparedTreeSemanticFixture.h"
+#include <vector>
 
 #if DXUI_ENABLE_DIAGNOSTICS
 static void TestPreparedTreeUnfocusedExpansionAction(GraphicsFixture& gpu)
@@ -36,12 +37,16 @@ static void TestPreparedTreeUnfocusedExpansionAction(GraphicsFixture& gpu)
     tree->SetDelegate(&delegate);
     view.Controls().SetRoot(std::move(controls));
     Hr(view.Prepare(320u, 180u, 96.f), "prepare unfocused tree");
-    auto site = std::make_shared<TestEmbeddedAccessibilitySite>();
+    EmbeddedUiaTest::Bridge bridge(view, 320u, 180u);
+    Check(bridge.valid, "prepared tree application bridge");
+    auto site         = std::make_shared<TestEmbeddedAccessibilitySite>();
+    site->application = &bridge.Site();
     EmbeddedAccessibilityPlacement placement{{0, 0, 320, 180}, true};
     Hr(view.AttachAccessibility(site, 0x5052455041524545ull, placement), "attach unfocused tree accessibility");
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> root;
     Hr(view.GetAccessibilityProvider(root.put()), "unfocused tree root");
     site->root = root.get();
+    bridge.BindViewRoot(root.get());
     wil::com_ptr_nothrow<IRawElementProviderFragment> rootFragment, treeProvider, item;
     Hr(root.query_to(rootFragment.put()), "unfocused tree root fragment");
     Hr(rootFragment->Navigate(NavigateDirection_FirstChild, treeProvider.put()), "unfocused tree control");
@@ -113,6 +118,8 @@ static void TestPreparedTreeUnfocusedExpansionAction(GraphicsFixture& gpu)
     Hr(view.UpdateAccessibility(placement), "publish replacement action");
     Check(changes == 1u, "the new model publishes its own unfocused action once");
     tree->SetDelegate(nullptr);
+    bridge.BindViewRoot(nullptr);
+    site->root = nullptr;
     view.Detach();
     Check(expand->get_ExpandCollapseState(&state) == UIA_E_ELEMENTNOTAVAILABLE, "retained item retires with the embedded owner");
 }
@@ -147,7 +154,10 @@ static void TestPreparedTreeAccessibilitySemantics(GraphicsFixture& gpu)
     tree->SetModel(&model);
     view.Controls().SetRoot(std::move(controls));
     Hr(view.Prepare(320u, 180u, 96.0f), "prepare semantic tree");
-    auto site = std::make_shared<TestEmbeddedAccessibilitySite>();
+    auto bridge = std::make_unique<EmbeddedUiaTest::Bridge>(view, 320u, 180u);
+    Check(bridge->valid, "prepared tree application bridge");
+    auto site         = std::make_shared<TestEmbeddedAccessibilitySite>();
+    site->application = &bridge->Site();
     DxUi::EmbeddedAccessibilityPlacement placement{{0, 0, 320, 180}, true};
     Hr(view.AttachAccessibility(site, 0x5052455041524544ull, placement), "attach semantic tree accessibility");
 
@@ -155,6 +165,7 @@ static void TestPreparedTreeAccessibilitySemantics(GraphicsFixture& gpu)
     Hr(view.GetAccessibilityProvider(root.put()), "semantic tree embedded root");
     Check(bool(root), "semantic tree embedded root exists");
     site->root = root.get();
+    bridge->BindViewRoot(root.get());
     wil::com_ptr_nothrow<IRawElementProviderFragment> rootFragment;
     Hr(root.query_to(rootFragment.put()), "semantic tree embedded root fragment");
     wil::com_ptr_nothrow<IRawElementProviderFragment> treeProvider;
@@ -236,15 +247,89 @@ static void TestPreparedTreeAccessibilitySemantics(GraphicsFixture& gpu)
           "retained providers read acknowledged same-id replacement names");
     Check(oldWitness->destructions == 0u, "retained embedded providers keep the replaced source snapshot alive");
 
-    view.Controls().SetRoot(std::make_unique<DxUi::Panel>());
+    const auto runtimeId = [](IRawElementProviderFragment& provider)
+    {
+        using Array = wil::unique_any<SAFEARRAY*, decltype(&SafeArrayDestroy), SafeArrayDestroy>;
+        Array id;
+        Hr(provider.GetRuntimeId(id.put()), "read embedded provider runtime identity");
+        Check(bool(id), "embedded provider runtime identity exists");
+        LONG lower = 0, upper = -1;
+        Hr(SafeArrayGetLBound(id.get(), 1, &lower), "embedded runtime identity lower bound");
+        Hr(SafeArrayGetUBound(id.get(), 1, &upper), "embedded runtime identity upper bound");
+        std::vector<LONG> values;
+        for (LONG index = lower; index <= upper; ++index)
+        {
+            LONG value{};
+            Hr(SafeArrayGetElement(id.get(), &index, &value), "embedded runtime identity element");
+            values.push_back(value);
+        }
+        return values;
+    };
+    const auto oldIdentity   = runtimeId(*middle.get());
+    const auto rootIdentity  = runtimeId(*rootFragment.get());
+    auto replacementControls = [&]
+    {
+        const DxUi::Failure::Scope construction;
+        auto controls         = std::make_unique<DxUi::Panel>();
+        auto* replacementTree = controls->AddChild<DxUi::Tree>();
+        replacementTree->SetBounds(D2D1::RectF(0.0f, 0.0f, 300.0f, 120.0f));
+        replacementTree->SetModel(&model);
+        return controls;
+    }();
+    view.Controls().SetRoot(std::move(replacementControls));
     wil::com_ptr_nothrow<IRawElementProviderSimple> staleMiddle;
     Hr(middle.query_to(staleMiddle.put()), "retain replaced-root middle provider");
     wil::unique_variant staleName;
     Check(staleMiddle->GetPropertyValue(UIA_NamePropertyId, &staleName) == UIA_E_ELEMENTNOTAVAILABLE,
           "root replacement invalidates the old prepared row provider");
-    Hr(view.Prepare(320u, 180u, 96.0f), "prepare replacement root");
-    Hr(view.UpdateAccessibility(placement), "publish replacement root");
+    bridge->BindViewRoot(nullptr);
+    view.DisconnectAccessibility();
     site->root = nullptr;
+    Hr(view.Prepare(320u, 180u, 96.0f), "prepare replacement root");
+    Hr(view.AttachAccessibility(site, 0x5052455041524544ull, placement), "attach replacement root with the same app identity");
+    Check(runtimeId(*middle.get()) == oldIdentity && selectionItem->Select() == UIA_E_ELEMENTNOTAVAILABLE,
+          "replaced row keeps its identity but cannot select its same-path successor");
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> replacementRoot;
+    Hr(view.GetAccessibilityProvider(replacementRoot.put()), "replacement embedded root");
+    Check(bool(replacementRoot), "replacement embedded root exists");
+    site->root = replacementRoot.get();
+    bridge->BindViewRoot(replacementRoot.get());
+    wil::com_ptr_nothrow<IRawElementProviderFragment> replacementRootFragment, replacementProvider, replacementFirst, replacementMiddle;
+    Hr(replacementRoot.query_to(replacementRootFragment.put()), "replacement embedded root fragment");
+    Hr(replacementRootFragment->Navigate(NavigateDirection_FirstChild, replacementProvider.put()), "replacement tree provider");
+    Check(bool(replacementProvider), "replacement tree exists at the original control path");
+    Hr(replacementProvider->Navigate(NavigateDirection_FirstChild, replacementFirst.put()), "replacement first row");
+    Check(bool(replacementFirst), "replacement first row exists");
+    Hr(replacementFirst->Navigate(NavigateDirection_NextSibling, replacementMiddle.put()), "replacement middle row");
+    Check(bool(replacementMiddle) && runtimeId(*replacementMiddle.get()) != oldIdentity, "same-path replacement row has a distinct runtime identity");
+    const auto replacementIdentity = runtimeId(*replacementMiddle.get());
+    wil::com_ptr_nothrow<IRawElementProviderSimple> replacementSimple;
+    Hr(replacementMiddle.query_to(replacementSimple.put()), "replacement row simple provider");
+    bridge->BindViewRoot(nullptr);
+    view.DisconnectAccessibility();
+    site->root = nullptr;
+    wil::com_ptr_nothrow<IRawElementProviderSimple> retiredHost;
+    Hr(staleMiddle->get_HostRawElementProvider(retiredHost.put()), "retired row host provider query");
+    Check(! retiredHost, "retired embedded row has no HWND host provider");
+    Hr(replacementSimple->get_HostRawElementProvider(retiredHost.put()), "disconnected row host provider query");
+    Check(! retiredHost, "disconnected embedded row has no HWND host provider");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> rootSimple;
+    Hr(root.query_to(rootSimple.put()), "retained embedded root simple provider");
+    Hr(rootSimple->get_HostRawElementProvider(retiredHost.put()), "disconnected embedded root host provider query");
+    Check(! retiredHost && runtimeId(*rootFragment.get()) == rootIdentity && runtimeId(*middle.get()) == oldIdentity &&
+              runtimeId(*replacementMiddle.get()) == replacementIdentity,
+          "disconnect preserves retired provider identities without inventing an HWND host");
+    wil::unique_variant retiredName;
+    Check(replacementSimple->GetPropertyValue(UIA_NamePropertyId, &retiredName) == UIA_E_ELEMENTNOTAVAILABLE &&
+              selectionItem->Select() == UIA_E_ELEMENTNOTAVAILABLE,
+          "disconnect keeps retired row properties and actions unavailable");
+    replacementSimple.reset();
+    replacementMiddle.reset();
+    replacementFirst.reset();
+    replacementProvider.reset();
+    replacementRootFragment.reset();
+    replacementRoot.reset();
+    rootSimple.reset();
     view.Detach();
     wil::com_ptr_nothrow<IRawElementProviderFragment> detachedChild;
     Check(rootFragment->Navigate(NavigateDirection_FirstChild, detachedChild.put()) == UIA_E_ELEMENTNOTAVAILABLE && ! detachedChild,
@@ -260,5 +345,7 @@ static void TestPreparedTreeAccessibilitySemantics(GraphicsFixture& gpu)
     treeProvider.reset();
     rootFragment.reset();
     root.reset();
+    site->application = nullptr;
+    bridge.reset(); // Retire the owned application UIA root before checking the final source reader.
     Check(oldWitness->destructions == 1u, "replaced source is destroyed after its final snapshot reader releases it");
 }

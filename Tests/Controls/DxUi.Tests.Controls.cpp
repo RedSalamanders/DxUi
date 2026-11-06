@@ -4,7 +4,9 @@
 #include "Controls.Tests.IntrinsicLayout.h"
 #include "Controls.Tests.LocalizedLayoutFixture.h"
 #include "Controls.Tests.MenuPopupReadiness.h"
+#include "Support.Tests.FatalChildren.h"
 
+#include <atomic>
 #include <cctype>
 #include <fstream>
 #include <functional>
@@ -666,7 +668,14 @@ void TestSliderOldReleaseCannotFinishRestartedDrag()
     Require(slider->OnMouseUp(host, D2D1::Point2F(120.0f, 20.0f), false, 0u) && commits == 1u && ! host.GetCapturedControl(),
             "the replacement drag receives its own release and commit");
 }
-void TestScrollPanelThrowingScrollCallbackIsContained()
+// Keep fatal callback symbols distinct under Release ICF and LTCG.
+static std::atomic<unsigned> controlFatalOriginMarker{};
+[[noreturn]] __declspec(noinline) void ScrollCallbackThrowOrigin(const std::runtime_error& error)
+{
+    controlFatalOriginMarker.store(206u, std::memory_order_relaxed);
+    throw error;
+}
+void ScrollCallbackFailureFixture(unsigned fatalScenario)
 {
     using namespace DxUi;
     WindowHost host;
@@ -680,18 +689,35 @@ void TestScrollPanelThrowingScrollCallbackIsContained()
     {
         ++calls;
         Require(value == 32.0f, "callback observes the committed scroll offset");
-        throw std::runtime_error("synthetic scroll observer failure");
+        if (fatalScenario == 1u)
+        {
+            const std::runtime_error error("synthetic scroll observer failure");
+            ScrollCallbackThrowOrigin(error);
+        }
     });
+    if (fatalScenario == 0u)
+    {
+        Require(DxUiFailureTests::ExpectFatalChild(L"scroll-callback-throw"), "scroll callback exception terminates its owned child");
+        Require(DxUiFailureTests::ExpectFatalChild(L"scroll-retire-callback-throw"), "retiring scroll callback exception terminates its owned child");
+    }
     scroll->SetScrollOffset(32.0f);
-    Require(calls == 1u && scroll->GetScrollOffset() == 32.0f, "throwing callback leaves its committed scroll offset intact");
+    Require(calls == 1u && scroll->GetScrollOffset() == 32.0f, "callback observes its committed scroll offset");
     scroll->SetOnScrollChanged([&](float)
     {
         ++calls;
         host.SetRoot({});
-        throw std::runtime_error("synthetic retired observer failure");
+        if (fatalScenario == 2u)
+        {
+            const std::runtime_error error("synthetic retired observer failure");
+            ScrollCallbackThrowOrigin(error);
+        }
     });
     scroll->SetScrollOffset(48.0f);
-    Require(calls == 2u && ! host.GetRoot(), "a callback may retire its owner and throw without a stale continuation");
+    Require(calls == 2u && ! host.GetRoot(), "a callback may retire its owner without a stale continuation");
+}
+void TestScrollPanelThrowingScrollCallbackIsContained()
+{
+    ScrollCallbackFailureFixture(0u);
 }
 void TestScrollPanelScrollCallbackCanReplaceItsOwnCallable()
 {
@@ -1127,10 +1153,12 @@ void TestTabControlLayoutRevalidatesPagesAfterCallbacks()
     }
 }
 
-// A tab control's selection, close-request and closed callbacks run on noexcept paths, where a throwing one ended the
-// process (CR-24 of the 10 October review). Each is contained now: the selection it reports stays made, a close request
-// that fails keeps its tab, and a failing closed callback leaves the tab closed.
-void TestTabControlContainsThrowingCallbacks()
+[[noreturn]] __declspec(noinline) void TabCallbackThrowOrigin(const std::runtime_error& error)
+{
+    controlFatalOriginMarker.store(207u, std::memory_order_relaxed);
+    throw error;
+}
+void TabCallbackFailureFixture(unsigned fatalScenario)
 {
     using namespace DxUi;
 
@@ -1145,8 +1173,23 @@ void TestTabControlContainsThrowingCallbacks()
     root->SetBounds(D2D1::RectF(0.0f, 0.0f, 640.0f, 180.0f));
     host.SetRoot(std::move(root));
     unsigned closed = 0u;
-    tabs->SetOnSelectionChanged([](size_t) { throw std::runtime_error("the selection handler failed"); });
-    tabs->SetOnTabCloseRequested([](size_t) -> bool { throw std::runtime_error("the close-request handler failed"); });
+    tabs->SetOnSelectionChanged([&](size_t)
+    {
+        if (fatalScenario == 1u)
+        {
+            const std::runtime_error error("tab selection callback failure");
+            TabCallbackThrowOrigin(error);
+        }
+    });
+    tabs->SetOnTabCloseRequested([&](size_t) -> bool
+    {
+        if (fatalScenario == 2u)
+        {
+            const std::runtime_error error("tab close request callback failure");
+            TabCallbackThrowOrigin(error);
+        }
+        return false;
+    });
     tabs->SetOnTabClosed([&](size_t) { ++closed; });
     const auto click = [&](const D2D1_RECT_F& rect)
     {
@@ -1156,20 +1199,44 @@ void TestTabControlContainsThrowingCallbacks()
         static_cast<void>(tabs->OnMouseUp(host, point, false, 0u));
     };
 
+    if (fatalScenario == 0u)
+    {
+        Require(DxUiFailureTests::ExpectFatalChild(L"tab-selection-callback-throw"), "tab selection exception terminates its owned child");
+        Require(DxUiFailureTests::ExpectFatalChild(L"tab-close-request-callback-throw"), "tab close request exception terminates its owned child");
+        Require(DxUiFailureTests::ExpectFatalChild(L"tab-closed-callback-throw"), "tab closed exception terminates its owned child");
+    }
     click(tabs->DebugGetTabRect(1u));
-    Require(tabs->GetSelectedIndex() == 1u, "the selection stays made when its handler throws");
+    Require(tabs->GetSelectedIndex() == 1u, "tab selection succeeds");
     RequireRectHasArea(tabs->DebugGetCloseButtonRect(1u), "the selected closable tab shows its close button");
-    click(tabs->DebugGetCloseButtonRect(1u));
-    Require(tabs->GetTabCount() == 3u && closed == 0u, "a close request whose handler throws keeps its tab");
-    tabs->SetOnTabCloseRequested([](size_t) { return false; });
     tabs->SetOnTabClosed([&](size_t)
     {
         ++closed;
-        throw std::runtime_error("the closed handler failed");
+        if (fatalScenario == 3u)
+        {
+            const std::runtime_error error("tab closed callback failure");
+            TabCallbackThrowOrigin(error);
+        }
     });
     click(tabs->DebugGetCloseButtonRect(1u));
-    Require(tabs->GetTabCount() == 2u && closed == 1u, "a failing closed handler leaves the tab closed");
+    Require(tabs->GetTabCount() == 2u && closed == 1u, "tab close publishes its notification");
 }
+void TestTabControlContainsThrowingCallbacks()
+{
+    TabCallbackFailureFixture(0u);
+}
+template <unsigned Scenario> void ControlsCallbackFailureChild()
+{
+    if constexpr (Scenario <= 2u)
+        ScrollCallbackFailureFixture(Scenario);
+    else
+        TabCallbackFailureFixture(Scenario - 2u);
+}
+[[maybe_unused]] const bool controlsCallbackFailureChildrenRegistered =
+    DxUiFailureTests::RegisterFatalChildCase({L"scroll-callback-throw", "ScrollCallbackThrowOrigin", ControlsCallbackFailureChild<1u>}) &&
+    DxUiFailureTests::RegisterFatalChildCase({L"scroll-retire-callback-throw", "ScrollCallbackThrowOrigin", ControlsCallbackFailureChild<2u>}) &&
+    DxUiFailureTests::RegisterFatalChildCase({L"tab-selection-callback-throw", "TabCallbackThrowOrigin", ControlsCallbackFailureChild<3u>}) &&
+    DxUiFailureTests::RegisterFatalChildCase({L"tab-close-request-callback-throw", "TabCallbackThrowOrigin", ControlsCallbackFailureChild<4u>}) &&
+    DxUiFailureTests::RegisterFatalChildCase({L"tab-closed-callback-throw", "TabCallbackThrowOrigin", ControlsCallbackFailureChild<5u>});
 
 void TestTabControlBodyDragReleaseOverCloseButtonDoesNotCloseTab()
 {
@@ -1658,10 +1725,8 @@ void TestControlAccessibleInvokeResultRetainsMutableStateAndReturnsTheCallbackRe
     Require(button->InvokeAccessibleResult(host) == S_OK, "the accessible callback's success HRESULT is preserved");
     Require(observed == std::vector<size_t>{1u, 2u}, "the retained result callback keeps mutable closure state across invocations");
     Require(button->InvokeAccessible(host), "the existing bool invocation API remains a compatible success wrapper");
-    button->SetAccessibleInvokeResult([](ControlHost&) -> HRESULT { throw std::bad_alloc{}; });
-    Require(button->InvokeAccessibleResult(host) == E_OUTOFMEMORY, "allocation failure in the callback becomes a failed COM result");
-    button->SetAccessibleInvokeResult([](ControlHost&) -> HRESULT { throw std::runtime_error("callback failed"); });
-    Require(button->InvokeAccessibleResult(host) == E_FAIL, "a named application exception becomes a failed COM result");
+    Require(DxUiFailureTests::ExpectFatalChild(L"accessible-invoke-allocation"), "callback allocation exception terminates the isolated child");
+    Require(DxUiFailureTests::ExpectFatalChild(L"accessible-invoke-runtime"), "callback exception terminates the isolated child");
     button->SetAccessibleInvoke({});
     Require(! button->SupportsAccessibleInvoke() && button->InvokeAccessibleResult(host) == UIA_E_NOTSUPPORTED,
             "clearing the compatible setter removes the canonical result callback");

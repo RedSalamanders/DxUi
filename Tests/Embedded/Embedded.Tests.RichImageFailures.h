@@ -2,7 +2,13 @@
 #include "Controls/DxUi.RichSemanticGeometry.h"
 #include "Support.Tests.PreparedFlowchart.h"
 #include "Support.Tests.RichImageResources.h"
-static void TestRichImageResourceAllocationFailures()
+template <typename Operation> __declspec(noinline) static void RichImageResourceFaultOrigin(Operation&& operation)
+{
+    DxUi::Failure::Scope scope;
+    failAllocationAfter = 0u;
+    operation();
+}
+static void TestRichImageResourceAllocationFailures(unsigned fatalScenario = 0u)
 {
     using namespace DxUi::RichText;
     using namespace DxUi::RichText::Detail;
@@ -44,21 +50,6 @@ static void TestRichImageResourceAllocationFailures()
         Check(result > 0u && result < 512u, "image resource operation has an observed bounded allocation schedule");
         return result;
     };
-    const auto inject = [&](std::size_t point, auto&& operation)
-    {
-        const auto oldFailure = failAllocationAfter;
-        const auto restore    = wil::scope_exit([=] noexcept { failAllocationAfter = oldFailure; });
-        failAllocationAfter   = point;
-        try
-        {
-            operation();
-        }
-        catch (const std::bad_alloc&)
-        {
-            return true;
-        }
-        return false;
-    };
     auto measured    = seed();
     const auto stage = [&](RichImageResources& state)
     {
@@ -66,47 +57,55 @@ static void TestRichImageResourceAllocationFailures()
         finish(state);
     };
     const auto stages = observe([&] { stage(*measured); });
-    for (std::size_t point = 0u; point < stages; ++point)
     {
-        auto state        = seed();
-        const auto held   = state->Snapshot();
-        const bool failed = inject(point, [&] { stage(*state); });
-        Check(failed && ! state->Pending() && state->Snapshot() == held, "failed image admission preserves ready pixels and retires incomplete staging");
+        auto state = seed();
+        if (fatalScenario == 1u)
+        {
+            RichImageResourceFaultOrigin([&] { stage(*state); });
+            return;
+        }
+        if (fatalScenario == 0u)
+            Check(DxUiFailureTests::ExpectFatalChild(L"embedded-image-resource-stage"), "image admission allocation terminates in its owned child");
         stage(*state);
         std::vector<RichImageRequest> jobs(0u);
         state->Take(jobs);
-        Check(jobs.size() == 3u && state->Statistics().imageElements == 4u, "explicit admission retry publishes only current coalesced image jobs");
+        Check(jobs.size() == 3u && state->Statistics().imageElements == 4u, "image admission publishes coalesced jobs");
         for (const auto& job : jobs)
-            Check(! job.Cancelled(), "retry never exposes abandoned stage tokens");
+            Check(! job.Cancelled(), "image admission exposes current tokens");
     }
     std::vector<RichImageRequest> measuredJobs(0u);
     const auto takes = observe([&] { measured->Take(measuredJobs); });
-    for (std::size_t point = 0u; point < takes; ++point)
     {
         auto state = seed();
         stage(*state);
         std::vector<RichImageRequest> output(1u);
-        const bool failed = inject(point, [&] { state->Take(output); });
-        Check(failed && output.size() == 1u && ! output[0].Id() && state->Statistics().pendingSources == 3u,
-              "failed image dispatch preserves caller output and every pending source");
+        if (fatalScenario == 2u)
+        {
+            RichImageResourceFaultOrigin([&] { state->Take(output); });
+            return;
+        }
+        if (fatalScenario == 0u)
+            Check(DxUiFailureTests::ExpectFatalChild(L"embedded-image-resource-take"), "image dispatch allocation terminates in its owned child");
         state->Take(output);
-        Check(output.size() == 3u, "dispatch retry does not lose or duplicate a source");
+        Check(output.size() == 3u, "dispatch returns each current source");
     }
     Check(measured->Complete(measuredJobs[0], picture), "stage baseline image completion");
     const auto publications = observe([&] { measured->Publish(); });
-    for (std::size_t point = 0u; point < publications; ++point)
     {
         auto state = seed();
         stage(*state);
         std::vector<RichImageRequest> jobs(0u);
         state->Take(jobs);
-        const auto held = state->Snapshot();
-        Check(state->Complete(jobs[0], picture), "stage image completion before publication failure");
-        const bool failed = inject(point, [&] { state->Publish(); });
-        Check(failed && state->Snapshot() == held && jobs[0].Cancelled() && state->HasUnpublished() && state->Statistics().readySources == 1u,
-              "failed publication retains the prior snapshot and committed private pixels for retry");
+        Check(state->Complete(jobs[0], picture), "stage image completion before publication");
+        if (fatalScenario == 3u)
+        {
+            RichImageResourceFaultOrigin([&] { state->Publish(); });
+            return;
+        }
+        if (fatalScenario == 0u)
+            Check(DxUiFailureTests::ExpectFatalChild(L"embedded-image-resource-publish"), "image publication allocation terminates in its owned child");
         state->Publish();
-        Check(! state->HasUnpublished() && state->Snapshot()->placements.size() == 2u, "publication retry exposes both duplicate placements exactly once");
+        Check(! state->HasUnpublished() && state->Snapshot()->placements.size() == 2u, "publication exposes duplicate placements exactly once");
     }
     const auto replacement = RichImageResourceTests::Picture(2u, 2u);
     const auto stageFrame  = [&](RichImageResources& state, RichImageRequest& request)
@@ -124,18 +123,22 @@ static void TestRichImageResourceAllocationFailures()
     RichImageRequest measuredFrameRequest;
     stageFrame(measuredFrame, measuredFrameRequest);
     const auto framePublications = observe([&] { measuredFrame.Publish(); });
-    for (std::size_t point = 0u; point < framePublications; ++point)
+    Check(framePublications > 0u, "frame publication has tracked allocations");
     {
         RichImageResources state;
         RichImageRequest request;
         stageFrame(state, request);
-        const auto held   = state.Snapshot();
-        const bool failed = inject(point, [&] { state.Publish(); });
-        Check(failed && state.Snapshot() == held && state.HasUnpublished() && state.Statistics().decodedBytes == replacement->Pixels().size(),
-              "failed frame publication retains the prior snapshot and accepted replacement for retry");
+        const auto held = state.Snapshot();
+        if (fatalScenario == 4u)
+        {
+            RichImageResourceFaultOrigin([&] { state.Publish(); });
+            return;
+        }
+        if (fatalScenario == 0u)
+            Check(DxUiFailureTests::ExpectFatalChild(L"embedded-image-resource-frame"), "image frame publication allocation terminates in its owned child");
         state.Publish();
         Check(! state.HasUnpublished() && state.Snapshot() != held && state.Snapshot()->placements[0u].image == replacement,
-              "frame publication retry exposes the accepted replacement exactly once");
+              "frame publication exposes the accepted replacement exactly once");
     }
     const auto before      = allocations;
     const auto oldCounting = countAllocations;
@@ -168,13 +171,15 @@ static void TestRichImageResourceAllocationFailures()
     };
     auto remoteMeasured     = remoteSeed();
     const auto remoteStages = observe([&] { remoteStage(*remoteMeasured); });
-    for (std::size_t point = 0u; point < remoteStages; ++point)
     {
-        auto state        = remoteSeed();
-        const auto held   = state->Snapshot();
-        const bool failed = inject(point, [&] { remoteStage(*state); });
-        Check(failed && ! state->Pending() && state->Snapshot() == held,
-              "each mixed local/remote admission failure preserves ready pixels and retires incomplete staging");
+        auto state = remoteSeed();
+        if (fatalScenario == 5u)
+        {
+            RichImageResourceFaultOrigin([&] { remoteStage(*state); });
+            return;
+        }
+        if (fatalScenario == 0u)
+            Check(DxUiFailureTests::ExpectFatalChild(L"embedded-image-resource-remote"), "remote image admission allocation terminates in its owned child");
         remoteStage(*state);
         std::vector<RichImageRequest> jobs(0u);
         state->Take(jobs);
@@ -205,7 +210,13 @@ static void TestRichImageResourceAllocationFailures()
     std::cout << "mixed local/remote image admission allocation points=" << remoteStages << '\n';
 }
 
-static void TestRichImageGeometryAllocationFailures()
+template <typename Operation> __declspec(noinline) static void RichImageGeometryFaultOrigin(Operation&& operation)
+{
+    DxUi::Failure::Scope scope;
+    failAllocationAfter = 0u;
+    operation();
+}
+static void TestRichImageGeometryAllocationFailures(bool fatalChild = false)
 {
     using namespace DxUi::RichText;
     using namespace DxUi::RichText::Detail;
@@ -279,31 +290,17 @@ static void TestRichImageGeometryAllocationFailures()
         points           = allocations;
     }
     Check(points > 0u && points < 4096u, "loaded Unicode image geometry has a bounded observed owned allocation schedule");
-    for (std::size_t point = 0u; point < points; ++point)
+    PreparedSemanticGeometry geometry;
+    seed(geometry);
+    if (fatalChild)
     {
-        PreparedSemanticGeometry geometry;
-        seed(geometry);
-        const auto generation = geometry.Generation();
-        bool failed{};
-        {
-            const auto oldFailure = failAllocationAfter;
-            const auto restore    = wil::scope_exit([=] noexcept { failAllocationAfter = oldFailure; });
-            failAllocationAfter   = point;
-            try
-            {
-                stage(geometry);
-            }
-            catch (const std::bad_alloc&)
-            {
-                failed = true;
-            }
-        }
-        Check(failed && geometry.Ready() && ! geometry.Pending() && geometry.Generation() == generation && &geometry.Document() == previous.get(),
-              "each image geometry allocation failure preserves the previous complete layout and retires staging");
-        stage(geometry);
-        Check(geometry.Ready() && geometry.HasNativeObjects() && &geometry.Document() == candidate.get(),
-              "image geometry explicitly retries after each failed allocation without changing source");
+        RichImageGeometryFaultOrigin([&] { stage(geometry); });
+        return;
     }
+    Check(DxUiFailureTests::ExpectFatalChild(L"embedded-image-geometry-allocation"), "loaded image geometry allocation terminates in its owned child");
+    stage(geometry);
+    Check(geometry.Ready() && geometry.HasNativeObjects() && &geometry.Document() == candidate.get(),
+          "image geometry publishes the candidate with its native objects");
     std::cout << "loaded image geometry allocation points=" << points << '\n';
 }
 
@@ -460,6 +457,8 @@ static void TestRichImageRasterFailureAndBudgets()
         {
             const auto before  = calls.uploads;
             const auto advance = geometry.Advance({1u, 3u});
+            if (advance.status == LayoutPreparationStatus::Failed)
+                return advance.result;
             if (calls.uploads - before > 1u || advance.layoutsPrepared > 1u || advance.blockSteps > 3u)
                 std::cerr << "image owner budget: uploads=" << calls.uploads - before << " layouts=" << advance.layoutsPrepared
                           << " events=" << advance.blockSteps << '\n';
@@ -468,6 +467,7 @@ static void TestRichImageRasterFailureAndBudgets()
             Check(++turns < 20000u, "native image raster preparation makes finite progress");
         }
         Check(geometry.Ready(), "native raster publishes complete geometry");
+        return S_OK;
     };
     {
         // Math family is irrelevant to the v0 public text path but remains
@@ -479,18 +479,9 @@ static void TestRichImageRasterFailureAndBudgets()
         plain.Prepare(write.get(), Project(plainDocument.Snapshot(), plainDocument.Revision(), ViewMode::Source), invalidMath);
         Check(plain.Ready(), "v0 text layout ignores the semantic-only math family");
         PreparedSemanticGeometry semantic;
-        semantic.Begin(write.get(), RichImageResourceTests::Semantic(L"ordinary text"), invalidMath);
-        bool rejected = false;
-        try
-        {
-            while (semantic.Pending())
-                semantic.Advance({1u, 32u});
-        }
-        catch (const std::invalid_argument&)
-        {
-            rejected = true;
-        }
-        Check(rejected && ! semantic.Ready() && ! semantic.Pending(), "semantic layout rejects an invalid math family without publication");
+        const auto refusal = semantic.Begin(write.get(), RichImageResourceTests::Semantic(L"ordinary text"), invalidMath);
+        Check(refusal == LayoutPreparationStatus::Failed && semantic.Result() == E_INVALIDARG && ! semantic.Ready() && ! semantic.Pending(),
+              "semantic layout rejects an invalid math family without publication");
     }
     begin(1u);
     for (const auto invalidBudget : {LayoutWorkBudget{0u, 3u},
@@ -500,18 +491,11 @@ static void TestRichImageRasterFailureAndBudgets()
                                      LayoutWorkBudget{1u, 3u, 2u},
                                      LayoutWorkBudget{1u, 3u, 3u}})
     {
-        bool rejected{};
-        try
-        {
-            geometry.Advance(invalidBudget);
-        }
-        catch (const std::invalid_argument&)
-        {
-            rejected = true;
-        }
-        Check(rejected && geometry.Pending() && ! calls.uploads, "invalid semantic preparation budgets preserve staging without a bitmap upload");
+        const auto refused = geometry.Advance(invalidBudget);
+        Check(refused.status == LayoutPreparationStatus::Failed && refused.result == E_INVALIDARG && geometry.Pending() && ! calls.uploads,
+              "invalid semantic preparation budgets preserve staging without a bitmap upload");
     }
-    finish();
+    Hr(finish(), "complete native image raster preparation");
     Check(calls.uploads == 2u && geometry.HasNativeObjects(), "duplicate placements share exactly two real native bitmap uploads");
     begin(1u);
     Check(! geometry.Pending() && calls.uploads == 2u, "identical image/target/epoch preparation coalesces without uploads");
@@ -522,22 +506,14 @@ static void TestRichImageRasterFailureAndBudgets()
             const auto generation = geometry.Generation();
             calls.failure         = failure;
             calls.failAt          = calls.uploads + failureIndex;
-            bool rejected{};
-            try
-            {
-                begin(++epoch);
-                finish();
-            }
-            catch (const wil::ResultException& error)
-            {
-                rejected = error.GetErrorCode() == failure;
-            }
-            calls.failAt = std::numeric_limits<std::size_t>::max();
+            begin(++epoch);
+            const bool rejected = finish() == failure;
+            calls.failAt        = std::numeric_limits<std::size_t>::max();
             Check(rejected && geometry.Ready() && ! geometry.Pending() && geometry.Generation() == generation && &geometry.Document() == document.get(),
                   "first/later bitmap memory/device HRESULT failures preserve the prior complete publication");
             const auto before = calls.uploads;
             begin(epoch);
-            finish();
+            Hr(finish(), "complete native image raster preparation");
             Check(calls.uploads - before == 2u && geometry.Generation() == generation + 1u,
                   "explicit raster retry recreates current bitmaps after each driver failure");
         }
@@ -564,7 +540,7 @@ static void TestRichImageRasterFailureAndBudgets()
         THROW_IF_FAILED(bitmap->CopyPixels(nullptr, 480u * 4u, static_cast<UINT>(pixels.size()), pixels.data()));
         return pixels;
     };
-    const auto runTiled = [&](PreparedSemanticGeometry& value, size_t byteBudget)
+    const auto runTiled = [&](PreparedSemanticGeometry& value, size_t byteBudget, HRESULT* failureResult = nullptr)
     {
         unsigned turns{};
         size_t transferred{};
@@ -573,6 +549,14 @@ static void TestRichImageRasterFailureAndBudgets()
             const auto beforeCopies = calls.copies;
             const auto beforeBytes  = calls.copiedBytes;
             const auto result       = value.Advance({1u, 32u, byteBudget});
+            if (result.status == LayoutPreparationStatus::Failed)
+            {
+                if (failureResult)
+                    *failureResult = result.result;
+                else
+                    Check(false, "unexpected tiled image preparation failure");
+                return transferred;
+            }
             transferred += result.uploadedBytes;
             Check(result.uploadedBytes <= byteBudget && calls.copies - beforeCopies <= 1u && calls.copiedBytes - beforeBytes <= byteBudget &&
                       result.layoutsPrepared <= 1u && result.blockSteps <= 32u,
@@ -635,17 +619,11 @@ static void TestRichImageRasterFailureAndBudgets()
         const auto generation = tiled.Generation();
         calls.failure         = failure;
         calls.failCopyAt      = calls.copies + 2u;
-        bool rejected{};
-        try
-        {
-            tiled.Begin(write.get(), tiledDocument, options, drawing.get(), {++epoch, epoch}, tiledImages, target.get());
-            runTiled(tiled, 96u * 4u * 3u);
-        }
-        catch (const wil::ResultException& error)
-        {
-            rejected = error.GetErrorCode() == failure;
-        }
-        calls.failCopyAt = std::numeric_limits<size_t>::max();
+        tiled.Begin(write.get(), tiledDocument, options, drawing.get(), {++epoch, epoch}, tiledImages, target.get());
+        HRESULT tileResult = S_OK;
+        runTiled(tiled, 96u * 4u * 3u, &tileResult);
+        const bool rejected = tileResult == failure;
+        calls.failCopyAt    = std::numeric_limits<size_t>::max();
         Check(rejected && tiled.Ready() && ! tiled.Pending() && tiled.Generation() == generation && render(tiled) == expectedPixels,
               "failed later image tile retires staging and retains the previous complete pixels");
         tiled.Begin(write.get(), tiledDocument, options, drawing.get(), {epoch, epoch}, tiledImages, target.get());
@@ -662,17 +640,11 @@ static void TestRichImageRasterFailureAndBudgets()
     const auto oldGeneration = tiled.Generation();
     calls.failure            = E_OUTOFMEMORY;
     calls.failCopyAt         = calls.copies + 1u;
-    bool frameRejected{};
-    try
-    {
-        tiled.Begin(write.get(), tiledDocument, options, drawing.get(), {++epoch, epoch}, nextFrameImages, target.get());
-        runTiled(tiled, 96u * 4u * 3u);
-    }
-    catch (const wil::ResultException& error)
-    {
-        frameRejected = error.GetErrorCode() == E_OUTOFMEMORY;
-    }
-    calls.failCopyAt = std::numeric_limits<size_t>::max();
+    tiled.Begin(write.get(), tiledDocument, options, drawing.get(), {++epoch, epoch}, nextFrameImages, target.get());
+    HRESULT frameResult = S_OK;
+    runTiled(tiled, 96u * 4u * 3u, &frameResult);
+    const bool frameRejected = frameResult == E_OUTOFMEMORY;
+    calls.failCopyAt         = std::numeric_limits<size_t>::max();
     Check(frameRejected && tiled.Ready() && ! tiled.Pending() && tiled.Generation() == oldGeneration && render(tiled) == expectedPixels,
           "failed next-frame upload retains the previous prepared geometry and exact pixels");
     tiled.Begin(write.get(), tiledDocument, options, drawing.get(), {epoch, epoch}, nextFrameImages, target.get());
@@ -705,7 +677,7 @@ static void TestRichImageRasterFailureAndBudgets()
     resources.Publish();
     const auto before = calls.uploads;
     geometry.Begin(write.get(), maximum, options, drawing.get(), {++epoch, epoch}, resources.Snapshot(), target.get());
-    finish();
+    Hr(finish(), "complete native image raster preparation");
     Check(calls.uploads - before == 1u && resources.Statistics().imageElements == 128u,
           "maximum native placements upload one shared bitmap and retain the excess alternative");
     unsigned measured{};
@@ -732,7 +704,7 @@ static void TestRichImageRasterFailureAndBudgets()
     const auto mixedImages = resources.Snapshot();
     Check(mixedImages->placements.size() == 125u, "two formulas and a diagram leave 125 admitted image placements");
     geometry.Begin(write.get(), mixed, options, drawing.get(), {++epoch, epoch}, mixedImages, target.get());
-    finish();
+    Hr(finish(), "complete native image raster preparation");
     Check(geometry.HasNativeObjects() && mixed->Map().Source() == mixedSource,
           "mixed admitted native objects prepare without global capacity failure and preserve all source alternatives");
     std::size_t mixedImageElements{}, mixedMathElements{}, mixedDiagramElements{};
@@ -751,7 +723,7 @@ static void TestRichImageRasterFailureAndBudgets()
           "the over-limit image remains an accessible alternative alongside admitted native objects");
     options.widthDip = 260.f;
     geometry.Begin(write.get(), mixed, options, drawing.get(), {++epoch, epoch}, mixedImages, target.get());
-    finish();
+    Hr(finish(), "complete native image raster preparation");
     Check(resources.Begin(mixed, L"C:\\docs\\note.md", 3u, 1u), "width reflow retains the current image resource generation");
     resources.Take(jobs);
     Check(jobs.empty() && resources.Snapshot() == mixedImages && geometry.Ready(),
@@ -769,7 +741,7 @@ static void TestRichImageRasterFailureAndBudgets()
     calls.failure                = D2DERR_UNSUPPORTED_OPERATION;
     calls.failAt                 = calls.uploads;
     geometry.Begin(write.get(), maximum, options, drawing.get(), {++epoch, epoch}, resources.Snapshot(), target.get());
-    finish();
+    Hr(finish(), "complete native image raster preparation");
     Check(calls.uploads - unsupportedBefore == 1u && maximum->Map().Source() == source,
           "unsupported upload is tried once for all duplicate image pixels while exact source remains");
     const auto fallbackGeneration = geometry.Generation();
@@ -781,7 +753,7 @@ static void TestRichImageRasterFailureAndBudgets()
           "unchanged unsupported image target does not retry during idle");
     calls.failAt = std::numeric_limits<std::size_t>::max();
     geometry.Begin(write.get(), maximum, options, drawing.get(), {++epoch, epoch}, resources.Snapshot(), target.get());
-    finish();
+    Hr(finish(), "complete native image raster preparation");
     Check(calls.uploads == unsupportedBefore + 2u, "new resource key retries and recovers the image upload");
     std::cout << "image raster driver failures=4 maximumPlacements=128 sharedUploads=1\n";
 }

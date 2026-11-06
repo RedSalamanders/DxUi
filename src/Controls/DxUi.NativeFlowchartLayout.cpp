@@ -1,4 +1,5 @@
 #include "DxUi.NativeFlowchartLayout.h"
+#include <DxUi/Failure.h>
 #include <algorithm>
 #include <cmath>
 #include <stdexcept>
@@ -728,7 +729,7 @@ struct NativeFlowchartLayout::Preparation
                     return;
                 }
             // DFS removes every gray back edge, so this is an internal invariant.
-            throw std::logic_error("Flowchart DAG ranking made no progress");
+            Failure::FailContract(E_UNEXPECTED);
         }
         if (activeEdge == NoIndex)
         {
@@ -1599,47 +1600,50 @@ struct NativeFlowchartLayout::Preparation
 };
 NativeFlowchartLayout::NativeFlowchartLayout() noexcept  = default;
 NativeFlowchartLayout::~NativeFlowchartLayout() noexcept = default;
-void NativeFlowchartLayout::Begin(std::shared_ptr<const FlowchartModel> graph,
-                                  std::span<const FlowchartSize> nodeLabels,
-                                  std::span<const FlowchartSize> edgeLabels,
-                                  std::span<const FlowchartSize> fromCardinalities,
-                                  std::span<const FlowchartSize> toCardinalities,
-                                  std::span<const FlowchartSize> groupLabels)
+SourceResult NativeFlowchartLayout::Begin(std::shared_ptr<const FlowchartModel> graph,
+                                          std::span<const FlowchartSize> nodeLabels,
+                                          std::span<const FlowchartSize> edgeLabels,
+                                          std::span<const FlowchartSize> fromCardinalities,
+                                          std::span<const FlowchartSize> toCardinalities,
+                                          std::span<const FlowchartSize> groupLabels)
 {
+    const Failure::Scope failureScope;
     if (! graph || graph->outcome != FlowchartOutcome::Prepared || graph->nodes.size() > NativeFlowchartParser::MaximumNodes ||
         graph->edges.size() > NativeFlowchartParser::MaximumEdges || nodeLabels.size() != graph->nodes.size() || edgeLabels.size() != graph->edges.size())
-        throw std::invalid_argument("Flowchart layout needs a prepared bounded graph and exact label measurements");
+        return SourceResult::InvalidArgument;
     if (! ValidFlowchartModel(*graph))
-        throw std::invalid_argument("Invalid native flowchart model");
+        return SourceResult::InvalidArgument;
     for (const auto value : nodeLabels)
         if (! Valid(value))
-            throw std::invalid_argument("Invalid flowchart node measurements");
+            return SourceResult::InvalidArgument;
     for (const auto value : edgeLabels)
         if (! Valid(value))
-            throw std::invalid_argument("Invalid flowchart edge measurements");
+            return SourceResult::InvalidArgument;
     if ((! fromCardinalities.empty() && fromCardinalities.size() != graph->edges.size()) ||
         (! toCardinalities.empty() && toCardinalities.size() != graph->edges.size()))
-        throw std::invalid_argument("Invalid class cardinality measurements");
+        return SourceResult::InvalidArgument;
     for (const auto& edge : graph->edges)
         if ((! edge.fromCardinality.empty() && fromCardinalities.empty()) || (! edge.toCardinality.empty() && toCardinalities.empty()))
-            throw std::invalid_argument("Missing class cardinality measurements");
+            return SourceResult::InvalidArgument;
     for (const auto& value : fromCardinalities)
         if (! Valid(value))
-            throw std::invalid_argument("Invalid source cardinality measurement");
+            return SourceResult::InvalidArgument;
     for (const auto& value : toCardinalities)
         if (! Valid(value))
-            throw std::invalid_argument("Invalid target cardinality measurement");
+            return SourceResult::InvalidArgument;
     if (graph->groups.size() > 16u ||
         groupLabels.size() != ((graph->family == NativeDiagramFamily::Pie || graph->family == NativeDiagramFamily::Gantt) ? 1u : graph->groups.size()))
-        throw std::invalid_argument("Invalid flowchart group measurements");
+        return SourceResult::InvalidArgument;
     for (const auto& value : groupLabels)
         if (! Valid(value))
-            throw std::invalid_argument("Invalid flowchart group label measurement");
+            return SourceResult::InvalidArgument;
     auto next    = std::make_unique<Preparation>(std::move(graph), nodeLabels, edgeLabels, fromCardinalities, toCardinalities, groupLabels);
     preparation_ = std::move(next);
+    return SourceResult::Success;
 }
 MarkdownAdvance NativeFlowchartLayout::Advance(std::size_t maximumWorkUnits)
 {
+    const Failure::Scope failureScope;
     if (! preparation_)
         return {MarkdownPreparationStatus::Idle, 0u};
     std::size_t work{};

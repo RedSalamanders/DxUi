@@ -348,15 +348,9 @@ template <typename Check> inline void Geometry(Check&& check)
     {
         auto invalid = mathOptions;
         invalid.dpi  = invalidDpi;
-        bool rejected{};
-        try
-        {
-            mathGeometry.Begin(real.get(), mathDocument, invalid, drawing.get(), {1u, 1u}, {}, target.get());
-        }
-        catch (const std::invalid_argument&)
-        {
-            rejected = true;
-        }
+        const bool rejected =
+            mathGeometry.Begin(real.get(), mathDocument, invalid, drawing.get(), {1u, 1u}, {}, target.get()) == LayoutPreparationStatus::Failed &&
+            mathGeometry.Result() == E_INVALIDARG;
         check(rejected &&
                   mathGeometry.Begin(real.get(), mathDocument, mathOptions, drawing.get(), {1u, 1u}, {}, target.get()) == LayoutPreparationStatus::Complete,
               "invalid DPI preserves the previous published native geometry");

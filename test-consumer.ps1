@@ -43,6 +43,10 @@ $complexDirectory=Join-Path $consumer 'Samples/ComplexUi'
 New-Item -ItemType Directory -Path $complexDirectory -Force | Out-Null
 Copy-Item -LiteralPath (Join-Path $checkout 'Samples/ComplexUi/ComplexUiScene.h') -Destination $complexDirectory
 Copy-Item -LiteralPath (Join-Path $checkout 'Tools/ConsumerApi/ConsumerApi.Tests.Revision4.cpp') -Destination (Join-Path $consumer 'ConsumerApi.Tests.Revision4.cpp')
+$sharedDirectory=Join-Path $consumer 'Samples/Shared'
+New-Item -ItemType Directory -Path $sharedDirectory -Force | Out-Null
+foreach($name in @('FailureHost.h','FailureHost.cpp')) { Copy-Item -LiteralPath (Join-Path $checkout "Samples/Shared/$name") -Destination $sharedDirectory }
+Copy-Item -LiteralPath (Join-Path $checkout 'Tools/ConsumerApi/ConsumerApi.Tests.Revision5.cpp') -Destination (Join-Path $consumer 'ConsumerApi.Tests.Revision5.cpp')
 $escape={param($value) [System.Security.SecurityElement]::Escape($value)}
 $rootXml=& $escape $checkout
 $outputXml=& $escape $output
@@ -61,22 +65,22 @@ $project=@"
  <Import Project="`$(VCTargetsPath)\Microsoft.Cpp.props" />
  <PropertyGroup>$identityProperties<DxUiDisableStlAnnotations>$annotationsXml</DxUiDisableStlAnnotations><DxUiRoot>$rootXml</DxUiRoot><DxUiConsumerOutputRoot>$outputXml</DxUiConsumerOutputRoot><DxUiConsumerLockFile>$lockXml</DxUiConsumerLockFile><OutDir>`$(MSBuildProjectDirectory)\bin\</OutDir><IntDir>`$(MSBuildProjectDirectory)\obj\</IntDir></PropertyGroup>
  <Import Project="$rootXml\Build\DxUi.Consumer.props" />
- <ItemDefinitionGroup><ClCompile><LanguageStandard>stdcpplatest</LanguageStandard><ExceptionHandling>Sync</ExceptionHandling><PreprocessorDefinitions>UNICODE;_UNICODE;WIN32_LEAN_AND_MEAN;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions><AdditionalOptions>/utf-8 /Zc:preprocessor %(AdditionalOptions)</AdditionalOptions><WarningLevel>Level4</WarningLevel><TreatWarningAsError>true</TreatWarningAsError><RuntimeLibrary Condition="('`$(Configuration)'=='Debug' or '`$(Configuration)'=='ASan Debug')">MultiThreadedDebugDLL</RuntimeLibrary><RuntimeLibrary Condition="'`$(Configuration)'=='Release'">MultiThreadedDLL</RuntimeLibrary></ClCompile><Link><SubSystem>Console</SubSystem></Link></ItemDefinitionGroup>
- <ItemDefinitionGroup><ClCompile><AdditionalIncludeDirectories>`$(MSBuildProjectDirectory)\Samples\ComplexUi;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories></ClCompile></ItemDefinitionGroup>
+ <ItemDefinitionGroup><ClCompile><LanguageStandard>stdcpplatest</LanguageStandard><ExceptionHandling>Sync</ExceptionHandling><PreprocessorDefinitions>UNICODE;_UNICODE;WIN32_LEAN_AND_MEAN;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions><AdditionalOptions>/utf-8 /Zc:preprocessor %(AdditionalOptions)</AdditionalOptions><WarningLevel>Level4</WarningLevel><TreatWarningAsError>true</TreatWarningAsError><RuntimeLibrary Condition="('`$(Configuration)'=='Debug' or '`$(Configuration)'=='ASan Debug')">MultiThreadedDebugDLL</RuntimeLibrary><RuntimeLibrary Condition="'`$(Configuration)'=='Release'">MultiThreadedDLL</RuntimeLibrary></ClCompile><Link><SubSystem>Console</SubSystem><AdditionalDependencies>DbgHelp.lib;%(AdditionalDependencies)</AdditionalDependencies></Link></ItemDefinitionGroup>
+ <ItemDefinitionGroup><ClCompile><AdditionalIncludeDirectories>`$(MSBuildProjectDirectory)\Samples\ComplexUi;`$(MSBuildProjectDirectory)\Samples\Shared;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories></ClCompile></ItemDefinitionGroup>
  <ItemGroup><ClCompile Include="Samples/EmbeddedControls/Main.cpp" /></ItemGroup>
  <Import Project="`$(VCTargetsPath)\Microsoft.Cpp.targets" />
  <Import Project="$rootXml\Build\DxUi.Consumer.targets" />
 </Project>
 "@
 # Compile every supported helper header as the first and only include in its own translation unit.
-$headerUnits = foreach ($header in @('DxUi','Typography','FocusRestore','PointerInput','AccessibilityTextUnits','NativeMenuInterop',
+$headerUnits = foreach ($header in @('DxUi','Failure','Typography','FocusRestore','PointerInput','AccessibilityTextUnits','NativeMenuInterop',
     'FileDrop','RichDocument','RichMarkdown','RichTextLayout','MarkdownSyntax','RichSemantic','RichSemanticDocument','RichTextCommands','RichImage','RichMath','RichTextExport')) {
     "#include <DxUi/$header.h>" | Set-Content -LiteralPath (Join-Path $consumer "$header.cpp") -Encoding utf8
     '<ClCompile Include="' + $header + '.cpp" />'
 }
 # Compile the public native entrypoint without consumer diagnostic defines or private headers.
 Add-Content -LiteralPath (Join-Path $consumer 'DxUi.cpp') -Encoding utf8 -Value 'IRawElementProviderFragmentRoot* AcquirePublicNativeProvider(HWND hwnd) noexcept { return DxUi::CreateWindowHostAccessibilityProvider(hwnd); }'
-$project = $project.Replace('<ClCompile Include="Samples/EmbeddedControls/Main.cpp" />', '<ClCompile Include="Samples/EmbeddedControls/Main.cpp" /><ClCompile Include="ConsumerApi.Tests.Revision4.cpp" />' + ($headerUnits -join ''))
+$project = $project.Replace('<ClCompile Include="Samples/EmbeddedControls/Main.cpp" />', '<ClCompile Include="Samples/EmbeddedControls/Main.cpp" /><ClCompile Include="Samples/Shared/FailureHost.cpp" /><ClCompile Include="ConsumerApi.Tests.Revision4.cpp" /><ClCompile Include="ConsumerApi.Tests.Revision5.cpp" />' + ($headerUnits -join ''))
 $projectPath=Join-Path $consumer 'ExternalConsumer.vcxproj'
 $project | Set-Content -LiteralPath $projectPath -Encoding utf8
 $consumerBuildLog=Join-Path $consumer 'ExternalConsumer.build.log'
@@ -95,6 +99,12 @@ if ($LASTEXITCODE -ne 0) { throw 'The relocated rich-text consumer failed to ren
 # state crosses their C ABI; native class dispatch and animation must remain in the owning module.
 Copy-Item -LiteralPath (Join-Path $checkout 'Tests/ConsumerModules/ConsumerModules.Tests.NativeModule.cpp') -Destination $consumer
 Copy-Item -LiteralPath (Join-Path $checkout 'Tests/ConsumerModules/ConsumerModules.Tests.Driver.cpp') -Destination $consumer
+Copy-Item -LiteralPath (Join-Path $checkout 'Tests/Support/Support.Tests.DumpReader.h') -Destination $consumer
+Copy-Item -LiteralPath (Join-Path $checkout 'Tests/Support/Support.Tests.ChildCrashCapture.h') -Destination $consumer
+Copy-Item -LiteralPath (Join-Path $checkout 'Tests/Support/Support.Tests.FailureReports.h') -Destination $consumer
+New-Item -ItemType Directory -Path (Join-Path $consumer 'Support') -Force | Out-Null
+Copy-Item -LiteralPath (Join-Path $checkout 'src/Support/Failure.Tests.Hooks.h') -Destination (Join-Path $consumer 'Support')
+Copy-Item -LiteralPath (Join-Path $checkout 'Tests/Support/Support.Tests.UiaTestClient.h') -Destination $consumer
 foreach ($moduleName in @('NativeModuleA','NativeModuleB','NativeModuleDriver')) {
     $moduleProject = [xml]$project
     $ns = [Xml.XmlNamespaceManager]::new($moduleProject.NameTable)
@@ -105,7 +115,7 @@ foreach ($moduleName in @('NativeModuleA','NativeModuleB','NativeModuleDriver'))
     $compileItems = $moduleProject.SelectSingleNode('//m:ItemGroup[m:ClCompile]',$ns)
     $compileItems.RemoveAll()
     $sources = @('ConsumerModules.Tests.NativeModule.cpp')
-    if ($moduleName -eq 'NativeModuleDriver') { $sources += 'ConsumerModules.Tests.Driver.cpp' }
+    if ($moduleName -eq 'NativeModuleDriver') { $sources += 'ConsumerModules.Tests.Driver.cpp'; $sources += 'Samples/Shared/FailureHost.cpp' }
     foreach ($source in $sources) {
         $item = $moduleProject.CreateElement('ClCompile',$ns.LookupNamespace('m'))
         $item.SetAttribute('Include',$source)
@@ -118,9 +128,19 @@ foreach ($moduleName in @('NativeModuleA','NativeModuleB','NativeModuleDriver'))
     if ($LASTEXITCODE -ne 0) { throw "The native module consumer $moduleName failed to build." }
     Assert-NativeBuildDiagnostics -LogPath $moduleBuildLog
 }
-$moduleOutput = @(& (Join-Path $consumer 'bin/NativeModuleDriver.exe'))
-$moduleExit = $LASTEXITCODE
+$savedErrorPreference = $ErrorActionPreference
+try {
+    # Preserve child diagnostics even when the native driver fails or writes stderr.
+    $ErrorActionPreference = 'Continue'
+    $moduleOutput = @(& (Join-Path $consumer 'bin/NativeModuleDriver.exe') 2>&1)
+    $moduleExit = $LASTEXITCODE
+} finally {
+    $ErrorActionPreference = $savedErrorPreference
+}
 $moduleOutput | ForEach-Object { Write-Host $_ }
+if (@($moduleOutput | Where-Object { $_ -ceq 'DXUI_NATIVE_MODULE_NATIVE_ALLOWED executed=2 passed=2' }).Count -ne 1) { throw 'Native module caught-exception probes did not both pass.' }
+if (@($moduleOutput | Where-Object { $_ -ceq 'DXUI_NATIVE_MODULE_FATAL executed=16 passed=16' }).Count -ne 1) { throw 'Native module fatal children did not all prove their dump context and symbols.' }
+if (@($moduleOutput | Where-Object { $_ -ceq 'DXUI_NATIVE_MODULE_EPILOGUE executed=2 passed=2' }).Count -ne 1) { throw 'Native module notification callback epilogue pin checks did not both pass.' }
 $moduleResult = Set-ConsumerNativeModuleResult -Progress $progress -Lines $moduleOutput -ExitCode $moduleExit
 if (-not (Test-Path (Join-Path $output "$Platform/$Configuration/DxUi.lib")) -or (Test-Path (Join-Path $checkout ".build/$Platform/$Configuration/DxUi.lib"))) { throw 'Consumer outputs are not isolated.' }
 $validator=Join-Path $checkout 'Tools/validate_consumer.ps1'
@@ -154,6 +174,7 @@ Assert-ConsumerQualificationChecks -Progress $progress
     nativeArchitecture=[System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString();
     disableStlAnnotations=$DisableStlAnnotations.IsPresent;buildIdentity=$buildIdentity;exitCode=0;fixture=$root;negativeChecks=$progress.Record.negativeChecks;
     nativeModuleExecuted=$moduleResult.Executed;nativeModuleChecks=$moduleResult.Passed;executableSha256=(Get-FileHash (Join-Path $consumer 'bin/ExternalConsumer.exe')).Hash;
+    nativeModuleFatalChecks=16;nativeModuleNativeAllowedChecks=2;
     richTextCaptureSha256=(Get-FileHash (Join-Path $consumer 'rich-text-consumer.png')).Hash;
     librarySha256=(Get-FileHash (Join-Path $output "$Platform/$Configuration/DxUi.lib")).Hash;
     completedUtc=[DateTime]::UtcNow.ToString('o')} | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $reports "ExternalConsumer-$Platform-$Configuration-annotationsDisabled$annotationsXml.json") -Encoding utf8

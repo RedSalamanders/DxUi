@@ -1,7 +1,6 @@
 #pragma once
 #include <DxUi/RichDocument.h>
 #include <optional>
-#include <stdexcept>
 
 namespace DxUi::RichText::Detail
 {
@@ -24,7 +23,7 @@ MarkdownSourceCorrelation CorrelateMarkdownSource(
         {
             if (change->begin > change->previousEnd || change->begin > change->currentEnd || change->previousEnd > previousLength ||
                 change->currentEnd > currentLength)
-                throw std::invalid_argument("Invalid tracked source correlation interval");
+                return {0u, previousLength, currentLength, true};
             return {change->begin, change->previousEnd, change->currentEnd, false};
         }
         if (change->kind == SourceChangeKind::FullReplacement)
@@ -32,10 +31,10 @@ MarkdownSourceCorrelation CorrelateMarkdownSource(
         if (change->kind == SourceChangeKind::Unchanged)
         {
             if (previousLength != currentLength)
-                throw std::invalid_argument("Unchanged source correlation requires equal lengths");
+                return {0u, previousLength, currentLength, true};
             return {previousLength, previousLength, currentLength, false};
         }
-        throw std::invalid_argument("Unknown source correlation metadata");
+        return {0u, previousLength, currentLength, true};
     }
     MarkdownSourceCorrelation result{0u, previousLength, currentLength, false};
     while (result.first < previousLength && result.first < currentLength && previousUnit(result.first) == currentUnit(result.first))

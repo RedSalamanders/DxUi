@@ -4,15 +4,20 @@
 #include "GraphicsFixture.h"
 #include "RichImageLoader.h"
 #include "Support.Tests.ClipboardFixture.h"
+#include "Support.Tests.FatalChildren.h"
 #include "Support.Tests.RichFileDrop.h"
 #include "Support.Tests.RichImagePaths.h"
 #include "Support.Tests.RichImageResources.h"
 #include "Support.Tests.RichTextStateReplacement.h"
 #include <DxUi/Embedded.h>
+#include <DxUi/Failure.h>
 #include <DxUi/FileDrop.h>
+#include <atomic>
 #include <exception>
 #include <imm.h>
+#include <optional>
 #include <stdexcept>
+#include <thread>
 
 namespace
 {
@@ -43,7 +48,7 @@ void RunFileDropApartmentFixture(DWORD model, void (*test)())
         }
         catch (const std::bad_alloc&)
         {
-            std::terminate(); // The test runner treats allocation failure as fatal.
+            Failure::FailAllocation();
         }
         catch (const std::exception&)
         {
@@ -100,7 +105,7 @@ void RichTextOleSourceMoveOnSta()
             }
             catch (const std::bad_alloc&)
             {
-                std::terminate(); // Application receiver exceptions cannot cross the OLE callback boundary.
+                Failure::FailAllocation();
             }
             catch (const std::exception&)
             {
@@ -253,6 +258,9 @@ void RichTextOleAdapterRevocationOnSta()
 void TestRichTextOleAdapterRevocation()
 {
     RunFileDropAdapterOnSta(RichTextOleAdapterRevocationOnSta);
+    Require(DxUiFailureTests::ExpectFatalChild(L"filedrop-enter-callback"), "drag-enter callback fails at its origin");
+    Require(DxUiFailureTests::ExpectFatalChild(L"filedrop-over-callback"), "drag-over callback fails at its origin");
+    Require(DxUiFailureTests::ExpectFatalChild(L"filedrop-drop-callback"), "drop callback fails at its origin");
 }
 
 void RichTextEmbeddedFileDropCoordinatesOnSta();
@@ -285,8 +293,16 @@ void TestRichTextOleAdapterWorkerException()
     }
 }
 
+thread_local bool dropNotificationFatalChild = false;
+// Keep fatal callback symbols distinct under Release ICF and LTCG.
+static std::atomic<unsigned> controlFatalOriginMarker{};
+__declspec(noinline) void RichDropNotificationOrigin(const std::runtime_error& error)
+{
+    controlFatalOriginMarker.store(215u, std::memory_order_relaxed);
+    throw error;
+}
 template <typename Prepare, typename Preview, typename Commit>
-void CheckFileDropInsertion(ControlHost& host, RichTextEditor& editor, Prepare&& prepare, Preview&& preview, Commit&& commit)
+void CheckFileDropInsertion(ControlHost& host, RichTextEditor& editor, Prepare&& prepare, Preview&& preview, Commit&& commit, const wchar_t* fatalCase)
 {
     size_t notifications{};
     editor.SetOnTextChanged([&] { ++notifications; });
@@ -377,8 +393,17 @@ void CheckFileDropInsertion(ControlHost& host, RichTextEditor& editor, Prepare&&
     const auto notifyCaret = editor.TryGetTextInputCaretRect(host, 2u);
     Require(notifyCaret.has_value(), "notification failure fixture has prepared geometry");
     const auto notifyPoint = D2D1::Point2F(notifyCaret->left + .01f, (notifyCaret->top + notifyCaret->bottom) * .5f);
-    editor.SetOnTextChanged([] { throw std::runtime_error("drop notification test"); });
-    Require(commit(notifyPoint, *data.Get()) && editor.GetText() == L"al![a](a.png)pha", "notification failure after the committed edit still reports success");
+    if (dropNotificationFatalChild)
+    {
+        editor.SetOnTextChanged([]
+        {
+            const std::runtime_error error("drop notification test");
+            RichDropNotificationOrigin(error);
+        });
+        static_cast<void>(commit(notifyPoint, *data.Get()));
+        Require(false, "drop notification child must terminate");
+    }
+    Require(DxUiFailureTests::ExpectFatalChild(fatalCase), "file drop notification exception is fatal in its owned child");
     editor.SetOnTextChanged({});
 }
 void TestRichTextNativeFileDropInsertion()
@@ -394,7 +419,7 @@ void TestRichTextNativeFileDropInsertion()
     Require(PrepareNativeContentForTests(window.Host()), "native file drop geometry settles");
     CheckFileDropInsertion(window.Host(), *editor, [&] { Require(PrepareNativeContentForTests(window.Host()), "native drop re-prepares"); }, [&](auto point) {
         return window.Host().PreviewFileDrop(point);
-    }, [&](auto point, auto& data) { return window.Host().CommitFileDrop(point, data); });
+    }, [&](auto point, auto& data) { return window.Host().CommitFileDrop(point, data); }, L"native-drop-notification");
     editor->SetText(L"alpha");
     Require(PrepareNativeContentForTests(window.Host()), "retiring drop fixture prepares");
     const auto caret = editor->TryGetTextInputCaretRect(window.Host(), 2u);
@@ -436,7 +461,8 @@ void TestRichTextEmbeddedFileDropInsertion()
         Require(! view.NeedsPreparation(), "embedded drop geometry settles after edit");
     },
                            [&](auto point) { return view.PreviewFileDrop(point); },
-                           [&](auto point, auto& data) { return view.CommitFileDrop(point, data); });
+                           [&](auto point, auto& data) { return view.CommitFileDrop(point, data); },
+                           L"embedded-drop-notification");
     editor->SetText(L"alpha");
     for (unsigned turn = 0u; turn < 1024u && view.NeedsPreparation(); ++turn)
         RequireSucceeded(view.Prepare(640u, 240u), "visibility drop fixture prepares");
@@ -609,7 +635,7 @@ void TestRichTextApplicationImageLoading()
         }
         catch (const std::bad_alloc&)
         {
-            return E_OUTOFMEMORY;
+            Failure::FailAllocation();
         }
         HRESULT Write(HWND, std::wstring_view) noexcept override
         {
@@ -773,8 +799,56 @@ void TestRichTextApplicationImageLoaderLifecycle()
     Require(! loader.HasResults(), "cancelled queued/completing requests are pruned without an owner callback");
     loader.Shutdown();
     loader.Drain(results);
-    Require(results.empty() && ! loader.HasResults() && loader.Submit(firstJobs) == E_UNEXPECTED,
-            "closure retires queues and rejects new work without joining the decoder");
+    Require(results.empty() && ! loader.HasResults() && loader.Submit(firstJobs) == HRESULT_FROM_WIN32(ERROR_CANCELLED),
+            "closure retires queues and rejects new work as cancelled");
+#if DXUI_ENABLE_DIAGNOSTICS
+    // Events are owned outside the loader's lifetime; every path releases the
+    // worker before loader teardown, including setup and assertion failures.
+    wil::unique_handle entered(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    wil::unique_handle release(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    wil::unique_handle shutdownReturned(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    Require(entered && release && shutdownReturned, "create owned decoder gate events");
+    RichImageResources gatedResources;
+    gatedResources.Begin(RichImageResourceTests::Semantic(L"![local](file:///C:/dxui-test-missing-gated-image.png)\n"), {}, 1u, 1u);
+    while (! gatedResources.Advance())
+    {
+    }
+    std::vector<RichImageRequest> gatedJobs;
+    gatedResources.Take(gatedJobs);
+    Require(gatedJobs.size() == 1u, "gated lifecycle fixture has one local decode request");
+    HRESULT initializeResult{}, submitResult{}, closedResult{};
+    DWORD enteredWait{}, releaseBeforeReturn{}, controllerWait{};
+    bool cleared{};
+    {
+        RichImageLoader gatedLoader;
+        const auto releaseOnExit = wil::scope_exit([&] noexcept { SetEvent(release.get()); });
+        initializeResult         = gatedLoader.Initialize(window.Hwnd(), message, cookie);
+        if (SUCCEEDED(initializeResult))
+        {
+            gatedLoader.SetDecoderGateForTests(entered.get(), release.get());
+            submitResult = gatedLoader.Submit(gatedJobs);
+            if (SUCCEEDED(submitResult))
+            {
+                enteredWait = WaitForSingleObject(entered.get(), 5000u);
+                std::thread controller([&] noexcept
+                {
+                    controllerWait = WaitForSingleObject(shutdownReturned.get(), 5000u);
+                    SetEvent(release.get());
+                });
+                gatedLoader.Shutdown();
+                releaseBeforeReturn = WaitForSingleObject(release.get(), 0u);
+                closedResult        = gatedLoader.Submit(gatedJobs);
+                std::array<RichImageLoader::Result, 1u> remaining{};
+                cleared = gatedLoader.Drain(remaining) == 0u && ! gatedLoader.HasResults();
+                SetEvent(shutdownReturned.get());
+                controller.join();
+            }
+        }
+    }
+    Require(SUCCEEDED(initializeResult) && SUCCEEDED(submitResult) && enteredWait == WAIT_OBJECT_0, "submitted local image reaches the gated decoder worker");
+    Require(controllerWait == WAIT_OBJECT_0 && releaseBeforeReturn == WAIT_TIMEOUT && closedResult == HRESULT_FROM_WIN32(ERROR_CANCELLED) && cleared,
+            "shutdown returns and retires its queues while a decoder is still gated");
+#endif
     window.SetApplicationMessageHandler({});
 }
 
@@ -926,7 +1000,7 @@ void TestRichTextApplicationImageClipboard()
         }
         catch (const std::bad_alloc&)
         {
-            return E_OUTOFMEMORY;
+            Failure::FailAllocation();
         }
         HRESULT ReadContent(HWND, TextClipboardContent& result) noexcept override
         try
@@ -940,7 +1014,7 @@ void TestRichTextApplicationImageClipboard()
         }
         catch (const std::bad_alloc&)
         {
-            return E_OUTOFMEMORY;
+            Failure::FailAllocation();
         }
     } clipboard;
     editor->SetText(L"x **bold** y");
@@ -1103,7 +1177,7 @@ void TestRichTextApplicationImageClipboard()
         }
         catch (const std::bad_alloc&)
         {
-            return E_OUTOFMEMORY;
+            Failure::FailAllocation();
         }
     } htmlClipboard;
     services.ClearClient();
@@ -1159,7 +1233,7 @@ void TestRichTextApplicationImageClipboard()
         }
         catch (const std::bad_alloc&)
         {
-            return E_OUTOFMEMORY;
+            Failure::FailAllocation();
         }
         std::vector<std::byte> bytes;
         unsigned reads{};
@@ -1211,14 +1285,8 @@ void TestRichTextTransientSourcePreservesHistory()
     Require(document.ReplaceTransient(L"base", {4, 4}) && document.CanRedo(), "cancel restores entry text without destroying redo");
     Require(document.Redo() && document.Text() == L"base!", "pre-composition redo still works");
     const auto before = document.Snapshot();
-    try
-    {
-        document.ReplaceTransient(L"\U0001f600", {1, 1});
-        Require(false, "split scalar preview must fail");
-    }
-    catch (const std::out_of_range&)
-    {
-    }
+    bool changed      = true;
+    Require(document.TryReplaceTransient(L"\U0001f600", {1, 1}, changed) == SourceResult::InvalidRange && ! changed, "split scalar preview must fail");
     Require(document.Text() == before.Text(), "rejected preview leaves source unchanged");
 }
 
@@ -1455,6 +1523,108 @@ void TestRichTextEmbeddedPreviewRebinding()
     Require(second.ApplyTextInput(rebound.revision, preview, EmbeddedTextInputAction::Preview) == E_ACCESSDENIED && editor->GetText() == L"kept",
             "read-only composition cannot change source");
 }
+void NativeDropNotificationChild()
+{
+    RequireSucceeded(CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED), "initialize native drop child apartment");
+    const auto apartment       = wil::scope_exit([] { CoUninitialize(); });
+    dropNotificationFatalChild = true;
+    TestRichTextNativeFileDropInsertion();
+}
+void EmbeddedDropNotificationChild()
+{
+    RequireSucceeded(CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED), "initialize embedded drop child apartment");
+    const auto apartment       = wil::scope_exit([] { CoUninitialize(); });
+    dropNotificationFatalChild = true;
+    TestRichTextEmbeddedFileDropInsertion();
+}
+[[maybe_unused]] const bool dropNotificationChildrenRegistered =
+    DxUiFailureTests::RegisterFatalChildCase({L"native-drop-notification", "RichDropNotificationOrigin", NativeDropNotificationChild}) &&
+    DxUiFailureTests::RegisterFatalChildCase({L"embedded-drop-notification", "RichDropNotificationOrigin", EmbeddedDropNotificationChild});
+std::atomic<unsigned> fileDropOriginMarker{};
+[[noreturn]] __declspec(noinline) void FileDropEnterFailureOrigin(const std::runtime_error& error)
+{
+    fileDropOriginMarker.store(1u, std::memory_order_relaxed);
+    throw error;
+}
+[[noreturn]] __declspec(noinline) void FileDropOverFailureOrigin(const std::runtime_error& error)
+{
+    fileDropOriginMarker.store(2u, std::memory_order_relaxed);
+    throw error;
+}
+[[noreturn]] __declspec(noinline) void FileDropDropFailureOrigin(const std::runtime_error& error)
+{
+    fileDropOriginMarker.store(3u, std::memory_order_relaxed);
+    throw error;
+}
+class FaultingDropReceiver final : public RichFileDropReceiver
+{
+public:
+    unsigned phase{};
+    const std::runtime_error* error{};
+    bool Preview(POINTL) noexcept override
+    {
+        if (phase == 2u)
+            FileDropOverFailureOrigin(*error);
+        return true;
+    }
+    bool Drop(POINTL, IDataObject&, RichFileDropGuard) noexcept override
+    {
+        if (phase == 3u)
+            FileDropDropFailureOrigin(*error);
+        return true;
+    }
+};
+template <unsigned Phase> void FileDropCallbackChild()
+{
+    bool apartmentInitialized = false;
+    const auto apartment      = wil::scope_exit([&]
+    {
+        if (apartmentInitialized)
+            CoUninitialize();
+    });
+    std::optional<std::runtime_error> error;
+    std::shared_ptr<FaultingDropReceiver> receiver;
+    std::optional<RichFileDropAdapter> adapter;
+    Microsoft::WRL::ComPtr<DropDataObject> data;
+    DWORD effect = DROPEFFECT_COPY;
+    {
+        const DxUi::Failure::Scope setupScope;
+        error.emplace(Phase == 1u ? "file drop enter" : Phase == 2u ? "file drop over" : "file drop drop");
+        RequireSucceeded(CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED), "initialize file-drop child apartment");
+        apartmentInitialized = true;
+        receiver             = std::make_shared<FaultingDropReceiver>();
+        receiver->error      = &error.value();
+        adapter.emplace();
+        RequireSucceeded(adapter->Attach(receiver), "attach file-drop child receiver");
+        data = Microsoft::WRL::Make<DropDataObject>();
+        Require(data != nullptr, "create file-drop child data");
+        if constexpr (Phase == 1u)
+            data->duringQuery = [&error] { FileDropEnterFailureOrigin(error.value()); };
+        else
+            RequireSucceeded(adapter->Target()->DragEnter(data.Get(), 0u, {}, &effect), "enter file-drop child");
+    }
+    if constexpr (Phase == 1u)
+        static_cast<void>(adapter->Target()->DragEnter(data.Get(), 0u, {}, &effect));
+    if constexpr (Phase == 2u)
+    {
+        receiver->phase = 2u;
+        effect          = DROPEFFECT_COPY;
+        static_cast<void>(adapter->Target()->DragOver(0u, {}, &effect));
+    }
+    if constexpr (Phase == 3u)
+    {
+        receiver->phase = 3u;
+        effect          = DROPEFFECT_COPY;
+        static_cast<void>(adapter->Target()->Drop(data.Get(), 0u, {}, &effect));
+    }
+}
+[[maybe_unused]] const bool fileDropCallbackChildrenRegistered =
+    DxUiFailureTests::RegisterFatalChildCase(
+        {L"filedrop-enter-callback", "FileDropEnterFailureOrigin", FileDropCallbackChild<1u>, DxUiFailureTests::FatalFaultClass::CppException, false}) &&
+    DxUiFailureTests::RegisterFatalChildCase(
+        {L"filedrop-over-callback", "FileDropOverFailureOrigin", FileDropCallbackChild<2u>, DxUiFailureTests::FatalFaultClass::CppException, false}) &&
+    DxUiFailureTests::RegisterFatalChildCase(
+        {L"filedrop-drop-callback", "FileDropDropFailureOrigin", FileDropCallbackChild<3u>, DxUiFailureTests::FatalFaultClass::CppException, false});
 } // namespace
 
 void TestRichTextNativeLocalizedServiceCommit()

@@ -76,12 +76,19 @@ Invoke-FixtureCase 'canonical owned includes resolve through the supported priva
     Set-FixtureFile $root 'Tests/Support/Fixture.h' "#pragma once`n"
     Set-FixtureFile $root 'Tests/Embedded/Bridge.h' "#pragma once`n"
     Set-FixtureFile $root 'Samples/ComplexUi/Scene.h' "#pragma once`n"
+    Set-FixtureFile $root 'Samples/Shared/FailureHost.h' "#pragma once`n"
     Set-FixtureFile $root 'Tests/Controls/Control.Tests.Canonical.cpp' @'
 #include "Support/Diagnostics.h"
 #include "Fixture.h"
 #include "Bridge.h"
 #include "Scene.h"
+#include "FailureHost.h"
 '@
+    Set-FixtureFile $root 'Samples/EmbeddedControls/Main.cpp' '#include "FailureHost.h"'
+    Set-FixtureFile $root 'Samples/SdkSmoke/Main.cpp' '#include "FailureHost.h"'
+    Set-FixtureFile $root 'Tests/ConsumerModules/ConsumerModules.Tests.Driver.cpp' '#include "FailureHost.h"'
+    Set-FixtureFile $root 'Tests/Foundation/Foundation.Tests.Failure.cpp' '#include "FailureHost.h"'
+    Set-FixtureFile $root 'Tests/Support/Support.Tests.FailureHost.h' '#include "FailureHost.h"'
     Assert-Equal 0 (Get-DependencyFailureCount $root) 'actual owned include search roots resolve'
 }
 
@@ -92,6 +99,12 @@ Invoke-FixtureCase 'private include resolution never lends test roots to shippin
     Set-FixtureFile $root 'src/Controls/Control.cpp' '#include "OnlyTest.h"'
     Assert-True (Get-DependencyFailureCount $root) 'shipping sources cannot borrow test-only include roots'
     Set-FixtureFile $root 'src/Controls/Control.cpp' "// independent source`n"
+    Set-FixtureFile $root 'Samples/Shared/FailureHost.h' "#pragma once`n"
+    Set-FixtureFile $root 'src/Controls/Control.cpp' '#include "FailureHost.h"'
+    Assert-True (Get-DependencyFailureCount $root) 'shipping sources cannot borrow sample-only include roots'
+    Set-FixtureFile $root 'src/Controls/Control.cpp' "// independent source`n"
+    Set-FixtureFile $root 'include/DxUi/DxUi.h' '#include "FailureHost.h"'
+    Assert-True (Get-DependencyFailureCount $root) 'public headers cannot borrow sample-only include roots'
     Set-FixtureFile $root 'src/Controls/Internal.h' "#pragma once`n"
     Set-FixtureFile $root 'include/DxUi/DxUi.h' '#include "Controls/Internal.h"'
     Assert-True (Get-DependencyFailureCount $root) 'public headers cannot borrow the private src include root'

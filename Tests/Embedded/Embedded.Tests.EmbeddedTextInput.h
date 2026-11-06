@@ -534,7 +534,17 @@ static void TestMultilineCaretViewport(GraphicsFixture& gpu)
 }
 
 // Application-side composition transport; no HWND, TSF context or real IME is created by this fixture.
-static void TestEmbeddedInputCallbackAllocationBoundary(GraphicsFixture& gpu)
+[[noreturn]] __declspec(noinline) static void EmbeddedInputAllocationThrowOrigin()
+{
+    embeddedCallbackOriginMarker.store(3u, std::memory_order_relaxed);
+    throw std::bad_alloc();
+}
+[[noreturn]] __declspec(noinline) static void EmbeddedNestedKeyThrowOrigin(const std::runtime_error& error)
+{
+    embeddedCallbackOriginMarker.store(4u, std::memory_order_relaxed);
+    throw error;
+}
+static void TestEmbeddedInputCallbackAllocationBoundary(GraphicsFixture& gpu, unsigned fatalScenario = 0u)
 {
     using namespace DxUi;
     struct ThrowingField final : TextField
@@ -547,21 +557,21 @@ static void TestEmbeddedInputCallbackAllocationBoundary(GraphicsFixture& gpu)
         ThrowingField(ThrowingField&&)                 = delete;
         ThrowingField& operator=(ThrowingField&&)      = delete;
         bool failKey{}, failCharacter{}, commitFirst{};
-        bool OnKeyDown(ControlHost& host, UINT key, UINT modifiers) override
+        __declspec(noinline) bool OnKeyDown(ControlHost& host, UINT key, UINT modifiers) override
         {
             if (! failKey)
                 return TextField::OnKeyDown(host, key, modifiers);
             if (commitFirst)
                 SetText(L"committed key");
-            throw std::bad_alloc();
+            EmbeddedInputAllocationThrowOrigin();
         }
-        bool OnChar(ControlHost& host, wchar_t character, UINT modifiers) override
+        __declspec(noinline) bool OnChar(ControlHost& host, wchar_t character, UINT modifiers) override
         {
             if (! failCharacter)
                 return TextField::OnChar(host, character, modifiers);
             if (commitFirst)
                 SetText(L"committed character");
-            throw std::bad_alloc();
+            EmbeddedInputAllocationThrowOrigin();
         }
     };
     std::shared_ptr<GraphicsDevice> graphics;
@@ -574,39 +584,49 @@ static void TestEmbeddedInputCallbackAllocationBoundary(GraphicsFixture& gpu)
     view.Controls().SetRoot(std::move(root));
     Hr(PrepareRichEmbeddedContent(view, 320, 160), "prepare embedded input failure fixture");
     view.Controls().SetFocusControl(field);
-    for (const bool committed : {false, true})
+    if (fatalScenario != 0u)
     {
-        field->SetText(L"initial");
-        field->commitFirst = committed;
-        field->failKey     = true;
-        Hr(PrepareRichEmbeddedContent(view, 320, 160), "prepare key failure fixture");
-        EmbeddedKeyDispatchReceipt receipt;
-        Check(view.DispatchKey(VK_SPACE, true, 0u, receipt), "an unknown key callback allocation failure consumes the key");
-        Check(field->GetText() == (committed ? L"committed key" : L"initial") && ! view.ShouldTranslateCharacter(receipt),
-              "key allocation failure preserves actual callback state and withholds translated character");
-        Check(view.DispatchCharacter(L' ', 0u, receipt) && ! view.DispatchCharacter(L' ', 0u, receipt),
-              "failed key's matching receipt is consumed once without a character callback");
-        field->failKey = false;
-        field->SetText(L"initial");
-        Hr(PrepareRichEmbeddedContent(view, 320, 160), "prepare bare character failure fixture");
-        field->failCharacter = true;
-        Check(view.DispatchCharacter(L'x', 0u) && field->GetText() == (committed ? L"committed character" : L"initial"),
-              "bare character allocation failure retains actual callback state and is consumed");
-        field->failCharacter = false;
-        field->SetText(L"initial");
-        Hr(PrepareRichEmbeddedContent(view, 320, 160), "prepare character failure fixture");
-        EmbeddedKeyDispatchReceipt characterReceipt;
-        Check(! view.DispatchKey(VK_SPACE, true, 0u, characterReceipt) && view.ShouldTranslateCharacter(characterReceipt),
-              "unhandled Space issues a matching text receipt");
-        field->failCharacter = true;
-        Check(view.DispatchCharacter(L' ', 0u, characterReceipt), "a throwing correlated character remains consumed");
-        Check(field->GetText() == (committed ? L"committed character" : L"initial") && ! view.DispatchCharacter(L' ', 0u, characterReceipt),
-              "character callback's actual state remains intact and its receipt cannot be replayed");
-        field->failCharacter = false;
+        const unsigned operation = (fatalScenario - 1u) % 3u;
+        field->commitFirst       = fatalScenario > 3u;
+        if (operation == 0u)
+        {
+            field->failKey = true;
+            EmbeddedKeyDispatchReceipt receipt;
+            (void)view.DispatchKey(VK_SPACE, true, 0u, receipt);
+        }
+        else if (operation == 1u)
+        {
+            field->failCharacter = true;
+            (void)view.DispatchCharacter(L'x', 0u);
+        }
+        else
+        {
+            EmbeddedKeyDispatchReceipt receipt;
+            Check(! view.DispatchKey(VK_SPACE, true, 0u, receipt) && view.ShouldTranslateCharacter(receipt), "unhandled key issues a text receipt");
+            field->failCharacter = true;
+            (void)view.DispatchCharacter(L' ', 0u, receipt);
+        }
+        return;
     }
+    constexpr const wchar_t* children[] = {L"embedded-input-key-throw",
+                                           L"embedded-input-character-throw",
+                                           L"embedded-input-receipt-throw",
+                                           L"embedded-input-key-commit-throw",
+                                           L"embedded-input-character-commit-throw",
+                                           L"embedded-input-receipt-commit-throw"};
+    for (const auto child : children)
+        Check(DxUiFailureTests::ExpectFatalChild(child), "input callback exception terminates in its owned child");
+    EmbeddedKeyDispatchReceipt receipt;
+    Check(! view.DispatchKey(VK_SPACE, true, 0u, receipt) && view.ShouldTranslateCharacter(receipt), "healthy unhandled Space issues a text receipt");
+    Check(view.DispatchCharacter(L' ', 0u, receipt) && ! view.DispatchCharacter(L' ', 0u, receipt), "healthy character consumes its receipt exactly once");
 }
 
-static void TestEmbeddedTextInput(GraphicsFixture& gpu)
+[[noreturn]] __declspec(noinline) static void EmbeddedTextChangeThrowOrigin(const std::runtime_error& error)
+{
+    embeddedCallbackOriginMarker.store(5u, std::memory_order_relaxed);
+    throw error;
+}
+static void TestEmbeddedTextInput(GraphicsFixture& gpu, bool fatalChild = false)
 {
     using Action = DxUi::EmbeddedTextInputAction;
     DxUi::EmbeddedHost view;
@@ -905,10 +925,19 @@ static void TestEmbeddedTextInput(GraphicsFixture& gpu)
     state.text       = L"replacement callback";
     state.caretIndex = state.text.size();
     state.selectionAnchorIndex.reset();
-    field->SetOnTextChanged([](std::wstring_view) { throw std::runtime_error("test callback failure"); });
-    Check(view.ApplyTextInput(snapshot.revision, state, Action::Commit) == E_FAIL, "throwing consumer callback is contained");
-    Check(view.ReadTextInput(snapshot) == S_FALSE, "failed import suppresses interaction until prepare");
-    Hr(view.Prepare(480, 240), "recover coherent text after callback failure");
+    if (fatalChild)
+    {
+        field->SetOnTextChanged([](std::wstring_view)
+        {
+            const std::runtime_error error("test callback failure");
+            EmbeddedTextChangeThrowOrigin(error);
+        });
+        (void)view.ApplyTextInput(snapshot.revision, state, Action::Commit);
+        return;
+    }
+    Check(DxUiFailureTests::ExpectFatalChild(L"embedded-text-change-callback-throw"), "text change callback exception terminates in its owned child");
+    Check(view.ApplyTextInput(snapshot.revision, state, Action::Commit) == S_OK, "healthy text change commits");
+    Hr(view.Prepare(480, 240), "prepare coherent text after change");
     state            = read();
     state.text       = L"destroy edited root";
     state.caretIndex = state.text.size();
@@ -918,7 +947,7 @@ static void TestEmbeddedTextInput(GraphicsFixture& gpu)
     Check(view.Controls().GetHwnd() == nullptr, "text transport creates no HWND");
 }
 
-static void TestEmbeddedTranslatedCharacterOwnership(GraphicsFixture& gpu)
+static void TestEmbeddedTranslatedCharacterOwnership(GraphicsFixture& gpu, bool fatalChild = false)
 {
     std::shared_ptr<DxUi::GraphicsDevice> pool;
     Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), pool), "key correlation pool");
@@ -1130,7 +1159,7 @@ static void TestEmbeddedTranslatedCharacterOwnership(GraphicsFixture& gpu)
                 SetMultiline(true);
                 SetText(L"nested");
             }
-            bool OnKeyDown(DxUi::ControlHost& host, UINT key, UINT modifiers) override
+            __declspec(noinline) bool OnKeyDown(DxUi::ControlHost& host, UINT key, UINT modifiers) override
             {
                 if (key == VK_SPACE)
                 {
@@ -1186,7 +1215,10 @@ static void TestEmbeddedTranslatedCharacterOwnership(GraphicsFixture& gpu)
                     static_cast<void>(embedded.DispatchKey(VK_SPACE, true, modifiers, receipt));
                     nested = false;
                     if (throwAfterNested)
-                        throw std::runtime_error("intentional nested dispatch failure");
+                    {
+                        const std::runtime_error error("intentional nested dispatch failure");
+                        EmbeddedNestedKeyThrowOrigin(error);
+                    }
                     return true;
                 }
                 if (outerReturn && key == VK_SPACE)
@@ -1201,8 +1233,12 @@ static void TestEmbeddedTranslatedCharacterOwnership(GraphicsFixture& gpu)
         };
 #pragma warning(pop)
 
+        if (! fatalChild)
+            Check(DxUiFailureTests::ExpectFatalChild(L"embedded-nested-key-callback-throw"), "nested key callback exception terminates in its owned child");
         for (const auto [outerReturn, throwAfterNested] : {std::pair{true, false}, std::pair{false, false}, std::pair{false, true}})
         {
+            if (throwAfterNested != fatalChild)
+                continue;
             DxUi::EmbeddedKeyDispatchReceipt receipt;
             auto root   = std::make_unique<DxUi::Panel>();
             auto* field = root->AddChild<ReusingReceiptField>(*view, receipt, outerReturn, throwAfterNested);
@@ -1210,7 +1246,12 @@ static void TestEmbeddedTranslatedCharacterOwnership(GraphicsFixture& gpu)
             Hr(view->Prepare(480, 240), "prepare overlapping receipt route");
             view->Controls().SetFocusControl(field);
             const UINT outerKey = outerReturn ? VK_RETURN : VK_SPACE;
-            Check(view->DispatchKey(outerKey, true, 0u, receipt) == ! throwAfterNested, "outer overlapping key dispatch reports its command result");
+            if (fatalChild)
+            {
+                (void)view->DispatchKey(outerKey, true, 0u, receipt);
+                return;
+            }
+            Check(view->DispatchKey(outerKey, true, 0u, receipt), "outer overlapping key dispatch reports its command result");
             Check(! view->ShouldTranslateCharacter(receipt), "overlapping reuse invalidates the shared receipt at outer completion");
             Check(! view->DispatchCharacter(outerReturn ? L'\r' : L' ', 0u, receipt),
                   "overlapping shared receipt cannot dispatch a delayed correlated character");

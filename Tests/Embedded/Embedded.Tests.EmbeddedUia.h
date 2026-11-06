@@ -670,6 +670,107 @@ __declspec(noinline) static void TestEmbeddedTreeBadgeStatusNotificationsArePerI
 }
 #endif
 
+#if DXUI_ENABLE_DIAGNOSTICS
+// A COM registration can dispatch owner work before queue admission. Hold an unrelated active batch so any stale
+// admission remains observable in the pending batch instead of disappearing into the worker before the assertion.
+__declspec(noinline) static void TestEmbeddedPropertyRegistrationRejectsRetiredControl(GraphicsFixture& gpu)
+{
+    using namespace DxUi;
+    class Model final : public ITreeModel
+    {
+    public:
+        std::wstring status = L"initial";
+        std::wstring name   = L"Original row";
+        size_t GetVisibleItemCount() const noexcept override
+        {
+            return 1u;
+        }
+        void GetVisibleItem(size_t, TreeItemData& item) const override
+        {
+            item = {.id = 1u, .text = name, .badgeText = status};
+        }
+    };
+    for (unsigned stage = 1u; stage <= 3u; ++stage)
+    {
+        Model original, replacement;
+        replacement.name   = L"Replacement row";
+        replacement.status = L"replacement";
+        auto controls      = std::make_unique<Panel>();
+        auto* const panel  = controls.get();
+        auto* tree         = controls->AddChild<Tree>();
+        tree->SetBounds(D2D1::RectF(0, 0, 240, 96));
+        tree->SetModel(&original);
+        EmbeddedSingleControlView test(gpu, std::move(controls), L"Registration retirement");
+        EmbeddedUiaTest::Bridge bridge(test.view, 320, 160);
+        Hr(bridge.Attach(), "attach property registration retirement view");
+        UiaTest::Subscription subscription;
+        subscription.properties = {UIA_ItemStatusPropertyId};
+        subscription.structure  = true;
+        EmbeddedClientWalk walk(bridge, std::move(subscription));
+        static_cast<void>(walk.client.WaitOutTheStream());
+        const auto mark = walk.client.Mark();
+        wil::unique_event entered(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+        wil::unique_event release(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+        Check(entered && release, "create property retirement delivery gate");
+        DebugSetAccessibilityPropertyDeliveryGateForTest(&test.view.Controls(), entered.get(), release.get());
+        const auto cleanup = wil::scope_exit([&]() noexcept
+        {
+            DebugSetAccessibilityPropertyRegistrationHookForTest(nullptr, 0u, nullptr, nullptr);
+            SetEvent(release.get());
+            DebugSetAccessibilityPropertyDeliveryGateForTest(nullptr, nullptr, nullptr);
+        });
+        original.status    = L"inflight";
+        PublishEmbeddedView(test, bridge, "hold the predecessor's first status event");
+        Check(WaitForSingleObject(entered.get(), 10000u) == WAIT_OBJECT_0, "property retirement delivery is held");
+        struct Reentry
+        {
+            EmbeddedSingleControlView* test;
+            EmbeddedUiaTest::Bridge* bridge;
+            Panel* panel;
+            Model* replacement;
+            bool invoked = false;
+        } reentry{&test, &bridge, panel, &replacement};
+        DebugSetAccessibilityPropertyRegistrationHookForTest(&test.view.Controls(),
+                                                             stage,
+                                                             [](void* context) noexcept
+        {
+            auto& state   = *static_cast<Reentry*>(context);
+            state.invoked = true;
+            state.panel->ClearChildren();
+            auto* next = state.panel->AddChild<Tree>();
+            next->SetModel(state.replacement);
+            next->SetBounds(D2D1::RectF(0, 0, 240, 96));
+            next->SetAccessibleName(L"Registration replacement");
+            PublishEmbeddedView(*state.test, *state.bridge, "publish the reentrant same-path replacement");
+        },
+                                                             &reentry);
+        original.status = L"stale";
+        PublishEmbeddedView(test, bridge, "resume a property publication after reentrant replacement");
+        Check(reentry.invoked, "each selected registration stage executes its reentrant replacement");
+        Check(DebugCountPendingTreeItemPropertiesForTest(test.view.Controls(), UIA_ItemStatusPropertyId) == 0u,
+              "the retired control cannot reenter the pending batch after replacement pruned it");
+        SetEvent(release.get());
+        DebugSetAccessibilityPropertyDeliveryGateForTest(nullptr, nullptr, nullptr);
+        const auto viewRoot = walk.client.Navigate(walk.application, UiaTest::Direction::FirstChild);
+        Check(viewRoot.has_value(), "replacement view remains navigable");
+        auto control = walk.client.Navigate(viewRoot.value(), UiaTest::Direction::FirstChild);
+        if (control && walk.client.Describe(control.value()).controlType != UIA_TreeControlTypeId)
+            control = walk.client.Navigate(control.value(), UiaTest::Direction::FirstChild);
+        Check(control.has_value(), "replacement Tree remains navigable");
+        const auto items = walk.client.Children(control.value());
+        walk.Expect(items.size() == 1u && walk.Name(items[0]) == L"Replacement row" &&
+                        walk.client.StringProperty(items[0], UIA_ItemStatusPropertyId) == L"replacement",
+                    "a real client sees the replacement's identity and current status");
+        static_cast<void>(walk.client.WaitOutTheStream());
+        const auto events = walk.client.DistinctSince(mark);
+        walk.Expect(std::ranges::none_of(events,
+                                         [](const UiaTest::HeardEvent& event)
+        { return event.kind == UiaTest::EventKind::Property && event.id == UIA_ItemStatusPropertyId && event.value == L"stale"; }),
+                    "a retired publication never sends its stale value to the real client");
+    }
+}
+#endif
+
 // The events a view of a grid raises itself when the application publishes a change of its selection, as a client subscribed to
 // the application's window hears them: a click selects a row, Ctrl+click adds one, Shift+click selects the range from the anchor
 // (each row that joined is added and each that left removed), clearing removes the rows, and Ctrl+A is more changes than a client
@@ -1025,6 +1126,7 @@ __declspec(noinline) static void TestEmbeddedUiaEventHarness(GraphicsFixture& gp
     TestEmbeddedSingleTreeEventsReachAClientSubscribedToTheApplicationsWindow(gpu);
 #if DXUI_ENABLE_DIAGNOSTICS
     TestEmbeddedTreeBadgeStatusNotificationsArePerItemCoalescedAndPruned(gpu);
+    TestEmbeddedPropertyRegistrationRejectsRetiredControl(gpu);
 #endif
     TestEmbeddedSingleGridEventsReachAClientSubscribedToTheApplicationsWindow(gpu);
     TestEmbeddedMultiSelectTreeRaisesItsSelectionEventsToAClientOfTheApplicationsWindow(gpu);

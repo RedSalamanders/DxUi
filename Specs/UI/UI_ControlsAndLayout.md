@@ -1,5 +1,21 @@
 # Controls and layout
 
+Allocation/refusal contracts below refer to explicit checked nonthrowing results under the
+[failure policy](../Core/Core_FailureHandling.md). Unexpected C++ exceptions, including bad_alloc, require host
+fatal diagnostics. API 5 implements this routing; the [execution record](../Plans/Done/FailurePolicy_2026-11-02.md)
+and [evidence](../../Measurements/FailurePolicy_2026-11-06/README.md) identify its qualified x64 library scope
+and remaining limits. Historical throwing-fault recovery sweeps do not establish this policy's acceptance.
+
+Checked prepared-text layout creation must propagate every failed native metrics
+query before replacing the published source, generation or hit/caret geometry.
+The count-only `GetLineMetrics` probe may report `E_NOT_SUFFICIENT_BUFFER` as its
+normal size result; other failures remain their exact HRESULT. Synchronous drawing
+temporarily changes retained DirectWrite effects and link underlines, then restores
+their canonical state even after a setter fails. If that restoration fails, the
+shared layout can no longer satisfy its state/lifetime guarantee: enter the host
+fatal contract path with the restoration HRESULT instead of returning success or
+continuing with retained raster attributes.
+
 `RichTextEditor::WrapSelectionInMarkdownBlock` transforms a nonempty source selection into a block quote
 or fenced code block in Rich or Source presentation. It retains every selected and unselected source unit;
 quote markers are inserted per selected physical line, and code content remains literal. Inserted blank
@@ -241,9 +257,10 @@ pass. Invalid constraints, arithmetic overflow and measurement failures leave pr
 Validation is presentation only. `ValidationState::Error` requires a nonempty textual explanation; required,
 description and validation metadata belong to the stable semantic editor (the inner text field of a
 `NumericStepper`). Their UI Automation contract is specified in [Input and accessibility](UI_InputAndAccessibility.md).
-`AddEditor` refuses a second editor and removes a newly added editor when binding fails. Setters contain named
-allocation failures; sequential text/UIA publication can be partially applied when later allocation or reentrancy
-fails, so callers inspect the returned HRESULT and retry or replace the presentation. They never commit values,
+`AddEditor` refuses a second editor and removes a newly added editor when binding fails. Sequential text/UIA
+publication can be partially applied when a later checked native operation or reentrancy fails, so callers inspect
+the returned HRESULT and retry or replace the presentation. Unexpected C++ allocation exceptions are fatal
+through the host. These setters never commit values,
 save settings or choose a focus successor implicitly. Removing or hiding a field follows the existing host
 focus/capture/composition retirement rules; position-only reflow cancels obsolete pointer geometry without
 reconstructing or blurring an available editor.
@@ -904,8 +921,9 @@ records only the scalar/CRLF-safe changed interval, sharing untouched source
 pieces. It MUST use the same interval comparison as transient preview updates,
 with ordinary one-transaction undo/redo semantics and exact supplied selection.
 Equal content MUST preserve source identity/revision/history and acknowledge
-selection without allocating source/history storage. Invalid input or allocation
-failure MUST leave source, selection, revision and both histories unchanged.
+selection without allocating source/history storage. Checked invalid-input and capacity
+refusals MUST leave source, selection, revision and both histories unchanged. Unexpected C++ allocation
+exceptions enter host fatal diagnostics.
 Notifying RichTextEditor service imports MUST use this localized recording path;
 preview/cancel imports retain transient semantics. Other controls keep their
 existing adapters. Comparison of bounded complete text remains indivisible;
@@ -914,8 +932,9 @@ Validate future selections against the virtual old-prefix/insertion/old-suffix
 before allocating source storage/history, including a newly joined CRLF. A
 same-content replacement only acknowledges its exact valid selection; it allocates
 no source/history, advances no revision and preserves undo/redo. Stage every
-changed tree and required history copy before publishing. Allocation failure in
-replacement, transient replacement, reset, undo or redo preserves all state.
+changed tree and required history copy before publishing. Checked admission
+refusals preserve state; unexpected C++ allocation exceptions during replacement,
+transient replacement, reset, undo or redo enter host fatal diagnostics.
 An active changed transient preview keeps history entries but makes undo and redo
 unavailable until its entry source is restored. A recorded edit that supersedes
 the preview records the entry source, not uncommitted preview text, for undo.
@@ -1067,8 +1086,9 @@ Callers must revalidate their owner/control/source identities after callbacks be
 `TryAdoptReadOnlyMarkdownSyntax(snapshot, syntax)` optionally reuses a completed canonical parse after source
 synchronization. It requires the exact current immutable snapshot, read-only Source mode and matching configured
 profile/extensions. Region-scoped syntax is refused even when its resolved region is empty. A mismatch returns
-`S_FALSE` without changing pending or published work. Allocation failure returns `E_OUTOFMEMORY` with the prior
-publication intact. Ordinary independent parsing remains available whenever reuse is unavailable.
+`S_FALSE` without changing pending or published work. Unexpected C++ allocation failure uses the host fatal
+diagnostic path; this adoption operation has no checked allocation-refusal result. Ordinary independent parsing
+remains available whenever reuse is refused.
 
 Successful adoption shares only immutable source/AST collections through one flattened canonical owner. Its
 wrapper publishes the target's revision and a fresh document identity; node identities are meaningful only with
@@ -1223,14 +1243,14 @@ In the opt-in Subtle Markdown style, fenced and indented code blocks have a neut
 
 An application may register a localized accessible name and code-copy intent callback. In Subtle style the prepared header then exposes a pointer action and a distinct UIA Invoke child; Ctrl+Shift+C invokes the block containing the source caret. The callback receives a borrowed counted rendered-code view with the block's normalized line endings, including any NUL; the application owns clipboard format policy. The existing code-element Invoke remains source editing. Stale, canceled, detached, or retired gestures and peers cannot invoke a replacement owner, and the action never changes source, selection or history.
 Source presentation may disable wrapping and opt into physical line numbers and space, tab and line-ending guides. The line-number lane grows with source length and zoom, clamped to preserve at least half the available text viewport. The gutter and guide coordinates are staged cooperatively from the exact counted source and current geometry; they do not add source units, selection, or text-service content. CRLF is one physical ending, and the trailing empty line remains addressable. Published guides use the current viewport and font, support high contrast, and Paint reads cached layouts/coordinates. Horizontal extent and offset apply to unwrapped Source and opt-in overflowing Rich tables; scrolling changes neither source nor history, translates painting, hit testing, TSF and UIA geometry together, clamps to the available extent, and notifies the registered owner callback. Shift+wheel may scroll horizontally; edge input bubbles. Source right-to-left scrolling follows the opposite visual direction.
-An optional code tokenizer receives borrowed language and rendered code views on the owner preparation thread. Built-in JSON, C-like, PowerShell and diff tokenizers supply bounded comment, keyword and literal spans. Application results must contain at most 4096 sorted, disjoint, nonempty UTF-16 ranges within the code body, without splitting surrogate pairs; invalid results or tokenizer failures use ordinary ink. The editor stages all ranges until the current semantic publication is complete, validates owner, binding and source after every callback, and invokes at most one code tokenizer per preparation turn. Paint uses the cached ranges; selected text and high contrast take precedence. Changing the tokenizer requests a fresh owner preparation without editing source or history.
+An optional code tokenizer receives borrowed language and rendered code views on the owner preparation thread. Built-in JSON, C-like, PowerShell and diff tokenizers supply bounded comment, keyword and literal spans. Application results must contain at most 4096 sorted, disjoint, nonempty UTF-16 ranges within the code body, without splitting surrogate pairs; a declined result or invalid returned ranges use ordinary ink. Unexpected exceptions escaping the tokenizer enter host fatal diagnostics. The editor stages all ranges until the current semantic publication is complete, validates owner, binding and source after every callback, and invokes at most one code tokenizer per preparation turn. Paint uses the cached ranges; selected text and high contrast take precedence. Changing the tokenizer requests a fresh owner preparation without editing source or history.
 Image requests MUST execute in caller-owned scheduling, with callback-free
 cancellation and source/base/binding/visibility validation at owner completion.
 The caller authorizes file access, including any UNC policy. Source replacement,
 presentation withdrawal, hide/rebind/destruction MUST cancel old jobs; completed
 pixels MAY survive unrelated edits and device replacement. For a tracked edit, an in-flight request MAY remain active when at least one prior image source range is untouched; completion stays private until the new semantic document confirms its source and binding. An affected source range or untracked replacement cancels the old request. Failed/capacity
 completion MUST remain cached across unrelated source edits while preserving editable source/alternative. Explicit reload, document location or remote-image policy changes retry failed sources. Resource statistics count only actual failed completions as failed sources; canceled requests are neither pending nor failed while awaiting re-admission.
-Replacing accessibility labels without changing source retains eligible in-flight image requests and already-staged pixels privately until the new semantic document rebinds them. Resource-only completion MUST NOT edit source/history/selection or cancel IME. Multiple accepted image completions before the next owner preparation stage pixels privately and publish one immutable resource snapshot; allocation failure preserves the previous publication and leaves staged pixels retryable.
+Replacing accessibility labels without changing source retains eligible in-flight image requests and already-staged pixels privately until the new semantic document rebinds them. Resource-only completion MUST NOT edit source/history/selection or cancel IME. Multiple accepted image completions before the next owner preparation stage pixels privately and publish one immutable resource snapshot. The publication is replaced only after snapshot staging completes; unexpected C++ allocation exceptions enter host fatal diagnostics.
 Request preparation processes at most four image candidates per owner turn;
 the editor's image-work diagnostic counts actual visits separately from geometry block work.
 caller adapters MUST wake valid queued work when draining or cancel-pruning
@@ -1530,8 +1550,8 @@ for the synchronous call. Validate ranges, replacement Unicode and resulting
 capacity, stage one replacement envelope preserving all untouched gaps, then
 delegate future-selection/join validation and publication to Document.Replace.
 A source change records one revision/history entry; unchanged spelling only
-updates a valid selection. Exceptions preserve source, selection, revision and
-both histories. This helper does not bypass a retained control's editable,
+updates a valid selection. Explicit checked refusal preserves source, selection, revision and both histories;
+an unexpected exception instead follows host fatal diagnostics. This helper does not bypass a retained control's editable,
 notification or lifecycle guards. RichTextEditor exposes its own ApplySourceEdits
 adapter through the existing Changed/SelectionChanged path, enforcing those
 guards and invalidating stale parser/geometry access before notification. It
@@ -1549,9 +1569,9 @@ prefix checks can also be proved without constructing edits. Consumers needing
 exact availability for an arbitrary command and its payload may call
 `PrepareMarkdownCommandState` on the owner thread, then read the same request
 with `QueryMarkdownCommandState`. Preparation uses the actual command planner,
-owns the request payload and keeps at most one result; it may allocate or throw,
-does not commit an edit or notify consumers, and preserves the previous prepared
-result on failure. A false preparation result means the owner or semantic input
+owns the request payload and keeps at most one result. Allocation follows the checked/fatal failure contract.
+It does not commit an edit or notify consumers, and preserves the previous prepared result on explicit checked
+refusal. An unexpected exception must not become a recoverable preparation result. A false preparation result means the owner or semantic input
 is currently unavailable. Query remains allocation-free: an unprepared request
 has unknown availability unless a cheap proof applies, while a matching prepared
 result reports the planner's exact availability. The key includes source and
@@ -1646,7 +1666,8 @@ Footnote name/help templates contain `{0}` exactly once. Return-reference
 name/help templates contain `{0}` (reference ordinal) and `{1}` (footnote ordinal)
 exactly once each, in any order; no other braces or format directives are accepted
 in numbered templates. Other entries are literal text. Invalid configuration
-throws before it can be installed; construction and preparation remain fallible.
+must be refused explicitly before installation. Construction and preparation follow the checked/fatal allocation
+contract; a constructor throw is not the validation protocol.
 Each native diagram family exposes its own header and help, including pie slice
 and Gantt task vocabulary, identifying/non-identifying ER relationships and empty
 family diagnostics. Display and fenced math closing-delimiter diagnostics use
@@ -1894,7 +1915,7 @@ selection, undo and redo. Identical edits and cell navigation add no history.
 
 The retained Execute/ApplyMarkdownCommand API requires editable semantic Rich
 view and current analysis; composition/pending analysis/incompatible targets
-return Unavailable. Stale plans throw before mutation. No command synchronously
+return Unavailable. Stale plans return an explicit refusal before mutation. No command synchronously
 reparses or prepares native geometry. Changes publish through existing host text
 services and may reenter/retire their owner; no continuation may touch a retired
 owner. Pure command plans carry no host binding.
@@ -2063,10 +2084,12 @@ the source through EOF and reports `block.closed == false`; it MUST NOT discard
 text or fabricate a close. Metadata content MUST NOT define Markdown references,
 headings, lists or inlines in the following document. Unknown fields, comments,
 spelling, order, BOM and original EOLs MUST survive every untouched source range.
-YAML validation MUST accept LF, CR and CRLF by normalizing only private UTF-8 staging; TOML retains its
-own line-ending grammar. Private rapidyaml error callbacks and tag-cache allocations MUST use the same
-bounded parse context in every configuration. Malformed input returns a source-owned diagnosis; allocation
-failure unwinds staging and leaves the previous publication available for an explicit retry.
+YAML validation MUST accept LF, CR and CRLF while preserving the exact source and diagnostics; TOML retains its
+own line-ending grammar. The private libfyaml 0.9.4 borrowed-memory event adapter uses the bounded C-only
+refusal fence described in [Failure handling and allocation](../Core/Core_FailureHandling.md). A budget
+refusal returns a capacity diagnostic in completed syntax without exposing partial backend data. The previous
+syntax remains published while its replacement stages. Physical native allocation failure and unexpected C++
+exceptions enter host fatal diagnostics. Malformed input returns a source-owned diagnosis.
 
 A closed metadata envelope with no validation diagnostic presents a collapsed,
 localized Properties disclosure by default. Expansion shows the source-owned
@@ -2079,7 +2102,7 @@ Source ACPs/history remain authoritative. Markdown structural style,
 heading, list, quote and table commands MUST reject metadata targets atomically; ordinary
 source replacement/undo/redo and source-view selection remain available.
 Envelope recognition alone MUST NOT be presented as YAML/TOML validity or full
-extension conformance. Closed TOML content is checked against TOML 1.0.0 without changing source; invalid content and nesting beyond 128 values or dotted-key segments, or more than 1,024 total key segments, have distinct source-owned diagnostics. Missing fences take precedence. Closed YAML content is checked using the YAML 1.2.2 core schema; syntax, duplicate mapping keys, unresolved aliases and resource-capacity refusals are distinct diagnostics. The pinned [TOML](../../ThirdParty/Markdown/corpora/toml-test-96fd088/README.md) and [YAML](../../ThirdParty/Markdown/corpora/yaml-test-suite-6ad3d2c/README.md) validity corpora and [native test](../../Tests/Controls/Controls.Tests.RichMarkdown.cpp) exercise 717 TOML and 382 single-document YAML cases, with 20 multi-document YAML streams explicitly excluded and two duplicate-key outcomes checked as diagnostics. The [allocation-failure sweeps](../../Tests/Embedded/Embedded.Tests.RichTextResources.h) cover observed staging failure and retry; capacity refusals remain distinct from invalid syntax. These cases validate source admission and diagnostics, not decoded values or complete YAML/TOML value conformance. See the [source-bound evidence report](../../Measurements/WipDelivery_2026-11-02/README.md) and [shared qualification ledger](../Plans/Done/ConsumerUiQualification_2026-10-11.md) for execution and remaining platform status.
+extension conformance. Closed TOML content is checked against TOML 1.0.0 without changing source; invalid content and nesting beyond 128 values or dotted-key segments, or more than 1,024 total key segments, have distinct source-owned diagnostics. Missing fences take precedence. Closed YAML content is checked using the YAML 1.2.2 core schema; syntax, duplicate mapping keys, unresolved aliases and resource-capacity refusals are distinct diagnostics. Within resource limits, invalid syntax and the single-document envelope take precedence over unresolved-alias and duplicate-key graph diagnostics. The pinned [TOML](../../ThirdParty/Markdown/corpora/toml-test-96fd088/README.md) and [YAML](../../ThirdParty/Markdown/corpora/yaml-test-suite-6ad3d2c/README.md) validity corpora and [native test](../../Tests/Controls/Controls.Tests.RichMarkdown.cpp) exercise 717 TOML and 382 single-document YAML cases, with 20 multi-document YAML streams explicitly excluded and two duplicate-key outcomes checked as diagnostics. Historical allocation-failure sweep receipts remain evidence of the earlier recovery behavior, not qualification of the current fatal policy. Current tests cover bounded backend capacity refusal and retry alongside isolated fatal allocation probes; capacity remains distinct from invalid syntax. These cases validate source admission and diagnostics, not decoded values or complete YAML/TOML value conformance. See the [source-bound evidence report](../../Measurements/WipDelivery_2026-11-02/README.md) and [shared qualification ledger](../Plans/Done/ConsumerUiQualification_2026-10-11.md) for execution and remaining platform status.
 An unclosed envelope MUST publish an `UnclosedFrontMatter` diagnostic with the
 exact opening marker range and revision-local owner node. Semantic UIA HelpText
 MUST explain the missing closing fence. Source edits retire that provider; a
@@ -2159,8 +2182,8 @@ Admission limits are 16,384 source UTF-16 units, 256 nodes, 512 expanded edges, 
 nonempty statements including the header, 1,024 decoded label units and 128 ID
 units. Check each bound before adding generated data. Capacity, unsupported and
 malformed outcomes retain the complete body with a source-ranged diagnostic and
-expose no partially prepared graph. Failure of an allocation retires staging,
-preserves the prior immutable publication and permits explicit retry.
+expose no partially prepared graph. Unexpected C++ allocation failure during
+CPU parsing or staging enters host fatal diagnostics.
 
 The private CPU parser MUST coalesce identical source/revision requests, reject
 invalid source admission without replacing pending work, yield during scanning,
@@ -2296,8 +2319,14 @@ blocks plus one viewport of vertical overscan, at most one callback per owner tu
 Scrolling refreshes these windows. Ordinary or previously complete ink remains
 paintable while preparation continues; stale source/geometry coordinates are omitted.
 New document bindings and host cancellation retire the old publications. No
-partial decoration set publishes, and an optional allocation failure preserves
+partial decoration set publishes. A checked native/resource refusal preserves
 usable ordinary text without automatically retrying that failed visual request.
+Unexpected C++ exceptions, including `std::bad_alloc`, follow the host fatal
+contract in [Failure handling and allocation](../Core/Core_FailureHandling.md).
+Checked source-ink mapping failure discards only pending staging and retains
+the previous publication and its source/window identity; invalid admission also
+preserves the caller's completion output. Publication identity is non-owning so
+it does not retain an additional whole syntax/source tree.
 Source analysis retains its separately documented 65,536-unit admission and
 cooperative parser bounds; neither a work-step limit nor a borrowed tokenizer
 callback provides a hard elapsed-time guarantee.
@@ -2438,7 +2467,8 @@ limits causes usable exact source presentation. This rejection is keyed by the
 semantic document, width, reading direction, typography/resource epochs and host
 binding. Repeated unchanged requests MUST add no parsing/layout work. Width/font/
 resource/binding changes permit retry without altering text, selection or history.
-Transient memory failures remain retryable and MUST NOT create a capacity latch.
+A returned transient native allocation-failure HRESULT remains retryable and MUST NOT create a capacity latch;
+an unexpected C++ allocation exception is fatal through the host.
 
 ### Bounded Markdown staging and source fallback
 
@@ -2448,7 +2478,7 @@ count until their compaction pass completes. A table row MUST admit its row plus
 all header-width real/padded cells against the remaining global node budget
 before allocating that row; separate tables cannot reset the budget. Inline
 append and opaque HTML roots share the remaining combined budget. Overflow
-throws `length_error`, retires staging and preserves the previous publication.
+returns an explicit capacity refusal, retires staging and preserves the previous publication.
 No excessive/partial tree may be published for later semantic admission to reject.
 
 Each generated table cell MUST consume a separate resumable parser event. No
@@ -2462,8 +2492,9 @@ revision and analysis profile. It prepares usable source geometry while preservi
 the requested view, text, directional selection and undo/redo. Current rejection
 permits source-layout acknowledgement without an unavailable syntax tree; idle,
 flow/typography or resource preparation MUST NOT repeatedly parse that same request.
-Edits/reset/undo/redo/profile changes re-evaluate their own request. Transient
-`bad_alloc` remains retryable `E_OUTOFMEMORY` and MUST NOT latch capacity fallback.
+Edits/reset/undo/redo/profile changes re-evaluate their own request. An explicit nonthrowing allocation refusal
+may return `E_OUTOFMEMORY` under its bounded retry contract and MUST NOT latch capacity fallback. A thrown
+`bad_alloc` is unexpected and MUST enter host fatal diagnostics, not this retry path.
 These limits do not establish larger-document or worst-case latency qualification;
 final capacity/performance profiles remain separate M6 work; counted raw NUL
 admission follows the exact source contract above.
@@ -3026,13 +3057,13 @@ During pending Source or semantic layout, logical caret and erase operations use
 
 At the end of a nonempty table cell, file-reference paste can infer the table context when the cell uniquely owns that source position. Row-end positions shared with synthetic padded cells require the retained geometry-site identity; a source-only ambiguous request is declined.
 
-Rich clipboard paste preparation declines malformed or over-budget file lists with false and leaves the caller's replacement, source, selection, and undo history unchanged. Allocation failures remain distinguishable from content refusal.
+Rich clipboard paste preparation declines malformed or over-budget file lists with false and leaves the caller's replacement, source, selection, and undo history unchanged. Unexpected C++ allocation exceptions enter host fatal diagnostics.
 
 SemanticDocument exposes its source-ordered heading index with level, display name,
 collision-resolved fragment slug and exact source/navigation ranges. Fragment resolution
 uses the same index as editor navigation. BuildHeadingTableOfContents generates bounded
 Markdown links with escaped labels and percent-encoded UTF-8 fragments without editing
-the document; a result exceeding the display-unit limit throws length_error.
+the document; a result exceeding the display-unit limit must return an explicit capacity refusal without publication.
 
 RichMarkdown admits a bounded presentation suffix immediately after a standalone
 image: `{width=48 height=40 align=center caption="Map overview"}`. Fields are

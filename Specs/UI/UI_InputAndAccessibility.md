@@ -1,5 +1,9 @@
 # Input and accessibility
 
+The [failure policy](../Core/Core_FailureHandling.md) governs C++ callbacks, allocation and ABI containment.
+Expected refusals use explicit nonthrowing results. Unexpected exceptions require host fatal diagnostics and
+termination. API 5 implements this routing; final qualification remains tracked in the linked migration plan.
+
 Selection-to-block insertion preserves source ACP boundaries and selection direction in Rich and Source
 views. It declines during active composition or an uncommitted text-service preview, and in read-only or
 disabled state, without consuming the preview or adding history. A successful explicit Insert action applies
@@ -165,8 +169,9 @@ path as ReplaceSelection. All replacements publish before one source notificatio
 source ACPs, backward selection and UIA TextPattern2 caret retain their exact
 meaning. Read-only/disabled plans do nothing. Rejected plans preserve both histories
 and selection. Unchanged spelling may update selection silently without rebuilding
-syntax/geometry. A callback may undo the whole plan, replace source, throw a standard
-exception or destroy its editor; no subsequent stale access/notification is allowed.
+syntax/geometry. A callback that returns normally may have undone the whole plan, replaced source or destroyed
+its editor; no subsequent stale access/notification is allowed. An unexpected callback exception instead follows
+the host fatal diagnostic contract.
 Native and application-bridged embedded client tests must observe complete source,
 selection/caret and TextChanged after owner publication, plus one undo for the plan.
 
@@ -280,8 +285,9 @@ notification. Live effective-disabled state rejects with ELEMENTNOTENABLED;
 read-only/active composition rejects with INVALIDOPERATION. Pending or retired
 semantic owners cannot commit. Native foreign-thread actions use existing
 bounded owner dispatch; embedded mutations use COM owner-apartment routing and
-reject direct foreign-thread execution. Allocation failures return HRESULTs and
-preserve state. A committed callback may destroy/rebind the owner; no subsequent
+reject direct foreign-thread execution. A returned checked native failure HRESULT
+preserves the documented state; an unexpected C++ allocation exception enters
+host fatal diagnostics. A committed callback may destroy/rebind the owner; no subsequent
 control dereference is permitted. Semantic epoch/binding changes invalidate the
 reachable structure so clients can reacquire current parts. These protocols do
 not establish physical IME, Narrator/NVDA or native ARM64 acceptance.
@@ -378,10 +384,10 @@ Each accepted explicit logical focus request supersedes an older request. A reje
 ineligible target MUST NOT advance the focus-request revision or disturb healthy current focus; a rejected request
 for the current owner MUST still prune stale retained focus and native text-input state before returning.
 After application or TSF callbacks, an older
-setter stops before assigning, clearing or publishing focus belonging to the newer request. Standard exceptions
-from focus callbacks are contained at the host boundary. A live control whose override fails before acknowledging
-the transition receives the base focus-state acknowledgement, unless a newer request has superseded that transition.
-A failed old blur still clears the old control's acknowledged focus when a different control wins. Reset snapshots
+setter stops before assigning, clearing or publishing focus belonging to the newer request. Unexpected exceptions
+from focus callbacks enter the host fatal diagnostic path. For callbacks that return normally, the host ensures
+the base focus-state acknowledgement unless a newer request has superseded the transition. An old blur still
+clears the old control's acknowledged focus when a different control wins. Reset snapshots
 and clears interaction observers before invoking callbacks, preserves explicit callback-selected focus, and suppresses
 automatic focus restoration during the reset. Root replacement retires any focus chosen in the old tree while that
 tree remains owned; callback-selected focus in the installed new tree survives. A root replacement cannot borrow a
@@ -389,7 +395,8 @@ rootless focus target from the tree it is retiring.
 Retiring a native text-input cache never transfers keyboard focus. Reset and root replacement on an inactive
 host preserve the other window's keyboard focus; text-service retirement has no focus-restoration option.
 If a host focus notification removes its newly focused editor, the setter retires its native session, TSF document
-and cached text before returning, even if the notification throws. A returned live child acknowledges lost focus.
+and cached text before returning normally. An unexpected notification exception is fatal; the API must not promise
+repair followed by continuation from that throw. A returned live child acknowledges lost focus.
 Restoring a retiring TSF document's HWND association preserves a different document that already owns TSF focus.
 If a nested activation captures an outer staged document as its previous association, unwinding the outer activation
 removes that staged link so retiring the successor restores the earlier association rather than the popped document.
@@ -487,15 +494,16 @@ for each intermediate input while retaining complete per-entry semantics
 Tree and Grid model getters may reenter application code. Snapshot construction revalidates the control lifetime,
 its path and borrowed model after each getter and aborts the entire unpublished snapshot if they change. Navigation,
 point geometry and focused-item lookup follow the same rule. Native publication permits two attempts per flush;
-a later query or queued flush handles any further mutation. A flush that cannot finish (a getter that throws,
-allocation failure, or state that changes during both attempts) keeps the last complete snapshot published, and
+a later query or queued flush handles any further mutation. A flush that cannot finish because of an explicit
+checked allocation refusal or state changes during both attempts keeps the last complete snapshot published, and
 `WM_GETOBJECT` and root acquisition still return the canonical root, which answers from that snapshot. Before the
 first complete publication the root has no snapshot and answers `UIA_E_ELEMENTNOTAVAILABLE`, as a retired element
 does, until a later query or flush publishes one. Clients reacquire a collapsed semantic root after its
 control is replaced; retained elements never bind to a replacement at the same path. Grid row, header and cell
 properties return `UIA_E_ELEMENTNOTAVAILABLE` when their record is no longer materialized in the current snapshot.
 Rich semantic child creation reports `UIA_E_ELEMENTNOTAVAILABLE` when its source publication retires during creation;
-an actual peer allocation failure reports `E_OUTOFMEMORY`.
+an explicit nonthrowing peer allocation refusal reports `E_OUTOFMEMORY`. An unexpected getter/allocation
+exception instead enters host fatal diagnostics; it must not be swallowed to keep serving the old snapshot.
 These rules do not extend borrowed model lifetime or qualify destruction of the entire host from a callback.
 
 Modal and asynchronous menu tracking both activate the root popup
@@ -627,9 +635,11 @@ window. Replacing the whole tree (`SetRoot`) is compared with the tree before it
 in during the swap.
 
 A window-host element keeps the identity of the control it was created for, as an embedded element does. Once that
-control is removed, or another control takes its tree path (a rebuilt list or tree), every call on the old element,
-including a tree item's or grid row's, its runtime id and an action already queued for the window's thread, returns
-`UIA_E_ELEMENTNOTAVAILABLE` and never reaches the new control, and the new control's elements (its items and rows too)
+control is removed, or another control takes its tree path (a rebuilt list or tree), state, navigation and actions on the old element,
+including a tree item's or grid row's and an action already queued for the window's thread, return
+`UIA_E_ELEMENTNOTAVAILABLE` and never reach the new control. Immutable runtime identity remains readable for UIA retirement;
+a non-root or windowless provider's HWND-host query still returns `S_OK` with null. Neither query reads current control state.
+The new control's non-root elements (its items and rows too)
 have different runtime ids: they carry a per-process serial the control receives when first published, which no later
 control reuses. The window's element is bound the same way while a collapsed semantic root (below) makes it a
 control's element: once that control is replaced, or stops being the only one, a client's window element is gone like
@@ -846,17 +856,17 @@ This API does not by itself attach an OS text store. `TextInputServices` is the 
 adapter in the same archive. Real IME/touch/screen-reader acceptance and RedXe plugin transport remain consumer
 gates. Native and embedded controls share the existing text model and rendering.
 
-Application code that DxUi calls (control overrides, callbacks, delegates and model getters) throws only `std::exception`
-types. One escaping it is contained where the host dispatches: a window message, an embedded input entry point, an
-animation tick or a UI Automation action ends that dispatch, a key, character or mnemonic counting as taken, and the host
-stays usable; a failed UI Automation action also republishes. The boundary catches named standard exceptions only,
-mapping allocation failure to `E_OUTOFMEMORY`. Translate another type, such as C++/WinRT `hresult_error`, inside
-the callback; unsupported exceptions can terminate the process.
+Application code that DxUi calls (control overrides, callbacks, delegates and model getters) reports expected
+refusal through its documented nonthrowing result. Any escaping C++ exception, including bad_alloc and standard
+or application-specific exception types, is unexpected. A mandatory ABI containment boundary routes it to host
+fatal diagnostics and termination; it does not keep the host usable by marking the dispatch taken or converting
+the throw to `E_OUTOFMEMORY`. Preserve original failure-site context. The implementation plan must prove the
+containment route rather than add a broad catch-and-continue wrapper.
 
 Native text-store notification callbacks may destroy or replace their control, change focus, or replace text.
 The store revalidates control lifetime, focus and text before applying selection or notifying TSF. Callback
-exceptions return failure across the COM boundary; they never unwind through it. A failed continuation preserves
-the callback's newer state and balances the sink edit transaction. Editable ComboBox callbacks receive an owned
+exceptions never unwind through COM and must enter host fatal diagnostics. An explicit checked failed continuation
+preserves the callback's newer state and balances the sink edit transaction. Editable ComboBox callbacks receive an owned
 text snapshot so their argument and callable survive destruction of the control.
 
 The native WindowHost text store stages edits for each TSF lock. One TSF edit inserts at most 65,536 UTF-16 units, while the
@@ -1120,16 +1130,43 @@ failure is logged; no retry timer or polling is introduced. Disconnected targets
 surviving providers still enforce their ordinary stale-target guards. Teardown does not wait for a UIA client:
 each submitted callback retains its target until return, and closing the work object defers its reclamation until
 outstanding callbacks finish.
+When linked into a DLL, delivery also acquires a physical module reference at entry and transfers it to
+`FreeLibraryWhenCallbackReturns`. Object/failure-scope release alone cannot protect the callback epilogue after
+the admission count reaches zero. The executable case needs no unload pin. Application-initiated provider calls
+still require the application's module-lifetime/quiet-point contract.
 
 Embedded structure invalidation uses the same bounded, coalesced delivery protocol. The canonical provider stays
 in its supplied STA/site apartment. The owner registers that provider in the COM Global Interface Table once;
 delivery resolves a marshalled proxy in its MTA before calling UIA. No raw embedded provider crosses apartments.
 This invalidation carries no historical property values, so the slot and held delivery retain no row snapshot;
-provider reads resolve the current coherent epoch. Disconnect clears pending work and revokes the registration on
-the owner before releasing the canonical provider. Already resolved proxies enforce the disconnected target
+provider reads resolve the current coherent epoch. Disconnect clears pending work and releases the owner's
+registration lease before releasing the canonical provider. An in-flight delivery retains the same lease until
+its resolved proxy is released; the final lease revokes the registration in its initialized apartment. The
+registration is never copied as an independently owned cookie or revoked while delivery still borrows it.
+The apartment that registered a GIT interface MUST stay COM-initialized and pumping until that registration's
+final lease has revoked it, including after the view disconnects. Destroying the view or receiving an
+invalid-cookie result is not proof that the registering apartment may already have ended. There is no public
+per-view GIT-drain notification; an application that cannot otherwise establish completion must retain that
+STA through its process-owned provider/failure-host drain. The standalone Controls test runner retains each
+embedded case's separate registering STA after its views and clients have gone, then stops and joins those STAs
+only after the process-owned UIA and failure-host drain succeeds. A failed drain takes the fatal path while the
+STAs remain alive; it must not uninitialize them to conceal outstanding leases.
+Already resolved proxies enforce the disconnected target
 guards, and teardown never joins client delivery. Registration/work creation failure logs the failed delivery and
 allows a later explicit semantic publication to retry; there is no synchronous delivery fallback. Selection, text and
 focus events retain their separate event contracts; embedded control-property transport is described below. See the [COM apartment interface contract](https://learn.microsoft.com/en-us/windows/win32/com/accessing-interfaces-across-apartments).
+
+Registration may reenter the owner. Queueing retains its canonical provider across that call and rechecks the live
+attachment under the notification lock before publishing the lease or work. Canonical-root acquisition checks
+retirement while holding the provider cache lock; an earlier snapshot cannot reopen a cache after detach.
+Property queueing revalidates the attachment, original control identity and tree-item membership after each
+value capture and sender registration, before coalescing or admission. A reentrant replacement at the same path
+cannot reinsert its predecessor's event after pruning. Retired local values and registrations release outside
+the notification lock. A deterministic registration hook and held delivery batch exercise all three admission
+stages; the real client must see the replacement's current status and no stale predecessor value.
+Disconnect also releases event/diff baselines. The sole final registration lease must still own a valid cookie:
+any failed revoke, including an invalid-cookie result, takes the host fatal path because a destructor cannot
+return an error or conceal a retirement invariant violation. No native call or final registration release runs under a slot lock.
 
 The canonical root resolves the current published snapshot and does not retain its creation snapshot. Retained
 non-root providers keep their creation snapshot for control-lifetime validation and borrowed-source ownership;
@@ -1167,14 +1204,25 @@ Internal embedded property-event providers retain the target and the published c
 then resolve properties against the current coherent snapshot. UIA can retain these event providers after delivery;
 they must not pin complete creation snapshots or prepared row epochs. Replacing the control invalidates them even
 when its path is reused. Public row providers and text ranges keep their existing creation-snapshot ownership.
-Runtime IDs use that retained control identity after checking the current snapshot; an event sender need not hold
-a creation snapshot to expose the same runtime ID as its public control element.
+Runtime IDs use that retained control identity without needing a live snapshot; an event sender need not hold
+a creation snapshot to expose the same runtime ID as its public control element. Retired providers retain that
+identity for native cleanup while their state and actions remain unavailable. A native top-level root keeps its
+HWND-based identity; replacing its collapsed control retires the old COM peer and canonical UIA map rather than
+assigning the window a different runtime ID.
 
 Hide, zero-size suspension, device replacement and detach disconnect the target before destroying controls. Old
 provider actions return UIA_E_ELEMENTNOTAVAILABLE after disconnect/root replacement, and a reattachment has a new
 identity. A surviving reference never accesses a replaced control by path. The application is responsible for
 keeping the module containing provider code mapped until surviving references can no longer call it; releasing the
 control tree is not permission to unload code still referenced by COM.
+
+At process shutdown, the application owner releases UIA clients, retires views and invokes
+[`UiaDisconnectAllProviders`](https://learn.microsoft.com/en-us/windows/win32/api/uiautomationcoreapi/nf-uiautomationcoreapi-uiadisconnectallproviders)
+while COM and its failure host remain alive. Library/plugin detachment never performs that process-wide action.
+Native cleanup may finish asynchronously. The example host's explicit `UninstallWhenIdle` retries only `BUSY`
+while pumping owner messages, with a five-second cooperative deadline and preserved `WM_QUIT`. It is a shutdown
+helper after new work and application callbacks have quiesced, not a hard interruption of an arbitrary window
+procedure. A timeout remains a failed retirement; it never removes a live module pin or releases an unowned reference.
 
 Slider::RequestValue is the user-action counterpart to silent model SetValue. It validates range, enabled state and
 the absence of an active drag, then reports one Commit through the same callback used by keyboard input. UIA uses
@@ -1313,10 +1361,11 @@ committed raw Markdown, hidden syntax and CRLF ACPs, never intermediate edits or
 display coordinates. Source and directional selection publish once. Current
 composition blocks semantic commands; source imports/preview/cancel/commit keep
 their existing exact transaction policy. Pending analysis MUST NOT be drained
-from input. If an active text-service session's cached state cannot be copied,
+from input. If an active text-service session's cached state is unavailable,
 structural commands MUST return Unavailable without mutating source/history.
 TryReadNativeTextInputState returning false leaves its output unspecified; callers
-MUST ignore it. Its allocation-failure path MUST NOT construct a new aggregate.
+MUST ignore it. An unexpected allocation exception while copying the cache enters
+host fatal diagnostics.
 Hardware Enter falls back to the document's first CR, LF or CRLF spelling if no
 current structural plan is available; a document without an EOL uses CRLF.
 In supported semantic paragraphs Shift+Enter inserts a Markdown hard-break
@@ -1389,10 +1438,11 @@ context-menu callback takes precedence; the menu's deferred command verifies
 editor lifetime and binding before dispatch. It requires a host HWND; embedded
 hosts without one use the consumer context-menu callback together with the
 public default-menu model and command dispatch APIs.
-Default-menu item staging uses fallible empty-container construction and an
-atomic output swap, so an allocation failure leaves the supplied model intact.
-Consumer context-menu observer allocation failure is fatal; a delivered observer
-exception never triggers a second fallback menu.
+Default-menu item staging uses an atomic output swap, leaving the supplied model
+untouched until staging completes. An unexpected C++ allocation exception enters
+host fatal diagnostics; this void operation has no allocation-refusal result.
+Consumer context-menu observer unexpected exceptions, including bad_alloc, require host fatal diagnostics;
+a delivered observer must never trigger a second fallback menu.
 Ctrl+Backspace and Ctrl+Delete erase to the preceding or following word boundary;
 rich-view deletion maps visible fragments through the structural source planner.
 Word and grapheme deletion may cross the active source-edit interval. Crossing or leaving that interval
@@ -1403,8 +1453,9 @@ whitespace, or source revision change ends the group. IME transactions retain
 their native composition history policy.
 Undo and redo each retain at most 128 immutable source/selection snapshots in
 bounded rings. Storage needed for a first push is prepared before publishing an
-edit or moving history, so allocation failure preserves both histories and the
-current source and selection. Held source snapshots remain independently valid.
+edit or moving history. Checked admission refusals preserve both histories and the
+current source and selection; unexpected C++ allocation exceptions enter host fatal
+diagnostics. Held source snapshots remain independently valid.
 Document copies retain independent histories; moving a document transfers both
 rings and leaves the moved-from history empty.
 Source-view and source-region Backspace/Delete runs on those same text elements
@@ -1566,21 +1617,22 @@ duplicated full-document intervals must not multiply retained rectangles. The
 prepared top-order/prefix-bottom index selects visible highlights without mapping
 source or allocating during painting. Source changes retire highlights as before.
 
-RichTextEditor native input boundaries decline precommit allocation failure
+RichTextEditor native input boundaries decline explicit nonthrowing precommit allocation refusal
 without changing document source, revision, selection or undo history. A failed
 trail-surrogate insertion retains the pending lead for a retry. Once source or
 selection publication, capture, or a binding change has occurred, the owned input
 remains handled and must not fall through to an unrelated application command.
 Lifetime tokens guard the failure continuation itself. Allocation failure in
 application observer callbacks retains the explicit fatal observer policy;
-ordinary observer exceptions are contained after the committed change.
-Embedded key and character dispatch declines allocation failure before entering
+all other unexpected observer exceptions require the same fatal outcome, not continuation after the committed change.
+Embedded key and character dispatch declines checked nonthrowing allocation refusal before entering
 an application control callback. Once an arbitrary control callback has begun,
-the host cannot infer whether it committed; an allocation failure is consumed
-and cannot authorize a translated character or retarget input. A matching
-character receipt is consumed once before the callback. The current correlated
-character overload can still return false after consuming a matching receipt
-when `OnChar` returns false or throws a non-allocation standard exception. A
+the host cannot infer whether it committed. An unexpected exception requires fatal diagnostics; it must not be
+treated as an ordinary consumed failure followed by continued input. A matching character receipt is consumed
+once before the callback. Published source `5fc4d4c` still has legacy recovery: its correlated character overload
+can return false after consuming a matching receipt when `OnChar` returns false or a non-allocation standard
+exception is swallowed. The latter violates the new failure policy; the false-callback case retains its separate
+correlated-transport adoption condition. A
 false return MUST NOT authorize retry or retargeting. Before a transport adopts
 correlated receipts, those post-consumption results MUST be repaired and tested
 to report the character handled; this retained adoption condition is not an
@@ -1609,9 +1661,9 @@ admitted replacement. The synchronous edit requires valid source boundaries and
 borrows replacement text only for the call; stale or invalid work MUST NOT
 change source or history.
 
-ScrollPanel commits its offset before notifying the scroll observer. A standard
-exception from that callback is contained at its noexcept boundary and stops the
-older continuation; the committed offset remains. The callback may replace its
+ScrollPanel commits its offset before notifying the scroll observer. An unexpected
+exception from that callback requires host fatal diagnostics, not continued scrolling
+after suppression. A normally returning callback may replace its
 subscription or retire the panel without invalidating the retained call storage.
 
 A ComboBox popup, selection or submit callback may transfer a surviving control to a

@@ -1,11 +1,38 @@
 #include "Controls.Tests.RichProjectionBlocks.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
+#include "Support.Tests.FatalChildren.h"
 #include <DxUi/RichMarkdown.h>
 #include <chrono>
+#include <cstdlib>
 #include <iostream>
 #include <stdexcept>
 namespace
 {
+__declspec(noinline) void RetiredProjectionBlocksOrigin()
+{
+    DxUi::RichText::PreparedProjection retired;
+    static_cast<void>(retired.Blocks());
+    std::exit(7); // A returned fatal convenience call must fail the child oracle.
+}
+__declspec(noinline) void RetiredProjectionTextOrigin()
+{
+    DxUi::RichText::PreparedProjection retired;
+    static_cast<void>(retired.DisplayText());
+    std::exit(8);
+}
+[[maybe_unused]] const bool registeredRetiredProjectionChildren =
+    DxUiFailureTests::RegisterFatalChildCase({L"projection-retired-blocks",
+                                              "RetiredProjectionBlocksOrigin",
+                                              RetiredProjectionBlocksOrigin,
+                                              DxUiFailureTests::FatalFaultClass::ContractViolation,
+                                              true,
+                                              static_cast<std::uint32_t>(E_UNEXPECTED)}) &&
+    DxUiFailureTests::RegisterFatalChildCase({L"projection-retired-text",
+                                              "RetiredProjectionTextOrigin",
+                                              RetiredProjectionTextOrigin,
+                                              DxUiFailureTests::FatalFaultClass::ContractViolation,
+                                              true,
+                                              static_cast<std::uint32_t>(E_UNEXPECTED)});
 void CheckPreparedProjection(const DxUi::RichText::Document& document, const DxUi::RichText::PreparedProjection& prepared, DxUi::RichText::ViewMode mode)
 {
     using namespace DxUi::RichText;
@@ -69,6 +96,13 @@ void TestRichProjectionBlockFullEquivalence()
             PreparedProjection prepared;
             prepared.Prepare(document.Snapshot(), document.Revision(), mode);
             CheckPreparedProjection(document, prepared, mode);
+            std::size_t mapped = 42u;
+            Require(prepared.TryToDisplay(document.Length() + 1u, mapped) == SourceResult::InvalidRange &&
+                        prepared.TryToSource(prepared.DisplayLength() + 1u, false, mapped) == SourceResult::InvalidRange && mapped == 42u,
+                    "checked prepared mapping refuses outside positions without changing output");
+            Require(prepared.TryPrepare(document.Snapshot(), document.Revision(), static_cast<ViewMode>(99)) == SourceResult::InvalidSource &&
+                        prepared.Mode() == mode && prepared.Revision() == document.Revision(),
+                    "invalid mode keeps the prepared publication");
         }
 }
 
@@ -184,37 +218,13 @@ void TestRichProjectionBlockFallbackModesAndLifetime()
             "retirement releases the complete prepared state and resets its public identity");
     moved.Prepare(document.Snapshot(), document.Revision(), ViewMode::Rich);
     CheckPreparedProjection(document, moved, ViewMode::Rich);
-    bool rejected = false;
-    try
-    {
-        moved.Prepare(document.Snapshot(), 999u, static_cast<ViewMode>(99));
-    }
-    catch (const std::invalid_argument&)
-    {
-        rejected = true;
-    }
-    Require(rejected && moved.Revision() == document.Revision(), "invalid preparation cannot replace an existing published revision");
+    Require(moved.TryPrepare(document.Snapshot(), 999u, static_cast<ViewMode>(99)) == SourceResult::InvalidSource && moved.Revision() == document.Revision(),
+            "invalid preparation cannot replace an existing published revision");
     CheckPreparedProjection(document, moved, ViewMode::Rich);
-    rejected = false;
-    try
-    {
-        static_cast<void>(moved.ToDisplay(document.Length() + 1u));
-    }
-    catch (const std::out_of_range&)
-    {
-        rejected = true;
-    }
-    Require(rejected, "invalid source ACP is rejected");
-    rejected = false;
-    try
-    {
-        static_cast<void>(moved.ToSource(moved.DisplayLength() + 1u));
-    }
-    catch (const std::out_of_range&)
-    {
-        rejected = true;
-    }
-    Require(rejected, "invalid display ACP is rejected");
+    size_t result = 17u;
+    Require(moved.TryToDisplay(document.Length() + 1u, result) == SourceResult::InvalidRange && result == 17u, "invalid source ACP preserves output");
+    Require(moved.TryToSource(moved.DisplayLength() + 1u, false, result) == SourceResult::InvalidRange && result == 17u,
+            "invalid display ACP preserves output");
 }
 
 void TestRichProjectionBlockMaximumSource()
@@ -321,23 +331,12 @@ void TestRichProjectionBlockBranchesAndRetirement()
     Require(prepared.Blocks().front().content == old.front().content && prepared.Blocks().back().content == old.back().content,
             "sibling source changes retain exact immutable outer block identity");
     prepared.Clear();
-    const auto rejectsRetired = [&](const auto& operation)
-    {
-        bool rejected = false;
-        try
-        {
-            operation();
-        }
-        catch (const std::logic_error&)
-        {
-            rejected = true;
-        }
-        Require(rejected, "retired/default projection rejects content and mapping queries");
-    };
-    rejectsRetired([&] { static_cast<void>(prepared.Blocks()); });
-    rejectsRetired([&] { static_cast<void>(prepared.DisplayText()); });
-    rejectsRetired([&] { static_cast<void>(prepared.ToDisplay(0u)); });
-    rejectsRetired([&] { static_cast<void>(prepared.ToSource(0u)); });
+    std::size_t mapped = 73u;
+    Require(! prepared.Ready() && prepared.TryToDisplay(0u, mapped) == SourceResult::InvalidRange && mapped == 73u &&
+                prepared.TryToSource(0u, false, mapped) == SourceResult::InvalidRange && mapped == 73u,
+            "retired projection rejects checked mapping without changing output");
+    Require(DxUiFailureTests::ExpectFatalChild(L"projection-retired-blocks"), "retired block convenience query is a fatal contract failure");
+    Require(DxUiFailureTests::ExpectFatalChild(L"projection-retired-text"), "retired text convenience query is a fatal contract failure");
     Document empty;
     prepared.Prepare(empty.Snapshot(), empty.Revision(), ViewMode::Rich);
     CheckPreparedProjection(empty, prepared, ViewMode::Rich);

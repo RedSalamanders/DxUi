@@ -5,11 +5,13 @@
 #include <string_view>
 #include <windows.h>
 
+#include "Support.Tests.FailureHost.h"
 #include "Support.Tests.FailureReports.h"
 
 bool TestPublicHelpers();
 bool TestFontAvailabilityInvalidation();
 bool TestTsfFocusAssociationRestorationControls();
+bool TestCheckedControlFactory();
 
 namespace
 {
@@ -54,6 +56,8 @@ __declspec(noinline) int ProbeAddressSanitizer()
 int main(int argc, char** argv)
 {
     DxUiTestFailureReports::RouteAwayFromDialogs();
+    if (const auto child = DxUiFailureTests::RunFailureChild(argc, argv); child >= 0)
+        return child;
     if (argc == 2 && std::string_view(argv[1]) == "--asan-probe")
     {
         SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);
@@ -64,6 +68,10 @@ int main(int argc, char** argv)
         return 2;
 #endif
     }
+    if (FAILED(DxUiFailureTests::ConfigureFailureEvidence()) || ! DxUiFailureTests::TestFailurePolicy() || FAILED(DxUiFailureTests::InstallFailureHost()))
+        return 1;
+    const auto failureHost = wil::scope_exit([] { static_cast<void>(DxUiFailureTests::UninstallFailureHost()); });
+    Check(TestCheckedControlFactory(), "checked control construction and allocation policy");
     Check(TestPublicHelpers(), "public consumer helpers compile, link and retain their policies");
     Check(TestFontAvailabilityInvalidation(), "font availability invalidation refreshes one factory or all factories without stale negative answers");
     Check(TestTsfFocusAssociationRestorationControls(), "TSF association restoration preserves independent focus and respects newer owners");

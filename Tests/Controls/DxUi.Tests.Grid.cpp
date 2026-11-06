@@ -1,6 +1,8 @@
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "Controls.Tests.GridMultilineFixtures.h"
+#include "Support.Tests.FatalChildren.h"
 
+#include <atomic>
 #include <cmath>
 #include <fstream>
 #include <functional>
@@ -13,6 +15,18 @@
 
 namespace
 {
+// Keep fatal callback symbols distinct under Release ICF and LTCG.
+static std::atomic<unsigned> controlFatalOriginMarker{};
+[[noreturn]] __declspec(noinline) void GridCellThrowOrigin(const std::runtime_error& error)
+{
+    controlFatalOriginMarker.store(211u, std::memory_order_relaxed);
+    throw error;
+}
+[[noreturn]] __declspec(noinline) void GridGroupThrowOrigin(const std::runtime_error& error)
+{
+    controlFatalOriginMarker.store(212u, std::memory_order_relaxed);
+    throw error;
+}
 
 template <typename Metrics, typename = void> struct HasVisibleCellDataReadCount : std::false_type
 {
@@ -98,13 +112,14 @@ public:
         return DxUi::GridColumnDesc{.id = source.id, .title = source.title, .widthDip = source.widthDip};
     }
 
-    void GetCellData(size_t rowIndex, size_t columnIndex, DxUi::GridCellData& outCell) const override
+    __declspec(noinline) void GetCellData(size_t rowIndex, size_t columnIndex, DxUi::GridCellData& outCell) const override
     {
         ++cellDataCalls;
         InvokeOnce(onGetCellData);
         if (throwCellData)
         {
-            throw std::runtime_error("synthetic Grid getter failure");
+            const std::runtime_error error("synthetic Grid getter failure");
+            GridCellThrowOrigin(error);
         }
         outCell.kind = checkboxCells ? DxUi::GridCellKind::Checkbox : DxUi::GridCellKind::Text;
         outCell.text = _rows.at(rowIndex).cells.at(columnIndex);
@@ -167,7 +182,7 @@ void TestGridKeyboardCheckboxQueryStopsAfterGetterRetiresTheGrid()
     Require(cellQueries == 1u, "the keyboard path stops after its first retiring cell getter");
 }
 
-void TestGridKeyboardCheckboxQueryContainsModelGetterExceptions()
+void GridKeyboardGetterFixture(bool fatalChild)
 {
     using namespace DxUi;
 
@@ -180,19 +195,33 @@ void TestGridKeyboardCheckboxQueryContainsModelGetterExceptions()
     grid->SetModel(&model);
     host.SetRoot(std::move(root));
 
-    model.throwCellData = true;
-    Require(! grid->OnKeyDown(host, VK_SPACE, 0u), "Space aborts when the checkbox cell getter throws");
-    Require(model.cellDataCalls == 1u, "the keyboard path stops after the failed checkbox lookup");
-    Require(host.GetRoot() != nullptr, "a failed but nonreentrant cell getter leaves the Grid installed");
+    if (fatalChild)
+    {
+        model.throwCellData = true;
+        (void)grid->OnKeyDown(host, VK_SPACE, 0u);
+        return;
+    }
+    Require(DxUiFailureTests::ExpectFatalChild(L"grid-keyboard-getter-throw"), "keyboard model callback exception terminates its owned child");
+    const auto previousRoot = host.GetRoot();
+    const auto callsBefore  = model.cellDataCalls;
+    Require(grid->OnKeyDown(host, VK_SPACE, 0u), "healthy checkbox lookup handles Space");
+    // Resolve the checkbox column, then revalidate its cell before toggling.
+    Require(model.cellDataCalls - callsBefore == 2u && host.GetRoot() == previousRoot,
+            "healthy checkbox lookup revalidates the cell and keeps the same Grid installed");
+}
+void TestGridKeyboardCheckboxQueryContainsModelGetterExceptions()
+{
+    GridKeyboardGetterFixture(false);
 }
 
-void TestGridNoexceptGeometryContainsThrowingGroupGetter()
+void GridGroupGetterFixture(bool fatalChild)
 {
     using namespace DxUi;
 
     class ThrowingGroupModel final : public IGridModel
     {
     public:
+        bool fail{};
         [[nodiscard]] size_t GetRowCount() const noexcept override
         {
             return 1u;
@@ -219,9 +248,14 @@ void TestGridNoexceptGeometryContainsThrowingGroupGetter()
             return 1u;
         }
 
-        [[nodiscard]] GridGroupDesc GetGroup(size_t) const override
+        [[nodiscard]] __declspec(noinline) GridGroupDesc GetGroup(size_t) const override
         {
-            throw std::runtime_error("synthetic group getter failure");
+            if (fail)
+            {
+                const std::runtime_error error("synthetic group getter failure");
+                GridGroupThrowOrigin(error);
+            }
+            return {.stableId = 1u, .title = L"group", .rowCount = 1u};
         }
 
         [[nodiscard]] std::optional<size_t> FindRowByStableId(uint64_t rowId) const noexcept override
@@ -242,12 +276,35 @@ void TestGridNoexceptGeometryContainsThrowingGroupGetter()
     const std::array<uint64_t, 1u> oldSelection{99u};
     grid.SetSelectedRowIds(oldSelection);
     Require(grid.GetSelectionModel().GetCount() == 1u, "old model has a selection before replacement failure");
+    model.fail = fatalChild;
+    if (! fatalChild)
+        Require(DxUiFailureTests::ExpectFatalChild(L"grid-group-getter-throw"), "group model callback exception terminates its owned child");
     grid.SetModel(&model);
+    if (fatalChild)
+    {
+        (void)grid.GetVisibleColumnCount();
+        return;
+    }
 
-    Require(grid.GetModel() == &model && grid.GetSelectionModel().GetCount() == 0u,
-            "failed new-model reconciliation still installs the borrowed model and clears old-model selection");
-    Require(grid.GetVisibleColumnCount() == 0u, "Grid noexcept geometry returns empty visibility when collecting a throwing borrowed group snapshot");
+    Require(grid.GetModel() == &model && grid.GetSelectionModel().GetCount() == 1u && grid.GetSelectionModel().IsSelected(1u) &&
+                ! grid.GetSelectionModel().IsSelected(99u),
+            "new-model reconciliation installs the borrowed model and selects its nearest visible replacement row");
+    Require(grid.GetVisibleColumnCount() == 1u, "Grid geometry exposes its healthy visible column");
 }
+void TestGridNoexceptGeometryContainsThrowingGroupGetter()
+{
+    GridGroupGetterFixture(false);
+}
+template <bool Group> void GridGetterFailureChild()
+{
+    if constexpr (Group)
+        GridGroupGetterFixture(true);
+    else
+        GridKeyboardGetterFixture(true);
+}
+[[maybe_unused]] const bool gridGetterFailureChildrenRegistered =
+    DxUiFailureTests::RegisterFatalChildCase({L"grid-keyboard-getter-throw", "GridCellThrowOrigin", GridGetterFailureChild<false>}) &&
+    DxUiFailureTests::RegisterFatalChildCase({L"grid-group-getter-throw", "GridGroupThrowOrigin", GridGetterFailureChild<true>});
 
 void TestGridSetModelStopsAfterAGroupGetterReplacesItsRoot()
 {

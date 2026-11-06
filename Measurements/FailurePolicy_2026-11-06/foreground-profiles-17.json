@@ -1,0 +1,192 @@
+{
+  "records": [
+    {
+      "source": "f6791b5070efd1fa8dc86601bc9422ae9a321d2e",
+      "mode": "Foreground",
+      "configuration": "ASan Debug",
+      "runId": "20261106T114152419Z-84404-c59efb42d0e44c758b04ef87b3798fac",
+      "outcome": "passed",
+      "startedUtc": "2026-11-06T11:41:30.3123887Z",
+      "completedUtc": "2026-11-06T11:47:29.0291833Z",
+      "suiteCount": 4,
+      "totalSkips": 0,
+      "suites": [
+        {
+          "suite": "Menu",
+          "exitCode": 0,
+          "skips": 0,
+          "nativeArchitecture": "X64",
+          "executable": "DxUi.ControlTests.exe",
+          "executableSha256": "685BB13310C821CBFC205BB27B4A62A6167A50A134620999BEDEBED8FD587FB8",
+          "receiptSha256": "71026B5A52D538428B52748B0A6A4FF17E2CBBAF0DD723FBFD59EE27607D35C0"
+        },
+        {
+          "suite": "NativeTextInput",
+          "exitCode": 0,
+          "skips": 0,
+          "nativeArchitecture": "X64",
+          "executable": "DxUi.ControlTests.exe",
+          "executableSha256": "685BB13310C821CBFC205BB27B4A62A6167A50A134620999BEDEBED8FD587FB8",
+          "receiptSha256": "B5FC8F8C235572759B9EDE1E34B73D8BE7000EA656D27602672548694550811E"
+        },
+        {
+          "suite": "MenuResources",
+          "exitCode": 0,
+          "skips": 0,
+          "nativeArchitecture": "X64",
+          "executable": "DxUi.ControlTests.exe",
+          "executableSha256": "685BB13310C821CBFC205BB27B4A62A6167A50A134620999BEDEBED8FD587FB8",
+          "receiptSha256": "25794FD76A5F7A42DF1CADF440B573E3104385BD63CBF0A2E107A24D052BC52E"
+        },
+        {
+          "suite": "MenuResourceScaling",
+          "exitCode": 0,
+          "skips": 0,
+          "nativeArchitecture": "X64",
+          "executable": "DxUi.ControlTests.exe",
+          "executableSha256": "685BB13310C821CBFC205BB27B4A62A6167A50A134620999BEDEBED8FD587FB8",
+          "receiptSha256": "2BD86A2083F3D4A59F41587869CEF0321BF19B2F667E792C9DB6834A75556C32"
+        }
+      ],
+      "logSha256": "287B64480407F081876A86761228E8CE44A820F363D334E1D2606F1A1A4698B7",
+      "completionSha256": "761E4AF5EF930AA5BAB84C945D5A7AA26E2D9B53A1789960CCC50A4DFC7C0048",
+      "restoration": {
+        "state": "completed",
+        "exitCode": 0,
+        "foreground": "restored",
+        "focus": "restored",
+        "cursor": "restored",
+        "approvedAutoStart": true,
+        "confirmationSeconds": 30
+      }
+    },
+    {
+      "source": "f6791b5070efd1fa8dc86601bc9422ae9a321d2e",
+      "mode": "Foreground",
+      "configuration": "Release",
+      "runId": "20261106T114751070Z-69144-9dc138263e514f23a276f0f6bb5d93ca",
+      "outcome": "passed",
+      "startedUtc": "2026-11-06T11:47:29.0691595Z",
+      "completedUtc": "2026-11-06T11:52:04.9368904Z",
+      "suiteCount": 4,
+      "totalSkips": 0,
+      "suites": [
+        {
+          "suite": "Menu",
+          "exitCode": 0,
+          "skips": 0,
+          "nativeArchitecture": "X64",
+          "executable": "DxUi.ControlTests.exe",
+          "executableSha256": "F96773022CDD494A1762999E205E4E2197958339F8F5DA12DAA4B5991098363D",
+          "receiptSha256": "0C60B2106218CD3A26376BBB5D4960DB091D9BA2FF462A8E304C5A84B5F82D77"
+        },
+        {
+          "suite": "NativeTextInput",
+          "exitCode": 0,
+          "skips": 0,
+          "nativeArchitecture": "X64",
+          "executable": "DxUi.ControlTests.exe",
+          "executableSha256": "F96773022CDD494A1762999E205E4E2197958339F8F5DA12DAA4B5991098363D",
+          "receiptSha256": "1B7DB430F37E7E0FA34D944B94279D0761CF1B2DD0E415176F48779C564C7617"
+        },
+        {
+          "suite": "MenuResources",
+          "exitCode": 0,
+          "skips": 0,
+          "nativeArchitecture": "X64",
+          "executable": "DxUi.ControlTests.exe",
+          "executableSha256": "F96773022CDD494A1762999E205E4E2197958339F8F5DA12DAA4B5991098363D",
+          "receiptSha256": "30F427E0B5B32295D53767EB6767DC3F4C604E5695B29BC34C1677903E459E59"
+        },
+        {
+          "suite": "MenuResourceScaling",
+          "exitCode": 0,
+          "skips": 0,
+          "nativeArchitecture": "X64",
+          "executable": "DxUi.ControlTests.exe",
+          "executableSha256": "F96773022CDD494A1762999E205E4E2197958339F8F5DA12DAA4B5991098363D",
+          "receiptSha256": "4D7B913072F99B1DA32E8C2212D53F44773C2492FE74D2E78EF452465A828B20"
+        }
+      ],
+      "logSha256": "DA3D300C8C519A36B4933EC3D217A66B4047E229A4D9719183C58E0D908F4270",
+      "completionSha256": "82DBCB277A76A0D9E13B732F74F3382518B57EF0930A24C0062C9F9810D18746",
+      "restoration": {
+        "state": "completed",
+        "exitCode": 0,
+        "foreground": "restored",
+        "focus": "restored",
+        "cursor": "restored",
+        "approvedAutoStart": true,
+        "confirmationSeconds": 30
+      }
+    },
+    {
+      "source": "f6791b5070efd1fa8dc86601bc9422ae9a321d2e",
+      "mode": "Foreground",
+      "configuration": "Debug",
+      "runId": "20261106T115227599Z-77600-fdeabb5febf04552b83d3585da09bbfa",
+      "outcome": "passed",
+      "startedUtc": "2026-11-06T11:52:04.9652194Z",
+      "completedUtc": "2026-11-06T11:56:49.3481524Z",
+      "suiteCount": 4,
+      "totalSkips": 0,
+      "suites": [
+        {
+          "suite": "Menu",
+          "exitCode": 0,
+          "skips": 0,
+          "nativeArchitecture": "X64",
+          "executable": "DxUi.ControlTests.exe",
+          "executableSha256": "7F749CE4F82F596F9874517A6D4CF8DCA85E1C2C570306B645EBB876FA4461B2",
+          "receiptSha256": "77CDE5114C0C599A2FFE12E988029533612D8FECD3D31D6373F9F73898010CED"
+        },
+        {
+          "suite": "NativeTextInput",
+          "exitCode": 0,
+          "skips": 0,
+          "nativeArchitecture": "X64",
+          "executable": "DxUi.ControlTests.exe",
+          "executableSha256": "7F749CE4F82F596F9874517A6D4CF8DCA85E1C2C570306B645EBB876FA4461B2",
+          "receiptSha256": "222BA7B47713C2EA25FC01371BFADF4F2400BCCEC4F1754B1B7A8303DDFD9EDC"
+        },
+        {
+          "suite": "MenuResources",
+          "exitCode": 0,
+          "skips": 0,
+          "nativeArchitecture": "X64",
+          "executable": "DxUi.ControlTests.exe",
+          "executableSha256": "7F749CE4F82F596F9874517A6D4CF8DCA85E1C2C570306B645EBB876FA4461B2",
+          "receiptSha256": "495E6A6DCC3CB0CF04594CC9C549B4A30714FE68FD0B7C4A3A417B8425BBDC3F"
+        },
+        {
+          "suite": "MenuResourceScaling",
+          "exitCode": 0,
+          "skips": 0,
+          "nativeArchitecture": "X64",
+          "executable": "DxUi.ControlTests.exe",
+          "executableSha256": "7F749CE4F82F596F9874517A6D4CF8DCA85E1C2C570306B645EBB876FA4461B2",
+          "receiptSha256": "B2990B5A9820099E4BF4844BE8FC60DE52090B4176A27498BF7DC663C9B8E940"
+        }
+      ],
+      "logSha256": "EA16859EE95105CA6FECCF9B5EC9C6C7569807B3C9C6369A313B4F53C6A1BD20",
+      "completionSha256": "B86DA603FB54739678AEF0972A9563A7F92E32143087DE60257991CE180E0DC7",
+      "restoration": {
+        "state": "completed",
+        "exitCode": 0,
+        "foreground": "unchanged",
+        "focus": "unchanged",
+        "cursor": "restored",
+        "approvedAutoStart": true,
+        "confirmationSeconds": 30
+      }
+    }
+  ],
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-api5-foreground-suite-summary-v1",
+  "benchmarkInputs": {
+    "artifact/ASan Debug/DxUi.ControlTests.exe": "685BB13310C821CBFC205BB27B4A62A6167A50A134620999BEDEBED8FD587FB8",
+    "artifact/Release/DxUi.ControlTests.exe": "F96773022CDD494A1762999E205E4E2197958339F8F5DA12DAA4B5991098363D",
+    "artifact/Debug/DxUi.ControlTests.exe": "7F749CE4F82F596F9874517A6D4CF8DCA85E1C2C570306B645EBB876FA4461B2"
+  },
+  "evidenceKind": "Summary of recorded library fixtures; original source/artifact identities remain in the result data."
+}

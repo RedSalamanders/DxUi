@@ -4,9 +4,11 @@
 #include "Controls/DxUi.RichSemanticGeometry.h"
 #include "Controls/DxUi.RichSourceWindow.h"
 #include "Support.Tests.CountingWriteFactory.h"
+#include "Support.Tests.FatalChildren.h"
 #include "Support.Tests.RichImageResources.h"
 #include "Support.Tests.RichSemantic.h"
 #include <DxUi/DxUi.h>
+#include <DxUi/Failure.h>
 #include <cmath>
 #include <iostream>
 #include <limits>
@@ -302,9 +304,13 @@ struct RetiringTabEditor final : RichTextEditor
             host.SetFocusControl(first, false);
             return false;
         }
+        catch (const std::bad_alloc&)
+        {
+            Failure::FailAllocation();
+        }
         catch (const std::exception&)
         {
-            return false;
+            Failure::FailUnexpected();
         }
     }
 
@@ -360,8 +366,7 @@ template <typename Prepare, typename Key, typename Character> void StructuralHos
     editor->SetDefaultContextMenuLabels(&labels);
     auto invalidLabels = labels;
     invalidLabels.cut.clear();
-    RichSemanticTests::Reject<std::invalid_argument>([&] { editor->SetDefaultContextMenuLabels(&invalidLabels); },
-                                                     "default context menu requires complete localized labels");
+    Check(editor->TrySetDefaultContextMenuLabels(&invalidLabels) == SourceResult::InvalidArgument, "default context menu requires complete localized labels");
     editor->SetOnContextMenu([&](POINT, bool) { ++menus; });
     editor->SetSelection({0u, 2u});
     std::vector<MenuFlyoutItem> menuItems(0u);
@@ -376,8 +381,7 @@ template <typename Prepare, typename Key, typename Character> void StructuralHos
           "keyboard context menu preserves selection and reaches the consumer callback");
     Check(editor->OnContextMenu(host, false, D2D1::Point2F(450.0f, 15.0f)) && menus == 2u && editor->GetSelection() == Selection{4u, 4u},
           "pointer context menu outside the selection moves the caret before invoking its callback");
-    editor->SetOnContextMenu([](POINT, bool) { throw std::runtime_error("test observer failure"); });
-    Check(editor->OnContextMenu(host, true, D2D1::Point2F(8.0f, 8.0f)), "failed context observer is delivered once and cannot fall back to a second menu");
+    Check(DxUiFailureTests::ExpectFatalChild(L"context-menu-callback"), "context menu callback exception terminates its owned child");
     editor->SetOnContextMenu({});
     editor->SetDefaultContextMenuLabels(nullptr);
     Check(key(VK_TAB, 0u) && host.GetFocusControl() == next && editor->GetText() == L"word", "ordinary paragraph Tab reaches the next host control");
@@ -527,6 +531,8 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
           "source match navigation wraps in both directions");
     unsigned findRequests = 0u;
     editor->SetSearchQuery(L"one", {.wholeWord = true});
+    const std::wstring invalidQuery(1u, wchar_t(0xd800));
+    Check(editor->TrySetSearchQuery(invalidQuery) == SourceResult::InvalidSource, "malformed stored query is refused");
     editor->SetOnFindRequested([&] { ++findRequests; });
     editor->SetSearchShortcutsEnabled(true);
     Check(editor->OnKeyDown(host, 'F', MK_CONTROL) && findRequests == 1u && editor->OnKeyDown(host, VK_F3, 0u) && editor->GetSelection() == Selection{0u, 3u} &&
@@ -539,6 +545,13 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     Check(editor->ReplaceAllSourceMatches(L"one", L"x", {.wholeWord = true}) == 2u && editor->GetText() == L"x x only" && editor->Undo() &&
               editor->GetText() == L"One one only",
           "editor replace-all is case-insensitive and one undo transaction");
+    const auto beforeInvalidSearch    = editor->Snapshot();
+    const auto beforeInvalidSelection = editor->GetSelection();
+    const std::wstring invalidSearch(1u, wchar_t(0xd800));
+    Check(! editor->SelectSourceMatch(invalidSearch, false) && ! editor->ReplaceSelectedSourceMatch(L"one", invalidSearch) &&
+              editor->ReplaceAllSourceMatches(invalidSearch, L"x") == 0u && editor->Snapshot().IsSameRevision(beforeInvalidSearch) &&
+              editor->GetSelection() == beforeInvalidSelection,
+          "malformed search and replacement text is refused without mutation");
     const std::wstring nulSource(L"a\0ba\0b", 6u);
     editor->SetText(nulSource);
     editor->SetSelection({0u, 0u});
@@ -564,8 +577,7 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     const std::array highlights{RichTextSourceHighlight{0u, 2u, true}};
     editor->SetSourceHighlights(highlights);
     const std::vector<RichTextDecoration> tooManyDecorations(257u);
-    RichSemanticTests::Reject<std::length_error>([&] { editor->SetDecorations(decorationSource, tooManyDecorations); },
-                                                 "decoration count is bounded before staging");
+    Check(editor->TrySetDecorations(decorationSource, tooManyDecorations) == E_BOUNDS, "decoration count is bounded before staging");
     Check(editor->GetDecorations().size() == decorations.size(), "rejected decoration replacement preserves current state");
     Check(editor->DebugGetState().overlayGeometryPending, "selection and highlight changes invalidate prepared overlay geometry");
     prepare();
@@ -581,8 +593,7 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
           "reflow capacity rejection retains requests and leaves the document prepared without stale decoration geometry");
     auto oversized    = decorations;
     oversized[0].role = RichTextDecorationRole::Warning;
-    RichSemanticTests::Reject<std::length_error>([&] { editor->SetDecorations(decorationSource, oversized); },
-                                                 "setter rejects geometry above the current ceiling before publication");
+    Check(editor->TrySetDecorations(decorationSource, oversized) == E_BOUNDS, "setter rejects geometry above the current ceiling before publication");
     Check(editor->GetDecorations()[0].role == RichTextDecorationRole::Accent, "rejected replacement preserves the previous decoration request");
     editor->DebugSetDecorationRectangleLimitForTest(4096u);
     prepare();
@@ -593,7 +604,7 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     Check(editor->DebugGetState().preparedHighlightRectangles == 0u, "cleared highlights retire their prepared rectangles");
     editor->SetText(L"");
     Check(editor->GetDecorations().empty(), "source replacement retires revision-local decorations");
-    RichSemanticTests::Reject<std::invalid_argument>([&] { editor->SetDecorations(decorationSource, decorations); }, "stale decoration source is rejected");
+    Check(editor->TrySetDecorations(decorationSource, decorations) == HRESULT_FROM_WIN32(ERROR_REVISION_MISMATCH), "stale decoration source is rejected");
     Check(! editor->IsAutoPairEnabled() && editor->OnChar(host, L'(', 0u) && editor->GetText() == L"(" && editor->Undo(),
           "direct typing keeps literal punctuation by default");
     editor->SetAutoPairEnabled(true);
@@ -1065,8 +1076,7 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     auto invalidRequest        = originalRequest;
     invalidRequest.command     = MarkdownCommand::SetLink;
     invalidRequest.destination = L"javascript:example";
-    RichSemanticTests::Reject<std::invalid_argument>([&] { static_cast<void>(editor->PrepareMarkdownCommandState(invalidRequest)); },
-                                                     "invalid prepared command payload is reported by the planner");
+    Check(! editor->PrepareMarkdownCommandState(invalidRequest), "invalid prepared command payload is refused by the planner");
     const auto afterInvalid = editor->QueryMarkdownCommandState(originalRequest);
     Check(afterInvalid && afterInvalid->available == std::optional<bool>{true}, "invalid preparation preserves the previous prepared result");
     editor->SetReadOnly(true);
@@ -1164,7 +1174,7 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
           "soft-break presentation changes without editing source or history");
     auto invalidBreak            = breakAppearance;
     invalidBreak.softBreakPolicy = static_cast<SoftBreakPolicy>(99);
-    RichSemanticTests::Reject<std::invalid_argument>([&] { editor->SetAppearance(invalidBreak); }, "invalid break policy is rejected");
+    Check(editor->TrySetAppearance(invalidBreak) == SourceResult::InvalidSource, "invalid break policy is rejected");
     Check(editor->GetSemanticDocument() == lineBreakDocument && editor->Snapshot().IsSameRevision(breakSource),
           "invalid break policy leaves semantic publication and source unchanged");
     editor->SetText(L"hello");
@@ -1522,7 +1532,7 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     const auto staged = BuildMarkdownCommand(
         editor->Snapshot(), editor->Revision(), editor->GetMarkdownSyntax(), editor->GetSelection(), {.command = MarkdownCommand::ToggleTask});
     editor->SetSelection({7u, 7u});
-    RichSemanticTests::Reject<std::invalid_argument>([&] { editor->ApplyMarkdownCommand(staged); }, "retained stale selection rejects plan");
+    Check(editor->ApplyMarkdownCommand(staged) == MarkdownCommandStatus::Unavailable, "retained stale selection rejects plan");
     editor->SetReadOnly(true);
     request         = {};
     request.command = MarkdownCommand::ToggleTask;
@@ -2433,7 +2443,7 @@ template <typename Prepare> void ViewPreferences(ControlHost& host, Prepare&& pr
     Check(editor->OnKeyDown(host, L'0', MK_CONTROL) && editor->GetZoom() == 1.0f &&
               editor->OnMouseWheel(host, {}, static_cast<float>(WHEEL_DELTA), MK_CONTROL) && editor->GetZoom() > 1.0f,
           "Control-zero resets zoom and Control-wheel scales fonts");
-    RichSemanticTests::Reject<std::invalid_argument>([&] { editor->SetZoom(std::numeric_limits<float>::quiet_NaN()); }, "non-finite zoom rejects atomically");
+    Check(editor->TrySetZoom(std::numeric_limits<float>::quiet_NaN()) == SourceResult::InvalidSource, "non-finite zoom rejects atomically");
     Check(editor->GetZoom() > 1.0f && editor->Snapshot().IsSameRevision(source), "rejected zoom preserves prior presentation and source");
     prepare();
 }
@@ -2478,7 +2488,7 @@ template <typename Prepare> void Rendering(ControlHost& host, Prepare&& prepare)
     const std::wstring original = L"# **Heading**\r\n\r\n| left | right |\n| :--- | ---: |\n| a | b |\n\n> quoted &amp; **bold**\n\n![alt](local)\n";
     auto root                   = std::make_unique<RichTextEditor>(original);
     auto* editor                = root.get();
-    RichSemanticTests::Reject<std::invalid_argument>([&] { editor->SetMarkdownRenderingEnabled(true); }, "rendering requires an explicit dialect");
+    Check(editor->TrySetMarkdownRenderingEnabled(true) == SourceResult::InvalidArgument, "rendering requires an explicit dialect");
     Check(! editor->IsMarkdownRenderingEnabled(), "rejected rendering opt-in has no side effects");
     editor->SetMarkdownAnalysisProfile(MarkdownProfile::Gfm029);
     host.SetRoot(std::move(root));
@@ -2792,7 +2802,7 @@ template <typename Prepare> void DiagramLabelWidthAppearance(ControlHost& host, 
     {
         auto rejected                 = appearance;
         rejected.diagramLabelWidthDip = invalid;
-        RichSemanticTests::Reject<std::invalid_argument>([&] { editor->SetAppearance(rejected); }, "invalid diagram width is rejected atomically");
+        Check(editor->TrySetAppearance(rejected) == SourceResult::InvalidSource, "invalid diagram width is rejected atomically");
         Check(editor->GetAppearance() == appearance && editor->GetText() == source && editor->GetSelection() == Selection{0u, 0u},
               "invalid diagram label width leaves appearance and exact source state unchanged");
     }
@@ -2841,10 +2851,10 @@ template <typename Prepare> void SpacingAppearance(ControlHost& host, Prepare&& 
     {
         auto rejected               = appearance;
         rejected.listItemSpacingDip = invalid;
-        RichSemanticTests::Reject<std::invalid_argument>([&] { editor->SetAppearance(rejected); }, "invalid editor list spacing rejects atomically");
+        Check(editor->TrySetAppearance(rejected) == SourceResult::InvalidSource, "invalid editor list spacing rejects atomically");
         rejected                            = appearance;
         rejected.paragraphSpacingAfterLines = invalid == 257.0f ? 4.01f : invalid;
-        RichSemanticTests::Reject<std::invalid_argument>([&] { editor->SetAppearance(rejected); }, "invalid editor paragraph spacing rejects atomically");
+        Check(editor->TrySetAppearance(rejected) == SourceResult::InvalidSource, "invalid editor paragraph spacing rejects atomically");
         Check(editor->GetAppearance() == appearance && editor->DebugGetState().layoutGeneration == configuredGeneration &&
                   editor->Snapshot().IsSameRevision(snapshot) && editor->GetSelection() == selection && editor->CanRedo(),
               "rejected spacing preserves current appearance, prepared geometry and exact editor state");
@@ -3091,64 +3101,24 @@ template <typename Prepare> void SourceCaretSites(ControlHost& host, Prepare&& p
 }
 template <typename Prepare, typename PrepareDpi> void RenderingAdmissionFallback(ControlHost& host, Prepare&& prepare, PrepareDpi&& prepareDpi)
 {
-#if ! DXUI_ENABLE_DIAGNOSTICS
     static_cast<void>(prepareDpi);
-#endif
 #if DXUI_ENABLE_DIAGNOSTICS
-    const auto previousFailure  = RichText::Detail::testRichPreparationFailure;
-    const auto previousAttempts = RichText::Detail::testRichPreparationFailureAttempts;
-    const auto restoreFailure   = wil::scope_exit([&]() noexcept
+    Check(DxUiFailureTests::ExpectFatalChild(L"rich-preparation-stage1"), "staging exception terminates in its owned child");
+    Check(DxUiFailureTests::ExpectFatalChild(L"rich-preparation-stage2"), "native geometry exception terminates in its owned child");
+#endif
     {
-        RichText::Detail::testRichPreparationFailure         = previousFailure;
-        RichText::Detail::testRichPreparationFailureAttempts = previousAttempts;
-    });
-    for (const unsigned stage : {1u, 2u})
-    {
-        RichText::Detail::testRichPreparationFailure         = stage;
-        RichText::Detail::testRichPreparationFailureAttempts = 0u;
-        const std::wstring original                          = L"**retained** and $x$\n";
-        auto root                                            = std::make_unique<RichTextEditor>(original);
-        auto* editor                                         = root.get();
+        const std::wstring original = L"**retained** and $x$\n";
+        auto root                   = std::make_unique<RichTextEditor>(original);
+        auto* editor                = root.get();
         editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
         editor->SetMarkdownRenderingEnabled(true);
         editor->SetSelection({2u, 5u});
         host.SetRoot(std::move(root));
         prepare();
-        Check(editor->GetMarkdownRenderingStatus() == MarkdownRenderingStatus::SourceFallback && editor->DebugGetState().layoutReady &&
-                  ! editor->GetSemanticDocument() && editor->GetText() == original && editor->GetSelection() == Selection{2u, 5u} && ! editor->CanUndo() &&
-                  editor->GetViewMode() == ViewMode::Rich && RichText::Detail::testRichPreparationFailureAttempts == 1u,
-              "deterministic rich failure falls back once without changing source, selection, history or requested mode");
-        prepare();
-        Check(RichText::Detail::testRichPreparationFailureAttempts == 1u, "unchanged rich failure key does not retry on idle");
-        prepareDpi(144u);
-        Check(host.GetDpi() == 144.f && RichText::Detail::testRichPreparationFailureAttempts == 2u &&
-                  editor->GetMarkdownRenderingStatus() == MarkdownRenderingStatus::SourceFallback,
-              "changed DPI retries the deterministic preparation key");
-        prepareDpi(96u);
-        Check(host.GetDpi() == 96.f && RichText::Detail::testRichPreparationFailureAttempts == 3u, "restored DPI is a distinct preparation request");
-        auto appearance = editor->GetAppearance();
-        appearance.zoom = 1.25f;
-        editor->SetAppearance(appearance);
-        prepare();
-        Check(RichText::Detail::testRichPreparationFailureAttempts == 4u && editor->GetMarkdownRenderingStatus() == MarkdownRenderingStatus::SourceFallback,
-              "changed appearance retries a deterministic preparation key");
-        RichText::Detail::testRichPreparationFailure = 0u;
-        editor->SetMarkdownAnalysisProfile(MarkdownProfile::Gfm029);
-        prepare();
-        Check(editor->GetMarkdownRenderingStatus() == MarkdownRenderingStatus::Semantic && editor->GetText() == original &&
-                  editor->GetSelection() == Selection{2u, 5u} && ! editor->CanUndo(),
-              "changed profile recovers semantic presentation with source/history intact");
-        RichText::Detail::testRichPreparationFailure = stage;
-        editor->SetText(L"new **source**\n");
-        prepare();
-        Check(RichText::Detail::testRichPreparationFailureAttempts == 5u && editor->GetMarkdownRenderingStatus() == MarkdownRenderingStatus::SourceFallback,
-              "new source retries the deterministic preparation key");
-        RichText::Detail::testRichPreparationFailure = 0u;
-        editor->SetText(L"recovered **source**\n");
-        prepare();
-        Check(editor->GetMarkdownRenderingStatus() == MarkdownRenderingStatus::Semantic, "new source recovers after the fault is removed");
+        Check(editor->GetMarkdownRenderingStatus() == MarkdownRenderingStatus::Semantic && editor->DebugGetState().layoutReady &&
+                  editor->GetText() == original && editor->GetSelection() == Selection{2u, 5u} && ! editor->CanUndo(),
+              "semantic preparation preserves source, selection and history");
     }
-#endif
     std::wstring source;
     for (size_t i = 0u; i <= SemanticDocument::MaximumParagraphs; ++i)
         source += L"x\n\n";
@@ -3937,7 +3907,7 @@ template <typename Prepare> void Transactions(ControlHost& host, Prepare&& prepa
           "same spelling updates selection silently without invalidating analysis");
     prepare();
     Check(editor->DebugGetState().layoutGeneration == generation && editor->Revision() == currentRevision, "same-content plan reuses geometry and revision");
-    RichSemanticTests::Reject<std::invalid_argument>([&] { editor->ApplySourceEdits(snapshot, revision, edits, {}); }, "retained stale plan rejected");
+    Check(! editor->ApplySourceEdits(snapshot, revision, edits, {}), "retained stale plan rejected");
     Check(editor->GetText() == changed && notifications == 3u && editor->GetSelection() == Selection{9u, 0u},
           "stale plan has no notification or selection effect");
     editor->SetReadOnly(true);
@@ -3946,10 +3916,11 @@ template <typename Prepare> void Transactions(ControlHost& host, Prepare&& prepa
     editor->SetEnabled(false);
     Check(! editor->ApplySourceEdits(snapshot, revision, edits, {}) && notifications == 3u, "disabled plan rejects before source mutation");
     editor->SetEnabled(true);
-    editor->SetOnTextChanged([] { throw std::runtime_error("planned callback failure"); });
+    Check(DxUiFailureTests::ExpectFatalChild(L"rich-plan-notify"), "source-plan notification exception terminates its owned child");
+    editor->SetOnTextChanged({});
     const std::array restore{SourceEdit{{3u, 4u}, L" "}, SourceEdit{{14u, 15u}, L"x"}};
     Check(editor->ApplySourceEdits(current, currentRevision, restore, {6u, 9u}) && editor->GetText() == original,
-          "notification exception is contained after an atomic committed plan");
+          "ordinary source-plan callback path commits the atomic plan");
     prepare();
     notifications        = 0u;
     bool sawCompletePlan = false;

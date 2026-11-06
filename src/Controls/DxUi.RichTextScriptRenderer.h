@@ -1,10 +1,12 @@
 #pragma once
+#include <DxUi/Failure.h>
 #include <DxUi/RichTextLayout.h>
 #include <algorithm>
 #include <cmath>
 #include <d2d1_3.h>
 #include <dwrite_2.h>
 #include <iterator>
+#include <new>
 #include <wil/com.h>
 
 namespace DxUi::RichText::Detail
@@ -183,7 +185,7 @@ public:
             }
             catch (const std::bad_alloc&)
             {
-                result_ = E_OUTOFMEMORY;
+                Failure::FailAllocation();
             }
             return S_OK;
         }
@@ -292,7 +294,7 @@ private:
         }
         catch (const std::bad_alloc&)
         {
-            result_ = E_OUTOFMEMORY;
+            Failure::FailAllocation();
         }
     }
     float DecorationOffset(float x, float y) const noexcept
