@@ -149,6 +149,11 @@ after the retiring surface state has been cleared. A control hook may retire its
 while the owning host object remains alive; every continuation revalidates attachment lifetime and the current
 device/visibility operation before accessing borrowed state. Ordinary dirty revisions remain independent of those
 identities. An in-progress draw retains its device context until EndDraw even if a callback retires host resources.
+Unfinished optional preparation keeps `NeedsPreparation()` true and coalesces one owner scheduling notification
+after the preparation call. A coherent frame remains compositable while that work continues. Hosts consume that
+notification with another preparation turn; content readiness alone does not imply that optional work is idle.
+Tests which arm a distinct scheduling callback first drain initial preparation to idle. Text/input/UIA readiness
+tests retain the earlier content-ready boundary and never wait for cosmetic work merely to inspect source.
 A device replacement or hide/show transition during preparation aborts that stale frame. When the same attachment
 survives, preparation clears its active flags and delivers one deferred owner wake for the new visible, sized
 operation; a hidden or zero-sized view sends no wake. This is a new operation request, not an automatic retry of a

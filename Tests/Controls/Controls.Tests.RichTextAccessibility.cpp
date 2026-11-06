@@ -112,6 +112,20 @@ struct RichAccessibilityFixture
         else
             bridge->Pump();
     }
+    void PublishVisuals()
+    {
+        // Only pixel/AST assertions drain optional work. UIA text and geometry
+        // tests deliberately retain Publish's earlier content-ready boundary.
+        for (unsigned turn = 0u; turn < 1024u; ++turn)
+        {
+            Publish();
+            const auto state = editor->DebugGetState();
+            if (! state.markdownPreparationPending && ! state.sourceInkPreparationPending && ! state.codeInkPreparationPending &&
+                ! state.sourceGuidesPreparationPending)
+                return;
+        }
+        Require(false, "bounded rich UIA fixture visual publication finishes");
+    }
     HWND Hwnd() const
     {
         return window ? window->Hwnd() : bridge->Hwnd();
@@ -1457,9 +1471,9 @@ void ReadOnlyParsedSnapshotAdoption(bool embedded)
     appearance.colorizeMarkdownSource = true;
     mirror->SetAppearance(appearance);
     Require(mirror->SynchronizeReadOnlySourceSnapshot(source, selection), "target holds the exact source snapshot before parse reuse");
-    fixture.Publish();
+    fixture.PublishVisuals();
     Require(mirror->SetScrollOffsetDip(120.0f), "scroll the prepared source view before syntax adoption");
-    fixture.Publish();
+    fixture.PublishVisuals();
     const auto independent = mirror->GetMarkdownSyntax();
     const auto lines       = mirror->GetSourceVisualLineRanges(*fixture.controls);
     const auto before      = mirror->DebugGetState();
@@ -1490,7 +1504,7 @@ void ReadOnlyParsedSnapshotAdoption(bool embedded)
                 mirror->GetSourceVisualLineRanges(*fixture.controls) == lines && mirror->GetSelection() == selection &&
                 mirror->Snapshot().IsSameRevision(source) && mirror->Revision() == revision && ! mirror->CanUndo() && notifications == 0u,
             "adoption preserves ready literal geometry, scroll, selection, source, history and notifications");
-    fixture.Publish();
+    fixture.PublishVisuals();
     const auto after = mirror->DebugGetState();
     Require(after.sourceInkRangeCount == before.sourceInkRangeCount && after.markdownPreparationAdvances == before.markdownPreparationAdvances &&
                 after.preparationAdvances == before.preparationAdvances && after.scrollOffsetDip == before.scrollOffsetDip &&
@@ -1521,7 +1535,7 @@ void ReadOnlyParsedSnapshotAdoption(bool embedded)
     mirror->SetOnTextChanged({});
     mirror->SetOnSelectionChanged({});
     mirror->SetText(L"**ordinary fallback**");
-    fixture.Publish();
+    fixture.PublishVisuals();
     Require(mirror->GetMarkdownSyntax() && &mirror->GetMarkdownSyntax()->Nodes() != &adopted->Nodes() &&
                 mirror->GetMarkdownSyntax()->DocumentIdentity() != adopted->DocumentIdentity() && mirror->DebugGetState().sourceInkRangeCount > 0u,
             "a later unrelated source independently parses with a new identity and full source coloring");
