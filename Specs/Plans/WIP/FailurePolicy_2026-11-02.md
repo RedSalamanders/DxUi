@@ -104,6 +104,15 @@ reopening their historical checklists or relabeling old allocation sweeps as fat
 
 ### Working-tree progress, not acceptance
 
+- The `af7783aa` source passes six zero-warning builds and three clean-pin consumers. Its annotation-enabled
+  consumer passes fifteen of sixteen fatal probes; the remaining child exits during host startup with
+  `ERROR_ALREADY_EXISTS`, before reaching its fault. The retained PID directory predates that child. The
+  example and oracle now use PID plus process creation time; scenario seven seeds a legacy PID-only directory
+  before child resume and verifies its original bytes alongside the independent new dump/context checks.
+  The original fixture, binaries, symbols, capture and failed result remain preserved. Fresh qualification is pending.
+- At `f555c00c`, all six builds, four clean-pin consumers, isolated SDK and all 66 ordinary x64 suite executions
+  pass. The later tooling-only integration repairs its changelog shape and shared-license source contract;
+  these original passing receipts are retained under their actual source.
 - Current main `86c62873` is integrated at `f6938257`, preserving the checked/fatal policy alongside its newer
   input, editor, parser, image and diagram behavior. Five source validators and the SDK notice controls pass.
   All six native builds and the production SDK build reject a merged inline-code spacing query that applied

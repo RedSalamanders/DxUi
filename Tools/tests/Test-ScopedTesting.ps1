@@ -120,8 +120,19 @@ try {
             Assert-Scope ([IO.File]::ReadAllText($consumer).Contains('DXUI_NATIVE_MODULE_FATAL executed=16 passed=16') -and [IO.File]::ReadAllText($consumer).Contains('DXUI_NATIVE_MODULE_NATIVE_ALLOWED executed=2 passed=2')) 'Consumer gate must require all independent module fatal and native caught-exception probes'
             Assert-Scope ([IO.File]::ReadAllText($consumer).Contains('Tests/Support/Support.Tests.DumpReader.h')) 'Consumer gate must copy the canonical dump-unwind oracle'
             $sdk=[IO.File]::ReadAllText((Join-Path $repository 'Tools/New-SdkPackage.ps1'))
-            foreach($required in @('ThirdParty/libfyaml/0.9.4/LICENSE','ThirdParty/libfyaml/0.9.4/LICENSE-xxHash.txt','samples/Shared','FailureHost.cpp','DbgHelp.lib',"@('Main','FailureHost')")) {
+            foreach($required in @('samples/Shared','FailureHost.cpp','DbgHelp.lib',"@('Main','FailureHost')")) {
                 Assert-Scope ($sdk.Contains($required)) "SDK package or independent source dependency check is missing $required"
+            }
+            Assert-Scope ($sdk.Contains("Import-Module (Join-Path `$root 'Tools/SdkNotices.psm1')") -and
+                $sdk.Contains('Copy-DxUiSdkNotices -Root $root') -and
+                [regex]::Matches($sdk,'Assert-DxUiSdkNotices -Root \$root').Count -eq 2) 'SDK package must stage and verify the canonical notices before and after extraction'
+            $notices=Import-Module (Join-Path $repository 'Tools/SdkNotices.psm1') -Force -PassThru
+            $catalog=@(& $notices { Get-NoticeFiles })
+            foreach($required in @(
+                @{Source='ThirdParty/libfyaml/0.9.4/LICENSE';Name='libfyaml-LICENSE.txt'},
+                @{Source='ThirdParty/libfyaml/0.9.4/LICENSE-xxHash.txt';Name='libfyaml-xxHash-LICENSE.txt'})) {
+                $catalogMatches=@($catalog | Where-Object { $_.Source -ceq $required.Source -and $_.Name -ceq $required.Name })
+                Assert-Scope ($catalogMatches.Count -eq 1 -and (Test-Path -LiteralPath (Join-Path $repository $required.Source) -PathType Leaf)) "SDK notice catalog is missing or duplicates $($required.Source)"
             }
             $headerLoop=[regex]::Match([IO.File]::ReadAllText($consumer),'(?s)\$headerUnits\s*=\s*foreach\s*\(.*?\)\s*\{')
             Assert-Scope ($headerLoop.Success -and $headerLoop.Value.Contains("'RichMath'")) 'Exact-pin consumer must compile RichMath as an independent public header'

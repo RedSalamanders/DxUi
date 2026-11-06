@@ -1,2 +1,3 @@
 - Reconcile API 5 failure handling with current editor, parser, diagram, image and deferred-input behavior; preserve checked refusals and fatal original-context callbacks, including direct TextField input and temporary diagram staging. SDK license verification now retains both private YAML backend notices alongside the matching compiler PDB controls.
   - Return inline-code layout interface-query failures through the checked HRESULT channel with WIL's nonthrowing query helper.
+  - Verify the SDK notice catalog and both extraction checks in scoped tooling, and document both public API fixtures.

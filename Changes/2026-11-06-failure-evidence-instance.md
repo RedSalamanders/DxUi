@@ -1,0 +1,1 @@
+- Keep crash evidence distinct across reused process IDs by including process creation time in the example host's directory key; preserve earlier reports and verify the new dump against the held child handle.

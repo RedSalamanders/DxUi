@@ -41,6 +41,10 @@ Current diagram/math/document/input implementation: `8dc328de`, API 4. The [scop
 The parser follow-up is qualified locally at `0ffaa1a6`, API 4. Its [scoped closeout](../Done/MarkdownScanBounds_2026-11-06.md)
 closes MD-03/05/06/07 with all six zero-warning builds, 57 noninteractive suite executions, real ASan detection,
 594 actual compiled inputs, independent work bounds and refreshed native gallery. Remaining rows below keep their scope.
+The same parser source now passes all seven hosted Release jobs at main `2ffe66c2` in
+[run 42165386025](https://github.com/RedSalamanders/DxUi/actions/runs/42165386025): 23 x64/21 ARM64 suites,
+assertion probes and both production SDK smoke checks. Its [verified receipt](../../../Measurements/MarkdownScanBounds_2026-11-06/hosted-qualification.json)
+is independent of the later editor work and the remaining platform/performance gates.
 
 ## Priority 0 — lifetime and failure boundaries
 
