@@ -1,0 +1,1 @@
+- Include libfyaml 0.9.4 in paired library source fingerprints so vendor-only changes distinguish named trees; add focused fingerprint coverage. Validation remains pending.

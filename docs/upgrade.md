@@ -63,6 +63,13 @@ Handle checked native preparation HRESULTs in the application, including device 
 do not rely on catching a C++ exception as the native error channel. Legacy convenience entrypoints that cannot
 report invalid input use the host contract-failure route.
 
+Keep scheduling optional editor visuals after content becomes ready. `preparationPending` reports content
+prerequisites; individual syntax, code-ink or source-guide diagnostics can still be pending. Embedded hosts
+continue on `NeedsPreparation()` and the existing owner-turn request while composing the current coherent
+surface. Custom hosts must preserve that continuation without polling. Tokenizers now run only for visible
+code blocks plus overscan, at most once per turn; do not use those callbacks for document-wide side effects.
+Returned token refusal uses ordinary ink; an unexpected tokenizer exception is fatal through the host.
+
 Audit application callbacks, model/delegate methods and custom controls as part of the port. An unexpected C++
 exception escaping a callback invoked by DxUi is fatal through the host, including after an editor change was
 committed. Return expected refusal through that callback's documented status or value; do not depend on an

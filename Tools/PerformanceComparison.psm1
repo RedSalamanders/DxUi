@@ -22,7 +22,7 @@ $script:BenchmarkInputs = @('Tests/Embedded/Embedded.Tests.BenchmarkMain.h', 'Te
     'Samples/ComplexUi/ComplexUiScene.h', 'Samples/EmbeddedControls/GraphicsFixture.h',
     'Tests/Embedded/Embedded.Tests.PairedBenchmark.cpp', 'Samples/Shared/FailureHost.h', 'Samples/Shared/FailureHost.cpp')
 # The library inputs a receipt's sourceFingerprint covers.
-$script:FingerprintPaths = @('src', 'include', 'Build', 'ThirdParty/tomlplusplus/3.4.0/toml.hpp', 'ThirdParty/rapidyaml/0.16.0/rapidyaml.hpp', 'Directory.Build.props', 'Directory.Build.targets', 'vcpkg.json', 'vcpkg-tool.json')
+$script:FingerprintPaths = @('src', 'include', 'Build', 'ThirdParty/tomlplusplus/3.4.0/toml.hpp', 'ThirdParty/rapidyaml/0.16.0/rapidyaml.hpp', 'ThirdParty/libfyaml/0.9.4', 'Directory.Build.props', 'Directory.Build.targets', 'vcpkg.json', 'vcpkg-tool.json')
 
 function Get-PerformanceMetricNames { return @($script:Metrics.Keys) }
 

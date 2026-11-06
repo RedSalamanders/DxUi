@@ -73,7 +73,7 @@ The SDK ZIP carries the unchanged reviewed NativeBuildPolicy.targets and imports
 During extracted linking, the packager opens the producer PDB for read with exclusive sharing, failing closed if another user holds it. The positive consumer must link without warnings using the extracted PDB. A separate-output negative control temporarily removes only the fresh extracted PDB, requires a successful link with LNK4099 and requires the zero-warning gate to reject it. The extracted PDB is restored and the producer handle is released on every exit; neither the producer artifact nor positive outputs are moved. The receipt records both isolation and negative-control results.
 
 The SDK's `licenses/` contains the project MIT license, source notices, the actual restored WIL copyright,
-KaTeX, toml++, rapidyaml and its bundled notices, Unicode License V3 for embedded Unicode 17 data, and the
+KaTeX, toml++, rapidyaml and its bundled notices, libfyaml and its bundled xxHash notice, Unicode License V3 for embedded Unicode 17 data, and the
 full WHATWG notice for the embedded entity table. Preserve original license bytes. Source-notice license
 links resolve within that directory; repository-only provenance links name the exact public source commit.
 `SdkNotices.psm1` verifies the exact file set and byte identities before ZIP creation and after extraction.

@@ -1,1 +1,2 @@
 - Integrate independent viewport cosmetic preparation with API 5 checked failures: retain usable content and prior ink on expected refusal, preserve checked mapping errors, and keep unexpected C++ exceptions on the host fatal path.
+  Cover source-ink cancellation, both mapping endpoints, replacement, clear and capacity identity, and exact multi-block viewport results. Clarify the migration and YAML budget-refusal contracts; final current-source runtime qualification remains pending.
