@@ -805,16 +805,18 @@ bool PreparedFlowchart::Draw(ID2D1RenderTarget* target,
         auto* lineStyle       = authored.dashSpecified                     ? (authored.dashed ? state.dashedStyle.get() : nullptr)
                                 : edge.style == FlowchartLineStyle::Dotted ? state.dottedStyle.get()
                                                                            : nullptr;
+        const bool triangle   = edge.relation == FlowchartRelation::Inheritance || edge.relation == FlowchartRelation::Realization;
+        const bool diamond    = edge.relation == FlowchartRelation::Aggregation || edge.relation == FlowchartRelation::Composition;
+        const bool shorten    = (triangle || diamond) && state.arrowPaths[index];
+        const auto markerBase =
+            triangle ? FlowchartPoint{(edge.arrow[1u].x + edge.arrow[2u].x) / 2.0, (edge.arrow[1u].y + edge.arrow[2u].y) / 2.0} : edge.diamond[2u];
         for (std::size_t point = 1u; point < edge.path.size(); ++point)
         {
-            auto end = edge.path[point];
-            if ((edge.relation == FlowchartRelation::Inheritance || edge.relation == FlowchartRelation::Realization) && state.arrowPaths[index] &&
-                point + 1u == edge.path.size())
-                end = {(edge.arrow[1u].x + edge.arrow[2u].x) / 2.0, (edge.arrow[1u].y + edge.arrow[2u].y) / 2.0};
-            if ((edge.relation == FlowchartRelation::Aggregation || edge.relation == FlowchartRelation::Composition) && state.arrowPaths[index] &&
-                point + 1u == edge.path.size())
-                end = edge.diamond[2u];
-            target->DrawLine(Point(edge.path[point - 1u]), Point(end), edgeStroke, lineWidth, lineStyle);
+            // Hollow markers shorten their own end of the connector. A
+            // leading marker must not disconnect the opposite node.
+            const auto start = shorten && authored.markerAtStart && point == 1u ? markerBase : edge.path[point - 1u];
+            const auto end   = shorten && ! authored.markerAtStart && point + 1u == edge.path.size() ? markerBase : edge.path[point];
+            target->DrawLine(Point(start), Point(end), edgeStroke, lineWidth, lineStyle);
         }
         if (state.graph->family == NativeDiagramFamily::EntityRelationship)
         {

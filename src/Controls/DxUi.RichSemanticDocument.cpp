@@ -1874,7 +1874,11 @@ struct SemanticBuilder::Preparation
                 DiagramAlternative({id(edge.from), Label(AccessibilityTextId::DiagramNote), graph.nodes[edge.to].label, L"; "});
                 return;
             }
-            if (! edge.fromCardinality.empty() || ! edge.toCardinality.empty())
+            const auto relationFrom     = edge.markerAtStart ? edge.to : edge.from;
+            const auto relationTo       = edge.markerAtStart ? edge.from : edge.to;
+            const auto& fromCardinality = edge.markerAtStart ? edge.toCardinality : edge.fromCardinality;
+            const auto& toCardinality   = edge.markerAtStart ? edge.fromCardinality : edge.toCardinality;
+            if (! fromCardinality.empty() || ! toCardinality.empty())
             {
                 const auto action = edge.relation == Detail::FlowchartRelation::Realization   ? Label(AccessibilityTextId::DiagramImplements)
                                     : edge.relation == Detail::FlowchartRelation::Inheritance ? Label(AccessibilityTextId::DiagramInherits)
@@ -1882,8 +1886,7 @@ struct SemanticBuilder::Preparation
                                     : edge.relation == Detail::FlowchartRelation::Aggregation ? Label(AccessibilityTextId::DiagramAggregatedBy)
                                     : edge.arrow                                              ? L" \u2192 "
                                                                                               : L" \u2014 ";
-                DiagramAlternative(
-                    {id(edge.from), L" [", edge.fromCardinality, L"]", action, id(edge.to), L" [", edge.toCardinality, L"] ", edge.label, L"; "});
+                DiagramAlternative({id(relationFrom), L" [", fromCardinality, L"]", action, id(relationTo), L" [", toCardinality, L"] ", edge.label, L"; "});
                 return;
             }
             if (edge.relation == Detail::FlowchartRelation::Inheritance || edge.relation == Detail::FlowchartRelation::Realization ||
@@ -1895,9 +1898,9 @@ struct SemanticBuilder::Preparation
                                          : edge.relation == Detail::FlowchartRelation::Aggregation ? Label(AccessibilityTextId::DiagramAggregatedBy)
                                                                                                    : action;
                 if (edge.label.empty())
-                    DiagramAlternative({id(edge.from), description, id(edge.to), L"; "});
+                    DiagramAlternative({id(relationFrom), description, id(relationTo), L"; "});
                 else
-                    DiagramAlternative({id(edge.from), L" (", edge.label, L")", description, id(edge.to), L"; "});
+                    DiagramAlternative({id(relationFrom), L" (", edge.label, L")", description, id(relationTo), L"; "});
             }
             else if (edge.label.empty())
                 DiagramAlternative({id(edge.from), edge.arrow ? L" \u2192 " : L" \u2014 ", id(edge.to), L"; "});

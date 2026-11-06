@@ -1,5 +1,6 @@
 #pragma once
 #include "Controls/DxUi.MarkdownBlocks.h"
+#include "Support.Tests.MarkdownHtml.h"
 #include <DxUi/MarkdownSyntax.h>
 #include <stdexcept>
 
@@ -30,6 +31,39 @@ template <typename Check> inline std::shared_ptr<const MarkdownSyntax> Complete(
               "bounded syntax admission yields and completes without spinning an owner");
     }
     return parser.Published();
+}
+template <typename Check> inline void AutolinkSuffixes(Check&& check)
+{
+    struct Case
+    {
+        std::wstring_view source, expected;
+    };
+    constexpr Case cases[] = {
+        {L"Visit www.a.com today, **not** www.b.com.",
+         L"<p>Visit <a href=\"http://www.a.com\">www.a.com</a> today, <strong>not</strong> <a href=\"http://www.b.com\">www.b.com</a>.</p>\n"},
+        {L"see www.a.com for snake_case and www.b.com",
+         L"<p>see <a href=\"http://www.a.com\">www.a.com</a> for snake_case and <a href=\"http://www.b.com\">www.b.com</a></p>\n"},
+        {L"a https://x.example and **https://y.example**",
+         L"<p>a <a href=\"https://x.example\">https://x.example</a> and <strong><a href=\"https://y.example\">https://y.example</a></strong></p>\n"},
+        {L"www.a.com x [y www.b.com", L"<p><a href=\"http://www.a.com\">www.a.com</a> x [y <a href=\"http://www.b.com\">www.b.com</a></p>\n"},
+        {L"www.a.com is fast = good, www.b.com",
+         L"<p><a href=\"http://www.a.com\">www.a.com</a> is fast = good, <a href=\"http://www.b.com\">www.b.com</a></p>\n"},
+        {L"www.a.com x **y** www.b.com",
+         L"<p><a href=\"http://www.a.com\">www.a.com</a> x <strong>y</strong> <a href=\"http://www.b.com\">www.b.com</a></p>\n"},
+    };
+    for (const auto profile : {MarkdownProfile::Gfm029, MarkdownProfile::RichMarkdown})
+        for (const auto& item : cases)
+        {
+            MarkdownParser parser;
+            parser.Begin(item.source, 1u, profile);
+            const auto syntax = Complete(parser, check);
+            check(syntax->Source() == item.source && MarkdownHtmlTests::Html(*syntax) == item.expected,
+                  "autolink siblings retain every literal suffix in independently specified HTML");
+            for (const auto& node : syntax->Inlines())
+                check(node.kind != MarkdownInlineKind::Text || node.source.first == node.source.last || ! node.value.empty(),
+                      "nonempty text between autolinks has a decoded value");
+            check(syntax->InlineStatistics().autolinkDecodedUnits <= item.source.size(), "each autolink literal source unit is decoded at most once");
+        }
 }
 template <typename Check> inline void ParserBounds(Check&& check)
 {

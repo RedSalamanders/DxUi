@@ -13,5 +13,6 @@ void TestScrollPanelScrollbarDoubleClickPagesAgain();
 void TestScrollPanelKeepsTheFocusAChildTakesOnAnUnhandledPress();
 void TestKeyboardContextAnchorsStayInsideTheScrollViewport();
 void TestNativeUnhandledKeysReachApplicationFallback();
+void TestPacketSurrogatesThroughNativeAndEmbeddedHosts();
 void TestExtractedRadioDoesNotUseItsFormerGroup();
 void TestEmbeddedGraphicsRetirementPreservesApplicationBindings();

@@ -1794,6 +1794,7 @@ __declspec(noinline) static int RunFunctionalTests()
     TestTextFieldDirectPreparationRetirement(gpu);
     TestComboBoxDirectPreparationRetirement(gpu);
     TestFormClearPreparationRetirement(gpu);
+    TestRichDocumentBindingPreparationRetirement(gpu);
     TestMultilineCaretViewport(gpu);
     TestEmbeddedTextInput(gpu);
     TestEmbeddedTabHeaderPreparationAvoidsPaintWork(gpu);

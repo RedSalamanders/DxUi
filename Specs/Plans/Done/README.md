@@ -1,5 +1,9 @@
 # Completed and archived plans
 
+## Completed scopes — 6 November 2026
+
+- [Diagram, math, workspace and Unicode corrections](DiagramMathAndWorkspaceCorrections_2026-11-06.md) — authored class direction, compact BT ranks, ink-aware math, document exchange, D3/D5, packet scalars and MD-01/02/04; six builds and 57 noninteractive suite executions.
+
 ## Completed scopes — 5 November 2026
 
 - [Paired attestation module ownership](PairedAttestationModuleOwnership_2026-11-05.md) — exact hosted/local module-collision failure, retained imported dependency, independent hostile-module closure check and complete tooling validation; paired acceptance remains in WIP.

@@ -124,6 +124,68 @@ void TestRichTextEditorTransactionsAndValidation()
     Require(! editor.CanUndo() && ! editor.CanRedo() && changes == 3, "SetText resets history without application notification");
 }
 
+void TestRichTextEditorDocumentExchangeRetainsIndependentHistory()
+{
+    RichTextEditor editor(L"alpha\r\n");
+    editor.SetSelection({5, 0});
+    Require(editor.ReplaceSelection(L"first") && editor.ReplaceSelection(L"!") && editor.Undo(), "seed the first Undo and Redo histories");
+    const auto first          = editor.Snapshot();
+    const auto firstSelection = editor.GetSelection();
+    Document other(L"beta\U0001f600\n");
+    other.SetSelection({4, 0});
+    Require(other.ReplaceSelection(L"second"), "seed the second independent history");
+    const auto second          = other.Snapshot();
+    const auto secondSelection = other.GetSelection();
+    unsigned edits{}, selections{};
+    editor.SetOnTextChanged([&] { ++edits; });
+    editor.SetOnSelectionChanged([&] { ++selections; });
+    for (unsigned turn = 0; turn < 3; ++turn)
+    {
+        Require(editor.ExchangeDocumentState(other) && editor.Snapshot().IsSameRevision(second) && editor.GetSelection() == secondSelection &&
+                    other.Snapshot().IsSameRevision(first) && other.GetSelection() == firstSelection && edits == turn * 4u,
+                "document exchange retains exact immutable source and oriented selection without a text-edit callback");
+        Require(editor.Undo() && editor.GetText() == L"beta\U0001f600\n" && editor.Redo() && editor.GetText() == second.Text(),
+                "second document Undo and Redo stay independent");
+        Require(editor.ExchangeDocumentState(other) && editor.Snapshot().IsSameRevision(first) && editor.GetSelection() == firstSelection && editor.CanUndo() &&
+                    editor.CanRedo(),
+                "returning to the first document retains both history branches");
+        Require(editor.Redo() && editor.GetText() == L"first!\r\n" && editor.Undo() && editor.GetText() == first.Text(),
+                "the original Redo branch survives repeated document switches");
+    }
+    Require(selections >= 6u, "each accepted binding exchange publishes its source selection");
+    editor.SetReadOnly(true);
+    Require(! editor.ExchangeDocumentState(other) && editor.Snapshot().IsSameRevision(first) && other.Snapshot().IsSameRevision(second),
+            "read-only refusal retains both complete documents");
+    editor.SetReadOnly(false);
+    editor.SetEnabled(false);
+    Require(! editor.ExchangeDocumentState(other), "disabled document exchange is atomic");
+    editor.SetEnabled(true);
+    Require(other.ReplaceTransient(L"preview", {0, 0}) && ! editor.ExchangeDocumentState(other) && editor.Snapshot().IsSameRevision(first),
+            "an incoming transient text-service preview cannot be detached from its owner");
+    std::unique_ptr<RichTextEditor> retiring = std::make_unique<RichTextEditor>(L"owned");
+    Document replacement(L"replacement");
+    retiring->SetOnSelectionChanged([&] { retiring.reset(); });
+    Require(retiring->ExchangeDocumentState(replacement) && ! retiring && replacement.Text() == L"owned",
+            "a binding selection callback may retire its editor after the exchange commits");
+    AttachedHostWindow window;
+    auto owned   = std::make_unique<RichTextEditor>(L"# Alpha");
+    auto* native = owned.get();
+    native->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    native->SetMarkdownRenderingEnabled(true);
+    window.Host().SetRoot(std::move(owned));
+    ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+    RenderEditor(window);
+    Require(static_cast<bool>(native->GetSemanticDocument()), "first binding publishes native Markdown");
+    Document equalRevision(L"# Beta");
+    Require(native->Revision() == equalRevision.Revision() && native->ExchangeDocumentState(equalRevision) && ! native->GetMarkdownSyntax() &&
+                ! native->GetSemanticDocument(),
+            "equal numeric revisions in another document cannot expose old syntax or semantic objects");
+    RenderEditor(window);
+    Require(native->GetSemanticDocument() && native->GetSemanticDocument()->Map().Source() == L"# Beta" && equalRevision.Text() == L"# Alpha" &&
+                ! native->CanUndo(),
+            "replacement binding prepares its own source without adding an Undo entry");
+}
+
 void TestRichTextEditorBlockInsertWrapsExactSelection()
 {
     struct Fixture
@@ -2150,6 +2212,62 @@ void TestRichTextEditorNativeLosslessMarkdownPreparation()
 
 namespace
 {
+void TestRichTextEditorNetworkFileImagePolicy()
+{
+    struct Scenario
+    {
+        std::wstring_view base, destination, resolved;
+    };
+    constexpr Scenario scenarios[] = {{L"D:\\Writing\\Notes.md", L"//files.example.test/share/cover.bmp", L"\\\\files.example.test\\share\\cover.bmp"},
+                                      {L"D:\\Writing\\Notes.md", L"file://files.example.test/share/cover.bmp", L"\\\\files.example.test\\share\\cover.bmp"},
+                                      {L"D:\\Writing\\Notes.md", L"FILE://localhost/D:/Writing/cover.bmp", L"D:\\Writing\\cover.bmp"},
+                                      {L"\\\\files.example.test\\share\\Notes.md", L"cover.bmp", L"\\\\files.example.test\\share\\cover.bmp"}};
+    constexpr std::array<std::byte, 4> pixel{std::byte{0}, std::byte{0}, std::byte{255}, std::byte{255}};
+    std::shared_ptr<const RichImage> pixels;
+    RequireSucceeded(RichImage::CreatePbgra(1, 1, pixel, pixels), "synthetic network image pixels require no network or filesystem I/O");
+    for (const auto& scenario : scenarios)
+    {
+        AttachedHostWindow window;
+        auto owned   = std::make_unique<RichTextEditor>();
+        auto* editor = owned.get();
+        editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+        editor->SetMarkdownRenderingEnabled(true);
+        window.Host().SetRoot(std::move(owned));
+        editor->SetRemoteImagesEnabled(false);
+        editor->SetDocumentFilePath(std::wstring(scenario.base));
+        const auto source = std::wstring(L"![local](file:///D:/Writing/local.bmp)\n\n![network](") + std::wstring(scenario.destination) + L")\n";
+        editor->SetText(source);
+        RenderEditor(window);
+        std::vector<RichImageRequest> requests(0u);
+        editor->TakePendingImageRequests(requests);
+        Require(requests.size() == 1u && requests[0u].SourceKind() == RichImageSourceKind::LocalFile && requests[0u].FilePath() == L"D:\\Writing\\local.bmp",
+                "disabled remote permission admits only the absolute local drive image for every network spelling/base");
+        const auto local = requests[0u];
+        Require(editor->CompleteImageRequest(local, pixels), "publish the explicit local request through the synthetic provider");
+        Require(local.Cancelled(), "completed transport tokens retire while their decoded pixels remain cached");
+        const auto revision  = editor->Snapshot();
+        const auto selection = editor->GetSelection();
+        editor->SetRemoteImagesEnabled(true);
+        RenderEditor(window);
+        editor->TakePendingImageRequests(requests);
+        Require(requests.size() == 1u && requests[0u].SourceKind() == RichImageSourceKind::NetworkFile && requests[0u].Source() == scenario.resolved &&
+                    requests[0u].FilePath().empty() && editor->GetImageResourceStatistics().readySources == 1u,
+                "explicit permission classifies authority/UNC/relative-UNC requests separately without exposing an ungated local path");
+        const auto network = requests[0u];
+        Require(editor->CompleteImageRequest(network, pixels), "an opted-in network request accepts its matching synthetic completion");
+        RenderEditor(window);
+        Require(editor->GetImageResourceStatistics().readySources == 2u, "local and network sources retain separate owned identities");
+        editor->SetRemoteImagesEnabled(false);
+        Require(network.Cancelled() && editor->GetImageResourceStatistics().readySources == 1u && ! editor->CompleteImageRequest(network, pixels) &&
+                    local.Cancelled(),
+                "revoking permission immediately evicts network pixels and refuses late completion while preserving local pixels");
+        RenderEditor(window);
+        editor->TakePendingImageRequests(requests);
+        Require(requests.empty() && editor->GetText() == source && editor->Snapshot().IsSameRevision(revision) && editor->GetSelection() == selection &&
+                    ! editor->CanUndo() && ! editor->CanRedo(),
+                "blocked network paths cause no retries, source changes, selection moves or history entries");
+    }
+}
 void TestRichTextEditorRemoteImagePolicy()
 {
     AttachedHostWindow window;
@@ -2225,6 +2343,7 @@ void RunRichTextEditorTests()
 {
     ScopedNonActivatingTestWindows nonActivating;
     DXUI_RUN_TEST(TestRichTextEditorTransactionsAndValidation);
+    DXUI_RUN_TEST(TestRichTextEditorDocumentExchangeRetainsIndependentHistory);
     DXUI_RUN_TEST(TestRichTextEditorBlockInsertWrapsExactSelection);
     DXUI_RUN_TEST(TestRichTextEditorBlockInsertDeclinesAtomically);
     DXUI_RUN_TEST(TestRichTextEditorUnicodeCharacterTransactions);
@@ -2272,5 +2391,6 @@ void RunRichTextEditorTests()
     DXUI_RUN_TEST(TestRichTextNativeImageDecoder);
     DXUI_RUN_TEST(TestRichTextEditorNativeImageResources);
     DXUI_RUN_TEST(TestRichTextEditorRemoteImagePolicy);
+    DXUI_RUN_TEST(TestRichTextEditorNetworkFileImagePolicy);
     DXUI_RUN_TEST(TestRichTextEditorNativeImagePixels);
 }

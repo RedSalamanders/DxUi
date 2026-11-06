@@ -393,6 +393,55 @@ static void TestFormClearPreparationRetirement(GraphicsFixture& gpu)
     }
 }
 
+static void TestRichDocumentBindingPreparationRetirement(GraphicsFixture& gpu)
+{
+    using namespace DxUi;
+    std::shared_ptr<GraphicsDevice> graphics;
+    Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "document binding retirement graphics");
+    for (const bool exchange : {false, true})
+        for (const bool retire : {false, true})
+        {
+            struct Wake
+            {
+                ControlHost* controls{};
+                bool armed{}, retire{};
+                unsigned calls{};
+            } wake;
+            EmbeddedHost view;
+            wake.controls = &view.Controls();
+            wake.retire   = retire;
+            Hr(view.Attach(graphics,
+                           {.context = &wake,
+                            .requestPreparation =
+                                [](void* context) noexcept
+            {
+                auto& current = *static_cast<Wake*>(context);
+                if (std::exchange(current.armed, false))
+                {
+                    ++current.calls;
+                    if (current.retire)
+                        current.controls->SetRoot(nullptr);
+                }
+            }}),
+               "attach document binding retirement fixture");
+            auto owned   = std::make_unique<RichTextEditor>(L"first");
+            auto* editor = owned.get();
+            view.Controls().SetRoot(std::move(owned));
+            Hr(view.Prepare(320, 160), "prepare the entry document binding");
+            RichText::Document other(L"second");
+            const auto lifetime = GetControlLifetimeToken(*editor);
+            wake.armed          = true;
+            if (exchange)
+                Check(editor->ExchangeDocumentState(other) && other.Text() == L"first", "document exchange commits before a retiring preparation wake");
+            else
+                editor->SetText(L"second");
+            Check(wake.calls == 1u && lifetime.expired() == retire && (view.Controls().GetRoot() == nullptr) == retire,
+                  "document setters and exchanges stop safely when preparation retires the editor");
+            if (! retire)
+                Check(editor->GetText() == L"second" && ! editor->CanUndo(), "the live binding keeps its incoming source and history");
+        }
+}
+
 // Exercise real caret pixels on a supplied WARP surface, without an HWND or OS focus.
 static void TestMultilineCaretViewport(GraphicsFixture& gpu)
 {

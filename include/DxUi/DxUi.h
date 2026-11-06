@@ -3374,6 +3374,11 @@ public:
     void SetText(std::wstring text);
     [[nodiscard]] std::wstring GetText() const;
     [[nodiscard]] RichText::SourceSnapshot Snapshot() const noexcept;
+    // Owner-thread document binding exchange for application workspaces. Both
+    // source/selection and complete Undo/Redo histories move without an edit.
+    // Refuses atomically for read-only/disabled input or a transient composition
+    // in either document. Presentation and the control's callbacks stay here.
+    [[nodiscard]] bool ExchangeDocumentState(RichText::Document& document);
     // Like SetText, call on the control's owner thread. A read-only Source view shares immutable source storage.
     // New snapshots advance the target's local revision and clear its history; syntax remains independently prepared.
     // Same-snapshot selection changes follow SetSelection. False leaves the target unchanged for ordinary SetText fallback.
@@ -3703,6 +3708,7 @@ private:
     void RequireCurrentLayout(const ControlHost& host) const;
     void UpdateCaretScroll() const;
     void RetireLayout(bool retainGeometry = false) const noexcept;
+    void ResetDocumentBinding();
     void UpdateSemanticSourceRegion() noexcept;
     void SourcePresentationChanged(ControlHost& host);
     [[nodiscard]] bool CanChangeSemanticSourcePresentation(ControlHost& host) const;
@@ -4116,6 +4122,7 @@ private:
     std::shared_ptr<const std::function<void(size_t)>> _onSelectionChanged;
     std::shared_ptr<const std::function<void()>> _onSubmitted;
     std::shared_ptr<const std::function<bool()>> _onPopupRequested;
+    // Editable mode retains one pending UTF-16 lead here; selection-only mode uses the lookup prefix.
     std::wstring _typeaheadBuffer;
     std::vector<EditHistoryState> _undoHistory;
     std::vector<EditHistoryState> _redoHistory;

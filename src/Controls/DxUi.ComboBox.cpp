@@ -453,6 +453,7 @@ ComboBox::ComboBox()
 
 void ComboBox::SetVariant(ComboBoxVariant variant) noexcept
 {
+    _typeaheadBuffer.clear();
     const bool changed  = _variant != variant;
     _variant            = variant;
     const bool editable = variant == ComboBoxVariant::Edit;
@@ -544,6 +545,7 @@ float ComboBox::GetMinimumPopupItemHeight() const noexcept
 
 void ComboBox::SetEditable(bool editable) noexcept
 {
+    _typeaheadBuffer.clear();
     if (editable)
     {
         SetVariant(ComboBoxVariant::Edit);
@@ -577,6 +579,7 @@ bool ComboBox::GetAutoOpenOnTextInput() const noexcept
 
 void ComboBox::SetItems(std::vector<Item> items)
 {
+    _typeaheadBuffer.clear();
     _items            = std::move(items);
     _popupScrollIndex = 0u;
     RebuildPopupItems();
@@ -612,6 +615,7 @@ std::span<const ComboBox::Item> ComboBox::GetItems() const noexcept
 
 void ComboBox::SetSelectedIndex(std::optional<size_t> selectedIndex) noexcept
 {
+    _typeaheadBuffer.clear();
     if (selectedIndex && selectedIndex.value() >= _items.size())
     {
         _selectedIndex.reset();
@@ -659,6 +663,7 @@ std::wstring_view ComboBox::GetDisplayedText() const noexcept
 
 void ComboBox::SetText(std::wstring text)
 {
+    _typeaheadBuffer.clear();
     const auto lifetime = GetLifetimeToken();
     _text               = std::move(text);
     _caretIndex         = _text.size();
@@ -927,6 +932,7 @@ void ComboBox::PaintOverlay(ControlHost& host) const
 
 bool ComboBox::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)
 {
+    _typeaheadBuffer.clear();
     ControlHost* const originalHost = GetHost();
     if (rightButton)
     {
@@ -1252,6 +1258,8 @@ bool ComboBox::OnMouseLeave(ControlHost& host)
 
 bool ComboBox::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
 {
+    if (_editable && ! KeyKeepsPendingSurrogate(virtualKey))
+        _typeaheadBuffer.clear();
     ControlHost* const originalHost = GetHost();
     ResetSingleLineSelectionClickSequence(_selectionClickSequence);
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
@@ -1737,6 +1745,8 @@ bool ComboBox::OnChar(ControlHost& host, wchar_t ch, UINT modifiers)
     // Alt alone makes the system's characters (menu access keys, Alt+Space); AltGr arrives as Ctrl+Alt and types.
     if (ModifiersContainAlt(modifiers) && ! ModifiersContainCtrl(modifiers))
     {
+        if (_editable)
+            _typeaheadBuffer.clear();
         return false;
     }
     ResetSingleLineSelectionClickSequence(_selectionClickSequence);
@@ -1794,6 +1804,15 @@ bool ComboBox::OnChar(ControlHost& host, wchar_t ch, UINT modifiers)
         return false;
     }
 
+    if (IsUtf16LeadSurrogate(ch))
+    {
+        _typeaheadBuffer.assign(1u, ch);
+        return true;
+    }
+    const wchar_t lead = _typeaheadBuffer.size() == 1u && IsUtf16LeadSurrogate(_typeaheadBuffer.front()) ? _typeaheadBuffer.front() : wchar_t{};
+    _typeaheadBuffer.clear();
+    if (IsUtf16TrailSurrogate(ch) && ! lead)
+        return true;
     if (ch == L'\r')
     {
         return true;
@@ -1805,8 +1824,17 @@ bool ComboBox::OnChar(ControlHost& host, wchar_t ch, UINT modifiers)
 
     RecordUndoStateForEditableEdit();
     static_cast<void>(DeleteEditableSelection());
-    _text.insert(_caretIndex, 1u, ch);
-    _caretIndex += 1u;
+    if (IsUtf16TrailSurrogate(ch))
+    {
+        const wchar_t pair[] = {lead, ch};
+        _text.insert(_caretIndex, pair, 2u);
+        _caretIndex += 2u;
+    }
+    else
+    {
+        _text.insert(_caretIndex, 1u, ch);
+        ++_caretIndex;
+    }
     _selectionAnchorIndex.reset();
     InvalidateSingleLineLayoutCache();
     SyncEditableSelectionFromText();
@@ -2052,6 +2080,7 @@ bool ComboBox::ImportTextInputState(ControlHost& host, const TextInputState& sta
     {
         return false;
     }
+    _typeaheadBuffer.clear();
 
     const std::wstring previousText = _text;
     ResetSingleLineSelectionClickSequence(_selectionClickSequence);
@@ -2102,6 +2131,7 @@ ComboBox::EditHistoryState ComboBox::CaptureEditHistoryState() const
 
 void ComboBox::RestoreEditHistoryState(const EditHistoryState& state) noexcept
 {
+    _typeaheadBuffer.clear();
     _text       = state.text;
     _caretIndex = std::min(state.caretIndex, _text.size());
     if (state.selectionAnchorIndex)
@@ -2366,6 +2396,8 @@ void ComboBox::ResetEditableCaretBlink(ControlHost& host) noexcept
 
 void ComboBox::OnFocusChanged(ControlHost& host, bool focused)
 {
+    if (! focused)
+        _typeaheadBuffer.clear();
     Control::OnFocusChanged(host, focused);
     if (focused && _editable)
     {

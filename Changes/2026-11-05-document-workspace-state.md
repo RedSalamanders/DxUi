@@ -1,0 +1,1 @@
+- Add an owner-thread rich document exchange that preserves independent source, selection and Undo/Redo histories for application workspaces, declines active previews atomically and retires stale equal-revision semantic bindings.

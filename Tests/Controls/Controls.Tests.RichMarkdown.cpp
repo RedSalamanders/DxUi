@@ -926,6 +926,8 @@ void TestYamlFrontMatterValidationAndSourcePreservation()
     // YAML 1.2.2 examples: https://yaml.org/spec/1.2.2/ . Complex keys,
     // schema-resolved equality and undefined aliases are independent of fences.
     constexpr Case cases[] = {
+        {L"---\rtitle: a\rtags: b\r---\r# Doc\r", {}},
+        {L"---\r\ntitle: a\rtags: b\n---\r\n# Doc\n", {}},
         {L"---\nname:\tvalue\nsequence: [one, two]\n---\n", {}},
         {L"---\n? [alpha, beta]\n: one\n? [alpha, gamma]\n: two\n---\n", {}},
         {L"---\na: &anchor [one, two]\nb: *anchor\n---\n", {}},
@@ -1006,6 +1008,30 @@ void TestMetadataIndependentValidityCorpora()
         if (! correct)
             std::cerr << "Metadata corpus failure " << item.name << " actual=" << static_cast<int>(actual) << '\n';
         Require(correct, "independent metadata validity expectation");
+        if (yaml && ! invalidEncoding)
+        {
+            // The same independently classified YAML stream in each permitted
+            // line-break spelling; TOML's stricter CR rule remains unchanged.
+            std::wstring lf;
+            for (std::size_t at = 0u; at < source.size(); ++at)
+            {
+                const auto unit = source[at];
+                lf.push_back(unit == L'\r' ? L'\n' : unit);
+                if (unit == L'\r' && at + 1u < source.size() && source[at + 1u] == L'\n')
+                    ++at;
+            }
+            for (const std::wstring_view eol : {L"\n", L"\r", L"\r\n"})
+            {
+                std::wstring variant;
+                for (const auto unit : lf)
+                    if (unit == L'\n')
+                        variant.append(eol);
+                    else
+                        variant.push_back(unit);
+                Require(DxUi::RichText::Detail::ValidateYamlMetadata(variant) == actual,
+                        "independent YAML validity outcomes are invariant under LF, CR and CRLF");
+            }
+        }
         if (yaml)
             ++yamlCount;
         else
@@ -1666,6 +1692,7 @@ void TestMarkdownParserAdoptsExactParsedSnapshot()
 void TestLosslessMarkdownGlobalNodeAdmissionAndCooperativePadding()
 {
     MarkdownCapacityTests::ParserBounds(Require);
+    MarkdownCapacityTests::AutolinkSuffixes(Require);
 }
 void TestRichMarkdownInlineExtensions()
 {

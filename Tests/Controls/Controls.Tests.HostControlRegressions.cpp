@@ -604,6 +604,106 @@ void TestKeyboardContextAnchorsStayInsideTheScrollViewport()
     }
 }
 
+void TestPacketSurrogatesThroughNativeAndEmbeddedHosts()
+{
+    using namespace DxUi;
+    ScopedNonActivatingTestWindows nonActivating;
+    constexpr wchar_t lead = static_cast<wchar_t>(0xd83du), trail = static_cast<wchar_t>(0xde00u);
+    for (const bool embedded : {false, true})
+    {
+        const auto exercise = [&]<typename Editor>(std::unique_ptr<Editor> owned)
+        {
+            GraphicsFixture graphics;
+            EmbeddedHost view;
+            std::unique_ptr<AttachedHostWindow> window;
+            ControlHost* host{};
+            if (embedded)
+            {
+                RequireSucceeded(view.Attach(MakePool(graphics)), "attach the supplied-device packet-input fixture");
+                host = &view.Controls();
+            }
+            else
+            {
+                window = std::make_unique<AttachedHostWindow>();
+                host   = &window->Host();
+            }
+            auto* editor = owned.get();
+            std::vector<std::wstring> notifications;
+            if constexpr (std::is_same_v<Editor, RichTextEditor>)
+                editor->SetOnTextChanged([&] { notifications.push_back(editor->GetText()); });
+            else
+                editor->SetOnTextChanged([&](std::wstring_view text) { notifications.emplace_back(text); });
+            host->SetRoot(std::move(owned));
+            const auto disconnect = wil::scope_exit([&] { editor->SetOnTextChanged({}); });
+            editor->SetBounds(D2D1::RectF(0.f, 0.f, 240.f, 80.f));
+            host->SetFocusControl(editor, false);
+            const auto prepare = [&]
+            {
+                if (embedded)
+                {
+                    unsigned turns{};
+                    while (view.Prepare(260u, 100u) == S_FALSE && view.NeedsPreparation())
+                        Require(++turns < 256u, "packet fixture finishes bounded supplied-device preparation");
+                }
+                else
+                    Require(host->RenderInitialFrameForShow(), "prepare the owned native packet-input window without activating it");
+            };
+            prepare();
+            Require(editor->GetText() == L"A" && notifications.empty(), "packet fixture starts from its initialized value without edit notifications");
+            const auto key = [&](UINT value, bool down)
+            {
+                if (embedded)
+                    static_cast<void>(view.DispatchKey(value, down));
+                else
+                {
+                    bool handled{};
+                    static_cast<void>(host->HandleMessage(window->Hwnd(), down ? WM_KEYDOWN : WM_KEYUP, value, 0, handled));
+                }
+            };
+            const auto character = [&](wchar_t value)
+            {
+                if (embedded)
+                    Require(view.DispatchCharacter(value), "embedded packet character reaches its focused editor");
+                else
+                {
+                    bool handled{};
+                    static_cast<void>(host->HandleMessage(window->Hwnd(), WM_CHAR, static_cast<WPARAM>(value), 1, handled));
+                    Require(handled, "the owned native host handles the replayed WM_CHAR");
+                }
+            };
+            key(VK_PACKET, true);
+            character(lead);
+            key(VK_PACKET, false);
+            Require(editor->GetText() == L"A" && notifications.empty(), "a packet lead is buffered without publishing half a scalar");
+            key(VK_SHIFT, true);
+            key(VK_SHIFT, false);
+            key(VK_PACKET, true);
+            character(trail);
+            key(VK_PACKET, false);
+            const std::wstring expected{L'A', lead, trail};
+            Require(editor->GetText() == expected && notifications == std::vector<std::wstring>{expected},
+                    "native/embedded packet and modifier transitions publish one whole supplementary scalar");
+            Require(editor->OnKeyDown(*host, 'Z', MK_CONTROL) && editor->GetText() == L"A", "one Undo removes the packet scalar as one transaction");
+            Require(editor->OnKeyDown(*host, 'Y', MK_CONTROL) && editor->GetText() == expected, "one Redo restores the complete packet scalar");
+            prepare();
+            const auto notificationCount = notifications.size();
+            character(lead);
+            static_cast<void>(editor->OnKeyDown(*host, VK_HOME, 0u));
+            character(trail);
+            Require(editor->GetText() == expected && notifications.size() == notificationCount,
+                    "an editing/navigation command still cancels a pending packet lead");
+        };
+        exercise(std::make_unique<TextField>(L"A"));
+        auto rich = std::make_unique<RichTextEditor>();
+        rich->SetText(L"A");
+        rich->SetSelection({1u, 1u});
+        exercise(std::move(rich));
+        auto combo = std::make_unique<ComboBox>();
+        combo->SetEditable(true);
+        combo->SetText(L"A");
+        exercise(std::move(combo));
+    }
+}
 void TestNativeUnhandledKeysReachApplicationFallback()
 {
     using namespace DxUi;

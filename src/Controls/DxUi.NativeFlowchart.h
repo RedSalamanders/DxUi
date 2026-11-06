@@ -208,6 +208,9 @@ struct FlowchartEdge
     FlowchartLineStyle style{};
     std::size_t minimumRanks{1u};
     bool arrow{};
+    // Class relationship markers do not reverse the authored layout constraint.
+    // For A <|-- B, A precedes B along direction while B inherits A.
+    bool markerAtStart{};
     bool openArrow{}; // Sequence asynchronous messages use an open arrowhead.
     SequenceNotePlacement sequenceNote{};
     std::uint16_t sequenceNumber{};
@@ -555,6 +558,7 @@ inline bool ValidFlowchartModel(const FlowchartModel& graph) noexcept
             (edge.dashed && ! edge.dashSpecified) || edge.minimumRanks == 0u || edge.minimumRanks > NativeFlowchartParser::MaximumLinkRanks ||
             edge.relation < FlowchartRelation::Line || edge.relation > FlowchartRelation::Composition || edge.style < FlowchartLineStyle::Solid ||
             edge.style > FlowchartLineStyle::Invisible || (edge.openArrow && (graph.family != NativeDiagramFamily::Sequence || ! edge.arrow)) ||
+            (edge.markerAtStart && (graph.family != NativeDiagramFamily::Class || ! edge.arrow || edge.relation == FlowchartRelation::Arrow)) ||
             (graph.family != NativeDiagramFamily::EntityRelationship && (edge.erFrom != ErMultiplicity::None || edge.erTo != ErMultiplicity::None)) ||
             (edge.style == FlowchartLineStyle::Invisible && (edge.arrow || ! edge.label.empty())) ||
             edge.arrow != (edge.relation != FlowchartRelation::Line && edge.relation != FlowchartRelation::Note) ||

@@ -47,6 +47,8 @@ struct NativeFlowchartLayout::Preparation
         Indegree,
         ChooseRank,
         RankEdges,
+        BalanceChoose,
+        BalanceEdges,
         OrderInitialize,
         OrderAccumulate,
         OrderSort,
@@ -84,6 +86,9 @@ struct NativeFlowchartLayout::Preparation
     std::array<FlowchartSize, 16u> groupLabels{};
     std::array<std::size_t, Nodes> head{}, tail{}, rank{}, indegree{}, before{}, after{}, color{}, incoming{}, outgoing{}, rowCount{};
     std::array<std::size_t, Nodes> pairTargets{};
+    std::array<std::size_t, Nodes> rankOrder{};
+    std::size_t balanceRemaining{}, latestRank{};
+    bool ranksBalanced{}, compactRouting{};
     // Candidate ordering is private to staging; model identities never move.
     std::array<std::size_t, Nodes> orderedNodes{}, orderPosition{}, originalPosition{}, neighborCount{};
     std::array<double, Nodes> neighborSum{}, originalX{};
@@ -108,14 +113,14 @@ struct NativeFlowchartLayout::Preparation
         std::array<std::array<AttachmentSide, 2u>, Nodes> sides{};
         std::array<double, Edges> from{}, to{};
     };
-    // Ordinary flowcharts allocate no relationship-only staging. This bounded
-    // state is retired with preparation, never retained by published geometry.
+    // Shared flat-sided endpoints need distinct bounded attachment slots. A
+    // one-to-one graph allocates none; staging retires with preparation.
     std::unique_ptr<RelationshipAttachments> relationshipAttachments;
     std::array<double, Edges> laneOffset{}, laneWidth{};
-    std::array<bool, Edges> direct{};
+    std::array<bool, Edges> direct{}, leftRoute{};
     std::array<std::array<std::uint64_t, RankWords>, Edges> laneRanks{};
     std::array<double, Edges> laneSlotOffset{};
-    std::array<bool, Edges> laneSlotBack{}, laneSlotReusable{};
+    std::array<bool, Edges> laneSlotLeft{}, laneSlotReusable{};
     std::array<DfsFrame, Nodes> stack{};
     std::array<double, Nodes> rowWidth{}, rowHeight{}, rowTop{}, rowCursor{}, rowLabelGap{};
     std::size_t cursor{}, roots{}, depth{}, rankedCount{}, active{}, activeEdge{}, maximumRank{}, laneCount{};
@@ -130,6 +135,11 @@ struct NativeFlowchartLayout::Preparation
     FlowchartPoint shift;
     Stage stage{};
     bool horizontal{}, bounded{}, done{}, hasCardinality{}, hasNotes{}, alignedPairs{}, alignedGroups{};
+
+    static bool FlatAttachmentSide(FlowchartShape shape) noexcept
+    {
+        return shape == FlowchartShape::Rectangle || shape == FlowchartShape::Rounded || shape == FlowchartShape::Subroutine || shape == FlowchartShape::Bar;
+    }
 
     Preparation(std::shared_ptr<const FlowchartModel> value,
                 std::span<const FlowchartSize> nodes,
@@ -153,10 +163,10 @@ struct NativeFlowchartLayout::Preparation
         plan->groups.resize(graph->groups.size());
         for (const auto& edge : graph->edges)
             hasCardinality = hasCardinality || ! edge.fromCardinality.empty() || ! edge.toCardinality.empty();
-        if (hasCardinality)
-            relationshipAttachments = std::make_unique<RelationshipAttachments>();
         for (const auto& node : graph->nodes)
             hasNotes = hasNotes || node.shape == FlowchartShape::Note;
+        if (hasCardinality)
+            relationshipAttachments = std::make_unique<RelationshipAttachments>();
         horizontal = graph->direction == FlowchartDirection::LeftRight || graph->direction == FlowchartDirection::RightLeft;
     }
     void Fail(FlowchartLayoutIssue issue) noexcept
@@ -597,6 +607,35 @@ struct NativeFlowchartLayout::Preparation
     }
     void Rank()
     {
+        if (stage == Stage::BalanceChoose)
+        {
+            if (! balanceRemaining)
+            {
+                ranksBalanced = true;
+                Then(Stage::ChooseRank);
+                return;
+            }
+            active     = rankOrder[--balanceRemaining];
+            activeEdge = head[active];
+            latestRank = NoIndex;
+            stage      = Stage::BalanceEdges;
+            return;
+        }
+        if (stage == Stage::BalanceEdges)
+        {
+            if (activeEdge == NoIndex)
+            {
+                if (latestRank != NoIndex)
+                    rank[active] = std::max(rank[active], latestRank);
+                stage = Stage::BalanceChoose;
+                return;
+            }
+            const auto index = activeEdge;
+            activeEdge       = next[index];
+            const auto& edge = graph->edges[index];
+            latestRank       = std::min(latestRank, rank[edge.to] - edge.minimumRanks);
+            return;
+        }
         if (stage == Stage::Indegree)
         {
             if (cursor == graph->edges.size())
@@ -613,6 +652,19 @@ struct NativeFlowchartLayout::Preparation
         {
             if (rankedCount == graph->nodes.size())
             {
+                if (! ranksBalanced && graph->family == NativeDiagramFamily::Flowchart && graph->groups.empty() && ! hasNotes &&
+                    std::ranges::all_of(plan->edges, [](const auto& edge) { return edge.route == FlowchartRoute::Forward; }))
+                {
+                    balanceRemaining = rankedCount;
+                    Then(Stage::BalanceChoose);
+                    return;
+                }
+                compactRouting = ranksBalanced && std::ranges::all_of(graph->edges, [](const auto& edge) { return edge.label.empty(); }) &&
+                                 std::ranges::any_of(std::span(rankOrder).first(graph->nodes.size()),
+                                                     [&](const auto node) { return incoming[node] > 1u || outgoing[node] > 1u; });
+                for (std::size_t node = 0u; compactRouting && node < graph->nodes.size(); ++node)
+                    if ((incoming[node] > 1u || outgoing[node] > 1u) && ! FlatAttachmentSide(graph->nodes[node].shape))
+                        compactRouting = false;
                 for (std::size_t node = 0u; node < graph->nodes.size(); ++node)
                     ++rowCount[rank[node]];
                 // A matching of two equal-width ranks can use parallel direct
@@ -668,11 +720,11 @@ struct NativeFlowchartLayout::Preparation
             for (std::size_t index = 0u; index < graph->nodes.size(); ++index)
                 if (! ranked[index] && ! indegree[index])
                 {
-                    active        = index;
-                    ranked[index] = true;
-                    ++rankedCount;
-                    activeEdge = head[index];
-                    stage      = Stage::RankEdges;
+                    active                   = index;
+                    ranked[index]            = true;
+                    rankOrder[rankedCount++] = index;
+                    activeEdge               = head[index];
+                    stage                    = Stage::RankEdges;
                     return;
                 }
             // DFS removes every gray back edge, so this is an internal invariant.
@@ -805,6 +857,13 @@ struct NativeFlowchartLayout::Preparation
     {
         if (cursor == graph->edges.size())
         {
+            if (compactRouting)
+                for (std::size_t node = 0u; node < graph->nodes.size(); ++node)
+                    if (incoming[node] > 1u || outgoing[node] > 1u)
+                    {
+                        relationshipAttachments = std::make_unique<RelationshipAttachments>();
+                        break;
+                    }
             Then(Stage::Ports);
             return;
         }
@@ -816,7 +875,12 @@ struct NativeFlowchartLayout::Preparation
         // for that band; unlabeled paths keep their existing direct routing.
         if (edge.relation != FlowchartRelation::Note && plan->edges[index].route == FlowchartRoute::Forward && rank[edge.to] == rank[edge.from] + 1u &&
             outgoing[edge.from] > 1u && incoming[edge.to] > 1u)
+        {
             denseRanks[rank[edge.from]] = true;
+            // A many-to-many join needs separate routing levels. Sharing its
+            // midpoint would merge unrelated horizontal segments.
+            compactRouting = false;
+        }
     }
     void Ports()
     {
@@ -830,7 +894,7 @@ struct NativeFlowchartLayout::Preparation
         if (edge.relation == FlowchartRelation::Note)
             return;
         const auto back = plan->edges[index].route == FlowchartRoute::Back;
-        if (hasCardinality)
+        if (relationshipAttachments)
         {
             const auto reserve = [&](std::size_t node, std::size_t side, FlowchartSize label)
             {
@@ -842,14 +906,32 @@ struct NativeFlowchartLayout::Preparation
                 ++slots.count;
                 return offset;
             };
-            relationshipAttachments->from[index] = reserve(edge.from, back ? 0u : 1u, fromCardinalities[index]);
-            relationshipAttachments->to[index]   = reserve(edge.to, back ? 1u : 0u, toCardinalities[index]);
+            if (hasCardinality || FlatAttachmentSide(graph->nodes[edge.from].shape))
+                relationshipAttachments->from[index] = reserve(edge.from, back ? 0u : 1u, fromCardinalities[index]);
+            if (hasCardinality || FlatAttachmentSide(graph->nodes[edge.to].shape))
+                relationshipAttachments->to[index] = reserve(edge.to, back ? 1u : 0u, toCardinalities[index]);
         }
-        startPort[index]    = back ? ++before[rank[edge.from]] : ++after[rank[edge.from]];
-        endPort[index]      = back ? ++after[rank[edge.to]] : ++before[rank[edge.to]];
         const auto parallel = std::ranges::count_if(graph->edges, [&](const auto& other) { return other.from == edge.from && other.to == edge.to; }) > 1;
         direct[index]       = alignedPairs || (! parallel && graph->groups.empty() && ! hasNotes && plan->edges[index].route == FlowchartRoute::Forward &&
                                                rank[edge.to] == rank[edge.from] + 1u && (edge.label.empty() || ! denseRanks[rank[edge.from]]));
+        if (compactRouting && direct[index])
+        {
+            startPort[index] = endPort[index] = 1u;
+            after[rank[edge.from]]            = std::max(after[rank[edge.from]], std::size_t{1u});
+            before[rank[edge.to]]             = std::max(before[rank[edge.to]], std::size_t{1u});
+        }
+        else if (compactRouting)
+        {
+            // Long routes still need unique horizontal levels at each end;
+            // sharing those would merge unrelated paths in an outer lane.
+            startPort[index] = after[rank[edge.from]] = std::max(after[rank[edge.from]], std::size_t{1u}) + 1u;
+            endPort[index] = before[rank[edge.to]] = std::max(before[rank[edge.to]], std::size_t{1u}) + 1u;
+        }
+        else
+        {
+            startPort[index] = back ? ++before[rank[edge.from]] : ++after[rank[edge.from]];
+            endPort[index]   = back ? ++after[rank[edge.to]] : ++before[rank[edge.to]];
+        }
         if (direct[index] && ! edge.label.empty())
         {
             // Work in the major axis: LR/RL labels need their measured width,
@@ -864,6 +946,13 @@ struct NativeFlowchartLayout::Preparation
         }
         if (direct[index])
             return;
+        const auto position = [&](std::size_t node)
+        {
+            return (static_cast<double>(useOrdering ? orderPosition[node] : originalPosition[node]) + .5) /
+                   static_cast<double>(std::max(std::size_t{1u}, rowCount[rank[node]]));
+        };
+        const bool left  = back || (ranksBalanced && position(edge.from) + position(edge.to) < 1.0);
+        leftRoute[index] = left;
         laneWidth[index] = edge.label.empty() ? PortGap : std::max(PortGap, Cross(edgeLabels[index]) + Margin);
         std::array<std::uint64_t, RankWords> occupied{};
         if (edge.label.empty())
@@ -874,7 +963,7 @@ struct NativeFlowchartLayout::Preparation
                 occupied[row / 64u] |= std::uint64_t{1u} << (row % 64u);
             for (std::size_t slot = 0u; slot < laneCount; ++slot)
             {
-                if (! laneSlotReusable[slot] || laneSlotBack[slot] != back)
+                if (! laneSlotReusable[slot] || laneSlotLeft[slot] != left)
                     continue;
                 bool overlap{};
                 for (std::size_t word = 0u; word < RankWords; ++word)
@@ -887,10 +976,10 @@ struct NativeFlowchartLayout::Preparation
                 return;
             }
         }
-        auto& sideWidth             = back ? leftWidth : rightWidth;
+        auto& sideWidth             = left ? leftWidth : rightWidth;
         laneOffset[index]           = sideWidth;
         laneSlotOffset[laneCount]   = sideWidth;
-        laneSlotBack[laneCount]     = back;
+        laneSlotLeft[laneCount]     = left;
         laneSlotReusable[laneCount] = edge.label.empty();
         laneRanks[laneCount++]      = occupied;
         sideWidth += laneWidth[index];
@@ -918,7 +1007,7 @@ struct NativeFlowchartLayout::Preparation
         const auto index = cursor++;
         const auto row   = rank[index];
         auto& bounds     = plan->nodes[index].bounds;
-        if (hasCardinality)
+        if (relationshipAttachments)
             for (const auto& side : relationshipAttachments->sides[index])
                 if (side.count > 1u)
                     bounds.width = std::max(bounds.width, side.width + side.labelWidth + 2.0 * Margin);
@@ -1168,20 +1257,41 @@ struct NativeFlowchartLayout::Preparation
         {
             if (! relationshipAttachments)
                 return node.bounds.x + node.bounds.width / 2.0;
-            const auto& side  = relationshipAttachments->sides[nodeIndex][sideIndex];
-            const auto offset = source ? relationshipAttachments->from[index] : relationshipAttachments->to[index];
+            const auto& side = relationshipAttachments->sides[nodeIndex][sideIndex];
+            auto offset      = source ? relationshipAttachments->from[index] : relationshipAttachments->to[index];
+            if (side.count > 1u && graph->family == NativeDiagramFamily::Flowchart)
+            {
+                const auto opposite = source ? edge.to : edge.from;
+                const auto center   = [&](std::size_t nodeId)
+                {
+                    const auto& bounds = plan->nodes[nodeId].bounds;
+                    return bounds.x + bounds.width / 2.0;
+                };
+                std::size_t preceding{};
+                for (std::size_t other = 0u; other < graph->edges.size(); ++other)
+                {
+                    const auto& candidate = graph->edges[other];
+                    const bool otherBack  = plan->edges[other].route == FlowchartRoute::Back;
+                    if ((source ? candidate.from : candidate.to) != nodeIndex || (source ? (otherBack ? 0u : 1u) : (otherBack ? 1u : 0u)) != sideIndex)
+                        continue;
+                    const auto target = source ? candidate.to : candidate.from;
+                    if (center(target) < center(opposite) || (center(target) == center(opposite) && other < index))
+                        ++preceding;
+                }
+                offset = (static_cast<double>(preceding) + .5) * PortGap;
+            }
             return node.bounds.x + (side.count > 1u ? (node.bounds.width - side.width) / 2.0 + offset : node.bounds.width / 2.0);
         };
         const auto fromX = attachment(from, edge.from, back ? 0u : 1u, true);
         const auto toX   = attachment(to, edge.to, back ? 1u : 0u, false);
         // Adjacent ranks have a measured, empty label corridor. Long/back and
         // parallel routes retain their separate exterior lanes.
-        const auto cross       = direct[index] ? toX
-                                 : back        ? Margin + leftWidth - laneOffset[index] - laneWidth[index]
-                                               : bandLeft + bandWidth + Margin + laneOffset[index];
+        const auto cross       = direct[index]      ? toX
+                                 : leftRoute[index] ? Margin + leftWidth - laneOffset[index] - laneWidth[index]
+                                                    : bandLeft + bandWidth + Margin + laneOffset[index];
         placed.path            = {{{fromX, start}, {fromX, first}, {cross, first}, {cross, last}, {toX, last}, {toX, end}}};
         const auto labelMiddle = (first + last) / 2.0;
-        if (direct[index] && ! edge.label.empty())
+        if (direct[index] && (compactRouting || ! edge.label.empty()))
             placed.path = {{{fromX, start}, {fromX, labelMiddle}, {fromX, labelMiddle}, {toX, labelMiddle}, {toX, labelMiddle}, {toX, end}}};
         if (useOrdering && ! restoringRoutes)
         {
@@ -1193,7 +1303,7 @@ struct NativeFlowchartLayout::Preparation
             original[4u].x = original[5u].x = oldTo;
             if (direct[index])
             {
-                original[2u].x = ! edge.label.empty() ? oldFrom : oldTo;
+                original[2u].x = compactRouting || ! edge.label.empty() ? oldFrom : oldTo;
                 original[3u].x = oldTo;
             }
         }
@@ -1202,11 +1312,14 @@ struct NativeFlowchartLayout::Preparation
         placed.erFrom          = edge.erFrom;
         placed.erTo            = edge.erTo;
         placed.hasArrow        = edge.arrow;
-        const auto base        = end + (back ? Margin : -Margin);
-        placed.arrow           = {{{toX, end}, {toX - 4.0, base}, {toX + 4.0, base}}};
-        const auto middle      = end + (back ? 6.0 : -6.0);
-        const auto diamondTail = end + (back ? 12.0 : -12.0);
-        placed.diamond         = {{{toX, end}, {toX - 4.0, middle}, {toX, diamondTail}, {toX + 4.0, middle}}};
+        const auto markerX     = edge.markerAtStart ? fromX : toX;
+        const auto markerY     = edge.markerAtStart ? start : end;
+        const auto markerSign  = back != edge.markerAtStart ? 1.0 : -1.0;
+        const auto base        = markerY + markerSign * Margin;
+        placed.arrow           = {{{markerX, markerY}, {markerX - 4.0, base}, {markerX + 4.0, base}}};
+        const auto middle      = markerY + markerSign * 6.0;
+        const auto diamondTail = markerY + markerSign * 12.0;
+        placed.diamond         = {{{markerX, markerY}, {markerX - 4.0, middle}, {markerX, diamondTail}, {markerX + 4.0, middle}}};
         placed.hasLabel        = ! edge.label.empty();
         placed.label           = {direct[index] ? (fromX + toX - Cross(edgeLabels[index])) / 2.0 : cross + 4.0,
                                   labelMiddle - Major(edgeLabels[index]) / 2.0,
@@ -1328,15 +1441,16 @@ struct NativeFlowchartLayout::Preparation
                 const auto amount = node.bounds.width * .125;
                 return point.x <= node.bounds.x + node.bounds.width / 2.0 ? amount : -amount;
             };
-            edge.path.front().x += inset(sourceEdge.from, edge.path.front());
+            const auto sourceInset = inset(sourceEdge.from, edge.path.front());
+            edge.path.front().x += sourceInset;
             const auto targetInset = inset(sourceEdge.to, edge.path.back());
             edge.path.back().x += targetInset;
             if (edge.hasArrow)
                 for (auto& point : edge.arrow)
-                    point.x += targetInset;
+                    point.x += sourceEdge.markerAtStart ? sourceInset : targetInset;
             if (edge.relation == FlowchartRelation::Aggregation || edge.relation == FlowchartRelation::Composition)
                 for (auto& point : edge.diamond)
-                    point.x += targetInset;
+                    point.x += sourceEdge.markerAtStart ? sourceInset : targetInset;
         }
         edge.label = Transform(edge.label);
         if (edge.hasLabel)
@@ -1419,7 +1533,9 @@ struct NativeFlowchartLayout::Preparation
             case Stage::Dfs: Dfs(); break;
             case Stage::Indegree:
             case Stage::ChooseRank:
-            case Stage::RankEdges: Rank(); break;
+            case Stage::RankEdges:
+            case Stage::BalanceChoose:
+            case Stage::BalanceEdges: Rank(); break;
             case Stage::OrderInitialize:
             case Stage::OrderAccumulate:
             case Stage::OrderSort:

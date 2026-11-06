@@ -14,6 +14,17 @@ composition/text-service previews and capacity overflow decline without changing
 notifications. Applications own their empty-selection templates. Code-language text is valid UTF-16, at most
 255 units, and excludes NUL, CR, LF and backticks. This source operation needs no prepared semantic geometry.
 
+`RichTextEditor::ExchangeDocumentState` exchanges the active `RichText::Document` with a caller-owned
+document on the owner thread. Preserve exact source snapshots, selections and both Undo/Redo histories;
+the binding change is not an edit and emits no committed text notification. Retain control presentation
+and callbacks, publish the incoming selection, and invalidate outgoing semantic/layout/image work even
+when the two documents have equal numeric revisions. Disabled/read-only input, active native composition
+or a transient preview in either document refuses atomically. Clear source-region presentation on exchange.
+Applications own file metadata, document limits, derived views and persistence. Publish the incoming selection
+even when its ACP endpoints, gesture state and numeric revision equal those of the outgoing document;
+selection publication identity includes the document binding. A selection notification may retire the
+control after the exchange commits; do not read it afterward.
+
 Control continuations after synchronous preparation, text notification or accessibility publication must
 recheck their weak lifetime before member access. TextField imports/history/clear/caret paths and ComboBox
 variant/text/import paths complete safely when scheduling retires their tree. FormField's late measure
@@ -660,6 +671,10 @@ Tree expansion and collapse retain their model, selection, focus, delegate and a
 ### TextField supplementary character input
 
 Character input buffers a UTF-16 lead surrogate privately until its matching trail arrives, then inserts and publishes the complete pair as one edit. An orphan trail is consumed without changing text. Caret or selection commands, pointer input, focus changes, text replacement, text-store imports and read-only transitions cancel a pending lead; no change callback or accessibility publication exposes it alone.
+`VK_PACKET` key-down/key-up and bare Shift/Ctrl/Alt/Windows modifier transitions preserve that pending lead in
+TextField, editable ComboBox and RichTextEditor. Each Unicode unit's packet transition is transport rather than
+an editing command. Native message and embedded dispatch preserve the same order and commit one whole scalar;
+navigation/erase/undo/paste/Enter and non-trail characters retain their cancellation rules.
 ### Grid keyboard paging and column identity
 
 Page Up and Page Down use the body viewport height and prepared row/group geometry, with at least one-row progress where possible. Unhandled keys return before querying the model or enumerating rows. A model refresh compares the cached column IDs; when those identities change, widths, display order and current-cell index are rebuilt for the new columns rather than retained by position.
@@ -1128,12 +1143,19 @@ require separate measurement.
 
 Local destination resolution MUST use explicit document metadata, strict UTF-8
 URI decoding and bounded lexical Windows paths. Encoded separators/NUL, device
-names, ambiguous extended/trailing-component spellings and malformed/remote URI
-schemes MUST NOT become file requests. Drive/server root case is insensitive;
+names, ambiguous extended/trailing-component spellings and malformed/unrecognized URI
+schemes MUST NOT become local-file requests. Drive/server root case is insensitive;
 directory/share/file component spelling remains exact. Relative paths require
 a saved base; the control MUST NOT query CWD or perform file/network I/O.
 
 Remote image admission MUST be disabled by default. Explicit
+network-file destinations include UNC paths, `//host/...`, file URLs with any authority (including localhost),
+and relative paths resolved beside a UNC document. They MUST NOT become `LocalFile` requests. When remote
+permission is enabled they produce `RichImageSourceKind::NetworkFile`, with a canonical path in `Source()` and
+an empty `FilePath()`. Applications MUST branch explicitly on this kind before transport I/O and may decline it;
+the SDK does not grant credentials, access a share or imply supported SMB/WSL/cloud locations. Revoking remote
+permission cancels/evicts both HTTP and network-file jobs/pixels while retaining local drive files.
+Explicit
 `SetRemoteImagesEnabled(true)` MAY expose absolute HTTP(S) destinations as
 `RichImageSourceKind::RemoteHttp` requests. `Source()` retains the URL's exact
 path/query while normalizing ASCII scheme/host case; `FilePath()` MUST be empty
@@ -2028,6 +2050,9 @@ Only RichMarkdown MUST recognize an exact `---` (YAML 1.2.2) or `+++` (TOML
 1.0.0) first physical line, optionally preceded by one document BOM. No leading
 blank, indentation, trailing whitespace, container prefix or later thematic
 break qualifies. CommonMark0312/Gfm029 MUST retain their existing block grammar.
+Incremental reuse MUST preserve that absolute-start rule in both directions: inserting text before an
+envelope retires its front-matter interpretation, and removing a preceding prefix permits recognition at
+offset zero. Unchanged suffix bytes alone do not prove that the old block kind remains valid.
 YAML closes with an exact `---` or `...` line; TOML with an exact `+++` line.
 Fence recognition precedes parsing the metadata language, including invalid
 or incomplete quoted values. No JSON front matter is inferred.
@@ -2038,6 +2063,10 @@ the source through EOF and reports `block.closed == false`; it MUST NOT discard
 text or fabricate a close. Metadata content MUST NOT define Markdown references,
 headings, lists or inlines in the following document. Unknown fields, comments,
 spelling, order, BOM and original EOLs MUST survive every untouched source range.
+YAML validation MUST accept LF, CR and CRLF by normalizing only private UTF-8 staging; TOML retains its
+own line-ending grammar. Private rapidyaml error callbacks and tag-cache allocations MUST use the same
+bounded parse context in every configuration. Malformed input returns a source-owned diagnosis; allocation
+failure unwinds staging and leaves the previous publication available for an explicit retry.
 
 A closed metadata envelope with no validation diagnostic presents a collapsed,
 localized Properties disclosure by default. Expansion shows the source-owned
@@ -2350,6 +2379,12 @@ continue through the one authoritative Document and full source text store.
 Tracked interior changes rebase the editing envelope before callbacks. For block scopes, EOL joins
 expand to complete physical lines on preparation. Outside changes or selection,
 SetText and explicit mode/profile/rendering replacement retire the local scope.
+The interval never contains input: ordinary and word Backspace/Delete can cross its former edges as source
+transactions. Crossing retires the stale presentation, and caret movement outside it resumes ordinary rich
+navigation/commands at the current selection. Tab/Shift+Tab in a rendered nested code block uses each parser
+content-line start, preserving quote/list prefixes and partially consumed container tabs. Explicit F2 raw
+source still exposes its complete envelope for ordinary source edits. Each multiline indent/outdent is one
+transaction with original terminators and selection direction retained.
 Raw source input MUST bypass rich list/table/atomic-object deletion commands;
 ordinary source grapheme/range deletion and literal CRLF insertion apply.
 Leaving presentation MUST preserve committed edits and redo; Esc is not a
@@ -2628,6 +2663,22 @@ Original source, delimiters, CRLF,
 selection and history remain authoritative; one successful formula owns one atomic
 native display position and a `SemanticRole::Math` child named with its TeX notation.
 
+Math decorations use the shaped child's visible ink, leaving a small gap instead of positioning against the
+font's full line box. This applies to over/under bars, hats, tildes, vectors and dots. Dots are filled and keep
+a visible diameter across font sizes and DPI; wide-tilde fallback is one smooth wave. Compatible horizontal
+MATH variants fit the reserved accent band and retain the gap. Matrix measurement and placement share the
+same row-ink metrics and minimum strut, including nested matrices in gathered rows. A following row must
+clear the actual matrix/delimiter ink; paired delimiters size to visible content rather than unused font
+ascent/descent. Retain authored row spacing, original TeX, source editing, selection and history.
+For `left`/`right`, use the child's visible ink plus a small gap and a 0.9-em ordinary strut.
+OpenType's `delimitedSubFormulaMinHeight` is a subformula classification threshold, not a minimum height
+for every delimiter glyph. Small inner-product angle brackets must remain proportional to their letters.
+
+Aligned, gathered and alignat cells use display style independently of the enclosing inline/display mode.
+Their admitted environment aliases follow the same rule. Explicit cell style declarations still take
+precedence. Ordinary matrix/array/cases cells retain text style; smallmatrix and subarray retain script
+style. `\substack` uses a centered script-style subarray and is distinct from gathered.
+
 `RichMath.h` exposes the data-only `ParseMath` model. Supported notation includes
 fractions (`frac`, `dfrac`, `tfrac`), indexed roots, simultaneous scripts, Greek and
 operator symbols, named functions, text/operator names (including bold and italic
@@ -2735,11 +2786,24 @@ use a dotted connection and expose their target and text in the graph alternativ
 Simple `namespace Name { ... }` groups, nested at most four levels, use the
 shared bounded group layout; identifiers remain globally unique, and group
 overlap or unsupported namespace syntax retains source with a diagnostic.
-State/class layouts use the deterministic native graph router; members are plain
-multiline node labels. Inheritance uses the native triangle arrow. This is not
-Mermaid coordinate compatibility. Advanced composite-state syntax, nested class generics,
-class compartments, relationship multiplicities, other stereotypes, styling,
-interaction directives and other diagram families remain exact fenced source.
+State/class layouts use the deterministic native graph router. Class direction applies to authored
+relationship order independently of the marker endpoint: `direction LR` and `Document <|-- Markdown`
+place Document on the left, Markdown on the right and the hollow triangle at Document. Apply the same
+separation in TB/BT/RL, realization, aggregation and composition. Cardinalities stay at their authored
+endpoints. Connector paint shortens only the marked end to the hollow triangle/diamond base; a leading marker
+MUST leave the opposite node's stem connected. Actual native rasters cover both marker spellings and all four
+directions, independently of CPU path/arrow geometry. The accessible alternative continues to describe the
+directed relationship, such as Markdown
+inheriting Document. The bounded compartment, multiplicity, style and composite contracts below define
+admitted extensions. Unsupported nested class generics, directives and diagram families retain exact source.
+
+Ungrouped acyclic flowcharts may move a node into its latest feasible rank while retaining every minimum
+link length and authored node identity. This aligns independent pipeline inputs beside their common
+successor. Plain joins/forks use distinct ordered slots on flat-sided boxes and shared empty rank
+corridors. Long dependencies choose the outer side nearest their endpoints. Dense many-to-many joins,
+labels, groups, curved/sloping shared boundaries and cycles retain their bounded separate-lane routes;
+compaction must not merge unrelated lines or shrink measured label clearance. Cooperative work budgets
+and deterministic results across chunk sizes remain mandatory.
 Invisible edge labels remain unsupported. Other flowchart grammar and source-provenance rules remain unchanged.
 
 Aligned rows alternate right-aligned left operands and left-aligned right operands at each ampersand pair. Cases use left-aligned expression/condition columns (at most two); ordinary matrices center their columns. Gathered rows have one column. Geometry tests compare the actual cached glyph positions consumed by drawing.

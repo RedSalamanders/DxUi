@@ -2129,14 +2129,10 @@ struct NativeFlowchartParser::Preparation
             for (const auto from : previousGroup)
                 for (const auto to : nextGroup)
                 {
-                    auto expanded = edge;
-                    expanded.from = from;
-                    expanded.to   = to;
-                    if (reverse)
-                    {
-                        std::swap(expanded.from, expanded.to);
-                        expanded.fromCardinality.swap(expanded.toCardinality);
-                    }
+                    auto expanded          = edge;
+                    expanded.from          = from;
+                    expanded.to            = to;
+                    expanded.markerAtStart = reverse;
                     model->edges.push_back(std::move(expanded));
                 }
             previousGroup = std::move(nextGroup);

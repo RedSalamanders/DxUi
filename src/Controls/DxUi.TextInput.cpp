@@ -2225,7 +2225,8 @@ bool TextField::OnMouseWheel(ControlHost& host, D2D1_POINT_2F /*point*/, float w
 bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
 {
     const auto inputLifetime = GetLifetimeToken();
-    _pendingLeadSurrogate    = 0;
+    if (! KeyKeepsPendingSurrogate(virtualKey))
+        _pendingLeadSurrogate = 0;
     ResetSingleLineSelectionClickSequence(_selectionClickSequence);
     const size_t caretBeforeKey                          = _caretIndex;
     const std::optional<size_t> selectionAnchorBeforeKey = _selectionAnchorIndex;
