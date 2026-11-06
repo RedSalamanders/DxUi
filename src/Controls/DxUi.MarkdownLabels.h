@@ -27,6 +27,8 @@ inline bool ValidFootnoteLabel(std::wstring_view text) noexcept
         }
         else if (IsUtf16TrailSurrogate(unit))
             return false;
+        if (! escaped && unit == L'\\' && i == text.size())
+            return false;
         if (escaped)
             escaped = false;
         else

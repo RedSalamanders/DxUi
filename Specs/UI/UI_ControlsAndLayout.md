@@ -1957,6 +1957,12 @@ URI policy. Task commands edit only state units for existing tasks, invert each
 selected task, or insert task markers where permitted by the explicit dialect.
 Removing task syntax MUST reject a literal label that would be reinterpreted as
 another block marker; it must not silently reformat that label.
+Task state and insertion offsets come from the first paragraph's actual source line, including an empty
+list-marker line followed by an indented paragraph. They MUST NOT be inferred from the marker line's end:
+LF, CRLF and CR terminators and container indentation remain intact. A multi-item toggle validates every
+actual checkbox before publishing the one transaction. Converting a following-line task to a non-task list
+kind is unavailable when opening-marker removal and continuation indentation do not have one proven owned
+range; decline the complete selection without partial edits or history.
 
 Rich Markdown Enter defaults to the existing raw-newline continuation policy.
 Opt-in `MarkdownEnterPolicy::NewParagraph` inserts an EOL, the proven container
@@ -1999,6 +2005,13 @@ adjacent sibling list item including nested contents, as one source transaction.
 Source mode moves physical lines directly. Selection follows its original text;
 mixed ownership, list boundaries, active source sessions and composition refuse
 the action. Original list markers are not renumbered automatically.
+A sibling move MUST reject either item when its opening physical line also contains an ancestor list-item
+or footnote-definition marker. Check both swapped items; ordinary repeated quote prefixes and nested items
+whose parent opens on an earlier physical line remain movable.
+Paragraph moves require identical proven container prefixes on both physical lines. Reject swaps that expose
+a list/code/HTML/quote/math opener, link-reference definition or setext/table delimiter as block structure;
+ordinary paragraph lines and safe internal continuations remain movable. Original source and history remain
+unchanged on refusal.
 `RenumberList` explicitly numbers the current ordered sibling list from its
 first marker or the requested `listStart`, preserving punctuation and adjusting
 owned continuation indentation when marker width changes. It rejects overflow
@@ -2601,6 +2614,9 @@ data MUST remain optional, without enlarging ordinary inline records.
 Resolved footnote body selections use the ordinary structural planners with note-aware opening-marker and continuation prefixes. Every staged edit must preserve the definition label and existing continuation ownership; inserted physical lines retain the enclosing note and outer containers. Unresolved literal definitions remain guarded. F8 and Shift+F8 select the next or previous exact source diagnostic, wrapping in source order. Selection requires a current syntax/layout, no composition, and a live unchanged host; it changes neither source/history nor focus. The same source selection is exposed through UIA TextPattern.
 `InsertFootnote` accepts an exact raw valid label through `request.text` in
 RichMarkdown and requires a collapsed, proven inline insertion site. It rejects
+an unpaired trailing backslash as invalid source because that escape would consume
+the generated closing bracket. Paired backslashes and escaped brackets remain valid.
+It rejects
 an existing definition or reference with the same normalized identity, including
 unresolved references, so insertion cannot retarget existing source. It inserts
 the reference at the caret and a top-level empty definition at document end in

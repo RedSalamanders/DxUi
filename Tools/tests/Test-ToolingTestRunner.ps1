@@ -1,4 +1,4 @@
-<# .SYNOPSIS Verifies tooling roster exit, exception and stale-status handling. #>
+<# .SYNOPSIS Verifies tooling roster exits, exceptions, stale status and owned-child timeout isolation. #>
 [CmdletBinding()] param()
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -25,12 +25,36 @@ Invoke-FixtureCase 'stale ambient and previous child exit status do not contamin
 }
 Invoke-FixtureCase 'timeout stops only the owned child and continues the roster' {
     param($root)
-    Set-FixtureFile $root 'slow.ps1' 'Start-Sleep -Seconds 30'
+    Set-FixtureFile $root 'slow.ps1' 'Start-Sleep -Seconds 60'
     Set-FixtureFile $root 'later.ps1' '[IO.File]::WriteAllText((Join-Path $PSScriptRoot "after-timeout.txt"), "ran")'
     $failure = $null
-    try { Invoke-DxUiToolingTestRoster -Scripts @((Join-Path $root 'slow.ps1'), (Join-Path $root 'later.ps1')) -TimeoutSeconds 1 }
-    catch { $failure = $_.Exception.Message }
-    Assert-True ($failure -match 'slow\.ps1' -and (Test-Path (Join-Path $root 'after-timeout.txt'))) 'timeout fails the child and preserves the remaining roster'
+    $messages = [Collections.Generic.List[string]]::new()
+    $independent = $null
+    try {
+        $start = [Diagnostics.ProcessStartInfo]::new((Get-Process -Id $PID).Path)
+        $start.UseShellExecute = $false
+        $start.CreateNoWindow = $true
+        $start.RedirectStandardOutput = $true
+        foreach ($argument in @('-NoProfile','-Command','[Console]::WriteLine("ready"); Start-Sleep -Seconds 60')) { [void]$start.ArgumentList.Add($argument) }
+        $independent = [Diagnostics.Process]::Start($start)
+        $ready = $independent.StandardOutput.ReadLineAsync()
+        Assert-True ($ready.Wait(10000) -and $ready.GetAwaiter().GetResult() -ceq 'ready') 'independent owned process is ready'
+        # Both scripts get the same bounded deadline. One second also timed out
+        # healthy PowerShell startup during concurrent native builds.
+        try {
+            Invoke-DxUiToolingTestRoster -Scripts @((Join-Path $root 'slow.ps1'), (Join-Path $root 'later.ps1')) -TimeoutSeconds 10 6>&1 |
+                ForEach-Object { $messages.Add([string]$_); Write-Host $_ }
+        } catch { $failure = $_.Exception.Message }
+        Assert-Equal 'Tooling tests failed: slow.ps1' $failure 'only the deliberately stalled child failed'
+        Assert-True ($messages.Contains('slow.ps1 timed out after 10 seconds')) 'the real watchdog stopped the stalled child'
+        Assert-True (Test-Path (Join-Path $root 'after-timeout.txt')) 'remaining script ran after timeout'
+        Assert-True (-not $independent.HasExited) 'the independent same-name process remained alive'
+    } finally {
+        if ($independent) {
+            if (-not $independent.HasExited) { $independent.Kill($true); [void]$independent.WaitForExit(5000) }
+            $independent.Dispose()
+        }
+    }
 }
 Invoke-FixtureCase 'forced test support imports stay isolated between scripts' {
     param($root)

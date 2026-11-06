@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-descendant-timeout-admission",
+  "inputHash": "FD402E878686FCFAD76E257A85EAB3DED5960C79DF98FA5E7BDED3D6AACEB07C",
+  "benchmarkInputs": {
+    "Tools/tests/Test-PerformanceProfiling.ps1": "FD402E878686FCFAD76E257A85EAB3DED5960C79DF98FA5E7BDED3D6AACEB07C",
+    "Tools/PerformanceProfiling.psm1": "6E691F5B6AAE8CDC00C135AEBF12CCEF8D87724799233EBEA2F55682E4744657"
+  },
+  "claim": "Deterministic tooling fixture repair; production runner unchanged",
+  "startupDelayMilliseconds": 3200,
+  "oldFixtureTimeoutSeconds": 2,
+  "candidateFixtureTimeoutSeconds": 12,
+  "postExitDrainSeconds": 0.2,
+  "productionMeasurementDeadlineSeconds": 120,
+  "fullProfilingPassed": 168,
+  "fullProfilingTotal": 168,
+  "fullProfilingLogSha256": "160FC07E69FD4ACB53309FA19489FB23F91A64C1E87081EC47F95A2A54D68697",
+  "shortAdmissionLogSha256": "D2AAC593347C65DB60D0795E6631032E55AD0C73382A4CA9635F6E5871E7D2A0",
+  "admittedLogSha256": "DBC7255A50BAC6442771D44C7FB6BFB6C39E81E98DF8DAFE5B64C542DD16304F",
+  "originalFailure": {
+    "cause": "No child diagnostics survived that first fixture, so its exact cause remains unclassified",
+    "source": "efef569e839c640415f142bc860607b38e3ef138",
+    "profilingTotal": 168,
+    "observation": "Holder identity was absent after the two-second timeout",
+    "outputSha256": "447375C6E4A2C3CE1F83175E0585793A01EB712537483D5FFC185B6DBDC98370",
+    "profilingPassed": 167
+  },
+  "limits": [
+    "Counterfactual changes only the fixture timeout while keeping the deliberate startup delay, process identities and actual runner",
+    "No native renderer, inference, performance policy or physical-input acceptance"
+  ]
+}

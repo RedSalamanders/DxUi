@@ -51,6 +51,12 @@ activation or foreground qualification.
 
 ## Script/color targets and diagnostic counts
 
+Tooling-roster timeout coverage uses an actual stalled child and a later successful script under the same
+ten-second fixture deadline. It MUST observe the timeout diagnostic, require that only the stalled script
+failed, and verify that an independently launched, test-owned process with the same executable name remains
+alive. Cleanup terminates only that fixture-owned process. The production roster deadline remains unchanged;
+a one-second process-startup race is not a deterministic timeout test.
+
 Script/color admission coverage must use an actual capable WARP target, an actual WIC target with independently
 observed interface support, controlled `E_NOINTERFACE`, and an absent target. WIC targets can expose newer
 interfaces; the fixture must not infer legacy capability from the factory method's name. Check exact source,
@@ -1277,6 +1283,12 @@ Sent-cancellation menu fixtures pump activation delivery and discard preceding q
 PrePush validates changelog state for the candidate commit. Uncommitted, staged or untracked `CHANGELOG.md` or `Changes/` inputs are refused until committed or restored; other dirty source inputs retain their local testing obligations. Explain remains read-only and does not claim a passed gate.
 
 The tooling roster runs each script in a bounded isolated PowerShell child with a fresh native exit status, retains its output, reports both nonzero status and thrown failures, and still runs its remaining scripts. A changelog fold reports each skipped duplicate fragment name while retaining retry idempotence.
+
+Descendant timeout fixtures MUST admit the child/holder relationship before asserting descendant survival or
+pipe-drain behavior. Their startup allowance is separate from the unchanged post-exit drain budget. Cover a
+deliberately delayed parent, retain the original child diagnostics if holder identity is absent, verify the held
+PID and native creation identity, and release that exact holder cooperatively. Fixture startup allowances do
+not change the production measurement deadline or authorize terminating independent processes.
 
 The relocated native-module consumer driver emits one machine-readable record of the probes it actually executed and passed. Its owner accepts exactly one well-formed record only with process exit zero and the complete expected twelve successes; missing, duplicated, malformed, partial or inconsistent counts fail. The final consumer receipt copies those observed counts and the completed negative-check count from its progress ledger; completion validates their agreement. A driver success or a hard-coded expected cardinality alone is not an observed-count receipt.
 

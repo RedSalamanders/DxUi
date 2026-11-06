@@ -104,8 +104,12 @@ This coordinates the active API work; it does not adopt API 5 in any application
   interval, including Backspace/Delete/Tab and nested fences. Update the source-editing scope from the current
   caret/selection instead of trapping input at an old boundary (EDIT-07/11).
 - [ ] Resolve remaining editor/command correctness: IME underline staleness, disclosure/zoom geometry loss,
-  auto-pairing within words, read-only chord handling, wrong task-command byte ranges and parent-marker
-  movement (EDIT-03/06/09/10, CMD-01/02).
+  auto-pairing within words and read-only chord handling (EDIT-03/06/09/10).
+- [x] Complete CMD-01/02/03/04/05: actual task paragraphs, shared parent markers, paragraph structural
+  ownership and trailing footnote escapes. [Scoped closeout](../Done/CommandOwnership_2026-11-06.md)
+  retains four same-fixture baseline failures, valid blank display-math characterization, six zero-warning
+  builds, 66 ordinary native x64 suite executions and actual ASan detection at `c59094f5` (API 5).
+  This closes command ownership locally; the editor, native ARM64, consumer and performance gates stay separate.
 
 <a id="d-i1"></a>
 ### D-I1 — Unicode, clipboard and native input
@@ -187,6 +191,9 @@ omitting an ID from this summary does not dispose of it.
   twenty semantic and five geometry scenarios. The [scoped closeout](../Done/ScriptColorPreparation_2026-11-06.md)
   retains original logs and source/per-request evidence; this corrects the label without changing the corpus or
   accepting an earlier paired verdict.
+- [x] Separate descendant-timeout fixture startup from pipe drainage; retain missing-admission diagnostics,
+  exact native process identity and cooperative release. [Scoped closeout](../Done/DescendantTimeoutFixture_2026-11-06.md)
+  records all 168 profiling cases and a deliberate old-budget counterexample, without accepting performance.
 - [ ] Diagnose long-checkout tooling portability: hosted-MSVC fake executable launches fail at observed
   272-character fixture paths and one NTFS hardlink fixture fails at 261 characters. Canonical short-path
   validation and all 41 unchanged NTFS run-evidence checks with a supported short scratch root pass. Preserve

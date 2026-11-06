@@ -1468,8 +1468,15 @@ command-state identity.
 | Headings | SetHeading accepts levels 0 through 6; zero removes heading syntax. Existing ATX marker spelling/closing trivia and setext underlines are edited locally. Converting a multi-line body to ATX adds a heading marker to each affected physical content line. Empty source/container sites can start a heading. A task paragraph cannot simultaneously become an ATX heading. |
 | Styles | ToggleStyle supports strong, emphasis, GFM strike and code. It unwraps an enclosing Markdown style or splits an existing style around a partial selection. New non-code styles retain existing syntax and outside whitespace; literal punctuation is escaped when the changed delimiter context would reinterpret it. Code conversion uses resolved Unicode text, chooses a sufficient backtick fence, and escapes punctuation on removal so literal code stays literal. This deliberately reserializes the affected body; untouched text and exact undo remain preserved. Cross-line code wrapping, partial multiline-code removal, images/HTML conversion, clipped nested/atomic tokens and ambiguous neighboring literal delimiters are unavailable. |
 | Links | SetLink creates/updates an inert inline link with encoded Unicode metadata; RemoveLink unwraps its label without changing reference definitions. Literal URI/label punctuation is escaped where needed to preserve Unicode values and prevent automatic relinking; entity-looking autolink bytes stay literal when retargeted. A validated native HTML anchor updates only raw href/title values, preserving tag case, quote choice, attribute order and spacing. Removing it deletes only its opening/closing tags; an opening HTML-block anchor is unavailable because unlinking it would reinterpret a literal block body. The existing URI policy applies. No link activation or resource fetch is added. |
-| Tasks | ToggleTask changes the checkbox state character, retaining the original marker, spaces and label. Multiple selected existing tasks invert independently; converting mixed items to tasks preserves existing states. CommonMark without TaskLists rejects the command. Pointer press stages a plan; matching release inside the checkbox commits once. Capture/focus loss, leaving the checkbox, source/layout replacement and stale selection cancel the gesture. |
+| Tasks | ToggleTask changes the actual first paragraph's checkbox state character, including when an empty marker line precedes the task paragraph. Marker spelling, indentation and EOLs survive. Multiple selected existing tasks invert independently; converting mixed items to tasks preserves existing states. Removing a following-line task is unavailable when the opening marker and continuation indentation lack one owned edit range. CommonMark without TaskLists rejects the command. Pointer press stages a plan; matching release inside the checkbox commits once. Capture/focus loss, leaving the checkbox, source/layout replacement and stale selection cancel the gesture. |
 | Tables | InsertTable creates a bounded GFM scaffold at an empty site or over a selected single-line paragraph. Insert/DeleteTableRow and Insert/DeleteTableColumn preserve unaffected cell bytes, escapes, edge pipes, alignment markers and EOLs. Deleting a header promotes the next body row while retaining the separator; deleting the last row/column removes the table. SetTableCell accepts raw single-line Markdown with escaped pipes. Missing padded cells materialize only the necessary delimiters/cells. Next/PreviousTableCell retain separate native affinity at equal ACPs; Tab from the final cell appends one row. |
+
+`MoveLineUp/Down` moves an owned sibling item or two physical lines of one paragraph.
+It refuses a nested item sharing its parent's opening marker and paragraph exchanges
+that would expose list/code/HTML/heading, setext/table or link-definition syntax.
+Lazy container continuations cannot exchange their prefixes. Ordinary repeated-prefix
+quotes and nested siblings whose parent starts on an earlier line remain movable.
+Refusal preserves the complete source, selection and history.
 
 `SetTableAlignment` changes the target column's delimiter colons without rewriting
 its whitespace or hyphens. `MoveTableRowUp/Down` exchange adjacent row contents,
@@ -1658,6 +1665,8 @@ normalized definition or existing reference is unavailable, as are terminal
 unclosed fences/metadata, terminal HTML blocks, unmatched inline brackets and
 an odd backslash escape immediately before the caret. Existing source and EOL
 spelling are retained; the new definition uses the document's EOL policy.
+Raw labels cannot end with an unpaired backslash, which would escape the generated
+closing bracket. Paired backslashes and escaped brackets remain supported.
 
 Select `MarkdownProfile::RichMarkdown` and enable semantic rendering for the
 `DxUiFootnotes1` extension. CommonMark0312 and Gfm029 keep their pinned grammar.
