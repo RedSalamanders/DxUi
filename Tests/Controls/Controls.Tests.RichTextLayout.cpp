@@ -1925,6 +1925,33 @@ void TestRichTextSourceInkPreparationRolesAndCapacity()
     Require(turns > 200u && ink.LastWork() <= Detail::RichSourceInk::WorkPerTurn && ! ink.Ranges().empty(),
             "multiple merge passes complete incrementally for a dense admitted source");
 
+    const std::vector<TextInkRange> wholeInk(ink.Ranges().begin(), ink.Ranges().end());
+    Detail::RichSourceInk windowed;
+    for (const auto first : {std::size_t{0u}, std::size_t{30001u}, mergeFixture.size() - 40u})
+    {
+        const MarkdownRange window{first, first + 40u};
+        const std::vector<TextInkRange> previousWindow(windowed.Ranges().begin(), windowed.Ranges().end());
+        turns = 0u;
+        while (! windowed.Advance(mergeSyntax, [](size_t value) { return value; }, window))
+        {
+            Require(windowed.LastWork() <= Detail::RichSourceInk::WorkPerTurn && ++turns < 1000u,
+                    "windowed source ink shares its bounded metadata and scan budget");
+            Require(
+                std::ranges::equal(previousWindow, windowed.Ranges(), [](const auto& a, const auto& b) { return a.display == b.display && a.role == b.role; }),
+                "scrolling retains the preceding complete source ink publication");
+        }
+        std::vector<TextInkRange> expected(0u);
+        for (const auto& range : wholeInk)
+        {
+            const MarkdownRange clipped{(std::max)(window.first, range.display.first), (std::min)(window.last, range.display.last)};
+            if (clipped.first < clipped.last)
+                expected.push_back({clipped, range.role});
+        }
+        Require(! expected.empty() && expected.size() <= 10u && windowed.Covers(window.first, window.last) &&
+                    std::ranges::equal(expected, windowed.Ranges(), [](const auto& a, const auto& b) { return a.display == b.display && a.role == b.role; }),
+                "deep source windows publish exact independently clipped whole-source roles with bounded retained spans");
+    }
+
     std::wstring crowded;
     for (size_t i = 0u; i < 10000u; ++i)
         crowded.append(L"# `x`\n");

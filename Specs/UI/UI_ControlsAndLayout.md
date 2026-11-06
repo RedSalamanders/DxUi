@@ -2301,6 +2301,12 @@ usable ordinary text without automatically retrying that failed visual request.
 Source analysis retains its separately documented 65,536-unit admission and
 cooperative parser bounds; neither a work-step limit nor a borrowed tokenizer
 callback provides a hard elapsed-time guarantee.
+Source-colour events, ordering and published spans are likewise restricted to
+the visible source window plus overscan. Offscreen inline bodies and delimiters
+are skipped; classification of admitted syntax records still shares the existing
+256-step owner-turn budget. Scrolling refreshes the window even when numbers and
+whitespace marks are disabled. The complete-source private preparation route
+remains available for semantic/capacity regression oracles.
 `lastAdvanceUploadBytes` reports the last geometry advance's upload work.
 
 The pinned Mermaid 11.4.1 inventory and all 105 original flowchart examples MUST

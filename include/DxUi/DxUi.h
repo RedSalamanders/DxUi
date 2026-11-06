@@ -3743,6 +3743,7 @@ private:
     [[nodiscard]] std::optional<RichText::MarkdownRange> CaretLinkDisplayRange() const noexcept;
     void UpdateCaretLinkDisplayRange() noexcept;
     bool PrepareSourceInk();
+    [[nodiscard]] bool SourceInkCoversViewport() const;
     bool PrepareSourceGuides(ControlHost& host);
     HRESULT PrepareMarkdownSyntax();
     [[nodiscard]] bool CodeInkCoversViewport() const noexcept;

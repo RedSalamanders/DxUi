@@ -3139,7 +3139,8 @@ bool RichTextEditor::SetScrollOffsetDip(float offsetDip)
     if (lifetime.expired() || GetHost() != host || _state->bindingRevision != binding)
         return true;
     if (_state->codeTokenizer ||
-        (_state->mode == RichText::ViewMode::Source && (_state->appearance.sourceLineNumbers || _state->appearance.sourceWhitespaceMarks)))
+        (_state->mode == RichText::ViewMode::Source &&
+         (_state->appearance.sourceLineNumbers || _state->appearance.sourceWhitespaceMarks || _state->appearance.colorizeMarkdownSource)))
         RequestVisualContentPreparation(false);
     RequestInvalidate();
     if (! lifetime.expired() && GetHost() == host && _state->bindingRevision == binding)
@@ -3223,7 +3224,8 @@ bool RichTextEditor::SetHorizontalScrollOffsetDip(float offsetDip)
     host->RefreshAccessibilitySnapshot();
     if (lifetime.expired() || GetHost() != host || _state->bindingRevision != binding || Revision() != revision)
         return true;
-    if (_state->mode == RichText::ViewMode::Source && (_state->appearance.sourceLineNumbers || _state->appearance.sourceWhitespaceMarks))
+    if (_state->mode == RichText::ViewMode::Source &&
+        (_state->appearance.sourceLineNumbers || _state->appearance.sourceWhitespaceMarks || _state->appearance.colorizeMarkdownSource))
         RequestVisualContentPreparation(false);
     RequestInvalidate();
     if (! lifetime.expired() && GetHost() == host && _state->bindingRevision == binding && Revision() == revision)
@@ -3479,6 +3481,7 @@ void RichTextEditor::RetireLayout(bool retainGeometry) const noexcept
     _state->requestActive         = false;
     _state->revealCaret           = true;
     RequestContentPreparation(false);
+    RequestVisualContentPreparation(false);
 }
 bool RichTextEditor::LayoutIsCurrent(const ControlHost& host) const noexcept
 {
@@ -3735,8 +3738,8 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
         const bool code     = document && (state.codeInkDocument != document || ! state.codeInkComplete || ! CodeInkCoversViewport());
         const auto syntax   = GetMarkdownSyntax();
         const bool analysis = state.mode == RichText::ViewMode::Source && state.markdownProfile && ! syntax && ! state.HasCurrentMarkdownCapacityRejection();
-        const bool source   = state.mode == RichText::ViewMode::Source && state.appearance.colorizeMarkdownSource &&
-                              ((! syntax && state.markdownProfile && ! state.HasCurrentMarkdownCapacityRejection()) || ! state.sourceInk.Current(syntax));
+        const bool source   = state.mode == RichText::ViewMode::Source && state.appearance.colorizeMarkdownSource && syntax &&
+                              (! state.sourceInk.Current(syntax) || ! SourceInkCoversViewport());
         const bool numbers  = state.mode == RichText::ViewMode::Source && state.appearance.sourceLineNumbers;
         const bool marks    = state.mode == RichText::ViewMode::Source && state.appearance.sourceWhitespaceMarks;
         const auto viewport = TextViewport();
@@ -7234,14 +7237,28 @@ bool RichTextEditor::PrepareSourceGuides(ControlHost& host)
     static_cast<void>(host.GetSolidBrush(host.GetTheme().subduedText));
     return state.sourceGuides.Advance(host.GetWriteFactory(), state.layout);
 }
+bool RichTextEditor::SourceInkCoversViewport() const
+{
+    const auto viewport = TextViewport();
+    const auto range    = _state->layout.VisibleSourceRange(_state->scrollDip, _state->scrollDip + viewport.bottom - viewport.top);
+    return _state->sourceInk.Covers(range.first, range.second);
+}
 bool RichTextEditor::PrepareSourceInk()
 {
-    if (! _state->appearance.colorizeMarkdownSource || _state->mode != RichText::ViewMode::Source)
+    const auto syntax = GetMarkdownSyntax();
+    if (! _state->appearance.colorizeMarkdownSource || _state->mode != RichText::ViewMode::Source || ! syntax)
     {
         _state->sourceInk.Clear();
         return true;
     }
-    const auto complete = _state->sourceInk.Advance(GetMarkdownSyntax(), [this](size_t source) { return _state->layout.ToDisplay(source); });
+    if (_state->sourceInk.Current(syntax) && SourceInkCoversViewport())
+        return true;
+    const auto viewport = TextViewport();
+    const auto margin   = (std::max)(16.0f, _state->sourceGuideOptions.fontSizeDip * 2.5f);
+    const auto range =
+        _state->layout.VisibleSourceRange((std::max)(0.0f, _state->scrollDip - margin), _state->scrollDip + viewport.bottom - viewport.top + margin);
+    const auto complete = _state->sourceInk.Advance(
+        syntax, [this](size_t source) { return _state->layout.ToDisplay(source); }, RichText::MarkdownRange{range.first, range.second});
     if (complete)
         _state->sourceInkPublishedRevision = Revision();
     return complete;

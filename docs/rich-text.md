@@ -361,6 +361,8 @@ analysis for colouring can continue after raw Source text is ready. Guides cover
 the viewport plus overscan, with a stable five-digit gutter. While scrolling, the
 last complete decoration remains visible where its coordinates are still valid;
 unknown positions are omitted until a new complete publication is ready.
+Colour spans also cover the visible source window plus overscan. Scrolling
+requests the new window without changing source, selection or accessibility text.
 
 For opt-in Subtle code blocks, applications can register `SetCodeTokenizer`
 and use `TokenizeBuiltinCode` for JSON, C-like languages, PowerShell or diff.

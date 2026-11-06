@@ -1414,7 +1414,7 @@ void TestRichTextEditorNativeDenseSourceAndSplitScheduling()
         const auto pendingInk = [&]
         {
             const auto state = sourceView->DebugGetState();
-            return state.markdownPreparationPending || state.sourceInkPreparationPending || state.sourceInkRangeCount < blockCount;
+            return state.markdownPreparationPending || state.sourceInkPreparationPending || state.sourceInkRangeCount == 0u;
         };
         while ((window.Host().HasPendingContentPreparation() || pendingInk()) && GetTickCount64() < deadline)
         {
@@ -1427,7 +1427,8 @@ void TestRichTextEditorNativeDenseSourceAndSplitScheduling()
                   << " rich_turns=" << richView->calls << " source_max_us=" << sourceView->maximumAdvance.count()
                   << " rich_max_us=" << richView->maximumAdvance.count() << " ink_ranges=" << preparedSource.sourceInkRangeCount << '\n';
         Require(! window.Host().HasPendingContentPreparation() && preparedSource.layoutReady && preparedRich.layoutReady &&
-                    preparedSource.sourceInkRangeCount >= blockCount && ! preparedSource.sourceInkPreparationPending &&
+                    preparedSource.sourceInkRangeCount > 0u && preparedSource.sourceInkRangeCount < blockCount &&
+                    ! preparedSource.sourceInkPreparationPending &&
                     richView->GetMarkdownRenderingStatus() ==
                         (blockCount < SemanticDocument::MaximumParagraphs ? MarkdownRenderingStatus::Semantic : MarkdownRenderingStatus::SourceFallback),
                 "ordinary native messages finish dense Source ink and sibling Rich geometry within the independent deadline");
