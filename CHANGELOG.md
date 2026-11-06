@@ -4,6 +4,8 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Keep editor frames and input usable while optional code/source colouring, line numbers and whitespace marks prepare. Bound guides and tokenizer callbacks to visible geometry, retain complete publications, and index immutable source line coordinates. Add ready-frame, viewport, maximum-row, Unicode, allocation-retry and independent snapshot-coordinate regressions.
+- Reject structured compiler-process exception dumps before build attestation or green output, even when MSBuild reports zero warnings and errors. Add clean-footer, node-prefix and ordinary-text regression fixtures and document the acceptance rule.
 - Record source-bound hosted Release acceptance for parser scan bounds: all seven jobs, 23 x64 and 21 ARM64 suites, assertion probes and both production SDK smoke checks; retain fifteen independently verified artifact wrapper digests and the exact implementation boundary.
 - Keep fake MSVC negative cases and run-evidence hard-link setup within Windows path bounds in long checkouts, using compact owned fixture names. Preserve unique run isolation, paths-with-spaces coverage and all independent long-Unicode, identity, stream and read-only assertions.
 - Let standalone display math interrupt lazy quotes/lists and table rows consistently. Bound repeated malformed HTML, link-destination and table-reference scans with fixed leaf facts, a 32-level destination limit and cheap table admission; preserve literal source and add independent failing-then-passing block and logical-work regressions.
