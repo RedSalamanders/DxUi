@@ -84,9 +84,12 @@ This coordinates the active API work; it does not adopt API 5 in any application
   passes six builds, all 83 cases and 36 captures per x64 profile, actual Compose/Source/Split command dispatch,
   history/focus and refusals. [Consumer closeout](https://github.com/RedSalamanders/RedTilde/blob/main/Specs/Plans/Done/SelectedBlockInsertions_2026-11-05.md)
   preserves the original content-loss failure and broader acceptance boundaries.
-- [ ] Implement D1: cosmetic code ink/line numbers/whitespace never withhold content, cancel a gesture or
+- [x] Implement D1: cosmetic code ink/line numbers/whitespace never withhold content, cancel a gesture or
   refuse input; do bounded viewport/change work and show the previous cosmetic state while preparing
   (EDIT-01/02/04, RENDER-01/14).
+  [Scoped closeout](../Done/EditorCosmeticPreparation_2026-11-06.md): API 4 `ba94f4eb`, six zero-warning builds,
+  57 noninteractive suite executions, real ASan detection, independent work/source oracles and refreshed gallery.
+  Consumer, native-platform/physical and paired-performance acceptance remain separately owned below.
 - [x] Implement D3's 5 November decision: permit natural source navigation/editing across the former active
   interval, including Backspace/Delete/Tab and nested fences. Update the source-editing scope from the current
   caret/selection instead of trapping input at an old boundary (EDIT-07/11).

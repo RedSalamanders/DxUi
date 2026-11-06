@@ -1,5 +1,7 @@
 # Independent DxUi measurements
 
+- [Independent editor cosmetic preparation](EditorCosmeticPreparation_2026-11-06/README.md): D1 content/input independence, bounded viewport ink/guides, source-coordinate and clipping oracles, retained failures, six zero-warning builds and 57 noninteractive suite executions. Consumer, native-platform and performance-policy acceptance remain separate.
+
 - [Diagram spacing, text insets and task presentation](DiagramSpacing_2026-11-03/README.md): retained detour reproduction,
   measured rank corridors, native text insets and accent/optional-strike task regressions. Consumer and broader qualification are separate.
 

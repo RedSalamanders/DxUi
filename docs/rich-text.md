@@ -66,8 +66,8 @@ receivers and the library must likewise be rebuilt from the same exact pin.
 | In-place source editing | Supported | Scoped leaf or inline math; unchanged source ACPs and document history | [Details](#retained-editor-preview-d2c) |
 | Decorations and search | Limited | 256 decorations; 4,096 mapped rectangles; source-revision retirement; opt-in source-backed UIA annotations in semantic presentation | [Details](#editor-presentation) |
 | Link activation | Supported | Caller callback intent; no browser launch; local fragments use source navigation | [Details](#editor-presentation) |
-| Source presentation | Limited | Optional wrapping, prepared line numbers and whitespace; bounded zoom | [Details](#editor-presentation) |
-| Code presentation | Limited | Prepared token spans; Subtle frame and line labels; caller-owned copy transport | [Details](#editor-presentation) |
+| Source presentation | Limited | Optional wrapping; viewport guides with a stable five-digit gutter; cosmetic work never withholds current content; bounded zoom | [Details](#editor-presentation) |
+| Code presentation | Limited | Optional visual token spans for visible blocks plus overscan; at most one callback per turn; Subtle frame and line labels; caller-owned copy transport | [Details](#editor-presentation) |
 | Semantic accessibility | Limited | Source ranges, typed structure and actions; physical AT qualification separate | [Details](#semantic-accessibility-m4f) |
 | Text services | Limited | Native and embedded TSF/IME and UIA adapters; physical IME qualification separate | [Details](#source-text-services-and-accessibility-d2d) |
 | Native mathematics | Limited | Named DxUiMath1 subset; source-preserving per-object fallback | [Details](#native-in-document-mathematics-and-broader-diagrams) |
@@ -363,6 +363,8 @@ last complete decoration remains visible where its coordinates are still valid;
 unknown positions are omitted until a new complete publication is ready.
 Colour spans also cover the visible source window plus overscan. Scrolling
 requests the new window without changing source, selection or accessibility text.
+The [source-bound D1 qualification](../Measurements/EditorCosmeticPreparation_2026-11-06/README.md)
+records the independent readiness, viewport, allocation and source-coordinate checks and their acceptance limits.
 
 For opt-in Subtle code blocks, applications can register `SetCodeTokenizer`
 and use `TokenizeBuiltinCode` for JSON, C-like languages, PowerShell or diff.
