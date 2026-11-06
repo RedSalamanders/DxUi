@@ -1,1 +1,0 @@
-- Exercise native text-store fatal callbacks through a headless logical target under the child activation guard, while retaining the attached-window reentry and foreground scenarios.
