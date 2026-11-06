@@ -1,0 +1,1 @@
+- Reject structured compiler-process exception dumps before build attestation or green output, even when MSBuild reports zero warnings and errors. Add clean-footer, node-prefix and ordinary-text regression fixtures and document the acceptance rule.

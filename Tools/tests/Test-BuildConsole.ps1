@@ -58,6 +58,17 @@ $errorLog=Join-Path $ScratchRoot 'error.log'
 [IO.File]::WriteAllText($errorLog,'file.cpp(1): fatal error C1083: missing header')
 Refuses {Assert-NativeBuildDiagnostics -LogPath $errorLog} 'Zero-warning'
 Refuses {Assert-NativeBuildDiagnostics -LogPath (Join-Path $ScratchRoot 'missing.log')} 'missing'
+$crashLog=Join-Path $ScratchRoot 'tool-exception.log'
+foreach($dump in @('  ExceptionCode = C0000006','3> ExceptionCode = c0000005',' ExceptionCode = 0xE06D7363')){
+    [IO.File]::WriteAllText($crashLog,$dump+"`n    ExceptionInformation[ 2] = C000007F`n"+[IO.File]::ReadAllText($clean))
+    $facts=Get-NativeBuildDiagnostics -LogPath $crashLog
+    Require ($facts.ToolExceptionCount-eq 1 -and $facts.WarningCount-eq 0 -and $facts.ErrorCount-eq 0 -and $facts.BuildSucceeded) 'Structured child exception must survive a clean MSBuild footer.'
+    Refuses {Assert-NativeBuildDiagnostics -LogPath $crashLog} 'tool process exception'
+}
+foreach($ordinary in @('source.cpp: text ExceptionCode = C0000006','ExceptionCode = 00000000','ExceptionCode = not-a-code')){
+    [IO.File]::WriteAllText($crashLog,$ordinary+"`n"+[IO.File]::ReadAllText($clean))
+    Assert-NativeBuildDiagnostics -LogPath $crashLog
+}
 $binary=Join-Path $ScratchRoot "synthetic # app's É.exe"
 # Deliberately not executable: writing a result must never launch it.
 [IO.File]::WriteAllText($binary,'A synthetic artifact, never run.')
@@ -78,6 +89,8 @@ Require (@($messages|Where-Object{$_ -like 'Run:*'}).Count-eq 1) 'Executable lin
 Require (@($messages|Where-Object{$_ -like "& *''*"}).Count-eq 1) 'Quoted executable fallback must escape apostrophes.'
 foreach($record in $records){Require ([string]$record.MessageData.ForegroundColor -eq 'Green') 'Successful result line is not green.'}
 Refuses {Write-NativeBuildResult -Project Fixture -Platform x64 -Configuration Release -LogPath $errorLog -Artifacts @($binary)} 'Zero-warning'
+[IO.File]::WriteAllText($crashLog,"ExceptionCode = C0000006`n"+[IO.File]::ReadAllText($clean))
+Refuses {Write-NativeBuildResult -Project Fixture -Platform x64 -Configuration Release -LogPath $crashLog -Artifacts @($binary)} 'tool process exception'
 Refuses {Write-NativeBuildResult -Project Fixture -Platform x64 -Configuration Release -LogPath $clean -Artifacts @((Join-Path $ScratchRoot 'absent.exe'))} 'missing'
 
 $paths=if(Test-Path -LiteralPath (Join-Path $Root 'Build/DxUiPaths.psm1')){'Build/DxUiPaths.psm1'}
