@@ -4,6 +4,8 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Label performance metrics as unassessed when policy admission withholds every verdict, preserving the inconclusive result and original refusal reasons instead of implying that no regressions were found.
+- Admit and verify the owned descendant before testing timeout and bounded pipe drains, cover delayed parent startup, and release the exact surviving holder cooperatively while preserving the production measurement and post-exit drain limits.
 - Make the tooling timeout fixture tolerate ordinary PowerShell startup under native build load while still timing out its real stalled child. Verify the exact failure, continuation and survival of an independent same-name process; keep production watchdog deadlines unchanged.
 - Address task commands at the actual first paragraph, preserving empty marker lines, indentation and LF/CRLF/CR. Refuse ambiguous task unwraps, sibling moves owning a parent's opening marker and paragraph moves that would change Markdown structure. Reject unpaired trailing footnote-label escapes; retain valid blank-line display math while removing its unreachable check. Commands preserve atomic source, selection and undo history.
 - Verify native ARM64 fatal-child dumps with PAC-aware DbgHelp unwinding while retaining original-thread, context and exact-PDB checks. Preserve profile failure evidence even when native preflight fails; stream matching executable/PDB bytes into member-verified compressed archives without staging full PDB copies or disturbing an active profile.
