@@ -38,7 +38,8 @@ Canonical native evidence retains a profile's `FailureEvidence` even when a filt
 before the ordinary suite receipt. Preserve prior evidence separately at run start and current evidence on
 completion, including failed completion, using verified same-volume directory renames. Current dumps retain
 byte-verified copies of their actual linked test executables/PDBs; never pair older dumps with replacement
-binaries. Profile names are an exact allowlist, parent/file reparse points are refused, and no independently
+binaries. Stream images/PDBs directly into a compressed archive and verify every original member's length and
+SHA-256; do not stage full uncompressed PDB copies before evidence completion. Profile names are an exact allowlist, parent/file reparse points are refused, and no independently
 running native executable is terminated or replaced for collection.
 
 Native text-store fatal callback probes retain the child's activation blocker and use a null-HWND host with
