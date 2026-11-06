@@ -13,7 +13,8 @@ checked document/parser results. Library qualification for the recorded x64 scop
 `f6791b5070efd1fa8dc86601bc9422ae9a321d2e`; the [evidence](../../Measurements/FailurePolicy_2026-11-06/README.md)
 and [execution record](../Plans/Done/FailurePolicy_2026-11-02.md) retain the build, corpus, fatal-child,
 dump-context and isolated-consumer results. Native ARM64 execution and application-owned product adoption
-remain separate. The formal paired performance policy remains unqualified; its current hosted study is pending.
+remain separate. Formal paired performance qualification remains with
+[D-P1](../Plans/WIP/RemainingWork_2026-11-04.md#d-p1); no passing formal verdict is claimed here.
 Historical source `5fc4d4c383bfa4891ee57a138924107bbbf11a2e` used exception recovery and does not conform;
 its functional receipts establish that original behavior only. No dump guarantee or product adoption is claimed.
 

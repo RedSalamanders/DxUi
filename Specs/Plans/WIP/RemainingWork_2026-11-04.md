@@ -30,7 +30,7 @@ profiles, the real ASan probe, the 19-suite Release union and RedTilde's origina
 | Pending-Update timing accounting | Instrumentation and source-specific six-profile evidence are archived in [FrameUpdateAccounting](../Done/FrameUpdateAccounting_2026-10-26.md). This is accurate accounting, not a CPU improvement or performance-policy acceptance. |
 | Compatibility branch publication D10 | Recorded published branches/SHAs remain in the [review decisions](../Done/ProductionReview_2026-11-02.md#wave-0--decisions-that-unblock-implementation); consumer adoption is D-C1. |
 
-[API 5 PR162](https://github.com/RedSalamanders/DxUi/pull/162) remains open. The [failure-policy closeout](../Done/FailurePolicy_2026-11-02.md)
+[API 5 PR162](https://github.com/RedSalamanders/DxUi/pull/162) owns actual integration/merge status. The [failure-policy closeout](../Done/FailurePolicy_2026-11-02.md)
 records qualified library source `f6791b5070efd1fa8dc86601bc9422ae9a321d2e`, x64 results and the owner's acceptance
 of measured construction safety costs. It does not establish a merge, native ARM64 execution, formal frame-policy
 qualification or product adoption. Earlier `d0179db6` evidence remains bound to that checkpoint.

@@ -112,7 +112,8 @@ passed with zero skips; all three 30-second countdowns and leases completed, and
 The [qualification and measurement packet](../../../Measurements/FailurePolicy_2026-11-06/README.md) retains
 source-specific evidence and failed cohorts, including foreground 16 and user activity/restoration; the passing
 foreground 17 retry does not erase them. Native ARM64 execution is explicitly deferred by the owner, not claimed
-from cross-builds. PR162 remains open; this record does not assert a merge or application adoption.
+from cross-builds. PR162 was open at this qualification checkpoint; its
+[integration record](https://github.com/RedSalamanders/DxUi/pull/162) owns actual merge status. This record does not assert application adoption.
 
 The owner accepted the measured construction safety costs in the source-paired 12-block/48-process study
 `1ea6d522` versus `d975aa7d`: +10.355 ns Separator, +2.4 ns Panel and +16.285 ns editor; allocations remain

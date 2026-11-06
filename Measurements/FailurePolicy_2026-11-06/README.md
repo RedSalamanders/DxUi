@@ -50,7 +50,7 @@ source bytes; the policy remains explicitly unqualified.
 
 ## Open performance and platform ownership
 
-The current hosted pair [42201620823](https://github.com/RedSalamanders/DxUi/actions/runs/42201620823) is still
+At this closeout snapshot, hosted pair [42201620823](https://github.com/RedSalamanders/DxUi/actions/runs/42201620823) is still
 collecting main `1ea6d522` against implementation `a6ea0c15`. Later library C++ is unchanged; raw receipts retain
 their original identities. No accepted verdict is claimed. Formal policy/control qualification remains
 [D-P1](../../Specs/Plans/WIP/RemainingWork_2026-11-04.md#d-p1).
