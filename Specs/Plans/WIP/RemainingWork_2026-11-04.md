@@ -105,11 +105,11 @@ This coordinates the active API work; it does not adopt API 5 in any application
   caret/selection instead of trapping input at an old boundary (EDIT-07/11).
 - [ ] Resolve remaining editor/command correctness: IME underline staleness, disclosure/zoom geometry loss,
   auto-pairing within words and read-only chord handling (EDIT-03/06/09/10).
-  CMD-01/02/03/05 implementation now addresses actual task paragraphs, shared parent markers, paragraph
-  structural ownership and trailing footnote escapes. Focused same-fixture baseline/candidate execution
-  reproduces all four defects and verifies their repairs, with valid blank-line display math retained (CMD-04
-  is unreachable-check cleanup). Six-profile builds and full ordinary x64 qualification remain pending;
-  this functional comparison alone does not close the editor or performance gates.
+- [x] Complete CMD-01/02/03/04/05: actual task paragraphs, shared parent markers, paragraph structural
+  ownership and trailing footnote escapes. [Scoped closeout](../Done/CommandOwnership_2026-11-06.md)
+  retains four same-fixture baseline failures, valid blank display-math characterization, six zero-warning
+  builds, 66 ordinary native x64 suite executions and actual ASan detection at `c59094f5` (API 5).
+  This closes command ownership locally; the editor, native ARM64, consumer and performance gates stay separate.
 
 <a id="d-i1"></a>
 ### D-I1 — Unicode, clipboard and native input
