@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "claim": "Original rejected attempts remain separate from the final qualified source",
+  "finalImplementationCommit": "1352cc7fd244909e1c274b7d567485b9e98d7f1a",
+  "rejectedNativeCohort": {
+    "sourceCommit": "bab35e8bed2c634e5cd1b41462b25a64f5e6bf51",
+    "compiledSourceIdentity": "7fda2fed6ed33b915cc7ab4b2061ad2eba1ba51fd8294961ee63820c2d6f6887",
+    "warnings": 0,
+    "errors": 0,
+    "executedSuites": 22,
+    "passedSuites": 20,
+    "failedSuites": [
+      {
+        "name": "Embedded",
+        "exitCode": -532391851
+      },
+      {
+        "name": "EditorControls",
+        "exitCode": 1
+      }
+    ],
+    "observedAssertion": "the actual legacy WIC fixture has no color context interface",
+    "nativeArchiveSha256": "B08F44F80D6DAAF48080F43282B5EEB817D38DA76D72F55D94AB7F59DE40D2C6",
+    "nativeRunArchiveSha256": "E589D34799C6BD10649ACEE9CFE9AF4B98248C2F71E38FF723DDD0DCD8351D2B",
+    "disposition": "Rejected; fixture assumed E_NOINTERFACE rather than observing the WIC target capability"
+  },
+  "earlierNativeLinkFailure": {
+    "sourceCommit": "bab35e8bed2c634e5cd1b41462b25a64f5e6bf51",
+    "reason": "LNK1201/FTK1004 insufficient disk space",
+    "originalLogSha256": "81E95767B11DE97D91DBF259FE209BBEA3090EC9FCEC4702242E4948233237E2",
+    "qualified": false
+  },
+  "earlierProbeLinkFailure": {
+    "reason": "LNK1180 insufficient disk space",
+    "originalLogSha256": "01EDFB68C325633606A4758613BC05543062EF7808248B6475209BCCFA6867CE",
+    "qualified": false
+  },
+  "earlierBaselineMissingPdb": {
+    "reason": "Original producer PDB missing; linker warning attempt rejected before a complete-symbol zero-warning baseline",
+    "originalLogSha256": "A715A56653AC977361D4DCD2CA13FC17799AD63AF533B20510E972E26005CC97",
+    "qualified": false
+  },
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-script-color-retained-attempts",
+  "inputHash": "24037d919a29ce71f7adf2f0e663b42337884a6c49badcd4d4301d815bdb02bd",
+  "benchmarkInputs": {
+    "src/Controls/DxUi.RichSemanticGeometry.cpp": "9D894D1236F3B9B65905942E3CA6E6A970716DD32FFA4C8DD91B75298C96BBA2",
+    "src/Controls/DxUi.PreparedLayoutAccess.h": "E2702AADFB6FB08BB7F240BC8F59D63308B18F3F4288054CEDF1C2385FEF6EAC",
+    "src/Controls/DxUi.RichTextLayout.cpp": "2F50AFEC754A211210154EA3A95CF6E0E8D8E15B640DFDF6B895683F5180C0D7",
+    "Tests/Support/Support.Tests.RichSemanticGeometry.h": "B07CF847D877A687445ECC3C3D0420D963DBEFA134F06554029039683173FFC8",
+    "Tests/Controls/Controls.Tests.RichSemanticGeometry.cpp": "BAB855000B3B9B3CF90A58815C0475B3EEE5E87C2E395D7CE141C3C5B43AC644",
+    "Tests/Embedded/Embedded.Tests.Embedded.cpp": "DE1607AE799CBC1D157D8A7C803532F354DDF085AAA2DCFF9E7546E780876B4F",
+    "Tests/Embedded/Embedded.Tests.RichTextResources.h": "6682E4B699415202FD7451193FD899DC804BEA036A5C3B4807F93F447F3A4E19"
+  }
+}

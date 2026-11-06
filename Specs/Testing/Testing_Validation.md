@@ -31,6 +31,22 @@ showing it without activation does not establish that precondition. Keep healthy
 real TSF/focus scenarios in their separately approved foreground lease. Headless callback proof is not OS TSF
 activation or foreground qualification.
 
+## Script/color targets and diagnostic counts
+
+Script/color admission coverage must use an actual capable WARP target, an actual WIC target with independently
+observed interface support, controlled `E_NOINTERFACE`, and an absent target. WIC targets can expose newer
+interfaces; the fixture must not infer legacy capability from the factory method's name. Check exact source,
+native admission, colored raster pixels, capability-refused paragraph-local rejection and noncolor script
+support. Count actual admission-query attempts across
+multiple paragraphs, compatible reuse and a document without scripts. Cancellation and injected native failure
+must preserve the previous publication; a later valid request must succeed. Supplied-device coverage measures
+warm native drawing allocations separately from geometry preparation. These tests do not establish physical
+device or paired-performance acceptance.
+
+Diagnostic scenario summaries derive their counts from the actual iterable or shared execution bound. A
+hardcoded summary must not drift from an expanded corpus or imply that an unexecuted case ran. Retained
+historical output remains unchanged and is interpreted with its original source inventory and request traces.
+
 ## Existing scenario contracts
 
 Native staged-TSF reconciliation tests count the current generation-tagged production dispatch separately from
@@ -326,6 +342,12 @@ test of a suite runs, in its order. A filtered `test.ps1` run is partial evidenc
 and receipt take a `.filtered` suffix and record the names, so they never replace the receipt of the whole suite.
 `Tools/tests/Test-TestFilter.ps1` checks this contract against the built executable in every `test.ps1` run that includes a
 control suite, and that no runner calls a test directly.
+When a child exits nonzero, this preflight prints its complete captured combined output, original exit,
+arguments and actual executable SHA-256 before any caller assertion. A summarized wrapper failure must not
+erase the native test's error. The compiler-free `Test-TestFilterOutput.ps1` fixture executes that launcher
+with an independently specified failing process; it checks both output streams and the original identity.
+This does not weaken native Grid execution, registration equality or failure assertions. A historical failure
+whose child output was not retained remains unexplained until independently demonstrated.
 
 Every control test is bounded, so a hung test cannot hold a CI job. On the pull-request run of PR 30 the x64 ASan Debug job
 printed nothing for the 35 minutes between starting the Menu suite and the job's 40-minute limit, and its log named no test.

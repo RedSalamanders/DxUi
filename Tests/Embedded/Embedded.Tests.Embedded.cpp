@@ -1958,7 +1958,7 @@ __declspec(noinline) static int RunFunctionalTests()
             countAllocations = wasCounting;
             allocations      = originalCalls;
         });
-        RichSemanticGeometryTests::HtmlScripts([&](bool before) noexcept
+        const auto observe       = [&](bool before) noexcept
         {
             if (before)
             {
@@ -1970,7 +1970,9 @@ __declspec(noinline) static int RunFunctionalTests()
                 allocated        = allocated || allocations != calls;
                 countAllocations = wasCounting;
             }
-        });
+        };
+        RichSemanticGeometryTests::HtmlScripts(observe);
+        RichSemanticGeometryTests::ScriptColorTargetCapability(observe);
         Check(! allocated, "script native and RTL linked drawing performs zero tracked C++ allocations");
     });
 #if DXUI_ENABLE_DIAGNOSTICS

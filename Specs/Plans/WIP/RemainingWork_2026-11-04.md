@@ -157,8 +157,13 @@ any *different* remaining failure-channel problem belong to D-A1.
   RTL, narrow widths and source ACP hit testing; verify the consumer's themed-scrollbar adoption with an exact
   API-4 pin. The [scoped closeout](../Done/QuoteMarginsAndSequenceAllocation_2026-11-04.md) records all three x64
   affected-suite passes, the Debug allocation repair, native gallery review and consumer verification.
-- [ ] Compute color-glyph capability once per preparation and preserve the intended script/emoji fallback
-  (SEM-01/RENDER-05; D6 pending), with actual target tests.
+- [x] Compute color-glyph capability once per preparation and preserve the documented script/emoji fallback
+  (SEM-01/RENDER-05), with actual target tests. The [scoped closeout](../Done/ScriptColorPreparation_2026-11-06.md)
+  records source `1352cc7f`, six zero-warning builds, all 66 noninteractive x64 suite executions, actual ASan,
+  original 680-input/native/run member verification and refreshed gallery provenance. Actual WARP pixels,
+  observed WIC capability, controlled E_NOINTERFACE, cancellation and checked failure preserve publication.
+  The unchanged compiled probe fails with the prior library and passes with this one. D6's broader policy,
+  native ARM64/physical and formal paired-performance acceptance remain separately owned.
 - [ ] Resolve image-completion/animation re-preparation, placeholder direction, lost list markers and
   supplementary-plane word starts (SEM-02/03/04/05).
 - [ ] Restore bounded chunk reuse with nondefault line height (RENDER-02); preserve clean/dirty/hidden work,
@@ -178,9 +183,10 @@ omitting an ID from this summary does not dispose of it.
   lack it (PRIOR-08); replace self-referential crossing, CF_HTML and font-truncation oracles.
 - [ ] Add deterministic pathological-input/fuzz/cancellation coverage for Markdown, diagrams and math;
   retain exact seeds, budgets, raw failures and source/artifact identities.
-- [ ] Derive the semantic diagram allocation diagnostic's scenario count from its actual source array. Its
-  existing summary label is stale; the expanded sweep executes 20 sources. Retain the original logs and use
-  actual per-request traces and source inventory when interpreting current evidence.
+- [x] Derive the semantic diagram allocation diagnostic's count from its actual array/shared execution bound:
+  twenty semantic and five geometry scenarios. The [scoped closeout](../Done/ScriptColorPreparation_2026-11-06.md)
+  retains original logs and source/per-request evidence; this corrects the label without changing the corpus or
+  accepting an earlier paired verdict.
 - [ ] Diagnose long-checkout tooling portability: hosted-MSVC fake executable launches fail at observed
   272-character fixture paths and one NTFS hardlink fixture fails at 261 characters. Canonical short-path
   validation and all 41 unchanged NTFS run-evidence checks with a supported short scratch root pass. Preserve
@@ -229,6 +235,12 @@ policy, erase its findings or close this section.
 - [x] Verify native Release main `ab850a40` in hosted run 41849905967: all 23 x64 suites and 21 ARM64 suites
   execute with zero skips, both assertion probes pass, and both production SDK ZIPs pass extracted-consumer
   smoke. This supplies current API-4 native Release coverage without accepting the remaining profiles or fixtures.
+- [ ] Complete current API-5 native ARM64 regression and the combined test-before-production gate.
+  [Run 42246752571](https://github.com/RedSalamanders/DxUi/actions/runs/42246752571), exact main `2f0a7bb9`,
+  passes x64 but stops ARM64 in the filter preflight: unfiltered Grid exits 1 before normal ARM64 suites run.
+  The wrapper omitted Grid's child output, so its cause remains unassigned. All eight original wrappers and
+  the original job log are retained. The reporting correction preserves child output/identity before assertions;
+  a later source must independently qualify. Production was withheld.
 - [ ] Complete or retain the explicit owner deferral for native ARM64 opt-in MenuResources/MenuResourceScaling
   and candidate-specific foreground coverage. Native cross-builds and ordinary hosted suites do not close them.
 - [ ] Qualify physical device removal/occlusion, real IME during reflow, assistive technology and touch on named

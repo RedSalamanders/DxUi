@@ -2,6 +2,8 @@
 
 ## Completed scopes — 6 November 2026
 
+- [Script/color preparation and native filter diagnostics](ScriptColorPreparation_2026-11-06.md) — SEM-01/RENDER-05, actual target capability and pixels, unchanged compiled counterexample, diagnostic counts, six builds, 66 suite executions and source-bound tooling replay.
+
 - [Text-first clipboard preference](ClipboardPreference_2026-11-06.md) — SDK D4, explicit native/embedded image-first application policy, private format/ownership and source/history oracles, six builds and 57 suite executions.
 
 - [Explicit failure results and host fatal diagnostics](FailurePolicy_2026-11-02.md) — API 5 and protocol 2, checked allocation/input refusals, original-context fatal diagnostics, six builds, 78 x64 suite executions, clean-pin consumers and SDK; measured safety costs accepted, with native ARM64, formal performance and product adoption separately owned.

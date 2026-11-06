@@ -35,6 +35,8 @@ extern thread_local std::size_t testRichSvgRasterizations;
 extern thread_local IDWriteFactory* testRichSemanticWriteFactory;
 // 1: semantic staging, 2: native geometry; persistent until the test clears it.
 extern thread_local bool testRichScriptTargetUnsupported;
+extern thread_local std::size_t testRichScriptColorTargetQueries;
+extern thread_local HRESULT testRichScriptColorTargetFailure;
 extern thread_local unsigned testRichPreparationFailure;
 extern thread_local std::size_t testRichPreparationFailureAttempts;
 #endif

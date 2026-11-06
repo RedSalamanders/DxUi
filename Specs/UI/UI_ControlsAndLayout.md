@@ -1791,6 +1791,15 @@ part of retained layout/reuse keys and require owner preparation before drawing.
 | details, summary | A complete HTML block with one outer `details`, optional bare `open`, and one nonempty first-child `summary` is a bounded disclosure. The summary accepts native inline text styles but not links or images; the body accepts the ordinary inline native HTML subset and no nested block wrappers or disclosures. A summary click, Ctrl+Tab then Space, or UIA ExpandCollapse changes editor-owned view state without changing source, selection, revision, or history. Closed bodies remain in exact source and Source view. Override state is bounded to 4,096 block identities, follows surviving incremental identities, and is retired on full source replacement. Malformed, empty-summary, unknown-attribute and other unsupported forms retain the complete literal leaf. |
 | `<!-- ... -->` | Complete comments are hidden; their bodies are never scanned as tags, Markdown or entities. Their exact source remains available in Source view and raw ACPs. |
 
+Semantic script admission determines `ID2D1DeviceContext7` availability once for each new preparation that
+contains scripts and has a supplied raster target. It captures that capability before cooperative image work
+retires the staging raster. All subsequent paragraph decisions use the captured value. Compatible prepared
+reuse and paragraphs without scripts perform no admission query. Color-font scripts retain their native
+Markdown/HTML presentation on capable targets; legacy or absent targets preserve the existing exact-leaf
+source fallback. Noncolor scripts remain supported on legacy targets. An unexpected query HRESULT fails the
+staged preparation with that result and preserves the previous complete publication. Cancellation, target
+replacement and reflow retain source ownership, selection, history and the ordinary retry contract.
+
 RichMarkdown additionally recognizes a block quote beginning with a standalone
 `[!KIND]` line as a callout. Supported case-insensitive kinds are note, tip,
 important, warning, caution, info, todo, success, question, failure, danger, bug,

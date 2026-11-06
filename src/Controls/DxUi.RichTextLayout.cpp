@@ -723,7 +723,7 @@ std::pair<std::size_t, std::size_t> PreparedLayout::VisibleRange(float top, floa
         Failure::FailContract(hr);
     return output;
 }
-bool Detail::PreparedLayoutAccess::ScriptTargetSupported(const PreparedLayout& owner, ID2D1RenderTarget* target)
+bool Detail::PreparedLayoutAccess::ScriptTargetSupported(const PreparedLayout& owner, bool colorTargetAvailable) noexcept
 {
     if (! owner.state_)
         return false;
@@ -733,14 +733,7 @@ bool Detail::PreparedLayoutAccess::ScriptTargetSupported(const PreparedLayout& o
         return false;
     if (! owner.state_->scripts.requiresColor)
         return true;
-    if (! target)
-        return false;
-    wil::com_ptr<ID2D1DeviceContext7> color;
-    const auto result = target->QueryInterface(IID_PPV_ARGS(color.put()));
-    if (result == E_NOINTERFACE)
-        return false;
-    Check(result, "Validate HTML script color target");
-    return true;
+    return colorTargetAvailable;
 }
 void PreparedLayout::Draw(ID2D1RenderTarget* target, ID2D1Brush* brush, D2D1_POINT_2F origin, const LinkDrawing* links) const
 {

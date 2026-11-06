@@ -35,6 +35,8 @@ thread_local std::size_t testRichSvgRasterizations{};
 thread_local IDWriteFactory* testRichSemanticWriteFactory{};
 thread_local HRESULT testRichMathLineMetricsFailure{S_OK};
 thread_local bool testRichScriptTargetUnsupported{};
+thread_local std::size_t testRichScriptColorTargetQueries{};
+thread_local HRESULT testRichScriptColorTargetFailure{S_OK};
 thread_local unsigned testRichPreparationFailure{};
 thread_local std::size_t testRichPreparationFailureAttempts{};
 thread_local HRESULT testRichMathGlyphMetricsFailure{S_OK};
@@ -1049,6 +1051,28 @@ struct PreparedSemanticGeometry::Preparation
           caretSites(0u),
           sourceBoxes(0u)
     {
+        // NativeImages retires the staging raster before paragraph layout.
+        // Keep its capability as one preparation-local scalar, not a later
+        // query against that released pointer or another retained interface.
+        if (state->hasScripts && target)
+        {
+            wil::com_ptr<ID2D1DeviceContext7> color;
+#if DXUI_ENABLE_DIAGNOSTICS
+            auto result = testRichScriptColorTargetFailure;
+            if (SUCCEEDED(result))
+            {
+                ++testRichScriptColorTargetQueries;
+                result = target->QueryInterface(IID_PPV_ARGS(color.put()));
+            }
+#else
+            const auto result = target->QueryInterface(IID_PPV_ARGS(color.put()));
+#endif
+            if (result != E_NOINTERFACE)
+            {
+                nativeFailure              = result;
+                scriptColorTargetAvailable = SUCCEEDED(result);
+            }
+        }
         if (options.markdownPresentation == MarkdownPresentationStyle::Subtle)
             tableSizing = std::make_unique<std::vector<std::unique_ptr<TableSizing>>>(0u);
         if (options.listItemSpacingDip)
@@ -1058,6 +1082,7 @@ struct PreparedSemanticGeometry::Preparation
     }
     std::unique_ptr<State> state;
     wil::com_ptr<ID2D1RenderTarget> raster; // Retained only across cooperative staging; released before publication.
+    bool scriptColorTargetAvailable{};
     const State* previousState{};
     const State* previousNativeState{};
     // MSVC's unordered hash-vector allocator constructor is noexcept even
@@ -2160,7 +2185,7 @@ struct PreparedSemanticGeometry::Preparation
                 auto& destination = marked ? box->markChips : box->codeChips;
                 destination.insert(destination.end(), chips.begin(), chips.end());
             }
-        bool scriptSupported = PreparedLayoutAccess::ScriptTargetSupported(box->layout, raster.get());
+        bool scriptSupported = PreparedLayoutAccess::ScriptTargetSupported(box->layout, scriptColorTargetAvailable);
 #if DXUI_ENABLE_DIAGNOSTICS
         if (testRichScriptTargetUnsupported &&
             std::ranges::any_of(box->layout.Content().runs, [](const auto& run) { return (run.flags & (Superscript | Subscript)) != 0u; }))

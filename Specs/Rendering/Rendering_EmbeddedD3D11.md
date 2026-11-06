@@ -61,6 +61,14 @@ ClearState or Flush on the application's supplied immediate context. Native swap
 cleanup separately. This preserves application bindings during retirement; Composite still binds its documented
 pipeline state and does not preserve the caller's state while drawing.
 
+Semantic script/color admission borrows the supplied target for one capability query per new script-bearing
+geometry preparation. Staging retains a scalar capability after its raster pointer retires; the query's
+temporary interface reference is released immediately. This adds no device, worker, HWND or timer. Compatible
+geometry reuse and ordinary paragraphs need no admission query. Composition still consumes the cached surface
+without semantic preparation. Native script drawing retains its existing target-interface use and resource
+contract. Unsupported targets keep exact-leaf fallback; other query failures preserve the prior publication
+and return their native HRESULT through the checked preparation result.
+
 ### Preparation and composition
 
 1. Input, model, theme, DPI and geometry changes mark bounded dirty state. The supplied callback asks the application

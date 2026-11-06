@@ -1866,10 +1866,11 @@ static void TestSemanticDiagramAllocationFailures(bool trace = false)
             std::fprintf(stderr, "semantic diagram measured %zu allocations; fatal allocation uses isolated children\n", requests);
         semanticRequests += requests;
     }
-    const auto write       = PreparedFlowchartTests::WriteFactory();
-    const auto drawing     = PreparedFlowchartTests::DrawingFactory();
-    const auto oldDocument = SemanticDiagramTests::Build(L"previous", Check);
-    for (std::size_t scenario = 0u; scenario < 5u; ++scenario)
+    const auto write                            = PreparedFlowchartTests::WriteFactory();
+    const auto drawing                          = PreparedFlowchartTests::DrawingFactory();
+    const auto oldDocument                      = SemanticDiagramTests::Build(L"previous", Check);
+    constexpr std::size_t geometryScenarioCount = 5u;
+    for (std::size_t scenario = 0u; scenario < geometryScenarioCount; ++scenario)
     {
         const auto document = SemanticDiagramTests::Build(
             scenario == 4u ? L"<p>x<sup>hello</sup> y<sub>world</sub></p>\n" : SemanticDiagramTests::scenarios[scenario == 3u ? 0u : scenario].source, Check);
@@ -1917,7 +1918,8 @@ static void TestSemanticDiagramAllocationFailures(bool trace = false)
         }
         geometryRequests += requests;
     }
-    std::cout << "semantic diagram/math/HTML scenarios=14 measuredRequests=" << semanticRequests << " geometryScenarios=5 measuredRequests=" << geometryRequests
+    std::cout << "semantic diagram/math/HTML scenarios=" << std::size(sources) << " measuredRequests=" << semanticRequests
+              << " geometryScenarios=" << geometryScenarioCount << " measuredRequests=" << geometryRequests
               << " preservedPublication=1 retirementAllocations=0\n";
 }
 
