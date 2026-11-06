@@ -7,6 +7,22 @@ All 594 original compiled inputs match identity
 `d32a8167669ca316cd97ff1989080a39ff8a676be4082041e7bceec6b516cca6`.
 ARM64 entries are cross-builds, not native runtime execution.
 
+## API 5 integration
+
+The [combined-source qualification](api5-qualification.json) covers
+`977a9fb0629694836ae52e7fbe0c1a4c32b5280a`, after integrating API 5's failure-host protocol and preserving
+failure scopes around the new preference-aware transport entrypoints. All six builds have zero warnings/errors;
+each x64 configuration passes all 22 noninteractive suites without capability skips, for 66 suite executions.
+The real ASan detector passes. All 680 original compiled inputs and every original native/run archive member
+are byte verified. Their source identity is `798b041a9420a17357f9d9ed31a37ef832f56c053f7ddea4d234c0b7b414dad8`;
+the original source ZIP is `CAC5DE6BB7A2E5608FD2A4D8A4E88A45DBF867B90D6CB94D45621992597F2CF9`.
+
+A storage guard declined the next profile after three completed x64 cohorts and ARM64 Release. The two
+remaining ARM64 cross-builds used a separate archive location and task-owned compiler temporary directory.
+All four earlier profiles were independently reverified before continuation; no profile was relabelled or
+rerun to replace a failure. This source-specific local qualification does not supply native ARM64, physical
+clipboard/input/AT, application API-5 adoption or formal paired-performance acceptance.
+
 Unicode text wins over coexisting bitmap offers by default. Applications with image-asset handling may
 explicitly choose `TextClipboardPreference::ImageFirst`. File lists keep priority; forced plain paste remains
 Unicode-only. The additive preference-aware transport selects formats in one clipboard ownership attempt
@@ -31,8 +47,9 @@ The first specification validation reported missing workload/fixture identity on
 records. Both now carry their DxUi fixture names and exact input hashes; focused specification validation
 and C++ formatting pass. Original failed validation and native attempts remain preserved separately.
 
-All six native [gallery sheets](../../docs/gallery/README.md) were regenerated from the clean implementation
-and visually reviewed. Their pixels match the preceding gallery; provenance now records this implementation.
+All six native [gallery sheets](../../docs/gallery/README.md) were regenerated from the clean API-5 integration.
+Every image is byte-identical to the preceding reviewed API-4 gallery; current provenance records `977a9fb0`.
+The earlier source-specific generation remains in Git history with its original qualification cohort.
 Usage is documented in [rich text](../../docs/rich-text.md#clipboard-format-preference) and
 [hosting](../../docs/hosting.md). The SDK supplies the application policy API; this packet does not claim
 that RedTilde has implemented bitmap-asset persistence or an image-first settings UI.

@@ -118,10 +118,11 @@ This coordinates the active API work; it does not adopt API 5 in any application
   native/embedded application image-first policy API and source-preserving decline behavior.
   [Scoped closeout](../Done/ClipboardPreference_2026-11-06.md): API 4 `a1915ffd`, six zero-warning builds,
   57 noninteractive suite executions, actual ASan detection and private format/ownership/source oracles.
+  Combined API-5 source `977a9fb0` independently passes six zero-warning builds, all 66 noninteractive x64
+  suite executions and actual ASan detection, with 680 original inputs and all native/run archive members
+  verified. The original API-4 cohort stays separate; current-source hosted native acceptance remains D-Q1.
   RedTilde's bitmap-asset persistence and settings UI remain consumer work; no such UI is claimed here.
-  Native/embedded preference APIs and source-preserving regressions are implemented. The original compiled
-  transport counterexample changes from bitmap to Unicode with the candidate library; full source-bound
-  qualification and consumer adoption remain in progress.
+  The original compiled transport counterexample changes from bitmap to Unicode with the candidate library.
 - [x] Implement D5: classify `//host/...` and `file://host/...` image destinations as network requests and
   apply remote-image permission; never route them through an ungated local-file path.
 - [ ] Qualify remaining focus/TSF/menu closure and mask/IME findings from the
@@ -287,7 +288,7 @@ remains consumer-owned. D7's aligned/gathered/alignat display-style behavior is 
 | D8 | Public Debug declarations and supported API boundary. |
 | D11 | Broader legacy Done-checkbox disposition. This cleanup handles transferred WIP items, not all old Done records. |
 | D12 | Broader fragment administration; current fragment/fold policy remains authoritative. |
-| D13 | Consumer-callback allocation/fatal policy and shared implementation; reconcile PR162 before adoption. |
+| D13 | Consumer adoption of the implemented API-5 callback/fatal host protocol; PR162's library contract and qualification are completed, while each product owns its migration. |
 
 <a id="d-h1"></a>
 **HOLD D-H1:** S3-S7 overlay sessions, variable-height lists, read-only Markdown help, motion and theme metadata
