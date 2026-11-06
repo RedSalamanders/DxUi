@@ -541,7 +541,7 @@ static void TestSourceGuideAllocationAtomicity()
     using namespace DxUi::RichText;
     using namespace DxUi::RichText::Detail;
     const auto factory = RichGeometryFactory();
-    Document source{L"one two\tthree\r\nnext line\n"};
+    Document source{L"one \U0001f642 two\tthree\r\nnext line\n"};
     LayoutOptions options;
     options.widthDip = 240.0f;
     RichEditorLayout geometry;
@@ -599,6 +599,37 @@ static void TestSourceGuideAllocationAtomicity()
         Check(guides->Current(2u, geometry.Generation(), true, true) && guides->Numbers().size() == numberCount && guides->Marks().size() == markCount,
               "guide allocation retry completes without skipped or duplicated source units");
     }
+    Document manyLines{std::wstring(Document::MaximumUnits, L'\n')};
+    options.widthDip         = 32.0f;
+    options.readingDirection = DWRITE_READING_DIRECTION_RIGHT_TO_LEFT;
+    RichEditorLayout largeGeometry;
+    largeGeometry.BeginPreparation(factory.get(), manyLines.Snapshot(), manyLines.Revision(), ViewMode::Source, options);
+    while (largeGeometry.HasPendingPreparation())
+        static_cast<void>(largeGeometry.AdvancePreparation());
+    RichSourceGuides windowed;
+    for (const auto offset : {std::size_t{0u}, std::size_t{32768u}, std::size_t{65535u}})
+    {
+        const auto caret   = largeGeometry.SourceCaret(offset);
+        const auto bottom  = caret.y + caret.height * 3.0f;
+        const auto visible = largeGeometry.VisibleSourceRange(caret.y, bottom);
+        const RichSourceGuides::Window window{visible.first, visible.second, caret.y, bottom, -8.0f, 40.0f};
+        const auto oldNumbers = windowed.Numbers().size(), oldMarks = windowed.Marks().size();
+        windowed.Begin(manyLines.Snapshot(), manyLines.Revision(), largeGeometry.Generation(), true, true, options, 44.0f, window);
+        unsigned turns = 0u;
+        while (! windowed.Advance(factory.get(), largeGeometry))
+        {
+            Check(windowed.LastWork() <= 256u && windowed.LastLayouts() <= 4u && ++turns < 8u,
+                  "maximum-row viewport guides obey independent source/layout turn limits");
+            Check(windowed.Numbers().size() == oldNumbers && windowed.Marks().size() == oldMarks,
+                  "scroll preparation retains the preceding complete viewport decoration");
+        }
+        Check(windowed.LastWork() <= 256u && windowed.LastLayouts() <= 4u && windowed.Numbers().size() <= 4u && windowed.Marks().size() <= 4u,
+              "retained guides depend on the narrow viewport rather than 65537 physical rows");
+        Check(! windowed.Numbers().empty() && windowed.Numbers().front().layout->Content().text == std::to_wstring(offset + 1u),
+              "deep viewport line numbers use the exact indexed physical source coordinate");
+        Check(windowed.HasPublication(largeGeometry.Generation(), true, true) && ! windowed.HasPublication(largeGeometry.Generation() + 1u, true, true),
+              "old decoration positions are omitted when replacement geometry makes them unknown");
+    }
 }
 static void TestEmbeddedCosmeticsDoNotWithholdContent(GraphicsFixture& gpu)
 {
@@ -613,6 +644,7 @@ static void TestEmbeddedCosmeticsDoNotWithholdContent(GraphicsFixture& gpu)
     auto owned   = std::make_unique<RichTextEditor>(source);
     auto* editor = owned.get();
     editor->SetViewMode(RichText::ViewMode::Source);
+    editor->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::Gfm029);
     auto appearance                  = editor->GetAppearance();
     appearance.sourceMonospace       = true;
     appearance.sourceLineNumbers     = true;
@@ -626,16 +658,58 @@ static void TestEmbeddedCosmeticsDoNotWithholdContent(GraphicsFixture& gpu)
         const auto result = view.Prepare(480u, 240u, 96.0f);
         Hr(result, "cosmetic admission preparation");
         const auto state = editor->DebugGetState();
-        if (! state.layoutReady || state.markdownPreparationPending || state.semanticPreparationPending)
+        if (! state.layoutReady || state.semanticPreparationPending)
             continue;
         observed = true;
         Check(result == S_OK && ! state.preparationPending, "optional source guides never withhold geometrically ready content");
         gpu.Bind();
         Check(view.Composite(gpu.context.get(), gpu.Viewport()) == S_OK, "current content is compositable while optional decorations prepare");
         Check(editor->GetText() == source && ! editor->CanUndo(), "cosmetic preparation preserves exact source and history");
+        Check(state.markdownPreparationPending, "source text becomes usable before optional whole-document syntax analysis completes");
         break;
     }
     Check(observed, "bounded cosmetic admission fixture reaches current text geometry");
+
+    std::wstring blocks;
+    for (unsigned index = 0u; index < 48u; ++index)
+        blocks += L"```cpp\nblock " + std::to_wstring(index) + L"\n```\n\n";
+    auto richOwned = std::make_unique<RichTextEditor>(blocks);
+    auto* rich     = richOwned.get();
+    rich->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::Gfm029);
+    rich->SetMarkdownRenderingEnabled(true);
+    unsigned calls = 0u;
+    rich->SetCodeTokenizer([&](std::wstring_view language, std::wstring_view code, std::vector<RichText::CodeToken>& tokens)
+    {
+        Check(language == L"cpp" && code.starts_with(L"block "), "visible tokenizer receives exact borrowed language and block text");
+        ++calls;
+        tokens.push_back({{0u, code.size()}, RichText::CodeTokenRole::Keyword});
+        return true;
+    });
+    view.Controls().SetRoot(std::move(richOwned));
+    const auto finish = [&]
+    {
+        unsigned turns = 0u;
+        do
+        {
+            const auto before = calls;
+            const auto result = view.Prepare(480u, 240u, 96.0f);
+            Hr(result, "viewport code ink preparation");
+            const auto state = rich->DebugGetState();
+            if (state.layoutReady && ! state.markdownPreparationPending && ! state.semanticPreparationPending)
+                Check(result == S_OK && ! state.preparationPending, "code tokenization never withholds current content");
+            Check(calls - before <= 1u && ++turns < 2048u, "visible code ink invokes at most one borrowed callback per turn");
+        } while (view.NeedsPreparation());
+    };
+    finish();
+    Check(calls > 0u && calls < 16u, "initial code ink excludes offscreen blocks from borrowed callbacks");
+    const auto initialCalls = calls;
+    for (unsigned turn = 0u; turn < 3u; ++turn)
+        Hr(view.Prepare(480u, 240u, 96.0f), "clean cosmetic preparation");
+    Check(calls == initialCalls && ! view.NeedsPreparation(), "completed viewport cosmetics do not request idle work");
+    Check(rich->SetScrollOffsetDip(rich->DebugGetState().contentHeightDip), "code ink fixture scrolls to another owned viewport");
+    finish();
+    Check(calls > initialCalls && calls - initialCalls < 16u && rich->GetText() == blocks && ! rich->CanUndo(),
+          "scrolling tokenizes the new viewport without whole-document callbacks or source changes");
 }
 static void TestEmbeddedSourceGuidesPixels(GraphicsFixture& gpu)
 {

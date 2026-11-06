@@ -3742,6 +3742,8 @@ private:
     void UpdateCaretLinkDisplayRange() noexcept;
     bool PrepareSourceInk();
     bool PrepareSourceGuides(ControlHost& host);
+    HRESULT PrepareMarkdownSyntax();
+    [[nodiscard]] bool CodeInkCoversViewport() const noexcept;
     [[nodiscard]] float HorizontalTranslation() const noexcept;
     [[nodiscard]] float SourceGutterWidth() const noexcept;
     void PublishHorizontalScrollChanged() noexcept;

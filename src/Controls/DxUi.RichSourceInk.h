@@ -2,6 +2,7 @@
 #include <DxUi/RichTextLayout.h>
 #include <algorithm>
 #include <exception>
+#include <memory>
 #include <new>
 #include <utility>
 
@@ -17,12 +18,24 @@ public:
     RichSourceInk() : events_(0u), mergeBuffer_(0u), ranges_(0u)
     {
     }
+    RichSourceInk(const RichSourceInk&)            = delete;
+    RichSourceInk& operator=(const RichSourceInk&) = delete;
     void Clear() noexcept
+    {
+        ResetStaging();
+        ranges_.clear();
+    }
+    void CancelPending() noexcept
+    {
+        ResetStaging();
+    }
+    void ResetStaging() noexcept
     {
         syntax_.reset();
         events_.clear();
         mergeBuffer_.clear();
-        ranges_.clear();
+        if (stagedRanges_)
+            stagedRanges_->clear();
         node_ = inline_ = event_ = previous_ = 0u;
         counts_                              = {};
         inlinePhase_                         = InlinePhase::None;
@@ -42,18 +55,18 @@ public:
         }
         catch (const std::bad_alloc&)
         {
-            Clear();
+            ResetStaging();
             throw;
         }
         catch (const std::exception&)
         {
-            Clear();
+            ResetStaging();
             throw;
         }
     }
     std::span<const TextInkRange> Ranges() const noexcept
     {
-        return complete_ ? std::span<const TextInkRange>(ranges_) : std::span<const TextInkRange>{};
+        return ranges_;
     }
     bool Pending() const noexcept
     {
@@ -90,6 +103,7 @@ private:
     std::vector<Event> events_;
     std::vector<Event> mergeBuffer_;
     std::vector<TextInkRange> ranges_;
+    std::unique_ptr<std::vector<TextInkRange>> stagedRanges_;
     size_t node_{}, inline_{}, event_{}, previous_{};
     std::array<int, 3> counts_{};
     InlinePhase inlinePhase_{InlinePhase::None};
@@ -105,11 +119,18 @@ private:
     {
         if (syntax_ != syntax)
         {
-            Clear();
+            ResetStaging();
             syntax_ = syntax;
         }
-        if (! syntax_ || complete_)
+        if (! syntax_)
+        {
+            ranges_.clear();
             return true;
+        }
+        if (complete_)
+            return true;
+        if (! stagedRanges_)
+            stagedRanges_ = std::make_unique<std::vector<TextInkRange>>(0u);
         const auto& nodes   = syntax_->Nodes();
         const auto& inlines = syntax_->Inlines();
         while (lastWork_ < WorkPerTurn)
@@ -121,6 +142,7 @@ private:
                 events_.clear();
                 mergeBuffer_.clear();
                 ranges_.clear();
+                stagedRanges_->clear();
                 complete_ = true;
                 return true;
             }
@@ -168,12 +190,18 @@ private:
                 ++lastWork_;
                 continue;
             }
-            complete_ = true;
+            Publish();
             break;
         }
         if (node_ == nodes.size() && inline_ == inlines.size() && sorted_ && event_ == events_.size())
-            complete_ = true;
+            if (! complete_)
+                Publish();
         return complete_;
+    }
+    void Publish() noexcept
+    {
+        ranges_.swap(*stagedRanges_);
+        complete_ = true;
     }
     void Add(MarkdownRange range, TextInkRole role)
     {
@@ -191,10 +219,11 @@ private:
     {
         if (range.first == range.last)
             return;
-        if (! ranges_.empty() && ranges_.back().role == role && ranges_.back().display.last == range.first)
-            ranges_.back().display.last = range.last;
+        auto& ranges = *stagedRanges_;
+        if (! ranges.empty() && ranges.back().role == role && ranges.back().display.last == range.first)
+            ranges.back().display.last = range.last;
         else
-            ranges_.push_back({range, role});
+            ranges.push_back({range, role});
     }
     void AddNode(const MarkdownNode& node)
     {
