@@ -11,6 +11,7 @@
 
 #include <array>
 #include <atomic>
+#include <cstdio>
 #include <fstream>
 #include <functional>
 #include <iterator>
@@ -9016,20 +9017,14 @@ void TestNativeTextInputTextStoreSetTextReplacesRangeWithoutEcho()
 void TestNativeTextInputTextStoreCallbackInvalidation()
 {
     using namespace DxUi;
-    if (! nativeTextFatalCase)
-    {
-        Require(DxUiFailureTests::ExpectFatalChild(L"native-text-store-field-callback"), "text field callback failure is fatal in its child");
-        Require(DxUiFailureTests::ExpectFatalChild(L"native-text-store-combo-callback"), "combo callback failure is fatal in its child");
-    }
+    Require(DxUiFailureTests::ExpectFatalChild(L"native-text-store-field-callback"), "text field callback failure is fatal in its child");
+    Require(DxUiFailureTests::ExpectFatalChild(L"native-text-store-combo-callback"), "combo callback failure is fatal in its child");
     for (const bool editableCombo : {false, true})
     {
-        if (nativeTextFatalCase && editableCombo != (nativeTextFatalCase == 7u))
-            continue;
-        // Destroy, change focus, replace text or fail after the text store enters the callback.
-        for (unsigned scenario = 0; scenario != 4; ++scenario)
+        // Checked reentry: destroy, change focus or replace text during the callback.
+        // Unexpected throws use the separate no-activation child fixture below.
+        for (unsigned scenario = 0; scenario != 3; ++scenario)
         {
-            if ((! nativeTextFatalCase && scenario == 3u) || (nativeTextFatalCase && scenario != 3u))
-                continue;
             AttachedHostWindow window;
             static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
             window.Host().SetTextInputBackend(TextInputBackend::Native);
@@ -9076,8 +9071,6 @@ void TestNativeTextInputTextStoreCallbackInvalidation()
                         field->SetSelectionRange(1, 3);
                     }
                 }
-                else
-                    RaiseNativeTextCallbackFailure();
                 snapshotSurvived = text == L"after";
             };
             if (combo)
@@ -9755,6 +9748,72 @@ void TestNativeTextInputBackendKeyToPaintMetricScenario()
     Require(capture.widthPx > 0u && capture.heightPx > 0u && ! capture.bgraPixels.empty(), "native key-to-paint scenario has rendered pixels");
 }
 
+void NativeTextStoreCallbackFatalChild(bool editableCombo)
+{
+    using namespace DxUi;
+    // Fatal children cannot activate an HWND. A null-HWND host retains logical
+    // focus and exercises the real text-store mutation and notification path.
+    // The healthy reentry cases above retain their attached foreground window.
+    WindowHost host;
+    host.SetTextInputBackend(TextInputBackend::Native);
+    auto root        = std::make_unique<Panel>();
+    Control* control = nullptr;
+    TextField* field = nullptr;
+    ComboBox* combo  = nullptr;
+    if (editableCombo)
+    {
+        combo = root->AddChild<ComboBox>();
+        combo->SetEditable(true);
+        combo->SetText(L"before");
+        control = combo;
+    }
+    else
+        control = field = root->AddChild<TextField>(L"before");
+    control->SetBounds(D2D1::RectF(0, 0, 260, 48));
+    host.SetRoot(std::move(root));
+    host.SetFocusControl(control, false);
+    host.SyncTextInput(control);
+    NativeTextInputState initial;
+    Require(host.GetFocusControl() == control && host.TryReadNativeTextInputState(control, initial) && initial.text == L"before",
+            "headless fatal callback fixture has its logical native text target");
+    NativeTextStoreTestSink sink;
+    wil::com_ptr_nothrow<ITextStoreACP> store;
+    store.attach(host.DebugCreateNativeTextInputTextStoreForTest());
+    Require(store != nullptr, "headless fatal callback fixture creates its real text store");
+    unsigned calls{};
+    const auto changed = [&](std::wstring_view text)
+    {
+        ++calls;
+        Require(text == L"after", "fatal callback receives the real text-store edit");
+        std::fputs("Native text-store fatal callback entered.\n", stderr);
+        std::fflush(stderr);
+        RaiseNativeTextCallbackFailure();
+    };
+    if (combo)
+        combo->SetOnTextChanged(changed);
+    else
+        field->SetOnTextChanged(changed);
+    RequireSucceeded(store->AdviseSink(__uuidof(ITextStoreACPSink), &sink, TS_AS_TEXT_CHANGE | TS_AS_SEL_CHANGE | TS_AS_LAYOUT_CHANGE),
+                     "headless fatal callback fixture advises its sink");
+    HRESULT edit       = E_PENDING;
+    sink.onLockGranted = [&](DWORD) noexcept
+    {
+        TS_TEXTCHANGE change{};
+        edit = store->SetText(0, 0, 6, L"after", 5, &change);
+        return edit;
+    };
+    HRESULT session    = E_PENDING;
+    const HRESULT lock = store->RequestLock(TS_LF_READWRITE, &session);
+    std::fprintf(stderr,
+                 "Fatal text-store callback returned: lock=%08lx session=%08lx edit=%08lx calls=%u\n",
+                 static_cast<unsigned long>(lock),
+                 static_cast<unsigned long>(session),
+                 static_cast<unsigned long>(edit),
+                 calls);
+    std::fflush(stderr);
+    Require(false, "fatal text-store callback must terminate before returning");
+}
+
 template <unsigned Case> void NativeTextFatalChild()
 {
     nativeTextFatalCase = Case;
@@ -9809,7 +9868,7 @@ template <unsigned Case> void NativeTextFatalChild()
         static_cast<void>(host.HandleMessage(nullptr, WM_IME_ENDCOMPOSITION, 0, 0, handled));
     }
     else
-        TestNativeTextInputTextStoreCallbackInvalidation();
+        NativeTextStoreCallbackFatalChild(Case == 7u);
 }
 [[maybe_unused]] const bool registeredNativeTextFatalCases =
     DxUiFailureTests::RegisterFatalChildCase({L"native-focus-destroy-callback", "NativeTextCallbackFailureOrigin", NativeTextFatalChild<1u>}) &&

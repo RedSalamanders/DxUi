@@ -104,6 +104,15 @@ reopening their historical checklists or relabeling old allocation sweeps as fat
 
 ### Working-tree progress, not acceptance
 
+- The `d0179db6` cohort passes all six zero-warning builds, four clean-pin consumers, isolated production SDK,
+  complete validators/tooling and all 66 ordinary x64 suite executions with zero skips. Its first ASan foreground
+  lease passes Menu and both resource suites, but NativeTextInput fails in the text-store callback child before
+  producing its expected fatal record. Matching binaries/symbols, complete run and captured child output remain
+  preserved in private `failed-foreground-10` evidence. Foreground/focus are unchanged and the pointer is restored.
+  Source review finds that the guarded child reused a fixture requiring real HWND focus; the replacement stages
+  logical focus without an HWND and invokes the real text-store edit/callback. Its existing attached-window
+  healthy scenarios remain. This repair is source-reviewed only and needs compilation/runtime evidence; no
+  cause is assigned to the earlier failure solely from that source review.
 - Incremental ASan repair diagnostics pass Foundation (`20261103T050843427Z-108132-cf82204ad36f435f84d5a7d413db71ba`)
   and the focused rollback/native-paint cases (`20261103T050249663Z-120424-04ef048d62034e58916221bc833322f8`).
   The preceding Foundation diagnostic rejects VCAsan's truncated absolute dump filename; using a short name in

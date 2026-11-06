@@ -21,6 +21,13 @@ test-only fatal hooks must not leak into ordinary suites, benchmarks or unrelate
 These are runtime acceptance requirements, not claims that the new probes already exist or have executed.
 Native ARM64 and consumer-owned crash integration retain their independent execution/acceptance obligations.
 
+Native text-store fatal callback probes retain the child's activation blocker and use a null-HWND host with
+logical focus. They validate the cached target and edit through the real `RequestLock`/`SetText`/notification
+path, then require the original callback frame in the fatal dump. An attached HWND requires actual native focus;
+showing it without activation does not establish that precondition. Keep healthy attached-window reentry and
+real TSF/focus scenarios in their separately approved foreground lease. Headless callback proof is not OS TSF
+activation or foreground qualification.
+
 ## Existing scenario contracts
 
 Native staged-TSF reconciliation tests count the current generation-tagged production dispatch separately from
