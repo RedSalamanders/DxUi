@@ -4,6 +4,39 @@ The [failure policy](../Core/Core_FailureHandling.md) governs C++ callbacks, all
 Expected refusals use explicit nonthrowing results. Unexpected exceptions require host fatal diagnostics and
 termination. API 5 implements this routing; final qualification remains tracked in the linked migration plan.
 
+Selection-to-block insertion preserves source ACP boundaries and selection direction in Rich and Source
+views. It declines during active composition or an uncommitted text-service preview, and in read-only or
+disabled state, without consuming the preview or adding history. A successful explicit Insert action applies
+one source transaction and one text notification; menu/toolbar transport retains selection and focus ownership.
+
+## Selected paste policy awaiting implementation
+
+Owner decisions of 5 November 2026 define the intended remaining behavior below. Current capability claims
+are unchanged until the corresponding implementation and source-bound regressions close in
+[the active plan](../Plans/WIP/RemainingWork_2026-11-04.md).
+
+- When both Unicode text and a bitmap are available, default paste prefers text. Applications may explicitly
+  opt into image-first priority. Declined image handling preserves source and selection; current clipboard
+  ownership, stale-request and one-transaction rules continue to apply.
+
+## Current input contract
+
+Source-region editing permits natural navigation and edits across a previous active interval. Grapheme and
+word Backspace/Delete may cross its edges in one source transaction. The former presentation retires on a
+crossing edit or outside selection; ordinary rich navigation resumes at the current caret. Multiline code
+indentation uses parser-owned content starts and preserves quote/list prefixes, Unicode, terminators, oriented
+selection and history. The older proposal to contain every edit inside one region is superseded.
+
+Network image permission also covers UNC paths, `//host/...`, authority-bearing file URLs and relative images
+under a UNC base. They produce separately classified `NetworkFile` requests only after opt-in, with an empty
+local-only `FilePath()` accessor. Revocation cancels their jobs and pixels immediately. Applications own any
+transport, permission and unsupported-location refusal; lexical classification grants no network access.
+
+TextField, editable ComboBox and RichTextEditor preserve a buffered UTF-16 lead across `VK_PACKET` and bare
+modifier transitions. They publish the matched scalar once and retain one-step Undo/Redo. Editing/navigation,
+focus loss, text replacement, read-only transitions and non-trail character input keep cancelling a pending lead.
+Native key/character messages and supplied-device dispatch obey the same rule without taking desktop focus.
+
 RichTextEditor local-fragment links expose Invoke and support Ctrl+click or Ctrl+Enter at the
 source caret. External links expose Invoke only while an activation handler is registered. A current, enabled, non-composing semantic publication is required;
 read-only editors permit navigation. External destinations invoke
@@ -1409,7 +1442,8 @@ Consumer context-menu observer unexpected exceptions, including bad_alloc, requi
 a delivered observer must never trigger a second fallback menu.
 Ctrl+Backspace and Ctrl+Delete erase to the preceding or following word boundary;
 rich-view deletion maps visible fragments through the structural source planner.
-An active source-edit session bounds word deletion to its own interval.
+Word and grapheme deletion may cross the active source-edit interval. Crossing or leaving that interval
+retires its source presentation and resumes ordinary rich navigation at the resulting caret.
 Adjacent direct letter, digit, underscore, supplementary scalar, joiner and combining-mark typing is one undo group for at most 64 UTF-16
 units and one second between input events. A selection move, command, punctuation,
 whitespace, or source revision change ends the group. IME transactions retain

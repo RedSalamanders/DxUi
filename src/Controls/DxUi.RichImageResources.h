@@ -53,7 +53,8 @@ public:
         if (remoteEnabled_ == enabled)
             return;
         if (! enabled)
-            RetireMatching([](const Entry& entry) { return entry.request->sourceKind == RichImageSourceKind::RemoteHttp; });
+            RetireMatching([](const Entry& entry)
+            { return entry.request->sourceKind == RichImageSourceKind::RemoteHttp || entry.request->sourceKind == RichImageSourceKind::NetworkFile; });
         // Staged jobs were not exposed to the application. Their ownership list
         // excludes retained published local jobs, so this retires remote work
         // without canceling a local decode already held by the application.
@@ -210,7 +211,15 @@ public:
                 // A direct fallible copy avoids Debug STL proxy allocation
                 // inside optional<wstring>'s noexcept move constructor.
                 if (local)
+                {
+                    if (IsNetworkImagePath(destination, local.value()))
+                    {
+                        if (! stage.remoteEnabled)
+                            return std::optional<std::wstring>{};
+                        kind = RichImageSourceKind::NetworkFile;
+                    }
                     return std::optional<std::wstring>(std::in_place, local.value());
+                }
                 if (stage.dataEnabled)
                     if (const auto data = ResolveDataImageSource(destination))
                     {
@@ -226,8 +235,9 @@ public:
                 continue;
             const auto sameSource = [&](const auto& entry)
             {
-                return entry.request->sourceKind == kind &&
-                       (kind == RichImageSourceKind::LocalFile ? SameLocalImagePath(entry.request->filePath, *path) : entry.request->filePath == *path);
+                return entry.request->sourceKind == kind && ((kind == RichImageSourceKind::LocalFile || kind == RichImageSourceKind::NetworkFile)
+                                                                 ? SameLocalImagePath(entry.request->filePath, *path)
+                                                                 : entry.request->filePath == *path);
             };
             auto found = std::ranges::find_if(stage.entries, sameSource);
             if (found == stage.entries.end())

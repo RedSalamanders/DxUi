@@ -80,7 +80,7 @@ template <typename Check> inline void Geometry(Check&& check)
               timeline->edges[2u].openArrow && timeline->edges[0u].arrow[1u].x > timeline->edges[0u].arrow[0u].x &&
               timeline->edges[1u].arrow[1u].x < timeline->edges[1u].arrow[0u].x,
           "sequence layout uses ordered lifelines, correctly directed messages and a self-message loop");
-    for (const auto invalid : {L"sequenceDiagram\nAlice->>Bob: x\nloop later\n", L"sequenceDiagram\nAlice->>Bob\n", L"sequenceDiagram\nactor Alice\n"})
+    for (const auto invalid : {L"sequenceDiagram\nAlice->>Bob: x\nloop later\n", L"sequenceDiagram\nAlice->>Bob\n", L"sequenceDiagram\ncreate actor Alice\n"})
     {
         const auto rejected = Graph(invalid);
         check(rejected->outcome != FlowchartOutcome::Prepared && rejected->source == invalid && rejected->nodes.empty() && rejected->edges.empty(),
@@ -187,8 +187,13 @@ template <typename Check> inline void Geometry(Check&& check)
                       "independent routes occupy distinct columns while preserving edge identity");
     }
     const auto labeledPairs = Place(Graph(L"graph TD;A;B;D;C;A-->|label|C;B-->D"), check);
-    check(labeledPairs->edges[0].hasLabel && ! Near(labeledPairs->edges[0].path[1].x, labeledPairs->edges[0].path[2].x),
-          "labeled pairs retain the exterior label lane");
+    const auto& labeled     = labeledPairs->edges[0];
+    const auto& from        = labeledPairs->nodes[0].bounds;
+    const auto& to          = labeledPairs->nodes[3].bounds;
+    check(labeled.hasLabel && Near(labeled.path[1].x, labeled.path[2].x) && Near(labeled.path[3].x, labeled.path[4].x) &&
+              labeled.label.y >= from.y + from.height + 8.0 && labeled.label.y + labeled.label.height <= to.y - 8.0 &&
+              Near(labeled.label.x + labeled.label.width / 2.0, (labeled.path.front().x + labeled.path.back().x) / 2.0),
+          "labeled independent pairs use the inter-rank corridor with measured clearance and centered text");
     for (const auto& [direction, horizontal] : {std::pair{L"TB", false}, std::pair{L"BT", false}, std::pair{L"LR", true}, std::pair{L"RL", true}})
     {
         const auto forkGraph = Graph(L"stateDiagram-v2\ndirection " + std::wstring(direction) + L"\nstate F <<fork>>\nA --> F\nF --> B\n");
@@ -219,6 +224,52 @@ template <typename Check> inline void Geometry(Check&& check)
               relations->edges[1u].relation == FlowchartRelation::Arrow && relations->edges[1u].hasArrow &&
               relations->edges[2u].relation == FlowchartRelation::Line && ! relations->edges[2u].hasArrow,
           "class inheritance, directed association and plain association retain distinct edge kinds through layout");
+    for (const auto direction : {L"LR", L"RL", L"TB", L"BT"})
+    {
+        const auto source     = std::wstring(L"classDiagram\ndirection ") + direction + L"\nDocument <|-- Markdown\nMarkdown : +save()\n";
+        const auto model      = Graph(source);
+        const auto layout     = Place(model, check);
+        const bool horizontal = std::wstring_view(direction) == L"LR" || std::wstring_view(direction) == L"RL";
+        const bool forward    = std::wstring_view(direction) == L"LR" || std::wstring_view(direction) == L"TB";
+        check(model->source == source && model->edges.size() == 1u && model->edges[0u].from == 0u && model->edges[0u].to == 1u &&
+                  model->edges[0u].markerAtStart && model->nodes[0u].label == L"Document" && model->nodes[1u].label == L"Markdown\n+save()",
+              "class inheritance retains declaration order separately from its marker endpoint");
+        check(layout->issue == FlowchartLayoutIssue::None && layout->nodes[0u].rank == 0u && layout->nodes[1u].rank == 1u &&
+                  ((horizontal ? layout->nodes[0u].bounds.x < layout->nodes[1u].bounds.x : layout->nodes[0u].bounds.y < layout->nodes[1u].bounds.y) == forward),
+              "class direction applies to authored relationship order in all four orientations");
+        const auto& edge = layout->edges[0u];
+        check(Near(edge.arrow[0u].x, edge.path.front().x) && Near(edge.arrow[0u].y, edge.path.front().y) &&
+                  ((horizontal ? edge.arrow[1u].x > edge.arrow[0u].x : edge.arrow[1u].y > edge.arrow[0u].y) == forward),
+              "inheritance triangle points back at Document without reversing the layout");
+    }
+    const auto rightInheritance = Graph(L"classDiagram\ndirection LR\nMarkdown --|> Document\n");
+    const auto rightPlan        = Place(rightInheritance, check);
+    check(! rightInheritance->edges[0u].markerAtStart && rightPlan->nodes[0u].bounds.x < rightPlan->nodes[1u].bounds.x &&
+              Near(rightPlan->edges[0u].arrow[0u].x, rightPlan->edges[0u].path.back().x) && rightPlan->edges[0u].arrow[1u].x < rightPlan->edges[0u].arrow[0u].x,
+          "a trailing inheritance marker remains on Document at the right of an LR declaration");
+    constexpr auto pipeline  = L"graph BT\nSource[Source revision]\nSelection[Selection state]\nTheme[Theme and DPI]\nSyntax[Parsed syntax]\n"
+                               L"Metrics[Measured labels]\nGeometry[Native geometry]\nResources[Device resources]\nPaint[Paint cached content]\n"
+                               L"Surface([Completed surface])\nSource --> Syntax\nSyntax --> Geometry\nTheme --> Metrics --> Geometry\n"
+                               L"Theme --> Resources\nGeometry --> Paint\nResources --> Paint\nSelection --> Paint\nPaint --> Surface\nSource --- Selection\n";
+    const auto pipelineModel = Graph(pipeline);
+    const auto pipelinePlan  = Place(pipelineModel, check, 1u);
+    const auto pipelineBatch = Place(pipelineModel, check, 113u);
+    constexpr std::array<std::size_t, 9u> expectedRanks{0u, 2u, 0u, 1u, 1u, 2u, 2u, 3u, 4u};
+    check(pipelineModel->source == pipeline && pipelinePlan->issue == FlowchartLayoutIssue::None && pipelinePlan->nodes.size() == 9u &&
+              pipelinePlan->edges.size() == 10u && pipelineBatch->nodes.size() == 9u,
+          "the reported BT pipeline retains all authored identities with bounded cooperative preparation");
+    for (std::size_t node = 0u; node < expectedRanks.size(); ++node)
+        check(pipelinePlan->nodes[node].rank == expectedRanks[node] && pipelineBatch->nodes[node].rank == expectedRanks[node],
+              "slack Selection and Resources ranks align beside Geometry before Paint");
+    check(Near(pipelinePlan->nodes[1u].bounds.y, pipelinePlan->nodes[5u].bounds.y) &&
+              Near(pipelinePlan->nodes[6u].bounds.y, pipelinePlan->nodes[5u].bounds.y) && pipelinePlan->extent.height < 500.0,
+          "the pipeline uses compact independent rank corridors rather than global per-edge vertical gaps");
+    check(pipelinePlan->edges[7u].path.back().x < pipelinePlan->edges[5u].path.back().x &&
+              pipelinePlan->edges[5u].path.back().x < pipelinePlan->edges[6u].path.back().x,
+          "the three inputs have distinct correctly ordered Paint attachment points");
+    check(pipelinePlan->edges[9u].path[2u].x < pipelinePlan->nodes[1u].bounds.x &&
+              pipelinePlan->edges[4u].path[2u].x > pipelinePlan->nodes[6u].bounds.x + pipelinePlan->nodes[6u].bounds.width,
+          "long left and right dependencies keep their respective outside lanes");
     const auto genericClass = Graph(L"classDiagram\nclass A {\n+List~int~ values\n+find(Key~T~ key) Result~T~\n}\n");
     check(genericClass->outcome == FlowchartOutcome::Prepared && genericClass->nodes.size() == 1u &&
               genericClass->nodes[0u].label == L"A\n+List<int> values\n+find(Key<T> key) Result<T>" && genericClass->nodes[0u].compartmentCount == 2u,
@@ -311,7 +362,9 @@ template <typename Check> inline void Geometry(Check&& check)
               cycles->edges[2u].route == FlowchartRoute::Self && cycles->edges[3u].route == FlowchartRoute::Forward &&
               cycles->edges[0u].path[2u].x != cycles->edges[3u].path[2u].x,
           "stable DFS distinguishes cycles and self loops while parallel edges own separate lanes");
-    const auto lanesGraph = Graph(L"graph TD;A-->|wide|B;A-->|n|C;A-->|m|D;B-->|back|A;C-->A");
+    // Skipping the intermediate rank keeps the forward labels on exterior
+    // lanes. Adjacent labeled links now have their own corridor regressions.
+    const auto lanesGraph = Graph(L"graph TD;A-->|wide|B;A-->|n|C;A-->|m|D;B-->|back|A;C-->A;A-->M;M-->B;M-->C;M-->D");
     const std::vector<FlowchartSize> laneNodes(lanesGraph->nodes.size(), {16.0, 12.0});
     std::vector<FlowchartSize> laneLabels(lanesGraph->edges.size(), FlowchartSize{});
     laneLabels[0u] = {100.0, 12.0};
@@ -320,7 +373,7 @@ template <typename Check> inline void Geometry(Check&& check)
     NativeFlowchartLayout laneLayout;
     laneLayout.Begin(lanesGraph, laneNodes, laneLabels);
     const auto variableLanes = Complete(laneLayout, check);
-    check(variableLanes->issue == FlowchartLayoutIssue::None && variableLanes->edges.size() == 5u &&
+    check(variableLanes->issue == FlowchartLayoutIssue::None && variableLanes->edges.size() == 9u &&
               Near(variableLanes->edges[1u].path[2u].x - variableLanes->edges[0u].path[2u].x, 108.0) &&
               Near(variableLanes->edges[2u].path[2u].x - variableLanes->edges[1u].path[2u].x, 16.0) &&
               variableLanes->edges[0u].label.x + variableLanes->edges[0u].label.width < variableLanes->edges[1u].path[2u].x &&

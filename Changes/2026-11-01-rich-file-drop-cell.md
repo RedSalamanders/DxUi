@@ -1,1 +1,0 @@
-- Fixed file-reference paste at uniquely owned table cell ends while preserving padded-cell ambiguity checks.

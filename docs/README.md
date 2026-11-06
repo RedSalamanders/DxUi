@@ -25,5 +25,6 @@ The [public example](../Samples/EmbeddedControls/EmbeddedScene.h) and its
 The [capability manifest](../capabilities.json) distinguishes supported library behavior from consumer bridges
 still to be implemented. Read the [normative specs](../Specs/README.md) when changing library behavior.
 
-Licensed under [MIT](../LICENSE.txt). [Third-party notices](../THIRD-PARTY-NOTICES.md) cover the pinned WIL dependency
-and retained source attribution. No font or icon-font file is distributed with DxUi.
+Licensed under [MIT](../LICENSE.txt). [Third-party notices](../THIRD-PARTY-NOTICES.md) cover the linked dependencies,
+embedded Unicode/WHATWG data and retained source attribution. SDK ZIPs include their full licenses with working
+local links and a file-hash inventory. No font or icon-font file is distributed with DxUi.

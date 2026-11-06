@@ -1,1 +1,0 @@
-- Use the Grid viewport for page navigation, skip model walks for unhandled keys, and retire stale column state when IDs change. Native qualification remains pending.

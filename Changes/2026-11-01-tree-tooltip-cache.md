@@ -1,1 +1,0 @@
-- Reuse Tree tooltip geometry on repeated unchanged hover and bypass measurement for explicit tooltip text, with host and geometry invalidation. Native regression and paired performance qualification remain pending.

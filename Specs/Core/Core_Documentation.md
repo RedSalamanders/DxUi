@@ -7,6 +7,9 @@ Last reviewed: 2026-11-01
 exact-pin consumption, both hosting modes, ownership, input, layout/DPI, themes, recovery, every public control,
 performance measurements and testing. Public examples must use supported headers and accurate API names.
 Clearly distinguish implemented library behavior from pending consumer integration and manual validation.
+Third-party notices cover embedded generated data as well as linked libraries. Unicode and WHATWG license
+copies preserve their pinned upstream bytes. Distributions carry the full notices with usable local license
+links and source-bound provenance, under the [SDK packaging contract](../Build/Build_UnifiedCI.md).
 The current RichText capability table in `docs/rich-text.md` is an exact projection of
 `capabilities.json.richTextDocumentation`. Each unique feature names one supported or pending capability,
 one of Supported/Limited/Not supported, a nonempty bound and a local usage anchor. Pending capabilities use

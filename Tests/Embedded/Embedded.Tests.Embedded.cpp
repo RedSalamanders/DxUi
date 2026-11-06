@@ -1349,6 +1349,22 @@ __declspec(noinline) static void TestTreeDelegateMutationDuringItemPaintAbortsPr
 // Keep unrelated functional-test locals out of the benchmark entry stack, even under LTCG.
 __declspec(noinline) static int RunFunctionalTests()
 {
+    if (__argc == 2 &&
+        (std::wstring_view(__wargv[1]) == L"--test-embedded-input-wake" || std::wstring_view(__wargv[1]) == L"--test-direct-textfield-retirement" ||
+         std::wstring_view(__wargv[1]) == L"--test-direct-combobox-retirement" || std::wstring_view(__wargv[1]) == L"--test-form-clear-retirement"))
+    {
+        GraphicsFixture gpu;
+        Hr(gpu.Create(), "isolated input retirement WARP fixture");
+        if (std::wstring_view(__wargv[1]) == L"--test-embedded-input-wake")
+            TestEmbeddedPreparationWakeWaitsForInput(gpu);
+        else if (std::wstring_view(__wargv[1]) == L"--test-direct-textfield-retirement")
+            TestTextFieldDirectPreparationRetirement(gpu);
+        else if (std::wstring_view(__wargv[1]) == L"--test-direct-combobox-retirement")
+            TestComboBoxDirectPreparationRetirement(gpu);
+        else
+            TestFormClearPreparationRetirement(gpu);
+        return 0;
+    }
     if (__argc == 4 && std::wstring_view(__wargv[1]) == L"--capture-rich-images")
     {
         const std::wstring_view theme(__wargv[3]);
@@ -1771,6 +1787,11 @@ __declspec(noinline) static int RunFunctionalTests()
         Check(view.Controls().GetRoot() == nullptr, "tokenizer may retire its owner without use after free");
         return 0;
     }
+    TestEmbeddedPreparationWakeWaitsForInput(gpu);
+    TestTextFieldDirectPreparationRetirement(gpu);
+    TestComboBoxDirectPreparationRetirement(gpu);
+    TestFormClearPreparationRetirement(gpu);
+    TestRichDocumentBindingPreparationRetirement(gpu);
     TestMultilineCaretViewport(gpu);
     TestEmbeddedTextInput(gpu);
     TestEmbeddedTabHeaderPreparationAvoidsPaintWork(gpu);
@@ -2043,6 +2064,8 @@ __declspec(noinline) static int RunFunctionalTests()
     FlowchartLayoutTests::Admission(Check);
     TestNativeFlowchartLayoutAllocationFailureAtomicity();
     TestPreparedFlowchartAllocationFailures();
+    Check(DxUiFailureTests::ExpectFatalChild(L"embedded-sequence-numbered-label-allocation"), "numbered sequence staging allocation fails at its own origin");
+    Check(DxUiFailureTests::ExpectFatalChild(L"embedded-compact-route-allocation"), "compact routing staging allocation fails at its own origin");
     TestSemanticDiagramAllocationFailures();
     TestScopedSemanticSourceAllocationFailures();
     PreparedFlowchartTests::BudgetAndLifecycle(Check);
@@ -2699,6 +2722,27 @@ template <unsigned Scenario> static void EmbeddedPreparedFlowchartChild()
     const auto uninitialize = wil::scope_exit([] { CoUninitialize(); });
     TestPreparedFlowchartAllocationFailures(false, Scenario);
 }
+template <bool Sequence> static void EmbeddedPreparedFlowchartTargetChild()
+{
+    const auto hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+    if (FAILED(hr))
+        return;
+    const auto uninitialize = wil::scope_exit([] { CoUninitialize(); });
+    const auto measure      = [](auto&& operation)
+    {
+        const auto before   = allocations;
+        const auto previous = countAllocations;
+        countAllocations    = true;
+        const auto restore  = wil::scope_exit([&]() noexcept { countAllocations = previous; });
+        operation();
+        return allocations - before;
+    };
+    const auto arm = []() noexcept { failAllocationAfter = 0u; };
+    if constexpr (Sequence)
+        PreparedFlowchartTests::NumberedSequenceAllocationChild(Check, measure, arm);
+    else
+        PreparedFlowchartTests::CompactRoutingAllocationChild(Check, measure, arm);
+}
 template <unsigned Scenario> static void EmbeddedFlowchartLayoutChild()
 {
     TestNativeFlowchartLayoutAllocationFailureAtomicity(false, Scenario);
@@ -2895,6 +2939,9 @@ static bool RegisterEmbeddedFatalCases() noexcept
         return DxUiFailureTests::RegisterFatalChildCase(entry);
     };
     return RegisterFatalChildCase({L"embedded-drag-data-allocation", "EmbeddedDragDataAllocationOrigin", EmbeddedDragDataAllocationOrigin}) &&
+           RegisterFatalChildCase(
+               {L"embedded-sequence-numbered-label-allocation", "NumberedSequenceAllocationOrigin", EmbeddedPreparedFlowchartTargetChild<true>}) &&
+           RegisterFatalChildCase({L"embedded-compact-route-allocation", "CompactRoutingAllocationOrigin", EmbeddedPreparedFlowchartTargetChild<false>}) &&
            RegisterFatalChildCase({L"embedded-codec-allocation", "EmbeddedRichCodecOrigin", EmbeddedRichCodecOrigin}) &&
            RegisterFatalChildCase({L"embedded-document-allocation", "EmbeddedRichDocumentOrigin", EmbeddedRichDocumentOrigin}) &&
            RegisterFatalChildCase({L"embedded-projection-allocation", "EmbeddedRichProjectionOrigin", EmbeddedRichProjectionOrigin}) &&

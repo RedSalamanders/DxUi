@@ -72,3 +72,10 @@ ThirdParty/libfyaml/** -text -whitespace
 
 # Preserve hashed delivery snapshots and their normalized metadata byte for byte.
 Measurements/WipDelivery_2026-11-02/** -text -whitespace
+# Preserve source-bound renderer receipts without checkout line-ending conversion.
+Measurements/MermaidDisplay_2026-11-03/** -text whitespace=trailing-space,space-before-tab,cr-at-eol
+Measurements/MermaidSyntax_2026-11-03/** -text whitespace=trailing-space,space-before-tab,cr-at-eol
+Measurements/DiagramSpacing_2026-11-03/** -text whitespace=trailing-space,space-before-tab,cr-at-eol
+# Pinned upstream license copies retain their original bytes in SDK archives.
+docs/licenses/Unicode.txt -text
+docs/licenses/WHATWG.txt -text

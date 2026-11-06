@@ -1,1 +1,0 @@
-- Add source-exact clearing of fully selected Markdown emphasis, strong and strike wrappers; partial ranges and native qualification remain pending.

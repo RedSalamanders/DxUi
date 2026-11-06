@@ -1,1 +1,0 @@
-- Extend semantic hard-break insertion to supported single-line selections; native qualification remains pending.

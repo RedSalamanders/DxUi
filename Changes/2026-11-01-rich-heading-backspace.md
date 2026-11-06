@@ -1,1 +1,0 @@
-- Let the structural backward-join command remove a heading marker at the start of its visible text, retaining source and undo behavior; native qualification remains pending.

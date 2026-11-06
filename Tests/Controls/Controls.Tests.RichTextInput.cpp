@@ -715,6 +715,9 @@ void TestRichTextApplicationImageLoaderLifecycle()
     });
     const auto requestBatch = [](RichImageResources& resources, unsigned batch)
     {
+        // Explicit resource admission supplies immutable network identities;
+        // the sample transport still refuses them before any filesystem I/O.
+        resources.SetRemoteImagesEnabled(true);
         std::wstring source(0u, L' ');
         for (unsigned index = 0u; index < 32u; ++index)
             source.append(L"![network](file://dxui-image-test.invalid/share/")
@@ -729,6 +732,9 @@ void TestRichTextApplicationImageLoaderLifecycle()
         std::vector<RichImageRequest> requests(0u);
         resources.Take(requests);
         Require(requests.size() == 32u, "loader lifecycle fixture owns one maximum unique source batch");
+        Require(std::ranges::all_of(requests,
+                                    [](const auto& request) { return request.SourceKind() == RichImageSourceKind::NetworkFile && request.FilePath().empty(); }),
+                "network lifecycle jobs retain classified identities without an ungated local path");
         return std::vector<RichImageRequest>(requests);
     };
     RichImageResources first, second, third;

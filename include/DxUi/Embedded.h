@@ -26,7 +26,9 @@ private:
 struct EmbeddedCallbacks
 {
     void* context = nullptr;
-    // Borrowed until detach; invoked synchronously on the UI thread. It may retire or replace retained controls.
+    // Borrowed until detach; invoked on the UI thread and may retire or replace retained controls.
+    // Mutating input coalesces wakes until the outermost entry finishes; direct setters may notify immediately.
+    // The owning EmbeddedHost must remain alive throughout the callback.
     void (*requestPreparation)(void* context) noexcept = nullptr;
 };
 enum class PointerAction : uint8_t
@@ -213,6 +215,7 @@ public:
 private:
     friend struct EmbeddedAccessibilityAccess;
     struct State;
+    class InputScope;
     std::unique_ptr<State> _state;
     ControlHost _host;
     bool _detaching       = false;

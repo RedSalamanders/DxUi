@@ -1,1 +1,0 @@
-- Render bounded dotted, thick and invisible Mermaid flowchart edges with their layout and source semantics intact.

@@ -1,0 +1,411 @@
+{
+  "schemaVersion": 1,
+  "claim": "Source-bound hosted main Release qualification; all seven jobs passed",
+  "repository": "RedSalamanders/DxUi",
+  "runId": "42146665655",
+  "url": "https://github.com/RedSalamanders/DxUi/actions/runs/42146665655",
+  "sourceCommit": "460ddfa32722e3f63dd21ef4a11e90aaa1811ca6",
+  "implementationCommit": "8dc328dec0a80cc0e36fa08e5364265ebd25d37e",
+  "engine": {
+    "repository": "RedSalamanders/.github",
+    "ref": "e32cf9f9b29f4e817decb09e1be44be7fc1a94de"
+  },
+  "nativeDigest": "5035c946db1f60eed295271237cf6eee32b142aa73284a8750c75800ffa2c74d",
+  "admittedInputCount": 604,
+  "admissionReceiptSha256": "AEEDE22115E18B633C7344296E7D665D9973D3FFAF4CF8298F1C4E2CE80DC4A9",
+  "outcome": "success",
+  "jobs": [
+    {
+      "name": "qualify / admission",
+      "outcome": "success",
+      "url": "https://github.com/RedSalamanders/DxUi/actions/runs/42146665655/job/127659688831"
+    },
+    {
+      "name": "qualify / regression (ARM64, windows-11-vs2026-arm)",
+      "outcome": "success",
+      "url": "https://github.com/RedSalamanders/DxUi/actions/runs/42146665655/job/127659818549"
+    },
+    {
+      "name": "qualify / regression (x64, windows-2025-vs2026)",
+      "outcome": "success",
+      "url": "https://github.com/RedSalamanders/DxUi/actions/runs/42146665655/job/127659818567"
+    },
+    {
+      "name": "qualify / test-gate",
+      "outcome": "success",
+      "url": "https://github.com/RedSalamanders/DxUi/actions/runs/42146665655/job/127686145329"
+    },
+    {
+      "name": "qualify / production (x64, windows-2025-vs2026)",
+      "outcome": "success",
+      "url": "https://github.com/RedSalamanders/DxUi/actions/runs/42146665655/job/127686247610"
+    },
+    {
+      "name": "qualify / production (ARM64, windows-11-vs2026-arm)",
+      "outcome": "success",
+      "url": "https://github.com/RedSalamanders/DxUi/actions/runs/42146665655/job/127686247719"
+    },
+    {
+      "name": "qualify / complete",
+      "outcome": "success",
+      "url": "https://github.com/RedSalamanders/DxUi/actions/runs/42146665655/job/127693840938"
+    }
+  ],
+  "nativeRuns": [
+    {
+      "platform": "x64",
+      "configuration": "Release",
+      "countUnit": "suite",
+      "registered": 23,
+      "executed": 23,
+      "failed": 0,
+      "expectedSkipped": 0,
+      "unexpectedSkipped": 0,
+      "assertionProbePassed": true,
+      "regressionReceiptSha256": "21AF6F5FBAABCDA3294C8A2C754C9877C9A5B59B976586CD246A711B222DC576",
+      "canonicalEvidence": [
+        {
+          "path": "20261106T021541783Z-1724-35918fd6e7914293a769353f24a5febe/payload/normal-suites.json",
+          "sha256": "f301e9087e4322db24f56ae6fceb7bb92a980829af99628c06328be550726d4a",
+          "verifiedCopies": [
+            "evidence-x64",
+            "workspace-evidence-x64"
+          ]
+        },
+        {
+          "path": "20261106T021541783Z-1724-35918fd6e7914293a769353f24a5febe/completed.json",
+          "sha256": "81a6c3f0f1c1666ff55e75464f209b96c71bb1c549ca904c1a774dfa69ebca25",
+          "verifiedCopies": [
+            "evidence-x64",
+            "workspace-evidence-x64"
+          ]
+        },
+        {
+          "path": "20261106T022839929Z-2132-de1fc938f8b64c1f9e43dbdd10b62e09/payload/normal-suites.json",
+          "sha256": "6cdbf18d2e91286f994cc717a836aa1bbae6ccf5e12942553c00a10c878f18e8",
+          "verifiedCopies": [
+            "evidence-x64",
+            "workspace-evidence-x64"
+          ]
+        },
+        {
+          "path": "20261106T022839929Z-2132-de1fc938f8b64c1f9e43dbdd10b62e09/completed.json",
+          "sha256": "17359630140d4cb7512ec39354d03ddc479a6fc4980aa72f68e85eb4e6f1a75a",
+          "verifiedCopies": [
+            "evidence-x64",
+            "workspace-evidence-x64"
+          ]
+        }
+      ],
+      "recordedTestArtifacts": [
+        {
+          "path": ".build/x64/Release/DxUi.ControlTests.exe",
+          "sha256": "05f007a80a1f213b32ddd07b72e5feb48554d00dff005a9bed7c6e5c5debeb98"
+        },
+        {
+          "path": ".build/x64/Release/DxUi.EmbeddedControls.exe",
+          "sha256": "ae7ff0256dcb6c79be14c1cc0ce57daabdb54dcdc99621fac37a3ab1848ae6d0"
+        },
+        {
+          "path": ".build/x64/Release/DxUi.EmbeddedTests.exe",
+          "sha256": "e881fd23e5a21e78943fda6657a60e77912dbd11f65dcc0a22c1dc4c3a7f11e7"
+        },
+        {
+          "path": ".build/x64/Release/DxUi.FoundationTests.exe",
+          "sha256": "920caf74f1f1729352e78a4b5321fa54413ad138f045e50951b2fa62c56c6668"
+        },
+        {
+          "path": ".build/x64/Release/DxUi.InteractiveLease.exe",
+          "sha256": "3783bae1cc8f4e8d853717a3f5b4e16459bf813440a64e9710b9cc8efa4c7f37"
+        },
+        {
+          "path": ".build/x64/Release/DxUi.lib",
+          "sha256": "ad7e30378024e790a5026e892cfc82cde200143e926d3c58fa4a5f8839e1c0c9"
+        }
+      ],
+      "invocations": [
+        {
+          "runId": "20261106T021541783Z-1724-35918fd6e7914293a769353f24a5febe",
+          "executed": [
+            "Foundation",
+            "Embedded",
+            "Grid",
+            "Theme",
+            "Control",
+            "MenuExitLifetime",
+            "NewControls",
+            "EditorControls",
+            "TextField",
+            "MultilineText",
+            "ReadOnly",
+            "ComboBox",
+            "Tree",
+            "Tooltip",
+            "Rendering",
+            "Animation",
+            "Accessibility",
+            "WindowHost",
+            "InteractiveLease",
+            "Menu",
+            "NativeTextInput"
+          ]
+        },
+        {
+          "runId": "20261106T022839929Z-2132-de1fc938f8b64c1f9e43dbdd10b62e09",
+          "executed": [
+            "MenuResourceScaling",
+            "MenuTextLayoutResources"
+          ]
+        }
+      ]
+    },
+    {
+      "platform": "ARM64",
+      "configuration": "Release",
+      "countUnit": "suite",
+      "registered": 21,
+      "executed": 21,
+      "failed": 0,
+      "expectedSkipped": 0,
+      "unexpectedSkipped": 0,
+      "assertionProbePassed": true,
+      "regressionReceiptSha256": "276CFF2FA41EFB6D8E699CF39C776F9C50C6E85DE39017C225D59B9E33E00BA1",
+      "canonicalEvidence": [
+        {
+          "path": "20261106T024048496Z-1064-6ab6cb8630e2425995e0020013f24ed0/payload/normal-suites.json",
+          "sha256": "576edff06c084155a92eb81b78ad455c2574b900813f9d6be8b7df23b8277615",
+          "verifiedCopies": [
+            "evidence-ARM64",
+            "workspace-evidence-ARM64"
+          ]
+        },
+        {
+          "path": "20261106T024048496Z-1064-6ab6cb8630e2425995e0020013f24ed0/completed.json",
+          "sha256": "2b0f6d0cc14a020146e52f8b0ff477d0f4f8dddda034ee6316fc71d3733ae862",
+          "verifiedCopies": [
+            "evidence-ARM64",
+            "workspace-evidence-ARM64"
+          ]
+        }
+      ],
+      "recordedTestArtifacts": [
+        {
+          "path": ".build/ARM64/Release/DxUi.ControlTests.exe",
+          "sha256": "09d23ba46ebca92a8658bae9b64d1a61821de580ae6b8f4d4bcdd81c49d5501a"
+        },
+        {
+          "path": ".build/ARM64/Release/DxUi.EmbeddedControls.exe",
+          "sha256": "590e5f38a60da6f726ac3a2802a119c049d4c086fc49a97990e1eaae90698247"
+        },
+        {
+          "path": ".build/ARM64/Release/DxUi.EmbeddedTests.exe",
+          "sha256": "5964c6f5da11f9341ad39a56b07b1ae1a1023069665619b64ea12f7b1c529bdc"
+        },
+        {
+          "path": ".build/ARM64/Release/DxUi.FoundationTests.exe",
+          "sha256": "8e65f15572e4eca4b89863f4c66ae4eef9c70bf811dd9bad5e9544fd8457a1aa"
+        },
+        {
+          "path": ".build/ARM64/Release/DxUi.InteractiveLease.exe",
+          "sha256": "6cac92fb53ac4c7d22f68defaacd78b085a3b44068643016074df93a658dea45"
+        },
+        {
+          "path": ".build/ARM64/Release/DxUi.lib",
+          "sha256": "947c20fc5b67637432a303aa3f376881137dfc5b91fc62a42891d71fc57fd8c8"
+        }
+      ],
+      "invocations": [
+        {
+          "runId": "20261106T024048496Z-1064-6ab6cb8630e2425995e0020013f24ed0",
+          "executed": [
+            "Foundation",
+            "Embedded",
+            "Grid",
+            "Theme",
+            "Control",
+            "MenuExitLifetime",
+            "NewControls",
+            "EditorControls",
+            "TextField",
+            "MultilineText",
+            "ReadOnly",
+            "ComboBox",
+            "Tree",
+            "Tooltip",
+            "Rendering",
+            "Animation",
+            "Accessibility",
+            "WindowHost",
+            "InteractiveLease",
+            "Menu",
+            "NativeTextInput"
+          ]
+        }
+      ]
+    }
+  ],
+  "production": [
+    {
+      "platform": "x64",
+      "version": "0.1.1608",
+      "kind": "sdk",
+      "testModeDisabled": true,
+      "smokePassed": true,
+      "receiptSha256": "7AFD91A8A2EAF0FE7C2D056309C9C050A3A6D7B2B50B158F112E8F36EAEE1636",
+      "archives": [
+        {
+          "file": "DxUi-SDK-0.1.1608-x64.zip",
+          "bytes": 55064923,
+          "sha256": "F3C85F86FA9718FB30594423DD32225565510AC23AAF015E6C971FB385139B1C"
+        }
+      ]
+    },
+    {
+      "platform": "ARM64",
+      "version": "0.1.1608",
+      "kind": "sdk",
+      "testModeDisabled": true,
+      "smokePassed": true,
+      "receiptSha256": "462D8FE3D485295081F05E19A71266D22A232DBA926CF85C0FB035D54C015FCE",
+      "archives": [
+        {
+          "file": "DxUi-SDK-0.1.1608-ARM64.zip",
+          "bytes": 55090475,
+          "sha256": "623D1D1B5281774AC03260A6FD47ECE5752325163C8A146A3A878E2ADF1F9493"
+        }
+      ]
+    }
+  ],
+  "originalArtifactWrappers": [
+    {
+      "id": 13475386444,
+      "name": "production-logs-ARM64",
+      "bytes": 8465,
+      "sha256": "8EDBD6AAA513F62E43D452CF2CC862D0F1BF7A2B0E7EB33E563321F7172132DB",
+      "reportedDigestVerified": true
+    },
+    {
+      "id": 13475085835,
+      "name": "production-x64",
+      "bytes": 54915110,
+      "sha256": "2529F590B04FAEE772C3AC8C3100A855E240EA0345A9824C32DA787C089AE0FA",
+      "reportedDigestVerified": true
+    },
+    {
+      "id": 13474816341,
+      "name": "production-logs-x64",
+      "bytes": 8300,
+      "sha256": "B0FF961999AB0CB4EB221C8AB6617245C5E802F469A34C97B27BD661014512B6",
+      "reportedDigestVerified": true
+    },
+    {
+      "id": 13474592479,
+      "name": "production-ARM64",
+      "bytes": 54939847,
+      "sha256": "8AE9010AFE4B72EF781AE42D34B5DF9EB91DA66522058760B80DF4AA3DEA651F",
+      "reportedDigestVerified": true
+    },
+    {
+      "id": 13474456087,
+      "name": "msvc-14.52-d08d2347a4f441cf85b1951352925b92",
+      "bytes": 1370784,
+      "sha256": "0D3845CD6578EC9E55CA7D62D7AABD1699599E34D20B22080B2B35441E076297",
+      "reportedDigestVerified": true
+    },
+    {
+      "id": 13474350528,
+      "name": "workspace-evidence-ARM64",
+      "bytes": 3147470,
+      "sha256": "98FF2F9EBB3047369D081454DCE3CF79E22442DF1432CD38D4BE14EE7613A82B",
+      "reportedDigestVerified": true
+    },
+    {
+      "id": 13474300740,
+      "name": "evidence-ARM64",
+      "bytes": 327468,
+      "sha256": "AEAE2D4BC0EE7E68914A201D67D075B4D2937A0579105875FFE62D4B4C8A71A0",
+      "reportedDigestVerified": true
+    },
+    {
+      "id": 13474256090,
+      "name": "regression-ARM64",
+      "bytes": 1029,
+      "sha256": "30EF875C4D54051D68279B4CFC674665B40E0B227228CB3F3468B0F81618BE38",
+      "reportedDigestVerified": true
+    },
+    {
+      "id": 13473204581,
+      "name": "msvc-14.52-4bd8035b5cb546bf839096a8a69f3aa2",
+      "bytes": 1325095,
+      "sha256": "B0A94BE05A00D04418F13197E50593DE8F9F1A052BA4A43DA3075B7AA46E5399",
+      "reportedDigestVerified": true
+    },
+    {
+      "id": 13472337668,
+      "name": "workspace-evidence-x64",
+      "bytes": 3293561,
+      "sha256": "FBE628AA1FB219F0DF8860C7FB3E09095D4862F9C86D0BEEA9C66C65A04F4518",
+      "reportedDigestVerified": true
+    },
+    {
+      "id": 13471943450,
+      "name": "regression-x64",
+      "bytes": 1137,
+      "sha256": "A6A80F4447B9FCDE50E5D579D5C63B1AE7100A29F8159849F7A8C7D2EBAA3C11",
+      "reportedDigestVerified": true
+    },
+    {
+      "id": 13471609753,
+      "name": "evidence-x64",
+      "bytes": 441170,
+      "sha256": "14B148119016B0E7755BC8E422A25ECF8A1CFC07E14842782E8B63B76B73DC9C",
+      "reportedDigestVerified": true
+    },
+    {
+      "id": 13471120924,
+      "name": "msvc-14.52-6a810daae6c846bca5eeb26e53078501",
+      "bytes": 1370634,
+      "sha256": "2339483B012A2DA26622F8C3C824FD554DE909F6741CA2594C33F62C88819992",
+      "reportedDigestVerified": true
+    },
+    {
+      "id": 13470637269,
+      "name": "msvc-14.52-50670c5344c7465eb294a8ac2249be8c",
+      "bytes": 1326449,
+      "sha256": "E82393544BD08E4B4484BBA28A611968273A1F6DE5A2560C7D01C98D877E142A",
+      "reportedDigestVerified": true
+    },
+    {
+      "id": 13470202793,
+      "name": "admission",
+      "bytes": 474,
+      "sha256": "FFD738453B23C5FFCA202C4DDA6EBAF4230E0AF4F248D4C36B7C83F751143683",
+      "reportedDigestVerified": true
+    }
+  ],
+  "limits": [
+    "Release only; no Debug/ASan ARM64, physical IME or assistive-technology acceptance",
+    "Does not qualify the later 0ffaa1a6 SDK or 7a5ecc49 application candidates",
+    "Recorded test executable hashes are original receipt identities; test executables were not re-executed or independently reconstructed locally",
+    "No paired performance acceptance or GitHub release publication is implied; admission batch outcome remains its original running snapshot"
+  ],
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-hosted-diagram-math-workspace-release",
+  "benchmarkInputs": {
+    "production-logs-ARM64.zip": "8EDBD6AAA513F62E43D452CF2CC862D0F1BF7A2B0E7EB33E563321F7172132DB",
+    "production-x64.zip": "2529F590B04FAEE772C3AC8C3100A855E240EA0345A9824C32DA787C089AE0FA",
+    "production-logs-x64.zip": "B0FF961999AB0CB4EB221C8AB6617245C5E802F469A34C97B27BD661014512B6",
+    "production-ARM64.zip": "8AE9010AFE4B72EF781AE42D34B5DF9EB91DA66522058760B80DF4AA3DEA651F",
+    "msvc-14.52-d08d2347a4f441cf85b1951352925b92.zip": "0D3845CD6578EC9E55CA7D62D7AABD1699599E34D20B22080B2B35441E076297",
+    "workspace-evidence-ARM64.zip": "98FF2F9EBB3047369D081454DCE3CF79E22442DF1432CD38D4BE14EE7613A82B",
+    "evidence-ARM64.zip": "AEAE2D4BC0EE7E68914A201D67D075B4D2937A0579105875FFE62D4B4C8A71A0",
+    "regression-ARM64.zip": "30EF875C4D54051D68279B4CFC674665B40E0B227228CB3F3468B0F81618BE38",
+    "msvc-14.52-4bd8035b5cb546bf839096a8a69f3aa2.zip": "B0A94BE05A00D04418F13197E50593DE8F9F1A052BA4A43DA3075B7AA46E5399",
+    "workspace-evidence-x64.zip": "FBE628AA1FB219F0DF8860C7FB3E09095D4862F9C86D0BEEA9C66C65A04F4518",
+    "regression-x64.zip": "A6A80F4447B9FCDE50E5D579D5C63B1AE7100A29F8159849F7A8C7D2EBAA3C11",
+    "evidence-x64.zip": "14B148119016B0E7755BC8E422A25ECF8A1CFC07E14842782E8B63B76B73DC9C",
+    "msvc-14.52-6a810daae6c846bca5eeb26e53078501.zip": "2339483B012A2DA26622F8C3C824FD554DE909F6741CA2594C33F62C88819992",
+    "msvc-14.52-50670c5344c7465eb294a8ac2249be8c.zip": "E82393544BD08E4B4484BBA28A611968273A1F6DE5A2560C7D01C98D877E142A",
+    "admission.zip": "FFD738453B23C5FFCA202C4DDA6EBAF4230E0AF4F248D4C36B7C83F751143683"
+  }
+}

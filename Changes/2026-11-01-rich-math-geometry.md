@@ -1,1 +1,0 @@
-- Correct native math operator glyphs, prime scripts and heading/caret geometry, and preserve literal backslashes in unquoted Mermaid labels. Shared native/embedded regressions require execution on the integrated candidate; full math/source-editing and resource qualification remain open.

@@ -1,1 +1,0 @@
-- Allow applications to replace a completed rich image with bounded immutable frames while retaining source and publication guards.

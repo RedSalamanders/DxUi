@@ -1,1 +1,0 @@
-- Share nonallocating thematic-break admission between the command planner and state query; remaining command applicability and native qualification are pending.

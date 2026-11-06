@@ -1,1 +1,0 @@
-- Render bounded Mermaid class annotations above their class names.

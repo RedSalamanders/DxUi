@@ -156,9 +156,13 @@ Invoke-TestCase 'successful installer cannot admit another compiler family' {
     $result=Invoke-SetupFixture 'wrong-family' -Version '14.51.36231'
     Assert-True ($result.Exit-ne 0 -and $result.Text-match 'Insiders did not provide default MSVC 14.52') $result.Text
 }
+$missingIndex=0
 foreach($missing in @("VC/Tools/MSVC/14.52.37025/bin/Host$(if([Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()-eq 'Arm64'){'arm64'}else{'x64'})/x64/cl.exe",'VC/Tools/MSVC/14.52.37025/lib/x64/clang_rt.asan_dynamic-x86_64.lib','VC/Tools/Llvm/x64/bin/llvm-pdbutil.exe','SDK')){
+    $missingCase='missing-'+(++$missingIndex)
     Invoke-TestCase "successful installer cannot admit missing $missing" {
-        $result=Invoke-SetupFixture ('missing-'+[guid]::NewGuid().ToString('N')) -Missing $missing
+        # The run already owns a unique packet. Compact, distinct child ids
+        # keep the fake GUI executable inside the Windows launch path bound.
+        $result=Invoke-SetupFixture $missingCase -Missing $missing
         Assert-True ($result.Exit-ne 0 -and $result.Text-match 'Insiders did not provide') $result.Text
     }
 }

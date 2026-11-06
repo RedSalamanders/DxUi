@@ -1,1 +1,0 @@
-- Avoid native text-cache copies when checking code-exit command availability or structural composition ownership; native qualification remains pending.

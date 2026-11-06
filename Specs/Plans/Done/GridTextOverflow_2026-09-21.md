@@ -2,12 +2,12 @@
 
 Status: DONE — local implementation and source-bound review closed; shared acceptance remains separately owned
 
-Closeout evidence: Clipping, overflow inspection and full-value copy behavior have maintained native/embedded oracles and current R27 coverage. The archived original performance and ARM results retain their original source identities; universal RTL column mirroring is not inferred. See the [delivery packet](../../../Measurements/WipDelivery_2026-11-02/README.md) and [shared qualification ledger](../WIP/ConsumerUiQualification_2026-10-11.md).
+Closeout evidence: Clipping, overflow inspection and full-value copy behavior have maintained native/embedded oracles and current R27 coverage. The archived original performance and ARM results retain their original source identities; universal RTL column mirroring is not inferred. See the [delivery packet](../../../Measurements/WipDelivery_2026-11-02/README.md) and [shared qualification ledger](ConsumerUiQualification_2026-10-11.md).
 
 
 Historical pre-closeout Status: **ACTIVE**. Owner: the File Operations implementation task, independent library slice.
 
-Shared qualification execution is owned by [Library qualification and consumer adoption](../WIP/ConsumerUiQualification_2026-10-11.md#shared-qualification-ownership-16-october-2026).
+Shared qualification execution is owned by [Library qualification and consumer adoption](ConsumerUiQualification_2026-10-11.md#shared-qualification-ownership-16-october-2026).
 This plan retains Grid-specific resource attribution and its source-specific historical receipts; pending integrated
 resource/publication/adoption acceptance is not closed by implementation alone. Consumer actions stay in the API-4 register.
 Base: qualified main `78b3de389a189c7f86f611787e0489fb6d474218`, plus its documentation-only

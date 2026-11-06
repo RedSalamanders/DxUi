@@ -7495,6 +7495,7 @@ void RunWindowHostTests()
     DXUI_RUN_TEST(TestScrollPanelKeepsTheFocusAChildTakesOnAnUnhandledPress);
     DXUI_RUN_TEST(TestKeyboardContextAnchorsStayInsideTheScrollViewport);
     DXUI_RUN_TEST(TestNativeUnhandledKeysReachApplicationFallback);
+    DXUI_RUN_TEST(TestPacketSurrogatesThroughNativeAndEmbeddedHosts);
     DXUI_RUN_TEST(TestWindowHostPageHostContentTakesTextInputAndTab);
     DXUI_RUN_TEST(TestWindowHostSecondaryPressCapturesOnlyWhileItOwnsThePointer);
     DXUI_RUN_TEST(TestWindowHostContainsThrowingCallbacksOnNoexceptPaths);

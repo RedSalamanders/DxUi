@@ -1773,11 +1773,13 @@ static void TestSemanticDiagramAllocationFailures(bool trace = false)
     };
     // Count the actual allocation schedule, including native parsing, captions,
     // normalized-to-raw provenance, diagnostic publication and footer ownership.
-    const std::array<std::wstring_view, 19u> sources = {SemanticDiagramTests::scenarios[5u].source,
+    const std::array<std::wstring_view, 20u> sources = {SemanticDiagramTests::scenarios[5u].source,
                                                         L"main[^n]\r\n\r\n[^n]: note\r\n    > ```mermaid\r\n    > graph LR;A{wide}-->|yes|B\r\n    > ```\r\n",
                                                         SemanticDiagramTests::scenarios[11u].source,
                                                         SemanticDiagramTests::scenarios[8u].source,
                                                         L"```mermaid\nsequenceDiagram\nparticipant A\nparticipant B\nA->>B: request\nB-->>A: reply\n```\n",
+                                                        L"```mermaid\nsequenceDiagram\nactor Writer\nparticipant App\nautonumber\n"
+                                                        L"Writer->>App: Send\nNote over Writer,App: Review\nApp-->>Writer: Ready\n```\n",
                                                         L"```mermaid\npie\n\"Dogs\": 3\n\"Cats\": 2\n```\n",
                                                         L"```mermaid\nerDiagram\nCUSTOMER ||--o{ ORDER : places\nORDER ||--|{ ITEM : contains\n```\n",
                                                         L"```mermaid\ngantt\nCompile : 2024-02-27, 3d\nTest : 2024-03-01, 2d\n```\n",
@@ -2416,6 +2418,7 @@ static void TestRichFrontMatterAllocationFailureAtomicity(bool trace = false)
     Check(editor.IsMarkdownRenderingEnabled() && editor.GetText() == L"previous" && ! editor.CanUndo(),
           "semantic activation preserves exact source and history");
     for (const std::wstring_view source : {L"---\r\n# comment\r\nname: '\U0001f600'\r\n---\r\n# after\r\n",
+                                           L"---\rtitle: a\rtags: b\r---\r",
                                            L"+++\n# comment\nname = '\u03b2'\n+++\n",
                                            L"---\nkey: [\n",
                                            L"+++\nkey = [\n",
@@ -2761,6 +2764,7 @@ static void TestEmbeddedParserCapacitySourceFallback(GraphicsFixture& gpu)
     using namespace DxUi;
     using namespace DxUi::RichText;
     MarkdownCapacityTests::ParserBounds(Check);
+    MarkdownCapacityTests::AutolinkSuffixes(Check);
     std::shared_ptr<GraphicsDevice> graphics;
     Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "capacity fallback borrowed device");
     EmbeddedHost view;

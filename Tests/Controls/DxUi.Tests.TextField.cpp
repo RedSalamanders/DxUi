@@ -1,12 +1,58 @@
 #include "Controls.Tests.DxUiTestHelpers.h"
+#include "Support.Tests.FatalChildren.h"
+#include <DxUi/Failure.h>
 
 #include <array>
+#include <atomic>
 #include <fstream>
 #include <iterator>
 #include <new>
+#include <stdexcept>
 
 namespace
 {
+
+std::atomic<unsigned> textFieldFailureMarker{};
+[[noreturn]] __declspec(noinline) void TextFieldCallbackFailureOrigin(const std::runtime_error& error)
+{
+    textFieldFailureMarker.store(41u, std::memory_order_relaxed);
+    throw error;
+}
+
+template <bool Key> void TextFieldDirectFailureChild()
+{
+    std::unique_ptr<DxUi::ControlHost> host;
+    std::unique_ptr<DxUi::TextField> field;
+    std::unique_ptr<std::runtime_error> error;
+    {
+        const DxUi::Failure::Scope constructionScope;
+        host  = std::make_unique<DxUi::ControlHost>();
+        field = std::make_unique<DxUi::TextField>(L"alpha");
+        error = std::make_unique<std::runtime_error>("text field direct callback failure");
+        field->SetSelectionRange(5u, 5u);
+        field->SetOnTextChanged([&](std::wstring_view) { TextFieldCallbackFailureOrigin(*error); });
+    }
+    // The direct entry must establish its own scope; construction has ended.
+    if constexpr (Key)
+        static_cast<void>(field->OnKeyDown(*host, VK_BACK, 0u));
+    else
+        static_cast<void>(field->OnChar(*host, L'x', 0u));
+}
+
+[[maybe_unused]] const bool textFieldDirectFailureChildrenRegistered =
+    DxUiFailureTests::RegisterFatalChildCase({L"textfield-direct-character",
+                                              "TextFieldCallbackFailureOrigin",
+                                              TextFieldDirectFailureChild<false>,
+                                              DxUiFailureTests::FatalFaultClass::CppException,
+                                              false}) &&
+    DxUiFailureTests::RegisterFatalChildCase(
+        {L"textfield-direct-key", "TextFieldCallbackFailureOrigin", TextFieldDirectFailureChild<true>, DxUiFailureTests::FatalFaultClass::CppException, false});
+
+void TestTextFieldDirectCallbackFailure()
+{
+    Require(DxUiFailureTests::ExpectFatalChild(L"textfield-direct-character"), "direct text character callback records its original failure");
+    Require(DxUiFailureTests::ExpectFatalChild(L"textfield-direct-key"), "direct text key callback records its original failure");
+}
 
 using DxUi::WindowHostBitmapCapture;
 
@@ -2322,11 +2368,27 @@ void TestTextFieldBuffersSurrogatesBeforePublishing()
     field.SetReadOnly(true);
     field.SetReadOnly(false);
     Require(field.OnChar(host, trail, 0u) && field.GetText() == L"A", "read-only transition cancels pending input");
+    constexpr UINT preservingKeys[]{
+        VK_PACKET, VK_SHIFT, VK_LSHIFT, VK_RSHIFT, VK_CONTROL, VK_LCONTROL, VK_RCONTROL, VK_MENU, VK_LMENU, VK_RMENU, VK_LWIN, VK_RWIN};
+    for (const auto key : preservingKeys)
+    {
+        TextField packet(L"A");
+        std::vector<std::wstring> values;
+        packet.SetOnTextChanged([&](std::wstring_view value) { values.emplace_back(value); });
+        Require(packet.OnChar(host, lead, 0u), "buffer the scalar before a packet/modifier transition");
+        static_cast<void>(packet.OnKeyDown(host, key, 0u));
+        static_cast<void>(packet.OnKeyUp(host, key, 0u));
+        Require(packet.OnChar(host, trail, 0u) && packet.GetText() == std::wstring{L'A', lead, trail} && values.size() == 1u &&
+                    values.front() == packet.GetText(),
+                "packet and every bare modifier preserve the pending scalar without publishing its lead alone");
+        Require(packet.OnKeyDown(host, 'Z', MK_CONTROL) && packet.GetText() == L"A", "the scalar remains one transaction across every preserving key");
+    }
 }
 } // namespace
 
 void RunTextFieldTests()
 {
+    DXUI_RUN_TEST(TestTextFieldDirectCallbackFailure);
     DXUI_RUN_TEST(TestTextFieldBlurCallbackKeepsItsCaptureWhenItDestroysTheField);
     DXUI_RUN_TEST(TestTextFieldBlurCallbackKeepsItsCaptureWhenItReplacesItself);
     DXUI_RUN_TEST(TestTextFieldPreviewFalseAfterDestroyKeepsItsCaptureAlive);

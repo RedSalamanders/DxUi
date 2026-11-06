@@ -1,1 +1,0 @@
-- Render short mathematical matrix rows with bounded implicit empty cells.

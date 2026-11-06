@@ -1,1 +1,0 @@
-- Add application-owned RichText file-drop routing and context-aware multi-file paste, preserving prepared caret sites and source history; native ARM64 runtime and final performance qualification remain pending.

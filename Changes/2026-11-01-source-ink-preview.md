@@ -1,1 +1,0 @@
-- Gate the experimental direct source-ink renderer behind an independent default-off preview switch while preserving canonical Markdown source coloring. Paired performance qualification remains pending.

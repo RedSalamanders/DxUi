@@ -1,1 +1,0 @@
-- Preserve read-only Source mirror scroll and reusable geometry across synchronization, clear stale link hover, and retain failed image results until explicit refresh or policy changes.

@@ -12,6 +12,7 @@
 #include <cmath>
 #include <limits>
 #include <new>
+#include <utility>
 #include <wil/result.h>
 
 namespace DxUi
@@ -143,6 +144,7 @@ struct EmbeddedHost::State
     bool zeroSized                       = false;
     bool animationSuspended              = false;
     bool preparationRequested            = true; // Initial dirty state already requires the caller's first Prepare.
+    bool inputWakePending                = false;
     bool recoveryWakePending             = false;
     bool preparing                       = false;
     bool prepareCallActive               = false;
@@ -151,6 +153,40 @@ struct EmbeddedHost::State
     uint64_t revision                    = 0;
     uint64_t preparedInteractionRevision = 0;
     EmbeddedStatistics stats{};
+};
+// A stack node borrows its host only for one synchronous input call. The UI-thread
+// stack spans detach/reattach without changing EmbeddedHost's public object layout.
+// It owns no allocation, timer or queued callback; another view remains independent.
+class EmbeddedHost::InputScope final
+{
+public:
+    explicit InputScope(EmbeddedHost& owner) noexcept : _owner(owner), _previous(_current)
+    {
+        _current = this;
+    }
+    ~InputScope() noexcept
+    {
+        _current = _previous;
+        if (! Active(_owner) && _owner._state && std::exchange(_owner._state->inputWakePending, false))
+            _owner.RequestPreparation();
+    }
+    InputScope(const InputScope&)            = delete;
+    InputScope& operator=(const InputScope&) = delete;
+    InputScope(InputScope&&)                 = delete;
+    InputScope& operator=(InputScope&&)      = delete;
+
+    [[nodiscard]] static bool Active(const EmbeddedHost& owner) noexcept
+    {
+        for (auto* scope = _current; scope; scope = scope->_previous)
+            if (&scope->_owner == &owner)
+                return true;
+        return false;
+    }
+
+private:
+    EmbeddedHost& _owner;
+    InputScope* _previous;
+    inline static thread_local InputScope* _current = nullptr;
 };
 EmbeddedHost::EmbeddedHost() = default;
 EmbeddedHost::~EmbeddedHost()
@@ -277,8 +313,14 @@ void EmbeddedHost::MarkDirty() noexcept
 }
 void EmbeddedHost::RequestPreparation() noexcept
 {
-    if (! _state || ! _state->visible || _state->zeroSized || _state->preparing || _state->preparationRequested || ! _state->callbacks.requestPreparation)
+    if (! _state || _detaching || ! _state->visible || _state->zeroSized || _state->preparing || _state->preparationRequested ||
+        ! _state->callbacks.requestPreparation)
         return;
+    if (InputScope::Active(*this))
+    {
+        _state->inputWakePending = true;
+        return;
+    }
     // Dirty pixels and an outstanding notification are different states. A
     // cooperative turn can consume a wakeup while the surface remains dirty.
     _state->preparationRequested = true;
@@ -793,12 +835,14 @@ bool EmbeddedHost::InputIsCoherent(bool allowDirty) noexcept
 bool EmbeddedHost::PreviewFileDrop(D2D1_POINT_2F point) noexcept
 {
     const Failure::Scope failureScope;
+    const InputScope input(*this);
     return _state && _host._attachmentOwnerThreadId == GetCurrentThreadId() && ! _state->zeroSized && ! _state->contentPending &&
            ! _host.GetCapturedControl() && InputIsCoherent(true) && _host.PreviewFileDrop(point);
 }
 bool EmbeddedHost::CommitFileDrop(D2D1_POINT_2F point, IDataObject& dataObject, bool (*validate)(void*) noexcept, void* context) noexcept
 {
     const Failure::Scope failureScope;
+    const InputScope input(*this);
     if (! PreviewFileDrop(point))
         return false;
     struct Validation
@@ -839,6 +883,7 @@ bool EmbeddedHost::KeyboardInputIsAvailable() noexcept
 bool EmbeddedHost::DispatchPointer(const PointerEvent& event) noexcept
 {
     const Failure::Scope failureScope;
+    const InputScope input(*this);
     // Pointer hit-testing is valid on a paint-dirty view. Requiring a clean surface
     // here dropped the Down that followed a hover/focus Invalidate, so a touch looked
     // like "first contact focuses, second contact activates."
@@ -962,6 +1007,7 @@ bool EmbeddedHost::DispatchKey(UINT key, bool down, UINT modifiers, EmbeddedKeyD
 bool EmbeddedHost::DispatchKeyImpl(UINT key, bool down, UINT modifiers, EmbeddedKeyDispatchReceipt* receipt) noexcept
 {
     const Failure::Scope failureScope;
+    const InputScope input(*this);
     uint64_t issuedReceiptSequence = 0u;
     // Overlapping use of the same out-object cannot identify which caller's raw key should translate.
     // Invalidate it on every outer exit, including a callback failure; independent receipts stay valid.
@@ -1067,6 +1113,7 @@ bool EmbeddedHost::DispatchKeyImpl(UINT key, bool down, UINT modifiers, Embedded
 bool EmbeddedHost::DispatchCharacter(wchar_t character, UINT modifiers) noexcept
 {
     const Failure::Scope failureScope;
+    const InputScope input(*this);
     if (! KeyboardInputIsAvailable())
         return false;
     bool enteredControlCallback = false;
@@ -1110,6 +1157,7 @@ bool EmbeddedHost::ShouldTranslateCharacter(const EmbeddedKeyDispatchReceipt& re
 bool EmbeddedHost::DispatchCharacter(wchar_t character, UINT modifiers, EmbeddedKeyDispatchReceipt& receipt) noexcept
 {
     const Failure::Scope failureScope;
+    const InputScope input(*this);
     if (! receipt._valid)
         return false;
 
@@ -1243,132 +1291,145 @@ HRESULT EmbeddedHost::ReadTextInput(EmbeddedTextInputSnapshot& snapshot) noexcep
     }
 }
 HRESULT EmbeddedHost::ApplyClipboardCut(const EmbeddedTextInputSnapshot& snapshot) noexcept
-try
 {
     const Failure::Scope failureScope;
-    EmbeddedTextInputSnapshot current;
-    const HRESULT result = ReadTextInput(current);
-    if (result != S_OK)
-        return result;
-    if (current.revision != snapshot.revision || current.focusId != snapshot.focusId || current.state.text != snapshot.state.text ||
-        current.state.caretIndex != snapshot.state.caretIndex || current.state.selectionAnchorIndex != snapshot.state.selectionAnchorIndex)
-        return HRESULT_FROM_WIN32(ERROR_REVISION_MISMATCH);
-    if (current.state.readOnly)
-        return E_ACCESSDENIED;
-    if (current.state.compositionStartIndex || current.state.compositionEndIndex)
-        return S_FALSE;
-    auto* editor = dynamic_cast<RichTextEditor*>(_host.GetFocusControl());
-    return editor ? (editor->Erase(_host, false, false) ? S_OK : S_FALSE) : E_NOTIMPL;
-}
-catch (const std::bad_alloc&)
-{
-    Failure::FailAllocation();
-}
-catch (const std::exception&)
-{
-    Failure::FailUnexpected();
+    const InputScope input(*this);
+    try
+    {
+        EmbeddedTextInputSnapshot current;
+        const HRESULT result = ReadTextInput(current);
+        if (result != S_OK)
+            return result;
+        if (current.revision != snapshot.revision || current.focusId != snapshot.focusId || current.state.text != snapshot.state.text ||
+            current.state.caretIndex != snapshot.state.caretIndex || current.state.selectionAnchorIndex != snapshot.state.selectionAnchorIndex)
+            return HRESULT_FROM_WIN32(ERROR_REVISION_MISMATCH);
+        if (current.state.readOnly)
+            return E_ACCESSDENIED;
+        if (current.state.compositionStartIndex || current.state.compositionEndIndex)
+            return S_FALSE;
+        auto* editor = dynamic_cast<RichTextEditor*>(_host.GetFocusControl());
+        return editor ? (editor->Erase(_host, false, false) ? S_OK : S_FALSE) : E_NOTIMPL;
+    }
+    catch (const std::bad_alloc&)
+    {
+        Failure::FailAllocation();
+    }
+    catch (const std::exception&)
+    {
+        Failure::FailUnexpected();
+    }
 }
 HRESULT EmbeddedHost::ApplyClipboardFilePaste(uint64_t revision, uint64_t focusId, const TextClipboardContent& content) noexcept
-try
 {
     const Failure::Scope failureScope;
-    EmbeddedTextInputSnapshot current;
-    const auto result = ReadTextInput(current);
-    if (result != S_OK)
-        return result;
-    if (current.revision != revision || current.focusId != focusId)
-        return HRESULT_FROM_WIN32(ERROR_REVISION_MISMATCH);
-    if (current.state.readOnly)
-        return E_ACCESSDENIED;
-    if (current.state.compositionStartIndex || current.state.compositionEndIndex)
-        return S_FALSE;
-    auto* editor = dynamic_cast<RichTextEditor*>(_host.GetFocusControl());
-    return editor && editor->ApplyClipboardFilePaste(content) ? S_OK : S_FALSE;
-}
-catch (const std::bad_alloc&)
-{
-    Failure::FailAllocation();
-}
-catch (const std::length_error&)
-{
-    Failure::FailUnexpected();
-}
-catch (const std::exception&)
-{
-    Failure::FailUnexpected();
+    const InputScope input(*this);
+    try
+    {
+        EmbeddedTextInputSnapshot current;
+        const auto result = ReadTextInput(current);
+        if (result != S_OK)
+            return result;
+        if (current.revision != revision || current.focusId != focusId)
+            return HRESULT_FROM_WIN32(ERROR_REVISION_MISMATCH);
+        if (current.state.readOnly)
+            return E_ACCESSDENIED;
+        if (current.state.compositionStartIndex || current.state.compositionEndIndex)
+            return S_FALSE;
+        auto* editor = dynamic_cast<RichTextEditor*>(_host.GetFocusControl());
+        return editor && editor->ApplyClipboardFilePaste(content) ? S_OK : S_FALSE;
+    }
+    catch (const std::bad_alloc&)
+    {
+        Failure::FailAllocation();
+    }
+    catch (const std::length_error&)
+    {
+        Failure::FailUnexpected();
+    }
+    catch (const std::exception&)
+    {
+        Failure::FailUnexpected();
+    }
 }
 HRESULT EmbeddedHost::ApplyClipboardBitmapPaste(uint64_t revision, uint64_t focusId, const TextClipboardContent& content) noexcept
-try
 {
     const Failure::Scope failureScope;
-    EmbeddedTextInputSnapshot current;
-    const auto result = ReadTextInput(current);
-    if (result != S_OK)
-        return result;
-    if (current.revision != revision || current.focusId != focusId)
-        return HRESULT_FROM_WIN32(ERROR_REVISION_MISMATCH);
-    if (current.state.readOnly)
-        return E_ACCESSDENIED;
-    if (current.state.compositionStartIndex || current.state.compositionEndIndex)
-        return S_FALSE;
-    auto* editor = dynamic_cast<RichTextEditor*>(_host.GetFocusControl());
-    return editor && editor->ApplyClipboardBitmapPaste(content) ? S_OK : S_FALSE;
-}
-catch (const std::bad_alloc&)
-{
-    Failure::FailAllocation();
-}
-catch (const std::length_error&)
-{
-    Failure::FailUnexpected();
-}
-catch (const std::exception&)
-{
-    Failure::FailUnexpected();
+    const InputScope input(*this);
+    try
+    {
+        EmbeddedTextInputSnapshot current;
+        const auto result = ReadTextInput(current);
+        if (result != S_OK)
+            return result;
+        if (current.revision != revision || current.focusId != focusId)
+            return HRESULT_FROM_WIN32(ERROR_REVISION_MISMATCH);
+        if (current.state.readOnly)
+            return E_ACCESSDENIED;
+        if (current.state.compositionStartIndex || current.state.compositionEndIndex)
+            return S_FALSE;
+        auto* editor = dynamic_cast<RichTextEditor*>(_host.GetFocusControl());
+        return editor && editor->ApplyClipboardBitmapPaste(content) ? S_OK : S_FALSE;
+    }
+    catch (const std::bad_alloc&)
+    {
+        Failure::FailAllocation();
+    }
+    catch (const std::length_error&)
+    {
+        Failure::FailUnexpected();
+    }
+    catch (const std::exception&)
+    {
+        Failure::FailUnexpected();
+    }
 }
 HRESULT EmbeddedHost::TransformClipboardPaste(uint64_t revision, uint64_t focusId, const TextClipboardContent& content, std::wstring& replacement) noexcept
-try
 {
     const Failure::Scope failureScope;
-    EmbeddedTextInputSnapshot current;
-    const auto result = ReadTextInput(current);
-    if (result != S_OK)
-        return result;
-    if (current.revision != revision || current.focusId != focusId)
-        return HRESULT_FROM_WIN32(ERROR_REVISION_MISMATCH);
-    if (current.state.readOnly)
-        return E_ACCESSDENIED;
-    if (current.state.compositionStartIndex || current.state.compositionEndIndex)
-        return S_FALSE;
-    auto* editor = dynamic_cast<RichTextEditor*>(_host.GetFocusControl());
-    if (! editor)
-        return E_NOTIMPL;
-    bool stale = false;
-    if (editor->TryPrepareClipboardPaste(content, replacement, &stale))
+    const InputScope input(*this);
+    try
+    {
+        EmbeddedTextInputSnapshot current;
+        const auto result = ReadTextInput(current);
+        if (result != S_OK)
+            return result;
+        if (current.revision != revision || current.focusId != focusId)
+            return HRESULT_FROM_WIN32(ERROR_REVISION_MISMATCH);
+        if (current.state.readOnly)
+            return E_ACCESSDENIED;
+        if (current.state.compositionStartIndex || current.state.compositionEndIndex)
+            return S_FALSE;
+        auto* editor = dynamic_cast<RichTextEditor*>(_host.GetFocusControl());
+        if (! editor)
+            return E_NOTIMPL;
+        bool stale = false;
+        if (editor->TryPrepareClipboardPaste(content, replacement, &stale))
+            return S_OK;
+        if (stale)
+            return E_ABORT;
+        if (! content.filePaths.empty() || (content.hasHtmlFragment && content.text.empty()))
+            return S_FALSE;
+        // Rich source paste preserves CR/LF spelling. Ordinary TextField clients retain service normalization.
+        replacement = content.text;
         return S_OK;
-    if (stale)
-        return E_ABORT;
-    if (! content.filePaths.empty() || (content.hasHtmlFragment && content.text.empty()))
-        return S_FALSE;
-    // Rich source paste preserves CR/LF spelling. Ordinary TextField clients retain service normalization.
-    replacement = content.text;
-    return S_OK;
-}
-catch (const std::bad_alloc&)
-{
-    Failure::FailAllocation();
-}
-catch (const std::length_error&)
-{
-    Failure::FailUnexpected();
-}
-catch (const std::exception&)
-{
-    Failure::FailUnexpected();
+    }
+    catch (const std::bad_alloc&)
+    {
+        Failure::FailAllocation();
+    }
+    catch (const std::length_error&)
+    {
+        Failure::FailUnexpected();
+    }
+    catch (const std::exception&)
+    {
+        Failure::FailUnexpected();
+    }
 }
 HRESULT EmbeddedHost::ApplyTextInput(uint64_t revision, const NativeTextInputState& state, EmbeddedTextInputAction action) noexcept
 {
     const Failure::Scope failureScope;
+    const InputScope input(*this);
     if (! _state || ! _state->graphics)
         return E_UNEXPECTED;
     if (_state->graphics->_state->thread != GetCurrentThreadId())
@@ -1565,6 +1626,7 @@ HRESULT EmbeddedHost::GetTextInputRangeBounds(uint64_t revision, size_t start, s
 void EmbeddedHost::CancelTextInput() noexcept
 {
     const Failure::Scope failureScope;
+    const InputScope input(*this);
     if (! _state || (_state->graphics && _state->graphics->_state->thread != GetCurrentThreadId()))
         return;
     ++_state->revision;

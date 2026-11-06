@@ -70,6 +70,6 @@ pilot nor the skipped main-push paired job establishes accepted non-regression o
 - Complete physical ARM64/device-removal, touch, real IME, screen-reader and consumer product/pin
   qualification. No physical devices were available for this local session.
 
-The active [qualification plan](../../../Specs/Plans/WIP/ConsumerUiQualification_2026-10-11.md)
+The active [qualification plan](../../../Specs/Plans/Done/ConsumerUiQualification_2026-10-11.md)
 tracks these gates. This evidence-only record changes no UI visuals, so gallery regeneration is
 not required.

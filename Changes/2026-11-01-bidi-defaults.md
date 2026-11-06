@@ -1,1 +1,0 @@
-- Correct first-strong paragraph direction for unassigned Unicode 17 scalars and explicit noncharacter/default-ignorable exceptions using the pinned DerivedBidiClass data. A focused pure bidi probe passed; complete native host qualification remains pending.

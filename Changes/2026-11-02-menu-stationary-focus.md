@@ -1,1 +1,0 @@
-- Preserve keyboard focus in an open submenu when Windows delivers a stationary pointer move to an ancestor; genuine pointer movement continues to transfer hover ownership.

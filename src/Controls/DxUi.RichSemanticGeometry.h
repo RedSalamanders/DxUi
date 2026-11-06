@@ -121,6 +121,8 @@ public:
     [[nodiscard]] HRESULT TryLineBoundary(std::size_t offset, bool end, std::size_t& output) const;
     std::pair<std::size_t, std::size_t> VisibleRange(float top, float bottom) const;
     [[nodiscard]] HRESULT TryVisibleRange(float top, float bottom, std::pair<std::size_t, std::size_t>& output) const;
+    // The retained editor opts into per-box content ink for diagram structure;
+    // explicit snapshot/export callers retain their decoration/stroke contract.
     void Draw(ID2D1RenderTarget* target,
               ID2D1Brush* text,
               ID2D1Brush* decoration,
@@ -133,7 +135,9 @@ public:
               ID2D1Brush* quoteFill                    = nullptr,
               const DiagramColorContext* diagramColors = nullptr,
               ID2D1Brush* calloutAccent                = nullptr,
-              ID2D1Brush* propertiesInk                = nullptr) const;
+              ID2D1Brush* propertiesInk                = nullptr,
+              bool diagramContentInk                   = false,
+              ID2D1Brush* diagramLabelFill             = nullptr) const;
     [[nodiscard]] HRESULT TryDraw(ID2D1RenderTarget* target,
                                   ID2D1Brush* text,
                                   ID2D1Brush* decoration,
@@ -146,7 +150,9 @@ public:
                                   ID2D1Brush* quoteFill                    = nullptr,
                                   const DiagramColorContext* diagramColors = nullptr,
                                   ID2D1Brush* calloutAccent                = nullptr,
-                                  ID2D1Brush* propertiesInk                = nullptr) const;
+                                  ID2D1Brush* propertiesInk                = nullptr,
+                                  bool diagramContentInk                   = false,
+                                  ID2D1Brush* diagramLabelFill             = nullptr) const;
 
 private:
     struct State;

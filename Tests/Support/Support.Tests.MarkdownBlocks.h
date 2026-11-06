@@ -627,8 +627,10 @@ inline std::wstring ModelSignature(const FlowchartModel& model)
     result.push_back(L'|');
     for (const auto& edge : model.edges)
     {
-        result.append(std::to_wstring(edge.from)).push_back(L'>');
-        result.append(std::to_wstring(edge.to)).push_back(L':');
+        // This independent corpus describes directed relationships. Authored
+        // layout order is checked separately by the native geometry fixtures.
+        result.append(std::to_wstring(edge.markerAtStart ? edge.to : edge.from)).push_back(L'>');
+        result.append(std::to_wstring(edge.markerAtStart ? edge.from : edge.to)).push_back(L':');
         result.push_back(edge.relation == FlowchartRelation::Inheritance   ? L'I'
                          : edge.relation == FlowchartRelation::Aggregation ? L'G'
                          : edge.relation == FlowchartRelation::Composition ? L'C'
@@ -759,13 +761,14 @@ template <typename Check> inline void CheckFamilyGrammar(Check&& check)
         check(rejected->outcome != FlowchartOutcome::Prepared && rejected->source == source && rejected->nodes.empty() && rejected->groups.empty(),
               "unclosed, empty and conflicting groups preserve exact source without a partial graph");
     }
-    for (const auto& [source, from, to] :
-         {std::tuple{L"classDiagram\nInterface <|.. Implementation\n", 1u, 0u}, std::tuple{L"classDiagram\nImplementation ..|> Interface\n", 0u, 1u}})
+    for (const auto& [source, markerAtStart] :
+         {std::pair{L"classDiagram\nInterface <|.. Implementation\n", true}, std::pair{L"classDiagram\nImplementation ..|> Interface\n", false}})
     {
         parser.Begin(source, 1u);
         const auto model = Complete(parser);
-        check(model->outcome == FlowchartOutcome::Prepared && model->edges.size() == 1u && model->edges[0].from == from && model->edges[0].to == to &&
-                  model->edges[0].relation == FlowchartRelation::Realization && model->edges[0].style == FlowchartLineStyle::Dotted,
+        check(model->outcome == FlowchartOutcome::Prepared && model->edges.size() == 1u && model->edges[0].from == 0u && model->edges[0].to == 1u &&
+                  model->edges[0].markerAtStart == markerAtStart && model->edges[0].relation == FlowchartRelation::Realization &&
+                  model->edges[0].style == FlowchartLineStyle::Dotted,
               "class realization uses a dotted line and hollow inheritance endpoint in either spelling");
     }
     parser.Begin(L"classDiagram\nClient .. Service\n", 1u);
@@ -785,9 +788,9 @@ template <typename Check> inline void CheckFamilyGrammar(Check&& check)
         const auto source = std::wstring(L"classDiagram\nA ") + op + L" B\n";
         parser.Begin(source, 1u);
         const auto result = Complete(parser);
-        check(result->outcome == FlowchartOutcome::Prepared && result->edges.size() == 1u && result->edges[0].from == (reverse ? 1u : 0u) &&
-                  result->edges[0].to == (reverse ? 0u : 1u) && result->edges[0].relation == relation && result->edges[0].style == style,
-              "composition and aggregation preserve their diamond endpoint and line style");
+        check(result->outcome == FlowchartOutcome::Prepared && result->edges.size() == 1u && result->edges[0].from == 0u && result->edges[0].to == 1u &&
+                  result->edges[0].markerAtStart == reverse && result->edges[0].relation == relation && result->edges[0].style == style,
+              "composition and aggregation preserve authored node order, their diamond endpoint and line style independently");
     }
     parser.Begin(L"classDiagram\nA : +size: int\nA : +draw()\nA : +other: int\n<<interface>> A\n", 1u);
     const auto compartments = Complete(parser);
@@ -806,10 +809,10 @@ template <typename Check> inline void CheckFamilyGrammar(Check&& check)
           "excess class compartments preserve source and discard staged graph");
     parser.Begin(L"classDiagram\nInterface \"1\" <|.. \"0..*\" Implementation : uses\n", 1u);
     const auto multiplicities = Complete(parser);
-    check(multiplicities->outcome == FlowchartOutcome::Prepared && multiplicities->edges.size() == 1u && multiplicities->edges[0].from == 1u &&
-              multiplicities->edges[0].to == 0u && multiplicities->edges[0].fromCardinality == L"0..*" && multiplicities->edges[0].toCardinality == L"1" &&
-              multiplicities->edges[0].label == L"uses",
-          "class cardinalities follow their original endpoints when relations reverse");
+    check(multiplicities->outcome == FlowchartOutcome::Prepared && multiplicities->edges.size() == 1u && multiplicities->edges[0].from == 0u &&
+              multiplicities->edges[0].to == 1u && multiplicities->edges[0].fromCardinality == L"1" && multiplicities->edges[0].toCardinality == L"0..*" &&
+              multiplicities->edges[0].markerAtStart && multiplicities->edges[0].label == L"uses",
+          "class cardinalities stay on their authored endpoints independently of the realization marker");
     parser.Begin(L"classDiagram\nA \"invalid!\" --> B\n", 1u);
     const auto invalidMultiplicity = Complete(parser);
     check(invalidMultiplicity->outcome == FlowchartOutcome::Unsupported && invalidMultiplicity->nodes.empty(),

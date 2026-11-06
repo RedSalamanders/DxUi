@@ -560,9 +560,12 @@ void TestRichMathPreparedStyleSpacingScriptsAndLimits()
             "bold symbols preserve ordinary math italics while mathnormal restores scoped default weight and slant");
     const auto radical = prepare(L"\\sqrt{x}"), accented = prepare(L"\\hat{x}"), plain = prepare(L"x"), fenced = prepare(L"\\left(x\\right)"),
                sizedFence = prepare(L"\\Big(");
-    Require(radical->Size().width > plain->Size().width && radical->Size().height > plain->Size().height && accented->Size().height > plain->Size().height &&
-                fenced->Size().height > plain->Size().height && sizedFence->Size().height > plain->Size().height,
-            "radical, accent and fixed or dynamic delimiters contribute their own measured geometry");
+    // A close accent or ordinary delimiter can fit the existing font strut.
+    // Requiring a larger line box here pinned the excessive gaps this fixes.
+    Require(radical->Size().width > plain->Size().width && radical->Size().height > plain->Size().height &&
+                (! accented->StrokeLayouts().empty() || ! accented->VariantLayouts().empty()) && fenced->Size().width > plain->Size().width &&
+                (! fenced->StrokeLayouts().empty() || ! fenced->VariantLayouts().empty()) && sizedFence->Size().height > plain->Size().height,
+            "radicals and explicit large delimiters reserve size while close accents and ordinary fences retain real measured decoration");
 
     const auto inlineSum = prepare(L"\\sum_{i}^{n}"), displaySum = prepare(L"\\sum_{i}^{n}", true), forcedLimits = prepare(L"\\sum\\limits_{i}^{n}");
     const auto& inlineGlyphs  = inlineSum->GlyphLayouts();
@@ -598,9 +601,12 @@ void TestRichMathPreparedStyleSpacingScriptsAndLimits()
     const auto raggedMatrix = prepare(L"\\begin{matrix}a&b\\\\c\\end{matrix}");
     Require(raggedMatrix->GlyphLayouts().size() == 3u && raggedMatrix->Size().width > 0.f && raggedMatrix->Size().height > 0.f,
             "a ragged matrix prepares visible cells and an implicit empty cell");
-    const auto substack = prepare(L"\\substack{i=0\\\\j=1}");
-    Require(substack->Size().height > ordinaryStyle->Size().height && ! substack->GlyphLayouts().empty(),
-            "substack publishes distinct measured rows in native geometry");
+    const auto substack      = prepare(L"\\substack{i=0\\\\j=1}");
+    const auto substackFirst = findText(substack->GlyphLayouts(), L"i"), substackSecond = findText(substack->GlyphLayouts(), L"j");
+    Require(substackFirst != substack->GlyphLayouts().end() && substackSecond != substack->GlyphLayouts().end() &&
+                std::abs(substackFirst->font - scriptStyle->GlyphLayouts()[0u].font) < .001f && std::abs(substackSecond->font - substackFirst->font) < .001f &&
+                substackSecond->origin.y - substackFirst->origin.y >= substackFirst->font * .8f,
+            "substack publishes distinct centered rows with the independently requested script style");
     const auto slashFences = prepare(L"\\left/\\frac{x}{y}\\right\\backslash");
     Require(slashFences->Size().width > 0.f && slashFences->Size().height > 0.f &&
                 slashFences->VariantLayouts().size() + slashFences->StrokeLayouts().size() >= 2u,
@@ -818,14 +824,23 @@ void TestRichSemanticNativeMathematicsAndBroaderMermaid()
     Require(genericDocument->Map().Source() == genericSource && genericDiagram != genericDocument->Elements().end() &&
                 genericDiagram->name.find(L"List<int>") != std::wstring::npos,
             "class generic semantic alternative exposes the displayed type and preserves exact source");
-    const std::wstring sequenceSource = L"```mermaid\nsequenceDiagram\nparticipant A as Alpha\nparticipant B as Beta\nA->>B: hello\nB-->>A: reply\n```\n";
+    const std::wstring sequenceSource = L"**Before**\r\n\r\n```mermaid\r\nsequenceDiagram\r\nactor A as Alpha\r\nparticipant B as Beta\r\nautonumber\r\n"
+                                        L"Note left of A: first note\r\nA->B: hello\r\nNote over B,A: shared note\r\nB-->A: reply\r\n"
+                                        L"Note right of B: final note\r\n```\r\n\r\n*After*\r\n";
     const auto sequenceDocument       = RichSemanticDocumentTests::Build(sequenceSource, MarkdownProfile::RichMarkdown);
     const auto sequenceDiagram        = std::ranges::find(sequenceDocument->Elements(), SemanticRole::Diagram, &SemanticElement::role);
     Require(sequenceDocument->Map().Source() == sequenceSource && sequenceDiagram != sequenceDocument->Elements().end() &&
                 sequenceDiagram->name.starts_with(L"Sequence diagram") && sequenceDiagram->name.find(L"Alpha") != std::wstring::npos &&
                 sequenceDiagram->name.find(L"Beta") != std::wstring::npos && sequenceDiagram->name.find(L"hello") != std::wstring::npos &&
-                sequenceDiagram->name.find(L"reply") > sequenceDiagram->name.find(L"hello"),
-            "sequence semantic alternative retains participants and chronological messages with exact source");
+                sequenceDiagram->name.find(L"1. hello") != std::wstring::npos && sequenceDiagram->name.find(L"2. reply") != std::wstring::npos &&
+                sequenceDiagram->name.find(L"first note") < sequenceDiagram->name.find(L"1. hello") &&
+                sequenceDiagram->name.find(L"1. hello") < sequenceDiagram->name.find(L"shared note") &&
+                sequenceDiagram->name.find(L"shared note") < sequenceDiagram->name.find(L"2. reply") &&
+                sequenceDiagram->name.find(L"2. reply") < sequenceDiagram->name.find(L"final note") &&
+                std::ranges::count(sequenceDocument->Elements(), SemanticRole::Diagram, &SemanticElement::role) == 1 &&
+                sequenceDocument->Map().Display().find(L"Before") != std::wstring::npos &&
+                sequenceDocument->Map().Display().find(L"After") != std::wstring::npos && sequenceDocument->Diagnostics().empty(),
+            "extended sequence alternative retains aliases, notes and numbered message order with exact source and rich neighbors");
     const std::wstring pieSource = L"```mermaid\npie showData title Inventory\n\"One\": 25\n\"Three\": 75\n```\n";
     const auto pieDocument       = RichSemanticDocumentTests::Build(pieSource, MarkdownProfile::RichMarkdown);
     const auto pieDiagram        = std::ranges::find(pieDocument->Elements(), SemanticRole::Diagram, &SemanticElement::role);
@@ -924,6 +939,21 @@ void TestRichSemanticNativeMathematicsAndBroaderMermaid()
 void TestRichSemanticDocumentStructuralStyleValues()
 {
     RichSemanticTests::Run(RichSemanticDocumentTests::StructuralStyleValues);
+}
+void TestRichSemanticUnorderedTasksUseOneVisibleMarker()
+{
+    using namespace DxUi::RichText;
+    const std::wstring source = L"- [x] done\n- [ ] todo\n- plain\n\n1. [x] numbered\n";
+    const auto document       = RichSemanticDocumentTests::Build(source);
+    const auto display        = document->Map().Display();
+    Require(document->Map().Source() == source && display.starts_with(L"\u2611 done\n\u2610 todo\n\u2022 plain\n") &&
+                display.find(L"1. \u2611 numbered") != std::wstring_view::npos,
+            "unordered tasks use their checkbox alone while ordinary bullets and ordered task numbering remain visible");
+    for (const auto& element : document->Elements())
+        if (element.role == SemanticRole::Task)
+            Require(document->Map().Source().substr(element.taskMarker.first, element.taskMarker.last - element.taskMarker.first) ==
+                        (element.task == MarkdownTask::Checked ? L"[x]" : L"[ ]"),
+                    "task accessibility and interactions retain the exact original checkbox source token");
 }
 void TestRichSemanticDocumentSourceFormatOwnership()
 {
@@ -1088,6 +1118,7 @@ void RunRichSemanticDocumentTests()
     DXUI_RUN_TEST(TestRichSemanticDiagramSdkGeometryAndSourceCarets);
     DXUI_RUN_TEST(TestRichSemanticDiagramPositionedRaster);
     DXUI_RUN_TEST(TestRichSemanticDocumentStructuralStyleValues);
+    DXUI_RUN_TEST(TestRichSemanticUnorderedTasksUseOneVisibleMarker);
     DXUI_RUN_TEST(TestRichSemanticDocumentSourceFormatOwnership);
     DXUI_RUN_TEST(TestRichSemanticDocumentDirectedValues);
     DXUI_RUN_TEST(TestRichSemanticDocumentNativeHtmlAndLinkPresentation);

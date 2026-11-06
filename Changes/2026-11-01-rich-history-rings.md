@@ -1,1 +1,0 @@
-- Use bounded snapshot rings for undo and redo, retaining atomic failure behavior and held revisions.

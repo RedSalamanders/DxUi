@@ -4,7 +4,7 @@ This packet records the bounded test-harness diagnostic added after PR #86's
 `0dbbad09e10d9e71873f2ac37b3b1765b33930b5`. It exercises library-owned fake desktops and
 read-only Windows queries, without consumer repositories or services. Separate evidence rows record the
 explicitly approved local x64 foreground runs under the restoring lease and its visible 30-second countdown.
-The [qualification ledger](../../../Specs/Plans/WIP/ConsumerUiQualification_2026-10-11.md#bounded-focus-capture-diagnostics-18-october-2026)
+The [qualification ledger](../../../Specs/Plans/Done/ConsumerUiQualification_2026-10-11.md#bounded-focus-capture-diagnostics-18-october-2026)
 owns the remaining native-platform, foreground, resource, performance and product acceptance.
 
 [Evidence summary](evidence.json) binds the changed source bytes, executable/receipt hashes and recorded outcomes.

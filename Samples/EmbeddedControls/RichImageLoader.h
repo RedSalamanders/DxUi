@@ -282,10 +282,14 @@ private:
                 }
 #endif
                 std::shared_ptr<const DxUi::RichText::RichImage> image;
-                const auto status = ! state.allowNetworkFiles && request.FilePath().starts_with(L"\\\\") ? E_ACCESSDENIED
-                                    : SUCCEEDED(factoryResult)
-                                        ? DxUi::RichText::RichImage::LoadFile(factory.get(), request.FilePath(), image, request.Cancellation())
-                                        : factoryResult;
+                const auto kind    = request.SourceKind();
+                const auto path    = kind == DxUi::RichText::RichImageSourceKind::NetworkFile ? request.Source() : request.FilePath();
+                const bool file    = kind == DxUi::RichText::RichImageSourceKind::LocalFile || kind == DxUi::RichText::RichImageSourceKind::NetworkFile;
+                const bool network = kind == DxUi::RichText::RichImageSourceKind::NetworkFile || path.starts_with(L"\\\\");
+                const auto status  = ! file                                 ? HRESULT_FROM_WIN32(ERROR_NOT_SUPPORTED)
+                                     : network && ! state.allowNetworkFiles ? E_ACCESSDENIED
+                                     : SUCCEEDED(factoryResult) ? DxUi::RichText::RichImage::LoadFile(factory.get(), path, image, request.Cancellation())
+                                                                : factoryResult;
                 {
                     std::lock_guard lock(state.mutex);
                     state.current = {};

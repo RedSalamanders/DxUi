@@ -1,1 +1,0 @@
-- Preserve surrounding Markdown style wrappers when inserting an image inside their source body; native qualification remains pending.

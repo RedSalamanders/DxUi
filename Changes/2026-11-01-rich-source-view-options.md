@@ -1,1 +1,0 @@
-- Added RichTextEditor font zoom, explicit tab stops and opt-in monospace Source view, preserving source, selection, history and focus.

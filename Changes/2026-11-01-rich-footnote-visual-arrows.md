@@ -1,1 +1,0 @@
-- Navigate reordered rich-text footnotes in visual order while preserving ownership of source caret sites.

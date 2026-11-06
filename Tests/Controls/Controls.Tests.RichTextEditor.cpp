@@ -17,6 +17,7 @@
 #include <DxUi/ControlCatalog.h>
 #include <DxUi/Failure.h>
 #include <DxUi/RichSemanticDocument.h>
+#include <array>
 #include <chrono>
 #include <iostream>
 #include <stdexcept>
@@ -109,6 +110,187 @@ void TestRichTextEditorTransactionsAndValidation()
     editor.SetEnabled(true);
     editor.SetText(L"new");
     Require(! editor.CanUndo() && ! editor.CanRedo() && changes == 3, "SetText resets history without application notification");
+}
+
+void TestRichTextEditorDocumentExchangeRetainsIndependentHistory()
+{
+    RichTextEditor editor(L"alpha\r\n");
+    editor.SetSelection({5, 0});
+    Require(editor.ReplaceSelection(L"first") && editor.ReplaceSelection(L"!") && editor.Undo(), "seed the first Undo and Redo histories");
+    const auto first          = editor.Snapshot();
+    const auto firstSelection = editor.GetSelection();
+    Document other(L"beta\U0001f600\n");
+    other.SetSelection({4, 0});
+    Require(other.ReplaceSelection(L"second"), "seed the second independent history");
+    const auto second          = other.Snapshot();
+    const auto secondSelection = other.GetSelection();
+    unsigned edits{}, selections{};
+    editor.SetOnTextChanged([&] { ++edits; });
+    editor.SetOnSelectionChanged([&] { ++selections; });
+    for (unsigned turn = 0; turn < 3; ++turn)
+    {
+        Require(editor.ExchangeDocumentState(other) && editor.Snapshot().IsSameRevision(second) && editor.GetSelection() == secondSelection &&
+                    other.Snapshot().IsSameRevision(first) && other.GetSelection() == firstSelection && edits == turn * 4u,
+                "document exchange retains exact immutable source and oriented selection without a text-edit callback");
+        Require(editor.Undo() && editor.GetText() == L"beta\U0001f600\n" && editor.Redo() && editor.GetText() == second.Text(),
+                "second document Undo and Redo stay independent");
+        Require(editor.ExchangeDocumentState(other) && editor.Snapshot().IsSameRevision(first) && editor.GetSelection() == firstSelection && editor.CanUndo() &&
+                    editor.CanRedo(),
+                "returning to the first document retains both history branches");
+        Require(editor.Redo() && editor.GetText() == L"first!\r\n" && editor.Undo() && editor.GetText() == first.Text(),
+                "the original Redo branch survives repeated document switches");
+    }
+    Require(selections >= 6u, "each accepted binding exchange publishes its source selection");
+    editor.SetReadOnly(true);
+    Require(! editor.ExchangeDocumentState(other) && editor.Snapshot().IsSameRevision(first) && other.Snapshot().IsSameRevision(second),
+            "read-only refusal retains both complete documents");
+    editor.SetReadOnly(false);
+    editor.SetEnabled(false);
+    Require(! editor.ExchangeDocumentState(other), "disabled document exchange is atomic");
+    editor.SetEnabled(true);
+    Require(other.ReplaceTransient(L"preview", {0, 0}) && ! editor.ExchangeDocumentState(other) && editor.Snapshot().IsSameRevision(first),
+            "an incoming transient text-service preview cannot be detached from its owner");
+    std::unique_ptr<RichTextEditor> retiring = std::make_unique<RichTextEditor>(L"owned");
+    Document replacement(L"replacement");
+    retiring->SetOnSelectionChanged([&] { retiring.reset(); });
+    Require(retiring->ExchangeDocumentState(replacement) && ! retiring && replacement.Text() == L"owned",
+            "a binding selection callback may retire its editor after the exchange commits");
+    AttachedHostWindow window;
+    auto owned   = std::make_unique<RichTextEditor>(L"# Alpha");
+    auto* native = owned.get();
+    native->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    native->SetMarkdownRenderingEnabled(true);
+    window.Host().SetRoot(std::move(owned));
+    ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+    RenderEditor(window);
+    Require(static_cast<bool>(native->GetSemanticDocument()), "first binding publishes native Markdown");
+    Document equalRevision(L"# Beta");
+    Require(native->Revision() == equalRevision.Revision() && native->ExchangeDocumentState(equalRevision) && ! native->GetMarkdownSyntax() &&
+                ! native->GetSemanticDocument(),
+            "equal numeric revisions in another document cannot expose old syntax or semantic objects");
+    RenderEditor(window);
+    Require(native->GetSemanticDocument() && native->GetSemanticDocument()->Map().Source() == L"# Beta" && equalRevision.Text() == L"# Alpha" &&
+                ! native->CanUndo(),
+            "replacement binding prepares its own source without adding an Undo entry");
+}
+
+void TestRichTextEditorBlockInsertWrapsExactSelection()
+{
+    struct Fixture
+    {
+        std::wstring_view source;
+        Selection selection;
+        std::wstring_view quote, code;
+    };
+    constexpr std::array fixtures{
+        Fixture{L"before selected after", {7u, 15u}, L"before \r\n\r\n> selected\r\n\r\n after", L"before \r\n\r\n```text\r\nselected\r\n```\r\n\r\n after"},
+        Fixture{L"one\n\nthree\n", {0u, 11u}, L"> one\n> \n> three\n", L"```text\none\n\nthree\n```\n"},
+        Fixture{L"α 😀\r\nβ", {0u, 7u}, L"> α 😀\r\n> β", L"```text\r\nα 😀\r\nβ\r\n```"},
+        Fixture{L"a\rb\r", {0u, 4u}, L"> a\r> b\r", L"```text\ra\rb\r```\r"},
+        Fixture{L"head\n\none\r\ntwo\rtail\n\nend", {6u, 19u}, L"head\n\n> one\r\n> two\r> tail\n\nend", L"head\n\n```text\none\r\ntwo\rtail\n```\n\nend"},
+        Fixture{L"```\ncode\n```", {0u, 12u}, L"> ```\n> code\n> ```", L"````text\n```\ncode\n```\n````"}};
+    for (const auto mode : {ViewMode::Rich, ViewMode::Source})
+        for (const auto& fixture : fixtures)
+            for (const bool quote : {false, true})
+                for (const bool backwards : {false, true})
+                {
+                    RichTextEditor editor{std::wstring(fixture.source)};
+                    editor.SetViewMode(mode);
+                    const Selection before = backwards ? Selection{fixture.selection.caret, fixture.selection.anchor} : fixture.selection;
+                    editor.SetSelection(before);
+                    const auto snapshot = editor.Snapshot();
+                    size_t changes      = 0u;
+                    editor.SetOnTextChanged([&] { ++changes; });
+                    Require(editor.WrapSelectionInMarkdownBlock(quote ? MarkdownBlockKind::BlockQuote : MarkdownBlockKind::FencedCode,
+                                                                quote ? std::wstring_view{} : std::wstring_view(L"text")),
+                            "Insert transforms selected source in either presentation mode");
+                    Require(editor.GetText() == (quote ? fixture.quote : fixture.code) && changes == 1u && editor.CanUndo(),
+                            "block insertion preserves exact selected and outside spelling with one notification");
+                    const auto after = editor.GetSelection();
+                    Require((after.anchor > after.caret) == backwards, "block insertion retains selection direction");
+                    if (! quote)
+                        Require(editor.GetText().substr(after.Start(), after.End() - after.Start()) ==
+                                    fixture.source.substr(before.Start(), before.End() - before.Start()),
+                                "fenced code keeps the exact original payload selected");
+                    const auto transformed = editor.Snapshot();
+                    Require(editor.Undo() && editor.Snapshot().IsSameRevision(snapshot) && editor.GetSelection() == before && changes == 2u &&
+                                ! editor.CanUndo(),
+                            "one undo restores exact source, direction and prior history");
+                    Require(editor.Redo() && editor.Snapshot().IsSameRevision(transformed) && editor.GetSelection() == after && changes == 3u &&
+                                ! editor.CanRedo(),
+                            "one redo restores the entire block transformation and selection");
+                }
+}
+
+void TestRichTextEditorBlockInsertDeclinesAtomically()
+{
+    RichTextEditor editor(L"retain this source");
+    editor.SetSelection({0u, 6u});
+    const auto original = editor.Snapshot();
+    const auto before   = editor.GetSelection();
+    size_t changes      = 0u;
+    editor.SetOnTextChanged([&] { ++changes; });
+    const auto unchanged = [&]
+    {
+        Require(editor.Snapshot().IsSameRevision(original) && editor.GetSelection() == before && ! editor.CanUndo() && ! editor.CanRedo() && changes == 0u,
+                "declined block insertion preserves exact source, selection, history and notifications");
+    };
+    editor.SetReadOnly(true);
+    Require(! editor.WrapSelectionInMarkdownBlock(MarkdownBlockKind::BlockQuote), "read-only refuses block insertion");
+    unchanged();
+    editor.SetReadOnly(false);
+    editor.SetEnabled(false);
+    Require(! editor.WrapSelectionInMarkdownBlock(MarkdownBlockKind::FencedCode), "disabled refuses block insertion");
+    unchanged();
+    editor.SetEnabled(true);
+    Require(! editor.WrapSelectionInMarkdownBlock(MarkdownBlockKind::Paragraph), "unsupported block kind is checked");
+    unchanged();
+    for (const auto language : {std::wstring_view(L"bad\ninfo"), std::wstring_view(L"bad`info"), std::wstring_view(L"a\0b", 3u)})
+    {
+        Require(! editor.WrapSelectionInMarkdownBlock(MarkdownBlockKind::FencedCode, language), "invalid code language is checked before editing");
+        unchanged();
+    }
+    editor.SetSelection({3u, 3u});
+    Require(! editor.WrapSelectionInMarkdownBlock(MarkdownBlockKind::BlockQuote) && editor.Snapshot().IsSameRevision(original) && ! editor.CanUndo(),
+            "an empty selection is left to the application's insertion policy");
+    editor.SetText(std::wstring(Document::MaximumUnits, L'x'));
+    editor.SetSelection({4u, 8u});
+    const auto full = editor.Snapshot();
+    Require(! editor.WrapSelectionInMarkdownBlock(MarkdownBlockKind::BlockQuote) && editor.Snapshot().IsSameRevision(full) &&
+                editor.GetSelection() == Selection{4u, 8u} && ! editor.CanUndo() && changes == 0u,
+            "capacity refusal never partially replaces selected text");
+    editor.SetText(std::wstring(Document::MaximumUnits / 2u, L'`'));
+    editor.SetSelection({0u, editor.GetText().size()});
+    const auto fenceSource    = editor.Snapshot();
+    const auto fenceSelection = editor.GetSelection();
+    Require(! editor.WrapSelectionInMarkdownBlock(MarkdownBlockKind::FencedCode) && editor.Snapshot().IsSameRevision(fenceSource) &&
+                editor.GetSelection() == fenceSelection && ! editor.CanUndo() && changes == 0u,
+            "expanded code fences refuse capacity without publishing edits or history");
+    class PreviewEditor final : public RichTextEditor
+    {
+    public:
+        using RichTextEditor::ExportTextInputState;
+        using RichTextEditor::ImportTextInputState;
+        using RichTextEditor::RichTextEditor;
+        PreviewEditor(const PreviewEditor&)            = delete;
+        PreviewEditor& operator=(const PreviewEditor&) = delete;
+        PreviewEditor(PreviewEditor&&)                 = delete;
+        PreviewEditor& operator=(PreviewEditor&&)      = delete;
+    };
+    ControlHost host;
+    auto owned    = std::make_unique<PreviewEditor>(L"saved");
+    auto* preview = owned.get();
+    host.SetRoot(std::move(owned));
+    TextInputState state;
+    Require(preview->ExportTextInputState(state), "export text-service baseline");
+    state.text                 = L"preview";
+    state.selectionAnchorIndex = 0u;
+    state.caretIndex           = state.text.size();
+    Require(preview->ImportTextInputState(host, state, false), "admit an uncommitted text-service preview");
+    const auto previewSource = preview->Snapshot();
+    Require(! preview->WrapSelectionInMarkdownBlock(MarkdownBlockKind::FencedCode) && preview->Snapshot().IsSameRevision(previewSource) &&
+                preview->GetSelection() == Selection{0u, 7u} && ! preview->CanUndo(),
+            "an uncommitted text-service preview is never consumed by block insertion");
 }
 
 void TestRichTextEditorUnicodeCharacterTransactions()
@@ -1556,6 +1738,70 @@ void TestRichTextEditorNativeDiagramViewCapacityRecovery()
     RenderEditor(window);
     Require(editor->GetMarkdownRenderingStatus() == MarkdownRenderingStatus::Semantic, "undo of source cut restores the native graphic");
 }
+void TestRichTextEditorDiagramStructureUsesContentInk()
+{
+    for (unsigned variant = 0u; variant < 3u; ++variant)
+    {
+        AttachedHostWindow window;
+        auto theme          = MakeDefaultThemePalette(variant != 0u);
+        theme.highContrast  = variant == 2u;
+        theme.borderDefault = D2D1::ColorF(variant == 0u ? .85f : .25f, variant == 0u ? .85f : .25f, variant == 0u ? .85f : .25f);
+        window.Host().SetTheme(theme);
+        auto owned   = std::make_unique<RichTextEditor>(L"```mermaid\nflowchart LR\nA --> B\n```\n");
+        auto* editor = owned.get();
+        editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+        editor->SetMarkdownRenderingEnabled(true);
+        auto appearance                 = editor->GetAppearance();
+        appearance.markdownPresentation = MarkdownPresentationStyle::Subtle;
+        appearance.drawBorder           = false;
+        appearance.drawFocusIndicator   = false;
+        editor->SetAppearance(appearance);
+        window.Host().SetRoot(std::move(owned));
+        const auto scale = window.Host().GetDpi() / 96.f;
+        Require(
+            SetWindowPos(
+                window.Hwnd(), nullptr, 0, 0, static_cast<int>(640.f * scale), static_cast<int>(320.f * scale), SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE) !=
+                FALSE,
+            "diagram contrast has a stable owned viewport");
+        ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+        RenderEditor(window);
+        const auto document = editor->GetAcknowledgedSemanticDocument(window.Host());
+        Require(document != nullptr, "diagram contrast has acknowledged native content");
+        const auto diagram = std::ranges::find(document->Elements(), SemanticRole::Diagram, &SemanticElement::role);
+        Require(diagram != document->Elements().end(), "contrast fixture remains a diagram rather than source code");
+        const auto bounds = editor->GetSemanticElementBounds(window.Host(), static_cast<std::size_t>(diagram - document->Elements().begin()));
+        Require(bounds.has_value(), "native diagram exposes its actual source-backed bounds");
+        WindowHostBitmapCapture capture;
+        Require(window.Host().DebugCaptureBitmap(capture), "capture diagram structure without desktop activation");
+        const auto x     = static_cast<int>((bounds->left + bounds->right) * .5f * scale);
+        const auto y     = static_cast<int>((bounds->top + bounds->bottom) * .5f * scale);
+        const auto below = y + static_cast<int>(8.f * scale);
+        Require(x > 12 && y > 6 && x + 12 < static_cast<int>(capture.widthPx) && below < static_cast<int>(capture.heightPx),
+                "independent central-connection samples remain within the owned raster");
+        const auto background = (static_cast<std::size_t>(below) * capture.widthPx + static_cast<std::size_t>(x)) * 4u;
+        unsigned contrast{};
+        // Equal minimum-size endpoints place the unlabelled horizontal connection
+        // across the native object's center, away from text and node borders.
+        for (int dy = -4; dy <= 4; ++dy)
+            for (int dx = -10; dx <= 10; ++dx)
+            {
+                const auto pixel = (static_cast<std::size_t>(y + dy) * capture.widthPx + static_cast<std::size_t>(x + dx)) * 4u;
+                for (std::size_t channel = 0u; channel < 3u; ++channel)
+                    contrast = std::max(contrast,
+                                        static_cast<unsigned>(std::abs(static_cast<int>(capture.bgraPixels[pixel + channel]) -
+                                                                       static_cast<int>(capture.bgraPixels[background + channel]))));
+            }
+        std::cerr << "    [DIAGRAM_CONTRAST] variant=" << variant << " centralStrokeDistance=" << contrast << '\n';
+        Require(contrast >= 80u, "meaningful diagram connections use readable content ink independently of faint decorative borders");
+        const auto generation = editor->DebugGetState().layoutGeneration;
+        const auto brushes    = window.Host().DebugGetBrushCacheSize();
+        const auto source     = editor->Snapshot();
+        RenderEditor(window);
+        Require(editor->DebugGetState().layoutGeneration == generation && window.Host().DebugGetBrushCacheSize() == brushes &&
+                    editor->Snapshot().IsSameRevision(source) && ! editor->CanUndo(),
+                "content stroke selection changes no source or warm geometry/brush ownership");
+    }
+}
 void TestRichTextEditorNativeDiagramSelectionRaster()
 {
     AttachedHostWindow window;
@@ -1953,6 +2199,62 @@ void TestRichTextEditorNativeLosslessMarkdownPreparation()
 
 namespace
 {
+void TestRichTextEditorNetworkFileImagePolicy()
+{
+    struct Scenario
+    {
+        std::wstring_view base, destination, resolved;
+    };
+    constexpr Scenario scenarios[] = {{L"D:\\Writing\\Notes.md", L"//files.example.test/share/cover.bmp", L"\\\\files.example.test\\share\\cover.bmp"},
+                                      {L"D:\\Writing\\Notes.md", L"file://files.example.test/share/cover.bmp", L"\\\\files.example.test\\share\\cover.bmp"},
+                                      {L"D:\\Writing\\Notes.md", L"FILE://localhost/D:/Writing/cover.bmp", L"D:\\Writing\\cover.bmp"},
+                                      {L"\\\\files.example.test\\share\\Notes.md", L"cover.bmp", L"\\\\files.example.test\\share\\cover.bmp"}};
+    constexpr std::array<std::byte, 4> pixel{std::byte{0}, std::byte{0}, std::byte{255}, std::byte{255}};
+    std::shared_ptr<const RichImage> pixels;
+    RequireSucceeded(RichImage::CreatePbgra(1, 1, pixel, pixels), "synthetic network image pixels require no network or filesystem I/O");
+    for (const auto& scenario : scenarios)
+    {
+        AttachedHostWindow window;
+        auto owned   = std::make_unique<RichTextEditor>();
+        auto* editor = owned.get();
+        editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+        editor->SetMarkdownRenderingEnabled(true);
+        window.Host().SetRoot(std::move(owned));
+        editor->SetRemoteImagesEnabled(false);
+        editor->SetDocumentFilePath(std::wstring(scenario.base));
+        const auto source = std::wstring(L"![local](file:///D:/Writing/local.bmp)\n\n![network](") + std::wstring(scenario.destination) + L")\n";
+        editor->SetText(source);
+        RenderEditor(window);
+        std::vector<RichImageRequest> requests(0u);
+        editor->TakePendingImageRequests(requests);
+        Require(requests.size() == 1u && requests[0u].SourceKind() == RichImageSourceKind::LocalFile && requests[0u].FilePath() == L"D:\\Writing\\local.bmp",
+                "disabled remote permission admits only the absolute local drive image for every network spelling/base");
+        const auto local = requests[0u];
+        Require(editor->CompleteImageRequest(local, pixels), "publish the explicit local request through the synthetic provider");
+        Require(local.Cancelled(), "completed transport tokens retire while their decoded pixels remain cached");
+        const auto revision  = editor->Snapshot();
+        const auto selection = editor->GetSelection();
+        editor->SetRemoteImagesEnabled(true);
+        RenderEditor(window);
+        editor->TakePendingImageRequests(requests);
+        Require(requests.size() == 1u && requests[0u].SourceKind() == RichImageSourceKind::NetworkFile && requests[0u].Source() == scenario.resolved &&
+                    requests[0u].FilePath().empty() && editor->GetImageResourceStatistics().readySources == 1u,
+                "explicit permission classifies authority/UNC/relative-UNC requests separately without exposing an ungated local path");
+        const auto network = requests[0u];
+        Require(editor->CompleteImageRequest(network, pixels), "an opted-in network request accepts its matching synthetic completion");
+        RenderEditor(window);
+        Require(editor->GetImageResourceStatistics().readySources == 2u, "local and network sources retain separate owned identities");
+        editor->SetRemoteImagesEnabled(false);
+        Require(network.Cancelled() && editor->GetImageResourceStatistics().readySources == 1u && ! editor->CompleteImageRequest(network, pixels) &&
+                    local.Cancelled(),
+                "revoking permission immediately evicts network pixels and refuses late completion while preserving local pixels");
+        RenderEditor(window);
+        editor->TakePendingImageRequests(requests);
+        Require(requests.empty() && editor->GetText() == source && editor->Snapshot().IsSameRevision(revision) && editor->GetSelection() == selection &&
+                    ! editor->CanUndo() && ! editor->CanRedo(),
+                "blocked network paths cause no retries, source changes, selection moves or history entries");
+    }
+}
 void TestRichTextEditorRemoteImagePolicy()
 {
     AttachedHostWindow window;
@@ -2028,6 +2330,9 @@ void RunRichTextEditorTests()
 {
     ScopedNonActivatingTestWindows nonActivating;
     DXUI_RUN_TEST(TestRichTextEditorTransactionsAndValidation);
+    DXUI_RUN_TEST(TestRichTextEditorDocumentExchangeRetainsIndependentHistory);
+    DXUI_RUN_TEST(TestRichTextEditorBlockInsertWrapsExactSelection);
+    DXUI_RUN_TEST(TestRichTextEditorBlockInsertDeclinesAtomically);
     DXUI_RUN_TEST(TestRichTextEditorUnicodeCharacterTransactions);
     DXUI_RUN_TEST(TestRichTextEditorEnterPreservesDocumentLineEndings);
     DXUI_RUN_TEST(TestRichTextEditorFormattingAndModePreserveSource);
@@ -2063,6 +2368,7 @@ void RunRichTextEditorTests()
     DXUI_RUN_TEST(TestRichTextEditorNativeFlowchartRenderingAndFallbacks);
     DXUI_RUN_TEST(TestRichTextEditorNativeDiagramViewCapacityRecovery);
     DXUI_RUN_TEST(TestRichTextEditorNativeDiagramSelectionRaster);
+    DXUI_RUN_TEST(TestRichTextEditorDiagramStructureUsesContentInk);
     DXUI_RUN_TEST(TestRichTextEditorNativeFootnoteBlockSourceEdits);
     DXUI_RUN_TEST(TestRichTextEditorNativeFootnoteResolutionAndSourceEdits);
     DXUI_RUN_TEST(TestRichTextEditorNativeParserCapacitySourceFallback);
@@ -2072,5 +2378,6 @@ void RunRichTextEditorTests()
     DXUI_RUN_TEST(TestRichTextNativeImageDecoder);
     DXUI_RUN_TEST(TestRichTextEditorNativeImageResources);
     DXUI_RUN_TEST(TestRichTextEditorRemoteImagePolicy);
+    DXUI_RUN_TEST(TestRichTextEditorNetworkFileImagePolicy);
     DXUI_RUN_TEST(TestRichTextEditorNativeImagePixels);
 }

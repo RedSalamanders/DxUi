@@ -907,7 +907,9 @@ class Parser
             }
             return Reject();
         }
-        std::wstring name(L"gathered");
+        // TeX substack is a centered script-style subarray. Keep it distinct
+        // from gathered, whose cells use display style even in inline math.
+        std::wstring name(L"subarray:c");
         AppendRowSpacings(name, depth, rows.size());
         return Make(MathKind::Matrix, std::move(name), std::move(rows), 1u);
     }

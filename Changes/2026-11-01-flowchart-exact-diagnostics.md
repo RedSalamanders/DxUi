@@ -1,1 +1,0 @@
-- Record independent exact issue codes, UTF-16 diagnostic ranges and reasons for all 105 original Mermaid flowchart examples; native corpus verification remains pending.

@@ -1,1 +1,0 @@
-- Reuse generation-owned math font constants and finalized formula geometry across width-only rich text reflow; changed resource or font identity rebuilds them. Native and performance qualification remain pending.

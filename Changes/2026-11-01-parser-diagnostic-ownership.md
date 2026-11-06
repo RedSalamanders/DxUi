@@ -1,1 +1,0 @@
-- Bind inline parser diagnostics to the canonical configuration header and retain owned paired table text until its source transaction finishes.

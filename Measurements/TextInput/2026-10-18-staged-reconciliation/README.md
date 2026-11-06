@@ -1,7 +1,7 @@
 # Staged TSF reconciliation count boundary, 18 October 2026
 
 Owner: DxUi. Shared qualification is owned by
-[ConsumerUiQualification](../../../Specs/Plans/WIP/ConsumerUiQualification_2026-10-11.md).
+[ConsumerUiQualification](../../../Specs/Plans/Done/ConsumerUiQualification_2026-10-11.md).
 The structured [evidence](evidence.json) binds the source, images, receipts and validation stages.
 Raw logs, desktop records and build images remain private under `Z:/DxUiTsf`.
 

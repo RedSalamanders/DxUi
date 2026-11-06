@@ -1,1 +1,0 @@
-- Cull offscreen rich geometry and decorations through cooperatively prepared, order-preserving paint indexes while retaining selection and resource-failure behavior.

@@ -9,6 +9,10 @@ This visual-only option preserves prepared geometry and source/history; high con
 caret lines, which remain independently navigable; omit redundant blank lines in a compact document fixture.
 The default is absent and preserves existing layout. Values and cache identity are shared by native/embedded layout.
 
+Quote and callout surfaces have six-DIP horizontal inner margins. Content, markers and nested containers share
+the same prepared inset in either reading direction; narrow frames retain at least one DIP of text width.
+`showVerticalScrollbar=true` reserves the native themed lane and paints its thumb only for actual overflow.
+
 - **Consumer supplies**: initial Markdown, a bounded rectangle, view/read-only policy and an optional text-change callback. Persistence belongs to the application.
 - **Metrics**: 8 DIP inset on each side, 6 when compact; 4 DIP corners; 1 DIP caret; 500 ms blink phase using the host clock. Wheel scrolling moves 48 DIP per detent.
 - **Document surface**: `SetAppearance` can remove the input border, blend with the window background, center a bounded text column and override body/code families, sizes, font-relative line height and heading scale or explicit per-level heading values. Defaults preserve the metrics above. Geometry, caret and accessible font attributes follow the same prepared options. Borderless keyboard focus retains a visible outline; focused high contrast retains it persistently.
@@ -71,3 +75,22 @@ the first implementation. This spec-only change leaves gallery pixels unchanged.
 The preview is a static HTML rendition using `bundle.css`; the populated harness gallery is the authoritative Direct2D capture.
 
 The continuation adds native in-document math and state/class diagrams. Use single atomic source owners, clear literal fallback with diagnostics, inherited text/selection colors, and F2 source access. Fractions and matrices reserve full line height; inline equations share the text baseline. The gallery now includes dedicated native mathematics and diagram tiles. Final physical/platform/performance qualification remains open.
+
+Arrow-label backing blends into the actual diagram surface when text reaches 4.5:1 contrast. A minimal
+neutral light/dark adjustment supports low-contrast custom palettes. Keep note/group surfaces and selected
+theme pairs distinct. Stage contrast decisions and brushes before drawing; crossing lines remain masked by
+opaque backing without adding a visible badge in ordinary readable themes.
+
+Class direction follows authored endpoints independently of its marker: LR
+`Document <|-- Markdown` keeps Document left and Markdown right. The shared
+connector remains continuous at either marker spelling. Pipeline fan-in uses
+separate box attachments and compact feasible ranks. Math accents preserve a
+positive ink gap; gathered/matrix rows and small angle delimiters follow their
+visible contents. No theme token or body typography default changes.
+
+The current native previews are the regenerated
+[Light](../../../../docs/gallery/theme-controls-light.png),
+[Dark](../../../../docs/gallery/theme-controls-dark.png) and
+[High contrast](../../../../docs/gallery/theme-controls-high-contrast.png) sheets.
+Their mathematics and diagram tiles are actual independent SDK captures;
+[generation provenance](../../../../docs/gallery/generation.json) binds their source.

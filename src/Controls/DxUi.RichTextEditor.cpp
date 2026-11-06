@@ -442,6 +442,13 @@ struct RichTextEditor::State
     RichText::SemanticBuilder semantic;
     std::vector<RichText::Detail::DisclosureOverride> disclosureStates{0u};
     wil::com_ptr<ID2D1SolidColorBrush> calloutAccent, propertiesInk;
+    wil::com_ptr<ID2D1SolidColorBrush> diagramLabelFill;
+    D2D1_COLOR_F diagramLabelColor{}, diagramLabelInk{}, diagramLabelSurface{};
+    uint64_t diagramLabelResources{}, diagramLabelBinding{};
+    static bool SameColor(D2D1_COLOR_F a, D2D1_COLOR_F b) noexcept
+    {
+        return a.r == b.r && a.g == b.g && a.b == b.b && a.a == b.a;
+    }
     D2D1_COLOR_F calloutAccentColor{}, propertiesInkColor{};
     uint64_t calloutAccentResources{}, calloutAccentBinding{}, propertiesInkResources{}, propertiesInkBinding{};
     std::shared_ptr<const RichText::MarkdownSyntax> disclosureSyntax;
@@ -562,6 +569,7 @@ struct RichTextEditor::State
     RichText::Selection publishedSelection{};
     bool publishedSelectionGesture      = false;
     uint64_t publishedSelectionRevision = 0u;
+    uint64_t publishedSelectionBinding  = 0u;
     uint64_t typographyRevision         = 0;
     uint64_t appearanceRevision         = 0;
     uint64_t bindingRevision            = 0;
@@ -633,6 +641,49 @@ RichText::SourceResult RichTextEditor::TrySetText(std::wstring_view text)
     const auto result = _state->document.TryReset(text);
     if (result != RichText::SourceResult::Success)
         return result;
+    ResetDocumentBinding();
+    return RichText::SourceResult::Success;
+}
+bool RichTextEditor::ExchangeDocumentState(RichText::Document& document)
+{
+    const Failure::Scope failureScope;
+    if (! Editable() || _state->document.transientEntry_ || document.transientEntry_ || MarkdownCommandInputBlocked(GetHost(), this))
+        return false;
+    auto& current = _state->document;
+    using std::swap;
+    swap(current.source_, document.source_);
+    swap(current.selection_, document.selection_);
+    swap(current.revision_, document.revision_);
+    swap(current.selectionEpoch_, document.selectionEpoch_);
+    const auto history = [&](auto& left, auto& right)
+    {
+        left.entries.swap(right.entries);
+        swap(left.first, right.first);
+        swap(left.count, right.count);
+    };
+    history(current.undo_, document.undo_);
+    history(current.redo_, document.redo_);
+    // Equal numeric revisions in different documents must never admit a late
+    // native/semantic callback belonging to the preceding document binding.
+    ++_state->bindingRevision;
+    _state->autoFormatRun.reset();
+    _state->smartTypingSite.reset();
+    _state->markdown.Clear();
+    _state->semantic.Clear();
+    _state->semanticRejected.reset();
+    _state->preparationRejected.reset();
+    _state->nativeObjectRejections.reset();
+    _state->sourceInk.Clear();
+    _state->sourceGuides.Clear();
+    _state->codeInkDocument.reset();
+    _state->codeInk.clear();
+    _state->codeInkStaged.clear();
+    _state->codeInkComplete = false;
+    ResetDocumentBinding(); // The final notification may retire this control.
+    return true;
+}
+void RichTextEditor::ResetDocumentBinding()
+{
     _state->highlights.clear();
     _state->decorations.clear();
     _state->decorationStatus = RichTextDecorationStatus::None;
@@ -653,10 +704,11 @@ RichText::SourceResult RichTextEditor::TrySetText(std::wstring_view text)
     if (tooltipHost)
         tooltipHost->InvalidateRichTitleTooltip(this);
     if (tooltipLifetime.expired() || GetHost() != tooltipHost || Revision() != tooltipRevision || _state->bindingRevision != tooltipBinding)
-        return RichText::SourceResult::Success;
+        return;
     RetireLayout();
+    if (tooltipLifetime.expired() || GetHost() != tooltipHost || Revision() != tooltipRevision || _state->bindingRevision != tooltipBinding)
+        return;
     SelectionChanged();
-    return RichText::SourceResult::Success;
 }
 std::wstring RichTextEditor::GetText() const
 {
@@ -1429,7 +1481,8 @@ RichText::SourceResult RichTextEditor::TrySetAppearance(const RichTextEditorAppe
         previous.bodyFontFamily != next.bodyFontFamily || previous.codeFontFamily != next.codeFontFamily || previous.mathFontFamily != next.mathFontFamily ||
         previous.headingFontSizeDip != next.headingFontSizeDip || previous.headingLineHeightMultiplier != next.headingLineHeightMultiplier ||
         previous.paragraphSpacingAfterLines != next.paragraphSpacingAfterLines || previous.listItemSpacingDip != next.listItemSpacingDip ||
-        previous.semanticSpacing != next.semanticSpacing || previous.markdownPresentation != next.markdownPresentation;
+        previous.semanticSpacing != next.semanticSpacing || previous.markdownPresentation != next.markdownPresentation ||
+        previous.strikeCompletedTasks != next.strikeCompletedTasks;
     const bool sourceInkChanged      = previous.colorizeMarkdownSource != next.colorizeMarkdownSource;
     const bool semanticPolicyChanged = previous.softBreakPolicy != next.softBreakPolicy;
     const bool enterPolicyChanged    = previous.enterPolicy != next.enterPolicy;
@@ -1450,6 +1503,7 @@ RichText::SourceResult RichTextEditor::TrySetAppearance(const RichTextEditorAppe
     value.sourceLineNumbers         = next.sourceLineNumbers;
     value.sourceWhitespaceMarks     = next.sourceWhitespaceMarks;
     value.autoParagraphDirection    = next.autoParagraphDirection;
+    value.strikeCompletedTasks      = next.strikeCompletedTasks;
     value.pasteUrlOnSelection       = next.pasteUrlOnSelection;
     value.softBreakPolicy           = next.softBreakPolicy;
     value.enterPolicy               = next.enterPolicy;
@@ -2470,6 +2524,165 @@ bool RichTextEditor::ToggleFormatting(std::wstring_view marker)
     Changed(changed);
     return changed;
 }
+bool RichTextEditor::WrapSelectionInMarkdownBlock(RichText::MarkdownBlockKind kind, std::wstring_view codeLanguage)
+{
+    const Failure::Scope failureScope;
+    using RichText::MarkdownBlockKind;
+    const bool quote = kind == MarkdownBlockKind::BlockQuote;
+    if ((! quote && kind != MarkdownBlockKind::FencedCode) || ! Editable() || _state->document.transientEntry_.has_value() ||
+        MarkdownCommandInputBlocked(GetHost(), this) || codeLanguage.size() > 255u || ! RichText::IsValidUtf16(codeLanguage) ||
+        codeLanguage.find_first_of(L"\r\n`") != codeLanguage.npos || codeLanguage.find(L'\0') != codeLanguage.npos || (quote && ! codeLanguage.empty()))
+        return false;
+    const auto before = GetSelection();
+    if (before.Start() == before.End())
+        return false;
+    const auto source     = Snapshot();
+    const auto revision   = Revision();
+    const auto sourceText = source.Text();
+    const std::wstring_view text(sourceText);
+    const auto selected         = text.substr(before.Start(), before.End() - before.Start());
+    const auto newline          = text.find_first_of(L"\r\n");
+    const std::wstring_view eol = newline == text.npos
+                                      ? std::wstring_view(L"\r\n")
+                                      : text.substr(newline, text[newline] == L'\r' && newline + 1u < text.size() && text[newline + 1u] == L'\n' ? 2u : 1u);
+    const auto trailingBreaks   = [](std::wstring_view value) noexcept
+    {
+        size_t at = value.size(), count = 0u;
+        while (at && count < 2u)
+        {
+            if (value[at - 1u] == L'\n')
+            {
+                --at;
+                if (at && value[at - 1u] == L'\r')
+                    --at;
+            }
+            else if (value[at - 1u] == L'\r')
+                --at;
+            else
+                break;
+            ++count;
+        }
+        return count;
+    };
+    const auto leadingBreaks = [](std::wstring_view value) noexcept
+    {
+        size_t at = 0u, count = 0u;
+        while (at < value.size() && count < 2u)
+        {
+            if (value[at] == L'\r')
+            {
+                ++at;
+                if (at < value.size() && value[at] == L'\n')
+                    ++at;
+            }
+            else if (value[at] == L'\n')
+                ++at;
+            else
+                break;
+            ++count;
+        }
+        return count;
+    };
+    // Admit the complete replacement before staging it. In particular, a
+    // long backtick run can otherwise duplicate the document into two fences.
+    const auto maximum = RichText::Document::MaximumUnits - (text.size() - selected.size());
+    size_t needed      = 0u;
+    const auto add     = [&](size_t amount) noexcept
+    {
+        if (amount > maximum - needed)
+            return false;
+        needed += amount;
+        return true;
+    };
+    const auto prefixLines = before.Start() ? 2u - trailingBreaks(text.substr(0u, before.Start())) : 0u;
+    if (! add(prefixLines * eol.size()) || ! add(selected.size()))
+        return false;
+    size_t endingBreaks = 0u;
+    if (quote)
+    {
+        if (! add(2u))
+            return false;
+        for (size_t index = 0u; index < selected.size(); ++index)
+        {
+            const auto ch = selected[index];
+            if (ch == L'\r' && index + 1u < selected.size() && selected[index + 1u] == L'\n')
+                ++index;
+            if ((ch == L'\r' || ch == L'\n') && index + 1u < selected.size() && ! add(2u))
+                return false;
+        }
+        // Inserted quote prefixes separate adjacent line breaks.
+        endingBreaks = trailingBreaks(selected) ? 1u : 0u;
+    }
+    else
+    {
+        size_t longest = 0u, run = 0u;
+        for (const auto ch : selected)
+        {
+            run     = ch == L'`' ? run + 1u : 0u;
+            longest = (std::max)(longest, run);
+        }
+        const auto fence = (std::max)(size_t{3u}, longest + 1u);
+        if (! add(fence) || ! add(fence) || ! add(codeLanguage.size()) || ! add(eol.size()) || (! trailingBreaks(selected) && ! add(eol.size())) ||
+            (before.End() == text.size() && trailingBreaks(selected) && ! add(eol.size())))
+            return false;
+    }
+    if (before.End() < text.size())
+    {
+        const auto breaks = endingBreaks + leadingBreaks(text.substr(before.End()));
+        if (breaks < 2u && ! add((2u - breaks) * eol.size()))
+            return false;
+    }
+    std::wstring replacement;
+    if (before.Start())
+        for (auto count = trailingBreaks(text.substr(0u, before.Start())); count < 2u; ++count)
+            replacement += eol;
+    const auto blockStart = before.Start() + replacement.size();
+    size_t bodyStart{}, bodyEnd{};
+    if (quote)
+    {
+        replacement += L"> ";
+        bodyStart = blockStart + 2u;
+        for (size_t index = 0u; index < selected.size(); ++index)
+        {
+            const auto ch = selected[index];
+            replacement += ch;
+            if (ch == L'\r' && index + 1u < selected.size() && selected[index + 1u] == L'\n')
+                replacement += selected[++index];
+            if ((ch == L'\r' || ch == L'\n') && index + 1u < selected.size())
+                replacement += L"> ";
+        }
+        bodyEnd = before.Start() + replacement.size();
+    }
+    else
+    {
+        size_t longest = 0u, run = 0u;
+        for (const auto ch : selected)
+        {
+            run     = ch == L'`' ? run + 1u : 0u;
+            longest = (std::max)(longest, run);
+        }
+        const std::wstring fence((std::max)(size_t{3u}, longest + 1u), L'`');
+        replacement += fence;
+        replacement += codeLanguage;
+        replacement += eol;
+        bodyStart = before.Start() + replacement.size();
+        replacement += selected;
+        bodyEnd = before.Start() + replacement.size();
+        if (! trailingBreaks(selected))
+            replacement += eol;
+        replacement += fence;
+        if (before.End() == text.size() && trailingBreaks(selected))
+            replacement += eol;
+    }
+    if (before.End() < text.size())
+        for (auto count = trailingBreaks(replacement) + leadingBreaks(text.substr(before.End())); count < 2u; ++count)
+            replacement += eol;
+    if (replacement.size() > RichText::Document::MaximumUnits - (text.size() - selected.size()))
+        return false;
+    const RichText::SourceEdit edit{{before.Start(), before.End()}, replacement};
+    const RichText::Selection after = before.anchor <= before.caret ? RichText::Selection{bodyStart, bodyEnd} : RichText::Selection{bodyEnd, bodyStart};
+    return ApplySourceEdits(source, revision, std::span(&edit, 1u), after);
+}
 bool RichTextEditor::ApplySourceEdits(const RichText::SourceSnapshot& expectedSource,
                                       uint64_t expectedRevision,
                                       std::span<const RichText::SourceEdit> edits,
@@ -3244,13 +3457,15 @@ void RichTextEditor::PublishSelectionChanged() noexcept
     const auto selection = GetSelection();
     const bool gesture   = _state->dragging;
     const auto revision  = Revision();
-    if (_state->publishedSelection == selection && _state->publishedSelectionGesture == gesture && _state->publishedSelectionRevision == revision)
+    if (_state->publishedSelection == selection && _state->publishedSelectionGesture == gesture && _state->publishedSelectionRevision == revision &&
+        _state->publishedSelectionBinding == _state->bindingRevision)
         return;
     // Publish before invoking user code: nested selection changes must see their
     // actual predecessor, and self-replacement cannot invalidate this delegate.
     _state->publishedSelection         = selection;
     _state->publishedSelectionGesture  = gesture;
     _state->publishedSelectionRevision = revision;
+    _state->publishedSelectionBinding  = _state->bindingRevision;
     const auto callback                = _state->onSelectionChanged;
     if (! callback)
         return;
@@ -3449,6 +3664,7 @@ void RichTextEditor::RetireLayout(bool retainGeometry) const noexcept
 {
     _state->calloutAccent.reset();
     _state->propertiesInk.reset();
+    _state->diagramLabelFill.reset();
     _state->preparedCommand.reset();
     _state->selectionMask.reset();
     _state->selectionLayer.reset();
@@ -3772,7 +3988,7 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
             const auto prepare =
                 [&](const D2D1_COLOR_F color, wil::com_ptr<ID2D1SolidColorBrush>& saved, D2D1_COLOR_F& prior, uint64_t& resources, uint64_t& binding)
             {
-                const bool same = prior.r == color.r && prior.g == color.g && prior.b == color.b && prior.a == color.a;
+                const bool same = State::SameColor(prior, color);
                 if (saved && same && resources == host.GetResourceGeneration() && binding == state.bindingRevision)
                     return;
                 auto* brush = host.GetSolidBrush(color);
@@ -3787,10 +4003,30 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
                 resources = host.GetResourceGeneration();
                 binding   = state.bindingRevision;
             };
-            if (document->HasCallouts())
+            if (document->HasCallouts() ||
+                std::ranges::any_of(document->Elements(), [](const auto& element) { return element.role == RichText::SemanticRole::Task; }))
                 prepare(host.GetTheme().accent, state.calloutAccent, state.calloutAccentColor, state.calloutAccentResources, state.calloutAccentBinding);
             if (document->HasPropertiesBody())
                 prepare(host.GetTheme().subduedText, state.propertiesInk, state.propertiesInkColor, state.propertiesInkResources, state.propertiesInkBinding);
+            if (! RichText::Detail::SemanticExtensionAccess::Diagrams(*document).empty())
+            {
+                auto style = ResolveTextFieldVisualStyle(host.GetTheme(), IsEnabled(), IsHovered(), HasFocus(), HasFocus() && host.IsKeyboardFocusVisible());
+                if (state.appearance.blendWithWindowBackground)
+                    style.fill = host.GetTheme().windowBackground;
+                auto surface          = state.appearance.markdownPresentation == RichText::MarkdownPresentationStyle::Subtle
+                                            ? ResolveMarkdownQuoteFill(host.GetTheme(), style)
+                                            : style.fill;
+                surface.a             = 1.f;
+                const bool sameColors = State::SameColor(state.diagramLabelInk, style.text) && State::SameColor(state.diagramLabelSurface, surface);
+                if (! state.diagramLabelFill || state.diagramLabelResources != host.GetResourceGeneration() ||
+                    state.diagramLabelBinding != state.bindingRevision || ! sameColors)
+                {
+                    const auto color = sameColors ? state.diagramLabelColor : RichText::Detail::ResolveDiagramLabelBackground(style.text, surface);
+                    prepare(color, state.diagramLabelFill, state.diagramLabelColor, state.diagramLabelResources, state.diagramLabelBinding);
+                    state.diagramLabelInk     = style.text;
+                    state.diagramLabelSurface = surface;
+                }
+            }
         };
         const auto viewport = TextViewport();
         if (GetHost() != &host || ! IsVisible() || viewport.right <= viewport.left || viewport.bottom <= viewport.top)
@@ -4149,6 +4385,7 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
             options.listItemSpacingDip          = appearance.listItemSpacingDip;
             options.semanticSpacing             = appearance.semanticSpacing;
             options.markdownPresentation        = appearance.markdownPresentation;
+            options.strikeCompletedTasks        = appearance.strikeCompletedTasks;
             options.codeCopyAction              = bool(state.onCodeCopyRequested);
             options.wrap                        = effectiveMode != RichText::ViewMode::Source || appearance.sourceWrap;
 
@@ -4906,7 +5143,16 @@ void RichTextEditor::Paint(ControlHost& host) const
         }
         const bool decorated =
             links.markedTextFill || ! links.inkRanges.empty() || dimmed || (state.mode == RichText::ViewMode::Rich && (links.brush || ! links.underline));
-        const RichText::Detail::DiagramColorContext diagramColors{style.text, subtleMarkdown ? host.GetTheme().borderDefault : style.caret, style.fill};
+        const RichText::Detail::DiagramColorContext diagramColors{style.text, style.text, style.fill};
+        auto diagramSurface = subtleMarkdown ? ResolveMarkdownQuoteFill(host.GetTheme(), style) : style.fill;
+        diagramSurface.a    = 1.f;
+        // Contrast and brush creation run in preparation. Selected, dimmed and
+        // stale-color passes retain their caller-resolved opaque surface.
+        auto* labelFill = ! host.GetTheme().highContrast && ! dimmed && state.diagramLabelFill && state.diagramLabelResources == host.GetResourceGeneration() &&
+                                  state.diagramLabelBinding == state.bindingRevision && State::SameColor(state.diagramLabelInk, style.text) &&
+                                  State::SameColor(state.diagramLabelSurface, diagramSurface)
+                              ? state.diagramLabelFill.get()
+                              : nullptr;
         state.layout.Draw(context,
                           subdued,
                           dimmed ? subdued : semanticDecoration,
@@ -4929,7 +5175,9 @@ void RichTextEditor::Paint(ControlHost& host) const
                                   state.propertiesInkColor.g == host.GetTheme().subduedText.g && state.propertiesInkColor.b == host.GetTheme().subduedText.b &&
                                   state.propertiesInkColor.a == host.GetTheme().subduedText.a
                               ? state.propertiesInk.get()
-                              : nullptr);
+                              : nullptr,
+                          true,
+                          labelFill);
         if (! state.overlayHighlightsDirty)
             state.decorationPaintIndex.ForEach(state.scrollDip,
                                                visibleBottom,
@@ -5269,11 +5517,9 @@ bool RichTextEditor::Erase(ControlHost& host, bool backwards, bool byWord, bool 
             {
                 first = backwards ? FindPreviousWordBoundary(text, selection.caret) : selection.caret;
                 last  = backwards ? selection.caret : FindNextWordBoundary(text, selection.caret);
-                if (_state->sourceEditing)
-                {
-                    first = std::max(first, _state->sourceEditing->region.source.first);
-                    last  = std::min(last, _state->sourceEditing->region.source.last);
-                }
+                // The source interval is presentation ownership, not an edit
+                // cage. Word deletion crosses it just like grapheme deletion;
+                // change tracking then retires/reconciles the former scope.
             }
             else
             {
@@ -5838,7 +6084,8 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
     {
         if (! IsEnabled())
             return false;
-        _state->pendingLeadSurrogate = 0;
+        if (! KeyKeepsPendingSurrogate(key))
+            _state->pendingLeadSurrogate = 0;
         const bool control = ModifiersContainCtrl(modifiers), shift = ModifiersContainShift(modifiers);
         _state->suppressTaskSpace = false;
         if (_state->taskFocusIntent)
@@ -6320,7 +6567,9 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
                     const auto snapshot  = Snapshot();
                     const auto text      = snapshot.Text();
                     RichText::MarkdownRange scope{0u, text.size()};
-                    bool eligible = _state->mode == RichText::ViewMode::Source;
+                    std::shared_ptr<const RichText::MarkdownSyntax> codeSyntax;
+                    const RichText::MarkdownNode* codeNode = nullptr;
+                    bool eligible                          = _state->mode == RichText::ViewMode::Source;
                     if (_state->sourceEditing)
                     {
                         scope    = _state->sourceEditing->region.source;
@@ -6328,13 +6577,15 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
                     }
                     else if (! eligible && _state->markdownRendering)
                     {
-                        if (const auto syntax = GetMarkdownSyntax())
-                            for (const auto& node : syntax->Nodes())
+                        codeSyntax = GetMarkdownSyntax();
+                        if (codeSyntax)
+                            for (const auto& node : codeSyntax->Nodes())
                                 if ((node.block.kind == RichText::MarkdownBlockKind::FencedCode ||
                                      node.block.kind == RichText::MarkdownBlockKind::IndentedCode) &&
                                     selection.Start() >= node.block.content.first && selection.End() <= node.block.content.last)
                                 {
                                     scope    = node.block.content;
+                                    codeNode = &node;
                                     eligible = true;
                                     break;
                                 }
@@ -6362,25 +6613,49 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
                         while (line > scope.first && text[line - 1u] != L'\n' && text[line - 1u] != L'\r')
                             --line;
                         std::vector<RichText::SourceEdit> edits(0u);
+                        std::size_t contentLine{};
                         while (line <= selection.End() && line < scope.last)
                         {
                             if (line == selection.End() && selection.Start() != selection.End())
                                 break;
-                            size_t remove = 0u;
-                            if (shift)
+                            auto lineEnd = line;
+                            while (lineEnd < scope.last && text[lineEnd] != L'\r' && text[lineEnd] != L'\n')
+                                ++lineEnd;
+                            auto insertion  = line;
+                            auto contentEnd = lineEnd;
+                            if (codeNode)
                             {
-                                if (text[line] == L'\t')
-                                    remove = 1u;
+                                while (contentLine < codeNode->lines.size() && codeNode->lines[contentLine].source.first < line)
+                                    ++contentLine;
+                                // The parser already removed quote/list prefixes.
+                                // A partially consumed tab still belongs to its
+                                // container: edit only concrete content after it.
+                                if (contentLine < codeNode->lines.size() && codeNode->lines[contentLine].source.first <= lineEnd)
+                                {
+                                    insertion  = codeNode->lines[contentLine].source.first;
+                                    contentEnd = std::min(contentEnd, codeNode->lines[contentLine].source.last);
+                                }
                                 else
-                                    while (remove < _state->appearance.sourceTabSpaces && line + remove < scope.last && text[line + remove] == L' ')
-                                        ++remove;
-                                if (remove != 0u)
-                                    edits.push_back({{line, line + remove}, {}});
+                                    insertion = scope.last;
                             }
-                            else
-                                edits.push_back({{line, line}, indent});
-                            while (line < scope.last && text[line] != L'\r' && text[line] != L'\n')
-                                ++line;
+                            if (insertion < scope.last)
+                            {
+                                size_t remove = 0u;
+                                if (shift)
+                                {
+                                    if (insertion < contentEnd && text[insertion] == L'\t')
+                                        remove = 1u;
+                                    else
+                                        while (remove < _state->appearance.sourceTabSpaces && insertion + remove < contentEnd &&
+                                               text[insertion + remove] == L' ')
+                                            ++remove;
+                                    if (remove != 0u)
+                                        edits.push_back({{insertion, insertion + remove}, {}});
+                                }
+                                else
+                                    edits.push_back({{insertion, insertion}, indent});
+                            }
+                            line = lineEnd;
                             if (line == scope.last)
                                 break;
                             if (text[line++] == L'\r' && line < scope.last && text[line] == L'\n')

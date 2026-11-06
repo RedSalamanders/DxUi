@@ -105,12 +105,13 @@ uint64_t FormField::DebugGetMeasureCount() const noexcept
 
 HRESULT FormField::BindEditor(Control& editor) noexcept
 {
+    const auto lifetime = GetLifetimeToken();
     if (GetEditor())
         return E_UNEXPECTED;
     _editor         = &editor;
     _editorLifetime = GetControlLifetimeToken(editor);
     InvalidateMeasure();
-    return SyncAccessibility();
+    return lifetime.expired() ? E_ABORT : SyncAccessibility();
 }
 void FormField::RemoveFailedEditor(Control* editor) noexcept
 {
@@ -181,7 +182,8 @@ void FormField::SetLabel(std::wstring text)
     if (lifetime.expired())
         return;
     InvalidateMeasure();
-    static_cast<void>(SyncAccessibility());
+    if (! lifetime.expired())
+        static_cast<void>(SyncAccessibility());
 }
 void FormField::SetDescription(std::wstring text)
 {
@@ -200,7 +202,8 @@ void FormField::SetDescription(std::wstring text)
     if (lifetime.expired())
         return;
     InvalidateMeasure();
-    static_cast<void>(SyncAccessibility());
+    if (! lifetime.expired())
+        static_cast<void>(SyncAccessibility());
 }
 HRESULT FormField::SetValidation(ValidationState state, std::wstring explanation) noexcept
 {
@@ -227,7 +230,7 @@ HRESULT FormField::SetValidation(ValidationState state, std::wstring explanation
         if (lifetime.expired())
             return E_ABORT;
         InvalidateMeasure();
-        return SyncAccessibility();
+        return lifetime.expired() ? E_ABORT : SyncAccessibility();
     }
     catch (const std::bad_alloc&)
     {
@@ -593,7 +596,8 @@ std::unique_ptr<Control> FormField::TakeChild(size_t index) noexcept
     }
     ++_layoutRevision;
     InvalidateMeasure();
-    static_cast<void>(SyncAccessibility());
+    if (! lifetime.expired())
+        static_cast<void>(SyncAccessibility());
     return result;
 }
 void FormField::ClearChildren() noexcept
@@ -631,7 +635,8 @@ void FormField::ClearChildren() noexcept
     // The emptied slots go here, where clearing was asked for, so swapping editors does not grow the field's children.
     std::erase_if(AccessChildren(), [](const std::unique_ptr<Control>& child) noexcept { return ! child; });
     InvalidateMeasure();
-    static_cast<void>(SyncAccessibility());
+    if (! lifetime.expired())
+        static_cast<void>(SyncAccessibility());
 }
 
 FormPanel::FormPanel()

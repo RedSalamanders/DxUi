@@ -1,1 +1,0 @@
-- Batch native formula and diagram geometry refusals into one source-preserving semantic rebuild.

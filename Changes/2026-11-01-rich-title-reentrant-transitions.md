@@ -1,1 +1,0 @@
-- Preserve newer editor state when clearing an authored-title tooltip reenters a setter, and keep inline source help separate from authored titles.

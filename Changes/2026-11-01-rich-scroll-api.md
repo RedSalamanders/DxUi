@@ -1,1 +1,0 @@
-- Added prepared RichTextEditor scroll geometry, guarded scroll notifications and an optional RTL-aware vertical scrollbar; geometry queries and painting no longer reveal the caret or mutate scroll.

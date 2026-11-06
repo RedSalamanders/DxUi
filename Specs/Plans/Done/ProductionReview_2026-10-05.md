@@ -2,7 +2,7 @@
 
 Status: DONE — local implementation and source-bound review closed; shared acceptance remains separately owned
 
-Closeout evidence: Q1-31 and supporting leads are reconciled to bounded source/test outcomes and accepted alternatives. Current source passes native, relocated-consumer and actual production SDK checks. Compiler-free PR/native-main policy supersedes older workflow recommendations; real consumer adoption and independent policy/manual gates remain separately owned. See the [delivery packet](../../../Measurements/WipDelivery_2026-11-02/README.md) and [shared qualification ledger](../WIP/ConsumerUiQualification_2026-10-11.md).
+Closeout evidence: Q1-31 and supporting leads are reconciled to bounded source/test outcomes and accepted alternatives. Current source passes native, relocated-consumer and actual production SDK checks. Compiler-free PR/native-main policy supersedes older workflow recommendations; real consumer adoption and independent policy/manual gates remain separately owned. See the [delivery packet](../../../Measurements/WipDelivery_2026-11-02/README.md) and [shared qualification ledger](ConsumerUiQualification_2026-10-11.md).
 
 
 - **Status**: ACTIVE (8 October corrections archived; accepted 9 October implementation and qualification in progress)
@@ -25,7 +25,7 @@ Closeout evidence: Q1-31 and supporting leads are reconciled to bounded source/t
   parentheses below (for example `host-core-1`) are its entries, each with the failure scenario, a fix and a failing test.
 
 Shared performance-policy, native ARM64/resource, physical-input/IME/AT and consumer acceptance execution has one
-owner: [Library qualification and consumer adoption](../WIP/ConsumerUiQualification_2026-10-11.md#shared-qualification-ownership-16-october-2026).
+owner: [Library qualification and consumer adoption](ConsumerUiQualification_2026-10-11.md#shared-qualification-ownership-16-october-2026).
 This remediation plan owns code/tooling corrections and attribution. Historical procedures and checkboxes below
 remain source-specific records, not a second current qualification queue.
 
@@ -200,13 +200,13 @@ establish no product-wide production approval; the approved accessibility schedu
 - [ ] Q20/Q21/Q23/Q24/Q27-Q31: required aggregate workflow, explicit skips/interactive obligations, six-profile
   PrePush accounting, consumer signature/version fixtures and instrumentation identity.
 - [ ] Q22 implementation/attribution: benchmark provenance, assignment and median/peak corrections. Calibration,
-  seed-policy approval and acceptance execute only in the [shared qualification ledger](../WIP/ConsumerUiQualification_2026-10-11.md#shared-qualification-ownership-16-october-2026).
+  seed-policy approval and acceptance execute only in the [shared qualification ledger](ConsumerUiQualification_2026-10-11.md#shared-qualification-ownership-16-october-2026).
 - [ ] Q25/Q26: reconcile plans/capabilities, actual touch provenance, bounded feedback overlap and adoption trackers.
 - [ ] Qualify the final source with relevant native x64 Debug/Release/ASan, all ARM64 builds, consumer fixture,
   WARP/device-loss/resource evidence, gallery, validators/format and an exact-source CI candidate.
 - [ ] Apply the approved required CI rule only after its workflow and concrete candidate are verified.
 - Shared desktop/IME/AT/touch/native-ARM64 and publication/adoption obligations are tracked in the
-  [qualification ledger](../WIP/ConsumerUiQualification_2026-10-11.md#shared-qualification-ownership-16-october-2026), not closed by this checklist.
+  [qualification ledger](ConsumerUiQualification_2026-10-11.md#shared-qualification-ownership-16-october-2026), not closed by this checklist.
 
 ### Current iteration evidence (9 October)
 

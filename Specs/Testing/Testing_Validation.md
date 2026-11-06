@@ -57,6 +57,15 @@ geometry publication. It preserves every preceding assertion; consumer pin adopt
 
 Every supported capability has executable evidence and a truthful status in `capabilities.json`.
 
+Prepared diagram-label backgrounds have two independent native EditorControls regressions.
+`TestNativeDiagramLabelBackdrops` compares actual raster pixels and contrast with independently derived
+expectations across diagram families, group/note containment, custom themes and DPI. It also checks that
+repeated paint creates no text layouts or semantic preparations. `TestNativeDiagramLabelBrushRetirement`
+retains and poisons an old brush after bounded host-cache eviction and a source revision, then requires a
+fresh brush and no poisoned pixels without changing the host generation. Keep its unchanged-library
+counterfactual failure separately from the corrected pass. Consumer claims require the application's own
+exact-pin hidden captures; SDK gallery pixels alone cannot establish consumer rendering.
+
 Documentation gallery fixtures install synthetic tooltip content after queued window messages and cooperative
 preparation have settled, then verify the exact visible tooltip text immediately before synchronous capture.
 The owned-window leave interleaving must clear the preceding tooltip without activating or moving the desktop.
@@ -1187,7 +1196,7 @@ after current-source functional, build, tooling and synthetic-consumer results a
 performance-policy findings and verified ARM64 foreground refusals before input remain failed/incomplete qualification,
 never `ci-gate` success. This decision does not accept measured degradation or authorize other failed correctness,
 sanitizer, provenance or deterministic-resource checks. Performance/policy, native ARM64 foreground, physical device/input
-and consumer adoption stay open in [the qualification plan](../Plans/WIP/ConsumerUiQualification_2026-10-11.md).
+and consumer adoption stay open in [the qualification plan](../Plans/Done/ConsumerUiQualification_2026-10-11.md).
 Ordinary qualification and main/release acceptance requirements remain unchanged.
 
 `Test-Changes.ps1` prints `INTERACTIVE_NOT_RUN` for the menu, native text-input and menu-resource suites affected by changed sources. Full/PrePush accounting lists those separate suites as well. Run them only through `test.ps1 -Interactive` after the person at the desktop agrees to the time; a noninteractive result or capability allowance does not close that gate.

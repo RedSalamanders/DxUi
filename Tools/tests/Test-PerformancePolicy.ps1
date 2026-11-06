@@ -806,6 +806,30 @@ function Get-FixtureNativeClosure([Collections.IDictionary] $Fixture) {
     } $Fixture
 }
 
+Invoke-FixtureCase 'native input discovery retains its owning module beside another checkout module with the same name' {
+    param($root)
+    Invoke-FixtureGit $root @('init','-q','-b','main')
+    Set-FixtureFile $root '.gitignore' ".build/`n"
+    $fixture = New-PerformanceProjectFixture $root
+    foreach ($path in @('src/Controls/One.cpp','src/Controls/Two.cpp','src/Rendering/CompositeVS.hlsl','src/Rendering/CompositePS.hlsl','include/owned.h')) {
+        Set-FixtureFile $root $path '// owned native bytes'
+    }
+    $expected = Get-FixtureNativeClosure $fixture
+    $foreignPath = Join-Path $root '.build/other-checkout/Tools/ScopedTesting.psm1'
+    Set-FixtureFile $root '.build/other-checkout/Tools/ScopedTesting.psm1' @'
+function Get-ScopedTrackedPaths { throw 'Foreign checkout discovery must never run.' }
+function Get-ForeignScopedSentinel { 'foreign' }
+Export-ModuleMember -Function Get-ForeignScopedSentinel
+'@
+    $foreign = Import-Module $foreignPath -Global -PassThru
+    try {
+        $visible = & (Get-Module PerformancePolicy) { @(Get-Module ScopedTesting).Count }
+        Assert-True ($visible -ge 2) 'the fixture reproduces two visible ScopedTesting module identities'
+        $actual = Get-FixtureNativeClosure $fixture
+        Assert-Equal (ConvertTo-Json $expected -Depth 20 -Compress) (ConvertTo-Json $actual -Depth 20 -Compress) 'another checkout cannot redirect or break native input discovery'
+    } finally { Remove-Module -ModuleInfo $foreign -Force }
+}
+
 Invoke-FixtureCase 'native and incremental root junctions cannot redirect attested inputs or cached build outputs' {
     param($root)
     Invoke-FixtureGit $root @('init','-q','-b','main')

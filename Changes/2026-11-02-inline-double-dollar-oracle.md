@@ -1,1 +1,0 @@
-- Verify that short and over-capacity inline double-dollar openers both retain literal source without becoming inline math.

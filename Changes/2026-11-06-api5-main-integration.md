@@ -1,0 +1,1 @@
+- Reconcile API 5 failure handling with current editor, parser, diagram, image and deferred-input behavior; preserve checked refusals and fatal original-context callbacks, including direct TextField input and temporary diagram staging. SDK license verification now retains both private YAML backend notices alongside the matching compiler PDB controls.

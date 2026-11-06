@@ -1,1 +1,0 @@
-- Verify reused changelog fold branches and allow withdrawal of pending notes while preserving exact generated changelog checks.

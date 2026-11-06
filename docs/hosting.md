@@ -42,7 +42,10 @@ device; the application owns immediate-context scheduling and presentation.
 1. Build the tree and apply `view.Controls().SetTheme(...)`. `MakeDefaultThemePalette(true)` selects a dark palette;
    use `false` for light. Apply the application's reduced-motion and high-contrast policy explicitly.
 2. Model, input, theme or geometry changes mark the view dirty. A borrowed `requestPreparation` callback requests
-   host work; it is synchronous and coalesced, may retire or replace retained controls, and its context must outlive attachment.
+   host work. It is coalesced, may retire or replace retained controls, and its context must outlive attachment.
+   During mutating input, the wake waits until the outermost dispatch finishes callbacks and cleanup, then runs
+   before that dispatch returns. Direct control setters outside input still notify synchronously. Retain the
+   owning EmbeddedHost until the call returns; a preparation callback must not destroy or re-enter it.
 3. Before scene drawing, call `view.Prepare(widthPixels, heightPixels, dpi)`. It performs changed layout and raster
    work. S_FALSE means already clean, hidden, zero-sized, or that cooperative content preparation remains pending. When NeedsPreparation() is true, honor the next owner-turn request and call Prepare again; do not spin. A failed HRESULT suppresses input/composition until preparation succeeds; handle the failure instead of repeatedly retrying in a tight loop. E_ABORT is the exception: a callback superseded the frame (it replaced the root or changed the tree mid-pass), and the view has already requested another preparation, so skip this frame composition and prepare again on that request. A deterministic content failure returns its failure HRESULT (E_ABORT from content is reported as E_FAIL), stays dirty, and does not schedule an automatic retry; an owner may retry with bounded backoff.
    A surface update also changes the borrowed immediate context, including unbinding PS shader-resource slot 0 and output-merger render targets. Rebind application state after preparation; pipeline mutation is not limited to Composite.
@@ -88,8 +91,11 @@ Captured drag continuation may update a draft between paints. Moving, removing, 
 control or its ancestors cancels capture; arranging only a sibling preserves it when its bounds and availability
 are unchanged. A view resize or DPI change still requires full preparation and cancels capture.
 
-Use `DispatchKey` and `DispatchCharacter` for basic keyboard/character input. For a raw Win32 pump, dispatch a
-Return/Space keydown once with an `EmbeddedKeyDispatchReceipt`, then call `ShouldTranslateCharacter(receipt)` before
+Use `DispatchKey` and `DispatchCharacter` for basic keyboard/character input. Forward
+`VK_PACKET` key-down/key-up and each translated UTF-16 `WM_CHAR` unit unchanged and in order; a supplementary
+scalar can have a separate packet transition for each unit. Editors buffer the lead privately across packet and
+bare modifier keys, then publish one complete scalar. Navigation/editing commands still cancel a pending lead.
+For a raw Win32 pump, dispatch a Return/Space keydown once with an `EmbeddedKeyDispatchReceipt`, then call `ShouldTranslateCharacter(receipt)` before
 `TranslateMessage`. Translate only when it returns true; send the resulting `WM_CHAR` through the bare
 `DispatchCharacter` overload. This preserves the OS keyboard layout and prevents a handled command from producing an
 editor character. The query is non-consuming and validates the original view, root, focus owner and permission at the

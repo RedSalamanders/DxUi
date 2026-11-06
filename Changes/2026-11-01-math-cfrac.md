@@ -1,1 +1,0 @@
-- Add display-style continued fractions with numerator strut geometry.

@@ -1,1 +1,0 @@
-- Bound Grid and Tree bulk selection work by staging visible-order IDs and radix-sorting the membership copy, preserving selection on allocation failure. The large reverse-order regression requires execution on the integrated candidate and paired performance qualification remains open.

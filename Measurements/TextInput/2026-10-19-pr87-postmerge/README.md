@@ -1,7 +1,7 @@
 # PR #87 post-merge evidence, 19 October 2026
 
 Owner: DxUi. Shared acceptance remains owned by
-[ConsumerUiQualification](../../../Specs/Plans/WIP/ConsumerUiQualification_2026-10-11.md).
+[ConsumerUiQualification](../../../Specs/Plans/Done/ConsumerUiQualification_2026-10-11.md).
 This is a reviewed Markdown summary; raw reports, machine details and desktop records remain private.
 
 ## Source and completed checks

@@ -1,1 +1,0 @@
-- Preserve embedded assertion diagnostics after injected iostream failures and expose the existing input allocation sweep as a focused diagnostic mode.

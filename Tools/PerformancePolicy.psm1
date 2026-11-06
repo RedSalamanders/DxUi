@@ -1,6 +1,6 @@
 # Trust checks for the migrated benchmark gate. A policy introduced by a candidate is never its own trust anchor.
 Set-StrictMode -Version Latest
-Import-Module (Join-Path $PSScriptRoot 'ScopedTesting.psm1')
+$script:scopedTestingModule = Import-Module (Join-Path $PSScriptRoot 'ScopedTesting.psm1') -PassThru -ErrorAction Stop
 Import-Module (Join-Path $PSScriptRoot 'PerformanceComparison.psm1')
 Import-Module (Join-Path $PSScriptRoot 'Validation.psm1')
 
@@ -582,7 +582,10 @@ function Get-PerformanceNativeInputClosure {
         'ThirdParty/tomlplusplus/3.4.0','ThirdParty/rapidyaml/0.16.0','ThirdParty/libfyaml/0.9.4')
     # Reuse scoped Git discovery, but retain every byte in the supported native input trees, including extensionless files
     # and prose that could be included explicitly. Ignored inputs and reparse points cannot become invisible dependencies.
-    $tracked = & (Get-Module ScopedTesting) { param($Root) Get-ScopedTrackedPaths $Root } $rootPath
+    # Paired builds load modules from more than one checkout in the same process.
+    # Bind private discovery to this module's exact imported dependency, never
+    # to an ambiguous process-wide module-name lookup.
+    $tracked = & $script:scopedTestingModule { param($Root) Get-ScopedTrackedPaths $Root } $rootPath
     $owned = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
     foreach ($relative in $tracked) { [void]$owned.Add($relative.Replace('\','/')) }
     $rows = [Collections.Generic.List[string]]::new()

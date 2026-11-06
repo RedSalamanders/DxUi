@@ -99,6 +99,7 @@
     "bounded-source-exact-markdown-commands-preview",
     "bounded-semantic-style-structure-uia-preview",
     "default-disabled-http-image-request-opt-in",
+    "permission-gated-network-file-image-requests",
     "bounded-native-inline-display-math-preview",
     "bounded-native-rich-images",
     "bounded-footnotes-preview",
@@ -136,7 +137,8 @@
     "application-text-services",
     "embedded-accessibility",
     "redxe-adapter",
-    "redsalamander-migration"
+    "redsalamander-migration",
+    "bounded-markdown-adversarial-scan-limits"
   ],
   "pending": [
     "described-native-menu-qualification",
@@ -174,7 +176,7 @@
       { "capability": "bounded-semantic-style-structure-uia-preview", "feature": "Semantic accessibility", "status": "Limited", "limits": "Source ranges, typed structure and actions; physical AT qualification separate", "documentation": "#semantic-accessibility-m4f" },
       { "capability": "retained-rich-text-source-tsf-uia-v0", "feature": "Text services", "status": "Limited", "limits": "Native and embedded TSF/IME and UIA adapters; physical IME qualification separate", "documentation": "#source-text-services-and-accessibility-d2d" },
       { "capability": "bounded-native-inline-display-math-preview", "feature": "Native mathematics", "status": "Limited", "limits": "Named DxUiMath1 subset; source-preserving per-object fallback", "documentation": "#native-in-document-mathematics-and-broader-diagrams" },
-      { "capability": "bounded-native-mermaid-state-class-preview", "feature": "Native Mermaid", "status": "Limited", "limits": "Bounded flowchart, state, class, sequence, pie, ER, Gantt and mind map profiles; unsupported syntax remains source", "documentation": "#native-in-document-mathematics-and-broader-diagrams" },
+      { "capability": "bounded-native-mermaid-state-class-preview", "feature": "Native Mermaid", "status": "Limited", "limits": "Bounded flowchart, state, class, sequence, pie, ER, Gantt and mind map profiles; sequence actors, plain notes, bare autonumber and unheaded messages; unsupported syntax remains source", "documentation": "#native-in-document-mathematics-and-broader-diagrams" },
       { "capability": "rich-text-markdown-extension-conformance", "feature": "Complete extension conformance", "status": "Not supported", "limits": "Full-language parity is not established by bounded feature or corpus results", "documentation": "#current-capabilities" }
     ]
   }

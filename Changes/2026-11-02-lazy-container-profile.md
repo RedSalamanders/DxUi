@@ -1,1 +1,0 @@
-- Match pinned CommonMark and GFM behavior when a lazy paragraph encounters an unmatched quote and a list or HTML opener.

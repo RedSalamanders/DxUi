@@ -1,1 +1,0 @@
-- Preserve counted NUL in RichText source, UTF-8 codecs, text services, and accessibility while refusing nonrepresentable Unicode clipboard copies.

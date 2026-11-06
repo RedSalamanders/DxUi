@@ -1,1 +1,0 @@
-- Exercise every pinned KaTeX support-table row through native math admission and bounded preparation, with explicit provenance for samples and command-only probes.

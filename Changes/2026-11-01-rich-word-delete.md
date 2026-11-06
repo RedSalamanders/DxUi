@@ -1,1 +1,0 @@
-- Add word-wise keyboard deletion to rich and source editing, preserving structural source mapping and source-session bounds; native qualification remains pending.

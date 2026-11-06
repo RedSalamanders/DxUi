@@ -1,1 +1,0 @@
-- Initialize the math raster fixture through the shared WIC factory so isolated and full runs establish the required COM apartment.

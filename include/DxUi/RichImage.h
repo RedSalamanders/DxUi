@@ -26,7 +26,10 @@ enum class RichImageSourceKind
     LocalFile,
     RemoteHttp,
     WikiTarget,
-    Data
+    Data,
+    // UNC paths and file URLs with an authority are permission-gated network
+    // requests. Only an explicit application transport may perform their I/O.
+    NetworkFile
 };
 // A caller-owned worker may retain this immutable request. Its cancellation
 // flag has no callbacks; retiring an editor/request never runs application code.
@@ -38,7 +41,7 @@ public:
     std::uint64_t Id() const noexcept;
     RichImageSourceKind SourceKind() const noexcept;
     std::wstring_view Source() const noexcept;
-    // Compatibility/local-only accessor. Remote, WikiTarget and Data requests return an empty path;
+    // Compatibility/local-only accessor. NetworkFile, RemoteHttp, WikiTarget and Data requests return an empty path;
     // applications must explicitly branch on SourceKind before transport I/O.
     std::wstring_view FilePath() const noexcept;
     bool Cancelled() const noexcept;

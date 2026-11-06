@@ -2,7 +2,7 @@
 
 Status: DONE — local implementation and source-bound review closed; shared acceptance remains separately owned
 
-Closeout evidence: Bounded OLE file lists, source MOVE, insertion/undo, cancellation and lifecycle behavior are implemented. Dedicated STA fixtures and their MTA-caller regression pass the R27 cohort. Physical interoperability and product adoption remain separate; exact plain-Unicode RichText paste EOL preservation is normative. See the [delivery packet](../../../Measurements/WipDelivery_2026-11-02/README.md) and [shared qualification ledger](../WIP/ConsumerUiQualification_2026-10-11.md).
+Closeout evidence: Bounded OLE file lists, source MOVE, insertion/undo, cancellation and lifecycle behavior are implemented. Dedicated STA fixtures and their MTA-caller regression pass the R27 cohort. Physical interoperability and product adoption remain separate; exact plain-Unicode RichText paste EOL preservation is normative. See the [delivery packet](../../../Measurements/WipDelivery_2026-11-02/README.md) and [shared qualification ledger](ConsumerUiQualification_2026-10-11.md).
 
 
 Historical pre-closeout Status: ACTIVE; implementation and focused tests exist; final-source builds, runtime tests, captures and performance qualification remain pending.

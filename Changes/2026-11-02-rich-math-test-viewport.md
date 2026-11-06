@@ -1,1 +1,0 @@
-- Size native and embedded styled-math test viewports in DIPs so their unclipped height and caret oracles remain valid at each DPI.

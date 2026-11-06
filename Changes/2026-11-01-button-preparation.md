@@ -1,1 +1,0 @@
-- Prepare Button shortcut widths outside painting and avoid repeated whole-tree walks during icon preparation. The retained visual and reentrancy regressions require integrated native execution and paired performance evidence.

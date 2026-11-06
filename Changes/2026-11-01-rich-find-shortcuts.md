@@ -1,1 +1,0 @@
-- Add opt-in find-request and next/previous source-search shortcuts; native qualification remains pending.

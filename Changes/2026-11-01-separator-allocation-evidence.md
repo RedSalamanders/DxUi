@@ -1,1 +1,0 @@
-- Cover Separator catalog allocation failures and document the optional native initial-child batching policy.

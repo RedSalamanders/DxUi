@@ -1,6 +1,6 @@
 # DxUi WIP delivery — source-bound review and evidence
 
-This packet records local implementation, source disposition and collected qualification evidence. All 21 requested plans are in Done. The [closure records](raw/closure/summary.json.receipt.txt) bind the plan migration and final checks to their source commits: all 30 tooling scripts and formatting passed; the only failed validator rejected overlong archive names, which were repaired without changing original receipt bytes, and all five validators plus the changelog base check then passed. [ConsumerUiQualification](../../Specs/Plans/WIP/ConsumerUiQualification_2026-10-11.md) remains WIP. S3–S7 and FrameUpdate are outside this delivery.
+This packet records local implementation, source disposition and collected qualification evidence. All 21 requested plans are in Done. The [closure records](raw/closure/summary.json.receipt.txt) bind the plan migration and final checks to their source commits: all 30 tooling scripts and formatting passed; the only failed validator rejected overlong archive names, which were repaired without changing original receipt bytes, and all five validators plus the changelog base check then passed. [ConsumerUiQualification](../../Specs/Plans/Done/ConsumerUiQualification_2026-10-11.md) remains WIP. S3–S7 and FrameUpdate are outside this delivery.
 
 ## Sources and local qualification
 

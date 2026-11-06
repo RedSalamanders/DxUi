@@ -15,6 +15,16 @@ DxUi derives its bounded native math symbol table from [KaTeX 0.16.11](https://g
 
 DxUi uses [libfyaml 0.9.4](https://github.com/pantoniou/libfyaml/tree/cd5f869cb937d0e9db11073d64e8758a7a7c978a) as a private YAML event parser. Its [MIT license](ThirdParty/libfyaml/0.9.4/LICENSE) and the bundled [xxHash BSD-2-Clause license](ThirdParty/libfyaml/0.9.4/LICENSE-xxHash.txt) accompany redistributions. [Source provenance and local patches](ThirdParty/libfyaml/0.9.4/README.dxui.md) are retained.
 
+DxUi embeds generated grapheme, character-class, case-folding and bidi tables from Unicode 17.0.0, copyright
+Unicode, Inc. The full [Unicode License V3](docs/licenses/Unicode.txt) accompanies redistributions. The
+[pinned data inventory](ThirdParty/Unicode/README.md) records the original inputs and generation provenance.
+
+DxUi embeds a generated HTML named-character-reference table from the WHATWG snapshot of 18 October 2026,
+copyright WHATWG (Apple, Google, Mozilla, Microsoft). The full [WHATWG notice](docs/licenses/WHATWG.txt),
+including its source-code BSD 3-Clause terms and Creative Commons Attribution 4.0 terms, accompanies
+redistributions. The [pinned collection receipt](ThirdParty/Markdown/whatwg-2026-10-18/collection.receipt.txt)
+records the retained input and license identities.
+
 DxUi also links Windows SDK/system libraries, using the consumer's matching MSVC runtime. Those components are
 supplied under their respective Microsoft terms, not relicensed by this project's MIT license. System fonts are
 selected at runtime; DxUi ships no fonts or icon fonts. Generated gallery images illustrate the library's own

@@ -1,1 +1,0 @@
-- Consolidate pending rich layout identity and accessibility editor access while preserving stale-owner and image-completion guards.

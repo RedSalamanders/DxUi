@@ -300,13 +300,29 @@ public:
               ID2D1Brush* quoteFill                    = nullptr,
               const DiagramColorContext* diagramColors = nullptr,
               ID2D1Brush* calloutAccent                = nullptr,
-              ID2D1Brush* propertiesInk                = nullptr) const
+              ID2D1Brush* propertiesInk                = nullptr,
+              bool diagramContentInk                   = false,
+              ID2D1Brush* diagramLabelFill             = nullptr) const
     {
 #if DXUI_ENABLE_DIAGNOSTICS
         ++testRichLayoutDrawCalls;
 #endif
         if (activeSemantic_)
-            semantic_.Draw(target, brush, decoration, origin, top, bottom, fill, imageOpacity, links, quoteFill, diagramColors, calloutAccent, propertiesInk);
+            semantic_.Draw(target,
+                           brush,
+                           decoration,
+                           origin,
+                           top,
+                           bottom,
+                           fill,
+                           imageOpacity,
+                           links,
+                           quoteFill,
+                           diagramColors,
+                           calloutAccent,
+                           propertiesInk,
+                           diagramContentInk,
+                           diagramLabelFill);
         else
             v0_.Draw(target, brush, origin, top, bottom, links);
     }
@@ -322,15 +338,29 @@ public:
                                   ID2D1Brush* quoteFill                    = nullptr,
                                   const DiagramColorContext* diagramColors = nullptr,
                                   ID2D1Brush* calloutAccent                = nullptr,
-                                  ID2D1Brush* propertiesInk                = nullptr) const
+                                  ID2D1Brush* propertiesInk                = nullptr,
+                                  bool diagramContentInk                   = false,
+                                  ID2D1Brush* diagramLabelFill             = nullptr) const
     {
 #if DXUI_ENABLE_DIAGNOSTICS
         ++testRichLayoutDrawCalls;
 #endif
-        return activeSemantic_
-                   ? semantic_.TryDraw(
-                         target, brush, decoration, origin, top, bottom, fill, imageOpacity, links, quoteFill, diagramColors, calloutAccent, propertiesInk)
-                   : v0_.TryDraw(target, brush, origin, top, bottom, links);
+        return activeSemantic_ ? semantic_.TryDraw(target,
+                                                   brush,
+                                                   decoration,
+                                                   origin,
+                                                   top,
+                                                   bottom,
+                                                   fill,
+                                                   imageOpacity,
+                                                   links,
+                                                   quoteFill,
+                                                   diagramColors,
+                                                   calloutAccent,
+                                                   propertiesInk,
+                                                   diagramContentInk,
+                                                   diagramLabelFill)
+                               : v0_.TryDraw(target, brush, origin, top, bottom, links);
     }
     bool Semantic() const noexcept
     {

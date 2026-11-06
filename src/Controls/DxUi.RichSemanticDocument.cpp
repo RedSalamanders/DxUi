@@ -1659,8 +1659,11 @@ struct SemanticBuilder::Preparation
                 break;
             const auto& leaf  = nodes[visit.node];
             const auto anchor = leaf.firstInline == MarkdownNoNode ? leaf.block.content.last : document->syntax_->Inlines()[leaf.firstInline].source.first;
-            Marker(parent, anchor, visit.flags, visit.heading);
-            if (owner.task != MarkdownTask::None && normalized.units.size() >= 3u)
+            const bool hasTaskMarker = owner.task != MarkdownTask::None && normalized.units.size() >= 3u;
+            const auto markerKind    = nodes[owner.parent].listMarker;
+            if (! hasTaskMarker || markerKind == L'.' || markerKind == L')')
+                Marker(parent, anchor, visit.flags, visit.heading);
+            if (hasTaskMarker)
             {
                 const MarkdownRange marker{normalized.units[0u].source.first, normalized.units[2u].source.last};
                 const auto task = Element(SemanticRole::Task, marker, element, owner.identity);
@@ -1936,9 +1939,24 @@ struct SemanticBuilder::Preparation
             }
             if (graph.family == Detail::NativeDiagramFamily::Sequence)
             {
+                if (edge.sequenceNote != Detail::SequenceNotePlacement::None)
+                {
+                    DiagramAlternative({id(edge.from),
+                                        Label(AccessibilityTextId::DiagramNote),
+                                        edge.label,
+                                        edge.from == edge.to ? L"; " : Label(AccessibilityTextId::SequenceTo),
+                                        edge.from == edge.to ? std::wstring_view{} : id(edge.to),
+                                        edge.from == edge.to ? std::wstring_view{} : L"; "});
+                    return;
+                }
+                // MSVC Debug's noexcept default string constructor allocates an
+                // iterator proxy. Keep that failure inside staged preparation.
+                std::wstring numbered(0u, L' ');
+                if (edge.sequenceNumber)
+                    numbered = Detail::SequenceMessageText(edge);
                 DiagramAlternative({id(edge.from),
                                     edge.openArrow ? Label(AccessibilityTextId::SequenceAsyncSends) : Label(AccessibilityTextId::SequenceSends),
-                                    edge.label,
+                                    edge.sequenceNumber ? std::wstring_view(numbered) : std::wstring_view(edge.label),
                                     Label(AccessibilityTextId::SequenceTo),
                                     id(edge.to),
                                     edge.style == Detail::FlowchartLineStyle::Dotted ? Label(AccessibilityTextId::SequenceDottedEnd) : L"; "});
@@ -1964,7 +1982,11 @@ struct SemanticBuilder::Preparation
                 DiagramAlternative({id(edge.from), Label(AccessibilityTextId::DiagramNote), graph.nodes[edge.to].label, L"; "});
                 return;
             }
-            if (! edge.fromCardinality.empty() || ! edge.toCardinality.empty())
+            const auto relationFrom     = edge.markerAtStart ? edge.to : edge.from;
+            const auto relationTo       = edge.markerAtStart ? edge.from : edge.to;
+            const auto& fromCardinality = edge.markerAtStart ? edge.toCardinality : edge.fromCardinality;
+            const auto& toCardinality   = edge.markerAtStart ? edge.fromCardinality : edge.toCardinality;
+            if (! fromCardinality.empty() || ! toCardinality.empty())
             {
                 const auto action = edge.relation == Detail::FlowchartRelation::Realization   ? Label(AccessibilityTextId::DiagramImplements)
                                     : edge.relation == Detail::FlowchartRelation::Inheritance ? Label(AccessibilityTextId::DiagramInherits)
@@ -1972,8 +1994,7 @@ struct SemanticBuilder::Preparation
                                     : edge.relation == Detail::FlowchartRelation::Aggregation ? Label(AccessibilityTextId::DiagramAggregatedBy)
                                     : edge.arrow                                              ? L" \u2192 "
                                                                                               : L" \u2014 ";
-                DiagramAlternative(
-                    {id(edge.from), L" [", edge.fromCardinality, L"]", action, id(edge.to), L" [", edge.toCardinality, L"] ", edge.label, L"; "});
+                DiagramAlternative({id(relationFrom), L" [", fromCardinality, L"]", action, id(relationTo), L" [", toCardinality, L"] ", edge.label, L"; "});
                 return;
             }
             if (edge.relation == Detail::FlowchartRelation::Inheritance || edge.relation == Detail::FlowchartRelation::Realization ||
@@ -1985,9 +2006,9 @@ struct SemanticBuilder::Preparation
                                          : edge.relation == Detail::FlowchartRelation::Aggregation ? Label(AccessibilityTextId::DiagramAggregatedBy)
                                                                                                    : action;
                 if (edge.label.empty())
-                    DiagramAlternative({id(edge.from), description, id(edge.to), L"; "});
+                    DiagramAlternative({id(relationFrom), description, id(relationTo), L"; "});
                 else
-                    DiagramAlternative({id(edge.from), L" (", edge.label, L")", description, id(edge.to), L"; "});
+                    DiagramAlternative({id(relationFrom), L" (", edge.label, L")", description, id(relationTo), L"; "});
             }
             else if (edge.label.empty())
                 DiagramAlternative({id(edge.from), edge.arrow ? L" \u2192 " : L" \u2014 ", id(edge.to), L"; "});

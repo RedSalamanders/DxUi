@@ -1,1 +1,0 @@
-- Reconcile file-drop, bounded SVG, math tags, and retained editor documentation with their implemented paths while retaining qualification gates.

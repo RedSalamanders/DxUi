@@ -3,7 +3,7 @@
 This packet records the current-main integration of intrinsic sizing, Flex layout and stable forms. The developer
 requested implementation integration with S3-S7 and unfinished qualification retained in WIP. It supplies focused
 functional evidence; performance/policy, native ARM64 foreground, physical input/device and consumer adoption remain
-separate acceptance gates under the [qualification plan](../../../Specs/Plans/WIP/ConsumerUiQualification_2026-10-11.md).
+separate acceptance gates under the [qualification plan](../../../Specs/Plans/Done/ConsumerUiQualification_2026-10-11.md).
 
 ## Final native and CI-budget source
 

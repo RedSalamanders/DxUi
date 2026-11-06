@@ -1,1 +1,0 @@
-- Preserve the generated column separator after a table cell ending in a native HTML line break, while retaining ordinary paragraph break behavior.

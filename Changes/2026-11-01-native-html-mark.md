@@ -1,1 +1,0 @@
-- Render bounded attribute-free HTML mark ranges with retained theme surfaces, high-contrast outlines and exact nested source/style ownership.

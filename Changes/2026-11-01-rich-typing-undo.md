@@ -1,1 +1,0 @@
-- Coalesce adjacent direct word typing into bounded undo groups while retaining composition and explicit edit transactions; native qualification remains pending.

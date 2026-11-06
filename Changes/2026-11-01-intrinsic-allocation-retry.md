@@ -1,1 +1,0 @@
-- Retry a transient intrinsic-layout allocation failure once while retaining the last geometry and stopping after a repeated failure.

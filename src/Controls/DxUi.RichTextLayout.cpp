@@ -6,6 +6,7 @@
 #include <DxUi/RichTextLayout.h>
 #include <algorithm>
 #include <cmath>
+#include <dwrite_1.h>
 #include <new>
 #include <optional>
 #include <stdexcept>
@@ -179,7 +180,7 @@ HRESULT Detail::PreparedLayoutAccess::PrepareSemantic(PreparedLayout& owner,
     projection.text.swap(input.text);
     projection.runs.swap(input.runs);
     projection.revision = input.revision;
-    return Prepare(owner, factory, projection, options, 0.0f, true, marker, object, objectOffset, objects);
+    return Prepare(owner, factory, projection, options, 0.0f, true, marker, object, objectOffset, objects, input.padInlineCode);
 }
 HRESULT Detail::PreparedLayoutAccess::Prepare(PreparedLayout& owner,
                                               IDWriteFactory* factory,
@@ -190,7 +191,8 @@ HRESULT Detail::PreparedLayoutAccess::Prepare(PreparedLayout& owner,
                                               bool marker,
                                               IDWriteInlineObject* object,
                                               UINT32 objectOffset,
-                                              std::span<const InlineObject> objects)
+                                              std::span<const InlineObject> objects,
+                                              bool padInlineCode)
 {
     const Failure::Scope failureScope;
     const auto width = options.widthDip, fontSize = options.fontSizeDip;
@@ -325,6 +327,22 @@ HRESULT Detail::PreparedLayoutAccess::Prepare(PreparedLayout& owner,
             RETURN_IF_FAILED(layout->SetFontFamilyName(options.codeFontFamily.c_str(), range));
             if (options.codeFontSizeDip > 0.0f)
                 RETURN_IF_FAILED(layout->SetFontSize(options.codeFontSizeDip, range));
+            if (padInlineCode && run.length)
+            {
+                // Character spacing contributes to native metrics, wrapping,
+                // hit testing and carets. Painting a wider chip alone would
+                // cover neighboring text. Only the two scalar endpoints get
+                // an inset; fenced-code contents retain their original metrics.
+                wil::com_ptr<IDWriteTextLayout1> text1;
+                RETURN_IF_FAILED(layout.query_to(text1.put()));
+                const auto firstEnd    = StepToNextCodePoint(projection.text, run.start);
+                const auto lastStart   = StepToPreviousCodePoint(projection.text, run.start + run.length);
+                const auto firstLength = static_cast<UINT32>(firstEnd - run.start);
+                RETURN_IF_FAILED(text1->SetCharacterSpacing(3.0f, firstEnd == run.start + run.length ? 3.0f : 0.0f, 0.0f, {range.startPosition, firstLength}));
+                if (firstEnd != run.start + run.length)
+                    RETURN_IF_FAILED(text1->SetCharacterSpacing(
+                        0.0f, 3.0f, 0.0f, {static_cast<UINT32>(lastStart) + textOffset, static_cast<UINT32>(run.start + run.length - lastStart)}));
+            }
         }
         if (run.heading)
         {

@@ -1,4 +1,5 @@
 #include "DxUi.Internal.h"
+#include <DxUi/Failure.h>
 
 #include <algorithm>
 #include <chrono>
@@ -1086,6 +1087,7 @@ void TextField::SetSelectionRange(const size_t selectionStart, const size_t sele
 
 void TextField::ReplaceSelectionAndNotify(std::wstring_view replacement)
 {
+    const Failure::Scope failureScope;
     const auto lifetime   = GetLifetimeToken();
     const bool willMutate = HasSelection() || ! replacement.empty();
     if (! willMutate)
@@ -1121,6 +1123,7 @@ void TextField::ReplaceSelectionAndNotify(std::wstring_view replacement)
 
 void TextField::SetTextAndNotify(std::wstring text)
 {
+    const Failure::Scope failureScope;
     const auto lifetime = GetLifetimeToken();
     SetText(std::move(text));
     if (lifetime.expired())
@@ -1811,6 +1814,7 @@ bool TextField::Tick(ControlHost& host, uint64_t nowTickMs)
 
 void TextField::OnFocusChanged(ControlHost& host, bool focused)
 {
+    const Failure::Scope failureScope;
     _pendingLeadSurrogate = 0;
     Control::OnFocusChanged(host, focused);
     if (focused)
@@ -1874,6 +1878,7 @@ WindowHostCursorKind TextField::ResolveCursorKind(ControlHost&, D2D1_POINT_2F po
 
 bool TextField::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)
 {
+    const Failure::Scope failureScope;
     _pendingLeadSurrogate = 0;
     if (rightButton)
     {
@@ -1897,14 +1902,19 @@ bool TextField::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightBu
 
     if (IsClearButtonVisible() && PointInRect(GetClearButtonRect(), point))
     {
+        const auto lifetime = GetLifetimeToken();
         ResetSingleLineSelectionClickSequence(_selectionClickSequence);
         _passwordRevealKeyboardFocused = false;
         SetText({});
+        if (lifetime.expired())
+            return true;
         if (! NotifyChanged())
         {
             return true;
         }
         ResetCaretBlink(host);
+        if (lifetime.expired())
+            return true;
         Invalidate(host);
         return true;
     }
@@ -1998,6 +2008,7 @@ bool TextField::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightBu
 
 bool TextField::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)
 {
+    const Failure::Scope failureScope;
     _pendingLeadSurrogate = 0;
     if (rightButton)
     {
@@ -2054,6 +2065,7 @@ bool TextField::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool 
 
 bool TextField::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modifiers*/)
 {
+    const Failure::Scope failureScope;
     const bool wasClearHovered   = _clearButtonHovered;
     const bool wasRevealHovered  = _passwordRevealButtonHovered;
     _clearButtonHovered          = IsClearButtonVisible() && PointInRect(GetClearButtonRect(), point);
@@ -2108,6 +2120,7 @@ bool TextField::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modif
 
 bool TextField::OnMouseUp(ControlHost& host, D2D1_POINT_2F /*point*/, bool rightButton, UINT /*modifiers*/)
 {
+    const Failure::Scope failureScope;
     if (rightButton)
     {
         return false;
@@ -2134,6 +2147,7 @@ bool TextField::OnMouseUp(ControlHost& host, D2D1_POINT_2F /*point*/, bool right
 
 void TextField::OnCaptureLost(ControlHost& host)
 {
+    const Failure::Scope failureScope;
     const bool hadRevealPress    = _passwordRevealButtonPressed;
     const bool wasDragging       = _dragSelecting;
     _dragSelecting               = false;
@@ -2154,6 +2168,7 @@ void TextField::OnCaptureLost(ControlHost& host)
 
 bool TextField::OnMouseWheel(ControlHost& host, D2D1_POINT_2F /*point*/, float wheelDelta, UINT /*modifiers*/)
 {
+    const Failure::Scope failureScope;
     if (! _multiline)
     {
         return false;
@@ -2219,14 +2234,19 @@ bool TextField::OnMouseWheel(ControlHost& host, D2D1_POINT_2F /*point*/, float w
 
 bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
 {
-    _pendingLeadSurrogate = 0;
+    const Failure::Scope failureScope;
+    const auto inputLifetime = GetLifetimeToken();
+    if (! KeyKeepsPendingSurrogate(virtualKey))
+        _pendingLeadSurrogate = 0;
     ResetSingleLineSelectionClickSequence(_selectionClickSequence);
     const size_t caretBeforeKey                          = _caretIndex;
     const std::optional<size_t> selectionAnchorBeforeKey = _selectionAnchorIndex;
     const auto textRect                                  = GetTextRect();
-    const auto refreshCaret                              = [this, &host, &textRect, caretBeforeKey, selectionAnchorBeforeKey]() noexcept
+    const auto refreshCaret                              = [this, &host, &textRect, caretBeforeKey, selectionAnchorBeforeKey, inputLifetime]() noexcept
     {
         ResetCaretBlink(host);
+        if (inputLifetime.expired())
+            return false;
         if (_multiline)
         {
             EnsureMultilineCaretVisible(&host);
@@ -2240,8 +2260,11 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
             // Selection and caret positions are part of the retained text snapshot. Publish them
             // through the same dirty/coalesced path as committed text, after the key's final state.
             RefreshAccessibilitySnapshot();
+            if (inputLifetime.expired())
+                return false;
         }
         Invalidate(host);
+        return ! inputLifetime.expired();
     };
 
     if (virtualKey == VK_ESCAPE && _masked && _passwordRevealState != PasswordRevealState::Hidden)
@@ -2309,11 +2332,14 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
         {
             if (TryUndoDirectEdit())
             {
+                if (inputLifetime.expired())
+                    return true;
                 if (! NotifyChanged())
                 {
                     return true;
                 }
-                refreshCaret();
+                if (! refreshCaret())
+                    return true;
                 host.SyncTextInput(this);
                 return true;
             }
@@ -2323,11 +2349,14 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
         {
             if (TryRedoDirectEdit())
             {
+                if (inputLifetime.expired())
+                    return true;
                 if (! NotifyChanged())
                 {
                     return true;
                 }
-                refreshCaret();
+                if (! refreshCaret())
+                    return true;
                 host.SyncTextInput(this);
                 return true;
             }
@@ -2336,7 +2365,8 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
         if (virtualKey == 'A')
         {
             SelectAllText();
-            refreshCaret();
+            if (! refreshCaret())
+                return true;
             return true;
         }
         if (virtualKey == 'C')
@@ -2355,7 +2385,8 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
                     {
                         return true;
                     }
-                    refreshCaret();
+                    if (! refreshCaret())
+                        return true;
                 }
                 return true;
             }
@@ -2383,7 +2414,8 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
                     {
                         return true;
                     }
-                    refreshCaret();
+                    if (! refreshCaret())
+                        return true;
                 }
                 return true;
             }
@@ -2402,7 +2434,8 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
                 {
                     return true;
                 }
-                refreshCaret();
+                if (! refreshCaret())
+                    return true;
                 return true;
             }
             if (eraseFrom < _caretIndex)
@@ -2414,7 +2447,8 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
                 {
                     return true;
                 }
-                refreshCaret();
+                if (! refreshCaret())
+                    return true;
                 return true;
             }
             return true;
@@ -2433,7 +2467,8 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
                 {
                     return true;
                 }
-                refreshCaret();
+                if (! refreshCaret())
+                    return true;
                 return true;
             }
             if (eraseTo > _caretIndex)
@@ -2444,7 +2479,8 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
                 {
                     return true;
                 }
-                refreshCaret();
+                if (! refreshCaret())
+                    return true;
                 return true;
             }
             return true;
@@ -2469,7 +2505,8 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
                 {
                     return true;
                 }
-                refreshCaret();
+                if (! refreshCaret())
+                    return true;
             }
             return true;
         }
@@ -2486,7 +2523,8 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
                 {
                     return true;
                 }
-                refreshCaret();
+                if (! refreshCaret())
+                    return true;
             }
             return true;
         }
@@ -2500,7 +2538,8 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
         if (ModifiersContainCtrl(modifiers))
         {
             SetCaretIndex(FindPreviousWordBoundary(_text, _caretIndex), extendSelection);
-            refreshCaret();
+            if (! refreshCaret())
+                return true;
             return true;
         }
         if (! extendSelection && HasSelection())
@@ -2508,13 +2547,15 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
             BreakDirectEditMerge();
             _caretIndex = GetSelectionRange().value().first;
             _selectionAnchorIndex.reset();
-            refreshCaret();
+            if (! refreshCaret())
+                return true;
             return true;
         }
         if (_caretIndex > 0u)
         {
             SetCaretIndex(StepToPreviousTextElement(_text, _caretIndex), extendSelection);
-            refreshCaret();
+            if (! refreshCaret())
+                return true;
         }
         return true;
     }
@@ -2525,7 +2566,8 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
         if (ModifiersContainCtrl(modifiers))
         {
             SetCaretIndex(FindNextWordBoundary(_text, _caretIndex), extendSelection);
-            refreshCaret();
+            if (! refreshCaret())
+                return true;
             return true;
         }
         if (! extendSelection && HasSelection())
@@ -2533,25 +2575,29 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
             BreakDirectEditMerge();
             _caretIndex = GetSelectionRange().value().second;
             _selectionAnchorIndex.reset();
-            refreshCaret();
+            if (! refreshCaret())
+                return true;
             return true;
         }
         SetCaretIndex(StepToNextTextElement(_text, _caretIndex), extendSelection);
-        refreshCaret();
+        if (! refreshCaret())
+            return true;
         return true;
     }
     if (! _multiline && virtualKey == VK_UP && ! ModifiersContainCtrl(modifiers) && ! ModifiersContainAlt(modifiers))
     {
         _preferredMultilineXOffsetDip.reset();
         SetCaretIndex(0u, ModifiersContainShift(modifiers));
-        refreshCaret();
+        if (! refreshCaret())
+            return true;
         return true;
     }
     if (! _multiline && virtualKey == VK_DOWN && ! ModifiersContainCtrl(modifiers) && ! ModifiersContainAlt(modifiers))
     {
         _preferredMultilineXOffsetDip.reset();
         SetCaretIndex(_text.size(), ModifiersContainShift(modifiers));
-        refreshCaret();
+        if (! refreshCaret())
+            return true;
         return true;
     }
     if (_multiline && virtualKey == VK_UP)
@@ -2560,7 +2606,8 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
         const size_t nextCaretIndex = MoveMultilineCaretVertically(&host, _text, _fontRole, GetTextRect(), _caretIndex, false, _preferredMultilineXOffsetDip);
         BreakDirectEditMerge();
         SetSingleLineCaretIndex(_caretIndex, _selectionAnchorIndex, nextCaretIndex, extendSelection);
-        refreshCaret();
+        if (! refreshCaret())
+            return true;
         return true;
     }
     if (_multiline && virtualKey == VK_DOWN)
@@ -2569,7 +2616,8 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
         const size_t nextCaretIndex = MoveMultilineCaretVertically(&host, _text, _fontRole, GetTextRect(), _caretIndex, true, _preferredMultilineXOffsetDip);
         BreakDirectEditMerge();
         SetSingleLineCaretIndex(_caretIndex, _selectionAnchorIndex, nextCaretIndex, extendSelection);
-        refreshCaret();
+        if (! refreshCaret())
+            return true;
         return true;
     }
     if (_multiline && virtualKey == VK_PRIOR)
@@ -2581,7 +2629,8 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
             &host, _text, _fontRole, pageTextRect, _caretIndex, false, _preferredMultilineXOffsetDip, viewportMetrics.visibleLineCount);
         BreakDirectEditMerge();
         SetSingleLineCaretIndex(_caretIndex, _selectionAnchorIndex, nextCaretIndex, extendSelection);
-        refreshCaret();
+        if (! refreshCaret())
+            return true;
         return true;
     }
     if (_multiline && virtualKey == VK_NEXT)
@@ -2593,7 +2642,8 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
             MoveMultilineCaretByPage(&host, _text, _fontRole, pageTextRect, _caretIndex, true, _preferredMultilineXOffsetDip, viewportMetrics.visibleLineCount);
         BreakDirectEditMerge();
         SetSingleLineCaretIndex(_caretIndex, _selectionAnchorIndex, nextCaretIndex, extendSelection);
-        refreshCaret();
+        if (! refreshCaret())
+            return true;
         return true;
     }
     if (virtualKey == VK_HOME)
@@ -2609,7 +2659,8 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
         {
             SetCaretIndex(0u, ModifiersContainShift(modifiers));
         }
-        refreshCaret();
+        if (! refreshCaret())
+            return true;
         return true;
     }
     if (virtualKey == VK_END)
@@ -2625,7 +2676,8 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
         {
             SetCaretIndex(_text.size(), ModifiersContainShift(modifiers));
         }
-        refreshCaret();
+        if (! refreshCaret())
+            return true;
         return true;
     }
     if (virtualKey == VK_RETURN && _multiline)
@@ -2656,7 +2708,8 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
             {
                 return true;
             }
-            refreshCaret();
+            if (! refreshCaret())
+                return true;
             return true;
         }
         if (_caretIndex > 0 && ! _text.empty())
@@ -2669,7 +2722,8 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
             {
                 return true;
             }
-            refreshCaret();
+            if (! refreshCaret())
+                return true;
         }
         return true;
     }
@@ -2686,7 +2740,8 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
             {
                 return true;
             }
-            refreshCaret();
+            if (! refreshCaret())
+                return true;
             return true;
         }
         if (_caretIndex < _text.size())
@@ -2699,7 +2754,8 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
             {
                 return true;
             }
-            refreshCaret();
+            if (! refreshCaret())
+                return true;
         }
         return true;
     }
@@ -2708,6 +2764,7 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
 
 bool TextField::OnKeyUp(ControlHost& host, UINT virtualKey, UINT modifiers)
 {
+    const Failure::Scope failureScope;
     if (! _passwordRevealKeyboardFocused || (virtualKey != VK_SPACE && virtualKey != VK_RETURN) || ModifiersContainAlt(modifiers) ||
         ModifiersContainCtrl(modifiers))
     {
@@ -2727,6 +2784,8 @@ bool TextField::OnKeyUp(ControlHost& host, UINT virtualKey, UINT modifiers)
 
 bool TextField::OnChar(ControlHost& host, wchar_t ch, UINT modifiers)
 {
+    const Failure::Scope failureScope;
+    const auto inputLifetime = GetLifetimeToken();
     // A pair remains private until both UTF-16 units are available.
     // Alt alone makes the system's characters (menu access keys, Alt+Space); AltGr arrives as Ctrl+Alt and types.
     if (ModifiersContainAlt(modifiers) && ! ModifiersContainCtrl(modifiers))
@@ -2795,6 +2854,8 @@ bool TextField::OnChar(ControlHost& host, wchar_t ch, UINT modifiers)
         return true;
     }
     ResetCaretBlink(host);
+    if (inputLifetime.expired())
+        return true;
     if (_multiline)
     {
         EnsureMultilineCaretVisible(&host);
@@ -2809,6 +2870,7 @@ bool TextField::OnChar(ControlHost& host, wchar_t ch, UINT modifiers)
 
 bool TextField::OnContextMenu(ControlHost& host, bool keyboardInvocation, D2D1_POINT_2F pointDip)
 {
+    const Failure::Scope failureScope;
     ResetSingleLineSelectionClickSequence(_selectionClickSequence);
     if (! FocusControlAndSurvive(host, *this))
     {
@@ -2822,6 +2884,7 @@ bool TextField::OnContextMenu(ControlHost& host, bool keyboardInvocation, D2D1_P
 
 bool TextField::OnCopy(ControlHost& host)
 {
+    const Failure::Scope failureScope;
     if (_masked && _passwordRevealMode != PasswordRevealMode::Visible && _passwordRevealState != PasswordRevealState::Visible)
     {
         return false;
@@ -2838,6 +2901,7 @@ bool TextField::OnCopy(ControlHost& host)
 
 bool TextField::OnSelectAll(ControlHost& host)
 {
+    const Failure::Scope failureScope;
     ResetSingleLineSelectionClickSequence(_selectionClickSequence);
     _preferredMultilineXOffsetDip.reset();
     SelectAllText();
@@ -3091,18 +3155,23 @@ bool TextField::ExportTextInputState(TextInputState& outState) const
 
 bool TextField::ImportTextInputState(ControlHost& host, const TextInputState& state, bool notifyChange)
 {
+    const Failure::Scope failureScope;
+    const auto lifetime                   = GetLifetimeToken();
     _pendingLeadSurrogate                 = 0;
     const std::wstring previousText       = _text;
+    const bool changed                    = previousText != state.text;
     const size_t previousFirstVisibleLine = _multilineFirstVisibleLine;
     // Imported previews, cancellation and selection changes preserve existing history on every host.
     // A changed notifying import is one committed edit, regardless of how many previews preceded it.
-    if (notifyChange && previousText != state.text)
+    if (notifyChange && changed)
         RecordUndoStateForDirectEdit();
     BreakDirectEditMerge();
     ResetSingleLineSelectionClickSequence(_selectionClickSequence);
     _text = state.text;
-    if (_multiline && previousText != _text)
+    if (_multiline && changed)
         InvalidateMeasure();
+    if (lifetime.expired())
+        return false;
     _caretIndex = std::min(state.caretIndex, _text.size());
     InvalidateSingleLineLayoutCache();
     InvalidateMultilineLayoutCache();
@@ -3125,6 +3194,8 @@ bool TextField::ImportTextInputState(ControlHost& host, const TextInputState& st
     _multilineWheelDeltaRemainder = 0.0f;
     _dragSelecting                = false;
     ResetCaretBlink(host);
+    if (lifetime.expired())
+        return false;
     if (_multiline)
     {
         if (preserveReadOnlyMultilineViewport)
@@ -3160,7 +3231,9 @@ bool TextField::ImportTextInputState(ControlHost& host, const TextInputState& st
         EnsureCaretVisible(&host, std::max(1.0f, GetTextRect().right - GetTextRect().left));
     }
     Invalidate(host);
-    if (notifyChange && previousText != _text)
+    if (lifetime.expired())
+        return false;
+    if (notifyChange && changed)
     {
         return NotifyChanged();
     }
@@ -3175,10 +3248,9 @@ TextField::EditHistoryState TextField::CaptureEditHistoryState() const
 
 void TextField::RestoreEditHistoryState(const EditHistoryState& state) noexcept
 {
-    if (_multiline && _text != state.text)
-        InvalidateMeasure();
-    _text       = state.text;
-    _caretIndex = std::min(state.caretIndex, _text.size());
+    const bool remeasure = _multiline && _text != state.text;
+    _text                = state.text;
+    _caretIndex          = std::min(state.caretIndex, _text.size());
     if (state.selectionAnchorIndex)
     {
         _selectionAnchorIndex = std::min(state.selectionAnchorIndex.value(), _text.size());
@@ -3198,6 +3270,8 @@ void TextField::RestoreEditHistoryState(const EditHistoryState& state) noexcept
     _horizontalScrollDip          = 0.0f;
     InvalidateSingleLineLayoutCache();
     InvalidateMultilineLayoutCache();
+    if (remeasure)
+        InvalidateMeasure();
 }
 
 void TextField::BeginEditTransactionMetric(const wchar_t* detail) noexcept
@@ -3658,22 +3732,27 @@ void TextField::ResetCaretBlink(ControlHost& host) noexcept
 
 bool TextField::NotifyChanged()
 {
+    const Failure::Scope failureScope;
+    const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
     if (_multiline)
         InvalidateMeasure();
+    if (selfLifetime.expired())
+        return false;
     InvalidateSingleLineLayoutCache();
     InvalidateMultilineLayoutCache();
     FinishEditTransactionMetric();
+    if (selfLifetime.expired())
+        return false;
 
     auto onTextChanged = _onTextChanged;
     if (! onTextChanged)
     {
         RefreshAccessibilitySnapshot();
-        return true;
+        return ! selfLifetime.expired();
     }
 
-    std::wstring textSnapshot             = _text;
-    const bool secureSnapshot             = _masked;
-    const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
+    std::wstring textSnapshot = _text;
+    const bool secureSnapshot = _masked;
     (*onTextChanged)(textSnapshot);
     // Releasing the last callback capture can itself retire this control.
     onTextChanged.reset();
@@ -3688,6 +3767,6 @@ bool TextField::NotifyChanged()
         // revalidation so UIA reads the committed value without touching a retired control.
         RefreshAccessibilitySnapshot();
     }
-    return alive;
+    return ! selfLifetime.expired();
 }
 } // namespace DxUi

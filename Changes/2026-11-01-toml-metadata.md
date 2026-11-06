@@ -1,1 +1,0 @@
-- Validate closed RichMarkdown YAML and TOML metadata without changing source, with distinct invalid, duplicate, unresolved-alias and capacity diagnostics; complete conformance and qualification remain in progress.

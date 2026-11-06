@@ -5,6 +5,40 @@ the [failure policy](../Specs/Core/Core_FailureHandling.md) and [upgrade guide](
 The [migration](../Specs/Plans/WIP/FailurePolicy_2026-11-02.md) and its qualification remain open; historical
 source `5fc4d4c` used exception recovery and does not qualify the current fatal-stack/dump contract.
 
+Native diagram arrow labels blend into the diagram background when text contrast is sufficient. Otherwise
+the editor adds a subtle light or dark backing for readability. Label backgrounds stay opaque to mask
+crossing lines; labels within notes or filled groups retain that container's surface. This presentation
+does not alter Mermaid source, diagram placement, selection or history.
+
+## Selection-to-block insertion
+
+Use `RichTextEditor::WrapSelectionInMarkdownBlock` for an Insert action applied to selected text. Pass
+`MarkdownBlockKind::BlockQuote`, or `MarkdownBlockKind::FencedCode` with an optional language such as `L"text"`.
+The operation works in Rich and Source views without waiting for semantic geometry. It wraps the exact selected
+source, including Unicode, original line endings and Markdown delimiters; code fences grow past embedded
+backtick runs. Blank separators keep adjacent prose outside the new block. The body remains selected in the
+same direction, with one text notification and one undo/redo transaction.
+
+An empty selection returns false so the application can choose its insertion template. Read-only, disabled,
+composition/preview, invalid language and capacity refusal leave source and history intact. A failed operation
+on a nonempty selection must retain that selection. Code language is at most 255 valid UTF-16 units and cannot
+contain NUL, line endings or backticks. Existing structural Markdown commands retain their semantics.
+
+## Application document workspaces
+
+Use `RichTextEditor::ExchangeDocumentState` with an application-owned `RichText::Document` to switch the
+active document without clearing Undo/Redo. The exchange retains both exact immutable sources, oriented
+selections and complete history branches. It creates no source edit or committed text callback; selection
+publication follows the new binding, including when both documents have identical selection endpoints and
+numeric revisions. The application retains each file's path, encoding, saved baseline and
+recovery identity separately, and refreshes its derived views after a successful exchange.
+
+Only call on the owner thread. Disabled/read-only input or a transient text-service preview in either
+document refuses without changing either side. Native composition also refuses. Switching retires old
+geometry, image requests and source-region presentation; an equal revision number in the incoming document
+cannot reuse the outgoing document's syntax or native callbacks. The control keeps its appearance and
+callbacks. This mechanism does not open, save or recover files and does not create a document limit in the SDK.
+
 ## Current capabilities
 
 This table describes the available library mechanisms and their limits. Supported
@@ -42,7 +76,7 @@ receivers and the library must likewise be rebuilt from the same exact pin.
 | Semantic accessibility | Limited | Source ranges, typed structure and actions; physical AT qualification separate | [Details](#semantic-accessibility-m4f) |
 | Text services | Limited | Native and embedded TSF/IME and UIA adapters; physical IME qualification separate | [Details](#source-text-services-and-accessibility-d2d) |
 | Native mathematics | Limited | Named DxUiMath1 subset; source-preserving per-object fallback | [Details](#native-in-document-mathematics-and-broader-diagrams) |
-| Native Mermaid | Limited | Bounded flowchart, state, class, sequence, pie, ER, Gantt and mind map profiles; unsupported syntax remains source | [Details](#native-in-document-mathematics-and-broader-diagrams) |
+| Native Mermaid | Limited | Bounded flowchart, state, class, sequence, pie, ER, Gantt and mind map profiles; sequence actors, plain notes, bare autonumber and unheaded messages; unsupported syntax remains source | [Details](#native-in-document-mathematics-and-broader-diagrams) |
 | Complete extension conformance | Not supported | Full-language parity is not established by bounded feature or corpus results | [Details](#current-capabilities) |
 <!-- rich-text-capabilities:end -->
 
@@ -93,8 +127,10 @@ For a quieter Markdown document, set `markdownPresentation` to
 `RichText::MarkdownPresentationStyle::Subtle` on the editor appearance or layout
 options. H1/H2 gain subtle separators, tables fit their contents with horizontal
 rules, standalone display equations/diagrams center, and quotes use a shaded
-surface. `Default` preserves the existing presentation. This setting does not
+surface. `Default` retains the ordinary presentation. This setting does not
 rewrite Markdown or affect Source-view styling, selection or undo history.
+Quotes and callouts leave six DIP of inner space on each side, including nested lists and tables. Narrow
+containers reduce the inset to keep a positive text width; selection and source hit testing follow the same layout.
 Table columns measure both natural and minimum nonbreaking widths. A wrapping
 column yields space to an unbreakable word before emergency character breaks
 are needed; right-to-left cells use the same widths and source geometry.
@@ -404,6 +440,11 @@ The authoritative Document, source ACPs, history and Unicode text store stay the
 same. Other paragraphs remain rendered. Empty scopes have real caret geometry;
 ordinary parsing removes the hint. `GetSemanticSourceRegion()` reports the active
 envelope/session. Moving selection outside the envelope finishes its presentation.
+Grapheme and word Backspace/Delete may cross that former boundary as ordinary source transactions; no
+clamp traps the caret. Crossing retires the stale scope, and ordinary rich navigation/commands resume at
+the current selection. Multiline Tab/Shift+Tab in rendered nested code edits after each quote/list prefix,
+preserving those prefixes, original line endings, selection direction and one-step Undo. F2 raw source
+continues to expose its complete envelope for literal edits.
 Read-only inspection is allowed; active native/embedded composition blocks entry
 and exit. UIA source actions preserve dispatch, lifetime and stale-provider guards
 and do not acquire OS focus. Inline math F2/Invoke uses an exact raw interval within its existing paragraph, preserving neighboring formatting while source is incomplete or spans lines. F2 also edits an exact Markdown link or image envelope; UIA ExpandCollapse enters or exits that source presentation while link Invoke continues to navigate. Native HTML links and images do not expose this inline source action.
@@ -571,7 +612,7 @@ and [compiled application example](../Samples/EmbeddedControls/Main.cpp).
 The [completed file-drop plan](../Specs/Plans/Done/RichTextFileDrop_2026-10-20.md) and
 [delivery evidence](../Measurements/WipDelivery_2026-11-02/README.md) record local implementation
 and checks; consumer integration, physical/native-platform and performance qualification
-remain separately owned in the [shared ledger](../Specs/Plans/WIP/ConsumerUiQualification_2026-10-11.md).
+remain separately owned in the [shared ledger](../Specs/Plans/Done/ConsumerUiQualification_2026-10-11.md).
 The [file-reference qualification packet](../Measurements/RichText/README.md)
 records all six builds and 57 ordinary x64 scope passes for image/link and mixed
 paste, including native/embedded transport, semantic roles, history and fault
@@ -594,7 +635,11 @@ alternative. Source/base/binding/visibility changes cancel tokens and reject sta
 completion. Selection-only changes do not invalidate a file. `ReloadImages`
 explicitly refreshes the cache; failed completions stay cached across unrelated edits until reload, document location or remote-image policy changes. The control does not watch the filesystem.
 `Samples/EmbeddedControls/RichImageLoader.h` demonstrates one application-owned
-threadpool callback, fixed queues and owner messages. Its default policy rejects lexically UNC-prefixed file paths; an application can explicitly authorize network files. This lexical check is not a filesystem or network security boundary: mapped drives, reparse points and redirected paths may still reach remote storage. Neither the
+threadpool callback, fixed queues and owner messages. Its default policy rejects `NetworkFile` requests and
+lexically UNC-prefixed paths before filesystem I/O. An application can explicitly authorize network files;
+their canonical source path is used without treating them as ordinary local requests. This lexical check is
+not a filesystem or network security boundary: mapped drives, reparse points and redirected paths may still
+reach remote storage. Neither the
 control nor composition owns a loader, thread, device, HWND or timer. The worker
 uses only its owned request/pixels and posts a cookie-bearing owner message;
 closing retires queues without joining a filesystem or codec call.
@@ -608,7 +653,13 @@ Valid EXIF orientation is applied to the pixels; missing or malformed optional
 orientation leaves otherwise decodable pixels unrotated. Remote images are disabled by default;
 call `SetRemoteImagesEnabled(true)` only after the application authorizes network
 loading. Absolute HTTP(S) destinations then produce `RemoteHttp` requests with
-the URL in `Source()` and an empty `FilePath()`. The application fetches bounded
+the URL in `Source()` and an empty `FilePath()`. UNC paths, `//host/...`, file URLs with an authority (even
+localhost), and relative images beside a UNC document use the same permission and produce `NetworkFile`
+requests with a canonical path in `Source()` and an empty `FilePath()`. Branch on `SourceKind()` before I/O;
+the application may decline an unsupported transport. Permission never grants credentials or loads a share
+through the ordinary local-file decoder. Opt-out immediately cancels and evicts both network kinds.
+HTTP requests retain
+their URL spelling. The application fetches bounded
 encoded bytes on its worker and calls the existing `RichImage::Decode`; DxUi
 does no HTTP, DNS, proxy lookup, authentication, cookie storage or cache I/O.
 URLs are bounded to 8,192 UTF-16 units and accept ASCII DNS/punycode or bracketed
@@ -616,13 +667,13 @@ IPv6 authorities; credentials, fragments, control characters and malformed
 percent escapes are refused. Path/query case remains exact. Toggling the policy
 off immediately cancels remote jobs and evicts their pixels while preserving
 local jobs, local completions, source, selection and history. A later opt-in
-creates new remote identities. The sample loader remains local-file-only; a
-consumer must provide its own explicit remote transport and failure policy.
+creates new remote identities. The sample file loader handles local files and explicitly authorized
+network-file paths; HTTP fetching requires the consumer's own transport and failure policy.
 
 `SetDataImagesEnabled(true)` independently admits bounded `data:` destinations.
 The caller receives their exact source as a `Data` request, validates and decodes
 it using its own media policy, and completes the existing bounded image request.
-Turning either remote or data admission off cancels only that kind of work.
+Turning remote admission off cancels HTTP/network-file work; data admission has its independent policy.
 An optional `SetOnImageActivated` callback receives a current image's source
 range, destination, title and alternative for Ctrl+click or Ctrl+Enter. The
 application owns any resulting action; an enclosing link takes precedence.
@@ -1017,6 +1068,13 @@ Microsoft engine does not replace the owned Unicode control.
 The [cooperative preparation record](../Measurements/RichText/README.md) retains native/build/pixel/fault/resource evidence, all original failed/interrupted attempts and pinned parser references. This closes the scheduling component; the full engine and original frame-performance HOLD remain open.
 
 ## Owned lossless Markdown preparation
+
+Malformed inline HTML and repeated failed table/link candidates have bounded
+scan work. Unterminated HTML uses four final-terminator facts per leaf; repeated
+invalid table delimiters do not re-flatten the growing paragraph. Bare link
+destinations support up to 32 balanced parenthesis levels; deeper destinations
+stay literal, preserving their complete source. Ordinary `foo(and(bar))` links
+remain supported. These are logical work/capacity bounds, not timing guarantees.
 
 `DxUi/MarkdownSyntax.h` starts the owned parser independently of the v0 renderer.
 It retains exact Unicode source, root block ranges, a container/leaf tree and an
@@ -1504,12 +1562,18 @@ with an optional initial BOM. Fence lines must be exact, without spaces. YAML
 closes at `---` or `...`; TOML closes at `+++`. Later thematic breaks, indented
 or quoted markers and markers in code retain normal Markdown interpretation.
 CommonMark0312 and Gfm029 do not acquire metadata syntax.
+Tracked edits at document start recognize the envelope again, even when its bytes are unchanged. Inserting
+a prefix removes its metadata interpretation; deleting that prefix can make it metadata.
 
 `MarkdownBlockKind::FrontMatter` and `MarkdownNode::frontMatterKind` identify the
 source owner and language. `block.content` excludes fences; `block.source` retains
 the entire envelope, comments, order, spelling and original EOLs. An incomplete
 envelope extends through EOF with `block.closed == false`. No Markdown references,
 headings or inline styles are extracted from metadata.
+YAML accepts LF, CR and CRLF through private parser staging while retaining the exact original source and
+diagnostic ranges. TOML keeps its own line-ending rules. Internal parser checks and allocations use the
+same bounded callbacks in Release, Debug and ASan; allocation failure preserves the previous publication
+for retry.
 `Diagnostics()` carries a source-ranged `UnclosedFrontMatter` issue naming the
 opener and final syntax node. The semantic child exposes a missing-fence
 explanation through UIA HelpText; closing the envelope retires that diagnostic.
@@ -1542,7 +1606,7 @@ Capacity refusal remains distinct from invalid input. See the
 [allocation-failure sweep](../Tests/Embedded/Embedded.Tests.RichTextResources.h).
 These checks do not validate decoded values or establish full YAML/TOML value
 conformance. See the [source-bound evidence report](../Measurements/WipDelivery_2026-11-02/README.md)
-and [shared qualification ledger](../Specs/Plans/WIP/ConsumerUiQualification_2026-10-11.md)
+and [shared qualification ledger](../Specs/Plans/Done/ConsumerUiQualification_2026-10-11.md)
 for execution and remaining platform status.
 
 ## Footnote rendering and navigation (M5b preview)
@@ -1594,6 +1658,36 @@ failures. The five themed gallery tiles show numbered/styled bodies and repeated
 backlinks. Keyboard traversal and guarded note-aware structural planning are implemented; final runtime/build profiles remain M5f. This preview does not close metadata, math, diagrams or performance acceptance.
 
 ## Native in-document mathematics and broader diagrams
+
+Class-diagram direction follows the written relationship order. For `classDiagram`, `direction LR`,
+`Document <|-- Markdown`, Document is left of Markdown and the hollow triangle points at Document.
+The marker does not reverse the diagram. A leading triangle or diamond shortens its own connector end and
+keeps the opposite node connected. Pipeline flowcharts align independent inputs near their shared
+successor, give plain fan-in separate box attachments, and keep long links on the nearer outer side.
+Dense joins and labeled routes retain their own clearance.
+
+Math accents sit close to the visible letters with a remaining gap; dots stay visible and a wide-tilde
+fallback uses a smooth wave. Nested matrices and paired delimiters use visible ink for spacing, including
+gathered vector/inner-product examples. Aligned/gathered/alignat cells use display style in both inline and
+display formulas. `\substack` remains a centered script-style subarray; explicit style commands still work.
+Small `\left`/`\right` delimiters stay proportional to their contents; a font's subformula threshold does
+not enlarge ordinary inner-product brackets. Tall matrices still request the taller native fence variants.
+
+Styled Mermaid labels retain valid style ranges after unquoted trailing-space trimming. ER/class fan-in and
+fan-out relationships reserve separate endpoint slots and measured cardinality space; unsupported or genuinely
+over-capacity geometry still retains exact source. Task checkboxes replace unordered bullets, while ordered
+task numbering stays visible. Subtle code language badges and line numbers use foreground text ink in all themes.
+
+Adjacent labeled links reserve measured text space between boxes and use that corridor directly in LR/RL/TB/BT
+diagrams. Branching links also reserve cross-axis room between sibling boxes. Dense joins that mix fan-in and
+fan-out retain distinct exterior label lanes, as do other complex routes. Subtle table cells have ten-DIP side insets
+when space permits; inline-code chips add three DIP at each text endpoint in native layout metrics.
+
+Task markers use the current theme accent, with foreground ink in high contrast. Set
+`RichTextEditorAppearance::strikeCompletedTasks` (or `RichText::LayoutOptions::strikeCompletedTasks`) to opt into
+completed-task body strikethrough. It defaults to false, leaves nested unchecked items unchanged, and never rewrites
+Markdown or changes selection, revision, history or accessibility text. Explicit `~~text~~` remains independent.
+This additive API remains revision 4; rebuild the library and consumers with exact matching headers and native tools.
 
 RichMarkdown recognizes `$...$` and `\(...\)` inside ordinary
 inline leaves. Single-dollar math is single-line and requires nonspace content edges;
@@ -1830,12 +1924,32 @@ digits and two fractional digits and require a positive total. Sectors follow
 source order clockwise; an ordered legend matches the theme-derived shades. Invalid
 or unsupported forms retain exact source with a diagnostic.
 
-The bounded `sequenceDiagram` profile supports ordered implicit or explicitly
-declared participants, plain aliases, directed `->>` / `-->>` messages,
-open-head `-)` / `--)` messages and self-message loops. Measured headers,
-dashed lifelines and chronological messages are drawn natively; accessibility
-retains participant/message order and the exact fence. Notes, actors, activations,
-loops, directives and other syntax retain the full source with a diagnostic.
+The bounded `sequenceDiagram` profile supports ordered implicit participants,
+`participant` and stick-figure `actor` declarations with plain `as` aliases,
+filled-head `->>` / `-->>`, open-head `-)` / `--)`, unheaded `->` / `-->`
+and self-message loops. Plain `Note left of A: text`, `Note right of A: text`
+and `Note over A,B: text` frames retain timeline order. Bare `autonumber` starts
+at one and counts messages, excluding notes. Accessibility includes aliases,
+notes and numbers; the complete authored fence remains exact and editable.
+Custom number arguments, activations, loops, creation/destruction, directives
+and other excluded forms retain the full source with a diagnostic.
+Directionless `flowchart` and `graph` headers default to top-to-bottom layout.
+
+Default diagram connections, arrowheads, lifelines and outlines use readable
+foreground ink, including in Subtle and high contrast. Decorative Markdown borders
+remain separate; supported authored colors retain their contrast checks.
+
+```mermaid
+sequenceDiagram
+actor Writer as Notebook author
+participant App as Draft editor
+autonumber
+Note left of Writer: Draft ready
+Writer->App: Save draft
+Note over Writer,App: One exact document
+App-->Writer: Saved
+Note right of App: Keep revision
+```
 
 The bounded `mindmap` profile draws one root and up to 127 descendants with
 space-indented levels through depth eight. Plain, rectangular, rounded and

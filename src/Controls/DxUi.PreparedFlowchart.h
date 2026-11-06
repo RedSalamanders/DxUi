@@ -15,6 +15,9 @@ struct DiagramColorContext
 {
     D2D1_COLOR_F text{}, stroke{}, fill{};
 };
+// Preparation-only choice of an opaque arrow-label surface. Keep the canvas
+// color at readable contrast; otherwise use the smallest neutral adjustment.
+D2D1_COLOR_F ResolveDiagramLabelBackground(D2D1_COLOR_F ink, D2D1_COLOR_F surface) noexcept;
 // Target-bound resources are staged independently from the reusable paths and
 // layouts. A palette is published only after every requested brush is ready.
 struct DiagramPalette
@@ -80,7 +83,8 @@ public:
     std::uint64_t Revision() const noexcept;
     std::shared_ptr<const FlowchartLayoutPlan> Geometry() const noexcept;
     // Raster preparation only; the caller owns BeginDraw/EndDraw, clipping and
-    // brushes; fill must be opaque for node and edge-label backgrounds.
+    // brushes; fill and optional labelFill must be opaque. labelFill matches
+    // the canvas; notes and labels inside filled groups retain their own fill.
     // Submission restores the caller's transform and creates no C++/SDK
     // resources. A true result still requires the caller's successful EndDraw.
     bool Draw(ID2D1RenderTarget* target,
@@ -89,7 +93,8 @@ public:
               ID2D1Brush* fill,
               D2D1_POINT_2F origin,
               const DiagramPalette* palette     = nullptr,
-              const DiagramColorContext* colors = nullptr) const noexcept;
+              const DiagramColorContext* colors = nullptr,
+              ID2D1Brush* labelFill             = nullptr) const noexcept;
 
 private:
     struct State;

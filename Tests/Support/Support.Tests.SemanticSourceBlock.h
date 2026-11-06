@@ -435,6 +435,53 @@ template <typename Prepare, typename Check> inline void Retained(SourceEditingEd
     check(editor.Undo(), "physical-line join undo restores exact source");
     prepare();
     check(editor.EndSemanticSourceEdit(host), "joined source envelope can leave editing");
+    for (const bool backwards : {false, true})
+        for (const bool word : {false, true})
+        {
+            const auto source = backwards ? std::wstring(L"before\r\n") + std::wstring(cases[0u]) : std::wstring(cases[0u]) + L"after";
+            const auto scope  = enter(source);
+            const auto caret  = backwards ? scope.first : scope.last;
+            editor.SetSelection({caret, caret});
+            const auto expected       = backwards ? word ? std::wstring(cases[0u]) : std::wstring(L"before") + std::wstring(cases[0u])
+                                        : word    ? std::wstring(cases[0u])
+                                                  : std::wstring(cases[0u]) + L"fter";
+            const auto beforeDeletion = notifications;
+            check(editor.OnKeyDown(host, backwards ? VK_BACK : VK_DELETE, word ? MK_CONTROL : 0u) && editor.GetText() == expected &&
+                      ! editor.GetSemanticSourceRegion() && notifications == beforeDeletion + 1u,
+                  "grapheme and word deletion cross the former source boundary naturally and retire its presentation in one edit");
+            check(editor.Undo() && editor.GetText() == source && editor.Redo() && editor.GetText() == expected,
+                  "cross-boundary source deletion retains exact Undo/Redo without containing or extending the old interval");
+            prepare();
+        }
+    const auto originalAppearance   = editor.GetAppearance();
+    auto tabAppearance              = originalAppearance;
+    tabAppearance.sourceTabSpaces   = 4u;
+    tabAppearance.sourceTabUsesTabs = false;
+    editor.SetAppearance(tabAppearance);
+    struct IndentationScenario
+    {
+        std::wstring_view source, indented;
+    };
+    constexpr IndentationScenario indentation[] = {{L"1. item\n   ~~~\n   a\n   b\n   ~~~\n", L"1. item\n   ~~~\n       a\n       b\n   ~~~\n"},
+                                                   {L"> ~~~\r\n> a\r\n> b\r\n> ~~~\r\n", L"> ~~~\r\n>     a\r\n>     b\r\n> ~~~\r\n"},
+                                                   {L"> - ~~~\n>   a\n>   b\n>   ~~~\n", L"> - ~~~\n>       a\n>       b\n>   ~~~\n"}};
+    for (const auto& scenario : indentation)
+    {
+        editor.SetText(std::wstring(scenario.source));
+        prepare();
+        const auto first = scenario.source.find(L"a\n") != std::wstring_view::npos ? scenario.source.find(L"a\n") : scenario.source.find(L"a\r\n");
+        const auto last  = scenario.source.find(L"b\n") != std::wstring_view::npos ? scenario.source.find(L"b\n") + 1u : scenario.source.find(L"b\r\n") + 1u;
+        editor.SetSelection({last, first});
+        check(editor.OnKeyDown(host, VK_TAB, 0u) && editor.GetText() == scenario.indented && editor.GetSelection().anchor > editor.GetSelection().caret,
+              "multiline Tab indents code content after every nested container prefix and preserves selection direction");
+        prepare();
+        check(editor.OnKeyDown(host, VK_TAB, MK_SHIFT) && editor.GetText() == scenario.source,
+              "multiline Shift+Tab removes only code indentation and leaves quote/list markers and original terminators intact");
+        check(editor.Undo() && editor.GetText() == scenario.indented && editor.Undo() && editor.GetText() == scenario.source,
+              "nested code indentation and outdent each retain one exact source transaction");
+        prepare();
+    }
+    editor.SetAppearance(originalAppearance);
     constexpr std::wstring_view keyboardSource = L"- item\n```\ncode\n```\n";
     enter(keyboardSource);
     for (unsigned step = 0u; step < 6u && editor.GetSemanticSourceRegion(); ++step)

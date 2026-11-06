@@ -5,6 +5,7 @@
 #include "Support.Tests.FlowchartLayout.h"
 #include <algorithm>
 #include <iostream>
+#include <utility>
 #include <wil/resource.h>
 #include <wil/result.h>
 #include <wincodec.h>
@@ -1552,8 +1553,95 @@ template <typename Check> inline void GanttRaster(Check&& check)
               "direct invalid Gantt models fail both services without replacing the prior publication");
     }
 }
+template <typename Check> inline void ClassRelationEndpointRaster(Check&& check)
+{
+    const auto initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+    if (FAILED(initialized) && initialized != RPC_E_CHANGED_MODE)
+        THROW_IF_FAILED(initialized);
+    const auto apartment = wil::scope_exit([&]() noexcept
+    {
+        if (SUCCEEDED(initialized))
+            CoUninitialize();
+    });
+    const auto write     = WriteFactory();
+    const auto drawing   = DrawingFactory();
+    wil::com_ptr<IWICImagingFactory> imaging;
+    THROW_IF_FAILED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(imaging.put())));
+    constexpr UINT width = 640u, height = 640u, stride = width * 4u;
+    for (const auto direction : {L"LR", L"RL", L"TB", L"BT"})
+        for (const auto operation : {L"<|--", L"--|>", L"<|..", L"..|>", L"*--", L"--*", L"o--", L"--o"})
+        {
+            const auto source = std::wstring(L"classDiagram\ndirection ") + direction + L"\nA " + operation + L" B\n";
+            const auto graph  = FlowchartLayoutTests::Graph(source);
+            PreparedFlowchart prepared;
+            prepared.Begin(write.get(), drawing.get(), graph, {}, {1u, 1u});
+            Complete(prepared, check);
+            const auto geometry = prepared.Geometry();
+            check(prepared.Ready() && geometry && geometry->edges.size() == 1u && geometry->extent.width < width && geometry->extent.height < height,
+                  "class endpoint raster uses a bounded prepared two-node fixture");
+            if (! prepared.Ready() || ! geometry || geometry->edges.size() != 1u)
+                return;
+            wil::com_ptr<IWICBitmap> bitmap;
+            THROW_IF_FAILED(imaging->CreateBitmap(width, height, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnLoad, bitmap.put()));
+            wil::com_ptr<ID2D1RenderTarget> target;
+            const auto properties =
+                D2D1::RenderTargetProperties(D2D1_RENDER_TARGET_TYPE_SOFTWARE, D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
+            THROW_IF_FAILED(drawing->CreateWicBitmapRenderTarget(bitmap.get(), properties, target.put()));
+            wil::com_ptr<ID2D1SolidColorBrush> text, stroke, fill;
+            THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black), text.put()));
+            THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Blue), stroke.put()));
+            THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White), fill.put()));
+            target->BeginDraw();
+            target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+            check(prepared.Draw(target.get(), text.get(), stroke.get(), fill.get(), {}), "class relation paints its actual native connector");
+            THROW_IF_FAILED(target->EndDraw());
+            std::vector<BYTE> pixels(stride * height);
+            THROW_IF_FAILED(bitmap->CopyPixels(nullptr, stride, static_cast<UINT>(pixels.size()), pixels.data()));
+            const auto& edge    = geometry->edges.front();
+            const bool atStart  = graph->edges.front().markerAtStart;
+            const auto endpoint = atStart ? edge.path.back() : edge.path.front();
+            auto neighbour      = endpoint;
+            for (std::size_t step = 1u; step < edge.path.size(); ++step)
+            {
+                neighbour = atStart ? edge.path[edge.path.size() - 1u - step] : edge.path[step];
+                if (neighbour.x != endpoint.x || neighbour.y != endpoint.y)
+                    break;
+            }
+            const auto distance = std::hypot(neighbour.x - endpoint.x, neighbour.y - endpoint.y);
+            check(distance > 8.0, "the independently sampled attachment has room outside the unmarked node");
+            if (distance <= 8.0)
+                return;
+            const auto sampleX = endpoint.x + 6.0 * (neighbour.x - endpoint.x) / distance;
+            const auto sampleY = endpoint.y + 6.0 * (neighbour.y - endpoint.y) / distance;
+            bool connected{};
+            for (int dy = -2; dy <= 2; ++dy)
+                for (int dx = -2; dx <= 2; ++dx)
+                {
+                    const int x = static_cast<int>(std::lround(sampleX)) + dx, y = static_cast<int>(std::lround(sampleY)) + dy;
+                    if (x < 0 || y < 0 || x >= static_cast<int>(width) || y >= static_cast<int>(height))
+                        continue;
+                    const auto offset = static_cast<std::size_t>(y) * stride + static_cast<std::size_t>(x) * 4u;
+                    connected         = connected || (pixels[offset] > 160u && pixels[offset + 1u] < 200u && pixels[offset + 2u] < 200u);
+                }
+            if (! connected)
+            {
+                std::wcerr << L"Disconnected class endpoint: " << operation << L" direction=" << direction << L'\n';
+                std::wcerr << L" markerAtStart=" << atStart << L" sample=" << sampleX << L"," << sampleY << L" path:";
+                for (const auto& point : edge.path)
+                    std::wcerr << L" " << point.x << L"," << point.y;
+                std::wcerr << L'\n';
+                for (const auto& node : geometry->nodes)
+                    std::wcerr << L" node=" << node.bounds.x << L"," << node.bounds.y << L"," << node.bounds.width << L"," << node.bounds.height << L'\n';
+                float dpiX{}, dpiY{};
+                target->GetDpi(&dpiX, &dpiY);
+                std::wcerr << L" dpi=" << dpiX << L"," << dpiY << L'\n';
+            }
+            check(connected, "reversed and trailing class markers keep visible line ink beside the unmarked node in every direction");
+        }
+}
 template <typename Check> inline void ErRaster(Check&& check)
 {
+    ClassRelationEndpointRaster(check);
     const auto initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
     if (FAILED(initialized) && initialized != RPC_E_CHANGED_MODE)
         THROW_IF_FAILED(initialized);
@@ -1725,6 +1813,85 @@ template <typename Check> inline void PieRaster(Check&& check)
               "a full-circle sector fills all four independently sampled quadrants");
     }
 }
+template <typename Arm> __declspec(noinline) void NumberedSequenceAllocationOrigin(PreparedFlowchart& prepared, Arm&& arm)
+{
+    const DxUi::Failure::Scope failureScope;
+    arm();
+    static_cast<void>(prepared.Advance({1u, 1u}));
+}
+
+// The first two prepared labels are participants. The next one-event turn
+// derives the numbered message text before entering DirectWrite.
+template <typename Check, typename Measure, typename Arm> void NumberedSequenceAllocationChild(Check&& check, Measure&& measure, Arm&& arm)
+{
+    const auto write   = WriteFactory();
+    const auto drawing = DrawingFactory();
+    const auto graph   = FlowchartLayoutTests::Graph(L"sequenceDiagram\nautonumber\nparticipant A\nparticipant B\nA->>B: a numbered message with long text\n");
+    check(graph && graph->outcome == FlowchartOutcome::Prepared && graph->nodes.size() == 2u && graph->edges.size() == 1u &&
+              graph->edges.front().sequenceNumber == 1u,
+          "numbered sequence injection fixture has one numbered message");
+    const auto prepareNodes = [&](PreparedFlowchart& prepared)
+    {
+        check(prepared.Begin(write.get(), drawing.get(), graph, {}, {1u, 1u}) == LayoutPreparationStatus::Pending, "numbered sequence injection begins");
+        std::size_t labels{};
+        for (unsigned turn = 0u; labels < 2u && turn < 16u; ++turn)
+        {
+            const auto progress = prepared.Advance({1u, 1u});
+            check(progress.status == LayoutPreparationStatus::Pending, "participant labels stage before numbered message");
+            labels += progress.layoutsPrepared;
+        }
+        check(labels == 2u, "numbered sequence injection reaches its message label turn");
+    };
+    PreparedFlowchart census;
+    prepareNodes(census);
+    LayoutAdvance observed{};
+    const auto requests = measure([&] { observed = census.Advance({1u, 1u}); });
+    check(requests > 0u && observed.layoutsPrepared == 1u && observed.status == LayoutPreparationStatus::Pending,
+          "numbered message label turn performs tracked C++ allocation");
+    PreparedFlowchart target;
+    prepareNodes(target);
+    NumberedSequenceAllocationOrigin(target, std::forward<Arm>(arm));
+}
+
+template <typename Arm> __declspec(noinline) void CompactRoutingAllocationOrigin(NativeFlowchartLayout& layout, Arm&& arm)
+{
+    const DxUi::Failure::Scope failureScope;
+    arm();
+    static_cast<void>(layout.Advance(1u));
+}
+
+// With no cardinalities the bounded endpoint-slot object is first allocated
+// by Corridors. Begin reserves the published-plan vectors before this census.
+template <typename Check, typename Measure, typename Arm> void CompactRoutingAllocationChild(Check&& check, Measure&& measure, Arm&& arm)
+{
+    const auto graph = FlowchartLayoutTests::Graph(L"flowchart TD;A-->B;A-->C");
+    check(graph && graph->outcome == FlowchartOutcome::Prepared && graph->nodes.size() == 3u && graph->edges.size() == 2u && graph->edges[0u].label.empty() &&
+              graph->edges[1u].label.empty(),
+          "compact-route injection fixture has a simple unlabelled fan-out");
+    const std::vector<FlowchartSize> nodes(graph->nodes.size(), {16.0, 12.0}), edges(graph->edges.size());
+    NativeFlowchartLayout census;
+    check(census.Begin(graph, nodes, edges) == SourceResult::Success, "compact-route census begins");
+    std::size_t allocationTurn{};
+    for (std::size_t turn = 1u; census.HasPendingPreparation() && turn < 20000u; ++turn)
+    {
+        MarkdownAdvance progress{};
+        const auto requests = measure([&] { progress = census.Advance(1u); });
+        check(progress.workUnits == 1u, "compact-route census advances one work event");
+        if (requests)
+        {
+            check(requests == 1u && progress.status == MarkdownPreparationStatus::Pending, "compact endpoint slots are one staging allocation");
+            allocationTurn = turn;
+            break;
+        }
+    }
+    check(allocationTurn != 0u, "compact-route census reaches endpoint-slot allocation");
+    NativeFlowchartLayout target;
+    check(target.Begin(graph, nodes, edges) == SourceResult::Success, "compact-route target begins");
+    for (std::size_t turn = 1u; turn < allocationTurn; ++turn)
+        check(target.Advance(1u).status == MarkdownPreparationStatus::Pending, "compact-route target reaches observed allocation turn");
+    CompactRoutingAllocationOrigin(target, std::forward<Arm>(arm));
+}
+
 template <typename Check> inline void SequenceRaster(Check&& check)
 {
     const auto initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
@@ -1792,7 +1959,7 @@ template <typename Check> inline void SequenceRaster(Check&& check)
     check(lifelineInk > 0u, "participant has a visible lifeline below its header");
     const auto published = prepared.Geometry();
     const std::vector<FlowchartSize> nodeSizes(graph->nodes.size(), {16.0, 12.0}), edgeSizes(graph->edges.size(), {24.0, 12.0});
-    for (unsigned variant = 0u; variant < 7u; ++variant)
+    for (unsigned variant = 0u; variant < 9u; ++variant)
     {
         auto invalid = std::make_shared<FlowchartModel>(*graph);
         switch (variant)
@@ -1804,6 +1971,8 @@ template <typename Check> inline void SequenceRaster(Check&& check)
             case 4u: invalid->edges[0u].style = FlowchartLineStyle::Thick; break;
             case 5u: invalid->edges[0u].fromCardinality = L"1"; break;
             case 6u: invalid->edges[0u].minimumRanks = 2u; break;
+            case 7u: invalid->edges[0u].sequenceNote = SequenceNotePlacement::Left; break;
+            case 8u: invalid->edges[0u].sequenceNumber = 1u; break;
         }
         check(! ValidSequenceModel(*invalid), "direct sequence model validator rejects unsupported topology or message kinds");
         bool layoutRejected{}, paintRejected{};
@@ -1813,9 +1982,23 @@ template <typename Check> inline void SequenceRaster(Check&& check)
             layoutRejected = layout.Begin(invalid, nodeSizes, edgeSizes, {}, {}, groups) == SourceResult::InvalidArgument;
         }
         paintRejected = prepared.Begin(write.get(), drawing.get(), invalid, {}, {1u, 1u}) == LayoutPreparationStatus::Failed;
-        check(layoutRejected && paintRejected && prepared.Ready() && prepared.Geometry() == published,
+        check(layoutRejected && paintRejected && prepared.Result() == E_INVALIDARG && prepared.Ready() && prepared.Geometry() == published,
               "layout and paint reject forged sequence models while preserving the prior publication");
     }
+    const auto expanded = FlowchartLayoutTests::Graph(L"sequenceDiagram\nautonumber\nactor A\nparticipant B\nA->B: hello\nNote over A,B: note\n");
+    check(expanded->outcome == FlowchartOutcome::Prepared && ValidFlowchartModel(*expanded), "numbered arrowless sequence and note are admitted");
+    check(prepared.Begin(write.get(), drawing.get(), expanded, {}, {2u, 2u}) == LayoutPreparationStatus::Pending,
+          "new sequence stages while the previous timeline remains published");
+    auto invalidNote                = std::make_shared<FlowchartModel>(*expanded);
+    invalidNote->edges.back().arrow = true;
+    const std::vector<FlowchartSize> expandedNodes(expanded->nodes.size(), {16.0, 12.0}), expandedEdges(expanded->edges.size(), {24.0, 12.0});
+    NativeFlowchartLayout invalidLayout;
+    check(invalidLayout.Begin(invalidNote, expandedNodes, expandedEdges) == SourceResult::InvalidArgument &&
+              prepared.Begin(write.get(), drawing.get(), invalidNote, {}, {3u, 3u}) == LayoutPreparationStatus::Failed && prepared.Result() == E_INVALIDARG &&
+              prepared.Pending() && prepared.Geometry() == published,
+          "invalid sequence note returns checked refusal while preserving pending and published timeline");
+    Complete(prepared, check);
+    check(prepared.Ready() && prepared.Revision() == expanded->revision, "valid sequence staging resumes after rejected admission");
 }
 template <typename Check> inline void StateNoteRaster(Check&& check)
 {

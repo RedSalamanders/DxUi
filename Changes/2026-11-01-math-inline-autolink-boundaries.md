@@ -1,1 +1,0 @@
-- Preserve angle-autolink ownership when an earlier unmatched math opener scans for a closer.

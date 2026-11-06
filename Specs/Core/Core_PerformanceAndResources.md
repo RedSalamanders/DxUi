@@ -6,6 +6,34 @@ and callback exceptions require host fatal diagnostics, implemented by API 5. It
 tracked in the failure migration plan; historical throwing-fault recovery sweeps and resource measurements
 alone do not qualify it.
 
+Embedded input wake deferral uses an intrusive UI-thread stack with borrowed hosts and one pending bit per
+attachment. Entry, nesting and completion add no heap allocation, worker, timer or retained queue. Scope exit
+visits current synchronous nesting only; detached requests disappear with their attachment. Direct mutations
+on another host remain independent. Composition and clean/hidden preparation retain their existing contracts.
+
+Selection-to-block insertion scans bounded source/selection text and stages one replacement. It preserves
+existing counted UTF-16 and EOL spellings, and refuses a result beyond document capacity before publication.
+It performs no layout, device work or clipboard access. Its staged data is retired when the one source
+transaction completes or declines; this functional bound is not paired-performance acceptance.
+
+Arrow-label background contrast is resolved once for each changed effective foreground/surface or resource
+binding, outside composition. A retained target-bound brush is reused on unchanged frames. Two bounded
+16-step neutral searches handle insufficient contrast; group/note surface membership is cached with
+prepared labels. Composition selects borrowed brushes without contrast scans, layout, allocation or new
+device resources. This functional/resource contract does not establish paired performance acceptance.
+Layout retirement releases the target-bound label brush alongside the other semantic brushes. Its pure
+color result remains reusable while foreground and surface stay unchanged; resource or host replacement
+reacquires the brush without retaining the old target resource.
+
+Mermaid label-style clipping and shared model validation run during bounded preparation and allocate no extra
+label storage. Model validation is an indivisible bounded check, not a wall-clock guarantee. Relationship layouts
+and compact fan-in/fan-out routing may stage one bounded endpoint-slot state (256 nodes, two sides and 512
+edges). Each endpoint may scan up to 512 edges; this is bounded preparation, not a linear-work or wall-clock
+guarantee. The temporary state retires with preparation and is never retained by the published plan. Diagrams
+that need neither relationship slots nor compact fan routing avoid that allocation. Slot admission and row
+sizing remain bounded by existing node/edge/extent limits. Clean/hidden
+frames, warm drawing and code-chrome foreground selection add no workers, timers, allocation or measurement.
+
 Bulk Grid and Tree selection builds a staged visible-order list with hash membership and a fixed-width radix-sorted
 membership copy. Its expected work is linear in visible and requested IDs, including reverse-ordered IDs; allocation
 failure preserves the previously published selection. Repeated IDs occur only once in first-visible order; the final
@@ -72,6 +100,20 @@ decode only final text prefixes and the final remaining suffix, once each.
 `InlineStatistics()` exposes indexing/candidate visits and decoded suffix units;
 these counters do not include allocator work or claim a wall-clock deadline.
 The index is bounded by the admitted source length and is retired with staging.
+Inline raw-HTML terminator lookup MUST reject a missing or already-passed final
+terminator without scanning the remaining leaf again. Four leaf-local final
+offsets suffice for `-->`, `?>`, `]]>` and `>`; collect them in the existing
+backtick indexing pass without a per-unit HTML index in ordinary profiles.
+Successful HTML searches consume their complete emitted node. Non-angle inline
+link destinations admit at most 32 balanced parenthesis levels; exceeding that
+limit retains literal source. Table recognition MUST check pipe presence, cell
+counts and delimiter alignment before flattening a reference-like paragraph.
+Reference extraction runs only for a viable table or normal paragraph closure.
+Private opt-in owner-thread work probes count searched source spans, destination
+loop iterations and raw reference-flatten spans, rather than CPU loads or time.
+Required hostile doubling fixtures stay within 2.5 times their prior logical work
+and retain independently specified literal/block results. These counters add no
+public ABI fields and do not qualify timing, allocator work or paired performance.
 The maximum
 all-newline source exercises maximum root-trivia and lexical partition counts; owned
 C++ retained storage must stay within 24 MiB and release completely. Replacing
@@ -87,6 +129,7 @@ proxy/control-block construction. The published explicit zero-size construction/
 permit throwing failure instead of accidental noexcept termination; it is legacy behavior, not the new checked
 failure contract. A public aggregate's exception specification alone cannot satisfy the allocation/diagnostic
 policy. Fault coverage must reach each owned override, not only the first one.
+Mermaid sequence accessibility-label staging follows the same checked/fatal allocation rule for empty derived labels. A genuine checked refusal preserves the published/pending semantic generation and permits its documented retry; unexpected C++ allocation failures are fatal. Numbered messages, notes and compact endpoint-routing staging require their corresponding isolated fatal and checked native-result coverage.
 The allocation sweep must cover admission, growth, reference extraction, nested
 inline values/links, tables/tasks/tagfilter and compaction. Literal text coalesces
 into runs rather than retaining one string per scalar. An 8,193-unit emphasis
@@ -368,6 +411,9 @@ separate required checks for this rendering change.
   unsupported. Intermediate include directories accept only the exact two derived composite-shader headers plus
   supported native object/tracking/output files, preventing extensionless or alternate header shadowing. The selected
   MSVC/ATL, SDK/UCRT/WinRT/C++/WinRT, auxiliary VS and NETFX input roots bind all file bytes and optional-root absence.
+  Native Git input discovery uses the exact scoped-testing module imported by that performance-policy
+  instance. Paired baseline/candidate/harness checkouts may load identically named modules together;
+  process-wide name lookup must neither select another checkout nor turn multiple instances into a command string.
 - A policy binds the approved judge version and normalized source SHA-256. The candidate judge must match both values from
   the measured-base policy to be eligible for qualification; agreement of verdict labels alone does not approve changed
   judge code. It also binds the assignment protocol and normalized `Tools/PairedRun.psm1` source SHA-256; both the immutable
@@ -516,7 +562,7 @@ before/after performance acceptance.
 - **S0-S2 implementation integration, 11 October 2026.** The developer's
   [implementation-only decision](../Testing/Testing_Validation.md#scoped-iteration-and-pr-coverage) establishes no accepted
   performance envelope, policy trust, non-regression or production qualification. Retained timing/memory flags remain
-  unresolved in [the qualification WIP](../Plans/WIP/ConsumerUiQualification_2026-10-11.md); bands, deterministic budgets
+  unresolved in [the qualification WIP](../Plans/Done/ConsumerUiQualification_2026-10-11.md); bands, deterministic budgets
   and the measured-advice rule are unchanged.
 - **A manual run** reports the same verdict in its job summary and stays green for a finding, as it always did: only a pull
   request is gated. Hosted runs are serial on one machine but not on a controlled quiet desktop, and their evidence says so.

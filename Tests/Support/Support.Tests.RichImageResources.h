@@ -68,6 +68,31 @@ template <typename Check> inline void Admission(Check&& check)
         }
         throw std::runtime_error("image resource preparation did not settle");
     };
+    for (const auto destination : {L"//files.example.test/share/cover.png", L"file://files.example.test/share/cover.png"})
+    {
+        RichImageResources network;
+        const auto document = Semantic(std::wstring(L"![cover](") + destination + L")");
+        network.Begin(document, L"C:\\Notebooks\\Notes.md", 1u, 1u);
+        finish(network);
+        std::vector<RichImageRequest> jobs(0u);
+        network.Take(jobs);
+        check(jobs.empty() && network.Statistics().requestedSources == 0u, "network file spellings never enter the default local-image provider queue");
+        network.SetRemoteImagesEnabled(true);
+        network.Begin(document, L"C:\\Notebooks\\Notes.md", 1u, 1u);
+        finish(network);
+        network.Take(jobs);
+        check(jobs.size() == 1u && jobs[0u].SourceKind() == RichImageSourceKind::NetworkFile && jobs[0u].FilePath().empty() &&
+                  jobs[0u].Source() == L"\\\\files.example.test\\share\\cover.png",
+              "explicit network permission publishes a separately classified immutable path with no local-file accessor");
+        if (jobs.size() != 1u)
+            return;
+        const auto job = jobs[0u];
+        check(network.Complete(job, Picture()) && network.Statistics().readySources == 1u,
+              "a synthetic opted-in provider completes without real network access");
+        network.SetRemoteImagesEnabled(false);
+        check(job.Cancelled() && network.Statistics().readySources == 0u && ! network.Complete(job, Picture()),
+              "network-file opt-out immediately releases pixels and refuses stale completion");
+    }
     {
         RichImageResources staged;
         const auto document = Semantic(L"![a](a.png) ![b](b.png) ![c](c.png) ![d](d.png) ![e](e.png)");

@@ -2,7 +2,7 @@
 
 Status: DONE — local implementation and source-bound review closed; shared acceptance remains separately owned
 
-Closeout evidence: API4 source/selection ownership and snapshot synchronization are implemented with exact-source and lifecycle tests. Source-specific runtime, size and complete paired collection evidence is retained; source sharing does not imply universal zero-copy or an accepted performance verdict. See the [delivery packet](../../../Measurements/WipDelivery_2026-11-02/README.md) and [shared qualification ledger](../WIP/ConsumerUiQualification_2026-10-11.md).
+Closeout evidence: API4 source/selection ownership and snapshot synchronization are implemented with exact-source and lifecycle tests. Source-specific runtime, size and complete paired collection evidence is retained; source sharing does not imply universal zero-copy or an accepted performance verdict. See the [delivery packet](../../../Measurements/WipDelivery_2026-11-02/README.md) and [shared qualification ledger](ConsumerUiQualification_2026-10-11.md).
 
 
 ## Checklist

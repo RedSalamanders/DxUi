@@ -131,7 +131,14 @@ pool and application model; their trees and hit rectangles remain independent. T
 interactive and supplies view-local physical coordinates. This replaces the earlier single-tree/two-surface sketch.
 
 Attach, prepare, input, animation, replace-device and destruction are UI-thread affine. The borrowed preparation
-callback is synchronous and may retire or replace retained controls. Dirty requests coalesce; requests raised during painting
+callback may retire or replace retained controls. Mutating input entry points defer preparation notifications
+until the outermost synchronous entry has completed control callbacks, ownership checks and failure cleanup.
+This covers key/character/pointer dispatch, text application/cancellation, clipboard and drop entry points.
+Nested input on the same host coalesces to one wake before the outer call returns. Another embedded view's
+direct setters retain immediate notification. Detach discards obsolete attachment requests; a replacement
+attachment's requests still wait for any older input on that owning host to finish. Direct control setters
+outside these input entries retain synchronous notification and must stop after a lifetime token expires.
+Dirty requests coalesce; requests raised during painting
 remain pending after preparation. The caller advances animation only when NeedsAnimation is true. Hidden views
 request no periodic work; zero-sized targets disable interaction. Prepare returns S_FALSE for a clean or suspended
 view. Failed preparation suppresses composition/input until a successful prepare. An unchanged content failure returns its HRESULT (E_ABORT is normalized to E_FAIL), and schedules no automatic retry; a caller may retry under its own bounded policy. E_ABORT remains reserved for superseded work.

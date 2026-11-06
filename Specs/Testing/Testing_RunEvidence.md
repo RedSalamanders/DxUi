@@ -6,6 +6,13 @@ Last reviewed: 2026-10-21
 Filesystem preservation regressions require Windows and run in the Windows tooling job. The Linux validator
 reports this coverage as `WINDOWS_NOT_RUN`; its portable validation is not Windows filesystem qualification.
 
+Fixture setup MUST keep shell hard-link creation and fake GUI executables inside
+their platform launch/link path limits even in a deeply relocated checkout.
+A unique run packet supplies isolation; independent cases use compact distinct
+child names. Preserve the separate long-Unicode file/stream regression and every
+identity, attribute and read-only assertion. A setup-path refusal is retained as
+a failed attempt, never relabelled as unsupported evidence semantics or a skip.
+
 After argument, desktop and build preflight, native test execution writes each invocation under `.build/evidence/test-runs/<UTC-pid-guid>/payload`.
 It creates a new directory and exclusive owner lease; it never reuses an old run directory or sweeps older runs.
 A flushed, create-only `started.json` records the owner process and start time plus the requested profile/scopes.

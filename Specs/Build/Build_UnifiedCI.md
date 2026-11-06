@@ -72,6 +72,21 @@ The SDK ZIP carries the unchanged reviewed NativeBuildPolicy.targets and imports
 
 During extracted linking, the packager opens the producer PDB for read with exclusive sharing, failing closed if another user holds it. The positive consumer must link without warnings using the extracted PDB. A separate-output negative control temporarily removes only the fresh extracted PDB, requires a successful link with LNK4099 and requires the zero-warning gate to reject it. The extracted PDB is restored and the producer handle is released on every exit; neither the producer artifact nor positive outputs are moved. The receipt records both isolation and negative-control results.
 
+The SDK's `licenses/` contains the project MIT license, source notices, the actual restored WIL copyright,
+KaTeX, toml++, rapidyaml and its bundled notices, Unicode License V3 for embedded Unicode 17 data, and the
+full WHATWG notice for the embedded entity table. Preserve original license bytes. Source-notice license
+links resolve within that directory; repository-only provenance links name the exact public source commit.
+`SdkNotices.psm1` verifies the exact file set and byte identities before ZIP creation and after extraction.
+The extracted manifest's license inventory must match those files. The manifest/receipt record every path
+and SHA-256, and successful complete packaging records `licenseClosurePassed`. Independent tooling tests
+pin the required set, compare original upstream bytes, check offline links and ZIP extraction, and reject
+missing/mutated licenses, changed source notices and a moving source identity. These license checks do not
+replace the native extracted-consumer smoke or platform/runtime acceptance.
+The project manifest explicitly includes `LICENSE.txt`, `THIRD-PARTY-NOTICES.md` and `docs/licenses/**`
+in the native/packaging input closure, overriding the ordinary Markdown/documentation exclusions. A notice-only
+change must invalidate the packaging candidate. Tooling tests pin those declarations and check the real
+classifier when the pinned engine checkout is available; ordinary documentation retains its normal exclusion.
+
 The extracted SDK consumer runs outside all producer Git checkouts: hosted RUNNER_TEMP or an explicitly selected existing approved local SmokeRoot. It disables vcpkg/forced producer imports and validates the actual compiler header dependency report against only the extracted SDK, selected Visual Studio and Windows SDK. Unpackaged headers fail before the runtime smoke can qualify the archive. The header report is retained with build diagnostics.
 
 ## Emergency PR merge

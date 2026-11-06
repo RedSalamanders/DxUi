@@ -1,1 +1,0 @@
-- Allow source-exact language updates on fenced code blocks inside Markdown containers.

@@ -1,1 +1,0 @@
-- Preserve partial generated list-marker selections once in whitespace-preserving HTML export; shared unordered and ordered marker range coverage accompanies the change and integrated host qualification remains pending.
