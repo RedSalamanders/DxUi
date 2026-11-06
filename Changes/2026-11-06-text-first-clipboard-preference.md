@@ -1,0 +1,1 @@
+- Prefer Unicode text when text and bitmap clipboard formats coexist, with an explicit image-first application policy, one ownership attempt, source-preserving refusal and native/embedded regression coverage.

@@ -17,6 +17,13 @@ HRESULT ReadTextClipboardContent(TextClipboard& clipboard, HWND owner, TextClipb
 HRESULT ReadTextClipboardContent(TextClipboard& clipboard, HWND owner, TextClipboardContent& content, bool includeFiles, bool includeHtml) noexcept;
 HRESULT ReadTextClipboardContent(
     TextClipboard& clipboard, HWND owner, TextClipboardContent& content, bool includeFiles, bool includeHtml, bool includeBitmap) noexcept;
+HRESULT ReadTextClipboardContent(TextClipboard& clipboard,
+                                 HWND owner,
+                                 TextClipboardContent& content,
+                                 bool includeFiles,
+                                 bool includeHtml,
+                                 bool includeBitmap,
+                                 TextClipboardPreference preference) noexcept;
 [[nodiscard]] TextClipboard& SystemTextClipboard() noexcept;
 // Test-only override, borrowed on the calling UI thread. Production never installs this.
 #if DXUI_ENABLE_DIAGNOSTICS

@@ -110,6 +110,9 @@ This coordinates the active API work; it does not adopt API 5 in any application
   exact candidate; keep source, selection, history, decline paths and callback ownership intact.
 - [ ] Implement D4's selected text-first default when Unicode and bitmap formats coexist, with an explicit
   application image-first option and source-preserving decline behavior.
+  Native/embedded preference APIs and source-preserving regressions are implemented. The original compiled
+  transport counterexample changes from bitmap to Unicode with the candidate library; full source-bound
+  qualification and consumer adoption remain in progress.
 - [x] Implement D5: classify `//host/...` and `file://host/...` image destinations as network requests and
   apply remote-image permission; never route them through an ungated local-file path.
 - [ ] Qualify remaining focus/TSF/menu closure and mask/IME findings from the

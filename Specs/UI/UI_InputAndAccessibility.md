@@ -5,11 +5,10 @@ views. It declines during active composition or an uncommitted text-service prev
 disabled state, without consuming the preview or adding history. A successful explicit Insert action applies
 one source transaction and one text notification; menu/toolbar transport retains selection and focus ownership.
 
-## Selected paste policy awaiting implementation
+## Paste format preference
 
-Owner decisions of 5 November 2026 define the intended remaining behavior below. Current capability claims
-are unchanged until the corresponding implementation and source-bound regressions close in
-[the active plan](../Plans/WIP/RemainingWork_2026-11-04.md).
+The owner decision of 5 November 2026 defines the default format policy below. Capability claims and
+source-bound acceptance remain owned by [the active plan](../Plans/WIP/RemainingWork_2026-11-04.md).
 
 - When both Unicode text and a bitmap are available, default paste prefers text. Applications may explicitly
   opt into image-first priority. Declined image handling preserves source and selection; current clipboard
@@ -967,8 +966,31 @@ helpers, and never use a desktop clipboard as a test data channel.
 
 Bitmap paste is opt-in through the separate bitmap-aware structured transport
 and client interfaces; the existing clipboard virtual signatures remain intact.
-File lists take priority, then a valid CF_DIBV5/CF_DIB, then HTML and Unicode.
-Plain paste reads Unicode directly. A bitmap is copied before clipboard release
+File lists take priority. `TextClipboardPreference::TextFirst` is the default:
+an available valid Unicode offer wins over either bitmap, without reading or
+copying the bitmap payload. HTML conversion remains an independent opt-in for
+that text offer. A missing Unicode offer permits a valid CF_DIBV5/CF_DIB.
+Applications may select `ImageFirst`; a valid bitmap then wins before Unicode,
+and absent or malformed bitmap offers fall through within that same ownership
+attempt. Invalid Unicode encountered by text-first reading is an explicit
+failure, not permission to paste a different format. Empty Unicode without an
+admitted HTML transformation preserves selected source and does not fall back
+to the bitmap.
+`ControlHost::SetClipboardPreference` configures native rich controls;
+`TextInputServices::SetClipboardPreference` configures the application's
+embedded clipboard service. Both start with `TextFirst`. Invalid enum values
+are ignored by those setters and rejected by the preference-aware transport
+before ownership. An ordinary/forced plain paste still reads Unicode directly.
+The additive `PrioritizedStructuredTextClipboard` interface selects formats in
+one ownership attempt without changing existing clipboard virtual signatures.
+A legacy bitmap transport has already selected its offered content; when it
+supplies both nonempty text and a bitmap, text-first discards the bitmap.
+It is never reread to discover another format. Applications providing custom
+transports implement the additive interface to select among the actual offers.
+Declining an admitted image is final for that paste: preserve source, selection
+and history rather than starting a second Unicode paste. Reentrant source,
+focus/binding or composition changes continue to refuse stale commits.
+A bitmap is copied before clipboard release
 and before the application callback, with at most 32 MiB and 8192 pixels per
 dimension. Admitted packed DIBs use 24/32-bit BI_RGB or 32-bit BI_BITFIELDS,
 valid nonoverlapping masks, and no embedded or linked color profile; malformed

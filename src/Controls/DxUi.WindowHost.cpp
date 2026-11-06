@@ -2820,7 +2820,19 @@ bool ControlHost::ReadClipboardContent(TextClipboardContent& content, bool inclu
 }
 bool ControlHost::ReadClipboardContent(TextClipboardContent& content, bool includeHtml, bool includeBitmap) const noexcept
 {
-    return _hwnd && ReadTextClipboardContent(ActiveTextClipboard(), _hwnd, content, true, includeHtml, includeBitmap) == S_OK;
+    return _hwnd && ReadTextClipboardContent(ActiveTextClipboard(), _hwnd, content, true, includeHtml, includeBitmap, _clipboardPreference) == S_OK;
+}
+void ControlHost::SetClipboardPreference(TextClipboardPreference preference) noexcept
+{
+    if ((preference == TextClipboardPreference::TextFirst || preference == TextClipboardPreference::ImageFirst) && preference != _clipboardPreference)
+    {
+        _clipboardPreference = preference;
+        ++_interactionRevision;
+    }
+}
+TextClipboardPreference ControlHost::GetClipboardPreference() const noexcept
+{
+    return _clipboardPreference;
 }
 
 #if DXUI_ENABLE_DIAGNOSTICS

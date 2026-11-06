@@ -47,6 +47,7 @@ public:
     size_t allocations     = 0;
     size_t publications    = 0;
     size_t peakGlobalBytes = 0;
+    size_t unicodeReads = 0, dibReads = 0, dibV5Reads = 0;
 
 private:
     static BOOL WINAPI Open(HWND window)
@@ -67,6 +68,12 @@ private:
     }
     static HANDLE WINAPI GetData(UINT format)
     {
+        if (format == CF_UNICODETEXT)
+            ++_current->unicodeReads;
+        else if (format == CF_DIB)
+            ++_current->dibReads;
+        else if (format == CF_DIBV5)
+            ++_current->dibV5Reads;
         const auto htmlFormat = RegisterClipboardFormatW(L"HTML Format");
         _current->check(format == CF_UNICODETEXT || format == CF_HDROP || format == htmlFormat || format == CF_DIB || format == CF_DIBV5,
                         "transport reads supported clipboard formats");

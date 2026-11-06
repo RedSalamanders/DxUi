@@ -59,6 +59,12 @@ struct IDataObject;
 namespace DxUi
 {
 struct TextClipboardContent;
+// Applications choose a policy; ordinary paste prefers Unicode over a bitmap.
+enum class TextClipboardPreference : uint8_t
+{
+    TextFirst,
+    ImageFirst
+};
 namespace RichText::Detail
 {
 struct AccessibilityEpoch;
@@ -6308,6 +6314,8 @@ public:
     [[nodiscard]] bool ReadClipboardContent(TextClipboardContent& content) const noexcept;
     [[nodiscard]] bool ReadClipboardContent(TextClipboardContent& content, bool includeHtml) const noexcept;
     [[nodiscard]] bool ReadClipboardContent(TextClipboardContent& content, bool includeHtml, bool includeBitmap) const noexcept;
+    void SetClipboardPreference(TextClipboardPreference preference) noexcept;
+    [[nodiscard]] TextClipboardPreference GetClipboardPreference() const noexcept;
 
     // Call after accelerator/TSF pretranslation and before TranslateMessage. For Return/Space key-down
     // directed at this attached HWND, dispatches once through the real window procedure, then translates
@@ -6479,8 +6487,9 @@ private:
     [[nodiscard]] bool CanReuseMessagePruneSnapshot(const MessagePruneSnapshot& current) const noexcept;
     [[nodiscard]] bool CanPublishMessagePrunePass(const MessagePrunePass& pass) const noexcept;
     MessagePruneSnapshot _messagePruneSnapshot;
-    uint64_t _messagePrunePassSerial = 0u;
-    uint64_t _interactionRevision    = 0;
+    uint64_t _messagePrunePassSerial             = 0u;
+    uint64_t _interactionRevision                = 0;
+    TextClipboardPreference _clipboardPreference = TextClipboardPreference::TextFirst;
     struct FileDropState;
     std::shared_ptr<FileDropState> _fileDropState;
     InitialRootChildBatchFrame* _initialRootChildBatchFrame = nullptr;
