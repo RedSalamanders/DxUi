@@ -3257,6 +3257,22 @@ std::optional<D2D1_RECT_F> PreparedSemanticGeometry::ElementBounds(std::size_t e
         throw std::out_of_range("Invalid semantic element");
     return state.bounds[element];
 }
+std::vector<std::size_t> PreparedSemanticGeometry::VisibleCodeElements(float top, float bottom) const
+{
+    const auto& state = Current();
+    if (! std::isfinite(top) || ! std::isfinite(bottom) || top > bottom)
+        throw std::invalid_argument("Invalid code ink viewport");
+    std::vector<std::size_t> result(0u);
+    const auto elements = state.document->Elements();
+    state.paintElements.ForEach(top,
+                                bottom,
+                                [&](std::size_t index)
+    {
+        if (elements[index].role == SemanticRole::Code)
+            result.push_back(index);
+    });
+    return result;
+}
 std::size_t PreparedSemanticGeometry::PreviousCluster(std::size_t offset) const
 {
     const auto& state   = Current();

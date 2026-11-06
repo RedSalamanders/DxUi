@@ -79,7 +79,8 @@ public:
     // Scalar/CRLF boundaries are preserved; immutable snapshots support worker reads.
     bool IsBoundary(std::size_t offset) const noexcept;
     // CRLF is one line break. Invalid revisions and non-edit boundaries return no location.
-    // Visits source pieces without allocating or flattening the immutable snapshot.
+    // Uses immutable line summaries and buffer indexes without allocating,
+    // flattening, or scanning all preceding source units.
     std::optional<SourceLocation> LocationAt(std::size_t offset) const noexcept;
     std::wstring Slice(std::size_t first, std::size_t last) const;
     // A conservative replacement interval, safe for Slice in both snapshots.

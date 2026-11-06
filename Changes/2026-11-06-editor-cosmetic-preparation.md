@@ -1,0 +1,1 @@
+- Keep editor frames and input usable while optional code/source colouring, line numbers and whitespace marks prepare. Bound guides and tokenizer callbacks to visible geometry, retain complete publications, and index immutable source line coordinates. Add ready-frame, viewport, maximum-row, Unicode, allocation-retry and independent snapshot-coordinate regressions.

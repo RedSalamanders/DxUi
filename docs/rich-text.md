@@ -66,8 +66,8 @@ receivers and the library must likewise be rebuilt from the same exact pin.
 | In-place source editing | Supported | Scoped leaf or inline math; unchanged source ACPs and document history | [Details](#retained-editor-preview-d2c) |
 | Decorations and search | Limited | 256 decorations; 4,096 mapped rectangles; source-revision retirement; opt-in source-backed UIA annotations in semantic presentation | [Details](#editor-presentation) |
 | Link activation | Supported | Caller callback intent; no browser launch; local fragments use source navigation | [Details](#editor-presentation) |
-| Source presentation | Limited | Optional wrapping, prepared line numbers and whitespace; bounded zoom | [Details](#editor-presentation) |
-| Code presentation | Limited | Prepared token spans; Subtle frame and line labels; caller-owned copy transport | [Details](#editor-presentation) |
+| Source presentation | Limited | Optional wrapping; viewport guides with a stable five-digit gutter; cosmetic work never withholds current content; bounded zoom | [Details](#editor-presentation) |
+| Code presentation | Limited | Optional visual token spans for visible blocks plus overscan; at most one callback per turn; Subtle frame and line labels; caller-owned copy transport | [Details](#editor-presentation) |
 | Semantic accessibility | Limited | Source ranges, typed structure and actions; physical AT qualification separate | [Details](#semantic-accessibility-m4f) |
 | Text services | Limited | Native and embedded TSF/IME and UIA adapters; physical IME qualification separate | [Details](#source-text-services-and-accessibility-d2d) |
 | Native mathematics | Limited | Named DxUiMath1 subset; source-preserving per-object fallback | [Details](#native-in-document-mathematics-and-broader-diagrams) |
@@ -355,6 +355,17 @@ and `SetOnHorizontalScrollChanged`; Shift+wheel scrolls overflowing content.
 Rich tables with `tableOverflow=true` use the same horizontal offset. Native
 input, hit testing and accessibility geometry follow the painted position.
 
+Source colouring, line numbers and whitespace marks prepare as optional visuals.
+They do not delay a usable text frame or block editing and selection. Source
+analysis for colouring can continue after raw Source text is ready. Guides cover
+the viewport plus overscan, with a stable five-digit gutter. While scrolling, the
+last complete decoration remains visible where its coordinates are still valid;
+unknown positions are omitted until a new complete publication is ready.
+Colour spans also cover the visible source window plus overscan. Scrolling
+requests the new window without changing source, selection or accessibility text.
+The [source-bound D1 qualification](../Measurements/EditorCosmeticPreparation_2026-11-06/README.md)
+records the independent readiness, viewport, allocation and source-coordinate checks and their acceptance limits.
+
 For opt-in Subtle code blocks, applications can register `SetCodeTokenizer`
 and use `TokenizeBuiltinCode` for JSON, C-like languages, PowerShell or diff.
 Prepared bounded token spans change ink only. The Subtle frame shows a language
@@ -363,6 +374,10 @@ badge and physical line numbers within the documented bounds. Register
 keyboard and UIA copy intent; the callback receives counted rendered code and
 owns clipboard transport. All of these features still require the project's
 complete platform, allocation and performance qualification before plan closeout.
+The tokenizer runs for visible blocks plus one viewport of overscan, at most once
+per owner turn. Do not rely on callbacks for offscreen blocks or use them to
+perform document-wide side effects. A failed or declined block keeps ordinary ink;
+content remains usable while later visual requests prepare other visible blocks.
 List marker ink uses the parser's exact source token range, so nested, ordered,
 quoted and task-list prefixes stay aligned with their original UTF-16 offsets.
 Each owner preparation advance uses at most 256 work steps shared across block

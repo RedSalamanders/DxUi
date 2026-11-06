@@ -2,6 +2,7 @@
 #include <DxUi/RichTextLayout.h>
 #include <algorithm>
 #include <exception>
+#include <memory>
 #include <new>
 #include <utility>
 
@@ -17,12 +18,25 @@ public:
     RichSourceInk() : events_(0u), mergeBuffer_(0u), ranges_(0u)
     {
     }
+    RichSourceInk(const RichSourceInk&)            = delete;
+    RichSourceInk& operator=(const RichSourceInk&) = delete;
     void Clear() noexcept
     {
+        ResetStaging();
+        ranges_.clear();
+    }
+    void CancelPending() noexcept
+    {
+        ResetStaging();
+    }
+    void ResetStaging() noexcept
+    {
         syntax_.reset();
+        window_ = {};
         events_.clear();
         mergeBuffer_.clear();
-        ranges_.clear();
+        if (stagedRanges_)
+            stagedRanges_->clear();
         node_ = inline_ = event_ = previous_ = 0u;
         counts_                              = {};
         inlinePhase_                         = InlinePhase::None;
@@ -33,31 +47,39 @@ public:
         sorted_ = complete_ = overflow_ = false;
         lastWork_                       = 0u;
     }
-    template <typename Map> bool Advance(const std::shared_ptr<const MarkdownSyntax>& syntax, Map&& map)
+    template <typename Map> bool Advance(const std::shared_ptr<const MarkdownSyntax>& syntax, Map&& map, std::optional<MarkdownRange> window = std::nullopt)
     {
         lastWork_ = 0u;
         try
         {
-            return AdvanceCore(syntax, std::forward<Map>(map));
+            return AdvanceCore(syntax, std::forward<Map>(map), window);
         }
         catch (const std::bad_alloc&)
         {
-            Clear();
+            ResetStaging();
             throw;
         }
         catch (const std::exception&)
         {
-            Clear();
+            ResetStaging();
             throw;
         }
     }
     std::span<const TextInkRange> Ranges() const noexcept
     {
-        return complete_ ? std::span<const TextInkRange>(ranges_) : std::span<const TextInkRange>{};
+        return ranges_;
     }
     bool Pending() const noexcept
     {
         return syntax_ && ! complete_;
+    }
+    bool Current(const std::shared_ptr<const MarkdownSyntax>& syntax) const noexcept
+    {
+        return syntax_ == syntax && (! syntax_ || complete_);
+    }
+    bool Covers(std::size_t first, std::size_t last) const noexcept
+    {
+        return complete_ && window_.first <= first && window_.last >= last;
     }
     size_t LastWork() const noexcept
     {
@@ -83,9 +105,11 @@ private:
     };
     static constexpr size_t MaximumEvents = 65536u;
     std::shared_ptr<const MarkdownSyntax> syntax_;
+    MarkdownRange window_;
     std::vector<Event> events_;
     std::vector<Event> mergeBuffer_;
     std::vector<TextInkRange> ranges_;
+    std::unique_ptr<std::vector<TextInkRange>> stagedRanges_;
     size_t node_{}, inline_{}, event_{}, previous_{};
     std::array<int, 3> counts_{};
     InlinePhase inlinePhase_{InlinePhase::None};
@@ -97,15 +121,27 @@ private:
     bool sorted_{}, complete_{}, overflow_{};
     size_t lastWork_{};
 
-    template <typename Map> bool AdvanceCore(const std::shared_ptr<const MarkdownSyntax>& syntax, Map&& map)
+    template <typename Map> bool AdvanceCore(const std::shared_ptr<const MarkdownSyntax>& syntax, Map&& map, std::optional<MarkdownRange> window)
     {
-        if (syntax_ != syntax)
+        const auto size    = syntax ? syntax->Source().size() : 0u;
+        const auto desired = window.value_or(MarkdownRange{0u, size});
+        if (desired.first > desired.last || desired.last > size)
+            throw std::invalid_argument("Invalid source ink window");
+        if (syntax_ != syntax || desired.first < window_.first || desired.last > window_.last)
         {
-            Clear();
+            ResetStaging();
             syntax_ = syntax;
+            window_ = desired;
         }
-        if (! syntax_ || complete_)
+        if (! syntax_)
+        {
+            ranges_.clear();
             return true;
+        }
+        if (complete_)
+            return true;
+        if (! stagedRanges_)
+            stagedRanges_ = std::make_unique<std::vector<TextInkRange>>(0u);
         const auto& nodes   = syntax_->Nodes();
         const auto& inlines = syntax_->Inlines();
         while (lastWork_ < WorkPerTurn)
@@ -117,6 +153,7 @@ private:
                 events_.clear();
                 mergeBuffer_.clear();
                 ranges_.clear();
+                stagedRanges_->clear();
                 complete_ = true;
                 return true;
             }
@@ -164,15 +201,23 @@ private:
                 ++lastWork_;
                 continue;
             }
-            complete_ = true;
+            Publish();
             break;
         }
         if (node_ == nodes.size() && inline_ == inlines.size() && sorted_ && event_ == events_.size())
-            complete_ = true;
+            if (! complete_)
+                Publish();
         return complete_;
+    }
+    void Publish() noexcept
+    {
+        ranges_.swap(*stagedRanges_);
+        complete_ = true;
     }
     void Add(MarkdownRange range, TextInkRole role)
     {
+        range.first = (std::max)(range.first, window_.first);
+        range.last  = (std::min)(range.last, window_.last);
         if (range.first >= range.last || range.last > syntax_->Source().size() || overflow_)
             return;
         if (events_.size() > MaximumEvents - 2u)
@@ -187,14 +232,17 @@ private:
     {
         if (range.first == range.last)
             return;
-        if (! ranges_.empty() && ranges_.back().role == role && ranges_.back().display.last == range.first)
-            ranges_.back().display.last = range.last;
+        auto& ranges = *stagedRanges_;
+        if (! ranges.empty() && ranges.back().role == role && ranges.back().display.last == range.first)
+            ranges.back().display.last = range.last;
         else
-            ranges_.push_back({range, role});
+            ranges.push_back({range, role});
     }
     void AddNode(const MarkdownNode& node)
     {
         const auto& block = node.block;
+        if (block.source.last <= window_.first || block.source.first >= window_.last)
+            return;
         switch (block.kind)
         {
             case MarkdownBlockKind::AtxHeading:
@@ -232,7 +280,7 @@ private:
     {
         const auto source = syntax_->Source();
         const auto range  = item.source;
-        if (range.first >= range.last || range.last > source.size())
+        if (range.first >= range.last || range.last > source.size() || range.last <= window_.first || range.first >= window_.last)
         {
             inlinePhase_ = InlinePhase::Finished;
             return;

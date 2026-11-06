@@ -1672,6 +1672,7 @@ __declspec(noinline) static int RunFunctionalTests()
         TestMathKernPreparationAllocationFailures();
         TestEmbeddedSemanticReusePixels(gpu);
         TestEmbeddedCodeLineNumberPixels(gpu);
+        TestEmbeddedCosmeticsDoNotWithholdContent(gpu);
         TestEmbeddedSourceGuidesPixels(gpu);
         TestSourceGuideAllocationAtomicity();
         TestHtmlClipboardFragment();
@@ -2102,6 +2103,7 @@ __declspec(noinline) static int RunFunctionalTests()
     TestMathKernPreparationAllocationFailures();
     TestEmbeddedSemanticReusePixels(gpu);
     TestEmbeddedCodeLineNumberPixels(gpu);
+    TestEmbeddedCosmeticsDoNotWithholdContent(gpu);
     TestEmbeddedSourceGuidesPixels(gpu);
     TestSourceGuideAllocationAtomicity();
     TestHtmlClipboardFragment();

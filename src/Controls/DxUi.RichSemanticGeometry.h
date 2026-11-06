@@ -146,6 +146,7 @@ public:
     std::vector<D2D1_RECT_F> Range(std::size_t first, std::size_t last) const;
     std::vector<D2D1_RECT_F> SourceRange(MarkdownRange source) const;
     std::optional<D2D1_RECT_F> ElementBounds(std::size_t element) const;
+    std::vector<std::size_t> VisibleCodeElements(float top, float bottom) const;
     std::span<const std::pair<std::size_t, std::size_t>> SourceLines() const;
     std::size_t PreviousCluster(std::size_t offset) const;
     std::size_t NextCluster(std::size_t offset) const;

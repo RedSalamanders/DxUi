@@ -381,7 +381,8 @@ static void TestFormClearPreparationRetirement(GraphicsFixture& gpu)
         auto root   = std::make_unique<FlexPanel>();
         auto* field = root->AddChild<FormField>(L"title", L"Title");
         view.Controls().SetRoot(std::move(root));
-        Hr(view.Prepare(320, 160), "prepare form without an editor");
+        Hr(PrepareRichEmbeddedContent(view, 320, 160), "prepare form without an editor");
+        Check(! view.NeedsPreparation(), "consume the initial form visual wake before arming clear retirement");
         const auto lifetime = GetControlLifetimeToken(*field);
         wake.armed          = true;
         field->ClearChildren();

@@ -38,6 +38,11 @@ Build/BuildConsole.psm1 implements the common result/diagnostic/link contract.
 A native success summary is green only after native exit success, zero logged
 warnings/errors and the entrypoint's existing provenance/attestation checks.
 The MSBuild file log must contain an ordered completed success footer with explicit zero warning and error counts and elapsed time; diagnostic matching is bounded. Consumer qualification scans the logs of its initial library/consumer compile and subsequent module builds. Non-default and production-only outputs rebuild because no matching complete native receipt protects incremental reuse.
+Structured nonzero `ExceptionCode = <eight hexadecimal digits>` dumps from child
+tools also reject the build, including optional `0x` spelling and MSBuild node
+prefixes. A later successful footer or zero process exit cannot override an
+observed tool exception. Retain the original log and outputs for diagnosis;
+retry after addressing the cause rather than qualifying that attempt.
 Failed builds remain failures. Clean/package-only operations preserve their
 existing meaning and do not pretend to be native compilation.
 

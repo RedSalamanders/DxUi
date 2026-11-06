@@ -1,5 +1,6 @@
 #include "DxUi.TextElements.h"
 #include <DxUi/RichDocument.h>
+#include <algorithm>
 #include <array>
 #include <atomic>
 #include <iterator>
@@ -94,14 +95,75 @@ struct SourceSnapshot::PieceTreeNode
     // A splice copies the two boundary paths and reuses unaffected subtrees.
     using Pointer                          = std::shared_ptr<const PieceTreeNode>;
     static constexpr size_t MaximumEntries = 32u, MinimumEntries = MaximumEntries / 2u;
+    struct LineSummary
+    {
+        size_t length{}, breaks{}, tail{};
+        bool startsLf{}, endsCr{};
+        void Append(const LineSummary& next) noexcept
+        {
+            if (! next.length)
+                return;
+            if (! length)
+            {
+                *this = next;
+                return;
+            }
+            breaks += next.breaks - (endsCr && next.startsLf ? 1u : 0u);
+            tail = next.breaks ? next.tail : tail + next.length;
+            length += next.length;
+            endsCr = next.endsCr;
+        }
+    };
+    struct Buffer
+    {
+        explicit Buffer(std::wstring_view value) : text(value)
+        {
+            // Ordinary typed fragments need no extra allocation. Index each
+            // immutable multiline buffer once; slices and history share it.
+            for (size_t at = 0u; at < text.size(); ++at)
+                if (text[at] == L'\r' || (text[at] == L'\n' && (! at || text[at - 1u] != L'\r')))
+                {
+                    if (! lineStarts)
+                        lineStarts = std::make_unique<std::vector<std::uint16_t>>(0u);
+                    lineStarts->push_back(static_cast<std::uint16_t>(at));
+                }
+        }
+        Buffer(const Buffer&)            = delete;
+        Buffer& operator=(const Buffer&) = delete;
+        LineSummary Describe(size_t first, size_t length) const noexcept
+        {
+            if (! length)
+                return {};
+            LineSummary result{length, 0u, length, text[first] == L'\n', text[first + length - 1u] == L'\r'};
+            if (! lineStarts)
+                return result;
+            const auto last      = first + length;
+            const auto begin     = std::lower_bound(lineStarts->begin(), lineStarts->end(), first);
+            const auto end       = std::lower_bound(begin, lineStarts->end(), last);
+            const bool leadingLf = first && text[first] == L'\n' && text[first - 1u] == L'\r';
+            result.breaks        = static_cast<size_t>(end - begin) + (leadingLf ? 1u : 0u);
+            if (begin != end)
+            {
+                const auto position = static_cast<size_t>(*(end - 1));
+                const auto after    = position + 1u + (text[position] == L'\r' && position + 1u < last && text[position + 1u] == L'\n' ? 1u : 0u);
+                result.tail         = last - after;
+            }
+            else if (leadingLf)
+                result.tail = length - 1u;
+            return result;
+        }
+        std::wstring text;
+        std::unique_ptr<std::vector<std::uint16_t>> lineStarts;
+    };
+    static_assert(Document::MaximumUnits <= static_cast<size_t>(std::numeric_limits<std::uint16_t>::max()) + 1u);
     struct Fragment
     {
-        std::shared_ptr<const std::wstring> buffer;
+        std::shared_ptr<const Buffer> buffer;
         size_t bufferStart{}, length{};
     };
     struct Piece
     {
-        std::shared_ptr<const std::wstring> buffer;
+        std::shared_ptr<const Buffer> buffer;
         size_t bufferStart{}, sourceEnd{};
     };
     struct Child
@@ -117,6 +179,7 @@ struct SourceSnapshot::PieceTreeNode
     };
     std::variant<Leaves, Branches> entries;
     size_t length{}, count{}, height{};
+    LineSummary lines;
 
     explicit PieceTreeNode(std::span<const Fragment> fragments) : entries(Leaves{}), count(fragments.size())
     {
@@ -125,6 +188,7 @@ struct SourceSnapshot::PieceTreeNode
         {
             length += fragments[index].length;
             pieces[index] = {fragments[index].buffer, fragments[index].bufferStart, length};
+            lines.Append(fragments[index].buffer->Describe(fragments[index].bufferStart, fragments[index].length));
         }
     }
     explicit PieceTreeNode(std::span<const Pointer> children) : entries(Branches{}), count(children.size()), height(children.front()->height + 1u)
@@ -134,6 +198,7 @@ struct SourceSnapshot::PieceTreeNode
         {
             length += children[index]->length;
             branches[index] = {children[index], length};
+            lines.Append(children[index]->lines);
         }
     }
     size_t EntryEnd(size_t index) const noexcept
@@ -156,6 +221,31 @@ struct SourceSnapshot::PieceTreeNode
                 last = middle;
         }
         return first;
+    }
+    static LineSummary PrefixLines(const PieceTreeNode* node, size_t offset) noexcept
+    {
+        if (! node || ! offset)
+            return {};
+        if (offset >= node->length)
+            return node->lines;
+        LineSummary result;
+        for (size_t index = 0u; index < node->count; ++index)
+        {
+            const auto first = node->EntryStart(index), last = node->EntryEnd(index);
+            if (offset <= first)
+                break;
+            const auto prefixLength = (std::min)(offset, last) - first;
+            if (node->height)
+                result.Append(PrefixLines(std::get<Branches>(node->entries)[index].node.get(), prefixLength));
+            else
+            {
+                const auto& piece = std::get<Leaves>(node->entries)[index];
+                result.Append(piece.buffer->Describe(piece.bufferStart, prefixLength));
+            }
+            if (offset < last)
+                break;
+        }
+        return result;
     }
     Fragment GetFragment(size_t index) const noexcept
     {
@@ -322,7 +412,7 @@ struct SourceSnapshot::PieceTreeNode
             else
             {
                 const auto& piece = std::get<Leaves>(node->entries)[index];
-                if (! visitor(std::wstring_view(*piece.buffer).substr(piece.bufferStart + left - begin, right - left)))
+                if (! visitor(std::wstring_view(piece.buffer->text).substr(piece.bufferStart + left - begin, right - left)))
                     return false;
             }
             if (end >= last)
@@ -347,7 +437,7 @@ struct SourceSnapshot::PieceTreeNode
             else
             {
                 const auto& piece = std::get<Leaves>(node->entries)[index];
-                if (! visitor(std::wstring_view(*piece.buffer).substr(piece.bufferStart + left - begin, right - left)))
+                if (! visitor(std::wstring_view(piece.buffer->text).substr(piece.bufferStart + left - begin, right - left)))
                     return false;
             }
             if (begin <= first)
@@ -478,7 +568,7 @@ wchar_t SourceSnapshot::CharacterAt(std::size_t offset) const noexcept
     }
     const auto index  = node->FindEntry(offset);
     const auto& piece = std::get<PieceTreeNode::Leaves>(node->entries)[index];
-    return (*piece.buffer)[piece.bufferStart + offset - node->EntryStart(index)];
+    return piece.buffer->text[piece.bufferStart + offset - node->EntryStart(index)];
 }
 bool SourceSnapshot::IsBoundary(std::size_t offset) const noexcept
 {
@@ -492,33 +582,8 @@ std::optional<SourceLocation> SourceSnapshot::LocationAt(std::size_t offset) con
 {
     if (! state_ || ! IsBoundary(offset))
         return std::nullopt;
-    SourceLocation location;
-    bool previousCr = false;
-    PieceTreeNode::VisitRange(RootNode(),
-                              0u,
-                              offset,
-                              [&](std::wstring_view fragment) noexcept
-    {
-        for (const wchar_t c : fragment)
-        {
-            if (c == L'\r')
-            {
-                ++location.line;
-                location.column = 0u;
-            }
-            else if (c == L'\n')
-            {
-                if (! previousCr)
-                    ++location.line;
-                location.column = 0u;
-            }
-            else
-                ++location.column;
-            previousCr = c == L'\r';
-        }
-        return true;
-    });
-    return location;
+    const auto summary = PieceTreeNode::PrefixLines(RootNode(), offset);
+    return SourceLocation{summary.breaks, summary.tail};
 }
 std::wstring SourceSnapshot::Slice(std::size_t first, std::size_t last) const
 {
@@ -657,8 +722,8 @@ void Document::Reset(std::wstring_view text)
     std::shared_ptr<const SourceSnapshot::PieceTreeNode> root;
     if (! text.empty())
     {
-        auto buffer = std::make_shared<const std::wstring>(text);
-        const SourceSnapshot::PieceTreeNode::Fragment fragment{buffer, 0u, buffer->size()};
+        auto buffer = std::make_shared<const SourceSnapshot::PieceTreeNode::Buffer>(text);
+        const SourceSnapshot::PieceTreeNode::Fragment fragment{buffer, 0u, buffer->text.size()};
         root = SourceSnapshot::PieceTreeNode::BuildLeaves(std::span<const SourceSnapshot::PieceTreeNode::Fragment>(&fragment, 1u)).first;
     }
     SourceSnapshot next(std::make_shared<const SourceSnapshot::Revision>(std::move(root), nullptr, 0u, 0u, 0u));
@@ -842,8 +907,8 @@ bool Document::ReplaceImpl(std::size_t begin, std::size_t end, std::wstring_view
     SourceSnapshot::PieceTreeNode::Fragment insertion;
     if (! text.empty())
     {
-        insertion.buffer = std::make_shared<const std::wstring>(text);
-        insertion.length = insertion.buffer->size();
+        insertion.buffer = std::make_shared<const SourceSnapshot::PieceTreeNode::Buffer>(text);
+        insertion.length = insertion.buffer->text.size();
     }
     const auto root = source_.state_ ? source_.state_->root : nullptr;
     auto nextRoot   = SourceSnapshot::PieceTreeNode::ReplaceRange(root, begin, end, insertion);

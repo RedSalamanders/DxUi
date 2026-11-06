@@ -6,7 +6,7 @@ function Get-NativeBuildDiagnostics {
     param([Parameter(Mandatory)][string]$LogPath)
     $full=[IO.Path]::GetFullPath($LogPath)
     if(-not(Test-Path -LiteralPath $full -PathType Leaf)){throw "Build diagnostics log is missing: $full"}
-    $warnings=0;$errors=0
+    $warnings=0;$errors=0;$toolExceptions=0
     $succeeded=$false;$warningSummary=$null;$errorSummary=$null;$summaryStage=0
     # Use linear matching when available; older supported runtimes fail closed at the fixed timeout.
     $options=[Text.RegularExpressions.RegexOptions]::IgnoreCase -bor [Text.RegularExpressions.RegexOptions]::CultureInvariant
@@ -15,7 +15,13 @@ function Get-NativeBuildDiagnostics {
     }
     $diagnostic=[regex]::new('^\s*(?:\d+>)?\s*(?:(?:[a-z]:)?[^:\r\n]*:\s*)??(?:[^:\r\n]*?\s+)??(?<kind>warning|error)(?:\s+[^:\s]+)?\s*:',
         $options, [TimeSpan]::FromMilliseconds(500))
+    $toolException=[regex]::new('^\s*(?:\d+>)?\s*ExceptionCode\s*=\s*(?:0x)?(?<code>[a-f0-9]{8})\s*$',
+        $options, [TimeSpan]::FromMilliseconds(500))
     foreach($line in [IO.File]::ReadLines($full)){
+        # A child tool may dump an exception while MSBuild still exits zero.
+        # Never let a later clean footer erase that observed process failure.
+        $exception=$toolException.Match($line)
+        if($exception.Success -and $exception.Groups['code'].Value -cne '00000000'){++$toolExceptions}
         if($line -match '^\s*Build succeeded\.\s*$'){
             $summaryStage=1;$succeeded=$false;$warningSummary=$null;$errorSummary=$null
         }elseif($line -match '^\s*Build FAILED\.\s*$'){
@@ -38,13 +44,16 @@ function Get-NativeBuildDiagnostics {
             if($match.Groups['kind'].Value -ieq 'warning'){++$warnings}else{++$errors}
         }
     }
-    return [pscustomobject]@{LogPath=$full;WarningCount=$warnings;ErrorCount=$errors;BuildSucceeded=$succeeded;WarningSummary=$warningSummary;ErrorSummary=$errorSummary}
+    return [pscustomobject]@{LogPath=$full;WarningCount=$warnings;ErrorCount=$errors;ToolExceptionCount=$toolExceptions;BuildSucceeded=$succeeded;WarningSummary=$warningSummary;ErrorSummary=$errorSummary}
 }
 
 function Assert-NativeBuildDiagnostics {
     [CmdletBinding()]
     param([Parameter(Mandatory)][string]$LogPath)
     $result=Get-NativeBuildDiagnostics -LogPath $LogPath
+    if($result.ToolExceptionCount -ne 0){
+        throw "Zero-warning build validation failed: $($result.ToolExceptionCount) tool process exception dump(s), despite any successful MSBuild footer. Log: $($result.LogPath)"
+    }
     if($result.WarningCount -ne 0 -or $result.ErrorCount -ne 0){
         throw "Zero-warning build validation failed: $($result.WarningCount) warning(s), $($result.ErrorCount) error(s). Log: $($result.LogPath)"
     }

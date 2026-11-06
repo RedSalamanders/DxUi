@@ -22,8 +22,69 @@ inline constexpr Example examples[] = {{L"prefix \u03b2 body suffix\r\n", L"pref
                                        {L"abc", L"", 0u, 3u, 0u},
                                        {L"", L"\u03b2\U0001f600\r\n", 0u, 0u, 5u},
                                        {L"abc", L"abc", 0u, 0u, 0u}};
+template <typename Check> inline void SourceCoordinates(Check&& check)
+{
+    // Independent flat-string oracle: it shares no tree/index implementation.
+    const auto boundary = [](std::wstring_view text, size_t at)
+    {
+        return ! at || at == text.size() ||
+               ! ((text[at - 1u] == L'\r' && text[at] == L'\n') ||
+                  (text[at - 1u] >= 0xd800 && text[at - 1u] <= 0xdbff && text[at] >= 0xdc00 && text[at] <= 0xdfff));
+    };
+    const auto verify = [&](const SourceSnapshot& snapshot, std::wstring_view text)
+    {
+        SourceLocation expected;
+        for (size_t at = 0u; at <= text.size(); ++at)
+        {
+            check(boundary(text, at) ? snapshot.LocationAt(at) == expected : ! snapshot.LocationAt(at),
+                  "indexed source coordinates match the independent flat oracle at every boundary");
+            if (at == text.size())
+                break;
+            if (text[at] == L'\r' || text[at] == L'\n')
+            {
+                if (text[at] == L'\r' || ! at || text[at - 1u] != L'\r')
+                    ++expected.line;
+                expected.column = 0u;
+            }
+            else
+                ++expected.column;
+        }
+    };
+    std::wstring text = L"a\r\nb\rc\nd\U0001f642";
+    Document document(text);
+    std::vector<std::pair<SourceSnapshot, std::wstring>> retained(0u);
+    constexpr std::wstring_view fragments[] = {L"\r", L"\n", L"\r\n", L"x\rY\n", L"\U0001f642"};
+    for (size_t turn = 0u; turn < 96u; ++turn)
+    {
+        if (turn % 16u == 0u)
+            retained.emplace_back(document.Snapshot(), text);
+        auto at = (turn * 37u) % (text.size() + 1u);
+        while (! boundary(text, at))
+            ++at;
+        const auto fragment = fragments[turn % std::size(fragments)];
+        text.insert(at, fragment);
+        auto caret = at + fragment.size();
+        while (! boundary(text, caret))
+            ++caret;
+        check(document.Replace(at, at, fragment, {caret, caret}), "insert a deterministic indexed-source fragment");
+        verify(document.Snapshot(), text);
+    }
+    for (const auto& previous : retained)
+        verify(previous.first, previous.second);
+    Document joined(L"\r");
+    check(joined.Replace(1u, 1u, L"\n", {2u, 2u}), "join CRLF across independent buffers");
+    verify(joined.Snapshot(), L"\r\n");
+    Document erased(L"\rx\n");
+    check(erased.Replace(1u, 2u, L"", {2u, 2u}), "join CRLF across surviving piece slices");
+    verify(erased.Snapshot(), L"\r\n");
+    Document maximum(std::wstring(Document::MaximumUnits, L'\n'));
+    check(maximum.Snapshot().LocationAt(Document::MaximumUnits) == SourceLocation{Document::MaximumUnits, 0u} &&
+              maximum.Snapshot().LocationAt(Document::MaximumUnits - 1u) == SourceLocation{Document::MaximumUnits - 1u, 0u},
+          "maximum newline buffers retain the complete final line index");
+}
 template <typename Check> inline void Core(Check&& check)
 {
+    SourceCoordinates(check);
     {
         Document lines(L"a\r\nb\U0001f600\nc\rd");
         const auto source = lines.Snapshot();
