@@ -609,9 +609,17 @@ struct RichTextEditor::State
     size_t preparationAdvances = 0, cancelledPreparations = 0, lastAdvanceLayouts = 0, lastAdvanceBlockSteps = 0;
     size_t lastAdvanceUploadBytes{};
     size_t lastAdvanceImageWork{};
-    float layoutWidth                         = 0;
-    float scrollDip                           = 0;
-    bool revealCaret                          = true;
+    float layoutWidth = 0;
+    float scrollDip   = 0;
+    bool revealCaret  = true;
+    struct ViewportAnchor
+    {
+        RichText::SourceSnapshot source;
+        size_t position{};
+        float viewportY{};
+        uint64_t binding{};
+    };
+    std::optional<ViewportAnchor> viewportAnchor;
     bool readOnly                             = false;
     RichTextTaskTogglePolicy taskTogglePolicy = RichTextTaskTogglePolicy::EditableOnly;
     bool suppressTaskSpace                    = false;
@@ -1508,6 +1516,16 @@ RichText::SourceResult RichTextEditor::TrySetAppearance(const RichTextEditorAppe
     const bool sourceInkChanged      = previous.colorizeMarkdownSource != next.colorizeMarkdownSource;
     const bool semanticPolicyChanged = previous.softBreakPolicy != next.softBreakPolicy;
     const bool enterPolicyChanged    = previous.enterPolicy != next.enterPolicy;
+    // Preserve the first visible source line through a view-only reflow. A
+    // pending explicit caret reveal takes precedence, as does later scrolling.
+    if ((geometryChanged || semanticPolicyChanged) && ! _state->revealCaret && ! _state->viewportAnchor)
+        if (auto* host = GetHost(); host && LayoutIsCurrent(*host))
+        {
+            RichText::Detail::SourceCaretHit hit{};
+            RichText::CaretGeometry caret{};
+            if (_state->layout.TryHitTestSource(0.f, _state->scrollDip, hit) == S_OK && _state->layout.TrySourceCaret(hit.position, hit.site, caret) == S_OK)
+                _state->viewportAnchor.emplace(State::ViewportAnchor{Snapshot(), hit.position, caret.y - _state->scrollDip, _state->bindingRevision});
+        }
     // Staged strings publish without allocator-backed aggregate moves; Debug
     // STL proxies can allocate during those moves.
     auto& value                     = _state->appearance;
@@ -1567,7 +1585,7 @@ RichText::SourceResult RichTextEditor::TrySetAppearance(const RichTextEditorAppe
     {
         ++_state->appearanceRevision;
         _state->nativeGeometryRejected.reset();
-        RetireLayout();
+        RetireLayout(true);
     }
     else if (sourceInkChanged)
     {
@@ -2423,7 +2441,7 @@ bool RichTextEditor::SetSemanticDisclosure(ControlHost& host, const std::shared_
     _state->semantic.Clear();
     _state->semanticRejected.reset();
     _state->nativeGeometryRejected.reset();
-    SourcePresentationChanged(host);
+    SourcePresentationChanged(host, false);
     return true;
 }
 bool RichTextEditor::EndSemanticSourceEdit(ControlHost& host)
@@ -2453,7 +2471,7 @@ bool RichTextEditor::BeginReferenceDefinitionSourceEdit(ControlHost& host, const
     SourcePresentationChanged(host);
     return true;
 }
-void RichTextEditor::SourcePresentationChanged(ControlHost& host)
+void RichTextEditor::SourcePresentationChanged(ControlHost& host, bool revealCaret)
 {
     _state->autoFormatRun.reset();
     _state->smartTypingSite.reset();
@@ -2462,7 +2480,7 @@ void RichTextEditor::SourcePresentationChanged(ControlHost& host)
     _state->sourceCaretSite = RichText::MarkdownNoNode;
     _state->dragging        = false;
     _state->markdownCapacityRejected.reset();
-    RetireLayout();
+    RetireLayout(true);
     const auto lifetime = GetLifetimeToken();
     const auto binding = _state->bindingRevision, revision = Revision();
     const auto region = GetSemanticSourceRegion();
@@ -2472,7 +2490,7 @@ void RichTextEditor::SourcePresentationChanged(ControlHost& host)
         host.ReleaseMouseCapture();
     if (lifetime.expired() || GetHost() != &host || _state->bindingRevision != binding || Revision() != revision || GetSemanticSourceRegion() != region)
         return;
-    SelectionChanged();
+    SelectionChanged(true, false, revealCaret, revealCaret);
 }
 std::optional<RichText::MarkdownSourceRegion> RichTextEditor::GetSemanticSourceRegion() const noexcept
 {
@@ -3360,6 +3378,7 @@ bool RichTextEditor::SetScrollOffsetDip(float offsetDip)
         return false;
     const float offset  = std::clamp(offsetDip, 0.0f, std::max(0.0f, info->contentHeightDip - info->viewportHeightDip));
     _state->revealCaret = false;
+    _state->viewportAnchor.reset();
     if (_state->scrollDip == offset)
         return true;
     _state->scrollDip = offset;
@@ -3620,7 +3639,9 @@ void RichTextEditor::SelectionChanged(bool synchronizeTextInput, bool preservePr
     _state->overlaySelectionDirty = true;
     if (! preservePreferredCaretX)
         _state->preferredCaretX.reset();
-    _state->revealCaret  = revealCaret;
+    _state->revealCaret = revealCaret;
+    if (revealCaret)
+        _state->viewportAnchor.reset();
     _state->caretVisible = true;
     _state->blinkEpoch.reset();
     UpdateCaretLinkDisplayRange();
@@ -3717,7 +3738,6 @@ void RichTextEditor::RetireLayout(bool retainGeometry) const noexcept
     _state->semantic.Cancel();
     _state->markdownRequestActive = false;
     _state->requestActive         = false;
-    _state->revealCaret           = true;
     RequestContentPreparation(false);
     RequestVisualContentPreparation(false);
 }
@@ -4631,6 +4651,17 @@ HRESULT RichTextEditor::UpdateCaretScroll() const
     const auto previousHorizontal = state.horizontalScrollDip;
     const auto viewport           = TextViewport();
     const float height            = std::max(0.0f, viewport.bottom - viewport.top);
+    if (state.viewportAnchor)
+    {
+        const auto& anchor = state.viewportAnchor.value();
+        if (! state.revealCaret && anchor.binding == state.bindingRevision && anchor.source.IsSameRevision(state.document.Snapshot()))
+        {
+            RichText::CaretGeometry caret{};
+            RETURN_IF_FAILED(state.layout.TrySourceCaret(anchor.position, RichText::MarkdownNoNode, caret));
+            state.scrollDip = caret.y - anchor.viewportY;
+        }
+        state.viewportAnchor.reset();
+    }
     if (state.revealCaret)
     {
         RichText::CaretGeometry caret{};

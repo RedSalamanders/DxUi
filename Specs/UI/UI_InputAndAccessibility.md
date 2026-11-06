@@ -20,6 +20,17 @@ source-bound acceptance remain owned by [the active plan](../Plans/WIP/Remaining
 
 ## Current input contract
 
+RichTextEditor layout retirement MUST NOT itself request a caret reveal. Explicit
+selection/edit/navigation transitions retain their reveal behavior. A disclosure
+change preserves the viewport and selection, emits no selection-change notification,
+and retains compatible geometry for unaffected blocks. View-only reflow, including
+zoom, preserves the first visible prepared source line and its relative vertical
+position when no caret reveal is pending. One bounded source-revision/binding anchor
+survives successive appearance changes until preparation; explicit scrolling or a
+new caret intent supersedes it, and a replacement source/binding cannot consume it.
+Without current prepared geometry, reflow retains the offset and clamps it to the
+new extent. Composition only consumes the prepared result and performs no anchoring.
+
 Source-region editing permits natural navigation and edits across a previous active interval. Grapheme and
 word Backspace/Delete may cross its edges in one source transaction. The former presentation retires on a
 crossing edit or outside selection; ordinary rich navigation resumes at the current caret. Multiline code

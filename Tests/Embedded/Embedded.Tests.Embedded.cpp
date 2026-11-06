@@ -1869,6 +1869,8 @@ __declspec(noinline) static int RunFunctionalTests()
     TestRichExportAllocationFailures();
     TestRichPreparedPageRaster(gpu);
     TestRichMetadataOnlyComposition(gpu);
+    TestRichViewportPreservation(gpu, true);
+    TestRichViewportPreservation(gpu, false);
     TestRichPageAuthoredColors(gpu);
     TestRichTooltipReentrantTransitions(gpu);
     TestRichSourceDragGesture(gpu);

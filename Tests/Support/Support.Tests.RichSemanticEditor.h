@@ -1127,7 +1127,8 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
             editor->SetSelection({0u, 4u});
         }
     }
-    preparedRequest.command           = MarkdownCommand::ToggleStyle;
+    preparedRequest.command = MarkdownCommand::ToggleStyle;
+    prepare(); // The preceding selection change leaves overlay geometry pending.
     unsigned preparationNotifications = 0u;
     editor->SetOnTextChanged([&] { ++preparationNotifications; });
     editor->SetOnSelectionChanged([&] { ++preparationNotifications; });

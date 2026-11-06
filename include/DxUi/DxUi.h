@@ -3766,7 +3766,7 @@ private:
     void RetireLayout(bool retainGeometry = false) const noexcept;
     void ResetDocumentBinding();
     void UpdateSemanticSourceRegion() noexcept;
-    void SourcePresentationChanged(ControlHost& host);
+    void SourcePresentationChanged(ControlHost& host, bool revealCaret = true);
     [[nodiscard]] bool CanChangeSemanticSourcePresentation(ControlHost& host) const;
     [[nodiscard]] bool CanPasteMarkdownFileReferences(RichText::Selection selection) const noexcept;
     bool TryPrepareFileReferencesAt(const TextClipboardContent& content,
