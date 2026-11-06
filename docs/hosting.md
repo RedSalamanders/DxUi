@@ -8,6 +8,13 @@ each application's product integration remain separate. Earlier exception-recove
 the new fatal-stack/dump behavior.
 Returned HRESULT recovery described below applies to checked/native failures, not catch-and-continue on a throw.
 
+Clipboard paste defaults to Unicode text when text and a bitmap coexist. An application that supplies bitmap
+handling can opt into `TextClipboardPreference::ImageFirst` through `ControlHost::SetClipboardPreference`
+for native controls and `TextInputServices::SetClipboardPreference` for its embedded text service. File lists
+retain priority. The choice happens during one clipboard ownership attempt; a declined image preserves the
+selection and source. Existing clipboard interfaces remain valid, and a custom transport can implement the
+additive `PrioritizedStructuredTextClipboard` interface to choose among its offered formats.
+
 For a deterministic native software-rendering host, call `Attach(hwnd, {.forceWarp = true})` before creating
 other native graphics on that UI thread. Default peers inherit the thread pool's selection. An incompatible
 forced request returns false with `ERROR_INVALID_STATE` and preserves existing attachments; detach the last

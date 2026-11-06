@@ -105,6 +105,16 @@ public:
     virtual ~BitmapStructuredTextClipboard() = default;
     virtual HRESULT ReadSelectedBitmapContent(HWND owner, TextClipboardContent& content, bool includeFiles, bool includeHtml, bool includeBitmap) noexcept = 0;
 };
+// Additive preference-aware transport. Existing clipboard vtables remain intact.
+// Select from the offered formats during one ownership attempt; failures leave
+// the supplied result unchanged. File-list priority is independent of this policy.
+class PrioritizedStructuredTextClipboard
+{
+public:
+    virtual ~PrioritizedStructuredTextClipboard() = default;
+    virtual HRESULT ReadPreferredContent(
+        HWND owner, TextClipboardContent& content, bool includeFiles, bool includeHtml, bool includeBitmap, TextClipboardPreference preference) noexcept = 0;
+};
 // Optional transform discovery uses a cross-cast from the same TextInputClient object passed to SetClient.
 // Application-side optional source-paste transform. Called on the attaching UI
 // thread, outside rendering, before the existing revision-checked commit. It
@@ -169,6 +179,8 @@ public:
     // Required when geometry queries previously reported TS_E_NOLAYOUT. Never call from inside a client callback.
     void NotifyLayoutChanged() noexcept;
     HRESULT Clipboard(TextClipboardCommand command, TextClipboard* clipboard = nullptr) noexcept;
+    void SetClipboardPreference(TextClipboardPreference preference) noexcept;
+    [[nodiscard]] TextClipboardPreference GetClipboardPreference() const noexcept;
     // Call before TranslateMessage/DispatchMessage. S_OK + handled consumes a TSF key; unrelated messages pass.
     HRESULT PreTranslate(const MSG& message, bool& handled) noexcept;
     // Forward window messages before ordinary dispatch. Only this instance's coalesced deferred TSF lock

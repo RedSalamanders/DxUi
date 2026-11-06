@@ -495,13 +495,15 @@ struct TextInputServices::State
     wil::com_ptr_nothrow<ITfDocumentMgr> document, previousDocument;
     wil::com_ptr_nothrow<ITfContext> context;
     wil::com_ptr_nothrow<ITextStoreACP> store;
-    TfClientId clientId        = 0;
-    bool associated            = false;
-    uint64_t focusId           = 0;
-    UINT_PTR dispatchCookie    = NextDispatchCookie();
-    uint64_t operationRevision = 0;
-    bool lockPosted            = false;
-    bool detaching             = false;
+    TfClientId clientId                         = 0;
+    bool associated                             = false;
+    uint64_t focusId                            = 0;
+    UINT_PTR dispatchCookie                     = NextDispatchCookie();
+    uint64_t operationRevision                  = 0;
+    TextClipboardPreference clipboardPreference = TextClipboardPreference::TextFirst;
+    uint64_t clipboardPolicyRevision            = 0;
+    bool lockPosted                             = false;
+    bool detaching                              = false;
 
     uint64_t BeginOperation() noexcept
     {
@@ -825,6 +827,19 @@ void TextInputServices::NotifyLayoutChanged() noexcept
     if (_state->OnThread() && _state->store)
         NotifyTextStoreLayoutChanged(_state->store.get());
 }
+void TextInputServices::SetClipboardPreference(TextClipboardPreference preference) noexcept
+{
+    if (_state->OnThread() && (preference == TextClipboardPreference::TextFirst || preference == TextClipboardPreference::ImageFirst) &&
+        preference != _state->clipboardPreference)
+    {
+        _state->clipboardPreference = preference;
+        ++_state->clipboardPolicyRevision;
+    }
+}
+TextClipboardPreference TextInputServices::GetClipboardPreference() const noexcept
+{
+    return _state->clipboardPreference;
+}
 HRESULT TextInputServices::Clipboard(TextClipboardCommand command, TextClipboard* clipboard) noexcept
 {
     const Failure::Scope failureScope;
@@ -834,13 +849,17 @@ HRESULT TextInputServices::Clipboard(TextClipboardCommand command, TextClipboard
         return S_FALSE;
     if (command != TextClipboardCommand::Copy && command != TextClipboardCommand::Cut && command != TextClipboardCommand::Paste)
         return E_INVALIDARG;
-    auto client = _state->client;
+    auto client                        = _state->client;
+    const auto clipboardPreference     = _state->clipboardPreference;
+    const auto clipboardPolicyRevision = _state->clipboardPolicyRevision;
     EmbeddedTextInputSnapshot snapshot;
     const HRESULT read = client->Read(snapshot);
     if (read != S_OK)
         return read;
     if (client != _state->client || ! snapshot.revision || snapshot.focusId != _state->focusId || ! ValidState(snapshot.state))
         return E_UNEXPECTED;
+    if (command == TextClipboardCommand::Paste && clipboardPolicyRevision != _state->clipboardPolicyRevision)
+        return S_FALSE;
     if (snapshot.state.compositionStartIndex)
         return S_FALSE;
     if ((command != TextClipboardCommand::Paste && snapshot.state.masked) || (command != TextClipboardCommand::Copy && snapshot.state.readOnly))
@@ -886,11 +905,17 @@ HRESULT TextInputServices::Clipboard(TextClipboardCommand command, TextClipboard
             const bool includeBitmap = bitmap && bitmap->AcceptsBitmap(snapshot);
             if (client != _state->client)
                 return TF_E_DISCONNECTED;
-            const HRESULT paste = ReadTextClipboardContent(service, _state->hwnd, content, includeFiles, includeHtml, includeBitmap);
+            if (clipboardPolicyRevision != _state->clipboardPolicyRevision)
+                return S_FALSE;
+            const HRESULT paste = ReadTextClipboardContent(service, _state->hwnd, content, includeFiles, includeHtml, includeBitmap, clipboardPreference);
             if (paste != S_OK)
                 return paste;
             if (client != _state->client)
                 return TF_E_DISCONNECTED;
+            if (clipboardPolicyRevision != _state->clipboardPolicyRevision)
+                return S_FALSE;
+            if (content.filePaths.empty() && content.bitmapDib.empty() && content.text.empty() && ! content.hasHtmlFragment)
+                return S_FALSE;
             if (content.filePaths.empty() && ! content.bitmapDib.empty() && bitmap)
             {
                 const auto result = bitmap->ApplyBitmapPaste(snapshot, content);
@@ -954,6 +979,8 @@ HRESULT TextInputServices::Clipboard(TextClipboardCommand command, TextClipboard
         }
         if (client != _state->client)
             return TF_E_DISCONNECTED;
+        if (command == TextClipboardCommand::Paste && clipboardPolicyRevision != _state->clipboardPolicyRevision)
+            return S_FALSE;
         const size_t retained = snapshot.state.text.size() - (last - first);
         if (replacement.size() > kMaximumTextUnits - retained)
             return HRESULT_FROM_WIN32(ERROR_BUFFER_OVERFLOW);

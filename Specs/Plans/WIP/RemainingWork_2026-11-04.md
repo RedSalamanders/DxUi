@@ -95,6 +95,11 @@ This coordinates the active API work; it does not adopt API 5 in any application
   [Scoped closeout](../Done/EditorCosmeticPreparation_2026-11-06.md): API 4 `ba94f4eb`, six zero-warning builds,
   57 noninteractive suite executions, real ASan detection, independent work/source oracles and refreshed gallery.
   Consumer, native-platform/physical and paired-performance acceptance remain separately owned below.
+  Hosted main `14386f36` now passes all seven Release jobs, 23 native x64/21 native ARM64 suites,
+  assertion probes and both production SDK smoke checks in
+  [run 42193587525](https://github.com/RedSalamanders/DxUi/actions/runs/42193587525);
+  [verified original receipts and package hashes](../../../Measurements/EditorCosmeticPreparation_2026-11-06/hosted-qualification.json)
+  close this source's Release gate without accepting later clipboard, Debug/ASan ARM64 or physical/performance work.
 - [x] Implement D3's 5 November decision: permit natural source navigation/editing across the former active
   interval, including Backspace/Delete/Tab and nested fences. Update the source-editing scope from the current
   caret/selection instead of trapping input at an old boundary (EDIT-07/11).
@@ -109,8 +114,15 @@ This coordinates the active API work; it does not adopt API 5 in any application
   (CTRL-01), with real-message replay and no weakened assertions.
 - [ ] Reconcile the native IME capacity and quoted-file-paste fixes required by RedTilde DX-4/DX-3 against the
   exact candidate; keep source, selection, history, decline paths and callback ownership intact.
-- [ ] Implement D4's selected text-first default when Unicode and bitmap formats coexist, with an explicit
-  application image-first option and source-preserving decline behavior.
+- [x] Implement D4's SDK text-first default when Unicode and bitmap formats coexist, with an explicit
+  native/embedded application image-first policy API and source-preserving decline behavior.
+  [Scoped closeout](../Done/ClipboardPreference_2026-11-06.md): API 4 `a1915ffd`, six zero-warning builds,
+  57 noninteractive suite executions, actual ASan detection and private format/ownership/source oracles.
+  Combined API-5 source `977a9fb0` independently passes six zero-warning builds, all 66 noninteractive x64
+  suite executions and actual ASan detection, with 680 original inputs and all native/run archive members
+  verified. The original API-4 cohort stays separate; current-source hosted native acceptance remains D-Q1.
+  RedTilde's bitmap-asset persistence and settings UI remain consumer work; no such UI is claimed here.
+  The original compiled transport counterexample changes from bitmap to Unicode with the candidate library.
 - [x] Implement D5: classify `//host/...` and `file://host/...` image destinations as network requests and
   apply remote-image permission; never route them through an ungated local-file path.
 - [ ] Qualify remaining focus/TSF/menu closure and mask/IME findings from the
@@ -259,7 +271,7 @@ privacy operation is approved but unexecuted here; D10 publication is completed.
 in [the archived decision register](../Done/ProductionReview_2026-11-02.md#wave-0--decisions-that-unblock-implementation).
 
 Owner choices received on **5 November 2026** are requirements. D3 and D5 are implemented and qualified in
-the current scoped closeout; D4 remains pending:
+the current scoped closeout; D4's SDK policy is implemented in its scoped closeout:
 
 - **D3 — natural source editing/navigation.** Do not contain edits inside the old active region. Allow the
   source-editing scope to follow natural caret/selection movement. This replaces the archived containment recommendation.
@@ -267,8 +279,8 @@ the current scoped closeout; D4 remains pending:
 - **D5 — network image destinations.** Treat both `//host/...` and `file://host/...` as network and apply remote-image permission.
 
 The [current input contract](../../UI/UI_InputAndAccessibility.md#current-input-contract) owns D3/D5 and
-the [pending paste policy](../../UI/UI_InputAndAccessibility.md#selected-paste-policy-awaiting-implementation)
-owns D4. D7's aligned/gathered/alignat display-style behavior is implemented in the current math closeout.
+the [implemented paste policy](../../UI/UI_InputAndAccessibility.md) owns D4. RedTilde's image-asset adoption
+remains consumer-owned. D7's aligned/gathered/alignat display-style behavior is implemented in the current math closeout.
 
 | Still open | Required owner choice |
 | --- | --- |
@@ -276,7 +288,7 @@ owns D4. D7's aligned/gathered/alignat display-style behavior is implemented in 
 | D8 | Public Debug declarations and supported API boundary. |
 | D11 | Broader legacy Done-checkbox disposition. This cleanup handles transferred WIP items, not all old Done records. |
 | D12 | Broader fragment administration; current fragment/fold policy remains authoritative. |
-| D13 | Consumer-callback allocation/fatal policy and shared implementation; reconcile PR162 before adoption. |
+| D13 | Consumer adoption of the implemented API-5 callback/fatal host protocol; PR162's library contract and qualification are completed, while each product owns its migration. |
 
 <a id="d-h1"></a>
 **HOLD D-H1:** S3-S7 overlay sessions, variable-height lists, read-only Markdown help, motion and theme metadata

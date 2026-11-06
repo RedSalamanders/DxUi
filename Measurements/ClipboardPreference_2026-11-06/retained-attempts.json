@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "claim": "Retained original attempts; only final a1915ffd matrix is qualified",
+  "independentProbe": {
+    "claim": "Independent fail-before/pass-after with the original compiled probe object; not whole-library qualification",
+    "baseImplementationCommit": "ba94f4eb0cd8bbdeecb0b96d5e21fb325fe2d9c9",
+    "probeObjectSha256": "644A0D48A44C8ECE1A71BB0E82BD6DD11926FDF4BBEB13D0D9F2BAEAFB72942A",
+    "originalObjectNotRecompiled": true,
+    "probeSourceSha256": "A99B96BE3FD748A6D011A8EDECD118C24AFBACB615697438857AAA03F74373E8",
+    "baselineBinarySha256": "442178648585CA8130F5CA1EA4D9338DF9F3092D4D5A209ED5327A464C5FDA39",
+    "candidateLibrarySha256": "5EAA7A366F2ACE1DC12AC07B470F4391E0AB6E7DDFB7CED8B9259E15F2019312",
+    "candidateBinarySha256": "9AE57EDF2BFA0035FDC75EBD48946B22AC9A791EC7D3C2EEC42CA01DA0441D0A",
+    "baselineExitCode": 1,
+    "candidateExitCode": 0,
+    "ownershipAttempts": 1,
+    "desktopClipboardAccessed": false
+  },
+  "rejectedCohort": {
+    "claim": "Rejected qualification attempt",
+    "sourceCommit": "edef7bc40286e93c777c56e866b7879e82d125d9",
+    "compiledSourceIdentity": "0d3cc880613afb0b3ae841f7f159105f9d41254c3eac9d0c5817ff4c24cb82be",
+    "sourceArchiveSha256": "04DA1CD136AC98A41F77675F59259BFD9BBF00FF5148F37994BDCB9EFC895208",
+    "sourceInputs": 594,
+    "releaseBuildZeroWarnings": true,
+    "nativeSuitePasses": 18,
+    "nativeSuiteFailures": 1,
+    "failedPredicate": "bitmap paste takes priority over Unicode and inserts an application-saved asset",
+    "disposition": "Keep original assertion, select ImageFirst explicitly for its asset-paste fixture; new default remains TextFirst",
+    "ARM64Build": "deliberately interrupted before acceptance after x64 failure",
+    "blockedCCachesPreserved": true
+  },
+  "diskFullRun": "20261106T102259394Z-37200-f6656042cc0f4bd79df4acd09a8299c5",
+  "assertionFailureRun": "20261106T104029806Z-35664-a534a7d39d8f49f5a036e4081d1a7067",
+  "preflightStops": "Insufficient free storage before the next profile; no successful native result attributed",
+  "cleanupRefusals": "Automatic approval review blocked selected old caches/inputs; originals retained and no alternate removal attempted",
+  "finalQualification": "qualification.json",
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-clipboard-preference-retained-attempts",
+  "benchmarkInputs": {
+    "src/Controls/TextClipboard.cpp": "BA32A8BB01923D7AF79403625F178C7F05338343B07CD3A638D22C5E6A514D11",
+    "src/Controls/TextClipboard.h": "E11B14EC038F7A37FF75BFCAC5CB00F4C6457874394BA9947AE560C2703C006F",
+    "src/Controls/TextInputServices.cpp": "8A3A9A566388887B2090CA2564D8C32561C46704EB611B522948AEAB7FC7243D",
+    "Tests/Controls/Controls.Tests.RichTextInput.cpp": "3429A367EA1929B6FE4AA020B5253AFD30928230DC65E48CD2DF2A2D3BB86C76",
+    "Tests/Controls/Controls.Tests.RichTextEditor.cpp": "F1C5220761E260475A8E5FD97648907CEBECD98918211EC97D17743CE9CAF05B"
+  }
+}

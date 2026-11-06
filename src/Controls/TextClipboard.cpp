@@ -39,6 +39,7 @@ class WindowsTextClipboard final : public TextClipboard,
                                    public StructuredTextClipboard,
                                    public SelectiveStructuredTextClipboard,
                                    public BitmapStructuredTextClipboard,
+                                   public PrioritizedStructuredTextClipboard,
                                    public HtmlTextClipboardWriter
 {
 public:
@@ -62,10 +63,19 @@ public:
         return ReadSelectedBitmapContent(owner, content, includeFiles, includeHtml, false);
     }
     HRESULT ReadSelectedBitmapContent(HWND owner, TextClipboardContent& content, bool includeFiles, bool includeHtml, bool includeBitmap) noexcept override
+    {
+        return ReadPreferredContent(owner, content, includeFiles, includeHtml, includeBitmap, TextClipboardPreference::TextFirst);
+    }
+    HRESULT ReadPreferredContent(HWND owner,
+                                 TextClipboardContent& content,
+                                 bool includeFiles,
+                                 bool includeHtml,
+                                 bool includeBitmap,
+                                 TextClipboardPreference preference) noexcept override
     try
     {
         Failure::Scope failureScope;
-        if (! owner)
+        if (! owner || (preference != TextClipboardPreference::TextFirst && preference != TextClipboardPreference::ImageFirst))
             return E_INVALIDARG;
         TextClipboardContent staged;
         const auto& calls = ClipboardCalls();
@@ -89,7 +99,14 @@ public:
                 if (FAILED(result))
                     return result;
             }
-        if (includeBitmap)
+        HRESULT result = S_FALSE;
+        if (preference == TextClipboardPreference::TextFirst)
+        {
+            result = ReadUnicodeClipboardData(calls.getData(CF_UNICODETEXT), staged.text);
+            if (FAILED(result))
+                return result;
+        }
+        if (includeBitmap && (preference == TextClipboardPreference::ImageFirst || result != S_OK))
             for (const auto format : {UINT{CF_DIBV5}, UINT{CF_DIB}})
                 if (const auto data = calls.getData(format))
                 {
@@ -109,7 +126,8 @@ public:
                         return S_OK;
                     }
                 }
-        const auto result = ReadUnicodeClipboardData(calls.getData(CF_UNICODETEXT), staged.text);
+        if (preference == TextClipboardPreference::ImageFirst)
+            result = ReadUnicodeClipboardData(calls.getData(CF_UNICODETEXT), staged.text);
         if (FAILED(result))
             return result;
         const auto htmlFormat = includeHtml ? RegisterClipboardFormatW(L"HTML Format") : 0u;
@@ -536,12 +554,36 @@ HRESULT ReadTextClipboardContent(TextClipboard& clipboard, HWND owner, TextClipb
 }
 HRESULT ReadTextClipboardContent(
     TextClipboard& clipboard, HWND owner, TextClipboardContent& content, bool includeFiles, bool includeHtml, bool includeBitmap) noexcept
+{
+    return ReadTextClipboardContent(clipboard, owner, content, includeFiles, includeHtml, includeBitmap, TextClipboardPreference::TextFirst);
+}
+HRESULT ReadTextClipboardContent(TextClipboard& clipboard,
+                                 HWND owner,
+                                 TextClipboardContent& content,
+                                 bool includeFiles,
+                                 bool includeHtml,
+                                 bool includeBitmap,
+                                 TextClipboardPreference preference) noexcept
 try
 {
     Failure::Scope failureScope;
+    if (preference != TextClipboardPreference::TextFirst && preference != TextClipboardPreference::ImageFirst)
+        return E_INVALIDARG;
+    if (auto* prioritized = dynamic_cast<PrioritizedStructuredTextClipboard*>(&clipboard))
+        return prioritized->ReadPreferredContent(owner, content, includeFiles, includeHtml, includeBitmap, preference);
     if (includeBitmap)
         if (auto* bitmap = dynamic_cast<BitmapStructuredTextClipboard*>(&clipboard))
-            return bitmap->ReadSelectedBitmapContent(owner, content, includeFiles, includeHtml, true);
+        {
+            TextClipboardContent staged;
+            const HRESULT result = bitmap->ReadSelectedBitmapContent(owner, staged, includeFiles, includeHtml, true);
+            if (result == S_OK)
+            {
+                if (preference == TextClipboardPreference::TextFirst && staged.filePaths.empty() && ! staged.text.empty())
+                    staged.bitmapDib.clear();
+                content.Swap(staged);
+            }
+            return result;
+        }
     if (includeFiles || includeHtml)
     {
         if (auto* selective = dynamic_cast<SelectiveStructuredTextClipboard*>(&clipboard))

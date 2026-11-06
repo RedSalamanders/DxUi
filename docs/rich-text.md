@@ -12,6 +12,16 @@ the editor adds a subtle light or dark backing for readability. Label background
 crossing lines; labels within notes or filled groups retain that container's surface. This presentation
 does not alter Mermaid source, diagram placement, selection or history.
 
+## Clipboard format preference
+
+When Unicode text and a bitmap are both offered, ordinary paste chooses text by default. File lists retain
+their existing priority. If the application supplies a bitmap paste handler, it can select
+`TextClipboardPreference::ImageFirst` on the native `ControlHost` or its embedded `TextInputServices`.
+A declined image leaves source, selection and history unchanged. Empty Unicode without an explicit HTML
+conversion is also a no-op; it never deletes the selection or silently falls back to an image.
+The transport reads the selected formats during one ownership attempt and copies admitted bitmap bytes
+before calling the application. Asset persistence remains application-owned.
+
 ## Selection-to-block insertion
 
 Use `RichTextEditor::WrapSelectionInMarkdownBlock` for an Insert action applied to selected text. Pass
@@ -65,6 +75,7 @@ receivers and the library must likewise be rebuilt from the same exact pin.
 | Native HTML | Limited | Validated native subset; whole-leaf fallback; no browser or executable HTML | [Details](#semantic-rendering-preview-m4d) |
 | Images | Limited | Caller-owned raster/SVG resources; bounded sizing/captions/frames; HTTP/data/SVG opt-ins default off | [Details](#retained-editor-preview-d2c) |
 | File-reference paste | Supported | Ordered references; document-relative destinations; one undo transaction | [Details](#retained-editor-preview-d2c) |
+| Clipboard format preference | Limited | Unicode-first default; explicit image-first; application-owned image assets | [Details](#clipboard-format-preference) |
 | File-reference drop | Limited | App-owned STA adapter; 16 files; 256 KiB medium; guarded prepared caret | [Details](#retained-editor-preview-d2c) |
 | Rendered export | Limited | Inert bounded semantic HTML and text; explicit clipboard; prepared page slices | [Details](#rendered-export-and-printing) |
 | Metadata envelopes | Supported | Leading RichMarkdown YAML/TOML envelope; exact fences and source | [Details](#leading-metadata-envelopes) |
@@ -242,8 +253,10 @@ callback receives a borrowed, validated owned DIB and a DIBV5 flag after the
 clipboard is closed; save the asset using application policy and return its
 absolute supported image path, or return no path to cancel. The editor inserts
 the reference in one undo transaction only if focus, selection, revision,
-binding and composition still match. File lists take priority over bitmaps;
-bitmaps take priority over HTML and Unicode, while Ctrl+Shift+V remains plain.
+binding and composition still match. File lists retain priority. Unicode wins
+over bitmaps by default, with optional HTML conversion; explicit
+`TextClipboardPreference::ImageFirst` chooses a valid bitmap first.
+Ctrl+Shift+V remains plain Unicode regardless of this preference.
 Accepted DIBs are bounded to 32 MiB and 8192 pixels per dimension, with 24/32-bit
 uncompressed RGB or 32-bit bitfields and no embedded color profile. The library
 does not create the asset or retain clipboard handles. Existing clipboard

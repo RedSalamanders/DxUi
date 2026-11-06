@@ -18,3 +18,9 @@ The [source-bound packet](../../../Measurements/EditorCosmeticPreparation_2026-1
 This closes D1's EDIT-01/02/04 and RENDER-01/14 scope. ARM64 cross-builds do not establish native execution;
 consumer adoption, API/failure work, physical input/AT and paired-performance acceptance remain in the
 [single active plan](../WIP/RemainingWork_2026-11-04.md).
+
+Hosted Release closeout: main `14386f36`, [run 42193587525](https://github.com/RedSalamanders/DxUi/actions/runs/42193587525),
+passes all seven roles, 23 native x64/21 native ARM64 suites, assertion probes and both production SDK smoke
+checks. The [original receipt projection](../../../Measurements/EditorCosmeticPreparation_2026-11-06/hosted-qualification.json)
+verifies all fifteen wrapper digests, canonical members and inner package hashes. Later clipboard and other
+platform/physical/performance acceptance remain separate.

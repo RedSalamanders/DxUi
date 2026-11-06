@@ -945,6 +945,323 @@ void TestRichTextImageClipboardTransport()
             "native paste does not overwrite a reentrant source replacement");
 }
 
+namespace
+{
+// Independent format offers use Win32's standard headers, never the decoder under test.
+wil::unique_hglobal ClipboardPriorityDib(bool v5)
+{
+    BITMAPV5HEADER header{};
+    header.bV5Size        = v5 ? sizeof(BITMAPV5HEADER) : sizeof(BITMAPINFOHEADER);
+    header.bV5Width       = 1;
+    header.bV5Height      = 1;
+    header.bV5Planes      = 1;
+    header.bV5BitCount    = 32;
+    header.bV5Compression = BI_RGB;
+    header.bV5SizeImage   = 4;
+    wil::unique_hglobal memory(GlobalAlloc(GMEM_MOVEABLE | GMEM_ZEROINIT, header.bV5Size + 4u));
+    Require(bool(memory), "allocate independent priority bitmap offer");
+    auto* bytes = GlobalLock(memory.get());
+    Require(bytes != nullptr, "lock independent priority bitmap offer");
+    {
+        const auto unlock = wil::scope_exit([&]() noexcept { GlobalUnlock(memory.get()); });
+        std::memcpy(bytes, &header, header.bV5Size);
+    }
+    return memory;
+}
+} // namespace
+void TestRichClipboardFormatPreference()
+{
+    AttachedHostWindow window;
+    ClipboardTransportFixture clipboard(window.Hwnd(), Require);
+    constexpr std::wstring_view offered = L"text \u6771\U0001f600\r\nline";
+    RequireSucceeded(SystemTextClipboard().Write(window.Hwnd(), offered), "seed independent Unicode priority offer");
+    clipboard.dibData   = ClipboardPriorityDib(false);
+    clipboard.dibV5Data = ClipboardPriorityDib(true);
+    TextClipboardContent result;
+    auto opens = clipboard.opens, closes = clipboard.closes, unicode = clipboard.unicodeReads, dib = clipboard.dibReads, v5 = clipboard.dibV5Reads;
+    Require(ReadTextClipboardContent(SystemTextClipboard(), window.Hwnd(), result, false, false, true) == S_OK && result.text == offered &&
+                result.bitmapDib.empty() && clipboard.opens == opens + 1u && clipboard.closes == closes + 1u && clipboard.unicodeReads == unicode + 1u &&
+                clipboard.dibReads == dib && clipboard.dibV5Reads == v5,
+            "default priority selects exact Unicode in one ownership attempt without touching either bitmap");
+    Require(ReadTextClipboardContent(SystemTextClipboard(), window.Hwnd(), result, false, false, false, TextClipboardPreference::ImageFirst) == S_OK &&
+                result.text == offered && result.bitmapDib.empty() && clipboard.dibReads == dib && clipboard.dibV5Reads == v5,
+            "image-first preference never enables a format the caller did not admit");
+    opens   = clipboard.opens;
+    closes  = clipboard.closes;
+    unicode = clipboard.unicodeReads;
+    Require(ReadTextClipboardContent(SystemTextClipboard(), window.Hwnd(), result, false, false, true, TextClipboardPreference::ImageFirst) == S_OK &&
+                result.text.empty() && result.bitmapV5 && result.bitmapDib.size() == sizeof(BITMAPV5HEADER) + 4u && clipboard.opens == opens + 1u &&
+                clipboard.closes == closes + 1u && clipboard.unicodeReads == unicode,
+            "explicit image-first priority selects the independently offered DIBV5 without reading Unicode");
+    const auto image = result.bitmapDib;
+    opens            = clipboard.opens;
+    Require(ReadTextClipboardContent(SystemTextClipboard(), window.Hwnd(), result, false, false, true, static_cast<TextClipboardPreference>(255u)) ==
+                    E_INVALIDARG &&
+                result.bitmapDib == image && clipboard.opens == opens,
+            "invalid preference is rejected before ownership and leaves the owned result unchanged");
+    constexpr wchar_t priorityPaths[] = L"C:\\docs\\picture.png\0";
+    const auto paths                  = RichImagePathTests::DropBuffer(std::wstring_view(priorityPaths, std::size(priorityPaths)));
+    clipboard.fileData.reset(GlobalAlloc(GMEM_MOVEABLE, paths.size()));
+    Require(bool(clipboard.fileData), "allocate independent file-list priority offer");
+    auto* data = GlobalLock(clipboard.fileData.get());
+    Require(data != nullptr, "lock independent file-list priority offer");
+    {
+        const auto unlock = wil::scope_exit([&]() noexcept { GlobalUnlock(clipboard.fileData.get()); });
+        std::memcpy(data, paths.data(), paths.size());
+    }
+    for (const auto preference : {TextClipboardPreference::TextFirst, TextClipboardPreference::ImageFirst})
+        Require(ReadTextClipboardContent(SystemTextClipboard(), window.Hwnd(), result, true, false, true, preference) == S_OK &&
+                    result.filePaths == std::vector<std::wstring>{L"C:\\docs\\picture.png"} && result.text.empty() && result.bitmapDib.empty(),
+                "file-list priority is independent of text versus image policy");
+    clipboard.fileData.reset();
+    clipboard.dibV5Data.reset();
+    clipboard.dibData.reset();
+    Require(ReadTextClipboardContent(SystemTextClipboard(), window.Hwnd(), result, false, false, true, TextClipboardPreference::ImageFirst) == S_OK &&
+                result.text == offered && result.bitmapDib.empty(),
+            "image-first falls back to exact Unicode when no bitmap is available");
+    clipboard.dibData = ClipboardPriorityDib(false);
+    data              = GlobalLock(clipboard.dibData.get());
+    Require(data != nullptr, "lock bitmap for independent malformed-header case");
+    {
+        const auto unlock                             = wil::scope_exit([&]() noexcept { GlobalUnlock(clipboard.dibData.get()); });
+        static_cast<BITMAPINFOHEADER*>(data)->biWidth = 0;
+    }
+    Require(ReadTextClipboardContent(SystemTextClipboard(), window.Hwnd(), result, false, false, true, TextClipboardPreference::ImageFirst) == S_OK &&
+                result.text == offered && result.bitmapDib.empty(),
+            "a malformed bitmap falls through within the same ownership attempt");
+    clipboard.dibData = ClipboardPriorityDib(false);
+    RequireSucceeded(SystemTextClipboard().Write(window.Hwnd(), L""), "seed valid empty Unicode offer");
+    dib = clipboard.dibReads;
+    v5  = clipboard.dibV5Reads;
+    Require(ReadTextClipboardContent(SystemTextClipboard(), window.Hwnd(), result, false, false, true) == S_OK && result.text.empty() &&
+                result.bitmapDib.empty() && clipboard.dibReads == dib && clipboard.dibV5Reads == v5,
+            "an available empty Unicode offer does not silently choose an image");
+    clipboard.data.reset();
+    Require(ReadTextClipboardContent(SystemTextClipboard(), window.Hwnd(), result, false, false, true) == S_OK && ! result.bitmapDib.empty(),
+            "text-first still admits a bitmap-only offer");
+    RequireSucceeded(SystemTextClipboard().Write(window.Hwnd(), L"a"), "seed Unicode storage for malformed-surrogate offer");
+    data = GlobalLock(clipboard.data.get());
+    Require(data != nullptr, "lock independent malformed Unicode offer");
+    {
+        const auto unlock              = wil::scope_exit([&]() noexcept { GlobalUnlock(clipboard.data.get()); });
+        static_cast<wchar_t*>(data)[0] = static_cast<wchar_t>(0xd800u);
+    }
+    const auto beforeMalformed = result.bitmapDib;
+    dib                        = clipboard.dibReads;
+    v5                         = clipboard.dibV5Reads;
+    Require(FAILED(ReadTextClipboardContent(SystemTextClipboard(), window.Hwnd(), result, false, false, true)) && result.bitmapDib == beforeMalformed &&
+                clipboard.dibReads == dib && clipboard.dibV5Reads == v5,
+            "malformed preferred Unicode refuses atomically without trying an image instead");
+    unicode = clipboard.unicodeReads;
+    Require(ReadTextClipboardContent(SystemTextClipboard(), window.Hwnd(), result, false, false, true, TextClipboardPreference::ImageFirst) == S_OK &&
+                ! result.bitmapDib.empty() && clipboard.unicodeReads == unicode,
+            "image-first chooses its valid admitted bitmap without accessing malformed lower-priority Unicode");
+    clipboard.busy    = true;
+    opens             = clipboard.opens;
+    closes            = clipboard.closes;
+    const auto before = result.bitmapDib;
+    Require(FAILED(ReadTextClipboardContent(SystemTextClipboard(), window.Hwnd(), result, false, false, true)) && result.bitmapDib == before &&
+                clipboard.opens == opens + 1u && clipboard.closes == closes,
+            "ownership refusal preserves the prior complete result without closing another owner's clipboard");
+}
+void TestRichClipboardNativePreference()
+{
+    AttachedHostWindow window;
+    ClipboardTransportFixture clipboard(window.Hwnd(), Require);
+    auto owned   = std::make_unique<RichTextEditor>(L"before chosen after");
+    auto* editor = owned.get();
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    editor->SetMarkdownRenderingEnabled(true);
+    editor->SetDocumentFilePath(L"C:\\docs\\note.md");
+    editor->SetBounds(D2D1::RectF(0.f, 0.f, 640.f, 240.f));
+    unsigned imageCalls = 0;
+    bool decline        = false;
+    editor->SetBitmapPasteHandler([&](std::span<const std::byte> bytes, bool v5) -> std::optional<std::wstring>
+    {
+        Require(bytes.size() == sizeof(BITMAPINFOHEADER) + 4u && ! v5, "handler receives the independently offered owned packed DIB");
+        ++imageCalls;
+        return decline ? std::nullopt : std::optional<std::wstring>{L"C:\\docs\\picture.png"};
+    });
+    window.Host().SetRoot(std::move(owned));
+    window.Host().SetFocusControl(editor, false);
+    auto prepare = [&]
+    {
+        Require(PrepareNativeContentForTests(window.Host()), "prepare native clipboard priority source");
+        editor->SetSelection({13u, 7u});
+    };
+    prepare();
+    RequireSucceeded(SystemTextClipboard().Write(window.Hwnd(), L"pasted text"), "offer Unicode alongside the native image");
+    clipboard.dibData = ClipboardPriorityDib(false);
+    auto opens        = clipboard.opens;
+    Require(window.Host().GetClipboardPreference() == TextClipboardPreference::TextFirst && editor->OnKeyDown(window.Host(), 'V', MK_CONTROL) &&
+                editor->GetText() == L"before pasted text after" && imageCalls == 0u && clipboard.opens == opens + 1u && editor->Undo() &&
+                editor->GetText() == L"before chosen after" && editor->GetSelection() == RichText::Selection{13u, 7u},
+            "native default pastes Unicode once and undo restores the directional selection without calling image handling");
+    prepare();
+    window.Host().SetClipboardPreference(TextClipboardPreference::ImageFirst);
+    const auto interactionBeforeInvalid = window.Host().GetInteractionRevision();
+    window.Host().SetClipboardPreference(static_cast<TextClipboardPreference>(255u));
+    Require(window.Host().GetClipboardPreference() == TextClipboardPreference::ImageFirst && window.Host().GetInteractionRevision() == interactionBeforeInvalid,
+            "invalid native preference is ignored without invalidating an input operation");
+    opens = clipboard.opens;
+    Require(editor->OnKeyDown(window.Host(), 'V', MK_CONTROL) && editor->GetText() == L"before ![picture](picture.png) after" && imageCalls == 1u &&
+                clipboard.opens == opens + 1u && editor->Undo() && editor->GetText() == L"before chosen after" &&
+                editor->GetSelection() == RichText::Selection{13u, 7u},
+            "application image-first option commits one image replacement and one undo step");
+    prepare();
+    decline             = true;
+    const auto revision = editor->Revision();
+    opens               = clipboard.opens;
+    Require(editor->OnKeyDown(window.Host(), 'V', MK_CONTROL) && editor->GetText() == L"before chosen after" && editor->Revision() == revision &&
+                editor->GetSelection() == RichText::Selection{13u, 7u} && imageCalls == 2u && clipboard.opens == opens + 1u,
+            "declining a selected image preserves source, selection and revision without a second text paste");
+    Require(! editor->CanUndo() && editor->CanRedo(), "declined native image retains the exact undo/redo availability");
+    window.Host().SetClipboardPreference(TextClipboardPreference::TextFirst);
+    RequireSucceeded(SystemTextClipboard().Write(window.Hwnd(), L""), "offer empty Unicode alongside image after decline");
+    Require(editor->OnKeyDown(window.Host(), 'V', MK_CONTROL) && editor->Revision() == revision && editor->GetSelection() == RichText::Selection{13u, 7u} &&
+                imageCalls == 2u,
+            "native empty Unicode paste preserves selected source and never falls back to the bitmap");
+    Require(! editor->CanUndo() && editor->CanRedo(), "empty native Unicode retains the exact undo/redo availability");
+    prepare();
+    RequireSucceeded(SystemTextClipboard().Write(window.Hwnd(), L"rich"), "offer Unicode for rich text plus bitmap coexistence");
+    constexpr std::string_view html =
+        "Version:1.0\r\nStartHTML:0000000105\r\nEndHTML:0000000116\r\nStartFragment:0000000105\r\nEndFragment:0000000116\r\n<b>rich</b>";
+    clipboard.htmlData.reset(GlobalAlloc(GMEM_MOVEABLE, html.size()));
+    Require(bool(clipboard.htmlData), "allocate independently spelled CF_HTML priority offer");
+    auto* htmlBytes = GlobalLock(clipboard.htmlData.get());
+    Require(htmlBytes != nullptr, "lock independently spelled CF_HTML priority offer");
+    {
+        const auto unlock = wil::scope_exit([&]() noexcept { GlobalUnlock(clipboard.htmlData.get()); });
+        std::memcpy(htmlBytes, html.data(), html.size());
+    }
+    editor->SetHtmlPasteConverter([](std::wstring_view value) -> std::optional<std::wstring>
+    { return value == L"<b>rich</b>" ? std::optional<std::wstring>{L"**rich**"} : std::nullopt; });
+    Require(editor->OnKeyDown(window.Host(), 'V', MK_CONTROL) && editor->GetText() == L"before **rich** after" && imageCalls == 2u && editor->Undo() &&
+                editor->GetText() == L"before chosen after" && editor->GetSelection() == RichText::Selection{13u, 7u},
+            "text-first keeps admitted rich HTML conversion with a bitmap present, using one undoable source transaction");
+}
+void TestRichClipboardEmbeddedPreference()
+{
+    AttachedHostWindow window;
+    ClipboardTransportFixture clipboard(window.Hwnd(), Require);
+    GraphicsFixture gpu;
+    RequireSucceeded(gpu.Create(), "clipboard priority borrowed WARP device");
+    std::shared_ptr<GraphicsDevice> graphics;
+    RequireSucceeded(GraphicsDevice::Create(gpu.device.get(), graphics), "clipboard priority shared graphics owner");
+    EmbeddedHost view;
+    RequireSucceeded(view.Attach(graphics), "clipboard priority embedded view");
+    auto owned   = std::make_unique<RichTextEditor>(L"before chosen after");
+    auto* editor = owned.get();
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    editor->SetMarkdownRenderingEnabled(true);
+    editor->SetDocumentFilePath(L"C:\\docs\\note.md");
+    unsigned imageCalls = 0;
+    bool decline        = false;
+    editor->SetBitmapPasteHandler([&](std::span<const std::byte> bytes, bool v5) -> std::optional<std::wstring>
+    {
+        Require(bytes.size() == sizeof(BITMAPINFOHEADER) + 4u && ! v5, "embedded priority handler borrows the complete independent packed DIB");
+        ++imageCalls;
+        return decline ? std::nullopt : std::optional<std::wstring>{L"C:\\docs\\picture.png"};
+    });
+    view.Controls().SetRoot(std::move(owned));
+    view.Controls().SetFocusControl(editor, false);
+    auto prepare = [&]
+    {
+        for (unsigned turn = 0; turn < 1024u; ++turn)
+        {
+            RequireSucceeded(view.Prepare(640u, 240u), "prepare embedded priority source");
+            if (! view.NeedsPreparation())
+                return;
+        }
+        Require(false, "embedded priority source settles");
+    };
+    prepare();
+    TextInputServices services;
+    RequireSucceeded(services.Attach(window.Hwnd()), "priority service borrows its message owner");
+    EmbeddedTextInputSnapshot snapshot;
+    RequireSucceeded(view.ReadTextInput(snapshot), "priority embedded initial snapshot");
+    auto client = std::make_shared<EmbeddedTextClient>(view, window.Hwnd(), snapshot.focusId, 96.f);
+    RequireSucceeded(services.SetClient(client), "priority public embedded text adapter");
+    editor->SetSelection({13u, 7u});
+    RequireSucceeded(SystemTextClipboard().Write(window.Hwnd(), L"pasted text"), "offer embedded Unicode alongside bitmap");
+    clipboard.dibData = ClipboardPriorityDib(false);
+    auto opens        = clipboard.opens;
+    Require(services.GetClipboardPreference() == TextClipboardPreference::TextFirst && services.Clipboard(TextClipboardCommand::Paste) == S_OK &&
+                editor->GetText() == L"before pasted text after" && imageCalls == 0u && clipboard.opens == opens + 1u && editor->Undo() &&
+                editor->GetSelection() == RichText::Selection{13u, 7u},
+            "embedded default chooses text once and undo restores directional source selection");
+    prepare();
+    services.SetClipboardPreference(TextClipboardPreference::ImageFirst);
+    services.SetClipboardPreference(static_cast<TextClipboardPreference>(255u));
+    Require(services.GetClipboardPreference() == TextClipboardPreference::ImageFirst, "invalid embedded preference keeps the last application choice");
+    Require(services.Clipboard(TextClipboardCommand::Paste) == S_OK && editor->GetText() == L"before ![picture](picture.png) after" && imageCalls == 1u &&
+                editor->Undo() && editor->GetText() == L"before chosen after" && editor->GetSelection() == RichText::Selection{13u, 7u},
+            "embedded application image-first option commits one independently undoable image replacement");
+    prepare();
+    decline             = true;
+    const auto revision = editor->Revision();
+    opens               = clipboard.opens;
+    Require(services.Clipboard(TextClipboardCommand::Paste) == S_FALSE && editor->Revision() == revision && editor->GetText() == L"before chosen after" &&
+                editor->GetSelection() == RichText::Selection{13u, 7u} && imageCalls == 2u && clipboard.opens == opens + 1u,
+            "embedded declined image cannot delete the selected source or start a second Unicode paste");
+    Require(! editor->CanUndo() && editor->CanRedo(), "declined embedded image retains the exact undo/redo availability");
+    services.SetClipboardPreference(TextClipboardPreference::TextFirst);
+    RequireSucceeded(SystemTextClipboard().Write(window.Hwnd(), L""), "offer valid empty embedded Unicode");
+    Require(services.Clipboard(TextClipboardCommand::Paste) == S_FALSE && editor->Revision() == revision &&
+                editor->GetSelection() == RichText::Selection{13u, 7u} && imageCalls == 2u,
+            "empty Unicode preserves embedded selected source rather than deleting it or choosing an image");
+    Require(! editor->CanUndo() && editor->CanRedo(), "empty embedded Unicode retains the exact undo/redo availability");
+    class LegacyOffer final : public TextClipboard, public BitmapStructuredTextClipboard
+    {
+    public:
+        std::function<void()> afterRead;
+        unsigned reads = 0;
+        HRESULT Read(HWND, std::wstring&) noexcept override
+        {
+            return E_UNEXPECTED;
+        }
+        HRESULT Write(HWND, std::wstring_view) noexcept override
+        {
+            return E_NOTIMPL;
+        }
+        HRESULT ReadSelectedBitmapContent(HWND, TextClipboardContent& output, bool, bool, bool) noexcept override
+        try
+        {
+            TextClipboardContent staged;
+            staged.text = L"legacy text";
+            staged.bitmapDib.resize(sizeof(BITMAPINFOHEADER) + 4u);
+            BITMAPINFOHEADER header{};
+            header.biSize      = sizeof(header);
+            header.biWidth     = 1;
+            header.biHeight    = 1;
+            header.biPlanes    = 1;
+            header.biBitCount  = 32;
+            header.biSizeImage = 4;
+            std::memcpy(staged.bitmapDib.data(), &header, sizeof(header));
+            ++reads;
+            if (afterRead)
+                afterRead();
+            output.Swap(staged);
+            return S_OK;
+        }
+        catch (const std::bad_alloc&)
+        {
+            return E_OUTOFMEMORY;
+        }
+    } legacy;
+    Require(services.Clipboard(TextClipboardCommand::Paste, &legacy) == S_OK && editor->GetText() == L"before legacy text after" && legacy.reads == 1u &&
+                imageCalls == 2u && editor->Undo() && editor->GetSelection() == RichText::Selection{13u, 7u},
+            "legacy bitmap transport offering both formats receives text-first selection without a second read");
+    prepare();
+    const auto beforePolicyChange = editor->Revision();
+    legacy.afterRead              = [&] { services.SetClipboardPreference(TextClipboardPreference::ImageFirst); };
+    Require(services.Clipboard(TextClipboardCommand::Paste, &legacy) == S_FALSE && legacy.reads == 2u && editor->Revision() == beforePolicyChange &&
+                editor->GetText() == L"before chosen after" && editor->GetSelection() == RichText::Selection{13u, 7u},
+            "a reentrant service preference change during transport refuses the staged paste without source mutation");
+    services.ClearClient();
+    client->Disconnect();
+    services.Detach();
+}
 void TestRichTextApplicationImageClipboard()
 {
     AttachedHostWindow window;
@@ -1664,6 +1981,9 @@ void RunRichTextInputTests()
     DXUI_RUN_TEST(TestRichTextApplicationImageLoading);
     DXUI_RUN_TEST(TestRichTextApplicationImageLoaderLifecycle);
     DXUI_RUN_TEST(TestRichTextImageClipboardTransport);
+    DXUI_RUN_TEST(TestRichClipboardFormatPreference);
+    DXUI_RUN_TEST(TestRichClipboardNativePreference);
+    DXUI_RUN_TEST(TestRichClipboardEmbeddedPreference);
     DXUI_RUN_TEST(TestRichTextOleSourceMove);
     DXUI_RUN_TEST(TestRichTextOleFileListOwnership);
     DXUI_RUN_TEST(TestRichTextOleAdapterRevocation);

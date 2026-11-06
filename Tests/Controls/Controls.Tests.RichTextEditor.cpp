@@ -1986,6 +1986,7 @@ void TestRichTextEditorNativeFileReferencePaste()
     std::memcpy(bitmap, dib.data(), dib.size());
     GlobalUnlock(clipboard.dibData.get());
     RequireSucceeded(SystemTextClipboard().Write(window.Hwnd(), L"plain text"), "mixed bitmap fixture supplies Unicode text");
+    window.Host().SetClipboardPreference(TextClipboardPreference::ImageFirst);
     window.Host().SetFocusControl(editor, false);
     editor->SetText(L"replace");
     editor->SetSelection({7u, 0u});
@@ -1999,7 +2000,7 @@ void TestRichTextEditorNativeFileReferencePaste()
         return L"C:\\docs\\bitmap.png";
     });
     Require(editor->OnKeyDown(window.Host(), 'V', MK_CONTROL) && editor->GetText() == L"![bitmap](bitmap.png)" && bitmapCalls == 1u,
-            "bitmap paste takes priority over Unicode and inserts an application-saved asset");
+            "explicit image-first paste takes priority over Unicode and inserts an application-saved asset");
     Require(editor->Undo() && editor->GetText() == L"replace" && editor->GetSelection() == Selection{7u, 0u},
             "bitmap paste restores exact source and backward selection in one undo");
     clipboard.fileData.reset(GlobalAlloc(GMEM_MOVEABLE, bytes.size()));
