@@ -40,4 +40,11 @@ remain in the [single active plan](../../Specs/Plans/WIP/RemainingWork_2026-11-0
 
 The previous diagram/math/workspace implementation has its own independently verified
 [hosted Release packet](../DiagramMathAndWorkspaceCorrections_2026-11-06/hosted-qualification.json).
-That earlier main qualification does not qualify this later parser candidate.
+That earlier main qualification remains its own source-bound result.
+
+The parser implementation now has its own [verified hosted Release receipt](hosted-qualification.json) at
+main `2ffe66c2` in [run 42165386025](https://github.com/RedSalamanders/DxUi/actions/runs/42165386025).
+All seven jobs passed: 23 native x64 suites and 21 native ARM64 suites, their assertion probes, and both
+test-disabled production SDK 0.1.1618 package smoke checks. Fifteen original artifact wrappers were checked
+against their GitHub digest and size; duplicate canonical evidence and inner production ZIP hashes also agree.
+These Release results do not qualify later editor changes or the remaining Debug/ASan/physical/performance gates.
