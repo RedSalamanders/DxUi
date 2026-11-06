@@ -378,26 +378,7 @@ bool CanInsertMath(const MarkdownSyntax& syntax, Selection selection, std::wstri
             return false;
         return true;
     }
-    if (payload.find_first_of(L"\r\n") != payload.npos)
-    {
-        if (! display ||
-            (leaf != MarkdownNoNode && (nodes[leaf].parent == MarkdownNoNode || nodes[nodes[leaf].parent].block.kind != MarkdownBlockKind::Document)))
-            return false;
-        size_t line = 0u;
-        while (line <= payload.size())
-        {
-            const auto end      = payload.find_first_of(L"\r\n", line);
-            const auto lastUnit = end == payload.npos ? payload.size() : end;
-            if (payload.substr(line, lastUnit - line).find_first_not_of(L" \t") == payload.npos)
-                return false; // A blank physical line would split the Markdown leaf.
-            if (end == payload.npos)
-                break;
-            line = end + 1u;
-            if (payload[end] == L'\r' && line < payload.size() && payload[line] == L'\n')
-                ++line;
-        }
-    }
-    return true;
+    return payload.find_first_of(L"\r\n") == payload.npos;
 }
 bool CanInsertEscapedText(const MarkdownSyntax& syntax, Selection selection, std::wstring_view requested) noexcept
 {
@@ -853,6 +834,7 @@ static bool InspectHeading(const MarkdownSyntax& syntax, Selection selection, un
 struct ItemPrefix
 {
     std::size_t first{}, markerEnd{}, content{};
+    std::size_t paragraphContent = MarkdownNoNode;
     unsigned number{};
 };
 bool TextLeaf(Kind kind) noexcept
@@ -1015,8 +997,9 @@ struct MarkdownCommandPlanner
     }
     bool Prefix(std::size_t item, ItemPrefix& prefix) const
     {
-        const auto& line = Line(nodes[item].block.source.first);
-        auto at          = line.first;
+        prefix.paragraphContent = MarkdownNoNode;
+        const auto& line        = Line(nodes[item].block.source.first);
+        auto at                 = line.first;
         if (! OuterOffset(item, line, at))
             return false;
         while (at < line.bodyEnd && Space(text[at]))
@@ -1037,8 +1020,9 @@ struct MarkdownCommandPlanner
         auto first             = directFirst;
         while (first != MarkdownNoNode && ! TextLeaf(nodes[first].block.kind) && nodes[first].firstChild != MarkdownNoNode)
             first = nodes[first].firstChild;
-        if (directFirst != MarkdownNoNode && nodes[directFirst].block.kind == Kind::Paragraph && ! nodes[first].lines.empty() &&
-            Line(nodes[first].lines.front().source.first).first == line.first)
+        if (directFirst != MarkdownNoNode && nodes[directFirst].block.kind == Kind::Paragraph && ! nodes[first].lines.empty())
+            prefix.paragraphContent = nodes[first].lines.front().source.first;
+        if (prefix.paragraphContent != MarkdownNoNode && Line(nodes[first].lines.front().source.first).first == line.first)
             prefix.content = nodes[first].lines.front().source.first;
         else
         {
@@ -1075,12 +1059,23 @@ struct MarkdownCommandPlanner
         prefix += Slice(cursor, at);
         return true;
     }
+    std::optional<std::size_t> TaskStart(const ItemPrefix& prefix) const
+    {
+        const auto at = prefix.paragraphContent;
+        if (at == MarkdownNoNode || at > text.size() || text.size() - at < 3u || text[at] != L'[' || text[at + 2u] != L']' ||
+            (text[at + 1u] != L' ' && text[at + 1u] != L'x' && text[at + 1u] != L'X'))
+            return std::nullopt;
+        return at;
+    }
     std::size_t LabelStart(std::size_t item, const ItemPrefix& prefix) const
     {
         auto at = prefix.content;
-        if (nodes[item].task != MarkdownTask::None && at + 3u <= text.size())
+        if (nodes[item].task != MarkdownTask::None)
         {
-            at += 3u;
+            const auto task = TaskStart(prefix);
+            if (! task)
+                return at;
+            at = task.value() + 3u;
             if (at < text.size() && Space(text[at]))
                 ++at;
         }
@@ -1090,6 +1085,11 @@ struct MarkdownCommandPlanner
     {
         if (nodes[item].task == MarkdownTask::None)
             return true;
+        const auto task = TaskStart(prefix);
+        // Removing an opening marker and independently shifting continuation
+        // indentation cannot own a following-line task prefix as one interval.
+        if (! task || Line(task.value()).first != Line(prefix.first).first)
+            return false;
         const auto leaf = nodes[item].firstChild;
         if (leaf == MarkdownNoNode)
             return true;
@@ -1938,6 +1938,14 @@ void MarkdownCommandPlanner::MoveLine(bool up)
         const auto adjacent = up ? PreviousSibling(item) : nodes[item].nextSibling;
         if (adjacent == MarkdownNoNode || nodes[adjacent].block.kind != Kind::ListItem)
             return;
+        for (const auto moving : {item, adjacent})
+        {
+            const auto firstLine = Line(nodes[moving].block.source.first).first;
+            for (auto ancestor = nodes[moving].parent; ancestor != MarkdownNoNode; ancestor = nodes[ancestor].parent)
+                if ((nodes[ancestor].block.kind == Kind::ListItem || nodes[ancestor].block.kind == Kind::FootnoteDefinition) &&
+                    Line(nodes[ancestor].block.source.first).first == firstLine)
+                    return; // An item's physical range also owns its parent's opening marker.
+        }
         current = nodes[item].block.source;
         other   = nodes[adjacent].block.source;
     }
@@ -1953,6 +1961,63 @@ void MarkdownCommandPlanner::MoveLine(bool up)
         const auto& adjacent = lines[up ? index - 1u : index + 1u];
         if (NodeAt(Kind::Paragraph, adjacent.first) != paragraph || NodeAt(Kind::ListItem, adjacent.first) != MarkdownNoNode)
             return;
+        std::size_t lineOuter{}, adjacentOuter{};
+        if (! OuterOffset(paragraph, line, lineOuter) || ! OuterOffset(paragraph, adjacent, adjacentOuter) ||
+            text.substr(line.first, lineOuter - line.first) != text.substr(adjacent.first, adjacentOuter - adjacent.first))
+            return; // A lazy continuation cannot exchange another line's container prefix.
+        const auto body = [&](const PhysicalLine& physical, std::size_t outer)
+        {
+            auto first = outer;
+            while (first < physical.bodyEnd && Space(text[first]))
+                ++first;
+            auto last = physical.bodyEnd;
+            while (last > first && Space(text[last - 1u]))
+                --last;
+            const auto column = Columns(text.substr(physical.first, outer - physical.first));
+            const auto indent = Columns(text.substr(outer, first - outer), column) - column;
+            return std::pair{text.substr(first, last - first), indent};
+        };
+        const auto currentText = body(line, lineOuter), adjacentText = body(adjacent, adjacentOuter);
+        const auto& newFirst  = up ? currentText : adjacentText;
+        const auto& newSecond = up ? adjacentText : currentText;
+        const auto allMarker  = [](std::wstring_view value, wchar_t marker)
+        { return ! value.empty() && std::ranges::all_of(value, [marker](wchar_t unit) { return unit == marker; }); };
+        if (allMarker(newSecond.first, L'=') || allMarker(newSecond.first, L'-') ||
+            (newSecond.first.find(L'|') != newSecond.first.npos && newSecond.first.find(L'-') != newSecond.first.npos &&
+             newSecond.first.find_first_not_of(L"-|: \t") == newSecond.first.npos))
+            return; // A newly exposed setext/table delimiter changes block ownership.
+        if (std::min(line.first, adjacent.first) == Line(nodes[paragraph].block.source.first).first)
+        {
+            const auto& oldFirst = up ? adjacentText : currentText;
+            const auto value     = newFirst.first;
+            if ((oldFirst.first.starts_with(L'[') && oldFirst.first.find(L"]:") != oldFirst.first.npos) || newFirst.second >= 4u)
+                return;
+            if (! value.empty())
+            {
+                const auto unit = value.front();
+                if (std::wstring_view(L">#<|").find(unit) != std::wstring_view::npos || value.starts_with(L"$$") || value.starts_with(L"\\[") ||
+                    value.starts_with(L"```") || value.starts_with(L"~~~") ||
+                    ((unit == L'-' || unit == L'+' || unit == L'*') && (value.size() == 1u || Space(value[1u]))))
+                    return;
+                auto digits = 0u;
+                while (digits < value.size() && Digit(value[digits]))
+                    ++digits;
+                if (digits && digits <= 9u && digits < value.size() && (value[digits] == L'.' || value[digits] == L')') &&
+                    (digits + 1u == value.size() || Space(value[digits + 1u])))
+                    return;
+                auto markers = 0u;
+                for (const auto currentUnit : value)
+                    if (currentUnit == unit)
+                        ++markers;
+                    else if (! Space(currentUnit))
+                    {
+                        markers = 0u;
+                        break;
+                    }
+                if (markers >= 3u && std::wstring_view(L"`~*-_").find(unit) != std::wstring_view::npos)
+                    return;
+            }
+        }
         current = {line.first, line.end};
         other   = {adjacent.first, adjacent.end};
     }
@@ -2479,7 +2544,8 @@ void MarkdownCommandPlanner::SetList(const MarkdownCommandRequest& request)
                 return;
             }
             if (request.listKind == MarkdownListKind::Task &&
-                (nodes[item].firstChild == MarkdownNoNode || nodes[nodes[item].firstChild].block.kind != Kind::Paragraph))
+                (nodes[item].firstChild == MarkdownNoNode || nodes[nodes[item].firstChild].block.kind != Kind::Paragraph ||
+                 prefix.paragraphContent == MarkdownNoNode))
             {
                 plan.edits_.clear();
                 return;
@@ -2524,7 +2590,7 @@ void MarkdownCommandPlanner::SetList(const MarkdownCommandRequest& request)
                 }
             }
             if (request.listKind == MarkdownListKind::Task && nodes[item].task == MarkdownTask::None)
-                Add(prefix.content, prefix.content, L"[ ] ");
+                Add(prefix.paragraphContent, prefix.paragraphContent, L"[ ] ");
             else if (request.listKind != MarkdownListKind::Task && nodes[item].task != MarkdownTask::None)
                 Add(prefix.content, LabelStart(item, prefix), L"");
         }
@@ -2609,8 +2675,17 @@ void MarkdownCommandPlanner::Task()
         {
             ItemPrefix prefix;
             if (! Prefix(index, prefix))
+            {
+                plan.edits_.clear();
                 return;
-            Add(prefix.content + 1u, prefix.content + 2u, nodes[index].task == MarkdownTask::Checked ? L" " : L"x");
+            }
+            const auto task = TaskStart(prefix);
+            if (! task)
+            {
+                plan.edits_.clear();
+                return;
+            }
+            Add(task.value() + 1u, task.value() + 2u, nodes[index].task == MarkdownTask::Checked ? L" " : L"x");
         }
         plan.applicable_ = true;
         return;
@@ -2627,9 +2702,10 @@ void MarkdownCommandPlanner::Task()
     ItemPrefix prefix;
     if (! Prefix(item, prefix))
         return;
-    if (prefix.content + 3u > text.size() || text[prefix.content] != L'[' || text[prefix.content + 2u] != L']')
+    const auto task = TaskStart(prefix);
+    if (! task)
         return;
-    Add(prefix.content + 1u, prefix.content + 2u, nodes[item].task == MarkdownTask::Checked ? L" " : L"x");
+    Add(task.value() + 1u, task.value() + 2u, nodes[item].task == MarkdownTask::Checked ? L" " : L"x");
     plan.applicable_ = true;
 }
 void MarkdownCommandPlanner::Join(bool backwards)

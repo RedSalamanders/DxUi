@@ -104,8 +104,12 @@ This coordinates the active API work; it does not adopt API 5 in any application
   interval, including Backspace/Delete/Tab and nested fences. Update the source-editing scope from the current
   caret/selection instead of trapping input at an old boundary (EDIT-07/11).
 - [ ] Resolve remaining editor/command correctness: IME underline staleness, disclosure/zoom geometry loss,
-  auto-pairing within words, read-only chord handling, wrong task-command byte ranges and parent-marker
-  movement (EDIT-03/06/09/10, CMD-01/02).
+  auto-pairing within words and read-only chord handling (EDIT-03/06/09/10).
+  CMD-01/02/03/05 implementation now addresses actual task paragraphs, shared parent markers, paragraph
+  structural ownership and trailing footnote escapes. Focused same-fixture baseline/candidate execution
+  reproduces all four defects and verifies their repairs, with valid blank-line display math retained (CMD-04
+  is unreachable-check cleanup). Six-profile builds and full ordinary x64 qualification remain pending;
+  this functional comparison alone does not close the editor or performance gates.
 
 <a id="d-i1"></a>
 ### D-I1 — Unicode, clipboard and native input
