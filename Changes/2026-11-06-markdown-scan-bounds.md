@@ -1,0 +1,1 @@
+- Let standalone display math interrupt lazy quotes/lists and table rows consistently. Bound repeated malformed HTML, link-destination and table-reference scans with fixed leaf facts, a 32-level destination limit and cheap table admission; preserve literal source and add independent failing-then-passing block and logical-work regressions.

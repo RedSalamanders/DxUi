@@ -97,6 +97,7 @@ class MarkdownInlines
     std::vector<std::size_t> reachableDefinitions_;
     std::vector<std::size_t> previous_, offsets_, backtickNext_;
     std::vector<std::array<std::uint32_t, 9u>> htmlNext_;
+    std::array<std::size_t, 4u> htmlLast_{};
     std::wstring text_;
     std::size_t blockCursor_{}, referenceCursor_{}, cursor_{}, root_ = MarkdownNoNode, tail_ = MarkdownNoNode;
     std::size_t delimiterTail_ = MarkdownNoNode, delimiterHead_ = MarkdownNoNode;
@@ -641,6 +642,9 @@ class MarkdownInlines
         // The math ownership probes share one leaf-local index. Multiple
         // unmatched openers must never each search the remaining leaf anew.
         htmlNext_.clear();
+        htmlLast_.fill(std::wstring::npos);
+        const bool htmlTerminators = text_.find(L'<') != std::wstring::npos;
+        AccountMarkdownWork(&MarkdownWorkCounts::htmlIndexUnits, text_.size());
         constexpr auto none = std::numeric_limits<std::uint32_t>::max();
         std::array<std::uint32_t, 9u> next{{none, none, none, none, none, none, none, none, none}};
         if (profile_ == MarkdownProfile::RichMarkdown && text_.find_first_of(L"$\\") != std::wstring::npos)
@@ -677,19 +681,28 @@ class MarkdownInlines
         }
         const auto indexTerminator = [&](std::size_t i)
         {
+            if (! htmlTerminators && htmlNext_.empty())
+                return;
+            AccountMarkdownWork(&MarkdownWorkCounts::htmlIndexUnits);
+            const auto remember = [&](std::size_t slot)
+            {
+                if (htmlLast_[slot] == std::wstring::npos)
+                    htmlLast_[slot] = i;
+                next[slot] = static_cast<std::uint32_t>(i);
+            };
+            if (text_[i] == L'>')
+                remember(0u);
+            if (i + 2u < text_.size() && text_[i] == L'-' && text_[i + 1u] == L'-' && text_[i + 2u] == L'>')
+                remember(1u);
+            if (i + 1u < text_.size() && text_[i] == L'?' && text_[i + 1u] == L'>')
+                remember(2u);
+            if (i + 2u < text_.size() && text_[i] == L']' && text_[i + 1u] == L']' && text_[i + 2u] == L'>')
+                remember(3u);
             if (htmlNext_.empty())
                 return;
 #if DXUI_ENABLE_DIAGNOSTICS
             ++testMathOwnershipProbeWork;
 #endif
-            if (text_[i] == L'>')
-                next[0] = static_cast<std::uint32_t>(i);
-            if (i + 2u < text_.size() && text_[i] == L'-' && text_[i + 1u] == L'-' && text_[i + 2u] == L'>')
-                next[1] = static_cast<std::uint32_t>(i);
-            if (i + 1u < text_.size() && text_[i] == L'?' && text_[i + 1u] == L'>')
-                next[2] = static_cast<std::uint32_t>(i);
-            if (i + 2u < text_.size() && text_[i] == L']' && text_[i + 1u] == L']' && text_[i + 2u] == L'>')
-                next[3] = static_cast<std::uint32_t>(i);
             const auto flags = htmlNext_[i][4];
             for (std::size_t bit = 0u; bit < 4u; ++bit)
                 if ((flags & (1u << bit)) != 0u)
@@ -776,7 +789,10 @@ class MarkdownInlines
                     continue;
                 }
                 if (c == L'(')
-                    ++depth;
+                {
+                    if (++depth > 32u)
+                        return false;
+                }
                 if (c == L')')
                 {
                     if (! depth)
@@ -1043,9 +1059,14 @@ class MarkdownInlines
     {
         std::size_t angle{}, comment{}, processing{}, cdata{};
     };
-    static std::size_t FindHtmlTerminator(std::wstring_view input, std::wstring_view suffix, std::size_t first) noexcept
+    std::size_t FindHtmlTerminator(std::size_t start, std::wstring_view suffix, std::size_t first, std::size_t slot) const noexcept
     {
-        const auto end = input.find(suffix, first);
+        // Last-occurrence facts reject impossible searches in constant work;
+        // successful searches consume the complete resulting HTML node.
+        if (htmlLast_[slot] == std::wstring::npos || htmlLast_[slot] < start + first)
+            return std::wstring::npos;
+        const auto input = std::wstring_view(text_).substr(start);
+        const auto end   = input.find(suffix, first);
         AccountMarkdownWork(&MarkdownWorkCounts::htmlSearchedUnits,
                             first > input.size()             ? 0u
                             : end == std::wstring_view::npos ? input.size() - first
@@ -1080,7 +1101,7 @@ class MarkdownInlines
                     end = absolute - start;
             }
             else
-                end = FindHtmlTerminator(input, suffix, prefix.size());
+                end = FindHtmlTerminator(start, suffix, prefix.size(), suffix == L"-->" ? 1u : suffix == L"?>" ? 2u : 3u);
             return end == std::wstring_view::npos ? 0u : end + suffix.size();
         };
         if (input.starts_with(L"<!--"))
@@ -1098,8 +1119,8 @@ class MarkdownInlines
             return terminated(L"<![CDATA[", L"]]>");
         if (profile_ != MarkdownProfile::Gfm029 && input.size() > 2u && input[1] == L'!' && AsciiLetter(input[2]))
         {
-            const auto end =
-                lookahead ? (lookahead->angle == std::wstring::npos ? std::wstring_view::npos : lookahead->angle - start) : FindHtmlTerminator(input, L">", 3u);
+            const auto end = lookahead ? (lookahead->angle == std::wstring::npos ? std::wstring_view::npos : lookahead->angle - start)
+                                       : FindHtmlTerminator(start, L">", 3u, 0u);
             return end == std::wstring_view::npos ? 0u : end + 1u;
         }
         if (input.size() > 2u && input[1] == L'!' && input[2] >= L'A' && input[2] <= L'Z')
@@ -1112,8 +1133,8 @@ class MarkdownInlines
             }
             if (i == input.size() || ! GrammarSpace(input[i]))
                 return 0u;
-            const auto end =
-                lookahead ? (lookahead->angle == std::wstring::npos ? std::wstring_view::npos : lookahead->angle - start) : FindHtmlTerminator(input, L">", i);
+            const auto end = lookahead ? (lookahead->angle == std::wstring::npos ? std::wstring_view::npos : lookahead->angle - start)
+                                       : FindHtmlTerminator(start, L">", i, 0u);
             return end == std::wstring_view::npos ? 0u : end + 1u;
         }
         std::size_t i      = 1u;

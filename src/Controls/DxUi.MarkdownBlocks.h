@@ -305,6 +305,14 @@ class MarkdownBlocks
         }
         return count >= 3u && (marker == L'~' || cursor.Rest().find(L'`') == std::wstring_view::npos);
     }
+    bool DisplayMathFence(Cursor cursor) const
+    {
+        if (sourceProfile_ != MarkdownProfile::RichMarkdown || cursor.Indent() > 3u)
+            return false;
+        cursor.Trim();
+        const auto rest = cursor.Rest();
+        return (rest.starts_with(L"$$") || rest.starts_with(L"\\[")) && std::ranges::all_of(rest.substr(2u), [](wchar_t c) { return c == L' ' || c == L'\t'; });
+    }
     static unsigned Setext(Cursor cursor)
     {
         if (cursor.Indent() > 3u)
@@ -475,23 +483,14 @@ class MarkdownBlocks
         const auto rest = cursor.Rest();
         if (rest.find_first_not_of(L" |:-\t") != std::wstring_view::npos || rest.find(L'-') == std::wstring_view::npos)
             return false;
-        References(leaf_);
-        if (nodes_[leaf_].parent == MarkdownNoNode)
-        {
-            // An all-definition paragraph was replaced by reference nodes.
-            // It supplies no table header and must never receive another line
-            // or be extracted again through its retired parent sentinel.
-            leaf_ = MarkdownNoNode;
-            return false;
-        }
         if (nodes_[leaf_].lines.empty())
             return false;
-        const auto header = nodes_[leaf_].lines.back();
+        const auto candidateHeader = nodes_[leaf_].lines.back();
         if (rest.find(L'|') == std::wstring_view::npos &&
-            source_.substr(header.source.first, header.source.last - header.source.first).find(L'|') == std::wstring_view::npos)
+            source_.substr(candidateHeader.source.first, candidateHeader.source.last - candidateHeader.source.first).find(L'|') == std::wstring_view::npos)
             return false;
         const auto delimiter = Cells({cursor.offset, bodyEnd});
-        if (Cells(header.source).size() != delimiter.size())
+        if (Cells(candidateHeader.source).size() != delimiter.size())
             return false;
         std::vector<MarkdownAlignment> alignment(0u);
         for (const auto range : delimiter)
@@ -508,7 +507,18 @@ class MarkdownBlocks
                                 : right ? MarkdownAlignment::Right
                                         : MarkdownAlignment::None);
         }
-        auto table = leaf_;
+        // A rejected delimiter must not re-flatten the growing paragraph.
+        // Only a viable header can need reference extraction.
+        References(leaf_);
+        if (nodes_[leaf_].parent == MarkdownNoNode)
+        {
+            leaf_ = MarkdownNoNode;
+            return false;
+        }
+        if (nodes_[leaf_].lines.empty())
+            return false;
+        const auto header = nodes_[leaf_].lines.back();
+        auto table        = leaf_;
         if (nodes_[leaf_].lines.size() > 1u)
         {
             const auto preceding = nodes_[leaf_].lines[nodes_[leaf_].lines.size() - 2u].source.last;
@@ -1146,8 +1156,8 @@ public:
             // type-seven HTML block; CommonMark 0.31.2 keeps it lazy.
             const bool listSibling = marker.valid && matched > 1u && nodes_[open_[matched - 1u]].block.kind == Kind::List;
             const bool interrupts  = listSibling || Thematic(cursor) || HtmlStart(cursor, sourceProfile_ != MarkdownProfile::Gfm029) ||
-                                     (cursor.Indent() <= 3u && trimmed.Peek() == L'>') || Atx(cursor) || Fence(cursor) || FootnoteAt(cursor, true).valid ||
-                                     marker.valid;
+                                     (cursor.Indent() <= 3u && trimmed.Peek() == L'>') || Atx(cursor) || Fence(cursor) || DisplayMathFence(cursor) ||
+                                     FootnoteAt(cursor, true).valid || marker.valid;
             if (paragraph && ! empty && ! interrupts && ! startsSourceRegion)
             {
                 Content(leaf_, trimmed, bodyEnd);
@@ -1255,8 +1265,8 @@ public:
         if (leaf_ != MarkdownNoNode && nodes_[leaf_].block.kind == Kind::Table)
         {
             const auto marker = ListMarker(cursor);
-            if (Thematic(cursor) || Atx(cursor) || Fence(cursor) || HtmlStart(cursor, false) || (cursor.Indent() <= 3u && trimmed.Peek() == L'>') ||
-                marker.valid || FootnoteAt(cursor).valid)
+            if (Thematic(cursor) || Atx(cursor) || Fence(cursor) || DisplayMathFence(cursor) || HtmlStart(cursor, false) ||
+                (cursor.Indent() <= 3u && trimmed.Peek() == L'>') || marker.valid || FootnoteAt(cursor).valid)
                 CloseLeaf();
             else
             {
@@ -1368,8 +1378,7 @@ public:
         if (indent <= 3u)
         {
             const auto rest = trimmed.Rest();
-            if (sourceProfile_ == MarkdownProfile::RichMarkdown && (rest.starts_with(L"$$") || rest.starts_with(L"\\[")) &&
-                std::ranges::all_of(rest.substr(2u), [](wchar_t c) { return c == L' ' || c == L'\t'; }))
+            if (DisplayMathFence(cursor))
             {
                 CloseLeaf();
                 leaf_             = Add(Kind::FencedCode, open_.back());
