@@ -86,7 +86,9 @@ simultaneous releases of the two applications.
 `src/DxUi.vcxproj` produces the only archive, `DxUi.lib`. FoundationTests, ControlTests, EmbeddedTests and the
 standalone EmbeddedControls executable all consume it. The test-only `DxUi.InteractiveLease.exe` (the desktop lease behind
 `test.ps1 -Interactive`) is built beside them in every configuration and does not link it. The supported lock target is
-`["DxUi"]`, API revision 5; the failure-policy qualification remains open.
+`["DxUi"]`, API revision 5. The [failure-policy evidence](../../Measurements/FailurePolicy_2026-11-06/README.md)
+qualifies the recorded x64 library scope at `f6791b5070efd1fa8dc86601bc9422ae9a321d2e`;
+native ARM64 execution, formal performance-policy acceptance and product adoption remain separate.
 
 Failure host services use protocol 2 in every independently linked module. Rebuild
 the complete EXE/DLL closure; protocol-1 table sizes are refused. Retained UIA peers
@@ -248,8 +250,8 @@ their documented publication and HRESULT semantics. Callbacks and model/delegate
 refusals through their documented results; an unexpected C++ exception is fatal. The [upgrade guide](../../docs/upgrade.md#port-checked-operations)
 maps the changed operations. The frozen revision 4 and [revision 5](../../Tools/ConsumerApi/ConsumerApi.Tests.Revision5.cpp)
 fixtures compile for every exact-pin consumer profile. The sample host is an application example, not a consumer
-crash-infrastructure qualification. The implementation and consumer adoption gates remain open until their native,
-dump-context and product-specific checks pass.
+crash-infrastructure qualification. Each consumer's native, dump-context and product-specific adoption checks
+remain with its owner; the recorded x64 library evidence does not qualify a consumer product.
 
 The revision increments when a consumer built against the previous one could stop compiling, linking or behaving as before
 without a change of its own:

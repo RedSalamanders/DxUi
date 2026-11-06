@@ -1,0 +1,95 @@
+{
+  "baseline": "1ea6d52295294aaad05a19de6dc679484d640c88",
+  "candidate": "d975aa7dbc2cbad330b01a90935bcf96d5811f41",
+  "metadataOnlySuccessor": "f6791b5070efd1fa8dc86601bc9422ae9a321d2e",
+  "blocks": 12,
+  "processes": 48,
+  "rows": 144,
+  "csvCulture": "fr-FR",
+  "resultKind": "Descriptive paired construction; not policy qualification or a causal claim",
+  "memoryMeaning": "Allocator-requested/native block observations, not committed or resident memory",
+  "controls": [
+    {
+      "control": "separator",
+      "baselineConstructNs": 58.89,
+      "candidateConstructNs": 69.85,
+      "pairedConstructDeltaNs": 10.355000000000004,
+      "pairedConstructRatio": 1.1755104915958219,
+      "pairedDestroyDeltaNs": 1.1350000000000016,
+      "baselineCallsPerOperation": [
+        "2"
+      ],
+      "candidateCallsPerOperation": [
+        "2"
+      ],
+      "baselineRequestedBytesPerOperation": [
+        "328"
+      ],
+      "candidateRequestedBytesPerOperation": [
+        "328"
+      ],
+      "baselineObservedPeakBytes": [
+        "328"
+      ],
+      "candidateObservedPeakBytes": [
+        "367"
+      ],
+      "allNetLiveBytesZero": true
+    },
+    {
+      "control": "panel",
+      "baselineConstructNs": 51.975,
+      "candidateConstructNs": 54.36,
+      "pairedConstructDeltaNs": 2.3999999999999986,
+      "pairedConstructRatio": 1.0462758308241495,
+      "pairedDestroyDeltaNs": -0.6900000000000013,
+      "baselineCallsPerOperation": [
+        "2"
+      ],
+      "candidateCallsPerOperation": [
+        "2"
+      ],
+      "baselineRequestedBytesPerOperation": [
+        "344"
+      ],
+      "candidateRequestedBytesPerOperation": [
+        "344"
+      ],
+      "baselineObservedPeakBytes": [
+        "344"
+      ],
+      "candidateObservedPeakBytes": [
+        "383"
+      ],
+      "allNetLiveBytesZero": true
+    },
+    {
+      "control": "rich-text-editor",
+      "baselineConstructNs": 227.875,
+      "candidateConstructNs": 242.125,
+      "pairedConstructDeltaNs": 16.285000000000025,
+      "pairedConstructRatio": 1.0722399359296375,
+      "pairedDestroyDeltaNs": 1.0350000000000037,
+      "baselineCallsPerOperation": [
+        "9"
+      ],
+      "candidateCallsPerOperation": [
+        "9"
+      ],
+      "baselineRequestedBytesPerOperation": [
+        "5620"
+      ],
+      "candidateRequestedBytesPerOperation": [
+        "5684"
+      ],
+      "baselineObservedPeakBytes": [
+        "5620"
+      ],
+      "candidateObservedPeakBytes": [
+        "5723"
+      ],
+      "allNetLiveBytesZero": true
+    }
+  ],
+  "verifiedUtc": "2026-11-06T11:37:35.5597431Z"
+}

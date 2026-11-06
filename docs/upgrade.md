@@ -1,13 +1,16 @@
 # Upgrade a DxUi consumer
 
-**API 5 migration in progress:** the source in this worktree is unqualified and no API 5 consumer pin is published.
+**API 5:** the recorded x64 library scope is qualified at `f6791b5070efd1fa8dc86601bc9422ae9a321d2e`;
+see the [evidence](../Measurements/FailurePolicy_2026-11-06/README.md). Native ARM64 execution, formal
+performance-policy qualification and each consumer product's integration remain separate. The exact lock below
+identifies the tested library; applying it does not implement an application's host or adapter migration.
 The application owns `Failure::ProcessHooks`, its reporter, crash storage and termination policy. Install it on the
 application owner thread before constructing controls or entering DxUi. Pass its versioned POD `HostServices` to
 each independently linked module and register there outside `DllMain`, before that module creates objects or starts
 workers. Stop new work, join workers, destroy controls, detach every module, and uninstall the host on its installing
 thread. [The example host](../Samples/Shared/FailureHost.h) illustrates ownership; consumers must qualify their own
 original-context dump handling, module boundaries and native configurations. The
-[migration plan](../Specs/Plans/WIP/FailurePolicy_2026-11-02.md) remains open.
+[implementation record](../Specs/Plans/Done/FailurePolicy_2026-11-02.md) records the scope and remaining limits.
 
 Direct stack, `new` and `std::make_unique` control construction requires an enclosing host-owned `Failure::Scope`.
 `Separator()` is again declared `noexcept`; this does not make member construction fallible or permit unexpected
@@ -109,10 +112,10 @@ do not spin on a permanent failure.
 **Historical failure-policy review, 2 November 2026:** the [target allocation/exception policy](../Specs/Core/Core_FailureHandling.md)
 requires checked nonthrowing refusal or host fatal diagnostics with useful originating context and dump. Published
 source `5fc4d4c383bfa4891ee57a138924107bbbf11a2e` still uses exception recovery and is not qualified against that
-new requirement. Follow the [open migration plan](../Specs/Plans/WIP/FailurePolicy_2026-11-02.md); this guide's
+new requirement. Consult the [implementation record](../Specs/Plans/Done/FailurePolicy_2026-11-02.md); this guide's
 description of current constructor/API behavior is not an endorsement of exception propagation as normal error handling.
 
-This guide covers the **2 November 2026 delivery**, merged in
+The historical API 4 changes below come from the **2 November 2026 delivery**, merged in
 [PR #159](https://github.com/RedSalamanders/DxUi/pull/159), and the application work needed to adopt it.
 Its original runtime delivery commit is:
 
@@ -120,9 +123,9 @@ Its original runtime delivery commit is:
 6df17007875ae731a3808b475b10bd056328bbdf
 ```
 
-The SHA above is the historical API 4 implementation/evidence cohort, not an API 5 pin. Select a reviewed,
-qualified API 5 commit only after its implementation and acceptance gates close; record its complete SHA in the
-consumer lock and review intervening changes.
+The SHA above is the historical API 4 implementation/evidence cohort, not an API 5 pin. The tested API 5 library
+commit is `f6791b5070efd1fa8dc86601bc9422ae9a321d2e` for the recorded x64 scope. Select a reviewed exact commit,
+record its complete SHA in the consumer lock, review intervening changes and qualify the consumer's own targets.
 
 The historical delivery declared **API revision 4** and one static target, **DxUi**. C++ object layouts have changed:
 rebuild every module that uses DxUi with matching headers, archive, compiler, configuration and CRT.
@@ -132,7 +135,7 @@ An unchanged API revision does not establish binary compatibility.
 
 | Current consumer | Work to do |
 | --- | --- |
-| Already on API 4 | Implement the API 5 host, checked-result and rebuild work above; adopt a qualified exact API 5 pin when available. |
+| Already on API 4 | Implement the API 5 host, checked-result and rebuild work above; select a reviewed exact API 5 pin and qualify the consumer. |
 | Still on API 3 | Also port the historical revision-4 Grid/Tree focus and selection, child/tab transfer and menu contracts below. Update the consumer's expected-revision guard together with its adapters and lock. |
 | API 2 or older | First apply the earlier interface/script renames in the [compatibility contract](../Specs/Build/Build_ToolchainAndConsumption.md#compatibility-and-the-consumer-interface), then the revision-4 and API 5 migrations. |
 
@@ -146,20 +149,18 @@ or another application's successful build do not identify or qualify this applic
    [getting started](getting-started.md#consume-the-library) and the
    [consumption contract](../Specs/Build/Build_ToolchainAndConsumption.md).
 2. Use the consumer's existing update workflow, or edit its exact lock in that reviewed change. Preserve any
-   additional consumer-owned fields. The following is a **historical API 4 lock**, provided to identify the old
-   cohort; it cannot be used as an API 5 lock:
+   additional consumer-owned fields. The tested API 5 library lock is:
 
    ```json
    {
      "repository": "https://github.com/RedSalamanders/DxUi",
-     "commit": "6df17007875ae731a3808b475b10bd056328bbdf",
-     "apiRevision": 4,
+     "commit": "f6791b5070efd1fa8dc86601bc9422ae9a321d2e",
+     "apiRevision": 5,
      "targets": ["DxUi"]
    }
    ```
 
-   For a future qualified API 5 adoption, set `apiRevision` to 5 and `commit` to that exact qualified 40-character
-   commit. A consumer that explicitly expects API 3 or 4 must port its adapters and advance that guard in the same
+   A consumer that explicitly expects API 3 or 4 must port its adapters and advance that guard in the same
    change. Changing the lock alone will correctly fail restore. Pin the complete commit, rather than `main`.
 3. Run the consumer's restore entrypoint for each target architecture. It resolves a clean, isolated source
    checkout and fingerprinted outputs; it must leave any developer sibling checkout alone. Its resolved
@@ -177,7 +178,7 @@ or another application's successful build do not identify or qualify this applic
    root. A new `DxUi.lib` linked with old consumer objects is not a valid migration. Keep the build's zero-warning,
    zero-error result and source/dependency/toolchain identity.
 6. Run the consumer checks below, record outcomes and remaining gates, then publish/merge the consumer change
-   through its own workflow. Library PR #159 does not change an application lock or complete product adoption.
+   through its own workflow. A library delivery does not change an application lock or complete product adoption.
 
 ### Existing consumer entrypoints
 
@@ -285,9 +286,13 @@ receipts, remaining gates and rollback in the **consumer's** reviewed change. It
 requirements continue to apply. The [shared qualification ledger](../Specs/Plans/Done/ConsumerUiQualification_2026-10-11.md)
 remains open for the separately owned platform, physical-input, adoption and performance obligations.
 
-The delivery's paired performance study remains unqualified because its controls were unstable. The same-toolset
-library archive grew 24.42%, and the EmbeddedControls sample grew 77.54%; these are library/sample observations,
-not an application size or speed prediction. Measure the consumer's relevant workloads and packaged output.
+An earlier paired study remained unqualified because its controls were unstable. In that historical cohort, the
+same-toolset library archive grew 24.42%, and the EmbeddedControls sample grew 77.54%; these are historical
+library/sample observations, not an application size or speed prediction. The user accepted the safety overhead
+observed in the current descriptive construction study: median changes of +10.355 ns for Separator, +2.4 ns for
+Panel and +16.285 ns for RichTextEditor. The formal performance policy remains unqualified; see the
+[evidence](../Measurements/FailurePolicy_2026-11-06/README.md) for scope and limitations. Measure the consumer's
+relevant workloads and packaged output.
 
 For rollback, restore the preceding consumer commit containing its lock **and** related adapter/toolchain changes,
 run its normal exact-pin restore, and rebuild the full dependent closure against that pin. Retain the failed new-pin

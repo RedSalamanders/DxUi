@@ -6,7 +6,9 @@ Last reviewed: 2026-10-25
 ## Allocation and unexpected exception coverage
 
 The [failure policy](../Core/Core_FailureHandling.md) separates explicit nonthrowing refusal from unexpected
-C++ exceptions, including bad_alloc. This is a target contract whose runtime migration remains open. Existing
+C++ exceptions, including bad_alloc. API 5 implements this contract; the recorded x64 library qualification is
+bound to `f6791b5070efd1fa8dc86601bc9422ae9a321d2e` and its [evidence](../../Measurements/FailurePolicy_2026-11-06/README.md).
+Native ARM64 execution, performance-policy qualification and product adoption remain separate. Existing
 throwing-allocation recovery sweeps and callback catch-and-continue passes are historical evidence only.
 
 Recovery tests must inject null/native status at a real checked seam, assert the error and unchanged state,
@@ -18,7 +20,8 @@ Also test missing/returning handlers, recursion, dump-write refusal and concurre
 machine OOM or an interactive consumer crash. Reuse governed roots and the canonical child/evidence runner;
 test-only fatal hooks must not leak into ordinary suites, benchmarks or unrelated processes.
 
-These are runtime acceptance requirements, not claims that the new probes already exist or have executed.
+These remain runtime acceptance requirements for future changes; the evidence record identifies the probes
+executed for the qualified x64 library scope and their limits.
 Native ARM64 and consumer-owned crash integration retain their independent execution/acceptance obligations.
 
 Native text-store fatal callback probes retain the child's activation blocker and use a null-HWND host with

@@ -1,0 +1,26 @@
+{
+  "run": "42192490717",
+  "scope": "historical pre-D1; cannot qualify current integration",
+  "baseline": "86c6287309cc96c5e4dbf8d62fd031e7cc481479",
+  "candidate": "946d5a2834e81a0b8253e69427558b179d0b9fdd",
+  "driver": "2112e3427fc8cd20d052a213d1857a83f4ac455b",
+  "baselineFingerprint": "7CFEC24DC18D7D4C3784DDFC8AF22AC0995892C386417A52964D4F15688FED2D",
+  "candidateFingerprint": "75D8ED4E0BDC339AEEEF6AF5C21A92DF584190113D55E67E73FABDFADA56A474",
+  "receipts": 144,
+  "receiptHashMismatches": 0,
+  "crossComparisons": 72,
+  "sameSideControls": 72,
+  "policyStatus": "policy-review-required",
+  "policyReason": "base policy not independently qualified",
+  "publishedVerdict": "inconclusive; scenarios array empty",
+  "judgeStatusAgreement": true,
+  "judgeMetricVerdictDisagreements": 0,
+  "scenarios": [
+    {"name":"Default","unstableControls":24,"controls":24,"cleanPrepareP95EffectPercent":58.9224967169207},
+    {"name":"MultilineGrid","unstableControls":24,"controls":24,"cleanPrepareP95EffectPercent":56.1646166064529},
+    {"name":"MultilineGridDistinct","unstableControls":20,"controls":24,"cleanPrepareP95EffectPercent":65.9318793233133}
+  ],
+  "flaggedMetric": "clean prepareP95Ms, set verdict regressed in each scenario; baseline median 0.0005 ms, candidate median 0.0008 ms, adjusted p 0.0126953125",
+  "setLevelMemoryOrExactBudgetFlags": 0,
+  "interpretation": "Measured findings require investigation and owner advice; shared host, control drift and unqualified policy prevent qualification. No causal regression or non-regression pass is established."
+}

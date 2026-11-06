@@ -42,7 +42,9 @@ The repository is public and its default branch is `main`. Use focused feature b
   nonthrowing results; any unexpected C++ exception, including `std::bad_alloc`, requires host-owned fatal diagnostics
   and termination, not catch-and-continue or ordinary OOM recovery. Capture useful failure-site context and attempt
   the configured dump. A null check after throwing STL allocation, a bare `terminate`, or changing `noexcept` alone
-  is insufficient. The policy's runtime/test migration is explicitly open; do not claim existing receipts qualify it.
+  is insufficient. See the [qualification record](Measurements/FailurePolicy_2026-11-06/README.md) for the
+  implementation, exact tested source and accepted x64 library scope.
+  Native ARM64 execution, performance-policy qualification and each application's adoption remain separate.
 - Hot-path resources and queues are bounded and reused. Composition does no heap work, layout, rasterization,
   I/O or blocking waits. Idle/hidden work blocks on events; never busy poll. Measure resource regressions.
 - Measure a retained baseline before implementation and compare the candidate on the same fixture. Every test.ps1

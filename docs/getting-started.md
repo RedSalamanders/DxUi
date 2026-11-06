@@ -51,8 +51,11 @@ Before constructing controls or entering DxUi scopes, install application-owned 
 reporter on the owner thread. Register its POD services with each independently linked module outside `DllMain`
 before that module creates objects or workers. Stop new work, join workers, destroy controls and detach every
 module before uninstalling on the installing thread. The [sample host](../Samples/Shared/FailureHost.h)
-demonstrates the handoff; product owners must qualify their own dump handling. API 5 is still being implemented:
-no new consumer pin or native acceptance is claimed by this guide.
+demonstrates the handoff; product owners must qualify their own dump handling. API 5's recorded x64 library
+scope is qualified at `f6791b5070efd1fa8dc86601bc9422ae9a321d2e`; see the
+[evidence](../Measurements/FailurePolicy_2026-11-06/README.md). Native ARM64 execution, formal performance-policy
+qualification and each consumer product's integration remain separate. Use the exact tested pin in the
+[upgrade guide](upgrade.md); adopting it still requires the application's host and adapter migration.
 
 When a caller needs a checked control-object allocation, use `CreateControl(kind, output)` and check its HRESULT;
 failure leaves the existing output unchanged. The factory reports a missing host and outer allocation refusal, while

@@ -1,9 +1,11 @@
 # Hosting, input and lifetime
 
 The [allocation/exception policy](../Specs/Core/Core_FailureHandling.md) requires explicit checked refusal or
-host fatal diagnostics for unexpected C++ exceptions. API 5 implements the runtime and example host; library
-qualification remains in progress, and each application owns its product integration. Earlier exception-recovery
-receipts do not establish the new fatal-stack/dump behavior.
+host fatal diagnostics for unexpected C++ exceptions. API 5 implements the runtime and example host; the
+[recorded x64 library scope](../Measurements/FailurePolicy_2026-11-06/README.md) is qualified at
+`f6791b5070efd1fa8dc86601bc9422ae9a321d2e`. Native ARM64 execution, formal performance-policy qualification and
+each application's product integration remain separate. Earlier exception-recovery receipts do not establish
+the new fatal-stack/dump behavior.
 Returned HRESULT recovery described below applies to checked/native failures, not catch-and-continue on a throw.
 
 For a deterministic native software-rendering host, call `Attach(hwnd, {.forceWarp = true})` before creating

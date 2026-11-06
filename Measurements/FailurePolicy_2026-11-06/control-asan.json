@@ -1,0 +1,20 @@
+{
+  "source": "f6791b5070efd1fa8dc86601bc9422ae9a321d2e",
+  "diagnostic": "Actual control use-after-free; sanitizer callback not replaced",
+  "results": [
+    {
+      "annotations": "on",
+      "exitCode": 1,
+      "timedOut": false,
+      "realControlReadFreeAllocateFramesVerified": true,
+      "stderrSha256": "D759F7BBDF94446ACA600A398D5B4617BC4936022620ED87C02E5A21B5E08166"
+    },
+    {
+      "annotations": "off",
+      "exitCode": 1,
+      "timedOut": false,
+      "realControlReadFreeAllocateFramesVerified": true,
+      "stderrSha256": "DBACF3814F27DCEB582E584F29DDC7C847DF587DDC13A5546564F94B9E112D11"
+    }
+  ]
+}

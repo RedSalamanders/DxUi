@@ -2,8 +2,10 @@
 
 API 5 uses checked nonthrowing refusal or host fatal diagnostics for unexpected C++ exceptions, as described by
 the [failure policy](../Specs/Core/Core_FailureHandling.md) and [upgrade guide](upgrade.md#port-checked-operations).
-The [migration](../Specs/Plans/WIP/FailurePolicy_2026-11-02.md) and its qualification remain open; historical
-source `5fc4d4c` used exception recovery and does not qualify the current fatal-stack/dump contract.
+The [implementation record](../Specs/Plans/Done/FailurePolicy_2026-11-02.md) and
+[evidence](../Measurements/FailurePolicy_2026-11-06/README.md) identify the qualified x64 library scope and its
+remaining performance/platform limits. Historical source `5fc4d4c` used exception recovery and does not qualify
+the current fatal-stack/dump contract.
 
 Native diagram arrow labels blend into the diagram background when text contrast is sufficient. Otherwise
 the editor adds a subtle light or dark backing for readability. Label backgrounds stay opaque to mask

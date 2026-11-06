@@ -1,6 +1,6 @@
 # Explicit failure results and host fatal diagnostics
 
-Status: **IMPLEMENTING**
+Status: **DONE — library implementation and x64 qualification**
 Owner: DxUi maintainers; application owners for host dump integration
 Priority: high; required before claiming the new failure policy is implemented
 Reviewed baseline: `5fc4d4c383bfa4891ee57a138924107bbbf11a2e`
@@ -11,8 +11,8 @@ The 2 November owner request establishes the policy: `std::bad_alloc`, like any 
 must not be ordinary recovery. Check nonthrowing allocation results and return an error when safe, or terminate
 the host through a diagnostic path retaining a useful original callstack and dump. The owning
 [failure contract](../../Core/Core_FailureHandling.md) expresses this target. The owner's subsequent **go** authorizes
-the library implementation, public host integration example and native fault qualification below. Runtime edits are
-in progress; no new-policy native acceptance is claimed until the recorded checks pass. Actual consumer product
+the library implementation, public host integration example and native fault qualification below. The resulting
+library and x64 qualification are recorded below. Actual consumer product
 adoption remains owned by each application and is not implied by library qualification.
 
 The published baseline still uses exception-based parser validation and allocation/callback recovery. Its
@@ -102,7 +102,28 @@ reopening their historical checklists or relabeling old allocation sweeps as fat
 
 ## Ordered implementation and acceptance
 
-### Working-tree progress, not acceptance
+### Closeout and historical checkpoints
+
+The qualified source is `f6791b5070efd1fa8dc86601bc9422ae9a321d2e`, with C++ identical to `d975aa7d`.
+Six canonical builds passed with zero warnings and errors; all four clean-pin consumer configurations, current
+validators and formatting, SDK `0.1.202611065` with its 348-header and 11-notice checks, and real ASan detection
+under both annotation policies passed. All 66 ordinary x64 suite executions and all 12 foreground executions
+passed with zero skips; all three 30-second countdowns and leases completed, and foreground, focus and cursor were restored.
+The [qualification and measurement packet](../../../Measurements/FailurePolicy_2026-11-06/README.md) retains
+source-specific evidence and failed cohorts, including foreground 16 and user activity/restoration; the passing
+foreground 17 retry does not erase them. Native ARM64 execution is explicitly deferred by the owner, not claimed
+from cross-builds. PR162 remains open; this record does not assert a merge or application adoption.
+
+The owner accepted the measured construction safety costs in the source-paired 12-block/48-process study
+`1ea6d522` versus `d975aa7d`: +10.355 ns Separator, +2.4 ns Panel and +16.285 ns editor; allocations remain
+2/2/9, allocator peak rises by 39/39/103 bytes, editor requested bytes rise by 64 and live bytes return to zero.
+These are allocator/construction observations, not RSS, causal attribution or a formal performance-policy pass.
+The formal frame policy remains unqualified and hosted study `42201620823` remains pending under
+[D-P1](../WIP/RemainingWork_2026-11-04.md#d-p1). Product adoption remains [D-C1](../WIP/RemainingWork_2026-11-04.md#d-c1),
+and broader per-element admission remains [D-A1](../WIP/RemainingWork_2026-11-04.md#d-a1).
+
+The bullets below preserve historical state as recorded at each checkpoint; later evidence above supersedes their
+then-pending status without reassigning or erasing earlier failures.
 
 - The `d975aa7d` integration passes six zero-warning builds, four clean-pin consumers, real ASan control-UAF
   detection with both annotation policies, and isolated SDK `0.1.202611064` with independent symbol/header/notice
@@ -301,35 +322,35 @@ reopening their historical checklists or relabeling old allocation sweeps as fat
 
 - [x] Review the published baseline, owner requirement, representative production paths and conflicting normative clauses.
 - [x] Record the central target policy, current implementation gap and this indexed migration scope.
-- [ ] **S0 — Freeze the full inventory.** Classify in-scope throws/catches, allocation mechanisms, public constructors,
+- [x] **S0 — Freeze the full inventory.** Classify in-scope throws/catches, allocation mechanisms, public constructors,
   parser backends, callbacks and test injection sites. Capture source hashes and healthy-path construction/resource
   baselines. Record what returns a genuine status today and what depends on catching a thrown exception.
-- [ ] **S1 — Qualify the fatal channel first.** Define a versioned bounded handoff with source/allocation category,
+- [x] **S1 — Qualify the fatal channel first.** Define a versioned bounded handoff with source/allocation category,
   failing-thread context and lifetime; reuse the host's dump owner. Prove no allocation/reentry on the failure path,
   missing/returning handler fallback, recursion and failure-to-write handling in child processes. A handler-time
   stack must not satisfy the original-site oracle. Source/PDB identity and native architecture are part of evidence.
   Include a non-standard application exception type: named std catches cannot cover every type, and the existing
   catch-all prohibition remains. The host's terminal runtime/context mechanism must be proved, not assumed.
-- [ ] **S2 — Convert canonical allocation/construction.** Add/reuse checked RAII helpers and explicit fallible
+- [x] **S2 — Convert canonical allocation/construction.** Add/reuse checked RAII helpers and explicit fallible
   factories where errors can be returned. Handle unreportable failures at their allocation site. Start with Control
   lifetime storage and Separator, then shared/callback/container/proxy storage. A null-returning allocator must not
   violate an STL allocator's storage contract. Keep direct construction and factory semantics explicit.
   Reuse and correct `DxUi::CreateControl` before adding another control factory; audit the full nested initialization.
-- [ ] **S3 — Convert expected input/capacity results.** Use explicit statuses for document/Markdown admission,
+- [x] **S3 — Convert expected input/capacity results.** Use explicit statuses for document/Markdown admission,
   malformed metadata, capacity, stale identities and unsupported notation. Select nonthrowing vendor interfaces
   only after inspecting their real error contract. Retain current bounds, complete corpus discovery, duplicate-key/
   alias/capacity distinctions and exact source. Invalid data must not become a fatal-process test.
-- [ ] **S4 — Migrate boundaries and failure tests together.** Replace exception-to-continuation behavior in native,
+- [x] **S4 — Migrate boundaries and failure tests together.** Replace exception-to-continuation behavior in native,
   embedded, COM/UIA, callbacks, snapshots and diagnostics. Preserve atomicity and retry only for checked refusal.
   Migrate allocation sweeps to checked seams; isolate deliberate unexpected exceptions and fatal allocation probes.
   Reuse the canonical runner/failure-evidence infrastructure and register any new native cases in scope/inventory.
-- [ ] **S5 — Qualify the consumer surface and handoff.** Verify the application-owned integration example's
+- [x] **S5 — Qualify the consumer surface and handoff.** Verify the application-owned integration example's
   original-site context on main/worker threads and the real module/CRT boundary through clean-pin fixtures and
   the extracted SDK. Update the public compile/import fixtures, API revision and migration documentation with
   the exact qualified pin. Actual product crash-writer integration and pin adoption remain with each application
-  owner under [D-C1](RemainingWork_2026-11-04.md#d-c1), outside this library plan's authorized scope.
-- [ ] **S6 — Native/resource qualification and closeout.** Pass the applicable x64 Debug/Release/ASan suites, all
-  six builds, isolated fatal probes and actual consumer gates. Native ARM64 remains an execution obligation,
+  owner under [D-C1](../WIP/RemainingWork_2026-11-04.md#d-c1), outside this library plan's authorized scope.
+- [x] **S6 — Native/resource qualification and closeout.** Pass the applicable x64 Debug/Release/ASan suites, all
+  six builds, isolated fatal probes and actual consumer gates. Native ARM64 execution is owner-deferred as a separate obligation,
   not a cross-build pass. Compare healthy-path construction, allocation counts, prepared/idle resource behavior
   and relevant Release workloads to the captured baseline; do not change the unqualified performance policy.
   Preserve original failures. Reconcile current docs, record actual source/artifact acceptance and move this plan

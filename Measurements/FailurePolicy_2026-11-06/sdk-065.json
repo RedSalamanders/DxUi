@@ -1,0 +1,12 @@
+{
+  "source": "f6791b5070efd1fa8dc86601bc9422ae9a321d2e",
+  "version": "0.1.202611065",
+  "librarySha256": "85fdb0197082fa3594aa095222a093303d8245c885e02bb55b86dc18177b9ee3",
+  "libraryPdbSha256": "70d6357006034f7b5ec74c50afc17b7decc8597484e7ab94bd7c49c4a1ccf7de",
+  "archiveSha256": "dd2bb86a81c3b3ac9add343f535cf6aee794a701471600ed5ec4c8a8a83d0191",
+  "uniqueHeaderCount": 348,
+  "headerClosure": "Extracted SDK plus selected Visual Studio and Windows SDK only",
+  "allReceiptFlagsVerified": true,
+  "producerAndArchiveHashesIndependentlyVerified": true,
+  "privateTestEntriesAbsent": true
+}

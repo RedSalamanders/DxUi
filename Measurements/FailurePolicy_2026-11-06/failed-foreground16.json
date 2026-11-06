@@ -1,0 +1,12 @@
+{
+  "runId": "20261106T113628295Z-50120-d9bab73d53984cd39d360277906505a2",
+  "source": "f6791b5070efd1fa8dc86601bc9422ae9a321d2e",
+  "outcome": "failed",
+  "foregroundObservedInOtherApplication": true,
+  "userConfirmedDesktopUse": true,
+  "codeCauseEstablished": false,
+  "foreground": "restored",
+  "focus": "unchanged",
+  "cursor": "restored",
+  "retry": "Fresh attempt17 all12suite executions passed with zero skips; original failure retained"
+}

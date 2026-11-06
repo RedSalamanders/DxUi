@@ -1,0 +1,53 @@
+{
+  "source": "f6791b5070efd1fa8dc86601bc9422ae9a321d2e",
+  "noticeCount": 11,
+  "originalLicenseBytesVerified": true,
+  "pinnedOfflineNoticeProjectionVerified": true,
+  "licenses": [
+    {
+      "path": "licenses/katex-LICENSE.txt",
+      "sha256": "4313255416487a4a7602f134a7cdd2b33dd9f7e7b41d3af63dc9f785bca425a0"
+    },
+    {
+      "path": "licenses/libfyaml-LICENSE.txt",
+      "sha256": "8c6ab373d0f40d39fc976227010f22a52e83e0e40fd25e5ac8f19945fed8aa5a"
+    },
+    {
+      "path": "licenses/libfyaml-xxHash-LICENSE.txt",
+      "sha256": "ee8ad8784f9f6d1083117eaa842b47d16ba8b0075008a0cc4563648b72066a3f"
+    },
+    {
+      "path": "licenses/LICENSE.txt",
+      "sha256": "de1d3b6bdeafef327008f4678099670e52c658b1bbc1ab261f94619c0f2cb8a9"
+    },
+    {
+      "path": "licenses/rapidyaml-bundled-NOTICES.txt",
+      "sha256": "fdea696d1c84d1ac7a11e22fbd3e1a4205176ea546b9eab644da59f617ee98e7"
+    },
+    {
+      "path": "licenses/rapidyaml-LICENSE.txt",
+      "sha256": "4e69d6b03c9138b9d748e18834935bd66c0ff7a9fcd03c20081d387385059a3c"
+    },
+    {
+      "path": "licenses/THIRD-PARTY-NOTICES.md",
+      "sha256": "cc672db524381ca6aa4c92acc2f9b93a1f6863254f17d52ff074cc93e0c1904f"
+    },
+    {
+      "path": "licenses/tomlplusplus-LICENSE.txt",
+      "sha256": "2312836ea26699dda4fa894316b60ef7be1a0c8526a2fd97c5bff7f546a3a3af"
+    },
+    {
+      "path": "licenses/Unicode-LICENSE.txt",
+      "sha256": "e7a93b009565cfce55919a381437ac4db883e9da2126fa28b91d12732bc53d96"
+    },
+    {
+      "path": "licenses/WHATWG-LICENSE.txt",
+      "sha256": "85dc6f5ccb57a6fe8c33d158f9fc8fc7ee5655a5d3db2cdd131c6a3d0f48a864"
+    },
+    {
+      "path": "licenses/WIL-LICENSE.txt",
+      "sha256": "27ebda9d51f0a56b7e281ccd8230a27236dcb51c05f64b07869ecf6e965d68b0"
+    }
+  ],
+  "verifiedUtc": "2026-11-06T11:16:49.5519051Z"
+}

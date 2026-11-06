@@ -2,9 +2,9 @@
 
 Allocation/refusal contracts below refer to explicit checked nonthrowing results under the
 [failure policy](../Core/Core_FailureHandling.md). Unexpected C++ exceptions, including bad_alloc, require host
-fatal diagnostics. API 5 implements this routing; its final qualification is tracked by the
-[migration plan](../Plans/WIP/FailurePolicy_2026-11-02.md). Historical throwing-fault recovery sweeps do not
-establish this policy's acceptance.
+fatal diagnostics. API 5 implements this routing; the [execution record](../Plans/Done/FailurePolicy_2026-11-02.md)
+and [evidence](../../Measurements/FailurePolicy_2026-11-06/README.md) identify its qualified x64 library scope
+and remaining limits. Historical throwing-fault recovery sweeps do not establish this policy's acceptance.
 
 Checked prepared-text layout creation must propagate every failed native metrics
 query before replacing the published source, generation or hit/caret geometry.

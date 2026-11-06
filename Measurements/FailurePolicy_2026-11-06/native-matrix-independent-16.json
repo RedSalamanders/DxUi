@@ -1,0 +1,68 @@
+[
+  {
+    "source": "f6791b5070efd1fa8dc86601bc9422ae9a321d2e",
+    "platform": "x64",
+    "configuration": "Debug",
+    "warnings": 0,
+    "errors": 0,
+    "toolExceptions": 0,
+    "buildSucceeded": true,
+    "wrapperLogSha256": "14366AB6DE99E454E669313AC5360F93AF5A566E41E80DE30A3982B902AAC056",
+    "nativeLogSha256": "096C3DF4035AC7FFCF2FC83CE3D36D6F0A2AA83B8118915928000ABFD93BAEFA"
+  },
+  {
+    "source": "f6791b5070efd1fa8dc86601bc9422ae9a321d2e",
+    "platform": "x64",
+    "configuration": "Release",
+    "warnings": 0,
+    "errors": 0,
+    "toolExceptions": 0,
+    "buildSucceeded": true,
+    "wrapperLogSha256": "97BC3ED418C1B4C5F4EC4E6D7330890101C3839E759EA97984637FE64A11BD95",
+    "nativeLogSha256": "698F335B51685CA30A2B8D0F377983C7D2649BAFD593BB27391E2FE641FDA40C"
+  },
+  {
+    "source": "f6791b5070efd1fa8dc86601bc9422ae9a321d2e",
+    "platform": "x64",
+    "configuration": "ASan Debug",
+    "warnings": 0,
+    "errors": 0,
+    "toolExceptions": 0,
+    "buildSucceeded": true,
+    "wrapperLogSha256": "01BA8614A5D65BA1246BAC2A3280F10FD2775D5241FFB15F5A81D8825A496F25",
+    "nativeLogSha256": "B4587DB48F47F9EA63C22B9F8764097E18A23981E7466CFB571B551568F73B07"
+  },
+  {
+    "source": "f6791b5070efd1fa8dc86601bc9422ae9a321d2e",
+    "platform": "ARM64",
+    "configuration": "Debug",
+    "warnings": 0,
+    "errors": 0,
+    "toolExceptions": 0,
+    "buildSucceeded": true,
+    "wrapperLogSha256": "20852B65E98CAA1246CAD5427EE3B5A71C3EE5F705D21EE4BAB462F7DDE76339",
+    "nativeLogSha256": "5478CC38853EB481733A693BC6A43FB7638A59AE9870B412DAB55BB535E20E9B"
+  },
+  {
+    "source": "f6791b5070efd1fa8dc86601bc9422ae9a321d2e",
+    "platform": "ARM64",
+    "configuration": "Release",
+    "warnings": 0,
+    "errors": 0,
+    "toolExceptions": 0,
+    "buildSucceeded": true,
+    "wrapperLogSha256": "BC3DEE52DDBED8BD49CDE1CE6C24CC272679DF9DE034CDC1FC83050E9AC82217",
+    "nativeLogSha256": "9B3060146283917748224992BF3B1016CF9F902F6F74B45F7920E224CB45FFBC"
+  },
+  {
+    "source": "f6791b5070efd1fa8dc86601bc9422ae9a321d2e",
+    "platform": "ARM64",
+    "configuration": "ASan Debug",
+    "warnings": 0,
+    "errors": 0,
+    "toolExceptions": 0,
+    "buildSucceeded": true,
+    "wrapperLogSha256": "BF174411BBE7FF347B4D32F6A09BF24E8FD891E6DEDAC157B454D1EE81734B29",
+    "nativeLogSha256": "617A9BC3CF2E83F2D606203E8B6BADD8688235D87FC226F4270DD139768D735D"
+  }
+]

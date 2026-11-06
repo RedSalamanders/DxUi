@@ -9,11 +9,19 @@ escaping C++ exception; catching it and continuing is not the ordinary allocatio
 
 **Implementation status:** API 5 implements the versioned `Failure::HostServices` handoff, explicit module
 registration and `Failure::Scope`, an application-owned sample reporter, checked control factory storage, and
-checked document/parser results. The static exception inventory is complete; current-source native, corpus,
-fatal-child, dump-context, performance and isolated-consumer qualification is tracked in the
-[migration plan](../Plans/WIP/FailurePolicy_2026-11-02.md) and remains open until its recorded gates pass.
+checked document/parser results. Library qualification for the recorded x64 scope is bound to
+`f6791b5070efd1fa8dc86601bc9422ae9a321d2e`; the [evidence](../../Measurements/FailurePolicy_2026-11-06/README.md)
+and [execution record](../Plans/Done/FailurePolicy_2026-11-02.md) retain the build, corpus, fatal-child,
+dump-context and isolated-consumer results. Native ARM64 execution and application-owned product adoption
+remain separate. The formal paired performance policy remains unqualified; its current hosted study is pending.
 Historical source `5fc4d4c383bfa4891ee57a138924107bbbf11a2e` used exception recovery and does not conform;
 its functional receipts establish that original behavior only. No dump guarantee or product adoption is claimed.
+
+The owner accepted the measured construction safety cost for this library scope. The descriptive matched
+12-block study measured median increases of 10.355 ns for Separator, 2.4 ns for Panel and 16.285 ns for
+RichTextEditor; tracked peak blocks increased by 39, 39 and 103 bytes respectively, with allocation counts
+unchanged and no net live-byte increase. This is not a passing formal performance-policy verdict or a prediction
+of consumer workloads. The evidence record retains its source identities and limitations.
 
 ASan diagnostic builds retain the sanitizer's existing fatal-report owner. The MSVC sanitizer can terminate a
 throwing allocation inside its runtime before the C++ new-handler runs. Such a result must be classified as a
@@ -216,5 +224,5 @@ Preserve source/node/capacity bounds, valid-input conformance, lifecycle and ren
 injection, parser diagnostics, input/COM tests and the consumer compile fixture with the implementation. Review
 API revision changes for altered source/failure behavior; matching headers/archive/toolchain/CRT and a fresh
 consumer pin remain mandatory. A documentation change does not increment the current runtime revision or qualify
-the existing implementation. Keep the migration plan open until code, child diagnostics and relevant native,
-platform and consumer acceptance are proved under their owners.
+the existing implementation. The recorded x64 library scope does not establish native ARM64 execution,
+formal performance-policy acceptance or application-owned consumer qualification.
