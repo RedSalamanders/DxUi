@@ -398,7 +398,7 @@ void EmbeddedHost::SetVisible(bool visible) noexcept
 }
 bool EmbeddedHost::NeedsPreparation() const noexcept
 {
-    return _state && _state->visible && ! _state->zeroSized && _state->dirty;
+    return _state && _state->visible && ! _state->zeroSized && (_state->dirty || _host._pendingVisualPreparation);
 }
 bool EmbeddedHost::NeedsAnimation() const noexcept
 {
@@ -525,7 +525,7 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
         if (! preparationIsCurrent())
             return E_ABORT;
     }
-    if (! s.dirty && s.coherent && width == s.width && height == s.height && dpi == s.dpi)
+    if (! s.dirty && ! _host._pendingVisualPreparation && s.coherent && width == s.width && height == s.height && dpi == s.dpi)
         return S_FALSE;
     s.coherent                   = false;
     s.interactionLayoutAvailable = false;
@@ -662,9 +662,11 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
         }
         if (! preparationIsCurrent())
             return E_ABORT;
-        s.coherent              = s.coherent && interactionRevision == _host._interactionRevision;
-        s.dirty                 = s.revision != revision;
-        requestAfterPreparation = s.dirty;
+        s.coherent = s.coherent && interactionRevision == _host._interactionRevision;
+        s.dirty    = s.revision != revision;
+        // Optional visual continuation requests another owner turn while the
+        // current coherent surface and content/input readiness remain usable.
+        requestAfterPreparation = s.dirty || _host._pendingVisualPreparation;
         if (! s.coherent)
             return E_ABORT;
         return S_OK;

@@ -1411,7 +1411,12 @@ void TestRichTextEditorNativeDenseSourceAndSplitScheduling()
         const auto start    = std::chrono::steady_clock::now();
         const auto deadline = GetTickCount64() + 12000u;
         ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
-        while (window.Host().HasPendingContentPreparation() && GetTickCount64() < deadline)
+        const auto pendingInk = [&]
+        {
+            const auto state = sourceView->DebugGetState();
+            return state.markdownPreparationPending || state.sourceInkPreparationPending || state.sourceInkRangeCount < blockCount;
+        };
+        while ((window.Host().HasPendingContentPreparation() || pendingInk()) && GetTickCount64() < deadline)
         {
             window.PumpMessages(10u);
             Sleep(1u); // A failed/stalled request must not turn the test's independent deadline into a busy loop.

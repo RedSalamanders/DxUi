@@ -2275,6 +2275,11 @@ withhold a geometrically current frame, cancel a gesture or refuse input.
 Source-mode syntax used for colouring is optional visual work too; source
 geometry, hit testing, input and composition MUST become usable independently.
 Individual diagnostic pending fields may remain true after content is ready.
+Hosts MUST schedule unfinished optional visuals independently of content
+readiness. Embedded `NeedsPreparation()` includes that continuation while the
+current coherent surface remains compositable; native hosts request another
+paint after presenting the usable frame. Visual completion must eventually
+clear the request rather than leave idle polling work.
 Overlay fallback dirtiness remains separately reported and does not withhold a frame.
 
 Source guides stage only visible source rows and a bounded overscan window. Each

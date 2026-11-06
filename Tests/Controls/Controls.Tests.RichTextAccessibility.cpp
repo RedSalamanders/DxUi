@@ -1721,6 +1721,9 @@ void RichEditorPresentationAndLinkCues(bool embedded)
     appearance.colorizeMarkdownSource = true;
     editor->SetAppearance(appearance);
     fixture.Publish();
+    Require(client.DocumentText(owner) == source, "actual UIA source stays available before optional ink finishes");
+    for (unsigned turn = 0u; editor->DebugGetState().sourceInkRangeCount == 0u && turn < 1024u; ++turn)
+        fixture.Publish();
     Require(editor->DebugGetState().sourceInkRangeCount > 0u && client.DocumentText(owner) == source,
             "native/embedded source ink keeps actual UIA text exact, including delimiters and original line endings");
     editor->SetSelection({alpha, alpha + 5u});

@@ -667,6 +667,7 @@ static void TestEmbeddedCosmeticsDoNotWithholdContent(GraphicsFixture& gpu)
         Check(view.Composite(gpu.context.get(), gpu.Viewport()) == S_OK, "current content is compositable while optional decorations prepare");
         Check(editor->GetText() == source && ! editor->CanUndo(), "cosmetic preparation preserves exact source and history");
         Check(state.markdownPreparationPending, "source text becomes usable before optional whole-document syntax analysis completes");
+        Check(view.NeedsPreparation(), "optional visuals retain an owner-turn request alongside the compositable content frame");
         break;
     }
     Check(observed, "bounded cosmetic admission fixture reaches current text geometry");
@@ -702,6 +703,7 @@ static void TestEmbeddedCosmeticsDoNotWithholdContent(GraphicsFixture& gpu)
         } while (view.NeedsPreparation());
     };
     finish();
+    Check(! rich->DebugGetState().codeInkPreparationPending, "all admitted visible code ink finishes through ordinary preparation requests");
     Check(calls > 0u && calls < 16u, "initial code ink excludes offscreen blocks from borrowed callbacks");
     const auto initialCalls = calls;
     for (unsigned turn = 0u; turn < 3u; ++turn)
