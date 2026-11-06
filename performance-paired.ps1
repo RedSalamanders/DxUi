@@ -60,14 +60,16 @@ $harnessRoot = $PSScriptRoot
 # use this checkout's copies, so a comparison between them rejects any fixture difference, and a revision older than
 # the PowerShell comparator still has one.
 $harness = @(Get-PairedHarness) + @('build.ps1','Tools/ScopedTesting.psm1','Tools/Validation.psm1','Tools/Changelog.psm1','Tools/Modules/Documentation/Changelog.psm1',
-    'Tests/Embedded/DxUi.EmbeddedTests.vcxproj')
+    'Tests/Embedded/DxUi.EmbeddedTests.vcxproj','Build/NativeBuildPolicy.targets')
 
 function Get-PairedBuildChanges([object[]] $Records) {
     # The benchmark project is part of the common harness: per-item flags such as
     # /bigobj must match, while each side keeps its own library project/source.
+    # The common build policy is also a compiled input: its include paths and
+    # flags apply to both projects in this study and require a fresh build.
     $changed = @(Get-OverlayCompiledChanges -Records $Records)
     $changed += @($Records | Where-Object { $_['action'] -cne 'unchanged' -and
-        $_['path'] -ceq 'Tests/Embedded/DxUi.EmbeddedTests.vcxproj' } | ForEach-Object { $_['path'] })
+        $_['path'] -cin @('Tests/Embedded/DxUi.EmbeddedTests.vcxproj','Build/NativeBuildPolicy.targets') } | ForEach-Object { $_['path'] })
     return @($changed | Select-Object -Unique)
 }
 

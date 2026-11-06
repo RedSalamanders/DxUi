@@ -486,6 +486,7 @@ Invoke-FixtureCase 'the paired driver overlays and restores its attestation help
     Assert-Contains $harness 'Tools/Changelog.psm1' 'the validator import closure is complete'
     Assert-Contains $harness 'Tools/Modules/Documentation/Changelog.psm1' 'the shared changelog implementation is in the overlay closure'
     Assert-Contains $harness 'Tests/Embedded/DxUi.EmbeddedTests.vcxproj' 'the benchmark compiler configuration is shared'
+    Assert-Contains $harness 'Build/NativeBuildPolicy.targets' 'the common study compiler policy is shared'
     Assert-Equal $harness.Count @($harness | Select-Object -Unique).Count 'the effective driver harness has no duplicates'
     $target = Join-Path $root 'baseline'
     $backup = Join-Path $root 'backup'
@@ -497,11 +498,13 @@ Invoke-FixtureCase 'the paired driver overlays and restores its attestation help
     Set-FixtureFile $target 'Tools/Changelog.psm1' 'original baseline validator dependency'
     Set-FixtureFile $target 'Tools/Modules/Documentation/Changelog.psm1' 'original shared changelog implementation'
     Set-FixtureFile $target 'Tests/Embedded/DxUi.EmbeddedTests.vcxproj' 'original baseline benchmark project'
+    Set-FixtureFile $target 'Build/NativeBuildPolicy.targets' 'original baseline compiler policy'
     $records = @(Copy-HarnessOverlay -Source $repository -Target $target -Paths $harness -BackupDirectory $backup)
     Assert-HarnessOverlay -Target $target -Records $records
     Assert-Equal 'original baseline library source' ([IO.File]::ReadAllText((Join-Path $target 'src/Control.cpp'))) 'candidate library source did not enter the baseline'
     Assert-Equal 'original baseline project' ([IO.File]::ReadAllText((Join-Path $target 'src/DxUi.vcxproj'))) 'baseline compiler/project inputs stay their own'
     Assert-Equal ([IO.File]::ReadAllText((Join-Path $repository 'Tests/Embedded/DxUi.EmbeddedTests.vcxproj'))) ([IO.File]::ReadAllText((Join-Path $target 'Tests/Embedded/DxUi.EmbeddedTests.vcxproj'))) 'the benchmark uses the same actual project options on both sides'
+    Assert-Equal ([IO.File]::ReadAllText((Join-Path $repository 'Build/NativeBuildPolicy.targets'))) ([IO.File]::ReadAllText((Join-Path $target 'Build/NativeBuildPolicy.targets'))) 'the study uses the shared policy bytes'
     Restore-HarnessOverlay -Target $target -Records $records -BackupDirectory $backup
     Assert-Equal 'original baseline build driver' ([IO.File]::ReadAllText((Join-Path $target 'build.ps1'))) 'the baseline build driver was restored'
     Assert-Equal 'original baseline scoped helper' ([IO.File]::ReadAllText((Join-Path $target 'Tools/ScopedTesting.psm1'))) 'the baseline scoped helper was restored'
@@ -509,6 +512,7 @@ Invoke-FixtureCase 'the paired driver overlays and restores its attestation help
     Assert-Equal 'original baseline validator dependency' ([IO.File]::ReadAllText((Join-Path $target 'Tools/Changelog.psm1'))) 'the validator dependency was restored'
     Assert-Equal 'original shared changelog implementation' ([IO.File]::ReadAllText((Join-Path $target 'Tools/Modules/Documentation/Changelog.psm1'))) 'the shared implementation was restored'
     Assert-Equal 'original baseline benchmark project' ([IO.File]::ReadAllText((Join-Path $target 'Tests/Embedded/DxUi.EmbeddedTests.vcxproj'))) 'the original benchmark compiler configuration was restored'
+    Assert-Equal 'original baseline compiler policy' ([IO.File]::ReadAllText((Join-Path $target 'Build/NativeBuildPolicy.targets'))) 'the original compiler policy was restored'
     Assert-True (-not (Test-Path -LiteralPath (Join-Path $target 'Tools/PerformancePolicy.psm1'))) 'created harness files are removed after the study'
 }
 
@@ -529,16 +533,19 @@ function New-PairedBuildStateForTest {
         harnessIdentity='harness';toolchainIdentity='compiler';dependencyIdentity='dependencies';environmentIdentity='machine';
         sourceCommit='baseline';sourceFingerprint='baseline-source';executableSha256='baseline-exe'}
 }
-Invoke-TestCase 'a changed benchmark project refuses SkipBuild just like a changed compiled fixture' {
+Invoke-TestCase 'changed benchmark project and compiler policy refuse SkipBuild' {
     $changes=Get-PairedBuildPreflightForTest -Name 'Get-PairedBuildChanges'
     $records=@(@{path='Tests/Embedded/DxUi.EmbeddedTests.vcxproj';action='replaced'},
         @{path='Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h';action='replaced'},
-        @{path='performance.ps1';action='replaced'})
+        @{path='performance.ps1';action='replaced'},
+        @{path='Build/NativeBuildPolicy.targets';action='replaced'})
     $actual=@(& $changes -Records $records)
-    Assert-Equal 2 $actual.Count 'source and benchmark project both require rebuild'
+    Assert-Equal 3 $actual.Count 'source, benchmark project and policy require rebuild'
     Assert-Contains $actual 'Tests/Embedded/DxUi.EmbeddedTests.vcxproj' 'project options invalidate build reuse'
     Assert-Contains $actual 'Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h' 'compiled source still invalidates reuse'
+    Assert-Contains $actual 'Build/NativeBuildPolicy.targets' 'compiler policy invalidates build reuse'
     Assert-Equal 0 @(& $changes -Records @(@{path='Tests/Embedded/DxUi.EmbeddedTests.vcxproj';action='unchanged'})).Count 'unchanged project can reuse its attested build'
+    Assert-Equal 0 @(& $changes -Records @(@{path='Build/NativeBuildPolicy.targets';action='unchanged'})).Count 'unchanged policy can reuse its attested build'
 }
 Invoke-FixtureCase 'every attested project timestamp is staged without changing bytes and every original stamp returns' {
     param($root)

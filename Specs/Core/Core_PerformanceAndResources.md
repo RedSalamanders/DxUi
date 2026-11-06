@@ -194,6 +194,12 @@ targets are acceptance contracts, not claims of current support.
 
 Paired setup MUST share the benchmark project and its effective compiler options,
 including per-item flags, while retaining each side's own library project/source.
+The study overlay also shares `Build/NativeBuildPolicy.targets` across both
+trees, records and restores its original bytes, and treats a changed policy as a
+compiled input that forbids reuse of an existing build. Review the added include
+search paths for collisions and retain strict resolved-profile comparison. This
+adaptation is limited to the study; its builds do not qualify an unmodified
+production checkout or change the versioned acceptance policy.
 Fresh builds stage every project in the canonical performance attestation catalog
 (`Get-PerformanceProjectCatalog`: library and benchmark) after restore and
 record/restore every original timestamp so MSBuild's newest-import selection is

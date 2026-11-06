@@ -131,6 +131,10 @@ When the benchmark itself changed, or the baseline predates it, measure both rev
 
 It creates a detached baseline worktree under `.build/paired`, copies this checkout's measurement scripts, comparator
 and benchmark inputs into it, builds both trees, then runs at least twelve independently randomized blocks per scenario.
+For the comparison it also overlays the same native build policy on both trees,
+while keeping each library project and its source at its own revision. The
+original policy is restored afterward, and a changed policy requires a fresh
+build. These study builds do not qualify an unmodified production checkout.
 Each block independently draws ABBA or BAAB with equal probability, with two runs per side in either order. Counts across
 blocks are unconstrained; the versioned allocation protocol, seed and literal schedule are retained and replayed. That is 24 runs per side at the
 default, not 12 independent observations. `-Blocks` accepts 12–20 and `-Seed` replays an explicit schedule. `-SkipBuild`

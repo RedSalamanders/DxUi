@@ -1,0 +1,1 @@
+- Share and restore the native build policy in paired studies, requiring fresh builds when it changes while retaining each revision's library sources and project.
