@@ -118,6 +118,14 @@ function Start-TestRunEvidence {
     if (-not [IO.Path]::IsPathRooted($Repository) -or $root -eq [IO.Path]::GetPathRoot($root).TrimEnd('\') -or $root.StartsWith('\\')) {
         throw 'Evidence requires an existing absolute local repository directory, never a drive root or UNC path.'
     }
+    $failureDirectory = ''
+    if ($CaptureNativeArtifacts -and ($Context.ContainsKey('platform') -or $Context.ContainsKey('configuration'))) {
+        if (-not $Context.ContainsKey('platform') -or -not $Context.ContainsKey('configuration') -or
+            $Context.platform -cnotin @('x64','ARM64') -or $Context.configuration -cnotin @('Debug','Release','ASan Debug')) {
+            throw 'Native failure evidence requires an exact supported platform and configuration.'
+        }
+        $failureDirectory = Join-Path $root ('.build/'+$Context.platform+'/'+$Context.configuration+'/FailureEvidence')
+    }
     $pins = [Collections.Generic.List[IDisposable]]::new()
     $anchors = [Collections.Generic.List[object]]::new()
     $lock = $null
@@ -154,7 +162,7 @@ function Start-TestRunEvidence {
         $anchors.Add(@{path=$path;identity=[TestRunEvidenceV2.Native]::Identity($pin)})
         $run = [pscustomobject]@{ Repository=$root; Id=$id; Directory=$directory; Path=$path; Pins=$pins; Anchors=$anchors; Lock=$lock;
             Owner=$PID; OwnerStarted=(Get-Process -Id $PID).StartTime.ToUniversalTime().Ticks; Closed=$false;
-            CaptureNativeArtifacts=[bool]$CaptureNativeArtifacts; ArtifactLock=$null }
+            CaptureNativeArtifacts=[bool]$CaptureNativeArtifacts; ArtifactLock=$null; FailureDirectory=$failureDirectory }
         Write-TestRunEvidenceRecord (Join-Path $directory 'started.json') ([ordered]@{
             schema=1; id=$id; repository=$root; owner=$run.Owner; ownerStartedTicks=$run.OwnerStarted;
             startedUtc=[DateTime]::UtcNow.ToString('o'); context=$Context
@@ -175,17 +183,36 @@ function Start-TestRunEvidence {
 }
 
 function Save-TestRunNativeArtifacts($Run, [string] $Label) {
-    $source = Join-Path $Run.Repository '.build/test-artifacts'
-    if (-not (Test-Path -LiteralPath $source)) { return }
+    $sources = @(@{path=(Join-Path $Run.Repository '.build/test-artifacts');label=$Label;profile=$false})
+    if ($Run.FailureDirectory) {
+        $allowed = '^'+[regex]::Escape($Run.Repository)+'\\\.build\\(?:x64|ARM64)\\(?:Debug|Release|ASan Debug)\\FailureEvidence$'
+        if ($Run.FailureDirectory -cnotmatch $allowed) { throw 'Native failure evidence escaped its exact profile.' }
+        $sources += @{path=$Run.FailureDirectory;label=($Label+'-failures');profile=$true}
+    }
+    foreach ($entry in $sources) {
+    $source = $entry.path
+    $labelName = $entry.label
+    if (-not (Test-Path -LiteralPath $source)) { continue }
+    $parentPins = [Collections.Generic.List[IDisposable]]::new()
+    try {
+    if ($entry.profile) {
+        $profile = [IO.Path]::GetDirectoryName($source)
+        foreach ($ancestor in @([IO.Path]::GetDirectoryName($profile),$profile)) {
+            $parentPins.Add([TestRunEvidenceV2.Native]::Pin($ancestor,$true))
+        }
+    }
     # This historical native path is shared across profiles. Refuse independently launched native tests;
     # the runner lease serializes new invocations, and neither path ever terminates another process.
     $prefix = (Join-Path $Run.Repository '.build').TrimEnd('\') + '\'
+    $profilePrefix = [IO.Path]::GetDirectoryName($source).TrimEnd('\') + '\'
     $active = @(Get-CimInstance Win32_Process -ErrorAction Stop | Where-Object {
-        $_.Name -match '^DxUi\.(ControlTests|EmbeddedTests|FoundationTests|InteractiveLease)\.exe$' -and
-        $_.ExecutablePath -and $_.ExecutablePath.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)
+        ($_.Name -match '^DxUi\.(ControlTests|EmbeddedTests|FoundationTests|InteractiveLease)\.exe$' -and
+        $_.ExecutablePath -and $_.ExecutablePath.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) -or
+        ($entry.profile -and (($_.ExecutablePath -and $_.ExecutablePath.StartsWith($profilePrefix, [StringComparison]::OrdinalIgnoreCase)) -or
+        ($_.Name -in @('MSBuild.exe','cl.exe','link.exe') -and $_.CommandLine -and $_.CommandLine.Contains($profilePrefix, [StringComparison]::OrdinalIgnoreCase))))
     })
     if ($active.Count) { throw "Native artifact output is in use (PID $($active.ProcessId -join ', ')); it was preserved." }
-    $destination = Join-Path $Run.Path $Label
+    $destination = Join-Path $Run.Path $labelName
     if (Test-Path -LiteralPath $destination) { throw "Native artifact evidence already exists: $destination" }
     $beforePins = [Collections.Generic.List[IDisposable]]::new()
     try {
@@ -193,18 +220,55 @@ function Save-TestRunNativeArtifacts($Run, [string] $Label) {
         $identity = [TestRunEvidenceV2.Native]::Identity($beforePins[0])
         $before = Get-TestRunEvidenceInventory $source $beforePins | ConvertTo-Json -Depth 12 -Compress
     } finally { for ($i=$beforePins.Count-1; $i -ge 0; $i--) { $beforePins[$i].Dispose() } }
-    Write-TestRunEvidenceRecord (Join-Path $Run.Directory ($Label+'.intent.json')) @{source=$source;destination=$destination;identity=$identity;inventory=($before | ConvertFrom-Json)}
-    # Fixed immediate child of this pinned repository's .build; same-volume rename, no recursive deletion.
+    Write-TestRunEvidenceRecord (Join-Path $Run.Directory ($labelName+'.intent.json')) @{source=$source;destination=$destination;identity=$identity;inventory=($before | ConvertFrom-Json)}
+    # Fixed native-artifact/profile child of the pinned repository; same-volume rename, no recursive deletion.
     [IO.Directory]::Move($source, $destination)
     $afterPins = [Collections.Generic.List[IDisposable]]::new()
     try {
         $afterPins.Add([TestRunEvidenceV2.Native]::Pin($destination, $true))
         $after = Get-TestRunEvidenceInventory $destination $afterPins | ConvertTo-Json -Depth 12 -Compress
-        Write-TestRunEvidenceRecord (Join-Path $Run.Directory ($Label+'.after.json')) @{identity=[TestRunEvidenceV2.Native]::Identity($afterPins[0]);inventory=($after | ConvertFrom-Json)}
+        Write-TestRunEvidenceRecord (Join-Path $Run.Directory ($labelName+'.after.json')) @{identity=[TestRunEvidenceV2.Native]::Identity($afterPins[0]);inventory=($after | ConvertFrom-Json)}
         if ([TestRunEvidenceV2.Native]::Identity($afterPins[0]) -cne $identity -or $after -cne $before) {
             throw "Native artifact rename failed preservation verification; evidence retained at $destination"
         }
     } finally { for ($i=$afterPins.Count-1; $i -ge 0; $i--) { $afterPins[$i].Dispose() } }
+    if ($entry.profile -and $Label -ceq 'native-artifacts') {
+        # Current failure dumps need their actual linked images and PDBs. Prior
+        # dumps remain historical and are never paired with replacement binaries.
+        $images = Join-Path $Run.Path ($labelName+'-images.zip')
+        $bindings = @()
+        $imagePins = [Collections.Generic.List[IDisposable]]::new()
+        $archive = [IO.Compression.ZipFile]::Open($images,[IO.Compression.ZipArchiveMode]::Create)
+        try {
+        foreach ($name in @('DxUi.ControlTests','DxUi.FoundationTests','DxUi.EmbeddedTests')) {
+            foreach ($extension in @('.exe','.pdb')) {
+                $image = Join-Path ([IO.Path]::GetDirectoryName($source)) ($name+$extension)
+                if (-not (Test-Path -LiteralPath $image -PathType Leaf)) { continue }
+                $imagePins.Add([TestRunEvidenceV2.Native]::Pin($image,$false))
+                $sha = (Get-FileHash -LiteralPath $image -Algorithm SHA256).Hash
+                # Stream directly: staging three full linked PDB copies can exhaust
+                # the volume before a failed run's evidence can be completed.
+                $zipEntry = [IO.Compression.ZipFileExtensions]::CreateEntryFromFile($archive,$image,($name+$extension),[IO.Compression.CompressionLevel]::Optimal)
+                $bindings += @{file=($name+$extension);sha256=$sha;bytes=([IO.FileInfo]::new($image)).Length}
+            }
+        }
+        $archive.Dispose();$archive=$null
+        $archive = [IO.Compression.ZipFile]::OpenRead($images)
+        foreach ($binding in $bindings) {
+            $zipEntry = $archive.GetEntry($binding.file)
+            if (-not $zipEntry -or $zipEntry.Length -ne $binding.bytes) { throw 'Failure image archive member length differs.' }
+            $stream = $zipEntry.Open()
+            try { $actual = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($stream)) } finally { $stream.Dispose() }
+            if ($actual -cne $binding.sha256) { throw 'Failure image archive changed bytes.' }
+        }
+        } finally {
+            if ($archive) { $archive.Dispose() }
+            for ($i=$imagePins.Count-1; $i -ge 0; $i--) { $imagePins[$i].Dispose() }
+        }
+        Write-TestRunEvidenceRecord (Join-Path $Run.Path ($labelName+'-images.identity.json')) @{archive=($labelName+'-images.zip');files=$bindings}
+    }
+    } finally { for ($i=$parentPins.Count-1; $i -ge 0; $i--) { $parentPins[$i].Dispose() } }
+    }
 }
 
 function Get-TestRunEvidenceInventory([string] $Path, [Collections.Generic.List[IDisposable]] $Pins) {

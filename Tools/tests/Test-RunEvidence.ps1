@@ -212,6 +212,95 @@ try {
     Assert-Evidence ([IO.File]::ReadAllText((Join-Path $run.Path 'native-artifacts/new.png:scenario')) -ceq 'original native scenario') 'Native capture stream changed in rename.'
 } finally { if (-not $run.Closed) { Complete-TestRunEvidence $run $false } }
 
+$failureRoot = New-Fixture 'native-failures'
+$profile = Join-Path $failureRoot '.build/ARM64/ASan Debug'
+$failureOutput = Join-Path $profile 'FailureEvidence'
+[void][IO.Directory]::CreateDirectory($failureOutput)
+[IO.File]::WriteAllText((Join-Path $failureOutput 'old.record'),'prior failure')
+[IO.File]::WriteAllText((Join-Path $profile 'DxUi.ControlTests.exe'),'actual fixture image')
+[IO.File]::WriteAllText((Join-Path $profile 'DxUi.ControlTests.pdb'),'actual fixture symbols')
+$run = Start-TestRunEvidence $failureRoot @{platform='ARM64';configuration='ASan Debug';scenario='failed-native-preflight'} -CaptureNativeArtifacts
+try {
+    Assert-Evidence ((Test-Path (Join-Path $run.Path 'previous-native-artifacts-failures/old.record')) -and
+        -not (Test-Path $failureOutput)) 'Earlier profile failure evidence was lost or reused as current evidence.'
+    [void][IO.Directory]::CreateDirectory($failureOutput)
+    [IO.File]::WriteAllText((Join-Path $failureOutput 'original.dmp'),'original dump bytes')
+    [IO.File]::WriteAllText((Join-Path $failureOutput 'original.dmp:scenario'),'original crash context')
+    Complete-TestRunEvidence $run $false
+    $completed = Get-Content (Join-Path $run.Directory 'completed.json') -Raw|ConvertFrom-Json
+    Assert-Evidence ($completed.outcome -ceq 'failed-or-interrupted') 'A failed native preflight became a successful run.'
+    $saved = Join-Path $run.Path 'native-artifacts-failures/original.dmp'
+    Assert-Evidence ([IO.File]::ReadAllText($saved) -ceq 'original dump bytes' -and
+        [IO.File]::ReadAllText($saved+':scenario') -ceq 'original crash context') 'Original dump bytes or named context stream changed.'
+    $bindings = Get-Content (Join-Path $run.Path 'native-artifacts-failures-images.identity.json') -Raw|ConvertFrom-Json
+    Assert-Evidence ($bindings.files.Count -eq 2) 'Current executable and PDB union differs.'
+    $images = [IO.Compression.ZipFile]::OpenRead((Join-Path $run.Path $bindings.archive))
+    try {
+    foreach ($binding in $bindings.files) {
+        $image = $images.GetEntry($binding.file)
+        Assert-Evidence ($image -and $image.Length -eq $binding.bytes) 'Current failure image archive member length differs.'
+        $stream = $image.Open()
+        try { $sha=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($stream)) } finally { $stream.Dispose() }
+        Assert-Evidence ($sha -ceq (Get-FileHash (Join-Path $profile $binding.file)).Hash -and
+            $binding.sha256 -ceq $sha) 'Current failure image or PDB archive bytes differ.'
+    }
+    } finally { $images.Dispose() }
+    Assert-Evidence (-not (Test-Path (Join-Path $run.Path 'native-artifacts-failures-images'))) 'Native image evidence staged uncompressed PDB copies.'
+    Assert-Evidence (-not (Test-Path (Join-Path $run.Path 'previous-native-artifacts-failures-images'))) 'Prior dumps were paired with replacement images.'
+} finally { if (-not $run.Closed) { Complete-TestRunEvidence $run $false } }
+Reject-Evidence { Start-TestRunEvidence $failureRoot @{platform='../outside';configuration='Debug'} -CaptureNativeArtifacts } 'An unowned native failure profile was accepted.'
+$run = Start-TestRunEvidence $failureRoot @{platform='ARM64';configuration='ASan Debug'} -CaptureNativeArtifacts
+$run.FailureDirectory = Join-Path $ScratchRoot 'unowned-profile'
+Reject-Evidence { Complete-TestRunEvidence $run $false } 'A mutated profile escaped the exact native output path.'
+$reparseRoot = New-Fixture 'failure-profile-reparse'
+$reparseTarget = New-Fixture 'owned-reparse-target'
+[void][IO.Directory]::CreateDirectory((Join-Path $reparseTarget 'FailureEvidence'))
+[IO.File]::WriteAllText((Join-Path $reparseTarget 'FailureEvidence/original.record'),'original reparse target')
+$platformRoot = Join-Path $reparseRoot '.build/ARM64'
+[void][IO.Directory]::CreateDirectory($platformRoot)
+$junction = Join-Path $platformRoot 'Debug'
+try {
+    [void](New-Item -ItemType Junction -Path $junction -Target $reparseTarget)
+    Reject-Evidence { Start-TestRunEvidence $reparseRoot @{platform='ARM64';configuration='Debug'} -CaptureNativeArtifacts } 'A native profile reparse point was followed.'
+    Assert-Evidence ([IO.File]::ReadAllText((Join-Path $reparseTarget 'FailureEvidence/original.record')) -ceq 'original reparse target') 'Reparse refusal changed its target evidence.'
+} finally {
+    if (Test-Path -LiteralPath $junction) { [IO.Directory]::Delete($junction) }
+}
+
+# Prove collection refuses a live owned child even when its name is not a known test runner.
+$activeRoot = New-Fixture 'active-failure-profile'
+$activeProfile = Join-Path $activeRoot '.build/x64/Debug'
+$activeEvidence = Join-Path $activeProfile 'FailureEvidence'
+[void][IO.Directory]::CreateDirectory($activeEvidence)
+[IO.File]::WriteAllText((Join-Path $activeEvidence 'original.record'),'owned active evidence')
+$workerSource = Join-Path $activeRoot 'OwnedWaiter.cs'
+$workerImage = Join-Path $activeProfile 'OwnedWaiter.exe'
+[IO.File]::WriteAllText($workerSource,'using System; using System.Threading; public static class OwnedWaiter { public static void Main() { Console.WriteLine("owned-ready"); Thread.Sleep(Timeout.Infinite); } }')
+$compiler = Join-Path $env:WINDIR 'Microsoft.NET/Framework64/v4.0.30319/csc.exe'
+$oldTemp=$env:TEMP;$oldTmp=$env:TMP
+try {
+    $env:TEMP=$activeRoot;$env:TMP=$activeRoot
+    & $compiler /nologo /warn:4 /warnaserror /target:exe ('/out:'+$workerImage) $workerSource
+    if ($LASTEXITCODE) { throw 'Owned process fixture compilation failed.' }
+} finally { $env:TEMP=$oldTemp;$env:TMP=$oldTmp }
+$start = [Diagnostics.ProcessStartInfo]::new($workerImage)
+$start.UseShellExecute=$false;$start.CreateNoWindow=$true;$start.RedirectStandardOutput=$true;$start.RedirectStandardError=$true
+$worker=[Diagnostics.Process]::Start($start)
+$unexpectedRun=$null
+try {
+    $ready=$worker.StandardOutput.ReadLineAsync()
+    Assert-Evidence ($ready.Wait(10000) -and $ready.GetAwaiter().GetResult() -ceq 'owned-ready' -and -not $worker.HasExited) 'Owned independent process did not reach its live boundary.'
+    $refused=$false
+    try { $unexpectedRun=Start-TestRunEvidence $activeRoot @{platform='x64';configuration='Debug'} -CaptureNativeArtifacts }
+    catch { $refused=$_.Exception.Message.Contains('Native artifact output is in use',[StringComparison]::Ordinal) }
+    Assert-Evidence $refused 'Collection ignored an active independently named executable in its exact profile.'
+    Assert-Evidence ([IO.File]::ReadAllText((Join-Path $activeEvidence 'original.record')) -ceq 'owned active evidence') 'Collection moved active profile failure evidence.'
+} finally {
+    if (-not $worker.HasExited) { $worker.Kill();[void]$worker.WaitForExit(10000) }
+    $worker.Dispose()
+    if ($unexpectedRun -and -not $unexpectedRun.Closed) { Complete-TestRunEvidence $unexpectedRun $false }
+}
+
 # FindFirstFile metadata can be stale on a busy NTFS host. Keep the stale provider objects and reverse
 # their enumeration, while the actual files have newer metadata. A safe rename must still verify exactly.
 $cachedRoot = New-Fixture 'cached-native-metadata'
