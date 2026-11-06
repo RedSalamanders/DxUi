@@ -1,0 +1,74 @@
+{
+  "schemaVersion": 1,
+  "runId": 42115893044,
+  "url": "https://github.com/RedSalamanders/DxUi/actions/runs/42115893044",
+  "harnessCommit": "5ab45734a15e4f0a7908d29e69d1ce39e001a73b",
+  "blocks": 12,
+  "allocation": "independent-ABBA-BAAB-v1",
+  "baseline": "0acd56080d97d2b45fe8e92395496dcd2cf5b911",
+  "candidate": "f765aeca5e059dbe768841b605b1be6a5f6ea942",
+  "summarySha256": "1D92A4E6F27F8ED3673306954BA80F10F72E44B2DA6EC915395530719C6A2C41",
+  "originalVerdictSha256": "F97E89F3ABA2DEF9A67361DEC2E2FCA6756727ECEEAF4C2EFA089192EB3B8BD9",
+  "replay": {
+    "baseline": "0acd56080d97d2b45fe8e92395496dcd2cf5b911",
+    "candidate": "f765aeca5e059dbe768841b605b1be6a5f6ea942",
+    "canonicalConclusion": "inconclusive",
+    "policyStatus": "policy-review-required",
+    "policyQualified": false,
+    "dualJudgeDiagnosticValid": false,
+    "dualJudgeDiagnosticReason": "Scenario Default judges do not agree on the same attested base/candidate sources (dirty/frameP95Ms (improved -> within-noise)).",
+    "rawReceiptHashesAndIdentitiesVerified": 144,
+    "controls": [
+      {
+        "scenario": "Default",
+        "total": 24,
+        "unstable": 24,
+        "missing": 0
+      },
+      {
+        "scenario": "MultilineGrid",
+        "total": 24,
+        "unstable": 24,
+        "missing": 0
+      },
+      {
+        "scenario": "MultilineGridDistinct",
+        "total": 24,
+        "unstable": 24,
+        "missing": 0
+      }
+    ],
+    "reportFiles": 437,
+    "outerArtifactDigestIndependentlyVerified": false
+  },
+  "retainedMeasuredImages": [
+    {
+      "executable": "DxUi.EmbeddedTests.exe",
+      "role": "baseline",
+      "commit": "0acd56080d97d2b45fe8e92395496dcd2cf5b911",
+      "binarySha256": "E01E4EF64AE8A308089439108382E3A4E0C17F23B678C18FA8531AC9A1A42354"
+    },
+    {
+      "executable": "DxUi.EmbeddedTests.exe",
+      "role": "candidate",
+      "commit": "f765aeca5e059dbe768841b605b1be6a5f6ea942",
+      "binarySha256": "DA0460AC4C662E3DB5C962BB45E1603B1BFB74BD05E3BFD56642CDF57759DD45"
+    }
+  ],
+  "candidateAcceptance": false,
+  "currentImplementationPerformanceAcceptance": false,
+  "limits": [
+    "manual revision pair, not a PR merge-ref study",
+    "unqualified base policy; no policy acceptance",
+    "all 72 same-binary controls unstable",
+    "dual-judge agreement fails on Default dirty/frameP95Ms",
+    "144 raw receipt hashes/identities and both retained measured image hashes verify",
+    "outer GitHub artifact wrapper digests are reported only"
+  ],
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-complex-ui-three-scenario-paired-v3",
+  "benchmarkInputs": {
+    "Samples/ComplexUi/ComplexUiScene.h": "CCF5DD667CDC92A4046B3B7FB88A1307F814AA92653D1BF7E8396B427A89F2E7",
+    "Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h": "AC0B742110C592CF09EFB8610EB20206DD619AFBF8080ACBF07B140CBBB84E2A"
+  }
+}

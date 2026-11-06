@@ -1,7 +1,7 @@
 # DxUi remaining correctness and qualification
 
 Status: ACTIVE
-Updated: 5 November 2026
+Updated: 6 November 2026
 Owner: DxUi maintainers; consumer policy and adoption remain with each application.
 
 This is the **only active DxUi plan**. The [consolidation record](../Done/WipConsolidation_2026-11-04.md)
@@ -34,6 +34,9 @@ profiles, the real ASan probe, the 19-suite Release union and RedTilde's origina
 `d0179db6751d8eb3d56019950a5920500c024594`. Its body records an earlier validation checkpoint and pending
 extended work. Treat checked failures, host-owned fatal protocol 2 and SDK/PDB changes as that in-progress
 candidate, not main's contract or an accepted consumer migration.
+
+
+Current diagram/math/document/input implementation: `8dc328de`, API 4. The [scoped closeout](../Done/DiagramMathAndWorkspaceCorrections_2026-11-06.md) records six zero-warning builds, all nineteen noninteractive suites in each x64 profile, real ASan detection, 593 actual compiled inputs, native raster/geometry regressions and refreshed gallery. It closes the supplied examples, D3/D5, CTRL-01, MD-01/02/04 and MATH-01; D4 and the remaining parsing, rendering, failure and qualification rows retain their owners.
 
 ## Priority 0 — lifetime and failure boundaries
 
@@ -80,7 +83,7 @@ This coordinates the active API work; it does not adopt API 5 in any application
 - [ ] Implement D1: cosmetic code ink/line numbers/whitespace never withhold content, cancel a gesture or
   refuse input; do bounded viewport/change work and show the previous cosmetic state while preparing
   (EDIT-01/02/04, RENDER-01/14).
-- [ ] Implement D3's 5 November decision: permit natural source navigation/editing across the former active
+- [x] Implement D3's 5 November decision: permit natural source navigation/editing across the former active
   interval, including Backspace/Delete/Tab and nested fences. Update the source-editing scope from the current
   caret/selection instead of trapping input at an old boundary (EDIT-07/11).
 - [ ] Resolve remaining editor/command correctness: IME underline staleness, disclosure/zoom geometry loss,
@@ -90,13 +93,13 @@ This coordinates the active API work; it does not adopt API 5 in any application
 <a id="d-i1"></a>
 ### D-I1 — Unicode, clipboard and native input
 
-- [ ] Preserve pending surrogate leads across `VK_PACKET` key transitions/modifiers in both editors and hosts
+- [x] Preserve pending surrogate leads across `VK_PACKET` key transitions/modifiers in both editors and hosts
   (CTRL-01), with real-message replay and no weakened assertions.
 - [ ] Reconcile the native IME capacity and quoted-file-paste fixes required by RedTilde DX-4/DX-3 against the
   exact candidate; keep source, selection, history, decline paths and callback ownership intact.
 - [ ] Implement D4's selected text-first default when Unicode and bitmap formats coexist, with an explicit
   application image-first option and source-preserving decline behavior.
-- [ ] Implement D5: classify `//host/...` and `file://host/...` image destinations as network requests and
+- [x] Implement D5: classify `//host/...` and `file://host/...` image destinations as network requests and
   apply remote-image permission; never route them through an ungated local-file path.
 - [ ] Qualify remaining focus/TSF/menu closure and mask/IME findings from the
   [prior-review register](../Done/ProductionReview_2026-11-02/prior-closure.md). Preserve unexplained historical
@@ -105,16 +108,16 @@ This coordinates the active API work; it does not adopt API 5 in any application
 <a id="d-m1"></a>
 ### D-M1 — Markdown, math and diagram correctness
 
-- [ ] Reproduce and fix the 5 November examples: `graph BT` pipeline ranks/compact fan-in routing,
+- [x] Reproduce and fix the 5 November examples: `graph BT` pipeline ranks/compact fan-in routing,
   class `direction LR` with `Document <|-- Markdown`, wide accents/dot weight/vector clearance,
   and gathered matrices/angle delimiters with non-overlapping row spacing. Preserve source and use
   deterministic native captures with source/DPI provenance for the Mermaid/LaTeX reference comparisons.
-- [ ] Correct deferred autolink suffix loss, front-matter incremental root reuse and CR-only YAML handling
+- [x] Correct deferred autolink suffix loss, front-matter incremental root reuse and CR-only YAML handling
   (MD-01/02/04). Expected malformed input must stay bounded and editable rather than aborting a process.
 - [ ] Resolve display-block interruption and pathological scan budgets (MD-03/05/06/07), with deterministic
   seeds, independent expected results and cancellation/step limits.
-- [ ] Complete display-style math cells and outstanding diagram note/routing/budget issues (MATH-01,
-  FLOW-03/05), preserving exact source, local editing, geometry, history, UIA and resource limits.
+- [x] Complete display-style aligned/gathered/alignat cells and centered script-style substack (MATH-01); preserve source and measured row/delimiter geometry in the [scoped closeout](../Done/DiagramMathAndWorkspaceCorrections_2026-11-06.md).
+- [ ] Complete outstanding diagram note/routing/budget issues (FLOW-03/05), preserving exact source, local editing, geometry, history, UIA and resource limits.
 
 FLOW-01/02's published fixes are complete. Do not recreate them as new work; independent regressions and
 any *different* remaining failure-channel problem belong to D-A1.
@@ -167,7 +170,7 @@ omitting an ID from this summary does not dispose of it.
 The fresh source-paired [run 42106904205](https://github.com/RedSalamanders/DxUi/actions/runs/42106904205)
 stopped at benchmark attestation before measurement: a module-name lookup saw two checkout modules.
 The [scoped tooling closeout](../Done/PairedAttestationModuleOwnership_2026-11-05.md) preserves the exact
-failure and independent repair. No performance verdict exists for that run; the repaired harness needs a fresh run.
+failure and independent repair. No performance verdict exists for that original run. The repaired manual pair [42115893044](https://github.com/RedSalamanders/DxUi/actions/runs/42115893044) completed measurement but remains inconclusive: the base policy is unqualified, all 72 controls are unstable and dual-judge replay disagrees on Default dirty/frameP95Ms. All 144 raw receipt hashes/identities verify. This is the older 0acd5608/f765aeca pair, not acceptance for 8dc328de.
 
 - [ ] Qualify the trusted measurement policy and controls independently. Preserve timing/memory witnesses,
   exact raw reports/seals, missing-context/refusal history and unstable-control verdicts.
@@ -230,21 +233,21 @@ Approved D0/D1/D2 remain the lifetime, cosmetic-preparation and per-element poli
 privacy operation is approved but unexecuted here; D10 publication is completed. Details and all prior answers remain
 in [the archived decision register](../Done/ProductionReview_2026-11-02.md#wave-0--decisions-that-unblock-implementation).
 
-Owner choices received on **5 November 2026** are requirements for the remaining implementation, not evidence
-that the current library already satisfies them:
+Owner choices received on **5 November 2026** are requirements. D3 and D5 are implemented and qualified in
+the current scoped closeout; D4 remains pending:
 
 - **D3 — natural source editing/navigation.** Do not contain edits inside the old active region. Allow the
   source-editing scope to follow natural caret/selection movement. This replaces the archived containment recommendation.
 - **D4 — text-first paste.** Prefer available Unicode text over a bitmap by default; applications may opt into image-first.
 - **D5 — network image destinations.** Treat both `//host/...` and `file://host/...` as network and apply remote-image permission.
 
-The [input contract](../../UI/UI_InputAndAccessibility.md#selected-policies-awaiting-implementation) owns these
-intended behaviors. Their code/regression/capability closeout remains unchecked in D-E1/D-I1 above.
+The [current input contract](../../UI/UI_InputAndAccessibility.md#current-input-contract) owns D3/D5 and
+the [pending paste policy](../../UI/UI_InputAndAccessibility.md#selected-paste-policy-awaiting-implementation)
+owns D4. D7's aligned/gathered/alignat display-style behavior is implemented in the current math closeout.
 
 | Still open | Required owner choice |
 | --- | --- |
 | D6 | Platform-specific color-glyph/script fallback. |
-| D7 | Display-style parity of aligned/gathered/equation cells. |
 | D8 | Public Debug declarations and supported API boundary. |
 | D11 | Broader legacy Done-checkbox disposition. This cleanup handles transferred WIP items, not all old Done records. |
 | D12 | Broader fragment administration; current fragment/fold policy remains authoritative. |
