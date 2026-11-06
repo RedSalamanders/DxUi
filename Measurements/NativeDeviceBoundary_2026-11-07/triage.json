@@ -1,0 +1,232 @@
+{
+  "benchmarkInputs": {
+    "originalFailureRecord": "DFE29717D893782AB5F16EE452B8F85CEF5B155DA5B4DA6C5A466BF0A14F4F91",
+    "originalFailureDump": "2AEA1AD475D1A3A731327706F0C3F1F8B129101D4B9EBAC123ABACCF9D6E8FB8",
+    "nativeFactoryFixture": "F629F22144754D7454CF0641579D533339ADC7AB3888C3FC06FFA413453E6A81"
+  },
+  "counterfactual": {
+    "allMembersVerified": true,
+    "archiveSha256": "2E22498CE6CB9C06527E8B3573670981ACCDEC94C819D0BBE77202AA48E9A8DA",
+    "scope": "Focused patch-object comparison with controlled native implementation; no public ABI change",
+    "results": [
+      {
+        "warnings": 0,
+        "errors": 0,
+        "buildLogSha256": "E75DB225741813FF6E7D7449DC6A0268576F179FE263279B52D7C8FE896F40D9",
+        "exitCode": -1073740791,
+        "runLogSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+        "exeSha256": "37D525DB9D6A73AF492AEBB49A5958294CF2CCF1379E96CCE48F6B5E29BD28C8",
+        "kind": "baseline"
+      },
+      {
+        "warnings": 0,
+        "errors": 0,
+        "buildLogSha256": "318B11B4671EEECFEA5259434D221949D92FB6BEC84B17FF351A31500B2E2FF1",
+        "exitCode": 0,
+        "runLogSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+        "exeSha256": "78DC878F144195CF740065D4A9CB36ED86B33164C07E04356A1E8507C62E2EE9",
+        "kind": "candidate"
+      }
+    ],
+    "files": [
+      {
+        "bytes": 929792,
+        "sha256": "37D525DB9D6A73AF492AEBB49A5958294CF2CCF1379E96CCE48F6B5E29BD28C8",
+        "path": "baseline/NativeAllowanceProbe.exe"
+      },
+      {
+        "bytes": 18165760,
+        "sha256": "37A8538464766AE4EC2917F02DA52C7BE9D4C9B72FCD21CFBD578383CC065072",
+        "path": "baseline/NativeAllowanceProbe.pdb"
+      },
+      {
+        "bytes": 85960,
+        "sha256": "4EF4EB2F2D5A35719270B7E93C92C84C005E2052BE6EDC1D92B8647E62C71FCE",
+        "path": "baseline/FailureEvidence/15196-134384804338755836/failure.dmp"
+      },
+      {
+        "bytes": 2141,
+        "sha256": "0569F7A4727B2E97CF38B23CCC7FF9116368AC98BFDFB7333DEAD9C8B4761E2C",
+        "path": "baseline/FailureEvidence/15196-134384804338755836/failure.record"
+      },
+      {
+        "bytes": 87956,
+        "sha256": "B06D0166D887DFC68549A470D4DF54CDC5580107A6FAA7446E83E339D88803C5",
+        "path": "baseline/FailureEvidence/49108-134384817172328195/failure.dmp"
+      },
+      {
+        "bytes": 2142,
+        "sha256": "FBEAF3170D83876FF3E3ABB0BF68D82064D0D6052957E351F3A659AE6D91492A",
+        "path": "baseline/FailureEvidence/49108-134384817172328195/failure.record"
+      },
+      {
+        "bytes": 931328,
+        "sha256": "78DC878F144195CF740065D4A9CB36ED86B33164C07E04356A1E8507C62E2EE9",
+        "path": "candidate/NativeAllowanceProbe.exe"
+      },
+      {
+        "bytes": 18239488,
+        "sha256": "DDDD457BB76C6368032A9B89C20D73B5DDB067F8FA3B2D79DC09FE69F0A00A2D",
+        "path": "candidate/NativeAllowanceProbe.pdb"
+      },
+      {
+        "bytes": 125475,
+        "sha256": "3C1116E1F931750EE0205931CB1957D8235EA48DACC1BD56A88C1DAD022D9D41",
+        "path": "probe/baseline-original-inputs.json"
+      },
+      {
+        "bytes": 4975,
+        "sha256": "E90AE789F5E9F3094CBC23DE28724636D4A69C744F13AF80FC36E22352849C20",
+        "path": "probe/NativeAllowanceBaseline.vcxproj"
+      },
+      {
+        "bytes": 4966,
+        "sha256": "7237ABF8975CC0CE4E9466B085CDE2EEBF3320A3304451DCB0FEC25DCC020AFB",
+        "path": "probe/NativeAllowanceCandidate.vcxproj"
+      },
+      {
+        "bytes": 458,
+        "sha256": "8A7AC7C52499EB9CB912D87147547523BAFB0330B9DCA191EDDA8BC578D72E69",
+        "path": "probe/NativeAllowanceProbe.cpp"
+      },
+      {
+        "bytes": 248079,
+        "sha256": "9D369AFE024B55FDFC748B2BA757725E4261F835E01DE82B2C0E9C64EAA531EF",
+        "path": "baseline/DxUi.WindowHost.cpp"
+      },
+      {
+        "bytes": 248444,
+        "sha256": "FD7843B7AA88D4A09C456F6148DF561939315D9568F248C03001E17791FF1F3D",
+        "path": "candidate/src/Controls/DxUi.WindowHost.cpp"
+      },
+      {
+        "bytes": 1564,
+        "sha256": "CE7925D0806A49311FB41FA1D6A8852824A1C77C67F4B22C70C98FD5C32D23CE",
+        "path": "candidate/src/Support/NativeRendering.h"
+      },
+      {
+        "bytes": 11145,
+        "sha256": "F629F22144754D7454CF0641579D533339ADC7AB3888C3FC06FFA413453E6A81",
+        "path": "candidate/Tests/Controls/Controls.Tests.NativeDevicePolicy.h"
+      },
+      {
+        "bytes": 244,
+        "sha256": "E75DB225741813FF6E7D7449DC6A0268576F179FE263279B52D7C8FE896F40D9",
+        "path": "logs/baseline-build.log"
+      },
+      {
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+        "path": "logs/baseline-run.log"
+      },
+      {
+        "bytes": 227,
+        "sha256": "318B11B4671EEECFEA5259434D221949D92FB6BEC84B17FF351A31500B2E2FF1",
+        "path": "logs/candidate-build.log"
+      },
+      {
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+        "path": "logs/candidate-run.log"
+      }
+    ]
+  },
+  "workloadOwner": "DxUi",
+  "inputHash": "2E22498CE6CB9C06527E8B3573670981ACCDEC94C819D0BBE77202AA48E9A8DA",
+  "limits": [
+    "The earlier output-less ARM64 Grid failure remains unclassified",
+    "Debug native PAC-aware named-origin verification passes before the later paint failure; this is not complete native ARM64 qualification",
+    "The controlled factory verifies unchanged HRESULT, hardware/WARP order and optional missing-debug-layer retry; it does not identify the original driver HRESULT",
+    "Escaping exceptions and reentrant SDK scopes retain the fatal policy",
+    "No consumer, foreground, physical-device or formal performance acceptance"
+  ],
+  "hosted": {
+    "originalFrames": [
+      {
+        "offset": "2eb7c4c",
+        "line": 91,
+        "file": "src/Controls/DxUi.WindowHost.cpp",
+        "symbol": "`DxUi::CreateD3D11DeviceWithWarpFallback'::`2'::<lambda_1>::operator()"
+      },
+      {
+        "offset": "2ec2fb0",
+        "line": 112,
+        "file": "src/Controls/DxUi.WindowHost.cpp",
+        "symbol": "DxUi::CreateD3D11DeviceWithWarpFallback"
+      },
+      {
+        "offset": "2ecd59c",
+        "line": 717,
+        "file": "src/Controls/DxUi.WindowHost.cpp",
+        "symbol": "DxUi::`anonymous namespace'::EnsureSharedWindowHostGraphicsResources"
+      }
+    ],
+    "images": [
+      {
+        "bytes": 64424448,
+        "file": "DxUi.ControlTests.exe",
+        "sha256": "47DA701DC7156221E220C72ED0708FFC4DFBB323FCEC8F3257647BD00AAD3132"
+      },
+      {
+        "bytes": 130633728,
+        "file": "DxUi.ControlTests.pdb",
+        "sha256": "129BDB57EB351FD85820C41B166138BEB6AFC230C4810A00AC177ECB869800C2"
+      }
+    ],
+    "runId": 42302215623,
+    "conclusion": "failure",
+    "laterFailure": "Unfiltered Grid exits 0xC0000409 during device creation before D3D11CreateDevice returns; its original HRESULT is not known",
+    "artifacts": [
+      {
+        "id": 13547875273,
+        "name": "qualification-workspace-x64-Debug",
+        "bytes": 85253481,
+        "sha256": "7be60cfbabd7c4c7772873ce37f4d2d93be8f31c7e87b881490777b62c65f40b",
+        "archive": "qualification-workspace-x64-Debug.zip"
+      },
+      {
+        "id": 13547426281,
+        "name": "qualification-x64-Debug",
+        "bytes": 82366004,
+        "sha256": "3498f3f477c4fb33f72caca102a1315e2e03c9cd018baf948896f9cda35bb2c3",
+        "archive": "qualification-x64-Debug.zip"
+      },
+      {
+        "id": 13546941986,
+        "name": "qualification-workspace-ARM64-Debug",
+        "bytes": 80317327,
+        "sha256": "57f3f17b80d5a91954668ff9fcc4f7bbcf63ef428bdac0b145882266bcee2c06",
+        "archive": "qualification-workspace-ARM64-Debug.zip"
+      },
+      {
+        "id": 13545884552,
+        "name": "qualification-ARM64-Debug",
+        "bytes": 80310383,
+        "sha256": "26f4b1a16e4da669b699ed03ee5b81ecd038abf6638094da092444b007378c9a",
+        "archive": "qualification-ARM64-Debug.zip"
+      },
+      {
+        "id": 13545830212,
+        "name": "msvc-14.52-597e007a3c4b42cdb46b91fe6bbed15d",
+        "bytes": 1364386,
+        "sha256": "e2fec32efd8e082bfa9006f5f4286d3a9e026317e36ea7d8bf28e82b43865459",
+        "archive": "msvc-14.52-597e007a3c4b42cdb46b91fe6bbed15d.zip"
+      },
+      {
+        "id": 13544528316,
+        "name": "msvc-14.52-02cd5802be6941b5a62870b906d95ee3",
+        "bytes": 1325455,
+        "sha256": "3eec3bc57d99b1099f171e3b5e598e921f1f29eb68225f5210c16c02c6113628",
+        "archive": "msvc-14.52-02cd5802be6941b5a62870b906d95ee3.zip"
+      }
+    ],
+    "namedOriginPacQueries": {
+      "GridGroupThrowOrigin": 4,
+      "GridCellThrowOrigin": 4
+    },
+    "sourceCommit": "ac495f569d7b43203bec2a4022dc6cbcc4d1651e",
+    "allOriginalWrapperAndPayloadBytesMatched": true
+  },
+  "claim": "Native D3D11 creation exception-boundary diagnosis and focused regression; complete current-source matrix and native ARM64 acceptance remain separate",
+  "fixture": "dxui-native-device-exception-boundary"
+}
