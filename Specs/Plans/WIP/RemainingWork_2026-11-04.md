@@ -211,6 +211,9 @@ these disagreements and [the retained triage](../../../Measurements/FailurePolic
 The owner accepted the separate construction study's measured safety overhead; this does not qualify the frame
 policy, erase its findings or close this section.
 
+- [x] Correct empty-verdict presentation: policy admission that withholds all metric verdicts is labeled
+  unassessed and retains its refusal reasons, without implying an absence of regressions. The legacy and
+  candidate-asserted-policy counterexamples are separate from policy qualification below.
 - [ ] Qualify the trusted measurement policy and controls independently. Preserve timing/memory witnesses,
   exact raw reports/seals, missing-context/refusal history and unstable-control verdicts.
 - [ ] Complete the bounded timing/heap/resource attribution pilot before a fresh canonical same-binary A/A;

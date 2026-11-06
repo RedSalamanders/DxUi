@@ -929,7 +929,10 @@ function ConvertTo-BenchmarkMarkdown {
     $lines.Add('')
     $lines.Add('### Flagged metrics')
     $lines.Add('')
-    if ($flagged.Count -eq 0) { $lines.Add('None: no metric regressed or improved.') }
+    if ($flagged.Count -eq 0) {
+        $assessed = @($Conclusion['Scenarios'] | Where-Object { @($_['Metrics']).Count -gt 0 }).Count -gt 0
+        $lines.Add($(if ($assessed) { 'None: no metric regressed or improved.' } else { 'Not assessed: no metric verdicts were admitted.' }))
+    }
     else {
         $lines.Add('| Scenario | Phase | Metric | Baseline median | Candidate median | Change | Raw p | Holm-adjusted p | Band | Same-binary controls | Baseline raw max | Candidate raw max | Median budget | Peak budget | Outcome |')
         $lines.Add('|---|---|---|---:|---:|---:|---:|---:|---:|---|---:|---:|---|---|---|')
