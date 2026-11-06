@@ -260,6 +260,40 @@ try {
     if (Test-Path -LiteralPath $junction) { [IO.Directory]::Delete($junction) }
 }
 
+# Prove collection refuses a live owned child even when its name is not a known test runner.
+$activeRoot = New-Fixture 'active-failure-profile'
+$activeProfile = Join-Path $activeRoot '.build/x64/Debug'
+$activeEvidence = Join-Path $activeProfile 'FailureEvidence'
+[void][IO.Directory]::CreateDirectory($activeEvidence)
+[IO.File]::WriteAllText((Join-Path $activeEvidence 'original.record'),'owned active evidence')
+$workerSource = Join-Path $activeRoot 'OwnedWaiter.cs'
+$workerImage = Join-Path $activeProfile 'OwnedWaiter.exe'
+[IO.File]::WriteAllText($workerSource,'using System; using System.Threading; public static class OwnedWaiter { public static void Main() { Console.WriteLine("owned-ready"); Thread.Sleep(Timeout.Infinite); } }')
+$compiler = Join-Path $env:WINDIR 'Microsoft.NET/Framework64/v4.0.30319/csc.exe'
+$oldTemp=$env:TEMP;$oldTmp=$env:TMP
+try {
+    $env:TEMP=$activeRoot;$env:TMP=$activeRoot
+    & $compiler /nologo /warn:4 /warnaserror /target:exe ('/out:'+$workerImage) $workerSource
+    if ($LASTEXITCODE) { throw 'Owned process fixture compilation failed.' }
+} finally { $env:TEMP=$oldTemp;$env:TMP=$oldTmp }
+$start = [Diagnostics.ProcessStartInfo]::new($workerImage)
+$start.UseShellExecute=$false;$start.CreateNoWindow=$true;$start.RedirectStandardOutput=$true;$start.RedirectStandardError=$true
+$worker=[Diagnostics.Process]::Start($start)
+$unexpectedRun=$null
+try {
+    $ready=$worker.StandardOutput.ReadLineAsync()
+    Assert-Evidence ($ready.Wait(10000) -and $ready.GetAwaiter().GetResult() -ceq 'owned-ready' -and -not $worker.HasExited) 'Owned independent process did not reach its live boundary.'
+    $refused=$false
+    try { $unexpectedRun=Start-TestRunEvidence $activeRoot @{platform='x64';configuration='Debug'} -CaptureNativeArtifacts }
+    catch { $refused=$_.Exception.Message.Contains('Native artifact output is in use',[StringComparison]::Ordinal) }
+    Assert-Evidence $refused 'Collection ignored an active independently named executable in its exact profile.'
+    Assert-Evidence ([IO.File]::ReadAllText((Join-Path $activeEvidence 'original.record')) -ceq 'owned active evidence') 'Collection moved active profile failure evidence.'
+} finally {
+    if (-not $worker.HasExited) { $worker.Kill();[void]$worker.WaitForExit(10000) }
+    $worker.Dispose()
+    if ($unexpectedRun -and -not $unexpectedRun.Closed) { Complete-TestRunEvidence $unexpectedRun $false }
+}
+
 # FindFirstFile metadata can be stale on a busy NTFS host. Keep the stale provider objects and reverse
 # their enumeration, while the actual files have newer metadata. A safe rename must still verify exactly.
 $cachedRoot = New-Fixture 'cached-native-metadata'

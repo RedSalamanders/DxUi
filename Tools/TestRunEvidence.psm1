@@ -204,9 +204,12 @@ function Save-TestRunNativeArtifacts($Run, [string] $Label) {
     # This historical native path is shared across profiles. Refuse independently launched native tests;
     # the runner lease serializes new invocations, and neither path ever terminates another process.
     $prefix = (Join-Path $Run.Repository '.build').TrimEnd('\') + '\'
+    $profilePrefix = [IO.Path]::GetDirectoryName($source).TrimEnd('\') + '\'
     $active = @(Get-CimInstance Win32_Process -ErrorAction Stop | Where-Object {
-        $_.Name -match '^DxUi\.(ControlTests|EmbeddedTests|FoundationTests|InteractiveLease)\.exe$' -and
-        $_.ExecutablePath -and $_.ExecutablePath.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)
+        ($_.Name -match '^DxUi\.(ControlTests|EmbeddedTests|FoundationTests|InteractiveLease)\.exe$' -and
+        $_.ExecutablePath -and $_.ExecutablePath.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) -or
+        ($entry.profile -and (($_.ExecutablePath -and $_.ExecutablePath.StartsWith($profilePrefix, [StringComparison]::OrdinalIgnoreCase)) -or
+        ($_.Name -in @('MSBuild.exe','cl.exe','link.exe') -and $_.CommandLine -and $_.CommandLine.Contains($profilePrefix, [StringComparison]::OrdinalIgnoreCase))))
     })
     if ($active.Count) { throw "Native artifact output is in use (PID $($active.ProcessId -join ', ')); it was preserved." }
     $destination = Join-Path $Run.Path $labelName
