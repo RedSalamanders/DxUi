@@ -9,11 +9,18 @@ Import-Module (Join-Path $PSScriptRoot 'TestSupport.psm1') -Force
 $repo = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $exe = Join-Path $repo ".build/$Platform/$Configuration/DxUi.ControlTests.exe"
 if (-not (Test-Path -LiteralPath $exe -PathType Leaf)) { throw "Test executable is missing: $exe" }
+$runnerSha256 = (Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash
 
 # Runs the executable from the repository root and returns its exit code, its output and the tests it started.
 function Invoke-Runner([string[]] $Arguments) {
     Push-Location $repo
     try { $output = @(& $exe @Arguments 2>&1 | ForEach-Object { "$_" }); $exit = $LASTEXITCODE } finally { Pop-Location }
+    if ($exit -ne 0) {
+        # Complete-TestRun reports assertion summaries; preserve the child's
+        # captured combined output before an assertion can discard this result.
+        Write-Host "Native filter child exit=$exit executableSha256=$runnerSha256 arguments=$($Arguments -join ' ')"
+        foreach ($line in $output) { Write-Host $line }
+    }
     $started = @($output | ForEach-Object { if ($_ -match '^  \[START\] (\w+)$') { $Matches[1] } })
     return [pscustomobject]@{ Exit = $exit; Output = $output; Started = $started }
 }

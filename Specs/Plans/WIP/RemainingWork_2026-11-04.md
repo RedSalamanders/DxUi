@@ -233,6 +233,12 @@ policy, erase its findings or close this section.
 - [x] Verify native Release main `ab850a40` in hosted run 41849905967: all 23 x64 suites and 21 ARM64 suites
   execute with zero skips, both assertion probes pass, and both production SDK ZIPs pass extracted-consumer
   smoke. This supplies current API-4 native Release coverage without accepting the remaining profiles or fixtures.
+- [ ] Complete current API-5 native ARM64 regression and the combined test-before-production gate.
+  [Run 42246752571](https://github.com/RedSalamanders/DxUi/actions/runs/42246752571), exact main `2f0a7bb9`,
+  passes x64 but stops ARM64 in the filter preflight: unfiltered Grid exits 1 before normal ARM64 suites run.
+  The wrapper omitted Grid's child output, so its cause remains unassigned. All eight original wrappers and
+  the original job log are retained. The reporting correction preserves child output/identity before assertions;
+  a later source must independently qualify. Production was withheld.
 - [ ] Complete or retain the explicit owner deferral for native ARM64 opt-in MenuResources/MenuResourceScaling
   and candidate-specific foreground coverage. Native cross-builds and ordinary hosted suites do not close them.
 - [ ] Qualify physical device removal/occlusion, real IME during reflow, assistive technology and touch on named
