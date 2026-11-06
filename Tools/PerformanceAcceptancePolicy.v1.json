@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "policyId": "dxui-complex-ui-paired-v2",
   "judgeVersion": "dxui-paired-block-sign-flip-holm-v2",
-  "approvedJudgeSha256": "DB19F70E3F500CC774A5E6D836EA59DB955CEC87EA3CA14ACCC015256D8C331A",
+  "approvedJudgeSha256": "87D37ECE9D82A298555DDA6E47CC66A6D3C853672B6DB9D7026237B96BCEB50A",
   "approvedAssignmentSha256": "4B6AD6769A74BE3CF76C46937FD8EE4F8E193E0E4E5405459C6F147F9A92AA78",
   "qualificationStatus": "policy-review-required",
   "minimumIndependentBlocks": 12,

@@ -104,6 +104,12 @@ reopening their historical checklists or relabeling old allocation sweeps as fat
 
 ### Working-tree progress, not acceptance
 
+- The `d975aa7d` integration passes six zero-warning builds, four clean-pin consumers, real ASan control-UAF
+  detection with both annotation policies, and isolated SDK `0.1.202611064` with independent symbol/header/notice
+  verification. Its full validator catches a stale proposed judge-review hash after the YAML fingerprint update.
+  The correction refreshes only that review target; policy qualification, assignment, numerical rules and all
+  library/test C++ remain unchanged. The failed validator is retained. Fresh conservative source-identity checks
+  and runtime/foreground/performance acceptance remain required.
 - Main `1ea6d522` (editor cosmetic preparation) landed during the frozen `946d5a28` checks. Its seven
   overlapping conflicts are reconciled without restoring exception recovery: Source-mode analysis and bounded
   viewport cosmetics remain independent of content readiness, checked queries preserve outputs/publications,
