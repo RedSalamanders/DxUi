@@ -600,6 +600,43 @@ static void TestSourceGuideAllocationAtomicity()
               "guide allocation retry completes without skipped or duplicated source units");
     }
 }
+static void TestEmbeddedCosmeticsDoNotWithholdContent(GraphicsFixture& gpu)
+{
+    using namespace DxUi;
+    std::wstring source;
+    for (unsigned line = 0u; line < 4096u; ++line)
+        source += L"alpha\n";
+    std::shared_ptr<GraphicsDevice> graphics;
+    Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "cosmetic admission graphics");
+    EmbeddedHost view;
+    Hr(view.Attach(graphics), "cosmetic admission view");
+    auto owned   = std::make_unique<RichTextEditor>(source);
+    auto* editor = owned.get();
+    editor->SetViewMode(RichText::ViewMode::Source);
+    auto appearance                  = editor->GetAppearance();
+    appearance.sourceMonospace       = true;
+    appearance.sourceLineNumbers     = true;
+    appearance.sourceWhitespaceMarks = true;
+    editor->SetAppearance(appearance);
+    view.Controls().SetRoot(std::move(owned));
+    Hr(gpu.Resize(480u, 240u), "cosmetic admission raster size");
+    bool observed = false;
+    for (unsigned turn = 0u; turn < 512u; ++turn)
+    {
+        const auto result = view.Prepare(480u, 240u, 96.0f);
+        Hr(result, "cosmetic admission preparation");
+        const auto state = editor->DebugGetState();
+        if (! state.layoutReady || state.markdownPreparationPending || state.semanticPreparationPending)
+            continue;
+        observed = true;
+        Check(result == S_OK && ! state.preparationPending, "optional source guides never withhold geometrically ready content");
+        gpu.Bind();
+        Check(view.Composite(gpu.context.get(), gpu.Viewport()) == S_OK, "current content is compositable while optional decorations prepare");
+        Check(editor->GetText() == source && ! editor->CanUndo(), "cosmetic preparation preserves exact source and history");
+        break;
+    }
+    Check(observed, "bounded cosmetic admission fixture reaches current text geometry");
+}
 static void TestEmbeddedSourceGuidesPixels(GraphicsFixture& gpu)
 {
     using namespace DxUi;

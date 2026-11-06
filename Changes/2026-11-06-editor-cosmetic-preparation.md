@@ -1,0 +1,1 @@
+- Separate optional editor decorations from content admission and index immutable source line coordinates; add ready-frame and independent snapshot-coordinate regressions.

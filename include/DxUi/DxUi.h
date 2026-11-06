@@ -3672,6 +3672,7 @@ public:
 
 protected:
     [[nodiscard]] HRESULT PrepareContent(ControlHost& host) noexcept override;
+    void PrepareVisualContent(ControlHost& host) noexcept override;
     void CancelContentPreparation() noexcept override;
     [[nodiscard]] bool AcceptsTextInputDuringPreparation() const noexcept override;
     [[nodiscard]] bool SupportsTextInput() const noexcept override;

@@ -59,6 +59,10 @@ public:
     {
         return syntax_ && ! complete_;
     }
+    bool Current(const std::shared_ptr<const MarkdownSyntax>& syntax) const noexcept
+    {
+        return syntax_ == syntax && (! syntax_ || complete_);
+    }
     size_t LastWork() const noexcept
     {
         return lastWork_;

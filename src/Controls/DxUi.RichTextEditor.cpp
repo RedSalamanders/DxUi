@@ -607,6 +607,7 @@ RichTextEditor::RichTextEditor(std::wstring text) : _state(std::make_unique<Stat
 {
     SetFocusable(true);
     EnableContentPreparation();
+    EnableVisualContentPreparation();
 }
 RichTextEditor::~RichTextEditor() noexcept
 {
@@ -2965,7 +2966,7 @@ void RichTextEditor::SetCodeTokenizer(RichText::CodeTokenizer tokenizer)
     _state->codeInkStaged.clear();
     _state->codeInkCursor   = 0u;
     _state->codeInkComplete = false;
-    RequestContentPreparation();
+    RequestVisualContentPreparation(false);
 }
 void RichTextEditor::SetHtmlPasteConverter(std::function<std::optional<std::wstring>(std::wstring_view)> converter)
 {
@@ -3628,12 +3629,68 @@ void RichTextEditor::CancelContentPreparation() noexcept
     _state->images.Cancel();
     RetireLayout();
 }
+void RichTextEditor::PrepareVisualContent(ControlHost& host) noexcept
+{
+    if (_state->codeCallbackActive || ! LayoutIsCurrent(host))
+        return;
+    const auto lifetime = GetLifetimeToken();
+    const auto report   = [](HRESULT error, std::wstring_view message) noexcept
+    {
+        Debug::Perf::Emit(L"RichTextEditor.Cosmetics", L"Optional decoration fallback", 0u, 0u, 0u, error);
+        // This boundary also runs after allocation failure. Borrow the message
+        // directly rather than allocating a formatted Debug::Error string.
+        if (Diagnostics::sink)
+            Diagnostics::sink(L"error", message);
+    };
+    try
+    {
+        const auto code = PrepareCodeInk(_state->mode == RichText::ViewMode::Rich && _state->layout.Semantic() ? GetSemanticDocument() : nullptr);
+        // A borrowed tokenizer may replace the binding or retire the control.
+        if (lifetime.expired() || GetHost() != &host || ! LayoutIsCurrent(host))
+            return;
+        if (FAILED(code))
+        {
+            report(code, L"Optional editor code ink could not be prepared.");
+            return;
+        }
+        const bool sourceReady = PrepareSourceInk();
+        const bool guidesReady = PrepareSourceGuides(host);
+        if (code == S_FALSE || ! sourceReady || ! guidesReady)
+            RequestVisualContentPreparation(false);
+    }
+    catch (const std::bad_alloc&)
+    {
+        // This noexcept visual boundary keeps ordinary text and stops this request;
+        // another explicit source/view/resource change may retry optional decoration.
+        report(E_OUTOFMEMORY, L"Optional editor decorations could not allocate preparation resources.");
+    }
+    catch (const std::exception& failure)
+    {
+        // Optional presentation cannot fail content admission or escape the host's
+        // native boundary. Preserve the actual diagnostic without allocating here.
+        wchar_t message[512]{};
+        const auto count = MultiByteToWideChar(CP_UTF8, 0u, failure.what(), -1, message, static_cast<int>(std::size(message)));
+        report(E_FAIL, count > 0 ? std::wstring_view(message, static_cast<std::size_t>(count - 1)) : L"Optional editor decorations could not be prepared.");
+    }
+}
 HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
 {
     auto& state                = *_state;
     bool richPreparationActive = false;
     if (state.codeCallbackActive)
-        return S_FALSE;
+        return LayoutIsCurrent(host) ? S_OK : S_FALSE;
+    const auto requestCosmetics = [&]()
+    {
+        const auto document = state.mode == RichText::ViewMode::Rich && state.codeTokenizer ? GetSemanticDocument() : nullptr;
+        const bool code     = document && (state.codeInkDocument != document || ! state.codeInkComplete);
+        const bool source =
+            state.mode == RichText::ViewMode::Source && state.appearance.colorizeMarkdownSource && ! state.sourceInk.Current(GetMarkdownSyntax());
+        const bool numbers = state.mode == RichText::ViewMode::Source && state.appearance.sourceLineNumbers;
+        const bool marks   = state.mode == RichText::ViewMode::Source && state.appearance.sourceWhitespaceMarks;
+        const bool guides  = (numbers || marks) && ! state.sourceGuides.Current(Revision(), state.layout.Generation(), numbers, marks);
+        if (code || source || guides)
+            RequestVisualContentPreparation(false);
+    };
     state.lastAdvanceLayouts = state.lastAdvanceBlockSteps = 0u;
     state.lastAdvanceUploadBytes                           = 0u;
     state.lastAdvanceImageWork                             = 0u;
@@ -3851,16 +3908,15 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
             prepareSemanticBrushes();
             UpdateCaretScroll();
             PrepareOverlayGeometry(host);
-            const auto codeInk = PrepareCodeInk(state.mode == RichText::ViewMode::Rich && state.layout.Semantic() ? GetSemanticDocument() : nullptr);
-            if (codeInk != S_OK)
-                return codeInk;
-            const auto result          = PrepareSourceInk() && PrepareSourceGuides(host) ? S_OK : S_FALSE;
             const auto lifetime        = GetLifetimeToken();
             const auto callbackBinding = state.bindingRevision, callbackRevision = Revision();
+            requestCosmetics();
+            if (lifetime.expired() || GetHost() != &host || _state->bindingRevision != callbackBinding || Revision() != callbackRevision)
+                return S_OK;
             PublishHorizontalScrollChanged();
             if (! lifetime.expired() && GetHost() == &host && _state->bindingRevision == callbackBinding && Revision() == callbackRevision)
                 PublishScrollChanged();
-            return result;
+            return S_OK;
         }
         if (! rejectedPreparation && state.markdownProfile && ! GetMarkdownSyntax() && ! state.HasCurrentMarkdownCapacityRejection())
         {
@@ -4217,16 +4273,15 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
         UpdateCaretScroll();
         UpdateCaretLinkDisplayRange();
         PrepareOverlayGeometry(host);
-        const auto codeInk = PrepareCodeInk(semanticDocument);
-        if (codeInk != S_OK)
-            return codeInk;
-        const auto result          = PrepareSourceInk() && PrepareSourceGuides(host) ? S_OK : S_FALSE;
         const auto lifetime        = GetLifetimeToken();
         const auto callbackBinding = state.bindingRevision, callbackRevision = Revision();
+        requestCosmetics();
+        if (lifetime.expired() || GetHost() != &host || _state->bindingRevision != callbackBinding || Revision() != callbackRevision)
+            return S_OK;
         PublishHorizontalScrollChanged();
         if (! lifetime.expired() && GetHost() == &host && _state->bindingRevision == callbackBinding && Revision() == callbackRevision)
             PublishScrollChanged();
-        return result;
+        return S_OK;
     }
     catch (const RichText::Detail::NativeObjectsRejected& failure)
     {
@@ -4400,19 +4455,17 @@ RichTextEditorDebugState RichTextEditor::DebugGetState() const noexcept
                                    _state->overlaySelectionDirty || _state->overlayHighlightsDirty};
     value.codeInkPreparationPending      = _state->codeInkDocument && ! _state->codeInkComplete;
     value.sourceGuidesPreparationPending = _state->sourceGuides.Pending();
-    value.preparationPending =
-        value.preparationPending || value.sourceInkPreparationPending || value.codeInkPreparationPending || value.sourceGuidesPreparationPending;
-    value.activeStage            = value.markdownPreparationPending         ? RichTextPreparationStage::Markdown
-                                   : value.semanticPreparationPending       ? RichTextPreparationStage::Semantic
-                                   : _state->images.Pending()               ? RichTextPreparationStage::Images
-                                   : _state->layout.HasPendingPreparation() ? RichTextPreparationStage::Geometry
-                                   : value.codeInkPreparationPending        ? RichTextPreparationStage::CodeInk
-                                   : value.sourceInkPreparationPending      ? RichTextPreparationStage::SourceInk
-                                   : value.sourceGuidesPreparationPending   ? RichTextPreparationStage::SourceGuides
-                                   : value.layoutReady                      ? RichTextPreparationStage::Ready
-                                                                            : RichTextPreparationStage::Idle;
-    value.lastAdvanceUploadBytes = _state->lastAdvanceUploadBytes;
-    value.lastAdvanceImageWork   = _state->lastAdvanceImageWork;
+    value.activeStage                    = value.markdownPreparationPending         ? RichTextPreparationStage::Markdown
+                                           : value.semanticPreparationPending       ? RichTextPreparationStage::Semantic
+                                           : _state->images.Pending()               ? RichTextPreparationStage::Images
+                                           : _state->layout.HasPendingPreparation() ? RichTextPreparationStage::Geometry
+                                           : value.codeInkPreparationPending        ? RichTextPreparationStage::CodeInk
+                                           : value.sourceInkPreparationPending      ? RichTextPreparationStage::SourceInk
+                                           : value.sourceGuidesPreparationPending   ? RichTextPreparationStage::SourceGuides
+                                           : value.layoutReady                      ? RichTextPreparationStage::Ready
+                                                                                    : RichTextPreparationStage::Idle;
+    value.lastAdvanceUploadBytes         = _state->lastAdvanceUploadBytes;
+    value.lastAdvanceImageWork           = _state->lastAdvanceImageWork;
     return value;
 }
 size_t RichTextEditor::DebugGetListStateAncestorSteps() const noexcept
