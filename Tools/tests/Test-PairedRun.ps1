@@ -26,6 +26,38 @@ function New-Side([string] $Kind, [string] $Commit, [string] $Root = '', [string
     return $side
 }
 
+Invoke-TestCase 'paired benchmark stages one measured driver without changing either library project' {
+    [xml]$project = Get-Content -Raw -LiteralPath (Join-Path $repository 'Tests/Embedded/DxUi.EmbeddedTests.vcxproj')
+    $ns = [Xml.XmlNamespaceManager]::new($project.NameTable)
+    $ns.AddNamespace('m', 'http://schemas.microsoft.com/developer/msbuild/2003')
+    $paired = @($project.SelectNodes('//m:ItemGroup[@Condition="''$(DxUiPairedBenchmark)'' == ''true''"]/m:ClCompile', $ns))
+    Assert-Equal 1 $paired.Count 'paired build has exactly one benchmark translation unit'
+    Assert-Equal 'Embedded.Tests.PairedBenchmark.cpp' $paired[0].Include 'paired translation unit'
+    $compilerOptions = $project.SelectSingleNode('//m:ItemDefinitionGroup/m:ClCompile/m:AdditionalOptions', $ns)
+    Assert-True ($null -ne $compilerOptions -and $compilerOptions.InnerText.Contains('/bigobj')) 'paired unit keeps the shared compiler option'
+    $ordinary = @($project.SelectNodes('//m:ItemGroup[@Condition="''$(DxUiPairedBenchmark)'' != ''true''"]/m:ClCompile', $ns))
+    Assert-Contains @($ordinary | ForEach-Object Include) 'Embedded.Tests.Embedded.cpp' 'ordinary functional dispatcher remains'
+    Assert-True (@($ordinary | Where-Object Include -Match 'Foundation.Tests.Failure.cpp').Count -eq 1) 'ordinary fatal tests remain'
+    Assert-True (@($ordinary | Where-Object Include -Match 'FailureHost.cpp').Count -eq 1) 'ordinary application failure host remains'
+    $references = @($project.SelectNodes('//m:ProjectReference', $ns) | ForEach-Object Include)
+    Assert-Equal 1 $references.Count 'each side links its own library project'
+    Assert-Equal '../../src/DxUi.vcxproj' $references[0] 'library source registration stays local to the side'
+    $inputs = @(Get-BenchmarkInputPaths)
+    foreach ($path in @('Tests/Embedded/Embedded.Tests.PairedBenchmark.cpp', 'Samples/Shared/FailureHost.h', 'Samples/Shared/FailureHost.cpp')) {
+        Assert-Contains $inputs $path 'every paired driver dependency is fingerprinted and overlaid'
+    }
+    Assert-True ('src/DxUi.vcxproj' -cnotin @(Get-PairedHarness)) 'the candidate library project is never a harness overlay'
+    $driver = Get-Content -Raw -LiteralPath (Join-Path $repository 'Tests/Embedded/Embedded.Tests.PairedBenchmark.cpp')
+    Assert-True $driver.Contains('#if defined(DXUI_HAS_FAILURE_POLICY)') 'the older library does not compile the new host adapter'
+    Assert-True $driver.Contains('#include "Embedded.Tests.BenchmarkInstrument.h"') 'both libraries use the same instrument'
+    Assert-True $driver.Contains('#include "Embedded.Tests.ComplexUiBenchmark.h"') 'both libraries use the same workload'
+    Assert-True $driver.Contains('#include "Embedded.Tests.BenchmarkMain.h"') 'both libraries use the same scenario dispatch'
+    $script = Get-Content -Raw -LiteralPath (Join-Path $repository 'performance-paired.ps1')
+    Assert-True $script.Contains('$env:DxUiPairedBenchmark = ''true''') 'paired property is inherited by build and attestation'
+    Assert-True $script.Contains('Set-Item Env:DxUiPairedBenchmark -Value $previousPairedBenchmark') 'previous paired property is restored'
+    Assert-True $script.Contains('Remove-Item Env:DxUiPairedBenchmark -ErrorAction Stop') 'previously absent paired property is removed'
+}
+
 Invoke-TestCase 'the baseline and candidate are chosen by revision, named tree or checkout' {
     $selection = Get-PairedSelection -BaselineRevision 'abc123'
     Assert-Equal 'revision' $selection.Baseline.Kind 'baseline kind'
@@ -631,6 +663,38 @@ Invoke-FixtureCase 'the source fingerprint is the one receipts have always recor
     Assert-True ((Get-SourceFingerprint -Root $second) -ceq $fingerprint) 'the other tree is unaffected'
     Set-FixtureFile $second 'src/Controls/Control.cpp' "edited`n"
     Assert-True ((Get-SourceFingerprint -Root $second) -cne $fingerprint) 'an edit changes it'
+}
+
+Invoke-FixtureCase 'libfyaml source changes distinguish named trees' {
+    param($root)
+    $first = Join-Path $root 'first'
+    $second = Join-Path $root 'second'
+    foreach ($tree in @($first, $second)) {
+        New-Item -ItemType Directory -Path $tree | Out-Null
+        & git -C $tree init --quiet
+        Set-FixtureFile $tree 'ThirdParty/libfyaml/0.9.4/src/parser.c' "original`n"
+        & git -C $tree -c core.autocrlf=false add -A
+        & git -C $tree -c user.name=Fixture -c user.email=fixture@example.invalid commit --quiet -m fixture
+        if ($LASTEXITCODE -ne 0) { throw 'Could not commit the paired fingerprint fixture.' }
+    }
+    $baseline = Get-SourceFingerprint -Root $second
+    Assert-Equal $baseline (Get-SourceFingerprint -Root $first) 'identical committed vendor inputs match'
+    Set-FixtureFile $first 'ThirdParty/libfyaml/0.9.4/src/parser.c' "edited`n"
+    $edited = Get-SourceFingerprint -Root $first
+    Assert-True ($edited -cne $baseline) 'editing a committed vendor C source changes the fingerprint'
+    Assert-PairedSidesDiffer (New-Side 'path' 'a1' -Root $first -Fingerprint $edited) (New-Side 'path' 'a1' -Root $second -Fingerprint $baseline)
+    Set-FixtureFile $first 'ThirdParty/libfyaml/0.9.4/include/parser.h' "header`n"
+    $added = Get-SourceFingerprint -Root $first
+    Assert-True ($added -cne $edited) 'an untracked vendor header changes the fingerprint'
+    Set-FixtureFile $first 'ThirdParty/libfyaml/0.9.4/src/extra.c' "additional source`n"
+    $addedSource = Get-SourceFingerprint -Root $first
+    Assert-True ($addedSource -cne $added) 'an untracked vendor C source changes the fingerprint'
+    & git -C $first -c core.autocrlf=false add -A
+    & git -C $first -c user.name=Fixture -c user.email=fixture@example.invalid commit --quiet -m vendor-change
+    if ($LASTEXITCODE -ne 0) { throw 'Could not commit the vendor fixture change.' }
+    Assert-Equal $addedSource (Get-SourceFingerprint -Root $first) 'committing the vendor source and header preserves their fingerprint'
+    Set-FixtureFile $first 'ThirdParty/libfyaml/0.9.4/include/parser.h' "edited header`n"
+    Assert-True ((Get-SourceFingerprint -Root $first) -cne $addedSource) 'editing a committed vendor header changes the fingerprint'
 }
 
 Invoke-FixtureCase 'the source fingerprint reads a non-ASCII name as git stores it, whatever the console code page' {

@@ -437,15 +437,10 @@ template <typename Observe = std::nullptr_t> inline void HtmlScripts(Observe obs
     auto emojiOptions             = options;
     emojiOptions.fontFamily       = L"Segoe UI Emoji";
     geometry.Begin(factory.get(), colored, emojiOptions);
-    bool rejected{};
-    try
-    {
-        Complete(geometry);
-    }
-    catch (const DxUi::RichText::Detail::NativeObjectsRejected& failure)
-    {
-        rejected = failure.Elements().size() == 1u && colored->Elements()[failure.Elements()[0u]].nativeHtml;
-    }
+    while (geometry.Pending())
+        geometry.Advance({1u, 3u});
+    const auto rejectedElements = geometry.RejectedNativeObjects();
+    const bool rejected         = rejectedElements.size() == 1u && colored->Elements()[rejectedElements[0u]].nativeHtml;
     Check(rejected && geometry.Ready() && geometry.Generation() == previousGeneration,
           "a script color glyph without a compatible target rejects only its source-owned HTML leaf and preserves prior geometry");
     for (const auto profile : {MarkdownProfile::CommonMark0312, MarkdownProfile::RichMarkdown})
@@ -795,16 +790,10 @@ inline void DiagramPaletteTargetReplacement()
     const auto generation = geometry.Generation();
     PreparedSemanticGeometry withoutTarget;
     withoutTarget.Begin(factory.get(), document, options, drawing.get(), {1u, 1u});
-    bool rejected{};
-    try
-    {
-        while (withoutTarget.Pending())
-            withoutTarget.Advance({1u, 3u});
-    }
-    catch (const DxUi::RichText::Detail::NativeObjectsRejected& failure)
-    {
-        rejected = failure.Elements().size() == 1u && document->Elements()[failure.Elements()[0u]].role == SemanticRole::Diagram;
-    }
+    while (withoutTarget.Pending())
+        withoutTarget.Advance({1u, 3u});
+    const auto rejectedElements = withoutTarget.RejectedNativeObjects();
+    const bool rejected         = rejectedElements.size() == 1u && document->Elements()[rejectedElements[0u]].role == SemanticRole::Diagram;
     Check(rejected && geometry.Ready() && geometry.Generation() == generation,
           "a missing palette target rejects only its owning object without replacing prior geometry");
     Check(geometry.Begin(factory.get(), document, options, drawing.get(), {1u, 1u}, {}, replacement.get()) == LayoutPreparationStatus::Pending,
@@ -820,9 +809,8 @@ inline void DiagramPaletteTargetReplacement()
     replacement->BeginDraw();
     geometry.Draw(replacement.get(), text.get(), stroke.get(), {}, 0.f, 400.f, fill.get(), 1.f, nullptr, nullptr, &colors);
     THROW_IF_FAILED(replacement->EndDraw());
-    RichSemanticTests::Reject<std::logic_error>([&] {
-        geometry.Draw(target.get(), text.get(), stroke.get(), {}, 0.f, 400.f, fill.get(), 1.f, nullptr, nullptr, &colors);
-    }, "old target cannot borrow a palette prepared on its replacement");
+    Check(geometry.TryDraw(target.get(), text.get(), stroke.get(), {}, 0.f, 400.f, fill.get(), 1.f, nullptr, nullptr, &colors) == E_INVALIDARG,
+          "old target cannot borrow a palette prepared on its replacement");
 }
 #if DXUI_ENABLE_DIAGNOSTICS
 inline void MathWidthReflowAndTargetReplacement()
@@ -858,30 +846,14 @@ inline void MathWidthReflowAndTargetReplacement()
         Check(std::abs(color.r - 17.f / 255.f) < .0001f && std::abs(color.g - 34.f / 255.f) < .0001f && std::abs(color.b - 51.f / 255.f) < .0001f &&
                   color.a == 1.f,
               "math palette publishes the requested opaque SDK color");
-        bool rejected{};
-        try
-        {
-            const std::array<std::uint32_t, 1u> invalid{0x1000000u};
-            Detail::NativeColorPalette invalidPalette(target.get(), invalid);
-        }
-        catch (const std::invalid_argument&)
-        {
-            rejected = true;
-        }
-        Check(rejected, "math palette rejects out-of-domain colors before publication");
+        const std::array<std::uint32_t, 1u> invalid{0x1000000u};
+        Detail::NativeColorPalette invalidPalette(target.get(), invalid);
+        Check(invalidPalette.Result() == E_INVALIDARG && ! invalidPalette.Ready(), "math palette rejects out-of-domain colors before publication");
         Detail::NativeColorPalette pending(target.get(), colors);
         const auto savedFailure                    = Detail::testNativeColorPaletteBrushFailure;
         const auto restoreFailure                  = wil::scope_exit([&]() noexcept { Detail::testNativeColorPaletteBrushFailure = savedFailure; });
         Detail::testNativeColorPaletteBrushFailure = E_OUTOFMEMORY;
-        bool failed{};
-        try
-        {
-            static_cast<void>(pending.Advance());
-        }
-        catch (const wil::ResultException& error)
-        {
-            failed = error.GetErrorCode() == E_OUTOFMEMORY;
-        }
+        const bool failed                          = ! pending.Advance() && pending.Result() == E_OUTOFMEMORY;
         Detail::testNativeColorPaletteBrushFailure = S_OK;
         Check(failed && ! pending.Ready() && ! pending.Brush(0xff0000u) && palette.Ready() && palette.Brush(0xff0000u),
               "failed palette staging preserves the prior publication and exposes no partial brushes");
@@ -933,8 +905,9 @@ inline void MathWidthReflowAndTargetReplacement()
     {
         auto rejected                  = options;
         rejected.mathAbsoluteUnitScale = invalid;
-        RichSemanticTests::Reject<std::invalid_argument>([&] { geometry.Begin(factory.get(), document, rejected, drawing.get(), {}, {}, replacement.get()); },
-                                                         "invalid math absolute-unit scale rejects before staging");
+        Check(geometry.Begin(factory.get(), document, rejected, drawing.get(), {}, {}, replacement.get()) == LayoutPreparationStatus::Failed &&
+                  geometry.Result() == E_INVALIDARG,
+              "invalid math absolute-unit scale rejects before staging");
         Check(geometry.Width() == previousWidth && DxUi::RichText::Detail::testRichMathPreparations == beforeScale,
               "invalid unit scale retains the published generation");
     }
@@ -947,6 +920,29 @@ inline void MathWidthReflowAndTargetReplacement()
     geometry.Begin(factory.get(), document, options, drawing.get(), {}, {}, replacement.get());
     Complete(geometry);
     Check(DxUi::RichText::Detail::testRichMathPreparations == beforeScale + 2u, "width-only reflow still reuses the new math scale");
+    {
+        const auto previousGeneration = geometry.Generation();
+        const auto previousDocument   = &geometry.Document();
+        const auto coloredDocument    = RichSemanticDocumentTests::Build(L"$\\textcolor{red}{x}$\n", MarkdownProfile::RichMarkdown);
+        geometry.Begin(factory.get(), coloredDocument, options, drawing.get(), {}, {}, replacement.get());
+        const auto savedFailure                    = Detail::testNativeColorPaletteBrushFailure;
+        const auto restoreFailure                  = wil::scope_exit([&]() noexcept { Detail::testNativeColorPaletteBrushFailure = savedFailure; });
+        Detail::testNativeColorPaletteBrushFailure = E_OUTOFMEMORY;
+        LayoutAdvance failed;
+        while (geometry.Pending())
+        {
+            failed = geometry.Advance({4u, 4096u});
+            if (failed.status == LayoutPreparationStatus::Failed)
+                break;
+        }
+        Check(failed.status == LayoutPreparationStatus::Failed && failed.result == E_OUTOFMEMORY && ! geometry.Pending() && geometry.Ready() &&
+                  geometry.Generation() == previousGeneration && &geometry.Document() == previousDocument,
+              "math palette SDK failure preserves its HRESULT and the preceding publication");
+        Detail::testNativeColorPaletteBrushFailure = S_OK;
+        geometry.Begin(factory.get(), coloredDocument, options, drawing.get(), {}, {}, replacement.get());
+        Complete(geometry);
+        Check(&geometry.Document() == coloredDocument.get(), "an explicit retry publishes after palette recovery");
+    }
     {
         Detail::PreparedMath regular(factory.get(), std::make_shared<const MathExpression>(ParseMath(L"\\mu")), 48.f);
         Detail::PreparedMath shadow(factory.get(), std::make_shared<const MathExpression>(ParseMath(L"\\pmb{\\mu}")), 48.f);
@@ -1352,14 +1348,15 @@ inline void HangingMarkersLinksAndHtml()
     const auto overflow = RichSemanticDocumentTests::Build(many);
     geometry.Begin(factory.get(), overflow, options);
     std::size_t sdkCalls = 0u;
-    RichSemanticTests::Reject<std::length_error>(
-        [&]
+    HRESULT admission    = S_OK;
+    while (geometry.Pending())
     {
-        while (geometry.Pending())
-            sdkCalls += geometry.Advance({1u, 7u}).layoutsPrepared;
-    },
-        "marker and body layouts both participate in native admission");
-    Check(sdkCalls == 0u && geometry.Ready() && &geometry.Document() == document.get(),
+        const auto advance = geometry.Advance({1u, 7u});
+        sdkCalls += advance.layoutsPrepared;
+        if (advance.status == LayoutPreparationStatus::Failed)
+            admission = advance.result;
+    }
+    Check(admission == E_BOUNDS && sdkCalls == 0u && geometry.Ready() && &geometry.Document() == document.get(),
           "marker admission rejects before SDK work and retains the old publication");
 }
 inline void TaskCheckboxAlignment()
@@ -1615,11 +1612,12 @@ inline void SemanticSpacingPolicy()
         {
             auto rejected               = options;
             rejected.listItemSpacingDip = invalid;
-            RichSemanticTests::Reject<std::invalid_argument>([&] { geometry.Begin(factory.get(), tight, rejected); }, "invalid list spacing rejects admission");
+            Check(geometry.Begin(factory.get(), tight, rejected) == LayoutPreparationStatus::Failed && geometry.Result() == E_INVALIDARG,
+                  "invalid list spacing rejects admission");
             rejected                            = options;
             rejected.paragraphSpacingAfterLines = invalid == 257.0f ? 4.01f : invalid;
-            RichSemanticTests::Reject<std::invalid_argument>([&] { geometry.Begin(factory.get(), tight, rejected); },
-                                                             "invalid paragraph spacing rejects admission");
+            Check(geometry.Begin(factory.get(), tight, rejected) == LayoutPreparationStatus::Failed && geometry.Result() == E_INVALIDARG,
+                  "invalid paragraph spacing rejects admission");
             Check(geometry.Ready() && ! geometry.Pending() && geometry.Generation() == generation && &geometry.Document() == tight.get(),
                   "invalid spacing cannot change the previous complete publication");
         }
@@ -1671,7 +1669,8 @@ inline void ParagraphsTablesAndSourceRanges()
           "RTL table columns reverse while declared physical alignment stays explicit");
     geometry.Invalidate();
     Check(! geometry.Ready(), "semantic invalidation rejects stale geometry immediately");
-    RichSemanticTests::Reject<std::logic_error>([&] { geometry.Caret(0u); }, "invalidated semantic geometry is unavailable");
+    CaretGeometry staleCaret{};
+    Check(geometry.TryCaret(0u, staleCaret) == E_UNEXPECTED, "invalidated semantic geometry is unavailable");
     Check(geometry.Begin(factory.get(), document, options) == LayoutPreparationStatus::Complete && geometry.Ready(),
           "matching invalidated geometry can be acknowledged again");
     geometry.Clear();
@@ -1697,8 +1696,7 @@ inline void PaddedCodePresentation()
         Access::SemanticInput invalid;
         invalid.text = L"x";
         invalid.runs.push_back({0u, 2u, Bold, 0u});
-        RichSemanticTests::Reject<std::invalid_argument>([&] { Access::PrepareSemantic(layout, write.get(), invalid, options); },
-                                                         "semantic display still validates run bounds");
+        Check(Access::PrepareSemantic(layout, write.get(), invalid, options) == E_INVALIDARG, "semantic display still validates run bounds");
         Check(layout.Generation() == generation && layout.Content().text == L"semantic text",
               "invalid semantic staging leaves the previous published layout intact");
     }
@@ -2145,7 +2143,8 @@ inline void AtomicNavigationAndCancellation()
     auto different        = options;
     different.widthDip    = 80.0f;
     geometry.Begin(factory.get(), document, different);
-    RichSemanticTests::Reject<std::invalid_argument>([&] { geometry.Advance({0u, 1u}); }, "zero SDK budget rejected before changing staging");
+    const auto invalidBudget = geometry.Advance({0u, 1u});
+    Check(invalidBudget.status == LayoutPreparationStatus::Failed && invalidBudget.result == E_INVALIDARG, "zero SDK budget rejected before changing staging");
     Check(geometry.Pending() && geometry.Generation() == generation, "rejected advance preserves its prior request and publication");
     geometry.Cancel();
     Check(geometry.Ready() && ! geometry.Pending() && geometry.Generation() == generation && geometry.ElementBounds(1u).has_value() == previous.has_value(),
@@ -2155,7 +2154,8 @@ inline void AtomicNavigationAndCancellation()
     Complete(geometry);
     Check(geometry.Caret(0u).height > 0.0f && geometry.HitTest(0.0f, 0.0f).position == 0u,
           "empty semantic document has an SDK caret without invented source text");
-    RichSemanticTests::Reject<std::out_of_range>([&] { geometry.Range(0u, 1u); }, "semantic range bound validation");
+    std::vector<D2D1_RECT_F> rejectedRange;
+    Check(geometry.TryRange(0u, 1u, rejectedRange) == E_INVALIDARG, "semantic range bound validation");
 }
 inline void SourceCaretSitesPolicy(bool spacing)
 {
@@ -2206,7 +2206,8 @@ inline void SourceCaretSitesPolicy(bool spacing)
           "source line units include the final raw insertion line");
     for (std::size_t i = 1u; i < partitions.size(); ++i)
         Check(partitions[i - 1u].second == partitions[i].first, "empty visual source lines retain ordered gap-free ACP partitions");
-    RichSemanticTests::Reject<std::out_of_range>([&] { geometry.SourceCaret(1u); }, "source caret rejects the interior of a CRLF pair");
+    CaretGeometry rejectedCaret{};
+    Check(geometry.TrySourceCaret(1u, MarkdownNoNode, rejectedCaret) == E_INVALIDARG, "source caret rejects the interior of a CRLF pair");
 
     const std::wstring table = L"| a | b | c |\n| - | - | - |\n| value |\n";
     const auto cells         = RichSemanticDocumentTests::Build(table);
@@ -2243,8 +2244,8 @@ inline void SourceCaretSitesPolicy(bool spacing)
         geometry.Cancel();
         Check(geometry.SourceCaret(anchor, hits[1].site).x == reflowed.x, "cancelled reflow retains the previous complete source caret site");
         geometry.Invalidate();
-        RichSemanticTests::Reject<std::logic_error>([&] { geometry.SourceCaret(anchor, hits[1].site); },
-                                                    "invalidated source caret sites reject stale geometry");
+        CaretGeometry stale{};
+        Check(geometry.TrySourceCaret(anchor, hits[1].site, stale) == E_UNEXPECTED, "invalidated source caret sites reject stale geometry");
         geometry.Begin(factory.get(), cells, narrower);
         Complete(geometry);
     }
@@ -2276,14 +2277,15 @@ inline void SourceCaretSitesPolicy(bool spacing)
     geometry.Begin(factory.get(), overflow, options);
     std::size_t sdkCalls = 0u;
     bool rejected        = false;
-    try
+    while (geometry.Pending())
     {
-        while (geometry.Pending())
-            sdkCalls += geometry.Advance({1u, 3u}).layoutsPrepared;
-    }
-    catch (const std::length_error&)
-    {
-        rejected = true;
+        const auto advance = geometry.Advance({1u, 3u});
+        sdkCalls += advance.layoutsPrepared;
+        if (advance.status == LayoutPreparationStatus::Failed)
+        {
+            rejected = advance.result == E_BOUNDS;
+            break;
+        }
     }
     Check(rejected && sdkCalls == 0u && geometry.Ready() && ! geometry.Pending() && &geometry.Document() == previousDocument &&
               geometry.Generation() == previousGeneration,
@@ -2366,16 +2368,8 @@ inline void DocumentHeadingMarginsAndIndentation()
           "container indentation participates in reuse while retaining exact source and marker ownership");
     auto rejected                                 = options;
     rejected.semanticSpacing->headingBeforeDip[1] = std::numeric_limits<float>::quiet_NaN();
-    bool invalid                                  = false;
-    try
-    {
-        geometry.Begin(factory.get(), document, rejected);
-    }
-    catch (const std::invalid_argument&)
-    {
-        invalid = true;
-    }
-    Check(invalid && geometry.Ready(), "invalid heading margins fail before replacing a complete geometry publication");
+    Check(geometry.Begin(factory.get(), document, rejected) == LayoutPreparationStatus::Failed && geometry.Result() == E_INVALIDARG && geometry.Ready(),
+          "invalid heading margins fail before replacing a complete geometry publication");
 }
 
 inline void SourceCaretSites()

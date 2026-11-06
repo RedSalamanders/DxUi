@@ -3,6 +3,36 @@
 Status: normative intended contract
 Last reviewed: 2026-10-25
 
+## Allocation and unexpected exception coverage
+
+The [failure policy](../Core/Core_FailureHandling.md) separates explicit nonthrowing refusal from unexpected
+C++ exceptions, including bad_alloc. API 5 implements this contract; the recorded x64 library qualification is
+bound to `f6791b5070efd1fa8dc86601bc9422ae9a321d2e` and its [evidence](../../Measurements/FailurePolicy_2026-11-06/README.md).
+Native ARM64 execution, performance-policy qualification and product adoption remain separate. Existing
+throwing-allocation recovery sweeps and callback catch-and-continue passes are historical evidence only.
+
+Recovery tests must inject null/native status at a real checked seam, assert the error and unchanged state,
+and exercise only the retry permitted by that status contract. Nested construction, shared owners and Debug
+STL proxies are part of the tested allocation closure; nothrow object storage alone does not cover constructors.
+Unexpected exceptions and unreportable allocation failure require owned child probes asserting nonzero exit,
+no continuation, bounded handling, valid dump and the original named failure frame/thread with matching symbols.
+Also test missing/returning handlers, recursion, dump-write refusal and concurrent failures. Never trigger real
+machine OOM or an interactive consumer crash. Reuse governed roots and the canonical child/evidence runner;
+test-only fatal hooks must not leak into ordinary suites, benchmarks or unrelated processes.
+
+These remain runtime acceptance requirements for future changes; the evidence record identifies the probes
+executed for the qualified x64 library scope and their limits.
+Native ARM64 and consumer-owned crash integration retain their independent execution/acceptance obligations.
+
+Native text-store fatal callback probes retain the child's activation blocker and use a null-HWND host with
+logical focus. They validate the cached target and edit through the real `RequestLock`/`SetText`/notification
+path, then require the original callback frame in the fatal dump. An attached HWND requires actual native focus;
+showing it without activation does not establish that precondition. Keep healthy attached-window reentry and
+real TSF/focus scenarios in their separately approved foreground lease. Headless callback proof is not OS TSF
+activation or foreground qualification.
+
+## Existing scenario contracts
+
 Native staged-TSF reconciliation tests count the current generation-tagged production dispatch separately from
 the rest of the HWND queue. A general pump can also deliver an independent geometry change, whose layout
 notification is valid and does not belong to the activation batch. Retain the exact one-text/one-layout assertion
@@ -15,10 +45,10 @@ physical input or performance acceptance.
 Source-guide, code-language and code-line labels prepare their staged v0
 projections through the canonical reference-taking layout access seam. An
 internal by-value transfer must not invoke the aggregate's implicit noexcept
-move: MSVC Debug container-proxy allocation can fail during that move and
-terminate before the owning fault boundary can preserve its prior publication.
-The source-guide allocation sweep exercises every observed preparation failure
-and verifies unchanged published numbers/marks before recovery.
+move: MSVC Debug container-proxy allocation can fail during that move and terminate before useful failure-site
+diagnostics. Source-guide checked-refusal sweeps must exercise the actual nonthrowing seams and verify unchanged
+published numbers/marks before permitted recovery. Unexpected thrown failure instead belongs to the isolated
+fatal-context/dump oracle above; earlier throw-and-retry sweeps do not satisfy that oracle.
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
@@ -1209,3 +1239,44 @@ PrePush validates changelog state for the candidate commit. Uncommitted, staged 
 The tooling roster runs each script in a bounded isolated PowerShell child with a fresh native exit status, retains its output, reports both nonzero status and thrown failures, and still runs its remaining scripts. A changelog fold reports each skipped duplicate fragment name while retaining retry idempotence.
 
 The relocated native-module consumer driver emits one machine-readable record of the probes it actually executed and passed. Its owner accepts exactly one well-formed record only with process exit zero and the complete expected twelve successes; missing, duplicated, malformed, partial or inconsistent counts fail. The final consumer receipt copies those observed counts and the completed negative-check count from its progress ledger; completion validates their agreement. A driver success or a hard-coded expected cardinality alone is not an observed-count receipt.
+
+Failure-policy consumer qualification additionally requires the two internally handled native calls, all sixteen
+fatal original-context/dump probes and two DLL callback-epilogue checks. The latter subscribe through the canonical
+real UIA client to an owned non-activating native host, trigger actual queued structure delivery and park that worker
+after its target/failure scope releases. The process owner drains UIA and detaches registration while its STA remains
+alive. Dropping the owner's DLL reference must leave the image mapped while the gate is still active; releasing the
+gate and verification reference must permit actual unload. The active witness resets on worker exit, so an expired
+twenty-second gate cannot establish the pin proof. Gate handles outlive every holder, and uncertain retirement
+fails through the live process reporter. These diagnostic hooks are internal fixture seams, not new consumer APIs.
+
+The owned native-module driver configures the canonical no-dialog failure routing before installing its host.
+Each fatal child signals a borrowed diagnostic event immediately before fail-fast; the parent records that witness
+and monotonic setup/wait durations. The witness proves reaching that call site, not OS completion. A thirty-second
+timeout remains a failed probe and attempts a separate live-child hang dump before closing its owned job. This
+diagnostic never overwrites the original exception dump or turns a timed-out process into a pass. Its additional
+capture time and result are recorded separately. Capture runs on an owned worker with a five-second bound;
+failure to finish terminates the parent with its diagnostic context and borrowed handles still alive, rather than
+returning while the worker can use them.
+
+`Support.Tests.ChildCrashCapture.h` owns the shared child-output and live-hang capture. Parent drivers use
+`STARTUPINFOEX` with an explicit allowlist containing only their owned stdin/stdout/stderr handles. Output files
+use `CREATE_NEW`. Generic fatal-child diagnostics retain the child PID, wait, exit, elapsed time, witness values
+and output paths, and attempt a separate bounded hang dump before closing a timed-out child's owned job.
+
+The actual impossible throwing-new request proves the C++ new-handler route in ordinary Debug/Release. MSVC
+ASan instead owns an allocator-fatal report for that request. Its child receives a short `ASAN_SAVE_DUMPS`
+filename in its unique owned working directory and owned fallback temp paths, without changing the parent
+environment or replacing sanitizer callbacks. The exact expected file must be verified; a runtime-truncated
+absolute name or another emitted path is not a qualifying dump.
+Acceptance requires the real trigger/thread witness, terminal exit, sanitizer out-of-memory output, exact saved
+dump, its native exception/thread context and matching-image/PDB unwind to `NewHandlerOrigin`. It must not produce
+or claim a DxUi host failure record. This is a separate profile result, never a simulated new-handler call.
+
+Dump reading rejects a zero data RVA before adding an address offset. A thread-stack descriptor without file data
+falls through to the valid Memory64 stream; a zero Memory64 base cannot become a plausible offset after earlier
+ranges. A synthetic fixture covers the positive fallback, nonzero in-range offsets, a zero base and missing data.
+
+The native root-child batch failure fixture explicitly includes a pending CPU-preparation turn. That turn consumes
+neither the injected flush failure nor a presentation. A bounded sequence of directed native paints stops at the
+first admitted batch before checking its exact flush/presentation counters, so a failed frame's later retry cannot
+hide the failure. The subsequent retry and EndDraw-failure checks retain their original exact counter assertions.

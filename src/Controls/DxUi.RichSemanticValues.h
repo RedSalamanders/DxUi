@@ -1,4 +1,5 @@
 #pragma once
+#include <DxUi/Failure.h>
 #include <DxUi/RichSemanticDocument.h>
 #include <span>
 #include <stdexcept>
@@ -118,7 +119,7 @@ inline void ResolveSemanticValue(const MarkdownSyntax& syntax, const SemanticVal
         while (range.first + fence < range.last && source[range.first + fence] == L'\x60')
             ++fence;
         if (! fence || range.last - range.first < fence * 2u)
-            throw std::logic_error("Invalid semantic code delimiter ownership");
+            Failure::FailContract(E_UNEXPECTED);
         range.first += fence;
         range.last -= fence;
     }
@@ -170,7 +171,7 @@ inline void ResolveSemanticValue(const MarkdownSyntax& syntax, const SemanticVal
         }
     }
     // Never guess interior source coordinates from an enclosing semantic range.
-    throw std::logic_error("Resolved Markdown value does not match its source tokens");
+    Failure::FailContract(E_UNEXPECTED);
 }
 
 // Existing identity/RAII/reference traits intentionally delete these implicit operations.
@@ -185,12 +186,16 @@ public:
     }
     std::wstring text;
     std::vector<DisplaySpan> spans;
+    bool capacityExceeded{};
     void Emit(std::wstring_view value, MarkdownRange source, DisplaySpanKind kind, unsigned flags, unsigned heading)
     {
-        if (value.empty())
+        if (value.empty() || capacityExceeded)
             return;
         if (value.size() > SourceDisplayMap::MaximumDisplayUnits - text.size())
-            throw std::length_error("Semantic display capacity exceeded");
+        {
+            capacityExceeded = true;
+            return;
+        }
         const auto first      = text.size();
         const auto last       = first + value.size();
         const bool generated  = kind == DisplaySpanKind::Generated;
@@ -205,7 +210,10 @@ public:
         else
         {
             if (spans.size() == SourceDisplayMap::MaximumSpans)
-                throw std::length_error("Semantic span capacity exceeded");
+            {
+                capacityExceeded = true;
+                return;
+            }
             spans.push_back({source, {first, last}, kind, ! generated});
         }
         text.append(value);

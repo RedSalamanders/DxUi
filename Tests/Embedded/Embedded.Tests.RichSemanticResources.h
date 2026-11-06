@@ -21,7 +21,15 @@ static LRESULT CALLBACK SemanticDispatchWindowProc(HWND hwnd, UINT message, WPAR
     }
     return DefWindowProcW(hwnd, message, wParam, lParam);
 }
-static void TestRichSemanticNativeDispatchFailureAtomicity()
+__declspec(noinline) static HRESULT RichNativeToggleFaultOrigin(IToggleProvider* toggle, std::size_t failure)
+{
+    DxUi::Failure::Scope scope;
+    failAllocationAfter = failure;
+    const auto result   = toggle->Toggle();
+    failAllocationAfter = std::numeric_limits<std::size_t>::max();
+    return result;
+}
+static void TestRichSemanticNativeDispatchFailureAtomicity(bool fatalChild = false)
 {
     using namespace DxUi;
     const auto instance        = GetModuleHandleW(nullptr);
@@ -104,9 +112,7 @@ static void TestRichSemanticNativeDispatchFailureAtomicity()
                 // the production bounded dispatch on its own message queue.
                 countAllocations = true;
                 allocations = allocationBytes = 0u;
-                failAllocationAfter           = failure;
-                result                        = toggle->Toggle();
-                failAllocationAfter           = std::numeric_limits<std::size_t>::max();
+                result                        = RichNativeToggleFaultOrigin(toggle.get(), failure);
                 countAllocations              = false;
                 requests                      = allocations;
                 SetEvent(completed.get());
@@ -141,12 +147,27 @@ static void TestRichSemanticNativeDispatchFailureAtomicity()
     };
     const auto requests = invoke(std::numeric_limits<std::size_t>::max());
     Check(requests > 0u && requests < 128u, "native semantic dispatch has a finite observed caller allocation schedule");
-    for (std::size_t failure = 0u; failure < requests; ++failure)
-        invoke(failure);
+    if (fatalChild)
+    {
+        static_cast<void>(invoke(0u));
+        Check(false, "native semantic dispatch child must not continue after an allocation exception");
+    }
+    Check(DxUiFailureTests::ExpectFatalChild(L"embedded-uia-toggle-allocation"), "native semantic toggle allocation fails in its owned child");
     invoke(std::numeric_limits<std::size_t>::max());
-    std::cout << "rich semantic native dispatch sweptRequests=" << requests << " sourcePreserved=1 retry=1 focusUnchanged=1\n";
+    std::cout << "rich semantic native dispatch measuredRequests=" << requests << " sourcePreserved=1 retry=1 focusUnchanged=1\n";
 }
-static void TestRichSemanticAccessibilityFailureAtomicity(GraphicsFixture& gpu)
+__declspec(noinline) static HRESULT RichUiaCollectionFaultOrigin(ITextRangeProvider* document, ITableProvider* headers, unsigned scenario)
+{
+    DxUi::Failure::Scope scope;
+    SAFEARRAY* result   = nullptr;
+    failAllocationAfter = 0u;
+    const auto hr       = scenario == 0u ? document->GetChildren(&result) : headers->GetColumnHeaders(&result);
+    failAllocationAfter = std::numeric_limits<std::size_t>::max();
+    if (result)
+        SafeArrayDestroy(result);
+    return hr;
+}
+static void TestRichSemanticAccessibilityFailureAtomicity(GraphicsFixture& gpu, std::optional<unsigned> fatalScenario = std::nullopt)
 {
     using namespace DxUi;
     using namespace DxUi::RichText;
@@ -215,27 +236,38 @@ static void TestRichSemanticAccessibilityFailureAtomicity(GraphicsFixture& gpu)
             requests         = allocations;
         }
         Check(requests > 0u && requests < 256u, "semantic UIA collection has an independently observed bounded allocation schedule");
-        for (std::size_t failure = 0u; failure < requests; ++failure)
+        if (fatalScenario && fatalScenario.value() == scenario)
         {
-            HRESULT result = S_OK;
-            {
-                const auto old      = failAllocationAfter;
-                const auto restore  = wil::scope_exit([=] { failAllocationAfter = old; });
-                failAllocationAfter = failure;
-                result              = invoke();
-            }
-            Check(result == E_OUTOFMEMORY && editor->GetText() == source && ! editor->CanUndo() &&
-                      editor->GetAcknowledgedSemanticDocument(view.Controls()) == publication,
-                  "each UIA collection failure returns an HRESULT without mutation, stale publication or noexcept termination");
-            Hr(invoke(), "semantic UIA collection retries after allocation failure");
+            static_cast<void>(RichUiaCollectionFaultOrigin(document.get(), headers.get(), scenario));
+            Check(false, "semantic UIA collection child must not continue after allocation failure");
         }
+        if (! fatalScenario)
+            Check(DxUiFailureTests::ExpectFatalChild(scenario == 0u ? L"embedded-uia-children-allocation" : L"embedded-uia-headers-allocation"),
+                  "semantic UIA collection allocation fails in its owned scenario child");
+        Check(editor->GetText() == source && ! editor->CanUndo() && editor->GetAcknowledgedSemanticDocument(view.Controls()) == publication,
+              "semantic UIA collection preserves source and publication");
         total += requests;
     }
     Check(site->focusRequests == 0u, "semantic collection queries never acquire application keyboard focus");
-    std::cout << "rich semantic accessibility sweptRequests=" << total << " scenarios=2 sourcePreserved=1 retry=1\n";
-    TestRichSemanticNativeDispatchFailureAtomicity();
+    std::cout << "rich semantic accessibility measuredRequests=" << total << " scenarios=2 sourcePreserved=1 retry=1\n";
+    if (! fatalScenario)
+        TestRichSemanticNativeDispatchFailureAtomicity();
 }
-static void TestRichMarkdownCommandHostFailureAtomicity(GraphicsFixture& gpu)
+__declspec(noinline) static void RichInputCacheFaultOrigin(DxUi::ControlHost& host, DxUi::RichTextEditor* editor, DxUi::NativeTextInputState& output)
+{
+    DxUi::Failure::Scope scope;
+    failAllocationAfter = 0u;
+    static_cast<void>(host.TryReadNativeTextInputState(editor, output));
+    failAllocationAfter = std::numeric_limits<std::size_t>::max();
+}
+__declspec(noinline) static void RichCommandApplyFaultOrigin(DxUi::RichTextEditor& editor, const DxUi::RichText::MarkdownCommandPlan& plan)
+{
+    DxUi::Failure::Scope scope;
+    failAllocationAfter = 0u;
+    static_cast<void>(editor.ApplyMarkdownCommand(plan));
+    failAllocationAfter = std::numeric_limits<std::size_t>::max();
+}
+static void TestRichMarkdownCommandHostFailureAtomicity(GraphicsFixture& gpu, unsigned fatalScenario = 0u)
 {
     using namespace DxUi;
     using namespace DxUi::RichText;
@@ -258,43 +290,31 @@ static void TestRichMarkdownCommandHostFailureAtomicity(GraphicsFixture& gpu)
     NativeTextInputState available{.text = std::wstring(0u, L' '), .compositionClauseBoundaries = std::vector<size_t>(0u)};
     Check(host.TryReadNativeTextInputState(editor, available) && available.text == source, "command guard starts from a current text-service cache");
     NativeTextInputState unavailable{.text = std::wstring(0u, L' '), .compositionClauseBoundaries = std::vector<size_t>(0u)};
-    bool read = true;
+    if (fatalScenario == 1u)
     {
-        const auto old      = failAllocationAfter;
-        const auto restore  = wil::scope_exit([=] noexcept { failAllocationAfter = old; });
-        failAllocationAfter = 0u;
-        read                = host.TryReadNativeTextInputState(editor, unavailable);
+        RichInputCacheFaultOrigin(host, editor, unavailable);
+        Check(false, "native text cache child must not continue after allocation failure");
     }
-    Check(! read && host.TryReadNativeTextInputState(editor, available) && available.text == source,
-          "cache-copy allocation failure returns unavailable without terminating or changing the cache");
+    if (! fatalScenario)
+        Check(DxUiFailureTests::ExpectFatalChild(L"embedded-text-cache-allocation"), "native text cache allocation fails in its owned child");
+    Check(host.TryReadNativeTextInputState(editor, available) && available.text == source, "native text cache remains available");
     MarkdownCommandRequest request;
-    request.command      = MarkdownCommand::ToggleTask;
-    const auto original  = editor->Snapshot();
-    const auto revision  = editor->Revision();
-    const auto selection = editor->GetSelection();
-    const auto plan      = BuildMarkdownCommand(original, revision, editor->GetMarkdownSyntax(), selection, request);
-    bool rejected        = false;
-    std::optional<bool> composition;
+    request.command        = MarkdownCommand::ToggleTask;
+    const auto original    = editor->Snapshot();
+    const auto revision    = editor->Revision();
+    const auto selection   = editor->GetSelection();
+    const auto plan        = BuildMarkdownCommand(original, revision, editor->GetMarkdownSyntax(), selection, request);
+    const auto composition = host.GetNativeTextCompositionActive(editor);
+    if (fatalScenario == 2u)
     {
-        const auto old      = failAllocationAfter;
-        const auto restore  = wil::scope_exit([=] noexcept { failAllocationAfter = old; });
-        failAllocationAfter = 0u;
-        // The composition guard reads its cached scalar without allocating; the
-        // first injected failure belongs to the subsequent transaction staging.
-        composition = host.GetNativeTextCompositionActive(editor);
-        try
-        {
-            (void)editor->ApplyMarkdownCommand(plan);
-        }
-        catch (const std::bad_alloc&)
-        {
-            rejected = true;
-        }
+        RichCommandApplyFaultOrigin(*editor, plan);
+        Check(false, "command application child must not continue after allocation failure");
     }
-    Check(composition.has_value() && ! composition.value(), "composition guard remains available under allocation failure");
-    Check(rejected && editor->Snapshot().IsSameRevision(original) && editor->Revision() == revision && editor->GetSelection() == selection &&
-              ! editor->CanUndo(),
-          "structural staging allocation failure preserves source and selection");
+    if (! fatalScenario)
+        Check(DxUiFailureTests::ExpectFatalChild(L"embedded-command-apply-allocation"), "command application allocation fails in its owned child");
+    Check(composition.has_value() && ! composition.value(), "composition guard remains available");
+    Check(editor->Snapshot().IsSameRevision(original) && editor->Revision() == revision && editor->GetSelection() == selection && ! editor->CanUndo(),
+          "structural staging preserves source and selection before commit");
     Check(editor->ApplyMarkdownCommand(plan) == MarkdownCommandStatus::Changed && editor->Undo() && editor->Snapshot().IsSameRevision(original),
           "staging failure can retry once and undo exactly");
     std::cout << "rich command host cache failure: compositionAvailable=1 sourcePreserved=1 retryUndo=1\n";
@@ -369,33 +389,20 @@ static void TestRichMarkdownCommandFailureAtomicity()
         const auto analysis = RichCommandTests::Parse(measure);
         const auto requests = countRequests([&] { invoke(measure, analysis); });
         Check(requests > 0u && requests < 2048u, "bounded structural staging and transaction allocations");
-        for (std::size_t failure = 0u; failure < requests; ++failure)
-        {
-            Document document(spelling);
-            seed(document);
-            const auto syntax   = RichCommandTests::Parse(document);
-            const auto snapshot = document.Snapshot();
-            const auto revision = document.Revision();
-            const auto undo = document.CanUndo(), redo = document.CanRedo();
-            bool rejected = false;
-            {
-                const auto oldFailure = failAllocationAfter;
-                const auto restore    = wil::scope_exit([=] noexcept { failAllocationAfter = oldFailure; });
-                failAllocationAfter   = failure;
-                try
-                {
-                    invoke(document, syntax);
-                }
-                catch (const std::bad_alloc&)
-                {
-                    rejected = true;
-                }
-            }
-            Check(rejected && document.Snapshot().IsSameRevision(snapshot) && document.Revision() == revision && document.GetSelection() == selection &&
-                      document.CanUndo() == undo && document.CanRedo() == redo && syntax->Source() == spelling,
-                  "every structural allocation failure preserves source, selection, undo/redo and analysis");
-        }
-        std::cout << "rich command allocation scenario=" << scenario << " sweptRequests=" << requests << '\n';
+        Document document(spelling);
+        seed(document);
+        const auto syntax   = RichCommandTests::Parse(document);
+        const auto snapshot = document.Snapshot();
+        const auto revision = document.Revision();
+        const auto undo = document.CanUndo(), redo = document.CanRedo();
+        std::optional<MarkdownCommandPlan> output;
+        auto invalid    = request;
+        invalid.command = static_cast<MarkdownCommand>(999u);
+        Check(TryBuildMarkdownCommand(snapshot, revision, syntax, selection, invalid, output) == SourceResult::InvalidSource && ! output &&
+                  document.Snapshot().IsSameRevision(snapshot) && document.Revision() == revision && document.GetSelection() == selection &&
+                  document.CanUndo() == undo && document.CanRedo() == redo && syntax->Source() == spelling,
+              "invalid structural request preserves source, selection, undo/redo and analysis");
+        std::cout << "rich command allocation scenario=" << scenario << " measuredRequests=" << requests << '\n';
     }
 }
 static void TestRichSemanticFailureAndStorageBudgets()
@@ -463,36 +470,19 @@ static void TestRichSemanticFailureAndStorageBudgets()
             requests                    = countRequests([&] { ApplySourceEdits(measure, expected, expectedRevision, edits, {9u, 2u}); });
         }
         Check(requests > 0u && requests < 256u, "finite semantic map/range/transaction allocation schedule");
-        for (size_t failure = 0u; failure < requests; ++failure)
-        {
-            bool rejected = false;
-            {
-                const auto previousFailure = failAllocationAfter;
-                const auto restore         = wil::scope_exit([=] noexcept { failAllocationAfter = previousFailure; });
-                failAllocationAfter        = failure;
-                try
-                {
-                    if (operation < 3u)
-                        invoke();
-                    else
-                        ApplySourceEdits(document, snapshot, revision, edits, {9u, 2u});
-                }
-                catch (const std::bad_alloc&)
-                {
-                    rejected = true;
-                }
-            }
-            Check(rejected && map->Source() == source && map->Display() == display && document.Snapshot().IsSameRevision(snapshot) &&
-                      document.Revision() == revision && document.GetSelection() == selection && document.CanUndo() == undo && document.CanRedo() == redo,
-                  "each semantic allocation failure preserves immutable mapping and complete edit state");
-        }
+        bool changed       = true;
+        const auto refused = TryApplySourceEdits(document, snapshot, revision + 1u, edits, {9u, 2u}, changed);
+        Check(refused == SourceResult::Stale && ! changed && map->Source() == source && map->Display() == display &&
+                  document.Snapshot().IsSameRevision(snapshot) && document.Revision() == revision && document.GetSelection() == selection &&
+                  document.CanUndo() == undo && document.CanRedo() == redo,
+              "stale semantic transaction preserves mapping and complete edit state");
         if (operation == 3u)
         {
             Check(ApplySourceEdits(document, snapshot, revision, edits, {9u, 2u}), "explicit transaction retry succeeds");
             Check(document.Undo() && document.Snapshot().IsSameRevision(snapshot), "transaction retry is one exact undo");
         }
         swept += requests;
-        std::cout << "rich semantic allocation operation=" << operation << " sweptRequests=" << requests << '\n';
+        std::cout << "rich semantic allocation operation=" << operation << " measuredRequests=" << requests << '\n';
     }
     size_t checksum          = 0u;
     const auto queryRequests = countRequests([&]
@@ -537,7 +527,7 @@ static void TestRichSemanticFailureAndStorageBudgets()
         countLiveBytes = false;
     }
     Check(retained > 0 && retained <= 8 * 1024 * 1024 && released == 0, "maximum semantic map stays within eight MiB and releases all owned C++ storage");
-    std::cout << "rich semantic map sweptRequests=" << swept << " coordinateQueryAllocations=" << queryRequests << " maximumSourceUnits=" << maximum.size()
+    std::cout << "rich semantic map measuredRequests=" << swept << " coordinateQueryAllocations=" << queryRequests << " maximumSourceUnits=" << maximum.size()
               << " maximumDisplayUnits=" << doubled.size() << " spans=" << maximumSpans.size() << " retainedCppBytes=" << retained
               << " releasedDelta=" << released << '\n';
 }

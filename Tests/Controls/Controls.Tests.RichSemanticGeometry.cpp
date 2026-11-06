@@ -1,12 +1,30 @@
 #include "Controls.Tests.RichSemanticGeometry.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "Controls/DxUi.SemanticExtensions.h"
+#include "Support.Tests.FatalChildren.h"
 #include "Support.Tests.PreparedFlowchart.h"
 #include "Support.Tests.RichSemanticEditor.h"
 #include "Support.Tests.RichSemanticGeometry.h"
 #include "Support/Utilities.h"
 namespace
 {
+#if DXUI_ENABLE_DIAGNOSTICS
+template <unsigned Stage> void RichPreparationStageChild()
+{
+    RequireSucceeded(CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED), "initialize preparation child apartment");
+    const auto apartment = wil::scope_exit([] { CoUninitialize(); });
+    AttachedHostWindow window;
+    auto editor = std::make_unique<DxUi::RichTextEditor>(L"**retained** and $x$\n");
+    editor->SetMarkdownAnalysisProfile(DxUi::RichText::MarkdownProfile::RichMarkdown);
+    editor->SetMarkdownRenderingEnabled(true);
+    window.Host().SetRoot(std::move(editor));
+    DxUi::RichText::Detail::testRichPreparationFailure = Stage;
+    static_cast<void>(PrepareNativeContentForTests(window.Host()));
+}
+[[maybe_unused]] const bool richPreparationChildrenRegistered =
+    DxUiFailureTests::RegisterFatalChildCase({L"rich-preparation-stage1", "SemanticStagingDiagnosticThrowOrigin", RichPreparationStageChild<1u>}) &&
+    DxUiFailureTests::RegisterFatalChildCase({L"rich-preparation-stage2", "NativeGeometryDiagnosticThrowOrigin", RichPreparationStageChild<2u>});
+#endif
 void TestRichSemanticNativeObjectFailureContainment()
 {
     AttachedHostWindow window;
@@ -28,8 +46,8 @@ void TestRichSemanticNativeFallbackSyntaxOwnership()
     for (const auto bad : {MarkdownRange{0u, 1u}, MarkdownRange{math->source.first + 1u, math->source.last}, MarkdownRange{3u, 2u}})
     {
         const std::array ranges{bad};
-        RichSemanticTests::Reject<std::invalid_argument>([&] { Detail::SemanticExtensionAccess::BeginWithNativeFallbacks(builder, syntax, ranges); },
-                                                         "fallback cannot mask arbitrary or partial source");
+        Require(Detail::SemanticExtensionAccess::TryBeginWithPresentation(builder, syntax, ranges, {}) == SourceResult::InvalidRange,
+                "fallback cannot mask arbitrary or partial source");
         Require(builder.Published() == original && ! builder.HasPendingPreparation(), "invalid fallback keeps the prior coherent publication");
     }
     const std::array ranges{math->source};

@@ -269,6 +269,11 @@ function Get-SideSummary([System.Collections.IDictionary] $Side) {
 $results = @()
 $studyCompleted = $false
 $projectStamps = @()
+# The property selects the same benchmark-only translation unit for each tree.
+# All project profiles and build receipts are evaluated under this inherited value.
+$hadPairedBenchmark = Test-Path Env:DxUiPairedBenchmark
+$previousPairedBenchmark = if ($hadPairedBenchmark) { (Get-Item Env:DxUiPairedBenchmark).Value } else { $null }
+$env:DxUiPairedBenchmark = 'true'
 try {
     foreach ($side in $created) {
         & git -C $harnessRoot worktree add --detach $side.Root $side.Commit
@@ -421,8 +426,15 @@ try {
     }
     $studyCompleted = $true
 } finally {
-    # Put every named tree back as it was found, whatever ended the run.
+    # Put every named tree and the caller's environment back as found, even if one restore fails.
     $restoreFailures = [Collections.Generic.List[string]]::new()
+    try {
+        if ($hadPairedBenchmark) { Set-Item Env:DxUiPairedBenchmark -Value $previousPairedBenchmark -ErrorAction Stop }
+        elseif (Test-Path Env:DxUiPairedBenchmark) { Remove-Item Env:DxUiPairedBenchmark -ErrorAction Stop }
+    } catch {
+        $restoreFailures.Add("paired build environment: $($_.Exception.Message)")
+        Write-Warning "Cannot restore paired build environment: $($_.Exception.Message)"
+    }
     # Restore stamps before overlay backups restore the original project files.
     try { Restore-PairedProjectStamps -Records $projectStamps }
     catch { $restoreFailures.Add($_.Exception.Message); Write-Warning $_.Exception.Message }

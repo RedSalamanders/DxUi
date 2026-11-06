@@ -178,16 +178,16 @@ template <typename... Args> void TraceButtonDiagnostics(std::wstring_view eventN
 
     try
     {
+        const Failure::Scope failureScope;
         TraceContextMenuDiagnostics(eventName, std::format(format, std::forward<Args>(args)...));
     }
     catch (const std::bad_alloc&)
     {
-        std::terminate();
+        Failure::FailAllocation();
     }
     catch (const std::format_error&)
     {
-        // Button tracing is diagnostic only; formatting failure must not disturb input dispatch.
-        TraceContextMenuDiagnostics(eventName, L"formatting failed");
+        Failure::FailUnexpected();
     }
 }
 
@@ -2724,7 +2724,7 @@ void CardPanel::Paint(ControlHost& host) const
     Panel::Paint(host);
 }
 
-Separator::Separator()
+Separator::Separator() noexcept
 {
     SetFocusable(false);
     SetAccessibilityRole(AccessibilityRole::Separator);
@@ -2950,6 +2950,7 @@ void Label::PrepareVisualContent(ControlHost& host) noexcept
     }
     try
     {
+        const Failure::Scope failureScope;
         const auto bounds = GetBounds();
         const float width = (std::max)(1.0f, bounds.right - bounds.left), height = (std::max)(1.0f, bounds.bottom - bounds.top);
         const auto revision  = _typographyInputRevision;
@@ -3006,7 +3007,7 @@ void Label::PrepareVisualContent(ControlHost& host) noexcept
     }
     catch (const std::bad_alloc&)
     {
-        // Optional visual preparation retains the normal text fallback.
+        Failure::FailAllocation();
     }
 }
 
@@ -3167,6 +3168,7 @@ void Button::PrepareVisualContent(ControlHost& host) noexcept
     {
         try
         {
+            const Failure::Scope failureScope;
             const auto bounds     = GetBounds();
             const float width     = (std::max)(0.0f, bounds.right - bounds.left);
             const float height    = (std::max)(1.0f, bounds.bottom - bounds.top);
@@ -3203,13 +3205,14 @@ void Button::PrepareVisualContent(ControlHost& host) noexcept
         }
         catch (const std::bad_alloc&)
         {
-            return;
+            Failure::FailAllocation();
         }
     }
     if (! _shortcutText.empty())
     {
         try
         {
+            const Failure::Scope failureScope;
             const auto flow       = GetFlowDirection();
             const auto resources  = host.GetResourceGeneration();
             const auto typography = host.GetTypographyRevision();
@@ -3234,7 +3237,7 @@ void Button::PrepareVisualContent(ControlHost& host) noexcept
         }
         catch (const std::bad_alloc&)
         {
-            return;
+            Failure::FailAllocation();
         }
     }
     // Toggle and radio-button descendants have distinct Paint implementations; preparing a base-button layout
@@ -3694,6 +3697,7 @@ void Button::SetOnDropDownClick(std::function<void()> onDropDownClick)
 
 bool Button::Invoke(ControlHost& host, bool focusSelf)
 {
+    const Failure::Scope outerFailureScope;
     TraceButtonDiagnostics(L"dxui.button.invoke",
                            L"hwnd={:#x} text=\"{}\" variant={} focusSelf={} enabled={} visible={} hasClick={} hasDropDown={}",
                            reinterpret_cast<uintptr_t>(host.GetHwnd()),
@@ -4066,6 +4070,7 @@ bool Button::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButto
 
 bool Button::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT /*modifiers*/)
 {
+    const Failure::Scope outerFailureScope;
     const bool wasPressedBeforeReturn = _pressed;
     const bool hitBeforeReturn        = PointInRect(GetHitBounds(), point);
     TraceButtonDiagnostics(L"dxui.button.mouse-up-enter",
@@ -4309,6 +4314,7 @@ bool Button::IsDropDownInvocationPoint(D2D1_POINT_2F point) const noexcept
 
 bool Button::InvokeDropDown(ControlHost& host)
 {
+    const Failure::Scope outerFailureScope;
     TraceButtonDiagnostics(L"dxui.button.dropdown-invoke",
                            L"hwnd={:#x} text=\"{}\" variant={} enabled={} visible={} hasDropDown={} pressedBefore={} pressedDropDownBefore={} openBefore={}",
                            reinterpret_cast<uintptr_t>(host.GetHwnd()),
@@ -4600,6 +4606,7 @@ void Toggle::Paint(ControlHost& host) const
 
 bool Toggle::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT /*modifiers*/)
 {
+    const Failure::Scope outerFailureScope;
     if (rightButton || ! IsEnabled())
     {
         return false;
@@ -4620,6 +4627,7 @@ bool Toggle::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
 
 bool Toggle::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
 {
+    const Failure::Scope outerFailureScope;
     if (virtualKey == VK_LEFT)
     {
         ApplyCheckedState(host, false, true);
@@ -4640,6 +4648,7 @@ bool Toggle::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
 
 bool Toggle::OnMnemonic(ControlHost& host)
 {
+    const Failure::Scope outerFailureScope;
     if (! IsEnabled() || ! IsVisible())
     {
         return false;
@@ -4654,6 +4663,7 @@ bool Toggle::OnMnemonic(ControlHost& host)
 
 void Toggle::ApplyCheckedState(ControlHost& host, bool checked, bool notify)
 {
+    const Failure::Scope outerFailureScope;
     if (_checked == checked)
     {
         return;
@@ -4905,6 +4915,7 @@ void RadioButton::Paint(ControlHost& host) const
 
 bool RadioButton::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT /*modifiers*/)
 {
+    const Failure::Scope outerFailureScope;
     if (rightButton || ! IsEnabled())
     {
         return false;
@@ -4925,6 +4936,7 @@ bool RadioButton::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightBu
 
 bool RadioButton::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
 {
+    const Failure::Scope outerFailureScope;
     if (virtualKey == VK_SPACE || virtualKey == VK_RETURN)
     {
         SelectSelf(host);
@@ -4935,6 +4947,7 @@ bool RadioButton::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
 
 bool RadioButton::OnMnemonic(ControlHost& host)
 {
+    const Failure::Scope outerFailureScope;
     if (! IsEnabled() || ! IsVisible())
     {
         return false;
@@ -4949,6 +4962,7 @@ bool RadioButton::OnMnemonic(ControlHost& host)
 
 void RadioButton::SelectSelf(ControlHost& host)
 {
+    const Failure::Scope outerFailureScope;
     if (! _checked)
     {
         const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
@@ -5050,6 +5064,7 @@ void RadioButtons::SetHeader(std::wstring text)
 
 void RadioButtons::SelectItem(RadioButton* item)
 {
+    const Failure::Scope outerFailureScope;
     const auto children = GetChildren();
     const int count     = static_cast<int>(children.size());
     bool changed        = false;
@@ -5561,6 +5576,7 @@ bool PageIndicator::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rig
 
 bool PageIndicator::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT /*modifiers*/)
 {
+    const Failure::Scope outerFailureScope;
     if (rightButton || ! _pressed)
     {
         return false;
@@ -5578,6 +5594,7 @@ bool PageIndicator::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool right
 
 bool PageIndicator::OnKeyDown(ControlHost& host, UINT virtualKey, UINT /*modifiers*/)
 {
+    const Failure::Scope outerFailureScope;
     if (! IsEnabled() || _pageCount < 2)
     {
         return false;
@@ -5605,6 +5622,7 @@ void PageIndicator::OnCaptureLost(ControlHost& host)
 
 void PageIndicator::SelectIndex(ControlHost& host, uint32_t index)
 {
+    const Failure::Scope outerFailureScope;
     if (_pageCount < 2 || index >= _pageCount || index == _selectedIndex)
     {
         return;
@@ -6446,6 +6464,7 @@ void Slider::NotifyChange(SliderChangePhase phase, bool notifyLegacy) noexcept
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     try
     {
+        const Failure::Scope failureScope;
         const auto life    = GetLifetimeToken();
         const auto legacy  = _onValueChanged;
         const auto changed = _onChange;
@@ -6457,7 +6476,7 @@ void Slider::NotifyChange(SliderChangePhase phase, bool notifyLegacy) noexcept
     }
     catch (const std::exception&)
     {
-        Debug::Warning(L"Slider change callback failed");
+        Failure::FailUnexpected();
     }
     if (! lifetime.expired())
         if (ControlHost* const host = GetHost())
@@ -7348,6 +7367,7 @@ std::wstring_view TagPicker::GetInputText() const noexcept
 
 bool TagPicker::SelectOption(std::wstring_view value)
 {
+    const Failure::Scope outerFailureScope;
     if (value.empty())
     {
         return false;
@@ -7401,6 +7421,7 @@ bool TagPicker::SelectOption(std::wstring_view value)
 
 bool TagPicker::CommitInput()
 {
+    const Failure::Scope outerFailureScope;
     if (! _combo)
     {
         return false;
@@ -7426,6 +7447,7 @@ bool TagPicker::CommitInput()
 
 bool TagPicker::RemoveDisplayTag(size_t displayTagIndex)
 {
+    const Failure::Scope outerFailureScope;
     if (displayTagIndex >= _displayTags.size())
     {
         return false;
@@ -7760,6 +7782,7 @@ float TagPicker::MeasureDisplayTagWidthDip(const DisplayTag& tag, float rowHeigh
 
 bool TagPicker::NotifySelectionChanged()
 {
+    const Failure::Scope outerFailureScope;
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     if (_onSelectionChanged)
     {
@@ -7979,6 +8002,7 @@ size_t MenuBar::GetVisualHighlightCount() const noexcept
 
 bool MenuBar::ActivateMnemonic(ControlHost& host, wchar_t mnemonic)
 {
+    const Failure::Scope outerFailureScope;
     if (const std::optional<size_t> match = FindMnemonicItem(mnemonic); match.has_value())
     {
         return ! FocusControlAndSurvive(host, *this) || ActivateItem(host, match.value(), true);
@@ -7988,6 +8012,7 @@ bool MenuBar::ActivateMnemonic(ControlHost& host, wchar_t mnemonic)
 
 bool MenuBar::ActivateItem(ControlHost& host, size_t index, bool keyboardInvocation)
 {
+    const Failure::Scope outerFailureScope;
     if (index >= _items.size() || ! _items[index].enabled || ! _onOpenItem)
     {
         Debug::Info(L"DxUi::MenuTrace MenuBar activate-rejected hwnd={:#x} capture={:#x} index={} itemCount={} enabled={} hasCallback={} keyboard={}",
@@ -8026,6 +8051,7 @@ bool MenuBar::ActivateItem(ControlHost& host, size_t index, bool keyboardInvocat
 
 bool MenuBar::ActivateSelected(ControlHost& host, bool keyboardInvocation)
 {
+    const Failure::Scope outerFailureScope;
     if (! _selectedIndex.has_value())
     {
         return false;
@@ -8100,6 +8126,7 @@ void MenuBar::Paint(ControlHost& host) const
 
 bool MenuBar::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modifiers*/)
 {
+    const Failure::Scope outerFailureScope;
     const std::optional<size_t> hit = HitTestItem(host, MakePointDip(point));
     if (_hoveredIndex != hit)
     {
@@ -8123,6 +8150,7 @@ bool MenuBar::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modifie
 
 bool MenuBar::OnMouseLeave(ControlHost& host)
 {
+    const Failure::Scope outerFailureScope;
     if (_hoveredIndex.has_value())
     {
         _hoveredIndex.reset();
@@ -10517,6 +10545,7 @@ bool ColorSwatch::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool right
 
 bool ColorSwatch::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT /*modifiers*/)
 {
+    const Failure::Scope outerFailureScope;
     if (! IsEnabled() || rightButton)
     {
         return false;
@@ -10538,6 +10567,7 @@ bool ColorSwatch::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightBu
 
 bool ColorSwatch::OnKeyDown(ControlHost& host, UINT virtualKey, UINT /*modifiers*/)
 {
+    const Failure::Scope outerFailureScope;
     if (! IsEnabled())
     {
         return false;

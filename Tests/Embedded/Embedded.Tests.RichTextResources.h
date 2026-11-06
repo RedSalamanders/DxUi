@@ -19,6 +19,15 @@
 static void TestRichExportAllocationFailures()
 {
     using namespace DxUi::RichText;
+    for (const auto* name : {L"embedded-codec-allocation",
+                             L"embedded-document-allocation",
+                             L"embedded-projection-allocation",
+                             L"embedded-command-allocation",
+                             L"embedded-parser-allocation",
+                             L"embedded-semantic-allocation",
+                             L"embedded-export-allocation",
+                             L"embedded-geometry-allocation"})
+        Check(DxUiFailureTests::ExpectFatalChild(name), "owned rich allocation child reports a matching original-site dump");
     for (unsigned operation = 0u; operation < 4u; ++operation)
     {
         const auto convert = [operation]
@@ -48,25 +57,6 @@ static void TestRichExportAllocationFailures()
             observed = allocations;
         }
         Check(observed < 64u, "UTF-8 conversion allocation schedule is bounded");
-        for (size_t point = 0u; point < observed; ++point)
-        {
-            bool refused = false;
-            {
-                const auto oldFailure = failAllocationAfter;
-                const auto restore    = wil::scope_exit([=] noexcept { failAllocationAfter = oldFailure; });
-                failAllocationAfter   = point;
-                try
-                {
-                    convert();
-                }
-                catch (const std::bad_alloc&)
-                {
-                    refused = true;
-                }
-            }
-            Check(refused, "each UTF-8 codec allocation failure propagates without termination");
-            convert();
-        }
     }
     const auto document =
         RichSemanticDocumentTests::Build(L"# Caf\u00e9\n\n1. **one**\n2. [two](https://example.test) [go](#caf%C3%A9)\n", MarkdownProfile::RichMarkdown);
@@ -89,26 +79,10 @@ static void TestRichExportAllocationFailures()
         Check(! exported.Text().empty() && ! exported.HtmlFragment().empty(), "measure complete export allocation points");
     }
     Check(requests > 0u && requests < 512u, "export allocation sweep has a finite observed schedule");
-    for (size_t failure = 0u; failure < requests; ++failure)
-    {
-        bool refused = false;
-        {
-            const auto oldFailure = failAllocationAfter;
-            const auto restore    = wil::scope_exit([=] noexcept { failAllocationAfter = oldFailure; });
-            failAllocationAfter   = failure;
-            try
-            {
-                static_cast<void>(ExportSemanticDocument(*document));
-            }
-            catch (const std::bad_alloc&)
-            {
-                refused = true;
-            }
-        }
-        Check(refused && document->Syntax()->Source() == source && document->Map().Display() == display,
-              "every observed export allocation failure preserves its immutable publication");
-        Check(! ExportSemanticDocument(*document).HtmlFragment().empty(), "export retries after allocation failure");
-    }
+    std::optional<ExportContent> output;
+    Check(TryExportSemanticDocument(*document, {display.size(), display.size() + 1u}, output) == SourceResult::InvalidRange && ! output &&
+              document->Syntax()->Source() == source && document->Map().Display() == display,
+          "invalid export range preserves publication and does not publish partial output");
 }
 
 static void TestRichPreparedPageRaster(GraphicsFixture& gpu)
@@ -152,17 +126,9 @@ static void TestRichPreparedPageRaster(GraphicsFixture& gpu)
     const auto selection = editor->GetSelection();
     const auto scroll    = editor->GetScrollInfo();
     RichText::ExportDrawing drawing;
-    drawing.text    = ink.get();
-    bool wrongWidth = false;
-    try
-    {
-        editor->DrawPreparedPage(view.Controls(), D2D1::RectF(20.f, 5.f, 259.f, 60.f), 0.f, drawing);
-    }
-    catch (const std::invalid_argument&)
-    {
-        wrongWidth = true;
-    }
-    Check(wrongWidth, "a page with a different layout width is rejected before drawing");
+    drawing.text = ink.get();
+    Check(! editor->TryDrawPreparedPage(view.Controls(), D2D1::RectF(20.f, 5.f, 259.f, 60.f), 0.f, drawing),
+          "a page with a different layout width is rejected before drawing");
     size_t observed{};
     {
         const auto oldCounting = countAllocations;
@@ -209,16 +175,8 @@ static void TestRichPreparedPageRaster(GraphicsFixture& gpu)
         }
     Check(firstInk > 0u && secondInk > 0u && outsideInk == 0u, "both page slices draw content strictly inside their requested clips");
     editor->SetText(L"replacement after the prepared page");
-    bool staleRejected = false;
-    try
-    {
-        editor->DrawPreparedPage(view.Controls(), D2D1::RectF(20.f, 5.f, 260.f, 60.f), 0.f, drawing);
-    }
-    catch (const std::logic_error&)
-    {
-        staleRejected = true;
-    }
-    Check(staleRejected, "a source change rejects stale prepared-page geometry");
+    Check(! editor->TryDrawPreparedPage(view.Controls(), D2D1::RectF(20.f, 5.f, 260.f, 60.f), 0.f, drawing),
+          "a source change rejects stale prepared-page geometry");
 }
 
 static void TestRichPageAuthoredColors(GraphicsFixture& gpu)
@@ -372,7 +330,7 @@ static void TestRichTooltipReentrantTransitions(GraphicsFixture& gpu)
         }
         catch (const std::bad_alloc&)
         {
-            std::terminate();
+            DxUi::Failure::FailAllocation();
         }
         catch (const std::exception&)
         {
@@ -605,7 +563,13 @@ static void TestRichTripleClickParagraph(GraphicsFixture& gpu)
     Check(editor->Snapshot().Text() == L"alpha beta\n\nsecond line", "triple click preserves source");
 }
 
-static void TestRichPreparedWordFailureAtomicity(GraphicsFixture& gpu)
+__declspec(noinline) static void RichPreparedWordFaultOrigin(DxUi::RichTextEditor& editor, DxUi::EmbeddedHost& view)
+{
+    DxUi::Failure::Scope scope;
+    failAllocationAfter = 0u;
+    (void)editor.GetPreparedCaretWordSourceRanges(view.Controls());
+}
+static void TestRichPreparedWordFailureAtomicity(GraphicsFixture& gpu, unsigned fatalScenario = 0u)
 {
     using namespace DxUi;
     std::shared_ptr<GraphicsDevice> graphics;
@@ -619,9 +583,17 @@ static void TestRichPreparedWordFailureAtomicity(GraphicsFixture& gpu)
     view.Controls().SetRoot(std::move(root));
     for (const auto mode : {RichText::ViewMode::Source, RichText::ViewMode::Rich})
     {
+        const unsigned scenario = mode == RichText::ViewMode::Source ? 1u : 2u;
+        if (fatalScenario != 0u && fatalScenario != scenario)
+            continue;
         editor->SetViewMode(mode);
         editor->SetSelection({3u, 3u});
         Hr(PrepareRichEmbeddedContent(view, 320u, 120u), "prepare caret-word fault fixture");
+        if (fatalScenario != 0u)
+        {
+            RichPreparedWordFaultOrigin(*editor, view);
+            return;
+        }
         const auto source    = editor->Snapshot();
         const auto selection = editor->GetSelection();
         const auto revision  = editor->Revision();
@@ -644,24 +616,26 @@ static void TestRichPreparedWordFailureAtomicity(GraphicsFixture& gpu)
             Check(result.has_value(), "prepared caret-word query succeeds when allocation is available");
         }
         Check(requests > 0u && requests < 64u, "caret-word query has a bounded set of allocation points");
-        for (size_t failure = 0u; failure < requests; ++failure)
-        {
-            std::optional<std::vector<RichText::MarkdownRange>> failed;
-            {
-                const auto previous = failAllocationAfter;
-                const auto restore  = wil::scope_exit([=] noexcept { failAllocationAfter = previous; });
-                failAllocationAfter = failure;
-                failed              = editor->GetPreparedCaretWordSourceRanges(view.Controls());
-            }
-            Check(! failed && editor->Snapshot().IsSameRevision(source) && editor->GetSelection() == selection && editor->Revision() == revision &&
-                      editor->CanUndo() == undo && editor->CanRedo() == redo,
-                  "every caret-word allocation refusal preserves source, selection, revision and history");
-        }
-        Check(editor->GetPreparedCaretWordSourceRanges(view.Controls()).has_value(), "caret-word query succeeds after allocation recovery");
-        std::cout << "caret-word allocation sweep mode=" << (mode == RichText::ViewMode::Source ? "source" : "rich") << " requests=" << requests << '\n';
+        Check(DxUiFailureTests::ExpectFatalChild(scenario == 1u ? L"embedded-source-word-query" : L"embedded-rich-word-query"),
+              "caret-word query allocation terminates in its owned child");
+        Check(editor->GetPreparedCaretWordSourceRanges(view.Controls()).has_value() && editor->Snapshot().IsSameRevision(source) &&
+                  editor->GetSelection() == selection && editor->Revision() == revision && editor->CanUndo() == undo && editor->CanRedo() == redo,
+              "caret-word query preserves source, selection, revision and history");
     }
 }
 
+__declspec(noinline) static void RichAppearanceConstructionFaultOrigin()
+{
+    DxUi::Failure::Scope scope;
+    failAllocationAfter = 0u;
+    [[maybe_unused]] DxUi::RichTextEditorAppearance appearance;
+}
+__declspec(noinline) static void RichEditorConstructionFaultOrigin()
+{
+    DxUi::Failure::Scope scope;
+    failAllocationAfter = 0u;
+    [[maybe_unused]] DxUi::RichTextEditor editor;
+}
 static void TestRichAppearanceConstructionFailureAtomicity()
 {
     static_assert(! std::is_nothrow_default_constructible_v<DxUi::RichTextEditorAppearance>);
@@ -686,39 +660,10 @@ static void TestRichAppearanceConstructionFailureAtomicity()
         requests         = allocations;
     }
     Check(valid && requests <= 8u, "default appearance retains empty font overrides with a bounded construction schedule");
-    for (size_t failure = 0u; failure < requests; ++failure)
-    {
-        bool rejected{};
-        {
-            const auto oldFailure = failAllocationAfter;
-            const auto restore    = wil::scope_exit([=] noexcept { failAllocationAfter = oldFailure; });
-            failAllocationAfter   = failure;
-            try
-            {
-                [[maybe_unused]] DxUi::RichTextEditorAppearance appearance;
-            }
-            catch (const std::bad_alloc&)
-            {
-                rejected = true;
-            }
-        }
-        Check(rejected, "every default appearance allocation propagates instead of terminating inside a noexcept STL constructor");
-    }
-    bool rejected{};
-    {
-        const auto oldFailure = failAllocationAfter;
-        const auto restore    = wil::scope_exit([=] noexcept { failAllocationAfter = oldFailure; });
-        failAllocationAfter   = 0u;
-        try
-        {
-            [[maybe_unused]] DxUi::RichTextEditor editor;
-        }
-        catch (const std::bad_alloc&)
-        {
-            rejected = true;
-        }
-    }
-    Check(rejected, "default editor argument or owner allocation is fallible before publication");
+    if (requests != 0u)
+        Check(DxUiFailureTests::ExpectFatalChild(L"embedded-appearance-construction-allocation"),
+              "appearance construction allocation terminates in its owned child");
+    Check(DxUiFailureTests::ExpectFatalChild(L"embedded-editor-construction-allocation"), "editor construction allocation terminates in its owned child");
 }
 static void TestHeadingAdmissionNoAllocation()
 {
@@ -745,87 +690,84 @@ static void TestHeadingAdmissionNoAllocation()
     Check(available, "heading admission proves deeply nested prefixes without allocation");
 }
 
-static void TestRichInputAllocationFailureAtomicity()
+template <typename Operation> __declspec(noinline) static void RichInputFaultOrigin(Operation&& operation)
+{
+    DxUi::Failure::Scope scope;
+    failAllocationAfter = 0u;
+    (void)operation();
+}
+static void TestRichInputAllocationFailureAtomicity(unsigned fatalScenario = 0u)
 {
     using namespace DxUi;
     using namespace DxUi::RichText;
     for (unsigned operation = 0u; operation < 4u; ++operation)
     {
-        const auto exercise = [&](size_t failure, bool measure)
+        if (fatalScenario != 0u && fatalScenario != operation + 1u)
+            continue;
+        ControlHost host;
+        RichTextEditor editor(L"alpha beta");
+        editor.SetViewMode(ViewMode::Source);
+        editor.SetSelection({5u, 5u});
+        unsigned notifications = 0u;
+        editor.SetOnTextChanged([&] { ++notifications; });
+        if (operation == 3u)
+            Check(editor.OnChar(host, wchar_t(0xd83d), 0u), "input fixture retains the pending lead surrogate");
+        const auto revision = editor.Revision();
+        const auto act      = [&]
         {
-            ControlHost host;
-            RichTextEditor editor(L"alpha beta");
-            editor.SetViewMode(ViewMode::Source);
-            editor.SetSelection({5u, 5u});
-            unsigned notifications = 0u;
-            editor.SetOnTextChanged([&] { ++notifications; });
-            if (operation == 3u)
-                Check(editor.OnChar(host, wchar_t(0xd83d), 0u), "input fault fixture retains the pending lead surrogate");
-            const auto revision  = editor.Revision();
-            const auto selection = editor.GetSelection();
-            const auto act       = [&]
+            switch (operation)
             {
-                switch (operation)
-                {
-                    case 0u: return editor.OnChar(host, L'X', 0u);
-                    case 1u: return editor.OnKeyDown(host, L'B', MK_CONTROL);
-                    case 2u: return editor.OnKeyDown(host, VK_BACK, 0u);
-                    default: return editor.OnChar(host, wchar_t(0xde00), 0u);
-                }
-            };
-            size_t observed{};
-            bool handled{};
-            {
-                const auto oldCounting = countAllocations;
-                const auto oldCalls = allocations, oldBytes = allocationBytes, oldFailure = failAllocationAfter;
-                const auto restore = wil::scope_exit([=]() noexcept
-                {
-                    countAllocations    = oldCounting;
-                    allocations         = oldCalls;
-                    allocationBytes     = oldBytes;
-                    failAllocationAfter = oldFailure;
-                });
-                allocations = allocationBytes = 0u;
-                countAllocations              = measure;
-                if (! measure)
-                    failAllocationAfter = failure;
-                handled  = act();
-                observed = allocations;
+                case 0u: return editor.OnChar(host, L'X', 0u);
+                case 1u: return editor.OnKeyDown(host, L'B', MK_CONTROL);
+                case 2u: return editor.OnKeyDown(host, VK_BACK, 0u);
+                default: return editor.OnChar(host, wchar_t(0xde00), 0u);
             }
-            if (! measure)
-            {
-                if (handled || editor.GetText() != L"alpha beta" || editor.GetSelection() != selection || editor.Revision() != revision || editor.CanUndo() ||
-                    notifications != 0u)
-                    std::fprintf(stdout,
-                                 "Input allocation atomicity: operation=%u failure=%zu handled=%u revision=%llu notifications=%u\n",
-                                 operation,
-                                 failure,
-                                 handled ? 1u : 0u,
-                                 static_cast<unsigned long long>(editor.Revision()),
-                                 notifications);
-                Check(! handled && editor.GetText() == L"alpha beta" && editor.GetSelection() == selection && editor.Revision() == revision &&
-                          ! editor.CanUndo() && notifications == 0u,
-                      "every observed precommit input allocation failure declines atomically");
-                Check(act(), "an input can retry after allocation failure, including its pending surrogate pair");
-            }
-            Check((! measure || handled) && editor.Revision() != revision && editor.CanUndo() && notifications == 1u && IsValidSourceUtf16(editor.GetText()),
-                  "successful input commits one complete Unicode transaction");
-            Check(editor.Undo() && editor.GetText() == L"alpha beta" && ! editor.CanUndo(), "one undo restores the complete input transaction");
-            return observed;
         };
-        const auto observed = exercise(0u, true);
+        if (fatalScenario != 0u)
+        {
+            RichInputFaultOrigin(act);
+            return;
+        }
+        const wchar_t* child = operation == 0u   ? L"embedded-input-character-allocation"
+                               : operation == 1u ? L"embedded-input-command-allocation"
+                               : operation == 2u ? L"embedded-input-backspace-allocation"
+                                                 : L"embedded-input-surrogate-allocation";
+        Check(DxUiFailureTests::ExpectFatalChild(child), "input allocation terminates in its owned child");
+        const auto oldCounting = countAllocations;
+        const auto oldCalls = allocations, oldBytes = allocationBytes;
+        allocations = allocationBytes = 0u;
+        countAllocations              = true;
+        const bool handled            = act();
+        countAllocations              = oldCounting;
+        const auto observed           = allocations;
+        allocations                   = oldCalls;
+        allocationBytes               = oldBytes;
         Check(observed > 0u && observed < 2048u, "native input has a bounded observed allocation schedule");
-        for (size_t failure = 0u; failure < observed; ++failure)
-            static_cast<void>(exercise(failure, false));
+        Check(handled && editor.Revision() != revision && editor.CanUndo() && notifications == 1u && IsValidSourceUtf16(editor.GetText()),
+              "successful input commits one complete Unicode transaction");
+        Check(editor.Undo() && editor.GetText() == L"alpha beta" && ! editor.CanUndo(), "one undo restores the complete input transaction");
     }
 }
-static void TestRichFileDropTransportAllocationFailures()
+
+__declspec(noinline) static void RichFileDropTransportFaultOrigin(IDataObject* data, DxUi::TextClipboardContent& content)
+{
+    DxUi::Failure::Scope scope;
+    failAllocationAfter = 0u;
+    (void)DxUi::ReadDataObjectFilePaths(data, content);
+}
+static void TestRichFileDropTransportAllocationFailures(bool fatalChild = false)
 {
     using namespace DxUi;
     auto data = Microsoft::WRL::Make<RichFileDropTests::DropDataObject>();
     Check(data != nullptr, "allocate private file-drop data object");
     constexpr wchar_t list[] = L"C:\\docs\\one.png\0C:\\docs\\two.pdf\0";
     data->bytes              = RichImagePathTests::DropBuffer(std::wstring_view(list, std::size(list)));
+    if (fatalChild)
+    {
+        TextClipboardContent content;
+        RichFileDropTransportFaultOrigin(data.Get(), content);
+        return;
+    }
     TextClipboardContent measured;
     const auto oldCounting = countAllocations;
     const auto oldCalls = allocations, oldBytes = allocationBytes;
@@ -838,20 +780,11 @@ static void TestRichFileDropTransportAllocationFailures()
     allocationBytes               = oldBytes;
     Check(measuredResult == S_OK && measured.filePaths.size() == 2u && observed > 0u && observed < 256u,
           "file-drop transport has an observed bounded allocation schedule");
-    for (size_t failure = 0u; failure < observed; ++failure)
-    {
-        TextClipboardContent content;
-        content.text          = L"sentinel";
-        const auto oldFailure = failAllocationAfter;
-        const auto releases   = data->releases;
-        failAllocationAfter   = failure;
-        const auto result     = ReadDataObjectFilePaths(data.Get(), content);
-        failAllocationAfter   = oldFailure;
-        Check(result == E_OUTOFMEMORY && content.text == L"sentinel" && content.filePaths.empty() && data->releases <= releases + 1u,
-              "each observed transport allocation failure preserves output and releases any acquired medium once");
-        Check(ReadDataObjectFilePaths(data.Get(), content) == S_OK && content.filePaths.size() == 2u,
-              "file-drop transport permits an exact retry after allocation failure");
-    }
+    Check(DxUiFailureTests::ExpectFatalChild(L"embedded-file-drop-transport-allocation"), "file-drop transport allocation terminates in its owned child");
+    TextClipboardContent content;
+    const auto releases = data->releases;
+    Check(ReadDataObjectFilePaths(data.Get(), content) == S_OK && content.filePaths.size() == 2u && data->releases == releases + 1u,
+          "file-drop transport returns both files and releases its acquired medium once");
 }
 static void TestPreparedCommandStateAllocationFailures(GraphicsFixture& gpu)
 {
@@ -911,29 +844,9 @@ static void TestPreparedCommandStateAllocationFailures(GraphicsFixture& gpu)
         Check(requests > 0u && requests < 2048u, "prepared command state has finite allocation points");
         const auto expectedState = editor->QueryMarkdownCommandState(next);
         Check(expectedState && expectedState->available.has_value(), "measured prepared request has exact availability");
-        for (size_t failure = 0u; failure < requests; ++failure)
-        {
-            Check(editor->PrepareMarkdownCommandState(previous), "restore prior prepared state before fault");
-            bool failed = false;
-            {
-                const auto oldFailure = failAllocationAfter;
-                const auto restore    = wil::scope_exit([=] noexcept { failAllocationAfter = oldFailure; });
-                failAllocationAfter   = failure;
-                try
-                {
-                    static_cast<void>(editor->PrepareMarkdownCommandState(next));
-                }
-                catch (const std::bad_alloc&)
-                {
-                    failed = true;
-                }
-            }
-            const auto state = editor->QueryMarkdownCommandState(previous);
-            Check(failed && state && state->available == std::optional<bool>{true} && editor->Snapshot().IsSameRevision(source) &&
-                      editor->GetSelection() == selection && editor->Revision() == revision && ! editor->CanUndo(),
-                  "each preparation allocation failure preserves the previous cache and source transaction");
-        }
-        Check(editor->PrepareMarkdownCommandState(next), "prepared state retries after every allocation failure");
+        Check(editor->PrepareMarkdownCommandState(previous) && editor->PrepareMarkdownCommandState(next) && editor->Snapshot().IsSameRevision(source) &&
+                  editor->GetSelection() == selection && editor->Revision() == revision && ! editor->CanUndo(),
+              "switching prepared command states preserves source, selection and history");
         {
             const auto oldFailure = failAllocationAfter;
             const auto restore    = wil::scope_exit([=] noexcept { failAllocationAfter = oldFailure; });
@@ -997,31 +910,13 @@ static void TestPreparedCommandStateComplexAllocationFailures(GraphicsFixture& g
         const auto expected = editor->QueryMarkdownCommandState(next);
         Check(requests > 0u && requests < 2048u && expected && expected->available.has_value(), "complex command preparation has bounded observed allocations");
         std::cout << "complex prepared command=" << static_cast<unsigned>(command) << " allocation points=" << requests << std::endl;
-        for (size_t failure = 0u; failure < requests; ++failure)
-        {
-            Check(editor->PrepareMarkdownCommandState(previous), "restore prior complex command state");
-            bool failed = false;
-            {
-                const auto oldFailure = failAllocationAfter;
-                const auto restore    = wil::scope_exit([=] noexcept { failAllocationAfter = oldFailure; });
-                failAllocationAfter   = failure;
-                try
-                {
-                    static_cast<void>(editor->PrepareMarkdownCommandState(next));
-                }
-                catch (const std::bad_alloc&)
-                {
-                    failed = true;
-                }
-            }
-            const auto actual = editor->QueryMarkdownCommandState(previous);
-            Check(failed && actual && actual->available == oldState->available && editor->Snapshot().IsSameRevision(source) &&
-                      editor->GetSelection() == selection && editor->Revision() == revision && ! editor->CanUndo(),
-                  "complex preparation failure preserves the previous cache and source transaction");
-        }
-        Check(editor->PrepareMarkdownCommandState(next), "complex command state retries after faults");
-        const auto actual = editor->QueryMarkdownCommandState(next);
-        Check(actual && actual->available == expected->available, "complex command retry retains exact availability");
+        Check(editor->PrepareMarkdownCommandState(previous), "restore prior complex command state");
+        const auto actual = editor->QueryMarkdownCommandState(previous);
+        Check(actual && actual->available == oldState->available && editor->PrepareMarkdownCommandState(next) && editor->Snapshot().IsSameRevision(source) &&
+                  editor->GetSelection() == selection && editor->Revision() == revision && ! editor->CanUndo(),
+              "complex command state switches preserve the source transaction");
+        const auto actualNext = editor->QueryMarkdownCommandState(next);
+        Check(actualNext && actualNext->available == expected->available, "complex command retry retains exact availability");
     };
     constexpr std::wstring_view anchor = L"<a href=\"https://example.invalid\">label</a>";
     constexpr std::wstring_view table  = L"| a | b |\n|---|---|\n| x | y |\n";
@@ -1090,29 +985,11 @@ static void TestTableCommandPreparationAllocationFailures(GraphicsFixture& gpu)
         Check(expected && expected->available == std::optional<bool>{true} && requests > 0u && requests < 2048u,
               "table command fixture measures an available bounded preparation");
         std::cout << "table command=" << static_cast<unsigned>(command) << " allocation points=" << requests << std::endl;
-        for (size_t failure = 0u; failure < requests; ++failure)
-        {
-            Check(editor->PrepareMarkdownCommandState(previous), "restore prior state before table allocation failure");
-            bool failed = false;
-            {
-                const auto oldFailure = failAllocationAfter;
-                const auto restore    = wil::scope_exit([=] noexcept { failAllocationAfter = oldFailure; });
-                failAllocationAfter   = failure;
-                try
-                {
-                    static_cast<void>(editor->PrepareMarkdownCommandState(request));
-                }
-                catch (const std::bad_alloc&)
-                {
-                    failed = true;
-                }
-            }
-            const auto actual = editor->QueryMarkdownCommandState(previous);
-            Check(failed && actual && actual->available == oldState->available && editor->Snapshot().IsSameRevision(snapshot) &&
-                      editor->GetSelection() == selection && editor->Revision() == revision && ! editor->CanUndo(),
-                  "table preparation failure preserves prior state, source, selection and history");
-        }
-        Check(editor->PrepareMarkdownCommandState(request), "table command preparation retries after allocation failures");
+        Check(editor->PrepareMarkdownCommandState(previous), "restore prior table state");
+        const auto actual = editor->QueryMarkdownCommandState(previous);
+        Check(actual && actual->available == oldState->available && editor->PrepareMarkdownCommandState(request) &&
+                  editor->Snapshot().IsSameRevision(snapshot) && editor->GetSelection() == selection && editor->Revision() == revision && ! editor->CanUndo(),
+              "table preparation preserves source, selection and history");
     }
     editor->SetText(L"");
     editor->SetSelection({0u, 0u});
@@ -1141,32 +1018,20 @@ static void TestTableCommandPreparationAllocationFailures(GraphicsFixture& gpu)
         delimitedRequests = allocations;
     }
     Check(delimitedRequests > 0u && delimitedRequests < 2048u, "delimited table preparation has bounded allocation points");
-    for (size_t failure = 0u; failure < delimitedRequests; ++failure)
-    {
-        Check(editor->PrepareMarkdownCommandState(previous), "restore prior delimited table state");
-        bool failed = false;
-        {
-            const auto oldFailure = failAllocationAfter;
-            const auto restore    = wil::scope_exit([=] noexcept { failAllocationAfter = oldFailure; });
-            failAllocationAfter   = failure;
-            try
-            {
-                static_cast<void>(editor->PrepareMarkdownCommandState(delimited));
-            }
-            catch (const std::bad_alloc&)
-            {
-                failed = true;
-            }
-        }
-        const auto actual = editor->QueryMarkdownCommandState(previous);
-        Check(failed && previousState && actual && actual->available == previousState->available && editor->Snapshot().IsSameRevision(emptySnapshot) &&
-                  editor->GetSelection() == Selection{0u, 0u} && ! editor->CanUndo(),
-              "delimited table allocation failure preserves prior prepared state and document");
-    }
-    Check(editor->PrepareMarkdownCommandState(delimited), "delimited table preparation retries after every allocation failure");
+    Check(editor->PrepareMarkdownCommandState(previous), "restore prior delimited table state");
+    const auto actual = editor->QueryMarkdownCommandState(previous);
+    Check(previousState && actual && actual->available == previousState->available && editor->PrepareMarkdownCommandState(delimited) &&
+              editor->Snapshot().IsSameRevision(emptySnapshot) && editor->GetSelection() == Selection{0u, 0u} && ! editor->CanUndo(),
+          "delimited table preparation preserves source, selection and history");
 }
 
-static void TestRichFileDropTransactionAllocationFailures(GraphicsFixture& gpu)
+__declspec(noinline) static void RichFileDropTransactionFaultOrigin(DxUi::EmbeddedHost& view, D2D1_POINT_2F point, IDataObject& data)
+{
+    DxUi::Failure::Scope scope;
+    failAllocationAfter = 0u;
+    (void)view.CommitFileDrop(point, data);
+}
+static void TestRichFileDropTransactionAllocationFailures(GraphicsFixture& gpu, bool fatalChild = false)
 {
     using namespace DxUi;
     using namespace DxUi::RichText;
@@ -1176,7 +1041,7 @@ static void TestRichFileDropTransactionAllocationFailures(GraphicsFixture& gpu)
     Check(data != nullptr, "file-drop fault fixture data object");
     constexpr wchar_t list[] = L"C:\\docs\\one.png\0C:\\docs\\two.pdf\0";
     data->bytes              = RichImagePathTests::DropBuffer(std::wstring_view(list, std::size(list)));
-    const auto exercise      = [&](size_t failure, bool measure)
+    const auto exercise      = [&]
     {
         EmbeddedHost view;
         Hr(view.Attach(graphics), "attach file-drop fault fixture");
@@ -1190,42 +1055,51 @@ static void TestRichFileDropTransactionAllocationFailures(GraphicsFixture& gpu)
         Hr(PrepareRichEmbeddedContent(view, 640u, 240u), "prepare file-drop fault fixture");
         const auto rect = editor->TryGetTextInputCaretRect(view.Controls(), 2u);
         Check(rect.has_value(), "file-drop fault fixture caret");
-        const auto point       = D2D1::Point2F(rect->left + .01f, (rect->top + rect->bottom) * .5f);
-        const auto revision    = editor->Revision();
-        const auto oldCounting = countAllocations;
-        const auto oldCalls = allocations, oldBytes = allocationBytes, oldFailure = failAllocationAfter;
-        allocations = allocationBytes = 0u;
-        countAllocations              = measure;
-        if (! measure)
-            failAllocationAfter = failure;
-        const bool committed = view.CommitFileDrop(point, *data.Get());
-        const auto observed  = allocations;
-        failAllocationAfter  = oldFailure;
-        countAllocations     = oldCounting;
-        allocations          = oldCalls;
-        allocationBytes      = oldBytes;
-        if (measure)
-            Check(committed && editor->GetText() == L"al![one](one.png)\r\n\r\n[two\\.pdf](two.pdf)pha", "measure successful file-drop transaction");
-        else
+        const auto point = D2D1::Point2F(rect->left + .01f, (rect->top + rect->bottom) * .5f);
+        if (fatalChild)
         {
-            Check(! committed && editor->GetText() == L"alpha" && editor->Revision() == revision && editor->GetSelection() == Selection{5u, 0u} &&
-                      ! editor->CanUndo(),
-                  "each precommit allocation failure preserves exact source, revision, selection and history");
-            Check(view.CommitFileDrop(point, *data.Get()), "file-drop transaction permits exact retry after allocation failure");
+            RichFileDropTransactionFaultOrigin(view, point, *data.Get());
+            return size_t{};
         }
+        const auto oldCounting = countAllocations;
+        const auto oldCalls = allocations, oldBytes = allocationBytes;
+        allocations = allocationBytes = 0u;
+        countAllocations              = true;
+        const bool committed          = view.CommitFileDrop(point, *data.Get());
+        const auto observed           = allocations;
+        countAllocations              = oldCounting;
+        allocations                   = oldCalls;
+        allocationBytes               = oldBytes;
+        Check(committed && editor->GetText() == L"al![one](one.png)\r\n\r\n[two\\.pdf](two.pdf)pha",
+              "successful file-drop transaction inserts both references");
         return observed;
     };
-    const auto observed = exercise(0u, true);
+    const auto observed = exercise();
+    if (fatalChild)
+        return;
     Check(observed > 0u && observed < 2048u, "file-drop transaction has an observed bounded allocation schedule");
-    for (size_t failure = 0u; failure < observed; ++failure)
-        static_cast<void>(exercise(failure, false));
+    Check(DxUiFailureTests::ExpectFatalChild(L"embedded-file-drop-transaction-allocation"), "file-drop transaction allocation terminates in its owned child");
 }
 
 // The paired benchmark also compiles this common fixture against its older
 // frozen SDK. Keep the new API references dependent; ordinary qualification
 // of this revision must execute the supported branch below.
+__declspec(noinline) static void RichHistoryUndoFaultOrigin()
+{
+    DxUi::RichText::Document history(L"x");
+    Check(history.ReplaceSelection(L"y"), "seed history for undo allocation fault");
+    DxUi::Failure::Scope scope;
+    failAllocationAfter = 0u;
+    (void)history.Undo();
+}
+template <typename Operation> __declspec(noinline) static void RichSnapshotAdoptionFaultOrigin(Operation&& operation)
+{
+    DxUi::Failure::Scope scope;
+    failAllocationAfter = 0u;
+    operation();
+}
 template <typename Parser = DxUi::RichText::MarkdownParser, typename Editor = DxUi::RichTextEditor, typename Snapshot = DxUi::RichText::SourceSnapshot>
-static void TestReadOnlyParsedSnapshotAllocationFailures()
+static void TestReadOnlyParsedSnapshotAllocationFailures(unsigned fatalScenario = 0u)
 {
     using namespace DxUi;
     using namespace DxUi::RichText;
@@ -1278,28 +1152,18 @@ static void TestReadOnlyParsedSnapshotAllocationFailures()
         const auto parserRequests =
             observe([&] { Check(counted.TryAdoptParsedSnapshot(source, 3u, owner, MarkdownProfile::RichMarkdown), "count parser adoption"); });
         Check(parserRequests > 0u && parserRequests < 64u, "parsed adoption has a bounded observed allocation schedule");
-        for (size_t failure = 0u; failure < parserRequests; ++failure)
         {
             auto parser         = pendingParser();
             const auto previous = parser.Published();
-            bool rejected{};
+            if (fatalScenario == 1u)
             {
-                const auto oldFailure = failAllocationAfter;
-                const auto restore    = wil::scope_exit([=] noexcept { failAllocationAfter = oldFailure; });
-                failAllocationAfter   = failure;
-                try
-                {
-                    static_cast<void>(parser.TryAdoptParsedSnapshot(source, 3u, owner, MarkdownProfile::RichMarkdown));
-                }
-                catch (const std::bad_alloc&)
-                {
-                    rejected = true;
-                }
+                RichSnapshotAdoptionFaultOrigin([&] { (void)parser.TryAdoptParsedSnapshot(source, 3u, owner, MarkdownProfile::RichMarkdown); });
+                return;
             }
-            Check(rejected && parser.Published() == previous && parser.HasPendingPreparation(),
-                  "each failed parse adoption preserves publication and pending work");
-            finish(parser);
-            Check(parser.Published()->Source() == L"preserved pending request", "the original staged request still completes after allocation refusal");
+            if (fatalScenario == 0u)
+                Check(DxUiFailureTests::ExpectFatalChild(L"embedded-parser-adoption-allocation"), "parser adoption allocation terminates in its owned child");
+            Check(parser.TryAdoptParsedSnapshot(source, 3u, owner, MarkdownProfile::RichMarkdown) && parser.Published() != previous,
+                  "parser adopts the complete parsed source");
         }
         const auto makeEditor = [&]
         {
@@ -1315,29 +1179,25 @@ static void TestReadOnlyParsedSnapshotAllocationFailures()
         const auto editorRequests =
             observe([&] { Check(countedEditor->TryAdoptReadOnlyMarkdownSyntax(countedEditor->Snapshot(), owner) == S_OK, "count editor adoption"); });
         Check(editorRequests > 0u && editorRequests < 64u, "editor reuse has a bounded observed allocation schedule");
-        for (size_t failure = 0u; failure < editorRequests; ++failure)
         {
             auto editor = makeEditor();
             Check(editor->TryAdoptReadOnlyMarkdownSyntax(editor->Snapshot(), replacement) == S_OK, "seed prior completed target publication");
-            const auto previous  = editor->GetMarkdownSyntax();
             const auto before    = editor->Snapshot();
             const auto revision  = editor->Revision();
             const auto selection = editor->GetSelection();
             unsigned notifications{};
             editor->SetOnTextChanged([&] { ++notifications; });
             editor->SetOnSelectionChanged([&] { ++notifications; });
-            HRESULT result{};
+            if (fatalScenario == 2u)
             {
-                const auto oldFailure = failAllocationAfter;
-                const auto restore    = wil::scope_exit([=] noexcept { failAllocationAfter = oldFailure; });
-                failAllocationAfter   = failure;
-                result                = editor->TryAdoptReadOnlyMarkdownSyntax(before, owner);
+                RichSnapshotAdoptionFaultOrigin([&] { (void)editor->TryAdoptReadOnlyMarkdownSyntax(before, owner); });
+                return;
             }
-            Check(result == E_OUTOFMEMORY && editor->GetMarkdownSyntax() == previous && editor->Snapshot().IsSameRevision(before) &&
+            if (fatalScenario == 0u)
+                Check(DxUiFailureTests::ExpectFatalChild(L"embedded-editor-adoption-allocation"), "editor adoption allocation terminates in its owned child");
+            Check(editor->TryAdoptReadOnlyMarkdownSyntax(before, owner) == S_OK && editor->GetMarkdownSyntax() && editor->Snapshot().IsSameRevision(before) &&
                       editor->Revision() == revision && editor->GetSelection() == selection && editor->CanUndo() && ! editor->CanRedo() && notifications == 0u,
-                  "each failed editor adoption preserves exact source, revision, selection, history and notifications");
-            Check(editor->TryAdoptReadOnlyMarkdownSyntax(before, owner) == S_OK && editor->GetMarkdownSyntax(),
-                  "explicit retry succeeds after allocation refusal");
+                  "editor adoption preserves source, revision, selection, history and notifications");
         }
         Check(observe([&] { Check(source.MatchesText(text), "exact source matches without flattening"); }) == 0u,
               "source comparison performs no C++ allocation");
@@ -1348,28 +1208,11 @@ static void TestReadOnlyParsedSnapshotAllocationFailures()
               "idempotent adoption performs no C++ allocation or publication replacement");
         Document history(L"x");
         Check(history.ReplaceSelection(L"y"), "seed a history ring before fault injection");
-        const auto before          = history.Snapshot();
-        const auto beforeSelection = history.GetSelection();
-        const auto beforeRevision  = history.Revision();
-        bool undoAllocationFailed{};
-        {
-            const auto previous = failAllocationAfter;
-            const auto restore  = wil::scope_exit([=] noexcept { failAllocationAfter = previous; });
-            failAllocationAfter = 0u;
-            try
-            {
-                static_cast<void>(history.Undo());
-            }
-            catch (const std::bad_alloc&)
-            {
-                undoAllocationFailed = true;
-            }
-        }
-        Check(undoAllocationFailed && history.Snapshot().IsSameRevision(before) && history.GetSelection() == beforeSelection &&
-                  history.Revision() == beforeRevision && history.CanUndo() && ! history.CanRedo(),
-              "failure to allocate the first redo ring leaves source, selection and both histories intact");
+        const auto before = history.Snapshot();
+        if (fatalScenario == 0u)
+            Check(DxUiFailureTests::ExpectFatalChild(L"embedded-history-undo-allocation"), "first redo ring allocation terminates in its owned child");
         Check(history.Undo() && history.Text() == L"x" && history.Redo() && history.Snapshot().IsSameRevision(before),
-              "undo and redo remain usable after the rejected ring allocation");
+              "undo and redo preserve the exact revision");
         bool cycled{};
         const auto warmHistoryAllocations = observe([&] { cycled = history.Undo() && history.Redo(); });
         Check(cycled && warmHistoryAllocations == 0u, "warm undo and redo reuse bounded history storage without allocating");
@@ -1385,10 +1228,12 @@ static void TestReadOnlyParsedSnapshotAllocationFailures()
                 Typography,
                 Fence
             };
+            unsigned policyScenario = 2u;
             for (const auto policy : {TypingPolicy::Pair, TypingPolicy::Typography, TypingPolicy::Fence})
             {
-                bool sawFailure = false, sawSuccess = false;
-                for (size_t point = 0u; point < 128u; ++point)
+                ++policyScenario;
+                if (fatalScenario != 0u && fatalScenario != policyScenario)
+                    continue;
                 {
                     ControlHost host;
                     auto root    = std::make_unique<Editor>();
@@ -1420,44 +1265,39 @@ static void TestReadOnlyParsedSnapshotAllocationFailures()
                     host.SetRoot(std::move(root));
                     if (policy == TypingPolicy::Fence)
                         Check(editor->OnChar(host, L'`', 0u) && editor->OnChar(host, L'`', 0u), "seed a pending fenced-code trigger");
-                    const auto policyBefore          = editor->Snapshot();
-                    const auto policyBeforeSelection = editor->GetSelection();
-                    const auto policyBeforeRevision  = editor->Revision();
-                    const bool beforeUndo = editor->CanUndo(), beforeRedo = editor->CanRedo();
-                    bool handled{};
+                    const auto act = [&]
                     {
-                        const auto previous = failAllocationAfter;
-                        const auto restore  = wil::scope_exit([=] noexcept { failAllocationAfter = previous; });
-                        failAllocationAfter = point;
-                        handled             = editor->OnChar(host, policy == TypingPolicy::Pair ? L'(' : policy == TypingPolicy::Typography ? L'.' : L'`', 0u);
-                    }
-                    if (editor->Snapshot().IsSameRevision(policyBefore))
+                        return editor->OnChar(host, policy == TypingPolicy::Pair ? L'(' : policy == TypingPolicy::Typography ? L'.' : L'`', 0u);
+                    };
+                    if (fatalScenario != 0u)
                     {
-                        sawFailure = true;
-                        Check(! handled && editor->Revision() == policyBeforeRevision && editor->GetSelection() == policyBeforeSelection &&
-                                  editor->CanUndo() == beforeUndo && editor->CanRedo() == beforeRedo,
-                              "failed typing-policy allocation preserves source, selection and history before publication");
+                        RichSnapshotAdoptionFaultOrigin([&] { (void)act(); });
+                        return;
                     }
-                    else
-                    {
-                        const auto expected = policy == TypingPolicy::Pair ? L"()" : policy == TypingPolicy::Typography ? L"\u2026" : L"```\r\n\r\n```";
-                        const auto restored = policy == TypingPolicy::Typography ? L".." : L"";
-                        Check(handled && editor->GetText() == expected && editor->Undo() && editor->GetText() == restored,
-                              "a published typing-policy transaction is handled and undoes atomically");
-                        sawSuccess = true;
-                        break;
-                    }
+                    constexpr const wchar_t* children[] = {
+                        L"embedded-typing-pair-allocation", L"embedded-typing-typography-allocation", L"embedded-typing-fence-allocation"};
+                    const auto expected = policy == TypingPolicy::Pair ? L"()" : policy == TypingPolicy::Typography ? L"\u2026" : L"```\r\n\r\n```";
+                    const auto restored = policy == TypingPolicy::Typography ? L".." : L"";
+                    Check(act() && editor->GetText() == expected && editor->Undo() && editor->GetText() == restored,
+                          "typing-policy transaction commits and undoes atomically");
+                    // Child startup and dump verification must not split a timed typing sequence.
+                    Check(DxUiFailureTests::ExpectFatalChild(children[policyScenario - 3u]), "typing policy allocation terminates in its owned child");
                 }
-                Check(sawFailure && sawSuccess, "typing-policy fault sweep reaches precommit failure and success");
             }
         }
-        std::cout << "parsed snapshot allocation-failure sweep: parser=" << parserRequests << " editor=" << editorRequests << '\n';
+        std::cout << "parsed snapshot allocation schedule: parser=" << parserRequests << " editor=" << editorRequests << '\n';
     }
     else
         Check(false, "current ordinary qualification requires parsed snapshot reuse support");
 }
 
-template <typename Editor = DxUi::RichTextEditor> static void TestRichDefaultMenuModelAllocationFailureAtomicity()
+template <typename Editor> __declspec(noinline) static void RichDefaultMenuFaultOrigin(Editor& editor, std::vector<DxUi::MenuFlyoutItem>& items)
+{
+    DxUi::Failure::Scope scope;
+    failAllocationAfter = 0u;
+    editor.BuildDefaultContextMenuItems(items);
+}
+template <typename Editor = DxUi::RichTextEditor> static void TestRichDefaultMenuModelAllocationFailureAtomicity(bool fatalChild = false)
 {
     using namespace DxUi;
     static_assert(std::is_aggregate_v<MenuFlyoutItem>);
@@ -1472,37 +1312,17 @@ template <typename Editor = DxUi::RichTextEditor> static void TestRichDefaultMen
         Editor editor(L"word");
         const typename Editor::DefaultContextMenuLabels labels{L"Undo", L"Redo", L"Cut", L"Copy", L"Paste", L"Select all", L"Bold", L"Italic"};
         editor.SetDefaultContextMenuLabels(&labels);
-        bool succeeded = false, sawFailure = false;
-        for (size_t point = 0u; point < 256u; ++point)
+        std::vector<MenuFlyoutItem> items(0u);
+        items.emplace_back();
+        items.front().text = L"sentinel";
+        if (fatalChild)
         {
-            std::vector<MenuFlyoutItem> items(0u);
-            items.emplace_back();
-            items.front().text = L"sentinel";
-            bool failed        = false;
-            try
-            {
-                const auto previous = failAllocationAfter;
-                const auto restore  = wil::scope_exit([=] noexcept { failAllocationAfter = previous; });
-                failAllocationAfter = point;
-                editor.BuildDefaultContextMenuItems(items);
-            }
-            catch (const std::bad_alloc&)
-            {
-                failed = true;
-            }
-            if (failed)
-            {
-                sawFailure = true;
-                Check(items.size() == 1u && items.front().text == L"sentinel", "failed default-menu staging leaves the caller model unchanged");
-            }
-            else
-            {
-                Check(items.size() == 8u, "default-menu model succeeds after all injected allocation sites");
-                succeeded = true;
-                break;
-            }
+            RichDefaultMenuFaultOrigin(editor, items);
+            return;
         }
-        Check(sawFailure && succeeded, "default-menu model allocation sweep reaches failure and success");
+        Check(DxUiFailureTests::ExpectFatalChild(L"embedded-default-menu-allocation"), "default menu allocation terminates in its owned child");
+        editor.BuildDefaultContextMenuItems(items);
+        Check(items.size() == 8u, "default-menu model publishes all items");
     }
 }
 
@@ -1564,7 +1384,13 @@ static void TestRichEditorSteadyLinkHoverAllocatesNothing(GraphicsFixture& gpu)
     Check(underlined && ! requests && ! bytes && editor->DebugGetState().layoutGeneration == generation,
           "1024 steady glyph hovers allocate no C++ storage, reflow no text and keep the native link cue");
 }
-static void TestRichImageDecoderAllocationFailures()
+template <typename Operation> __declspec(noinline) static void RichImageDecoderFaultOrigin(Operation&& operation)
+{
+    DxUi::Failure::Scope scope;
+    failAllocationAfter = 0u;
+    (void)operation();
+}
+static void TestRichImageDecoderAllocationFailures(unsigned fatalScenario = 0u)
 {
     using DxUi::RichText::RichImage;
     const auto initialized = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
@@ -1584,8 +1410,15 @@ static void TestRichImageDecoderAllocationFailures()
     }
     const auto encoded = RichImageTests::Encode(factory.get(), GUID_ContainerFormatPng, source, 2u, 3u);
     std::shared_ptr<const RichImage> image;
-    const auto sweep = [&](auto&& request)
+    const auto sweep = [&](unsigned scenario, auto&& request)
     {
+        if (fatalScenario != 0u && fatalScenario != scenario)
+            return;
+        if (fatalScenario == scenario)
+        {
+            RichImageDecoderFaultOrigin(request);
+            return;
+        }
         const auto oldCalls = allocations, oldBytes = allocationBytes;
         const bool oldCounting = countAllocations;
         const auto restore     = wil::scope_exit([=] noexcept
@@ -1601,24 +1434,15 @@ static void TestRichImageDecoderAllocationFailures()
         Hr(result, "baseline image allocation schedule");
         const auto requests = allocations;
         Check(requests > 0u && requests < 128u, "immutable pixel creation has a bounded observed allocation schedule");
-        for (std::size_t point = 0u; point < requests; ++point)
-        {
-            const auto held = image;
-            HRESULT failed{};
-            {
-                const auto previous = failAllocationAfter;
-                const auto reset    = wil::scope_exit([=] noexcept { failAllocationAfter = previous; });
-                failAllocationAfter = point;
-                failed              = request();
-            }
-            Check(failed == E_OUTOFMEMORY && image == held, "every owned image allocation failure preserves the immutable resource");
-            Hr(request(), "explicit image retry");
-            Check(image->Width() == 2u && image->Height() == 3u && image->Pixels()[20u] == std::byte(180u), "image retry retains exact known pixel contents");
-        }
+        Check(DxUiFailureTests::ExpectFatalChild(scenario == 1u ? L"embedded-image-decode-allocation" : L"embedded-image-create-allocation"),
+              "image allocation terminates in its owned child");
+        Check(image->Width() == 2u && image->Height() == 3u && image->Pixels()[20u] == std::byte(180u), "image creation retains exact known pixels");
         std::cout << "immutable image allocation points=" << requests << '\n';
     };
-    sweep([&] { return RichImage::Decode(factory.get(), std::as_bytes(std::span(encoded)), image); });
-    sweep([&] { return RichImage::CreatePbgra(2u, 3u, std::as_bytes(std::span(source)), image); });
+    sweep(1u, [&] { return RichImage::Decode(factory.get(), std::as_bytes(std::span(encoded)), image); });
+    sweep(2u, [&] { return RichImage::CreatePbgra(2u, 3u, std::as_bytes(std::span(source)), image); });
+    if (fatalScenario != 0u)
+        return;
     constexpr unsigned extent   = 512u;
     constexpr size_t pixelBytes = static_cast<size_t>(extent) * extent * 4u;
     std::vector<BYTE> opaque(pixelBytes, 0u);
@@ -1655,92 +1479,46 @@ static void TestRichImageDecoderAllocationFailures()
               std::memcmp(image->Pixels().data(), opaque.data(), opaque.size()) == 0,
           "identity PNG preserves every opaque source pixel");
 }
-static void TestRichImagePathAllocationFailures()
+__declspec(noinline) static void RichImagePathFaultOrigin(unsigned scenario, std::span<const std::byte> bytes)
+{
+    DxUi::TextClipboardContent content;
+    DxUi::Failure::Scope scope;
+    failAllocationAfter = 0u;
+    if (scenario == 1u)
+        (void)DxUi::DecodeClipboardFilePaths(bytes, content);
+    else if (scenario == 2u)
+        (void)DxUi::RichText::Detail::BuildMarkdownFileReference(L"C:\\notes\\chapters\\note.md", L"C:\\notes\\files\\\u6771\U0001f600 [x]#%.pdf");
+    else if (scenario == 3u)
+        (void)DxUi::RichText::Detail::ResolveLocalImagePath(L"C:\\notes\\chapters\\note.md", L"../images/%E6%9D%B1%F0%9F%98%80.png");
+    else
+        (void)DxUi::RichText::Detail::BuildMarkdownFileReference(L"C:\\notes\\chapters\\note.md", L"\\\\?\\C:\\notes\\images\\\u6771\U0001f600 [x]#%.png");
+}
+static void TestRichImagePathAllocationFailures(unsigned fatalScenario = 0u)
 {
     using namespace DxUi;
-    const auto sweep = [&](auto&& action)
-    {
-        const auto oldCalls = allocations, oldBytes = allocationBytes;
-        const bool oldCounting = countAllocations;
-        const auto restore     = wil::scope_exit([=] noexcept
-        {
-            countAllocations = oldCounting;
-            allocations      = oldCalls;
-            allocationBytes  = oldBytes;
-        });
-        allocations = allocationBytes = 0u;
-        countAllocations              = true;
-        action(false);
-        countAllocations    = false;
-        const auto requests = allocations;
-        Check(requests > 0u && requests < 512u, "image preparation has a bounded observed allocation schedule");
-        for (std::size_t point = 0u; point < requests; ++point)
-        {
-            const auto oldFailure = failAllocationAfter;
-            {
-                const auto recover  = wil::scope_exit([=] noexcept { failAllocationAfter = oldFailure; });
-                failAllocationAfter = point;
-                action(true);
-            }
-            action(false);
-        }
-        std::cout << "image preparation allocation points=" << requests << '\n';
-    };
-    sweep([&](bool failure)
-    {
-        bool rejected{};
-        try
-        {
-            const auto result =
-                RichText::Detail::BuildMarkdownFileReference(L"C:\\notes\\chapters\\note.md", L"\\\\?\\C:\\notes\\images\\\u6771\U0001f600 [x]#%.png");
-            Check(! failure && result && *result == L"![\u6771\U0001f600 \\[x\\]\\#\\%](../images/%E6%9D%B1%F0%9F%98%80%20%5Bx%5D%23%25.png)",
-                  "image destination and escaped source retry exactly");
-        }
-        catch (const std::bad_alloc&)
-        {
-            rejected = true;
-        }
-        Check(rejected == failure, "every observed image source allocation failure propagates without termination");
-    });
     constexpr wchar_t list[] = L"C:\\images\\\u6771\U0001f600.png\0D:\\images\\other.jpg\0";
     const auto bytes         = RichImagePathTests::DropBuffer(std::wstring_view(list, std::size(list)));
+    if (fatalScenario != 0u)
+    {
+        RichImagePathFaultOrigin(fatalScenario - 1u, bytes);
+        return;
+    }
+    const auto image = RichText::Detail::BuildMarkdownFileReference(L"C:\\notes\\chapters\\note.md", L"\\\\?\\C:\\notes\\images\\\u6771\U0001f600 [x]#%.png");
+    Check(image && *image == L"![\u6771\U0001f600 \\[x\\]\\#\\%](../images/%E6%9D%B1%F0%9F%98%80%20%5Bx%5D%23%25.png)",
+          "image destination and escaped source are exact");
     TextClipboardContent content;
-    sweep([&](bool failure)
-    {
-        const auto result = DecodeClipboardFilePaths(bytes, content);
-        Check(failure ? result == E_OUTOFMEMORY : result == S_OK, "file list allocation failures return a named HRESULT");
-        Check(content.filePaths.size() == 2u && content.filePaths[0] == L"C:\\images\\\u6771\U0001f600.png",
-              "failed file decode leaves previously published content exact");
-    });
-    sweep([&](bool failure)
-    {
-        bool rejected{};
-        try
-        {
-            const auto result = RichText::Detail::BuildMarkdownFileReference(L"C:\\notes\\chapters\\note.md", L"C:\\notes\\files\\\u6771\U0001f600 [x]#%.pdf");
-            Check(! failure && result && *result == L"[\u6771\U0001f600 \\[x\\]\\#\\%\\.pdf](../files/%E6%9D%B1%F0%9F%98%80%20%5Bx%5D%23%25.pdf)",
-                  "file-link destination and full label retry exactly");
-        }
-        catch (const std::bad_alloc&)
-        {
-            rejected = true;
-        }
-        Check(rejected == failure, "every observed file-link allocation failure propagates without termination");
-    });
-    sweep([&](bool failure)
-    {
-        bool rejected{};
-        try
-        {
-            const auto path = DxUi::RichText::Detail::ResolveLocalImagePath(L"C:\\notes\\chapters\\note.md", L"../images/%E6%9D%B1%F0%9F%98%80.png");
-            Check(! failure && path && *path == L"C:\\notes\\images\\\u6771\U0001f600.png", "URI/base resolution retries exact Unicode paths");
-        }
-        catch (const std::bad_alloc&)
-        {
-            rejected = true;
-        }
-        Check(rejected == failure, "URI/base resolution propagates every observed allocation failure");
-    });
+    Check(DecodeClipboardFilePaths(bytes, content) == S_OK && content.filePaths.size() == 2u && content.filePaths[0] == L"C:\\images\\\u6771\U0001f600.png",
+          "file list decodes exact Unicode paths");
+    const auto link = RichText::Detail::BuildMarkdownFileReference(L"C:\\notes\\chapters\\note.md", L"C:\\notes\\files\\\u6771\U0001f600 [x]#%.pdf");
+    Check(link && *link == L"[\u6771\U0001f600 \\[x\\]\\#\\%\\.pdf](../files/%E6%9D%B1%F0%9F%98%80%20%5Bx%5D%23%25.pdf)",
+          "file-link destination and full label are exact");
+    const auto path = RichText::Detail::ResolveLocalImagePath(L"C:\\notes\\chapters\\note.md", L"../images/%E6%9D%B1%F0%9F%98%80.png");
+    Check(path && *path == L"C:\\notes\\images\\\u6771\U0001f600.png", "URI/base resolution preserves exact Unicode paths");
+    for (const auto child : {L"embedded-image-reference-allocation",
+                             L"embedded-file-list-decode-allocation",
+                             L"embedded-file-reference-allocation",
+                             L"embedded-image-path-resolution-allocation"})
+        Check(DxUiFailureTests::ExpectFatalChild(child), "image path allocation terminates in its owned child");
 }
 
 static void TestFootnoteBlockAllocationFailures(bool trace = false)
@@ -1777,33 +1555,14 @@ static void TestFootnoteBlockAllocationFailures(bool trace = false)
             requests         = allocations;
         }
         Check(requests > 0u && requests < 2048u, "note preparation has a finite independently observed allocation schedule");
-        for (std::size_t point = 0u; point < requests; ++point)
-        {
-            if (trace)
-                std::fprintf(stderr, "note block allocation failure=%zu/%zu\n", point, requests);
-            auto state     = make();
-            const auto old = state->Published();
-            bool rejected{};
-            {
-                const auto oldFailure = failAllocationAfter;
-                const auto restore    = wil::scope_exit([=] noexcept { failAllocationAfter = oldFailure; });
-                failAllocationAfter   = point;
-                try
-                {
-                    request(*state);
-                    finish(*state);
-                }
-                catch (const std::bad_alloc&)
-                {
-                    rejected = true;
-                }
-            }
-            Check(rejected && state->Published() == old && ! state->HasPendingPreparation() && sourceOf(old) == L"previous",
-                  "every note parser/semantic allocation failure preserves the held source and retires staging");
-            request(*state);
-            finish(*state);
-            Check(sourceOf(state->Published()) == expected, "note preparation can explicitly retry after every observed allocation failure");
-        }
+        auto state     = make();
+        const auto old = state->Published();
+        request(*state);
+        Check(state->Published() == old && sourceOf(old) == L"previous", "note preparation retains its old publication while staging");
+        finish(*state);
+        Check(sourceOf(state->Published()) == expected && sourceOf(old) == L"previous", "note preparation publishes exact source and retains old snapshots");
+        if (trace)
+            std::fprintf(stderr, "note preparation measured %zu allocations; fatal allocation covered by isolated children\n", requests);
         total += requests;
     };
     for (const auto* source : {L"[^n]: first\r\n\r\n    second\r\n",
@@ -1839,7 +1598,7 @@ static void TestFootnoteBlockAllocationFailures(bool trace = false)
             [](const auto& value) { return value->Map().Source(); },
             source);
     }
-    std::cout << "note block/binding parser/semantic allocation scenarios=10 sweptRequests=" << total << " sourcePreserved=1 retry=1\n";
+    std::cout << "note block/binding parser/semantic scenarios=10 measuredRequests=" << total << " heldSourcePreserved=1\n";
 }
 
 static void TestScopedSemanticSourceAllocationFailures(bool trace = false)
@@ -1875,42 +1634,20 @@ static void TestScopedSemanticSourceAllocationFailures(bool trace = false)
             requests         = allocations;
         }
         Check(requests > 0u && requests < 4096u, "scoped source preparation has a finite independently observed allocation schedule");
-        for (std::size_t point = 0u; point < requests; ++point)
+        auto state     = make();
+        const auto old = key(*state);
+        request(*state);
+        Check(key(*state) == old && pending(*state), "scoped source staging retains its previous publication");
+        finish(*state);
+        verify(*state);
         {
-            if (trace)
-                std::fprintf(stderr, "scoped source failure=%zu/%zu\n", point, requests);
-            auto state     = make();
-            const auto old = key(*state);
-            bool rejected{}, began{};
-            {
-                const auto oldFailure = failAllocationAfter;
-                const auto restore    = wil::scope_exit([=]() noexcept { failAllocationAfter = oldFailure; });
-                failAllocationAfter   = point;
-                try
-                {
-                    request(*state);
-                    began = true;
-                    finish(*state);
-                }
-                catch (const std::bad_alloc&)
-                {
-                    rejected = true;
-                }
-            }
-            Check(rejected && key(*state) == old && pending(*state) != began,
-                  "scoped source failures preserve publication/generation and retain old pending work only when Begin failed");
-            if (! began)
-                finish(*state);
-            request(*state);
-            finish(*state);
-            verify(*state);
-            {
-                const auto oldFailure = failAllocationAfter;
-                const auto restore    = wil::scope_exit([=]() noexcept { failAllocationAfter = oldFailure; });
-                failAllocationAfter   = 0u;
-                clear(*state);
-            }
+            const auto oldFailure = failAllocationAfter;
+            const auto restore    = wil::scope_exit([=]() noexcept { failAllocationAfter = oldFailure; });
+            failAllocationAfter   = 0u;
+            clear(*state);
         }
+        if (trace)
+            std::fprintf(stderr, "scoped source preparation measured %zu allocations; fatal allocation uses isolated children\n", requests);
         return requests;
     };
     for (const auto source : {L"", L"~~broken\r\n[^n]: **&amp;**\r\n---\r\n", L"> ```\nmissing prefix\n> ```\n"})
@@ -2019,8 +1756,8 @@ static void TestScopedSemanticSourceAllocationFailures(bool trace = false)
             geometry.Clear();
         });
     }
-    std::cout << "scoped source failure parserScenarios=3 sweptRequests=" << parserTotal << " semanticScenarios=6 sweptRequests=" << semanticTotal
-              << " geometryScenarios=2 sweptRequests=" << geometryTotal << " preservedPublication=1 preservedPendingBegin=1 retry=1 retirementAllocations=0\n";
+    std::cout << "scoped source parserScenarios=3 measuredRequests=" << parserTotal << " semanticScenarios=6 measuredRequests=" << semanticTotal
+              << " geometryScenarios=2 measuredRequests=" << geometryTotal << " preservedPublication=1 retirementAllocations=0\n";
 }
 
 static void TestSemanticDiagramAllocationFailures(bool trace = false)
@@ -2109,49 +1846,24 @@ static void TestSemanticDiagramAllocationFailures(bool trace = false)
             finishSemantic(measured);
         });
         Check(requests > 0u && requests < 4096u, "native semantic preparation has a finite observed allocation schedule");
-        for (std::size_t failure = 0u; failure < requests; ++failure)
+        SemanticBuilder builder;
+        builder.Begin(oldSyntax);
+        finishSemantic(builder);
+        const auto old = builder.Published();
+        builder.Begin(pendingSyntax);
+        begin(builder);
+        Check(builder.Published() == old && old->Map().Source() == L"previous", "native semantic staging retains the previous publication");
+        finishSemantic(builder);
+        Check(builder.Published()->Map().Source() == source && old->Map().Source() == L"previous", "native semantic source publishes exactly");
         {
-            if (trace)
-                std::fprintf(stderr, "semantic diagram failure=%zu/%zu\n", failure, requests);
-            SemanticBuilder builder;
-            builder.Begin(oldSyntax);
-            finishSemantic(builder);
-            const auto old = builder.Published();
-            builder.Begin(pendingSyntax);
-            bool rejected{}, began{};
-            {
-                const auto oldFailure = failAllocationAfter;
-                const auto restore    = wil::scope_exit([=]() noexcept { failAllocationAfter = oldFailure; });
-                failAllocationAfter   = failure;
-                try
-                {
-                    begin(builder);
-                    began = true;
-                    finishSemantic(builder);
-                }
-                catch (const std::bad_alloc&)
-                {
-                    rejected = true;
-                }
-            }
-            Check(rejected && builder.Published() == old && builder.HasPendingPreparation() != began && old->Map().Source() == L"previous",
-                  "native semantic Begin preserves pending work; failed Advance retires only staging and preserves exact published source");
-            if (! began)
-            {
-                finishSemantic(builder);
-                Check(builder.Published()->Map().Source() == L"pending", "old pending semantic request remains usable after rejected admission");
-            }
-            begin(builder);
-            finishSemantic(builder);
-            Check(builder.Published()->Map().Source() == source, "native semantic preparation retries after every observed C++ failure");
-            {
-                const auto oldFailure = failAllocationAfter;
-                const auto restore    = wil::scope_exit([=]() noexcept { failAllocationAfter = oldFailure; });
-                failAllocationAfter   = 0u;
-                builder.Cancel();
-                builder.Clear();
-            }
+            const auto oldFailure = failAllocationAfter;
+            const auto restore    = wil::scope_exit([=]() noexcept { failAllocationAfter = oldFailure; });
+            failAllocationAfter   = 0u;
+            builder.Cancel();
+            builder.Clear();
         }
+        if (trace)
+            std::fprintf(stderr, "semantic diagram measured %zu allocations; fatal allocation uses isolated children\n", requests);
         semanticRequests += requests;
     }
     const auto write       = PreparedFlowchartTests::WriteFactory();
@@ -2167,20 +1879,10 @@ static void TestSemanticDiagramAllocationFailures(bool trace = false)
         previousOptions.widthDip = 800.0f;
         const auto finish        = [](PreparedSemanticGeometry& geometry)
         {
-            try
-            {
-                while (geometry.Pending())
-                    geometry.Advance({1u, 3u});
-                return true;
-            }
-            catch (const NativeObjectCapacity&)
-            {
-                return false;
-            }
-            catch (const NativeObjectsRejected&)
-            {
-                return false;
-            }
+            while (geometry.Pending())
+                if (geometry.Advance({1u, 3u}).status == LayoutPreparationStatus::Failed)
+                    return false;
+            return geometry.RejectedNativeObjects().empty();
         };
         PreparedSemanticGeometry measured;
         measured.Begin(write.get(), oldDocument, previousOptions, drawing.get(), {1u, 1u});
@@ -2194,59 +1896,40 @@ static void TestSemanticDiagramAllocationFailures(bool trace = false)
             finish(measured);
         });
         Check(requests > 0u && requests < 1024u, "native semantic geometry has a finite observed allocation schedule");
-        for (std::size_t failure = 0u; failure < requests; ++failure)
+        PreparedSemanticGeometry geometry;
+        geometry.Begin(write.get(), oldDocument, previousOptions, drawing.get(), {1u, 1u});
+        finish(geometry);
+        const auto generation = geometry.Generation();
+        geometry.Begin(write.get(), document, options, drawing.get(), {3u, 3u});
+        Check(geometry.Ready() && &geometry.Document() == oldDocument.get() && geometry.Generation() == generation,
+              "new geometry staging retains its previous publication");
+        const auto ready = finish(geometry);
+        Check(scenario == 3u ? ! ready && &geometry.Document() == oldDocument.get()
+                             : ready && (scenario == 4u || geometry.HasNativeObjects()) && &geometry.Document() == document.get(),
+              "geometry preparation distinguishes intrinsic-width capacity from successful publication");
         {
-            if (trace)
-                std::fprintf(stderr, "semantic diagram geometry=%zu failure=%zu/%zu\n", scenario, failure, requests);
-            PreparedSemanticGeometry geometry;
-            geometry.Begin(write.get(), oldDocument, previousOptions, drawing.get(), {1u, 1u});
-            finish(geometry);
-            const auto generation = geometry.Generation();
-            geometry.Begin(write.get(), oldDocument, pendingOptions, drawing.get(), {2u, 2u});
-            bool rejected{}, began{};
-            {
-                const auto oldFailure = failAllocationAfter;
-                const auto restore    = wil::scope_exit([=]() noexcept { failAllocationAfter = oldFailure; });
-                failAllocationAfter   = failure;
-                try
-                {
-                    geometry.Begin(write.get(), document, options, drawing.get(), {3u, 3u});
-                    began = true;
-                    finish(geometry);
-                }
-                catch (const std::bad_alloc&)
-                {
-                    rejected = true;
-                }
-            }
-            Check(rejected && geometry.Ready() && &geometry.Document() == oldDocument.get() && geometry.Generation() == generation &&
-                      geometry.Pending() != began,
-                  "native label/object/paragraph allocation failures preserve the previous immutable geometry and pending admission contract");
-            if (! began)
-                Check(finish(geometry), "old pending geometry remains usable after failed admission");
-            geometry.Begin(write.get(), document, options, drawing.get(), {3u, 3u});
-            const auto ready = finish(geometry);
-            Check(scenario == 3u ? ! ready && &geometry.Document() == oldDocument.get()
-                                 : ready && (scenario == 4u || geometry.HasNativeObjects()) && &geometry.Document() == document.get(),
-                  "explicit retry distinguishes intrinsic-width capacity from transient allocation failure");
-            {
-                const auto oldFailure = failAllocationAfter;
-                const auto restore    = wil::scope_exit([=]() noexcept { failAllocationAfter = oldFailure; });
-                failAllocationAfter   = 0u;
-                geometry.Cancel();
-                geometry.Invalidate();
-                geometry.Clear();
-            }
+            const auto oldFailure = failAllocationAfter;
+            const auto restore    = wil::scope_exit([=]() noexcept { failAllocationAfter = oldFailure; });
+            failAllocationAfter   = 0u;
+            geometry.Cancel();
+            geometry.Invalidate();
+            geometry.Clear();
         }
         geometryRequests += requests;
     }
-    std::cout << "semantic diagram/math/HTML failure scenarios=14 sweptRequests=" << semanticRequests
-              << " geometryScenarios=5 sweptRequests=" << geometryRequests
-              << " preservedPublication=1 preservedPendingBegin=1 explicitRetry=1 retirementAllocations=0\n";
+    std::cout << "semantic diagram/math/HTML scenarios=14 measuredRequests=" << semanticRequests << " geometryScenarios=5 measuredRequests=" << geometryRequests
+              << " preservedPublication=1 retirementAllocations=0\n";
 }
 
-static void TestPreparedFlowchartAllocationFailures(bool trace = false)
+template <typename Operation> __declspec(noinline) static void RichPreparedFlowchartFaultOrigin(Operation&& operation)
 {
+    DxUi::Failure::Scope scope;
+    failAllocationAfter = 0u;
+    operation();
+}
+static void TestPreparedFlowchartAllocationFailures(bool trace = false, unsigned fatalScenario = 0u)
+{
+    static_cast<void>(trace);
     using namespace PreparedFlowchartTests;
     const auto write    = WriteFactory();
     const auto drawing  = DrawingFactory();
@@ -2256,6 +1939,9 @@ static void TestPreparedFlowchartAllocationFailures(bool trace = false)
     std::size_t total{};
     for (const bool capacity : {false, true})
     {
+        const unsigned scenario = capacity ? 2u : 1u;
+        if (fatalScenario != 0u && fatalScenario != scenario)
+            continue;
         const auto graph = capacity ? huge : rich;
         LayoutOptions options;
         if (capacity)
@@ -2284,56 +1970,39 @@ static void TestPreparedFlowchartAllocationFailures(bool trace = false)
                   "capacity and prepared scenarios start from independently observed outcomes");
             Check(requests > 0u && requests < 128u, "native diagram has a bounded observed C++ preparation allocation schedule");
         }
-        for (std::size_t failure = 0u; failure < requests; ++failure)
+        PreparedFlowchart prepared;
+        LayoutOptions oldOptions;
+        prepared.Begin(write.get(), drawing.get(), oldGraph, oldOptions, {1u, 1u});
+        Complete(prepared, Check);
+        const auto old = prepared.Geometry();
+        if (fatalScenario != 0u)
         {
-            if (trace)
-                std::fprintf(stderr, "native paint capacity=%d failure=%zu/%zu\n", capacity ? 1 : 0, failure, requests);
-            PreparedFlowchart prepared;
-            LayoutOptions oldOptions;
-            prepared.Begin(write.get(), drawing.get(), oldGraph, oldOptions, {1u, 1u});
-            Complete(prepared, Check);
-            const auto old        = prepared.Geometry();
-            const auto generation = prepared.Generation();
-            prepared.Begin(write.get(), drawing.get(), oldGraph, oldOptions, {9u, 9u});
-            bool rejected{}, began{};
+            RichPreparedFlowchartFaultOrigin([&]
             {
-                const auto oldFailure = failAllocationAfter;
-                const auto restore    = wil::scope_exit([=]() noexcept { failAllocationAfter = oldFailure; });
-                failAllocationAfter   = failure;
-                try
-                {
-                    prepared.Begin(write.get(), drawing.get(), graph, options, {2u, 2u});
-                    began = true;
-                    Complete(prepared, Check);
-                }
-                catch (const std::bad_alloc&)
-                {
-                    rejected = true;
-                }
-            }
-            Check(rejected && prepared.Geometry() == old && prepared.Generation() == generation && prepared.Pending() != began,
-                  "failed native Begin preserves pending work; failed Advance retires only staged resources");
-            if (! began)
-            {
+                prepared.Begin(write.get(), drawing.get(), graph, options, {2u, 2u});
                 Complete(prepared, Check);
-                Check(prepared.Ready(), "old pending native resources can still finish after failed admission");
-            }
-            prepared.Begin(write.get(), drawing.get(), graph, options, {2u, 2u});
-            Complete(prepared, Check);
-            Check(capacity ? ! prepared.Ready() && prepared.Geometry()->nodes.empty() : prepared.Ready(),
-                  "explicit native retry reaches prepared or capacity outcome after every observed C++ failure");
-            {
-                const auto oldFailure = failAllocationAfter;
-                const auto restore    = wil::scope_exit([=]() noexcept { failAllocationAfter = oldFailure; });
-                failAllocationAfter   = 0u;
-                prepared.Cancel();
-                prepared.Invalidate();
-                prepared.Clear();
-            }
-            Check(! prepared.Ready() && ! prepared.Pending(), "native resource retirement allocates no C++ storage");
+            });
+            return;
         }
+        Check(DxUiFailureTests::ExpectFatalChild(capacity ? L"embedded-flowchart-capacity-allocation" : L"embedded-flowchart-prepared-allocation"),
+              "flowchart preparation allocation terminates in its owned child");
+        prepared.Begin(write.get(), drawing.get(), graph, options, {2u, 2u});
+        Check(prepared.Geometry() == old, "flowchart staging preserves its published geometry");
+        Complete(prepared, Check);
+        Check(capacity ? ! prepared.Ready() && prepared.Geometry()->nodes.empty() : prepared.Ready(),
+              "flowchart preparation reaches its prepared or capacity outcome");
+        {
+            const auto oldFailure = failAllocationAfter;
+            const auto restore    = wil::scope_exit([=] noexcept { failAllocationAfter = oldFailure; });
+            failAllocationAfter   = 0u;
+            prepared.Cancel();
+            prepared.Invalidate();
+            prepared.Clear();
+        }
+        Check(! prepared.Ready() && ! prepared.Pending(), "native resource retirement allocates no C++ storage");
         total += requests;
     }
+    unsigned familyScenario = 2u;
     for (const auto source : {L"sequenceDiagram\nparticipant Alice\nparticipant Bob\nAlice->>Bob: request\nBob-->>Alice: reply\n",
                               L"pie\n\"Dogs\": 3\n\"Cats\": 2\n\"Birds\": 1\n",
                               L"erDiagram\nCUSTOMER ||--o{ ORDER : places\nORDER ||--|{ ITEM : contains\n",
@@ -2343,6 +2012,9 @@ static void TestPreparedFlowchartAllocationFailures(bool trace = false)
                               L"flowchart TD\nA[\"<b>Bold</b> <i>It</i>\"]-->|<u>go</u>|B\n",
                               L"flowchart TD\nclassDef default font-weight:bold\nA-->B\nlinkStyle 0 stroke-width:2px,stroke-dasharray:5 5\n"})
     {
+        ++familyScenario;
+        if (fatalScenario != 0u && fatalScenario != familyScenario)
+            continue;
         const auto graph = FlowchartLayoutTests::Graph(source);
         LayoutOptions options;
         std::size_t requests{};
@@ -2364,33 +2036,37 @@ static void TestPreparedFlowchartAllocationFailures(bool trace = false)
             requests         = allocations;
             Check(prepared.Ready(), "native family preparation succeeds before allocation sweep");
         }
-        for (std::size_t failure = 0u; failure < requests; ++failure)
+        PreparedFlowchart prepared;
+        if (fatalScenario != 0u)
         {
-            PreparedFlowchart prepared;
-            bool rejected{};
-            failAllocationAfter = failure;
-            try
+            RichPreparedFlowchartFaultOrigin([&]
             {
                 prepared.Begin(write.get(), drawing.get(), graph, options, {2u, 2u});
                 Complete(prepared, Check);
-            }
-            catch (const std::bad_alloc&)
-            {
-                rejected = true;
-            }
-            failAllocationAfter = std::numeric_limits<size_t>::max();
-            Check(rejected && ! prepared.Ready(), "native family preparation propagates each observed allocation failure");
-            prepared.Begin(write.get(), drawing.get(), graph, options, {2u, 2u});
-            Complete(prepared, Check);
-            Check(prepared.Ready(), "native family preparation succeeds on explicit retry");
-            failAllocationAfter = 0u;
-            prepared.Cancel();
-            prepared.Invalidate();
-            prepared.Clear();
-            failAllocationAfter = std::numeric_limits<size_t>::max();
+            });
+            return;
         }
+        constexpr const wchar_t* children[] = {L"embedded-flowchart-sequence-allocation",
+                                               L"embedded-flowchart-pie-allocation",
+                                               L"embedded-flowchart-er-allocation",
+                                               L"embedded-flowchart-gantt-allocation",
+                                               L"embedded-flowchart-mindmap-allocation",
+                                               L"embedded-flowchart-shapes-allocation",
+                                               L"embedded-flowchart-label-allocation",
+                                               L"embedded-flowchart-style-allocation"};
+        Check(DxUiFailureTests::ExpectFatalChild(children[familyScenario - 3u]), "diagram family allocation terminates in its owned child");
+        prepared.Begin(write.get(), drawing.get(), graph, options, {2u, 2u});
+        Complete(prepared, Check);
+        Check(prepared.Ready(), "native diagram family preparation succeeds");
+        const auto oldFailure = failAllocationAfter;
+        failAllocationAfter   = 0u;
+        prepared.Cancel();
+        prepared.Invalidate();
+        prepared.Clear();
+        failAllocationAfter = oldFailure;
         total += requests;
     }
+    if (fatalScenario == 0u || fatalScenario == 11u)
     {
         const auto graph = FlowchartLayoutTests::Graph(L"flowchart TD\nA-->B\nstyle A fill:#000,stroke:#ff0,color:#fff\nlinkStyle 0 stroke:#f00\n");
         wil::com_ptr<IWICImagingFactory> imaging;
@@ -2418,31 +2094,27 @@ static void TestPreparedFlowchartAllocationFailures(bool trace = false)
             countAllocations = false;
             requests         = allocations;
         }
-        for (std::size_t failure = 0u; failure < requests; ++failure)
+        if (fatalScenario != 0u)
         {
-            bool rejected{};
-            failAllocationAfter = failure;
-            try
+            RichPreparedFlowchartFaultOrigin([&]
             {
                 DiagramPalette palette(graph, target.get());
                 while (! palette.Advance())
                 {
                 }
-            }
-            catch (const std::bad_alloc&)
-            {
-                rejected = true;
-            }
-            failAllocationAfter = std::numeric_limits<size_t>::max();
-            Check(rejected, "each palette allocation failure propagates without fatal termination");
-            DiagramPalette retry(graph, target.get());
-            while (! retry.Advance())
-            {
-            }
-            Check(retry.Ready(), "palette staging succeeds on explicit retry");
+            });
+            return;
         }
+        Check(DxUiFailureTests::ExpectFatalChild(L"embedded-diagram-palette-allocation"), "diagram palette allocation terminates in its owned child");
+        DiagramPalette palette(graph, target.get());
+        while (! palette.Advance())
+        {
+        }
+        Check(palette.Ready(), "diagram palette staging succeeds");
         total += requests;
     }
+    if (fatalScenario != 0u)
+        return;
     static thread_local bool drawOldCounting{}, drawAllocated{};
     static thread_local std::size_t drawOldCalls{};
     drawAllocated = false;
@@ -2480,14 +2152,23 @@ static void TestPreparedFlowchartAllocationFailures(bool trace = false)
         }
     });
     Check(! drawAllocated, "palette drawing creates zero tracked C++ allocations");
-    std::cout << "native paint C++ failure scenarios=10 sweptRequests=" << total << " retirementAllocations=0 drawAllocations=0\n";
+    std::cout << "native paint scenarios=10 measuredRequests=" << total << " retirementAllocations=0 drawAllocations=0\n";
 }
-static void TestNativeFlowchartLayoutAllocationFailureAtomicity(bool trace = false)
+template <typename Operation> __declspec(noinline) static void RichNativeFlowchartLayoutFaultOrigin(Operation&& operation)
+{
+    DxUi::Failure::Scope scope;
+    failAllocationAfter = 0u;
+    operation();
+}
+static void TestNativeFlowchartLayoutAllocationFailureAtomicity(bool trace = false, unsigned fatalScenario = 0u)
 {
     using namespace FlowchartLayoutTests;
+    static_cast<void>(trace);
     std::size_t total{};
     for (const auto mode : {0u, 1u, 2u})
     {
+        if (fatalScenario != 0u && fatalScenario != mode + 1u)
+            continue;
         const auto graph = Graph(L"graph LR;A[\"Unicode \u03b2 \U0001f600\"]-->|yes|B((second));B-->A;A-->A");
         std::vector<FlowchartSize> nodes(graph->nodes.size(), {20.0, 12.0}), edges(graph->edges.size(), {20.0, 12.0});
         if (mode == 1u)
@@ -2518,48 +2199,37 @@ static void TestNativeFlowchartLayoutAllocationFailureAtomicity(bool trace = fal
             countAllocations = false;
         }
         Check(requests > 0u && requests < 32u, "graph geometry has a bounded observed admission allocation schedule");
-        for (std::size_t failure = 0u; failure < requests; ++failure)
+        NativeFlowchartLayout layout;
+        const auto oldGraph                           = Graph(L"graph TD;Old");
+        const std::array<FlowchartSize, 1u> oldLabels = {{{16.0, 12.0}}};
+        layout.Begin(oldGraph, oldLabels, {});
+        const auto old = Complete(layout, Check);
+        if (fatalScenario != 0u)
         {
-            if (trace)
-                std::fprintf(stderr, "native graph layout mode=%u failure=%zu/%zu\n", mode, failure, requests);
-            NativeFlowchartLayout layout;
-            const auto oldGraph                           = Graph(L"graph TD;Old");
-            const std::array<FlowchartSize, 1u> oldLabels = {{{16.0, 12.0}}};
-            layout.Begin(oldGraph, oldLabels, {});
-            const auto old = Complete(layout, Check);
-            layout.Begin(oldGraph, oldLabels, {});
-            layout.Advance(2u);
-            bool rejected{};
-            {
-                const auto oldFailure = failAllocationAfter;
-                const auto restore    = wil::scope_exit([=] noexcept { failAllocationAfter = oldFailure; });
-                failAllocationAfter   = failure;
-                try
-                {
-                    layout.Begin(graph, nodes, edges);
-                }
-                catch (const std::bad_alloc&)
-                {
-                    rejected = true;
-                }
-            }
-            Check(rejected && layout.Published() == old && layout.HasPendingPreparation(),
-                  "every failed layout admission preserves pending and published geometry");
-            Check(Complete(layout, Check)->nodes.size() == 1u, "previous pending graph still completes after allocation failure");
-            layout.Begin(graph, nodes, edges);
-            const auto retry = Complete(layout, Check, 7u);
-            Check(mode == 0u ? retry->issue == FlowchartLayoutIssue::None && retry->nodes.size() == 2u
-                             : retry->issue != FlowchartLayoutIssue::None && retry->nodes.empty(),
-                  "explicit graph layout retry reaches the intended prepared or capacity result");
+            RichNativeFlowchartLayoutFaultOrigin([&] { layout.Begin(graph, nodes, edges); });
+            return;
         }
+        constexpr const wchar_t* children[] = {
+            L"embedded-flowchart-layout-normal", L"embedded-flowchart-layout-node-capacity", L"embedded-flowchart-layout-edge-capacity"};
+        Check(DxUiFailureTests::ExpectFatalChild(children[mode]), "graph layout admission allocation terminates in its owned child");
+        layout.Begin(graph, nodes, edges);
+        Check(layout.Published() == old, "layout staging retains previous publication");
+        const auto result = Complete(layout, Check, 7u);
+        Check(mode == 0u ? result->issue == FlowchartLayoutIssue::None && result->nodes.size() == 2u
+                         : result->issue != FlowchartLayoutIssue::None && result->nodes.empty(),
+              "graph layout reaches the intended prepared or capacity result");
         total += requests;
     }
+    unsigned familyScenario = 3u;
     for (const auto source : {L"sequenceDiagram\nparticipant Alice\nparticipant Bob\nAlice->>Bob: request\nBob-->>Alice: reply\n",
                               L"pie\n\"Dogs\": 3\n\"Cats\": 2\n\"Birds\": 1\n",
                               L"erDiagram\nCUSTOMER ||--o{ ORDER : places\nORDER ||--|{ ITEM : contains\n",
                               L"gantt\ntitle Release\nCompile : 2024-02-27, 3d\nTest : 2024-03-01, 2d\n",
                               L"mindmap\n root\n  First\n   Leaf\n  Second\n"})
     {
+        ++familyScenario;
+        if (fatalScenario != 0u && fatalScenario != familyScenario)
+            continue;
         const auto graph = Graph(source);
         const std::vector<FlowchartSize> nodes(graph->nodes.size(), {16.0, 12.0}), edges(graph->edges.size(), {16.0, 12.0});
         const std::vector<FlowchartSize> endpoints(graph->family == NativeDiagramFamily::EntityRelationship ? graph->edges.size() : 0u, {16.0, 12.0});
@@ -2586,31 +2256,34 @@ static void TestNativeFlowchartLayoutAllocationFailureAtomicity(bool trace = fal
             failAllocationAfter = std::numeric_limits<size_t>::max();
             Check(result->issue == FlowchartLayoutIssue::None, "family layout advances without allocating after admission");
         }
-        for (std::size_t failure = 0u; failure < requests; ++failure)
+        NativeFlowchartLayout layout;
+        if (fatalScenario != 0u)
         {
-            NativeFlowchartLayout layout;
-            bool rejected{};
-            failAllocationAfter = failure;
-            try
-            {
-                layout.Begin(graph, nodes, edges, endpoints, endpoints, groups);
-            }
-            catch (const std::bad_alloc&)
-            {
-                rejected = true;
-            }
-            failAllocationAfter = std::numeric_limits<size_t>::max();
-            Check(rejected && ! layout.HasPendingPreparation(), "family layout admission propagates each allocation failure without partial staging");
-            layout.Begin(graph, nodes, edges, endpoints, endpoints, groups);
-            Check(Complete(layout, Check, 7u)->issue == FlowchartLayoutIssue::None, "family layout succeeds on explicit retry");
+            RichNativeFlowchartLayoutFaultOrigin([&] { layout.Begin(graph, nodes, edges, endpoints, endpoints, groups); });
+            return;
         }
+        constexpr const wchar_t* children[] = {L"embedded-flowchart-layout-sequence",
+                                               L"embedded-flowchart-layout-pie",
+                                               L"embedded-flowchart-layout-er",
+                                               L"embedded-flowchart-layout-gantt",
+                                               L"embedded-flowchart-layout-mindmap"};
+        Check(DxUiFailureTests::ExpectFatalChild(children[familyScenario - 4u]), "diagram family layout allocation terminates in its owned child");
+        layout.Begin(graph, nodes, edges, endpoints, endpoints, groups);
+        Check(Complete(layout, Check, 7u)->issue == FlowchartLayoutIssue::None, "diagram family layout succeeds");
         total += requests;
     }
-    std::cout << "native graph layout allocation scenarios=8 sweptRequests=" << total << " AdvanceAllocations=0 preservedPending=1 retry=1\n";
+    std::cout << "native graph layout allocation scenarios=8 measuredRequests=" << total << " AdvanceAllocations=0 preservedPublication=1\n";
 }
-static void TestNativeFlowchartAllocationFailureAtomicity(bool trace = false)
+template <typename Operation> __declspec(noinline) static void RichNativeFlowchartParserFaultOrigin(Operation&& operation)
+{
+    DxUi::Failure::Scope scope;
+    failAllocationAfter = 0u;
+    operation();
+}
+static void TestNativeFlowchartAllocationFailureAtomicity(bool trace = false, unsigned fatalScenario = 0u)
 {
     using namespace NativeFlowchartTests;
+    static_cast<void>(trace);
     const std::wstring sources[] = {
         L"graph LR;A[\"Unicode \u03b2 \U0001f600\"]-->|yes|B((Second));B-->A;A-->A",
         L"graph TD;A[staged];B[another];A-->B;style A fill:red",
@@ -2636,8 +2309,12 @@ static void TestNativeFlowchartAllocationFailureAtomicity(bool trace = false)
         L"pie\n\"one\": 1\n\"one\": 2\n",
         L"sequenceDiagram\nAlice->>Bob: hello\nAlice->>Missing: bad\n"};
     std::size_t total{};
+    unsigned scenario = 0u;
     for (const auto& source : sources)
     {
+        ++scenario;
+        if (fatalScenario != 0u && fatalScenario != scenario)
+            continue;
         std::size_t requests{};
         {
             NativeFlowchartParser parser;
@@ -2659,51 +2336,42 @@ static void TestNativeFlowchartAllocationFailureAtomicity(bool trace = false)
             requests         = allocations;
         }
         Check(requests > 0u && requests < 512u, "native flowchart has a bounded observed allocation schedule");
-        for (std::size_t failure = 0u; failure < requests; ++failure)
+        NativeFlowchartParser parser;
+        parser.Begin(L"graph TD;Old", 1u);
+        const auto old = Complete(parser);
+        if (fatalScenario != 0u)
         {
-            if (trace)
-                std::fprintf(stderr, "native flowchart failure-point=%zu/%zu\n", failure, requests);
-            NativeFlowchartParser parser;
-            parser.Begin(L"graph TD;Old", 1u);
-            const auto old = Complete(parser);
-            parser.Begin(L"graph LR;Staged", 99u);
-            bool rejected{};
-            bool began{};
+            RichNativeFlowchartParserFaultOrigin([&]
             {
-                const auto oldFailure = failAllocationAfter;
-                const auto restore    = wil::scope_exit([=] noexcept { failAllocationAfter = oldFailure; });
-                failAllocationAfter   = failure;
-                try
-                {
-                    parser.Begin(source, 2u);
-                    began = true;
-                    Complete(parser, 7u);
-                }
-                catch (const std::bad_alloc&)
-                {
-                    rejected = true;
-                }
-            }
-            Check(rejected && parser.Published() == old && parser.HasPendingPreparation() != began && old->source == L"graph TD;Old",
-                  "failed native Begin keeps pending work; failed Advance retires only staging; neither changes the old publication");
-            if (! began)
-                Check(Complete(parser)->source == L"graph LR;Staged", "native Begin allocation failure preserves the previous pending source");
-            parser.Begin(source, 2u);
-            Check(Complete(parser)->source == source, "explicit native flowchart retry succeeds after every observed allocation failure");
+                parser.Begin(source, 2u);
+                Complete(parser, 7u);
+            });
+            return;
         }
+        constexpr const wchar_t* children[] = {
+            L"embedded-flowchart-parser-01", L"embedded-flowchart-parser-02", L"embedded-flowchart-parser-03", L"embedded-flowchart-parser-04",
+            L"embedded-flowchart-parser-05", L"embedded-flowchart-parser-06", L"embedded-flowchart-parser-07", L"embedded-flowchart-parser-08",
+            L"embedded-flowchart-parser-09", L"embedded-flowchart-parser-10", L"embedded-flowchart-parser-11", L"embedded-flowchart-parser-12",
+            L"embedded-flowchart-parser-13", L"embedded-flowchart-parser-14", L"embedded-flowchart-parser-15", L"embedded-flowchart-parser-16",
+            L"embedded-flowchart-parser-17", L"embedded-flowchart-parser-18", L"embedded-flowchart-parser-19", L"embedded-flowchart-parser-20",
+            L"embedded-flowchart-parser-21", L"embedded-flowchart-parser-22", L"embedded-flowchart-parser-23"};
+        Check(DxUiFailureTests::ExpectFatalChild(children[scenario - 1u]), "native parser allocation terminates in its owned child");
+        parser.Begin(source, 2u);
+        Check(parser.Published() == old, "parser staging retains the prior publication");
+        Check(Complete(parser)->source == source, "native parser publishes the requested source");
         {
-            NativeFlowchartParser parser;
-            parser.Begin(source, 3u);
-            parser.Advance(10u);
+            NativeFlowchartParser cancellationParser;
+            cancellationParser.Begin(source, 3u);
+            cancellationParser.Advance(10u);
             const auto previous = failAllocationAfter;
             failAllocationAfter = 0u;
-            parser.Cancel();
+            cancellationParser.Cancel();
             failAllocationAfter = previous;
-            Check(! parser.HasPendingPreparation(), "native family parser cancellation does not allocate");
+            Check(! cancellationParser.HasPendingPreparation(), "native family parser cancellation does not allocate");
         }
         total += requests;
     }
-    std::cout << "native flowchart allocation scenarios=" << std::size(sources) << " sweptRequests=" << total << " sourcePreserved=1 retry=1\n";
+    std::cout << "native flowchart allocation scenarios=" << std::size(sources) << " measuredRequests=" << total << " sourcePreserved=1\n";
 }
 
 static void TestRichFrontMatterAllocationFailureAtomicity(bool trace = false)
@@ -2744,44 +2412,20 @@ static void TestRichFrontMatterAllocationFailureAtomicity(bool trace = false)
         activationRequests = allocations;
     }
     Check(activationRequests > 0u && activationRequests < 32u, "semantic activation lazily creates a bounded liveness state");
-    for (std::size_t failure = 0u; failure < activationRequests; ++failure)
-    {
-        DxUi::RichTextEditor editor(L"previous");
-        editor.SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
-        bool rejected = false;
-        {
-            const auto oldFailure = failAllocationAfter;
-            const auto restore    = wil::scope_exit([=] noexcept { failAllocationAfter = oldFailure; });
-            failAllocationAfter   = failure;
-            try
-            {
-                editor.SetMarkdownRenderingEnabled(true);
-            }
-            catch (const std::bad_alloc&)
-            {
-                rejected = true;
-            }
-        }
-        Check(rejected && ! editor.IsMarkdownRenderingEnabled() && editor.GetText() == L"previous" && ! editor.CanUndo(),
-              "failed semantic activation preserves mode, exact source and history");
-        editor.SetMarkdownRenderingEnabled(true);
-        Check(editor.IsMarkdownRenderingEnabled() && editor.GetText() == L"previous", "semantic activation retries after each observed allocation failure");
-    }
-    std::wstring tagged = L"---\n";
-    for (unsigned index = 0u; index < 20u; ++index)
-        tagged.append(std::format(L"key{0}: !kind{0} value\n", index));
-    tagged.append(L"---\n");
-    const std::wstring_view sources[] = {L"---\r\n# comment\r\nname: '\U0001f600'\r\n---\r\n# after\r\n",
-                                         L"---\rtitle: a\rtags: b\r---\r",
-                                         L"+++\n# comment\nname = '\u03b2'\n+++\n",
-                                         L"---\nkey: [\n",
-                                         L"+++\nkey = [\n",
-                                         L"+++\nx = 1\nx = 2\n+++\n",
-                                         L"---\na: 1\na: 2\n---\n",
-                                         L"+++\nnested = [{ x = [1, 2], text = \"long value\" }]\n+++\n",
-                                         L"---\na: &anchor [one, two]\nb: *anchor\n? {x: 1, y: 2}\n: value\n---\n",
-                                         std::wstring_view(tagged)};
-    for (const auto source : sources)
+    DxUi::RichTextEditor editor(L"previous");
+    editor.SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    editor.SetMarkdownRenderingEnabled(true);
+    Check(editor.IsMarkdownRenderingEnabled() && editor.GetText() == L"previous" && ! editor.CanUndo(),
+          "semantic activation preserves exact source and history");
+    for (const std::wstring_view source : {L"---\r\n# comment\r\nname: '\U0001f600'\r\n---\r\n# after\r\n",
+                                           L"---\rtitle: a\rtags: b\r---\r",
+                                           L"+++\n# comment\nname = '\u03b2'\n+++\n",
+                                           L"---\nkey: [\n",
+                                           L"+++\nkey = [\n",
+                                           L"+++\nx = 1\nx = 2\n+++\n",
+                                           L"---\na: 1\na: 2\n---\n",
+                                           L"+++\nnested = [{ x = [1, 2], text = \"long value\" }]\n+++\n",
+                                           L"---\na: &anchor [one, two]\nb: *anchor\n? {x: 1, y: 2}\n: value\n---\n"})
     {
         std::size_t requests{};
         {
@@ -2804,36 +2448,18 @@ static void TestRichFrontMatterAllocationFailureAtomicity(bool trace = false)
             requests         = allocations;
         }
         Check(requests > 0u && requests < 512u, "metadata parser exposes a finite observed allocation schedule");
-        for (std::size_t failure = 0u; failure < requests; ++failure)
-        {
-            if (trace)
-                std::fprintf(stderr, "front matter failure-point=%zu/%zu\n", failure, requests);
-            MarkdownParser parser;
-            parser.Begin(L"previous", 1u, MarkdownProfile::RichMarkdown);
-            finish(parser);
-            const auto old = parser.Published();
-            bool rejected  = false;
-            {
-                const auto oldFailure = failAllocationAfter;
-                const auto restore    = wil::scope_exit([=] noexcept { failAllocationAfter = oldFailure; });
-                failAllocationAfter   = failure;
-                try
-                {
-                    parser.Begin(source, 2u, MarkdownProfile::RichMarkdown);
-                    finish(parser);
-                }
-                catch (const std::bad_alloc&)
-                {
-                    rejected = true;
-                }
-            }
-            Check(rejected && parser.Published() == old && ! parser.HasPendingPreparation() && old->Source() == L"previous",
-                  "every observed metadata allocation failure retires staging and preserves the exact old publication");
-            parser.Begin(source, 2u, MarkdownProfile::RichMarkdown);
-            finish(parser);
-            Check(parser.Published()->Source() == source && parser.Published()->Nodes()[1u].block.kind == MarkdownBlockKind::FrontMatter,
-                  "explicit metadata retry succeeds after every observed allocation failure");
-        }
+        MarkdownParser parser;
+        parser.Begin(L"previous", 1u, MarkdownProfile::RichMarkdown);
+        finish(parser);
+        const auto old = parser.Published();
+        parser.Begin(source, 2u, MarkdownProfile::RichMarkdown);
+        Check(parser.Published() == old, "metadata staging retains the old publication");
+        finish(parser);
+        Check(parser.Published()->Source() == source && old->Source() == L"previous" &&
+                  parser.Published()->Nodes()[1u].block.kind == MarkdownBlockKind::FrontMatter,
+              "metadata preparation retains exact source and held publication");
+        if (trace)
+            std::fprintf(stderr, "front matter measured %zu allocations; fatal allocation uses isolated children\n", requests);
         total += requests;
         MarkdownParser parsed;
         parsed.Begin(source, 2u, MarkdownProfile::RichMarkdown);
@@ -2870,41 +2496,19 @@ static void TestRichFrontMatterAllocationFailureAtomicity(bool trace = false)
             semanticRequests = allocations;
         }
         Check(semanticRequests > 0u && semanticRequests < 512u, "metadata semantic publication has a finite independently observed allocation schedule");
-        for (std::size_t failure = 0u; failure < semanticRequests; ++failure)
-        {
-            if (trace)
-                std::fprintf(stderr, "front matter semantic failure-point=%zu/%zu\n", failure, semanticRequests);
-            SemanticBuilder builder;
-            builder.Begin(oldSyntax);
-            finishSemantic(builder);
-            const auto old = builder.Published();
-            bool rejected  = false;
-            {
-                const auto oldFailure = failAllocationAfter;
-                const auto restore    = wil::scope_exit([=] noexcept { failAllocationAfter = oldFailure; });
-                failAllocationAfter   = failure;
-                try
-                {
-                    beginProperties(builder);
-                    finishSemantic(builder);
-                }
-                catch (const std::bad_alloc&)
-                {
-                    rejected = true;
-                }
-            }
-            Check(rejected && builder.Published() == old && ! builder.HasPendingPreparation() && old->Map().Source() == L"previous",
-                  "metadata semantic/diagnostic allocation failures retain the old publication and retire staging");
-            beginProperties(builder);
-            finishSemantic(builder);
-            Check(builder.Published()->Syntax() == syntax && builder.Published()->Map().Source() == source,
-                  "semantic metadata and missing-fence help retry without changing source after each observed allocation failure");
-        }
+        SemanticBuilder builder;
+        builder.Begin(oldSyntax);
+        finishSemantic(builder);
+        const auto oldSemantic = builder.Published();
+        beginProperties(builder);
+        Check(builder.Published() == oldSemantic, "metadata semantic staging retains the old publication");
+        finishSemantic(builder);
+        Check(builder.Published()->Syntax() == syntax && builder.Published()->Map().Source() == source && oldSemantic->Map().Source() == L"previous",
+              "semantic metadata and missing-fence help preserve source and held publication");
         semanticTotal += semanticRequests;
     }
-    std::cout << "front matter allocation scenarios=6 sweptRequests=" << total << " sourcePreserved=1 retry=1\n";
-    std::cout << "front matter semantic allocation scenarios=6 sweptRequests=" << semanticTotal << " sourcePreserved=1 retry=1\n";
-    std::cout << "semantic accessibility activation sweptRequests=" << activationRequests << " sourcePreserved=1 retry=1\n";
+    std::cout << "front matter parser measuredRequests=" << total << " semanticMeasuredRequests=" << semanticTotal
+              << " activationMeasuredRequests=" << activationRequests << " sourcePreserved=1\n";
 }
 
 static void TestRichMarkdownParserFailureAndStorageBudgets(bool trace = false)
@@ -2942,38 +2546,8 @@ static void TestRichMarkdownParserFailureAndStorageBudgets(bool trace = false)
         requests         = allocations;
     }
     Check(requests > 0u && requests < 2048u, "finite observed schedule includes inline links/styles, tables, tasks, tagfilter and compaction");
-    for (size_t failure = 0u; failure < requests; ++failure)
-    {
-        if (trace)
-        {
-            std::fprintf(stderr, "lossless Markdown failure-point=%zu\n", failure);
-            std::fflush(stderr);
-        }
-        MarkdownParser parser;
-        parser.Begin(L"previous", 1u);
-        finish(parser);
-        const auto previous = parser.Published();
-        bool rejected       = false;
-        {
-            const auto oldFailure = failAllocationAfter;
-            const auto restore    = wil::scope_exit([=] noexcept { failAllocationAfter = oldFailure; });
-            failAllocationAfter   = failure;
-            try
-            {
-                parser.Begin(sourceSnapshot, 2u, MarkdownProfile::Gfm029);
-                finish(parser);
-            }
-            catch (const std::bad_alloc&)
-            {
-                rejected = true;
-            }
-        }
-        Check(rejected && parser.Published() == previous && previous->Source() == L"previous" && ! parser.HasPendingPreparation(),
-              "failure at every Begin/Advance allocation preserves published source and retires staged work");
-        parser.Begin(sourceSnapshot, 2u, MarkdownProfile::Gfm029);
-        finish(parser);
-        Check(parser.Published()->Source() == source, "explicit retry after allocation failure succeeds");
-    }
+    if (trace)
+        std::fprintf(stderr, "lossless Markdown uses isolated fatal allocation probe and checked admission\n");
     size_t beginRequests = 0u;
     {
         MarkdownParser parser;
@@ -2994,38 +2568,19 @@ static void TestRichMarkdownParserFailureAndStorageBudgets(bool trace = false)
         beginRequests    = allocations;
     }
     Check(beginRequests > 0u && beginRequests < requests, "Begin allocation schedule is independently observed");
-    for (size_t failure = 0u; failure < beginRequests; ++failure)
     {
-        if (trace)
-        {
-            std::fprintf(stderr, "lossless Markdown pending-begin-failure-point=%zu\n", failure);
-            std::fflush(stderr);
-        }
         MarkdownParser parser;
         parser.Begin(L"published", 1u);
         finish(parser);
         const auto published = parser.Published();
         parser.Begin(L"old pending", 2u);
         parser.Advance(1u);
-        bool rejected = false;
-        {
-            const auto oldFailure = failAllocationAfter;
-            const auto restore    = wil::scope_exit([=] noexcept { failAllocationAfter = oldFailure; });
-            failAllocationAfter   = failure;
-            try
-            {
-                parser.Begin(sourceSnapshot, 3u, MarkdownProfile::Gfm029);
-            }
-            catch (const std::bad_alloc&)
-            {
-                rejected = true;
-            }
-        }
-        Check(rejected && parser.HasPendingPreparation() && parser.Published() == published,
-              "failed Begin preserves both an existing pending request and the previous published identity");
+        const auto rejected = parser.TryBegin(sourceSnapshot, 3u, static_cast<MarkdownProfile>(99));
+        Check(rejected == MarkdownResult::InvalidProfile && parser.HasPendingPreparation() && parser.Published() == published,
+              "checked Begin refusal preserves both an existing pending request and the previous published identity");
         finish(parser);
         Check(parser.Published()->Revision() == 2u && parser.Published()->Source() == L"old pending",
-              "the original pending cursor can finish after replacement admission fails");
+              "the original pending cursor can finish after replacement admission is refused");
     }
     const std::wstring maximum(Document::MaximumUnits, L'\n');
     ptrdiff_t retained = 0, released = 0, peak = 0;
@@ -3092,7 +2647,7 @@ static void TestRichMarkdownParserFailureAndStorageBudgets(bool trace = false)
         idleCalls        = allocations;
     }
     Check(idleCalls == 0u, "same-content preparation, completed reads and retirement allocate no C++ storage");
-    std::cout << "lossless Markdown sweptRequests=" << requests << " pendingBeginRequests=" << beginRequests << " maximumRetainedCppBytes=" << retained
+    std::cout << "lossless Markdown measuredRequests=" << requests << " pendingBeginRequests=" << beginRequests << " maximumRetainedCppBytes=" << retained
               << " replacementPeakCppBytes=" << peak << " releasedDelta=" << released << " unchangedAndRetireAllocations=" << idleCalls << '\n';
 }
 
@@ -3159,7 +2714,13 @@ static void TestEmbeddedFootnoteResolutionAndSourceEdits(GraphicsFixture& gpu)
         *editor, view.Controls(), [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "embedded footnote navigation"); }, Check, MK_CONTROL, MK_SHIFT);
 }
 
-static void TestParserCapacityMemoryFailureIsRetryable(GraphicsFixture& gpu)
+template <typename Operation> __declspec(noinline) static void RichParserPreparationFaultOrigin(Operation&& operation)
+{
+    DxUi::Failure::Scope scope;
+    failAllocationAfter = 0u;
+    operation();
+}
+static void TestParserCapacityMemoryFailureIsRetryable(GraphicsFixture& gpu, bool fatalChild = false)
 {
     using namespace DxUi;
 // Existing identity/RAII/reference traits intentionally delete these implicit operations.
@@ -3186,21 +2747,17 @@ static void TestParserCapacityMemoryFailureIsRetryable(GraphicsFixture& gpu)
     const auto previous = editor->GetMarkdownSyntax();
     editor->SetText(L"new **small**");
     editor->SetSelection({1u, 2u});
-    HRESULT failure{};
+    if (fatalChild)
     {
-        const auto oldFailure = failAllocationAfter;
-        const auto restore    = wil::scope_exit([=] noexcept { failAllocationAfter = oldFailure; });
-        failAllocationAfter   = 0u;
-        // Call the real protected preparation boundary directly so the first
-        // failed allocation is inside parser admission, not host/tree staging.
-        failure = editor->PrepareContent(view.Controls());
+        RichParserPreparationFaultOrigin([&] { (void)editor->PrepareContent(view.Controls()); });
+        return;
     }
-    Check(failure == E_OUTOFMEMORY && editor->GetMarkdownRenderingStatus() == MarkdownRenderingStatus::Pending && editor->GetText() == L"new **small**" &&
-              editor->GetSelection() == RichText::Selection{1u, 2u} && ! editor->CanUndo() && previous->Source() == L"old",
-          "parser memory failure remains retryable and cannot latch source capacity fallback or mutate held source/history");
-    Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "retry parser memory failure");
+    Check(DxUiFailureTests::ExpectFatalChild(L"embedded-parser-preparation-allocation"), "parser preparation allocation terminates in its owned child");
+    Check(editor->GetText() == L"new **small**" && editor->GetSelection() == RichText::Selection{1u, 2u} && ! editor->CanUndo() && previous->Source() == L"old",
+          "pending parser preparation preserves the source and held publication");
+    Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "prepare changed parser source");
     Check(editor->GetMarkdownRenderingStatus() == MarkdownRenderingStatus::Semantic && editor->GetMarkdownSyntax()->Source() == L"new **small**",
-          "retry succeeds for the unchanged source request after transient parser admission memory failure");
+          "changed source publishes its semantic syntax");
 }
 static void TestEmbeddedParserCapacitySourceFallback(GraphicsFixture& gpu)
 {
@@ -3416,7 +2973,15 @@ static void TestEmbeddedImagePathPaste(GraphicsFixture& gpu)
           "document-location change rejects stale embedded clipboard preparation");
     Check(editor->GetText() == L"ok " && ! editor->CanUndo() && ! view.Controls().GetHwnd(), "embedded transform creates no HWND or source transaction");
 }
-static void TestEmbeddedFileReferencePaste(GraphicsFixture& gpu)
+__declspec(noinline) static void RichPasteTransformFaultOrigin(DxUi::RichTextEditor& editor,
+                                                               const DxUi::TextClipboardContent& content,
+                                                               std::wstring& replacement)
+{
+    DxUi::Failure::Scope scope;
+    failAllocationAfter = 0u;
+    (void)editor.TryPrepareClipboardPaste(content, replacement);
+}
+static void TestEmbeddedFileReferencePaste(GraphicsFixture& gpu, unsigned fatalScenario = 0u)
 {
     using namespace DxUi;
     std::shared_ptr<GraphicsDevice> graphics;
@@ -3455,27 +3020,18 @@ static void TestEmbeddedFileReferencePaste(GraphicsFixture& gpu)
         requests                      = allocations;
         Check(transformed && requests > 0u && requests < 512u, "mixed file paste has an observed bounded allocation schedule");
     }
-    for (std::size_t point = 0u; point < requests; ++point)
     {
         std::wstring replacement = L"sentinel";
-        bool rejected{};
+        if (fatalScenario == 1u)
         {
-            const auto oldFailure = failAllocationAfter;
-            const auto restore    = wil::scope_exit([=] noexcept { failAllocationAfter = oldFailure; });
-            failAllocationAfter   = point;
-            try
-            {
-                static_cast<void>(editor->TryPrepareClipboardPaste(content, replacement));
-            }
-            catch (const std::bad_alloc&)
-            {
-                rejected = true;
-            }
+            RichPasteTransformFaultOrigin(*editor, content, replacement);
+            return;
         }
-        Check(rejected && replacement == L"sentinel" && editor->GetText() == source && editor->Revision() == revision && editor->GetSelection() == selection &&
-                  ! editor->CanUndo(),
-              "failed mixed paste leaves caller output, source, selection and history exact");
-        Check(editor->TryPrepareClipboardPaste(content, replacement) && replacement == expected, "mixed paste retries every allocation failure exactly");
+        if (fatalScenario == 0u)
+            Check(DxUiFailureTests::ExpectFatalChild(L"embedded-mixed-paste-allocation"), "mixed paste allocation terminates in its owned child");
+        Check(editor->TryPrepareClipboardPaste(content, replacement) && replacement == expected && editor->GetText() == source &&
+                  editor->Revision() == revision && editor->GetSelection() == selection && ! editor->CanUndo(),
+              "mixed paste preserves source, selection and history");
     }
     std::cout << "mixed file paste allocation points=" << requests << '\n';
     std::wstring deepPath = L"C:";
@@ -3499,28 +3055,21 @@ static void TestEmbeddedFileReferencePaste(GraphicsFixture& gpu)
         requests                      = allocations;
         Check(transformed && requests > 0u && requests < 512u, "deep literal paste has an observed bounded allocation schedule");
     }
-    for (std::size_t point = 0u; point < requests; ++point)
     {
         std::wstring replacement = L"sentinel";
-        bool rejected{};
+        if (fatalScenario == 2u)
         {
-            const auto oldFailure = failAllocationAfter;
-            const auto restore    = wil::scope_exit([=] noexcept { failAllocationAfter = oldFailure; });
-            failAllocationAfter   = point;
-            try
-            {
-                static_cast<void>(editor->TryPrepareClipboardPaste(content, replacement));
-            }
-            catch (const std::bad_alloc&)
-            {
-                rejected = true;
-            }
+            RichPasteTransformFaultOrigin(*editor, content, replacement);
+            return;
         }
-        Check(rejected && replacement == L"sentinel" && editor->GetText() == source && editor->Revision() == revision && editor->GetSelection() == selection &&
-                  ! editor->CanUndo(),
-              "failed deep literal paste leaves caller output, source, selection and history exact");
-        Check(editor->TryPrepareClipboardPaste(content, replacement) && replacement == expected, "deep literal paste retries every allocation failure exactly");
+        if (fatalScenario == 0u)
+            Check(DxUiFailureTests::ExpectFatalChild(L"embedded-deep-paste-allocation"), "deep paste allocation terminates in its owned child");
+        Check(editor->TryPrepareClipboardPaste(content, replacement) && replacement == expected && editor->GetText() == source &&
+                  editor->Revision() == revision && editor->GetSelection() == selection && ! editor->CanUndo(),
+              "deep paste preserves source, selection and history");
     }
+    if (fatalScenario != 0u)
+        return;
     BITMAPV5HEADER header{};
     header.bV5Size        = sizeof(header);
     header.bV5Width       = 2;
@@ -3953,6 +3502,10 @@ static void TestRichTextCooperativeSchedulingAndTextInput(GraphicsFixture& gpu)
             {
                 request.view->Controls().SetRoot(std::make_unique<Label>(L"replacement"));
             }
+            catch (const std::bad_alloc&)
+            {
+                DxUi::Failure::FailAllocation();
+            }
             catch (const std::exception&)
             {
                 Check(false, "replacement scheduling callback completes");
@@ -4279,24 +3832,24 @@ static void TestRichTextUtf8RejectionAllocationBudget()
             });
             allocationBytes = allocations = 0u;
             countAllocations              = true;
-            try
-            {
-                static_cast<void>(DxUi::RichText::DecodeUtf8(input));
-            }
-            catch (const std::length_error&)
-            {
-                lengthRejected = true;
-            }
+            std::wstring output(0u, L'\0');
+            lengthRejected   = DxUi::RichText::TryDecodeUtf8(input, output) == DxUi::RichText::SourceResult::CapacityExceeded;
             countAllocations = false;
             requestedBytes   = allocationBytes;
         }
         std::cout << "rich UTF8 rejection inputBytes=" << inputBytes << " decoderCppRequestedBytes=" << requestedBytes << '\n';
-        Check(lengthRejected, "oversized UTF8 source returns a length error");
+        Check(lengthRejected, "oversized UTF8 source returns a capacity result");
         Check(requestedBytes <= 4096u, "oversized UTF8 rejection never materializes the oversized UTF16 result");
     }
 }
 
-static void TestRetainedRichTextUiaRangeAllocationBudget(GraphicsFixture& gpu)
+template <typename Operation> __declspec(noinline) static void RichUiaRangeFaultOrigin(Operation&& operation)
+{
+    DxUi::Failure::Scope scope;
+    failAllocationAfter = 0u;
+    (void)operation();
+}
+static void TestRetainedRichTextUiaRangeAllocationBudget(GraphicsFixture& gpu, unsigned fatalScenario = 0u)
 {
     using namespace DxUi;
     const bool previousCounting      = countAllocations;
@@ -4336,45 +3889,50 @@ static void TestRetainedRichTextUiaRangeAllocationBudget(GraphicsFixture& gpu)
     Check(bool(fragment), "rich source is reachable in the allocation fixture");
     wil::com_ptr_nothrow<ITextProvider2> text;
     Hr(fragment.query_to(text.put()), "rich allocation TextPattern2");
-    for (const size_t units : {size_t(32), RichText::Document::MaximumUnits})
+    // The parent retains both metadata budgets; a fault child needs only its
+    // selected operation and must not repeat maximum-document setup.
+    if (fatalScenario == 0u)
     {
-        editor->SetText(std::wstring(units, L'a'));
-        Hr(PrepareRichEmbeddedContent(view, 480, 240), "prepare small/maximum rich source outside range-query budget");
-        Check(view.UpdateAccessibility(placement) == S_OK, "publish small/maximum rich source");
-        wil::com_ptr_nothrow<ITextRangeProvider> document;
-        Hr(text->get_DocumentRange(document.put()), "read published source outside metadata budget");
-        Check(bool(document), "published source range exists");
-        wil::unique_bstr source;
-        Hr(document->GetText(-1, source.put()), "read actual published source length");
-        Check(SysStringLen(source.get()) == units, "allocation fixture really publishes the requested small/maximum source");
-        BOOL active = FALSE;
-        wil::com_ptr_nothrow<ITextRangeProvider> warm;
-        Hr(text->GetCaretRange(&active, warm.put()), "warm rich caret metadata");
-        warm.reset();
-        size_t largestRequest = 0;
-        for (size_t iteration = 0; iteration < 8; ++iteration)
+        for (const size_t units : {size_t(32), RichText::Document::MaximumUnits})
         {
-            wil::com_ptr_nothrow<ITextRangeProvider> caret;
-            SAFEARRAY* visible = nullptr;
-            allocationBytes = allocations = 0;
-            countAllocations              = true;
-            const HRESULT caretResult     = text->GetCaretRange(&active, caret.put());
-            const HRESULT visibleResult   = text->GetVisibleRanges(&visible);
-            countAllocations              = false;
-            largestRequest                = std::max(largestRequest, allocationBytes);
-            const auto destroy            = wil::scope_exit([&]
+            editor->SetText(std::wstring(units, L'a'));
+            Hr(PrepareRichEmbeddedContent(view, 480, 240), "prepare small/maximum rich source outside range-query budget");
+            Check(view.UpdateAccessibility(placement) == S_OK, "publish small/maximum rich source");
+            wil::com_ptr_nothrow<ITextRangeProvider> document;
+            Hr(text->get_DocumentRange(document.put()), "read published source outside metadata budget");
+            Check(bool(document), "published source range exists");
+            wil::unique_bstr source;
+            Hr(document->GetText(-1, source.put()), "read actual published source length");
+            Check(SysStringLen(source.get()) == units, "allocation fixture really publishes the requested small/maximum source");
+            BOOL active = FALSE;
+            wil::com_ptr_nothrow<ITextRangeProvider> warm;
+            Hr(text->GetCaretRange(&active, warm.put()), "warm rich caret metadata");
+            warm.reset();
+            size_t largestRequest = 0;
+            for (size_t iteration = 0; iteration < 8; ++iteration)
             {
-                if (visible)
-                    SafeArrayDestroy(visible);
-            });
-            Hr(caretResult, "bounded caret metadata query");
-            Hr(visibleResult, "bounded visible-range metadata query");
-            Check(active && caret && visible, "queries retain current range identities");
+                wil::com_ptr_nothrow<ITextRangeProvider> caret;
+                SAFEARRAY* visible = nullptr;
+                allocationBytes = allocations = 0;
+                countAllocations              = true;
+                const HRESULT caretResult     = text->GetCaretRange(&active, caret.put());
+                const HRESULT visibleResult   = text->GetVisibleRanges(&visible);
+                countAllocations              = false;
+                largestRequest                = std::max(largestRequest, allocationBytes);
+                const auto destroy            = wil::scope_exit([&]
+                {
+                    if (visible)
+                        SafeArrayDestroy(visible);
+                });
+                Hr(caretResult, "bounded caret metadata query");
+                Hr(visibleResult, "bounded visible-range metadata query");
+                Check(active && caret && visible, "queries retain current range identities");
+            }
+            // Range metadata may allocate provider objects. It must not duplicate
+            // a 128 KiB maximum document for each caret/visible-range request.
+            Check(largestRequest <= 4096, "rich range C++ allocation budget is independent of source size");
+            std::cout << "rich UIA ranges sourceUnits=" << units << " largestMetadataRequestBytes=" << largestRequest << '\n';
         }
-        // Range metadata may allocate provider objects. It must not duplicate
-        // a 128 KiB maximum document for each caret/visible-range request.
-        Check(largestRequest <= 4096, "rich range C++ allocation budget is independent of source size");
-        std::cout << "rich UIA ranges sourceUnits=" << units << " largestMetadataRequestBytes=" << largestRequest << '\n';
     }
     editor->SetText(std::wstring(96u, L'a') + L"\nsecond visual line\nthird line");
     Hr(PrepareRichEmbeddedContent(view, 480, 240), "prepare observed UIA range-failure source");
@@ -4413,6 +3971,8 @@ static void TestRetainedRichTextUiaRangeAllocationBudget(GraphicsFixture& gpu)
     };
     for (unsigned operation = 0u; operation < 6u; ++operation)
     {
+        if (fatalScenario != 0u && fatalScenario != operation + 1u)
+            continue;
         auto warm = makeRange();
         Hr(invoke(*warm.get(), operation), "warm retained UIA geometry outside the observed failure schedule");
         auto measured = makeRange();
@@ -4423,29 +3983,31 @@ static void TestRetainedRichTextUiaRangeAllocationBudget(GraphicsFixture& gpu)
         const size_t observed         = allocations;
         Hr(result, "observe successful direct UIA range operation");
         Check(observed > 0u && observed < 256u, "direct UIA range command has a bounded observed allocation schedule");
-        for (size_t point = 0u; point < observed; ++point)
+        auto range = makeRange();
+        if (fatalScenario != 0u)
         {
-            auto range            = makeRange();
-            const auto oldFailure = failAllocationAfter;
-            HRESULT failureResult{};
-            {
-                const auto restoreFailure = wil::scope_exit([=] noexcept { failAllocationAfter = oldFailure; });
-                failAllocationAfter       = point;
-                failureResult             = invoke(*range.get(), operation);
-            }
-            Check(failureResult == E_OUTOFMEMORY, "every observed direct TextPattern range allocation failure reports E_OUTOFMEMORY");
-            int start{}, end{};
-            Hr(range->CompareEndpoints(TextPatternRangeEndpoint_Start, baseline.get(), TextPatternRangeEndpoint_Start, &start),
-               "compare unchanged range start");
-            Hr(range->CompareEndpoints(TextPatternRangeEndpoint_End, baseline.get(), TextPatternRangeEndpoint_End, &end), "compare unchanged range end");
-            Check(start == 0 && end == 0, "a failed range command preserves both exact source endpoints");
-            Hr(invoke(*range.get(), operation), "retry direct UIA range command after allocation failure");
+            RichUiaRangeFaultOrigin([&] { return invoke(*range.get(), operation); });
+            return;
         }
-        std::cout << "rich UIA range operation=" << operation << " allocationFailures=" << observed << '\n';
+        constexpr const wchar_t* children[] = {L"embedded-uia-range-compare",
+                                               L"embedded-uia-range-expand",
+                                               L"embedded-uia-range-rectangles",
+                                               L"embedded-uia-range-text",
+                                               L"embedded-uia-range-move",
+                                               L"embedded-uia-range-endpoint"};
+        Check(DxUiFailureTests::ExpectFatalChild(children[operation]), "UIA range operation allocation terminates in its owned child");
+        Hr(invoke(*range.get(), operation), "direct UIA range command succeeds");
+        std::cout << "rich UIA range operation=" << operation << " allocationRequests=" << observed << '\n';
     }
 }
 
-static void TestRichTaskPlanAllocationFailureKeepsPointerSelection(GraphicsFixture& gpu)
+__declspec(noinline) static void RichTaskPointerFaultOrigin(DxUi::RichTextEditor& editor, DxUi::EmbeddedHost& view, D2D1_POINT_2F point)
+{
+    DxUi::Failure::Scope scope;
+    failAllocationAfter = 0u;
+    (void)editor.OnMouseDown(view.Controls(), point, false, 0u);
+}
+static void TestRichTaskPlanAllocationFailureKeepsPointerSelection(GraphicsFixture& gpu, bool fatalChild = false)
 {
     using namespace DxUi;
     std::shared_ptr<GraphicsDevice> graphics;
@@ -4463,12 +4025,14 @@ static void TestRichTaskPlanAllocationFailureKeepsPointerSelection(GraphicsFixtu
     Check(rects && ! rects->empty(), "task allocation fixture has visible checkbox geometry");
     const auto rect = rects->front();
     const D2D1_POINT_2F point{(rect.left + rect.right) * .5f, (rect.top + rect.bottom) * .5f};
-    const auto previous = failAllocationAfter;
-    failAllocationAfter = 0u;
-    const bool handled  = editor->OnMouseDown(view.Controls(), point, false, 0u);
-    failAllocationAfter = previous;
-    Check(handled && view.Controls().GetCapturedControl() == editor && editor->GetSelection().caret > 0u && editor->GetText() == L"- [ ] task\n",
-          "a refused task plan keeps the ordinary caret press and capture without editing source");
+    if (fatalChild)
+    {
+        RichTaskPointerFaultOrigin(*editor, view, point);
+        return;
+    }
+    Check(DxUiFailureTests::ExpectFatalChild(L"embedded-task-pointer-allocation"), "task pointer allocation terminates in its owned child");
+    const bool handled = editor->OnMouseDown(view.Controls(), point, false, 0u);
+    Check(handled && view.Controls().GetCapturedControl() == editor, "task pointer press is handled and captures the pointer");
     view.Controls().ReleaseMouseCapture();
 }
 static void TestRetainedRichTextDefaultFontChunkReuse(GraphicsFixture& gpu)
@@ -4675,7 +4239,12 @@ static void TestRetainedRichTextSchedulingCanRetireOwner(GraphicsFixture& gpu)
     Hr(PrepareRichEmbeddedContent(view, 480, 240), "prepare replacement empty root after retirement");
 }
 
-static void TestRetainedRichTextFailedPreparation(GraphicsFixture& gpu)
+[[noreturn]] __declspec(noinline) static void EmbeddedRichPaintThrowOrigin(const std::runtime_error& error)
+{
+    embeddedCallbackOriginMarker.store(6u, std::memory_order_relaxed);
+    throw error;
+}
+static void TestRetainedRichTextFailedPreparation(GraphicsFixture& gpu, bool fatalChild = false)
 {
 // Existing identity/RAII/reference traits intentionally delete these implicit operations.
 // Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
@@ -4688,11 +4257,14 @@ static void TestRetainedRichTextFailedPreparation(GraphicsFixture& gpu)
         {
         }
         mutable bool fail = true;
-        void Paint(DxUi::ControlHost& host) const override
+        __declspec(noinline) void Paint(DxUi::ControlHost& host) const override
         {
             RichTextEditor::Paint(host);
             if (fail)
-                throw std::runtime_error("injected post-raster preparation failure");
+            {
+                const std::runtime_error error("injected post-raster preparation failure");
+                EmbeddedRichPaintThrowOrigin(error);
+            }
         }
     };
 #pragma warning(pop)
@@ -4704,12 +4276,15 @@ static void TestRetainedRichTextFailedPreparation(GraphicsFixture& gpu)
     auto* editor = owned.get();
     view.Controls().SetRoot(std::move(owned));
     const auto source = editor->Snapshot();
-    Check(FAILED(PrepareRichEmbeddedContent(view, 480, 240)), "rich-text raster exception fails preparation");
-    gpu.Bind();
-    Check(view.Composite(gpu.context.get(), gpu.Viewport()) == S_FALSE && ! view.DispatchCharacter(L'x'),
-          "failed rich-text frame publishes neither pixels nor input");
+    if (fatalChild)
+    {
+        (void)PrepareRichEmbeddedContent(view, 480, 240);
+        return;
+    }
+    Check(DxUiFailureTests::ExpectFatalChild(L"embedded-rich-paint-callback-throw"), "rich-text paint callback exception terminates in its owned child");
     editor->fail = false;
-    Hr(PrepareRichEmbeddedContent(view, 480, 240), "explicit rich-text preparation retry");
-    Hr(view.Composite(gpu.context.get(), gpu.Viewport()), "recovered rich-text surface composes");
-    Check(editor->GetText() == source.Text(), "failed preparation never changes logical document");
+    Hr(PrepareRichEmbeddedContent(view, 480, 240), "rich-text preparation succeeds");
+    gpu.Bind();
+    Hr(view.Composite(gpu.context.get(), gpu.Viewport()), "rich-text surface composes");
+    Check(editor->GetText() == source.Text(), "preparation preserves the logical document");
 }

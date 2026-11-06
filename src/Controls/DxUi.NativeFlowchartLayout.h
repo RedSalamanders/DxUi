@@ -86,14 +86,15 @@ public:
     // creates no SDK layouts and cannot hide label shaping inside one work unit.
     // Invalid graph/metric input or failed admission preserves pending work.
     // Successful Begin replaces pending work; the old publication stays valid.
-    void Begin(std::shared_ptr<const FlowchartModel> graph,
-               std::span<const FlowchartSize> nodeLabels,
-               std::span<const FlowchartSize> edgeLabels,
-               std::span<const FlowchartSize> fromCardinalities = {},
-               std::span<const FlowchartSize> toCardinalities   = {},
-               std::span<const FlowchartSize> groupLabels       = {});
+    SourceResult Begin(std::shared_ptr<const FlowchartModel> graph,
+                       std::span<const FlowchartSize> nodeLabels,
+                       std::span<const FlowchartSize> edgeLabels,
+                       std::span<const FlowchartSize> fromCardinalities = {},
+                       std::span<const FlowchartSize> toCardinalities   = {},
+                       std::span<const FlowchartSize> groupLabels       = {});
     // An event handles one node, edge, DFS transition or rank. A stable Kahn
-    // choice scans at most 256 nodes. Units are not elapsed-time guarantees.
+    // choice scans at most 256 nodes; a shared-endpoint route may scan up to
+    // 512 edges per endpoint. Units are not elapsed-time guarantees.
     // Begin copies at most 768 measurements into fixed bounded staging arrays.
     MarkdownAdvance Advance(std::size_t maximumWorkUnits = 256u);
     bool HasPendingPreparation() const noexcept;

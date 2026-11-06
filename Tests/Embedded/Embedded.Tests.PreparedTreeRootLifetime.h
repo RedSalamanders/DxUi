@@ -2,35 +2,6 @@
 
 #include "Support.Tests.PreparedTreeSemanticFixture.h"
 
-struct PreparedTreeRootLifetimeAccessibilitySite final : DxUi::EmbeddedAccessibilitySite
-{
-    IRawElementProviderFragmentRoot* root = nullptr; // Borrowed fixture reference; cleared before teardown.
-
-    void ActionCompleted() noexcept override
-    {
-    }
-    HRESULT Navigate(NavigateDirection, IRawElementProviderFragment** result) noexcept override
-    {
-        if (! result)
-            return E_POINTER;
-        *result = nullptr;
-        return S_OK;
-    }
-    HRESULT FragmentRoot(IRawElementProviderFragmentRoot** result) noexcept override
-    {
-        if (! result)
-            return E_POINTER;
-        *result = root;
-        if (root)
-            root->AddRef();
-        return root ? S_OK : UIA_E_ELEMENTNOTAVAILABLE;
-    }
-    HRESULT RequestFocus() noexcept override
-    {
-        return S_OK;
-    }
-};
-
 static std::wstring ReadPreparedTreeRootLifetimeName(const wil::com_ptr_nothrow<IRawElementProviderFragment>& provider, const char* context)
 {
     wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
@@ -69,13 +40,17 @@ static void TestPreparedTreeRootDoesNotRetainSupersededSource(GraphicsFixture& g
     view.Controls().SetRoot(std::move(controls));
     Hr(view.Prepare(320u, 180u, 96.0f), "prepare root-lifetime tree");
 
-    auto site = std::make_shared<PreparedTreeRootLifetimeAccessibilitySite>();
+    EmbeddedUiaTest::Bridge bridge(view, 320u, 180u);
+    Check(bridge.valid, "root-lifetime application bridge");
+    auto site         = std::make_shared<TestEmbeddedAccessibilitySite>();
+    site->application = &bridge.Site();
     DxUi::EmbeddedAccessibilityPlacement placement{{0, 0, 320, 180}, true};
     Hr(view.AttachAccessibility(site, 0x524F4F544C494645ull, placement), "attach root-lifetime tree accessibility");
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> root;
     Hr(view.GetAccessibilityProvider(root.put()), "root-lifetime canonical root");
     Check(bool(root), "root-lifetime canonical root exists");
     site->root = root.get();
+    bridge.BindViewRoot(root.get());
     wil::com_ptr_nothrow<IRawElementProviderFragment> rootFragment;
     Hr(root.query_to(rootFragment.put()), "root-lifetime canonical root fragment");
     Check(bool(rootFragment), "root-lifetime canonical root fragment exists");
@@ -110,6 +85,7 @@ static void TestPreparedTreeRootDoesNotRetainSupersededSource(GraphicsFixture& g
 
     last.reset();
     treeProvider.reset();
+    bridge.BindViewRoot(nullptr);
     site->root = nullptr;
     view.Detach();
     wil::com_ptr_nothrow<IRawElementProviderFragment> detachedChild;

@@ -30,7 +30,13 @@ public:
         const bool semantic = mode == ViewMode::Rich && static_cast<bool>(document);
         const auto result   = semantic ? semantic_.Begin(factory, std::move(document), options, drawing, epochs, std::move(images), raster)
                                        : v0_.BeginPreparation(factory, std::move(source), revision, mode, options);
-        requestedSemantic_  = semantic;
+        if (result == LayoutPreparationStatus::Failed)
+        {
+            beginResult_ = semantic ? semantic_.Result() : v0_.Result();
+            return result;
+        }
+        beginResult_       = S_OK;
+        requestedSemantic_ = semantic;
         if (semantic)
             v0_.CancelPreparation();
         else
@@ -39,12 +45,20 @@ public:
             Publish();
         return result;
     }
+    HRESULT Result() const noexcept
+    {
+        return beginResult_;
+    }
     LayoutAdvance AdvancePreparation(LayoutWorkBudget budget = {})
     {
         auto result = requestedSemantic_ ? semantic_.Advance(budget) : v0_.AdvancePreparation(budget);
         if (result.status == LayoutPreparationStatus::Complete)
             Publish();
         return result;
+    }
+    std::span<const std::size_t> RejectedNativeObjects() const noexcept
+    {
+        return requestedSemantic_ ? semantic_.RejectedNativeObjects() : std::span<const std::size_t>{};
     }
     void CancelPreparation() noexcept
     {
@@ -108,6 +122,12 @@ public:
     {
         return activeSemantic_ ? semantic_.Document().Map().ToDisplay(source) : v0_.ToDisplay(source);
     }
+    [[nodiscard]] HRESULT TryToDisplay(std::size_t source, std::size_t& output) const
+    {
+        if (! activeSemantic_)
+            return v0_.TryToDisplay(source, output);
+        return semantic_.Document().Map().TryToDisplay(source, MappingAffinity::Leading, output) == SourceResult::Success ? S_OK : E_INVALIDARG;
+    }
     std::size_t ToSource(std::size_t display, bool trailing = false) const
     {
         return activeSemantic_ ? semantic_.Document().Map().ToSource(display, trailing ? MappingAffinity::Trailing : MappingAffinity::Leading)
@@ -143,13 +163,30 @@ public:
     {
         return activeSemantic_ ? semantic_.HitTest(x, y) : v0_.HitTest(x, y);
     }
+    [[nodiscard]] HRESULT TryHitTest(float x, float y, Hit& output) const
+    {
+        return activeSemantic_ ? semantic_.TryHitTest(x, y, output) : v0_.TryHitTest(x, y, output);
+    }
     CaretGeometry Caret(std::size_t display) const
     {
         return activeSemantic_ ? semantic_.Caret(display) : v0_.Caret(display);
     }
+    [[nodiscard]] HRESULT TryCaret(std::size_t display, CaretGeometry& output) const
+    {
+        return activeSemantic_ ? semantic_.TryCaret(display, output) : v0_.TryCaret(display, output);
+    }
     CaretGeometry SourceCaret(std::size_t source, std::size_t site = MarkdownNoNode) const
     {
         return activeSemantic_ ? semantic_.SourceCaret(source, site) : v0_.Caret(v0_.ToDisplay(source));
+    }
+    [[nodiscard]] HRESULT TrySourceCaret(std::size_t source, std::size_t site, CaretGeometry& output) const
+    {
+        if (activeSemantic_)
+            return semantic_.TrySourceCaret(source, site, output);
+        std::size_t display{};
+        if (const auto status = v0_.TryToDisplay(source, display); FAILED(status))
+            return status;
+        return v0_.TryCaret(display, output);
     }
     SourceCaretHit HitTestSource(float x, float y) const
     {
@@ -158,6 +195,19 @@ public:
         const auto hit = v0_.HitTest(x, y);
         return {v0_.ToSource(hit.position, hit.trailing)};
     }
+    [[nodiscard]] HRESULT TryHitTestSource(float x, float y, SourceCaretHit& output) const
+    {
+        if (activeSemantic_)
+            return semantic_.TryHitTestSource(x, y, output);
+        Hit hit{};
+        if (const auto status = v0_.TryHitTest(x, y, hit); FAILED(status))
+            return status;
+        std::size_t source{};
+        if (const auto status = v0_.TryToSource(hit.position, hit.trailing, source); FAILED(status))
+            return status;
+        output = {source};
+        return S_OK;
+    }
     std::pair<std::size_t, std::size_t> VisibleSourceRange(float top, float bottom) const
     {
         if (activeSemantic_)
@@ -165,33 +215,84 @@ public:
         const auto range = v0_.VisibleRange(top, bottom);
         return {v0_.ToSource(range.first), v0_.ToSource(range.second, true)};
     }
+    [[nodiscard]] HRESULT TryVisibleSourceRange(float top, float bottom, std::pair<std::size_t, std::size_t>& output) const
+    {
+        if (activeSemantic_)
+            return semantic_.TryVisibleSourceRange(top, bottom, output);
+        std::pair<std::size_t, std::size_t> range{}, result{};
+        if (const auto status = v0_.TryVisibleRange(top, bottom, range); FAILED(status))
+            return status;
+        if (const auto status = v0_.TryToSource(range.first, false, result.first); FAILED(status))
+            return status;
+        if (const auto status = v0_.TryToSource(range.second, true, result.second); FAILED(status))
+            return status;
+        output = result;
+        return S_OK;
+    }
     std::vector<D2D1_RECT_F> Range(std::size_t first, std::size_t last) const
     {
         return activeSemantic_ ? semantic_.Range(first, last) : v0_.Range(first, last);
+    }
+    [[nodiscard]] HRESULT TryRange(std::size_t first, std::size_t last, std::vector<D2D1_RECT_F>& output) const
+    {
+        return activeSemantic_ ? semantic_.TryRange(first, last, output) : v0_.TryRange(first, last, output);
     }
     std::vector<D2D1_RECT_F> SourceRange(std::size_t first, std::size_t last) const
     {
         return activeSemantic_ ? semantic_.SourceRange({first, last}) : v0_.Range(v0_.ToDisplay(first), v0_.ToDisplay(last));
     }
+    [[nodiscard]] HRESULT TrySourceRange(std::size_t first, std::size_t last, std::vector<D2D1_RECT_F>& output) const
+    {
+        if (activeSemantic_)
+            return semantic_.TrySourceRange({first, last}, output);
+        if (first > last)
+            return E_INVALIDARG;
+        std::size_t displayFirst{}, displayLast{};
+        if (const auto status = v0_.TryToDisplay(first, displayFirst); FAILED(status))
+            return status;
+        if (const auto status = v0_.TryToDisplay(last, displayLast); FAILED(status))
+            return status;
+        return v0_.TryRange(displayFirst, displayLast, output);
+    }
     std::size_t PreviousCluster(std::size_t display) const
     {
         return activeSemantic_ ? semantic_.PreviousCluster(display) : v0_.PreviousCluster(display);
+    }
+    [[nodiscard]] HRESULT TryPreviousCluster(std::size_t display, std::size_t& output) const
+    {
+        return activeSemantic_ ? semantic_.TryPreviousCluster(display, output) : v0_.TryPreviousCluster(display, output);
     }
     std::size_t NextCluster(std::size_t display) const
     {
         return activeSemantic_ ? semantic_.NextCluster(display) : v0_.NextCluster(display);
     }
+    [[nodiscard]] HRESULT TryNextCluster(std::size_t display, std::size_t& output) const
+    {
+        return activeSemantic_ ? semantic_.TryNextCluster(display, output) : v0_.TryNextCluster(display, output);
+    }
     std::pair<std::size_t, std::size_t> DeletionRange(std::size_t display, bool backwards) const
     {
         return activeSemantic_ ? semantic_.DeletionRange(display, backwards) : v0_.DeletionRange(display, backwards);
+    }
+    [[nodiscard]] HRESULT TryDeletionRange(std::size_t display, bool backwards, std::pair<std::size_t, std::size_t>& output) const
+    {
+        return activeSemantic_ ? semantic_.TryDeletionRange(display, backwards, output) : v0_.TryDeletionRange(display, backwards, output);
     }
     std::size_t LineBoundary(std::size_t display, bool end) const
     {
         return activeSemantic_ ? semantic_.LineBoundary(display, end) : v0_.LineBoundary(display, end);
     }
+    [[nodiscard]] HRESULT TryLineBoundary(std::size_t display, bool end, std::size_t& output) const
+    {
+        return activeSemantic_ ? semantic_.TryLineBoundary(display, end, output) : v0_.TryLineBoundary(display, end, output);
+    }
     std::pair<std::size_t, std::size_t> VisibleRange(float top, float bottom) const
     {
         return activeSemantic_ ? semantic_.VisibleRange(top, bottom) : v0_.VisibleRange(top, bottom);
+    }
+    [[nodiscard]] HRESULT TryVisibleRange(float top, float bottom, std::pair<std::size_t, std::size_t>& output) const
+    {
+        return activeSemantic_ ? semantic_.TryVisibleRange(top, bottom, output) : v0_.TryVisibleRange(top, bottom, output);
     }
     void Draw(ID2D1RenderTarget* target,
               ID2D1Brush* brush,
@@ -231,6 +332,42 @@ public:
         else
             v0_.Draw(target, brush, origin, top, bottom, links);
     }
+    [[nodiscard]] HRESULT TryDraw(ID2D1RenderTarget* target,
+                                  ID2D1Brush* brush,
+                                  ID2D1Brush* decoration,
+                                  D2D1_POINT_2F origin,
+                                  float top,
+                                  float bottom,
+                                  ID2D1Brush* fill                         = nullptr,
+                                  float imageOpacity                       = 1.0f,
+                                  const LinkDrawing* links                 = nullptr,
+                                  ID2D1Brush* quoteFill                    = nullptr,
+                                  const DiagramColorContext* diagramColors = nullptr,
+                                  ID2D1Brush* calloutAccent                = nullptr,
+                                  ID2D1Brush* propertiesInk                = nullptr,
+                                  bool diagramContentInk                   = false,
+                                  ID2D1Brush* diagramLabelFill             = nullptr) const
+    {
+#if DXUI_ENABLE_DIAGNOSTICS
+        ++testRichLayoutDrawCalls;
+#endif
+        return activeSemantic_ ? semantic_.TryDraw(target,
+                                                   brush,
+                                                   decoration,
+                                                   origin,
+                                                   top,
+                                                   bottom,
+                                                   fill,
+                                                   imageOpacity,
+                                                   links,
+                                                   quoteFill,
+                                                   diagramColors,
+                                                   calloutAccent,
+                                                   propertiesInk,
+                                                   diagramContentInk,
+                                                   diagramLabelFill)
+                               : v0_.TryDraw(target, brush, origin, top, bottom, links);
+    }
     bool Semantic() const noexcept
     {
         return activeSemantic_;
@@ -241,6 +378,7 @@ public:
     }
 
 private:
+    HRESULT beginResult_ = S_OK;
     void Publish() noexcept
     {
         const auto targetGeneration = requestedSemantic_ ? semantic_.Generation() : v0_.Generation();

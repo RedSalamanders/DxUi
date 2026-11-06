@@ -1,3 +1,4 @@
+#include <DxUi/Failure.h>
 #include <DxUi/RichAccessibilityText.h>
 #include <DxUi/RichDocument.h>
 #include <iterator>
@@ -93,17 +94,17 @@ unsigned ArgumentCount(Id id) noexcept
 {
     return id == Id::ReturnToReference || id == Id::ReturnToReferenceHelp ? 2u : id == Id::FootnoteName || id == Id::GoToFootnote ? 1u : 0u;
 }
-} // namespace
-AccessibilityLabels::AccessibilityLabels(std::span<const AccessibilityTextOverride> entries)
+SourceResult ValidateLabels(std::span<const AccessibilityTextOverride> entries) noexcept
 {
     std::array<bool, static_cast<std::size_t>(Id::Count)> seen{};
     if (entries.size() > seen.size())
-        throw std::length_error("Too many rich accessibility labels");
+        return SourceResult::CapacityExceeded;
     for (const auto& entry : entries)
     {
         const auto index = static_cast<std::size_t>(entry.id);
-        if (index >= seen.size() || seen[index] || entry.text.empty() || entry.text.size() > MaximumTextUnits || ! IsValidUtf16(entry.text))
-            throw std::invalid_argument("Invalid rich accessibility label");
+        if (index >= seen.size() || seen[index] || entry.text.empty() || entry.text.size() > AccessibilityLabels::MaximumTextUnits ||
+            ! IsValidUtf16(entry.text))
+            return SourceResult::InvalidSource;
         const auto count = ArgumentCount(entry.id);
         if (count)
         {
@@ -111,26 +112,43 @@ AccessibilityLabels::AccessibilityLabels(std::span<const AccessibilityTextOverri
             for (std::size_t at = 0u; at < entry.text.size(); ++at)
             {
                 if (entry.text[at] == L'}')
-                    throw std::invalid_argument("Unmatched rich accessibility label token");
+                    return SourceResult::InvalidSource;
                 if (entry.text[at] != L'{')
                     continue;
                 if (entry.text.size() - at < 3u || entry.text[at + 2u] != L'}' || entry.text[at + 1u] < L'0' ||
                     entry.text[at + 1u] >= L'0' + static_cast<wchar_t>(count))
-                    throw std::invalid_argument("Invalid rich accessibility label token");
+                    return SourceResult::InvalidSource;
                 const auto bit = 1u << static_cast<unsigned>(entry.text[at + 1u] - L'0');
                 if (arguments & bit)
-                    throw std::invalid_argument("Duplicate rich accessibility label token");
+                    return SourceResult::InvalidSource;
                 arguments |= bit;
                 at += 2u;
             }
             if (arguments != (1u << count) - 1u)
-                throw std::invalid_argument("Missing rich accessibility label token");
+                return SourceResult::InvalidSource;
         }
         seen[index] = true;
-        // optional is empty until this fallible string-view constructor succeeds;
-        // no default/noexcept Debug string proxy construction is involved.
-        values_[index].emplace(entry.text);
     }
+    return SourceResult::Success;
+}
+} // namespace
+AccessibilityLabels::AccessibilityLabels(std::span<const AccessibilityTextOverride> entries)
+{
+    Failure::Scope failureScope;
+    if (ValidateLabels(entries) != SourceResult::Success)
+        Failure::FailContract(E_INVALIDARG);
+    for (const auto& entry : entries)
+        values_[static_cast<std::size_t>(entry.id)].emplace(entry.text);
+}
+SourceResult AccessibilityLabels::TryCreate(std::span<const AccessibilityTextOverride> entries, std::shared_ptr<const AccessibilityLabels>& output)
+{
+    Failure::Scope failureScope;
+    const auto result = ValidateLabels(entries);
+    if (result != SourceResult::Success)
+        return result;
+    auto candidate = std::make_shared<const AccessibilityLabels>(entries);
+    output.swap(candidate);
+    return SourceResult::Success;
 }
 std::wstring_view AccessibilityLabels::Default(Id id) noexcept
 {
@@ -146,11 +164,12 @@ std::wstring_view AccessibilityLabels::Text(const AccessibilityLabels* labels, I
 {
     return labels ? labels->Get(id) : Default(id);
 }
-std::wstring AccessibilityLabels::Number(const AccessibilityLabels* labels, Id id, std::size_t number, std::size_t second)
+SourceResult AccessibilityLabels::TryNumber(const AccessibilityLabels* labels, Id id, std::size_t number, std::size_t second, std::wstring& output)
 {
+    Failure::Scope failureScope;
     const auto pattern = Text(labels, id);
     if (! ArgumentCount(id))
-        throw std::invalid_argument("Rich accessibility label is not numbered");
+        return SourceResult::InvalidSource;
     std::wstring result(0u, L' ');
     std::size_t first{};
     for (auto marker = pattern.find(L'{'); marker != pattern.npos; marker = pattern.find(L'{', first))
@@ -160,6 +179,15 @@ std::wstring AccessibilityLabels::Number(const AccessibilityLabels* labels, Id i
         first = marker + 3u;
     }
     result.append(pattern.substr(first));
-    return std::wstring(result);
+    output.swap(result);
+    return SourceResult::Success;
+}
+std::wstring AccessibilityLabels::Number(const AccessibilityLabels* labels, Id id, std::size_t number, std::size_t second)
+{
+    Failure::Scope failureScope;
+    std::wstring output(0u, L' ');
+    if (TryNumber(labels, id, number, second, output) != SourceResult::Success)
+        Failure::FailContract(E_INVALIDARG);
+    return std::wstring(output);
 }
 } // namespace DxUi::RichText

@@ -1,0 +1,118 @@
+{
+  "baseline": "1ea6d52295294aaad05a19de6dc679484d640c88",
+  "candidate": "d975aa7dbc2cbad330b01a90935bcf96d5811f41",
+  "metadataOnlySuccessor": "f6791b5070efd1fa8dc86601bc9422ae9a321d2e",
+  "blocks": 12,
+  "processes": 48,
+  "rows": 144,
+  "csvCulture": "fr-FR",
+  "resultKind": "Descriptive paired construction; not policy qualification or a causal claim",
+  "memoryMeaning": "Allocator-requested/native block observations, not committed or resident memory",
+  "controls": [
+    {
+      "control": "separator",
+      "baselineConstructNs": 58.89,
+      "candidateConstructNs": 69.85,
+      "pairedConstructDeltaNs": 10.355000000000004,
+      "pairedConstructRatio": 1.1755104915958219,
+      "pairedDestroyDeltaNs": 1.1350000000000016,
+      "baselineCallsPerOperation": [
+        "2"
+      ],
+      "candidateCallsPerOperation": [
+        "2"
+      ],
+      "baselineRequestedBytesPerOperation": [
+        "328"
+      ],
+      "candidateRequestedBytesPerOperation": [
+        "328"
+      ],
+      "baselineObservedPeakBytes": [
+        "328"
+      ],
+      "candidateObservedPeakBytes": [
+        "367"
+      ],
+      "allNetLiveBytesZero": true
+    },
+    {
+      "control": "panel",
+      "baselineConstructNs": 51.975,
+      "candidateConstructNs": 54.36,
+      "pairedConstructDeltaNs": 2.3999999999999986,
+      "pairedConstructRatio": 1.0462758308241495,
+      "pairedDestroyDeltaNs": -0.6900000000000013,
+      "baselineCallsPerOperation": [
+        "2"
+      ],
+      "candidateCallsPerOperation": [
+        "2"
+      ],
+      "baselineRequestedBytesPerOperation": [
+        "344"
+      ],
+      "candidateRequestedBytesPerOperation": [
+        "344"
+      ],
+      "baselineObservedPeakBytes": [
+        "344"
+      ],
+      "candidateObservedPeakBytes": [
+        "383"
+      ],
+      "allNetLiveBytesZero": true
+    },
+    {
+      "control": "rich-text-editor",
+      "baselineConstructNs": 227.875,
+      "candidateConstructNs": 242.125,
+      "pairedConstructDeltaNs": 16.285000000000025,
+      "pairedConstructRatio": 1.0722399359296375,
+      "pairedDestroyDeltaNs": 1.0350000000000037,
+      "baselineCallsPerOperation": [
+        "9"
+      ],
+      "candidateCallsPerOperation": [
+        "9"
+      ],
+      "baselineRequestedBytesPerOperation": [
+        "5620"
+      ],
+      "candidateRequestedBytesPerOperation": [
+        "5684"
+      ],
+      "baselineObservedPeakBytes": [
+        "5620"
+      ],
+      "candidateObservedPeakBytes": [
+        "5723"
+      ],
+      "allNetLiveBytesZero": true
+    }
+  ],
+  "verifiedUtc": "2026-11-06T11:37:35.5597431Z",
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-api5-construction-descriptive-pair-v1",
+  "benchmarkInputs": {
+    "fixture/main.cpp": "09FB96C976D9D417989ADF33E2C6FFB5D2DBB8F1AE1DC8D4899C989103E198C5",
+    "fixture/BenchmarkInstrument.h": "22AC34FCF88A81131D3E0F83FD5D9274F95FAD88978819102293A057C0CDE433",
+    "fixture/ConstructionStudy.vcxproj": "9466BC51A88F2F27E7B92D7064885E7299CDBDEF390B2D594483B1937A1E65C1",
+    "fixture/Directory.Build.props": "5C10E0DCA89D53FA828E2B8AD817F7DDECCB7775BEF36C1E75DBA0D87A103EE6",
+    "fixture/Directory.Build.targets": "5C10E0DCA89D53FA828E2B8AD817F7DDECCB7775BEF36C1E75DBA0D87A103EE6",
+    "recorded-build/project": "9466BC51A88F2F27E7B92D7064885E7299CDBDEF390B2D594483B1937A1E65C1",
+    "recorded-build/candidateExe": "C941B914A4FF8B65B896A2A1BF4150C93BF94E13951F0DB3D77080581C7B2201",
+    "recorded-build/candidateExePdb": "D9973CE303B9EC19B40AC0BAED69EC882752B05B9481B70A149ABC1E756D748C",
+    "recorded-build/baselineLib": "08BE51ED231A457C3703CB90A428B918F78538030761AC25F4ABECC0CFDA7F55",
+    "recorded-build/baselineExePdb": "D34D6692E89CCA2782CA92277129152D03F1DC8B9AC79D4BDF6AFEEDDC301CDF",
+    "recorded-build/source": "09FB96C976D9D417989ADF33E2C6FFB5D2DBB8F1AE1DC8D4899C989103E198C5",
+    "recorded-build/candidateLib": "54879012936C522DC2723C9220E99CB36B56B81A2B245A97A105F32B1CBAC1B8",
+    "recorded-build/targets": "5C10E0DCA89D53FA828E2B8AD817F7DDECCB7775BEF36C1E75DBA0D87A103EE6",
+    "recorded-build/candidateLibPdb": "2C828960016599B9DCEA3C6CC62239E7B7FC2E4708ABB1BCACB56A2FE876FA62",
+    "recorded-build/props": "5C10E0DCA89D53FA828E2B8AD817F7DDECCB7775BEF36C1E75DBA0D87A103EE6",
+    "recorded-build/baselineExe": "97B1F22A396844191B7FA10E356ACAD7FDCABCA984CDC0FFAB3B187A52D0A319",
+    "recorded-build/instrument": "22AC34FCF88A81131D3E0F83FD5D9274F95FAD88978819102293A057C0CDE433",
+    "recorded-build/baselineLibPdb": "64267379984A5DA5864F68846BD7011C27451C3776D638611C12755B8C8B06B2"
+  },
+  "evidenceKind": "Summary of recorded library fixtures; original source/artifact identities remain in the result data."
+}

@@ -1,5 +1,7 @@
 #pragma once
 #include <DxUi/RichSemantic.h>
+#include <optional>
+#include <utility>
 
 namespace DxUi::RichText
 {
@@ -158,6 +160,30 @@ class MarkdownCommandPlan
 public:
     MarkdownCommandPlan(const MarkdownCommandPlan&)            = default;
     MarkdownCommandPlan& operator=(const MarkdownCommandPlan&) = default;
+    MarkdownCommandPlan(MarkdownCommandPlan&& other)
+        : source_(other.source_),
+          revision_(other.revision_),
+          syntax_(other.syntax_),
+          before_(other.before_),
+          after_(other.after_),
+          edits_(0u),
+          afterCell_(other.afterCell_),
+          applicable_(other.applicable_)
+    {
+        edits_.swap(other.edits_);
+    }
+    MarkdownCommandPlan& operator=(MarkdownCommandPlan&& other) noexcept
+    {
+        source_   = std::move(other.source_);
+        revision_ = other.revision_;
+        syntax_   = std::move(other.syntax_);
+        before_   = other.before_;
+        after_    = other.after_;
+        edits_.swap(other.edits_);
+        afterCell_  = other.afterCell_;
+        applicable_ = other.applicable_;
+        return *this;
+    }
     bool IsApplicable() const noexcept
     {
         return applicable_;
@@ -207,6 +233,15 @@ MarkdownCommandPlan BuildMarkdownCommand(const SourceSnapshot& source,
                                          std::shared_ptr<const MarkdownSyntax> syntax,
                                          Selection selection,
                                          const MarkdownCommandRequest& request);
+// Checked builders preserve output on refusal. A successful inapplicable plan
+// remains a valid result; the legacy value-returning wrappers treat refusal as
+// a contract violation.
+[[nodiscard]] SourceResult TryBuildMarkdownCommand(const SourceSnapshot& source,
+                                                   std::uint64_t revision,
+                                                   std::shared_ptr<const MarkdownSyntax> syntax,
+                                                   Selection selection,
+                                                   const MarkdownCommandRequest& request,
+                                                   std::optional<MarkdownCommandPlan>& output);
 // Visual deletion already resolved through primary source ownership. Empty
 // inline wrappers are removed only when all their owned body is being deleted.
 // Raw TSF/programmatic replacement does not use this formatting cleanup policy.
@@ -215,5 +250,12 @@ MarkdownCommandPlan BuildMarkdownDeletion(const SourceSnapshot& source,
                                           std::shared_ptr<const MarkdownSyntax> syntax,
                                           Selection selection,
                                           std::span<const MarkdownRange> ranges);
+[[nodiscard]] SourceResult TryBuildMarkdownDeletion(const SourceSnapshot& source,
+                                                    std::uint64_t revision,
+                                                    std::shared_ptr<const MarkdownSyntax> syntax,
+                                                    Selection selection,
+                                                    std::span<const MarkdownRange> ranges,
+                                                    std::optional<MarkdownCommandPlan>& output);
 bool ApplyMarkdownCommand(Document& document, const MarkdownCommandPlan& plan);
+[[nodiscard]] SourceResult TryApplyMarkdownCommand(Document& document, const MarkdownCommandPlan& plan, bool& changed);
 } // namespace DxUi::RichText

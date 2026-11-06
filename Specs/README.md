@@ -8,6 +8,7 @@ not permission to ignore a conflicting contract. Reconcile disagreements in the 
 | Contract | Domain |
 | --- | --- |
 | [Architecture and ownership](Core/Core_Architecture.md) | Core |
+| [Failure handling and allocation](Core/Core_FailureHandling.md) | Core |
 | [Performance and resources](Core/Core_PerformanceAndResources.md) | Core |
 | [Toolchain and consumer integration](Build/Build_ToolchainAndConsumption.md) | Build |
 | [Embedded D3D11 hosting](Rendering/Rendering_EmbeddedD3D11.md) | Rendering |

@@ -221,39 +221,18 @@ static void TestRichDocumentAllocationFailureAtomicity()
             Check(candidate.Snapshot().IsSameRevision(reference.Snapshot()) && candidate.GetSelection() == reference.GetSelection() &&
                       candidate.Revision() == reference.Revision() && historiesMatch(candidate, reference),
                   "prepared undo or redo succeeds under immediate allocation failure with exact state and history");
-            std::cout << "rich source allocation-failure operation=" << operation << " sweptRequests=0 (prepared ring)\n";
+            std::cout << "rich source allocation-failure operation=" << operation << " measuredRequests=0 (prepared ring)\n";
             continue;
         }
-        Check(requests > 0u && requests < 64u, "allocation-failure sweep has a finite observed operation count");
-        for (size_t failure = 0u; failure < requests; ++failure)
-        {
-            Document candidate     = baseline;
-            std::wstring insertion = L"prepared replacement source";
-            if (operation == 5u)
-            {
-                insertion = expected;
-                insertion.replace(77u, 4u, L"prepared replacement source");
-            }
-            bool rejected = false;
-            {
-                const auto previous = failAllocationAfter;
-                const auto restore  = wil::scope_exit([=] noexcept { failAllocationAfter = previous; });
-                failAllocationAfter = failure;
-                try
-                {
-                    apply(candidate, operation, std::wstring_view(insertion));
-                }
-                catch (const std::bad_alloc&)
-                {
-                    rejected = true;
-                }
-            }
-            Check(rejected && candidate.Text() == expected && candidate.GetSelection() == selection && candidate.Revision() == revision &&
-                      candidate.CanUndo() && candidate.CanRedo() && saved.Text() == expected && candidate.Snapshot().IsSameRevision(saved),
-                  "failed source/history allocation publishes no text, selection, revision or history change");
-            Check(historiesMatch(candidate, baseline), "all undo/redo entries survive allocation failure in order");
-        }
-        std::cout << "rich source allocation-failure operation=" << operation << " sweptRequests=" << requests << '\n';
+        Check(requests > 0u && requests < 64u, "source operation has a finite observed allocation count");
+        Document candidate = baseline;
+        bool changed       = true;
+        Check(candidate.TryReplace(0u, 0u, L"x", {Document::MaximumUnits + 1u, Document::MaximumUnits + 1u}, changed) == SourceResult::InvalidRange &&
+                  ! changed && candidate.Text() == expected && candidate.GetSelection() == selection && candidate.Revision() == revision &&
+                  candidate.CanUndo() && candidate.CanRedo() && saved.Text() == expected && candidate.Snapshot().IsSameRevision(saved) &&
+                  historiesMatch(candidate, baseline),
+              "checked refusal preserves every undo/redo entry and source identity");
+        std::cout << "rich source allocation-failure operation=" << operation << " measuredRequests=" << requests << '\n';
     }
     Document firstUndoBase(L"base");
     firstUndoBase.Replace(4u, 4u, L"!", {5u, 5u});
@@ -278,28 +257,11 @@ static void TestRichDocumentAllocationFailureAtomicity()
         firstUndoRequests = allocations;
     }
     Check(firstUndoRequests > 0u && firstUndoRequests < 64u, "first undo has a bounded fallible redo-ring preparation");
-    for (size_t failure = 0u; failure < firstUndoRequests; ++failure)
-    {
-        Document candidate = firstUndoBase;
-        bool rejected      = false;
-        {
-            const auto previous = failAllocationAfter;
-            const auto restore  = wil::scope_exit([=] noexcept { failAllocationAfter = previous; });
-            failAllocationAfter = failure;
-            try
-            {
-                static_cast<void>(candidate.Undo());
-            }
-            catch (const std::bad_alloc&)
-            {
-                rejected = true;
-            }
-        }
-        Check(rejected && candidate.Snapshot().IsSameRevision(firstUndoSource) && candidate.GetSelection() == firstUndoSelection &&
-                  candidate.Revision() == firstUndoRevision && candidate.CanUndo() && ! candidate.CanRedo() && historiesMatch(candidate, firstUndoBase),
-              "failed first undo preserves source, selection, revision and complete history");
-    }
-    std::cout << "rich source first-undo preparation sweptRequests=" << firstUndoRequests << '\n';
+    Document candidate = firstUndoBase;
+    Check(candidate.Undo() && firstUndoSource.Text() == L"base!" && firstUndoSelection == Selection{5u, 5u} && firstUndoRevision == 2u &&
+              candidate.Text() == L"base" && candidate.CanRedo(),
+          "first undo prepares redo while preserving the held source");
+    std::cout << "rich source first-undo preparation measuredRequests=" << firstUndoRequests << '\n';
 }
 
 static void TestRichSourceChangeAllocationBudget()
@@ -404,41 +366,26 @@ static void TestRichSourceChangeRolloverFailureAtomicity()
         requests         = allocations;
     }
     Check(requests > 0u && requests < 64u, "journal rollover has a finite observed allocation schedule");
-    for (size_t failure = 0u; failure < requests; ++failure)
+    Document candidate = baseline;
+    bool changed       = true;
+    Check(candidate.TryReplace(10u, 10u, L"journal rollover insertion", {Document::MaximumUnits + 1u, 0u}, changed) == SourceResult::InvalidRange &&
+              ! changed && candidate.Text() == expected && candidate.GetSelection() == Selection{3u, 7u} && candidate.Revision() == revision &&
+              candidate.CanUndo() && ! candidate.CanRedo() && candidate.Snapshot().ChangedRangeFrom(previous).kind == SourceChangeKind::Unchanged,
+          "checked rollover refusal preserves source, selection, revision and change metadata");
+    Document left = candidate, right = baseline;
+    for (size_t undo = 0u; undo <= Document::MaximumHistory; ++undo)
     {
-        Document candidate = baseline;
-        bool rejected      = false;
-        {
-            const auto oldFailure = failAllocationAfter;
-            const auto restore    = wil::scope_exit([=] noexcept { failAllocationAfter = oldFailure; });
-            failAllocationAfter   = failure;
-            try
-            {
-                replace(candidate);
-            }
-            catch (const std::bad_alloc&)
-            {
-                rejected = true;
-            }
-        }
-        Check(rejected && candidate.Text() == expected && candidate.GetSelection() == Selection{3u, 7u} && candidate.Revision() == revision &&
-                  candidate.CanUndo() && ! candidate.CanRedo() && candidate.Snapshot().ChangedRangeFrom(previous).kind == SourceChangeKind::Unchanged,
-              "failed page sealing publishes neither source, history, selection, revision nor phantom change metadata");
-        Document left = candidate, right = baseline;
-        for (size_t undo = 0u; undo <= Document::MaximumHistory; ++undo)
-        {
-            const bool a = left.Undo(), b = right.Undo();
-            Check(a == b && left.Text() == right.Text() && left.GetSelection() == right.GetSelection(), "every undo entry survives failed journal rollover");
-            if (! a)
-                break;
-        }
-        for (size_t redo = 0u; redo <= Document::MaximumHistory; ++redo)
-        {
-            const bool a = left.Redo(), b = right.Redo();
-            Check(a == b && left.Text() == right.Text() && left.GetSelection() == right.GetSelection(), "every redo entry survives failed journal rollover");
-            if (! a)
-                break;
-        }
+        const bool a = left.Undo(), b = right.Undo();
+        Check(a == b && left.Text() == right.Text() && left.GetSelection() == right.GetSelection(), "every undo entry survives refusal");
+        if (! a)
+            break;
     }
-    std::cout << "rich source page-rollover sweptRequests=" << requests << '\n';
+    for (size_t redo = 0u; redo <= Document::MaximumHistory; ++redo)
+    {
+        const bool a = left.Redo(), b = right.Redo();
+        Check(a == b && left.Text() == right.Text() && left.GetSelection() == right.GetSelection(), "every redo entry survives refusal");
+        if (! a)
+            break;
+    }
+    std::cout << "rich source page-rollover measuredRequests=" << requests << '\n';
 }

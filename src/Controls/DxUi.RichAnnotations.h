@@ -24,6 +24,8 @@
 }
 class RichAnnotationProvider final : public IRawElementProviderSimple, public IRawElementProviderFragment, public IAnnotationProvider
 {
+    Failure::ObjectLifetime failureLifetime_;
+
 public:
     RichAnnotationProvider(WindowHostAccessibilityTarget* target, HWND hwnd, const AccessibilityControlNavigationSnapshot& record, size_t index) noexcept
         : target_(target),
@@ -43,6 +45,7 @@ public:
                                                                   const AccessibilityControlNavigationSnapshot& record,
                                                                   size_t index) noexcept
     {
+        const Failure::Scope outerFailureScope;
         wil::com_ptr_nothrow<IRawElementProviderSimple> result;
         HoldAccessibilityPeerCreationForTest(hwnd);
         if (! target || ! record.HasCurrentRichSemantic() || index >= record.controlRichText->annotations.size())
@@ -76,11 +79,15 @@ public:
     {
         const auto remaining = references_.fetch_sub(1u, std::memory_order_acq_rel) - 1u;
         if (! remaining)
+        {
+            const Failure::Scope retirementScope{std::nothrow};
             delete this;
+        }
         return remaining;
     }
     HRESULT STDMETHODCALLTYPE get_ProviderOptions(ProviderOptions* result) noexcept override
     {
+        const Failure::Scope outerFailureScope;
         if (! result)
             return E_POINTER;
         *result =
@@ -91,6 +98,7 @@ public:
     }
     HRESULT STDMETHODCALLTYPE get_HostRawElementProvider(IRawElementProviderSimple** result) noexcept override
     {
+        const Failure::Scope outerFailureScope;
         if (! result)
             return E_POINTER;
         *result = nullptr;
@@ -98,6 +106,7 @@ public:
     }
     HRESULT STDMETHODCALLTYPE GetPatternProvider(PATTERNID id, IUnknown** result) noexcept override
     {
+        const Failure::Scope outerFailureScope;
         if (! result)
             return E_POINTER;
         *result = nullptr;
@@ -112,6 +121,7 @@ public:
     }
     HRESULT STDMETHODCALLTYPE GetPropertyValue(PROPERTYID id, VARIANT* result) noexcept override
     {
+        const Failure::Scope outerFailureScope;
         if (! result)
             return E_POINTER;
         VariantInit(result);
@@ -142,6 +152,7 @@ public:
     }
     HRESULT STDMETHODCALLTYPE Navigate(NavigateDirection direction, IRawElementProviderFragment** result) noexcept override
     {
+        const Failure::Scope outerFailureScope;
         if (! result)
             return E_POINTER;
         *result             = nullptr;
@@ -176,6 +187,7 @@ public:
     }
     HRESULT STDMETHODCALLTYPE GetRuntimeId(SAFEARRAY** result) noexcept override
     {
+        const Failure::Scope outerFailureScope;
         if (! result)
             return E_POINTER;
         *result = nullptr;
@@ -197,6 +209,7 @@ public:
     }
     HRESULT STDMETHODCALLTYPE get_BoundingRectangle(UiaRect* result) noexcept override
     {
+        const Failure::Scope outerFailureScope;
         if (! result)
             return E_POINTER;
         *result             = {};
@@ -224,6 +237,7 @@ public:
     }
     HRESULT STDMETHODCALLTYPE GetEmbeddedFragmentRoots(SAFEARRAY** result) noexcept override
     {
+        const Failure::Scope outerFailureScope;
         if (! result)
             return E_POINTER;
         *result = nullptr;
@@ -231,6 +245,7 @@ public:
     }
     HRESULT STDMETHODCALLTYPE get_FragmentRoot(IRawElementProviderFragmentRoot** result) noexcept override
     {
+        const Failure::Scope outerFailureScope;
         if (! result)
             return E_POINTER;
         *result = nullptr;
@@ -248,10 +263,12 @@ public:
     }
     HRESULT STDMETHODCALLTYPE SetFocus() noexcept override
     {
+        const Failure::Scope outerFailureScope;
         return CaptureSnapshot() ? static_cast<HRESULT>(UIA_E_NOTSUPPORTED) : static_cast<HRESULT>(UIA_E_ELEMENTNOTAVAILABLE);
     }
     HRESULT STDMETHODCALLTYPE get_AnnotationTypeId(int* result) noexcept override
     {
+        const Failure::Scope outerFailureScope;
         if (! result)
             return E_POINTER;
         *result             = AnnotationType_Unknown;
@@ -264,6 +281,7 @@ public:
     }
     HRESULT STDMETHODCALLTYPE get_AnnotationTypeName(BSTR* result) noexcept override
     {
+        const Failure::Scope outerFailureScope;
         if (! result)
             return E_POINTER;
         *result             = nullptr;
@@ -277,14 +295,17 @@ public:
     }
     HRESULT STDMETHODCALLTYPE get_Author(BSTR* result) noexcept override
     {
+        const Failure::Scope outerFailureScope;
         return EmptyText(result);
     }
     HRESULT STDMETHODCALLTYPE get_DateTime(BSTR* result) noexcept override
     {
+        const Failure::Scope outerFailureScope;
         return EmptyText(result);
     }
     HRESULT STDMETHODCALLTYPE get_Target(IRawElementProviderSimple** result) noexcept override
     {
+        const Failure::Scope outerFailureScope;
         if (! result)
             return E_POINTER;
         *result = nullptr;
@@ -396,7 +417,7 @@ HRESULT AnnotationAttribute(WindowHostAccessibilityTarget* target,
     if (id != UIA_AnnotationTypesAttributeId && VaryingAnnotations(record, range))
     {
         result->vt = VT_UNKNOWN;
-        return UiaGetReservedMixedAttributeValue(&result->punkVal);
+        return InvokeNativeUia(UiaGetReservedMixedAttributeValue, &result->punkVal);
     }
     std::array<LONG, 4u> types{};
     size_t count{};
@@ -408,7 +429,7 @@ HRESULT AnnotationAttribute(WindowHostAccessibilityTarget* target,
             if (run.source.first < range.end && run.source.last > range.start && run.mask != mask)
             {
                 result->vt = VT_UNKNOWN;
-                return UiaGetReservedMixedAttributeValue(&result->punkVal);
+                return InvokeNativeUia(UiaGetReservedMixedAttributeValue, &result->punkVal);
             }
         RETURN_IF_FAILED(BuildRuntimeId(&result->parray, std::span(types.data(), count)));
         result->vt = VT_ARRAY | VT_I4;

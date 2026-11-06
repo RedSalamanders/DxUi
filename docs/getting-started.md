@@ -25,7 +25,7 @@ Use `-Platform ARM64` to cross-build on x64; execute those binaries on a native 
 For an existing application, follow [Upgrade a consumer](upgrade.md) for the delivery pin, code/behavior changes,
 complete rebuild, product validation and rollback. The example below establishes a new integration.
 
-Pin a tested full Git commit, API revision **4** and target `["DxUi"]` in the consumer's
+Pin a tested full Git commit, API revision **5** and target `["DxUi"]` in the consumer's
 `Dependencies/DxUi.lock.json`. Follow the exact schema and fingerprint validation in
 [the consumption contract](../Specs/Build/Build_ToolchainAndConsumption.md) and
 [consumer validator](../Tools/validate_consumer.ps1); branch names are not release pins.
@@ -39,13 +39,30 @@ New-Item -ItemType Directory -Path Dependencies -Force | Out-Null
 @{
     repository = 'https://github.com/RedSalamanders/DxUi'
     commit = $revision
-    apiRevision = 4
+    apiRevision = 5
     targets = @('DxUi')
 } | ConvertTo-Json | Set-Content Dependencies/DxUi.lock.json -Encoding utf8
 ```
 
 The validator checks repository identity, exact commit, clean source, API revision and target. The consumer must
 also preserve the toolchain/dependency fingerprint in its build evidence/output root as required by the contract.
+
+Before constructing controls or entering DxUi scopes, install application-owned `Failure::ProcessHooks` and its
+reporter on the owner thread. Register its POD services with each independently linked module outside `DllMain`
+before that module creates objects or workers. Stop new work, join workers, destroy controls and detach every
+module before uninstalling on the installing thread. The [sample host](../Samples/Shared/FailureHost.h)
+demonstrates the handoff; product owners must qualify their own dump handling. API 5's recorded x64 library
+scope is qualified at `f6791b5070efd1fa8dc86601bc9422ae9a321d2e`; see the
+[evidence](../Measurements/FailurePolicy_2026-11-06/README.md). Native ARM64 execution, formal performance-policy
+qualification and each consumer product's integration remain separate. Use the exact tested pin in the
+[upgrade guide](upgrade.md); adopting it still requires the application's host and adapter migration.
+
+When a caller needs a checked control-object allocation, use `CreateControl(kind, output)` and check its HRESULT;
+failure leaves the existing output unchanged. The factory reports a missing host and outer allocation refusal, while
+nested C++ allocation failures follow the fatal host path. `Separator` remains `noexcept`; direct construction,
+including `std::make_unique`, still needs the enclosing host scope. Use the applicable `Try`/result query APIs for
+untrusted ranges and input, and handle `MarkdownParser::Advance` returning `Failed` without discarding its previous
+publication. Return checked native HRESULT failures to the host instead of treating them as C++ exception recovery.
 
 Call or import only what [capabilities.json](../capabilities.json) lists under `consumerInterface`:
 - the scripts, with their parameters;
@@ -68,12 +85,16 @@ Do not enumerate library `.cpp` files or copy its source into your application.
 
 ```cpp
 #include <DxUi/Embedded.h>
+#include <DxUi/Failure.h>
 
 // After successful view.Attach(graphics), on the UI thread:
+DxUi::Failure::Scope failureScope; // Host and this module's registration are already active.
 auto root = std::make_unique<DxUi::Panel>();
 auto* title = root->AddChild<DxUi::Label>(L"Settings");
+if (!title) return; // The host may have retired the child during insertion.
 title->SetBounds(D2D1::RectF(16, 12, 304, 44));
 auto* toggle = root->AddChild<DxUi::Toggle>(L"Enabled");
+if (!toggle) return;
 toggle->SetBounds(D2D1::RectF(16, 52, 304, 92));
 toggle->SetChecked(true);
 toggle->SetOnToggled([](bool checked) { /* update your application model */ });

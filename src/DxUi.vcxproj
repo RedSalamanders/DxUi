@@ -7,6 +7,36 @@
   <ItemDefinitionGroup><ClCompile><AdditionalIncludeDirectories>$(IntDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories></ClCompile><Link><SubSystem>Console</SubSystem></Link></ItemDefinitionGroup>
   <ItemGroup><ClCompile Include="Controls\DxUi.YamlMetadata.cpp" /><ClCompile Include="Controls\DxUi.MarkdownMetadata.cpp" /><ClCompile Include="Controls\DxUi.RichDocument.cpp" /><ClCompile Include="Controls\DxUi.RichMarkdownProjection.cpp" /><ClCompile Include="Controls\DxUi.RichSemantic.cpp" /><ClCompile Include="Controls\DxUi.RichTextCommands.cpp" /><ClCompile Include="Controls\DxUi.RichAccessibilityText.cpp" /><ClCompile Include="Controls\DxUi.RichSemanticDocument.cpp" /><ClCompile Include="Controls\DxUi.RichTextExport.cpp" /><ClCompile Include="Controls\DxUi.RichSemanticGeometry.cpp" /><ClCompile Include="Controls\DxUi.MarkdownSyntax.cpp" /><ClCompile Include="Controls\DxUi.NativeFlowchart.cpp" /><ClCompile Include="Controls\DxUi.NativeMath.cpp" /><ClCompile Include="Controls\DxUi.NativeFlowchartLayout.cpp" /><ClCompile Include="Controls\DxUi.PreparedFlowchart.cpp" /><ClCompile Include="Controls\DxUi.RichTextLayout.cpp" /><ClCompile Include="Controls\DxUi.RichDocumentLayout.cpp" /><ClCompile Include="Controls\DxUi.RichTextEditor.cpp" /><ClCompile Include="Controls\DxUi.RichImage.cpp" /><ClCompile Include="Controls\ControlCatalog.cpp" /><ClCompile Include="Controls\NativeMenuInterop.cpp" /><ClCompile Include="Rendering\Embedded.cpp" /><ClCompile Include="Foundation\FrameRuntime.cpp" /><ClCompile Include="Controls\DxUi.Accessibility.cpp" /><ClCompile Include="Controls\DxUi.ComboBox.cpp" /><ClCompile Include="Controls\DxUi.Controls.cpp" /><ClCompile Include="Controls\DxUi.Layout.cpp" /><ClCompile Include="Controls\DxUi.Forms.cpp" /><ClCompile Include="Controls\DxUi.EditorControls.cpp" /><ClCompile Include="Controls\DxUi.cpp" /><ClCompile Include="Controls\DxUi.Grid.cpp" /><ClCompile Include="Controls\DxUi.Menu.cpp" /><ClCompile Include="Controls\DxUi.NativeTextInput.cpp" /><ClCompile Include="Controls\DxUi.PointerInput.cpp" /><ClCompile Include="Controls\DxUi.Scrollbar.cpp" /><ClCompile Include="Controls\DxUi.SingleLineTextEditing.cpp" /><ClCompile Include="Controls\DxUi.TextInput.cpp" /><ClCompile Include="Controls\DxUi.TextStoreACP.cpp" /><ClCompile Include="Controls\TextInputServices.cpp" /><ClCompile Include="Controls\TextClipboard.cpp" /><ClCompile Include="Controls\DxUi.FileDrop.cpp" /><ClCompile Include="Controls\DxUi.Theme.cpp" /><ClCompile Include="Controls\DxUi.Tree.cpp" /><ClCompile Include="Controls\DxUi.Typeahead.cpp" /><ClCompile Include="Controls\DxUi.WindowHost.cpp" /></ItemGroup>
 <ItemGroup><FxCompile Include="Rendering\CompositeVS.hlsl"><ShaderType>Vertex</ShaderType><ShaderModel>5.0</ShaderModel><EntryPointName>VSMain</EntryPointName><HeaderFileOutput>$(IntDir)DxUiCompositeVS.h</HeaderFileOutput><ObjectFileOutput>$(IntDir)DxUiCompositeVS.cso</ObjectFileOutput><VariableName>g_DxUiCompositeVS</VariableName><AdditionalOptions>/Ges /O3 /Qstrip_debug /Qstrip_reflect /Qstrip_priv %(AdditionalOptions)</AdditionalOptions></FxCompile><FxCompile Include="Rendering\CompositePS.hlsl"><ShaderType>Pixel</ShaderType><ShaderModel>5.0</ShaderModel><EntryPointName>PSMain</EntryPointName><HeaderFileOutput>$(IntDir)DxUiCompositePS.h</HeaderFileOutput><ObjectFileOutput>$(IntDir)DxUiCompositePS.cso</ObjectFileOutput><VariableName>g_DxUiCompositePS</VariableName><AdditionalOptions>/Ges /O3 /Qstrip_debug /Qstrip_reflect /Qstrip_priv %(AdditionalOptions)</AdditionalOptions></FxCompile></ItemGroup>
-  <ItemGroup><ClCompile Include="Controls\DxUi.TextElements.cpp" /></ItemGroup>
+  <ItemGroup><ClCompile Include="Controls\DxUi.TextElements.cpp" /><ClCompile Include="Foundation\Failure.cpp" /><ClCompile Include="Foundation\ControlAllocation.cpp" /></ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\ThirdParty\libfyaml\0.9.4\src\lib\fy-atom.c"><CompileAs>CompileAsC</CompileAs></ClCompile>
+    <ClCompile Include="..\ThirdParty\libfyaml\0.9.4\src\lib\fy-diag.c"><CompileAs>CompileAsC</CompileAs></ClCompile>
+    <ClCompile Include="..\ThirdParty\libfyaml\0.9.4\src\lib\fy-docstate.c"><CompileAs>CompileAsC</CompileAs></ClCompile>
+    <ClCompile Include="..\ThirdParty\libfyaml\0.9.4\src\lib\fy-event.c"><CompileAs>CompileAsC</CompileAs></ClCompile>
+    <ClCompile Include="..\ThirdParty\libfyaml\0.9.4\src\lib\fy-input.c"><CompileAs>CompileAsC</CompileAs></ClCompile>
+    <ClCompile Include="..\ThirdParty\libfyaml\0.9.4\src\lib\fy-parse.c"><CompileAs>CompileAsC</CompileAs></ClCompile>
+    <ClCompile Include="..\ThirdParty\libfyaml\0.9.4\src\lib\fy-token.c"><CompileAs>CompileAsC</CompileAs></ClCompile>
+    <ClCompile Include="..\ThirdParty\libfyaml\0.9.4\src\lib\fy-types.c"><CompileAs>CompileAsC</CompileAs></ClCompile>
+    <ClCompile Include="..\ThirdParty\libfyaml\0.9.4\src\lib\fy-input-diag.c"><CompileAs>CompileAsC</CompileAs></ClCompile>
+    <ClCompile Include="..\ThirdParty\libfyaml\0.9.4\src\lib\fy-parse-diag.c"><CompileAs>CompileAsC</CompileAs></ClCompile>
+    <ClCompile Include="..\ThirdParty\libfyaml\0.9.4\src\lib\fy-composer.c"><CompileAs>CompileAsC</CompileAs></ClCompile>
+    <ClCompile Include="..\ThirdParty\libfyaml\0.9.4\src\lib\fy-doc.c"><CompileAs>CompileAsC</CompileAs></ClCompile>
+    <ClCompile Include="..\ThirdParty\libfyaml\0.9.4\src\lib\fy-docbuilder.c"><CompileAs>CompileAsC</CompileAs></ClCompile>
+    <ClCompile Include="..\ThirdParty\libfyaml\0.9.4\src\lib\fy-emit.c"><CompileAs>CompileAsC</CompileAs></ClCompile>
+    <ClCompile Include="..\ThirdParty\libfyaml\0.9.4\src\lib\fy-path.c"><CompileAs>CompileAsC</CompileAs></ClCompile>
+    <ClCompile Include="..\ThirdParty\libfyaml\0.9.4\src\lib\fy-walk.c"><CompileAs>CompileAsC</CompileAs></ClCompile>
+    <ClCompile Include="..\ThirdParty\libfyaml\0.9.4\src\lib\fy-accel.c"><CompileAs>CompileAsC</CompileAs></ClCompile>
+    <ClCompile Include="..\ThirdParty\libfyaml\0.9.4\src\lib\fy-dump.c"><CompileAs>CompileAsC</CompileAs></ClCompile>
+    <ClCompile Include="..\ThirdParty\libfyaml\0.9.4\src\lib\fy-composer-diag.c"><CompileAs>CompileAsC</CompileAs></ClCompile>
+    <ClCompile Include="..\ThirdParty\libfyaml\0.9.4\src\lib\fy-doc-diag.c"><CompileAs>CompileAsC</CompileAs></ClCompile>
+    <ClCompile Include="..\ThirdParty\libfyaml\0.9.4\src\lib\fy-docbuilder-diag.c"><CompileAs>CompileAsC</CompileAs></ClCompile>
+    <ClCompile Include="..\ThirdParty\libfyaml\0.9.4\src\util\fy-blob.c"><CompileAs>CompileAsC</CompileAs></ClCompile>
+    <ClCompile Include="..\ThirdParty\libfyaml\0.9.4\src\util\fy-ctype.c"><CompileAs>CompileAsC</CompileAs></ClCompile>
+    <ClCompile Include="..\ThirdParty\libfyaml\0.9.4\src\util\fy-utf8.c"><CompileAs>CompileAsC</CompileAs></ClCompile>
+    <ClCompile Include="..\ThirdParty\libfyaml\0.9.4\src\util\fy-utils.c"><CompileAs>CompileAsC</CompileAs></ClCompile>
+    <ClCompile Include="..\ThirdParty\libfyaml\0.9.4\src\xxhash\xxhash.c"><CompileAs>CompileAsC</CompileAs></ClCompile>
+    <ClCompile Include="..\ThirdParty\libfyaml\0.9.4\dxui_allocator.c"><CompileAs>CompileAsC</CompileAs></ClCompile>
+    <ClCompile Include="..\ThirdParty\libfyaml\0.9.4\dxui_parser.c"><CompileAs>CompileAsC</CompileAs></ClCompile>
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

@@ -1,3 +1,5 @@
+#include <DxUi/Failure.h>
+
 #include "DxUi.Internal.h"
 #include "Support/WindowMessages.h"
 #include "TextClipboard.h"
@@ -74,6 +76,7 @@ class ClientTextStoreTarget final : public TextStoreTarget
 public:
     [[nodiscard]] size_t GetMaximumDocumentTextUnits() const noexcept override
     {
+        const Failure::Scope callbackFailureScope;
         return kMaximumTextUnits;
     }
     ClientTextStoreTarget(HWND hwnd, std::shared_ptr<TextInputClient> client, uint64_t focusId, TextStoreDispatch dispatch) noexcept
@@ -87,6 +90,7 @@ public:
 
     void Disconnect() noexcept override
     {
+        const Failure::Scope callbackFailureScope;
         if (_thread != GetCurrentThreadId())
             return;
         auto client                    = std::move(_client);
@@ -116,6 +120,7 @@ public:
     }
     bool ScheduleLock() noexcept override
     {
+        const Failure::Scope callbackFailureScope;
         const auto owner       = _dispatch.owner;
         const auto context     = _dispatch.context;
         const auto requestLock = _dispatch.requestLock;
@@ -124,6 +129,7 @@ public:
     }
     bool ReadState(TextInputState& state) const noexcept override
     {
+        const Failure::Scope callbackFailureScope;
         state = {};
         if (! Available())
             return false;
@@ -151,12 +157,12 @@ public:
         }
         catch (const std::bad_alloc&)
         {
-            state = {};
-            return false;
+            Failure::FailAllocation();
         }
     }
     bool ApplyState(const TextInputState& state, bool) noexcept override
     {
+        const Failure::Scope callbackFailureScope;
         if (! Available() || ! _editing || ! _writable || _snapshot.state.masked || state.masked || state.text.size() > kMaximumTextUnits ||
             state.caretIndex > state.text.size() || (state.selectionAnchorIndex && *state.selectionAnchorIndex > state.text.size()) ||
             (_snapshot.state.readOnly && state.text != _snapshot.state.text))
@@ -173,12 +179,12 @@ public:
         }
         catch (const std::bad_alloc&)
         {
-            _failed = true;
-            return false;
+            Failure::FailAllocation();
         }
     }
     HRESULT BeginEdit(bool writable) noexcept override
     {
+        const Failure::Scope callbackFailureScope;
         if (! Available())
             return TF_E_DISCONNECTED;
         if (_editing)
@@ -203,6 +209,7 @@ public:
     }
     HRESULT EndEdit(bool success) noexcept override
     {
+        const Failure::Scope callbackFailureScope;
         if (! _editing)
             return TF_E_DISCONNECTED;
         if (! success || _failed)
@@ -219,6 +226,7 @@ public:
 
     HRESULT StartComposition(ITfCompositionView* composition, BOOL* accepted) noexcept override
     {
+        const Failure::Scope callbackFailureScope;
         *accepted = FALSE;
         if (! Available())
             return TF_E_DISCONNECTED;
@@ -255,6 +263,7 @@ public:
     }
     HRESULT UpdateComposition(ITfCompositionView* composition, ITfRange* range) noexcept override
     {
+        const Failure::Scope callbackFailureScope;
         if (! Available())
             return TF_E_DISCONNECTED;
         if (! _composition || _composition.get() != composition)
@@ -282,6 +291,7 @@ public:
     }
     HRESULT EndComposition(ITfCompositionView* composition) noexcept override
     {
+        const Failure::Scope callbackFailureScope;
         if (! Available())
             return TF_E_DISCONNECTED;
         if (! _composition || _composition.get() != composition)
@@ -297,6 +307,7 @@ public:
 
     D2D1_RECT_F ResolveTextViewportBounds() const noexcept override
     {
+        const Failure::Scope callbackFailureScope;
         RECT rect{};
         if (GetScreenRect(&rect) != S_OK)
             return {};
@@ -304,6 +315,7 @@ public:
     }
     HRESULT GetScreenRect(RECT* rect) const noexcept override
     {
+        const Failure::Scope callbackFailureScope;
         *rect = {};
         if (! Available())
             return TF_E_DISCONNECTED;
@@ -321,6 +333,7 @@ public:
     }
     HRESULT GetAcpFromScreenPoint(const POINT* point, LONG* acp) const noexcept override
     {
+        const Failure::Scope callbackFailureScope;
         *acp = 0;
         if (! Available())
             return TF_E_DISCONNECTED;
@@ -341,6 +354,7 @@ public:
     }
     HRESULT GetRangeScreenRect(LONG start, LONG end, RECT* rect, BOOL* clipped) const noexcept override
     {
+        const Failure::Scope callbackFailureScope;
         *rect    = {};
         *clipped = TRUE;
         if (! Available())
@@ -415,7 +429,7 @@ private:
         }
         catch (const std::bad_alloc&)
         {
-            return E_OUTOFMEMORY;
+            Failure::FailAllocation();
         }
         if (client != _client)
             return TF_E_DISCONNECTED;
@@ -456,7 +470,7 @@ ITextStoreACP* CreateClientTextStoreForFocus(HWND hwnd, std::shared_ptr<TextInpu
     }
     catch (const std::bad_alloc&)
     {
-        return nullptr;
+        Failure::FailAllocation();
     }
 }
 
@@ -566,6 +580,7 @@ TextInputServices::~TextInputServices()
 }
 HRESULT TextInputServices::Attach(HWND hwnd) noexcept
 {
+    const Failure::Scope failureScope;
     if (! _state->OnThread())
         return RPC_E_WRONG_THREAD;
     if (_state->detaching)
@@ -588,6 +603,7 @@ HRESULT TextInputServices::Attach(HWND hwnd) noexcept
 }
 void TextInputServices::Detach() noexcept
 {
+    const Failure::Scope failureScope;
     if (! _state->OnThread() || _state->detaching)
         return;
     const uint64_t revision = _state->BeginOperation();
@@ -607,6 +623,7 @@ void TextInputServices::Detach() noexcept
 }
 void TextInputServices::ClearClient() noexcept
 {
+    const Failure::Scope failureScope;
     if (! _state->OnThread() || _state->detaching)
         return;
     const uint64_t revision = _state->BeginOperation();
@@ -618,6 +635,7 @@ bool TextInputServices::HasClient() const noexcept
 }
 HRESULT TextInputServices::SetClient(std::shared_ptr<TextInputClient> client) noexcept
 {
+    const Failure::Scope failureScope;
     if (! _state->OnThread())
         return RPC_E_WRONG_THREAD;
     if (_state->detaching)
@@ -695,7 +713,7 @@ HRESULT TextInputServices::SetClient(std::shared_ptr<TextInputClient> client) no
     }
     catch (const std::bad_alloc&)
     {
-        return E_OUTOFMEMORY;
+        Failure::FailAllocation();
     }
     TextStoreDispatch dispatch{dispatchContext.get(),
                                [](void* value) noexcept
@@ -784,6 +802,7 @@ HRESULT TextInputServices::SetClient(std::shared_ptr<TextInputClient> client) no
 }
 void TextInputServices::NotifyChanged() noexcept
 {
+    const Failure::Scope failureScope;
     if (! _state->OnThread() || ! _state->store)
         return;
     EmbeddedTextInputSnapshot snapshot;
@@ -804,6 +823,7 @@ void TextInputServices::NotifyChanged() noexcept
 }
 void TextInputServices::NotifyLayoutChanged() noexcept
 {
+    const Failure::Scope failureScope;
     if (_state->OnThread() && _state->store)
         NotifyTextStoreLayoutChanged(_state->store.get());
 }
@@ -822,6 +842,7 @@ TextClipboardPreference TextInputServices::GetClipboardPreference() const noexce
 }
 HRESULT TextInputServices::Clipboard(TextClipboardCommand command, TextClipboard* clipboard) noexcept
 {
+    const Failure::Scope failureScope;
     if (! _state->OnThread())
         return RPC_E_WRONG_THREAD;
     if (! _state->client)
@@ -977,12 +998,13 @@ HRESULT TextInputServices::Clipboard(TextClipboardCommand command, TextClipboard
     }
     catch (const std::bad_alloc&)
     {
-        return E_OUTOFMEMORY;
+        Failure::FailAllocation();
     }
 }
 
 HRESULT TextInputServices::PreTranslate(const MSG& message, bool& handled) noexcept
 {
+    const Failure::Scope failureScope;
     handled = false;
     if (! _state->OnThread())
         return RPC_E_WRONG_THREAD;
@@ -1032,6 +1054,7 @@ HRESULT TextInputServices::PreTranslate(const MSG& message, bool& handled) noexc
 }
 HRESULT TextInputServices::HandleMessage(UINT message, WPARAM wParam, LPARAM, bool& handled) noexcept
 {
+    const Failure::Scope failureScope;
     handled = false;
     if (! _state->OnThread())
         return RPC_E_WRONG_THREAD;
@@ -1049,6 +1072,7 @@ HRESULT TextInputServices::HandleMessage(UINT message, WPARAM wParam, LPARAM, bo
 
 bool TextInputServices::CancelComposition() noexcept
 {
+    const Failure::Scope failureScope;
     if (! _state->OnThread() || ! _state->client)
         return false;
     EmbeddedTextInputSnapshot snapshot;

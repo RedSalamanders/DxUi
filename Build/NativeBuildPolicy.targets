@@ -51,7 +51,7 @@
            compile their own public/implementation code under /Wall. -->
       <!-- Only the six owned SDK targets get its private root. Public consumer
            examples and application adapters keep the public include boundary. -->
-      <AdditionalIncludeDirectories Condition="'$(MSBuildProjectName)'=='DxUi' or '$(MSBuildProjectName)'=='DxUi.ControlTests' or '$(MSBuildProjectName)'=='DxUi.EmbeddedTests' or '$(MSBuildProjectName)'=='DxUi.FoundationTests' or '$(MSBuildProjectName)'=='DxUi.InteractiveLease' or '$(MSBuildProjectName)'=='DxUi.EmbeddedControls'">$(DxUiRepositoryRoot)src;$(DxUiRepositoryRoot)Tests\Support;$(DxUiRepositoryRoot)Tests\Embedded;$(DxUiRepositoryRoot)Samples\EmbeddedControls;$(DxUiRepositoryRoot)Samples\ComplexUi;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories Condition="'$(MSBuildProjectName)'=='DxUi' or '$(MSBuildProjectName)'=='DxUi.ControlTests' or '$(MSBuildProjectName)'=='DxUi.EmbeddedTests' or '$(MSBuildProjectName)'=='DxUi.FoundationTests' or '$(MSBuildProjectName)'=='DxUi.InteractiveLease' or '$(MSBuildProjectName)'=='DxUi.EmbeddedControls'">$(DxUiRepositoryRoot)src;$(DxUiRepositoryRoot)Tests\Support;$(DxUiRepositoryRoot)Tests\Embedded;$(DxUiRepositoryRoot)Samples\EmbeddedControls;$(DxUiRepositoryRoot)Samples\ComplexUi;$(DxUiRepositoryRoot)Samples\Shared;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
   </ItemGroup>
 </Project>

@@ -7,7 +7,7 @@ description: Apply DxUi C++ ownership, Unicode, HRESULT, warning and WIL rules w
 
 Read [the owning contract](../../../Specs/Core/Core_Architecture.md) and [AGENTS.md](../../../AGENTS.md).
 
-Use the source-coordinated public API only within one module. Cross consumer-plugin boundaries through their COM/POD contracts. WIL owns Windows/COM resources; never manually destroy an owned handle. Keep callbacks noexcept with explicit error behavior. Run all required build configurations.
+Use the source-coordinated public API only within one module. Cross consumer-plugin boundaries through their COM/POD contracts. WIL owns Windows/COM resources; never manually destroy an owned handle. Follow [failure handling and allocation](../../../Specs/Core/Core_FailureHandling.md): use checked nonthrowing refusal results or host fatal diagnostics for unexpected exceptions, including bad_alloc. A noexcept annotation alone is not error handling. Run all required build configurations.
 
 Validate changed guidance with `validate-skills.ps1` and `validate-specs.ps1`. For source/build work run the affected
 `test.ps1` configurations and the additional validation named by the contract. Supported capabilities are recorded

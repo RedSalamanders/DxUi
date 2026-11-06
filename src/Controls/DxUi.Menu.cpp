@@ -1,3 +1,5 @@
+#include <DxUi/Failure.h>
+
 #include "DxUi.Internal.h"
 
 #include <algorithm>
@@ -200,6 +202,7 @@ struct MenuPopup;
     // The menu-bar hover is a registered message, not a constant a case can name.
     if (popupMessage || IsMenuPriorityInputMessage(message) || WndMsg::ContextMenuRootHoverChanged().Matches(message))
     {
+        const Failure::Scope outerFailureScope;
         return true;
     }
 
@@ -235,7 +238,8 @@ template <typename... Args> void WriteMenuDiagnosticsTrace(std::wstring_view eve
         WriteMenuDiagnosticsTraceLine(eventName, std::format(format, std::forward<Args>(args)...));
     }
     catch (const std::exception&)
-    { /* Optional diagnostics never change menu dispatch. */
+    {
+        Failure::FailUnexpected();
     }
 }
 
@@ -410,6 +414,7 @@ struct MenuBackdropSnapshot
     {
         if (! std::iswspace(static_cast<wint_t>(ch)))
         {
+            const Failure::Scope outerFailureScope;
             return ch;
         }
     }
@@ -606,6 +611,7 @@ struct MenuBackdropSnapshot
     if (FAILED(dc->CreateLinearGradientBrush(
             D2D1::LinearGradientBrushProperties(D2D1::Point2F(rect.left, rect.top), D2D1::Point2F(rect.left, rect.bottom)), stopCollection.get(), brush.put())))
     {
+        const Failure::Scope outerFailureScope;
         return {};
     }
 
@@ -782,6 +788,7 @@ void PaintMenuMaterialSurface(
                                         D2D1::ColorF(material.bottomShade.r, material.bottomShade.g, material.bottomShade.b, material.bottomShade.a * 0.35f),
                                         material.bottomShade))
     {
+        const Failure::Scope outerFailureScope;
         dc->FillRoundedRectangle(menuRounded, bottomShadeBrush.get());
     }
 
@@ -1078,6 +1085,7 @@ HRESULT PostMenuAccessibilityRequest(HWND target, WndMsg::RegisteredMessage mess
         return E_OUTOFMEMORY;
     if (! PostMessagePayload(target, message.value, 0, std::move(request)))
     {
+        const Failure::Scope outerFailureScope;
         const DWORD error = GetLastError();
         return HRESULT_FROM_WIN32(error ? error : ERROR_GEN_FAILURE);
     }
@@ -1651,6 +1659,7 @@ void SetSliderAnimationTarget(MenuPopup& popup, float targetPosition) noexcept
 
     if (std::fabs(popup.sliderAnimationTargetPosition - clampedTarget) <= 0.0001f)
     {
+        const Failure::Scope outerFailureScope;
         return;
     }
 
@@ -2079,7 +2088,7 @@ template <class Result>
         }
         catch (const std::bad_alloc&)
         {
-            return false; // A capture that cannot be copied is not installed.
+            Failure::FailAllocation();
         }
     }
 
@@ -2165,6 +2174,7 @@ static LRESULT CALLBACK MenuWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         MenuController* const controller = popup->controller;
         if (WndMsg::MenuPopupAccessibleInvoke().Matches(msg))
         {
+            const Failure::Scope outerFailureScope;
             auto request       = TakeMessagePayload<MenuAccessibilityRequest>(hwnd, msg, lp);
             const size_t index = request ? request->index : SIZE_MAX;
             if (request && request->target == hwnd && controller && controller->running && index < popup->itemCount && popup->IsNavigableItem(index))
@@ -2183,6 +2193,7 @@ static LRESULT CALLBACK MenuWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         }
         if (WndMsg::MenuPopupAccessibleFocus().Matches(msg))
         {
+            const Failure::Scope outerFailureScope;
             auto request = TakeMessagePayload<MenuAccessibilityRequest>(hwnd, msg, lp);
             if (request && request->target == hwnd)
             {
@@ -2270,6 +2281,7 @@ static LRESULT CALLBACK MenuWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         }
         if (WndMsg::MenuPopupDebugSetBackdrop().Matches(msg))
         {
+            const Failure::Scope outerFailureScope;
             return AnswerMenuPopupDebugProbe<bool>(hwnd,
                                                    msg,
                                                    lp,
@@ -2761,6 +2773,7 @@ struct MenuDescriptionPreparation
         const float wantedHeight = std::ceil(primary.height) - primary.height + kDescriptionGapDip;
         if (std::abs(spacerHeight - wantedHeight) <= kDescriptionSpacerToleranceDip)
         {
+            const Failure::Scope outerFailureScope;
             row.primaryMetrics   = primary;
             row.secondaryMetrics = secondary;
             row.heightDip        = 2.0f * kDescriptionPaddingDip + std::ceil(primary.height) + kDescriptionGapDip + std::ceil(secondary.height);
@@ -2848,8 +2861,7 @@ struct MenuDescriptionPreparation
     }
     catch (const std::bad_alloc&)
     {
-        // Opening/reflow fails without publishing partially measured rows.
-        return false;
+        Failure::FailAllocation();
     }
 }
 
@@ -2888,7 +2900,7 @@ struct MenuDescriptionPreparation
         }
         catch (const std::bad_alloc&)
         {
-            return false;
+            Failure::FailAllocation();
         }
         popup.RebuildItemOffsets();
         popup.contentHeightDip = popup.itemOffsetsDip.back() + kMenuPaddingBottomDip;
@@ -3475,6 +3487,7 @@ public:
         popup->lastPaintedItemCount = paintedItemCount;
         if (Debug::Perf::IsCaptureEnabled())
         {
+            const Failure::Scope outerFailureScope;
             Debug::Perf::EmitValue(L"dxui.menu.popup.visible_rows", static_cast<uint64_t>(paintedItemCount));
         }
 
@@ -3586,9 +3599,7 @@ try
 }
 catch (const std::bad_alloc&)
 {
-    // The detached content owns any partial nodes. Reject the unpublished popup
-    // rather than allowing allocation failure through a native menu callback.
-    return false;
+    Failure::FailAllocation();
 }
 
 void SynchronizeMenuAccessibility(MenuPopup& popup) noexcept
@@ -6172,6 +6183,7 @@ void RunMenuModalLoop(MenuController& controller)
         // ContextMenu::PostMenuBarHover posts this registered message to any window of the thread.
         if (WndMsg::ContextMenuRootHoverChanged().Matches(msg.message))
         {
+            const Failure::Scope outerFailureScope;
             flushRepeatedMessageTrace();
             if (controller.sessionCallbacks.switchRootFromMenuBarHover)
             {
@@ -6494,6 +6506,7 @@ bool ContextMenu::ShowAsync(HWND ownerHwnd,
                             ContextMenuClosedCallback onClosed,
                             const ContextMenuSessionCallbacks& sessionCallbacks)
 {
+    const Failure::Scope outerFailureScope;
     if (g_asyncMenuProcessExit || items.empty() || ! ownerHwnd)
     {
         return false;
@@ -6582,6 +6595,7 @@ bool ContextMenu::ShowAsync(HWND ownerHwnd,
 
 bool ContextMenu::PostMenuBarHover(HWND target, size_t hoverIndex, std::uintptr_t sequence) noexcept
 {
+    const Failure::Scope outerFailureScope;
     // Without its registered message nothing is posted, and the caller sees a failed post.
     const WndMsg::RegisteredMessage hover = WndMsg::ContextMenuRootHoverChanged();
     return hover && PostMessageW(target, hover.value, static_cast<WPARAM>(hoverIndex), static_cast<LPARAM>(sequence)) != FALSE;

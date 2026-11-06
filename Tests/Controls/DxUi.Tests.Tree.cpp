@@ -1,5 +1,7 @@
 #include "Controls.Tests.DxUiTestHelpers.h"
+#include "Support.Tests.FatalChildren.h"
 
+#include <atomic>
 #include <clocale>
 #include <cmath>
 #include <fstream>
@@ -458,7 +460,14 @@ void TestTreeSelectionDelegateReplacingModelStopsOuterNotifications()
             "no outer stale set or focus notification follows the delegate's model replacement");
 }
 
-void TestTreeFailedReconciliationPreservesSelection()
+// Keep fatal callback symbols distinct under Release ICF and LTCG.
+static std::atomic<unsigned> controlFatalOriginMarker{};
+[[noreturn]] __declspec(noinline) void TreeSelectionGetterThrowOrigin(const std::runtime_error& error)
+{
+    controlFatalOriginMarker.store(213u, std::memory_order_relaxed);
+    throw error;
+}
+void TreeSelectionGetterFixture(unsigned fatalScenario)
 {
     using namespace DxUi;
     ReentrantTreeModel model({TreeItemData{.id = 1u, .text = L"First"}, TreeItemData{.id = 2u, .text = L"Second"}});
@@ -471,23 +480,30 @@ void TestTreeFailedReconciliationPreservesSelection()
     Require(tree->RequestAddVisibleItemToSelection(0u), "select the first row before reconciliation failure");
     Require(tree->RequestAddVisibleItemToSelection(1u), "select the second row before reconciliation failure");
     const auto selection = tree->GetSelectedItemIds();
-    model.onItemRead     = [] { throw std::runtime_error("injected silent selection read failure"); };
     const std::array<uint64_t, 1> replacementSelection{1u};
+    if (fatalScenario != 0u)
+    {
+        model.onItemRead = []
+        {
+            const std::runtime_error error("injected tree selection read failure");
+            TreeSelectionGetterThrowOrigin(error);
+        };
+        if (fatalScenario == 1u)
+            tree->SetSelectedItemIds(replacementSelection);
+        else
+            tree->NotifyDataChanged();
+        return;
+    }
+    Require(DxUiFailureTests::ExpectFatalChild(L"tree-selection-getter-throw"), "selection getter exception terminates its owned child");
+    Require(DxUiFailureTests::ExpectFatalChild(L"tree-refresh-getter-throw"), "refresh getter exception terminates its owned child");
     tree->SetSelectedItemIds(replacementSelection);
-    Require(tree->GetSelectedItemIds() == selection, "failed silent selection replacement preserves the previously committed set");
-    model.onItemRead = [] { throw std::runtime_error("injected model read failure"); };
-    bool failed      = false;
-    try
-    {
-        tree->NotifyDataChanged();
-    }
-    catch (const std::runtime_error&)
-    {
-        failed = true;
-    }
-    Require(failed && tree->GetSelectedItemIds() == selection, "failed reconciliation does not apply a fabricated empty model");
+    Require(tree->GetSelectedItemIds() == std::vector<uint64_t>{1u}, "healthy selection replacement publishes the requested set");
     tree->NotifyDataChanged();
-    Require(tree->GetSelectedItemIds() == selection, "a later successful reconciliation preserves the same selected rows");
+    Require(tree->GetSelectedItemIds() == std::vector<uint64_t>{1u} && selection.size() == 2u, "healthy reconciliation preserves the selected row");
+}
+void TestTreeFailedReconciliationPreservesSelection()
+{
+    TreeSelectionGetterFixture(0u);
 }
 
 void TestTreeKeyboardRightAndLeftHandleExpansionAndParentTraversal()
@@ -3517,17 +3533,25 @@ void TestTreeClickSurvivesAFocusHandlerThatChangesAnotherControl()
     }
 }
 
-// CR-24 of the 10 October review: UI Automation's SetFocus reaches the tree's focus delegate from a noexcept executor; a
-// delegate that throws stops that request instead of terminating the process.
-void TestTreeFocusRequestContainsAThrowingDelegate()
+[[noreturn]] __declspec(noinline) void TreeFocusDelegateThrowOrigin(const std::runtime_error& error)
+{
+    controlFatalOriginMarker.store(214u, std::memory_order_relaxed);
+    throw error;
+}
+void TreeFocusDelegateFixture(bool fatalChild)
 {
     using namespace DxUi;
     class ThrowingFocusDelegate final : public ITreeDelegate
     {
     public:
-        void OnTreeFocusedItemChanged(Tree& /*sender*/, std::optional<uint64_t> /*itemId*/) override
+        bool fail{};
+        __declspec(noinline) void OnTreeFocusedItemChanged(Tree& /*sender*/, std::optional<uint64_t> /*itemId*/) override
         {
-            throw std::runtime_error("focus failure");
+            if (fail)
+            {
+                const std::runtime_error error("focus failure");
+                TreeFocusDelegateThrowOrigin(error);
+            }
         }
     };
 
@@ -3541,9 +3565,31 @@ void TestTreeFocusRequestContainsAThrowingDelegate()
     tree->SetModel(&model);
     tree->SetDelegate(&delegate);
     host.SetRoot(std::move(root));
-    Require(! tree->RequestFocusVisibleItem(2u), "a focus request whose delegate throws reports failure");
+    if (fatalChild)
+    {
+        delegate.fail = true;
+        (void)tree->RequestFocusVisibleItem(2u);
+        return;
+    }
+    Require(DxUiFailureTests::ExpectFatalChild(L"tree-focus-delegate-throw"), "focus delegate exception terminates its owned child");
+    Require(tree->RequestFocusVisibleItem(2u), "a healthy focus request succeeds");
     Require(tree->GetFocusedItemId() == 3u, "the focus still moved to the requested item");
 }
+void TestTreeFocusRequestContainsAThrowingDelegate()
+{
+    TreeFocusDelegateFixture(false);
+}
+template <unsigned Scenario> void TreeCallbackFailureChild()
+{
+    if constexpr (Scenario <= 2u)
+        TreeSelectionGetterFixture(Scenario);
+    else
+        TreeFocusDelegateFixture(true);
+}
+[[maybe_unused]] const bool treeCallbackFailureChildrenRegistered =
+    DxUiFailureTests::RegisterFatalChildCase({L"tree-selection-getter-throw", "TreeSelectionGetterThrowOrigin", TreeCallbackFailureChild<1u>}) &&
+    DxUiFailureTests::RegisterFatalChildCase({L"tree-refresh-getter-throw", "TreeSelectionGetterThrowOrigin", TreeCallbackFailureChild<2u>}) &&
+    DxUiFailureTests::RegisterFatalChildCase({L"tree-focus-delegate-throw", "TreeFocusDelegateThrowOrigin", TreeCallbackFailureChild<3u>});
 
 // The usual delegate publishes an expansion with NotifyDataChanged before it returns; the rows still slide open.
 void TestTreeExpansionAnimatesWhenTheDelegatePublishes()

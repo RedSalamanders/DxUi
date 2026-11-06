@@ -1,5 +1,12 @@
 # Unicode rich text
 
+API 5 uses checked nonthrowing refusal or host fatal diagnostics for unexpected C++ exceptions, as described by
+the [failure policy](../Specs/Core/Core_FailureHandling.md) and [upgrade guide](upgrade.md#port-checked-operations).
+The [implementation record](../Specs/Plans/Done/FailurePolicy_2026-11-02.md) and
+[evidence](../Measurements/FailurePolicy_2026-11-06/README.md) identify the qualified x64 library scope and its
+remaining performance/platform limits. Historical source `5fc4d4c` used exception recovery and does not qualify
+the current fatal-stack/dump contract.
+
 Native diagram arrow labels blend into the diagram background when text contrast is sufficient. Otherwise
 the editor adds a subtle light or dark backing for readability. Label backgrounds stay opaque to mask
 crossing lines; labels within notes or filled groups retain that container's surface. This presentation
@@ -52,7 +59,7 @@ partial language profile. Neither status supplies current-source build, runtime,
 performance, physical-input or consumer acceptance. Those results retain their
 own source identities in [the evidence archive](../Measurements/RichText/README.md).
 `capabilities.json` owns the table; `validate-specs.ps1` rejects a changed, missing
-or contradictory row. API revision remains 4; pair headers with the exact library.
+or contradictory row. API revision is 5 and remains unqualified; pair headers with the exact library.
 The added control triple-click virtual has an ordinary-press default for existing
 source consumers; rebuild control subclasses with their pinned headers and library.
 The file-drop receiver's additive text-move hooks default to declining text;
@@ -291,7 +298,7 @@ The feature is disabled by default. `QueryMarkdownCommandState` returns current
 style/heading/list presentation without allocation. Applicability is unknown
 when neither an immediate proof nor an exact prepared result is available.
 For an arbitrary request, call `PrepareMarkdownCommandState(request)` on the
-owner thread, then query the same request. Preparation can allocate or throw;
+owner thread, then query the same request. Preparation can allocate; unexpected exceptions are fatal through the host.
 it runs the execution planner without editing or notifying, and retains one owned
 request/result. A false return means the current owner state cannot be prepared.
 Changing source, selection, presentation, binding or policy retires the result;
@@ -389,8 +396,9 @@ owns clipboard transport. All of these features still require the project's
 complete platform, allocation and performance qualification before plan closeout.
 The tokenizer runs for visible blocks plus one viewport of overscan, at most once
 per owner turn. Do not rely on callbacks for offscreen blocks or use them to
-perform document-wide side effects. A failed or declined block keeps ordinary ink;
-content remains usable while later visual requests prepare other visible blocks.
+perform document-wide side effects. A declined block or invalid returned token set keeps ordinary ink;
+an unexpected exception escaping the tokenizer takes the host fatal path.
+Content remains usable while later visual requests prepare other visible blocks.
 List marker ink uses the parser's exact source token range, so nested, ordered,
 quoted and task-list prefixes stay aligned with their original UTF-16 offsets.
 Each owner preparation advance uses at most 256 work steps shared across block
@@ -496,7 +504,8 @@ Sparse table rows preflight their entire header width before allocation, then
 prepare one real/padded cell per resumable event. Capacity failure retains the
 previous syntax publication. The editor displays exact source fallback and
 remembers only that snapshot/revision/profile, avoiding repeated idle parsing.
-Edits and profile changes retry; transient memory failures remain retryable.
+Edits and profile changes retry; a returned transient native allocation-failure HRESULT remains retryable.
+Unexpected C++ allocation exceptions are fatal through the host.
 The focused admission/fallback implementation is in development under M6; final
 capacity/latency/NUL qualification remains open and the source limit stays 65,536.
 
@@ -556,8 +565,8 @@ host.SetRoot(std::move(root)); // ControlHost, or embedded.Controls()
 ```
 
 All mutable operations belong to the host/UI owner thread. Source UTF-16
-anchor/caret offsets include Markdown delimiters; invalid scalar/CRLF boundaries
-throw without mutation. `SetText` resets history without invoking the committed-
+anchor/caret offsets include Markdown delimiters; checked setters reject invalid scalar/CRLF boundaries
+without mutation. `SetText` resets history without invoking the committed-
 text callback. `SetSelection` and `SetViewMode(Source/Rich)` preserve source bytes
 and do not invoke that text callback; installed selection observers follow the
 source-revision, selection and gesture publication contract above.
@@ -565,8 +574,8 @@ source-revision, selection and gesture publication contract above.
 once per actual committed source change. The four supported v0 formatting markers
 are described below. Read-only/disabled controls reject source commands; read-only
 allows selection and copy. `SetOnTextChanged` runs after publication and may replace
-or destroy the sender. `std::bad_alloc` is fatal; other standard exceptions are
-contained and do not roll back the committed edit. A scheduling callback that
+or destroy the sender. Unexpected callback exceptions are fatal through the host diagnostic path, including
+after commitment; use the callback's documented result for expected refusal. A scheduling callback that
 retires, rebinds or supersedes the editor stops the old notification.
 
 The preview implements pointer selection/word selection, Shift extension, host
@@ -883,9 +892,9 @@ headers and DxUi.lib. This does not provide compatibility with an older archive.
 The core creates no worker, queue, HWND, graphics device, swap chain, timer or file. The
 caller owns cancellation, request/revision keys, scheduling, stale publication
 checks and view lifetime. `PreparedLayout` is also owner-thread mutable; do not
-prepare or query it concurrently. Public operations can throw standard argument,
-range, length/allocation exceptions, or WIL HRESULT exceptions for DirectWrite
-failures. Catch at the caller's Windows/COM/callback boundary.
+prepare or query it concurrently. Use checked `Try...` forms for external arguments, ranges and native
+DirectWrite failures, and inspect their `SourceResult` or `HRESULT`. Legacy convenience entrypoints take the
+fatal contract route on invalid input; unexpected C++ exceptions are fatal through the host.
 
 `Selection` stores anchor/caret UTF-16 offsets and preserves backwards direction.
 Replacements are one source/selection transaction. Undo/redo restores snapshots
@@ -913,8 +922,9 @@ this does not establish incremental processing for every projection or qualifica
 beyond the bounded source.
 Future selection checks run against the virtual replacement before storage/history
 allocation. Reset, replacement, transient replacement, undo and redo stage all
-required allocations before publishing; allocation failure preserves the full
-transaction state. Default, moved-from and fully deleted snapshots are empty
+required storage before publishing. Checked validation or capacity refusal preserves
+the transaction state; an unexpected C++ allocation failure is fatal through the host.
+Default, moved-from and fully deleted snapshots are empty
 queryable values. The node representation stays private behind shared ownership.
 
 `SourceSnapshot::ChangedRangeFrom(previous)` returns a conservative replacement
@@ -966,7 +976,7 @@ The standalone prototype still owns those demonstration-host responsibilities.
 stops to return a display interval. Both deletion directions enclose a complete
 grapheme when an explicit ACP lies inside it. Exact-boundary deletion keeps the
 usual preceding/following behavior; empty edges yield empty intervals. Invalid
-positions or retired layout throw. Rich keyboard deletion maps this interval
+positions or retired layout are reported by `TryDeletionRange`. Rich keyboard deletion maps this interval
 back to source. Explicit noncollapsed source selections retain their exact
 scalar/CRLF meaning, and undo restores the original source and caret ACP.
 
@@ -982,8 +992,8 @@ invalid projection retirement and actual drawing on two separate WARP devices.
 This does not replace native/embedded retained-editor, IME, AT or large-file tests.
 
 The migration is source-coordinated within one module; no C++ ownership crosses
-plugin ABIs. It adds headers/functions without changing existing declarations,
-so API revision stays 4. Consume an exact clean pin via the normal
+plugin ABIs. The earlier source-coordinated addition was API 4; the current failure-policy migration is API 5
+and remains unqualified. Consume a qualified exact clean pin via the normal
 [props/targets](../Build/DxUi.Consumer.targets); no sibling cpp enumeration.
 
 Historical source-bound runs are retained in [the qualification history](../Measurements/RichText/2026-11-01-usage-history.md). They do not qualify a later source revision.
@@ -1414,8 +1424,9 @@ snapshot, revision, syntax and directional source selection. Apply it once
 through the existing atomic source transaction. Untouched spelling and mixed
 line endings remain exact; one undo/redo restores the complete original/result,
 including backward selections. A stale revision stays stale after undo returns
-to the same spelling. Planning, capacity and allocation failures change no source,
-selection or history. Identical and navigation-only operations add no history.
+to the same spelling. Checked planning and capacity refusals change no source,
+selection or history. Unexpected C++ allocation failures take the host fatal path.
+Identical and navigation-only operations add no history.
 
 ```cpp
 using namespace DxUi::RichText;
@@ -1556,7 +1567,8 @@ For example, override `FootnoteName` with `L"Note {0}"`, `GoToFootnote` with
 `L"Aller à la note {0}."`, or `ReturnToReference` with
 `L"Note {1}, référence {0}"`. Numbered templates require each specified token once
 and allow reordering. Entries must be nonempty valid UTF-16 without NUL, at most
-1,024 units; invalid identities, duplicates or templates throw at construction.
+1,024 units; `AccessibilityLabels::TryCreate` reports invalid identities, duplicates or templates without
+replacing its output. The convenience constructor treats invalid input as a contract failure.
 Static help entries use literal text. Pie, ER, Gantt and mind-map headers and
 help, ER relationship vocabulary and missing display-math delimiters use the
 same dictionary. Authored diagram labels, chart dates and values, TeX source,
@@ -1592,10 +1604,11 @@ source owner and language. `block.content` excludes fences; `block.source` retai
 the entire envelope, comments, order, spelling and original EOLs. An incomplete
 envelope extends through EOF with `block.closed == false`. No Markdown references,
 headings or inline styles are extracted from metadata.
-YAML accepts LF, CR and CRLF through private parser staging while retaining the exact original source and
-diagnostic ranges. TOML keeps its own line-ending rules. Internal parser checks and allocations use the
-same bounded callbacks in Release, Debug and ASan; allocation failure preserves the previous publication
-for retry.
+YAML accepts LF, CR and CRLF while retaining the exact original source and diagnostic ranges. TOML keeps its
+own line-ending rules. The private libfyaml 0.9.4 borrowed-memory event adapter returns a checked capacity
+result when its bounded native budget is refused; completed syntax reports the capacity diagnostic and retains
+the exact envelope. Previous syntax stays published while its replacement is staged. Physical native
+allocation failure and unexpected C++ allocation failure take the host fatal path in every configuration.
 `Diagnostics()` carries a source-ranged `UnclosedFrontMatter` issue naming the
 opener and final syntax node. The semantic child exposes a missing-fence
 explanation through UIA HelpText; closing the envelope retires that diagnostic.
@@ -1618,8 +1631,10 @@ distinguishes invalid syntax, duplicate mapping
 keys, unresolved aliases and explicit capacity limits. The pinned native validity
 corpus covers 717 TOML and 382 single-document YAML cases; 20 multi-document YAML
 streams are explicitly excluded, and two duplicate-key cases have specific
-diagnostics. Observed allocation-failure sweeps preserve the previous publication
-and permit retry; capacity refusal remains distinct from invalid input. See the
+diagnostics. Historical throwing-allocation sweeps preserve the previous publication and permit retry under the
+earlier implementation. They do not qualify the new [failure policy](../Specs/Core/Core_FailureHandling.md):
+recovery requires checked nonthrowing refusal, while unexpected exceptions require host fatal diagnostics.
+Capacity refusal remains distinct from invalid input. See the
 [TOML pin](../ThirdParty/Markdown/corpora/toml-test-96fd088/README.md),
 [YAML pin](../ThirdParty/Markdown/corpora/yaml-test-suite-6ad3d2c/README.md),
 [native corpus test](../Tests/Controls/Controls.Tests.RichMarkdown.cpp) and
@@ -2063,8 +2078,8 @@ font size and DPI.
 
 A published SemanticDocument provides Headings() for source-ordered outline entries
 and ResolveHeadingFragment() for the same fragment targets used by the editor.
-BuildHeadingTableOfContents() returns Markdown links without changing the document;
-its output is bounded by the display-unit limit and throws length_error on overflow.
+`TryBuildHeadingTableOfContents()` returns Markdown links without changing the document and reports capacity
+refusal at the display-unit limit without replacing its output.
 
 ## Mirrored read-only preview and scroll synchronization
 
@@ -2104,10 +2119,10 @@ table and opt into expansion at insertion time. It captures the editor's
 `Snapshot()`, `Revision()` and `GetSelection()` on the owner thread, checks its
 own focus, read-only and composition policy, and resolves only an admitted
 shortcode to valid UTF-16. Before committing it rechecks control lifetime,
-focus and selection, then calls `ApplySourceEdits` with that exact snapshot and
+focus and selection, then calls `TryApplySourceEdits` with that exact snapshot and
 revision, one source-range replacement and the desired post-edit selection.
 The edit ranges must be valid source boundaries and the replacement storage must
-remain alive through the synchronous call. `ApplySourceEdits` throws `std::invalid_argument` for a stale snapshot or revision; applications must separately guard selection and their
+remain alive through the synchronous call. `TryApplySourceEdits` returns `SourceResult::Stale` for a stale snapshot or revision; applications must separately guard selection and their
 own asynchronous lookup/ownership state. A changed or invalid context is
 left untouched. The resulting source contains the chosen Unicode text, and the
 existing edit transaction owns undo; no parser-level shortcode table or display

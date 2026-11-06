@@ -81,10 +81,10 @@ before publishing usable input geometry. When a host prepares pending layout and
 beyond the shaping budget, an unsupported child without an explicit size), it keeps that owner's previous geometry,
 paints the frame and reports the failure once through `DxUi::Diagnostics::sink`; fix the content and the owner lays
 out again. Unchanged label, description, validation and required values are no-ops, so validating on every edit
-relays out only when the answer changes. Allocation failures return their HRESULT from measurement/layout and
-validation APIs. Presentation setters may have already updated text before a later accessibility allocation
-fails; retry the presentation update after recovery. Forms do not implement a validation engine or a save
-transaction.
+relays out only when the answer changes. Returned native or checked measurement/layout and validation HRESULTs
+remain explicit failures; retry only when the operation's checked-result contract permits it. Unexpected C++
+allocation exceptions, including during accessibility publication, take the host fatal diagnostic path and do
+not permit a presentation-update retry. Forms do not implement a validation engine or a save transaction.
 Each field's complete translated geometry is staged before the first bounds callback, using the exact represented
 label/editor edges for measurement. Arrangement does not remeasure after geometry has begun changing. Detached
 forms also verify earlier siblings and editor bounds after callbacks. `ClearChildren` retires the old semantic

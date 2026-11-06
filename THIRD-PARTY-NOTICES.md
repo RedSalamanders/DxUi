@@ -13,7 +13,7 @@ DxUi uses [toml++ 3.4.0](https://github.com/marzer/tomlplusplus/tree/v3.4.0), Ma
 
 DxUi derives its bounded native math symbol table from [KaTeX 0.16.11](https://github.com/KaTeX/KaTeX/tree/v0.16.11), Khan Academy and contributors, MIT. The full [notice](docs/licenses/katex.txt) accompanies redistributions; source provenance is in the [pinned inventory](ThirdParty/Markdown/katex-0.16.11/collection.json).
 
-DxUi uses [rapidyaml 0.16.0](https://github.com/biojppm/rapidyaml/tree/v0.16.0) as a private YAML event parser. Its [MIT license](docs/licenses/rapidyaml.txt) and [bundled notices](docs/licenses/rapidyaml-bundled.txt) accompany redistributions. [Source provenance and local patches](ThirdParty/rapidyaml/README.md) are retained.
+DxUi uses [libfyaml 0.9.4](https://github.com/pantoniou/libfyaml/tree/cd5f869cb937d0e9db11073d64e8758a7a7c978a) as a private YAML event parser. Its [MIT license](ThirdParty/libfyaml/0.9.4/LICENSE) and the bundled [xxHash BSD-2-Clause license](ThirdParty/libfyaml/0.9.4/LICENSE-xxHash.txt) accompany redistributions. [Source provenance and local patches](ThirdParty/libfyaml/0.9.4/README.dxui.md) are retained.
 
 DxUi embeds generated grapheme, character-class, case-folding and bidi tables from Unicode 17.0.0, copyright
 Unicode, Inc. The full [Unicode License V3](docs/licenses/Unicode.txt) accompanies redistributions. The

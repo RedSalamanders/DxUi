@@ -699,6 +699,7 @@ void ComboBox::SetText(std::wstring text)
 
 void ComboBox::SetTextAndNotify(std::wstring text)
 {
+    const Failure::Scope outerFailureScope;
     const auto lifetime = GetLifetimeToken();
     SetText(std::move(text));
     if (lifetime.expired())
@@ -932,6 +933,7 @@ void ComboBox::PaintOverlay(ControlHost& host) const
 
 bool ComboBox::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)
 {
+    const Failure::Scope outerFailureScope;
     _typeaheadBuffer.clear();
     ControlHost* const originalHost = GetHost();
     if (rightButton)
@@ -1258,6 +1260,7 @@ bool ComboBox::OnMouseLeave(ControlHost& host)
 
 bool ComboBox::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
 {
+    const Failure::Scope outerFailureScope;
     if (_editable && ! KeyKeepsPendingSurrogate(virtualKey))
         _typeaheadBuffer.clear();
     ControlHost* const originalHost = GetHost();
@@ -1741,6 +1744,7 @@ bool ComboBox::OnContextMenu(ControlHost& host, bool keyboardInvocation, D2D1_PO
 
 bool ComboBox::OnChar(ControlHost& host, wchar_t ch, UINT modifiers)
 {
+    const Failure::Scope outerFailureScope;
     ControlHost* const originalHost = GetHost();
     // Alt alone makes the system's characters (menu access keys, Alt+Space); AltGr arrives as Ctrl+Alt and types.
     if (ModifiersContainAlt(modifiers) && ! ModifiersContainCtrl(modifiers))
@@ -2075,6 +2079,7 @@ bool ComboBox::ExportTextInputState(TextInputState& outState) const
 
 bool ComboBox::ImportTextInputState(ControlHost& host, const TextInputState& state, bool notifyChange)
 {
+    const Failure::Scope outerFailureScope;
     const auto lifetime = GetLifetimeToken();
     if (! SupportsTextInput())
     {
@@ -2440,6 +2445,7 @@ std::optional<size_t> ComboBox::GetHighlightedPopupIndex() const noexcept
 
 bool ComboBox::NotifyTextChanged() const
 {
+    const Failure::Scope outerFailureScope;
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     if (const auto callback = _onTextChanged; callback)
     {
@@ -2491,6 +2497,7 @@ void ComboBox::OpenPopup(ControlHost& host) noexcept
 
 bool ComboBox::RequestPopup(ControlHost& host)
 {
+    const Failure::Scope outerFailureScope;
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     ControlHost* const originalHost   = GetHost();
     auto onPopupRequested             = _onPopupRequested;
@@ -2777,6 +2784,7 @@ void ComboBox::RebuildPopupItems(const ControlHost* host) noexcept
 
 void ComboBox::CommitSelection(ControlHost& host, size_t itemIndex, bool closePopup)
 {
+    const Failure::Scope outerFailureScope;
     if (itemIndex >= _items.size())
     {
         return;

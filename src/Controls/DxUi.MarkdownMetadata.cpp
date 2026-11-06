@@ -2,6 +2,7 @@
 
 // Keep this implementation in DxUi.lib, with no TOML runtime DLL dependency.
 #define TOML_HEADER_ONLY 1
+#define TOML_EXCEPTIONS 0
 #define TOML_ENABLE_FORMATTERS 0
 #define TOML_ENABLE_UNRELEASED_FEATURES 0
 #define TOML_MAX_NESTED_VALUES 128
@@ -63,21 +64,16 @@ MetadataIssue ValidateTomlMetadata(std::wstring_view source)
     std::string utf8(0u, '\0');
     if (! MetadataUtf8(source, utf8))
         return MetadataIssue::Invalid;
-    try
-    {
-        const auto document = dxui_private_toml::parse(utf8);
-        static_cast<void>(document);
+    const auto document = dxui_private_toml::parse(utf8);
+    if (document.succeeded())
         return MetadataIssue::None;
-    }
-    catch (const dxui_private_toml::parse_error& error)
-    {
-        // toml++ 3.4.0 identifies its bounded-depth refusal in this message.
-        // Allocation failures are not parse_error and propagate to the staging owner.
-        return (error.description() == "Error while parsing value: exceeded maximum nested value depth of 128 (TOML_MAX_NESTED_VALUES)" ||
-                error.description() == "Error while parsing key: exceeded maximum dotted key depth of 128 (DXUI_TOML_MAX_KEY_DEPTH)" ||
-                error.description() == "Error while parsing key: exceeded maximum key segment count of 1024 (DXUI_TOML_MAX_KEY_SEGMENTS)")
-                   ? MetadataIssue::Capacity
-                   : MetadataIssue::Invalid;
-    }
+    const auto& error = document.error();
+    // toml++ 3.4.0 identifies its bounded-depth refusal in this message.
+    // Allocation failures are not parse errors and propagate to the staging owner.
+    return (error.description() == "Error while parsing value: exceeded maximum nested value depth of 128 (TOML_MAX_NESTED_VALUES)" ||
+            error.description() == "Error while parsing key: exceeded maximum dotted key depth of 128 (DXUI_TOML_MAX_KEY_DEPTH)" ||
+            error.description() == "Error while parsing key: exceeded maximum key segment count of 1024 (DXUI_TOML_MAX_KEY_SEGMENTS)")
+               ? MetadataIssue::Capacity
+               : MetadataIssue::Invalid;
 }
 } // namespace DxUi::RichText::Detail

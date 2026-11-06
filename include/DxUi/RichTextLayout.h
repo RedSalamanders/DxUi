@@ -108,6 +108,7 @@ public:
     PreparedLayout& operator=(PreparedLayout&& other) noexcept;
     void Prepare(IDWriteFactory* factory, Projection projection, float width, float fontSize = 18.0f);
     void Prepare(IDWriteFactory* factory, Projection projection, const LayoutOptions& options);
+    [[nodiscard]] HRESULT TryPrepare(IDWriteFactory* factory, Projection projection, const LayoutOptions& options);
     // Retirement is explicit and invalidates every geometry operation. No host
     // scheduling or rendering target is retained; there is no explicit factory field.
     void Clear() noexcept;
@@ -127,22 +128,31 @@ public:
     // Mouse and Previous/NextCluster use Unicode 17 default extended graphemes,
     // independent of the font's glyph clusters. Movement is in logical order.
     Hit HitTest(float x, float y) const;
+    [[nodiscard]] HRESULT TryHitTest(float x, float y, Hit& output) const;
     // Explicit source/display ACP geometry remains available inside an element
     // for text services; it is not silently snapped to a navigation stop.
     CaretGeometry Caret(std::size_t position) const;
+    [[nodiscard]] HRESULT TryCaret(std::size_t position, CaretGeometry& output) const;
     std::vector<D2D1_RECT_F> Range(std::size_t first, std::size_t last) const;
+    [[nodiscard]] HRESULT TryRange(std::size_t first, std::size_t last, std::vector<D2D1_RECT_F>& output) const;
     std::size_t PreviousCluster(std::size_t position) const;
     std::size_t NextCluster(std::size_t position) const;
+    [[nodiscard]] HRESULT TryPreviousCluster(std::size_t position, std::size_t& output) const;
+    [[nodiscard]] HRESULT TryNextCluster(std::size_t position, std::size_t& output) const;
     // A collapsed delete at an interior ACP removes the containing grapheme;
     // an exact boundary deletes its preceding/following neighbor as requested.
     std::pair<std::size_t, std::size_t> DeletionRange(std::size_t position, bool backwards) const;
+    [[nodiscard]] HRESULT TryDeletionRange(std::size_t position, bool backwards, std::pair<std::size_t, std::size_t>& output) const;
     std::size_t LineBoundary(std::size_t position, bool end) const;
+    [[nodiscard]] HRESULT TryLineBoundary(std::size_t position, bool end, std::size_t& output) const;
     // Complete wrapped lines intersecting the vertical viewport, in display
     // offsets. Includes partially visible lines and works in either bidi flow.
     std::pair<std::size_t, std::size_t> VisibleRange(float top, float bottom) const;
+    [[nodiscard]] HRESULT TryVisibleRange(float top, float bottom, std::pair<std::size_t, std::size_t>& output) const;
     // Draw is raster preparation, not DxUi's allocation-free composition stage.
     // Caller supplies target/brush and BeginDraw/EndDraw/clip/transform policy.
     void Draw(ID2D1RenderTarget* target, ID2D1Brush* brush, D2D1_POINT_2F origin, const LinkDrawing* links = nullptr) const;
+    [[nodiscard]] HRESULT TryDraw(ID2D1RenderTarget* target, ID2D1Brush* brush, D2D1_POINT_2F origin, const LinkDrawing* links = nullptr) const;
 
 private:
     friend class PreparedDocumentLayout;
@@ -150,7 +160,7 @@ private:
     std::pair<float, float> DrawingVerticalBounds() const;
     std::pair<float, float> HorizontalTextBounds() const;
     std::span<const DWRITE_LINE_METRICS> LineMetrics() const;
-    void PrepareOwned(IDWriteFactory* factory, Projection& projection, const LayoutOptions& options, float verticalOrigin = 0.0f);
+    HRESULT PrepareOwned(IDWriteFactory* factory, Projection& projection, const LayoutOptions& options, float verticalOrigin = 0.0f);
     float VerticalOrigin() const noexcept;
     bool PositionedExactly() const noexcept;
     struct State;
@@ -168,7 +178,8 @@ enum class LayoutPreparationStatus
 {
     Idle,
     Pending,
-    Complete
+    Complete,
+    Failed
 };
 struct LayoutWorkBudget
 {
@@ -183,6 +194,7 @@ struct LayoutAdvance
     LayoutPreparationStatus status = LayoutPreparationStatus::Idle;
     std::size_t layoutsPrepared{}, blockSteps{};
     std::size_t uploadedBytes{};
+    HRESULT result = S_OK;
 };
 // Owner-thread, bounded v0 document geometry. Chunks end at physical source
 // lines and target 1 Ki source units; 127 chunks plus one optional whole layout
@@ -201,6 +213,11 @@ public:
     PreparedDocumentLayout(const PreparedDocumentLayout&)            = delete;
     PreparedDocumentLayout& operator=(const PreparedDocumentLayout&) = delete;
     void Prepare(IDWriteFactory* factory, SourceSnapshot source, std::uint64_t revision, ViewMode mode, const LayoutOptions& options);
+    [[nodiscard]] HRESULT TryPrepare(IDWriteFactory* factory, SourceSnapshot source, std::uint64_t revision, ViewMode mode, const LayoutOptions& options);
+    HRESULT Result() const noexcept
+    {
+        return result_;
+    }
     // Owner-thread staging. Begin coalesces the previous request only after its
     // replacement is staged successfully. Projection/index construction is still
     // one indivisible v0 operation; budgets bound advances, not CPU milliseconds.
@@ -231,20 +248,33 @@ public:
     // Earliest source ACP whose display mapping reaches this boundary. Used to
     // partition visual lines including their original hidden delimiters/EOLs.
     std::size_t SourceBoundary(std::size_t displayOffset) const;
+    [[nodiscard]] HRESULT TrySourceBoundary(std::size_t displayOffset, std::size_t& output) const;
     std::size_t ToDisplay(std::size_t sourceOffset) const;
+    [[nodiscard]] HRESULT TryToDisplay(std::size_t sourceOffset, std::size_t& output) const;
     std::size_t ToSource(std::size_t displayOffset, bool trailing = false) const;
+    [[nodiscard]] HRESULT TryToSource(std::size_t displayOffset, bool trailing, std::size_t& output) const;
     std::wstring DisplayText() const;
     Hit HitTest(float x, float y) const;
+    [[nodiscard]] HRESULT TryHitTest(float x, float y, Hit& output) const;
     CaretGeometry Caret(std::size_t position) const;
+    [[nodiscard]] HRESULT TryCaret(std::size_t position, CaretGeometry& result) const;
     std::vector<D2D1_RECT_F> Range(std::size_t first, std::size_t last) const;
+    [[nodiscard]] HRESULT TryRange(std::size_t first, std::size_t last, std::vector<D2D1_RECT_F>& output) const;
     std::size_t PreviousCluster(std::size_t position) const;
+    [[nodiscard]] HRESULT TryPreviousCluster(std::size_t position, std::size_t& output) const;
     std::size_t NextCluster(std::size_t position) const;
+    [[nodiscard]] HRESULT TryNextCluster(std::size_t position, std::size_t& output) const;
     std::pair<std::size_t, std::size_t> DeletionRange(std::size_t position, bool backwards) const;
+    [[nodiscard]] HRESULT TryDeletionRange(std::size_t position, bool backwards, std::pair<std::size_t, std::size_t>& output) const;
     std::size_t LineBoundary(std::size_t position, bool end) const;
+    [[nodiscard]] HRESULT TryLineBoundary(std::size_t position, bool end, std::size_t& output) const;
     std::pair<std::size_t, std::size_t> VisibleRange(float top, float bottom) const;
+    [[nodiscard]] HRESULT TryVisibleRange(float top, float bottom, std::pair<std::size_t, std::size_t>& output) const;
     // Raster preparation only. A viewport limits draw calls to intersecting
     // chunks; composition consumes the host's existing cached surface.
     void Draw(ID2D1RenderTarget* target, ID2D1Brush* brush, D2D1_POINT_2F origin, float top, float bottom, const LinkDrawing* links = nullptr) const;
+    [[nodiscard]] HRESULT TryDraw(
+        ID2D1RenderTarget* target, ID2D1Brush* brush, D2D1_POINT_2F origin, float top, float bottom, const LinkDrawing* links = nullptr) const;
 
 private:
     struct State;
@@ -255,6 +285,7 @@ private:
     std::unique_ptr<Preparation> pending_;
     std::uint64_t generation_{};
     bool ready_{};
+    HRESULT result_ = S_OK;
 };
 
 } // namespace DxUi::RichText

@@ -1,3 +1,5 @@
+#include <DxUi/Failure.h>
+
 #include "DxUi.Internal.h"
 
 #include <algorithm>
@@ -85,6 +87,7 @@ void TransientSurfaceBackdrop::Reset() noexcept
 
 bool TransientSurfaceBackdrop::HasCapture() const noexcept
 {
+    const Failure::Scope outerFailureScope;
     const uint64_t expectedBytes = static_cast<uint64_t>(capture.widthPx) * static_cast<uint64_t>(capture.heightPx) * 4u;
     return capture.widthPx != 0u && capture.heightPx != 0u && expectedBytes == capture.bgraPixels.size();
 }
@@ -426,6 +429,7 @@ std::optional<size_t> Control::TryHitTestTextInputPoint(const ControlHost& host,
 
 void Control::SetVisible(bool visible) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (_visible != visible)
     {
         if (_host)
@@ -478,6 +482,7 @@ bool Control::IsVisible() const noexcept
 
 void Control::SetEnabled(bool enabled) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (_enabled != enabled)
     {
         if (_host)
@@ -508,6 +513,7 @@ bool Control::IsEnabled() const noexcept
 
 void Control::SetFocusable(bool focusable) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (_focusable != focusable)
     {
         _focusable = focusable;
@@ -554,6 +560,7 @@ bool Control::Tick(ControlHost& /*host*/, uint64_t /*nowTickMs*/)
 
 bool Control::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modifiers*/)
 {
+    const Failure::Scope entryFailureScope;
     if (! _tooltipText.empty() && PointInRect(GetHitBounds(), point))
     {
         static_cast<void>(host.SetTooltipDelayed(_tooltipText, point));
@@ -574,11 +581,13 @@ bool Control::OnMouseDown(ControlHost& /*host*/, D2D1_POINT_2F /*point*/, bool /
 
 bool Control::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)
 {
+    const Failure::Scope entryFailureScope;
     return OnMouseDown(host, point, rightButton, modifiers);
 }
 
 bool Control::OnMouseTripleClick(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)
 {
+    const Failure::Scope entryFailureScope;
     return OnMouseDown(host, point, rightButton, modifiers);
 }
 
@@ -614,6 +623,7 @@ bool Control::OnChar(ControlHost& /*host*/, wchar_t /*ch*/, UINT /*modifiers*/)
 
 bool Control::OnContextMenu(ControlHost& host, bool keyboardInvocation, D2D1_POINT_2F pointDip)
 {
+    const Failure::Scope entryFailureScope;
     if (! IsEnabled() || ! IsVisible() || ! _onContextMenu)
     {
         return false;
@@ -732,6 +742,7 @@ bool Control::HasExplicitFlowDirection() const noexcept
 
 FlowDirection Control::GetFlowDirection() const noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (_explicitFlowDirection.has_value())
     {
         return _explicitFlowDirection.value();
@@ -776,6 +787,7 @@ bool Control::HasExplicitDensity() const noexcept
 
 Density Control::GetDensity() const noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (_explicitDensity.has_value())
     {
         return _explicitDensity.value();
@@ -810,6 +822,7 @@ std::wstring_view Control::GetConnectedAnimationKey() const noexcept
 
 void Control::SetAccessibleName(std::wstring name)
 {
+    const Failure::Scope outerFailureScope;
     if (_accessibleName != name)
     {
         _accessibleName     = std::move(name);
@@ -831,6 +844,7 @@ std::wstring_view Control::GetAccessibleName() const noexcept
 
 void Control::SetAccessibleHelpText(std::wstring helpText)
 {
+    const Failure::Scope outerFailureScope;
     if (_accessibleHelpText != helpText)
     {
         _accessibleHelpText = std::move(helpText);
@@ -852,6 +866,7 @@ std::wstring_view Control::GetAccessibleHelpText() const noexcept
 
 HRESULT Control::SetAccessibleFormProperties(Control* label, bool required, bool dataValid, std::wstring itemStatus) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (label == this)
         return E_INVALIDARG;
     if (GetAccessibleLabelledBy() == label && IsAccessibleRequiredForForm() == required && IsAccessibleDataValidForForm() == dataValid &&
@@ -881,8 +896,7 @@ HRESULT Control::SetAccessibleFormProperties(Control* label, bool required, bool
     }
     catch (const std::bad_alloc&)
     {
-        // Leave the previous complete presentation metadata usable when allocation fails.
-        return E_OUTOFMEMORY;
+        Failure::FailAllocation();
     }
 }
 
@@ -908,6 +922,7 @@ std::wstring_view Control::GetAccessibleItemStatus() const noexcept
 
 void Control::SetAccessibleAutomationId(std::wstring automationId)
 {
+    const Failure::Scope outerFailureScope;
     if (_accessibleAutomationId != automationId)
     {
         _accessibleAutomationId = std::move(automationId);
@@ -925,6 +940,7 @@ std::wstring_view Control::GetAccessibleAutomationId() const noexcept
 
 void Control::SetAccessibilityRole(AccessibilityRole role) noexcept
 {
+    const Failure::Scope outerFailureScope;
     if (_accessibilityRole != role)
     {
         _accessibilityRole  = role;
@@ -960,6 +976,7 @@ void Control::SetAccessibleInvoke(std::function<void(ControlHost&)> onInvoke)
 
 void Control::SetAccessibleInvokeResult(std::function<HRESULT(ControlHost&)> onInvoke)
 {
+    const Failure::Scope outerFailureScope;
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     ReplaceControlCallback(_onAccessibleInvoke, std::move(onInvoke));
     if (lifetime.expired())
@@ -985,6 +1002,7 @@ bool Control::InvokeAccessible(ControlHost& host)
 HRESULT Control::InvokeAccessibleResult(ControlHost& host) noexcept
 try
 {
+    const Failure::Scope outerFailureScope;
     if (! _onAccessibleInvoke || ! IsVisible())
         return UIA_E_NOTSUPPORTED;
     if (! IsEnabled())
@@ -994,13 +1012,11 @@ try
 }
 catch (const std::bad_alloc&)
 {
-    // An application callback cannot propagate allocation failure through UI Automation.
-    return E_OUTOFMEMORY;
+    Failure::FailAllocation();
 }
 catch (const std::exception&)
 {
-    // Report a failed application callback to the COM caller without repeating its action.
-    return E_FAIL;
+    Failure::FailUnexpected();
 }
 
 void Control::SetOnContextMenu(std::function<void(POINT screenPoint, bool keyboardInvocation)> onContextMenu)
@@ -1054,6 +1070,7 @@ bool Control::DismissOverlayOnPointerDown(ControlHost& host, D2D1_POINT_2F point
 
 POINT Control::ResolveContextMenuAnchor(ControlHost& host, bool keyboardInvocation, D2D1_POINT_2F pointDip) const noexcept
 {
+    const Failure::Scope outerFailureScope;
     // Pointer dispatch uses content coordinates. Walk the logical parents, including non-Panel owners such
     // as PageHost, before the virtual hit-bounds query so no control state is read after that query. The walk also
     // gathers, in this control's coordinates, the part of the window the scroll viewports show.
@@ -1265,6 +1282,7 @@ void Control::Reparent(Panel* parent, ControlHost* host) noexcept
 
 void Control::ReparentWithPreviousInheritance(Control* parent, ControlHost* host, FlowDirection flowDirection, Density density) noexcept
 {
+    const Failure::Scope outerFailureScope;
     const std::weak_ptr<int> lifetime       = GetLifetimeToken();
     const std::weak_ptr<int> parentLifetime = parent ? parent->GetLifetimeToken() : std::weak_ptr<int>{};
     // The flow direction and density a control inherits resolve through its parent chain (a root takes its host's
@@ -1339,6 +1357,7 @@ void Control::OnBoundsChanged() noexcept
 
 void Control::OnFlowDirectionChanged() noexcept
 {
+    const Failure::Scope outerFailureScope;
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     InvalidateMeasure();
     if (lifetime.expired())
@@ -1356,6 +1375,7 @@ void Control::OnFlowDirectionChanged() noexcept
 
 void Control::OnDensityChanged() noexcept
 {
+    const Failure::Scope outerFailureScope;
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     InvalidateMeasure();
     if (lifetime.expired())

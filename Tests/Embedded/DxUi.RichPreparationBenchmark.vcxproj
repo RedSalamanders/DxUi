@@ -5,10 +5,10 @@
   <PropertyGroup Label="Configuration"><ConfigurationType>Application</ConfigurationType><PlatformToolset>v145</PlatformToolset><UseDebugLibraries Condition="'$(Configuration)'=='Debug' or '$(Configuration)'=='ASan Debug'">true</UseDebugLibraries><UseDebugLibraries Condition="'$(Configuration)'=='Release'">false</UseDebugLibraries></PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ItemDefinitionGroup>
-    <ClCompile><AdditionalOptions>/external:I"$(TargetRoot)\.build\vcpkg_installed\$(Platform)\$(DxUiTriplet)\include" /external:W0 %(AdditionalOptions)</AdditionalOptions><AdditionalIncludeDirectories>$(TargetRoot)\include;$(TargetRoot)\.build\vcpkg_installed\$(Platform)\$(DxUiTriplet)\include;$(TargetRoot)\Samples\EmbeddedControls;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories></ClCompile>
-    <Link><SubSystem>Console</SubSystem><AdditionalDependencies>$(TargetRoot)\.build\$(Platform)\$(Configuration)\DxUi.lib;%(AdditionalDependencies)</AdditionalDependencies></Link>
+    <ClCompile><AdditionalOptions>/external:I"$(TargetRoot)\.build\vcpkg_installed\$(Platform)\$(DxUiTriplet)\include" /external:W0 %(AdditionalOptions)</AdditionalOptions><AdditionalIncludeDirectories>$(TargetRoot)\include;$(TargetRoot)\.build\vcpkg_installed\$(Platform)\$(DxUiTriplet)\include;$(TargetRoot)\Samples\EmbeddedControls;$(TargetRoot)\Samples\Shared;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories></ClCompile>
+    <Link><SubSystem>Console</SubSystem><AdditionalDependencies>$(TargetRoot)\.build\$(Platform)\$(Configuration)\DxUi.lib;DbgHelp.lib;%(AdditionalDependencies)</AdditionalDependencies></Link>
   </ItemDefinitionGroup>
   <Target Name="RequireTargetRoot" BeforeTargets="PrepareForBuild"><Error Condition="'$(TargetRoot)'==''" Text="Pass TargetRoot for the exact test-enabled matching-platform/configuration producer." /></Target>
-  <ItemGroup><ClCompile Include="Embedded.Tests.RichPreparationBenchmark.cpp" /></ItemGroup>
+  <ItemGroup><ClCompile Include="Embedded.Tests.RichPreparationBenchmark.cpp" /><ClCompile Include="..\..\Samples\Shared\FailureHost.cpp" /></ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

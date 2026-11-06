@@ -3,6 +3,7 @@
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "Embedded.Tests.EmbeddedUiaBridge.h"
 #include "GraphicsFixture.h"
+#include "Support.Tests.FailureHost.h"
 #include "Support.Tests.UiaTestClient.h"
 
 #include <array>
@@ -27,14 +28,14 @@ enum class Hosting
 // so give each embedded case its own apartment and activation guard rather than inheriting earlier tests' COM state.
 void RunEmbeddedFormTest(void (*test)(Hosting))
 {
-    std::jthread owner([test]()
+    RequireSucceeded(DxUiFailureTests::RunRetainedAccessibilitySta(
+                         [test]()
     {
-        RequireSucceeded(CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED), "initialize embedded form's application STA");
-        const auto apartment = wil::scope_exit([]() noexcept { CoUninitialize(); });
         DxUi::TestSupport::ScopedWindowActivationBlocker activation;
         Require(activation.Start(), "embedded form's application STA refuses activation");
         test(Hosting::Embedded);
-    });
+    }),
+                     "run embedded form in a retained application STA");
 }
 
 [[nodiscard]] bool ReadBool(IRawElementProviderSimple& provider, PROPERTYID property)

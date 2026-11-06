@@ -1,4 +1,5 @@
 #pragma once
+#include <DxUi/RichDocument.h>
 #include <array>
 #include <cstddef>
 #include <optional>
@@ -105,6 +106,8 @@ public:
     static constexpr std::size_t MaximumTextUnits = 1024u;
     AccessibilityLabels() noexcept                = default;
     explicit AccessibilityLabels(std::span<const AccessibilityTextOverride> entries);
+    // Refusal leaves output unchanged; the dictionary owns all admitted strings.
+    [[nodiscard]] static SourceResult TryCreate(std::span<const AccessibilityTextOverride> entries, std::shared_ptr<const AccessibilityLabels>& output);
     AccessibilityLabels(const AccessibilityLabels&)            = delete;
     AccessibilityLabels& operator=(const AccessibilityLabels&) = delete;
     AccessibilityLabels(AccessibilityLabels&&)                 = delete;
@@ -115,6 +118,8 @@ public:
     // Footnote labels require {0}; return-reference labels also require {1}.
     // Tokens may reorder, must each occur once and accept no format directives.
     [[nodiscard]] static std::wstring Number(const AccessibilityLabels* labels, AccessibilityTextId id, std::size_t number, std::size_t second = 0u);
+    [[nodiscard]] static SourceResult TryNumber(
+        const AccessibilityLabels* labels, AccessibilityTextId id, std::size_t number, std::size_t second, std::wstring& output);
 
 private:
     std::array<std::optional<std::wstring>, static_cast<std::size_t>(AccessibilityTextId::Count)> values_{};

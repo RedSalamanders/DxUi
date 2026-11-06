@@ -559,7 +559,7 @@ function Test-DxUiDependencies([Parameter(Mandatory)][string] $Root) {
                     $includeRoots = @([IO.Path]::GetDirectoryName($path), (Join-Path $Root 'include'))
                     if ($folder -cne 'include') { $includeRoots += Join-Path $Root 'src' }
                     if ($folder -cin @('Tests','Samples')) {
-                        $includeRoots += @('Tests/Support','Tests/Embedded','Samples/EmbeddedControls','Samples/ComplexUi' |
+                        $includeRoots += @('Tests/Support','Tests/Embedded','Samples/EmbeddedControls','Samples/ComplexUi','Samples/Shared' |
                             ForEach-Object { Join-Path $Root $_ })
                     }
                     $candidates = @($includeRoots | ForEach-Object { Get-FullPath (Join-DataPath $_ $name) })

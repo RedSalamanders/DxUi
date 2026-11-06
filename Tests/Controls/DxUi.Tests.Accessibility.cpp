@@ -5,6 +5,7 @@
 #include "Controls.Tests.HostControlRegressions.h"
 #include "Controls.Tests.RichTextAccessibility.h"
 #include "Controls/DxUi.AccessibilityTextUnits.h"
+#include "Support.Tests.FatalChildren.h"
 #include "Support.Tests.SelectionEventInterruption.h"
 #include "Support.Tests.UiaTestClient.h"
 #include "Support/PostedPayload.h"
@@ -12,6 +13,7 @@
 #include <array>
 #include <atomic>
 #include <chrono>
+#include <cstdio>
 #include <fstream>
 #include <functional>
 #include <iterator>
@@ -521,11 +523,15 @@ void TestAttachedWindowHostWmGetObjectReturnsAccessibilityProvider()
     AttachedHostWindow window;
     auto root    = std::make_unique<Panel>();
     auto* button = root->AddChild<Button>(L"Run");
+    button->SetAccessibleName(L"transport-roundtrip-button");
     button->SetBounds(D2D1::RectF(0.0f, 0.0f, 120.0f, 32.0f));
     window.Host().SetRoot(std::move(root));
 
-    const LRESULT result = SendMessageW(window.Hwnd(), WM_GETOBJECT, 0, static_cast<LPARAM>(UiaRootObjectId));
-    Require(result != 0, "attached DX host returns a UIA provider from WM_GETOBJECT");
+    // The UIA client sends and consumes WM_GETOBJECT; directly discarding its transport key leaks its provider.
+    UiaTest::Client client(window.Hwnd(), {}, [&window] { window.PumpMessages(); });
+    const auto rootElement = client.Root();
+    Require(client.Dump(rootElement).find(L"transport-roundtrip-button") != std::wstring::npos,
+            "UIA obtains the attached host's named button through its window provider");
 }
 
 void TestAccessibilityRootRuntimeIdIncludesProviderSpecificValues()
@@ -762,10 +768,24 @@ void TestAccessibilityToggleCallbacksDoNotBlockSnapshotQueries()
     Require(completedInsideCallback, "application callbacks run without the global accessibility snapshot mutex");
 }
 
-// A UI Automation action whose application callback throws ends with E_FAIL, called on the window's thread or dispatched
-// to it, for the callback contract's named standard exceptions. The actions were noexcept, so a toggle
-// handler's exception ended the process from a screen reader's command.
-void TestAccessibilityActionsContainAThrowingCallback()
+// Keep fatal callback symbols distinct under Release ICF and LTCG.
+static std::atomic<unsigned> controlFatalOriginMarker{};
+[[noreturn]] __declspec(noinline) void AccessibilityToggleRuntimeOrigin(const std::runtime_error& error)
+{
+    controlFatalOriginMarker.store(208u, std::memory_order_relaxed);
+    throw error;
+}
+[[noreturn]] __declspec(noinline) void AccessibilityToggleArgumentOrigin(const std::invalid_argument& error)
+{
+    controlFatalOriginMarker.store(209u, std::memory_order_relaxed);
+    throw error;
+}
+__declspec(noinline) void AccessibilityToggleAllocationOrigin()
+{
+    controlFatalOriginMarker.store(210u, std::memory_order_relaxed);
+    throw std::bad_alloc();
+}
+void AccessibilityToggleCallbackFixture(unsigned fatalScenario)
 {
     using namespace DxUi;
     AttachedHostWindow window;
@@ -786,13 +806,34 @@ void TestAccessibilityActionsContainAThrowingCallback()
     unsigned calls = 0u;
     toggle->SetOnToggled([&](bool)
     {
-        if (++calls == 2u)
-            throw std::invalid_argument("another standard callback failure");
-        throw std::runtime_error("the application's handler failed");
+        ++calls;
+        if (fatalScenario == 1u || fatalScenario == 4u)
+        {
+            const std::runtime_error error("toggle callback failure");
+            AccessibilityToggleRuntimeOrigin(error);
+        }
+        if (fatalScenario == 2u)
+        {
+            const std::invalid_argument error("toggle callback failure");
+            AccessibilityToggleArgumentOrigin(error);
+        }
+        if (fatalScenario == 3u)
+            AccessibilityToggleAllocationOrigin();
     });
+    if (fatalScenario >= 1u && fatalScenario <= 3u)
+    {
+        (void)action->Toggle();
+        return;
+    }
+    if (fatalScenario == 0u)
+    {
+        Require(DxUiFailureTests::ExpectFatalChild(L"accessibility-toggle-runtime"), "toggle runtime exception terminates its owned child");
+        Require(DxUiFailureTests::ExpectFatalChild(L"accessibility-toggle-argument"), "toggle argument exception terminates its owned child");
+        Require(DxUiFailureTests::ExpectFatalChild(L"accessibility-toggle-allocation"), "toggle allocation exception terminates its owned child");
+        Require(DxUiFailureTests::ExpectFatalChild(L"accessibility-toggle-dispatched"), "dispatched toggle exception terminates its owned child");
+        RequireSucceeded(action->Toggle(), "healthy toggle action succeeds");
+    }
 
-    Require(action->Toggle() == E_FAIL && calls == 1u, "a handler's std::exception ends the action with E_FAIL");
-    Require(action->Toggle() == E_FAIL && calls == 2u, "another standard exception ends the action with E_FAIL too");
     std::atomic<HRESULT> dispatched{E_PENDING};
     std::thread worker([&]
     {
@@ -808,15 +849,31 @@ void TestAccessibilityActionsContainAThrowingCallback()
         static_cast<void>(MsgWaitForMultipleObjects(0u, nullptr, FALSE, 10u, QS_ALLINPUT));
     }
     worker.join();
-    Require(dispatched.load(std::memory_order_acquire) == E_FAIL && calls == 3u, "an action dispatched to the window's thread ends with E_FAIL");
+    if (fatalScenario != 0u)
+        return;
+    Require(dispatched.load(std::memory_order_acquire) == S_OK && calls == 2u, "healthy dispatched toggle action succeeds");
     ToggleState state = ToggleState_Indeterminate;
-    RequireSucceeded(action->get_ToggleState(&state), "the provider still answers after the failures");
+    RequireSucceeded(action->get_ToggleState(&state), "the provider answers after healthy actions");
     Require(state == (toggle->IsChecked() ? ToggleState_On : ToggleState_Off), "the published state is the toggle's");
-    toggle->SetOnToggled([](bool) { throw std::bad_alloc(); });
-    Require(action->Toggle() == E_OUTOFMEMORY, "a named allocation failure retains its HRESULT at the action boundary");
-    RequireSucceeded(action->get_ToggleState(&state), "the provider still answers after allocation failure");
-    Require(state == (toggle->IsChecked() ? ToggleState_On : ToggleState_Off), "allocation failure republishes the actual state");
 }
+void TestAccessibilityActionsContainAThrowingCallback()
+{
+    AccessibilityToggleCallbackFixture(0u);
+}
+template <unsigned Scenario> void AccessibilityToggleFailureChild()
+{
+    const HRESULT hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+    if (FAILED(hr))
+        return;
+    const auto uninitialize = wil::scope_exit([] { CoUninitialize(); });
+    AccessibilityToggleCallbackFixture(Scenario);
+}
+[[maybe_unused]] const bool accessibilityToggleFailureChildrenRegistered =
+    DxUiFailureTests::RegisterFatalChildCase({L"accessibility-toggle-runtime", "AccessibilityToggleRuntimeOrigin", AccessibilityToggleFailureChild<1u>}) &&
+    DxUiFailureTests::RegisterFatalChildCase({L"accessibility-toggle-argument", "AccessibilityToggleArgumentOrigin", AccessibilityToggleFailureChild<2u>}) &&
+    DxUiFailureTests::RegisterFatalChildCase(
+        {L"accessibility-toggle-allocation", "AccessibilityToggleAllocationOrigin", AccessibilityToggleFailureChild<3u>}) &&
+    DxUiFailureTests::RegisterFatalChildCase({L"accessibility-toggle-dispatched", "AccessibilityToggleRuntimeOrigin", AccessibilityToggleFailureChild<4u>});
 
 // A UI Automation action that times out on a window whose thread does not answer gives back its payload slot (CR-28 of the
 // 10 October review): the registry's 128 slots are the process's, and each timed-out action kept one, with references to
@@ -3853,21 +3910,17 @@ void TestNativeAccessibilityProvidersRejectReplacementAtSamePath()
         const HRESULT selectHr    = range->Select();
         wil::com_ptr_nothrow<ITextRangeProvider> staleClone;
         const HRESULT cloneHr     = range->Clone(staleClone.put());
-        SAFEARRAY* staleRuntimeId = nullptr;
-        const HRESULT runtimeIdHr = actionFragment->GetRuntimeId(&staleRuntimeId);
-        const auto releaseStaleId = wil::scope_exit([&]
-        {
-            if (staleRuntimeId)
-                SafeArrayDestroy(staleRuntimeId);
-        });
+        const auto staleRuntimeId = readRuntimeId(*actionFragment.get());
+        wil::com_ptr_nothrow<IRawElementProviderSimple> staleHost;
+        const HRESULT hostHr = actionSimple->get_HostRawElementProvider(staleHost.put());
         std::cout << "    [UIA lifetime] replaceRoot=" << replaceRoot << " property=0x" << std::hex << static_cast<unsigned long>(propertyHr) << " invoke=0x"
                   << static_cast<unsigned long>(invokeHr) << " focus=0x" << static_cast<unsigned long>(focusHr) << " value=0x"
                   << static_cast<unsigned long>(valueHr) << " rangeText=0x" << static_cast<unsigned long>(rangeTextHr) << " select=0x"
-                  << static_cast<unsigned long>(selectHr) << " clone=0x" << static_cast<unsigned long>(cloneHr) << " runtimeId=0x"
-                  << static_cast<unsigned long>(runtimeIdHr) << std::dec << " replacementInvocations=" << replacementInvocations << '\n';
+                  << static_cast<unsigned long>(selectHr) << " clone=0x" << static_cast<unsigned long>(cloneHr) << " host=0x"
+                  << static_cast<unsigned long>(hostHr) << std::dec << " replacementInvocations=" << replacementInvocations << '\n';
         Require(propertyHr == UIA_E_ELEMENTNOTAVAILABLE && invokeHr == UIA_E_ELEMENTNOTAVAILABLE && focusHr == UIA_E_ELEMENTNOTAVAILABLE &&
                     valueHr == UIA_E_ELEMENTNOTAVAILABLE && rangeTextHr == UIA_E_ELEMENTNOTAVAILABLE && selectHr == UIA_E_ELEMENTNOTAVAILABLE &&
-                    cloneHr == UIA_E_ELEMENTNOTAVAILABLE && runtimeIdHr == UIA_E_ELEMENTNOTAVAILABLE && ! staleRuntimeId,
+                    cloneHr == UIA_E_ELEMENTNOTAVAILABLE && staleRuntimeId == originalRuntimeId && hostHr == S_OK && ! staleHost,
                 "retained native providers and text ranges reject same-path child/root replacements");
         Require(replacementInvocations == 0u && oldInvocations == 1u && replacementField->GetText() == L"replacement secret" &&
                     replacementField->GetSelectionRange() == std::optional<std::pair<size_t, size_t>>{{1u, 3u}} &&
@@ -5156,6 +5209,55 @@ void TestAccessibilitySnapshotDerivedPeerFactoriesRejectSamePathReplacement()
             window.Host().SetRoot(std::move(replacement));
         },
                 "table header peer creation is gated after snapshot A and before constructing header peers");
+    }
+
+    {
+        AttachedHostWindow window;
+        auto root = std::make_unique<Panel>();
+        root->AddChild<Button>(L"Retained child")->SetBounds(D2D1::RectF(0, 0, 120, 32));
+        root->AddChild<Button>(L"Sibling")->SetBounds(D2D1::RectF(0, 40, 120, 72));
+        window.Host().SetRoot(std::move(root));
+        wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> hostRoot;
+        hostRoot.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+        Require(hostRoot != nullptr, "detach race obtains its original host root");
+        wil::com_ptr_nothrow<IRawElementProviderFragment> hostFragment, child;
+        RequireSucceeded(hostRoot.query_to(hostFragment.put()), "detach race root exposes fragment navigation");
+        RequireSucceeded(hostFragment->Navigate(NavigateDirection_FirstChild, child.put()), "detach race obtains a retained child fragment");
+        Require(child != nullptr, "detach race has a child fragment");
+
+        wil::unique_event entered(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+        wil::unique_event release(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+        Require(entered && release, "create detach race peer-creation gate events");
+        DebugSetAccessibilityPeerCreationGateForTest(window.Hwnd(), entered.get(), release.get());
+        std::atomic<HRESULT> workerResult{E_PENDING};
+        std::atomic<bool> producedRoot{false};
+        std::jthread worker;
+        bool gateArmed     = true;
+        const auto cleanup = wil::scope_exit([&]() noexcept
+        {
+            static_cast<void>(SetEvent(release.get()));
+            if (worker.joinable())
+                worker.join();
+            if (gateArmed)
+                DebugSetAccessibilityPeerCreationGateForTest(nullptr, nullptr, nullptr);
+        });
+        worker             = std::jthread([&]() noexcept
+        {
+            wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> queriedRoot;
+            const HRESULT result = child->get_FragmentRoot(queriedRoot.put());
+            producedRoot.store(queriedRoot != nullptr, std::memory_order_release);
+            workerResult.store(result, std::memory_order_release);
+        });
+        Require(WaitForSingleObject(entered.get(), 5000u) == WAIT_OBJECT_0, "fragment-root query is gated after capturing the live snapshot");
+        window.Host().Detach();
+        Require(window.Host().GetHwnd() == nullptr, "detached host remains detached while peer creation is gated");
+        Require(SetEvent(release.get()) != FALSE, "release fragment-root query after host detach");
+        worker.join();
+        DebugSetAccessibilityPeerCreationGateForTest(nullptr, nullptr, nullptr);
+        gateArmed = false;
+        Require(workerResult.load(std::memory_order_acquire) == UIA_E_ELEMENTNOTAVAILABLE && ! producedRoot.load(std::memory_order_acquire) &&
+                    window.Host().GetHwnd() == nullptr,
+                "a fragment-root query racing detach cannot reopen the retired target");
     }
 }
 
@@ -8328,11 +8430,42 @@ void RunTreeMultiSelectSelectionEventsTest(bool fillsItsWindow)
     std::atomic<bool> ready{false};
     std::atomic<bool> finished{false};
     std::atomic<HRESULT> setup{E_PENDING};
+    enum class ClientStage : unsigned
+    {
+        Starting,
+        CreatingClient,
+        Subscribing,
+        WaitingForStop,
+        RemovingHandlers,
+        ReleasingCom,
+        Finished
+    };
+    std::atomic<ClientStage> stage{ClientStage::Starting};
+    std::atomic<DWORD> stopWait{WAIT_FAILED};
+    std::atomic<DWORD> waitError{ERROR_SUCCESS};
+    std::atomic<HRESULT> removal{E_PENDING};
+    const auto reportClient = [&]() noexcept
+    {
+        std::fprintf(stderr,
+                     "UIA selection client: stage=%u setup=0x%08lX wait=0x%08lX waitError=%lu removal=0x%08lX\n",
+                     static_cast<unsigned>(stage.load()),
+                     static_cast<unsigned long>(setup.load()),
+                     static_cast<unsigned long>(stopWait.load()),
+                     static_cast<unsigned long>(waitError.load()),
+                     static_cast<unsigned long>(removal.load()));
+        std::fflush(stderr);
+    };
     const HWND hwnd = window.Hwnd();
     std::jthread client([&]
     {
-        const HRESULT initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
-        const auto uninitialize   = wil::scope_exit([&]
+        // Declared first so publication follows COM pointer destruction and CoUninitialize.
+        const auto publishFinished = wil::scope_exit([&]() noexcept
+        {
+            stage.store(ClientStage::Finished);
+            finished.store(true);
+        });
+        const HRESULT initialized  = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+        const auto uninitialize    = wil::scope_exit([&]
         {
             if (SUCCEEDED(initialized))
                 CoUninitialize();
@@ -8341,8 +8474,10 @@ void RunTreeMultiSelectSelectionEventsTest(bool fillsItsWindow)
         wil::com_ptr_nothrow<IUIAutomationElement> element;
         wil::com_ptr_nothrow<IUIAutomationCacheRequest> cache;
         HRESULT hr = initialized;
+        stage.store(ClientStage::CreatingClient);
         if (SUCCEEDED(hr))
-            hr = CoCreateInstance(CLSID_CUIAutomation, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(automation.put()));
+            hr = UiaTest::CreateAutomationClient(automation.put());
+        stage.store(ClientStage::Subscribing);
         if (SUCCEEDED(hr))
             hr = automation->ElementFromHandle(hwnd, element.put());
         if (SUCCEEDED(hr))
@@ -8362,10 +8497,15 @@ void RunTreeMultiSelectSelectionEventsTest(bool fillsItsWindow)
         ready.store(true);
         if (SUCCEEDED(hr))
         {
-            static_cast<void>(WaitForSingleObject(stop.get(), 30000));
-            static_cast<void>(automation->RemoveAllEventHandlers());
+            stage.store(ClientStage::WaitingForStop);
+            const DWORD waited = WaitForSingleObject(stop.get(), INFINITE);
+            if (waited == WAIT_FAILED)
+                waitError.store(GetLastError());
+            stopWait.store(waited);
+            stage.store(ClientStage::RemovingHandlers);
+            removal.store(automation->RemoveAllEventHandlers());
         }
-        finished.store(true);
+        stage.store(ClientStage::ReleasingCom);
     });
     const auto waitUntil = [&](ULONGLONG timeoutMs, const auto& predicate)
     {
@@ -8379,12 +8519,29 @@ void RunTreeMultiSelectSelectionEventsTest(bool fillsItsWindow)
     };
     const auto stopClient = wil::scope_exit([&]() noexcept
     {
-        SetEvent(stop.get());
-        // The jthread joins after this without pumping, and the client's teardown may need this thread's providers to answer:
-        // wait for it here, pumping, as long as its setup was allowed, and fail instead of hanging in the join.
-        Require(waitUntil(kClientSetupAllowanceMs, [&] { return finished.load(); }), "the UIA client thread ends");
+        const BOOL signaled     = SetEvent(stop.get());
+        const DWORD signalError = signaled ? ERROR_SUCCESS : GetLastError();
+        if (! signaled)
+        {
+            std::fprintf(stderr, "UIA selection client: SetEvent failed: %lu\n", signalError);
+            reportClient();
+        }
+        Require(signaled != FALSE, "signal the UIA client to stop");
+        // Pump until the client's COM pointers and apartment have also been torn down, before jthread joins.
+        const bool ended = waitUntil(kClientSetupAllowanceMs, [&] { return finished.load(); });
+        if (! ended || (SUCCEEDED(setup.load()) && (stopWait.load() != WAIT_OBJECT_0 || FAILED(removal.load()))))
+            reportClient();
+        Require(ended, "the UIA client thread ends");
+        if (SUCCEEDED(setup.load()))
+        {
+            Require(stopWait.load() == WAIT_OBJECT_0, "the UIA client receives the stop signal");
+            Require(SUCCEEDED(removal.load()), "remove UIA selection event handlers");
+        }
     });
-    Require(waitUntil(kClientSetupAllowanceMs, [&] { return ready.load(); }) && SUCCEEDED(setup.load()), "subscribe the UIA selection events");
+    const bool subscribed = waitUntil(kClientSetupAllowanceMs, [&] { return ready.load(); }) && SUCCEEDED(setup.load());
+    if (! subscribed)
+        reportClient();
+    Require(subscribed, "subscribe the UIA selection events");
 
     // What the client heard after `action`: the different events that arrived once the expected number had, and then none
     // came for a quiet period. The client hears each event again a moment after the first time, so the stream is waited

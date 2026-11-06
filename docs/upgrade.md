@@ -1,6 +1,121 @@
 # Upgrade a DxUi consumer
 
-This guide covers the **2 November 2026 delivery**, merged in
+**API 5:** the recorded x64 library scope is qualified at `f6791b5070efd1fa8dc86601bc9422ae9a321d2e`;
+see the [evidence](../Measurements/FailurePolicy_2026-11-06/README.md). Native ARM64 execution, formal
+performance-policy qualification and each consumer product's integration remain separate. The exact lock below
+identifies the tested library; applying it does not implement an application's host or adapter migration.
+The application owns `Failure::ProcessHooks`, its reporter, crash storage and termination policy. Install it on the
+application owner thread before constructing controls or entering DxUi. Pass its versioned POD `HostServices` to
+each independently linked module and register there outside `DllMain`, before that module creates objects or starts
+workers. Stop new work, join workers, destroy controls, detach every module, and uninstall the host on its installing
+thread. [The example host](../Samples/Shared/FailureHost.h) illustrates ownership; consumers must qualify their own
+original-context dump handling, module boundaries and native configurations. The
+[implementation record](../Specs/Plans/Done/FailurePolicy_2026-11-02.md) records the scope and remaining limits.
+
+Direct stack, `new` and `std::make_unique` control construction requires an enclosing host-owned `Failure::Scope`.
+`Separator()` is again declared `noexcept`; this does not make member construction fallible or permit unexpected
+exceptions to continue. `CreateControl` uses genuinely checked outer heap storage: check its HRESULT and retain the
+existing output on failure. Nested C++/STL construction failure takes the fatal host route. Use the new checked
+setters and query results for invalid input, preserve checked native HRESULTs, and handle `MarkdownParser::Advance`
+returning `Failed` without replacing its prior publication. Audit custom allocations and placement construction.
+Rebuild every EXE and DLL with the exact matching headers, archive, compiler, platform, configuration and CRT; API 5
+changes both source contracts and object layout. Changing a lock alone neither ports nor qualifies an application.
+
+SDK ZIP users keep the matching `DxUi.pdb` beside `DxUi.lib` when linking, and retain the resulting application/DLL
+PDBs for dump analysis. The SDK manifest binds both producer files; copying the library alone can lose library
+debug information. A source-pin build produces its matching compiler PDB in its isolated output automatically.
+
+For ASan diagnostic applications, configure the existing `ASAN_SAVE_DUMPS` facility to an application-owned
+location before startup and verify the actual written path; use a short name/path supported by the runtime.
+MSVC's sanitizer can abort an allocation before the C++ new-handler; its saved dump is
+sanitizer-owned evidence. Preserve Visual Studio's sanitizer callback rather than installing a competing one.
+Ordinary Debug/Release and escaping C++ exceptions retain the failure-host contract described here.
+
+Use failure host **protocol 2** consistently in every EXE and DLL. It adds native-call
+entry/exit handling so Windows can handle its own internal exceptions while reentrant
+DxUi callbacks remain protected. Prefer the provided `ProcessHooks` table; a custom
+table must implement and qualify the complete protocol. Keep the reporter and module
+registration alive until outstanding UI Automation peers, retained snapshots and
+queued notifications are released. `Uninstall`/`Detach` returns `BUSY` while these
+objects still pin the host; closing a view alone does not prove their completion.
+Public input and callback-dispatch methods enter their own failure scopes even
+when called directly. Keep your own construction and argument preparation scoped
+where they can allocate; a callee's scope starts after its arguments are evaluated.
+
+Keep application scopes around direct work and construction, and outside the native message pump and COM
+initialization/cleanup. At final process shutdown, retire views/clients and invoke `UiaDisconnectAllProviders`
+while COM and the reporter are still alive; a component DLL must not perform that process-wide operation.
+Keep each STA that registered an asynchronous accessibility interface COM-initialized and pumping until its
+GIT registrations have been revoked; disconnecting a view alone does not establish that an in-flight delivery
+has finished. There is no per-view drain notification, so retain the registering STA through the process-owned
+UIA and failure-host drain unless the application independently establishes completion.
+The example's explicit `Host::UninstallWhenIdle` then retries `BUSY` with owner-message dispatch and a five-second
+cooperative deadline. Stop new work first: a blocked application window procedure cannot be interrupted by that
+deadline. Timeout remains a failed shutdown. Retired UIA providers keep readable immutable runtime IDs and null
+windowless/non-root HWND-host answers so native cleanup can complete; their state, navigation and actions stay unavailable.
+Asynchronous UIA delivery now owns a shared registration lease until its proxy is released. Closing a view
+retires its cache and baselines, and a late query cannot recreate the old canonical root. Keep the failure host
+installed until those leases and retained providers finish; do not discard `BUSY` or force an unowned COM release.
+
+For editor configuration, handle `TrySetDefaultContextMenuLabels`, `TrySetMarkdownAnalysisProfile`,
+`TrySetMarkdownAnalysisExtensions`, `TrySetMarkdownRenderingEnabled` and `TrySetOnCodeCopyRequested` results.
+`TrySetDecorations` returns an HRESULT: invalid ranges use `E_INVALIDARG`, capacity uses `E_BOUNDS`,
+and a stale source uses `HRESULT_FROM_WIN32(ERROR_REVISION_MISMATCH)`; native query errors are returned unchanged.
+Use checked document and syntax queries such as `TrySlice` and `TryLexemeValue` for externally supplied ranges.
+Handle checked native preparation HRESULTs in the application, including device loss and allocation refusal;
+do not rely on catching a C++ exception as the native error channel. Legacy convenience entrypoints that cannot
+report invalid input use the host contract-failure route.
+
+Keep scheduling optional editor visuals after content becomes ready. `preparationPending` reports content
+prerequisites; individual syntax, code-ink or source-guide diagnostics can still be pending. Embedded hosts
+continue on `NeedsPreparation()` and the existing owner-turn request while composing the current coherent
+surface. Custom hosts must preserve that continuation without polling. Tokenizers now run only for visible
+code blocks plus overscan, at most once per turn; do not use those callbacks for document-wide side effects.
+Returned token refusal uses ordinary ink; an unexpected tokenizer exception is fatal through the host.
+
+Audit application callbacks, model/delegate methods and custom controls as part of the port. An unexpected C++
+exception escaping a callback invoked by DxUi is fatal through the host, including after an editor change was
+committed. Return expected refusal through that callback's documented status or value; do not depend on an
+exception being caught and execution continuing. This also applies across Win32, COM and module boundaries.
+
+### Port checked operations
+
+Use the checked form whenever data, ranges, identities or configuration can come from the application or a user.
+Legacy convenience forms that cannot report a refusal take the fatal contract path on invalid input. The table
+is a migration map, not a substitute for each declaration's bounds and ownership contract.
+
+| Earlier operation | API 5 checked operation and result |
+| --- | --- |
+| Editor `SetText`, `SetSelection`, `SetDocumentFilePath`, `SetViewMode`, `SetAppearance`, `SetZoom`, search/highlight, labels and Markdown configuration | Corresponding `TrySet...` returns `RichText::SourceResult`; `TrySetDecorations` returns `HRESULT`. Check the declaration for its exact parameters. |
+| `Document::Reset`, `SetSelection`, `Replace`, `ReplaceWholeText`, `ReplaceTransient`, `ReplaceSelection` | Corresponding `Try...` returns `SourceResult`; replacements also write `changed`, distinguishing a successful no-op from a changed document. |
+| `DecodeUtf8`, `EncodeUtf8`, snapshot/syntax slices and lexeme queries | Use `TryDecodeUtf8`, `TryEncodeUtf8`, `TrySlice` and `TryLexeme...`, with their checked output parameters. |
+| Projection, source/display mapping and source search | Use `TryProject`, `TryPrepare`, checked `TryToSource`/`TryToDisplay` and range mapping, or `TryFindInSource`; inspect `SourceResult`. |
+| Markdown command planning or application and source edits | Use `TryBuildMarkdownCommand`/`TryBuildMarkdownDeletion`, `TryApplyMarkdownCommand` and `TryApplySourceEdits`. Check `SourceResult` and the returned plan or `changed`; a successful inapplicable plan is not a failure. |
+| Semantic construction and export | Use `SemanticBuilder::TrySetSoftBreakPolicy`/`TryBegin`, `TryExportSemanticDocument`/`TryExportMarkdownSyntax`, and checked word/heading helpers. |
+| Prepared text/document layout and queries | Use `TryPrepare`, `TryHitTest`, `TryCaret`, `TryRange`, `TryDraw` and other matching `Try...` mapping/navigation queries; inspect the exact `HRESULT`. |
+
+`SourceResult` distinguishes success from invalid source, capacity, invalid range, stale identity and invalid
+argument. Checked refusals preserve the documented output or transaction state; replacement `changed` is false
+on refusal. Do not read an output as a new result until its status succeeds. Unexpected C++ allocation failures
+remain fatal rather than becoming a `SourceResult`; a returned native allocation or device HRESULT remains an
+explicit error channel.
+
+For incremental work, inspect `MarkdownParser::Advance` and `SemanticBuilder::Advance` for
+`MarkdownPreparationStatus::Failed` and their `MarkdownAdvance::result`; do not treat it as `Pending`.
+An advance capacity failure discards staged work and preserves the last publication. Admission refusal preserves
+existing pending/published work; the semantic builder's zero-budget rejection also preserves staging.
+`PreparedDocumentLayout::BeginPreparation` can return `LayoutPreparationStatus::Failed` and exposes `Result()`;
+`AdvancePreparation` can return `Failed` with its exact `LayoutAdvance::result`, discarding staging while retaining
+the published layout. Handle the returned status and native HRESULT before deciding whether to retry or fall back;
+do not spin on a permanent failure.
+
+**Historical failure-policy review, 2 November 2026:** the [target allocation/exception policy](../Specs/Core/Core_FailureHandling.md)
+requires checked nonthrowing refusal or host fatal diagnostics with useful originating context and dump. Published
+source `5fc4d4c383bfa4891ee57a138924107bbbf11a2e` still uses exception recovery and is not qualified against that
+new requirement. Consult the [implementation record](../Specs/Plans/Done/FailurePolicy_2026-11-02.md); this guide's
+description of current constructor/API behavior is not an endorsement of exception propagation as normal error handling.
+
+The historical API 4 changes below come from the **2 November 2026 delivery**, merged in
 [PR #159](https://github.com/RedSalamanders/DxUi/pull/159), and the application work needed to adopt it.
 Its original runtime delivery commit is:
 
@@ -8,12 +123,11 @@ Its original runtime delivery commit is:
 6df17007875ae731a3808b475b10bd056328bbdf
 ```
 
-For first consumer adoption, select the final reviewed main commit **including this guide**, and record its
-complete 40-character SHA in the lock. A documentation-only descendant can advance the consumer pin while
-retaining the delivered native inputs. The original SHA above identifies the implementation/evidence cohort;
-it does not require a new consumer to remain on the pre-guide commit. Review any intervening code changes.
+The SHA above is the historical API 4 implementation/evidence cohort, not an API 5 pin. The tested API 5 library
+commit is `f6791b5070efd1fa8dc86601bc9422ae9a321d2e` for the recorded x64 scope. Select a reviewed exact commit,
+record its complete SHA in the consumer lock, review intervening changes and qualify the consumer's own targets.
 
-The library still declares **API revision 4** and one static target, **DxUi**. C++ object layouts have changed:
+The historical delivery declared **API revision 4** and one static target, **DxUi**. C++ object layouts have changed:
 rebuild every module that uses DxUi with matching headers, archive, compiler, configuration and CRT.
 An unchanged API revision does not establish binary compatibility.
 
@@ -21,9 +135,9 @@ An unchanged API revision does not establish binary compatibility.
 
 | Current consumer | Work to do |
 | --- | --- |
-| Already on API 4 | Update the exact pin, review the delivery changes below, restore isolated dependencies and rebuild the full dependent closure. Existing supported consumer imports remain available. |
-| Still on API 3 | Also port the revision-4 Grid/Tree focus and selection, child/tab transfer and menu contracts below. Update the consumer's expected-revision guard together with its adapters and lock. |
-| API 2 or older | First apply the earlier interface/script renames in the [compatibility contract](../Specs/Build/Build_ToolchainAndConsumption.md#compatibility-and-the-consumer-interface), then the revision-4 migration. |
+| Already on API 4 | Implement the API 5 host, checked-result and rebuild work above; select a reviewed exact API 5 pin and qualify the consumer. |
+| Still on API 3 | Also port the historical revision-4 Grid/Tree focus and selection, child/tab transfer and menu contracts below. Update the consumer's expected-revision guard together with its adapters and lock. |
+| API 2 or older | First apply the earlier interface/script renames in the [compatibility contract](../Specs/Build/Build_ToolchainAndConsumption.md#compatibility-and-the-consumer-interface), then the revision-4 and API 5 migrations. |
 
 Read the actual `Dependencies/DxUi.lock.json` in the application branch being upgraded. Historical pins in plans
 or another application's successful build do not identify or qualify this application's starting point.
@@ -35,19 +149,18 @@ or another application's successful build do not identify or qualify this applic
    [getting started](getting-started.md#consume-the-library) and the
    [consumption contract](../Specs/Build/Build_ToolchainAndConsumption.md).
 2. Use the consumer's existing update workflow, or edit its exact lock in that reviewed change. Preserve any
-   additional consumer-owned fields. This minimal implemented lock illustrates the original runtime delivery;
-   replace `commit` with the final reviewed main SHA selected for adoption, including this guide:
+   additional consumer-owned fields. The tested API 5 library lock is:
 
    ```json
    {
      "repository": "https://github.com/RedSalamanders/DxUi",
-     "commit": "6df17007875ae731a3808b475b10bd056328bbdf",
-     "apiRevision": 4,
+     "commit": "f6791b5070efd1fa8dc86601bc9422ae9a321d2e",
+     "apiRevision": 5,
      "targets": ["DxUi"]
    }
    ```
 
-   A consumer that explicitly expects API 3 must port its adapters and advance that guard as part of the same
+   A consumer that explicitly expects API 3 or 4 must port its adapters and advance that guard in the same
    change. Changing the lock alone will correctly fail restore. Pin the complete commit, rather than `main`.
 3. Run the consumer's restore entrypoint for each target architecture. It resolves a clean, isolated source
    checkout and fingerprinted outputs; it must leave any developer sibling checkout alone. Its resolved
@@ -65,7 +178,7 @@ or another application's successful build do not identify or qualify this applic
    root. A new `DxUi.lib` linked with old consumer objects is not a valid migration. Keep the build's zero-warning,
    zero-error result and source/dependency/toolchain identity.
 6. Run the consumer checks below, record outcomes and remaining gates, then publish/merge the consumer change
-   through its own workflow. Library PR #159 does not change an application lock or complete product adoption.
+   through its own workflow. A library delivery does not change an application lock or complete product adoption.
 
 ### Existing consumer entrypoints
 
@@ -95,7 +208,7 @@ for implementation dispositions and executed evidence.
 | --- | --- |
 | C++ compatibility | Public retained/host/document/clipboard types gained state. Recompile the full closure. Review aggregate initialization and exhaustive enum switches against the new headers; avoid positional field assumptions or persisted enum ordinals. |
 | Rich editor appearance | `RichTextEditorAppearance` inserts fields before `maximumTextWidthDip`, including source presentation and the default-off `directSourceInkPreview`. Replace positional initialization with member assignment or designated members; keep the application's intended defaults. |
-| Custom code | `Separator()` is no longer `noexcept`. Review any construction traits or exception-boundary assumptions that depend on its old declaration. New `PointerAction`, `WindowHostCursorKind`, Markdown diagnostic and semantic entries need appropriate handling in application switches. |
+| Custom code | The historical API 4 delivery removed `Separator()`'s `noexcept`; API 5 restores it under the fatal host contract above. Review construction traits and ensure direct construction is scoped. New `PointerAction`, `WindowHostCursorKind`, Markdown diagnostic and semantic entries need appropriate handling in application switches. |
 | Embedded rendering | `Prepare` can change PS shader-resource slot 0 and output-merger targets. Rebind application graphics state after preparation. Handle failed preparation without a tight retry loop; a superseded-frame `E_ABORT` requests another owner turn. See [hosting](hosting.md#embedded-view). |
 | Native visibility | Optional `ControlHost::SetNativePresentationVisible(false)` suppresses native drawing and animation for application-known occlusion. Restore `true` when presentation is needed. It defaults to visible, requires the attached owner thread, and does not discover covering windows. Embedded hosting continues to use `SetVisible`. |
 | Exact source and metadata | Counted RichText source preserves BOM, embedded NUL and mixed CR/LF/CRLF. Keep length/revision-aware mirrors and UTF-16 offsets. RichMarkdown closed front matter now has bounded YAML/TOML validation; handle syntax, duplicate-key, alias and capacity diagnostics separately. Application schemas and structured property editing remain application-owned. |
@@ -173,9 +286,13 @@ receipts, remaining gates and rollback in the **consumer's** reviewed change. It
 requirements continue to apply. The [shared qualification ledger](../Specs/Plans/Done/ConsumerUiQualification_2026-10-11.md)
 remains open for the separately owned platform, physical-input, adoption and performance obligations.
 
-The delivery's paired performance study remains unqualified because its controls were unstable. The same-toolset
-library archive grew 24.42%, and the EmbeddedControls sample grew 77.54%; these are library/sample observations,
-not an application size or speed prediction. Measure the consumer's relevant workloads and packaged output.
+An earlier paired study remained unqualified because its controls were unstable. In that historical cohort, the
+same-toolset library archive grew 24.42%, and the EmbeddedControls sample grew 77.54%; these are historical
+library/sample observations, not an application size or speed prediction. The user accepted the safety overhead
+observed in the current descriptive construction study: median changes of +10.355 ns for Separator, +2.4 ns for
+Panel and +16.285 ns for RichTextEditor. The formal performance policy remains unqualified; see the
+[evidence](../Measurements/FailurePolicy_2026-11-06/README.md) for scope and limitations. Measure the consumer's
+relevant workloads and packaged output.
 
 For rollback, restore the preceding consumer commit containing its lock **and** related adapter/toolchain changes,
 run its normal exact-pin restore, and rebuild the full dependent closure against that pin. Retain the failed new-pin

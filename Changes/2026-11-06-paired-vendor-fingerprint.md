@@ -1,0 +1,1 @@
+- Include libfyaml 0.9.4 in paired library source fingerprints so vendor-only changes distinguish named trees; add focused fingerprint coverage and bind the proposed review target to the current judge bytes. The policy stays unqualified and its numerical rules are unchanged. Final validation remains pending.

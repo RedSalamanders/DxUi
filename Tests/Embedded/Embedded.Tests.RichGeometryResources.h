@@ -1,11 +1,20 @@
 #include "Controls/TextClipboard.h"
 #include "Support.Tests.ClipboardFixture.h"
+#include "Support.Tests.RichSemanticGeometry.h"
 #pragma once
 #include "Controls/DxUi.PaintIndex.h"
 #include "Controls/DxUi.PreparedMath.h"
 #include "Controls/DxUi.RichSourceGuides.h"
 #include <DxUi/RichTextLayout.h>
-static void TestPaintIndexTransactionalBuild()
+#include <span>
+__declspec(noinline) static void RichPaintIndexFaultOrigin(DxUi::RichText::Detail::PaintIndex& index, std::span<const D2D1_RECT_F> replacement)
+{
+    DxUi::Failure::Scope scope;
+    failAllocationAfter = 0u;
+    index.Build(replacement.size(), [&](size_t i) { return replacement[i]; });
+    failAllocationAfter = std::numeric_limits<size_t>::max();
+}
+static void TestPaintIndexTransactionalBuild(bool fatalChild = false)
 {
     using DxUi::RichText::Detail::PaintIndex;
     const std::array<D2D1_RECT_F, 2u> original{{{0.f, 0.f, 10.f, 10.f}, {0.f, 50.f, 10.f, 60.f}}};
@@ -19,21 +28,12 @@ static void TestPaintIndexTransactionalBuild()
         return result;
     };
     Check(count(0.f, 5.f) == 1u && count(10.f, 11.f) == 1u, "paint index includes exact-boundary stroke ink");
-    bool failed{};
+    if (fatalChild)
     {
-        const auto oldFailure = failAllocationAfter;
-        const auto restore    = wil::scope_exit([=]() noexcept { failAllocationAfter = oldFailure; });
-        failAllocationAfter   = 0u;
-        try
-        {
-            index.Build(replacement.size(), [&](size_t i) { return replacement[i]; });
-        }
-        catch (const std::bad_alloc&)
-        {
-            failed = true;
-        }
+        RichPaintIndexFaultOrigin(index, replacement);
+        Check(false, "paint index allocation child must not continue");
     }
-    Check(failed && count(0.f, 5.f) == 1u && count(100.f, 105.f) == 0u, "failed index rebuild retains the old immutable tree");
+    Check(DxUiFailureTests::ExpectFatalChild(L"embedded-paint-index-allocation"), "paint index allocation fails in its owned child");
     index.Build(replacement.size(), [&](size_t i) { return replacement[i]; });
     Check(count(0.f, 5.f) == 0u && count(100.f, 105.f) == 1u, "a second index build replaces the prior tree");
     index.Build(0u, [&](size_t i) { return replacement[i]; });
@@ -45,7 +45,17 @@ static wil::com_ptr<IDWriteFactory> RichGeometryFactory()
     Hr(DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), reinterpret_cast<IUnknown**>(factory.put())), "rich resource DWrite factory");
     return factory;
 }
-static void TestMathPreparationAllocationFailures(const wchar_t* source)
+__declspec(noinline) static void RichMathAllocationOrigin(IDWriteFactory* factory, const std::shared_ptr<const DxUi::RichText::MathExpression>& expression)
+{
+    DxUi::Failure::Scope scope;
+    failAllocationAfter = 0u;
+    auto result         = std::make_unique<DxUi::RichText::Detail::PreparedMath>(factory, expression, 24.f);
+    while (! result->Advance())
+    {
+    }
+    failAllocationAfter = std::numeric_limits<size_t>::max();
+}
+static void TestMathPreparationAllocationFailures(const wchar_t* source, bool fatalChild = false)
 {
     using namespace DxUi::RichText;
     const auto factory    = RichGeometryFactory();
@@ -77,27 +87,17 @@ static void TestMathPreparationAllocationFailures(const wchar_t* source)
         points                        = allocations;
     }
     Check(points > 0u && points < 4096u, "math preparation has a bounded observed allocation schedule");
-    for (size_t point = 0u; point < points; ++point)
+    if (fatalChild)
     {
-        bool failed{};
-        {
-            const auto previous = failAllocationAfter;
-            const auto restore  = wil::scope_exit([=]() noexcept { failAllocationAfter = previous; });
-            failAllocationAfter = point;
-            try
-            {
-                static_cast<void>(prepare());
-            }
-            catch (const std::bad_alloc&)
-            {
-                failed = true;
-            }
-        }
-        Check(failed && retained->Size().width == original.width && retained->Size().height == original.height,
-              "math preparation allocation failure preserves the prior complete formula");
-        const auto retried = prepare();
-        Check(retried->Size().width == original.width && retried->Size().height == original.height, "math preparation retries after each allocation failure");
+        RichMathAllocationOrigin(factory.get(), expression);
+        Check(false, "math preparation allocation child must not continue");
     }
+    const auto* child = std::wstring_view(source) == L"1_1^1" ? L"embedded-math-kern-allocation" : L"embedded-math-color-allocation";
+    Check(DxUiFailureTests::ExpectFatalChild(child), "math preparation allocation fails in its owned scenario child");
+    const auto repeated = prepare();
+    Check(retained->Size().width == original.width && retained->Size().height == original.height && repeated->Size().width == original.width &&
+              repeated->Size().height == original.height,
+          "repeated math preparation preserves the held complete formula");
 }
 static void TestMathKernPreparationAllocationFailures()
 {
@@ -144,7 +144,14 @@ static void TestRichPreparedLayoutClearAllocationBudget(bool trace = false)
           "prepared layout retirement and empty content never allocate, including failure point zero");
     std::cout << "rich layout clear CppAllocations=" << calls << " CppRequestedBytes=" << bytes << '\n';
 }
-static void TestRichPreparedLayoutValueFailureAtomicity(bool trace = false)
+__declspec(noinline) static void RichLayoutCopyFaultOrigin(DxUi::RichText::PreparedLayout& target, const DxUi::RichText::PreparedLayout& source)
+{
+    DxUi::Failure::Scope scope;
+    failAllocationAfter = 0u;
+    target              = source;
+    failAllocationAfter = std::numeric_limits<size_t>::max();
+}
+static void TestRichPreparedLayoutValueFailureAtomicity(bool trace = false, bool fatalChild = false)
 {
     using namespace DxUi::RichText;
     const auto factory = RichGeometryFactory();
@@ -170,37 +177,18 @@ static void TestRichPreparedLayoutValueFailureAtomicity(bool trace = false)
         requests                      = allocations;
     }
     Check(requests > 0u && requests < 128u, "layout copy has a finite observed allocation schedule");
-    for (size_t failure = 0u; failure < requests; ++failure)
+    PreparedLayout candidate;
+    candidate.Prepare(factory.get(), Project(targetDocument.Snapshot(), targetDocument.Revision(), ViewMode::Rich), 310.0f);
+    if (fatalChild)
     {
-        if (trace)
-        {
-            std::fprintf(stderr, "rich layout copy failure-point=%zu\n", failure);
-            std::fflush(stderr);
-        }
-        PreparedLayout target;
-        target.Prepare(factory.get(), Project(targetDocument.Snapshot(), targetDocument.Revision(), ViewMode::Rich), 310.0f);
-        const auto generation = target.Generation();
-        const auto height     = target.Height();
-        bool rejected         = false;
-        {
-            const auto oldFailure = failAllocationAfter;
-            const auto restore    = wil::scope_exit([=] noexcept { failAllocationAfter = oldFailure; });
-            failAllocationAfter   = failure;
-            try
-            {
-                target = source;
-            }
-            catch (const std::bad_alloc&)
-            {
-                rejected = true;
-            }
-        }
-        Check(rejected && target.Ready() && target.Generation() == generation && target.Height() == height &&
-                  target.Content().source == targetDocument.Text() && source.Ready() && source.Content().source == sourceDocument.Text(),
-              "failed layout copy preserves both source and destination owners");
-        target = source;
-        Check(target.Content().source == sourceDocument.Text(), "layout copy retries after a failed allocation");
+        RichLayoutCopyFaultOrigin(candidate, source);
+        Check(false, "layout copy allocation child must not continue");
     }
+    Check(DxUiFailureTests::ExpectFatalChild(L"embedded-layout-copy-allocation"), "layout copy allocation fails in its owned child");
+    candidate = source;
+    Check(candidate.Content().source == sourceDocument.Text() && source.Ready(), "layout copy retains both source and destination values");
+    if (trace)
+        std::fprintf(stderr, "layout copy measured %zu allocations; fatal allocation uses an isolated child\n", requests);
     PreparedLayout target;
     {
         const auto oldFailure = failAllocationAfter;
@@ -209,9 +197,19 @@ static void TestRichPreparedLayoutValueFailureAtomicity(bool trace = false)
         target                = std::move(source);
     }
     Check(target.Ready() && ! source.Ready() && source.Content().text.empty(), "layout move assignment allocates nothing even at failure point zero");
-    std::cout << "rich layout copy allocation-failure sweptRequests=" << requests << '\n';
+    std::cout << "rich layout copy measuredRequests=" << requests << '\n';
 }
-static void TestRichDocumentGeometryFailureAtomicity(bool trace = false, bool requireWhole = false)
+__declspec(noinline) static void RichDocumentGeometryFaultOrigin(DxUi::RichText::PreparedDocumentLayout& prepared,
+                                                                 IDWriteFactory* factory,
+                                                                 const DxUi::RichText::Document& document,
+                                                                 const DxUi::RichText::LayoutOptions& options)
+{
+    DxUi::Failure::Scope scope;
+    failAllocationAfter = 0u;
+    prepared.BeginPreparation(factory, document.Snapshot(), document.Revision(), DxUi::RichText::ViewMode::Rich, options);
+    (void)prepared.AdvancePreparation({1u, 8u});
+}
+static void TestRichDocumentGeometryFailureAtomicity(bool trace = false, bool requireWhole = false, bool fatalChild = false)
 {
     using namespace DxUi::RichText;
     const auto factory = RichGeometryFactory();
@@ -238,6 +236,14 @@ static void TestRichDocumentGeometryFailureAtomicity(bool trace = false, bool re
         }
         Check(false, "fault probe continuation must terminate");
     };
+    if (fatalChild)
+    {
+        PreparedDocumentLayout prepared;
+        prepared.Prepare(factory.get(), before, revision, ViewMode::Rich, options);
+        Check(! requireWhole || prepared.UsesWholeGeometry(), "whole-geometry child enters its compatibility path");
+        RichDocumentGeometryFaultOrigin(prepared, factory.get(), document, options);
+        return;
+    }
     size_t requests = 0u;
     {
         PreparedDocumentLayout prepared;
@@ -258,41 +264,15 @@ static void TestRichDocumentGeometryFailureAtomicity(bool trace = false, bool re
         requests         = allocations;
     }
     Check(requests > 0u && requests < 2048u, "chunked geometry has a finite observed C++ allocation schedule");
-    for (size_t failure = 0u; failure < requests; ++failure)
-    {
-        if (trace)
-        {
-            std::fprintf(stderr, "rich geometry failure-point=%zu\n", failure);
-            std::fflush(stderr);
-        }
-        PreparedDocumentLayout prepared;
-        prepared.Prepare(factory.get(), before, revision, ViewMode::Rich, options);
-        const auto generation = prepared.Generation();
-        const auto height     = prepared.Height();
-        const auto text       = prepared.DisplayText();
-        const auto chunks     = prepared.ChunkCount();
-        bool rejected         = false;
-        {
-            const auto oldFailure = failAllocationAfter;
-            const auto restore    = wil::scope_exit([=] noexcept { failAllocationAfter = oldFailure; });
-            failAllocationAfter   = failure;
-            try
-            {
-                prepareChanged(prepared);
-            }
-            catch (const std::bad_alloc&)
-            {
-                rejected = true;
-            }
-        }
-        Check(rejected && ! prepared.HasPendingPreparation() && prepared.Ready() && prepared.Generation() == generation && prepared.Revision() == revision &&
-                  prepared.Height() == height && prepared.ChunkCount() == chunks && prepared.DisplayText() == text && prepared.SourceMatches(seed),
-              "every failed geometry preparation preserves its published source, mapping, geometry and revision");
-        prepared.Prepare(factory.get(), document.Snapshot(), document.Revision(), ViewMode::Rich, options);
-        Check(prepared.Ready() && prepared.Revision() == document.Revision() && prepared.SourceMatches(document.Text()),
-              "retry after geometry allocation failure publishes the complete current pair");
-    }
-    std::cout << "rich document geometry allocation-failure whole=" << requireWhole << " sweptRequests=" << requests << '\n';
+    PreparedDocumentLayout prepared;
+    prepared.Prepare(factory.get(), before, revision, ViewMode::Rich, options);
+    Check(DxUiFailureTests::ExpectFatalChild(requireWhole ? L"embedded-document-geometry-whole-allocation" : L"embedded-document-geometry-chunk-allocation"),
+          "document geometry allocation terminates in its owned child");
+    prepareChanged(prepared);
+    Check(prepared.Ready() && prepared.Revision() == document.Revision() && prepared.SourceMatches(document.Text()),
+          "geometry preparation publishes the complete current pair");
+    if (trace)
+        std::cout << "rich document geometry whole=" << requireWhole << " allocationRequests=" << requests << '\n';
 }
 static void TestRichDocumentGeometryUnchangedAllocationBudget()
 {
@@ -430,7 +410,19 @@ static void TestEmbeddedSemanticReusePixels(GraphicsFixture& gpu)
     Check(reusedPixels == freshPixels, "reused semantic layouts match a fresh WARP render byte for byte");
 }
 
-static void TestHtmlClipboardFragment()
+__declspec(noinline) static void RichClipboardBitmapFaultOrigin(std::span<const std::byte> dib, DxUi::TextClipboardContent& output)
+{
+    DxUi::Failure::Scope scope;
+    failAllocationAfter = 0u;
+    (void)DxUi::DecodeClipboardBitmap(dib, false, output);
+}
+__declspec(noinline) static void RichClipboardHtmlFaultOrigin(std::span<const std::byte> bytes, std::wstring& output)
+{
+    DxUi::Failure::Scope scope;
+    failAllocationAfter = 0u;
+    (void)DxUi::DecodeClipboardHtml(bytes, output);
+}
+static void TestHtmlClipboardFragment(unsigned fatalChild = 0u)
 {
     using namespace DxUi;
     BITMAPINFOHEADER dibHeader{};
@@ -462,16 +454,14 @@ static void TestHtmlClipboardFragment()
         bitmapAllocations = allocations;
     }
     Check(bitmapAllocations > 0u && bitmapAllocations < 32u, "bitmap copy has a bounded allocation schedule");
-    for (std::size_t point = 0u; point < bitmapAllocations; ++point)
+    if (fatalChild == 1u)
     {
         TextClipboardContent output;
-        output.text           = L"sentinel";
-        const auto oldFailure = failAllocationAfter;
-        failAllocationAfter   = point;
-        const auto result     = DecodeClipboardBitmap(dib, false, output);
-        failAllocationAfter   = oldFailure;
-        Check(result == E_OUTOFMEMORY && output.text == L"sentinel" && output.bitmapDib.empty(), "bitmap allocation failure publishes no partial content");
+        RichClipboardBitmapFaultOrigin(dib, output);
+        return;
     }
+    if (fatalChild == 0u)
+        Check(DxUiFailureTests::ExpectFatalChild(L"embedded-clipboard-bitmap-allocation"), "clipboard bitmap allocation terminates in its owned child");
     const auto retainedBitmap = decodedBitmap.bitmapDib;
     Check(FAILED(DecodeClipboardBitmap(std::span(dib).first(dib.size() - 1u), false, decodedBitmap)) && decodedBitmap.bitmapDib == retainedBitmap,
           "truncated bitmap rejection preserves the prior output");
@@ -502,12 +492,12 @@ static void TestHtmlClipboardFragment()
     fragment                     = L"sentinel";
     Check(FAILED(DecodeClipboardHtml(std::as_bytes(std::span(invalid.data(), invalid.size())), fragment)) && fragment == L"sentinel",
           "invalid UTF-8 does not publish a fragment");
-    fragment              = L"sentinel";
-    const auto oldFailure = failAllocationAfter;
-    failAllocationAfter   = 0u;
-    const auto failed     = DecodeClipboardHtml(std::as_bytes(std::span(bytes.data(), bytes.size())), fragment);
-    failAllocationAfter   = oldFailure;
-    Check(failed == E_OUTOFMEMORY && fragment == L"sentinel", "HTML allocation failure preserves the prior output");
+    if (fatalChild == 2u)
+    {
+        RichClipboardHtmlFaultOrigin(std::as_bytes(std::span(bytes.data(), bytes.size())), fragment);
+        return;
+    }
+    Check(DxUiFailureTests::ExpectFatalChild(L"embedded-clipboard-html-allocation"), "clipboard HTML allocation terminates in its owned child");
     auto owner = reinterpret_cast<HWND>(1);
     ClipboardTransportFixture transport(owner, Check);
     transport.htmlData.reset(GlobalAlloc(GMEM_MOVEABLE, bytes.size()));
@@ -536,7 +526,21 @@ static void TestHtmlClipboardFragment()
     Check(FAILED(DecodeClipboardHtml(std::as_bytes(std::span(invalid.data(), invalid.size())), fragment)) && fragment == L"sentinel",
           "out-of-range CF_HTML offsets do not publish a fragment");
 }
-static void TestSourceGuideAllocationAtomicity()
+__declspec(noinline) static void RichSourceGuideFaultOrigin(DxUi::RichText::Detail::RichSourceGuides& guides,
+                                                            IDWriteFactory* factory,
+                                                            const DxUi::RichText::Detail::RichEditorLayout& geometry,
+                                                            const DxUi::RichText::Document& source,
+                                                            const DxUi::RichText::LayoutOptions& options)
+{
+    DxUi::Failure::Scope scope;
+    failAllocationAfter = 0u;
+    guides.Begin(source.Snapshot(), 2u, geometry.Generation(), true, true, options, 44.0f);
+    HRESULT result = guides.Advance(factory, geometry);
+    while (result == S_FALSE)
+        result = guides.Advance(factory, geometry);
+    Check(result == S_OK, "source guide fatal fixture completes checked native preparation");
+}
+static void TestSourceGuideAllocationAtomicity(bool fatalChild = false)
 {
     using namespace DxUi::RichText;
     using namespace DxUi::RichText::Detail;
@@ -550,9 +554,14 @@ static void TestSourceGuideAllocationAtomicity()
         static_cast<void>(geometry.AdvancePreparation());
     const auto finish = [&](RichSourceGuides& guides)
     {
-        while (! guides.Advance(factory.get(), geometry))
+        HRESULT result = guides.Advance(factory.get(), geometry);
+        unsigned turns{};
+        while (result == S_FALSE)
         {
+            Check(++turns <= 128u, "source guides finish within the bounded fixture work budget");
+            result = guides.Advance(factory.get(), geometry);
         }
+        Check(result == S_OK, "source guides complete checked native preparation");
     };
     const auto seed = [&]
     {
@@ -577,28 +586,17 @@ static void TestSourceGuideAllocationAtomicity()
     allocations      = oldCalls;
     allocationBytes  = oldBytes;
     Check(count > 0u && count < 512u, "source guide preparation has bounded observed allocations");
-    for (std::size_t point = 0u; point < count; ++point)
+    auto guides            = seed();
+    const auto numberCount = guides->Numbers().size(), markCount = guides->Marks().size();
+    if (fatalChild)
     {
-        auto guides            = seed();
-        const auto numberCount = guides->Numbers().size(), markCount = guides->Marks().size();
-        const auto oldFailure = failAllocationAfter;
-        bool failed           = false;
-        failAllocationAfter   = point;
-        try
-        {
-            stage(*guides);
-        }
-        catch (const std::bad_alloc&)
-        {
-            failed = true;
-        }
-        failAllocationAfter = oldFailure;
-        Check(failed && guides->Numbers().size() == numberCount && guides->Marks().size() == markCount,
-              "guide allocation failure preserves the preceding immutable publication");
-        stage(*guides);
-        Check(guides->Current(2u, geometry.Generation(), true, true) && guides->Numbers().size() == numberCount && guides->Marks().size() == markCount,
-              "guide allocation retry completes without skipped or duplicated source units");
+        RichSourceGuideFaultOrigin(*guides, factory.get(), geometry, source, options);
+        return;
     }
+    Check(DxUiFailureTests::ExpectFatalChild(L"embedded-source-guide-allocation"), "source guide allocation terminates in its owned child");
+    stage(*guides);
+    Check(guides->Current(2u, geometry.Generation(), true, true) && guides->Numbers().size() == numberCount && guides->Marks().size() == markCount,
+          "guide preparation completes without skipped or duplicated source units");
     Document manyLines{std::wstring(Document::MaximumUnits, L'\n')};
     options.widthDip         = 32.0f;
     options.readingDirection = DWRITE_READING_DIRECTION_RIGHT_TO_LEFT;
@@ -616,14 +614,16 @@ static void TestSourceGuideAllocationAtomicity()
         const auto oldNumbers = windowed.Numbers().size(), oldMarks = windowed.Marks().size();
         windowed.Begin(manyLines.Snapshot(), manyLines.Revision(), largeGeometry.Generation(), true, true, options, 44.0f, window);
         unsigned turns = 0u;
-        while (! windowed.Advance(factory.get(), largeGeometry))
+        HRESULT result = windowed.Advance(factory.get(), largeGeometry);
+        while (result == S_FALSE)
         {
             Check(windowed.LastWork() <= 256u && windowed.LastLayouts() <= 4u && ++turns < 8u,
                   "maximum-row viewport guides obey independent source/layout turn limits");
             Check(windowed.Numbers().size() == oldNumbers && windowed.Marks().size() == oldMarks,
                   "scroll preparation retains the preceding complete viewport decoration");
+            result = windowed.Advance(factory.get(), largeGeometry);
         }
-        Check(windowed.LastWork() <= 256u && windowed.LastLayouts() <= 4u && windowed.Numbers().size() <= 4u && windowed.Marks().size() <= 4u,
+        Check(result == S_OK && windowed.LastWork() <= 256u && windowed.LastLayouts() <= 4u && windowed.Numbers().size() <= 4u && windowed.Marks().size() <= 4u,
               "retained guides depend on the narrow viewport rather than 65537 physical rows");
         Check(! windowed.Numbers().empty() && windowed.Numbers().front().layout->Content().text == std::to_wstring(offset + 1u),
               "deep viewport line numbers use the exact indexed physical source coordinate");
@@ -634,6 +634,31 @@ static void TestSourceGuideAllocationAtomicity()
 static void TestEmbeddedCosmeticsDoNotWithholdContent(GraphicsFixture& gpu)
 {
     using namespace DxUi;
+    {
+        const auto factory  = RichSemanticGeometryTests::Factory();
+        const auto document = RichSemanticDocumentTests::Build(L"before\n\n```cpp\nint value;\n```\n\nbetween\n\n```text\nsecond block\n```\n\nafter\n");
+        RichText::Detail::PreparedSemanticGeometry geometry;
+        RichText::LayoutOptions options;
+        options.widthDip = 320.0f;
+        geometry.Begin(factory.get(), document, options);
+        RichSemanticGeometryTests::Complete(geometry);
+        std::vector<std::size_t> visible{999u};
+        const auto nan      = std::numeric_limits<float>::quiet_NaN();
+        const auto infinity = std::numeric_limits<float>::infinity();
+        for (const auto [top, bottom] : {std::pair{nan, 1.0f}, std::pair{0.0f, infinity}, std::pair{2.0f, 1.0f}})
+        {
+            Check(geometry.TryVisibleCodeElements(top, bottom, visible) == E_INVALIDARG && visible == std::vector<std::size_t>{999u},
+                  "invalid code viewport preserves caller output");
+        }
+        std::vector<std::size_t> expected;
+        const auto elements = document->Elements();
+        for (size_t index = 0u; index < elements.size(); ++index)
+            if (elements[index].role == RichText::SemanticRole::Code)
+                expected.push_back(index);
+        Check(expected.size() == 2u, "viewport fixture contains two independently indexed code blocks");
+        Check(geometry.TryVisibleCodeElements(0.0f, geometry.Height(), visible) == S_OK && visible == expected,
+              "valid full viewport publishes exactly all code indices after checked refusals");
+    }
     std::wstring source;
     for (unsigned line = 0u; line < 4096u; ++line)
         source += L"alpha\n";
@@ -762,7 +787,13 @@ static void TestEmbeddedSourceGuidesPixels(GraphicsFixture& gpu)
     Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "replace pending source guides");
     Check(editor->GetText() == source && ! view.NeedsPreparation(), "new source supersedes pending guides without stale publication");
 }
-static void TestEmbeddedCodeLineNumberPixels(GraphicsFixture& gpu)
+__declspec(noinline) static void RichCodeCopyFaultOrigin(DxUi::RichTextEditor& editor, DxUi::EmbeddedHost& view)
+{
+    DxUi::Failure::Scope scope;
+    failAllocationAfter = 0u;
+    (void)editor.OnKeyDown(view.Controls(), 'C', MK_CONTROL | MK_SHIFT);
+}
+static void TestEmbeddedCodeLineNumberPixels(GraphicsFixture& gpu, bool fatalChild = false)
 {
     using namespace DxUi;
     std::wstring source = L"```cpp\nfirst line with many words to force wrapping in the available code width across visual lines\nsecond line\n";
@@ -944,18 +975,15 @@ static void TestEmbeddedCodeLineNumberPixels(GraphicsFixture& gpu)
         copyAllocations = allocations;
     }
     Check(copyAllocations > 0u && delivered == 1u, "code copy allocation sweep observes a successful callback");
-    for (size_t failure = 0u; failure < copyAllocations; ++failure)
+    if (fatalChild)
     {
-        bool handled = false;
-        {
-            const auto oldFailure = failAllocationAfter;
-            const auto restore    = wil::scope_exit([=]() noexcept { failAllocationAfter = oldFailure; });
-            failAllocationAfter   = failure;
-            handled               = editor->OnKeyDown(view.Controls(), 'C', MK_CONTROL | MK_SHIFT);
-        }
-        Check(! handled && delivered == 1u && editor->Revision() == beforeRevision && editor->GetSelection() == beforeSelection,
-              "code copy allocation failure preserves the document and does not invoke the callback");
+        RichCodeCopyFaultOrigin(*editor, view);
+        return;
     }
+    Check(DxUiFailureTests::ExpectFatalChild(L"embedded-code-copy-allocation"), "code copy allocation terminates in its owned child");
+    Check(editor->OnKeyDown(view.Controls(), 'C', MK_CONTROL | MK_SHIFT) && delivered == 2u && editor->Revision() == beforeRevision &&
+              editor->GetSelection() == beforeSelection,
+          "code copy invokes its callback without changing source or selection");
     editor->SetOnCodeCopyRequested([&](std::wstring_view text) { copied.assign(text); }, L"Kopieren");
     editor->SetText(L"```\n```\n");
     Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "empty code copy preparation");

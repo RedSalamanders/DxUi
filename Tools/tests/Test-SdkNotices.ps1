@@ -20,12 +20,14 @@ $inventory=@(Assert-DxUiSdkNotices @arguments)
 # This independent required set must change deliberately when redistributable
 # inputs change; it is not derived from the staging implementation's map.
 $required=@('LICENSE.txt','THIRD-PARTY-NOTICES.md','WIL-LICENSE.txt','katex-LICENSE.txt','tomlplusplus-LICENSE.txt',
-            'rapidyaml-LICENSE.txt','rapidyaml-bundled-NOTICES.txt','Unicode-LICENSE.txt','WHATWG-LICENSE.txt')
+            'rapidyaml-LICENSE.txt','rapidyaml-bundled-NOTICES.txt','libfyaml-LICENSE.txt','libfyaml-xxHash-LICENSE.txt','Unicode-LICENSE.txt','WHATWG-LICENSE.txt')
 Require (@(Compare-Object $required @(Get-ChildItem (Join-Path $stage 'licenses') -Name) -CaseSensitive).Count -eq 0) 'Exact independently reviewed license set'
-Require ($inventory.Count -eq 9) 'All license bytes are recorded'
+Require ($inventory.Count -eq 11) 'All license bytes are recorded'
 foreach($pair in @(
     @('Unicode-LICENSE.txt','ThirdParty/Unicode/17.0.0/LICENSE.txt'),
     @('WHATWG-LICENSE.txt','ThirdParty/Markdown/whatwg-2026-10-18/LICENSE.txt'),
+    @('libfyaml-LICENSE.txt','ThirdParty/libfyaml/0.9.4/LICENSE'),
+    @('libfyaml-xxHash-LICENSE.txt','ThirdParty/libfyaml/0.9.4/LICENSE-xxHash.txt'),
     @('WIL-LICENSE.txt','installed/share/wil/copyright')
 )){
     $source=if($pair[0] -eq 'WIL-LICENSE.txt'){Join-Path $scratch $pair[1]}else{Join-Path $root $pair[1]}
@@ -33,6 +35,7 @@ foreach($pair in @(
 }
 $notice=[IO.File]::ReadAllText((Join-Path $stage 'licenses/THIRD-PARTY-NOTICES.md'))
 Require ($notice.Contains('Unicode 17.0.0') -and $notice.Contains('WHATWG') -and $notice.Contains('Unicode-LICENSE.txt') -and $notice.Contains('WHATWG-LICENSE.txt')) 'Embedded data attributions and local licenses'
+Require ($notice.Contains('libfyaml 0.9.4') -and $notice.Contains('libfyaml-LICENSE.txt') -and $notice.Contains('libfyaml-xxHash-LICENSE.txt')) 'Private YAML backend attributions and offline licenses'
 Require ($notice.Contains("https://github.com/RedSalamanders/DxUi/blob/$commit/vcpkg.json")) 'Repository-only provenance is pinned'
 foreach($match in [regex]::Matches($notice,'\]\(([^)]+)\)')){
     $link=$match.Groups[1].Value

@@ -342,16 +342,14 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
         check(expanded.Size().width > 0.f, "bounded surrogate expansion does not reject a valid authored source");
         auto oversized = ParseMath(L"\\text{a}");
         oversized.root.children[0u].text.assign(2u * MathMaximumSourceUnits + 1u, L'a');
-        bool refused = false;
-        try
-        {
-            Detail::PreparedMath invalid(factory, std::make_shared<const MathExpression>(std::move(oversized)), 1.f);
-        }
-        catch (const std::length_error&)
-        {
-            refused = true;
-        }
+        const bool refused = ! Detail::PreparedMath::CanPrepareSyntax(oversized.root, false);
         check(refused, "direct mathematical text payloads remain bounded after allowing alphabet expansion");
+        auto multiline                   = ParseMath(L"\\text{a}");
+        multiline.root.children[0u].text = L"a\nb";
+        Detail::PreparedMath multilineLayout(factory, std::make_shared<const MathExpression>(std::move(multiline)), 24.f);
+        check(multilineLayout.TryAdvance() == Detail::PreparedMath::AdvanceResult::Capacity &&
+                  multilineLayout.TryAdvance() == Detail::PreparedMath::AdvanceResult::Capacity,
+              "a multiline text leaf reports capacity without publishing partial geometry");
     }
     {
         const auto dots    = std::make_shared<const MathExpression>(ParseMath(L"a\\ldots b"));
@@ -412,18 +410,12 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
     nestedColor += L'x';
     nestedColor.append(MathMaximumGroupDepth, L'}');
     check(static_cast<bool>(ParseMath(nestedColor)), "author-color text groups admit the published nesting boundary");
-    check(Detail::OptionalMathFontOperation(S_OK) && ! Detail::OptionalMathFontOperation(DWRITE_E_UNSUPPORTEDOPERATION),
+    HRESULT optionalFailure = S_OK;
+    check(Detail::OptionalMathFontOperation(S_OK, optionalFailure) && optionalFailure == S_OK &&
+              ! Detail::OptionalMathFontOperation(DWRITE_E_UNSUPPORTEDOPERATION, optionalFailure) && optionalFailure == S_OK,
           "optional math font operation falls back only for unsupported operations");
-    bool outOfMemoryPropagated = false;
-    try
-    {
-        static_cast<void>(Detail::OptionalMathFontOperation(E_OUTOFMEMORY));
-    }
-    catch (const wil::ResultException& error)
-    {
-        outOfMemoryPropagated = error.GetErrorCode() == E_OUTOFMEMORY;
-    }
-    check(outOfMemoryPropagated, "optional math font operation propagates allocation failure");
+    check(! Detail::OptionalMathFontOperation(E_OUTOFMEMORY, optionalFailure) && optionalFailure == E_OUTOFMEMORY,
+          "optional math font operation preserves allocation failure");
 #if DXUI_ENABLE_DIAGNOSTICS
     {
         wil::com_ptr<IDWriteFontCollection> collection;
@@ -583,7 +575,14 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
         UINT16 glyph{};
         THROW_IF_FAILED(face->GetGlyphIndices(&scalar, 1u, &glyph));
         check(glyph != 0u && fontMetrics.designUnitsPerEm != 0u, "SDK reports the actual math glyph and design scale");
-        check(Detail::SameMathFontFile(face.get(), face.get()), "same real SDK font identity accepts its own MATH table");
+        const auto sameMathFontFile = [&](IDWriteFontFace* left, IDWriteFontFace* right)
+        {
+            HRESULT failure = S_OK;
+            const bool same = Detail::SameMathFontFile(left, right, failure);
+            check(SUCCEEDED(failure), "font identity comparison preserves native failure status");
+            return same;
+        };
+        check(sameMathFontFile(face.get(), face.get()), "same real SDK font identity accepts its own MATH table");
         UINT32 sourceFileCount{};
         THROW_IF_FAILED(face->GetFiles(&sourceFileCount, nullptr));
         check(sourceFileCount == 1u, "math font identity fixture has exactly one source file");
@@ -592,7 +591,7 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
         auto* sourceFilePointer = sourceFile.get();
         wil::com_ptr<IDWriteFontFace> simulated;
         THROW_IF_FAILED(factory->CreateFontFace(face->GetType(), 1u, &sourceFilePointer, face->GetIndex(), DWRITE_FONT_SIMULATIONS_OBLIQUE, simulated.put()));
-        check(! Detail::SameMathFontFile(face.get(), simulated.get()), "the same SDK font file with synthetic oblique cannot borrow normal-face MATH kerning");
+        check(! sameMathFontFile(face.get(), simulated.get()), "the same SDK font file with synthetic oblique cannot borrow normal-face MATH kerning");
         std::array<wchar_t, MAX_PATH> windowsDirectory{};
         const UINT windowsLength = GetWindowsDirectoryW(windowsDirectory.data(), static_cast<UINT>(windowsDirectory.size()));
         check(windowsLength > 0u && windowsLength < windowsDirectory.size(), "variable font fixture resolves the Windows font directory");
@@ -632,8 +631,7 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
             }
         check(changedAxis, "variable font fixture supplies a nonconstant axis");
         THROW_IF_FAILED(variableResource->CreateFontFace(DWRITE_FONT_SIMULATIONS_NONE, variableAxes.data(), variableCount, alternateInstance.put()));
-        check(Detail::SameMathFontFile(defaultInstance.get(), defaultInstance.get()) &&
-                  ! Detail::SameMathFontFile(defaultInstance.get(), alternateInstance.get()),
+        check(sameMathFontFile(defaultInstance.get(), defaultInstance.get()) && ! sameMathFontFile(defaultInstance.get(), alternateInstance.get()),
               "same-file variable font instances match only at identical canonical axes");
         wil::com_ptr<IDWriteTextFormat> fallbackFormat;
         THROW_IF_FAILED(factory->CreateTextFormat(
@@ -643,7 +641,7 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
         const auto fallbackProbe = Microsoft::WRL::Make<Detail::MathGlyphProbe>();
         check(static_cast<bool>(fallbackProbe), "SDK fallback font probe allocates");
         THROW_IF_FAILED(fallbackLayout->Draw(nullptr, fallbackProbe.Get(), 0.f, 0.f));
-        check(fallbackProbe->runs == 1u && fallbackProbe->face && ! Detail::SameMathFontFile(face.get(), fallbackProbe->face.get()),
+        check(fallbackProbe->runs == 1u && fallbackProbe->face && ! sameMathFontFile(face.get(), fallbackProbe->face.get()),
               "a differently resolved SDK font face cannot borrow math kern data from Cambria Math");
         std::array<std::uint8_t, 256u> data{};
         const auto write = [&](std::size_t at, std::uint16_t value)
@@ -729,7 +727,15 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
     check(Detail::testRichMathTextFormats == formatsBefore + anchorFormats,
           "128 formulas reuse one text format per size and style instead of one format per leaf");
     const auto configured = std::make_shared<Detail::MathTextFormats>(factory, L"Segoe UI", L"fr-FR");
-    auto* custom          = configured->Get(22.f, true, true);
+    IDWriteTextFormat* custom{};
+    THROW_IF_FAILED(configured->TryGet(22.f, true, true, Detail::MathTextFamily::Math, custom));
+    IDWriteTextFormat* reused{};
+    THROW_IF_FAILED(configured->TryGet(22.f, true, true, Detail::MathTextFamily::Math, reused));
+    if (! custom || ! reused)
+    {
+        check(false, "successful native format lookup returns a format");
+        return;
+    }
     std::wstring family(custom->GetFontFamilyNameLength() + 1u, L'\0'), locale(custom->GetLocaleNameLength() + 1u, L'\0');
     THROW_IF_FAILED(custom->GetFontFamilyName(family.data(), static_cast<UINT32>(family.size())));
     THROW_IF_FAILED(custom->GetLocaleName(locale.data(), static_cast<UINT32>(locale.size())));
@@ -739,7 +745,7 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
     // are case-insensitive; query the real SDK property, not its input spelling.
     check(family == L"Segoe UI" && CompareStringOrdinal(locale.data(), static_cast<int>(locale.size()), L"fr-FR", 5, TRUE) == CSTR_EQUAL &&
               custom->GetFontWeight() == DWRITE_FONT_WEIGHT_BOLD && custom->GetFontStyle() == DWRITE_FONT_STYLE_ITALIC && custom->GetFontSize() == 22.f &&
-              configured->Get(22.f, true, true) == custom,
+              reused == custom,
           "native formats retain explicit mathematical family, locale, size and style with stable reuse");
     Detail::PreparedMath differentFamily(factory, cachedExpression, 24.f, false, &anchor, 96.f, configured);
     while (! differentFamily.Advance())
@@ -959,15 +965,7 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
         const auto tagged = ParseMath(source);
         check(static_cast<bool>(tagged) && tagged.root.kind == MathKind::Style && tagged.root.text == L"tag" && tagged.root.children.size() == 2u,
               "one root tag retains independent body and label syntax");
-        bool rejectedDirect = false;
-        try
-        {
-            Detail::PreparedMath direct(factory, std::make_shared<const MathExpression>(tagged), 24.f, false);
-        }
-        catch (const std::length_error&)
-        {
-            rejectedDirect = true;
-        }
+        const bool rejectedDirect = ! Detail::PreparedMath::CanPrepareSyntax(tagged.root, false);
         check(rejectedDirect, "tagged root cannot be silently prepared as an inline formula");
     }
     check(! ParseMath(L"x\\tag{a}\\tag{b}") && ! ParseMath(L"{x\\tag{a}}") && ! ParseMath(L"x\\tag"), "duplicate, nested and missing tags are rejected");
@@ -1362,18 +1360,11 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
         }
         auto missingFormats =
             std::make_shared<Detail::MathTextFormats>(factory, L"Cambria Math", L"en-us", L"Arial", L"Consolas", L"DxUi Missing Script Face 72A13");
-        bool missingRefused{};
-        try
-        {
-            Detail::PreparedMath missing(factory, expression, 24.f, false, nullptr, 96.f, missingFormats);
-            while (! missing.Advance())
-            {
-            }
-        }
-        catch (const wil::ResultException& failure)
-        {
-            missingRefused = failure.GetErrorCode() == DWRITE_E_UNSUPPORTEDOPERATION;
-        }
+        Detail::PreparedMath missing(factory, expression, 24.f, false, nullptr, 96.f, missingFormats);
+        auto missingStatus = Detail::PreparedMath::AdvanceResult::Pending;
+        while (missingStatus == Detail::PreparedMath::AdvanceResult::Pending)
+            missingStatus = missing.TryAdvance();
+        const bool missingRefused = missingStatus == Detail::PreparedMath::AdvanceResult::Failed && missing.Result() == DWRITE_E_UNSUPPORTEDOPERATION;
         check(missingRefused, "missing script face uses local unsupported-source fallback classification");
         Detail::PreparedMath recovered(factory, expression, 24.f);
         while (! recovered.Advance())
@@ -1489,42 +1480,18 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
                 check(firstLabel->GlyphLayouts().size() == 3u && secondLabel->GlyphLayouts().size() == 1u,
                       "row labels prepare independently with authored starred parentheses policy");
             }
-            bool inlineRefused{};
-            try
-            {
-                Detail::PreparedMath inlineTag(factory, taggedRows, 24.f, false);
-            }
-            catch (const std::length_error&)
-            {
-                inlineRefused = true;
-            }
+            const bool inlineRefused = ! Detail::PreparedMath::CanPrepareSyntax(taggedRows->root, false);
             check(inlineRefused, "row tags refuse inline preparation");
             auto invalidLabel                                              = std::make_shared<MathExpression>(*taggedRows);
             invalidLabel->root.children[0u].children[0u].children[1u].kind = MathKind::Accent;
-            bool invalidRefused{};
-            try
-            {
-                Detail::PreparedMath invalid(factory, invalidLabel, 24.f, true);
-            }
-            catch (const std::length_error&)
-            {
-                invalidRefused = true;
-            }
+            const bool invalidRefused                                      = ! Detail::PreparedMath::CanPrepareSyntax(invalidLabel->root, true);
             check(invalidRefused, "direct row-tag data rejects unsupported non-text label shapes");
             auto nestedTag = std::make_shared<MathExpression>(*taggedRows);
             auto wrapper   = nestedTag->root;
             wrapper.children.clear();
             wrapper.children.push_back(nestedTag->root.children[0u]);
             nestedTag->root.children[0u] = std::move(wrapper);
-            bool nestedRefused{};
-            try
-            {
-                Detail::PreparedMath invalid(factory, nestedTag, 24.f, true);
-            }
-            catch (const std::length_error&)
-            {
-                nestedRefused = true;
-            }
+            const bool nestedRefused     = ! Detail::PreparedMath::CanPrepareSyntax(nestedTag->root, true);
             check(nestedRefused, "direct nested matrix data cannot introduce row tags outside a root environment");
         }
         std::wstring fullTags(L"\\begin{gather}");
@@ -1995,16 +1962,8 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
               "absolute unit scale changes point rules without rescaling font-relative em rules");
         for (const float invalid : {0.f, -1.f, std::numeric_limits<float>::infinity(), std::numeric_limits<float>::quiet_NaN()})
         {
-            bool scaleRejected{};
-            try
-            {
-                Detail::PreparedMath bad(factory, points, 24.f, false, nullptr, 96.f, {}, invalid);
-            }
-            catch (const std::invalid_argument&)
-            {
-                scaleRejected = true;
-            }
-            check(scaleRejected, "invalid absolute-unit scale rejects before preparation");
+            check(! Detail::PreparedMath::CanPrepareParameters(factory, points.get(), 24.f, 96.f, invalid),
+                  "invalid absolute-unit scale rejects before preparation");
         }
     }
 #endif
@@ -2137,6 +2096,12 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
     const auto paddingOverflow = ParseMath(ragged + L"\\\\a\\end{matrix}");
     check(! paddingOverflow && paddingOverflow.issue == MathIssue::Capacity && paddingOverflow.root.children.empty(),
           "generated empty cells reject rectangular overflow before allocating the padded grid");
+    const auto missingFractionArgument       = ParseMath(L"\\frac{a}");
+    const auto missingNestedFractionArgument = ParseMath(L"\\begin{matrix}\\frac{a}");
+    check(! missingFractionArgument && missingFractionArgument.issue == MathIssue::MissingRequiredArgument && missingFractionArgument.root.children.empty() &&
+              ! missingNestedFractionArgument && missingNestedFractionArgument.issue == MathIssue::MissingRequiredArgument &&
+              missingNestedFractionArgument.root.children.empty(),
+          "checked recursive refusal preserves the first missing-argument diagnostic and publishes no partial tree");
     for (const auto& [source, canonical] : {std::pair{L"\\begin{align}a&=b\\\\c&=d\\end{align}", L"aligned"},
                                             std::pair{L"\\begin{align*}a&=b\\end{align*}", L"aligned"},
                                             std::pair{L"\\begin{split}a&=b\\end{split}", L"aligned"},

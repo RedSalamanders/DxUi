@@ -9,6 +9,8 @@ function Get-NoticeFiles {
         @{Source='docs/licenses/tomlplusplus.txt';Name='tomlplusplus-LICENSE.txt'},
         @{Source='docs/licenses/rapidyaml.txt';Name='rapidyaml-LICENSE.txt'},
         @{Source='docs/licenses/rapidyaml-bundled.txt';Name='rapidyaml-bundled-NOTICES.txt'},
+        @{Source='ThirdParty/libfyaml/0.9.4/LICENSE';Name='libfyaml-LICENSE.txt'},
+        @{Source='ThirdParty/libfyaml/0.9.4/LICENSE-xxHash.txt';Name='libfyaml-xxHash-LICENSE.txt'},
         @{Source='docs/licenses/Unicode.txt';Name='Unicode-LICENSE.txt'},
         @{Source='docs/licenses/WHATWG.txt';Name='WHATWG-LICENSE.txt'}
     )

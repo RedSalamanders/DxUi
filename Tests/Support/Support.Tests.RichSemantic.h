@@ -6,6 +6,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <stdexcept>
+#include <utility>
 
 namespace RichCommandTests
 {
@@ -114,36 +115,62 @@ inline void UnicodeAndAdmission()
         Check(map->ToDisplay(point) == point && map->ToSource(point) == point, "identity retains exact scalar/CRLF ACPs");
     for (const auto point : {2u, 4u})
     {
-        Reject<std::out_of_range>([&] { map->ToSource(point); }, "display join must be rejected");
-        Reject<std::out_of_range>([&] { map->ToDisplay(point); }, "source join must be rejected");
+        std::size_t output = 17u;
+        Check(map->TryToSource(point, MappingAffinity::Leading, output) == SourceResult::InvalidRange && output == 17u,
+              "display join must be rejected without changing output");
+        Check(map->TryToDisplay(point, MappingAffinity::Leading, output) == SourceResult::InvalidRange && output == 17u,
+              "source join must be rejected without changing output");
         Check(map->SnapDisplayBoundary(point, MappingAffinity::Leading) == point - 1u &&
                   map->SnapDisplayBoundary(point, MappingAffinity::Trailing) == point + 1u,
               "snap respects scalar and CRLF joins");
     }
-    Reject<std::out_of_range>([&] { map->SourceRanges({3u, 1u}); }, "backward interval requires normalized selection");
-    Reject<std::out_of_range>([&] { map->DisplayRanges({0u, 7u}); }, "source range bound");
-    Reject<std::out_of_range>([&] { map->SnapDisplayBoundary(7u, MappingAffinity::Leading); }, "snap range bound");
-    Reject<std::invalid_argument>([&] { map->ToSource(0u, static_cast<MappingAffinity>(99)); }, "unknown affinity rejected");
+    std::vector<MarkdownRange> ranges{{17u, 18u}};
+    Check(map->TrySourceRanges({3u, 1u}, ranges) == SourceResult::InvalidRange && ranges.size() == 1u && ranges[0] == MarkdownRange{17u, 18u},
+          "backward interval preserves output");
+    Check(map->TryDisplayRanges({0u, 7u}, ranges) == SourceResult::InvalidRange && ranges.size() == 1u && ranges[0] == MarkdownRange{17u, 18u},
+          "invalid source range preserves output");
+    std::size_t output = 17u;
+    Check(map->TrySnapDisplayBoundary(7u, MappingAffinity::Leading, output) == SourceResult::InvalidRange && output == 17u,
+          "invalid snap coordinate preserves output");
+    Check(map->TryToSource(0u, static_cast<MappingAffinity>(99), output) == SourceResult::InvalidRange && output == 17u, "unknown affinity preserves output");
+    Check(map->TryToDisplay(1u, MappingAffinity::Leading, output) == SourceResult::Success && output == 1u &&
+              map->TryToSource(3u, MappingAffinity::Trailing, output) == SourceResult::Success && output == 3u,
+          "checked point queries preserve healthy mappings");
+    Check(map->TryDisplayRanges({0u, 1u}, ranges) == SourceResult::Success && ranges.size() == 1u && ranges[0] == MarkdownRange{0u, 1u} &&
+              map->TrySourceRanges({0u, 1u}, ranges) == SourceResult::Success && ranges.size() == 1u && ranges[0] == MarkdownRange{0u, 1u},
+          "checked fragment queries publish healthy mappings");
+    Check(map->TrySnapDisplayBoundary(2u, MappingAffinity::Trailing, output) == SourceResult::Success && output == 3u,
+          "checked snap preserves scalar-boundary behavior");
+    const auto checkBuild =
+        [&](std::wstring_view input, std::wstring_view visual, std::span<const DisplaySpan> values, SourceResult expected, const char* message)
+    {
+        auto output = map;
+        Check(SourceDisplayMap::TryBuild(input, visual, values, output) == expected && output == map, message);
+    };
     auto bad           = spans;
     bad[0].source.last = 2u;
-    Reject<std::out_of_range>([&] { SourceDisplayMap::Build(text, text, bad); }, "span cannot split a surrogate pair");
+    checkBuild(text, text, bad, SourceResult::InvalidRange, "span cannot split a surrogate pair");
     bad                  = spans;
     bad[0].display.first = 1u;
-    Reject<std::invalid_argument>([&] { SourceDisplayMap::Build(text, text, bad); }, "display coverage cannot have holes");
+    checkBuild(text, text, bad, SourceResult::InvalidRange, "display coverage cannot have holes");
     bad         = spans;
     bad[0].kind = static_cast<DisplaySpanKind>(99);
-    Reject<std::invalid_argument>([&] { SourceDisplayMap::Build(text, text, bad); }, "unknown kind rejected");
+    checkBuild(text, text, bad, SourceResult::InvalidRange, "unknown kind rejected");
     bad            = spans;
     bad[0].primary = false;
-    Reject<std::invalid_argument>([&] { SourceDisplayMap::Build(text, text, bad); }, "repeat without primary rejected");
-    Reject<std::invalid_argument>([&] { SourceDisplayMap::Build(L"x", L"y", std::array{DisplaySpan{{0u, 1u}, {0u, 1u}}}); },
-                                  "source-backed spelling must match");
-    Reject<std::invalid_argument>([&] { SourceDisplayMap::Build(L"x", L"xx", std::array{DisplaySpan{{0u, 1u}, {0u, 1u}}, DisplaySpan{{0u, 1u}, {1u, 2u}}}); },
-                                  "overlapping primary ownership rejected");
-    Reject<std::invalid_argument>([&] { SourceDisplayMap::Build(L"", L"x", std::array{DisplaySpan{{0u, 0u}, {0u, 1u}, DisplaySpanKind::Generated}}); },
-                                  "generated text cannot claim primary source");
-    Reject<std::invalid_argument>([&] { SourceDisplayMap::Build(L"", std::wstring_view(L"\0", 1u), {}); },
-                                  "counted display still requires a covering partition");
+    checkBuild(text, text, bad, SourceResult::InvalidRange, "repeat without primary rejected");
+    checkBuild(L"x", L"y", std::array{DisplaySpan{{0u, 1u}, {0u, 1u}}}, SourceResult::InvalidRange, "source-backed spelling must match");
+    checkBuild(L"x",
+               L"xx",
+               std::array{DisplaySpan{{0u, 1u}, {0u, 1u}}, DisplaySpan{{0u, 1u}, {1u, 2u}}},
+               SourceResult::InvalidRange,
+               "overlapping primary ownership rejected");
+    checkBuild(L"",
+               L"x",
+               std::array{DisplaySpan{{0u, 0u}, {0u, 1u}, DisplaySpanKind::Generated}},
+               SourceResult::InvalidRange,
+               "generated text cannot claim primary source");
+    checkBuild(L"", std::wstring_view(L"\0", 1u), {}, SourceResult::InvalidRange, "counted display still requires a covering partition");
     const auto countedNul = std::wstring_view(L"\0", 1u);
     const auto rawNul     = SourceDisplayMap::Build(countedNul, countedNul, std::array{DisplaySpan{{0u, 1u}, {0u, 1u}, DisplaySpanKind::Source}});
     Check(rawNul->Source() == countedNul && rawNul->Display() == countedNul && rawNul->ToDisplay(1u) == 1u && rawNul->ToSource(1u) == 1u,
@@ -152,10 +179,9 @@ inline void UnicodeAndAdmission()
     Check(visibleNul->Source() == countedNul && visibleNul->Display() == L"\ufffd" && visibleNul->ToDisplay(1u) == 1u && visibleNul->ToSource(1u) == 1u,
           "a transformed span preserves counted source NUL while displaying the replacement character");
     const wchar_t unpaired = static_cast<wchar_t>(0xd800u);
-    Reject<std::invalid_argument>([&] { SourceDisplayMap::Build(std::wstring_view(&unpaired, 1u), L"", {}); }, "source maps reject unpaired UTF-16 surrogates");
-    Reject<std::length_error>([&] { SourceDisplayMap::Build(std::wstring(Document::MaximumUnits + 1u, L'x'), L"", {}); }, "source capacity bound");
-    Reject<std::length_error>([&] { SourceDisplayMap::Build(L"", std::wstring(SourceDisplayMap::MaximumDisplayUnits + 1u, L'x'), {}); },
-                              "display amplification bound");
+    checkBuild(std::wstring_view(&unpaired, 1u), L"", {}, SourceResult::InvalidSource, "source maps reject unpaired UTF-16 surrogates");
+    checkBuild(std::wstring(Document::MaximumUnits + 1u, L'x'), L"", {}, SourceResult::CapacityExceeded, "source capacity bound");
+    checkBuild(L"", std::wstring(SourceDisplayMap::MaximumDisplayUnits + 1u, L'x'), {}, SourceResult::CapacityExceeded, "display amplification bound");
     const std::wstring maximum(Document::MaximumUnits, L'x');
     const auto admitted = SourceDisplayMap::Build(maximum, maximum, std::array{DisplaySpan{{0u, maximum.size()}, {0u, maximum.size()}}});
     Check(admitted->ToDisplay(maximum.size()) == maximum.size(), "exact maximum source admitted");
@@ -167,6 +193,10 @@ inline void TransactionOracles()
     Check(FindInSource(nulSearch.Snapshot(), std::wstring_view(nulSource).substr(0u, 3u)) == std::vector<MarkdownRange>{{0u, 3u}, {4u, 7u}},
           "source search preserves the complete counted NUL query and source length");
     Document search(L"Alpha alpha alphabet\r\nALPHA");
+    std::vector<MarkdownRange> checkedSearch{{3u, 4u}};
+    Check(TryFindInSource(search.Snapshot(), std::wstring(1u, wchar_t(0xd800)), checkedSearch) == SourceResult::InvalidSource &&
+              checkedSearch == std::vector<MarkdownRange>{{3u, 4u}},
+          "malformed search is refused without replacing output");
     const auto matches = FindInSource(search.Snapshot(), L"alpha", {.wholeWord = true});
     Check(matches == std::vector<MarkdownRange>{{0u, 5u}, {6u, 11u}, {22u, 27u}}, "ordinal whole-word search returns source ranges");
     Check(FindInSource(search.Snapshot(), L"alpha", {.matchCase = true}) == std::vector<MarkdownRange>{{6u, 11u}, {12u, 17u}},
@@ -190,10 +220,11 @@ inline void TransactionOracles()
     Check(document.Undo() && document.Text() == initial && document.GetSelection() == Selection{9u, 6u} && ! document.CanUndo() && document.CanRedo(),
           "one undo restores both source edits and backward selection");
     Check(document.Redo() && document.Text() == L"- [x] one\r\n- [ ] two\n" && ! document.CanRedo(), "one redo reapplies both source edits");
-    Reject<std::invalid_argument>([&] { ApplySourceEdits(document, snapshot, revision, edits, {}); }, "stale revision rejected");
+    bool changed = true;
+    Check(TryApplySourceEdits(document, snapshot, revision, edits, {}, changed) == SourceResult::Stale && ! changed, "stale revision rejected");
     Document foreign(document.Text());
-    Reject<std::invalid_argument>([&] { ApplySourceEdits(document, foreign.Snapshot(), document.Revision(), {}, {}); },
-                                  "foreign snapshot rejected even with equal spelling");
+    Check(TryApplySourceEdits(document, foreign.Snapshot(), document.Revision(), {}, {}, changed) == SourceResult::Stale && ! changed,
+          "foreign snapshot rejected even with equal spelling");
     const auto unchanged         = document.Snapshot();
     const auto unchangedRevision = document.Revision();
     const std::array noOp{SourceEdit{{0u, 1u}, L"-"}, SourceEdit{{6u, 9u}, L"one"}};
@@ -217,25 +248,25 @@ inline void TransactionRejections()
     const auto revision  = document.Revision();
     const auto selection = document.GetSelection();
     const auto undo = document.CanUndo(), redo = document.CanRedo();
-    const auto reject = [&]<typename Exception>(std::span<const SourceEdit> edits, Selection after, const char* reason)
+    const auto reject = [&](SourceResult expected, std::span<const SourceEdit> edits, Selection after, const char* reason)
     {
-        Reject<Exception>([&] { ApplySourceEdits(document, source, revision, edits, after); }, reason);
+        bool changed = true;
+        Check(TryApplySourceEdits(document, source, revision, edits, after, changed) == expected && ! changed, reason);
         Check(document.Text() == before && document.Revision() == revision && document.GetSelection() == selection && document.CanUndo() == undo &&
                   document.CanRedo() == redo && document.Snapshot().IsSameRevision(source),
               "rejected edit plan preserves complete published state");
     };
-    reject.operator()<std::out_of_range>(std::array{SourceEdit{{1u, 2u}, L""}}, {}, "edit cannot split a UTF-16 scalar");
-    reject.operator()<std::out_of_range>(std::array{SourceEdit{{3u, 4u}, L""}}, {}, "edit cannot split a CRLF pair");
-    reject.operator()<std::invalid_argument>(std::array{SourceEdit{{0u, 3u}, L""}, SourceEdit{{1u, 3u}, L""}}, {}, "overlapping edits are rejected");
-    reject.operator()<std::invalid_argument>(std::array{SourceEdit{{5u, 6u}, L""}, SourceEdit{{0u, 1u}, L""}}, {}, "unordered edits are rejected");
-    reject.operator()<std::invalid_argument>(std::array{SourceEdit{{1u, 1u}, L"a"}, SourceEdit{{1u, 1u}, L"b"}}, {}, "duplicate edit positions are rejected");
+    reject(SourceResult::InvalidRange, std::array{SourceEdit{{1u, 2u}, L""}}, {}, "edit cannot split a UTF-16 scalar");
+    reject(SourceResult::InvalidRange, std::array{SourceEdit{{3u, 4u}, L""}}, {}, "edit cannot split a CRLF pair");
+    reject(SourceResult::InvalidRange, std::array{SourceEdit{{0u, 3u}, L""}, SourceEdit{{1u, 3u}, L""}}, {}, "overlapping edits are rejected");
+    reject(SourceResult::InvalidRange, std::array{SourceEdit{{5u, 6u}, L""}, SourceEdit{{0u, 1u}, L""}}, {}, "unordered edits are rejected");
+    reject(SourceResult::InvalidRange, std::array{SourceEdit{{1u, 1u}, L"a"}, SourceEdit{{1u, 1u}, L"b"}}, {}, "duplicate edit positions are rejected");
     const wchar_t unpaired = static_cast<wchar_t>(0xd800u);
-    reject.operator()<std::invalid_argument>(
-        std::array{SourceEdit{{0u, 1u}, std::wstring_view(&unpaired, 1u)}}, {}, "unpaired replacement surrogate is rejected");
-    reject.operator()<std::out_of_range>(std::array{SourceEdit{{0u, 1u}, L"\r"}}, {2u, 2u}, "future selection cannot split a UTF-16 scalar");
+    reject(SourceResult::InvalidSource, std::array{SourceEdit{{0u, 1u}, std::wstring_view(&unpaired, 1u)}}, {}, "unpaired replacement surrogate is rejected");
+    reject(SourceResult::InvalidRange, std::array{SourceEdit{{0u, 1u}, L"\r"}}, {2u, 2u}, "future selection cannot split a UTF-16 scalar");
     const std::wstring tooLarge(Document::MaximumUnits, L'x');
-    reject.operator()<std::length_error>(std::array{SourceEdit{{0u, 0u}, tooLarge}}, {}, "transaction source capacity is enforced");
-    reject.operator()<std::out_of_range>({}, {7u, 0u}, "selection beyond source is rejected");
+    reject(SourceResult::CapacityExceeded, std::array{SourceEdit{{0u, 0u}, tooLarge}}, {}, "transaction source capacity is enforced");
+    reject(SourceResult::InvalidRange, {}, {7u, 0u}, "selection beyond source is rejected");
     Document counted(L"abc");
     const auto countedBefore = counted.Snapshot();
     const std::wstring expected{L'a', L'\0', L'c'};
@@ -246,8 +277,10 @@ inline void TransactionRejections()
     Document join(L"aX\nb");
     const auto joinSnapshot = join.Snapshot();
     const auto joinRevision = join.Revision();
-    Reject<std::out_of_range>([&] { ApplySourceEdits(join, joinSnapshot, joinRevision, std::array{SourceEdit{{0u, 2u}, L"\r"}}, {1u, 1u}); },
-                              "future CRLF join selection rejected before publication");
+    bool changed            = true;
+    Check(TryApplySourceEdits(join, joinSnapshot, joinRevision, std::array{SourceEdit{{0u, 2u}, L"\r"}}, {1u, 1u}, changed) == SourceResult::InvalidRange &&
+              ! changed,
+          "future CRLF join selection rejected before publication");
     Check(join.Text() == L"aX\nb" && join.Revision() == joinRevision, "join failure is atomic");
 }
 } // namespace RichSemanticTests
@@ -256,6 +289,17 @@ namespace RichCommandTests
 {
 using RichSemanticTests::Check;
 using RichSemanticTests::Reject;
+inline void CheckCommandRefusal(SourceResult expected,
+                                const SourceSnapshot& source,
+                                std::uint64_t revision,
+                                std::shared_ptr<const MarkdownSyntax> syntax,
+                                Selection selection,
+                                const MarkdownCommandRequest& request,
+                                const char* description)
+{
+    std::optional<MarkdownCommandPlan> output;
+    Check(TryBuildMarkdownCommand(source, revision, std::move(syntax), selection, request, output) == expected && ! output, description);
+}
 inline void Exact(std::wstring_view source,
                   Selection before,
                   MarkdownCommandRequest request,
@@ -815,9 +859,13 @@ inline void InlineTasksLinks()
     Document invalidFootnote(L"hello");
     const auto invalidFootnoteSyntax = Parse(invalidFootnote, MarkdownProfile::RichMarkdown);
     request.text                     = L"bad\nlabel";
-    Reject<std::invalid_argument>([&] {
-        static_cast<void>(BuildMarkdownCommand(invalidFootnote.Snapshot(), invalidFootnote.Revision(), invalidFootnoteSyntax, {5u, 5u}, request));
-    }, "footnote insertion rejects an invalid raw label");
+    CheckCommandRefusal(SourceResult::InvalidSource,
+                        invalidFootnote.Snapshot(),
+                        invalidFootnote.Revision(),
+                        invalidFootnoteSyntax,
+                        {5u, 5u},
+                        request,
+                        "footnote insertion rejects an invalid raw label");
     Check(invalidFootnote.Text() == L"hello" && ! invalidFootnote.CanUndo(), "invalid footnote label leaves source and history intact");
 }
 inline void Tables()
@@ -834,24 +882,36 @@ inline void Tables()
     Document invalidTable(L"");
     const auto invalidTableSyntax = Parse(invalidTable);
     request.text                  = L"\"unfinished";
-    Reject<std::invalid_argument>([&] {
-        static_cast<void>(BuildMarkdownCommand(invalidTable.Snapshot(), invalidTable.Revision(), invalidTableSyntax, {}, request));
-    }, "unterminated quoted field is rejected atomically");
+    CheckCommandRefusal(SourceResult::InvalidSource,
+                        invalidTable.Snapshot(),
+                        invalidTable.Revision(),
+                        invalidTableSyntax,
+                        {},
+                        request,
+                        "unterminated quoted field is rejected atomically");
     std::wstring tooManyColumns(0u, L' ');
     for (unsigned i = 0u; i < 64u; ++i)
         tooManyColumns += L"x,";
     tooManyColumns += L"x";
     request.text = tooManyColumns;
-    Reject<std::length_error>([&] {
-        static_cast<void>(BuildMarkdownCommand(invalidTable.Snapshot(), invalidTable.Revision(), invalidTableSyntax, {}, request));
-    }, "delimited input rejects a 65th column before creating a source edit");
+    CheckCommandRefusal(SourceResult::CapacityExceeded,
+                        invalidTable.Snapshot(),
+                        invalidTable.Revision(),
+                        invalidTableSyntax,
+                        {},
+                        request,
+                        "delimited input rejects a 65th column before creating a source edit");
     std::wstring tooManyRows(0u, L' ');
     for (unsigned i = 0u; i < 258u; ++i)
         tooManyRows += L"x\n";
     request.text = tooManyRows;
-    Reject<std::length_error>([&] {
-        static_cast<void>(BuildMarkdownCommand(invalidTable.Snapshot(), invalidTable.Revision(), invalidTableSyntax, {}, request));
-    }, "delimited input rejects a 257th body row before creating a source edit");
+    CheckCommandRefusal(SourceResult::CapacityExceeded,
+                        invalidTable.Snapshot(),
+                        invalidTable.Revision(),
+                        invalidTableSyntax,
+                        {},
+                        request,
+                        "delimited input rejects a 257th body row before creating a source edit");
     Check(invalidTable.Text().empty() && ! invalidTable.CanUndo(), "invalid delimited input preserves source and history");
     request.text             = L"";
     request.tableInputFormat = MarkdownTableInputFormat::Empty;
@@ -873,9 +933,13 @@ inline void Tables()
     Document caretBoundarySource(L"a | b\n- | -\nx | y\n");
     const auto caretBoundarySyntax = Parse(caretBoundarySource);
     request.text                   = L"\U0001f600";
-    Reject<std::out_of_range>([&] {
-        static_cast<void>(BuildMarkdownCommand(caretBoundarySource.Snapshot(), caretBoundarySource.Revision(), caretBoundarySyntax, {16u, 16u}, request));
-    }, "table replacement caret cannot split a supplementary scalar");
+    CheckCommandRefusal(SourceResult::InvalidRange,
+                        caretBoundarySource.Snapshot(),
+                        caretBoundarySource.Revision(),
+                        caretBoundarySyntax,
+                        {16u, 16u},
+                        request,
+                        "table replacement caret cannot split a supplementary scalar");
     request.tableCellCaretOffset.reset();
     Document padded(L"| a | b | c |\r\n| :- | -: | --- |\r\n| x |\r\n");
     const auto syntax = Parse(padded);
@@ -984,8 +1048,13 @@ inline void MoveLinesAndItems()
     Document overflow(L"999999999. a\n1. b\n");
     const auto syntax = Parse(overflow);
     request.listStart.reset();
-    Reject<std::length_error>([&] { static_cast<void>(BuildMarkdownCommand(overflow.Snapshot(), overflow.Revision(), syntax, {11u, 11u}, request)); },
-                              "renumbering rejects overflow before publishing edits");
+    CheckCommandRefusal(SourceResult::CapacityExceeded,
+                        overflow.Snapshot(),
+                        overflow.Revision(),
+                        syntax,
+                        {11u, 11u},
+                        request,
+                        "renumbering rejects overflow before publishing edits");
     Check(overflow.Text() == L"999999999. a\n1. b\n" && ! overflow.CanUndo(), "renumber overflow preserves source and history");
 }
 inline void GuardsAndDeletion()
@@ -994,18 +1063,20 @@ inline void GuardsAndDeletion()
     request.command = MarkdownCommand::ToggleStyle;
     Document document(L"**alpha**\r\n");
     document.SetSelection({2u, 7u});
-    const auto syntax   = Parse(document);
-    const auto source   = document.Snapshot();
-    const auto revision = document.Revision();
-    const auto plan     = BuildMarkdownCommand(source, revision, syntax, document.GetSelection(), request);
+    const auto syntax                               = Parse(document);
+    const auto source                               = document.Snapshot();
+    const auto revision                             = document.Revision();
+    const auto plan                                 = BuildMarkdownCommand(source, revision, syntax, document.GetSelection(), request);
+    std::optional<MarkdownCommandPlan> retainedPlan = plan;
     document.SetSelection({7u, 2u});
-    Reject<std::invalid_argument>([&] { ApplyMarkdownCommand(document, plan); }, "direction/selection staleness rejects the whole plan");
+    bool changed = true;
+    Check(TryApplyMarkdownCommand(document, plan, changed) == SourceResult::Stale && ! changed, "direction/selection staleness rejects the whole plan");
     document.SetSelection({2u, 7u});
     document.Replace(2u, 3u, L"A", {2u, 7u});
     document.Undo();
-    Reject<std::invalid_argument>([&] { ApplyMarkdownCommand(document, plan); }, "undo returning to same spelling does not revive old revision");
-    Reject<std::invalid_argument>([&] { BuildMarkdownCommand(document.Snapshot(), document.Revision(), syntax, document.GetSelection(), request); },
-                                  "stale analysis never reparsed by command");
+    Check(TryApplyMarkdownCommand(document, plan, changed) == SourceResult::Stale && ! changed, "undo returning to same spelling does not revive old revision");
+    CheckCommandRefusal(
+        SourceResult::Stale, document.Snapshot(), document.Revision(), syntax, document.GetSelection(), request, "stale analysis never reparsed by command");
     for (const auto command : {MarkdownCommand::ToggleTask, MarkdownCommand::InsertTable})
     {
         Document plain(L"word");
@@ -1021,7 +1092,11 @@ inline void GuardsAndDeletion()
     Check(! BuildMarkdownCommand(mixed.Snapshot(), mixed.Revision(), Parse(mixed), mixed.GetSelection(), request).IsApplicable(),
           "mixed opaque selection rejects atomically");
     request.headingLevel = 7u;
-    Reject<std::invalid_argument>([&] { BuildMarkdownCommand(source, revision, syntax, {2u, 7u}, request); }, "invalid heading rejected");
+    CheckCommandRefusal(SourceResult::InvalidSource, source, revision, syntax, {2u, 7u}, request, "invalid heading rejected");
+    Check(TryBuildMarkdownCommand(source, revision, syntax, {2u, 7u}, request, retainedPlan) == SourceResult::InvalidSource && retainedPlan &&
+              retainedPlan->ExpectedSource().IsSameRevision(source) && retainedPlan->Before() == plan.Before() &&
+              retainedPlan->Edits().size() == plan.Edits().size(),
+          "invalid request preserves an existing output plan");
     Document unfinished(L"```\n");
     request.headingLevel = 2u;
     Check(! BuildMarkdownCommand(unfinished.Snapshot(), unfinished.Revision(), Parse(unfinished), {4u, 4u}, request).IsApplicable(),
@@ -1037,8 +1112,7 @@ inline void GuardsAndDeletion()
     const std::wstring oversized(Document::MaximumUnits + 1u, L'x');
     request.command     = MarkdownCommand::SetLink;
     request.destination = oversized;
-    Reject<std::length_error>([&] { BuildMarkdownCommand(source, revision, syntax, {2u, 7u}, request); },
-                              "unbounded borrowed metadata rejected before staging");
+    CheckCommandRefusal(SourceResult::CapacityExceeded, source, revision, syntax, {2u, 7u}, request, "unbounded borrowed metadata rejected before staging");
     Document ambiguousTask(L"- [x] - literal\n");
     MarkdownCommandRequest list;
     list.command = MarkdownCommand::SetList;
@@ -1055,20 +1129,30 @@ inline void GuardsAndDeletion()
     Document largePromotion(overflow);
     MarkdownCommandRequest table;
     table.command = MarkdownCommand::DeleteTableRow;
-    Reject<std::length_error>([&] { BuildMarkdownCommand(largePromotion.Snapshot(), largePromotion.Revision(), Parse(largePromotion), {}, table); },
-                              "promoting ignored overflow fields cannot bypass declared table command limits");
+    CheckCommandRefusal(SourceResult::CapacityExceeded,
+                        largePromotion.Snapshot(),
+                        largePromotion.Revision(),
+                        Parse(largePromotion),
+                        {},
+                        table,
+                        "promoting ignored overflow fields cannot bypass declared table command limits");
     const std::vector<MarkdownRange> fragments(SourceDisplayMap::MaximumSpans + 1u);
-    Reject<std::length_error>([&] { BuildMarkdownDeletion(source, revision, syntax, {2u, 7u}, fragments); },
-                              "deletion fragment amplification rejected before staging");
+    std::optional<MarkdownCommandPlan> rejectedDeletion;
+    Check(TryBuildMarkdownDeletion(source, revision, syntax, {2u, 7u}, fragments, rejectedDeletion) == SourceResult::CapacityExceeded && ! rejectedDeletion,
+          "deletion fragment amplification rejected before staging");
     request.command     = MarkdownCommand::SetLink;
     request.destination = L"javascript:alert(1)";
-    Reject<std::invalid_argument>([&] { BuildMarkdownCommand(source, revision, syntax, {2u, 7u}, request); },
-                                  "active link destination rejected before mutation");
+    CheckCommandRefusal(SourceResult::InvalidSource, source, revision, syntax, {2u, 7u}, request, "active link destination rejected before mutation");
     Document maximum(std::wstring(Document::MaximumUnits, L'x'));
     maximum.SetSelection({0u, 1u});
     request.command = MarkdownCommand::ToggleStyle;
-    Reject<std::length_error>([&] { BuildMarkdownCommand(maximum.Snapshot(), maximum.Revision(), Parse(maximum), maximum.GetSelection(), request); },
-                              "command capacity checked before apply");
+    CheckCommandRefusal(SourceResult::CapacityExceeded,
+                        maximum.Snapshot(),
+                        maximum.Revision(),
+                        Parse(maximum),
+                        maximum.GetSelection(),
+                        request,
+                        "command capacity checked before apply");
     for (const std::wstring_view spelling : {L"**[abc](target)**", L"<b><a href='target'>abc</a></b>"})
     {
         Document deleting(spelling);

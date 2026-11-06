@@ -7,6 +7,7 @@
 #include <limits>
 #include <memory>
 #include <vector>
+#include <wil/result.h>
 
 namespace DxUi::RichText::Detail
 {
@@ -94,6 +95,7 @@ public:
                float gutterWidth,
                std::optional<Window> window = std::nullopt)
     {
+        const Failure::Scope failureScope;
         auto desired = window.value_or(
             Window{0u, source.Length(), 0.0f, std::numeric_limits<float>::max(), std::numeric_limits<float>::lowest(), std::numeric_limits<float>::max()});
         desired.first = (std::min)(desired.first, source.Length());
@@ -122,11 +124,12 @@ public:
         staged->options.wrap          = false;
         next_.swap(staged);
     }
-    bool Advance(IDWriteFactory* factory, const RichEditorLayout& geometry)
+    HRESULT Advance(IDWriteFactory* factory, const RichEditorLayout& geometry)
     {
+        const Failure::Scope failureScope;
         lastWork_ = lastLayouts_ = 0u;
         if (! next_)
-            return true;
+            return S_OK;
         auto& stage   = *next_;
         auto& work    = lastWork_;
         auto& layouts = lastLayouts_;
@@ -136,17 +139,18 @@ public:
             {
                 if (stage.numbers)
                 {
-                    const auto caret = geometry.SourceCaret(stage.numberAt);
+                    CaretGeometry caret{};
+                    RETURN_IF_FAILED(geometry.TrySourceCaret(stage.numberAt, MarkdownNoNode, caret));
                     if (caret.y + caret.height > stage.window.top && caret.y < stage.window.bottom)
                     {
                         if (layouts == 4u)
-                            return false;
+                            return S_FALSE;
                         Document number{std::to_wstring(stage.line)};
                         auto projection = Project(number.Snapshot(), number.Revision(), ViewMode::Source);
                         auto label      = std::make_unique<PreparedLayout>();
                         // A by-value call would invoke Projection's implicit
                         // noexcept move, whose Debug STL proxies may allocate.
-                        PreparedLayoutAccess::Prepare(*label, factory, projection, stage.options);
+                        RETURN_IF_FAILED(PreparedLayoutAccess::Prepare(*label, factory, projection, stage.options));
                         stage.stagedNumbers.emplace_back(std::move(label), caret.y);
                         ++layouts;
                     }
@@ -166,7 +170,7 @@ public:
                 window_         = stage.window;
                 published_      = true;
                 next_.reset();
-                return true;
+                return S_OK;
             }
             const auto required = (std::min)(std::size_t{2u}, stage.window.last - stage.cursor);
             if (stage.units.empty() || stage.cursor < stage.unitsFirst || stage.cursor + required > stage.unitsFirst + stage.units.size())
@@ -174,7 +178,10 @@ public:
                 auto last = stage.cursor + (std::min)(std::size_t{258u}, stage.window.last - stage.cursor);
                 while (last < stage.source.Length() && ! stage.source.IsBoundary(last))
                     ++last;
-                auto units = stage.source.Slice(stage.cursor, last);
+                std::wstring units(0u, L' ');
+                const auto slice = stage.source.TrySlice(stage.cursor, last, units);
+                if (slice != SourceResult::Success)
+                    return slice == SourceResult::CapacityExceeded ? E_BOUNDS : E_INVALIDARG;
                 stage.units.swap(units);
                 stage.unitsFirst = stage.cursor;
             }
@@ -185,12 +192,13 @@ public:
             const auto consumed =
                 (ch == L'\r' && first + 1u < stage.window.last && stage.units[local + 1u] == L'\n') || (ch >= 0xd800 && ch <= 0xdbff) ? 2u : 1u;
             if (consumed > 256u - work)
-                return false;
+                return S_FALSE;
             const auto nextCursor = first + consumed;
             if (stage.marks && (ch == L' ' || ch == L'\t' || eol))
             {
-                const auto caret = geometry.SourceCaret(first);
-                const auto next  = geometry.SourceCaret(nextCursor);
+                CaretGeometry caret{}, next{};
+                RETURN_IF_FAILED(geometry.TrySourceCaret(first, MarkdownNoNode, caret));
+                RETURN_IF_FAILED(geometry.TrySourceCaret(nextCursor, MarkdownNoNode, next));
                 const auto width = ! eol && next.y == caret.y ? std::abs(next.x - caret.x) : 0.0f;
                 if (caret.y + caret.height > stage.window.top && caret.y < stage.window.bottom && caret.x >= stage.window.left - 8.0f &&
                     caret.x <= stage.window.right + 8.0f)
@@ -205,7 +213,7 @@ public:
             }
             work += consumed;
         }
-        return false;
+        return S_FALSE;
     }
     std::span<const Number> Numbers() const noexcept
     {

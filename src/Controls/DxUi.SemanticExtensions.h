@@ -88,6 +88,14 @@ struct SemanticExtensionAccess
         const auto sourceBlock = syntax ? syntax->SourceRegionNode() : MarkdownNoNode;
         builder.BeginWithNativeFallbacks(std::move(syntax), sourceBlock, sourceObjects, disclosures);
     }
+    [[nodiscard]] static SourceResult TryBeginWithPresentation(SemanticBuilder& builder,
+                                                               std::shared_ptr<const MarkdownSyntax> syntax,
+                                                               std::span<const MarkdownRange> sourceObjects,
+                                                               std::span<const DisclosureOverride> disclosures)
+    {
+        const auto sourceBlock = syntax ? syntax->SourceRegionNode() : MarkdownNoNode;
+        return builder.TryBeginWithNativeFallbacks(std::move(syntax), sourceBlock, sourceObjects, disclosures);
+    }
     static std::span<const SemanticExtensions::Formula> Maths(const SemanticDocument& document) noexcept
     {
         return document.extensions_ ? std::span<const SemanticExtensions::Formula>(document.extensions_->maths)
