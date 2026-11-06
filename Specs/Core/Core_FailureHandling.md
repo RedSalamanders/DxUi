@@ -23,6 +23,11 @@ need these diagnostics. Do not replace VCAsan's report callback: that would disp
 Ordinary Debug/Release still qualify the actual new-handler path, and unexpected C++ throw probes retain the
 DxUi host contract in every profile. See [Microsoft's VCAsan contract](https://learn.microsoft.com/en-us/cpp/sanitizers/asan-debugger-integration?view=msvc-170).
 
+The example host creates evidence directories using the process ID and creation time, queried through the
+held process handle. A process ID alone can be reused while an earlier process's reports remain. Directory
+creation remains checked and exclusive: never overwrite retained evidence on a collision. Parent-side dump
+verification resolves the same process instance through its original handle, rather than reopening a PID.
+
 ## Failure classification
 
 | Event | Required result |

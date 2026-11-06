@@ -3,11 +3,17 @@
 #include <DxUi/Failure.h>
 #include <array>
 #include <atomic>
+#include <span>
 #include <string_view>
 #include <wil/resource.h>
 
 namespace DxUiSample::FailureHost
 {
+inline constexpr std::size_t ProcessInstanceKeyCapacity = 32u;
+// Uses the held process handle, not a later lookup of a potentially reused PID.
+// Failure preserves the destination; no allocation or diagnostic hook is needed.
+[[nodiscard]] HRESULT GetProcessInstanceKey(HANDLE process, std::span<wchar_t> destination) noexcept;
+
 // DbgHelp is process-global and not thread-safe. A real application should
 // share this gate with every one of its own DbgHelp users.
 inline constinit SRWLOCK dbgHelpGate = SRWLOCK_INIT;

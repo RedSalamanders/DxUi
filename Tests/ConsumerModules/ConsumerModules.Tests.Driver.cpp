@@ -125,7 +125,13 @@ bool FatalModuleChild(int kind)
     if (outputSlash == std::wstring::npos)
         return fail("output-directory");
     outputPrefix.resize(outputSlash);
-    outputPrefix += L"\\FailureEvidence\\" + std::to_wstring(GetCurrentProcessId()) + L"\\child-" + std::to_wstring(kind) + L"-" + std::to_wstring(started);
+    const std::wstring executableDirectory = outputPrefix;
+    std::array<wchar_t, DxUiSample::FailureHost::ProcessInstanceKeyCapacity> parentInstance{};
+    const HRESULT parentIdentity = DxUiSample::FailureHost::GetProcessInstanceKey(GetCurrentProcess(), parentInstance);
+    if (FAILED(parentIdentity))
+        return fail("parent-instance", static_cast<DWORD>(parentIdentity));
+    const std::wstring parentEvidence = executableDirectory + L"\\FailureEvidence\\" + parentInstance.data();
+    outputPrefix                      = parentEvidence + L"\\child-" + std::to_wstring(kind) + L"-" + std::to_wstring(started);
     DxUiFailureTests::ChildOutputCapture output;
     const HRESULT captureResult = output.Initialize(outputPrefix + L".stdout", outputPrefix + L".stderr");
     if (FAILED(captureResult))
@@ -152,6 +158,26 @@ bool FatalModuleChild(int kind)
         WaitForSingleObject(process.get(), 30000u);
         return fail("assign-job", error);
     }
+    // Reproduce the retained PID-only directory that refused a real reused PID.
+    // Seed before resume, retain its bytes, and require the new instance's dump elsewhere.
+    constexpr std::string_view retainedText = "retained earlier process evidence\n";
+    wil::unique_hfile retainedEvidence;
+    if (kind == 7)
+    {
+        const std::wstring legacyDirectory = executableDirectory + L"\\FailureEvidence\\" + std::to_wstring(info.dwProcessId);
+        if (! CreateDirectoryW(legacyDirectory.c_str(), nullptr) && GetLastError() != ERROR_ALREADY_EXISTS)
+            return fail("legacy-evidence-directory", GetLastError());
+        const std::wstring retainedPath = legacyDirectory + L"\\retained-" + std::to_wstring(started) + L".record";
+        retainedEvidence.reset(
+            CreateFileW(retainedPath.c_str(), GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr));
+        if (! retainedEvidence)
+            return fail("legacy-evidence-create", GetLastError());
+        DWORD written{};
+        if (! WriteFile(retainedEvidence.get(), retainedText.data(), static_cast<DWORD>(retainedText.size()), &written, nullptr))
+            return fail("legacy-evidence-write", GetLastError());
+        if (written != retainedText.size())
+            return fail("legacy-evidence-write-size", written);
+    }
     const ULONGLONG resumedAt = GetTickCount64();
     if (ResumeThread(thread.get()) == static_cast<DWORD>(-1))
         return fail("resume", GetLastError());
@@ -172,16 +198,9 @@ bool FatalModuleChild(int kind)
     {
         if (waited == WAIT_TIMEOUT)
         {
-            std::wstring path(executable.data(), length);
-            const auto slash   = path.find_last_of(L"\\/");
-            HRESULT dumpResult = E_FAIL;
-            if (slash != std::wstring::npos)
-            {
-                path.resize(slash);
-                path += L"\\FailureEvidence\\" + std::to_wstring(GetCurrentProcessId()) + L"\\timeout-" + std::to_wstring(kind) + L"-" +
-                        std::to_wstring(childPid) + L"-" + std::to_wstring(waitedAt) + L".dmp";
-                dumpResult = DxUiFailureTests::CaptureLiveHangDump(process.get(), childPid, path);
-            }
+            const std::wstring path =
+                parentEvidence + L"\\timeout-" + std::to_wstring(kind) + L"-" + std::to_wstring(childPid) + L"-" + std::to_wstring(waitedAt) + L".dmp";
+            const HRESULT dumpResult = DxUiFailureTests::CaptureLiveHangDump(process.get(), childPid, path);
             std::printf("DXUI_NATIVE_MODULE_HANG_DUMP scenario=%d pid=%lu result=%08lx diagnostic_ms=%llu path=%ls\n",
                         kind,
                         childPid,
@@ -197,6 +216,17 @@ bool FatalModuleChild(int kind)
         return fail("child-exit", childExit);
     if (markerState != WAIT_OBJECT_0)
         return fail("fatal-exit-marker", markerState);
+    if (retainedEvidence)
+    {
+        LARGE_INTEGER beginning{};
+        std::array<char, 64> retained{};
+        DWORD read{};
+        if (! SetFilePointerEx(retainedEvidence.get(), beginning, nullptr, FILE_BEGIN) ||
+            ! ReadFile(retainedEvidence.get(), retained.data(), static_cast<DWORD>(retained.size()), &read, nullptr))
+            return fail("legacy-evidence-preservation", GetLastError());
+        if (std::string_view(retained.data(), read) != retainedText)
+            return fail("legacy-evidence-content", read);
+    }
     std::wstring directory(executable.data(), length);
     const auto slash = directory.find_last_of(L"\\/");
     if (slash == std::wstring::npos)
@@ -204,7 +234,11 @@ bool FatalModuleChild(int kind)
     directory.resize(slash);
     const bool originInA  = kind <= 2 || (kind >= 5 && kind <= 6) || (kind >= 11 && kind <= 14);
     const auto modulePath = directory + (originInA ? L"\\NativeModuleA.dll" : L"\\NativeModuleB.dll");
-    directory += L"\\FailureEvidence\\" + std::to_wstring(info.dwProcessId) + L"\\failure";
+    std::array<wchar_t, DxUiSample::FailureHost::ProcessInstanceKeyCapacity> childInstance{};
+    const HRESULT childIdentity = DxUiSample::FailureHost::GetProcessInstanceKey(process.get(), childInstance);
+    if (FAILED(childIdentity))
+        return fail("child-instance", static_cast<DWORD>(childIdentity));
+    directory += L"\\FailureEvidence\\" + std::wstring(childInstance.data()) + L"\\failure";
     wil::unique_hfile record(
         CreateFileW((directory + L".record").c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr));
     if (! record)

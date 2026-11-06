@@ -40,6 +40,32 @@ struct Text
 };
 } // namespace
 
+HRESULT GetProcessInstanceKey(HANDLE process, std::span<wchar_t> destination) noexcept
+{
+    if (destination.size() < ProcessInstanceKeyCapacity)
+        return HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER);
+    const DWORD processId = GetProcessId(process);
+    if (! processId)
+        return LastError();
+    FILETIME created{}, exited{}, kernel{}, user{};
+    if (! GetProcessTimes(process, &created, &exited, &kernel, &user))
+        return LastError();
+    ULARGE_INTEGER creation{};
+    creation.LowPart  = created.dwLowDateTime;
+    creation.HighPart = created.dwHighDateTime;
+    if (! creation.QuadPart)
+        return E_UNEXPECTED;
+    std::array<wchar_t, ProcessInstanceKeyCapacity> key{};
+    if (_ultow_s(processId, key.data(), key.size(), 10) != 0)
+        return E_FAIL;
+    const auto separator = std::char_traits<wchar_t>::length(key.data());
+    key[separator]       = L'-';
+    if (_ui64tow_s(creation.QuadPart, key.data() + separator + 1u, key.size() - separator - 1u, 10) != 0)
+        return E_FAIL;
+    std::copy_n(key.data(), std::char_traits<wchar_t>::length(key.data()) + 1u, destination.data());
+    return S_OK;
+}
+
 Host::~Host()
 {
     const auto result = Uninstall();
@@ -61,8 +87,13 @@ HRESULT Host::StartBesideExecutable() noexcept
         --separator;
     if (! separator)
         return HRESULT_FROM_WIN32(ERROR_BAD_PATHNAME);
-    constexpr std::wstring_view folder = L"FailureEvidence";
-    if (separator + folder.size() + 32u >= path.size())
+    constexpr std::wstring_view folder = L"FailureEvidence", suffix = L"\\failure";
+    std::array<wchar_t, ProcessInstanceKeyCapacity> instance{};
+    const HRESULT identity = GetProcessInstanceKey(GetCurrentProcess(), instance);
+    if (FAILED(identity))
+        return identity;
+    const std::wstring_view key(instance.data());
+    if (separator + folder.size() + 1u + key.size() + suffix.size() >= path.size())
         return HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER);
     std::copy(folder.begin(), folder.end(), path.begin() + separator);
     auto cursor  = separator + folder.size();
@@ -73,16 +104,11 @@ HRESULT Host::StartBesideExecutable() noexcept
     if (attributes == INVALID_FILE_ATTRIBUTES || ! (attributes & FILE_ATTRIBUTE_DIRECTORY))
         return HRESULT_FROM_WIN32(ERROR_DIRECTORY);
     path[cursor++] = L'\\';
-    wchar_t digits[16]{};
-    if (_ultow_s(GetCurrentProcessId(), digits, 10) != 0)
-        return E_FAIL;
-    const auto count = std::char_traits<wchar_t>::length(digits);
-    std::copy_n(digits, count, path.data() + cursor);
-    cursor += count;
+    std::copy(key.begin(), key.end(), path.data() + cursor);
+    cursor += key.size();
     path[cursor] = L'\0';
     if (! CreateDirectoryW(path.data(), nullptr))
         return LastError();
-    constexpr std::wstring_view suffix = L"\\failure";
     std::copy(suffix.begin(), suffix.end(), path.data() + cursor);
     cursor += suffix.size();
     const auto started = Start(std::wstring_view(path.data(), cursor));
