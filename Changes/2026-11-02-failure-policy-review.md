@@ -1,1 +1,0 @@
-- Specify checked nonthrowing failure results and host-owned fatal diagnostics for unexpected C++ exceptions, including bad_alloc; reconcile conflicting recovery requirements and record the unimplemented runtime/test migration with original-stack and dump acceptance.
