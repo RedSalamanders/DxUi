@@ -1143,6 +1143,11 @@ These can be selected individually using the RichMarkdown extension flags; use
 defaults. CommonMark and GFM do not admit the extra bits. Scripts use the same
 prepared typography as supported native HTML scripts. An unsupported drawing
 target retains the owning leaf as exact source and retries after resource change.
+Mixed paragraphs such as `x^2^ 😀` and `<sup>2</sup> 😀` use their native script presentation when the supplied
+target supports color glyphs. The preparation records target capability before releasing its staging raster.
+Legacy targets keep the exact source fallback for the affected color/script paragraph; ordinary noncolor
+scripts continue to render. An unexpected native capability-query error preserves the last complete geometry
+and is reported as a checked preparation failure.
 Focused parser/semantic checks pass; full native, accessibility and performance
 qualification remain pending.
 

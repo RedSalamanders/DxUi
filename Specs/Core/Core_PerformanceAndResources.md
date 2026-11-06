@@ -6,6 +6,14 @@ and callback exceptions require host fatal diagnostics, implemented by API 5. It
 tracked in the failure migration plan; historical throwing-fault recovery sweeps and resource measurements
 alone do not qualify it.
 
+Semantic script/color admission performs at most one native capability query per new script-bearing geometry
+preparation with a supplied target. A preparation-local scalar survives staging-raster retirement. Compatible
+reuse and documents without scripts make no such query. Diagnostic counts cover these admission calls, not
+interface acquisition by the native glyph renderer. The temporary query interface is released immediately;
+published target binding keeps its existing ownership. Clean/hidden frames and composition add no capability
+work, allocation, layout or periodic wake. Native resource and pixel oracles remain separate from elapsed-time
+or paired-performance acceptance.
+
 Editor cosmetics use the existing owner-thread optional visual traversal, with
 no worker or periodic timer. Content readiness excludes code/source ink, source
 guides and Source-mode analysis used for colouring. Guide retention and copying

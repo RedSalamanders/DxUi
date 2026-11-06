@@ -5,8 +5,11 @@
 #include "Controls/DxUi.PreparedMath.h"
 #include "Controls/DxUi.RichSemanticGeometry.h"
 #include "Controls/DxUi.SemanticExtensions.h"
+#include "GraphicsFixture.h"
 #include "Support.Tests.RichSemanticDocument.h"
 #include <cmath>
+#include <d2d1_3.h>
+#include <dwrite_2.h>
 #include <iostream>
 #include <limits>
 #include <type_traits>
@@ -215,6 +218,151 @@ inline void LiteralFootnoteBlockCaretSites()
     }
     Check(geometry.Ready() && geometry.BoxCount() == 1u && geometry.SourceLines().size() == 1026u,
           "many literal note blank lines remain real source lines without creating duplicate layout boxes");
+}
+template <typename Observe = std::nullptr_t> inline void ScriptColorTargetCapability(Observe observe = nullptr)
+{
+    const auto initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+    if (FAILED(initialized) && initialized != RPC_E_CHANGED_MODE)
+        THROW_IF_FAILED(initialized);
+    const auto apartment = wil::scope_exit([&]() noexcept
+    {
+        if (SUCCEEDED(initialized))
+            CoUninitialize();
+    });
+#if DXUI_ENABLE_DIAGNOSTICS
+    const auto previousQueries               = Detail::testRichScriptColorTargetQueries;
+    const auto previousFailure               = Detail::testRichScriptColorTargetFailure;
+    const auto restore                       = wil::scope_exit([=]() noexcept
+    {
+        Detail::testRichScriptColorTargetQueries = previousQueries;
+        Detail::testRichScriptColorTargetFailure = previousFailure;
+    });
+    Detail::testRichScriptColorTargetQueries = 0u;
+    Detail::testRichScriptColorTargetFailure = S_OK;
+#endif
+    GraphicsFixture graphics;
+    THROW_IF_FAILED(graphics.Create());
+    wil::com_ptr<ID2D1Factory1> drawing;
+    THROW_IF_FAILED(D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, IID_PPV_ARGS(drawing.put())));
+    wil::com_ptr<IDXGIDevice> dxgi;
+    THROW_IF_FAILED(graphics.device.query_to(dxgi.put()));
+    wil::com_ptr<ID2D1Device> device;
+    THROW_IF_FAILED(drawing->CreateDevice(dxgi.get(), device.put()));
+    wil::com_ptr<ID2D1DeviceContext> target;
+    THROW_IF_FAILED(device->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE, target.put()));
+    wil::com_ptr<ID2D1DeviceContext7> colorTarget;
+    THROW_IF_FAILED(target->QueryInterface(IID_PPV_ARGS(colorTarget.put())));
+    wil::com_ptr<IDXGISurface> surface;
+    THROW_IF_FAILED(graphics.target.query_to(surface.put()));
+    wil::com_ptr<ID2D1Bitmap1> targetBitmap;
+    const auto properties = D2D1::BitmapProperties1(D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW,
+                                                    D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
+    THROW_IF_FAILED(target->CreateBitmapFromDxgiSurface(surface.get(), &properties, targetBitmap.put()));
+    target->SetTarget(targetBitmap.get());
+    auto factory              = Factory();
+    const std::wstring source = L"A^2^ \U0001f600\n\nB~3~ \U0001f600\n\n<p>C<sup>4</sup> \U0001f600</p>\n\n**tail**\n";
+    const auto document       = RichSemanticDocumentTests::Build(source, MarkdownProfile::RichMarkdown);
+    Check(document->Map().Source() == source && document->Map().Display().find(L"A2 \U0001f600") != std::wstring_view::npos &&
+              document->Map().Display().find(L"B3 \U0001f600") != std::wstring_view::npos &&
+              document->Map().Display().find(L"C4 \U0001f600") != std::wstring_view::npos,
+          "three independently specified Markdown/HTML script paragraphs retain emoji and exact source");
+    LayoutOptions options;
+    options.widthDip    = 400.f;
+    options.fontSizeDip = 18.f;
+    PreparedSemanticGeometry geometry;
+    geometry.Begin(factory.get(), document, options, drawing.get(), {}, {}, target.get());
+    Complete(geometry);
+    Check(geometry.RejectedNativeObjects().empty(), "a real color-capable target admits script paragraphs after staging raster retirement");
+#if DXUI_ENABLE_DIAGNOSTICS
+    Check(Detail::testRichScriptColorTargetQueries == 1u, "three script paragraphs query target capability once per preparation");
+#endif
+    geometry.Begin(factory.get(), document, options, drawing.get(), {}, {}, target.get());
+    Check(! geometry.Pending() && geometry.Ready(), "an unchanged script publication needs no preparation");
+    wil::com_ptr<ID2D1SolidColorBrush> ink;
+    THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black), ink.put()));
+    target->BeginDraw();
+    target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+    if constexpr (! std::is_same_v<Observe, std::nullptr_t>)
+        observe(true);
+    geometry.Draw(target.get(), ink.get(), ink.get(), {}, 0.f, 240.f);
+    if constexpr (! std::is_same_v<Observe, std::nullptr_t>)
+        observe(false);
+    THROW_IF_FAILED(target->EndDraw());
+    std::vector<uint8_t> pixels;
+    THROW_IF_FAILED(graphics.Read(pixels));
+    std::size_t colored{};
+    for (std::size_t i = 0u; i + 3u < pixels.size(); i += 4u)
+        if (std::max({pixels[i], pixels[i + 1u], pixels[i + 2u]}) - std::min({pixels[i], pixels[i + 1u], pixels[i + 2u]}) > 32)
+            ++colored;
+    Check(colored > 16u, "actual WARP pixels retain colored emoji beside prepared scripts");
+#if DXUI_ENABLE_DIAGNOSTICS
+    Check(Detail::testRichScriptColorTargetQueries == 1u, "unchanged preparation and warm drawing do not repeat the preparation capability query");
+#endif
+    const auto generation = geometry.Generation();
+    auto changed          = options;
+    changed.widthDip += 20.f;
+    geometry.Begin(factory.get(), document, changed, drawing.get(), {}, {}, target.get());
+    static_cast<void>(geometry.Advance({1u, 1u}));
+    geometry.Cancel();
+    Check(geometry.Ready() && geometry.Generation() == generation && geometry.Document().Map().Source() == source,
+          "cancelling a new script preparation retains the complete prior publication and exact source");
+#if DXUI_ENABLE_DIAGNOSTICS
+    Detail::testRichScriptColorTargetFailure = E_ACCESSDENIED;
+    const auto beforeFailure                 = Detail::testRichScriptColorTargetQueries;
+    geometry.Begin(factory.get(), document, changed, drawing.get(), {}, {}, target.get());
+    const auto failed = geometry.Advance({1u, 1u});
+    Check(failed.status == LayoutPreparationStatus::Failed && failed.result == E_ACCESSDENIED && geometry.Ready() && geometry.Generation() == generation &&
+              Detail::testRichScriptColorTargetQueries == beforeFailure,
+          "unexpected native query failure remains a checked HRESULT and preserves the prior publication");
+    Detail::testRichScriptColorTargetFailure = S_OK;
+#endif
+    geometry.Begin(factory.get(), document, changed, drawing.get(), {}, {}, target.get());
+    Complete(geometry);
+    Check(geometry.RejectedNativeObjects().empty(), "a later supported preparation retries the unchanged script source");
+    wil::com_ptr<IWICImagingFactory> imaging;
+    THROW_IF_FAILED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(imaging.put())));
+    wil::com_ptr<IWICBitmap> bitmap;
+    THROW_IF_FAILED(imaging->CreateBitmap(400u, 240u, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnLoad, bitmap.put()));
+    wil::com_ptr<ID2D1RenderTarget> legacy;
+    THROW_IF_FAILED(drawing->CreateWicBitmapRenderTarget(bitmap.get(), D2D1::RenderTargetProperties(), legacy.put()));
+    wil::com_ptr<ID2D1DeviceContext7> unavailable;
+    Check(legacy->QueryInterface(IID_PPV_ARGS(unavailable.put())) == E_NOINTERFACE, "the actual legacy WIC fixture has no color context interface");
+    for (ID2D1RenderTarget* unsupported : {legacy.get(), static_cast<ID2D1RenderTarget*>(nullptr)})
+    {
+        PreparedSemanticGeometry fallback;
+        fallback.Begin(factory.get(), document, options, drawing.get(), {}, {}, unsupported);
+        std::size_t turns{};
+        while (fallback.Pending())
+        {
+            const auto step = fallback.Advance({1u, 3u});
+            Check(step.status != LayoutPreparationStatus::Failed && ++turns < 10000u, "unsupported targets finish bounded checked preparation");
+        }
+        Check(! fallback.Ready() && fallback.RejectedNativeObjects().size() == 3u, "legacy and absent targets reject only the three color/script paragraphs");
+        for (const auto rejected : fallback.RejectedNativeObjects())
+        {
+            Check(rejected < document->Elements().size(), "a color fallback names an admitted semantic element");
+            const auto range = document->Elements()[rejected].source;
+            Check(source.substr(range.first, range.last - range.first).find(L"\U0001f600") != std::wstring::npos,
+                  "fallback ownership includes an original emoji paragraph rather than unrelated tail text");
+        }
+    }
+    const auto plainScripts = RichSemanticDocumentTests::Build(L"A^2^\n\nB~3~\n", MarkdownProfile::RichMarkdown);
+    PreparedSemanticGeometry plain;
+    plain.Begin(factory.get(), plainScripts, options, drawing.get(), {}, {}, legacy.get());
+    Complete(plain);
+    Check(plain.RejectedNativeObjects().empty(), "legacy targets still admit ordinary noncolor superscripts and subscripts");
+#if DXUI_ENABLE_DIAGNOSTICS
+    const auto beforeOrdinary = Detail::testRichScriptColorTargetQueries;
+#endif
+    const auto ordinaryDocument = RichSemanticDocumentTests::Build(L"ordinary \U0001f600 paragraph\n", MarkdownProfile::RichMarkdown);
+    PreparedSemanticGeometry ordinary;
+    ordinary.Begin(factory.get(), ordinaryDocument, options, drawing.get(), {}, {}, target.get());
+    Complete(ordinary);
+#if DXUI_ENABLE_DIAGNOSTICS
+    Check(Detail::testRichScriptColorTargetQueries == beforeOrdinary, "a paragraph without scripts does not query script color capability");
+#endif
+    std::cout << "script color capability actualTarget=1 legacyTarget=1 absentTarget=1 paragraphs=3 coloredPixels=" << colored
+              << " cancellationPreserved=1 checkedFailurePreserved=1\n";
 }
 template <typename Observe = std::nullptr_t> inline void HtmlScripts(Observe observe = nullptr)
 {

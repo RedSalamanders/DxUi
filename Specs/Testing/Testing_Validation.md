@@ -31,6 +31,20 @@ showing it without activation does not establish that precondition. Keep healthy
 real TSF/focus scenarios in their separately approved foreground lease. Headless callback proof is not OS TSF
 activation or foreground qualification.
 
+## Script/color targets and diagnostic counts
+
+Script/color admission coverage must use an actual capable WARP target, a legacy WIC target that independently
+refuses the color interface, and an absent target. Check exact source, native admission, colored raster pixels,
+legacy paragraph-local rejection and noncolor script support. Count actual admission-query attempts across
+multiple paragraphs, compatible reuse and a document without scripts. Cancellation and injected native failure
+must preserve the previous publication; a later valid request must succeed. Supplied-device coverage measures
+warm native drawing allocations separately from geometry preparation. These tests do not establish physical
+device or paired-performance acceptance.
+
+Diagnostic scenario summaries derive their counts from the actual iterable or shared execution bound. A
+hardcoded summary must not drift from an expanded corpus or imply that an unexecuted case ran. Retained
+historical output remains unchanged and is interpreted with its original source inventory and request traces.
+
 ## Existing scenario contracts
 
 Native staged-TSF reconciliation tests count the current generation-tagged production dispatch separately from

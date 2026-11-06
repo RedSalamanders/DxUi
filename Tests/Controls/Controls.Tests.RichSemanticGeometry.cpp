@@ -913,6 +913,10 @@ void TestRichSemanticNativeRenderingAdmissionFallback()
         });
     });
 }
+void TestRichSemanticScriptColorTargetCapability()
+{
+    RichSemanticTests::Run([] { RichSemanticGeometryTests::ScriptColorTargetCapability(); });
+}
 } // namespace
 void RunRichSemanticGeometryTests()
 {
@@ -921,6 +925,7 @@ void RunRichSemanticGeometryTests()
 #endif
     DXUI_RUN_TEST(TestRichSemanticNativeObjectFailureContainment);
     DXUI_RUN_TEST(TestRichSemanticNativeFallbackSyntaxOwnership);
+    DXUI_RUN_TEST(TestRichSemanticScriptColorTargetCapability);
     DXUI_RUN_TEST(TestRichSemanticNativeObjectSharedContract);
     DXUI_RUN_TEST(TestRichSemanticNativeMathCaretMetrics);
     DXUI_RUN_TEST(TestRichSemanticNativeMathAndBroaderDiagrams);

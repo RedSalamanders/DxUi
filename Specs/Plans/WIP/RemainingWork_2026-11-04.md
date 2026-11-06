@@ -158,6 +158,10 @@ any *different* remaining failure-channel problem belong to D-A1.
   affected-suite passes, the Debug allocation repair, native gallery review and consumer verification.
 - [ ] Compute color-glyph capability once per preparation and preserve the intended script/emoji fallback
   (SEM-01/RENDER-05; D6 pending), with actual target tests.
+  The unchanged API-5 library independently rejects a script/emoji paragraph despite an actual color target
+  and color font. The current repair caches admission capability before staging-raster retirement, preserves
+  legacy-target fallback and adds WARP/WIC/absent-target, pixel, cancellation and native-failure coverage.
+  Native build/runtime/resource qualification is pending; no physical or paired-performance claim is made.
 - [ ] Resolve image-completion/animation re-preparation, placeholder direction, lost list markers and
   supplementary-plane word starts (SEM-02/03/04/05).
 - [ ] Restore bounded chunk reuse with nondefault line height (RENDER-02); preserve clean/dirty/hidden work,

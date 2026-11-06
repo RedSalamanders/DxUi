@@ -32,7 +32,7 @@ struct PreparedLayoutAccess
         return owner.DrawingVerticalBounds();
     }
     static float MinimumTextWidth(const PreparedLayout& owner);
-    static bool ScriptTargetSupported(const PreparedLayout& owner, ID2D1RenderTarget* target);
+    static bool ScriptTargetSupported(const PreparedLayout& owner, bool colorTargetAvailable) noexcept;
     static HRESULT PrepareSemantic(PreparedLayout& owner,
                                    IDWriteFactory* factory,
                                    SemanticInput& input,
