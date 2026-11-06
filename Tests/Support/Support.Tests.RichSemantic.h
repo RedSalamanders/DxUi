@@ -351,8 +351,27 @@ inline void Unavailable(std::wstring_view source, Selection selection, MarkdownC
     Check(document.Snapshot().IsSameRevision(snapshot) && document.GetSelection() == selection && ! document.CanUndo(),
           "unavailable structural command leaves exact source and selection unchanged");
 }
+inline void DisplayMathBlankLineOracles()
+{
+    MarkdownCommandRequest request;
+    request.command                      = MarkdownCommand::InsertMath;
+    request.mathDisplay                  = true;
+    request.text                         = L"x\n\n y";
+    constexpr std::wstring_view expected = L"\\[\r\nx\n\n y\r\n\\]";
+    Exact(L"", {}, request, expected, std::nullopt, MarkdownProfile::RichMarkdown);
+    Document result{std::wstring(expected)};
+    const auto syntax = Parse(result, MarkdownProfile::RichMarkdown);
+    Check(std::ranges::count_if(syntax->Nodes(),
+                                [&](const auto& node)
+    {
+        return node.block.kind == MarkdownBlockKind::FencedCode && node.block.fenceMarker == L'[' && node.block.source.first == 0u &&
+               node.block.source.last == expected.size();
+    }) == 1,
+          "blank display-math lines remain inside one complete parsed source envelope");
+}
 inline void ListsAndHeadings()
 {
+    DisplayMathBlankLineOracles();
     MarkdownCommandRequest request;
     for (const auto profile : {MarkdownProfile::CommonMark0312, MarkdownProfile::Gfm029, MarkdownProfile::RichMarkdown})
     {
@@ -712,6 +731,35 @@ inline void ListsAndHeadings()
     request.listStart = 999999999u;
     Unavailable(L"alpha\nbeta\n", {0u, 11u}, request);
 }
+inline void FootnoteTrailingEscapes()
+{
+    Document document(L"hello");
+    const auto syntax = Parse(document, MarkdownProfile::RichMarkdown);
+    MarkdownCommandRequest request;
+    request.command = MarkdownCommand::InsertFootnote;
+    for (const std::wstring_view label : {L"note\\", L"note\\\\\\"})
+    {
+        request.text = label;
+        CheckCommandRefusal(SourceResult::InvalidSource,
+                            document.Snapshot(),
+                            document.Revision(),
+                            syntax,
+                            {5u, 5u},
+                            request,
+                            "an odd trailing escape cannot consume the generated footnote closing bracket");
+        Check(document.Text() == L"hello" && ! document.CanUndo(), "trailing escape refusal preserves source and history");
+    }
+    for (const std::wstring_view label : {L"note\\\\", L"note\\\\\\\\", L"note\\]"})
+    {
+        request.text        = label;
+        const auto expected = L"hello[^" + std::wstring(label) + L"]\r\n\r\n[^" + std::wstring(label) + L"]: ";
+        Exact(L"hello", {5u, 5u}, request, expected, std::nullopt, MarkdownProfile::RichMarkdown);
+        Document inserted(expected);
+        const auto parsed = Parse(inserted, MarkdownProfile::RichMarkdown);
+        Check(parsed->Footnotes().size() == 1u && parsed->Footnotes()[0].references.size() == 1u,
+              "balanced trailing escapes create a resolved reference and one definition");
+    }
+}
 inline void InlineTasksLinks()
 {
     MarkdownCommandRequest request;
@@ -783,6 +831,29 @@ inline void InlineTasksLinks()
     Exact(L"- [ ] task\n", {8u, 8u}, request, L"- [x] task\n");
     Exact(L"word", {2u, 2u}, request, L"- [ ] word");
     Exact(L"- [x] a\n- [ ] b\n", {0u, 16u}, request, L"- [ ] a\n- [x] b\n");
+    for (const std::wstring_view eol : {L"\n", L"\r\n", L"\r"})
+    {
+        const std::wstring ending(eol);
+        const auto source = L"- [ ] a" + ending + L"-" + ending + L"  [ ] b" + ending;
+        Exact(source, {0u, source.size()}, request, L"- [x] a" + ending + L"-" + ending + L"  [x] b" + ending);
+        const auto task  = L"-" + ending + L"  [X] b" + ending;
+        const auto label = task.find(L'b');
+        Exact(task, {label, label}, request, L"-" + ending + L"  [ ] b" + ending);
+        const auto plain = L"-" + ending + L"  text" + ending;
+        const auto text  = plain.find(L"text");
+        Exact(plain, {text, text}, request, L"-" + ending + L"  [ ] text" + ending);
+        MarkdownCommandRequest conversion;
+        conversion.command  = MarkdownCommand::SetList;
+        conversion.listKind = MarkdownListKind::Task;
+        Exact(plain, {text, text}, conversion, L"-" + ending + L"  [ ] text" + ending);
+        for (const auto kind : {MarkdownListKind::None, MarkdownListKind::Unordered, MarkdownListKind::Ordered})
+        {
+            conversion.listKind = kind;
+            Unavailable(task, {label, label}, conversion);
+            Unavailable(source, {0u, source.size()}, conversion);
+        }
+    }
+    Exact(L"> -\n>   [ ] b\n", {12u, 12u}, request, L"> -\n>   [x] b\n");
     request.command = MarkdownCommand::InsertParagraph;
     Exact(L"> 9) [x] alpha\r\n", {14u, 14u}, request, L"> 9) [x] alpha\r\n> 10) [ ] \r\n");
     Exact(L"> ***", {5u, 5u}, request, L"> ***\r\n", Selection{7u, 7u});
@@ -867,6 +938,7 @@ inline void InlineTasksLinks()
                         request,
                         "footnote insertion rejects an invalid raw label");
     Check(invalidFootnote.Text() == L"hello" && ! invalidFootnote.CanUndo(), "invalid footnote label leaves source and history intact");
+    FootnoteTrailingEscapes();
 }
 inline void Tables()
 {
@@ -1031,8 +1103,65 @@ inline void Tables()
     const std::wstring reorderedPadding(L"| a | c | b |\r\n| :- | --- | -: |\r\n| x |\r\n");
     Exact(padded.Text(), {padded.Text().size(), padded.Text().size()}, request, reorderedPadding, Selection{reorderedPadding.size(), reorderedPadding.size()});
 }
+inline void ParagraphMoveOwnership()
+{
+    MarkdownCommandRequest request;
+    for (const std::wstring_view eol : {L"\n", L"\r\n", L"\r"})
+    {
+        const std::wstring ending(eol);
+        for (const std::wstring_view second : {L"2. b", L"    b", L"<widget>"})
+        {
+            const auto source = L"a" + ending + std::wstring(second) + ending;
+            const auto next   = 1u + ending.size();
+            request.command   = MarkdownCommand::MoveLineUp;
+            Unavailable(source, {next, next}, request);
+            request.command = MarkdownCommand::MoveLineDown;
+            Unavailable(source, {0u, 0u}, request);
+        }
+        request.command = MarkdownCommand::MoveLineDown;
+        for (const std::wstring_view first : {L"> a", L"===", L"[x]: /u", L"---|---"})
+        {
+            const auto source = std::wstring(first) + ending + (first == L"---|---" ? L"a|b" : L"b") + ending;
+            Unavailable(source, {0u, 0u}, request);
+            request.command = MarkdownCommand::MoveLineUp;
+            const auto next = first.size() + ending.size();
+            Unavailable(source, {next, next}, request);
+            request.command = MarkdownCommand::MoveLineDown;
+        }
+        Exact(L"> alpha" + ending + L"> beta", {3u, 3u}, request, L"> beta" + ending + L"> alpha");
+    }
+    Exact(L"alpha\nbeta", {1u, 4u}, request, L"beta\nalpha", Selection{6u, 9u});
+    Exact(L"alpha\n2. beta\nlast", {6u, 6u}, request, L"alpha\nlast\n2. beta");
+}
+inline void SiblingMoveOwnership()
+{
+    MarkdownCommandRequest request;
+    for (const std::wstring_view eol : {L"\n", L"\r\n", L"\r"})
+    {
+        const std::wstring ending(eol);
+        for (const std::wstring_view opening : {L"- - a", L"1. - a"})
+        {
+            const auto indent = opening.front() == L'1' ? L"   " : L"  ";
+            const auto source = std::wstring(opening) + ending + indent + L"- b" + ending;
+            const auto a = source.find(L'a'), b = source.find(L'b');
+            request.command = MarkdownCommand::MoveLineUp;
+            Unavailable(source, {b, b}, request);
+            request.command = MarkdownCommand::MoveLineDown;
+            Unavailable(source, {a, a}, request);
+        }
+        const auto quoted = L"> - a" + ending + L"> - b" + ending;
+        const auto b      = quoted.find(L'b');
+        request.command   = MarkdownCommand::MoveLineUp;
+        Exact(quoted, {b, b}, request, L"> - b" + ending + L"> - a" + ending);
+        const auto nested  = L"- outer" + ending + L"  - a" + ending + L"  - b" + ending;
+        const auto nestedB = nested.find(L'b');
+        Exact(nested, {nestedB, nestedB}, request, L"- outer" + ending + L"  - b" + ending + L"  - a" + ending);
+    }
+}
 inline void MoveLinesAndItems()
 {
+    ParagraphMoveOwnership();
+    SiblingMoveOwnership();
     MarkdownCommandRequest request;
     request.command = MarkdownCommand::MoveLineUp;
     Exact(L"- a\n- b\n", {6u, 6u}, request, L"- b\n- a\n", Selection{2u, 2u});

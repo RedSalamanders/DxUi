@@ -1,0 +1,155 @@
+{
+  "schemaVersion": 1,
+  "scope": "Focused patch-object functional comparison; not full SDK, native-platform or performance qualification",
+  "baselineImplementation": "1352cc7fd244909e1c274b7d567485b9e98d7f1a",
+  "candidateImplementation": "c59094f5b9b49c0081164cca95473cac78e57001",
+  "candidateOriginalSourceIdentity": "a9be58ddd4204027a8ec20f7cb029c75f25f1cb4bc664ce4cdf6f1db4d61c54b",
+  "probeSnapshotIdentity": "50deb0064cdfd44d1c1c9b260f91dc31c3bfcc168b79652977eea4ef2c138719",
+  "unchangedTestObjectShared": true,
+  "originalProbeSourceArchiveSha256": "7EEF8714D01D0DC3E08C4DFDD0A95E97604A22813F3C65F993DC3A0E2015746B",
+  "binaries": {
+    "name": "proof-native-artifacts",
+    "sha256": "14342F6099DC236339F191D3CE7B9FBB9BE592619255876E75559ABEC94D886F",
+    "files": [
+      {
+        "path": "baseline-bin/CommandProbe.exe",
+        "bytes": 1137664,
+        "sha256": "F92622F24D43D0B1EE3AB900690694541C851B9514FD0358BB050C84C023C2B2"
+      },
+      {
+        "path": "baseline-bin/CommandProbe.pdb",
+        "bytes": 8761344,
+        "sha256": "FCFE8F1132034DC57096E044EB6BA5C77779A14ECE01FBE7B70F048313D94510"
+      },
+      {
+        "path": "candidate-bin/CommandProbe.exe",
+        "bytes": 1140224,
+        "sha256": "1440FB95AB72739031724E77AC9C6D0FDE77B78603D5B31580B720354F111A9D"
+      },
+      {
+        "path": "candidate-bin/CommandProbe.pdb",
+        "bytes": 8785920,
+        "sha256": "73A5E6332DA7E4571BCACF0E2961D6F5E02B41DF028307D0874BF5AFBCB49EAA"
+      },
+      {
+        "path": "baseline-obj/CommandProbe.obj",
+        "bytes": 5095399,
+        "sha256": "E27019105373B000E962AC500E2978DD7BF63CD7813145ECC292F906DD8E43B1"
+      },
+      {
+        "path": "baseline-obj/FailureHost.obj",
+        "bytes": 1718848,
+        "sha256": "BFE8AB2C1551F53A17E6A99BCFADF609BEA55061D90A86175FF11ECA75B00239"
+      },
+      {
+        "path": "candidate-obj/DxUi.RichTextCommands.obj",
+        "bytes": 3618584,
+        "sha256": "8D8142490EEBB0DE9CABCFAF18EAEB776A9A896BBF94487D46BBC5B98B782C4B"
+      },
+      {
+        "path": "baseline-sdk/DxUi.lib",
+        "bytes": 255714102,
+        "sha256": "9B656DCC664D99AAA3082DE543537DD6719C2AD6CA41DD508AB77045B4562AE5"
+      },
+      {
+        "path": "baseline-sdk/DxUi.pdb",
+        "bytes": 15773696,
+        "sha256": "F31CA71775DC22EF252471A77DCD93535741545863BBE9545C8AA29EA72ECA29"
+      }
+    ]
+  },
+  "results": [
+    {
+      "kind": "baseline",
+      "group": "tasks",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "exeSha256": "F92622F24D43D0B1EE3AB900690694541C851B9514FD0358BB050C84C023C2B2",
+      "logSha256": "7D41E4E8089C1308A5D83D3DDEEB3E990A7154EABADA71D314F237686C13F8D8"
+    },
+    {
+      "kind": "baseline",
+      "group": "siblings",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "exeSha256": "F92622F24D43D0B1EE3AB900690694541C851B9514FD0358BB050C84C023C2B2",
+      "logSha256": "11B0332BEC8F82488AA6DBD8B765ADA3FC4A49FE4C514B60B3D6669E0D156F17"
+    },
+    {
+      "kind": "baseline",
+      "group": "paragraphs",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "exeSha256": "F92622F24D43D0B1EE3AB900690694541C851B9514FD0358BB050C84C023C2B2",
+      "logSha256": "11B0332BEC8F82488AA6DBD8B765ADA3FC4A49FE4C514B60B3D6669E0D156F17"
+    },
+    {
+      "kind": "baseline",
+      "group": "footnotes",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "exeSha256": "F92622F24D43D0B1EE3AB900690694541C851B9514FD0358BB050C84C023C2B2",
+      "logSha256": "98BD0F20F21097A0647E4C6A97289D61843595B6F736E227F0E2671B7352C5F6"
+    },
+    {
+      "kind": "baseline",
+      "group": "math",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "exeSha256": "F92622F24D43D0B1EE3AB900690694541C851B9514FD0358BB050C84C023C2B2",
+      "logSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+    },
+    {
+      "kind": "candidate",
+      "group": "tasks",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "exeSha256": "1440FB95AB72739031724E77AC9C6D0FDE77B78603D5B31580B720354F111A9D",
+      "logSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+    },
+    {
+      "kind": "candidate",
+      "group": "siblings",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "exeSha256": "1440FB95AB72739031724E77AC9C6D0FDE77B78603D5B31580B720354F111A9D",
+      "logSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+    },
+    {
+      "kind": "candidate",
+      "group": "paragraphs",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "exeSha256": "1440FB95AB72739031724E77AC9C6D0FDE77B78603D5B31580B720354F111A9D",
+      "logSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+    },
+    {
+      "kind": "candidate",
+      "group": "footnotes",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "exeSha256": "1440FB95AB72739031724E77AC9C6D0FDE77B78603D5B31580B720354F111A9D",
+      "logSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+    },
+    {
+      "kind": "candidate",
+      "group": "math",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "exeSha256": "1440FB95AB72739031724E77AC9C6D0FDE77B78603D5B31580B720354F111A9D",
+      "logSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+    }
+  ],
+  "limits": [
+    "The patch-object comparison does not replace the six-profile candidate matrix",
+    "Valid empty display math passes both binaries"
+  ],
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-command-ownership-counterfactual",
+  "inputHash": "a9be58ddd4204027a8ec20f7cb029c75f25f1cb4bc664ce4cdf6f1db4d61c54b",
+  "benchmarkInputs": {
+    "src/Controls/DxUi.RichTextCommands.cpp": "62F2C5DEE66A8182816FCC4E7DEA66B3081641512FD620FCF93DD24915A20B4C",
+    "Tests/Support/Support.Tests.RichSemantic.h": "3DF0CE04EB9B8B52156D21D3F210E5D7CB668ED0A74E167CD36E0D7B8C8E0574",
+    "Tools/tests/Test-ToolingTestRunner.ps1": "4402B3F16463C4B5812CBAAA16317D88A09D504EF3D7BE1C268040DF8A5770C3"
+  }
+}

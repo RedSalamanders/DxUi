@@ -51,6 +51,12 @@ activation or foreground qualification.
 
 ## Script/color targets and diagnostic counts
 
+Tooling-roster timeout coverage uses an actual stalled child and a later successful script under the same
+ten-second fixture deadline. It MUST observe the timeout diagnostic, require that only the stalled script
+failed, and verify that an independently launched, test-owned process with the same executable name remains
+alive. Cleanup terminates only that fixture-owned process. The production roster deadline remains unchanged;
+a one-second process-startup race is not a deterministic timeout test.
+
 Script/color admission coverage must use an actual capable WARP target, an actual WIC target with independently
 observed interface support, controlled `E_NOINTERFACE`, and an absent target. WIC targets can expose newer
 interfaces; the fixture must not infer legacy capability from the factory method's name. Check exact source,
