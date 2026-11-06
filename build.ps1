@@ -133,14 +133,16 @@ $installation = $discovery.installation
 $msbuild = $discovery.msbuild
 if (-not $OutputRoot) { $OutputRoot = Join-Path $PSScriptRoot '.build' }
 $output = [IO.Path]::GetFullPath($OutputRoot).TrimEnd('\','/') + [IO.Path]::DirectorySeparatorChar
+Import-Module (Join-Path $PSScriptRoot 'Tools/ProcessInspection.psm1') -Force
 Invoke-DxUiBuildPhase -Phase OutputUseChecks -Body {
     $executables = @('DxUi.FoundationTests.exe','DxUi.ControlTests.exe','DxUi.EmbeddedTests.exe','DxUi.EmbeddedControls.exe','DxUi.InteractiveLease.exe')
     foreach ($name in $executables) {
         $expected = [IO.Path]::GetFullPath((Join-Path $output "$Platform/$Configuration/$name"))
         foreach ($process in (Get-CimInstance Win32_Process -Filter "Name = '$name'")) {
-            if (-not $process.ExecutablePath) { throw "Cannot inspect running $name; no process was terminated." }
-            if ([IO.Path]::GetFullPath($process.ExecutablePath) -eq $expected) {
-                throw "Build output is running: PID $($process.ProcessId), $($process.ExecutablePath). No process was terminated."
+            $image=Resolve-DxUiObservedProcessPath -Observation $process -DisplayName $name
+            if (-not $image) { continue }
+            if ([IO.Path]::GetFullPath($image) -eq $expected) {
+                throw "Build output is running: PID $($process.ProcessId), $image. No process was terminated."
             }
         }
     }

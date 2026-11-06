@@ -85,6 +85,68 @@ static void TestRichExportAllocationFailures()
           "invalid export range preserves publication and does not publish partial output");
 }
 
+static void TestRichMetadataOnlyComposition(GraphicsFixture& gpu)
+{
+    using namespace DxUi;
+    std::shared_ptr<GraphicsDevice> graphics;
+    Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "metadata-only shared device");
+    for (const auto mode : {RichText::ViewMode::Rich, RichText::ViewMode::Source})
+    {
+        EmbeddedHost view;
+        Hr(view.Attach(graphics), "metadata-only embedded owner");
+        auto owned   = std::make_unique<RichTextEditor>(L"word");
+        auto* editor = owned.get();
+        editor->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::Gfm029);
+        editor->SetMarkdownRenderingEnabled(true);
+        editor->SetViewMode(mode);
+        editor->SetSelection({4u, 4u});
+        view.Controls().SetRoot(std::move(owned));
+        view.Controls().SetFocusControl(editor, false);
+        const auto pixels = [&]
+        {
+            Hr(PrepareRichEmbeddedContent(view, gpu.width, gpu.height), "prepare metadata-only overlays");
+            gpu.Bind();
+            Hr(view.Composite(gpu.context.get(), gpu.Viewport()), "compose metadata-only surface");
+            std::vector<uint8_t> result;
+            Hr(gpu.Read(result), "read metadata-only pixels");
+            return result;
+        };
+        const auto before      = pixels();
+        const auto source      = editor->Snapshot();
+        const auto revision    = editor->Revision();
+        const auto selection   = editor->GetSelection();
+        const auto generation  = editor->DebugGetState().layoutGeneration;
+        unsigned notifications = 0u;
+        editor->SetOnTextChanged([&] { ++notifications; });
+        editor->SetOnSelectionChanged([&] { ++notifications; });
+        EmbeddedTextInputSnapshot snapshot;
+        Hr(view.ReadTextInput(snapshot), "read metadata-only entry state");
+        auto composing                        = snapshot.state;
+        composing.compositionStartIndex       = 0u;
+        composing.compositionEndIndex         = 4u;
+        composing.compositionClauseBoundaries = {0u, 4u};
+        composing.conversionTargetStartIndex  = 1u;
+        composing.conversionTargetEndIndex    = 2u;
+        Hr(view.ApplyTextInput(snapshot.revision, composing, EmbeddedTextInputAction::Preview), "publish metadata without text or selection changes");
+        const auto marked = pixels();
+        Check(marked != before, "metadata-only composition paints its underline over unchanged text");
+        Hr(view.ReadTextInput(snapshot), "read conversion-only revision");
+        composing                            = snapshot.state;
+        composing.conversionTargetStartIndex = 2u;
+        composing.conversionTargetEndIndex   = 3u;
+        Hr(view.ApplyTextInput(snapshot.revision, composing, EmbeddedTextInputAction::Preview), "move only the conversion target");
+        Check(pixels() != marked, "conversion-target-only metadata moves the heavier underline");
+        Hr(view.ReadTextInput(snapshot), "read composition cancellation revision");
+        Hr(view.ApplyTextInput(snapshot.revision, {}, EmbeddedTextInputAction::Cancel), "cancel metadata-only composition");
+        Check(pixels() == before, "metadata cancellation retires underlines and restores the original surface");
+        Check(editor->Snapshot().IsSameRevision(source) && editor->Revision() == revision && editor->GetSelection() == selection && ! editor->CanUndo() &&
+                  notifications == 0u && ! view.Controls().GetHwnd(),
+              "metadata-only previews preserve source, history, notifications and the no-window host");
+        Check(editor->DebugGetState().layoutGeneration == generation, "metadata-only overlay rasterization reuses source geometry");
+        editor->SetOnTextChanged({});
+        editor->SetOnSelectionChanged({});
+    }
+}
 static void TestRichPreparedPageRaster(GraphicsFixture& gpu)
 {
     using namespace DxUi;

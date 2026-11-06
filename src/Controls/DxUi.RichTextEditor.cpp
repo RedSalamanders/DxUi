@@ -221,6 +221,21 @@ bool IsHistoryWordElement(std::wstring_view text) noexcept
     }
     return true;
 }
+// Pairing consults at most one adjacent scalar/CRLF using the existing undo
+// word policy. It never materializes the complete document or splits UTF-16.
+std::wstring AutoPairAdjacentSource(const RichText::SourceSnapshot& source, size_t caret, bool before)
+{
+    const auto length = source.Length();
+    if (caret > length || (before ? caret == 0u : caret == length))
+        return {};
+    auto first = before ? caret - 1u : caret;
+    auto last  = before ? caret : caret + 1u;
+    if (first && ! source.IsBoundary(first))
+        --first;
+    if (last < length && ! source.IsBoundary(last))
+        ++last;
+    return source.Slice(first, last);
+}
 std::wstring CodeCopyText(const RichText::SemanticDocument& document, const RichText::SemanticElement& element)
 {
     const auto& syntax = *document.Syntax();
@@ -5033,7 +5048,17 @@ bool RichTextEditor::ImportTextInputState(ControlHost& host, const TextInputStat
     // document transaction above has already validated and normalized the source
     // and selection. An active gesture still needs its normal cancellation path.
     if (! notifyChange && ! changed && selection == previousSelection && ! _state->dragging)
+    {
+        // Composition clauses and conversion targets belong to the host's
+        // native state, independently of source/selection and prepared commands.
+        _state->overlaySelectionDirty = true;
+        const auto lifetime           = GetLifetimeToken();
+        auto* boundHost               = GetHost();
+        RequestContentPreparation(false);
+        if (! lifetime.expired() && GetHost() == boundHost)
+            RequestInvalidate();
         return true;
+    }
     _state->dragging = false;
     if (changed || selection != previousSelection)
         _state->sourceCaretSite = RichText::MarkdownNoNode;
@@ -5982,58 +6007,74 @@ bool RichTextEditor::OnChar(ControlHost& host, wchar_t character, UINT modifiers
             }
             _state->autoFormatRun.reset();
         }
-        if (_state->markdownRendering && _state->mode == RichText::ViewMode::Rich && LayoutIsCurrent(host))
-            if (const auto* geometry = _state->layout.SemanticGeometry(); geometry && geometry->IsCellSourceSite(GetSelection().caret, _state->sourceCaretSite))
-            {
-                RichText::MarkdownCommandRequest request;
-                request.command    = RichText::MarkdownCommand::SetTableCell;
-                request.targetCell = geometry->SourceSyntaxNode(GetSelection().caret, _state->sourceCaretSite);
-                request.text       = text;
-                std::optional<std::wstring> pairedText;
-                if (text == L"|")
-                    request.text = L"\\|";
-                else if (text == L"\\")
-                    request.text = L"\\\\";
-                else if (_state->autoPairEnabled && text.size() == 1u)
-                {
-                    const auto closing     = AutoPairClosing(text[0]);
-                    const bool focused     = host.GetFocusControl() == this;
-                    const auto composition = focused ? host.GetNativeTextCompositionActive(this) : std::optional<bool>{false};
-                    if (closing && (! focused || ! host.HasActiveNativeTextInputSession() || composition.has_value()) && ! composition.value_or(false))
-                    {
-                        pairedText.emplace(text);
-                        pairedText.value().push_back(closing);
-                        request.text                 = pairedText.value();
-                        request.tableCellCaretOffset = 1u;
-                    }
-                }
-                if (ExecuteMarkdownCommand(request) != RichText::MarkdownCommandStatus::Unavailable)
-                    return true;
-            }
         const auto selection = GetSelection();
-        if (_state->autoPairEnabled && text.size() == 1u)
+        const auto* geometry =
+            _state->markdownRendering && _state->mode == RichText::ViewMode::Rich && LayoutIsCurrent(host) ? _state->layout.SemanticGeometry() : nullptr;
+        const bool cellSourceSite = geometry && geometry->IsCellSourceSite(selection.caret, _state->sourceCaretSite);
+        wchar_t pairedClosing{};
+        if (_state->autoPairEnabled && text.size() == 1u &&
+            (AutoPairClosing(text[0]) || std::wstring_view(L")]}'\"*_").find(text[0]) != std::wstring_view::npos))
         {
             const auto closing             = AutoPairClosing(text[0]);
             const bool focused             = host.GetFocusControl() == this;
             const auto composition         = focused ? host.GetNativeTextCompositionActive(this) : std::optional<bool>{false};
             const bool insideSourceSession = ! _state->sourceEditing || (selection.Start() >= _state->sourceEditing->region.source.first &&
                                                                          selection.End() <= _state->sourceEditing->region.source.last);
-            if (closing && insideSourceSession && (! focused || ! host.HasActiveNativeTextInputSession() || composition.has_value()) &&
-                ! composition.value_or(false))
+            if (insideSourceSession && (! focused || ! host.HasActiveNativeTextInputSession() || composition.has_value()) && ! composition.value_or(false))
             {
-                std::wstring replacement(1u, text[0]);
-                replacement += Snapshot().Slice(selection.Start(), selection.End());
-                replacement += closing;
-                const auto begin = selection.Start() + 1u, end = selection.End() + 1u;
-                const RichText::Selection after = selection.anchor <= selection.caret ? RichText::Selection{begin, end} : RichText::Selection{end, begin};
-                _state->typingRun.reset();
-                bool changed{};
-                if (_state->document.TryReplaceImpl(selection.Start(), selection.End(), replacement, after, true, false, changed) !=
-                    RichText::SourceResult::Success)
-                    return false;
-                Changed(changed);
-                return true;
+                if (selection.Start() != selection.End() || cellSourceSite)
+                    pairedClosing = closing;
+                else
+                {
+                    const auto source = Snapshot();
+                    const auto after  = AutoPairAdjacentSource(source, selection.caret, false);
+                    if (after.size() == 1u && after[0] == text[0] && std::wstring_view(L")]}'\"*_").find(text[0]) != std::wstring_view::npos)
+                    {
+                        _state->typingRun.reset();
+                        SetSelection({selection.caret + 1u, selection.caret + 1u});
+                        return true;
+                    }
+                    if (closing && ! IsHistoryWordElement(after) &&
+                        (closing != text[0] || ! IsHistoryWordElement(AutoPairAdjacentSource(source, selection.caret, true))))
+                        pairedClosing = closing;
+                }
             }
+        }
+        if (geometry && cellSourceSite)
+        {
+            RichText::MarkdownCommandRequest request;
+            request.command    = RichText::MarkdownCommand::SetTableCell;
+            request.targetCell = geometry->SourceSyntaxNode(GetSelection().caret, _state->sourceCaretSite);
+            request.text       = text;
+            std::optional<std::wstring> pairedText;
+            if (text == L"|")
+                request.text = L"\\|";
+            else if (text == L"\\")
+                request.text = L"\\\\";
+            else if (pairedClosing)
+            {
+                pairedText.emplace(text);
+                pairedText.value().push_back(pairedClosing);
+                request.text                 = pairedText.value();
+                request.tableCellCaretOffset = 1u;
+            }
+            if (ExecuteMarkdownCommand(request) != RichText::MarkdownCommandStatus::Unavailable)
+                return true;
+        }
+        if (pairedClosing)
+        {
+            std::wstring replacement(1u, text[0]);
+            replacement += Snapshot().Slice(selection.Start(), selection.End());
+            replacement += pairedClosing;
+            const auto begin = selection.Start() + 1u, end = selection.End() + 1u;
+            const RichText::Selection after = selection.anchor <= selection.caret ? RichText::Selection{begin, end} : RichText::Selection{end, begin};
+            _state->typingRun.reset();
+            bool changed{};
+            if (_state->document.TryReplaceImpl(selection.Start(), selection.End(), replacement, after, true, false, changed) !=
+                RichText::SourceResult::Success)
+                return false;
+            Changed(changed);
+            return true;
         }
         if (_state->smartTypographyEnabled && ! _state->sourceEditing && _state->mode == RichText::ViewMode::Rich && text.size() == 1u &&
             selection.Start() == selection.End() && (text[0] == L'.' || text[0] == L'-' || text[0] == L'\'' || text[0] == L'"'))
@@ -6544,7 +6585,7 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
                 case 'X':
                 {
                     if (! Editable())
-                        return true;
+                        return false;
                     const auto lifetime  = GetLifetimeToken();
                     const auto revision  = Revision();
                     const auto binding   = _state->bindingRevision;
@@ -6558,7 +6599,7 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
                 case 'V':
                 {
                     if (! Editable())
-                        return true;
+                        return false;
                     if (host.GetFocusControl() == this)
                     {
                         NativeTextInputState input{.text = std::wstring(0u, L' '), .compositionClauseBoundaries = std::vector<size_t>(0u)};
@@ -6614,10 +6655,20 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
                     }
                     return true;
                 }
-                case 'Z': static_cast<void>(shift ? Redo() : Undo()); return true;
-                case 'Y': static_cast<void>(Redo()); return true;
+                case 'Z':
+                    if (! Editable())
+                        return false;
+                    static_cast<void>(shift ? Redo() : Undo());
+                    return true;
+                case 'Y':
+                    if (! Editable())
+                        return false;
+                    static_cast<void>(Redo());
+                    return true;
                 case 'B':
                 case 'I':
+                    if (! Editable())
+                        return false;
                     if (_state->markdownRendering && _state->mode == RichText::ViewMode::Rich)
                     {
                         RichText::MarkdownCommandRequest request;
@@ -6629,6 +6680,8 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
                         static_cast<void>(ToggleFormatting(key == 'B' ? L"**" : L"*"));
                     return true;
                 case VK_RETURN:
+                    if (! Editable())
+                        return false;
                     if (_state->markdownRendering && _state->mode == RichText::ViewMode::Rich)
                     {
                         RichText::MarkdownCommandRequest request;

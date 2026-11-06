@@ -1,0 +1,1 @@
+- Refresh native composition overlays after metadata-only imports while retaining prepared commands and source geometry. Let hosts handle read-only editing chords and their Shift aliases. Make optional punctuation pairing respect Unicode word context and type over matching closers without a source/history edit; retain deliberate selection wrapping.

@@ -1868,6 +1868,7 @@ __declspec(noinline) static int RunFunctionalTests()
     RichTextExportTests::Core(Check);
     TestRichExportAllocationFailures();
     TestRichPreparedPageRaster(gpu);
+    TestRichMetadataOnlyComposition(gpu);
     TestRichPageAuthoredColors(gpu);
     TestRichTooltipReentrantTransitions(gpu);
     TestRichSourceDragGesture(gpu);

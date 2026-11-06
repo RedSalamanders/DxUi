@@ -51,6 +51,14 @@ activation or foreground qualification.
 
 ## Script/color targets and diagnostic counts
 
+Build-output checks MUST inspect the exact platform/configuration image path. When a CIM process observation
+has no executable path, use direct inspection of that PID. Ignore only a confirmed exit or a PID that no longer
+exists; an inaccessible live or uncertain process remains a refusal and diagnostics include its PID. Hold and
+dispose the direct process instance without terminating it. Another profile or worktree's known image cannot
+block the current profile. Cover missing, live, exited, exit-during-query and denied cases, an actual owned
+child's lifetime, and the actual build phase across profiles/workspaces. Earlier refusals lacking PID/creation
+identity remain unclassified; a later counterexample does not establish their historical cause.
+
 Script/color admission coverage must use an actual capable WARP target, an actual WIC target with independently
 observed interface support, controlled `E_NOINTERFACE`, and an absent target. WIC targets can expose newer
 interfaces; the fixture must not infer legacy capability from the factory method's name. Check exact source,

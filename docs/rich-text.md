@@ -1511,6 +1511,14 @@ In semantic Rich view, Enter continues a list or inserts a table row; Shift+Ente
 inserts a raw newline. Tab/Shift+Tab first navigate cells or indent/outdent an
 eligible list, otherwise the host retains ordinary focus traversal. Ctrl+B/I
 toggle styles, Ctrl+Enter toggles tasks, and Ctrl+Z/Y retain transaction history.
+Read-only editors leave editing chords and their Shift aliases unhandled for the
+host. Select-all, copy and acknowledged navigation still work. A native composition
+metadata update refreshes underlines even when its text and caret stay unchanged;
+it preserves prepared command state and creates no source or selection transaction.
+`SetAutoPairEnabled(true)` wraps a selection as one undo transaction. At a caret,
+it avoids doubling punctuation next to word content and advances over a matching
+closer without editing source. Brackets still pair after a word when the following
+position is empty. Unicode neighbors and reversed selection direction are retained.
 Typing a literal pipe/backslash in an empty/padded cell escapes it and uses the
 focused cell's real source insertion. Visual deletion removes empty owned
 Markdown/validated inline HTML wrappers only when their complete body is deleted;

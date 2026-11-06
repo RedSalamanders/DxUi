@@ -37,6 +37,104 @@ public:
     }
 };
 #pragma warning(pop)
+template <typename Prepare> void ReadOnlyEditingChords(ControlHost& host, Prepare prepare)
+{
+    for (const auto mode : {ViewMode::Rich, ViewMode::Source})
+    {
+        auto owned   = std::make_unique<DirectPrepareRichTextEditor>(L"word");
+        auto* editor = owned.get();
+        editor->SetMarkdownAnalysisProfile(MarkdownProfile::Gfm029);
+        editor->SetMarkdownRenderingEnabled(true);
+        editor->SetViewMode(mode);
+        editor->SetSelection({1u, 3u});
+        editor->SetReadOnly(true);
+        host.SetRoot(std::move(owned));
+        prepare();
+        const auto revision    = editor->Revision();
+        const auto selection   = editor->GetSelection();
+        const auto focus       = host.GetFocusControl();
+        unsigned notifications = 0u;
+        editor->SetOnTextChanged([&] { ++notifications; });
+        editor->SetOnSelectionChanged([&] { ++notifications; });
+        for (const auto [key, modifiers] : {std::pair<UINT, UINT>{'X', MK_CONTROL},
+                                            {'V', MK_CONTROL},
+                                            {'V', MK_CONTROL | MK_SHIFT},
+                                            {'Z', MK_CONTROL},
+                                            {'Z', MK_CONTROL | MK_SHIFT},
+                                            {'Y', MK_CONTROL},
+                                            {'B', MK_CONTROL},
+                                            {'I', MK_CONTROL},
+                                            {VK_INSERT, MK_SHIFT},
+                                            {VK_DELETE, MK_SHIFT},
+                                            {VK_RETURN, MK_CONTROL}})
+            Check(! editor->OnKeyDown(host, key, modifiers), "read-only editing chords remain available to the host");
+        Check(editor->Revision() == revision && editor->GetSelection() == selection && editor->GetText() == L"word" && ! editor->CanUndo() &&
+                  notifications == 0u && host.GetFocusControl() == focus,
+              "unhandled read-only chords preserve source, selection, history, notifications and logical focus");
+        editor->SetOnTextChanged({});
+        editor->SetOnSelectionChanged({});
+        Check(editor->OnKeyDown(host, 'A', MK_CONTROL) && editor->GetSelection() == Selection{0u, 4u},
+              "read-only select-all remains a supported navigation action");
+    }
+}
+template <typename Prepare> void AutoPairContext(ControlHost& host, Prepare prepare)
+{
+    for (const auto mode : {ViewMode::Rich, ViewMode::Source})
+    {
+        auto owned   = std::make_unique<RichTextEditor>();
+        auto* editor = owned.get();
+        editor->SetMarkdownAnalysisProfile(MarkdownProfile::Gfm029);
+        editor->SetMarkdownRenderingEnabled(true);
+        editor->SetViewMode(mode);
+        editor->SetAutoPairEnabled(true);
+        host.SetRoot(std::move(owned));
+        const auto literal = [&](std::wstring_view source, size_t caret, wchar_t character, std::wstring_view expected)
+        {
+            editor->SetText(std::wstring(source));
+            editor->SetSelection({caret, caret});
+            prepare();
+            Check(editor->OnChar(host, character, 0u) && editor->GetText() == expected && editor->GetSelection() == Selection{caret + 1u, caret + 1u},
+                  "word-context punctuation remains one literal unit without a doubled pair");
+            Check(editor->Undo() && editor->GetText() == source && editor->GetSelection() == Selection{caret, caret},
+                  "literal context punctuation preserves exact one-step undo");
+        };
+        literal(L"cant", 3u, L'\'', L"can't");
+        literal(L"can", 3u, L'\'', L"can'");
+        literal(L"alphabeta", 5u, L'_', L"alpha_beta");
+        literal(L"ab", 1u, L'*', L"a*b");
+        literal(L"ab", 1u, L'"', L"a\"b");
+        literal(L"ab", 1u, L'(', L"a(b");
+        literal(L"\u03b1\u03b2", 1u, L'\'', L"\u03b1'\u03b2");
+        literal(L"a\u0301b", 2u, L'_', L"a\u0301_b");
+        literal(L"\U00010400b", 2u, L'\'', L"\U00010400'b");
+        literal(L"a", 1u, L')', L"a)");
+        editor->SetText(L"fun");
+        editor->SetSelection({3u, 3u});
+        prepare();
+        Check(editor->OnChar(host, L'(', 0u) && editor->GetText() == L"fun()" && editor->GetSelection() == Selection{4u, 4u},
+              "a bracket after a word still inserts its matching closer");
+        const auto revision = editor->Revision();
+        Check(editor->OnChar(host, L')', 0u) && editor->GetText() == L"fun()" && editor->GetSelection() == Selection{5u, 5u} &&
+                  editor->Revision() == revision && editor->Undo() && editor->GetText() == L"fun",
+              "typing over a matching closer moves the caret without adding a history entry");
+        for (const std::wstring_view pair : {L"()", L"[]", L"{}", L"''", L"\"\"", L"**", L"__"})
+        {
+            editor->SetText(std::wstring(pair));
+            editor->SetSelection({1u, 1u});
+            prepare();
+            const auto before = editor->Snapshot();
+            Check(editor->OnChar(host, pair[1u], 0u) && editor->Snapshot().IsSameRevision(before) && editor->GetSelection() == Selection{2u, 2u} &&
+                      ! editor->CanUndo(),
+                  "each supported matching closer is traversed without editing source or history");
+        }
+        editor->SetText(L"word");
+        editor->SetSelection({4u, 0u});
+        prepare();
+        Check(editor->OnChar(host, L'[', 0u) && editor->GetText() == L"[word]" && editor->GetSelection() == Selection{5u, 1u} && editor->Undo() &&
+                  editor->GetText() == L"word" && editor->GetSelection() == Selection{4u, 0u},
+              "deliberate selection wrapping retains direction and one-step undo in both views");
+    }
+}
 template <typename Prepare> void ImagePreparationWorkMetric(ControlHost& host, Prepare prepare)
 {
     host.SetRoot(std::make_unique<Label>(L"initialize"));
@@ -397,6 +495,8 @@ template <typename Prepare, typename Key, typename Character> void StructuralHos
 }
 template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&& prepare)
 {
+    ReadOnlyEditingChords(host, prepare);
+    AutoPairContext(host, prepare);
     auto root    = std::make_unique<DirectPrepareRichTextEditor>(L"word");
     auto* editor = root.get();
     editor->SetMarkdownAnalysisProfile(MarkdownProfile::Gfm029);
@@ -1037,9 +1137,12 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     editor->SetOnSelectionChanged({});
     TextInputState imported;
     Check(editor->ExportTextInputState(imported), "export shared command-state input snapshot");
+    Check(! editor->DebugGetState().overlayGeometryPending, "native overlay starts from prepared geometry");
     Check(editor->ImportTextInputState(host, imported, false), "unchanged silent import succeeds");
+    Check(editor->DebugGetState().overlayGeometryPending, "native metadata-only import refreshes composition overlay geometry");
     auto retainedState = editor->QueryMarkdownCommandState(preparedRequest);
     Check(retainedState && retainedState->available.has_value(), "unchanged silent import retains the exact prepared result");
+    prepare();
     imported.selectionAnchorIndex = 1u;
     imported.caretIndex           = 1u;
     Check(editor->ImportTextInputState(host, imported, false), "selection-changing silent import succeeds");

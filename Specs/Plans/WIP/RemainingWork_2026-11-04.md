@@ -103,8 +103,11 @@ This coordinates the active API work; it does not adopt API 5 in any application
 - [x] Implement D3's 5 November decision: permit natural source navigation/editing across the former active
   interval, including Backspace/Delete/Tab and nested fences. Update the source-editing scope from the current
   caret/selection instead of trapping input at an old boundary (EDIT-07/11).
-- [ ] Resolve remaining editor/command correctness: IME underline staleness, disclosure/zoom geometry loss,
-  auto-pairing within words and read-only chord handling (EDIT-03/06/09/10).
+- [ ] Complete disclosure/zoom geometry and viewport preservation (EDIT-06), then qualify the current editor
+  cohort. EDIT-03/09/10 now have implementations and independent retained-baseline functional checks:
+  metadata-only composition/conversion pixel changes and cancellation in both views, retained geometry,
+  read-only shortcut propagation, Unicode pairing context, matching-closer traversal and atomic wrapping.
+  Full six-profile/current-candidate native and resource qualification remain required.
   CMD-01/02/03/05 implementation now addresses actual task paragraphs, shared parent markers, paragraph
   structural ownership and trailing footnote escapes. Focused same-fixture baseline/candidate execution
   reproduces all four defects and verifies their repairs, with valid blank-line display math retained (CMD-04

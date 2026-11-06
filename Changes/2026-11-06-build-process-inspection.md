@@ -1,0 +1,1 @@
+- Resolve missing CIM process paths with direct inspection before judging build-output use. Ignore confirmed exited observations, preserve fail-closed live-process refusals with PID diagnostics, and keep unrelated configurations and worktrees independent without terminating applications.
