@@ -7512,6 +7512,7 @@ void RunWindowHostTests()
     DXUI_RUN_TEST(TestWindowHostPointerFocusCallbackCanDestroyTheClickedControl);
     DXUI_RUN_TEST(TestWindowHostWorksWithoutOptionalSdkDebugLayer);
     DXUI_RUN_TEST(TestWindowHostConfiguredTextFormatsAliasExactRoleDefaults);
+    DXUI_RUN_TEST(TestWindowHostDeviceCreationPreservesHandledNativeExceptions);
     DXUI_RUN_TEST(TestWindowHostExplicitWarpPolicyRejectsConflictsAndSurvivesDeviceLoss);
     DXUI_RUN_TEST(TestDxUiTypographyMapsFontRolesToSegoeUiVariableFamilies);
     DXUI_RUN_TEST(TestWindowHostKeyboardInputMarksFocusVisible);

@@ -117,7 +117,7 @@ gate open if no supported mechanism meets both the catch restriction and the con
 
 Windows ABI implementations may raise and handle C++ exceptions internally before
 returning an HRESULT. Such an internal event is not evidence that an exception
-escaped into DxUi. Audited UI Automation calls and deferred Direct2D `EndDraw` work use `Failure::InvokeNative` with
+escaped into DxUi. Audited UI Automation calls, D3D11 device creation and deferred Direct2D `EndDraw` work use `Failure::InvokeNative` with
 pre-evaluated POD arguments. Its native allowance masks only the synchronous
 foreign implementation; every nested DxUi scope reactivates observation for
 reentrant providers and application callbacks. Never apply this allowance to an

@@ -21,6 +21,10 @@ forced request returns false with `ERROR_INVALID_STATE` and preserves existing a
 attachment before selecting another pool policy. Device replacement preserves WARP. The default option retains
 hardware creation with its existing WARP fallback. This option does not create an embedded device or scheduler.
 
+Device creation preserves native HRESULT failures and the existing retry without an unavailable optional debug
+layer. The synchronous D3D11 call permits exceptions handled inside the driver; exceptions escaping into DxUi
+still enter the host fatal path. No application-wide exception allowance is needed.
+
 `AttachOptions::batchInitialRootChildren` is an opt-in native swap-chain policy (default false).
 During an initial full draw after creation or resize, it may flush between visible direct children
 of a root `Panel`, up to eight intermediate flushes. Nested panels and embedded hosts do not
