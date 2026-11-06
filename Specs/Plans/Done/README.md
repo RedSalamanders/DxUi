@@ -1,5 +1,9 @@
 # Completed and archived plans
 
+## Completed scopes — 7 November 2026
+
+- [Editor input and viewport](EditorInputViewport_2026-11-07.md) — metadata pixels, read-only shortcut propagation, contextual pairing and source-anchor preservation; six builds, 66 x64 suite executions and retained counterfactuals.
+
 ## Completed scopes — 6 November 2026
 
 - [Unassessed performance verdicts](PerformanceVerdictPresentation_2026-11-06.md) — accurate empty-admission summaries, preserved refusal reasons and deterministic counterfactual coverage; no performance acceptance.

@@ -103,8 +103,13 @@ This coordinates the active API work; it does not adopt API 5 in any application
 - [x] Implement D3's 5 November decision: permit natural source navigation/editing across the former active
   interval, including Backspace/Delete/Tab and nested fences. Update the source-editing scope from the current
   caret/selection instead of trapping input at an old boundary (EDIT-07/11).
-- [ ] Resolve remaining editor/command correctness: IME underline staleness, disclosure/zoom geometry loss,
-  auto-pairing within words and read-only chord handling (EDIT-03/06/09/10).
+- [x] Complete EDIT-03/06/09/10: metadata-only composition pixels, read-only shortcut propagation,
+  contextual Unicode pairing and disclosure/zoom source-anchor preservation. The
+  [scoped closeout](../Done/EditorInputViewport_2026-11-07.md) records retained baseline failures,
+  actual WARP pixels/anchors, 200 reused chunks, six zero-warning builds, 66 ordinary x64 suite
+  executions and actual ASan detection at `efef569e` (API 5). Explicit caret/source replacement,
+  source/history/notification and resource regressions are covered. Native ARM64, physical input,
+  paired performance and consumer adoption remain separately owned below.
 - [x] Complete CMD-01/02/03/04/05: actual task paragraphs, shared parent markers, paragraph structural
   ownership and trailing footnote escapes. [Scoped closeout](../Done/CommandOwnership_2026-11-06.md)
   retains four same-fixture baseline failures, valid blank display-math characterization, six zero-warning

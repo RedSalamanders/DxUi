@@ -1,0 +1,1 @@
+- Preserve the visible source line when zooming and the viewport when toggling a disclosure, reuse unaffected disclosure geometry, and let explicit caret movement supersede pending view anchors. Offscreen WARP regressions cover both text views, source replacement, notifications and geometry reuse.
