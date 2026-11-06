@@ -109,7 +109,10 @@ reopening their historical checklists or relabeling old allocation sweeps as fat
   viewport cosmetics remain independent of content readiness, checked queries preserve outputs/publications,
   and unexpected C++ failures remain fatal. Source ink now tracks committed identity separately from staging
   without retaining an additional owning syntax tree. Invalid windows, checked endpoint failures and successful
-  retry have regression coverage in source; no new native execution is claimed before it runs.
+  retry have regression coverage in source. Follow-up coverage exercises both mapping endpoints, multi-turn
+  disjoint replacement, cancellation, cached-window reuse, clear and overflow identity, and exact multi-block
+  viewport results. Current usage/spec text distinguishes returned budget refusals from fatal physical/C++
+  allocation failures. No new native execution is claimed before it runs.
 - The superseded `946d5a28` cohort passes all six zero-warning builds, four clean-pin consumers, complete
   validation/tooling/formatting and isolated SDK `0.1.202611063`. Native ordinary/foreground profiles were not
   started for that cohort after main advanced. Its passing receipts and the preceding PID-collision failure
@@ -314,10 +317,11 @@ reopening their historical checklists or relabeling old allocation sweeps as fat
   embedded, COM/UIA, callbacks, snapshots and diagnostics. Preserve atomicity and retry only for checked refusal.
   Migrate allocation sweeps to checked seams; isolate deliberate unexpected exceptions and fatal allocation probes.
   Reuse the canonical runner/failure-evidence infrastructure and register any new native cases in scope/inventory.
-- [ ] **S5 — Integrate each consumer under its owner.** Reuse/qualify application crash writers and termination hooks;
-  verify original-site context on main/worker threads and the real module/CRT boundary. No consumer repository or
-  global handler is changed implicitly by this library plan. Review the API revision for changed source/failure
-  behavior, update public compile/import fixtures and migration documentation, then adopt exact new pins.
+- [ ] **S5 — Qualify the consumer surface and handoff.** Verify the application-owned integration example's
+  original-site context on main/worker threads and the real module/CRT boundary through clean-pin fixtures and
+  the extracted SDK. Update the public compile/import fixtures, API revision and migration documentation with
+  the exact qualified pin. Actual product crash-writer integration and pin adoption remain with each application
+  owner under [D-C1](RemainingWork_2026-11-04.md#d-c1), outside this library plan's authorized scope.
 - [ ] **S6 — Native/resource qualification and closeout.** Pass the applicable x64 Debug/Release/ASan suites, all
   six builds, isolated fatal probes and actual consumer gates. Native ARM64 remains an execution obligation,
   not a cross-build pass. Compare healthy-path construction, allocation counts, prepared/idle resource behavior

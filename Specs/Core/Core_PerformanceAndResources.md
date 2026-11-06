@@ -81,7 +81,7 @@ the existing source hit/caret mapping, preserving preferred x and site affinity
 across large gaps without allocation or layout. Ordinary wrapped movement and
 the default fixed-spacing fallback remain unchanged.
 
-TOML front matter validation stages bounded UTF-8 converted from the admitted UTF-16 source and parses it without reserialization. Its 128-level value and dotted-key nesting ceilings and 1,024 total key-segment ceiling are reported as capacity, not invalid TOML. Parsing one bounded content envelope is indivisible and allocation failures preserve the prior publication; input queries, composition painting and idle frames do not parse. The native resource and timing gates still require measured qualification.
+TOML front matter validation stages bounded UTF-8 converted from the admitted UTF-16 source and parses it without reserialization. Its 128-level value and dotted-key nesting ceilings and 1,024 total key-segment ceiling are reported as capacity, not invalid TOML. Parsing one bounded content envelope is indivisible; the prior syntax remains published while replacement stages. Unexpected C++ allocation failure is fatal through the host. Input queries, composition painting and idle frames do not parse. The native resource and timing gates still require measured qualification.
 
 YAML front matter event parsing and key/alias validation stage owned temporary
 buffers only. Admission limits are 128 tag directives, 4,096 graph nodes, 128
@@ -336,8 +336,9 @@ harness against both implementations; `performance-paired.ps1` measures a baseli
 worktree, or an existing tree named as it is) and a candidate (this checkout, a revision or a named tree) with this
 checkout's harness inputs and runs the interleaved A/B/B/A pass serially, repeated as a [paired set](#paired-sets).
 It refuses a pair with nothing to compare: two revisions that name one commit, or, when a tree is named, two
-identical library source fingerprints; each side's revision or path, commit and fingerprint are recorded. A missing
-baseline is explicitly unpaired and cannot close an implementation performance gate. Documentation/tool-only changes
+identical library source fingerprints; each side's revision or path, commit and fingerprint are recorded. The library
+fingerprint includes the vendored libfyaml 0.9.4 tree; full native build attestation independently covers its compiled
+inputs. A missing baseline is explicitly unpaired and cannot close an implementation performance gate. Documentation/tool-only changes
 that leave compiled library inputs unchanged record that fact.
 
 DxUi MUST NOT accept a confirmed performance or memory regression silently. Compare FPS, frame/input percentiles,
@@ -890,8 +891,9 @@ is linear in bounded physical-line count. Four complete mapping sweeps over the
 The 1,024-line / 512-edit projection+source/history fixture retains at most 4 MiB;
 the 65,536-newline and 32,768-unique-line maximum-source fixtures each retain at
 most 16 MiB. Every fixture releases its tracked delta to zero. Share adjacent
-equal line payloads. Sweep each observed changed-preparation allocation failure
-and prove complete prior-state preservation and a successful retry. Measure
+equal line payloads. Exercise the changed preparation's genuine checked refusal
+seams and prove their documented prior-state preservation and permitted retry; exercise unexpected C++
+allocation failures in isolated fatal children. Measure
 initial and edit preparation separately, retain full-projection comparisons and
 original failures; these supporting-core checks do not qualify retained geometry,
 shared scheduling, composition or completed-frame performance acceptance.

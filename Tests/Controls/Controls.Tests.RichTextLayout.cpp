@@ -2067,6 +2067,68 @@ void TestRichTextSourceInkPreparationRolesAndCapacity()
                 "deep source windows publish exact independently clipped whole-source roles with bounded retained spans");
     }
 
+    // Keep the published window independently identifiable while a distant
+    // replacement spends multiple turns staging and its second mapping fails.
+    Detail::RichSourceInk transactional;
+    const MarkdownRange windowA{0u, 40u}, windowB{30001u, 30041u};
+    const auto finishWindow = [&](MarkdownRange window)
+    {
+        bool done    = false;
+        size_t steps = 0u;
+        while (! done)
+        {
+            Require(transactional.TryAdvance(mergeSyntax, identity, done, window) == S_OK && ++steps < 1000u,
+                    "checked windowed source ink completes within its work budget");
+        }
+    };
+    finishWindow(windowA);
+    const std::vector<TextInkRange> retainedA(transactional.Ranges().begin(), transactional.Ranges().end());
+    const auto retainsA = [&]
+    {
+        return transactional.Current(mergeSyntax) && transactional.Covers(windowA.first, windowA.last) && ! transactional.Covers(windowB.first, windowB.last) &&
+               std::ranges::equal(retainedA, transactional.Ranges(), [](const auto& a, const auto& b) { return a.display == b.display && a.role == b.role; });
+    };
+    Require(! retainedA.empty() && retainsA(), "first window establishes a complete source ink publication");
+    bool done = true;
+    Require(transactional.TryAdvance(mergeSyntax, identity, done, windowB) == S_OK && ! done && transactional.Pending() && retainsA(),
+            "distant replacement begins without replacing the first publication");
+    transactional.CancelPending();
+    Require(! transactional.Pending() && retainsA(), "cancelling a replacement retains its predecessor and coverage");
+    done = true;
+    Require(transactional.TryAdvance(mergeSyntax, identity, done, windowB) == S_OK && ! done && transactional.Pending() && retainsA(),
+            "distant replacement can restart after cancellation");
+    done = false;
+    Require(transactional.TryAdvance(mergeSyntax, identity, done, windowA) == S_OK && done && ! transactional.Pending() && retainsA(),
+            "requesting the covered window cancels obsolete staging and returns its cached publication");
+    size_t endpointCalls    = 0u;
+    const auto refuseSecond = [&](size_t value, size_t& mapped) -> HRESULT
+    {
+        if (++endpointCalls == 2u)
+            return E_ACCESSDENIED;
+        mapped = value;
+        return S_OK;
+    };
+    size_t pendingTurns = 0u;
+    HRESULT refusal     = S_OK;
+    do
+    {
+        done    = true;
+        refusal = transactional.TryAdvance(mergeSyntax, refuseSecond, done, windowB);
+        Require(++pendingTurns < 1000u, "second-endpoint refusal is reached in bounded turns");
+        if (refusal == S_OK && ! done)
+            Require(transactional.Pending() && retainsA(), "every pending turn retains the first window");
+    } while (refusal == S_OK && ! done);
+    Require(pendingTurns > 1u && refusal == E_ACCESSDENIED && endpointCalls == 2u && done && ! transactional.Pending() && retainsA(),
+            "second mapping refusal after multiple turns preserves output and the prior window");
+    finishWindow(windowB);
+    Require(transactional.Current(mergeSyntax) && transactional.Covers(windowB.first, windowB.last) && ! transactional.Covers(windowA.first, windowA.last) &&
+                ! transactional.Ranges().empty(),
+            "healthy retry replaces the publication with the requested distant window");
+    transactional.Clear();
+    Require(! transactional.Current(mergeSyntax) && ! transactional.Covers(windowB.first, windowB.last) && transactional.Ranges().empty() &&
+                ! transactional.Pending(),
+            "clear retires the window publication identity and ranges");
+
     std::wstring crowded;
     for (size_t i = 0u; i < 10000u; ++i)
         crowded.append(L"# `x`\n");
@@ -2081,9 +2143,11 @@ void TestRichTextSourceInkPreparationRolesAndCapacity()
     }
     Require(ink.LastWork() <= Detail::RichSourceInk::WorkPerTurn && ink.Ranges().empty() && ! ink.Pending(),
             "source ink capacity overflow falls back to the complete ordinary view");
+    Require(ink.Current(crowdedSyntax) && ink.Covers(0u, crowded.size()), "capacity fallback publishes the replacement identity and complete coverage");
     Require(ink.Advance(crowdedSyntax, [](size_t value) { return value; }) && ink.Ranges().empty(), "capacity rejection coalesces for exact syntax identity");
     ink.Clear();
-    Require(! ink.Pending() && ink.Ranges().empty(), "source retirement cancels staged and published ink");
+    Require(! ink.Pending() && ink.Ranges().empty() && ! ink.Current(crowdedSyntax) && ! ink.Covers(0u, crowded.size()),
+            "source retirement cancels staged and published ink and its identity");
 }
 void TestRichTextDocumentLinePitchMatchesCanonicalAcrossChunks()
 {

@@ -285,8 +285,9 @@ notification. Live effective-disabled state rejects with ELEMENTNOTENABLED;
 read-only/active composition rejects with INVALIDOPERATION. Pending or retired
 semantic owners cannot commit. Native foreign-thread actions use existing
 bounded owner dispatch; embedded mutations use COM owner-apartment routing and
-reject direct foreign-thread execution. Allocation failures return HRESULTs and
-preserve state. A committed callback may destroy/rebind the owner; no subsequent
+reject direct foreign-thread execution. A returned checked native failure HRESULT
+preserves the documented state; an unexpected C++ allocation exception enters
+host fatal diagnostics. A committed callback may destroy/rebind the owner; no subsequent
 control dereference is permitted. Semantic epoch/binding changes invalidate the
 reachable structure so clients can reacquire current parts. These protocols do
 not establish physical IME, Narrator/NVDA or native ARM64 acceptance.
@@ -1360,10 +1361,11 @@ committed raw Markdown, hidden syntax and CRLF ACPs, never intermediate edits or
 display coordinates. Source and directional selection publish once. Current
 composition blocks semantic commands; source imports/preview/cancel/commit keep
 their existing exact transaction policy. Pending analysis MUST NOT be drained
-from input. If an active text-service session's cached state cannot be copied,
+from input. If an active text-service session's cached state is unavailable,
 structural commands MUST return Unavailable without mutating source/history.
 TryReadNativeTextInputState returning false leaves its output unspecified; callers
-MUST ignore it. Its allocation-failure path MUST NOT construct a new aggregate.
+MUST ignore it. An unexpected allocation exception while copying the cache enters
+host fatal diagnostics.
 Hardware Enter falls back to the document's first CR, LF or CRLF spelling if no
 current structural plan is available; a document without an EOL uses CRLF.
 In supported semantic paragraphs Shift+Enter inserts a Markdown hard-break
@@ -1436,8 +1438,9 @@ context-menu callback takes precedence; the menu's deferred command verifies
 editor lifetime and binding before dispatch. It requires a host HWND; embedded
 hosts without one use the consumer context-menu callback together with the
 public default-menu model and command dispatch APIs.
-Default-menu item staging uses fallible empty-container construction and an
-atomic output swap, so an allocation failure leaves the supplied model intact.
+Default-menu item staging uses an atomic output swap, leaving the supplied model
+untouched until staging completes. An unexpected C++ allocation exception enters
+host fatal diagnostics; this void operation has no allocation-refusal result.
 Consumer context-menu observer unexpected exceptions, including bad_alloc, require host fatal diagnostics;
 a delivered observer must never trigger a second fallback menu.
 Ctrl+Backspace and Ctrl+Delete erase to the preceding or following word boundary;
@@ -1450,8 +1453,9 @@ whitespace, or source revision change ends the group. IME transactions retain
 their native composition history policy.
 Undo and redo each retain at most 128 immutable source/selection snapshots in
 bounded rings. Storage needed for a first push is prepared before publishing an
-edit or moving history, so allocation failure preserves both histories and the
-current source and selection. Held source snapshots remain independently valid.
+edit or moving history. Checked admission refusals preserve both histories and the
+current source and selection; unexpected C++ allocation exceptions enter host fatal
+diagnostics. Held source snapshots remain independently valid.
 Document copies retain independent histories; moving a document transfers both
 rings and leaves the moved-from history empty.
 Source-view and source-region Backspace/Delete runs on those same text elements

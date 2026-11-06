@@ -665,6 +665,38 @@ Invoke-FixtureCase 'the source fingerprint is the one receipts have always recor
     Assert-True ((Get-SourceFingerprint -Root $second) -cne $fingerprint) 'an edit changes it'
 }
 
+Invoke-FixtureCase 'libfyaml source changes distinguish named trees' {
+    param($root)
+    $first = Join-Path $root 'first'
+    $second = Join-Path $root 'second'
+    foreach ($tree in @($first, $second)) {
+        New-Item -ItemType Directory -Path $tree | Out-Null
+        & git -C $tree init --quiet
+        Set-FixtureFile $tree 'ThirdParty/libfyaml/0.9.4/src/parser.c' "original`n"
+        & git -C $tree -c core.autocrlf=false add -A
+        & git -C $tree -c user.name=Fixture -c user.email=fixture@example.invalid commit --quiet -m fixture
+        if ($LASTEXITCODE -ne 0) { throw 'Could not commit the paired fingerprint fixture.' }
+    }
+    $baseline = Get-SourceFingerprint -Root $second
+    Assert-Equal $baseline (Get-SourceFingerprint -Root $first) 'identical committed vendor inputs match'
+    Set-FixtureFile $first 'ThirdParty/libfyaml/0.9.4/src/parser.c' "edited`n"
+    $edited = Get-SourceFingerprint -Root $first
+    Assert-True ($edited -cne $baseline) 'editing a committed vendor C source changes the fingerprint'
+    Assert-PairedSidesDiffer (New-Side 'path' 'a1' -Root $first -Fingerprint $edited) (New-Side 'path' 'a1' -Root $second -Fingerprint $baseline)
+    Set-FixtureFile $first 'ThirdParty/libfyaml/0.9.4/include/parser.h' "header`n"
+    $added = Get-SourceFingerprint -Root $first
+    Assert-True ($added -cne $edited) 'an untracked vendor header changes the fingerprint'
+    Set-FixtureFile $first 'ThirdParty/libfyaml/0.9.4/src/extra.c' "additional source`n"
+    $addedSource = Get-SourceFingerprint -Root $first
+    Assert-True ($addedSource -cne $added) 'an untracked vendor C source changes the fingerprint'
+    & git -C $first -c core.autocrlf=false add -A
+    & git -C $first -c user.name=Fixture -c user.email=fixture@example.invalid commit --quiet -m vendor-change
+    if ($LASTEXITCODE -ne 0) { throw 'Could not commit the vendor fixture change.' }
+    Assert-Equal $addedSource (Get-SourceFingerprint -Root $first) 'committing the vendor source and header preserves their fingerprint'
+    Set-FixtureFile $first 'ThirdParty/libfyaml/0.9.4/include/parser.h' "edited header`n"
+    Assert-True ((Get-SourceFingerprint -Root $first) -cne $addedSource) 'editing a committed vendor header changes the fingerprint'
+}
+
 Invoke-FixtureCase 'the source fingerprint reads a non-ASCII name as git stores it, whatever the console code page' {
     param($root)
     # CR-30 of the 10 October review: the names came through the console's code page, and git quoted a non-ASCII one, so

@@ -257,9 +257,10 @@ pass. Invalid constraints, arithmetic overflow and measurement failures leave pr
 Validation is presentation only. `ValidationState::Error` requires a nonempty textual explanation; required,
 description and validation metadata belong to the stable semantic editor (the inner text field of a
 `NumericStepper`). Their UI Automation contract is specified in [Input and accessibility](UI_InputAndAccessibility.md).
-`AddEditor` refuses a second editor and removes a newly added editor when binding fails. Setters contain named
-allocation failures; sequential text/UIA publication can be partially applied when later allocation or reentrancy
-fails, so callers inspect the returned HRESULT and retry or replace the presentation. They never commit values,
+`AddEditor` refuses a second editor and removes a newly added editor when binding fails. Sequential text/UIA
+publication can be partially applied when a later checked native operation or reentrancy fails, so callers inspect
+the returned HRESULT and retry or replace the presentation. Unexpected C++ allocation exceptions are fatal
+through the host. These setters never commit values,
 save settings or choose a focus successor implicitly. Removing or hiding a field follows the existing host
 focus/capture/composition retirement rules; position-only reflow cancels obsolete pointer geometry without
 reconstructing or blurring an available editor.
@@ -920,8 +921,9 @@ records only the scalar/CRLF-safe changed interval, sharing untouched source
 pieces. It MUST use the same interval comparison as transient preview updates,
 with ordinary one-transaction undo/redo semantics and exact supplied selection.
 Equal content MUST preserve source identity/revision/history and acknowledge
-selection without allocating source/history storage. Invalid input or allocation
-failure MUST leave source, selection, revision and both histories unchanged.
+selection without allocating source/history storage. Checked invalid-input and capacity
+refusals MUST leave source, selection, revision and both histories unchanged. Unexpected C++ allocation
+exceptions enter host fatal diagnostics.
 Notifying RichTextEditor service imports MUST use this localized recording path;
 preview/cancel imports retain transient semantics. Other controls keep their
 existing adapters. Comparison of bounded complete text remains indivisible;
@@ -930,8 +932,9 @@ Validate future selections against the virtual old-prefix/insertion/old-suffix
 before allocating source storage/history, including a newly joined CRLF. A
 same-content replacement only acknowledges its exact valid selection; it allocates
 no source/history, advances no revision and preserves undo/redo. Stage every
-changed tree and required history copy before publishing. Allocation failure in
-replacement, transient replacement, reset, undo or redo preserves all state.
+changed tree and required history copy before publishing. Checked admission
+refusals preserve state; unexpected C++ allocation exceptions during replacement,
+transient replacement, reset, undo or redo enter host fatal diagnostics.
 An active changed transient preview keeps history entries but makes undo and redo
 unavailable until its entry source is restored. A recorded edit that supersedes
 the preview records the entry source, not uncommitted preview text, for undo.
@@ -1240,14 +1243,14 @@ In the opt-in Subtle Markdown style, fenced and indented code blocks have a neut
 
 An application may register a localized accessible name and code-copy intent callback. In Subtle style the prepared header then exposes a pointer action and a distinct UIA Invoke child; Ctrl+Shift+C invokes the block containing the source caret. The callback receives a borrowed counted rendered-code view with the block's normalized line endings, including any NUL; the application owns clipboard format policy. The existing code-element Invoke remains source editing. Stale, canceled, detached, or retired gestures and peers cannot invoke a replacement owner, and the action never changes source, selection or history.
 Source presentation may disable wrapping and opt into physical line numbers and space, tab and line-ending guides. The line-number lane grows with source length and zoom, clamped to preserve at least half the available text viewport. The gutter and guide coordinates are staged cooperatively from the exact counted source and current geometry; they do not add source units, selection, or text-service content. CRLF is one physical ending, and the trailing empty line remains addressable. Published guides use the current viewport and font, support high contrast, and Paint reads cached layouts/coordinates. Horizontal extent and offset apply to unwrapped Source and opt-in overflowing Rich tables; scrolling changes neither source nor history, translates painting, hit testing, TSF and UIA geometry together, clamps to the available extent, and notifies the registered owner callback. Shift+wheel may scroll horizontally; edge input bubbles. Source right-to-left scrolling follows the opposite visual direction.
-An optional code tokenizer receives borrowed language and rendered code views on the owner preparation thread. Built-in JSON, C-like, PowerShell and diff tokenizers supply bounded comment, keyword and literal spans. Application results must contain at most 4096 sorted, disjoint, nonempty UTF-16 ranges within the code body, without splitting surrogate pairs; invalid results or tokenizer failures use ordinary ink. The editor stages all ranges until the current semantic publication is complete, validates owner, binding and source after every callback, and invokes at most one code tokenizer per preparation turn. Paint uses the cached ranges; selected text and high contrast take precedence. Changing the tokenizer requests a fresh owner preparation without editing source or history.
+An optional code tokenizer receives borrowed language and rendered code views on the owner preparation thread. Built-in JSON, C-like, PowerShell and diff tokenizers supply bounded comment, keyword and literal spans. Application results must contain at most 4096 sorted, disjoint, nonempty UTF-16 ranges within the code body, without splitting surrogate pairs; a declined result or invalid returned ranges use ordinary ink. Unexpected exceptions escaping the tokenizer enter host fatal diagnostics. The editor stages all ranges until the current semantic publication is complete, validates owner, binding and source after every callback, and invokes at most one code tokenizer per preparation turn. Paint uses the cached ranges; selected text and high contrast take precedence. Changing the tokenizer requests a fresh owner preparation without editing source or history.
 Image requests MUST execute in caller-owned scheduling, with callback-free
 cancellation and source/base/binding/visibility validation at owner completion.
 The caller authorizes file access, including any UNC policy. Source replacement,
 presentation withdrawal, hide/rebind/destruction MUST cancel old jobs; completed
 pixels MAY survive unrelated edits and device replacement. For a tracked edit, an in-flight request MAY remain active when at least one prior image source range is untouched; completion stays private until the new semantic document confirms its source and binding. An affected source range or untracked replacement cancels the old request. Failed/capacity
 completion MUST remain cached across unrelated source edits while preserving editable source/alternative. Explicit reload, document location or remote-image policy changes retry failed sources. Resource statistics count only actual failed completions as failed sources; canceled requests are neither pending nor failed while awaiting re-admission.
-Replacing accessibility labels without changing source retains eligible in-flight image requests and already-staged pixels privately until the new semantic document rebinds them. Resource-only completion MUST NOT edit source/history/selection or cancel IME. Multiple accepted image completions before the next owner preparation stage pixels privately and publish one immutable resource snapshot; allocation failure preserves the previous publication and leaves staged pixels retryable.
+Replacing accessibility labels without changing source retains eligible in-flight image requests and already-staged pixels privately until the new semantic document rebinds them. Resource-only completion MUST NOT edit source/history/selection or cancel IME. Multiple accepted image completions before the next owner preparation stage pixels privately and publish one immutable resource snapshot. The publication is replaced only after snapshot staging completes; unexpected C++ allocation exceptions enter host fatal diagnostics.
 Request preparation processes at most four image candidates per owner turn;
 the editor's image-work diagnostic counts actual visits separately from geometry block work.
 caller adapters MUST wake valid queued work when draining or cancel-pruning
@@ -2081,10 +2084,12 @@ the source through EOF and reports `block.closed == false`; it MUST NOT discard
 text or fabricate a close. Metadata content MUST NOT define Markdown references,
 headings, lists or inlines in the following document. Unknown fields, comments,
 spelling, order, BOM and original EOLs MUST survive every untouched source range.
-YAML validation MUST accept LF, CR and CRLF by normalizing only private UTF-8 staging; TOML retains its
-own line-ending grammar. Private rapidyaml error callbacks and tag-cache allocations MUST use the same
-bounded parse context in every configuration. Malformed input returns a source-owned diagnosis; allocation
-failure unwinds staging and leaves the previous publication available for an explicit retry.
+YAML validation MUST accept LF, CR and CRLF while preserving the exact source and diagnostics; TOML retains its
+own line-ending grammar. The private libfyaml 0.9.4 borrowed-memory event adapter uses the bounded C-only
+refusal fence described in [Failure handling and allocation](../Core/Core_FailureHandling.md). A budget
+refusal returns a capacity diagnostic in completed syntax without exposing partial backend data. The previous
+syntax remains published while its replacement stages. Physical native allocation failure and unexpected C++
+exceptions enter host fatal diagnostics. Malformed input returns a source-owned diagnosis.
 
 A closed metadata envelope with no validation diagnostic presents a collapsed,
 localized Properties disclosure by default. Expansion shows the source-owned
@@ -2097,7 +2102,7 @@ Source ACPs/history remain authoritative. Markdown structural style,
 heading, list, quote and table commands MUST reject metadata targets atomically; ordinary
 source replacement/undo/redo and source-view selection remain available.
 Envelope recognition alone MUST NOT be presented as YAML/TOML validity or full
-extension conformance. Closed TOML content is checked against TOML 1.0.0 without changing source; invalid content and nesting beyond 128 values or dotted-key segments, or more than 1,024 total key segments, have distinct source-owned diagnostics. Missing fences take precedence. Closed YAML content is checked using the YAML 1.2.2 core schema; syntax, duplicate mapping keys, unresolved aliases and resource-capacity refusals are distinct diagnostics. Within resource limits, invalid syntax and the single-document envelope take precedence over unresolved-alias and duplicate-key graph diagnostics. The pinned [TOML](../../ThirdParty/Markdown/corpora/toml-test-96fd088/README.md) and [YAML](../../ThirdParty/Markdown/corpora/yaml-test-suite-6ad3d2c/README.md) validity corpora and [native test](../../Tests/Controls/Controls.Tests.RichMarkdown.cpp) exercise 717 TOML and 382 single-document YAML cases, with 20 multi-document YAML streams explicitly excluded and two duplicate-key outcomes checked as diagnostics. The [allocation-failure sweeps](../../Tests/Embedded/Embedded.Tests.RichTextResources.h) cover observed staging failure and retry; capacity refusals remain distinct from invalid syntax. These cases validate source admission and diagnostics, not decoded values or complete YAML/TOML value conformance. See the [source-bound evidence report](../../Measurements/WipDelivery_2026-11-02/README.md) and [shared qualification ledger](../Plans/Done/ConsumerUiQualification_2026-10-11.md) for execution and remaining platform status.
+extension conformance. Closed TOML content is checked against TOML 1.0.0 without changing source; invalid content and nesting beyond 128 values or dotted-key segments, or more than 1,024 total key segments, have distinct source-owned diagnostics. Missing fences take precedence. Closed YAML content is checked using the YAML 1.2.2 core schema; syntax, duplicate mapping keys, unresolved aliases and resource-capacity refusals are distinct diagnostics. Within resource limits, invalid syntax and the single-document envelope take precedence over unresolved-alias and duplicate-key graph diagnostics. The pinned [TOML](../../ThirdParty/Markdown/corpora/toml-test-96fd088/README.md) and [YAML](../../ThirdParty/Markdown/corpora/yaml-test-suite-6ad3d2c/README.md) validity corpora and [native test](../../Tests/Controls/Controls.Tests.RichMarkdown.cpp) exercise 717 TOML and 382 single-document YAML cases, with 20 multi-document YAML streams explicitly excluded and two duplicate-key outcomes checked as diagnostics. Historical allocation-failure sweep receipts remain evidence of the earlier recovery behavior, not qualification of the current fatal policy. Current tests cover bounded backend capacity refusal and retry alongside isolated fatal allocation probes; capacity remains distinct from invalid syntax. These cases validate source admission and diagnostics, not decoded values or complete YAML/TOML value conformance. See the [source-bound evidence report](../../Measurements/WipDelivery_2026-11-02/README.md) and [shared qualification ledger](../Plans/Done/ConsumerUiQualification_2026-10-11.md) for execution and remaining platform status.
 An unclosed envelope MUST publish an `UnclosedFrontMatter` diagnostic with the
 exact opening marker range and revision-local owner node. Semantic UIA HelpText
 MUST explain the missing closing fence. Source edits retire that provider; a
@@ -2177,8 +2182,8 @@ Admission limits are 16,384 source UTF-16 units, 256 nodes, 512 expanded edges, 
 nonempty statements including the header, 1,024 decoded label units and 128 ID
 units. Check each bound before adding generated data. Capacity, unsupported and
 malformed outcomes retain the complete body with a source-ranged diagnostic and
-expose no partially prepared graph. Failure of an allocation retires staging,
-preserves the prior immutable publication and permits explicit retry.
+expose no partially prepared graph. Unexpected C++ allocation failure during
+CPU parsing or staging enters host fatal diagnostics.
 
 The private CPU parser MUST coalesce identical source/revision requests, reject
 invalid source admission without replacing pending work, yield during scanning,
@@ -2462,7 +2467,8 @@ limits causes usable exact source presentation. This rejection is keyed by the
 semantic document, width, reading direction, typography/resource epochs and host
 binding. Repeated unchanged requests MUST add no parsing/layout work. Width/font/
 resource/binding changes permit retry without altering text, selection or history.
-Transient memory failures remain retryable and MUST NOT create a capacity latch.
+A returned transient native allocation-failure HRESULT remains retryable and MUST NOT create a capacity latch;
+an unexpected C++ allocation exception is fatal through the host.
 
 ### Bounded Markdown staging and source fallback
 
@@ -3051,7 +3057,7 @@ During pending Source or semantic layout, logical caret and erase operations use
 
 At the end of a nonempty table cell, file-reference paste can infer the table context when the cell uniquely owns that source position. Row-end positions shared with synthetic padded cells require the retained geometry-site identity; a source-only ambiguous request is declined.
 
-Rich clipboard paste preparation declines malformed or over-budget file lists with false and leaves the caller's replacement, source, selection, and undo history unchanged. Allocation failures remain distinguishable from content refusal.
+Rich clipboard paste preparation declines malformed or over-budget file lists with false and leaves the caller's replacement, source, selection, and undo history unchanged. Unexpected C++ allocation exceptions enter host fatal diagnostics.
 
 SemanticDocument exposes its source-ordered heading index with level, display name,
 collision-resolved fragment slug and exact source/navigation ranges. Fragment resolution

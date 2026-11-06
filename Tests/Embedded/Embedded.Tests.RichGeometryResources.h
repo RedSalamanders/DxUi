@@ -636,7 +636,7 @@ static void TestEmbeddedCosmeticsDoNotWithholdContent(GraphicsFixture& gpu)
     using namespace DxUi;
     {
         const auto factory  = RichSemanticGeometryTests::Factory();
-        const auto document = RichSemanticDocumentTests::Build(L"before\n\n```cpp\nint value;\n```\n\nafter\n");
+        const auto document = RichSemanticDocumentTests::Build(L"before\n\n```cpp\nint value;\n```\n\nbetween\n\n```text\nsecond block\n```\n\nafter\n");
         RichText::Detail::PreparedSemanticGeometry geometry;
         RichText::LayoutOptions options;
         options.widthDip = 320.0f;
@@ -650,12 +650,14 @@ static void TestEmbeddedCosmeticsDoNotWithholdContent(GraphicsFixture& gpu)
             Check(geometry.TryVisibleCodeElements(top, bottom, visible) == E_INVALIDARG && visible == std::vector<std::size_t>{999u},
                   "invalid code viewport preserves caller output");
         }
-        Check(geometry.TryVisibleCodeElements(0.0f, geometry.Height(), visible) == S_OK && ! visible.empty(),
-              "valid code viewport succeeds after checked refusals");
-        Check(std::ranges::all_of(visible,
-                                  [&](size_t index)
-        { return index < document->Elements().size() && document->Elements()[index].role == RichText::SemanticRole::Code; }),
-              "valid viewport publishes only actual code elements");
+        std::vector<std::size_t> expected;
+        const auto elements = document->Elements();
+        for (size_t index = 0u; index < elements.size(); ++index)
+            if (elements[index].role == RichText::SemanticRole::Code)
+                expected.push_back(index);
+        Check(expected.size() == 2u, "viewport fixture contains two independently indexed code blocks");
+        Check(geometry.TryVisibleCodeElements(0.0f, geometry.Height(), visible) == S_OK && visible == expected,
+              "valid full viewport publishes exactly all code indices after checked refusals");
     }
     std::wstring source;
     for (unsigned line = 0u; line < 4096u; ++line)
