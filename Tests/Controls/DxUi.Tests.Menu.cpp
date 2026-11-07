@@ -6551,7 +6551,7 @@ void TestNativeMenuBarNestedPopupCanDestroyHostSafely()
         }
         return ForegroundAttempt{ownerWindow.ForegroundLossCount() != foregroundLossesBefore, ownerWindow.LastForegroundThiefThreadId()};
     });
-    if (! ForegroundHeldOrSkip(run))
+    if (! ForegroundHeldOrSkip(run, "native menu-bar host destruction"))
         return;
     if (! CheckDxUiTestResult(driverFailure.empty(), driverFailure.c_str()))
         return;
