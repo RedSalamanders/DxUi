@@ -1578,6 +1578,9 @@ void ControlHost::Detach(bool processExit) noexcept
         // TSF may synchronously ask the text store for HWND/layout during deactivation.
         // Keep the host HWND valid until native text input is fully detached.
         DeactivateTextInput();
+        // Retirement callbacks can supersede a session's ordinary cancellation.
+        // The HWND association still belongs to this attachment until it is severed below.
+        SetNativeWindowImeSuppressed(this, false);
     }
     const DWORD attachmentOwnerThreadId = _attachmentOwnerThreadId;
     if (hadAttachment)
