@@ -1184,6 +1184,12 @@ Within its existing lease, the menu cursor fixture MAY promote only its owned po
 to the topmost band without activation and create an owned topmost obstruction to
 exercise that setup deterministically. Create the obstruction before opening the
 transient menu; do not introduce another top-level window during its active lifetime.
+The native menu-bar host destruction sequence uses the shared bounded
+foreground-held runner with a fresh owner, host and driver for each attempt.
+Only observed foreground loss or activation refusal permits another attempt;
+an activation-confirmed failure with an uninterrupted foreground is asserted once.
+Popup, destruction and post-loop lifetime checks remain mandatory. Failure logs
+retain activation/destruction results, elapsed time and observed foreground loss.
 Failed popup exposure retains the Win32 error and before/after window-liveness
 diagnostic. It MUST retain the actual `WindowFromPoint`
 ownership checks and arrow/text/arrow cursor assertions. A foreign covering window

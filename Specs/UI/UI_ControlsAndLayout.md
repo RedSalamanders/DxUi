@@ -1900,7 +1900,13 @@ A semantic length/admission rejection records the exact immutable syntax owner,
 retires staging and prepares exact source geometry once. It preserves requested
 mode, source, selection and history; idle turns do not retry that revision. A
 source/profile/opt-in change permits a new request. Allocation/SDK/internal
-invariant failures remain failed preparation and must not self-reschedule.
+invariant failures remain failed preparation and must not self-reschedule. Checked HRESULT failures in a native
+host are cached per control until an explicit request or resource/typography epoch change; they must not withhold
+healthy siblings' frames or keep the host globally pending. A failed control consumes no stale document geometry.
+Its first attempt in an episode reports the HRESULT once, while later unrelated paints leave it idle. A request
+issued reentrantly during preparation remains pending rather than being lost to the failed predecessor.
+Embedded preparation still returns the failure and withholds composition. This rule concerns checked refusals;
+unexpected C++ exceptions, including `std::bad_alloc`, retain the fatal failure-policy contract.
 Native/embedded resource, accessibility, gallery and platform qualification stay
 explicit in the WIP plan; this opt-in does not close M4 as a whole.
 

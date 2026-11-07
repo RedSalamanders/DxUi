@@ -1,0 +1,1 @@
+- Run the native menu-bar destruction scenario through the existing bounded foreground-held fixture, retain activation/lifetime diagnostics and report failures after owned-window cleanup; preserve the original popup and destruction assertions.

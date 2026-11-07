@@ -1186,7 +1186,7 @@ void Control::RequestContentPreparation(bool requestWake) const noexcept
 {
     if (! _contentPreparationEnabled)
         return;
-    _contentPreparationPending = true;
+    _contentPreparationState = ContentPreparationState::Pending;
     if (_host)
     {
         _host->_pendingContentPreparation = true;

@@ -65,4 +65,41 @@ Invoke-FixtureCase 'forced test support imports stay isolated between scripts' {
     Invoke-DxUiToolingTestRoster @((Join-Path $root 'first.ps1'), (Join-Path $root 'second.ps1'))
     Assert-Equal 0 $global:LASTEXITCODE 'successive module imports both complete'
 }
+Invoke-FixtureCase 'failed fixture bytes survive while successful fixture roots are removed' {
+    param($root)
+    $module = (Join-Path $PSScriptRoot 'TestSupport.psm1').Replace("'", "''")
+    $markerRoot = $root.Replace("'", "''")
+    $child = @'
+Import-Module '__MODULE__' -Force
+Invoke-FixtureCase 'retained failure probe' {
+    param($fixture)
+    [IO.File]::WriteAllBytes((Join-Path $fixture 'original.bin'), [byte[]]@(0, 1, 127, 128, 255))
+    [IO.File]::WriteAllText('__MARKERS__/failed.txt', $fixture)
+    throw 'controlled retention probe'
+}
+Invoke-FixtureCase 'successful cleanup probe' {
+    param($fixture)
+    [IO.File]::WriteAllText('__MARKERS__/successful.txt', $fixture)
+}
+Complete-TestRun 'controlled fixture retention'
+'@
+    Set-FixtureFile $root 'retention.ps1' ($child.Replace('__MODULE__', $module).Replace('__MARKERS__', $markerRoot))
+    $failure = $null
+    try { Invoke-DxUiToolingTestRoster -Scripts @((Join-Path $root 'retention.ps1')) -TimeoutSeconds 30 }
+    catch { $failure = $_.Exception.Message }
+    Assert-Equal 'Tooling tests failed: retention.ps1' $failure 'the controlled assertion remains a failed child'
+    $failedRoot = [IO.File]::ReadAllText((Join-Path $root 'failed.txt'))
+    $verified = $false
+    try {
+        Assert-True (Test-Path -LiteralPath (Join-Path $failedRoot 'original.bin')) 'the original failed fixture survives'
+        $expected = Get-Sha256Hex ([byte[]]@(0, 1, 127, 128, 255))
+        Assert-Equal $expected (Get-FileHash -LiteralPath (Join-Path $failedRoot 'original.bin')).Hash.ToLowerInvariant() 'all original bytes survive'
+        $successfulRoot = [IO.File]::ReadAllText((Join-Path $root 'successful.txt'))
+        Assert-True (-not (Test-Path -LiteralPath $successfulRoot)) 'successful fixture cleanup is unchanged'
+        $verified = $true
+    } finally {
+        # This is a deliberate negative oracle, retired only after examining it.
+        if ($verified) { Remove-FixtureRoot $failedRoot }
+    }
+}
 Complete-TestRun 'Tooling roster'

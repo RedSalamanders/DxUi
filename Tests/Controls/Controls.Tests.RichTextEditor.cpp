@@ -17,6 +17,7 @@
 #include <DxUi/ControlCatalog.h>
 #include <DxUi/Failure.h>
 #include <DxUi/RichSemanticDocument.h>
+#include <algorithm>
 #include <array>
 #include <chrono>
 #include <iostream>
@@ -1299,20 +1300,54 @@ void TestRichTextEditorNativeMessageSchedulingAndFailure()
         FailingEditor() : RichTextEditor(L"retained source")
         {
         }
-        bool fail = true;
+        bool fail       = true;
+        HRESULT refusal = E_FAIL;
         size_t calls{};
         HRESULT PrepareContent(ControlHost& host) noexcept override
         {
             ++calls;
-            return fail ? E_OUTOFMEMORY : RichTextEditor::PrepareContent(host);
+            return fail ? refusal : RichTextEditor::PrepareContent(host);
+        }
+    };
+    class CooperativePanel final : public Panel
+    {
+    public:
+        CooperativePanel()
+        {
+            EnableIntrinsicLayout();
+        }
+        size_t advances{};
+        HRESULT PrepareIntrinsicLayout(const MeasureContext&) noexcept override
+        {
+            if (++advances < 3u)
+                RequestIntrinsicLayout(); // No child bounds or content changes.
+            return S_OK;
         }
     };
 #pragma warning(pop)
+    DxUi::TestSupport::ScopedWindowActivationBlocker activationBlocker;
+    Require(DxUi::TestSupport::ScopedWindowActivationBlocker::IsActiveForCurrentThread() || activationBlocker.Start(),
+            "the native failure fixture blocks desktop activation and focus");
     AttachedHostWindow window;
-    auto owned   = std::make_unique<FailingEditor>();
-    auto* editor = owned.get();
-    window.Host().SetRoot(std::move(owned));
+    Require(window.Host().GetTextFormat(FontRole::Body) != nullptr, "admit the native font before the checked-failure scenario");
+    auto root              = std::make_unique<CooperativePanel>();
+    auto* layout           = root.get();
+    auto* label            = root->AddChild<Label>(L"Healthy sibling");
+    const auto labelBounds = D2D1::RectF(16.0f, 12.0f, 300.0f, 52.0f);
+    label->SetBounds(labelBounds);
+    size_t siblingClicks{};
+    auto* sibling = root->AddChild<Button>(L"Update sibling");
+    sibling->SetBounds(D2D1::RectF(320.0f, 12.0f, 480.0f, 52.0f));
+    sibling->SetOnClick([&]
+    {
+        ++siblingClicks;
+        label->SetText(L"Sibling command completed");
+    });
+    auto* editor = root->AddChild<FailingEditor>();
+    editor->SetBounds(D2D1::RectF(16.0f, 68.0f, 300.0f, 180.0f));
+    window.Host().SetRoot(std::move(root));
     Require((GetWindowLongPtrW(window.Hwnd(), GWL_EXSTYLE) & WS_EX_NOACTIVATE) != 0, "native scheduler fixture cannot activate the person's desktop window");
+    const auto beforeFrame = window.Host().DebugGetRenderCount();
     ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
     const auto waitFor = [&](auto predicate)
     {
@@ -1324,17 +1359,66 @@ void TestRichTextEditorNativeMessageSchedulingAndFailure()
         }
         return predicate();
     };
-    Require(waitFor([&] { return editor->calls > 0u; }), "ordinary WM_PAINT reaches shared content preparation");
+    if (! CheckDxUiTestResult(waitFor([&] { return editor->calls > 0u && window.Host().DebugGetRenderCount() > beforeFrame; }),
+                              "a checked preparation failure must not withhold the healthy sibling's native frame"))
+        return;
     window.PumpMessages(20u); // Consume any initial-show messages before observing failed-work idleness.
     const auto failedCalls = editor->calls;
-    const auto idleUntil   = GetTickCount64() + 40u;
+    if (! CheckDxUiTestResult(layout->advances >= 3u && failedCalls == 1u, "unrelated intrinsic continuations must not retry an unchanged failed control"))
+        return;
+    const auto idleUntil = GetTickCount64() + 40u;
     while (GetTickCount64() < idleUntil)
     {
         window.PumpMessages(10u);
         Sleep(1u);
     }
-    Require(editor->calls == failedCalls && window.Host().HasPendingContentPreparation() && ! editor->DebugGetState().layoutReady,
-            "failed native work stays unavailable without a self-invalidating repaint loop");
+    Require(editor->calls == failedCalls && ! window.Host().HasPendingContentPreparation() && ! editor->DebugGetState().layoutReady &&
+                editor->GetText() == L"retained source",
+            "failed native content stays unavailable and source preserving without blocking siblings or polling");
+    const auto unavailableSelection = editor->GetSelection();
+    Require(! editor->OnMouseDown(window.Host(), D2D1::Point2F(40.0f, 90.0f), false, 0u) &&
+                ! editor->OnMouseDoubleClick(window.Host(), D2D1::Point2F(40.0f, 90.0f), false, 0u) &&
+                ! editor->OnMouseTripleClick(window.Host(), D2D1::Point2F(40.0f, 90.0f), false, 0u) && editor->GetSelection() == unavailableSelection &&
+                editor->GetText() == L"retained source",
+            "unavailable geometry declines pointer edits without reading stale hit maps or changing source/selection");
+    WindowHostBitmapCapture labelled, empty;
+    Require(window.Host().DebugCaptureBitmap(labelled), "capture the healthy sibling while another control's preparation failed");
+    label->SetText(L"");
+    Require(window.Host().DebugCaptureBitmap(empty), "a healthy sibling updates while failed content stays cached");
+    Require(labelled.widthPx == empty.widthPx && labelled.heightPx == empty.heightPx && labelled.bgraPixels.size() == empty.bgraPixels.size(),
+            "healthy sibling captures share native geometry");
+    Require(labelled.bgraPixels.size() == size_t(labelled.widthPx) * labelled.heightPx * 4u, "native captures contain tightly packed BGRA pixels");
+    const float scale = window.Host().GetDpi() / 96.0f;
+    const auto x0     = static_cast<UINT>(std::clamp(labelBounds.left * scale, 0.0f, static_cast<float>(labelled.widthPx)));
+    const auto x1     = static_cast<UINT>(std::clamp(labelBounds.right * scale, 0.0f, static_cast<float>(labelled.widthPx)));
+    const auto y0     = static_cast<UINT>(std::clamp(labelBounds.top * scale, 0.0f, static_cast<float>(labelled.heightPx)));
+    const auto y1     = static_cast<UINT>(std::clamp(labelBounds.bottom * scale, 0.0f, static_cast<float>(labelled.heightPx)));
+    size_t changedPixels{};
+    // The declared fixture rectangle excludes button/editor hover and chrome.
+    // Compare actual RGB ink against the same label after removing its text.
+    for (UINT y = y0; y < y1; ++y)
+        for (UINT x = x0; x < x1; ++x)
+        {
+            const auto index = (size_t(y) * labelled.widthPx + x) * 4u;
+            changedPixels += labelled.bgraPixels[index] != empty.bgraPixels[index] || labelled.bgraPixels[index + 1u] != empty.bgraPixels[index + 1u] ||
+                             labelled.bgraPixels[index + 2u] != empty.bgraPixels[index + 2u];
+        }
+    Require(changedPixels > 20u && editor->calls == failedCalls, "actual sibling text ink changes without retrying the unchanged failed control");
+    Require(sibling->Invoke(window.Host(), false) && siblingClicks == 1u && editor->calls == failedCalls,
+            "a healthy sibling command stays available without native focus transfer or a failed-content retry");
+    editor->refusal = E_OUTOFMEMORY; // Checked HRESULT, not a caught C++ allocation exception.
+    editor->SetText(L"checked allocation refusal");
+    Require(waitFor([&] { return editor->calls > failedCalls && ! window.Host().HasPendingContentPreparation(); }),
+            "an explicit content change admits another checked preparation episode");
+    const auto allocationRefusalCalls = editor->calls;
+    const auto allocationIdleUntil    = GetTickCount64() + 40u;
+    while (GetTickCount64() < allocationIdleUntil)
+    {
+        window.PumpMessages(10u);
+        Sleep(1u);
+    }
+    Require(editor->calls == allocationRefusalCalls && editor->GetText() == L"checked allocation refusal" && ! editor->DebugGetState().layoutReady,
+            "checked allocation refusal preserves source without polling or blocking healthy controls");
     std::wstring source;
     for (size_t line = 0u; line < 1024u; ++line)
         source += L"line **bold** a\u0301 \U0001f600 text\r\n";
@@ -1347,6 +1431,19 @@ void TestRichTextEditorNativeMessageSchedulingAndFailure()
             "multiple message-loop turns publish only the latest complete native document");
     window.PumpMessages(20u);
     Require(editor->DebugGetState().preparationAdvances == prepared.preparationAdvances, "completed native content leaves no preparation polling loop");
+    const auto beforeEditedFailure = editor->calls;
+    editor->SetSelection({0u, 0u});
+    editor->fail = true;
+    Require(editor->ReplaceSelection(L"X"), "commit an ordinary edit before its preparation fails");
+    const auto edited = std::wstring(L"X") + source;
+    Require(waitFor([&] { return editor->calls > beforeEditedFailure && ! window.Host().HasPendingContentPreparation(); }) && editor->GetText() == edited &&
+                editor->CanUndo(),
+            "a checked preparation failure after ready content preserves the committed edit and Undo history");
+    editor->fail = false;
+    Require(editor->Undo() && editor->GetText() == source, "Undo remains source exact after preparation failure");
+    Require(waitFor([&] { return ! window.Host().HasPendingContentPreparation(); }), "Undo admits recovery preparation");
+    Require(editor->Redo() && editor->GetText() == edited, "Redo restores the exact committed edit after recovery");
+    Require(waitFor([&] { return ! window.Host().HasPendingContentPreparation(); }), "Redo finishes normal native preparation");
 }
 void TestRichTextEditorNativeDenseSourceAndSplitScheduling()
 {
