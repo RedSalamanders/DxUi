@@ -14,6 +14,12 @@ An empty plan reports `NO_WORK; repository NOT_EVALUATED`; a fully delegated pla
 Capability skips are reported explicitly and prevent native-suite receipt reuse. `FULL_SCOPES_PASSED` covers the scope
 manifest, while foreground, consumer, gallery and native-platform qualification remain separate obligations.
 
+Final observations that can be checked after fixture teardown may use `CheckDxUiTestResult`.
+It records a failed run and returns normally, allowing retained UIA STA/module state to drain;
+the runner returns 1 and never prints its success footer. Return immediately after a false
+result when later work depends on it. Keep `Require` for invalid fixture conditions that
+cannot safely continue. Original immediate-exit UIA timeouts remain failed evidence.
+
 Native test files use `<Component>.Tests.Something.h/.cpp`, with a real component such as `Controls`, `Support` or `Embedded`; literal `Scope` is rejected. Register new active files in `native-test-files.json`. `test-scopes.json` owns standalone scope/PR metadata. Shared-library or runtime byte changes conservatively invalidate local standalone reuse. No consumer dependency pin changes are part of this workflow.
 
 `Embedded` also checks the prepared-state and normalization oracle for the clean

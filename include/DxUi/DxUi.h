@@ -3754,6 +3754,7 @@ private:
     friend class ControlHost;
     friend class EmbeddedHost;
     [[nodiscard]] std::shared_ptr<const RichText::Detail::AccessibilityEpoch> AccessibilitySemanticEpoch() const noexcept;
+    [[nodiscard]] uint64_t AccessibilityBindingRevision() const noexcept;
     void RetireSemanticAccessibility() const noexcept;
     struct State;
     std::unique_ptr<State> _state;

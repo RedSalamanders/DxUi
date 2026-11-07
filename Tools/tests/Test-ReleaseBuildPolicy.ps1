@@ -110,6 +110,43 @@ foreach($relative in $projects){
     }}
 }
 if(-not $first){throw 'No native Release profile was evaluated.'}
+# An external consumer must obtain ASan's non-incremental link from the public
+# import. Disable repository inheritance so this cannot accidentally pass through
+# the first-party project policy. Start with the conflicting user/default value.
+$consumerProject=Join-Path $scratch 'ExternalConsumer.vcxproj'
+$consumerXml=@'
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup><ImportDirectoryBuildProps>false</ImportDirectoryBuildProps><ImportDirectoryBuildTargets>false</ImportDirectoryBuildTargets></PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props"/>
+  <PropertyGroup Label="Configuration"><ConfigurationType>Application</ConfigurationType><PlatformToolset>v145</PlatformToolset><EnableASAN Condition="'$(Configuration)'=='ASan Debug'">true</EnableASAN></PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props"/>
+  <PropertyGroup><DxUiRoot>__ROOT__</DxUiRoot><LinkIncremental>true</LinkIncremental></PropertyGroup>
+  <Import Project="__ROOT__\Build\DxUi.Consumer.props"/>
+  <ItemGroup><ClCompile Include="unused.cpp"/></ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets"/>
+  <Import Project="__ROOT__\Build\DxUi.Consumer.targets"/>
+</Project>
+'@
+$consumerXml=$consumerXml.Replace('__ROOT__',[Security.SecurityElement]::Escape($Root))
+[IO.File]::WriteAllText($consumerProject,$consumerXml)
+foreach($configuration in 'Debug','Release','ASan Debug'){foreach($platform in 'x64','ARM64'){
+    $value=Read-Profile $consumerProject $configuration $platform
+    $expected=if($configuration-eq 'ASan Debug'){'false'}else{'true'}
+    if($value.Properties.LinkIncremental-ne $expected){throw "Public consumer $platform $configuration has incorrect incremental linking."}
+}}
+# Removing the public import independently recreates the conflicting setting;
+# repository policy must not hide the admission defect.
+$withoutConsumer=Join-Path $scratch 'MissingConsumerTargets.vcxproj'
+[IO.File]::WriteAllText($withoutConsumer,$consumerXml.Replace('  <Import Project="'+[Security.SecurityElement]::Escape($Root)+'\Build\DxUi.Consumer.targets"/>',''))
+foreach($platform in 'x64','ARM64'){
+    $value=Read-Profile $withoutConsumer 'ASan Debug' $platform
+    if($value.Properties.LinkIncremental-ne 'true'){throw 'The external ASan linker negative control lost its conflicting input.'}
+    $refusal=@(& $msbuild $consumerProject /nologo '/p:Configuration=ASan Debug' "/p:Platform=$platform" /p:LinkIncremental=true /t:ValidateDxUiConsumerSanitizerLink 2>&1)
+    if($LASTEXITCODE-eq 0 -or ($refusal -join "`n")-notmatch 'DxUi ASan consumers require non-incremental linking'){
+        throw 'A conflicting command-line ASan linker override was not refused before compilation.'
+    }
+}
+Write-Host 'PASS public consumer ASan non-incremental linking on both architectures and independent missing-import controls.'
 $negative=Join-Path $scratch 'Broken.targets'
 $negativeXml='<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003"><Import Project="{0}" Condition="&apos;$(NativeBuildPolicyImported)&apos;!=&apos;true&apos;"/><ItemGroup><ClCompile Update="@(ClCompile)"><WholeProgramOptimization>false</WholeProgramOptimization></ClCompile><Link Include="ReleasePolicyLinkProbe"><OptimizeReferences>false</OptimizeReferences></Link></ItemGroup></Project>'
 [IO.File]::WriteAllText($negative,($negativeXml -f [Security.SecurityElement]::Escape($nativePolicyFile)))

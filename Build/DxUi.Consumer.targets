@@ -1,6 +1,9 @@
 <Project>
   <Import Project="$(MSBuildThisFileDirectory)DxUi.AddressSanitizer.targets" />
   <PropertyGroup><ShouldUnsetParentConfigurationAndPlatform>false</ShouldUnsetParentConfigurationAndPlatform></PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)'=='ASan Debug'">
+    <LinkIncremental>false</LinkIncremental>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)'=='ASan Debug'">
     <ClCompile>
       <EnableASAN>true</EnableASAN>
@@ -9,6 +12,9 @@
       <ForcedIncludeFiles>$(DxUiResolvedRoot)src/Support/RequireAddressSanitizer.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
     </ClCompile>
   </ItemDefinitionGroup>
+  <Target Name="ValidateDxUiConsumerSanitizerLink" BeforeTargets="PrepareForBuild">
+    <Error Condition="'$(Configuration)'=='ASan Debug' and '$(LinkIncremental)'!='false'" Text="DxUi ASan consumers require non-incremental linking. Remove the conflicting LinkIncremental override." />
+  </Target>
   <Target Name="ValidateDxUiConsumerPin" BeforeTargets="PrepareForBuild">
     <Error Condition="'$(Configuration)'!='Debug' and '$(Configuration)'!='Release' and '$(Configuration)'!='ASan Debug'" Text="DxUi consumers support Debug, Release and ASan Debug." />
     <Error Condition="'$(DxUiDisableStlAnnotations)'!='true' and '$(DxUiDisableStlAnnotations)'!='false'" Text="DxUiDisableStlAnnotations must be true or false and match the archive." />
