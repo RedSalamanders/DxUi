@@ -42,6 +42,49 @@ template <typename Check> inline std::size_t Complete(PreparedFlowchart& prepare
     }
     return total;
 }
+template <typename Check> inline void RepeatedEdgeLabels(Check&& check)
+{
+    const auto write   = WriteFactory();
+    const auto drawing = DrawingFactory();
+    const auto calls   = Microsoft::WRL::Make<NativeTextTests::CountingWriteFactory>(write.get());
+    if (! calls)
+        throw std::bad_alloc();
+    std::wstring source = L"flowchart LR\n";
+    for (unsigned index = 0u; index < 16u; ++index)
+    {
+        if (index)
+            source.push_back(L'&');
+        source.append(L"A").append(std::to_wstring(index));
+    }
+    source.append(L" -->|shared| ");
+    for (unsigned index = 0u; index < 32u; ++index)
+    {
+        if (index)
+            source.push_back(L'&');
+        source.append(L"B").append(std::to_wstring(index));
+    }
+    source.push_back(L'\n');
+    const auto graph = FlowchartLayoutTests::Graph(source);
+    check(graph && graph->nodes.size() == 48u && graph->edges.size() == 512u, "the label-interning fixture exercises the actual bounded Cartesian expansion");
+    calls->failLayoutText = L"shared";
+    PreparedFlowchart prepared;
+    prepared.Begin(calls.Get(), drawing.get(), graph, {}, {});
+    const auto measured = Complete(prepared, check, calls.Get());
+    std::cout << "expanded-label measurements=" << calls->matchingLayouts << " total=" << calls->layouts << '\n';
+    check(calls->matchingLayouts == 1u && calls->layouts == 49u && measured == 49u && prepared.Ready(),
+          "512 identical edge captions share exactly one actual native text layout and measurement");
+    check(graph->source == source && graph->edges.size() == 512u, "label interning retains all independent source-owned graph edges");
+
+    const auto styled = FlowchartLayoutTests::Graph(L"flowchart LR\nA -->|<b>same</b>|B\nC -->|same|D\nE -->|<b>same</b>|F\n");
+    check(styled && styled->edges.size() == 3u && styled->edges[0u].label == L"same" && styled->edges[1u].label == L"same" &&
+              styled->edges[0u].styles.count == 1u && styled->edges[1u].styles.count == 0u,
+          "the independent style fixture has equal text and distinct actual span styles");
+    const auto before = calls->layouts;
+    prepared.Begin(calls.Get(), drawing.get(), styled, {}, {});
+    Complete(prepared, check, calls.Get());
+    check(prepared.Ready() && calls->layouts - before == 8u,
+          "equal styled captions share across statements while different style spans retain separate layouts");
+}
 template <typename Check> inline void BudgetAndLifecycle(Check&& check)
 {
     const auto write   = WriteFactory();

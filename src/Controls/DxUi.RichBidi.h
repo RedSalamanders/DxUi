@@ -14,13 +14,17 @@ template <std::size_t N> bool BidiRangeContains(const MarkdownUnicodeData::Range
 }
 // Unicode first-strong outside isolates. An unmatched isolate contains the
 // rest of the paragraph; neutral-only text retains the supplied host direction.
-inline DWRITE_READING_DIRECTION FirstStrongDirection(std::wstring_view text, DWRITE_READING_DIRECTION fallback) noexcept
+template <typename IncludeScalar>
+inline DWRITE_READING_DIRECTION FirstStrongDirection(std::wstring_view text, DWRITE_READING_DIRECTION fallback, IncludeScalar&& include) noexcept
 {
     std::size_t depth = 0u;
     for (std::size_t at = 0u; at < text.size();)
     {
-        const auto scalar = ReadCodePointAt(text, at);
-        at                = scalar.end;
+        const auto scalar   = ReadCodePointAt(text, at);
+        const bool included = include(at);
+        at                  = scalar.end;
+        if (! included)
+            continue;
         if (scalar.value >= 0x2066u && scalar.value <= 0x2068u)
         {
             ++depth;
@@ -40,5 +44,9 @@ inline DWRITE_READING_DIRECTION FirstStrongDirection(std::wstring_view text, DWR
             return DWRITE_READING_DIRECTION_RIGHT_TO_LEFT;
     }
     return fallback;
+}
+inline DWRITE_READING_DIRECTION FirstStrongDirection(std::wstring_view text, DWRITE_READING_DIRECTION fallback) noexcept
+{
+    return FirstStrongDirection(text, fallback, [](std::size_t) noexcept { return true; });
 }
 } // namespace DxUi::RichText::Detail

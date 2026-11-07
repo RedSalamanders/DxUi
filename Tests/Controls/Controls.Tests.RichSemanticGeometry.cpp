@@ -918,8 +918,13 @@ void TestRichSemanticScriptColorTargetCapability()
     RichSemanticTests::Run([] { RichSemanticGeometryTests::ScriptColorTargetCapability(); });
 }
 } // namespace
+void TestRichSemanticImagePlaceholderParagraphDirection()
+{
+    RichSemanticTests::Run(RichSemanticGeometryTests::ImagePlaceholderParagraphDirection);
+}
 void RunRichSemanticGeometryTests()
 {
+    DXUI_RUN_TEST(TestRichSemanticImagePlaceholderParagraphDirection);
 #if DXUI_ENABLE_DIAGNOSTICS
     DXUI_RUN_TEST(TestRichSemanticNativeTitleTooltips);
 #endif

@@ -1,5 +1,6 @@
 #pragma once
 #include "Support.Tests.RichSemantic.h"
+#include <DxUi/AccessibilityTextUnits.h>
 #include <DxUi/RichSemanticDocument.h>
 
 namespace RichSemanticDocumentTests
@@ -209,6 +210,108 @@ inline void HeadingOutlineAndFragments()
     { return item.role == SemanticRole::Link && item.name == L"Hello world-1" && item.destination == L"#hello-world-1-1"; }),
           "escaped outline label and fragment round-trip through the Markdown semantic parser");
     Check(document->Map().Source() == source, "outline generation leaves source intact");
+}
+inline void SupplementaryWordNavigation()
+{
+    struct Fixture
+    {
+        std::wstring_view text;
+        std::size_t end;
+    };
+    for (const auto& fixture : std::array{Fixture{L"\U0002000Ba next", 3u}, Fixture{L"a\U0001d7d8b next", 4u}, Fixture{L"\U0001e900a next", 3u}})
+    {
+        const auto word = DxUi::GetEnclosingAccessibilityTextUnitSpan(fixture.text, 1u, TextUnit_Word);
+        Check(word.start == 0u && word.end == fixture.end, "native/UIA word units retain mixed BMP and supplementary letters/digits");
+    }
+    const auto beforeEmoji = DxUi::GetEnclosingAccessibilityTextUnitSpan(L"a\U0001f600b", 0u, TextUnit_Word);
+    const auto emoji       = DxUi::GetEnclosingAccessibilityTextUnitSpan(L"a\U0001f600b", 2u, TextUnit_Word);
+    Check(beforeEmoji.start == 0u && beforeEmoji.end == 1u && emoji.start == 1u && emoji.end == 3u,
+          "emoji word boundaries remain distinct and preserve their complete surrogate pair");
+}
+inline void SupplementaryWordStarts()
+{
+    const auto adlam = Build(L"\U0001e900\U0001e901 \U0001e902\n");
+    Check(CountWords(*adlam) == 2u, "supplementary-script words are counted from their first complete scalar");
+    const auto mixed = Build(L"\U0002000Ba b\n");
+    const auto unit  = DxUi::GetEnclosingAccessibilityTextUnitSpan(L"\U0002000Ba b\n", 1u, TextUnit_Word);
+    Check(unit.start == 0u && unit.end == 3u, "native UIA word boundaries share complete supplementary-letter admission");
+    struct Words
+    {
+        std::vector<std::wstring> text;
+        std::vector<MarkdownRange> display, source;
+    } words;
+    const auto visitor = +[](void* context, std::wstring_view text, MarkdownRange display, std::span<const MarkdownRange> source)
+    {
+        auto& result = *static_cast<Words*>(context);
+        Check(source.size() == 1u, "plain supplementary words retain one complete source interval");
+        result.text.emplace_back(text);
+        result.display.push_back(display);
+        result.source.push_back(source.front());
+        return true;
+    };
+    Check(VisitSemanticWords(*mixed, {0u, mixed->Map().Display().size()}, visitor, &words) == 2u && words.text.size() == 2u &&
+              words.text[0] == L"\U0002000Ba" && words.display[0] == MarkdownRange{0u, 3u} && words.source[0] == MarkdownRange{0u, 3u},
+          "word visitors never truncate a supplementary leading letter or its source range");
+    Check(CountWords(*Build(L"\U0001f600 a\n")) == 1u, "an emoji is not admitted as an alphanumeric word start");
+    Check(VisitSemanticWords(*mixed, {1u, 2u}, nullptr, nullptr) == 1u, "an interior supplementary ACP visits its complete word once");
+}
+inline void ContainerPrefixOwnership()
+{
+    struct Fixture
+    {
+        std::wstring_view source, prefix;
+        SemanticRole role;
+    };
+    for (const auto& fixture : std::array{Fixture{L"- Term\n  : description\n", L"\u2022 ", SemanticRole::DefinitionList},
+                                          Fixture{L"1. Term\n   : description\n", L"1. ", SemanticRole::DefinitionList},
+                                          Fixture{L"- > [!note] Title\n", L"\u2022 ", SemanticRole::Callout},
+                                          Fixture{L"- > [!note] Title\n  > body\n", L"\u2022 ", SemanticRole::Callout}})
+    {
+        MarkdownParser parser;
+        parser.Begin(fixture.source, 1u, MarkdownProfile::RichMarkdown, MarkdownExtensions::RichAll | MarkdownExtensions::DefinitionLists);
+        while (parser.HasPendingPreparation())
+            parser.Advance(17u);
+        const auto syntax = parser.Published();
+        SemanticBuilder builder;
+        builder.Begin(syntax);
+        const auto document = Complete(builder, *syntax);
+        Check(std::ranges::any_of(document->Elements(), [&](const auto& element) { return element.role == fixture.role; }),
+              "the marker fixture actually exercises the requested semantic extension");
+        const auto text = document->Map().Display();
+        Check(text.starts_with(fixture.prefix) && ! document->Paragraphs().empty(), "the first visible extension paragraph retains its outer marker");
+        const auto& first = document->Paragraphs().front();
+        Check(first.markerOwner != MarkdownNoNode && first.markerEnd > first.display.first &&
+                  syntax->Nodes()[first.markerOwner].block.kind == MarkdownBlockKind::ListItem,
+              "the visible prefix retains its actual list-item owner and marker gutter");
+        Check(text.find(fixture.prefix, fixture.prefix.size()) == text.npos, "a callout body or definition continuation never duplicates the prefix");
+        Check(document->Map().Source() == fixture.source, "semantic extension prefixes never rewrite authored source");
+        CheckGraph(*document);
+    }
+    const auto nested = Build(L"- > [!note] Title\n  > body\n  >\n  > - child\n", MarkdownProfile::RichMarkdown);
+    Check(std::ranges::any_of(nested->Elements(), [](const auto& element) { return element.role == SemanticRole::Callout; }) &&
+              std::ranges::count(nested->Map().Display(), L'\u2022') == 2,
+          "a prefixed callout body retains the independent nested-list marker");
+    CheckGraph(*nested);
+
+    MarkdownParser footerParser;
+    footerParser.Begin(L"reference[^1]\n\n[^1]: Term\n    : description\n",
+                       1u,
+                       MarkdownProfile::RichMarkdown,
+                       MarkdownExtensions::RichAll | MarkdownExtensions::DefinitionLists);
+    while (footerParser.HasPendingPreparation())
+        footerParser.Advance(17u);
+    const auto footerSyntax = footerParser.Published();
+    SemanticBuilder footerBuilder;
+    footerBuilder.Begin(footerSyntax);
+    const auto footer = Complete(footerBuilder, *footerSyntax);
+    const auto term   = std::ranges::find(footer->Elements(), SemanticRole::DefinitionTerm, &SemanticElement::role);
+    Check(term != footer->Elements().end(), "the footer fixture actually projects a definition term");
+    const auto termIndex = static_cast<std::size_t>(term - footer->Elements().begin());
+    const auto paragraph = std::ranges::find(footer->Paragraphs(), termIndex, &SemanticParagraph::element);
+    Check(paragraph != footer->Paragraphs().end() && paragraph->markerEnd > paragraph->display.first &&
+              footer->Map().Display().substr(paragraph->display.first).starts_with(L"1. "),
+          "a definition term retains the independent footer label exactly once");
+    CheckGraph(*footer);
 }
 inline void OptionalDefinitionsAndAbbreviations()
 {

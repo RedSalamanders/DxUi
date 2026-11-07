@@ -1303,6 +1303,7 @@ void TestLosslessMarkdownFootnoteBindingRevisionAndCancellation()
 void TestNativeFlowchartDeterministicGeometry()
 {
     FlowchartLayoutTests::Geometry(Require);
+    FlowchartLayoutTests::NotesAvoidRoutes(Require);
 }
 void TestNativeFlowchartTrimmedStyledLabelsRemainAdmissible()
 {

@@ -625,6 +625,33 @@ template <typename Check> inline void CrossingReduction(Check&& check)
         check(! layout.HasPendingPreparation() && layout.Published() == prior, "cancelling ordering or route evaluation preserves the previous publication");
     }
 }
+template <typename Check> inline void NotesAvoidRoutes(Check&& check)
+{
+    for (const auto source : {L"stateDiagram-v2\nA --> B\nB --> C\nC --> A\nnote left of B : side\n",
+                              L"stateDiagram-v2\ndirection LR\nA --> B\nB --> C\nC --> A\nnote left of B : side\n",
+                              L"stateDiagram-v2\nA --> B\nB --> C\nA --> C : jump\nnote right of B : side\n",
+                              L"stateDiagram-v2\ndirection LR\nA --> B\nB --> C\nA --> C : jump\nnote right of B : side\n"})
+    {
+        const auto graph = Graph(source);
+        check(graph && std::ranges::any_of(graph->nodes, [](const auto& node) { return node.shape == FlowchartShape::Note; }),
+              "note-route fixture parses an actual attached note");
+        const auto plan = Place(graph, check);
+        check(plan && (plan->issue == FlowchartLayoutIssue::None || plan->issue == FlowchartLayoutIssue::DiagramExtent),
+              "an unsafe note either has safe geometry or fails closed with its bounded-layout issue");
+        if (plan->issue == FlowchartLayoutIssue::None)
+            Invariants(*plan, check);
+        else
+            check(plan->nodes.empty() && plan->edges.empty(), "a refused note route never publishes partial geometry");
+    }
+    for (const auto source : {L"stateDiagram-v2\nA --> B\nnote left of A : side\n", L"stateDiagram-v2\nA --> B\nnote right of A : side\n"})
+    {
+        const auto graph = Graph(source);
+        check(graph != nullptr, "the independent adjacent-note fixture parses");
+        const auto plan = Place(graph, check);
+        check(plan && plan->issue == FlowchartLayoutIssue::None, "ordinary noncolliding notes remain supported");
+        Invariants(*plan, check);
+    }
+}
 template <typename Check> inline void Corpus(Check&& check)
 {
     std::size_t admitted{};

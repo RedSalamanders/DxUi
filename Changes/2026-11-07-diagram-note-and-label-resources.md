@@ -1,0 +1,1 @@
+- Refuse final state-note geometry crossed by routes or edge captions, retaining exact editable source, and share identical styled edge captions within each prepared diagram generation. Independent regressions cover note collisions and 512 expanded edges, reducing matching DirectWrite layouts from 512 to one while preserving style distinctions and work budgets.

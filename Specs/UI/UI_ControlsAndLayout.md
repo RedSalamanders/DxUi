@@ -1268,9 +1268,12 @@ allocate private bounded bitmap storage, then copy complete pixel tiles across
 turns; even a budget smaller than one source row makes progress. Bitmap allocation
 itself is indivisible and remains subject to image dimension/decoded-byte bounds.
 Only complete bitmaps can enter a published geometry; duplicate placements share
-the completed bitmap. A width-only reflow on the same factory, immutable image
-snapshot, target and resource epoch reuses completed raster bitmaps by image
-identity without another upload or tile copy. A target or epoch change rebuilds
+the completed bitmap. Reflow or image-snapshot publication on the same semantic
+document, factory, target, compatible options and resource epoch reuses completed
+raster bitmaps by immutable pixel identity (and SVG raster size), without another
+upload or tile copy. Completion or frame replacement uploads only changed pixels;
+snapshot pointer identity alone never invalidates unrelated image/math resources.
+A target or epoch change rebuilds
 the target-bound bitmap. `LayoutAdvance::uploadedBytes` reports transferred BGRA
 pixel bytes, excluding unused source-row padding. Native image
 geometry MUST use actual inline baseline/aspect rather than the larger SDK line
@@ -1456,7 +1459,10 @@ description lines in the same paragraph projects a source-owned definition
 list, term and descriptions. Descriptions support single-line Markdown inline
 formatting; HTML and inline owners crossing lines stay ordinary. Each line is
 at most 1,024 UTF-16 units; empty, over-bound, malformed or aggregate-capacity
-rejected forms retain normal Markdown presentation. With
+rejected forms retain normal Markdown presentation. A term inside a list or footer
+retains the first visible paragraph's inherited marker and ownership. A callout
+header uses the same prefix step; its clipped body never repeats that marker.
+Later nested lists retain their independent markers. With
 Abbreviations enabled, up to 128 unique top-level single-line declarations of
 `*[KEY]: expansion` are recognized; keys are 1–64 ASCII letters/digits, and
 expansions are 1–512 UTF-16 units without controls or angle brackets. Their first
@@ -2027,7 +2033,11 @@ display interval with borrowed text and source fragments, using the existing
 Unicode word/grapheme policy. It excludes generated text, code, literal HTML
 blocks, metadata, URLs and native objects; supported inline HTML styling keeps
 its visible prose. `CountWords` applies the same policy to the full immutable
-semantic document. `GetVisibleSemanticDisplayRange` returns a conservative
+semantic document. Word admission and native/UIA word navigation classify complete
+supplementary letters/digits with the pinned Unicode 17 alphanumeric data, preserving
+the legacy BMP Windows classification. Adjacent BMP/supplementary letters share one
+word; emoji are not admitted as letter/digit starts. Source/display ranges never
+begin inside a surrogate pair. `GetVisibleSemanticDisplayRange` returns a conservative
 current-layout envelope or no value while publication is pending. Consumers
 must validate document identity before publishing decorations or suggestions;
 existing context-menu and decoration callbacks own the UI. The interval bounds
@@ -2055,8 +2065,9 @@ the browser preserves whitespace and cannot add a second marker; this fallback d
 that selection and still replaces native objects with their text alternatives.
 
 `autoParagraphDirection` is an opt-in semantic layout policy. Each paragraph
-uses the first Unicode 17 strong L, R or AL scalar outside nested bidi isolates.
-the pinned DerivedBidiClass defaults and explicit overrides apply to unassigned
+uses the first authored Unicode 17 strong L, R or AL scalar outside nested bidi isolates.
+Generated chrome and object alternatives are excluded; isolate state remains continuous
+across source spans. The pinned DerivedBidiClass defaults and explicit overrides apply to unassigned
 scalars and noncharacters as well as assigned characters.
 When no strong scalar exists it inherits the host direction. List marker and
 indent placement follow the paragraph. Table cell text resolves independently,
@@ -2254,6 +2265,15 @@ is the default. `diagramLabelWidthDip` optionally sets a 1–4096 DIP width for
 all native diagram labels in the editor; zero retains the font-relative default.
 Changing it invalidates label geometry and preserves source, selection and history.
 
+Within one immutable graph/resource/typography generation, identical nonnumbered
+edge captions with identical style spans MUST share their prepared DirectWrite
+layout and measured size, including captions produced by Cartesian expansion.
+Different text or styles remain distinct. Each edge retains independent source,
+placement and surface treatment. The cache is bounded by the admitted edge count;
+node compartments, endpoint cardinalities and derived sequence numbers keep their
+separate preparation. Cooperative layout reports count actual native creations;
+cache hits consume ordinary bounded preparation steps without a native layout call.
+
 All shapes, labels, routes and arrowheads MUST fit the complete diagram bounds,
 with a 65,536-DIP extent limit per axis. Node/aggregate extent rejection publishes
 an explicit capacity issue with no partial geometry. Invalid/nonfinite/negative
@@ -2303,7 +2323,8 @@ exact size, weight and italic style, at most 4,096 entries; no format is recreat
 for another leaf with that key. Paint never queries or mutates the cache.
 A width-only reflow may reuse finalized DirectWrite math layouts while rebuilding
 placement geometry, provided the semantic document, factory, render target,
-resource epochs, image bindings and all other layout options match. Changed
+resource epochs and all other layout options match. Replacing an immutable image
+snapshot does not invalidate unchanged math in that same document. Changed
 mathematical family or locale also retires incompatible math. Clearing the owner
 releases its resources; no global factory/font cache extends their lifetime.
 
@@ -3060,6 +3081,10 @@ plain lines and a standalone `end note`; trimmed lines are joined with LF,
 including empty lines and literal semicolons or percent characters. Text is
 limited to 1024 UTF-16 units. Colliding notes, unsupported note forms and
 unterminated blocks fail closed to exact source.
+Before publication, final transformed note bounds MUST exclude every orthogonal
+edge segment interior and edge-caption rectangle. A collision publishes the bounded
+diagram-extent issue with empty geometry, preserving the complete editable source.
+Boundary attachment is permitted; ordinary noncolliding notes remain supported.
 
 Class relationships admit composition (`*--`, `--*`, `*..`, `..*`) and
 aggregation (`o--`, `--o`, `o..`, `..o`). The diamond remains attached to the

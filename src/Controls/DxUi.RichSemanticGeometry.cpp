@@ -57,7 +57,17 @@ DWRITE_READING_DIRECTION ParagraphDirection(const SemanticDocument& document, co
         paragraph.markerEnd > paragraph.display.first && paragraph.markerEnd <= paragraph.display.last ? paragraph.markerEnd : paragraph.display.first;
     if (first > paragraph.display.last || paragraph.display.last > text.size())
         return options.readingDirection;
-    return FirstStrongDirection(text.substr(first, paragraph.display.last - first), options.readingDirection);
+    const auto spans = document.Map().Spans();
+    auto span        = std::lower_bound(spans.begin(), spans.end(), first, [](const auto& value, auto at) { return value.display.last <= at; });
+    return FirstStrongDirection(text.substr(first, paragraph.display.last - first),
+                                options.readingDirection,
+                                [&](std::size_t relative) noexcept
+    {
+        const auto at = first + relative;
+        while (span != spans.end() && span->display.last <= at)
+            ++span;
+        return span == spans.end() || at < span->display.first || IsAuthoredSemanticSpan(span->kind);
+    });
 }
 HRESULT UploadImageBitmap(
     ID2D1RenderTarget* target, D2D1_SIZE_U size, const void* pixels, UINT32 stride, const D2D1_BITMAP_PROPERTIES& properties, ID2D1Bitmap** bitmap) noexcept
@@ -2420,11 +2430,12 @@ LayoutPreparationStatus PreparedSemanticGeometry::Begin(IDWriteFactory* factory,
         valid_ = true;
         return LayoutPreparationStatus::Complete;
     }
-    // Reuse only fully published math for a width-only reflow. Prepared math owns
-    // DirectWrite layouts, not raster-target resources; placement geometry is rebuilt.
+    // Completion/frame publication replaces the immutable snapshot. Reuse is
+    // per element/pixel identity, while factory, target, epoch and options stay
+    // compatible; placement geometry is rebuilt for the new snapshot.
     const NativeImageGeometry* previousImages = nullptr;
-    if (state_ && state_->images && state_->factory.get() == factory && state_->document == document && state_->imageResources == images &&
-        state_->images->targetIdentity == raster && state_->imageEpochs == epochs)
+    if (state_ && state_->images && state_->factory.get() == factory && state_->document == document && state_->images->targetIdentity == raster &&
+        state_->imageEpochs == epochs)
     {
         LayoutOptions priorOptions = state_->options;
         priorOptions.widthDip      = options.widthDip;

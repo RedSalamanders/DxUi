@@ -1489,6 +1489,10 @@ Consumer context-menu observer unexpected exceptions, including bad_alloc, requi
 a delivered observer must never trigger a second fallback menu.
 Ctrl+Backspace and Ctrl+Delete erase to the preceding or following word boundary;
 rich-view deletion maps visible fragments through the structural source planner.
+Native/UIA word navigation classifies supplementary letters/digits as complete
+Unicode 17 scalars, sharing semantic word admission. Mixed BMP/supplementary
+letters form one word; emoji remain non-alphanumeric. The legacy BMP Windows
+classification and path-separator policy remain unchanged.
 Word and grapheme deletion may cross the active source-edit interval. Crossing or leaving that interval
 retires its source presentation and resumes ordinary rich navigation at the resulting caret.
 Adjacent direct letter, digit, underscore, supplementary scalar, joiner and combining-mark typing is one undo group for at most 64 UTF-16

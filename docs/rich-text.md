@@ -283,13 +283,15 @@ current publication before applying decorations or suggestions; the existing
 context-menu callback can present consumer-owned suggestions. `CountWords`
 uses the same policy for the whole document. Code, literal HTML blocks, URLs,
 metadata, generated text and native objects are excluded; supported inline HTML
-prose remains included. Word traversal is interval-bounded but exclusion setup
+prose remains included. Supplementary letters and digits are admitted as complete
+Unicode 17 scalars, including mixed BMP/supplementary words under native/UIA navigation;
+emoji are not counted as alphabetic word starts. Word traversal is interval-bounded but exclusion setup
 scans the document's semantic records, so run it outside Paint. Dictionaries,
 reading rates and status-bar presentation remain application policy.
 `RichTextEditorAppearance::autoParagraphDirection` optionally selects first
 strong Unicode 17 direction per semantic paragraph or table cell, including
 DerivedBidiClass defaults for unassigned scalars. Nested bidi
-isolates are skipped; a paragraph with no strong scalar inherits the host
+isolates, generated chrome and object alternatives are skipped; a paragraph with no authored strong scalar inherits the host
 direction. Table column order continues to follow the host. The default remains
 the host direction for all paragraphs. This changes layout only and retains
 in-flight image requests. Focused embedded WARP checks pass; native, consumer,
@@ -441,6 +443,10 @@ and creates no SDK resources; complete extents are capped at 65,536 DIP per axis
 DWrite node and edge labels wrap at 12.5 times the selected font size by default;
 `diagramLabelWidthDip` selects a 1–4096 DIP maximum, or zero for the default.
 Explicit line breaks and complete label text remain visible within the resulting geometry.
+Repeated nonnumbered edge captions with the same text and style spans share one
+native text layout within a prepared generation, including Cartesian edge products.
+Each edge keeps its source, position and surface; different styles remain distinct.
+Preparation budgets and reports count actual layout creation, with bounded work for cache hits.
 Shaping and reusable native paint resources pass focused Debug checks, with intercepted
 SDK-call budgets, independent Unicode/bidi/multiline raster checks, separate
 typography/resource invalidation and compatible borrowed-target drawing. Edge
@@ -1166,6 +1172,8 @@ Two further RichMarkdown features are explicitly opt-in. Pass
 `RichTextEditor::SetMarkdownAnalysisExtensions` after selecting RichMarkdown.
 A plain term followed by up to 16 `: description` lines becomes a native
 definition list; descriptions support single-line Markdown inline formatting.
+Terms inside lists/footers retain their inherited marker. Callout headers own the
+outer marker once, while body continuations and nested lists keep their own scope.
 HTML, cross-line owners and forms exceeding per-line or aggregate capacity
 remain ordinary Markdown. A top-level single-line `*[HTML]: Hyper Text Markup Language`
 defines an exact case-sensitive ASCII word and its authored hover/UIA help. Up to
@@ -1610,6 +1618,13 @@ The C++-only Mermaid engine implements the bounded native profiles described bel
 no JavaScript or headless-browser helper is deployed.
 
 ## Leading metadata envelopes
+
+The YAML and TOML parsers validate the structured front matter described here.
+They belong in DxUi because RichMarkdown owns its source ranges, diagnostics and
+Properties presentation. They are private implementation dependencies: libfyaml
+0.9.4 for YAML and header-only tomlplusplus 3.4.0 for TOML. They add no TOML runtime
+DLL or metadata syntax to the CommonMark/GFM profiles. Applications continue to
+own property schemas and settings policy.
 
 RichMarkdown analysis now recognizes a leading YAML `---` or TOML `+++` envelope,
 with an optional initial BOM. Fence lines must be exact, without spaces. YAML
@@ -2090,6 +2105,9 @@ plain lines and a standalone `end note`; trimmed lines are joined with LF,
 including empty lines and literal semicolons or percent characters. Text is
 limited to 1024 UTF-16 units. Colliding notes, unsupported note forms and
 unterminated blocks fail closed to exact source.
+The final collision check includes orthogonal routes and edge captions crossing
+a note. Such a layout retains exact source instead of publishing partial geometry;
+notes with clear routes remain rendered.
 
 Class relationships admit composition (`*--`, `--*`, `*..`, `..*`) and
 aggregation (`o--`, `--o`, `o..`, `..o`). The diamond remains attached to the

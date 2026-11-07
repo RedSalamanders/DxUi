@@ -150,7 +150,7 @@ This coordinates the active API work; it does not adopt API 5 in any application
 - [x] Resolve display-block interruption and pathological scan budgets (MD-03/05/06/07), with deterministic
   seeds, independent expected results and bounded logical work. [Source-bound closeout](../Done/MarkdownScanBounds_2026-11-06.md).
 - [x] Complete display-style aligned/gathered/alignat cells and centered script-style substack (MATH-01); preserve source and measured row/delimiter geometry in the [scoped closeout](../Done/DiagramMathAndWorkspaceCorrections_2026-11-06.md).
-- [ ] Complete outstanding diagram note/routing/budget issues (FLOW-03/05), preserving exact source, local editing, geometry, history, UIA and resource limits.
+- [x] Complete outstanding diagram note/routing/budget issues (FLOW-03/05), preserving exact source, local editing, geometry, history, UIA and resource limits. [Source-bound closeout](../Done/SemanticAndDiagramResources_2026-11-07.md) includes independent note collisions, 512-edge measured caption reuse, six builds and all 66 ordinary x64 suite executions.
 
 FLOW-01/02's published fixes are complete. Do not recreate them as new work; independent regressions and
 any *different* remaining failure-channel problem belong to D-A1.
@@ -173,8 +173,10 @@ any *different* remaining failure-channel problem belong to D-A1.
   observed WIC capability, controlled E_NOINTERFACE, cancellation and checked failure preserve publication.
   The unchanged compiled probe fails with the prior library and passes with this one. D6's broader policy,
   native ARM64/physical and formal paired-performance acceptance remain separately owned.
-- [ ] Resolve image-completion/animation re-preparation, placeholder direction, lost list markers and
-  supplementary-plane word starts (SEM-02/03/04/05).
+- [x] Resolve image-completion/animation re-preparation, placeholder direction, lost list markers and
+  supplementary-plane word starts (SEM-02/03/04/05). [Source-bound closeout](../Done/SemanticAndDiagramResources_2026-11-07.md)
+  records independent retained-baseline failures, six zero-warning builds, all 66 ordinary x64 suite executions,
+  real ASan detection and reviewed harness gallery. Native platforms, consumers and performance remain separate.
 - [ ] Restore bounded chunk reuse with nondefault line height (RENDER-02); preserve clean/dirty/hidden work,
   per-frame resource rules and device-generation behavior.
 - [ ] Name RadioButtons groups and raise semantic state events; qualify UIA-client navigation/events/detach
