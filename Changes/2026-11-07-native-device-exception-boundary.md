@@ -1,1 +1,0 @@
-- Keep D3D11 device creation inside the audited native exception boundary so driver-internal handled exceptions return their original HRESULT; preserve hardware/WARP fallback and optional debug-layer retry, with a retained fail-before/pass-after regression and separate native platform qualification.
