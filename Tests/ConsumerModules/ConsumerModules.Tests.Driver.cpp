@@ -262,9 +262,9 @@ bool FatalModuleChild(int kind)
     AcquireSRWLockExclusive(&DxUiSample::FailureHost::dbgHelpGate);
     const auto unlock = wil::scope_exit([] { ReleaseSRWLockExclusive(&DxUiSample::FailureHost::dbgHelpGate); });
     // An ARM64 SEH filter runs on the handler path. Its live backtrace names
-    // NativeExceptionFilter; the saved exception-context dump below must still
+    // the noinline native trampoline's filter; the saved-context dump must still
     // identify the original throw, independently of this capture-site check.
-    const auto recordOrigin = kind <= 12 ? origin : "NativeExceptionFilter";
+    const auto recordOrigin = kind <= 12 ? origin : "NativeInvokeTrampoline";
     if (! HasModuleOrigin(process.get(), content, moduleName, recordOrigin))
         return fail("record-symbol");
     wil::unique_hfile dump(CreateFileW((directory + L".dmp").c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr));
