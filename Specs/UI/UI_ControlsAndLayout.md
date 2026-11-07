@@ -2894,13 +2894,13 @@ error channel and leave the request retryable. In particular, `E_OUTOFMEMORY`,
 be converted into permanent source rejection; they remain eligible for explicit
 preparation retry or resource-generation recovery.
 
-A deterministic `std::logic_error` in semantic staging or native rich geometry is
-logged once and memoized for the exact source, profile, source-editing region,
-view, width, DPI, direction, typography, resource generation, binding and local
-appearance key. The editor prepares source presentation without changing the
-requested view, source, selection or history; idle turns do not retry the rejected
-key. A changed key permits rich preparation again. Memory, device and unknown
-HRESULT failures remain retryable and do not use this deterministic fallback.
+Unexpected C++ exceptions in semantic staging or native rich geometry, including
+`std::logic_error`, follow the API-5 [fatal diagnostic contract](../Core/Core_FailureHandling.md).
+They MUST NOT become a successful source fallback or a memoized recoverable error.
+Expected capacity, unsupported-input and native-resource refusals instead use their
+explicit checked results and source-preserving object-local policy above. Native
+host isolation of a checked control failure does not change that distinction or
+authorize composition of unavailable geometry.
 
 The native Mermaid engine additionally accepts a bounded `stateDiagram` /
 `stateDiagram-v2` profile: direction, simple declarations/quoted aliases,
