@@ -18,6 +18,19 @@ expected source notifications. Mixed-style Rich v0 retains its compatibility pat
 Original executable/PDB pairs, the shared compiled fixture, source, raw logs and all
 324 capture files are archived and independently byte-verified. The first candidate
 fixture confused source ACPs with CRLF-normalized display offsets; its failure record,
-dump, images and source remain separately retained. Complete current-SDK native and
-platform qualification, consumer adoption, physical input and performance-policy
-acceptance are separate from this focused proof.
+dump, images and source remain separately retained.
+
+The [final correction](final-correction.json) retains the subsequent strict 1.65
+pitch failure and its original source/images. Sequential floating-point line
+accumulation, line-coordinate mapping and baseline mapping before pixel snapping
+preserve whole-layout height, caret, hit affinity, selection and exact raster
+results, including skew. The intermediate null-target and skew failures are also
+retained; their unsuccessful results are not credited as validation.
+
+At `21f63d32`, [complete local qualification](qualification.json) passes all six
+zero-warning builds, 66 ordinary native x64 suite executions without skips and the
+real ASan detector. Every original source/native/run/failure-image member is
+independently byte-verified. [Gallery provenance](gallery.json) records six reviewed
+harness captures from that clean source. ARM64 is cross-build coverage; native
+ARM64, consumer adoption, physical input and performance-policy acceptance remain
+separate.

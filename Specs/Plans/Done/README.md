@@ -2,6 +2,8 @@
 
 ## Completed scopes — 7 November 2026
 
+- [Source spacing and radio group names](SourceSpacingAndRadioNaming_2026-11-07.md) — bounded uniform Source edits with exact line/raster geometry, actual UIA naming events, retained counterexamples, six builds and 66 ordinary x64 suite executions.
+
 - [Native device-creation exception boundary](NativeDeviceExceptionBoundary_2026-11-07.md) — original ARM64 diagnosis, audited native D3D11 allowance, controlled retry regression, six zero-warning builds and 66 ordinary x64 suite executions; hosted ARM64 remains separate.
 
 - [Editor input and viewport](EditorInputViewport_2026-11-07.md) — metadata pixels, read-only shortcut propagation, contextual pairing and source-anchor preservation; six builds, 66 x64 suite executions and retained counterfactuals.

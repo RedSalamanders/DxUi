@@ -9,7 +9,11 @@ source, shared fixture object, executable/PDB and log members are independently 
 The native Accessibility regression additionally subscribes a UIA client to Group
 Name changes and checks unchanged-header suppression. The embedded suite repeats
 the retained-provider and naming checks through Prepare/UpdateAccessibility. Those
-complete-suite results require their separate source-bound native qualification.
+complete-suite results pass in the [source-bound local qualification](qualification.json)
+at `21f63d32`: six warning-free builds, 66 ordinary native x64 suite executions without
+skips, and actual ASan detection. Every original source/native/run/failure-image
+member is independently byte-verified. Six clean-source harness gallery captures
+were regenerated and reviewed. ARM64 entries are cross-builds.
 
 The first candidate probe closed its COM apartment before draining asynchronous
 registration releases. Its retirement failure, dump, executable/PDB and source are

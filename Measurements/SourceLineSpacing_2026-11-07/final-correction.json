@@ -1,0 +1,58 @@
+{
+  "observedFocusedCommandExitCodes": {
+    "edit": 0,
+    "pitch": 0,
+    "control": 0,
+    "measure": 0,
+    "raster": 0
+  },
+  "memberCount": 459,
+  "workloadOwner": "DxUi",
+  "allOriginalMembersVerified": true,
+  "fixture": "dxui-source-spacing-final-correction",
+  "schemaVersion": 1,
+  "inputHash": "8a4cb1b82c6f7a6a2ac6c49c435d624bc675e955e5ba68e2dccb5a33d2c9b4f4",
+  "limits": [
+    "Focused patch-object images are separate from the full SDK matrix in qualification.json",
+    "The first matrix and successive pitch, null-target and skew raster failures are retained; they are not accepted results",
+    "Loaded-host timings do not establish formal paired-performance acceptance",
+    "No native ARM64, physical input, foreground Menu or consumer acceptance is inferred"
+  ],
+  "logs": {
+    "final-control.log": {
+      "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "output": ""
+    },
+    "final-edit.log": {
+      "sha256": "BF98AD5409A8A1CB03E827B74DB23300F12934AE111DB31CD96CC25A7EC0DED3",
+      "output": "uniform edit source=59000 prepared=1062 reused=55 whole=0\r\n"
+    },
+    "candidate-uniform-skew-snap.log": {
+      "sha256": "079FBE2A4B157263AE9AA7CE1BF9779A759BE1152118B978166B867B6FB43510",
+      "output": "uniform edit source=59000 prepared=1062 reused=55 whole=0\r\nrich positioned raster exactPairs=162 fontProfiles=9 directions=2 transforms=3 viewports=3\r\n"
+    },
+    "final-measure.log": {
+      "sha256": "214CA3F69A12BEF30DE23140AFFFE4F5220B511701519BBECFA62B922744CAE9",
+      "output": "{\"pair\":0,\"multiplier\":0,\"source_units\":59000,\"prepared_source_units\":1062,\"reused_chunks\":55,\"whole_layout_source_units\":0,\"edit_layout_advances\":5,\"elapsed_us\":372}\r\n{\"pair\":0,\"multiplier\":1.6,\"source_units\":59000,\"prepared_source_units\":1062,\"reused_chunks\":55,\"whole_layout_source_units\":0,\"edit_layout_advances\":5,\"elapsed_us\":298}\r\n{\"pair\":1,\"multiplier\":1.6,\"source_units\":59000,\"prepared_source_units\":1062,\"reused_chunks\":55,\"whole_layout_source_units\":0,\"edit_layout_advances\":5,\"elapsed_us\":298}\r\n{\"pair\":1,\"multiplier\":0,\"source_units\":59000,\"prepared_source_units\":1062,\"reused_chunks\":55,\"whole_layout_source_units\":0,\"edit_layout_advances\":5,\"elapsed_us\":330}\r\n{\"pair\":2,\"multiplier\":0,\"source_units\":59000,\"prepared_source_units\":1062,\"reused_chunks\":55,\"whole_layout_source_units\":0,\"edit_layout_advances\":5,\"elapsed_us\":285}\r\n{\"pair\":2,\"multiplier\":1.6,\"source_units\":59000,\"prepared_source_units\":1062,\"reused_chunks\":55,\"whole_layout_source_units\":0,\"edit_layout_advances\":5,\"elapsed_us\":277}\r\n{\"pair\":3,\"multiplier\":1.6,\"source_units\":59000,\"prepared_source_units\":1062,\"reused_chunks\":55,\"whole_layout_source_units\":0,\"edit_layout_advances\":5,\"elapsed_us\":295}\r\n{\"pair\":3,\"multiplier\":0,\"source_units\":59000,\"prepared_source_units\":1062,\"reused_chunks\":55,\"whole_layout_source_units\":0,\"edit_layout_advances\":5,\"elapsed_us\":296}\r\n{\"pair\":4,\"multiplier\":0,\"source_units\":59000,\"prepared_source_units\":1062,\"reused_chunks\":55,\"whole_layout_source_units\":0,\"edit_layout_advances\":5,\"elapsed_us\":289}\r\n{\"pair\":4,\"multiplier\":1.6,\"source_units\":59000,\"prepared_source_units\":1062,\"reused_chunks\":55,\"whole_layout_source_units\":0,\"edit_layout_advances\":5,\"elapsed_us\":297}\r\n{\"pair\":5,\"multiplier\":1.6,\"source_units\":59000,\"prepared_source_units\":1062,\"reused_chunks\":55,\"whole_layout_source_units\":0,\"edit_layout_advances\":5,\"elapsed_us\":304}\r\n{\"pair\":5,\"multiplier\":0,\"source_units\":59000,\"prepared_source_units\":1062,\"reused_chunks\":55,\"whole_layout_source_units\":0,\"edit_layout_advances\":5,\"elapsed_us\":460}\r\n{\"pair\":6,\"multiplier\":0,\"source_units\":59000,\"prepared_source_units\":1062,\"reused_chunks\":55,\"whole_layout_source_units\":0,\"edit_layout_advances\":5,\"elapsed_us\":428}\r\n{\"pair\":6,\"multiplier\":1.6,\"source_units\":59000,\"prepared_source_units\":1062,\"reused_chunks\":55,\"whole_layout_source_units\":0,\"edit_layout_advances\":5,\"elapsed_us\":284}\r\n{\"pair\":7,\"multiplier\":1.6,\"source_units\":59000,\"prepared_source_units\":1062,\"reused_chunks\":55,\"whole_layout_source_units\":0,\"edit_layout_advances\":5,\"elapsed_us\":292}\r\n{\"pair\":7,\"multiplier\":0,\"source_units\":59000,\"prepared_source_units\":1062,\"reused_chunks\":55,\"whole_layout_source_units\":0,\"edit_layout_advances\":5,\"elapsed_us\":371}\r\n{\"pair\":8,\"multiplier\":0,\"source_units\":59000,\"prepared_source_units\":1062,\"reused_chunks\":55,\"whole_layout_source_units\":0,\"edit_layout_advances\":5,\"elapsed_us\":299}\r\n{\"pair\":8,\"multiplier\":1.6,\"source_units\":59000,\"prepared_source_units\":1062,\"reused_chunks\":55,\"whole_layout_source_units\":0,\"edit_layout_advances\":5,\"elapsed_us\":296}\r\n{\"pair\":9,\"multiplier\":1.6,\"source_units\":59000,\"prepared_source_units\":1062,\"reused_chunks\":55,\"whole_layout_source_units\":0,\"edit_layout_advances\":5,\"elapsed_us\":321}\r\n{\"pair\":9,\"multiplier\":0,\"source_units\":59000,\"prepared_source_units\":1062,\"reused_chunks\":55,\"whole_layout_source_units\":0,\"edit_layout_advances\":5,\"elapsed_us\":292}\r\n{\"pair\":10,\"multiplier\":0,\"source_units\":59000,\"prepared_source_units\":1062,\"reused_chunks\":55,\"whole_layout_source_units\":0,\"edit_layout_advances\":5,\"elapsed_us\":307}\r\n{\"pair\":10,\"multiplier\":1.6,\"source_units\":59000,\"prepared_source_units\":1062,\"reused_chunks\":55,\"whole_layout_source_units\":0,\"edit_layout_advances\":5,\"elapsed_us\":291}\r\n{\"pair\":11,\"multiplier\":1.6,\"source_units\":59000,\"prepared_source_units\":1062,\"reused_chunks\":55,\"whole_layout_source_units\":0,\"edit_layout_advances\":5,\"elapsed_us\":277}\r\n{\"pair\":11,\"multiplier\":0,\"source_units\":59000,\"prepared_source_units\":1062,\"reused_chunks\":55,\"whole_layout_source_units\":0,\"edit_layout_advances\":5,\"elapsed_us\":319}\r\n"
+    },
+    "final-pitch.log": {
+      "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "output": ""
+    }
+  },
+  "implementationCommit": "21f63d3262d9f6d6caca2ef85abd699b4d3c83c0",
+  "benchmarkInputs": {
+    "src/Controls/DxUi.RichDocumentLayout.cpp": "57E08CA6E4FF69441F45312F77785B09F41D177D544D8B6DFBB97B994434A4F1",
+    "src/Controls/DxUi.RichTextLayout.cpp": "BD34E13CBB6C2B82E7DA9BF36BF9F9F4B4758F255ECF086048D58389781A89B3",
+    "src/Controls/DxUi.RichTextScriptRenderer.h": "BD156D017B8D558E74AD3606BF8833C93D45016CFBE967D30409166DA960041B",
+    "src/Controls/DxUi.Controls.cpp": "834D105822E164328D350F25D5ED7335CCCB8CFE333194E9B5AC95D566F15F68",
+    "src/Controls/DxUi.Accessibility.cpp": "9894F4FE788EB7C6D1C2A36EEA2761960BF5B523B2D3D2F6B9DDE3BDFFB1111E",
+    "Tests/Support/Support.Tests.UniformSourceChunks.h": "868A55F7B3070B7FBABA6052AAEB28DD8D85E59E699F6A1BBAE1AEABA6A5A126",
+    "Tests/Controls/Controls.Tests.RichDocumentLayout.cpp": "BC99D5F9BF3A79430A7CEEA45E2683CF8C8831DD255E1D85B5CA569DC2BC2769",
+    "Tests/Controls/DxUi.Tests.Accessibility.cpp": "1357D01EE9808982F4C658F5B2ED1CA04B960FA40AB5569CCD960083821DF2AE",
+    "Tests/Embedded/Embedded.Tests.EmbeddedAccessibility.h": "151D31867359A05F796B9A3522BF368D8C88633FAC0B5BB058B7869ADF73AE5D",
+    "Tests/Controls/DxUi.Tests.Menu.cpp": "C5A2F8534300117630AB311368B18BCE9548213712269AA49362F929A0CC33AE",
+    "gallery.ps1": "3644AF496DEB2EB0773916D415A093E924CCC19FEFA3F092B35E5570800332F4"
+  },
+  "originalArchiveSha256": "5E5BAB3A15AA40E2DD729A6A35AC614E82DE05FA1CCABF2E80C88479B5F119D8"
+}
