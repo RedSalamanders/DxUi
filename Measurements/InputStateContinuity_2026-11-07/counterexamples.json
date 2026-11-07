@@ -1,0 +1,144 @@
+{
+  "schemaVersion": 1,
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-input-state-counterexamples",
+  "inputHash": "f10cc463cbfa4d8b3610309e16f43175e2f6b49fd9179db884e89b476618c5bd",
+  "implementationCommit": "a287710cc0230152a69da0c74496d654841a05b3",
+  "benchmarkInputs": {
+    "src/Controls/DxUi.EditorControls.cpp": "E1374CC9FB93EA056FAE46BE03DF5CF67927A2BE0E6A89D815531C12014B2357",
+    "src/Controls/DxUi.Grid.cpp": "447EA30D4B0693A4AF9D2E28421284EAFD648F9B8FD25B39D8308D13BAF1EC81",
+    "src/Controls/DxUi.WindowHost.cpp": "E53943D111F9BC4CC2DF56404109E5EAE4086E4F2BBF6FC00282C0157B74250C",
+    "src/Rendering/Embedded.cpp": "7041E6B47C00BF24377A47484561F8C106DB53A49E04CF3A49759F66268C2339",
+    "Tests/Controls/DxUi.Tests.EditorControls.cpp": "5D24C811C756D7D422BD65E432696ECA56818244FBD6D2DE4E12B2C23A4E874E",
+    "Tests/Controls/DxUi.Tests.Grid.cpp": "0AA93851FA637A28A42303273E43D0F765B9D0B0C34AD29B6199DADC29B347E4",
+    "Tests/Embedded/Embedded.Tests.Embedded.cpp": "439E1B1BD61F5CCB58555F05146F1F9777AE45FB8CFD1E33947BDA2F8FBCE2D8"
+  },
+  "baselineSdkCommit": "2c8b267e2a26c914faa873e3557d4d2c6691de66",
+  "fixtureBase": "24f7c813b767796e094e2ef0dd9b43bd6e2cb5bc",
+  "baseline": {
+    "embeddedExitCode": -532391851,
+    "controlResults": [
+      {
+        "test": "TestNumericStepperBindingEchoPreservesTypedEdit",
+        "exitCode": 1
+      },
+      {
+        "test": "TestNumericStepperExternalValueCancelsPreview",
+        "exitCode": 1
+      },
+      {
+        "test": "TestNumericStepperCancelCallbackMaySupersedeExternalValue",
+        "exitCode": 1
+      },
+      {
+        "test": "TestGroupedGridAllCollapsedKeyboardExpansion",
+        "exitCode": 1
+      },
+      {
+        "test": "TestGroupedGridAllCollapsedExpansionCallbackMayRetireGrid",
+        "exitCode": 1
+      }
+    ],
+    "meaning": "Focused fail-before results, not suite qualification"
+  },
+  "firstCandidate": {
+    "firstAssertion": "an unavailable forwarded slider cancels once and restores its draft",
+    "ordinarySuitesPassed": 21,
+    "sourceCommit": "e597ba30f977f4c0c88724fb45e2036a4af56c78",
+    "failedSuite": "Embedded",
+    "warnings": 0,
+    "errors": 0,
+    "exitCode": -532391851,
+    "diagnosis": "Native message entry uses CancelStaleCapture; Embedded Prepare and input coherence use a separate CapturedDragContinues guard that still resolves only the ScrollPanel"
+  },
+  "focusedCorrection": {
+    "scope": "Focused diagnostic, not canonical qualification",
+    "originalCompilerInputsVerified": true,
+    "logSha256": "C27CB2B2FD161A6DAEB0A6C42FA1703A27C2502E2A33F34739C6344691CC36AB",
+    "baselineSource": "e597ba30f977f4c0c88724fb45e2036a4af56c78",
+    "exitCode": 0,
+    "source": {
+      "baseCommit": "e597ba30f977f4c0c88724fb45e2036a4af56c78",
+      "sourcePath": "src/Rendering/Embedded.cpp",
+      "sha256": "2468E13B7C40D3C1378A3219FE03EBF60E5BF47AD75FA8448D02DE17E71CCEB3",
+      "scope": "Exact unformatted source for focused unchanged-fixture relink; final qualification uses a later frozen formatted commit"
+    }
+  },
+  "archives": [
+    {
+      "cohort": "input-state-baseline-24f7c813",
+      "name": "original-fixture-compiler.zip",
+      "bytes": 199717137,
+      "sha256": "3BD89D3E88212CD282914D0AF8451EA04A5CC26601FF56E7A49687A77B5500F0"
+    },
+    {
+      "cohort": "input-state-baseline-24f7c813",
+      "name": "original-native.zip",
+      "bytes": 118049719,
+      "sha256": "AB1191ECE1DDEDCFD04EF3A42203C4F7E3B2127259E8867AA3E5DF36891D1CA1"
+    },
+    {
+      "cohort": "input-state-baseline-24f7c813",
+      "name": "original-observations.zip",
+      "bytes": 244596,
+      "sha256": "B3AB518DFF8BC590EBD845DCE618559065E9D1B5E3D83760885AA27CB36E6990"
+    },
+    {
+      "cohort": "input-state-baseline-24f7c813",
+      "name": "original-tooling-timeout.zip",
+      "bytes": 2437,
+      "sha256": "B4DE502A207C5B1B4D6812B9B0CA2EEBC3AA9C3D4D5DC07320B11AEA1DF48AA4"
+    },
+    {
+      "cohort": "input-state-first-candidate-e597ba30",
+      "name": "original-compiler.zip",
+      "bytes": 305341506,
+      "sha256": "ABDA062A05BEDB5E23E36F05ED7FDB56512D14C15AC79219657C3EA2D8D616A4"
+    },
+    {
+      "cohort": "input-state-first-candidate-e597ba30",
+      "name": "original-native.zip",
+      "bytes": 137844614,
+      "sha256": "831F82759C6E933736C0B184EB6DED02368761A6C76A3A9617A3FC3F5BDF9839"
+    },
+    {
+      "cohort": "input-state-first-candidate-e597ba30",
+      "name": "original-run.zip",
+      "bytes": 70333990,
+      "sha256": "0103E49F407309B16A59466E049233382218040583B33A3001B0D28691D0288B"
+    },
+    {
+      "cohort": "input-state-capture-proof-2468e13b",
+      "name": "original-focused-proof.zip",
+      "bytes": 139902974,
+      "sha256": "54617E13E0F46F39E1DD0D17FCAA3A9236BEB177FAD27A2A18F43B4422C3A6D2"
+    },
+    {
+      "cohort": "input-state-capture-proof-2468e13b",
+      "name": "pre-final-mixed-native.zip",
+      "bytes": 138513961,
+      "sha256": "6DDAF49773A58E7716B9D9338518559023344023A892D7D0B8BE12473B57F827"
+    }
+  ],
+  "limits": [
+    "Fail-before observations and focused object relink are diagnostic, not whole-source qualification",
+    "The baseline and first candidate Embedded assertion are retained separately from their later abnormal process exit",
+    "An initial correction attempt rebuilt fixture objects and was rejected before execution; its originals remain in the focused proof",
+    "The pre-final mixed-native archive has no source-commit qualification claim",
+    "The original denied-publication tooling timeout and inherited-pipe holder deadline remain independently retained; later green results do not assign their causes"
+  ],
+  "baselineFixtureInputs": [
+    {
+      "sha256": "5D24C811C756D7D422BD65E432696ECA56818244FBD6D2DE4E12B2C23A4E874E",
+      "path": "Tests/Controls/DxUi.Tests.EditorControls.cpp"
+    },
+    {
+      "sha256": "0AA93851FA637A28A42303273E43D0F765B9D0B0C34AD29B6199DADC29B347E4",
+      "path": "Tests/Controls/DxUi.Tests.Grid.cpp"
+    },
+    {
+      "sha256": "439E1B1BD61F5CCB58555F05146F1F9777AE45FB8CFD1E33947BDA2F8FBCE2D8",
+      "path": "Tests/Embedded/Embedded.Tests.Embedded.cpp"
+    }
+  ]
+}

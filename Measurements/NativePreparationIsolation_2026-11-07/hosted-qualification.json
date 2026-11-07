@@ -1,0 +1,1630 @@
+{
+  "schemaVersion": 1,
+  "sourceCommit": "45288065f90de4b3d9cc7938f4d691f60d4f6581",
+  "implementationCommit": "2c8b267e2a26c914faa873e3557d4d2c6691de66",
+  "apiRevision": 5,
+  "runs": [
+    {
+      "status": "completed",
+      "sourceCommit": "45288065f90de4b3d9cc7938f4d691f60d4f6581",
+      "conclusion": "success",
+      "configuration": "Debug",
+      "id": 42371883610,
+      "artifacts": [
+        {
+          "id": 13576765103,
+          "name": "qualification-workspace-ARM64-Debug",
+          "bytes": 89919802,
+          "sha256": "7a8dc9a2cfd948f3230fc3634d1e3e89c88800754d99205f22e6df6cedba8263",
+          "archive": "qualification-workspace-ARM64-Debug.zip"
+        },
+        {
+          "id": 13575774591,
+          "name": "qualification-ARM64-Debug",
+          "bytes": 85875858,
+          "sha256": "555fe50bd004094d10b460324ddae9a5c0cb9520d4a05ecc5657394f4f47af9b",
+          "archive": "qualification-ARM64-Debug.zip"
+        },
+        {
+          "id": 13574966998,
+          "name": "qualification-workspace-x64-Debug",
+          "bytes": 87115098,
+          "sha256": "f184bf2b9fef6748cb82cb4365f9b87ad9046b75165cf4a2f5e3fe3f7d69ac80",
+          "archive": "qualification-workspace-x64-Debug.zip"
+        },
+        {
+          "id": 13574466731,
+          "name": "msvc-14.52-03a24a8b7de1499a991a80d45831fe2e",
+          "bytes": 1324839,
+          "sha256": "559af286f5af49a6c3fa71ecdcf22798e49b6472ced3ea54250d97a5919437a7",
+          "archive": "msvc-14.52-03a24a8b7de1499a991a80d45831fe2e.zip"
+        },
+        {
+          "id": 13574449869,
+          "name": "qualification-x64-Debug",
+          "bytes": 83073421,
+          "sha256": "e21404eee61c77d62846946519253092f80a6026b8f7ef59d23b90f4a29f1474",
+          "archive": "qualification-x64-Debug.zip"
+        },
+        {
+          "id": 13574267441,
+          "name": "msvc-14.52-b63a9151bf074fe8b9120902cbd389c7",
+          "bytes": 1371294,
+          "sha256": "c67fb1446bc3dc038b1cfd5a8d58d9404de2be3c235f76ccf9b01254730f684c",
+          "archive": "msvc-14.52-b63a9151bf074fe8b9120902cbd389c7.zip"
+        }
+      ],
+      "originalPayloadVerificationSha256": "890DF3B0FF5E4A6C1C497AF0426521458F5483DDEC2C67574AA48CA42EA37375"
+    },
+    {
+      "status": "completed",
+      "sourceCommit": "45288065f90de4b3d9cc7938f4d691f60d4f6581",
+      "conclusion": "success",
+      "configuration": "ASan Debug",
+      "id": 42371891344,
+      "artifacts": [
+        {
+          "id": 13576627477,
+          "name": "qualification-workspace-ARM64-ASan Debug",
+          "bytes": 131077990,
+          "sha256": "af3b9d63107c749d1d72e217f6c0ca4323e994e49f03b4d7a3c6a3d30019d288",
+          "archive": "qualification-workspace-ARM64-ASan Debug.zip"
+        },
+        {
+          "id": 13576393062,
+          "name": "qualification-ARM64-ASan Debug",
+          "bytes": 127019997,
+          "sha256": "b33494ebb7f1fc6410fa039dd0c632c0dfa1ab9fb9b9a632326442921e3bafa7",
+          "archive": "qualification-ARM64-ASan Debug.zip"
+        },
+        {
+          "id": 13575691534,
+          "name": "qualification-workspace-x64-ASan Debug",
+          "bytes": 122775130,
+          "sha256": "829218f06f71cf24ee7aabf078a91da6deba9fdc048fa98868edf9be02038bee",
+          "archive": "qualification-workspace-x64-ASan Debug.zip"
+        },
+        {
+          "id": 13575362734,
+          "name": "qualification-x64-ASan Debug",
+          "bytes": 118709908,
+          "sha256": "862abba27cc77e0fd82ea69128d8869defd28402250b17f19731c7d31a56c724",
+          "archive": "qualification-x64-ASan Debug.zip"
+        },
+        {
+          "id": 13574800490,
+          "name": "msvc-14.52-00bcf1cbcc0940769c7cecab3e958989",
+          "bytes": 1370986,
+          "sha256": "e590d00943edcf70c78d93633994caa8a3694eaa78a9702e202ffd3204ad0b89",
+          "archive": "msvc-14.52-00bcf1cbcc0940769c7cecab3e958989.zip"
+        },
+        {
+          "id": 13574057499,
+          "name": "msvc-14.52-2a77b6ca3fef4089a7b111607fdfa464",
+          "bytes": 1328259,
+          "sha256": "268c3620794eb3cccd904b22832ef55a8cfa642e23fcf476c7fb3c361d930c2e",
+          "archive": "msvc-14.52-2a77b6ca3fef4089a7b111607fdfa464.zip"
+        }
+      ],
+      "originalPayloadVerificationSha256": "6187D61F52F53C9354AB24907CFE8DF67E01CC79AB86E292E8D58901E5FA509C"
+    },
+    {
+      "status": "completed",
+      "sourceCommit": "45288065f90de4b3d9cc7938f4d691f60d4f6581",
+      "conclusion": "success",
+      "configuration": "Release",
+      "id": 42371899884,
+      "artifacts": [
+        {
+          "id": 13577063259,
+          "name": "production-logs-ARM64",
+          "bytes": 13990,
+          "sha256": "c68980ac0524adc8889ea1e93ba23d734d05155d1e71700b083e485d489f0976",
+          "archive": "production-logs-ARM64.zip"
+        },
+        {
+          "id": 13577063256,
+          "name": "production-ARM64",
+          "bytes": 64129959,
+          "sha256": "67bf886129e7a4ceeeb61d7ff19a35d4bc3871e46e1a6efc0ce1f60cd217e795",
+          "archive": "production-ARM64.zip"
+        },
+        {
+          "id": 13577055534,
+          "name": "msvc-14.52-48efad8af025497aa7af843f6804689a",
+          "bytes": 1326185,
+          "sha256": "2b1a1e4f66597329ef406b9e8de976e65b7dff08f9f7fa172ff115477b85c6be",
+          "archive": "msvc-14.52-48efad8af025497aa7af843f6804689a.zip"
+        },
+        {
+          "id": 13576658652,
+          "name": "production-logs-x64",
+          "bytes": 13757,
+          "sha256": "73ad8da59b1c2c2dd15d61ce606d8371811992416b0923dab7b115b9510207fc",
+          "archive": "production-logs-x64.zip"
+        },
+        {
+          "id": 13576643667,
+          "name": "production-x64",
+          "bytes": 63977405,
+          "sha256": "7ebc7c84fc02af17fdb7d041deceed8d6edb2944f997d07f2021b4a428201dd3",
+          "archive": "production-x64.zip"
+        },
+        {
+          "id": 13576542206,
+          "name": "workspace-evidence-ARM64",
+          "bytes": 69727573,
+          "sha256": "6c4f710914e55e8177aee3411e66572e769fd4ad4010ff6bcbe827bba5fcaf42",
+          "archive": "workspace-evidence-ARM64.zip"
+        },
+        {
+          "id": 13576423761,
+          "name": "msvc-14.52-621141de454a48f5bc80e6695d0d471e",
+          "bytes": 1372480,
+          "sha256": "e639b2c5448c72db38e58ef984bcbda71a8beb56ed3d23b3181bf36938a4050a",
+          "archive": "msvc-14.52-621141de454a48f5bc80e6695d0d471e.zip"
+        },
+        {
+          "id": 13576362534,
+          "name": "regression-ARM64",
+          "bytes": 1030,
+          "sha256": "7877aa0035245b5c6b3930d4f78a88af70b9b646c3a50489a242f90d23d2ed52",
+          "archive": "regression-ARM64.zip"
+        },
+        {
+          "id": 13576153280,
+          "name": "evidence-ARM64",
+          "bytes": 65689274,
+          "sha256": "c2f4669c6aca166b28304f04105a4f2488638cc36a9401ed2882ab9fcd78e81b",
+          "archive": "evidence-ARM64.zip"
+        },
+        {
+          "id": 13574893700,
+          "name": "regression-x64",
+          "bytes": 1139,
+          "sha256": "1efa759813e8dea2bc46abedcfe4a240fb91dee1f79895428ad1d4bef21b6c40",
+          "archive": "regression-x64.zip"
+        },
+        {
+          "id": 13574859373,
+          "name": "workspace-evidence-x64",
+          "bytes": 130260923,
+          "sha256": "19024028ad8a334db06ae43da519e9d67e95932f6887c41c99027c71a677071c",
+          "archive": "workspace-evidence-x64.zip"
+        },
+        {
+          "id": 13574804735,
+          "name": "evidence-x64",
+          "bytes": 126199986,
+          "sha256": "0a1f3086d1fad7e553774b795e8298ae10760f8dc7e446cc2f2d3f2f76bd6ebe",
+          "archive": "evidence-x64.zip"
+        },
+        {
+          "id": 13574440544,
+          "name": "admission",
+          "bytes": 470,
+          "sha256": "4787dec9943174b2c8beef09dd9e81e7377b7822fd9ab50b248aa14a930ad69c",
+          "archive": "admission.zip"
+        },
+        {
+          "id": 13574212717,
+          "name": "msvc-14.52-9feea9d0331a49a5b9d6a077659db9d5",
+          "bytes": 1371885,
+          "sha256": "5ddb7e42b947dbec530da25653edaf59f7ec8690b11869b187b1ecfd25a6653f",
+          "archive": "msvc-14.52-9feea9d0331a49a5b9d6a077659db9d5.zip"
+        },
+        {
+          "id": 13573952949,
+          "name": "msvc-14.52-611786a454054ac6a81dda084fe15483",
+          "bytes": 1320035,
+          "sha256": "99862ccc88dc893a9cde9f8960175709f6c26d96a54eb8932dbab6b3b7d46fdb",
+          "archive": "msvc-14.52-611786a454054ac6a81dda084fe15483.zip"
+        }
+      ],
+      "originalPayloadVerificationSha256": "94460E3E0ABA67C3D5B5AB0FC1E47F89F2AB6ED088642BA25119CD19BFB7FE09"
+    }
+  ],
+  "profiles": [
+    {
+      "executedSuites": [
+        "Accessibility",
+        "Animation",
+        "ComboBox",
+        "Control",
+        "EditorControls",
+        "Embedded",
+        "Foundation",
+        "Grid",
+        "InteractiveLease",
+        "Menu",
+        "MenuExitLifetime",
+        "MultilineText",
+        "NativeTextInput",
+        "NewControls",
+        "ReadOnly",
+        "Rendering",
+        "TextField",
+        "Theme",
+        "Tooltip",
+        "Tree",
+        "WindowHost"
+      ],
+      "sanitizer": null,
+      "canonicalPayloadBytesVerified": true,
+      "hostedRunId": 42371883610,
+      "configuration": "Debug",
+      "platform": "x64",
+      "count": 21
+    },
+    {
+      "executedSuites": [
+        "Accessibility",
+        "Animation",
+        "ComboBox",
+        "Control",
+        "EditorControls",
+        "Embedded",
+        "Foundation",
+        "Grid",
+        "InteractiveLease",
+        "Menu",
+        "MenuExitLifetime",
+        "MultilineText",
+        "NativeTextInput",
+        "NewControls",
+        "ReadOnly",
+        "Rendering",
+        "TextField",
+        "Theme",
+        "Tooltip",
+        "Tree",
+        "WindowHost"
+      ],
+      "sanitizer": null,
+      "canonicalPayloadBytesVerified": true,
+      "hostedRunId": 42371883610,
+      "configuration": "Debug",
+      "platform": "ARM64",
+      "count": 21
+    },
+    {
+      "executedSuites": [
+        "Accessibility",
+        "Animation",
+        "ComboBox",
+        "Control",
+        "EditorControls",
+        "Embedded",
+        "Foundation",
+        "Grid",
+        "InteractiveLease",
+        "Menu",
+        "MenuExitLifetime",
+        "MultilineText",
+        "NativeTextInput",
+        "NewControls",
+        "ReadOnly",
+        "Rendering",
+        "TextField",
+        "Theme",
+        "Tooltip",
+        "Tree",
+        "WindowHost"
+      ],
+      "sanitizer": {
+        "suite": "AddressSanitizer",
+        "configuration": "ASan Debug",
+        "platform": "x64",
+        "nativeArchitecture": "X64",
+        "completedUtc": "2026-11-07T12:43:52.4748292Z",
+        "executable": "D:\\a\\DxUi\\DxUi\\.build\\x64\\ASan Debug\\DxUi.FoundationTests.exe",
+        "sha256": "3C41EE9333F7549FD6E4A642585222A0F8BC2584D11C73EE279546CBCB34E021",
+        "exitCode": 1,
+        "detected": true,
+        "log": "D:\\a\\DxUi\\DxUi\\.build\\evidence\\test-runs\\20261107T124231075Z-2464-222e56ea0f344e24b79096d2628420ff\\payload\\logs\\test-AddressSanitizer-x64.log",
+        "evidenceRun": "D:\\a\\DxUi\\DxUi\\.build\\evidence\\test-runs\\20261107T124231075Z-2464-222e56ea0f344e24b79096d2628420ff"
+      },
+      "canonicalPayloadBytesVerified": true,
+      "hostedRunId": 42371891344,
+      "configuration": "ASan Debug",
+      "platform": "x64",
+      "count": 21
+    },
+    {
+      "executedSuites": [
+        "Accessibility",
+        "Animation",
+        "ComboBox",
+        "Control",
+        "EditorControls",
+        "Embedded",
+        "Foundation",
+        "Grid",
+        "InteractiveLease",
+        "Menu",
+        "MenuExitLifetime",
+        "MultilineText",
+        "NativeTextInput",
+        "NewControls",
+        "ReadOnly",
+        "Rendering",
+        "TextField",
+        "Theme",
+        "Tooltip",
+        "Tree",
+        "WindowHost"
+      ],
+      "sanitizer": {
+        "suite": "AddressSanitizer",
+        "configuration": "ASan Debug",
+        "platform": "ARM64",
+        "nativeArchitecture": "Arm64",
+        "completedUtc": "2026-11-07T13:02:27.727764Z",
+        "executable": "C:\\a\\DxUi\\DxUi\\.build\\ARM64\\ASan Debug\\DxUi.FoundationTests.exe",
+        "sha256": "6426DC6CA3B6B4697C1963A8FF5913289E065DC2890CE64F82D85C1E13CA2E92",
+        "exitCode": 1,
+        "detected": true,
+        "log": "C:\\a\\DxUi\\DxUi\\.build\\evidence\\test-runs\\20261107T125947079Z-11188-26d61883391d4d4083027861b84de366\\payload\\logs\\test-AddressSanitizer-ARM64.log",
+        "evidenceRun": "C:\\a\\DxUi\\DxUi\\.build\\evidence\\test-runs\\20261107T125947079Z-11188-26d61883391d4d4083027861b84de366"
+      },
+      "canonicalPayloadBytesVerified": true,
+      "hostedRunId": 42371891344,
+      "configuration": "ASan Debug",
+      "platform": "ARM64",
+      "count": 21
+    },
+    {
+      "executedSuites": [
+        "Accessibility",
+        "Animation",
+        "ComboBox",
+        "Control",
+        "EditorControls",
+        "Embedded",
+        "Foundation",
+        "Grid",
+        "InteractiveLease",
+        "Menu",
+        "MenuExitLifetime",
+        "MenuResourceScaling",
+        "MenuTextLayoutResources",
+        "MultilineText",
+        "NativeTextInput",
+        "NewControls",
+        "ReadOnly",
+        "Rendering",
+        "TextField",
+        "Theme",
+        "Tooltip",
+        "Tree",
+        "WindowHost"
+      ],
+      "sanitizer": null,
+      "canonicalPayloadBytesVerified": true,
+      "hostedRunId": 42371899884,
+      "configuration": "Release",
+      "platform": "x64",
+      "count": 23
+    },
+    {
+      "executedSuites": [
+        "Accessibility",
+        "Animation",
+        "ComboBox",
+        "Control",
+        "EditorControls",
+        "Embedded",
+        "Foundation",
+        "Grid",
+        "InteractiveLease",
+        "Menu",
+        "MenuExitLifetime",
+        "MultilineText",
+        "NativeTextInput",
+        "NewControls",
+        "ReadOnly",
+        "Rendering",
+        "TextField",
+        "Theme",
+        "Tooltip",
+        "Tree",
+        "WindowHost"
+      ],
+      "sanitizer": null,
+      "canonicalPayloadBytesVerified": true,
+      "hostedRunId": 42371899884,
+      "configuration": "Release",
+      "platform": "ARM64",
+      "count": 21
+    }
+  ],
+  "productionSdks": [
+    {
+      "manifest": {
+        "schemaVersion": 1,
+        "version": "0.1.1775",
+        "platform": "x64",
+        "configuration": "Release",
+        "kind": "sdk",
+        "source": "45288065f90de4b3d9cc7938f4d691f60d4f6581",
+        "apiRevision": 5,
+        "compiler": {
+          "commit": "45288065f90de4b3d9cc7938f4d691f60d4f6581",
+          "apiRevision": 5,
+          "platform": "x64",
+          "toolset": "v145",
+          "vcToolsVersion": "14.52.37025",
+          "windowsSdkVersion": "10.0.26100.0",
+          "runtimeFamily": "MD",
+          "preferredToolArchitecture": "x64",
+          "disableStlAnnotations": false,
+          "releaseOptimizationPolicy": "Gy-REF-GL-LTCG-full-v1",
+          "msbuildSha256": "1EAA178CD17C7D3C2E33F98928E9EBBE098B0F0A397517F10F16CD06A3F23085",
+          "compilerSha256": "F1023C336447D8AB00E28E9C02E25FD6206928F894DF22F11CFB0D4233A10F25",
+          "linkerSha256": "7F699618D3E6AB301F981F5A4C2C688C714FA42A6907A2A373E8C90F814A30A7",
+          "windowsHeaderSha256": "B337D661D03A4ABEFB7B86A2742CE1AD5D19B57CD8B858BD13E7BBCC1DBEEAAA",
+          "kernel32Sha256": "842F5CE7AD8CF5AAB7491B791E7968D2BE510AE93F4019D3311797289399D221",
+          "ucrtSha256": "7EF4EAC926BF597D2F243F16CDFED7E0DB22CB3CA34A1D7E088A84C994A03D66"
+        },
+        "licenses": [
+          {
+            "path": "licenses/katex-LICENSE.txt",
+            "sha256": "4313255416487a4a7602f134a7cdd2b33dd9f7e7b41d3af63dc9f785bca425a0"
+          },
+          {
+            "path": "licenses/libfyaml-LICENSE.txt",
+            "sha256": "8c6ab373d0f40d39fc976227010f22a52e83e0e40fd25e5ac8f19945fed8aa5a"
+          },
+          {
+            "path": "licenses/libfyaml-xxHash-LICENSE.txt",
+            "sha256": "ee8ad8784f9f6d1083117eaa842b47d16ba8b0075008a0cc4563648b72066a3f"
+          },
+          {
+            "path": "licenses/LICENSE.txt",
+            "sha256": "de1d3b6bdeafef327008f4678099670e52c658b1bbc1ab261f94619c0f2cb8a9"
+          },
+          {
+            "path": "licenses/rapidyaml-bundled-NOTICES.txt",
+            "sha256": "fdea696d1c84d1ac7a11e22fbd3e1a4205176ea546b9eab644da59f617ee98e7"
+          },
+          {
+            "path": "licenses/rapidyaml-LICENSE.txt",
+            "sha256": "4e69d6b03c9138b9d748e18834935bd66c0ff7a9fcd03c20081d387385059a3c"
+          },
+          {
+            "path": "licenses/THIRD-PARTY-NOTICES.md",
+            "sha256": "00e5f101ff504ab5f72ad50c3249f159351e3c9282bdc4aeebbfc347b2668c49"
+          },
+          {
+            "path": "licenses/tomlplusplus-LICENSE.txt",
+            "sha256": "2312836ea26699dda4fa894316b60ef7be1a0c8526a2fd97c5bff7f546a3a3af"
+          },
+          {
+            "path": "licenses/Unicode-LICENSE.txt",
+            "sha256": "e7a93b009565cfce55919a381437ac4db883e9da2126fa28b91d12732bc53d96"
+          },
+          {
+            "path": "licenses/WHATWG-LICENSE.txt",
+            "sha256": "85dc6f5ccb57a6fe8c33d158f9fc8fc7ee5655a5d3db2cdd131c6a3d0f48a864"
+          },
+          {
+            "path": "licenses/WIL-LICENSE.txt",
+            "sha256": "27ebda9d51f0a56b7e281ccd8230a27236dcb51c05f64b07869ecf6e965d68b0"
+          }
+        ],
+        "librarySha256": "809fdcfafb96f0dccfc4ffc91f324f23bac734879798724dc12b355b252dea9f",
+        "libraryPdbSha256": "d5f2fa0c74c3fa01505c77e6f70d64e966fe79ce764a130b652630c3cdc33087",
+        "runtime": "MD",
+        "testsIncluded": false
+      },
+      "smoke": {
+        "schemaVersion": 1,
+        "version": "0.1.1775",
+        "platform": "x64",
+        "configuration": "Release",
+        "kind": "sdk",
+        "source": "45288065f90de4b3d9cc7938f4d691f60d4f6581",
+        "apiRevision": 5,
+        "compiler": {
+          "commit": "45288065f90de4b3d9cc7938f4d691f60d4f6581",
+          "apiRevision": 5,
+          "platform": "x64",
+          "toolset": "v145",
+          "vcToolsVersion": "14.52.37025",
+          "windowsSdkVersion": "10.0.26100.0",
+          "runtimeFamily": "MD",
+          "preferredToolArchitecture": "x64",
+          "disableStlAnnotations": false,
+          "releaseOptimizationPolicy": "Gy-REF-GL-LTCG-full-v1",
+          "msbuildSha256": "1EAA178CD17C7D3C2E33F98928E9EBBE098B0F0A397517F10F16CD06A3F23085",
+          "compilerSha256": "F1023C336447D8AB00E28E9C02E25FD6206928F894DF22F11CFB0D4233A10F25",
+          "linkerSha256": "7F699618D3E6AB301F981F5A4C2C688C714FA42A6907A2A373E8C90F814A30A7",
+          "windowsHeaderSha256": "B337D661D03A4ABEFB7B86A2742CE1AD5D19B57CD8B858BD13E7BBCC1DBEEAAA",
+          "kernel32Sha256": "842F5CE7AD8CF5AAB7491B791E7968D2BE510AE93F4019D3311797289399D221",
+          "ucrtSha256": "7EF4EAC926BF597D2F243F16CDFED7E0DB22CB3CA34A1D7E088A84C994A03D66"
+        },
+        "licenses": [
+          {
+            "path": "licenses/katex-LICENSE.txt",
+            "sha256": "4313255416487a4a7602f134a7cdd2b33dd9f7e7b41d3af63dc9f785bca425a0"
+          },
+          {
+            "path": "licenses/libfyaml-LICENSE.txt",
+            "sha256": "8c6ab373d0f40d39fc976227010f22a52e83e0e40fd25e5ac8f19945fed8aa5a"
+          },
+          {
+            "path": "licenses/libfyaml-xxHash-LICENSE.txt",
+            "sha256": "ee8ad8784f9f6d1083117eaa842b47d16ba8b0075008a0cc4563648b72066a3f"
+          },
+          {
+            "path": "licenses/LICENSE.txt",
+            "sha256": "de1d3b6bdeafef327008f4678099670e52c658b1bbc1ab261f94619c0f2cb8a9"
+          },
+          {
+            "path": "licenses/rapidyaml-bundled-NOTICES.txt",
+            "sha256": "fdea696d1c84d1ac7a11e22fbd3e1a4205176ea546b9eab644da59f617ee98e7"
+          },
+          {
+            "path": "licenses/rapidyaml-LICENSE.txt",
+            "sha256": "4e69d6b03c9138b9d748e18834935bd66c0ff7a9fcd03c20081d387385059a3c"
+          },
+          {
+            "path": "licenses/THIRD-PARTY-NOTICES.md",
+            "sha256": "00e5f101ff504ab5f72ad50c3249f159351e3c9282bdc4aeebbfc347b2668c49"
+          },
+          {
+            "path": "licenses/tomlplusplus-LICENSE.txt",
+            "sha256": "2312836ea26699dda4fa894316b60ef7be1a0c8526a2fd97c5bff7f546a3a3af"
+          },
+          {
+            "path": "licenses/Unicode-LICENSE.txt",
+            "sha256": "e7a93b009565cfce55919a381437ac4db883e9da2126fa28b91d12732bc53d96"
+          },
+          {
+            "path": "licenses/WHATWG-LICENSE.txt",
+            "sha256": "85dc6f5ccb57a6fe8c33d158f9fc8fc7ee5655a5d3db2cdd131c6a3d0f48a864"
+          },
+          {
+            "path": "licenses/WIL-LICENSE.txt",
+            "sha256": "27ebda9d51f0a56b7e281ccd8230a27236dcb51c05f64b07869ecf6e965d68b0"
+          }
+        ],
+        "librarySha256": "809fdcfafb96f0dccfc4ffc91f324f23bac734879798724dc12b355b252dea9f",
+        "libraryPdbSha256": "d5f2fa0c74c3fa01505c77e6f70d64e966fe79ce764a130b652630c3cdc33087",
+        "runtime": "MD",
+        "testsIncluded": false,
+        "smokePassed": true,
+        "producerPdbIsolationPassed": true,
+        "missingPackagedPdbControlPassed": true,
+        "licenseClosurePassed": true,
+        "firstPartyWarningControlPassed": true,
+        "headerClosurePassed": true,
+        "headerCount": 243,
+        "nativePolicySha256": "04bc1caa1e2635d7ff3975e4bbd7b823ef7eecd2d4844ec507bd3fdb9fbdb3ad",
+        "archiveSha256": "7c02ca34b3f73cd61528121d5684f1e433d27dfa2b6df258748285a204c572a8"
+      },
+      "verifiedInnerMembers": [
+        {
+          "path": "build/NativeBuildPolicy.targets",
+          "sha256": "04BC1CAA1E2635D7FF3975E4BBD7B823EF7EECD2D4844EC507BD3FDB9FBDB3AD",
+          "bytes": 5602
+        },
+        {
+          "path": "include/DxUi/AccessibilityTextUnits.h",
+          "sha256": "051B4B92289854CD9A404F24E8F34403763C3BD519E60472EE4A2CF59C249F1C",
+          "bytes": 1113
+        },
+        {
+          "path": "include/DxUi/Configuration.h",
+          "sha256": "BD193165742A2204E5A0ED71CEF2D1663A8345579173D5C948E6F0853947441F",
+          "bytes": 193
+        },
+        {
+          "path": "include/DxUi/ControlCatalog.h",
+          "sha256": "8AE54EA18460382B1FC6B2C819F4CA109863BACB552EF1A5717281FFF6C28E97",
+          "bytes": 1022
+        },
+        {
+          "path": "include/DxUi/Diagnostics.h",
+          "sha256": "6BD6FA74C79B190E21E5A403908EBA1606D3697FD3A940F3E8B203800824E679",
+          "bytes": 1265
+        },
+        {
+          "path": "include/DxUi/DxUi.h",
+          "sha256": "A1BFAD3F6828704423963AB405FDAE931A2E956151670675C17292E93E704128",
+          "bytes": 367374
+        },
+        {
+          "path": "include/DxUi/Embedded.h",
+          "sha256": "EF67A72FA4914288B24D842F2627CA3083A018CA6F3A258A8F467CC51870332C",
+          "bytes": 15676
+        },
+        {
+          "path": "include/DxUi/EmbeddedAccessibility.h",
+          "sha256": "ED19E79E7FF1C98C3E524AEACF91C4687E847F97E2F50225A9B09C5CF2DE2EBF",
+          "bytes": 1406
+        },
+        {
+          "path": "include/DxUi/Failure.h",
+          "sha256": "167A672638D0BBD83E4FCF5A5730D209B7D567FF37057E275144DB54320B4579",
+          "bytes": 10214
+        },
+        {
+          "path": "include/DxUi/FileDrop.h",
+          "sha256": "0D1DE5758FFD50F25FD59FB86E8AE4C1FF5305BBEC87C7933B3A38CB271894E2",
+          "bytes": 2687
+        },
+        {
+          "path": "include/DxUi/FocusRestore.h",
+          "sha256": "34DC2C6B4213F845819B5A4DA8FEB6232C79388EFB23E6853677821CCB927853",
+          "bytes": 1303
+        },
+        {
+          "path": "include/DxUi/FrameRuntime.h",
+          "sha256": "7E00D607D6EC6C8E5D34CBFD30E7F01F384AA73CD3025B2B7581FA6DF45C8AAC",
+          "bytes": 2071
+        },
+        {
+          "path": "include/DxUi/MarkdownSyntax.h",
+          "sha256": "6DF8034FCD73B24AF4AE61B3DC31F8ECF4F08BA912FD6553FD9B174C0EDA8037",
+          "bytes": 19922
+        },
+        {
+          "path": "include/DxUi/NativeMenuInterop.h",
+          "sha256": "E4B12127AF6DCDB4C158B75FEE5800CB94AE0A2A0E5E6805B16B85F109DA28C4",
+          "bytes": 4830
+        },
+        {
+          "path": "include/DxUi/PointerInput.h",
+          "sha256": "C16DE418C74F1F50E0D9568736B9914A7B947716844706B299EEACDEEC4B928D",
+          "bytes": 1141
+        },
+        {
+          "path": "include/DxUi/PreparedTreeAccessibility.h",
+          "sha256": "5D4345DEFCB53930437A39FC495FFA439FDA872608357448242C2588C697F06A",
+          "bytes": 2009
+        },
+        {
+          "path": "include/DxUi/RichAccessibilityText.h",
+          "sha256": "E392FD3C86196EBA9B5EC596AA21219E31A55D79A1CAD65F3340B871FB372994",
+          "bytes": 4084
+        },
+        {
+          "path": "include/DxUi/RichCodeTokenizer.h",
+          "sha256": "BD317D7EA7CB752F3EBC77FB147C4DFCF2EACB7FB3DF1F8B19266E3AC03901AB",
+          "bytes": 1149
+        },
+        {
+          "path": "include/DxUi/RichDocument.h",
+          "sha256": "6777D66FBE6CC09567C964904DF518E61CA1C9682097C48513860490A929DBD7",
+          "bytes": 9013
+        },
+        {
+          "path": "include/DxUi/RichImage.h",
+          "sha256": "EBD19A50AB8D1E00444C0B39187758AD880E923E0FB3E1AA8D080D506C3CF278",
+          "bytes": 5492
+        },
+        {
+          "path": "include/DxUi/RichMarkdown.h",
+          "sha256": "0D6F46E88EEBE14E44F5A27882DF52DBB576A06337B0BB9770CD6785E83ABF60",
+          "bytes": 4336
+        },
+        {
+          "path": "include/DxUi/RichMath.h",
+          "sha256": "80308ABD587AD09E592FC68E89E184F59AF541053BFE95F27F972287D3EFFAA7",
+          "bytes": 5000
+        },
+        {
+          "path": "include/DxUi/RichSemantic.h",
+          "sha256": "9A85E58E90788177FD29606E5D3915B38661496C20FED3441AD5E36924A7D5BD",
+          "bytes": 6051
+        },
+        {
+          "path": "include/DxUi/RichSemanticDocument.h",
+          "sha256": "E78C91BC0A1F3CDB98D627D86513201B2782D95B51B654E680A211C5E3CFFDC2",
+          "bytes": 12330
+        },
+        {
+          "path": "include/DxUi/RichTextCommands.h",
+          "sha256": "92944A86E033E63D9871042CED32FB61C7B55B17104AA629FD3F98F00F4D5762",
+          "bytes": 10192
+        },
+        {
+          "path": "include/DxUi/RichTextExport.h",
+          "sha256": "959EAEC607561750400CAFDF64029529B4F03C669E81D18A994495423E57DF8A",
+          "bytes": 4107
+        },
+        {
+          "path": "include/DxUi/RichTextLayout.h",
+          "sha256": "0B8E357B3C108F8C612D321C5F6C82ABA63F07070AF48D113DD14FF30CC7E1A8",
+          "bytes": 15542
+        },
+        {
+          "path": "include/DxUi/RichTextPresentation.h",
+          "sha256": "AD831A6F466F308B6424AEB3C3A139D529DA28CCD427594DB3F2C646E3793993",
+          "bytes": 1183
+        },
+        {
+          "path": "include/DxUi/TextInputServices.h",
+          "sha256": "87AF635E41AC5E4C6EB5FFD7966FF44E01DB2067B68F781F2A85016AA7AF9ECE",
+          "bytes": 10685
+        },
+        {
+          "path": "include/DxUi/ThemeColors.h",
+          "sha256": "B8F43321FB894A39BD16EC10314BBDE753EB3658D44BAA9B91062CC74C44E95C",
+          "bytes": 1307
+        },
+        {
+          "path": "include/DxUi/Typography.h",
+          "sha256": "ED7D2F50731FD6756646125C6A7EE04DDC62BAA93944959BC902588D4884A4A7",
+          "bytes": 20016
+        },
+        {
+          "path": "include/wil/com_apartment_variable.h",
+          "sha256": "1AD3705691046E0DBD7A717CC7D0E0E3418E2ADA8F74A0D4BC4EABE552A751B5",
+          "bytes": 19625
+        },
+        {
+          "path": "include/wil/com.h",
+          "sha256": "4B95C2201D908B277D6472DDB2EFCA6A75838430DC4F53A3D747BBC24394ADC8",
+          "bytes": 140624
+        },
+        {
+          "path": "include/wil/common.h",
+          "sha256": "126AFCD82DC11028871CCB5C3E8D27468E5B0EBD42EAB6BF38B5C619467286A1",
+          "bytes": 52456
+        },
+        {
+          "path": "include/wil/coroutine.h",
+          "sha256": "D79D8EFA59186892DFCB6F6E464AFFC3E1EDAB683BA96F3C17A340753E52FC45",
+          "bytes": 33220
+        },
+        {
+          "path": "include/wil/cppwinrt_authoring.h",
+          "sha256": "C9C953D79A84EB0A09CCBC6072D03B7C58834A08E962EEC172D5FDF77F33E0D5",
+          "bytes": 14274
+        },
+        {
+          "path": "include/wil/cppwinrt_helpers.h",
+          "sha256": "7233605E0158DB0EECA04DEF476A3D752E9986ACFF42539FF7F2D3E8DCE5D849",
+          "bytes": 12925
+        },
+        {
+          "path": "include/wil/cppwinrt_notifiable_server_lock.h",
+          "sha256": "1C9CA42A47DA9724C7EE27608308BE38A2542C87E48AFA8999CB056CDB00C054",
+          "bytes": 1925
+        },
+        {
+          "path": "include/wil/cppwinrt_wrl.h",
+          "sha256": "97C6C033CFBBC5AE6D691488168DAED48689C5B8EFA9D0E78F1F51F9C2BE8613",
+          "bytes": 2481
+        },
+        {
+          "path": "include/wil/cppwinrt.h",
+          "sha256": "32FD8C482F7CE607D6CE784EC9BF68988385648CED133D08ECD1751A4B5A7EBA",
+          "bytes": 18071
+        },
+        {
+          "path": "include/wil/filesystem.h",
+          "sha256": "B2431BEA7000A4BF8565032764B57EC5F0303B05541A1D2C9A6929C278B8E1C6",
+          "bytes": 56876
+        },
+        {
+          "path": "include/wil/network.h",
+          "sha256": "695F7AFAC6B7EDEEECD31A622841AAA381D5702F5210EFA784238AA6CB328993",
+          "bytes": 50582
+        },
+        {
+          "path": "include/wil/nt_result_macros.h",
+          "sha256": "5ADF32B3CF7BACB440AEC9DDB0955FCE224D9E02423CC86ADCB188E37E8E838D",
+          "bytes": 9985
+        },
+        {
+          "path": "include/wil/registry_helpers.h",
+          "sha256": "5E603F1E0E255E1AE175D6AB89A0DDDE2526BEA8D9E308FFFF4A082E452A99A7",
+          "bytes": 82075
+        },
+        {
+          "path": "include/wil/registry.h",
+          "sha256": "D26511F047F0CFD1FFA917BA175290BA423685C5E047721A494FBCA67168BD61",
+          "bytes": 188250
+        },
+        {
+          "path": "include/wil/resource.h",
+          "sha256": "DA46E44E165CA2BBA690CDA21E9578F5C7DC9E68E28AF8788B23313DA9C59AE9",
+          "bytes": 313051
+        },
+        {
+          "path": "include/wil/result_macros.h",
+          "sha256": "35BC595C8B338809F23F5DB90E1FF817F41648940F594A2DE3A3BF5273A1B74A",
+          "bytes": 326018
+        },
+        {
+          "path": "include/wil/result_originate.h",
+          "sha256": "D4189916AE031228CBCB8696C5B3C632BD8D118FC97695EA5278CDBA0E95C1FC",
+          "bytes": 6994
+        },
+        {
+          "path": "include/wil/result.h",
+          "sha256": "FF52D953CB6CCB0FE25EAEAE0BB3FE6E0511DB242692A2316BF5D05402B37F76",
+          "bytes": 51643
+        },
+        {
+          "path": "include/wil/rpc_helpers.h",
+          "sha256": "0713E5CD77F882D8AA2577A5EFEE6EDDFA7D008A36C9DE44FBE37E0090193C65",
+          "bytes": 8225
+        },
+        {
+          "path": "include/wil/safecast.h",
+          "sha256": "AF698B96D7DFCBF140393B062DE3B40F171DEB48311D0A45125F186030BA2287",
+          "bytes": 21868
+        },
+        {
+          "path": "include/wil/stl.h",
+          "sha256": "5381C46A89F57BF15AAAF8A9B8B38E839D1DDBBCA7B665B789D919CD018069D1",
+          "bytes": 11485
+        },
+        {
+          "path": "include/wil/token_helpers.h",
+          "sha256": "A58636AE4F0A83A85209113F66F1358CA87D77BF5067EB05D7227DF4EC5E6B3D",
+          "bytes": 28559
+        },
+        {
+          "path": "include/wil/Tracelogging.h",
+          "sha256": "C3E300BC1691689BFBF3B0DD7E926225849CC4FCBA2992722D38D5CC8A9B931A",
+          "bytes": 308978
+        },
+        {
+          "path": "include/wil/traceloggingconfig.h",
+          "sha256": "0713374D283576C096F8FD57F6BFE5676A3B7295E7D2C40DE41DD4D877FF326A",
+          "bytes": 3488
+        },
+        {
+          "path": "include/wil/win32_helpers.h",
+          "sha256": "5C00672F2A01FB57CED22307212675FADA7E6B7AD0A238A2E8E58BDD2D8A678E",
+          "bytes": 53590
+        },
+        {
+          "path": "include/wil/win32_result_macros.h",
+          "sha256": "135D434277D85DCB67467A1C10BE44C883E842F268B1ACAB8FDCC4DB9280106B",
+          "bytes": 7473
+        },
+        {
+          "path": "include/wil/windowing.h",
+          "sha256": "1A998285702F7FE94C5C4173D469A209B04555DBAE3C5BEC7162D68B8A7A138C",
+          "bytes": 6059
+        },
+        {
+          "path": "include/wil/winrt.h",
+          "sha256": "13E2E9058EAA092559DB4DEE6A9F925ECC8B9C4CBE0DECDB61375200A59DB727",
+          "bytes": 96990
+        },
+        {
+          "path": "include/wil/wistd_config.h",
+          "sha256": "117B9CDD63A19F4058E5FF14D5E704F9F708B7722B4EBEC471319FA6E6857678",
+          "bytes": 21165
+        },
+        {
+          "path": "include/wil/wistd_functional.h",
+          "sha256": "20DD903EFA733AC1B55E1EF9C50532A27C7F8B31CCA30D9BB30EA2BFB3B2E8D0",
+          "bytes": 17846
+        },
+        {
+          "path": "include/wil/wistd_memory.h",
+          "sha256": "FEB86C63886875907BBCF9911F4C702C21819D7E609E2C5468491153ABE27313",
+          "bytes": 35180
+        },
+        {
+          "path": "include/wil/wistd_type_traits.h",
+          "sha256": "8AC4C64778E416936FBF4FDC2DA0023BAED7556064DCB1A1552731874F3F3FAA",
+          "bytes": 146899
+        },
+        {
+          "path": "include/wil/wrl.h",
+          "sha256": "A9B089553E4DF93CD812215046A4966BAB85D337099C2FE4741EAC378A4124DD",
+          "bytes": 5064
+        },
+        {
+          "path": "lib/x64/Release/DxUi.lib",
+          "sha256": "809FDCFAFB96F0DCCFC4FFC91F324F23BAC734879798724DC12B355B252DEA9F",
+          "bytes": 256096768
+        },
+        {
+          "path": "lib/x64/Release/DxUi.pdb",
+          "sha256": "D5F2FA0C74C3FA01505C77E6F70D64E966FE79CE764A130B652630C3CDC33087",
+          "bytes": 15888384
+        },
+        {
+          "path": "licenses/katex-LICENSE.txt",
+          "sha256": "4313255416487A4A7602F134A7CDD2B33DD9F7E7B41D3AF63DC9F785BCA425A0",
+          "bytes": 1128
+        },
+        {
+          "path": "licenses/libfyaml-LICENSE.txt",
+          "sha256": "8C6AB373D0F40D39FC976227010F22A52E83E0E40FD25E5AC8F19945FED8AA5A",
+          "bytes": 1094
+        },
+        {
+          "path": "licenses/libfyaml-xxHash-LICENSE.txt",
+          "sha256": "EE8AD8784F9F6D1083117EAA842B47D16BA8B0075008A0CC4563648B72066A3F",
+          "bytes": 1712
+        },
+        {
+          "path": "licenses/LICENSE.txt",
+          "sha256": "DE1D3B6BDEAFEF327008F4678099670E52C658B1BBC1AB261F94619C0F2CB8A9",
+          "bytes": 1091
+        },
+        {
+          "path": "licenses/rapidyaml-bundled-NOTICES.txt",
+          "sha256": "FDEA696D1C84D1AC7A11E22FBD3E1A4205176EA546B9EAB644DA59F617EE98E7",
+          "bytes": 3303
+        },
+        {
+          "path": "licenses/rapidyaml-LICENSE.txt",
+          "sha256": "4E69D6B03C9138B9D748E18834935BD66C0FF7A9FCD03C20081D387385059A3C",
+          "bytes": 1099
+        },
+        {
+          "path": "licenses/THIRD-PARTY-NOTICES.md",
+          "sha256": "00E5F101FF504AB5F72AD50C3249F159351E3C9282BDC4AEEBBFC347B2668C49",
+          "bytes": 4113
+        },
+        {
+          "path": "licenses/tomlplusplus-LICENSE.txt",
+          "sha256": "2312836EA26699DDA4FA894316B60EF7BE1A0C8526A2FD97C5BFF7F546A3A3AF",
+          "bytes": 1110
+        },
+        {
+          "path": "licenses/Unicode-LICENSE.txt",
+          "sha256": "E7A93B009565CFCE55919A381437AC4DB883E9DA2126FA28B91D12732BC53D96",
+          "bytes": 1995
+        },
+        {
+          "path": "licenses/WHATWG-LICENSE.txt",
+          "sha256": "85DC6F5CCB57A6FE8C33D158F9FC8FC7EE5655A5D3DB2CDD131C6A3D0F48A864",
+          "bytes": 16315
+        },
+        {
+          "path": "licenses/WIL-LICENSE.txt",
+          "sha256": "27EBDA9D51F0A56B7E281CCD8230A27236DCB51C05F64B07869ECF6E965D68B0",
+          "bytes": 1162
+        },
+        {
+          "path": "samples/Shared/FailureHost.cpp",
+          "sha256": "9B481FA40AE809859BD6CA81C11EE3B7454EFB76106B2F79B0C0A9E86E7FFDE6",
+          "bytes": 14005
+        },
+        {
+          "path": "samples/Shared/FailureHost.h",
+          "sha256": "06935AEDD0720CF74370CA7A45B971CDB716606ABBB6666B27206989728615FF",
+          "bytes": 2416
+        },
+        {
+          "path": "samples/Smoke/Main.cpp",
+          "sha256": "420B1BF49563FBC69D302130F996E4D0CA3147ADCACCD0452359C02A854A5297",
+          "bytes": 2818
+        },
+        {
+          "path": "DxUi.Sdk.props",
+          "sha256": "2005ED4E2278BE38C71C8F4E0C3BCEE87509C43EC0BE07BD35395B1A55565918",
+          "bytes": 1528
+        },
+        {
+          "path": "README.txt",
+          "sha256": "A9EFCCB25D5EA43B4C88C2D8581469818DFFD294A6353F24E611F7E50FC36B33",
+          "bytes": 636
+        },
+        {
+          "path": "sdk-manifest.json",
+          "sha256": "03666E17447A547A587A57D47FE10C57C7F8DFE07CC0E3DD95ED585E0E24A129",
+          "bytes": 3013
+        }
+      ],
+      "platform": "x64",
+      "name": "DxUi-SDK-0.1.1775-x64.zip",
+      "sha256": "7c02ca34b3f73cd61528121d5684f1e433d27dfa2b6df258748285a204c572a8"
+    },
+    {
+      "manifest": {
+        "schemaVersion": 1,
+        "version": "0.1.1775",
+        "platform": "ARM64",
+        "configuration": "Release",
+        "kind": "sdk",
+        "source": "45288065f90de4b3d9cc7938f4d691f60d4f6581",
+        "apiRevision": 5,
+        "compiler": {
+          "commit": "45288065f90de4b3d9cc7938f4d691f60d4f6581",
+          "apiRevision": 5,
+          "platform": "ARM64",
+          "toolset": "v145",
+          "vcToolsVersion": "14.52.37025",
+          "windowsSdkVersion": "10.0.26100.0",
+          "runtimeFamily": "MD",
+          "preferredToolArchitecture": "arm64",
+          "disableStlAnnotations": false,
+          "releaseOptimizationPolicy": "Gy-REF-GL-LTCG-full-v1",
+          "msbuildSha256": "7C67299F429B832719ACBDC43240F6BF5D50B26014E7462E361392C0A261A60B",
+          "compilerSha256": "745C496597A6658804E1A8DBD514CE916783E342B31BFE974ED2A867E06078C8",
+          "linkerSha256": "A413559838F1A119AA7921C0E81CD272CA757A54E480F7E87A598324793E28D1",
+          "windowsHeaderSha256": "B337D661D03A4ABEFB7B86A2742CE1AD5D19B57CD8B858BD13E7BBCC1DBEEAAA",
+          "kernel32Sha256": "1110E8F9BF593D2BC051A4BE0660CF1D9AF123975A0508F9CB2A9E83AD58ADCF",
+          "ucrtSha256": "C2C1328647F4454F71A68E8E194F89EEF7D3FDF2661192AB8D87FBA395EE13FA"
+        },
+        "licenses": [
+          {
+            "path": "licenses/katex-LICENSE.txt",
+            "sha256": "4313255416487a4a7602f134a7cdd2b33dd9f7e7b41d3af63dc9f785bca425a0"
+          },
+          {
+            "path": "licenses/libfyaml-LICENSE.txt",
+            "sha256": "8c6ab373d0f40d39fc976227010f22a52e83e0e40fd25e5ac8f19945fed8aa5a"
+          },
+          {
+            "path": "licenses/libfyaml-xxHash-LICENSE.txt",
+            "sha256": "ee8ad8784f9f6d1083117eaa842b47d16ba8b0075008a0cc4563648b72066a3f"
+          },
+          {
+            "path": "licenses/LICENSE.txt",
+            "sha256": "de1d3b6bdeafef327008f4678099670e52c658b1bbc1ab261f94619c0f2cb8a9"
+          },
+          {
+            "path": "licenses/rapidyaml-bundled-NOTICES.txt",
+            "sha256": "fdea696d1c84d1ac7a11e22fbd3e1a4205176ea546b9eab644da59f617ee98e7"
+          },
+          {
+            "path": "licenses/rapidyaml-LICENSE.txt",
+            "sha256": "4e69d6b03c9138b9d748e18834935bd66c0ff7a9fcd03c20081d387385059a3c"
+          },
+          {
+            "path": "licenses/THIRD-PARTY-NOTICES.md",
+            "sha256": "00e5f101ff504ab5f72ad50c3249f159351e3c9282bdc4aeebbfc347b2668c49"
+          },
+          {
+            "path": "licenses/tomlplusplus-LICENSE.txt",
+            "sha256": "2312836ea26699dda4fa894316b60ef7be1a0c8526a2fd97c5bff7f546a3a3af"
+          },
+          {
+            "path": "licenses/Unicode-LICENSE.txt",
+            "sha256": "e7a93b009565cfce55919a381437ac4db883e9da2126fa28b91d12732bc53d96"
+          },
+          {
+            "path": "licenses/WHATWG-LICENSE.txt",
+            "sha256": "85dc6f5ccb57a6fe8c33d158f9fc8fc7ee5655a5d3db2cdd131c6a3d0f48a864"
+          },
+          {
+            "path": "licenses/WIL-LICENSE.txt",
+            "sha256": "27ebda9d51f0a56b7e281ccd8230a27236dcb51c05f64b07869ecf6e965d68b0"
+          }
+        ],
+        "librarySha256": "68f0215a88a6afdae47780c2c08b73e9e5d11afbd29180bf0a0e10468c0dac72",
+        "libraryPdbSha256": "13c93c12c02fba15e50e227c9d1d05ae99b0160337b1d19f2dbed2466160e1a8",
+        "runtime": "MD",
+        "testsIncluded": false
+      },
+      "smoke": {
+        "schemaVersion": 1,
+        "version": "0.1.1775",
+        "platform": "ARM64",
+        "configuration": "Release",
+        "kind": "sdk",
+        "source": "45288065f90de4b3d9cc7938f4d691f60d4f6581",
+        "apiRevision": 5,
+        "compiler": {
+          "commit": "45288065f90de4b3d9cc7938f4d691f60d4f6581",
+          "apiRevision": 5,
+          "platform": "ARM64",
+          "toolset": "v145",
+          "vcToolsVersion": "14.52.37025",
+          "windowsSdkVersion": "10.0.26100.0",
+          "runtimeFamily": "MD",
+          "preferredToolArchitecture": "arm64",
+          "disableStlAnnotations": false,
+          "releaseOptimizationPolicy": "Gy-REF-GL-LTCG-full-v1",
+          "msbuildSha256": "7C67299F429B832719ACBDC43240F6BF5D50B26014E7462E361392C0A261A60B",
+          "compilerSha256": "745C496597A6658804E1A8DBD514CE916783E342B31BFE974ED2A867E06078C8",
+          "linkerSha256": "A413559838F1A119AA7921C0E81CD272CA757A54E480F7E87A598324793E28D1",
+          "windowsHeaderSha256": "B337D661D03A4ABEFB7B86A2742CE1AD5D19B57CD8B858BD13E7BBCC1DBEEAAA",
+          "kernel32Sha256": "1110E8F9BF593D2BC051A4BE0660CF1D9AF123975A0508F9CB2A9E83AD58ADCF",
+          "ucrtSha256": "C2C1328647F4454F71A68E8E194F89EEF7D3FDF2661192AB8D87FBA395EE13FA"
+        },
+        "licenses": [
+          {
+            "path": "licenses/katex-LICENSE.txt",
+            "sha256": "4313255416487a4a7602f134a7cdd2b33dd9f7e7b41d3af63dc9f785bca425a0"
+          },
+          {
+            "path": "licenses/libfyaml-LICENSE.txt",
+            "sha256": "8c6ab373d0f40d39fc976227010f22a52e83e0e40fd25e5ac8f19945fed8aa5a"
+          },
+          {
+            "path": "licenses/libfyaml-xxHash-LICENSE.txt",
+            "sha256": "ee8ad8784f9f6d1083117eaa842b47d16ba8b0075008a0cc4563648b72066a3f"
+          },
+          {
+            "path": "licenses/LICENSE.txt",
+            "sha256": "de1d3b6bdeafef327008f4678099670e52c658b1bbc1ab261f94619c0f2cb8a9"
+          },
+          {
+            "path": "licenses/rapidyaml-bundled-NOTICES.txt",
+            "sha256": "fdea696d1c84d1ac7a11e22fbd3e1a4205176ea546b9eab644da59f617ee98e7"
+          },
+          {
+            "path": "licenses/rapidyaml-LICENSE.txt",
+            "sha256": "4e69d6b03c9138b9d748e18834935bd66c0ff7a9fcd03c20081d387385059a3c"
+          },
+          {
+            "path": "licenses/THIRD-PARTY-NOTICES.md",
+            "sha256": "00e5f101ff504ab5f72ad50c3249f159351e3c9282bdc4aeebbfc347b2668c49"
+          },
+          {
+            "path": "licenses/tomlplusplus-LICENSE.txt",
+            "sha256": "2312836ea26699dda4fa894316b60ef7be1a0c8526a2fd97c5bff7f546a3a3af"
+          },
+          {
+            "path": "licenses/Unicode-LICENSE.txt",
+            "sha256": "e7a93b009565cfce55919a381437ac4db883e9da2126fa28b91d12732bc53d96"
+          },
+          {
+            "path": "licenses/WHATWG-LICENSE.txt",
+            "sha256": "85dc6f5ccb57a6fe8c33d158f9fc8fc7ee5655a5d3db2cdd131c6a3d0f48a864"
+          },
+          {
+            "path": "licenses/WIL-LICENSE.txt",
+            "sha256": "27ebda9d51f0a56b7e281ccd8230a27236dcb51c05f64b07869ecf6e965d68b0"
+          }
+        ],
+        "librarySha256": "68f0215a88a6afdae47780c2c08b73e9e5d11afbd29180bf0a0e10468c0dac72",
+        "libraryPdbSha256": "13c93c12c02fba15e50e227c9d1d05ae99b0160337b1d19f2dbed2466160e1a8",
+        "runtime": "MD",
+        "testsIncluded": false,
+        "smokePassed": true,
+        "producerPdbIsolationPassed": true,
+        "missingPackagedPdbControlPassed": true,
+        "licenseClosurePassed": true,
+        "firstPartyWarningControlPassed": true,
+        "headerClosurePassed": true,
+        "headerCount": 234,
+        "nativePolicySha256": "04bc1caa1e2635d7ff3975e4bbd7b823ef7eecd2d4844ec507bd3fdb9fbdb3ad",
+        "archiveSha256": "37a5525ccdcae64099dcbf60f93185bd136dce171545742ee2201c2715860f41"
+      },
+      "verifiedInnerMembers": [
+        {
+          "path": "build/NativeBuildPolicy.targets",
+          "sha256": "04BC1CAA1E2635D7FF3975E4BBD7B823EF7EECD2D4844EC507BD3FDB9FBDB3AD",
+          "bytes": 5602
+        },
+        {
+          "path": "include/DxUi/AccessibilityTextUnits.h",
+          "sha256": "051B4B92289854CD9A404F24E8F34403763C3BD519E60472EE4A2CF59C249F1C",
+          "bytes": 1113
+        },
+        {
+          "path": "include/DxUi/Configuration.h",
+          "sha256": "BD193165742A2204E5A0ED71CEF2D1663A8345579173D5C948E6F0853947441F",
+          "bytes": 193
+        },
+        {
+          "path": "include/DxUi/ControlCatalog.h",
+          "sha256": "8AE54EA18460382B1FC6B2C819F4CA109863BACB552EF1A5717281FFF6C28E97",
+          "bytes": 1022
+        },
+        {
+          "path": "include/DxUi/Diagnostics.h",
+          "sha256": "6BD6FA74C79B190E21E5A403908EBA1606D3697FD3A940F3E8B203800824E679",
+          "bytes": 1265
+        },
+        {
+          "path": "include/DxUi/DxUi.h",
+          "sha256": "A1BFAD3F6828704423963AB405FDAE931A2E956151670675C17292E93E704128",
+          "bytes": 367374
+        },
+        {
+          "path": "include/DxUi/Embedded.h",
+          "sha256": "EF67A72FA4914288B24D842F2627CA3083A018CA6F3A258A8F467CC51870332C",
+          "bytes": 15676
+        },
+        {
+          "path": "include/DxUi/EmbeddedAccessibility.h",
+          "sha256": "ED19E79E7FF1C98C3E524AEACF91C4687E847F97E2F50225A9B09C5CF2DE2EBF",
+          "bytes": 1406
+        },
+        {
+          "path": "include/DxUi/Failure.h",
+          "sha256": "167A672638D0BBD83E4FCF5A5730D209B7D567FF37057E275144DB54320B4579",
+          "bytes": 10214
+        },
+        {
+          "path": "include/DxUi/FileDrop.h",
+          "sha256": "0D1DE5758FFD50F25FD59FB86E8AE4C1FF5305BBEC87C7933B3A38CB271894E2",
+          "bytes": 2687
+        },
+        {
+          "path": "include/DxUi/FocusRestore.h",
+          "sha256": "34DC2C6B4213F845819B5A4DA8FEB6232C79388EFB23E6853677821CCB927853",
+          "bytes": 1303
+        },
+        {
+          "path": "include/DxUi/FrameRuntime.h",
+          "sha256": "7E00D607D6EC6C8E5D34CBFD30E7F01F384AA73CD3025B2B7581FA6DF45C8AAC",
+          "bytes": 2071
+        },
+        {
+          "path": "include/DxUi/MarkdownSyntax.h",
+          "sha256": "6DF8034FCD73B24AF4AE61B3DC31F8ECF4F08BA912FD6553FD9B174C0EDA8037",
+          "bytes": 19922
+        },
+        {
+          "path": "include/DxUi/NativeMenuInterop.h",
+          "sha256": "E4B12127AF6DCDB4C158B75FEE5800CB94AE0A2A0E5E6805B16B85F109DA28C4",
+          "bytes": 4830
+        },
+        {
+          "path": "include/DxUi/PointerInput.h",
+          "sha256": "C16DE418C74F1F50E0D9568736B9914A7B947716844706B299EEACDEEC4B928D",
+          "bytes": 1141
+        },
+        {
+          "path": "include/DxUi/PreparedTreeAccessibility.h",
+          "sha256": "5D4345DEFCB53930437A39FC495FFA439FDA872608357448242C2588C697F06A",
+          "bytes": 2009
+        },
+        {
+          "path": "include/DxUi/RichAccessibilityText.h",
+          "sha256": "E392FD3C86196EBA9B5EC596AA21219E31A55D79A1CAD65F3340B871FB372994",
+          "bytes": 4084
+        },
+        {
+          "path": "include/DxUi/RichCodeTokenizer.h",
+          "sha256": "BD317D7EA7CB752F3EBC77FB147C4DFCF2EACB7FB3DF1F8B19266E3AC03901AB",
+          "bytes": 1149
+        },
+        {
+          "path": "include/DxUi/RichDocument.h",
+          "sha256": "6777D66FBE6CC09567C964904DF518E61CA1C9682097C48513860490A929DBD7",
+          "bytes": 9013
+        },
+        {
+          "path": "include/DxUi/RichImage.h",
+          "sha256": "EBD19A50AB8D1E00444C0B39187758AD880E923E0FB3E1AA8D080D506C3CF278",
+          "bytes": 5492
+        },
+        {
+          "path": "include/DxUi/RichMarkdown.h",
+          "sha256": "0D6F46E88EEBE14E44F5A27882DF52DBB576A06337B0BB9770CD6785E83ABF60",
+          "bytes": 4336
+        },
+        {
+          "path": "include/DxUi/RichMath.h",
+          "sha256": "80308ABD587AD09E592FC68E89E184F59AF541053BFE95F27F972287D3EFFAA7",
+          "bytes": 5000
+        },
+        {
+          "path": "include/DxUi/RichSemantic.h",
+          "sha256": "9A85E58E90788177FD29606E5D3915B38661496C20FED3441AD5E36924A7D5BD",
+          "bytes": 6051
+        },
+        {
+          "path": "include/DxUi/RichSemanticDocument.h",
+          "sha256": "E78C91BC0A1F3CDB98D627D86513201B2782D95B51B654E680A211C5E3CFFDC2",
+          "bytes": 12330
+        },
+        {
+          "path": "include/DxUi/RichTextCommands.h",
+          "sha256": "92944A86E033E63D9871042CED32FB61C7B55B17104AA629FD3F98F00F4D5762",
+          "bytes": 10192
+        },
+        {
+          "path": "include/DxUi/RichTextExport.h",
+          "sha256": "959EAEC607561750400CAFDF64029529B4F03C669E81D18A994495423E57DF8A",
+          "bytes": 4107
+        },
+        {
+          "path": "include/DxUi/RichTextLayout.h",
+          "sha256": "0B8E357B3C108F8C612D321C5F6C82ABA63F07070AF48D113DD14FF30CC7E1A8",
+          "bytes": 15542
+        },
+        {
+          "path": "include/DxUi/RichTextPresentation.h",
+          "sha256": "AD831A6F466F308B6424AEB3C3A139D529DA28CCD427594DB3F2C646E3793993",
+          "bytes": 1183
+        },
+        {
+          "path": "include/DxUi/TextInputServices.h",
+          "sha256": "87AF635E41AC5E4C6EB5FFD7966FF44E01DB2067B68F781F2A85016AA7AF9ECE",
+          "bytes": 10685
+        },
+        {
+          "path": "include/DxUi/ThemeColors.h",
+          "sha256": "B8F43321FB894A39BD16EC10314BBDE753EB3658D44BAA9B91062CC74C44E95C",
+          "bytes": 1307
+        },
+        {
+          "path": "include/DxUi/Typography.h",
+          "sha256": "ED7D2F50731FD6756646125C6A7EE04DDC62BAA93944959BC902588D4884A4A7",
+          "bytes": 20016
+        },
+        {
+          "path": "include/wil/com_apartment_variable.h",
+          "sha256": "1AD3705691046E0DBD7A717CC7D0E0E3418E2ADA8F74A0D4BC4EABE552A751B5",
+          "bytes": 19625
+        },
+        {
+          "path": "include/wil/com.h",
+          "sha256": "4B95C2201D908B277D6472DDB2EFCA6A75838430DC4F53A3D747BBC24394ADC8",
+          "bytes": 140624
+        },
+        {
+          "path": "include/wil/common.h",
+          "sha256": "126AFCD82DC11028871CCB5C3E8D27468E5B0EBD42EAB6BF38B5C619467286A1",
+          "bytes": 52456
+        },
+        {
+          "path": "include/wil/coroutine.h",
+          "sha256": "D79D8EFA59186892DFCB6F6E464AFFC3E1EDAB683BA96F3C17A340753E52FC45",
+          "bytes": 33220
+        },
+        {
+          "path": "include/wil/cppwinrt_authoring.h",
+          "sha256": "C9C953D79A84EB0A09CCBC6072D03B7C58834A08E962EEC172D5FDF77F33E0D5",
+          "bytes": 14274
+        },
+        {
+          "path": "include/wil/cppwinrt_helpers.h",
+          "sha256": "7233605E0158DB0EECA04DEF476A3D752E9986ACFF42539FF7F2D3E8DCE5D849",
+          "bytes": 12925
+        },
+        {
+          "path": "include/wil/cppwinrt_notifiable_server_lock.h",
+          "sha256": "1C9CA42A47DA9724C7EE27608308BE38A2542C87E48AFA8999CB056CDB00C054",
+          "bytes": 1925
+        },
+        {
+          "path": "include/wil/cppwinrt_wrl.h",
+          "sha256": "97C6C033CFBBC5AE6D691488168DAED48689C5B8EFA9D0E78F1F51F9C2BE8613",
+          "bytes": 2481
+        },
+        {
+          "path": "include/wil/cppwinrt.h",
+          "sha256": "32FD8C482F7CE607D6CE784EC9BF68988385648CED133D08ECD1751A4B5A7EBA",
+          "bytes": 18071
+        },
+        {
+          "path": "include/wil/filesystem.h",
+          "sha256": "B2431BEA7000A4BF8565032764B57EC5F0303B05541A1D2C9A6929C278B8E1C6",
+          "bytes": 56876
+        },
+        {
+          "path": "include/wil/network.h",
+          "sha256": "695F7AFAC6B7EDEEECD31A622841AAA381D5702F5210EFA784238AA6CB328993",
+          "bytes": 50582
+        },
+        {
+          "path": "include/wil/nt_result_macros.h",
+          "sha256": "5ADF32B3CF7BACB440AEC9DDB0955FCE224D9E02423CC86ADCB188E37E8E838D",
+          "bytes": 9985
+        },
+        {
+          "path": "include/wil/registry_helpers.h",
+          "sha256": "5E603F1E0E255E1AE175D6AB89A0DDDE2526BEA8D9E308FFFF4A082E452A99A7",
+          "bytes": 82075
+        },
+        {
+          "path": "include/wil/registry.h",
+          "sha256": "D26511F047F0CFD1FFA917BA175290BA423685C5E047721A494FBCA67168BD61",
+          "bytes": 188250
+        },
+        {
+          "path": "include/wil/resource.h",
+          "sha256": "DA46E44E165CA2BBA690CDA21E9578F5C7DC9E68E28AF8788B23313DA9C59AE9",
+          "bytes": 313051
+        },
+        {
+          "path": "include/wil/result_macros.h",
+          "sha256": "35BC595C8B338809F23F5DB90E1FF817F41648940F594A2DE3A3BF5273A1B74A",
+          "bytes": 326018
+        },
+        {
+          "path": "include/wil/result_originate.h",
+          "sha256": "D4189916AE031228CBCB8696C5B3C632BD8D118FC97695EA5278CDBA0E95C1FC",
+          "bytes": 6994
+        },
+        {
+          "path": "include/wil/result.h",
+          "sha256": "FF52D953CB6CCB0FE25EAEAE0BB3FE6E0511DB242692A2316BF5D05402B37F76",
+          "bytes": 51643
+        },
+        {
+          "path": "include/wil/rpc_helpers.h",
+          "sha256": "0713E5CD77F882D8AA2577A5EFEE6EDDFA7D008A36C9DE44FBE37E0090193C65",
+          "bytes": 8225
+        },
+        {
+          "path": "include/wil/safecast.h",
+          "sha256": "AF698B96D7DFCBF140393B062DE3B40F171DEB48311D0A45125F186030BA2287",
+          "bytes": 21868
+        },
+        {
+          "path": "include/wil/stl.h",
+          "sha256": "5381C46A89F57BF15AAAF8A9B8B38E839D1DDBBCA7B665B789D919CD018069D1",
+          "bytes": 11485
+        },
+        {
+          "path": "include/wil/token_helpers.h",
+          "sha256": "A58636AE4F0A83A85209113F66F1358CA87D77BF5067EB05D7227DF4EC5E6B3D",
+          "bytes": 28559
+        },
+        {
+          "path": "include/wil/Tracelogging.h",
+          "sha256": "C3E300BC1691689BFBF3B0DD7E926225849CC4FCBA2992722D38D5CC8A9B931A",
+          "bytes": 308978
+        },
+        {
+          "path": "include/wil/traceloggingconfig.h",
+          "sha256": "0713374D283576C096F8FD57F6BFE5676A3B7295E7D2C40DE41DD4D877FF326A",
+          "bytes": 3488
+        },
+        {
+          "path": "include/wil/win32_helpers.h",
+          "sha256": "5C00672F2A01FB57CED22307212675FADA7E6B7AD0A238A2E8E58BDD2D8A678E",
+          "bytes": 53590
+        },
+        {
+          "path": "include/wil/win32_result_macros.h",
+          "sha256": "135D434277D85DCB67467A1C10BE44C883E842F268B1ACAB8FDCC4DB9280106B",
+          "bytes": 7473
+        },
+        {
+          "path": "include/wil/windowing.h",
+          "sha256": "1A998285702F7FE94C5C4173D469A209B04555DBAE3C5BEC7162D68B8A7A138C",
+          "bytes": 6059
+        },
+        {
+          "path": "include/wil/winrt.h",
+          "sha256": "13E2E9058EAA092559DB4DEE6A9F925ECC8B9C4CBE0DECDB61375200A59DB727",
+          "bytes": 96990
+        },
+        {
+          "path": "include/wil/wistd_config.h",
+          "sha256": "117B9CDD63A19F4058E5FF14D5E704F9F708B7722B4EBEC471319FA6E6857678",
+          "bytes": 21165
+        },
+        {
+          "path": "include/wil/wistd_functional.h",
+          "sha256": "20DD903EFA733AC1B55E1EF9C50532A27C7F8B31CCA30D9BB30EA2BFB3B2E8D0",
+          "bytes": 17846
+        },
+        {
+          "path": "include/wil/wistd_memory.h",
+          "sha256": "FEB86C63886875907BBCF9911F4C702C21819D7E609E2C5468491153ABE27313",
+          "bytes": 35180
+        },
+        {
+          "path": "include/wil/wistd_type_traits.h",
+          "sha256": "8AC4C64778E416936FBF4FDC2DA0023BAED7556064DCB1A1552731874F3F3FAA",
+          "bytes": 146899
+        },
+        {
+          "path": "include/wil/wrl.h",
+          "sha256": "A9B089553E4DF93CD812215046A4966BAB85D337099C2FE4741EAC378A4124DD",
+          "bytes": 5064
+        },
+        {
+          "path": "lib/ARM64/Release/DxUi.lib",
+          "sha256": "68F0215A88A6AFDAE47780C2C08B73E9E5D11AFBD29180BF0A0E10468C0DAC72",
+          "bytes": 256931974
+        },
+        {
+          "path": "lib/ARM64/Release/DxUi.pdb",
+          "sha256": "13C93C12C02FBA15E50E227C9D1D05AE99B0160337B1D19F2DBED2466160E1A8",
+          "bytes": 15880192
+        },
+        {
+          "path": "licenses/katex-LICENSE.txt",
+          "sha256": "4313255416487A4A7602F134A7CDD2B33DD9F7E7B41D3AF63DC9F785BCA425A0",
+          "bytes": 1128
+        },
+        {
+          "path": "licenses/libfyaml-LICENSE.txt",
+          "sha256": "8C6AB373D0F40D39FC976227010F22A52E83E0E40FD25E5AC8F19945FED8AA5A",
+          "bytes": 1094
+        },
+        {
+          "path": "licenses/libfyaml-xxHash-LICENSE.txt",
+          "sha256": "EE8AD8784F9F6D1083117EAA842B47D16BA8B0075008A0CC4563648B72066A3F",
+          "bytes": 1712
+        },
+        {
+          "path": "licenses/LICENSE.txt",
+          "sha256": "DE1D3B6BDEAFEF327008F4678099670E52C658B1BBC1AB261F94619C0F2CB8A9",
+          "bytes": 1091
+        },
+        {
+          "path": "licenses/rapidyaml-bundled-NOTICES.txt",
+          "sha256": "FDEA696D1C84D1AC7A11E22FBD3E1A4205176EA546B9EAB644DA59F617EE98E7",
+          "bytes": 3303
+        },
+        {
+          "path": "licenses/rapidyaml-LICENSE.txt",
+          "sha256": "4E69D6B03C9138B9D748E18834935BD66C0FF7A9FCD03C20081D387385059A3C",
+          "bytes": 1099
+        },
+        {
+          "path": "licenses/THIRD-PARTY-NOTICES.md",
+          "sha256": "00E5F101FF504AB5F72AD50C3249F159351E3C9282BDC4AEEBBFC347B2668C49",
+          "bytes": 4113
+        },
+        {
+          "path": "licenses/tomlplusplus-LICENSE.txt",
+          "sha256": "2312836EA26699DDA4FA894316B60EF7BE1A0C8526A2FD97C5BFF7F546A3A3AF",
+          "bytes": 1110
+        },
+        {
+          "path": "licenses/Unicode-LICENSE.txt",
+          "sha256": "E7A93B009565CFCE55919A381437AC4DB883E9DA2126FA28B91D12732BC53D96",
+          "bytes": 1995
+        },
+        {
+          "path": "licenses/WHATWG-LICENSE.txt",
+          "sha256": "85DC6F5CCB57A6FE8C33D158F9FC8FC7EE5655A5D3DB2CDD131C6A3D0F48A864",
+          "bytes": 16315
+        },
+        {
+          "path": "licenses/WIL-LICENSE.txt",
+          "sha256": "27EBDA9D51F0A56B7E281CCD8230A27236DCB51C05F64B07869ECF6E965D68B0",
+          "bytes": 1162
+        },
+        {
+          "path": "samples/Shared/FailureHost.cpp",
+          "sha256": "9B481FA40AE809859BD6CA81C11EE3B7454EFB76106B2F79B0C0A9E86E7FFDE6",
+          "bytes": 14005
+        },
+        {
+          "path": "samples/Shared/FailureHost.h",
+          "sha256": "06935AEDD0720CF74370CA7A45B971CDB716606ABBB6666B27206989728615FF",
+          "bytes": 2416
+        },
+        {
+          "path": "samples/Smoke/Main.cpp",
+          "sha256": "420B1BF49563FBC69D302130F996E4D0CA3147ADCACCD0452359C02A854A5297",
+          "bytes": 2818
+        },
+        {
+          "path": "DxUi.Sdk.props",
+          "sha256": "44392CAB97BFAF2E2677D5232E63D161D3982874E46D13C510B83EFF68899DE2",
+          "bytes": 1530
+        },
+        {
+          "path": "README.txt",
+          "sha256": "A9EFCCB25D5EA43B4C88C2D8581469818DFFD294A6353F24E611F7E50FC36B33",
+          "bytes": 636
+        },
+        {
+          "path": "sdk-manifest.json",
+          "sha256": "86134B199076C62EDB075206C1FEBE424819145BA1A90AF015774DB1C8E24135",
+          "bytes": 3019
+        }
+      ],
+      "platform": "ARM64",
+      "name": "DxUi-SDK-0.1.1775-ARM64.zip",
+      "sha256": "37a5525ccdcae64099dcbf60f93185bd136dce171545742ee2201c2715860f41"
+    }
+  ],
+  "limits": [
+    "Source-specific native qualification; later input-state and consumer changes are separate",
+    "Physical IME, assistive technology, touch, opt-in resource suites and paired performance remain independent",
+    "File-byte verification does not recreate original file ids, streams or security descriptors"
+  ],
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-hosted-native-preparation-isolation",
+  "inputHash": "30748d84c76469644f86e21f58c7dfc493fec00d593c5aefad71546723459db0",
+  "benchmarkInputs": {
+    "src/Controls/DxUi.Controls.cpp": "109103E8F8D4F30BFDD9D5DF1A10DE52AF723C14302D8B79B87F02718BC99802",
+    "include/DxUi/DxUi.h": "A1BFAD3F6828704423963AB405FDAE931A2E956151670675C17292E93E704128",
+    "Tests/Controls/Controls.Tests.RichTextEditor.cpp": "BCBC6585BDE2BDBCED2E4F06EF601903926B96D72AA87C8B9E974242684D34C6",
+    "Tests/ConsumerModules/ConsumerModules.Tests.Driver.cpp": "A3D2149B0297691760FB7CB3D699DBFE694FFBB4C5194CB880B5DB24B30B8C59",
+    "Tests/Controls/DxUi.Tests.Menu.cpp": "28B7F3C88E7A24F636746C7230292A40D0FB3B30E32052AC3E38431A304A2E4C",
+    "Tools/tests/TestSupport.psm1": "8F4FE7E4F93DC3EE1BEB6F1289223E1BFD3480F06DDA499D89304FB76F88CB3E",
+    "Tools/tests/Test-ToolingTestRunner.ps1": "29E5FC22F1159C036232E3EE446D42C8DE67DCE01D60CCB2E5247938DBAD9E2A"
+  }
+}
