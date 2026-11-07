@@ -71,8 +71,8 @@ private:
 
 int RunAnimationRetirement()
 {
-    const DxUi::Failure::Scope failureScope;
     const auto com = wil::CoInitializeEx(COINIT_APARTMENTTHREADED);
+    const DxUi::Failure::Scope failureScope;
     wil::unique_hwnd firstWindow(
         CreateWindowExW(WS_EX_NOACTIVATE, L"STATIC", L"First animation owner", WS_POPUP, 0, 0, 320, 160, nullptr, nullptr, GetModuleHandleW(nullptr), nullptr));
     wil::unique_hwnd secondWindow(CreateWindowExW(
