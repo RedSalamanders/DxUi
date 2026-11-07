@@ -163,6 +163,7 @@
   "Tests/Support/Support.Tests.TestWatchdog.h",
   "Tests/Support/Support.Tests.TestWindowActivationGuard.h",
   "Tests/Support/Support.Tests.UiaTestClient.h",
+  "Tests/Support/Support.Tests.UniformSourceChunks.h",
   "Tools/ConsumerApi/ConsumerApi.Tests.Revision4.cpp",
   "Tools/ConsumerApi/ConsumerApi.Tests.Revision5.cpp",
   "src/Support/Failure.Tests.Hooks.h"

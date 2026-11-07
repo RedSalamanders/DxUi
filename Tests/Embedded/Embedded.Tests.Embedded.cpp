@@ -11,6 +11,7 @@
 #include "Support.Tests.MarkdownSourceCorrelation.h"
 #include "Support.Tests.RichTextStateReplacement.h"
 #include "Support.Tests.SemanticSourceBlock.h"
+#include "Support.Tests.UniformSourceChunks.h"
 #include "Support/PostedPayload.h"
 #include <DxUi/AccessibilityTextUnits.h>
 #include <DxUi/ControlCatalog.h>
@@ -1715,6 +1716,7 @@ __declspec(noinline) static int RunFunctionalTests()
             RichSemanticEditorTests::WikiTargets(view.Controls(), [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "wiki targets"); });
             RichSemanticEditorTests::InlineScriptFallback(view.Controls(), [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "inline script fallback"); });
             RichSemanticEditorTests::SourceHorizontalAndGuides(view.Controls(), [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "source guides"); });
+            UniformSourceTests::ControlEditReuse(view.Controls(), [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "uniform Source chunks"); }, Check);
             RichSemanticEditorTests::RichTableHorizontalOverflow(view.Controls(), [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "table overflow"); });
         });
         std::vector<DxUi::RichText::CodeToken> tokens(0u);
@@ -2015,6 +2017,8 @@ __declspec(noinline) static int RunFunctionalTests()
 #endif
             RichSemanticEditorTests::SemanticGeometryReuse(transactionView.Controls(),
                                                            [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded semantic reuse"); });
+            UniformSourceTests::ControlEditReuse(
+                transactionView.Controls(), [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "uniform Source chunks"); }, Check);
             RichSemanticEditorTests::PendingSourceWindowTransport(transactionView.Controls());
             RichSemanticEditorTests::PendingRichSourceWindowTransport(transactionView.Controls());
             RichSemanticEditorTests::UrlOnSelectionPaste(transactionView.Controls(),

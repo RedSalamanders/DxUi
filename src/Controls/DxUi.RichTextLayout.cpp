@@ -94,6 +94,7 @@ struct PreparedLayout::State
     float drawingTop{}, drawingBottom{};
     float textLeft{}, textWidth{};
     float verticalOrigin{};
+    float verticalTranslation{};
     UINT32 textOffset{};
     bool positionedExactly = true;
 };
@@ -279,7 +280,12 @@ HRESULT Detail::PreparedLayoutAccess::Prepare(PreparedLayout& owner,
         RETURN_IF_FAILED(format->SetIncrementalTabStop(options.tabStopDip));
     wil::com_ptr<IDWriteTextLayout> layout;
     std::wstring positionedText(0u, L'\0');
-    const UINT32 textOffset = verticalOrigin > 0.0f ? 2u : 0u;
+    // Uniform Source spacing applies to every SDK line, including a private
+    // prefix. Position these unstyled chunks through their drawing/query origin
+    // instead; retain the exact-prefix path for natural and rich typography.
+    const bool translatedOrigin    = verticalOrigin > 0.0f && options.lineHeightMultiplier > 0.0f && projection.mode == ViewMode::Source;
+    const auto verticalTranslation = translatedOrigin ? verticalOrigin : 0.0f;
+    const UINT32 textOffset        = verticalOrigin > 0.0f && ! translatedOrigin ? 2u : 0u;
     if (textOffset)
     {
         positionedText.assign(L"\ufffc\n");
@@ -421,8 +427,8 @@ HRESULT Detail::PreparedLayoutAccess::Prepare(PreparedLayout& owner,
     RETURN_IF_FAILED(layout->GetMetrics(&metrics));
     DWRITE_OVERHANG_METRICS overhang{};
     RETURN_IF_FAILED(layout->GetOverhangMetrics(&overhang));
-    const auto drawingTop    = std::min(verticalOrigin, -overhang.top) - scriptTopOutset;
-    const auto drawingBottom = std::max(metrics.height, metrics.layoutHeight + overhang.bottom) + scriptBottomOutset;
+    const auto drawingTop    = std::min(verticalOrigin, verticalTranslation - overhang.top) - scriptTopOutset;
+    const auto drawingBottom = verticalTranslation + std::max(metrics.height, metrics.layoutHeight + overhang.bottom) + scriptBottomOutset;
     if (! std::isfinite(metrics.height) || ! std::isfinite(drawingTop) || ! std::isfinite(drawingBottom))
         return E_UNEXPECTED;
     std::vector<std::size_t> clusters{0};
@@ -460,20 +466,21 @@ HRESULT Detail::PreparedLayoutAccess::Prepare(PreparedLayout& owner,
             return a.baseline < b.baseline || (a.baseline == b.baseline && a.left < b.left);
         });
     }
-    owner.projection_       = std::move(projection);
-    next->layout            = std::move(layout);
-    next->positioning       = std::move(positioning);
-    next->clusters          = std::move(clusters);
-    next->lines             = std::move(lines);
-    next->lineMetrics       = std::move(lineMetrics);
-    next->height            = metrics.height;
-    next->drawingTop        = drawingTop;
-    next->drawingBottom     = drawingBottom;
-    next->textLeft          = metrics.left;
-    next->textWidth         = metrics.widthIncludingTrailingWhitespace;
-    next->verticalOrigin    = verticalOrigin;
-    next->textOffset        = textOffset;
-    next->positionedExactly = positionedExactly;
+    owner.projection_         = std::move(projection);
+    next->layout              = std::move(layout);
+    next->positioning         = std::move(positioning);
+    next->clusters            = std::move(clusters);
+    next->lines               = std::move(lines);
+    next->lineMetrics         = std::move(lineMetrics);
+    next->height              = verticalTranslation + metrics.height;
+    next->drawingTop          = drawingTop;
+    next->drawingBottom       = drawingBottom;
+    next->textLeft            = metrics.left;
+    next->textWidth           = metrics.widthIncludingTrailingWhitespace;
+    next->verticalOrigin      = verticalOrigin;
+    next->verticalTranslation = verticalTranslation;
+    next->textOffset          = textOffset;
+    next->positionedExactly   = positionedExactly;
     owner.state_.swap(next);
     ++owner.generation_;
     return S_OK;
@@ -538,7 +545,7 @@ HRESULT PreparedLayout::TryHitTest(float x, float y, Hit& output) const
         return E_INVALIDARG;
     BOOL trailing = FALSE, inside = FALSE;
     DWRITE_HIT_TEST_METRICS metrics{};
-    const auto hr = state_->layout->HitTestPoint(x, y, &trailing, &inside, &metrics);
+    const auto hr = state_->layout->HitTestPoint(x, y - state_->verticalTranslation, &trailing, &inside, &metrics);
     if (FAILED(hr))
         return hr;
     const auto actual = static_cast<std::size_t>(metrics.textPosition) + (trailing ? metrics.length : 0u);
@@ -566,7 +573,7 @@ HRESULT PreparedLayout::TryCaret(std::size_t position, CaretGeometry& output) co
     const auto hr = state_->layout->HitTestTextPosition(static_cast<UINT32>(position) + state_->textOffset, FALSE, &x, &y, &metrics);
     if (FAILED(hr))
         return hr;
-    output = {x, y, metrics.height};
+    output = {x, y + state_->verticalTranslation, metrics.height};
     return S_OK;
 }
 CaretGeometry PreparedLayout::Caret(std::size_t position) const
@@ -585,16 +592,21 @@ HRESULT PreparedLayout::TryRange(std::size_t first, std::size_t last, std::vecto
     std::vector<D2D1_RECT_F> rectangles(0u);
     if (first != last)
     {
-        UINT32 count = 0;
-        const auto query =
-            state_->layout->HitTestTextRange(static_cast<UINT32>(first) + state_->textOffset, static_cast<UINT32>(last - first), 0, 0, nullptr, 0, &count);
+        UINT32 count     = 0;
+        const auto query = state_->layout->HitTestTextRange(
+            static_cast<UINT32>(first) + state_->textOffset, static_cast<UINT32>(last - first), 0, state_->verticalTranslation, nullptr, 0, &count);
         if (FAILED(query) && query != HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER))
             return query;
         std::vector<DWRITE_HIT_TEST_METRICS> metrics(count);
         if (count)
         {
-            const auto hr = state_->layout->HitTestTextRange(
-                static_cast<UINT32>(first) + state_->textOffset, static_cast<UINT32>(last - first), 0, 0, metrics.data(), count, &count);
+            const auto hr = state_->layout->HitTestTextRange(static_cast<UINT32>(first) + state_->textOffset,
+                                                             static_cast<UINT32>(last - first),
+                                                             0,
+                                                             state_->verticalTranslation,
+                                                             metrics.data(),
+                                                             count,
+                                                             &count);
             if (FAILED(hr))
                 return hr;
             if (count > metrics.size())
@@ -746,6 +758,7 @@ HRESULT PreparedLayout::TryDraw(ID2D1RenderTarget* target, ID2D1Brush* brush, D2
     Failure::Scope failureScope;
     if (! target || ! brush || ! state_)
         return E_INVALIDARG;
+    origin.y += state_->verticalTranslation;
     const bool scripts = state_->hasScripts;
     if (scripts && state_->scripts.unsupported)
         return DWRITE_E_UNSUPPORTEDOPERATION;

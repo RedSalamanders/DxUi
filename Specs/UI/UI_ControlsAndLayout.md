@@ -1040,6 +1040,12 @@ origin, preserving its mixed-font caret and color-font behavior. Reuse requires
 the same vertical origin; a height-changing edit rebuilds dependent suffixes and
 reports all that work. An inexact synthetic line or an empty displayed suffix
 retains canonical whole geometry, including terminal-font behavior.
+Source presentation with an explicit uniform line-height multiplier instead uses
+unprefixed chunk layouts and translates drawing, hit testing, carets and selection
+rectangles by the prepared document origin. Its continuation origins retain the
+existing single-precision accumulation. Same-origin chunks remain reusable after
+an edit; uniform Source spacing MUST NOT force whole-document shaping. Rich v0
+uniform spacing retains its separate compatibility path for mixed styles.
 Private semantic DirectWrite preparation consumes bounded display text and runs without fabricating source identity arrays; public Projection preparation retains its strict source mapping validation. Semantic staging remains transactional, and matching public headers and library builds remain required.
 
 Semantic paint stages order-preserving viewport interval indexes for box frames, element decorations, code numbers, heading rules and table rows as part of its unpublished geometry. Draw queries them without allocation and preserves authored paint order even for overlapping bounds. The query includes a 3-DIP paint outset so strokes and antialiasing crossing a viewport edge remain visible; rebuilding an index stages its replacement before publication. Application-supplied decoration rectangles use the same order-preserving interval index to cull offscreen work. Selection normally uses the prepared union mask and draws one viewport pass; if that resource is unavailable, its per-rectangle fallback remains correct and benefits from indexed viewport culling, but may redraw a box more than once.

@@ -1054,6 +1054,11 @@ real lines in document coordinates and draws every chunk at the same origin.
 Reuse requires the same origin: height-changing edits can rebuild the dependent
 suffix. Inexact origin lines and empty displayed suffixes retain whole geometry
 to preserve terminal-font behavior.
+An explicit Source line-height multiplier uses translated chunks instead of a
+synthetic origin line, so ordinary edits reuse unchanged same-origin geometry.
+Drawing, carets, hit tests and selection rectangles use the same translation;
+whole-layout work remains visible in the existing diagnostics. Rich v0 uniform
+spacing keeps its mixed-style compatibility path.
 `UsesWholeGeometry()`, `UsesWholeRaster()` and the separate whole-layout preparation,
 reuse and source-unit statistics make that work visible. Prefix indexing remains
 linear in line count. Positioned lines pass all three x64 profiles and ARM64

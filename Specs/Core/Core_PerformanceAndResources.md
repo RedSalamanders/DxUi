@@ -1071,7 +1071,11 @@ The qualified positioned-line implementation preserves DirectWrite's global coor
 private invisible origin lines. Reuse additionally requires an identical document
 origin; height-changing edits may rebuild the entire suffix and must report every
 prepared source unit. Inexact origins and empty displayed suffixes fall back
-explicitly; count whole-layout work separately from chunk reuse. Owner preparation may construct that cache; cached
+explicitly. Uniform Source line spacing uses translated unprefixed chunks with the
+same origin-reuse and bounded layout limits; changed-source units, reused chunks
+and any whole-layout work remain separately reported. Geometry and actual WARP
+pixel comparisons cover fractional fonts, RTL, transformed drawing and large origins.
+Count whole-layout work separately from chunk reuse. Owner preparation may construct that cache; cached
 embedded composition must allocate and prepare nothing. `PreparedDocumentLayout::Draw`
 uses only published reference/chunk layouts and never creates a compatibility layout,
 joins a projection or changes preparation statistics. Reference-cache comparison walks

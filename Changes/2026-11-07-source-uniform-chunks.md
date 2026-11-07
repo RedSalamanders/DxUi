@@ -1,0 +1,1 @@
+- Keep Source-mode text geometry incremental with custom line spacing by translating prepared chunks consistently for drawing and queries. A one-character edit in the 59,000-unit fixture rebuilds 1,062 units and reuses 55 chunks; regression coverage adds complete geometry checks and 54 exact WARP pixel pairs without changing mixed-style Rich compatibility.
