@@ -129,9 +129,9 @@ inline ImeResult ObserveMaskedImeAssociation()
         static_cast<void>(ImmAssociateContext(sibling.get(), siblingOriginal));
     });
     DxUi::ControlHost host;
-    DxUi::ControlHost::AttachOptions options;
-    options.forceWarp = true;
-    if (! host.Attach(window.get(), options))
+    // Metadata-only predecessors can warm the thread's hardware cache. This input
+    // fixture shares that backend instead of trying to replace it with WARP.
+    if (! host.Attach(window.get()))
         return result;
     static_cast<void>(ShowWindow(window.get(), SW_SHOWNOACTIVATE));
     auto root          = std::make_unique<DxUi::Panel>();

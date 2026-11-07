@@ -35,6 +35,9 @@ void TestMaskedTextStorePublishesPasswordInputScope()
 
 void TestMaskedNativeWindowPreservesBorrowedImeContexts()
 {
+    // Establish the same mixed headless/native cache state even when this case runs alone.
+    static_cast<void>(MaskedInputPolicyTests::ObserveMaskedMetadata());
+    static_cast<void>(MaskedInputPolicyTests::ObserveMaskedMetadata());
     const auto result = MaskedInputPolicyTests::ObserveMaskedImeAssociation();
     Require(result.ready && result.suppressed, "masked logical focus disassociates the actual window IMM context");
     Require(result.unmaskRestored && result.blurRestored && result.detachRestored,
