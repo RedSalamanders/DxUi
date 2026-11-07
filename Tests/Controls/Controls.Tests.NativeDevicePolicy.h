@@ -1,9 +1,76 @@
 #pragma once
 #include "Controls.Tests.DxUiTestHelpers.h"
+#include "Support/NativeRendering.h"
 #include <d2d1_3.h>
 #include <dxgi1_6.h>
 #include <exception>
 #include <thread>
+
+namespace NativeDevicePolicyTests
+{
+struct HandledNativeMarker
+{
+};
+struct FactoryCalls
+{
+    std::array<D3D_DRIVER_TYPE, 4> drivers{};
+    std::array<UINT, 4> flags{};
+    size_t count{};
+    bool missingDebugLayer{};
+};
+inline thread_local FactoryCalls calls;
+inline HRESULT WINAPI HandledDeviceCreator(
+    IDXGIAdapter*, D3D_DRIVER_TYPE type, HMODULE, UINT flags, const D3D_FEATURE_LEVEL*, UINT, UINT, ID3D11Device**, D3D_FEATURE_LEVEL*, ID3D11DeviceContext**)
+{
+    // The actual native ABI boundary must allow an exception handled inside
+    // the native callee to return its HRESULT. No DxUi callback is invoked.
+    try
+    {
+        throw HandledNativeMarker{};
+    }
+    catch (const HandledNativeMarker&)
+    {
+        // This fixture deliberately handles its own native implementation event.
+    }
+    if (calls.count < calls.drivers.size())
+    {
+        calls.drivers[calls.count] = type;
+        calls.flags[calls.count]   = flags;
+    }
+    ++calls.count;
+    return calls.missingDebugLayer && (flags & D3D11_CREATE_DEVICE_DEBUG) ? DXGI_ERROR_SDK_COMPONENT_MISSING : E_FAIL;
+}
+} // namespace NativeDevicePolicyTests
+inline void TestWindowHostDeviceCreationPreservesHandledNativeExceptions()
+{
+    using namespace NativeDevicePolicyTests;
+    const DxUi::Failure::Scope scope;
+    const std::array levels{D3D_FEATURE_LEVEL_11_0};
+    for (const bool forceWarp : {false, true})
+        for (const bool missing : {false, true})
+        {
+            calls                   = {};
+            calls.missingDebugLayer = missing;
+            wil::com_ptr<ID3D11Device> device;
+            wil::com_ptr<ID3D11DeviceContext> context;
+            D3D_FEATURE_LEVEL level = D3D_FEATURE_LEVEL_11_0;
+            D3D_DRIVER_TYPE driver  = D3D_DRIVER_TYPE_HARDWARE;
+            const UINT flags        = D3D11_CREATE_DEVICE_BGRA_SUPPORT | (missing ? D3D11_CREATE_DEVICE_DEBUG : 0u);
+            Require(DxUi::Detail::CreateD3D11DeviceWithWarpFallback(
+                        flags, levels, forceWarp, device.put(), &level, context.put(), &driver, &HandledDeviceCreator) == E_FAIL,
+                    "a native callee's handled exception returns its unchanged device-creation HRESULT");
+            const size_t attempts = forceWarp ? 1u : 2u;
+            Require(calls.count == attempts * (missing ? 2u : 1u) && ! device && ! context && level == D3D_FEATURE_LEVEL{} && driver == D3D_DRIVER_TYPE_UNKNOWN,
+                    "native failure preserves exact fallback attempts and empty outputs");
+            for (size_t index = 0u; index < calls.count; ++index)
+            {
+                Require(calls.drivers[index] == (forceWarp || index % 2u ? D3D_DRIVER_TYPE_WARP : D3D_DRIVER_TYPE_HARDWARE),
+                        "the hardware/WARP order is unchanged");
+                const UINT expected = index < attempts ? flags : flags & ~D3D11_CREATE_DEVICE_DEBUG;
+                Require(calls.flags[index] == expected, "only the optional debug flag is removed on the admitted retry");
+            }
+        }
+}
 
 inline void TestWindowHostExplicitWarpPolicyRejectsConflictsAndSurvivesDeviceLoss()
 {

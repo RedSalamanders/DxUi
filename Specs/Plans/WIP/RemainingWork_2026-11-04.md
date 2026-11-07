@@ -1,7 +1,7 @@
 # DxUi remaining correctness and qualification
 
 Status: ACTIVE
-Updated: 6 November 2026
+Updated: 7 November 2026
 Owner: DxUi maintainers; consumer policy and adoption remain with each application.
 
 This is the **only active DxUi plan**. The [consolidation record](../Done/WipConsolidation_2026-11-04.md)
@@ -266,6 +266,15 @@ policy, erase its findings or close this section.
   [scoped closeout](../Done/Arm64FatalUnwind_2026-11-06.md). Native ARM64 execution and the complete hosted
   test-before-production gate remain required. These original failed cohorts remain retained, and their
   evidence does not retrospectively assign a cause to the earlier output-less failure.
+  At exact main `ac495f56`, native Debug [42302215623](https://github.com/RedSalamanders/DxUi/actions/runs/42302215623)
+  verifies both named Grid origins with the PAC-aware walker (four attribute queries each), then stops in
+  a later ordinary paint test. Original matched EXE/PDB symbols identify an unwrapped `D3D11CreateDevice`
+  call; its native implementation's internally handled exception was intercepted before an HRESULT returned.
+  The [source-bound triage](../../../Measurements/NativeDeviceBoundary_2026-11-07/README.md) retains that
+  distinction and a deterministic hardware/WARP/debug-layer counterfactual. Its
+  [completed local scope](../Done/NativeDeviceExceptionBoundary_2026-11-07.md) at `c4272b0d` passes six
+  zero-warning builds, 66 ordinary x64 suite executions and actual ASan with original-member verification.
+  Fresh hosted native ARM64 and the complete test-before-production gate remain required.
 - [ ] Complete or retain the explicit owner deferral for native ARM64 opt-in MenuResources/MenuResourceScaling
   and candidate-specific foreground coverage. Native cross-builds and ordinary hosted suites do not close them.
 - [ ] Qualify physical device removal/occlusion, real IME during reflow, assistive technology and touch on named

@@ -60,6 +60,18 @@ namespace DxUi
                                                         ID3D11DeviceContext** context,
                                                         D3D_DRIVER_TYPE* driverType) noexcept
 {
+    return Detail::CreateD3D11DeviceWithWarpFallback(creationFlags, featureLevels, forceWarp, device, featureLevel, context, driverType, &::D3D11CreateDevice);
+}
+
+[[nodiscard]] HRESULT Detail::CreateD3D11DeviceWithWarpFallback(UINT creationFlags,
+                                                                std::span<const D3D_FEATURE_LEVEL> featureLevels,
+                                                                bool forceWarp,
+                                                                ID3D11Device** device,
+                                                                D3D_FEATURE_LEVEL* featureLevel,
+                                                                ID3D11DeviceContext** context,
+                                                                D3D_DRIVER_TYPE* driverType,
+                                                                Detail::D3D11DeviceCreator creator) noexcept
+{
     if (! device || ! featureLevel || ! context)
     {
         return E_POINTER;
@@ -73,7 +85,7 @@ namespace DxUi
         *driverType = D3D_DRIVER_TYPE_UNKNOWN;
     }
 
-    if (featureLevels.empty() || featureLevels.size() > std::numeric_limits<UINT>::max())
+    if (! creator || featureLevels.empty() || featureLevels.size() > std::numeric_limits<UINT>::max())
     {
         return E_INVALIDARG;
     }
@@ -88,16 +100,19 @@ namespace DxUi
         createdContext.reset();
         createdFeatureLevel = D3D_FEATURE_LEVEL{};
 
-        return D3D11CreateDevice(nullptr,
-                                 requestedDriverType,
-                                 nullptr,
-                                 creationFlags,
-                                 featureLevels.data(),
-                                 static_cast<UINT>(featureLevels.size()),
-                                 D3D11_SDK_VERSION,
-                                 createdDevice.addressof(),
-                                 &createdFeatureLevel,
-                                 createdContext.addressof());
+        // Drivers may handle a C++ exception internally before returning an
+        // HRESULT. Keep the allowance at the native ABI, including each retry.
+        return Failure::InvokeNative(creator,
+                                     nullptr,
+                                     requestedDriverType,
+                                     nullptr,
+                                     creationFlags,
+                                     featureLevels.data(),
+                                     static_cast<UINT>(featureLevels.size()),
+                                     static_cast<UINT>(D3D11_SDK_VERSION),
+                                     createdDevice.addressof(),
+                                     &createdFeatureLevel,
+                                     createdContext.addressof());
     };
 
     D3D_DRIVER_TYPE createdDriverType = D3D_DRIVER_TYPE_WARP;
@@ -122,8 +137,8 @@ namespace DxUi
     if (hr == DXGI_ERROR_SDK_COMPONENT_MISSING && (creationFlags & D3D11_CREATE_DEVICE_DEBUG))
     {
         Debug::Warning(L"DxUi::ControlHost: D3D11 SDK debug layer unavailable; retrying without the optional layer.");
-        return CreateD3D11DeviceWithWarpFallback(
-            creationFlags & ~D3D11_CREATE_DEVICE_DEBUG, featureLevels, forceWarp, device, featureLevel, context, driverType);
+        return Detail::CreateD3D11DeviceWithWarpFallback(
+            creationFlags & ~D3D11_CREATE_DEVICE_DEBUG, featureLevels, forceWarp, device, featureLevel, context, driverType, creator);
     }
 
     if (FAILED(hr) || ! createdDevice || ! createdContext)

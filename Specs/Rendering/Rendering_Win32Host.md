@@ -1,10 +1,11 @@
 # Window hosting
 
 Status: normative intended contract
-Last reviewed: 2026-10-23
+Last reviewed: 2026-11-07
 
 The [C++ failure policy](../Core/Core_FailureHandling.md) governs allocation, callback and paint failures.
-Its implementation is pending; earlier functional receipts do not prove the new host fatal/dump contract.
+API 5 implements that protocol. Source-specific qualification is recorded with the
+[failure policy](../Core/Core_FailureHandling.md); earlier functional receipts do not prove the new host fatal/dump contract.
 
 The application may report known occlusion through
 `ControlHost::SetNativePresentationVisible(false)` on the attachment owner thread.
@@ -71,6 +72,12 @@ Default attachments inherit that pool's policy, including native peers/menus. A 
 an attached/default-created pool fails with `ERROR_INVALID_STATE`; it never replaces peers' resources. Matching
 repeated attachments are idempotent. Device loss retains the selected policy; the final attachment releases it.
 This additive option supports deterministic native validation and leaves the default hardware/fallback path intact.
+`CreateD3D11DeviceWithWarpFallback` places each `D3D11CreateDevice` attempt inside the
+audited synchronous native-call boundary. A C++ exception handled within the native
+implementation may return its original HRESULT; an escaping exception remains fatal.
+Hardware/WARP ordering, empty outputs on failure and the optional missing-debug-layer
+retry are unchanged. The allowance covers neither application callbacks nor the whole
+graphics setup. Deterministic factory injection is a private test seam, not a public API.
 The host registry is bounded to 128 concurrent attachments. Exhaustion fails with a diagnostic and recovers when
 an attachment is released; it never replaces an existing owner.
 
