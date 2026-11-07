@@ -6,6 +6,12 @@ Every archive member is independently verified. The candidate checkpoint is `54b
 three current translation units replace their counterparts in the retained `1352cc7f` SDK.
 This focused proof is separate from complete current-source qualification.
 
+The [complete local qualification](qualification.json) binds clean implementation `a42caaa0`
+to all six zero-warning builds, 66 ordinary native x64 suite executions and actual ASan
+detection. All 683 source inputs and native/run/failure-image archive members are verified.
+The [gallery provenance](gallery.json) records six reviewed harness captures from that source.
+ARM64 entries are cross-builds; hosted native execution remains a separate gate.
+
 The cases cover supplementary word starts and native/UIA boundaries, inherited definition/
 callout/footer markers, independent nested lists, authored RTL direction, math reuse across
 snapshots and image upload reuse across completion/frame replacement. Only the new or changed

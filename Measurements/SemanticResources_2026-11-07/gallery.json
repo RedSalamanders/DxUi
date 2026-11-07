@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-semantic-diagram-gallery",
+  "inputHash": "659e13c8a7974efbf006736f96b08b19b535c09f2354b02fc1f7faaa9d212227",
+  "benchmarkInputs": {
+    "src/Controls/DxUi.RichSemanticDocument.cpp": "ADBE6C52101026460B85D2BB038BB3077FC93C72C2DA45D193DCF5B56F70E683",
+    "src/Controls/DxUi.RichSemanticGeometry.cpp": "176A4A85DFDD655C8C392FCFC97B0F6E064BF744F48141D29D63D413C344139E",
+    "src/Controls/DxUi.SingleLineTextEditing.cpp": "77F94092A52EBC82766C46C1FB3181F84959A821FA5496E1EE3387E5B56E6DFA",
+    "src/Controls/DxUi.NativeFlowchartLayout.cpp": "49C156280DE43326401C9AA045E125BEA7C69270B431D023113D272803BB6D85",
+    "src/Controls/DxUi.PreparedFlowchart.cpp": "4BE502D8CC823A5A2419F872DB740CC44D7C08291759097648B5261173FDFBF7",
+    "Tests/Support/Support.Tests.RichSemanticDocument.h": "3D1A78EF0CE5957D5CBDE5B8E7B66E213DDA1046922D8ADB52CEE4AD16641D11",
+    "Tests/Support/Support.Tests.PreparedFlowchart.h": "A71A06505670D05C5DDA058B456B0E95DBEF5A40EE7520B54FE9F33F5315C772",
+    "gallery.ps1": "3644AF496DEB2EB0773916D415A093E924CCC19FEFA3F092B35E5570800332F4"
+  },
+  "claim": "Six deterministic native harness captures reviewed at the exact clean implementation; no physical-device or performance acceptance",
+  "capturesReviewed": 6,
+  "provenance": {
+    "command": "gallery.ps1 -PublishDocs",
+    "sourceCommit": "a42caaa0d7515ba9aaeac7d6822f8d30e06b8b1f",
+    "sourceDirty": false,
+    "configuration": "Release",
+    "platform": "x64",
+    "nativeArchitecture": "X64",
+    "controlCount": 35,
+    "images": [
+      {
+        "file": "embedded-controls.png",
+        "sha256": "86D2FE80791134ABFF1B352051CF471AEC0F88ADAADB6B1BC743EAC0373B1240"
+      },
+      {
+        "file": "theme-controls-dark.png",
+        "sha256": "AE407A8FF87A1CF280172D68E12304C31EC0DB2F3172CD7D1CBA9D69963573E5"
+      },
+      {
+        "file": "theme-controls-high-contrast.png",
+        "sha256": "59C5E9A02DC4243863A835DF5668C4B507C6F1E07B5FF606C5BD370655FB28F3"
+      },
+      {
+        "file": "theme-controls-light.png",
+        "sha256": "B5D10D8323FD2F0A985B4AB92EABC9AB3367BA84EB5DAAA0BC278BE6BFE7B613"
+      },
+      {
+        "file": "theme-controls-rainbow-dark.png",
+        "sha256": "6EE90AFE23D63B75542AF432DB1C7BD794ED1FE288163A489581E5E557E64417"
+      },
+      {
+        "file": "theme-controls-rainbow-light.png",
+        "sha256": "7C4000EF94E430BE5DDFEB19F6FF0691B219279F351E1877C14CEE1F16C39C7F"
+      }
+    ]
+  }
+}

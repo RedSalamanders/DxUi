@@ -1,6 +1,6 @@
 {
   "command": "gallery.ps1 -PublishDocs",
-  "sourceCommit": "1352cc7fd244909e1c274b7d567485b9e98d7f1a",
+  "sourceCommit": "a42caaa0d7515ba9aaeac7d6822f8d30e06b8b1f",
   "sourceDirty": false,
   "configuration": "Release",
   "platform": "x64",
