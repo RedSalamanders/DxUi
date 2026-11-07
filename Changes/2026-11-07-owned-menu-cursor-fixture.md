@@ -1,0 +1,1 @@
+- Expose only the cursor fixture's owned menu popup without activation when hosted consoles enter the topmost band. An owned obstruction exercises setup while the existing real point-ownership, cursor, lease and unexpected-skip assertions remain enforced.

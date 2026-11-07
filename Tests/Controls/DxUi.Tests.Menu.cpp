@@ -11736,6 +11736,25 @@ void TestMenuPointerCursorIsArrowOverPopupsAndTheWindowsOwnOutside()
     Require(GetWindowRect(popup, &popupRect) != FALSE && GetWindowRect(textWindow.get(), &textRect) != FALSE, "read the menu and text window rectangles");
     const POINT overMenu{(popupRect.left + popupRect.right) / 2, popupRect.top + 14};
     const POINT overText{(textRect.left + textRect.right) / 2, (textRect.top + textRect.bottom) / 2};
+    // Hosted shells can enter the topmost band during the desktop lease. Keep
+    // this owned popup above our own deterministic obstruction as well, without
+    // activating or changing any foreign window. The original ownership and
+    // actual cursor assertions below still decide the test.
+    wil::unique_hwnd covering(CreateWindowExW(WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW | WS_EX_TOPMOST,
+                                              kTextWindowClass,
+                                              L"",
+                                              WS_POPUP | WS_VISIBLE,
+                                              popupRect.left,
+                                              popupRect.top,
+                                              popupRect.right - popupRect.left,
+                                              popupRect.bottom - popupRect.top,
+                                              nullptr,
+                                              nullptr,
+                                              textClass.hInstance,
+                                              nullptr));
+    Require(covering != nullptr, "create the owned popup obstruction");
+    Require(SetWindowPos(popup, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE) != FALSE,
+            "expose the owned menu cursor patch without foreground activation");
     const HWND menuCovering = WindowFromPoint(overMenu);
     const HWND textCovering = WindowFromPoint(overText);
     if (menuCovering != popup || textCovering != textWindow.get())

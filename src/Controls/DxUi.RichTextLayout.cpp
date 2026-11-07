@@ -22,6 +22,17 @@ namespace DxUi::RichText
 {
 namespace
 {
+// Match DirectWrite's sequential single-precision document line accumulation.
+// Reassociating chunk-local sums changes geometry for pitches such as 16 * 1.65.
+// Stack-only rounding barrier. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4746)
+float AddLineCoordinate(float left, float right) noexcept
+{
+    volatile float result = left + right;
+    return result;
+}
+#pragma warning(pop)
 void Check(HRESULT result, const char*)
 {
     if (FAILED(result))
@@ -450,9 +461,25 @@ HRESULT Detail::PreparedLayoutAccess::Prepare(PreparedLayout& owner,
     std::vector<std::size_t> lines{0};
     for (const auto& line : lineMetrics)
         lines.push_back(lines.back() + line.length);
-    auto next        = std::make_unique<PreparedLayout::State>();
-    next->hasScripts = scripts;
-    if (scripts)
+    auto next            = std::make_unique<PreparedLayout::State>();
+    next->hasScripts     = scripts;
+    float documentHeight = verticalTranslation + metrics.height;
+    if (translatedOrigin)
+    {
+        auto localTop = 0.0f, documentTop = verticalOrigin;
+        std::size_t first = 0u;
+        next->scripts.uniformSourceLines.reserve(lineMetrics.size());
+        for (const auto& line : lineMetrics)
+        {
+            next->scripts.uniformSourceLines.push_back(
+                {first, localTop, documentTop, AddLineCoordinate(localTop, line.baseline), AddLineCoordinate(documentTop, line.baseline)});
+            first += line.length;
+            localTop    = AddLineCoordinate(localTop, line.height);
+            documentTop = AddLineCoordinate(documentTop, line.height);
+        }
+        documentHeight = documentTop;
+    }
+    if (scripts || translatedOrigin)
     {
         Detail::ScriptTextRenderer collector(nullptr, nullptr, layout.get(), projection, textOffset, {}, next->scripts, true);
         RETURN_IF_FAILED(layout->Draw(nullptr, &collector, 0.f, 0.f));
@@ -472,9 +499,9 @@ HRESULT Detail::PreparedLayoutAccess::Prepare(PreparedLayout& owner,
     next->clusters            = std::move(clusters);
     next->lines               = std::move(lines);
     next->lineMetrics         = std::move(lineMetrics);
-    next->height              = verticalTranslation + metrics.height;
+    next->height              = documentHeight;
     next->drawingTop          = drawingTop;
-    next->drawingBottom       = drawingBottom;
+    next->drawingBottom       = std::max(drawingBottom, documentHeight + std::max(0.0f, overhang.bottom) + scriptBottomOutset);
     next->textLeft            = metrics.left;
     next->textWidth           = metrics.widthIncludingTrailingWhitespace;
     next->verticalOrigin      = verticalOrigin;
@@ -545,7 +572,16 @@ HRESULT PreparedLayout::TryHitTest(float x, float y, Hit& output) const
         return E_INVALIDARG;
     BOOL trailing = FALSE, inside = FALSE;
     DWRITE_HIT_TEST_METRICS metrics{};
-    const auto hr = state_->layout->HitTestPoint(x, y - state_->verticalTranslation, &trailing, &inside, &metrics);
+    auto localY       = y - state_->verticalTranslation;
+    const auto& lines = state_->scripts.uniformSourceLines;
+    if (! lines.empty())
+    {
+        const auto after =
+            std::upper_bound(lines.begin(), lines.end(), y, [](float value, const Detail::UniformSourceLine& line) { return value < line.documentTop; });
+        const auto& line = after == lines.begin() ? lines.front() : *std::prev(after);
+        localY           = line.localTop + (y - line.documentTop);
+    }
+    const auto hr = state_->layout->HitTestPoint(x, localY, &trailing, &inside, &metrics);
     if (FAILED(hr))
         return hr;
     const auto actual = static_cast<std::size_t>(metrics.textPosition) + (trailing ? metrics.length : 0u);
@@ -573,7 +609,14 @@ HRESULT PreparedLayout::TryCaret(std::size_t position, CaretGeometry& output) co
     const auto hr = state_->layout->HitTestTextPosition(static_cast<UINT32>(position) + state_->textOffset, FALSE, &x, &y, &metrics);
     if (FAILED(hr))
         return hr;
-    output = {x, y + state_->verticalTranslation, metrics.height};
+    if (! state_->scripts.uniformSourceLines.empty())
+    {
+        const auto& line = Detail::UniformLineAt(state_->scripts.uniformSourceLines, position);
+        y                = line.documentBaseline - (line.localBaseline - y);
+    }
+    else
+        y += state_->verticalTranslation;
+    output = {x, y, metrics.height};
     return S_OK;
 }
 CaretGeometry PreparedLayout::Caret(std::size_t position) const
@@ -592,21 +635,17 @@ HRESULT PreparedLayout::TryRange(std::size_t first, std::size_t last, std::vecto
     std::vector<D2D1_RECT_F> rectangles(0u);
     if (first != last)
     {
-        UINT32 count     = 0;
-        const auto query = state_->layout->HitTestTextRange(
-            static_cast<UINT32>(first) + state_->textOffset, static_cast<UINT32>(last - first), 0, state_->verticalTranslation, nullptr, 0, &count);
+        const auto origin = state_->scripts.uniformSourceLines.empty() ? state_->verticalTranslation : 0.0f;
+        UINT32 count      = 0;
+        const auto query =
+            state_->layout->HitTestTextRange(static_cast<UINT32>(first) + state_->textOffset, static_cast<UINT32>(last - first), 0, origin, nullptr, 0, &count);
         if (FAILED(query) && query != HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER))
             return query;
         std::vector<DWRITE_HIT_TEST_METRICS> metrics(count);
         if (count)
         {
-            const auto hr = state_->layout->HitTestTextRange(static_cast<UINT32>(first) + state_->textOffset,
-                                                             static_cast<UINT32>(last - first),
-                                                             0,
-                                                             state_->verticalTranslation,
-                                                             metrics.data(),
-                                                             count,
-                                                             &count);
+            const auto hr = state_->layout->HitTestTextRange(
+                static_cast<UINT32>(first) + state_->textOffset, static_cast<UINT32>(last - first), 0, origin, metrics.data(), count, &count);
             if (FAILED(hr))
                 return hr;
             if (count > metrics.size())
@@ -616,7 +655,13 @@ HRESULT PreparedLayout::TryRange(std::size_t first, std::size_t last, std::vecto
         for (UINT32 index = 0u; index < count; ++index)
         {
             const auto& item = metrics[index];
-            rectangles.push_back({item.left, item.top, item.left + item.width, item.top + item.height});
+            auto top         = item.top;
+            if (! state_->scripts.uniformSourceLines.empty())
+            {
+                const auto& line = Detail::UniformLineAt(state_->scripts.uniformSourceLines, item.textPosition);
+                top              = line.documentBaseline - (line.localBaseline - top);
+            }
+            rectangles.push_back({item.left, top, item.left + item.width, top + item.height});
         }
     }
     output.swap(rectangles);
@@ -739,7 +784,7 @@ bool Detail::PreparedLayoutAccess::ScriptTargetSupported(const PreparedLayout& o
 {
     if (! owner.state_)
         return false;
-    if (! owner.state_->hasScripts)
+    if (! owner.state_->hasScripts && owner.state_->scripts.uniformSourceLines.empty())
         return true;
     if (owner.state_->scripts.unsupported)
         return false;
@@ -758,8 +803,10 @@ HRESULT PreparedLayout::TryDraw(ID2D1RenderTarget* target, ID2D1Brush* brush, D2
     Failure::Scope failureScope;
     if (! target || ! brush || ! state_)
         return E_INVALIDARG;
-    origin.y += state_->verticalTranslation;
-    const bool scripts = state_->hasScripts;
+    const bool positionedSource = ! state_->scripts.uniformSourceLines.empty();
+    if (! positionedSource)
+        origin.y += state_->verticalTranslation;
+    const bool scripts = state_->hasScripts || positionedSource;
     if (scripts && state_->scripts.unsupported)
         return DWRITE_E_UNSUPPORTEDOPERATION;
     if (scripts && state_->scripts.requiresColor)

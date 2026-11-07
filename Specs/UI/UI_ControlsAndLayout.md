@@ -1041,9 +1041,12 @@ the same vertical origin; a height-changing edit rebuilds dependent suffixes and
 reports all that work. An inexact synthetic line or an empty displayed suffix
 retains canonical whole geometry, including terminal-font behavior.
 Source presentation with an explicit uniform line-height multiplier instead uses
-unprefixed chunk layouts and translates drawing, hit testing, carets and selection
-rectangles by the prepared document origin. Its continuation origins retain the
-existing single-precision accumulation. Same-origin chunks remain reusable after
+unprefixed chunk layouts and prepares each line's local/document baseline. Continuation
+origins, document height and line baselines retain DirectWrite's sequential
+single-precision accumulation; adding a chunk-local total to its origin is insufficient.
+Drawing maps the prepared baseline before target-DPI snapping, including horizontal
+skew, and shares the existing prepared font/color renderer. Hit testing, carets and
+selection rectangles use the same prepared line placement. Same-origin chunks remain reusable after
 an edit; uniform Source spacing MUST NOT force whole-document shaping. Rich v0
 uniform spacing retains its separate compatibility path for mixed styles.
 Private semantic DirectWrite preparation consumes bounded display text and runs without fabricating source identity arrays; public Projection preparation retains its strict source mapping validation. Semantic staging remains transactional, and matching public headers and library builds remain required.

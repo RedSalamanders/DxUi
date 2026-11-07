@@ -1071,8 +1071,10 @@ The qualified positioned-line implementation preserves DirectWrite's global coor
 private invisible origin lines. Reuse additionally requires an identical document
 origin; height-changing edits may rebuild the entire suffix and must report every
 prepared source unit. Inexact origins and empty displayed suffixes fall back
-explicitly. Uniform Source line spacing uses translated unprefixed chunks with the
-same origin-reuse and bounded layout limits; changed-source units, reused chunks
+explicitly. Uniform Source line spacing uses unprefixed chunks with prepared per-line
+document baselines and the same origin-reuse/bounded layout limits. Font/color
+capabilities and coordinate maps are prepared once; drawing borrows them without
+layout, font queries or allocation. Changed-source units, reused chunks
 and any whole-layout work remain separately reported. Geometry and actual WARP
 pixel comparisons cover fractional fonts, RTL, transformed drawing and large origins.
 Count whole-layout work separately from chunk reuse. Owner preparation may construct that cache; cached

@@ -1142,6 +1142,12 @@ MUST remain a failed lease. Ordinary local activation MUST NOT use this fallback
 checks establish dispatch/cleanup contracts; only fresh hosted execution qualifies the input/foreground hand-off.
 
 Before creating or resuming each hosted child, the runner MUST verify that its warning still owns the foreground.
+Within its existing lease, the menu cursor fixture MAY promote only its owned popup
+to the topmost band without activation and create an owned topmost obstruction to
+exercise that setup deterministically. It MUST retain the actual `WindowFromPoint`
+ownership checks and arrow/text/arrow cursor assertions. A foreign covering window
+still yields the original capability diagnostic and fails an interactive run; no
+foreign window may be activated, repositioned or dismissed by this fixture.
 If ordinary activation is refused between children, it MAY reuse the same guarded hosted recovery as startup,
 including every authorization, capture, point-ownership, balanced-input and patch-restoration check above.
 Recovery MUST finish before child launch; failure leaves that child unlaunched with a failed receipt.

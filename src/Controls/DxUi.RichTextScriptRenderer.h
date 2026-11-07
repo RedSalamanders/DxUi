@@ -7,6 +7,7 @@
 #include <dwrite_2.h>
 #include <iterator>
 #include <new>
+#include <span>
 #include <wil/com.h>
 
 namespace DxUi::RichText::Detail
@@ -20,13 +21,27 @@ struct ScriptDecoration final
 {
     float left{}, right{}, baseline{}, offset{};
 };
+struct UniformSourceLine final
+{
+    // DirectWrite sums float line heights in document order. Retain those
+    // coordinates rather than reassociating a chunk-local total in Draw.
+    std::size_t first{};
+    float localTop{}, documentTop{}, localBaseline{}, documentBaseline{};
+};
+inline const UniformSourceLine& UniformLineAt(std::span<const UniformSourceLine> lines, std::size_t position) noexcept
+{
+    const auto after =
+        std::upper_bound(lines.begin(), lines.end(), position, [](std::size_t value, const UniformSourceLine& line) { return value < line.first; });
+    return after == lines.begin() ? lines.front() : *std::prev(after);
+}
 struct ScriptMetadata final
 {
-    ScriptMetadata() : fonts(0u), decorations(0u)
+    ScriptMetadata() : fonts(0u), decorations(0u), uniformSourceLines(0u)
     {
     }
     std::vector<ScriptFont> fonts;
     std::vector<ScriptDecoration> decorations;
+    std::vector<UniformSourceLine> uniformSourceLines;
     bool requiresColor{}, unsupported{};
 };
 // The layout and every effect brush are borrowed for one synchronous draw.
@@ -150,6 +165,8 @@ public:
                     result_ = DWRITE_E_UNSUPPORTEDOPERATION;
                 return S_OK;
             }
+        if (! staging_ && ! metadata_.uniformSourceLines.empty())
+            y = SnapY(origin_.y + UniformLineAt(metadata_.uniformSourceLines, first).documentBaseline, true);
         y += Offset(flags, glyphs->fontEmSize);
         if (! glyphs->fontFace)
         {
@@ -218,7 +235,8 @@ public:
             result_ = E_INVALIDARG;
             return S_OK;
         }
-        y += DecorationOffset(x, y);
+        const auto decorationOffset = DecorationOffset(x, y);
+        y                           = UniformBaseline(y) + decorationOffset;
         Stroke(x, y + line->offset, line->width, line->thickness, ink);
         return S_OK;
     }
@@ -237,7 +255,8 @@ public:
             result_ = E_INVALIDARG;
             return S_OK;
         }
-        y = SnapY(y) + DecorationOffset(x, y);
+        const auto decorationOffset = DecorationOffset(x, y);
+        y                           = SnapY(UniformBaseline(y)) + decorationOffset;
         target_->FillRectangle(D2D1::RectF(x, y + line->offset, x + line->width, y + line->offset + line->thickness), ink);
         return S_OK;
     }
@@ -326,7 +345,7 @@ private:
         const auto parentSize = scriptSize / .75f;
         return flags & Superscript ? -.30f * parentSize : flags & Subscript ? .20f * parentSize : 0.f;
     }
-    float SnapY(float y) const noexcept
+    float SnapY(float y, bool horizontalSkew = false) const noexcept
     {
         D2D1_MATRIX_3X2_F transform{};
         target_->GetTransform(&transform);
@@ -334,7 +353,7 @@ private:
         target_->GetDpi(&dpiX, &dpiY);
         const auto scale     = transform._22 * dpiY / 96.f;
         const auto translate = transform._32 * dpiY / 96.f;
-        return transform._12 == 0.f && transform._21 == 0.f && std::isfinite(scale) && scale > 0.f && std::isfinite(translate)
+        return transform._12 == 0.f && (horizontalSkew || transform._21 == 0.f) && std::isfinite(scale) && scale > 0.f && std::isfinite(translate)
                    ? (std::round(y * scale + translate) - translate) / scale
                    : y;
     }
@@ -359,6 +378,18 @@ private:
         if (! effect)
             return brush_;
         return SUCCEEDED(effect->QueryInterface(IID_PPV_ARGS(effectBrush_.put()))) ? effectBrush_.get() : nullptr;
+    }
+    float UniformBaseline(float y) const noexcept
+    {
+        const auto& lines = metadata_.uniformSourceLines;
+        if (lines.empty())
+            return y;
+        const auto local = y - origin_.y;
+        auto line =
+            std::lower_bound(lines.begin(), lines.end(), local, [](const UniformSourceLine& value, float baseline) { return value.localBaseline < baseline; });
+        if (line == lines.end() || (line != lines.begin() && local - std::prev(line)->localBaseline < line->localBaseline - local))
+            --line;
+        return origin_.y + line->documentBaseline;
     }
     ID2D1RenderTarget* target_{};
     ID2D1Brush* brush_{};
