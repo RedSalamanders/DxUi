@@ -1,1 +1,0 @@
-- Distinguish the SEH filter's live capture stack from the original exception context in consumer failure qualification; retain the independent exact-image/PDB dump unwind requirement for the original throw site.
