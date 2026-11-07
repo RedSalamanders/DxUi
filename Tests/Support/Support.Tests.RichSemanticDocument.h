@@ -211,6 +211,23 @@ inline void HeadingOutlineAndFragments()
           "escaped outline label and fragment round-trip through the Markdown semantic parser");
     Check(document->Map().Source() == source, "outline generation leaves source intact");
 }
+inline void SupplementaryWordNavigation()
+{
+    struct Fixture
+    {
+        std::wstring_view text;
+        std::size_t end;
+    };
+    for (const auto& fixture : std::array{Fixture{L"\U0002000Ba next", 3u}, Fixture{L"a\U0001d7d8b next", 4u}, Fixture{L"\U0001e900a next", 3u}})
+    {
+        const auto word = DxUi::GetEnclosingAccessibilityTextUnitSpan(fixture.text, 1u, TextUnit_Word);
+        Check(word.start == 0u && word.end == fixture.end, "native/UIA word units retain mixed BMP and supplementary letters/digits");
+    }
+    const auto beforeEmoji = DxUi::GetEnclosingAccessibilityTextUnitSpan(L"a\U0001f600b", 0u, TextUnit_Word);
+    const auto emoji       = DxUi::GetEnclosingAccessibilityTextUnitSpan(L"a\U0001f600b", 2u, TextUnit_Word);
+    Check(beforeEmoji.start == 0u && beforeEmoji.end == 1u && emoji.start == 1u && emoji.end == 3u,
+          "emoji word boundaries remain distinct and preserve their complete surrogate pair");
+}
 inline void SupplementaryWordStarts()
 {
     const auto adlam = Build(L"\U0001e900\U0001e901 \U0001e902\n");

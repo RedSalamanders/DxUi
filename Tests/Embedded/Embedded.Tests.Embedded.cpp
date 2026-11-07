@@ -1937,6 +1937,7 @@ __declspec(noinline) static int RunFunctionalTests()
     RichSemanticTests::Run(RichSemanticDocumentTests::HeadingOutlineAndFragments);
     RichSemanticTests::Run(RichSemanticDocumentTests::OptionalDefinitionsAndAbbreviations);
     RichSemanticTests::Run(RichSemanticDocumentTests::SupplementaryWordStarts);
+    RichSemanticTests::Run(RichSemanticDocumentTests::SupplementaryWordNavigation);
     RichSemanticTests::Run(RichSemanticDocumentTests::ContainerPrefixOwnership);
     RichSemanticTests::Run(RichSemanticDocumentTests::FootnoteHtmlActionAdmission);
     RichSemanticTests::Run(RichSemanticDocumentTests::SchedulingAndAdmission);

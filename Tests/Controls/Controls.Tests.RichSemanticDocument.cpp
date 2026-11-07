@@ -1102,6 +1102,10 @@ void TestRichSemanticSupplementaryWordStarts()
 {
     RichSemanticTests::Run(RichSemanticDocumentTests::SupplementaryWordStarts);
 }
+void TestRichSemanticSupplementaryWordNavigation()
+{
+    RichSemanticTests::Run(RichSemanticDocumentTests::SupplementaryWordNavigation);
+}
 void TestRichSemanticContainerPrefixOwnership()
 {
     RichSemanticTests::Run(RichSemanticDocumentTests::ContainerPrefixOwnership);
@@ -1109,6 +1113,7 @@ void TestRichSemanticContainerPrefixOwnership()
 void RunRichSemanticDocumentTests()
 {
     DXUI_RUN_TEST(TestRichSemanticSupplementaryWordStarts);
+    DXUI_RUN_TEST(TestRichSemanticSupplementaryWordNavigation);
     DXUI_RUN_TEST(TestRichSemanticContainerPrefixOwnership);
     DXUI_RUN_TEST(TestRichTextInertExportAndClipboard);
     DXUI_RUN_TEST(TestRichSemanticLocalizedAccessibilityLabels);
