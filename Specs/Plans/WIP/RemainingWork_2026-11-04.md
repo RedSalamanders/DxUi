@@ -229,6 +229,10 @@ omitting an ID from this summary does not dispose of it.
   lack it (PRIOR-08); replace self-referential crossing, CF_HTML and font-truncation oracles.
 - [ ] Add deterministic pathological-input/fuzz/cancellation coverage for Markdown, diagrams and math;
   retain exact seeds, budgets, raw failures and source/artifact identities.
+  The current test cohort adds signed-area crossing checks, independent CF_HTML wire/producer bytes,
+  exact-size MATH buffers and 64 fixed-seed cases per grammar domain. Its safe ASan addressability proof
+  passes 628 checks without an invalid read. Native integration and the six-profile matrix remain pending;
+  the earlier review's seven counterfactual obligations are not closed by this partial oracle proof.
 - [ ] Diagnose the retained failed-consumer-publication fixture's ten-second closure failure observed during
   the long-checkout validator run. Progress/body admission stayed correctly refused; an explicit-exit proposal
   also failed and was rejected, while a focused replay of the original source passes all 14 cases. Preserve

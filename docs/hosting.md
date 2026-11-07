@@ -18,6 +18,9 @@ for native controls and `TextInputServices::SetClipboardPreference` for its embe
 retain priority. The choice happens during one clipboard ownership attempt; a declined image preserves the
 selection and source. Existing clipboard interfaces remain valid, and a custom transport can implement the
 additive `PrioritizedStructuredTextClipboard` interface to choose among its offered formats.
+Rendered HTML clipboard coverage uses independent UTF-8 wire vectors, an immutable Chromium producer example
+and the actual bytes/NUL in privately owned HGLOBAL storage. These checks leave the desktop clipboard alone;
+physical interoperability remains a separate acceptance step. See the [format-oracle contract](../Specs/Testing/Testing_Validation.md#independent-format-oracles).
 
 For a deterministic native software-rendering host, call `Attach(hwnd, {.forceWarp = true})` before creating
 other native graphics on that UI thread. Default peers inherit the thread pool's selection. An incompatible

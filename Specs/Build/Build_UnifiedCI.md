@@ -51,6 +51,12 @@ remains enabled; CodeQL uses explicit C/C++ build mode none, which does not invo
 Compiler-free CodeQL does not analyze generated code as completely as a build-based scan:
 [GitHub build-mode contract](https://docs.github.com/en/code-security/how-tos/find-and-fix-code-vulnerabilities/manage-your-configuration/codeql-for-compiled-languages).
 
+Manual diagnostic qualification accepts `platform=All` (the compatibility default), `x64` or `ARM64`.
+A compiler-free selector rejects any other value before native setup. Single-architecture results establish only
+their recorded scope; they do not advance the normal two-architecture Release/production gate. A delivery with
+explicit owner approval may require x64 runtime tests and all three ARM64 compilation profiles while setting
+aside ARM64 runtime acceptance. Keep that scope decision and any older runtime failures in its evidence ledger.
+
 DxUi has no hosted publication workflow, including SDK releases, Prepare, winget or documentation-gallery publication.
 The normal native qualification pipeline still verifies and retains both SDK ZIPs as internal artifacts. Those ZIPs
 and their extracted-consumer receipts do not create a public release. Local gallery generation remains available
