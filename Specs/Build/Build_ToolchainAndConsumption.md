@@ -1,7 +1,16 @@
 # Toolchain and consumer integration
 
 Status: normative intended contract
-Last reviewed: 2026-10-01
+Last reviewed: 2026-11-07
+
+Failed relocated-consumer qualification retains its original compiler/linker logs
+under the owning repository's `.build/reports`, where hosted workspace evidence
+collects them. Before returning failure, preserve a non-overwriting, independently
+member-verified archive of generated consumer projects/sources and its native
+images/PDBs/dumps. Exclude the relocated SDK checkout, Git history and dependency
+caches. Collection is bounded to 8,192 files and 2 GiB of source bytes. An archive
+failure reports an additional diagnostic and leaves both original artifacts and
+the original qualification failure intact; it never changes failure into success.
 
 ## MSVC 14.52 Release policy
 

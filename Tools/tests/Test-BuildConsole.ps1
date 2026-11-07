@@ -53,8 +53,17 @@ foreach($diagnostic in @(
     $facts=Get-NativeBuildDiagnostics -LogPath $warn
     Require ($facts.WarningCount-eq 1 -and $facts.ErrorCount-eq 0) "Missed diagnostic: $diagnostic"
     Refuses {Assert-NativeBuildDiagnostics -LogPath $warn} 'Zero-warning'
+    $message=''
+    try { Assert-NativeBuildDiagnostics -LogPath $warn } catch { $message=$_.Exception.Message }
+    Require ($message.Contains($diagnostic)) 'The failure must retain the actual diagnostic when the original build log is unavailable to the caller.'
 }
 $errorLog=Join-Path $ScratchRoot 'error.log'
+$many=Join-Path $ScratchRoot 'many-diagnostics.log'
+$lines=@(1..20|ForEach-Object {"source.cpp($_): warning C4100: actual diagnostic $_ "+('x'*3000)})
+[IO.File]::WriteAllLines($many,$lines)
+$facts=Get-NativeBuildDiagnostics -LogPath $many
+Require ($facts.WarningCount -eq 20 -and $facts.DiagnosticDetails.Count -eq 16) 'Bounded detail retention must still count every actual diagnostic.'
+Require (@($facts.DiagnosticDetails|Where-Object Length -gt 2048).Count -eq 0) 'A single diagnostic must not make the retained failure message unbounded.'
 [IO.File]::WriteAllText($errorLog,'file.cpp(1): fatal error C1083: missing header')
 Refuses {Assert-NativeBuildDiagnostics -LogPath $errorLog} 'Zero-warning'
 Refuses {Assert-NativeBuildDiagnostics -LogPath (Join-Path $ScratchRoot 'missing.log')} 'missing'

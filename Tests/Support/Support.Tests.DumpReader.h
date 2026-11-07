@@ -198,6 +198,11 @@ private:
     std::vector<Image> images_;
 };
 inline thread_local const View* activeView{};
+inline thread_local unsigned functionTableRequests{}, missingFunctionTables{};
+inline thread_local DWORD64 lastFunctionTableAddress{};
+#if defined(_M_ARM64)
+inline thread_local std::array<DWORD, 2u> lastFunctionTableEntry{};
+#endif
 #if defined(_M_ARM64)
 inline thread_local HANDLE activeNativeTarget{};
 inline thread_local unsigned pointerAuthenticationQueries{};
@@ -223,7 +228,17 @@ inline BOOL CALLBACK ReadMemory(HANDLE, DWORD64 address, PVOID output, DWORD byt
 }
 inline PVOID CALLBACK FunctionTable(HANDLE process, DWORD64 address) noexcept
 {
-    return SymFunctionTableAccess64(process, address);
+    ++functionTableRequests;
+    lastFunctionTableAddress = address;
+    const auto entry         = SymFunctionTableAccess64(process, address);
+    if (! entry)
+        ++missingFunctionTables;
+#if defined(_M_ARM64)
+    lastFunctionTableEntry = {};
+    if (entry)
+        std::memcpy(lastFunctionTableEntry.data(), entry, sizeof(lastFunctionTableEntry));
+#endif
+    return entry;
 }
 inline DWORD64 CALLBACK ModuleBase(HANDLE process, DWORD64 address) noexcept
 {
@@ -335,10 +350,12 @@ inline bool Verify(
         return false;
     const auto options = SymGetOptions();
     SymSetOptions(options | SYMOPT_UNDNAME | SYMOPT_EXACT_SYMBOLS | SYMOPT_FAIL_CRITICAL_ERRORS | SYMOPT_NO_PROMPTS | SYMOPT_DEFERRED_LOADS);
-    const auto restore = wil::scope_exit([&] { SymSetOptions(options); });
-    const auto slash   = expectedModule.find_last_of(L"\\/");
-    const auto search  = slash == std::wstring::npos ? std::wstring{} : expectedModule.substr(0, slash);
-    activeView         = &dump;
+    const auto restore    = wil::scope_exit([&] { SymSetOptions(options); });
+    const auto slash      = expectedModule.find_last_of(L"\\/");
+    const auto search     = slash == std::wstring::npos ? std::wstring{} : expectedModule.substr(0, slash);
+    activeView            = &dump;
+    functionTableRequests = missingFunctionTables = 0u;
+    lastFunctionTableAddress                      = 0u;
 #if defined(_M_ARM64)
     activeNativeTarget           = symbolKey;
     pointerAuthenticationQueries = 0u;
@@ -399,61 +416,137 @@ inline bool Verify(
     const auto threadKey = reinterpret_cast<HANDLE>(static_cast<uintptr_t>(expectedThread));
     if (! threadKey)
         return false;
-    std::array<DWORD64, 256u> walked{};
-    unsigned walkedCount{};
-    for (unsigned step = 0; step < walked.size(); ++step)
+    const auto originalContext = context;
+    const auto originalFrame   = frame;
+#if defined(_M_ARM64)
+    constexpr std::array<DWORD, 2u> walkModes{SYM_STKWALK_DEFAULT, SYM_STKWALK_FORCE_FRAMEPTR};
+#else
+    constexpr std::array<DWORD, 1u> walkModes{SYM_STKWALK_DEFAULT};
+#endif
+    for (const auto walkMode : walkModes)
     {
-        walked[walkedCount++] = frame.AddrPC.Offset;
-        if (SymGetModuleBase64(symbolKey, frame.AddrPC.Offset) == targetBase)
+        // A second documented DbgHelp walk starts from the untouched saved context,
+        // never from a partially advanced frame or a guessed return-address mask.
+        context               = originalContext;
+        frame                 = originalFrame;
+        functionTableRequests = missingFunctionTables = 0u;
+        lastFunctionTableAddress                      = 0u;
+#if defined(_M_ARM64)
+        lastFunctionTableEntry       = {};
+        pointerAuthenticationQueries = 0u;
+#endif
+        std::array<DWORD64, 256u> walked{};
+        std::array<DWORD64, 256u> stackPointers{}, framePointers{}, returnAddresses{};
+        const auto initialPc = frame.AddrPC.Offset, initialSp = frame.AddrStack.Offset, initialFp = frame.AddrFrame.Offset;
+#if defined(_M_ARM64)
+        const auto initialLr = context.Lr;
+#endif
+        const auto initialFlags = context.ContextFlags;
+        const char* stopReason  = "frame-limit";
+        unsigned walkedCount{};
+        for (unsigned step = 0; step < walked.size(); ++step)
+        {
+            stackPointers[walkedCount]   = frame.AddrStack.Offset;
+            framePointers[walkedCount]   = frame.AddrFrame.Offset;
+            returnAddresses[walkedCount] = frame.AddrReturn.Offset;
+            walked[walkedCount++]        = frame.AddrPC.Offset;
+            if (SymGetModuleBase64(symbolKey, frame.AddrPC.Offset) == targetBase)
+            {
+                alignas(SYMBOL_INFO) std::array<std::byte, sizeof(SYMBOL_INFO) + MAX_SYM_NAME> storage{};
+                auto* symbol         = reinterpret_cast<SYMBOL_INFO*>(storage.data());
+                symbol->SizeOfStruct = sizeof(SYMBOL_INFO);
+                symbol->MaxNameLen   = MAX_SYM_NAME;
+                DWORD64 displacement{};
+                if (SymFromAddr(symbolKey, frame.AddrPC.Offset, &displacement, symbol) &&
+                    std::string_view(symbol->Name, symbol->NameLen).find(expectedOrigin) != std::string_view::npos)
+                {
+                    IMAGEHLP_MODULEW64 details{};
+                    details.SizeOfStruct = sizeof(details);
+#if defined(_M_ARM64)
+                    std::fprintf(stderr,
+                                 "Native ARM64 saved-context StackWalk2 origin=%.*s PAC-queries=%u mode=%lu\n",
+                                 static_cast<int>(expectedOrigin.size()),
+                                 expectedOrigin.data(),
+                                 pointerAuthenticationQueries,
+                                 walkMode);
+#endif
+                    return SymGetModuleInfoW64(symbolKey, targetBase, &details) && details.SymType == SymPdb && ! details.PdbUnmatched &&
+                           details.LoadedPdbName[0] && ! std::memcmp(&targetSignature, &details.PdbSig70, sizeof(targetSignature)) &&
+                           targetAge == details.PdbAge;
+                }
+            }
+            const auto pc = frame.AddrPC.Offset, sp = frame.AddrStack.Offset;
+#if defined(_M_ARM64)
+            const bool advanced =
+                walk(machine, symbolKey, threadKey, &frame, &context, ReadMemory, FunctionTable, ModuleBase, nullptr, TargetAttribute, walkMode) != FALSE;
+#else
+            const bool advanced = StackWalk64(machine, symbolKey, threadKey, &frame, &context, ReadMemory, FunctionTable, ModuleBase, nullptr) != FALSE;
+#endif
+            if (! advanced)
+            {
+                stopReason = "StackWalk-returned-false";
+                break;
+            }
+            if (! frame.AddrPC.Offset)
+            {
+                stopReason = "zero-pc";
+                break;
+            }
+            if (step != 0u && frame.AddrPC.Offset == pc && frame.AddrStack.Offset == sp)
+            {
+                stopReason = "no-pc-sp-progress";
+                break;
+            }
+        }
+        std::fprintf(stderr,
+                     "Dump origin absent from saved-context unwind: %.*s (%u frames, mode=%lu)\n",
+                     static_cast<int>(expectedOrigin.size()),
+                     expectedOrigin.data(),
+                     walkedCount,
+                     walkMode);
+        std::fprintf(stderr,
+                     "Unwind stop=%s context-flags=%lx initial-pc=%llx sp=%llx fp=%llx function-lookups=%u missing=%u last-lookup=%llx\n",
+                     stopReason,
+                     initialFlags,
+                     initialPc,
+                     initialSp,
+                     initialFp,
+                     functionTableRequests,
+                     missingFunctionTables,
+                     lastFunctionTableAddress);
+#if defined(_M_ARM64)
+        std::fprintf(stderr,
+                     "ARM64 initial-lr=%llx last-function-entry=%lx/%lx PAC-queries=%u\n",
+                     initialLr,
+                     lastFunctionTableEntry[0],
+                     lastFunctionTableEntry[1],
+                     pointerAuthenticationQueries);
+#endif
+        for (unsigned index = 0; index < walkedCount; ++index)
         {
             alignas(SYMBOL_INFO) std::array<std::byte, sizeof(SYMBOL_INFO) + MAX_SYM_NAME> storage{};
             auto* symbol         = reinterpret_cast<SYMBOL_INFO*>(storage.data());
             symbol->SizeOfStruct = sizeof(SYMBOL_INFO);
             symbol->MaxNameLen   = MAX_SYM_NAME;
             DWORD64 displacement{};
-            if (SymFromAddr(symbolKey, frame.AddrPC.Offset, &displacement, symbol) &&
-                std::string_view(symbol->Name, symbol->NameLen).find(expectedOrigin) != std::string_view::npos)
-            {
-                IMAGEHLP_MODULEW64 details{};
-                details.SizeOfStruct = sizeof(details);
-#if defined(_M_ARM64)
+            if (SymFromAddr(symbolKey, walked[index], &displacement, symbol))
                 std::fprintf(stderr,
-                             "Native ARM64 saved-context StackWalk2 origin=%.*s PAC-queries=%u\n",
-                             static_cast<int>(expectedOrigin.size()),
-                             expectedOrigin.data(),
-                             pointerAuthenticationQueries);
-#endif
-                return SymGetModuleInfoW64(symbolKey, targetBase, &details) && details.SymType == SymPdb && ! details.PdbUnmatched &&
-                       details.LoadedPdbName[0] && ! std::memcmp(&targetSignature, &details.PdbSig70, sizeof(targetSignature)) && targetAge == details.PdbAge;
-            }
+                             "  %llx %.*s+%llx sp=%llx fp=%llx return=%llx\n",
+                             walked[index],
+                             static_cast<int>(symbol->NameLen),
+                             symbol->Name,
+                             displacement,
+                             stackPointers[index],
+                             framePointers[index],
+                             returnAddresses[index]);
+            else
+                std::fprintf(stderr,
+                             "  %llx (unresolved) sp=%llx fp=%llx return=%llx\n",
+                             walked[index],
+                             stackPointers[index],
+                             framePointers[index],
+                             returnAddresses[index]);
         }
-        const auto pc = frame.AddrPC.Offset, sp = frame.AddrStack.Offset;
-#if defined(_M_ARM64)
-        const bool advanced =
-            walk(machine, symbolKey, threadKey, &frame, &context, ReadMemory, FunctionTable, ModuleBase, nullptr, TargetAttribute, SYM_STKWALK_DEFAULT) !=
-            FALSE;
-#else
-        const bool advanced = StackWalk64(machine, symbolKey, threadKey, &frame, &context, ReadMemory, FunctionTable, ModuleBase, nullptr) != FALSE;
-#endif
-        if (! advanced || ! frame.AddrPC.Offset || (step != 0u && frame.AddrPC.Offset == pc && frame.AddrStack.Offset == sp))
-            break;
-    }
-    std::fprintf(stderr,
-                 "Dump origin absent from saved-context unwind: %.*s (%u frames)\n",
-                 static_cast<int>(expectedOrigin.size()),
-                 expectedOrigin.data(),
-                 walkedCount);
-    for (unsigned index = 0; index < walkedCount; ++index)
-    {
-        alignas(SYMBOL_INFO) std::array<std::byte, sizeof(SYMBOL_INFO) + MAX_SYM_NAME> storage{};
-        auto* symbol         = reinterpret_cast<SYMBOL_INFO*>(storage.data());
-        symbol->SizeOfStruct = sizeof(SYMBOL_INFO);
-        symbol->MaxNameLen   = MAX_SYM_NAME;
-        DWORD64 displacement{};
-        if (SymFromAddr(symbolKey, walked[index], &displacement, symbol))
-            std::fprintf(stderr, "  %llx %.*s+%llx\n", walked[index], static_cast<int>(symbol->NameLen), symbol->Name, displacement);
-        else
-            std::fprintf(stderr, "  %llx (unresolved)\n", walked[index]);
     }
     return false;
 }
