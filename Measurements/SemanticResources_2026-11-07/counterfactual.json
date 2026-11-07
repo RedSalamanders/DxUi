@@ -1,0 +1,312 @@
+{
+  "schemaVersion": 1,
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-semantic-resources-unicode-prefixes-counterfactual",
+  "inputHash": "CD88B83876AB5849BEDD26EC8EA8EFAD04B0BF22AFB04D8316688B4E06B87432",
+  "benchmarkInputs": {
+    "src/Controls/DxUi.RichSemanticDocument.cpp": "ADBE6C52101026460B85D2BB038BB3077FC93C72C2DA45D193DCF5B56F70E683",
+    "src/Controls/DxUi.RichSemanticGeometry.cpp": "176A4A85DFDD655C8C392FCFC97B0F6E064BF744F48141D29D63D413C344139E",
+    "src/Controls/DxUi.SingleLineTextEditing.cpp": "77F94092A52EBC82766C46C1FB3181F84959A821FA5496E1EE3387E5B56E6DFA",
+    "src/Controls/DxUi.RichBidi.h": "6F8DEBB43C9E17E150A30CBC270CFC4F8A90DE7FE16F67750EF06E40B777E7DE",
+    "src/Controls/DxUi.Internal.h": "FE04CDDCE156A73165BF7317D635BE34475EC0360283818330344DE99B880595",
+    "src/Controls/DxUi.SemanticExtensions.h": "75E91CF79A753A154B5DC7482F748B936190FB5EA10FD27251C0E2FBE56632B3",
+    "src/Controls/DxUi.MarkdownUnicodeData.h": "0EE80F696FEE5928BFCF6E362C03825062AB45F46837408DB2829B424189D9CE",
+    "Tests/Support/Support.Tests.RichSemanticDocument.h": "3D1A78EF0CE5957D5CBDE5B8E7B66E213DDA1046922D8ADB52CEE4AD16641D11",
+    "Tests/Support/Support.Tests.RichSemanticGeometry.h": "E619A2481243A0E94F764AE9DCDF4D5366818616ACDDD20756572A8E52DC1676",
+    "Tests/Embedded/Embedded.Tests.RichImageFailures.h": "8CE07D45F83A8A2C2805EF2958474122C33696F67352DFBF9A209367D7AEE479"
+  },
+  "claim": "Six independent shared-fixture baseline failures and candidate passes; focused patch-object proof, not complete SDK/platform/performance qualification",
+  "baselineImplementation": "1352cc7fd244909e1c274b7d567485b9e98d7f1a",
+  "candidateCheckpoint": "54bea8333c7a6658a1c4d52991edb7e4aa68493e",
+  "candidateTranslationUnits": [
+    "src/Controls/DxUi.RichSemanticDocument.cpp",
+    "src/Controls/DxUi.RichSemanticGeometry.cpp",
+    "src/Controls/DxUi.SingleLineTextEditing.cpp"
+  ],
+  "sharedTestObjectSha256": "D07B47B3E5EBA69B1DF4119DEE96456ACCC6056729C288F10CE2A5EBB158EAF8",
+  "originalArchive": {
+    "allMembersVerified": true,
+    "sha256": "CD88B83876AB5849BEDD26EC8EA8EFAD04B0BF22AFB04D8316688B4E06B87432",
+    "files": [
+      {
+        "path": "probe/SemanticProbe.cpp",
+        "sha256": "7DA7F912230BE43991B3CFBF47416D2A07784DF857FA38B6E364393B0664ABA3",
+        "bytes": 1752
+      },
+      {
+        "path": "probe/RasterFixture.inc",
+        "sha256": "8284964FA5BA654511B7CC053B0D3186D005E43E2C0F15A45415C43722524C2D",
+        "bytes": 27842
+      },
+      {
+        "path": "probe/SemanticBaseline.vcxproj",
+        "sha256": "6FD1980A0C617DEB6509E39FDB7A302D7E9CA2B463BBF2CCDD0899A7490CCB69",
+        "bytes": 4698
+      },
+      {
+        "path": "probe/SemanticCandidate.vcxproj",
+        "sha256": "FA01713E2D2852E756127CCFBEC169EE80585CB246987D3300DC32460F5A9E0A",
+        "bytes": 4952
+      },
+      {
+        "path": "probe/original-baseline-inputs.json",
+        "sha256": "B616633DB7B9568FC100FB159CECC4E2288DD7E80A2EA1B594CAA37CF8498371",
+        "bytes": 125298
+      },
+      {
+        "path": "probe/baseline-six-fixtures-build.log",
+        "sha256": "7DCCAA6208A1B96C55B66A3C027B02D28CBB370DE2CE9EED63B915B3964071D0",
+        "bytes": 173
+      },
+      {
+        "path": "probe/candidate-six-fixtures-build.log",
+        "sha256": "FB6108118B7BA4166A92C1C9B49C7DA6D01296552928EBB782F0F29AEC4B1D8C",
+        "bytes": 154
+      },
+      {
+        "path": "probe/candidate-nested-prefix-build.log",
+        "sha256": "52481BF2C98792D01848BF44F10594724BD580823BDDC28584BE9017AC0656F5",
+        "bytes": 187
+      },
+      {
+        "path": "probe/six-final-results.json",
+        "sha256": "6DCDACCC5C928F9364BF8E2EE6CEC859D809B45BF5C54CE41E729D269FBD4D8D",
+        "bytes": 3063
+      },
+      {
+        "path": "baseline/SemanticProbe.exe",
+        "sha256": "C46466D385EB46283C3A68D7C3EE4875481017133557A2418F4906F273A63591",
+        "bytes": 2249216
+      },
+      {
+        "path": "baseline/SemanticProbe.pdb",
+        "sha256": "5C38929D90CC02AB3C9F385D1A92E9B1646C57BC11C65463F2B9B6AF643B1094",
+        "bytes": 23867392
+      },
+      {
+        "path": "runs/baseline-words.log",
+        "sha256": "AD6B008E3C7361096AA32E64790215CCD0E6CFC39A5CAA16CD5FCB937F2A3FFB",
+        "bytes": 93
+      },
+      {
+        "path": "runs/baseline-word-navigation.log",
+        "sha256": "5B7140901D54EBF1B95A4B63BD88F39809A280DBBBB0855C42BF4957E4F5C857",
+        "bytes": 93
+      },
+      {
+        "path": "runs/baseline-prefix.log",
+        "sha256": "72F463E3C9DCB4C3264DC0A3C39E2284B5D22889452FFBF93CC48794BE3FD77A",
+        "bytes": 84
+      },
+      {
+        "path": "runs/baseline-direction.log",
+        "sha256": "4A4D84F5CEECB0421DA32A1B10B902FCC8660CA269CB3F7E2439936DE22CC205",
+        "bytes": 104
+      },
+      {
+        "path": "runs/baseline-math.log",
+        "sha256": "D06180CD719C826555CF48F5A75B51B906680C90B40B304A3DBAD85D8B2D2F10",
+        "bytes": 103
+      },
+      {
+        "path": "runs/baseline-bitmap.log",
+        "sha256": "A0AB67D26BC9C7760DC7A909D545E470352F02621DB7E9625F49F9066D0C940C",
+        "bytes": 75
+      },
+      {
+        "path": "candidate/SemanticProbe.exe",
+        "sha256": "1483EECC91D03128995DACB77999AAE9F37A3C4E0D8EEF3CE5343B4DD4D3CA6D",
+        "bytes": 2250752
+      },
+      {
+        "path": "candidate/SemanticProbe.pdb",
+        "sha256": "0CC5AB6F7139CD2897A26B11B11114E5F95ACAE5864CCB99F098BF5975B95C94",
+        "bytes": 23908352
+      },
+      {
+        "path": "runs/candidate-words.log",
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+        "bytes": 0
+      },
+      {
+        "path": "runs/candidate-word-navigation.log",
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+        "bytes": 0
+      },
+      {
+        "path": "runs/candidate-prefix.log",
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+        "bytes": 0
+      },
+      {
+        "path": "runs/candidate-direction.log",
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+        "bytes": 0
+      },
+      {
+        "path": "runs/candidate-math.log",
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+        "bytes": 0
+      },
+      {
+        "path": "runs/candidate-bitmap.log",
+        "sha256": "DE7CF716902489BEC31FB028B1FE129A1F7AC7B9C5C7D9538FB629084CA0B32E",
+        "bytes": 70
+      },
+      {
+        "path": "shared-test.obj",
+        "sha256": "D07B47B3E5EBA69B1DF4119DEE96456ACCC6056729C288F10CE2A5EBB158EAF8",
+        "bytes": 13402364
+      },
+      {
+        "path": "src/Controls/DxUi.RichSemanticDocument.cpp",
+        "sha256": "ADBE6C52101026460B85D2BB038BB3077FC93C72C2DA45D193DCF5B56F70E683",
+        "bytes": 150185
+      },
+      {
+        "path": "src/Controls/DxUi.RichSemanticGeometry.cpp",
+        "sha256": "176A4A85DFDD655C8C392FCFC97B0F6E064BF744F48141D29D63D413C344139E",
+        "bytes": 226842
+      },
+      {
+        "path": "src/Controls/DxUi.SingleLineTextEditing.cpp",
+        "sha256": "77F94092A52EBC82766C46C1FB3181F84959A821FA5496E1EE3387E5B56E6DFA",
+        "bytes": 40509
+      },
+      {
+        "path": "src/Controls/DxUi.RichBidi.h",
+        "sha256": "6F8DEBB43C9E17E150A30CBC270CFC4F8A90DE7FE16F67750EF06E40B777E7DE",
+        "bytes": 2037
+      },
+      {
+        "path": "src/Controls/DxUi.Internal.h",
+        "sha256": "FE04CDDCE156A73165BF7317D635BE34475EC0360283818330344DE99B880595",
+        "bytes": 53223
+      },
+      {
+        "path": "src/Controls/DxUi.SemanticExtensions.h",
+        "sha256": "75E91CF79A753A154B5DC7482F748B936190FB5EA10FD27251C0E2FBE56632B3",
+        "bytes": 6316
+      },
+      {
+        "path": "src/Controls/DxUi.MarkdownUnicodeData.h",
+        "sha256": "0EE80F696FEE5928BFCF6E362C03825062AB45F46837408DB2829B424189D9CE",
+        "bytes": 89379
+      },
+      {
+        "path": "Tests/Support/Support.Tests.RichSemanticDocument.h",
+        "sha256": "3D1A78EF0CE5957D5CBDE5B8E7B66E213DDA1046922D8ADB52CEE4AD16641D11",
+        "bytes": 83770
+      },
+      {
+        "path": "Tests/Support/Support.Tests.RichSemanticGeometry.h",
+        "sha256": "E619A2481243A0E94F764AE9DCDF4D5366818616ACDDD20756572A8E52DC1676",
+        "bytes": 175595
+      },
+      {
+        "path": "Tests/Embedded/Embedded.Tests.RichImageFailures.h",
+        "sha256": "8CE07D45F83A8A2C2805EF2958474122C33696F67352DFBF9A209367D7AEE479",
+        "bytes": 45517
+      }
+    ]
+  },
+  "results": [
+    {
+      "fixture": "words",
+      "logSha256": "AD6B008E3C7361096AA32E64790215CCD0E6CFC39A5CAA16CD5FCB937F2A3FFB",
+      "kind": "baseline",
+      "exitCode": 1,
+      "exeSha256": "C46466D385EB46283C3A68D7C3EE4875481017133557A2418F4906F273A63591"
+    },
+    {
+      "fixture": "word-navigation",
+      "logSha256": "5B7140901D54EBF1B95A4B63BD88F39809A280DBBBB0855C42BF4957E4F5C857",
+      "kind": "baseline",
+      "exitCode": 1,
+      "exeSha256": "C46466D385EB46283C3A68D7C3EE4875481017133557A2418F4906F273A63591"
+    },
+    {
+      "fixture": "prefix",
+      "logSha256": "72F463E3C9DCB4C3264DC0A3C39E2284B5D22889452FFBF93CC48794BE3FD77A",
+      "kind": "baseline",
+      "exitCode": 1,
+      "exeSha256": "C46466D385EB46283C3A68D7C3EE4875481017133557A2418F4906F273A63591"
+    },
+    {
+      "fixture": "direction",
+      "logSha256": "4A4D84F5CEECB0421DA32A1B10B902FCC8660CA269CB3F7E2439936DE22CC205",
+      "kind": "baseline",
+      "exitCode": 1,
+      "exeSha256": "C46466D385EB46283C3A68D7C3EE4875481017133557A2418F4906F273A63591"
+    },
+    {
+      "fixture": "math",
+      "logSha256": "D06180CD719C826555CF48F5A75B51B906680C90B40B304A3DBAD85D8B2D2F10",
+      "kind": "baseline",
+      "exitCode": 1,
+      "exeSha256": "C46466D385EB46283C3A68D7C3EE4875481017133557A2418F4906F273A63591"
+    },
+    {
+      "fixture": "bitmap",
+      "logSha256": "A0AB67D26BC9C7760DC7A909D545E470352F02621DB7E9625F49F9066D0C940C",
+      "kind": "baseline",
+      "exitCode": 1,
+      "exeSha256": "C46466D385EB46283C3A68D7C3EE4875481017133557A2418F4906F273A63591"
+    },
+    {
+      "fixture": "words",
+      "logSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "kind": "candidate",
+      "exitCode": 0,
+      "exeSha256": "1483EECC91D03128995DACB77999AAE9F37A3C4E0D8EEF3CE5343B4DD4D3CA6D"
+    },
+    {
+      "fixture": "word-navigation",
+      "logSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "kind": "candidate",
+      "exitCode": 0,
+      "exeSha256": "1483EECC91D03128995DACB77999AAE9F37A3C4E0D8EEF3CE5343B4DD4D3CA6D"
+    },
+    {
+      "fixture": "prefix",
+      "logSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "kind": "candidate",
+      "exitCode": 0,
+      "exeSha256": "1483EECC91D03128995DACB77999AAE9F37A3C4E0D8EEF3CE5343B4DD4D3CA6D"
+    },
+    {
+      "fixture": "direction",
+      "logSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "kind": "candidate",
+      "exitCode": 0,
+      "exeSha256": "1483EECC91D03128995DACB77999AAE9F37A3C4E0D8EEF3CE5343B4DD4D3CA6D"
+    },
+    {
+      "fixture": "math",
+      "logSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "kind": "candidate",
+      "exitCode": 0,
+      "exeSha256": "1483EECC91D03128995DACB77999AAE9F37A3C4E0D8EEF3CE5343B4DD4D3CA6D"
+    },
+    {
+      "fixture": "bitmap",
+      "logSha256": "DE7CF716902489BEC31FB028B1FE129A1F7AC7B9C5C7D9538FB629084CA0B32E",
+      "kind": "candidate",
+      "exitCode": 0,
+      "exeSha256": "1483EECC91D03128995DACB77999AAE9F37A3C4E0D8EEF3CE5343B4DD4D3CA6D"
+    }
+  ],
+  "observations": [
+    "Complete scalar word admission and native/UIA mixed-word boundaries both fail before and pass after",
+    "Definition/callout prefixes, independent nested list markers and footer labels preserve exact source",
+    "Authored RTL direction excludes generated object alternatives without splitting isolate state",
+    "A new immutable snapshot reuses both existing formulas without preparation",
+    "Completing one image or replacing one frame adds exactly one upload while unchanged images remain shared"
+  ],
+  "limits": [
+    "The remaining SDK comes from the retained baseline; complete current-source qualification is separate",
+    "Original first baseline images and the nested-prefix regression source/images remain retained",
+    "The first partial candidate retained logs but its images were replaced before archival; it is not accepted qualification",
+    "No consumer, foreground/physical input, native ARM64 or formal paired-performance acceptance"
+  ]
+}

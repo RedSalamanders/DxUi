@@ -1668,6 +1668,7 @@ void TestRichTextLayoutCopyMoveOwnership()
 void TestPreparedFlowchartSdkBudgetAndLifetime()
 {
     PreparedFlowchartTests::BudgetAndLifecycle(Require);
+    PreparedFlowchartTests::RepeatedEdgeLabels(Require);
 }
 void TestPreparedFlowchartIndependentSdkRasterOracle()
 {

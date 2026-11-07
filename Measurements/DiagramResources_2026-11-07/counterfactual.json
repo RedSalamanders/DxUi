@@ -1,0 +1,185 @@
+{
+  "schemaVersion": 1,
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-note-route-and-repeated-edge-label-counterfactual",
+  "inputHash": "6A2AE9D957016BAE910CED2F2B87FC62ECCE070D42CE01075597D5B344BB76F3",
+  "benchmarkInputs": {
+    "src/Controls/DxUi.RichSemanticDocument.cpp": "ADBE6C52101026460B85D2BB038BB3077FC93C72C2DA45D193DCF5B56F70E683",
+    "src/Controls/DxUi.RichSemanticGeometry.cpp": "176A4A85DFDD655C8C392FCFC97B0F6E064BF744F48141D29D63D413C344139E",
+    "src/Controls/DxUi.SingleLineTextEditing.cpp": "77F94092A52EBC82766C46C1FB3181F84959A821FA5496E1EE3387E5B56E6DFA",
+    "src/Controls/DxUi.NativeFlowchartLayout.cpp": "49C156280DE43326401C9AA045E125BEA7C69270B431D023113D272803BB6D85",
+    "src/Controls/DxUi.PreparedFlowchart.cpp": "09C5C9A3E75BE04C50277AA775C86FF06DFA5CCA2CF4A3B82D87CB3529F7263E",
+    "Tests/Support/Support.Tests.FlowchartLayout.h": "FFEE07D7DB86EC702EE63D743D5FB12335593E79624F10AB6FDE0C1FE778A47D",
+    "Tests/Support/Support.Tests.PreparedFlowchart.h": "AC48147BB4EB45735A370D8F43AC756A17DA5C8EF553FC4CD11AB561CC8242E5"
+  },
+  "baselineImplementation": "1352cc7fd244909e1c274b7d567485b9e98d7f1a",
+  "candidateParent": "54bea8333c7a6658a1c4d52991edb7e4aa68493e",
+  "candidateTranslationUnits": [
+    "src/Controls/DxUi.RichSemanticDocument.cpp",
+    "src/Controls/DxUi.RichSemanticGeometry.cpp",
+    "src/Controls/DxUi.SingleLineTextEditing.cpp",
+    "src/Controls/DxUi.NativeFlowchartLayout.cpp",
+    "src/Controls/DxUi.PreparedFlowchart.cpp"
+  ],
+  "claim": "Two shared-fixture baseline failures and focused candidate passes; complete current SDK/platform qualification is separate",
+  "results": [
+    {
+      "kind": "baseline",
+      "logSha256": "C7561A518FAEFABD8187DCBC522A5C100AE7272E03BC8BC554F77CFF4CF9A57C",
+      "fixture": "notes",
+      "logText": "FAIL rich semantic: edge routes avoid node interiors, including skipped ranks\r\n",
+      "exitCode": 1
+    },
+    {
+      "kind": "baseline",
+      "logSha256": "7FC9948094B3525637BEB1E3B961965428C431518AF0B38BE51E1B26377D40FA",
+      "fixture": "labels",
+      "logText": "expanded-label measurements=512 total=560\r\nFAIL rich semantic: 512 identical edge captions share exactly one actual native text layout and measurement\r\n",
+      "exitCode": 1
+    },
+    {
+      "kind": "candidate",
+      "logSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "fixture": "notes",
+      "logText": null,
+      "exitCode": 0
+    },
+    {
+      "kind": "candidate",
+      "logSha256": "65F8C2A42FC328616AE69F2191C052CC291550462815114D121DFC5819CC1EE7",
+      "fixture": "labels",
+      "logText": "expanded-label measurements=1 total=49\r\n",
+      "exitCode": 0
+    }
+  ],
+  "originalArchive": {
+    "allMembersVerified": true,
+    "files": [
+      {
+        "path": "runs/baseline-notes.log",
+        "bytes": 79,
+        "sha256": "C7561A518FAEFABD8187DCBC522A5C100AE7272E03BC8BC554F77CFF4CF9A57C"
+      },
+      {
+        "path": "runs/baseline-labels.log",
+        "bytes": 152,
+        "sha256": "7FC9948094B3525637BEB1E3B961965428C431518AF0B38BE51E1B26377D40FA"
+      },
+      {
+        "path": "baseline/SemanticProbe.exe",
+        "bytes": 2268672,
+        "sha256": "105DF528307C35C3E95F344633A785EAC89CCE047270C74626EE293CF043C4B5"
+      },
+      {
+        "path": "baseline/SemanticProbe.pdb",
+        "bytes": 23965696,
+        "sha256": "C56C9D3E39B52C0D2697A1B195B153948CF064D16A062B4CB251E02DABF26385"
+      },
+      {
+        "path": "runs/candidate-notes.log",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "runs/candidate-labels.log",
+        "bytes": 40,
+        "sha256": "65F8C2A42FC328616AE69F2191C052CC291550462815114D121DFC5819CC1EE7"
+      },
+      {
+        "path": "candidate/SemanticProbe.exe",
+        "bytes": 2272768,
+        "sha256": "BB4C2197ACDBD52C770C7A4F955C89F0E204F25C856146AC5C9E0CDCE5A8A231"
+      },
+      {
+        "path": "candidate/SemanticProbe.pdb",
+        "bytes": 24121344,
+        "sha256": "A04663440BF6191D77A1325DADC050002D14570F384C0B83749F15BEB3C6D486"
+      },
+      {
+        "path": "probe/SemanticProbe.cpp",
+        "bytes": 1990,
+        "sha256": "3CDC5E0CB36F9F9FC8912C9D08346A2F457F120233933AC62ADC0FC047D7B7FA"
+      },
+      {
+        "path": "probe/RasterFixture.inc",
+        "bytes": 27842,
+        "sha256": "8284964FA5BA654511B7CC053B0D3186D005E43E2C0F15A45415C43722524C2D"
+      },
+      {
+        "path": "probe/SemanticBaseline.vcxproj",
+        "bytes": 4698,
+        "sha256": "6FD1980A0C617DEB6509E39FDB7A302D7E9CA2B463BBF2CCDD0899A7490CCB69"
+      },
+      {
+        "path": "probe/SemanticCandidate.vcxproj",
+        "bytes": 5166,
+        "sha256": "229363A946E5819EFEE20AF58EA0452DA6E33FD8C8B88BED00870CF305489E92"
+      },
+      {
+        "path": "probe/original-baseline-inputs.json",
+        "bytes": 125298,
+        "sha256": "B616633DB7B9568FC100FB159CECC4E2288DD7E80A2EA1B594CAA37CF8498371"
+      },
+      {
+        "path": "probe/baseline-diagram-cases-corrected-build.log",
+        "bytes": 173,
+        "sha256": "7DCCAA6208A1B96C55B66A3C027B02D28CBB370DE2CE9EED63B915B3964071D0"
+      },
+      {
+        "path": "probe/candidate-diagram-cases-build.log",
+        "bytes": 218,
+        "sha256": "970D6CAA804C70BFD5D05114B148299860C2A2AE62CECCA24DB179D69FA9EA16"
+      },
+      {
+        "path": "shared-test.obj",
+        "bytes": 13516311,
+        "sha256": "6F417FB5C7722B921BC1B504A29A8F82FF7E6C0D18508BD7C28EE14FE8DBAB08"
+      },
+      {
+        "path": "src/Controls/DxUi.RichSemanticDocument.cpp",
+        "bytes": 150185,
+        "sha256": "ADBE6C52101026460B85D2BB038BB3077FC93C72C2DA45D193DCF5B56F70E683"
+      },
+      {
+        "path": "src/Controls/DxUi.RichSemanticGeometry.cpp",
+        "bytes": 226842,
+        "sha256": "176A4A85DFDD655C8C392FCFC97B0F6E064BF744F48141D29D63D413C344139E"
+      },
+      {
+        "path": "src/Controls/DxUi.SingleLineTextEditing.cpp",
+        "bytes": 40509,
+        "sha256": "77F94092A52EBC82766C46C1FB3181F84959A821FA5496E1EE3387E5B56E6DFA"
+      },
+      {
+        "path": "src/Controls/DxUi.NativeFlowchartLayout.cpp",
+        "bytes": 82123,
+        "sha256": "49C156280DE43326401C9AA045E125BEA7C69270B431D023113D272803BB6D85"
+      },
+      {
+        "path": "src/Controls/DxUi.PreparedFlowchart.cpp",
+        "bytes": 61501,
+        "sha256": "09C5C9A3E75BE04C50277AA775C86FF06DFA5CCA2CF4A3B82D87CB3529F7263E"
+      },
+      {
+        "path": "Tests/Support/Support.Tests.FlowchartLayout.h",
+        "bytes": 64371,
+        "sha256": "FFEE07D7DB86EC702EE63D743D5FB12335593E79624F10AB6FDE0C1FE778A47D"
+      },
+      {
+        "path": "Tests/Support/Support.Tests.PreparedFlowchart.h",
+        "bytes": 152908,
+        "sha256": "AC48147BB4EB45735A370D8F43AC756A17DA5C8EF553FC4CD11AB561CC8242E5"
+      }
+    ],
+    "sha256": "6A2AE9D957016BAE910CED2F2B87FC62ECCE070D42CE01075597D5B344BB76F3"
+  },
+  "observations": [
+    "A final note crossed by an orthogonal edge or edge label is refused with empty geometry; noncolliding notes remain admitted",
+    "The same 512-edge Cartesian graph creates 512 matching/560 total DirectWrite layouts before and one matching/49 total afterward",
+    "Identical text with different styles remains distinct; identical text/style across statements shares layout"
+  ],
+  "limits": [
+    "This retained baseline SDK plus five candidate translation units is focused functional/resource evidence, not a full current SDK build",
+    "No native ARM64, consumer adoption, physical input or formal paired-performance acceptance is inferred"
+  ]
+}

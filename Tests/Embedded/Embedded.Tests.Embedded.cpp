@@ -2070,6 +2070,7 @@ __declspec(noinline) static int RunFunctionalTests()
     TestNativeFlowchartAllocationFailureAtomicity();
     FlowchartLayoutTests::Geometry(Check);
     FlowchartLayoutTests::Corpus(Check);
+    FlowchartLayoutTests::NotesAvoidRoutes(Check);
     FlowchartLayoutTests::CrossingReduction(Check);
     FlowchartLayoutTests::Admission(Check);
     TestNativeFlowchartLayoutAllocationFailureAtomicity();
@@ -2079,6 +2080,7 @@ __declspec(noinline) static int RunFunctionalTests()
     TestSemanticDiagramAllocationFailures();
     TestScopedSemanticSourceAllocationFailures();
     PreparedFlowchartTests::BudgetAndLifecycle(Check);
+    PreparedFlowchartTests::RepeatedEdgeLabels(Check);
     PreparedFlowchartTests::RasterOracle(Check);
     PreparedFlowchartTests::EdgeLabelRasterOracle(Check);
     PreparedFlowchartTests::LineStyleRasterOracle(Check);

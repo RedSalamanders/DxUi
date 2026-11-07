@@ -443,6 +443,10 @@ and creates no SDK resources; complete extents are capped at 65,536 DIP per axis
 DWrite node and edge labels wrap at 12.5 times the selected font size by default;
 `diagramLabelWidthDip` selects a 1–4096 DIP maximum, or zero for the default.
 Explicit line breaks and complete label text remain visible within the resulting geometry.
+Repeated nonnumbered edge captions with the same text and style spans share one
+native text layout within a prepared generation, including Cartesian edge products.
+Each edge keeps its source, position and surface; different styles remain distinct.
+Preparation budgets and reports count actual layout creation, with bounded work for cache hits.
 Shaping and reusable native paint resources pass focused Debug checks, with intercepted
 SDK-call budgets, independent Unicode/bidi/multiline raster checks, separate
 typography/resource invalidation and compatible borrowed-target drawing. Edge
@@ -1615,6 +1619,13 @@ no JavaScript or headless-browser helper is deployed.
 
 ## Leading metadata envelopes
 
+The YAML and TOML parsers validate the structured front matter described here.
+They belong in DxUi because RichMarkdown owns its source ranges, diagnostics and
+Properties presentation. They are private implementation dependencies: libfyaml
+0.9.4 for YAML and header-only tomlplusplus 3.4.0 for TOML. They add no TOML runtime
+DLL or metadata syntax to the CommonMark/GFM profiles. Applications continue to
+own property schemas and settings policy.
+
 RichMarkdown analysis now recognizes a leading YAML `---` or TOML `+++` envelope,
 with an optional initial BOM. Fence lines must be exact, without spaces. YAML
 closes at `---` or `...`; TOML closes at `+++`. Later thematic breaks, indented
@@ -2094,6 +2105,9 @@ plain lines and a standalone `end note`; trimmed lines are joined with LF,
 including empty lines and literal semicolons or percent characters. Text is
 limited to 1024 UTF-16 units. Colliding notes, unsupported note forms and
 unterminated blocks fail closed to exact source.
+The final collision check includes orthogonal routes and edge captions crossing
+a note. Such a layout retains exact source instead of publishing partial geometry;
+notes with clear routes remain rendered.
 
 Class relationships admit composition (`*--`, `--*`, `*..`, `..*`) and
 aggregation (`o--`, `--o`, `o..`, `..o`). The diamond remains attached to the

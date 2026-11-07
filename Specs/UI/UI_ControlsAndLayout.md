@@ -2265,6 +2265,15 @@ is the default. `diagramLabelWidthDip` optionally sets a 1–4096 DIP width for
 all native diagram labels in the editor; zero retains the font-relative default.
 Changing it invalidates label geometry and preserves source, selection and history.
 
+Within one immutable graph/resource/typography generation, identical nonnumbered
+edge captions with identical style spans MUST share their prepared DirectWrite
+layout and measured size, including captions produced by Cartesian expansion.
+Different text or styles remain distinct. Each edge retains independent source,
+placement and surface treatment. The cache is bounded by the admitted edge count;
+node compartments, endpoint cardinalities and derived sequence numbers keep their
+separate preparation. Cooperative layout reports count actual native creations;
+cache hits consume ordinary bounded preparation steps without a native layout call.
+
 All shapes, labels, routes and arrowheads MUST fit the complete diagram bounds,
 with a 65,536-DIP extent limit per axis. Node/aggregate extent rejection publishes
 an explicit capacity issue with no partial geometry. Invalid/nonfinite/negative
@@ -3072,6 +3081,10 @@ plain lines and a standalone `end note`; trimmed lines are joined with LF,
 including empty lines and literal semicolons or percent characters. Text is
 limited to 1024 UTF-16 units. Colliding notes, unsupported note forms and
 unterminated blocks fail closed to exact source.
+Before publication, final transformed note bounds MUST exclude every orthogonal
+edge segment interior and edge-caption rectangle. A collision publishes the bounded
+diagram-extent issue with empty geometry, preserving the complete editable source.
+Boundary attachment is permitted; ordinary noncolliding notes remain supported.
 
 Class relationships admit composition (`*--`, `--*`, `*..`, `..*`) and
 aggregation (`o--`, `--o`, `o..`, `..o`). The diamond remains attached to the

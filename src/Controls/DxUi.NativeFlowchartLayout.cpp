@@ -1409,7 +1409,7 @@ struct NativeFlowchartLayout::Preparation
         if (cursor == plan->edges.size())
         {
             Then(Stage::CardinalityCheck);
-            if (! hasCardinality && graph->groups.empty())
+            if (! hasCardinality && graph->groups.empty() && ! hasNotes)
                 cursor = plan->edges.size();
             return;
         }
@@ -1480,6 +1480,36 @@ struct NativeFlowchartLayout::Preparation
         const auto current  = cursor++;
         const auto overlaps = [](const FlowchartRect& a, const FlowchartRect& b) noexcept
         { return a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height; };
+        if (hasNotes)
+        {
+            // Notes can occupy exterior routing lanes after attachment placement.
+            // Check final transformed geometry before any plan can be published.
+            const auto interior = [](FlowchartPoint a, FlowchartPoint b, const FlowchartRect& note) noexcept
+            {
+                if (a.x == b.x)
+                    return note.x < a.x && a.x < note.x + note.width && std::min(a.y, b.y) < note.y + note.height && std::max(a.y, b.y) > note.y;
+                if (a.y == b.y)
+                    return note.y < a.y && a.y < note.y + note.height && std::min(a.x, b.x) < note.x + note.width && std::max(a.x, b.x) > note.x;
+                return false;
+            };
+            const auto& edge = plan->edges[current];
+            for (const auto& node : plan->nodes)
+            {
+                if (node.shape != FlowchartShape::Note)
+                    continue;
+                if (edge.hasLabel && overlaps(edge.label, node.bounds))
+                {
+                    Fail(FlowchartLayoutIssue::DiagramExtent);
+                    return;
+                }
+                for (std::size_t point = 1u; point < edge.path.size(); ++point)
+                    if (interior(edge.path[point - 1u], edge.path[point], node.bounds))
+                    {
+                        Fail(FlowchartLayoutIssue::DiagramExtent);
+                        return;
+                    }
+            }
+        }
         if (plan->edges[current].hasLabel)
             for (const auto& group : plan->groups)
                 if (overlaps(plan->edges[current].label, group.label))

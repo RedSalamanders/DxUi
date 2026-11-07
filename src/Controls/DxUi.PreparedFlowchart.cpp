@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <map>
 #include <stdexcept>
 #include <wil/resource.h>
 #include <wil/result.h>
@@ -35,6 +36,35 @@ struct FlowchartLabel
     std::array<float, 16u> compartmentY{};
     std::size_t compartmentCount{};
     bool onNodeSurface{};
+};
+struct EdgeLabelKey
+{
+    std::wstring_view text;
+    const FlowchartLabelStyles* styles{};
+};
+struct EdgeLabelOrder
+{
+    bool operator()(const EdgeLabelKey& a, const EdgeLabelKey& b) const noexcept
+    {
+        if (a.text != b.text)
+            return a.text < b.text;
+        const auto aCount = a.styles ? a.styles->count : 0u;
+        const auto bCount = b.styles ? b.styles->count : 0u;
+        if (aCount != bCount)
+            return aCount < bCount;
+        for (std::size_t index = 0u; index < aCount; ++index)
+        {
+            const auto& left  = a.styles->spans[index];
+            const auto& right = b.styles->spans[index];
+            if (left.first != right.first)
+                return left.first < right.first;
+            if (left.last != right.last)
+                return left.last < right.last;
+            if (left.flags != right.flags)
+                return left.flags < right.flags;
+        }
+        return false;
+    }
 };
 bool SameTypography(const LayoutOptions& a, const LayoutOptions& b) noexcept
 {
@@ -274,6 +304,9 @@ struct PreparedFlowchart::State
     wil::com_ptr<ID2D1StrokeStyle> dottedStyle;
     wil::com_ptr<ID2D1StrokeStyle> dashedStyle;
     std::vector<FlowchartLabel> nodeLabels, edgeLabels, fromCardinalities, toCardinalities, groupLabels;
+    // Borrowed keys remain owned by the immutable graph for this generation.
+    // At most one representative per admitted edge; no text copies or global cache.
+    std::map<EdgeLabelKey, std::size_t, EdgeLabelOrder> edgeLabelCache;
     std::vector<FlowchartSize> nodeSizes, edgeSizes, fromCardinalitySizes, toCardinalitySizes, groupSizes;
     std::vector<wil::com_ptr<ID2D1PathGeometry>> nodePaths, arrowPaths;
     std::shared_ptr<const FlowchartLayoutPlan> geometry;
@@ -487,9 +520,6 @@ LayoutAdvance PreparedFlowchart::Advance(LayoutWorkBudget budget)
                                                       : edge->toCardinality;
                     if (node || ! label.empty())
                     {
-                        if (result.layoutsPrepared == budget.maximumLayouts)
-                            return result;
-                        ++result.layoutsPrepared;
                         auto& preparedLabel = node          ? state.nodeLabels[index]
                                               : group == 0u ? state.edgeLabels[index]
                                               : group == 1u ? state.fromCardinalities[index]
@@ -498,6 +528,25 @@ LayoutAdvance PreparedFlowchart::Advance(LayoutWorkBudget budget)
                                               : group == 0u ? state.edgeSizes[index]
                                               : group == 1u ? state.fromCardinalitySizes[index]
                                                             : state.toCardinalitySizes[index];
+                        // Node compartments and numbered messages have separate
+                        // postprocessing/temporary text. Only immutable edge labels
+                        // share layouts; every edge keeps its own source and placement.
+                        const bool cacheable = ! node && group == 0u && ! edge->sequenceNumber;
+                        const EdgeLabelKey key{label, cacheable ? &edge->styles : nullptr};
+                        if (cacheable)
+                        {
+                            const auto found = state.edgeLabelCache.find(key);
+                            if (found != state.edgeLabelCache.end())
+                            {
+                                preparedLabel = state.edgeLabels[found->second];
+                                measuredSize  = state.edgeSizes[found->second];
+                                ++work.cursor;
+                                break;
+                            }
+                        }
+                        if (result.layoutsPrepared == budget.maximumLayouts)
+                            return result;
+                        ++result.layoutsPrepared;
                         if (node && state.graph->family == NativeDiagramFamily::Gantt)
                         {
                             const auto& task  = state.graph->nodes[index];
@@ -553,6 +602,8 @@ LayoutAdvance PreparedFlowchart::Advance(LayoutWorkBudget budget)
                             }
                             prepared.compartmentCount = model.compartmentCount;
                         }
+                        if (cacheable)
+                            state.edgeLabelCache.emplace(key, index);
                     }
                     ++work.cursor;
                     break;
