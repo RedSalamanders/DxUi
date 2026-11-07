@@ -335,7 +335,7 @@ LayoutPreparationStatus PreparedDocumentLayout::BeginPreparation(
     next.factory        = factory;
     request->compatible = compatible;
     request->change     = change;
-    if (options.lineHeightMultiplier > 0.0f)
+    if (options.lineHeightMultiplier > 0.0f && mode != ViewMode::Source)
     {
         // A private origin line cannot have one height while a uniform SDK layout has another.
         // Select canonical geometry directly instead of preparing then discarding incompatible chunks.

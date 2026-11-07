@@ -1,0 +1,147 @@
+{
+  "schemaVersion": 1,
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-radio-group-header-accessible-name",
+  "inputHash": "9B69F7CD0DFF5B7453DE878D81E7027DEC17676748C4CD1BD990D586552C4A08",
+  "benchmarkInputs": {
+    "src/Controls/DxUi.Controls.cpp": "D55605B23C503610B307CBF5AA17ED100F54A30619A11051638093CF27BD2744",
+    "src/Controls/DxUi.Accessibility.cpp": "9894F4FE788EB7C6D1C2A36EEA2761960BF5B523B2D3D2F6B9DDE3BDFFB1111E",
+    "src/Controls/DxUi.Internal.h": "EDA99A235385966B63839A2FCB8A60631B7AB5DFF579C4835A146FAAFEA6A032",
+    "include/DxUi/DxUi.h": "F88CDF98CD516126AC0876FD4CA31BB17E6D886EF8804843363E4BC0592D7AD9",
+    "Tests/Controls/DxUi.Tests.Accessibility.cpp": "0540FEAB3B149C15E7075D36D7DBD624F1A474E13D7017B116DB68EA07125662",
+    "Tests/Embedded/Embedded.Tests.EmbeddedAccessibility.h": "151D31867359A05F796B9A3522BF368D8C88633FAC0B5BB058B7869ADF73AE5D"
+  },
+  "baselineImplementation": "1352cc7fd244909e1c274b7d567485b9e98d7f1a",
+  "candidateParent": "597934fc1670db5a5c5e4617b6bee662093e9c74",
+  "candidateTranslationUnits": [
+    "src/Controls/DxUi.Controls.cpp",
+    "src/Controls/DxUi.Accessibility.cpp"
+  ],
+  "claim": "Same compiled embedded provider fixture fails with the retained baseline and passes with two candidate translation units; complete native client/platform acceptance is separate",
+  "results": [
+    {
+      "executableSha256": "50D06D2C3930047105DC0234616ABB639D0CB1D259B918CDFDCF276DB94BE1BB",
+      "exitCode": 1,
+      "errors": 0,
+      "warnings": 0,
+      "role": "baseline",
+      "output": "radio Group Name follows header with explicit-name precedence\r\n"
+    },
+    {
+      "executableSha256": "46442155409E4AD6CBA9016424370FCD949408641048E46CD0639565C6D13F3A",
+      "exitCode": 0,
+      "errors": 0,
+      "warnings": 0,
+      "role": "candidate",
+      "output": null
+    }
+  ],
+  "originalArchive": {
+    "files": [
+      {
+        "bytes": 1779712,
+        "path": "baseline/RadioProbe.exe",
+        "sha256": "50D06D2C3930047105DC0234616ABB639D0CB1D259B918CDFDCF276DB94BE1BB"
+      },
+      {
+        "bytes": 21164032,
+        "path": "baseline/RadioProbe.pdb",
+        "sha256": "78BE75A5340EA03EFB0185AC5134394AC6C5294100D6825FCA1ACACC183082D8"
+      },
+      {
+        "bytes": 63,
+        "path": "runs/baseline.log",
+        "sha256": "FB93C2D5C1CBA76531D9990A5DAD09279F4D14A7DF1AC679C5703D1EC765B6DE"
+      },
+      {
+        "bytes": 161,
+        "path": "build/baseline.log",
+        "sha256": "6723B83405C7BBD28F497E4FED6B27D3F2A86A799A249206D73182C9C6CD887B"
+      },
+      {
+        "bytes": 1779712,
+        "path": "candidate/RadioProbe.exe",
+        "sha256": "46442155409E4AD6CBA9016424370FCD949408641048E46CD0639565C6D13F3A"
+      },
+      {
+        "bytes": 21213184,
+        "path": "candidate/RadioProbe.pdb",
+        "sha256": "BC6D7E118506711C4948386D7900BAAC3A02FDBB97A04E8AEA0CB772A25BEC0B"
+      },
+      {
+        "bytes": 0,
+        "path": "runs/candidate.log",
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "bytes": 145,
+        "path": "build/candidate.log",
+        "sha256": "B8F6CCDB928F852232A4845B92B894BA52E32098E2ACCE8BEC4B32AB9719365D"
+      },
+      {
+        "bytes": 457355,
+        "path": "src/Controls/DxUi.Controls.cpp",
+        "sha256": "D55605B23C503610B307CBF5AA17ED100F54A30619A11051638093CF27BD2744"
+      },
+      {
+        "bytes": 710899,
+        "path": "src/Controls/DxUi.Accessibility.cpp",
+        "sha256": "9894F4FE788EB7C6D1C2A36EEA2761960BF5B523B2D3D2F6B9DDE3BDFFB1111E"
+      },
+      {
+        "bytes": 53365,
+        "path": "src/Controls/DxUi.Internal.h",
+        "sha256": "EDA99A235385966B63839A2FCB8A60631B7AB5DFF579C4835A146FAAFEA6A032"
+      },
+      {
+        "bytes": 367010,
+        "path": "include/DxUi/DxUi.h",
+        "sha256": "F88CDF98CD516126AC0876FD4CA31BB17E6D886EF8804843363E4BC0592D7AD9"
+      },
+      {
+        "bytes": 744525,
+        "path": "Tests/Controls/DxUi.Tests.Accessibility.cpp",
+        "sha256": "0540FEAB3B149C15E7075D36D7DBD624F1A474E13D7017B116DB68EA07125662"
+      },
+      {
+        "bytes": 41230,
+        "path": "Tests/Embedded/Embedded.Tests.EmbeddedAccessibility.h",
+        "sha256": "151D31867359A05F796B9A3522BF368D8C88633FAC0B5BB058B7869ADF73AE5D"
+      },
+      {
+        "bytes": 3462,
+        "path": "probe/RadioProbe.cpp",
+        "sha256": "CCB50C24B2BC674CBCCF6A1CFDE3E528B69414A90A0E6FC4B261E11055EEA9DE"
+      },
+      {
+        "bytes": 4677,
+        "path": "probe/RadioBaseline.vcxproj",
+        "sha256": "80FEB242D0F5FF195F2C9A0291BB1A3AD0CFEC049EE5E3DB14C35D5423A9F618"
+      },
+      {
+        "bytes": 4800,
+        "path": "probe/RadioCandidate.vcxproj",
+        "sha256": "00AA9D6650B6AFC7844A42B1DCC9494153826D872AE9C49529367D84AD77DFBA"
+      },
+      {
+        "bytes": 6093954,
+        "path": "shared-test.obj",
+        "sha256": "3469E2F6437B77790E77CF653EAD3445F199166B90D96C1CF425FA080204B7BB"
+      }
+    ],
+    "sha256": "9B69F7CD0DFF5B7453DE878D81E7027DEC17676748C4CD1BD990D586552C4A08",
+    "allMembersVerified": true
+  },
+  "observations": [
+    "The Group Name follows its visible header through retained provider reads",
+    "Explicit accessible names override headers and clearing the explicit name restores the current header",
+    "The detached Group provider rejects further reads",
+    "The first candidate kept COM inside the view scope and closed its apartment before asynchronous releases drained; its E_INVALIDARG retirement failure/dump/images/source are retained",
+    "The corrected shared fixture keeps COM alive through the existing UninstallWhenIdle drain; no library retirement invariant was relaxed"
+  ],
+  "limits": [
+    "This retained SDK plus two candidate translation units is focused evidence, not complete current-SDK/native client acceptance",
+    "Native Group Name event and unchanged-header regressions are registered in the complete Accessibility suite; their source-bound native qualification is separate",
+    "No physical assistive-technology, consumer or formal paired-performance acceptance is inferred"
+  ]
+}

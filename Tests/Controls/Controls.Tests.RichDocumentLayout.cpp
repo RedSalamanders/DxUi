@@ -1,6 +1,7 @@
 #include "Controls.Tests.RichDocumentLayout.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "GraphicsFixture.h"
+#include "Support.Tests.UniformSourceChunks.h"
 #include <DxUi/RichTextLayout.h>
 #include <algorithm>
 #include <bit>
@@ -520,6 +521,31 @@ void TestRichDocumentLayoutWholeReferenceReuseAndStyleChanges()
         CompareDocumentGeometry(prepared, flat);
     }
 }
+void TestRichDocumentLayoutUniformSourceReuse()
+{
+    const auto factory = DocumentFactory();
+    UniformSourceTests::EditReuse(factory.get(), Require);
+    std::wstring seed;
+    for (unsigned line = 0u; line < 80u; ++line)
+        seed += L"source a\u0301 \U0001f600 and \u05d0\u05d1\u05d2\r\n";
+    for (const auto multiplier : {1.0f, 1.6f, 4.0f})
+        for (const auto width : {80.f, 417.f})
+            for (const auto direction : {DWRITE_READING_DIRECTION_LEFT_TO_RIGHT, DWRITE_READING_DIRECTION_RIGHT_TO_LEFT})
+                for (const auto ending : {L"end", L"\n"})
+                {
+                    Document document(seed + ending);
+                    LayoutOptions options;
+                    options.widthDip             = width;
+                    options.lineHeightMultiplier = multiplier;
+                    options.readingDirection     = direction;
+                    PreparedDocumentLayout prepared;
+                    PreparedLayout flat;
+                    prepared.Prepare(factory.get(), document.Snapshot(), document.Revision(), ViewMode::Source, options);
+                    flat.Prepare(factory.get(), Project(document.Snapshot(), document.Revision(), ViewMode::Source), options);
+                    Require(! prepared.UsesWholeGeometry() && prepared.ChunkCount() > 1u, "uniform Source oracle retains actual independent chunks");
+                    CompareDocumentGeometry(prepared, flat, 17u);
+                }
+}
 void TestRichDocumentLayoutEditsAndFailurePublication()
 {
     const auto factory = DocumentFactory();
@@ -681,7 +707,7 @@ void TestRichDocumentLayoutWarpRasterOracle()
     wil::com_ptr<ID2D1SolidColorBrush> brush;
     THROW_IF_FAILED(context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White), brush.put()));
     std::size_t comparedPairs = 0u;
-    for (unsigned profile = 0u; profile < 6u; ++profile)
+    for (unsigned profile = 0u; profile < 9u; ++profile)
     {
         auto input = seed;
         if (profile == 2u)
@@ -691,14 +717,17 @@ void TestRichDocumentLayoutWarpRasterOracle()
         }
         if (profile == 5u)
             input.insert(0u, 50000u, L'\n'); // Exercise large document coordinates with populated final viewports.
+        if (profile == 8u)
+            input.insert(0u, 1000u, L'\n');
         Document document(input);
-        const auto mode = profile == 1u ? ViewMode::Source : ViewMode::Rich;
+        const auto mode = profile == 1u || profile >= 6u ? ViewMode::Source : ViewMode::Rich;
         for (const auto direction : {DWRITE_READING_DIRECTION_LEFT_TO_RIGHT, DWRITE_READING_DIRECTION_RIGHT_TO_LEFT})
         {
             LayoutOptions options;
-            options.widthDip         = 417.0f;
-            options.fontSizeDip      = profile == 0u ? 18.0f : profile <= 2u ? 16.0f : profile == 3u ? 13.0f : 18.1f;
-            options.readingDirection = direction;
+            options.widthDip             = 417.0f;
+            options.fontSizeDip          = profile == 0u || profile == 6u ? 18.0f : profile <= 2u ? 16.0f : profile == 3u ? 13.0f : 18.1f;
+            options.lineHeightMultiplier = profile >= 6u ? 1.6f : 0.f;
+            options.readingDirection     = direction;
             PreparedDocumentLayout prepared;
             PreparedLayout flat;
             prepared.Prepare(factory.get(), document.Snapshot(), document.Revision(), mode, options);
@@ -754,8 +783,8 @@ void TestRichDocumentLayoutWarpRasterOracle()
             }
         }
     }
-    Require(comparedPairs == 108u, "all original and added font/large-origin WARP pixel pairs execute");
-    std::cout << "rich positioned raster exactPairs=" << comparedPairs << " fontProfiles=6 directions=2 transforms=3 viewports=3\n";
+    Require(comparedPairs == 162u, "all original and added font/large-origin/uniform Source WARP pixel pairs execute");
+    std::cout << "rich positioned raster exactPairs=" << comparedPairs << " fontProfiles=9 directions=2 transforms=3 viewports=3\n";
 }
 void TestRichDocumentLayoutBranchesOptionsAndCompaction()
 {
@@ -924,6 +953,7 @@ void RunRichDocumentLayoutTests()
 
     DXUI_RUN_TEST(TestRichDocumentLayoutWholeGeometryOracle);
     DXUI_RUN_TEST(TestRichDocumentLayoutWholeReferenceReuseAndStyleChanges);
+    DXUI_RUN_TEST(TestRichDocumentLayoutUniformSourceReuse);
     DXUI_RUN_TEST(TestRichDocumentLayoutEditsAndFailurePublication);
     DXUI_RUN_TEST(TestRichDocumentLayoutHeightChangesRepositionSuffix);
     DXUI_RUN_TEST(TestRichDocumentLayoutPrivateOriginsDoNotEnterProjection);

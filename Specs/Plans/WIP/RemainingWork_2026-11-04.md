@@ -177,10 +177,14 @@ any *different* remaining failure-channel problem belong to D-A1.
   supplementary-plane word starts (SEM-02/03/04/05). [Source-bound closeout](../Done/SemanticAndDiagramResources_2026-11-07.md)
   records independent retained-baseline failures, six zero-warning builds, all 66 ordinary x64 suite executions,
   real ASan detection and reviewed harness gallery. Native platforms, consumers and performance remain separate.
-- [ ] Restore bounded chunk reuse with nondefault line height (RENDER-02); preserve clean/dirty/hidden work,
-  per-frame resource rules and device-generation behavior.
-- [ ] Name RadioButtons groups and raise semantic state events; qualify UIA-client navigation/events/detach
-  (A11Y-01/02), rather than inferring accessibility from pixels.
+- [x] Restore bounded chunk reuse with nondefault Source line height (RENDER-02), preserving exact sequential
+  line geometry and pixels, clean/dirty/hidden work and per-frame resource rules. The
+  [scoped closeout](../Done/SourceSpacingAndRadioNaming_2026-11-07.md) records six zero-warning builds,
+  66 ordinary x64 suite executions, actual ASan, original-member verification and reviewed harness captures.
+- [x] Name RadioButtons groups with actual native UIA Name events, unchanged-header suppression and embedded
+  publication (A11Y-01); retained providers preserve navigation, selection and detach. The same
+  [scoped closeout](../Done/SourceSpacingAndRadioNaming_2026-11-07.md) retains the baseline counterexample.
+- [ ] Raise the remaining semantic state events (A11Y-02), with actual UIA-client event and detach checks.
 
 The remaining before-production P2/P3 IDs in the
 [review inventory](../Done/ProductionReview_2026-11-02.md#before-production-p2-set) stay owned by D-E1,

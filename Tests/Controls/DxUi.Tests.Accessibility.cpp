@@ -10489,6 +10489,7 @@ void TestAccessibilityRadioButtonsAreSelectionItems()
     auto panel  = std::make_unique<Panel>();
     auto* group = panel->AddChild<RadioButtons>();
     group->SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 104.0f));
+    group->SetHeader(L"Taille");
     RadioButton* const first  = group->AddItem(L"Premier");
     RadioButton* const second = group->AddItem(L"Second");
     panel->AddChild<Button>(L"Following")->SetBounds(D2D1::RectF(0.0f, 120.0f, 240.0f, 152.0f));
@@ -10521,6 +10522,43 @@ void TestAccessibilityRadioButtonsAreSelectionItems()
     RequireSucceeded(selection->get_SelectionContainer(container.put()), "radio choice returns its group container");
     Require(container && ReadProviderLongProperty(*container.get(), UIA_ControlTypePropertyId, "radio group type") == UIA_GroupControlTypeId,
             "the selection container is the actual radio group element");
+    Require(ReadProviderStringProperty(*container.get(), UIA_NamePropertyId, "radio group header") == L"Taille",
+            "the radio group exposes its visible header as its name");
+    {
+        UiaTest::Subscription subscription;
+        subscription.properties = {UIA_NamePropertyId};
+        SingleControlClient names(window, std::move(subscription));
+        static_cast<void>(names.client.WaitOutTheStream());
+        const auto mark = names.client.Mark();
+        group->SetHeader(L"Format");
+        const auto heard = names.client.WaitUntil(UiaTest::Client::kNotificationDeadlineMs,
+                                                  [&]
+        {
+            const auto events = names.client.DistinctSince(mark);
+            return std::ranges::any_of(events,
+                                       [](const UiaTest::HeardEvent& event)
+            {
+                return event.kind == UiaTest::EventKind::Property && event.id == UIA_NamePropertyId && event.controlType == UIA_GroupControlTypeId &&
+                       event.name == L"Format" && event.value == L"Format";
+            });
+        });
+        names.Expect(heard, "the native client hears the radio Group Name change");
+        static_cast<void>(names.client.WaitOutTheStream());
+        const auto unchanged = names.client.Mark();
+        group->SetHeader(L"Format");
+        static_cast<void>(names.client.WaitOutTheStream());
+        names.Expect(names.client.DistinctSince(unchanged).empty(), "an unchanged radio header raises no Name event");
+        group->SetAccessibleName(L"Explicit group");
+        group->SetHeader(L"Changed header");
+        Require(ReadProviderStringProperty(*container.get(), UIA_NamePropertyId, "explicit radio group name") == L"Explicit group",
+                "explicit names take precedence over visible group headers");
+        group->SetAccessibleName(L"");
+        Require(ReadProviderStringProperty(*container.get(), UIA_NamePropertyId, "restored radio header") == L"Changed header",
+                "clearing an explicit name restores the current header");
+        group->SetHeader(L"");
+        Require(ReadProviderStringProperty(*container.get(), UIA_NamePropertyId, "empty radio header").empty(),
+                "an empty header retains ordinary associated-label fallback");
+    }
     wil::com_ptr_nothrow<IRawElementProviderFragment> groupFragment, firstChoice, lastChoice, parent, next;
     RequireSucceeded(container.query_to(groupFragment.put()), "radio group has fragment navigation");
     RequireSucceeded(groupFragment->Navigate(NavigateDirection_FirstChild, firstChoice.put()), "first radio group child");

@@ -2166,14 +2166,25 @@ void TestRichTextDocumentLinePitchMatchesCanonicalAcrossChunks()
     canonical.Prepare(factory.get(), projection, options);
     PreparedDocumentLayout retained;
     retained.Prepare(factory.get(), document.Snapshot(), document.Revision(), ViewMode::Source, options);
-    Require(retained.UsesWholeGeometry() && retained.UsesWholeRaster() && retained.LastPreparation().wholeLayoutsPrepared == 1u &&
-                retained.LastPreparation().preparedChunks == 0u && retained.Height() == canonical.Height(),
-            "explicit line pitch chooses one canonical layout without preparing incompatible origin chunks");
+    Require(! retained.UsesWholeGeometry() && ! retained.UsesWholeRaster() && retained.LastPreparation().wholeLayoutsPrepared == 0u &&
+                retained.LastPreparation().preparedChunks > 1u && retained.Height() == canonical.Height(),
+            "explicit Source line pitch retains bounded chunks and the exact canonical document height");
     for (const size_t position : {size_t{0u}, size_t{1024u}, size_t{2048u}, size_t{4096u}, source.size()})
     {
         const auto expected = canonical.Caret(position), actual = retained.Caret(position);
         Require(expected.x == actual.x && expected.y == actual.y && expected.height == actual.height,
                 "line pitch and caret geometry stay canonical across all three chunk boundaries");
+        const auto expectedHit = canonical.HitTest(expected.x + .1f, expected.y + expected.height * .5f);
+        const auto actualHit   = retained.HitTest(expected.x + .1f, expected.y + expected.height * .5f);
+        Require(expectedHit.position == actualHit.position && expectedHit.trailing == actualHit.trailing && expectedHit.inside == actualHit.inside,
+                "uniform chunk hit testing retains the canonical source position and affinity");
+        const auto last          = std::min(position + 10u, source.size());
+        const auto expectedRange = canonical.Range(position, last), actualRange = retained.Range(position, last);
+        Require(expectedRange.size() == actualRange.size(), "uniform chunk selection keeps canonical rectangle ownership");
+        for (size_t index = 0u; index < expectedRange.size(); ++index)
+            Require(expectedRange[index].left == actualRange[index].left && expectedRange[index].top == actualRange[index].top &&
+                        expectedRange[index].right == actualRange[index].right && expectedRange[index].bottom == actualRange[index].bottom,
+                    "uniform chunk selection retains exact canonical coordinates");
     }
     GraphicsFixture graphics;
     THROW_IF_FAILED(graphics.Create());
