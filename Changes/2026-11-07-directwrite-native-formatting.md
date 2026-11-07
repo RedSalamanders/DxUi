@@ -1,1 +1,0 @@
-- Keep DirectWrite's internally handled lazy-formatting exceptions inside the audited native metrics boundary, preserve checked HRESULT refusal and add a 65,536-code-unit source/caret regression. SDK exceptions and escaping native exceptions retain fatal diagnostics.
