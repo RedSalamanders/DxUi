@@ -2471,6 +2471,7 @@ public:
 
 private:
     friend class RadioButton;
+    friend struct ControlModelQueryAccess;
     void SelectItem(RadioButton* item);
 
     std::shared_ptr<const std::function<void(int)>> _onSelectionChanged;

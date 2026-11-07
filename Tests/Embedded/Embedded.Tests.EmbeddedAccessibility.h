@@ -415,6 +415,7 @@ static void TestEmbeddedRadioGroupAccessibility(GraphicsFixture& gpu)
     auto controls = std::make_unique<Panel>();
     auto* group   = controls->AddChild<RadioButtons>();
     group->SetBounds(D2D1::RectF(0.f, 0.f, 280.f, 100.f));
+    group->SetHeader(L"Taille");
     auto* first  = group->AddItem(L"First");
     auto* second = group->AddItem(L"Second");
     first->SetBounds(D2D1::RectF(0.f, 0.f, 280.f, 40.f));
@@ -445,6 +446,27 @@ static void TestEmbeddedRadioGroupAccessibility(GraphicsFixture& gpu)
     wil::com_ptr_nothrow<IRawElementProviderSimple> container;
     Hr(item->get_SelectionContainer(container.put()), "embedded radio selection container");
     Check(bool(container), "embedded radio exposes its group container");
+    const auto expectGroupName = [&](std::wstring_view expected)
+    {
+        wil::unique_variant value;
+        Hr(container->GetPropertyValue(UIA_NamePropertyId, &value), "embedded radio group name");
+        Check(value.vt == VT_BSTR && value.bstrVal && std::wstring_view(value.bstrVal, SysStringLen(value.bstrVal)) == expected,
+              "embedded radio group name follows its header with explicit-name precedence");
+    };
+    expectGroupName(L"Taille");
+    group->SetHeader(L"Format");
+    Hr(view.Prepare(320u, 180u), "prepare renamed embedded radio group");
+    Hr(view.UpdateAccessibility(placement), "publish renamed embedded radio group");
+    expectGroupName(L"Format");
+    group->SetAccessibleName(L"Explicit group");
+    group->SetHeader(L"Changed header");
+    Hr(view.Prepare(320u, 180u), "prepare explicit embedded radio name");
+    Hr(view.UpdateAccessibility(placement), "publish explicit embedded radio name");
+    expectGroupName(L"Explicit group");
+    group->SetAccessibleName(L"");
+    Hr(view.Prepare(320u, 180u), "prepare restored embedded radio header");
+    Hr(view.UpdateAccessibility(placement), "publish restored embedded radio header");
+    expectGroupName(L"Changed header");
     wil::com_ptr_nothrow<IUnknown> unknown;
     Hr(container->GetPatternProvider(UIA_SelectionPatternId, unknown.put()), "embedded group selection pattern");
     wil::com_ptr_nothrow<ISelectionProvider> selection;
