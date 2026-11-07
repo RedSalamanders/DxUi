@@ -7,6 +7,10 @@ host fatal diagnostics for unexpected C++ exceptions. API 5 implements the runti
 each application's product integration remain separate. Earlier exception-recovery receipts do not establish
 the new fatal-stack/dump behavior.
 Returned HRESULT recovery described below applies to checked/native failures, not catch-and-continue on a throw.
+DirectWrite may handle a C++ exception internally while lazily formatting a long source line. Prepared layout
+metrics isolate that synchronous native call; successful source/caret geometry remains usable and an HRESULT
+refusal preserves the previous layout. SDK allocations and escaping native exceptions still use the host fatal
+policy. Applications must not add an allowance around their entire preparation or message loop.
 
 Clipboard paste defaults to Unicode text when text and a bitmap coexist. An application that supplies bitmap
 handling can opt into `TextClipboardPreference::ImageFirst` through `ControlHost::SetClipboardPreference`
