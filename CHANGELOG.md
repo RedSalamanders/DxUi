@@ -4,6 +4,10 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Retire the module-owned animation window when its last native host detaches, before failure-host uninstallation
+  and thread-local destruction. Preserve sibling subscriptions and the warm cache while hosts remain attached,
+  and defer destruction during a timer callback. Add public-consumer shutdown and callback-retirement regressions
+  and document the native host and failure-owner lifetime contracts.
 - Preserve NumericStepper typed edits through value-binding echoes, cancel previews before external replacement,
   allow keyboard expansion when every Grid group is collapsed, and cancel unavailable drag owners through nested
   ScrollPanels. The denied-publication test helper preserves its exception and explicitly exits failed after cleanup.
