@@ -149,6 +149,10 @@ This coordinates the active API work; it does not adopt API 5 in any application
 - [ ] Qualify remaining focus/TSF/menu closure and mask/IME findings from the
   [prior-review register](../Done/ProductionReview_2026-11-02/prior-closure.md). Preserve unexplained historical
   failures; do not infer their causes from later green results.
+- [ ] Qualify the masked-field IMM/TSF correction (PRIOR-21/15). The retained API-5 SDK reproduces an active
+  IMM association, invalid status and missing password scope. Unchanged fixture objects pass the corrected
+  metadata and association transitions after the same-field unmask correction. Complete canonical native
+  profiles and explicit consumer checks before closing this row; physical IME acceptance remains D-Q1.
 - [x] Complete PRIOR-25/26/27: all-collapsed Grid keyboard expansion, cancellation of unavailable forwarded
   ScrollPanel drag owners and NumericStepper terminal notifications through binding echoes/external updates.
   The [scoped completion](../Done/InputStateContinuity_2026-11-07.md) retains original baseline/first-candidate

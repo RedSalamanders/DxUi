@@ -1,6 +1,7 @@
 #include <DxUi/Failure.h>
 
 #include "DxUi.Internal.h"
+#include "Support/Diagnostics.h"
 #include "Support/WindowMessages.h"
 #include "TextClipboard.h"
 #include "TextStoreTarget.h"
@@ -136,14 +137,14 @@ public:
         try
         {
             EmbeddedTextInputSnapshot current;
-            const NativeTextInputState* source = &_snapshot.state;
-            if (! _editing)
+            const auto wipe                    = wil::scope_exit([&]() noexcept
             {
-                const auto client = _client;
-                if (client->Read(current) != S_OK || client != _client || ! current.revision || current.focusId != _focusId || ! ValidState(current.state))
-                    return false;
-                source = &current.state;
-            }
+                if (current.state.masked)
+                    SecureWipe::SecureClear(current.state.text);
+            });
+            const NativeTextInputState* source = nullptr;
+            if (! ReadCurrentSnapshot(current, source))
+                return false;
             if (source->masked)
                 return false;
             state.text                 = source->text;
@@ -153,6 +154,28 @@ public:
             state.readOnly             = source->readOnly;
             state.masked               = source->masked;
             state.multiline            = source->multiline;
+            return true;
+        }
+        catch (const std::bad_alloc&)
+        {
+            Failure::FailAllocation();
+        }
+    }
+    bool ReadPolicy(Policy& policy) const noexcept override
+    {
+        const Failure::Scope callbackFailureScope;
+        try
+        {
+            EmbeddedTextInputSnapshot current;
+            const auto wipe                    = wil::scope_exit([&]() noexcept
+            {
+                if (current.state.masked)
+                    SecureWipe::SecureClear(current.state.text);
+            });
+            const NativeTextInputState* source = nullptr;
+            if (! ReadCurrentSnapshot(current, source))
+                return false;
+            policy = {source->readOnly, source->masked, source->multiline};
             return true;
         }
         catch (const std::bad_alloc&)
@@ -385,6 +408,20 @@ public:
     }
 
 private:
+    bool ReadCurrentSnapshot(EmbeddedTextInputSnapshot& current, const NativeTextInputState*& source) const
+    {
+        if (! Available())
+            return false;
+        source = &_snapshot.state;
+        if (! _editing)
+        {
+            const auto client = _client;
+            if (client->Read(current) != S_OK || client != _client || ! current.revision || current.focusId != _focusId || ! ValidState(current.state))
+                return false;
+            source = &current.state;
+        }
+        return true;
+    }
     bool Available() const noexcept
     {
         return _thread == GetCurrentThreadId() && _client != nullptr;

@@ -10,6 +10,7 @@
 #include <exception>
 #include <limits>
 
+#include <inputscope.h>
 #include <msctf.h>
 #include <olectl.h>
 #include <textstor.h>
@@ -630,6 +631,19 @@ public:
         return _control;
     }
 
+    [[nodiscard]] bool ReadPolicy(Policy& policy) const noexcept override
+    {
+        Control* const control = GetLiveControl();
+        if (! control || ! IsCurrentTextServiceTarget())
+            return false;
+        if (const auto* field = dynamic_cast<const TextField*>(control))
+        {
+            policy = {field->IsReadOnly(), field->IsMasked(), field->IsMultiline()};
+            return true;
+        }
+        return TextStoreTarget::ReadPolicy(policy);
+    }
+
     [[nodiscard]] bool ReadState(TextInputState& outState) const noexcept override
     {
         Control* const control = GetLiveControl();
@@ -1017,7 +1031,7 @@ private:
 namespace
 {
 
-class TextStoreACP final : public ITextStoreACP, public ITextStoreACP2, public ITfContextOwnerCompositionSink
+class TextStoreACP final : public ITextStoreACP, public ITextStoreACP2, public ITfContextOwnerCompositionSink, public ITfInputScope
 {
 public:
     explicit TextStoreACP(std::shared_ptr<TextStoreTarget> target) noexcept : _target(std::move(target))
@@ -1065,6 +1079,12 @@ public:
         if (riid == __uuidof(ITfContextOwnerCompositionSink))
         {
             *ppvObject = static_cast<ITfContextOwnerCompositionSink*>(this);
+            AddRef();
+            return S_OK;
+        }
+        if (riid == __uuidof(ITfInputScope))
+        {
+            *ppvObject = static_cast<ITfInputScope*>(this);
             AddRef();
             return S_OK;
         }
@@ -1355,14 +1375,66 @@ public:
 
         pdcs->dwDynamicFlags = 0u;
         pdcs->dwStaticFlags  = TS_SS_NOHIDDENTEXT;
-        TextInputState state{};
-        if (! ReadState(state))
+        TextStoreTarget::Policy policy;
+        if (! _target->ReadPolicy(policy))
             return TS_E_INVALIDPOS;
-        if (state.readOnly)
+        if (policy.readOnly || policy.masked)
             pdcs->dwDynamicFlags |= TS_SD_READONLY;
-        if (state.multiline)
+        if (policy.multiline)
             pdcs->dwStaticFlags |= TS_SS_MULTILINE;
         return S_OK;
+    }
+
+    HRESULT STDMETHODCALLTYPE GetInputScopes(InputScope** scopes, UINT* count) noexcept override
+    {
+        const Failure::Scope failureScope;
+        if (! scopes || ! count)
+            return E_POINTER;
+        *scopes = nullptr;
+        *count  = 0u;
+        TextStoreTarget::Policy policy;
+        if (! _target->ReadPolicy(policy))
+            return TF_E_DISCONNECTED;
+        wil::unique_cotaskmem_ptr<InputScope> value(static_cast<InputScope*>(CoTaskMemAlloc(sizeof(InputScope))));
+        if (! value)
+            return E_OUTOFMEMORY;
+        *value.get() = policy.masked ? IS_PASSWORD : IS_DEFAULT;
+        *scopes      = value.release(); // The COM caller takes this CoTaskMem allocation.
+        *count       = 1u;
+        return S_OK;
+    }
+    HRESULT STDMETHODCALLTYPE GetPhrase(BSTR** phrases, UINT* count) noexcept override
+    {
+        const Failure::Scope failureScope;
+        if (! phrases || ! count)
+            return E_POINTER;
+        *phrases = nullptr;
+        *count   = 0u;
+        return E_NOTIMPL;
+    }
+    HRESULT STDMETHODCALLTYPE GetRegularExpression(BSTR* expression) noexcept override
+    {
+        const Failure::Scope failureScope;
+        if (! expression)
+            return E_POINTER;
+        *expression = nullptr;
+        return E_NOTIMPL;
+    }
+    HRESULT STDMETHODCALLTYPE GetSRGS(BSTR* grammar) noexcept override
+    {
+        const Failure::Scope failureScope;
+        if (! grammar)
+            return E_POINTER;
+        *grammar = nullptr;
+        return E_NOTIMPL;
+    }
+    HRESULT STDMETHODCALLTYPE GetXML(BSTR* xml) noexcept override
+    {
+        const Failure::Scope failureScope;
+        if (! xml)
+            return E_POINTER;
+        *xml = nullptr;
+        return E_NOTIMPL;
     }
 
     HRESULT STDMETHODCALLTYPE QueryInsert(LONG acpTestStart, LONG acpTestEnd, ULONG cch, LONG* pacpResultStart, LONG* pacpResultEnd) noexcept override

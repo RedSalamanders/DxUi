@@ -23,9 +23,25 @@ struct TextStoreDispatch
 class TextStoreTarget
 {
 public:
-    virtual ~TextStoreTarget()                                                                         = default;
-    virtual void Disconnect() noexcept                                                                 = 0;
-    [[nodiscard]] virtual bool ReadState(TextInputState& state) const noexcept                         = 0;
+    struct Policy
+    {
+        bool readOnly  = false;
+        bool masked    = false;
+        bool multiline = false;
+    };
+    virtual ~TextStoreTarget()                                                 = default;
+    virtual void Disconnect() noexcept                                         = 0;
+    [[nodiscard]] virtual bool ReadState(TextInputState& state) const noexcept = 0;
+    // Metadata does not grant text access. Native password controls override
+    // this without exporting their secret; ordinary targets keep the old read path.
+    [[nodiscard]] virtual bool ReadPolicy(Policy& policy) const noexcept
+    {
+        TextInputState state;
+        if (! ReadState(state))
+            return false;
+        policy = {state.readOnly, state.masked, state.multiline};
+        return true;
+    }
     [[nodiscard]] virtual bool ApplyState(const TextInputState& state, bool notifyChange) noexcept     = 0;
     [[nodiscard]] virtual D2D1_RECT_F ResolveTextViewportBounds() const noexcept                       = 0;
     [[nodiscard]] virtual HWND GetHwnd() const noexcept                                                = 0;

@@ -657,6 +657,9 @@ void ControlHost::ActivateNativeTextInputSession(Control* control, bool transfer
         }
         return;
     }
+    SetNativeWindowImeSuppressed(this, controlState.masked);
+    if (! requestIsCurrent() || requestedTransitionRevision != _nativeTextInputTsfTransitionRevision)
+        return;
     if (controlState.masked)
     {
         // Password text is never offered to TSF or the host's legacy IMM composition path.
@@ -752,6 +755,10 @@ void ControlHost::DeactivateNativeTextInputSession() noexcept
     {
         return;
     }
+
+    SetNativeWindowImeSuppressed(this, false);
+    if (! sessionIsCurrent() || _nativeTextInputTsfTransitionRevision != expectedTransition)
+        return;
 
     if (! _nativeTextInputControl)
     {
@@ -1101,6 +1108,9 @@ void ControlHost::SyncNativeTextInputSession(Control* control) noexcept
 
     try
     {
+        SetNativeWindowImeSuppressed(this, controlState.masked);
+        if (! isCurrent())
+            return;
         NativeTextInputState nextState  = ToNativeTextInputState(*control, controlState);
         _nativeTextInputStateCache      = std::move(nextState);
         _nativeTextInputStateCacheValid = true;
