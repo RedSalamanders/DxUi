@@ -2,6 +2,8 @@
 
 ## Completed scopes — 7 November 2026
 
+- [DirectWrite lazy metrics](DirectWriteNativeFormatting_2026-11-07.md) — narrow native formatting allowance and a 65,536-unit source/caret regression; unchanged-object consumer proof, six zero-warning builds, 66 ordinary x64 suite executions and actual ASan.
+
 - [Masked native input policy](MaskedNativeInputPolicy_2026-11-07.md) — metadata-only TSF/password scope, native IMM suppression/restoration, external replacement and sibling isolation; original-object proofs, six zero-warning builds and 66 ordinary x64 suite executions.
 
 - [Native animation window retirement](AnimationWindowRetirement_2026-11-07.md) — reporter-safe native cache ownership, sibling reuse and reentrant detach/timer regressions; retained original-object counterfactuals, six zero-warning builds and 66 ordinary x64 suite executions.

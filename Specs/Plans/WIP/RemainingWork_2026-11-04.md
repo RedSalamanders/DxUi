@@ -9,6 +9,10 @@ maps every unchecked item from the four former queues to a current owner or expl
 reviews/proposals retain detail and source identities without becoming parallel execution plans. Domain
 specifications and `capabilities.json` remain authoritative.
 
+The owner's **7 November 2026** delivery scope requires x64 Debug, Release and ASan Debug runtime tests and
+ARM64 compilation in those three profiles. Native ARM64 runtime work is explicitly set aside for this delivery;
+compilation does not establish runtime support, and the normal two-architecture production release gate is unchanged.
+
 ## Verified starting point
 
 Reviewed main: `7257f3e31e575c633e8cbbbf3a74f3115f2eeb73` ([PR163](https://github.com/RedSalamanders/DxUi/pull/163)).
@@ -80,11 +84,13 @@ Owner: `src/Rendering/Embedded.cpp`, `src/Controls/DxUi.TextInput.cpp`, input di
 - [ ] Finish parser/preparer admission and per-element failure isolation across diagrams/math/images.
   Preserve checked capacity/unsupported causes and regression evidence; unexpected C++ exceptions follow
   the API-5 fatal contract rather than the superseded whole-view exception-recovery proposal.
-- [ ] Qualify the narrow DirectWrite lazy-formatting metrics boundary and 65,536-unit source/caret regression.
-  The original RedTilde `1d843628` objects fail fatally with SDK `5907e4f5`; replacing only the layout object
-  lets the oversized-math case complete and leaves the independent image-watch defect as an ordinary failure.
-  Original images, PDBs, exception context, compiler objects and the diagnostic run remain retained. This
-  causal proof does not yet qualify the library matrix or the full API-5 consumer.
+- [x] Qualify the narrow DirectWrite lazy-formatting metrics boundary and 65,536-unit source/caret regression.
+  The [scoped closeout](../Done/DirectWriteNativeFormatting_2026-11-07.md) binds `4ce9b6a9`, six zero-warning
+  builds, 66 ordinary x64 suite executions, actual ASan and original-member verification. Original RedTilde
+  `1d843628` objects fail fatally with SDK `5907e4f5`; replacing only the layout object lets oversized math
+  complete and leaves the independent watch defect as an ordinary failure. First failures remain retained.
+  The application's later ASan image-policy failure remains with its own candidate; this library scope does
+  not qualify the full API-5 consumer.
 - [x] Retire the native animation window before failure-host uninstallation and prevent callback rearming during
   Detach. The [scoped closeout](../Done/AnimationWindowRetirement_2026-11-07.md) retains the original consumer
   TLS diagnosis, independent public same-object failures/passes, sibling/cache and in-tick coverage, six
@@ -347,8 +353,10 @@ policy, erase its findings or close this section.
   records and retained consumer sources/images/logs. Native x64 Foundation and warning-free x64/ARM64
   cross-builds pass; the new ARM64 fallback and complete test-before-production gate remain unaccepted
   until fresh hosted execution. This does not assign a cause to the older output-less Grid failure.
-- [ ] Complete or retain the explicit owner deferral for native ARM64 opt-in MenuResources/MenuResourceScaling
-  and candidate-specific foreground coverage. Native cross-builds and ordinary hosted suites do not close them.
+- [x] Record the owner's 7 November deferral of native ARM64 runtime, including opt-in
+  MenuResources/MenuResourceScaling, for this delivery. Require all three ARM64 compilation checks and keep
+  every historical runtime failure/refusal. Do not claim those cross-builds establish runtime acceptance.
+- [ ] Complete candidate-specific x64 foreground coverage. Ordinary noninteractive suites do not close it.
 - [ ] Qualify physical device removal/occlusion, real IME during reflow, assistive technology and touch on named
   hosts. Arrange focus-taking runs at the agreed time through the existing restoring desktop lease.
 - [ ] Keep original failed/refused foreground runs and causes unassigned until independently demonstrated.
