@@ -1309,11 +1309,28 @@ void TestRichTextEditorNativeMessageSchedulingAndFailure()
             return fail ? refusal : RichTextEditor::PrepareContent(host);
         }
     };
+    class CooperativePanel final : public Panel
+    {
+    public:
+        CooperativePanel()
+        {
+            EnableIntrinsicLayout();
+        }
+        size_t advances{};
+        HRESULT PrepareIntrinsicLayout(const MeasureContext&) noexcept override
+        {
+            if (++advances < 3u)
+                RequestIntrinsicLayout(); // No child bounds or content changes.
+            return S_OK;
+        }
+    };
 #pragma warning(pop)
     DxUi::TestSupport::ScopedWindowActivationBlocker activationBlocker;
     Require(activationBlocker.Start(), "the native failure fixture blocks desktop activation and focus");
     AttachedHostWindow window;
-    auto root              = std::make_unique<Panel>();
+    Require(window.Host().GetTextFormat(FontRole::Body) != nullptr, "admit the native font before the checked-failure scenario");
+    auto root              = std::make_unique<CooperativePanel>();
+    auto* layout           = root.get();
     auto* label            = root->AddChild<Label>(L"Healthy sibling");
     const auto labelBounds = D2D1::RectF(16.0f, 12.0f, 300.0f, 52.0f);
     label->SetBounds(labelBounds);
@@ -1346,7 +1363,9 @@ void TestRichTextEditorNativeMessageSchedulingAndFailure()
         return;
     window.PumpMessages(20u); // Consume any initial-show messages before observing failed-work idleness.
     const auto failedCalls = editor->calls;
-    const auto idleUntil   = GetTickCount64() + 40u;
+    if (! CheckDxUiTestResult(layout->advances >= 3u && failedCalls == 1u, "unrelated intrinsic continuations must not retry an unchanged failed control"))
+        return;
+    const auto idleUntil = GetTickCount64() + 40u;
     while (GetTickCount64() < idleUntil)
     {
         window.PumpMessages(10u);
