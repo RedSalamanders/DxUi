@@ -1309,6 +1309,8 @@ void TestRichTextEditorNativeMessageSchedulingAndFailure()
         }
     };
 #pragma warning(pop)
+    DxUi::TestSupport::ScopedWindowActivationBlocker activationBlocker;
+    Require(activationBlocker.Start(), "the native failure fixture blocks desktop activation and focus");
     AttachedHostWindow window;
     auto root   = std::make_unique<Panel>();
     auto* label = root->AddChild<Label>(L"Healthy sibling");
@@ -1351,6 +1353,12 @@ void TestRichTextEditorNativeMessageSchedulingAndFailure()
     Require(editor->calls == failedCalls && ! window.Host().HasPendingContentPreparation() && ! editor->DebugGetState().layoutReady &&
                 editor->GetText() == L"retained source",
             "failed native content stays unavailable and source preserving without blocking siblings or polling");
+    const auto unavailableSelection = editor->GetSelection();
+    Require(! editor->OnMouseDown(window.Host(), D2D1::Point2F(40.0f, 90.0f), false, 0u) &&
+                ! editor->OnMouseDoubleClick(window.Host(), D2D1::Point2F(40.0f, 90.0f), false, 0u) &&
+                ! editor->OnMouseTripleClick(window.Host(), D2D1::Point2F(40.0f, 90.0f), false, 0u) && editor->GetSelection() == unavailableSelection &&
+                editor->GetText() == L"retained source",
+            "unavailable geometry declines pointer edits without reading stale hit maps or changing source/selection");
     WindowHostBitmapCapture labelled, empty;
     Require(window.Host().DebugCaptureBitmap(labelled), "capture the healthy sibling while another control's preparation failed");
     label->SetText(L"");

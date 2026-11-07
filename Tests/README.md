@@ -213,7 +213,8 @@ real clipboard-to-worker path and bounded loader queues/cancellation/closure.
 checked native preparation failure leaves a healthy sibling's actual text pixels
 visible and mutable, remains idle across unrelated captures, preserves exact
 source on both `E_FAIL` and checked `E_OUTOFMEMORY`, permits a sibling's explicit
-command without native focus transfer, and recovers through the normal
+command without native focus transfer, declines pointer edits against unavailable
+geometry, and recovers through the normal
 cooperative message-loop path after a content change. Its baseline frame failure
 uses the deferred result so owned window/module cleanup completes before exit 1.
 The named native/embedded decoded-image tests are in `Accessibility`; ordinary
