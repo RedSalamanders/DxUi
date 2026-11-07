@@ -17,6 +17,9 @@ the common checker still counts every record and requires zero warnings/errors.
 `test-consumer.ps1` also retains raw build logs and verified failed-fixture sources,
 images/PDBs/dumps in `.build/reports`; its separate generated layout excludes SDK
 checkouts and caches. The consumer qualification fixtures exercise this archive owner.
+Ordinary tooling cases retain and report failed fixture roots under
+`.build/tooling-fixtures`; successful cases remove their own disposable roots.
+Preserve those failed originals before investigation or historical cleanup.
 If evidence finalization fails during a runner exception, the runner reports the additional error and preserves the original exception; finalization failure alone is fatal.
 Native evidence also preserves the exact profile's fatal-child dumps, records and stdout/stderr after a failed
 preflight. Previous failures remain separate; current failures include executable/PDB bytes streamed into a

@@ -1,0 +1,1 @@
+- Preserve and report failed tooling fixtures for diagnosis while cleaning successful cases; a real child-process counterexample checks the original bytes, aggregate failure and successful cleanup behavior.
