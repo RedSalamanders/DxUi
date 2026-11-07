@@ -2,6 +2,8 @@
 
 ## Completed scopes — 7 November 2026
 
+- [Native device-creation exception boundary](NativeDeviceExceptionBoundary_2026-11-07.md) — original ARM64 diagnosis, audited native D3D11 allowance, controlled retry regression, six zero-warning builds and 66 ordinary x64 suite executions; hosted ARM64 remains separate.
+
 - [Editor input and viewport](EditorInputViewport_2026-11-07.md) — metadata pixels, read-only shortcut propagation, contextual pairing and source-anchor preservation; six builds, 66 x64 suite executions and retained counterfactuals.
 
 ## Completed scopes — 6 November 2026

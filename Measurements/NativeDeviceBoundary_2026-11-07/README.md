@@ -17,6 +17,12 @@ passes hardware/WARP and optional debug-layer retry cases without changing HRESU
 semantics. Probe source, EXE/PDB, first failures and raw logs are privately retained with
 independent archive-member verification. Public API and ABI remain unchanged.
 
+At `c4272b0d`, [complete local qualification](qualification.json) passes all six
+zero-warning builds, 66 ordinary native x64 suite executions and actual ASan detection.
+WARP, device-loss, native/embedded resources and fatal/reentry cases remain enabled.
+All 683 original source inputs and every retained native/run/failure-image member are
+independently byte-verified. ARM64 entries are cross-builds.
+
 The normative boundary belongs to [failure handling](../../Specs/Core/Core_FailureHandling.md)
-and [native hosting](../../Specs/Rendering/Rendering_Win32Host.md). Complete current-source
-native matrix and hosted ARM64 acceptance are separate from this diagnosis and focused proof.
+and [native hosting](../../Specs/Rendering/Rendering_Win32Host.md). Fresh hosted ARM64 and
+test-before-production acceptance remain separate from the completed local scope.
