@@ -437,6 +437,9 @@ inline bool Verify(
 #endif
         std::array<DWORD64, 256u> walked{};
         std::array<DWORD64, 256u> stackPointers{}, framePointers{}, returnAddresses{};
+#if defined(_M_ARM64)
+        std::array<DWORD, 256u> inlineContexts{};
+#endif
         const auto initialPc = frame.AddrPC.Offset, initialSp = frame.AddrStack.Offset, initialFp = frame.AddrFrame.Offset;
 #if defined(_M_ARM64)
         const auto initialLr = context.Lr;
@@ -449,7 +452,10 @@ inline bool Verify(
             stackPointers[walkedCount]   = frame.AddrStack.Offset;
             framePointers[walkedCount]   = frame.AddrFrame.Offset;
             returnAddresses[walkedCount] = frame.AddrReturn.Offset;
-            walked[walkedCount++]        = frame.AddrPC.Offset;
+#if defined(_M_ARM64)
+            inlineContexts[walkedCount] = frame.InlineFrameContext;
+#endif
+            walked[walkedCount++] = frame.AddrPC.Offset;
             if (SymGetModuleBase64(symbolKey, frame.AddrPC.Offset) == targetBase)
             {
                 alignas(SYMBOL_INFO) std::array<std::byte, sizeof(SYMBOL_INFO) + MAX_SYM_NAME> storage{};
@@ -477,6 +483,7 @@ inline bool Verify(
             }
             const auto pc = frame.AddrPC.Offset, sp = frame.AddrStack.Offset;
 #if defined(_M_ARM64)
+            const auto inlineContext = frame.InlineFrameContext;
             const bool advanced =
                 walk(machine, symbolKey, threadKey, &frame, &context, ReadMemory, FunctionTable, ModuleBase, nullptr, TargetAttribute, walkMode) != FALSE;
 #else
@@ -492,9 +499,15 @@ inline bool Verify(
                 stopReason = "zero-pc";
                 break;
             }
-            if (step != 0u && frame.AddrPC.Offset == pc && frame.AddrStack.Offset == sp)
+            bool progressed = frame.AddrPC.Offset != pc || frame.AddrStack.Offset != sp;
+#if defined(_M_ARM64)
+            // StackWalk2 enumerates inline frames at one physical PC/SP. The
+            // opaque inline context is part of progress, not a stalled unwind.
+            progressed = progressed || frame.InlineFrameContext != inlineContext;
+#endif
+            if (step != 0u && ! progressed)
             {
-                stopReason = "no-pc-sp-progress";
+                stopReason = "no-frame-progress";
                 break;
             }
         }
@@ -524,6 +537,9 @@ inline bool Verify(
 #endif
         for (unsigned index = 0; index < walkedCount; ++index)
         {
+#if defined(_M_ARM64)
+            std::fprintf(stderr, "  inline-context=%lx\n", inlineContexts[index]);
+#endif
             alignas(SYMBOL_INFO) std::array<std::byte, sizeof(SYMBOL_INFO) + MAX_SYM_NAME> storage{};
             auto* symbol         = reinterpret_cast<SYMBOL_INFO*>(storage.data());
             symbol->SizeOfStruct = sizeof(SYMBOL_INFO);

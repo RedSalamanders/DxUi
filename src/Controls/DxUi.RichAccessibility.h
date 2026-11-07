@@ -9,6 +9,9 @@
                                                                                   const ControlPath*,
                                                                                   const AccessibilityControlIdentity&) noexcept;
 HRESULT DispatchAccessibilityUiActionToWindowThread(HWND, AccessibilityUiActionRequest&) noexcept;
+[[nodiscard]] std::optional<uint64_t> BeginRichSemanticStateChange(
+    WindowHostAccessibilityTarget&, const AccessibilityControlNavigationSnapshot&, size_t, uint64_t, PROPERTYID, LONG, LONG) noexcept;
+void CompleteRichSemanticStateChange(WindowHostAccessibilityTarget&, uint64_t, bool) noexcept;
 
 [[nodiscard]] std::optional<D2D1_RECT_F> SemanticFragmentBounds(const AccessibilitySnapshot& snapshot,
                                                                 const AccessibilityControlNavigationSnapshot& record,
@@ -527,9 +530,22 @@ public:
             return UIA_E_ELEMENTNOTENABLED;
         if (editor->IsReadOnly() && editor->GetTaskTogglePolicy() != RichTextTaskTogglePolicy::AlwaysInteractive)
             return UIA_E_INVALIDOPERATION;
-        // Do not touch editor after this call: its committed notification
-        // may destroy/rebind the owner. The snapshot keeps only data alive.
-        return editor->ToggleSemanticTask(*host, record->RichSemantic(), element_) ? S_OK : static_cast<HRESULT>(UIA_E_INVALIDOPERATION);
+        const auto& document                                                         = record->RichSemantic();
+        const bool checked                                                           = document->Elements()[element_].task == RichText::MarkdownTask::Checked;
+        const wil::com_ptr_nothrow<WindowHostAccessibilityTarget> notificationTarget = target_;
+        const auto reservation                                                       = BeginRichSemanticStateChange(*notificationTarget.get(),
+                                                                                                                    *record,
+                                                                                                                    element_,
+                                                                                                                    document->Syntax()->Revision() + 1u,
+                                                                                                                    UIA_ToggleToggleStatePropertyId,
+                                                                                                                    checked ? ToggleState_On : ToggleState_Off,
+                                                                                                                    checked ? ToggleState_Off : ToggleState_On);
+        if (! reservation)
+            return HRESULT_FROM_WIN32(ERROR_BUSY);
+        // Do not touch editor after its committed notification: the owner may be destroyed/rebound.
+        const bool applied = editor->ToggleSemanticTask(*host, document, element_);
+        CompleteRichSemanticStateChange(*notificationTarget.get(), reservation.value(), applied);
+        return applied ? S_OK : static_cast<HRESULT>(UIA_E_INVALIDOPERATION);
     }
     catch (const std::bad_alloc&)
     {
@@ -823,13 +839,25 @@ private:
             return UIA_E_ELEMENTNOTENABLED;
         if (editor->GetAcknowledgedSemanticDocument(*host) != document)
             return UIA_E_ELEMENTNOTAVAILABLE;
-        if (role == RichText::SemanticRole::Disclosure)
-            return editor->SetSemanticDisclosure(*host, document, element_, expand) ? S_OK : static_cast<HRESULT>(UIA_E_INVALIDOPERATION);
-        if (document->IsSourceEditingElement(element_) == expand)
+        const bool expanded =
+            role == RichText::SemanticRole::Disclosure ? document->Elements()[element_].disclosureExpanded : document->IsSourceEditingElement(element_);
+        if (expanded == expand)
             return S_OK;
-        return (expand ? editor->BeginSemanticSourceEdit(*host, document, element_) : editor->EndSemanticSourceEdit(*host))
-                   ? S_OK
-                   : static_cast<HRESULT>(UIA_E_INVALIDOPERATION);
+        const wil::com_ptr_nothrow<WindowHostAccessibilityTarget> notificationTarget = target_;
+        const auto reservation = BeginRichSemanticStateChange(*notificationTarget.get(),
+                                                              *record,
+                                                              element_,
+                                                              document->Syntax()->Revision(),
+                                                              UIA_ExpandCollapseExpandCollapseStatePropertyId,
+                                                              expanded ? ExpandCollapseState_Expanded : ExpandCollapseState_Collapsed,
+                                                              expand ? ExpandCollapseState_Expanded : ExpandCollapseState_Collapsed);
+        if (! reservation)
+            return HRESULT_FROM_WIN32(ERROR_BUSY);
+        const bool applied = role == RichText::SemanticRole::Disclosure ? editor->SetSemanticDisclosure(*host, document, element_, expand)
+                             : expand                                   ? editor->BeginSemanticSourceEdit(*host, document, element_)
+                                                                        : editor->EndSemanticSourceEdit(*host);
+        CompleteRichSemanticStateChange(*notificationTarget.get(), reservation.value(), applied);
+        return applied ? S_OK : static_cast<HRESULT>(UIA_E_INVALIDOPERATION);
     }
     catch (const std::bad_alloc&)
     {

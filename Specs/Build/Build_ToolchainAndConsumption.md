@@ -47,7 +47,9 @@ are recorded once in machine-owned build/lock files. Windows-11-only backdrop fe
 capabilities; they must not introduce unconditional imports that break the RedXe Windows 10 baseline. OS-specific
 text and accessibility paths require actual verification. All library, sample, test and generated consumer projects
 map each of the six configurations explicitly. ASan Debug uses compiler AddressSanitizer instrumentation, the debug
-DLL CRT, non-incremental linking and separate configuration outputs. Every standalone translation unit rejects
+DLL CRT, non-incremental linking and separate configuration outputs. The public consumer targets explicitly disable incremental linking for ASan Debug;
+a conflicting global `LinkIncremental` override is refused before compilation. This applies independently of
+repository-local project defaults and avoids MSVC's LNK4300 ASan/incremental-link conflict. Every standalone translation unit rejects
 missing instrumentation. `test.ps1` requires a specific heap-use-after-free diagnosis from an isolated intentional
 fault before accepting an ASAN run; ordinary crashes or an unsanitized Debug executable fail that probe. MSBuild
 stages the matching sanitizer runtime next to executables. Native ARM64 execution is required for runtime evidence;

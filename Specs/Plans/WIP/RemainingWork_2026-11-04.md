@@ -184,7 +184,10 @@ any *different* remaining failure-channel problem belong to D-A1.
 - [x] Name RadioButtons groups with actual native UIA Name events, unchanged-header suppression and embedded
   publication (A11Y-01); retained providers preserve navigation, selection and detach. The same
   [scoped closeout](../Done/SourceSpacingAndRadioNaming_2026-11-07.md) retains the baseline counterexample.
-- [ ] Raise the remaining semantic state events (A11Y-02), with actual UIA-client event and detach checks.
+- [x] Raise the remaining semantic state events (A11Y-02), with actual native/embedded UIA-client event,
+  idempotence, source/rebind cancellation and detach checks. The
+  [scoped closeout](../Done/SemanticStateEvents_2026-11-07.md) retains six baseline failures and candidate
+  passes, six zero-warning builds, 66 ordinary x64 suite executions and actual ASan; physical AT remains separate.
 
 The remaining before-production P2/P3 IDs in the
 [review inventory](../Done/ProductionReview_2026-11-02.md#before-production-p2-set) stay owned by D-E1,
@@ -257,6 +260,11 @@ policy, erase its findings or close this section.
   execute with zero skips, both assertion probes pass, and both production SDK ZIPs pass extracted-consumer
   smoke. This supplies current API-4 native Release coverage without accepting the remaining profiles or fixtures.
 - [ ] Complete current API-5 native ARM64 regression and the combined test-before-production gate.
+  The [current local correction](../../../Measurements/SemanticStateEvents_2026-11-07/README.md) at
+  `93052665` diagnoses a source-bound ASan `LNK4300`, proves ARM64 inline-frame progress on two original
+  dumps, and changes owned Menu obstruction ordering. Six builds and 66 ordinary x64 suite executions pass;
+  fresh hosted native/foreground/consumer execution remains required. Original failed cohorts below remain
+  failed, and causes of older output-less or missing-log failures remain unassigned.
   [Run 42246752571](https://github.com/RedSalamanders/DxUi/actions/runs/42246752571), exact main `2f0a7bb9`,
   passes x64 but stops ARM64 in the filter preflight: unfiltered Grid exits 1 before normal ARM64 suites run.
   The wrapper omitted Grid's child output, so its cause remains unassigned. All eight original wrappers and
