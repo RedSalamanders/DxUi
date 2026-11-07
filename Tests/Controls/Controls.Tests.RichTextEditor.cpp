@@ -1326,7 +1326,8 @@ void TestRichTextEditorNativeMessageSchedulingAndFailure()
     };
 #pragma warning(pop)
     DxUi::TestSupport::ScopedWindowActivationBlocker activationBlocker;
-    Require(activationBlocker.Start(), "the native failure fixture blocks desktop activation and focus");
+    Require(DxUi::TestSupport::ScopedWindowActivationBlocker::IsActiveForCurrentThread() || activationBlocker.Start(),
+            "the native failure fixture blocks desktop activation and focus");
     AttachedHostWindow window;
     Require(window.Host().GetTextFormat(FontRole::Body) != nullptr, "admit the native font before the checked-failure scenario");
     auto root              = std::make_unique<CooperativePanel>();

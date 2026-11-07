@@ -211,7 +211,8 @@ The named `EditorControls` tests cover native resource/pixel publication, the
 real clipboard-to-worker path and bounded loader queues/cancellation/closure.
 `TestRichTextEditorNativeMessageSchedulingAndFailure` additionally checks that a
 checked native preparation failure leaves a healthy sibling's actual text pixels
-visible and mutable, remains idle across unrelated captures, preserves exact
+visible and mutable, remains idle across unrelated captures and cooperative
+intrinsic-layout turns, preserves exact
 source on both `E_FAIL` and checked `E_OUTOFMEMORY`, permits a sibling's explicit
 command without native focus transfer, declines pointer edits against unavailable
 geometry, and recovers through the normal

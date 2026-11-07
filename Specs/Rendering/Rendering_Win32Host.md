@@ -49,7 +49,9 @@ painting it. A checked native `PrepareContent` failure is isolated to that contr
 prepare and present. The failed control keeps unavailable content, preserves source, paints only safe prior
 geometry/chrome, and is excluded from the pending-work aggregate. Report once for that failed episode; unrelated
 invalidation does not retry it. An explicit content/bounds request or resource/typography epoch change permits
-another preparation. A reentrant explicit request remains newer pending work. Captured gestures crossing failed
+another preparation. Unrelated intrinsic-layout continuations do not retry the failure. Native resource and
+typography retirement rearms controls through the canonical content-cancellation pass; initial resource creation
+precedes native content preparation. A reentrant explicit request remains newer pending work. Captured gestures crossing failed
 or pending content are cancelled before matching Up dispatch. The embedded host retains its checked HRESULT
 return contract and does not compose a failed preparation. An unexpected paint/input exception, including bad_alloc, requires the host fatal diagnostic
 path; it must not be turned into a skipped frame or a consumed message followed by continued operation.

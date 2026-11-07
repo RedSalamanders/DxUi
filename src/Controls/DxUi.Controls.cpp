@@ -2432,7 +2432,11 @@ bool ControlHost::PreparePendingPageLayout() noexcept
             if (lifetime.expired() || ! rootCurrent())
                 return;
         }
-        if (visible && control._contentPreparationEnabled &&
+        // Resource/typography retirement rearms through CancelPreparedContent,
+        // and first resource creation precedes this native preparation pass.
+        // An unfinished intrinsic pass leaves prepareAllContent true; that
+        // broadcast alone must not retry an unchanged failed control.
+        if (visible && control._contentPreparationEnabled && control._contentPreparationState != Control::ContentPreparationState::Failed &&
             (prepareAllContent || control._contentPreparationState == Control::ContentPreparationState::Pending))
         {
             control._contentPreparationState = Control::ContentPreparationState::Ready;
