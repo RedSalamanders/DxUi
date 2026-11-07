@@ -31,6 +31,19 @@ Never guess a virtual-address mask, strip return-address bits manually, scan raw
 symbol, or replace unwinding with a nonzero-exit assertion. Resolve the newer DbgHelp entry point dynamically;
 an unavailable verifier is a failed qualification with an explicit diagnostic, not a product OS-version change.
 The exact module/PDB identity, original exception thread/context and named originating frame remain required.
+Rejected walks retain their termination reason, initial context registers, observed
+PC/SP/frame/return addresses and function-table lookup/miss counts. Native ARM64 also
+records the last raw function-table entry and PAC-query count. These diagnostics do
+not replace a successful named-origin unwind or permit address masking. Independent
+negative controls reject the wrong thread/IP and an intentionally absent origin
+using the same owned original dump after its actual origin has passed.
+Prefer the standard unwind-table walk. If native ARM64 cannot reach the named
+origin, a second bounded `StackWalk2` pass MAY use the documented
+`SYM_STKWALK_FORCE_FRAMEPTR` mode from an untouched copy of the same saved context
+and initial frame. Retain the rejected standard-pass diagnostics and identify the
+successful mode. Both passes retain the 256-frame ceiling, original target/PAC
+checks and exact named-origin/module/PDB predicates; neither stack scanning nor
+manual return-address repair is allowed. Failure of both remains failed qualification.
 See the [StackWalk2 contract](https://learn.microsoft.com/en-us/windows/win32/api/dbghelp/nf-dbghelp-stackwalk2)
 and [target attributes](https://learn.microsoft.com/en-us/windows/win32/api/dbghelp/nc-dbghelp-pget_target_attribute_value64).
 

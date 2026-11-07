@@ -43,6 +43,10 @@ tools also reject the build, including optional `0x` spelling and MSBuild node
 prefixes. A later successful footer or zero process exit cannot override an
 observed tool exception. Retain the original log and outputs for diagnosis;
 retry after addressing the cause rather than qualifying that attempt.
+Failure exceptions include the first 16 matching warning/error/tool-exception records,
+each bounded to 2,048 UTF-16 units, so parent CI logs retain the actual reason even
+when an external consumer's original log is unavailable. All records still count
+toward refusal; bounding diagnostic presentation never admits warnings or errors.
 Failed builds remain failures. Clean/package-only operations preserve their
 existing meaning and do not pretend to be native compilation.
 

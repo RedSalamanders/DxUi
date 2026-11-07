@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 1,
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-native-qualification-verifier",
+  "inputHash": "8e1ec8cf138692996dec8328359afbe89d023f498e946cea0ee6b88bec2545fb",
+  "benchmarkInputs": {
+    "test-consumer.ps1": "AB4F0F0FEFC54BF940D5DF7AFE571059E953DC17F863E9009DAD591CB3E4E6D0",
+    "Build/BuildConsole.psm1": "3C49E3AC0D828BD2915783FDCA317231D6691A8F6309846784A9057B6A31762A",
+    "Tests/Support/Support.Tests.DumpReader.h": "09587978BF12F2434A12D757EE4BBE0463B5907A5EAA2CB9315EDD07AC03B614",
+    "Tools/tests/Test-BuildConsole.ps1": "9919F7A7017EEB28DBA8E8417635EC8909674D38F8F78C8C4FDADDD8C7B69F26",
+    "Tests/Foundation/Foundation.Tests.Failure.cpp": "26571A148099BCB5709AD48221EACC6111D7C17AD91ECB2F77C7AC73ACE8CD98",
+    "Tools/tests/Test-ConsumerQualification.ps1": "352EB936C99E60C91CAD05133E8780917FF972C1222F65E8ECAD9560C920FC8B"
+  },
+  "implementationCommit": "6b2214df3199f15673b807f0ed35b4e368425d04",
+  "claim": "Focused test-verifier/tooling verification; pending fresh hosted ARM64/full consumer acceptance",
+  "originalFocusedArchiveSha256": "8706BE081F8A3987625CB7F1BEB68CC82857B0F65FADFDBC4A12076C80850BAD",
+  "allOriginalFocusedMembersVerified": true,
+  "memberCount": 803,
+  "retainedRuntimeLibraryCommit": "a42caaa0d7515ba9aaeac7d6822f8d30e06b8b1f",
+  "retainedRuntimeInputCount": 281,
+  "retainedRuntimeInputsByteIdentical": true,
+  "builds": [
+    {
+      "warnings": 0,
+      "nativeRuntime": true,
+      "buildLogSha256": "779DF4A64693611FBF6D8B028244B165643B1BD83F7021396D0DD832D3D131DE",
+      "platform": "x64",
+      "configuration": "Release",
+      "compiledPdbSourceChecksums": {
+        "Tests/Support/Support.Tests.DumpReader.h": "09587978BF12F2434A12D757EE4BBE0463B5907A5EAA2CB9315EDD07AC03B614",
+        "Tests/Foundation/Foundation.Tests.Failure.cpp": "26571A148099BCB5709AD48221EACC6111D7C17AD91ECB2F77C7AC73ACE8CD98"
+      },
+      "errors": 0
+    },
+    {
+      "warnings": 0,
+      "nativeRuntime": false,
+      "buildLogSha256": "1343686E71A6AED2F90B2A5CFDB324CD3C8FD05FC09ECB6245EE5DD693966D6B",
+      "platform": "ARM64",
+      "configuration": "Release",
+      "compiledPdbSourceChecksums": {
+        "Tests/Support/Support.Tests.DumpReader.h": "09587978BF12F2434A12D757EE4BBE0463B5907A5EAA2CB9315EDD07AC03B614",
+        "Tests/Foundation/Foundation.Tests.Failure.cpp": "26571A148099BCB5709AD48221EACC6111D7C17AD91ECB2F77C7AC73ACE8CD98"
+      },
+      "errors": 0
+    }
+  ],
+  "x64FoundationObservedLauncherExitCode": 0,
+  "x64FoundationRunLogSha256": "A2B543A588E46B63E61810967C918A05D5C8F3F341E6A02D7C5A8CE46FFF998B",
+  "nativeArm64FallbackAccepted": false,
+  "hostedHistory": [
+    {
+      "originalPayloadDescriptorSha256": "B8A6547348A297A9A7844F16E0B9DB0EEEA27301D5F88E305AE189F96F5365D2",
+      "fullConclusion": "failure",
+      "sourceCommit": "054766f6d8ff85ca91730e6c43e6f836670e5adb",
+      "url": "https://github.com/RedSalamanders/DxUi/actions/runs/42322543703",
+      "runId": "42322543703",
+      "artifactCount": 6,
+      "allOriginalPayloadMembersVerified": true
+    },
+    {
+      "originalPayloadDescriptorSha256": "849BA9938506EC802A5EDB09ED7E73E2A140016727F1D61454AEF146D9F0A49B",
+      "fullConclusion": "failure",
+      "sourceCommit": "054766f6d8ff85ca91730e6c43e6f836670e5adb",
+      "url": "https://github.com/RedSalamanders/DxUi/actions/runs/42322548004",
+      "runId": "42322548004",
+      "artifactCount": 6,
+      "allOriginalPayloadMembersVerified": true
+    },
+    {
+      "originalPayloadDescriptorSha256": "C84161EAF1CD30E79D0E5A242F138E7E3E016BED76D6109C9E432202FE915255",
+      "fullConclusion": "failure",
+      "sourceCommit": "054766f6d8ff85ca91730e6c43e6f836670e5adb",
+      "url": "https://github.com/RedSalamanders/DxUi/actions/runs/42322551824",
+      "runId": "42322551824",
+      "artifactCount": 6,
+      "allOriginalPayloadMembersVerified": true
+    }
+  ],
+  "limits": [
+    "The private complete Foundation fixture links byte-verified retained libraries with identical current runtime/public-header inputs; this is not a complete new SDK matrix",
+    "ARM64 is cross-compilation only in this focused packet",
+    "All three original hosted runs failed full qualification; Grid passes do not close their independent remaining gates",
+    "The original ARM64 ASan consumer build log was not retained by the old workspace collector; its two logged warnings remain unattributed"
+  ]
+}

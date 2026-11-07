@@ -14,3 +14,9 @@ PDBs, shared fixture object and logs are archived with every member verified.
 
 This focused patch-object comparison does not establish complete current-SDK,
 native ARM64, consumer, physical-input or formal paired-performance qualification.
+
+The separate [complete local matrix](../SemanticResources_2026-11-07/qualification.json)
+at `a42caaa0` passes all six zero-warning builds, 66 ordinary native x64 suite executions
+and actual ASan detection, with original source/native/run/failure-image member verification.
+The [scoped closeout](../../Specs/Plans/Done/SemanticAndDiagramResources_2026-11-07.md)
+also records the reviewed harness gallery. Native ARM64 and formal performance remain separate.

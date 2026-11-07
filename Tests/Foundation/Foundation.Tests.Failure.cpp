@@ -1049,6 +1049,15 @@ bool CheckOriginSymbols(HANDLE child, const std::wstring& exe, std::string_view 
     const auto unlock = wil::scope_exit([] { ReleaseSRWLockExclusive(&DxUiSample::FailureHost::dbgHelpGate); });
     if (! DumpReader::Verify(prefix + L".dmp", child, static_cast<DWORD>(thread), ip, exe, expected))
         return false;
+    if (name == L"control-allocation")
+    {
+        std::fputs("Expected dump-verifier rejection controls: wrong thread, wrong IP and deliberately absent origin.\n", stderr);
+        if (DumpReader::Verify(prefix + L".dmp", child, 0u, ip, exe, expected) ||
+            DumpReader::Verify(prefix + L".dmp", child, static_cast<DWORD>(thread), ip + 1u, exe, expected) ||
+            DumpReader::Verify(prefix + L".dmp", child, static_cast<DWORD>(thread), ip, exe, "DeliberatelyAbsentDumpOrigin_QualificationControl"))
+            return false;
+        std::fputs("Dump-verifier rejection controls passed; the actual named origin was independently verified above.\n", stderr);
+    }
     return ! additional || additional->faultClass != FatalFaultClass::InjectedAllocation ||
            DumpReader::Verify(prefix + L".dmp", child, static_cast<DWORD>(thread), ip, exe, "ThrowInjectedAllocation");
 }

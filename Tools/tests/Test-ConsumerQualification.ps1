@@ -530,4 +530,52 @@ try{
         }
     }
 }}
+Invoke-FixtureCase 'failed consumer sources images and diagnostics remain independently verifiable' {
+    param($fixture)
+    $source=Join-Path (Split-Path $PSScriptRoot -Parent | Split-Path -Parent) 'test-consumer.ps1'
+    $tokens=$null;$errors=$null;$ast=[Management.Automation.Language.Parser]::ParseFile($source,[ref]$tokens,[ref]$errors)
+    Assert-Equal 0 $errors.Count 'consumer failure collector parses'
+    $function=@($ast.FindAll({param($n)$n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -ceq 'Save-ConsumerFailureEvidence'},$false))
+    Assert-Equal 1 $function.Count 'one consumer-specific archive owner'
+    . ([scriptblock]::Create($function[0].Extent.Text))
+    $owned=Join-Path $fixture 'owned';$app=Join-Path $owned 'app space';$reports=Join-Path $fixture reports
+    foreach($directory in @($app,(Join-Path $app 'bin/FailureEvidence'),(Join-Path $app 'Samples/Shared'),(Join-Path $app deps))){[void][IO.Directory]::CreateDirectory($directory)}
+    [IO.File]::WriteAllText((Join-Path $app ExternalConsumer.vcxproj),'<Project />')
+    [IO.File]::WriteAllText((Join-Path $app bin/ExternalConsumer.exe),'synthetic image bytes; never executed')
+    [IO.File]::WriteAllText((Join-Path $app bin/ExternalConsumer.pdb),'synthetic matching-symbol fixture')
+    [IO.File]::WriteAllText((Join-Path $app bin/FailureEvidence/first.dmp),'original synthetic dump')
+    [IO.File]::WriteAllText((Join-Path $app Samples/Shared/FailureHost.cpp),'original source')
+    [IO.File]::WriteAllText((Join-Path $app deps/cache.txt),'dependency cache must stay outside the bundle')
+    $manifest=Save-ConsumerFailureEvidence -OwnedFixture $owned -Reports $reports -Name retained -Context @{commit='a'*40}
+    $record=Get-Content -LiteralPath $manifest -Raw|ConvertFrom-Json
+    Assert-True $record.allMembersVerified 'all original member bytes were independently verified'
+    Assert-Equal 5 $record.files.Count 'generated project, source, image, PDB and dump are retained without dependency caches'
+    Assert-Equal 0 @($record.files|Where-Object path -match '^deps/').Count 'dependency cache is excluded'
+    $before=(Get-FileHash -LiteralPath (Join-Path $reports retained.zip)).Hash
+    Assert-Throws {Save-ConsumerFailureEvidence -OwnedFixture $owned -Reports $reports -Name retained -Context @{}} 'an original failure bundle is never replaced'
+    Assert-Equal $before (Get-FileHash -LiteralPath (Join-Path $reports retained.zip)).Hash 'original failure bytes survive refusal'
+    Assert-Throws {Save-ConsumerFailureEvidence -OwnedFixture $owned -Reports $reports -Name bounded -Context @{} -MaximumBytes 1} 'archive capacity is bounded'
+    Assert-True (Test-Path -LiteralPath (Join-Path $app bin/FailureEvidence/first.dmp)) 'failed collection retains original fixture evidence'
+    [IO.File]::WriteAllText((Join-Path $reports orphan.json),'original manifest')
+    Assert-Throws {Save-ConsumerFailureEvidence -OwnedFixture $owned -Reports $reports -Name orphan -Context @{}} 'an occupied manifest is refused before archive creation'
+    Assert-True (-not(Test-Path -LiteralPath (Join-Path $reports orphan.zip))) 'an occupied manifest receives no unrelated new archive'
+    Assert-Throws {Save-ConsumerFailureEvidence -OwnedFixture $owned -Reports $reports -Name file-bound -Context @{} -MaximumFiles 1} 'file and directory traversal are bounded before publication'
+    Assert-True (-not(Test-Path -LiteralPath (Join-Path $reports file-bound.zip))) 'file-capacity refusal publishes no archive'
+    if($env:OS -eq 'Windows_NT'){
+        $linkedOwned=Join-Path $fixture 'linked-owned';[void][IO.Directory]::CreateDirectory($linkedOwned)
+        $applicationLink=Join-Path $linkedOwned 'app space'
+        $reportLink=Join-Path $fixture 'linked-reports'
+        try {
+            [void](New-Item -ItemType Junction -Path $applicationLink -Target $app)
+            [void](New-Item -ItemType Junction -Path $reportLink -Target $reports)
+            Assert-Throws {Save-ConsumerFailureEvidence -OwnedFixture $linkedOwned -Reports $reports -Name forbidden-source -Context @{}} 'a linked consumer root is refused before enumeration'
+            Assert-Throws {Save-ConsumerFailureEvidence -OwnedFixture $owned -Reports $reportLink -Name forbidden-output -Context @{}} 'a linked report root is refused before output'
+            Assert-True (-not(Test-Path -LiteralPath (Join-Path $reports forbidden-output.zip))) 'the report link target receives no output'
+            Assert-Equal $before (Get-FileHash -LiteralPath (Join-Path $reports retained.zip)).Hash 'reparse refusal preserves the original archive target'
+        } finally {
+            if(Test-Path -LiteralPath $applicationLink){[IO.Directory]::Delete($applicationLink)}
+            if(Test-Path -LiteralPath $reportLink){[IO.Directory]::Delete($reportLink)}
+        }
+    }
+}
 Complete-TestRun 'Consumer qualification progress'

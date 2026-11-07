@@ -14,6 +14,54 @@ $progress=New-ConsumerQualificationProgress -Path (Join-Path $PSScriptRoot ".bui
 $checkout=Join-Path $root 'relocated DxUi'
 $consumer=Join-Path $root 'app space'
 $output=(Join-Path $consumer 'deps')+[IO.Path]::DirectorySeparatorChar
+$diagnosticRoot=Join-Path $PSScriptRoot '.build/reports'
+$diagnosticName="ConsumerFailure-$Platform-$($Configuration.Replace(' ','-'))-$([IO.Path]::GetFileName($root))"
+# Generated consumers have no canonical native-profile layout. Retain their
+# explicit sources/images/dumps, excluding the SDK checkout and dependency caches.
+function Save-ConsumerFailureEvidence {
+    param([Parameter(Mandatory)][string]$OwnedFixture,[Parameter(Mandatory)][string]$Reports,
+          [Parameter(Mandatory)][ValidatePattern('^[A-Za-z0-9_.-]+$')][string]$Name,
+          [Parameter(Mandatory)][hashtable]$Context,[long]$MaximumBytes=2GB,[int]$MaximumFiles=8192)
+    $owned=[IO.Path]::GetFullPath($OwnedFixture)
+    if((Get-Item -LiteralPath $owned -Force).Attributes -band [IO.FileAttributes]::ReparsePoint){throw 'Consumer fixture is a reparse point'}
+    $app=Join-Path $owned 'app space'
+    if((Get-Item -LiteralPath $app -Force).Attributes -band [IO.FileAttributes]::ReparsePoint){throw 'Consumer application root is a reparse point'}
+    $files=[Collections.Generic.List[object]]::new()
+    $pending=[Collections.Generic.Stack[string]]::new()
+    foreach($directory in @('bin','Samples','Support')){if(Test-Path -LiteralPath (Join-Path $app $directory)){$pending.Push((Join-Path $app $directory))}}
+    $inputs=[Collections.Generic.List[IO.FileInfo]]::new()
+    foreach($path in [IO.Directory]::EnumerateFiles($app)){$item=Get-Item -LiteralPath $path -Force;if($item.Extension -in @('.cpp','.h','.vcxproj','.props','.targets','.json')){if($inputs.Count -ge $MaximumFiles){throw 'Consumer evidence exceeds its file budget'};$inputs.Add($item)}}
+    $visitedDirectories=0
+    while($pending.Count){$directory=$pending.Pop();if((Get-Item -LiteralPath $directory -Force).Attributes -band [IO.FileAttributes]::ReparsePoint){throw 'Consumer evidence directory is a reparse point'}
+        if(++$visitedDirectories -gt $MaximumFiles){throw 'Consumer evidence exceeds its directory budget'}
+        foreach($path in [IO.Directory]::EnumerateFileSystemEntries($directory)){$item=Get-Item -LiteralPath $path -Force;if($item.Attributes -band [IO.FileAttributes]::ReparsePoint){throw 'Consumer evidence entry is a reparse point'};if($item.PSIsContainer){if($visitedDirectories+$pending.Count -ge $MaximumFiles){throw 'Consumer evidence exceeds its directory budget'};$pending.Push($item.FullName)}else{if($inputs.Count -ge $MaximumFiles){throw 'Consumer evidence exceeds its file budget'};$inputs.Add($item)}}
+    }
+    if($inputs.Count -gt $MaximumFiles){throw 'Consumer evidence exceeds its file budget'}
+    if((Test-Path -LiteralPath $Reports) -and ((Get-Item -LiteralPath $Reports -Force).Attributes -band [IO.FileAttributes]::ReparsePoint)){throw 'Consumer report root is a reparse point'}
+    [void][IO.Directory]::CreateDirectory($Reports)
+    $path=Join-Path $Reports ($Name+'.zip')
+    $manifest=Join-Path $Reports ($Name+'.json')
+    if((Test-Path -LiteralPath $path) -or (Test-Path -LiteralPath $manifest)){throw 'Original consumer failure archive or manifest already exists'}
+    $zip=[IO.Compression.ZipFile]::Open($path,[IO.Compression.ZipArchiveMode]::Create)
+    $total=0L
+    try {foreach($item in $inputs){
+        if($item.Attributes -band [IO.FileAttributes]::ReparsePoint){throw 'Consumer evidence file is a reparse point'}
+        $stream=[IO.File]::Open($item.FullName,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
+        try {$length=$stream.Length;if($length -gt $MaximumBytes-$total){throw 'Consumer evidence exceeds its byte budget'};$total+=$length
+            $hash=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($stream));$stream.Position=0
+            $relative=[IO.Path]::GetRelativePath($app,$item.FullName).Replace('\','/')
+            $entry=$zip.CreateEntry($relative,[IO.Compression.CompressionLevel]::Optimal);$destination=$entry.Open()
+            try{$stream.CopyTo($destination)}finally{$destination.Dispose()}
+            $files.Add(@{path=$relative;bytes=$length;sha256=$hash})
+        }finally{$stream.Dispose()}
+    }}finally{$zip.Dispose()}
+    $zip=[IO.Compression.ZipFile]::OpenRead($path)
+    try{if($zip.Entries.Count -ne $files.Count){throw 'Consumer evidence member union differs'};foreach($file in $files){$entry=$zip.GetEntry($file.path);$stream=$entry.Open();try{if($entry.Length -ne $file.bytes -or [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($stream)) -cne $file.sha256){throw 'Consumer evidence member bytes differ'}}finally{$stream.Dispose()}}}finally{$zip.Dispose()}
+    @{context=$Context;archiveSha256=(Get-FileHash -LiteralPath $path).Hash;allMembersVerified=$true;files=@($files.ToArray());limit='Original generated fixture sources and native images/dumps; no qualification or recreation of filesystem metadata'}|ConvertTo-Json -Depth 7|Set-Content -LiteralPath $manifest -Encoding utf8NoBOM
+    return $manifest
+}
+$consumerComplete=$false
+try {
 New-Item -ItemType Directory -Path $consumer -Force | Out-Null
 & git clone --local --no-hardlinks $PSScriptRoot $checkout
 if ($LASTEXITCODE -ne 0) { throw 'Cannot create the isolated consumer source fixture.' }
@@ -83,7 +131,7 @@ Add-Content -LiteralPath (Join-Path $consumer 'DxUi.cpp') -Encoding utf8 -Value 
 $project = $project.Replace('<ClCompile Include="Samples/EmbeddedControls/Main.cpp" />', '<ClCompile Include="Samples/EmbeddedControls/Main.cpp" /><ClCompile Include="Samples/Shared/FailureHost.cpp" /><ClCompile Include="ConsumerApi.Tests.Revision4.cpp" /><ClCompile Include="ConsumerApi.Tests.Revision5.cpp" />' + ($headerUnits -join ''))
 $projectPath=Join-Path $consumer 'ExternalConsumer.vcxproj'
 $project | Set-Content -LiteralPath $projectPath -Encoding utf8
-$consumerBuildLog=Join-Path $consumer 'ExternalConsumer.build.log'
+$consumerBuildLog=Join-Path $diagnosticRoot ($diagnosticName+'-ExternalConsumer.build.log')
 & $msbuild $projectPath /nologo /m /verbosity:minimal "/p:Configuration=$Configuration" "/p:Platform=$Platform" "/flp:logfile=$consumerBuildLog;verbosity=normal;encoding=UTF-8"
 if ($LASTEXITCODE -ne 0) { throw 'The external public consumer failed to build.' }
 Assert-NativeBuildDiagnostics -LogPath $consumerBuildLog
@@ -123,7 +171,7 @@ foreach ($moduleName in @('NativeModuleA','NativeModuleB','NativeModuleDriver'))
     }
     $modulePath = Join-Path $consumer "$moduleName.vcxproj"
     $moduleProject.Save($modulePath)
-    $moduleBuildLog=Join-Path $consumer "$moduleName.build.log"
+    $moduleBuildLog=Join-Path $diagnosticRoot ($diagnosticName+"-$moduleName.build.log")
     & $msbuild $modulePath /nologo /m /verbosity:minimal "/p:Configuration=$Configuration" "/p:Platform=$Platform" "/flp:logfile=$moduleBuildLog;verbosity=normal;encoding=UTF-8"
     if ($LASTEXITCODE -ne 0) { throw "The native module consumer $moduleName failed to build." }
     Assert-NativeBuildDiagnostics -LogPath $moduleBuildLog
@@ -183,3 +231,14 @@ Write-Host "PASS relocated exact-pin consumer, rendering and 10 rejected pin/bui
 # The final native invocation deliberately failed; report this test's actual outcome
 # to callers (including the GitHub Actions pwsh wrapper).
 $global:LASTEXITCODE = 0
+$consumerComplete=$true
+} finally {
+    if(-not $consumerComplete -and (Test-Path -LiteralPath $consumer -PathType Container)){
+        try {
+            $retained=Save-ConsumerFailureEvidence -OwnedFixture $root -Reports $diagnosticRoot -Name $diagnosticName -Context @{commit=$revision;platform=$Platform;configuration=$Configuration;annotationsDisabled=[bool]$DisableStlAnnotations}
+            Write-Host "Original consumer failure artifacts: $retained"
+        } catch {
+            [Console]::Error.WriteLine("ADDITIONAL_CONSUMER_EVIDENCE_FAILURE: $($_.Exception.Message)")
+        }
+    }
+}

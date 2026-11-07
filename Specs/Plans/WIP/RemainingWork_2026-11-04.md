@@ -150,7 +150,7 @@ This coordinates the active API work; it does not adopt API 5 in any application
 - [x] Resolve display-block interruption and pathological scan budgets (MD-03/05/06/07), with deterministic
   seeds, independent expected results and bounded logical work. [Source-bound closeout](../Done/MarkdownScanBounds_2026-11-06.md).
 - [x] Complete display-style aligned/gathered/alignat cells and centered script-style substack (MATH-01); preserve source and measured row/delimiter geometry in the [scoped closeout](../Done/DiagramMathAndWorkspaceCorrections_2026-11-06.md).
-- [ ] Complete outstanding diagram note/routing/budget issues (FLOW-03/05), preserving exact source, local editing, geometry, history, UIA and resource limits.
+- [x] Complete outstanding diagram note/routing/budget issues (FLOW-03/05), preserving exact source, local editing, geometry, history, UIA and resource limits. [Source-bound closeout](../Done/SemanticAndDiagramResources_2026-11-07.md) includes independent note collisions, 512-edge measured caption reuse, six builds and all 66 ordinary x64 suite executions.
 
 FLOW-01/02's published fixes are complete. Do not recreate them as new work; independent regressions and
 any *different* remaining failure-channel problem belong to D-A1.
@@ -173,8 +173,10 @@ any *different* remaining failure-channel problem belong to D-A1.
   observed WIC capability, controlled E_NOINTERFACE, cancellation and checked failure preserve publication.
   The unchanged compiled probe fails with the prior library and passes with this one. D6's broader policy,
   native ARM64/physical and formal paired-performance acceptance remain separately owned.
-- [ ] Resolve image-completion/animation re-preparation, placeholder direction, lost list markers and
-  supplementary-plane word starts (SEM-02/03/04/05).
+- [x] Resolve image-completion/animation re-preparation, placeholder direction, lost list markers and
+  supplementary-plane word starts (SEM-02/03/04/05). [Source-bound closeout](../Done/SemanticAndDiagramResources_2026-11-07.md)
+  records independent retained-baseline failures, six zero-warning builds, all 66 ordinary x64 suite executions,
+  real ASan detection and reviewed harness gallery. Native platforms, consumers and performance remain separate.
 - [x] Restore bounded chunk reuse with nondefault Source line height (RENDER-02), preserving exact sequential
   line geometry and pixels, clean/dirty/hidden work and per-frame resource rules. The
   [scoped closeout](../Done/SourceSpacingAndRadioNaming_2026-11-07.md) records six zero-warning builds,
@@ -278,7 +280,19 @@ policy, erase its findings or close this section.
   distinction and a deterministic hardware/WARP/debug-layer counterfactual. Its
   [completed local scope](../Done/NativeDeviceExceptionBoundary_2026-11-07.md) at `c4272b0d` passes six
   zero-warning builds, 66 ordinary x64 suite executions and actual ASan with original-member verification.
-  Fresh hosted native ARM64 and the complete test-before-production gate remain required.
+  At exact main `054766f6`, Grid's named origins pass in all three ARM64 profiles.
+  Full Debug [42322543703](https://github.com/RedSalamanders/DxUi/actions/runs/42322543703)
+  still rejects a console-covered Menu cursor fixture; ASan
+  [42322548004](https://github.com/RedSalamanders/DxUi/actions/runs/42322548004)
+  passes all requested native suites but rejects two external-consumer build warnings;
+  Release [42322551824](https://github.com/RedSalamanders/DxUi/actions/runs/42322551824)
+  stops at three saved-context origin checks. Original wrappers and every canonical payload member
+  are verified. The missing original consumer build log leaves its warning causes unassigned.
+  [Focused verifier and retention evidence](../../../Measurements/NativeQualificationVerifier_2026-11-07/README.md)
+  adds a bounded ARM64 frame-pointer fallback, unchanged strict rejection controls, actual diagnostic
+  records and retained consumer sources/images/logs. Native x64 Foundation and warning-free x64/ARM64
+  cross-builds pass; the new ARM64 fallback and complete test-before-production gate remain unaccepted
+  until fresh hosted execution. This does not assign a cause to the older output-less Grid failure.
 - [ ] Complete or retain the explicit owner deferral for native ARM64 opt-in MenuResources/MenuResourceScaling
   and candidate-specific foreground coverage. Native cross-builds and ordinary hosted suites do not close them.
 - [ ] Qualify physical device removal/occlusion, real IME during reflow, assistive technology and touch on named
