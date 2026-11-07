@@ -1,1 +1,0 @@
-- Expose RadioButtons headers as the UI Automation Group Name, with explicit-name precedence and associated-label fallback. Refresh effective Name changes for native and embedded hosts, preserve group/choice identity and selection, and suppress unchanged-header invalidation; regressions cover client events, retained providers and detach.
