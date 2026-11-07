@@ -793,7 +793,7 @@ bool EmbeddedHost::CapturedDragContinues() const noexcept
     // A ScrollPanel holds host capture for its forwarded child. Preparation and input coherence must cancel
     // when that actual gesture owner becomes unavailable, just like native message-entry pruning.
     const Control* const gesture = ControlCaptureAccess::GestureOwner(_host);
-    if (gesture != captured && !IsControlEffectivelyInteractive(_host._root.get(), gesture))
+    if (gesture != captured && ! IsControlEffectivelyInteractive(_host._root.get(), gesture))
         return false;
     const D2D1_RECT_F bounds     = captured->GetBounds();
     const D2D1_RECT_F capturedAt = _host._capturedBounds;
