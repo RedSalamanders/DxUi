@@ -11720,6 +11720,24 @@ void TestMenuPointerCursorIsArrowOverPopupsAndTheWindowsOwnOutside()
     Require(textWindow != nullptr, "create the text-cursor window");
     owner.PumpMessages();
 
+    // Create the owned obstruction before opening the menu. Creating another
+    // top-level window while its transient popup is active can retire the popup.
+    RECT ownerRect{};
+    Require(GetWindowRect(owner.Hwnd(), &ownerRect) != FALSE, "read the owned obstruction bounds");
+    wil::unique_hwnd covering(CreateWindowExW(WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW | WS_EX_TOPMOST,
+                                              kTextWindowClass,
+                                              L"",
+                                              WS_POPUP | WS_VISIBLE,
+                                              ownerRect.left,
+                                              ownerRect.top,
+                                              ownerRect.right - ownerRect.left,
+                                              ownerRect.bottom - ownerRect.top,
+                                              nullptr,
+                                              nullptr,
+                                              textClass.hInstance,
+                                              nullptr));
+    Require(covering != nullptr, "create the owned popup obstruction before menu activation");
+
     const HCURSOR arrow      = LoadCursorW(nullptr, IDC_ARROW);
     const HCURSOR textCursor = LoadCursorW(nullptr, IDC_IBEAM);
     const HCURSOR resize     = LoadCursorW(nullptr, IDC_SIZEWE);
@@ -11740,21 +11758,14 @@ void TestMenuPointerCursorIsArrowOverPopupsAndTheWindowsOwnOutside()
     // this owned popup above our own deterministic obstruction as well, without
     // activating or changing any foreign window. The original ownership and
     // actual cursor assertions below still decide the test.
-    wil::unique_hwnd covering(CreateWindowExW(WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW | WS_EX_TOPMOST,
-                                              kTextWindowClass,
-                                              L"",
-                                              WS_POPUP | WS_VISIBLE,
-                                              popupRect.left,
-                                              popupRect.top,
-                                              popupRect.right - popupRect.left,
-                                              popupRect.bottom - popupRect.top,
-                                              nullptr,
-                                              nullptr,
-                                              textClass.hInstance,
-                                              nullptr));
-    Require(covering != nullptr, "create the owned popup obstruction");
-    Require(SetWindowPos(popup, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE) != FALSE,
-            "expose the owned menu cursor patch without foreground activation");
+    const bool aliveBeforePosition = IsWindow(popup) != FALSE;
+    SetLastError(ERROR_SUCCESS);
+    const bool exposed        = SetWindowPos(popup, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE) != FALSE;
+    const DWORD positionError = exposed ? ERROR_SUCCESS : GetLastError();
+    if (! exposed)
+        std::cerr << "Owned menu cursor exposure failed: error=" << positionError << " alive-before=" << aliveBeforePosition
+                  << " alive-after=" << (IsWindow(popup) != FALSE) << '\n';
+    Require(exposed, "expose the owned menu cursor patch without foreground activation");
     const HWND menuCovering = WindowFromPoint(overMenu);
     const HWND textCovering = WindowFromPoint(overText);
     if (menuCovering != popup || textCovering != textWindow.get())

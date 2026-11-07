@@ -33,7 +33,7 @@ an unavailable verifier is a failed qualification with an explicit diagnostic, n
 The exact module/PDB identity, original exception thread/context and named originating frame remain required.
 Rejected walks retain their termination reason, initial context registers, observed
 PC/SP/frame/return addresses and function-table lookup/miss counts. Native ARM64 also
-records the last raw function-table entry and PAC-query count. These diagnostics do
+records each inline-frame context, the last raw function-table entry and PAC-query count. These diagnostics do
 not replace a successful named-origin unwind or permit address masking. Independent
 negative controls reject the wrong thread/IP and an intentionally absent origin
 using the same owned original dump after its actual origin has passed.
@@ -44,6 +44,11 @@ and initial frame. Retain the rejected standard-pass diagnostics and identify th
 successful mode. Both passes retain the 256-frame ceiling, original target/PAC
 checks and exact named-origin/module/PDB predicates; neither stack scanning nor
 manual return-address repair is allowed. Failure of both remains failed qualification.
+For `STACKFRAME_EX`, progress includes its opaque `InlineFrameContext`: DbgHelp can
+advance an inline frame without changing the physical PC/SP. A PC/SP-only guard
+MUST NOT truncate that valid walk. Unchanged PC/SP and inline context still stop the
+walk, and the independent 256-frame ceiling remains. This does not relax the saved
+context, exact PDB or named-origin predicates.
 See the [StackWalk2 contract](https://learn.microsoft.com/en-us/windows/win32/api/dbghelp/nf-dbghelp-stackwalk2)
 and [target attributes](https://learn.microsoft.com/en-us/windows/win32/api/dbghelp/nc-dbghelp-pget_target_attribute_value64).
 
@@ -1163,7 +1168,10 @@ checks establish dispatch/cleanup contracts; only fresh hosted execution qualifi
 Before creating or resuming each hosted child, the runner MUST verify that its warning still owns the foreground.
 Within its existing lease, the menu cursor fixture MAY promote only its owned popup
 to the topmost band without activation and create an owned topmost obstruction to
-exercise that setup deterministically. It MUST retain the actual `WindowFromPoint`
+exercise that setup deterministically. Create the obstruction before opening the
+transient menu; do not introduce another top-level window during its active lifetime.
+Failed popup exposure retains the Win32 error and before/after window-liveness
+diagnostic. It MUST retain the actual `WindowFromPoint`
 ownership checks and arrow/text/arrow cursor assertions. A foreign covering window
 still yields the original capability diagnostic and fails an interactive run; no
 foreign window may be activated, repositioned or dismissed by this fixture.
