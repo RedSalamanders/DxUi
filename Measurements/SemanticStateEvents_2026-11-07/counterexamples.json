@@ -1,0 +1,364 @@
+{
+  "consumerLinkOriginal": {
+    "runId": "42337660555",
+    "rawBuildLogSha256": "0018B70D080D42C94E92DB0E77473606683AA6C4294C1E3B05B3DDD84E16BC1F",
+    "memberCount": 35,
+    "sourceCommit": "d71d575842429ac49b24932fdfb84e6c34996fd5",
+    "allOriginalMembersVerified": true,
+    "uniqueWarning": "LNK4300: ignoring incremental linking because an input contains ASan metadata",
+    "archiveSha256": "4F0EF8C9D32B2B10A63AAAA711E78E725D3E644ECF6AC8B59C31B180EF96EF2E"
+  },
+  "inlineProgressPairs": [
+    {
+      "allowInlineProgress": 0,
+      "logSha256": "1026D57F243A41874512EC996A77067B4B1294F546A796E0AC3C9F7D425E93FC",
+      "dumpSha256": "FBA808AB752708A237D2F446CD14FAFD4EE36C9D171F07389FAE672F559C686B",
+      "scenario": "yaml",
+      "recordSha256": "F8BF78E332CC13B4BB7D018D2C3AC2ADA77599369F62A6E6F675B71F712C96EE",
+      "exitCode": 1,
+      "imageSha256": "F5D2CEE375016C54A08259DE314C410E4064C4CA6D7F0B79F110CB89AF4236BA"
+    },
+    {
+      "allowInlineProgress": 1,
+      "logSha256": "1DD20C20406138E1D7865AAEB35A10CCB22D2486D7C205AD815D6286138DAFA8",
+      "dumpSha256": "FBA808AB752708A237D2F446CD14FAFD4EE36C9D171F07389FAE672F559C686B",
+      "scenario": "yaml",
+      "recordSha256": "F8BF78E332CC13B4BB7D018D2C3AC2ADA77599369F62A6E6F675B71F712C96EE",
+      "exitCode": 0,
+      "imageSha256": "F5D2CEE375016C54A08259DE314C410E4064C4CA6D7F0B79F110CB89AF4236BA"
+    },
+    {
+      "allowInlineProgress": 0,
+      "logSha256": "FBC78E23207C98D3E35D9077CD9A30AB40AF37C9E258149D2BE83105E326B726",
+      "dumpSha256": "2C14F413FB68480B84FB1D8C10404350BA3770A2C70D07C3A364D098584BBB83",
+      "scenario": "retired-text",
+      "recordSha256": "294A162525995A19EB36262E8A169C251D05B86E7939ECE9017ACB19092E796C",
+      "exitCode": 1,
+      "imageSha256": "72B58CB6F15CB85EC3ED1AD1983D9A5F0685225C82F06034AB1E201D62389BEB"
+    },
+    {
+      "allowInlineProgress": 1,
+      "logSha256": "D89FF4AA978E10FE50F1CA93B8CD9B98C0C911270E9674CBFF92BB9C7990F02D",
+      "dumpSha256": "2C14F413FB68480B84FB1D8C10404350BA3770A2C70D07C3A364D098584BBB83",
+      "scenario": "retired-text",
+      "recordSha256": "294A162525995A19EB36262E8A169C251D05B86E7939ECE9017ACB19092E796C",
+      "exitCode": 0,
+      "imageSha256": "72B58CB6F15CB85EC3ED1AD1983D9A5F0685225C82F06034AB1E201D62389BEB"
+    }
+  ],
+  "actualUiaCounterexample": {
+    "name": "verified-six-semantic-event-proof.zip",
+    "sha256": "5F73F41E3B0E79A74DD6F6A8255AE66B63203298808E1860B41FD325C61113DB",
+    "limits": [
+      "The first two immediate-exit UIA fixtures are retained as rejected timeout/CLR-exit evidence",
+      "One earlier copied proposal source was reconstructed and independently matched against its original PDB checksum; original-source-recovery.json identifies the accepted recovered file",
+      "The baseline-inputs.json file is the earlier preparation checkpoint; the source/ members here and compiled shared fixture objects bind the final deferred-result fixture",
+      "Candidate is the retained a42 SDK plus its replacement accessibility and rich-editor translation units; the added private nonvirtual accessor does not alter object layout; complete SDK/native ARM64/performance qualification is separate"
+    ],
+    "memberCount": 153,
+    "allMemberHashesVerified": true,
+    "baseline": [
+      {
+        "test": "TestRichTextAccessibilityWindowObjectSourceEditing",
+        "exitCode": 1,
+        "logSha256": "E56CAB144270BC944072E8B866553C70DECF13711254188B8B4FB0BFE08E3C0F"
+      },
+      {
+        "test": "TestRichTextAccessibilityEmbeddedObjectSourceEditing",
+        "exitCode": 1,
+        "logSha256": "94158B70AB67DC08E9514CF45E65D6B4E2B0BAAA479B34A382996F15F35BD444"
+      },
+      {
+        "test": "TestRichTextAccessibilityWindowSemanticStructureAndTasks",
+        "exitCode": 1,
+        "logSha256": "12CAEB04BC91A1E39F6BE7CC3C315B0FBC30D8D78FF7EAC3F745ABE8DEE7ECE1"
+      },
+      {
+        "test": "TestRichTextAccessibilityEmbeddedSemanticStructureAndTasks",
+        "exitCode": 1,
+        "logSha256": "4CFC438663210244C1F623E710E153ED65537DF1D13068917571BCF046F73069"
+      },
+      {
+        "test": "TestRichTextAccessibilityWindowInlineStateEvents",
+        "exitCode": 1,
+        "logSha256": "8DB189CD74E6663D878037D3DBD4CF9BC75C401EBDE139BA40AAD4798091B01D"
+      },
+      {
+        "test": "TestRichTextAccessibilityEmbeddedInlineStateEvents",
+        "exitCode": 1,
+        "logSha256": "FA7433955A0B695E03430E72795DD4FB67D6886ECE5B6EF99B079C0A876E5980"
+      }
+    ],
+    "candidate": [
+      {
+        "test": "TestRichTextAccessibilityWindowObjectSourceEditing",
+        "exitCode": 0,
+        "logSha256": "322962A7F7BB60530931366A97298DC18C8848393403998448BA621E97D8531F"
+      },
+      {
+        "test": "TestRichTextAccessibilityEmbeddedObjectSourceEditing",
+        "exitCode": 0,
+        "logSha256": "A744670B98E1CEB3A700BE92123FD127D7D633714EC13D9DB93D66480429A09F"
+      },
+      {
+        "test": "TestRichTextAccessibilityWindowSemanticStructureAndTasks",
+        "exitCode": 0,
+        "logSha256": "C83CEE12EBA4C6DCD4216F4F3E07569CACFE2FBDE1E737DB1AFA543500AE3415"
+      },
+      {
+        "test": "TestRichTextAccessibilityEmbeddedSemanticStructureAndTasks",
+        "exitCode": 0,
+        "logSha256": "222B7D3DEA474702B9CA79F53C7B71B3AF8E3790F655FAEC589A9D56477B0258"
+      },
+      {
+        "test": "TestRichTextAccessibilityWindowInlineStateEvents",
+        "exitCode": 0,
+        "logSha256": "7506E4E3DB17D7C3EE1AFCA1A6DE3F97C5577543C066306F0703853CD1FE9579"
+      },
+      {
+        "test": "TestRichTextAccessibilityEmbeddedInlineStateEvents",
+        "exitCode": 0,
+        "logSha256": "F54E9E8D4C10F40BDE072EA09A83DF33B1102CF313C45465AD1E569495215784"
+      }
+    ]
+  },
+  "implementationCommit": "930526658c145b4ec2390a06832c47f0f602459a",
+  "limits": [
+    "Original ARM64 saved-context dumps are replayed offline from x64 against exact target images; this is not live native ARM64 execution",
+    "Six focused UIA cases use shared compiled fixture objects and partial candidate replacement; the full six-profile matrix qualifies the combined source separately",
+    "Original unknown warning/output-less failures remain unattributed; new source-bound causes do not apply retrospectively",
+    "Menu ordering correction still needs fresh hosted foreground execution"
+  ],
+  "originalDiagnosticArchive": {
+    "name": "original-diagnostic-proof.zip",
+    "sha256": "C3B06A9EFFDAA204F80DC26A5F1A1A99198EF8CC9F1BB96412765F9501C31C23",
+    "files": [
+      {
+        "path": "Prepare-Arm64InlineReplay.ps1",
+        "bytes": 5252,
+        "sha256": "23E4D040F3F1A57E6DC786E718D5B708DA7FC082F2D75634DA8EAE8437C3EFBF"
+      },
+      {
+        "path": "arm64-inline-progress-paired-results.json",
+        "bytes": 1765,
+        "sha256": "6FC54911EF79CAEFBC672D208A78CD9700A45297F04CB4F82348FB42DA3CA02A"
+      },
+      {
+        "path": "asan-consumer-original-verification.json",
+        "bytes": 1187,
+        "sha256": "5F0A51EE6D0753A8797728D7E8364DC5176CB32EAA63B486CC81F6E1B72F97AD"
+      },
+      {
+        "path": "arm64-inline-progress-negative-absent-origin.log",
+        "bytes": 4372,
+        "sha256": "6B53625AC6D13DFA238234D67837B187827CAEEDD16E0579D1829830412B8B9A"
+      },
+      {
+        "path": "arm64-inline-progress-negative-wrong-ip.log",
+        "bytes": 93,
+        "sha256": "B5324A254F1CC900E02CBDA38B70792994BA30596AFFB4BE9344FF06767750BD"
+      },
+      {
+        "path": "arm64-inline-progress-negative-wrong-thread.log",
+        "bytes": 93,
+        "sha256": "B5324A254F1CC900E02CBDA38B70792994BA30596AFFB4BE9344FF06767750BD"
+      },
+      {
+        "path": "arm64-inline-progress-replay-build.log",
+        "bytes": 173,
+        "sha256": "EE8B758E4166BA284706961069ECF262050351E9E657C25B53796036EDC2474D"
+      },
+      {
+        "path": "arm64-inline-progress-retired-text-mode0.log",
+        "bytes": 1675,
+        "sha256": "FBC78E23207C98D3E35D9077CD9A30AB40AF37C9E258149D2BE83105E326B726"
+      },
+      {
+        "path": "arm64-inline-progress-retired-text-mode1.log",
+        "bytes": 195,
+        "sha256": "D89FF4AA978E10FE50F1CA93B8CD9B98C0C911270E9674CBFF92BB9C7990F02D"
+      },
+      {
+        "path": "arm64-inline-progress-yaml-0.log",
+        "bytes": 1946,
+        "sha256": "055B49D605148CD34C5B7AA7C8E68B6C0B2E16304BA3B6FCA441B6EE5C41888B"
+      },
+      {
+        "path": "arm64-inline-progress-yaml-1.log",
+        "bytes": 181,
+        "sha256": "1DD20C20406138E1D7865AAEB35A10CCB22D2486D7C205AD815D6286138DAFA8"
+      },
+      {
+        "path": "arm64-inline-progress-yaml-mode0.log",
+        "bytes": 1946,
+        "sha256": "1026D57F243A41874512EC996A77067B4B1294F546A796E0AC3C9F7D425E93FC"
+      },
+      {
+        "path": "arm64-inline-progress-yaml-mode1.log",
+        "bytes": 181,
+        "sha256": "1DD20C20406138E1D7865AAEB35A10CCB22D2486D7C205AD815D6286138DAFA8"
+      },
+      {
+        "path": "arm64-inline-replay/DxUi.FoundationTests.vcxproj",
+        "bytes": 3049,
+        "sha256": "16063E8AAEF3DD4F2120B03201D271653BCE52D6CEB174BEB4CC2590304A1F2F"
+      },
+      {
+        "path": "arm64-inline-replay/OfflineDumpReader.h",
+        "bytes": 27884,
+        "sha256": "F8225DC7072862E68631CA3DA5B903C5511329662E82F817773E133781CF0C45"
+      },
+      {
+        "path": "arm64-inline-replay/Replay.cpp",
+        "bytes": 828,
+        "sha256": "9D13FF9BBC4F1E1DA9BA20664B98A0648456F24A3FCA4D6DF8F64B276CE738F1"
+      },
+      {
+        "path": "arm64-inline-replay/bin/DxUi.FoundationTests.exe",
+        "bytes": 43008,
+        "sha256": "C95FEAF6253FCAF263878DA780709F9BA569BAF92CD57B9AF0C2A63BE76C5A6E"
+      },
+      {
+        "path": "arm64-inline-replay/bin/DxUi.FoundationTests.pdb",
+        "bytes": 1626112,
+        "sha256": "48DA534F4CA7BCAC973C62379C355C38004DF660FB57AB53F4E4D7FB163FE2AB"
+      },
+      {
+        "path": "arm64-inline-replay/first-ignore-inline-counterexample/arm64-inline-replay-build-corrected.log",
+        "bytes": 173,
+        "sha256": "EE8B758E4166BA284706961069ECF262050351E9E657C25B53796036EDC2474D"
+      },
+      {
+        "path": "arm64-inline-replay/first-ignore-inline-counterexample/arm64-inline-replay-yaml-0.log",
+        "bytes": 1938,
+        "sha256": "C285C059A5D95A70C452B39663EB91DE85F81C5252357C93B89F80E2E55499C7"
+      },
+      {
+        "path": "arm64-inline-replay/first-ignore-inline-counterexample/arm64-inline-replay-yaml-1.log",
+        "bytes": 1934,
+        "sha256": "79C523B6B2A49B16D8B727E8D5C09E85BAC67E6C2ED71B912994F4383E94CD96"
+      },
+      {
+        "path": "arm64-inline-replay/first-ignore-inline-counterexample/DxUi.FoundationTests.exe",
+        "bytes": 43008,
+        "sha256": "EC9E0A29DA1E5BEBF7DE97F3420D8D6290DDEB6ED9761E27E4D1990EEB7ED214"
+      },
+      {
+        "path": "arm64-inline-replay/first-ignore-inline-counterexample/DxUi.FoundationTests.pdb",
+        "bytes": 1560576,
+        "sha256": "59066314163E6AB5A089DC8846A3093E8FC44F4182AEEACD2CD2217A336BBF62"
+      },
+      {
+        "path": "arm64-inline-replay/first-ignore-inline-counterexample/DxUi.FoundationTests.vcxproj",
+        "bytes": 3049,
+        "sha256": "16063E8AAEF3DD4F2120B03201D271653BCE52D6CEB174BEB4CC2590304A1F2F"
+      },
+      {
+        "path": "arm64-inline-replay/first-ignore-inline-counterexample/OfflineDumpReader.h",
+        "bytes": 27908,
+        "sha256": "798E68B5CBA2D640690B0CEE301C9714A8C0573D10ECA03A7EB2E721400274F8"
+      },
+      {
+        "path": "arm64-inline-replay/first-ignore-inline-counterexample/original-hashes.json",
+        "bytes": 1089,
+        "sha256": "44C391552A9FD37FC845F2E8F6C1A38912056785AA49013BD747A0A873770174"
+      },
+      {
+        "path": "arm64-inline-replay/first-ignore-inline-counterexample/Replay.cpp",
+        "bytes": 806,
+        "sha256": "90C20A9E7707A45160CFCCFD91A383181F3840C1730C021D2B5E269F9BD2358D"
+      },
+      {
+        "path": "arm64-inline-replay/first-project-output-failure/arm64-inline-replay-build.log",
+        "bytes": 252,
+        "sha256": "CA7A7099307207836E393D3A1BA64DD916FCBD12741508C1A06791CBADFDB7D7"
+      },
+      {
+        "path": "arm64-inline-replay/first-project-output-failure/DxUi.FoundationTests.vcxproj",
+        "bytes": 2991,
+        "sha256": "11DA9CBD32B6A87D45CD0EC6F0820741DCD5BBE2ECD06811C02BE4076039DB0F"
+      },
+      {
+        "path": "arm64-inline-replay/first-project-output-failure/Prepare-Arm64InlineReplay.ps1",
+        "bytes": 5155,
+        "sha256": "F26FB6F9CC910457AF3AC663193E7C4B0844E59419E2D69219A16FDE7A9573A8"
+      },
+      {
+        "path": "consumer-link-firstfailure/DxUi.Consumer.targets",
+        "bytes": 3361,
+        "sha256": "0B828B8603699782AC49026DAD151303B1DFC64A13B1D46BE8C04B56B301A6F5"
+      },
+      {
+        "path": "consumer-link-firstfailure/evaluated-after.log",
+        "bytes": 645,
+        "sha256": "ADC827371CA16878C2E5004C70CD7F74C1B31EA739FF6347CEF12B1F6EACA434"
+      },
+      {
+        "path": "consumer-link-firstfailure/evaluated-before.log",
+        "bytes": 325,
+        "sha256": "CDFBFFDC5DFC9038CEDE79420E740F41D97AF08B1BBDCA636F48E6501EBD70AC"
+      },
+      {
+        "path": "consumer-link-firstfailure/Test-ReleaseBuildPolicy.ps1",
+        "bytes": 17652,
+        "sha256": "C8DE6023C3BAEBAE649BED8E2AEA2F652ED8C4204E485180B1A838CF735DD3C1"
+      },
+      {
+        "path": "original-arm64/yaml.record",
+        "bytes": 2284,
+        "sha256": "F8BF78E332CC13B4BB7D018D2C3AC2ADA77599369F62A6E6F675B71F712C96EE"
+      },
+      {
+        "path": "original-arm64/yaml.dmp",
+        "bytes": 141668,
+        "sha256": "FBA808AB752708A237D2F446CD14FAFD4EE36C9D171F07389FAE672F559C686B"
+      },
+      {
+        "path": "original-arm64/retired-text.record",
+        "bytes": 1985,
+        "sha256": "294A162525995A19EB36262E8A169C251D05B86E7939ECE9017ACB19092E796C"
+      },
+      {
+        "path": "original-arm64/retired-text.dmp",
+        "bytes": 151096,
+        "sha256": "2C14F413FB68480B84FB1D8C10404350BA3770A2C70D07C3A364D098584BBB83"
+      },
+      {
+        "path": "original-arm64/DxUi.FoundationTests.exe",
+        "bytes": 4643840,
+        "sha256": "F5D2CEE375016C54A08259DE314C410E4064C4CA6D7F0B79F110CB89AF4236BA"
+      },
+      {
+        "path": "original-arm64/DxUi.FoundationTests.pdb",
+        "bytes": 30961664,
+        "sha256": "6923BA6959F563225A869B6EADE9383A576516551070EA9D2002526F9EBD6BCA"
+      },
+      {
+        "path": "original-arm64/DxUi.EmbeddedTests.exe",
+        "bytes": 8294912,
+        "sha256": "34C56F146732A9BA3C14A08AC066DBA6E8E2332C7BCD218D7DEEF8E3B0FE0D14"
+      },
+      {
+        "path": "original-arm64/DxUi.EmbeddedTests.pdb",
+        "bytes": 51113984,
+        "sha256": "455B91BBCED2DFEAB3D1745D5C7CA792ABE12A283C7A2A8646BE931D3D305070"
+      }
+    ],
+    "allMemberHashesVerified": true
+  },
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-semantic-native-counterexamples",
+  "benchmarkInputs": {
+    "Build/DxUi.Consumer.targets": "1273719C687292B0E36141F530BA78D59D9E39360348F7D16905FB7C7F5B55F1",
+    "include/DxUi/DxUi.h": "FB4EF1A8D823B7A836C38ADBD11E25C156F58212450ED7ABA393F9AECE934D03",
+    "src/Controls/DxUi.Accessibility.cpp": "C6772322F8D8053F398A4E65860250D432DE6F6E3AEB1E5216CB0101BC32A968",
+    "src/Controls/DxUi.RichAccessibility.h": "20EA868B7740951E8420C780883DFCB35EEB5821464C4B771C90F134D26FD94A",
+    "src/Controls/DxUi.RichTextEditor.cpp": "15FAB027AB0084D36BDE0BD910F3E9B652879C204EA71CDF9A04CDF5A336233F",
+    "Tests/Controls/Controls.Tests.DxUiTestHelpers.h": "B2513FA91FA736748630CBBF4AE1F102506AF01C505AB20565D32043202E9F8F",
+    "Tests/Controls/Controls.Tests.RichTextAccessibility.cpp": "E2983D4876A56B8FD7523B6C59B2F19111D5F8AC4A4DA88529B727AFC2A91154",
+    "Tests/Controls/DxUi.Tests.Runner.cpp": "B3933B69944E38F926E51511FD6E37053A0BBEBA02665AA8D126C906B219493B",
+    "Tests/Controls/DxUi.Tests.Menu.cpp": "1506D2C809735544991B90234A2C61F3D572D9C0590D2CE057DE79697A2B3CD2",
+    "Tests/Support/Support.Tests.DumpReader.h": "3C3B65AC71BD328EDCE7CCB4AEF3AD1E8E490828F19D1AB7C73EBCF8EFBC20E9",
+    "Tools/tests/Test-ReleaseBuildPolicy.ps1": "AC21038F6D550379127CF2EE552A1DBC2DB6F8F63194470A85C5429BD66C353B"
+  }
+}
