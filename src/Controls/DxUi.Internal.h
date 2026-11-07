@@ -438,6 +438,8 @@ void RaiseWindowHostFocusChanged(HWND hwnd, const Control* control) noexcept;
 [[nodiscard]] ITextStoreACP* CreateNativeTextInputTextStore(ControlHost& host, Control& control, bool hostDeferredWorkEligible = false) noexcept;
 void DetachNativeTextInputTextStore(IUnknown* store) noexcept;
 void DisconnectNativeTextInputTextStore(IUnknown* textStore) noexcept;
+// Per native HWND, preserves the borrowed application IMM association while a masked view owns logical focus.
+void SetNativeWindowImeSuppressed(ControlHost* host, bool suppressed) noexcept;
 [[nodiscard]] bool IsRenderStageActiveForDebug() noexcept;
 [[nodiscard]] bool IsRenderStageActive() noexcept;
 void EmitRenderMutationBlockedForDebug() noexcept;

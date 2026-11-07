@@ -941,7 +941,17 @@ A composition message with no GCS flags cancels the owned inline preview;
 IME read-string updates do not cancel it. Composition range, caret, conversion-target and
 clause metadata are cleared when composition ends; range and caret geometry follows the control's current text
 viewport, including single-line horizontal scroll and multiline scrolling. A masked TextField does not activate
-TSF, rejects native text-store locks and discards IMM composition. Its UI Automation Text pattern is unavailable,
+TSF, rejects native text-store locks and discards IMM composition. Masked logical focus on a native HWND also
+disassociates its legacy IMM context before accepting input. The bounded attachment record borrows the previous
+context; unmasking that same field, moving logical focus to a plain field, deactivation and detach restore the exact
+borrowed association. A newer application-installed association wins, and another HWND's association is unchanged.
+Native IMM calls run outside the attachment registry lock, with transition/revision checks after reentrant calls.
+Neither a thread-default context reset nor a thread-wide keyboard-disabled setting may replace this per-window policy.
+The defensive text-store adapter returns `S_OK` with `TS_SD_READONLY` for a masked field and exposes `IS_PASSWORD`
+through `ITfInputScope`, without granting a read/write lock or exporting secret text. Plain controls report their
+actual read-only policy; an unavailable target remains disconnected. Application-bridged stores use the same metadata
+contract and securely clear temporary masked snapshots. Logical policy changes never transfer native keyboard focus.
+Its UI Automation Text pattern is unavailable,
 and its accessible name/value/text never contains the password. Host `WM_GETTEXT`, `WM_GETTEXTLENGTH` and
 `WM_SETTEXT` remain window-caption messages while an editor has focus; editor state is exposed by the supported
 control and UI Automation APIs.

@@ -28,6 +28,7 @@
 #include <dcomp.h>
 #include <dwmapi.h>
 #include <dxgi1_6.h>
+#include <imm.h>
 #include <richedit.h>
 #include <windowsx.h>
 
@@ -550,7 +551,19 @@ struct WindowHostAttachment
     ControlHost* host;
     HWND hwnd;
     DWORD ownerThreadId;
+    HIMC previousImeContext    = nullptr;
+    uint64_t imePolicyRevision = 0u;
+    bool imeSuppressed         = false;
 };
+
+// Only advanced under GetAttachedWindowHostsMutex; an operation cannot claim a replacement attachment.
+[[nodiscard]] uint64_t NextImePolicyRevision() noexcept
+{
+    static uint64_t revision = 0u;
+    if (++revision == 0u)
+        ++revision;
+    return revision;
+}
 
 #if DXUI_ENABLE_DIAGNOSTICS
 thread_local bool failNextAccessibilityRegistrationForTest = false;
@@ -1344,6 +1357,51 @@ uint32_t DebugGetSharedWindowHostAttachmentCountForThread(DWORD threadId) noexce
 }
 #endif
 
+void SetNativeWindowImeSuppressed(ControlHost* host, bool suppressed) noexcept
+{
+    HWND hwnd          = nullptr;
+    HIMC previous      = nullptr;
+    bool wasSuppressed = false;
+    uint64_t revision  = 0u;
+    {
+        const std::scoped_lock lock(GetAttachedWindowHostsMutex());
+        auto& hosts   = GetAttachedWindowHosts();
+        const auto it = std::ranges::find(hosts, host, &WindowHostAttachment::host);
+        if (it == hosts.end() || it->ownerThreadId != GetCurrentThreadId())
+            return;
+        hwnd          = it->hwnd;
+        previous      = it->previousImeContext;
+        wasSuppressed = it->imeSuppressed;
+        if (! suppressed && ! wasSuppressed)
+            return;
+        revision = it->imePolicyRevision = NextImePolicyRevision();
+    }
+    // IMM may call application window procedures. Never hold the attachment lock across a native call.
+    const HIMC current = Failure::InvokeNative(&ImmGetContext, hwnd);
+    if (current)
+        static_cast<void>(Failure::InvokeNative(&ImmReleaseContext, hwnd, current));
+    {
+        const std::scoped_lock lock(GetAttachedWindowHostsMutex());
+        auto& hosts   = GetAttachedWindowHosts();
+        const auto it = std::ranges::find(hosts, host, &WindowHostAttachment::host);
+        if (it == hosts.end() || it->hwnd != hwnd || it->imePolicyRevision != revision)
+            return;
+        // Commit before a potentially reentrant association change. A successor owns its own revision.
+        it->imeSuppressed      = suppressed;
+        it->previousImeContext = suppressed ? (current ? current : previous) : nullptr;
+    }
+    if (suppressed)
+    {
+        if (current)
+            static_cast<void>(Failure::InvokeNative(&ImmAssociateContext, hwnd, static_cast<HIMC>(nullptr)));
+    }
+    else if (! current && wasSuppressed && previous)
+    {
+        // A host-installed replacement wins. Restore the exact borrowed context, never a thread default.
+        static_cast<void>(Failure::InvokeNative(&ImmAssociateContext, hwnd, previous));
+    }
+}
+
 struct ControlHost::FileDropState
 {
     bool live = true;
@@ -1520,6 +1578,9 @@ void ControlHost::Detach(bool processExit) noexcept
         // TSF may synchronously ask the text store for HWND/layout during deactivation.
         // Keep the host HWND valid until native text input is fully detached.
         DeactivateTextInput();
+        // Retirement callbacks can supersede a session's ordinary cancellation.
+        // The HWND association still belongs to this attachment until it is severed below.
+        SetNativeWindowImeSuppressed(this, false);
     }
     const DWORD attachmentOwnerThreadId = _attachmentOwnerThreadId;
     if (hadAttachment)

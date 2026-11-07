@@ -316,6 +316,11 @@ Deferred TSF lock notifications consumed by a nested message loop wait for the a
 repost into that loop. Pending flags remain coalesced if posting fails and retry on the next real lock request.
 The native host leaves `WM_GETTEXT`, `WM_GETTEXTLENGTH` and `WM_SETTEXT` to its window caption. Read or change an
 editor through its control API, TextInputServices or UI Automation instead.
+Masked native TextFields disable legacy IME composition on their own HWND while logically focused. Unmasking,
+moving focus away and detaching restore the application's exact previous IMM association; an application-installed
+replacement and other windows retain theirs. The defensive TSF store reports read-only password input scope without
+exposing the secret or accepting text-service locks. This does not require taking keyboard focus. Applications remain
+responsible for their embedded HWND's legacy IMM policy; the bridged store supplies the same defensive metadata.
 The native edit shim retains reversed `EM_SETSEL` anchor/caret orientation and maps native CRLF offsets consistently.
 With --text-input --output image.png it uses a hidden application window and private clipboard to check
 public consumption and render a Unicode result. That automated path does not simulate an actual IME.

@@ -140,6 +140,7 @@
   "Tests/Support/Support.Tests.MarkdownHtml.h",
   "Tests/Support/Support.Tests.MarkdownInlines.h",
   "Tests/Support/Support.Tests.MarkdownSourceCorrelation.h",
+  "Tests/Support/Support.Tests.MaskedInputPolicy.h",
   "Tests/Support/Support.Tests.MathCorpus.h",
   "Tests/Support/Support.Tests.MathFontTable.h",
   "Tests/Support/Support.Tests.NativeFlowchartCorpus.h",

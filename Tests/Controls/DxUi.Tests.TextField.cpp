@@ -1,5 +1,6 @@
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "Support.Tests.FatalChildren.h"
+#include "Support.Tests.MaskedInputPolicy.h"
 #include <DxUi/Failure.h>
 
 #include <array>
@@ -13,6 +14,37 @@ namespace
 {
 
 std::atomic<unsigned> textFieldFailureMarker{};
+
+void TestMaskedTextStoreReportsReadOnlyStatusWithoutChangingSource()
+{
+    const auto result = MaskedInputPolicyTests::ObserveMaskedMetadata();
+    Require(result.status == S_OK && (result.flags & TS_SD_READONLY) != 0u,
+            "a masked native store reports successful read-only metadata rather than an invalid position");
+    Require(result.writeDenied && result.sourcePreserved && result.historyPreserved,
+            "read-only metadata grants no write lock and preserves the masked source/history");
+}
+
+void TestMaskedTextStorePublishesPasswordInputScope()
+{
+    const auto result = MaskedInputPolicyTests::ObserveMaskedMetadata();
+    Require(result.inputScope == S_OK && result.scopeCount == 1u && result.scope == IS_PASSWORD,
+            "the retained native text-store adapter identifies password policy to text services");
+    Require(result.writeDenied && result.sourcePreserved && result.historyPreserved,
+            "password input metadata exposes no writable source or history transition");
+}
+
+void TestMaskedNativeWindowPreservesBorrowedImeContexts()
+{
+    // Establish the same mixed headless/native cache state even when this case runs alone.
+    static_cast<void>(MaskedInputPolicyTests::ObserveMaskedMetadata());
+    static_cast<void>(MaskedInputPolicyTests::ObserveMaskedMetadata());
+    const auto result = MaskedInputPolicyTests::ObserveMaskedImeAssociation();
+    Require(result.ready && result.suppressed, "masked logical focus disassociates the actual window IMM context");
+    Require(result.unmaskRestored && result.blurRestored && result.detachRestored,
+            "unmask, logical blur and detach restore the exact application-owned IMM context");
+    Require(result.replacementPreserved && result.siblingPreserved, "a replacement association and a sibling HWND keep their own application context");
+    Require(result.focusPreserved, "masked policy checks preserve foreground and keyboard focus");
+}
 [[noreturn]] __declspec(noinline) void TextFieldCallbackFailureOrigin(const std::runtime_error& error)
 {
     textFieldFailureMarker.store(41u, std::memory_order_relaxed);
@@ -2388,6 +2420,9 @@ void TestTextFieldBuffersSurrogatesBeforePublishing()
 
 void RunTextFieldTests()
 {
+    DXUI_RUN_TEST(TestMaskedTextStoreReportsReadOnlyStatusWithoutChangingSource);
+    DXUI_RUN_TEST(TestMaskedTextStorePublishesPasswordInputScope);
+    DXUI_RUN_TEST(TestMaskedNativeWindowPreservesBorrowedImeContexts);
     DXUI_RUN_TEST(TestTextFieldDirectCallbackFailure);
     DXUI_RUN_TEST(TestTextFieldBlurCallbackKeepsItsCaptureWhenItDestroysTheField);
     DXUI_RUN_TEST(TestTextFieldBlurCallbackKeepsItsCaptureWhenItReplacesItself);
