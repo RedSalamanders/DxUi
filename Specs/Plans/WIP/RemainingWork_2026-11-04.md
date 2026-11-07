@@ -143,6 +143,10 @@ This coordinates the active API work; it does not adopt API 5 in any application
 - [ ] Qualify remaining focus/TSF/menu closure and mask/IME findings from the
   [prior-review register](../Done/ProductionReview_2026-11-02/prior-closure.md). Preserve unexplained historical
   failures; do not infer their causes from later green results.
+- [ ] Complete PRIOR-25/26/27: all-collapsed Grid keyboard expansion, cancellation of unavailable forwarded
+  ScrollPanel drag owners and NumericStepper terminal notifications through binding echoes/external updates.
+  Maintained regressions and normative contracts are implemented; original baseline failures and the complete
+  candidate qualification must be retained before this row closes.
 
 <a id="d-m1"></a>
 ### D-M1 — Markdown, math and diagram correctness

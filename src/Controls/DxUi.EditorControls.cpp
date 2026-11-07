@@ -976,11 +976,44 @@ double NumericStepper::ClampValue(double value) const noexcept
 
 void NumericStepper::SetValue(double value) noexcept
 {
-    _value         = ClampValue(value);
-    _editing       = false;
-    _editPreviewed = false;
+    const double target = ClampValue(value);
+    if (_editing)
+    {
+        // Two-way bindings echo Preview. Preserve that edit, including its spelling, caret and terminal event.
+        if (std::fabs(target - _value) <= kValueEpsilon)
+        {
+            return;
+        }
+        const auto lifetime   = GetLifetimeToken();
+        const double restored = ClampValue(_editStart);
+        const bool previewed  = _editPreviewed;
+        _value                = restored;
+        _editing              = false;
+        _editPreviewed        = false;
+        SyncText();
+        if (lifetime.expired())
+        {
+            return;
+        }
+        if (previewed)
+        {
+            NotifyChange(NumericStepperChangePhase::Cancel);
+            if (lifetime.expired() || _editing || std::fabs(_value - restored) > kValueEpsilon)
+            {
+                // A cancellation observer may retire this control or publish a newer value/draft.
+                return;
+            }
+        }
+    }
+    _value              = ClampValue(target);
+    _editing            = false;
+    _editPreviewed      = false;
+    const auto lifetime = GetLifetimeToken();
     SyncText();
-    RequestInvalidate();
+    if (! lifetime.expired())
+    {
+        RequestInvalidate();
+    }
 }
 
 double NumericStepper::GetValue() const noexcept

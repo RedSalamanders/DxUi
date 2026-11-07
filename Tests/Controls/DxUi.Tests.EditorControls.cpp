@@ -717,6 +717,82 @@ void TestNumericStepperEditsEndWithCommitOrCancel()
     Require(stepper->Nudge(host, +1, false) && stepper->GetValue() == 2.0, "and steps up");
 }
 
+void TestNumericStepperBindingEchoPreservesTypedEdit()
+{
+    WindowHost host;
+    auto root     = std::make_unique<Panel>();
+    auto* stepper = root->AddChild<NumericStepper>();
+    stepper->SetValue(10.0);
+    StepperEvents events;
+    stepper->SetOnChange([&](NumericStepperChange change)
+    {
+        events.phases.push_back(change.phase);
+        events.lastValue = change.value;
+        if (change.phase == NumericStepperChangePhase::Preview)
+            stepper->SetValue(change.value);
+    });
+    host.SetRoot(std::move(root));
+    TextField& field = stepper->Field();
+    TypeText(host, field, L"15");
+    Require(stepper->IsEditing(), "a binding echo keeps the typed edit open");
+    field.SetTextAndNotify(L"015");
+    stepper->SetValue(15.0);
+    Require(field.GetText() == L"015", "an unchanged external value preserves the draft's spelling");
+    Require(field.OnKeyDown(host, VK_RETURN, 0u), "Enter ends the echoed edit");
+    Require(! stepper->IsEditing() && stepper->GetValue() == 15.0 && field.GetText() == L"15", "the echoed edit commits its final value");
+    Require(events.Count(NumericStepperChangePhase::Commit) == 1u && events.Count(NumericStepperChangePhase::Cancel) == 0u && events.lastValue == 15.0,
+            "every echoed preview ends with exactly one terminal Commit");
+}
+
+void TestNumericStepperExternalValueCancelsPreview()
+{
+    WindowHost host;
+    auto root     = std::make_unique<Panel>();
+    auto* stepper = root->AddChild<NumericStepper>();
+    stepper->SetValue(10.0);
+    std::vector<NumericStepperChange> changes;
+    stepper->SetOnChange([&](NumericStepperChange change) { changes.push_back(change); });
+    host.SetRoot(std::move(root));
+    TypeText(host, stepper->Field(), L"15");
+    stepper->SetValue(3.0);
+    Require(changes.size() == 3u && changes.back().phase == NumericStepperChangePhase::Cancel && changes.back().value == 10.0,
+            "a different external value cancels the preview once with the edit's original value");
+    Require(! stepper->IsEditing() && stepper->GetValue() == 3.0 && stepper->Field().GetText() == L"3", "the external value replaces the canceled draft");
+    static_cast<void>(stepper->Field().OnKeyDown(host, VK_RETURN, 0u));
+    Require(changes.size() == 3u, "the canceled draft cannot later commit");
+}
+
+void TestNumericStepperCancelCallbackMaySupersedeExternalValue()
+{
+    for (bool retire : {false, true})
+    {
+        WindowHost host;
+        auto root     = std::make_unique<Panel>();
+        auto* stepper = root->AddChild<NumericStepper>();
+        stepper->SetValue(10.0);
+        size_t cancellations = 0u;
+        stepper->SetOnChange([&](NumericStepperChange change)
+        {
+            if (change.phase != NumericStepperChangePhase::Cancel)
+                return;
+            ++cancellations;
+            if (retire)
+                host.SetRoot(std::make_unique<Panel>());
+            else
+                stepper->SetValue(4.0);
+        });
+        host.SetRoot(std::move(root));
+        const auto lifetime = GetControlLifetimeToken(*stepper);
+        TypeText(host, stepper->Field(), L"15");
+        stepper->SetValue(3.0);
+        Require(cancellations == 1u, "external replacement emits one cancellation before reentrant work");
+        if (retire)
+            Require(lifetime.expired(), "a Cancel callback may retire its sender");
+        else
+            Require(stepper->GetValue() == 4.0 && stepper->Field().GetText() == L"4", "newer reentrant values supersede the interrupted setter");
+    }
+}
+
 void TestSplitterStaysInsideAnExtentBelowItsMinimums()
 {
     Splitter splitter;
@@ -2030,6 +2106,9 @@ void RunEditorControlTests()
     DXUI_RUN_TEST(TestNumericStepperTypingPreviewsEnterCommitsEscapeCancels);
     DXUI_RUN_TEST(TestNumericStepperUnparseableEditRevertsAndDecimalsRound);
     DXUI_RUN_TEST(TestNumericStepperEditsEndWithCommitOrCancel);
+    DXUI_RUN_TEST(TestNumericStepperBindingEchoPreservesTypedEdit);
+    DXUI_RUN_TEST(TestNumericStepperExternalValueCancelsPreview);
+    DXUI_RUN_TEST(TestNumericStepperCancelCallbackMaySupersedeExternalValue);
     DXUI_RUN_TEST(TestSplitterStaysInsideAnExtentBelowItsMinimums);
     DXUI_RUN_TEST(TestNumericStepperDisabledAndLayout);
     DXUI_RUN_TEST(TestNumericStepperChangeCallbackCanReplaceRootSafely);

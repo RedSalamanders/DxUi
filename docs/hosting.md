@@ -106,6 +106,8 @@ the consumer's responsibility; native library fixtures do not qualify a product'
 Captured drag continuation may update a draft between paints. Moving, removing, hiding or disabling the captured
 control or its ancestors cancels capture; arranging only a sibling preserves it when its bounds and availability
 are unchanged. A view resize or DPI change still requires full preparation and cancels capture.
+This also applies to a child dragged through nested ScrollPanels: hiding or disabling the actual child or an
+ancestor cancels its draft once, even while the panel holding host capture stays interactive.
 
 Use `DispatchKey` and `DispatchCharacter` for basic keyboard/character input. Forward
 `VK_PACKET` key-down/key-up and each translated UTF-16 `WM_CHAR` unit unchanged and in order; a supplementary

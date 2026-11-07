@@ -450,6 +450,7 @@ $ErrorActionPreference='Stop'
 Import-Module -Name $Module -Force -ErrorAction Stop
 $p=New-ConsumerQualificationProgress $Output @{commit='i'*40}
 $held=[IO.File]::Open($Output,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::ReadWrite)
+$exitCode=0
 try{
     try{
         Invoke-ConsumerQualificationPhase $p 'DelayedNegative' {
@@ -464,9 +465,13 @@ try{
         try{[IO.File]::WriteAllText($FailureLog,$detail,[Text.UTF8Encoding]::new($false))}
         catch{[Console]::Error.WriteLine("CHILD_FAILURE_LOG_WRITE_FAILED: $($_.Exception.Message)")}
         [Console]::Error.WriteLine($detail)
-        throw $originalFailure
+        # This owned helper has already retained the complete exception and emitted its diagnostic.
+        # End through an explicit failed process result after finally, rather than asking the CLI host
+        # to format an unhandled error on its terminal path. The original timeout remains retained.
+        $exitCode=1
     }
 }finally{$held.Dispose()}
+exit $exitCode
 '@)
     $path=Join-Path $fixture 'progress.json'
     $readyPath=Join-Path $fixture 'phase-body-ready.marker'

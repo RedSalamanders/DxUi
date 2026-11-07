@@ -5935,38 +5935,7 @@ bool Grid::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
         return false;
     }
     const std::vector<size_t> visibleRows = CollectVisibleRowIndices(rowCount, groups);
-    if (visibleRows.empty())
-    {
-        return false;
-    }
-
-    if (ModifiersContainCtrl(modifiers) && ! ModifiersContainAlt(modifiers))
-    {
-        if (virtualKey == 'A')
-        {
-            return OnSelectAll(host);
-        }
-        if (virtualKey == 'C')
-        {
-            return OnCopy(host);
-        }
-        // Ctrl+Left and Ctrl+Right choose the current column (the cell InspectFocusedCell opens), in display order and
-        // mirrored in RTL. Neither the selection nor the focused row changes.
-        if (! ModifiersContainShift(modifiers) && (virtualKey == VK_LEFT || virtualKey == VK_RIGHT))
-        {
-            return MoveCurrentColumn(host, IsRightToLeft() ? virtualKey == VK_LEFT : virtualKey == VK_RIGHT);
-        }
-    }
-
-    // The keys start from the focused row, else from the last selected row, else from the first row.
-    const std::optional<size_t> startRow = FindKeyboardStartRow(visibleRows);
-    if (! guard.IsCurrent())
-    {
-        return false;
-    }
-    size_t currentRow = startRow.value_or(visibleRows.front());
-
-    const auto toggleGroupFromKeyboard = [&](size_t groupIndex, bool collapsed)
+    const auto toggleGroupFromKeyboard    = [&](size_t groupIndex, bool collapsed)
     {
         if (! _delegate || groupIndex >= groups.size())
         {
@@ -6048,6 +6017,56 @@ bool Grid::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
         }
         return true;
     };
+
+    if (visibleRows.empty())
+    {
+        if (groups.empty() || ModifiersContainAlt(modifiers) || ModifiersContainCtrl(modifiers) || ModifiersContainShift(modifiers))
+        {
+            return false;
+        }
+        // With every row collapsed the first header is the keyboard position; no hidden row is selected.
+        if (virtualKey == VK_HOME || virtualKey == VK_DOWN)
+        {
+            return true;
+        }
+        const bool expandKey = IsRightToLeft() ? virtualKey == VK_LEFT : virtualKey == VK_RIGHT;
+        if (expandKey || virtualKey == VK_RETURN || virtualKey == VK_SPACE)
+        {
+            bool handled = false;
+            if (! TryControlCallback([&] { handled = toggleGroupFromKeyboard(0u, false); }) || ! guard.ResumeAfterCallback())
+            {
+                return true;
+            }
+            return handled;
+        }
+        return false;
+    }
+
+    if (ModifiersContainCtrl(modifiers) && ! ModifiersContainAlt(modifiers))
+    {
+        if (virtualKey == 'A')
+        {
+            return OnSelectAll(host);
+        }
+        if (virtualKey == 'C')
+        {
+            return OnCopy(host);
+        }
+        // Ctrl+Left and Ctrl+Right choose the current column (the cell InspectFocusedCell opens), in display order and
+        // mirrored in RTL. Neither the selection nor the focused row changes.
+        if (! ModifiersContainShift(modifiers) && (virtualKey == VK_LEFT || virtualKey == VK_RIGHT))
+        {
+            return MoveCurrentColumn(host, IsRightToLeft() ? virtualKey == VK_LEFT : virtualKey == VK_RIGHT);
+        }
+    }
+
+    // The keys start from the focused row, else from the last selected row, else from the first row.
+    const std::optional<size_t> startRow = FindKeyboardStartRow(visibleRows);
+    if (! guard.IsCurrent())
+    {
+        return false;
+    }
+    size_t currentRow = startRow.value_or(visibleRows.front());
 
     const auto findOwningExpandedGroup = [&]() noexcept -> std::optional<size_t>
     {
