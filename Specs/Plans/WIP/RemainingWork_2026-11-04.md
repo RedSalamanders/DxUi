@@ -271,7 +271,7 @@ policy, erase its findings or close this section.
   a later ordinary paint test. Original matched EXE/PDB symbols identify an unwrapped `D3D11CreateDevice`
   call; its native implementation's internally handled exception was intercepted before an HRESULT returned.
   The [source-bound triage](../../../Measurements/NativeDeviceBoundary_2026-11-07/README.md) retains that
-  distinction and a deterministic hardware/WARP/debug-layer counterfactual. The native-call boundary is
+  distinction and a deterministic hardware/WARP/debug-layer counterfactual. Its
   [completed local scope](../Done/NativeDeviceExceptionBoundary_2026-11-07.md) at `c4272b0d` passes six
   zero-warning builds, 66 ordinary x64 suite executions and actual ASan with original-member verification.
   Fresh hosted native ARM64 and the complete test-before-production gate remain required.
