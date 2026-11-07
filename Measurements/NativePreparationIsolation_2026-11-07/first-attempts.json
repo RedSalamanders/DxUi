@@ -1,0 +1,125 @@
+{
+  "schemaVersion": 1,
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-native-preparation-first-attempts",
+  "benchmarkInputs": {
+    "src/Controls/DxUi.Controls.cpp": "109103E8F8D4F30BFDD9D5DF1A10DE52AF723C14302D8B79B87F02718BC99802",
+    "include/DxUi/DxUi.h": "A1BFAD3F6828704423963AB405FDAE931A2E956151670675C17292E93E704128",
+    "Tests/Controls/Controls.Tests.RichTextEditor.cpp": "BCBC6585BDE2BDBCED2E4F06EF601903926B96D72AA87C8B9E974242684D34C6",
+    "Tests/ConsumerModules/ConsumerModules.Tests.Driver.cpp": "A3D2149B0297691760FB7CB3D699DBFE694FFBB4C5194CB880B5DB24B30B8C59",
+    "Tests/Controls/DxUi.Tests.Menu.cpp": "28B7F3C88E7A24F636746C7230292A40D0FB3B30E32052AC3E38431A304A2E4C",
+    "Tools/tests/TestSupport.psm1": "8F4FE7E4F93DC3EE1BEB6F1289223E1BFD3480F06DDA499D89304FB76F88CB3E",
+    "Tools/tests/Test-ToolingTestRunner.ps1": "29E5FC22F1159C036232E3EE446D42C8DE67DCE01D60CCB2E5247938DBAD9E2A"
+  },
+  "inputHash": "30748d84c76469644f86e21f58c7dfc493fec00d593c5aefad71546723459db0",
+  "implementationCommit": "2c8b267e2a26c914faa873e3557d4d2c6691de66",
+  "earlierX64OnlyCohort": {
+    "sourceCommit": "c3a401c8e59bff5f591df2453a6f27561d058ad9",
+    "scope": "All three x64 profiles built with zero warnings, all 66 ordinary suite executions passed, actual ASan detected; the three ARM64 cross-builds were not run in this cohort. Frozen cohort stops here before incorporating native qualification fixture corrections.",
+    "completedProfiles": [
+      "x64-Release",
+      "x64-Debug",
+      "x64-ASan-Debug"
+    ]
+  },
+  "firstCombinedBuild": {
+    "sourceCommit": "55b9226365738f7591081a0c290cdfebaf6e4418",
+    "compiledSourceIdentity": "6fa7e950e6a3672399427ec783fabff1576783d2f0050fdf0520b4bd33318f30",
+    "outcome": "failed-before-native-runtime",
+    "reason": "C2660: new native-menu test called ForegroundHeldOrSkip without its required diagnostic label",
+    "buildLogSha256": "0B4A014D8EBAD6074F18CA1CF5D2C27A8CCC414174A6810FBEA0D4B9E10969FD",
+    "originalSourceArchiveSha256": "9A145EA52BA978987E09A2AB87588A6DE4CFD236278792A8673996F61E320703",
+    "completedProfiles": 0
+  },
+  "mixedSourceDiagnosticValidation": {
+    "startedSource": "55b9226365738f7591081a0c290cdfebaf6e4418",
+    "laterSource": "2c8b267e2a26c914faa873e3557d4d2c6691de66",
+    "disposition": "Diagnostic-only mixed-source validation; the native menu diagnostic-label correction was committed during the run. Replaced by a frozen current-source full validation.",
+    "logSha256": "4332F0CD3F83B526384C7644E8EFC274DF86D3A90E18DF85596A9E4C7127DC3A"
+  },
+  "currentFrozenStaticValidation": {
+    "sourceCommit": "2c8b267e2a26c914faa873e3557d4d2c6691de66",
+    "validationExitCode": 0,
+    "formatExitCode": 0,
+    "validationLogSha256": "7E7A8AE968F82B55BD892D8CB039FEABC2D1FE85ADD434398111CBEFCB41C30A",
+    "formatLogSha256": "40069EBD779C805D65FDF916FAB097A9FAB55EE711591D431E8B440454609812"
+  },
+  "interruptedBuildAdmissions": [
+    {
+      "sourceCommit": "2c8b267e2a26c914faa873e3557d4d2c6691de66",
+      "acceptedPrefix": [
+        "x64-Release"
+      ],
+      "interruptedProfile": "x64-Debug",
+      "interruptedBuildLog": "interrupted-x64-Debug-build-20261107T102714Z.log",
+      "interruptedLogSha256": "608146BFE985DE8AB5B8B7CF44B5EBD768BE15051E6101B0208EC86057B264F5",
+      "disposition": "No completed Debug build/runtime receipt exists; resume the canonical build without accepting partial artifacts."
+    }
+  ],
+  "originalStaticFixtureFailure": {
+    "claim": "One observer-closure fixture failed in the earlier source; unchanged focused 4/4 and full replay subsequently passed",
+    "cause": "unassigned",
+    "retentionLimit": "The old fixture helper removed the failed original fixture; original logs remain. Candidate retention prevents that future evidence loss."
+  },
+  "originalHostedFailures": [
+    {
+      "runId": 42355117866,
+      "sourceCommit": "1ce7d64fa3d2238de710489e900e63e99dfc1b47",
+      "configuration": "Debug",
+      "outcome": "failed",
+      "site": "ARM64 actual Menu native menu-bar host destruction",
+      "cause": "unassigned",
+      "originalWrappersAndCanonicalPayloadsVerified": true
+    },
+    {
+      "runId": 42355120451,
+      "sourceCommit": "1ce7d64fa3d2238de710489e900e63e99dfc1b47",
+      "configuration": "ASan Debug",
+      "outcome": "failed",
+      "site": "ARM64 external-consumer fatal scenarios 13-16 record-symbol witness",
+      "originalWrappersAndCanonicalPayloadsVerified": true
+    },
+    {
+      "runId": 42355122920,
+      "sourceCommit": "1ce7d64fa3d2238de710489e900e63e99dfc1b47",
+      "configuration": "Release",
+      "outcome": "failed",
+      "production": "withheld",
+      "originalWrappersAndCanonicalPayloadsVerified": true
+    }
+  ],
+  "limits": [
+    "No later green result changes an original failed or interrupted outcome",
+    "No source-mixed validation counts as current-source acceptance",
+    "Diagnostic record replay does not qualify native ARM64, saved-context unwind or real foreground Menu behavior",
+    "Older failures with missing original child logs retain unassigned causes"
+  ],
+  "publicationMetadataFirstValidation": {
+    "sourceCommit": "2c8b267e2a26c914faa873e3557d4d2c6691de66",
+    "outcome": "failed",
+    "findings": 5,
+    "reason": "Publication counterexample/first-attempt JSON omitted workloadOwner and fixture input hashes; the change fragment had two top-level entries",
+    "allOtherValidationStepsAndToolingPassed": true,
+    "toolingLimit": "The optional direct CMake triplet evaluation reported unavailable CMake on PATH in this attempt",
+    "validatorLogSha256": "6CF77374DE7B0F71C426BB2AB8ED15E933003B0F3D5B68746AA0B5BB951F0D38",
+    "originalFiles": [
+      {
+        "file": "Measurements/NativePreparationIsolation_2026-11-07/counterexamples.json",
+        "sha256": "47839E9CE95A4336744A4DEBAA08FCE0F22B17E1338F2E2FBC492DC3C04609BA",
+        "bytes": 14835
+      },
+      {
+        "file": "Measurements/NativePreparationIsolation_2026-11-07/first-attempts.json",
+        "sha256": "A305738548EA708DB6B35DF0B345D4AED60F1A2C5C4D3AD10AB4B347022BDA63",
+        "bytes": 4111
+      },
+      {
+        "file": "Changes/2026-11-07-native-preparation-isolation.md",
+        "sha256": "AE8588A6725097F455A8CD7DA498E33C901D0FCF3CBD1E435419C2E4C5630C20",
+        "bytes": 659
+      }
+    ],
+    "docsPatchSha256": "E6385DB84D61792A67FBBD18B4D136550F538404BF2AC9A9A85BCDFC21839FA5",
+    "compiledInputsUnchanged": true
+  }
+}

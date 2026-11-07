@@ -6464,80 +6464,100 @@ LRESULT CALLBACK DestroyNativeMenuBarHostSubclassProc(HWND hwnd, UINT message, W
 void TestNativeMenuBarNestedPopupCanDestroyHostSafely()
 {
     using namespace DxUi;
-
-    AttachedHostWindow ownerWindow;
-    SetWindowPos(ownerWindow.Hwnd(), nullptr, 120, 120, 360, 240, SWP_NOZORDER);
-    ShowWindow(ownerWindow.Hwnd(), SW_SHOW);
-    ownerWindow.PumpMessages();
-    if (! TryActivateDxUiTestWindow(ownerWindow.Hwnd()))
-    {
-        SkipDxUiTest("DxUi native menu destruction proof requires an interactive desktop");
-        return;
-    }
-
-    wil::unique_hmenu menu{CreateMenu()};
-    Require(menu != nullptr, "native menu destruction proof creates a top-level menu");
-    wil::unique_hmenu filePopup{CreatePopupMenu()};
-    Require(filePopup != nullptr, "native menu destruction proof creates a popup menu");
-    Require(AppendMenuW(filePopup.get(), MF_STRING, 3901u, L"&Open") != FALSE, "native menu destruction proof populates the popup");
-    Require(AppendMenuW(menu.get(), MF_POPUP, reinterpret_cast<UINT_PTR>(filePopup.get()), L"&File") != FALSE,
-            "native menu destruction proof attaches the popup to the menu bar");
-    static_cast<void>(filePopup.release());
-
-    auto menuBarHost = std::make_unique<NativeMenuBarHost>();
-    Require(menuBarHost->Attach(GetModuleHandleW(nullptr), ownerWindow.Hwnd(), menu.get()), "native menu destruction proof attaches the menu bar host");
-    ownerWindow.PumpMessages();
-
-    DestroyNativeMenuBarHostState destroyState;
-    destroyState.menuBarHost = &menuBarHost;
-    Require(SetWindowSubclass(
-                ownerWindow.Hwnd(), DestroyNativeMenuBarHostSubclassProc, kDestroyNativeMenuBarSubclassId, reinterpret_cast<DWORD_PTR>(&destroyState)) != FALSE,
-            "native menu destruction proof subclasses the owner window");
-    const auto removeSubclass = wil::scope_exit([&]() noexcept
-    { static_cast<void>(RemoveWindowSubclass(ownerWindow.Hwnd(), DestroyNativeMenuBarHostSubclassProc, kDestroyNativeMenuBarSubclassId)); });
-
     std::string driverFailure;
-    std::thread driver([&]
+    bool activated                = false;
+    bool hostDestroyed            = false;
+    const ForegroundRunResult run = RunUntilForegroundHeld([&]() -> ForegroundAttempt
     {
-        const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
-        const auto dismissPopup = wil::scope_exit([&]() noexcept { DismissOwnedContextMenuPopupChain(ownerWindow.Hwnd()); });
-        const HWND popupHwnd    = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"Open");
-        if (! popupHwnd)
+        driverFailure.clear();
+        activated     = false;
+        hostDestroyed = false;
+        AttachedHostWindow ownerWindow;
+        SetWindowPos(ownerWindow.Hwnd(), nullptr, 120, 120, 360, 240, SWP_NOZORDER);
+        ShowWindow(ownerWindow.Hwnd(), SW_SHOW);
+        ownerWindow.PumpMessages();
+        if (! TryActivateDxUiTestWindow(ownerWindow.Hwnd()))
         {
-            driverFailure = "native menu popup opens before destroying its menu-bar host";
-            return;
+            return ForegroundAttempt{false, 0u, false};
         }
+        const auto foregroundLossesBefore = ownerWindow.ForegroundLossCount();
+        const auto started                = GetTickCount64();
 
-        if (PostMessageW(ownerWindow.Hwnd(), kDestroyNativeMenuBarHostMessage, 0, 0) == FALSE)
-        {
-            driverFailure = "native menu destruction request posts to the owner";
-            return;
-        }
+        wil::unique_hmenu menu{CreateMenu()};
+        Require(menu != nullptr, "native menu destruction proof creates a top-level menu");
+        wil::unique_hmenu filePopup{CreatePopupMenu()};
+        Require(filePopup != nullptr, "native menu destruction proof creates a popup menu");
+        Require(AppendMenuW(filePopup.get(), MF_STRING, 3901u, L"&Open") != FALSE, "native menu destruction proof populates the popup");
+        Require(AppendMenuW(menu.get(), MF_POPUP, reinterpret_cast<UINT_PTR>(filePopup.get()), L"&File") != FALSE,
+                "native menu destruction proof attaches the popup to the menu bar");
+        static_cast<void>(filePopup.release());
 
-        const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(1500);
-        while (! destroyState.destroyed.load(std::memory_order_acquire) && std::chrono::steady_clock::now() < deadline)
-        {
-            Sleep(5);
-        }
-        if (! destroyState.destroyed.load(std::memory_order_acquire))
-        {
-            driverFailure = "native menu-bar host is destroyed inside the nested popup loop";
-            return;
-        }
+        auto menuBarHost = std::make_unique<NativeMenuBarHost>();
+        Require(menuBarHost->Attach(GetModuleHandleW(nullptr), ownerWindow.Hwnd(), menu.get()), "native menu destruction proof attaches the menu bar host");
+        ownerWindow.PumpMessages();
 
-        if (IsWindow(popupHwnd) != FALSE)
+        DestroyNativeMenuBarHostState destroyState;
+        destroyState.menuBarHost = &menuBarHost;
+        Require(SetWindowSubclass(
+                    ownerWindow.Hwnd(), DestroyNativeMenuBarHostSubclassProc, kDestroyNativeMenuBarSubclassId, reinterpret_cast<DWORD_PTR>(&destroyState)) !=
+                    FALSE,
+                "native menu destruction proof subclasses the owner window");
+        const auto removeSubclass = wil::scope_exit([&]() noexcept
+        { static_cast<void>(RemoveWindowSubclass(ownerWindow.Hwnd(), DestroyNativeMenuBarHostSubclassProc, kDestroyNativeMenuBarSubclassId)); });
+
+        std::thread driver([&]
         {
-            SendMessageW(popupHwnd, WM_KEYDOWN, VK_ESCAPE, 0);
+            const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
+            const auto dismissPopup = wil::scope_exit([&]() noexcept { DismissOwnedContextMenuPopupChain(ownerWindow.Hwnd()); });
+            const HWND popupHwnd    = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"Open");
+            if (! popupHwnd)
+            {
+                driverFailure = "native menu popup opens before destroying its menu-bar host";
+                return;
+            }
+
+            if (PostMessageW(ownerWindow.Hwnd(), kDestroyNativeMenuBarHostMessage, 0, 0) == FALSE)
+            {
+                driverFailure = "native menu destruction request posts to the owner";
+                return;
+            }
+
+            const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(1500);
+            while (! destroyState.destroyed.load(std::memory_order_acquire) && std::chrono::steady_clock::now() < deadline)
+            {
+                Sleep(5);
+            }
+            if (! destroyState.destroyed.load(std::memory_order_acquire))
+            {
+                driverFailure = "native menu-bar host is destroyed inside the nested popup loop";
+                return;
+            }
+
+            if (IsWindow(popupHwnd) != FALSE)
+            {
+                SendMessageW(popupHwnd, WM_KEYDOWN, VK_ESCAPE, 0);
+            }
+        });
+
+        activated = menuBarHost->ActivateMnemonic(L'F');
+        driver.join();
+        hostDestroyed = destroyState.destroyed.load(std::memory_order_acquire) && ! menuBarHost;
+        if (! driverFailure.empty())
+        {
+            std::cerr << "    [NATIVE MENU DESTRUCTION] activated=" << activated << " destroyed=" << hostDestroyed
+                      << " elapsed-ms=" << GetTickCount64() - started << " foreground-losses=" << ownerWindow.ForegroundLossCount() - foregroundLossesBefore
+                      << " thief-thread=" << ownerWindow.LastForegroundThiefThreadId() << '\n'
+                      << std::flush;
         }
+        return ForegroundAttempt{ownerWindow.ForegroundLossCount() != foregroundLossesBefore, ownerWindow.LastForegroundThiefThreadId()};
     });
-
-    const bool activated = menuBarHost->ActivateMnemonic(L'F');
-    driver.join();
-
-    Require(driverFailure.empty(), driverFailure.c_str());
-    Require(activated, "native menu activation returns after its host is destroyed inside the popup loop");
-    Require(destroyState.destroyed.load(std::memory_order_acquire) && ! menuBarHost,
-            "native menu nested-loop proof destroys the menu-bar host without a stale post-loop dereference");
+    if (! ForegroundHeldOrSkip(run, "native menu-bar host destruction"))
+        return;
+    if (! CheckDxUiTestResult(driverFailure.empty(), driverFailure.c_str()))
+        return;
+    if (! CheckDxUiTestResult(activated, "native menu activation returns after its host is destroyed inside the popup loop"))
+        return;
+    static_cast<void>(CheckDxUiTestResult(hostDestroyed, "native menu nested-loop proof destroys the menu-bar host without a stale post-loop dereference"));
 }
 
 void TestMenuInfoRowsDoNotDismissOnClick()

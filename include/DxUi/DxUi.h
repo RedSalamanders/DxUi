@@ -1850,15 +1850,22 @@ private:
     AccessibilityRole _accessibilityRole = AccessibilityRole::Default;
     std::shared_ptr<const std::function<HRESULT(ControlHost&)>> _onAccessibleInvoke;
     std::shared_ptr<const std::function<void(POINT screenPoint, bool keyboardInvocation)>> _onContextMenu;
-    std::shared_ptr<int> _lifetimeToken     = std::make_shared<int>(0);
-    uint64_t _measureRevision               = 0u;
-    bool _intrinsicLayoutEnabled            = false;
-    bool _intrinsicLayoutPending            = false;
-    bool _intrinsicAllocationRetryUsed      = false;
-    bool _contentPreparationEnabled         = false;
-    mutable bool _contentPreparationPending = false;
-    bool _visualPreparationEnabled          = false;
-    mutable bool _visualPreparationPending  = false;
+    std::shared_ptr<int> _lifetimeToken = std::make_shared<int>(0);
+    uint64_t _measureRevision           = 0u;
+    bool _intrinsicLayoutEnabled        = false;
+    bool _intrinsicLayoutPending        = false;
+    bool _intrinsicAllocationRetryUsed  = false;
+    bool _contentPreparationEnabled     = false;
+    enum class ContentPreparationState : uint8_t
+    {
+        Ready,
+        Pending,
+        Failed
+    };
+    static_assert(sizeof(ContentPreparationState) == sizeof(bool) && alignof(ContentPreparationState) == alignof(bool));
+    mutable ContentPreparationState _contentPreparationState = ContentPreparationState::Ready;
+    bool _visualPreparationEnabled                           = false;
+    mutable bool _visualPreparationPending                   = false;
 };
 #pragma warning(pop)
 

@@ -70,8 +70,14 @@ Owner: `src/Rendering/Embedded.cpp`, `src/Controls/DxUi.TextInput.cpp`, input di
 - [x] Complete the library candidate's build, x64 runtime/foreground, source-pin consumer and SDK/PDB checks,
   and record the owner-accepted source-matched construction measurements. Native ARM64 is deferred; formal
   frame-policy qualification remains D-P1.
-- [ ] Check parser/preparer admission and per-element failure isolation across diagrams/math/images, including
-  PRIOR-07's host-wide preparation abort and error visibility. Preserve actual causes and regression evidence.
+- [x] Complete PRIOR-07's native host-wide preparation abort and error reporting locally. The
+  [scoped closeout](../Done/NativePreparationIsolation_2026-11-07.md) binds implementation `2c8b267e`,
+  same-object baseline/intermediate failures, independent healthy-sibling WARP pixels, explicit recovery,
+  six zero-warning builds, 66 ordinary x64 suite executions and actual ASan. Fresh hosted native Menu,
+  ARM64 and external-consumer acceptance remains D-Q1.
+- [ ] Finish parser/preparer admission and per-element failure isolation across diagrams/math/images.
+  Preserve checked capacity/unsupported causes and regression evidence; unexpected C++ exceptions follow
+  the API-5 fatal contract rather than the superseded whole-view exception-recovery proposal.
 
 This coordinates the active API work; it does not adopt API 5 in any application or duplicate that branch's queue.
 
@@ -237,19 +243,16 @@ these disagreements and [the retained triage](../../../Measurements/FailurePolic
 The owner accepted the separate construction study's measured safety overhead; this does not qualify the frame
 policy, erase its findings or close this section.
 
-- [x] Correct empty-verdict presentation: policy admission that withholds all metric verdicts is labeled
-  unassessed and retains its refusal reasons, without implying an absence of regressions. The legacy and
-  candidate-asserted-policy counterexamples are separate from policy qualification below.
+- [x] Correct unassessed verdict presentation after policy/evidence refusal. The already merged
+  [scoped closeout](../Done/PerformanceVerdictPresentation_2026-11-06.md) retains the original 56/57
+  baseline, all 57 candidate and 34 unchanged inference checks, plus both real refusal projections.
+  This changes presentation only; trusted policy, controls and paired performance remain open below.
 - [ ] Qualify the trusted measurement policy and controls independently. Preserve timing/memory witnesses,
   exact raw reports/seals, missing-context/refusal history and unstable-control verdicts.
 - [ ] Complete the bounded timing/heap/resource attribution pilot before a fresh canonical same-binary A/A;
   retain independent orders, all scenarios, cache variants, public phase markers and the existing thresholds.
 - [ ] Reconcile the pooled/blockwise migration disagreement and Holm slots with independent replay; a pilot,
   exact budget maximum or candidate green result does not qualify the base policy.
-- [ ] Correct verdict presentation for early policy/evidence refusal: the gate fails closed as inconclusive before
-  judging scenarios, but its empty result currently renders “no metric regressed or improved.” Distinguish
-  unjudged results from a judged set with no flags; label any retained untrusted findings without bypassing policy
-  or replay. Historical hosted run 42192490717 recorded three clean preparation flags despite that wording.
 - [ ] Establish accepted paired evidence for the chosen candidate and affected consumer pilots; obtain measured
   advice for confirmed degradation without silently rebasing. Host/control, S0-S2 and FrameUpdate instrumentation
   acceptance feed this one owner; RedTilde R10 remains independently owned by the app.

@@ -13,6 +13,13 @@ child names. Preserve the separate long-Unicode file/stream regression and every
 identity, attribute and read-only assertion. A setup-path refusal is retained as
 a failed attempt, never relabelled as unsupported evidence semantics or a skip.
 
+PowerShell tooling cases remove their owned fixture root only after the case body
+completes successfully. A failing case retains the original root and reports its
+path before the aggregate failure is returned. This retention is diagnostic
+evidence, not a successful test receipt. A deliberate negative oracle may retire
+its own failed child fixture after independently checking its original bytes;
+unexpected failures remain available for investigation and governed cleanup.
+
 After argument, desktop and build preflight, native test execution writes each invocation under `.build/evidence/test-runs/<UTC-pid-guid>/payload`.
 It creates a new directory and exclusive owner lease; it never reuses an old run directory or sweeps older runs.
 A flushed, create-only `started.json` records the owner process and start time plus the requested profile/scopes.

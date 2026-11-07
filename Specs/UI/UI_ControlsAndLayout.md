@@ -1900,7 +1900,13 @@ A semantic length/admission rejection records the exact immutable syntax owner,
 retires staging and prepares exact source geometry once. It preserves requested
 mode, source, selection and history; idle turns do not retry that revision. A
 source/profile/opt-in change permits a new request. Allocation/SDK/internal
-invariant failures remain failed preparation and must not self-reschedule.
+invariant failures remain failed preparation and must not self-reschedule. Checked HRESULT failures in a native
+host are cached per control until an explicit request or resource/typography epoch change; they must not withhold
+healthy siblings' frames or keep the host globally pending. A failed control consumes no stale document geometry.
+Its first attempt in an episode reports the HRESULT once, while later unrelated paints leave it idle. A request
+issued reentrantly during preparation remains pending rather than being lost to the failed predecessor.
+Embedded preparation still returns the failure and withholds composition. This rule concerns checked refusals;
+unexpected C++ exceptions, including `std::bad_alloc`, retain the fatal failure-policy contract.
 Native/embedded resource, accessibility, gallery and platform qualification stay
 explicit in the WIP plan; this opt-in does not close M4 as a whole.
 
@@ -2888,13 +2894,13 @@ error channel and leave the request retryable. In particular, `E_OUTOFMEMORY`,
 be converted into permanent source rejection; they remain eligible for explicit
 preparation retry or resource-generation recovery.
 
-A deterministic `std::logic_error` in semantic staging or native rich geometry is
-logged once and memoized for the exact source, profile, source-editing region,
-view, width, DPI, direction, typography, resource generation, binding and local
-appearance key. The editor prepares source presentation without changing the
-requested view, source, selection or history; idle turns do not retry the rejected
-key. A changed key permits rich preparation again. Memory, device and unknown
-HRESULT failures remain retryable and do not use this deterministic fallback.
+Unexpected C++ exceptions in semantic staging or native rich geometry, including
+`std::logic_error`, follow the API-5 [fatal diagnostic contract](../Core/Core_FailureHandling.md).
+They MUST NOT become a successful source fallback or a memoized recoverable error.
+Expected capacity, unsupported-input and native-resource refusals instead use their
+explicit checked results and source-preserving object-local policy above. Native
+host isolation of a checked control failure does not change that distinction or
+authorize composition of unavailable geometry.
 
 The native Mermaid engine additionally accepts a bounded `stateDiagram` /
 `stateDiagram-v2` profile: direction, simple declarations/quoted aliases,

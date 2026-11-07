@@ -20,6 +20,12 @@ the runner returns 1 and never prints its success footer. Return immediately aft
 result when later work depends on it. Keep `Require` for invalid fixture conditions that
 cannot safely continue. Original immediate-exit UIA timeouts remain failed evidence.
 
+External consumer fatal-module scenarios check both capture and throw provenance.
+The escaping-native cases require the SEH filter symbol in the record's live
+capture stack and the original named throw in the independently unwound saved
+exception context. Both checks require the corresponding module's PDB; a filter
+stack alone cannot qualify the failure's origin.
+
 Native test files use `<Component>.Tests.Something.h/.cpp`, with a real component such as `Controls`, `Support` or `Embedded`; literal `Scope` is rejected. Register new active files in `native-test-files.json`. `test-scopes.json` owns standalone scope/PR metadata. Shared-library or runtime byte changes conservatively invalidate local standalone reuse. No consumer dependency pin changes are part of this workflow.
 
 `Embedded` also checks the prepared-state and normalization oracle for the clean
@@ -209,6 +215,18 @@ and multi-module checks; it does not qualify physical IME/AT or performance.
 
 The named `EditorControls` tests cover native resource/pixel publication, the
 real clipboard-to-worker path and bounded loader queues/cancellation/closure.
+`TestRichTextEditorNativeMessageSchedulingAndFailure` additionally checks that a
+checked native preparation failure leaves a healthy sibling's actual text pixels
+visible and mutable, remains idle across unrelated captures and cooperative
+intrinsic-layout turns, preserves exact
+source on both `E_FAIL` and checked `E_OUTOFMEMORY`, permits a sibling's explicit
+command without native focus transfer, declines pointer edits against unavailable
+geometry, and recovers through the normal
+cooperative message-loop path after a content change. An edited ready document
+retains its exact source and Undo/Redo across a later preparation failure. The
+pixel oracle is restricted to the declared label rectangle, excluding other
+controls' hover/chrome. Its baseline frame failure
+uses the deferred result so owned window/module cleanup completes before exit 1.
 The named native/embedded decoded-image tests are in `Accessibility`; ordinary
 `Embedded` adds DPI, RTL, selection, hide/show and device replacement checks.
 

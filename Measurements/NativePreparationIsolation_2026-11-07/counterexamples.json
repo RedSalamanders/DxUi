@@ -1,0 +1,385 @@
+{
+  "schemaVersion": 1,
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-native-preparation-counterexamples",
+  "benchmarkInputs": {
+    "src/Controls/DxUi.Controls.cpp": "109103E8F8D4F30BFDD9D5DF1A10DE52AF723C14302D8B79B87F02718BC99802",
+    "include/DxUi/DxUi.h": "A1BFAD3F6828704423963AB405FDAE931A2E956151670675C17292E93E704128",
+    "Tests/Controls/Controls.Tests.RichTextEditor.cpp": "BCBC6585BDE2BDBCED2E4F06EF601903926B96D72AA87C8B9E974242684D34C6",
+    "Tests/ConsumerModules/ConsumerModules.Tests.Driver.cpp": "A3D2149B0297691760FB7CB3D699DBFE694FFBB4C5194CB880B5DB24B30B8C59",
+    "Tests/Controls/DxUi.Tests.Menu.cpp": "28B7F3C88E7A24F636746C7230292A40D0FB3B30E32052AC3E38431A304A2E4C",
+    "Tools/tests/TestSupport.psm1": "8F4FE7E4F93DC3EE1BEB6F1289223E1BFD3480F06DDA499D89304FB76F88CB3E",
+    "Tools/tests/Test-ToolingTestRunner.ps1": "29E5FC22F1159C036232E3EE446D42C8DE67DCE01D60CCB2E5247938DBAD9E2A"
+  },
+  "inputHash": "30748d84c76469644f86e21f58c7dfc493fec00d593c5aefad71546723459db0",
+  "implementationCommit": "2c8b267e2a26c914faa873e3557d4d2c6691de66",
+  "nativePreparation": {
+    "baselineCommit": "930526658c145b4ec2390a06832c47f0f602459a",
+    "fixtureSourceCommit": "c3a401c8e59bff5f591df2453a6f27561d058ad9",
+    "fixtureSha256": "BCBC6585BDE2BDBCED2E4F06EF601903926B96D72AA87C8B9E974242684D34C6",
+    "originalProofArchiveSha256": "51380C9C138BA5D4E17CD3E5836FA70C33767E49CAE85B41BD0A96C98DC772AA",
+    "originalProofMemberCount": 261,
+    "sameCompiledFixtureObjects": [
+      {
+        "path": "Controls.Tests.AnimationClock.obj",
+        "bytes": 8778503,
+        "sha256": "E50D123A1663D6BB4E4224B0B23398065E4243838019D2E20ED30DBC91C5C9AC"
+      },
+      {
+        "path": "Controls.Tests.FormAccessibility.obj",
+        "bytes": 10605464,
+        "sha256": "524AE58887666E20AC36A5CD3F60CD9B21BE9C7BED3446DE257232205708F515"
+      },
+      {
+        "path": "Controls.Tests.Forms.obj",
+        "bytes": 8943351,
+        "sha256": "F3CE6AA323786306019749AC1E2FFACB49562B8EA38E078658D1EF728C95B444"
+      },
+      {
+        "path": "Controls.Tests.GridUiaPattern.obj",
+        "bytes": 10324819,
+        "sha256": "C80D18CEC3E5F2174E3240A71B44464B4FCAFE288FFCBB13280B63B8F2B42004"
+      },
+      {
+        "path": "Controls.Tests.HostControlRegressions.obj",
+        "bytes": 11003039,
+        "sha256": "23DC1895B9B5C1511B1EF21E1D0FFC98270F869EF12C96E41A7A2081F7AD6524"
+      },
+      {
+        "path": "Controls.Tests.IntrinsicLayout.obj",
+        "bytes": 9877827,
+        "sha256": "FDCD1876FE551362325367956651C9D81AB116D8D4AE99FA6FBF7527129E83BB"
+      },
+      {
+        "path": "Controls.Tests.MenuPopupReadiness.obj",
+        "bytes": 8470257,
+        "sha256": "A8E2F83AED4C8EC1A426FB673D428F38471CA39E2ED79138139A892F386CF7C8"
+      },
+      {
+        "path": "Controls.Tests.RichDocument.obj",
+        "bytes": 8565086,
+        "sha256": "FDD5BD2D4F488F3612FA9BCAF29CFD64252300BBF6272A6794F466D217DFEBEA"
+      },
+      {
+        "path": "Controls.Tests.RichDocumentLayout.obj",
+        "bytes": 8967260,
+        "sha256": "0C3A44BE113663E768459F7EA143DC6F0B150905E7250C7F11ECB09A34D2722A"
+      },
+      {
+        "path": "Controls.Tests.RichMarkdown.obj",
+        "bytes": 12759054,
+        "sha256": "E511164E99CD71E070D6E42B1976A1A4AED44056BF292E1146ED78F22C58D52D"
+      },
+      {
+        "path": "Controls.Tests.RichProjectionBlocks.obj",
+        "bytes": 8382515,
+        "sha256": "C3BC3779289E5AAEB642B12B1AC4CD0580140760948BD9D015F1D42F1DC141E1"
+      },
+      {
+        "path": "Controls.Tests.RichSemantic.obj",
+        "bytes": 14859020,
+        "sha256": "EF5EF12F448F88B2C898843C7D2A7A39F602F05A575F70055E0B09068DD6A200"
+      },
+      {
+        "path": "Controls.Tests.RichSemanticDocument.obj",
+        "bytes": 16166130,
+        "sha256": "3333DA406953663EFDD1F4724BAC4F8A1C0734DD4E5D40C732F874ACD064A6FC"
+      },
+      {
+        "path": "Controls.Tests.RichSemanticGeometry.obj",
+        "bytes": 16510029,
+        "sha256": "D6B685C1AA07E270C64C24A9833FFD6A24C95DC55BDAA404223EFB7C9C212620"
+      },
+      {
+        "path": "Controls.Tests.RichSourceChanges.obj",
+        "bytes": 8397230,
+        "sha256": "FBF8F00E18B869C898675F08E76238B0E3DCF6411020E3AF34E5D252AF562852"
+      },
+      {
+        "path": "Controls.Tests.RichTextAccessibility.obj",
+        "bytes": 15061766,
+        "sha256": "05FA71ED9AD1C2439D9B5A44B63BE5D2B60A254B4317FAACC207CEBC05153F80"
+      },
+      {
+        "path": "Controls.Tests.RichTextEditor.obj",
+        "bytes": 16196584,
+        "sha256": "80D8F605521E60502DA7DBBA06A17D465D0870CC930321E386DE4C2BCA880FA2"
+      },
+      {
+        "path": "Controls.Tests.RichTextInput.obj",
+        "bytes": 12278127,
+        "sha256": "4DF427D8560F2D6A4518F66F9D433FB0E1CCCB82A4FED472925086CA4536D442"
+      },
+      {
+        "path": "Controls.Tests.RichTextLayout.obj",
+        "bytes": 11837536,
+        "sha256": "35B0B7A67D570C8DA2F0CDE7002A9E03D1FB0B458D7407A29B6E6A90AE55A216"
+      },
+      {
+        "path": "Controls.Tests.TextElementMovement.obj",
+        "bytes": 8424954,
+        "sha256": "B355B8867317AFA3C03073922069210ADCB4B3AF0196A1E5D2BBD007B8ADB08B"
+      },
+      {
+        "path": "Controls.Tests.TextElements.obj",
+        "bytes": 8400164,
+        "sha256": "40B3E95EA2B7B78F15681BA1E22CE0E8B08E160B86D381E7C19E9564084D5253"
+      },
+      {
+        "path": "DxUi.ControlTests.iobj",
+        "bytes": 259700634,
+        "sha256": "AD790F2BC414324A0A4B61774B849A9A94E8E5B02C301B204C125390FB54E9A4"
+      },
+      {
+        "path": "DxUi.Tests.Accessibility.obj",
+        "bytes": 17952759,
+        "sha256": "66300D149C25B68067210E617732AB76EC01AEA2D207BFFF8FF6E707EBF0D719"
+      },
+      {
+        "path": "DxUi.Tests.Animation.obj",
+        "bytes": 8937884,
+        "sha256": "7494F76539003866AB14239E9B3208D80E49EC66B9CDA193C7367075E8D63C5E"
+      },
+      {
+        "path": "DxUi.Tests.ComboBox.obj",
+        "bytes": 9120148,
+        "sha256": "A0D83D4A3FE8D5C88DC91BE23A5C90B60269D61862D2A118DE1DE99491BFB866"
+      },
+      {
+        "path": "DxUi.Tests.Controls.obj",
+        "bytes": 11393666,
+        "sha256": "128419ED948345BA992EEE1C63B63421306FAFB0D8ADBAA758CA39318CA9706A"
+      },
+      {
+        "path": "DxUi.Tests.EditorControls.obj",
+        "bytes": 9885996,
+        "sha256": "780A527A650E00FBD995EC4D31289B1FEAEE1EC1E17DCCEB17E94FD761648E81"
+      },
+      {
+        "path": "DxUi.Tests.Gallery.obj",
+        "bytes": 10195176,
+        "sha256": "5C959BE260CC99149B9C94A35E583DCF9D82599041FA5AC949B12CD388972EC8"
+      },
+      {
+        "path": "DxUi.Tests.Grid.obj",
+        "bytes": 11208451,
+        "sha256": "F9EC6EEDC6AE16AB92E1B76FB3C3E1D5AC0C404D126C97D10C6C76E11DF1135E"
+      },
+      {
+        "path": "DxUi.Tests.InteractiveLease.obj",
+        "bytes": 9552818,
+        "sha256": "AAFAE2752E622AA54B2D91AFCFFE1EDB6E6FFD4EB984EB2380100ACE79CCA512"
+      },
+      {
+        "path": "DxUi.Tests.Menu.obj",
+        "bytes": 16417042,
+        "sha256": "328DD5131104EEBF48F79382BCF29F963D842C36875E71D3CE98B687A053E733"
+      },
+      {
+        "path": "DxUi.Tests.MultilineText.obj",
+        "bytes": 9053623,
+        "sha256": "A8179DC5C459E34700DAE81965323C0E2C369CB0C898D695FAE9B299495C6E14"
+      },
+      {
+        "path": "DxUi.Tests.NativeTextInput.obj",
+        "bytes": 13089298,
+        "sha256": "9B9FF770866BDD2B85E96657C92B61C3E28B231C1442C9BC8514F875B6687F5C"
+      },
+      {
+        "path": "DxUi.Tests.NewControls.obj",
+        "bytes": 10485036,
+        "sha256": "BCFDCD073794636AC492673225EAD3F78C81549256C8CE9CBAB834E0476CD99C"
+      },
+      {
+        "path": "DxUi.Tests.ReadOnly.obj",
+        "bytes": 8503191,
+        "sha256": "8379854DEE125F41AEAE6E82F8444F9EF7B06B9C0224C520A885FB7F934A7B77"
+      },
+      {
+        "path": "DxUi.Tests.Rendering.obj",
+        "bytes": 10410330,
+        "sha256": "3BC8B85202ED5C7F65CC58555D53CE083172462010FBCB4A845D476E8C73DDFE"
+      },
+      {
+        "path": "DxUi.Tests.Runner.obj",
+        "bytes": 8745979,
+        "sha256": "B8E35CA4CE333E4F3B64C8675BE5E9D9684056F83375A5E3083D99419BBC7A77"
+      },
+      {
+        "path": "DxUi.Tests.TextField.obj",
+        "bytes": 9494527,
+        "sha256": "A7E236345AFD088EE46AC95B5AC50B33740075B45D3F96BB3B0C557152A33563"
+      },
+      {
+        "path": "DxUi.Tests.Theme.obj",
+        "bytes": 8675405,
+        "sha256": "6EBE7DD3A214BBE128CA6E25E4FC85A0E4A1D8900F17C1E4BC80F954CAEE41E8"
+      },
+      {
+        "path": "DxUi.Tests.Tooltip.obj",
+        "bytes": 8597720,
+        "sha256": "BAD896E6B825AE820AC1095407BC22C32E01C61369DE1873B68835A34D86A184"
+      },
+      {
+        "path": "DxUi.Tests.Tree.obj",
+        "bytes": 9560974,
+        "sha256": "20C97B83CAA139B13AB1118ECA2070CA23FB62067BB8121E023B5C3E9AB9BF6F"
+      },
+      {
+        "path": "DxUi.Tests.WindowHost.obj",
+        "bytes": 14509469,
+        "sha256": "B3D90D039EEC72B445B6CDFCF3D73C8F96E3D86869F99283EB355EDB28AA439B"
+      },
+      {
+        "path": "FailureHost.obj",
+        "bytes": 1723014,
+        "sha256": "758E4B94404E5E41665A25A7E2026E9F861A7888C59849E6990791D73DECECEB"
+      },
+      {
+        "path": "Foundation.Tests.Failure.obj",
+        "bytes": 5999239,
+        "sha256": "FBBECBCCBE0BA34F09723459ACEA2152909247067B8F5864682E463DC11901DC"
+      },
+      {
+        "path": "vc145.pdb",
+        "bytes": 28405760,
+        "sha256": "226BB4B8D59B4FD276FAF2B2AF5072B82F153EA1E32FDB5EEF3E925F6E4471B6"
+      },
+      {
+        "path": "tracking\\CL.command.1.tlog",
+        "bytes": 101570,
+        "sha256": "B8CE10065FC9ACB4FCAD66ABF1F247E19B326766AA7365E69FE6D78F2E2C32B5"
+      },
+      {
+        "path": "tracking\\Cl.items.tlog",
+        "bytes": 6433,
+        "sha256": "8743C019D345FA46EA2B60A1DCF50116E79FF23A2C1A36F3CFCE112BAEAC98AB"
+      },
+      {
+        "path": "tracking\\CL.read.1.tlog",
+        "bytes": 2801570,
+        "sha256": "321E8E8531659B16B4B3E7E281B7D03B78BF6386CE0696DFE4F506FF7A8F9C18"
+      },
+      {
+        "path": "tracking\\CL.write.1.tlog",
+        "bytes": 24656,
+        "sha256": "8846559E169CE07AA75730A870C52471C663A808D790BE94E603FC4AFE33E9A7"
+      },
+      {
+        "path": "tracking\\link.command.1.tlog",
+        "bytes": 16826,
+        "sha256": "FD0272E009BE2C4DCF586CA521617A53AF15479D69C809C722F29C50EDBD334A"
+      },
+      {
+        "path": "tracking\\link.read.1.tlog",
+        "bytes": 21418,
+        "sha256": "83A02161E3AC996083D1A5D348FFFC988BC6C8B6995F70E773CEF95016A1DFD3"
+      },
+      {
+        "path": "tracking\\link.secondary.1.tlog",
+        "bytes": 3696,
+        "sha256": "6C0D608F991132BE45AB031167532843259B53275DEA9464472C6FFD1DAB3611"
+      },
+      {
+        "path": "tracking\\link.write.1.tlog",
+        "bytes": 7582,
+        "sha256": "5574E1F18C039E05F01AADF1B17806508C31D7C45F67F710813C29A50DEDB7A9"
+      }
+    ],
+    "results": [
+      {
+        "case": "baseline",
+        "exitCode": 1,
+        "expectedMessage": "a checked preparation failure must not withhold the healthy sibling's native frame",
+        "binarySha256": "D050BC9CBC2EEB208929F333E0D16300A3DC64BBB6FB3C05304431C8210EFF17",
+        "pdbSha256": "90FC640F0D3DD3A7F79C77AA2E4259FE68FFCDF55956A61C81C0FF0A9ADC52BA",
+        "logSha256": "C9F89E80522956835D95731470583D9F2FBF8CEA30953FDE73360F882E95C2CE"
+      },
+      {
+        "case": "intermediate",
+        "exitCode": 1,
+        "expectedMessage": "unrelated intrinsic continuations must not retry an unchanged failed control",
+        "binarySha256": "0B83D559F620A01748D5446E376D367705CB53B2AE6937CAED8B5266201636F9",
+        "pdbSha256": "8A230EE57E63A59CF926EA3F47B095C3785AA97EF66AF650C55C2EB80B104698",
+        "logSha256": "8CCC2255E084B926C084CA7727355E1ABA4EDCFD5DF533E6564F85A90B829344"
+      },
+      {
+        "case": "candidate",
+        "exitCode": 0,
+        "expectedMessage": "All DxUi tests passed.",
+        "binarySha256": "45B876AAC901BA6C026C9B37B574069F63A4F8AAC8B4FA3917274D0301F96896",
+        "pdbSha256": "3FAEE7FC71330A4FF94EB29671121FD7E812A06BCC232EE247F3E09F2A6187AA",
+        "logSha256": "5CE9EF129D148D248017171E2C8A2EA4FF29B1030552D8C8DE3B7B7D4FE51780"
+      }
+    ],
+    "checks": [
+      "Independent healthy-label WARP pixel delta excludes editor, button and window chrome",
+      "Healthy sibling invokes while checked editor preparation fails",
+      "Three unrelated intrinsic continuations never retry an unchanged failed control",
+      "Explicit content invalidation rearms failed work",
+      "Cooperative pending preparation continues",
+      "Source, selection, history, undo and redo survive unavailable-layout input"
+    ],
+    "limit": "Partial-library counterexamples use the same retained compiled fixture objects. The final whole-source matrix independently qualifies the combined source. Prototype provenance and rejected attempts remain retained."
+  },
+  "recordSymbolReplay": {
+    "sourceCommit": "eea6940f4dcc675f61df2c91f3463bcec43c6105",
+    "captureSite": "NativeInvokeTrampoline",
+    "maintainedDriverSha256": "A3D2149B0297691760FB7CB3D699DBFE694FFBB4C5194CB880B5DB24B30B8C59",
+    "verifierSourceSha256": "23FAB53C3B81057C6C5AAEF32675F7A4C36B55D40C43EB81E1B5679ECA856179",
+    "limit": "x64 execution of the maintained record-symbol helper over original ARM64 image/PDB/record bytes; only module path locators are relocated. This does not qualify ARM64 runtime or the saved-context dump unwind.",
+    "results": [
+      {
+        "process": "1340",
+        "exitCode": 0,
+        "originalRecordSha256": "335635814BDFF42E274BE530F343C4B84FC8249CFE909DE70CD4DDBB2EC9D0D1",
+        "logSha256": "36CA2D91FD5EC291C039B79A9F07FDE3C40412CC1FA6C56975FD9EEBB7D1BDBE"
+      },
+      {
+        "process": "4008",
+        "exitCode": 0,
+        "originalRecordSha256": "7BBF478E879E76C7E69517C4277978FD394AD86EBEE97367862566AF4C033F64",
+        "logSha256": "36CA2D91FD5EC291C039B79A9F07FDE3C40412CC1FA6C56975FD9EEBB7D1BDBE"
+      },
+      {
+        "process": "5200",
+        "exitCode": 0,
+        "originalRecordSha256": "0394268B1AD10E9DE9B42D7D320F4C21C8B93A1E888D1F192D2C38C4EF1AEE81",
+        "logSha256": "36CA2D91FD5EC291C039B79A9F07FDE3C40412CC1FA6C56975FD9EEBB7D1BDBE"
+      },
+      {
+        "process": "9636",
+        "exitCode": 0,
+        "originalRecordSha256": "03503055422BA566E8625B7834C800B7EF277A1771CB15D1CE1BA6BB43AF97F5",
+        "logSha256": "36CA2D91FD5EC291C039B79A9F07FDE3C40412CC1FA6C56975FD9EEBB7D1BDBE"
+      }
+    ]
+  },
+  "recordReplayOriginalArchiveSha256": "6E6C32304E6FD316F125A09B8B8DD8935E2D0DB90472C7DD9BAF042D06A8A963",
+  "failedFixtureRetention": {
+    "sourceCommit": "30cf42e7fe1e2f3a815e8bc75e4bc3c4c55c2307",
+    "sameMaintainedTestBytes": true,
+    "cases": [
+      {
+        "name": "baseline",
+        "exitCode": 1,
+        "fixtureSha256": "29E5FC22F1159C036232E3EE446D42C8DE67DCE01D60CCB2E5247938DBAD9E2A",
+        "helperSha256": "659763454E89AEBB3F4BF0464C53E6B8B4A47FC8323F9E1F049E6F5075E5EF9B",
+        "logSha256": "FE73194A9A3DF8D6DEA65B6381C2D875AAF153A494BFFC550D222FB1A910A9D7"
+      },
+      {
+        "name": "candidate",
+        "exitCode": 0,
+        "fixtureSha256": "29E5FC22F1159C036232E3EE446D42C8DE67DCE01D60CCB2E5247938DBAD9E2A",
+        "helperSha256": "8F4FE7E4F93DC3EE1BEB6F1289223E1BFD3480F06DDA499D89304FB76F88CB3E",
+        "logSha256": "81ABCC03F14F3A59751A33A3F577084E0426023BDD496C622983704E3CE4CB37"
+      }
+    ]
+  },
+  "retentionOriginalArchiveSha256": "C94C143D6573FB14B5207C7DE1760732F59C042F321445557C8CE6B22951F864",
+  "nativeMenu": {
+    "localForegroundRun": false,
+    "claim": "Maintained fixture correction only; fresh hosted execution remains required",
+    "assertions": "Activation, popup visibility, destruction and post-loop lifetime checks are preserved; only observed foreground loss may retry."
+  }
+}

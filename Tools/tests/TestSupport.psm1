@@ -14,10 +14,17 @@ function Invoke-TestCase([Parameter(Mandatory)][string] $Name, [Parameter(Mandat
 }
 
 function Invoke-FixtureCase([Parameter(Mandatory)][string] $Name, [Parameter(Mandatory)][scriptblock] $Body) {
-    # Runs the body with a fresh fixture root under .build/tooling-fixtures, removed afterwards.
+    # Successful fixtures are disposable; failed fixtures retain original bytes for diagnosis.
     Invoke-TestCase $Name {
         $root = New-FixtureRoot
-        try { & $Body $root } finally { Remove-FixtureRoot $root }
+        $completed = $false
+        try {
+            & $Body $root
+            $completed = $true
+        } finally {
+            if ($completed) { Remove-FixtureRoot $root }
+            else { Write-Host "Original failed tooling fixture retained: $root" }
+        }
     }.GetNewClosure()
 }
 
