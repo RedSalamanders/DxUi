@@ -45,8 +45,13 @@ invalidate visual changes, including completion; focused editors repaint when th
 
 Hit queries revalidate root lifetime and current ownership before dispatch. Root replacement or retirement during
 painting aborts that frame before capture or presentation; the next update applies the current root's bounds before
-painting it. Explicit checked preparation failures leave the frame unpublished and follow their bounded
-status/retry contract. An unexpected paint/input exception, including bad_alloc, requires the host fatal diagnostic
+painting it. A checked native `PrepareContent` failure is isolated to that control: healthy siblings can still
+prepare and present. The failed control keeps unavailable content, preserves source, paints only safe prior
+geometry/chrome, and is excluded from the pending-work aggregate. Report once for that failed episode; unrelated
+invalidation does not retry it. An explicit content/bounds request or resource/typography epoch change permits
+another preparation. A reentrant explicit request remains newer pending work. Captured gestures crossing failed
+or pending content are cancelled before matching Up dispatch. The embedded host retains its checked HRESULT
+return contract and does not compose a failed preparation. An unexpected paint/input exception, including bad_alloc, requires the host fatal diagnostic
 path; it must not be turned into a skipped frame or a consumed message followed by continued operation.
 Failure-site context must survive the handoff. These boundaries do not qualify whole-host destruction inside a callback.
 After application/TSF pretranslation, native pumps call `DispatchKeyboardMessage` before Windows translation.

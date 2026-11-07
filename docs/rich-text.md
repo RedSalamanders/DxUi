@@ -868,6 +868,13 @@ and [active qualification plan](../Specs/Plans/Done/RichTextEditor_2026-10-17.md
 
 ## Reusable preparation core
 
+Native windows isolate a checked content-preparation failure to its control.
+Healthy siblings still render and accept commands; the failed editor preserves
+its source and paints safe chrome instead of using stale document geometry.
+Unrelated repaints do not retry it. Content/bounds changes or a new resource/font
+epoch permit a new attempt. Embedded hosts keep their `Prepare` HRESULT contract.
+Unexpected C++ exceptions retain the separate fatal-diagnostics policy.
+
 ```cpp
 #include <DxUi/RichTextLayout.h>
 

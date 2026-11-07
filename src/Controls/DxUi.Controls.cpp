@@ -2364,7 +2364,10 @@ void PageHost::SyncChildBounds() noexcept
 
 bool ControlHost::PreparePendingPageLayout() noexcept
 {
-    const bool prepareAllContent = _preparedContentResources != GetResourceGeneration() || _preparedContentTypography != GetTypographyRevision();
+    // Embedded Prepare owns the checked HRESULT contract. A native frame can
+    // still publish healthy siblings while one control keeps unavailable ink.
+    const bool isolateContentFailures = ! _embedded;
+    const bool prepareAllContent      = _preparedContentResources != GetResourceGeneration() || _preparedContentTypography != GetTypographyRevision();
     const bool prepareAllVisual =
         _forceAllVisualPreparation || _preparedVisualResources != GetResourceGeneration() || _preparedVisualTypography != GetTypographyRevision();
     _contentPreparationContinues = false;
@@ -2379,6 +2382,7 @@ bool ControlHost::PreparePendingPageLayout() noexcept
     if (prepareAllVisual)
         _forceAllVisualPreparation = false;
     bool contentPending     = false;
+    bool contentFailed      = false;
     bool visualPending      = false;
     bool intrinsicPending   = false;
     bool complete           = true;
@@ -2428,22 +2432,37 @@ bool ControlHost::PreparePendingPageLayout() noexcept
             if (lifetime.expired() || ! rootCurrent())
                 return;
         }
-        if (visible && control._contentPreparationEnabled && (prepareAllContent || control._contentPreparationPending))
+        if (visible && control._contentPreparationEnabled &&
+            (prepareAllContent || control._contentPreparationState == Control::ContentPreparationState::Pending))
         {
-            control._contentPreparationPending = false;
-            const HRESULT content              = control.PrepareContent(*this);
+            control._contentPreparationState = Control::ContentPreparationState::Ready;
+            const HRESULT content            = control.PrepareContent(*this);
             if (lifetime.expired() || ! rootCurrent() || control.GetHost() != this)
             {
                 complete = false;
                 return;
             }
-            if (content == S_FALSE || FAILED(content))
-                control._contentPreparationPending = true;
+            if (content == S_FALSE)
+                control._contentPreparationState = Control::ContentPreparationState::Pending;
             if (FAILED(content))
             {
                 if (SUCCEEDED(_contentPreparationFailure))
                     _contentPreparationFailure = content == E_ABORT ? E_FAIL : content;
-                complete = false;
+                if (isolateContentFailures)
+                {
+                    // A reentrant explicit request is newer work. Otherwise,
+                    // cache this failed episode until content/bounds/epochs
+                    // change; an error never schedules its own retry.
+                    if (control._contentPreparationState != Control::ContentPreparationState::Pending)
+                        control._contentPreparationState = Control::ContentPreparationState::Failed;
+                    Debug::Warning(L"DxUi: native control content preparation failed ({:08X}); healthy siblings remain available",
+                                   static_cast<uint32_t>(content));
+                }
+                else
+                {
+                    control._contentPreparationState = Control::ContentPreparationState::Pending;
+                    complete                         = false;
+                }
             }
             if (content == S_OK)
                 _contentGeometryChanged = true;
@@ -2496,8 +2515,11 @@ bool ControlHost::PreparePendingPageLayout() noexcept
         if (lifetime.expired() || ! rootCurrent())
             return;
         intrinsicPending = intrinsicPending || (visible && control._intrinsicLayoutEnabled && control._intrinsicLayoutPending);
-        contentPending   = contentPending || (visible && control._contentPreparationEnabled && control._contentPreparationPending);
-        visualPending    = visualPending || (visible && control._visualPreparationEnabled && control._visualPreparationPending);
+        contentPending =
+            contentPending || (visible && control._contentPreparationEnabled && control._contentPreparationState == Control::ContentPreparationState::Pending);
+        contentFailed =
+            contentFailed || (visible && control._contentPreparationEnabled && control._contentPreparationState == Control::ContentPreparationState::Failed);
+        visualPending = visualPending || (visible && control._visualPreparationEnabled && control._visualPreparationPending);
     };
     if (root)
         prepare(prepare, *root, true);
@@ -2527,7 +2549,7 @@ bool ControlHost::PreparePendingPageLayout() noexcept
         }
     }
     // Reentrant replacement requests another preparation; never publish its deferred geometry as complete.
-    Control* const pendingCapture     = contentPending && rootCurrent() ? _capturedControl : nullptr;
+    Control* const pendingCapture     = (contentPending || contentFailed) && rootCurrent() ? _capturedControl : nullptr;
     Control* const pendingGesture     = pendingCapture ? ControlCaptureAccess::GestureOwner(*this) : nullptr;
     const auto pendingCaptureLifetime = pendingCapture ? GetControlLifetimeToken(*pendingCapture) : std::weak_ptr<int>{};
     const auto pendingGestureLifetime = pendingGesture ? GetControlLifetimeToken(*pendingGesture) : std::weak_ptr<int>{};
@@ -2538,7 +2560,7 @@ bool ControlHost::PreparePendingPageLayout() noexcept
     {
         const auto lifetime = GetControlLifetimeToken(control);
         const bool visible  = ancestorsVisible && control.IsVisible();
-        const bool pending  = visible && control._contentPreparationEnabled && control._contentPreparationPending;
+        const bool pending  = visible && control._contentPreparationEnabled && control._contentPreparationState != Control::ContentPreparationState::Ready;
         if (&control == pendingGesture)
             return pending;
         const auto count = control.GetLogicalChildCount();
@@ -2642,7 +2664,7 @@ void ControlHost::CancelPreparedContent() noexcept
             control.CancelContentPreparation();
             if (lifetime.expired() || ! current() || control.GetHost() != this)
                 return;
-            control._contentPreparationPending = true;
+            control._contentPreparationState = Control::ContentPreparationState::Pending;
         }
         const auto budget = control.GetLogicalChildCount();
         if (lifetime.expired() || ! current())
