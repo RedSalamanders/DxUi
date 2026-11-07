@@ -284,6 +284,12 @@ policy, erase its findings or close this section.
 - [x] Verify native Release main `ab850a40` in hosted run 41849905967: all 23 x64 suites and 21 ARM64 suites
   execute with zero skips, both assertion probes pass, and both production SDK ZIPs pass extracted-consumer
   smoke. This supplies current API-4 native Release coverage without accepting the remaining profiles or fixtures.
+- [x] Qualify API-5 input-state source `a287710c` at exact hosted main `d603b7b3`: Debug `42388962206`
+  and ASan `42388964704` execute 21 suites on both native architectures; Release `42389300701` executes
+  23 x64/21 ARM64 suites and both production SDK smoke roles. The
+  [source-bound packet](../../../Measurements/InputStateContinuity_2026-11-07/hosted-qualification.json)
+  independently verifies original wrappers, canonical payloads and every inner SDK member. The later
+  animation/masked-input changes, physical input, formal performance and consumer adoption retain their gates.
 - [x] Qualify API-5 preparation source `2c8b267e` at exact hosted main `45288065`: Debug/ASan runs
   `42371883610`/`42371891344` pass 21 suites on each architecture, and Release `42371899884` passes
   23 x64/21 ARM64 suites plus both production SDK roles after the combined native gate. Original wrapper,
