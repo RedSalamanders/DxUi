@@ -2333,6 +2333,15 @@
       "exitCode": 1,
       "allStaticValidatorsPassed": true,
       "toolingPassed": false
+    },
+    "integrated": {
+      "formatter": "clang-format 22.1.3",
+      "passed": true,
+      "limit": "Complete compiler-free validation and formatting; the original failed attempts remain retained and native qualification remains separate",
+      "compiledSourceIdentity": "59b3a97633460aeae0898459854e407a0dbc5a2f11001266e2169287b4802374",
+      "logSha256": "05B76AA6B9846C68689574D47F461E2D3264C48FC01CBE50D9810898D5AE3984",
+      "formatLogSha256": "40069EBD779C805D65FDF916FAB097A9FAB55EE711591D431E8B440454609812",
+      "sourceCommit": "ca8d39c50bbbec4d825a49c9141eddd353736b4c"
     }
   }
 }
