@@ -121,6 +121,15 @@ The external consumer fixture verifies actual animation ticks, both class/proced
 menu invocation and repeated use across one executable and two DLLs using only a POD result ABI.
 The fixture joins its UI thread before unloading its DLLs; it does not qualify unload with live native UI.
 
+The module's UI-thread animation dispatcher keeps its message-only HWND warm while any native host remains
+attached. Detaching one host must preserve sibling subscriptions and the shared idle cache. The final attachment
+releases that cache after retiring its controls and subscriptions, while the process failure reporter and module
+are still available. If final detachment occurs inside a timer callback, window destruction waits until that
+callback and pending subscription bookkeeping finish. An idle dispatcher must not retain a window until TLS
+destruction after host uninstallation. Embedded hosting does not acquire this native timer or window.
+An animation request from a native detachment callback is ignored; focus/capture retirement cannot create
+a replacement subscription after that host has relinquished its original subscription.
+
 Debug builds request the optional D3D11 SDK layer. If device creation returns DXGI_ERROR_SDK_COMPONENT_MISSING,
 retry once with only D3D11_CREATE_DEVICE_DEBUG removed, retaining BGRA support and hardware/WARP policy. Other
 errors keep their normal failure behavior. This handles the [documented optional debug-layer failure](https://learn.microsoft.com/en-us/windows/win32/api/d3d11/nf-d3d11-d3d11createdevice)

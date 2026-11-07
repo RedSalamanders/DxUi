@@ -3,6 +3,7 @@
 #include "Support.Tests.DumpReader.h"
 #include "Support.Tests.FailureReports.h"
 #include "Support/Failure.Tests.Hooks.h"
+#include <DxUi/DxUi.h>
 #include <objbase.h>
 
 // UI Automation needs COM declarations even with lean Windows headers.
@@ -29,6 +30,82 @@ extern "C" int DxUiModuleProbe() noexcept;
 
 namespace
 {
+HWND FindOwnedAnimationWindow() noexcept
+{
+    for (HWND window = FindWindowExW(HWND_MESSAGE, nullptr, L"DxUi.AnimationDispatcher", nullptr); window;
+         window      = FindWindowExW(HWND_MESSAGE, window, L"DxUi.AnimationDispatcher", nullptr))
+    {
+        if (GetWindowThreadProcessId(window, nullptr) == GetCurrentThreadId() &&
+            reinterpret_cast<HINSTANCE>(GetClassLongPtrW(window, GCLP_HMODULE)) == GetModuleHandleW(nullptr))
+            return window;
+    }
+    return nullptr;
+}
+
+class DetachAnimationProbe final : public DxUi::Control
+{
+public:
+    explicit DetachAnimationProbe(bool& called) : called_(called)
+    {
+        SetFocusable(true);
+    }
+    DetachAnimationProbe(const DetachAnimationProbe&)            = delete;
+    DetachAnimationProbe(DetachAnimationProbe&&)                 = delete;
+    DetachAnimationProbe& operator=(const DetachAnimationProbe&) = delete;
+    DetachAnimationProbe& operator=(DetachAnimationProbe&&)      = delete;
+    void Paint(DxUi::ControlHost&) const override
+    {
+    }
+    void OnFocusChanged(DxUi::ControlHost& host, bool focused) override
+    {
+        if (! focused)
+        {
+            called_ = true;
+            host.RequestAnimation();
+        }
+    }
+
+private:
+    bool& called_;
+};
+
+int RunAnimationRetirement()
+{
+    const auto com = wil::CoInitializeEx(COINIT_APARTMENTTHREADED);
+    const DxUi::Failure::Scope failureScope;
+    wil::unique_hwnd firstWindow(
+        CreateWindowExW(WS_EX_NOACTIVATE, L"STATIC", L"First animation owner", WS_POPUP, 0, 0, 320, 160, nullptr, nullptr, GetModuleHandleW(nullptr), nullptr));
+    wil::unique_hwnd secondWindow(CreateWindowExW(
+        WS_EX_NOACTIVATE, L"STATIC", L"Second animation owner", WS_POPUP, 0, 0, 320, 160, nullptr, nullptr, GetModuleHandleW(nullptr), nullptr));
+    DxUi::ControlHost first;
+    DxUi::ControlHost second;
+    if (! firstWindow || ! secondWindow || ! first.Attach(firstWindow.get()) || ! second.Attach(secondWindow.get()))
+        return 1;
+    first.RequestAnimation();
+    second.RequestAnimation();
+    const HWND dispatcher = FindOwnedAnimationWindow();
+    if (! dispatcher)
+        return 2;
+    first.Detach();
+    if (FindOwnedAnimationWindow() != dispatcher || ! second.DebugHasActiveAnimationSubscription())
+        return 3;
+    bool blurCalled = false;
+    auto root       = std::make_unique<DetachAnimationProbe>(blurCalled);
+    auto* control   = root.get();
+    second.SetRoot(std::move(root));
+    second.SetFocusControl(control, false);
+    if (second.SetNativePresentationVisible(false) != S_OK || FindOwnedAnimationWindow() != dispatcher || second.DebugHasActiveAnimationSubscription())
+        return 4;
+    second.Detach();
+    const bool retired = FindOwnedAnimationWindow() == nullptr;
+    const bool rearmed = second.DebugHasActiveAnimationSubscription();
+    // The fixture has no private animation header or shutdown call: the linked SDK must
+    // release its cached HWND before the process owner uninstalls its failure reporter.
+    std::printf("DXUI_NATIVE_ANIMATION_RETIREMENT created=1 sibling=1 warm=1 retired=%d callback=%d rearmed=%d\n", retired, blurCalled, rearmed);
+    std::fflush(stdout);
+    return retired && blurCalled && ! rearmed ? 0 : 5;
+}
+
 bool ReadNumber(std::string_view content, std::string_view key, int base, std::uint64_t& value)
 {
     const auto position = content.find(key);
@@ -323,6 +400,11 @@ int wmain(int argc, wchar_t** argv)
         std::printf("DXUI_NATIVE_MODULE_HOST_FAILURE pid=%lu result=%08lx\n", GetCurrentProcessId(), static_cast<unsigned long>(hostStart));
         return 9;
     }
+    const int animationRetirement = RunAnimationRetirement();
+    if (argc == 2 && std::wstring_view(argv[1]) == L"--animation-retirement")
+        return FAILED(failureHost.UninstallWhenIdle()) ? 19 : animationRetirement;
+    if (animationRetirement != 0)
+        return 20;
     wil::unique_hmodule first(LoadLibraryW(L"NativeModuleA.dll"));
     wil::unique_hmodule second(LoadLibraryW(L"NativeModuleB.dll"));
     if (! first || ! second)

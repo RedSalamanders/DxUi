@@ -14,6 +14,13 @@ published target binding keeps its existing ownership. Clean/hidden frames and c
 work, allocation, layout or periodic wake. Native resource and pixel oracles remain separate from elapsed-time
 or paired-performance acceptance.
 
+Each linked native module retains at most one animation dispatcher HWND per UI thread. Attached hosts share
+that window, including idle intervals between gestures; unsubscribing a single host must not churn a sibling's
+cache. The last attachment releases an idle window synchronously, or at the end of its active timer callback.
+This uses the existing attachment count and adds no allocation, worker, polling or timer to the idle/embedded
+path. The public consumer fixture observes creation, sibling preservation, warm idle reuse and final HWND
+retirement independently; resource counts do not establish paired elapsed-time acceptance.
+
 Editor cosmetics use the existing owner-thread optional visual traversal, with
 no worker or periodic timer. Content readiness excludes code/source ink, source
 guides and Source-mode analysis used for colouring. Guide retention and copying

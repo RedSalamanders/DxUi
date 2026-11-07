@@ -80,6 +80,11 @@ Owner: `src/Rendering/Embedded.cpp`, `src/Controls/DxUi.TextInput.cpp`, input di
 - [ ] Finish parser/preparer admission and per-element failure isolation across diagrams/math/images.
   Preserve checked capacity/unsupported causes and regression evidence; unexpected C++ exceptions follow
   the API-5 fatal contract rather than the superseded whole-view exception-recovery proposal.
+- [x] Retire the native animation window before failure-host uninstallation and prevent callback rearming during
+  Detach. The [scoped closeout](../Done/AnimationWindowRetirement_2026-11-07.md) retains the original consumer
+  TLS diagnosis, independent public same-object failures/passes, sibling/cache and in-tick coverage, six
+  zero-warning builds and 66 ordinary x64 suite executions at `06b8d518`. Explicit application adoption and
+  fresh hosted/native-platform acceptance remain D-C1/D-Q1.
 
 This coordinates the active API work; it does not adopt API 5 in any application or duplicate that branch's queue.
 

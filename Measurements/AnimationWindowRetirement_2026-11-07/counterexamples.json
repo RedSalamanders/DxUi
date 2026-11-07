@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-animation-retirement-counterexamples",
+  "inputHash": "2a976fdba0adc97df473b8fec596ad17fac01408a47a7ef33f947b778fb23e7d",
+  "benchmarkInputs": {
+    "src/Controls/DxUi.WindowHost.cpp": "C53E2CD85C148A50122A42F5570CBCB0000B126FA7DEC790AD914A69A1B40B39",
+    "src/Support/AnimationDispatcher.h": "DCA7D842DF61B7EC5F2D17BC7A4AA491BAC7D0F450A6F4594BB45414BE8BC671",
+    "Tests/ConsumerModules/ConsumerModules.Tests.Driver.cpp": "ACD0AE3C823CD981069F49D95E92CBE43B45C98C1F041C3066CCFD45D93E055A",
+    "Tests/ConsumerModules/ConsumerModules.Tests.NativeModule.cpp": "071AD29885D4825CC99EFFCBF749A305FCE20E5D39F50D9A524B7687F1B81FD8",
+    "Tests/Controls/DxUi.Tests.Animation.cpp": "07E2F89E29B1A2394542BB77804EA405A5FA5AFBF6C84B6D79A55712EABAF93E"
+  },
+  "implementationCommit": "06b8d5188d063d16aa27f91eaa1092e3cc136a55",
+  "apiRevision": 5,
+  "maintainedFixtureSha256": "ACD0AE3C823CD981069F49D95E92CBE43B45C98C1F041C3066CCFD45D93E055A",
+  "originalSdkCommit": "a287710cc0230152a69da0c74496d654841a05b3",
+  "originalExitCode": -532391851,
+  "correctedExitCode": 0,
+  "originalObjects": [
+    {
+      "name": "ConsumerModules.Tests.Driver.obj",
+      "sha256": "39A2644410B844C135C37C5A0DCE90640EEA9D7DE9F6DFF44367807867507555"
+    },
+    {
+      "name": "ConsumerModules.Tests.NativeModule.obj",
+      "sha256": "D6C1B939AFA3C6A9CE3FEB1941B29B876377FC486DC88CB10B30CE34A6D1363D"
+    },
+    {
+      "name": "FailureHost.obj",
+      "sha256": "A4EE3F623FFE6C42B3567223B066AD4CD0876963B48FEF9DFF6AB377A1C62DC8"
+    }
+  ],
+  "allOriginalObjectsUnchanged": true,
+  "firstCandidateCommit": "40ea6c05a7bd6630be6b5b24528995a4f4f26af0",
+  "firstCandidateReentrantExitCode": 2,
+  "correctedReentrantExitCode": 0,
+  "reentrantOriginalObjects": [
+    {
+      "name": "FailureHost.obj",
+      "sha256": "7C08F29B625A2D3F9236837140EDD38484DA23E6979C20A19B6D4DE6A1BA7A7F"
+    },
+    {
+      "name": "Rearm.obj",
+      "sha256": "FA03E2A73A925B79DC43E3623A28177D01FD55CA2D986C8E55AF705BEDE5E00F"
+    }
+  ],
+  "candidateSdkLibrarySha256": "5CFE86A7F5E1EB555B33E26E6A59A1FD1234EAE06CB7C7E5AD00A2A104796D4F",
+  "candidateProbeSha256": "7F610ED4DF453FD6C17C2D162AFC6D0D41AC3A7CD98735D37EEAD913DAD8B650",
+  "reentrantCandidateProbeSha256": "7F2EF138F139CB4CD9758C7B9954409C68D93B8F0C0682412C672F0C56D4E2AF",
+  "nativeFocusTransfer": false,
+  "galleryReview": "Native lifetime only; default gallery pixels unchanged",
+  "limits": [
+    "The old SDK fatal exit and the consumer original-context diagnosis are separate retained observations",
+    "The original consumer dump identifies MissingHost in AnimationDispatcher::WndProcThunk during TLS destruction; later green runs do not diagnose unrelated historical failures",
+    "Original archive members and object hashes are verified, not original filesystem identities",
+    "No formal paired-performance or native ARM64 execution acceptance"
+  ]
+}

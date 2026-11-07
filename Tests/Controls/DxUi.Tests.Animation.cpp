@@ -229,6 +229,42 @@ void TestAnimationDispatcherInactiveSubscriberStopsContinuousTicks()
     Require(capture.ticks.size() == 1u, "animation dispatcher stops continuous ticks after the subscriber returns inactive");
 }
 
+void TestAnimationDispatcherRetirementDuringTickDefersWindowDestruction()
+{
+    using DxUi::Ui::AnimationDispatcher;
+    auto& dispatcher = AnimationDispatcher::GetInstance();
+    dispatcher.Shutdown();
+    struct Capture
+    {
+        HWND window           = nullptr;
+        bool invoked          = false;
+        bool survivedCallback = false;
+    } capture;
+    const auto subscription = dispatcher.Subscribe(
+        [](void* context, uint64_t) noexcept
+    {
+        auto& result   = *static_cast<Capture*>(context);
+        result.invoked = true;
+        AnimationDispatcher::GetInstance().RetireIdleWindow();
+        result.survivedCallback = IsWindow(result.window) != FALSE;
+        return false;
+    },
+        &capture);
+    Require(subscription != 0u, "retirement fixture obtains an animation subscription");
+    for (HWND window = FindWindowExW(HWND_MESSAGE, nullptr, L"DxUi.AnimationDispatcher", nullptr); window;
+         window      = FindWindowExW(HWND_MESSAGE, window, L"DxUi.AnimationDispatcher", nullptr))
+    {
+        if (GetWindowThreadProcessId(window, nullptr) == GetCurrentThreadId() &&
+            reinterpret_cast<HINSTANCE>(GetClassLongPtrW(window, GCLP_HMODULE)) == GetModuleHandleW(nullptr))
+            capture.window = window;
+    }
+    Require(capture.window != nullptr, "retirement fixture finds its actual module-owned dispatcher HWND");
+    SendMessageW(capture.window, WM_TIMER, 1u, 0);
+    Require(capture.invoked && capture.survivedCallback, "retirement keeps the native window alive through the active callback");
+    Require(! IsWindow(capture.window), "the last inactive subscription retires the window before timer dispatch returns");
+    Require(dispatcher.DebugGetActiveSubscriptionCountForTest() == 0u, "retirement leaves no animation subscriber");
+}
+
 void TestFrameRuntimeElapsedUsHandlesLargeQpcDelta()
 {
     using namespace DxUi;
@@ -1621,6 +1657,7 @@ void RunAnimationTests()
     DXUI_RUN_TEST(TestAnimationDispatcherSchedulerPolicyUses120HzTargetAndClampsHitches);
     DXUI_RUN_TEST(TestAnimationDispatcherActiveSubscribersReceiveMonotonicHighResolutionTicks);
     DXUI_RUN_TEST(TestAnimationDispatcherInactiveSubscriberStopsContinuousTicks);
+    DXUI_RUN_TEST(TestAnimationDispatcherRetirementDuringTickDefersWindowDestruction);
     DXUI_RUN_TEST(TestFrameRuntimeElapsedUsHandlesLargeQpcDelta);
     DXUI_RUN_TEST(TestFrameRuntimeElapsedUsHandlesWideCrossSignDelta);
     DXUI_RUN_TEST(TestFrameRuntimeReducedMotionPolicy);
