@@ -1,0 +1,2338 @@
+{
+  "schemaVersion": 1,
+  "fixture": "dxui-long-checkout-native-tooling",
+  "implementationCommit": "e5c0ab640713dd259982c69314d53257e274ce1c",
+  "baselineCommit": "7c6a18e60e5859b73383caab259d445b1ae7709c",
+  "baselineRootCharacters": 133,
+  "evidenceCandidateRootCharacters": 180,
+  "msvcBaselinePassed": 5,
+  "msvcBaselineCases": 14,
+  "extendedPrefixExperimentPassed": 5,
+  "admissionBeforePassed": 14,
+  "admissionBeforeCases": 15,
+  "admissionAfterDirectPassed": 15,
+  "admissionAfterNestedPassed": 15,
+  "ordinaryBaselineEvidencePassed": 57,
+  "longCandidateEvidencePassed": 58,
+  "originalLongAggregateAccepted": false,
+  "historicalHardlinkCause": "unassigned",
+  "galleryReview": "Nonvisual tooling only; no application pixels changed",
+  "archive": {
+    "sha256": "3AFB1C8EF6199F929B07029162399510D7E1AC38C7BCA26F1B53339177E62B68",
+    "name": "original-source-native-and-logs.zip",
+    "members": [
+      {
+        "path": "diagnostics/long-checkout-baseline.json",
+        "bytes": 295,
+        "sha256": "E0560289233C32DF697AA73E3DE1C0800E5547220C78A6E10A29F25F8AFA483E"
+      },
+      {
+        "path": "diagnostics/long-evidence-baseline.json",
+        "bytes": 245,
+        "sha256": "5386B9D3CA88930A06E8304AE290C2A79E7C38AD14311B7215362929ADA0BDDD"
+      },
+      {
+        "path": "diagnostics/long-evidence-180-baseline.json",
+        "bytes": 235,
+        "sha256": "5F6E21D9CBC9BAE7C7CAF17ADA9BBB5D08F1CB8869EC4978233EB26F40C44511"
+      },
+      {
+        "path": "diagnostics/long-evidence-180-candidate.json",
+        "bytes": 235,
+        "sha256": "72F2D5284A3B7BAC605FAFD3AD7C402DCEC631F03FCF923BE3F7D362FCD5FCBE"
+      },
+      {
+        "path": "diagnostics/original-long-msvc.log",
+        "bytes": 14456,
+        "sha256": "0053D69938566E47D4A859B4AC687BF3E26B53FC16FA68E2CDAC5121B9066D84"
+      },
+      {
+        "path": "diagnostics/original-long-evidence.log",
+        "bytes": 3974,
+        "sha256": "8626F3DDCFA081A4EB7A990C9CCD26CC515CEA68B1D2BAA32ED7EB26AAB3DCB8"
+      },
+      {
+        "path": "diagnostics/original-long-evidence-180.log",
+        "bytes": 5210,
+        "sha256": "C4B48A84359271ABD3572F483FA01E2C943A73FF9878ECAD33B8CC4B45D59F4A"
+      },
+      {
+        "path": "diagnostics/long-msvc-native-prefix-proposal.log",
+        "bytes": 13769,
+        "sha256": "B1419F190B295BA6E36289CFA89747BFD94845FFD8D6637201BD82C7676A8180"
+      },
+      {
+        "path": "diagnostics/setup-native-prefix-proposal.ps1",
+        "bytes": 7804,
+        "sha256": "A6E5A0CB974BAF428E7DE8AF2A2BAB6C82AD936E1B15168F16A75BA6D9D4210B"
+      },
+      {
+        "path": "diagnostics/long-evidence-180-original-Test-RunEvidence.ps1",
+        "bytes": 25792,
+        "sha256": "ADEBDDCEEA41580A390A814BD4AE65EA1443B807E1982B3DFC098581CB339B08"
+      },
+      {
+        "path": "diagnostics/native-launch-admission-after.log",
+        "bytes": 2466,
+        "sha256": "0C2E9BCC247874A76B073230E0DD90946824276651D8F0ECD6EF0627A5FD0830"
+      },
+      {
+        "path": "diagnostics/long-evidence-180-candidate.log",
+        "bytes": 4726,
+        "sha256": "0147E28816E69B7C4176F78477C94B1036962503FDB8E8B878671B09D837661D"
+      },
+      {
+        "path": "admission-before/before.log",
+        "bytes": 2540,
+        "sha256": "994237F4FE6BC3B409CDF9BEA88E70F2A19380C94CFFEE9CD48DDDD2EF746AEA"
+      },
+      {
+        "path": "admission-before/Setup.ps1",
+        "bytes": 7769,
+        "sha256": "8F449465140B768EF37AF51BAEC3605A0D0E8EAF748C8045D7335B5516953BF4"
+      },
+      {
+        "path": "admission-before/Test-MsvcSetup.ps1",
+        "bytes": 15358,
+        "sha256": "DE4838986B95553FA475D259DF8D6DC5B049A54C7393EE72BCE3C6A63417D9A4"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/FakeInstaller.cs",
+        "bytes": 1561,
+        "sha256": "AE9F44955EE20844C5587AFB5629F9A7034AB1759E900A33CF25F542D0C0F1F9"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/FakeInstaller.exe",
+        "bytes": 5632,
+        "sha256": "6442856408B0DEA46665B136C2F98FA5E05C5D25405D844EE02BE38CB0E1CF56"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/BadSignature/Directory.Build.props",
+        "bytes": 108,
+        "sha256": "F1560CD09F35234555322DFBC2F3670A8099453B112E9023FBA8B1AA499EF6A0"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/BadSignature/download-timeout.txt",
+        "bytes": 3,
+        "sha256": "7B69759630F869F2723875F873935FED29D2D12B10EF763C1C33B8E0004CB405"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/BadSignature/downloaded.txt",
+        "bytes": 47,
+        "sha256": "7612246D0910BCFD0C04AE03F26DE30F309A1ED0E83D093C3EAE2718486E42E5"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/BadSignature/github-output.txt",
+        "bytes": 348,
+        "sha256": "B84117D4239AC0CC64857DFB62A2A0A8FC785D11C0113E878B8F5C3E49D38565"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/BadSignature/Invoke.ps1",
+        "bytes": 963,
+        "sha256": "44AC5160F0B9A70E272BFC8F8D6B516AE56AD102953E1005B41B0101B2D1EBD5"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/BadSignature/result.log",
+        "bytes": 766,
+        "sha256": "88EED5E8E2097DF734D6EE2DA56FD3C8340655C6D17FD67DA52521AA6DA79D17"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/BadSignature/.github/actions/setup-msvc/Setup.ps1",
+        "bytes": 7769,
+        "sha256": "8F449465140B768EF37AF51BAEC3605A0D0E8EAF748C8045D7335B5516953BF4"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/BadSignature/Program Files/Windows Kits/10/Include/10.0.26100.0/um/Windows.h",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/BadSignature/runner temp with spaces/msvc-14.52-32f8b4c4d4e04cc697e38d0de6d7a61e/vs_BuildTools.exe",
+        "bytes": 5632,
+        "sha256": "6442856408B0DEA46665B136C2F98FA5E05C5D25405D844EE02BE38CB0E1CF56"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/BadSignature/Tools/VisualStudio.psm1",
+        "bytes": 147,
+        "sha256": "627AECCB42F5FF0BB441BB74A89A834F2DA3C0BF20A764F13252BE7122CA22CD"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/BadSignature/VS instance/VC/Auxiliary/Build/Microsoft.VCToolsVersion.default.txt",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/BadSignature/VS instance/VC/Tools/Llvm/x64/bin/llvm-pdbutil.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/BadSignature/VS instance/VC/Tools/MSVC/14.52.37025/bin/Hostx64/x64/cl.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/BadSignature/VS instance/VC/Tools/MSVC/14.52.37025/bin/Hostx64/x64/link.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/BadSignature/VS instance/VC/Tools/MSVC/14.52.37025/lib/x64/clang_rt.asan_dynamic-x86_64.lib",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/download-timeout/Directory.Build.props",
+        "bytes": 108,
+        "sha256": "F1560CD09F35234555322DFBC2F3670A8099453B112E9023FBA8B1AA499EF6A0"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/download-timeout/download-timeout.txt",
+        "bytes": 3,
+        "sha256": "7B69759630F869F2723875F873935FED29D2D12B10EF763C1C33B8E0004CB405"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/download-timeout/github-output.txt",
+        "bytes": 352,
+        "sha256": "16D59060949785C22BA3DAC8D106AB2A61FB2F6256A43539820E6C3A71C153DA"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/download-timeout/Invoke.ps1",
+        "bytes": 963,
+        "sha256": "44AC5160F0B9A70E272BFC8F8D6B516AE56AD102953E1005B41B0101B2D1EBD5"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/download-timeout/result.log",
+        "bytes": 1093,
+        "sha256": "DD674B0DCC7AD36A68FD3F3C6C95DB33060110781D4902F770F7BD3FB5F522E8"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/download-timeout/.github/actions/setup-msvc/Setup.ps1",
+        "bytes": 7769,
+        "sha256": "8F449465140B768EF37AF51BAEC3605A0D0E8EAF748C8045D7335B5516953BF4"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/download-timeout/Program Files/Windows Kits/10/Include/10.0.26100.0/um/Windows.h",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/download-timeout/runner temp with spaces/msvc-14.52-4a5302b665024b42a58a1d0cd35921d0/download.log",
+        "bytes": 97,
+        "sha256": "7BCF50C4C557856A96445F2F02D8D231EF59DF5461618221B23EFFEE30135520"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/download-timeout/Tools/VisualStudio.psm1",
+        "bytes": 147,
+        "sha256": "627AECCB42F5FF0BB441BB74A89A834F2DA3C0BF20A764F13252BE7122CA22CD"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/download-timeout/VS instance/VC/Auxiliary/Build/Microsoft.VCToolsVersion.default.txt",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/download-timeout/VS instance/VC/Tools/Llvm/x64/bin/llvm-pdbutil.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/download-timeout/VS instance/VC/Tools/MSVC/14.52.37025/bin/Hostx64/x64/cl.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/download-timeout/VS instance/VC/Tools/MSVC/14.52.37025/bin/Hostx64/x64/link.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/download-timeout/VS instance/VC/Tools/MSVC/14.52.37025/lib/x64/clang_rt.asan_dynamic-x86_64.lib",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/failed/Directory.Build.props",
+        "bytes": 108,
+        "sha256": "F1560CD09F35234555322DFBC2F3670A8099453B112E9023FBA8B1AA499EF6A0"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/failed/download-timeout.txt",
+        "bytes": 3,
+        "sha256": "7B69759630F869F2723875F873935FED29D2D12B10EF763C1C33B8E0004CB405"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/failed/downloaded.txt",
+        "bytes": 47,
+        "sha256": "7612246D0910BCFD0C04AE03F26DE30F309A1ED0E83D093C3EAE2718486E42E5"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/failed/github-output.txt",
+        "bytes": 342,
+        "sha256": "8B04396DBDDEDCC8EFF4B45650096CC89898D12777F1EFE1A272FE7E389554D0"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/failed/Invoke.ps1",
+        "bytes": 963,
+        "sha256": "44AC5160F0B9A70E272BFC8F8D6B516AE56AD102953E1005B41B0101B2D1EBD5"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/failed/result.log",
+        "bytes": 1341,
+        "sha256": "6A8B6A261716722D7B68597CBC8C4E8410A2BC954B08BAE1C3D2C174BDDC7504"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/failed/.github/actions/setup-msvc/Setup.ps1",
+        "bytes": 7769,
+        "sha256": "8F449465140B768EF37AF51BAEC3605A0D0E8EAF748C8045D7335B5516953BF4"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/failed/Program Files/Windows Kits/10/Include/10.0.26100.0/um/Windows.h",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/failed/runner temp with spaces/msvc-14.52-09bb404ac950482798d58e251db36e36/bootstrapper.stderr.log",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/failed/runner temp with spaces/msvc-14.52-09bb404ac950482798d58e251db36e36/bootstrapper.stdout.log",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/failed/runner temp with spaces/msvc-14.52-09bb404ac950482798d58e251db36e36/vs_BuildTools.exe",
+        "bytes": 5632,
+        "sha256": "6442856408B0DEA46665B136C2F98FA5E05C5D25405D844EE02BE38CB0E1CF56"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/failed/Tools/VisualStudio.psm1",
+        "bytes": 147,
+        "sha256": "627AECCB42F5FF0BB441BB74A89A834F2DA3C0BF20A764F13252BE7122CA22CD"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/failed/VS instance/VC/Auxiliary/Build/Microsoft.VCToolsVersion.default.txt",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/failed/VS instance/VC/Tools/Llvm/x64/bin/llvm-pdbutil.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/failed/VS instance/VC/Tools/MSVC/14.52.37025/bin/Hostx64/x64/cl.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/failed/VS instance/VC/Tools/MSVC/14.52.37025/bin/Hostx64/x64/link.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/failed/VS instance/VC/Tools/MSVC/14.52.37025/lib/x64/clang_rt.asan_dynamic-x86_64.lib",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/installer-timeout/Directory.Build.props",
+        "bytes": 108,
+        "sha256": "F1560CD09F35234555322DFBC2F3670A8099453B112E9023FBA8B1AA499EF6A0"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/installer-timeout/download-timeout.txt",
+        "bytes": 3,
+        "sha256": "7B69759630F869F2723875F873935FED29D2D12B10EF763C1C33B8E0004CB405"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/installer-timeout/downloaded.txt",
+        "bytes": 47,
+        "sha256": "7612246D0910BCFD0C04AE03F26DE30F309A1ED0E83D093C3EAE2718486E42E5"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/installer-timeout/github-output.txt",
+        "bytes": 353,
+        "sha256": "6BF64186898370B04100CE5CA6FC35FDFE623FFF756DE5105623B3D988F241D0"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/installer-timeout/Invoke.ps1",
+        "bytes": 963,
+        "sha256": "44AC5160F0B9A70E272BFC8F8D6B516AE56AD102953E1005B41B0101B2D1EBD5"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/installer-timeout/result.log",
+        "bytes": 1385,
+        "sha256": "68E3D458D87B3E87108BC48A9A421CB00A394E4A11271ADEC98273E032F40883"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/installer-timeout/.github/actions/setup-msvc/Setup.ps1",
+        "bytes": 7766,
+        "sha256": "20461359D4BB0798034FE8AAD3999489768E6DA2944F7034497664437C4D1B87"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/installer-timeout/Program Files/Windows Kits/10/Include/10.0.26100.0/um/Windows.h",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/installer-timeout/runner temp with spaces/msvc-14.52-ece4cc3249cd4204bd866850db14029e/bootstrapper.stderr.log",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/installer-timeout/runner temp with spaces/msvc-14.52-ece4cc3249cd4204bd866850db14029e/bootstrapper.stdout.log",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/installer-timeout/runner temp with spaces/msvc-14.52-ece4cc3249cd4204bd866850db14029e/vs_BuildTools.exe",
+        "bytes": 5632,
+        "sha256": "6442856408B0DEA46665B136C2F98FA5E05C5D25405D844EE02BE38CB0E1CF56"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/installer-timeout/Tools/VisualStudio.psm1",
+        "bytes": 147,
+        "sha256": "627AECCB42F5FF0BB441BB74A89A834F2DA3C0BF20A764F13252BE7122CA22CD"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/installer-timeout/VS instance/VC/Auxiliary/Build/Microsoft.VCToolsVersion.default.txt",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/installer-timeout/VS instance/VC/Tools/Llvm/x64/bin/llvm-pdbutil.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/installer-timeout/VS instance/VC/Tools/MSVC/14.52.37025/bin/Hostx64/x64/cl.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/installer-timeout/VS instance/VC/Tools/MSVC/14.52.37025/bin/Hostx64/x64/link.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/installer-timeout/VS instance/VC/Tools/MSVC/14.52.37025/lib/x64/clang_rt.asan_dynamic-x86_64.lib",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/Local/Directory.Build.props",
+        "bytes": 108,
+        "sha256": "F1560CD09F35234555322DFBC2F3670A8099453B112E9023FBA8B1AA499EF6A0"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/Local/Invoke.ps1",
+        "bytes": 963,
+        "sha256": "44AC5160F0B9A70E272BFC8F8D6B516AE56AD102953E1005B41B0101B2D1EBD5"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/Local/result.log",
+        "bytes": 807,
+        "sha256": "9DCD92146B04DF4E2866BF38FAF4FD3E00730245559019A70EE91F76F5F7E0A2"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/Local/.github/actions/setup-msvc/Setup.ps1",
+        "bytes": 7769,
+        "sha256": "8F449465140B768EF37AF51BAEC3605A0D0E8EAF748C8045D7335B5516953BF4"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/Local/Program Files/Windows Kits/10/Include/10.0.26100.0/um/Windows.h",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/Local/Tools/VisualStudio.psm1",
+        "bytes": 147,
+        "sha256": "627AECCB42F5FF0BB441BB74A89A834F2DA3C0BF20A764F13252BE7122CA22CD"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/Local/VS instance/VC/Auxiliary/Build/Microsoft.VCToolsVersion.default.txt",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/Local/VS instance/VC/Tools/Llvm/x64/bin/llvm-pdbutil.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/Local/VS instance/VC/Tools/MSVC/14.52.37025/bin/Hostx64/x64/cl.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/Local/VS instance/VC/Tools/MSVC/14.52.37025/bin/Hostx64/x64/link.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/Local/VS instance/VC/Tools/MSVC/14.52.37025/lib/x64/clang_rt.asan_dynamic-x86_64.lib",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/missing-1/Directory.Build.props",
+        "bytes": 108,
+        "sha256": "F1560CD09F35234555322DFBC2F3670A8099453B112E9023FBA8B1AA499EF6A0"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/missing-1/download-timeout.txt",
+        "bytes": 3,
+        "sha256": "7B69759630F869F2723875F873935FED29D2D12B10EF763C1C33B8E0004CB405"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/missing-1/downloaded.txt",
+        "bytes": 47,
+        "sha256": "7612246D0910BCFD0C04AE03F26DE30F309A1ED0E83D093C3EAE2718486E42E5"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/missing-1/github-output.txt",
+        "bytes": 345,
+        "sha256": "0ACB3E895B13D1B9BD260E0CB86FB2BAB8C263236E7D5B15A7720FFA6642F163"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/missing-1/Invoke.ps1",
+        "bytes": 963,
+        "sha256": "44AC5160F0B9A70E272BFC8F8D6B516AE56AD102953E1005B41B0101B2D1EBD5"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/missing-1/result.log",
+        "bytes": 1353,
+        "sha256": "2568385A1A4643C5897D89B69C31128C0EF0446E8EF4C02950A4126EE606224B"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/missing-1/.github/actions/setup-msvc/Setup.ps1",
+        "bytes": 7769,
+        "sha256": "8F449465140B768EF37AF51BAEC3605A0D0E8EAF748C8045D7335B5516953BF4"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/missing-1/Program Files/Windows Kits/10/Include/10.0.26100.0/um/Windows.h",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/missing-1/runner temp with spaces/msvc-14.52-d7f7c33344594828a7a584e3cd77a1a1/bootstrapper.stderr.log",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/missing-1/runner temp with spaces/msvc-14.52-d7f7c33344594828a7a584e3cd77a1a1/bootstrapper.stdout.log",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/missing-1/runner temp with spaces/msvc-14.52-d7f7c33344594828a7a584e3cd77a1a1/vs_BuildTools.exe",
+        "bytes": 5632,
+        "sha256": "6442856408B0DEA46665B136C2F98FA5E05C5D25405D844EE02BE38CB0E1CF56"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/missing-1/Tools/VisualStudio.psm1",
+        "bytes": 147,
+        "sha256": "627AECCB42F5FF0BB441BB74A89A834F2DA3C0BF20A764F13252BE7122CA22CD"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/missing-1/VS instance/VC/Auxiliary/Build/Microsoft.VCToolsVersion.default.txt",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/missing-1/VS instance/VC/Tools/Llvm/x64/bin/llvm-pdbutil.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/missing-1/VS instance/VC/Tools/MSVC/14.52.37025/bin/Hostx64/x64/link.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/missing-1/VS instance/VC/Tools/MSVC/14.52.37025/lib/x64/clang_rt.asan_dynamic-x86_64.lib",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/missing-2/Directory.Build.props",
+        "bytes": 108,
+        "sha256": "F1560CD09F35234555322DFBC2F3670A8099453B112E9023FBA8B1AA499EF6A0"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/missing-2/download-timeout.txt",
+        "bytes": 3,
+        "sha256": "7B69759630F869F2723875F873935FED29D2D12B10EF763C1C33B8E0004CB405"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/missing-2/downloaded.txt",
+        "bytes": 47,
+        "sha256": "7612246D0910BCFD0C04AE03F26DE30F309A1ED0E83D093C3EAE2718486E42E5"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/missing-2/github-output.txt",
+        "bytes": 345,
+        "sha256": "D2E33EBA1B9FC864EB3D4C25838777B108D25129D2919A9266159956512D47DC"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/missing-2/Invoke.ps1",
+        "bytes": 963,
+        "sha256": "44AC5160F0B9A70E272BFC8F8D6B516AE56AD102953E1005B41B0101B2D1EBD5"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/missing-2/result.log",
+        "bytes": 1353,
+        "sha256": "DA4A0E6EBAB21904B38D28D90EAE151442456102BAD2C70F26695577303BC06E"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/missing-2/.github/actions/setup-msvc/Setup.ps1",
+        "bytes": 7769,
+        "sha256": "8F449465140B768EF37AF51BAEC3605A0D0E8EAF748C8045D7335B5516953BF4"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/missing-2/Program Files/Windows Kits/10/Include/10.0.26100.0/um/Windows.h",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/missing-2/runner temp with spaces/msvc-14.52-dcb605e460114020af845cb28a7f935d/bootstrapper.stderr.log",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/missing-2/runner temp with spaces/msvc-14.52-dcb605e460114020af845cb28a7f935d/bootstrapper.stdout.log",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/missing-2/runner temp with spaces/msvc-14.52-dcb605e460114020af845cb28a7f935d/vs_BuildTools.exe",
+        "bytes": 5632,
+        "sha256": "6442856408B0DEA46665B136C2F98FA5E05C5D25405D844EE02BE38CB0E1CF56"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/missing-2/Tools/VisualStudio.psm1",
+        "bytes": 147,
+        "sha256": "627AECCB42F5FF0BB441BB74A89A834F2DA3C0BF20A764F13252BE7122CA22CD"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/missing-2/VS instance/VC/Auxiliary/Build/Microsoft.VCToolsVersion.default.txt",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/missing-2/VS instance/VC/Tools/Llvm/x64/bin/llvm-pdbutil.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/missing-2/VS instance/VC/Tools/MSVC/14.52.37025/bin/Hostx64/x64/cl.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/missing-2/VS instance/VC/Tools/MSVC/14.52.37025/bin/Hostx64/x64/link.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/missing-3/Directory.Build.props",
+        "bytes": 108,
+        "sha256": "F1560CD09F35234555322DFBC2F3670A8099453B112E9023FBA8B1AA499EF6A0"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/missing-3/download-timeout.txt",
+        "bytes": 3,
+        "sha256": "7B69759630F869F2723875F873935FED29D2D12B10EF763C1C33B8E0004CB405"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/missing-3/downloaded.txt",
+        "bytes": 47,
+        "sha256": "7612246D0910BCFD0C04AE03F26DE30F309A1ED0E83D093C3EAE2718486E42E5"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/missing-3/github-output.txt",
+        "bytes": 345,
+        "sha256": "5C38D09FA6DB9CA6D53751CD1565809440BFD0F03DEA9FA16D925A8DA1EB3538"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/missing-3/Invoke.ps1",
+        "bytes": 963,
+        "sha256": "44AC5160F0B9A70E272BFC8F8D6B516AE56AD102953E1005B41B0101B2D1EBD5"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/missing-3/result.log",
+        "bytes": 1353,
+        "sha256": "EE1A36DAFA15E205090B43A3426F20022FED47B1C17AC1292813AD8179EA131E"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/missing-3/.github/actions/setup-msvc/Setup.ps1",
+        "bytes": 7769,
+        "sha256": "8F449465140B768EF37AF51BAEC3605A0D0E8EAF748C8045D7335B5516953BF4"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/missing-3/Program Files/Windows Kits/10/Include/10.0.26100.0/um/Windows.h",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/missing-3/runner temp with spaces/msvc-14.52-e99e1779f3824014ab4d517fee2a7557/bootstrapper.stderr.log",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/missing-3/runner temp with spaces/msvc-14.52-e99e1779f3824014ab4d517fee2a7557/bootstrapper.stdout.log",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/missing-3/runner temp with spaces/msvc-14.52-e99e1779f3824014ab4d517fee2a7557/vs_BuildTools.exe",
+        "bytes": 5632,
+        "sha256": "6442856408B0DEA46665B136C2F98FA5E05C5D25405D844EE02BE38CB0E1CF56"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/missing-3/Tools/VisualStudio.psm1",
+        "bytes": 147,
+        "sha256": "627AECCB42F5FF0BB441BB74A89A834F2DA3C0BF20A764F13252BE7122CA22CD"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/missing-3/VS instance/VC/Auxiliary/Build/Microsoft.VCToolsVersion.default.txt",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/missing-3/VS instance/VC/Tools/MSVC/14.52.37025/bin/Hostx64/x64/cl.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/missing-3/VS instance/VC/Tools/MSVC/14.52.37025/bin/Hostx64/x64/link.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/missing-3/VS instance/VC/Tools/MSVC/14.52.37025/lib/x64/clang_rt.asan_dynamic-x86_64.lib",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/missing-4/Directory.Build.props",
+        "bytes": 108,
+        "sha256": "F1560CD09F35234555322DFBC2F3670A8099453B112E9023FBA8B1AA499EF6A0"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/missing-4/download-timeout.txt",
+        "bytes": 3,
+        "sha256": "7B69759630F869F2723875F873935FED29D2D12B10EF763C1C33B8E0004CB405"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/missing-4/downloaded.txt",
+        "bytes": 47,
+        "sha256": "7612246D0910BCFD0C04AE03F26DE30F309A1ED0E83D093C3EAE2718486E42E5"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/missing-4/github-output.txt",
+        "bytes": 345,
+        "sha256": "22E3CBD41784F51DDCDF87BA03989B72BBE7063C28C8F1E3910E312EB25847E6"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/missing-4/Invoke.ps1",
+        "bytes": 963,
+        "sha256": "44AC5160F0B9A70E272BFC8F8D6B516AE56AD102953E1005B41B0101B2D1EBD5"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/missing-4/result.log",
+        "bytes": 1353,
+        "sha256": "070EEB18397D04188F508CC9953650BCBB302C406D215866710A2F416C75917B"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/missing-4/.github/actions/setup-msvc/Setup.ps1",
+        "bytes": 7769,
+        "sha256": "8F449465140B768EF37AF51BAEC3605A0D0E8EAF748C8045D7335B5516953BF4"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/missing-4/runner temp with spaces/msvc-14.52-dbf9c4b5c7bd4f048297f141f0e794a1/bootstrapper.stderr.log",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/missing-4/runner temp with spaces/msvc-14.52-dbf9c4b5c7bd4f048297f141f0e794a1/bootstrapper.stdout.log",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/missing-4/runner temp with spaces/msvc-14.52-dbf9c4b5c7bd4f048297f141f0e794a1/vs_BuildTools.exe",
+        "bytes": 5632,
+        "sha256": "6442856408B0DEA46665B136C2F98FA5E05C5D25405D844EE02BE38CB0E1CF56"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/missing-4/Tools/VisualStudio.psm1",
+        "bytes": 147,
+        "sha256": "627AECCB42F5FF0BB441BB74A89A834F2DA3C0BF20A764F13252BE7122CA22CD"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/missing-4/VS instance/VC/Auxiliary/Build/Microsoft.VCToolsVersion.default.txt",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/missing-4/VS instance/VC/Tools/Llvm/x64/bin/llvm-pdbutil.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/missing-4/VS instance/VC/Tools/MSVC/14.52.37025/bin/Hostx64/x64/cl.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/missing-4/VS instance/VC/Tools/MSVC/14.52.37025/bin/Hostx64/x64/link.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/missing-4/VS instance/VC/Tools/MSVC/14.52.37025/lib/x64/clang_rt.asan_dynamic-x86_64.lib",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/ready/Directory.Build.props",
+        "bytes": 108,
+        "sha256": "F1560CD09F35234555322DFBC2F3670A8099453B112E9023FBA8B1AA499EF6A0"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/ready/Invoke.ps1",
+        "bytes": 963,
+        "sha256": "44AC5160F0B9A70E272BFC8F8D6B516AE56AD102953E1005B41B0101B2D1EBD5"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/ready/result.log",
+        "bytes": 572,
+        "sha256": "D4564BE90D61259E9D053393708D92F172F8F78853FD0D949E5F2F27C4FF9D9F"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/ready/.github/actions/setup-msvc/Setup.ps1",
+        "bytes": 7769,
+        "sha256": "8F449465140B768EF37AF51BAEC3605A0D0E8EAF748C8045D7335B5516953BF4"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/ready/Program Files/Windows Kits/10/Include/10.0.26100.0/um/Windows.h",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/ready/Tools/VisualStudio.psm1",
+        "bytes": 147,
+        "sha256": "627AECCB42F5FF0BB441BB74A89A834F2DA3C0BF20A764F13252BE7122CA22CD"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/ready/VS instance/VC/Auxiliary/Build/Microsoft.VCToolsVersion.default.txt",
+        "bytes": 11,
+        "sha256": "FFD7B8B8E9100069D8C64DF4984D8C6FEF2087958DD4B91B7CC71D8468E46E8F"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/ready/VS instance/VC/Tools/Llvm/x64/bin/llvm-pdbutil.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/ready/VS instance/VC/Tools/MSVC/14.52.37025/bin/Hostx64/x64/cl.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/ready/VS instance/VC/Tools/MSVC/14.52.37025/bin/Hostx64/x64/link.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/ready/VS instance/VC/Tools/MSVC/14.52.37025/lib/x64/clang_rt.asan_dynamic-x86_64.lib",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/reboot/Directory.Build.props",
+        "bytes": 108,
+        "sha256": "F1560CD09F35234555322DFBC2F3670A8099453B112E9023FBA8B1AA499EF6A0"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/reboot/download-timeout.txt",
+        "bytes": 3,
+        "sha256": "7B69759630F869F2723875F873935FED29D2D12B10EF763C1C33B8E0004CB405"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/reboot/downloaded.txt",
+        "bytes": 47,
+        "sha256": "7612246D0910BCFD0C04AE03F26DE30F309A1ED0E83D093C3EAE2718486E42E5"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/reboot/github-output.txt",
+        "bytes": 342,
+        "sha256": "CE3FA7C709C1042609B759B50F03BDAD22C8EDFD0F84E761F2AEAC3965CE2F5C"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/reboot/Invoke.ps1",
+        "bytes": 963,
+        "sha256": "44AC5160F0B9A70E272BFC8F8D6B516AE56AD102953E1005B41B0101B2D1EBD5"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/reboot/result.log",
+        "bytes": 1341,
+        "sha256": "E7DDD7D275C464F5DE8D7685C5DF103056D26FEAA632268DA8469B94E4C35202"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/reboot/.github/actions/setup-msvc/Setup.ps1",
+        "bytes": 7769,
+        "sha256": "8F449465140B768EF37AF51BAEC3605A0D0E8EAF748C8045D7335B5516953BF4"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/reboot/Program Files/Windows Kits/10/Include/10.0.26100.0/um/Windows.h",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/reboot/runner temp with spaces/msvc-14.52-0d5df7f2978b4464980b69689581ece3/bootstrapper.stderr.log",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/reboot/runner temp with spaces/msvc-14.52-0d5df7f2978b4464980b69689581ece3/bootstrapper.stdout.log",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/reboot/runner temp with spaces/msvc-14.52-0d5df7f2978b4464980b69689581ece3/vs_BuildTools.exe",
+        "bytes": 5632,
+        "sha256": "6442856408B0DEA46665B136C2F98FA5E05C5D25405D844EE02BE38CB0E1CF56"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/reboot/Tools/VisualStudio.psm1",
+        "bytes": 147,
+        "sha256": "627AECCB42F5FF0BB441BB74A89A834F2DA3C0BF20A764F13252BE7122CA22CD"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/reboot/VS instance/VC/Auxiliary/Build/Microsoft.VCToolsVersion.default.txt",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/reboot/VS instance/VC/Tools/Llvm/x64/bin/llvm-pdbutil.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/reboot/VS instance/VC/Tools/MSVC/14.52.37025/bin/Hostx64/x64/cl.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/reboot/VS instance/VC/Tools/MSVC/14.52.37025/bin/Hostx64/x64/link.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/reboot/VS instance/VC/Tools/MSVC/14.52.37025/lib/x64/clang_rt.asan_dynamic-x86_64.lib",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/success/Directory.Build.props",
+        "bytes": 108,
+        "sha256": "F1560CD09F35234555322DFBC2F3670A8099453B112E9023FBA8B1AA499EF6A0"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/success/download-timeout.txt",
+        "bytes": 3,
+        "sha256": "7B69759630F869F2723875F873935FED29D2D12B10EF763C1C33B8E0004CB405"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/success/downloaded.txt",
+        "bytes": 47,
+        "sha256": "7612246D0910BCFD0C04AE03F26DE30F309A1ED0E83D093C3EAE2718486E42E5"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/success/github-output.txt",
+        "bytes": 343,
+        "sha256": "227A3D936730E8FA8C87CBA965962822F7C6E5315689473C4BFC64F0A62FE8ED"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/success/Invoke.ps1",
+        "bytes": 963,
+        "sha256": "44AC5160F0B9A70E272BFC8F8D6B516AE56AD102953E1005B41B0101B2D1EBD5"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/success/result.log",
+        "bytes": 1345,
+        "sha256": "945D6141533393F3AF8122FB4D2BF1F104689126047E8736DAE108E3BF45DFB3"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/success/.github/actions/setup-msvc/Setup.ps1",
+        "bytes": 7769,
+        "sha256": "8F449465140B768EF37AF51BAEC3605A0D0E8EAF748C8045D7335B5516953BF4"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/success/Program Files/Windows Kits/10/Include/10.0.26100.0/um/Windows.h",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/success/runner temp with spaces/msvc-14.52-9317865bcf384b4699557b7e6218c577/bootstrapper.stderr.log",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/success/runner temp with spaces/msvc-14.52-9317865bcf384b4699557b7e6218c577/bootstrapper.stdout.log",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/success/runner temp with spaces/msvc-14.52-9317865bcf384b4699557b7e6218c577/vs_BuildTools.exe",
+        "bytes": 5632,
+        "sha256": "6442856408B0DEA46665B136C2F98FA5E05C5D25405D844EE02BE38CB0E1CF56"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/success/Tools/VisualStudio.psm1",
+        "bytes": 147,
+        "sha256": "627AECCB42F5FF0BB441BB74A89A834F2DA3C0BF20A764F13252BE7122CA22CD"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/success/VS instance/VC/Auxiliary/Build/Microsoft.VCToolsVersion.default.txt",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/success/VS instance/VC/Tools/Llvm/x64/bin/llvm-pdbutil.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/success/VS instance/VC/Tools/MSVC/14.52.37025/bin/Hostx64/x64/cl.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/success/VS instance/VC/Tools/MSVC/14.52.37025/bin/Hostx64/x64/link.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/success/VS instance/VC/Tools/MSVC/14.52.37025/lib/x64/clang_rt.asan_dynamic-x86_64.lib",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/VerifyOnly/Directory.Build.props",
+        "bytes": 108,
+        "sha256": "F1560CD09F35234555322DFBC2F3670A8099453B112E9023FBA8B1AA499EF6A0"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/VerifyOnly/Invoke.ps1",
+        "bytes": 963,
+        "sha256": "44AC5160F0B9A70E272BFC8F8D6B516AE56AD102953E1005B41B0101B2D1EBD5"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/VerifyOnly/result.log",
+        "bytes": 815,
+        "sha256": "1394B72D6EA3FE7546328A6CD0D73F2212C6F527DD3BD9D144D203143FFB2BD8"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/VerifyOnly/.github/actions/setup-msvc/Setup.ps1",
+        "bytes": 7769,
+        "sha256": "8F449465140B768EF37AF51BAEC3605A0D0E8EAF748C8045D7335B5516953BF4"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/VerifyOnly/Program Files/Windows Kits/10/Include/10.0.26100.0/um/Windows.h",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/VerifyOnly/Tools/VisualStudio.psm1",
+        "bytes": 147,
+        "sha256": "627AECCB42F5FF0BB441BB74A89A834F2DA3C0BF20A764F13252BE7122CA22CD"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/VerifyOnly/VS instance/VC/Auxiliary/Build/Microsoft.VCToolsVersion.default.txt",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/VerifyOnly/VS instance/VC/Tools/Llvm/x64/bin/llvm-pdbutil.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/VerifyOnly/VS instance/VC/Tools/MSVC/14.52.37025/bin/Hostx64/x64/cl.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/VerifyOnly/VS instance/VC/Tools/MSVC/14.52.37025/bin/Hostx64/x64/link.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/VerifyOnly/VS instance/VC/Tools/MSVC/14.52.37025/lib/x64/clang_rt.asan_dynamic-x86_64.lib",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/wrong-family/Directory.Build.props",
+        "bytes": 108,
+        "sha256": "F1560CD09F35234555322DFBC2F3670A8099453B112E9023FBA8B1AA499EF6A0"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/wrong-family/download-timeout.txt",
+        "bytes": 3,
+        "sha256": "7B69759630F869F2723875F873935FED29D2D12B10EF763C1C33B8E0004CB405"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/wrong-family/downloaded.txt",
+        "bytes": 47,
+        "sha256": "7612246D0910BCFD0C04AE03F26DE30F309A1ED0E83D093C3EAE2718486E42E5"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/wrong-family/github-output.txt",
+        "bytes": 348,
+        "sha256": "9BC4613886510FD463D3FD702D5172A762D00C7057C0C6BC1221F62F85C13E66"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/wrong-family/Invoke.ps1",
+        "bytes": 963,
+        "sha256": "44AC5160F0B9A70E272BFC8F8D6B516AE56AD102953E1005B41B0101B2D1EBD5"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/wrong-family/result.log",
+        "bytes": 1365,
+        "sha256": "347184D5E60B726F4EE9116DFB32DB84891B32106F6FF33614CEFDEF6D20C112"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/wrong-family/.github/actions/setup-msvc/Setup.ps1",
+        "bytes": 7769,
+        "sha256": "8F449465140B768EF37AF51BAEC3605A0D0E8EAF748C8045D7335B5516953BF4"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/wrong-family/Program Files/Windows Kits/10/Include/10.0.26100.0/um/Windows.h",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/wrong-family/runner temp with spaces/msvc-14.52-6f808f2e6b3e4220acc699aaaba98b45/bootstrapper.stderr.log",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/wrong-family/runner temp with spaces/msvc-14.52-6f808f2e6b3e4220acc699aaaba98b45/bootstrapper.stdout.log",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/wrong-family/runner temp with spaces/msvc-14.52-6f808f2e6b3e4220acc699aaaba98b45/vs_BuildTools.exe",
+        "bytes": 5632,
+        "sha256": "6442856408B0DEA46665B136C2F98FA5E05C5D25405D844EE02BE38CB0E1CF56"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/wrong-family/Tools/VisualStudio.psm1",
+        "bytes": 147,
+        "sha256": "627AECCB42F5FF0BB441BB74A89A834F2DA3C0BF20A764F13252BE7122CA22CD"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/wrong-family/VS instance/VC/Auxiliary/Build/Microsoft.VCToolsVersion.default.txt",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/wrong-family/VS instance/VC/Tools/Llvm/x64/bin/llvm-pdbutil.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/wrong-family/VS instance/VC/Tools/MSVC/14.52.37025/bin/Hostx64/x64/cl.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/wrong-family/VS instance/VC/Tools/MSVC/14.52.37025/bin/Hostx64/x64/link.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/bcc4829c49e74f9197a5efd96f91ce28/wrong-family/VS instance/VC/Tools/MSVC/14.52.37025/lib/x64/clang_rt.asan_dynamic-x86_64.lib",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/FakeInstaller.cs",
+        "bytes": 1561,
+        "sha256": "AE9F44955EE20844C5587AFB5629F9A7034AB1759E900A33CF25F542D0C0F1F9"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/FakeInstaller.exe",
+        "bytes": 5632,
+        "sha256": "A32AC61B3CFF99BFC4C6B5E281E6B692706B1517AC71AE2BCB2FB3DD49FC6B2A"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/BadSignature/Directory.Build.props",
+        "bytes": 108,
+        "sha256": "F1560CD09F35234555322DFBC2F3670A8099453B112E9023FBA8B1AA499EF6A0"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/BadSignature/download-timeout.txt",
+        "bytes": 3,
+        "sha256": "7B69759630F869F2723875F873935FED29D2D12B10EF763C1C33B8E0004CB405"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/BadSignature/downloaded.txt",
+        "bytes": 47,
+        "sha256": "7612246D0910BCFD0C04AE03F26DE30F309A1ED0E83D093C3EAE2718486E42E5"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/BadSignature/github-output.txt",
+        "bytes": 348,
+        "sha256": "87444C9BBC95D159BDECC5D7250057B2412B4AAD94991499E77A62924E67273C"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/BadSignature/Invoke.ps1",
+        "bytes": 963,
+        "sha256": "44AC5160F0B9A70E272BFC8F8D6B516AE56AD102953E1005B41B0101B2D1EBD5"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/BadSignature/result.log",
+        "bytes": 766,
+        "sha256": "8778C62069BBABAC2DED447D15FE6D2036D21A14577AF725FDB4D5F73899E2B9"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/BadSignature/.github/actions/setup-msvc/Setup.ps1",
+        "bytes": 7804,
+        "sha256": "A6E5A0CB974BAF428E7DE8AF2A2BAB6C82AD936E1B15168F16A75BA6D9D4210B"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/BadSignature/Program Files/Windows Kits/10/Include/10.0.26100.0/um/Windows.h",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/BadSignature/runner temp with spaces/msvc-14.52-e53893ece1954ef2be6d9ce99194e889/vs_BuildTools.exe",
+        "bytes": 5632,
+        "sha256": "A32AC61B3CFF99BFC4C6B5E281E6B692706B1517AC71AE2BCB2FB3DD49FC6B2A"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/BadSignature/Tools/VisualStudio.psm1",
+        "bytes": 147,
+        "sha256": "627AECCB42F5FF0BB441BB74A89A834F2DA3C0BF20A764F13252BE7122CA22CD"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/BadSignature/VS instance/VC/Auxiliary/Build/Microsoft.VCToolsVersion.default.txt",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/BadSignature/VS instance/VC/Tools/Llvm/x64/bin/llvm-pdbutil.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/BadSignature/VS instance/VC/Tools/MSVC/14.52.37025/bin/Hostx64/x64/cl.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/BadSignature/VS instance/VC/Tools/MSVC/14.52.37025/bin/Hostx64/x64/link.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/BadSignature/VS instance/VC/Tools/MSVC/14.52.37025/lib/x64/clang_rt.asan_dynamic-x86_64.lib",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/download-timeout/Directory.Build.props",
+        "bytes": 108,
+        "sha256": "F1560CD09F35234555322DFBC2F3670A8099453B112E9023FBA8B1AA499EF6A0"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/download-timeout/download-timeout.txt",
+        "bytes": 3,
+        "sha256": "7B69759630F869F2723875F873935FED29D2D12B10EF763C1C33B8E0004CB405"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/download-timeout/github-output.txt",
+        "bytes": 352,
+        "sha256": "828CA4BC838B1E10C8A181DDC6E7DE313C3A1F8BEE9611591EB116A370466D82"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/download-timeout/Invoke.ps1",
+        "bytes": 963,
+        "sha256": "44AC5160F0B9A70E272BFC8F8D6B516AE56AD102953E1005B41B0101B2D1EBD5"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/download-timeout/result.log",
+        "bytes": 1093,
+        "sha256": "6598D64EB2D5A05404A46B4B4466FEF6D355456E20D84310C99A94979DA19841"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/download-timeout/.github/actions/setup-msvc/Setup.ps1",
+        "bytes": 7804,
+        "sha256": "A6E5A0CB974BAF428E7DE8AF2A2BAB6C82AD936E1B15168F16A75BA6D9D4210B"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/download-timeout/Program Files/Windows Kits/10/Include/10.0.26100.0/um/Windows.h",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/download-timeout/runner temp with spaces/msvc-14.52-93b32d0792a84619a1c2b392693790bd/download.log",
+        "bytes": 97,
+        "sha256": "7BCF50C4C557856A96445F2F02D8D231EF59DF5461618221B23EFFEE30135520"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/download-timeout/Tools/VisualStudio.psm1",
+        "bytes": 147,
+        "sha256": "627AECCB42F5FF0BB441BB74A89A834F2DA3C0BF20A764F13252BE7122CA22CD"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/download-timeout/VS instance/VC/Auxiliary/Build/Microsoft.VCToolsVersion.default.txt",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/download-timeout/VS instance/VC/Tools/Llvm/x64/bin/llvm-pdbutil.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/download-timeout/VS instance/VC/Tools/MSVC/14.52.37025/bin/Hostx64/x64/cl.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/download-timeout/VS instance/VC/Tools/MSVC/14.52.37025/bin/Hostx64/x64/link.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/download-timeout/VS instance/VC/Tools/MSVC/14.52.37025/lib/x64/clang_rt.asan_dynamic-x86_64.lib",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/failed/Directory.Build.props",
+        "bytes": 108,
+        "sha256": "F1560CD09F35234555322DFBC2F3670A8099453B112E9023FBA8B1AA499EF6A0"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/failed/download-timeout.txt",
+        "bytes": 3,
+        "sha256": "7B69759630F869F2723875F873935FED29D2D12B10EF763C1C33B8E0004CB405"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/failed/downloaded.txt",
+        "bytes": 47,
+        "sha256": "7612246D0910BCFD0C04AE03F26DE30F309A1ED0E83D093C3EAE2718486E42E5"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/failed/github-output.txt",
+        "bytes": 342,
+        "sha256": "B32503D363D88E1A5E314E71F4904AE086967B9700DB4A7C87AE8BB6F079F29E"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/failed/Invoke.ps1",
+        "bytes": 963,
+        "sha256": "44AC5160F0B9A70E272BFC8F8D6B516AE56AD102953E1005B41B0101B2D1EBD5"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/failed/result.log",
+        "bytes": 1337,
+        "sha256": "6D65327D8F1A97497DF27DC4B7B3759900F92D521E7633D0FB4BF6492032F2F0"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/failed/.github/actions/setup-msvc/Setup.ps1",
+        "bytes": 7804,
+        "sha256": "A6E5A0CB974BAF428E7DE8AF2A2BAB6C82AD936E1B15168F16A75BA6D9D4210B"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/failed/Program Files/Windows Kits/10/Include/10.0.26100.0/um/Windows.h",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/failed/runner temp with spaces/msvc-14.52-3cc0652f82714cfb974450f2349cb31f/bootstrapper.stderr.log",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/failed/runner temp with spaces/msvc-14.52-3cc0652f82714cfb974450f2349cb31f/bootstrapper.stdout.log",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/failed/runner temp with spaces/msvc-14.52-3cc0652f82714cfb974450f2349cb31f/vs_BuildTools.exe",
+        "bytes": 5632,
+        "sha256": "A32AC61B3CFF99BFC4C6B5E281E6B692706B1517AC71AE2BCB2FB3DD49FC6B2A"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/failed/Tools/VisualStudio.psm1",
+        "bytes": 147,
+        "sha256": "627AECCB42F5FF0BB441BB74A89A834F2DA3C0BF20A764F13252BE7122CA22CD"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/failed/VS instance/VC/Auxiliary/Build/Microsoft.VCToolsVersion.default.txt",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/failed/VS instance/VC/Tools/Llvm/x64/bin/llvm-pdbutil.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/failed/VS instance/VC/Tools/MSVC/14.52.37025/bin/Hostx64/x64/cl.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/failed/VS instance/VC/Tools/MSVC/14.52.37025/bin/Hostx64/x64/link.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/failed/VS instance/VC/Tools/MSVC/14.52.37025/lib/x64/clang_rt.asan_dynamic-x86_64.lib",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/installer-timeout/Directory.Build.props",
+        "bytes": 108,
+        "sha256": "F1560CD09F35234555322DFBC2F3670A8099453B112E9023FBA8B1AA499EF6A0"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/installer-timeout/download-timeout.txt",
+        "bytes": 3,
+        "sha256": "7B69759630F869F2723875F873935FED29D2D12B10EF763C1C33B8E0004CB405"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/installer-timeout/downloaded.txt",
+        "bytes": 47,
+        "sha256": "7612246D0910BCFD0C04AE03F26DE30F309A1ED0E83D093C3EAE2718486E42E5"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/installer-timeout/github-output.txt",
+        "bytes": 353,
+        "sha256": "0C1628C98EC820F8CF95EE8607B7C96D1CB1A0D99262B26F637C1768DCA9687A"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/installer-timeout/Invoke.ps1",
+        "bytes": 963,
+        "sha256": "44AC5160F0B9A70E272BFC8F8D6B516AE56AD102953E1005B41B0101B2D1EBD5"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/installer-timeout/result.log",
+        "bytes": 1381,
+        "sha256": "084D930261A918E7FA74A7A33B032EB59C5D473BC827AE6482B771095D99003B"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/installer-timeout/.github/actions/setup-msvc/Setup.ps1",
+        "bytes": 7801,
+        "sha256": "68010E4A1A0C7A850BC08232083D5CD1812DA91C64915A8495743206A1C746F1"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/installer-timeout/Program Files/Windows Kits/10/Include/10.0.26100.0/um/Windows.h",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/installer-timeout/runner temp with spaces/msvc-14.52-717fa4d80a7548d8b0a5d0bbb4b74f33/bootstrapper.stderr.log",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/installer-timeout/runner temp with spaces/msvc-14.52-717fa4d80a7548d8b0a5d0bbb4b74f33/bootstrapper.stdout.log",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/installer-timeout/runner temp with spaces/msvc-14.52-717fa4d80a7548d8b0a5d0bbb4b74f33/vs_BuildTools.exe",
+        "bytes": 5632,
+        "sha256": "A32AC61B3CFF99BFC4C6B5E281E6B692706B1517AC71AE2BCB2FB3DD49FC6B2A"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/installer-timeout/Tools/VisualStudio.psm1",
+        "bytes": 147,
+        "sha256": "627AECCB42F5FF0BB441BB74A89A834F2DA3C0BF20A764F13252BE7122CA22CD"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/installer-timeout/VS instance/VC/Auxiliary/Build/Microsoft.VCToolsVersion.default.txt",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/installer-timeout/VS instance/VC/Tools/Llvm/x64/bin/llvm-pdbutil.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/installer-timeout/VS instance/VC/Tools/MSVC/14.52.37025/bin/Hostx64/x64/cl.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/installer-timeout/VS instance/VC/Tools/MSVC/14.52.37025/bin/Hostx64/x64/link.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/installer-timeout/VS instance/VC/Tools/MSVC/14.52.37025/lib/x64/clang_rt.asan_dynamic-x86_64.lib",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/Local/Directory.Build.props",
+        "bytes": 108,
+        "sha256": "F1560CD09F35234555322DFBC2F3670A8099453B112E9023FBA8B1AA499EF6A0"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/Local/Invoke.ps1",
+        "bytes": 963,
+        "sha256": "44AC5160F0B9A70E272BFC8F8D6B516AE56AD102953E1005B41B0101B2D1EBD5"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/Local/result.log",
+        "bytes": 807,
+        "sha256": "633D2A04BA520A058B9BE9BC73D8EDF33D46F641CE76B6CE673AF5BAE920A8B9"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/Local/.github/actions/setup-msvc/Setup.ps1",
+        "bytes": 7804,
+        "sha256": "A6E5A0CB974BAF428E7DE8AF2A2BAB6C82AD936E1B15168F16A75BA6D9D4210B"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/Local/Program Files/Windows Kits/10/Include/10.0.26100.0/um/Windows.h",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/Local/Tools/VisualStudio.psm1",
+        "bytes": 147,
+        "sha256": "627AECCB42F5FF0BB441BB74A89A834F2DA3C0BF20A764F13252BE7122CA22CD"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/Local/VS instance/VC/Auxiliary/Build/Microsoft.VCToolsVersion.default.txt",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/Local/VS instance/VC/Tools/Llvm/x64/bin/llvm-pdbutil.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/Local/VS instance/VC/Tools/MSVC/14.52.37025/bin/Hostx64/x64/cl.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/Local/VS instance/VC/Tools/MSVC/14.52.37025/bin/Hostx64/x64/link.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/Local/VS instance/VC/Tools/MSVC/14.52.37025/lib/x64/clang_rt.asan_dynamic-x86_64.lib",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/missing-1/Directory.Build.props",
+        "bytes": 108,
+        "sha256": "F1560CD09F35234555322DFBC2F3670A8099453B112E9023FBA8B1AA499EF6A0"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/missing-1/download-timeout.txt",
+        "bytes": 3,
+        "sha256": "7B69759630F869F2723875F873935FED29D2D12B10EF763C1C33B8E0004CB405"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/missing-1/downloaded.txt",
+        "bytes": 47,
+        "sha256": "7612246D0910BCFD0C04AE03F26DE30F309A1ED0E83D093C3EAE2718486E42E5"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/missing-1/github-output.txt",
+        "bytes": 345,
+        "sha256": "F2B7D1E7215DB931C4D4F9BC5D1BB47C2639C4205C60894DC3BAF6344012C5BD"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/missing-1/Invoke.ps1",
+        "bytes": 963,
+        "sha256": "44AC5160F0B9A70E272BFC8F8D6B516AE56AD102953E1005B41B0101B2D1EBD5"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/missing-1/result.log",
+        "bytes": 1349,
+        "sha256": "A2478371AD4C597B6B746A5E8D728FA67A0BF0A84B0D93DFDD80FA9BA13D8601"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/missing-1/.github/actions/setup-msvc/Setup.ps1",
+        "bytes": 7804,
+        "sha256": "A6E5A0CB974BAF428E7DE8AF2A2BAB6C82AD936E1B15168F16A75BA6D9D4210B"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/missing-1/Program Files/Windows Kits/10/Include/10.0.26100.0/um/Windows.h",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/missing-1/runner temp with spaces/msvc-14.52-42e9a3d6009b4d53bf865d985cf27ff3/bootstrapper.stderr.log",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/missing-1/runner temp with spaces/msvc-14.52-42e9a3d6009b4d53bf865d985cf27ff3/bootstrapper.stdout.log",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/missing-1/runner temp with spaces/msvc-14.52-42e9a3d6009b4d53bf865d985cf27ff3/vs_BuildTools.exe",
+        "bytes": 5632,
+        "sha256": "A32AC61B3CFF99BFC4C6B5E281E6B692706B1517AC71AE2BCB2FB3DD49FC6B2A"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/missing-1/Tools/VisualStudio.psm1",
+        "bytes": 147,
+        "sha256": "627AECCB42F5FF0BB441BB74A89A834F2DA3C0BF20A764F13252BE7122CA22CD"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/missing-1/VS instance/VC/Auxiliary/Build/Microsoft.VCToolsVersion.default.txt",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/missing-1/VS instance/VC/Tools/Llvm/x64/bin/llvm-pdbutil.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/missing-1/VS instance/VC/Tools/MSVC/14.52.37025/bin/Hostx64/x64/link.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/missing-1/VS instance/VC/Tools/MSVC/14.52.37025/lib/x64/clang_rt.asan_dynamic-x86_64.lib",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/missing-2/Directory.Build.props",
+        "bytes": 108,
+        "sha256": "F1560CD09F35234555322DFBC2F3670A8099453B112E9023FBA8B1AA499EF6A0"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/missing-2/download-timeout.txt",
+        "bytes": 3,
+        "sha256": "7B69759630F869F2723875F873935FED29D2D12B10EF763C1C33B8E0004CB405"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/missing-2/downloaded.txt",
+        "bytes": 47,
+        "sha256": "7612246D0910BCFD0C04AE03F26DE30F309A1ED0E83D093C3EAE2718486E42E5"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/missing-2/github-output.txt",
+        "bytes": 345,
+        "sha256": "ED2E2A69553A2C0D500E4CA0040D8F103D8F74D0986942D3C2DF8422F657146E"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/missing-2/Invoke.ps1",
+        "bytes": 963,
+        "sha256": "44AC5160F0B9A70E272BFC8F8D6B516AE56AD102953E1005B41B0101B2D1EBD5"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/missing-2/result.log",
+        "bytes": 1349,
+        "sha256": "E3AEE2E6F46F3690EE7C6E17209D14AC4E1070016647498D28629461E2718A3B"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/missing-2/.github/actions/setup-msvc/Setup.ps1",
+        "bytes": 7804,
+        "sha256": "A6E5A0CB974BAF428E7DE8AF2A2BAB6C82AD936E1B15168F16A75BA6D9D4210B"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/missing-2/Program Files/Windows Kits/10/Include/10.0.26100.0/um/Windows.h",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/missing-2/runner temp with spaces/msvc-14.52-afd189bf51a84cc4b288747b3eda98ac/bootstrapper.stderr.log",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/missing-2/runner temp with spaces/msvc-14.52-afd189bf51a84cc4b288747b3eda98ac/bootstrapper.stdout.log",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/missing-2/runner temp with spaces/msvc-14.52-afd189bf51a84cc4b288747b3eda98ac/vs_BuildTools.exe",
+        "bytes": 5632,
+        "sha256": "A32AC61B3CFF99BFC4C6B5E281E6B692706B1517AC71AE2BCB2FB3DD49FC6B2A"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/missing-2/Tools/VisualStudio.psm1",
+        "bytes": 147,
+        "sha256": "627AECCB42F5FF0BB441BB74A89A834F2DA3C0BF20A764F13252BE7122CA22CD"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/missing-2/VS instance/VC/Auxiliary/Build/Microsoft.VCToolsVersion.default.txt",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/missing-2/VS instance/VC/Tools/Llvm/x64/bin/llvm-pdbutil.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/missing-2/VS instance/VC/Tools/MSVC/14.52.37025/bin/Hostx64/x64/cl.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/missing-2/VS instance/VC/Tools/MSVC/14.52.37025/bin/Hostx64/x64/link.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/missing-3/Directory.Build.props",
+        "bytes": 108,
+        "sha256": "F1560CD09F35234555322DFBC2F3670A8099453B112E9023FBA8B1AA499EF6A0"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/missing-3/download-timeout.txt",
+        "bytes": 3,
+        "sha256": "7B69759630F869F2723875F873935FED29D2D12B10EF763C1C33B8E0004CB405"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/missing-3/downloaded.txt",
+        "bytes": 47,
+        "sha256": "7612246D0910BCFD0C04AE03F26DE30F309A1ED0E83D093C3EAE2718486E42E5"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/missing-3/github-output.txt",
+        "bytes": 345,
+        "sha256": "7E46C40DD8BFE7B30DF36CA279BF78B458221F3189C3DF13BE8437CD6191C036"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/missing-3/Invoke.ps1",
+        "bytes": 963,
+        "sha256": "44AC5160F0B9A70E272BFC8F8D6B516AE56AD102953E1005B41B0101B2D1EBD5"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/missing-3/result.log",
+        "bytes": 1349,
+        "sha256": "6392D5E5CEE42DB07298FC7B853A00D086C7217A461F4639E13BE5714BD6B5CE"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/missing-3/.github/actions/setup-msvc/Setup.ps1",
+        "bytes": 7804,
+        "sha256": "A6E5A0CB974BAF428E7DE8AF2A2BAB6C82AD936E1B15168F16A75BA6D9D4210B"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/missing-3/Program Files/Windows Kits/10/Include/10.0.26100.0/um/Windows.h",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/missing-3/runner temp with spaces/msvc-14.52-1eb81b11de4a4272a710fc10c827a353/bootstrapper.stderr.log",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/missing-3/runner temp with spaces/msvc-14.52-1eb81b11de4a4272a710fc10c827a353/bootstrapper.stdout.log",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/missing-3/runner temp with spaces/msvc-14.52-1eb81b11de4a4272a710fc10c827a353/vs_BuildTools.exe",
+        "bytes": 5632,
+        "sha256": "A32AC61B3CFF99BFC4C6B5E281E6B692706B1517AC71AE2BCB2FB3DD49FC6B2A"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/missing-3/Tools/VisualStudio.psm1",
+        "bytes": 147,
+        "sha256": "627AECCB42F5FF0BB441BB74A89A834F2DA3C0BF20A764F13252BE7122CA22CD"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/missing-3/VS instance/VC/Auxiliary/Build/Microsoft.VCToolsVersion.default.txt",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/missing-3/VS instance/VC/Tools/MSVC/14.52.37025/bin/Hostx64/x64/cl.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/missing-3/VS instance/VC/Tools/MSVC/14.52.37025/bin/Hostx64/x64/link.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/missing-3/VS instance/VC/Tools/MSVC/14.52.37025/lib/x64/clang_rt.asan_dynamic-x86_64.lib",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/missing-4/Directory.Build.props",
+        "bytes": 108,
+        "sha256": "F1560CD09F35234555322DFBC2F3670A8099453B112E9023FBA8B1AA499EF6A0"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/missing-4/download-timeout.txt",
+        "bytes": 3,
+        "sha256": "7B69759630F869F2723875F873935FED29D2D12B10EF763C1C33B8E0004CB405"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/missing-4/downloaded.txt",
+        "bytes": 47,
+        "sha256": "7612246D0910BCFD0C04AE03F26DE30F309A1ED0E83D093C3EAE2718486E42E5"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/missing-4/github-output.txt",
+        "bytes": 345,
+        "sha256": "8ECAE7BDA650913BA71E7C6A7A02E7CC504FA31E8EC5CA278AD25C6A65CB9036"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/missing-4/Invoke.ps1",
+        "bytes": 963,
+        "sha256": "44AC5160F0B9A70E272BFC8F8D6B516AE56AD102953E1005B41B0101B2D1EBD5"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/missing-4/result.log",
+        "bytes": 1349,
+        "sha256": "B21965BE58DB8E42ED5D8C5988FAA50D32344631332F89E11B2EBC1A7B53BF83"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/missing-4/.github/actions/setup-msvc/Setup.ps1",
+        "bytes": 7804,
+        "sha256": "A6E5A0CB974BAF428E7DE8AF2A2BAB6C82AD936E1B15168F16A75BA6D9D4210B"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/missing-4/runner temp with spaces/msvc-14.52-b204269cabeb481ab3c9fec154afa143/bootstrapper.stderr.log",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/missing-4/runner temp with spaces/msvc-14.52-b204269cabeb481ab3c9fec154afa143/bootstrapper.stdout.log",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/missing-4/runner temp with spaces/msvc-14.52-b204269cabeb481ab3c9fec154afa143/vs_BuildTools.exe",
+        "bytes": 5632,
+        "sha256": "A32AC61B3CFF99BFC4C6B5E281E6B692706B1517AC71AE2BCB2FB3DD49FC6B2A"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/missing-4/Tools/VisualStudio.psm1",
+        "bytes": 147,
+        "sha256": "627AECCB42F5FF0BB441BB74A89A834F2DA3C0BF20A764F13252BE7122CA22CD"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/missing-4/VS instance/VC/Auxiliary/Build/Microsoft.VCToolsVersion.default.txt",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/missing-4/VS instance/VC/Tools/Llvm/x64/bin/llvm-pdbutil.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/missing-4/VS instance/VC/Tools/MSVC/14.52.37025/bin/Hostx64/x64/cl.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/missing-4/VS instance/VC/Tools/MSVC/14.52.37025/bin/Hostx64/x64/link.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/missing-4/VS instance/VC/Tools/MSVC/14.52.37025/lib/x64/clang_rt.asan_dynamic-x86_64.lib",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/ready/Directory.Build.props",
+        "bytes": 108,
+        "sha256": "F1560CD09F35234555322DFBC2F3670A8099453B112E9023FBA8B1AA499EF6A0"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/ready/Invoke.ps1",
+        "bytes": 963,
+        "sha256": "44AC5160F0B9A70E272BFC8F8D6B516AE56AD102953E1005B41B0101B2D1EBD5"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/ready/result.log",
+        "bytes": 572,
+        "sha256": "AA1A8F8489D90AC76A95375886E246FEC41571EAAF4EA06089DD440B3D5E2B1B"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/ready/.github/actions/setup-msvc/Setup.ps1",
+        "bytes": 7804,
+        "sha256": "A6E5A0CB974BAF428E7DE8AF2A2BAB6C82AD936E1B15168F16A75BA6D9D4210B"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/ready/Program Files/Windows Kits/10/Include/10.0.26100.0/um/Windows.h",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/ready/Tools/VisualStudio.psm1",
+        "bytes": 147,
+        "sha256": "627AECCB42F5FF0BB441BB74A89A834F2DA3C0BF20A764F13252BE7122CA22CD"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/ready/VS instance/VC/Auxiliary/Build/Microsoft.VCToolsVersion.default.txt",
+        "bytes": 11,
+        "sha256": "FFD7B8B8E9100069D8C64DF4984D8C6FEF2087958DD4B91B7CC71D8468E46E8F"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/ready/VS instance/VC/Tools/Llvm/x64/bin/llvm-pdbutil.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/ready/VS instance/VC/Tools/MSVC/14.52.37025/bin/Hostx64/x64/cl.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/ready/VS instance/VC/Tools/MSVC/14.52.37025/bin/Hostx64/x64/link.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/ready/VS instance/VC/Tools/MSVC/14.52.37025/lib/x64/clang_rt.asan_dynamic-x86_64.lib",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/reboot/Directory.Build.props",
+        "bytes": 108,
+        "sha256": "F1560CD09F35234555322DFBC2F3670A8099453B112E9023FBA8B1AA499EF6A0"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/reboot/download-timeout.txt",
+        "bytes": 3,
+        "sha256": "7B69759630F869F2723875F873935FED29D2D12B10EF763C1C33B8E0004CB405"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/reboot/downloaded.txt",
+        "bytes": 47,
+        "sha256": "7612246D0910BCFD0C04AE03F26DE30F309A1ED0E83D093C3EAE2718486E42E5"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/reboot/github-output.txt",
+        "bytes": 342,
+        "sha256": "ECEF80C5331550B2C989F95A45A94DC417DC575C06F1E389037126D0A9DCE689"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/reboot/Invoke.ps1",
+        "bytes": 963,
+        "sha256": "44AC5160F0B9A70E272BFC8F8D6B516AE56AD102953E1005B41B0101B2D1EBD5"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/reboot/result.log",
+        "bytes": 1337,
+        "sha256": "B5DA141BD7B78F2C247254B90F6DF8E1C829359C5A54993BF934FBBFE8F386F1"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/reboot/.github/actions/setup-msvc/Setup.ps1",
+        "bytes": 7804,
+        "sha256": "A6E5A0CB974BAF428E7DE8AF2A2BAB6C82AD936E1B15168F16A75BA6D9D4210B"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/reboot/Program Files/Windows Kits/10/Include/10.0.26100.0/um/Windows.h",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/reboot/runner temp with spaces/msvc-14.52-862a4b675937415587dbc7dd21327e05/bootstrapper.stderr.log",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/reboot/runner temp with spaces/msvc-14.52-862a4b675937415587dbc7dd21327e05/bootstrapper.stdout.log",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/reboot/runner temp with spaces/msvc-14.52-862a4b675937415587dbc7dd21327e05/vs_BuildTools.exe",
+        "bytes": 5632,
+        "sha256": "A32AC61B3CFF99BFC4C6B5E281E6B692706B1517AC71AE2BCB2FB3DD49FC6B2A"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/reboot/Tools/VisualStudio.psm1",
+        "bytes": 147,
+        "sha256": "627AECCB42F5FF0BB441BB74A89A834F2DA3C0BF20A764F13252BE7122CA22CD"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/reboot/VS instance/VC/Auxiliary/Build/Microsoft.VCToolsVersion.default.txt",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/reboot/VS instance/VC/Tools/Llvm/x64/bin/llvm-pdbutil.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/reboot/VS instance/VC/Tools/MSVC/14.52.37025/bin/Hostx64/x64/cl.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/reboot/VS instance/VC/Tools/MSVC/14.52.37025/bin/Hostx64/x64/link.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/reboot/VS instance/VC/Tools/MSVC/14.52.37025/lib/x64/clang_rt.asan_dynamic-x86_64.lib",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/success/Directory.Build.props",
+        "bytes": 108,
+        "sha256": "F1560CD09F35234555322DFBC2F3670A8099453B112E9023FBA8B1AA499EF6A0"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/success/download-timeout.txt",
+        "bytes": 3,
+        "sha256": "7B69759630F869F2723875F873935FED29D2D12B10EF763C1C33B8E0004CB405"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/success/downloaded.txt",
+        "bytes": 47,
+        "sha256": "7612246D0910BCFD0C04AE03F26DE30F309A1ED0E83D093C3EAE2718486E42E5"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/success/github-output.txt",
+        "bytes": 343,
+        "sha256": "03A6530DB50BF6CAE46C73E9EEA5C2206899696FC517C32DC603F427E6322C29"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/success/Invoke.ps1",
+        "bytes": 963,
+        "sha256": "44AC5160F0B9A70E272BFC8F8D6B516AE56AD102953E1005B41B0101B2D1EBD5"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/success/result.log",
+        "bytes": 1341,
+        "sha256": "6A8F621ABEE69349050FC3EA3CF8B2681B4DA1DF683DCD349F71849BC80F6275"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/success/.github/actions/setup-msvc/Setup.ps1",
+        "bytes": 7804,
+        "sha256": "A6E5A0CB974BAF428E7DE8AF2A2BAB6C82AD936E1B15168F16A75BA6D9D4210B"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/success/Program Files/Windows Kits/10/Include/10.0.26100.0/um/Windows.h",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/success/runner temp with spaces/msvc-14.52-12b72eb3e6574c44b74263c44200f84c/bootstrapper.stderr.log",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/success/runner temp with spaces/msvc-14.52-12b72eb3e6574c44b74263c44200f84c/bootstrapper.stdout.log",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/success/runner temp with spaces/msvc-14.52-12b72eb3e6574c44b74263c44200f84c/vs_BuildTools.exe",
+        "bytes": 5632,
+        "sha256": "A32AC61B3CFF99BFC4C6B5E281E6B692706B1517AC71AE2BCB2FB3DD49FC6B2A"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/success/Tools/VisualStudio.psm1",
+        "bytes": 147,
+        "sha256": "627AECCB42F5FF0BB441BB74A89A834F2DA3C0BF20A764F13252BE7122CA22CD"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/success/VS instance/VC/Auxiliary/Build/Microsoft.VCToolsVersion.default.txt",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/success/VS instance/VC/Tools/Llvm/x64/bin/llvm-pdbutil.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/success/VS instance/VC/Tools/MSVC/14.52.37025/bin/Hostx64/x64/cl.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/success/VS instance/VC/Tools/MSVC/14.52.37025/bin/Hostx64/x64/link.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/success/VS instance/VC/Tools/MSVC/14.52.37025/lib/x64/clang_rt.asan_dynamic-x86_64.lib",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/VerifyOnly/Directory.Build.props",
+        "bytes": 108,
+        "sha256": "F1560CD09F35234555322DFBC2F3670A8099453B112E9023FBA8B1AA499EF6A0"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/VerifyOnly/Invoke.ps1",
+        "bytes": 963,
+        "sha256": "44AC5160F0B9A70E272BFC8F8D6B516AE56AD102953E1005B41B0101B2D1EBD5"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/VerifyOnly/result.log",
+        "bytes": 815,
+        "sha256": "B034FDBD5A0CA3FF1E43BE5DBD1E5109A46991021BED5EDECC4C8D8B3991B816"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/VerifyOnly/.github/actions/setup-msvc/Setup.ps1",
+        "bytes": 7804,
+        "sha256": "A6E5A0CB974BAF428E7DE8AF2A2BAB6C82AD936E1B15168F16A75BA6D9D4210B"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/VerifyOnly/Program Files/Windows Kits/10/Include/10.0.26100.0/um/Windows.h",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/VerifyOnly/Tools/VisualStudio.psm1",
+        "bytes": 147,
+        "sha256": "627AECCB42F5FF0BB441BB74A89A834F2DA3C0BF20A764F13252BE7122CA22CD"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/VerifyOnly/VS instance/VC/Auxiliary/Build/Microsoft.VCToolsVersion.default.txt",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/VerifyOnly/VS instance/VC/Tools/Llvm/x64/bin/llvm-pdbutil.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/VerifyOnly/VS instance/VC/Tools/MSVC/14.52.37025/bin/Hostx64/x64/cl.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/VerifyOnly/VS instance/VC/Tools/MSVC/14.52.37025/bin/Hostx64/x64/link.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/VerifyOnly/VS instance/VC/Tools/MSVC/14.52.37025/lib/x64/clang_rt.asan_dynamic-x86_64.lib",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/wrong-family/Directory.Build.props",
+        "bytes": 108,
+        "sha256": "F1560CD09F35234555322DFBC2F3670A8099453B112E9023FBA8B1AA499EF6A0"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/wrong-family/download-timeout.txt",
+        "bytes": 3,
+        "sha256": "7B69759630F869F2723875F873935FED29D2D12B10EF763C1C33B8E0004CB405"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/wrong-family/downloaded.txt",
+        "bytes": 47,
+        "sha256": "7612246D0910BCFD0C04AE03F26DE30F309A1ED0E83D093C3EAE2718486E42E5"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/wrong-family/github-output.txt",
+        "bytes": 348,
+        "sha256": "382022CF24787CED0C5AF317057EAA5993FF1BD1E0CC11F4A6835F8217DCED38"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/wrong-family/Invoke.ps1",
+        "bytes": 963,
+        "sha256": "44AC5160F0B9A70E272BFC8F8D6B516AE56AD102953E1005B41B0101B2D1EBD5"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/wrong-family/result.log",
+        "bytes": 1361,
+        "sha256": "278CAD4B9058365A76C6AE1B324951EEC0F7C94195530F74D9FF36F5BFB4B380"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/wrong-family/.github/actions/setup-msvc/Setup.ps1",
+        "bytes": 7804,
+        "sha256": "A6E5A0CB974BAF428E7DE8AF2A2BAB6C82AD936E1B15168F16A75BA6D9D4210B"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/wrong-family/Program Files/Windows Kits/10/Include/10.0.26100.0/um/Windows.h",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/wrong-family/runner temp with spaces/msvc-14.52-5ac93ccc60ac43cf878c2b3939a43f86/bootstrapper.stderr.log",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/wrong-family/runner temp with spaces/msvc-14.52-5ac93ccc60ac43cf878c2b3939a43f86/bootstrapper.stdout.log",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/wrong-family/runner temp with spaces/msvc-14.52-5ac93ccc60ac43cf878c2b3939a43f86/vs_BuildTools.exe",
+        "bytes": 5632,
+        "sha256": "A32AC61B3CFF99BFC4C6B5E281E6B692706B1517AC71AE2BCB2FB3DD49FC6B2A"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/wrong-family/Tools/VisualStudio.psm1",
+        "bytes": 147,
+        "sha256": "627AECCB42F5FF0BB441BB74A89A834F2DA3C0BF20A764F13252BE7122CA22CD"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/wrong-family/VS instance/VC/Auxiliary/Build/Microsoft.VCToolsVersion.default.txt",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/wrong-family/VS instance/VC/Tools/Llvm/x64/bin/llvm-pdbutil.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/wrong-family/VS instance/VC/Tools/MSVC/14.52.37025/bin/Hostx64/x64/cl.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/wrong-family/VS instance/VC/Tools/MSVC/14.52.37025/bin/Hostx64/x64/link.exe",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "original-msvc/eaeda37c93034ffb89c7f9dff4bf4837/wrong-family/VS instance/VC/Tools/MSVC/14.52.37025/lib/x64/clang_rt.asan_dynamic-x86_64.lib",
+        "bytes": 0,
+        "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      {
+        "path": "evidence-baseline/OwnedWaiter.cs",
+        "bytes": 169,
+        "sha256": "E41632D10DBD87E7184FA55985EBD572DDEE83074E3A2DC331B4D54D4AE95BC3"
+      },
+      {
+        "path": "evidence-baseline/.build/x64/Debug/OwnedWaiter.exe",
+        "bytes": 3584,
+        "sha256": "D171C0E04374DC33918C5F30C161A5B9DCD995BF181883B6915FF84EFB177DF3"
+      },
+      {
+        "path": "evidence-baseline/result.json",
+        "bytes": 260,
+        "sha256": "9BCE1575AFC05F1E5E17E4F9A028B67F6DD52D07C276AFEE85AAD7EDD44FD20D"
+      },
+      {
+        "path": "evidence-180-baseline/OwnedWaiter.cs",
+        "bytes": 169,
+        "sha256": "E41632D10DBD87E7184FA55985EBD572DDEE83074E3A2DC331B4D54D4AE95BC3"
+      },
+      {
+        "path": "evidence-180-candidate/OwnedWaiter.cs",
+        "bytes": 169,
+        "sha256": "E41632D10DBD87E7184FA55985EBD572DDEE83074E3A2DC331B4D54D4AE95BC3"
+      },
+      {
+        "path": "evidence-180-candidate/.build/x64/Debug/OwnedWaiter.exe",
+        "bytes": 3584,
+        "sha256": "AD15C12B9288D2D88DBB3E2E19ABF5B065DD92CBE7D97970208F98BCD7C13C48"
+      },
+      {
+        "path": "evidence-180-candidate/result.json",
+        "bytes": 307,
+        "sha256": "72E0C2C38C6152F7F5A67D6277CF54FB67491C07FB7B9B578AC05A96E857782B"
+      },
+      {
+        "path": "evidence-180-candidate/c-ac0b9cb4/OwnedWaiter.cs",
+        "bytes": 169,
+        "sha256": "E41632D10DBD87E7184FA55985EBD572DDEE83074E3A2DC331B4D54D4AE95BC3"
+      },
+      {
+        "path": "evidence-180-candidate/c-ac0b9cb4/OwnedWaiter.exe",
+        "bytes": 3584,
+        "sha256": "AD15C12B9288D2D88DBB3E2E19ABF5B065DD92CBE7D97970208F98BCD7C13C48"
+      },
+      {
+        "path": "candidate/.github/actions/setup-msvc/Setup.ps1",
+        "bytes": 8247,
+        "sha256": "6CA9D30301EA234DFD19CCF69C69A3B5BC86CB51D98E715EA15214781BB84B56"
+      },
+      {
+        "path": "candidate/Tools/tests/Test-MsvcSetup.ps1",
+        "bytes": 15358,
+        "sha256": "DE4838986B95553FA475D259DF8D6DC5B049A54C7393EE72BCE3C6A63417D9A4"
+      },
+      {
+        "path": "candidate/Tools/tests/Test-MsvcSetupEntrypoints.ps1",
+        "bytes": 1986,
+        "sha256": "3C4092797B291D09025711033736515C55BEA241A556A32150702F60C28532BE"
+      },
+      {
+        "path": "candidate/Tools/tests/Test-RunEvidence.ps1",
+        "bytes": 27507,
+        "sha256": "787523CD552C68AB63C3002D4208F13E6D7881A0751EF565D3AF11F2F0062FE6"
+      },
+      {
+        "path": "candidate/Tools/TestRunEvidence.psm1",
+        "bytes": 24040,
+        "sha256": "20A75F063BFFC8084F8B80C04096E92EC7F106489740921B7AB389522ED3D710"
+      }
+    ],
+    "allMemberHashesVerified": true
+  },
+  "boundaries": [
+    "Conservative route-specific native image path below 260 UTF-16 units",
+    "No product native/profile/performance/consumer qualification",
+    "Original long-root aggregate and rejected prefix experiment remain failures"
+  ],
+  "workloadOwner": "DxUi",
+  "benchmarkInputs": {
+    ".github/actions/setup-msvc/Setup.ps1": "6CA9D30301EA234DFD19CCF69C69A3B5BC86CB51D98E715EA15214781BB84B56",
+    "Tools/tests/Test-MsvcSetup.ps1": "DE4838986B95553FA475D259DF8D6DC5B049A54C7393EE72BCE3C6A63417D9A4",
+    "Tools/tests/Test-MsvcSetupEntrypoints.ps1": "3C4092797B291D09025711033736515C55BEA241A556A32150702F60C28532BE",
+    "Tools/tests/Test-RunEvidence.ps1": "787523CD552C68AB63C3002D4208F13E6D7881A0751EF565D3AF11F2F0062FE6",
+    "Tools/TestRunEvidence.psm1": "20A75F063BFFC8084F8B80C04096E92EC7F106489740921B7AB389522ED3D710"
+  },
+  "validationAttempts": {
+    "firstEntry": {
+      "refusal": "Missing owner/input fields in the new measurement metadata",
+      "logSha256": "59407FFF8471FD68BB17FAEF7FC9F7376922D44F034C3DC8870458E14F16A345",
+      "toolingPassed": true,
+      "exitCode": 1
+    },
+    "focusedOriginalReplay": {
+      "sourceSha256": "352EB936C99E60C91CAD05133E8780917FF972C1222F65E8ECAD9560C920FC8B",
+      "moduleSha256": "4E0F4C6AC81874FC9C94583C80E86ACC22459926DC250E5329398E99FAA200CD",
+      "limit": "Focused replay after retaining the full-run failure and rejected exit proposal; any pass does not erase or assign a cause to the original ten-second watchdog failure",
+      "logSha256": "4D97BDA7169BD1913EB61AD4FFA1E5A64BCC5F61AE8C7CD964546B49F421C9B2",
+      "exitCode": 0
+    },
+    "secondEntry": {
+      "failedCase": "failed active publication cannot produce timeout readiness or progress",
+      "cause": "unassigned",
+      "logSha256": "DB3AED13E530D767A40B376AFD33306859CDDE38B018226903ABF775C6376749",
+      "exitCode": 1,
+      "allStaticValidatorsPassed": true,
+      "toolingPassed": false
+    }
+  }
+}

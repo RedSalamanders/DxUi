@@ -198,6 +198,10 @@ omitting an ID from this summary does not dispose of it.
   lack it (PRIOR-08); replace self-referential crossing, CF_HTML and font-truncation oracles.
 - [ ] Add deterministic pathological-input/fuzz/cancellation coverage for Markdown, diagrams and math;
   retain exact seeds, budgets, raw failures and source/artifact identities.
+- [ ] Diagnose the retained failed-consumer-publication fixture's ten-second closure failure observed during
+  the long-checkout validator run. Progress/body admission stayed correctly refused; an explicit-exit proposal
+  also failed and was rejected, while a focused replay of the original source passes all 14 cases. Preserve
+  both outcomes without assigning the old failure a cause or extending its watchdog to hide it.
 - [x] Derive the semantic diagram allocation diagnostic's count from its actual array/shared execution bound:
   twenty semantic and five geometry scenarios. The [scoped closeout](../Done/ScriptColorPreparation_2026-11-06.md)
   retains original logs and source/per-request evidence; this corrects the label without changing the corpus or
