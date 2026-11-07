@@ -21,7 +21,12 @@ DxUi::Failure::ModuleRegistration moduleRegistration;
 class AnimationProbe final : public DxUi::Control
 {
 public:
-    unsigned ticks = 0u;
+    AnimationProbe()                                 = default;
+    AnimationProbe(const AnimationProbe&)            = delete;
+    AnimationProbe(AnimationProbe&&)                 = delete;
+    AnimationProbe& operator=(const AnimationProbe&) = delete;
+    AnimationProbe& operator=(AnimationProbe&&)      = delete;
+    unsigned ticks                                   = 0u;
     void Paint(DxUi::ControlHost&) const override
     {
     }

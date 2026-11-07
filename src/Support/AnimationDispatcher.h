@@ -63,6 +63,18 @@ public:
         return _hasTickTimestamp ? _lastTickMs : GetTickCount64();
     }
 
+    void RetainIdleWindow() noexcept
+    {
+        _retainIdleWindow = true;
+    }
+
+    void RetireIdleWindow() noexcept
+    {
+        _retainIdleWindow = false;
+        if (! _inTick)
+            EnsureTimerState();
+    }
+
     void Shutdown() noexcept
     {
         StopTimer();
@@ -314,7 +326,6 @@ private:
 
         _hwnd.reset(hwnd);
         _timerRunning = false;
-        EnsureTimerState();
     }
 
     void EnsureTimerRunning() noexcept
@@ -368,6 +379,11 @@ private:
         if (_subscriptions.empty() && _pendingAdds.empty())
         {
             StopTimer();
+            // Native hosts keep the window warm between gestures. The final host
+            // releases it while the module and process failure reporter are alive.
+            // A tick that detaches its host reaches this point only after callbacks.
+            if (! _retainIdleWindow)
+                _hwnd.reset();
             return;
         }
 
@@ -466,6 +482,7 @@ private:
 
 private:
     wil::unique_hwnd _hwnd;
+    bool _retainIdleWindow       = false;
     bool _timerRunning           = false;
     bool _inTick                 = false;
     uint64_t _nextSubscriptionId = 1;

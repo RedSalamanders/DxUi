@@ -253,6 +253,9 @@ Keep each module loaded while its hosts, windows, callbacks or UI-thread resourc
 Call `Detach()` before the caller-owned HWND and borrowed application state are destroyed. Do not call native
 `Attach(HWND)` on `EmbeddedHost::Controls()`. The
 [native fixtures](../Tests/Controls/Controls.Tests.DxUiTestHelpers.h) show real window creation, forwarding and teardown.
+The last native host on a UI thread releases that module's cached animation HWND during detachment, before
+failure-host uninstallation. Other attached hosts retain their subscriptions and idle cache. Detachment from a
+timer callback defers window destruction until the callback returns; no private animation shutdown call is needed.
 
 ## Device recovery and ownership
 

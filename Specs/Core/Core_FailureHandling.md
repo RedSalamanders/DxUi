@@ -154,6 +154,12 @@ retries only `BUSY`, preserves `WM_QUIT` and reports timeout. It cannot interrup
 procedure. Stop new work, application callbacks and registered modules first; neither this helper nor a view's
 destruction permits removing a live provider pin. Component/DLL uninstall remains nonblocking.
 
+Native view retirement also releases the module's idle animation-dispatcher HWND before the process reporter
+is uninstalled. The dispatcher remains warm while another native host is attached and finishes an active timer
+callback before destroying its window. Thread-local destruction must not invoke its scoped window procedure
+after the host has gone. Applications satisfy this contract through ordinary native `ControlHost::Detach`;
+they must not depend on a private dispatcher shutdown hook.
+
 Shared COM registration leases extend through every asynchronous use and the resolved proxy's release. The
 registering apartment must remain COM-initialized until GIT revocation; a retained module pin or a disconnected
 view alone does not keep that apartment alive. Final cleanup must check the native revocation result; it cannot

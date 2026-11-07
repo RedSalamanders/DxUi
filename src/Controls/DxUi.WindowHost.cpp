@@ -670,7 +670,7 @@ void ResetAllSharedWindowHostGraphicsResourcesForProcessExit() noexcept
     }
 }
 
-void ReleaseSharedWindowHostAttachment(ControlHost* host, DWORD ownerThreadId) noexcept
+[[nodiscard]] bool ReleaseSharedWindowHostAttachment(ControlHost* host, DWORD ownerThreadId) noexcept
 {
     {
         const std::scoped_lock hostLock(GetAttachedWindowHostsMutex());
@@ -697,7 +697,7 @@ void ReleaseSharedWindowHostAttachment(ControlHost* host, DWORD ownerThreadId) n
     if (it == resourcesByThread.end() || it->second.attachedHostCount == 0u)
     {
         Debug::Warning(L"DxUi::ControlHost: missing shared graphics bucket during detach owner={} current={}", ownerThreadId, currentThreadId);
-        return;
+        return false;
     }
 
     SharedWindowHostGraphicsResources& resources = it->second;
@@ -705,7 +705,9 @@ void ReleaseSharedWindowHostAttachment(ControlHost* host, DWORD ownerThreadId) n
     if (resources.attachedHostCount == 0u)
     {
         resourcesByThread.erase(it);
+        return true;
     }
+    return false;
 }
 
 [[nodiscard]] bool EnsureSharedWindowHostGraphicsResources() noexcept
@@ -1411,6 +1413,7 @@ bool ControlHost::Attach(HWND hwnd, const AttachOptions& options) noexcept
         Debug::Error(L"DxUi::ControlHost: attachment ownership/registry reservation failed ({})", GetLastError());
         return false;
     }
+    Ui::AnimationDispatcher::GetInstance().RetainIdleWindow();
     _attachmentOwnerThreadId = windowThreadId;
 
     _hwnd                     = hwnd;
@@ -1563,7 +1566,12 @@ void ControlHost::Detach(bool processExit) noexcept
         // Release the shared graphics bucket after this host's retained tree and device
         // resources are gone. The last host must not tear down shared D2D/DComp state
         // while its own controls/resources are still destructing.
-        ReleaseSharedWindowHostAttachment(this, attachmentOwnerThreadId);
+        if (ReleaseSharedWindowHostAttachment(this, attachmentOwnerThreadId))
+        {
+            // DestroyWindow can reenter native dispatch; the registry locks have
+            // already been released and all controls have relinquished subscriptions.
+            Ui::AnimationDispatcher::GetInstance().RetireIdleWindow();
+        }
     }
 }
 

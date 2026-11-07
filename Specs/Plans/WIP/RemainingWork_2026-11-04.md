@@ -80,6 +80,10 @@ Owner: `src/Rendering/Embedded.cpp`, `src/Controls/DxUi.TextInput.cpp`, input di
 - [ ] Finish parser/preparer admission and per-element failure isolation across diagrams/math/images.
   Preserve checked capacity/unsupported causes and regression evidence; unexpected C++ exceptions follow
   the API-5 fatal contract rather than the superseded whole-view exception-recovery proposal.
+- [ ] Retire the native animation window before failure-host uninstallation. The RedTilde API-5 recovery run
+  completed its 19 cases but failed during TLS destruction; original-context diagnostics identify the cached
+  dispatcher HWND. Preserve the public-consumer counterexample, sibling/cache and in-tick retirement coverage,
+  then complete native qualification and explicit consumer adoption.
 
 This coordinates the active API work; it does not adopt API 5 in any application or duplicate that branch's queue.
 
