@@ -38,6 +38,13 @@ void Check(HRESULT result, const char*)
     if (FAILED(result))
         Failure::FailContract(result);
 }
+// DirectWrite may catch an internal C++ exception while lazily formatting a
+// layout and still return an HRESULT. Keep only that opaque COM call inside
+// the native allowance; following SDK allocations retain ordinary observation.
+HRESULT NativeTextMetrics(IDWriteTextLayout* layout, DWRITE_TEXT_METRICS* metrics)
+{
+    return layout->GetMetrics(metrics);
+}
 // A positioning-only first line lets DirectWrite perform its own sequential
 // document-coordinate rounding, mixed-font caret math and color-font drawing.
 // Its two private text units never enter source/display ACP mappings.
@@ -435,7 +442,7 @@ HRESULT Detail::PreparedLayoutAccess::Prepare(PreparedLayout& owner,
         RETURN_IF_FAILED(layout->SetInlineObject(object, {objectOffset + textOffset, 1u}));
     for (const auto& inlineObject : objects)
         RETURN_IF_FAILED(layout->SetInlineObject(inlineObject.object, {inlineObject.first + textOffset, inlineObject.length}));
-    RETURN_IF_FAILED(layout->GetMetrics(&metrics));
+    RETURN_IF_FAILED(Failure::InvokeNative(&NativeTextMetrics, layout.get(), &metrics));
     DWRITE_OVERHANG_METRICS overhang{};
     RETURN_IF_FAILED(layout->GetOverhangMetrics(&overhang));
     const auto drawingTop    = std::min(verticalOrigin, verticalTranslation - overhang.top) - scriptTopOutset;

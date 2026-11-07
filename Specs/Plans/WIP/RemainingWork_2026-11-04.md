@@ -80,6 +80,11 @@ Owner: `src/Rendering/Embedded.cpp`, `src/Controls/DxUi.TextInput.cpp`, input di
 - [ ] Finish parser/preparer admission and per-element failure isolation across diagrams/math/images.
   Preserve checked capacity/unsupported causes and regression evidence; unexpected C++ exceptions follow
   the API-5 fatal contract rather than the superseded whole-view exception-recovery proposal.
+- [ ] Qualify the narrow DirectWrite lazy-formatting metrics boundary and 65,536-unit source/caret regression.
+  The original RedTilde `1d843628` objects fail fatally with SDK `5907e4f5`; replacing only the layout object
+  lets the oversized-math case complete and leaves the independent image-watch defect as an ordinary failure.
+  Original images, PDBs, exception context, compiler objects and the diagnostic run remain retained. This
+  causal proof does not yet qualify the library matrix or the full API-5 consumer.
 - [x] Retire the native animation window before failure-host uninstallation and prevent callback rearming during
   Detach. The [scoped closeout](../Done/AnimationWindowRetirement_2026-11-07.md) retains the original consumer
   TLS diagnosis, independent public same-object failures/passes, sibling/cache and in-tick coverage, six
