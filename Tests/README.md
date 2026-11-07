@@ -215,7 +215,10 @@ visible and mutable, remains idle across unrelated captures, preserves exact
 source on both `E_FAIL` and checked `E_OUTOFMEMORY`, permits a sibling's explicit
 command without native focus transfer, declines pointer edits against unavailable
 geometry, and recovers through the normal
-cooperative message-loop path after a content change. Its baseline frame failure
+cooperative message-loop path after a content change. An edited ready document
+retains its exact source and Undo/Redo across a later preparation failure. The
+pixel oracle is restricted to the declared label rectangle, excluding other
+controls' hover/chrome. Its baseline frame failure
 uses the deferred result so owned window/module cleanup completes before exit 1.
 The named native/embedded decoded-image tests are in `Accessibility`; ordinary
 `Embedded` adds DPI, RTL, selection, hide/show and device replacement checks.
