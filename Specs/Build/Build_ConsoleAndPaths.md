@@ -82,6 +82,27 @@ of this migration. Cleanup follows its separate inventory/preservation/process-u
 policy. Source restore, MSBuild imports, helper invocations, provenance and tests
 must agree on the same short folder convention.
 
+## Native tooling path admission
+
+The hosted MSVC setup entrypoint computes the full planned bootstrapper path
+before creating its scratch directory, publishing installer outputs or downloading.
+A path of 260 or more UTF-16 units is refused with the measured length and a
+request for a shorter `RUNNER_TEMP`. The current launch route is qualified only
+below that bound; an extended-prefix launch experiment did not qualify longer
+paths. This is a route-specific admission rule, not a claim that all Windows
+filesystem or process APIs share one path limit. Already installed tool discovery
+and read-only verification retain their existing behavior.
+
+The run-evidence test's actual owned worker image has the same conservative
+admission bound. Its classic C# compiler stages source, output and temporary
+resource files in a compact directory near the acquired scratch root, then copies
+and hashes the exact image at the profile path used by process-ownership tests.
+Long Unicode payload/stream and hard-link assertions remain independent and must
+not be shortened to make native compilation pass. A failed long-root aggregate
+remains failed even when a supported relocated fixture passes.
+
+See the [retained diagnosis](../../Measurements/LongCheckoutTooling_2026-11-07/README.md).
+
 ## Reviewed ARM64 link-time notice
 
 MSVC 14.52 ARM64 Release LTCG re-emits C4746 (the volatile-model notice) from

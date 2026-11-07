@@ -23,7 +23,7 @@ foreach($mode in @('Direct','Nested')){
         $output=$stdout.GetAwaiter().GetResult()+$stderr.GetAwaiter().GetResult()
         [IO.File]::WriteAllText((Join-Path $packet "$mode.log"),$output)
         Write-Host $output
-        if($process.ExitCode-ne 0 -or $output-notmatch 'Hosted MSVC setup: 14 of 14 passed'){throw "$mode setup entrypoint failed; retained evidence: $packet"}
+        if($process.ExitCode-ne 0 -or $output-notmatch 'Hosted MSVC setup: 15 of 15 passed'){throw "$mode setup entrypoint failed; retained evidence: $packet"}
         Write-Host "PASS $mode MSVC setup entrypoint"
     }finally{$process.Dispose()}
 }
