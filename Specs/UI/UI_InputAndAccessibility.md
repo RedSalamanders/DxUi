@@ -730,6 +730,11 @@ A RadioButton is a RadioButton element with SelectionItem, selected while it is 
 it as its mnemonic does, focus included. RemoveFromSelection of the chosen one, and AddToSelection while its group holds
 another choice, return `UIA_E_INVALIDOPERATION`. A RadioButtons group is a Group element with single,
 optional Selection; each grouped choice returns it as SelectionContainer and reports its position and size.
+The Group Name prefers an explicit accessible name, then its nonempty visible header,
+then the ordinary associated mnemonic label. Header changes refresh native accessibility
+and raise Name changes when the effective name changes; an unchanged header emits none.
+Embedded hosts publish the same name and change through their next Prepare/UpdateAccessibility.
+Header changes preserve choices, selection and the retained Group provider identity.
 The group owns its choices as UI Automation fragment children; unrelated controls retain their flat navigation order. A standalone radio
 without a logical group has no SelectionContainer. A
 change of choice raises ElementSelected from the chosen radio button and IsSelected changes from both, whether a click,

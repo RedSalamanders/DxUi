@@ -4101,6 +4101,11 @@ std::optional<AccessibilityNavigationTarget> ResolveSnapshotNavigationTarget(con
         return explicitName;
     }
 
+    if (const auto* group = dynamic_cast<const RadioButtons*>(control))
+    {
+        if (const auto header = ControlModelQueryAccess::RadioGroupHeader(*group); ! header.empty())
+            return header;
+    }
     if (const auto* toggle = dynamic_cast<const Toggle*>(control))
     {
         if (const std::wstring_view labelText = FindAssociatedLabelText(root, toggle); ! labelText.empty())

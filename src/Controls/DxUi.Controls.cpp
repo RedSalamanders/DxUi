@@ -5058,8 +5058,16 @@ void RadioButtons::SetOnSelectionChanged(std::function<void(int)> onSelectionCha
 
 void RadioButtons::SetHeader(std::wstring text)
 {
-    _header = std::move(text);
+    const Failure::Scope outerFailureScope;
+    if (_header == text)
+        return;
+    _header             = std::move(text);
+    const auto lifetime = GetLifetimeToken();
     RequestInvalidate();
+    if (lifetime.expired())
+        return;
+    if (ControlHost* const host = GetHost())
+        RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
 }
 
 void RadioButtons::SelectItem(RadioButton* item)

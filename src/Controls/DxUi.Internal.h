@@ -87,6 +87,10 @@ struct ControlCaptureAccess
 
 struct ControlModelQueryAccess
 {
+    [[nodiscard]] static std::wstring_view RadioGroupHeader(const RadioButtons& group) noexcept
+    {
+        return group._header;
+    }
     template <typename Owner> [[nodiscard]] static auto InvalidateGeometry(Owner& owner) noexcept
     {
         if (auto* const host = owner.GetHost())
