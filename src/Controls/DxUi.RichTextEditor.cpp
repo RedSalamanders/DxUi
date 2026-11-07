@@ -2134,6 +2134,10 @@ std::shared_ptr<const RichText::Detail::AccessibilityEpoch> RichTextEditor::Acce
 {
     return _state->accessibilityEpoch;
 }
+uint64_t RichTextEditor::AccessibilityBindingRevision() const noexcept
+{
+    return _state->bindingRevision;
+}
 void RichTextEditor::RetireSemanticAccessibility() const noexcept
 {
     if (_state->accessibilityEpoch)

@@ -641,6 +641,11 @@ int wmain(int argc, wchar_t** argv)
         return 2;
     }
 
+    if (DeferredDxUiTestFailure().load(std::memory_order_relaxed))
+    {
+        std::cerr << "DxUi tests failed after fixture cleanup.\n";
+        return 1;
+    }
     std::cout << "All DxUi tests passed.\n";
     return 0;
 }

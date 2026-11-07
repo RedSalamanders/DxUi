@@ -313,6 +313,24 @@ control dereference is permitted. Semantic epoch/binding changes invalidate the
 reachable structure so clients can reacquire current parts. These protocols do
 not establish physical IME, Narrator/NVDA or native ARM64 acceptance.
 
+Successful semantic Toggle and Expand/Collapse transitions MUST publish their
+ToggleState or ExpandCollapseState property change from a current successor peer.
+The acted peer remains retired. Native delivery uses the new publication;
+embedded delivery uses the existing marshalled notification worker, never a raw
+owner-apartment provider on that worker. A queued semantic property includes its
+exact source revision, publication, source range and role, so unrelated children
+cannot coalesce and later publications prune retired senders.
+
+Reserve one of at most 128 scalar/weak action hints per host before mutation;
+exhaustion returns ERROR_BUSY with source, selection and history unchanged. A hint
+waits for bounded preparation, matches exact control lifetime and source revision,
+and for disclosures also matches the surviving block identity. Refused actions,
+idempotent requests, source supersession, detach/replacement or an absent successor
+raise no stale state change. Hints retain no document, prepared graph or provider.
+Delivery consumes the hint before outgoing callbacks and stops after reentrant
+publication or disconnect. Embedded property batches retain the existing bounded
+per-control budget and structure-invalidation fallback.
+
 Collapsed Backspace/Delete at an interior ACP remove the complete containing
 grapheme. An exact boundary still removes its preceding/following neighbor.
 TextField (single/multiline), editable ComboBox and RichTextEditor share this

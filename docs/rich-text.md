@@ -1575,6 +1575,13 @@ prepare content or take focus. Native foreign-thread actions use the existing
 bounded host dispatch; embedded clients route through the owner's COM apartment.
 Committed callbacks may retire the editor safely.
 
+Semantic Toggle and Expand/Collapse publish state-change events from the current
+successor child after preparation. Reacquire the child after the structure changes;
+the peer used for the action stays retired. Native and embedded hosts share this
+contract, including marshalled embedded delivery. Unchanged, refused or superseded
+actions do not report a stale state. At most 128 pending action hints are admitted
+per host; a full queue returns `ERROR_BUSY` before changing source or view state.
+
 `SemanticDocument::SourceRuns()` is a prepared complete source-format partition;
 `Identity()` distinguishes process-local semantic publications. The retained
 `GetAcknowledgedSemanticDocument(host)` and `GetSemanticElementBounds(host, index)`

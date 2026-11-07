@@ -592,6 +592,12 @@ menu that then comes up and the owner thread's `Show` to return, and a source sc
 requires the guard first in every driver. A UI Automation client thread a Menu or Accessibility test joins is waited for,
 pumping, for as long as its setup was allowed (20 s) and then fails the test, since its teardown may need the pumping thread and
 a join does not pump.
+Final observations may use the canonical `CheckDxUiTestResult` after their local
+fixtures unwind. It records failure without `std::exit`, allowing retained UIA STA
+and module teardown to finish through the normal runner return. The runner MUST
+return 1 and omit its success footer if any such observation failed; a caller MUST
+stop dependent work after a false result. This does not soften immediate `Require`
+checks for an invalid fixture. Original abrupt-exit/timeout evidence remains failed.
 The sent modal-cancellation fixture first places its owner onscreen and verifies that the owner holds the
 foreground and thread focus. This makes the explicitly sent deactivation or cancellation message the action
 under test; a hidden, inactive owner is not a valid setup for that assertion.

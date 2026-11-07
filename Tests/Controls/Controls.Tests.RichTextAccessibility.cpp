@@ -694,7 +694,7 @@ void ThreadedRangeCommands(bool embedded)
             "thread ownership preserves expected selection");
 }
 
-void EmbeddedCase(void (*test)(bool))
+template <typename Test> void EmbeddedCase(Test test)
 {
     RequireSucceeded(DxUiFailureTests::RunRetainedAccessibilitySta(
                          [test]
@@ -2575,6 +2575,115 @@ void SemanticInlineLinkImageSourceEditing(bool embedded)
         fixture.editor->SetReadOnly(false);
     }
 }
+bool SemanticInlineStateEvents(bool embedded)
+{
+    bool observed = true;
+    for (const auto& example : {std::pair{std::wstring_view(L"[label](https://example.invalid)"), std::wstring_view(L"label")},
+                                std::pair{std::wstring_view(L"![alt](picture.png)"), std::wstring_view(L"alt")}})
+    {
+        RichAccessibilityFixture fixture(embedded, true, true);
+        fixture.editor->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::RichMarkdown);
+        // Distinguish the inline child's name from its enclosing paragraph's rendered text.
+        const std::wstring source = L"Before " + std::wstring(example.first) + L" after";
+        fixture.editor->SetText(source);
+        fixture.Publish();
+        auto simple = fixture.Simple();
+        UiaTest::Client client(fixture.Hwnd(), {.properties = {UIA_ExpandCollapseExpandCollapseStatePropertyId}}, [&] { fixture.Pump(); });
+        std::atomic_size_t publicationAttempts{};
+        DebugSetAccessibilityPropertyEventHookForTest(
+            [](long property, void* context) noexcept
+        {
+            if (property == UIA_ExpandCollapseExpandCollapseStatePropertyId)
+                static_cast<std::atomic_size_t*>(context)->fetch_add(1u, std::memory_order_relaxed);
+        },
+            &publicationAttempts);
+        const auto clearPublicationHook = wil::scope_exit([] { DebugSetAccessibilityPropertyEventHookForTest(nullptr, nullptr); });
+        const auto stateSince           = [&](size_t mark, ExpandCollapseState expected)
+        {
+            return client.WaitUntil(UiaTest::Client::kNotificationDeadlineMs,
+                                    [&]
+            {
+                const auto events = client.DistinctSince(mark);
+                return std::ranges::any_of(events,
+                                           [&](const auto& event)
+                {
+                    return event.kind == UiaTest::EventKind::Property && event.id == UIA_ExpandCollapseExpandCollapseStatePropertyId &&
+                           event.value == std::to_wstring(expected);
+                });
+            });
+        };
+        const auto noStateSince = [&](size_t mark)
+        {
+            client.Settle(300u);
+            const auto events = client.DistinctSince(mark);
+            return std::ranges::none_of(events, [](const auto& event) {
+                return event.kind == UiaTest::EventKind::Property && event.id == UIA_ExpandCollapseExpandCollapseStatePropertyId;
+            });
+        };
+        const auto action = [&](std::wstring_view name)
+        {
+            auto part = FindNamedSemanticPart(*simple.get(), name);
+            wil::com_ptr_nothrow<IUnknown> pattern;
+            Require(part && SUCCEEDED(part->GetPatternProvider(UIA_ExpandCollapsePatternId, pattern.put())) && pattern,
+                    "inline state fixture reaches its current source action");
+            wil::com_ptr_nothrow<IExpandCollapseProvider> expansion;
+            RequireSucceeded(pattern.query_to(expansion.put()), "inline state fixture expand pattern");
+            return expansion;
+        };
+        const auto sourceRevision = fixture.editor->Revision();
+        auto expansion            = action(example.second);
+        auto mark                 = client.Mark();
+        RequireSucceeded(expansion->Expand(), "expand the actual inline source owner");
+        fixture.Publish();
+        observed                    = stateSince(mark, ExpandCollapseState_Expanded) && observed;
+        const auto beforeIdempotent = publicationAttempts.load(std::memory_order_relaxed);
+        expansion                   = action(example.first);
+        mark                        = client.Mark();
+        RequireSucceeded(expansion->Expand(), "an already expanded source action is idempotent");
+        fixture.Publish();
+        client.Settle(300u);
+        // UIA can deliver a prior event twice, even across a client mark. The
+        // owner hook observes actual publication attempts rather than transport duplicates.
+        observed = publicationAttempts.load(std::memory_order_relaxed) == beforeIdempotent && observed;
+        fixture.editor->SetReadOnly(true);
+        fixture.Publish();
+        expansion = action(example.first);
+        mark      = client.Mark();
+        RequireSucceeded(expansion->Collapse(), "read-only source inspection still collapses");
+        fixture.Publish();
+        observed = stateSince(mark, ExpandCollapseState_Collapsed) && observed;
+        Require(fixture.editor->GetText() == source && fixture.editor->Revision() == sourceRevision && ! fixture.editor->CanUndo(),
+                "inline state notifications preserve exact source, revision and history");
+        fixture.editor->SetReadOnly(false);
+        fixture.Publish();
+        static_cast<void>(client.WaitOutTheStream());
+        expansion                     = action(example.second);
+        mark                          = client.Mark();
+        const auto beforeSupersession = publicationAttempts.load(std::memory_order_relaxed);
+        RequireSucceeded(expansion->Expand(), "admit source expansion before independent source supersession");
+        Require(! fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls), "source supersession fixture still has an unpublished action");
+        fixture.editor->SetText(L"replacement");
+        fixture.Publish();
+        observed = noStateSince(mark) && publicationAttempts.load(std::memory_order_relaxed) == beforeSupersession && observed;
+        Require(fixture.editor->GetText() == L"replacement", "superseded notification never edits the replacement");
+        fixture.editor->SetText(source);
+        fixture.Publish();
+        static_cast<void>(client.WaitOutTheStream());
+        expansion               = action(example.second);
+        mark                    = client.Mark();
+        const auto beforeRebind = publicationAttempts.load(std::memory_order_relaxed);
+        RequireSucceeded(expansion->Expand(), "admit source expansion before same-control detach/rebind");
+        Require(! fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls), "rebind fixture still has an unpublished action");
+        auto* adapter = static_cast<RichAccessibilityEditor*>(fixture.editor);
+        adapter->RebindForTest(nullptr);
+        adapter->RebindForTest(fixture.controls);
+        const bool dark = fixture.controls->GetTheme().windowBackground.r < .5f;
+        fixture.controls->SetTheme(MakeDefaultThemePalette(! dark));
+        fixture.Publish();
+        observed = noStateSince(mark) && publicationAttempts.load(std::memory_order_relaxed) == beforeRebind && observed;
+    }
+    return observed;
+}
 void SemanticWikiActivation(bool embedded)
 {
     using namespace RichText;
@@ -2612,85 +2721,120 @@ void SemanticWikiActivation(bool embedded)
                 ! fixture.editor->CanUndo(),
             "wiki UIA activation preserves source, selection, revision and history");
 }
-void SemanticDisclosure(bool embedded)
+bool SemanticDisclosure(bool embedded)
 {
-    using namespace RichText;
-    RichAccessibilityFixture fixture(embedded, true, true);
-    fixture.editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
-    const std::wstring source = L"<details>\n<summary>More</summary>\nBody text\n</details>\n";
-    fixture.editor->SetText(source);
-    fixture.editor->SetSelection({3u, 3u});
-    fixture.Publish();
-    auto root = fixture.Simple();
-    auto part = FindNamedSemanticPart(*root.get(), L"More");
-    Require(part != nullptr, "native/embedded collapsed disclosure exposes its authored summary");
-    wil::unique_variant role;
-    RequireSucceeded(part->GetPropertyValue(UIA_ControlTypePropertyId, &role), "read disclosure control type");
-    Require(role.vt == VT_I4 && role.lVal == UIA_ButtonControlTypeId, "disclosure summary is an actionable button");
-    wil::com_ptr_nothrow<IUnknown> pattern;
-    RequireSucceeded(part->GetPatternProvider(UIA_ExpandCollapsePatternId, pattern.put()), "get disclosure expand pattern");
-    wil::com_ptr_nothrow<IExpandCollapseProvider> expansion;
-    Require(pattern && SUCCEEDED(pattern.query_to(expansion.put())), "summary exposes ExpandCollapse");
-    ExpandCollapseState state{};
-    RequireSucceeded(expansion->get_ExpandCollapseState(&state), "read collapsed disclosure");
-    Require(state == ExpandCollapseState_Collapsed &&
-                fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls)->Map().Display().find(L"Body text") == std::wstring::npos,
-            "collapsed disclosure omits only its body from presentation");
-    const auto revision = fixture.editor->Revision();
-    RequireSucceeded(expansion->Expand(), "expand disclosure");
-    fixture.Publish();
-    auto opened = fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls);
-    Require(opened && opened->Map().Display().find(L"Body text") != std::wstring::npos && fixture.editor->GetText() == source &&
-                fixture.editor->Revision() == revision && fixture.editor->GetSelection() == Selection{3u, 3u} && ! fixture.editor->CanUndo(),
-            "expansion reveals body without changing source, selection, revision or history");
-    part = FindNamedSemanticPart(*root.get(), L"More");
-    pattern.reset();
-    expansion.reset();
-    Require(part && SUCCEEDED(part->GetPatternProvider(UIA_ExpandCollapsePatternId, pattern.put())) && pattern && SUCCEEDED(pattern.query_to(expansion.put())),
-            "expanded disclosure has a fresh action provider");
-    RequireSucceeded(expansion->get_ExpandCollapseState(&state), "read expanded disclosure");
-    Require(state == ExpandCollapseState_Expanded, "expanded state is acknowledged");
-    RequireSucceeded(expansion->Collapse(), "collapse disclosure");
-    fixture.Publish();
-    Require(fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls)->Map().Display().find(L"Body text") == std::wstring::npos,
-            "collapse hides the body again");
-    Require(fixture.editor->OnKeyDown(*fixture.controls, VK_TAB, MK_CONTROL) && fixture.editor->OnKeyDown(*fixture.controls, VK_SPACE, 0u),
-            "keyboard navigation and Space expand the summary without foreground input");
-    fixture.Publish();
-    Require(fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls)->Map().Display().find(L"Body text") != std::wstring::npos &&
-                fixture.editor->GetText() == source && ! fixture.editor->CanUndo(),
-            "keyboard disclosure remains a view-only transition");
-    opened             = fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls);
-    const auto summary = std::ranges::find(opened->Elements(), SemanticRole::Disclosure, &SemanticElement::role);
-    Require(summary != opened->Elements().end(), "expanded summary owns mouse target");
-    const auto index  = static_cast<std::size_t>(summary - opened->Elements().begin());
-    const auto bounds = fixture.editor->GetSemanticElementBounds(*fixture.controls, index);
-    Require(bounds && fixture.editor->OnMouseDown(*fixture.controls, {(bounds->left + bounds->right) * .5f, (bounds->top + bounds->bottom) * .5f}, false, 0u),
-            "mouse hit on authored summary activates disclosure");
-    fixture.Publish();
-    Require(fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls)->Map().Display().find(L"Body text") == std::wstring::npos &&
-                fixture.editor->GetText() == source && fixture.editor->Revision() == revision && ! fixture.editor->CanUndo(),
-            "mouse collapse preserves source and history");
-    const std::wstring replacement = L"<details open>\n<summary>More</summary>\nReplacement body\n</details>\n";
-    fixture.editor->SetText(replacement);
-    fixture.Publish();
-    const auto replaced = fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls);
-    Require(replaced && replaced->Map().Display().find(L"Replacement body") != std::wstring::npos && fixture.editor->GetText() == replacement &&
-                ! fixture.editor->CanUndo(),
-            "a full source replacement retires old disclosure view state and honors the new open attribute");
-    part = FindNamedSemanticPart(*root.get(), L"More");
-    pattern.reset();
-    expansion.reset();
-    Require(part && SUCCEEDED(part->GetPatternProvider(UIA_ExpandCollapsePatternId, pattern.put())) && pattern && SUCCEEDED(pattern.query_to(expansion.put())),
-            "replacement summary exposes disclosure action");
-    RequireSucceeded(expansion->Collapse(), "collapse replacement before independent edit");
-    fixture.Publish();
-    fixture.editor->SetSelection({replacement.size(), replacement.size()});
-    Require(fixture.editor->ReplaceSelection(L"\nTail"), "append an independent source edit");
-    fixture.Publish();
-    const auto edited = fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls);
-    Require(edited && edited->Map().Display().find(L"Replacement body") == std::wstring::npos && fixture.editor->CanUndo(),
-            "an independent source edit keeps surviving disclosure presentation and ordinary history");
+    bool expandedEvent = false, collapsedEvent = false;
+    {
+        using namespace RichText;
+        RichAccessibilityFixture fixture(embedded, true, true);
+        fixture.editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+        const std::wstring source = L"<details>\n<summary>More</summary>\nBody text\n</details>\n";
+        fixture.editor->SetText(source);
+        fixture.editor->SetSelection({3u, 3u});
+        fixture.Publish();
+        auto root = fixture.Simple();
+        auto part = FindNamedSemanticPart(*root.get(), L"More");
+        Require(part != nullptr, "native/embedded collapsed disclosure exposes its authored summary");
+        wil::unique_variant role;
+        RequireSucceeded(part->GetPropertyValue(UIA_ControlTypePropertyId, &role), "read disclosure control type");
+        Require(role.vt == VT_I4 && role.lVal == UIA_ButtonControlTypeId, "disclosure summary is an actionable button");
+        wil::com_ptr_nothrow<IUnknown> pattern;
+        RequireSucceeded(part->GetPatternProvider(UIA_ExpandCollapsePatternId, pattern.put()), "get disclosure expand pattern");
+        wil::com_ptr_nothrow<IExpandCollapseProvider> expansion;
+        Require(pattern && SUCCEEDED(pattern.query_to(expansion.put())), "summary exposes ExpandCollapse");
+        ExpandCollapseState state{};
+        RequireSucceeded(expansion->get_ExpandCollapseState(&state), "read collapsed disclosure");
+        Require(state == ExpandCollapseState_Collapsed &&
+                    fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls)->Map().Display().find(L"Body text") == std::wstring::npos,
+                "collapsed disclosure omits only its body from presentation");
+        const auto revision = fixture.editor->Revision();
+        UiaTest::Subscription stateSubscription;
+        stateSubscription.properties = {UIA_ExpandCollapseExpandCollapseStatePropertyId};
+        UiaTest::Client stateClient(fixture.Hwnd(), std::move(stateSubscription), [&] { fixture.Pump(); });
+        const auto stateMark = stateClient.Mark();
+        RequireSucceeded(expansion->Expand(), "expand disclosure");
+        fixture.Publish();
+        expandedEvent = stateClient.WaitUntil(UiaTest::Client::kNotificationDeadlineMs,
+                                              [&]
+        {
+            const auto events = stateClient.DistinctSince(stateMark);
+            return std::ranges::any_of(events,
+                                       [](const auto& event)
+            {
+                return event.kind == UiaTest::EventKind::Property && event.id == UIA_ExpandCollapseExpandCollapseStatePropertyId && event.name == L"More" &&
+                       event.value == std::to_wstring(ExpandCollapseState_Expanded);
+            });
+        });
+        auto opened   = fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls);
+        Require(opened && opened->Map().Display().find(L"Body text") != std::wstring::npos && fixture.editor->GetText() == source &&
+                    fixture.editor->Revision() == revision && fixture.editor->GetSelection() == Selection{3u, 3u} && ! fixture.editor->CanUndo(),
+                "expansion reveals body without changing source, selection, revision or history");
+        part = FindNamedSemanticPart(*root.get(), L"More");
+        pattern.reset();
+        expansion.reset();
+        Require(part && SUCCEEDED(part->GetPatternProvider(UIA_ExpandCollapsePatternId, pattern.put())) && pattern &&
+                    SUCCEEDED(pattern.query_to(expansion.put())),
+                "expanded disclosure has a fresh action provider");
+        RequireSucceeded(expansion->get_ExpandCollapseState(&state), "read expanded disclosure");
+        Require(state == ExpandCollapseState_Expanded, "expanded state is acknowledged");
+        const auto collapseMark = stateClient.Mark();
+        RequireSucceeded(expansion->Collapse(), "collapse disclosure");
+        fixture.Publish();
+        collapsedEvent = stateClient.WaitUntil(UiaTest::Client::kNotificationDeadlineMs,
+                                               [&]
+        {
+            const auto events = stateClient.DistinctSince(collapseMark);
+            return std::ranges::any_of(events,
+                                       [](const auto& event)
+            {
+                return event.kind == UiaTest::EventKind::Property && event.id == UIA_ExpandCollapseExpandCollapseStatePropertyId && event.name == L"More" &&
+                       event.value == std::to_wstring(ExpandCollapseState_Collapsed);
+            });
+        });
+        Require(fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls)->Map().Display().find(L"Body text") == std::wstring::npos,
+                "collapse hides the body again");
+        Require(fixture.editor->OnKeyDown(*fixture.controls, VK_TAB, MK_CONTROL) && fixture.editor->OnKeyDown(*fixture.controls, VK_SPACE, 0u),
+                "keyboard navigation and Space expand the summary without foreground input");
+        fixture.Publish();
+        Require(fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls)->Map().Display().find(L"Body text") != std::wstring::npos &&
+                    fixture.editor->GetText() == source && ! fixture.editor->CanUndo(),
+                "keyboard disclosure remains a view-only transition");
+        opened             = fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls);
+        const auto summary = std::ranges::find(opened->Elements(), SemanticRole::Disclosure, &SemanticElement::role);
+        Require(summary != opened->Elements().end(), "expanded summary owns mouse target");
+        const auto index  = static_cast<std::size_t>(summary - opened->Elements().begin());
+        const auto bounds = fixture.editor->GetSemanticElementBounds(*fixture.controls, index);
+        Require(bounds &&
+                    fixture.editor->OnMouseDown(*fixture.controls, {(bounds->left + bounds->right) * .5f, (bounds->top + bounds->bottom) * .5f}, false, 0u),
+                "mouse hit on authored summary activates disclosure");
+        fixture.Publish();
+        Require(fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls)->Map().Display().find(L"Body text") == std::wstring::npos &&
+                    fixture.editor->GetText() == source && fixture.editor->Revision() == revision && ! fixture.editor->CanUndo(),
+                "mouse collapse preserves source and history");
+        const std::wstring replacement = L"<details open>\n<summary>More</summary>\nReplacement body\n</details>\n";
+        fixture.editor->SetText(replacement);
+        fixture.Publish();
+        const auto replaced = fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls);
+        Require(replaced && replaced->Map().Display().find(L"Replacement body") != std::wstring::npos && fixture.editor->GetText() == replacement &&
+                    ! fixture.editor->CanUndo(),
+                "a full source replacement retires old disclosure view state and honors the new open attribute");
+        part = FindNamedSemanticPart(*root.get(), L"More");
+        pattern.reset();
+        expansion.reset();
+        Require(part && SUCCEEDED(part->GetPatternProvider(UIA_ExpandCollapsePatternId, pattern.put())) && pattern &&
+                    SUCCEEDED(pattern.query_to(expansion.put())),
+                "replacement summary exposes disclosure action");
+        RequireSucceeded(expansion->Collapse(), "collapse replacement before independent edit");
+        fixture.Publish();
+        fixture.editor->SetSelection({replacement.size(), replacement.size()});
+        Require(fixture.editor->ReplaceSelection(L"\nTail"), "append an independent source edit");
+        fixture.Publish();
+        const auto edited = fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls);
+        Require(edited && edited->Map().Display().find(L"Replacement body") == std::wstring::npos && fixture.editor->CanUndo(),
+                "an independent source edit keeps surviving disclosure presentation and ordinary history");
+    }
+    // The caller reports failure after EmbeddedCase has also drained its apartment and module registration.
+    return expandedEvent && collapsedEvent;
 }
 void SemanticOptionalDefinitionsAndAbbreviations(bool embedded)
 {
@@ -3237,146 +3381,163 @@ void TestRichSemanticStaleCellCreation()
             "a retired semantic cell reports unavailable instead of allocation failure");
 #endif
 }
-void SemanticStructureAndTasks(bool embedded)
+bool SemanticStructureAndTasks(bool embedded)
 {
-    RichAccessibilityFixture fixture(embedded, true, true);
-    fixture.editor->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::Gfm029);
-    const std::wstring source =
-        L"# Head\n\n[label](https://example.invalid) ![image alt](image)\n\n- [ ] task\n\n| A | B | C |\n| --- | --- | --- |\n| value |\n";
-    fixture.editor->SetText(source);
-    fixture.editor->SetSelection({5u, 2u});
-    fixture.Publish();
-    auto simple = fixture.Simple();
-    auto task   = FindSemanticPart(*simple.get(), UIA_CheckBoxControlTypeId);
-    auto link   = FindSemanticPart(*simple.get(), UIA_HyperlinkControlTypeId);
-    auto image  = FindSemanticPart(*simple.get(), UIA_ImageControlTypeId);
-    auto table  = FindSemanticPart(*simple.get(), UIA_TableControlTypeId);
-    Require(task && link && image && table, "native and embedded provider trees contain task/link/image/table structure");
-    wil::com_ptr_nothrow<IUnknown> invocation;
-    RequireSucceeded(link->GetPatternProvider(UIA_InvokePatternId, invocation.put()), "inert link pattern query");
-    Require(! invocation && ReadProviderStringProperty(*image.get(), UIA_NamePropertyId, "image alternative") == L"image alt",
-            "unhandled external links stay inert and images expose their native alternatives");
-    wil::com_ptr_nothrow<ITextProvider> text;
-    RequireSucceeded(simple.query_to(text.put()), "structured source pattern");
-    wil::com_ptr_nothrow<ITextRangeProvider> taskRange, paddedRange;
-    RequireSucceeded(text->RangeFromChild(task.get(), taskRange.put()), "task source from child");
-    Require(ReadTextRangeText(*taskRange.get(), -1, "task raw range") == L"[ ]", "task child owns exact three-unit marker");
-    Require(text->RangeFromChild(simple.get(), paddedRange.put()) == E_INVALIDARG && ! paddedRange, "foreign/nonchild element is rejected");
-    wil::com_ptr_nothrow<IGridProvider> grid;
-    RequireSucceeded(table.query_to(grid.put()), "semantic table provider");
-    int rows = 0, columns = 0;
-    RequireSucceeded(grid->get_RowCount(&rows), "semantic table rows");
-    RequireSucceeded(grid->get_ColumnCount(&columns), "semantic table columns");
-    Require(rows == 2 && columns == 3, "table includes header row and multiple generated padded cells");
-    wil::com_ptr_nothrow<IRawElementProviderSimple> padded;
-    RequireSucceeded(grid->GetItem(1, 1, padded.put()), "padded semantic table cell");
-    wil::com_ptr_nothrow<IRawElementProviderSimple> invalidCell;
-    Require(grid->GetItem(-1, 0, invalidCell.put()) == E_INVALIDARG && ! invalidCell, "invalid table coordinate fails");
-    RequireSucceeded(text->RangeFromChild(padded.get(), paddedRange.put()), "padded cell source range");
-    Require(ReadTextRangeText(*paddedRange.get(), -1, "padded raw source").empty(), "padding adds no invented source units");
-    wil::com_ptr_nothrow<IRawElementProviderSimple> enclosing;
-    RequireSucceeded(paddedRange->GetEnclosingElement(enclosing.put()), "padded affinity enclosing cell");
-    Require(ReadProviderLongProperty(*enclosing.get(), UIA_ControlTypePropertyId, "padded enclosing type") == UIA_TextControlTypeId,
-            "explicit RangeFromChild retains cell identity when multiple padded cells share an ACP");
-    wil::com_ptr_nothrow<IGridItemProvider> firstEnclosingCell;
-    RequireSucceeded(enclosing.query_to(firstEnclosingCell.put()), "padded enclosing grid item");
-    int firstColumn = -1;
-    RequireSucceeded(firstEnclosingCell->get_Column(&firstColumn), "first padded enclosing column");
-    wil::com_ptr_nothrow<IRawElementProviderSimple> secondPadded;
-    RequireSucceeded(grid->GetItem(1, 2, secondPadded.put()), "second cell at shared raw ACP");
-    wil::com_ptr_nothrow<ITextRangeProvider> secondRange, secondClone;
-    RequireSucceeded(text->RangeFromChild(secondPadded.get(), secondRange.put()), "second padded raw range");
-    RequireSucceeded(secondRange->Clone(secondClone.put()), "clone distinct padded affinity");
-    wil::com_ptr_nothrow<IRawElementProviderSimple> secondEnclosing;
-    RequireSucceeded(secondClone->GetEnclosingElement(secondEnclosing.put()), "cloned second padded enclosing element");
-    wil::com_ptr_nothrow<IGridItemProvider> secondEnclosingCell;
-    RequireSucceeded(secondEnclosing.query_to(secondEnclosingCell.put()), "second padded enclosing grid item");
-    int secondColumn = -1;
-    RequireSucceeded(secondEnclosingCell->get_Column(&secondColumn), "second padded enclosing column");
-    Require(firstColumn == 1 && secondColumn == 2 && ReadTextRangeText(*secondClone.get(), -1, "second padded source").empty(),
-            "equal-ACP empty ranges and clones retain their distinct explicit child identity");
-    wil::com_ptr_nothrow<IGridItemProvider> cell;
-    RequireSucceeded(padded.query_to(cell.put()), "semantic table item");
-    int row = -1, column = -1;
-    RequireSucceeded(cell->get_Row(&row), "padded row coordinate");
-    RequireSucceeded(cell->get_Column(&column), "padded column coordinate");
-    Require(row == 1 && column == 1, "cell exposes semantic coordinates");
-    SAFEARRAY* headers = nullptr;
-    wil::com_ptr_nothrow<ITableItemProvider> tableItem;
-    RequireSucceeded(padded.query_to(tableItem.put()), "semantic table header relation");
-    RequireSucceeded(tableItem->GetColumnHeaderItems(&headers), "padded cell column header");
-    Require(headers && headers->rgsabound[0].cElements == 1u, "each padded cell reaches its column header");
-    SafeArrayDestroy(headers);
-    wil::com_ptr_nothrow<IRawElementProviderFragment> taskFragment;
-    RequireSucceeded(task.query_to(taskFragment.put()), "task bounds fragment");
-    UiaRect bounds{};
-    RequireSucceeded(taskFragment->get_BoundingRectangle(&bounds), "native task painted bounds");
-    Require(bounds.width > 0.0 && bounds.height > 0.0, "task bounds follow acknowledged native geometry");
-    UiaTest::Client client(fixture.Hwnd(), {.automationEvents = {UIA_Text_TextChangedEventId}}, [&] { fixture.Pump(); });
-    const auto editor      = FindEditor(client, client.Root());
-    const auto clientTask  = FindClientPart(client, editor, UIA_CheckBoxControlTypeId);
-    const auto clientTable = FindClientPart(client, editor, UIA_TableControlTypeId);
-    Require(clientTask && clientTable && client.TextRangeFromChild(editor, clientTask) == L"[ ]" &&
-                client.TextRangeFromChild(editor, clientTable).find(L"| A | B | C |") != std::wstring::npos,
-            "real UIA clients map reachable semantic children back to complete raw ranges");
-    const auto all = client.InspectTextRange(editor, {});
-    Require(client.Same(all.enclosing, editor) && all.children.size() >= 4u,
-            "DocumentRange exposes immediate semantic children and the document enclosing element");
-    const auto beforeSelection = fixture.editor->GetSelection();
-    const auto mark            = client.Mark();
-    RequireSucceeded(client.Toggle(clientTask), "actual native/embedded UIA task toggle");
-    fixture.Publish();
-    Require(fixture.editor->GetText().find(L"[x] task") != std::wstring::npos && fixture.editor->GetSelection() == beforeSelection && fixture.editor->CanUndo(),
-            "task action changes one raw state character and preserves backward selection");
-    Require(client.WaitUntil(UiaTest::Client::kNotificationDeadlineMs,
-                             [&]
+    bool toggledEvent = false;
     {
-        const auto events = client.DistinctSince(mark);
-        return std::ranges::any_of(events, [](const auto& event) { return event.id == UIA_Text_TextChangedEventId && event.automationId == EditorId; });
-    }),
-            "task action publishes source TextChanged to the reachable client");
-    VARIANT retired{};
-    Require(task->GetPropertyValue(UIA_NamePropertyId, &retired) == UIA_E_ELEMENTNOTAVAILABLE, "old semantic fragments retire at source publication");
-    Require(fixture.editor->Undo() && fixture.editor->GetText() == source && fixture.editor->GetSelection() == beforeSelection,
-            "one undo restores exact task spelling and selection");
-    fixture.Publish();
-    task = FindSemanticPart(*simple.get(), UIA_CheckBoxControlTypeId);
-    wil::com_ptr_nothrow<IToggleProvider> toggle;
-    RequireSucceeded(task.query_to(toggle.put()), "current task toggle pattern");
-    fixture.editor->SetReadOnly(true);
-    fixture.Publish();
-    Require(toggle->Toggle() == UIA_E_INVALIDOPERATION, "read-only task action is rejected before mutation");
-    fixture.editor->SetTaskTogglePolicy(RichTextTaskTogglePolicy::AlwaysInteractive);
-    Require(toggle->Toggle() == UIA_E_ELEMENTNOTAVAILABLE, "changing task policy retires old task peers");
-    fixture.Publish();
-    task = FindSemanticPart(*simple.get(), UIA_CheckBoxControlTypeId);
-    toggle.reset();
-    RequireSucceeded(task.query_to(toggle.put()), "interactive read-only task toggle pattern");
-    RequireSucceeded(toggle->Toggle(), "opt-in read-only task toggles through UIA");
-    Require(fixture.editor->GetText() != source && fixture.editor->IsReadOnly(), "task policy changes only the marker while remaining read-only");
-    fixture.editor->SetReadOnly(false);
-    Require(fixture.editor->Undo() && fixture.editor->GetText() == source, "opt-in read-only task toggle records one undo transaction");
-    fixture.editor->SetTaskTogglePolicy(RichTextTaskTogglePolicy::EditableOnly);
-    fixture.Publish();
-    task = FindSemanticPart(*simple.get(), UIA_CheckBoxControlTypeId);
-    toggle.reset();
-    RequireSucceeded(task.query_to(toggle.put()), "task peer after restoring default policy");
-    fixture.editor->SetEnabled(false);
-    fixture.Publish();
-    Require(toggle->Toggle() == UIA_E_ELEMENTNOTENABLED && fixture.editor->GetText() == source, "disabled task action preserves exact source");
-    fixture.editor->SetEnabled(true);
-    fixture.Publish();
-    const auto epoch = fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls);
-    fixture.editor->SetMarkdownRenderingEnabled(false);
-    fixture.Publish();
-    fixture.editor->SetMarkdownRenderingEnabled(true);
-    fixture.Publish();
-    Require(epoch && fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls)->Identity() != epoch->Identity() &&
-                toggle->Toggle() == UIA_E_ELEMENTNOTAVAILABLE,
-            "same-source rendering restart cannot resurrect old child identity");
-    fixture.controls->SetRoot(std::make_unique<RichTextEditor>(L"replacement"));
-    fixture.Publish();
-    Require(table->GetPropertyValue(UIA_NamePropertyId, &retired) == UIA_E_ELEMENTNOTAVAILABLE, "root replacement disconnects structured parts");
+        RichAccessibilityFixture fixture(embedded, true, true);
+        fixture.editor->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::Gfm029);
+        const std::wstring source =
+            L"# Head\n\n[label](https://example.invalid) ![image alt](image)\n\n- [ ] task\n\n| A | B | C |\n| --- | --- | --- |\n| value |\n";
+        fixture.editor->SetText(source);
+        fixture.editor->SetSelection({5u, 2u});
+        fixture.Publish();
+        auto simple = fixture.Simple();
+        auto task   = FindSemanticPart(*simple.get(), UIA_CheckBoxControlTypeId);
+        auto link   = FindSemanticPart(*simple.get(), UIA_HyperlinkControlTypeId);
+        auto image  = FindSemanticPart(*simple.get(), UIA_ImageControlTypeId);
+        auto table  = FindSemanticPart(*simple.get(), UIA_TableControlTypeId);
+        Require(task && link && image && table, "native and embedded provider trees contain task/link/image/table structure");
+        wil::com_ptr_nothrow<IUnknown> invocation;
+        RequireSucceeded(link->GetPatternProvider(UIA_InvokePatternId, invocation.put()), "inert link pattern query");
+        Require(! invocation && ReadProviderStringProperty(*image.get(), UIA_NamePropertyId, "image alternative") == L"image alt",
+                "unhandled external links stay inert and images expose their native alternatives");
+        wil::com_ptr_nothrow<ITextProvider> text;
+        RequireSucceeded(simple.query_to(text.put()), "structured source pattern");
+        wil::com_ptr_nothrow<ITextRangeProvider> taskRange, paddedRange;
+        RequireSucceeded(text->RangeFromChild(task.get(), taskRange.put()), "task source from child");
+        Require(ReadTextRangeText(*taskRange.get(), -1, "task raw range") == L"[ ]", "task child owns exact three-unit marker");
+        Require(text->RangeFromChild(simple.get(), paddedRange.put()) == E_INVALIDARG && ! paddedRange, "foreign/nonchild element is rejected");
+        wil::com_ptr_nothrow<IGridProvider> grid;
+        RequireSucceeded(table.query_to(grid.put()), "semantic table provider");
+        int rows = 0, columns = 0;
+        RequireSucceeded(grid->get_RowCount(&rows), "semantic table rows");
+        RequireSucceeded(grid->get_ColumnCount(&columns), "semantic table columns");
+        Require(rows == 2 && columns == 3, "table includes header row and multiple generated padded cells");
+        wil::com_ptr_nothrow<IRawElementProviderSimple> padded;
+        RequireSucceeded(grid->GetItem(1, 1, padded.put()), "padded semantic table cell");
+        wil::com_ptr_nothrow<IRawElementProviderSimple> invalidCell;
+        Require(grid->GetItem(-1, 0, invalidCell.put()) == E_INVALIDARG && ! invalidCell, "invalid table coordinate fails");
+        RequireSucceeded(text->RangeFromChild(padded.get(), paddedRange.put()), "padded cell source range");
+        Require(ReadTextRangeText(*paddedRange.get(), -1, "padded raw source").empty(), "padding adds no invented source units");
+        wil::com_ptr_nothrow<IRawElementProviderSimple> enclosing;
+        RequireSucceeded(paddedRange->GetEnclosingElement(enclosing.put()), "padded affinity enclosing cell");
+        Require(ReadProviderLongProperty(*enclosing.get(), UIA_ControlTypePropertyId, "padded enclosing type") == UIA_TextControlTypeId,
+                "explicit RangeFromChild retains cell identity when multiple padded cells share an ACP");
+        wil::com_ptr_nothrow<IGridItemProvider> firstEnclosingCell;
+        RequireSucceeded(enclosing.query_to(firstEnclosingCell.put()), "padded enclosing grid item");
+        int firstColumn = -1;
+        RequireSucceeded(firstEnclosingCell->get_Column(&firstColumn), "first padded enclosing column");
+        wil::com_ptr_nothrow<IRawElementProviderSimple> secondPadded;
+        RequireSucceeded(grid->GetItem(1, 2, secondPadded.put()), "second cell at shared raw ACP");
+        wil::com_ptr_nothrow<ITextRangeProvider> secondRange, secondClone;
+        RequireSucceeded(text->RangeFromChild(secondPadded.get(), secondRange.put()), "second padded raw range");
+        RequireSucceeded(secondRange->Clone(secondClone.put()), "clone distinct padded affinity");
+        wil::com_ptr_nothrow<IRawElementProviderSimple> secondEnclosing;
+        RequireSucceeded(secondClone->GetEnclosingElement(secondEnclosing.put()), "cloned second padded enclosing element");
+        wil::com_ptr_nothrow<IGridItemProvider> secondEnclosingCell;
+        RequireSucceeded(secondEnclosing.query_to(secondEnclosingCell.put()), "second padded enclosing grid item");
+        int secondColumn = -1;
+        RequireSucceeded(secondEnclosingCell->get_Column(&secondColumn), "second padded enclosing column");
+        Require(firstColumn == 1 && secondColumn == 2 && ReadTextRangeText(*secondClone.get(), -1, "second padded source").empty(),
+                "equal-ACP empty ranges and clones retain their distinct explicit child identity");
+        wil::com_ptr_nothrow<IGridItemProvider> cell;
+        RequireSucceeded(padded.query_to(cell.put()), "semantic table item");
+        int row = -1, column = -1;
+        RequireSucceeded(cell->get_Row(&row), "padded row coordinate");
+        RequireSucceeded(cell->get_Column(&column), "padded column coordinate");
+        Require(row == 1 && column == 1, "cell exposes semantic coordinates");
+        SAFEARRAY* headers = nullptr;
+        wil::com_ptr_nothrow<ITableItemProvider> tableItem;
+        RequireSucceeded(padded.query_to(tableItem.put()), "semantic table header relation");
+        RequireSucceeded(tableItem->GetColumnHeaderItems(&headers), "padded cell column header");
+        Require(headers && headers->rgsabound[0].cElements == 1u, "each padded cell reaches its column header");
+        SafeArrayDestroy(headers);
+        wil::com_ptr_nothrow<IRawElementProviderFragment> taskFragment;
+        RequireSucceeded(task.query_to(taskFragment.put()), "task bounds fragment");
+        UiaRect bounds{};
+        RequireSucceeded(taskFragment->get_BoundingRectangle(&bounds), "native task painted bounds");
+        Require(bounds.width > 0.0 && bounds.height > 0.0, "task bounds follow acknowledged native geometry");
+        UiaTest::Client client(
+            fixture.Hwnd(), {.automationEvents = {UIA_Text_TextChangedEventId}, .properties = {UIA_ToggleToggleStatePropertyId}}, [&] { fixture.Pump(); });
+        const auto editor      = FindEditor(client, client.Root());
+        const auto clientTask  = FindClientPart(client, editor, UIA_CheckBoxControlTypeId);
+        const auto clientTable = FindClientPart(client, editor, UIA_TableControlTypeId);
+        Require(clientTask && clientTable && client.TextRangeFromChild(editor, clientTask) == L"[ ]" &&
+                    client.TextRangeFromChild(editor, clientTable).find(L"| A | B | C |") != std::wstring::npos,
+                "real UIA clients map reachable semantic children back to complete raw ranges");
+        const auto all = client.InspectTextRange(editor, {});
+        Require(client.Same(all.enclosing, editor) && all.children.size() >= 4u,
+                "DocumentRange exposes immediate semantic children and the document enclosing element");
+        const auto beforeSelection = fixture.editor->GetSelection();
+        const auto mark            = client.Mark();
+        RequireSucceeded(client.Toggle(clientTask), "actual native/embedded UIA task toggle");
+        fixture.Publish();
+        Require(fixture.editor->GetText().find(L"[x] task") != std::wstring::npos && fixture.editor->GetSelection() == beforeSelection &&
+                    fixture.editor->CanUndo(),
+                "task action changes one raw state character and preserves backward selection");
+        Require(client.WaitUntil(UiaTest::Client::kNotificationDeadlineMs,
+                                 [&]
+        {
+            const auto events = client.DistinctSince(mark);
+            return std::ranges::any_of(events, [](const auto& event) { return event.id == UIA_Text_TextChangedEventId && event.automationId == EditorId; });
+        }),
+                "task action publishes source TextChanged to the reachable client");
+        toggledEvent = client.WaitUntil(UiaTest::Client::kNotificationDeadlineMs,
+                                        [&]
+        {
+            const auto events = client.DistinctSince(mark);
+            return std::ranges::any_of(events,
+                                       [](const auto& event)
+            {
+                return event.kind == UiaTest::EventKind::Property && event.id == UIA_ToggleToggleStatePropertyId &&
+                       event.controlType == UIA_CheckBoxControlTypeId && event.value == std::to_wstring(ToggleState_On);
+            });
+        });
+        VARIANT retired{};
+        Require(task->GetPropertyValue(UIA_NamePropertyId, &retired) == UIA_E_ELEMENTNOTAVAILABLE, "old semantic fragments retire at source publication");
+        Require(fixture.editor->Undo() && fixture.editor->GetText() == source && fixture.editor->GetSelection() == beforeSelection,
+                "one undo restores exact task spelling and selection");
+        fixture.Publish();
+        task = FindSemanticPart(*simple.get(), UIA_CheckBoxControlTypeId);
+        wil::com_ptr_nothrow<IToggleProvider> toggle;
+        RequireSucceeded(task.query_to(toggle.put()), "current task toggle pattern");
+        fixture.editor->SetReadOnly(true);
+        fixture.Publish();
+        Require(toggle->Toggle() == UIA_E_INVALIDOPERATION, "read-only task action is rejected before mutation");
+        fixture.editor->SetTaskTogglePolicy(RichTextTaskTogglePolicy::AlwaysInteractive);
+        Require(toggle->Toggle() == UIA_E_ELEMENTNOTAVAILABLE, "changing task policy retires old task peers");
+        fixture.Publish();
+        task = FindSemanticPart(*simple.get(), UIA_CheckBoxControlTypeId);
+        toggle.reset();
+        RequireSucceeded(task.query_to(toggle.put()), "interactive read-only task toggle pattern");
+        RequireSucceeded(toggle->Toggle(), "opt-in read-only task toggles through UIA");
+        Require(fixture.editor->GetText() != source && fixture.editor->IsReadOnly(), "task policy changes only the marker while remaining read-only");
+        fixture.editor->SetReadOnly(false);
+        Require(fixture.editor->Undo() && fixture.editor->GetText() == source, "opt-in read-only task toggle records one undo transaction");
+        fixture.editor->SetTaskTogglePolicy(RichTextTaskTogglePolicy::EditableOnly);
+        fixture.Publish();
+        task = FindSemanticPart(*simple.get(), UIA_CheckBoxControlTypeId);
+        toggle.reset();
+        RequireSucceeded(task.query_to(toggle.put()), "task peer after restoring default policy");
+        fixture.editor->SetEnabled(false);
+        fixture.Publish();
+        Require(toggle->Toggle() == UIA_E_ELEMENTNOTENABLED && fixture.editor->GetText() == source, "disabled task action preserves exact source");
+        fixture.editor->SetEnabled(true);
+        fixture.Publish();
+        const auto epoch = fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls);
+        fixture.editor->SetMarkdownRenderingEnabled(false);
+        fixture.Publish();
+        fixture.editor->SetMarkdownRenderingEnabled(true);
+        fixture.Publish();
+        Require(epoch && fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls)->Identity() != epoch->Identity() &&
+                    toggle->Toggle() == UIA_E_ELEMENTNOTAVAILABLE,
+                "same-source rendering restart cannot resurrect old child identity");
+        fixture.controls->SetRoot(std::make_unique<RichTextEditor>(L"replacement"));
+        fixture.Publish();
+        Require(table->GetPropertyValue(UIA_NamePropertyId, &retired) == UIA_E_ELEMENTNOTAVAILABLE, "root replacement disconnects structured parts");
+    }
+    return toggledEvent;
 }
 void SemanticActionComposition(bool nativeAdapter, bool footnote = false)
 {
@@ -3600,11 +3761,14 @@ void TestRichTextAccessibilityEmbeddedSemanticAttributesAndFormats()
 }
 void TestRichTextAccessibilityWindowSemanticStructureAndTasks()
 {
-    SemanticStructureAndTasks(false);
+    static_cast<void>(
+        CheckDxUiTestResult(SemanticStructureAndTasks(false), "semantic task publishes ToggleState from a reachable successor peer to an actual UIA client"));
 }
 void TestRichTextAccessibilityEmbeddedSemanticStructureAndTasks()
 {
-    EmbeddedCase(SemanticStructureAndTasks);
+    bool emitted = false;
+    EmbeddedCase([&](bool embedded) { emitted = SemanticStructureAndTasks(embedded); });
+    static_cast<void>(CheckDxUiTestResult(emitted, "semantic task publishes ToggleState from a reachable successor peer to an actual UIA client"));
 }
 void SemanticTomlValidationDiagnostic(bool embedded)
 {
@@ -3680,7 +3844,8 @@ void TestRichTextAccessibilityWindowObjectSourceEditing()
     SemanticInlineMathSourceEditing(false);
     SemanticInlineLinkImageSourceEditing(false);
     SemanticWikiActivation(false);
-    SemanticDisclosure(false);
+    if (! CheckDxUiTestResult(SemanticDisclosure(false), "semantic disclosure publishes Expanded and Collapsed to an actual UIA client"))
+        return;
     SemanticCallouts(false);
     SemanticProperties(false);
     SemanticOptionalDefinitionsAndAbbreviations(false);
@@ -3688,13 +3853,28 @@ void TestRichTextAccessibilityWindowObjectSourceEditing()
     SemanticHtmlScriptFallback(false);
 #endif
 }
+void TestRichTextAccessibilityWindowInlineStateEvents()
+{
+    static_cast<void>(CheckDxUiTestResult(SemanticInlineStateEvents(false),
+                                          "semantic inline source publishes changed states and suppresses idempotent, superseded and rebound states"));
+}
+void TestRichTextAccessibilityEmbeddedInlineStateEvents()
+{
+    bool observed = false;
+    EmbeddedCase([&](bool embedded) { observed = SemanticInlineStateEvents(embedded); });
+    static_cast<void>(
+        CheckDxUiTestResult(observed, "semantic inline source publishes changed states and suppresses idempotent, superseded and rebound states"));
+}
 void TestRichTextAccessibilityEmbeddedObjectSourceEditing()
 {
     EmbeddedCase(SemanticObjectSourceEditing);
     EmbeddedCase(SemanticInlineMathSourceEditing);
     EmbeddedCase(SemanticInlineLinkImageSourceEditing);
     EmbeddedCase(SemanticWikiActivation);
-    EmbeddedCase(SemanticDisclosure);
+    bool emitted = false;
+    EmbeddedCase([&](bool embedded) { emitted = SemanticDisclosure(embedded); });
+    if (! CheckDxUiTestResult(emitted, "semantic disclosure publishes Expanded and Collapsed to an actual UIA client"))
+        return;
     EmbeddedCase(SemanticCallouts);
     EmbeddedCase(SemanticProperties);
     EmbeddedCase(SemanticOptionalDefinitionsAndAbbreviations);
@@ -3880,6 +4060,8 @@ void RunRichTextAccessibilityTests()
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedDecodedImages);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowObjectSourceEditing);
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedObjectSourceEditing);
+    DXUI_RUN_TEST(TestRichTextAccessibilityWindowInlineStateEvents);
+    DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedInlineStateEvents);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowSourceEditingComposition);
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedSourceEditingComposition);
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedDiagramAlternatives);

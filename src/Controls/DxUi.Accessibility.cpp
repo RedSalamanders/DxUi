@@ -50,6 +50,10 @@ struct EmbeddedAccessibilityAccess
     {
         return editor.AccessibilitySemanticEpoch();
     }
+    [[nodiscard]] static uint64_t RichSemanticBindingRevision(const RichTextEditor& editor) noexcept
+    {
+        return editor.AccessibilityBindingRevision();
+    }
     static void*& Target(ControlHost& host) noexcept
     {
         return host._embeddedAccessibilityTarget;
@@ -638,7 +642,8 @@ struct AccessibilityRichTextSnapshot
 {
     AccessibilityRichTextSnapshot(std::shared_ptr<const RichText::SemanticDocument> source,
                                   std::shared_ptr<const RichText::Detail::AccessibilityEpoch> currentEpoch,
-                                  uint64_t capturedRevision)
+                                  uint64_t capturedRevision,
+                                  uint64_t capturedBinding)
         : document(std::move(source)),
           epoch(std::move(currentEpoch)),
           bounds(0u),
@@ -650,7 +655,8 @@ struct AccessibilityRichTextSnapshot
           bodyFont(0u, L' '),
           codeFont(0u, L' '),
           copyName(0u, L' '),
-          semanticRevision(capturedRevision)
+          semanticRevision(capturedRevision),
+          bindingRevision(capturedBinding)
     {
     }
     std::shared_ptr<const RichText::SemanticDocument> document;
@@ -672,6 +678,7 @@ struct AccessibilityRichTextSnapshot
     double headingScaleStep            = 0.15;
     std::array<float, 6> headingFontSizeDip{};
     uint64_t semanticRevision;
+    uint64_t bindingRevision;
     [[nodiscard]] bool IsCurrent() const noexcept
     {
         return epoch && semanticRevision == epoch->revision.load(std::memory_order_acquire);
@@ -1041,11 +1048,19 @@ struct AccessibilityPropertyRegistration final
 // Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
 #pragma warning(push)
 #pragma warning(disable : 4625 4626)
+struct AccessibilitySemanticPropertyIdentity final
+{
+    uint64_t sourceRevision{}, publication{};
+    RichText::MarkdownRange source;
+    RichText::SemanticRole role{};
+    bool operator==(const AccessibilitySemanticPropertyIdentity&) const = default;
+};
 struct AccessibilityPendingProperty final
 {
     ControlPath path{};
     uint64_t controlIdentity = 0;
     std::optional<uint64_t> treeItemId;
+    std::optional<AccessibilitySemanticPropertyIdentity> semanticKey;
     PROPERTYID propertyId = 0;
     std::shared_ptr<AccessibilityPropertyRegistration> registration;
     wil::unique_variant previous;
@@ -1196,6 +1211,21 @@ struct WindowHostAccessibilityTarget final
     std::array<PendingTreeExpansion, 128u> pendingTreeExpansions{};
     size_t pendingTreeExpansionCount    = 0u;
     uint64_t pendingTreeExpansionSerial = 0u;
+    // Owner-thread admission for semantic UIA actions. Hints contain scalar/weak identity only;
+    // they never retain a document, prepared graph, control or retired provider.
+    struct PendingSemanticState
+    {
+        std::weak_ptr<int> lifetime;
+        uint64_t identity{}, serial{}, sourceRevision{}, blockIdentity{}, bindingRevision{};
+        RichText::MarkdownRange source;
+        RichText::SemanticRole role{};
+        PROPERTYID property{};
+        LONG previous{}, current{};
+        bool committed{};
+    };
+    std::array<PendingSemanticState, 128u> pendingSemanticStates{};
+    size_t pendingSemanticStateCount{};
+    uint64_t pendingSemanticStateSerial{};
     // Mutable text-range helpers may recurse on one target; immutable provider reads do not take this lock.
     std::recursive_mutex snapshotMutex;
     std::mutex providerMutex;
@@ -2408,7 +2438,8 @@ bool AppendAccessibilitySnapshotNavigation(ControlHost& host,
                     const auto semanticRevision = epoch ? epoch->revision.load(std::memory_order_acquire) : 0u;
                     // Capture the source/epoch pair before fallible preparation;
                     // a retired pair cannot be restamped as a newer publication.
-                    auto rich             = std::make_shared<AccessibilityRichTextSnapshot>(document, epoch, semanticRevision);
+                    const auto binding    = EmbeddedAccessibilityAccess::RichSemanticBindingRevision(*editor);
+                    auto rich             = std::make_shared<AccessibilityRichTextSnapshot>(document, epoch, semanticRevision, binding);
                     const auto readFamily = [](IDWriteTextFormat* format, std::wstring& family) -> HRESULT
                     {
                         if (! format)
@@ -13320,7 +13351,8 @@ void QueueEmbeddedPropertyChange(WindowHostAccessibilityTarget& target,
                                  PROPERTYID id,
                                  const VARIANT& previous,
                                  const VARIANT& current,
-                                 std::optional<uint64_t> treeItemId) noexcept;
+                                 std::optional<uint64_t> treeItemId,
+                                 std::optional<AccessibilitySemanticPropertyIdentity> semanticKey = std::nullopt) noexcept;
 
 // One tree item's ExpandCollapse state change, raised from the item's own element.
 void RaiseTreeItemExpansionChange(
@@ -13354,7 +13386,8 @@ void QueueEmbeddedPropertyChange(WindowHostAccessibilityTarget& target,
                                  PROPERTYID id,
                                  const VARIANT& previous,
                                  const VARIANT& current,
-                                 std::optional<uint64_t> treeItemId = std::nullopt) noexcept;
+                                 std::optional<uint64_t> treeItemId = std::nullopt,
+                                 std::optional<AccessibilitySemanticPropertyIdentity> semanticKey) noexcept;
 
 // The ExpandCollapse state changes of a tree's items between two publishes, each from the item's own element. An expansion
 // or a collapse inserts or removes one block of rows, so an item is matched at its own index or at the index the block
@@ -14173,7 +14206,8 @@ void QueueEmbeddedPropertyChange(WindowHostAccessibilityTarget& target,
                                  PROPERTYID id,
                                  const VARIANT& previous,
                                  const VARIANT& current,
-                                 std::optional<uint64_t> treeItemId) noexcept
+                                 std::optional<uint64_t> treeItemId,
+                                 std::optional<AccessibilitySemanticPropertyIdentity> semanticKey) noexcept
 {
     const Failure::Scope failureScope;
     try
@@ -14189,6 +14223,8 @@ void QueueEmbeddedPropertyChange(WindowHostAccessibilityTarget& target,
                 return false;
             const auto* live = FindControlNavigationRecord(*snapshot, record.path);
             return live && live->controlIdentity == record.controlIdentity && ! live->controlLifetime.expired() &&
+                   (! semanticKey || (live->HasCurrentRichSemantic() && live->RichSemantic()->Identity() == semanticKey->publication &&
+                                      live->RichSemantic()->Syntax()->Revision() == semanticKey->sourceRevision)) &&
                    (! treeItemId || (live->isTree && FindSnapshotTreeItemRecord(*live, treeItemId.value())));
         };
         if (! connected())
@@ -14197,6 +14233,7 @@ void QueueEmbeddedPropertyChange(WindowHostAccessibilityTarget& target,
         property.path            = record.path;
         property.controlIdentity = record.controlIdentity;
         property.treeItemId      = treeItemId;
+        property.semanticKey     = semanticKey;
         property.propertyId      = id;
         if (FAILED(CaptureAccessibilityPropertyValue(previous, property.previous, property.previousInterface)))
         {
@@ -14218,8 +14255,8 @@ void QueueEmbeddedPropertyChange(WindowHostAccessibilityTarget& target,
                 return;
             for (auto& pending : target.pendingProperties)
             {
-                if (pending.controlIdentity == property.controlIdentity && pending.treeItemId == property.treeItemId && pending.propertyId == id &&
-                    AreControlPathsEqual(pending.path, property.path))
+                if (pending.controlIdentity == property.controlIdentity && pending.treeItemId == property.treeItemId &&
+                    pending.semanticKey == property.semanticKey && pending.propertyId == id && AreControlPathsEqual(pending.path, property.path))
                 {
                     // Preserve the oldest undelivered value and replace only the latest. The retired value
                     // and GIT registration move into the local property, released after this lock unwinds.
@@ -14248,8 +14285,8 @@ void QueueEmbeddedPropertyChange(WindowHostAccessibilityTarget& target,
             // Registration can reenter the owner. Recheck the key after it returns so a newer publication cannot
             // leave duplicate pending entries. The discarded COM registration is released after the lock.
             for (auto& pending : target.pendingProperties)
-                if (pending.controlIdentity == property.controlIdentity && pending.treeItemId == property.treeItemId && pending.propertyId == id &&
-                    AreControlPathsEqual(pending.path, property.path))
+                if (pending.controlIdentity == property.controlIdentity && pending.treeItemId == property.treeItemId &&
+                    pending.semanticKey == property.semanticKey && pending.propertyId == id && AreControlPathsEqual(pending.path, property.path))
                 {
                     // The reentrant entry is newer and owns the latest value; retain this publication's older baseline.
                     std::swap(pending.previous, property.previous);
@@ -14261,6 +14298,15 @@ void QueueEmbeddedPropertyChange(WindowHostAccessibilityTarget& target,
                 size_t queued{};
                 for (const auto& pending : target.pendingProperties)
                     if (pending.treeItemId && pending.controlIdentity == property.controlIdentity && pending.propertyId == id &&
+                        AreControlPathsEqual(pending.path, property.path))
+                        ++queued;
+                overflow = queued >= 20u;
+            }
+            else if (semanticKey)
+            {
+                size_t queued{};
+                for (const auto& pending : target.pendingProperties)
+                    if (pending.semanticKey && pending.controlIdentity == property.controlIdentity && pending.propertyId == id &&
                         AreControlPathsEqual(pending.path, property.path))
                         ++queued;
                 overflow = queued >= 20u;
@@ -14295,6 +14341,146 @@ void QueueEmbeddedPropertyChange(WindowHostAccessibilityTarget& target,
     }
 }
 
+void ErasePendingRichSemanticState(WindowHostAccessibilityTarget& target, size_t index) noexcept
+{
+    for (size_t next = index + 1u; next < target.pendingSemanticStateCount; ++next)
+        target.pendingSemanticStates[next - 1u] = std::move(target.pendingSemanticStates[next]);
+    target.pendingSemanticStates[--target.pendingSemanticStateCount] = {};
+}
+
+[[nodiscard]] std::optional<uint64_t> BeginRichSemanticStateChange(WindowHostAccessibilityTarget& target,
+                                                                   const AccessibilityControlNavigationSnapshot& record,
+                                                                   size_t element,
+                                                                   uint64_t sourceRevision,
+                                                                   PROPERTYID property,
+                                                                   LONG previous,
+                                                                   LONG current) noexcept
+{
+    // Called on the UI owner after normal provider admission, before mutation and before any new callback.
+    // Reserve first: a successful action must not lose its notification because a bounded queue filled.
+    if (previous == current)
+        return 0u;
+    for (size_t index = 0u; index < target.pendingSemanticStateCount;)
+        if (target.pendingSemanticStates[index].lifetime.expired())
+            ErasePendingRichSemanticState(target, index);
+        else
+            ++index;
+    if (target.pendingSemanticStateCount == target.pendingSemanticStates.size())
+        return std::nullopt;
+    const auto& semantic = record.RichSemantic()->Elements()[element];
+    auto& hint           = target.pendingSemanticStates[target.pendingSemanticStateCount++];
+    hint.lifetime        = record.controlLifetime;
+    hint.identity        = record.controlIdentity;
+    hint.serial          = ++target.pendingSemanticStateSerial;
+    if (! hint.serial)
+        hint.serial = ++target.pendingSemanticStateSerial;
+    hint.sourceRevision  = sourceRevision;
+    hint.blockIdentity   = semantic.blockIdentity;
+    hint.bindingRevision = record.controlRichText->bindingRevision;
+    hint.source          = semantic.source;
+    hint.role            = semantic.role;
+    hint.property        = property;
+    hint.previous        = previous;
+    hint.current         = current;
+    hint.committed       = false;
+    return hint.serial;
+}
+
+void FlushRichSemanticStateChanges(WindowHostAccessibilityTarget& target) noexcept
+{
+    const Failure::Scope failureScope;
+    if (! target.pendingSemanticStateCount)
+        return;
+    const auto snapshot      = target.snapshot.load(std::memory_order_acquire);
+    ControlHost* const owner = target.host.load(std::memory_order_acquire);
+    if (! owner || ! snapshot || ! snapshot->alive || ! InvokeNativeUia(UiaClientsAreListening))
+    {
+        while (target.pendingSemanticStateCount)
+            ErasePendingRichSemanticState(target, target.pendingSemanticStateCount - 1u);
+        return;
+    }
+    const auto connected = [&]() noexcept
+    {
+        return target.host.load(std::memory_order_acquire) == owner && target.snapshot.load(std::memory_order_acquire) == snapshot &&
+               (target.embedded ? ! target.rootLifetime.expired() : target.publishedRevision == target.dirtyRevision);
+    };
+    for (size_t index = 0u; index < target.pendingSemanticStateCount && connected();)
+    {
+        const auto hint = target.pendingSemanticStates[index];
+        if (! hint.committed)
+        {
+            ++index;
+            continue;
+        }
+        const auto record = std::ranges::find_if(snapshot->controlNavigationRecords, [&](const auto& item) noexcept {
+            return item.controlIdentity == hint.identity && SameControlLifetime(item.controlLifetime, hint.lifetime);
+        });
+        if (record == snapshot->controlNavigationRecords.end() || hint.lifetime.expired() || ! record->controlVisible)
+        {
+            ErasePendingRichSemanticState(target, index);
+            continue;
+        }
+        if (! record->HasCurrentRichSemantic() || record->RichSemantic()->Syntax()->Revision() < hint.sourceRevision)
+        {
+            ++index; // Bounded preparation has not published the admitted revision yet.
+            continue;
+        }
+        ErasePendingRichSemanticState(target, index); // Consume before any UIA callback can reenter.
+        const auto& document = record->RichSemantic();
+        if (document->Syntax()->Revision() != hint.sourceRevision || record->controlRichText->bindingRevision != hint.bindingRevision)
+            continue; // A later source edit supersedes the action; never match an unrelated spelling.
+        const auto elements = document->Elements();
+        const auto found    = std::ranges::find_if(elements,
+                                                   [&](const auto& item) noexcept
+        {
+            return item.role == hint.role && item.source == hint.source &&
+                   (hint.role != RichText::SemanticRole::Disclosure || (hint.blockIdentity && item.blockIdentity == hint.blockIdentity));
+        });
+        if (found == elements.end())
+            continue;
+        const auto element = static_cast<size_t>(found - elements.begin());
+        const LONG state   = hint.role == RichText::SemanticRole::Task ? (found->task == RichText::MarkdownTask::Checked ? ToggleState_On : ToggleState_Off)
+                             : (hint.role == RichText::SemanticRole::Disclosure ? found->disclosureExpanded : document->IsSourceEditingElement(element))
+                                 ? ExpandCollapseState_Expanded
+                                 : ExpandCollapseState_Collapsed;
+        if (state != hint.current)
+            continue;
+        // The acted peer has retired. Raise from the exact current successor, with no old graph in the queue.
+        const auto provider = RichSemanticElementProvider::Create(&target, target.hwnd, *record, element);
+        if (! provider || ! connected())
+            continue;
+        const auto previous = VariantFromInt(hint.previous), current = VariantFromInt(hint.current);
+        if (target.embedded)
+            QueueEmbeddedPropertyChange(target,
+                                        *record,
+                                        provider.get(),
+                                        hint.property,
+                                        previous,
+                                        current,
+                                        std::nullopt,
+                                        AccessibilitySemanticPropertyIdentity{hint.sourceRevision, document->Identity(), hint.source, hint.role});
+        else
+            static_cast<void>(InvokeNativeUia(UiaRaiseAutomationPropertyChangedEvent, provider.get(), hint.property, previous, current));
+        NotifyPropertyEventRaisedForTest(hint.property);
+    }
+}
+
+void CompleteRichSemanticStateChange(WindowHostAccessibilityTarget& target, uint64_t serial, bool applied) noexcept
+{
+    if (! serial)
+        return;
+    for (size_t index = 0u; index < target.pendingSemanticStateCount; ++index)
+        if (target.pendingSemanticStates[index].serial == serial)
+        {
+            if (! applied)
+                ErasePendingRichSemanticState(target, index);
+            else
+                target.pendingSemanticStates[index].committed = true;
+            break;
+        }
+    FlushRichSemanticStateChanges(target);
+}
+
 void PruneEmbeddedPropertyChanges(WindowHostAccessibilityTarget& target, const AccessibilitySnapshot& current)
 {
     // Move retired registrations out under the lock and release them after it: COM release can reenter.
@@ -14306,6 +14492,8 @@ void PruneEmbeddedPropertyChanges(WindowHostAccessibilityTarget& target, const A
             const auto& pending = target.pendingProperties[index - 1u];
             const auto* record  = FindControlNavigationRecord(current, pending.path);
             if (! record || record->controlIdentity != pending.controlIdentity ||
+                (pending.semanticKey && (! record->HasCurrentRichSemantic() || record->RichSemantic()->Identity() != pending.semanticKey->publication ||
+                                         record->RichSemantic()->Syntax()->Revision() != pending.semanticKey->sourceRevision)) ||
                 (pending.treeItemId && (! record->isTree || ! FindSnapshotTreeItemRecord(*record, pending.treeItemId.value()))))
             {
                 retired.push_back(std::move(target.pendingProperties[index - 1u]));
@@ -14373,6 +14561,9 @@ void RaiseAccessibilitySnapshotChanges(WindowHostAccessibilityTarget& target,
                                 : target.publishedRevision == target.dirtyRevision);
     };
     bool structureChanged = previous->controlNavigationRecords.size() != current->controlNavigationRecords.size();
+    FlushRichSemanticStateChanges(target);
+    if (! connected())
+        return;
     for (const auto& record : current->controlNavigationRecords)
     {
         if (! connected())

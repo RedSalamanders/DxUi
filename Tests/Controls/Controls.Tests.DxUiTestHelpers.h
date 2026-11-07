@@ -19,6 +19,7 @@
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <chrono>
 #include <cmath>
 #include <cstdlib>
@@ -57,6 +58,25 @@ inline void Require(bool condition, const char* message)
         std::cerr << "FAILED: " << message << '\n';
         std::exit(1);
     }
+}
+
+inline std::atomic<bool>& DeferredDxUiTestFailure() noexcept
+{
+    static std::atomic<bool> failed{false};
+    return failed;
+}
+
+// Final observations may fail after their fixture has safely unwound. Return normally so the runner also
+// drains retained STA/module state; std::exit would bypass that owner and can deadlock its UIA shutdown.
+// A caller must return before doing any work that depends on a false result.
+[[nodiscard]] inline bool CheckDxUiTestResult(bool condition, const char* message)
+{
+    if (! condition)
+    {
+        std::cerr << "FAILED: " << message << '\n';
+        DeferredDxUiTestFailure().store(true, std::memory_order_relaxed);
+    }
+    return condition;
 }
 
 inline void SkipDxUiTest(const char* reason)
