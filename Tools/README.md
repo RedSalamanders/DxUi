@@ -12,6 +12,11 @@ before native probes or self-checks. Fixed top-level timing records diagnose orc
 The build-console checker also rejects structured nonzero child-tool exception
 dumps, even when MSBuild exits zero and writes a successful final footer. Its
 fixtures distinguish actual dump records from ordinary text mentioning a code.
+Build failures include a bounded prefix of actual diagnostics in the thrown error;
+the common checker still counts every record and requires zero warnings/errors.
+`test-consumer.ps1` also retains raw build logs and verified failed-fixture sources,
+images/PDBs/dumps in `.build/reports`; its separate generated layout excludes SDK
+checkouts and caches. The consumer qualification fixtures exercise this archive owner.
 If evidence finalization fails during a runner exception, the runner reports the additional error and preserves the original exception; finalization failure alone is fatal.
 Native evidence also preserves the exact profile's fatal-child dumps, records and stdout/stderr after a failed
 preflight. Previous failures remain separate; current failures include executable/PDB bytes streamed into a

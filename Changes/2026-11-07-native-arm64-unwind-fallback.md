@@ -1,0 +1,1 @@
+- Retain failed saved-context unwind progress and native ARM64 function-table details, and allow a bounded documented frame-pointer retry from the untouched saved context when the standard walk cannot reach the origin. Wrong-thread/IP/absent-origin controls and exact named-origin/module/PDB/PAC requirements remain enforced.

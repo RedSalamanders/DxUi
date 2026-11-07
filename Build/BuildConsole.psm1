@@ -7,6 +7,7 @@ function Get-NativeBuildDiagnostics {
     $full=[IO.Path]::GetFullPath($LogPath)
     if(-not(Test-Path -LiteralPath $full -PathType Leaf)){throw "Build diagnostics log is missing: $full"}
     $warnings=0;$errors=0;$toolExceptions=0
+    $details=[Collections.Generic.List[string]]::new()
     $succeeded=$false;$warningSummary=$null;$errorSummary=$null;$summaryStage=0
     # Use linear matching when available; older supported runtimes fail closed at the fixed timeout.
     $options=[Text.RegularExpressions.RegexOptions]::IgnoreCase -bor [Text.RegularExpressions.RegexOptions]::CultureInvariant
@@ -43,19 +44,23 @@ function Get-NativeBuildDiagnostics {
         if($match.Success){
             if($match.Groups['kind'].Value -ieq 'warning'){++$warnings}else{++$errors}
         }
+        if(($match.Success -or ($exception.Success -and $exception.Groups['code'].Value -cne '00000000')) -and $details.Count -lt 16){
+            $details.Add($line.Substring(0,[Math]::Min(2048,$line.Length)))
+        }
     }
-    return [pscustomobject]@{LogPath=$full;WarningCount=$warnings;ErrorCount=$errors;ToolExceptionCount=$toolExceptions;BuildSucceeded=$succeeded;WarningSummary=$warningSummary;ErrorSummary=$errorSummary}
+    return [pscustomobject]@{LogPath=$full;WarningCount=$warnings;ErrorCount=$errors;ToolExceptionCount=$toolExceptions;BuildSucceeded=$succeeded;WarningSummary=$warningSummary;ErrorSummary=$errorSummary;DiagnosticDetails=@($details.ToArray())}
 }
 
 function Assert-NativeBuildDiagnostics {
     [CmdletBinding()]
     param([Parameter(Mandatory)][string]$LogPath)
     $result=Get-NativeBuildDiagnostics -LogPath $LogPath
+    $details=if($result.DiagnosticDetails.Count){"`n"+($result.DiagnosticDetails -join "`n")}else{''}
     if($result.ToolExceptionCount -ne 0){
-        throw "Zero-warning build validation failed: $($result.ToolExceptionCount) tool process exception dump(s), despite any successful MSBuild footer. Log: $($result.LogPath)"
+        throw "Zero-warning build validation failed: $($result.ToolExceptionCount) tool process exception dump(s), despite any successful MSBuild footer. Log: $($result.LogPath)$details"
     }
     if($result.WarningCount -ne 0 -or $result.ErrorCount -ne 0){
-        throw "Zero-warning build validation failed: $($result.WarningCount) warning(s), $($result.ErrorCount) error(s). Log: $($result.LogPath)"
+        throw "Zero-warning build validation failed: $($result.WarningCount) warning(s), $($result.ErrorCount) error(s). Log: $($result.LogPath)$details"
     }
     if(-not $result.BuildSucceeded -or $null -eq $result.WarningSummary -or $null -eq $result.ErrorSummary -or
        $result.WarningSummary -ne 0 -or $result.ErrorSummary -ne 0){

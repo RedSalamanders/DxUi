@@ -276,7 +276,19 @@ policy, erase its findings or close this section.
   distinction and a deterministic hardware/WARP/debug-layer counterfactual. Its
   [completed local scope](../Done/NativeDeviceExceptionBoundary_2026-11-07.md) at `c4272b0d` passes six
   zero-warning builds, 66 ordinary x64 suite executions and actual ASan with original-member verification.
-  Fresh hosted native ARM64 and the complete test-before-production gate remain required.
+  At exact main `054766f6`, Grid's named origins pass in all three ARM64 profiles.
+  Full Debug [42322543703](https://github.com/RedSalamanders/DxUi/actions/runs/42322543703)
+  still rejects a console-covered Menu cursor fixture; ASan
+  [42322548004](https://github.com/RedSalamanders/DxUi/actions/runs/42322548004)
+  passes all requested native suites but rejects two external-consumer build warnings;
+  Release [42322551824](https://github.com/RedSalamanders/DxUi/actions/runs/42322551824)
+  stops at three saved-context origin checks. Original wrappers and every canonical payload member
+  are verified. The missing original consumer build log leaves its warning causes unassigned.
+  [Focused verifier and retention evidence](../../../Measurements/NativeQualificationVerifier_2026-11-07/README.md)
+  adds a bounded ARM64 frame-pointer fallback, unchanged strict rejection controls, actual diagnostic
+  records and retained consumer sources/images/logs. Native x64 Foundation and warning-free x64/ARM64
+  cross-builds pass; the new ARM64 fallback and complete test-before-production gate remain unaccepted
+  until fresh hosted execution. This does not assign a cause to the older output-less Grid failure.
 - [ ] Complete or retain the explicit owner deferral for native ARM64 opt-in MenuResources/MenuResourceScaling
   and candidate-specific foreground coverage. Native cross-builds and ordinary hosted suites do not close them.
 - [ ] Qualify physical device removal/occlusion, real IME during reflow, assistive technology and touch on named

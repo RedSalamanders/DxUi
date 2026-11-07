@@ -1,0 +1,1 @@
+- Keep native qualification failures diagnosable with bounded actual compiler/linker records, original relocated-consumer build logs and member-verified generated sources/images/PDBs/dumps. Preserve zero-warning admission, archive file/byte bounds and earlier failures; add independent missing-detail, counting, capacity, reparse and no-overwrite controls.
