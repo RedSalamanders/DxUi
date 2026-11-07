@@ -4,6 +4,11 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Preserve NumericStepper typed edits through value-binding echoes, cancel previews before external replacement,
+  allow keyboard expansion when every Grid group is collapsed, and cancel unavailable drag owners through nested
+  ScrollPanels. The denied-publication test helper preserves its exception and explicitly exits failed after cleanup.
+  Tests cover terminal notifications, RTL expansion and callback retirement; native qualification
+  and the remaining parent-plan gates are recorded with the source-bound closeout.
 - Preserve and report failed tooling fixtures for diagnosis while cleaning successful cases; a real child-process counterexample checks the original bytes, aggregate failure and successful cleanup behavior.
 - Isolate checked native content-preparation failures to the failing control so healthy siblings keep rendering. Cache each failed episode until explicit content/bounds or resource/typography changes, report it once and cancel gestures crossing unavailable content; preserve the embedded HRESULT and fatal unexpected-exception contracts. Native source/idle/actual-pixel/recovery regressions retain a source-bound failing baseline.
   - Reconcile the current rich-geometry contract with API-5 fatal diagnostics, archive the original-member-verified local qualification, and close the stale performance-summary item against its already merged regression evidence.
