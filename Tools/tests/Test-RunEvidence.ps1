@@ -1,4 +1,17 @@
-<# .SYNOPSIS Exercises lossless, isolated run evidence without a native product build or desktop use. #>
+<#
+.SYNOPSIS Exercises lossless, isolated run evidence without a native product build or desktop use.
+.DESCRIPTION
+Creates retained filesystem and owned-process fixtures beneath ScratchRoot. The
+native worker executable requires a path shorter than 260 UTF-16 units; long
+Unicode evidence payloads are tested separately. Classic C# compiler resource
+files are staged near ScratchRoot, then the exact worker image is copied to its
+actual profile path. No installer, user process termination or desktop input.
+.PARAMETER ModulePath
+Optional evidence module under test. Defaults to this repository's module.
+.PARAMETER ScratchRoot
+Caller-selected fixture directory in an existing workspace. Defaults to a unique
+directory beneath repository .build/evidence-tooling-tests. Fixtures are retained.
+#>
 [CmdletBinding()]
 param([string] $ModulePath = '', [string] $ScratchRoot = '')
 Set-StrictMode -Version Latest
@@ -275,14 +288,25 @@ $activeEvidence = Join-Path $activeProfile 'FailureEvidence'
 [IO.File]::WriteAllText((Join-Path $activeEvidence 'original.record'),'owned active evidence')
 $workerSource = Join-Path $activeRoot 'OwnedWaiter.cs'
 $workerImage = Join-Path $activeProfile 'OwnedWaiter.exe'
+if([IO.Path]::GetFullPath($workerImage).Length-ge 260){throw 'Owned process fixture requires a shorter ScratchRoot for its native executable (maximum 259 UTF-16 units); long evidence payload paths remain independently tested.'}
 [IO.File]::WriteAllText($workerSource,'using System; using System.Threading; public static class OwnedWaiter { public static void Main() { Console.WriteLine("owned-ready"); Thread.Sleep(Timeout.Infinite); } }')
 $compiler = Join-Path $env:WINDIR 'Microsoft.NET/Framework64/v4.0.30319/csc.exe'
+# The classic compiler creates CSC<guid>.TMP beside its output, regardless of
+# long-path support in PowerShell. Compile near the acquired scratch root, then
+# copy the exact image to the profile whose active-process refusal we exercise.
+$compilerRoot=Join-Path $ScratchRoot ('c-'+[guid]::NewGuid().ToString('N').Substring(0,8))
+[void][IO.Directory]::CreateDirectory($compilerRoot)
+$stagedSource=Join-Path $compilerRoot 'OwnedWaiter.cs'
+$stagedImage=Join-Path $compilerRoot 'OwnedWaiter.exe'
+[IO.File]::Copy($workerSource,$stagedSource,$false)
 $oldTemp=$env:TEMP;$oldTmp=$env:TMP
 try {
-    $env:TEMP=$activeRoot;$env:TMP=$activeRoot
-    & $compiler /nologo /warn:4 /warnaserror /target:exe ('/out:'+$workerImage) $workerSource
+    $env:TEMP=$compilerRoot;$env:TMP=$compilerRoot
+    & $compiler /nologo /warn:4 /warnaserror /target:exe ('/out:'+$stagedImage) $stagedSource
     if ($LASTEXITCODE) { throw 'Owned process fixture compilation failed.' }
 } finally { $env:TEMP=$oldTemp;$env:TMP=$oldTmp }
+[IO.File]::Copy($stagedImage,$workerImage,$false)
+Assert-Evidence ((Get-FileHash -LiteralPath $stagedImage).Hash -ceq (Get-FileHash -LiteralPath $workerImage).Hash) 'Owned process image bytes changed during profile staging.'
 $start = [Diagnostics.ProcessStartInfo]::new($workerImage)
 $start.UseShellExecute=$false;$start.CreateNoWindow=$true;$start.RedirectStandardOutput=$true;$start.RedirectStandardError=$true
 $worker=[Diagnostics.Process]::Start($start)

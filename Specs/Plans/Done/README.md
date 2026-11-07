@@ -2,6 +2,8 @@
 
 ## Completed scopes — 7 November 2026
 
+- [Long-checkout tooling diagnosis](LongCheckoutTooling_2026-11-07.md) — early bootstrapper-path admission, compact compiler resource staging, retained counterexamples, both 15-case setup entrypoints and 58 evidence checks at a 180-character scratch root.
+
 - [Semantic state events](SemanticStateEvents_2026-11-07.md) — actual native/embedded UIA publication, bounded successor ownership, six retained client counterexamples, six zero-warning builds and 66 ordinary x64 suite executions; fresh hosted native fixture acceptance remains separate.
 
 - [Source spacing and radio group names](SourceSpacingAndRadioNaming_2026-11-07.md) — bounded uniform Source edits with exact line/raster geometry, actual UIA naming events, retained counterexamples, six builds and 66 ordinary x64 suite executions.
