@@ -1,0 +1,76 @@
+{
+  "schemaVersion": 1,
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-masked-native-input-counterfactuals",
+  "inputHash": "ec1c607d53d67168f82d43ce35f635e11c087ef36f820b6d07e15f0be6e4de7b",
+  "benchmarkInputs": {
+    "Tests/Controls/DxUi.Tests.TextField.cpp": "591F3B17F65147D32FE1425234EF0EB5CDC88C9FFDAAFCF43A7267D36503F425",
+    "Tests/Support/Support.Tests.MaskedInputPolicy.h": "4B7EDD4424BD4BEAD8CD2C0160B34E3CEE4710DD46B95ABDC3D0001B7FB1480A",
+    "src/Controls/DxUi.Internal.h": "EB4286A1D3C67070B039908ACAEA846C1DDE1E05438466D13F8DAFDCE169BC70",
+    "src/Controls/DxUi.NativeTextInput.cpp": "5BCFA5C4A9EDDD730BB8369BECBFACE52A0D58EE3143A359A668BE62C4CF38BC",
+    "src/Controls/DxUi.TextStoreACP.cpp": "2296AEAAFD9AC5F51EAE1250EB335B4C83D64E8326B3188A06DE88FF12134065",
+    "src/Controls/DxUi.WindowHost.cpp": "401C941ABF9B2B0275516947E8D91877A97EFFAB79B3402BA91D2CC30F3A2877",
+    "src/Controls/TextInputServices.cpp": "2A53FBCFC099C86285D96C43019221B8006380A259A6A61BFC356CDE41719277",
+    "src/Controls/TextStoreTarget.h": "9E17BEFCDC83C6B0E8E85E90B0307A05C6D83FEBE4F807D51244F6ACDA44E148"
+  },
+  "implementationCommit": "5907e4f5e001b1003ba8ba2f1ec7f9725c1ddb5c",
+  "apiRevision": 5,
+  "candidateSdkLibrarySha256": "E75585319E2F7B4AC0C3CDB6B968FFD632103C5B4C9E1AAE870147DA7DC85F11",
+  "allOriginalFixtureObjectsUnchanged": true,
+  "counterexamples": [
+    {
+      "fixture": "dxui-masked-metadata",
+      "baselineSdkCommit": "06b8d5188d063d16aa27f91eaa1092e3cc136a55",
+      "baselineExitCode": 1,
+      "candidateExitCode": 0,
+      "originalCompilerArchiveSha256": "9CD1E509449E55315F4AD7D9107623E18EB9E730CD11F680FAA21F2A4F5ED743",
+      "originalObjects": [
+        {
+          "path": "FailureHost.obj",
+          "bytes": 469095,
+          "sha256": "EC9EF83631D9A5BD88FAD2D63F6400ABF50DC311A6C35675B564601753636A17"
+        },
+        {
+          "path": "Probe.obj",
+          "bytes": 1138072,
+          "sha256": "4B01D70CD469DD55EB8ADD03D8C2ADE916A3641431D402B2F3850170493824B0"
+        }
+      ],
+      "candidateImageSha256": "97559539708039A94A74053674FC6E3E3D481DFA4D57C33A1763FA61144A945C",
+      "stdout": "MASKED_POLICY status=00000000 flags=1 scopeResult=00000000 scope=31 count=1 denied=1 source=1\r\n",
+      "nativeFocusTransfer": false
+    },
+    {
+      "fixture": "dxui-masked-ime",
+      "baselineSdkCommit": "06b8d5188d063d16aa27f91eaa1092e3cc136a55",
+      "baselineExitCode": 1,
+      "candidateExitCode": 0,
+      "originalCompilerArchiveSha256": "EE3DAC3B69BA048333296EC14BA3C539D12930CBE4257A1D5BADCD93DE8A21C5",
+      "originalObjects": [
+        {
+          "path": "FailureHost.obj",
+          "bytes": 469103,
+          "sha256": "F7206CA8036FA6AAE98C9C9A09A75B8A08D62DA50E038EF59104A40048C88F92"
+        },
+        {
+          "path": "ImeProbe.obj",
+          "bytes": 1341745,
+          "sha256": "467A897E15A427091F6D5028B1A98D4F4E39D845484EE537E9806DC2A1CB082F"
+        }
+      ],
+      "candidateImageSha256": "F9C5BFB1789B902C2E3A8A481F3CADF1EAB242D75E79AD66154CC37004F5700E",
+      "stdout": "MASKED_IME ready=1 suppressed=1 unmask=1 blur=1 replacement=1 detach=1 sibling=1 focus=1\r\n",
+      "nativeFocusTransfer": false
+    }
+  ],
+  "nativeFocusTransfer": false,
+  "galleryReview": "Input-service policy only; no default gallery pixels changed",
+  "limits": [
+    "Native contexts and TSF contracts do not establish physical IME candidate UI acceptance",
+    "The C54 fixture refusal is attributed to a forced WARP attach after a hardware cache warmup; the corrected maintained fixture shares the existing backend",
+    "The first isolated link failed with LNK1201 under disk pressure; no runtime verdict existed",
+    "A private continuation driver shadowed LASTEXITCODE; a fresh independent filter invocation passed all eight cases",
+    "Broader RedTilde API-5 adoption remains open, including a separately preserved DirectWrite native-call failure and local-image refresh defect",
+    "ARM64 entries are cross-builds; no paired performance or native ARM64 runtime acceptance"
+  ]
+}
