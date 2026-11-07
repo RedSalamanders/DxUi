@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-directwrite-original-object-counterexample",
+  "inputHash": "b6bc0c79a319206223a26a6425a4ce3915f6bba03f03a193cdbefdc5401c0ce1",
+  "benchmarkInputs": {
+    "src/Controls/DxUi.RichTextLayout.cpp": "663694B8CA233962B1DADC76F2077ADD8616F85CF34F8CF0AFBFDB9AC580AED5",
+    "Tests/Controls/Controls.Tests.RichTextLayout.cpp": "22B6C1C41263A84509C83E7D437A73DBEDC7BCF9F5A45F31A98FCEA66D3F3755"
+  },
+  "qualifiedCommit": "4ce9b6a9534d869c4f670eced10e773e2cae5ea8",
+  "originalApplicationCommit": "1d843628f37b4f00c8534453c39ed6b06dfe6a47",
+  "originalSdkCommit": "5907e4f5e001b1003ba8ba2f1ec7f9725c1ddb5c",
+  "originalExitCode": -1073740791,
+  "oneLayoutObjectReplacementExitCode": 1,
+  "candidateExecuted": 89,
+  "candidatePassed": 88,
+  "remainingIndependentFailure": "Editor.LocalImageChangesReloadWithoutEditing",
+  "originalApplicationObjectsUnchanged": true,
+  "originalSdkProofArchiveSha256": "E2F0A65C710BE7DFBB8A06ABF4606542809E2EEDA1DA45F6B1A29B12A8217FC3",
+  "originalAppProofArchiveSha256": "5B50B50579FDE314BEFC4A80151B41EC94209FDA9A189F186363A46D5AB6F251",
+  "firstBuild": {
+    "preciseFilesystemFailureCause": "unassigned",
+    "diagnostic": "LNK1140 PDB limit",
+    "pdbPolicyChanged": false,
+    "objects": 131,
+    "focusedSourceCaretRegressionExitCode": 0,
+    "unchangedObjectsRelocatedLinkExitCode": 0
+  },
+  "firstStatic": {
+    "cause": "unassigned",
+    "fixture": "PerformanceForms wrong-seed raw hash",
+    "laterCompleteCheckoutPassed": true
+  },
+  "limits": [
+    "The original consumer fatal context identifies DirectWrite lazy metrics; the independent image-watch failure stays separate",
+    "The original link-output experiment is diagnostic evidence, not repository qualification",
+    "First failures and sparse-checkout setup refusals remain retained"
+  ]
+}
