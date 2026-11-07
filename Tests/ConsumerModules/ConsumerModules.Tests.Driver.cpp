@@ -42,6 +42,33 @@ HWND FindOwnedAnimationWindow() noexcept
     return nullptr;
 }
 
+class DetachAnimationProbe final : public DxUi::Control
+{
+public:
+    explicit DetachAnimationProbe(bool& called) : called_(called)
+    {
+        SetFocusable(true);
+    }
+    DetachAnimationProbe(const DetachAnimationProbe&)            = delete;
+    DetachAnimationProbe(DetachAnimationProbe&&)                 = delete;
+    DetachAnimationProbe& operator=(const DetachAnimationProbe&) = delete;
+    DetachAnimationProbe& operator=(DetachAnimationProbe&&)      = delete;
+    void Paint(DxUi::ControlHost&) const override
+    {
+    }
+    void OnFocusChanged(DxUi::ControlHost& host, bool focused) override
+    {
+        if (! focused)
+        {
+            called_ = true;
+            host.RequestAnimation();
+        }
+    }
+
+private:
+    bool& called_;
+};
+
 int RunAnimationRetirement()
 {
     const DxUi::Failure::Scope failureScope;
@@ -62,15 +89,21 @@ int RunAnimationRetirement()
     first.Detach();
     if (FindOwnedAnimationWindow() != dispatcher || ! second.DebugHasActiveAnimationSubscription())
         return 3;
+    bool blurCalled = false;
+    auto root       = std::make_unique<DetachAnimationProbe>(blurCalled);
+    auto* control   = root.get();
+    second.SetRoot(std::move(root));
+    second.SetFocusControl(control, false);
     if (second.SetNativePresentationVisible(false) != S_OK || FindOwnedAnimationWindow() != dispatcher || second.DebugHasActiveAnimationSubscription())
         return 4;
     second.Detach();
     const bool retired = FindOwnedAnimationWindow() == nullptr;
+    const bool rearmed = second.DebugHasActiveAnimationSubscription();
     // The fixture has no private animation header or shutdown call: the linked SDK must
     // release its cached HWND before the process owner uninstalls its failure reporter.
-    std::printf("DXUI_NATIVE_ANIMATION_RETIREMENT created=1 sibling=1 warm=1 retired=%d\n", retired);
+    std::printf("DXUI_NATIVE_ANIMATION_RETIREMENT created=1 sibling=1 warm=1 retired=%d callback=%d rearmed=%d\n", retired, blurCalled, rearmed);
     std::fflush(stdout);
-    return retired ? 0 : 5;
+    return retired && blurCalled && ! rearmed ? 0 : 5;
 }
 
 bool ReadNumber(std::string_view content, std::string_view key, int base, std::uint64_t& value)

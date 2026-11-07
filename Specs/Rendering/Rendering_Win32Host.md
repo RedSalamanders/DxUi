@@ -127,6 +127,8 @@ releases that cache after retiring its controls and subscriptions, while the pro
 are still available. If final detachment occurs inside a timer callback, window destruction waits until that
 callback and pending subscription bookkeeping finish. An idle dispatcher must not retain a window until TLS
 destruction after host uninstallation. Embedded hosting does not acquire this native timer or window.
+An animation request from a native detachment callback is ignored; focus/capture retirement cannot create
+a replacement subscription after that host has relinquished its original subscription.
 
 Debug builds request the optional D3D11 SDK layer. If device creation returns DXGI_ERROR_SDK_COMPONENT_MISSING,
 retry once with only D3D11_CREATE_DEVICE_DEBUG removed, retaining BGRA support and hardware/WARP policy. Other

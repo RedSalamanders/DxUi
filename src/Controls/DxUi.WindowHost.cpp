@@ -1928,6 +1928,8 @@ void ControlHost::RequestAnimation() noexcept
         }
         return;
     }
+    if (_detachInProgress.load(std::memory_order_acquire))
+        return;
     if (! _nativePresentationVisible)
     {
         _nativePresentationResumeAnimation = true;
