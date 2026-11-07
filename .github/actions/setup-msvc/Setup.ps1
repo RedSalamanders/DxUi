@@ -36,13 +36,17 @@ $selected=Get-SelectedTools
 if(-not $selected){
     if($VerifyOnly){throw "The discovered installation lacks default MSVC $required.x, target/ASan/SDK/LLVM tools for $Platform. No installation attempted."}
     if($env:GITHUB_ACTIONS-ne 'true'-or $env:RUNNER_ENVIRONMENT-ne 'github-hosted'-or -not $env:RUNNER_TEMP){throw 'Automatic provisioning is restricted to GitHub-hosted runners. Install the required tools locally, then use -VerifyOnly.'}
-    $scratch=Join-Path $env:RUNNER_TEMP ('msvc-'+$required+'-'+[guid]::NewGuid().ToString('N'))
+    $scratch=[IO.Path]::GetFullPath((Join-Path $env:RUNNER_TEMP ('msvc-'+$required+'-'+[guid]::NewGuid().ToString('N'))))
+    $installer=Join-Path $scratch 'vs_BuildTools.exe'
+    # This bootstrapper route is not qualified for module paths of 260 units or
+    # more; the retained extended-prefix experiment also failed to launch.
+    # Refuse before download/output publication instead of reporting file-not-found.
+    if($installer.Length-ge 260){throw "VS provisioning requires a shorter RUNNER_TEMP: planned bootstrapper path has $($installer.Length) UTF-16 units (maximum 259). No download or installation attempted."}
     [void][IO.Directory]::CreateDirectory($scratch)
     if($env:GITHUB_OUTPUT){
         Add-Content -LiteralPath $env:GITHUB_OUTPUT -Value "installer_logs=$scratch"
         Add-Content -LiteralPath $env:GITHUB_OUTPUT -Value ('artifact_id='+[IO.Path]::GetFileName($scratch))
     }
-    $installer=Join-Path $scratch 'vs_BuildTools.exe'
     $downloadTimeoutSeconds=180
     try { Invoke-WebRequest 'https://aka.ms/vs/18/insiders/vs_buildtools.exe' -OutFile $installer -TimeoutSec $downloadTimeoutSeconds }
     catch [System.Exception] {

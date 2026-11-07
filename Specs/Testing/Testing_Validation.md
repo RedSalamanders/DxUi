@@ -3,6 +3,20 @@
 Status: normative intended contract
 Last reviewed: 2026-10-25
 
+## Native tooling path fixtures
+
+The MSVC setup suite executes all fifteen cases through both direct and nested
+PowerShell entrypoints. Its overlong-path case must refuse before download,
+installer launch and GitHub output publication. Preserve the original failed
+long-root aggregate and the independent fail-before/pass-after admission case.
+
+Run-evidence tests preserve independent long Unicode payload/stream and hard-link
+checks while staging classic C# resource compilation near the owned scratch root.
+The native worker must execute at the actual tested profile path with bytes equal
+to the staged image. A path-admission diagnostic is a refusal, not a skipped or
+passing ownership test. Keep older unattributed failures separate from a newly
+reproduced compiler resource-file failure; no retrospective cause assignment.
+
 ## Allocation and unexpected exception coverage
 
 The [failure policy](../Core/Core_FailureHandling.md) separates explicit nonthrowing refusal from unexpected

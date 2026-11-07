@@ -40,7 +40,7 @@ class FakeInstaller {
 $fake=Join-Path $packet 'FakeInstaller.exe'
 & (Join-Path $env:WINDIR 'Microsoft.NET/Framework64/v4.0.30319/csc.exe') /nologo /target:winexe /out:$fake $source
 if($LASTEXITCODE-ne 0){throw 'Cannot compile the fake GUI bootstrapper.'}
-function Invoke-SetupFixture([string]$Name,[int]$ExitCode=0,[string]$Version='14.52.37025',[switch]$Ready,[switch]$VerifyOnly,[switch]$Local,[switch]$BadSignature,[string]$Missing='', [switch]$InstallerTimeout,[switch]$DownloadTimeout){
+function Invoke-SetupFixture([string]$Name,[int]$ExitCode=0,[string]$Version='14.52.37025',[switch]$Ready,[switch]$VerifyOnly,[switch]$Local,[switch]$BadSignature,[string]$Missing='', [switch]$InstallerTimeout,[switch]$DownloadTimeout,[switch]$LongTemp){
     $fixture=Join-Path $packet $Name
     $script=Join-Path $fixture '.github/actions/setup-msvc/Setup.ps1'
     [void][IO.Directory]::CreateDirectory((Split-Path $script))
@@ -84,6 +84,7 @@ if($env:DXUI_FIXTURE_EXIT-ne '0'){$global:LASTEXITCODE=0}
     $start.Environment['ProgramFiles(x86)']=Join-Path $fixture 'Program Files'
     $start.Environment['GITHUB_ACTIONS']=if($Local){'false'}else{'true'}
     $start.Environment['RUNNER_ENVIRONMENT']='github-hosted';$start.Environment['RUNNER_TEMP']=Join-Path $fixture 'runner temp with spaces'
+    if($LongTemp){$start.Environment['RUNNER_TEMP']=Join-Path $fixture ('runner-'+('p'*200))}
     $start.Environment['TEMP']=$start.Environment['RUNNER_TEMP']
     $start.Environment['GITHUB_OUTPUT']=Join-Path $fixture 'github-output.txt'
     [void][IO.Directory]::CreateDirectory($start.Environment['RUNNER_TEMP'])
@@ -137,6 +138,13 @@ Invoke-TestCase 'download timeout refuses before launching the installer' {
     $output=[IO.File]::ReadAllLines((Join-Path $result.Root 'github-output.txt'))
     $logs=($output|Where-Object {$_-like 'installer_logs=*'}).Substring('installer_logs='.Length)
     Assert-True ((Test-Path (Join-Path $logs 'download.log')) -and ([IO.File]::ReadAllText((Join-Path $logs 'download.log')) -match 'synthetic bounded download timeout')) 'download failure is retained for the existing log artifact'
+}
+Invoke-TestCase 'overlong bootstrapper path refuses before download or launch' {
+    $result=Invoke-SetupFixture 'long-temp' -LongTemp
+    Assert-True ($result.Exit-ne 0 -and $result.Text-match 'VS provisioning requires a shorter RUNNER_TEMP') $result.Text
+    Assert-True (-not(Test-Path (Join-Path $result.Root 'downloaded.txt'))) 'unsupported native launch path never downloads'
+    Assert-True (-not(Test-Path (Join-Path $result.Root 'arguments.txt'))) 'unsupported native launch path never starts a process'
+    Assert-True (-not(Test-Path (Join-Path $result.Root 'github-output.txt'))) 'refusal does not publish nonexistent installer logs'
 }
 Invoke-TestCase 'reboot-required success is accepted only after exact tools verify' {
     $result=Invoke-SetupFixture 'reboot' -ExitCode 3010

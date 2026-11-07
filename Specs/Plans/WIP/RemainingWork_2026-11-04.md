@@ -205,10 +205,11 @@ omitting an ID from this summary does not dispose of it.
 - [x] Separate descendant-timeout fixture startup from pipe drainage; retain missing-admission diagnostics,
   exact native process identity and cooperative release. [Scoped closeout](../Done/DescendantTimeoutFixture_2026-11-06.md)
   records all 168 profiling cases and a deliberate old-budget counterexample, without accepting performance.
-- [ ] Diagnose long-checkout tooling portability: hosted-MSVC fake executable launches fail at observed
-  272-character fixture paths and one NTFS hardlink fixture fails at 261 characters. Canonical short-path
-  validation and all 41 unchanged NTFS run-evidence checks with a supported short scratch root pass. Preserve
-  both boundaries and the original failures; do not report the failed long-root aggregate as green.
+- [x] Diagnose long-checkout tooling portability: the [scoped closeout](../Done/LongCheckoutTooling_2026-11-07.md)
+  retains the failed MSVC aggregate and extended-prefix experiment, adds early launch-path admission, and
+  fixes classic compiler resource staging. Both setup entrypoints pass 15 cases and a 180-character scratch
+  root passes 58 evidence checks. The older 261-character hard-link failure remains unattributed; current
+  hard-link success and supported bounded paths do not qualify the original failed aggregate.
 - [ ] Update relevant catalog/factory, usage, gallery and design-system entries for actual control changes.
   Product screenshots come from owned harness scenarios with invented content and build/DPI provenance.
 
