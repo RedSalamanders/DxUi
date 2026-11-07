@@ -1936,6 +1936,8 @@ __declspec(noinline) static int RunFunctionalTests()
     RichSemanticTests::Run(RichSemanticDocumentTests::NativeHtmlAndLinkPresentation);
     RichSemanticTests::Run(RichSemanticDocumentTests::HeadingOutlineAndFragments);
     RichSemanticTests::Run(RichSemanticDocumentTests::OptionalDefinitionsAndAbbreviations);
+    RichSemanticTests::Run(RichSemanticDocumentTests::SupplementaryWordStarts);
+    RichSemanticTests::Run(RichSemanticDocumentTests::ContainerPrefixOwnership);
     RichSemanticTests::Run(RichSemanticDocumentTests::FootnoteHtmlActionAdmission);
     RichSemanticTests::Run(RichSemanticDocumentTests::SchedulingAndAdmission);
     RichSemanticTests::Run(RichSemanticGeometryTests::ParagraphsTablesAndSourceRanges);
@@ -1980,6 +1982,7 @@ __declspec(noinline) static int RunFunctionalTests()
     });
 #if DXUI_ENABLE_DIAGNOSTICS
     RichSemanticTests::Run(RichSemanticGeometryTests::MathWidthReflowAndTargetReplacement);
+    RichSemanticTests::Run(RichSemanticGeometryTests::ImagePlaceholderParagraphDirection);
 #endif
     RichSemanticTests::Run(RichSemanticGeometryTests::TaskCheckboxAlignment);
     RichSemanticTests::Run(RichSemanticGeometryTests::LiteralFootnoteBlockCaretSites);

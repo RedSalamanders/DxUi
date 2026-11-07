@@ -6,6 +6,12 @@
 
 namespace DxUi::RichText::Detail
 {
+// Shared authored-text admission for first-strong direction and semantic words.
+// Generated chrome and object alternatives never contribute language characters.
+inline bool IsAuthoredSemanticSpan(DisplaySpanKind kind) noexcept
+{
+    return kind != DisplaySpanKind::Generated && kind != DisplaySpanKind::Object;
+}
 struct SemanticDiagram
 {
     SemanticDiagram() : bodyUnits(0u)

@@ -3,6 +3,7 @@
 #include "Controls/DxUi.PaintIndex.h"
 #include "Controls/DxUi.PreparedLayoutAccess.h"
 #include "Controls/DxUi.PreparedMath.h"
+#include "Controls/DxUi.RichImageResources.h"
 #include "Controls/DxUi.RichSemanticGeometry.h"
 #include "Controls/DxUi.SemanticExtensions.h"
 #include "GraphicsFixture.h"
@@ -985,6 +986,43 @@ inline void DiagramPaletteTargetReplacement()
           "old target cannot borrow a palette prepared on its replacement");
 }
 #if DXUI_ENABLE_DIAGNOSTICS
+inline void ImagePlaceholderParagraphDirection()
+{
+    auto factory = Factory();
+    LayoutOptions options;
+    options.widthDip               = 600.f;
+    options.autoParagraphDirection = true;
+    const auto source              = L"![x](pending.png) \u05e9\u05dc\u05d5\u05dd";
+    const auto document            = RichSemanticDocumentTests::Build(source, MarkdownProfile::RichMarkdown);
+    const auto image               = std::ranges::find(document->Elements(), SemanticRole::Image, &SemanticElement::role);
+    Check(image != document->Elements().end(), "direction fixture actually contains an image object");
+    PreparedSemanticGeometry geometry;
+    geometry.Begin(factory.get(), document, options);
+    Complete(geometry);
+    const auto imageBounds = geometry.Range(image->display.first, image->display.last);
+    const auto hebrew      = document->Map().Display().find(L"\u05e9\u05dc\u05d5\u05dd");
+    const auto wordBounds  = geometry.Range(hebrew, hebrew + 4u);
+    Check(! imageBounds.empty() && ! wordBounds.empty() && imageBounds.front().left >= wordBounds.back().right - .1f,
+          "a leading generated image placeholder does not override the authored RTL paragraph");
+    // Neutral authored punctuation keeps an inline paragraph, so standalone
+    // block-image alignment cannot hide the paragraph's direction decision.
+    const auto only          = RichSemanticDocumentTests::Build(L"![Latin alternative](pending.png) ...", MarkdownProfile::RichMarkdown);
+    options.readingDirection = DWRITE_READING_DIRECTION_RIGHT_TO_LEFT;
+    geometry.Begin(factory.get(), only, options);
+    Complete(geometry);
+    const auto bounds                       = geometry.Range(0u, only->Map().Display().size());
+    auto referenceOptions                   = options;
+    referenceOptions.autoParagraphDirection = false;
+    PreparedSemanticGeometry reference;
+    reference.Begin(factory.get(), only, referenceOptions);
+    Complete(reference);
+    const auto expected = reference.Range(0u, only->Map().Display().size());
+    Check(! bounds.empty() && bounds.size() == expected.size(), "the neutral paragraph has complete auto and explicit direction ranges");
+    for (std::size_t index = 0u; index < bounds.size(); ++index)
+        Check(std::abs(bounds[index].left - expected[index].left) < .1f && std::abs(bounds[index].right - expected[index].right) < .1f,
+              "an object/neutral paragraph inherits the explicit RTL host instead of generated Latin text");
+    Check(document->Map().Source() == source, "direction filtering preserves the exact authored image and text");
+}
 inline void MathWidthReflowAndTargetReplacement()
 {
     const auto initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
@@ -1036,20 +1074,26 @@ inline void MathWidthReflowAndTargetReplacement()
     PreparedSemanticGeometry geometry;
     LayoutOptions options;
     options.widthDip        = 360.0f;
+    const auto firstImages  = std::make_shared<const Detail::RichImageResourceSet>();
     const auto preparations = DxUi::RichText::Detail::testRichMathPreparations;
     const auto reads        = DxUi::RichText::Detail::testRichMathConstantReads;
-    geometry.Begin(factory.get(), document, options, drawing.get(), {}, {}, target.get());
+    geometry.Begin(factory.get(), document, options, drawing.get(), {}, firstImages, target.get());
     Complete(geometry);
     Check(DxUi::RichText::Detail::testRichMathPreparations == preparations + 2u && DxUi::RichText::Detail::testRichMathConstantReads == reads + 1u,
           "two formulas share one font-constant read");
     for (float width : {180.0f, 240.0f, 360.0f})
     {
         options.widthDip = width;
-        geometry.Begin(factory.get(), document, options, drawing.get(), {}, {}, target.get());
+        geometry.Begin(factory.get(), document, options, drawing.get(), {}, firstImages, target.get());
         Complete(geometry);
     }
     Check(DxUi::RichText::Detail::testRichMathPreparations == preparations + 2u && DxUi::RichText::Detail::testRichMathConstantReads == reads + 1u,
           "width-only reflows reuse finalized formulas");
+    const auto nextImages = std::make_shared<const Detail::RichImageResourceSet>();
+    geometry.Begin(factory.get(), document, options, drawing.get(), {}, nextImages, target.get());
+    Complete(geometry);
+    Check(DxUi::RichText::Detail::testRichMathPreparations == preparations + 2u && DxUi::RichText::Detail::testRichMathConstantReads == reads + 1u,
+          "publishing a different immutable image snapshot does not reprepare unchanged math");
     options.widthDip = 220.0f;
     geometry.Begin(factory.get(), document, options, drawing.get(), {}, {}, replacement.get());
     Complete(geometry);

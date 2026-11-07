@@ -1098,8 +1098,18 @@ void TestRichSemanticLocalizedAccessibilityLabels()
 {
     RichSemanticTests::Run(RichSemanticDocumentTests::LocalizedAccessibilityLabels);
 }
+void TestRichSemanticSupplementaryWordStarts()
+{
+    RichSemanticTests::Run(RichSemanticDocumentTests::SupplementaryWordStarts);
+}
+void TestRichSemanticContainerPrefixOwnership()
+{
+    RichSemanticTests::Run(RichSemanticDocumentTests::ContainerPrefixOwnership);
+}
 void RunRichSemanticDocumentTests()
 {
+    DXUI_RUN_TEST(TestRichSemanticSupplementaryWordStarts);
+    DXUI_RUN_TEST(TestRichSemanticContainerPrefixOwnership);
     DXUI_RUN_TEST(TestRichTextInertExportAndClipboard);
     DXUI_RUN_TEST(TestRichSemanticLocalizedAccessibilityLabels);
     DXUI_RUN_TEST(TestRichMathTextWhitespaceAndPreparation);

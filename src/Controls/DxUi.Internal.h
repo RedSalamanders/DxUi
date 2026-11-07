@@ -776,6 +776,9 @@ constexpr uint64_t kTypeaheadResetMs = 1000u;
 [[nodiscard]] size_t CountTextElements(std::wstring_view text) noexcept;
 [[nodiscard]] size_t SnapCaretIndexToTextElementBoundary(std::wstring_view text, size_t caretIndex) noexcept;
 [[nodiscard]] bool IsWordCharacter(wchar_t ch) noexcept;
+// Complete-scalar admission for navigation/UIA and semantic prose. BMP keeps
+// the legacy Windows classification; supplementary letters/digits use Unicode 17.
+[[nodiscard]] bool IsWordCharacter(std::uint32_t scalar) noexcept;
 [[nodiscard]] bool IsPathSeparator(wchar_t ch) noexcept;
 [[nodiscard]] size_t FindPreviousWordBoundary(std::wstring_view text, size_t caretIndex) noexcept;
 [[nodiscard]] size_t FindNextWordBoundary(std::wstring_view text, size_t caretIndex) noexcept;

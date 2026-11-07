@@ -499,6 +499,47 @@ static void TestRichImageRasterFailureAndBudgets()
     Check(calls.uploads == 2u && geometry.HasNativeObjects(), "duplicate placements share exactly two real native bitmap uploads");
     begin(1u);
     Check(! geometry.Pending() && calls.uploads == 2u, "identical image/target/epoch preparation coalesces without uploads");
+    {
+        const auto progressive = RichImageResourceTests::Semantic(L"![first](first.png) ![second](second.png) ![third](third.png)");
+        RichImageResources loading;
+        loading.Begin(progressive, L"C:\\docs\\progressive.md", 1u, 1u);
+        while (! loading.Advance())
+        {
+        }
+        std::vector<RichImageRequest> pending(0u);
+        loading.Take(pending);
+        Check(pending.size() == 3u && loading.Complete(pending[0], RichImageResourceTests::Picture()) &&
+                  loading.Complete(pending[1], RichImageResourceTests::Picture(48u, 32u)),
+              "progressive fixture publishes two of three independent sources");
+        loading.Publish();
+        PreparedSemanticGeometry progressiveGeometry;
+        const auto finishProgressive = [&](std::shared_ptr<const RichImageResourceSet> snapshot)
+        {
+            progressiveGeometry.Begin(write.get(), progressive, options, drawing.get(), {1u, 1u}, std::move(snapshot), target.get());
+            unsigned turns{};
+            while (progressiveGeometry.Pending())
+            {
+                const auto before = calls.uploads;
+                const auto step   = progressiveGeometry.Advance({1u, 3u});
+                Check(step.status != LayoutPreparationStatus::Failed && calls.uploads - before <= 1u && ++turns < 20000u,
+                      "progressive images keep the bounded upload and finite-work contracts");
+            }
+            Check(progressiveGeometry.Ready(), "progressive image snapshot publishes completely");
+        };
+        auto before = calls.uploads;
+        finishProgressive(loading.Snapshot());
+        Check(calls.uploads - before == 2u, "the initial snapshot uploads exactly its two decoded images");
+        Check(loading.Complete(pending[2], RichImageResourceTests::Picture(24u, 16u)), "complete the third image without changing document identity");
+        loading.Publish();
+        before = calls.uploads;
+        finishProgressive(loading.Snapshot());
+        Check(calls.uploads - before == 1u, "image completion uploads only the newly decoded image");
+        auto frame                      = std::make_shared<RichImageResourceSet>(*loading.Snapshot());
+        frame->placements.front().image = RichImageResourceTests::Picture(16u, 24u);
+        before                          = calls.uploads;
+        finishProgressive(frame);
+        Check(calls.uploads - before == 1u, "one replacement animation frame never reuploads unrelated immutable pixels");
+    }
     std::uint64_t epoch = 1u;
     for (const auto failure : {E_OUTOFMEMORY, DXGI_ERROR_DEVICE_REMOVED, D2DERR_RECREATE_TARGET, E_FAIL})
         for (const auto failureIndex : {0u, 1u})

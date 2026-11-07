@@ -283,13 +283,15 @@ current publication before applying decorations or suggestions; the existing
 context-menu callback can present consumer-owned suggestions. `CountWords`
 uses the same policy for the whole document. Code, literal HTML blocks, URLs,
 metadata, generated text and native objects are excluded; supported inline HTML
-prose remains included. Word traversal is interval-bounded but exclusion setup
+prose remains included. Supplementary letters and digits are admitted as complete
+Unicode 17 scalars, including mixed BMP/supplementary words under native/UIA navigation;
+emoji are not counted as alphabetic word starts. Word traversal is interval-bounded but exclusion setup
 scans the document's semantic records, so run it outside Paint. Dictionaries,
 reading rates and status-bar presentation remain application policy.
 `RichTextEditorAppearance::autoParagraphDirection` optionally selects first
 strong Unicode 17 direction per semantic paragraph or table cell, including
 DerivedBidiClass defaults for unassigned scalars. Nested bidi
-isolates are skipped; a paragraph with no strong scalar inherits the host
+isolates, generated chrome and object alternatives are skipped; a paragraph with no authored strong scalar inherits the host
 direction. Table column order continues to follow the host. The default remains
 the host direction for all paragraphs. This changes layout only and retains
 in-flight image requests. Focused embedded WARP checks pass; native, consumer,
@@ -1166,6 +1168,8 @@ Two further RichMarkdown features are explicitly opt-in. Pass
 `RichTextEditor::SetMarkdownAnalysisExtensions` after selecting RichMarkdown.
 A plain term followed by up to 16 `: description` lines becomes a native
 definition list; descriptions support single-line Markdown inline formatting.
+Terms inside lists/footers retain their inherited marker. Callout headers own the
+outer marker once, while body continuations and nested lists keep their own scope.
 HTML, cross-line owners and forms exceeding per-line or aggregate capacity
 remain ordinary Markdown. A top-level single-line `*[HTML]: Hyper Text Markup Language`
 defines an exact case-sensitive ASCII word and its authored hover/UIA help. Up to

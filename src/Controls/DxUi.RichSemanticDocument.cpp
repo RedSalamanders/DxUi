@@ -134,7 +134,7 @@ SourceResult TryVisitSemanticWords(const SemanticDocument& document, MarkdownRan
             excluded.push_back(range);
     };
     for (const auto& span : document.Map().Spans())
-        if (span.kind == DisplaySpanKind::Generated || span.kind == DisplaySpanKind::Object)
+        if (! Detail::IsAuthoredSemanticSpan(span.kind))
             exclude(span.display);
     for (const auto& run : document.Runs())
         if ((run.flags & Code) != 0u)
@@ -182,7 +182,7 @@ SourceResult TryVisitSemanticWords(const SemanticDocument& document, MarkdownRan
                 }
                 return true;
             };
-            if ((at == 0u || ! IsWordCharacter(segment[at - 1u])) &&
+            if ((at == 0u || ! IsWordCharacter(ReadCodePointAt(segment, StepToPreviousCodePoint(segment, at)).value)) &&
                 (startsAscii(L"http://") || startsAscii(L"https://") || startsAscii(L"www.") || startsAscii(L"mailto:")))
             {
                 while (at < segment.size())
@@ -195,7 +195,7 @@ SourceResult TryVisitSemanticWords(const SemanticDocument& document, MarkdownRan
                 }
                 continue;
             }
-            if (! IsWordCharacter(segment[at]))
+            if (! IsWordCharacter(ReadCodePointAt(segment, at).value))
             {
                 at = StepToNextTextElement(segment, at);
                 continue;
@@ -459,6 +459,7 @@ struct SemanticBuilder::Preparation
         std::size_t clipFirst{}, clipLast = MarkdownNoNode, definitionLine{}, definitionInlineStart = MarkdownNoNode;
         unsigned flags{}, heading{}, indent{};
         bool inlineNode{}, close{}, footerRoot{}, backlink{}, exactSource{}, definitionPart{}, definitionClose{};
+        std::size_t prefixedParagraph = MarkdownNoNode;
     };
 // Existing identity/RAII/reference traits intentionally delete these implicit operations.
 // Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
@@ -1535,6 +1536,12 @@ struct SemanticBuilder::Preparation
         const auto paragraph = Paragraph(paragraphVisit, element);
         if (paragraph == MarkdownNoNode)
             return;
+        if (! visit.definitionLine)
+        {
+            ParagraphPrefix(visit, element, paragraph);
+            if (capacityExceeded)
+                return;
+        }
         auto close            = visit;
         close.definitionPart  = false;
         close.definitionClose = true;
@@ -1677,6 +1684,27 @@ struct SemanticBuilder::Preparation
                 output.Generated(L" ", anchor, visit.flags, visit.heading);
             }
             break;
+        }
+    }
+    void ParagraphPrefix(const Visit& visit, std::size_t element, std::size_t paragraphIndex)
+    {
+        Prefix(visit, element);
+        if (capacityExceeded)
+            return;
+        auto& paragraph = document->paragraphs_[paragraphIndex];
+        if (output.text.size() <= paragraph.display.first)
+            return;
+        paragraph.markerEnd = output.text.size();
+        const auto& nodes   = document->syntax_->Nodes();
+        for (auto owner = nodes[visit.node].parent; owner != MarkdownNoNode; owner = nodes[owner].parent)
+        {
+            if (Footer(owner) != MarkdownNoNode)
+                break;
+            if (nodes[owner].block.kind == MarkdownBlockKind::ListItem)
+            {
+                paragraph.markerOwner = owner;
+                break;
+            }
         }
     }
     Detail::SemanticExtensions& Extensions()
@@ -2056,33 +2084,18 @@ struct SemanticBuilder::Preparation
     }
     Visit BeginLeafParagraph(Visit visit, bool exactSource = false)
     {
-        const auto& nodes = document->syntax_->Nodes();
-        const auto& node  = nodes[visit.node];
         auto close        = visit;
         close.close       = true;
         close.exactSource = exactSource;
         close.paragraph   = Paragraph(visit, visit.element);
         if (close.paragraph == MarkdownNoNode)
             return close;
-        if (! exactSource)
-            Prefix(visit, visit.element);
+        // Only the header's actual source paragraph already owns its prefix.
+        // A source clip may also reach a later nested list or sibling.
+        if (! exactSource && visit.node != visit.prefixedParagraph)
+            ParagraphPrefix(visit, visit.element, close.paragraph);
         if (capacityExceeded)
             return close;
-        auto& paragraph = document->paragraphs_[close.paragraph];
-        if (output.text.size() > paragraph.display.first)
-        {
-            paragraph.markerEnd = output.text.size();
-            for (auto owner = node.parent; owner != MarkdownNoNode; owner = nodes[owner].parent)
-            {
-                if (Footer(owner) != MarkdownNoNode)
-                    break;
-                if (nodes[owner].block.kind == MarkdownBlockKind::ListItem)
-                {
-                    paragraph.markerOwner = owner;
-                    break;
-                }
-            }
-        }
         htmlDisplayFirst = output.text.size();
         return close;
     }
@@ -2457,6 +2470,10 @@ struct SemanticBuilder::Preparation
             const auto paragraph                           = Paragraph(headingVisit, header);
             if (paragraph == MarkdownNoNode)
                 return;
+            Detail::NormalizeSemanticLeaf(syntax, headingVisit.node, normalized);
+            ParagraphPrefix(headingVisit, header, paragraph);
+            if (capacityExceeded)
+                return;
             if (callout->foldable)
                 output.Generated(calloutExpanded ? L"\u25be " : L"\u25b8 ", callout->marker.first, Bold, 0u);
             output.Generated(L"! ", callout->marker.first, Bold, 0u);
@@ -2492,7 +2509,10 @@ struct SemanticBuilder::Preparation
             if (child.node == MarkdownNoNode)
                 return;
             if (callout)
-                child.skipUntil = callout->skipUntil;
+            {
+                child.skipUntil         = callout->skipUntil;
+                child.prefixedParagraph = callout->paragraph;
+            }
             child.parent     = visit.element;
             child.column     = 0u;
             child.footerRoot = false;

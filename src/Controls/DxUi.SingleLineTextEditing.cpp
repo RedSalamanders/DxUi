@@ -3,6 +3,7 @@
 #endif
 
 #include "DxUi.Internal.h"
+#include "DxUi.RichBidi.h"
 
 #include "Support/Diagnostics.h"
 
@@ -146,6 +147,12 @@ constexpr float kSingleLineMeasureWidthDip = 32768.0f;
 {
     return HasCharTypeFlag(ch, C1_ALPHA | C1_DIGIT) || ch == L'_';
 }
+[[nodiscard]] bool IsWordCharacter(std::uint32_t scalar) noexcept
+{
+    if (scalar <= 0xffffu)
+        return IsWordCharacter(static_cast<wchar_t>(scalar));
+    return RichText::Detail::BidiRangeContains(RichText::Detail::MarkdownUnicodeData::kAlphanumeric, scalar);
+}
 
 [[nodiscard]] bool IsPathSeparator(wchar_t ch) noexcept
 {
@@ -220,12 +227,12 @@ constexpr float kSingleLineMeasureWidthDip = 32768.0f;
             {
                 const size_t currentIndex = StepToPreviousCodePoint(text, eraseFrom);
                 const wchar_t current     = text[currentIndex];
-                if (IsWordCharacter(current))
+                if (IsWordCharacter(ReadCodePointAt(text, currentIndex).value))
                 {
                     while (eraseFrom > 0u)
                     {
                         const size_t wordIndex = StepToPreviousCodePoint(text, eraseFrom);
-                        if (! IsWordCharacter(text[wordIndex]))
+                        if (! IsWordCharacter(ReadCodePointAt(text, wordIndex).value))
                         {
                             break;
                         }
@@ -239,7 +246,8 @@ constexpr float kSingleLineMeasureWidthDip = 32768.0f;
                     {
                         const size_t punctuationIndex = StepToPreviousCodePoint(text, eraseFrom);
                         const wchar_t punctuation     = text[punctuationIndex];
-                        if (IsWhitespaceCharacter(punctuation) || IsPathSeparator(punctuation) || IsWordCharacter(punctuation))
+                        if (IsWhitespaceCharacter(punctuation) || IsPathSeparator(punctuation) ||
+                            IsWordCharacter(ReadCodePointAt(text, punctuationIndex).value))
                         {
                             break;
                         }
@@ -249,12 +257,12 @@ constexpr float kSingleLineMeasureWidthDip = 32768.0f;
                 }
             }
         }
-        else if (IsWordCharacter(previous))
+        else if (IsWordCharacter(ReadCodePointAt(text, previousIndex).value))
         {
             while (eraseFrom > 0u)
             {
                 const size_t currentIndex = StepToPreviousCodePoint(text, eraseFrom);
-                if (! IsWordCharacter(text[currentIndex]))
+                if (! IsWordCharacter(ReadCodePointAt(text, currentIndex).value))
                 {
                     break;
                 }
@@ -268,7 +276,7 @@ constexpr float kSingleLineMeasureWidthDip = 32768.0f;
             {
                 const size_t currentIndex = StepToPreviousCodePoint(text, eraseFrom);
                 const wchar_t current     = text[currentIndex];
-                if (IsWhitespaceCharacter(current) || IsPathSeparator(current) || IsWordCharacter(current))
+                if (IsWhitespaceCharacter(current) || IsPathSeparator(current) || IsWordCharacter(ReadCodePointAt(text, currentIndex).value))
                 {
                     break;
                 }
@@ -312,9 +320,9 @@ constexpr float kSingleLineMeasureWidthDip = 32768.0f;
             caret = StepToNextCodePoint(text, caret);
         }
     }
-    else if (IsWordCharacter(current))
+    else if (IsWordCharacter(ReadCodePointAt(text, caret).value))
     {
-        while (caret < text.size() && IsWordCharacter(text[caret]))
+        while (caret < text.size() && IsWordCharacter(ReadCodePointAt(text, caret).value))
         {
             caret = StepToNextCodePoint(text, caret);
         }
@@ -324,7 +332,7 @@ constexpr float kSingleLineMeasureWidthDip = 32768.0f;
         while (caret < text.size())
         {
             const wchar_t value = text[caret];
-            if (IsWhitespaceCharacter(value) || IsPathSeparator(value) || IsWordCharacter(value))
+            if (IsWhitespaceCharacter(value) || IsPathSeparator(value) || IsWordCharacter(ReadCodePointAt(text, caret).value))
             {
                 break;
             }
