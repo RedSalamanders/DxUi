@@ -30,10 +30,12 @@ profiles, the real ASan probe, the 19-suite Release union and RedTilde's origina
 | Pending-Update timing accounting | Instrumentation and source-specific six-profile evidence are archived in [FrameUpdateAccounting](../Done/FrameUpdateAccounting_2026-10-26.md). This is accurate accounting, not a CPU improvement or performance-policy acceptance. |
 | Compatibility branch publication D10 | Recorded published branches/SHAs remain in the [review decisions](../Done/ProductionReview_2026-11-02.md#wave-0--decisions-that-unblock-implementation); consumer adoption is D-C1. |
 
-[API 5 PR162](https://github.com/RedSalamanders/DxUi/pull/162) owns actual integration/merge status. The [failure-policy closeout](../Done/FailurePolicy_2026-11-02.md)
+[API 5 PR162](https://github.com/RedSalamanders/DxUi/pull/162) merged on 6 November as `31a06270`.
+The [failure-policy closeout](../Done/FailurePolicy_2026-11-02.md)
 records qualified library source `f6791b5070efd1fa8dc86601bc9422ae9a321d2e`, x64 results and the owner's acceptance
-of measured construction safety costs. It does not establish a merge, native ARM64 execution, formal frame-policy
-qualification or product adoption. Earlier `d0179db6` evidence remains bound to that checkpoint.
+of measured construction safety costs. That historical x64 packet does not establish native ARM64 execution,
+formal frame-policy qualification or product adoption. Later hosted results stay source-specific;
+earlier `d0179db6` evidence remains bound to its checkpoint.
 
 
 Historical API 4 diagram/math/document/input implementation: `8dc328de`. The [scoped closeout](../Done/DiagramMathAndWorkspaceCorrections_2026-11-06.md) records six zero-warning builds, all nineteen noninteractive suites in each x64 profile, real ASan detection, 593 actual compiled inputs, native raster/geometry regressions and refreshed gallery. It closes the supplied examples, D3/D5, CTRL-01, MD-01/02/04 and MATH-01; D4 and the remaining parsing, rendering, failure and qualification rows retain their owners.
@@ -143,6 +145,11 @@ This coordinates the active API work; it does not adopt API 5 in any application
 - [ ] Qualify remaining focus/TSF/menu closure and mask/IME findings from the
   [prior-review register](../Done/ProductionReview_2026-11-02/prior-closure.md). Preserve unexplained historical
   failures; do not infer their causes from later green results.
+- [x] Complete PRIOR-25/26/27: all-collapsed Grid keyboard expansion, cancellation of unavailable forwarded
+  ScrollPanel drag owners and NumericStepper terminal notifications through binding echoes/external updates.
+  The [scoped completion](../Done/InputStateContinuity_2026-11-07.md) retains original baseline/first-candidate
+  failures, unchanged-object diagnostic proof, six zero-warning builds, all 66 ordinary x64 suite executions
+  and actual ASan detection at `a287710c`. Native/physical, tooling and consumer gates stay separately owned.
 
 <a id="d-m1"></a>
 ### D-M1 — Markdown, math and diagram correctness
@@ -267,11 +274,17 @@ policy, erase its findings or close this section.
 - [x] Verify native Release main `ab850a40` in hosted run 41849905967: all 23 x64 suites and 21 ARM64 suites
   execute with zero skips, both assertion probes pass, and both production SDK ZIPs pass extracted-consumer
   smoke. This supplies current API-4 native Release coverage without accepting the remaining profiles or fixtures.
-- [ ] Complete current API-5 native ARM64 regression and the combined test-before-production gate.
+- [x] Qualify API-5 preparation source `2c8b267e` at exact hosted main `45288065`: Debug/ASan runs
+  `42371883610`/`42371891344` pass 21 suites on each architecture, and Release `42371899884` passes
+  23 x64/21 ARM64 suites plus both production SDK roles after the combined native gate. Original wrapper,
+  canonical payload and inner package/library/PDB/license bytes are independently verified in the
+  [hosted packet](../../../Measurements/NativePreparationIsolation_2026-11-07/hosted-qualification.json).
+  Later input-state source and consumer adoption remain separate. Historical failures below stay failed;
+  none supplies a retrospective cause for an earlier missing-output failure.
   The [current local correction](../../../Measurements/SemanticStateEvents_2026-11-07/README.md) at
   `93052665` diagnoses a source-bound ASan `LNK4300`, proves ARM64 inline-frame progress on two original
   dumps, and changes owned Menu obstruction ordering. Six builds and 66 ordinary x64 suite executions pass;
-  fresh hosted native/foreground/consumer execution remains required. Original failed cohorts below remain
+  its then-required fresh hosted execution is superseded by the exact preparation source above. Original failed cohorts below remain
   failed, and causes of older output-less or missing-log failures remain unassigned.
   [Run 42246752571](https://github.com/RedSalamanders/DxUi/actions/runs/42246752571), exact main `2f0a7bb9`,
   passes x64 but stops ARM64 in the filter preflight: unfiltered Grid exits 1 before normal ARM64 suites run.

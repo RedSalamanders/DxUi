@@ -20,6 +20,9 @@ checkouts and caches. The consumer qualification fixtures exercise this archive 
 Ordinary tooling cases retain and report failed fixture roots under
 `.build/tooling-fixtures`; successful cases remove their own disposable roots.
 Preserve those failed originals before investigation or historical cleanup.
+The denied-publication child retains its original exception, closes its owned reader and explicitly exits
+nonzero; it does not depend on CLI-host unhandled-error rendering to complete. Its readiness, journal and timeout
+assertions remain unchanged, and prior timeouts retain their original disposition.
 If evidence finalization fails during a runner exception, the runner reports the additional error and preserves the original exception; finalization failure alone is fatal.
 Native evidence also preserves the exact profile's fatal-child dumps, records and stdout/stderr after a failed
 preflight. Previous failures remain separate; current failures include executable/PDB bytes streamed into a

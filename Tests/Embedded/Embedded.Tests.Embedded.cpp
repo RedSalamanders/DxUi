@@ -2284,6 +2284,56 @@ __declspec(noinline) static int RunFunctionalTests()
         scene.slider->SetEnabled(true);
         Hr(scene.view.Prepare(480, 240), "restore control availability");
     }
+    // A forwarded capture must judge the innermost gesture owner, not just its still-interactive ScrollPanel.
+    for (bool nested : {false, true})
+    {
+        auto* root  = static_cast<DxUi::Panel*>(scene.view.Controls().GetRoot());
+        auto* outer = root->AddChild<DxUi::ScrollPanel>();
+        outer->SetBounds(D2D1::RectF(0, 0, 480, 240));
+        outer->SetContentHeight(240);
+        auto* inner = nested ? outer->AddChild<DxUi::ScrollPanel>() : outer;
+        inner->SetBounds(D2D1::RectF(0, 0, 480, 240));
+        inner->SetContentHeight(240);
+        auto* slider = inner->AddChild<DxUi::Slider>();
+        slider->SetBounds(D2D1::RectF(24, 24, 440, 72));
+        slider->SetValue(0.25);
+        size_t previews = 0u, cancellations = 0u, commits = 0u;
+        slider->SetOnChange([&](DxUi::SliderChange change)
+        {
+            if (change.phase == DxUi::SliderChangePhase::Preview)
+                ++previews;
+            else if (change.phase == DxUi::SliderChangePhase::Cancel)
+                ++cancellations;
+            else if (change.phase == DxUi::SliderChangePhase::Commit)
+                ++commits;
+        });
+        for (bool hide : {false, true})
+        {
+            Hr(scene.view.Prepare(480, 240), "prepare forwarded slider capture");
+            Check(scene.view.DispatchPointer({DxUi::PointerAction::Down, 100, 48}) && scene.view.DispatchPointer({DxUi::PointerAction::Move, 300, 48}),
+                  "forwarded slider receives a drag preview");
+            Check(previews > 0u && slider->GetValue() != 0.25 && scene.view.Controls().GetCapturedControl() == outer,
+                  "the ScrollPanel holds native capture for its dragged child");
+            const size_t previousCancellations = cancellations;
+            if (hide)
+                slider->SetVisible(false);
+            else
+                slider->SetEnabled(false);
+            Hr(scene.view.Prepare(480, 240), "prepare unavailable forwarded gesture owner");
+            Check(scene.view.Controls().GetCapturedControl() == nullptr && slider->GetValue() == 0.25 && cancellations == previousCancellations + 1u,
+                  "an unavailable forwarded slider cancels once and restores its draft");
+            static_cast<void>(scene.view.DispatchPointer({DxUi::PointerAction::Move, 350, 48}));
+            static_cast<void>(scene.view.DispatchPointer({DxUi::PointerAction::Up, 350, 48}));
+            Check(commits == 0u && slider->GetValue() == 0.25 && cancellations == previousCancellations + 1u,
+                  "later forwarded input cannot commit or duplicate the canceled gesture");
+            slider->SetEnabled(true);
+            slider->SetVisible(true);
+        }
+        // The callback borrows these counters; retire it before their stack lifetime ends.
+        slider->SetOnChange({});
+        outer->SetVisible(false);
+        Hr(scene.view.Prepare(480, 240), "retire forwarded slider fixture");
+    }
     // A splitter drag survives the pane layout that follows a preview. Resizing the view still cancels, above.
     {
         auto* root     = static_cast<DxUi::Panel*>(scene.view.Controls().GetRoot());

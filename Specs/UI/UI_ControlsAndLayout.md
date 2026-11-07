@@ -619,7 +619,12 @@ fraction with surrounding whitespace. Text that parses previews immediately (`Nu
 and opens an edit whose start value Escape restores (`Cancel`). Enter, focus loss, the buttons, Up/Down (Shift:
 `SetLargeStep`), `RequestValue` and `Nudge` commit once; text that does not parse reverts to the committed value,
 and an open edit whose text no longer parses ends as `Cancel`, never committing the preview it abandoned.
-`SetValue` clamps, rewrites the text and never notifies; `SetDecimals` re-rounds the value the same way. A step finer
+`SetValue` clamps and is silent outside an edit. During a typed edit an unchanged clamped value is a binding echo:
+it MUST preserve the edit, draft spelling, caret/history and pending terminal notification. A different external
+value MUST first restore the edit-start value and, if any preview was published, report exactly one `Cancel`.
+It then applies the external value without a value-change notification. Cancellation observers may retire the
+stepper, start a newer edit or publish a different value; the interrupted setter MUST preserve that newer state
+and MUST NOT touch a retired sender. `SetDecimals` re-rounds the value to the shown precision. A step finer
 than the shown decimals still moves one shown unit. Text changed without focus (UI Automation's ValuePattern) has no
 later Enter or focus loss and commits, or reverts, at once. The step buttons draw icon glyphs, so they carry UI Automation names:
 English "Increase" and "Decrease" by default, and the consumer's complete localized names through
@@ -826,6 +831,12 @@ Ctrl toggles the touched row and moves the anchor there, even when it toggles th
 row. Ctrl+A selects all visible rows and focuses the final row in visible order. A single-selection Grid permits an
 empty selection through Ctrl+Space or UIA removal. UIA AddToSelection is idempotent for an already selected row and
 preserves the current anchor; in single-selection mode it refuses to add another row while one is selected.
+
+When every row is hidden by collapsed groups, the first group header is the implicit keyboard position.
+Unmodified Home and Down acknowledge that header without selecting a hidden row. The logical expand arrow
+(Right in LTR, Left in RTL), Enter and Space MUST request expansion of that first group through the ordinary
+group delegate and callback-lifetime guards. Other groups remain collapsed. Unrelated or modified keys retain
+their ordinary admission rules; no visible row is fabricated to escape the collapsed state.
 
 Selection callbacks report membership changes and focused-row callbacks report focus changes. State is committed before
 callbacks; callers stop if callback reentrancy retires the Grid or replaces its model or delegate. A callback that

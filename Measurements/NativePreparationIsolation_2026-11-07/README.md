@@ -48,8 +48,14 @@ The durable contracts are in [native hosting](../../Specs/Rendering/Rendering_Wi
 [controls and layout](../../Specs/UI/UI_ControlsAndLayout.md),
 [failure handling](../../Specs/Core/Core_FailureHandling.md),
 [validation](../../Specs/Testing/Testing_Validation.md) and
-[run evidence](../../Specs/Testing/Testing_RunEvidence.md). Current API-5 hosted native
-ARM64, real Menu/consumer execution and the combined test-before-production gate
-remain required. Parser/preparer admission across individual diagrams, math and
+[run evidence](../../Specs/Testing/Testing_RunEvidence.md). The verified
+[hosted qualification](hosted-qualification.json) now binds exact main `45288065` to successful
+[Debug 42371883610](https://github.com/RedSalamanders/DxUi/actions/runs/42371883610),
+[ASan 42371891344](https://github.com/RedSalamanders/DxUi/actions/runs/42371891344) and
+[Release 42371899884](https://github.com/RedSalamanders/DxUi/actions/runs/42371899884).
+All six native profiles pass: 21 suites per Debug/ASan architecture and 23 x64/21 ARM64 Release suites,
+actual probes and both production SDK smokes after the combined native gate. Original wrapper/payload bytes
+and both inner SDK library/PDB/license identities verify. Later input-state and application changes retain
+their own source identities. Parser/preparer admission across individual diagrams, math and
 images, physical input/AT and independent performance acceptance remain owned by
 the [parent plan](../../Specs/Plans/WIP/RemainingWork_2026-11-04.md).

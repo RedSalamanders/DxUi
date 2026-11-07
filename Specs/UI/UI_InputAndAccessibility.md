@@ -837,6 +837,12 @@ The next preparation applies that rule; input dispatched while the bounds revisi
 drag, so a consumer applies pane layout on its next preparation rather than inside the change callback.
 WindowHost applies the same rule at message entry: a captured control that is still in the tree but no longer
 interactive receives `OnCaptureLost` (its drag reports Cancel) instead of losing the capture silently.
+For capture forwarded through one or more ScrollPanels, availability MUST be checked on the innermost live
+gesture owner and every ancestor, rather than only the panel holding host capture. Cancellation MUST reach that
+owner exactly once, restore its draft and prevent a later move/release from committing it. The forwarded gesture
+record remains resolvable while the child is hidden or disabled so `OnCaptureLost` can reach it; lifetime and
+tree-membership checks still reject retired pointers before dereferencing them.
+Embedded preparation and coherent pointer-input admission MUST apply this same gesture-owner availability rule.
 A press during a captured gesture goes to the captured control, and the release of that second button keeps the
 capture: only a release that leaves neither the primary nor the secondary button down ends it, so a right-click while a
 slider's thumb is held neither ends the drag nor strands it. A ScrollPanel retains the forwarded gesture owner through its own-button release callback; after that callback it clears only the unchanged forwarded gesture. A release handler MUST NOT release a newer capture selected by a callback. An unhandled press clears the focus only when it continued

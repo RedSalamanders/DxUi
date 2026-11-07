@@ -2779,6 +2779,71 @@ void TestGroupedGridMouseAndKeyboardCollapseReportReplacementFocus()
     verify("Grid keyboard group collapse", [](WindowHost& host, Grid& grid) { return grid.OnKeyDown(host, VK_LEFT, 0u); });
 }
 
+void TestGroupedGridAllCollapsedKeyboardExpansion()
+{
+    using namespace DxUi;
+    for (bool rtl : {false, true})
+    {
+        for (int key : {rtl ? VK_LEFT : VK_RIGHT, VK_RETURN, VK_SPACE})
+        {
+            GroupedGridModel model(4u);
+            model.SetGroups({{10u, L"Drafts", 0u, 2u, true}, {20u, L"Published", 2u, 2u, true}});
+            CollapsibleGroupedGridDelegate delegate(model);
+            WindowHost host;
+            auto root  = std::make_unique<Panel>();
+            auto* grid = root->AddChild<Grid>();
+            grid->SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 180.0f));
+            grid->SetFlowDirection(rtl ? FlowDirection::RightToLeft : FlowDirection::LeftToRight);
+            grid->SetModel(&model);
+            grid->SetDelegate(&delegate);
+            host.SetRoot(std::move(root));
+            const auto detachBorrowedObjects = wil::scope_exit([&]() noexcept { host.SetRoot(nullptr); });
+            Require(grid->OnKeyDown(host, VK_HOME, 0u) && grid->OnKeyDown(host, VK_DOWN, 0u), "Home and Down reach the first collapsed header");
+            Require(! grid->GetPrimarySelectedRow().has_value() && delegate.groupToggleCount == 0u,
+                    "header navigation neither selects a hidden row nor expands");
+            Require(! grid->OnKeyDown(host, 'Z', 0u), "unrelated keys remain unhandled with no visible rows");
+            Require(grid->OnKeyDown(host, static_cast<UINT>(key), 0u), "the expand key, Enter and Space open an all-collapsed grid");
+            Require(delegate.groupToggleCount == 1u && delegate.lastGroupStableId == 10u && ! delegate.lastGroupCollapsed,
+                    "keyboard expansion requests the first header once");
+            Require(! model.IsGroupCollapsed(10u) && model.IsGroupCollapsed(20u), "only the first group is expanded");
+            Require(grid->GetVisibleRowCount() == 2u, "expanded rows become reachable");
+        }
+    }
+}
+
+void TestGroupedGridAllCollapsedExpansionCallbackMayRetireGrid()
+{
+    using namespace DxUi;
+    class RetiringDelegate final : public RecordingGridDelegate
+    {
+    public:
+        using RecordingGridDelegate::OnGridGroupToggled;
+        explicit RetiringDelegate(WindowHost& host) : _host(&host)
+        {
+        }
+        void OnGridGroupToggled(Grid&, uint64_t id, bool collapsed) override
+        {
+            RecordingGridDelegate::OnGridGroupToggled(id, collapsed);
+            _host->SetRoot(std::make_unique<Panel>());
+        }
+
+    private:
+        WindowHost* _host = nullptr;
+    };
+    GroupedGridModel model(2u);
+    model.SetGroups({{10u, L"Drafts", 0u, 2u, true}});
+    WindowHost host;
+    RetiringDelegate delegate(host);
+    auto root  = std::make_unique<Panel>();
+    auto* grid = root->AddChild<Grid>();
+    grid->SetModel(&model);
+    grid->SetDelegate(&delegate);
+    const auto lifetime = GetControlLifetimeToken(*grid);
+    host.SetRoot(std::move(root));
+    Require(grid->OnKeyDown(host, VK_RIGHT, 0u), "expansion remains handled when its callback retires the grid");
+    Require(lifetime.expired() && delegate.groupToggleCount == 1u, "the retired grid is never revisited after the expansion callback");
+}
+
 void TestGroupedGridFocusCallbackMayRetireGridDuringMouseAndKeyboardCollapse()
 {
     using namespace DxUi;
@@ -5328,6 +5393,8 @@ void RunGridTests()
     DXUI_RUN_TEST(TestGroupedGridCollapsedGroupsHideRowsFromVisibleWork);
     DXUI_RUN_TEST(TestGroupedGridNotifyDataChangedRehomesSelectionWhenGroupCollapsesExternally);
     DXUI_RUN_TEST(TestGroupedGridMouseAndKeyboardCollapseReportReplacementFocus);
+    DXUI_RUN_TEST(TestGroupedGridAllCollapsedKeyboardExpansion);
+    DXUI_RUN_TEST(TestGroupedGridAllCollapsedExpansionCallbackMayRetireGrid);
     DXUI_RUN_TEST(TestGroupedGridFocusCallbackMayRetireGridDuringMouseAndKeyboardCollapse);
     DXUI_RUN_TEST(TestGroupedGridCaptureGroupLayoutReportsStableCollapsedState);
     DXUI_RUN_TEST(TestGroupedGridApplyGroupLayoutRestoresCollapsedStateByStableId);

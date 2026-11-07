@@ -5509,9 +5509,32 @@ void ControlHost::CancelStaleCapture([[maybe_unused]] MessagePrunePass* pass) no
                                                                          pass ? &pass->resolverNodeVisits : nullptr
 #endif
     );
-    if (! state.inTree || state.effectivelyInteractive)
+    if (! state.inTree)
     {
         return;
+    }
+    if (state.effectivelyInteractive)
+    {
+        // Only inspect forwarding after proving the captured pointer is live. Its gesture record must stay
+        // available even for an unavailable child, so OnCaptureLost can reach that child and restore its draft.
+        Control* const gesture = ControlCaptureAccess::GestureOwner(*this);
+        if (gesture == captured)
+        {
+            return;
+        }
+        const ControlInteractionState gestureState = ResolveControlInteractionState(_root.get(),
+                                                                                    gesture
+#if DXUI_ENABLE_DIAGNOSTICS
+                                                                                    ,
+                                                                                    true,
+                                                                                    true,
+                                                                                    pass ? &pass->resolverNodeVisits : nullptr
+#endif
+        );
+        if (! gestureState.inTree || gestureState.effectivelyInteractive)
+        {
+            return;
+        }
     }
     CancelCapturedControlInteraction();
 }
