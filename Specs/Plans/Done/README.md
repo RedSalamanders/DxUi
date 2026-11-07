@@ -2,6 +2,8 @@
 
 ## Completed scopes — 7 November 2026
 
+- [Input-state continuity](InputStateContinuity_2026-11-07.md) — typed-edit terminal events, all-collapsed grid keyboard expansion and nested gesture cancellation; retained counterexamples, six zero-warning builds and 66 ordinary x64 suite executions.
+
 - [Native preparation isolation](NativePreparationIsolation_2026-11-07.md) — healthy native siblings remain usable after checked preparation failure; retained same-object counterexamples, six zero-warning builds, 66 ordinary x64 suite executions, actual ASan and original-member verification. Native qualification fixture corrections retain separate hosted acceptance.
 
 - [Long-checkout tooling diagnosis](LongCheckoutTooling_2026-11-07.md) — early bootstrapper-path admission, compact compiler resource staging, retained counterexamples, both 15-case setup entrypoints and 58 evidence checks at a 180-character scratch root.
