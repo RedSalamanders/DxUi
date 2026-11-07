@@ -4,6 +4,7 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Record exact-source hosted native Debug, Release and ASan acceptance for the API-5 input-state corrections on x64 and ARM64, including original artifact/payload and inner SDK byte verification. Later code, physical input, paired performance and consumer adoption remain separately qualified.
 - Retire the module-owned animation window when its last native host detaches, before failure-host uninstallation
   and thread-local destruction. Preserve sibling subscriptions and the warm cache while hosts remain attached,
   and defer destruction during a timer callback. Add public-consumer shutdown and callback-retirement regressions

@@ -155,10 +155,11 @@ This coordinates the active API work; it does not adopt API 5 in any application
 - [ ] Qualify remaining focus/TSF/menu closure and mask/IME findings from the
   [prior-review register](../Done/ProductionReview_2026-11-02/prior-closure.md). Preserve unexplained historical
   failures; do not infer their causes from later green results.
-- [ ] Qualify the masked-field IMM/TSF correction (PRIOR-21/15). The retained API-5 SDK reproduces an active
-  IMM association, invalid status and missing password scope. Unchanged fixture objects pass the corrected
-  metadata and association transitions after the same-field unmask correction. Complete canonical native
-  profiles and explicit consumer checks before closing this row; physical IME acceptance remains D-Q1.
+- [x] Qualify PRIOR-21/15's masked-field IMM/TSF correction locally. The
+  [scoped closeout](../Done/MaskedNativeInputPolicy_2026-11-07.md) binds metadata-only status/password scope,
+  real association restoration, external replacements/siblings, six zero-warning builds, 66 ordinary x64 suite
+  executions and actual ASan at `5907e4f5`. Unchanged external fixture objects provide fail-before/pass-after
+  evidence; physical IME acceptance and broader application adoption remain D-Q1/D-C1.
 - [x] Complete PRIOR-25/26/27: all-collapsed Grid keyboard expansion, cancellation of unavailable forwarded
   ScrollPanel drag owners and NumericStepper terminal notifications through binding echoes/external updates.
   The [scoped completion](../Done/InputStateContinuity_2026-11-07.md) retains original baseline/first-candidate
@@ -288,6 +289,12 @@ policy, erase its findings or close this section.
 - [x] Verify native Release main `ab850a40` in hosted run 41849905967: all 23 x64 suites and 21 ARM64 suites
   execute with zero skips, both assertion probes pass, and both production SDK ZIPs pass extracted-consumer
   smoke. This supplies current API-4 native Release coverage without accepting the remaining profiles or fixtures.
+- [x] Qualify API-5 input-state source `a287710c` at exact hosted main `d603b7b3`: Debug `42388962206`
+  and ASan `42388964704` execute 21 suites on both native architectures; Release `42389300701` executes
+  23 x64/21 ARM64 suites and both production SDK smoke roles. The
+  [source-bound packet](../../../Measurements/InputStateContinuity_2026-11-07/hosted-qualification.json)
+  independently verifies original wrappers, canonical payloads and every inner SDK member. The later
+  animation/masked-input changes, physical input, formal performance and consumer adoption retain their gates.
 - [x] Qualify API-5 preparation source `2c8b267e` at exact hosted main `45288065`: Debug/ASan runs
   `42371883610`/`42371891344` pass 21 suites on each architecture, and Release `42371899884` passes
   23 x64/21 ARM64 suites plus both production SDK roles after the combined native gate. Original wrapper,
