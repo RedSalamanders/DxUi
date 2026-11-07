@@ -1,0 +1,1 @@
+- Record exact-source hosted native Debug, Release and ASan acceptance for the API-5 input-state corrections on x64 and ARM64, including original artifact/payload and inner SDK byte verification. Later code, physical input, paired performance and consumer adoption remain separately qualified.

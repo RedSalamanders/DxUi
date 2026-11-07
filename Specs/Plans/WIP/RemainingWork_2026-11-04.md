@@ -286,6 +286,12 @@ policy, erase its findings or close this section.
   [hosted packet](../../../Measurements/NativePreparationIsolation_2026-11-07/hosted-qualification.json).
   Later input-state source and consumer adoption remain separate. Historical failures below stay failed;
   none supplies a retrospective cause for an earlier missing-output failure.
+- [x] Qualify API-5 input-state source `a287710c` at exact hosted main `d603b7b3`: Debug `42388962206`
+  and ASan `42388964704` execute 21 suites on both native architectures; Release `42389300701` executes
+  23 x64/21 ARM64 suites and both production SDK smoke roles. The
+  [source-bound packet](../../../Measurements/InputStateContinuity_2026-11-07/hosted-qualification.json)
+  independently verifies original wrappers, canonical payloads and every inner SDK member. The later
+  animation/masked-input changes, physical input, formal performance and consumer adoption retain their gates.
   The [current local correction](../../../Measurements/SemanticStateEvents_2026-11-07/README.md) at
   `93052665` diagnoses a source-bound ASan `LNK4300`, proves ARM64 inline-frame progress on two original
   dumps, and changes owned Menu obstruction ordering. Six builds and 66 ordinary x64 suite executions pass;

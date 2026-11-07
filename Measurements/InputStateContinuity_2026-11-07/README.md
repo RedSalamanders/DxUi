@@ -12,6 +12,13 @@ failure-image EXE/PDB closure. ARM64 entries are cross-builds. No default galler
 and normative control/input contracts were reviewed and updated. Physical/foreground, performance and product
 acceptance remain separate.
 
+Exact main `d603b7b30d347e0099205824fa506c655fe24589` now also passes native hosted Debug, ASan and
+Release qualification on x64 and ARM64. The [hosted packet](hosted-qualification.json) verifies all original
+artifact wrappers, canonical payloads and both production SDKs through their inner library/PDB/license bytes.
+Debug and ASan execute 21 suites per architecture; Release executes 23 x64/21 ARM64 suites and both assertion
+and extracted-consumer smoke probes. This qualifies the input-state implementation, not the later animation
+retirement or masked-input candidates. Physical devices, paired performance and application adoption remain separate.
+
 The [counterexamples](counterexamples.json) retain five failing maintained control fixtures against pre-fix SDK
 `2c8b267e`, plus the Embedded assertion and its separately recorded later abnormal exit. First candidate
 `e597ba30` passed 21 suites but failed Embedded: its separate `CapturedDragContinues` guard was unchanged.
