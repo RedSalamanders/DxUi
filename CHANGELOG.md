@@ -4,6 +4,7 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Keep D3D11 device creation inside the audited native exception boundary so driver-internal handled exceptions return their original HRESULT; preserve hardware/WARP fallback and optional debug-layer retry, with a retained fail-before/pass-after regression and separate native platform qualification.
 - Preserve the visible source line when zooming and the viewport when toggling a disclosure, reuse unaffected disclosure geometry, and let explicit caret movement supersede pending view anchors. Offscreen WARP regressions cover both text views, source replacement, notifications and geometry reuse.
 - Refresh native composition overlays after metadata-only imports while retaining prepared commands and source geometry. Let hosts handle read-only editing chords and their Shift aliases. Make optional punctuation pairing respect Unicode word context and type over matching closers without a source/history edit; retain deliberate selection wrapping.
 - Resolve missing CIM process paths with direct inspection before judging build-output use. Ignore confirmed exited observations, preserve fail-closed live-process refusals with PID diagnostics, and keep unrelated configurations and worktrees independent without terminating applications. Include the helper in the paired benchmark's build-input scope and import-closure regression guard.
