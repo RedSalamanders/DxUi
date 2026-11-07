@@ -14,3 +14,8 @@ bytes. It retains baseline/first-candidate failures, a refused recompile and unc
 Disk-admission stops remain explicit; only unexecuted profiles continued. Separate tooling deadlines keep their
 original evidence and owner. Native ARM64, physical/IME/AT, paired performance, consumer adoption and broader
 admission remain in the [single parent plan](../WIP/RemainingWork_2026-11-04.md); it is still active.
+
+Native hosted qualification is subsequently complete for this implementation at main `d603b7b3`:
+[original wrapper/payload and inner SDK verification](../../../Measurements/InputStateContinuity_2026-11-07/hosted-qualification.json)
+binds all six native platform/configuration profiles and both production SDK smoke roles. This later evidence
+closes native ARM64 acceptance for the input-state scope only; it does not qualify later source changes.
