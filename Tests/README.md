@@ -20,6 +20,12 @@ the runner returns 1 and never prints its success footer. Return immediately aft
 result when later work depends on it. Keep `Require` for invalid fixture conditions that
 cannot safely continue. Original immediate-exit UIA timeouts remain failed evidence.
 
+External consumer fatal-module scenarios check both capture and throw provenance.
+The escaping-native cases require the SEH filter symbol in the record's live
+capture stack and the original named throw in the independently unwound saved
+exception context. Both checks require the corresponding module's PDB; a filter
+stack alone cannot qualify the failure's origin.
+
 Native test files use `<Component>.Tests.Something.h/.cpp`, with a real component such as `Controls`, `Support` or `Embedded`; literal `Scope` is rejected. Register new active files in `native-test-files.json`. `test-scopes.json` owns standalone scope/PR metadata. Shared-library or runtime byte changes conservatively invalidate local standalone reuse. No consumer dependency pin changes are part of this workflow.
 
 `Embedded` also checks the prepared-state and normalization oracle for the clean

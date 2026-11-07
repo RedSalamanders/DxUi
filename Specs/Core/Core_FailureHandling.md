@@ -184,6 +184,12 @@ known, thread identity and original exception/context information when available
 and handler lifetime, avoid reentry and retain no borrowed pointers after their valid scope. Do not allocate
 formatted strings, invoke ordinary observers or create a worker on this path.
 
+The bounded live frame list identifies the capture path. An ARM64 SEH filter can
+run on a handler path that does not contain the original throw frame. Verify
+that record against the capture-site symbol and verify the original named throw
+independently by unwinding the saved exception context with matching images and
+PDBs. A capture-site match never substitutes for the original-context check.
+
 Use the host's prepared crash infrastructure to attempt the dump with the captured failing-thread context and
 matching EXE/DLL/PDB identities. Dumping after unwinding and capturing only the terminate handler's stack is not
 proof of the original failure callstack. Microsoft recommends a separate dumper process where possible, or a
