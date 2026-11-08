@@ -1,1 +1,0 @@
-- Adopt architecture selection for manual diagnostic qualification through the reviewed shared CI engine; preserve the complete two-architecture production gate and explicit compilation-only delivery scopes.
