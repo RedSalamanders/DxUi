@@ -1134,6 +1134,10 @@ including the native CRLF-to-logical LF mapping. See the [Windows selection cont
 The shared text store supports the documented InsertTextAtSelection flags: NOQUERY permits absent ACP outputs,
 QUERYONLY makes no edit and obeys the same capacity limit, and their combination is invalid. These rules follow
 the [Windows insertion contract](https://learn.microsoft.com/en-us/windows/win32/api/textstor/nf-textstor-itextstoreacp-inserttextatselection).
+An oversized rich-text insertion returns `HRESULT_FROM_WIN32(ERROR_BUFFER_OVERFLOW)` before staging,
+without changing source, selection or history. A subsequent exact-boundary
+insertion in the same write lock remains valid. A retained store disconnects when
+its owner is replaced; a late composition completion cannot edit the new control.
 Prepared-layout notification follows the [Windows layout contract](https://learn.microsoft.com/en-us/windows/win32/api/textstor/nf-textstor-itextstoreacpsink-onlayoutchange).
 
 Samples/EmbeddedControls --text-input consumes only public headers and the one archive. It demonstrates a

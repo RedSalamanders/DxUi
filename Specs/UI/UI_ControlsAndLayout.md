@@ -2911,9 +2911,9 @@ A persistent native geometry-capacity failure falls back only the affected formu
 or complete Mermaid fence, including its original container prefixes and EOLs. Native preparation collects all independently rejected objects in the bounded geometry pass, then rebuilds the semantic publication once; staged partial geometry is never published.
 For an individual math formula, DirectWrite `DWRITE_E_UNSUPPORTEDOPERATION` during
 leaf preparation is also a persistent object-local rejection: the operation is not
-supported by the selected font type. The formula's accessible explanation uses
-cause-neutral wording because the same source-preserving view fallback also covers
-capacity and font-operation failures. Other semantic content stays rich. The
+supported by the selected font type. The formula's accessible explanation retains
+that unsupported-operation cause; a geometry-capacity rejection instead reports
+capacity. Both preserve the exact source, and other semantic content stays rich. The
 presentation rejection key includes immutable syntax, width, direction, host
 typography/resource generation, effective DPI, binding and local appearance geometry revision.
 Repeated idle preparation does not retry the same rejection. A tracked edit outside an unchanged object retains its refusal when its exact syntax owner and diagram container geometry context remain equivalent; changing the view key or object retries it. DirectWrite `GetLineMetrics` reports a one-line-capacity rejection only when it

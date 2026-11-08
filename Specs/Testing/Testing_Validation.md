@@ -61,6 +61,15 @@ model. Keep the named fatal-child and ordinary borrowed-model lifetime evidence 
 catch-and-continue seam to reproduce the obsolete recovery contract. Preserve original source/artifact identities
 and independent counterfactuals before claiming the earlier review is closed.
 
+A private counterfactual changes only a declared production behavior in a frozen,
+qualified checkout. Retain the original and changed source hashes, exact operand,
+zero-warning build, executed image/PDB and the original failed assertion. A timeout
+alone does not demonstrate the intended regression. Restore the exact original
+source in all exit paths without overwriting independent edits, rebuild it and run
+the ordinary native suite union. Keep these failures separate from the passing
+baseline and restored-source results. A historical aggregate pass establishes only
+its executed suite results; do not infer directed coverage for individual review IDs.
+
 ## Native tooling path fixtures
 
 The MSVC setup suite executes all fifteen cases through both direct and nested
