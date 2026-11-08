@@ -1,0 +1,1 @@
+- Reconcile RedPrism and RedXe's explicit API-4 main adoption and RedTilde's current API-5 candidate, preserving each consumer's separately owned qualification gates.

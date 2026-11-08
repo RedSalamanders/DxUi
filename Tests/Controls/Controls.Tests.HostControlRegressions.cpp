@@ -754,6 +754,29 @@ void TestNativeUnhandledKeysReachApplicationFallback()
     Require(typedFallback == 0u, "the application's fallback sees none of the keys typed into the focused editor");
     Require(SendMessageW(window.Hwnd(), WM_KEYDOWN, VK_F6, 0) == 123 && otherFallback == 1u,
             "a key the editor neither types nor handles still reaches the application");
+
+    auto readOnly = std::make_unique<RichTextEditor>(L"Retained read-only source");
+    auto* rich    = readOnly.get();
+    rich->SetReadOnly(true);
+    window.Host().SetRoot(std::move(readOnly));
+    rich->SetBounds(D2D1::RectF(0.f, 0.f, 280.f, 120.f));
+    window.Host().SetFocusControl(rich, false);
+    unsigned readOnlyFallback{};
+    window.SetApplicationMessageHandler([&](UINT message, WPARAM key, LPARAM, LRESULT& result)
+    {
+        if (message != WM_KEYDOWN || key != 'N')
+            return false;
+        ++readOnlyFallback;
+        result = 321;
+        return true;
+    });
+    const auto readOnlyRevision  = rich->Revision();
+    const auto readOnlySelection = rich->GetSelection();
+    Require(SendMessageW(window.Hwnd(), WM_KEYDOWN, 'N', 0) == 321 && readOnlyFallback == 1u,
+            "a printable key on the read-only rich editor reaches the real native application fallback exactly once");
+    Require(rich->GetText() == L"Retained read-only source" && rich->Revision() == readOnlyRevision && rich->GetSelection() == readOnlySelection,
+            "read-only native key forwarding changes neither source, revision nor selection");
+    window.SetApplicationMessageHandler({});
 }
 
 void TestExtractedRadioDoesNotUseItsFormerGroup()

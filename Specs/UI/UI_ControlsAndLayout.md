@@ -700,6 +700,15 @@ navigation/erase/undo/paste/Enter and non-trail characters retain their cancella
 ### Grid keyboard paging and column identity
 
 Page Up and Page Down use the body viewport height and prepared row/group geometry, with at least one-row progress where possible. Unhandled keys return before querying the model or enumerating rows. A model refresh compares the cached column IDs; when those identities change, widths, display order and current-cell index are rebuilt for the new columns rather than retained by position.
+
+Growing a Grid or Tree clamps its retained scroll to the new viewport. When all rows fit, the offset is zero and
+the first body hit identifies the first authored row. Changed Grid header busy/sort state and Tree selection
+setters request repaint from their attached host. Pending content in an unrelated sibling does not retire another
+control's capture or preview.
+
+Grid borrows its model. After a normal SetModel return the caller may destroy the previous model; subsequent
+geometry and input use the replacement. Unexpected C++ allocation/callback failures use the
+[fatal policy](../Core/Core_FailureHandling.md) and cannot return with an uninstalled replacement.
 ### Tree refresh and input routing
 
 A model refresh reconciles identities and clamps the scroll offset without moving the viewport to an unchanged focus. Typeahead cycles after the current row on a fresh one-character search and retains the current match as the prefix grows. A first keyboard action that selects the first row reports that selection; movement reports its final landing once. Ctrl and Shift row-selection gestures do not trigger single-click invocation. A wheel event directed outward at a scroll extent bubbles to an enclosing scroller, including partial detents.
@@ -1918,6 +1927,17 @@ Its first attempt in an episode reports the HRESULT once, while later unrelated 
 issued reentrantly during preparation remains pending rather than being lost to the failed predecessor.
 Embedded preparation still returns the failure and withholds composition. This rule concerns checked refusals;
 unexpected C++ exceptions, including `std::bad_alloc`, retain the fatal failure-policy contract.
+An expected native object refusal MUST retain its typed capacity or unsupported
+cause through semantic rebuilding. `MathCapacity` and `DiagramCapacity` describe
+geometry/storage limits; an unavailable native operation or target retains the
+corresponding unsupported diagnostic. Accessibility HelpText MUST explain the
+same cause as the source-owned semantic diagnostic; it MUST NOT replace a capacity
+reason with generic native refusal wording. Fallback records bind the exact source
+owner and cause, participate in publication identity, and retain both when an
+unrelated tracked edit shifts an unchanged owner. Invalid causes/ranges MUST
+leave pending work and the previous publication unchanged. Per-element refusal
+preserves neighboring semantics, source, selection and history; unexpected
+native HRESULTs and C++ exceptions retain their separate failure contracts.
 Native/embedded resource, accessibility, gallery and platform qualification stay
 explicit in the WIP plan; this opt-in does not close M4 as a whole.
 
@@ -2891,9 +2911,9 @@ A persistent native geometry-capacity failure falls back only the affected formu
 or complete Mermaid fence, including its original container prefixes and EOLs. Native preparation collects all independently rejected objects in the bounded geometry pass, then rebuilds the semantic publication once; staged partial geometry is never published.
 For an individual math formula, DirectWrite `DWRITE_E_UNSUPPORTEDOPERATION` during
 leaf preparation is also a persistent object-local rejection: the operation is not
-supported by the selected font type. The formula's accessible explanation uses
-cause-neutral wording because the same source-preserving view fallback also covers
-capacity and font-operation failures. Other semantic content stays rich. The
+supported by the selected font type. The formula's accessible explanation retains
+that unsupported-operation cause; a geometry-capacity rejection instead reports
+capacity. Both preserve the exact source, and other semantic content stays rich. The
 presentation rejection key includes immutable syntax, width, direction, host
 typography/resource generation, effective DPI, binding and local appearance geometry revision.
 Repeated idle preparation does not retry the same rejection. A tracked edit outside an unchanged object retains its refusal when its exact syntax owner and diagram container geometry context remain equivalent; changing the view key or object retries it. DirectWrite `GetLineMetrics` reports a one-line-capacity rejection only when it

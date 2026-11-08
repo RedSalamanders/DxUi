@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 1,
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-native-input-and-file-paste-reconciliation",
+  "inputHash": "139173cc7b6ccc572b5978d5ec8d70f2368a9f0532dbeb53aba5d09ef170d540",
+  "benchmarkInputs": {
+    "Tests/Controls/DxUi.Tests.NativeTextInput.cpp": "882EDDEE42AB48F8254C39E80A1296A2DB93097B8B80C47BFC529FF8BA024788",
+    "Tests/Controls/Controls.Tests.RichTextEditor.cpp": "BCBC6585BDE2BDBCED2E4F06EF601903926B96D72AA87C8B9E974242684D34C6",
+    "Tests/Support/Support.Tests.RichImagePaths.h": "BD5E4E1E34871DA9E10834A2FF733A6B47AFBB88EECC5E5443851755A3901DF7",
+    "src/Controls/DxUi.TextStoreACP.cpp": "2296AEAAFD9AC5F51EAE1250EB335B4C83D64E8326B3188A06DE88FF12134065",
+    "src/Controls/DxUi.RichTextEditor.cpp": "50AAB55EC44DB0AFC1502C40BB48AF240E7DC42D94FAFBBFF796CE5CCEB432E2"
+  },
+  "qualifiedCommit": "21fae0dc66000b04504ba7862169533ac2943be8",
+  "apiRevision": 5,
+  "compiledSourceIdentity": "139173cc7b6ccc572b5978d5ec8d70f2368a9f0532dbeb53aba5d09ef170d540",
+  "casesPerProfile": 4,
+  "nativeRuns": [
+    {
+      "originalLogSha256": "A8AEFA8F7E2C4AF870CCA6AAD4C08FB6A18E215DF2670CFDF098C8F7ED21B008",
+      "executable": "DxUi.ControlTests.exe",
+      "binarySha256": "8BE921DF7DD563404C5AD97246776F14260AE6A492E853A0C260A41D7166EEE9",
+      "configuration": "Debug",
+      "suitePassed": true,
+      "originalNativeRunArchiveSha256": "DF34486A845919B90E69E95D24EEDB916CFA63A93A2AF4501BF24514ACAF950A",
+      "cases": [
+        "TestRichCommandStateDuringNativeComposition",
+        "TestRichTextNativeTsfCompositionAndDisconnection",
+        "TestRichTextEditorNativeFileReferencePaste",
+        "TestRichTextEditorNativeImagePathPaste"
+      ],
+      "runId": "20261108T013601868Z-56616-10c5cadffbca462fba0c34c765d74e8e",
+      "completedExactlyOnce": true,
+      "caseCount": 4
+    },
+    {
+      "originalLogSha256": "033728BFABC04EA0384B869D36D9B6B3A7749FDFFC6E09908B33089CCC3EAB34",
+      "executable": "DxUi.ControlTests.exe",
+      "binarySha256": "457EFCBB9E16ED45E6D4E8AC39D2F4DC509678064CBFE7B6D15A799066AEB40C",
+      "configuration": "Release",
+      "suitePassed": true,
+      "originalNativeRunArchiveSha256": "8B32A2D5E02C03851AEEDC4427829CE230D6E7DF21BC0BBF7EA0F218D801ADA1",
+      "cases": [
+        "TestRichCommandStateDuringNativeComposition",
+        "TestRichTextNativeTsfCompositionAndDisconnection",
+        "TestRichTextEditorNativeFileReferencePaste",
+        "TestRichTextEditorNativeImagePathPaste"
+      ],
+      "runId": "20261108T015105013Z-56616-57f9d80a923b4786acb932cb76a92ce5",
+      "completedExactlyOnce": true,
+      "caseCount": 4
+    },
+    {
+      "originalLogSha256": "219CC02FF302B0B98FA9E09B9A59315EF763CE3A15B4E48C317EB209E36B6601",
+      "executable": "DxUi.ControlTests.exe",
+      "binarySha256": "2D2453EB140DCA839A3CAB4A928F5F1FB25092530E29FD0B0F1480251489FC28",
+      "configuration": "ASan Debug",
+      "suitePassed": true,
+      "originalNativeRunArchiveSha256": "919F015955EB8307617DAFA6606244362072F2415FC897E1B3468A686A9DA18D",
+      "cases": [
+        "TestRichCommandStateDuringNativeComposition",
+        "TestRichTextNativeTsfCompositionAndDisconnection",
+        "TestRichTextEditorNativeFileReferencePaste",
+        "TestRichTextEditorNativeImagePathPaste"
+      ],
+      "runId": "20261108T021153576Z-50512-6f8b8e2ef3ae472ca0d63e21461ca80e",
+      "completedExactlyOnce": true,
+      "caseCount": 4
+    }
+  ],
+  "contracts": [
+    "TSF preview remains silent and history-free; commit creates one undo, capacity refusal precedes staging and an exact-boundary insertion still succeeds",
+    "Retained text stores disconnect after owner replacement and late composition completion cannot edit the new owner",
+    "Structured/quoted file paths use ordinary source/history; rich fallback escapes Markdown, malformed or oversized input declines atomically and opaque contexts remain literal"
+  ],
+  "limits": [
+    "Native API transactions use owned test stores and private clipboard transport, not a physical IME or desktop clipboard",
+    "Real foreground/menu/TSF, physical input/AT and consumer adoption remain separate"
+  ]
+}

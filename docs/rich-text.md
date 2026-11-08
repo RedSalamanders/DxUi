@@ -1810,6 +1810,12 @@ aligned and gathered rows. Matrix and substack rows use `\\` or `\cr` and matrix
 are padded with empty cells to the widest row, within the total-cell limit. User macros, packages, file input, evaluation and full LaTeX
 compatibility are unsupported. Rejection retains the complete literal equation with
 a source-ranged diagnostic, rather than drawing a misleading partial expression.
+Native preparation preserves the reason for a local refusal: geometry capacity
+reports `MathCapacity`, while unsupported syntax or native operations report
+`UnsupportedMath`. The exact equation stays editable and neighboring rich
+content stays prepared. Changing typography or the view can retry a geometry
+refusal; idle preparation does not retry an unchanged key. Held semantic
+documents retain their original diagnostics after later publications.
 Alphabet mapping covers ASCII letters; blackboard, sans-serif and monospace also
 map ASCII digits, while other characters are preserved. A prepared text leaf may
 hold up to twice the authored source-unit limit to allow surrogate-pair alphabet

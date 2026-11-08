@@ -5,6 +5,15 @@ Last reviewed: 2026-10-25
 
 ## Independent format oracles
 
+Native object admission tests distinguish actual geometry capacity from an
+independently unsupported formula in one document. They assert exact diagnostic
+kinds and source owners, healthy neighboring semantics, unchanged source/history,
+idle attempt counts and supported retries. A native unsupported-operation fixture
+also retains that cause across an unrelated source shift. Typed fallback admission
+rejects invalid reasons atomically and includes cause changes in publication
+identity; held publications remain immutable. Retain source-bound counterexamples
+and ordinary native/ASan qualification separately from performance acceptance.
+
 Route-crossing coverage uses signed triangle areas for arbitrary line segments rather than copying the router's
 orthogonal coordinate-range comparisons. Independently placed orthogonal/oblique crossings, endpoint contact,
 collinear overlap, zero-length legs and disjoint segments qualify the oracle before it checks routed graph
@@ -32,6 +41,34 @@ immutable old publications and event allowances of 1, 7 and 113 with a 131,072-e
 Check lossless Markdown partitions/forest integrity, typed all-or-nothing refusals, public math AST bounds,
 authored diagram endpoints and successful layout invariants. Require actual admitted and declined paths;
 deterministic structural checks do not establish semantic equivalence to a reference renderer or performance acceptance.
+
+## Earlier review regression contracts
+
+Retained R28 guards must exercise observable behavior rather than repair it from the fixture:
+
+- Grow an actually scrolled Grid/Tree until all authored rows fit, then verify the first body hit/retained scroll.
+- Keep an actual captured splitter preview while an unrelated editor returns pending preparation.
+- Compare unequal authored RTL Subtle table-column widths; staying inside the viewport alone is insufficient.
+- Verify the attached host is invalidated by changed busy/sort and Tree selection setters.
+- Send a printable native key to a focused read-only RichTextEditor and observe the application's actual fallback.
+- Read UIA range rectangles immediately after ScrollIntoView, then prepare content without an explicit caller
+  snapshot refresh or bridge Update. A fixture must not supply the provider's missing publication.
+- Destroy the previous borrowed Grid model after a normal SetModel return, then use new-model geometry/input.
+
+R28-44's former recoverable bad_alloc proposal is superseded by API 5. An unexpected selection-snapshot allocation
+failure terminates through the host fatal protocol; it must never return to a caller that can retire an uninstalled
+model. Keep the named fatal-child and ordinary borrowed-model lifetime evidence separate. Do not introduce a
+catch-and-continue seam to reproduce the obsolete recovery contract. Preserve original source/artifact identities
+and independent counterfactuals before claiming the earlier review is closed.
+
+A private counterfactual changes only a declared production behavior in a frozen,
+qualified checkout. Retain the original and changed source hashes, exact operand,
+zero-warning build, executed image/PDB and the original failed assertion. A timeout
+alone does not demonstrate the intended regression. Restore the exact original
+source in all exit paths without overwriting independent edits, rebuild it and run
+the ordinary native suite union. Keep these failures separate from the passing
+baseline and restored-source results. A historical aggregate pass establishes only
+its executed suite results; do not infer directed coverage for individual review IDs.
 
 ## Native tooling path fixtures
 

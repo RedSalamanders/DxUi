@@ -1,0 +1,2 @@
+- Strengthen earlier Grid, Tree, embedded capture, RTL table, native read-only key and UIA scroll regressions with direct behavior assertions; document borrowed-model retirement and the API-5 fatal-allocation contract.
+  - Reconcile native TSF capacity and quoted-file-paste coverage against the current API-5 source, and distinguish directed review evidence from historical aggregate suite results.

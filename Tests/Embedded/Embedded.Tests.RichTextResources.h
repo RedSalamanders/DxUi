@@ -3889,6 +3889,35 @@ static void TestEmbeddedContinuationCallbackCannotReenterOrUseDetachedState(Grap
     Check(detachedView.Prepare(480u, 240u) == S_FALSE && detached.detached && detached.count == beforeDetach + 1u,
           "the continuation callback may detach its host");
     Check(detachedView.Prepare(480u, 240u) == E_UNEXPECTED, "detached continuation cleanup does not reuse retired host state");
+
+    EmbeddedHost gestureView;
+    Hr(gestureView.Attach(graphics), "attach pending-sibling gesture fixture");
+    auto panel          = std::make_unique<Panel>();
+    auto* pendingEditor = panel->AddChild<OneDeferredPreparation>();
+    pendingEditor->SetBounds(D2D1::RectF(0.f, 0.f, 480.f, 64.f));
+    auto* splitter = panel->AddChild<Splitter>();
+    splitter->SetBounds(D2D1::RectF(0.f, 80.f, 480.f, 240.f));
+    splitter->SetMinimumFirstPane(80.f);
+    splitter->SetMinimumSecondPane(80.f);
+    splitter->SetPosition(200.f);
+    gestureView.Controls().SetRoot(std::move(panel));
+    Hr(PrepareRichEmbeddedContent(gestureView, 480u, 240u), "prepare both independent gesture siblings");
+    Check(gestureView.DispatchPointer({PointerAction::Down, 203.f, 120.f}) && gestureView.DispatchPointer({PointerAction::Move, 260.f, 120.f}),
+          "start a forwarded splitter drag before unrelated content becomes pending");
+    const auto dragged = splitter->GetPosition();
+    Check(splitter->IsDragging() && dragged > 240.f && gestureView.Controls().GetCapturedControl() == splitter,
+          "pending-sibling fixture owns a real preview and capture");
+    pendingEditor->prepareCalls = 0u;
+    pendingEditor->SetText(L"Unrelated content waits one preparation turn.");
+    Check(gestureView.Prepare(480u, 240u) == S_FALSE && pendingEditor->prepareCalls == 1u && gestureView.NeedsPreparation(),
+          "the unrelated editor actually returns pending content during the captured drag");
+    Check(gestureView.Controls().GetCapturedControl() == splitter && splitter->IsDragging() && splitter->GetPosition() == dragged,
+          "one pending sibling cannot cancel another control's capture or preview");
+    Hr(PrepareRichEmbeddedContent(gestureView, 480u, 240u), "complete only the unrelated pending content");
+    Check(gestureView.DispatchPointer({PointerAction::Move, 300.f, 120.f}) && splitter->GetPosition() > dragged,
+          "the original splitter drag continues after sibling preparation completes");
+    Check(gestureView.DispatchPointer({PointerAction::Up, 300.f, 120.f}) && ! splitter->IsDragging() && gestureView.Controls().GetCapturedControl() == nullptr,
+          "the retained splitter drag releases through its original input lifecycle");
 }
 
 // Included by the supplied-device fixture after its Check/Hr and allocation counter.
