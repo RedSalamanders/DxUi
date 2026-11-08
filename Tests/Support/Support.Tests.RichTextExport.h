@@ -169,7 +169,33 @@ template <typename Check> void Core(Check&& check)
     check(TryExportSemanticDocument(*unicodeDocument, {emoji + 1u, emoji + 2u}, checked) == SourceResult::InvalidRange,
           "display selection cannot split a surrogate pair");
     std::string encoded(0u, '\0');
+    // Hand-counted wire bytes, independent of the SDK's decoder and offset
+    // formatter. The fragment contains both three- and four-byte UTF-8 scalars.
+    constexpr std::string_view golden = "Version:1.0\r\nStartHTML:0000000105\r\nEndHTML:0000000183\r\nStartFragment:0000000137\r\nEndFragment:0000000151\r\n"
+                                        "<html><body><!--StartFragment--><b>\xe6\x9d\xb1\xf0\x9f\x98\x80</b><!--EndFragment--></body></html>";
+    check(EncodeClipboardHtml(L"<b>\u6771\U0001f600</b>", encoded) == S_OK && encoded == golden,
+          "CF_HTML encoder matches independent byte offsets, fragment markers, context and UTF-8 wire bytes");
+    // Original expected wire vector from Chromium's producer test (BSD):
+    // https://github.com/chromium/chromium/blob/ec385701fa11cffe4bb8102fa78cee741f3b774a/ui/base/clipboard/clipboard_util_win_unittest.cc
+    // Blob c2b682c557f115b85106de4acda74fd4445213a4; no SDK encoder generates this input.
+    constexpr std::string_view producerFragment = "<html><head><style>p {color:blue}</style></head><body><p>Hello World</p></body></html>";
+    constexpr std::string_view producerWire =
+        "Version:0.9\r\nStartHTML:0000000132\r\nEndHTML:0000000290\r\nStartFragment:0000000168\r\nEndFragment:0000000254\r\n"
+        "SourceURL:www.example.com\r\n<html>\r\n<body>\r\n<!--StartFragment-->"
+        "<html><head><style>p {color:blue}</style></head><body><p>Hello World</p></body></html>"
+        "<!--EndFragment-->\r\n</body>\r\n</html>";
+    std::wstring producerDecoded;
+    check(DecodeClipboardHtml(std::as_bytes(std::span(producerWire.data(), producerWire.size())), producerDecoded) == S_OK &&
+              producerDecoded == std::wstring(producerFragment.begin(), producerFragment.end()),
+          "independent Chromium producer bytes handle a SourceURL header and distinct context/fragment offsets");
+    auto splitScalar = std::string(golden);
+    splitScalar.replace(splitScalar.find("StartFragment:") + 14u, 10u, "0000000141");
+    producerDecoded = L"retained fragment";
+    check(FAILED(DecodeClipboardHtml(std::as_bytes(std::span(splitScalar.data(), splitScalar.size())), producerDecoded)) &&
+              producerDecoded == L"retained fragment",
+          "a byte offset inside the independently placed UTF-8 scalar cannot publish partial HTML");
     check(EncodeClipboardHtml(unicode.HtmlFragment(), encoded) == S_OK, "Unicode CF_HTML encoding succeeds");
+    const auto encodedExport = encoded;
     std::wstring decoded(0u, L' ');
     check(DecodeClipboardHtml(std::as_bytes(std::span(encoded.data(), encoded.size())), decoded) == S_OK && decoded == unicode.HtmlFragment(),
           "CF_HTML byte offsets round-trip multibyte UTF-8 and supplementary characters");
@@ -184,6 +210,17 @@ template <typename Check> void Core(Check&& check)
     check(CopyExportToClipboard(owner, unicode) == S_OK && clipboard.allocations == 2u && clipboard.opens == 1u && clipboard.closes == 1u &&
               clipboard.publications == 2u && clipboard.data && clipboard.htmlData,
           "rendered copy stages both formats before one balanced clipboard ownership attempt");
+    const bool memoryFits = clipboard.htmlData && GlobalSize(clipboard.htmlData.get()) >= encodedExport.size() + 1u;
+    check(clipboard.lastAllocationBytes == encodedExport.size() + 1u && memoryFits,
+          "HTML publication requests the wire bytes plus exactly one NUL, allowing native allocator rounding");
+    const auto* published = memoryFits ? static_cast<const char*>(GlobalLock(clipboard.htmlData.get())) : nullptr;
+    check(published != nullptr, "lock the independently owned HTML publication");
+    if (published)
+    {
+        const auto unlock = wil::scope_exit([&]() noexcept { GlobalUnlock(clipboard.htmlData.get()); });
+        check(std::string_view(published, encodedExport.size()) == encodedExport && published[encodedExport.size()] == '\0',
+              "published HGLOBAL contains exact wire bytes and its terminal NUL");
+    }
     std::wstring copied(0u, L' ');
     check(transport.Read(owner, copied) == S_OK && copied == unicode.Text(), "rendered Unicode is the copied fallback format");
     clipboard.failAllocation = true;

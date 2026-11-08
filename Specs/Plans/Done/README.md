@@ -1,5 +1,9 @@
 # Completed and archived plans
 
+## Completed scopes — 8 November 2026
+
+- [Independent format oracles](IndependentFormatOracles_2026-11-08.md) — independent route/CF_HTML/MATH boundaries and fixed-seed adversarial coverage; six zero-warning builds, 66 ordinary x64 suite executions and actual ASan. Earlier regression obligations remain separately owned.
+
 ## Completed scopes — 7 November 2026
 
 - [DirectWrite lazy metrics](DirectWriteNativeFormatting_2026-11-07.md) — narrow native formatting allowance and a 65,536-unit source/caret regression; unchanged-object consumer proof, six zero-warning builds, 66 ordinary x64 suite executions and actual ASan.

@@ -1,7 +1,7 @@
 # DxUi remaining correctness and qualification
 
 Status: ACTIVE
-Updated: 7 November 2026
+Updated: 8 November 2026
 Owner: DxUi maintainers; consumer policy and adoption remain with each application.
 
 This is the **only active DxUi plan**. The [consolidation record](../Done/WipConsolidation_2026-11-04.md)
@@ -232,9 +232,15 @@ omitting an ID from this summary does not dispose of it.
 ## D-T1 — meaningful regression and adversarial coverage
 
 - [ ] Add counterfactual fail-before/pass-after coverage for the retained P1 findings and earlier fixes that
-  lack it (PRIOR-08); replace self-referential crossing, CF_HTML and font-truncation oracles.
-- [ ] Add deterministic pathological-input/fuzz/cancellation coverage for Markdown, diagrams and math;
-  retain exact seeds, budgets, raw failures and source/artifact identities.
+  lack it (PRIOR-08). The separate seven-obligation regression-guard cohort retains its own qualification.
+- [x] Replace self-referential crossing, CF_HTML and font-truncation oracles. The
+  [scoped closeout](../Done/IndependentFormatOracles_2026-11-08.md) binds independent signed-area/wire/producer
+  checks, actual private HGLOBAL bytes, exact-sized MATH prefixes and the safe 628-check ASan boundary proof.
+- [x] Add deterministic pathological-input/fuzz/cancellation coverage for Markdown, diagrams and math;
+  retain exact seeds, budgets, raw failures and source/artifact identities. Qualified `9b871c91` passes all
+  six zero-warning builds, 66 ordinary x64 suite executions and actual ASan. All 685 original compiled inputs
+  and native/run archive members verify. ARM64 is compilation-only; this does not close the seven earlier
+  regression obligations, consumer/physical gates or formal paired-performance acceptance.
 - [ ] Diagnose the retained failed-consumer-publication fixture's ten-second closure failure observed during
   the long-checkout validator run. Progress/body admission stayed correctly refused; an explicit-exit proposal
   also failed and was rejected, while a focused replay of the original source passes all 14 cases. Preserve

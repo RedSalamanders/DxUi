@@ -3,6 +3,36 @@
 Status: normative intended contract
 Last reviewed: 2026-10-25
 
+## Independent format oracles
+
+Route-crossing coverage uses signed triangle areas for arbitrary line segments rather than copying the router's
+orthogonal coordinate-range comparisons. Independently placed orthogonal/oblique crossings, endpoint contact,
+collinear overlap, zero-length legs and disjoint segments qualify the oracle before it checks routed graph
+geometry. Preserve the hand-counted source/candidate expectations and exercise every retained route vertex.
+
+CF_HTML coverage compares encoder output against hand-counted UTF-8 wire bytes, including distinct HTML and
+fragment offsets and both fragment comments. Decoder coverage includes an immutable upstream producer vector
+with SourceURL and separate context/fragment ranges; do not generate every decoder input with the SDK encoder.
+Supplement it with multibyte/supplementary scalar boundaries and unchanged-output refusals. The private clipboard
+transport checks the requested allocation length, the actual published HGLOBAL bytes and its terminal NUL;
+native allocator rounding does not require GlobalSize to equal the requested byte count. These fixtures do not
+read or write the desktop clipboard and do not establish physical clipboard interoperability.
+
+Every truncated OpenType MATH prefix owns an exact-size heap allocation. Passing a shorter span over a larger
+live array cannot establish ASan over-read coverage. Retain the prefix lengths and original bytes, run the cases
+under actual ASan, and verify each nonempty allocation's last byte is addressable while its one-past address
+is poisoned through the public ASan query API. The query must never dereference that address. Retain the
+larger-array control to show why its shorter span cannot expose the boundary. Keep that oracle-quality proof
+separate from product-defect and performance acceptance.
+
+The deterministic adversarial rich-text corpus runs 64 cases per domain with independent MT19937 seeds
+`0x4D443031` (Markdown), `0x464C3031` (diagrams) and `0x4D543031` (math). Logs retain each candidate's exact
+UTF-16 units before execution. Cooperative parsers exercise zero budgets, actual pending-work cancellation,
+immutable old publications and event allowances of 1, 7 and 113 with a 131,072-event termination ceiling.
+Check lossless Markdown partitions/forest integrity, typed all-or-nothing refusals, public math AST bounds,
+authored diagram endpoints and successful layout invariants. Require actual admitted and declined paths;
+deterministic structural checks do not establish semantic equivalence to a reference renderer or performance acceptance.
+
 ## Native tooling path fixtures
 
 The MSVC setup suite executes all fifteen cases through both direct and nested

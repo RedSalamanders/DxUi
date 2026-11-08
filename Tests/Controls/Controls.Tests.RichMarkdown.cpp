@@ -15,8 +15,11 @@
 #include "Support.Tests.MarkdownSourceCorrelation.h"
 #include <DxUi/MarkdownSyntax.h>
 #include <DxUi/RichMarkdown.h>
+#include <DxUi/RichMath.h>
 #include <algorithm>
+#include <array>
 #include <iostream>
+#include <random>
 #include <set>
 #include <span>
 #include <type_traits>
@@ -1300,6 +1303,179 @@ void TestLosslessMarkdownFootnoteBindingRevisionAndCancellation()
                 reordered->Footnotes()[1u].ordinal == 1u,
             "reference-order edits renumber the current rows while a held revision keeps its original numbering");
 }
+void TestSeededRichTextAdversarialCorpus()
+{
+    constexpr std::array<std::wstring_view, 16u> markdownTokens{L"plain ",
+                                                                L"**bold",
+                                                                L"[name](",
+                                                                L"`code`",
+                                                                L"> ",
+                                                                L"\r\n",
+                                                                L"\n",
+                                                                L"~~~\n",
+                                                                L"$x_1$",
+                                                                L"\\(x<y\\)",
+                                                                L"&amp;",
+                                                                L"[^n]: value\n",
+                                                                L"|a|b|\n",
+                                                                L"- [x] ",
+                                                                L"\u6771\U0001f600",
+                                                                L"<i>text</i>"};
+    constexpr std::array<std::wstring_view, 16u> mathTokens{L"x",
+                                                            L"+",
+                                                            L"{",
+                                                            L"}",
+                                                            L"_1",
+                                                            L"^2",
+                                                            L"\\frac{a}{b}",
+                                                            L"\\sqrt{x}",
+                                                            L"\\left(",
+                                                            L"\\right)",
+                                                            L"\\text{word}",
+                                                            L"\\unknown",
+                                                            L"\\begin{matrix}",
+                                                            L"\\end{matrix}",
+                                                            L"&",
+                                                            L"\\\\"};
+    const auto witness = [](const char* domain, unsigned seed, std::size_t iteration, std::wstring_view source)
+    {
+        std::cout << "adversarial domain=" << domain << " seed=" << seed << " case=" << iteration << " utf16=";
+        for (const auto unit : source)
+            std::cout << static_cast<unsigned>(unit) << ',';
+        std::cout << '\n';
+    };
+    constexpr unsigned markdownSeed = 0x4d443031u, diagramSeed = 0x464c3031u, mathSeed = 0x4d543031u;
+    std::mt19937 markdownRandom(markdownSeed), diagramRandom(diagramSeed), mathRandom(mathSeed);
+    std::size_t admittedMath{}, declinedMath{}, admittedGraphs{}, declinedGraphs{};
+    for (std::size_t iteration = 0u; iteration < 64u; ++iteration)
+    {
+        std::wstring source = L"# Seeded notebook\n\n";
+        for (unsigned token = 0u; token < 64u; ++token)
+            source += markdownTokens[markdownRandom() % markdownTokens.size()];
+        witness("markdown", markdownSeed, iteration, source);
+        MarkdownParser parser;
+        parser.Begin(L"retained publication", 1u, MarkdownProfile::RichMarkdown);
+        while (parser.HasPendingPreparation())
+            parser.Advance(113u);
+        const auto held = parser.Published();
+        parser.Begin(source, 2u, MarkdownProfile::RichMarkdown);
+        Require(parser.Advance(0u).workUnits == 0u && parser.Published() == held, "zero-budget fuzz preparation cannot publish or consume work");
+        for (unsigned step = 0u; step < 3u; ++step)
+            Require(parser.HasPendingPreparation() && parser.Advance(1u).workUnits == 1u, "fuzz cancellation reaches actual pending Markdown work");
+        parser.Cancel();
+        Require(! parser.HasPendingPreparation() && parser.Published() == held, "seeded Markdown cancellation preserves the exact immutable publication");
+        parser.Begin(source, 3u, MarkdownProfile::RichMarkdown);
+        const std::size_t budget = iteration % 3u == 0u ? 1u : iteration % 3u == 1u ? 7u : 113u;
+        std::size_t total{};
+        while (parser.HasPendingPreparation() && total < 131072u)
+        {
+            const auto advance = parser.Advance(budget);
+            Require(advance.workUnits > 0u && advance.workUnits <= budget && advance.result == MarkdownResult::Success,
+                    "seeded Markdown resumes within its deterministic event budget");
+            total += advance.workUnits;
+        }
+        Require(! parser.HasPendingPreparation() && parser.Published() && parser.Published()->Source() == source && held->Source() == L"retained publication",
+                "seeded Markdown terminates without editing the candidate or held source");
+        CheckMarkdownPartitions(*parser.Published(), source);
+        CheckInlineForest(*parser.Published());
+
+        std::wstring math;
+        for (unsigned token = 0u; token < 48u; ++token)
+            math += mathTokens[mathRandom() % mathTokens.size()];
+        if (iteration % 4u == 0u)
+            math.insert(0u, L"\\unsupportedSeededCommand ");
+        else if (iteration % 4u == 1u)
+        {
+            constexpr std::array<std::wstring_view, 4u> terms{L"x", L"\\frac{a}{b}", L"\\sqrt{x}", L"\\hat{y}"};
+            math = L"x";
+            for (unsigned term = 0u; term < 16u; ++term)
+                math += L"+" + std::wstring(terms[mathRandom() % terms.size()]);
+        }
+        witness("math", mathSeed, iteration, math);
+        const auto expression = ParseMath(math);
+        if (! expression)
+        {
+            ++declinedMath;
+            Require(expression.issue != MathIssue::None && ! expression.diagnostic.empty() && expression.root.kind == MathKind::Row &&
+                        expression.root.text.empty() && expression.root.children.empty(),
+                    "seeded malformed math publishes a typed refusal without a partial AST");
+        }
+        else
+        {
+            ++admittedMath;
+            std::vector<std::pair<const MathNode*, unsigned>> pending{{&expression.root, 1u}};
+            std::size_t nodes{};
+            while (! pending.empty() && nodes < MathMaximumNodes)
+            {
+                const auto [node, depth] = pending.back();
+                pending.pop_back();
+                ++nodes;
+                Require(depth <= MathMaximumNodeDepth, "seeded math AST depth stays within the independent public bound");
+                for (const auto& child : node->children)
+                    pending.emplace_back(&child, depth + 1u);
+            }
+            Require(pending.empty() && expression.issue == MathIssue::None, "seeded admitted math stays within the public node bound");
+        }
+
+        const std::array<std::wstring_view, 4u> directions{L"TD", L"BT", L"LR", L"RL"};
+        std::wstring graph = L"graph " + std::wstring(directions[diagramRandom() % directions.size()]) + L";";
+        for (unsigned node = 0u; node < 8u; ++node)
+            graph += L"N" + std::to_wstring(node) + L"[Node " + std::to_wstring(node) + L"];";
+        for (unsigned edge = 0u; edge < 12u; ++edge)
+        {
+            const auto from = diagramRandom() % 8u;
+            const auto to   = diagramRandom() % 8u;
+            graph += L"N" + std::to_wstring(from) + L"-->N" + std::to_wstring(to) + L";";
+        }
+        if (iteration % 4u == 0u)
+            graph += L"Broken[";
+        witness("diagram", diagramSeed, iteration, graph);
+        using namespace DxUi::RichText::Detail;
+        NativeFlowchartParser diagram;
+        diagram.Begin(L"graph TD;Held-->Stable", 1u);
+        while (diagram.HasPendingPreparation())
+            diagram.Advance(113u);
+        const auto heldGraph = diagram.Published();
+        diagram.Begin(graph, 2u);
+        Require(diagram.Advance(0u).workUnits == 0u && diagram.Published() == heldGraph, "zero-budget seeded diagram work preserves its publication");
+        for (unsigned step = 0u; step < 3u; ++step)
+            Require(diagram.HasPendingPreparation() && diagram.Advance(1u).workUnits == 1u, "diagram cancellation reaches actual staged work");
+        diagram.Cancel();
+        Require(! diagram.HasPendingPreparation() && diagram.Published() == heldGraph, "seeded diagram cancellation preserves the held model");
+        diagram.Begin(graph, 3u);
+        total = 0u;
+        while (diagram.HasPendingPreparation() && total < 131072u)
+        {
+            const auto advance = diagram.Advance(budget);
+            Require(advance.workUnits > 0u && advance.workUnits <= budget, "seeded diagram work stays inside its event allowance");
+            total += advance.workUnits;
+        }
+        Require(! diagram.HasPendingPreparation() && diagram.Published() && diagram.Published()->source == graph &&
+                    heldGraph->source == L"graph TD;Held-->Stable",
+                "seeded diagrams terminate and preserve exact candidate and held source");
+        const auto model = diagram.Published();
+        if (model->outcome == FlowchartOutcome::Prepared)
+        {
+            ++admittedGraphs;
+            Require(model->nodes.size() == 8u && model->edges.size() <= 12u,
+                    "admitted generated graph retains its independently bounded authored nodes and edges");
+            for (const auto& edge : model->edges)
+                Require(edge.from < 8u && edge.to < 8u, "every seeded edge refers to one of the eight authored nodes");
+            const auto plan = FlowchartLayoutTests::Place(model, Require, budget);
+            Require(plan && (plan->issue == FlowchartLayoutIssue::None || plan->issue == FlowchartLayoutIssue::DiagramExtent),
+                    "seeded graph geometry either completes or has an explicit bounded-layout refusal");
+            if (plan->issue == FlowchartLayoutIssue::None)
+                FlowchartLayoutTests::Invariants(*plan, Require);
+        }
+        else
+        {
+            ++declinedGraphs;
+            Require(model->nodes.empty() && model->edges.empty(), "seeded malformed diagrams publish no partial graph");
+        }
+    }
+    Require(admittedMath >= 16u && declinedMath >= 16u && admittedGraphs >= 16u && declinedGraphs >= 16u,
+            "the fixed-seed corpus actually reaches both admitted and refused math/diagram paths");
+}
 void TestNativeFlowchartDeterministicGeometry()
 {
     FlowchartLayoutTests::Geometry(Require);
@@ -1899,6 +2075,7 @@ void RunRichMarkdownTests()
     DXUI_RUN_TEST(TestTomlFrontMatterValidationAndSourcePreservation);
     DXUI_RUN_TEST(TestMetadataIndependentValidityCorpora);
     DXUI_RUN_TEST(TestNativeFlowchartGrammarAndGraphValues);
+    DXUI_RUN_TEST(TestSeededRichTextAdversarialCorpus);
     DXUI_RUN_TEST(TestNativeFlowchartDeterministicGeometry);
     DXUI_RUN_TEST(TestNativeFlowchartTrimmedStyledLabelsRemainAdmissible);
     DXUI_RUN_TEST(TestNativeRelationshipFanPortsAndCardinalities);

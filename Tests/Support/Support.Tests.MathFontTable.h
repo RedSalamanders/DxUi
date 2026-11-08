@@ -1,11 +1,34 @@
 #pragma once
 #include "Controls/DxUi.MathFontTable.h"
+#include <algorithm>
 #include <array>
 #include <cstdint>
+#include <memory>
 #include <span>
+#if defined(__SANITIZE_ADDRESS__)
+#include <sanitizer/asan_interface.h>
+#endif
 
 namespace MathFontTableTests
 {
+// An exact-size allocation puts ASan's boundary at the supplied table length.
+// A subspan of the original array would leave an undetectable readable suffix.
+template <typename Check, typename Probe>
+void RejectTruncated(std::span<const std::uint8_t> original, std::size_t first, std::size_t end, Check&& check, Probe&& probe, const char* description)
+{
+    for (std::size_t length = first; length < end; ++length)
+    {
+        auto prefix = std::make_unique<std::uint8_t[]>(length);
+        std::copy_n(original.begin(), length, prefix.get());
+#if defined(__SANITIZE_ADDRESS__)
+        if (length)
+            check(__asan_address_is_poisoned(prefix.get() + length - 1u) == 0 && __asan_address_is_poisoned(prefix.get() + length) != 0,
+                  "ASan exposes the exact nonempty table boundary without reading past it");
+#endif
+        const DxUi::RichText::Detail::MathFontTable table(std::span<const std::uint8_t>(prefix.get(), length));
+        check(! probe(table), description);
+    }
+}
 template <typename Check> void Run(Check&& check)
 {
     {
@@ -38,9 +61,9 @@ template <typename Check> void Run(Check&& check)
               "MATH kern selects signed height bands with exact-boundary promotion");
         check(! font.MathKern(6u, Corner::TopRight, 0.f, 10.f, 96.f, 1000u) && ! font.MathKern(5u, Corner::BottomLeft, 0.f, 10.f, 96.f, 1000u),
               "missing glyph and absent corner decline to zero-kern fallback");
-        for (std::size_t length = 0u; length < 76u; ++length)
-            check(! Table(std::span(kernBytes.data(), length)).MathKern(5u, Corner::TopRight, 0.f, 10.f, 96.f, 1000u),
-                  "truncated MATH kern tables are rejected without out-of-range reads");
+        RejectTruncated(kernBytes, 0u, 76u, check, [](const auto& truncated) {
+            return truncated.MathKern(5u, Corner::TopRight, 0.f, 10.f, 96.f, 1000u);
+        }, "truncated MATH kern tables are rejected without out-of-range reads");
         write(70u, 30u); // middle kern's device offset is relative to the MathKern table
         write(84u, 15u);
         write(86u, 15u);
@@ -97,12 +120,12 @@ template <typename Check> void Run(Check&& check)
     check(first && first.value().glyph == 11u && first.value().advance == 1000u && second && second.value().glyph == 12u && second.value().advance == 2000u &&
               ! table.VerticalVariant(5u, 2001u) && ! table.VerticalVariant(9u, 1u),
           "MATH chooses the smallest adequate vertical variant and falls back when no variant covers the request");
-    for (std::size_t length = 0u; length < 30u; ++length)
-        check(! DxUi::RichText::Detail::MathFontTable(std::span(bytes.data(), length)).ItalicCorrection(5u),
-              "truncated MATH italic tables are rejected without reading beyond the buffer");
-    for (std::size_t length = 0u; length < 74u; ++length)
-        check(! DxUi::RichText::Detail::MathFontTable(std::span(bytes.data(), length)).VerticalVariant(5u, 1500u),
-              "truncated MATH variant tables fall back without reading beyond the buffer");
+    RejectTruncated(bytes, 0u, 30u, check, [](const auto& truncated) {
+        return truncated.ItalicCorrection(5u);
+    }, "truncated MATH italic tables are rejected without reading beyond the buffer");
+    RejectTruncated(bytes, 0u, 74u, check, [](const auto& truncated) {
+        return truncated.VerticalVariant(5u, 1500u);
+    }, "truncated MATH variant tables fall back without reading beyond the buffer");
     set(30u, 2u);
     set(32u, 1u);
     set(34u, 5u);
@@ -144,9 +167,9 @@ template <typename Check> void Run(Check&& check)
               stretched->placements[1u].part.glyph == 12u && stretched->placements[2u].part.glyph == 12u && stretched->placements[3u].part.glyph == 13u &&
               stretched->placements[1u].offset == 87u && stretched->placements[2u].offset == 154u && stretched->placements[3u].offset == 220u,
           "vertical MATH assembly repeats extenders symmetrically and computes bounded offsets");
-    for (std::size_t length = 0u; length < 64u; ++length)
-        check(! DxUi::RichText::Detail::MathFontTable(std::span(assemblyBytes.data(), length)).VerticalAssemblyAt(20u, 320u),
-              "truncated glyph assemblies fall back without reading beyond the table");
+    RejectTruncated(assemblyBytes, 0u, 64u, check, [](const auto& truncated) {
+        return truncated.VerticalAssemblyAt(20u, 320u);
+    }, "truncated glyph assemblies fall back without reading beyond the table");
     check(! assembly.VerticalAssemblyAt(20u, 1000000u), "glyph assemblies cap the number of repeated parts");
     const auto horizontalAssembly = assembly.HorizontalAssemblyAt(20u, 320u);
     check(horizontalAssembly && horizontalAssembly->count == 4u && horizontalAssembly->advance == 320u && horizontalAssembly->placements[1u].offset == 87u &&
@@ -183,12 +206,16 @@ template <typename Check> void Run(Check&& check)
     check(construction && construction.value() == 40u && selected && selected->glyph == 12u && selected->advance == 2000u &&
               ! horizontal.HorizontalConstruction(6u),
           "horizontal coverage follows the vertical construction array and chooses the smallest adequate variant");
-    for (std::size_t length = 0u; length < 52u; ++length)
+    RejectTruncated(horizontalBytes,
+                    0u,
+                    52u,
+                    check,
+                    [](const auto& truncated)
     {
-        const DxUi::RichText::Detail::MathFontTable truncated(std::span(horizontalBytes.data(), length));
         const auto partial = truncated.HorizontalConstruction(5u);
-        check(! partial || ! truncated.HorizontalVariantAt(partial.value(), 1500u), "truncated horizontal variants never read beyond the supplied table");
-    }
+        return partial && truncated.HorizontalVariantAt(partial.value(), 1500u);
+    },
+                    "truncated horizontal variants never read beyond the supplied table");
     std::array<std::uint8_t, 64u> deviceBytes{};
     const auto setDevice = [&](std::size_t offset, std::uint16_t value)
     {
@@ -229,9 +256,9 @@ template <typename Check> void Run(Check&& check)
           "invalid DPI or font units cannot produce a native math value");
     check(std::abs(devices.AdjustedValue({200, 600u}, 12.f, 96.f, 1000u).value_or(0.f) - 2.4f) < .001f,
           "malformed Device offsets retain the unadjusted design value");
-    for (std::size_t length = 10u; length < 18u; ++length)
-        check(! DxUi::RichText::Detail::MathFontTable(std::span(deviceBytes.data(), length)).DeviceDelta(10u, 11u),
-              "truncated device tables are ignored without out-of-bounds reads");
+    RejectTruncated(deviceBytes, 10u, 18u, check, [](const auto& truncated) {
+        return truncated.DeviceDelta(10u, 11u);
+    }, "truncated device tables are ignored without out-of-bounds reads");
     setDevice(34u, 0x8000u);
     check(! devices.DeviceDelta(30u, 9u) && std::abs(devices.AdjustedValue({200, 30u}, 9.f, 96.f, 1000u).value_or(0.f) - 1.8f) < .001f,
           "variable-font VariationIndex is not misread and retains the default design value");
