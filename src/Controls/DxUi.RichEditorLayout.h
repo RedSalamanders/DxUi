@@ -56,9 +56,9 @@ public:
             Publish();
         return result;
     }
-    std::span<const std::size_t> RejectedNativeObjects() const noexcept
+    std::span<const NativeObjectRejection> RejectedNativeObjects() const noexcept
     {
-        return requestedSemantic_ ? semantic_.RejectedNativeObjects() : std::span<const std::size_t>{};
+        return requestedSemantic_ ? semantic_.RejectedNativeObjects() : std::span<const NativeObjectRejection>{};
     }
     void CancelPreparation() noexcept
     {

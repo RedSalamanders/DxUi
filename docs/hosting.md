@@ -7,6 +7,10 @@ host fatal diagnostics for unexpected C++ exceptions. API 5 implements the runti
 each application's product integration remain separate. Earlier exception-recovery receipts do not establish
 the new fatal-stack/dump behavior.
 Returned HRESULT recovery described below applies to checked/native failures, not catch-and-continue on a throw.
+DirectWrite may handle a C++ exception internally while lazily formatting a long source line. Prepared layout
+metrics isolate that synchronous native call; successful source/caret geometry remains usable and an HRESULT
+refusal preserves the previous layout. SDK allocations and escaping native exceptions still use the host fatal
+policy. Applications must not add an allowance around their entire preparation or message loop.
 
 Clipboard paste defaults to Unicode text when text and a bitmap coexist. An application that supplies bitmap
 handling can opt into `TextClipboardPreference::ImageFirst` through `ControlHost::SetClipboardPreference`
@@ -14,6 +18,9 @@ for native controls and `TextInputServices::SetClipboardPreference` for its embe
 retain priority. The choice happens during one clipboard ownership attempt; a declined image preserves the
 selection and source. Existing clipboard interfaces remain valid, and a custom transport can implement the
 additive `PrioritizedStructuredTextClipboard` interface to choose among its offered formats.
+Rendered HTML clipboard coverage uses independent UTF-8 wire vectors, an immutable Chromium producer example
+and the actual bytes/NUL in privately owned HGLOBAL storage. These checks leave the desktop clipboard alone;
+physical interoperability remains a separate acceptance step. See the [format-oracle contract](../Specs/Testing/Testing_Validation.md#independent-format-oracles).
 
 For a deterministic native software-rendering host, call `Attach(hwnd, {.forceWarp = true})` before creating
 other native graphics on that UI thread. Default peers inherit the thread pool's selection. An incompatible

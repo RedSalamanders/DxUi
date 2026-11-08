@@ -37,16 +37,17 @@ public:
     wil::unique_hglobal fileData;
     wil::unique_hglobal htmlData;
     wil::unique_hglobal dibData, dibV5Data;
-    bool busy              = false;
-    bool failAllocation    = false;
-    bool failEmpty         = false;
-    bool failPublish       = false;
-    bool failHtmlPublish   = false;
-    size_t opens           = 0;
-    size_t closes          = 0;
-    size_t allocations     = 0;
-    size_t publications    = 0;
-    size_t peakGlobalBytes = 0;
+    bool busy                  = false;
+    bool failAllocation        = false;
+    bool failEmpty             = false;
+    bool failPublish           = false;
+    bool failHtmlPublish       = false;
+    size_t opens               = 0;
+    size_t closes              = 0;
+    size_t allocations         = 0;
+    size_t publications        = 0;
+    size_t peakGlobalBytes     = 0;
+    size_t lastAllocationBytes = 0;
     size_t unicodeReads = 0, dibReads = 0, dibV5Reads = 0;
 
 private:
@@ -111,6 +112,7 @@ private:
     {
         auto& state = *_current;
         ++state.allocations;
+        state.lastAllocationBytes = bytes;
         if (state.failAllocation)
             return nullptr;
         HGLOBAL memory = GlobalAlloc(flags, bytes);

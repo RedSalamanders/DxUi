@@ -1,6 +1,12 @@
 # Completed and archived plans
 
+## Completed scopes — 8 November 2026
+
+- [Independent format oracles](IndependentFormatOracles_2026-11-08.md) — independent route/CF_HTML/MATH boundaries and fixed-seed adversarial coverage; six zero-warning builds, 66 ordinary x64 suite executions and actual ASan. Earlier regression obligations remain separately owned.
+
 ## Completed scopes — 7 November 2026
+
+- [DirectWrite lazy metrics](DirectWriteNativeFormatting_2026-11-07.md) — narrow native formatting allowance and a 65,536-unit source/caret regression; unchanged-object consumer proof, six zero-warning builds, 66 ordinary x64 suite executions and actual ASan.
 
 - [Masked native input policy](MaskedNativeInputPolicy_2026-11-07.md) — metadata-only TSF/password scope, native IMM suppression/restoration, external replacement and sibling isolation; original-object proofs, six zero-warning builds and 66 ordinary x64 suite executions.
 
@@ -146,7 +152,7 @@ Historical plans do not override normative domain contracts.
 
 - [CodeReview_2026-10-10](CodeReview_2026-10-10.md) — CR1-37 are reconciled to source and current native coverage. CR21 opening-character loss remains unreproduced and the blind filter is rejected; CR34 history administration remains explicitly unperformed, with shared ownership preserved. See the [delivery packet](../../../Measurements/WipDelivery_2026-11-02/README.md) and [shared qualification ledger](./ConsumerUiQualification_2026-10-11.md).
 
-- [CodeReview_2026-10-28](CodeReview_2026-10-28.md) — R28-01 through R28-53 and their subclaims are dispositioned; accepted callback, resource, input, geometry and renderer repairs are integrated and covered by the six-build/75-suite R27 cohort. Optional cache/architecture proposals are not claimed implemented. See the [delivery packet](../../../Measurements/WipDelivery_2026-11-02/README.md) and [shared qualification ledger](./ConsumerUiQualification_2026-10-11.md).
+- [CodeReview_2026-10-28](CodeReview_2026-10-28.md) — recorded dispositions and integrated repairs; the six-build/75-suite R27 cohort is aggregate evidence. Missing directed guards and counterfactual qualification belong to the [current parent](../WIP/RemainingWork_2026-11-04.md#d-t1). Optional cache/architecture proposals are not claimed implemented. See the [delivery packet](../../../Measurements/WipDelivery_2026-11-02/README.md) and [shared qualification ledger](./ConsumerUiQualification_2026-10-11.md).
 
 - [CodeReview_2026-10-31](CodeReview_2026-10-31.md) — The R28/DX sequencer and accepted RichText/file-drop features are implemented and reviewed against their source-specific tests. Complete local native, SDK, compatibility, gallery and measurement collection evidence is retained; source/policy/platform acceptance boundaries remain explicit. See the [delivery packet](../../../Measurements/WipDelivery_2026-11-02/README.md) and [shared qualification ledger](./ConsumerUiQualification_2026-10-11.md).
 

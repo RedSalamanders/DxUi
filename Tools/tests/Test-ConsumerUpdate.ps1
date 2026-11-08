@@ -47,11 +47,10 @@ try {
         Write-Host "PASS DxUi update advisory: $case"
     }
 
-    Invoke-TestCase 'the owned credential helper is bounded, drained and only returns successful output' {
+    Invoke-FixtureCase 'the owned credential helper is bounded, drained and only returns successful output' {
+        param($helperFixture)
         $shell = (Get-Process -Id $PID).Path
-        Set-FixtureFile $fixture 'helper-success.ps1' "[Console]::WriteLine('fixture-token')`n"
-        Set-FixtureFile $fixture 'helper-failure.ps1' "[Console]::WriteLine('must-not-be-used')`nexit 7`n"
-        Set-FixtureFile $fixture 'helper-timeout.ps1' @'
+        Set-FixtureFile $helperFixture 'helper-timeout.ps1' @'
 param([string] $IdentityPath)
 $process = [Diagnostics.Process]::GetCurrentProcess()
 [IO.File]::WriteAllText($IdentityPath, "$($process.Id)|$($process.StartTime.ToUniversalTime().Ticks)")
@@ -71,20 +70,34 @@ Start-Sleep -Seconds 30
             return & $HelperModule { param($info, $budget) Invoke-DxUiOwnedProcess -StartInfo $info -TimeoutMilliseconds $budget } $start $TimeoutMilliseconds
         }
 
-        $success = & $invoke (Join-Path $fixture 'helper-success.ps1') 2000 $shell $fixture $module
+        $invokeNative = {
+            param([string]$Command, $HelperModule)
+            # The production helper is a native CLI. Keep its actual 2-second
+            # deadline without depending on a second PowerShell cold startup.
+            $start = [Diagnostics.ProcessStartInfo]::new((Join-Path $env:WINDIR 'System32/cmd.exe'))
+            $start.UseShellExecute = $false
+            $start.CreateNoWindow = $true
+            $start.RedirectStandardOutput = $true
+            $start.RedirectStandardError = $true
+            foreach($argument in @('/d','/c',$Command)){[void]$start.ArgumentList.Add($argument)}
+            return & $HelperModule {param($info) Invoke-DxUiOwnedProcess -StartInfo $info -TimeoutMilliseconds 2000} $start
+        }
+        $success = & $invokeNative 'echo fixture-token' $module
+        Set-FixtureJson $helperFixture 'helper-success-result.json' $success
         Assert-Equal 0 $success.ExitCode 'successful helper exit'
         Assert-True (-not $success.TimedOut) 'successful helper is not timed out'
         Assert-Equal 'fixture-token' $success.StandardOutput.Trim() 'successful helper output is drained'
 
-        $failure = & $invoke (Join-Path $fixture 'helper-failure.ps1') 2000 $shell $fixture $module
+        $failure = & $invokeNative 'echo must-not-be-used & exit /b 7' $module
+        Set-FixtureJson $helperFixture 'helper-failure-result.json' $failure
         Assert-Equal 7 $failure.ExitCode 'nonzero helper exit'
         Assert-Equal '' $failure.StandardOutput 'nonzero helper output is discarded'
 
-        Set-FixtureFile $fixture 'helper-sentinel.ps1' "Start-Sleep -Seconds 30`n"
+        Set-FixtureFile $helperFixture 'helper-sentinel.ps1' "Start-Sleep -Seconds 30`n"
         $sentinel = [Diagnostics.Process]::new()
         $sentinelStart = [Diagnostics.ProcessStartInfo]::new()
         $sentinelStart.FileName = $shell
-        $sentinelStart.Arguments = "-NoProfile -NonInteractive -File `"$(Join-Path $fixture 'helper-sentinel.ps1')`""
+        $sentinelStart.Arguments = "-NoProfile -NonInteractive -File `"$(Join-Path $helperFixture 'helper-sentinel.ps1')`""
         $sentinelStart.UseShellExecute = $false
         $sentinelStart.CreateNoWindow = $true
         $sentinel.StartInfo = $sentinelStart
@@ -94,9 +107,10 @@ Start-Sleep -Seconds 30
             $sentinelStarted = $true
             $sentinelId = $sentinel.Id
             $sentinelStartTicks = $sentinel.StartTime.ToUniversalTime().Ticks
-            $timeout = & $invoke (Join-Path $fixture 'helper-timeout.ps1') 3000 $shell $fixture $module
+            $timeout = & $invoke (Join-Path $helperFixture 'helper-timeout.ps1') 3000 $shell $helperFixture $module
+            Set-FixtureJson $helperFixture 'helper-timeout-result.json' $timeout
             Assert-True $timeout.TimedOut 'slow helper reaches its timeout'
-            $identity = [IO.File]::ReadAllText((Join-Path $fixture 'child-identity.txt')).Split('|')
+            $identity = [IO.File]::ReadAllText((Join-Path $helperFixture 'child-identity.txt')).Split('|')
             $child = Get-Process -Id ([int]$identity[0]) -ErrorAction SilentlyContinue
             try {
                 Assert-True ($null -eq $child -or $child.StartTime.ToUniversalTime().Ticks -ne [long]$identity[1]) 'owned timed-out helper has exited'

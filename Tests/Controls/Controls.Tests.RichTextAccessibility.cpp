@@ -106,6 +106,17 @@ struct RichAccessibilityFixture
         }
         Pump();
     }
+    void PrepareAfterScroll()
+    {
+        // The provider owns scroll-induced snapshot publication. A caller may
+        // prepare content but must not repair the provider with an explicit
+        // RefreshAccessibilitySnapshot or application bridge Update.
+        if (embedded)
+            RequireSucceeded(PrepareEmbeddedContentForTests(view, viewportWidth, 240), "prepare scrolled rich source content only");
+        else
+            Require(PrepareNativeContentForTests(*controls), "prepare scrolled native rich source content only");
+        Pump();
+    }
     void Pump() const
     {
         if (window)
@@ -537,23 +548,24 @@ void ScrollingCommands(bool embedded)
     const auto selection = fixture.editor->GetSelection();
     const auto revision  = fixture.editor->Revision();
     RequireSucceeded(target->ScrollIntoView(TRUE), "align source range to top");
-    fixture.Publish();
+    Require(RectangleValues(*target.get()) >= 4, "ScrollIntoView publishes visible rectangles before any caller snapshot refresh");
+    fixture.PrepareAfterScroll();
     const float topOffset = fixture.editor->DebugGetState().scrollOffsetDip;
     Require(topOffset > 0 && RectangleValues(*target.get()) >= 4, "top scroll reveals mapped source geometry");
     RequireSucceeded(target->ScrollIntoView(FALSE), "align source range to bottom");
-    fixture.Publish();
+    fixture.PrepareAfterScroll();
     Require(fixture.editor->DebugGetState().scrollOffsetDip < topOffset && RectangleValues(*target.get()) >= 4, "bottom alignment uses the lower range edge");
     auto hidden       = FindRange(*document.get(), L"**");
     const auto offset = fixture.editor->DebugGetState().scrollOffsetDip;
     Require(hidden && SUCCEEDED(hidden->ScrollIntoView(TRUE)), "hidden-only range scroll succeeds without fabricated geometry");
-    fixture.Publish();
+    fixture.PrepareAfterScroll();
     Require(fixture.editor->DebugGetState().scrollOffsetDip == offset && RectangleValues(*hidden.get()) == 0,
             "offscreen hidden markers do not jump the viewport");
     RequireSucceeded(document->ScrollIntoView(TRUE), "oversized range aligns first edge");
-    fixture.Publish();
+    fixture.PrepareAfterScroll();
     Require(fixture.editor->DebugGetState().scrollOffsetDip == 0, "document top is clamped");
     RequireSucceeded(document->ScrollIntoView(FALSE), "oversized range aligns last edge");
-    fixture.Publish();
+    fixture.PrepareAfterScroll();
     Require(fixture.editor->DebugGetState().scrollOffsetDip > topOffset, "oversized range bottom reveals end of document");
     wil::com_ptr_nothrow<ITextProvider2> text2;
     RequireSucceeded(text.query_to(text2.put()), "scroll caret provider");
@@ -561,18 +573,18 @@ void ScrollingCommands(bool embedded)
     BOOL active = FALSE;
     RequireSucceeded(text2->GetCaretRange(&active, caret.put()), "source insertion point to reveal");
     RequireSucceeded(caret->ScrollIntoView(TRUE), "scroll degenerate source range");
-    fixture.Publish();
+    fixture.PrepareAfterScroll();
     Require(fixture.editor->DebugGetState().scrollOffsetDip == 0, "caret scroll reveals first line without moving insertion point");
     fixture.editor->SetViewMode(RichText::ViewMode::Source);
     fixture.editor->SetFlowDirection(FlowDirection::RightToLeft);
     fixture.Publish();
     RequireSucceeded(target->ScrollIntoView(FALSE), "scroll source mode with RTL flow");
-    fixture.Publish();
+    fixture.PrepareAfterScroll();
     Require(RectangleValues(*target.get()) >= 4, "RTL source range is visible after scrolling");
     fixture.editor->SetReadOnly(true);
     fixture.Publish();
     RequireSucceeded(target->ScrollIntoView(TRUE), "read-only document remains scrollable");
-    fixture.Publish();
+    fixture.PrepareAfterScroll();
     Require(fixture.editor->GetSelection() == selection && fixture.editor->Revision() == revision && fixture.editor->GetText() == source,
             "scrolling changes neither source nor selection nor history");
     Require(! fixture.editor->ScrollSourceRangeIntoView(*fixture.controls, source.size() + 1, source.size() + 1, true),
@@ -2168,8 +2180,11 @@ void SemanticMathLiteralFallback(bool embedded)
     using namespace RichText;
     RichAccessibilityFixture fixture(embedded, true, true);
     fixture.editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
-    const auto verify =
-        [&](const std::wstring& source, std::wstring_view expression, std::wstring_view helpText, std::wstring_view linkTitle, bool unsupportedSyntax)
+    const auto verify = [&](const std::wstring& source,
+                            std::wstring_view expression,
+                            std::wstring_view helpText,
+                            std::wstring_view linkTitle,
+                            SemanticDiagnosticKind expectedDiagnostic)
     {
         fixture.editor->SetText(source);
         fixture.Publish();
@@ -2205,10 +2220,10 @@ void SemanticMathLiteralFallback(bool embedded)
                    element.source.last - element.source.first == expression.size() + delimiterUnits;
         }),
                 "literal math remains a semantic Math element over its complete source envelope");
-        if (unsupportedSyntax)
-            Require(
-                std::ranges::any_of(semantic->Diagnostics(), [](const auto& diagnostic) { return diagnostic.kind == SemanticDiagnosticKind::UnsupportedMath; }),
-                "unknown math command has an independent unsupported-syntax diagnostic");
+        const MarkdownRange expectedRange{delimiter - delimiterUnits / 2u, delimiter + expression.size() + delimiterUnits / 2u};
+        Require(std::ranges::any_of(semantic->Diagnostics(),
+                                    [&](const auto& diagnostic) { return diagnostic.kind == expectedDiagnostic && diagnostic.source == expectedRange; }),
+                "literal math HelpText agrees with its independently expected diagnostic kind and exact source owner");
         auto text = TextProvider(fixture);
         wil::com_ptr_nothrow<ITextRangeProvider> raw;
         RequireSucceeded(text->RangeFromChild(math.get(), raw.put()), "literal math exact raw source range");
@@ -2225,14 +2240,22 @@ void SemanticMathLiteralFallback(bool embedded)
 
     const std::wstring unsupportedExpression = L"\\unknown{x}";
     const std::wstring unsupportedSource     = L"before $" + unsupportedExpression + L"$ and [link](https://example.test \"original title\") after\r\n";
-    verify(unsupportedSource, unsupportedExpression, L"Unsupported native equation. Exact source is preserved.", L"original title", true);
+    verify(unsupportedSource,
+           unsupportedExpression,
+           L"Unsupported native equation. Exact source is preserved.",
+           L"original title",
+           SemanticDiagnosticKind::UnsupportedMath);
 
     const std::wstring capacityExpression = L"\\text{" + std::wstring(1400u, L'm') + L"}";
     const std::wstring capacitySource     = L"before $" + capacityExpression + L"$ after [link](https://example.test \"capacity title\")\r\n";
     auto appearance                       = fixture.editor->GetAppearance();
     appearance.bodyFontSizeDip            = 96.f;
     fixture.editor->SetAppearance(appearance);
-    verify(capacitySource, capacityExpression, L"Equation cannot be prepared natively for this view. Exact source is preserved.", L"capacity title", false);
+    verify(capacitySource,
+           capacityExpression,
+           L"Equation exceeds native object capacity. Exact source is preserved.",
+           L"capacity title",
+           SemanticDiagnosticKind::MathCapacity);
 }
 void SemanticAccessibilityLabels(bool embedded)
 {

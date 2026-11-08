@@ -512,8 +512,9 @@ previous syntax publication. The editor displays exact source fallback and
 remembers only that snapshot/revision/profile, avoiding repeated idle parsing.
 Edits and profile changes retry; a returned transient native allocation-failure HRESULT remains retryable.
 Unexpected C++ allocation exceptions are fatal through the host.
-The focused admission/fallback implementation is in development under M6; final
-capacity/latency/NUL qualification remains open and the source limit stays 65,536.
+These bounded admission and source-fallback mechanisms are implemented. The
+source limit stays 65,536 UTF-16 units; bounded work is not an all-input latency
+guarantee. Physical/platform and formal performance acceptance remain separate.
 
 ## Retained editor preview (D2c)
 
@@ -1316,16 +1317,22 @@ edit/undo/redo, immutable old trees, option identity and deep iterative forests.
 The [sealed M3 qualification](../Measurements/RichText/README.md)
 retains 57 fresh complete ordinary x64 scope/profile runs, six root builds,
 12 isolated probes, 324 exact raster pairs and full validation/format checks.
-Both hosts also verify padded-cell identity across edits/undo/redo. Parser-only
-raw NUL label replacement is tested under all three profiles; Document/codecs/
-text-service NUL admission stays deferred. ARM64 builds are compile-only.
+Both hosts also verify padded-cell identity across edits/undo/redo. That M3
+receipt is historical. Current document/UTF-8 codecs, source maps, UIA and
+text-service state retain counted NUL without truncation; clipboard Unicode
+transport refuses it atomically. Software tests cover these separate boundaries.
+Native TSF, physical IME and platform qualification retain their own scope;
+an ARM64 cross-build does not establish native execution.
 
-M4 still owns transformed/generated/object source maps, semantic native layout,
-structural editing and structured accessibility. M5 owns the accepted extensions;
-M6 and the existing gates own real capacity, physical/platform and performance
-acceptance. The current source limit stays 65,536 UTF-16 units. Advance budgets
-count operations; construct lookahead, stack resolution, sorting and allocations
-can inspect more than one character per step and are not wall-clock guarantees. Generated table padding can amplify columns times body rows; a general tree/storage capacity bound remains M6 work.
+The earlier M4/M5/M6 milestones describe the implementation sequence. Current
+support and bounds belong to the capability table and the
+[controls contract](../Specs/UI/UI_ControlsAndLayout.md). The source limit stays
+65,536 UTF-16 units and parser staging permits 32,768 combined block/inline
+records. Table padding preflights its whole width before allocation and yields
+between cells. Advance budgets count operations; lookahead, stack resolution,
+sorting and allocation can inspect more than one character per step and are not
+wall-clock guarantees. Physical/platform and performance acceptance remain open
+in the [current plan](../Specs/Plans/WIP/RemainingWork_2026-11-04.md).
 
 ## Semantic rendering preview (M4d)
 
@@ -1803,6 +1810,12 @@ aligned and gathered rows. Matrix and substack rows use `\\` or `\cr` and matrix
 are padded with empty cells to the widest row, within the total-cell limit. User macros, packages, file input, evaluation and full LaTeX
 compatibility are unsupported. Rejection retains the complete literal equation with
 a source-ranged diagnostic, rather than drawing a misleading partial expression.
+Native preparation preserves the reason for a local refusal: geometry capacity
+reports `MathCapacity`, while unsupported syntax or native operations report
+`UnsupportedMath`. The exact equation stays editable and neighboring rich
+content stays prepared. Changing typography or the view can retry a geometry
+refusal; idle preparation does not retry an unchanged key. Held semantic
+documents retain their original diagnostics after later publications.
 Alphabet mapping covers ASCII letters; blackboard, sans-serif and monospace also
 map ASCII digits, while other characters are preserved. A prepared text leaf may
 hold up to twice the authored source-unit limit to allow surrogate-pair alphabet

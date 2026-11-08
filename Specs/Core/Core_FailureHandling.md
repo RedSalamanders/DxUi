@@ -117,11 +117,16 @@ gate open if no supported mechanism meets both the catch restriction and the con
 
 Windows ABI implementations may raise and handle C++ exceptions internally before
 returning an HRESULT. Such an internal event is not evidence that an exception
-escaped into DxUi. Audited UI Automation calls, D3D11 device creation and deferred Direct2D `EndDraw` work use `Failure::InvokeNative` with
+escaped into DxUi. Audited UI Automation calls, D3D11 device creation, deferred Direct2D `EndDraw` work and
+DirectWrite's lazy `IDWriteTextLayout::GetMetrics` formatting use `Failure::InvokeNative` with
 pre-evaluated POD arguments. Its native allowance masks only the synchronous
 foreign implementation; every nested DxUi scope reactivates observation for
 reentrant providers and application callbacks. Never apply this allowance to an
 application delegate or use it to ignore WIL exception types or whole modules.
+The DirectWrite allowance covers only the opaque metrics call: source/projection allocation, publication and
+subsequent SDK work remain observed. An HRESULT refusal must retain the previous prepared layout. The real
+65,536-code-unit unbroken source regression must retain source and caret geometry; an internal Windows
+formatting exception handled before HRESULT return must not become an application fatal report.
 A separate noinline POD-only SEH trampoline catches no failure for recovery: its
 filter sends an escaping MSVC C++ exception's original exception pointers to the
 host before unwinding; non-C++ SEH continues its existing search. `/EHsc` remains.

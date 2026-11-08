@@ -10,6 +10,7 @@ namespace Detail
 {
 struct SemanticExtensions;
 struct SemanticExtensionAccess;
+struct NativeSourceFallback;
 struct DisclosureOverride
 {
     std::uint64_t identity{};
@@ -278,11 +279,11 @@ private:
     // It never edits syntax and is not a consumer-authored source mask.
     void BeginWithNativeFallbacks(std::shared_ptr<const MarkdownSyntax> syntax,
                                   std::size_t sourceBlock,
-                                  std::span<const MarkdownRange> sourceObjects,
+                                  std::span<const Detail::NativeSourceFallback> sourceObjects,
                                   std::span<const Detail::DisclosureOverride> disclosures = {});
     [[nodiscard]] SourceResult TryBeginWithNativeFallbacks(std::shared_ptr<const MarkdownSyntax> syntax,
                                                            std::size_t sourceBlock,
-                                                           std::span<const MarkdownRange> sourceObjects,
+                                                           std::span<const Detail::NativeSourceFallback> sourceObjects,
                                                            std::span<const Detail::DisclosureOverride> disclosures = {});
     struct Preparation;
     std::unique_ptr<Preparation> next_;

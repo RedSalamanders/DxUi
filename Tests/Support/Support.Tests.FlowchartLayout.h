@@ -50,6 +50,25 @@ inline bool Near(double a, double b) noexcept
 {
     return std::abs(a - b) < 0.000001;
 }
+
+// An independent geometry oracle uses signed triangle areas for arbitrary
+// segments. The router instead compares horizontal/vertical coordinate ranges.
+// Strict opposite sides exclude shared endpoints, overlap and zero-length legs.
+inline bool ProperIntersection(FlowchartPoint a, FlowchartPoint b, FlowchartPoint c, FlowchartPoint d) noexcept
+{
+    const auto area = [](FlowchartPoint p, FlowchartPoint q, FlowchartPoint r) { return (q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x); };
+    return area(a, b, c) * area(a, b, d) < 0.0 && area(c, d, a) * area(c, d, b) < 0.0;
+}
+inline std::size_t ProperRouteCrossings(std::span<const FlowchartPlacedEdge> edges) noexcept
+{
+    std::size_t count{};
+    for (std::size_t edge = 0u; edge < edges.size(); ++edge)
+        for (std::size_t prior = 0u; prior < edge; ++prior)
+            for (std::size_t a = 1u; a < edges[edge].path.size(); ++a)
+                for (std::size_t b = 1u; b < edges[prior].path.size(); ++b)
+                    count += ProperIntersection(edges[edge].path[a - 1u], edges[edge].path[a], edges[prior].path[b - 1u], edges[prior].path[b]);
+    return count;
+}
 template <typename Check> inline void Geometry(Check&& check)
 {
     // Hand-calculated two-rank oracle: 40x32 boxes, 16-DIP endpoint
@@ -492,6 +511,11 @@ template <typename Check> inline void Invariants(const FlowchartLayoutPlan& plan
 }
 template <typename Check> inline void CrossingReduction(Check&& check)
 {
+    check(ProperIntersection({0.0, 2.0}, {4.0, 2.0}, {2.0, 0.0}, {2.0, 4.0}) && ProperIntersection({0.0, 0.0}, {4.0, 4.0}, {0.0, 4.0}, {4.0, 0.0}),
+          "signed-area oracle recognizes hand-placed orthogonal and oblique interior crossings");
+    check(! ProperIntersection({0.0, 0.0}, {2.0, 2.0}, {2.0, 2.0}, {4.0, 0.0}) && ! ProperIntersection({0.0, 0.0}, {4.0, 0.0}, {1.0, 0.0}, {3.0, 0.0}) &&
+              ! ProperIntersection({0.0, 0.0}, {0.0, 0.0}, {-1.0, 0.0}, {1.0, 0.0}) && ! ProperIntersection({0.0, 0.0}, {1.0, 1.0}, {2.0, 0.0}, {2.0, 4.0}),
+          "signed-area oracle rejects endpoint contact, overlapping or empty legs and disjoint segments");
     // This is not a matching: two edges leave A and two enter Y. Source order
     // has one adjacent-rank inversion and two proper routed crossings.
     for (const auto direction : {L"TD", L"BT", L"LR", L"RL"})
@@ -500,12 +524,12 @@ template <typename Check> inline void CrossingReduction(Check&& check)
         const auto single = Place(graph, check, 1u), batched = Place(graph, check, 113u);
         Invariants(*single, check);
         const bool vertical = direction[0] == L'T' || direction[0] == L'B';
-        const auto center   = [&](const FlowchartLayoutPlan& plan, std::size_t node)
+        const auto center   = [](const FlowchartLayoutPlan& plan, std::size_t node)
         {
             const auto& box = plan.nodes[node].bounds;
-            return vertical ? box.x + box.width / 2.0 : box.y + box.height / 2.0;
+            return FlowchartPoint{box.x + box.width / 2.0, box.y + box.height / 2.0};
         };
-        std::size_t sourceCrossings{}, actualCrossings{};
+        std::size_t actualCrossings{};
         for (std::size_t edge = 0u; edge < graph->edges.size(); ++edge)
             for (std::size_t prior = 0u; prior < edge; ++prior)
             {
@@ -513,28 +537,10 @@ template <typename Check> inline void CrossingReduction(Check&& check)
                 const auto& b = graph->edges[prior];
                 if (a.from == b.from || a.to == b.to)
                     continue;
-                sourceCrossings += (a.from < b.from) != (a.to < b.to);
-                actualCrossings += (center(*single, a.from) < center(*single, b.from)) != (center(*single, a.to) < center(*single, b.to));
+                actualCrossings += ProperIntersection(center(*single, a.from), center(*single, a.to), center(*single, b.from), center(*single, b.to));
             }
-        check(sourceCrossings == 1u && actualCrossings == 0u, "general stable rank ordering eliminates the independently counted inversion");
-        // Count only strict interior intersections of orthogonal segments;
-        // touching endpoints and coincident segments are not proper crossings.
-        std::size_t routedCrossings{};
-        for (std::size_t edge = 0u; edge < single->edges.size(); ++edge)
-            for (std::size_t prior = 0u; prior < edge; ++prior)
-                for (std::size_t a = 1u; a < 6u; ++a)
-                    for (std::size_t b = 1u; b < 6u; ++b)
-                    {
-                        const auto p = single->edges[edge].path[a - 1u], q = single->edges[edge].path[a];
-                        const auto r = single->edges[prior].path[b - 1u], t = single->edges[prior].path[b];
-                        const bool verticalA = Near(p.x, q.x), verticalB = Near(r.x, t.x);
-                        if (verticalA == verticalB)
-                            continue;
-                        const auto v = verticalA ? p : r, ve = verticalA ? q : t;
-                        const auto h = verticalA ? r : p, he = verticalA ? t : q;
-                        routedCrossings += v.x > std::min(h.x, he.x) && v.x < std::max(h.x, he.x) && h.y > std::min(v.y, ve.y) && h.y < std::max(v.y, ve.y);
-                    }
-        check(routedCrossings == 1u, "the independently counted proper routed crossings fall from two to one");
+        check(actualCrossings == 0u, "general stable rank ordering eliminates the hand-counted single source-order inversion");
+        check(ProperRouteCrossings(single->edges) == 1u, "the signed-area oracle counts one proper routed crossing instead of the source order's two");
         check(single->nodes.size() == 6u && single->edges.size() == 3u && batched->nodes.size() == 6u && batched->edges.size() == 3u,
               "crossing reduction preserves authored node and edge identities");
         for (std::size_t edge = 0u; edge < graph->edges.size(); ++edge)
@@ -582,22 +588,7 @@ template <typename Check> inline void CrossingReduction(Check&& check)
     check(guarded->nodes[0u].bounds.x < guarded->nodes[1u].bounds.x && guarded->nodes[1u].bounds.x < guarded->nodes[2u].bounds.x &&
               guarded->nodes[3u].bounds.x < guarded->nodes[4u].bounds.x,
           "a candidate with worse routed crossings restores both source-order ranks");
-    std::size_t guardedCrossings{};
-    for (std::size_t edge = 0u; edge < guarded->edges.size(); ++edge)
-        for (std::size_t prior = 0u; prior < edge; ++prior)
-            for (std::size_t a = 1u; a < 6u; ++a)
-                for (std::size_t b = 1u; b < 6u; ++b)
-                {
-                    const auto p = guarded->edges[edge].path[a - 1u], q = guarded->edges[edge].path[a];
-                    const auto r = guarded->edges[prior].path[b - 1u], t = guarded->edges[prior].path[b];
-                    const bool verticalA = Near(p.x, q.x), verticalB = Near(r.x, t.x);
-                    if (verticalA == verticalB)
-                        continue;
-                    const auto v = verticalA ? p : r, ve = verticalA ? q : t;
-                    const auto h = verticalA ? r : p, he = verticalA ? t : q;
-                    guardedCrossings += v.x > std::min(h.x, he.x) && v.x < std::max(h.x, he.x) && h.y > std::min(v.y, ve.y) && h.y < std::max(v.y, ve.y);
-                }
-    check(guardedCrossings == 2u, "route guard retains the independently counted original crossing count");
+    check(ProperRouteCrossings(guarded->edges) == 2u, "route guard retains the two hand-counted crossings under the independent signed-area oracle");
     std::wstring maximum = L"graph TD;";
     for (std::size_t node = 0u; node < 64u; ++node)
         maximum += L"A" + std::to_wstring(node) + L";";

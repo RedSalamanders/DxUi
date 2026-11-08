@@ -339,7 +339,8 @@ signature of an overridden virtual stops it compiling.
 
 Consumers call `Show-DxUiUpdateNotice -LockFile <exact-lock>` from `Tools/ConsumerUpdate.psm1`
 once in their root restore/build invocation. It reads main, verifies ancestry, and recommends only
-the exact main commit whose latest push run of `ci.yml` completed successfully. Same-pin builds are
+the exact main commit whose latest `qualify.yml` dispatch reported success. This advisory remains a hint,
+not a replacement for source-bound native receipts and the consumer's own qualification. Same-pin builds are
 quiet; pending/failed/unavailable validation keeps the pin selected; divergent/ahead pins require review.
 The notice includes the comparison URL and lock to update. It is plain build output, never an MSBuild
 warning, automatic edit, PR comment, push, or scheduling service. Private read access uses existing
@@ -349,6 +350,10 @@ second. Standard output and error drain concurrently and have a bounded drain wa
 fully drained result can supply the token. Each of at most three API requests has a two-second timeout.
 Lookup failures are explicitly unavailable and cannot fail an otherwise valid fixed-pin build.
 Authentication details are never logged.
+The exit/drain fixture uses a native local command under the same two-second deadline as the native `gh`
+helper. It does not conflate cold PowerShell interpreter startup with native helper work. The separate timeout
+fixture still verifies owned-process termination and independent-process survival; failed fixtures retain their
+synthetic result records through the shared fixture owner. No production deadline or pipe-drain budget changes.
 The consumer still validates/restores its exact source pin independently and fails on a real pin error.
 
 ### CI toolchain preparation and audit evidence

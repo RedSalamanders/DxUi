@@ -2,7 +2,7 @@
 
 Status: DONE — local implementation and source-bound review closed; shared acceptance remains separately owned
 
-Closeout evidence: R28-01 through R28-53 and their subclaims are dispositioned; accepted callback, resource, input, geometry and renderer repairs are integrated and covered by the six-build/75-suite R27 cohort. Optional cache/architecture proposals are not claimed implemented. See the [delivery packet](../../../Measurements/WipDelivery_2026-11-02/README.md) and [shared qualification ledger](ConsumerUiQualification_2026-10-11.md).
+Closeout evidence: R28-01 through R28-53 and their subclaims have recorded dispositions; accepted callback, resource, input, geometry and renderer repairs are integrated. The six-build/75-suite R27 cohort establishes its aggregate results, not a directed regression for every review ID. The [current parent](../WIP/RemainingWork_2026-11-04.md#d-t1) owns missing directed guards and their counterfactual qualification. Optional cache/architecture proposals are not claimed implemented. See the [delivery packet](../../../Measurements/WipDelivery_2026-11-02/README.md) and [shared qualification ledger](ConsumerUiQualification_2026-10-11.md).
 
 
 Historical pre-closeout Status: ACTIVE. The 30 October review baseline is historical; 1 November repairs and qualification are in progress under the 31 October sequencer. The original review reported that remediation awaited the

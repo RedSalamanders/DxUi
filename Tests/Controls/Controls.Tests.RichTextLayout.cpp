@@ -2253,6 +2253,23 @@ void TestRichTextLayoutExplicitTypographyAndInvalidOptions()
     Reject([&] { return layout.TryPrepare(factory.get(), projection, invalid); }, "clipping-prone heading line spacing rejected");
     Require(layout.Generation() == generation && layout.Height() == height, "invalid typography retains prior source/geometry publication");
 }
+void TestRichTextLayoutDeferredNativeFormatting()
+{
+    const auto factory = CreateRichTextTestFactory();
+    // DirectWrite formats lazily when metrics are requested. This bounded,
+    // unbroken local-source line exercises its internally handled exception
+    // path on supported Windows builds without an injected SDK exception.
+    const std::wstring source = L"$" + std::wstring(65534u, L'x') + L"$";
+    Document document(source);
+    PreparedLayout layout;
+    LayoutOptions options;
+    options.widthDip  = 1024.f;
+    const auto status = layout.TryPrepare(factory.get(), Project(document.Snapshot(), document.Revision(), ViewMode::Source), options);
+    Require(SUCCEEDED(status) && layout.Ready() && layout.Content().source == source && std::isfinite(layout.Height()) && layout.Height() > 0.f,
+            "deferred native formatting publishes the entire bounded source without a false fatal exception");
+    const auto caret = layout.Caret(65000u);
+    Require(std::isfinite(caret.x) && std::isfinite(caret.y) && caret.height > 0.f, "large local-source formatting retains usable caret geometry");
+}
 void TestRichTextInlineMetricsFailurePreservesPreparedLayout()
 {
     const auto factory = CreateRichTextTestFactory();
@@ -2323,6 +2340,7 @@ void TestRichTextLayoutNativeFailureTransactions()
 void RunRichTextLayoutTests()
 {
     DXUI_RUN_TEST(TestRichTextLayoutNativeFailureTransactions);
+    DXUI_RUN_TEST(TestRichTextLayoutDeferredNativeFormatting);
     DXUI_RUN_TEST(TestRichTextInlineMetricsFailurePreservesPreparedLayout);
     DXUI_RUN_TEST(TestRichTextLayoutTransientLinkInkAndUnderlineRestoreSharedState);
     DXUI_RUN_TEST(TestRichTextLayoutExplicitTypographyAndInvalidOptions);

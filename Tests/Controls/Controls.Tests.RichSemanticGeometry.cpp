@@ -60,6 +60,24 @@ void TestRichSemanticNativeFallbackSyntaxOwnership()
     const auto retry = RichSemanticDocumentTests::Complete(builder, *syntax);
     Require(retry->Diagnostics().empty() && retry->Map().Display() == original->Map().Display(),
             "clearing presentation rejection retries the unchanged syntax");
+    std::array typed{Detail::NativeSourceFallback{math->source, Detail::NativeFallbackReason::Capacity}};
+    Require(Detail::SemanticExtensionAccess::TryBeginWithTypedPresentation(builder, syntax, typed, {}) == SourceResult::Success,
+            "typed capacity fallback admits its exact math owner");
+    const auto capacity = RichSemanticDocumentTests::Complete(builder, *syntax);
+    Require(capacity->Diagnostics().size() == 1u && capacity->Diagnostics()[0u].kind == SemanticDiagnosticKind::MathCapacity,
+            "a checked native capacity cause survives rebuilding without reparsing it as unsupported syntax");
+    typed[0u].reason = Detail::NativeFallbackReason::Unsupported;
+    Require(Detail::SemanticExtensionAccess::TryBeginWithTypedPresentation(builder, syntax, typed, {}) == SourceResult::Success,
+            "the same source owner may publish a different checked cause");
+    const auto unsupported = RichSemanticDocumentTests::Complete(builder, *syntax);
+    Require(unsupported != capacity && unsupported->Map().Display() == capacity->Map().Display() &&
+                unsupported->Diagnostics()[0u].kind == SemanticDiagnosticKind::UnsupportedMath &&
+                capacity->Diagnostics()[0u].kind == SemanticDiagnosticKind::MathCapacity,
+            "fallback identity includes the cause and held publications retain their original diagnostic");
+    typed[0u].reason = static_cast<Detail::NativeFallbackReason>(99u);
+    Require(Detail::SemanticExtensionAccess::TryBeginWithTypedPresentation(builder, syntax, typed, {}) == SourceResult::InvalidRange &&
+                builder.Published() == unsupported && ! builder.HasPendingPreparation(),
+            "invalid typed causes preserve pending and published state atomically");
     for (const auto profile : {MarkdownProfile::CommonMark0312, MarkdownProfile::RichMarkdown})
         for (const std::wstring source : {L"<p>x<sup>word</sup></p>\n", L"x<sub>word</sub>\n"})
         {

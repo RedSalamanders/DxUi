@@ -1,13 +1,17 @@
 # DxUi remaining correctness and qualification
 
 Status: ACTIVE
-Updated: 7 November 2026
+Updated: 8 November 2026
 Owner: DxUi maintainers; consumer policy and adoption remain with each application.
 
 This is the **only active DxUi plan**. The [consolidation record](../Done/WipConsolidation_2026-11-04.md)
 maps every unchecked item from the four former queues to a current owner or explicit disposition. Archived
 reviews/proposals retain detail and source identities without becoming parallel execution plans. Domain
 specifications and `capabilities.json` remain authoritative.
+
+The owner's **7 November 2026** delivery scope requires x64 Debug, Release and ASan Debug runtime tests and
+ARM64 compilation in those three profiles. Native ARM64 runtime work is explicitly set aside for this delivery;
+compilation does not establish runtime support, and the normal two-architecture production release gate is unchanged.
 
 ## Verified starting point
 
@@ -80,6 +84,22 @@ Owner: `src/Rendering/Embedded.cpp`, `src/Controls/DxUi.TextInput.cpp`, input di
 - [ ] Finish parser/preparer admission and per-element failure isolation across diagrams/math/images.
   Preserve checked capacity/unsupported causes and regression evidence; unexpected C++ exceptions follow
   the API-5 fatal contract rather than the superseded whole-view exception-recovery proposal.
+  The native-refusal follow-up carries typed causes through exact-source fallback and asserts that geometry
+  capacity remains distinct from unsupported math/targets. Source-only diagnostics are insufficient;
+  `21fae0dc` passes all six zero-warning builds and all 66 ordinary x64 suite executions, with actual ASan;
+  directed counterfactual qualification remains in progress before this row closes.
+  First x64 Debug `ebacb208` passed 21 ordinary suites; its Accessibility oracle expected the old generic HelpText
+  for a capacity refusal. Its assertion and following 300-second watchdog, original inputs/native/compiler
+  bytes and run are retained. The corrected oracle requires capacity-specific HelpText, diagnostic kind and
+  exact source ownership and passes in all three current x64 profiles. The watchdog's teardown cause is
+  unassigned rather than inferred from that stale assertion.
+- [x] Qualify the narrow DirectWrite lazy-formatting metrics boundary and 65,536-unit source/caret regression.
+  The [scoped closeout](../Done/DirectWriteNativeFormatting_2026-11-07.md) binds `4ce9b6a9`, six zero-warning
+  builds, 66 ordinary x64 suite executions, actual ASan and original-member verification. Original RedTilde
+  `1d843628` objects fail fatally with SDK `5907e4f5`; replacing only the layout object lets oversized math
+  complete and leaves the independent watch defect as an ordinary failure. First failures remain retained.
+  The application's later ASan image-policy failure remains with its own candidate; this library scope does
+  not qualify the full API-5 consumer.
 - [x] Retire the native animation window before failure-host uninstallation and prevent callback rearming during
   Detach. The [scoped closeout](../Done/AnimationWindowRetirement_2026-11-07.md) retains the original consumer
   TLS diagnosis, independent public same-object failures/passes, sibling/cache and in-tick coverage, six
@@ -134,8 +154,12 @@ This coordinates the active API work; it does not adopt API 5 in any application
 
 - [x] Preserve pending surrogate leads across `VK_PACKET` key transitions/modifiers in both editors and hosts
   (CTRL-01), with real-message replay and no weakened assertions.
-- [ ] Reconcile the native IME capacity and quoted-file-paste fixes required by RedTilde DX-4/DX-3 against the
-  exact candidate; keep source, selection, history, decline paths and callback ownership intact.
+- [x] Reconcile the native TSF capacity and quoted-file-paste fixes required by RedTilde DX-4/DX-3 at
+  `21fae0dc` (API 5). The [input ledger](../../../Measurements/EarlierControlsAndNativeRefusalCauses_2026-11-08/input-reconciliation.json)
+  verifies four named cases in each x64 profile against original logs and executed-image hashes. Exact-boundary
+  admission, atomic refusals, preview/commit history, escaped literal fallback, backward selections and late
+  callback disconnection are covered. These owned API transactions do not qualify a physical IME/clipboard;
+  foreground and physical input remain D-Q1.
 - [x] Implement D4's SDK text-first default when Unicode and bitmap formats coexist, with an explicit
   native/embedded application image-first policy API and source-preserving decline behavior.
   [Scoped closeout](../Done/ClipboardPreference_2026-11-06.md): API 4 `a1915ffd`, six zero-warning builds,
@@ -221,9 +245,20 @@ omitting an ID from this summary does not dispose of it.
 ## D-T1 — meaningful regression and adversarial coverage
 
 - [ ] Add counterfactual fail-before/pass-after coverage for the retained P1 findings and earlier fixes that
-  lack it (PRIOR-08); replace self-referential crossing, CF_HTML and font-truncation oracles.
-- [ ] Add deterministic pathological-input/fuzz/cancellation coverage for Markdown, diagrams and math;
-  retain exact seeds, budgets, raw failures and source/artifact identities.
+  lack it (PRIOR-08). The separate seven-obligation regression-guard cohort retains its own qualification.
+  The separate regression-guard cohort adds actual grow-after-scroll, pending-sibling capture, unequal RTL
+  cell widths, setter invalidations, native read-only fallback, unassisted UIA scroll publication and normal
+  borrowed-model retirement assertions. API 5 supersedes R28-44's recoverable allocation proposal. These new
+  guards pass all three ordinary x64 profiles at `21fae0dc`; the remaining directed counterfactuals must
+  complete before this row closes. Native positives alone do not prove fail-before behavior.
+- [x] Replace self-referential crossing, CF_HTML and font-truncation oracles. The
+  [scoped closeout](../Done/IndependentFormatOracles_2026-11-08.md) binds independent signed-area/wire/producer
+  checks, actual private HGLOBAL bytes, exact-sized MATH prefixes and the safe 628-check ASan boundary proof.
+- [x] Add deterministic pathological-input/fuzz/cancellation coverage for Markdown, diagrams and math;
+  retain exact seeds, budgets, raw failures and source/artifact identities. Qualified `9b871c91` passes all
+  six zero-warning builds, 66 ordinary x64 suite executions and actual ASan. All 685 original compiled inputs
+  and native/run archive members verify. ARM64 is compilation-only; this does not close the seven earlier
+  regression obligations, consumer/physical gates or formal paired-performance acceptance.
 - [ ] Diagnose the retained failed-consumer-publication fixture's ten-second closure failure observed during
   the long-checkout validator run. Progress/body admission stayed correctly refused; an explicit-exit proposal
   also failed and was rejected, while a focused replay of the original source passes all 14 cases. Preserve
@@ -338,8 +373,10 @@ policy, erase its findings or close this section.
   records and retained consumer sources/images/logs. Native x64 Foundation and warning-free x64/ARM64
   cross-builds pass; the new ARM64 fallback and complete test-before-production gate remain unaccepted
   until fresh hosted execution. This does not assign a cause to the older output-less Grid failure.
-- [ ] Complete or retain the explicit owner deferral for native ARM64 opt-in MenuResources/MenuResourceScaling
-  and candidate-specific foreground coverage. Native cross-builds and ordinary hosted suites do not close them.
+- [x] Record the owner's 7 November deferral of native ARM64 runtime, including opt-in
+  MenuResources/MenuResourceScaling, for this delivery. Require all three ARM64 compilation checks and keep
+  every historical runtime failure/refusal. Do not claim those cross-builds establish runtime acceptance.
+- [ ] Complete candidate-specific x64 foreground coverage. Ordinary noninteractive suites do not close it.
 - [ ] Qualify physical device removal/occlusion, real IME during reflow, assistive technology and touch on named
   hosts. Arrange focus-taking runs at the agreed time through the existing restoring desktop lease.
 - [ ] Keep original failed/refused foreground runs and causes unassigned until independently demonstrated.
@@ -347,15 +384,23 @@ policy, erase its findings or close this section.
 <a id="d-c1"></a>
 ### D-C1 — consumer adoption and supported pilots
 
-- [ ] Verify RedPrism/RedXe adoption of the already published compatibility branches (PRIOR-02) in their own
-  repositories, without resetting separately owned branches or changing pins implicitly.
+- [x] Verify PRIOR-02's consumer pins without changing either repository. On 8 November both remote mains
+  retain the explicitly chosen API-4 main pin `f2e328a0`, containing keyboard fix `762983a0` and UIA
+  `TakeKeyboardOwnership` cancellation. RedPrism main `4c6b17ce` records its adoption and x64 limits in
+  [its own qualification record](https://github.com/RedSalamanders/RedPrism/blob/4c6b17ceb6a9ebb0c59a202350d2972705de742e/Specs/TestRuns/DxUiRevision4_2026-11-02.md).
+  RedXe main `ce3f62b7` records the owner's replacement of the compatibility-branch choice in
+  [P0-4](https://github.com/RedSalamanders/RedXe/blob/ce3f62b773bb6b83b01b9fdec71f8a6b69f21d18/Specs/Plans/WIP/DeliveryRedTeam_2026-10-31.md).
+  Published compatibility refs remain intact. This closes pin reconciliation, not API-5 adoption or either
+  application's remaining product, physical-input, packaging or performance acceptance.
 - [ ] Qualify each chosen General/card/prompt/profile pilot and exact pin through the consumer's own harness;
   leave optional additions deferred if the pilot has no demonstrated value.
-- [ ] Coordinate the
-  [single RedTilde plan](https://github.com/RedSalamanders/RedTilde/blob/main/Specs/Plans/WIP/RemainingWork_2026-11-04.md), preserving its explicit API-4 pin
-  `2a7e7c28`. Its repaired main qualification passes at `1c600d60` in
+- [ ] Complete explicit API-5 adoption through the
+  [single RedTilde plan](https://github.com/RedSalamanders/RedTilde/blob/main/Specs/Plans/WIP/RemainingWork_2026-11-04.md).
+  Candidate `9feb787e` pins `21fae0dc`; its fresh native/production qualification remains in progress.
+  The earlier API-4 main qualification at `1c600d60` in
   [run 41853861400](https://github.com/RedSalamanders/RedTilde/actions/runs/41853861400): both native 75-case
-  Release roles and production ZIPs pass. Later app candidates, physical input and R10 retain their own acceptance.
+  Release roles and production ZIPs passed. That historical run does not qualify the current API-5 candidate;
+  physical input and R10 retain their own acceptance.
 
 <a id="d-g1"></a>
 ## D-G1 — SDK notices, evidence and process
