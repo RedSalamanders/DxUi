@@ -265,6 +265,10 @@ grid row included), UI Automation or a model change (`NotifyDataChanged`, `SetMo
 checkbox toggle whose model change moves the selection), touches nothing of a control the callback destroyed.
 Grid also stops after checkbox, group and sort delegates replace its model or destroy it. Group-layout requests resolve
 each remaining group by stable ID after callbacks. Never reuse the old sender pointer after replacing its tree.
+Grid borrows the current model: after `SetModel` returns normally, the previous model may be destroyed.
+Subsequent geometry and input use the replacement. Unexpected C++ failures follow the
+[host fatal policy](../Specs/Core/Core_FailureHandling.md). Growing a Grid or Tree clamps its scroll to the new
+viewport; changing header busy/sort state or Tree selection requests repaint.
 Short of that, a callback may publish its own edit with `NotifyDataChanged` (the usual way to answer
 `OnTreeToggleExpanded`, `OnGridGroupToggled` or `OnGridCheckboxToggled`) or change other controls, such as enabling a
 toolbar command: the gesture still completes its reports, reveal, context menu, drag, toggle and animation. Only a focus

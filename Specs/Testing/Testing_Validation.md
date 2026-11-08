@@ -33,6 +33,25 @@ Check lossless Markdown partitions/forest integrity, typed all-or-nothing refusa
 authored diagram endpoints and successful layout invariants. Require actual admitted and declined paths;
 deterministic structural checks do not establish semantic equivalence to a reference renderer or performance acceptance.
 
+## Earlier review regression contracts
+
+Retained R28 guards must exercise observable behavior rather than repair it from the fixture:
+
+- Grow an actually scrolled Grid/Tree until all authored rows fit, then verify the first body hit/retained scroll.
+- Keep an actual captured splitter preview while an unrelated editor returns pending preparation.
+- Compare unequal authored RTL Subtle table-column widths; staying inside the viewport alone is insufficient.
+- Verify the attached host is invalidated by changed busy/sort and Tree selection setters.
+- Send a printable native key to a focused read-only RichTextEditor and observe the application's actual fallback.
+- Read UIA range rectangles immediately after ScrollIntoView, then prepare content without an explicit caller
+  snapshot refresh or bridge Update. A fixture must not supply the provider's missing publication.
+- Destroy the previous borrowed Grid model after a normal SetModel return, then use new-model geometry/input.
+
+R28-44's former recoverable bad_alloc proposal is superseded by API 5. An unexpected selection-snapshot allocation
+failure terminates through the host fatal protocol; it must never return to a caller that can retire an uninstalled
+model. Keep the named fatal-child and ordinary borrowed-model lifetime evidence separate. Do not introduce a
+catch-and-continue seam to reproduce the obsolete recovery contract. Preserve original source/artifact identities
+and independent counterfactuals before claiming the earlier review is closed.
+
 ## Native tooling path fixtures
 
 The MSVC setup suite executes all fifteen cases through both direct and nested

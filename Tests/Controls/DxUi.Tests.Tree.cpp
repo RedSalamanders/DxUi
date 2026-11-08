@@ -2992,6 +2992,24 @@ void TestTreeMultiSelectionSurvivesModelChangesExpandCollapseAndScrolling()
     Require(tall.tree->GetFirstVisibleItemIndex() > first, "moving the focus scrolls it into view");
 }
 
+void TestTreeGrowingViewportClampsScrollAndSelectionSettersInvalidate()
+{
+    using namespace DxUi;
+    TreeSelectionFixture fixture(FlatTreeItems(12u), true, false, 120.f);
+    auto& tree = *fixture.tree;
+    Require(tree.OnMouseWheel(fixture.host, D2D1::Point2F(40.f, 40.f), -1200.f, 0u), "small tree viewport actually scrolls");
+    Require(tree.DebugGetVerticalScrollDip() > 0.f && tree.GetFirstVisibleItemIndex() > 0u, "the tree starts beyond its first authored row");
+    tree.SetBounds(D2D1::RectF(0.f, 0.f, 240.f, 600.f));
+    Require(tree.DebugGetVerticalScrollDip() == 0.f && tree.GetFirstVisibleItemIndex() == 0u,
+            "growing the tree to fit its rows clamps its retained scroll offset immediately");
+    auto before = fixture.host.DebugGetInvalidateCount();
+    tree.SetSelectedItemId(2u);
+    Require(fixture.host.DebugGetInvalidateCount() > before, "single-id tree selection explicitly invalidates its attached host");
+    before = fixture.host.DebugGetInvalidateCount();
+    tree.SetSelectedItemIds(std::vector<std::uint64_t>{1u, 3u});
+    Require(fixture.host.DebugGetInvalidateCount() > before, "multi-id tree selection explicitly invalidates its attached host");
+    RequireTreeIds(fixture.Selected(), {1u, 3u}, "tree repaint assertions retain independently expected selected ids");
+}
 void TestTreeMultiSelectPaintsEverySelectedRowWithTheSelectionColors()
 {
     using namespace DxUi;
@@ -3768,6 +3786,7 @@ void TestTreeInitialActionReportsSelection()
 
 void RunTreeTests()
 {
+    DXUI_RUN_TEST(TestTreeGrowingViewportClampsScrollAndSelectionSettersInvalidate);
     DXUI_RUN_TEST(TestTreeGesturesContinueWhenACallbackChangesAnotherControl);
     DXUI_RUN_TEST(TestTreeClickSurvivesAFocusHandlerThatChangesAnotherControl);
     DXUI_RUN_TEST(TestTreeRefreshTypeaheadAndWheelBoundaries);

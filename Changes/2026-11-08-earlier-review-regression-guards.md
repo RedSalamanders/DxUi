@@ -1,0 +1,1 @@
+- Strengthen earlier Grid, Tree, embedded capture, RTL table, native read-only key and UIA scroll regressions with direct behavior assertions; document borrowed-model retirement and the API-5 fatal-allocation contract.

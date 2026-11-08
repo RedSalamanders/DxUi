@@ -106,6 +106,17 @@ struct RichAccessibilityFixture
         }
         Pump();
     }
+    void PrepareAfterScroll()
+    {
+        // The provider owns scroll-induced snapshot publication. A caller may
+        // prepare content but must not repair the provider with an explicit
+        // RefreshAccessibilitySnapshot or application bridge Update.
+        if (embedded)
+            RequireSucceeded(PrepareEmbeddedContentForTests(view, viewportWidth, 240), "prepare scrolled rich source content only");
+        else
+            Require(PrepareNativeContentForTests(*controls), "prepare scrolled native rich source content only");
+        Pump();
+    }
     void Pump() const
     {
         if (window)
@@ -537,23 +548,24 @@ void ScrollingCommands(bool embedded)
     const auto selection = fixture.editor->GetSelection();
     const auto revision  = fixture.editor->Revision();
     RequireSucceeded(target->ScrollIntoView(TRUE), "align source range to top");
-    fixture.Publish();
+    Require(RectangleValues(*target.get()) >= 4, "ScrollIntoView publishes visible rectangles before any caller snapshot refresh");
+    fixture.PrepareAfterScroll();
     const float topOffset = fixture.editor->DebugGetState().scrollOffsetDip;
     Require(topOffset > 0 && RectangleValues(*target.get()) >= 4, "top scroll reveals mapped source geometry");
     RequireSucceeded(target->ScrollIntoView(FALSE), "align source range to bottom");
-    fixture.Publish();
+    fixture.PrepareAfterScroll();
     Require(fixture.editor->DebugGetState().scrollOffsetDip < topOffset && RectangleValues(*target.get()) >= 4, "bottom alignment uses the lower range edge");
     auto hidden       = FindRange(*document.get(), L"**");
     const auto offset = fixture.editor->DebugGetState().scrollOffsetDip;
     Require(hidden && SUCCEEDED(hidden->ScrollIntoView(TRUE)), "hidden-only range scroll succeeds without fabricated geometry");
-    fixture.Publish();
+    fixture.PrepareAfterScroll();
     Require(fixture.editor->DebugGetState().scrollOffsetDip == offset && RectangleValues(*hidden.get()) == 0,
             "offscreen hidden markers do not jump the viewport");
     RequireSucceeded(document->ScrollIntoView(TRUE), "oversized range aligns first edge");
-    fixture.Publish();
+    fixture.PrepareAfterScroll();
     Require(fixture.editor->DebugGetState().scrollOffsetDip == 0, "document top is clamped");
     RequireSucceeded(document->ScrollIntoView(FALSE), "oversized range aligns last edge");
-    fixture.Publish();
+    fixture.PrepareAfterScroll();
     Require(fixture.editor->DebugGetState().scrollOffsetDip > topOffset, "oversized range bottom reveals end of document");
     wil::com_ptr_nothrow<ITextProvider2> text2;
     RequireSucceeded(text.query_to(text2.put()), "scroll caret provider");
@@ -561,18 +573,18 @@ void ScrollingCommands(bool embedded)
     BOOL active = FALSE;
     RequireSucceeded(text2->GetCaretRange(&active, caret.put()), "source insertion point to reveal");
     RequireSucceeded(caret->ScrollIntoView(TRUE), "scroll degenerate source range");
-    fixture.Publish();
+    fixture.PrepareAfterScroll();
     Require(fixture.editor->DebugGetState().scrollOffsetDip == 0, "caret scroll reveals first line without moving insertion point");
     fixture.editor->SetViewMode(RichText::ViewMode::Source);
     fixture.editor->SetFlowDirection(FlowDirection::RightToLeft);
     fixture.Publish();
     RequireSucceeded(target->ScrollIntoView(FALSE), "scroll source mode with RTL flow");
-    fixture.Publish();
+    fixture.PrepareAfterScroll();
     Require(RectangleValues(*target.get()) >= 4, "RTL source range is visible after scrolling");
     fixture.editor->SetReadOnly(true);
     fixture.Publish();
     RequireSucceeded(target->ScrollIntoView(TRUE), "read-only document remains scrollable");
-    fixture.Publish();
+    fixture.PrepareAfterScroll();
     Require(fixture.editor->GetSelection() == selection && fixture.editor->Revision() == revision && fixture.editor->GetText() == source,
             "scrolling changes neither source nor selection nor history");
     Require(! fixture.editor->ScrollSourceRangeIntoView(*fixture.controls, source.size() + 1, source.size() + 1, true),

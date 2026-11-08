@@ -700,6 +700,15 @@ navigation/erase/undo/paste/Enter and non-trail characters retain their cancella
 ### Grid keyboard paging and column identity
 
 Page Up and Page Down use the body viewport height and prepared row/group geometry, with at least one-row progress where possible. Unhandled keys return before querying the model or enumerating rows. A model refresh compares the cached column IDs; when those identities change, widths, display order and current-cell index are rebuilt for the new columns rather than retained by position.
+
+Growing a Grid or Tree clamps its retained scroll to the new viewport. When all rows fit, the offset is zero and
+the first body hit identifies the first authored row. Changed Grid header busy/sort state and Tree selection
+setters request repaint from their attached host. Pending content in an unrelated sibling does not retire another
+control's capture or preview.
+
+Grid borrows its model. After a normal SetModel return the caller may destroy the previous model; subsequent
+geometry and input use the replacement. Unexpected C++ allocation/callback failures use the
+[fatal policy](../Core/Core_FailureHandling.md) and cannot return with an uninstalled replacement.
 ### Tree refresh and input routing
 
 A model refresh reconciles identities and clamps the scroll offset without moving the viewport to an unchanged focus. Typeahead cycles after the current row on a fresh one-character search and retains the current match as the prefix grows. A first keyboard action that selects the first row reports that selection; movement reports its final landing once. Ctrl and Shift row-selection gestures do not trigger single-click invocation. A wheel event directed outward at a scroll extent bubbles to an enclosing scroller, including partial detents.

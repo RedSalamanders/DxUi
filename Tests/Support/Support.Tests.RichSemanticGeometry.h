@@ -2073,6 +2073,13 @@ inline void MarkdownSubtlePresentation()
               "wide, narrow and RTL content-sized tables preserve source caret hit affinity");
         const auto bounds = layout->ElementBounds(tableIndex);
         Check(bounds && bounds->right - bounds->left <= width + 0.1f, "content-sized table remains within its available width after wrapping");
+        if (direction == DWRITE_READING_DIRECTION_RIGHT_TO_LEFT && width >= 500.f)
+        {
+            const auto shortCell = layout->ElementBounds(cellIndices[0u]);
+            const auto wideCell  = layout->ElementBounds(cellIndices[1u]);
+            Check(shortCell && wideCell && (wideCell->right - wideCell->left) > (shortCell->right - shortCell->left) + 40.f && shortCell->left > wideCell->left,
+                  "RTL Subtle table retains the independently unequal authored column widths rather than collapsing a text extent");
+        }
     }
 
     const auto initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);

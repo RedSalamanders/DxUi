@@ -5322,6 +5322,61 @@ void TestGridKeyboardViewportAndColumnIdentity()
     const auto shortRow = tall.grid->GetFocusedRowId();
     Require(tallRow && shortRow && *tallRow > *shortRow && *shortRow > 0u, "page distance follows actual viewport height");
 }
+void TestGridGrowingViewportRevealsTheFirstBodyRow()
+{
+    using namespace DxUi;
+    MultiRowGridModel model(12u);
+    ToolbarGridFixture fixture(model);
+    auto& grid = *fixture.grid;
+    grid.SetBounds(D2D1::RectF(0.f, 0.f, 320.f, 120.f));
+    Require(grid.OnMouseWheel(fixture.host, D2D1::Point2F(40.f, 60.f), -1200.f, 0u), "small grid viewport actually scrolls");
+    Require(! grid.GetVisibleRowRect(0u), "the first row is outside the scrolled small viewport");
+    grid.SetBounds(D2D1::RectF(0.f, 0.f, 320.f, 600.f));
+    const auto header = grid.GetVisibleColumnHeaderRect(0u);
+    Require(header.has_value() && grid.GetVisibleRowRect(0u).has_value(), "growing to fit all rows clamps the old grid scroll offset");
+    const auto point = D2D1::Point2F(header->left + 8.f, header->bottom + 2.f);
+    Require(grid.OnMouseDown(fixture.host, point, false, 0u), "first body row remains clickable after viewport growth");
+    static_cast<void>(grid.OnMouseUp(fixture.host, point, false, 0u));
+    Require(grid.GetSelectionModel().GetCount() == 1u && grid.GetFocusedRowId() == model.GetStableRowId(0u),
+            "the first body hit selects authored row zero after growing the scrolled viewport");
+}
+void TestGridHeaderSettersRequestTheirOwnRepaint()
+{
+    using namespace DxUi;
+    MultiRowGridModel model(4u);
+    ToolbarGridFixture fixture(model);
+    auto before = fixture.host.DebugGetInvalidateCount();
+    fixture.grid->SetHeaderBusyColumn(0u);
+    Require(fixture.host.DebugGetInvalidateCount() > before, "setting the attached grid busy header explicitly invalidates");
+    before = fixture.host.DebugGetInvalidateCount();
+    fixture.grid->SetHeaderBusyColumn(std::nullopt);
+    Require(fixture.host.DebugGetInvalidateCount() > before, "clearing the attached grid busy header explicitly invalidates");
+    before = fixture.host.DebugGetInvalidateCount();
+    fixture.grid->SetSortSpec({0u, SortDirection::Ascending});
+    Require(fixture.host.DebugGetInvalidateCount() > before, "setting the attached grid sort direction explicitly invalidates");
+    before = fixture.host.DebugGetInvalidateCount();
+    fixture.grid->SetSortSpec({0u, SortDirection::Descending});
+    Require(fixture.host.DebugGetInvalidateCount() > before, "changing the attached grid sort direction explicitly invalidates");
+}
+void TestGridSetModelReleasesThePreviousBorrowedModelOnReturn()
+{
+    using namespace DxUi;
+    auto previous = std::make_unique<MutableTextGridModel>(std::vector<MutableTextGridModel::Row>{{7u, {L"retired source"}}});
+    MutableTextGridModel replacement({{101u, {L"new first row"}}, {102u, {L"new second row"}}});
+    ToolbarGridFixture fixture(*previous);
+    const std::array<std::uint64_t, 1u> selected{7u};
+    fixture.grid->SetSelectedRowIds(selected);
+    fixture.grid->SetModel(&replacement);
+    previous.reset();
+    Require(fixture.grid->GetModel() == &replacement, "normal SetModel return retains only the new borrowed model");
+    const auto header = fixture.grid->GetVisibleColumnHeaderRect(0u);
+    Require(header.has_value(), "column geometry remains usable after the previous borrowed model is destroyed");
+    const auto point = D2D1::Point2F(header->left + 8.f, header->bottom + 2.f);
+    Require(fixture.grid->OnMouseDown(fixture.host, point, false, 0u), "new model row hit testing remains usable after old-model retirement");
+    static_cast<void>(fixture.grid->OnMouseUp(fixture.host, point, false, 0u));
+    Require(fixture.grid->GetFocusedRowId() == 101u && fixture.grid->GetSelectionModel().GetCount() == 1u,
+            "geometry and input resolve the replacement model's independently authored identity");
+}
 } // namespace
 
 void RunGridTests()
@@ -5334,6 +5389,9 @@ void RunGridTests()
     DXUI_RUN_TEST(TestGridModelAssignmentGenerationIgnoresDelegateChanges);
     DXUI_RUN_TEST(TestGridFocusedRowIsDrawnAndCtrlKeysMoveOnlyTheFocus);
     DXUI_RUN_TEST(TestGridKeyboardViewportAndColumnIdentity);
+    DXUI_RUN_TEST(TestGridGrowingViewportRevealsTheFirstBodyRow);
+    DXUI_RUN_TEST(TestGridHeaderSettersRequestTheirOwnRepaint);
+    DXUI_RUN_TEST(TestGridSetModelReleasesThePreviousBorrowedModelOnReturn);
     DXUI_RUN_TEST(TestGridCtrlLeftAndRightChooseTheCurrentColumn);
     DXUI_RUN_TEST(TestGridSetModelStopsAfterAGroupGetterReplacesItsRoot);
     DXUI_RUN_TEST(TestGridKeyboardCheckboxQueryStopsAfterGetterRetiresTheGrid);

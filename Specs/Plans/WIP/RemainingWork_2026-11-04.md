@@ -233,6 +233,10 @@ omitting an ID from this summary does not dispose of it.
 
 - [ ] Add counterfactual fail-before/pass-after coverage for the retained P1 findings and earlier fixes that
   lack it (PRIOR-08); replace self-referential crossing, CF_HTML and font-truncation oracles.
+  The separate regression-guard cohort adds actual grow-after-scroll, pending-sibling capture, unequal RTL
+  cell widths, setter invalidations, native read-only fallback, unassisted UIA scroll publication and normal
+  borrowed-model retirement assertions. API 5 supersedes R28-44's recoverable allocation proposal. These new
+  guards remain pending native/counterfactual qualification and do not close this row by source inspection.
 - [ ] Add deterministic pathological-input/fuzz/cancellation coverage for Markdown, diagrams and math;
   retain exact seeds, budgets, raw failures and source/artifact identities.
   The current test cohort adds signed-area crossing checks, independent CF_HTML wire/producer bytes,
