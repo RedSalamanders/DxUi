@@ -4,6 +4,11 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Preserve capacity and unsupported causes when native math and diagrams fall back to exact source, with diagnostic identity, immutable-publication and local-isolation regressions.
+- Exercise credential-helper exit and output drainage with native local commands under the unchanged two-second deadline, retain failed helper results, and distinguish update advice from source-bound consumer qualification.
+- Strengthen earlier Grid, Tree, embedded capture, RTL table, native read-only key and UIA scroll regressions with direct behavior assertions; document borrowed-model retirement and the API-5 fatal-allocation contract.
+  - Reconcile native TSF capacity and quoted-file-paste coverage against the current API-5 source, and distinguish directed review evidence from historical aggregate suite results.
+- Reconcile RedPrism and RedXe's explicit API-4 main adoption and RedTilde's current API-5 candidate, preserving each consumer's separately owned qualification gates.
 - Adopt architecture selection for manual diagnostic qualification through the reviewed shared CI engine; preserve the complete two-architecture production gate and explicit compilation-only delivery scopes.
 - Strengthen rich-text regression oracles with signed-area route intersections, independently counted CF_HTML bytes, an immutable Chromium producer vector, actual private HGLOBAL publication checks and exact-size truncated MATH buffers whose boundaries can be checked by ASan. Keep oracle-quality and physical/performance acceptance distinct.
   - Add a fixed-seed adversarial Markdown, diagram and math corpus with retained UTF-16 inputs, bounded cooperative progress, cancellation/publication checks and independent structural bounds.

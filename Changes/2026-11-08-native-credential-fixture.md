@@ -1,1 +1,0 @@
-- Exercise credential-helper exit and output drainage with native local commands under the unchanged two-second deadline, retain failed helper results, and distinguish update advice from source-bound consumer qualification.
