@@ -1918,6 +1918,15 @@ Its first attempt in an episode reports the HRESULT once, while later unrelated 
 issued reentrantly during preparation remains pending rather than being lost to the failed predecessor.
 Embedded preparation still returns the failure and withholds composition. This rule concerns checked refusals;
 unexpected C++ exceptions, including `std::bad_alloc`, retain the fatal failure-policy contract.
+An expected native object refusal MUST retain its typed capacity or unsupported
+cause through semantic rebuilding. `MathCapacity` and `DiagramCapacity` describe
+geometry/storage limits; an unavailable native operation or target retains the
+corresponding unsupported diagnostic. Fallback records bind the exact source
+owner and cause, participate in publication identity, and retain both when an
+unrelated tracked edit shifts an unchanged owner. Invalid causes/ranges MUST
+leave pending work and the previous publication unchanged. Per-element refusal
+preserves neighboring semantics, source, selection and history; unexpected
+native HRESULTs and C++ exceptions retain their separate failure contracts.
 Native/embedded resource, accessibility, gallery and platform qualification stay
 explicit in the WIP plan; this opt-in does not close M4 as a whole.
 

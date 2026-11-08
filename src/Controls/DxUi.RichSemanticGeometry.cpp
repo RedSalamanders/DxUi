@@ -262,7 +262,7 @@ struct NativeImageGeometry
                         IDWriteFactory* write,
                         const LayoutOptions& options,
                         const NativeImageGeometry* previous,
-                        std::vector<std::size_t>& rejected)
+                        std::vector<NativeObjectRejection>& rejected)
         : placements(resources.placements.size() + SemanticExtensionAccess::Maths(document).size()),
           unsupportedPixels(0u),
           targetIdentity(target)
@@ -383,7 +383,7 @@ struct NativeImageGeometry
                                     ! PreparedMath::CanPrepareSyntax(expression->root.children[1u], false))) ||
                         (! tagged && ! PreparedMath::CanPrepareSyntax(expression->root, maths[index].display)))
                     {
-                        rejected.push_back(placement.element);
+                        rejected.push_back({placement.element, NativeFallbackReason::Capacity});
                         continue;
                     }
                     if (! textFormats)
@@ -874,18 +874,18 @@ struct PreparedSemanticGeometry::State
     FlowchartResourceEpoch imageEpochs;
     wil::com_ptr<ID2D1RenderTarget> scriptTarget;
     bool hasScripts{};
-    std::vector<std::size_t> rejected;
+    std::vector<NativeObjectRejection> rejected;
     bool nativeCapacityRejected{};
-    void Reject(std::size_t element)
+    void Reject(std::size_t element, NativeFallbackReason reason = NativeFallbackReason::Capacity)
     {
-        if (std::ranges::find(rejected, element) == rejected.end())
+        if (std::ranges::find(rejected, element, &NativeObjectRejection::element) == rejected.end())
         {
             if (rejected.size() == SemanticExtensions::MaximumObjects)
             {
                 nativeCapacityRejected = true;
                 return;
             }
-            rejected.push_back(element);
+            rejected.push_back({element, reason});
         }
     }
     std::unique_ptr<NativeImageGeometry> images;
@@ -2202,7 +2202,7 @@ struct PreparedSemanticGeometry::Preparation
             scriptSupported = false;
 #endif
         if (! scriptSupported)
-            next.Reject(content.element);
+            next.Reject(content.element, NativeFallbackReason::Unsupported);
         box->height = box->layout.Height();
         box->frame  = D2D1::RectF(box->x, box->y, box->x + box->width, box->y + box->height);
         if (paddedCode)
@@ -2719,7 +2719,7 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                 {
                     if (! work.raster)
                     {
-                        state.Reject(placement.element);
+                        state.Reject(placement.element, NativeFallbackReason::Unsupported);
                         placement.paint.reset();
                         ++work.nativeIndex;
                         ++result.blockSteps;
@@ -2790,7 +2790,9 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                     else if (progress == NativeImageGeometry::MathProgress::Unsupported || progress == NativeImageGeometry::MathProgress::Capacity)
                     {
                         ++result.layoutsPrepared;
-                        work.state->Reject(placement.element);
+                        work.state->Reject(placement.element,
+                                           progress == NativeImageGeometry::MathProgress::Capacity ? NativeFallbackReason::Capacity
+                                                                                                   : NativeFallbackReason::Unsupported);
                         work.state->images->placements.erase(work.state->images->placements.begin() + static_cast<std::ptrdiff_t>(work.imageIndex));
                     }
                     ++result.blockSteps;
@@ -3223,7 +3225,7 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
     }
     return result;
 }
-std::span<const std::size_t> PreparedSemanticGeometry::RejectedNativeObjects() const noexcept
+std::span<const NativeObjectRejection> PreparedSemanticGeometry::RejectedNativeObjects() const noexcept
 {
     return rejectedNativeObjects_;
 }

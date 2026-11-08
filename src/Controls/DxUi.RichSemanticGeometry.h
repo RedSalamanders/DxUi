@@ -1,5 +1,6 @@
 #pragma once
 #include "DxUi.PreparedFlowchart.h"
+#include "DxUi.SemanticExtensions.h"
 #include <DxUi/Configuration.h>
 #include <DxUi/RichSemanticDocument.h>
 #include <DxUi/RichTextLayout.h>
@@ -19,6 +20,11 @@ inline std::optional<D2D1_RECT_F> CodeCopyBounds(D2D1_RECT_F frame, bool rtl) no
     return D2D1_RECT_F{left, frame.top + 3.0f, left + 18.0f, frame.top + 21.0f};
 }
 struct RichImageResourceSet;
+struct NativeObjectRejection
+{
+    std::size_t element{};
+    NativeFallbackReason reason{};
+};
 // Dormant owner-thread seam for observing real uploads and injecting driver
 // HRESULT failures. It is never consulted during painting/composition.
 struct RichImageRasterCalls
@@ -67,7 +73,7 @@ public:
     {
         return beginResult_;
     }
-    std::span<const std::size_t> RejectedNativeObjects() const noexcept;
+    std::span<const NativeObjectRejection> RejectedNativeObjects() const noexcept;
     void Cancel() noexcept;
     void Invalidate() noexcept;
     void Clear() noexcept;
@@ -163,7 +169,7 @@ private:
     struct Preparation;
     std::unique_ptr<State> state_;
     std::unique_ptr<Preparation> next_;
-    std::vector<std::size_t> rejectedNativeObjects_;
+    std::vector<NativeObjectRejection> rejectedNativeObjects_;
     std::uint64_t generation_{};
     bool valid_{};
     HRESULT beginResult_ = S_OK;

@@ -529,7 +529,7 @@ struct RichTextEditor::State
         }
         std::shared_ptr<const RichText::MarkdownSyntax> syntax;
         RichText::SourceSnapshot source;
-        std::vector<RichText::MarkdownRange> objects;
+        std::vector<RichText::Detail::NativeSourceFallback> objects;
         float width{}, dpi{};
         uint64_t typography{}, resources{}, binding{}, appearance{};
         bool rtl{};
@@ -4043,14 +4043,14 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
     state.lastAdvanceImageWork                             = 0u;
     state.lastAdvanceMarkdownWork                          = 0u;
     state.lastAdvanceSemanticWork                          = 0u;
-    const auto rejectNativeObjects                         = [&](std::span<const std::size_t> elements) -> HRESULT
+    const auto rejectNativeObjects                         = [&](std::span<const RichText::Detail::NativeObjectRejection> elements) -> HRESULT
     {
         const auto value = GetSemanticDocument();
         if (value && state.markdownRendering && state.mode == RichText::ViewMode::Rich)
         {
             try
             {
-                std::vector<RichText::MarkdownRange> objects(0u);
+                std::vector<RichText::Detail::NativeSourceFallback> objects(0u);
                 if (state.nativeObjectRejections)
                     objects = state.nativeObjectRejections->objects;
                 bool added           = false;
@@ -4072,43 +4072,47 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
                                run.start + run.length > owner.display.first;
                     });
                 };
-                for (const auto element : elements)
+                for (const auto rejection : elements)
                 {
+                    const auto element = rejection.element;
                     if (element >= value->Elements().size() ||
                         (value->Elements()[element].role != RichText::SemanticRole::Math &&
                          value->Elements()[element].role != RichText::SemanticRole::Diagram && ! value->Elements()[element].nativeHtml && ! hasScript(element)))
                         break;
                     const auto source = value->Elements()[element].source;
-                    if (std::ranges::find(objects, source) == objects.end())
+                    if (std::ranges::find(objects, source, &RichText::Detail::NativeSourceFallback::source) == objects.end())
                     {
-                        objects.push_back(source);
+                        objects.push_back({source, rejection.reason});
                         added = true;
                     }
                 }
                 if (added && ! elements.empty() && objects.size() <= RichText::Detail::SemanticExtensions::MaximumObjects &&
                     std::ranges::all_of(elements,
-                                        [&](const auto element)
+                                        [&](const auto rejection)
                 {
+                    const auto element = rejection.element;
                     return element < value->Elements().size() &&
                            (value->Elements()[element].role == RichText::SemanticRole::Math ||
                             value->Elements()[element].role == RichText::SemanticRole::Diagram || value->Elements()[element].nativeHtml || hasScript(element));
                 }))
                 {
-                    std::ranges::sort(objects, [](const auto& a, const auto& b) { return a.first < b.first || (a.first == b.first && a.last > b.last); });
+                    std::ranges::sort(objects, [](const auto& a, const auto& b) {
+                        return a.source.first < b.source.first || (a.source.first == b.source.first && a.source.last > b.source.last);
+                    });
                     // A script-bearing HTML leaf can enclose a previously
                     // rejected inline formula. One literal leaf subsumes that
                     // smaller object; keep fallback ranges disjoint.
-                    std::vector<RichText::MarkdownRange> disjoint(0u);
+                    std::vector<RichText::Detail::NativeSourceFallback> disjoint(0u);
                     disjoint.reserve(objects.size());
-                    for (const auto range : objects)
+                    for (const auto& fallback : objects)
                     {
-                        if (! disjoint.empty() && range.first < disjoint.back().last)
+                        if (! disjoint.empty() && fallback.source.first < disjoint.back().source.last)
                         {
-                            if (range.last <= disjoint.back().last)
+                            if (fallback.source.last <= disjoint.back().source.last)
                                 continue;
                             return E_INVALIDARG;
                         }
-                        disjoint.push_back(range);
+                        disjoint.push_back(fallback);
                     }
                     objects.swap(disjoint);
                     if (! state.nativeObjectRejections)
@@ -4300,11 +4304,12 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
             auto& rejected    = *state.nativeObjectRejections;
             const auto source = Snapshot();
             const auto change = source.ChangedRangeFrom(rejected.source);
-            std::vector<RichText::MarkdownRange> retained(0u);
+            std::vector<RichText::Detail::NativeSourceFallback> retained(0u);
             retained.reserve(rejected.objects.size());
             if (change.kind != RichText::SourceChangeKind::FullReplacement)
-                for (auto range : rejected.objects)
+                for (auto fallback : rejected.objects)
                 {
+                    auto& range              = fallback.source;
                     const auto previousRange = range;
                     if (range.last <= change.begin)
                     {
@@ -4377,7 +4382,7 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
                         diagram         = diagram && sameContext(oldDiagram->parent, newDiagram->parent);
                     }
                     if (math || diagram)
-                        retained.push_back(range);
+                        retained.push_back(fallback);
                 }
             rejected.objects.swap(retained);
             rejected.syntax = currentSyntax;
@@ -4399,15 +4404,15 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
                         return S_FALSE;
                     if (! state.semantic.HasPendingPreparation())
                     {
-                        const auto admission =
-                            state.nativeObjectRejections || ! state.disclosureStates.empty()
-                                ? RichText::Detail::SemanticExtensionAccess::TryBeginWithPresentation(
-                                      state.semantic,
-                                      syntax,
-                                      state.nativeObjectRejections ? std::span<const RichText::MarkdownRange>(state.nativeObjectRejections->objects)
-                                                                   : std::span<const RichText::MarkdownRange>{},
-                                      state.disclosureStates)
-                                : state.semantic.TryBegin(syntax);
+                        const auto admission = state.nativeObjectRejections || ! state.disclosureStates.empty()
+                                                   ? RichText::Detail::SemanticExtensionAccess::TryBeginWithTypedPresentation(
+                                                         state.semantic,
+                                                         syntax,
+                                                         state.nativeObjectRejections
+                                                             ? std::span<const RichText::Detail::NativeSourceFallback>(state.nativeObjectRejections->objects)
+                                                             : std::span<const RichText::Detail::NativeSourceFallback>{},
+                                                         state.disclosureStates)
+                                                   : state.semantic.TryBegin(syntax);
                         if (admission != RichText::SourceResult::Success)
                         {
                             if (admission != RichText::SourceResult::CapacityExceeded)

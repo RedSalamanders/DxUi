@@ -5,6 +5,15 @@ Last reviewed: 2026-10-25
 
 ## Independent format oracles
 
+Native object admission tests distinguish actual geometry capacity from an
+independently unsupported formula in one document. They assert exact diagnostic
+kinds and source owners, healthy neighboring semantics, unchanged source/history,
+idle attempt counts and supported retries. A native unsupported-operation fixture
+also retains that cause across an unrelated source shift. Typed fallback admission
+rejects invalid reasons atomically and includes cause changes in publication
+identity; held publications remain immutable. Retain source-bound counterexamples
+and ordinary native/ASan qualification separately from performance acceptance.
+
 Route-crossing coverage uses signed triangle areas for arbitrary line segments rather than copying the router's
 orthogonal coordinate-range comparisons. Independently placed orthogonal/oblique crossings, endpoint contact,
 collinear overlap, zero-length legs and disjoint segments qualify the oracle before it checks routed graph

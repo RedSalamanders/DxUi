@@ -496,7 +496,7 @@ struct SemanticBuilder::Preparation
 #pragma warning(pop)
     explicit Preparation(std::shared_ptr<const MarkdownSyntax> syntax,
                          std::size_t sourceBlock,
-                         std::span<const MarkdownRange> sourceObjects,
+                         std::span<const Detail::NativeSourceFallback> sourceObjects,
                          std::span<const Detail::DisclosureOverride> disclosureStates,
                          SoftBreakPolicy softBreakPolicyValue)
         : document(new SemanticDocument(std::move(syntax))),
@@ -535,7 +535,13 @@ struct SemanticBuilder::Preparation
     bool NativeSourceFallback(MarkdownRange source) const noexcept
     {
         const auto objects = Detail::SemanticExtensionAccess::SourceObjects(*document);
-        return std::ranges::find(objects, source) != objects.end();
+        return std::ranges::find(objects, source, &Detail::NativeSourceFallback::source) != objects.end();
+    }
+    bool NativeCapacityFallback(MarkdownRange source) const noexcept
+    {
+        const auto objects = Detail::SemanticExtensionAccess::SourceObjects(*document);
+        const auto found   = std::ranges::find(objects, source, &Detail::NativeSourceFallback::source);
+        return found != objects.end() && found->reason == Detail::NativeFallbackReason::Capacity;
     }
     std::shared_ptr<SemanticDocument> document;
     Detail::SemanticOutput output;
@@ -1304,15 +1310,16 @@ struct SemanticBuilder::Preparation
             }
             else
             {
-                const bool capacity = expression && (expression->issue == MathIssue::Capacity ||
-                                                     (*expression && (! extensions.CanAdmitRecords(records) || ! extensions.CanAdmitObject())));
+                const bool capacity = NativeCapacityFallback(node.source) ||
+                                      (expression && (expression->issue == MathIssue::Capacity ||
+                                                      (*expression && (! extensions.CanAdmitRecords(records) || ! extensions.CanAdmitObject()))));
                 extensions.diagnostics.push_back(
                     {capacity ? SemanticDiagnosticKind::MathCapacity : SemanticDiagnosticKind::UnsupportedMath, node.source, element});
                 auto& formula = document->elements_[element];
                 formula.name  = node.value;
-                formula.title = sourceFallback ? Label(AccessibilityTextId::EquationViewFallback)
-                                : capacity     ? Label(AccessibilityTextId::EquationCapacity)
-                                               : Label(AccessibilityTextId::UnsupportedEquation);
+                formula.title = capacity         ? Label(AccessibilityTextId::EquationCapacity)
+                                : sourceFallback ? Label(AccessibilityTextId::EquationViewFallback)
+                                                 : Label(AccessibilityTextId::UnsupportedEquation);
                 output.Emit(document->syntax_->Slice(node.source), node.source, DisplaySpanKind::Source, flags | Code, visit.heading);
                 formula.display.last = output.text.size();
             }
@@ -2181,8 +2188,9 @@ struct SemanticBuilder::Preparation
                 return result;
             };
             const auto records  = expression ? count(count, expression->root) : 0u;
-            const bool capacity = expression && (expression->issue == MathIssue::Capacity ||
-                                                 (*expression && (! extensions.CanAdmitRecords(records) || ! extensions.CanAdmitObject())));
+            const bool capacity = NativeCapacityFallback(node.block.source) ||
+                                  (expression && (expression->issue == MathIssue::Capacity ||
+                                                  (*expression && (! extensions.CanAdmitRecords(records) || ! extensions.CanAdmitObject()))));
             auto& formula       = document->elements_[visit.element];
             formula.role        = SemanticRole::Math;
             formula.name        = normalized.text;
@@ -2206,8 +2214,8 @@ struct SemanticBuilder::Preparation
                 formula.title = ! node.block.closed && (node.block.fenceMarker == L'$' || node.block.fenceMarker == L'[')
                                     ? Label(AccessibilityTextId::UnclosedDisplayMath)
                                 : ! node.block.closed ? Label(AccessibilityTextId::UnclosedMathFence)
-                                : sourceFallback      ? Label(AccessibilityTextId::EquationViewFallback)
                                 : capacity            ? Label(AccessibilityTextId::EquationCapacity)
+                                : sourceFallback      ? Label(AccessibilityTextId::EquationViewFallback)
                                                       : Label(AccessibilityTextId::UnsupportedEquation);
                 output.Emit(syntax.Slice(node.block.source), node.block.source, DisplaySpanKind::Source, Code, 0u);
             }
@@ -2217,7 +2225,11 @@ struct SemanticBuilder::Preparation
         if (NativeSourceFallback(node.block.source))
         {
             if (node.block.kind == MarkdownBlockKind::FencedCode)
-                DiagramDiagnostic(visit, SemanticDiagnosticKind::DiagramCapacity, node.block.source, Label(AccessibilityTextId::DiagramGeometryCapacity));
+                DiagramDiagnostic(
+                    visit,
+                    NativeCapacityFallback(node.block.source) ? SemanticDiagnosticKind::DiagramCapacity : SemanticDiagnosticKind::UnsupportedDiagram,
+                    node.block.source,
+                    Label(NativeCapacityFallback(node.block.source) ? AccessibilityTextId::DiagramGeometryCapacity : AccessibilityTextId::UnsupportedDiagram));
             visit.flags   = Code;
             visit.heading = 0u;
             close         = BeginLeafParagraph(visit, true);
@@ -2719,7 +2731,7 @@ SourceResult SemanticBuilder::TryBegin(std::shared_ptr<const MarkdownSyntax> syn
 }
 void SemanticBuilder::BeginWithNativeFallbacks(std::shared_ptr<const MarkdownSyntax> syntax,
                                                std::size_t sourceBlock,
-                                               std::span<const MarkdownRange> sourceObjects,
+                                               std::span<const Detail::NativeSourceFallback> sourceObjects,
                                                std::span<const Detail::DisclosureOverride> disclosures)
 {
     if (TryBeginWithNativeFallbacks(std::move(syntax), sourceBlock, sourceObjects, disclosures) != SourceResult::Success)
@@ -2727,7 +2739,7 @@ void SemanticBuilder::BeginWithNativeFallbacks(std::shared_ptr<const MarkdownSyn
 }
 SourceResult SemanticBuilder::TryBeginWithNativeFallbacks(std::shared_ptr<const MarkdownSyntax> syntax,
                                                           std::size_t sourceBlock,
-                                                          std::span<const MarkdownRange> sourceObjects,
+                                                          std::span<const Detail::NativeSourceFallback> sourceObjects,
                                                           std::span<const Detail::DisclosureOverride> disclosures)
 {
     Failure::Scope failureScope;
@@ -2752,8 +2764,11 @@ SourceResult SemanticBuilder::TryBeginWithNativeFallbacks(std::shared_ptr<const 
         previousDisclosure = value.identity;
     }
     std::size_t previousEnd{};
-    for (const auto range : sourceObjects)
+    for (const auto& fallback : sourceObjects)
     {
+        if (fallback.reason != Detail::NativeFallbackReason::Unsupported && fallback.reason != Detail::NativeFallbackReason::Capacity)
+            return SourceResult::InvalidRange;
+        const auto range = fallback.source;
         if (range.first >= range.last || range.last > syntax->Source().size() || range.first < previousEnd)
             return SourceResult::InvalidRange;
         const bool inlineMath =
