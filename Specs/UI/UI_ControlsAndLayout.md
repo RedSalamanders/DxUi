@@ -1930,7 +1930,9 @@ unexpected C++ exceptions, including `std::bad_alloc`, retain the fatal failure-
 An expected native object refusal MUST retain its typed capacity or unsupported
 cause through semantic rebuilding. `MathCapacity` and `DiagramCapacity` describe
 geometry/storage limits; an unavailable native operation or target retains the
-corresponding unsupported diagnostic. Fallback records bind the exact source
+corresponding unsupported diagnostic. Accessibility HelpText MUST explain the
+same cause as the source-owned semantic diagnostic; it MUST NOT replace a capacity
+reason with generic native refusal wording. Fallback records bind the exact source
 owner and cause, participate in publication identity, and retain both when an
 unrelated tracked edit shifts an unchanged owner. Invalid causes/ranges MUST
 leave pending work and the previous publication unchanged. Per-element refusal

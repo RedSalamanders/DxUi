@@ -87,6 +87,11 @@ Owner: `src/Rendering/Embedded.cpp`, `src/Controls/DxUi.TextInput.cpp`, input di
   The native-refusal follow-up carries typed causes through exact-source fallback and asserts that geometry
   capacity remains distinct from unsupported math/targets. Source-only diagnostics are insufficient;
   counterfactual and native profile qualification are pending for this candidate.
+  First x64 Debug `ebacb208` passes 21 ordinary suites; Accessibility still expects the old generic HelpText
+  for a capacity refusal. Its assertion and following 300-second watchdog, original inputs/native/compiler
+  bytes and run are retained. The corrected oracle requires capacity-specific HelpText, diagnostic kind and
+  exact source ownership; fresh native qualification remains pending. The watchdog's teardown cause is
+  unassigned rather than inferred from that stale assertion.
 - [x] Qualify the narrow DirectWrite lazy-formatting metrics boundary and 65,536-unit source/caret regression.
   The [scoped closeout](../Done/DirectWriteNativeFormatting_2026-11-07.md) binds `4ce9b6a9`, six zero-warning
   builds, 66 ordinary x64 suite executions, actual ASan and original-member verification. Original RedTilde
