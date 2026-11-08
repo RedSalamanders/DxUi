@@ -1,2 +1,0 @@
-- Strengthen rich-text regression oracles with signed-area route intersections, independently counted CF_HTML bytes, an immutable Chromium producer vector, actual private HGLOBAL publication checks and exact-size truncated MATH buffers whose boundaries can be checked by ASan. Keep oracle-quality and physical/performance acceptance distinct.
-  - Add a fixed-seed adversarial Markdown, diagram and math corpus with retained UTF-16 inputs, bounded cooperative progress, cancellation/publication checks and independent structural bounds.
