@@ -1,1 +1,0 @@
-- Preserve capacity and unsupported causes when native math and diagrams fall back to exact source, with diagnostic identity, immutable-publication and local-isolation regressions.
