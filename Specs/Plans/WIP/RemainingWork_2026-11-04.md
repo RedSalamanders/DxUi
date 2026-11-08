@@ -84,6 +84,9 @@ Owner: `src/Rendering/Embedded.cpp`, `src/Controls/DxUi.TextInput.cpp`, input di
 - [ ] Finish parser/preparer admission and per-element failure isolation across diagrams/math/images.
   Preserve checked capacity/unsupported causes and regression evidence; unexpected C++ exceptions follow
   the API-5 fatal contract rather than the superseded whole-view exception-recovery proposal.
+  The native-refusal follow-up carries typed causes through exact-source fallback and asserts that geometry
+  capacity remains distinct from unsupported math/targets. Source-only diagnostics are insufficient;
+  counterfactual and native profile qualification are pending for this candidate.
 - [x] Qualify the narrow DirectWrite lazy-formatting metrics boundary and 65,536-unit source/caret regression.
   The [scoped closeout](../Done/DirectWriteNativeFormatting_2026-11-07.md) binds `4ce9b6a9`, six zero-warning
   builds, 66 ordinary x64 suite executions, actual ASan and original-member verification. Original RedTilde

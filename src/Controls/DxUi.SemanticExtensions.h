@@ -38,6 +38,19 @@ struct SemanticDiagram
         return MarkdownRange{bodyUnits[body.first].source.first, bodyUnits[body.last - 1u].source.last};
     }
 };
+// A native rejection is presentation state for an exact source owner. Keep its
+// checked cause through rebuilding; capacity is not unsupported notation.
+enum class NativeFallbackReason
+{
+    Unsupported,
+    Capacity
+};
+struct NativeSourceFallback
+{
+    MarkdownRange source;
+    NativeFallbackReason reason{};
+    bool operator==(const NativeSourceFallback&) const = default;
+};
 struct SemanticExtensions
 {
     static constexpr std::size_t MaximumObjects = 128u, MaximumRecords = MathMaximumDocumentNodes;
@@ -54,7 +67,7 @@ struct SemanticExtensions
     std::vector<Formula> maths;
     std::vector<SemanticDiagnostic> diagnostics;
     std::vector<std::size_t> images;
-    std::vector<MarkdownRange> sourceObjects;
+    std::vector<NativeSourceFallback> sourceObjects;
     std::vector<DisclosureOverride> disclosures;
     std::vector<std::size_t> abbreviationNodes;
     std::size_t candidates{}, records{};
@@ -69,9 +82,9 @@ struct SemanticExtensions
 };
 struct SemanticExtensionAccess
 {
-    static std::span<const MarkdownRange> SourceObjects(const SemanticDocument& document) noexcept
+    static std::span<const NativeSourceFallback> SourceObjects(const SemanticDocument& document) noexcept
     {
-        return document.extensions_ ? std::span<const MarkdownRange>(document.extensions_->sourceObjects) : std::span<const MarkdownRange>{};
+        return document.extensions_ ? std::span<const NativeSourceFallback>(document.extensions_->sourceObjects) : std::span<const NativeSourceFallback>{};
     }
     static std::span<const std::size_t> AbbreviationNodes(const SemanticDocument& document) noexcept
     {
@@ -84,7 +97,8 @@ struct SemanticExtensionAccess
     static void BeginWithNativeFallbacks(SemanticBuilder& builder, std::shared_ptr<const MarkdownSyntax> syntax, std::span<const MarkdownRange> sourceObjects)
     {
         const auto sourceBlock = syntax ? syntax->SourceRegionNode() : MarkdownNoNode;
-        builder.BeginWithNativeFallbacks(std::move(syntax), sourceBlock, sourceObjects);
+        const auto fallbacks   = CapacityFallbacks(sourceObjects);
+        builder.BeginWithNativeFallbacks(std::move(syntax), sourceBlock, fallbacks);
     }
     static void BeginWithPresentation(SemanticBuilder& builder,
                                       std::shared_ptr<const MarkdownSyntax> syntax,
@@ -92,12 +106,24 @@ struct SemanticExtensionAccess
                                       std::span<const DisclosureOverride> disclosures)
     {
         const auto sourceBlock = syntax ? syntax->SourceRegionNode() : MarkdownNoNode;
-        builder.BeginWithNativeFallbacks(std::move(syntax), sourceBlock, sourceObjects, disclosures);
+        const auto fallbacks   = CapacityFallbacks(sourceObjects);
+        builder.BeginWithNativeFallbacks(std::move(syntax), sourceBlock, fallbacks, disclosures);
     }
     [[nodiscard]] static SourceResult TryBeginWithPresentation(SemanticBuilder& builder,
                                                                std::shared_ptr<const MarkdownSyntax> syntax,
                                                                std::span<const MarkdownRange> sourceObjects,
                                                                std::span<const DisclosureOverride> disclosures)
+    {
+        const auto sourceBlock = syntax ? syntax->SourceRegionNode() : MarkdownNoNode;
+        if (sourceObjects.size() > SemanticExtensions::MaximumObjects)
+            return SourceResult::CapacityExceeded;
+        const auto fallbacks = CapacityFallbacks(sourceObjects);
+        return builder.TryBeginWithNativeFallbacks(std::move(syntax), sourceBlock, fallbacks, disclosures);
+    }
+    [[nodiscard]] static SourceResult TryBeginWithTypedPresentation(SemanticBuilder& builder,
+                                                                    std::shared_ptr<const MarkdownSyntax> syntax,
+                                                                    std::span<const NativeSourceFallback> sourceObjects,
+                                                                    std::span<const DisclosureOverride> disclosures)
     {
         const auto sourceBlock = syntax ? syntax->SourceRegionNode() : MarkdownNoNode;
         return builder.TryBeginWithNativeFallbacks(std::move(syntax), sourceBlock, sourceObjects, disclosures);
@@ -122,6 +148,18 @@ struct SemanticExtensionAccess
         const auto& diagrams = document.extensions_->diagrams;
         const auto found = std::lower_bound(diagrams.begin(), diagrams.end(), element, [](const auto& diagram, auto index) { return diagram.element < index; });
         return found != diagrams.end() && found->element == element ? &*found : nullptr;
+    }
+
+private:
+    static std::vector<NativeSourceFallback> CapacityFallbacks(std::span<const MarkdownRange> ranges)
+    {
+        // Legacy internal fixtures supply capacity-only ranges. The editor
+        // supplies typed records through TryBeginWithTypedPresentation.
+        std::vector<NativeSourceFallback> result(0u);
+        result.reserve(std::min(ranges.size(), SemanticExtensions::MaximumObjects + 1u));
+        for (const auto range : ranges.first(std::min(ranges.size(), SemanticExtensions::MaximumObjects + 1u)))
+            result.push_back({range, NativeFallbackReason::Capacity});
+        return result;
     }
 };
 } // namespace DxUi::RichText::Detail

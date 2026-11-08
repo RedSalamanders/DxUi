@@ -3289,6 +3289,11 @@ template <typename Prepare> void NativeObjectFailureContainment(ControlHost& hos
     Check(large != rejected->Elements().end() && large->display.last > large->display.first + 1u &&
               rejected->Map().Display().substr(large->display.first, large->display.last - large->display.first).starts_with(L"$$\n\\text{"),
           "geometry rejection preserves the complete exact equation envelope as visible source");
+    Check(std::ranges::any_of(rejected->Diagnostics(),
+                              [&](const auto& diagnostic)
+    { return diagnostic.kind == SemanticDiagnosticKind::MathCapacity && diagnostic.source == large->source; }) &&
+              std::ranges::count(rejected->Diagnostics(), SemanticDiagnosticKind::UnsupportedMath, &SemanticDiagnostic::kind) == 1,
+          "native geometry capacity remains distinct from the independently unsupported formula");
     const auto heldDisplay = std::wstring(rejected->Map().Display());
     const auto before      = editor->DebugGetState();
     prepare();
@@ -3300,7 +3305,8 @@ template <typename Prepare> void NativeObjectFailureContainment(ControlHost& hos
     editor->SetAppearance(appearance);
     prepare();
     const auto retried = editor->GetAcknowledgedSemanticDocument(host);
-    Check(retried && retried != rejected && retried->Diagnostics().size() == 1u && rejected->Map().Display() == heldDisplay &&
+    Check(retried && retried != rejected && retried->Diagnostics().size() == 1u && retried->Diagnostics()[0u].kind == SemanticDiagnosticKind::UnsupportedMath &&
+              rejected->Map().Display() == heldDisplay &&
               std::ranges::count_if(retried->Elements(),
                                     [](const auto& element)
     { return element.role == SemanticRole::Math && element.display.last == element.display.first + 1u; }) == 2u,
@@ -3312,7 +3318,8 @@ template <typename Prepare> void NativeObjectFailureContainment(ControlHost& hos
     editor->SetAppearance(appearance);
     prepare();
     const auto narrow = editor->GetAcknowledgedSemanticDocument(host);
-    Check(narrow && narrow->Diagnostics().size() == 1u && narrow->Map().Display() == L"Heading\n```mermaid\ngraph LR;A[alpha]-->B[beta]\n```\nafter\n",
+    Check(narrow && narrow->Diagnostics().size() == 1u && narrow->Diagnostics()[0u].kind == SemanticDiagnosticKind::DiagramCapacity &&
+              narrow->Map().Display() == L"Heading\n```mermaid\ngraph LR;A[alpha]-->B[beta]\n```\nafter\n",
           "a diagram width failure keeps the whole fence visible and leaves adjacent rich blocks intact");
     const auto narrowAdvances = editor->DebugGetState().preparationAdvances;
     prepare();
@@ -3366,7 +3373,7 @@ template <typename Prepare> void NativeObjectFailureContainment(ControlHost& hos
         const auto& diagnostic = fallback->Diagnostics()[0u];
         Check(diagnostic.element < fallback->Elements().size(), "local fence diagnostic retains a live source owner");
         const auto& owner = fallback->Elements()[diagnostic.element];
-        Check(owner.role == SemanticRole::Code && diagnostic.source == owner.source &&
+        Check(owner.role == SemanticRole::Code && diagnostic.kind == SemanticDiagnosticKind::DiagramCapacity && diagnostic.source == owner.source &&
                   prefixedSource.substr(owner.source.first, owner.source.last - owner.source.first) == fence &&
                   fallback->Map().Display().substr(owner.display.first, owner.display.last - owner.display.first) == fence &&
                   fallback->Map().Display().ends_with(L"After\n") && editor->GetText() == prefixedSource && ! editor->CanUndo(),
@@ -3466,7 +3473,8 @@ inline void NativeMathHRESULTFailureContainment(ControlHost& host)
                 if (element.role == SemanticRole::Link)
                     link = &element;
             }
-        Check(fallback && fallback->Diagnostics().size() == 1u && failedMath && fallback->Syntax()->Slice(failedMath->source) == L"$x$" &&
+        Check(fallback && fallback->Diagnostics().size() == 1u && fallback->Diagnostics()[0u].kind == SemanticDiagnosticKind::UnsupportedMath && failedMath &&
+                  fallback->Syntax()->Slice(failedMath->source) == L"$x$" &&
                   failedMath->title == L"Equation cannot be prepared natively for this view. Exact source is preserved." && supportedMathCount == 1 &&
                   fallback->Map().Display().find(L"$x$") != std::wstring::npos && fallback->Map().Display().find(L"\ufffc") != std::wstring::npos &&
                   fallback->Map().Display().find(L"Heading") != std::wstring::npos && fallback->Map().Display().find(L"# Heading") == std::wstring::npos &&
@@ -3483,7 +3491,8 @@ inline void NativeMathHRESULTFailureContainment(ControlHost& host)
         editor->SetSelection({0u, 0u});
         Check(editor->ReplaceSelection(L"prefix\n\n"), "insert unrelated source before rejected formula");
         Check(PrepareUntilSettled(*editor, host) == S_OK && calls->matchingLayouts == attempts &&
-                  editor->GetAcknowledgedSemanticDocument(host)->Diagnostics().size() == 1u,
+                  editor->GetAcknowledgedSemanticDocument(host)->Diagnostics().size() == 1u &&
+                  editor->GetAcknowledgedSemanticDocument(host)->Diagnostics()[0u].kind == SemanticDiagnosticKind::UnsupportedMath,
               "a shifted unchanged rejected formula is not retried on an unrelated edit");
         Check(editor->Undo() && PrepareUntilSettled(*editor, host) == S_OK && calls->matchingLayouts == attempts,
               "undo of the unrelated edit retains the rejected formula key");

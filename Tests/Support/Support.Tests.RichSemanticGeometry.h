@@ -352,8 +352,9 @@ template <typename Observe = std::nullptr_t> inline void ScriptColorTargetCapabi
               "unavailable and absent targets reject only the three color/script paragraphs");
         for (const auto rejected : fallback.RejectedNativeObjects())
         {
-            Check(rejected < document->Elements().size(), "a color fallback names an admitted semantic element");
-            const auto range = document->Elements()[rejected].source;
+            Check(rejected.element < document->Elements().size() && rejected.reason == Detail::NativeFallbackReason::Unsupported,
+                  "a color fallback names an admitted semantic element and preserves its unsupported-target cause");
+            const auto range = document->Elements()[rejected.element].source;
             Check(source.substr(range.first, range.last - range.first).find(L"\U0001f600") != std::wstring::npos,
                   "fallback ownership includes an original emoji paragraph rather than unrelated tail text");
         }
@@ -613,7 +614,8 @@ template <typename Observe = std::nullptr_t> inline void HtmlScripts(Observe obs
     while (geometry.Pending())
         geometry.Advance({1u, 3u});
     const auto rejectedElements = geometry.RejectedNativeObjects();
-    const bool rejected         = rejectedElements.size() == 1u && colored->Elements()[rejectedElements[0u]].nativeHtml;
+    const bool rejected         = rejectedElements.size() == 1u && colored->Elements()[rejectedElements[0u].element].nativeHtml &&
+                                  rejectedElements[0u].reason == Detail::NativeFallbackReason::Unsupported;
     Check(rejected && geometry.Ready() && geometry.Generation() == previousGeneration,
           "a script color glyph without a compatible target rejects only its source-owned HTML leaf and preserves prior geometry");
     for (const auto profile : {MarkdownProfile::CommonMark0312, MarkdownProfile::RichMarkdown})
@@ -966,7 +968,8 @@ inline void DiagramPaletteTargetReplacement()
     while (withoutTarget.Pending())
         withoutTarget.Advance({1u, 3u});
     const auto rejectedElements = withoutTarget.RejectedNativeObjects();
-    const bool rejected         = rejectedElements.size() == 1u && document->Elements()[rejectedElements[0u]].role == SemanticRole::Diagram;
+    const bool rejected         = rejectedElements.size() == 1u && document->Elements()[rejectedElements[0u].element].role == SemanticRole::Diagram &&
+                                  rejectedElements[0u].reason == Detail::NativeFallbackReason::Unsupported;
     Check(rejected && geometry.Ready() && geometry.Generation() == generation,
           "a missing palette target rejects only its owning object without replacing prior geometry");
     Check(geometry.Begin(factory.get(), document, options, drawing.get(), {1u, 1u}, {}, replacement.get()) == LayoutPreparationStatus::Pending,
