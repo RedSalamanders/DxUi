@@ -162,6 +162,15 @@ messages through `HandleMessage(hwnd, message, wParam, lParam, handled)`; return
 otherwise continue normal window dispatch. This mode owns native graphics, text/accessibility and presentation
 services. The application still owns the top-level window and event-blocked message loop.
 
+When the attached HWND is a child window, forward top-level ancestor movement
+(for example, from the owner's `WM_WINDOWPOSCHANGED` handler) with
+`host.NotifyTextInputLayoutChanged(host.GetFocusControl())`. Moving an ancestor
+changes text's screen coordinates without sending `WM_MOVE` to the child.
+The notification ignores a control that does not own the active text session;
+call it on the attachment's UI thread after the new position takes effect.
+This forwarding is application-owned: DxUi does not install ancestor hooks.
+Physical IME candidate-window placement still requires the named input checks.
+
 An application that knows native presentation is unavailable can call
 `SetNativePresentationVisible(false)` on the attachment owner thread, then restore `true`
 when needed. The default is true per attachment. The signal suppresses native drawing and

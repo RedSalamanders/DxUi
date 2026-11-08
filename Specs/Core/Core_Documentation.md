@@ -7,6 +7,11 @@ Last reviewed: 2026-11-01
 exact-pin consumption, both hosting modes, ownership, input, layout/DPI, themes, recovery, every public control,
 performance measurements and testing. Public examples must use supported headers and accurate API names.
 Clearly distinguish implemented library behavior from pending consumer integration and manual validation.
+The Markdown editor has a task-oriented entry guide for setup, selection wrapping,
+document/view switching, file paste and checked refusals. Link it from the docs
+index and the detailed rich-text reference. Keep supported syntax/API limits in
+that reference rather than making a new user read the complete reference before
+performing a common editing task.
 Third-party notices cover embedded generated data as well as linked libraries. Unicode and WHATWG license
 copies preserve their pinned upstream bytes. Distributions carry the full notices with usable local license
 links and source-bound provenance, under the [SDK packaging contract](../Build/Build_UnifiedCI.md).
@@ -67,6 +72,13 @@ packet-local `.gitattributes` rule. Verify staged blob bytes against the public 
 reconstruction from Git requires the committed effective checkout attributes and an exact revision/tree binding;
 label reconstructed checkout bytes separately from a retained original source archive. Do not guess line endings
 to turn a mismatched source hash into a verification pass.
+
+A published history-scan summary retains the literal scanner exit/count separately
+from reviewed candidate dispositions. Bind the scanner, configuration choice,
+exact ref snapshot and original report hashes. A source digest or descriptive
+metric key can be a reviewed noncredential match without rewriting a finding
+result to zero or weakening rules. A snapshot scan does not establish a frozen
+rewrite, complete dirty-worktree backup or identity/workstation privacy clearance.
 
 Gallery fixtures must bound message settling by elapsed time as well as message count. Animated
 full-control sheets can continuously refill the queue under sanitizer instrumentation. An explicit

@@ -31,6 +31,13 @@ targets are acceptance contracts, not claims of current support.
 The WindowHost adapter owns HWND integration and its own swap-chain presentation only in window-host mode.
 It uses the same retained control implementation as embedded mode, with a separate scheduling/presentation adapter.
 Device loss, resize, zero-size suspension, DPI, focus and teardown have explicit contracts and regression tests.
+For a child-HWND attachment, the application MUST forward ancestor position
+changes after movement through `NotifyTextInputLayoutChanged(GetFocusControl())`
+on the attachment owner thread. A parent's move does not deliver the child's
+`WM_MOVE`, but changes the screen coordinates exposed to text services. DxUi
+does not hook ancestors; the public notification ignores a control that is not
+the active text-input owner. Documented forwarding does not by itself qualify
+physical IME candidate-window placement.
 Its message/timer/animation resources stop or quiesce when hidden and are destroyed by their owning runtime.
 Diagnostic bitmap capture stages the completed frame after EndDraw and before swap-chain presentation.
 The one-argument capture keeps refusing hidden hosts; an explicit `allowHidden` overload supports owned,

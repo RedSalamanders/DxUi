@@ -412,8 +412,15 @@ policy, erase its findings or close this section.
 - [ ] Apply forward evidence aliases/schema changes, then execute approved D9 history redaction as a separate
   coordinated operation with private originals, all-ref inventory, reviewed mirror, commit map, validation,
   consumer repins and worktree repair. This consolidation does not rewrite history or change repository access.
+- [x] Complete a read-only [history snapshot audit](../../../Measurements/HistorySnapshotAudit_2026-11-08/README.md):
+  419 private refs/2,061 commits, remote/local refs and worktree heads, verified object closure and official
+  Gitleaks bytes. Its 77 literal candidates are source identities, evidence digests and metric tuples;
+  dispositions and original exit 1 remain retained. This is not the coordinated D9 rewrite or privacy clearance.
 - [ ] Finish remaining DOCS/TOOL/HOST findings and separate normative contracts from evidence history in the
   large controls/rich-text guides. Record a disposition for legacy unchecked Done items without rewriting raw evidence.
+- [x] Address DOCS-19's entry-guide problem with [common Markdown editing tasks](../../../docs/rich-text-usage.md),
+  linked from the docs index and detailed reference. Correct stale API-5 migration wording while retaining
+  the exact source-bound library qualification and remaining consumer/physical/performance limits.
 - [ ] Follow the unchanged Changes/fold workflow; obsolete dated fragment counts are not instructions to squash
   notes or bypass the separate default-branch fold. Preserve pending owner decisions on broader administration.
 

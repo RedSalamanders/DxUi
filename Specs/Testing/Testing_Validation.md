@@ -70,6 +70,15 @@ the ordinary native suite union. Keep these failures separate from the passing
 baseline and restored-source results. A historical aggregate pass establishes only
 its executed suite results; do not infer directed coverage for individual review IDs.
 
+Native rich-text scrolling coverage MUST query the published visible source
+interval after `ScrollIntoView`, before caller preparation, message pumping or
+an explicit snapshot refresh. A bounding-rectangle query alone is insufficient:
+it may read live editor geometry while the published visible interval is stale.
+Keep a passing mutation that failed to recreate the old behavior as an actual
+passing experiment; do not count it as negative regression evidence. When
+independent publishers protect the same behavior, declare the complete mutation
+and preserve every changed original source operand before running it.
+
 ## Native tooling path fixtures
 
 The MSVC setup suite executes all fifteen cases through both direct and nested

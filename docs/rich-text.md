@@ -1,5 +1,9 @@
 # Unicode rich text
 
+Start with [common Markdown editing tasks](rich-text-usage.md) for editor setup,
+selection wrapping, view/document switching and image policy. This page is the
+detailed syntax and API reference.
+
 API 5 uses checked nonthrowing refusal or host fatal diagnostics for unexpected C++ exceptions, as described by
 the [failure policy](../Specs/Core/Core_FailureHandling.md) and [upgrade guide](upgrade.md#port-checked-operations).
 The [implementation record](../Specs/Plans/Done/FailurePolicy_2026-11-02.md) and
@@ -59,7 +63,9 @@ partial language profile. Neither status supplies current-source build, runtime,
 performance, physical-input or consumer acceptance. Those results retain their
 own source identities in [the evidence archive](../Measurements/RichText/README.md).
 `capabilities.json` owns the table; `validate-specs.ps1` rejects a changed, missing
-or contradictory row. API revision is 5 and remains unqualified; pair headers with the exact library.
+or contradictory row. API revision is 5; pair headers with the exact library.
+The source-bound x64 library qualification above does not establish the remaining
+foreground, physical-input, consumer or formal performance gates.
 The added control triple-click virtual has an ordinary-press default for existing
 source consumers; rebuild control subclasses with their pinned headers and library.
 The file-drop receiver's additive text-move hooks default to declining text;
