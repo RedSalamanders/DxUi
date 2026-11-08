@@ -131,6 +131,11 @@ The historical delivery declared **API revision 4** and one static target, **DxU
 rebuild every module that uses DxUi with matching headers, archive, compiler, configuration and CRT.
 An unchanged API revision does not establish binary compatibility.
 
+`Debug*` declarations and explicitly named `ForDebug` helpers are diagnostic hooks, outside the stable
+production API contract. They remain available at an exact pin for owned harnesses and diagnostics using
+matching headers and library. Recheck that usage when updating a pin; ordinary product behavior must not
+depend on it. This boundary does not remove existing declarations or change their build configuration.
+
 ## Choose the right migration
 
 | Current consumer | Work to do |

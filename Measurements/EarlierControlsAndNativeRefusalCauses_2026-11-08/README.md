@@ -14,6 +14,17 @@ All three ARM64 configurations are compilation-only under the owner's delivery
 scope. Original archives verify all 685 actual compiled inputs and every retained
 native/run member; executed images match their preserved original hashes.
 
+The [hosted x64 record](hosted-x64.json) separately verifies merged source
+`2a26dfbd5df4ea2af9cd7742677c17326f3bfa94`: 21 Full suites per x64 profile,
+including Menu and NativeTextInput through restoring hosted desktop leases.
+Release also passes two resource suites. Original wrapper digests and all native
+payload file bytes verify; ASan detection and both external-consumer annotation
+modes pass. The later published-visible-range test has its own source identity.
+The receipt's fixture hashes describe unfiltered Git blob bytes for the named
+foreground fixtures at that hosted commit. They do not stand in for a retained
+physical hosted checkout or its complete compiled-input identity; run, build and
+artifact identities remain those verified from the original wrappers.
+
 The [input reconciliation](input-reconciliation.json) verifies four named native
 TSF/file-paste cases in each x64 profile. They cover silent composition preview,
 one-step commit/history, exact-boundary capacity admission, atomic oversized

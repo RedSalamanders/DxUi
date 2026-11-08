@@ -226,6 +226,11 @@ source/history and focus and uses existing host invalidation/preparation. Native
 foreign-thread mutations use bounded owner dispatch; embedded mutations require
 the owner thread. Both disconnect after hide/root replacement and reject disabled
 controls; read-only selection/scroll remains available.
+Native scrolling marks the accessibility publication dirty. The next owner-thread
+visible-range query MUST expose the scrolled source interval under the existing
+snapshot-flush contract, without an application-forced refresh or preparation.
+Live bounding rectangles alone do not establish that the published interval is
+current. Foreign-thread clients retain the normal bounded owner/publication timing.
 Text controls without these range actions return UIA_E_NOTSUPPORTED rather than
 success without an action.
 

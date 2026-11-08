@@ -1,0 +1,790 @@
+{
+  "schemaVersion": 1,
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-current-api5-hosted-x64-native",
+  "sourceCommit": "2a26dfbd5df4ea2af9cd7742677c17326f3bfa94",
+  "implementationCommit": "21fae0dc66000b04504ba7862169533ac2943be8",
+  "runs": [
+    {
+      "originalArtifactWrappers": [
+        {
+          "name": "qualification-workspace-x64-Debug",
+          "bytes": 87541379,
+          "reportedDigestVerified": true,
+          "sha256": "3AD060FD16EA2C2710070B55BC61B5A43C57F61CCECB18C83237216DCDD33655",
+          "id": 13604025323
+        },
+        {
+          "name": "qualification-x64-Debug",
+          "bytes": 83499630,
+          "reportedDigestVerified": true,
+          "sha256": "9A0C9170B3220385B4BBB7D02C8F4FBEBB324A589BC305D0FF392A3892E23904",
+          "id": 13603836138
+        },
+        {
+          "name": "msvc-14.52-a3b142f2ad5f4d6ea892ea9b3fcf5c97",
+          "bytes": 1326274,
+          "reportedDigestVerified": true,
+          "sha256": "8000AAB84E4C4C53E244C3C0A346D283B30A13AAD7A7EDD00ADA538DF1AE8CA2",
+          "id": 13602661606
+        }
+      ],
+      "additionalOriginalPayloads": [],
+      "nativeArchitecture": "x64",
+      "warnings": 0,
+      "asan": null,
+      "sourceCommit": "2a26dfbd5df4ea2af9cd7742677c17326f3bfa94",
+      "supplementalSuites": [],
+      "configuration": "Debug",
+      "errors": 0,
+      "fullSuitesPassed": 21,
+      "url": "https://github.com/RedSalamanders/DxUi/actions/runs/42442570536",
+      "buildLogSha256": "E569DAB803ED4C0D6B17977AF4FCCC6F94681AC5C880153EFE646313A2EE7D56",
+      "outcome": "success",
+      "suiteAdmissionSha256": "BF9CE2A5D70D5076D8319E2570A3D696BF36078EEBF0E692783ACB5EDE79FE64",
+      "externalConsumer": {
+        "reportSha256": "6F0F595A9F7C9C0D8E7D306DD237F4560FA01674F751B10FD9C538DFA08C32A7",
+        "buildIdentity": {
+          "Fingerprint": "5113a147366adb8795733ae8c1da539fb1494766c9fca311f4259bb130087ac8",
+          "Identity": {
+            "commit": "2a26dfbd5df4ea2af9cd7742677c17326f3bfa94",
+            "apiRevision": 5,
+            "platform": "x64",
+            "toolset": "v145",
+            "vcToolsVersion": "14.52.37025",
+            "windowsSdkVersion": "10.0.26100.0",
+            "runtimeFamily": "MD",
+            "preferredToolArchitecture": "x86",
+            "disableStlAnnotations": false,
+            "releaseOptimizationPolicy": "Gy-REF-GL-LTCG-full-v1",
+            "msbuildSha256": "25929034E73EBE6259F600F37CAF5567D20C0F645571674951B442D639D5C18C",
+            "compilerSha256": "54432A2AE1AB1CA6838E65BCAF0653F84031BD98AB5CA35B5AF7B5686DDF21E5",
+            "linkerSha256": "B7A53752327CBD7335465DB4DD290BE9ADC11F8E97C5294E50B1AF288AF87753",
+            "windowsHeaderSha256": "B337D661D03A4ABEFB7B86A2742CE1AD5D19B57CD8B858BD13E7BBCC1DBEEAAA",
+            "kernel32Sha256": "842F5CE7AD8CF5AAB7491B791E7968D2BE510AE93F4019D3311797289399D221",
+            "ucrtSha256": "7EF4EAC926BF597D2F243F16CDFED7E0DB22CB3CA34A1D7E088A84C994A03D66"
+          }
+        },
+        "librarySha256": "849565412BA67ADAB723308ADDF68E4016B72B673350EA474E539C48F06D0EF3",
+        "executableSha256": "1075D5C940DF9BD92677D4EACC1E72CF8AA0E02C71C9755740CABE7172ACB29F"
+      },
+      "originalPayloadMembers": {
+        "allFileBytesMatchedOriginalManifest": true,
+        "files": 1021,
+        "bytes": 111425030,
+        "fileIdentitySha256": "8F44166AF8A04BF859F77623ADB9206F9D428DDDBB12BF5D48842D7F8255A550",
+        "limit": "Byte verification does not recreate original file IDs, security descriptors or timestamps"
+      },
+      "completionSha256": "7AC36B89B4CDFFC30E6DDD0FDFACED12A3515949D240B0111F1CD8B34570B20E",
+      "fullSuites": [
+        {
+          "hostedForeground": false,
+          "reportSha256": "473D174EB6352C22473317602F0839747246857030A0D2A7B0748F600B87893B",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "binarySha256": "0867C19167118705CC528C14A15C5B68767A739DB392AEF259CC5F9E062DDDA2",
+          "suite": "Foundation"
+        },
+        {
+          "hostedForeground": false,
+          "reportSha256": "D0814E6B184604875DA57448B4D2909A115DAFC709CE92F967D6A2A656EE6674",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "binarySha256": "DBA7D4E08C766DEFFB0C83C95A2E125B326DCB0EADBCE77907FDFBC909411230",
+          "suite": "Embedded"
+        },
+        {
+          "hostedForeground": false,
+          "reportSha256": "DF8EBB29C6E9D93812F7D96983A0246A807380AB820707D49875BF54965A0764",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "binarySha256": "42F9152CB1491A84CEFBE9DE1BCD68E4A755B07C658C6A8DC5CA325C7B4D10E8",
+          "suite": "Grid"
+        },
+        {
+          "hostedForeground": false,
+          "reportSha256": "B0D4EEA37C33CBFC84C49FE565B7BD562FCA37075D16BBF5D0550C3D55792A0F",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "binarySha256": "42F9152CB1491A84CEFBE9DE1BCD68E4A755B07C658C6A8DC5CA325C7B4D10E8",
+          "suite": "Theme"
+        },
+        {
+          "hostedForeground": false,
+          "reportSha256": "11AE3EA084DA179D8086A5450AD344CA4D8D02A51BA23E071B6F439BBF2724E0",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "binarySha256": "42F9152CB1491A84CEFBE9DE1BCD68E4A755B07C658C6A8DC5CA325C7B4D10E8",
+          "suite": "Control"
+        },
+        {
+          "hostedForeground": false,
+          "reportSha256": "0A67B2DCDA71DF1600DA55D304DBB0132728676479BFCE5B8E3C320D110F0259",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "binarySha256": "42F9152CB1491A84CEFBE9DE1BCD68E4A755B07C658C6A8DC5CA325C7B4D10E8",
+          "suite": "MenuExitLifetime"
+        },
+        {
+          "hostedForeground": false,
+          "reportSha256": "AA5ED2E81DAE5691DC1E1275582ED011FB72EB76EECFBA4BB8A0F9D438466F27",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "binarySha256": "42F9152CB1491A84CEFBE9DE1BCD68E4A755B07C658C6A8DC5CA325C7B4D10E8",
+          "suite": "NewControls"
+        },
+        {
+          "hostedForeground": false,
+          "reportSha256": "6076A2FB66F38C8E4609135216BB1942BFCD29547451D243499802F367675863",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "binarySha256": "42F9152CB1491A84CEFBE9DE1BCD68E4A755B07C658C6A8DC5CA325C7B4D10E8",
+          "suite": "EditorControls"
+        },
+        {
+          "hostedForeground": false,
+          "reportSha256": "928F95C978977BF7C194D10AF644A951E6A0242970D7C7B12D9A162E7E6A1656",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "binarySha256": "42F9152CB1491A84CEFBE9DE1BCD68E4A755B07C658C6A8DC5CA325C7B4D10E8",
+          "suite": "TextField"
+        },
+        {
+          "hostedForeground": false,
+          "reportSha256": "306F2AA36AA42A48123F5CC01E106CA0270600A0F793ACABDB057F400993FE99",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "binarySha256": "42F9152CB1491A84CEFBE9DE1BCD68E4A755B07C658C6A8DC5CA325C7B4D10E8",
+          "suite": "MultilineText"
+        },
+        {
+          "hostedForeground": false,
+          "reportSha256": "A1212C60750A48BC630763CF1E587E468D2230316AB89E2F36D388C6F0947A3A",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "binarySha256": "42F9152CB1491A84CEFBE9DE1BCD68E4A755B07C658C6A8DC5CA325C7B4D10E8",
+          "suite": "ReadOnly"
+        },
+        {
+          "hostedForeground": false,
+          "reportSha256": "CC9F5BC3F410C183D2DB7D6F054578F1333C7DA98C4FC04FD6A1FFF0ADB911E3",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "binarySha256": "42F9152CB1491A84CEFBE9DE1BCD68E4A755B07C658C6A8DC5CA325C7B4D10E8",
+          "suite": "ComboBox"
+        },
+        {
+          "hostedForeground": false,
+          "reportSha256": "4D17FEBCA6210B81D9920E1747F5A3C2FD5BD38CCBB01F0377C94D25ACCBAA90",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "binarySha256": "42F9152CB1491A84CEFBE9DE1BCD68E4A755B07C658C6A8DC5CA325C7B4D10E8",
+          "suite": "Tree"
+        },
+        {
+          "hostedForeground": false,
+          "reportSha256": "847B0ED0B3339FEA89B0C6AC9F79DE91A2675918B3EE981475FA28CB2B42FA98",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "binarySha256": "42F9152CB1491A84CEFBE9DE1BCD68E4A755B07C658C6A8DC5CA325C7B4D10E8",
+          "suite": "Tooltip"
+        },
+        {
+          "hostedForeground": false,
+          "reportSha256": "4A7EF9A0C41EA6C275D9A24CE5D3A776A58630DF8272B0BB1A8BD5FB95D03B2C",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "binarySha256": "42F9152CB1491A84CEFBE9DE1BCD68E4A755B07C658C6A8DC5CA325C7B4D10E8",
+          "suite": "Rendering"
+        },
+        {
+          "hostedForeground": false,
+          "reportSha256": "68C4D5A50D1FF94CA5EFFD3AB5D91D1EE56C49F9698FEAA29E0DBDD89CC314A4",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "binarySha256": "42F9152CB1491A84CEFBE9DE1BCD68E4A755B07C658C6A8DC5CA325C7B4D10E8",
+          "suite": "Animation"
+        },
+        {
+          "hostedForeground": false,
+          "reportSha256": "311173352A0A2F19DF7F95BAFD056C3756AAB97A677D1AF362A806DEE230B674",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "binarySha256": "42F9152CB1491A84CEFBE9DE1BCD68E4A755B07C658C6A8DC5CA325C7B4D10E8",
+          "suite": "Accessibility"
+        },
+        {
+          "hostedForeground": false,
+          "reportSha256": "C13B0E8258ECA7A1F69A65CC8769116132D846FD861FCC4DF112E503162BEDA9",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "binarySha256": "42F9152CB1491A84CEFBE9DE1BCD68E4A755B07C658C6A8DC5CA325C7B4D10E8",
+          "suite": "WindowHost"
+        },
+        {
+          "hostedForeground": false,
+          "reportSha256": "06E044BA7E6314ED0DC8EEB8AE70133C9CA62264531F994D6F57E59D5FEDAF94",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "binarySha256": "42F9152CB1491A84CEFBE9DE1BCD68E4A755B07C658C6A8DC5CA325C7B4D10E8",
+          "suite": "InteractiveLease"
+        },
+        {
+          "hostedForeground": true,
+          "reportSha256": "A6599492960539541138AF867E18CD6B9EA376D9A279855EFA1F732C9DD2F1A0",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "binarySha256": "42F9152CB1491A84CEFBE9DE1BCD68E4A755B07C658C6A8DC5CA325C7B4D10E8",
+          "suite": "Menu"
+        },
+        {
+          "hostedForeground": true,
+          "reportSha256": "2373CB021596BBF5B41C0DDFAA4FA208D73C8E006AB4D17BA8884FFA441C9EBE",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "binarySha256": "42F9152CB1491A84CEFBE9DE1BCD68E4A755B07C658C6A8DC5CA325C7B4D10E8",
+          "suite": "NativeTextInput"
+        }
+      ],
+      "platform": "x64",
+      "canonicalRunId": "20261108T035847332Z-7904-9de89e2a228d4116a290193b1282d1dc",
+      "runId": 42442570536
+    },
+    {
+      "originalArtifactWrappers": [
+        {
+          "name": "qualification-x64-Release",
+          "bytes": 126693606,
+          "reportedDigestVerified": true,
+          "sha256": "CC7ECE6B138B1389CD288C6A2EFC53C6F5492206E5BBA9AAF38FE50C5B75AE34",
+          "id": 13604035907
+        },
+        {
+          "name": "qualification-workspace-x64-Release",
+          "bytes": 130752018,
+          "reportedDigestVerified": true,
+          "sha256": "8ECBD22D9DF5DE774DADD4BC377D46A8299E5B07867FEB4CD44D94DF61CD9EB7",
+          "id": 13602934664
+        },
+        {
+          "name": "msvc-14.52-f4f42fbbc4304f3cb2715efce6b7d8d9",
+          "bytes": 1327717,
+          "reportedDigestVerified": true,
+          "sha256": "85541C373288FA5A795BD8B769780C95CE53470AFCC8828AAF005BADF7DBD57E",
+          "id": 13602282698
+        }
+      ],
+      "additionalOriginalPayloads": [
+        {
+          "allFileBytesMatchedOriginalManifest": true,
+          "files": 21,
+          "bytes": 64564499,
+          "fileIdentitySha256": "AC854CFDFC4598E62257BDB0D48ABE7A178779065ED117CE9D1A1FAE0AC5DACF",
+          "limit": "Byte verification does not recreate original file IDs, security descriptors or timestamps"
+        }
+      ],
+      "nativeArchitecture": "x64",
+      "warnings": 0,
+      "asan": null,
+      "sourceCommit": "2a26dfbd5df4ea2af9cd7742677c17326f3bfa94",
+      "supplementalSuites": [
+        {
+          "exitCode": 0,
+          "reportSha256": "C15071946F5FD29F831B3A2B76F53A03AA7FEA24768F62447967F0949B52D9F1",
+          "suite": "MenuResourceScaling",
+          "binarySha256": "B0F09B628CB31DC5B575CC8ED66016CD483FEA8A03DCB8B5AC9DF4ED357D00ED",
+          "capabilitySkips": 0
+        },
+        {
+          "exitCode": 0,
+          "reportSha256": "E1E77328979068E17FF1D8DE74EAEA18C31A48495B74B7125F221F70179FDC39",
+          "suite": "MenuTextLayoutResources",
+          "binarySha256": "B0F09B628CB31DC5B575CC8ED66016CD483FEA8A03DCB8B5AC9DF4ED357D00ED",
+          "capabilitySkips": 0
+        }
+      ],
+      "configuration": "Release",
+      "errors": 0,
+      "fullSuitesPassed": 21,
+      "url": "https://github.com/RedSalamanders/DxUi/actions/runs/42442573640",
+      "buildLogSha256": "F78BBDD1CD53AE5C854B039540B456DA9E2F7BE8E15CF831CAA2C463D8DC03A5",
+      "outcome": "success",
+      "suiteAdmissionSha256": "F301E9087E4322DB24F56AE6FCEB7BB92A980829AF99628C06328BE550726D4A",
+      "externalConsumer": {
+        "reportSha256": "7AB39CAC7E19453692B66AF630FFB85FDA79B3B4A8EBE1C534E0EA2E9DDF5C77",
+        "buildIdentity": {
+          "Fingerprint": "5113a147366adb8795733ae8c1da539fb1494766c9fca311f4259bb130087ac8",
+          "Identity": {
+            "commit": "2a26dfbd5df4ea2af9cd7742677c17326f3bfa94",
+            "apiRevision": 5,
+            "platform": "x64",
+            "toolset": "v145",
+            "vcToolsVersion": "14.52.37025",
+            "windowsSdkVersion": "10.0.26100.0",
+            "runtimeFamily": "MD",
+            "preferredToolArchitecture": "x86",
+            "disableStlAnnotations": false,
+            "releaseOptimizationPolicy": "Gy-REF-GL-LTCG-full-v1",
+            "msbuildSha256": "25929034E73EBE6259F600F37CAF5567D20C0F645571674951B442D639D5C18C",
+            "compilerSha256": "54432A2AE1AB1CA6838E65BCAF0653F84031BD98AB5CA35B5AF7B5686DDF21E5",
+            "linkerSha256": "B7A53752327CBD7335465DB4DD290BE9ADC11F8E97C5294E50B1AF288AF87753",
+            "windowsHeaderSha256": "B337D661D03A4ABEFB7B86A2742CE1AD5D19B57CD8B858BD13E7BBCC1DBEEAAA",
+            "kernel32Sha256": "842F5CE7AD8CF5AAB7491B791E7968D2BE510AE93F4019D3311797289399D221",
+            "ucrtSha256": "7EF4EAC926BF597D2F243F16CDFED7E0DB22CB3CA34A1D7E088A84C994A03D66"
+          }
+        },
+        "librarySha256": "C4875629741AC8BE761C8E3F60AD3ACCA78266C4478DBDFA83DAB51A87E06BCB",
+        "executableSha256": "6E465FA1E46F592BAD198F710433C6A493F7427821704D17D3A5AFD7D31EC15E"
+      },
+      "originalPayloadMembers": {
+        "allFileBytesMatchedOriginalManifest": true,
+        "files": 1017,
+        "bytes": 85641923,
+        "fileIdentitySha256": "E580D31F333FC7D1F72340AA383EA016DC458DC24839F11B5D930336B2D66007",
+        "limit": "Byte verification does not recreate original file IDs, security descriptors or timestamps"
+      },
+      "completionSha256": "C999E5100E679E8B77C8E6286921D769E1A7E9149B635AF7DCA5293F24B4E5F2",
+      "fullSuites": [
+        {
+          "hostedForeground": false,
+          "reportSha256": "EB2BA4C4CF4FB05776A55118C2DAF1E03C6D5015D95F7E9287CE7662D4514541",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "binarySha256": "CF4519563EFD4937254268F42F3CDB192FF083E0AA08E919CEFBC627163FB2B4",
+          "suite": "Foundation"
+        },
+        {
+          "hostedForeground": false,
+          "reportSha256": "5C14CE9556489833682776682493AD698F45267C4D70176C0C4F098B6B2EE9A2",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "binarySha256": "E59B0DCF2FC7B92D61AD9E2BECC3439F80906729F95D0B500C74597B43211382",
+          "suite": "Embedded"
+        },
+        {
+          "hostedForeground": false,
+          "reportSha256": "13D8E30A0322D180580549BD6A9A61ED199412C098EE4B20CB65D73FECE22C41",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "binarySha256": "B0F09B628CB31DC5B575CC8ED66016CD483FEA8A03DCB8B5AC9DF4ED357D00ED",
+          "suite": "Grid"
+        },
+        {
+          "hostedForeground": false,
+          "reportSha256": "35F6E3551F54BB9B6DC31E53ECA92E76C3D4F99936481ABBCCCD682F4ABDBFFE",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "binarySha256": "B0F09B628CB31DC5B575CC8ED66016CD483FEA8A03DCB8B5AC9DF4ED357D00ED",
+          "suite": "Theme"
+        },
+        {
+          "hostedForeground": false,
+          "reportSha256": "B2FACC1CA47F4B9C8866A8AEB80855C95E871D71E10FEB6060CF23412738F8D6",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "binarySha256": "B0F09B628CB31DC5B575CC8ED66016CD483FEA8A03DCB8B5AC9DF4ED357D00ED",
+          "suite": "Control"
+        },
+        {
+          "hostedForeground": false,
+          "reportSha256": "A12ECA5429625BED1B00BFFF61181E781AAB0251918412DEA6FCCAAC48572BB9",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "binarySha256": "B0F09B628CB31DC5B575CC8ED66016CD483FEA8A03DCB8B5AC9DF4ED357D00ED",
+          "suite": "MenuExitLifetime"
+        },
+        {
+          "hostedForeground": false,
+          "reportSha256": "E57D2C320E9A49AC56CB5443DDC6431D2D414F36A4BE2780CF58C022DD0039F7",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "binarySha256": "B0F09B628CB31DC5B575CC8ED66016CD483FEA8A03DCB8B5AC9DF4ED357D00ED",
+          "suite": "NewControls"
+        },
+        {
+          "hostedForeground": false,
+          "reportSha256": "E72C733E07B1020A2FB467B764F1B1C339AFD6BE6A0352CFB0C935120F73D4C6",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "binarySha256": "B0F09B628CB31DC5B575CC8ED66016CD483FEA8A03DCB8B5AC9DF4ED357D00ED",
+          "suite": "EditorControls"
+        },
+        {
+          "hostedForeground": false,
+          "reportSha256": "8E88CD67048228E3A4C6D963D86B26A85837EE073D619FC8D5AF1F7261921D0A",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "binarySha256": "B0F09B628CB31DC5B575CC8ED66016CD483FEA8A03DCB8B5AC9DF4ED357D00ED",
+          "suite": "TextField"
+        },
+        {
+          "hostedForeground": false,
+          "reportSha256": "31D6E7094C0C91276F22FA8B4009ECC2067BE757E6EC612628737A25F42C8CB4",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "binarySha256": "B0F09B628CB31DC5B575CC8ED66016CD483FEA8A03DCB8B5AC9DF4ED357D00ED",
+          "suite": "MultilineText"
+        },
+        {
+          "hostedForeground": false,
+          "reportSha256": "31C0A3A0B3992412DE596D93495822AF53A071A49CFD5F28A0129351584C2C0C",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "binarySha256": "B0F09B628CB31DC5B575CC8ED66016CD483FEA8A03DCB8B5AC9DF4ED357D00ED",
+          "suite": "ReadOnly"
+        },
+        {
+          "hostedForeground": false,
+          "reportSha256": "293346720F96870ADA6C28DD5FD647BBA0B2678265AB67D411BC77AC3FB1B7EF",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "binarySha256": "B0F09B628CB31DC5B575CC8ED66016CD483FEA8A03DCB8B5AC9DF4ED357D00ED",
+          "suite": "ComboBox"
+        },
+        {
+          "hostedForeground": false,
+          "reportSha256": "7CC3CA2FA9EF1261D830C1DD58D3BB8F3764C1FCFA2EF295DA88E78D043FAC6F",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "binarySha256": "B0F09B628CB31DC5B575CC8ED66016CD483FEA8A03DCB8B5AC9DF4ED357D00ED",
+          "suite": "Tree"
+        },
+        {
+          "hostedForeground": false,
+          "reportSha256": "98453DD6848BA5099BE6505D4C9C4AA34A885B46E09654F236F8C8BD7EA1AB16",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "binarySha256": "B0F09B628CB31DC5B575CC8ED66016CD483FEA8A03DCB8B5AC9DF4ED357D00ED",
+          "suite": "Tooltip"
+        },
+        {
+          "hostedForeground": false,
+          "reportSha256": "FC62B5E61205AAB43B11EF0859A8F9A30BF7BF143F5B4849793706A980F6D36E",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "binarySha256": "B0F09B628CB31DC5B575CC8ED66016CD483FEA8A03DCB8B5AC9DF4ED357D00ED",
+          "suite": "Rendering"
+        },
+        {
+          "hostedForeground": false,
+          "reportSha256": "F74AABCECF490512FCE9297815388D70A4972B4E2287DC2B0236BF1B17D9C9A1",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "binarySha256": "B0F09B628CB31DC5B575CC8ED66016CD483FEA8A03DCB8B5AC9DF4ED357D00ED",
+          "suite": "Animation"
+        },
+        {
+          "hostedForeground": false,
+          "reportSha256": "3DDD13103176182CF2EF81E9DC5A6E0814744EA4332E2515790EA33F911EC93D",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "binarySha256": "B0F09B628CB31DC5B575CC8ED66016CD483FEA8A03DCB8B5AC9DF4ED357D00ED",
+          "suite": "Accessibility"
+        },
+        {
+          "hostedForeground": false,
+          "reportSha256": "26C1E819C041268C39CF2F644A9D7C63914D02BED5694CB6F35818D8043CE813",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "binarySha256": "B0F09B628CB31DC5B575CC8ED66016CD483FEA8A03DCB8B5AC9DF4ED357D00ED",
+          "suite": "WindowHost"
+        },
+        {
+          "hostedForeground": false,
+          "reportSha256": "EE8114B9017DD5EE24AEA99FECCC2642723269C1B1156E8BB1F415AF6DDEEC38",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "binarySha256": "B0F09B628CB31DC5B575CC8ED66016CD483FEA8A03DCB8B5AC9DF4ED357D00ED",
+          "suite": "InteractiveLease"
+        },
+        {
+          "hostedForeground": true,
+          "reportSha256": "EB557F2A5682190172A5118394FB8A65CF39F7770183DFE0A9946A83924758D9",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "binarySha256": "B0F09B628CB31DC5B575CC8ED66016CD483FEA8A03DCB8B5AC9DF4ED357D00ED",
+          "suite": "Menu"
+        },
+        {
+          "hostedForeground": true,
+          "reportSha256": "AF1775245ECD5FF95FCCD3EC4EB56EB59FDA9175F656DCA1327FC93D9546A719",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "binarySha256": "B0F09B628CB31DC5B575CC8ED66016CD483FEA8A03DCB8B5AC9DF4ED357D00ED",
+          "suite": "NativeTextInput"
+        }
+      ],
+      "platform": "x64",
+      "canonicalRunId": "20261108T040215121Z-3132-09e0ce23edfd471d9a3c894d9d3073b2",
+      "runId": 42442573640
+    },
+    {
+      "originalArtifactWrappers": [
+        {
+          "name": "qualification-workspace-x64-ASan Debug",
+          "bytes": 123085757,
+          "reportedDigestVerified": true,
+          "sha256": "A9979EC16F71EA65202C7394FD14D86B9835A2AD14AF3E4960481A823EDCCA00",
+          "id": 13604171444
+        },
+        {
+          "name": "qualification-x64-ASan Debug",
+          "bytes": 119019331,
+          "reportedDigestVerified": true,
+          "sha256": "3B0C5E73DFD367C48C5EFB9E7F255FA39095BEC726FA5DF9E8FB116B45E2104D",
+          "id": 13604047206
+        },
+        {
+          "name": "msvc-14.52-71cb7f12fc904033941b8c1cbec86303",
+          "bytes": 1326585,
+          "reportedDigestVerified": true,
+          "sha256": "AC3F6F23873B210D848B57B5D53F8E5488F7E88BDB0DE4A82171D6F296B518FF",
+          "id": 13602701467
+        }
+      ],
+      "additionalOriginalPayloads": [],
+      "nativeArchitecture": "x64",
+      "warnings": 0,
+      "asan": {
+        "probeExitCode": 1,
+        "probeBinarySha256": "BEE8DD55E20FBD81FD68D46A49013AA2CDDAD34E3769E951D21DB79FFB0BD02C",
+        "reportSha256": "6B78ACCDDB350A801FD1A422930F29923AEDB19A72A6F2CCF86DED5BDCF0DAED",
+        "annotationsDisabledConsumerPassed": true,
+        "probeReportSha256": "326C823EFF63801252361E601F07FB49563766A4A3E79220B0B157E57B8D08F9",
+        "actualDetection": true
+      },
+      "sourceCommit": "2a26dfbd5df4ea2af9cd7742677c17326f3bfa94",
+      "supplementalSuites": [],
+      "configuration": "ASan Debug",
+      "errors": 0,
+      "fullSuitesPassed": 21,
+      "url": "https://github.com/RedSalamanders/DxUi/actions/runs/42442576811",
+      "buildLogSha256": "3A88A0BDF8DE30BFF801EE7E3388F62DBA80C8B65770620FDD0A0701E7D1F820",
+      "outcome": "success",
+      "suiteAdmissionSha256": "B2D1B6FB15FBF85B0D0E80E1420198B4E76F90DB4E979A747943863FEB5763AB",
+      "externalConsumer": {
+        "reportSha256": "56AD6293C6BEFF82121ABF73A57066B21FE33C6F95ACE20E40AEACFAEA85A545",
+        "buildIdentity": {
+          "Fingerprint": "5113a147366adb8795733ae8c1da539fb1494766c9fca311f4259bb130087ac8",
+          "Identity": {
+            "commit": "2a26dfbd5df4ea2af9cd7742677c17326f3bfa94",
+            "apiRevision": 5,
+            "platform": "x64",
+            "toolset": "v145",
+            "vcToolsVersion": "14.52.37025",
+            "windowsSdkVersion": "10.0.26100.0",
+            "runtimeFamily": "MD",
+            "preferredToolArchitecture": "x86",
+            "disableStlAnnotations": false,
+            "releaseOptimizationPolicy": "Gy-REF-GL-LTCG-full-v1",
+            "msbuildSha256": "25929034E73EBE6259F600F37CAF5567D20C0F645571674951B442D639D5C18C",
+            "compilerSha256": "54432A2AE1AB1CA6838E65BCAF0653F84031BD98AB5CA35B5AF7B5686DDF21E5",
+            "linkerSha256": "B7A53752327CBD7335465DB4DD290BE9ADC11F8E97C5294E50B1AF288AF87753",
+            "windowsHeaderSha256": "B337D661D03A4ABEFB7B86A2742CE1AD5D19B57CD8B858BD13E7BBCC1DBEEAAA",
+            "kernel32Sha256": "842F5CE7AD8CF5AAB7491B791E7968D2BE510AE93F4019D3311797289399D221",
+            "ucrtSha256": "7EF4EAC926BF597D2F243F16CDFED7E0DB22CB3CA34A1D7E088A84C994A03D66"
+          }
+        },
+        "librarySha256": "35037DB9ADFD3FA4A134CB09BBD28B4556A0E284D08E419D151324E826856777",
+        "executableSha256": "B135F957F9E8B5A856137C931B0545E992CA26BB78D5DDB3250B4275F4FCEF37"
+      },
+      "originalPayloadMembers": {
+        "allFileBytesMatchedOriginalManifest": true,
+        "files": 1022,
+        "bytes": 259158211,
+        "fileIdentitySha256": "C360C43C41FB9326775785E39C5057B1F94BC92E15122F6F64224419ACB24E2C",
+        "limit": "Byte verification does not recreate original file IDs, security descriptors or timestamps"
+      },
+      "completionSha256": "CDB93AF6A1D5540CA16C975ABD43172152CB8B2DCC2019F45CEB7614C5992721",
+      "fullSuites": [
+        {
+          "hostedForeground": false,
+          "reportSha256": "AAD38C70033CA435FDDD7E95A659407A554720CA6CA1F4FBFFAA1E18961E37B2",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "binarySha256": "BEE8DD55E20FBD81FD68D46A49013AA2CDDAD34E3769E951D21DB79FFB0BD02C",
+          "suite": "Foundation"
+        },
+        {
+          "hostedForeground": false,
+          "reportSha256": "4422ABEE93A227D5F5A2F7C2DD65D0D2F1DE548D7971E251C0DAB1864B469AB2",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "binarySha256": "5FC907B530B6A50B2C7D717B7171749AFCAA5419DE0FC5F0FA6A713A1F61A32D",
+          "suite": "Embedded"
+        },
+        {
+          "hostedForeground": false,
+          "reportSha256": "93A1C0430EC17C731C6A955F0BF975131F84BE5FD9FEF28B09EA94AE2387020A",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "binarySha256": "714176A2A41A1608F4BB774973A073103D73F49C8BB1CD53F98DF77D6DF2A35B",
+          "suite": "Grid"
+        },
+        {
+          "hostedForeground": false,
+          "reportSha256": "DCB1019BC991400F06956994CD622693D45DB4CB2904C6E1E043617ADFD5CF47",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "binarySha256": "714176A2A41A1608F4BB774973A073103D73F49C8BB1CD53F98DF77D6DF2A35B",
+          "suite": "Theme"
+        },
+        {
+          "hostedForeground": false,
+          "reportSha256": "8838E5468CB90E01B6F07A33AB62458C05FCB61ABEBFB34786CA2A197C398D7A",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "binarySha256": "714176A2A41A1608F4BB774973A073103D73F49C8BB1CD53F98DF77D6DF2A35B",
+          "suite": "Control"
+        },
+        {
+          "hostedForeground": false,
+          "reportSha256": "6D5207B0DF0E8010B2FCB6E49335EF686454D912C7BF165271F2414E0C6EB4B5",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "binarySha256": "714176A2A41A1608F4BB774973A073103D73F49C8BB1CD53F98DF77D6DF2A35B",
+          "suite": "MenuExitLifetime"
+        },
+        {
+          "hostedForeground": false,
+          "reportSha256": "856CDB7D8472FFFBB6281A1EEEFD51B5E20BD6B21994737C10CD6B1E59C19555",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "binarySha256": "714176A2A41A1608F4BB774973A073103D73F49C8BB1CD53F98DF77D6DF2A35B",
+          "suite": "NewControls"
+        },
+        {
+          "hostedForeground": false,
+          "reportSha256": "4E1B86481C6322BDC1D34E1A5EE6E38678B078E2E28EF89A1BBE146BF4E592E5",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "binarySha256": "714176A2A41A1608F4BB774973A073103D73F49C8BB1CD53F98DF77D6DF2A35B",
+          "suite": "EditorControls"
+        },
+        {
+          "hostedForeground": false,
+          "reportSha256": "E7DA4FFEB995E6AA9F15E24329E733E301F15077B04240C47BD4577A2CA638A1",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "binarySha256": "714176A2A41A1608F4BB774973A073103D73F49C8BB1CD53F98DF77D6DF2A35B",
+          "suite": "TextField"
+        },
+        {
+          "hostedForeground": false,
+          "reportSha256": "62D914627BEA407F884366B41C51FB7781795C374E7C6112957E7AAF55A552EA",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "binarySha256": "714176A2A41A1608F4BB774973A073103D73F49C8BB1CD53F98DF77D6DF2A35B",
+          "suite": "MultilineText"
+        },
+        {
+          "hostedForeground": false,
+          "reportSha256": "7DEAD995E1F186B5F38F3FFB7245F02ADA5053C9C74DC497408806909CF2C27B",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "binarySha256": "714176A2A41A1608F4BB774973A073103D73F49C8BB1CD53F98DF77D6DF2A35B",
+          "suite": "ReadOnly"
+        },
+        {
+          "hostedForeground": false,
+          "reportSha256": "92141FC219822F197DF943BAD369E9A254EC9A1F6C09223BD65968F0B13986D2",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "binarySha256": "714176A2A41A1608F4BB774973A073103D73F49C8BB1CD53F98DF77D6DF2A35B",
+          "suite": "ComboBox"
+        },
+        {
+          "hostedForeground": false,
+          "reportSha256": "4705F92A1EDEFCCB4F3B074E90A664DB2EF8F19851A0076F76C77BB4718642AA",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "binarySha256": "714176A2A41A1608F4BB774973A073103D73F49C8BB1CD53F98DF77D6DF2A35B",
+          "suite": "Tree"
+        },
+        {
+          "hostedForeground": false,
+          "reportSha256": "03F1147713AC7484E79AFBC450D979CECEC80F711FB6FF56CD58B467D753D438",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "binarySha256": "714176A2A41A1608F4BB774973A073103D73F49C8BB1CD53F98DF77D6DF2A35B",
+          "suite": "Tooltip"
+        },
+        {
+          "hostedForeground": false,
+          "reportSha256": "F93E90FD6D240C7336BEB081CC8DB91D5F24E4803A11BB95C3156BE33AA27A61",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "binarySha256": "714176A2A41A1608F4BB774973A073103D73F49C8BB1CD53F98DF77D6DF2A35B",
+          "suite": "Rendering"
+        },
+        {
+          "hostedForeground": false,
+          "reportSha256": "B8EDA7B745AF6F1242299B2C821FC8B82BF5B6A55E088792EAE2DDCF182F81CE",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "binarySha256": "714176A2A41A1608F4BB774973A073103D73F49C8BB1CD53F98DF77D6DF2A35B",
+          "suite": "Animation"
+        },
+        {
+          "hostedForeground": false,
+          "reportSha256": "BB0F50BF8046BFE0779BB489407A14AA344F08C2F000DC4935586B97F1B99B0F",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "binarySha256": "714176A2A41A1608F4BB774973A073103D73F49C8BB1CD53F98DF77D6DF2A35B",
+          "suite": "Accessibility"
+        },
+        {
+          "hostedForeground": false,
+          "reportSha256": "C1E390B47D592CB77866E9821A20DF02274436B60299864FACA8D1F0E699A3B2",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "binarySha256": "714176A2A41A1608F4BB774973A073103D73F49C8BB1CD53F98DF77D6DF2A35B",
+          "suite": "WindowHost"
+        },
+        {
+          "hostedForeground": false,
+          "reportSha256": "445111EB2FC3A98137C7AE9DA7522FABA2A2800451AAE713795E2E29B4C1206E",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "binarySha256": "714176A2A41A1608F4BB774973A073103D73F49C8BB1CD53F98DF77D6DF2A35B",
+          "suite": "InteractiveLease"
+        },
+        {
+          "hostedForeground": true,
+          "reportSha256": "84BA94F3ACC9526CAE70094C5D3B5F25D3FAEAEBECB87CD02B2981C4F807A4B8",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "binarySha256": "714176A2A41A1608F4BB774973A073103D73F49C8BB1CD53F98DF77D6DF2A35B",
+          "suite": "Menu"
+        },
+        {
+          "hostedForeground": true,
+          "reportSha256": "98FF914986ED6C355696517FE2171E2059E2C26F2CB72DD3B21D013750F532D9",
+          "exitCode": 0,
+          "capabilitySkips": 0,
+          "binarySha256": "714176A2A41A1608F4BB774973A073103D73F49C8BB1CD53F98DF77D6DF2A35B",
+          "suite": "NativeTextInput"
+        }
+      ],
+      "platform": "x64",
+      "canonicalRunId": "20261108T035715676Z-1324-e37c8bcf83fb4b6ba32dbc96022a03c7",
+      "runId": 42442576811
+    }
+  ],
+  "limits": [
+    "x64 runtime only; ARM64 qualification remains compilation-only for this delivery",
+    "Hosted Full contains 21 named suites; supplemental Release resource suites and the separate local 22-suite union retain distinct counts",
+    "No physical IME, assistive technology, touch, real GPU-removal or paired-performance acceptance"
+  ],
+  "benchmarkInputs": {
+    "Tests/Controls/DxUi.Tests.Menu.cpp": "FFD906520D5958297E4453DA67B1B288DB36F1BAB73B29CBD9AEEF3894C91E07",
+    "Tests/Controls/DxUi.Tests.NativeTextInput.cpp": "22B25AE40116E67C4115D8EE24B2EA7E22390557381B4442493F7F7790525E89",
+    "Tests/Controls/DxUi.Tests.MenuResources.h": "73B4C79DE047B5B531897FE47BDF02B256559B6F18EFC74BB85A55D860FFA42E"
+  },
+  "publicProjection": {
+    "originalVerifiedSummarySha256": "2882EDF7EBDF8871DF15BD6E4A20B14E32C3EF56A8B9CF0486F52C13E43818E7",
+    "fixtureHashRepresentation": "Unfiltered committed Git blob bytes at sourceCommit, sampled for the foreground fixtures. These are not claimed to be retained physical hosted checkout bytes or a complete compiled-input identity.",
+    "sourceCommit": "2a26dfbd5df4ea2af9cd7742677c17326f3bfa94",
+    "originalRunsAndArtifactHashesUnchanged": true
+  }
+}

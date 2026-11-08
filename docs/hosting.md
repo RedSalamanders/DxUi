@@ -253,6 +253,12 @@ Without a requested provider or UIA listener, native mutations retain dirty stat
 posting new publication work. The next owner-thread provider query sees the latest state, and a flush already
 queued before interest ceased still includes later mutations. No additional application refresh call is required.
 
+Rich-text `ScrollIntoView` also dirties the native publication. An owner-thread
+query of `GetVisibleRanges` then reads the scrolled source interval without an
+application refresh or content-preparation call. Bounding rectangles can use
+live geometry, so they alone cannot prove that a cached publication is current.
+Foreign-thread clients continue to use the normal bounded publication timing.
+
 An element whose control was
 removed, or replaced at the same place in the tree, reports `UIA_E_ELEMENTNOTAVAILABLE`, and the replacement's
 elements get new runtime ids; after adding or removing children, call `RefreshAccessibilitySnapshot` (or let the next

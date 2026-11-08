@@ -376,10 +376,15 @@ policy, erase its findings or close this section.
 - [x] Record the owner's 7 November deferral of native ARM64 runtime, including opt-in
   MenuResources/MenuResourceScaling, for this delivery. Require all three ARM64 compilation checks and keep
   every historical runtime failure/refusal. Do not claim those cross-builds establish runtime acceptance.
-- [ ] Complete candidate-specific x64 foreground coverage. Ordinary noninteractive suites do not close it.
+- [x] Complete the implementation-`21fae0dc` x64 foreground gate at hosted source `2a26dfbd`.
+  The [original hosted record](../../../Measurements/EarlierControlsAndNativeRefusalCauses_2026-11-08/hosted-x64.json)
+  verifies all three x64 profiles: 21 Full suites each, including actual Menu and NativeTextInput restoring
+  leases, plus two Release resource suites. All native payload bytes and original wrapper digests verify;
+  actual ASan and both external-consumer annotation modes pass. The strengthened scroll-publication oracle
+  has its own later source qualification; these results are not relabeled as that test candidate.
 - [ ] Qualify physical device removal/occlusion, real IME during reflow, assistive technology and touch on named
   hosts. Arrange focus-taking runs at the agreed time through the existing restoring desktop lease.
-- [ ] Keep original failed/refused foreground runs and causes unassigned until independently demonstrated.
+- [x] Keep original failed/refused foreground runs and causes unassigned until independently demonstrated.
 
 <a id="d-c1"></a>
 ### D-C1 — consumer adoption and supported pilots
@@ -394,9 +399,13 @@ policy, erase its findings or close this section.
   application's remaining product, physical-input, packaging or performance acceptance.
 - [ ] Qualify each chosen General/card/prompt/profile pilot and exact pin through the consumer's own harness;
   leave optional additions deferred if the pilot has no demonstrated value.
-- [ ] Complete explicit API-5 adoption through the
+- [x] Complete explicit API-5 adoption through the
   [single RedTilde plan](https://github.com/RedSalamanders/RedTilde/blob/main/Specs/Plans/WIP/RemainingWork_2026-11-04.md).
-  Candidate `9feb787e` pins `21fae0dc`; its fresh native/production qualification remains in progress.
+  Candidate `9feb787e` pins `21fae0dc`. Its
+  [scoped adoption closeout](https://github.com/RedSalamanders/RedTilde/blob/main/Specs/Plans/Done/Api5ConsumerAdoption_2026-11-08.md)
+  verifies six local builds, fifteen actual production refusals and all three hosted x64 profiles at
+  `c80a8659`: 155 cases/40 captures per profile, including actual symbolic-link save. RedTilde
+  [PR96](https://github.com/RedSalamanders/RedTilde/pull/96) and its separate fold are merged.
   The earlier API-4 main qualification at `1c600d60` in
   [run 41853861400](https://github.com/RedSalamanders/RedTilde/actions/runs/41853861400): both native 75-case
   Release roles and production ZIPs passed. That historical run does not qualify the current API-5 candidate;
@@ -445,11 +454,20 @@ remains consumer-owned. D7's aligned/gathered/alignat display-style behavior is 
 
 | Still open | Required owner choice |
 | --- | --- |
-| D6 | Platform-specific color-glyph/script fallback. |
-| D8 | Public Debug declarations and supported API boundary. |
 | D11 | Broader legacy Done-checkbox disposition. This cleanup handles transferred WIP items, not all old Done records. |
 | D12 | Broader fragment administration; current fragment/fold policy remains authoritative. |
 | D13 | Consumer adoption of the implemented API-5 callback/fatal host protocol; PR162's library contract and qualification are completed, while each product owns its migration. |
+
+Implementation dispositions under the requested finish-and-merge scope (**8 November**):
+
+- **D6:** retain the implemented capability-based color-glyph/script fallback. The
+  [control contract](../../UI/UI_ControlsAndLayout.md) requires one capability check per new preparation,
+  native scripts on capable targets and exact-leaf fallback on legacy targets. No unconditional newer-OS
+  import or new Windows 10 runtime qualification is implied.
+- **D8:** retain existing diagnostic declarations and classify their support boundary in
+  [architecture](../../Core/Core_Architecture.md#diagnostic-declarations) and the
+  [upgrade guide](../../../docs/upgrade.md). Exact-pin harness use remains possible; removal or consolidation
+  is a separate migration. This resolves the documentation choice without changing production behavior or ABI.
 
 <a id="d-h1"></a>
 **HOLD D-H1:** S3-S7 overlay sessions, variable-height lists, read-only Markdown help, motion and theme metadata

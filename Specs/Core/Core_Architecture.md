@@ -2,8 +2,8 @@
 
 C++ failure handling is owned by [Failure handling and allocation](Core_FailureHandling.md). Expected refusals
 use checked nonthrowing results; unexpected exceptions require host fatal diagnostics and termination.
-That policy records the current runtime gap and its implementation plan; source-coordinated linking alone
-does not provide the required crash/dump integration.
+API 5 implements that host boundary. The failure contract and each consumer's adoption record own its
+source-specific qualification; source-coordinated linking alone does not provide crash/dump integration.
 
 Status: normative intended contract
 Last reviewed: 2026-10-18
@@ -18,6 +18,15 @@ are consumers. Source is organized under `src`, tests under `Tests`, supported A
 The owned control/host source currently lives in `src/Controls`, with tests/baselines in `Tests/Controls`.
 The controls and native tests compile independently of either application. Build support and pending consumer bridges
 remain explicit in `capabilities.json`.
+
+### Diagnostic declarations
+
+Public declarations named `Debug*` and the explicitly named `ForDebug` diagnostics are unsupported diagnostic
+hooks rather than a stable production API. They remain present at their exact source pin; this classification
+removes no declaration, symbol or configuration branch. Owned test harnesses and diagnostic tools may use them
+with matching headers/library and source-bound tests, but product behavior must not depend on a diagnostic
+result. There is no cross-pin source or binary compatibility promise for these hooks. Consolidating or removing
+them requires its own reviewed migration; a documentation change must not silently remove shipped hooks.
 
 Historical source commit, original hashes and current ownership mappings live in `Specs/Done/SourceImport/source-origin.json`.
 Git history retains earlier bytes. No duplicate original source tree is retained or periodically synchronized.
