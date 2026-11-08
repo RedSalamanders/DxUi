@@ -4,6 +4,7 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Keep DirectWrite's internally handled lazy-formatting exceptions inside the audited native metrics boundary, preserve checked HRESULT refusal and add a 65,536-code-unit source/caret regression. SDK exceptions and escaping native exceptions retain fatal diagnostics.
 - Suppress the native window's legacy IME association while a masked field owns logical focus, restore the exact application context on unmask, blur or detach, and preserve replacement and sibling associations. Defensive TSF stores report read-only password metadata without exposing secret text or write access. Add unchanged-object counterexamples and non-activating metadata/context regressions; physical IME and platform qualification remain separate.
 - Record exact-source hosted native Debug, Release and ASan acceptance for the API-5 input-state corrections on x64 and ARM64, including original artifact/payload and inner SDK byte verification. Later code, physical input, paired performance and consumer adoption remain separately qualified.
 - Retire the module-owned animation window when its last native host detaches, before failure-host uninstallation
