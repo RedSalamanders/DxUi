@@ -1,540 +1,744 @@
-# Dirty-frame, layout, text-shaping and rich-document efficiency, 7 November 2026
+# Runtime efficiency and rendering quality, 7 November 2026 (revised 8 November 2026)
 
-Status: SPEC READY — architectural studies against `longbridge/gpui-fast` (`61dccec2536ecbb6845a2c0cdf5fb17651b10bc5`)
-and `anomalyco/rune` (`077237326b59b6afa85b4329231fe6320a187c74`) plus a corner-by-corner static audit of `DxUi`
-completed; developer confirmed Wave 0 decisions D1–D4 on 7 November 2026 (including clean API revision 5 evolution with
-no legacy compatibility shims). Plan only; code implementation has not started.
+Status: REVISED SPEC — the 7 November draft was red-team reviewed on 8 November 2026 against `DxUi` at
+`c0ead00a`, [`anomalyco/rune`](https://github.com/anomalyco/rune/tree/a7f276c3630f85a06a0230295da4d2bd172d8d3b)
+at `a7f276c`, [`longbridge/gpui-fast`](https://github.com/longbridge/gpui-fast/tree/fb8cf9413777e43e7c38bf5917647ee984453f37)
+at `fb8cf94` and [`ppmpreetham/BUI`](https://github.com/ppmpreetham/BUI/tree/e8126cab68f1b542676e83909671bc803dedb36c)
+at `e8126ca` (see [BUI review](#bui-review-ppmpreethambui-at-e8126ca)). Each draft claim was checked against source;
+the result is the evidence ledger below. The draft pins were rune `0772373` and gpui-fast `61dccec`. Decisions D1, D2
+and D4 stand. D3 is revised and D5–D10 are new; all of these need the developer's confirmation (see
+[Decisions](#decisions)). Plan only; no code has been implemented.
 
-- **Date**: 2026-11-07.
-- **Reference studies**:
-  1. `longbridge/gpui-fast` (`crates/gpui/src/fast/` and `crates/gpui_windows/src/fast/` at
-     `61dccec2536ecbb6845a2c0cdf5fb17651b10bc5`) compared against `DxUi` at `main`.
-  2. `anomalyco/rune` (`crates/rune`, `crates/rune-kit`, `crates/rune-motion`, `crates/procwatch`, and empirical studies
-     `research/01` through `research/38` at `077237326b59b6afa85b4329231fe6320a187c74`) compared against `DxUi` at `main`.
 - **Owning contracts**: [performance and resources](../../Core/Core_PerformanceAndResources.md),
-  [architecture](../../Core/Core_Architecture.md),
-  [controls and layout](../../UI/UI_ControlsAndLayout.md),
-  [theme and typography](../../UI/UI_ThemeAndTypography.md),
-  [input and accessibility](../../UI/UI_InputAndAccessibility.md),
-  [embedded rendering](../../Rendering/Rendering_EmbeddedD3D11.md),
-  [Win32 host](../../Rendering/Rendering_Win32Host.md),
-  [toolchain and consumption](../../Build/Build_ToolchainAndConsumption.md),
-  [validation](../../Testing/Testing_Validation.md) and
-  [documentation](../../Core/Core_Documentation.md).
-- **Coordinated active & archived plans**:
-  [DxUi remaining correctness and qualification](RemainingWork_2026-11-04.md) (consolidated active correctness and
-  qualification queue; coordinates D9 history rewrite and shared rich-text/control files), plus archived records
-  [Production review of the five-day delivery](../Done/ProductionReview_2026-11-02.md) (original review inventory for
-  `EDIT-01`, `RENDER-01`, `RENDER-02`, `RENDER-05`, `RENDER-09`, `RENDER-14`, `SEM-02`, `MD-05`..`MD-07`, `CTRL-02`,
-  `CTRL-04`, `CTRL-13`, `HOST-03`, `HOST-08`, `HOST-09`, `HOST-13`, `HOST-14`),
-  [Complete Update-stage metric accounting](../Done/FrameUpdateAccounting_2026-10-26.md) and
-  [Library qualification and consumer adoption](../Done/ConsumerUiQualification_2026-10-11.md).
+  [architecture](../../Core/Core_Architecture.md), [controls and layout](../../UI/UI_ControlsAndLayout.md),
+  [theme and typography](../../UI/UI_ThemeAndTypography.md), [input and accessibility](../../UI/UI_InputAndAccessibility.md),
+  [design system](../../UI/UI_DesignSystem.md), [embedded rendering](../../Rendering/Rendering_EmbeddedD3D11.md),
+  [Win32 host](../../Rendering/Rendering_Win32Host.md), [toolchain and consumption](../../Build/Build_ToolchainAndConsumption.md),
+  [validation](../../Testing/Testing_Validation.md) and [documentation](../../Core/Core_Documentation.md).
+- **Coordinated plans**: [remaining work](RemainingWork_2026-11-04.md) owns D-P1 (the timing policy), D-Q1
+  (platform/consumer acceptance) and every closed item cited below. The archived
+  [production review](../Done/ProductionReview_2026-11-02.md) holds the original `CTRL-*`/`HOST-*` findings.
+  This plan takes over only the open IDs it names. It never reopens a closed one.
 
-## Architectural polarity: `longbridge/gpui-fast` versus `DxUi`
+## Verdict on the 7 November draft
 
-`longbridge/gpui-fast` starts from an immediate-mode Rust closure framework (Zed's GPUI) that previously rebuilt its
-element tree, Taffy layout nodes, shaped text runs, paths, hitboxes and accessibility nodes every frame, and retrofits
-cross-frame retention onto it (`LayoutRetention`, `MeasureLog`, `settle_measured_leaves`, `DrawLog`/`HitboxLog`/`A11yLog`
-scene splicing, `text.rs`/`glyphs.rs`, `number_shaping.rs`, `path_cache.rs`, `bounds_tree.rs`, `hover_freeze.rs`,
-`interactive_text.rs`, `frame_schedule.rs`, `draw_state.rs`, and the lockstep `oracle.rs` verifier).
+The draft studied the right two projects and found real hotspots. It was not implementable as written, for these
+reasons:
 
-`DxUi` starts from the opposite pole: it is already a retained-mode C++ control library whose clean frames cost
-`0.0003 ms` in `EmbeddedHost::Prepare` and `0.0104 ms` p95 in `EmbeddedHost::Composite` with `0` steady-state heap
-allocations ([Default-B1.json](../../../Measurements/EmbeddedInteractionLayout/Default-B1.json)). Where `DxUi` spends
-avoidable CPU, GPU, COM and heap work is on **dirty frames**, **focused idle timers**, **popup overlays**, **virtualized
-table/tree scrolling**, and **rich-document editing**.
+1. **About a fifth of its work was already done.** `EDIT-01`/`RENDER-01`/`RENDER-14` were closed in
+   [EditorCosmeticPreparation](../Done/EditorCosmeticPreparation_2026-11-06.md): source guides are viewport-scoped,
+   capped at 4 layouts per turn and never withhold a frame. `RENDER-02` for Source mode was closed in
+   [SourceSpacingAndRadioNaming](../Done/SourceSpacingAndRadioNaming_2026-11-07.md). `RENDER-05` (color-glyph
+   capability) was closed in [ScriptColorPreparation](../Done/ScriptColorPreparation_2026-11-06.md). `SEM-02` was
+   closed in [SemanticAndDiagramResources](../Done/SemanticAndDiagramResources_2026-11-07.md), and `MD-05`..`07` in
+   [MarkdownScanBounds](../Done/MarkdownScanBounds_2026-11-06.md).
+2. **Several "facts" were wrong or invented.** There is no `6.10 ms/step` measurement and no
+   `Menu-Popup4096-Keyboard` fixture anywhere. The brush and format caches are hash maps capped at 256 and 96, not
+   64-entry linear scans. `GetMenuIconWicFactory` is already a cached static. `TagPicker::ComputeLayout` and the
+   `tag + L" \x00D7"` concatenation do not exist. `PreparedFlowchart::Draw` zeroes no stack arrays and creates no
+   per-draw geometry. `GetVisibleItemRect` is constant time. `Control` has 5 cold strings, not 4. The 8 ms
+   `SetTimer` is not "125 Hz": `USER_TIMER_MINIMUM` raises it to 10 ms and the system tick quantizes it to about
+   64 Hz, with jitter. The API revision is already 5, so a breaking change makes it 6.
+3. **The reference projects were partly misread.** `device_wake.rs` handles D3D11 device removal, not widget
+   deadline timers. `ChangedBounds` is draw-order batching, not dirty rects. `em_metrics.rs` is a font-fallback
+   fix. gpui-fast's number set excludes space. rune's 4-band shadow split saves fragment overdraw in its own shader;
+   with a `CLSID_D2D1Shadow` effect it would multiply effect passes by four, an anti-pattern.
+4. **One rendering assumption looks wrong.** The partial-present path assumes `FLIP_SEQUENTIAL` with
+   `BufferCount = 2` keeps the previous frame outside the dirty rect. DXGI documents that the reused back buffer
+   holds the frame from `BufferCount` presents earlier; the source comment at `DxUi.WindowHost.cpp` around line 5071
+   assumes the opposite. Extending control-driven dirty rects on this assumption would show stale pixels on
+   alternating frames. P0.4 proves or disproves the behavior before anything builds on it.
+5. **No usable acceptance signal.** D-P1 in the remaining-work plan records that paired timing is inconclusive:
+   71 of 72 controls are unstable and the base policy is unqualified. A plan whose gates are "ms p95 improves"
+   cannot close. This revision gates every item on **deterministic work counters**, such as layouts created,
+   effects created, tree visits, timer wakes and heap allocations per frame. Timing stays advisory until D-P1
+   qualifies the policy.
+6. **Nothing addressed beauty.** The draft improved CPU work only. This revision adds a measured visual track
+   (V1–V8): springs, perceptual color transitions, crisp fractional-DPI geometry, analytic shadows, real popup
+   materials, scrolling feel, real connected animations and text glide stability.
 
-### Summary comparison matrix across all 11 corners
+## Evidence ledger
 
-| Corner | `longbridge/gpui-fast` (`61dccec`) | `DxUi` (`main`) | Borrow / adapt verdict |
-| --- | --- | --- | --- |
-| **1. Idle timers, animation scheduling & `HoverFreeze`** | Event-driven `frame_schedule.rs` + `device_wake.rs`; `hover_freeze.rs` suppresses hover hit-tests for 100 ms while wheel-scrolling under a stationary cursor | `TextField::Tick` (530 ms), `ComboBox::Tick` (530 ms), `RichTextEditor::Tick` (500 ms), and `TooltipLayer::Tick` (500 ms show / 5,000 ms hide) return `true` on every 8 ms `AnimationDispatcher` tick (~125 Hz full-tree walk) and keep `EmbeddedHost::NeedsAnimation()` continuously `true`; `TextField`/`ComboBox` ignore reduced motion; wheel scroll re-runs hover every notch | **High leverage**: Add deadline scheduling (`RequestWakeAt`) + `_subtreeHasTickables` pruning + `EmbeddedHost::GetNextAnimationDelayMs()` + 100 ms stationary-cursor `HoverFreeze`. |
-| **2. Dirty-rect preparation, clip culling & resize** | Tile dirty rects + `ChangedBounds` 64×64 mask; `draw_state.rs` redundant D3D11 state filter | `WindowHost::Render` already has `DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL` + `PushAxisAlignedClip` + `Present1`, but `ControlHost::Invalidate()` passes `nullptr` rect; `EmbeddedHost` has a single `bool dirty`; `Panel::Paint` / `ScrollPanel::Paint` do not cull against the active clip; `PrepareForSwapChainResize` clears `_brushCache` on every `WM_SIZE` (`50+` brush allocations/frame) | **High leverage**: 4-rect outward-pixel-snapped `DirtyRegion` for `WindowHost` & `EmbeddedHost`; clip-rect subtree culling across containers; keep `_brushCache` across `WM_SIZE`; optional `CompositeBatch` for multi-view hosts. |
-| **3. Incremental layout, `MeasureLog` & width settle** | `layout.rs`: 4-inline-slot `MeasureLog` (`replays` cutoff), unwrapped-fit carry, post-layout `settle_measured_leaves` width-match guard | `InvalidateMeasure()` bubbles unconditionally to `_root`; `FlexPanel::ChildRecord` and `FormField::PartMeasure` keep only 1 width slot (thrashing on min/max/final probes); `FlexPanel::ApplyLayout` `stillValid()` is `O(N²)`; `Label::PrepareVisualContent` runs an `O(N)` `IsControlInTree` DFS (`CTRL-02`) | **High leverage**: Fix `CTRL-02` and `O(N)` `FlexPanel::ApplyLayout`; 4-slot `MeasureLog` + unwrapped-fit carry on container records + leaf size-stability cutoff + post-arrange width settle. |
-| **4. Text shaping, `NumberShaping` & brush/format caches** | `text.rs` / `glyphs.rs` two-generation glyph-run cache (color-independent, unwrapped shortcut) + `number_shaping.rs` (`0-9.,+-%$KMBT `, 1/256 oracle, no `:`) | `DrawCenteredText` calls raw `dc->DrawTextW` on 90+ call sites (`Label`, `Button`, `TabControl`, `Menu`, `ComboBox`, `Tree` 3×/row, `Grid` headers/badges/icons), allocating a throwaway `IDWriteTextLayout` every frame; `MeasureText` builds another throwaway layout + `vector`; `_brushCache`/`_configuredTextFormats` use linear scan and `.clear()` on overflow | **Highest CPU/RAM win**: Host 2-generation `ShapedTextCache` (`IDWriteTextRenderer` -> `DrawGlyphRun`, ~280 B/entry vs ~20 KB `IDWriteTextLayout`) + context-safe `NumberGlyphTable` + PUA icon table + Windows 10/11 color-glyph support (`RENDER-05`) + `O(1)` flat clock-LRU brush/format tables. |
-| **5. `ComboBox` & `MenuPopup` overlays** | Retained scene slices + cached blur/surface primitives | `ComboBox::PaintOverlay` calls `UpdatePopupLayout(&host)` `1 + 2 * V` times per frame, each running `N` × `CreateTextLayout` (`1,275` layouts/frame for 25 items, `8,500` for 500 items!); both `ComboBox` and `MenuPopup` recreate `ID2D1Layer` + `CLSID_D2D1GaussianBlur` + 2 linear gradient brushes every frame; `GetMenuIconWicFactory` calls `CoCreateInstance` per icon | **Critical hotspot fix**: Cache `ComboBox` popup layout across paint queries (`8,500 -> 0` `CreateTextLayout`/frame); retain popup blur/gradient/clip resources per open/bounds/theme; cache WIC factory; prefix-sum `MenuPopup` item Y-offsets (`O(1)` rect lookup). |
-| **6. `TextField`, `SingleLineTextEditing`, `TagPicker` & `Splitter`** | Retained text runs, zero-alloc hit-testing | `TextField::GetOrCreateSingleLineLayout` passes `secureCacheText = true` for all fields, running `SecureWipe::SecureClear` + `wstring` heap alloc on every `cacheHit == true` (2×/frame); `GetDisplayText()` copies `wstring` by value; `BuildNativeCompositionUnderlineRects` deep-copies `NativeTextInputState` 2×/frame when not composing; multiline selection/caret ignore `_cachedMultilineLayout` (2 `CreateTextLayout`s/frame); `TagPicker::ComputeLayout` reallocates strings/layouts every paint; `Splitter::NotifyChange` rebuilds full window UIA snapshot on every drag pixel | **High leverage**: Guard `SecureClear`/copy behind `!cacheHit` (and `IsPasswordMasked()`); zero-copy `GetDisplayTextView()`; `HasNativeTextCompositionOrTarget` fast guard; reuse `_cachedMultilineLayout`; stack-buffer `HitTestTextRange`; cache `TagPicker` layout; coalesce `Splitter` preview UIA refresh. |
-| **7. `Grid` & `Tree` virtualization & scrolling** | Virtual lists stay zero-VRAM and replay cached glyph runs; `hover_freeze` + `WorkBudget` | `Grid::Paint` calls `paintModel->GetColumn` `4 + 4 * visibleRows` times/frame (`52` `wstring` allocs + `2` `vector`s = `54 allocs/frame` in `ComplexUi`); `Grid` `_cellTextLayouts` keys on rounded width (100% miss storm on column resize) and thrashes 100% on 2,048-row scroll (`28` `CreateTextLayout`s/frame); `Grid` key nav is `O(rows)` (`CTRL-04`); `Tree::SetFocusedItemId` scans `O(N)` twice and `DrawTreeRow` has zero text cache | **High leverage**: Hoist/cache `GetColumn` + scratch vectors (`54 -> 0` allocs/frame in `ComplexUi`); route `Tree` rows and single-line `Grid` cells/headers/badges through `ShapedTextCache` / `NumberGlyphTable` (keeping `IDWriteTextLayout` strictly bounded to on-screen complex cells); cache `_visibleBodyItems` for `Grid` key nav. |
-| **8. `RichTextEditor`, `Markdown`, `SemanticGeometry`, `Math` & `Flowchart`** | `interactive_text.rs` clickable-span hover filter; `em_metrics.rs`; `path_cache.rs` `(0,0)` geometry + `heavy` slot; keyed block `Carry` | `RichSourceGuides` builds up to 65,537 line-number `IDWriteTextLayout`s per keystroke and withholds frames (`EDIT-01`/`RENDER-01`); `lineHeightMultiplier > 0` disables 127-chunk reuse (`RENDER-02`); `PreparedSemanticGeometry::Begin` gates `previousImages` and `previousNative` (`PreparedMath`, `PreparedFlowchart`) on `state_->document == document`, so **every keystroke destroys 100% of math, Mermaid diagrams, bitmaps and SVGs** (extending `SEM-02`); `PreparedMath::DrawColored` and `PreparedFlowchart::Draw` zero 9–60 KB stack arrays and recompute `std::pow(..., 2.4)` contrast every paint; `PreparedFlowchart` allocates 1 `ID2D1PathGeometry` per arrowhead; `PaintIndex::Build` reallocates `nodes` every rebuild | **Critical rich-doc win**: Viewport-scoped guides rendered via `NumberGlyphTable` (`0` `IDWriteTextLayout`s); preserve 127-chunk reuse with `lineHeightMultiplier`; decouple `previousImages` & `previousNative` from `state_->document == document` + carry unchanged semantic blocks/math/diagrams across edits; cache resolved WCAG colors & shared unit arrowhead geometry; `PaintIndex` clickable-only hover + buffer reuse; origin-relative `(0,0)` path cache. |
-| **9. `Control` base-class footprint & lifetime tokens** | Compact arena/pooled state | `sizeof(Control)` is `296 B` (Release) / `336 B` (Debug) due to 4 cold `std::wstring`s (`128–160 B`), 3 cold callback/form pointers (`40 B`), 4 `std::optional`s (`8 B`), and an eager `std::shared_ptr<int> _lifetimeToken` (`~40 B` control-block heap alloc per control; 6 heap allocs/control in Debug) | **High memory win**: Extract `unique_ptr<ColdControlMetadata>` + pack state/inheritance bits (`sizeof(Control)` `296 B -> 128 B`, saving `~168 B/control` and 4 Debug proxy allocs/control); optional non-throwing 64-slot slab `ControlLifetimeHandle` (never lazy `make_shared` in `noexcept` `GetLifetimeToken()`). |
-| **10. Accessibility (`UIA`) splicing & spatial hit-testing** | `a11y.rs` (`A11yLog` subtree slice reuse + `-scroll` offset translation) + `bounds_tree.rs` (64 px grid + `rest_max`) | `PublishWindowHostAccessibilitySnapshot` walks the full tree 3× on focus changes (`Grid`/`Tree`/`Menu` arrow keys), coalesced wheel flushes, and `EmbeddedHost` updates; `MenuPopup` keyboard navigation/scroll rebuilds all 4,096 UIA nodes (`6.10 ms/step`) and runs `O(N)` `GetVisibleItemRect`; `Panel::HitTest` is linear | **High leverage**: `_a11ySubtreeRevision` slice splicing + `-scrollDeltaPx` bounds translation; incremental `O(1)` focus/scroll update on `MenuPopup`'s retained 4,096-row snapshot (preserving `Core_PerformanceAndResources.md` popup publication); reuse `PaintIndex` / 64 DIP grid in `ScrollPanel`/`Panel` (`N >= 32`). |
-| **11. Lockstep differential oracle** | `oracle.rs` / `--verify` comparing incremental vs fresh tree/scene | Deterministic WARP goldens, no multi-step incremental-vs-fresh oracle | **Mandatory safety gate**: `VerifyIncrementalParity` / `Controls.Tests.LayoutAndPaintOracle.cpp` asserting `0` BGRA pixel diff, bit-identical `GetBounds()`, identical UIA snapshots, and positive cache hits. |
+Static findings carry file references at `c0ead00a`. "Counter" means the P0.1 instrumentation must confirm the
+number before the item closes. A ledger number is a hypothesis to measure, never a receipt.
 
-### Explicit anti-patterns (what `DxUi` must not borrow)
+| # | Claim | Verdict | Evidence | Consequence |
+| --- | --- | --- | --- | --- |
+| E1 | Animation dispatcher polls at 8 ms whenever any subscriber exists | Verified (effective ~64 Hz) | `kFrameIntervalMs = 8u`, `SetTimer` in [AnimationDispatcher.h](../../../src/Support/AnimationDispatcher.h) | P2.1 |
+| E2 | `TextField`/`ComboBox` caret (530 ms), `RichTextEditor` caret (500 ms) and `TooltipLayer` (500 ms show, 5,000 ms hide) return `true` every tick | Verified | `DxUi.TextInput.cpp:1804`, `DxUi.ComboBox.cpp:1901`, `DxUi.RichTextEditor.cpp:5500`, `DxUi.Controls.cpp:12152` | P2.2, P2.3 |
+| E3 | `TextField`/`ComboBox` ignore `GetCaretBlinkTime`, reduced motion and the caret timeout | Verified (`RichTextEditor` already honors reduced motion; `SPI_GETCARETTIMEOUT` appears nowhere) | same files | P2.2 |
+| E4 | Every animation tick walks the whole tree | Verified | `Panel::Tick` visits every visible child; `EmbeddedHost::AdvanceAnimation` calls `_root->Tick` | P2.1 |
+| E5 | `EmbeddedHost::Prepare` clears and repaints the whole surface for any change | Verified | `dc->Clear(...)` then `_root->Paint` in [Embedded.cpp](../../../src/Rendering/Embedded.cpp) | P3.2 |
+| E6 | Control invalidation is always full-window | Verified | `ControlHost::Invalidate()` calls `InvalidateRect(_hwnd, nullptr, FALSE)` | P3.1 |
+| E7 | Partial present keeps previous-frame content | **Unproven and probably false** | `BufferCount = 2`, `FLIP_SEQUENTIAL`, source comment near `DxUi.WindowHost.cpp:5071` | P0.4 decides; a latent bug in today's `WM_PAINT` partial path is possible |
+| E8 | `Panel`/`ScrollPanel` paint every visible child regardless of clip | Verified | `DxUi.Controls.cpp:1533`, `11311` | P3.4 |
+| E9 | The brush cache is cleared on every swap-chain resize | Verified, and cleared **twice** | `PrepareForSwapChainResize` and `RecreateBrushCache` | P1.12 |
+| E10 | Brush/format caches use 64-entry linear scans | **Refuted** | `std::unordered_map`, limits 256/96 in [DxUi.h](../../../include/DxUi/DxUi.h); the clear-on-overflow cliff is real | P4.5 (low priority) |
+| E11 | `DrawTextW` at "90+ call sites" | **Overstated** | 7 raw `DrawTextW` sites; `DrawCenteredText` has 63 callers; 28 `CreateTextLayout` sites | P4.1 |
+| E12 | `ComboBox` popup: `1 + 2V` `UpdatePopupLayout` calls per paint, each measuring all N items | Verified (N = 500, V = 8 → 8,500 layouts per frame) | `PaintOverlay` → `GetPopupItemRect`/`GetPopupItemTextRect` → `UpdatePopupLayout` → `ComputePopupWidthDip` | P1.1 |
+| E13 | Popup blur, layer, gradients and both shadow passes are recreated every paint | Verified | `DxUi.ComboBox.cpp:348/359`, `DxUi.Menu.cpp:717/728`, `DrawShadowEffectPass` `DxUi.Controls.cpp:258/283` | P1.2, V4 |
+| E14 | WIC factory is created per icon | **Refuted** | function-local static in `GetMenuIconWicFactory` | dropped |
+| E15 | Popup backdrop is a synchronous GDI screen capture | Verified (missed by the draft) | `CaptureBackdropScreenRegion`: `BitBlt(..., SRCCOPY \| CAPTUREBLT)` in [DxUi.cpp](../../../src/Controls/DxUi.cpp) | V5 |
+| E16 | `TextField` cache hit runs `SecureClear` plus a string copy; masking applies to every field; composition state deep copy | Verified | `DxUi.SingleLineTextEditing.cpp:527`, `DxUi.TextInput.cpp:3620`, `DxUi.NativeTextInput.cpp:2094` | P1.3 |
+| E17 | Multiline caret/selection create fresh layouts each paint | Verified | `DxUi.TextInput.cpp:765`, `811` | P1.4 |
+| E18 | `TagPicker` per-paint string concatenation | **Refuted** | `LayoutParts()` runs on mutation only | dropped |
+| E19 | `Splitter` preview rebuilds the whole-window UIA snapshot every pointer move | Verified | `DxUi.EditorControls.cpp:747` | P1.5 |
+| E20 | `ProgressBar`/`Slider` value changes do full invalidation plus a general 3-pass UIA rebuild | Verified (the kind is `General`, not `Full`; `Label` already uses `ContentOnly`) | `DxUi.Controls.cpp:5186`, `6467`; `DxUi.Accessibility.cpp:1456/1460/1477` | P1.6 |
+| E21 | `Label` runs an `IsControlInTree` DFS before its cheap early-out (`CTRL-02`) | Verified | `DxUi.Controls.cpp:2970` | P1.7 |
+| E22 | Grid key navigation allocates and walks all rows per key (`CTRL-04`); `Tree` double lookup | Verified | `CollectVisibleRowIndices` `DxUi.Grid.cpp:5937`; `DxUi.Tree.cpp:892/901` | P1.7 |
+| E23 | `FlexPanel::ApplyLayout` revalidates all N children after each `SetBounds` (O(N²)) | Verified | `DxUi.Layout.cpp:1030` | P1.8 |
+| E24 | `Grid::Paint` calls `GetColumn` (by-value strings) `C + C·rows` times per frame | Verified | `DxUi.Grid.cpp:4155`, `4435` | P8.3 |
+| E25 | Semantic geometry reuse is gated on `state_->document == document` and every edit creates a new document | Verified (the real cross-edit loss of math, diagrams and images) | `DxUi.RichSemanticGeometry.cpp:2436/2447`, `DxUi.RichSemanticDocument.cpp:2840` | P6.1 |
+| E26 | Semantic code-fence line numbers: one `PreparedLayout` per line; all drawn every frame (`clip = box.frame`) | Verified | `DxUi.RichSemanticGeometry.cpp:2930/2941/4075` | P1.11 |
+| E27 | `TokenizeCode` discards all coloring above 4,096 tokens | Verified | `output.clear(); return false;` in [DxUi.RichCodeInk.h](../../../src/Controls/DxUi.RichCodeInk.h) | P1.10 |
+| E28 | `PreparedMath::DrawColored` zeroes a 32 KB stack array and calls `pow` per paint | Verified (32 KB, not "9–60 KB"); flowchart `Contrast()` also calls `pow` per paint | `DxUi.PreparedMath.h:3015/3030`, `DxUi.PreparedFlowchart.cpp:21` | P1.9 |
+| E29 | `pow`-based sRGB decode on paint paths | Verified for `Utilities.h` (`TextField`/`ComboBox` style resolution), math and flowchart; theme-time only for `DxUi.Theme.cpp` | as cited | P1.9 |
+| E30 | `PreparedLayout::TryVisibleRange` is linear with a `HitTestTextPosition` per line; semantic range queries scan `boxes` and ignore `paintBoxes` | Verified | `DxUi.RichTextLayout.cpp:757`, `DxUi.RichSemanticGeometry.cpp:3964` | P1.9 |
+| E31 | `PaintIndex::Build` discards capacity | Verified | [DxUi.PaintIndex.h](../../../src/Controls/DxUi.PaintIndex.h) | P1.9 |
+| E32 | `ComposeGifCanvas` has no fast path for alpha 0/255 | Verified | `DxUi.RichImage.cpp:158` | P1.9 |
+| E33 | `RichImage::LoadFile` duplicates the encoded buffer (`RENDER-09`) | Verified | `DxUi.RichImage.cpp:251`, `506` | P1.13 |
+| E34 | `MenuPopup` keyboard step costs 6.10 ms | **Not found** | no fixture or receipt | P0.2 measures; P7.4 is conditional |
+| E35 | `sizeof(Control)` = 296/336 B | Unrecorded | no test or `static_assert` | P8.1 adds a recorded probe |
+| E36 | Lifetime token is an eager `make_shared<int>` | Verified, 460 call sites | `DxUi.h:1853` | D3 revision: slab handle withdrawn |
+| E37 | `HOST-14` dead `#else` `Render` body | Verified dead (`DXUI_ENABLE_DIAGNOSTICS` is fixed to `1` in [Configuration.h](../../../include/DxUi/Configuration.h)); it sits at lines 4708–4952, not 4601 | as cited | P1.12 |
+| E38 | `HOST-03`, `HOST-09` | Verified open | `Embedded.cpp:1055`, `664` | P1.12 |
+| E39 | Native host never sets text antialias mode or rendering params | Verified; embedded forces grayscale | `Embedded.cpp:283` | P4.6 |
+| E40 | Color transitions are sRGB-space lerps | Verified | `BlendColor` in [DxUi.Theme.cpp](../../../src/Controls/DxUi.Theme.cpp) | V2 |
+| E41 | No springs; interrupted lerp transitions restart at the wrong speed | Verified | `Slider::BeginVisualTransition` re-anchors and restarts its clock | V1 |
+| E42 | Connected animation draws a placeholder outline, not content | Verified | `PageHost::PaintOverlay` | V7 |
+| E43 | 1 DIP strokes at fractional DPI produce blurred 1.25/1.5 px borders | Verified | shared rounded-rect stroke helpers in `DxUi.Controls.cpp` | V3 |
+| E44 | Wheel scrolling is quantized and immediate, with no inertia or edge fades | Verified | `DxUi.Grid.cpp:5891`, `DxUi.Tree.cpp:2155` | V6 |
+| E45 | Windows 10 color-glyph path (`TranslateColorGlyphRun`) is absent; only `ID2D1DeviceContext7` is used | Verified; Windows 10 is in the embedded baseline ([toolchain](../../Build/Build_ToolchainAndConsumption.md)) | `DxUi.RichTextScriptRenderer.h:218` | P4.1 |
 
-1. **Immediate-mode closure replay logs (`retained.rs`, `splice.rs`, `DrawLog`)**: `DxUi` already retains live C++
-   `Control` trees; adding closure logs would only increase memory and CPU overhead.
-2. **GPU texture tiles for virtualized `Grid` or `Tree`**: Even `gpui-fast` (`docs/scroll-layers.md`) forbids GPU tiles
-   on virtual lists; `Grid` and `Tree` stay zero-VRAM and replay cached glyph runs.
-3. **Offscreen `IDWriteTextLayout` retention in `Grid`**: Forbidden by
-   [Core_PerformanceAndResources.md](../../Core/Core_PerformanceAndResources.md) (~20 KB/cell); warm scroll-back uses
-   ~280 B `ShapedTextCache` glyph runs and `NumberGlyphTable` instead.
-4. **Lazy `std::make_shared<int>` inside `Control::GetLifetimeToken() const noexcept`**: Calling `make_shared` inside a
-   `noexcept` getter invokes `std::terminate()` under `DxUi`'s exhaustive OOM fault-injection tests and shifts heap
-   allocations into measured `Prepare`/`Paint` frames.
-5. **Contextual punctuation (`:`, `/`, `x`) in `NumberGlyphTable`**: `Segoe UI` applies OpenType `calt` vertical
-   shifting (`colon.case`) to `:` between digits (`12:34`), which would mismatch DirectWrite and permanently trip the
-   1-in-256 verification oracle (`number_shaping.rs`). Keep `:`/`/`/`x` in Tier 1 `ShapedTextCache`.
-6. **Mid-paint cache eviction**: [Core_PerformanceAndResources.md](../../Core/Core_PerformanceAndResources.md) forbids
-   evicting cached resources mid-paint; all `ShapedTextCache`, brush, format, and geometry trimming runs strictly at
-   frame/preparation start inside `ControlHost::TrimCaches()`.
-7. **Editing `Embedded.Tests.ComplexUiBenchmark.h` ceilings inside feature PRs**: Invalidates paired fixture input
-   hashes in `Publish-BenchmarkVerdict.ps1`.
+## What DxUi borrows, and what it does not
 
-## Architectural polarity & empirical study 2: `anomalyco/rune` (`07723732`) versus `DxUi`
+| Mechanism (source) | Transfer | DxUi item |
+| --- | --- | --- |
+| Lockstep incremental-versus-fresh verifier (gpui `tests/oracle.rs`, `layers/verify.rs`) | As-is | P0.3 |
+| Per-thread allocation counters and debug stall warnings (rune `procwatch`, `tooling/perf_warn.rs`) | Adapted to test-only `operator new` hooks plus deterministic counters | P0.1 |
+| Deadline wakes run without view, layout or GPU work unless visible state changed (rune `motion/timer_wake.rs`) | Adapted | P2.1 |
+| Hover held still for 100 ms after a wheel under a stationary pointer (gpui `layers/hover_freeze.rs`) | As-is | P2.5 |
+| Unseen motion lands instantly (rune `87caf2a`, `motion/unseen_presence.rs`); loop phase kept across hiding (rune `motion/loop_clock.rs`) | As-is | P2.6 |
+| Sample animations at the predicted presentation time (rune `research/15` §1); back off when compositor waits return instantly (gpui `vsync.rs`) | Adapted to waitable swap chain plus `DwmGetCompositionTimingInfo` | P2.7 |
+| Two-generation color-independent shaped-run cache (gpui `text.rs` `RecentShapes`, 16 Ki glyphs per generation) | Adapted: capture `DWRITE_GLYPH_RUN` through a private `IDWriteTextRenderer` and replay with `DrawGlyphRun` | P4.1 |
+| Width-independent shaping, re-breaking in place on resize (rune `research/28`: 16.1 → 4.6 ms) | Adapted: `IDWriteTextLayout::SetMaxWidth` instead of recreation | P4.3 |
+| Context-free numeric shaping table (gpui `number_shaping.rs`: `0123456789.,+-%$KMBT`, no `:`, no space, sampled 1/256 oracle) | Redesigned: tabular figures, every pair **proved at build time** instead of sampled at run time | P4.4 |
+| Binary-searched visible lines (rune `text/glyph_emit.rs`, 200 KB note 5.45 → 0.09 ms) | As-is over cached line tops | P1.9 |
+| Byte-cut fence coloring that keeps the first tokens (rune-kit `syntax/scan.rs`, 32 KiB / 8,192 tokens) | As-is | P1.10 |
+| Cold rare-field sidecar with a static empty instance (rune `cold.rs`) | As-is | P8.1 |
+| Clickable-span hover filter (gpui `interactive_text.rs`) | As-is | P6.5 |
+| A11y scroll carry, translating cached bounds by the scroll delta (gpui `a11y.rs`) | Adapted | P7.2 |
+| Lazy tab-stop order (gpui `tab_stop.rs`, `6b9c204`, `fb8cf94`) | Conditional on measurement | P7.5 |
+| Opaque fill inset by half a stroke under an opaque border (rune `paint/border.rs` `fill_under`) | As-is | V3 |
+| Rounded clip without a layer when content clears the corners (rune `17abbcb`: 512 cards, about 82 → 3 ms encode) | Adapted: `PushAxisAlignedClip` instead of `PushLayer` | V3 |
+| Closed-form spring with duration/bounce and velocity-preserving retarget; effect channels never overshoot (rune `rune-motion/src/spring.rs`, `research/15` §7) | As-is | V1 |
+| Single-pass analytic Gaussian rounded-rect shadow (gpui `shaders.hlsl` erf integral) | Adapted as a custom D2D effect | V4 |
+| Scroll edge fades (rune `ScrollFade`); analytic fling (rune `research/15` §8); DirectManipulation touchpad (gpui `direct_manipulation.rs`) | Adapted | V6 |
+| Text glide dead-zone: snap within 1/64 px of rest (rune `e1bd315`) | Adapted | V8 |
+| Scroll-layer promotion/demotion policy (gpui `layers/policy.rs`: promote after 2 scrolled frames, demote after 8 of 16 changed, 60-frame repromotion, cooldown doubling; `layers/work.rs` `REPAINT_COST = 2`) | As-is, **only if** D4 triggers | D4 |
 
-`anomalyco/rune` (`crates/rune`, `crates/rune-kit`, `crates/rune-motion`, `crates/procwatch` at
-`077237326b59b6afa85b4329231fe6320a187c74`) is a native Rust UI framework (`winit` + `wgpu`/Metal + `taffy` + `parley` +
-`swash` + `pulldown-cmark`). Where `longbridge/gpui-fast` retrofits cross-frame retention onto an immediate-mode closure
-engine, `anomalyco/rune` pairs a retained `Node`/`Scene` pipeline with **38 empirical performance studies (`research/01`
-through `research/38`)** that measured, spiked, and either landed or explicitly rejected CPU, GPU, and memory
-optimizations across 5,283-node trees, 50 KB–200 KB Markdown/editor notes, live resize, live values, and idle windows:
+**Not borrowed**, with reasons:
 
-| Empirical study (`anomalyco/rune`) | Measured before → after | Primary mechanism in `anomalyco/rune` (`07723732`) | Direct `DxUi` implication |
-| --- | --- | --- | --- |
-| **200 KB scrolled text paint** (`research/27-long-note-editing.md:78-95`) | `5.45 ms/frame` → **`0.09 ms/frame`** (`60×` faster; click `5.78 → 0.39 ms`) | `glyphs_in_band` (`crates/rune/src/text/glyph_emit.rs:54-68`) binary-searches `block_max_coord < band.start` (`lo`) and stops at `block_min_coord <= band.end` (`hi`) with `2 em` ink slack | `PreparedLayout::VisibleRange` (`src/Controls/DxUi.RichTextLayout.cpp:590-609`) loops linearly from line `0` calling `Caret()` (`HitTestTextPosition` COM call/line); replace with binary search over precomputed cumulative line Y-tops |
-| **50 KB Markdown live window resize** (`research/28-resize-rewrap.md:38-88`, `research/32:168-176`) | `16.1 ms/frame` (`401` shapings) → **`4.6 ms` → `1.74 ms/frame`** (`0` shapings, `9.2×` faster) | Split width-independent `shape_key` (`text/hash.rs:21-97`) from `layout_key`; re-break `Layout` in place (`Rc::make_mut` when `strong_count == 1`, `~0.88–2 µs/paragraph` vs `~30 µs` to shape); skip view on `resize_only` (`relayout.rs:58-181`) | Reuse `IDWriteTextLayout` via in-place `SetMaxWidth(newWidth)` + retained `clusters` in `PreparedLayoutAccess::Apply` (`DxUi.RichTextLayout.cpp:300-454`) and `Label::PrepareVisualContent` (`DxUi.Controls.cpp:2958-3006`) when only width changed |
-| **50 KB multi-paragraph editing & stale eviction** (`research/32-engine-plan.md:389-442`, `layout_cache.rs:38-106`) | `15.2 ms/key` → **`0.10 ms/key`** (`150×` faster, `384/384` bit-exact runs); fixes `3.18 MB` stale leak | Per-`\n` paragraph layouts with 3 exact stacking rules (document base direction, running unrounded line-top sum, widest-paragraph alignment) + `TextSystem::supersede(shape)` deferred eviction + byte-cost cap (`LAYOUT_PER_BYTE = 64`, `STALE_BYTES = 3 MiB`) | Add `SupersedeTextShape(prevShapeKey)` drained in `ControlHost::TrimCaches()` + `3 MiB` byte-weighted stale cap to Wave 5 (`W5.1`), and enforce the 3 paragraph/chunk stacking invariants in Wave 9 |
-| **5,283-node complex tree heap & commit** (`research/32` Ranks #2, #7; `research/38:72-96`) | `Node = 2.4 KB`, `AnimationStore = 3.5 KB/node`, `md-same = 0.851 ms` (`5,687` allocs) → **`Node = ~0.6 KB`, `md-same = 0.167 ms` (`10` allocs)** | `Cold<T: Empty>(Option<Rc<T>>)` rare-field boxing (`cold.rs:16-67`), `CachedElision` ellipsis cut cache (`layout_cache.rs:21-25`), `Node::moved_stub` zero-clone relayout/memo move (`relayout.rs:120-138`) | Validates Wave 10 (`ColdControlMetadata` + `_packedStateBits`) with static `Empty` singleton deref (`Control::Cold()`), plus `CachedElision` in Wave 5 (`W5.1`) |
-| **High-frequency live presentation values** (`crates/rune/src/live.rs:69-382`) | Full commit (`13.7 ms`, `42k` allocs) → **lock-free atomic/seqlock update** (`0` layout passes, `0` wakes when hidden) | `Live<T>` (`AtomicU128` + seqlock `seq`) & `LiveText` update paint state in place; `Wake` (`pending`, `visible`) suppresses host wakes while hidden and coalesces visible updates | Stop 3-pass full-window UIA rebuilds (`AccessibilityMutationKind::Full`) and whole-window `Invalidate(nullptr)` in `ProgressBar::SetValue` (`DxUi.Controls.cpp:5137-5149`) and `Slider::PublishRangeState` (`lines 6415-6422`); skip `InvalidateMeasure()` in `Label::SetText` (`lines 2817-2836`) when glyph bounds are invariant |
-| **8192×8192 RGBA mip generation & sRGB math** (`crates/rune/src/image/mips.rs:30-152`) | `~1.5 GiB` peak + per-pixel `powf` → **`341 MiB` peak, zero `powf`** | Static 4096-step `Srgb` LUT (`decode: [f32; 256]`, `up: [f32; 256]`, `coarse: [u8; 4097]`), `p[3] == 255` opaque skip, row-budgeted `MipSteps::step(budget)` | Replace all 4 `std::pow(..., 2.4)` helpers (`Utilities.h:21`, `DxUi.Theme.cpp:53`, `DxUi.PreparedMath.h:2855`, `DxUi.PreparedFlowchart.cpp:21`) with a shared `constexpr` LUT; fast-skip `alpha == 255u`/`0u` in `ComposeGifCanvas` (`DxUi.RichImage.cpp:152-165`) |
+- **Closure replay logs** (gpui `retained.rs`/`splice.rs`): DxUi already retains its control tree.
+- **GPU tiles for virtual lists**: gpui `docs/scroll-layers.md` forbids them itself.
+- **4-band shadow clip split** (rune `paint/bands.rs`): with D2D effects it multiplies effect passes.
+- **rune's `KeyHasher` constants**: any good 64-bit hash works, and a cache must compare the full key exactly.
+- **Per-word shaping cache**: rune `research/32` rejected it at 1.46–1.57× while it broke kerning and line breaking.
+- **Bump arena for retained nodes**: rune `research/37` found it under 1% of busy time.
+- **`em_metrics.rs`**: DirectWrite fallback already covers it.
+- **`ChangedBounds`/`BoundsTree`**: a draw-order structure DxUi does not have.
+- **`CompositeBatch`/`draw_state.rs`**: embedded composite is already 0.0104 ms p95
+  ([Default-B1](../../../Measurements/EmbeddedInteractionLayout/Default-B1.json)); revisit only if a multi-view
+  consumer measures otherwise.
+- **HDR/advanced color**: no product requirement, and DWM composes SDR content correctly.
+- **Continuous `opsz` axis values**: the named `Segoe UI Variable Small/Text/Display` instances already match the
+  WinUI type ramp.
+- **Replacing the double focus ring**: it is WinUI's standard high-visibility focus visual.
+- **Reveal highlight and noise textures**: retired from Fluent; DWM supplies acrylic noise.
 
-### Corner-by-corner comparison: `anomalyco/rune` (`07723732`) versus `DxUi`
+## Definition of done for every item
 
-| Corner | `anomalyco/rune` (`07723732`) | `DxUi` (`main`) | Borrow / adapt verdict for `DxUi` |
-| --- | --- | --- | --- |
-| **1. Idle timers, resting polls & `LoopClock`** | `TimerWake` (`crates/rune/src/runtime/motion/timer_wake.rs:16-127`) runs `poll_hidden` / `resting_wake` (`poll_alone`) **without** view, layout, or GPU draw unless the poll dirties visible state (`stale`), and drains due `wake_deadlines` immediately. `LoopClock` (`loop_clock.rs:24-91`) tracks `owed` app time dropped while hidden/occluded (`JITTER = 1/30 s`) so periodic loops stay in phase on resume, while gating loops on clip visibility. | `WindowHost` and `EmbeddedHost` tick `AnimationDispatcher` at ~125 Hz when any discrete caret/tooltip timer is active (`W2.1`–`W2.3`), and periodic/indeterminate animations (`ProgressBar`) do not gate tick registration on ancestor scroll clip visibility or effective opacity. | **Enhance Wave 2 (`W2.1`–`W2.3`)**: Run due discrete timer callbacks alone (`poll_alone`) before scheduling `Prepare`/`Render`, drain spent deadlines immediately, gate periodic animations on ancestor clip intersection and `opacity > 0`, and phase-align resumed animations via `LoopClock`. |
-| **2. Dirty-rect preparation, 4-band hollow shadows & border inset** | `bands::push_shadow` and `bands::push_ring` (`crates/rune/src/runtime/paint/bands.rs:17-53`) split any shadow or unfilled border ring whose opaque interior hole `[hx0, hy0, hx1, hy1]` (inset by `corner_extent(r) + 1.0`) is `>= MIN_HOLE` (`96.0 px`) into **4 perimeter clip bands** (`top`, `bottom`, `left`, `right`), eliminating interior fragment overdraw. `border::fill_under` (`border.rs:17-41`) insets opaque fills by `bw * 0.5` under opaque rounded borders. `El::dim` multiplies leaf alpha (`paint_alpha`) instead of allocating a blend layer. | `DrawDropShadow` (`src/Controls/DxUi.Controls.cpp:797-810`, called by `ComboBox::PaintOverlay` at `DxUi.ComboBox.cpp:403` and `MenuPopup::Paint` at `DxUi.Menu.cpp:761`) calls `DrawShadowEffectPass` (`DxUi.Controls.cpp:246-296`) **twice per frame**, creating **2 `ID2D1CommandList`s + 2 `CLSID_D2D1Shadow` `ID2D1Effect`s every frame** and shading the full interior behind the popup body; rounded fills beneath opaque borders use identical outer rects. | **Enhance Wave 3 (`W3.2`) & Wave 6 (`W6.2`)**: Retain the dual `DrawDropShadow` `ID2D1CommandList`/`ID2D1Effect` resources alongside the popup backdrop blur in `W6.2`, emit 4 perimeter `PushAxisAlignedClip` bands when the opaque interior hole is `>= 96 DIP` on both axes, and inset opaque rounded fills by `0.5f * strokeWidth` under opaque strokes. |
-| **3. Incremental layout, `resize_only` & `Live<T>` bypass** | `Runtime::resize_only` (`crates/rune/src/runtime/commit/relayout.rs:58-181`) skips view/flatten when only viewport size changed, moving `Node`s via `Node::moved_stub` (`0` clones). `Live<T>` (`crates/rune/src/live.rs:69-382`) updates presentation values via `AtomicU128` + seqlock and coalesces wakes via `Wake` (`pending`, `visible`) without dirtying layout. | `ProgressBar::SetValue` (`DxUi.Controls.cpp:5137-5149`) and `Slider::PublishRangeState` (`lines 6415-6422`) call whole-window `RequestInvalidate()` and `RefreshWindowHostAccessibilitySnapshot` (`Full` 3-pass tree walk) on every scalar step; `Label::SetText` (`lines 2817-2836`) unconditionally calls `InvalidateMeasure()`. | **Enhance Wave 3 (`W3.1`), Wave 4 (`W4.3`) & Wave 11 (`W11.1`)**: Route scalar updates (`ProgressBar`, `Slider`, `NumericStepper`) through control-bounds `DirtyRegion` + `O(1)` in-place UIA range-value updates; short-circuit `InvalidateMeasure()` in `Label::SetText` when single-line `DesiredSize` is unchanged. |
-| **4. Text hashing (`KeyHasher`), `shape_key` vs `layout_key`, `CachedElision` & `supersede`** | `KeyHasher` (`crates/rune/src/text/hash.rs:21-97`) hashes bytes with `FxHasher` and mixes words via `((self.0 ^ i ^ 0x243f6a8885a308d3) as u128).wrapping_mul(0x9e3779b97f4a7c15)` xor-folded to 64 bits. `shape_key` excludes width; `layout_key` adds width + alignment. `TextSystem::supersede(shape)` (`layout_cache.rs:86-106`) records superseded shape keys on self-edit and evicts them at `end_commit()`, bounding older stale entries by byte cost (`LAYOUT_PER_BYTE = 64`, `STALE_BYTES = 3 MiB`). `CachedElision` (`layout_cache.rs:21-25`) caches `(layout, head, tail)` ellipsis cuts. | `DxUi` hashes text repeatedly during `MeasureText`/`Paint`, recreates `IDWriteTextLayout` on width changes in `Label::PrepareVisualContent` (`DxUi.Controls.cpp:2958-3006`) and `PreparedLayoutAccess::Apply` (`DxUi.RichTextLayout.cpp:300-454`), and does not explicitly evict the prior text key when a control or paragraph mutates its own string. | **Enhance Wave 5 (`W5.1`–`W5.4`)**: Precompute `_textShapeKey` on `Control::SetText`/typography change using Rune's folded 128-bit multiply mixer; add `SupersedeTextShape(prevShapeKey)` (drained in `ControlHost::TrimCaches()`) + `3 MiB` byte-cost stale budget + `CachedElision` to `ShapedTextCache`; reuse `IDWriteTextLayout` via `SetMaxWidth` when only width changes. |
-| **5. Glyph/surface atlas 1px apron zeroing & row-band dirty upload** | `Atlas::put` (`crates/rune/src/text/atlas.rs:49-398`) uses 2 steady `2048×2048` shelf pages (`MAX_STEADY_PAGES = 2`, `MAX_OVERFLOW_PAGES = 8`, `COLOR_GLYPH_BUDGET = 16 MiB`), zeroes **only** the 1px border apron around each newly placed glyph (`lines 374-391`) instead of clearing 4 MiB on page reset, and tracks `dirty: Option<(u32, u32)>` (`y0..y1` row band) for GPU upload. | `DxUi` uses Direct2D's glyph cache for `DrawGlyphRun` (`W5.1`), and optionally caches non-virtual `ScrollPanel` bitmap strips (`D4`). | **Apply to `D4` (if strip cache is enabled)**: Track `(dirtyYMin, dirtyYMax)` row bands on strip updates and never full-clear recycled strip surfaces when sub-rect overwriting suffices. |
-| **6. Intra-block visible-line binary search (`glyphs_in_band`)** | `glyphs_in_band` (`crates/rune/src/text/glyph_emit.rs:54-68`) binary-searches `layout.get(mid).is_some_and(|l| l.metrics().block_max_coord < band.start)` (`lo`) and stops at `block_min_coord <= band.end` (`hi`), reducing 200 KB scroll frame CPU from `5.45 ms` to `0.09 ms` (`60×`). | `PreparedLayout::VisibleRange` (`src/Controls/DxUi.RichTextLayout.cpp:590-609`) loops linearly from `index = 0` calling `Caret(state_->lines[index])` (`HitTestTextPosition` COM call/line!) until `bottom`; `PreparedSemanticGeometry::VisibleRange` (`DxUi.RichSemanticGeometry.cpp:3243-3259`) and `VisibleSourceRange` (`lines 3120-3140`) scan `state.boxes` linearly instead of using `state.paintBoxes`. | **Critical Wave 9 (`W9.5`) addition**: Store cumulative `lineTops` (`vector<float>`) in `PreparedLayout::State` during `Apply` (`DxUi.RichTextLayout.cpp:419-443`) so `PreparedLayout::VisibleRange` runs an `O(log L)` `std::lower_bound`/`std::upper_bound` with **zero** `HitTestTextPosition` calls; route `PreparedSemanticGeometry::VisibleRange` and `VisibleSourceRange` through `state.paintBoxes.ForEach(top, bottom, ...)`. |
-| **7. Bounded linear-time code fence scanner & Markdown block-cut (`cuts`) tail reparse** | `syntax::scan` (`crates/rune-kit/src/syntax/scan.rs:84-137`) caps coloring at `MAX_SOURCE = 32 KiB` (**cut cleanly at the last `\n` via `coloured_len`**) and `MAX_TOKENS = 8192` (keeping the first 8,192 tokens and leaving the tail plain), and emits **color-only** spans so glyph advances never shift. `markdown::cache` (`crates/rune-kit/src/markdown/cache.rs:64-125`) stores top-level block byte cuts (`cuts`) so append edits re-parse only from the last finished line (`extend`) and evicts the superseded prefix entry (`c.docs.remove(&*last)`). | `DxUi::RichText::Detail::TokenizeCode` (`src/Controls/DxUi.RichCodeInk.h:27-36, 103-107`) clears **all** tokens (`output.clear(); return false;`) when a code fence exceeds `MaximumCodeTokens = 4096u`, flashing the entire code block from colored to uncolored on the 4,097th token! Worse, `Preparation::Phase::CodeNumbers` (`src/Controls/DxUi.RichSemanticGeometry.cpp:2560-2607, 2808, 3339-3348`) allocates up to **4,096 separate `PreparedLayout` (`IDWriteTextLayout`) objects** for fenced code line numbers in Semantic Markdown view (`Subtle`) and sets `clip = box.frame` so all 1,000+ line numbers draw every frame! | **Critical Wave 9 (`W9.1`, `W9.3`) additions**: (1) In `DxUi.RichCodeInk.h:27-36`, prefix-color up to a `32 KiB` newline boundary and retain the first `MaximumCodeTokens` tokens instead of `output.clear()`; (2) Delete `Phase::CodeNumbers` per-line `PreparedLayout` allocations in `DxUi.RichSemanticGeometry.cpp:2560-2607` and draw only visible code fence line numbers `[firstVisibleLine..lastVisibleLine]` via `NumberGlyphTable` (`0` `IDWriteTextLayout`s); (3) Add block-cut (`cuts`) tail re-parsing on append edits. |
-| **8. `Cold<T: Empty>` rare-field boxing & static default singleton** | `Cold<T: Empty>(Option<Rc<T>>)` (`crates/rune/src/cold.rs:16-67`) defines `trait Empty { const EMPTY: &'static Self; }` so `Deref` returns `self.0.as_deref().unwrap_or(T::EMPTY)` (branchless static singleton read, zero heap allocation) and allocates only on `DerefMut`, shrinking `Node` from `2.4 KB` to `~0.6 KB`. | `DxUi::Control` (`include/DxUi/DxUi.h:1794-1834`) embeds 4 cold `std::wstring`s, 3 cold callback/form pointers, and 4 `std::optional`s inline (`sizeof(Control) = 296 B` Release / `336 B` Debug, addressed in `W10.1`). | **Enhance Wave 10 (`W10.1`)**: Pair `std::unique_ptr<ColdControlMetadata> _cold` with a `static const ColdControlMetadata kEmptyColdMetadata{}` singleton returned by `Control::Cold() const noexcept` (`return _cold ? *_cold : kEmptyColdMetadata;`). |
-| **9. sRGB LUT vs `std::pow(..., 2.4)` & GIF opaque fast-skip** | `Srgb` (`crates/rune/src/image/mips.rs:125-152`) precomputes `decode: [f32; 256]`, `up: [f32; 256]`, and `coarse: [u8; 4097]`, eliminating `powf` across image premultiplication and OKLab color comparisons (`research/32` Rank #2), and skips opaque pixels (`if p[3] == 255 { continue; }`). | `DxUi` has 4 separate `std::pow((c + 0.055) / 1.055, 2.4)` implementations (`Utilities.h:21`, `DxUi.Theme.cpp:53`, `DxUi.PreparedMath.h:2855`, `DxUi.PreparedFlowchart.cpp:21`), and `ComposeGifCanvas` (`DxUi.RichImage.cpp:152-165`) runs 4 integer multiplies/divides per pixel even when `alpha == 255u` or `alpha == 0u`. | **Enhance Wave 9 (`W9.4`) & `Utilities.h`**: Consolidate all 4 `std::pow(..., 2.4)` helpers onto a single `constexpr float kSrgbByteToLinear[256]` lookup table in `src/Support/Utilities.h`, and fast-skip `alpha == 255u` / `alpha == 0u` in `ComposeGifCanvas` (`DxUi.RichImage.cpp:152-165`). |
-| **10. Thread-local allocation counters & debug perf-warn guardrails** | `procwatch::alloc` (`crates/procwatch/src/lib.rs:30-115`) tracks thread-local allocation counts/bytes and `Snapshot::unaccounted()`. `perf_warn` warns once per callsite on UI-thread blocking stalls (`wall > 8 ms && wall > 4 * cpu`), virtual-list overbuild, and idle redraw loops. | `DxUi` tracks process-wide allocations in `Embedded.Tests.ComplexUiBenchmark.h` and has `FrameRuntime.h` / `Diagnostics.h`, but lacks a per-thread zero-allocation scope guard for unit tests. | **Enhance Wave 1 (`W1.2`)**: Add a thread-local `ScopedZeroAllocationCheck` guard for `Tests/Controls` and `Tests/Embedded` hot-path assertions, plus optional Debug diagnostics for UI-thread wall-vs-CPU stalls. |
+1. **Fail-before counter.** The item names its P0.2 scenario and counter. The baseline value is recorded before
+   the code change. The candidate meets the stated bound on the same fixture and build profile. Counter bounds
+   are exact or upper bounds and live in the test, so a regression fails the build. Timing is reported but
+   gates nothing until D-P1 qualifies its policy.
+2. **Parity.** Any item that adds retention, culling or partial painting passes the P0.3 incremental-versus-fresh
+   oracle with **0** BGRA differences on WARP. It also keeps bit-identical bounds and an identical UIA snapshot
+   for its scripts.
+3. **Visual changes are separate.** A change meant to alter pixels (V-items, P4.1 replay snapping, P4.6) is
+   reviewed through `gallery.ps1 -PublishDocs` harness captures, with scenario/build/DPI provenance and a
+   before/after carousel. A design-system update is required. P0.3 parity never stands in for this review.
+4. **Resource rules.** Steady state allocates nothing, composition does no heap/layout/raster/blocking work, idle
+   blocks on events, and caches trim only at frame or preparation start. New caches report their size in
+   `EmbeddedStatistics` or the diagnostics sink.
+5. **Repository workflow.** One focused branch per item group, a `Changes/` fragment, `Test-Changes.ps1 -Explain`
+   plus affected suites while editing, and `-Mode PrePush` before push. Normative text moves into the owning
+   contract when the item closes. Behavior or API changes update `docs/` and `capabilities.json`. Focus-taking
+   suites run only with the developer's agreement to the time.
+6. **Platform.** No unconditional import beyond the Windows 10 embedded baseline. Windows 11-only facilities are
+   detected at run time with a tested fallback.
 
-### Verified `anomalyco/rune` (`07723732`) code mechanisms
+## Decisions
 
-```rust
-// 1. Cold<T: Empty> with static EMPTY singleton deref (crates/rune/src/cold.rs:16-67)
-pub(crate) trait Empty: Clone + 'static { const EMPTY: &'static Self; }
-pub(crate) struct Cold<T: Empty>(Option<Rc<T>>);
-impl<T: Empty> Deref for Cold<T> {
-    type Target = T;
-    fn deref(&self) -> &T { self.0.as_deref().unwrap_or(T::EMPTY) }
-}
-impl<T: Empty> DerefMut for Cold<T> {
-    fn deref_mut(&mut self) -> &mut T {
-        Rc::make_mut(self.0.get_or_insert_with(|| Rc::new(T::EMPTY.clone())))
-    }
-}
+Confirmed on 7 November 2026 and retained:
 
-// 2. KeyHasher & deferred supersede + byte-cost stale eviction (text/hash.rs:21-97, layout_cache.rs:14-106)
-const SEED: u64 = 0x243f_6a88_85a3_08d3;
-const MUL: u64 = 0x9e37_79b9_7f4a_7c15;
-impl Hasher for KeyHasher {
-    fn finish(&self) -> u64 { self.0 }
-    fn write(&mut self, bytes: &[u8]) {
-        let mut h = rustc_hash::FxHasher::default();
-        h.write(bytes);
-        self.write_u64(h.finish());
-    }
-    fn write_u64(&mut self, i: u64) {
-        let p = ((self.0 ^ i ^ SEED) as u128).wrapping_mul(MUL as u128);
-        self.0 = (p as u64) ^ ((p >> 64) as u64);
-    }
-}
-const LAYOUT_PER_BYTE: usize = 64;
-const LAYOUT_BASE: usize = 2048;
-const STALE_BYTES: usize = 3 << 20;
-pub(crate) fn supersede(&mut self, shape: u64) {
-    if shape != 0 { self.superseded.insert(shape); }
-}
+- [x] **D1.** This plan stays separate from [remaining work](RemainingWork_2026-11-04.md) and is sequenced after
+  D9's history rewrite on shared files.
+- [x] **D2.** A popup keeps publishing every row to UI Automation. The draft's "6.10 ms/step" was unsubstantiated,
+  so P7.4 runs only if P0.2 measures a real cost.
+- [x] **D4.** A non-virtual `ScrollPanel` bitmap strip cache waits for measurement after P3/P4/P2.5. If it is
+  built, it uses gpui's promotion/demotion policy and `REPAINT_COST` work accounting, a 16 MiB cap inside the
+  64 MiB per-view cap, and only row-band uploads.
 
-// 3. Visible-line binary search glyphs_in_band (crates/rune/src/text/glyph_emit.rs:54-68)
-let (mut lo, mut hi) = (0usize, layout.len());
-while lo < hi {
-    let mid = (lo + hi) / 2;
-    if layout.get(mid).is_some_and(|l| l.metrics().block_max_coord < band.start) { lo = mid + 1; }
-    else { hi = mid; }
-}
-let lines = (lo..layout.len()).map_while(|i| layout.get(i).filter(|l| l.metrics().block_min_coord <= band.end));
+Proposed on 8 November 2026; each needs the developer's confirmation before its phase starts:
 
-// 4. Four-band hollow shadow culling (crates/rune/src/runtime/paint/bands.rs:17-47)
-const MIN_HOLE: f32 = 96.0;
-pub(super) fn push_shadow(out: &mut Vec<Instance>, inst: Instance, quad: [f32; 4], hole: [f32; 4], radii: [f32; 4]) {
-    let e = radii.map(corner_extent).into_iter().fold(0.0, f32::max) + 1.0;
-    let [hx0, hy0, hx1, hy1] = [hole[0] + e, hole[1] + e, hole[2] - e, hole[3] - e];
-    if hx1 - hx0 < MIN_HOLE || hy1 - hy0 < MIN_HOLE { out.push(inst); return; }
-    let [qx0, qy0, qx1, qy1] = quad;
-    for [x0, y0, x1, y1] in [
-        [qx0, qy0, qx1, hy0.clamp(qy0, qy1)], [qx0, hy1.clamp(qy0, qy1), qx1, qy1],
-        [qx0, hy0.clamp(qy0, qy1), hx0.clamp(qx0, qx1), hy1.clamp(qy0, qy1)],
-        [hx1.clamp(qx0, qx1), hy0.clamp(qy0, qy1), qx1, hy1.clamp(qy0, qy1)],
-    ] {
-        if x1 > x0 && y1 > y0 { out.push(Instance { uv: [x0, y0, -x1, y1], ..inst }); }
-    }
-}
+- [ ] **D3 (revised). API revision 6, not 5; one bundled break.** Revision 5 already exists. Bundle every public
+  break into a single revision 6 so consumers migrate once:
+  1. The embedded animation request replaces `NeedsAnimation()`/`AdvanceAnimation()` (P2.4). This is a
+     deliberate compile break: a silent change in meaning would stop carets blinking in unported consumers.
+  2. `Control::GetVisualOverhangDip()` and region invalidation (P3.1).
+  3. Zero-copy `IGridModel::GetColumn` only if the P8.3 hoist leaves allocations.
+  4. **Withdrawn:** the 64-slot slab `ControlLifetimeHandle`. It would touch 460 call sites and every consumer to
+     save one small allocation per control; P8.2 keeps `std::weak_ptr<int>`.
+  The `Control` layout changes in P8.1 need no revision, because consumers already rebuild against an exact pin.
+- [ ] **D5. Native frame pacer.** `WindowHost` continuous animation is paced by a DXGI frame-latency waitable
+  object. One pacer thread per UI thread blocks on `{waitable, arm/stop event}` and posts one frame message only
+  while a continuous animation is armed. When disarmed it blocks indefinitely, so this is event-driven with no
+  polling. The fallback where the waitable is unavailable is a one-shot timer at the display refresh period.
+  Embedded hosts are unchanged and stay owner-scheduled.
+- [ ] **D6. Visual direction.** Adopt springs (V1), OKLab color transitions (V2), device-pixel hairlines (V3),
+  analytic elevation shadows (V4) and smooth scrolling (V6) as design-system changes, with gallery review per
+  item. Reduced motion and High Contrast keep their current semantics.
+- [ ] **D7. Popup materials.** Retire the GDI `CAPTUREBLT` screen capture. HWND popups use the DWM transient
+  system backdrop where available. In-window and embedded overlays blur DxUi's own retained surface. Everything
+  else falls back to the solid themed fill. This also stops reading other applications' pixels.
+- [ ] **D8. Text rendering params.** Pick antialias mode by presentation mode: grayscale on premultiplied or
+  composition targets, the system setting on opaque HWNDs. Use per-monitor rendering params. Any change to dark-theme
+  grayscale contrast requires harness A/B captures.
+- [ ] **D9. Order.** P0, then P1, are mandatory first. P2 through P8 and V1 through V8 follow the
+  [dependency graph](#sequencing). V-items may run in parallel with P-items when they touch different files.
+- [ ] **D10. Clean-room BUI additions.** Adopt visibility-latched animated image clocks, two-buffer ping-pong and
+  target-size WIC decode scaling (B1), per-corner radius masks and 1-DIP analytical bevel/emboss rims for joined
+  controls (B2), and optional Blender-style numeric scrubbing and menu typeahead filtering (B3). Resolution-independent
+  GPU curve text for zoomed diagrams (B4) stays a measured research option after P4.1 and P6.1. Zero GPL-2.0/3.0
+  code, shader source or tables may be copied from BUI.
+
+## P0 — Measurement foundation (blocks every other phase)
+
+- [ ] **P0.1 Deterministic work counters.**
+  - **Change**: Add a private `Detail::WorkCounters` thread-local record of plain increments. It is dormant until
+    a test sink reads it. Route creation through counted helpers in [DxUi.Internal.h](../../../src/Controls/DxUi.Internal.h):
+    `CreateTextLayout`, implicit `DrawText` layouts, `CreateEffect`, `CreateCommandList`, `CreateLayer`, gradient
+    and solid brushes, path geometries, `CreateBitmap*`, GDI captures and UIA snapshot builds (with node counts).
+    Also count tree visits in `Tick`/`Paint`/`HitTest`, timer and pacer wakes, `Prepare`/`Render`/`Present` and
+    pixels painted.
+  - **Allocation counting**: test executables replace `operator new`/`delete` to count per-thread allocations
+    inside a `ScopedAllocationCounter`. The library stays unhooked.
+  - **Enforcement**: a tooling test (`Tools/tests`) fails if `->CreateTextLayout(`, `->CreateEffect(` or
+    `->DrawText(` appears outside the counted helpers.
+  - **Gate**: overhead under 1% on ComplexUi clean frames. Clean frames stay at 0 allocations.
+- [ ] **P0.2 Scenario fixtures and baseline receipt.** Add `Embedded.Tests.WorkCounterScenarios.h` and
+  `Controls.Tests.WorkCounterScenarios.cpp`. Record every counter for these scenarios in
+  `Measurements/RuntimeEfficiency_2026-11-08/baseline-counters.json` with source commit and build profile:
+  - S1: focused idle single-line `TextField` for 10 s.
+  - S2: tooltip shown for 6 s.
+  - S3: 500-item `ComboBox` open, 60 hover frames.
+  - S4: popup shadow/blur steady frame for `ComboBox` and `MenuPopup`.
+  - S5: 2,048-row `Grid`, 100 wheel notches.
+  - S6: 10,000-row `Tree` and grouped `Grid`, 200 arrow/page keys.
+  - S7: `Slider`/`ProgressBar`, 100 value steps with a UIA client listening.
+  - S8: `Splitter` dragged 200 px.
+  - S9: semantic document with 3 math blocks, 2 Mermaid diagrams and 2 images; 50 keystrokes outside them.
+  - S10: 4,096-row `MenuPopup`, 100 keyboard steps.
+  - S11: 2,000-line fenced code block in semantic view, scrolled.
+  - S12: the existing ComplexUi and the 64 Ki-unit typing benchmark.
+  - S13: resize sweep, 30 sizes.
+  - S14: wrapped-label resize, 30 widths.
+- [ ] **P0.3 Incremental-versus-fresh oracle.**
+  - **Change**: Add `Controls.Tests.IncrementalParity.cpp` and `Embedded.Tests.IncrementalParity.h`. Seeded
+    mutation scripts cover text, bounds, visibility, hover/focus/press, scroll, theme, DPI 96/144/192, LTR/RTL,
+    caret ticks, popup open/close and rich edits. Each step renders the incremental host and a reference: the
+    same tree after a diagnostics hook `ControlHost::DebugDropRetainedStateForTest()` drops every cache and
+    invalidates fully.
+  - **Comparison**: BGRA output (exact on WARP), all bounds and UIA snapshot records. Failures retain the seed
+    and step.
+  - **Scope**: Light at first. Every later retention item adds its own scripts.
+- [ ] **P0.4 Swap-chain content truth test.**
+  - **Change**: Add a WARP test in [DxUi.Tests.WindowHost.cpp](../../../Tests/Controls/DxUi.Tests.WindowHost.cpp)
+    that presents a full frame, then partial A, then partial B. Through a diagnostics readback of buffer 0 before
+    the next draw, it establishes whether non-dirty pixels come from N−1 or N−2.
+  - **Outcome**: Record the result in the Win32 host contract. If it is N−2, today's `WM_PAINT` partial path is a
+    latent stale-pixel bug and P3.3's history-union design is mandatory; fix it in P1.12 with this test as the
+    fail-before.
+
+## P1 — Verified hotspots and open review IDs (independent, low risk, one PR per bullet group)
+
+- [ ] **P1.1 `ComboBox` popup layout.**
+  - **Change**:
+    - Cache the widest item width keyed by items revision, filter text, typography/DPI/theme revision and font
+      collection generation.
+    - Compute `PopupLayout` once per paint and pass it into the row loop.
+    - Derive the text rect from the row rect instead of recomputing it.
+  - **Files**: [DxUi.ComboBox.cpp](../../../src/Controls/DxUi.ComboBox.cpp).
+  - **Gate (S3)**: width-measurement layouts per steady frame drop from 8,500 to **0**. Total layouts per frame
+    stay at most V until P4.1 makes them 0. N layouts happen only when an input of the width key changes.
+- [ ] **P1.2 Retained popup and shadow resources (Phase A of V4).**
+  - **Change**:
+    - Retain per popup the blur effect, layer, gradient brushes (unit-space, positioned by brush transform) and
+      clip geometry.
+    - Replace per-call `DrawShadowEffectPass` objects with an 8-entry host `ShadowCache`. Its key is
+      `{radius, blur, color, size quantized to device px}`; its value is a retained command list plus a shadow
+      effect with `D2D1_PROPERTY_CACHED`.
+    - Rebuild on device loss, theme or DPI change.
+  - **Files**: `DxUi.Controls.cpp`, `DxUi.ComboBox.cpp`, [DxUi.Menu.cpp](../../../src/Controls/DxUi.Menu.cpp).
+  - **Gate (S4)**: effect, command-list, layer and gradient creations per steady frame are **0**, and pixels are
+    identical to the current output.
+- [ ] **P1.3 `TextField`/`ComboBox` paint churn (`CTRL-13`).**
+  - **Change**:
+    - Copy or `SecureClear` the cached text only on a cache miss, and only when masked (or clearing a previously
+      masked entry).
+    - Add `GetDisplayTextView()` for unmasked fields.
+    - Add a `HasNativeTextComposition(const Control*)` guard so paint copies no `NativeTextInputState` without
+      composition.
+    - Probe a stack array of 8 hit-test metrics before any heap fallback.
+  - **Gate (S1)**: **0** heap allocations per focused paint frame.
+- [ ] **P1.4 Multiline `TextField` layout reuse.** Caret and selection use `_cachedMultilineLayout`, whose entry
+  caches line metrics. **Gate**: focused multiline frame layouts drop from 2 to **0**.
+- [ ] **P1.5 `Splitter` preview accessibility.** During a drag, publish only a bounds update once per frame. Run
+  the structural refresh on commit. **Gate (S8)**: at most 1 UIA update per frame and 1 structural build per drag.
+- [ ] **P1.6 Value-only accessibility mutation.**
+  - **Change**: Add `AccessibilityMutationKind::Value`. It updates one element's range value in the retained
+    snapshot and raises the value-changed property event. Route `ProgressBar`, `Slider` and `NumericStepper` value
+    changes through it.
+  - **Gate (S7)**: **0** structural snapshot builds per value step; value events stay identical (UIA client test).
+- [ ] **P1.7 Navigation and preparation IDs (`CTRL-02`, `CTRL-04`, `Tree`).**
+  - **Change**:
+    - `Label::PrepareVisualContent` checks override/mnemonic before `IsControlInTree`.
+    - `Grid` caches its visible-ordinal mapping per `(modelRevision, groupStateRevision)`.
+    - `Tree::SetFocusedItemId` calls `FindVisibleItemById` once.
+  - **Gate (S6)**: **0** allocations and O(groups) work per key.
+- [ ] **P1.8 `FlexPanel::ApplyLayout` validation.**
+  - **Change**: After each `SetBounds`, check only O(1) topology/interaction revisions, then run one full
+    validation after the loop. Reentrant mutation keeps its `E_ABORT` semantics.
+  - **Gate**: child validations per `ApplyLayout` are at most 2N, with an existing reentrancy test plus a new one.
+- [ ] **P1.9 Rich-document quick fixes.**
+  - **Change**:
+    - Cache line tops in `PreparedLayout` so `TryVisibleRange` binary-searches with zero hit-test calls.
+    - Route semantic `TryVisibleRange`/`TryVisibleSourceRange` through `paintBoxes`.
+    - Reuse `PaintIndex` capacity.
+    - Add alpha 0/255 fast paths in `ComposeGifCanvas`.
+    - Move math's 32 KB resolved-color array into a node-count-sized cache rebuilt only when the palette key
+      `(background, ink, dark, high contrast)` changes; cache flowchart contrast results the same way.
+    - Replace the paint-path sRGB `pow` decode with one shared 256-entry table in [Utilities.h](../../../src/Support/Utilities.h).
+  - **Gates**: line hit-tests per visible-range query **0**; palette resolutions per paint with an unchanged
+    palette **0**; `PaintIndex` allocations per rebuild **0** after warm-up.
+- [ ] **P1.10 Fence coloring keeps its prefix.**
+  - **Change**: Above `MaximumCodeTokens`, keep the tokens up to the last complete line inside the budget and
+    leave the rest plain (rune-kit `scan.rs`). Never color half a line, and never flash the whole block plain.
+  - **Gate**: a 4,097-token fence keeps every line before the cut colored, in independent expected output.
+    Usage docs are updated.
+- [ ] **P1.11 Semantic code line numbers, viewport-scoped.**
+  - **Change**: Remove the per-line `PreparedLayout` allocation and the `box.frame` clip. Draw only visible
+    numbers with a per-line clip, reusing the viewport window and the 4-per-turn budget of
+    [DxUi.RichSourceGuides.h](../../../src/Controls/DxUi.RichSourceGuides.h). P4.4 later makes them 0 layouts.
+  - **Gate (S11)**: layouts created are at most the visible lines plus margin; numbers drawn per frame are at most
+    the visible lines.
+- [ ] **P1.12 Host hygiene.**
+  - **Change**:
+    - `HOST-14`: delete the dead `#else` `Render` body and other dead `#if ! DXUI_ENABLE_DIAGNOSTICS` branches.
+    - `HOST-03`: limit the `Ctrl` rich-title resolve to targets that can show one.
+    - `HOST-09`: skip text-input activation for a non-text focus.
+    - `HOST-13`: remove the tooltip string copy.
+    - Keep brushes across `ResizeBuffers`. Solid brushes belong to the device context, not the target.
+    - If P0.4 shows N−2 content, fix the `WM_PAINT` partial path now by adding the previous frame's rect to the
+      repaint.
+  - **Gates**: brush creations on resize **0** (S13); a clean embedded surface stays clean on `Ctrl`; activations
+    per prepare with non-text focus **0**.
+- [ ] **P1.13 `RENDER-09`.** `LoadFile` moves its buffer into `Decode`. **Gate**: peak bytes are at most the file
+  size plus the decoded size.
+
+## P2 — Scheduling and frame pacing
+
+- [ ] **P2.1 Deadline-aware dispatcher.**
+  - **Change**:
+    - `Tick` keeps its meaning: `true` requests the next continuous frame.
+    - Add `ControlHost::RequestWakeAt(uint64_t tickMs)`, keeping the minimum pending deadline per host.
+    - When only deadlines are pending, the dispatcher arms one `SetCoalescableTimer` one-shot for
+      `min(deadline) - now` with tolerance (10% for caret and tooltip). Continuous requests use P2.7 or its
+      fallback.
+    - A deadline wake runs `Tick` once and renders only if something invalidated (rune `timer_wake.rs`).
+    - Subtree pruning is a follow-up, built only if S12 tree-visit counters justify it.
+  - **Gate (S1)**: wakes in 10 s drop from about 640 to **≤ 20**; tree walks per 10 s **≤ 20**.
+- [ ] **P2.2 Shared caret policy.**
+  - **Change**: One `CaretBlinkClock` used by `TextField`, `ComboBox` and `RichTextEditor`:
+    - Period from `GetCaretBlinkTime()`; `INFINITE` means a steady caret.
+    - Stop blinking with the caret visible after `SPI_GETCARETTIMEOUT` since the last input.
+    - Steady under reduced motion, as `RichTextEditor` already behaves.
+    - Refresh on `WM_SETTINGCHANGE`.
+  - **Gate**: **0** wakes after the timeout. Input restarts the blink.
+- [ ] **P2.3 Tooltip deadlines.** The show delay and auto-hide become two deadlines. **Gate (S2)**: wakes while a
+  tooltip is shown drop from about 320 to **≤ 2**.
+- [ ] **P2.4 Embedded animation request (D3.1).**
+  - **Change**: Replace `NeedsAnimation()`/`AdvanceAnimation()` with
+    `EmbeddedAnimationRequest GetAnimationRequest() const noexcept` returning `{None | Continuous | Deadline,
+    dueTickMs}`, and `EmbeddedAnimationRequest AdvanceAnimation(uint64_t nowTickMs) noexcept`.
+  - **Docs**: update [hosting](../../../docs/hosting.md), [upgrade](../../../docs/upgrade.md), samples and
+    `Tools/ConsumerApi`.
+  - **Gate**: a scheduler simulation in `Embedded.Tests` sees **≤ 2** host wakes per blink period and 0 when idle.
+    Each consumer migrates in its own repository.
+- [ ] **P2.5 Hover freeze and post-scroll hover.**
+  - **First**: a test documents current behavior. Wheel input moves content under a stationary pointer but does
+    not update hover, so the hover may currently go stale.
+  - **Change**: Hold hover for 100 ms after the last wheel while the pointer is unmoved. Then re-resolve it once on
+    a single deadline (gpui `hover_freeze.rs`).
+  - **Gate (S5)**: hover re-hit-tests during a notch burst **0**; exactly 1 after it; the hovered row is correct.
+- [ ] **P2.6 Unseen motion and loop gating.**
+  - **Change**:
+    - A transition on a control that is invisible before and after lands immediately. Invisible means effective
+      opacity 0, a hidden host, an empty clip intersection or off-viewport.
+    - Periodic loops (indeterminate `ProgressBar`, `ThroughputGraph`) suspend while unseen and resume in phase.
+  - **Gate**: S12 with a scrolled-away progress bar adds **0** wakes.
+- [ ] **P2.7 Native frame pacer (D5).**
+  - **Change**:
+    - Create the swap chain with `DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT` and maximum latency 1. This
+      is DXGI 1.3, available on Windows 10.
+    - The pacer thread posts frame messages only while a continuous animation is armed.
+    - Animations sample the predicted present time from `DwmGetCompositionTimingInfo`.
+    - If waits return in under 1 ms three times in a row (display off), fall back to the refresh-period timer.
+  - **Gates**: **0** pacer wakes with no continuous animation (deterministic). Frame-interval jitter is recorded on
+    a local hardware receipt; WARP cannot show vsync.
+
+## P3 — Dirty regions and culling
+
+- [ ] **P3.1 Region invalidation API (D3.2).**
+  - **Change**:
+    - `Control::InvalidateVisual()` invalidates the control's bounds plus `GetVisualOverhangDip()` (focus ring,
+      shadow).
+    - `ControlHost` accumulates a fixed 8-rect `DirtyRegion`, outward-snapped to device pixels. It merges when
+      area overhead is under 25%. It falls back to full above 50% coverage, on topology/theme/DPI/size/device
+      change and on smoke overlay changes.
+    - `RequestInvalidate()` stays full, so this is safe by default.
+    - Migrate the high-frequency sources first: caret, hover/press/focus transitions, scalar values, scroll thumb,
+      tooltip.
+- [ ] **P3.2 Embedded partial preparation.**
+  - **Change**: For each region rect: push an aliased axis-aligned clip, clear the rect, paint with P3.4 culling,
+    pop. Single retained surface, so no rotation issue.
+  - **Gates**: P0.3 parity with 0 differences; pixels painted per caret blink at most the caret rect plus 2 px.
+- [ ] **P3.3 Native partial present.**
+  - **Change**: Paint the union of this frame's region and the previous `BufferCount − 1` regions (if P0.4 shows
+    N−2 content), and present this frame's rects through `Present1`. Any failed, occluded or skipped present,
+    resize, device loss or reset forces a full frame.
+  - **Gate**: P0.3 parity using the P0.4 back-buffer readback after every present.
+- [ ] **P3.4 Clip culling.**
+  - **Change**: `ControlHost` tracks the current paint clip in DIPs. `Panel::Paint`/`PaintOverlay`, `ScrollPanel`,
+    `FlexPanel` and `FormPanel` skip children whose bounds plus overhang miss it. Controls that draw outside their
+    bounds declare an overhang; the oracle catches omissions.
+  - **Gate (S12, scrolled)**: child paints per frame are at most the visible children plus 1 row of margin.
+
+## P4 — Text pipeline
+
+- [ ] **P4.1 Shaped-run cache (gpui `RecentShapes`, adapted).**
+  - **Key**: exact text (stored and compared), `IDWriteTextFormat` identity plus format revision, reading
+    direction, locale, font-collection generation and measuring mode. Pixels per DIP is added only for
+    non-natural measuring modes.
+  - **Value**: glyph runs captured once through a private `IDWriteTextRenderer` with pixel snapping disabled,
+    advance width, height, baseline and overhang.
+  - **Not cacheable** (keep a layout): text needing wrapping, trimming, inline objects, underline/strikethrough or
+    mnemonics.
+  - **Storage**: two generations backed by arenas. Flip at frame start once the current generation exceeds 16 Ki
+    glyphs or 1 MiB, promoting hits in the old generation. Released on hide/detach/device/DPI/theme/font change.
+    Bytes are reported in `EmbeddedStatistics`.
+  - **Replay**: `DrawGlyphRun` with the color brush. The baseline is snapped to device pixels exactly as DirectWrite
+    snaps it, when the transform is axis-aligned. Color glyphs use one shared helper: `ID2D1DeviceContext7` where
+    available, otherwise `IDWriteFactory4::TranslateColorGlyphRun` plus `ID2D1DeviceContext4` (a new Windows 10
+    path).
+  - **Callers**: `DrawCenteredText` (63 callers), `DrawRawCenteredText`, `DrawTreeRow`, `ThroughputGraph` labels,
+    `Grid` headers and single-line cells, `Menu` and `ComboBox` rows, and `MeasureSingleLineTextWidthDip`.
+  - **Gates**:
+    - **0** layouts and **0** allocations per steady ComplexUi dirty frame.
+    - **Pixel-identical** replay versus `DrawTextLayout` on WARP for a corpus: Latin, Arabic/Hebrew RTL, CJK,
+      emoji, combining marks and fallback fonts, at DPI 96/144/192, ClearType and grayscale. Any non-identical
+      class falls back to a layout.
+- [ ] **P4.2 `MeasureText` without heap.** Use a stack array of 8 line metrics with a heap fallback. Single-line
+  measurement comes from P4.1. **Gate**: S12 measure allocations **0**.
+- [ ] **P4.3 Re-break in place.** When only width or height changed, call `SetMaxWidth`/`SetMaxHeight` on
+  `Label::_typographyLayout` and on `PreparedLayout` (whose shape inputs are unchanged) instead of recreating them.
+  **Gate (S14)**: layouts created **0**, with P0.3 parity.
+- [ ] **P4.4 Proved tabular numeric table.**
+  - **Change**: Per `(font face, em size)`, shape `0`–`9 . , + - %` with `tnum`, singly and as all 15×15 pairs,
+    once. Enable the table only if every pair advance equals the sum of its singles and every cluster maps 1:1.
+    Exclude `:`, `/` and space; gpui excludes space too. The sampled run-time oracle is Debug-test only.
+  - **Users**: semantic code numbers (P1.11), source guides, optional numeric `Grid` columns and percentages.
+  - **Gate**: **0** layouts for line numbers in S11 and the 64 Ki source gutter.
+- [ ] **P4.5 Cache cliffs.** Brush and format caches become current/previous generations swapped at frame start,
+  bounded by twice the existing limits, with no clear-everything cliff. **Gate**: an S12 working set above the
+  limit recreates **0** brushes in steady state.
+- [ ] **P4.6 Text antialias mode and rendering params (D8).**
+  - **Change**: `WindowHost` sets grayscale on composition/premultiplied targets and leaves the system mode
+    otherwise. Per-monitor `CreateMonitorRenderingParams` refreshes on monitor change. Dark-theme
+    grayscale-contrast tuning ships only with harness A/B captures.
+  - **Gate**: no per-frame cost; gallery review.
+
+## P5 — Layout (measure first)
+
+- [ ] **P5.1 Measure-probe evidence, then `MeasureLog`.**
+  - **First**: count measure calls with identical or alternating constraints per `ApplyLayout` in S12 and the
+    form/localized fixtures.
+  - **Then**: only if repeated probes exceed 1.5× unique probes, add gpui's four-entry inline measure log (spill to
+    16) to `FlexPanel::ChildRecord` and `FormField::PartMeasure`. The cost is about 96 B per flex child record,
+    not "0 B".
+- [ ] **P5.2 Live label cutoff.** When `Label::SetText` gives an unchanged single-line desired size (from P4.1),
+  skip `InvalidateMeasure()` and invalidate visually. **Gate**: a ticking label causes **0** layout passes.
+- [ ] **P5.3 Width settle.** Build only if P0.3 finds a wrapped leaf drawn at a width other than its arranged one.
+
+## P6 — Rich documents
+
+- [ ] **P6.1 Cross-edit semantic carry (the real `SEM` gap).**
+  - **Change**:
+    - Replace the `state_->document == document` gate.
+    - Images key on `{resolved image identity, frame epoch, raster target}`.
+    - Native math and flowchart geometry key on `{block kind, exact source text plus hash, width bucket,
+      typography, zoom, theme revision}`.
+    - Carry previous geometry into the next preparation and translate offsets.
+  - **Gate (S9)**: per keystroke outside the blocks, math/diagram rebuilds and image uploads are **0**, with P0.3
+    parity.
+- [ ] **P6.2 Source chunk translation.** Chunks after an edit are rejected only because
+  `VerticalOrigin() != next.height`. Translate them by the delta instead. Investigate separately why Rich mode
+  with a line-height multiplier uses `Phase::Reference`. **Gate**: chunks reshaped per mid-document keystroke in
+  64 Ki **≤ 2**.
+- [ ] **P6.3 Incremental Markdown block reparse.**
+  - **First**: measure full reparse per keystroke with `Embedded.Tests.RichPreparationBenchmark`.
+  - **Then**: only above 1 ms, reparse from the enclosing top-level block cut to the next stable cut (rune-kit
+    `markdown/cache.rs`).
+  - **Gate**: a seeded AST-equality oracle (incremental equals full), including lazy continuation and link
+    reference definitions.
+- [ ] **P6.4 Clickable-span hover (`HOST-08`).** Index link, footnote and image spans at preparation. Pointer moves
+  over plain text cause **0** invalidations and **0** title scans.
+
+## P7 — Accessibility
+
+- [ ] **P7.1** Delivered by P1.5 and P1.6.
+- [ ] **P7.2 Scroll carry.** A pure scroll flush translates cached descendant screen bounds by the delta in one flat
+  pass. **Gate (S5)**: structural builds per notch **0**, with the UIA client test.
+- [ ] **P7.3 Subtree splice.** Deferred. Build only if counters after P7.2 still show structural rebuilds
+  dominating a scenario.
+- [ ] **P7.4 `MenuPopup` keyboard step.** Conditional on S10. Update only changed rows' focus and bounds in the
+  retained snapshot.
+- [ ] **P7.5 Lazy tab order.** Conditional on a counter showing eager ordering work outside Tab navigation.
+
+## P8 — Memory
+
+- [ ] **P8.1 Cold control metadata.**
+  - **Change**: Move the 5 strings, 2 callbacks and 4 optionals into an on-demand `std::unique_ptr<ControlCold>`
+    with a static empty instance (rune `cold.rs`). Accessors return references or views. Add a recorded
+    `sizeof(Control)` probe.
+  - **Gate**: `sizeof(Control)` **≤ 176 B** x64 Release, and a measured ComplexUi private-bytes reduction.
+- [ ] **P8.2 Lifetime token.** Keep `std::weak_ptr<int>`. A pooled `allocate_shared` is allowed only if allocation
+  profiling attributes at least 2% of construction cost to it.
+- [ ] **P8.3 `Grid` column queries.** Hoist `GetColumn` out of the row loop into a per-paint scratch vector held as
+  a member. Change `IGridModel` (D3.3) only if allocations remain. **Gate (S5)**: **0** allocations per frame.
+
+## Visual track — beauty with measured cost
+
+- [ ] **V1 Motion foundation (D6).**
+  - **Change**:
+    - Add a private `MotionValue` with a closed-form spring (`duration`, `bounce`, SwiftUI mapping as in rune
+      `spring.rs`). Retargeting preserves velocity. Opacity, color and blur channels are critically damped (no
+      overshoot); spatial channels may bounce.
+    - Settle within epsilon, then stop requesting frames. Reduced motion lands instantly.
+    - Migrate in order: `Button`/`Toggle`/`Checkbox` state, `Slider` thumb, scrollbar expand, `Tree` expander and
+      rows, then `PageHost`.
+    - Add motion tokens to [tokens.json](../../DesignSystem/tokens.json).
+  - **Gates**: deterministic simulations prove value/velocity continuity on retarget, a bounded settle time, 0
+    allocations and 0 frames after settle. Gallery and design-system review.
+- [ ] **V2 Perceptual color transitions.** Animated color transitions interpolate in OKLab, reusing the theme's
+  OKLab code with table-based sRGB decode and encode. Compositing math stays unchanged. **Gate**: reference-value
+  unit tests and gallery review.
+- [ ] **V3 Crisp geometry.**
+  - **Change**:
+    - Hairline stroke width is `max(1, round(1 DIP × scale))` device pixels, centered on pixel centers.
+    - Opaque fills are inset by half a stroke under opaque borders (rune `fill_under`).
+    - Shared per-corner radii go through cached geometry realizations.
+    - Rounded clips use `PushAxisAlignedClip` when content clears the corners (rune `17abbcb`).
+  - **Gate**: at 125/150/175% DPI, a border column is exactly 1 device pixel at full alpha (pixel test).
+    `PushLayer` count drops in S12.
+- [ ] **V4 Analytic elevation shadows (Phase B after P1.2).**
+  - **Change**: Add a `DxUi.RoundedShadow` custom D2D effect (`ID2D1EffectImpl` plus an `ID2D1DrawTransform` pixel
+    shader with an erf Gaussian, as in gpui `shaders.hlsl`). It needs no intermediate surface and allows
+    elevation tokens on cards and flyouts and animated elevation. Fallback is the P1.2 cached `CLSID_D2D1Shadow`.
+  - **Gate**: **0** intermediate surfaces per shadow (counter), WARP pixel tests against a reference integral, and
+    gallery review.
+- [ ] **V5 Real popup materials (D7).**
+  - **Change**:
+    - HWND popups use `DWMWA_SYSTEMBACKDROP_TYPE = DWMSBT_TRANSIENTWINDOW` when the OS supports it.
+    - In-window and embedded overlays blur a 2× or 4× downsampled copy of DxUi's own target region
+      (`CopyFromBitmap` into a retained scratch bitmap, then blur at the reduced size).
+    - Otherwise use the solid themed fill.
+  - **Gates**: GDI capture calls **0**; popup-open allocations recorded; gallery review in every theme, including
+    High Contrast (solid).
+- [ ] **V6 Scrolling feel.**
+  - **Change**:
+    - Smooth wheel scrolling: a critically damped approach to a target that later notches can interrupt.
+    - Precision-touchpad deltas applied fractionally, without the 3-rows-per-notch quantization.
+    - Analytic fling for touch.
+    - Reduced motion means immediate scrolling.
+    - Later, DirectManipulation for touchpads in `WindowHost`, driven by the P2.7 pacer.
+    - Edge fades: a background-colored gradient when the container background is opaque, otherwise a layer
+      bounded to the 16 DIP edge band.
+  - **Gates**: 0 frames once the target is reached, P0.3 parity at rest, gallery review.
+- [ ] **V7 Real connected animation.** Record the source subtree into an `ID2D1CommandList` at transition start,
+  then draw it transformed and cross-fade with the target. **Gate**: allocations only at transition start, **0**
+  per frame.
+- [ ] **V8 Text glide stability.** Snap animated translation of text-bearing content to whole device pixels on Y.
+  On X, snap at rest with a 1/64 px dead-zone (rune `e1bd315`). **Gate**: no baseline change between consecutive
+  frames of a slow `PageHost` slide (pixel test).
+
+## BUI review (`ppmpreetham/BUI` at `e8126ca`)
+
+`BUI` decouples Blender's immediate-mode widget style (`source/blender/editors/interface/`) into a C11 library with a
+tile-diffing CPU rasterizer (`gpu/intern/gpu_raster.c`), a Direct3D 11 instanced backend (`gpu/intern/gpu_d3d11.c`), a
+457-line HLSL uber-shader (`gpu/shaders/bui_ui.hlsl`) and a worker-pooled image/video subsystem (`kit/intern/image/`).
+
+### License boundary (mandatory)
+
+- `BUI` is licensed under **GPL-3.0-or-later** (`LICENSE`), with individual source and shader files carrying
+  `SPDX-License-Identifier: GPL-2.0-or-later` from Blender.
+- `DxUi` is **MIT** ([LICENSE.txt](../../../LICENSE.txt)).
+- **Rule:** Zero source code, shader text or lookup tables from `BUI` may be copied into `DxUi`. Only high-level
+  architectural concepts, standard Win32/DXGI mechanics, UX interaction ideas or independently MIT-licensed
+  algorithms (such as Eric Lengyel's reference Slug algorithm) may inform clean-room `DxUi` implementations.
+
+### Where BUI independently confirms this plan's red-team findings
+
+1. **Flip-model partial-present hazard (`E7`, `P0.4`, `P3.3`).** `BUI` uses `DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL` with
+   `BufferCount = 2` and `IDXGISwapChain1::Present1` dirty rects (`gpu/intern/gpu_d3d11.c:1585-1619`). Line 1596
+   documents the exact `BufferCount = 2` stale-buffer rule flagged in `E7`:
+   `/* the flip model hands back an older buffer: copy the whole frame */`, followed by
+   `ID3D11DeviceContext_CopyResource(g->ctx, back, g->target)` before `Present1`. `DxUi`'s `P3.3` avoids that
+   full-window GPU copy by unioning the last `BufferCount − 1` dirty regions when painting directly to the back
+   buffer (or copying only dirty sub-rectangles from a retained surface).
+2. **Single earliest-deadline context timer (`P2.1`–`P2.3`).** `bk_ctx_arm_timer` (`kit/intern/kit_custom.c:249-300`)
+   takes `due = min(bk_image_next_due(ctx), bk_te_next_toggle(editing->edit), custom->wake_at)` and arms a single
+   Win32 `SetTimer(win->hwnd, ID_WAKE, ms, NULL)` only when a deadline exists and moves earlier than
+   `ctx->custom_timer_due`. When idle, zero timers run (`0.0%` idle CPU).
+
+### Clean-room items proposed for review (D10)
+
+- [ ] **B1 Visibility-latched media clock, two-buffer ping-pong and target-size decode (extends P1.13, P2.6, P6.1).**
+  - **Concept** (`kit/intern/image/play.c:24-196`, `ARCHITECTURE.md:189`):
+    - An animated image in [DxUi.RichImage.cpp](../../../src/Controls/DxUi.RichImage.cpp) latches a `drawn` bit when
+      its block is actually emitted inside the visible viewport clip. The next frame deadline (`dueTickMs`) is armed
+      only while `drawn && !paused && !finished`; scrolling an animated GIF out of view or hiding the host drops
+      timer wakes and frame decodes to **0**.
+    - If playback falls more than 250 ms behind wall time (for example across minimize or slow I/O), advance the
+      deadline relative to `now` (`now + frameDuration`) instead of bursting catch-up frames.
+    - Frame composition recycles a two-buffer ping-pong (`current`, `spare`) with **0** per-frame heap allocations.
+    - Static markdown images whose source pixel dimensions exceed their arranged display box decode through
+      `IWICBitmapScaler` on the worker lane to the target device-pixel size (bounded by maximum zoom), rather than
+      retaining full 4K bitmaps for thumbnail regions.
+  - **Gates**: an off-viewport animated GIF in `S9` causes **0** wakes and **0** frame steps; visible GIF playback
+    allocates **0** buffers after frame 2; decoded bitmap bytes in `EmbeddedStatistics` match the target box.
+- [ ] **B2 Per-corner radius mask and 1-DIP analytical bevel/inner-border chrome (extends V3).**
+  - **Concept** (Blender `interface_widgets.cc`, `bui_ui.hlsl` `K_WIDGET` lines 83–93 and 234–278):
+    - Add a 4-bit `CornerMask` (`TopLeft = 1`, `TopRight = 2`, `BottomRight = 4`, `BottomLeft = 8`) to the shared
+      rounded-box geometry and stroke helpers in [DxUi.Controls.cpp](../../../src/Controls/DxUi.Controls.cpp).
+      Joined control groups (`SegmentedControl`, split `Button`, `NumericStepper` buttons, attached `SearchBox`
+      actions and docked `TabStrip` items) render crisp `0 px` inner seams and rounded outer corners without extra
+      clip layers.
+    - Pair the `V3` hairline border with an optional 1-DIP subtle top inner specular highlight or bottom outer
+      emboss rim from theme tokens, giving controls tactile depth in a single geometry pass.
+  - **Gates**: **0** extra `PushLayer` calls on joined controls; WARP pixel tests at 100/125/150/200% DPI verify
+    sharp inner joins and 1-device-pixel rims; gallery and design-system review.
+- [ ] **B3 Blender-style numeric scrubbing and menu typeahead (optional control polish).**
+  - **Concept** (Blender `interface_handlers.cc`, `interface_string_search.cc`):
+    - `NumericStepper`: drag horizontally on the value body to scrub continuously (Shift for 0.1× fine step, Ctrl for
+      step snap) while preserving click-without-drag for direct text entry; dragging vertically across stacked
+      `NumericStepper` siblings scrubs all of them together in one gesture (high value for multi-axis transform and
+      filter headers in consumers).
+    - `MenuPopup`: optional typeahead filter mode that narrows items by multi-word prefix/substring match and ranks
+      recently invoked commands first while keeping full keyboard arrow and UIA navigation.
+  - **Gates**: deterministic interaction tests in `Controls.Tests`, UIA value/selection notifications unchanged, and
+    updated `docs/controls.md` plus gallery tiles.
+- [ ] **B4 Resolution-independent GPU curve text for zoomed vector surfaces (research option after P4.1 and P6.1).**
+  - **Concept** (Eric Lengyel's MIT-licensed Slug algorithm, used in `bui_ui.hlsl:117-220` `K_SLUG`):
+    - Keep DirectWrite + ClearType/grayscale (`P4.1`) for all 1:1 DPI-snapped UI chrome, where OS hinting,
+      bidirectional shaping and font fallback are mandatory.
+    - Evaluate whether a custom D2D `ID2D1DrawTransform` pixel shader integrating quadratic Bezier glyph outlines
+      (extracted via `IDWriteFontFace::GetGlyphRunOutline`) is warranted for arbitrarily zoomed diagrams
+      (`PreparedFlowchart`, Mermaid diagrams and zoomed math in
+      [DxUi.RichSemanticGeometry.cpp](../../../src/Controls/DxUi.RichSemanticGeometry.cpp)), where bitmap caches blur
+      under scale and rebuilding `IDWriteTextLayout` per zoom frame is costly.
+  - **Gate**: prototype only if post-`P6.1` counters on a pinch-zoom diagram scenario still show layout/geometry
+    rebuilds dominating frame work.
+
+### BUI mechanisms explicitly rejected for DxUi
+
+- **The "Twice as good as GPUI" startup benchmark framing:** `BUI` compares its `~5 ms` first frame (drawn on the CPU
+  by `gpu_raster.c` while `D3D11CreateDevice` runs on a background thread in `gpu_raster.c:267-306`) against GPUI's
+  `~220 ms` synchronous cold D3D11 + DirectWrite startup. `DxUi`'s `EmbeddedHost` borrows the application's existing
+  D3D11 device (`0 ms` device init) and already prepares clean frames in `0.0003 ms` and composites in `0.0104 ms`.
+- **Full-frame `CopyResource` on every `Present1` (`gpu_d3d11.c:1597`) and UI-thread `DwmFlush()`
+  (`kit_window_win32.c:300`):** both cost unnecessary bandwidth or stall the UI thread compared with `P3.3`
+  history-union partial present and `P2.7` waitable swap chains.
+- **64×32 CPU pixel-diff tile filtering (`gpu_raster.c:405-425`):** useful for a CPU software framebuffer blitted via
+  `SetDIBitsToDevice`, but redundant on a GPU D2D target once `P3.1` suppresses no-op state invalidations before
+  rasterization.
+- **`stb_truetype` single-font text without UIA or TSF IME:** lacks OpenType complex-script shaping, system font
+  fallback, ClearType, Windows UI Automation (`IRawElementProviderSimple` / `ITextProvider`) and TSF composition, all
+  of which are non-negotiable in `DxUi`.
+
+## Sequencing
+
+```mermaid
+flowchart LR
+    P0["P0 counters, scenarios, oracle, swap-chain truth"] --> P1["P1 verified hotspots"]
+    P0 --> P2["P2 scheduling"]
+    P0 --> P3["P3 dirty regions"]
+    P1 --> P4["P4 text pipeline"]
+    P3 --> P4
+    P2 --> V1["V1 motion"]
+    P2 --> V6["V6 scrolling"]
+    P1 --> V4["V4 shadows"]
+    P4 --> P5["P5 layout"]
+    P4 --> P6["P6 rich documents"]
+    P3 --> P7["P7 accessibility"]
+    P1 --> P8["P8 memory"]
+    V1 --> V7["V7 connected animation"]
+    P1 --> V5["V5 materials"]
+    P4 --> V8["V8 glide"]
+    P3 --> V3["V3 geometry"]
+    P0 --> V2["V2 color"]
+    P4 --> D4["D4 strip cache decision"]
+    P2 --> D4
 ```
 
-### Documented negative results in `anomalyco/rune` (what Rune spiked and rejected)
+API revision 6 (D3) lands as one PR carrying P2.4, P3.1's public surface and any P8.3 interface change, together
+with `capabilities.json`, `Tools/ConsumerApi`, `docs/upgrade.md` and samples.
 
-1. **Per-word text shaper cache (`research/32-engine-plan.md:443-468` §6 Q2 & `research/37:185` — REJECTED)**: On real
-   50 KB files (`PLAN.md`, `CHANGELOG.md`, `runtime.rs`, `57.4%–58.8%` word repeat rate) with mandatory per-paragraph
-   BiDi/script analysis included, a word-level shaper cache yielded only **`1.46×–1.57×`** cold speedup (missing the
-   `2.0×` bar) while breaking cross-space kerning/ligatures and UAX #14 line breaking. Paragraph-level caching
-   (`shape_key` + in-place `break_key` + `supersede`) achieved **`150×` faster typing (`0.10 ms`)** and **`384/384`
-   bit-exact runs**.
-2. **Per-frame bump arena for retained control/layout nodes (`research/37-what-to-own-next.md:183` — REJECTED)**:
-   Allocation was `< 1%` of busy time once `Cold<T>` and in-place node moves landed; an arena only reaches
-   frame-lifetime objects while complicating ownership.
-3. **Pooling node path strings across commits (`research/37-what-to-own-next.md:223-243` — REJECTED)**: Saved `3.5%`
-   of commit allocations on the long card workload, but instructions moved `-0.02%` and commit-frame medians regressed
-   in half the paired rounds (`7.94 → 8.11 ms`).
-4. **Keeping node references to cached `Layout` across `relayout::solve` (`research/38-view-rerun-and-commit-cost.md:105-110`
-   — REJECTED)**: Keeping `n.text_layout` (`Rc<Layout<Ink>>`) attached during `solve` left `Rc::strong_count == 2`
-   alongside the layout cache, forcing a deep clone on width re-break for fixed-size wrapped boxes.
+## Risk register
 
-## Implementation sequence
+| Risk | Mitigation |
+| --- | --- |
+| Glyph-run replay differs from `DrawTextLayout` (snapping, color fonts, fallback) | Pixel-identical corpus gate; any failing class keeps using a layout; the cache is a pure optimization behind one helper |
+| Partial present shows stale pixels | P0.4 truth test first; history-union rendering; force full on any uncertain present; parity readback |
+| Culling skips content drawn outside bounds | Declared overhang; P0.3 oracle; full repaint stays the default for unmigrated invalidations |
+| Pacer thread lifetime or shutdown problems | One thread per UI thread, joined before detach; blocks on events only; tested hide/destroy/device-loss paths |
+| Cross-edit carry shows stale math or diagrams | Exact source-text compare (not hash only); theme/zoom/width in the key; parity oracle against a fresh preparation |
+| Visual changes surprise consumers | D6 sign-off; one gallery carousel per V-item; upgrade notes; reduced-motion and High Contrast unchanged |
+| API 6 churn across four consumers | One bundled revision; compile-breaking rather than silent; each consumer migrates explicitly in its own repository |
+| Counters themselves cost time | Coarse event granularity only; under 1% gate in P0.1 |
 
-Work on focused feature branches from `main`. Every performance-affecting wave captures a retained baseline before code
-edits and compares the candidate on the identical machine and fixture (`test.ps1`, `performance-paired.ps1`,
-`Publish-BenchmarkVerdict.ps1`). Tick a box only with its commit and passing test/receipt.
+## Closeout gates
 
-### Wave 0 — developer decisions that unblock implementation
-
-Decided on 7 November 2026:
-
-- [x] **D1. Sequencing with [RemainingWork_2026-11-04](RemainingWork_2026-11-04.md) and
-  [ProductionReview_2026-11-02](../Done/ProductionReview_2026-11-02.md) (D9 history rewrite and shared Wave 1/2 items)**.
-  **Decided 7 November: separate WIP plan, coordinated post-D9 on shared files.** Keep this plan as its own indexed WIP
-  plan and coordinate the overlapping rich-text/control items (`EDIT-01`/`RENDER-01`/`RENDER-14`, `RENDER-02`,
-  `RENDER-05`, `RENDER-09`, `SEM-02`, `MD-05`..`MD-07`, `CTRL-02`, `CTRL-04`, `CTRL-13`, `HOST-03`, `HOST-08`,
-  `HOST-09`, `HOST-13`, `HOST-14`) after D9's history rewrite so each file is modified once.
-- [x] **D2. `MenuPopup` 4,096-row UIA contract ([Core_PerformanceAndResources.md](../../Core/Core_PerformanceAndResources.md))**.
-  **Decided 7 November: preserve full popup row publication with `O(1)` incremental updates.** Keep the normative
-  requirement (*"A popup publishes its rows' elements whether or not a client listens"*) and eliminate the `6.10 ms/step`
-  keyboard/scroll spike via in-place `O(1)` focus/scroll updates on the popup's retained `AccessibilitySnapshot` plus an
-  `O(1)` prefix-sum item Y-offset table.
-- [x] **D3. Clean API evolution — no backwards-compatibility shims (`apiRevision` `4 -> 5`)**. **Decided 7 November: no
-  need for compatibility.** All consumers (`RedXe`, `RedPrism`, `RedTilde`, `RedSalamander`) are pinned first-party
-  consumers upgraded explicitly; do not retain legacy API shims when a clean API revision 5 contract eliminates
-  allocations, memory or polling:
-  1. **Base `Control` compaction & lifetime handle (Wave 10)**: Extract `std::unique_ptr<ColdControlMetadata>`, pack
-     boolean/tri-state inheritance flags into `_packedStateBits`, **and** replace `std::shared_ptr<int> _lifetimeToken`
-     with a non-throwing 64-slot slab `ControlLifetimeHandle` (`sizeof(Control)` `296 B -> ~112–120 B`, cutting
-     per-control heap control-block allocations by 64× while keeping `GetLifetimeToken() const noexcept` 100%
-     allocation-free and `std::terminate`-proof).
-  2. **Direct deadline-aware `EmbeddedHost` scheduling (Wave 2)**: Replace boolean VBlank polling for discrete timers
-     with a clean deadline-aware scheduling contract on `EmbeddedHost` (`GetNextWakeDelayMs()` / continuous-vs-deadline
-     wake semantics) rather than carrying legacy compatibility wrappers.
-  3. **Zero-copy `IGridModel` / `ITreeModel` text & column views (Wave 8)**: Replace by-value `std::wstring` /
-     `GridColumn` model getters on hot paths with zero-copy `std::wstring_view` / caller-scratch formatting in API
-     revision 5 (`capabilities.json` and `Tools/ConsumerApi/` updated together with `docs/upgrade.md`).
-- [x] **D4. Non-virtual `ScrollPanel` GPU strip cache scope**. **Decided 7 November: gate on post-Wave-5 measurement.**
-  Only implement D2D bitmap strip caching (`<= 16 MiB` within the 64 MiB per-view cap, with strict ClearType/subpixel/animation
-  `Bypass` and `WorkBudget` auto-demotion) if dense non-virtual `ScrollPanel` wheel benchmarks still exceed `0.5 ms/step`
-  on WARP after clip culling (Wave 3), `ShapedTextCache` (Wave 5) and `HoverFreeze` (Wave 2).
-
-### Wave 1 — lockstep `IncrementalVsFresh` WARP oracle & baseline hygiene
-
-- [ ] **W1.1. Paired baseline capture**: Record pre-change baseline receipts via `performance-paired.ps1` and `test.ps1`
-  on `ComplexUi`, `Menu-Popup4096-Keyboard`, `ComboBox` 500-item overlay paint, idle focused caret wakeups, and 64 Ki-unit
-  `RichTextEditor` typing.
-- [ ] **W1.2. Lockstep differential oracle & thread-local zero-alloc guard (`Tests/Controls`, `Tests/Embedded`)**: Add
-  `VerifyIncrementalParity` and `Controls.Tests.LayoutAndPaintOracle.cpp` (modeled on `gpui-fast`'s `oracle.rs` /
-  `--verify` and `anomalyco/rune`'s 3-rule paragraph stacking matrix + `procwatch::alloc` thread-local allocation
-  counters) running multi-step mutation scripts against an incremental host/view and a freshly invalidated WARP
-  reference, asserting `0` BGRA pixel diff, bit-identical `GetBounds()` across all controls, identical
-  `WindowHostAccessibilitySnapshot` records, positive cache-hit counters, and `0` thread-local heap allocations via
-  `ScopedZeroAllocationCheck` on warm scroll, settled layout, and scalar `ProgressBar`/`Slider` updates.
-- [ ] **W1.3. Host render & wake hygiene (`HOST-03`, `HOST-09`, `HOST-14`)**: Remove the dead `#else` duplicate of
-  `ControlHost::Render` in [DxUi.WindowHost.cpp](../../../src/Controls/DxUi.WindowHost.cpp) (`line 4601`); stop bare
-  `Ctrl` key transitions over non-editor controls from waking clean `EmbeddedHost` views (`HOST-03`); skip redundant
-  text-input activation when focus is on a non-text control in `EmbeddedHost::Prepare` (`HOST-09`).
-
-### Wave 2 — deadline-driven `AnimationDispatcher`, `Tick` subtree pruning & `HoverFreeze`
-
-- [ ] **W2.1. Deadline timer scheduling & `poll_alone` (`AnimationDispatcher` & `ControlHost`)**: Add
-  `RequestWakeAt(uint64_t wakeTickMs)` to [AnimationDispatcher.h](../../../src/Support/AnimationDispatcher.h) and
-  `ControlHost` so discrete timers arm `SetTimer` for the exact next deadline (`minWakeTickMs - now`) instead of polling
-  at `kFrameIntervalMs = 8u` (125 Hz) whenever no continuous interpolation animation is active. Following
-  `anomalyco/rune`'s `TimerWake::poll_alone` (`timer_wake.rs:36-127`), drain due deadlines immediately and run discrete
-  callbacks before scheduling `Prepare`/`Render`, skipping GPU presentation when no visible state changed.
-- [ ] **W2.2. Caret & tooltip deadline migration**: Migrate `TextField::Tick` (530 ms,
-  [DxUi.TextInput.cpp](../../../src/Controls/DxUi.TextInput.cpp)), `ComboBox::Tick` (530 ms,
-  [DxUi.ComboBox.cpp](../../../src/Controls/DxUi.ComboBox.cpp)), `RichTextEditor::Tick` (500 ms,
-  [DxUi.RichTextEditor.cpp](../../../src/Controls/DxUi.RichTextEditor.cpp)), and `TooltipLayer::Tick` (500 ms show /
-  5,000 ms auto-hide, [DxUi.Controls.cpp](../../../src/Controls/DxUi.Controls.cpp)) from returning continuous `true` to
-  scheduling their exact next flip/hide deadline, and honor `host.AreAnimationsEnabled()` / `GetCaretBlinkTime()` in
-  `TextField::Tick` and `ComboBox::Tick`.
-- [ ] **W2.3. `_subtreeHasTickables` pruning, clip-gated `LoopClock` & clean `EmbeddedHost` deadline contract (D3.2)**:
-  Propagate a `_subtreeHasTickables` bit up `Panel` ancestors so `Panel::Tick` skips inert subtrees without touching
-  lifetime handles; gate periodic animations (`ProgressBar` indeterminate pulse, `ThroughputGraph`) on ancestor
-  scroll-clip intersection and `effectiveOpacity > 0.0f` while phase-aligning resumed loops via a monotonic `LoopClock`
-  (`loop_clock.rs:24-91`); upgrade `EmbeddedHost` animation queries directly to expose exact next-deadline delay
-  (`GetNextWakeDelayMs()`, API revision 5, no legacy compatibility wrapper) so embedded hosts sleep between 500–530 ms
-  caret flips.
-- [ ] **W2.4. Stationary-cursor `HoverFreeze` during wheel scroll (`hover_freeze.rs`)**: Suppress hover re-hit-testing
-  and tooltip churn during wheel scrolling (`ScrollPanel`, `Grid`, `Tree`, `MenuPopup`) while the physical cursor screen
-  point is unchanged, arming a single 100 ms one-shot settle wake when scrolling stops (zero idle timers).
-
-### Wave 3 — pixel-snapped `DirtyRegion`, clip-rect subtree culling, live-resize brush retention & `CompositeBatch`
-
-- [ ] **W3.1. Outward-pixel-snapped 4-rect `DirtyRegion` & scalar `Live<T>` bounds updates**: Add fixed-capacity
-  `DirtyRegion` (`std::array<D2D1_RECT_U, 4>` snapped outward by 1 device pixel via `floor`/`ceil` to cover ClearType/AA
-  fringes; coalescing to bounding box on the 5th rect or falling back to `full = true` above 65% surface area or on
-  resize/DPI/theme/device/root/smoke-overlay change). Record both old and new visual bounds on `SetBounds`, `SetVisible`,
-  hover/focus/press transitions, caret blink, `_tooltipLayer`, and scalar value updates (`ProgressBar::SetValue` and
-  `Slider::SetValueInternal` in [DxUi.Controls.cpp](../../../src/Controls/DxUi.Controls.cpp), `lines 5137-5149, 6635-6680`).
-- [ ] **W3.2. `WindowHost` & `EmbeddedHost` partial dirty preparation & border fill inset**: Feed `DirtyRegion` into
-  `WindowHost::Render`'s existing `PushAxisAlignedClip` + `DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL` `Present1` path
-  ([DxUi.WindowHost.cpp](../../../src/Controls/DxUi.WindowHost.cpp)) and into `EmbeddedHost::Prepare`
-  ([Embedded.cpp](../../../src/Rendering/Embedded.cpp)) when `s.bitmapNeedsFullPaint == false`; inset opaque rounded-rect
-  fills by `0.5f * strokeWidth` beneath opaque border strokes (`anomalyco/rune` `border::fill_under`).
-- [ ] **W3.3. Container clip-rect subtree culling**: Maintain a `currentClipDip` stack on `ControlHost` and skip
-  non-intersecting children (`!HasClipEscapeDescendant()`) in `Panel::Paint`, `Panel::PaintOverlay`,
-  `ScrollPanel::Paint`, `FlexPanel`, and `FormPanel`.
-- [ ] **W3.4. Preserve `_brushCache` across `WM_SIZE`**: Remove `_brushCache.clear()` from
-  `ControlHost::PrepareForSwapChainResize` ([DxUi.WindowHost.cpp](../../../src/Controls/DxUi.WindowHost.cpp), `line 4504`),
-  retaining `ID2D1SolidColorBrush` instances across swap-chain buffer resizes (clearing only in `DiscardDeviceResources` /
-  device loss) to eliminate 30–64 `CreateSolidColorBrush` COM allocations per resize frame.
-- [ ] **W3.5. Optional `EmbeddedGraphicsContext::CompositeBatch` (`draw_state.rs`)**: Add a batch composition entry
-  point that binds shared D3D11 shaders, blend, rasterizer, sampler and vertex/index state once across `N` embedded views
-  and queries `context->GetDevice()` once per batch.
-
-### Wave 4 — container-owned 4-slot `MeasureLog`, unwrapped-fit carry & post-arrange width settle
-
-- [ ] **W4.1. Fix `CTRL-02` & `O(N²)` `FlexPanel::ApplyLayout`**: In `Label::PrepareVisualContent`
-  ([DxUi.Controls.cpp](../../../src/Controls/DxUi.Controls.cpp), `line 2944`), check `_typographyOverride.has_value() || GetMnemonic() != L'\0'`
-  before calling `IsControlInTree`, and enable visual preparation on `Label` only when an override or mnemonic is set.
-  Replace the `O(N²)` per-child `stillValid()` child loop in `FlexPanel::ApplyLayout`
-  ([DxUi.Layout.cpp](../../../src/Controls/DxUi.Layout.cpp), `lines 1023-1053`) with an `O(1)`
-  `_childrenTopologyRevision` + `_interactionRevision` delta check (matching `FormField::ApplyLayout`).
-- [ ] **W4.2. 4-slot `MeasureLog` & unwrapped-fit carry on `FlexPanel::ChildRecord` and `FormField::PartMeasure`**:
-  Replace the 1-slot width cache on `FlexPanel::ChildRecord` and `FormField::PartMeasure`
-  ([DxUi.h](../../../include/DxUi/DxUi.h)) with a 4-slot `MeasureLog` (`std::array<MeasureLogEntry, 4>`) keyed by
-  existing `Control::_measureRevision`, plus unwrapped-fit carry (`unwrappedWidthDip <= queryMaxWidthDip` returns the
-  cached single-line measurement immediately). Costs `0 B` on manual-layout controls.
-- [ ] **W4.3. Pre-layout leaf size-stability cutoff (`LiveText`) & post-arrange `settle_measured_leaves`**: In
-  `Label::SetText` ([DxUi.Controls.cpp](../../../src/Controls/DxUi.Controls.cpp), `lines 2817-2836`) and during
-  `PreparePendingPageLayout`, check if a modified leaf's single-line `DesiredSize` (via `NumberGlyphTable`/`ShapedTextCache`
-  or fixed constraints) matches its prior `DesiredSize`; when unchanged, skip `InvalidateMeasure()` and only mark the
-  control's `DirtyRegion` (`anomalyco/rune` `LiveText`). After container `ApplyLayout` finishes, verify that any wrapped
-  text leaf's arranged content width matches its last shaped width (`settle_measured_leaves`), re-shaping at the final
-  arranged width in `PrepareVisualContent` when different.
-
-### Wave 5 — three-tier `ShapedTextCache` (`DrawGlyphRun`), context-safe `NumberGlyphTable` & `O(1)` brush/format caches
-
-- [ ] **W5.1. Tier 0 — PUA icon micro-table & context-safe `NumberGlyphTable` (`number_shaping.rs`)**:
-  - Cache single-codepoint Segoe Fluent Icons (`U+E000..U+F8FF`) glyph index + advance in a 128-entry flat table drawn
-    via `dc->DrawGlyphRun`.
-  - Add per-`(IDWriteFontFace*, fontEmSize)` `NumberGlyphTable` covering **strictly context-free ASCII `0123456789.,+-%$KMBT`
-    and `' '`** (never `:`, `/`, or `x` so `Segoe UI` OpenType `calt` `colon.case` never diverges), using cached glyph
-    indices, design metrics and pairwise kerning adjustments, guarded by a **1-in-256 DirectWrite verification oracle**
-    (plus first 32 calls in Debug) that sets `font.disagreed = true` on any mismatch.
-- [ ] **W5.2. Tier 1 — width-independent unwrapped `CapturedGlyphRuns` via `IDWriteTextRenderer`, `KeyHasher` & `CachedElision`**:
-  - Precompute `_textShapeKey` on `SetText`/typography changes using `anomalyco/rune`'s folded 128-bit multiply mixer
-    (`SEED = 0x243f6a8885a308d3ULL`, `MUL = 0x9e3779b97f4a7c15ULL` in `text/hash.rs:21-97`).
-  - Capture `DWRITE_GLYPH_RUN` slices (`wil::com_ptr_nothrow<IDWriteFontFace3>`, `fontEmSize`, `bidiLevel`, offsets,
-    arena `glyphIndices`/`glyphAdvances`/`glyphOffsets`, underline/strikethrough, `unwrappedWidthDip`, `heightDip`,
-    `baselineDip`, `hasColorGlyphs`) from `IDWriteTextLayout::Draw` once per distinct `(IDWriteTextFormat*, readingDirection, text)`
-    up to 256 UTF-16 code units (~280 B/entry vs ~20 KB `IDWriteTextLayout`), excluding color/hover/selection from the key,
-    plus `CachedElision` (`layout_cache.rs:21-25`) caching `(glyphRuns, headLen, tailLen)` for ellipsis-truncated strings.
-  - Unify `MeasureText` ([DxUi.Layout.cpp](../../../src/Controls/DxUi.Layout.cpp)) and `DrawCenteredText`
-    ([DxUi.Controls.cpp](../../../src/Controls/DxUi.Controls.cpp)): `MeasureText` populates Tier 1 and eliminates its
-    `std::vector<DWRITE_LINE_METRICS>` heap allocation; `DrawCenteredText` replays via `dc->DrawGlyphRun` with
-    alignment computed from `unwrappedWidthDip` and device-pixel baseline snapping (`quantize_origin`), satisfying
-    wrapped/ellipsis queries directly whenever `unwrappedWidthDip <= rectWidth`.
-- [ ] **W5.3. Windows 10 + Windows 11 color-glyph support (`RENDER-05`)**: When `hasColorGlyphs` is set, use
-  `ID2D1DeviceContext7::DrawGlyphRunWithColorSupport` when available (Win11 22H2+) and fall back to
-  `IDWriteFactory4::TranslateColorGlyphRun` + `ID2D1DeviceContext4` (`DrawGlyphRun` / `DrawSvgGlyphRun` /
-  `DrawColorBitmapGlyphRun`) on Windows 10 / WARP. Share this helper with `DxUi.RichTextScriptRenderer.h` to close
-  `RENDER-05`.
-- [ ] **W5.4. Tier 2 bounded wrapped/ellipsis/mnemonic sub-cache, in-place `SetMaxWidth` re-break & `SupersedeTextShape`**:
-  Keep a 128-entry width-keyed `IDWriteTextLayout` sub-cache only for genuinely multi-line wrapped text, overflowing
-  ellipsis strings, and `DrawTextWithMnemonic`. In `Label::PrepareVisualContent`
-  ([DxUi.Controls.cpp](../../../src/Controls/DxUi.Controls.cpp), `lines 2958-3006`), when only `width`/`height` changed
-  on resize, call `_typographyLayout->SetMaxWidth(width)` / `SetMaxHeight(height)` in place (`anomalyco/rune`
-  `research/28`). Record `SupersedeTextShape(prevShapeKey)` on self-edits (`layout_cache.rs:86-106`) and bound stale
-  layouts by byte cost (`LAYOUT_BASE = 2048 + 64 * textBytes`, `STALE_BYTES = 3 MiB`), trimming **only at
-  frame/preparation start** in `ControlHost::TrimCaches()` and releasing all entries on `OnHidden`, `Detach`,
-  `DiscardDeviceResources`, and DPI/theme changes.
-- [ ] **W5.5. `O(1)` flat clock-LRU `_brushCache` & `_configuredTextFormats` + zero-alloc `CreateTextFormatForSpec`**:
-  Replace the 64-entry linear scans and `.clear()` overflow cliffs in `ControlHost::GetSolidBrush`,
-  `ControlHost::GetTextFormat`, and `ControlHost::TrimCaches` with open-addressed flat clock-LRU hash tables, and avoid
-  allocating `std::wstring resolvedFamily` in `CreateTextFormatForSpec` ([Typography.h](../../../include/DxUi/Typography.h)).
-
-### Wave 6 — `ComboBox` & `MenuPopup` `O(1)` overlay paint, cached material surfaces & prefix-sum geometry
-
-- [ ] **W6.1. `ComboBox` `PopupLayoutCache` (`8,500 -> 0` `CreateTextLayout`/frame)**: Cache the computed `PopupLayout`
-  on `ComboBox` ([DxUi.ComboBox.cpp](../../../src/Controls/DxUi.ComboBox.cpp), `lines 836-918, 2528-2668, 3051-3073`),
-  invalidated only when `_items`, typography/DPI, control bounds, window size, or containing `ScrollPanel` scroll offset
-  changes, and route `ComputePopupWidthDip` and item drawing through `ShapedTextCache`.
-- [ ] **W6.2. Retained popup backdrop/material/shadow D2D resources & 4-band hollow shadow culling**: Cache unit-space
-  linear gradient brushes (matching `ColorPicker::EnsureBrushes` in
-  [DxUi.EditorControls.cpp](../../../src/Controls/DxUi.EditorControls.cpp)), rounded clip geometry,
-  `CLSID_D2D1GaussianBlur` effect, and `DrawDropShadow`'s 2 `ID2D1CommandList`s + 2 `CLSID_D2D1Shadow` effects
-  ([DxUi.Controls.cpp](../../../src/Controls/DxUi.Controls.cpp), `lines 246-296, 797-810`) across frames in
-  `PaintComboBoxBackdropSurface` / `PaintComboBoxPopupMaterialSurface` and `PaintMenuBackdropSurface` /
-  `PaintMenuMaterialSurface` ([DxUi.Menu.cpp](../../../src/Controls/DxUi.Menu.cpp)); when the popup's opaque interior
-  hole (inset by `cornerRadiusDip + 1.0f`) is `>= 96.0f × 96.0f` DIPs (`MIN_HOLE`), emit shadow passes through 4
-  perimeter `PushAxisAlignedClip` bands (`anomalyco/rune` `bands::push_shadow`, `bands.rs:17-47`).
-- [ ] **W6.3. `MenuPopup` open/paint fast path & cached WIC factory**: Cache the WIC imaging factory in
-  `GetMenuIconWicFactory` ([DxUi.Menu.cpp](../../../src/Controls/DxUi.Menu.cpp), `line 805`); build a prefix-sum item
-  Y-offset table at popup open for `O(1)`/`O(log N)` item-rect and visible-range queries; route menu labels, accelerators,
-  checkmarks and icons through `ShapedTextCache`.
-
-### Wave 7 — `TextField`, `SingleLineTextEditing`, `NativeTextInput`, `TagPicker` & `Splitter` de-churn
-
-- [ ] **W7.1. Single-line `TextField` cache-hit & display-text zero-alloc path (`CTRL-13`)**: In
-  `GetOrCreateSingleLineTextLayout` ([DxUi.SingleLineTextEditing.cpp](../../../src/Controls/DxUi.SingleLineTextEditing.cpp),
-  `lines 486-542`) and `TextField::GetOrCreateSingleLineLayout`
-  ([DxUi.TextInput.cpp](../../../src/Controls/DxUi.TextInput.cpp), `line 3546`), guard `cache->text` copy and
-  `SetMaxWidth`/`SetMaxHeight` behind `!cacheHit`, only run `SecureWipe::SecureClear` when `IsPasswordMasked()` (or when
-  clearing a previously masked cache), and add a zero-copy `GetDisplayTextView()` (`std::wstring_view`) for unmasked
-  fields.
-- [ ] **W7.2. Zero-copy IME composition guard & stack-buffered `HitTestTextRange`**: Add
-  `ControlHost::HasNativeTextCompositionOrTarget(const Control*) const noexcept`
-  ([DxUi.NativeTextInput.cpp](../../../src/Controls/DxUi.NativeTextInput.cpp)) so `TextField::Paint` and
-  `ComboBox::Paint` skip copying `NativeTextInputState` when no composition is active; probe `HitTestTextRange` in
-  `ComputeSingleLineSelectionPaintRectFromLayout` with a stack `std::array<DWRITE_HIT_TEST_METRICS, 8>` before heap
-  fallback.
-- [ ] **W7.3. Multiline `TextField` layout reuse**: Pass `_cachedMultilineLayout` into `DrawMultilineSelection` and
-  `MeasureMultilineCaretRectDip` ([DxUi.TextInput.cpp](../../../src/Controls/DxUi.TextInput.cpp), `lines 543-619, 753-819`)
-  and cache line metrics on the multiline cache entry to eliminate 2 `CreateTextLayout` COM allocations and 2 `std::vector`
-  allocations per focused multiline paint frame.
-- [ ] **W7.4. `TagPicker` layout cache & `Splitter` preview UIA coalescing**: Cache `TagPicker::ComputeLayout`
-  ([DxUi.Controls.cpp](../../../src/Controls/DxUi.Controls.cpp), `lines 7475-7575`) across `Measure`/`Paint`/`HitTest`
-  when tags, width and font are unchanged (drawing the `×` glyph without `tag + L" \x00D7"` heap concatenation); coalesce
-  `RefreshWindowHostAccessibilitySnapshot` during `Splitter::NotifyChange` (`SplitterChangePhase::Preview`,
-  [DxUi.EditorControls.cpp](../../../src/Controls/DxUi.EditorControls.cpp), `line 745`) to once per frame/commit; remove
-  redundant tooltip `std::wstring` copy (`HOST-13`).
-
-### Wave 8 — zero-allocation `Grid::Paint`, `Grid`/`Tree` row text caching & `O(1)` key navigation
-
-- [ ] **W8.1. Zero-allocation `Grid::Paint` & zero-copy `IGridModel` / `ITreeModel` views (`54 -> 0` dirty-frame
-  allocations in `ComplexUi`, D3.3)**: Hoist column metadata out of the per-row × per-column loop in `Grid::Paint`
-  ([DxUi.Grid.cpp](../../../src/Controls/DxUi.Grid.cpp), `lines 4115, 4395`), reuse member `_visibleBodyItemsScratch`
-  and `_orderedGroupsScratch` vectors, and upgrade `IGridModel` / `ITreeModel` in API revision 5 to expose zero-copy
-  `std::wstring_view` / caller-scratch cell and column queries so even live-mutating cells allocate `0` heap strings.
-- [ ] **W8.2. `Grid` & `Tree` `ShapedTextCache` / `NumberGlyphTable` routing**: Route `Tree` rows (`DrawTreeRow` in
-  [DxUi.Tree.cpp](../../../src/Controls/DxUi.Tree.cpp)) and `Grid` headers, spinners, icons, badges, and unwrapped
-  single-line cells through `ShapedTextCache` (Tier 0 `NumberGlyphTable` for numeric/size columns + Tier 1 width-independent
-  `CapturedGlyphRuns`, eliminating column-resize `CreateTextLayout` storms and 2,048-row scroll thrashing), while keeping
-  `_cellTextLayouts` `IDWriteTextLayout` retention strictly bounded to on-screen multiline/clamped/complex cells per
-  [Core_PerformanceAndResources.md](../../Core/Core_PerformanceAndResources.md).
-- [ ] **W8.3. `O(1)`/cached `Grid` & `Tree` keyboard navigation (`CTRL-04`)**: Cache `_visibleBodyItems` per
-  `(_modelRevision, _groupStateRevision)` across `Grid` arrow/page/home/end keys
-  ([DxUi.Grid.cpp](../../../src/Controls/DxUi.Grid.cpp), `line 5886`) and deduplicate the double `FindVisibleItemById`
-  scan in `Tree::SetFocusedItemId` ([DxUi.Tree.cpp](../../../src/Controls/DxUi.Tree.cpp), `lines 881-890`).
-
-### Wave 9 — `RichTextEditor`, `Markdown`, cross-edit `RichSemanticGeometry` retention, diagrams/math & path cache
-
-- [ ] **W9.1. Viewport-scoped `RichSourceGuides` & semantic `CodeNumbers` via `NumberGlyphTable` (`EDIT-01`, `RENDER-01`, `RENDER-14`)**:
-  Move source guides and code ink to `PrepareVisualContent` (never withholding frames via `S_FALSE` from
-  `PrepareContent`), scope preparation to `[scrollTop - viewport, scrollBottom + 2 * viewport]`, delete
-  `Preparation::Phase::CodeNumbers` per-line `PreparedLayout` allocations in
-  [DxUi.RichSemanticGeometry.cpp](../../../src/Controls/DxUi.RichSemanticGeometry.cpp) (`lines 2560-2607, 2808, 3339-3348`),
-  and draw both source gutter and `Subtle` fenced code block line numbers directly from `NumberGlyphTable` (`0`
-  `IDWriteTextLayout` COM objects on 64K-line documents and 4,096-line code fences).
-- [ ] **W9.2. `lineHeightMultiplier` 127-chunk positioned reuse (`RENDER-02`) & in-place `SetMaxWidth` resize re-break**:
-  Enable 127-chunk positioned layout reuse in [DxUi.RichDocumentLayout.cpp](../../../src/Controls/DxUi.RichDocumentLayout.cpp)
-  (`lines 307-313`) when `lineHeightMultiplier > 0` by applying uniform line-height scaling per chunk (preserving
-  `anomalyco/rune`'s 3 paragraph stacking invariants from `research/32:389-419`); in `PreparedLayoutAccess::Apply`
-  ([DxUi.RichTextLayout.cpp](../../../src/Controls/DxUi.RichTextLayout.cpp), `lines 280-454`), when shape inputs
-  (`projection.text`, `projection.runs`, `options`, inline objects) are unchanged and only `width` changed during resize,
-  call `state_->layout->SetMaxWidth(width)` in place and retain `state_->clusters` (`research/28`).
-- [ ] **W9.3. Cross-edit retention of `PreparedMath`, `PreparedFlowchart`, bitmaps & SVGs (extends `SEM-02`) + bounded code fence scanner**:
-  - In `PreparedSemanticGeometry::Begin`
-    ([DxUi.RichSemanticGeometry.cpp](../../../src/Controls/DxUi.RichSemanticGeometry.cpp), `lines 2179-2197`), remove the
-    `state_->document == document` gate on `previousImages` and `previousNative`: retain uploaded `ID2D1Bitmap`s and
-    `ID2D1SvgDocument`s keyed by `(RichImageId, frameRevision)` and retain `PreparedMath` / `PreparedFlowchart` across
-    document edits keyed by `(blockKind, sourceSpanHash, quantizedWidthDip, fontSize, zoom, themeRevision)`.
-  - In `SemanticBuilder` ([DxUi.RichSemanticDocument.cpp](../../../src/Controls/DxUi.RichSemanticDocument.cpp),
-    `line 1628`), carry parsed `MathExpression`, `FlowchartDiagram`, and unchanged semantic block layouts across localized
-    Markdown edits, translating `topDip` by `deltaY`, and record top-level block byte cuts (`cuts`, `markdown/cache.rs:64-125`)
-    for append tail re-parsing.
-  - In `TokenizeCode` ([DxUi.RichCodeInk.h](../../../src/Controls/DxUi.RichCodeInk.h), `lines 27-36, 103-107`), prefix-color
-    up to a `32 KiB` newline cut (`coloured_len`, `syntax/scan.rs:84-137`) and retain the first `MaximumCodeTokens = 4096u`
-    tokens instead of clearing `output.clear()` on overflow.
-  - Eliminate the duplicate encoded byte buffer in `RichImage::LoadFile` (`RENDER-09`,
-    [DxUi.RichImage.cpp](../../../src/Controls/DxUi.RichImage.cpp), `line 249`) and fix the quadratic `<!--`/`<?`/`<![CDATA[`
-    inline scans (`MD-05`..`MD-07`, [DxUi.MarkdownInlines.h](../../../src/Controls/DxUi.MarkdownInlines.h), `line 1044`).
-- [ ] **W9.4. `PreparedMath` & `PreparedFlowchart` stack/contrast/arrowhead de-bloat + shared `kSrgbByteToLinear[256]` LUT**:
-  Replace all 4 `std::pow((c + 0.055) / 1.055, 2.4)` helpers ([Utilities.h](../../../src/Support/Utilities.h) `line 21`,
-  [DxUi.Theme.cpp](../../../src/Controls/DxUi.Theme.cpp) `line 53`,
-  [DxUi.PreparedMath.h](../../../src/Controls/DxUi.PreparedMath.h) `line 2855`,
-  [DxUi.PreparedFlowchart.cpp](../../../src/Controls/DxUi.PreparedFlowchart.cpp) `line 21`) with a shared `constexpr float kSrgbByteToLinear[256]`
-  lookup table (`anomalyco/rune` `image/mips.rs:125-152`) and fast-skip `alpha == 255u` / `0u` in `ComposeGifCanvas`
-  ([DxUi.RichImage.cpp](../../../src/Controls/DxUi.RichImage.cpp), `lines 152-165`); cache WCAG-resolved node/ink colors
-  keyed by `(backgroundArgb, defaultInkArgb, dark, highContrast)` on `PreparedMath` and `PreparedFlowchart` instead of
-  zeroing 9–60 KB stack arrays every paint; replace per-edge arrowhead `ID2D1PathGeometry` COM objects with 1 shared
-  unit-arrowhead geometry positioned via `SetTransform`; size `FlowchartGraph`/`LayoutScratch` to actual node/edge counts.
-- [ ] **W9.5. `O(log L)` `VisibleRange` (`glyphs_in_band`), `PaintIndex` capacity reuse & clickable-only hover (`interactive_text.rs`, `HOST-08`)**:
-  Store cumulative `lineTops` in `PreparedLayout::State` during `Apply` so `PreparedLayout::VisibleRange`
-  ([DxUi.RichTextLayout.cpp](../../../src/Controls/DxUi.RichTextLayout.cpp), `lines 590-609`) uses `std::lower_bound` /
-  `std::upper_bound` (`O(log L)`, `0` `HitTestTextPosition` COM calls, matching `anomalyco/rune`'s `glyphs_in_band` in
-  `text/glyph_emit.rs:54-68`); route `PreparedSemanticGeometry::VisibleRange` and `VisibleSourceRange`
-  ([DxUi.RichSemanticGeometry.cpp](../../../src/Controls/DxUi.RichSemanticGeometry.cpp), `lines 3120-3140, 3243-3259`)
-  through `state.paintBoxes.ForEach(top, bottom, ...)`; reuse `this->nodes` vector capacity in `PaintIndex::Build`
-  ([DxUi.PaintIndex.h](../../../src/Controls/DxUi.PaintIndex.h), `lines 30-52`); index clickable link/image/footnote
-  spans so pointer motion over plain rich text skips hover invalidation and `O(N)` title scans (`HOST-08`).
-- [ ] **W9.6. Origin-relative `(0,0)` `ID2D1PathGeometry` cache + `heavy` slot (`path_cache.rs`)**: Cache `(0,0)`-origin
-  geometries (`<= 512` entries / `<= 4 MiB` + 1 `heavy` slot) for `TabControl` attached tabs
-  (`PrepareTopRoundedAttachedRect`), `ThroughputGraph` traces, and `Flowchart` edges, translated at draw time via
-  `dc->SetTransform`.
-
-### Wave 10 — `Control` base-class memory diet (`296 B -> ~112–120 B`) & slab lifetime handles (API revision 5)
-
-- [ ] **W10.1. `ColdControlMetadata` sidecar with static `Empty` singleton & packed state bits (D3.1)**: Move cold strings
-  (`_connectedAnimationKey`, `_tooltipText`, `_accessibleName`, `_accessibleHelpText`, `_accessibleAutomationId`),
-  `_accessibleFormProperties`, `_onAccessibleInvoke`, and `_onContextMenu` on `Control`
-  ([DxUi.h](../../../include/DxUi/DxUi.h), `lines 1794-1834`) into on-demand `std::unique_ptr<ColdControlMetadata>`
-  paired with a branchless `static const ColdControlMetadata kEmptyColdMetadata{}` singleton returned by
-  `Control::Cold() const noexcept` (`anomalyco/rune` `cold.rs:16-67`), and pack the boolean flags +
-  `FlowDirection`/`Density` tri-states into `uint32_t _packedStateBits`.
-- [ ] **W10.2. Non-throwing 64-slot slab `ControlLifetimeHandle` (D3.1)**: Replace `std::shared_ptr<int> _lifetimeToken`
-  directly in API revision 5 (no `std::weak_ptr<int>` compatibility wrapper) with a non-throwing 64-slot slab generation
-  handle, shrinking `sizeof(Control)` from `296 B` (Release) / `336 B` (Debug) to `~112–120 B`, cutting per-control heap
-  control-block allocations by 64×, and keeping `GetLifetimeToken() const noexcept` 100% allocation-free and
-  `std::terminate`-proof under OOM fault injection. Update `capabilities.json` (`apiRevision: 5`),
-  `Tools/ConsumerApi/`, and `docs/upgrade.md` together.
-
-### Wave 11 — subtree-versioned UIA snapshot splicing, `MenuPopup` `O(1)` UIA & spatial hit-testing
-
-- [ ] **W11.1. Subtree-versioned UIA snapshot splicing, `O(1)` range-value updates & scroll-delta fast path (`a11y.rs`, `live.rs`)**:
-  Track `_a11ySubtreeRevision` across `Control`/`Panel` mutations; splice contiguous `AccessibleElementSnapshot` and
-  `PointHitEntry` slices from the previous `WindowHostAccessibilitySnapshot` in `PublishWindowHostAccessibilitySnapshot`
-  ([DxUi.Accessibility.cpp](../../../src/Controls/DxUi.Accessibility.cpp), `lines 1343-1386`), update `ProgressBar::SetValue`
-  and `Slider::PublishRangeState` ([DxUi.Controls.cpp](../../../src/Controls/DxUi.Controls.cpp), `lines 5147, 6420, 6677`)
-  in place in `O(1)` without a 3-pass full-window UIA rebuild, and translate cached descendant `boundsScreenPx` by
-  `-scrollDeltaPx` in one flat array pass on pure scroll flushes.
-- [ ] **W11.2. `MenuPopup` `O(1)` focus/scroll UIA update (per D2)**: Update focused row state and scrolled item rects
-  in-place inside `MenuPopup`'s retained 4,096-row `AccessibilitySnapshot` (`SynchronizeMenuAccessibility` in
-  [DxUi.Menu.cpp](../../../src/Controls/DxUi.Menu.cpp), `lines 3602-3635`), preserving full popup row publication per
-  [Core_PerformanceAndResources.md](../../Core/Core_PerformanceAndResources.md) while cutting `Menu-Popup4096-Keyboard`
-  from `6.10 ms/step` to `< 0.5 ms/step`.
-- [ ] **W11.3. Spatial hit-testing (`bounds_tree.rs`)**: Reuse `PaintIndex` / 64 DIP uniform grid with `rest_max`
-  z-order early exit in `ScrollPanel::HitTest` and `Panel::HitTest` when visible child count `>= 32`.
-
-## Validation & closeout gates
-
-1. `.\validate.ps1` (all five `validate-*.ps1` validators and `Tools/tests/Invoke-ToolingTests.ps1`),
-   `.\Tools\Test-Changelog.ps1`, and `.\format.ps1 -Check` green after every wave.
-2. Wave 1 lockstep `IncrementalVsFresh` WARP parity tests green across `Tests/Controls` and `Tests/Embedded` (covering
-   DPI 100%/150%/200%, LTR/RTL, light/dark/High Contrast themes, Windows 10/11 color glyphs, WARP device-loss recovery,
-   and exhaustive OOM fault injection).
-3. Paired `test.ps1`, `performance-paired.ps1`, and `Publish-BenchmarkVerdict.ps1` receipts in x64 `Debug`, `Release`,
-   and `ASan Debug`, plus builds in all three `ARM64` configurations (`Debug`, `Release`, `ASan Debug`), demonstrating:
-   - `ComplexUi` dirty-frame C++ allocations: `54/frame -> 0/frame` (`Release`).
-   - `ComboBox` 500-item overlay paint `CreateTextLayout` allocations: `8,500/frame -> 0/frame`.
-   - Idle focused caret wakeups: `~125 Hz -> ~1.9 Hz` (`0%` idle CPU between blinks).
-   - `Menu-Popup4096-Keyboard`: `6.10 ms/step -> < 0.5 ms/step`.
-   - Measurable dirty-frame prepare/render p50/p95 latency reduction on `ComplexUi` and 64 Ki-unit `RichTextEditor`
-     typing with math/Mermaid/images, with zero clean-frame or hidden-memory regressions.
-4. Interactive focus-taking suites (`Menu`, `NativeTextInput`, and the two menu resource fixtures via
-   `.\test.ps1 -Interactive`) executed with the developer's explicit desktop-time agreement.
-5. Update normative domain contracts, `docs/performance.md`, `Measurements/` receipts, and one dated `Changes/` fragment
-   per PR; move this plan to `Specs/Plans/Done/` only when every accepted wave box is ticked with its commit and test.
+1. Every accepted item is ticked with its commit, its counter receipt under
+   `Measurements/RuntimeEfficiency_2026-11-08/` and its tests.
+2. `validate.ps1`, `format.ps1 -Check` and `Tools/Test-Changelog.ps1` are green. `test.ps1` passes in x64
+   Debug/Release/ASan Debug, and all three ARM64 configurations build. Native ARM64 runtime is claimed only after
+   native execution.
+3. `Menu`, `NativeTextInput` and the menu resource fixtures run through `test.ps1 -Interactive` with the
+   developer's agreement to the time.
+4. Timing results go to D-P1 as advisory evidence. This plan claims no timing verdict until D-P1 qualifies its
+   policy.
+5. Normative behavior moves into the owning contracts. `docs/performance.md`, the design system, `docs/controls.md`
+   and the gallery are updated. The plan then moves to `Specs/Plans/Done/`. Consumer adoption of API 6 is never
+   closed here.
