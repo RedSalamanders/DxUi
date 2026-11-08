@@ -38,6 +38,10 @@ traversal remains available for incompatible Tab targets. Existing source
 selection/history visuals and all palette/typography metrics remain unchanged.
 The sample toolbar uses standard buttons, clear action names and a target/status
 caption; it adds no editor-owned toolbar, HWND, resource fetch or scheduler.
+Quote and fenced-code insertion transform selected source in both Rich and Source
+views. Preserve its text, line endings and orientation, and commit one undo step;
+without a selection, retain the ordinary insertion behavior. Source editing follows
+natural caret/selection movement across the former active-region boundary.
 Semantic UIA exposes heading/list/quote/link/image/task/table children and typed
 source-format attributes after coherent preparation. Tasks have an undoable
 Toggle action; external links remain inert. Source TextPattern/TSF offsets stay exact.

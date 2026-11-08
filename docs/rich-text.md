@@ -423,7 +423,7 @@ The additive v0 API lives in `DxUi::RichText` and links through the single
 `DxUi::RichTextEditor` preview described below. Its bounded source TSF/IME and
 UIA adapters are implemented in both hosts. Real IME/assistive-technology
 qualification, complete semantic Markdown editing and accepted extensions remain
-separate gates in the [active plan](../Specs/Plans/Done/RichTextEditor_2026-10-17.md).
+separate gates in the [active plan](../Specs/Plans/WIP/RemainingWork_2026-11-04.md).
 The explicit bounded semantic rendering preview is available under M4d below.
 Decoded local images use caller-owned image services and bounded native raster
 publication. Alt text remains the source and accessibility alternative, including
@@ -871,7 +871,7 @@ The non-activating native IMM/TSF protocol tests, embedded preview/revision test
 actual application-bridged UIA client navigation/event tests and WARP captures
 qualify these bounded adapters. They do not substitute for real input languages,
 Narrator/NVDA or native ARM64 execution. See the [input contract](../Specs/UI/UI_InputAndAccessibility.md)
-and [active qualification plan](../Specs/Plans/Done/RichTextEditor_2026-10-17.md).
+and [active qualification plan](../Specs/Plans/WIP/RemainingWork_2026-11-04.md).
 
 ## Reusable preparation core
 
@@ -1173,8 +1173,9 @@ target supports color glyphs. The preparation records target capability before r
 Legacy targets keep the exact source fallback for the affected color/script paragraph; ordinary noncolor
 scripts continue to render. An unexpected native capability-query error preserves the last complete geometry
 and is reported as a checked preparation failure.
-Focused parser/semantic checks pass; full native, accessibility and performance
-qualification remain pending.
+The [source-bound script packet](../Measurements/ScriptColorPreparation_2026-11-06/README.md)
+records native target checks and local functional qualification. Physical input,
+platform and paired-performance acceptance retain their separate scope.
 
 RichMarkdown also enables bounded `[[target]]`, `[[target|alias]]` and
 `![[target]]` wiki objects. Link activation passes the unresolved target,
@@ -1297,8 +1298,10 @@ if (auto syntax = parser.Published(); !parser.HasPendingPreparation() && syntax)
 An optional fourth Begin argument selects `MarkdownExtensions` explicitly.
 CommonMark defaults to None and rejects GFM options; Gfm029 defaults to All and
 RichMarkdown defaults to RichAll. Request identity includes the options. RichMarkdown adds leading
-metadata envelopes and footnote syntax/binding; math/diagram rendering and metadata
-validation remain in development. Published inline indices belong to
+metadata envelopes and footnote syntax/binding. Closed envelopes receive the bounded
+[YAML/TOML validation](#leading-metadata-envelopes); native layout services render the documented
+[math and diagram subsets](#native-in-document-mathematics-and-broader-diagrams).
+Published inline indices belong to
 one revision; stable block IDs do not validate reference-dependent semantics.
 Reference edits re-resolve links even when the referring paragraph is unchanged.
 
@@ -1307,8 +1310,9 @@ the explicit validated native subset below with whole-leaf literal fallback.
 Extended autolinks retain their own literal entity/backslash spelling. Unicode
 17 full default case folding resolves labels without normalization or OS locale
 dependence. ASCII label whitespace, P versus P/S punctuation and inline declaration
-rules preserve the requested dialect. Table cells unescape pipes before inlines;
-tasks expose state without an interactive checkbox command. Opaque Html values
+rules preserve the requested dialect. Table cells unescape pipes before inlines.
+Immutable syntax exposes task state; the editor's source-command API performs checkbox edits.
+Opaque Html values
 carry sorted `filteredHtmlOpeners`, pointing to '<' values filtered by GFM.
 This metadata is not sanitization or a browser preview API.
 
@@ -1425,12 +1429,12 @@ The [native presentation qualification packet](../Measurements/RichText/README.m
 records the M4d.3 native/embedded tests, profile and resource checks, actual sample,
 five-theme review and retained diagnostic comparison. The D4c HOLD remains open.
 
-Source-exact structural editing and semantic UIA are described below. The footnote/native diagram previews and native image rendering are implemented; full math/metadata profiles, remaining object editing and physical IME/AT/platform/resource/performance qualification remain open.
+Source-exact structural editing and semantic UIA are described below. Footnotes, bounded native math/diagram rendering, metadata validation and native image rendering are implemented. Application metadata schemas, full TeX/Mermaid parity, remaining object editing and physical IME/AT/platform/resource/performance qualification remain separate.
 
 Run `.build/x64/Release/DxUi.EmbeddedControls.exe --rich-text` for the current
 branch's interactive semantic preview. It uses the sample application's existing
 device, host loop and text-service bridge. `--rich-text --output image.png`
-captures the same scene without desktop takeover. Consumer pins are unchanged.
+captures the same scene without desktop takeover. Running this sample does not update a consumer's pin.
 
 For document-relative image and file-link paste, launch the sample with an explicit location:
 

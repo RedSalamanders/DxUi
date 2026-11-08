@@ -45,8 +45,9 @@ actual diagnostic kind, exact source owner and capacity-specific HelpText. All
 three current x64 Accessibility suites pass. The earlier teardown watchdog's
 cause remains unassigned.
 
-The canonical compiled-input identity differs from the D: working checkout only
-in `Tests/native-test-files.json` line endings. The recorded identities remain
+In the original source-21 qualification, the canonical compiled-input identity
+differed from that source's D: checkout only in `Tests/native-test-files.json`
+line endings. Those recorded identities remain
 distinct; original canonical bytes are preserved, not reconstructed by guessing
 checkout attributes. Complete-checkout static validation and formatting passed
 for the qualified source; subsequent documentation is checked separately.

@@ -2797,8 +2797,8 @@ HTML `mark` shares the bounded retained inline-surface geometry in either Markdo
 presentation. Its theme-resolved neutral fill keeps ordinary text ink; high
 contrast outlines the marked range instead. The selected-text pass uses the
 resolved selection surface. No source markup is rewritten.
-The new style's runtime and consumer qualification is tracked in the
-[active plan](../Plans/Done/SubtleMarkdownPresentation_2026-10-27.md); this contract
+The style's remaining runtime and consumer qualification is tracked in the
+[active plan](../Plans/WIP/RemainingWork_2026-11-04.md); this contract
 does not establish completed platform or performance qualification.
 
 ## Native in-document mathematics and broader diagrams (RedTilde continuation)

@@ -415,14 +415,18 @@ uses the installed cross-compiler:
 
 These commands compile/link; they do not execute ARM64 code. `test.ps1 -Platform ARM64` rejects an x64 host.
 `performance.ps1` requires target/native architecture to match, including rejecting x64 emulation as native evidence.
-Native ARM64 runs are configured in [CI](../.github/workflows/ci.yml) on `windows-11-vs2026-arm`, in Debug, Release
-and ASan Debug.
+Native ARM64 execution uses `windows-11-vs2026-arm`. The shared main qualification runs Release on both
+architectures; Debug/ASan and other extended profiles are selected through the manual
+[qualification workflow](../.github/workflows/qualify.yml), under the [CI contract](../Specs/Build/Build_UnifiedCI.md).
 That label identifies [GitHub's native ARM64 runner](https://docs.github.com/en/actions/reference/runners/github-hosted-runners).
 Only an actual successful job and its receipts establish a runtime pass; configuration and cross-builds do not.
-The [current qualification record](../Specs/Plans/Done/ConsumerUiQualification_2026-10-11.md) retains PR #77's failed
+The [historical qualification record](../Specs/Plans/Done/ConsumerUiQualification_2026-10-11.md) retains PR #77's failed
 post-merge `main` run separately from the green PR #78 candidate and its successful fresh merged-`main` six-profile
 run. The latter closes hosted ARM64 Menu and NativeTextInput foreground functional execution at that identity;
 opt-in menu resource fixtures, separately agreed manual focus work and physical-input gates remain open.
+The [current delivery plan](../Specs/Plans/WIP/RemainingWork_2026-11-04.md) requires x64 Debug/Release/ASan
+runtime and ARM64 compilation only. Its cross-builds do not add ARM64 runtime acceptance or alter the normal
+two-architecture Release gate.
 The [13 October merged-main qualification packet](../Measurements/Performance/2026-10-13-main-qualification/README.md)
 records exact `e0260dde` six-profile CI results and all six approved local x64 opt-in resource passes.
 Its twelve-report profiling pilot retains a large same-source Default timing excursion. The main-push
