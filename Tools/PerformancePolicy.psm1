@@ -475,6 +475,56 @@ function Get-PerformanceProjectEvaluationCore {
         solutionIdentity=$metadata.solutionIdentity; projectSha256=$metadata.projectSha256 }
 }
 
+function Assert-PerformanceQueryPath {
+    # Query files are disposable metadata inputs under this caller's build tree, never native runtime data.
+    param([string]$Root,[string]$Path)
+    $rootPath=[IO.Path]::GetFullPath($Root).TrimEnd('\','/')
+    if($rootPath -eq [IO.Path]::GetPathRoot($rootPath).TrimEnd('\','/') -or -not(Test-Path -LiteralPath $rootPath -PathType Container)){
+        throw 'MSBuild metadata queries require an existing project workspace.'
+    }
+    $path=[IO.Path]::GetFullPath($Path)
+    $prefix=(Join-Path $rootPath '.build')+[IO.Path]::DirectorySeparatorChar
+    $comparison=if([OperatingSystem]::IsWindows()){[StringComparison]::OrdinalIgnoreCase}else{[StringComparison]::Ordinal}
+    if(-not $path.StartsWith($prefix,$comparison)){throw 'MSBuild metadata query files must stay under the project build tree.'}
+    for($cursor=$path;$cursor;$cursor=Split-Path -Parent $cursor){
+        if((Test-Path -LiteralPath $cursor) -and ((Get-Item -LiteralPath $cursor -Force).Attributes -band [IO.FileAttributes]::ReparsePoint)){
+            throw 'Reparse MSBuild metadata query paths are unsupported.'
+        }
+    }
+    return $path
+}
+
+function Get-PerformancePropertyValues {
+    param([string]$Root,[string]$MSBuildPath,[string[]]$Arguments,
+        [ValidateCount(2,10000)][string[]]$Names,[string]$Role)
+    $unique=[Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    foreach($name in $Names){
+        if($name -cnotmatch '^[A-Za-z_][A-Za-z0-9_.]{0,199}$' -or -not $unique.Add($name)){
+            throw 'MSBuild metadata queries require distinct plain property names.'
+        }
+    }
+    $directory=Assert-PerformanceQueryPath $Root (Join-Path $Root '.build/msbuild-queries')
+    [void][IO.Directory]::CreateDirectory($directory)
+    $response=Assert-PerformanceQueryPath $Root (Join-Path $directory ([guid]::NewGuid().ToString('N')+'.rsp'))
+    try{
+        $file=[IO.File]::Open($response,'CreateNew','Write','None')
+        try{$bytes=[Text.UTF8Encoding]::new($false).GetBytes(('-getProperty:'+($Names -join ',')));$file.Write($bytes,0,$bytes.Length)}finally{$file.Dispose()}
+        # One evaluation returns the same complete property set. The response file avoids Windows argv limits.
+        # No target/getTargetResult is added: source, profile and toolchain acquisition still evaluates only.
+        $json=@(& $MSBuildPath @Arguments ('@'+$response) 2>&1)
+        if($LASTEXITCODE -ne 0){throw "MSBuild could not evaluate $Role toolchain properties. $($json -join ' ')"}
+        $values=($json -join "`n"|ConvertFrom-Json -AsHashtable)['Properties']
+        $properties=[ordered]@{}
+        foreach($name in $Names){
+            if(-not $values.Contains($name)){throw "MSBuild omitted the requested $name property."}
+            $properties[$name]=$values[$name]
+        }
+        return $properties
+    }finally{
+        if(Test-Path -LiteralPath $response){[void](Assert-PerformanceQueryPath $Root $response);[IO.File]::Delete($response)}
+    }
+}
+
 function Get-PerformanceProjectMetadataCore {
     # Evaluation only: no targets, compiler, native-input hashing or build attestation. Kept separate so the
     # installed-MSBuild regression can inspect the exact same complete profile as the production evaluator.
@@ -484,18 +534,7 @@ function Get-PerformanceProjectMetadataCore {
     [xml]$project = $expanded['text']
     $names = Get-PerformanceToolPropertyNames $project
     $arguments = @($ProjectPath, '/nologo', "/p:Configuration=$Configuration", "/p:Platform=$Platform", "/p:DxUiOutputRoot=$OutputRoot") + @(ConvertTo-PerformanceMSBuildProperties $solution.properties)
-    $properties = [ordered]@{}
-    # The installed target closure references more than a thousand properties. Bound command-line size on Windows.
-    for ($offset = 0; $offset -lt $names.Count; $offset += 200) {
-        $batch = $names[$offset..([Math]::Min($offset + 199, $names.Count - 1))]
-        $json = @(& $MSBuildPath @arguments "-getProperty:$($batch -join ',')" 2>&1)
-        if ($LASTEXITCODE -ne 0) { throw "MSBuild could not evaluate $Role toolchain properties. $($json -join ' ')" }
-        $values = ($json -join "`n" | ConvertFrom-Json -AsHashtable)['Properties']
-        foreach ($name in $batch) {
-            if (-not $values.Contains($name)) { throw "MSBuild omitted the requested $name property." }
-            $properties[$name] = $values[$name]
-        }
-    }
+    $properties=Get-PerformancePropertyValues -Root $Root -MSBuildPath $MSBuildPath -Arguments $arguments -Names $names -Role $Role
     if ($properties['ForceImportAfterCppTargets']) { throw 'A real ForceImportAfterCppTargets override cannot be replaced by a performance metadata probe.' }
     $originalKinds = @('ClCompile','FxCompile','ProjectReference','CustomBuild','ResourceCompile','Midl','MASM','ARMASM','BuildMacro')
     $json = @(& $MSBuildPath @arguments "-getItem:$($originalKinds -join ',')" 2>&1)
