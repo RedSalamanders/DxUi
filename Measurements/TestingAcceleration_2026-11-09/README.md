@@ -144,3 +144,29 @@ and selected toolchain bytes remained bound. Shared strict v1 schema/key acquisi
 Individual acquisition took 29,502–33,737ms in this one concurrent diagnostic, including clean raw source/tooling
 before/after barriers. This is input identity cost, not a cached consumer run or speedup measurement. Full v2
 build/test receipts retain their original location-sensitive identity and are not adopted or rewritten.
+
+## Immutable SDK store and native independent client
+
+[sdk-input-store.json](sdk-input-store.json) retains source-bound x64 diagnostics at
+6c89bb60c01e14ab4008e300ea73b44d206efb24. The unchanged f2e328a0 API4 library built with zero warnings/errors
+(MSBuild phase 106,542.988ms). Every extracted native SDK smoke, header/license closure, producer-PDB isolation,
+missing-PDB and first-party-warning control passed before immutable byte publication. The complete payload
+is bound to its pre-archive snapshot, including headers/integration policy, and original library/PDB hashes.
+
+A second independently checked-out/restored f2e328a0 source acquired the same complete SDK key and opened
+the independently retained manifest SHA-256 under a reader lease. The reviewed SDK consumer then compiled,
+linked and ran directly from the stored payload. Its 391 included headers were limited to the leased SDK and
+selected toolchain. The producer's original PDB remained exclusively held throughout compilation/linking;
+the new source checkout had no built DxUi library before or after. Close rechecked complete source/tooling/
+profile/environment input identity and every stored byte before releasing the lease.
+
+Open took 32,313ms, native client compilation/execution 12,059ms, and close 26,796ms in this one concurrent
+diagnostic. These are phase costs; no controlled overall speedup is established. Native ARM64, authenticated
+hosted producer/artifact consumption, actual application integration and local candidates remain open.
+Synthetic local SDK version 0.1.611096 is diagnostic only; nothing was published externally.
+
+Five store integration controls cover immutable readers, exact misses, source/profile/symbol/policy refusal,
+late stage edits despite preserved size/mtime, stored byte corruption and source mutation at close with lease
+release. The first local prototype at 5c8fddb1 retained its own logs; design review added the pre-archive byte
+snapshot before any independent SDK client consumed an entry. Complete tooling validation passed, followed
+by final source/spec/store controls. No SDK input operation grants a product test or Full result.

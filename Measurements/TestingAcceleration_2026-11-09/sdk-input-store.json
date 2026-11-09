@@ -1,0 +1,155 @@
+{
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-native-sdk-input-store-client-v1",
+  "evidenceKind": "Local native x64 producer and independent leased SDK client; no product/ARM64/hosted qualification or overall speedup claim.",
+  "benchmarkInputs": {
+    "Tools/SdkInputStore.psm1": "AD646B270973081D70840907F7E023542D55525194E54139E47FFEC8C308AD18",
+    "Tools/New-SdkPackage.ps1": "FC47EBF2FD684A35FA8BC95971BD9F80019F9CB8CADBD3BE01DF6D9FE8298957",
+    "Tools/SdkCacheInputs.psm1": "6023947CFE7DF7245DB91A9752A7B301D6ACD64CC8B3A509BF5196EAFF0E9119"
+  },
+  "producerReceipt": {
+    "schemaVersion": 1,
+    "version": "0.1.611096",
+    "platform": "x64",
+    "configuration": "Release",
+    "kind": "sdk",
+    "source": "f2e328a0a26a18ca66bf4b2aea77bf010c9515e1",
+    "apiRevision": 4,
+    "compiler": {
+      "commit": "f2e328a0a26a18ca66bf4b2aea77bf010c9515e1",
+      "apiRevision": 4,
+      "platform": "x64",
+      "toolset": "v145",
+      "vcToolsVersion": "14.52.37025",
+      "windowsSdkVersion": "10.0.26100.0",
+      "runtimeFamily": "MD",
+      "preferredToolArchitecture": "x64",
+      "disableStlAnnotations": false,
+      "releaseOptimizationPolicy": "Gy-REF-GL-LTCG-full-v1",
+      "msbuildSha256": "1EAA178CD17C7D3C2E33F98928E9EBBE098B0F0A397517F10F16CD06A3F23085",
+      "compilerSha256": "F1023C336447D8AB00E28E9C02E25FD6206928F894DF22F11CFB0D4233A10F25",
+      "linkerSha256": "7F699618D3E6AB301F981F5A4C2C688C714FA42A6907A2A373E8C90F814A30A7",
+      "windowsHeaderSha256": "B337D661D03A4ABEFB7B86A2742CE1AD5D19B57CD8B858BD13E7BBCC1DBEEAAA",
+      "kernel32Sha256": "842F5CE7AD8CF5AAB7491B791E7968D2BE510AE93F4019D3311797289399D221",
+      "ucrtSha256": "7EF4EAC926BF597D2F243F16CDFED7E0DB22CB3CA34A1D7E088A84C994A03D66"
+    },
+    "licenses": [
+      {
+        "path": "licenses/katex-LICENSE.txt",
+        "sha256": "4313255416487a4a7602f134a7cdd2b33dd9f7e7b41d3af63dc9f785bca425a0"
+      },
+      {
+        "path": "licenses/LICENSE.txt",
+        "sha256": "de1d3b6bdeafef327008f4678099670e52c658b1bbc1ab261f94619c0f2cb8a9"
+      },
+      {
+        "path": "licenses/rapidyaml-bundled-NOTICES.txt",
+        "sha256": "fdea696d1c84d1ac7a11e22fbd3e1a4205176ea546b9eab644da59f617ee98e7"
+      },
+      {
+        "path": "licenses/rapidyaml-LICENSE.txt",
+        "sha256": "4e69d6b03c9138b9d748e18834935bd66c0ff7a9fcd03c20081d387385059a3c"
+      },
+      {
+        "path": "licenses/THIRD-PARTY-NOTICES.md",
+        "sha256": "36beb0abc8f0e53e2966af32559b582e28647bdb3ac80fb35b99050bb8884dd4"
+      },
+      {
+        "path": "licenses/tomlplusplus-LICENSE.txt",
+        "sha256": "2312836ea26699dda4fa894316b60ef7be1a0c8526a2fd97c5bff7f546a3a3af"
+      },
+      {
+        "path": "licenses/WIL-LICENSE.txt",
+        "sha256": "27ebda9d51f0a56b7e281ccd8230a27236dcb51c05f64b07869ecf6e965d68b0"
+      }
+    ],
+    "librarySha256": "2239eb085358b7d3a076446024443d91cc2095564ad542cca3f693177791af39",
+    "libraryPdbSha256": "c35f484149a6a212833854567a2b3943b5003cc9c7471191aac5e6bb70c299e7",
+    "runtime": "MD",
+    "testsIncluded": false,
+    "libraryInputDigest": "3474fd2f6fb72c825e710f2194336ea95daa5a305e1a71234c951bd755e4481e",
+    "nativeBuildIdentity": {
+      "buildIdentityVersion": 2,
+      "resolvedBuildIdentity": "b60616a2d8327c613a39e40830def69f9c9d50decaaf576697753cd6a02ef78f",
+      "buildInputIdentity": "cf26c3192a3d2b8418e7ba760241a1e6a0273293ea1ec7658bf9a46d4c230398",
+      "toolchainIdentity": "0b5d03be524fa2390e807e31f8149f92903b68f52cfacc99a3120ea744c72f91"
+    },
+    "producerTooling": {
+      "repository": "RedSalamanders/DxUi",
+      "commit": "6c89bb60c01e14ab4008e300ea73b44d206efb24",
+      "contentIdentity": "2c9a0596c8babca9f90b9c5d4422fc1275cfaeee6b032ff53e18d187f478064c"
+    },
+    "sourceProfile": "api4-source-owned-2026-11-02-v1",
+    "sourceBuildInputs": {
+      "schemaVersion": 1,
+      "role": "PinnedSourceSdkBuildInputs",
+      "sourceCommit": "f2e328a0a26a18ca66bf4b2aea77bf010c9515e1",
+      "platform": "x64",
+      "tooling": {
+        "repository": "RedSalamanders/DxUi",
+        "commit": "6c89bb60c01e14ab4008e300ea73b44d206efb24",
+        "contentIdentity": "2c9a0596c8babca9f90b9c5d4422fc1275cfaeee6b032ff53e18d187f478064c"
+      },
+      "libraryInputDigest": "3474fd2f6fb72c825e710f2194336ea95daa5a305e1a71234c951bd755e4481e",
+      "commandIdentity": "adbb6155f62f62c229fc33c5e0f0b8975bde393573657ba86b3ac399c8e94020",
+      "diagnosticLog": ".build/logs/build-x64-Release-63cc0b21c87442f0b6ef870b6964f8e4.log",
+      "diagnosticLogSha256": "ebf369401ec92d4483a24abae98dcfc0224d15b4008e6e9a791325f5d640a62b"
+    },
+    "sdkCacheIdentity": {
+      "schemaVersion": 1,
+      "role": "DependencySdkInputs",
+      "sourceRepository": "RedSalamanders/DxUi",
+      "sourceCommit": "f2e328a0a26a18ca66bf4b2aea77bf010c9515e1",
+      "sourceBytes": "fdcc91006d4ac75d9fb2eaddc2709358aa1354cc5aa365f634eaa6c014d0d773",
+      "apiRevision": 4,
+      "platform": "x64",
+      "configuration": "Release",
+      "runtimeFamily": "MD",
+      "annotationPolicy": "enabled",
+      "languageStandard": "stdcpplatest",
+      "optimizationPolicy": "GL-LTCG-full",
+      "toolchainIdentity": "0b5d03be524fa2390e807e31f8149f92903b68f52cfacc99a3120ea744c72f91",
+      "compilerProfileIdentity": "ae4acaea8b96cd122cfac50098dcd3db35d1331f73e21abd96c64bde58c10c9e",
+      "dependencyIdentity": "ced0e108d251d1911dec328475844de27ab967e3e8d603da1938a81922bb0d08",
+      "integrationPolicyIdentity": "816d9c301492c137730d6dae87bacf241eff73b91051e2c12e6c5e017e3ff0af",
+      "environmentIdentity": "5669a893097882a211bb936cbdf1fdbfb68897188071c40001f30fa668119c01"
+    },
+    "smokePassed": true,
+    "producerPdbIsolationPassed": true,
+    "missingPackagedPdbControlPassed": true,
+    "licenseClosurePassed": true,
+    "firstPartyWarningControlPassed": true,
+    "headerClosurePassed": true,
+    "headerCount": 391,
+    "nativePolicySha256": "a0dfbac695d76433c98f63a6830aef18618b8f2291afe3bd559af812f58e0149",
+    "archiveSha256": "48c32f82db8a4f19a914c82e0e0964eb7a581798b33bf669bbda0877ba6d4ec1",
+    "sdkStoreManifestSha256": "08c2b640a155a1383e158738e37cb90132e4fa9ac25e1d29c707d02e3217b8e3",
+    "sdkStoreInputKey": "7b839b36b109b76387f312c03831986f46f0d476edbe5d99e6dc66f36623e866"
+  },
+  "nativeLibraryBuildPhaseMs": 106542.988,
+  "client": {
+    "schemaVersion": 1,
+    "role": "LocalSdkStoreNativeClientDiagnostic",
+    "toolingCommit": "6c89bb60c01e14ab4008e300ea73b44d206efb24",
+    "sourceCommit": "f2e328a0a26a18ca66bf4b2aea77bf010c9515e1",
+    "platform": "x64",
+    "inputKey": "7b839b36b109b76387f312c03831986f46f0d476edbe5d99e6dc66f36623e866",
+    "manifestSha256": "08c2b640a155a1383e158738e37cb90132e4fa9ac25e1d29c707d02e3217b8e3",
+    "openMs": 32313,
+    "nativeClientMs": 12059,
+    "headerCount": 391,
+    "sourceLibraryAbsent": true,
+    "producerPdbExclusivelyHeld": true,
+    "scratch": "Z:\\RedSalamander.Perf\\dxui-sdk-store-client-a9911c27637645dea383353b5f8964d6",
+    "librarySha256": "2239eb085358b7d3a076446024443d91cc2095564ad542cca3f693177791af39",
+    "libraryPdbSha256": "c35f484149a6a212833854567a2b3943b5003cc9c7471191aac5e6bb70c299e7",
+    "productQualification": false,
+    "closeMs": 26796
+  },
+  "sourceRootWasIndependentlyCheckedOut": true,
+  "logs": [
+    ".build/i61-sdk-store-v2-native-build.log",
+    ".build/i61-sdk-store-v2-native-package.log",
+    ".build/i61-sdk-store-native-client.log"
+  ]
+}
