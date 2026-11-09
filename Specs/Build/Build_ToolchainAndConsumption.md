@@ -32,7 +32,7 @@ never terminated. Failed default-output builds revoke full/selected build proof;
 also cannot retain an affected no-work baseline. Existing package/production and native architecture gates remain.
 
 Status: normative intended contract
-Last reviewed: 2026-11-07
+Last reviewed: 2026-11-09
 
 Failed relocated-consumer qualification retains its original compiler/linker logs
 under the owning repository's `.build/reports`, where hosted workspace evidence
@@ -42,6 +42,17 @@ images/PDBs/dumps. Exclude the relocated SDK checkout, Git history and dependenc
 caches. Collection is bounded to 8,192 files and 2 GiB of source bytes. An archive
 failure reports an additional diagnostic and leaves both original artifacts and
 the original qualification failure intact; it never changes failure into success.
+
+## Native metadata acquisition
+
+Native identity acquisition requests the entire discovered MSBuild property set in one evaluation-only
+response-file query. This reduces repeated process/evaluation cost without narrowing the property, item,
+import, toolchain or source-byte closure. Response files contain only validated distinct property names;
+queries add no targets and must fail on nonzero execution, invalid JSON or omitted properties. Query scratch
+is operation-owned beneath the caller's `.build/msbuild-queries`, refuses reparse/foreign paths and is removed
+after each attempt. Independent old-batch and installed-project controls establish value/profile equivalence.
+See [MSBuild evaluation](https://learn.microsoft.com/en-us/visualstudio/msbuild/evaluate-items-and-properties)
+and [response files](https://learn.microsoft.com/en-us/visualstudio/msbuild/msbuild-response-files).
 
 ## MSVC 14.52 Release policy
 

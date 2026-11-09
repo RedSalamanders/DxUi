@@ -94,3 +94,19 @@ SDK download's source fallback. Required build/test/package failures remain fata
 Those corrections and later evidence documentation have separate source identities; they do not relabel this
 earlier native run as final-head qualification. Original logs remain `.build/i61-sdk-native-{build,package,diagnostic}.log`
 and `.build/i61-sdk-library-validate.log`.
+
+## Complete native metadata queries
+
+[metadata-queries.json](metadata-queries.json) compares the original 200-property batch evaluator at ef3ecaf0
+with the response-file candidate identified by its exact module SHA-256. All 1,105 property values and the
+complete normalized profile match for both library and benchmark projects in x64/ARM64 Debug, Release and
+ASan Debug: twelve comparisons, with alternating original/candidate order. These are installed-MSBuild
+evaluations on an x64 machine, including cross-target ARM64 metadata; they do not compile or run ARM64 code.
+
+Across this single diagnostic matrix, total library evaluation fell from 33,337 to 25,256 ms (24.2%); benchmark
+evaluation fell from 17,050 to 10,799 ms (36.7%). Startup/cache state varies and other tooling was active, so
+these phase observations do not establish a controlled multi-pair or overall pipeline speedup. No native input,
+property, profile, toolchain or byte check was removed. The real profile/include-resolution regressions also pass.
+Independent query controls compare 1,502 properties beyond Windows command-line limits against original batches,
+exercise Unicode and item-dependent values, forbid target execution and reject malformed/missing output,
+nonzero/failed process launches, switch injection, duplicate names and foreign output paths.

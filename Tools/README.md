@@ -14,6 +14,12 @@ suite routes include their benchmark, sanitizer and desktop helper dependencies.
 only that union and cannot grant Full. Missing outputs and failed builds revoke/refuse proof. Omit Projects for
 the full solution; custom output roots remain diagnostic/consumer builds. See the [build contract](../Specs/Build/Build_ToolchainAndConsumption.md#selected-native-target-builds).
 
+Complete native property acquisition uses one evaluation-only MSBuild response-file query rather than repeated
+200-property process launches. Every discovered property remains required; items, imports, profiles and byte
+closure are unchanged. Owned query files stay beneath `.build/msbuild-queries`, refuse reparse/foreign paths
+and are removed after success or failure. Test-MetadataQueries.ps1 compares against independent original
+batches beyond Windows command-line limits, preserves Unicode/data values and checks failure/target refusal.
+
 Default Release builds additionally record the exact library/PDB input provenance through SdkLibraryInputs.psm1.
 The record binds the complete v2 source/dependency/evaluated-toolchain state and exact image/symbol bytes;
 it grants no native test or Full result. SDK packaging requires matching clean-source provenance before staging

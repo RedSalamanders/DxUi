@@ -1,0 +1,216 @@
+{
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-complete-metadata-response-v1",
+  "evidenceKind": "Evaluation-only full-profile equivalence and phase timing; no compilation/runtime or overall speedup claim.",
+  "sourceBase": "ef3ecaf0036aa02ea7928006d7364fcc3cf2b126",
+  "candidateDirty": true,
+  "benchmarkInputs": {
+    "Tools/PerformancePolicy.psm1": "2A2F7D9B90B2EF60CE7B7F2507CCF1C39D797D2498187B6FA58A66AE1E0ED2F3"
+  },
+  "observations": [
+    {
+      "platform": "x64",
+      "configuration": "Debug",
+      "role": "library",
+      "order": [
+        "original",
+        "response"
+      ],
+      "propertyCount": 1105,
+      "originalMs": 6876,
+      "responseMs": 4355,
+      "originalProperties": "d3b8450aa88223c6f56e11fbdcbb1fc356735d62bcd3452afdc3920dd85e6599",
+      "responseProperties": "d3b8450aa88223c6f56e11fbdcbb1fc356735d62bcd3452afdc3920dd85e6599",
+      "originalProfile": "fafee9e9e4f720dc89716c9fca7ab551e8ebf3856a98cdc4aae122a507548dfb",
+      "responseProfile": "fafee9e9e4f720dc89716c9fca7ab551e8ebf3856a98cdc4aae122a507548dfb",
+      "equivalent": true
+    },
+    {
+      "platform": "x64",
+      "configuration": "Debug",
+      "role": "benchmark",
+      "order": [
+        "response",
+        "original"
+      ],
+      "propertyCount": 1105,
+      "originalMs": 2773,
+      "responseMs": 1804,
+      "originalProperties": "026597caf93683293a22643a7536c0c78e30b6475440e4b6c108e2e7e00ecee3",
+      "responseProperties": "026597caf93683293a22643a7536c0c78e30b6475440e4b6c108e2e7e00ecee3",
+      "originalProfile": "c325b582b809a3b960ed6ea830e7fb0a34a228243f9df46888d7078e6ccdcfa4",
+      "responseProfile": "c325b582b809a3b960ed6ea830e7fb0a34a228243f9df46888d7078e6ccdcfa4",
+      "equivalent": true
+    },
+    {
+      "platform": "x64",
+      "configuration": "Release",
+      "role": "library",
+      "order": [
+        "original",
+        "response"
+      ],
+      "propertyCount": 1105,
+      "originalMs": 5451,
+      "responseMs": 4014,
+      "originalProperties": "def5e49784680bc05c26f0bed444eed9b5b2c5a906f466cd51ab7f03f950c9d2",
+      "responseProperties": "def5e49784680bc05c26f0bed444eed9b5b2c5a906f466cd51ab7f03f950c9d2",
+      "originalProfile": "357610e8ed4cdfb28167eaaf3b75797f585260caa290ed8b25d20c23faaab840",
+      "responseProfile": "357610e8ed4cdfb28167eaaf3b75797f585260caa290ed8b25d20c23faaab840",
+      "equivalent": true
+    },
+    {
+      "platform": "x64",
+      "configuration": "Release",
+      "role": "benchmark",
+      "order": [
+        "response",
+        "original"
+      ],
+      "propertyCount": 1105,
+      "originalMs": 2863,
+      "responseMs": 1679,
+      "originalProperties": "1d9a23a0bb3cda6a53ba0549426dae53ac0e56aa62d89303b92f85611d7f9ceb",
+      "responseProperties": "1d9a23a0bb3cda6a53ba0549426dae53ac0e56aa62d89303b92f85611d7f9ceb",
+      "originalProfile": "c3d4864848d31c5af2e468620084b798bc639143d20c1f35d34f22a86803278f",
+      "responseProfile": "c3d4864848d31c5af2e468620084b798bc639143d20c1f35d34f22a86803278f",
+      "equivalent": true
+    },
+    {
+      "platform": "x64",
+      "configuration": "ASan Debug",
+      "role": "library",
+      "order": [
+        "original",
+        "response"
+      ],
+      "propertyCount": 1105,
+      "originalMs": 5399,
+      "responseMs": 4321,
+      "originalProperties": "e1893bc069dfe5297d7046f63811d89f68693bc7f44004ca92af2e51d29e6cc0",
+      "responseProperties": "e1893bc069dfe5297d7046f63811d89f68693bc7f44004ca92af2e51d29e6cc0",
+      "originalProfile": "a3e2c8ba9e947b6972042e379e37187fc3646c5b315688a38e6b4e37e2eaf590",
+      "responseProfile": "a3e2c8ba9e947b6972042e379e37187fc3646c5b315688a38e6b4e37e2eaf590",
+      "equivalent": true
+    },
+    {
+      "platform": "x64",
+      "configuration": "ASan Debug",
+      "role": "benchmark",
+      "order": [
+        "response",
+        "original"
+      ],
+      "propertyCount": 1105,
+      "originalMs": 2782,
+      "responseMs": 1813,
+      "originalProperties": "d60d27c371fe7c512eb927df49f5a811b9119ae72e08a8be30ca9296fb533afe",
+      "responseProperties": "d60d27c371fe7c512eb927df49f5a811b9119ae72e08a8be30ca9296fb533afe",
+      "originalProfile": "4f38e72c4a5e83a42fe0224fdeff4662ff0f7c8933034d6e870943bc5349c239",
+      "responseProfile": "4f38e72c4a5e83a42fe0224fdeff4662ff0f7c8933034d6e870943bc5349c239",
+      "equivalent": true
+    },
+    {
+      "platform": "ARM64",
+      "configuration": "Debug",
+      "role": "library",
+      "order": [
+        "original",
+        "response"
+      ],
+      "propertyCount": 1116,
+      "originalMs": 5182,
+      "responseMs": 4294,
+      "originalProperties": "2549a07e2130454dd12e18cdcfe81ccbe92363a4548c90161488bae6b4fc6cdb",
+      "responseProperties": "2549a07e2130454dd12e18cdcfe81ccbe92363a4548c90161488bae6b4fc6cdb",
+      "originalProfile": "d63b6b947bdeca2c9a563dda28a285b31a7014c6dd918a11f3b7d6c9a552608f",
+      "responseProfile": "d63b6b947bdeca2c9a563dda28a285b31a7014c6dd918a11f3b7d6c9a552608f",
+      "equivalent": true
+    },
+    {
+      "platform": "ARM64",
+      "configuration": "Debug",
+      "role": "benchmark",
+      "order": [
+        "response",
+        "original"
+      ],
+      "propertyCount": 1116,
+      "originalMs": 2948,
+      "responseMs": 1925,
+      "originalProperties": "5c5879b884b4768f21965984b810e455f25a153f7f2bd08f3bb4fffe43b8999b",
+      "responseProperties": "5c5879b884b4768f21965984b810e455f25a153f7f2bd08f3bb4fffe43b8999b",
+      "originalProfile": "d1123c5c71271e4fb76989253aa71cebfdcb7a38b43b762448f19b9195403303",
+      "responseProfile": "d1123c5c71271e4fb76989253aa71cebfdcb7a38b43b762448f19b9195403303",
+      "equivalent": true
+    },
+    {
+      "platform": "ARM64",
+      "configuration": "Release",
+      "role": "library",
+      "order": [
+        "original",
+        "response"
+      ],
+      "propertyCount": 1116,
+      "originalMs": 5370,
+      "responseMs": 4267,
+      "originalProperties": "e090ccb443726abf79a256bb7f51d4c74a1693d625ef5c7ff33f3d1e1c71fb81",
+      "responseProperties": "e090ccb443726abf79a256bb7f51d4c74a1693d625ef5c7ff33f3d1e1c71fb81",
+      "originalProfile": "8937e63d6a3cfb1f04165e3fa47fa1334d4e8e35a518f740e10d55e7b1e6a4ec",
+      "responseProfile": "8937e63d6a3cfb1f04165e3fa47fa1334d4e8e35a518f740e10d55e7b1e6a4ec",
+      "equivalent": true
+    },
+    {
+      "platform": "ARM64",
+      "configuration": "Release",
+      "role": "benchmark",
+      "order": [
+        "response",
+        "original"
+      ],
+      "propertyCount": 1116,
+      "originalMs": 2790,
+      "responseMs": 1746,
+      "originalProperties": "42724e5646b74947f71dd83aa48be6442e8eab4aa1fe21e6cc85abe474eeb61a",
+      "responseProperties": "42724e5646b74947f71dd83aa48be6442e8eab4aa1fe21e6cc85abe474eeb61a",
+      "originalProfile": "cd52383993b8aabfe7c18dfda495bce0a1dd138444767bde12bc71fd1197e88a",
+      "responseProfile": "cd52383993b8aabfe7c18dfda495bce0a1dd138444767bde12bc71fd1197e88a",
+      "equivalent": true
+    },
+    {
+      "platform": "ARM64",
+      "configuration": "ASan Debug",
+      "role": "library",
+      "order": [
+        "original",
+        "response"
+      ],
+      "propertyCount": 1116,
+      "originalMs": 5059,
+      "responseMs": 4005,
+      "originalProperties": "0c4edefbbb067d925c50a34dc034693911c6b53b92a98da45e0a570f41a95b64",
+      "responseProperties": "0c4edefbbb067d925c50a34dc034693911c6b53b92a98da45e0a570f41a95b64",
+      "originalProfile": "78c68cf8ba5f53f81aa8c48c7832b425d1676425b2ceb4ffe65e1e45f4dc5032",
+      "responseProfile": "78c68cf8ba5f53f81aa8c48c7832b425d1676425b2ceb4ffe65e1e45f4dc5032",
+      "equivalent": true
+    },
+    {
+      "platform": "ARM64",
+      "configuration": "ASan Debug",
+      "role": "benchmark",
+      "order": [
+        "response",
+        "original"
+      ],
+      "propertyCount": 1116,
+      "originalMs": 2894,
+      "responseMs": 1832,
+      "originalProperties": "ffcde1bf8be82ef139c3b1bc3baa55c01f0f0001b225cd3925eb6e1b9c1ed730",
+      "responseProperties": "ffcde1bf8be82ef139c3b1bc3baa55c01f0f0001b225cd3925eb6e1b9c1ed730",
+      "originalProfile": "6de5384e80b25a7b4f43e4055e54f2b6386dafd3f77c85be97cb648ff66b8cac",
+      "responseProfile": "6de5384e80b25a7b4f43e4055e54f2b6386dafd3f77c85be97cb648ff66b8cac",
+      "equivalent": true
+    }
+  ]
+}
