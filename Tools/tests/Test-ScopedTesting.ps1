@@ -905,6 +905,31 @@ exit 0
             @(Get-Content (Join-Path $sandbox '.build/calls.txt')).Count -gt $count) "CI reused or published a local iteration baseline: $($run.Text)"
         Assert-EnvironmentSnapshot $parentCi 'Local/hosted fixture process isolation'
     }
+    Run-Case 'actual hosted Release invocation selects two ordinary workers and retains the exact Full profile obligations' {
+        $path=Join-Path $repository 'Tools/Invoke-ProjectCi.ps1'
+        $tokens=$null;$errors=$null
+        $text=[IO.File]::ReadAllText($path)
+        $ast=[Management.Automation.Language.Parser]::ParseInput($text,[ref]$tokens,[ref]$errors)
+        Assert-Scope ($errors.Count -eq 0) 'Hosted adapter no longer parses'
+        $start=@($ast.EndBlock.Statements|Where-Object {$_ -is [Management.Automation.Language.AssignmentStatementAst] -and $_.Left.Extent.Text -ceq '$normalTestArguments'})
+        $end=@($ast.EndBlock.Statements|Where-Object {$_.Extent.Text -ceq 'Run ''test.ps1'' $normalTestArguments'})
+        Assert-Scope ($start.Count -eq 1 -and $end.Count -eq 1) 'Hosted normal test route is not uniquely identified'
+        $fragment=$text.Substring($start[0].Extent.StartOffset,$end[0].Extent.EndOffset-$start[0].Extent.StartOffset)
+        foreach($configuration in @('Release','Debug','ASan Debug')){
+            foreach($platform in @('x64','ARM64')){
+                $actual=@(& {
+                    param($body,$configuration,$platform)
+                    $profile=@('-Platform',$platform,'-Configuration',$configuration)
+                    function Run([string]$Script,[string[]]$CommandArguments){[pscustomobject]@{script=$Script;arguments=$CommandArguments}}
+                    & ([scriptblock]::Create($body))
+                } $fragment $configuration $platform)
+                $expected=@('-Platform',$platform,'-Configuration',$configuration,'-Full','-SkipTooling','-SkipBuild')
+                if($configuration -ceq 'Release'){$expected+=@('-ParallelSuites','2')}
+                Assert-Scope ($actual.Count -eq 1 -and $actual[0].script -ceq 'test.ps1' -and
+                    ($actual[0].arguments -join [char]0) -ceq ($expected -join [char]0)) 'Actual native adapter changed the declared profile/coverage or unsupported parallel default'
+            }
+        }
+    }
     Write-Host "Scoped testing: $passed cases passed."
 } finally {
     $resolved=[IO.Path]::GetFullPath($fixture);$allowed=[IO.Path]::GetFullPath((Join-Path $repository '.build/ToolTests'))+[IO.Path]::DirectorySeparatorChar

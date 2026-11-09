@@ -81,7 +81,9 @@ if ($Phase -eq 'Production') {
     return
 }
 if ($Platform -eq 'x64') { Run 'Tools/tests/Invoke-ToolingTests.ps1' }
-Run 'test.ps1' ($profile + @('-Full','-SkipTooling','-SkipBuild'))
+$normalTestArguments=$profile+@('-Full','-SkipTooling','-SkipBuild')
+if($Configuration -ceq 'Release'){$normalTestArguments+=@('-ParallelSuites','2')}
+Run 'test.ps1' $normalTestArguments
 Run 'test-consumer.ps1' $profile
 if ($Configuration -eq 'ASan Debug') { Run 'test-consumer.ps1' ($profile + @('-DisableStlAnnotations')) }
 if ($Platform -eq 'x64' -and $Configuration -eq 'Release') {

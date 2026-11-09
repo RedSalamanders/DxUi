@@ -457,6 +457,9 @@ Duplicate suite names are refused in parallel mode. Owned children are terminate
 runner failure; foreground suites remain serial under their one restoring lease and
 do not overlap the ordinary batch. Specifying this option selects the lower-level
 suite runner; `-Full -ParallelSuites 4` explicitly requests the full normal set.
+The hosted adapter explicitly selects two ordinary workers for complete Release regression; public/local
+defaults and Debug/ASan diagnostic qualification remain serial. Native architecture acceptance is recorded
+per campaign and cannot be inferred from local scheduler controls or the earlier serial architecture passes.
 `-Interactive` selects the control suites that need the real desktop and runs them under the desktop lease after all of this
 (see Interactive tests below); no other option or run reaches the lease.
 Use the [performance contract](../Core/Core_PerformanceAndResources.md) for before/after acceptance and regression advice.

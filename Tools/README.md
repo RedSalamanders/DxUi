@@ -8,7 +8,9 @@ are the stable developer interface. `validate.ps1` runs the five
 validators and the tooling tests in turn and reports every failure before it fails; CI's validation job runs it, and
 `test.ps1` runs the tooling tests beside its native suites. CI gives `build.ps1` and the subsequent
 `test.ps1 -Full -SkipTooling -SkipBuild` separate finite windows; SkipBuild verifies both the canonical v2 and complete native test-source/artifact attestations
-before native probes or self-checks. Fixed top-level timing records diagnose orchestration and do not qualify native performance.
+before native probes or self-checks. Hosted Release regression selects two independent ordinary suite workers;
+foreground, preflight and performance remain serial and public/Debug/ASan defaults stay unchanged. Fixed top-level
+timing records diagnose orchestration and do not qualify native performance.
 `build.ps1 -Projects DxUi.FoundationTests,DxUi.EmbeddedTests` builds a validated target union; affected and explicit
 suite routes include their benchmark, sanitizer and desktop helper dependencies. Selected build receipts cover
 only that union and cannot grant Full. Missing outputs and failed builds revoke/refuse proof. Omit Projects for
