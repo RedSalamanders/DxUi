@@ -231,7 +231,7 @@ function Import-DxUiSdkLibraryInputs {
         [IO.File]::Copy((Join-Path $directory 'build.json'),$receipt,$false)
         try{$verified=Assert-DxUiSdkLibraryBuild $Root $Platform -RequireClean}
         catch{Remove-DxUiSdkLibraryReceipt $Root $Platform;throw}
-        return [pscustomobject]@{hit=$true;reason='Reused exact authenticated-run Release library/PDB inputs; extracted SDK smoke remains required.';digest=$verified.digest}
+        return [pscustomobject]@{hit=$true;reason='Reused exact run-bound Release library/PDB inputs; extracted SDK smoke remains required.';digest=$verified.digest}
     }finally{Exit-ScopedProfileLease $lease}
 }
 

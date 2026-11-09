@@ -191,7 +191,23 @@ Invoke-TestCase 'main native qualification keeps both native architectures and t
     Assert-True ($native.Contains('needs: [admission, test-gate]')) 'neither production branch can precede the global gate'
     Assert-True ($native.Contains('timeout-minutes: 360')) 'the regression job retains a finite cold-build/test allowance'
     Assert-True ($native.Contains('retention-days: 90')) 'source-bound regression and production receipts remain available'
-    Assert-True (-not $native.Contains('continue-on-error: true')) 'native qualification cannot ignore a failed phase'
+    function Assert-RequiredPhaseFailures([string]$Text){
+        $optional=@([regex]::Matches($Text,'(?m)^\s+continue-on-error: true\s*$'))
+        Assert-True ($optional.Count -le 1) 'native qualification cannot ignore a failed phase'
+        if($optional.Count){
+            $download=[regex]::Match($Text,'(?ms)^      - name: Download this attempt''s SDK library inputs\r?\n(?<body>.*?)(?=^      - name:)').Groups['body'].Value
+            Assert-True ($download.Contains("if: github.repository == 'RedSalamanders/DxUi'") -and
+                $download.Contains('continue-on-error: true') -and $download.Contains('uses: actions/download-artifact@') -and
+                $download.Contains('name: sdk-library-inputs-${{ matrix.platform }}-${{ github.run_attempt }}')) `
+                'only the optional current-attempt SDK input download may fall back; required build/test/package phases cannot'
+        }
+    }
+    Assert-RequiredPhaseFailures $native
+    foreach($id in @('build','tests','package')){
+        $changed=$native.Replace(('id: '+$id),('id: '+$id+"`n        continue-on-error: true"))
+        $rejected=$false;try{Assert-RequiredPhaseFailures $changed}catch{$rejected=$true}
+        Assert-True $rejected "a non-blocking required $id phase is refused"
+    }
     $queue=[IO.File]::ReadAllText((Join-Path $repository '.github/workflows/qualify.yml'))
     Assert-True ($queue.Contains('cancel-in-progress: false') -and $queue.Contains('queue: max')) 'later merges cannot cancel admitted work'
 }
