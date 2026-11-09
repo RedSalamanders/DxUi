@@ -110,3 +110,24 @@ property, profile, toolchain or byte check was removed. The real profile/include
 Independent query controls compare 1,502 properties beyond Windows command-line limits against original batches,
 exercise Unicode and item-dependent values, forbid target execution and reject malformed/missing output,
 nonzero/failed process launches, switch injection, duplicate names and foreign output paths.
+
+## Exact pinned-source SDK production
+
+[pinned-source-sdk.json](pinned-source-sdk.json) retains native x64 observations from reviewed tooling
+288c76737ec180753aab926e17b98922509a747d against the three unchanged source commits currently pinned by
+the five applications. All three production-only Release builds completed with zero warnings/errors.
+MSBuild phases took 92,876.874ms (4cdf1ce5), 111,394.601ms (f2e328a0) and 126,274.334ms (21fae0dc).
+These observations include concurrent diagnostic work and do not establish a comparative speedup.
+
+Each independently extracted SDK compiled, linked and ran its native consumer outside all Git checkouts.
+Header closure counted 385, 391 and 243 headers respectively. Exact historical license closure counted
+3, 7 and 11 notices. Producer-PDB exclusive isolation, missing packaged PDB refusal, first-party C4189
+warning rejection and unchanged library/PDB controls passed for all three. The deliberate warnings belong
+only to negative controls; ordinary library/smoke compilation retained zero warnings/errors.
+
+The oldest source predates SDK samples and uses the explicitly reviewed noninteractive API4 frame-runtime
+sample. The later API4 source uses its own existing smoke; API5 retains its source-owned failure host.
+No source/dependency/API pin was advanced and no desktop input was requested. Synthetic local versions
+0.1.611092–0.1.611094 identify diagnostic archives only; nothing was published. The records grant no product
+test result. Native ARM64, authenticated cross-repository distribution, actual application consumption and
+local unpinned candidates remain separate acceptance work.
