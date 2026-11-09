@@ -58,6 +58,21 @@ Copy-Item -LiteralPath (Join-Path $stage 'licenses/Unicode-LICENSE.txt') -Destin
 [IO.File]::AppendAllText((Join-Path $extracted 'licenses/THIRD-PARTY-NOTICES.md'),'broken projection')
 Refuses {Assert-DxUiSdkNotices @extractedArguments} '*source notices differ*'
 Refuses {Copy-DxUiSdkNotices -Root $root -InstalledRoot $installed -Stage (Join-Path $scratch 'bad-commit') -SourceCommit 'main'} '*exact source commit*'
+foreach($profile in @(
+    @{Commit='4cdf1ce52c7785446698e346b8aec058ed6a9283';Count=3;Notices=@('LICENSE.txt','WIL-LICENSE.txt')},
+    @{Commit='f2e328a0a26a18ca66bf4b2aea77bf010c9515e1';Count=7;Notices=@('LICENSE.txt','WIL-LICENSE.txt','katex-LICENSE.txt','tomlplusplus-LICENSE.txt','rapidyaml-LICENSE.txt','rapidyaml-bundled-NOTICES.txt')}
+)){
+    $legacyStage=Join-Path $scratch ('legacy-'+$profile.Commit.Substring(0,8))
+    $legacyArguments=@{Root=$root;InstalledRoot=$installed;Stage=$legacyStage;SourceCommit=$profile.Commit}
+    # Synthetic source projection only; actual source/commit admission is the producer's separate responsibility.
+    Copy-DxUiSdkNotices @legacyArguments
+    $legacy=@(Assert-DxUiSdkNotices @legacyArguments)
+    Require ($legacy.Count -eq $profile.Count) 'Exact historical compiled-dependency notice set'
+    foreach($name in $profile.Notices){Require (Test-Path (Join-Path $legacyStage ('licenses/'+$name))) ('Required historical license: '+$name)}
+    $license=Join-Path $legacyStage 'licenses/WIL-LICENSE.txt'
+    [IO.File]::AppendAllText($license,'changed')
+    Refuses {Assert-DxUiSdkNotices @legacyArguments} '*license bytes differ: WIL-LICENSE.txt'
+}
 # Bind the public package wrapper to both admission boundaries and its receipt.
 $wrapper=[IO.File]::ReadAllText((Join-Path $root 'Tools/New-SdkPackage.ps1'))
 Require ($wrapper.Contains('Copy-DxUiSdkNotices -Root $root') -and [regex]::Matches($wrapper,'Assert-DxUiSdkNotices -Root \$root').Count -eq 2 -and

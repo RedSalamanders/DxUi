@@ -1,0 +1,1 @@
+- Build and package reviewed immutable DxUi sources with current governed tooling, exact historical API/license recipes and source/tooling/library provenance; retain isolated output ownership and all native SDK gates without changing consumer pins or granting test results from cached inputs.

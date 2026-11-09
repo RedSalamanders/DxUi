@@ -7,6 +7,7 @@ $names = @('Test-PairedProjectProfiles.ps1','Test-ConsumerQualification.ps1','Te
 $names+=@('Test-SdkNotices.ps1')
 $names+=@('Test-SdkLibraryInputs.ps1')
 $names+=@('Test-MetadataQueries.ps1')
+$names+=@('Test-SdkSourceProfiles.ps1')
 $names+=@('Test-ProcessInspection.ps1')
 Invoke-DxUiToolingTestRoster -Scripts @($names | ForEach-Object { Join-Path $PSScriptRoot $_ })
 Write-Host 'All tooling tests passed.'

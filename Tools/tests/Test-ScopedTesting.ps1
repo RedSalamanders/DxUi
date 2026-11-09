@@ -120,10 +120,13 @@ try {
             Assert-Scope ([IO.File]::ReadAllText($consumer).Contains('DXUI_NATIVE_MODULE_FATAL executed=16 passed=16') -and [IO.File]::ReadAllText($consumer).Contains('DXUI_NATIVE_MODULE_NATIVE_ALLOWED executed=2 passed=2')) 'Consumer gate must require all independent module fatal and native caught-exception probes'
             Assert-Scope ([IO.File]::ReadAllText($consumer).Contains('Tests/Support/Support.Tests.DumpReader.h')) 'Consumer gate must copy the canonical dump-unwind oracle'
             $sdk=[IO.File]::ReadAllText((Join-Path $repository 'Tools/New-SdkPackage.ps1'))
-            foreach($required in @('samples/Shared','FailureHost.cpp','DbgHelp.lib',"@('Main','FailureHost')")) {
+            foreach($required in @('samples/Shared','FailureHost.cpp','DbgHelp.lib','foreach($unit in $sourceProfile.units)')) {
                 Assert-Scope ($sdk.Contains($required)) "SDK package or independent source dependency check is missing $required"
             }
-            Assert-Scope ($sdk.Contains("Import-Module (Join-Path `$root 'Tools/SdkNotices.psm1')") -and
+            $sourceProfiles=Import-Module (Join-Path $repository 'Tools/SdkSourceProfiles.psm1') -Force -PassThru
+            $currentProfile=& $sourceProfiles {param($Root) Get-DxUiSdkSourceProfile -Root $Root -SourceCommit ('a'*40)} $repository
+            Assert-Scope (($currentProfile.units -join '|') -ceq 'Main|FailureHost' -and $currentProfile.shared.Count -eq 2) 'Current API-5 SDK retains both source-owned units and their independent header checks'
+            Assert-Scope ($sdk.Contains("Import-Module (Join-Path `$toolingRoot 'Tools/SdkNotices.psm1')") -and
                 $sdk.Contains('Copy-DxUiSdkNotices -Root $root') -and
                 [regex]::Matches($sdk,'Assert-DxUiSdkNotices -Root \$root').Count -eq 2) 'SDK package must stage and verify the canonical notices before and after extraction'
             $notices=Import-Module (Join-Path $repository 'Tools/SdkNotices.psm1') -Force -PassThru

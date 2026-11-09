@@ -139,11 +139,32 @@ Case 'SDK compatibility promises reject incompatible evaluated CRT, annotations,
     foreach($row in @(@('RuntimeLibrary','MultiThreaded'),@('LanguageStandard','stdcpp20'),@('WholeProgramOptimization','false'),
         @('EnableASAN','true'),@('DebugInformationFormat','None'),@('PreprocessorDefinitions','NDEBUG;_DISABLE_VECTOR_ANNOTATION'),
         @('PreprocessorDefinitions','NDEBUG;_DISABLE_STRING_ANNOTATION=1'),@('PreprocessorDefinitions','_DEBUG'),
+        @('PreprocessorDefinitions','NDEBUG;_DISABLE_STL_ANNOTATION'),
         @('AdditionalOptions','/MDd'),@('AdditionalOptions','/D_DISABLE_VECTOR_ANNOTATION'),@('ForcedIncludeFiles','override.h'),
         @('UndefineAllPreprocessorDefinitions','true'),@('UndefinePreprocessorDefinitions','NDEBUG'))){
         $changed=$profile.Clone();$changed[$row[0]]=$row[1]
         Refuses {& $sdkModule {param($Profile) Assert-DxUiSdkEvaluatedProfile @($Profile)} $changed}
     }
+}
+Case 'external source build descriptors bind exact producer tooling, library and original diagnostics without test verdicts' {
+    FreshRecord
+    $library=Assert-DxUiSdkLibraryBuild $fixture x64 -BuildState $state -RequireClean
+    $tooling=@{repository='RedSalamanders/DxUi';commit=('a'*40);contentIdentity=('b'*64)}
+    Put '.build/logs/source-build.log' 'synthetic diagnostic bytes; not a native build'
+    $log=Join-Path $fixture '.build/logs/source-build.log'
+    Complete-DxUiSdkSourceBuildRecord $fixture x64 -Tooling $tooling -LibraryRecord $library -Arguments @('fixture.sln','/t:DxUi:Rebuild') -LogPath $log|Out-Null
+    $record=Assert-DxUiSdkSourceBuildRecord $fixture x64 -Tooling $tooling -LibraryRecord $library
+    Require ($record.role -ceq 'PinnedSourceSdkBuildInputs' -and -not $record.Contains('passed')) 'Source input data supplied a test verdict.'
+    $changed=$tooling.Clone();$changed.commit='c'*40
+    Refuses {Assert-DxUiSdkSourceBuildRecord $fixture x64 -Tooling $changed -LibraryRecord $library}
+    $changed=$tooling.Clone();$changed.contentIdentity='c'*64
+    Refuses {Assert-DxUiSdkSourceBuildRecord $fixture x64 -Tooling $changed -LibraryRecord $library}
+    $changed=$tooling.Clone();$changed.passed=$true
+    Refuses {Assert-DxUiSdkSourceBuildRecord $fixture x64 -Tooling $changed -LibraryRecord $library}
+    [IO.File]::AppendAllText($log,'changed')
+    Refuses {Assert-DxUiSdkSourceBuildRecord $fixture x64 -Tooling $tooling -LibraryRecord $library}
+    Remove-DxUiSdkLibraryReceipt $fixture x64
+    Require (-not(Test-Path (Join-Path (Split-Path $receipt) 'source-producer.json'))) 'Failed/replaced library left a producer descriptor.'
 }
 Case 'foreign output roots cannot create SDK receipt folders' {
     $foreign=Join-Path $run 'not-a-repository';[void][IO.Directory]::CreateDirectory($foreign)

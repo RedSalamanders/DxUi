@@ -1260,7 +1260,7 @@ Invoke-FixtureCase 'default build entrypoint rebuilds stale inputs and preserves
     # Execute the actual pre-MSBuild entrypoint stage with real v2 attestation logic. No native build is invoked;
     # only its import is suppressed because the test already imported the production module and supplies a VS fixture.
     $stageText = 'param($Platform,$Configuration,$attestPerformanceBuild,$Rebuild)' + "`n" +
-        '$partialBuild=$false; $selectedProjects=@()' + "`n" +
+        '$partialBuild=$false; $selectedProjects=@(); $buildRoot=$PSScriptRoot' + "`n" +
         "function Import-Module { param(`$Name, [switch]`$Force) }`n" + $initial.Extent.Text + "`n" + $consumerGuard.Extent.Text + "`n" + $guard.Extent.Text + "`n" +
         '$log="fixture.log"; $output=(Join-Path $PSScriptRoot ''.build'')' + "`n" + $arguments.Extent.Text + "`n" +
         '[ordered]@{ arguments=$arguments; state=$(if ($attestPerformanceBuild) { $performanceBuildBefore } else { $null }) }'
@@ -1297,6 +1297,7 @@ Invoke-FixtureCase 'the timed production MSBuild stage preserves arguments, diag
     # PowerShell fixtures. No native child, build, build receipt or environment discovery runs in this test.
     $stageText = 'param($Probe,$Code,$Failure)' + "`n" + @'
 $Platform='x64'; $Configuration='Release'; $attestPerformanceBuild=$true
+$buildRoot=$PSScriptRoot
 $arguments=@('fixture.sln','/t:Build','/p:Configuration=Release')
 $msbuild='Invoke-FixtureCompiler'; $log='fixture.log'; $stopwatch=[Diagnostics.Stopwatch]::StartNew()
 function Invoke-FixtureCompiler {

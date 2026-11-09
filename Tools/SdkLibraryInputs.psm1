@@ -4,6 +4,14 @@ $ErrorActionPreference='Stop'
 $script:performance=Import-Module (Join-Path $PSScriptRoot 'PerformancePolicy.psm1') -PassThru
 $script:scoped=Import-Module (Join-Path $PSScriptRoot 'ScopedTesting.psm1') -PassThru
 
+function Assert-DxUiSdkProducerTooling {
+    param([Collections.IDictionary]$Tooling)
+    if($null -eq $Tooling -or $Tooling.Count -ne 3 -or $Tooling.repository -cne 'RedSalamanders/DxUi' -or
+        $Tooling.commit -cnotmatch '^[a-f0-9]{40}$' -or $Tooling.contentIdentity -cnotmatch '^[A-Fa-f0-9]{64}$'){
+        throw 'SDK producer tooling requires an exact source and content identity, without verdict fields.'
+    }
+}
+
 function Assert-DxUiSdkOwnedPath {
     param([string]$Root,[string]$Path)
     $base=[IO.Path]::GetFullPath($Root).TrimEnd('\','/')
@@ -28,6 +36,50 @@ function Remove-DxUiSdkLibraryReceipt {
     param([Parameter(Mandatory)][string]$Root,[Parameter(Mandatory)][ValidateSet('x64','ARM64')][string]$Platform)
     $path=Get-DxUiSdkReceiptPath $Root $Platform
     if(Test-Path -LiteralPath $path -PathType Leaf){[IO.File]::Delete($path)}
+    $producer=Assert-DxUiSdkOwnedPath $Root (Join-Path (Split-Path $path) 'source-producer.json')
+    if(Test-Path -LiteralPath $producer -PathType Leaf){[IO.File]::Delete($producer)}
+}
+
+function Complete-DxUiSdkSourceBuildRecord {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][string]$Root,[Parameter(Mandatory)][ValidateSet('x64','ARM64')][string]$Platform,
+        [Parameter(Mandatory)][Collections.IDictionary]$Tooling,[Parameter(Mandatory)][Collections.IDictionary]$LibraryRecord,
+        [Parameter(Mandatory)][string[]]$Arguments,[Parameter(Mandatory)][string]$LogPath)
+    $path=Assert-DxUiSdkOwnedPath $Root (Join-Path (Split-Path (Get-DxUiSdkReceiptPath $Root $Platform)) 'source-producer.json')
+    Assert-DxUiSdkProducerTooling $Tooling
+    $log=Assert-DxUiSdkOwnedPath $Root $LogPath
+    if(-not(Test-Path -LiteralPath $log -PathType Leaf)){throw 'Pinned-source library inputs require their original build log.'}
+    if($LibraryRecord.inputState.sourceDirty){throw 'Pinned SDK source must remain clean and committed.'}
+    $record=[ordered]@{schemaVersion=1;role='PinnedSourceSdkBuildInputs';sourceCommit=$LibraryRecord.inputState.sourceCommit;platform=$Platform;
+        tooling=$Tooling;libraryInputDigest=$LibraryRecord.digest;commandIdentity=(Get-ScopedDigest ($Arguments|ConvertTo-Json -Compress));
+        diagnosticLog=([IO.Path]::GetRelativePath([IO.Path]::GetFullPath($Root),$log).Replace('\','/'));
+        diagnosticLogSha256=(Get-FileHash -LiteralPath $log).Hash.ToLowerInvariant()}
+    $temporary=$path+'.'+[guid]::NewGuid().ToString('N')+'.tmp'
+    try{
+        [IO.File]::WriteAllText($temporary,($record|ConvertTo-Json -Depth 8),[Text.UTF8Encoding]::new($false))
+        [IO.File]::Move($temporary,$path,$true)
+    }finally{if(Test-Path -LiteralPath $temporary){[IO.File]::Delete($temporary)}}
+    return $record
+}
+
+function Assert-DxUiSdkSourceBuildRecord {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][string]$Root,[Parameter(Mandatory)][ValidateSet('x64','ARM64')][string]$Platform,
+        [Parameter(Mandatory)][Collections.IDictionary]$Tooling,[Parameter(Mandatory)][Collections.IDictionary]$LibraryRecord)
+    $path=Assert-DxUiSdkOwnedPath $Root (Join-Path (Split-Path (Get-DxUiSdkReceiptPath $Root $Platform)) 'source-producer.json')
+    Assert-DxUiSdkProducerTooling $Tooling
+    if(-not(Test-Path -LiteralPath $path -PathType Leaf) -or (Get-Item -LiteralPath $path).Length -gt 16KB){throw 'No bounded pinned-source SDK build descriptor.'}
+    $record=Get-Content -LiteralPath $path -Raw|ConvertFrom-Json -AsHashtable
+    if($record.Count -ne 9 -or $record.schemaVersion -ne 1 -or $record.role -cne 'PinnedSourceSdkBuildInputs' -or
+        $record.platform -cne $Platform -or $record.sourceCommit -cne $LibraryRecord.inputState.sourceCommit -or
+        $record.libraryInputDigest -cne $LibraryRecord.digest -or
+        ($record.tooling|ConvertTo-Json -Depth 8 -Compress) -cne ($Tooling|ConvertTo-Json -Depth 8 -Compress) -or
+        $record.commandIdentity -cnotmatch '^[a-f0-9]{64}$' -or $record.diagnosticLog -cnotmatch '^\.build/logs/[A-Za-z0-9_.-]+\.log$'){
+        throw 'Pinned-source SDK tooling, command or library input identity changed.'
+    }
+    $log=Assert-DxUiSdkOwnedPath $Root (Join-Path $Root $record.diagnosticLog)
+    if(-not(Test-Path -LiteralPath $log -PathType Leaf) -or (Get-FileHash -LiteralPath $log).Hash.ToLowerInvariant() -cne $record.diagnosticLogSha256){throw 'Pinned-source SDK build diagnostics changed or are missing.'}
+    return $record
 }
 
 function Get-DxUiSdkLibraryInputState {
@@ -131,7 +183,7 @@ function Assert-DxUiSdkEvaluatedProfile {
             throw 'SDK requires the evaluated Release /MD, latest C++, LTCG and compiler-PDB profile without ASan.'
         }
         $definitions=@(([string]$item.PreprocessorDefinitions).Split(';',[StringSplitOptions]::RemoveEmptyEntries))
-        if('NDEBUG' -cnotin $definitions -or ($definitions -match '^(?:_DEBUG|_DISABLE_(?:VECTOR|STRING)_ANNOTATION)(?:=|$)')){
+        if('NDEBUG' -cnotin $definitions -or ($definitions -match '^(?:_DEBUG|_DISABLE_(?:STL|VECTOR|STRING)_ANNOTATION)(?:=|$)')){
             throw 'SDK qualification requires Release definitions with STL annotations enabled.'
         }
         # Admit only the supported library options; opaque profile-changing switches must not override metadata.
@@ -254,4 +306,5 @@ function Invoke-DxUiSdkProductionLibrary {
 }
 
 Export-ModuleMember -Function Get-DxUiSdkLibraryInputState,Remove-DxUiSdkLibraryReceipt,Complete-DxUiSdkLibraryBuild,Assert-DxUiSdkLibraryBuild,
-    Export-DxUiSdkLibraryInputs,Import-DxUiSdkLibraryInputs,Assert-DxUiSdkReleaseProfile,Invoke-DxUiSdkProductionLibrary
+    Export-DxUiSdkLibraryInputs,Import-DxUiSdkLibraryInputs,Assert-DxUiSdkReleaseProfile,Invoke-DxUiSdkProductionLibrary,
+    Complete-DxUiSdkSourceBuildRecord,Assert-DxUiSdkSourceBuildRecord
