@@ -800,10 +800,14 @@ exit 0
         if ($LASTEXITCODE) {throw 'Runner fixture default ref failed'}
         $fixturePlatform=if([Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString() -eq 'Arm64') {'ARM64'} else {'x64'}
         Write-FixtureDependencies $sandbox $fixturePlatform
-        function Invoke-PublicRunner([string[]]$Arguments,[switch]$NoExplicitScope) {
+        function Invoke-PublicRunner([string[]]$Arguments,[switch]$NoExplicitScope,[switch]$Hosted) {
             $start=[Diagnostics.ProcessStartInfo]::new((Join-Path $PSHOME 'pwsh.exe'))
             if (-not(Test-Path $start.FileName)) {$start.FileName=Join-Path $PSHOME 'pwsh'}
             $start.UseShellExecute=$false;$start.RedirectStandardOutput=$true;$start.RedirectStandardError=$true
+            # These recording fixtures model an ordinary local iteration even when the
+            # enclosing test runs in CI. The separate Hosted control retains CI freshness.
+            foreach($name in @('CI','GITHUB_ACTIONS')){[void]$start.Environment.Remove($name)}
+            if($Hosted){$start.Environment['CI']='true';$start.Environment['GITHUB_ACTIONS']='true'}
             $runnerArguments=@('-NoProfile','-File',(Join-Path $sandbox 'Test-Changes.ps1'))
             if(-not $NoExplicitScope){$runnerArguments+=@('-Scopes','Example')}
             $runnerArguments+=@('-Platform',$fixturePlatform)+$Arguments
@@ -889,6 +893,14 @@ exit 0
         $run=Invoke-PublicRunner @('-Force','-SkipBuild');Assert-Scope ($run.Exit -ne 0 -and -not(Test-Path $receipt)) 'Post-run mutation published success'
         Remove-Item -LiteralPath (Join-Path $sandbox '.build/mutate')
         $run=Invoke-PublicRunner @('-SkipBuild');Assert-Scope ($run.Exit -ne 0 -and $run.Text.Contains('SkipBuild refused')) 'Stale compiled input accepted'
+        $parentCi=Get-EnvironmentSnapshot @('CI','GITHUB_ACTIONS')
+        $run=Invoke-PublicRunner @() -NoExplicitScope
+        Assert-Scope ($run.Exit -eq 0 -and (Test-Path $iteration)) "Local fixture could not establish the hosted-refusal control: $($run.Text)"
+        $count=@(Get-Content (Join-Path $sandbox '.build/calls.txt')).Count
+        $run=Invoke-PublicRunner @() -NoExplicitScope -Hosted
+        Assert-Scope ($run.Exit -eq 0 -and -not $run.Text.Contains('NO_WORK') -and -not(Test-Path $iteration) -and
+            @(Get-Content (Join-Path $sandbox '.build/calls.txt')).Count -gt $count) "CI reused or published a local iteration baseline: $($run.Text)"
+        Assert-EnvironmentSnapshot $parentCi 'Local/hosted fixture process isolation'
     }
     Write-Host "Scoped testing: $passed cases passed."
 } finally {
