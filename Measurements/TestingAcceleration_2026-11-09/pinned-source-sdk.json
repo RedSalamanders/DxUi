@@ -321,5 +321,15 @@
       "rawBuildLog": ".build/i61-api5-sdk-build.log",
       "rawPackageLog": ".build/i61-api5-sdk-package.log"
     }
-  ]
+  ],
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-exact-pinned-sdk-production-v1",
+  "benchmarkInputs": {
+    "build.ps1": "EA9EAF28EF67A04B74791F629F8D5C9841333CF174FC61A7350DCD84FA399844",
+    "Tools/New-SdkPackage.ps1": "4E07DF336D22D7A9C3DE6C2A83B55ECDC283C8122F30B30A1A22FAD64B7BCA0B",
+    "Tools/SdkLibraryInputs.psm1": "DE66C8492742781AC2F43A1F2D5F322E354615401D74B52AB1B18C55957F3D00",
+    "Tools/SdkSourceProfiles.psm1": "675E4FEB2E278BE99E6E2EF497D147B753008B076C71B2BE3E9B45778EF5A174",
+    "Tools/SdkNotices.psm1": "BB167CF9E89F80D1C9D97FDF750B2698903A49A6491CC3145EDD847E06947EB7",
+    "Samples/SdkSmoke/LegacyApi4Basic.cpp": "30C3A7694974085B7A6BFD3066E690E0B8B8D373C4FF4696678568D7B08B065C"
+  }
 }
