@@ -20,6 +20,8 @@ x64 or ARM64. Runtime tests require matching native architecture.
 Prints the selected scopes, changed paths and reasons without building or testing.
 .PARAMETER Force
 Executes even when identical successful local evidence exists.
+.PARAMETER ParallelSuites
+Maximum concurrent ordinary suites (1–8, default 1). Performance and foreground work remain serial. The option is bound into native result identity.
 .PARAMETER SkipBuild
 Uses only artifacts with a matching scoped-runner build attestation. Changed compiled source,
 installed dependencies or artifact bytes fail before tests; run once without this switch to establish attestation.
@@ -46,7 +48,8 @@ param(
     [ValidateSet('x64','ARM64')][string] $Platform='x64',
     [switch] $Explain,
     [switch] $Force,
-    [switch] $SkipBuild
+    [switch] $SkipBuild,
+    [ValidateRange(1,8)][int] $ParallelSuites = 1
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
@@ -105,8 +108,9 @@ if ($native.Count) {
 }
 $pending=[Collections.Generic.List[object]]::new()
 $identities=@{}
+$executionOptions="parallel-suites=$ParallelSuites"
 $commonNative=if ($native.Count) {
-    Get-ScopedDigest (@([IO.Path]::GetFullPath($root),$Platform,$Configuration,'(common)','',$buildInputBefore,$artifact,(Get-ScopedEnvironmentIdentity)) -join "`n")
+    Get-ScopedDigest (@([IO.Path]::GetFullPath($root),$Platform,$Configuration,'(common)',$executionOptions,$buildInputBefore,$artifact,(Get-ScopedEnvironmentIdentity)) -join "`n")
 } else {''}
 $commonTooling=Get-ScopedDigest ((Get-ScopedSourceIdentity $root)+"`n"+(Get-ScopedEnvironmentIdentity)+"`n"+(Get-ScopedToolIdentity))
 function Get-ScopeReceiptPath($Scope) {if ($Scope.native) {Join-Path $reports ($Scope.name+'.json')} else {Join-Path $root ('.build/reports/scoped-tests/independent/'+$Scope.name+'.json')}}
@@ -143,11 +147,11 @@ if ($pending.Count) {
         }
     }
     if ($runtime.Count) {
-        & (Join-Path $root 'test.ps1') -Platform $Platform -Configuration $Configuration -SkipBuild -Suites $runtime -SkipTooling
+        & (Join-Path $root 'test.ps1') -Platform $Platform -Configuration $Configuration -SkipBuild -Suites $runtime -SkipTooling -ParallelSuites $ParallelSuites
         if ($LASTEXITCODE -ne 0) {throw "Selected runtime tests failed with exit $LASTEXITCODE."}
     }
     Import-Module $modulePath -Force
-    $afterNative=if ($runtime.Count) {Get-ScopedRunIdentity $root $Platform $Configuration '(common)'} else {$commonNative}
+    $afterNative=if ($runtime.Count) {Get-ScopedRunIdentity $root $Platform $Configuration '(common)' $executionOptions} else {$commonNative}
     $afterTooling=Get-ScopedDigest ((Get-ScopedSourceIdentity $root)+"`n"+(Get-ScopedEnvironmentIdentity)+"`n"+(Get-ScopedToolIdentity))
     foreach ($scope in $pending) {
         $after=Get-ScopedDigest ($(if ($scope.native) {$afterNative} else {$afterTooling})+"`n"+$scope.name)

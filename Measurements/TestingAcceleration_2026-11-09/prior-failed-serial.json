@@ -1,0 +1,17 @@
+{
+  "mode": "serial",
+  "elapsedMs": 159873.7615,
+  "passed": false,
+  "error": "DxUi failed suites: Embedded exited with code -1073740791. See Z:\\src\\DxUi\\.build\\evidence\\test-runs\\20261109T130229552Z-81776-d3ff2e9c1cd84dbeb130432cab0e8b22.",
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-i61-local-native-validation-v1",
+  "benchmarkInputs": {
+    "DxUi.ControlTests.exe": "AED2B811DF7F14F25C826098BEF5378A52CE069A5CBFBF724E20D955DF09C6DD",
+    "DxUi.ControlTests.pdb": "0B6845E830F5F720A92F5B3197FC0D26A0D06DD676220E470B56F232F6E64367",
+    "DxUi.FoundationTests.exe": "6B598ACB6E1C3CB7D6C47BDDF1F4AAA9A87D828E6572FFF0EDF85B9023F2740E",
+    "DxUi.FoundationTests.pdb": "8E0DD282879AC89F000FC3087EA46DDB45AFDC062BEDC7AE0C7CB983368E514A",
+    "DxUi.EmbeddedTests.exe": "B27B0F60065703AEDCE5BEE6754C3A370AEB45A17D65EFF7A06FFA7ABD6CC9FC",
+    "DxUi.EmbeddedTests.pdb": "EDD4938258A5916FD6FDFEBA14DA6187C3645CC9AC215E114C33F3F4BDF5D831"
+  },
+  "evidenceKind": "Diagnostic summary of library test orchestration; canonical native and failed receipts remain unchanged in their original run archives."
+}

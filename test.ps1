@@ -53,8 +53,8 @@ $ErrorActionPreference = 'Stop'
 if ($InteractiveAutoStart -and -not $Interactive) { throw '-InteractiveAutoStart requires -Interactive and prior agreement to automatic start and the time.' }
 # Ordinary iteration uses source impact. Explicit suites and Full retain the lower-level runner surface.
 if (-not $Full -and -not $PSBoundParameters.ContainsKey('Suites') -and
-    @($PSBoundParameters.Keys | Where-Object { $_ -notin @('Platform','Configuration','SkipBuild') }).Count -eq 0) {
-    & (Join-Path $PSScriptRoot 'Test-Changes.ps1') -Configuration $Configuration -Platform $Platform -SkipBuild:$SkipBuild
+    @($PSBoundParameters.Keys | Where-Object { $_ -notin @('Platform','Configuration','SkipBuild','ParallelSuites') }).Count -eq 0) {
+    & (Join-Path $PSScriptRoot 'Test-Changes.ps1') -Configuration $Configuration -Platform $Platform -SkipBuild:$SkipBuild -ParallelSuites $ParallelSuites
     exit $LASTEXITCODE
 }
 Import-Module (Join-Path $PSScriptRoot 'Tools/SuiteFailure.psm1') -Force
@@ -135,8 +135,8 @@ try {
 # against the executable this run is about to use; an interactive run needs the second most, since the watchdog is what bounds a
 # hung test while the suites hold the person's desktop.
 if (@($Suites | Where-Object { $_ -notin @('Foundation','Embedded') }).Count) {
-    & (Join-Path $PSScriptRoot 'Tools/tests/Test-TestFilter.ps1') -Configuration $Configuration -Platform $Platform
-    & (Join-Path $PSScriptRoot 'Tools/tests/Test-TestWatchdog.ps1') -Configuration $Configuration -Platform $Platform
+    Import-Module (Join-Path $PSScriptRoot 'Tools/ScopedTesting.psm1') -Force
+    Invoke-ScopedHarnessPreflight -Root $PSScriptRoot -Configuration $Configuration -Platform $Platform -Force:$Full
 }
 # The lease's Windows services (its children, its confirmation and its warning, on a private desktop) are proved with the suite that
 # covers the lease's decisions, and before an interactive run takes a person's desktop.

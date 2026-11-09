@@ -1,0 +1,1 @@
+- Expose bounded parallel suites through affected testing, retain serial performance/foreground execution and bind the scheduling option into reusable native evidence; hosted concurrency remains unchanged pending native comparison.

@@ -290,16 +290,47 @@ function Get-ScopedRunIdentity {
 }
 
 function Test-ScopedReceipt {
-    param([string] $Path, [string] $Identity)
+    param([string] $Path, [string] $Identity, [ValidateRange(0,8760)][int] $MaxAgeHours = 0)
     if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { return $false }
     try {
         $receipt = Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json
         # PowerShell 7.5 parses ISO JSON strings into DateTime; preserve the canonical UTC spelling on earlier hosts too.
         $completed = if ($receipt.completedUtc -is [DateTime]) { $receipt.completedUtc.ToUniversalTime().ToString('o') } else { [string]$receipt.completedUtc }
+        $age = [DateTime]::UtcNow - [DateTime]::Parse($completed, [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::RoundtripKind).ToUniversalTime()
         return $receipt.version -eq 1 -and $receipt.outcome -eq 'PASSED' -and $receipt.identity -ceq $Identity -and
+            $age.TotalHours -ge 0 -and ($MaxAgeHours -eq 0 -or $age.TotalHours -lt $MaxAgeHours) -and
             $receipt.digest -ceq (Get-ScopedDigest ($receipt.identity + "`n" + $completed + "`nPASSED"))
     } catch [ArgumentException] { return $false }
     catch [System.Management.Automation.RuntimeException] { return $false }
+}
+
+function Invoke-ScopedHarnessPreflight {
+    # Only deterministic filter/watchdog verification is reusable. Desktop availability,
+    # foreground leases, performance and product suites still execute under their owners.
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][string] $Root,
+        [Parameter(Mandatory)][ValidateSet('x64','ARM64')][string] $Platform,
+        [Parameter(Mandatory)][ValidateSet('Debug','Release','ASan Debug')][string] $Configuration,
+        [switch] $Force)
+    $hostPath = (Get-Process -Id $PID).Path
+    $options = 'filter-watchdog-v1:' + (Get-FileHash -LiteralPath $hostPath -Algorithm SHA256).Hash
+    $before = Get-ScopedRunIdentity $Root $Platform $Configuration '(harness-preflight)' $options
+    $path = Join-Path $Root ".build/reports/scoped-tests/$Platform-$($Configuration -replace ' ','')/harness.json"
+    $instrumented = @(Get-ScopedInstrumentation).Count -gt 0
+    $fresh = $Force -or $instrumented -or $env:CI -eq 'true' -or $env:GITHUB_ACTIONS -eq 'true'
+    if (-not $fresh -and (Test-ScopedReceipt $path $before -MaxAgeHours 24)) {
+        Write-Host 'REUSED native filter/watchdog preflight (exact local inputs, artifacts and environment; under 24 hours)'
+        return
+    }
+    if (Test-Path -LiteralPath $path) { Remove-Item -LiteralPath $path }
+    foreach ($script in @('Test-TestFilter.ps1','Test-TestWatchdog.ps1')) {
+        & $hostPath -NoProfile -NonInteractive -File (Join-Path $Root "Tools/tests/$script") -Platform $Platform -Configuration $Configuration
+        if ($LASTEXITCODE -ne 0) { throw "Native harness preflight failed: $script ($LASTEXITCODE)." }
+    }
+    if ((Get-ScopedRunIdentity $Root $Platform $Configuration '(harness-preflight)' $options) -cne $before) {
+        throw 'Harness preflight inputs or artifacts changed during verification; no reusable result was published.'
+    }
+    if (-not $instrumented) { Write-ScopedReceipt $path $before }
 }
 
 function Write-ScopedReceipt {
@@ -406,4 +437,4 @@ function Get-ScopedPrCoverage {
 Export-ModuleMember -Function Get-ScopedChangedPaths, Get-ScopedPrContractDigest, Read-ScopedTestManifest, Assert-ScopedTestNames, Get-ScopedTestPlan,
     Get-ScopedSourceIdentity, Get-ScopedDependencyIdentity, Get-ScopedBuildInputIdentity, Get-ScopedArtifactIdentity, Get-ScopedRunIdentity, Get-ScopedDigest,
     Test-ScopedReceipt, Write-ScopedReceipt, Get-ScopedPrCoverage, Get-ScopedPrCandidateScopes, Get-ScopedEnvironmentIdentity,
-    Get-ScopedToolIdentity, Get-ScopedInstrumentation, Test-ScopedPattern, Get-ScopedInteractiveObligations
+    Get-ScopedToolIdentity, Get-ScopedInstrumentation, Test-ScopedPattern, Get-ScopedInteractiveObligations, Invoke-ScopedHarnessPreflight
