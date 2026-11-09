@@ -77,6 +77,10 @@ with `-SdkStoreRoot` and an explicit/default repository owner. Store initializat
 The SDK manifest binds its independently acquired strict input identity, source/API/profile and actual
 library/compiler-PDB hashes. Every existing extracted native smoke, source/header/license, PDB isolation,
 missing-PDB and warning control must pass before publication, and complete input identity must still match.
+The complete bounded SDK payload inventory/byte digest is captured before creating the archive that is
+smoke-tested. Publication requires that independently held digest to match every current staged byte,
+including headers and integration policy, before the generic atomic-copy checks run. A late stage edit
+cannot inherit the extracted archive's passed smoke.
 The outer SDK receipt retains the full immutable store manifest SHA-256 separately from the stored entry.
 
 `Open-DxUiSdkInputBytes` accepts that independently retained/trusted manifest SHA-256, reacquires complete
@@ -88,7 +92,9 @@ and the immutable inventory/bytes. An input mutation or byte-integrity failure i
 failure still releases the reader lease and preserves diagnostics. A missing exact version supplies no bytes.
 
 Only a clean matching shared-engine checkout at the producer's exact `.ci/project.json` pin may implement
-storage. Generic publication itself establishes no native SDK or product test verdict; mutable receipt
+storage. The byte snapshot reuses that exact pin's canonical payload catalog, including its bounds and
+reparse refusal; the pin-bound private-helper integration is covered by actual store tests. Generic
+publication itself establishes no native SDK or product test verdict; mutable receipt
 flags cannot authenticate a hosted producer. Cross-repository artifacts still require independent workflow,
 source/run/attempt and transport-digest verification. Debug, ASan, disabled annotations and unpinned local
 candidates retain source fallback until their distinct profiles and taint/output boundaries are implemented.

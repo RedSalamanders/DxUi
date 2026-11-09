@@ -224,6 +224,8 @@ requires restored dependencies and the selected toolchain; an unverifiable input
 SDK payload into an immutable input store beneath the owner's `.build`. Native SDK gates run before
 publication and complete input identity is checked again. The outer SDK receipt retains the independent
 store manifest SHA-256 and input key. An unowned nonempty store, drive root or reparse path refuses.
+The complete SDK payload is byte-snapshotted before archive creation; publication requires that same
+independently held snapshot, so edits to staged headers or policy after native smoke cannot become a hit.
 
 `SdkInputStore.psm1` uses the exact clean engine pinned by this producer. `Open-DxUiSdkInputBytes` requires
 independently trusted manifest SHA-256 and recomputes actual pinned inputs before returning a reader lease.

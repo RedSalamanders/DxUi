@@ -153,6 +153,7 @@ New-Item -ItemType Directory -Path (Join-Path $stage 'samples/Shared') -Force | 
 foreach($file in $sourceProfile.shared){Copy-Item -LiteralPath $file -Destination (Join-Path $stage 'samples/Shared')}
 $archive=Join-Path $directory "DxUi-SDK-$Version-$Platform.zip"
 if(Test-Path -LiteralPath $archive){throw 'A previous SDK ZIP already occupies this identity; use a fresh production workspace.'}
+if($SdkStoreRoot){$sdkPayloadDigest=Get-DxUiSdkInputPayloadDigest -PayloadRoot $stage}
 Compress-Archive -Path (Join-Path $stage '*') -DestinationPath $archive
 $smoke=Join-Path $SmokeRoot ('dxui-sdk-'+[guid]::NewGuid().ToString('N'))
 if(Test-Path -LiteralPath $smoke){throw 'SDK consumer scratch identity is already occupied.'}
@@ -290,7 +291,7 @@ $manifest['archiveSha256']=(Get-FileHash -LiteralPath $archive).Hash.ToLowerInva
 if($SdkStoreRoot){
     $sdkInputAfter=Get-DxUiSdkCacheInputIdentity -Root $root -Platform $Platform
     if(($sdkInputIdentity|ConvertTo-Json -Depth 8 -Compress) -cne ($sdkInputAfter|ConvertTo-Json -Depth 8 -Compress)){throw 'SDK input identity changed during native qualification; no store entry was published.'}
-    $published=Publish-DxUiSdkInputBytes -StoreRoot $SdkStoreRoot -StoreRepositoryRoot $SdkStoreRepositoryRoot -PayloadRoot $stage -Identity $sdkInputIdentity
+    $published=Publish-DxUiSdkInputBytes -StoreRoot $SdkStoreRoot -StoreRepositoryRoot $SdkStoreRepositoryRoot -PayloadRoot $stage -Identity $sdkInputIdentity -ExpectedPayloadDigest $sdkPayloadDigest
     $manifest['sdkStoreManifestSha256']=$published.ManifestSha256
     $manifest['sdkStoreInputKey']=$published.Key
 }

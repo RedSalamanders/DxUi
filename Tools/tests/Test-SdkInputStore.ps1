@@ -18,12 +18,12 @@ function New-SdkStoreFixture([string]$Fixture){
     $manifest=[ordered]@{schemaVersion=1;kind='sdk';source=$identity.sourceCommit;apiRevision=4;platform='x64';configuration='Release';runtime='MD';testsIncluded=$false;sdkCacheIdentity=$identity;
         librarySha256=(Get-FileHash (Join-Path $payload 'lib/x64/Release/DxUi.lib')).Hash.ToLowerInvariant();libraryPdbSha256=(Get-FileHash (Join-Path $payload 'lib/x64/Release/DxUi.pdb')).Hash.ToLowerInvariant()}
     Set-FixtureJson $payload sdk-manifest.json $manifest
-    return @{payload=$payload;store=$store;manifest=$manifest}
+    return @{payload=$payload;store=$store;manifest=$manifest;digest=(Get-DxUiSdkInputPayloadDigest -PayloadRoot $payload)}
 }
 Invoke-FixtureCase 'verified SDK bytes stay leased through input recheck; exact misses supply no bytes or verdict' {
     param($fixture)
     $f=New-SdkStoreFixture $fixture
-    $published=Publish-DxUiSdkInputBytes -StoreRoot $f.store -StoreRepositoryRoot $fixture -PayloadRoot $f.payload -Identity $identity
+    $published=Publish-DxUiSdkInputBytes -StoreRoot $f.store -StoreRepositoryRoot $fixture -PayloadRoot $f.payload -Identity $identity -ExpectedPayloadDigest (Get-DxUiSdkInputPayloadDigest -PayloadRoot $f.payload)
     $opened=Open-DxUiSdkInputBytes -Root $fixture -Platform x64 -StoreRoot $f.store -ManifestSha256 $published.ManifestSha256
     Assert-True ($null -ne $opened -and (Test-Path (Join-Path $opened.SdkRoot 'DxUi.Sdk.props'))) 'verified payload is available'
     Assert-Throws {Move-CiSdkCacheEntryToQuarantine -StoreRoot $f.store -Identity $identity -ManifestSha256 $published.ManifestSha256} 'writer cannot move an active SDK reader'
@@ -39,24 +39,32 @@ Invoke-FixtureCase 'source/profile/symbol/public-policy mismatches refuse SDK pu
         $changed=Copy-JsonValue $f.manifest
         $changed[$field]=switch($field){source{'2'*40};platform{'ARM64'};runtime{'MT'};testsIncluded{$true};default{'2'*64}}
         Set-FixtureJson $f.payload sdk-manifest.json $changed
-        Assert-Throws {Publish-DxUiSdkInputBytes -StoreRoot $f.store -StoreRepositoryRoot $fixture -PayloadRoot $f.payload -Identity $identity} "unsupported payload $field refuses"
+        Assert-Throws {Publish-DxUiSdkInputBytes -StoreRoot $f.store -StoreRepositoryRoot $fixture -PayloadRoot $f.payload -Identity $identity -ExpectedPayloadDigest (Get-DxUiSdkInputPayloadDigest -PayloadRoot $f.payload)} "unsupported payload $field refuses"
     }
     Set-FixtureJson $f.payload sdk-manifest.json $f.manifest
     [IO.File]::Move((Join-Path $f.payload 'DxUi.Sdk.props'),(Join-Path $f.payload 'preserved-policy.txt'))
-    Assert-Throws {Publish-DxUiSdkInputBytes -StoreRoot $f.store -StoreRepositoryRoot $fixture -PayloadRoot $f.payload -Identity $identity} 'missing public policy refuses'
+    Assert-Throws {Publish-DxUiSdkInputBytes -StoreRoot $f.store -StoreRepositoryRoot $fixture -PayloadRoot $f.payload -Identity $identity -ExpectedPayloadDigest (Get-DxUiSdkInputPayloadDigest -PayloadRoot $f.payload)} 'missing public policy refuses'
     Assert-True (-not(Test-Path $f.store)) 'rejected payload does not initialize a store'
+}
+Invoke-FixtureCase 'stage bytes changed after the independent pre-archive snapshot cannot be published' {
+    param($fixture)
+    $f=New-SdkStoreFixture $fixture
+    $header=Join-Path $f.payload 'include/DxUi/DxUi.h';$time=[IO.File]::GetLastWriteTimeUtc($header)
+    $bytes=[IO.File]::ReadAllBytes($header);$bytes[0]=$bytes[0] -bxor 1;[IO.File]::WriteAllBytes($header,$bytes);[IO.File]::SetLastWriteTimeUtc($header,$time)
+    Assert-Throws {Publish-DxUiSdkInputBytes -StoreRoot $f.store -StoreRepositoryRoot $fixture -PayloadRoot $f.payload -Identity $identity -ExpectedPayloadDigest $f.digest} 'late header change cannot inherit the original SDK smoke'
+    Assert-True (-not(Test-Path $f.store)) 'unqualified changed stage did not create a cache entry'
 }
 Invoke-FixtureCase 'same-size/mtime byte changes fail open without returning SDK inputs' {
     param($fixture)
     $f=New-SdkStoreFixture $fixture
-    $p=Publish-DxUiSdkInputBytes -StoreRoot $f.store -StoreRepositoryRoot $fixture -PayloadRoot $f.payload -Identity $identity
+    $p=Publish-DxUiSdkInputBytes -StoreRoot $f.store -StoreRepositoryRoot $fixture -PayloadRoot $f.payload -Identity $identity -ExpectedPayloadDigest (Get-DxUiSdkInputPayloadDigest -PayloadRoot $f.payload)
     $file=Join-Path $p.Payload 'lib/x64/Release/DxUi.lib';$time=[IO.File]::GetLastWriteTimeUtc($file);$bytes=[IO.File]::ReadAllBytes($file);$bytes[0]=$bytes[0] -bxor 1;[IO.File]::WriteAllBytes($file,$bytes);[IO.File]::SetLastWriteTimeUtc($file,$time)
     Assert-Throws {Open-DxUiSdkInputBytes -Root $fixture -Platform x64 -StoreRoot $f.store -ManifestSha256 $p.ManifestSha256} 'raw byte corruption cannot become a hit'
 }
 Invoke-FixtureCase 'changed source at close preserves failure and releases the immutable reader lease' {
     param($fixture)
     $f=New-SdkStoreFixture $fixture
-    $p=Publish-DxUiSdkInputBytes -StoreRoot $f.store -StoreRepositoryRoot $fixture -PayloadRoot $f.payload -Identity $identity
+    $p=Publish-DxUiSdkInputBytes -StoreRoot $f.store -StoreRepositoryRoot $fixture -PayloadRoot $f.payload -Identity $identity -ExpectedPayloadDigest (Get-DxUiSdkInputPayloadDigest -PayloadRoot $f.payload)
     $opened=Open-DxUiSdkInputBytes -Root $fixture -Platform x64 -StoreRoot $f.store -ManifestSha256 $p.ManifestSha256
     $changed=Copy-JsonValue $identity;$changed.sourceBytes='9'*64
     & $storeModule {param($i) $script:fixtureIdentity=$i} $changed

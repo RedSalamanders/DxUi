@@ -36,11 +36,25 @@ function Assert-DxUiSdkInputPayload {
     }
 }
 
+function Get-DxUiSdkInputPayloadDigest {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][string]$PayloadRoot,[string]$EngineRoot='')
+    $engine=Import-DxUiSdkStoreEngine $EngineRoot
+    # Reuse the complete bounded/reparse-safe byte catalog from the exact pinned storage implementation.
+    # Its private helper is deliberately pin-bound here; the integration tests exercise this actual closure.
+    return & $engine {param($p)
+        $files=@(Get-CiSdkPayloadFiles $p)
+        Get-CiSha256 ('dxui-sdk-payload-v1'+"`n"+($files|ConvertTo-Json -Depth 5 -Compress))
+    } $PayloadRoot
+}
+
 function Publish-DxUiSdkInputBytes {
     [CmdletBinding()]
     param([Parameter(Mandatory)][string]$StoreRoot,[Parameter(Mandatory)][string]$StoreRepositoryRoot,
-        [Parameter(Mandatory)][string]$PayloadRoot,[Parameter(Mandatory)][Collections.IDictionary]$Identity,[string]$EngineRoot='')
+        [Parameter(Mandatory)][string]$PayloadRoot,[Parameter(Mandatory)][Collections.IDictionary]$Identity,
+        [Parameter(Mandatory)][ValidatePattern('^[a-f0-9]{64}$')][string]$ExpectedPayloadDigest,[string]$EngineRoot='')
     $engine=Import-DxUiSdkStoreEngine $EngineRoot
+    if((Get-DxUiSdkInputPayloadDigest -PayloadRoot $PayloadRoot -EngineRoot $EngineRoot) -cne $ExpectedPayloadDigest){throw 'SDK payload changed after the independently held qualification snapshot.'}
     Assert-DxUiSdkInputPayload $PayloadRoot $Identity $engine
     # The caller independently acquired this identity and completed native SDK gates. This function authenticates
     # no mutable receipt and grants no verdict; generic publication verifies/copies every payload byte atomically.
@@ -86,4 +100,4 @@ function Close-DxUiSdkInputBytes {
     if($null -ne $failure){throw $failure}
 }
 
-Export-ModuleMember -Function Publish-DxUiSdkInputBytes,Open-DxUiSdkInputBytes,Close-DxUiSdkInputBytes
+Export-ModuleMember -Function Get-DxUiSdkInputPayloadDigest,Publish-DxUiSdkInputBytes,Open-DxUiSdkInputBytes,Close-DxUiSdkInputBytes
