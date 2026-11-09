@@ -69,6 +69,30 @@ profiles refuse. Dependency source pins never advance as part of this packaging 
 
 ## Native metadata acquisition
 
+### Immutable SDK byte publication and use
+
+`New-SdkPackage.ps1` optionally publishes its exact staged SDK payload through `Tools/SdkInputStore.psm1`
+with `-SdkStoreRoot` and an explicit/default repository owner. Store initialization is limited to an owned
+`.build` descendant with the shared ownership marker; unowned nonempty roots and reparse paths refuse.
+The SDK manifest binds its independently acquired strict input identity, source/API/profile and actual
+library/compiler-PDB hashes. Every existing extracted native smoke, source/header/license, PDB isolation,
+missing-PDB and warning control must pass before publication, and complete input identity must still match.
+The outer SDK receipt retains the full immutable store manifest SHA-256 separately from the stored entry.
+
+`Open-DxUiSdkInputBytes` accepts that independently retained/trusted manifest SHA-256, reacquires complete
+current pinned inputs and opens the shared reader lease. It verifies the full payload plus SDK source/API,
+Release/MD identity, library/PDB and required public header/integration policy before returning bytes.
+Consumers retain the lease through all compiler/linker use, independently admit their exact compatible
+consumer profile and linker provenance, and close in finally. Close rechecks complete current input identity
+and the immutable inventory/bytes. An input mutation or byte-integrity failure invalidates the operation;
+failure still releases the reader lease and preserves diagnostics. A missing exact version supplies no bytes.
+
+Only a clean matching shared-engine checkout at the producer's exact `.ci/project.json` pin may implement
+storage. Generic publication itself establishes no native SDK or product test verdict; mutable receipt
+flags cannot authenticate a hosted producer. Cross-repository artifacts still require independent workflow,
+source/run/attempt and transport-digest verification. Debug, ASan, disabled annotations and unpinned local
+candidates retain source fallback until their distinct profiles and taint/output boundaries are implemented.
+
 `Tools/SdkCacheInputs.psm1` acquires the shared v1 `DependencySdkInputs` identity without compiling or
 granting a result. It binds clean exact source/API and raw bytes, restored dependency inventory/bytes,
 complete supported Release/MD/stdcpplatest/GL-LTCG/enabled-annotation profile, selected toolchain files and

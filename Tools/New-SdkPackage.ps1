@@ -16,6 +16,10 @@ Existing approved workspace outside a Git checkout for SDK consumer scratch.
 Hosted runs default to RUNNER_TEMP; local invocation requires an explicit root.
 .PARAMETER SourceRoot
 Optional separate clean pinned source checkout built by this producer tooling. Requires its matching source-build descriptor; dependency pins and source bytes remain unchanged.
+.PARAMETER SdkStoreRoot
+Optional immutable dependency-input store. Publication occurs only after every native SDK gate passes and complete input identity is rechecked.
+.PARAMETER SdkStoreRepositoryRoot
+Repository owning SdkStoreRoot beneath its .build directory; defaults to this producer tooling repository. Never authorizes a drive root or an unowned nonempty directory.
 .OUTPUTS
 .build/sdk/DxUi-SDK-<version>-<platform>.zip and source/compiler/archive identity receipt.
 The manifest and receipt include every shipped license path and SHA-256.
@@ -34,7 +38,7 @@ an active user of the producer PDB makes qualification fail rather than weakenin
 [CmdletBinding()]
 param([Parameter(Mandatory)][ValidateSet('x64','ARM64')][string]$Platform,
     [Parameter(Mandatory)][ValidatePattern('^0\.1\.[0-9]+$')][string]$Version,
-    [string]$SmokeRoot='', [string]$SourceRoot='')
+    [string]$SmokeRoot='', [string]$SourceRoot='', [string]$SdkStoreRoot='', [string]$SdkStoreRepositoryRoot='')
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $toolingRoot=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
@@ -56,6 +60,13 @@ Import-Module (Join-Path $toolingRoot 'Tools/SdkNotices.psm1') -Force
 Import-Module (Join-Path $toolingRoot 'Tools/SdkLibraryInputs.psm1') -Force
 Import-Module (Join-Path $toolingRoot 'Tools/SdkSourceProfiles.psm1')
 $toolingBefore=Get-DxUiSdkToolingProvenance -Root $toolingRoot
+if($SdkStoreRepositoryRoot -and -not $SdkStoreRoot){throw 'SdkStoreRepositoryRoot requires an explicit SdkStoreRoot.'}
+if($SdkStoreRoot){
+    Import-Module (Join-Path $toolingRoot 'Tools/SdkCacheInputs.psm1')
+    Import-Module (Join-Path $toolingRoot 'Tools/SdkInputStore.psm1')
+    if(-not $SdkStoreRepositoryRoot){$SdkStoreRepositoryRoot=$toolingRoot}
+    $sdkInputIdentity=Get-DxUiSdkCacheInputIdentity -Root $root -Platform $Platform
+}
 Assert-DxUiSdkReleaseProfile -Root $root -Platform $Platform
 $libraryInputs=Assert-DxUiSdkLibraryBuild -Root $root -Platform $Platform -RequireClean
 $sourceCommit=$libraryInputs.inputState.sourceCommit
@@ -134,6 +145,7 @@ $manifest['nativeBuildIdentity']=$libraryInputs.inputState.nativeInputs
 $manifest['producerTooling']=$toolingBefore
 $manifest['sourceProfile']=$sourceProfile.name
 $manifest['sourceBuildInputs']=$sourceBuild
+if($SdkStoreRoot){$manifest['sdkCacheIdentity']=$sdkInputIdentity}
 $manifest|ConvertTo-Json -Depth 12|Set-Content -LiteralPath (Join-Path $stage 'sdk-manifest.json') -Encoding utf8
 New-Item -ItemType Directory -Path (Join-Path $stage 'samples/Smoke') -Force | Out-Null
 Copy-Item -LiteralPath $sourceProfile.main -Destination (Join-Path $stage 'samples/Smoke/Main.cpp')
@@ -275,5 +287,12 @@ $manifest['headerClosurePassed']=$true
 $manifest['headerCount']=@($dependencies.Data.Includes).Count
 $manifest['nativePolicySha256']=(Get-FileHash -LiteralPath (Join-Path $extracted 'build/NativeBuildPolicy.targets')).Hash.ToLowerInvariant()
 $manifest['archiveSha256']=(Get-FileHash -LiteralPath $archive).Hash.ToLowerInvariant()
+if($SdkStoreRoot){
+    $sdkInputAfter=Get-DxUiSdkCacheInputIdentity -Root $root -Platform $Platform
+    if(($sdkInputIdentity|ConvertTo-Json -Depth 8 -Compress) -cne ($sdkInputAfter|ConvertTo-Json -Depth 8 -Compress)){throw 'SDK input identity changed during native qualification; no store entry was published.'}
+    $published=Publish-DxUiSdkInputBytes -StoreRoot $SdkStoreRoot -StoreRepositoryRoot $SdkStoreRepositoryRoot -PayloadRoot $stage -Identity $sdkInputIdentity
+    $manifest['sdkStoreManifestSha256']=$published.ManifestSha256
+    $manifest['sdkStoreInputKey']=$published.Key
+}
 $manifest|ConvertTo-Json -Depth 12|Set-Content -LiteralPath ($archive+'.receipt.json') -Encoding utf8
 Write-Host "Qualified extracted SDK ZIP: $archive"

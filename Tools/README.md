@@ -219,3 +219,15 @@ source/dependency bytes and installed toolchain closure. It requires clean sourc
 checks the supported Release profile and detects source/tooling mutation. It creates no cache, compiles
 nothing and grants no test or SDK acceptance. `Get-DxUiSdkCacheInputIdentity -Root <pinned-source> -Platform x64`
 requires restored dependencies and the selected toolchain; an unverifiable input refuses reuse.
+
+`New-SdkPackage.ps1 -SdkStoreRoot <store> [-SdkStoreRepositoryRoot <owner>]` can publish its fully checked
+SDK payload into an immutable input store beneath the owner's `.build`. Native SDK gates run before
+publication and complete input identity is checked again. The outer SDK receipt retains the independent
+store manifest SHA-256 and input key. An unowned nonempty store, drive root or reparse path refuses.
+
+`SdkInputStore.psm1` uses the exact clean engine pinned by this producer. `Open-DxUiSdkInputBytes` requires
+independently trusted manifest SHA-256 and recomputes actual pinned inputs before returning a reader lease.
+Keep that lease through compilation/linking and call `Close-DxUiSdkInputBytes` in finally; close checks both
+inputs and every stored byte again. Missing versions return no bytes; malformed/corrupt/incompatible inputs
+fail reuse. Publication/opening grant no test verdict. Consumer profile admission, local-candidate refusal,
+authenticated hosted producer trust and product qualification remain separate requirements.
