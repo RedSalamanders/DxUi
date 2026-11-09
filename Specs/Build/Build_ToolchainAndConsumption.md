@@ -69,6 +69,22 @@ profiles refuse. Dependency source pins never advance as part of this packaging 
 
 ## Native metadata acquisition
 
+`Tools/SdkCacheInputs.psm1` acquires the shared v1 `DependencySdkInputs` identity without compiling or
+granting a result. It binds clean exact source/API and raw bytes, restored dependency inventory/bytes,
+complete supported Release/MD/stdcpplatest/GL-LTCG/enabled-annotation profile, selected toolchain files and
+compiler environment, runtime environment, and exact clean producer tooling. Source/tooling mutations
+during acquisition refuse. Consumers must reacquire and compare the input key after use, retain immutable
+payload leases, independently verify producer trust and output manifests, and fall back to source on a miss.
+Acquiring a key alone establishes no cache hit, native SDK acceptance or product test result.
+
+The SDK's separate semantic project projection binds project files, solution mapping, expanded imports and
+targets, complete evaluated compiler/linker/shader profile, resolved native source membership and bytes.
+MSBuild's checkout-derived `Directory`/`RootDir` metadata remains bound by existing v2 build/test receipts;
+those receipts are unchanged and are never portable SDK proof. All existing unsupported-input/profile,
+ignored-header, toolchain/dependency byte and before/after checks remain. System installation paths and
+compiler environment are retained conservatively: an otherwise compatible differently installed toolchain
+may miss the cache and build from source.
+
 Native identity acquisition requests the entire discovered MSBuild property set in one evaluation-only
 response-file query. This reduces repeated process/evaluation cost without narrowing the property, item,
 import, toolchain or source-byte closure. Response files contain only validated distinct property names;
