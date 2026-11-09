@@ -632,7 +632,7 @@ Invoke-TestCase 'an interactive run is settled before anything is built or run' 
     $refusal = $text.IndexOf('Get-DxUiInteractiveRefusal')
     $selection = $text.IndexOf('Resolve-DxUiInteractiveSuites')
     Assert-True ($selection -gt 0 -and $refusal -gt $selection) 'the suites are checked first, then the environment'
-    foreach ($later in @('Invoke-ToolingTests.ps1', "'build.ps1'", 'performance.ps1', 'Test-TestWatchdog.ps1')) {
+    foreach ($later in @('Invoke-ToolingTests.ps1', "'build.ps1'", 'performance.ps1', 'Invoke-ScopedHarnessPreflight')) {
         Assert-True ($text.IndexOf($later) -gt $refusal) "$later runs after the refusal"
     }
     $tooling = Get-Content (Join-Path $repository 'Tools/tests/Invoke-ToolingTests.ps1') -Raw

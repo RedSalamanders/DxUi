@@ -60,6 +60,11 @@ if (-not $Full -and -not $PSBoundParameters.ContainsKey('Suites') -and
 Import-Module (Join-Path $PSScriptRoot 'Tools/SuiteFailure.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'Tools/InteractiveRun.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'Tools/ScopedTesting.psm1') -Force
+$profileLease=Enter-ScopedProfileLease $PSScriptRoot $Platform $Configuration
+try {
+# Every direct attempt invalidates earlier affected no-work state, including failures
+# before a suite report exists. Only the affected owner may republish its completed lane.
+Remove-ScopedIteration -Root $PSScriptRoot -Path (Join-Path $PSScriptRoot ".build/reports/scoped-tests/$Platform-$($Configuration -replace ' ','')/iteration.json")
 Import-Module (Join-Path $PSScriptRoot 'Tools/CapabilitySkipPolicy.psm1') -Force
 $instrumentation = @(Get-ScopedInstrumentation)
 # A comma-separated single value is accepted like an array, so -Tests 'A,B' and -Tests A,B are the same request.
@@ -94,7 +99,11 @@ if (-not $SkipTooling) {
 }
 $nativeArchitecture = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
 if (($Platform -eq 'ARM64') -and ($nativeArchitecture -ne 'Arm64')) { throw 'ARM64 runtime tests require an ARM64 host; use build.ps1 for cross-compilation.' }
-if (-not $SkipBuild) { & (Join-Path $PSScriptRoot 'build.ps1') -Configuration $Configuration -Platform $Platform }
+$buildProjects=@(Get-ScopedRequiredBuildProjects -Suites $Suites -Configuration $Configuration -Full:$Full)
+if (-not $SkipBuild) {
+    if ($Full) { & (Join-Path $PSScriptRoot 'build.ps1') -Configuration $Configuration -Platform $Platform }
+    else { & (Join-Path $PSScriptRoot 'build.ps1') -Configuration $Configuration -Platform $Platform -Projects $buildProjects }
+}
 else {
     Import-Module (Join-Path $PSScriptRoot 'Tools/PerformancePolicy.psm1') -Force
     Invoke-DxUiBuildPhase -Phase SkipBuildGate -Body {
@@ -103,7 +112,7 @@ else {
         $inputIdentity = Get-ScopedBuildInputIdentity $PSScriptRoot $Platform
         $artifactIdentity = Get-ScopedArtifactIdentity $PSScriptRoot $Platform $Configuration
         $receipt = Join-Path $PSScriptRoot ".build/reports/scoped-tests/$Platform-$($Configuration -replace ' ','')/build.json"
-        if (-not (Test-ScopedReceipt $receipt (Get-ScopedDigest ($inputIdentity+"`n"+$artifactIdentity)))) {
+        if (-not (Test-ScopedBuildCoverage $PSScriptRoot $Platform $Configuration $buildProjects $inputIdentity $artifactIdentity -Full:$Full)) {
             throw 'SkipBuild refused: native test sources, dependencies or artifacts changed, or no complete native test receipt exists. Run build.ps1 or test.ps1 without -SkipBuild.'
         }
     }
@@ -344,3 +353,4 @@ $runPassed = $true
 # Nested native probes can leave a failing child exit code even when every requested suite passed.
 # Reset only after successful evidence finalization so callers observe the runner's final result.
 $global:LASTEXITCODE = 0
+} finally { Exit-ScopedProfileLease $profileLease }

@@ -1360,6 +1360,33 @@ Git path discovery and changed-path aggregation MUST preserve exact path identit
 
 `Test-Changes.ps1` is the ordinary iteration entrypoint. Its default is affected coverage, including committed changes since a local merge base and independent staged, unstaged, deletion, rename-side and untracked discovery. No ref is fetched. Unknown executable inputs widen coverage; prose alone does not require native tests. Explanations name paths, consumers and fallback reasons. Explicit selectors reject unknown scopes. Affected, filtered and environment-reduced coverage MUST NOT be reported as a full repository pass.
 
+An ordinary local affected success may retain a profile-specific iteration baseline for at most 24 hours.
+The next default invocation selects content and pending index changes since that success rather than
+reselecting every already-tested branch change. Source maps retain every input of the full validator
+identity, exact ordinal Git path spelling and byte hashes; index maps retain blob, mode and flags.
+Staging tested working bytes alone adds no work, while distinct staged content, mode/flag changes and
+index-only deletion remain visible. Missing, malformed, expired or incompatible state falls back to the
+cumulative branch comparison. Explicit BaseRef, Force, scope selection, Full, PrePush, instrumentation
+and hosted execution never narrow their obligation using this baseline. No-work/Explain calls do not
+advance it. It records only the completed noninteractive affected lane, never repository qualification.
+
+When a baseline includes native work, reuse rechecks installed dependency bytes, the canonical evaluated
+compiler/SDK byte identity and the entire executable/library/DLL/PDB profile. A mismatch selects full
+noninteractive coverage. Successful tooling-only edits preserve that native context. Publishing a new
+baseline requires stable source, index, tools/environment and native context before and after execution;
+capability skips, instrumentation, delegation or failure cannot publish one. Every selected affected
+attempt and every direct test.ps1 attempt revokes the prior baseline before work, including forced,
+filtered and explicit attempts. A failed rerun therefore cannot be hidden by an older no-work baseline.
+Affected and direct test operations hold one reentrant checkout/profile lease; competing processes refuse
+before execution while other profiles/worktrees remain independent. Native builds retain their own output
+ownership checks. Cumulative branch-based foreground obligations remain printed after a no-work result;
+only separately authorized interactive execution can satisfy them.
+
+Documentation-only Markdown classification is restricted to owned prose/guidance locations and named
+repository/readme guidance. Markdown under Tests/Data or Tests/Fixtures is runtime data, including a file
+named README.md. Unknown Markdown beside implementation uses normal scope rules or conservative fallback,
+and remains in compiled input identity. A Markdown extension alone cannot waive native coverage.
+
 Successful whole-scope results are reused only for equal repository content, installed dependency inputs, complete executable/static-library/DLL/PDB output closure, architecture, configuration, scope, runner and environment. Native build and run identities hash the selected platform's installed vcpkg triplet files plus its status, package inventory and ABI metadata; missing dependency metadata fails closed. Build attestation binds compiled source and installed dependencies to those artifacts before `SkipBuild`. Invalid, missing, failed, interrupted or concurrently mutated evidence is never reusable. Force bypasses test-result reuse. Independent tooling receipts are shared across profiles because their execution has no profile argument. Receipt identity is content-based; staging/committing the same source tree does not itself invalidate it.
 PowerShell tooling fixtures that mutate process environment variables MUST restore whether each value was unset, empty or nonempty. A test-generated empty value is a distinct identity input and MUST NOT leak into a later build or SkipBuild gate.
 

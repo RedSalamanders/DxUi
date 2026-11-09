@@ -191,6 +191,15 @@ try {
         }
     }
     Run-Case 'executable schema changes are never mistaken for prose' {$plan=Get-ScopedTestPlan $manifest @('Specs/Unmapped.schema.json');Assert-Scope $plan.full 'Schema was ignored'}
+    Run-Case 'runtime Markdown data is not documentation-only coverage' {
+        foreach($path in @('Tests/Data/semantic.md','Tests/Fixtures/README.md','src/Controls/unmapped-fixture.md')) {
+            $plan=Get-ScopedTestPlan $manifest @($path)
+            Assert-Scope (@($manifest.scopes | Where-Object {$_.native -and $_.name -in $plan.scopes}).Count -gt 0) "Runtime Markdown lost native coverage: $path"
+            $before=Get-ScopedSourceIdentity $fixture -CompiledOnly
+            Write-Fixture (Join-Path $fixture $path) 'runtime markdown data'
+            Assert-Scope ((Get-ScopedSourceIdentity $fixture -CompiledOnly) -cne $before) "Runtime Markdown was absent from compiled identity: $path"
+        }
+    }
     Run-Case 'prose selects only independent validators, and empty changes select nothing' {
         foreach($path in @('Specs/Testing/explanation.md','Plugins/Weather/README.md','.agents/skills/example/SKILL.md')) {
             $plan=Get-ScopedTestPlan $manifest @($path)
@@ -260,6 +269,41 @@ try {
     }
     foreach($profile in @('Debug','Release')) {Write-Fixture (Join-Path $fixture ".build/x64/$profile/suite.exe") 'binary';Write-Fixture (Join-Path $fixture ".build/x64/$profile/Plugins/runtime.dll") 'dependency'}
     Write-FixtureDependencies $fixture
+    Run-Case 'selected build union preserves benchmark, sanitizer and desktop helper dependencies' {
+        $foundation=@(Get-ScopedRequiredBuildProjects -Suites Foundation -Configuration Release)
+        Assert-Scope (($foundation -join ',') -ceq 'DxUi,DxUi.FoundationTests,DxUi.EmbeddedTests') 'Foundation selected unrelated targets or lost its benchmark dependency'
+        $control=@(Get-ScopedRequiredBuildProjects -Suites Grid -Configuration Release)
+        Assert-Scope (($control -join ',') -ceq 'DxUi,DxUi.ControlTests,DxUi.EmbeddedTests') 'Control target union is incomplete'
+        Assert-Scope ('DxUi.InteractiveLease' -cin @(Get-ScopedRequiredBuildProjects -Suites Menu -Configuration Release)) 'Foreground selection lost the native lease'
+        Assert-Scope ('DxUi.FoundationTests' -cin @(Get-ScopedRequiredBuildProjects -Suites Grid -Configuration 'ASan Debug')) 'Sanitizer selection lost its real failure probe'
+        Assert-Scope (@(Get-ScopedRequiredBuildProjects -Suites Foundation -Configuration Release -Full).Count -eq 6) 'Full became a partial build request'
+        $refused=$false;try{Resolve-ScopedBuildProjects @('invented-target')|Out-Null}catch{$refused=$true}
+        Assert-Scope $refused 'Unknown native project was admitted'
+    }
+    Run-Case 'selected build receipts cover actual unions and never grant full solution coverage' {
+        $targetRoot=Join-Path $fixture '.build/selected-receipt-fixture'
+        foreach($project in (Get-ScopedBuildProjectCatalog).Keys) {
+            $names=if($project -ceq 'DxUi'){@('DxUi.lib','DxUi.pdb')}else{@("$project.exe","$project.pdb")}
+            foreach($name in $names){Write-Fixture (Join-Path $targetRoot ".build/x64/Release/$name") 'fixture native output'}
+        }
+        $projects=@(Get-ScopedRequiredBuildProjects -Suites Foundation -Configuration Release)
+        Write-ScopedTargetBuildReceipt $targetRoot x64 Release $projects 'inputs' 'artifacts'
+        Assert-Scope (Test-ScopedBuildCoverage $targetRoot x64 Release $projects 'inputs' 'artifacts') 'Matching selected proof was refused'
+        Assert-Scope (Test-ScopedBuildCoverage $targetRoot x64 Release @('DxUi','DxUi.EmbeddedTests') 'inputs' 'artifacts') 'Selected superset could not satisfy a subset'
+        Assert-Scope (-not(Test-ScopedBuildCoverage $targetRoot x64 Release @('DxUi','DxUi.ControlTests','DxUi.EmbeddedTests') 'inputs' 'artifacts')) 'Foundation proof granted unbuilt control coverage'
+        Assert-Scope (-not(Test-ScopedBuildCoverage $targetRoot x64 Release $projects 'changed-inputs' 'artifacts')) 'Changed source/dependencies reused a selected build'
+        Assert-Scope (-not(Test-ScopedBuildCoverage $targetRoot x64 Release $projects 'inputs' 'changed-artifacts')) 'Changed output bytes reused a selected build'
+        $all=@((Get-ScopedBuildProjectCatalog).Keys)
+        Assert-Scope (-not(Test-ScopedBuildCoverage $targetRoot x64 Release $all 'inputs' 'artifacts' -Full)) 'A partial proof granted Full coverage'
+        $full=Join-Path $targetRoot '.build/reports/scoped-tests/x64-Release/build.json'
+        Write-ScopedReceipt $full (Get-ScopedDigest ("inputs`nartifacts"))
+        Assert-Scope (Test-ScopedBuildCoverage $targetRoot x64 Release $projects 'inputs' 'artifacts') 'Exact full evidence could not satisfy a subset'
+        Remove-Item -LiteralPath (Join-Path $targetRoot '.build/x64/Release/DxUi.EmbeddedTests.pdb')
+        $refused=$false;try{Test-ScopedBuildCoverage $targetRoot x64 Release $projects 'inputs' 'artifacts'|Out-Null}catch{$refused=$true}
+        Assert-Scope $refused 'Missing selected symbols were admitted'
+        Remove-ScopedBuildReceipts $targetRoot x64 Release
+        Assert-Scope (-not(Test-Path $full) -and @(Get-ChildItem (Join-Path (Split-Path $full) 'build-targets') -Filter '*.json').Count -eq 0) 'Build revocation retained an older selected or full pass'
+    }
     Run-Case 'tooling identities include documentation, skills and source-origin mappings' {
         $compiled=Get-ScopedSourceIdentity $fixture -CompiledOnly
         $native=Get-ScopedRunIdentity $fixture x64 Debug Example
@@ -272,6 +316,54 @@ try {
         Assert-Scope ((Get-ScopedRunIdentity $fixture x64 Debug Example) -ceq $native) 'Validator prose unnecessarily invalidated native success'
         Write-Fixture (Join-Path $fixture 'code.cpp') 'new implementation'
         Assert-Scope ((Get-ScopedSourceIdentity $fixture -CompiledOnly) -cne $compiled) 'Source mutation did not invalidate build attestation'
+    }
+    Run-Case 'iteration maps retain exact case, index metadata and byte-based invalidation' {
+        $map=[Collections.Specialized.OrderedDictionary]::new([StringComparer]::Ordinal)
+        $map.Add('Tests/Data/A.txt','A'*64);$map.Add('Tests/Data/a.txt','B'*64)
+        $path=Join-Path $fixture '.build/reports/scoped-tests/x64-Debug/iteration.json'
+        $index=Get-ScopedIndexMap $fixture
+        Write-ScopedIteration $path $fixture x64 Debug 'environment' 'options' $map $index '' ''
+        $state=Read-ScopedIteration $path $fixture x64 Debug 'environment' 'options'
+        Assert-Scope ($null -ne $state -and $state.source.Count -eq 2 -and $state.source['Tests/Data/A.txt'] -cne $state.source['Tests/Data/a.txt']) 'JSON baseline collapsed distinct case-sensitive Git paths'
+        Assert-Scope ($null -eq (Read-ScopedIteration $path $fixture x64 Debug 'environment' 'other-options')) 'Changed worker options reused a baseline'
+        $state.source['Tests/Data/a.txt']='C'*64
+        Assert-Scope (@(Get-ScopedMapDelta $map $state.source).Count -eq 1) 'Ordinal source delta lost one case variant'
+        $beforeIndex=Get-ScopedIndexMap $fixture
+        Invoke-FixtureGit @('update-index','--assume-unchanged','code.cpp')
+        $afterIndex=Get-ScopedIndexMap $fixture
+        Assert-Scope ('code.cpp' -cin @(Get-ScopedPendingIndexDelta $fixture $beforeIndex $afterIndex)) 'An index flag change was invisible'
+        Invoke-FixtureGit @('update-index','--no-assume-unchanged','code.cpp')
+        $state=Get-Content $path -Raw|ConvertFrom-Json -AsHashtable
+        $state.completedUtc=[DateTime]::UtcNow.AddHours(-25).ToString('o')
+        $state.digest=& (Get-Module ScopedTesting) {param($s) Get-ScopedIterationDigest $s} $state
+        Write-Fixture $path ($state|ConvertTo-Json -Depth 8)
+        Assert-Scope ($null -eq (Read-ScopedIteration $path $fixture x64 Debug 'environment' 'options')) 'Expired baseline was reusable'
+        Write-Fixture $path '{invalid'
+        Assert-Scope ($null -eq (Read-ScopedIteration $path $fixture x64 Debug 'environment' 'options')) 'Malformed baseline was reusable'
+        $refused=$false
+        try {Write-ScopedIteration (Join-Path $fixture '.build/foreign.json') $fixture x64 Debug 'environment' 'options' $map $index '' ''} catch {$refused=$true}
+        Assert-Scope $refused 'Iteration write escaped its report root'
+    }
+    Run-Case 'profile lease excludes competing processes and permits nested and disjoint work' {
+        $lease=Enter-ScopedProfileLease $fixture x64 Debug
+        try {
+            $nested=Enter-ScopedProfileLease $fixture x64 Debug
+            Exit-ScopedProfileLease $nested
+            $childPath=Join-Path $fixture '.build/lease-child.ps1'
+            Write-Fixture $childPath @'
+param($Module,$Root,$Configuration)
+Import-Module $Module
+try {$lease=Enter-ScopedProfileLease $Root x64 $Configuration} catch {exit 17}
+Exit-ScopedProfileLease $lease
+exit 0
+'@
+            & (Join-Path $PSHOME $(if($IsWindows){'pwsh.exe'}else{'pwsh'})) -NoProfile -File $childPath -Module (Join-Path $repository 'Tools/ScopedTesting.psm1') -Root $fixture -Configuration Debug
+            Assert-Scope ($LASTEXITCODE -eq 17) 'Competing process acquired the same profile lease'
+            & (Join-Path $PSHOME $(if($IsWindows){'pwsh.exe'}else{'pwsh'})) -NoProfile -File $childPath -Module (Join-Path $repository 'Tools/ScopedTesting.psm1') -Root $fixture -Configuration Release
+            Assert-Scope ($LASTEXITCODE -eq 0) 'Disjoint profile was blocked'
+            & (Join-Path $PSHOME $(if($IsWindows){'pwsh.exe'}else{'pwsh'})) -NoProfile -File $childPath -Module (Join-Path $repository 'Tools/ScopedTesting.psm1') -Root (Join-Path $fixture 'other-worktree') -Configuration Debug
+            Assert-Scope ($LASTEXITCODE -eq 0) 'Disjoint worktree was blocked'
+        } finally {Exit-ScopedProfileLease $lease}
     }
     Run-Case 'UTF-8 Git paths remain in full and compiled source identities' {
         $path=Join-Path $fixture 'Tests/Data/Größe.txt'
@@ -659,17 +751,34 @@ exit 0
         Write-Fixture (Join-Path $sandbox $moduleRelative) ([IO.File]::ReadAllText((Join-Path $repository $moduleRelative)))
         Write-Fixture (Join-Path $sandbox 'Tests/Example.Tests.Case.cpp') 'int example;'
         Write-Fixture (Join-Path $sandbox 'Specs/TestRuns/history/SelfTest/Old.SelfTest.cpp') 'immutable historical source;'
-        Write-Fixture (Join-Path $sandbox 'Tests/native-test-files.json') '["Tests/Example.Tests.Case.cpp"]'
-        Write-Fixture (Join-Path $sandbox 'Tests/test-scopes.json') '{"version":1,"defaultBranch":"main","repository":"fixture/example","scopes":[{"name":"Example","native":true,"reuse":true}],"rules":[],"toolingCommands":[],"prCoverage":[],"prWorkflowDigest":"none"}'
+        Write-Fixture (Join-Path $sandbox 'Tests/Other.Tests.Case.cpp') 'int other;'
+        Write-Fixture (Join-Path $sandbox 'Tests/native-test-files.json') '["Tests/Example.Tests.Case.cpp","Tests/Other.Tests.Case.cpp"]'
+        Write-Fixture (Join-Path $sandbox 'Tests/test-scopes.json') '{"version":1,"defaultBranch":"main","repository":"fixture/example","scopes":[{"name":"Example","native":true,"reuse":true},{"name":"Other","native":true,"reuse":true}],"rules":[{"pattern":"Tests/Example.*","scopes":["Example"],"reason":"fixture Example"},{"pattern":"Tests/Other.*","scopes":["Other"],"reason":"fixture Other"}],"toolingCommands":[],"prCoverage":[],"prWorkflowDigest":"none","interactiveObligations":[{"pattern":"Tests/Example.*","suites":["ForegroundFixture"],"reason":"not executed by this fixture"}]}'
+        # Isolated control-flow fixture only; production uses evaluated native toolchain bytes.
+        Write-Fixture (Join-Path $sandbox 'Tools/PerformancePolicy.psm1') @'
+function Get-PerformanceToolIdentities {
+    param($Root,$Platform,$Configuration,$IdentityScope)
+    $path=Join-Path $Root '.build/toolchain.txt'
+    $identity=if(Test-Path $path){(Get-FileHash $path).Hash}else{'A'*64}
+    return @{identityStatus='build-only';buildIdentityVersion=2;toolchainIdentity=$identity}
+}
+Export-ModuleMember -Function Get-PerformanceToolIdentities
+'@
+        Write-Fixture (Join-Path $sandbox 'Tools/Test-Changelog.ps1') 'param($Base) exit 0'
         Write-Fixture (Join-Path $sandbox 'build.ps1') @'
-param($Platform,$Configuration)
+param($Platform,$Configuration,$Projects)
 $output=Join-Path $PSScriptRoot ".build/$Platform/$Configuration"
 New-Item -ItemType Directory -Path $output -Force|Out-Null
 [IO.File]::WriteAllText((Join-Path $output 'example.exe'),'fixture binary')
+[IO.File]::WriteAllText((Join-Path $output 'DxUi.lib'),'fixture library')
+[IO.File]::WriteAllText((Join-Path $output 'DxUi.pdb'),'fixture library symbols')
+foreach($name in @('DxUi.FoundationTests','DxUi.ControlTests','DxUi.EmbeddedTests','DxUi.InteractiveLease','DxUi.EmbeddedControls')) {
+    foreach($extension in @('exe','pdb')){[IO.File]::WriteAllText((Join-Path $output "$name.$extension"),'fixture output')}
+}
 exit 0
 '@
         Write-Fixture (Join-Path $sandbox 'test.ps1') @'
-param($Platform,$Configuration,[switch]$SkipBuild,[string[]]$Suites,[switch]$SkipTooling,[int]$ParallelSuites=1)
+param($Platform,$Configuration,[switch]$SkipBuild,[string[]]$Suites,[switch]$SkipTooling,[int]$ParallelSuites=1,[switch]$Full)
 [IO.File]::AppendAllText((Join-Path $PSScriptRoot '.build/calls.txt'),"execute`n")
 [IO.File]::WriteAllText((Join-Path $PSScriptRoot '.build/parallel.txt'),[string]$ParallelSuites)
 if(Test-Path (Join-Path $PSScriptRoot '.build/fail')){exit 1}
@@ -677,7 +786,7 @@ if(Test-Path (Join-Path $PSScriptRoot '.build/mutate')){[IO.File]::AppendAllText
 [void](New-Item -ItemType Directory -Path (Join-Path $PSScriptRoot '.build/reports') -Force)
 $report=if(Test-Path (Join-Path $PSScriptRoot '.build/skips')){'{"exitCode":0,"skips":["fixture capability unavailable"]}'}else{'{"exitCode":0,"skips":[]}'}
 $suffix=if($env:DXUI_MUTANT){'.instrumented'}else{''}
-[IO.File]::WriteAllText((Join-Path $PSScriptRoot ".build/reports/Example-$Platform-$Configuration$suffix.json"),$report)
+foreach($suite in $Suites){[IO.File]::WriteAllText((Join-Path $PSScriptRoot ".build/reports/$suite-$Platform-$Configuration$suffix.json"),$report)}
 exit 0
 '@
         & git -C $sandbox init -q
@@ -736,6 +845,46 @@ exit 0
         $run=Invoke-PublicRunner @('-SkipBuild')
         Assert-Scope ($run.Exit -eq 0 -and -not $run.Text.Contains('REUSED Example') -and $run.Text.Contains('PASSED_WITH_CAPABILITY_SKIPS') -and $run.Text.Contains('repository NOT_EVALUATED') -and -not(Test-Path $receipt)) 'Old or current capability-skipped suite was reported or retained as complete coverage'
         Remove-Item -LiteralPath (Join-Path $sandbox '.build/skips')
+        # Default iteration consumes only its own successful affected lane, never Full/PrePush,
+        # explicit scopes or cumulative foreground obligations.
+        Write-Fixture (Join-Path $sandbox 'Tests/Example.Tests.Case.cpp') 'int exampleChanged;'
+        $run=Invoke-PublicRunner @() -NoExplicitScope
+        Assert-Scope ($run.Exit -eq 0 -and $run.Text.Contains('scopes: Example') -and $run.Text.Contains('INTERACTIVE_NOT_RUN')) "Initial affected iteration failed: $($run.Text)"
+        $iteration=Join-Path $sandbox ".build/reports/scoped-tests/$fixturePlatform-Debug/iteration.json"
+        Assert-Scope (Test-Path $iteration) 'Default success did not establish an iteration baseline'
+        $count=@(Get-Content (Join-Path $sandbox '.build/calls.txt')).Count
+        $run=Invoke-PublicRunner @() -NoExplicitScope
+        Assert-Scope ($run.Exit -eq 0 -and $run.Text.Contains('NO_WORK') -and $run.Text.Contains('INTERACTIVE_NOT_RUN') -and @(Get-Content (Join-Path $sandbox '.build/calls.txt')).Count -eq $count) "Unchanged iteration repeated native execution or hid foreground debt: $($run.Text)"
+        Write-Fixture (Join-Path $sandbox 'Tests/Other.Tests.Case.cpp') 'int otherChanged;'
+        $run=Invoke-PublicRunner @() -NoExplicitScope
+        Assert-Scope ($run.Exit -eq 0 -and $run.Text.Contains('scopes: Other') -and -not $run.Text.Contains('scopes: Example,')) "Later edit retested the earlier branch change: $($run.Text)"
+        & git -C $sandbox add -- Tests/Other.Tests.Case.cpp
+        if($LASTEXITCODE){throw 'Cannot stage the tested fixture bytes'}
+        $run=Invoke-PublicRunner @() -NoExplicitScope
+        Assert-Scope ($run.Exit -eq 0 -and $run.Text.Contains('NO_WORK')) "Staging tested bytes repeated native work: $($run.Text)"
+        Write-Fixture (Join-Path $sandbox 'Tests/Other.Tests.Case.cpp') 'int differentStagedOther;'
+        & git -C $sandbox add -- Tests/Other.Tests.Case.cpp
+        if($LASTEXITCODE){throw 'Cannot stage distinct fixture bytes'}
+        Write-Fixture (Join-Path $sandbox 'Tests/Other.Tests.Case.cpp') 'int otherChanged;'
+        $run=Invoke-PublicRunner @() -NoExplicitScope
+        Assert-Scope ($run.Exit -eq 0 -and $run.Text.Contains('scopes: Other') -and -not $run.Text.Contains('NO_WORK')) 'Working bytes concealed a changed staged input'
+        $run=Invoke-PublicRunner @('-Explain','-BaseRef','origin/main') -NoExplicitScope
+        Assert-Scope ($run.Exit -eq 0 -and $run.Text.Contains('scopes: Example, Other')) 'Explicit base silently used the mutable iteration baseline'
+        foreach($mode in @('Full','PrePush')) {
+            $run=Invoke-PublicRunner @('-Explain','-Mode',$mode) -NoExplicitScope
+            Assert-Scope ($run.Exit -eq 0 -and $run.Text.Contains('scopes: Example, Other') -and $run.Text.Contains('INTERACTIVE_NOT_RUN')) "$mode lost cumulative obligations"
+        }
+        Write-Fixture (Join-Path $sandbox '.build/toolchain.txt') 'serviced SDK/compiler bytes'
+        $run=Invoke-PublicRunner @('-Explain') -NoExplicitScope
+        Assert-Scope ($run.Exit -eq 0 -and $run.Text.Contains('native context changed') -and $run.Text.Contains('scopes: Example, Other')) 'Changed toolchain retained earlier affected coverage'
+        $run=Invoke-PublicRunner @() -NoExplicitScope
+        Assert-Scope ($run.Exit -eq 0) "Changed toolchain fallback failed: $($run.Text)"
+        Write-Fixture (Join-Path $sandbox '.build/fail') 'fail'
+        $run=Invoke-PublicRunner @('-Force','-SkipBuild')
+        Assert-Scope ($run.Exit -ne 0 -and -not(Test-Path $iteration)) 'Failed explicit rerun retained a default no-work baseline'
+        Remove-Item -LiteralPath (Join-Path $sandbox '.build/fail')
+        $run=Invoke-PublicRunner @() -NoExplicitScope
+        Assert-Scope ($run.Exit -eq 0 -and -not $run.Text.Contains('NO_WORK')) 'Old baseline hid the latest same-source failure'
         Write-Fixture (Join-Path $sandbox '.build/mutate') 'mutate'
         $run=Invoke-PublicRunner @('-Force','-SkipBuild');Assert-Scope ($run.Exit -ne 0 -and -not(Test-Path $receipt)) 'Post-run mutation published success'
         Remove-Item -LiteralPath (Join-Path $sandbox '.build/mutate')

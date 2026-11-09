@@ -6,6 +6,7 @@ milliseconds diagnose build orchestration; they are not native workload measurem
 .PARAMETER Platform x64 or ARM64.
 .PARAMETER OutputRoot Optional isolated output root; defaults to this checkout's .build directory.
 .PARAMETER ProductionOnly Build only the Release library target; excludes test executables from the production role.
+.PARAMETER Projects Optional union of owned native project names. Builds their library dependency too and publishes only selected-target evidence. Omit for a full solution build.
 #>
 [CmdletBinding()]
 param(
@@ -13,12 +14,24 @@ param(
     [ValidateSet('x64','ARM64')][string] $Platform = 'x64',
     [string] $OutputRoot = '',
     [switch] $Rebuild,
-    [switch] $ProductionOnly
+    [switch] $ProductionOnly,
+    [string[]] $Projects = @()
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+$Projects=@($Projects | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
 if ($env:CI_NATIVE_BUILDS_DISABLED -eq 'true') { throw 'Native builds are forbidden in compiler-free PR checks.' }
 if ($ProductionOnly -and $Configuration -ne 'Release') { throw 'ProductionOnly requires Release.' }
+if ($ProductionOnly -and $Projects.Count) { throw 'Projects and ProductionOnly are separate build roles.' }
+Import-Module (Join-Path $PSScriptRoot 'Tools/ScopedTesting.psm1') -Force
+$defaultBuildOutput=-not $OutputRoot -or [string]::Equals([IO.Path]::GetFullPath($OutputRoot).TrimEnd('\','/'),[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '.build')).TrimEnd('\','/'),[StringComparison]::OrdinalIgnoreCase)
+$profileLease=Enter-ScopedProfileLease $PSScriptRoot $Platform $Configuration -OutputRoot $OutputRoot
+$buildCompleted=$false
+try {
+if ($defaultBuildOutput) { Remove-ScopedIteration -Root $PSScriptRoot -Path (Join-Path $PSScriptRoot ".build/reports/scoped-tests/$Platform-$($Configuration -replace ' ','')/iteration.json") }
+Import-Module (Join-Path $PSScriptRoot 'Tools/Validation.psm1') -Force
+$mappingErrors=@(Test-DxUiSolutionConfigurations (Join-Path $PSScriptRoot 'DxUi.sln'))
+if ($mappingErrors.Count) { throw "Invalid native solution coverage: $($mappingErrors -join '; ')" }
 $nativeEntryElapsed = [Diagnostics.Stopwatch]::StartNew()
 Import-Module (Join-Path $PSScriptRoot 'Build/BuildConsole.psm1') -ErrorAction Stop
 
@@ -154,7 +167,16 @@ Invoke-DxUiBuildPhase -Phase DependencyAdmission -Body {
     }
 }
 $defaultOutput = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '.build')).TrimEnd('\','/') + [IO.Path]::DirectorySeparatorChar
+$selectedProjects=@()
+$partialBuild=$false
+if ($Projects.Count) {
+    Import-Module (Join-Path $PSScriptRoot 'Tools/ScopedTesting.psm1') -Force
+    $selectedProjects=@(Resolve-ScopedBuildProjects $Projects)
+    $partialBuild=$selectedProjects.Count -lt (Get-ScopedBuildProjectCatalog).Count
+    Assert-ScopedSelectedBuildGraph -Root $PSScriptRoot -MSBuildPath $msbuild -Platform $Platform -Configuration $Configuration -OutputRoot $output -Projects $selectedProjects
+}
 $attestPerformanceBuild = (-not $ProductionOnly) -and [string]::Equals($output, $defaultOutput, [StringComparison]::OrdinalIgnoreCase)
+if ($partialBuild -and 'DxUi.EmbeddedTests' -cnotin $selectedProjects) { $attestPerformanceBuild=$false }
 if (-not $attestPerformanceBuild) { $target = 'Rebuild' }
 if ($attestPerformanceBuild) {
     # Consumer-owned output roots retain their separate integration contract. Default builds also serve performance.ps1
@@ -168,7 +190,9 @@ if ($attestPerformanceBuild) {
     $scopedReuse = $false
     try {
         $scopedArtifact = Get-ScopedArtifactIdentity $PSScriptRoot $Platform $Configuration
-        $scopedReuse = Test-ScopedReceipt $scopedBuildReceipt (Get-ScopedDigest ($scopedBuildBefore+"`n"+$scopedArtifact))
+        $scopedReuse = if ($partialBuild) {
+            Test-ScopedBuildCoverage $PSScriptRoot $Platform $Configuration $selectedProjects $scopedBuildBefore $scopedArtifact
+        } else { Test-ScopedReceipt $scopedBuildReceipt (Get-ScopedDigest ($scopedBuildBefore+"`n"+$scopedArtifact)) }
     } catch [System.IO.IOException] { $scopedReuse = $false }
       catch [System.Management.Automation.RuntimeException] { $scopedReuse = $false }
     if (-not $scopedReuse) {
@@ -181,6 +205,12 @@ if ($attestPerformanceBuild) {
         Write-Host 'Rebuilding because no current v2 attestation binds these exact inputs, tools and artifacts.' -ForegroundColor Yellow
     }
 }
+if ($partialBuild) {
+    # Never leave a full-solution pass behind a selected or failed build attempt.
+    $fullReceipt=Join-Path $PSScriptRoot ".build/reports/scoped-tests/$Platform-$($Configuration -replace ' ','')/build.json"
+    if (Test-Path -LiteralPath $fullReceipt) { Remove-Item -LiteralPath $fullReceipt }
+}
+if ([string]::Equals($output,$defaultOutput,[StringComparison]::OrdinalIgnoreCase)) { Remove-ScopedBuildReceipts $PSScriptRoot $Platform $Configuration }
 Write-DxUiBuildBanner -Configuration $Configuration -Platform $Platform -Target $target
 $logDirectory = Join-Path $output 'logs'
 New-Item -ItemType Directory -Path $logDirectory -Force | Out-Null
@@ -191,6 +221,10 @@ $arguments = @((Join-Path $PSScriptRoot 'DxUi.sln'), '/m', '/nologo', '/verbosit
 if ($ProductionOnly) {
     if ($Configuration -ne 'Release') { throw 'ProductionOnly requires Release.' }
     $arguments[4] = if ($target -eq 'Rebuild') { '/t:DxUi:Rebuild' } else { '/t:DxUi' }
+}
+if ($partialBuild) {
+    $arguments[4]='/t:' + (($selectedProjects | ForEach-Object { $_.Replace('.','_')+':'+$target }) -join ';')
+    Write-Host "Selected native target union: $($selectedProjects -join ', ')"
 }
 Write-Host 'Build configuration:' -ForegroundColor Cyan
 Write-Host "  Configuration: $Configuration"
@@ -231,11 +265,23 @@ if ($attestPerformanceBuild) {
         throw 'Compiled source or installed dependencies changed during the build; no native test receipt was published.'
     }
     $scopedArtifact = Get-ScopedArtifactIdentity $PSScriptRoot $Platform $Configuration
-    Write-ScopedReceipt $scopedBuildReceipt (Get-ScopedDigest ($scopedBuildBefore+"`n"+$scopedArtifact))
+    if ($partialBuild) {
+        Write-ScopedTargetBuildReceipt $PSScriptRoot $Platform $Configuration $selectedProjects $scopedBuildBefore $scopedArtifact
+    } else {
+        Assert-ScopedBuildOutputs $PSScriptRoot $Platform $Configuration @((Get-ScopedBuildProjectCatalog).Keys)
+        Write-ScopedReceipt $scopedBuildReceipt (Get-ScopedDigest ($scopedBuildBefore+"`n"+$scopedArtifact))
+    }
 }
 
 $profileOutput=Join-Path $output "$Platform/$Configuration"
 $library=Join-Path $profileOutput 'DxUi.lib'
 $sample=Join-Path $profileOutput 'DxUi.EmbeddedControls.exe'
 if ($ProductionOnly) { $sample = '' }
+if ($partialBuild -and 'DxUi.EmbeddedControls' -cnotin $selectedProjects) { $sample='' }
 Write-NativeBuildResult -Project DxUi -Platform $Platform -Configuration $Configuration -LogPath $log -Artifacts @($library) -Executable $sample -Duration $nativeEntryElapsed.Elapsed
+$buildCompleted=$true
+} finally {
+    try {
+        if ($defaultBuildOutput -and -not $buildCompleted) { Remove-ScopedBuildReceipts $PSScriptRoot $Platform $Configuration }
+    } finally { Exit-ScopedProfileLease $profileLease }
+}

@@ -9,6 +9,10 @@ validators and the tooling tests in turn and reports every failure before it fai
 `test.ps1` runs the tooling tests beside its native suites. CI gives `build.ps1` and the subsequent
 `test.ps1 -Full -SkipTooling -SkipBuild` separate finite windows; SkipBuild verifies both the canonical v2 and complete native test-source/artifact attestations
 before native probes or self-checks. Fixed top-level timing records diagnose orchestration and do not qualify native performance.
+`build.ps1 -Projects DxUi.FoundationTests,DxUi.EmbeddedTests` builds a validated target union; affected and explicit
+suite routes include their benchmark, sanitizer and desktop helper dependencies. Selected build receipts cover
+only that union and cannot grant Full. Missing outputs and failed builds revoke/refuse proof. Omit Projects for
+the full solution; custom output roots remain diagnostic/consumer builds. See the [build contract](../Specs/Build/Build_ToolchainAndConsumption.md#selected-native-target-builds).
 The build-console checker also rejects structured nonzero child-tool exception
 dumps, even when MSBuild exits zero and writes a successful final footer. Its
 fixtures distinguish actual dump records from ordinary text mentioning a code.
@@ -35,6 +39,7 @@ status. Callers still use fresh-process completion or immediate invocation succe
 is one. Build, performance and native preflights precede the batch. Foreground suites keep their serial lease.
 Each child has its own raw stdout/stderr and combined suite log, and normal suite receipts and artifact ownership
 still apply. Passing `-ParallelSuites` preserves ordinary affected routing; use `-Full` to make full scope explicit.
+Local affected execution retains its successful profile baseline for up to 24 hours, selecting subsequent source/index deltas while preserving cumulative foreground obligations. Full/PrePush/Force/explicit selectors bypass it. Native baseline reuse checks canonical compiler/SDK, installed dependencies and artifact bytes; failed reruns revoke it. A reentrant checkout/profile lease refuses competing test operations without blocking disjoint work.
 Local affected execution may reuse successful native filter/watchdog verification for 24 hours when the complete
 source (including native harness code), installed dependencies, artifacts, host binary and environment match.
 Failure, instrumentation, mutation or expiry refuses reuse. Full and hosted execution always verify freshly.
