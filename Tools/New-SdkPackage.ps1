@@ -50,6 +50,9 @@ Import-Module (Join-Path $root 'Tools/VisualStudio.psm1') -Force
 Import-Module (Join-Path $root 'Tools/ConsumerBuild.psm1') -Force
 Import-Module (Join-Path $root 'Build/BuildConsole.psm1') -Force
 Import-Module (Join-Path $root 'Tools/SdkNotices.psm1') -Force
+Import-Module (Join-Path $root 'Tools/SdkLibraryInputs.psm1') -Force
+Assert-DxUiSdkReleaseProfile -Root $root -Platform $Platform
+$libraryInputs=Assert-DxUiSdkLibraryBuild -Root $root -Platform $Platform -RequireClean
 $sourceCommit=(& git -C $root rev-parse HEAD).Trim()
 $installation=Get-DxUiVisualStudioInstallation
 $hostArchitecture=if([Runtime.InteropServices.RuntimeInformation]::OSArchitecture -eq 'Arm64'){'arm64'}else{'amd64'}
@@ -118,6 +121,8 @@ The included native policy preserves /Wall for your sources and the producer's r
 $manifest=[ordered]@{schemaVersion=1;version=$Version;platform=$Platform;configuration='Release';kind='sdk';
     source=$sourceCommit;apiRevision=$identity.Identity.apiRevision;compiler=$identity.Identity;licenses=$licenseInventory;
     librarySha256=$libraryHash;libraryPdbSha256=$libraryPdbHash;runtime='MD';testsIncluded=$false}
+$manifest['libraryInputDigest']=$libraryInputs.digest
+$manifest['nativeBuildIdentity']=$libraryInputs.inputState.nativeInputs
 $manifest|ConvertTo-Json -Depth 12|Set-Content -LiteralPath (Join-Path $stage 'sdk-manifest.json') -Encoding utf8
 New-Item -ItemType Directory -Path (Join-Path $stage 'samples/Smoke') -Force | Out-Null
 Copy-Item -LiteralPath (Join-Path $root 'Samples/SdkSmoke/Main.cpp') -Destination (Join-Path $stage 'samples/Smoke/Main.cpp')
@@ -244,6 +249,8 @@ foreach($entry in @(@($library,$libraryHash),@($libraryPdb,$libraryPdbHash),@($e
         throw "SDK library or compiler PDB changed during qualification: $($entry[0])"
     }
 }
+$finalLibraryInputs=Assert-DxUiSdkLibraryBuild -Root $root -Platform $Platform -RequireClean
+if($finalLibraryInputs.digest -cne $libraryInputs.digest){throw 'SDK native library input provenance changed during packaging.'}
 $manifest['smokePassed']=$true
 $manifest['producerPdbIsolationPassed']=$true
 $manifest['missingPackagedPdbControlPassed']=$true

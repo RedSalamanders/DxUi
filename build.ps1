@@ -27,8 +27,15 @@ Import-Module (Join-Path $PSScriptRoot 'Tools/ScopedTesting.psm1') -Force
 $defaultBuildOutput=-not $OutputRoot -or [string]::Equals([IO.Path]::GetFullPath($OutputRoot).TrimEnd('\','/'),[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '.build')).TrimEnd('\','/'),[StringComparison]::OrdinalIgnoreCase)
 $profileLease=Enter-ScopedProfileLease $PSScriptRoot $Platform $Configuration -OutputRoot $OutputRoot
 $buildCompleted=$false
+$sdkModuleLoaded=$false
 try {
 if ($defaultBuildOutput) { Remove-ScopedIteration -Root $PSScriptRoot -Path (Join-Path $PSScriptRoot ".build/reports/scoped-tests/$Platform-$($Configuration -replace ' ','')/iteration.json") }
+$attestSdkLibrary=$defaultBuildOutput -and $Configuration -eq 'Release'
+if($attestSdkLibrary){
+    Import-Module (Join-Path $PSScriptRoot 'Tools/SdkLibraryInputs.psm1') -Force
+    $sdkModuleLoaded=$true
+    Remove-DxUiSdkLibraryReceipt -Root $PSScriptRoot -Platform $Platform
+}
 Import-Module (Join-Path $PSScriptRoot 'Tools/Validation.psm1') -Force
 $mappingErrors=@(Test-DxUiSolutionConfigurations (Join-Path $PSScriptRoot 'DxUi.sln'))
 if ($mappingErrors.Count) { throw "Invalid native solution coverage: $($mappingErrors -join '; ')" }
@@ -211,6 +218,11 @@ if ($partialBuild) {
     if (Test-Path -LiteralPath $fullReceipt) { Remove-Item -LiteralPath $fullReceipt }
 }
 if ([string]::Equals($output,$defaultOutput,[StringComparison]::OrdinalIgnoreCase)) { Remove-ScopedBuildReceipts $PSScriptRoot $Platform $Configuration }
+if($attestSdkLibrary){
+    $sdkLibraryBefore=if($attestPerformanceBuild){
+        Get-DxUiSdkLibraryInputState -Root $PSScriptRoot -Platform $Platform -BuildState $performanceBuildBefore
+    }else{Get-DxUiSdkLibraryInputState -Root $PSScriptRoot -Platform $Platform}
+}
 Write-DxUiBuildBanner -Configuration $Configuration -Platform $Platform -Target $target
 $logDirectory = Join-Path $output 'logs'
 New-Item -ItemType Directory -Path $logDirectory -Force | Out-Null
@@ -236,13 +248,13 @@ Write-Host ''
 Write-Host 'Compiling DxUi...' -ForegroundColor Yellow
 $stopwatch = [Diagnostics.Stopwatch]::StartNew()
 Invoke-DxUiBuildPhase -Phase MSBuild -Body {
-    if ($attestPerformanceBuild) { Push-Location -LiteralPath $PSScriptRoot }
+    if ($attestPerformanceBuild -or $attestSdkLibrary) { Push-Location -LiteralPath $PSScriptRoot }
     try {
         # Match the attested MSBuildStartupDirectory even when a paired harness calls this baseline from another checkout.
         # Consumer-owned output roots retain their caller's existing integration context.
         & $msbuild @arguments 2>&1 | ForEach-Object { Write-DxUiMSBuildLine -Line $_.ToString() }
         $buildExitCode = $LASTEXITCODE
-    } finally { if ($attestPerformanceBuild) { Pop-Location } }
+    } finally { if ($attestPerformanceBuild -or $attestSdkLibrary) { Pop-Location } }
     $stopwatch.Stop()
     if ($buildExitCode -ne 0) {
         Write-Host ''
@@ -257,8 +269,8 @@ Invoke-DxUiBuildPhase -Phase MSBuild -Body {
 }
 Assert-NativeBuildDiagnostics -LogPath $log
 if ($attestPerformanceBuild) {
-    Invoke-DxUiBuildPhase -Phase PostBuildAttestation -Body {
-        Complete-PerformanceBuildAttestation -Root $PSScriptRoot -Platform $Platform -Configuration $Configuration -Before $performanceBuildBefore
+    $performanceBuildAfter=Invoke-DxUiBuildPhase -Phase PostBuildAttestation -Body {
+        Complete-PerformanceBuildAttestation -Root $PSScriptRoot -Platform $Platform -Configuration $Configuration -Before $performanceBuildBefore -PassThru
     }
     Import-Module (Join-Path $PSScriptRoot 'Tools/ScopedTesting.psm1') -Force
     if ((Get-ScopedBuildInputIdentity $PSScriptRoot $Platform) -cne $scopedBuildBefore) {
@@ -272,6 +284,11 @@ if ($attestPerformanceBuild) {
         Write-ScopedReceipt $scopedBuildReceipt (Get-ScopedDigest ($scopedBuildBefore+"`n"+$scopedArtifact))
     }
 }
+if($attestSdkLibrary){
+    $sdkArguments=@{Root=$PSScriptRoot;Platform=$Platform;Before=$sdkLibraryBefore}
+    if($attestPerformanceBuild){$sdkArguments.BuildState=$performanceBuildAfter}
+    Complete-DxUiSdkLibraryBuild @sdkArguments|Out-Null
+}
 
 $profileOutput=Join-Path $output "$Platform/$Configuration"
 $library=Join-Path $profileOutput 'DxUi.lib'
@@ -283,5 +300,6 @@ $buildCompleted=$true
 } finally {
     try {
         if ($defaultBuildOutput -and -not $buildCompleted) { Remove-ScopedBuildReceipts $PSScriptRoot $Platform $Configuration }
+        if($sdkModuleLoaded -and -not $buildCompleted){Remove-DxUiSdkLibraryReceipt -Root $PSScriptRoot -Platform $Platform}
     } finally { Exit-ScopedProfileLease $profileLease }
 }

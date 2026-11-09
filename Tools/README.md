@@ -13,6 +13,17 @@ before native probes or self-checks. Fixed top-level timing records diagnose orc
 suite routes include their benchmark, sanitizer and desktop helper dependencies. Selected build receipts cover
 only that union and cannot grant Full. Missing outputs and failed builds revoke/refuse proof. Omit Projects for
 the full solution; custom output roots remain diagnostic/consumer builds. See the [build contract](../Specs/Build/Build_ToolchainAndConsumption.md#selected-native-target-builds).
+
+Default Release builds additionally record the exact library/PDB input provenance through SdkLibraryInputs.psm1.
+The record binds the complete v2 source/dependency/evaluated-toolchain state and exact image/symbol bytes;
+it grants no native test or Full result. SDK packaging requires matching clean-source provenance before staging
+and after qualification. Failed attempts revoke the library record; custom-output and non-Release builds do not
+create it. Test-SdkLibraryInputs.ps1 uses real Git/files with synthetic native metadata to test these boundaries.
+Successful hosted regression exports a current-run/attempt library-only handoff; production verifies its complete
+native state and bytes after dependency restore and omits the library build only on an exact match. Missing or
+incompatible input invokes the normal source build. Imports revoke broader receipts. SDK package smoke, license,
+symbol isolation and evaluated SDK profile checks remain required. Test controls exercise both production routes
+without claiming native compilation; actual native acceptance is recorded separately.
 The build-console checker also rejects structured nonzero child-tool exception
 dumps, even when MSBuild exits zero and writes a successful final footer. Its
 fixtures distinguish actual dump records from ordinary text mentioning a code.

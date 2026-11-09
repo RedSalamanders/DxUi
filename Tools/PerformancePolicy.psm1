@@ -1020,7 +1020,7 @@ function Get-PerformanceBuildAttestationIdentity {
 function Complete-PerformanceBuildAttestation {
     [CmdletBinding()]
     param([Parameter(Mandatory)][string] $Root, [Parameter(Mandatory)][string] $Platform, [Parameter(Mandatory)][string] $Configuration,
-        [Parameter(Mandatory)][System.Collections.IDictionary] $Before)
+        [Parameter(Mandatory)][System.Collections.IDictionary] $Before, [switch] $PassThru)
     $path = Get-PerformanceBuildAttestationPath $Root $Platform $Configuration
     $incrementalPath = Get-PerformanceIncrementalAttestationPath $Root $Platform $Configuration
     try {
@@ -1035,6 +1035,7 @@ function Complete-PerformanceBuildAttestation {
         $intermediate = Get-PerformanceIntermediateIdentity $Root $Platform $Configuration
         Write-ScopedReceipt -Path $path -Identity $identity
         Write-ScopedReceipt -Path $incrementalPath -Identity (Get-PerformanceIncrementalAttestationIdentity $identity $intermediate)
+        if($PassThru){return $after}
     } catch {
         # A nested modern build may have published a receipt before the outer, legacy-compatible guard notices drift.
         if (Test-Path -LiteralPath $path -PathType Leaf) { Remove-Item -LiteralPath $path }
