@@ -860,6 +860,7 @@ function Get-PerformanceToolIdentities {
             "MSBuildFiles=$(& $hashTree -Paths @((Split-Path -Parent $msbuildPath)) -AllFiles)",
             "ToolsetSelection=$((Get-FileHash -LiteralPath $toolsetProps -Algorithm SHA256).Hash)")
         $resolvedProjects = [ordered]@{}
+        $sdkProjects = [ordered]@{}
         $closureCache = @{}
         foreach ($entry in Get-PerformanceProjectCatalog) {
             $role = $entry.role
@@ -869,6 +870,12 @@ function Get-PerformanceToolIdentities {
             if ([string]::IsNullOrWhiteSpace([string]$evaluation['solutionIdentity'])) { throw 'The resolved solution configuration identity is missing.' }
             if (-not $evaluation.Contains('inputs') -or [string]::IsNullOrWhiteSpace([string]$evaluation['inputs']['identity'])) { throw 'The resolved native source byte identity is missing.' }
             $resolvedProjects[$role] = [ordered]@{ path=$entry.path; projectSha256=$evaluation['projectSha256']; solutionIdentity=$evaluation['solutionIdentity']; expandedProjectIdentity=$profile['expandedProjectIdentity']; resolvedItemsIdentity=$profile['resolvedItemsIdentity']; nativeInputIdentity=$evaluation['inputs']['identity'] }
+            # SDK inputs have a separate portable projection. MSBuild's Directory/RootDir item metadata is derived
+            # from checkout location; its existing resolvedItemsIdentity remains binding for build/test receipts.
+            # Source membership/bytes, every supported per-source effective option, expanded imports/targets and
+            # solution mappings remain binding here through the checked native closure and complete profile.
+            $sdkProjects[$role] = [ordered]@{ path=$entry.path; projectSha256=$evaluation['projectSha256']; solutionIdentity=$evaluation['solutionIdentity'];
+                expandedProjectIdentity=$profile['expandedProjectIdentity']; profileIdentity=$profile['profileIdentity']; nativeInputIdentity=$evaluation['inputs']['identity'] }
             $toolchainLines += "$role.Profile=$($profile['profileIdentity'])"
             $toolPaths = Get-PerformanceResolvedToolPaths -Properties $properties -Platform $Platform
             foreach ($name in $toolPaths.Keys) { $toolchainLines += "$role.$name=$((Get-FileHash -LiteralPath $toolPaths[$name] -Algorithm SHA256).Hash)" }
@@ -898,6 +905,7 @@ function Get-PerformanceToolIdentities {
             }
         }
         $resolvedBuildIdentity = Get-ScopedDigest ("dxui-resolved-projects-v2`n" + ($resolvedProjects | ConvertTo-Json -Depth 12 -Compress))
+        $sdkInputIdentity = Get-ScopedDigest ("dxui-sdk-resolved-inputs-v1`n" + ($sdkProjects | ConvertTo-Json -Depth 12 -Compress))
         # cl.exe also consumes CL/_CL_ independently of evaluated project metadata. Hash values without publishing them.
         foreach ($name in @('CL','_CL_','INCLUDE','LIB','LIBPATH','PATH','VCToolsVersion','WindowsSDKVersion','PreferredToolArchitecture')) {
             $value = [Environment]::GetEnvironmentVariable($name)
@@ -909,7 +917,7 @@ function Get-PerformanceToolIdentities {
         # Build guards run before output/runtime directories exist. Their limited scope binds both compiled projects,
         # CL/FXC/link/lib profiles and installed tool inputs, and cannot qualify a full measurement receipt.
         if ($IdentityScope -eq 'Build') {
-            return [ordered]@{ buildIdentityVersion=2; resolvedBuildIdentity=$resolvedBuildIdentity; identityStatus='build-only'; identityScope=$scopeName; harnessIdentity=''; toolchainIdentity=$toolchain; dependencyIdentity=''; environmentIdentity='' }
+            return [ordered]@{ buildIdentityVersion=2; resolvedBuildIdentity=$resolvedBuildIdentity; sdkInputIdentity=$sdkInputIdentity; identityStatus='build-only'; identityScope=$scopeName; harnessIdentity=''; toolchainIdentity=$toolchain; dependencyIdentity=''; environmentIdentity='' }
         }
 
         $triplet = if ($Platform -eq 'ARM64') { 'arm64-windows' } else { 'x64-windows' }

@@ -131,3 +131,16 @@ No source/dependency/API pin was advanced and no desktop input was requested. Sy
 0.1.611092–0.1.611094 identify diagnostic archives only; nothing was published. The records grant no product
 test result. Native ARM64, authenticated cross-repository distribution, actual application consumption and
 local unpinned candidates remain separate acceptance work.
+
+## Portable SDK input acquisition
+
+[sdk-cache-inputs.json](sdk-cache-inputs.json) records complete native metadata/toolchain/source/dependency
+acquisition at 40fa3e3c, identified fully inside the record, on all three current source pins. The oldest
+source was also independently checked out and restored at another path. Existing v2 build identities differed
+because MSBuild records checkout-derived item paths; the separate SDK semantic input keys matched exactly.
+All source membership/bytes, supported evaluated options, imports/targets, solution mappings, restored packages
+and selected toolchain bytes remained bound. Shared strict v1 schema/key acquisition accepted every identity.
+
+Individual acquisition took 29,502–33,737ms in this one concurrent diagnostic, including clean raw source/tooling
+before/after barriers. This is input identity cost, not a cached consumer run or speedup measurement. Full v2
+build/test receipts retain their original location-sensitive identity and are not adopted or rewritten.

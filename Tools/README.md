@@ -213,3 +213,9 @@ Dependency metadata validation checks the independently pinned ports baseline an
 PrePush requires changelog and fragment inputs to match the candidate commit; uncommitted note changes fail before the changelog gate rather than being attributed to the pushed commit.
 
 The relocated consumer receipt derives negative checks from its completed phase ledger and native-module totals from the driver's single validated observed-probe record; a missing or inconsistent record fails qualification.
+
+`SdkCacheInputs.psm1` acquires strict dependency-input keys through the complete canonical native profile,
+source/dependency bytes and installed toolchain closure. It requires clean source and producer tooling,
+checks the supported Release profile and detects source/tooling mutation. It creates no cache, compiles
+nothing and grants no test or SDK acceptance. `Get-DxUiSdkCacheInputIdentity -Root <pinned-source> -Platform x64`
+requires restored dependencies and the selected toolchain; an unverifiable input refuses reuse.
