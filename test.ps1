@@ -60,6 +60,11 @@ if (-not $Full -and -not $PSBoundParameters.ContainsKey('Suites') -and
 Import-Module (Join-Path $PSScriptRoot 'Tools/SuiteFailure.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'Tools/InteractiveRun.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'Tools/ScopedTesting.psm1') -Force
+$profileLease=Enter-ScopedProfileLease $PSScriptRoot $Platform $Configuration
+try {
+# Every direct attempt invalidates earlier affected no-work state, including failures
+# before a suite report exists. Only the affected owner may republish its completed lane.
+Remove-ScopedIteration -Root $PSScriptRoot -Path (Join-Path $PSScriptRoot ".build/reports/scoped-tests/$Platform-$($Configuration -replace ' ','')/iteration.json")
 Import-Module (Join-Path $PSScriptRoot 'Tools/CapabilitySkipPolicy.psm1') -Force
 $instrumentation = @(Get-ScopedInstrumentation)
 # A comma-separated single value is accepted like an array, so -Tests 'A,B' and -Tests A,B are the same request.
@@ -344,3 +349,4 @@ $runPassed = $true
 # Nested native probes can leave a failing child exit code even when every requested suite passed.
 # Reset only after successful evidence finalization so callers observe the runner's final result.
 $global:LASTEXITCODE = 0
+} finally { Exit-ScopedProfileLease $profileLease }

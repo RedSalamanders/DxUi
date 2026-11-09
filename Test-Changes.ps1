@@ -2,8 +2,9 @@
 .SYNOPSIS
 Runs affected test scopes, reusing identical successful local results.
 .DESCRIPTION
-The default compares committed work since the local merge base plus staged, unstaged,
-deleted, renamed and untracked files. Unknown inputs select full coverage. Full selects
+The default compares changes since the last successful affected iteration in this profile,
+falling back to the local merge base plus staged, unstaged, deleted, renamed and untracked
+files. Explicit BaseRef, Force, Full and PrePush bypass the iteration baseline. Unknown inputs select full coverage. Full selects
 every noninteractive scope. PrePush delegates matching scopes only to an enabled and
 reviewed candidate PR workflow; remaining obligations execute locally. CI always uses Force.
 .PARAMETER Mode
@@ -64,17 +65,45 @@ if (-not $Explain -and $Mode -eq 'PrePush') {
 $root=$PSScriptRoot
 $modulePath=Join-Path $root 'Tools/ScopedTesting.psm1'
 Import-Module $modulePath -Force
+$profileLease=if (-not $Explain) { Enter-ScopedProfileLease $root $Platform $Configuration } else { $null }
+try {
 $manifest=Read-ScopedTestManifest $root
 if ($Scopes.Count -and $Mode -ne 'Affected') {throw '-Scopes is only valid for focused Affected iteration.'}
+$explicitBase=$PSBoundParameters.ContainsKey('BaseRef')
 if (-not $BaseRef) {$BaseRef='origin/'+$manifest.defaultBranch}
 Write-Host "Native test naming: $(Assert-ScopedTestNames $root) files checked."
-$changed=if ($Mode -eq 'Affected' -and -not $Scopes.Count) {@(Get-ScopedChangedPaths $root $BaseRef)} else {@()}
-$plan=Get-ScopedTestPlan -Manifest $manifest -ChangedPaths $changed -Scopes $Scopes -Full:($Mode -ne 'Affected')
-$interactive=@(Get-ScopedInteractiveObligations -Manifest $manifest -ChangedPaths $changed -Full:($Mode -ne 'Affected'))
+$branchChanged=if ($Mode -eq 'Affected' -and -not $Scopes.Count) {@(Get-ScopedChangedPaths $root $BaseRef)} else {@()}
+$changed=$branchChanged
+$reports=Join-Path $root ".build/reports/scoped-tests/$Platform-$($Configuration -replace ' ','')"
+$iterationPath=Join-Path $reports 'iteration.json'
+$executionOptions="parallel-suites=$ParallelSuites"
+$environment=Get-ScopedDigest ((Get-ScopedEnvironmentIdentity)+"`n"+(Get-ScopedToolIdentity))
+$source=Get-ScopedSourceMap $root
+$index=Get-ScopedIndexMap $root
+$instrumentation = @(Get-ScopedInstrumentation)
+$ordinaryAffected=$Mode -eq 'Affected' -and -not $Scopes.Count -and -not $explicitBase -and -not $env:CI -and -not $env:GITHUB_ACTIONS
+$iteration=$null
+$nativeContext=''
+$iterationFull=$false
+if ($ordinaryAffected -and -not $Force -and -not $instrumentation.Count) {
+    $iteration=Read-ScopedIteration $iterationPath $root $Platform $Configuration $environment $executionOptions
+    if ($iteration) {
+        $changed=@(Get-ScopedMapDelta $iteration.source $source) + @(Get-ScopedPendingIndexDelta $root $iteration.index $index)
+        if ($iteration.nativeContext) {
+            try {
+                $nativeContext=Get-ScopedIterationNativeContext $root $Platform $Configuration
+                $iterationFull=$nativeContext -cne $iteration.nativeContext -or (Get-ScopedArtifactIdentity $root $Platform $Configuration) -cne $iteration.artifact
+            } catch { $iterationFull=$true }
+        }
+        Write-Host $(if ($iterationFull) {'Iteration native context changed; full noninteractive coverage is required.'} else {'Affected baseline: last successful local iteration (not repository qualification).'})
+    }
+}
+$plan=Get-ScopedTestPlan -Manifest $manifest -ChangedPaths $changed -Scopes $Scopes -Full:($Mode -ne 'Affected' -or $iterationFull)
+# A noninteractive iteration never consumes cumulative foreground obligations.
+$interactive=@(Get-ScopedInteractiveObligations -Manifest $manifest -ChangedPaths $branchChanged -Full:($Mode -ne 'Affected'))
 Write-Host "Test plan: $Mode ($Platform $Configuration); scopes: $($plan.scopes -join ', ')"
 foreach ($reason in $plan.reasons) {Write-Host "  $($reason.path): $($reason.reason) => $($reason.scopes -join ', ')"}
 foreach ($obligation in $interactive) { Write-Host "INTERACTIVE_NOT_RUN: $($obligation.suite) — $($obligation.reason) [$($obligation.pattern)]" }
-$instrumentation = @(Get-ScopedInstrumentation)
 if ($instrumentation.Count) { Write-Host "INSTRUMENTED RUN (never a qualification receipt): $($instrumentation -join ', ')" }
 
 $deferred=@(if ($Mode -eq 'PrePush') {Get-ScopedPrCoverage $root $manifest $Platform $Configuration})
@@ -87,7 +116,9 @@ if (-not $selected.Count) {
     exit 0
 }
 $native=@($selected | Where-Object {$_.native})
-$reports=Join-Path $root ".build/reports/scoped-tests/$Platform-$($Configuration -replace ' ','')"
+# Revoke before any build or selected execution. A failed forced/explicit run must not
+# leave an old baseline able to hide the same-source failure on the next default run.
+Remove-ScopedIteration $iterationPath $root
 if ($native.Count) {
     $architecture=[Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
     if (($Platform -eq 'ARM64' -and $architecture -ne 'Arm64') -or ($Platform -eq 'x64' -and $architecture -ne 'X64')) {throw 'Native runtime testing requires the selected host architecture.'}
@@ -105,10 +136,12 @@ if ($native.Count) {
         $artifact=Get-ScopedArtifactIdentity $root $Platform $Configuration
         Write-ScopedReceipt $attestation (Get-ScopedDigest ($buildInputBefore+"`n"+$artifact))
     }
+    if ($ordinaryAffected -and -not $instrumentation.Count) {
+        $nativeContext=Get-ScopedIterationNativeContext $root $Platform $Configuration
+    }
 }
 $pending=[Collections.Generic.List[object]]::new()
 $identities=@{}
-$executionOptions="parallel-suites=$ParallelSuites"
 $commonNative=if ($native.Count) {
     Get-ScopedDigest (@([IO.Path]::GetFullPath($root),$Platform,$Configuration,'(common)',$executionOptions,$buildInputBefore,$artifact,(Get-ScopedEnvironmentIdentity)) -join "`n")
 } else {''}
@@ -147,7 +180,7 @@ if ($pending.Count) {
         }
     }
     if ($runtime.Count) {
-        & (Join-Path $root 'test.ps1') -Platform $Platform -Configuration $Configuration -SkipBuild -Suites $runtime -SkipTooling -ParallelSuites $ParallelSuites
+        & (Join-Path $root 'test.ps1') -Platform $Platform -Configuration $Configuration -SkipBuild -Suites $runtime -SkipTooling -ParallelSuites $ParallelSuites -Full:($Mode -ne 'Affected')
         if ($LASTEXITCODE -ne 0) {throw "Selected runtime tests failed with exit $LASTEXITCODE."}
     }
     Import-Module $modulePath -Force
@@ -176,6 +209,22 @@ if ($pending.Count) {
         if ($scope.reuse -and -not $instrumentation.Count) {Write-ScopedReceipt (Get-ScopeReceiptPath $scope) $identities[$scope.name]}
     }
 } else { $environmentReduced=[Collections.Generic.List[string]]::new() }
+if ($ordinaryAffected -and -not $instrumentation.Count -and -not $environmentReduced.Count -and -not $deferred.Count) {
+    if ((Get-ScopedMapIdentity (Get-ScopedSourceMap $root)) -cne (Get-ScopedMapIdentity $source) -or
+        (Get-ScopedMapIdentity (Get-ScopedIndexMap $root)) -cne (Get-ScopedMapIdentity $index) -or
+        (Get-ScopedDigest ((Get-ScopedEnvironmentIdentity)+"`n"+(Get-ScopedToolIdentity))) -cne $environment) {
+        throw 'Source, index or environment changed during the run; no iteration baseline was published.'
+    }
+    $iterationArtifact=''
+    if ($nativeContext) {
+        if ((Get-ScopedIterationNativeContext $root $Platform $Configuration) -cne $nativeContext) { throw 'Native dependencies or toolchain changed during the run; no iteration baseline was published.' }
+        $iterationArtifact=Get-ScopedArtifactIdentity $root $Platform $Configuration
+        if ($native.Count -and $iterationArtifact -cne $artifact) { throw 'Native artifacts changed during the run; no iteration baseline was published.' }
+        if (-not $native.Count -and $iterationArtifact -cne $iteration.artifact) { throw 'Previously validated native artifacts changed during the run; no iteration baseline was published.' }
+    }
+    Write-ScopedIteration $iterationPath $root $Platform $Configuration $environment $executionOptions $source $index $nativeContext $iterationArtifact
+}
 $coverage=if ($instrumentation.Count) {'INSTRUMENTED_SCOPE_PASS; qualification NOT_EVALUATED; no receipt written'} elseif ($deferred.Count -and $environmentReduced.Count) {'LOCAL_SCOPES_PASSED_WITH_CAPABILITY_SKIPS; CI_PENDING; repository NOT_EVALUATED'} elseif ($deferred.Count) {'LOCAL_OBLIGATIONS_PASSED; CI_PENDING'} elseif ($environmentReduced.Count) {'SELECTED_PASSED_WITH_CAPABILITY_SKIPS; repository NOT_EVALUATED'} elseif ($plan.full) {'FULL_SCOPES_PASSED; repository NOT_EVALUATED'} else {'SELECTED_PASSED; repository NOT_EVALUATED'}
 Write-Host $coverage -ForegroundColor Green
 exit 0
+} finally { if ($profileLease) { Exit-ScopedProfileLease $profileLease } }

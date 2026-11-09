@@ -24,3 +24,21 @@ Both runs passed all 19 suites with zero capability skips, identical binary hash
 The [prior serial attempt](prior-failed-serial.json) failed in Embedded (`0xc0000409`) and remains failed. Original run: `20261109T130229552Z-81776-d3ff2e9c1cd84dbeb130432cab0e8b22`. Its archived `ordinary.record` and matching PDB resolve `PreparedLayoutAccess::Prepare` at `DxUi.RichTextLayout.cpp:447`, reached from `TestRichDocumentGeometryMaximumStorageBudget`. DirectWrite's overhang query raised an internally handled C++ exception outside the preceding GetMetrics allowance. The repair applies the existing per-call native boundary to GetOverhangMetrics, preserving HRESULT refusal and observation of SDK work/reentrant scopes. The subsequent complete Embedded and 19-suite runs above passed. A passing retry does not replace the original failure.
 
 Hosted normal concurrency remains one until native architecture comparison is accepted. Current local and main qualification coverage has not been removed.
+
+## Affected iteration follow-up
+
+The profile iteration baseline has 41 focused tooling cases passing, including default no-work, later-edit scope
+selection, staging already-tested bytes, distinct staged content behind unchanged working bytes, cumulative
+Full/PrePush/foreground obligations, changed native context, failure revocation, ordinal path identity, expiry,
+malformed state and separate-process profile exclusion. The real canonical x64 Release compiler/SDK/dependency
+context resolved successfully and matched across two scans. Diagnostic scans of source/index, native context and
+all profile artifacts took 23,850.0 and 19,808.8 ms; native context accounted for 15,550.4 and 15,448.3 ms.
+These scans measure identity cost only, not an executed native affected/no-work campaign or a speedup.
+Raw local diagnostics remain in `.build/i61-iteration-identity-measurements.json`.
+
+Complete `validate.ps1` executed all validators and tooling scripts. It exposed two stale source-contract assertions
+expecting a direct watchdog call after the first-wave helper extraction. They now check the canonical preflight's
+ordering, retaining actual child invocation/failure controls in the scoped tests. Focused reruns passed 9/9 suite
+failure and 48/48 interactive-mode cases; the full run's original failure remains recorded separately in
+`.build/i61-iteration-validation.log`. Formatting, spec/skill checks, changelog checks and the final 41-case scoped
+run passed. Hosted review and native final-head/profile acceptance remain separate.

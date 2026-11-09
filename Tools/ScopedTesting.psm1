@@ -89,6 +89,14 @@ function Assert-ScopedTestNames {
     return $declared.Count
 }
 
+function Test-ScopedDocumentationPath {
+    param([string] $Path)
+    # Markdown fixtures are executable data. Unknown .md locations keep the normal rule/fallback path.
+    if ($Path -match '^Tests/(Data|Fixtures)/') { return $false }
+    return $Path -match '\.md$' -and ($Path -match '^(Specs|docs|Measurements|Changes|legacy|\.agents|\.github/(skills|ISSUE_TEMPLATE|PULL_REQUEST_TEMPLATE))/' -or
+        $Path -match '^[^/]+\.md$|(^|/)(README|AGENTS|CLAUDE)\.md$')
+}
+
 function Get-ScopedTestPlan {
     param([object] $Manifest, [AllowEmptyCollection()][string[]] $ChangedPaths, [string[]] $Scopes = @(), [switch] $Full)
     $names = @($Manifest.scopes | ForEach-Object { $_.name })
@@ -103,7 +111,7 @@ function Get-ScopedTestPlan {
     if (-not $Scopes.Count -and -not $Full) {
         foreach ($path in $ChangedPaths) {
             if ($path -match '(^/|(^|/)\.\.(/|$)|:|\\)') { throw "Expected a repository-relative Git path: $path" }
-            if ($path -match '\.md$') {
+            if (Test-ScopedDocumentationPath $path) {
                 $targets = @($Manifest.scopes | Where-Object { -not $_.native } | ForEach-Object name)
                 foreach ($name in $targets) { [void]$selected.Add($name) }
                 $reasons.Add([pscustomobject]@{path=$path; scopes=$targets; reason='documentation/skill validation; no native test input'})
@@ -154,22 +162,163 @@ function Get-ScopedDigest {
 
 function Get-ScopedSourceIdentity {
     param([string] $Root, [switch] $CompiledOnly)
-    $rows = [Collections.Generic.List[string]]::new()
+    return Get-ScopedMapIdentity (Get-ScopedSourceMap -Root $Root -CompiledOnly:$CompiledOnly)
+}
+
+function Get-ScopedSourceMap {
+    param([string] $Root, [switch] $CompiledOnly)
+    $map = [Collections.Specialized.OrderedDictionary]::new([StringComparer]::Ordinal)
     foreach ($path in @(Get-ScopedTrackedPaths $Root)) {
         # Validators read prose, skills and archived mappings too. Their full identity includes every versioned input.
         if ($path -match '^\.build/') { continue }
         # Build attestation excludes immutable evidence/prose, but has no extension whitelist: .inl and new generators count.
-        if ($CompiledOnly -and ($path -match '^(Measurements|docs|Changes|legacy|Specs/(Plans|Done|TestRuns|Reviews|Mockups))/' -or $path -match '\.md$')) { continue }
+        if ($CompiledOnly -and ($path -match '^(Measurements|docs|Changes|legacy|Specs/(Plans|Done|TestRuns|Reviews|Mockups))/' -or (Test-ScopedDocumentationPath $path))) { continue }
         $full = Join-Path $Root $path
         # A tracked path removed from the worktree is absent source content whether or not
         # the deletion has been staged. The changed-path identity records the deletion.
         if (-not (Test-Path -LiteralPath $full -PathType Leaf)) {
             continue
         }
-        $value = (Get-FileHash -LiteralPath $full -Algorithm SHA256).Hash
-        $rows.Add("$path`0$value")
+        $map.Add($path, (Get-FileHash -LiteralPath $full -Algorithm SHA256).Hash)
     }
+    return ,$map
+}
+
+function Get-ScopedMapIdentity {
+    param([Collections.IDictionary] $Map)
+    $rows = foreach ($path in @(Get-ScopedOrdinalUniquePaths @($Map.Keys))) { "$path`0$($Map[$path])" }
     return Get-ScopedDigest ($rows -join "`n")
+}
+
+function Get-ScopedIndexMap {
+    param([string] $Root)
+    $map = [Collections.Specialized.OrderedDictionary]::new([StringComparer]::Ordinal)
+    foreach ($entry in ((Invoke-ScopedGit $Root @('ls-files','--stage','-z')) -split '\x00')) {
+        if (-not $entry) { continue }
+        if ($entry -cnotmatch '^(\d{6}) ([a-f0-9]+) ([0-3])\t([\s\S]+)$') { throw 'Unrecognized Git index record.' }
+        if ($Matches[3] -cne '0') { throw 'Resolve Git conflicts before selecting affected tests.' }
+        $map.Add($Matches[4], "$($Matches[1]) $($Matches[2])")
+    }
+    # Preserve assume-unchanged/skip-worktree and intent-to-add state as well as blob and mode.
+    foreach ($entry in ((Invoke-ScopedGit $Root @('ls-files','-v','-z')) -split '\x00')) {
+        if (-not $entry) { continue }
+        if ($entry -cnotmatch '^([A-Za-z?]) ([\s\S]+)$' -or -not $map.Contains($Matches[2])) { throw 'Unrecognized Git index flags.' }
+        $map[$Matches[2]] += ' ' + $Matches[1]
+    }
+    return ,$map
+}
+
+function Get-ScopedMapDelta {
+    param([Collections.IDictionary] $Before, [Collections.IDictionary] $After)
+    return @(Get-ScopedOrdinalUniquePaths (@($Before.Keys) + @($After.Keys)) | Where-Object {
+        -not $Before.Contains($_) -or -not $After.Contains($_) -or $Before[$_] -cne $After[$_]
+    })
+}
+
+function Get-ScopedPendingIndexDelta {
+    param([string] $Root, [Collections.IDictionary] $Before, [Collections.IDictionary] $After)
+    $working = @((Invoke-ScopedGit $Root @('diff','--name-only','--no-renames','-z','--')) -split '\x00')
+    foreach ($path in @(Get-ScopedMapDelta $Before $After)) {
+        # Staging tested bytes needs no repeated execution. Mode/flag changes and a staged blob
+        # hidden by different working bytes remain obligations, including index-only deletions.
+        $oldMetadata = if ($Before.Contains($path)) { ([string]$Before[$path] -split ' ')[0,2] -join ' ' } else { '' }
+        $newMetadata = if ($After.Contains($path)) { ([string]$After[$path] -split ' ')[0,2] -join ' ' } else { '' }
+        if ($path -cin $working -or ($Before.Contains($path) -and -not $After.Contains($path)) -or
+            ($Before.Contains($path) -and $After.Contains($path) -and $oldMetadata -cne $newMetadata)) { $path }
+    }
+}
+
+function Get-ScopedIterationNativeContext {
+    param([string] $Root, [string] $Platform, [string] $Configuration)
+    # Reuse the canonical evaluated compiler/SDK byte closure; do not trust installation timestamps.
+    $policy = Import-Module (Join-Path $Root 'Tools/PerformancePolicy.psm1') -PassThru -ErrorAction Stop
+    $tools = & $policy { param($r,$p,$c) Get-PerformanceToolIdentities -Root $r -Platform $p -Configuration $c -IdentityScope Build } $Root $Platform $Configuration
+    if ($tools.identityStatus -cne 'build-only' -or $tools.buildIdentityVersion -ne 2 -or [string]$tools.toolchainIdentity -cnotmatch '^[A-Fa-f0-9]{64}$') {
+        throw 'Cannot verify the native toolchain for an affected iteration baseline.'
+    }
+    return Get-ScopedDigest (@($tools.toolchainIdentity, (Get-ScopedDependencyIdentity $Root $Platform)) -join "`n")
+}
+
+function Get-ScopedIterationDigest {
+    param([Collections.IDictionary] $State)
+    return Get-ScopedDigest (@($State.version,$State.root,$State.platform,$State.configuration,$State.environment,$State.options,
+        $State.completedUtc,$State.nativeContext,$State.artifact,(Get-ScopedMapIdentity $State.source),(Get-ScopedMapIdentity $State.index)) -join "`n")
+}
+
+function Enter-ScopedProfileLease {
+    param([string] $Root, [string] $Platform, [string] $Configuration)
+    # Reentrant for a nested test.ps1 call on the owning thread; disjoint profiles/worktrees remain independent.
+    $rootIdentity=[IO.Path]::GetFullPath($Root).TrimEnd('\','/')
+    if ([OperatingSystem]::IsWindows()) { $rootIdentity=$rootIdentity.ToUpperInvariant() }
+    $key=Get-ScopedDigest (@($rootIdentity,$Platform,$Configuration) -join "`n")
+    $mutex=[Threading.Mutex]::new($false,"DxUi.ScopedProfile.$key")
+    $owned=$false
+    try {
+        try { $owned=$mutex.WaitOne(0) } catch [Threading.AbandonedMutexException] { $owned=$true }
+        if (-not $owned) { throw 'Another test operation owns this checkout/profile. Retry when it completes.' }
+        return $mutex
+    } catch { $mutex.Dispose(); throw }
+}
+
+function Exit-ScopedProfileLease {
+    param([Threading.Mutex] $Lease)
+    try { $Lease.ReleaseMutex() } finally { $Lease.Dispose() }
+}
+
+function Assert-ScopedIterationPath {
+    param([string] $Path, [string] $Root)
+    $prefix = [IO.Path]::GetFullPath((Join-Path $Root '.build/reports/scoped-tests')).TrimEnd('\','/') + [IO.Path]::DirectorySeparatorChar
+    $resolved = [IO.Path]::GetFullPath($Path)
+    if (-not $resolved.StartsWith($prefix,[StringComparison]::OrdinalIgnoreCase)) { throw 'Iteration baseline escaped its local report root.' }
+    $cursor = $resolved
+    while ($cursor.Length -gt [IO.Path]::GetFullPath($Root).TrimEnd('\','/').Length) {
+        if ((Test-Path -LiteralPath $cursor) -and ((Get-Item -LiteralPath $cursor -Force).Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'Reparse iteration baseline paths are unsupported.' }
+        $cursor = Split-Path -Parent $cursor
+    }
+}
+
+function Read-ScopedIteration {
+    param([string] $Path, [string] $Root, [string] $Platform, [string] $Configuration, [string] $Environment, [string] $Options)
+    Assert-ScopedIterationPath $Path $Root
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { return $null }
+    try {
+        if ((Get-Item -LiteralPath $Path).Length -gt 16MB) { return $null }
+        # -AsHashtable uses ordinal ordered keys on supported PowerShell; preserve distinct Git path casing.
+        $state = Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json -AsHashtable
+        if ($state.completedUtc -is [DateTime]) { $state.completedUtc=$state.completedUtc.ToUniversalTime().ToString('o') }
+        if ($state.version -ne 2 -or $state.root -cne [IO.Path]::GetFullPath($Root) -or $state.platform -cne $Platform -or
+            $state.configuration -cne $Configuration -or $state.environment -cne $Environment -or $state.options -cne $Options -or
+            $state.source -isnot [Collections.IDictionary] -or $state.index -isnot [Collections.IDictionary] -or
+            ([string]$state.nativeContext -and [string]$state.nativeContext -cnotmatch '^[A-Fa-f0-9]{64}$') -or
+            ([bool]$state.nativeContext -ne [bool]$state.artifact) -or
+            $state.digest -cne (Get-ScopedIterationDigest $state)) { return $null }
+        $age = [DateTime]::UtcNow - [DateTime]::Parse($state.completedUtc,[Globalization.CultureInfo]::InvariantCulture,[Globalization.DateTimeStyles]::RoundtripKind).ToUniversalTime()
+        if ($age.TotalHours -lt 0 -or $age.TotalHours -ge 24) { return $null }
+        return $state
+    } catch [ArgumentException] { return $null }
+    catch [System.Management.Automation.RuntimeException] { return $null }
+}
+
+function Remove-ScopedIteration {
+    param([string] $Path, [string] $Root)
+    Assert-ScopedIterationPath $Path $Root
+    if (Test-Path -LiteralPath $Path) { Remove-Item -LiteralPath $Path -ErrorAction Stop }
+}
+
+function Write-ScopedIteration {
+    param([string] $Path, [string] $Root, [string] $Platform, [string] $Configuration, [string] $Environment, [string] $Options,
+        [Collections.IDictionary] $Source, [Collections.IDictionary] $Index, [string] $NativeContext, [string] $Artifact)
+    Assert-ScopedIterationPath $Path $Root
+    $state = [ordered]@{ version=2;root=[IO.Path]::GetFullPath($Root);platform=$Platform;configuration=$Configuration;
+        environment=$Environment;options=$Options;completedUtc=[DateTime]::UtcNow.ToString('o');source=$Source;index=$Index;nativeContext=$NativeContext;artifact=$Artifact }
+    $state['digest'] = Get-ScopedIterationDigest $state
+    [void](New-Item -ItemType Directory -Path (Split-Path -Parent $Path) -Force)
+    Assert-ScopedIterationPath $Path $Root
+    $temporary = $Path + '.' + [guid]::NewGuid().ToString('N') + '.tmp'
+    try {
+        [IO.File]::WriteAllText($temporary,($state | ConvertTo-Json -Depth 8),[Text.UTF8Encoding]::new($false))
+        Move-Item -LiteralPath $temporary -Destination $Path -Force
+    } finally { if (Test-Path -LiteralPath $temporary) { Remove-Item -LiteralPath $temporary } }
 }
 
 function Get-ScopedDependencyIdentity {
@@ -438,3 +587,5 @@ Export-ModuleMember -Function Get-ScopedChangedPaths, Get-ScopedPrContractDigest
     Get-ScopedSourceIdentity, Get-ScopedDependencyIdentity, Get-ScopedBuildInputIdentity, Get-ScopedArtifactIdentity, Get-ScopedRunIdentity, Get-ScopedDigest,
     Test-ScopedReceipt, Write-ScopedReceipt, Get-ScopedPrCoverage, Get-ScopedPrCandidateScopes, Get-ScopedEnvironmentIdentity,
     Get-ScopedToolIdentity, Get-ScopedInstrumentation, Test-ScopedPattern, Get-ScopedInteractiveObligations, Invoke-ScopedHarnessPreflight
+Export-ModuleMember -Function Get-ScopedSourceMap, Get-ScopedIndexMap, Get-ScopedMapIdentity, Get-ScopedMapDelta, Get-ScopedPendingIndexDelta,
+    Get-ScopedIterationNativeContext, Read-ScopedIteration, Write-ScopedIteration, Remove-ScopedIteration, Enter-ScopedProfileLease, Exit-ScopedProfileLease

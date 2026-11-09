@@ -9,7 +9,7 @@
 ./Test-Changes.ps1 -Mode Full -Configuration Debug
 ```
 
-The default uses local merge-base changes plus staged, unstaged and untracked work. Read the explanation before a large run. Unknown code/build inputs widen coverage. Selected work is partial evidence. PR delegation is pending CI work, and only an enabled workflow with matching reviewed candidate bytes/profile can justify it.
+The default uses changes since the last successful local affected iteration in this profile (up to 24 hours), falling back to local merge-base changes plus staged, unstaged and untracked work. Native baselines recheck dependency, compiler/SDK and output bytes. Full, PrePush, Force, explicit scopes and explicit BaseRef keep their cumulative/explicit obligations. A failed rerun revokes the old baseline; foreground debt remains visible. Read the explanation before a large run. Unknown code/build inputs widen coverage. Selected work is partial evidence. PR delegation is pending CI work, and only an enabled workflow with matching reviewed candidate bytes/profile can justify it.
 An empty plan reports `NO_WORK; repository NOT_EVALUATED`; a fully delegated plan reports `NO_LOCAL_WORK; CI_PENDING`.
 Capability skips are reported explicitly and prevent native-suite receipt reuse. `FULL_SCOPES_PASSED` covers the scope
 manifest, while foreground, consumer, gallery and native-platform qualification remain separate obligations.
