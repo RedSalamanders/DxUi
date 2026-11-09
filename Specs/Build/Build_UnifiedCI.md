@@ -11,6 +11,11 @@ checks its current head, commits only selected formatted source paths by ordinar
 explicitly dispatches fresh compiler-free checks for that exact head. Forks retain a patch for their author.
 PR checks never count as native acceptance. Compiler-dependent tooling runs in main qualification.
 
+The compiler-free static adapter also runs the scoped planner's Git/recording-process controls with native
+builds disabled. Local-iteration child fixtures isolate CI markers, and a separate hosted control verifies
+that CI executes fresh work and never adopts or publishes a local iteration baseline. These controls report
+before native build setup and do not satisfy native/runtime qualification or the complete tooling obligation.
+
 After main has remained unchanged for five continuous minutes, its cheap coordinator submits one native
 admission. Cumulative native identity uses the complete committed Git input tree, file modes, dependencies,
 project adapter and exact engine/policy pins. It is not a truncated files API response or last-merge-only diff.
@@ -114,3 +119,5 @@ The extracted SDK smoke directly includes the public FileDrop and RichImage head
 ## Dependency cache reuse
 
 The pinned shared engine restores vcpkg's ABI-indexed package cache for normal and manual native qualification. Exact engine/input keys are preferred; fallback lookup stays within the same runner OS, host architecture and target platform, and the pinned vcpkg restore still selects each package by its computed ABI. A miss rebuilds the package. This supplies dependency inputs only: product objects, DxUi SDK outputs and build/test receipts are not restored by this cache. Dependency pins, native execution, failure detectors and production/publication gates remain required. The owning behavior is the shared engine's Specs/CI.md.
+
+The pinned shared conformance rejects extension-wide Markdown exclusions. Pin maintenance migrates only the original global default to owned prose locations and known guides. Runtime/test include exceptions retain precedence; historical artifacts keep their original source identity.

@@ -48,6 +48,7 @@ if ($Phase -eq 'Static') {
     $baseCommit = Resolve-CiCommit $root $Base
     Run 'Tools/Test-Changelog.ps1' @('-Base',$baseCommit)
     foreach ($script in @('validate-skills.ps1','validate-specs.ps1','validate-dependencies.ps1','validate-test-port.ps1','validate-build-matrix.ps1')) { Run $script }
+    Run 'Tools/tests/Test-ScopedTesting.ps1'
     return
 }
 if ($Phase -ne 'Qualification') { $Configuration = 'Release' }
