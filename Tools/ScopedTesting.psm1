@@ -246,9 +246,10 @@ function Get-ScopedIterationDigest {
 }
 
 function Enter-ScopedProfileLease {
-    param([string] $Root, [string] $Platform, [string] $Configuration)
+    param([string] $Root, [string] $Platform, [string] $Configuration, [string] $OutputRoot = '')
     # Reentrant for a nested test.ps1 call on the owning thread; disjoint profiles/worktrees remain independent.
-    $rootIdentity=[IO.Path]::GetFullPath($Root).TrimEnd('\','/')
+    if (-not $OutputRoot) { $OutputRoot=Join-Path $Root '.build' }
+    $rootIdentity=[IO.Path]::GetFullPath($OutputRoot).TrimEnd('\','/')
     if ([OperatingSystem]::IsWindows()) { $rootIdentity=$rootIdentity.ToUpperInvariant() }
     $key=Get-ScopedDigest (@($rootIdentity,$Platform,$Configuration) -join "`n")
     $mutex=[Threading.Mutex]::new($false,"DxUi.ScopedProfile.$key")
@@ -358,6 +359,129 @@ function Get-ScopedBuildInputIdentity {
     param([string] $Root, [ValidateSet('x64','ARM64')][string] $Platform)
     return Get-ScopedDigest (@((Get-ScopedSourceIdentity -Root $Root -CompiledOnly),
         (Get-ScopedDependencyIdentity -Root $Root -Platform $Platform)) -join "`n")
+}
+
+function Get-ScopedBuildProjectCatalog {
+    return [ordered]@{
+        'DxUi'='src/DxUi.vcxproj'
+        'DxUi.FoundationTests'='Tests/Foundation/DxUi.FoundationTests.vcxproj'
+        'DxUi.ControlTests'='Tests/Controls/DxUi.ControlTests.vcxproj'
+        'DxUi.EmbeddedControls'='Samples/EmbeddedControls/DxUi.EmbeddedControls.vcxproj'
+        'DxUi.EmbeddedTests'='Tests/Embedded/DxUi.EmbeddedTests.vcxproj'
+        'DxUi.InteractiveLease'='Tests/InteractiveLease/DxUi.InteractiveLease.vcxproj'
+    }
+}
+
+function Resolve-ScopedBuildProjects {
+    param([string[]] $Projects)
+    $catalog=Get-ScopedBuildProjectCatalog
+    foreach ($project in $Projects) { if ($project -cnotin @($catalog.Keys)) { throw "Unknown native build project: $project" } }
+    # All current application/test projects reference the single static library.
+    return @($catalog.Keys | Where-Object { $_ -ceq 'DxUi' -or $_ -cin $Projects })
+}
+
+function Get-ScopedRequiredBuildProjects {
+    param([string[]] $Suites, [string] $Configuration, [switch] $Full)
+    if ($Full) { return @((Get-ScopedBuildProjectCatalog).Keys) }
+    # Every test invocation runs performance.ps1 through the benchmark executable.
+    $projects=@('DxUi','DxUi.EmbeddedTests')
+    if ('Foundation' -in $Suites -or $Configuration -eq 'ASan Debug') { $projects+='DxUi.FoundationTests' }
+    if (@($Suites | Where-Object { $_ -notin @('Foundation','Embedded') }).Count) { $projects+='DxUi.ControlTests' }
+    if (@($Suites | Where-Object { $_ -in @('InteractiveLease','Menu','NativeTextInput','MenuResources','MenuResourceScaling','MenuTextLayoutResources') }).Count) { $projects+='DxUi.InteractiveLease' }
+    return @(Resolve-ScopedBuildProjects $projects)
+}
+
+function Assert-ScopedSelectedBuildGraph {
+    param([string] $Root, [string] $MSBuildPath, [string] $Platform, [string] $Configuration, [string] $OutputRoot, [string[]] $Projects)
+    $catalog=Get-ScopedBuildProjectCatalog
+    $selected=@(Resolve-ScopedBuildProjects $Projects)
+    # Evaluate actual references, including imported and conditional items. Opaque/new
+    # dependencies refuse partial admission until their build/runtime contract is reviewed.
+    foreach ($project in $selected) {
+        $projectPath=[IO.Path]::GetFullPath((Join-Path $Root $catalog[$project]))
+        $text=& $MSBuildPath $projectPath /nologo "/p:Platform=$Platform" "/p:Configuration=$Configuration" "/p:DxUiOutputRoot=$OutputRoot" '-getItem:ProjectReference' '-getProperty:TargetPath,ConfigurationType'
+        if ($LASTEXITCODE) { throw "Cannot evaluate selected native project: $project" }
+        $evaluation=($text -join "`n") | ConvertFrom-Json
+        $extension=if ($project -ceq 'DxUi') {'.lib'} else {'.exe'}
+        $expected=[IO.Path]::GetFullPath((Join-Path $OutputRoot "$Platform/$Configuration/$project$extension"))
+        if ([IO.Path]::GetFullPath($evaluation.Properties.TargetPath) -ine $expected -or
+            $evaluation.Properties.ConfigurationType -cne $(if ($project -ceq 'DxUi') {'StaticLibrary'} else {'Application'})) { throw "Unsupported selected output contract: $project" }
+        $references=@($evaluation.Items.ProjectReference)
+        if (($project -ceq 'DxUi' -and $references.Count) -or ($project -cne 'DxUi' -and $references.Count -ne 1)) { throw "Unsupported selected reference inventory: $project" }
+        foreach ($reference in $references) {
+            $path=[IO.Path]::GetFullPath((Join-Path (Split-Path -Parent $projectPath) $reference.Identity))
+            if ($path -ine [IO.Path]::GetFullPath((Join-Path $Root $catalog['DxUi']))) { throw "Unreviewed selected native dependency: $project" }
+        }
+    }
+}
+
+function Assert-ScopedBuildOutputs {
+    param([string] $Root, [string] $Platform, [string] $Configuration, [string[]] $Projects)
+    $profile=Join-Path $Root ".build/$Platform/$Configuration"
+    $cursor=[IO.Path]::GetFullPath($profile)
+    while ($cursor.Length -gt [IO.Path]::GetFullPath($Root).TrimEnd('\','/').Length) {
+        if ((Test-Path -LiteralPath $cursor) -and ((Get-Item -LiteralPath $cursor -Force).Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'Reparse selected build profile is unsupported.' }
+        $cursor=Split-Path -Parent $cursor
+    }
+    $outputs=@(foreach ($project in @(Resolve-ScopedBuildProjects $Projects)) {
+        if ($project -ceq 'DxUi') { 'DxUi.lib'; 'DxUi.pdb' } else { "$project.exe"; "$project.pdb" }
+    })
+    if ($Configuration -eq 'ASan Debug') { $outputs+=if ($Platform -eq 'ARM64') {'clang_rt.asan_dynamic-aarch64.dll'} else {'clang_rt.asan_dynamic-x86_64.dll'} }
+    foreach ($name in $outputs) {
+        $path=Join-Path $profile $name
+        if (-not (Test-Path -LiteralPath $path -PathType Leaf) -or (Get-Item -LiteralPath $path).Length -eq 0) { throw "Incomplete selected build output: $name" }
+        if ((Get-Item -LiteralPath $path -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) { throw "Reparse selected build output: $name" }
+    }
+}
+
+function Get-ScopedTargetBuildReceipt {
+    param([string] $Root, [string] $Platform, [string] $Configuration, [string[]] $Projects)
+    $targets=@(Resolve-ScopedBuildProjects $Projects) -join "`n"
+    $path=Join-Path $Root ".build/reports/scoped-tests/$Platform-$($Configuration -replace ' ','')/build-targets/$(Get-ScopedDigest $targets).json"
+    Assert-ScopedIterationPath $path $Root
+    return $path
+}
+
+function Remove-ScopedBuildReceipts {
+    param([string] $Root, [string] $Platform, [string] $Configuration)
+    $profile=Join-Path $Root ".build/reports/scoped-tests/$Platform-$($Configuration -replace ' ','')"
+    $full=Join-Path $profile 'build.json'
+    Assert-ScopedIterationPath $full $Root
+    if (Test-Path -LiteralPath $full) { Remove-Item -LiteralPath $full }
+    $targets=Join-Path $profile 'build-targets'
+    Assert-ScopedIterationPath (Join-Path $targets 'probe.json') $Root
+    if (Test-Path -LiteralPath $targets -PathType Container) {
+        foreach ($file in @(Get-ChildItem -LiteralPath $targets -File -Filter '*.json')) {
+            Assert-ScopedIterationPath $file.FullName $Root
+            Remove-Item -LiteralPath $file.FullName
+        }
+    }
+}
+
+function Write-ScopedTargetBuildReceipt {
+    param([string] $Root, [string] $Platform, [string] $Configuration, [string[]] $Projects, [string] $InputIdentity, [string] $ArtifactIdentity)
+    Assert-ScopedBuildOutputs $Root $Platform $Configuration $Projects
+    $targets=@(Resolve-ScopedBuildProjects $Projects) -join "`n"
+    Write-ScopedReceipt (Get-ScopedTargetBuildReceipt $Root $Platform $Configuration $Projects) (Get-ScopedDigest (@('dxui-selected-build-v1',$targets,$InputIdentity,$ArtifactIdentity) -join "`n"))
+}
+
+function Test-ScopedBuildCoverage {
+    param([string] $Root, [string] $Platform, [string] $Configuration, [string[]] $Projects, [string] $InputIdentity, [string] $ArtifactIdentity, [switch] $Full)
+    Assert-ScopedBuildOutputs $Root $Platform $Configuration $Projects
+    $report=Join-Path $Root ".build/reports/scoped-tests/$Platform-$($Configuration -replace ' ','')/build.json"
+    if (Test-ScopedReceipt $report (Get-ScopedDigest ($InputIdentity+"`n"+$ArtifactIdentity))) { return $true }
+    if ($Full) { return $false }
+    # Six bounded catalog entries => at most 64 exact, content-bound candidate sets.
+    # A larger selected union can satisfy a subset; a partial receipt never grants Full.
+    $catalog=@((Get-ScopedBuildProjectCatalog).Keys)
+    for ($mask=1; $mask -lt (1 -shl $catalog.Count); $mask++) {
+        $set=@(for ($i=0; $i -lt $catalog.Count; $i++) { if ($mask -band (1 -shl $i)) { $catalog[$i] } })
+        if ('DxUi' -cnotin $set -or @($Projects | Where-Object { $_ -cnotin $set }).Count) { continue }
+        $targets=$set -join "`n"
+        $identity=Get-ScopedDigest (@('dxui-selected-build-v1',$targets,$InputIdentity,$ArtifactIdentity) -join "`n")
+        if (Test-ScopedReceipt (Get-ScopedTargetBuildReceipt $Root $Platform $Configuration $set) $identity) { return $true }
+    }
+    return $false
 }
 
 function Get-ScopedArtifactIdentity {
@@ -589,3 +713,6 @@ Export-ModuleMember -Function Get-ScopedChangedPaths, Get-ScopedPrContractDigest
     Get-ScopedToolIdentity, Get-ScopedInstrumentation, Test-ScopedPattern, Get-ScopedInteractiveObligations, Invoke-ScopedHarnessPreflight
 Export-ModuleMember -Function Get-ScopedSourceMap, Get-ScopedIndexMap, Get-ScopedMapIdentity, Get-ScopedMapDelta, Get-ScopedPendingIndexDelta,
     Get-ScopedIterationNativeContext, Read-ScopedIteration, Write-ScopedIteration, Remove-ScopedIteration, Enter-ScopedProfileLease, Exit-ScopedProfileLease
+Export-ModuleMember -Function Get-ScopedBuildProjectCatalog, Resolve-ScopedBuildProjects, Get-ScopedRequiredBuildProjects, Assert-ScopedSelectedBuildGraph,
+    Assert-ScopedBuildOutputs, Get-ScopedTargetBuildReceipt, Write-ScopedTargetBuildReceipt, Test-ScopedBuildCoverage
+Export-ModuleMember -Function Remove-ScopedBuildReceipts

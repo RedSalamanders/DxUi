@@ -1089,6 +1089,7 @@ function Invoke-PerformanceBuildFixture([string] $Root, [scriptblock] $Body) {
         @('.build/vcpkg_installed/x64/vcpkg/info/wil_fixture_x64-windows.list', 'original package inventory'),
         @('.build/x64/Release/DxUi.EmbeddedTests.exe', 'original benchmark executable'),
         @('.build/x64/Release/DxUi.lib', 'original static library'),
+        @('.build/x64/Release/DxUi.pdb', 'original static library symbols'),
         @('.build/x64/Release/runtime.dll', 'original runtime DLL'))) {
         Set-FixtureFile $Root $entry[0] $entry[1]
     }
@@ -1259,6 +1260,7 @@ Invoke-FixtureCase 'default build entrypoint rebuilds stale inputs and preserves
     # Execute the actual pre-MSBuild entrypoint stage with real v2 attestation logic. No native build is invoked;
     # only its import is suppressed because the test already imported the production module and supplies a VS fixture.
     $stageText = 'param($Platform,$Configuration,$attestPerformanceBuild,$Rebuild)' + "`n" +
+        '$partialBuild=$false; $selectedProjects=@()' + "`n" +
         "function Import-Module { param(`$Name, [switch]`$Force) }`n" + $initial.Extent.Text + "`n" + $consumerGuard.Extent.Text + "`n" + $guard.Extent.Text + "`n" +
         '$log="fixture.log"; $output=(Join-Path $PSScriptRoot ''.build'')' + "`n" + $arguments.Extent.Text + "`n" +
         '[ordered]@{ arguments=$arguments; state=$(if ($attestPerformanceBuild) { $performanceBuildBefore } else { $null }) }'
@@ -1414,7 +1416,7 @@ Invoke-FixtureCase 'the actual SkipBuild runner gate rejects invalid v2 identity
     # Execute the production gate, suppressing only its already-loaded module import. The sentinel represents the
     # next native operation; real source/dependency/output bytes and v2 receipts use the existing build fixture.
     $stageText = 'param($Sentinel)' + "`n" +
-        '$Platform="x64"; $Configuration="Release"; $SkipBuild=$true' + "`n" +
+        '$Platform="x64"; $Configuration="Release"; $SkipBuild=$true; $Full=$false; $buildProjects=@("DxUi","DxUi.EmbeddedTests")' + "`n" +
         'function Import-Module { param($Name,[switch]$Force) }' + "`n" + $guard.Extent.Text + "`n" +
         '$Sentinel.nativeCalls++; "native operation reached"'
     Set-FixtureFile $root 'skip-build-gate-stage.ps1' $stageText

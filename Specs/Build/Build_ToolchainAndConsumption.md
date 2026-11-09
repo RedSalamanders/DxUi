@@ -1,5 +1,36 @@
 # Toolchain and consumer integration
 
+## Selected native target builds
+
+`build.ps1 -Projects DxUi.FoundationTests,DxUi.EmbeddedTests` selects one owned project union instead of
+the full solution. Project names use their catalog spelling; unknown names refuse. The union always includes
+the static library. Evaluation checks the actual project references, output paths and target roles for the
+selected profile, including imported/conditional references; a new or opaque dependency requires a reviewed
+closure update before partial admission. The current owned targets have no app-local plugin/data deployment
+beyond their executables, symbols, static library and ASan runtime. New runtime assets must extend the catalog,
+staging and negative controls together. System graphics/Windows DLLs retain their environment/native gates.
+
+Affected execution maps Foundation to its executable, Embedded and ordinary performance to EmbeddedTests,
+other scopes to ControlTests, foreground/private lease scenarios to InteractiveLease, and ASan's failure probe
+to FoundationTests. The EmbeddedTests benchmark is required even when it is not an explicitly selected suite.
+Full and PrePush retain a full solution build request. Explicit direct test suite calls may build their union;
+`test.ps1 -Full` remains full. Unknown source input still widens the affected plan conservatively.
+
+Default-output selected test builds that include the benchmark retain canonical v2 source/toolchain/artifact
+and intermediate verification. Stale inputs or unverified objects force Rebuild of the selected union; a warm
+Build is allowed only with exact existing final and intermediate proof. Selected receipts bind the actual
+target set, complete current compiled/dependency inputs and profile artifact bytes. They require every selected
+EXE/PDB, the library and the selected ASan runtime. An exact full proof can cover a subset, and a proved selected
+superset can cover a subset. A selected proof never grants a full build request. Missing assets, changed
+targets/source/dependencies/outputs or failed builds cannot inherit an old success. Partial operations revoke
+full build proof and publish no solution-wide receipt. Custom output roots and selections lacking the benchmark
+remain diagnostic builds under the existing consumer-output contract and do not establish test-run attestation.
+
+Build/test operations coordinate by resolved output root plus architecture/configuration, including nested
+calls. Other profiles and output roots remain independent. Foreign output processes are still diagnosed and
+never terminated. Failed default-output builds revoke full/selected build proof; failures before compilation
+also cannot retain an affected no-work baseline. Existing package/production and native architecture gates remain.
+
 Status: normative intended contract
 Last reviewed: 2026-11-07
 

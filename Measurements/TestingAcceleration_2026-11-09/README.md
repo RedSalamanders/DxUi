@@ -25,6 +25,30 @@ The [prior serial attempt](prior-failed-serial.json) failed in Embedded (`0xc000
 
 Hosted normal concurrency remains one until native architecture comparison is accepted. Current local and main qualification coverage has not been removed.
 
+## Selected native target union
+
+[selected-builds.json](selected-builds.json) and [selected-builds-source.zip](selected-builds-source.zip) retain
+the S2 source patch, input hashes, requested/executed targets, cold output hashes, observed results and refusal controls.
+The cold x64 Release operation built exactly DxUi, FoundationTests and EmbeddedTests in 148 seconds with zero
+warnings/errors. It produced only their six library/executable/symbol files, with no ControlTests, sample or lease
+image. Foundation and Embedded then passed from those cold outputs; Embedded observed 583,358 checks and both
+suite processes exited zero. The cold orchestration preceded the final solution-mapping/output guard additions;
+native C++ inputs were unchanged, and the default-output path subsequently exercised the final guards.
+
+The default-output selected operation passed in 192 seconds including canonical pre/post attestation. Direct
+test.ps1 and the public affected entrypoint each admitted Foundation with zero capability skips and retained
+ordinary unpaired performance observations. A matching public follow-up printed REUSED Foundation in about
+9.4 seconds, with no native suite execution. Actual Full and Grid requests using this selected proof both refused
+before native run evidence started. These are subset acceptance and identity costs, not Full/profile qualification
+or a controlled full-versus-selected speed ratio. Other architecture/configuration, native full and runtime
+deployment acceptance remain open.
+
+Hosted first-wave source 5f65003cd94fdd45bfd47255b17d5a5eac498b11 failed its x64 tooling prerequisite in run
+[42631977298](https://github.com/RedSalamanders/DxUi/actions/runs/42631977298): the same two stale watchdog-call
+assertions found by the local full validator. Its raw job log is preserved in `.build/i61-hosted-first-wave-x64.log`.
+The earlier failure remains failed; the corrected 9/9 and 48/48 assertions are in follow-up source d462a6ff and
+the S2 candidate. Hosted acceptance requires a new run of the integrated follow-up source.
+
 ## Affected iteration follow-up
 
 The profile iteration baseline has 41 focused tooling cases passing, including default no-work, later-edit scope

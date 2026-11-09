@@ -269,6 +269,41 @@ try {
     }
     foreach($profile in @('Debug','Release')) {Write-Fixture (Join-Path $fixture ".build/x64/$profile/suite.exe") 'binary';Write-Fixture (Join-Path $fixture ".build/x64/$profile/Plugins/runtime.dll") 'dependency'}
     Write-FixtureDependencies $fixture
+    Run-Case 'selected build union preserves benchmark, sanitizer and desktop helper dependencies' {
+        $foundation=@(Get-ScopedRequiredBuildProjects -Suites Foundation -Configuration Release)
+        Assert-Scope (($foundation -join ',') -ceq 'DxUi,DxUi.FoundationTests,DxUi.EmbeddedTests') 'Foundation selected unrelated targets or lost its benchmark dependency'
+        $control=@(Get-ScopedRequiredBuildProjects -Suites Grid -Configuration Release)
+        Assert-Scope (($control -join ',') -ceq 'DxUi,DxUi.ControlTests,DxUi.EmbeddedTests') 'Control target union is incomplete'
+        Assert-Scope ('DxUi.InteractiveLease' -cin @(Get-ScopedRequiredBuildProjects -Suites Menu -Configuration Release)) 'Foreground selection lost the native lease'
+        Assert-Scope ('DxUi.FoundationTests' -cin @(Get-ScopedRequiredBuildProjects -Suites Grid -Configuration 'ASan Debug')) 'Sanitizer selection lost its real failure probe'
+        Assert-Scope (@(Get-ScopedRequiredBuildProjects -Suites Foundation -Configuration Release -Full).Count -eq 6) 'Full became a partial build request'
+        $refused=$false;try{Resolve-ScopedBuildProjects @('invented-target')|Out-Null}catch{$refused=$true}
+        Assert-Scope $refused 'Unknown native project was admitted'
+    }
+    Run-Case 'selected build receipts cover actual unions and never grant full solution coverage' {
+        $targetRoot=Join-Path $fixture '.build/selected-receipt-fixture'
+        foreach($project in (Get-ScopedBuildProjectCatalog).Keys) {
+            $names=if($project -ceq 'DxUi'){@('DxUi.lib','DxUi.pdb')}else{@("$project.exe","$project.pdb")}
+            foreach($name in $names){Write-Fixture (Join-Path $targetRoot ".build/x64/Release/$name") 'fixture native output'}
+        }
+        $projects=@(Get-ScopedRequiredBuildProjects -Suites Foundation -Configuration Release)
+        Write-ScopedTargetBuildReceipt $targetRoot x64 Release $projects 'inputs' 'artifacts'
+        Assert-Scope (Test-ScopedBuildCoverage $targetRoot x64 Release $projects 'inputs' 'artifacts') 'Matching selected proof was refused'
+        Assert-Scope (Test-ScopedBuildCoverage $targetRoot x64 Release @('DxUi','DxUi.EmbeddedTests') 'inputs' 'artifacts') 'Selected superset could not satisfy a subset'
+        Assert-Scope (-not(Test-ScopedBuildCoverage $targetRoot x64 Release @('DxUi','DxUi.ControlTests','DxUi.EmbeddedTests') 'inputs' 'artifacts')) 'Foundation proof granted unbuilt control coverage'
+        Assert-Scope (-not(Test-ScopedBuildCoverage $targetRoot x64 Release $projects 'changed-inputs' 'artifacts')) 'Changed source/dependencies reused a selected build'
+        Assert-Scope (-not(Test-ScopedBuildCoverage $targetRoot x64 Release $projects 'inputs' 'changed-artifacts')) 'Changed output bytes reused a selected build'
+        $all=@((Get-ScopedBuildProjectCatalog).Keys)
+        Assert-Scope (-not(Test-ScopedBuildCoverage $targetRoot x64 Release $all 'inputs' 'artifacts' -Full)) 'A partial proof granted Full coverage'
+        $full=Join-Path $targetRoot '.build/reports/scoped-tests/x64-Release/build.json'
+        Write-ScopedReceipt $full (Get-ScopedDigest ("inputs`nartifacts"))
+        Assert-Scope (Test-ScopedBuildCoverage $targetRoot x64 Release $projects 'inputs' 'artifacts') 'Exact full evidence could not satisfy a subset'
+        Remove-Item -LiteralPath (Join-Path $targetRoot '.build/x64/Release/DxUi.EmbeddedTests.pdb')
+        $refused=$false;try{Test-ScopedBuildCoverage $targetRoot x64 Release $projects 'inputs' 'artifacts'|Out-Null}catch{$refused=$true}
+        Assert-Scope $refused 'Missing selected symbols were admitted'
+        Remove-ScopedBuildReceipts $targetRoot x64 Release
+        Assert-Scope (-not(Test-Path $full) -and @(Get-ChildItem (Join-Path (Split-Path $full) 'build-targets') -Filter '*.json').Count -eq 0) 'Build revocation retained an older selected or full pass'
+    }
     Run-Case 'tooling identities include documentation, skills and source-origin mappings' {
         $compiled=Get-ScopedSourceIdentity $fixture -CompiledOnly
         $native=Get-ScopedRunIdentity $fixture x64 Debug Example
@@ -731,10 +766,15 @@ Export-ModuleMember -Function Get-PerformanceToolIdentities
 '@
         Write-Fixture (Join-Path $sandbox 'Tools/Test-Changelog.ps1') 'param($Base) exit 0'
         Write-Fixture (Join-Path $sandbox 'build.ps1') @'
-param($Platform,$Configuration)
+param($Platform,$Configuration,$Projects)
 $output=Join-Path $PSScriptRoot ".build/$Platform/$Configuration"
 New-Item -ItemType Directory -Path $output -Force|Out-Null
 [IO.File]::WriteAllText((Join-Path $output 'example.exe'),'fixture binary')
+[IO.File]::WriteAllText((Join-Path $output 'DxUi.lib'),'fixture library')
+[IO.File]::WriteAllText((Join-Path $output 'DxUi.pdb'),'fixture library symbols')
+foreach($name in @('DxUi.FoundationTests','DxUi.ControlTests','DxUi.EmbeddedTests','DxUi.InteractiveLease','DxUi.EmbeddedControls')) {
+    foreach($extension in @('exe','pdb')){[IO.File]::WriteAllText((Join-Path $output "$name.$extension"),'fixture output')}
+}
 exit 0
 '@
         Write-Fixture (Join-Path $sandbox 'test.ps1') @'

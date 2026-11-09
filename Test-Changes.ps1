@@ -120,21 +120,29 @@ $native=@($selected | Where-Object {$_.native})
 # leave an old baseline able to hide the same-source failure on the next default run.
 Remove-ScopedIteration $iterationPath $root
 if ($native.Count) {
+    $buildProjects=@(Get-ScopedRequiredBuildProjects -Suites @($native.name) -Configuration $Configuration -Full:($Mode -ne 'Affected' -or $plan.full))
     $architecture=[Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
     if (($Platform -eq 'ARM64' -and $architecture -ne 'Arm64') -or ($Platform -eq 'x64' -and $architecture -ne 'X64')) {throw 'Native runtime testing requires the selected host architecture.'}
     $buildInputBefore=Get-ScopedBuildInputIdentity $root $Platform
     $attestation=Join-Path $reports 'build.json'
     if ($SkipBuild) {
         $artifact=Get-ScopedArtifactIdentity $root $Platform $Configuration
-        if (-not (Test-ScopedReceipt $attestation (Get-ScopedDigest ($buildInputBefore+"`n"+$artifact)))) {throw 'SkipBuild refused: source/dependency/build identity changed or no attestation exists. Run without -SkipBuild.'}
+        if (-not (Test-ScopedBuildCoverage $root $Platform $Configuration $buildProjects $buildInputBefore $artifact -Full:($Mode -ne 'Affected' -or $plan.full))) {throw 'SkipBuild refused: source/dependency/build identity or requested target coverage changed. Run without -SkipBuild.'}
     } else {
-        & (Join-Path $root 'build.ps1') -Platform $Platform -Configuration $Configuration
+        $buildArguments=@{Platform=$Platform;Configuration=$Configuration}
+        if ($Mode -eq 'Affected' -and -not $plan.full) { $buildArguments.Projects=$buildProjects }
+        & (Join-Path $root 'build.ps1') @buildArguments
         if ($LASTEXITCODE -ne 0) {throw "Build failed with exit $LASTEXITCODE."}
         # Nested entrypoints import their own modules; restore this caller's surface.
         Import-Module $modulePath -Force
         if ((Get-ScopedBuildInputIdentity $root $Platform) -cne $buildInputBefore) {throw 'Compiled source or installed dependencies changed during the build; no attestation was published.'}
         $artifact=Get-ScopedArtifactIdentity $root $Platform $Configuration
-        Write-ScopedReceipt $attestation (Get-ScopedDigest ($buildInputBefore+"`n"+$artifact))
+        if ($Mode -eq 'Affected' -and -not $plan.full) {
+            Write-ScopedTargetBuildReceipt $root $Platform $Configuration $buildProjects $buildInputBefore $artifact
+        } else {
+            Assert-ScopedBuildOutputs $root $Platform $Configuration $buildProjects
+            Write-ScopedReceipt $attestation (Get-ScopedDigest ($buildInputBefore+"`n"+$artifact))
+        }
     }
     if ($ordinaryAffected -and -not $instrumentation.Count) {
         $nativeContext=Get-ScopedIterationNativeContext $root $Platform $Configuration

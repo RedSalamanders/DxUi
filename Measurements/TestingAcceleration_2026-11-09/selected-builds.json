@@ -1,0 +1,105 @@
+{
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-i61-selected-native-builds-v1",
+  "evidenceKind": "focused-build-runtime-and-negative-controls",
+  "benchmarkInputs": {
+    "build.ps1": "408B6802FA9877323D7862F5418AEBDCE1498E8FB81DBF542259CED18684E146",
+    "test.ps1": "6629C55CD67AB8441675EAC658DBDF1FC6955AA25C796BB07AD02E4B2A41F125",
+    "Test-Changes.ps1": "CC0C37ACA4706AE81703E839728636596E1C617B455330A9F6D0ECBFF2BB0D87",
+    "Tools/ScopedTesting.psm1": "32DAD2223F1E3E8FFA2579C8A28F05BC6464D91F5F1C598646D25495BD658B62",
+    "Directory.Build.props": "05F1977C6DB5FF046318F770E1CF39FD15F0B6262B6E4912846631588CC1C02B",
+    "Directory.Build.targets": "EC36CBA661960E5270309913BA2B44AC67A427524933B91D638551E1A868B018",
+    "DxUi.sln": "6CD86F1E17AEA6E7518082AFD3E1730E24BECC31BC2ACD30C2B106A9F468B50E"
+  },
+  "sourceBaseCommit": "d462a6ff7fec69d6a4ac39aa71e743ecdc8d89cf",
+  "candidatePatchSha256": "DC2EB9CA7A90EE0A8E7A7D21B62BC64658D601E9FDC269488B588022E928F085",
+  "compiledSourceIdentity": "4fbc29eb58c39100fdb18466a8c535c0e7c9cc53c193335ad55c8c822f0f2e2c",
+  "limits": "x64 Release subset only; cold build preceded final mapping/output guard additions, with unchanged native C++ inputs; default-output path and final guards were exercised afterward; no Full/profile or end-to-end speed claim",
+  "coldBuild": {
+    "invocation": {
+      "source": "d462a6ff7fec69d6a4ac39aa71e743ecdc8d89cf",
+      "dirtySource": true,
+      "projects": [
+        "DxUi.FoundationTests",
+        "DxUi.EmbeddedTests"
+      ],
+      "elapsedMilliseconds": 149206.1531,
+      "exitCode": 0
+    },
+    "executedTargets": [
+      "DxUi",
+      "DxUi.FoundationTests",
+      "DxUi.EmbeddedTests"
+    ],
+    "files": [
+      {
+        "name": "DxUi.EmbeddedTests.exe",
+        "length": 7849472,
+        "sha256": "E4A269D7D188EB16E9C563171E1F2AF85B2EECBE099456AA8B17275046C1852E"
+      },
+      {
+        "name": "DxUi.EmbeddedTests.pdb",
+        "length": 51138560,
+        "sha256": "0CA3A6440490A20671BE5A3B70B556B72E7D6D74AF8138D8ACE1CA0E67164663"
+      },
+      {
+        "name": "DxUi.FoundationTests.exe",
+        "length": 4258816,
+        "sha256": "D2758A0D5B028F606DFB6B6F9B59BF11D400C1147E7B9226D21B24D99F2A0A95"
+      },
+      {
+        "name": "DxUi.FoundationTests.pdb",
+        "length": 31084544,
+        "sha256": "012AC7E7DC809D17E0AF85696DEFE4FFA42862EEF9904D531AB2F356C9184437"
+      },
+      {
+        "name": "DxUi.lib",
+        "length": 257493208,
+        "sha256": "3B5FCBD353A314B7421F10FF9BFECF3AB04EA0B2BCD561800650F9F082204157"
+      },
+      {
+        "name": "DxUi.pdb",
+        "length": 15994880,
+        "sha256": "293A82C9087DA3733B9D38A68090BA586E08F30E03A1D1AC37ECD82F93454B93"
+      }
+    ],
+    "nativeRunId": "20261109T143727630Z-88452-41dabaa691604619915d8acd01885e3b",
+    "nativeResults": {
+      "elapsedMilliseconds": 83494.157,
+      "results": [
+        {
+          "Name": "Foundation",
+          "ExitCode": 0,
+          "CompletedUtc": "2026-11-09T14:37:33.0662257Z"
+        },
+        {
+          "Name": "Embedded",
+          "ExitCode": 0,
+          "CompletedUtc": "2026-11-09T14:38:51.4685262Z"
+        }
+      ]
+    }
+  },
+  "defaultBuild": {
+    "elapsedMilliseconds": 192870.5805,
+    "exitCode": 0
+  },
+  "directFoundationRunId": "20261109T144309475Z-17136-e5a2dbfcb1c24eaf97a1520ea9e0db1f",
+  "publicFoundationRunId": "20261109T144620560Z-16972-0963f45484c241debfed4c7b9da11d8c",
+  "coverageRefusals": [
+    {
+      "request": "Full",
+      "exitCode": 1,
+      "expectedRefusal": true,
+      "nativeRunStarted": false
+    },
+    {
+      "request": "Grid",
+      "exitCode": 1,
+      "expectedRefusal": true,
+      "nativeRunStarted": false
+    }
+  ],
+  "reuseObserved": true,
+  "reusedScope": "Foundation"
+}
