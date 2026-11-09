@@ -5,6 +5,15 @@ This specification owns the project's CI routing. The versioned implementation a
 in .ci/project.json and every reusable workflow caller. Update those pins together through a reviewed PR.
 Older references to automatic native PR matrices or nightly native runs are superseded by this contract.
 
+The manual `sdk-inputs.yml` caller produces dependency inputs for one of the three explicitly reviewed
+application source pins; it does not advance them. Select All, x64 or ARM64 on main. The pinned shared
+controller verifies canonical full checkout bytes and normally integrated producer tooling before native
+setup, then builds Release/MD inputs and runs all extracted-SDK/header/license/symbol/warning gates on
+the selected native architecture. Successful attempt-bound artifacts contain immutable dependency bytes
+and their independently retained descriptors. They grant no application, main, merge or publication verdict.
+Missing or incompatible SDK inputs retain governed source builds. Application adoption and authenticated
+cross-repository consumption remain separately tracked by the organization acceleration plan.
+
 PRs run changed-source clang-format feedback and the reviewed compiler-free static subset. Formatting drift
 fails and retains a patch. The explicit Commit PR formatting action accepts an open same-repository PR,
 checks its current head, commits only selected formatted source paths by ordinary fast-forward push and

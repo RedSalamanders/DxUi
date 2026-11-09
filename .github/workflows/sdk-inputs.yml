@@ -1,0 +1,32 @@
+name: Produce pinned dependency SDK inputs
+on:
+  workflow_dispatch:
+    inputs:
+      source_commit:
+        description: Exact existing application source pin; does not update consumer pins
+        type: choice
+        options:
+          - f2e328a0a26a18ca66bf4b2aea77bf010c9515e1
+          - 4cdf1ce52c7785446698e346b8aec058ed6a9283
+          - 21fae0dc66000b04504ba7862169533ac2943be8
+        default: f2e328a0a26a18ca66bf4b2aea77bf010c9515e1
+      platform:
+        description: Native SDK inputs only; retry a missing architecture independently
+        type: choice
+        options: [All, x64, ARM64]
+        default: All
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: sdk-inputs-${{ inputs.source_commit }}-${{ inputs.platform }}
+  cancel-in-progress: false
+  queue: max
+jobs:
+  inputs:
+    if: github.ref == 'refs/heads/main'
+    uses: RedSalamanders/.github/.github/workflows/sdk-inputs.yml@2afac5fa8ce23a0b7fc5e1a69c29429975907a2d
+    with:
+      engine_ref: 2afac5fa8ce23a0b7fc5e1a69c29429975907a2d
+      source_commit: ${{ inputs.source_commit }}
+      platform: ${{ inputs.platform }}
