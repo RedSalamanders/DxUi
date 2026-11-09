@@ -7,6 +7,7 @@ milliseconds diagnose build orchestration; they are not native workload measurem
 .PARAMETER OutputRoot Optional isolated output root; defaults to this checkout's .build directory.
 .PARAMETER ProductionOnly Build only the Release library target; excludes test executables from the production role.
 .PARAMETER Projects Optional union of owned native project names. Builds their library dependency too and publishes only selected-target evidence. Omit for a full solution build.
+.PARAMETER SourceRoot Optional separate clean immutable DxUi source checkout for a production-only Release SDK input build. Tooling remains owned by this checkout; output stays in the source checkout's default build tree.
 #>
 [CmdletBinding()]
 param(
@@ -15,7 +16,8 @@ param(
     [string] $OutputRoot = '',
     [switch] $Rebuild,
     [switch] $ProductionOnly,
-    [string[]] $Projects = @()
+    [string[]] $Projects = @(),
+    [string] $SourceRoot = ''
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -23,21 +25,33 @@ $Projects=@($Projects | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.T
 if ($env:CI_NATIVE_BUILDS_DISABLED -eq 'true') { throw 'Native builds are forbidden in compiler-free PR checks.' }
 if ($ProductionOnly -and $Configuration -ne 'Release') { throw 'ProductionOnly requires Release.' }
 if ($ProductionOnly -and $Projects.Count) { throw 'Projects and ProductionOnly are separate build roles.' }
+$buildRoot=$PSScriptRoot
+if($SourceRoot){
+    if(-not $ProductionOnly -or $Configuration -cne 'Release' -or $OutputRoot){throw 'SourceRoot supports only production-only Release with the source checkout default output.'}
+    $buildRoot=[IO.Path]::GetFullPath($SourceRoot).TrimEnd('\','/')
+    if(-not(Test-Path -LiteralPath (Join-Path $buildRoot '.git')) -or -not(Test-Path -LiteralPath (Join-Path $buildRoot 'DxUi.sln'))){throw 'SourceRoot requires a complete immutable DxUi Git checkout.'}
+    $status=@(& git -C $buildRoot status --porcelain --untracked-files=all 2>&1)
+    if($LASTEXITCODE -ne 0 -or ($status -join '').Trim()){throw 'SourceRoot requires clean committed source.'}
+}
 Import-Module (Join-Path $PSScriptRoot 'Tools/ScopedTesting.psm1') -Force
-$defaultBuildOutput=-not $OutputRoot -or [string]::Equals([IO.Path]::GetFullPath($OutputRoot).TrimEnd('\','/'),[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '.build')).TrimEnd('\','/'),[StringComparison]::OrdinalIgnoreCase)
-$profileLease=Enter-ScopedProfileLease $PSScriptRoot $Platform $Configuration -OutputRoot $OutputRoot
+$defaultBuildOutput=-not $OutputRoot -or [string]::Equals([IO.Path]::GetFullPath($OutputRoot).TrimEnd('\','/'),[IO.Path]::GetFullPath((Join-Path $buildRoot '.build')).TrimEnd('\','/'),[StringComparison]::OrdinalIgnoreCase)
+$profileLease=Enter-ScopedProfileLease $buildRoot $Platform $Configuration -OutputRoot $OutputRoot
 $buildCompleted=$false
 $sdkModuleLoaded=$false
 try {
-if ($defaultBuildOutput) { Remove-ScopedIteration -Root $PSScriptRoot -Path (Join-Path $PSScriptRoot ".build/reports/scoped-tests/$Platform-$($Configuration -replace ' ','')/iteration.json") }
+if ($defaultBuildOutput) { Remove-ScopedIteration -Root $buildRoot -Path (Join-Path $buildRoot ".build/reports/scoped-tests/$Platform-$($Configuration -replace ' ','')/iteration.json") }
 $attestSdkLibrary=$defaultBuildOutput -and $Configuration -eq 'Release'
 if($attestSdkLibrary){
     Import-Module (Join-Path $PSScriptRoot 'Tools/SdkLibraryInputs.psm1') -Force
     $sdkModuleLoaded=$true
-    Remove-DxUiSdkLibraryReceipt -Root $PSScriptRoot -Platform $Platform
+    Remove-DxUiSdkLibraryReceipt -Root $buildRoot -Platform $Platform
+}
+if($SourceRoot){
+    Import-Module (Join-Path $PSScriptRoot 'Tools/SdkSourceProfiles.psm1')
+    $producerToolingBefore=Get-DxUiSdkToolingProvenance -Root $PSScriptRoot
 }
 Import-Module (Join-Path $PSScriptRoot 'Tools/Validation.psm1') -Force
-$mappingErrors=@(Test-DxUiSolutionConfigurations (Join-Path $PSScriptRoot 'DxUi.sln'))
+$mappingErrors=@(Test-DxUiSolutionConfigurations (Join-Path $buildRoot 'DxUi.sln'))
 if ($mappingErrors.Count) { throw "Invalid native solution coverage: $($mappingErrors -join '; ')" }
 $nativeEntryElapsed = [Diagnostics.Stopwatch]::StartNew()
 Import-Module (Join-Path $PSScriptRoot 'Build/BuildConsole.psm1') -ErrorAction Stop
@@ -151,7 +165,7 @@ $discovery = Invoke-DxUiBuildPhase -Phase VisualStudioDiscovery -Body {
 }
 $installation = $discovery.installation
 $msbuild = $discovery.msbuild
-if (-not $OutputRoot) { $OutputRoot = Join-Path $PSScriptRoot '.build' }
+if (-not $OutputRoot) { $OutputRoot = Join-Path $buildRoot '.build' }
 $output = [IO.Path]::GetFullPath($OutputRoot).TrimEnd('\','/') + [IO.Path]::DirectorySeparatorChar
 Import-Module (Join-Path $PSScriptRoot 'Tools/ProcessInspection.psm1') -Force
 Invoke-DxUiBuildPhase -Phase OutputUseChecks -Body {
@@ -173,14 +187,14 @@ Invoke-DxUiBuildPhase -Phase DependencyAdmission -Body {
         throw "Restore dependencies first: vcpkg-install.ps1 -Platform $Platform -OutputRoot `"$output`""
     }
 }
-$defaultOutput = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '.build')).TrimEnd('\','/') + [IO.Path]::DirectorySeparatorChar
+$defaultOutput = [IO.Path]::GetFullPath((Join-Path $buildRoot '.build')).TrimEnd('\','/') + [IO.Path]::DirectorySeparatorChar
 $selectedProjects=@()
 $partialBuild=$false
 if ($Projects.Count) {
     Import-Module (Join-Path $PSScriptRoot 'Tools/ScopedTesting.psm1') -Force
     $selectedProjects=@(Resolve-ScopedBuildProjects $Projects)
     $partialBuild=$selectedProjects.Count -lt (Get-ScopedBuildProjectCatalog).Count
-    Assert-ScopedSelectedBuildGraph -Root $PSScriptRoot -MSBuildPath $msbuild -Platform $Platform -Configuration $Configuration -OutputRoot $output -Projects $selectedProjects
+    Assert-ScopedSelectedBuildGraph -Root $buildRoot -MSBuildPath $msbuild -Platform $Platform -Configuration $Configuration -OutputRoot $output -Projects $selectedProjects
 }
 $attestPerformanceBuild = (-not $ProductionOnly) -and [string]::Equals($output, $defaultOutput, [StringComparison]::OrdinalIgnoreCase)
 if ($partialBuild -and 'DxUi.EmbeddedTests' -cnotin $selectedProjects) { $attestPerformanceBuild=$false }
@@ -189,16 +203,16 @@ if ($attestPerformanceBuild) {
     # Consumer-owned output roots retain their separate integration contract. Default builds also serve performance.ps1
     # and test.ps1 -SkipBuild, so bind compiled source/dependencies and the resolved toolchain before invoking MSBuild.
     $performanceBuildBefore = Invoke-DxUiBuildPhase -Phase PreBuildAttestation -Body {
-        Start-PerformanceBuildAttestation -Root $PSScriptRoot -Platform $Platform -Configuration $Configuration
+        Start-PerformanceBuildAttestation -Root $buildRoot -Platform $Platform -Configuration $Configuration
     }
     Import-Module (Join-Path $PSScriptRoot 'Tools/ScopedTesting.psm1') -Force
-    $scopedBuildBefore = Get-ScopedBuildInputIdentity $PSScriptRoot $Platform
-    $scopedBuildReceipt = Join-Path $PSScriptRoot ".build/reports/scoped-tests/$Platform-$($Configuration -replace ' ','')/build.json"
+    $scopedBuildBefore = Get-ScopedBuildInputIdentity $buildRoot $Platform
+    $scopedBuildReceipt = Join-Path $buildRoot ".build/reports/scoped-tests/$Platform-$($Configuration -replace ' ','')/build.json"
     $scopedReuse = $false
     try {
-        $scopedArtifact = Get-ScopedArtifactIdentity $PSScriptRoot $Platform $Configuration
+        $scopedArtifact = Get-ScopedArtifactIdentity $buildRoot $Platform $Configuration
         $scopedReuse = if ($partialBuild) {
-            Test-ScopedBuildCoverage $PSScriptRoot $Platform $Configuration $selectedProjects $scopedBuildBefore $scopedArtifact
+            Test-ScopedBuildCoverage $buildRoot $Platform $Configuration $selectedProjects $scopedBuildBefore $scopedArtifact
         } else { Test-ScopedReceipt $scopedBuildReceipt (Get-ScopedDigest ($scopedBuildBefore+"`n"+$scopedArtifact)) }
     } catch [System.IO.IOException] { $scopedReuse = $false }
       catch [System.Management.Automation.RuntimeException] { $scopedReuse = $false }
@@ -214,20 +228,20 @@ if ($attestPerformanceBuild) {
 }
 if ($partialBuild) {
     # Never leave a full-solution pass behind a selected or failed build attempt.
-    $fullReceipt=Join-Path $PSScriptRoot ".build/reports/scoped-tests/$Platform-$($Configuration -replace ' ','')/build.json"
+    $fullReceipt=Join-Path $buildRoot ".build/reports/scoped-tests/$Platform-$($Configuration -replace ' ','')/build.json"
     if (Test-Path -LiteralPath $fullReceipt) { Remove-Item -LiteralPath $fullReceipt }
 }
-if ([string]::Equals($output,$defaultOutput,[StringComparison]::OrdinalIgnoreCase)) { Remove-ScopedBuildReceipts $PSScriptRoot $Platform $Configuration }
+if ([string]::Equals($output,$defaultOutput,[StringComparison]::OrdinalIgnoreCase)) { Remove-ScopedBuildReceipts $buildRoot $Platform $Configuration }
 if($attestSdkLibrary){
     $sdkLibraryBefore=if($attestPerformanceBuild){
-        Get-DxUiSdkLibraryInputState -Root $PSScriptRoot -Platform $Platform -BuildState $performanceBuildBefore
-    }else{Get-DxUiSdkLibraryInputState -Root $PSScriptRoot -Platform $Platform}
+        Get-DxUiSdkLibraryInputState -Root $buildRoot -Platform $Platform -BuildState $performanceBuildBefore
+    }else{Get-DxUiSdkLibraryInputState -Root $buildRoot -Platform $Platform}
 }
 Write-DxUiBuildBanner -Configuration $Configuration -Platform $Platform -Target $target
 $logDirectory = Join-Path $output 'logs'
 New-Item -ItemType Directory -Path $logDirectory -Force | Out-Null
 $log = Join-Path $logDirectory ("build-$Platform-$Configuration-" + [guid]::NewGuid().ToString('N') + '.log')
-$arguments = @((Join-Path $PSScriptRoot 'DxUi.sln'), '/m', '/nologo', '/verbosity:minimal', "/t:$target",
+$arguments = @((Join-Path $buildRoot 'DxUi.sln'), '/m', '/nologo', '/verbosity:minimal', "/t:$target",
     "/p:Configuration=$Configuration", "/p:Platform=$Platform", "/p:DxUiOutputRoot=$output",
     "/flp:logfile=$log;verbosity=normal;encoding=UTF-8")
 if ($ProductionOnly) {
@@ -248,7 +262,7 @@ Write-Host ''
 Write-Host 'Compiling DxUi...' -ForegroundColor Yellow
 $stopwatch = [Diagnostics.Stopwatch]::StartNew()
 Invoke-DxUiBuildPhase -Phase MSBuild -Body {
-    if ($attestPerformanceBuild -or $attestSdkLibrary) { Push-Location -LiteralPath $PSScriptRoot }
+    if ($attestPerformanceBuild -or $attestSdkLibrary) { Push-Location -LiteralPath $buildRoot }
     try {
         # Match the attested MSBuildStartupDirectory even when a paired harness calls this baseline from another checkout.
         # Consumer-owned output roots retain their caller's existing integration context.
@@ -270,24 +284,30 @@ Invoke-DxUiBuildPhase -Phase MSBuild -Body {
 Assert-NativeBuildDiagnostics -LogPath $log
 if ($attestPerformanceBuild) {
     $performanceBuildAfter=Invoke-DxUiBuildPhase -Phase PostBuildAttestation -Body {
-        Complete-PerformanceBuildAttestation -Root $PSScriptRoot -Platform $Platform -Configuration $Configuration -Before $performanceBuildBefore -PassThru
+        Complete-PerformanceBuildAttestation -Root $buildRoot -Platform $Platform -Configuration $Configuration -Before $performanceBuildBefore -PassThru
     }
     Import-Module (Join-Path $PSScriptRoot 'Tools/ScopedTesting.psm1') -Force
-    if ((Get-ScopedBuildInputIdentity $PSScriptRoot $Platform) -cne $scopedBuildBefore) {
+    if ((Get-ScopedBuildInputIdentity $buildRoot $Platform) -cne $scopedBuildBefore) {
         throw 'Compiled source or installed dependencies changed during the build; no native test receipt was published.'
     }
-    $scopedArtifact = Get-ScopedArtifactIdentity $PSScriptRoot $Platform $Configuration
+    $scopedArtifact = Get-ScopedArtifactIdentity $buildRoot $Platform $Configuration
     if ($partialBuild) {
-        Write-ScopedTargetBuildReceipt $PSScriptRoot $Platform $Configuration $selectedProjects $scopedBuildBefore $scopedArtifact
+        Write-ScopedTargetBuildReceipt $buildRoot $Platform $Configuration $selectedProjects $scopedBuildBefore $scopedArtifact
     } else {
-        Assert-ScopedBuildOutputs $PSScriptRoot $Platform $Configuration @((Get-ScopedBuildProjectCatalog).Keys)
+        Assert-ScopedBuildOutputs $buildRoot $Platform $Configuration @((Get-ScopedBuildProjectCatalog).Keys)
         Write-ScopedReceipt $scopedBuildReceipt (Get-ScopedDigest ($scopedBuildBefore+"`n"+$scopedArtifact))
     }
 }
 if($attestSdkLibrary){
-    $sdkArguments=@{Root=$PSScriptRoot;Platform=$Platform;Before=$sdkLibraryBefore}
+    $sdkArguments=@{Root=$buildRoot;Platform=$Platform;Before=$sdkLibraryBefore}
     if($attestPerformanceBuild){$sdkArguments.BuildState=$performanceBuildAfter}
-    Complete-DxUiSdkLibraryBuild @sdkArguments|Out-Null
+    $sdkLibraryRecord=Complete-DxUiSdkLibraryBuild @sdkArguments
+    if($SourceRoot){
+        $producerToolingAfter=Get-DxUiSdkToolingProvenance -Root $PSScriptRoot
+        if(($producerToolingBefore|ConvertTo-Json -Compress) -cne ($producerToolingAfter|ConvertTo-Json -Compress)){throw 'SDK producer tooling changed during source compilation.'}
+        Complete-DxUiSdkSourceBuildRecord -Root $buildRoot -Platform $Platform -Tooling $producerToolingAfter `
+            -LibraryRecord $sdkLibraryRecord -Arguments $arguments -LogPath $log|Out-Null
+    }
 }
 
 $profileOutput=Join-Path $output "$Platform/$Configuration"
@@ -299,7 +319,7 @@ Write-NativeBuildResult -Project DxUi -Platform $Platform -Configuration $Config
 $buildCompleted=$true
 } finally {
     try {
-        if ($defaultBuildOutput -and -not $buildCompleted) { Remove-ScopedBuildReceipts $PSScriptRoot $Platform $Configuration }
-        if($sdkModuleLoaded -and -not $buildCompleted){Remove-DxUiSdkLibraryReceipt -Root $PSScriptRoot -Platform $Platform}
+        if ($defaultBuildOutput -and -not $buildCompleted) { Remove-ScopedBuildReceipts $buildRoot $Platform $Configuration }
+        if($sdkModuleLoaded -and -not $buildCompleted){Remove-DxUiSdkLibraryReceipt -Root $buildRoot -Platform $Platform}
     } finally { Exit-ScopedProfileLease $profileLease }
 }

@@ -43,6 +43,30 @@ caches. Collection is bounded to 8,192 files and 2 GiB of source bytes. An archi
 failure reports an additional diagnostic and leaves both original artifacts and
 the original qualification failure intact; it never changes failure into success.
 
+## Pinned-source SDK inputs
+
+The current producer may build a separate clean immutable DxUi source with
+`build.ps1 -Configuration Release -ProductionOnly -SourceRoot <source>`. The source checkout's solution,
+default build outputs and dependency pins remain authoritative for its native bytes; build modules and guards
+come from the invoking producer checkout. The feature supports only that Release library role, never custom
+outputs, dirty source, selected unions or Full/test proof. The existing profile lease, owned-process/output
+checks, complete before/after v2 identities and zero-warning/error acceptance still apply.
+
+The producer tooling must itself be clean and committed. A separate input descriptor binds its repository,
+commit and complete content identity, exact library record digest, actual command identity and original build
+log hash. Any source-build failure revokes both records. SDK packaging with separate source requires this
+descriptor, matching clean producer tooling and all normal SDK extraction, license, header, symbol and warning
+negative controls. Recompute the producer identity after build and package operations. A local JSON descriptor
+alone establishes no hosted producer trust, native suite pass or publication acceptance.
+
+Only the exact API-4 pins 4cdf1ce52c7785446698e346b8aec058ed6a9283 and
+f2e328a0a26a18ca66bf4b2aea77bf010c9515e1 have historical packaging recipes. The former predates SDK samples
+and links/checks the public frame runtime with a current reviewed compatibility sample; this establishes its
+bounded smoke, not later RichText/drag/SVG behavior. The latter retains its own richer source-owned sample.
+Their exact original dependency-license sets are required; missing required files never select a smaller set.
+API-5 source retains both FailureHost files and their independent header-closure checks. Unsupported source/API
+profiles refuse. Dependency source pins never advance as part of this packaging route.
+
 ## Native metadata acquisition
 
 Native identity acquisition requests the entire discovered MSBuild property set in one evaluation-only

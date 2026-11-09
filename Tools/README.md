@@ -21,6 +21,16 @@ and are removed after success or failure. Test-MetadataQueries.ps1 compares agai
 batches beyond Windows command-line limits, preserves Unicode/data values and checks failure/target refusal.
 
 Default Release builds additionally record the exact library/PDB input provenance through SdkLibraryInputs.psm1.
+For reviewed pinned SDK inputs, `build.ps1 -Configuration Release -ProductionOnly -SourceRoot <clean-source>`
+uses this checkout's governed tooling with the separate source checkout's solution/default output and unchanged
+dependency pins. Other source roles, custom outputs and dirty source refuse. Current profile/output leases,
+process ownership, complete v2 identity and zero-warning guards remain required. A separate data descriptor
+binds the clean producer-tooling commit/content, library input digest, actual command identity and original log.
+`New-SdkPackage.ps1 -SourceRoot` requires that descriptor and rechecks tooling before/after packaging.
+SdkSourceProfiles.psm1 owns named historical API-4 recipes and the source-owned API-5 failure-host recipe;
+unknown API-4 source has no implicit fallback. These library/SDK input records grant no native test or Full result.
+The 29 October source uses a bounded public frame-runtime smoke because it predates the richer SDK sample.
+The exact 29 October and 2 November pins retain their original compiled-dependency license sets.
 The record binds the complete v2 source/dependency/evaluated-toolchain state and exact image/symbol bytes;
 it grants no native test or Full result. SDK packaging requires matching clean-source provenance before staging
 and after qualification. Failed attempts revoke the library record; custom-output and non-Release builds do not
