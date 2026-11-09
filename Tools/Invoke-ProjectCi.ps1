@@ -61,8 +61,13 @@ if ($env:GITHUB_OUTPUT) { Add-Content -LiteralPath $env:GITHUB_OUTPUT -Value ('e
 if ($Phase -in @('ReleaseTestBuild','Qualification','Production')) {
     Run 'vcpkg-install.ps1' @('-Platform',$Platform)
     $buildArguments = $profile
-    if ($Phase -eq 'Production') { $buildArguments += '-ProductionOnly' }
-    Run 'build.ps1' $buildArguments
+    if ($Phase -eq 'Production') {
+        $buildArguments += '-ProductionOnly'
+        Import-Module (Join-Path $root 'Tools/SdkLibraryInputs.psm1') -Force
+        Invoke-DxUiSdkProductionLibrary -Root $root -Platform $Platform -Directory $env:CI_SDK_LIBRARY_INPUTS `
+            -RunId $env:GITHUB_RUN_ID -RunAttempt ([int]$env:GITHUB_RUN_ATTEMPT) `
+            -BuildFromSource { Run 'build.ps1' $buildArguments }|Out-Null
+    } else { Run 'build.ps1' $buildArguments }
     if ($Phase -eq 'ReleaseTestBuild') { return }
 }
 if ($Phase -eq 'Production') {
@@ -94,4 +99,7 @@ $countUnit=if($evidence.Contains('countUnit')){$evidence.countUnit}else{'suite'}
 $registered=if($evidence.Contains('registered')){[int]$evidence.registered}else{[int]$evidence.discovered}
 $expectedSkipped=if($evidence.Contains('expectedSkipped')){[int]$evidence.expectedSkipped}else{0}
 Write-CiRegressionReceipt -Context $context -Discovered $evidence.discovered -Executed $evidence.executed -AssertionProbePassed $probe -Artifacts $binaries -EvidenceDirectory $receiptDirectory -CanonicalEvidence $evidence.evidence -CountUnit $countUnit -Registered $registered -ExpectedSkipped $expectedSkipped
+Import-Module (Join-Path $root 'Tools/SdkLibraryInputs.psm1') -Force
+$sdkInputs=Export-DxUiSdkLibraryInputs -Root $root -Platform $Platform -RunId $env:GITHUB_RUN_ID -RunAttempt ([int]$env:GITHUB_RUN_ATTEMPT)
+if($env:GITHUB_OUTPUT){Add-Content -LiteralPath $env:GITHUB_OUTPUT -Value ('sdk_inputs_directory='+$sdkInputs)}
 if ($env:GITHUB_OUTPUT) { Add-Content -LiteralPath $env:GITHUB_OUTPUT -Value ('evidence_directory=' + $evidenceDirectory) }

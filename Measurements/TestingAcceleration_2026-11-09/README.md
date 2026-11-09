@@ -66,3 +66,31 @@ ordering, retaining actual child invocation/failure controls in the scoped tests
 failure and 48/48 interactive-mode cases; the full run's original failure remains recorded separately in
 `.build/i61-iteration-validation.log`. Formatting, spec/skill checks, changelog checks and the final 41-case scoped
 run passed. Hosted review and native final-head/profile acceptance remain separate.
+
+## Release library input handoff
+
+[sdk-library-inputs.json](sdk-library-inputs.json) records an actual x64 Release diagnostic at committed source
+754cd827ffc1757f2a36b4972ecb4e67ccf7a498. The governed production-only build completed in 159,241 ms with zero
+warnings/errors. Export verified complete v2 inputs and copied the library/PDB in 33,807 ms. Import recomputed
+inputs, verified/restored the original bytes and omitted library compilation in 31,744 ms. The source fallback
+callback deliberately throws if invoked in this exact-hit diagnostic; it was not called.
+
+Export plus import cost 65,551 ms versus the 159,241 ms source build in this single local diagnostic: 58.8%
+less elapsed time for these library-input stages. This excludes hosted artifact upload/download, runner setup
+and dependency restore, and is not an overall pipeline speedup or a controlled multi-pair performance result.
+The original library/PDB hashes and complete native identity remain in the record; no test/Full receipt is reused.
+
+The extracted SDK consumer's real compilation/link/run and negative controls passed in 76,386 ms: 243 headers
+stayed inside the extracted SDK or selected toolchain; license closure, exclusive producer-PDB isolation,
+missing packaged PDB and first-party warning controls all passed. The one deliberate warning is confined to
+the expected rejection control. Ordinary native compilation retained zero warnings/errors.
+The diagnostic's numeric local run/attempt metadata is synthetic. It proves local input verification/routing,
+not authenticated hosted provenance or ARM64 acceptance. Both hosted regression architectures and package
+qualification remain required on the final integrated source.
+
+The broader validator exposed two integration controls after this diagnostic: SDK build-helper changes needed
+benchmark-scope ownership, and the native workflow assertion needed to admit only the optional current-attempt
+SDK download's source fallback. Required build/test/package failures remain fatal, with seeded refusal controls.
+Those corrections and later evidence documentation have separate source identities; they do not relabel this
+earlier native run as final-head qualification. Original logs remain `.build/i61-sdk-native-{build,package,diagnostic}.log`
+and `.build/i61-sdk-library-validate.log`.

@@ -118,6 +118,26 @@ The PR delegation identity binds exact bytes and the membership of `.github/`, `
 The extracted SDK smoke directly includes the public FileDrop and RichImage headers, validates the source-owned Unicode drag data object without a window, and admits a bounded SVG. These paths exercise the packaged archive's file-drop and SVG link closure; the source-pin consumer independently compiles FileDrop as a standalone public header. Smoke qualification requires a fresh actual package/link/run and is not established by syntax checking.
 ## Dependency cache reuse
 
+Default Release library build provenance is separate from native test results. Its SDK input record binds the
+complete canonical v2 source/dependency/evaluated-profile/toolchain identity, exact source commit and root,
+dirty-state classification, and the library/compiler-PDB bytes. Record only after zero-warning compilation and
+matching before/after native inputs; revoke before another attempt and on failure. Library-only provenance must
+never create Full, test-execution or publication evidence. Custom outputs and other configurations retain their
+own existing contracts. SDK packaging requires matching clean committed source and checks provenance again after
+extracted-consumer qualification. A library/PDB pair with stale provenance cannot be labelled as current source.
+
+After successful regression, the adapter exports only the Release library/PDB and input record for the current
+workflow run and attempt. The shared workflow transfers that immutable input set to production using an
+attempt-specific artifact name. Production recomputes the complete native state after dependency restore;
+only an exact clean-source/profile/toolchain/byte match omits the library rebuild. Missing/incompatible inputs
+use the governed ProductionOnly source build; unsafe paths or malformed transfers refuse with retained evidence.
+Import revokes unrelated Full, selected-target, iteration and performance receipts. It never imports test executables,
+objects or test verdicts. Both architecture regression branches and extracted-SDK smoke remain required.
+Packaging separately admits only evaluated /MD, latest C++, LTCG, compiler-PDB Release inputs with STL annotations
+enabled, without ASan, forced-definition overrides or opaque CL/_CL_/additional options. Source and extracted
+consumer qualification, all license checks, header closure and PDB-isolation negative controls remain mandatory.
+This handoff does not yet implement cross-repository SDK distribution, consumer source pins or local candidates.
+
 The pinned shared engine restores vcpkg's ABI-indexed package cache for normal and manual native qualification. Exact engine/input keys are preferred; fallback lookup stays within the same runner OS, host architecture and target platform, and the pinned vcpkg restore still selects each package by its computed ABI. A miss rebuilds the package. This supplies dependency inputs only: product objects, DxUi SDK outputs and build/test receipts are not restored by this cache. Dependency pins, native execution, failure detectors and production/publication gates remain required. The owning behavior is the shared engine's Specs/CI.md.
 
 The pinned shared conformance rejects extension-wide Markdown exclusions. Pin maintenance migrates only the original global default to owned prose locations and known guides. Runtime/test include exceptions retain precedence; historical artifacts keep their original source identity.
