@@ -1,0 +1,34 @@
+{
+  "rounds": [
+    {
+      "force": false,
+      "elapsedMs": 1029.8299,
+      "passed": true
+    },
+    {
+      "force": true,
+      "elapsedMs": 23262.9521,
+      "passed": true
+    },
+    {
+      "force": false,
+      "elapsedMs": 920.1515,
+      "passed": true
+    },
+    {
+      "force": true,
+      "elapsedMs": 23178.7686,
+      "passed": true
+    }
+  ],
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-i61-local-native-validation-v1",
+  "benchmarkInputs": {
+    "candidate.patch": "91B0BE6AF17FD074D802654CDA67DB73914F3B5E3BCB144C532579BCB456B2A5",
+    "DxUi.ControlTests.exe": "B8575C8E574DC2A0B5874AC538741767ACF3A295AF78CFD30355CD34DB6C3243",
+    "DxUi.EmbeddedTests.exe": "4BBCF1D0F042613172759EE649C63D9CD7152BC7BA822FE50EBB0902C4DD1862",
+    "Tools/tests/Test-TestFilter.ps1": "5C75D9FB7E46A14212D76F5A7D635BEB4652C96D90D61989DE05720A917BAF95",
+    "Tools/tests/Test-TestWatchdog.ps1": "AF65119F893743C4140A4D6A0D8442769F3FFC1F8C30EEA6E1C635C40FCE4DFD"
+  },
+  "evidenceKind": "Diagnostic summary of library test orchestration; canonical native and failed receipts remain unchanged in their original run archives."
+}

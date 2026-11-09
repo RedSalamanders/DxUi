@@ -34,7 +34,11 @@ status. Callers still use fresh-process completion or immediate invocation succe
 `test.ps1 -Full -ParallelSuites 4` opts into at most four concurrent non-foreground suite processes; the default
 is one. Build, performance and native preflights precede the batch. Foreground suites keep their serial lease.
 Each child has its own raw stdout/stderr and combined suite log, and normal suite receipts and artifact ownership
-still apply. Passing `-ParallelSuites` directly selects the lower-level suite runner; use `-Full` to make full scope explicit.
+still apply. Passing `-ParallelSuites` preserves ordinary affected routing; use `-Full` to make full scope explicit.
+Local affected execution may reuse successful native filter/watchdog verification for 24 hours when the complete
+source (including native harness code), installed dependencies, artifacts, host binary and environment match.
+Failure, instrumentation, mutation or expiry refuses reuse. Full and hosted execution always verify freshly.
+Desktop availability, foreground leases, product suites and performance are outside this preflight cache.
 Benchmark native-input discovery retains the exact `ScopedTesting.psm1` instance imported beside its own
 `PerformancePolicy.psm1`. A paired process may load another checkout's module with the same name; that
 module cannot redirect discovery or turn a module-name lookup into an ambiguous command. The regression

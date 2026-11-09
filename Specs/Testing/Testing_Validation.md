@@ -1472,3 +1472,9 @@ The native root-child batch failure fixture explicitly includes a pending CPU-pr
 neither the injected flush failure nor a presentation. A bounded sequence of directed native paints stops at the
 first admitted batch before checking its exact flush/presentation counters, so a failed frame's later retry cannot
 hide the failure. The subsequent retry and EndDraw-failure checks retain their original exact counter assertions.
+
+## Scoped parallel execution
+
+Test-Changes accepts -ParallelSuites (1–8, default 1), forwards it only to native execution and binds it into native result identity before and after execution. Ordinary test.ps1 calls retain affected routing when this option is present. Hosted normal regression retains one ordinary worker until serial/concurrent native comparison and architecture acceptance pass; performance/preflight and foreground lease execution remain serial. Changing the limit invalidates native result reuse; coverage and failure handling are unchanged.
+
+Local native filter/watchdog preflight may reuse an exact successful receipt for at most 24 hours. Identity covers the complete executable source closure (native harness files outside Tools included), installed dependency bytes, profile artifacts, environment and the actual PowerShell host binary. Verification rechecks identity before publishing success and revokes prior success before a fresh attempt. Instrumented attempts cannot publish a reusable result. Full and hosted qualification always execute these probes freshly. Desktop availability, interactive lease checks, performance campaigns and product suites retain their existing execution contracts.
