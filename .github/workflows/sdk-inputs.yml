@@ -15,6 +15,11 @@ on:
         type: choice
         options: [All, x64, ARM64]
         default: All
+      sdk_contract:
+        description: Producer byte reference only; consumer admission remains independently enforced
+        type: choice
+        options: [LegacyV1, QualifiedAbiV2]
+        default: LegacyV1
 permissions:
   contents: read
   actions: read
@@ -25,8 +30,9 @@ concurrency:
 jobs:
   inputs:
     if: github.ref == 'refs/heads/main'
-    uses: RedSalamanders/.github/.github/workflows/sdk-inputs.yml@2afac5fa8ce23a0b7fc5e1a69c29429975907a2d
+    uses: RedSalamanders/.github/.github/workflows/sdk-inputs.yml@e4e6a14c6e7d7e2c20b72331e4a2ae8d117703f5
     with:
-      engine_ref: 2afac5fa8ce23a0b7fc5e1a69c29429975907a2d
+      engine_ref: e4e6a14c6e7d7e2c20b72331e4a2ae8d117703f5
       source_commit: ${{ inputs.source_commit }}
       platform: ${{ inputs.platform }}
+      sdk_contract: ${{ inputs.sdk_contract }}
