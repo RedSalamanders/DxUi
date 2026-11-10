@@ -1393,6 +1393,15 @@ and remains in compiled input identity. A Markdown extension alone cannot waive 
 Successful whole-scope results are reused only for equal repository content, installed dependency inputs, complete executable/static-library/DLL/PDB output closure, architecture, configuration, scope, runner and environment. Native build and run identities hash the selected platform's installed vcpkg triplet files plus its status, package inventory and ABI metadata; missing dependency metadata fails closed. Build attestation binds compiled source and installed dependencies to those artifacts before `SkipBuild`. Invalid, missing, failed, interrupted or concurrently mutated evidence is never reusable. Force bypasses test-result reuse. Independent tooling receipts are shared across profiles because their execution has no profile argument. Receipt identity is content-based; staging/committing the same source tree does not itself invalidate it.
 PowerShell tooling fixtures that mutate process environment variables MUST restore whether each value was unset, empty or nonempty. A test-generated empty value is a distinct identity input and MUST NOT leak into a later build or SkipBuild gate.
 
+After all selected tooling commands succeed, the scoped runner rechecks their complete content/environment/tool
+identity and publishes the independent tooling receipt before entering native execution. A subsequent native
+failure or interruption leaves that completed tooling obligation available for an identical continuation;
+it does not publish native success, a completed iteration baseline or whole-repository qualification.
+A fresh failed or interrupted tooling attempt revokes its earlier success. Changed inputs before tooling
+completion and instrumented execution publish no reusable ordinary tooling proof. If later native work
+changes tooling inputs, the retained original tooling identity cannot match those new inputs; never refresh
+its digest or claim it covered the changed source.
+
 Scoped reuse qualifies the existing attested artifact bytes in the recorded environment. Its environment identity
 includes Visual Studio installation metadata, the default toolset file and graphics-runtime bytes; it does not hash
 the complete external compiler or Windows SDK installation. Consequently, `SkipBuild` and a reused native receipt

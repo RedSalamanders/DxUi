@@ -186,6 +186,16 @@ if ($pending.Count) {
             & (Join-Path $root $command)
             if (-not $? -or $LASTEXITCODE -ne 0) {throw "Tooling failed: $command (exit $LASTEXITCODE)."}
         }
+        # Tooling is an independent obligation. Verify and retain its completed
+        # identity before native execution, which can fail or be interrupted later.
+        Import-Module $modulePath -Force
+        $afterTooling=Get-ScopedDigest ((Get-ScopedSourceIdentity $root)+"`n"+(Get-ScopedEnvironmentIdentity)+"`n"+(Get-ScopedToolIdentity))
+        foreach ($scope in $tooling) {
+            $after=Get-ScopedDigest ($afterTooling+"`n"+$scope.name)
+            if ($after -cne $identities[$scope.name]) {throw "Inputs changed while $($scope.name) ran; no tooling success was published."}
+            if ($scope.reuse -and -not $instrumentation.Count) {Write-ScopedReceipt (Get-ScopeReceiptPath $scope) $identities[$scope.name]}
+            Write-Host "PASSED $($scope.name) (independent obligation; native and foreground coverage remain separate)"
+        }
     }
     if ($runtime.Count) {
         & (Join-Path $root 'test.ps1') -Platform $Platform -Configuration $Configuration -SkipBuild -Suites $runtime -SkipTooling -ParallelSuites $ParallelSuites -Full:($Mode -ne 'Affected')
@@ -193,15 +203,13 @@ if ($pending.Count) {
     }
     Import-Module $modulePath -Force
     $afterNative=if ($runtime.Count) {Get-ScopedRunIdentity $root $Platform $Configuration '(common)' $executionOptions} else {$commonNative}
-    $afterTooling=Get-ScopedDigest ((Get-ScopedSourceIdentity $root)+"`n"+(Get-ScopedEnvironmentIdentity)+"`n"+(Get-ScopedToolIdentity))
-    foreach ($scope in $pending) {
-        $after=Get-ScopedDigest ($(if ($scope.native) {$afterNative} else {$afterTooling})+"`n"+$scope.name)
+    foreach ($scope in @($pending | Where-Object {$_.native})) {
+        $after=Get-ScopedDigest ($afterNative+"`n"+$scope.name)
         if ($after -cne $identities[$scope.name]) {throw "Inputs changed while $($scope.name) ran; no reusable success was published."}
     }
     $environmentReduced=[Collections.Generic.List[string]]::new()
     foreach ($scope in $pending) {
         if (-not $scope.native) {
-            if ($scope.reuse -and -not $instrumentation.Count) {Write-ScopedReceipt (Get-ScopeReceiptPath $scope) $identities[$scope.name]}
             continue
         }
         $instrumentationSuffix=if ($instrumentation.Count) {'.instrumented'} else {''}

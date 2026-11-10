@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-independent-tooling-continuation",
+  "benchmarkInputs": {
+    "Test-Changes.ps1": "562cb200f57b91fc20a93a453ac923b32d70240d8ee680afa23c960f2c50a3ac",
+    "Tools/ScopedTesting.psm1": "32dad2223f1e3e8ffa2579c8a28f05bc6464d91f5f1c598646d25495bd658b62",
+    "Tools/tests/Test-ScopedTesting.ps1": "6672f92748a5a3c11747cb6e8fb5697bfe0cc94c5bf150bc7f39e9a53aec5324",
+    "Tests/test-scopes.json": "86c080c9298bd3cd39d84e6901660f710928ae58c5161901f89220ee972371c5"
+  },
+  "capturedUtc": "2026-11-10T16:19:13.1122251Z",
+  "baseCommit": "29f6b84742ca18bb6b809a545a823e26be1fdc41",
+  "executedWorkingTree": true,
+  "focusedPublicControlCases": 44,
+  "completeValidatorsAndTooling": "passed",
+  "continuation": {
+    "originalToolingReceiptBytesUnchanged": true,
+    "aggregateFailurePreserved": true,
+    "toolingExecutionsAcrossFailedNativeAndIdenticalRetry": 1
+  },
+  "refusalControls": [
+    "Tooling failure revokes earlier success",
+    "Source mutation before tooling completion blocks receipt and native launch",
+    "Instrumented tooling publishes no ordinary reusable proof",
+    "Later native source mutation cannot reuse earlier tooling identity"
+  ],
+  "limits": [
+    "Recording-process tests establish runner behavior, not product native qualification",
+    "No foreground suite or overall 3x/2x performance acceptance"
+  ],
+  "logs": [
+    {
+      "path": ".build/i61-independent-tooling-final-public-controls.log",
+      "sha256": "29b54d36b9e82bd94cbefe9b495f71032ba682e389939c9a2aeea0092268b1af"
+    },
+    {
+      "path": ".build/i61-independent-tooling-complete-validation.log",
+      "sha256": "3acb629dd82ccb1cbf8519f2e053c51231e6de80453dae432501b616732d3422"
+    }
+  ]
+}
