@@ -1,0 +1,94 @@
+{
+  "schemaVersion": 1,
+  "role": "RestoreCoordinationQualification",
+  "testedCommit": "2b3f2b6029e8e21b6b9ab8eeeebeede0751ff564",
+  "compiledSourceIdentity": "dcaf087be3d2bbb5d32d5d940b130bd4893a1891e2a428dcde7b30eefb172800",
+  "capturedUtc": "2026-11-10T16:03:16.7630066Z",
+  "concurrentColdRestore": {
+    "outcome": "passed",
+    "root": ".build/i61-concurrent-restore/dbc939b461e54751942c58e91544d378",
+    "architectures": [
+      "x64",
+      "ARM64"
+    ]
+  },
+  "focusedLeaseControls": 3,
+  "tripletControls": 12,
+  "completeToolingAndValidators": "passed",
+  "native": {
+    "run": "20261110T154936393Z-91116-52599f254a9e4eb49d8d7729fb85375a",
+    "configuration": "Debug",
+    "platform": "x64",
+    "outcome": "passed",
+    "capabilitySkips": 0,
+    "ordinarySuites": 19
+  },
+  "retainedFailure": {
+    "cause": "unresolved",
+    "focusedDiagnostic": "passed",
+    "case": "TestRichTextLayoutNativeFailureTransactions/layout-effect-rollback",
+    "run": "20261110T143800686Z-89520-ef520997dc164221a43adecba6773c1c",
+    "focusedDiagnosticRun": "20261110T152951899Z-61280-bc923c04950948eba7f75496fe0bd627",
+    "kind": "fatal-child-timeout",
+    "originalOutcomeUnchanged": true
+  },
+  "limits": [
+    "No interactive suite executed; no complete repository qualification",
+    "No native ARM64 runtime claim",
+    "No controlled before/after throughput or organization acceleration target claim",
+    "Curated after code qualification; raw receipts retain original tested identities"
+  ],
+  "logs": [
+    {
+      "path": ".build/i61-vcpkg-coordination-complete-validation.log",
+      "bytes": 431,
+      "sha256": "3acb629dd82ccb1cbf8519f2e053c51231e6de80453dae432501b616732d3422"
+    },
+    {
+      "path": ".build/i61-vcpkg-coordination-committed-prepush.log",
+      "bytes": 21288,
+      "sha256": "b17d4b10cf67d1cf652a89a9c17cb7c330ffd6120219173eea7463bb2c6b8470"
+    },
+    {
+      "path": ".build/i61-layout-rollback-focused-diagnostic.log",
+      "bytes": 1934,
+      "sha256": "4f031c81c7962e384b5a706212edb7e2dc8dfee7f2c09b09b8a8d6f3b9dfa966"
+    },
+    {
+      "path": ".build/i61-vcpkg-coordination-prepush-continuation.log",
+      "bytes": 10776,
+      "sha256": "eaa179589aa797595ab16a2895f271f54831d6c6379d05bbc07aba6d81c040cf"
+    },
+    {
+      "path": ".build/i61-concurrent-restore/dbc939b461e54751942c58e91544d378/x64.stdout.log",
+      "bytes": 2995,
+      "sha256": "2369aac2990c1f6b47a12f77859ebbb1d04b54d3841fdba96f68edc80d33ee9d"
+    },
+    {
+      "path": ".build/i61-concurrent-restore/dbc939b461e54751942c58e91544d378/x64.stderr.log",
+      "bytes": 3896,
+      "sha256": "b63b43c073632f88cb04c92fd6efc35dadc70d0129805fefa534447fbced23e4"
+    },
+    {
+      "path": ".build/i61-concurrent-restore/dbc939b461e54751942c58e91544d378/ARM64.stdout.log",
+      "bytes": 2679,
+      "sha256": "093d93576311d3d924936f2a04c41d13ae982d37e8eca7472ccb2440ced07b78"
+    },
+    {
+      "path": ".build/i61-concurrent-restore/dbc939b461e54751942c58e91544d378/ARM64.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-pinned-vcpkg-restore-coordination",
+  "benchmarkInputs": {
+    "vcpkg-install.ps1": "a879e50e27e654f0a5f53d96a9d82ef5da37c4401c5a9c0fe0273bccc598a650",
+    "Tools/VcpkgRestore.psm1": "ab133440ae13826ebdea24e8667d51a671e54fdfecc5d225df04743182bc9e83",
+    "Tools/VcpkgTriplet.psm1": "7bb17cc7dd2377e1eb4cc62de710b7ecff9e614ff7b6dc31cd32ccc47af488b7",
+    "Tools/tests/Test-VcpkgRestore.ps1": "556df31c64a5ecc1c57fcc63badc39d3e2262b86dbe8324c3d88cf4caf3c7e7a",
+    "Tools/tests/Test-VcpkgTriplet.ps1": "96a28dab77354e3411b1d9c75299c27064b5466049904f04f93d9d98f85449a2",
+    "Test-Changes.ps1": "146c698a254e3a6690c82dc4122012ca2e4494b887b4e4770c305a784f89ee65",
+    "test.ps1": "6629c55cd67ab8441675eac658dbdf1fc6955aa25c796bb07ad02e4b2a41f125"
+  }
+}
