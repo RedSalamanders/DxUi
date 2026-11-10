@@ -1,6 +1,12 @@
 # Validation and evidence
 
 Status: normative intended contract
+
+Direct OLE adapter fixtures run in a dedicated COM worker with an owned neutral thread keyboard state.
+Save and restore that worker's complete key bytes; do not inherit Alt from thread creation or change
+physical input, another thread, activation or product modifier rules. Explicit modifier-refusal controls
+still exercise the actual adapter (including Alt rejecting a same-editor move). No foreground lease is
+needed for these direct, windowless calls.
 Last reviewed: 2026-10-25
 
 ## Independent format oracles
