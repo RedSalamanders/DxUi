@@ -47,6 +47,13 @@ pipeline freezes one commit, input digest, engine and version. Both native x64 a
 3. A global AND gate verifies both architectures before either production Release job may begin.
 4. Separate production-only Release outputs, clean-extraction native smoke and ZIP artifact retention.
 
+The canonical Release regression invocation selects `-ParallelSuites 2` for the complete normal set.
+Only independent non-foreground suite children overlap. Native build, tooling, performance, filter/watchdog
+preflight, relocated consumer qualification, gallery and foreground suites keep their existing execution
+and desktop ownership contracts. Every suite retains its actual log/count/receipt; failures and skips retain
+their gates. Debug and ASan diagnostic qualification keep the serial default. This changes scheduling,
+not declared coverage. New native x64/ARM64 results are required before acceptance of this hosted rollout.
+
 These are separate test and production roles. They intentionally compile production code twice; neither a PR
 matrix nor a second push matrix repeats the same role. Test receipts and production artifacts never share
 mutable cached object outputs. Dependency binary caches include the engine, native architecture, manifests,
