@@ -220,6 +220,14 @@ and notification targets keep a module lifetime pin, so detach/uninstall must ha
 does not authorize unloading a module with retained provider state.
 
 Run `vcpkg-install.ps1 -Platform x64` (or ARM64/All) before build. WIL and the vcpkg tool revision are pinned.
+Restore coordinates by the canonical output root. Checkout selection and bootstrap take an exclusive tooling
+lease; each installer retains a shared tooling lease until vcpkg exits. A current checkout is verified under
+that read lease without waiting for another platform's install. Platform-private install, buildtree, package
+and overlay mutations take a separate root/platform lease. Same-platform contenders wait; disjoint platforms
+and output roots may proceed together. Initialization is rechecked after exclusive acquisition and before
+returning the shared lease. Failure releases leases, retains evidence and never terminates another owner.
+Stable lease files are retained; deleting them while readers exist would break coordination. A finite
+15-minute acquisition bound reports the contested path without accepting partial restore state.
 The manifest's ports builtin-baseline and vcpkg-tool.json's executable checkout are independent nonzero full Git
 revisions. Restore uses each for its own role; metadata validation checks both immutable identities and never
 requires equality or rewrites either pin. Their compatibility still requires actual source-bound native qualification.
