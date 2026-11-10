@@ -14,6 +14,17 @@ and their independently retained descriptors. They grant no application, main, m
 Missing or incompatible SDK inputs retain governed source builds. Application adoption and authenticated
 cross-repository consumption remain separately tracked by the organization acceleration plan.
 
+The explicit `sdk_contract` choice retains `LegacyV1` as its default and offers
+`QualifiedAbiV2` producer references. V2 selects the native compiler host before
+restore/build, retains every existing SDK qualification gate and emits a separate
+portable tool/header/library reference bound to the unchanged source/API, original
+input key/manifest, public-header Git tree and native SDK receipt. The successful
+source/platform/attempt archive includes that reference. It does not change the
+SDK payload or qualify an application. Consumer trust in a new attempt still
+requires its reviewed caller/engine, archive authentication and actual ABI checks;
+the reference cannot authenticate itself. Missing or incompatible qualified inputs
+cannot remove the existing source-build and native consumer obligations.
+
 PRs run changed-source clang-format feedback and the reviewed compiler-free static subset. Formatting drift
 fails and retains a patch. The explicit Commit PR formatting action accepts an open same-repository PR,
 checks its current head, commits only selected formatted source paths by ordinary fast-forward push and

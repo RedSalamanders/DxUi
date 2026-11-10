@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "role": "QualifiedSdkCallerLocalChecks",
+  "sourceBase": "1e8fcaac26eb099c3b1e5fa838652bf4b0447c97",
+  "engine": "e4e6a14c6e7d7e2c20b72331e4a2ae8d117703f5",
+  "cppChanged": false,
+  "x64NormalSuitesPassed": {
+    "Release": 19,
+    "Debug": 19,
+    "AsanDebug": 19
+  },
+  "x64AsanDetectorPassed": true,
+  "sixBuildsPassed": true,
+  "nativeArm64RuntimeQualified": false,
+  "interactiveQualified": false,
+  "liveQualifiedSdkProducerAttemptsAccepted": false,
+  "bootstrapRaceFixed": false,
+  "controlledSpeedTargetEstablished": false,
+  "logs": [
+    {
+      "path": ".build/i61-qualified-producer-validation.log",
+      "sha256": "f3dbc763c601a66ed70c855477ebb674cfed7f01caf14ddbbac12d0c9943860a"
+    },
+    {
+      "path": ".build/i61-qualified-producer-format.log",
+      "sha256": "444bec9f0dea809335be8497fbb7277928576b58e0efd75f2958ba93537694d7"
+    },
+    {
+      "path": ".build/i61-qualified-producer-native-x64-Debug.log",
+      "sha256": "0a873a50b862a52ecd0d72fca1b9d619a2f9100520de4adc4bd84f8b3af039de"
+    },
+    {
+      "path": ".build/i61-qualified-producer-native-x64-Release.log",
+      "sha256": "d29b66f9eec7742e817e9130cf2d9304037778c2ad0bc0245e31ab88cd4afb4a"
+    },
+    {
+      "path": ".build/i61-qualified-producer-native-x64-ASan-Debug.log",
+      "sha256": "22bafb5db20a1641d89dcc2145400131a38b4000794e4aa7b4375ac8801552c8"
+    },
+    {
+      "path": ".build/i61-qualified-producer-build-ARM64-Debug.log",
+      "sha256": "46c2bd9b12e0aeb1da08515bb3cf51fdf7a422c52e7b20cb5b514d0403d89e91"
+    },
+    {
+      "path": ".build/i61-qualified-producer-build-ARM64-Release.log",
+      "sha256": "51d3b3c6bd30712b752a8d2d1c617fb0cf2151158809b5535b0601d21b48ce86"
+    },
+    {
+      "path": ".build/i61-qualified-producer-build-ARM64-ASan-Debug.log",
+      "sha256": "f11476cfcb2daf43f9d5af009a174af029a3acf2b3512de0ede1c42e4756ed5e"
+    }
+  ]
+}
