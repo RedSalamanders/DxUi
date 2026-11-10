@@ -168,3 +168,8 @@ This handoff does not yet implement cross-repository SDK distribution, consumer 
 The pinned shared engine restores vcpkg's ABI-indexed package cache for normal and manual native qualification. Exact engine/input keys are preferred; fallback lookup stays within the same runner OS, host architecture and target platform, and the pinned vcpkg restore still selects each package by its computed ABI. A miss rebuilds the package. This supplies dependency inputs only: product objects, DxUi SDK outputs and build/test receipts are not restored by this cache. Dependency pins, native execution, failure detectors and production/publication gates remain required. The owning behavior is the shared engine's Specs/CI.md.
 
 The pinned shared conformance rejects extension-wide Markdown exclusions. Pin maintenance migrates only the original global default to owned prose locations and known guides. Runtime/test include exceptions retain precedence; historical artifacts keep their original source identity.
+
+CI callers and the manifest pin the reviewed qualified-distribution controller together.
+Previously qualified producer artifacts retain their original caller/controller identity;
+updating this checkout never rewrites their provenance or grants a verdict to consumers.
+Main still executes both native regressions before production SDK smoke qualification.
