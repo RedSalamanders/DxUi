@@ -904,6 +904,51 @@ exit 0
         Assert-Scope ($run.Exit -eq 0 -and -not $run.Text.Contains('NO_WORK') -and -not(Test-Path $iteration) -and
             @(Get-Content (Join-Path $sandbox '.build/calls.txt')).Count -gt $count) "CI reused or published a local iteration baseline: $($run.Text)"
         Assert-EnvironmentSnapshot $parentCi 'Local/hosted fixture process isolation'
+
+        # Exercise the actual public ordering with independent tooling plus a later
+        # failed native obligation; a passed tooling result must survive that failure.
+        $fixtureManifest=Get-Content (Join-Path $sandbox 'Tests/test-scopes.json') -Raw|ConvertFrom-Json
+        $fixtureManifest.scopes+= [pscustomobject]@{name='Tooling';native=$false;reuse=$true}
+        $fixtureManifest.toolingCommands=@('Tools/Check-Fixture.ps1')
+        Write-Fixture (Join-Path $sandbox 'Tests/test-scopes.json') ($fixtureManifest|ConvertTo-Json -Depth 8)
+        Write-Fixture (Join-Path $sandbox 'Tools/Check-Fixture.ps1') @'
+[IO.File]::AppendAllText((Join-Path $PSScriptRoot '../.build/tooling-calls.txt'),"tooling`n")
+if(Test-Path (Join-Path $PSScriptRoot '../.build/tooling-fail')){throw 'Deliberate tooling failure'}
+if(Test-Path (Join-Path $PSScriptRoot '../.build/tooling-mutate')){[IO.File]::AppendAllText((Join-Path $PSScriptRoot '../README.md'),'changed during tooling')}
+'@
+        Write-Fixture (Join-Path $sandbox '.build/fail') 'fail native after tooling'
+        $run=Invoke-PublicRunner @('-Mode','Full') -NoExplicitScope
+        $toolingReceipt=Join-Path $sandbox '.build/reports/scoped-tests/independent/Tooling.json'
+        Assert-Scope ($run.Exit -ne 0 -and (Test-Path $toolingReceipt) -and -not(Test-Path $receipt) -and -not(Test-Path $iteration)) "Native failure discarded independent tooling or retained native success: $($run.Text)"
+        $toolingBytes=[IO.File]::ReadAllText($toolingReceipt)
+        Remove-Item -LiteralPath (Join-Path $sandbox '.build/fail')
+        $run=Invoke-PublicRunner @('-Mode','Full') -NoExplicitScope
+        Assert-Scope ($run.Exit -eq 0 -and $run.Text.Contains('REUSED Tooling') -and @(Get-Content (Join-Path $sandbox '.build/tooling-calls.txt')).Count -eq 1 -and
+            [IO.File]::ReadAllText($toolingReceipt) -ceq $toolingBytes) "Continuation repeated or rewrote completed tooling: $($run.Text)"
+        Write-Fixture (Join-Path $sandbox '.build/tooling-fail') 'fail tooling'
+        $run=Invoke-PublicRunner @('-Mode','Full','-Force') -NoExplicitScope
+        Assert-Scope ($run.Exit -ne 0 -and -not(Test-Path $toolingReceipt)) 'Failed tooling retained its earlier success'
+        Remove-Item -LiteralPath (Join-Path $sandbox '.build/tooling-fail')
+        Write-Fixture (Join-Path $sandbox '.build/tooling-mutate') 'mutate while tooling runs'
+        $nativeCalls=@(Get-Content (Join-Path $sandbox '.build/calls.txt')).Count
+        $run=Invoke-PublicRunner @('-Mode','Full') -NoExplicitScope
+        Assert-Scope ($run.Exit -ne 0 -and -not(Test-Path $toolingReceipt) -and @(Get-Content (Join-Path $sandbox '.build/calls.txt')).Count -eq $nativeCalls) 'Tooling mutation published success or entered native execution'
+        Remove-Item -LiteralPath (Join-Path $sandbox '.build/tooling-mutate')
+        $savedInstrumentation=Get-EnvironmentSnapshot @('DXUI_MUTANT')
+        try {
+            Set-Item Env:DXUI_MUTANT -Value 'fixture-tooling-instrumentation'
+            $run=Invoke-PublicRunner @('-Mode','Full') -NoExplicitScope
+            Assert-Scope ($run.Exit -eq 0 -and -not(Test-Path $toolingReceipt)) "Instrumented tooling published reusable ordinary proof: $($run.Text)"
+        } finally {Restore-EnvironmentSnapshot $savedInstrumentation}
+        Write-Fixture (Join-Path $sandbox '.build/mutate') 'native changes source after tooling completed'
+        $run=Invoke-PublicRunner @('-Mode','Full') -NoExplicitScope
+        Assert-Scope ($run.Exit -ne 0 -and (Test-Path $toolingReceipt)) 'Later native mutation discarded the original independent tooling evidence or passed the batch'
+        $originalToolingBytes=[IO.File]::ReadAllText($toolingReceipt)
+        $toolingCalls=@(Get-Content (Join-Path $sandbox '.build/tooling-calls.txt')).Count
+        Remove-Item -LiteralPath (Join-Path $sandbox '.build/mutate')
+        $run=Invoke-PublicRunner @('-Mode','Full') -NoExplicitScope
+        Assert-Scope ($run.Exit -eq 0 -and -not $run.Text.Contains('REUSED Tooling') -and @(Get-Content (Join-Path $sandbox '.build/tooling-calls.txt')).Count -eq ($toolingCalls+1) -and
+            [IO.File]::ReadAllText($toolingReceipt) -cne $originalToolingBytes) "Later source mutation reused tooling for earlier inputs: $($run.Text)"
     }
     Run-Case 'actual hosted Release invocation selects two ordinary workers and retains the exact Full profile obligations' {
         $path=Join-Path $repository 'Tools/Invoke-ProjectCi.ps1'

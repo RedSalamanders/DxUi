@@ -1,5 +1,9 @@
 # Tool inventory
 
+Scoped tooling publishes its independently verified success before later native execution.
+An identical continuation can reuse it after a native failure; failed or changed tooling,
+instrumented work and incomplete native/foreground obligations retain their separate outcomes.
+
 Repository tooling is PowerShell. Consumer-facing entry points keep the version promises listed in
 [`capabilities.json`](../capabilities.json); internal validation and scoped-iteration tools require PowerShell 7.
 Root entry points (`build.ps1`, `test.ps1`, `Test-Changes.ps1`, `Test-PrePush.ps1`, `format.ps1`, `gallery.ps1`,
