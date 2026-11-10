@@ -49,5 +49,16 @@
       "path": ".build/i61-qualified-producer-build-ARM64-ASan-Debug.log",
       "sha256": "f11476cfcb2daf43f9d5af009a174af029a3acf2b3512de0ede1c42e4756ed5e"
     }
-  ]
+  ],
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-qualified-sdk-caller-local",
+  "benchmarkInputs": {
+    ".github/workflows/sdk-inputs.yml": "fbde16f4ccca369505eaaa522ed71956405544012a961f5a17fb9ac0f92bdf10",
+    ".ci/project.json": "af1c435a9f8b68fe03d47f4c43cb10062fea07d8beffd116ffaac8cf87c3765a",
+    "vcpkg.json": "4b2a5055aa77001bb715d9b56dc776bfc4f4130483b30ff51bc0c86339713849",
+    "vcpkg-tool.json": "e38884614404c881238070ce5ae2c25a72a68718a3b03c8dccb26fa22586756e",
+    "Directory.Build.props": "05f1977c6db5ff046318f770e1cf39fd15f0b6262b6e4912846631588cc1c02b",
+    ".ci-engine/Tools/Modules/Ci.SdkQualifiedProducer.psm1": "cd2269c2b215b7d9abadef7555d4fd4aa5d77c2d5e8b7738e387d2b858704d0f",
+    ".ci-engine/Tools/Modules/Ci.SdkAbi.psm1": "c639df331078a18b1162beafd8b8c94b64b52e21b0f4290c4e7ba3e7298829e9"
+  }
 }

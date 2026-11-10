@@ -11,7 +11,7 @@ in Debug, Release and ASan Debug, the actual ASan detector, and all six builds
 with zero warnings/errors. ARM64 builds are cross-compilation only; local focus
 and native ARM64 runtime coverage are separate. Performance output was unpaired
 and is not a controlled acceleration comparison. Exact source/profile receipts
-and logs remain in the worktree .build directory, as listed in evidence.json.
+and logs remain in the worktree .build directory, as listed in caller-checks.json.
 
 The executed base was 1e8fcaac26eb099c3b1e5fa838652bf4b0447c97 with this caller/pin
 change applied. The producer controller is e4e6a14c6e7d7e2c20b72331e4a2ae8d117703f5.
