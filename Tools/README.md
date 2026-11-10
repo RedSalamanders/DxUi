@@ -1,5 +1,10 @@
 # Tool inventory
 
+`VcpkgRestore.psm1` owns shared checkout/bootstrap and platform install leases for `vcpkg-install.ps1`.
+Current tooling admits simultaneous readers; mutations wait until all installs release it. Platform installs
+serialize only with the same output-root/platform. `Test-VcpkgRestore.ps1` covers sharing, refusal, failure
+release and isolation; actual concurrent cold restores additionally verify the public entrypoint.
+
 Repository tooling is PowerShell. Consumer-facing entry points keep the version promises listed in
 [`capabilities.json`](../capabilities.json); internal validation and scoped-iteration tools require PowerShell 7.
 Root entry points (`build.ps1`, `test.ps1`, `Test-Changes.ps1`, `Test-PrePush.ps1`, `format.ps1`, `gallery.ps1`,
