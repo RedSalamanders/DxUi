@@ -1,0 +1,1 @@
+- Align scoped validation guidance with the existing hosted Release adapter, which already selects two ordinary workers. Keep local defaults, preflight, performance and foreground serialization explicit; actual native campaign acceptance and paired performance evidence remain separate.
