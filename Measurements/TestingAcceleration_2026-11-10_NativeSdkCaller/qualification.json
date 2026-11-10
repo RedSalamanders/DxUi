@@ -1,0 +1,111 @@
+{
+  "schemaVersion": 1,
+  "role": "NativeSdkCallerQualification",
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-qualified-sdk-native-caller",
+  "benchmarkInputs": {
+    "Tests/Controls/Controls.Tests.RichTextInput.cpp": "b04dadd905c7cfb9f852eb77ac6aeac3830b987c0856c0f153da1684e8ad70b6",
+    "Tests/InteractiveLease/InteractiveLease.Tests.Runner.cpp": "395172e273894589826e410951aba7caa7eddaa41ff6d5752a8634e715e3de35",
+    ".ci/project.json": "561e16261b5386655c35114ca635c87a79cdf31ea821427e341bbf262fa27a69",
+    ".github/workflows/sdk-inputs.yml": "6d2d484b4aaaa2a7476a69071117df025141eaeace9af6fe2035e4c18149e621"
+  },
+  "capturedUtc": "2026-11-10T17:23:32.2970142Z",
+  "sourceBase": "29f6b84742ca18bb6b809a545a823e26be1fdc41",
+  "sharedEngine": "0ab35be5d746b8a23cad066f64fcd0062678d06d",
+  "builds": {
+    "x64": [
+      "Debug",
+      "Release",
+      "ASan Debug"
+    ],
+    "warnings": 0,
+    "errors": 0,
+    "ARM64": [
+      "Debug",
+      "Release",
+      "ASan Debug"
+    ]
+  },
+  "native": {
+    "runs": [
+      "20261110T154546195Z-87296-2539c87b8ef24ad795dc3c1e93150a46",
+      "20261110T160456714Z-87296-4d3d133be1d84b1680bef4d56cdc1300",
+      "20261110T162225817Z-87296-05775cf40f4c4f488f4011cd451ba57f"
+    ],
+    "capabilitySkips": 0,
+    "outcome": "passed",
+    "platform": "x64",
+    "profiles": [
+      "Debug",
+      "Release",
+      "ASan Debug"
+    ],
+    "ordinarySuitesPerProfile": 19
+  },
+  "tooling": "All tooling tests passed; specification format corrected and revalidated separately",
+  "retainedFailures": [
+    "Inherited OLE worker modifiers failed an original Editor attempt; original log retained",
+    "Private-desktop descendant preflight exceeded its existing bound; diagnostics added, bound and assertions unchanged",
+    "First ARM64 admission lacked restored platform dependencies; exact restore and remaining profiles completed",
+    "Complete validation initially rejected a second top-level changelog entry; format corrected, original log retained"
+  ],
+  "limits": [
+    "No foreground suite executed; complete repository qualification remains pending",
+    "ARM64 cross-builds do not establish native ARM64 runtime",
+    "SDK campaigns and live hosted SDK reuse remain pending",
+    "No controlled 3x/2x acceleration result claimed",
+    "Curation follows code qualification; raw evidence retains exact original input identities"
+  ],
+  "logs": [
+    {
+      "path": ".build/i61-native-caller-final-validation.log",
+      "bytes": 641,
+      "sha256": "e6c504f2950943e2b99846ebe781103e28f6abd4ddcc2237e26b451224813df4"
+    },
+    {
+      "path": ".build/i61-native-caller-final-build-x64-Debug.log",
+      "bytes": 8478,
+      "sha256": "b7628869278699248528186a42a56bd0e4df3cf9e61a16a64c1a5033f416ba31"
+    },
+    {
+      "path": ".build/i61-native-caller-final-test-x64-Debug.log",
+      "bytes": 9133,
+      "sha256": "9d2738be630f238bf7a2d8222a7866bea276562a5908824968a2631ae51d2481"
+    },
+    {
+      "path": ".build/i61-native-caller-arm64-continuation-Debug.log",
+      "bytes": 8452,
+      "sha256": "550aee35e7f15260ff81bf90f712b8c6ddc2a5aad144b7dab9450a871eaaacd4"
+    },
+    {
+      "path": ".build/i61-native-caller-final-build-x64-Release.log",
+      "bytes": 8503,
+      "sha256": "56484789ccee0146ee1f476667b5b591aa014d04c317bdc0be4b907682ec46af"
+    },
+    {
+      "path": ".build/i61-native-caller-final-test-x64-Release.log",
+      "bytes": 9177,
+      "sha256": "1270b1a2837f41f7c9217733257cae3d6c1d4e1ebdfbe83d63d0d63091890be6"
+    },
+    {
+      "path": ".build/i61-native-caller-arm64-continuation-Release.log",
+      "bytes": 8475,
+      "sha256": "0068744c4417b3f2339a8686225dfd023e21a772e03b7f554b43fb1952e148be"
+    },
+    {
+      "path": ".build/i61-native-caller-final-build-x64-ASan-Debug.log",
+      "bytes": 8559,
+      "sha256": "e3be6edbff307cbc9e44700bf0591782cb37fd4f2bb34fef977373b1c468fda9"
+    },
+    {
+      "path": ".build/i61-native-caller-final-test-x64-ASan-Debug.log",
+      "bytes": 9316,
+      "sha256": "a16b2e8756b4b454b57b065358f5bf8046390b1accbe33c8f227a5bd81d2f288"
+    },
+    {
+      "path": ".build/i61-native-caller-arm64-continuation-ASan-Debug.log",
+      "bytes": 8527,
+      "sha256": "b56b0cccf3b61699d551cc23de1eaf7685f169382d253ed5853eee7d519747d0"
+    }
+  ]
+}
