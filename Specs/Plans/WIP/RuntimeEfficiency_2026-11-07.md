@@ -5,9 +5,11 @@ Status: SPEC READY — the 7 November draft (`rune` `0772373`, `gpui-fast` `61dc
 the ground up on 11 November 2026 across the full `DxUi` tree at `4acabe0e` and the current upstream heads of
 [`longbridge/gpui-fast`](https://github.com/longbridge/gpui-fast/tree/af019de83a26f0d94c65ef408fdecebca1c25e9c) at
 `af019de`, [`anomalyco/rune`](https://github.com/anomalyco/rune/tree/0ea75abef0a6caa014067a88f89518b9a04cce2b) at
-`0ea75abe` (including `research/01..38`, `gpu-floor` and `engine-spike`), and
+`0ea75abe` (including `research/01..38`, `gpu-floor` and `engine-spike`),
+[`makepad/makepad`](https://github.com/makepad/makepad/tree/506ec05105b9adb08d1d21f9879df181b5244ea7) at `506ec051`
+(MIT; see [Makepad study](#makepad-study-makepadmakepad-at-506ec051)), and
 [`ppmpreetham/BUI`](https://github.com/ppmpreetham/BUI/tree/ae284781c2ae9b030aa795c7c0c1816678aafcf5) at `ae284781`
-(see [BUI review](#bui-review-ppmpreethambui-at-ae284781)). Decisions D1, D2 and D4 stand; revised D3 and D5–D10 await
+(see [BUI review](#bui-review-ppmpreethambui-at-ae284781)). Decisions D1, D2 and D4 stand; revised D3 and D5–D11 await
 the developer's confirmation (see [Decisions](#decisions)). Plan only; no code has been implemented.
 
 - **Owning contracts**: [performance and resources](../../Core/Core_PerformanceAndResources.md),
@@ -63,16 +65,19 @@ claims from refuted ones. Full subsystem auditing on 11 November closed the rema
 6. **Beauty and motion belong beside CPU efficiency.** `V1`–`V8` cover closed-form springs, perceptual OKLab color
    transitions, crisp fractional-DPI hairlines, single-pass analytic Gaussian shadows, real popup materials, smooth and
    fractional scrolling, command-list connected animations and subpixel-stable text glide.
-7. **Whole `DxUi` subsystems and upstream commits after 8 November were missing (`E46`–`E71`).** The 11 November audit
+7. **Whole `DxUi` subsystems and upstream commits after 8 November were missing (`E46`–`E75`).** The 11 November audit
    uncovered major steady-state churn in `ThroughputGraph`, `StatusStrip`, `PageHost`, `ColorPicker`, `NumericStepper`,
    ~30 unguarded control setters, `Panel` `weak_ptr` atomic locking, `Grid` badge/resize/sort/selection paths, `Tree`
-   expansion snapshots, `WindowHost` device-loss retry spin and `Failure::Scope` `set_terminate` calls,
+   expansion snapshots, `WindowHost` device-loss retry spin, `TrimCaches` `_forceAllVisualPreparation = true` format-cliff
+   storms, `DCompositionCreateDevice2(dxgiDevice)` TDR visual teardown, modal `WM_SIZING` `WM_PAINT` starvation,
+   `FrameClock::SmoothDeltaUs` unfiltered vblank jitter and per-child `Failure::Scope` `set_terminate` calls,
    `DxUi.Typography.h` global mutex/leak/ALPC probes, `EmbeddedHost` un-gated 4-pass UIA rebuilds and `ITextRangeProvider`
    `O(N²)` scans, TSF `TextStoreACP` `15–25×` full-document IME copies, `RichDocument` piece-tree non-coalescing
    1-character buffers, `SourceDisplayMap` `1.05–4.2 MiB` keystroke vectors, `libfyaml` frontmatter reparses, uncached
-   `2·R·C` semantic table layouts, `MathFontData` `22,500`-call rebuilds and per-atom `IDWriteTextLayout`s, plus 30+
-   upstream commits in `gpui-fast` (`#104`–`#133`), `rune` (`#248`–`#570`, `research/01..38`, `gpu-floor`) and `BUI`
-   (`5cea7a6`–`ae284781`).
+   `2·R·C` semantic table layouts, `RichImageDecoder::Decode` synchronous `32 MiB` copies, and `MathFontData` `22,500`-call
+   rebuilds + per-atom `IDWriteTextLayout`s, alongside upstream advances across `gpui-fast` (`#104`–`#133`), `rune`
+   (`#248`–`#570`, `research/01..38`, `gpu-floor`), `makepad` (`506ec051`, including its waitable-swap-chain credit
+   deadlock guard and empirical `Slug` driver findings) and clean-room `BUI` (`5cea7a6`–`ae284781`).
 
 ## Evidence ledger
 
@@ -152,6 +157,10 @@ the baseline before the item closes; ledger numbers are hypotheses to measure, n
 | E69 | `BuildChunkLayout` builds a throwaway `Phase::Reference` `IDWriteTextLayout` even for uniform-font chunks; chunks lack `translatedOrigin` delta rebase; multiline selection invalidates full viewport; `DrawSourceInkIfSupported` calls `layout.Draw` twice per chunk | Verified | [DxUi.RichDocumentLayout.cpp](../../../src/Controls/DxUi.RichDocumentLayout.cpp) `:338-344, 445`, `DxUi.RichTextEditor.cpp:5397`, [DxUi.RichTextSourceInkRenderer.h](../../../src/Controls/DxUi.RichTextSourceInkRenderer.h) `:411, 434` | P6.2 |
 | E70 | `MathFontData::Build` calls `3 × ~7,500` Cambria Math glyph methods and is discarded whenever `SemanticLayout` rebuilds; `BuildTextAtom` creates a full `IDWriteTextLayout` per single-character math variable/digit/operator (`~60–120`/formula) | Verified | `DxUi.PreparedMath.h:421-471, 950-1005, 3117` | P6.5 |
 | E71 | `PreparedFlowchart::Draw` emits 5 `DrawLine`s per edge when 4/5 segments are zero-length and `Preparation` reserves `>120 KiB` fixed arrays; `RasterizeSvg` renders every SVG twice; `PopulateRichTextEditorAccessibility` copies full doc and transforms every block/link/cell per cursor/scroll move | Verified | `DxUi.PreparedFlowchart.cpp:910-917`, `DxUi.RichSemanticGeometry.cpp:508-538`, `DxUi.Accessibility.cpp:2423, 2559` | P1.9, P7.2 |
+| E72 | `ControlHost::TrimCaches` clears `_configuredTextFormats` **and** sets `_forceAllVisualPreparation = true` whenever `_configuredTextFormats.size() > 96`, forcing 100% full-tree visual re-preparation every frame on dense views (`>= 97` format combinations) | Verified | `DxUi.WindowHost.cpp:4678-4682` | P4.5 |
+| E73 | `DCompositionCreateDevice2(dxgiDevice.get(), ...)` couples `_dcompDevice` to the D3D11 device so TDR tears down `_dcompTarget`/`_dcompVisual`, and `ControlHost::OnSize` only calls `Invalidate()` so rapid modal `WM_ENTERSIZEMOVE`..`WM_EXITSIZEMOVE` mouse traffic starves `WM_PAINT` | Verified | `DxUi.WindowHost.cpp:835, 4660-4662, 5291-5333` | P1.12 |
+| E74 | `FrameClock::SmoothDeltaUs` clamps only `> hitchClampUs` with zero vblank jitter filtering (feeding raw `13 ms / 20 ms` DXGI/DWM variance into motion/scroll integrators), and `DxUi.Layout.cpp` constructs nested per-child `Failure::Scope`s (`6N–9N` `std::set_terminate` calls/pass) | Verified | [FrameRuntime.cpp](../../../src/Foundation/FrameRuntime.cpp) `:125-135`, `DxUi.Layout.cpp:183, 245, 535, 624, 973` | P1.8, P1.12, P2.7 |
+| E75 | `RichImageDecoder::Decode` copies up to `32 MiB` of `encoded` into `std::vector<BYTE> owned` before `IWICStream::InitializeFromMemory` even though `CopyPixels` finishes synchronously before `Decode` returns, and broken image sources lack a failed-decode retry embargo | Verified | `DxUi.RichImage.cpp:250-256, 292-306` | P1.13, B1 |
 
 ## What DxUi borrows, and what it does not
 
@@ -186,6 +195,19 @@ the baseline before the item closes; ledger numbers are hypotheses to measure, n
 | Scroll edge fades (`rune` `ScrollFade`), analytic fling (`rune` `research/15` §8`), `1/64` px reversal hold & `double` tall-scroll delta (`rune` `#401`, `b45bfd66`), DirectManipulation (`gpui-fast` `direct_manipulation.rs`) | Adapted | V6 |
 | Text glide dead-zone: snap Y to whole px, snap X within `1/64` px of rest (`rune` `e1bd315`) | Adapted | V8 |
 | Sub-rect `UpdateSubresource` uploads (`gpui-fast` `#131`) & scroll-layer promotion/demotion (`gpui-fast` `layers/policy.rs`, `REPAINT_COST = 2`) | Sub-rect upload in `P1.14`; scroll strip cache **only if** D4 triggers | P1.14, D4 |
+| Unspent waitable-credit deadlock guard (`_frameLatencyCreditHeld`), `32`-handle `DCompositionWaitForCompositorClock` limit & `0xC01E0006` occluded sleep (`makepad` `os/windows/win32/mod.rs:8-11, 194-195, 500-505`) | As-is: never re-wait on latency-1 waitable object when a woken tick skipped `Present` | P2.7 |
+| `DCompositionCreateDevice2(nullptr)` TDR-surviving HWND target + `CheckDeviceState` & modal `WM_ENTERSIZEMOVE`..`WM_EXITSIZEMOVE` coalesced render (`makepad` `dcomp.rs:60-68, 224-228`, `win32_window.rs:766-925`) | As-is | P1.12 |
+| `0.15` EMA vblank `dt` filter (`[0.5, 1.5] * dt_ema`) + `LagSmoothing` (`> 500 ms -> 33 ms`) (`makepad` `scroll_motion.rs:702-741`, `tween/src/ticker.rs:14-45`) | As-is | P2.7, V1, V6 |
+| `NextFrameGate` 2-bit hidden-subtree settle + single re-show sync & `500 µs`/`200 µs` cooperative prep/retire slices (`makepad` `next_frame_gate.rs:1-88`, `async_labels.rs:252-318`, `draw_list.rs:942`) | Adapted | P2.1, P2.6 |
+| Working-set frame-generation cache protection + `"Source Library wall"` producer epoch invalidation & DXGI 1.4 hysteretic VRAM trim (`makepad` `layouter.rs:392-401, 514-531`, `slug_atlas.rs:101-125`, `gpu_pressure.rs:14-181`) | Adapted | P4.1, P4.5, P6.1 |
+| Beyond-viewport wheel backlog jump (`find_position` before row draw), Fenwick `HeightTree`, `DataGrid` sparse `AxisSizes` (`O(K)` memory, `O(log K)` hit) & ink-only `ReorderList` slide (`makepad` `portal_list.rs:360-726, 2508-2526`, `data_grid.rs:124-258`, `reorder_list.rs:164-307`) | Adapted | P1.7, P6.1 |
+| 1-pass post-loop `StackPanel` shift, active-flex index list & `ConcedingRow` priority toolbar overflow with `6 DIP` hysteresis (`makepad` `turtle.rs:3683-3742, 4885-5086`, `conceding_row.rs:222-335`) | Adapted | P1.8, P5.4 |
+| Per-line `CodeLexState` `(start_state, end_state)` lexical continuation & pixel-row deduplicated scrollbar marks (`makepad` `code_editor/src/tokenizer.rs:66-227`, `scroll_marks.rs:189-248`) | Adapted | P1.10, P6.2 |
+| Optical cap-height `ink_centered` offset, `letter_spacing` `liga`/`calt` suppression, `< U+0590` fast LTR Bidi check & lazy per-glyph `MathFontTable` (`makepad` `draw_text.rs:314-327`, `shaper.rs:38-62, 220-236`, `latex_math/src/layout.rs:395-473`) | Adapted | P1.9, P4.1, P6.5 |
+| `box_all` negative interior SDF, `smoothstep(-3*px, 0, d)` shadow reach, `+ 1e20` callout union, shared disjoint-pane blur pyramid + `r²` variance lerp & `MIN_PX = 0.7` ink-conserving hairlines (`makepad` `sdf.rs:436-616`, `surface.rs:101-261`, `backdrop.rs:123-131`, `gauss_chain.rs:518-526`, `ink.rs:17-46`) | Adapted | P1.9, V3, V4, V5, B2 |
+| `64 B` cache-line `Hot` tween record + `QuickTo` `Retime::ByDistance`, invertible rubber-band `stretch_displayed`/`stretch_raw` & `lsq2_release_velocity` (`makepad` `tween/src/{engine.rs:89-117, quick.rs:51-150}`, `scroll_motion.rs:233-338, 569-615`) | Adapted | V1, V6 |
+| `15 s` failed-image retry embargo + alpha-weighted mip generation, `1×1` `ClipCursor` + `WM_INPUT` infinite scrubbing + direction-splitting select/scrub, and `RadialMenu` per-sector AABB + resting-radius hit-test (`makepad` `image_tiles/src/store.rs:85-112`, `image_cache.rs:76-134`, `rawinput.rs:132-222`, `number_field.rs:584-631`, `radial_menu.rs:464-704`) | Adapted | P1.13, B1, B3, B5 |
+| Per-frame `churn = min(creates, destroys)` resource counter & gallery unlabeled-control UIA lint (`makepad` `ledger.rs:118-241`, `a11y/src/render.rs:255-330`) | Adapted | P0.1 |
 
 ### External repository synthesis (11 November 2026 heads)
 
@@ -216,6 +238,22 @@ the baseline before the item closes; ledger numbers are hypotheses to measure, n
     (`#491`), switched to `Windfoil` analytical glyph outlines only during active scale motion (`#390`/`#425`/`#482`),
     isolated inline code in RTL paragraphs with `LRI..PDI` (`#496`), and documented Win32 `ISpellChecker` TLS COM
     teardown deadlocks (`#256`: never hold COM spellcheck objects in thread-local destructors).
+- **`makepad/makepad` at `506ec051` (MIT; full audit in [Makepad study](#makepad-study-makepadmakepad-at-506ec051))**:
+  - *Win32/DXGI/DComp & cache survival*: uncovered the **latency-1 waitable swap-chain unspent-credit deadlock** when a
+    woken tick skips `Present` (`win32/mod.rs:8-11, 500-505`), decoupled `IDCompositionDesktopDevice` from `IDXGIDevice`
+    (`DCompositionCreateDevice2(nullptr)`) so HWND visual trees survive D3D11 TDR (`dcomp.rs:60-68`), coalesced modal
+    `WM_SIZING` paints (`win32_window.rs:766-925`), replaced `0.1–1.5 ms` byte hashing with pointer-epoch upload identity
+    (`d3d11.rs:144-169`), and protected current/prev-frame cache entries from overflow cliffs (`layouter.rs:514-531`,
+    exposing `DxUi`'s `E72` `_forceAllVisualPreparation = true` storm).
+  - *Virtualization, shaders, math & empirical `Slug` limits*: contributed beyond-viewport wheel backlog jumps (`0`
+    intermediate offscreen row instantiations on `8,000 px` flicks, `portal_list.rs:2508-2526`), `DataGrid` `O(K)`
+    `AxisSizes` (`data_grid.rs:124-258`), `ConcedingRow` `6 DIP`-hysteresis toolbar overflow (`conceding_row.rs`),
+    per-line `CodeLexState` continuation (`tokenizer.rs`), pixel-row deduplicated `ScrollMarks` (`scroll_marks.rs`), lazy
+    per-glyph `MathFontTable` (`latex_math/src/layout.rs:395-473`), shared disjoint-pane backdrop blur pyramids + `r²`
+    variance interpolation (`backdrop.rs`, `gauss_chain.rs`), `1×1` `ClipCursor` + `WM_INPUT` infinite scrubbing
+    (`rawinput.rs`), tight per-sector `RadialMenu` AABBs (`radial_menu.rs`), and crucial production evidence that `Slug`
+    GPU curve text hit shader-compiler banding bugs (`band_count = 0` in `slug_atlas.rs:334-336`) and `3.5 s` unroll
+    compile stalls (`draw_text.rs:197-205`).
 
 **Not borrowed**, with reasons:
 
@@ -242,6 +280,9 @@ the baseline before the item closes; ledger numbers are hypotheses to measure, n
   consumer measures otherwise.
 - **HDR/advanced color**, **continuous `opsz` axis values**, **replacing the WinUI double focus ring**, and **retired
   Fluent reveal/noise textures**: outside product design or already handled by DWM/Segoe UI Variable instances.
+- **Runtime `D3DCompile`, Immediate-mode `Turtle` re-walks, `Vec<String>` monospace code buffers, unbanded `Slug`
+  (`band_count = 0`) for 1:1 UI chrome, and in-process hang-polling threads** (`makepad`): rejected for the reasons
+  recorded in [Makepad study](#makepad-study-makepadmakepad-at-506ec051).
 
 ## Definition of done for every item
 
@@ -293,10 +334,12 @@ Proposed (revised 11 November 2026); each needs the developer's confirmation bef
   consumers, provided source compatibility of `Checkbox`/`Toggle`/`RadioButton` public methods is preserved (or bundle
   into revision 6 if any consumer downcasts them to `Button*`).
 - [ ] **D5. Native frame pacer.** `WindowHost` continuous animation is paced by a DXGI frame-latency waitable
-  object. One pacer thread per UI thread blocks on `{waitable, arm/stop event}` and posts one frame message only
-  while a continuous animation is armed. When disarmed it blocks indefinitely, so this is event-driven with no
-  polling. Fallback where unavailable or when `< 1 ms` wakes indicate monitor sleep is a one-shot timer at the
-  display refresh period. Embedded hosts are unchanged and stay owner-scheduled.
+  object (`MaximumFrameLatency = 1`), guarded by `_frameLatencyCreditHeld` so a woken tick that skips `Present` never
+  re-waits on an unspent semaphore credit (`makepad` `win32/mod.rs:8-11, 500-505`). One pacer thread per UI thread
+  blocks on `{waitable, arm/stop event}` and posts one frame message only while a continuous animation is armed. When
+  disarmed it blocks indefinitely, so this is event-driven with no polling. Fallback where unavailable, occluded
+  (`0xC01E0006`) or when `< 500 µs`–`1 ms` wakes indicate monitor sleep is a one-shot timer at the display refresh
+  period. Embedded hosts are unchanged and stay owner-scheduled.
 - [ ] **D6. Visual direction.** Adopt springs (`V1`), OKLab color transitions (`V2`), device-pixel hairlines (`V3`),
   analytic elevation shadows (`V4`) and smooth fractional scrolling (`V6`) as design-system changes, with gallery
   review per item. Reduced motion and High Contrast keep their current semantics.
@@ -313,6 +356,15 @@ Proposed (revised 11 November 2026); each needs the developer's confirmation bef
   rims for joined controls (`B2`), and evaluate optional Blender-style numeric scrubbing and menu typeahead (`B3`),
   zoomed curve text (`B4`), 8-slot radial `PieMenu` (`B5`), and `2 DIP` segment-swept multi-control boolean drag-toggle
   (`B6`). Zero GPL-2.0/3.0 code, shader source, comments or tables may be copied from `BUI`.
+- [ ] **D11. MIT-licensed Makepad additions.** Fold Makepad's verified Win32/DXGI/cache/virtualization/text/math fixes
+  directly into `P0`–`P8` (`_frameLatencyCreditHeld` deadlock guard, `DCompositionCreateDevice2(nullptr)` TDR survival,
+  modal `WM_SIZING` synchronous coalesce, `FrameClock::SmoothDeltaUs` EMA jitter filter, working-set-protected
+  `TrimCaches` without `_forceAllVisualPreparation = true`, zero-copy `RichImageDecoder::Decode` span stream + `15 s`
+  failure embargo, `AxisSizes` / `HeightTree` / beyond-viewport wheel jump, per-line `CodeLexState` continuation,
+  pixel-row `ScrollMarks`, lazy `MathFontTable`, and hysteretic DXGI 1.4 VRAM trim), and evaluate opt-in optical
+  cap-height label centering (`P4.1`), priority-ranked `ConcedingRow` toolbar overflow (`P5.4`), `1×1` `ClipCursor` +
+  `WM_INPUT` infinite scrubbing + direction-splitting select/scrub (`B3`), driver-banded HLSL curve-text qualification
+  (`B4`), and tight per-sector `PieMenu` AABBs + resting-radius hit-testing (`B5`).
 
 ## P0 — Measurement foundation (blocks every other phase)
 
@@ -321,7 +373,10 @@ Proposed (revised 11 November 2026); each needs the developer's confirmation bef
     reads it. Route creation through counted helpers in [DxUi.Internal.h](../../../src/Controls/DxUi.Internal.h):
     `CreateTextLayout`, implicit `DrawTextW` layouts, `CreateEffect`, `CreateCommandList`, `CreateLayer`, gradient and
     solid brushes, path/rounded-rect geometries, `CreateBitmap*`, GDI captures, `set_terminate` calls, `Typography`
-    format misses, and UIA snapshot builds (with pass counts, node counts and copied text bytes). Also count tree
+    format misses, and UIA snapshot builds (with pass counts, node counts and copied text bytes). Track per-frame
+    resource `churn = min(creates, destroys)` (`makepad` `ledger.rs:118-241`) so same-frame create+destroy pairs fail
+    steady-state gates even when net resident count is `0`, and add a deterministic gallery/test UIA lint asserting every
+    interactive control exposes a non-empty accessible name (`makepad` `libs/a11y/src/render.rs:255-330`). Also count tree
     visits in `Tick`/`Paint`/`HitTest`, timer and pacer wakes, `Prepare`/`Render`/`Present`, pixels painted, and record
     advisory `cpu_ms` versus `wall_ms` (`wall_ms - cpu_ms` driver/Present stall metric from `rune` `research/38`).
   - **Allocation counting**: test executables replace `operator new`/`delete` to count per-thread allocations and bytes
@@ -425,51 +480,75 @@ Proposed (revised 11 November 2026); each needs the developer's confirmation bef
       check cheap flags before `IsControlInTree` in both `Label` and `Button::PrepareVisualContent`.
     - `Grid` (preserving `EndTextLayoutPaint`'s last-paint cell layout cap): route `PaintBadgeCell` (`4977`) through
       `P4.1`, call `SetMaxWidth` in place on retained visible cell layouts during column drag-resize (`5042-5080`),
-      cache `GridVisibleRowMap`, `ResolvedColumnLayout` and `CollectOrderedGroups` + group-top prefix sums per
-      `(modelRevision, groupStateRevision, width)`, accumulate fractional touchpad wheel remainders (`5891-5896`), and
+      cache `GridVisibleRowMap`, `ResolvedColumnLayout` and `CollectOrderedGroups` + sparse `O(K)` custom-extent
+      `AxisSizes` (`O(log K)` group/custom-row offset & hit-test instead of `O(R)` dense prefix arrays, `makepad`
+      `data_grid.rs:124-258`) per `(modelRevision, groupStateRevision, width)`, resolve beyond-viewport wheel deltas via
+      prefix lookup *before* row instantiation (`makepad` `portal_list.rs:2508-2526`, instantiating **0** scrolled-past
+      intermediate rows on multi-page flicks), accumulate fractional touchpad wheel remainders (`5891-5896`), and
       remove `O(R)` `GridSelectionModel` temporary vectors/sets (`609-669, 1041-1095`).
-    - `Tree`: single lookup in `SetFocusedItemId` (`892/901`), suppress within-row sub-zone `OnMouseMove` invalidation
-      (`2077-2122`), and replace `BeginTreeExpansionAnimation`'s `4,096`-row `TreeItemData` (`4×wstring`) double copy
-      (`3611-3665`) with a pre-allocated slice of lightweight `{itemId, startY, targetY, depth}` records swapped in
-      outside any MSVC `_ITERATOR_DEBUG_LEVEL == 2` `noexcept` vector-proxy hazard.
+    - `Tree` & reorderable lists: single lookup in `SetFocusedItemId` (`892/901`), suppress within-row sub-zone
+      `OnMouseMove` invalidation (`2077-2122`), slide displaced drag-reorder neighbors via ink-only Y offsets without
+      relayout until drop (`makepad` `reorder_list.rs:164-307`), and replace `BeginTreeExpansionAnimation`'s `4,096`-row
+      `TreeItemData` (`4×wstring`) double copy (`3611-3665`) with a pre-allocated slice of lightweight
+      `{itemId, startY, targetY, depth}` records swapped in outside any MSVC `_ITERATOR_DEBUG_LEVEL == 2` `noexcept`
+      vector-proxy hazard.
   - **Gate (`S5`, `S6`)**: **0** allocations per navigation key or steady `Grid` wheel frame; **0** cell layout
     recreations on `Grid` column resize for unchanged text; **0** `wstring` copies on `Tree` expand/collapse.
-- [ ] **P1.8 `O(N)` panel/form/tab validation and lock-free child traversal (`E23`, `E51`).**
+- [ ] **P1.8 `O(N)` panel/form/tab validation, scope hoisting and lock-free child traversal (`E23`, `E51`, `E74`).**
   - **Change**:
     - Check O(1) topology/interaction revisions inside loops and run one `O(N)` validation pass across
       `FlexPanel::BuildLayout`/`ApplyLayout`, `FormPanel::BuildLayout`/`ApplyLayout`/`AddField`, and
       `TabControl::UpdateVisiblePageBounds`. Reentrant mutation keeps its `E_ABORT` semantics.
+    - Hoist `Failure::Scope` to outer host entry points instead of constructing nested per-child scopes inside
+      `Control::Measure`, `Label::MeasureOverride`, `WrapPanel`, `StackPanel` and `FlexPanel` (`DxUi.Layout.cpp:183, 245,
+      535, 624, 973`), maintain a compact active-flex index list during `FlexPanel` freeze iterations instead of
+      re-scanning all children (`1053-1059`, `makepad` `turtle.rs:3683-3742`), and shift `StackPanel` `Center`/`End`
+      children in one post-loop rect pass (`turtle.rs:4885-5086`).
     - In `Panel::Paint`/`PaintOverlay`/`Tick`, pin the panel itself once and check host topology revision between
       children instead of `4N` atomic `weak_ptr::lock` calls when topology is untouched (`77-127`).
-  - **Gate**: child validations per layout pass **≤ 2N**; atomic refcount ops in clean `Panel::Paint` **≤ 2** per panel.
+  - **Gate**: child validations per layout pass **≤ 2N**; per-child `Failure::Scope` entries **0**; atomic refcount ops
+    in clean `Panel::Paint` **≤ 2** per panel.
 - [ ] **P1.9 Rich-document, math, flowchart and SVG quick fixes (`E28`–`E32`, `E71`).**
   - **Change**:
     - Cache line tops in `PreparedLayout` for `O(log L)` `TryVisibleRange` with **0** `HitTestTextPosition` calls;
       route semantic `TryVisibleRange` and `TryVisibleSourceRange` (`3651, 3966`) through `paintBoxes`; reuse
-      `PaintIndex` capacity; add alpha 0/255 fast paths in `ComposeGifCanvas`.
+      `PaintIndex` capacity; add alpha 0/255 fast paths in `ComposeGifCanvas`; add fast `< U+0590` ASCII/Latin/CJK LTR
+      range checks before `std::lower_bound` in `FirstStrongDirection` ([DxUi.RichBidi.h](../../../src/Controls/DxUi.RichBidi.h)
+      `:21-45`, `makepad` `shaper.rs:220-236`).
     - Cache `PreparedMath` node-sized resolved colors and `PreparedFlowchart` `ResolveDiagramLabelBackground` contrast
       results + D2D factory pointer per palette key; replace paint-path sRGB `pow` decode with one shared 256-entry LUT
       in `Utilities.h` and `ChooseContrastingTextColor`.
-    - Skip zero-length segment `DrawLine` calls in `PreparedFlowchart::Draw` (`910-917`), size `Flowchart::Preparation`
-      dynamically to graph size instead of fixed `>120 KiB` arrays, and rasterize SVGs in a single pass (`508-538`).
+    - Skip zero-length segment `DrawLine` calls in `PreparedFlowchart::Draw` (`910-917`), conserve visual ink on
+      zoomed-out diagram edges below `0.7` device px (`widthPx = max(rawPx, 0.7f)`, `alpha *= rawPx / 0.7f`, `makepad`
+      `render_lines/src/ink.rs:17-46`), size `Flowchart::Preparation` dynamically to graph size instead of fixed
+      `>120 KiB` arrays, and rasterize SVGs in a single pass (`508-538`).
   - **Gates (`S9`, `S20`)**: line hit-tests per visible-range query **0**; `pow` calls and palette resolutions per
     steady paint **0**; `PaintIndex` rebuild allocations after warm-up **0**; SVG raster passes per image **1**.
-- [ ] **P1.10 Fence coloring keeps its prefix (`E27`).** Above `MaximumCodeTokens`, keep tokens up to the last complete
-  line inside the budget and leave the remainder plain (`rune-kit` `scan.rs`). **Gate**: a 4,097-token fence keeps every
-  line before the cut colored; usage docs updated.
+- [ ] **P1.10 Fence coloring prefix retention and per-line lexical state cache (`E27`).** Above `MaximumCodeTokens`,
+  keep tokens up to the last complete line inside the budget and leave the remainder plain (`rune-kit` `scan.rs`), and
+  cache per-line `(start_state, end_state)` lexical continuation tags in [DxUi.RichCodeInk.h](../../../src/Controls/DxUi.RichCodeInk.h)
+  (`makepad` `code_editor/src/tokenizer.rs:66-227`) so mid-fence edits re-lex only until `new_end_state == old_end_state`.
+  **Gate**: a 4,097-token fence keeps every line before the cut colored; single-line edit in a 2,000-line fence re-lexes
+  **≤ 2** lines when delimiter state is unchanged; usage docs updated.
 - [ ] **P1.11 Viewport-scoped semantic code line numbers, source guides and fence badges (`E26`).**
   - **Change**: Draw only visible semantic fence line numbers with per-line clip; ring-buffer `RichSourceGuides`
     `PreparedLayout` entries to the visible window (`DxUi.RichSourceGuides.h:148-228`) instead of retaining 20,000
     layouts; cache shared `"copy"`/language `CodeLabels` layouts (`2849-2864`). (`P4.4` later reduces line-number
     layouts to **0**.)
   - **Gate (`S11`)**: retained guide/number layouts bounded by `visibleLines + margin`; badge layouts per language **1**.
-- [ ] **P1.12 Host, failure-scope and pointer/wheel hygiene (`E9`, `E37`, `E38`, `E52`, `E55`, `E56`).**
+- [ ] **P1.12 Host, DirectComposition TDR survival, failure-scope and pointer/wheel hygiene (`E9`, `E37`, `E38`, `E52`, `E55`, `E56`, `E73`, `E74`).**
   - **Change**:
     - `HOST-14` (delete dead `#if !DXUI_ENABLE_DIAGNOSTICS` code), `HOST-03` (scope `Ctrl` rich-title resolve),
       `HOST-09` (skip text-input activation on non-text focus), `HOST-13` (eliminate 5× tooltip copies, cache
       `SPI_GETMOUSEHOVERTIME` on `WM_SETTINGCHANGE`, check bounds containment before `IsControlInTree` in
       `UpdateTooltipHover`), retain solid brushes across `ResizeBuffers`, and guard `MenuBar` `Debug::Info` formatting
       behind an active sink while keeping `MenuBar` text widths on horizontal resize (`8287`).
+    - Create `_dcompDevice` via `DCompositionCreateDevice2(nullptr, ...)` (`DxUi.WindowHost.cpp:835`, `makepad`
+      `dcomp.rs:60-68`) so `_dcompTarget` and root `_dcompVisual` survive D3D11 TDR without tearing down the HWND visual
+      tree (`4660-4662`), verify `IDCompositionDesktopDevice::CheckDeviceState` on `WM_PAINT` (`dcomp.rs:224-228`),
+      coalesce and render synchronously during modal `WM_ENTERSIZEMOVE`..`WM_EXITSIZEMOVE` (`5291-5333`,
+      `win32_window.rs:766-925`) so high-rate drag messages never starve `WM_PAINT`, and support opt-in first-`Present`
+      window reveal to eliminate pre-first-frame flashes.
     - Reset `_deviceLossRetryCount = 0` only **after** `Present` succeeds (`DxUi.WindowHost.cpp:4408, 5240`, `rune`
       `#492`), register `ID3D11Device4::RegisterDeviceRemovedEvent` where available (`gpui-fast` `device_wake.rs`),
       evaluate `DXGI_SCALING_NONE` (`4446`), and defer reentrant Win32 display/power/DPI notifications via a host FIFO
@@ -481,9 +560,13 @@ Proposed (revised 11 November 2026); each needs the developer's confirmation bef
       button-mask chord capture + `MiddleUp` release (`Embedded.cpp:953-990`, `gpui-fast` `#130`), stationary
       `WM_MOUSEMOVE` modality clobber (`3556-3568`), and fix `WM_PAINT` partial history if `P0.4` proves N−2 content.
   - **Gates (`S13`)**: brush creations on resize **0**; `set_terminate` calls per message **0**; boundary wheel
-    invalidations **0**; persistent simulated `DEVICE_REMOVED` backs off deterministically instead of spinning.
-- [ ] **P1.13 `RENDER-09` (`E33`).** `RichImage::LoadFile` moves its encoded buffer into `Decode`. **Gate**: peak bytes
-  at most `encodedSize + decodedSize`.
+    invalidations **0**; `_dcompTarget` recreations across simulated D3D11 TDR **0**; persistent simulated
+    `DEVICE_REMOVED` backs off deterministically instead of spinning.
+- [ ] **P1.13 `RENDER-09` and zero-copy synchronous `IWICStream` decode (`E33`, `E75`).** `RichImage::LoadFile` moves or
+  file-streams its encoded input into `Decode`, and synchronous `RichImageDecoder::Decode` (`DxUi.RichImage.cpp:250-256`)
+  initializes `IWICStream` directly over the `encoded` span instead of copying up to `32 MiB` into `std::vector<BYTE>
+  owned` (since `CopyPixels` at `:292` finishes before `Decode` returns at `:306`). **Gate**: **0** duplicate encoded
+  buffers; peak synchronous memory at most `encodedSize + decodedSize`.
 - [ ] **P1.14 Control rendering and setter guards (`E46`–`E50`).**
   - **Change**:
     - `ThroughputGraph::Paint`: retain grid geometry/brushes, pass `nullptr` to `PushLayer`, update the `180×64`
@@ -526,9 +609,12 @@ Proposed (revised 11 November 2026); each needs the developer's confirmation bef
     - Keep `AnimationDispatcher`'s `HWND_MESSAGE` alive across idle transitions (`AnimationDispatcher.h:308-448`), fix
       frame-1 double-`dt` after idle, latch expired timers without firing ticks while the host is hidden/minimized/unvisible
       (`rune` `#324`), and rescue starved `WM_PAINT` messages after `16 ms` during multi-HWND animation (`rune` `#392`).
-    - A deadline wake runs `Tick` once and renders only if something invalidated (`rune` `timer_wake.rs`).
+    - A deadline wake runs `Tick` once and renders only if something invalidated (`rune` `timer_wake.rs`); collapsed
+      `TabControl`/`PageHost`/`Expander` subtrees use a 2-bit `NextFrameGate` (`(scheduled, pendingWhileHidden)`,
+      `makepad` `next_frame_gate.rs:1-88`) so hidden subtrees schedule **0** ticks and run **1** catch-up sync on re-show.
     - Enforce central `ControlHost::ForgetControl` scrubbing of pending deadlines, hover/freeze targets, dirty-region
-      owners and pointer captures on detach, hide and popup close (`BUI` `9080f51`).
+      owners and pointer captures on detach, hide and popup close (`BUI` `9080f51`), reclaiming large retired resource
+      batches within a bounded `200 µs` per-frame budget (`makepad` `draw_list.rs:942`).
   - **Gate (`S1`)**: wakes in 10 s drop from ~640 to **≤ 20**; wakes while minimized/hidden **0**; detach fuzz passes
     ASan with **0** stale pointers.
 - [ ] **P2.2 Shared caret policy (`E2`, `E3`).** One `CaretBlinkClock` across `TextField`, `ComboBox` and
@@ -546,16 +632,26 @@ Proposed (revised 11 November 2026); each needs the developer's confirmation bef
   once on a deadline, release exited hover immediately (`release_unhovered`), and suppress hover visuals at draw time
   while typing without invalidating hit-test state (`gpui-fast` `#124`, `#105`). **Gate (`S5`)**: hover re-hit-tests
   during notch burst **0**, **1** after settle, exited hover clears in **0 ms**.
-- [ ] **P2.6 Unseen motion and loop gating.** Transitions on controls invisible before and after land immediately;
-  periodic loops (`ProgressBar`, `ThroughputGraph`, animated images in `B1`) suspend while unseen and resume in phase.
-  **Gate (`S12`)**: scrolled-away indeterminate progress bar adds **0** wakes.
-- [ ] **P2.7 Native frame pacer (`D5`).**
-  - **Change**: `DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT` (latency 1), event-blocked pacer thread active only
-    while continuous animation is armed, `DwmGetCompositionTimingInfo` presentation-time sampling with `< 1 ms`
-    `qpcRefreshPeriod` DWM bug guard and 3-wake `< 1 ms` monitor-sleep timer fallback (`gpui-fast` `vsync.rs:62-79`),
-    unified `Backoff` reset only on `Presented`/visible (`rune` `627c2b3e`), and focused-only VRR `Steady` policy
-    (`rune` `#497`).
-  - **Gates**: **0** pacer wakes without continuous animation; local hardware frame-interval receipt recorded.
+- [ ] **P2.6 Unseen motion, loop gating and cooperative prep slice.** Transitions on controls invisible before and after
+  land immediately; periodic loops (`ProgressBar`, `ThroughputGraph`, animated images in `B1`) suspend while unseen and
+  resume in phase; background-prepared rich/label batches commit on the UI thread within a `500 µs` cooperative slice
+  (`makepad` `async_labels.rs:252-318`). **Gate (`S12`)**: scrolled-away indeterminate progress bar adds **0** wakes.
+- [ ] **P2.7 Native frame pacer, waitable-credit safety and EMA `dt` filter (`D5`, `E74`).**
+  - **Change**: `DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT` (`MaximumFrameLatency = 1`), event-blocked pacer
+    thread active only while continuous animation is armed, **strictly tracking `_frameLatencyCreditHeld`** (`makepad`
+    `os/windows/win32/mod.rs:8-11, 194-195, 500-505`: latched `true` on waitable wake, cleared `false` **only** when
+    `Present`/`Present1` executes or `ResizeBuffers`/swap-chain recreate runs, **never** waiting on the waitable handle
+    while `_frameLatencyCreditHeld == true` so clean/occluded/zero-size ticks that skip `Present` cannot deadlock);
+    cap `DCompositionWaitForCompositorClock` handle arrays at `32`; `DwmGetCompositionTimingInfo` presentation-time
+    sampling with `< 1 ms` `qpcRefreshPeriod` DWM bug guard, `STATUS_GRAPHICS_PRESENT_OCCLUDED` (`0xC01E0006`) sleep, and
+    3-wake `< 500 µs`–`1 ms` monitor-sleep timer fallback (`gpui-fast` `vsync.rs:62-79`, `makepad` `win32/mod.rs`);
+    filter `FrameClock::SmoothDeltaUs` ([FrameRuntime.cpp](../../../src/Foundation/FrameRuntime.cpp) `:125-135`) with a
+    `0.15` EMA clamped to `[0.5, 1.5] * dt_ema` plus `LagSmoothing` (`> 500 ms -> 33 ms`, `makepad`
+    `scroll_motion.rs:702-741`, `tween/src/ticker.rs:14-45`); unified `Backoff` reset only on `Presented`/visible (`rune`
+    `627c2b3e`); and focused-only VRR `Steady` policy (`rune` `#497`).
+  - **Gates**: **0** pacer wakes without continuous animation; 10 consecutive woken ticks skipping `Present` complete
+    with **0** deadlocks; steady 60 Hz `SmoothDeltaUs` variance stays within `[0.5, 1.5] * dt_ema`; local hardware
+    frame-interval receipt recorded.
 
 ## P3 — Dirty regions and culling
 
@@ -582,7 +678,12 @@ Proposed (revised 11 November 2026); each needs the developer's confirmation bef
   - **Value**: glyph runs captured via private `IDWriteTextRenderer` (pixel snapping disabled), advance width, height,
     baseline and overhang. Excludes wrapped, trimmed, inline-object, underline/strikethrough and mnemonic text.
   - **Storage & replay**: two arena generations (16 Ki glyphs or 1 MiB cap per generation) plus one `heavy` outlier slot
-    (`gpui-fast` `path_cache.rs`), reported in `EmbeddedStatistics`. Replay via axis-aligned baseline-snapped
+    (`gpui-fast` `path_cache.rs`), reported in `EmbeddedStatistics`, enforcing the `"Source Library wall"` epoch
+    invalidation invariant (`makepad` `slug_atlas.rs:101-125`: any glyph/GPU cache eviction increments a cache epoch so
+    upstream control caches never reference evicted runs). Suppress `liga`/`calt` OpenType features when
+    `letterSpacing != 0` (`makepad` `shaper.rs:38-62`), and support an opt-in optical cap-height `ink_centered` vertical
+    offset `0.5f * ((ascent - descent) - capHeight)` (`makepad` `draw_text.rs:314-327`) for single-line
+    `Button`/`TabControl`/`ComboBox` chrome without mutating layout bounds. Replay via axis-aligned baseline-snapped
     `DrawGlyphRun`, sharing one color-glyph helper across `ID2D1DeviceContext7` and Windows 10
     `IDWriteFactory4::TranslateColorGlyphRun` + `ID2D1DeviceContext4`.
   - **Callers**: `DrawCenteredText` (63 callers), `DrawRawCenteredText`, `DrawTreeRow`, `ThroughputGraph` labels, `Grid`
@@ -598,15 +699,22 @@ Proposed (revised 11 November 2026); each needs the developer's confirmation bef
 - [ ] **P4.4 Proved tabular numeric table.** Per `(font face, em size)`, shape `0`–`9 . , + - %` with `tnum` singly and
   across all 15×15 pairs once; enable direct glyph lookup only when every pair advance equals the sum of singles and
   maps 1:1 (excluding `:`, `/` and space). **Gate (`S11`)**: **0** layouts for line numbers and source gutters.
-- [ ] **P4.5 Cache cliffs, `DxUi.Typography.h` overhaul and theme LUTs (`E10`, `E57`, `E58`).**
+- [ ] **P4.5 Cache cliffs, `DxUi.Typography.h` overhaul, working-set protection and VRAM pressure (`E10`, `E57`, `E58`, `E72`).**
   - **Change**:
-    - Convert host brush and format caches into two-generation maps swapped at frame start (no clear-all cliff).
+    - Convert host brush and format caches into frame-stamped two-generation maps (`makepad` `layouter.rs:392-401,
+      514-531`): **never** evict entries touched in `currentFrame` or `currentFrame - 1`, and delete
+      `ControlHost::TrimCaches`'s `_forceAllVisualPreparation = true` cliff (`DxUi.WindowHost.cpp:4678-4682`) so dense
+      views using `>= 97` text formats never re-prepare the entire control tree every frame.
     - Replace `DxUi.Typography.h`'s global mutex, per-call heap `wstring` + `vector<DWRITE_FONT_AXIS_VALUE>`,
       `GetSystemFontCollection(..., TRUE)` ALPC probe and leaked static raw-pointer map (`194-433`) with a
       factory-scoped `wil::com_ptr_nothrow<IDWriteTextFormat>` two-generation cache keyed by a fixed POD key (inline
       2-axis array, font generation refreshed only on `WM_FONTCHANGE`/font-set event).
-    - Deduplicate `MakeThemePalette`'s 4 Oklab scale passes (`DxUi.Theme.cpp:1068-1215`).
-  - **Gate**: **0** heap allocations and **0** mutex/ALPC calls on format cache hit; **0** leaked COM formats at exit.
+    - Add optional DXGI 1.4 `IDXGIAdapter3::QueryVideoMemoryInfo` hysteretic soft-cache trimming (`Normal < 80%`,
+      `Elevated >= 80% / < 70%`, `Critical >= 92% / < 85%`, `makepad` `gpu_pressure.rs:14-181`) shrinking non-working-set
+      glyph/shadow/image caches to 50%/0% only on state transitions, and deduplicate `MakeThemePalette`'s 4 Oklab scale
+      passes (`DxUi.Theme.cpp:1068-1215`).
+  - **Gate**: **0** heap allocations and **0** mutex/ALPC calls on format cache hit; **0** `_forceAllVisualPreparation`
+    storms on 120-format screens; **0** leaked COM formats at exit.
 - [ ] **P4.6 Text antialias mode and rendering params (`D8`, `E39`).** Grayscale on premultiplied/composition targets
   (with dark-theme contrast A/B captures informed by `rune` `#472`), system ClearType/grayscale setting on opaque HWNDs
   (`rune` `#491`), and per-monitor `CreateMonitorRenderingParams` refreshed on monitor change. **Gate**: **0** per-frame
@@ -621,6 +729,10 @@ Proposed (revised 11 November 2026); each needs the developer's confirmation bef
 - [ ] **P5.3 Width settle and collapse landing hold.** Build width settle only if `P0.3` finds a wrapped leaf drawn at
   non-arranged width; adopt `rune` `#248` `hold_landing_width` when animating panel collapse so wrapped descendants do
   not reflow every collapse frame.
+- [ ] **P5.4 Priority-ranked `ConcedingRow` bar overflow (`D11`).** Add an optional priority-ranked concession policy for
+  `Toolbar` / command bars (`makepad` `conceding_row.rs:222-335`) that sheds lowest-priority slots into an overflow
+  flyout in `O(N)` (`N <= 16`) and requires a `6 DIP` upward hysteresis margin before restoring conceded items during
+  live window resize. **Gate**: continuous 1 px boundary oscillation triggers **0** overflow-flap cycles.
 
 ## P6 — Rich documents, piece tree, math and diagrams
 
@@ -638,27 +750,35 @@ Proposed (revised 11 November 2026); each needs the developer's confirmation bef
       widthBucket, typography, zoom, themeRevision}`), and `SemanticTable` column intrinsic widths + cell layouts
       (`MeasureTableOne` `1531-1625`); deduplicate `CloseElement`'s 2–3× text copies (`940`); skip `libfyaml`
       `ValidateYamlMetadata` (`417`) when edits occur past the frontmatter fence; keep width-independent markers,
-      line-numbers and images on horizontal resize (`2445`) while reflowing viewport-first (`gpui-fast` `#129`).
+      line-numbers and images on horizontal resize (`2445`) while reflowing viewport-first (`gpui-fast` `#129`) backed by
+      a Fenwick `HeightTree` (`0.001 px` jitter gate, `0.5 px` default-height hysteresis, `N/8` in-place `O(N)` rebuild,
+      `makepad` `portal_list.rs:360-726`).
   - **Gates (`S9`, `S19`, `S20`)**: 100 consecutive 1-char inserts add **≤ 2** piece-tree leaves; full-doc `GetText()`
     allocations on arrow/click/Backspace **0**; `SourceDisplayMap` bytes on 64 Ki doc **< 16 KiB**; prose keystroke
     outside math/diagrams/tables/frontmatter causes **0** math/diagram/table/YAML rebuilds and **0** image uploads.
-- [ ] **P6.2 Source and Rich chunk translation (`E69`).** Add `float translatedOrigin` to `Chunk` (`0`-ULP delta rebase
-  for chunks after an edit), pre-scan chunk runs to skip throwaway `Phase::Reference` layouts when font/size are uniform
-  (`DxUi.RichDocumentLayout.cpp:338`), narrow multiline selection invalidation to `union(oldSel, newSel)` (`5397`), and
-  merge `DrawSourceInkIfSupported` into **1** `layout.Draw` pass per chunk (`411, 434`). **Gate (`S12`, `S19`)**: chunks
-  reshaped per mid-doc keystroke in 64 Ki **≤ 2**; `Phase::Reference` layouts on uniform paragraphs **0**.
+- [ ] **P6.2 Source and Rich chunk translation and deduplicated scrollbar marks (`E69`).** Add `float translatedOrigin`
+  to `Chunk` (`0`-ULP delta rebase for chunks after an edit), pre-scan chunk runs to skip throwaway `Phase::Reference`
+  layouts when font/size are uniform (`DxUi.RichDocumentLayout.cpp:338`), narrow multiline selection invalidation to
+  `union(oldSel, newSel)` (`5397`), merge `DrawSourceInkIfSupported` into **1** `layout.Draw` pass per chunk (`411,
+  434`), and quantize/deduplicate scrollbar search/diagnostic/diff marks to integer track pixel rows via a reusable
+  bitset (`makepad` `scroll_marks.rs:189-248`). **Gate (`S12`, `S19`)**: chunks reshaped per mid-doc keystroke in 64 Ki
+  **≤ 2**; `Phase::Reference` layouts on uniform paragraphs **0**; `10,000` search hits emit at most `trackHeightPx`
+  scrollbar tick quads.
 - [ ] **P6.3 Incremental Markdown block reparse.** Measure full Markdown reparse in `Embedded.Tests.RichPreparationBenchmark`;
   if above 1 ms, reparse from enclosing block cut to next stable cut (`rune-kit` `markdown/cache.rs`) gated by a seeded
   AST-equality oracle (including lazy continuations and link reference definitions).
 - [ ] **P6.4 Clickable-span hover (`HOST-08`).** Index link, footnote and image spans at preparation so pointer moves
   over plain text cause **0** invalidations and **0** title scans.
-- [ ] **P6.5 Math font retention, glyph-run atoms and BiDi inline-code isolates (`E70`, `rune` `#496`).**
-  - **Change**: Retain `MathFontData` per `(IDWriteFontFace*, fontGeneration)` across semantic rebuilds and populate it
-    over covered `GetUnicodeRanges` codepoints instead of all `7,500` glyphs (`DxUi.PreparedMath.h:421-471`); replace
-    single-character `BuildTextAtom` `IDWriteTextLayout`s (`950-1005, 3117`) with direct glyph index + design metrics +
-    `DrawGlyphRun`; wrap Markdown inline-code runs in `LRI` (`U+2066`)..`PDI` (`U+2069`) isolates during RTL shaping.
-  - **Gate (`S20`)**: `MathFontData::Build` runs **1** time per font face; single-glyph math atoms create **0**
-    `IDWriteTextLayout`s with WARP visual review; RTL inline-code punctuation order matches reference expectations.
+- [ ] **P6.5 Lazy `MathFontData` memoization, glyph-run atoms and BiDi inline-code isolates (`E70`, `rune` `#496`).**
+  - **Change**: Retain `MathFontData` per `(IDWriteFontFace*, fontGeneration)` across semantic rebuilds and query
+    OpenType `MATH` per-glyph metrics (`italicsCorrection`, `topAccentAttachment`, `GlyphVariants`, `GlyphAssembly`)
+    lazily on first encounter per `glyphId` (`makepad` `latex_math/src/layout.rs:395-473`) instead of sweeping all `7,500`
+    Cambria Math glyphs upfront (`DxUi.PreparedMath.h:421-471`); replace single-character `BuildTextAtom`
+    `IDWriteTextLayout`s (`950-1005, 3117`) with direct `GetGlyphIndices` + design metrics + `DrawGlyphRun`; wrap
+    Markdown inline-code runs in `LRI` (`U+2066`)..`PDI` (`U+2069`) isolates during RTL shaping.
+  - **Gate (`S20`)**: upfront 7,500-glyph sweeps **0**; each distinct math `glyphId` queried **≤ 1** time per font face;
+    single-glyph math atoms create **0** `IDWriteTextLayout`s with WARP visual review; RTL inline-code punctuation order
+    matches reference expectations.
 
 ## P7 — Accessibility
 
@@ -714,28 +834,38 @@ Proposed (revised 11 November 2026); each needs the developer's confirmation bef
 
 - [ ] **V1 Motion foundation (`D6`, `E41`).** Closed-form `MotionValue` spring (`duration`, `bounce`, velocity-preserving
   retarget as in `rune` `spring.rs`; critical damping on opacity/color/blur, optional bounce on spatial channels;
-  instant under reduced motion) + motion tokens in [tokens.json](../../DesignSystem/tokens.json). Migrate
+  instant under reduced motion) packed into a `64 B` cache-line-aligned `Hot` state record (`makepad`
+  `tween/src/engine.rs:89-117`) with `QuickTo` `Retime::ByDistance` duration scaling for cursor-chasing indicators
+  (`tween/src/quick.rs:51-150`) + motion tokens in [tokens.json](../../DesignSystem/tokens.json). Migrate
   `Button`/`Toggle`/`Checkbox`, `Slider`, scrollbar, `Tree` expander/rows, then `PageHost`. **Gates**: continuity and
   bounded-settle unit tests, **0** allocations, **0** frames after settle, gallery review.
 - [ ] **V2 Perceptual color transitions (`E40`).** Interpolate animated colors in OKLab using LUT-backed sRGB
   decode/encode (`P1.9`); compositing math unchanged. **Gate**: reference unit tests and gallery review.
 - [ ] **V3 Crisp geometry (`E43`).** Hairline stroke width `max(1, round(1 DIP × scale))` px centered on pixel centers,
-  opaque fills inset by half stroke under opaque borders (`rune` `fill_under`), cached per-corner radius geometries, and
-  `PushAxisAlignedClip` instead of `PushLayer` when content clears rounded corners (`rune` `17abbcb`). **Gate**: exact
-  1-device-pixel full-alpha border at 125/150/175% DPI; `PushLayer` count drops in `S12`.
+  opaque fills inset by half stroke under opaque borders (`rune` `fill_under`), negative interior SDF preservation
+  (`min(max(q.x, q.y), 0.0f)` so `r == 0` corners never stroke solid, `makepad` `sdf.rs:436-468`), cached per-corner
+  radius geometries, and `PushAxisAlignedClip` instead of `PushLayer` when content clears rounded corners (`rune`
+  `17abbcb`). **Gate**: exact 1-device-pixel full-alpha border at 125/150/175% DPI; `PushLayer` count drops in `S12`.
 - [ ] **V4 Analytic elevation shadows (`E13`, Phase B after `P1.2`).** Custom `DxUi.RoundedShadow` D2D effect
   (`ID2D1EffectImpl` + `ID2D1DrawTransform` pixel shader evaluating Evan Wallace's separable 1D-`erf` on X × 4-step
-  Gaussian integral on Y, as in `gpui-fast` `shaders.hlsl:465-512`), needing **0** intermediate surfaces and supporting
-  animated card/flyout elevation, with `P1.2` `ShadowCache` as fallback. **Gate**: **0** intermediate surfaces per
-  shadow, WARP pixel tests against reference integral, gallery review.
+  Gaussian integral on Y, as in `gpui-fast` `shaders.hlsl:465-512`), extending shadow coverage `3 px` inside the border
+  (`smoothstep(-3*px, 0, d)` to prevent 1 px bright border halos, `makepad` `surface.rs:188-193`) and supporting seamless
+  callout-beak SDF union (`+ 1e20f` off-screen disable rather than `lerp`, `sdf.rs:574-616`), needing **0** intermediate
+  surfaces and supporting animated card/flyout elevation, with `P1.2` `ShadowCache` as fallback. **Gate**: **0**
+  intermediate surfaces per shadow, WARP pixel tests against reference integral, gallery review.
 - [ ] **V5 Real popup materials (`D7`, `E15`).** HWND popups use `DWMWA_SYSTEMBACKDROP_TYPE = DWMSBT_TRANSIENTWINDOW`
-  where supported; in-window/embedded overlays blur a 2×/4× downsampled `CopyFromBitmap` of `DxUi`'s own target in a
-  retained scratch bitmap; High Contrast and fallback use solid themed fill. **Gates**: **0** GDI captures, gallery
-  review across themes.
+  where supported; in-window/embedded overlays share one downsampled `CopyFromBitmap` blur pyramid per frame across
+  disjoint glass panes (`makepad` `backdrop.rs:123-131` `BackdropCompositor`) and interpolate mip levels linearly in
+  Gaussian variance `r²` (`gauss_chain.rs:518-526`) in a retained scratch bitmap; High Contrast and fallback use solid
+  themed fill. **Gates**: **0** GDI captures, **≤ 1** pyramid build per frame across disjoint panes, gallery review
+  across themes.
 - [ ] **V6 Scrolling feel (`E44`).** Critically damped wheel target (`rune` `ScrollMode`), fractional precision-touchpad
   deltas without 3-row quantization (`P1.7`), `1/64` px direction-reversal hold and `double` tall-document delta math
-  (`> 16M px`, `rune` `#401`, `b45bfd66`), analytic touch fling, `WindowHost` DirectManipulation (`P2.7`), and 16 DIP
-  edge fades. **Gates**: **0** frames at rest, `P0.3` parity at rest, gallery review.
+  (`> 16M px`, `rune` `#401`, `b45bfd66`), invertible rational rubber-band overscroll (`stretch_displayed`/`stretch_raw`
+  for `0 px` reversal dead-travel, `makepad` `scroll_motion.rs:233-338`), degree-2 least-squares parabola release flick
+  estimation (`lsq2_release_velocity` with first-sample `Option` startup guard, `scroll_motion.rs:569-615`), `WindowHost`
+  DirectManipulation (`P2.7`), and 16 DIP edge fades. **Gates**: **0** frames at rest, `P0.3` parity at rest, gallery
+  review.
 - [ ] **V7 Real connected animation (`E42`).** Record source subtree into an `ID2D1CommandList` once at transition
   start, then draw transformed and cross-faded with target. **Gate**: **0** per-frame allocations.
 - [ ] **V8 Text glide stability.** Snap animated Y translation of text-bearing subtrees to whole device pixels; snap X
@@ -780,16 +910,19 @@ Proposed (revised 11 November 2026); each needs the developer's confirmation bef
 
 ### Clean-room items proposed for review (D10)
 
-- [ ] **B1 Visibility-latched media clock, two-buffer ping-pong and hysteresis target-size decode (extends `P1.13`, `P2.6`, `P6.1`).**
+- [ ] **B1 Visibility-latched media clock, two-buffer ping-pong, retry embargo and hysteresis decode (`E75`; extends `P1.13`, `P2.6`, `P6.1`).**
   - **Change**: Latch a `drawn` bit on animated images in [DxUi.RichImage.cpp](../../../src/Controls/DxUi.RichImage.cpp)
     only when emitted inside the visible clip; arm `dueTickMs` only while `drawn && !paused && !finished`; rebase
     deadlines > 250 ms behind `now` to `now + frameDuration` instead of bursting catch-up frames; compose frames into a
     two-buffer ping-pong (`current`, `spare`) with **0** steady-state allocations; decode oversized static markdown
     images on the worker lane via `IWICBitmapScaler` with a `[0.5×, 1.25×]` size-hysteresis bucket (avoiding re-decode
-    thrash during smooth resize/zoom), LIFO-within-priority scheduling for scrolled-past thumbnails, and frame-end
-    eviction of unreferenced entries.
-  - **Gates (`S9`)**: off-viewport animated GIF causes **0** wakes and **0** decodes; visible GIF allocates **0**
-    buffers after frame 2; decoded bytes in `EmbeddedStatistics` stay bounded by target box × hysteresis ceiling.
+    thrash during smooth resize/zoom), alpha-weighted RGBA mip downsampling (`makepad` `image_cache.rs:76-134` so
+    transparent edges never bleed dark fringes), LIFO-within-priority scheduling plus pre-`CopyPixels` cancellation for
+    scrolled-past thumbnails (`makepad` `image_tiles/src/grid.rs:1046-1062`), a `15 s` failed-decode retry embargo on
+    corrupt/missing sources (`image_tiles/src/store.rs:85-112`), and frame-end eviction of unreferenced entries.
+  - **Gates (`S9`)**: off-viewport animated GIF causes **0** wakes and **0** decodes; broken image source retries **0**
+    times within 15 s; visible GIF allocates **0** buffers after frame 2; decoded bytes in `EmbeddedStatistics` stay
+    bounded by target box × hysteresis ceiling.
 - [ ] **B2 Per-corner radius mask and 1-DIP analytical bevel/inner-border chrome (extends `V3`).**
   - **Change**: Add a 4-bit `CornerMask` (`TopLeft = 1`, `TopRight = 2`, `BottomRight = 4`, `BottomLeft = 8`) to shared
     rounded-box fill/stroke helpers in `DxUi.Controls.cpp` so joined shipped controls (split `Button`, `NumericStepper`
@@ -798,21 +931,32 @@ Proposed (revised 11 November 2026); each needs the developer's confirmation bef
     emboss rim from theme tokens.
   - **Gates**: **0** extra `PushLayer` calls on joined controls; WARP pixel tests at 100/125/150/200% DPI; gallery and
     design-system review.
-- [ ] **B3 Blender-style numeric scrubbing and menu typeahead (optional control polish).**
-  - **Change**: Horizontal drag-scrubbing on `NumericStepper` (Shift = `0.1×`, Ctrl = step snap, click-without-drag
-    keeps direct text entry, vertical cross-sibling sweep updates stacked steppers in one gesture) and optional
-    multi-word prefix/substring typeahead filtering in `MenuPopup` preserving arrow and UIA navigation.
-  - **Gates**: deterministic tests in `Controls.Tests`, UIA parity, updated `docs/controls.md` and gallery tiles.
+- [ ] **B3 Infinite `ClipCursor` + `WM_INPUT` numeric scrubbing and menu typeahead (`D10`, `D11`).**
+  - **Change**: Drag-scrubbing on `NumericStepper` using a `1×1` `ClipCursor` lock + `WM_INPUT` `RAWMOUSE` high-DPI
+    relative deltas (`makepad` `rawinput.rs:132-222` — **never** `SetCursorPos` pointer warping, releasing unconditionally
+    on `WM_KILLFOCUS`/`WM_CANCELMODE`), direction-splitting co-capture (`|dx| > |dy|` selects text, `|dy| >= |dx|` scrubs
+    value, `number_field.rs:584-631`), Shift = `0.1×`, Ctrl = step snap, vertical cross-sibling sweep, **1** coalesced
+    undo entry per drag gesture, and optional multi-word prefix/substring typeahead filtering in `MenuPopup` preserving
+    arrow and UIA navigation.
+  - **Gates**: deterministic tests in `Controls.Tests`, `ClipCursor` restoration on focus-loss/cancel, UIA parity,
+    updated `docs/controls.md` and gallery tiles.
 - [ ] **B4 Resolution-independent GPU curve text for zoomed vector surfaces (research option after `P4.1` and `P6.1`).**
   - **Change**: Keep DirectWrite (`P4.1`) at 1:1 UI scale; evaluate a clean-room `ID2D1DrawTransform` quadratic-Bezier
     outline shader (from Eric Lengyel's MIT-licensed Slug formulation and `rune` `#390`/`#482` `Windfoil` scale-motion
     switch, fed by `IDWriteFontFace::GetGlyphRunOutline`) only for actively zoomed `PreparedFlowchart`/Mermaid/math
     surfaces if post-`P6.1` pinch-zoom counters still show text rebuilds dominating frame work.
-- [ ] **B5 Radial 8-slot `PieMenu` control (optional new catalog control).**
+  - **Makepad empirical gate (`D11`)**: `makepad` had to set `band_count = 0` on `DrawText` (`slug_atlas.rs:334-336`) due
+    to GPU shader-compiler banding bugs (degrading fragment work to `O(N_curves)` per pixel) and hit a `3.5 s` Adreno
+    shader-compile stall from unrolled supersampling (`draw_text.rs:197-205`). `B4` ships **only** if horizontal/vertical
+    band culling and `< 50 ms` HLSL compile times pass on WARP, Intel, AMD, NVIDIA and Qualcomm D3D11 drivers.
+- [ ] **B5 Radial 8-slot `PieMenu` control (optional new catalog control; `D10`, `D11`).**
   - **Change**: Clean-room retained radial menu (`ControlCatalog`, factory, `docs/controls.md`, design-system guide and
-    preview, gallery tile) supporting hold-drag-release directional flick (≥ dead-zone DIP radius) and click-then-key
-    mnemonic selection across up to 8 cardinal/diagonal slots in **≤ 1** overlay pass with full `Menu`/`MenuItem` UIA
-    and keyboard parity.
+    preview, gallery tile) supporting hold-drag-release directional flick (≥ dead-zone DIP radius, unbounded outer radial
+    pick while captured), tight per-sector AABB bounds (`sector_bounds` cutting fragment overdraw ~`4.5×`, `makepad`
+    `radial_menu.rs:464-530`), hit-testing against **resting** ring radii rather than spring-overshot animated radii
+    (`:636-638`), asymmetric submenu ring dwell (`50 ms` child preview vs `90 ms` parent return, `:664-704`), and
+    click-then-key mnemonic selection across up to 8 cardinal/diagonal slots in **≤ 1** overlay pass with full
+    `Menu`/`MenuItem` UIA and keyboard parity.
 - [ ] **B6 Segment-swept multi-control boolean drag-toggle (optional interaction polish).**
   - **Change**: Optional `Panel`/list gesture allowing a press-and-drag across stacked `Checkbox` or `Toggle` rows
     (sampled at `2 DIP` segment intervals so fast pointer motion never skips rows) to apply the initial toggled state
@@ -834,6 +978,89 @@ Proposed (revised 11 November 2026); each needs the developer's confirmation bef
   `P8.1` (`≤ 176 B` `Control`) and `P4.1`/`P4.5` two-generation caches.
 - **Single-font `stb_truetype` text, hardcoded English strings, no RTL and no UIA/TSF IME/High Contrast**: incompatible
   with `DxUi` accessibility, localization and Unicode requirements.
+
+## Makepad study (`makepad/makepad` at `506ec051`)
+
+`makepad/makepad` (`506ec05105b9adb08d1d21f9879df181b5244ea7`, **MIT License** — directly compatible with `DxUi`'s MIT
+license in [LICENSE.txt](../../../LICENSE.txt)) is a Rust/DSL studio UI engine combining retained `WidgetRef` trees,
+immediate-style `Turtle` layout passes, instanced D3D11/HLSL quad shaders (`platform/src/os/windows/d3d11.rs`,
+`draw/src/shader/`), DirectComposition (`dcomp.rs`), hybrid `Slug` + raster glyph atlases (`draw/src/text/`), virtualized
+`PortalList`/`DataGrid`/`ImageTiles` (`widgets/src/`), OpenType `latex_math`, `flowgraph` and `tween`.
+
+### Source-verified crate disambiguations (do not misread crate names)
+
+1. **`libs/relax` (`CONTRIBUTING.md:1-4`, `libs/relax/crates/relax_api/src/lib.rs:72-98`)**: an in-tree Rust JIT/AOT live
+   hot-reload compiler consuming `.relaxapi` interface manifests — **not** a constraint or UI layout engine.
+2. **`libs/skyline` (`libs/skyline/src/lib.rs:1-38`)**: a procedural 360° equirectangular night-skyline HDRI environment
+   generator for 3D reflections — **not** a 2D skyline bin packer. Makepad's actual glyph/SDF atlas packer lives in
+   `libs/font_core/src/raster.rs:436-762` (`MultiPlaneAllocator` + Guillotine `RectPacker` with a 64-probe scan budget).
+3. **`libs/alloc_epoch` (`libs/alloc_epoch/src/lib.rs:1-102`)**: a macOS `makepad-cef` `dlopen` thread-parking barrier;
+   on Windows (`:63-66`) it compiles to no-ops.
+4. **`draw_sploded_hairline.rs` (`draw/src/shader/draw_sploded_hairline.rs:10-195`, `platform/src/sploded.rs:1-250`)**: an
+   interactive 2.5D isometric exploded z-layer and overdraw inspector emitting 8-triangle hollow `OutlineGeom` wireframe
+   rings (zero interior fragment fill so overdraw heatmaps stay exact) — **not** ordinary widget border hairlines.
+5. **`libs/flow` vs `libs/flowgraph`**: `libs/flow` (`src/lib.rs:1-108`) is a headless async task runner with manual
+   `(x, y)` node coordinates; interactive corridor-filtered orthogonal wire routing (`wire_route.rs:76-799`) lives in
+   `libs/flowgraph`.
+6. **`libs/source_slice` (`libs/source_slice/src/lib.rs:1-45`)**: a build-time Git CLI dependency-closure extractor —
+   **not** a runtime zero-copy text slice representation.
+7. **`widgets/src/code_editor/src/text.rs` (`:10-12`, `layout.rs:414-421`)**: stores lines as `Vec<String>` and hardcodes
+   a strict monospace character grid — **not** a rope or piece tree (`DxUi`'s `RichDocument` piece tree + `P6.1`
+   `AddBuffer` append slab is strictly stronger).
+8. **`gpu_pressure.rs`, `gpu_prof.rs`, `memory_watchdog.rs`, `threadcpu.rs` and `main_lag.rs`**: unwired or no-op stubs
+   on Windows at `506ec051`; only `gpu_pressure.rs`'s hysteretic threshold state machine (`80%/70%`, `92%/85%`) is
+   adapted onto DXGI 1.4 `IDXGIAdapter3::QueryVideoMemoryInfo` in `P4.5`.
+
+### High-value empirical and architectural findings transferred to DxUi
+
+1. **Latency-1 waitable swap-chain unspent-credit deadlock (`platform/src/os/windows/win32/mod.rs:8-11, 194-195,
+   500-505` -> `P2.7`).** Waiting on `IDXGISwapChain2::GetFrameLatencyWaitableObject()` consumes **one** semaphore credit
+   that DXGI returns **only** when `Present` retires. When a woken tick skips `Present` (clean deadline in `P2.1`,
+   occluded window or zero-size client), calling `WaitForMultipleObjects` on the waitable handle again at
+   `MaximumFrameLatency = 1` **deadlocks forever**. `P2.7` adopts Makepad's `_frameLatencyCreditHeld` state bit verbatim,
+   alongside its 32-handle `DCompositionWaitForCompositorClock` limit and `0xC01E0006` / `< 500 µs` 3-strike sleep guards.
+2. **Device-independent DirectComposition HWND target & modal `WM_SIZING` coalesce (`dcomp.rs:60-68, 224-228`,
+   `d3d11.rs:58-73`, `win32_window.rs:766-925` -> `E73`, `P1.12`).** Passing `nullptr` to `DCompositionCreateDevice2`
+   decouples `_dcompDevice` and `_dcompTarget` from `IDXGIDevice` so D3D11 TDR only swaps a fresh `IDCompositionSurface` /
+   swap chain onto the surviving visual tree instead of tearing down the HWND target (`DxUi.WindowHost.cpp:835,
+   4660-4662`), while synchronous coalesced rendering inside `WM_ENTERSIZEMOVE`..`WM_EXITSIZEMOVE` prevents high-rate
+   resize pointer traffic from starving `WM_PAINT`.
+3. **Working-set frame-generation cache protection & upload pointer epochs (`layouter.rs:392-401, 514-531`,
+   `d3d11.rs:144-169`, `slug_atlas.rs:101-125` -> `E72`, `P4.1`, `P4.5`).** Makepad's `Layouter` stamps entries with
+   `last_used_frame` and refuses to evict `current_frame` or `current_frame - 1` entries (directly fixing `DxUi`'s `E72`
+   `TrimCaches` `_forceAllVisualPreparation = true` storm), pairs GPU cache eviction with `"Source Library wall"` epoch
+   invalidation, and replaced `0.1–1.5 ms` per-frame `SipHash` byte hashing with `O(1)` pointer/epoch identity checks.
+4. **Two-lane background/text instanced batching (`platform/src/draw_list.rs:479-504, 689-721`).** Separating opaque/SDF
+   control backgrounds from glyph draw calls by `append_group_id` collapses `N` alternating button-background + label
+   pairs from `2N` draw submissions to `2` without `O(N²)` overlap checks — a useful reference if `DxUi` ever batches
+   custom `ID2D1DrawTransform` / `ID2D1Mesh` primitives outside standard D2D command batching.
+5. **Empirical `Slug` GPU curve-text pitfalls (`draw/src/text/{slug_atlas.rs:334-336, draw_text.rs:197-230}` -> `B4`).**
+   In production, Makepad had to disable curve banding (`band_count = 0`) on `DrawText` because GPU shader compilers
+   miscompiled the banded loop, turning fragment evaluation into `O(N_curves)` per pixel, and hit a `3.5 s` Adreno shader
+   compilation freeze when `#[unroll]` duplicated the winding kernel across 4 supersamples. This confirms `P4.1`
+   DirectWrite shaped-run replay must remain `DxUi`'s 1:1 UI path and sets strict multi-IHV driver gates on `B4`.
+6. **Lock-safe external hang stack capture (`libs/ui_hang/src/windows.rs:80-161`).** Capturing a hung UI thread via
+   `SuspendThread` -> `GetThreadContext` -> bounded `ReadProcessMemory` -> `ResumeThread` in `< 50 µs` — resolving
+   `SymFromAddrW` only *after* `ResumeThread` so symbol allocation never deadlocks on the target thread's Windows heap
+   lock — is recorded as a clean pattern for out-of-process `test.ps1` timeout forensics (never inside `DxUi.lib`).
+
+### Makepad mechanisms explicitly rejected for DxUi
+
+- **Runtime `D3DCompile` HLSL string compilation (`d3d11.rs:1808-1834`)**: `DxUi` compiles shaders offline at build time
+  (`0 ms` cold startup, zero `d3dcompiler_47.dll` runtime cost or driver-JIT variance).
+- **Full-buffer `D3D11_USAGE_DEFAULT` `UpdateSubresource(..., nullptr, ...)` instance re-uploads, unpooled `CreateBuffer`
+  churn and per-draw `OMSetRenderTargets`/`RSSetViewports`/`RSSetScissorRects` rebinding (`d3d11.rs:774-797,
+  1632-1677`)**: Direct2D batching + `P1.14` sub-rect `UpdateSubresource` avoid this driver overhead.
+- **`DXGI_SWAP_EFFECT_FLIP_DISCARD` `ResizeTarget` without `Present1` dirty rects (`d3d11.rs:1505-1531`)**: incompatible
+  with `P3.3` history-union partial present and `EmbeddedHost` borrowed targets.
+- **Immediate-mode `Turtle` per-frame full-walk layout + `defer_walks` 2-vec replay (`turtle.rs`)**: `DxUi` retains
+  measured/arranged bounds on controls and skips clean subtrees.
+- **`code_editor` `Vec<String>` document storage and monospace-only layout (`text.rs:10-12`, `layout.rs:414-421`)**:
+  inferior to `DxUi`'s UTF-16 piece tree (`P6.1`) and proportional/RTL/complex-script DirectWrite editor (`P6.2`).
+- **Unbanded `Slug` (`band_count = 0`) on 1:1 UI chrome (`slug_atlas.rs:334-336`)**: wastes fragment ALU and loses
+  ClearType/DirectWrite hinting at standard desktop sizes (`P4.1`, `P4.6`).
+- **In-process `ui_hang` background polling thread (`libs/ui_hang/src/lib.rs`)**: violates `DxUi`'s zero-polling and
+  zero-worker embedded hosting contracts ([embedded rendering](../../Rendering/Rendering_EmbeddedD3D11.md)).
 
 ## Sequencing
 
@@ -872,7 +1099,9 @@ with `capabilities.json`, `Tools/ConsumerApi`, `docs/upgrade.md` and samples.
 | Partial present or partial premultiplied clear shows stale/accumulated pixels | `P0.4` truth test first; `BufferCount − 1` history union; explicit `(0,0,0,0)` clip clear; force full on uncertain present; parity readback |
 | Stale control pointer in pending deadlines, hover freeze or dirty regions after detach/close | Central `ControlHost::ForgetControl` scrub (`P2.1`) + ASan detach/popup-close fuzz steps in `P0.3` |
 | Culling or missing old-bounds union leaves trails outside bounds | Union old + new bounds + `GetVisualOverhangDip()` (`P3.1`); `P0.3` oracle; `RequestInvalidate()` stays full |
-| Device-loss retry loop or reentrant Win32 display/power message corrupts host state | Reset retry count only after `Present` succeeds (`P1.12`); FIFO message deferral; event-blocked pacer joined before detach |
+| Device-loss retry loop or reentrant Win32 display/power message corrupts host state | Reset retry count only after `Present` succeeds (`P1.12`); `DCompositionCreateDevice2(nullptr)` so HWND visual target survives TDR; FIFO message deferral; event-blocked pacer joined before detach |
+| Latency-1 waitable swap chain deadlocks when a woken tick skips `Present` | Track `_frameLatencyCreditHeld` (`P2.7`): never wait on waitable object while credit is unspent; clear only on `Present`/`Present1` or `ResizeBuffers`/recreate; 10-skip regression test |
+| Format/glyph cache overflow causes `_forceAllVisualPreparation = true` storm or stale GPU run pointers | Frame-stamped working-set protection (`P4.5`, never evicting `currentFrame`/`currentFrame - 1` entries and deleting `_forceAllVisualPreparation = true` from `TrimCaches`) + `"Source Library wall"` cache-epoch invalidation (`P4.1`) |
 | MSVC Debug `_ITERATOR_DEBUG_LEVEL == 2` allocates inside `noexcept` moves | Construct containers outside `noexcept` or use pre-allocated storage + `swap`; verify x64 Debug + ASan Debug (`P1.7`, `P8.1`) |
 | Cross-edit carry shows stale math, diagrams or tables | Exact source-text compare (never hash-only); theme/zoom/width in key; `P0.3` parity oracle against fresh preparation |
 | `EmbeddedHost` UIA client gate misses late-attaching AT | `WM_GETOBJECT` / `GetNativeAutomationObject` sets `providerRequested_ = true` and builds synchronously on first query (`P1.6`) |
