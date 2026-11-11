@@ -728,6 +728,15 @@ and module teardown to finish through the normal runner return. The runner MUST
 return 1 and omit its success footer if any such observation failed; a caller MUST
 stop dependent work after a false result. This does not soften immediate `Require`
 checks for an invalid fixture. Original abrupt-exit/timeout evidence remains failed.
+Cross-thread accessibility probes wait for readiness with the canonical sent-message
+wait under the original absolute 500 ms limit. Synchronous setup callbacks may run;
+queued provider operations and input remain queued for the ordinary dispatch phase.
+The RangeFromPoint probe preserves its 50 ms pending observation and two-second
+dispatch limit, retires the actual worker under the existing UIA teardown allowance,
+and reports those captured observations through normal fixture unwind. Its withheld
+readiness control must miss that same deadline, retire the real provider worker and
+still verify the original returned range. A passing repeat never supersedes the
+original readiness failure or its subsequent watchdog timeout.
 The sent modal-cancellation fixture first places its owner onscreen and verifies that the owner holds the
 foreground and thread focus. This makes the explicitly sent deactivation or cancellation message the action
 under test; a hidden, inactive owner is not a valid setup for that assertion.
