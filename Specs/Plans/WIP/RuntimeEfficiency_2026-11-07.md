@@ -40,7 +40,10 @@ the developer's confirmation (see [Decisions](#decisions)). Plan only; no code h
 - **Coordinated plans**: [remaining work](RemainingWork_2026-11-04.md) owns D-P1 (the timing policy), D-Q1
   (platform/consumer acceptance) and every closed item cited below; [explicit state machines](ExplicitStateMachines_2026-11-10.md)
   owns private non-breaking state-machine refactors and lifetime fixes (`DXUI-SM-01`..`DXUI-SM-08`) coordinated with
-  `P2.1`/`P2.3`/`P1.15`. The archived [production review](../Done/ProductionReview_2026-11-02.md) holds the original
+  `P2.1`/`P2.3`/`P1.15`; [frontier](Frontier_2026-11-11.md) orders this plan's items through its triage (kept
+  separate by its `FD1`, confirmed 11 November 2026): it records a 16-claim re-read of this ledger, disputes `E7` and
+  the "asymmetric `Present1`" design against Microsoft's flip-model documentation, and names which `P`/`V`/`B` items
+  it keeps, replaces, moves or drops. Read an item's disposition there before starting it. The archived [production review](../Done/ProductionReview_2026-11-02.md) holds the original
   `CTRL-*`/`HOST-*` findings. This plan takes over only the open IDs it names. It never reopens a closed one or weakens
   an accepted bound in [performance and resources](../../Core/Core_PerformanceAndResources.md) (including `Grid`'s
   last-paint cell text-layout retention limit and application-supplied native occlusion visibility).
