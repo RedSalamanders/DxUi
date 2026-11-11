@@ -307,4 +307,4 @@ function Invoke-DxUiSdkProductionLibrary {
 
 Export-ModuleMember -Function Get-DxUiSdkLibraryInputState,Remove-DxUiSdkLibraryReceipt,Complete-DxUiSdkLibraryBuild,Assert-DxUiSdkLibraryBuild,
     Export-DxUiSdkLibraryInputs,Import-DxUiSdkLibraryInputs,Assert-DxUiSdkReleaseProfile,Invoke-DxUiSdkProductionLibrary,
-    Complete-DxUiSdkSourceBuildRecord,Assert-DxUiSdkSourceBuildRecord
+    Complete-DxUiSdkSourceBuildRecord,Assert-DxUiSdkSourceBuildRecord,Assert-DxUiSdkOwnedPath

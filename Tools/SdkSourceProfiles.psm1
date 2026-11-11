@@ -5,11 +5,15 @@ $script:scoped=Import-Module (Join-Path $PSScriptRoot 'ScopedTesting.psm1') -Pas
 
 function Get-DxUiSdkToolingProvenance {
     [CmdletBinding()]
-    param([Parameter(Mandatory)][string]$Root)
+    param([Parameter(Mandatory)][string]$Root,[switch]$LocalCandidate)
     $head=(& $script:scoped {param($r) Invoke-ScopedGit $r @('rev-parse','--verify','HEAD')} $Root).Trim()
     $dirty=(& $script:scoped {param($r) Invoke-ScopedGit $r @('status','--porcelain','--untracked-files=all')} $Root).Trim()
-    if($head -cnotmatch '^[a-f0-9]{40}$' -or $dirty){throw 'SDK production requires clean committed producer tooling.'}
-    return [ordered]@{repository='RedSalamanders/DxUi';commit=$head;contentIdentity=(Get-ScopedSourceIdentity -Root $Root)}
+    if($head -cnotmatch '^[a-f0-9]{40}$' -or ($dirty -and -not $LocalCandidate)){throw 'SDK production requires clean committed producer tooling.'}
+    $record=[ordered]@{repository='RedSalamanders/DxUi';commit=$head;contentIdentity=(Get-ScopedSourceIdentity -Root $Root)}
+    # Local iteration permits dirty tooling but returns a different four-field role.
+    # Pinned source-build descriptors require the original exact three-field contract.
+    if($LocalCandidate){$record['role']='LocalUnpinnedProducerTooling'}
+    return $record
 }
 
 function Get-DxUiSdkSourceProfile {

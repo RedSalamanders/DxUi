@@ -93,6 +93,54 @@ profiles refuse. Dependency source pins never advance as part of this packaging 
 
 ## Native metadata acquisition
 
+### Local unpinned Release snapshot capture
+
+`Tools/New-LocalSdkSnapshot.ps1 -ProducerRoot <DxUi checkout> -Platform x64|ARM64`
+captures an existing current Release library/PDB build; it does not compile or
+qualify an SDK. ProducerRoot may be dirty only when its exact state has matching
+canonical library provenance. The tooling's engine must be clean and exactly
+pinned. Local dirty tooling uses the explicitly distinct
+`LocalUnpinnedProducerTooling` record from `Get-DxUiSdkToolingProvenance
+-LocalCandidate`; normal SDK and pinned source-build paths retain their clean,
+exact three-field descriptor and refuse this local record.
+
+The command holds the canonical producer Release profile lease through fresh
+source/API, complete native tool/profile/dependency/environment and library/PDB
+checks. It captures headers, restored dependency headers, library, matching
+compiler PDB, native policy/imports, the complete reviewed license set, original
+library provenance and the canonical actual portable ABI/toolchain reference.
+The evaluated Release compiler version must match the ABI reference. Complete
+input/library barriers run before staging, after capture and before descriptor
+publication. Source or library mutation fails with staging retained.
+
+`SdkPayload.psm1` owns common byte staging for this capture and `New-SdkPackage.ps1`.
+Its fresh destination must be under the producer's owned `.build`; occupied,
+foreign and reparse paths refuse. It verifies the independently supplied library
+and PDB hashes. Its integration props preserve the preceding SDK artifact byte
+for byte, covered by a frozen fixture on both platform substitutions. All ordinary
+SDK extraction, smoke, profile, symbol isolation and publication gates remain.
+`SdkLibraryInputs.psm1` exports its existing `Assert-DxUiSdkOwnedPath` guard for
+these callers rather than introducing another ownership algorithm.
+
+Capture publishes the complete immutable payload through the exact pinned shared
+engine's separate `LocalUnpinnedSdkSnapshot` storage role. The descriptor and
+diagnostic staging are create-only, under `.build/local-sdk-capture`; the default
+owned store is `.build/local-sdk-snapshots`. An explicit StoreRoot also stays
+under the tooling checkout's `.build`. Initialization refuses nonempty unowned
+storage. The descriptor binds store/key/original manifest hash, producer identity,
+local tooling identity and an independently readable bootstrap record containing
+tooling root, raw source bytes and actual pinned-engine bytes. A consumer must
+verify that bootstrap before importing producer tooling. The producer lease is
+released before returning any result to a consumer, including a downstream
+pipeline; no consumer write lease is held while awaiting producer capture.
+
+Hosted qualification/publication refuses this command before discovery. It emits
+no test, native SDK, package or qualification verdict and changes no dependency
+pin or ordinary consumer output. Application candidate linking, full current-input
+reacquisition, isolated local-unpinned outputs/receipts and PrePush/package refusal
+remain pending. Pinned readers do not accept this descriptor. Debug, ASan and
+annotation variants retain their source paths.
+
 ### Immutable SDK byte publication and use
 
 `New-SdkPackage.ps1` optionally publishes its exact staged SDK payload through `Tools/SdkInputStore.psm1`

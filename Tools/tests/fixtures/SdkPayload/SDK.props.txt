@@ -1,0 +1,21 @@
+<Project>
+  <PropertyGroup>
+    <DxUiSdkRoot>$(MSBuildThisFileDirectory)</DxUiSdkRoot>
+    <ExternalIncludePath>$(DxUiSdkRoot)include;$(ExternalIncludePath)</ExternalIncludePath>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(DxUiSdkRoot)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpplatest</LanguageStandard><RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <ExceptionHandling>Sync</ExceptionHandling><AdditionalOptions>/utf-8 /Zc:preprocessor %(AdditionalOptions)</AdditionalOptions>
+      <PreprocessorDefinitions>UNICODE;_UNICODE;WIN32_LEAN_AND_MEAN;NOMINMAX;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <Link><AdditionalDependencies>$(DxUiSdkRoot)lib\$(Platform)\Release\DxUi.lib;%(AdditionalDependencies)</AdditionalDependencies><LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration></Link>
+  </ItemDefinitionGroup>
+  <Target Name="ValidateDxUiSdkProfile" BeforeTargets="PrepareForBuild">
+    <Error Condition="'$(Configuration)'!='Release'" Text="This SDK ZIP contains Release only." />
+    <Error Condition="'$(Platform)'!='@PLATFORM@'" Text="This SDK ZIP has another native architecture." />
+    <Error Condition="'$(VCToolsVersion)'!='@COMPILER@'" Text="Use the SDK manifest's exact MSVC compiler version for LTCG compatibility." />
+  </Target>
+  <Import Project="$(MSBuildThisFileDirectory)build\NativeBuildPolicy.targets" />
+</Project>

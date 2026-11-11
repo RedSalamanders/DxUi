@@ -162,9 +162,13 @@ try {
             $sourceProfiles=Import-Module (Join-Path $repository 'Tools/SdkSourceProfiles.psm1') -Force -PassThru
             $currentProfile=& $sourceProfiles {param($Root) Get-DxUiSdkSourceProfile -Root $Root -SourceCommit ('a'*40)} $repository
             Assert-Scope (($currentProfile.units -join '|') -ceq 'Main|FailureHost' -and $currentProfile.shared.Count -eq 2) 'Current API-5 SDK retains both source-owned units and their independent header checks'
+            $sdkPayload=[IO.File]::ReadAllText((Join-Path $repository 'Tools/SdkPayload.psm1'))
             Assert-Scope ($sdk.Contains("Import-Module (Join-Path `$toolingRoot 'Tools/SdkNotices.psm1')") -and
-                $sdk.Contains('Copy-DxUiSdkNotices -Root $root') -and
-                [regex]::Matches($sdk,'Assert-DxUiSdkNotices -Root \$root').Count -eq 2) 'SDK package must stage and verify the canonical notices before and after extraction'
+                $sdk.Contains("Import-Module (Join-Path `$toolingRoot 'Tools/SdkPayload.psm1')") -and
+                $sdk.Contains('New-DxUiSdkPayload -Root $root -Stage $stage -Platform $Platform -SourceCommit $sourceCommit') -and
+                $sdkPayload.Contains('Copy-DxUiSdkNotices -Root $root') -and
+                [regex]::Matches($sdkPayload,'Assert-DxUiSdkNotices -Root \$root').Count -eq 1 -and
+                [regex]::Matches($sdk,'Assert-DxUiSdkNotices -Root \$root').Count -eq 1) 'SDK package must stage and verify the canonical notices before and after extraction'
             $notices=Import-Module (Join-Path $repository 'Tools/SdkNotices.psm1') -Force -PassThru
             $catalog=@(& $notices { Get-NoticeFiles })
             foreach($required in @(

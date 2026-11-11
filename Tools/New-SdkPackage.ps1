@@ -89,46 +89,11 @@ $native=if($Platform -eq 'ARM64'){'Arm64'}else{'X64'}
 if([Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString() -cne $native){throw 'SDK smoke must execute on its native architecture.'}
 $directory=Join-Path $root '.build/sdk'
 $stage=Join-Path $directory ('stage-'+[guid]::NewGuid().ToString('N'))
-New-Item -ItemType Directory -Path (Join-Path $stage "lib/$Platform/Release") -Force | Out-Null
-Copy-Item -LiteralPath (Join-Path $root 'include') -Destination $stage -Recurse
-$triplet=if($Platform -eq 'ARM64'){'arm64-windows'}else{'x64-windows'}
-$installed=Join-Path $root ".build/vcpkg_installed/$Platform/$triplet"
-Copy-Item -Path (Join-Path $installed 'include/*') -Destination (Join-Path $stage 'include') -Recurse
-Copy-Item -LiteralPath $library -Destination (Join-Path $stage "lib/$Platform/Release/DxUi.lib")
-Copy-Item -LiteralPath $libraryPdb -Destination (Join-Path $stage "lib/$Platform/Release/DxUi.pdb")
-if((Get-FileHash -LiteralPath (Join-Path $stage "lib/$Platform/Release/DxUi.lib") -Algorithm SHA256).Hash.ToLowerInvariant() -cne $libraryHash -or
-   (Get-FileHash -LiteralPath (Join-Path $stage "lib/$Platform/Release/DxUi.pdb") -Algorithm SHA256).Hash.ToLowerInvariant() -cne $libraryPdbHash){
-    throw 'The staged library or compiler PDB changed during packaging.'
-}
-New-Item -ItemType Directory -Path (Join-Path $stage 'build') | Out-Null
-Copy-Item -LiteralPath (Join-Path $root 'Build/NativeBuildPolicy.targets') -Destination (Join-Path $stage 'build/NativeBuildPolicy.targets')
-Copy-DxUiSdkNotices -Root $root -InstalledRoot $installed -Stage $stage -SourceCommit $sourceCommit
-$licenseInventory=@(Assert-DxUiSdkNotices -Root $root -InstalledRoot $installed -Stage $stage -SourceCommit $sourceCommit)
-$props=@'
-<Project>
-  <PropertyGroup>
-    <DxUiSdkRoot>$(MSBuildThisFileDirectory)</DxUiSdkRoot>
-    <ExternalIncludePath>$(DxUiSdkRoot)include;$(ExternalIncludePath)</ExternalIncludePath>
-  </PropertyGroup>
-  <ItemDefinitionGroup>
-    <ClCompile>
-      <AdditionalIncludeDirectories>$(DxUiSdkRoot)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <LanguageStandard>stdcpplatest</LanguageStandard><RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
-      <ExceptionHandling>Sync</ExceptionHandling><AdditionalOptions>/utf-8 /Zc:preprocessor %(AdditionalOptions)</AdditionalOptions>
-      <PreprocessorDefinitions>UNICODE;_UNICODE;WIN32_LEAN_AND_MEAN;NOMINMAX;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-    </ClCompile>
-    <Link><AdditionalDependencies>$(DxUiSdkRoot)lib\$(Platform)\Release\DxUi.lib;%(AdditionalDependencies)</AdditionalDependencies><LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration></Link>
-  </ItemDefinitionGroup>
-  <Target Name="ValidateDxUiSdkProfile" BeforeTargets="PrepareForBuild">
-    <Error Condition="'$(Configuration)'!='Release'" Text="This SDK ZIP contains Release only." />
-    <Error Condition="'$(Platform)'!='@PLATFORM@'" Text="This SDK ZIP has another native architecture." />
-    <Error Condition="'$(VCToolsVersion)'!='@COMPILER@'" Text="Use the SDK manifest's exact MSVC compiler version for LTCG compatibility." />
-  </Target>
-  <Import Project="$(MSBuildThisFileDirectory)build\NativeBuildPolicy.targets" />
-</Project>
-'@
-$props=$props.Replace('@PLATFORM@',$Platform).Replace('@COMPILER@',$identity.Identity.vcToolsVersion)
-[IO.File]::WriteAllText((Join-Path $stage 'DxUi.Sdk.props'),$props,[Text.UTF8Encoding]::new($false))
+Import-Module (Join-Path $toolingRoot 'Tools/SdkPayload.psm1')
+$payload=New-DxUiSdkPayload -Root $root -Stage $stage -Platform $Platform -SourceCommit $sourceCommit `
+    -CompilerVersion $identity.Identity.vcToolsVersion -ExpectedLibraryHash $libraryHash -ExpectedPdbHash $libraryPdbHash
+$installed=$payload.InstalledRoot
+$licenseInventory=@($payload.Licenses)
 @'
 Import DxUi.Sdk.props after Microsoft.Cpp.props in a Release project for the archive's architecture.
 Use the exact MSVC compiler version in sdk-manifest.json; the library contains LTCG objects and uses /MD.

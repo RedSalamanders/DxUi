@@ -1,5 +1,18 @@
 # Tool inventory
 
+`New-LocalSdkSnapshot.ps1 -ProducerRoot <checkout> -Platform x64|ARM64` captures an
+existing matching Release library/PDB build into a separate local-unpinned immutable
+snapshot. It accepts the exact built dirty source, holds/rechecks the producer
+profile, headers, symbols, licenses, imports and provenance, then releases the lease
+before returning a create-only descriptor. Output stays under owned `.build`
+directories. It performs no build, native test or SDK qualification; hosted use
+refuses before discovery. Candidate consumer linking and isolated application
+outputs remain pending. `SdkLocalCandidate.psm1` owns orchestration;
+`SdkPayload.psm1` shares the unchanged byte staging with normal SDK packaging.
+`Test-SdkLocalCandidate.ps1` exercises real storage and lease order with explicitly
+synthetic native guards; `Test-SdkPayload.ps1` preserves the preceding integration
+artifact on both architecture substitutions. See the [capture contract](../Specs/Build/Build_ToolchainAndConsumption.md#local-unpinned-release-snapshot-capture).
+
 Local build/test identity includes the actual clean pinned engine. Paired diagnostics
 retain each historical engine pin and use a separately verified current harness
 reader through explicit `ToolingEngineRoot`; both identities remain frozen and
