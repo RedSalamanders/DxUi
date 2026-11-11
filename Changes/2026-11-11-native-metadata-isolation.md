@@ -1,0 +1,1 @@
+- Use the pinned shared CI engine's private per-child compiler metadata services for hosted native execution.
