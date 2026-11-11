@@ -23,6 +23,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $Projects=@($Projects | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
 if ($env:CI_NATIVE_BUILDS_DISABLED -eq 'true') { throw 'Native builds are forbidden in compiler-free PR checks.' }
+Import-Module (Join-Path $PSScriptRoot '.ci-engine/Tools/Modules/Ci.Policy.psm1') -ErrorAction Stop
 if ($ProductionOnly -and $Configuration -ne 'Release') { throw 'ProductionOnly requires Release.' }
 if ($ProductionOnly -and $Projects.Count) { throw 'Projects and ProductionOnly are separate build roles.' }
 $buildRoot=$PSScriptRoot
@@ -266,7 +267,8 @@ Invoke-DxUiBuildPhase -Phase MSBuild -Body {
     try {
         # Match the attested MSBuildStartupDirectory even when a paired harness calls this baseline from another checkout.
         # Consumer-owned output roots retain their caller's existing integration context.
-        & $msbuild @arguments 2>&1 | ForEach-Object { Write-DxUiMSBuildLine -Line $_.ToString() }
+        Invoke-CiNativeCommand -FilePath $msbuild -Arguments $arguments -WorkingDirectory (Get-Location).Path 2>&1 |
+            ForEach-Object { Write-DxUiMSBuildLine -Line $_.ToString() }
         $buildExitCode = $LASTEXITCODE
     } finally { if ($attestPerformanceBuild -or $attestSdkLibrary) { Pop-Location } }
     $stopwatch.Stop()

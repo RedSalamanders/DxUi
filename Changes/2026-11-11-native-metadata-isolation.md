@@ -1,0 +1,1 @@
+- Run native MSBuild through a private compiler metadata-service namespace, preserving streamed diagnostics, literal arguments, exit codes and existing source/artifact acceptance gates.
