@@ -8,6 +8,7 @@ milliseconds diagnose build orchestration; they are not native workload measurem
 .PARAMETER ProductionOnly Build only the Release library target; excludes test executables from the production role.
 .PARAMETER Projects Optional union of owned native project names. Builds their library dependency too and publishes only selected-target evidence. Omit for a full solution build.
 .PARAMETER SourceRoot Optional separate clean immutable DxUi source checkout for a production-only Release SDK input build. Tooling remains owned by this checkout; output stays in the source checkout's default build tree.
+.PARAMETER LocalUnpinnedSource Explicit local-only dirty SourceRoot library build. Requires Release and ProductionOnly; records library inputs for local snapshot capture only and never writes a pinned-source build descriptor.
 .PARAMETER ToolingEngineRoot Explicit current harness .ci-engine reader for paired diagnostics of older pins. Both actual engines are verified and bound; unavailable to production or external-source SDK builds.
 #>
 [CmdletBinding()]
@@ -19,12 +20,14 @@ param(
     [switch] $ProductionOnly,
     [string[]] $Projects = @(),
     [string] $SourceRoot = '',
+    [switch] $LocalUnpinnedSource,
     [string] $ToolingEngineRoot = ''
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $Projects=@($Projects | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
 if ($env:CI_NATIVE_BUILDS_DISABLED -eq 'true') { throw 'Native builds are forbidden in compiler-free PR checks.' }
+if($LocalUnpinnedSource -and (-not $SourceRoot -or $env:GITHUB_ACTIONS -ceq 'true')){throw 'LocalUnpinnedSource requires an explicit dirty local SourceRoot; hosted execution refuses before discovery.'}
 if ($ProductionOnly -and $Configuration -ne 'Release') { throw 'ProductionOnly requires Release.' }
 if ($ProductionOnly -and $Projects.Count) { throw 'Projects and ProductionOnly are separate build roles.' }
 if ($ToolingEngineRoot -and ($ProductionOnly -or $SourceRoot)) { throw 'ToolingEngineRoot is only for ordinary paired diagnostic builds, not production or SDK input roles.' }
@@ -35,7 +38,10 @@ if($SourceRoot){
     $buildRoot=[IO.Path]::GetFullPath($SourceRoot).TrimEnd('\','/')
     if(-not(Test-Path -LiteralPath (Join-Path $buildRoot '.git')) -or -not(Test-Path -LiteralPath (Join-Path $buildRoot 'DxUi.sln'))){throw 'SourceRoot requires a complete immutable DxUi Git checkout.'}
     $status=@(& git -C $buildRoot status --porcelain --untracked-files=all 2>&1)
-    if($LASTEXITCODE -ne 0 -or ($status -join '').Trim()){throw 'SourceRoot requires clean committed source.'}
+    if($LASTEXITCODE -ne 0){throw 'SourceRoot Git state could not be read.'}
+    $sourceDirty=[bool](($status -join '').Trim())
+    if($sourceDirty -and -not $LocalUnpinnedSource){throw 'SourceRoot requires clean committed source.'}
+    if($LocalUnpinnedSource -and -not $sourceDirty){throw 'LocalUnpinnedSource requires actual dirty source; use the ordinary clean SourceRoot route otherwise.'}
 }
 Import-Module (Join-Path $PSScriptRoot 'Tools/ScopedTesting.psm1') -Force
 $defaultBuildOutput=-not $OutputRoot -or [string]::Equals([IO.Path]::GetFullPath($OutputRoot).TrimEnd('\','/'),[IO.Path]::GetFullPath((Join-Path $buildRoot '.build')).TrimEnd('\','/'),[StringComparison]::OrdinalIgnoreCase)
@@ -52,7 +58,7 @@ if($attestSdkLibrary){
 }
 if($SourceRoot){
     Import-Module (Join-Path $PSScriptRoot 'Tools/SdkSourceProfiles.psm1')
-    $producerToolingBefore=Get-DxUiSdkToolingProvenance -Root $PSScriptRoot
+    $producerToolingBefore=Get-DxUiSdkToolingProvenance -Root $PSScriptRoot -LocalCandidate:$LocalUnpinnedSource
 }
 Import-Module (Join-Path $PSScriptRoot 'Tools/Validation.psm1') -Force
 $mappingErrors=@(Test-DxUiSolutionConfigurations (Join-Path $buildRoot 'DxUi.sln'))
@@ -307,10 +313,12 @@ if($attestSdkLibrary){
     if($attestPerformanceBuild){$sdkArguments.BuildState=$performanceBuildAfter}
     $sdkLibraryRecord=Complete-DxUiSdkLibraryBuild @sdkArguments
     if($SourceRoot){
-        $producerToolingAfter=Get-DxUiSdkToolingProvenance -Root $PSScriptRoot
+        $producerToolingAfter=Get-DxUiSdkToolingProvenance -Root $PSScriptRoot -LocalCandidate:$LocalUnpinnedSource
         if(($producerToolingBefore|ConvertTo-Json -Compress) -cne ($producerToolingAfter|ConvertTo-Json -Compress)){throw 'SDK producer tooling changed during source compilation.'}
-        Complete-DxUiSdkSourceBuildRecord -Root $buildRoot -Platform $Platform -Tooling $producerToolingAfter `
-            -LibraryRecord $sdkLibraryRecord -Arguments $arguments -LogPath $log|Out-Null
+        if(-not $LocalUnpinnedSource){
+            Complete-DxUiSdkSourceBuildRecord -Root $buildRoot -Platform $Platform -Tooling $producerToolingAfter `
+                -LibraryRecord $sdkLibraryRecord -Arguments $arguments -LogPath $log|Out-Null
+        }elseif(-not $sdkLibraryRecord.inputState.sourceDirty){throw 'Local source build lost its explicit dirty input role.'}
     }
 }
 

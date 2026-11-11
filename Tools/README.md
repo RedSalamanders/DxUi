@@ -65,6 +65,14 @@ dependency pins. Other source roles, custom outputs and dirty source refuse. Cur
 process ownership, complete v2 identity and zero-warning guards remain required. A separate data descriptor
 binds the clean producer-tooling commit/content, library input digest, actual command identity and original log.
 `New-SdkPackage.ps1 -SourceRoot` requires that descriptor and rechecks tooling before/after packaging.
+An explicit local developer request may add `-LocalUnpinnedSource` for an actually
+dirty separate source checkout. It retains the same Release library-only role,
+source/API profile checks, leases, complete native input identity and diagnostics.
+Hosted requests and a missing or clean SourceRoot refuse before output discovery.
+This route removes stale pinned-source descriptors and writes no replacement;
+its dirty library receipt can feed only explicit local snapshot capture, while
+ordinary pinned SDK packaging continues to refuse it. It grants no native test,
+Full or production qualification.
 SdkSourceProfiles.psm1 owns named historical API-4 recipes and the source-owned API-5 failure-host recipe;
 unknown API-4 source has no implicit fallback. These library/SDK input records grant no native test or Full result.
 The 29 October source uses a bounded public frame-runtime smoke because it predates the richer SDK sample.

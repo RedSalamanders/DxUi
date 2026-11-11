@@ -76,6 +76,16 @@ come from the invoking producer checkout. The feature supports only that Release
 outputs, dirty source, selected unions or Full/test proof. The existing profile lease, owned-process/output
 checks, complete before/after v2 identities and zero-warning/error acceptance still apply.
 
+An explicit local developer build may instead add `-LocalUnpinnedSource` for an
+actually dirty separate `SourceRoot`. It retains Release/ProductionOnly, default
+producer outputs, reviewed source/API recipes, native input barriers, profile
+leases and zero-warning diagnostics. Hosted execution, a missing SourceRoot and
+clean source with this flag refuse before output discovery. The local route
+records its exact dirty library inputs, revokes any earlier pinned-source build
+descriptor and writes no pinned-source replacement. The dirty receipt can feed
+`Tools/New-LocalSdkSnapshot.ps1`; ordinary pinned SDK packaging still rejects
+dirty source. No native test, Full, application or production result is implied.
+
 The producer tooling must itself be clean and committed. A separate input descriptor binds its repository,
 commit and complete content identity, exact library record digest, actual command identity and original build
 log hash. Any source-build failure revokes both records. SDK packaging with separate source requires this
