@@ -24,7 +24,10 @@ artifact on both architecture substitutions. See the [capture contract](../Specs
 Local build/test identity includes the actual clean pinned engine. Paired diagnostics
 retain each historical engine pin and use a separately verified current harness
 reader through explicit `ToolingEngineRoot`; both identities remain frozen and
-recorded. Cold preparation creates only an absent side checkout and never resets an
+recorded. Historical separate-source SDK builds also use that distinct two-engine
+key when their old pin predates the input reader. The original engine is unchanged
+and byte-verified; an explicit missing reader, dirty/wrong-pin engine or missing
+current reader still refuses. Cold preparation creates only an absent side checkout and never resets an
 existing engine. Default qualification and production/SDK roles retain their gates.
 
 Scoped tooling publishes its independently verified success before later native execution.

@@ -76,6 +76,11 @@ come from the invoking producer checkout. The feature supports only that Release
 outputs, dirty source, selected unions or Full/test proof. The existing profile lease, owned-process/output
 checks, complete before/after v2 identities and zero-warning/error acceptance still apply.
 
+When that historical source's exact engine predates the input-reader module, the invoking tooling's
+reader authenticates the original source engine without replacing it. The source and tooling engines
+both enter the existing distinct two-engine identity. Current ordinary inputs keep their original key;
+missing explicit readers, missing current readers, wrong pins and changed raw engine bytes still refuse.
+
 An explicit local developer build may instead add `-LocalUnpinnedSource` for an
 actually dirty separate `SourceRoot`. It retains Release/ProductionOnly, default
 producer outputs, reviewed source/API recipes, native input barriers, profile

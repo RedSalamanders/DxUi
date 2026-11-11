@@ -171,6 +171,11 @@ function Get-ScopedSourceIdentity {
     if (Test-Path -LiteralPath (Join-Path $Root '.ci/project.json') -PathType Leaf) {
         $actualEngine = Join-Path $Root '.ci-engine'
         $readerEngine = if ($ToolingEngineRoot) { [IO.Path]::GetFullPath($ToolingEngineRoot).TrimEnd('\','/') } else { $actualEngine }
+        if (-not $ToolingEngineRoot -and -not (Test-Path -LiteralPath (Join-Path $readerEngine 'Tools/Modules/Ci.SourceInputs.psm1') -PathType Leaf)) {
+            # Historical SDK sources retain their exact engine, which predates this reader.
+            # Use the tooling owner's reader and bind BOTH engines through the distinct key below.
+            $readerEngine = Join-Path (Split-Path $PSScriptRoot -Parent) '.ci-engine'
+        }
         Import-Module (Join-Path (Split-Path $readerEngine -Parent) '.ci-engine/Tools/Modules/Ci.SourceInputs.psm1') -ErrorAction Stop
         $engineInputs = Get-CiPinnedEngineInputsIdentity -Root $Root -EngineRoot $actualEngine
         $pathComparison=if($IsWindows){[StringComparison]::OrdinalIgnoreCase}else{[StringComparison]::Ordinal}

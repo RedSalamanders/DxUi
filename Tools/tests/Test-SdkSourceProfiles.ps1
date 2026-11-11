@@ -100,4 +100,60 @@ Invoke-FixtureCase 'actual local source completion never publishes pinned proven
     . $branch
     Assert-Equal 1 $script:sourceRecordWrites 'the ordinary clean source route still invokes the original pinned record writer'
 }
+Invoke-FixtureCase 'historical reader selection binds both subjects and preserves current and explicit-reader refusals' {
+    param($fixture)
+    # Execute the original selector at a recording boundary. The shared engine's real byte/pin
+    # controls remain separate; these cases verify which reader and subjects it actually invokes.
+    $scoped=Join-Path $root 'Tools/ScopedTesting.psm1'
+    $tokens=$null;$errors=$null
+    $ast=[Management.Automation.Language.Parser]::ParseFile($scoped,[ref]$tokens,[ref]$errors)
+    $definitions=@($ast.FindAll({param($n)$n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -ceq 'Get-ScopedSourceIdentity'},$true))
+    Assert-Equal 1 $definitions.Count 'one canonical source selector exists'
+    $owner=Join-Path $fixture 'tooling';$subject=Join-Path $fixture 'source'
+    Asset $subject '.ci/project.json' '{}'
+    Asset $owner '.ci-engine/Tools/Modules/Ci.SourceInputs.psm1' 'recording marker, never imported'
+    $prefix=@'
+Set-StrictMode -Version Latest
+$script:imports=[Collections.Generic.List[string]]::new()
+$script:subjects=[Collections.Generic.List[string]]::new()
+$script:bad=''
+function Get-ScopedSourceMap {param($Root,[switch]$CompiledOnly) return @{source='bytes'}}
+function Get-ScopedMapIdentity {param($Map) return 'raw-source'}
+function Get-ScopedDigest {param($Text) return [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($Text)))}
+function Import-Module {param($Name,$ErrorAction)
+ if(-not [IO.File]::Exists($Name)){throw 'READER_UNAVAILABLE'}
+ $script:imports.Add([IO.Path]::GetFullPath($Name))
+}
+function Get-CiPinnedEngineInputsIdentity {param($Root,$EngineRoot)
+ if([IO.Path]::GetFullPath((Join-Path $Root '.ci-engine')) -cne [IO.Path]::GetFullPath($EngineRoot)){throw 'SUBJECT_REDIRECTED'}
+ if($Root -ceq $script:bad){throw 'ENGINE_REFUSED'}
+ $script:subjects.Add([IO.Path]::GetFullPath($Root))
+ return ('engine:'+ [IO.Path]::GetFullPath($Root))
+}
+function Reset-Fixture {param($Bad='') $script:bad=$Bad;$script:imports.Clear();$script:subjects.Clear()}
+function Get-Fixture {return @{imports=$script:imports.ToArray();subjects=$script:subjects.ToArray()}}
+'@
+    $modulePath=Join-Path $owner 'Tools/IdentityProbe.psm1'
+    Asset $owner 'Tools/IdentityProbe.psm1' ($prefix+[char]10+$definitions[0].Extent.Text+[char]10+'Export-ModuleMember -Function Get-ScopedSourceIdentity,Reset-Fixture,Get-Fixture,Get-ScopedDigest')
+    $probe=Import-Module $modulePath -PassThru
+    try{
+        $legacy=& $probe {param($r) Get-ScopedSourceIdentity $r} $subject
+        $state=& $probe {Get-Fixture}
+        Assert-Equal 2 $state.subjects.Count 'legacy selection authenticates both original and tooling engines'
+        Assert-Equal ([IO.Path]::GetFullPath($subject)) $state.subjects[0] 'original engine is never substituted'
+        Assert-Equal ([IO.Path]::GetFullPath($owner)) $state.subjects[1] 'current tooling engine is separately authenticated'
+        Assert-Equal ([IO.Path]::GetFullPath((Join-Path $owner '.ci-engine/Tools/Modules/Ci.SourceInputs.psm1'))) $state.imports[0] 'reader code comes from the tooling owner'
+        & $probe {param($r) Reset-Fixture $r} $owner
+        Assert-Throws {& $probe {param($r) Get-ScopedSourceIdentity $r} $subject} 'wrong or dirty tooling engine cannot supply a reader'
+        & $probe {param($r) Reset-Fixture $r} $subject
+        Assert-Throws {& $probe {param($r) Get-ScopedSourceIdentity $r} $subject} 'wrong or dirty historical engine is not bypassed'
+        & $probe {Reset-Fixture}
+        Assert-Throws {& $probe {param($r,$e) Get-ScopedSourceIdentity $r -ToolingEngineRoot $e} $subject (Join-Path $fixture 'missing/.ci-engine')} 'an explicit absent reader has no fallback'
+        Asset $subject '.ci-engine/Tools/Modules/Ci.SourceInputs.psm1' 'current recording marker'
+        $current=& $probe {param($r) Get-ScopedSourceIdentity $r} $subject
+        $state=& $probe {Get-Fixture}
+        Assert-Equal 1 $state.subjects.Count 'current ordinary source retains its original one-engine identity'
+        Assert-True ($legacy -cne $current) 'legacy two-engine and current default identities remain distinct'
+    }finally{Remove-Module $probe -Force}
+}
 Complete-TestRun 'SDK source profiles'
