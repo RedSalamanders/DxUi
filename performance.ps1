@@ -6,6 +6,7 @@ MultilineGridHeapPaced additionally targets 50 retention frames/second to distin
 MultilineGridDistinct gives every grid cell its own French multiline text, so a layout cache must hold one layout per visible cell.
 .PARAMETER SkipBuild Reuse only a successful v2 default-output build attested against its complete per-side compiled projects, resolved compiler/shader/link profiles and actual artifacts. Older attestations require a fresh build. Every measurement verifies its complete identity before and after native execution.
 .PARAMETER OutputPath Logical receipt path retained for evidence reads and diagnostics; the native Windows argument uses an extended-length spelling when needed.
+.PARAMETER ToolingEngineRoot Explicit current paired-harness engine reader. The historical side's own exact clean pin remains required and both engines enter build identity.
 #>
 [CmdletBinding()]
 param(
@@ -14,10 +15,13 @@ param(
     [ValidateSet('Default','MultilineGrid','MultilineGridDistinct','MultilineGridRetention','MultilineGridHeap','MultilineGridHeapPaced')][string] $Scenario = 'Default',
     [string] $OutputPath = '',
     [string] $Baseline = '',
-    [switch] $SkipBuild
+    [switch] $SkipBuild,
+    [string] $ToolingEngineRoot = ''
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+$engineArguments=@{}
+if($ToolingEngineRoot){$engineArguments.ToolingEngineRoot=$ToolingEngineRoot}
 # The comparator module also owns the receipt's source fingerprint and benchmark inputs; a paired run copies it with this file.
 Import-Module (Join-Path $PSScriptRoot 'Tools/PerformanceComparison.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'Tools/PerformancePolicy.psm1') -Force
@@ -25,7 +29,7 @@ $native = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.To
 if (($Platform -eq 'ARM64' -and $native -ne 'Arm64') -or ($Platform -eq 'x64' -and $native -ne 'X64')) {
     throw 'Performance evidence requires native execution matching the requested architecture.'
 }
-if (-not $SkipBuild) { & (Join-Path $PSScriptRoot 'build.ps1') -Configuration $Configuration -Platform $Platform }
+if (-not $SkipBuild) { & (Join-Path $PSScriptRoot 'build.ps1') -Configuration $Configuration -Platform $Platform @engineArguments }
 if (-not $OutputPath) {
     # One default receipt per scenario: a MultilineGrid run must not overwrite a retained Default receipt.
     $scenarioSuffix = if ($Scenario -eq 'Default') { '' } else { "-$Scenario" }
@@ -52,7 +56,7 @@ try {
     # A receipt left at this path by an earlier run must never be re-stamped as this run's evidence: an executable
     # that does not know the scenario flag runs its functional tests, exits 0 and writes nothing.
     if (Test-Path -LiteralPath $OutputPath -PathType Leaf) { Remove-Item -LiteralPath $OutputPath }
-    $before = Get-PerformanceMeasurementState -Root $PSScriptRoot -Platform $Platform -Configuration $Configuration
+    $before = Get-PerformanceMeasurementState -Root $PSScriptRoot -Platform $Platform -Configuration $Configuration @engineArguments
     Assert-PerformanceBuildAttestation -Root $PSScriptRoot -Platform $Platform -Configuration $Configuration -State $before
     try {
         # Keep the logical evidence path; only the Windows native argument needs the extended-length spelling.
@@ -63,7 +67,7 @@ try {
         if ($LASTEXITCODE -ne 0) { throw "Complex-UI benchmark failed with exit code $LASTEXITCODE. Executable: $exe" }
         if (-not (Test-Path -LiteralPath $OutputPath -PathType Leaf)) { throw "The benchmark wrote no receipt for scenario ${Scenario}: $OutputPath. Executable: $exe" }
         $completedUtc = [DateTime]::UtcNow.ToString('o')
-        $after = Get-PerformanceMeasurementState -Root $PSScriptRoot -Platform $Platform -Configuration $Configuration
+        $after = Get-PerformanceMeasurementState -Root $PSScriptRoot -Platform $Platform -Configuration $Configuration @engineArguments
         Assert-PerformanceMeasurementState -Before $before -After $after
         Assert-PerformanceBuildAttestation -Root $PSScriptRoot -Platform $Platform -Configuration $Configuration -State $after
     } catch {

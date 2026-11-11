@@ -1004,29 +1004,32 @@ function Get-PerformanceIncrementalAttestationIdentity([string] $BuildIdentity, 
 
 function Get-PerformanceBuildState {
     [CmdletBinding()]
-    param([Parameter(Mandatory)][string] $Root, [Parameter(Mandatory)][string] $Platform, [Parameter(Mandatory)][string] $Configuration)
+    param([Parameter(Mandatory)][string] $Root, [Parameter(Mandatory)][string] $Platform, [Parameter(Mandatory)][string] $Configuration, [string] $ToolingEngineRoot = '')
+    $readerArguments=@{};if($ToolingEngineRoot){$readerArguments.ToolingEngineRoot=$ToolingEngineRoot}
     $tools = Get-PerformanceToolIdentities -Root $Root -Platform $Platform -Configuration $Configuration -IdentityScope Build
     if ($tools.identityStatus -cne 'build-only' -or $tools['buildIdentityVersion'] -ne 2 -or [string]::IsNullOrWhiteSpace([string]$tools.toolchainIdentity) -or
             [string]::IsNullOrWhiteSpace([string]$tools['resolvedBuildIdentity'])) {
         throw "Cannot attest benchmark build toolchain: $($tools['identityError'])"
     }
     return [ordered]@{ buildIdentityVersion=2; resolvedBuildIdentity=$tools['resolvedBuildIdentity'];
-        buildInputIdentity=(Get-PerformanceBuildInputIdentity -Root $Root -Platform $Platform -ResolvedBuildIdentity $tools['resolvedBuildIdentity']); toolchainIdentity=$tools.toolchainIdentity }
+        buildInputIdentity=(Get-PerformanceBuildInputIdentity -Root $Root -Platform $Platform -ResolvedBuildIdentity $tools['resolvedBuildIdentity'] @readerArguments); toolchainIdentity=$tools.toolchainIdentity }
 }
 
 function Get-PerformanceBuildInputIdentity {
-    param([string] $Root, [string] $Platform, [string] $ResolvedBuildIdentity)
+    param([string] $Root, [string] $Platform, [string] $ResolvedBuildIdentity, [string] $ToolingEngineRoot = '')
     if ([string]::IsNullOrWhiteSpace($ResolvedBuildIdentity)) { throw 'The resolved build input identity is missing.' }
-    return Get-ScopedDigest (@('dxui-performance-input-v2', (Get-ScopedBuildInputIdentity $Root $Platform), $ResolvedBuildIdentity) -join "`n")
+    $readerArguments=@{};if($ToolingEngineRoot){$readerArguments.ToolingEngineRoot=$ToolingEngineRoot}
+    return Get-ScopedDigest (@('dxui-performance-input-v2', (Get-ScopedBuildInputIdentity $Root $Platform @readerArguments), $ResolvedBuildIdentity) -join "`n")
 }
 
 function Start-PerformanceBuildAttestation {
     [CmdletBinding()]
-    param([Parameter(Mandatory)][string] $Root, [Parameter(Mandatory)][string] $Platform, [Parameter(Mandatory)][string] $Configuration)
+    param([Parameter(Mandatory)][string] $Root, [Parameter(Mandatory)][string] $Platform, [Parameter(Mandatory)][string] $Configuration, [string] $ToolingEngineRoot = '')
+    $readerArguments=@{};if($ToolingEngineRoot){$readerArguments.ToolingEngineRoot=$ToolingEngineRoot}
     $path = Get-PerformanceBuildAttestationPath $Root $Platform $Configuration
     $incrementalPath = Get-PerformanceIncrementalAttestationPath $Root $Platform $Configuration
     try {
-        $state = Get-PerformanceBuildState -Root $Root -Platform $Platform -Configuration $Configuration
+        $state = Get-PerformanceBuildState -Root $Root -Platform $Platform -Configuration $Configuration @readerArguments
         $rebuildRequired = $true
         $executable = Join-Path $Root ".build/$Platform/$Configuration/DxUi.EmbeddedTests.exe"
         if ((Test-Path -LiteralPath $path -PathType Leaf) -and (Test-Path -LiteralPath $executable -PathType Leaf)) {
@@ -1067,11 +1070,12 @@ function Get-PerformanceBuildAttestationIdentity {
 function Complete-PerformanceBuildAttestation {
     [CmdletBinding()]
     param([Parameter(Mandatory)][string] $Root, [Parameter(Mandatory)][string] $Platform, [Parameter(Mandatory)][string] $Configuration,
-        [Parameter(Mandatory)][System.Collections.IDictionary] $Before, [switch] $PassThru)
+        [Parameter(Mandatory)][System.Collections.IDictionary] $Before, [switch] $PassThru, [string] $ToolingEngineRoot = '')
+    $readerArguments=@{};if($ToolingEngineRoot){$readerArguments.ToolingEngineRoot=$ToolingEngineRoot}
     $path = Get-PerformanceBuildAttestationPath $Root $Platform $Configuration
     $incrementalPath = Get-PerformanceIncrementalAttestationPath $Root $Platform $Configuration
     try {
-        $after = Get-PerformanceBuildState -Root $Root -Platform $Platform -Configuration $Configuration
+        $after = Get-PerformanceBuildState -Root $Root -Platform $Platform -Configuration $Configuration @readerArguments
         foreach ($key in @('buildIdentityVersion','resolvedBuildIdentity','buildInputIdentity','toolchainIdentity')) {
             if ([string]$Before[$key] -cne [string]$after[$key]) { throw "Benchmark $key changed during build; no build attestation was published." }
         }
@@ -1094,9 +1098,10 @@ function Complete-PerformanceBuildAttestation {
 function Assert-PerformanceBuildAttestation {
     [CmdletBinding()]
     param([Parameter(Mandatory)][string] $Root, [Parameter(Mandatory)][string] $Platform, [Parameter(Mandatory)][string] $Configuration,
-        [System.Collections.IDictionary] $State)
+        [System.Collections.IDictionary] $State, [string] $ToolingEngineRoot = '')
     if ($null -eq $State) {
-        $State = Get-PerformanceBuildState -Root $Root -Platform $Platform -Configuration $Configuration
+        $readerArguments=@{};if($ToolingEngineRoot){$readerArguments.ToolingEngineRoot=$ToolingEngineRoot}
+        $State = Get-PerformanceBuildState -Root $Root -Platform $Platform -Configuration $Configuration @readerArguments
         $State['buildArtifactIdentity'] = Get-ScopedArtifactIdentity $Root $Platform $Configuration
     }
     $identity = Get-PerformanceBuildAttestationIdentity -State $State -ArtifactIdentity ([string]$State['buildArtifactIdentity'])
@@ -1108,7 +1113,8 @@ function Assert-PerformanceBuildAttestation {
 
 function Get-PerformanceMeasurementState {
     [CmdletBinding()]
-    param([Parameter(Mandatory)][string] $Root, [Parameter(Mandatory)][string] $Platform, [Parameter(Mandatory)][string] $Configuration)
+    param([Parameter(Mandatory)][string] $Root, [Parameter(Mandatory)][string] $Platform, [Parameter(Mandatory)][string] $Configuration, [string] $ToolingEngineRoot = '')
+    $readerArguments=@{};if($ToolingEngineRoot){$readerArguments.ToolingEngineRoot=$ToolingEngineRoot}
     $tools = Get-PerformanceToolIdentities -Root $Root -Platform $Platform -Configuration $Configuration
     if ($tools.identityStatus -cne 'verifiable' -or $tools.identityScope -cne 'full' -or $tools['buildIdentityVersion'] -ne 2) { throw "Cannot attest benchmark measurement: $($tools['identityError'])" }
     $commit = @(& git -C $Root rev-parse HEAD)
@@ -1131,7 +1137,7 @@ function Get-PerformanceMeasurementState {
         executableSha256=(Get-FileHash -LiteralPath $executable -Algorithm SHA256).Hash; benchmarkInputs=$inputs
         # Keep the historical receipt's uppercase SHA-256 and literal path/hash lines.
         benchmarkSha256=(Get-ScopedDigest $fixture).ToUpperInvariant()
-        buildInputIdentity=(Get-PerformanceBuildInputIdentity -Root $Root -Platform $Platform -ResolvedBuildIdentity $tools['resolvedBuildIdentity']); buildArtifactIdentity=(Get-ScopedArtifactIdentity $Root $Platform $Configuration)
+        buildInputIdentity=(Get-PerformanceBuildInputIdentity -Root $Root -Platform $Platform -ResolvedBuildIdentity $tools['resolvedBuildIdentity'] @readerArguments); buildArtifactIdentity=(Get-ScopedArtifactIdentity $Root $Platform $Configuration)
     }
     foreach ($key in $tools.Keys) { $state[$key] = $tools[$key] }
     $state['buildAttestationIdentity'] = Get-PerformanceBuildAttestationIdentity -State $state -ArtifactIdentity $state['buildArtifactIdentity']

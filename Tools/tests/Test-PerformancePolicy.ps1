@@ -30,16 +30,19 @@ Invoke-TestCase 'the actual benchmark call extends only native argv and preserve
     $ast = [Management.Automation.Language.Parser]::ParseFile((Join-Path $PSScriptRoot '../../performance.ps1'),[ref]$tokens,[ref]$errors)
     Assert-Equal 0 $errors.Count 'the performance entrypoint parses'
     $before = $ast.Find({ param($Node) $Node -is [Management.Automation.Language.AssignmentStatementAst] -and $Node.Left.Extent.Text -ceq '$before' },$true)
+    $engineInit = $ast.Find({ param($Node) $Node -is [Management.Automation.Language.AssignmentStatementAst] -and $Node.Left.Extent.Text -ceq '$engineArguments' },$true)
+    $engineSelection = $ast.Find({ param($Node) $Node -is [Management.Automation.Language.IfStatementAst] -and $Node.Extent.Text.StartsWith('if($ToolingEngineRoot)') },$true)
     $gate = $ast.Find({ param($Node) $Node -is [Management.Automation.Language.CommandAst] -and $Node.GetCommandName() -ceq 'Assert-PerformanceBuildAttestation' -and $Node.Extent.Text.Contains('-State $before') },$true)
     $nativeTry = $ast.Find({ param($Node) $Node -is [Management.Automation.Language.TryStatementAst] -and $Node.Body.Extent.Text.Contains('& $exe $benchmarkArgument') -and -not $Node.Body.Extent.Text.Contains('$benchmarkArgument = switch') },$true)
     Assert-True ($null -ne $before -and $null -ne $gate -and $null -ne $nativeTry) 'extract the actual before gate and complete native try/catch'
     # Execute production statements, including the conversion, native call, exit check and after gates. The
     # scriptblock sentinel observes argv without opening files, running native code or evaluating real identity.
     $stage = [scriptblock]::Create(@'
-param($OutputPath,$Probe,$exe)
+param($OutputPath,$Probe,$exe,[string]$ToolingEngineRoot='')
 $Platform='x64'; $Configuration='Release'; $Scenario='Default'; $benchmarkArgument='--benchmark'
 function Get-PerformanceMeasurementState {
-    param($Root,$Platform,$Configuration)
+    param($Root,$Platform,$Configuration,$ToolingEngineRoot='')
+    $Probe['engineReader']=$ToolingEngineRoot
     $Probe.states++; $Probe.events.Add("state-$($Probe.states)")
     return @{ ordinal=$Probe.states }
 }
@@ -62,7 +65,7 @@ function Move-Item {
     param($LiteralPath,$Destination)
     $Probe.invalidated.Add($LiteralPath)
 }
-'@ + "`n" + $before.Extent.Text + "`n" + $gate.Extent.Text + "`n" + $nativeTry.Extent.Text)
+'@ + "`n" + $engineInit.Extent.Text + "`n" + $engineSelection.Extent.Text + "`n" + $before.Extent.Text + "`n" + $gate.Extent.Text + "`n" + $nativeTry.Extent.Text)
     $native = {
         param($Flag,$Path)
         $Probe.events.Add('native'); $Probe.arguments.Add($Flag); $Probe.arguments.Add($Path)
@@ -74,7 +77,7 @@ function Move-Item {
     $unc = '\\fixture.invalid\share space\' + ('long Unicode β\' * 24) + 'receipt.json'
     Assert-True ($drive.Length -gt 260 -and $unc.Length -gt 260) 'long drive and UNC fixture paths exceed MAX_PATH'
     $cases = @(
-        @($drive, ('\\?\' + $drive)),
+        @($drive, ('\\?\' + $drive), 'synthetic-reader'),
         @($unc, ('\\?\UNC\' + $unc.Substring(2))),
         @('\\?\C:\fixture space\β.json', '\\?\C:\fixture space\β.json'),
         @('\\?\UNC\fixture.invalid\share space\β.json', '\\?\UNC\fixture.invalid\share space\β.json'),
@@ -85,7 +88,9 @@ function Move-Item {
             paths=[Collections.Generic.List[string]]::new(); invalidated=[Collections.Generic.List[string]]::new();
             failBefore=$false; failAfter=$false; nativeThrows=$false; exitCode=0; outputExists=$true }
         $logical = $case[0]
-        $output = @(& $stage $logical $probe $native)
+        $reader=if($case.Count -gt 2){$case[2]}else{''}
+        $output = @(& $stage $logical $probe $native $reader)
+        Assert-Equal $reader $probe.engineReader 'actual before/after measurement state receives the explicit reader without changing default calls'
         Assert-Equal '--benchmark' $probe.arguments[0] 'benchmark selection is unchanged'
         Assert-Equal $case[1] $probe.arguments[1] 'actual native call receives the extended spelling exactly once'
         Assert-Equal $logical $probe.paths[0] 'output existence checks retain the logical evidence path'
@@ -1254,13 +1259,16 @@ Invoke-FixtureCase 'default build entrypoint rebuilds stale inputs and preserves
     $ast = [Management.Automation.Language.Parser]::ParseFile((Join-Path $PSScriptRoot '../../build.ps1'), [ref]$tokens, [ref]$errors)
     Assert-Equal 0 $errors.Count 'the production build entrypoint parses'
     $initial = $ast.Find({ param($Node) $Node -is [Management.Automation.Language.AssignmentStatementAst] -and $Node.Left.Extent.Text -ceq '$target' }, $true)
+    $engineInit = $ast.Find({ param($Node) $Node -is [Management.Automation.Language.AssignmentStatementAst] -and $Node.Left.Extent.Text -ceq '$engineArguments' },$true)
+    $engineSelection = $ast.Find({ param($Node) $Node -is [Management.Automation.Language.IfStatementAst] -and $Node.Extent.Text.StartsWith('if($ToolingEngineRoot)') },$true)
     $guard = $ast.Find({ param($Node) $Node -is [Management.Automation.Language.IfStatementAst] -and $Node.Extent.Text.Contains('Start-PerformanceBuildAttestation') }, $true)
     $consumerGuard = $ast.Find({ param($Node) $Node -is [Management.Automation.Language.IfStatementAst] -and $Node.Extent.Text.StartsWith('if (-not $attestPerformanceBuild)') }, $true)
     $arguments = $ast.Find({ param($Node) $Node -is [Management.Automation.Language.AssignmentStatementAst] -and $Node.Left.Extent.Text -ceq '$arguments' }, $true)
     # Execute the actual pre-MSBuild entrypoint stage with real v2 attestation logic. No native build is invoked;
     # only its import is suppressed because the test already imported the production module and supplies a VS fixture.
-    $stageText = 'param($Platform,$Configuration,$attestPerformanceBuild,$Rebuild)' + "`n" +
+    $stageText = 'param($Platform,$Configuration,$attestPerformanceBuild,$Rebuild,[string]$ToolingEngineRoot='''')' + "`n" +
         '$partialBuild=$false; $selectedProjects=@(); $buildRoot=$PSScriptRoot' + "`n" +
+        $engineInit.Extent.Text + "`n" + $engineSelection.Extent.Text + "`n" +
         "function Import-Module { param(`$Name, [switch]`$Force) }`n" + $initial.Extent.Text + "`n" + $consumerGuard.Extent.Text + "`n" + $guard.Extent.Text + "`n" +
         '$log="fixture.log"; $output=(Join-Path $PSScriptRoot ''.build'')' + "`n" + $arguments.Extent.Text + "`n" +
         '[ordered]@{ arguments=$arguments; state=$(if ($attestPerformanceBuild) { $performanceBuildBefore } else { $null }) }'

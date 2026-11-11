@@ -39,6 +39,7 @@ function Get-BenchmarkScopeRules {
         [ordered]@{ Reason = 'fixture or sample compiled into it'; Paths = @('Samples') }
         [ordered]@{ Reason = 'build or restore'; Paths = @('DxUi.sln', 'build.ps1', 'vcpkg-install.ps1', 'vcpkg-configuration.json', 'Tools/VisualStudio.psm1', 'Tools/VcpkgTriplet.psm1','Tools/VcpkgRestore.psm1', 'Tools/ScopedTesting.psm1', 'Tools/SdkLibraryInputs.psm1', 'Tools/SdkSourceProfiles.psm1', 'Tools/ProcessInspection.psm1', 'Tools/Validation.psm1', 'Tools/Changelog.psm1','Tools/Modules/Documentation/Changelog.psm1') }
         [ordered]@{ Reason = 'paired measurement or gate'; Paths = @('performance-paired.ps1', 'Tools/PairedRun.psm1', 'Tools/BenchmarkGate.psm1', 'Tools/PerformancePolicy.psm1', 'Tools/PerformanceAcceptancePolicy.v1.json', 'Tools/Get-BenchmarkScope.ps1', 'Tools/Publish-BenchmarkVerdict.ps1') }
+        [ordered]@{ Reason = 'build or restore'; Paths = @('.ci/project.json', '.ci-engine', 'Tools/PairedEngineInputs.psm1') }
         [ordered]@{ Reason = 'hosted workflow'; Paths = @('.github/workflows/ci.yml') }
     )
 }

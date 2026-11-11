@@ -16,6 +16,23 @@ still exercise the actual adapter (including Alt rejecting a same-editor move). 
 needed for these direct, windowless calls.
 Last reviewed: 2026-10-25
 
+## Paired engine input integrity
+
+The paired harness uses the build contract's explicit current reader with each
+historical side's own exact actual engine. Both independent clean checkouts and
+fresh raw bytes are inputs; equal-size/backdated edits hidden by Git index flags
+must change identity or refuse. Frozen study context is reverified before/after
+builds and each measurement, including existing-build and preflight paths. Reader
+and actual engine identities are retained per side. Generated engine output is
+excluded; product iteration maps remain unchanged. No diagnostic reader receipt
+can satisfy the default qualification reader's different key.
+
+Cold fixtures cover original pin preservation, exact existing reuse, refusal without
+reset of wrong-pin inputs, raw hidden-reader mutation, default/diagnostic separation
+and pre-CI sources without an engine. Measurement relevance includes the engine
+manifest and generated engine implementation closure. Preserve native paired-study,
+SDK, architecture, sanitizer and product gates separately.
+
 ## Independent format oracles
 
 Native object admission tests distinguish actual geometry capacity from an

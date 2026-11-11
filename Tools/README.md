@@ -1,5 +1,11 @@
 # Tool inventory
 
+Local build/test identity includes the actual clean pinned engine. Paired diagnostics
+retain each historical engine pin and use a separately verified current harness
+reader through explicit `ToolingEngineRoot`; both identities remain frozen and
+recorded. Cold preparation creates only an absent side checkout and never resets an
+existing engine. Default qualification and production/SDK roles retain their gates.
+
 Scoped tooling publishes its independently verified success before later native execution.
 An identical continuation can reuse it after a native failure; failed or changed tooling,
 instrumented work and incomplete native/foreground obligations retain their separate outcomes.

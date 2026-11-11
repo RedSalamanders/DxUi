@@ -1,5 +1,29 @@
 # Toolchain and consumer integration
 
+## Pinned engine inputs and paired diagnostic readers
+
+Local source/build/runtime identities bind the actual clean `.ci-engine` at the
+checkout's exact `.ci/project.json` pin through the shared source-input reader.
+Keep engine identity outside product file/iteration maps; generated engine `.build`
+output does not participate. Missing, dirty, foreign or wrong-pin inputs refuse reuse.
+
+Paired diagnostics may pass an explicit `ToolingEngineRoot` from their common current
+harness to `build.ps1` and `performance.ps1`. Historical sides retain their original
+manifest and actual engine pin. The current reader is a separate independent clean
+checkout at its own owner's exact pin; both raw engine identities enter build and
+measurement identity before and after execution. External-reader keys differ from
+the default qualification key. Production-only and external-source SDK builds reject
+this diagnostic reader option before discovery or mutation.
+
+Pair preparation restores only an absent side engine from the local clean harness
+checkout, then checks out the side's original exact pin with Git long paths enabled.
+Existing engines are verified and preserved; no dirty or wrong-pin checkout is reset.
+Pre-CI historical sides acquire no engine. Freeze both engine identities across side
+preparation, build, SkipBuild/preflight and every measurement. Record them per side;
+changed inputs refuse the study. Never copy current reader code into an older engine
+or advance a historical pin to make the comparison work. This supplies diagnostic
+input provenance, not native/SDK/Full acceptance.
+
 ## Selected native target builds
 
 `build.ps1 -Projects DxUi.FoundationTests,DxUi.EmbeddedTests` selects one owned project union instead of
