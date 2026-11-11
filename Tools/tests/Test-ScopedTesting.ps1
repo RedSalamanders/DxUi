@@ -44,6 +44,40 @@ function Invoke-FixtureGit([string[]]$Arguments) {& git -C $fixture @Arguments *
 $fixture=Join-Path $repository ('.build/ToolTests/ScopedTesting-'+[guid]::NewGuid().ToString('N'))
 [void](New-Item -ItemType Directory -Path $fixture -Force)
 try {
+    Run-Case 'actual ignored engine bytes bind build and tooling evidence without changing iteration maps' {
+        $product=$fixture+'-engine-input-project'
+        [void][IO.Directory]::CreateDirectory($product)
+        $initialized=& git -C $product init --quiet 2>&1
+        if($LASTEXITCODE){throw "Owned product fixture initialization failed: $initialized"}
+        Write-Fixture (Join-Path $product '.gitignore') ".build/`n.ci-engine/`n"
+        Write-Fixture (Join-Path $product '.ci/project.json') ([IO.File]::ReadAllText((Join-Path $repository '.ci/project.json')))
+        Write-Fixture (Join-Path $product 'runtime.cpp') 'synthetic source'
+        $engine=Join-Path $product '.ci-engine'
+        $cloneOutput=& git clone --quiet --no-hardlinks (Join-Path $repository '.ci-engine') $engine 2>&1
+        if($LASTEXITCODE){throw "Owned engine fixture clone failed: $cloneOutput"}
+        $mapBefore=Get-ScopedMapIdentity (Get-ScopedSourceMap $product)
+        $toolingBefore=Get-ScopedSourceIdentity $product
+        $buildBefore=Get-ScopedSourceIdentity $product -CompiledOnly
+        Assert-Scope ((Get-ScopedSourceIdentity $product.ToUpperInvariant()) -ceq $toolingBefore) 'Windows path casing invalidated tooling evidence'
+        Assert-Scope ((Get-ScopedSourceIdentity $product.ToUpperInvariant() -CompiledOnly) -ceq $buildBefore) 'Windows path casing invalidated build evidence'
+        Write-Fixture (Join-Path $engine '.build/fixture-output.json') '{"generated":true}'
+        Assert-Scope ((Get-ScopedSourceIdentity $product) -ceq $toolingBefore) 'Generated engine output invalidated tooling'
+        Assert-Scope ((Get-ScopedSourceIdentity $product -CompiledOnly) -ceq $buildBefore) 'Generated engine output invalidated build evidence'
+        $policy=Join-Path $engine 'Tools/Modules/Ci.Policy.psm1'
+        $original=[IO.File]::ReadAllBytes($policy)
+        try{
+            [IO.File]::AppendAllText($policy,"`n# Synthetic changed engine implementation.`n")
+            foreach($compiled in @($false,$true)){
+                $refusal=''
+                try{$null=Get-ScopedSourceIdentity $product -CompiledOnly:$compiled}catch [System.Management.Automation.RuntimeException]{$refusal=$_.Exception.Message}
+                Assert-Scope ($refusal.Contains('Local engine checkout must be clean')) 'Modified ignored engine retained reusable build/tooling evidence'
+            }
+            Assert-Scope ((Get-ScopedMapIdentity (Get-ScopedSourceMap $product)) -ceq $mapBefore) 'Engine identity polluted product iteration maps'
+        }finally{[IO.File]::WriteAllBytes($policy,$original)}
+        Assert-Scope ((Get-ScopedSourceIdentity $product) -ceq $toolingBefore) 'Restored exact engine did not recover its tooling identity'
+        Assert-Scope ((Get-ScopedSourceIdentity $product -CompiledOnly) -ceq $buildBefore) 'Restored exact engine did not recover its build identity'
+
+    }
     Invoke-FixtureGit @('init','-q')
     Invoke-FixtureGit @('config','user.name','Scoped testing fixture')
     Invoke-FixtureGit @('config','user.email','fixture@example.invalid')
