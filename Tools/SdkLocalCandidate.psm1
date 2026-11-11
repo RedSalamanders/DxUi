@@ -79,7 +79,7 @@ function New-DxUiLocalSdkSnapshot {
         $abi=Import-Module (Join-Path $engineRoot 'Tools/Modules/Ci.SdkAbi.psm1') -PassThru
         $installation=Get-DxUiVisualStudioInstallation
         $abiReference=& $abi {param($t,$m,$p,$a) Get-CiSdkAbiReference -ToolingRoot $t -MSBuildPath $m -ProjectPath $p -Platform $a} `
-            $toolingRoot (Join-Path $installation 'MSBuild/Current/Bin/MSBuild.exe') (Join-Path $root 'src/DxUi.vcxproj') $Platform
+            $toolingRoot (Get-DxUiNativeMSBuild -Installation $installation) (Join-Path $root 'src/DxUi.vcxproj') $Platform
         if($abiReference.compiler.vcToolsVersion -cne $before.compilerVersion){throw 'Local SDK ABI reference disagrees with the actual evaluated Release compiler.'}
         [IO.File]::WriteAllText((Join-Path $stage 'provenance/toolchain-reference.json'),($abiReference|ConvertTo-Json -Depth 14),[Text.UTF8Encoding]::new($false))
         $catalog=@(& $storage {param($p) Get-CiSdkPayloadFiles $p} $stage)

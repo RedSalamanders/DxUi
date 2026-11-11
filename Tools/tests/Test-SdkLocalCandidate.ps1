@@ -42,6 +42,7 @@ $payloadModule=Import-Module (Join-Path $root 'Tools/SdkPayload.psm1') -PassThru
 $abiModule=Import-Module (Join-Path $root '.ci-engine/Tools/Modules/Ci.SdkAbi.psm1') -PassThru
 & $abiModule {
     function script:Get-CiSdkAbiReference {param($ToolingRoot,$MSBuildPath,$ProjectPath,$Platform)
+        if($MSBuildPath -cne 'C:/synthetic-native-selected/MSBuild.exe'){throw 'Local capture bypassed native SDK MSBuild selection.'}
         return [ordered]@{schemaVersion=2;role='PortableSdkToolchainReference';compiler=@{vcToolsVersion='14.52.36430'};fixtureOnly=$true}
     }
 }
@@ -67,6 +68,7 @@ $exitBody=& $scoped {${function:Exit-ScopedProfileLease}}
         return $script:probe.library
     }
     function script:Get-DxUiVisualStudioInstallation {return 'C:/synthetic-not-invoked-VisualStudio'}
+    function script:Get-DxUiNativeMSBuild {param($Installation) return 'C:/synthetic-native-selected/MSBuild.exe'}
     function script:New-DxUiSdkPayload {
         [CmdletBinding()]param($Root,$Stage,$Platform,$SourceCommit,$CompilerVersion,$ExpectedLibraryHash,$ExpectedPdbHash)
         $arguments=$PSBoundParameters

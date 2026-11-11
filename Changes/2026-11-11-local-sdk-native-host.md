@@ -1,0 +1,1 @@
+- Aligned local SDK snapshot ABI capture with ordinary packaging's native MSBuild host selection, preserving original library provenance and strict consumer toolchain matching.

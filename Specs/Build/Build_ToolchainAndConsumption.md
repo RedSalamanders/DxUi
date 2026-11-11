@@ -578,3 +578,13 @@ Provider runner-file hashes and exact source Git-blob hashes have explicitly dif
 The [native policy, console and dependency-path contract](Build_ConsoleAndPaths.md) owns /Wall without /WX, zero-warning acceptance, Debug/ASan symbols, Release-only ICF, common terminal results and verified short dependency folders.
 
 The relocatable Release SDK distribution and extracted-consumer proof are governed by Specs/Build/Build_UnifiedCI.md. Its exact compiler/LTCG/CRT identity and packaged build policy do not change the independently pinned source-consumer interface above.
+
+### Local snapshot ABI host consistency
+
+Local snapshot capture selects the same native SDK MSBuild host as ordinary
+packaging through `Get-DxUiNativeMSBuild`. Capturing an ABI reference with the
+root 32-bit MSBuild executable produces a different file reference from a native
+consumer even when compiler versions agree. Native x64/ARM64 selection and
+missing-host refusal are explicit. The original library record still retains
+its actual complete build inputs and must pass its original reader unchanged;
+the ABI reference does not reconstruct or replace producer build provenance.

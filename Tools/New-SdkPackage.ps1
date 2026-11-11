@@ -74,9 +74,7 @@ $sourceProfile=Get-DxUiSdkSourceProfile -Root $root -SourceCommit $sourceCommit
 $separateSource=-not [string]::Equals($root.TrimEnd('\','/'),$toolingRoot.TrimEnd('\','/'),[StringComparison]::OrdinalIgnoreCase)
 $sourceBuild=if($separateSource){Assert-DxUiSdkSourceBuildRecord -Root $root -Platform $Platform -Tooling $toolingBefore -LibraryRecord $libraryInputs}else{$null}
 $installation=Get-DxUiVisualStudioInstallation
-$hostArchitecture=if([Runtime.InteropServices.RuntimeInformation]::OSArchitecture -eq 'Arm64'){'arm64'}else{'amd64'}
-$msbuild=Join-Path $installation "MSBuild/Current/Bin/$hostArchitecture/MSBuild.exe"
-if(-not(Test-Path -LiteralPath $msbuild)){throw 'Native MSBuild is missing from the selected installation.'}
+$msbuild=Get-DxUiNativeMSBuild -Installation $installation
 $identity=Get-DxUiConsumerBuildIdentity -DxUiRoot $root -MSBuildPath $msbuild -Platform $Platform
 $library=Join-Path $root ".build/$Platform/Release/DxUi.lib"
 $libraryPdb=Join-Path $root ".build/$Platform/Release/DxUi.pdb"

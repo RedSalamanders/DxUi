@@ -17,6 +17,29 @@ function Get-DxUiVisualStudioInstallation {
     return [string]$installation
 }
 
+function Get-DxUiNativeMSBuildHost {
+    param([Runtime.InteropServices.Architecture]$Architecture=[Runtime.InteropServices.RuntimeInformation]::OSArchitecture)
+    switch($Architecture){
+        X64 {return 'amd64'}
+        Arm64 {return 'arm64'}
+        default {throw 'SDK MSBuild requires a native x64 or ARM64 host.'}
+    }
+}
+
+function Get-DxUiNativeMSBuild {
+    <#
+    .SYNOPSIS Selects the native SDK MSBuild executable in a discovered Visual Studio installation.
+    .PARAMETER Installation Existing installation returned by Get-DxUiVisualStudioInstallation.
+    .OUTPUTS Absolute amd64/arm64 MSBuild.exe path. Reads only; missing native hosts fail without fallback.
+    #>
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][string]$Installation)
+    $hostFolder=Get-DxUiNativeMSBuildHost
+    $path=Join-Path $Installation "MSBuild/Current/Bin/$hostFolder/MSBuild.exe"
+    if(-not [IO.File]::Exists($path)){throw 'Native SDK MSBuild is missing from the selected installation.'}
+    return [IO.Path]::GetFullPath($path)
+}
+
 function Get-DxUiDefaultToolset {
     <# The MSVC toolset MSBuild compiles with when a project names none: the version in the installation's
        VC/Auxiliary/Build/Microsoft.VCToolsVersion.default.txt, such as 14.51.36231, which its major.minor (14.51) selects. It
@@ -40,4 +63,4 @@ function Get-DxUiDefaultToolset {
     return [pscustomobject]@{ Installation = $Installation; VersionFile = $path; Version = $text; MajorMinor = $match.Groups['majorMinor'].Value }
 }
 
-Export-ModuleMember -Function Get-DxUiVisualStudioInstallation, Get-DxUiDefaultToolset
+Export-ModuleMember -Function Get-DxUiVisualStudioInstallation, Get-DxUiDefaultToolset, Get-DxUiNativeMSBuild

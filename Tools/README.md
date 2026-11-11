@@ -279,3 +279,12 @@ Keep that lease through compilation/linking and call `Close-DxUiSdkInputBytes` i
 inputs and every stored byte again. Missing versions return no bytes; malformed/corrupt/incompatible inputs
 fail reuse. Publication/opening grant no test verdict. Consumer profile admission, local-candidate refusal,
 authenticated hosted producer trust and product qualification remain separate requirements.
+
+### SDK ABI host selection
+
+`Get-DxUiNativeMSBuild` in `VisualStudio.psm1` owns the read-only native SDK
+host selection: amd64 on x64, arm64 on ARM64. Ordinary SDK packaging and local
+snapshot ABI capture share it. A missing native host refuses without falling
+back to the root MSBuild executable. Original library build provenance remains
+independently bound to its actual build inputs; capturing an ABI reference never
+rewrites that record or bypasses current source/library/tool checks.
