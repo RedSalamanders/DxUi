@@ -354,6 +354,12 @@ identify which host or desktop action delayed or changed a cursor position.
 Keyboard root-switch fixtures require modal-dispatch readiness before posted state probes, using the remainder
 of the same five-second discovery budget. They run under the existing bounded foreground-attempt helper with
 a fresh owner per admitted attempt; a held behavioral failure and exhausted admission remain failures.
+Modal state-probe fixtures establish an owned physical pointer at their menu anchor
+before opening each fresh popup, including a retry after simulated foreground loss.
+Reuse the scoped pointer fixture and its verified ownership-aware restoration so
+an activation gesture outside the popup cannot dismiss it before the readiness
+hook is exercised. Readiness, probe deadlines and foreground-loss assertions remain
+unchanged.
 A stationary-pointer assertion must establish and read back the owned physical cursor at the matching owner
 client point. Posting the same virtual coordinate alone does not establish stationarity. Fresh same-point mouse
 messages remain covered after keyboard navigation: retain the original 120 ms popup-alive check immediately

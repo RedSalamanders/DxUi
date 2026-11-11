@@ -1,0 +1,1 @@
+- Seeded and restored the owned physical pointer for each fresh modal state-probe menu attempt, preserving readiness and foreground-retry assertions and their existing deadlines.
