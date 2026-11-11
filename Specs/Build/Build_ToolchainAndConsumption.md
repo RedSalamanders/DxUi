@@ -1,21 +1,5 @@
 # Toolchain and consumer integration
 
-## Native compiler metadata ownership
-
-The native MSBuild stage runs through the exact pinned shared engine's
-`Invoke-CiNativeCommand`. Its child host selects a fresh private metadata-service
-endpoint; the calling process's environment and directory are preserved. Literal
-arguments, live diagnostics and native exit codes still feed the existing formatter,
-zero-warning guard and source/artifact attestations. This changes process coordination,
-not compiler options, target selection or native acceptance. SourceRoot production
-builds use the tooling checkout's launcher and retain their existing startup directory.
-
-Local native builds require `.ci-engine` at `.ci/project.json`'s exact `engine.ref`.
-Clone `https://github.com/RedSalamanders/.github.git` into that ignored directory on
-first setup, then check out the manifest commit detached. Fetch before updating an
-existing clean checkout; preserve another owner's changes. Hosted CI already restores
-the exact engine. Product consumers retain their own pins and independent qualification.
-
 ## Selected native target builds
 
 `build.ps1 -Projects DxUi.FoundationTests,DxUi.EmbeddedTests` selects one owned project union instead of

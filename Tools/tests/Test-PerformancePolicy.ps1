@@ -1307,24 +1307,16 @@ function Invoke-FixtureCompiler {
     if ($null -ne $Failure) { throw $Failure }
     $global:LASTEXITCODE=$Code
 }
-function Invoke-CiNativeCommand {
-    param([string]$FilePath,[string[]]$Arguments,[string]$WorkingDirectory)
-    Assert-Equal 'Invoke-FixtureCompiler' $FilePath 'the stage selects the original native executable'
-    $Probe.launcherCalls++
-    Push-Location -LiteralPath $WorkingDirectory
-    try { & $FilePath @Arguments } finally { Pop-Location }
-}
 function Write-DxUiMSBuildLine { param([string]$Line) $Probe.lines.Add($Line) }
 '@ + "`n" + $phase.Extent.Text
     Set-FixtureFile $root 'msbuild-invocation-stage.ps1' $stageText
     $stage = Join-Path $root 'msbuild-invocation-stage.ps1'
     $originalDirectory = (Get-Location).Path
     foreach ($code in @(0,7)) {
-        $probe = @{ lines=[Collections.Generic.List[string]]::new(); launcherCalls=0 }
+        $probe = @{ lines=[Collections.Generic.List[string]]::new() }
         $caught = $null
         try { $output = @(& $stage $probe $code $null 6>$null) } catch { $caught = $_.Exception }
         Assert-Equal 'fixture.sln|/t:Build|/p:Configuration=Release' ($probe.arguments -join '|') 'compiler arguments are passed through unchanged'
-        Assert-Equal 1 $probe.launcherCalls 'the actual MSBuild stage uses the shared native launcher exactly once'
         Assert-Equal $root $probe.directory 'the attested build uses its own startup directory'
         Assert-Equal $originalDirectory (Get-Location).Path 'the caller working directory is restored on success or nonzero exit'
         Assert-Equal 'first native diagnostic|second native diagnostic' ($probe.lines -join '|') 'every native diagnostic reaches the existing formatter in order'
@@ -1336,7 +1328,7 @@ function Write-DxUiMSBuildLine { param([string]$Line) $Probe.lines.Add($Line) }
         }
     }
     $failure = [InvalidOperationException]::new('fixture compiler invocation failure')
-    $probe = @{ lines=[Collections.Generic.List[string]]::new(); launcherCalls=0 }; $caught=$null
+    $probe = @{ lines=[Collections.Generic.List[string]]::new() }; $caught=$null
     try { & $stage $probe 0 $failure 6>$null } catch { $caught=$_.Exception }
     Assert-True ([object]::ReferenceEquals($failure,$caught)) 'a thrown invocation error is not replaced by timing'
     Assert-Equal $originalDirectory (Get-Location).Path 'the caller working directory is also restored on a thrown invocation'

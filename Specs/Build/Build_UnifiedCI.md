@@ -186,3 +186,10 @@ Those gates remain with the current contracts until their separate implementatio
 and hosted enforcement are qualified. Use the exact pinned shared engine's
 `Specs/Integration_Candidates.md` and `Tools/Start-CandidateShadow.ps1`; no caller
 may run candidate code in a main cache/writer context or cancel another execution.
+
+Hosted project-script children receive a fresh private MSVC compiler metadata
+endpoint from the pinned shared engine before process creation. Build/restore
+descendants inherit that child namespace; the controller environment is preserved.
+Compiler options, source/artifact attestations, native probes and production gates
+retain their existing contracts. Local direct build and benchmark-harness routing
+has its own ownership and qualification boundary.

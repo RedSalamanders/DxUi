@@ -1,1 +1,1 @@
-- Run native MSBuild through a private compiler metadata-service namespace, preserving streamed diagnostics, literal arguments, exit codes and existing source/artifact acceptance gates.
+- Use the pinned shared CI engine's private per-child compiler metadata services for hosted native execution.
