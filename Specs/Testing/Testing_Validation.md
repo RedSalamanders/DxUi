@@ -1459,6 +1459,16 @@ Ordinary qualification and main/release acceptance requirements remain unchanged
 
 `Test-Changes.ps1` prints `INTERACTIVE_NOT_RUN` for the menu, native text-input and menu-resource suites affected by changed sources. Full/PrePush accounting lists those separate suites as well. Run them only through `test.ps1 -Interactive` after the person at the desktop agrees to the time; a noninteractive result or capability allowance does not close that gate.
 
+Each explicit foreground batch enters the shared engine's
+`Invoke-CiInteractiveDesktopOperation` with `RequiresInteractiveDesktop=true`
+before its existing local or hosted native lease. Root's existing session mutex
+precedes the native DxUi mutex, coordinating canonical cross-project callers.
+The native harness still owns consent, warning, watchdog and exact foreground,
+keyboard-focus and cursor restoration. Missing or gone targets remain failures.
+Ordinary noninteractive batches acquire no session admission. Actual call-branch
+controls record both native routes without input; the shared engine separately
+tests real uniquely named mutexes and exception/recovery behavior.
+
 RedSalamander defers only entries whose complete portable entry contracts equal the PR plan, retaining writers, in-product cases and extra scenarios locally. Its `-NonInteractive` option omits focus-taking entries and records incomplete coverage; it cannot alter an exact Resume. DxUi foreground suites remain explicit `test.ps1 -Interactive` work after agreement to the time. Noninteractive iteration and CI do not claim those manual gates. No screenshot or desktop automation is introduced.
 
 `Tests/test-scopes.json` owns the standalone scope and verified PR-profile mapping; RedSalamander's `Tools/validation-impact.json` and canonical plan continue to own its affected execution. Specific standalone test-source rules use their semantic entry tags, while common support and unknown paths retain conservative fan-out. New source/build/runtime/runner dependencies must extend the relevant manifest and focused regression coverage.

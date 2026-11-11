@@ -1,5 +1,13 @@
 # Tool inventory
 
+Explicit foreground batches in `test.ps1` enter the shared engine's session
+admission before the existing native DxUi lease. This coordinates with canonical
+Root tests without editing a consumer's managed dependency pin. The Root mutex
+precedes the native DxUi mutex; consent, warning, watchdog and verified restoration
+remain owned by that native harness. Ordinary noninteractive work takes no session
+admission. `Test-SharedDesktopAdmission.ps1` records both actual hosted/local call
+branches without taking focus or launching a native child.
+
 `New-LocalSdkSnapshot.ps1 -ProducerRoot <checkout> -Platform x64|ARM64` captures an
 existing matching Release library/PDB build into a separate local-unpinned immutable
 snapshot. It accepts the exact built dirty source, holds/rechecks the producer
