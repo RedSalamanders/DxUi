@@ -1,5 +1,7 @@
 # Independent DxUi measurements
 
+- [Directed native guard evidence, 12 November](NativeGuardCloseout_2026-11-12/README.md): eleven declared interventions with paired positives and original assertion failures, preserved exploratory survivors and corrected oracle refusals. Current normal profile qualification remains a separate record.
+
 - [Earlier control guards and native refusal causes](EarlierControlsAndNativeRefusalCauses_2026-11-08/README.md): API-5 typed capacity/unsupported diagnostics, six zero-warning builds, 66 ordinary x64 suites and source-bound native-input reconciliation. The packet states the current counterfactual and foreground limits.
 
 - [Private history snapshot audit](HistorySnapshotAudit_2026-11-08/README.md): exact ref/object and scanner provenance, raw candidate counts and reviewed noncredential dispositions. This read-only snapshot does not execute the coordinated history rewrite or establish privacy clearance.

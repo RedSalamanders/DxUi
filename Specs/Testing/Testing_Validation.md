@@ -86,6 +86,10 @@ Retained R28 guards must exercise observable behavior rather than repair it from
 - Grow an actually scrolled Grid/Tree until all authored rows fit, then verify the first body hit/retained scroll.
 - Keep an actual captured splitter preview while an unrelated editor returns pending preparation.
 - Compare unequal authored RTL Subtle table-column widths; staying inside the viewport alone is insufficient.
+  Also compare actual prepared source-text fragments when only columns mirror: retain the same resolved
+  paragraph direction (for example, first-strong Latin in both hosts), then verify fragment count, dimensions
+  and relative vertical positions. Default host-direction bidi changes and legitimate wrapping must not be
+  mistaken for a column-width regression. Outer cell rectangles alone do not prove the text budget.
 - Verify the attached host is invalidated by changed busy/sort and Tree selection setters.
 - Send a printable native key to a focused read-only RichTextEditor and observe the application's actual fallback.
 - Read UIA range rectangles immediately after ScrollIntoView, then prepare content without an explicit caller
