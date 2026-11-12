@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "workloadOwner": "DxUi",
-  "fixture": "directed-native-regression-guards-2026-11-12",
+  "fixture": "dxui-directed-native-regression-guards-2026-11-12",
   "inputHash": "59c4729c248dc3439a021123b4c9079d67852b2a9b719930322256043452abd4",
   "inputHashKind": "DirectedEvidenceDescriptorSha256",
   "benchmarkInputs": {
