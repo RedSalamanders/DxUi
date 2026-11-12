@@ -19,6 +19,14 @@ function Initialize-PairedEngineInputs {
         $null=Invoke-CiGit $Target @('-c','core.longpaths=true','clone','--quiet','--no-hardlinks',$reader,$engine)
         $created=$true
         $null=Invoke-CiGit $engine @('config','core.longpaths','true')
+        # Hosted readers are shallow and need not contain the side's old commit.
+        # Acquire only that exact pin from its declared canonical repository;
+        # neither the historical side nor the common reader may advance.
+        $present=Invoke-CiGit $engine @('cat-file','-e',($project.engine.ref+'^{commit}')) -AllowFailure
+        if($present.exitCode -ne 0){
+            $remote='https://github.com/'+$project.engine.repository+'.git'
+            $null=Invoke-CiGit $engine @('fetch','--quiet','--no-tags','--depth=1',$remote,$project.engine.ref)
+        }
         $null=Invoke-CiGit $engine @('checkout','--quiet','--detach',$project.engine.ref)
     }
     $actualIdentity=Get-CiPinnedEngineInputsIdentity -Root $Target -EngineRoot $engine

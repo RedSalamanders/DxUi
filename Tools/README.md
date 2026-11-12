@@ -29,6 +29,10 @@ key when their old pin predates the input reader. The original engine is unchang
 and byte-verified; an explicit missing reader, dirty/wrong-pin engine or missing
 current reader still refuses. Cold preparation creates only an absent side checkout and never resets an
 existing engine. Default qualification and production/SDK roles retain their gates.
+An absent historical engine may fetch its exact declared pin from the canonical
+repository when a hosted shallow reader lacks the commit; the common reader stays
+unchanged. The paired acquisition regression explicitly starts without that Git
+object and requires GitHub access, without invoking a compiler or benchmark.
 
 Scoped tooling publishes its independently verified success before later native execution.
 An identical continuation can reuse it after a native failure; failed or changed tooling,
