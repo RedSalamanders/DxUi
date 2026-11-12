@@ -21,7 +21,20 @@ it is absent from the submitted source. An unused exploratory Grid RTL hook is n
 eleven declared interventions. The typed-refusal recorder's initial assertion-label mismatch is preserved;
 the original HelpText assertion actually failed as intended and its original logs were verified directly.
 
-These named controls do not establish full repository qualification. The current ordinary x64 matrix,
-all six builds and restored-source positives are separate obligations before merge. Native ARM64 runtime,
+The separate [normal qualification](qualification.json) binds clean source
+`c20a24e6e8d89ec3afe9864d8aac43b59072925f` and engine `766fd7e01aeef2e77ba18df83b9928516155014e`.
+All six builds pass with zero warnings and errors. All nineteen ordinary suites pass unfiltered in each
+x64 configuration with zero capability skips; ASan Debug additionally diagnoses the actual isolated
+use-after-free probe. The canonical runner uses four concurrent ordinary suites; benchmark/preflight
+and foreground scheduling keep their existing contracts.
+
+Original bytes of 709 project/build inputs and 164 pinned-engine inputs are retained and every archive
+member verifies, together with the six native image/PDB/library archives and original build/suite receipts.
+These are build-input map counts, not a count of compiled translation units. The directed ledger remains
+an experimental packet; its false normal-matrix flag does not describe this separate positive qualification.
+Earlier metadata/oracle failures and the width-swap survivor remain retained under their original identities.
+
+This closes the named eleven-intervention cohort and its ordinary positive matrix. Native ARM64 runtime,
 foreground, physical IME/AT, consumer adoption, paired performance and coordinated history work retain
-their owning gates. The broader parent review remains WIP.
+their owning gates. These results do not establish complete repository or production qualification.
+The broader parent review remains WIP.

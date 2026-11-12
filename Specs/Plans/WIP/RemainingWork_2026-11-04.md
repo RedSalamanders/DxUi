@@ -249,8 +249,15 @@ omitting an ID from this summary does not dispose of it.
   The separate regression-guard cohort adds actual grow-after-scroll, pending-sibling capture, unequal RTL
   cell widths, setter invalidations, native read-only fallback, unassisted UIA scroll publication and normal
   borrowed-model retirement assertions. API 5 supersedes R28-44's recoverable allocation proposal. These new
-  guards pass all three ordinary x64 profiles at `21fae0dc`; the remaining directed counterfactuals must
-  complete before this row closes. Native positives alone do not prove fail-before behavior.
+  guards originally passed the ordinary x64 profiles at `21fae0dc`. The named earlier-control cohort is
+  qualified separately below; do not infer counterfactual coverage for other retained findings from native
+  positives alone.
+- [x] Qualify the eleven declared earlier-control interventions and their final ordinary positive matrix.
+  The [source-bound closeout](../../../Measurements/NativeGuardCloseout_2026-11-12/README.md) retains
+  disabled-mutant passes, original-assertion failures, byte-for-byte restoration and the actual published-UIA/
+  mirrored-text-budget guards. Clean `c20a24e6` passes all nineteen ordinary suites in each x64 profile,
+  actual ASan detection and six zero-warning builds. Other retained-P1, foreground, native ARM64,
+  physical-input, consumer, performance and history obligations keep their existing owners.
 - [x] Replace self-referential crossing, CF_HTML and font-truncation oracles. The
   [scoped closeout](../Done/IndependentFormatOracles_2026-11-08.md) binds independent signed-area/wire/producer
   checks, actual private HGLOBAL bytes, exact-sized MATH prefixes and the safe 628-check ASan boundary proof.

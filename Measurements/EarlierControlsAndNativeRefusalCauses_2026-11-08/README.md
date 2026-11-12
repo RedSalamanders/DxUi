@@ -31,13 +31,13 @@ one-step commit/history, exact-boundary capacity admission, atomic oversized
 refusal, owner disconnection, escaped/opaque file-path fallback and private
 clipboard transport. No desktop clipboard or physical IME was used.
 
-The separate private counterfactual cohort remains in progress. Its declared
-old-behavior mutations target viewport growth, pending-sibling capture, unequal
-RTL columns, attached setter invalidations, native read-only key forwarding,
-unassisted UIA scroll publication and typed refusal causes. Source restoration,
-original assertion evidence and the final positive suite union must verify before
-those earlier review obligations close. API 5 explicitly supersedes R28-44's
-recoverable allocation proposal; a Grid allocation-fault experiment is not claimed.
+The later [directed cohort](../NativeGuardCloseout_2026-11-12/README.md) now closes its eleven declared
+interventions and final ordinary positive matrix at `c20a24e6e8d89ec3afe9864d8aac43b59072925f`.
+Its source-bound disabled/enabled controls cover viewport growth, pending-sibling capture, unequal
+RTL text budgets, setter invalidations, native read-only key forwarding, unassisted UIA publication
+and typed refusal causes. Current native image/source/archive hashes and per-suite receipts are
+separate from the historical qualification above. API 5 supersedes R28-44's recoverable allocation
+proposal; a Grid allocation-fault experiment is not claimed. Other parent acceptance remains open.
 
 The first capacity-HelpText oracle failure at `ebacb208` and its subsequent
 300-second watchdog remain retained separately. The new oracle requires the
